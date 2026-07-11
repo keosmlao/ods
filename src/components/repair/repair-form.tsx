@@ -1,0 +1,311 @@
+"use client";
+import { addUsedSpare, deleteUsedSpare, saveRepair, updateUsedSpareQty } from "@/app/actions/repair";
+import { useConfirm } from "@/components/confirm-dialog";
+import { Elapsed } from "@/components/elapsed";
+import { SpareSearchDialog } from "@/components/spare-search";
+import { Button, Card, Empty, ErrorBox } from "@/components/ui";
+import { AlertTriangle, Check, ClipboardList, LoaderCircle, LogOut, Package, Plus, Printer, Save, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useActionState, useState, useTransition } from "react";
+
+/** ຖອດແບບຈາກ ods/templates/repair/repair_page.html (ອອກແບບໃໝ່) */
+
+export type RepairHead = {
+  code: string;
+  /** ໃຊ້ລິ້ງໄປໜ້າໃບຂໍເບີກ /stock/requests/[roworder] */
+  roworder: number;
+  finished_check: string | null;
+  customer: string | null;
+  product: string | null;
+  brand: string | null;
+  warranty: string | null;
+  issue: string | null;
+  issue_2: string | null;
+  technician: string | null;
+  repair_started: string | null;
+  repair_seconds: number | null;
+  /** ຂໍເບີກອາໄຫຼ່ແລ້ວ (tb_product.spare_reg) */
+  spare_requested: boolean;
+  /** ໝົດຮັບປະກັນ ຕ້ອງມີໃບສະເໜີລາຄາຈົບກ່ອນຈຶ່ງເບີກອາໄຫຼ່ໄດ້ */
+  quotation_done: boolean;
+  repair_note: string | null;
+};
+
+export type SpareLine = {
+  rnum: number;
+  roworder: number;
+  item_code: string;
+  item_name: string | null;
+  qty: string;
+  unit_code: string | null;
+  /** ສາງຈ່າຍອອກແລ້ວ → ຫ້າມແກ້/ລຶບ */
+  picked: boolean;
+};
+
+function Info({ label, value, danger }: { label: string; value: string | null; danger?: boolean }) {
+  return (
+    <div>
+      <dt className="text-[11px] text-slate-400">{label}</dt>
+      <dd className={`mt-0.5 text-xs font-medium ${danger ? "text-red-600" : "text-slate-800"}`}>{value || "-"}</dd>
+    </div>
+  );
+}
+
+/** ແຖວອາໄຫຼ່ທີ່ຈະປ່ຽນ — ແກ້ຈຳນວນ ຫຼື ລຶບໄດ້ ຖ້າສາງຍັງບໍ່ທັນຈ່າຍອອກ */
+function SpareRow({ code, line }: { code: string; line: SpareLine }) {
+  const [qty, setQty] = useState(line.qty);
+  const [editing, setEditing] = useState(false);
+  const [pending, start] = useTransition();
+  const { ask, dialog } = useConfirm();
+
+  return (
+    <tr className="border-b border-slate-100 last:border-0">
+      {dialog}
+      <td className="px-3 py-2 text-center text-slate-400">{line.rnum}</td>
+      <td className="px-3 py-2">
+        <span className="block font-medium text-slate-800">{line.item_name ?? "-"}</span>
+        <span className="block font-mono text-[10px] text-slate-400">{line.item_code}</span>
+      </td>
+      <td className="px-3 py-2 text-right">
+        {editing ? (
+          <span className="flex items-center justify-end gap-1">
+            <input
+              autoFocus
+              value={qty}
+              onChange={(event) => setQty(event.target.value.replace(/\D/g, ""))}
+              className="h-7 w-16 rounded border border-slate-300 px-2 text-right text-xs outline-none focus:border-teal-500"
+            />
+            <Button
+              type="button"
+              tone="success"
+              disabled={pending}
+              className="h-7 px-2 text-[11px]"
+              onClick={() =>
+                start(async () => {
+                  await updateUsedSpareQty(code, line.roworder, Number(qty));
+                  setEditing(false);
+                })
+              }
+            >
+              {pending ? <LoaderCircle className="size-3 animate-spin" /> : <Check className="size-3" />}
+            </Button>
+          </span>
+        ) : line.picked ? (
+          <span className="font-medium tabular-nums text-slate-700">{line.qty}</span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setQty(line.qty);
+              setEditing(true);
+            }}
+            className="font-medium tabular-nums text-[#0536a9] underline"
+          >
+            {line.qty}
+          </button>
+        )}
+      </td>
+      <td className="px-3 py-2 text-slate-500">{line.unit_code ?? "-"}</td>
+      <td className="px-3 py-2">
+        {line.picked ? (
+          <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">ໄດ້ຮັບແລ້ວ</span>
+        ) : (
+          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">ລໍຖ້າສາງຈ່າຍ</span>
+        )}
+      </td>
+      <td className="px-3 py-2 text-center">
+        {!line.picked && (
+          <button
+            type="button"
+            title="ລຶບ"
+            disabled={pending}
+            onClick={async () => {
+              const ok = await ask({
+                title: "ລຶບອາໄຫຼ່ນີ້?",
+                message: (
+                  <>
+                    <b className="text-slate-700">{line.item_name ?? line.item_code}</b> ຈະຖືກລຶບອອກຈາກລາຍການທີ່ຕ້ອງປ່ຽນ
+                  </>
+                ),
+                confirmLabel: "ລຶບ",
+                cancelLabel: "ບໍ່",
+                tone: "danger",
+              });
+              if (!ok) return;
+              start(() => void deleteUsedSpare(code, line.roworder));
+            }}
+            className="text-[#DE3163] transition hover:opacity-70 disabled:opacity-40"
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+export function RepairForm({ head, lines }: { head: RepairHead; lines: SpareLine[] }) {
+  const [state, action, pending] = useActionState(saveRepair, {});
+  const [searching, setSearching] = useState(false);
+
+  const waitingSpare = lines.filter((line) => !line.picked).length;
+  // ໝົດຮັບປະກັນ → ຕ້ອງມີໃບສະເໜີລາຄາທີ່ຈົບແລ້ວ ຈຶ່ງເບີກອາໄຫຼ່ອອກສາງໄດ້ (ຕາມ ods)
+  const needsQuotation = head.warranty === "ໝົດຮັບປະກັນ" && !head.quotation_done;
+
+  return (
+    <div className="space-y-4">
+      {/* ແຖບປຸ່ມ */}
+      <form action={action} className="space-y-4">
+        <input type="hidden" name="pro_code" value={head.code} />
+
+        <div className="sticky top-16 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+          <Button tone="success" disabled={pending} className="h-9 px-4 text-xs">
+            {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+            {pending ? "ກຳລັງບັນທຶກ..." : "ບັນທຶກ ສ້ອມແປງສຳເລັດ"}
+          </Button>
+          <Link
+            href="/repair"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            <LogOut className="size-3.5" />
+            ອອກ
+          </Link>
+          {/* ໃບສ້ອມແປງ — ເປີດແທັບໃໝ່ ຈຶ່ງບໍ່ເສຍຂໍ້ມູນທີ່ພິມຄ້າງໄວ້ໃນຟອມ */}
+          <Link
+            href={`/repair/${head.code}/print`}
+            target="_blank"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            <Printer className="size-3.5" />
+            ພິມໃບສ້ອມແປງ
+          </Link>
+
+          {/* ເວລາທີ່ໃຊ້ສ້ອມມາແລ້ວ */}
+          <span className="ml-auto flex items-center gap-1.5 text-[11px] text-slate-500">
+            ສ້ອມມາແລ້ວ
+            <Elapsed
+              seconds={head.repair_seconds}
+              className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-700"
+            />
+          </span>
+        </div>
+
+        {state.error && <ErrorBox>{state.error}</ErrorBox>}
+
+        {/* ຍັງມີອາໄຫຼ່ທີ່ສາງບໍ່ທັນຈ່າຍ → ເຕືອນ ແຕ່ບໍ່ຫ້າມ */}
+        {waitingSpare > 0 && (
+          <p className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <AlertTriangle className="size-4 shrink-0" />
+            ຍັງມີອາໄຫຼ່ <b>{waitingSpare}</b> ລາຍການ ທີ່ສາງຍັງບໍ່ທັນຈ່າຍອອກ
+            {!head.spare_requested && " ແລະ ຍັງບໍ່ໄດ້ສ້າງໃບຂໍເບີກ"}
+          </p>
+        )}
+
+        <Card title="ຂໍ້ມູນວຽກ">
+          <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Info label="ລູກຄ້າ" value={head.customer} />
+            <Info label="ຊື່ສິນຄ້າ / SN" value={head.product} />
+            <Info label="ຫຍີ່ຫໍ້" value={head.brand} />
+            <Info label="ປະກັນ" value={head.warranty} />
+            <Info label="ອາການເບື້ອງຕົ້ນ" value={head.issue} danger />
+            <Info label="ອາການທີ່ຊ່າງວິເຄາະ" value={head.issue_2} danger />
+            <Info label="ຊ່າງ" value={head.technician} />
+            <Info label="ເລີ່ມສ້ອມແປງ" value={head.repair_started ?? head.finished_check} />
+          </dl>
+        </Card>
+
+        <Card title="ວິທີແກ້ໄຂ / ໝາຍເຫດຂອງຊ່າງ">
+          <textarea
+            name="repair_note"
+            rows={3}
+            defaultValue={head.repair_note ?? ""}
+            placeholder="ແກ້ໄຂແນວໃດ, ປ່ຽນອາໄຫຼ່ຫຍັງ, ຜົນທົດສອບຫຼັງສ້ອມ..."
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs outline-none focus:border-teal-500"
+          />
+        </Card>
+      </form>
+
+      {/* ອາໄຫຼ່ຢູ່ນອກ form — ປຸ່ມເພີ່ມ/ລຶບ ບໍ່ໃຫ້ສົ່ງໃບສ້ອມແປງ */}
+      <Card
+        title="ອາໄຫຼ່ທີ່ຕ້ອງປ່ຽນ"
+        actions={
+          <span className="flex flex-wrap items-center gap-2">
+            {head.spare_requested ? (
+              <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700">
+                <ClipboardList className="size-3" />
+                ຂໍເບີກແລ້ວ
+              </span>
+            ) : (
+              lines.length > 0 && (
+                <Link
+                  href={`/stock/requests/${head.roworder}`}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#0536a9] px-3 text-xs font-semibold text-white transition hover:opacity-90"
+                >
+                  <ClipboardList className="size-3.5" />
+                  ສ້າງໃບຂໍເບີກ
+                </Link>
+              )
+            )}
+            <Button type="button" tone="primary" className="h-8 px-3 text-xs" onClick={() => setSearching(true)}>
+              <Plus className="size-3.5" />
+              ເພີ່ມອາໄຫຼ່
+            </Button>
+          </span>
+        }
+      >
+        {needsQuotation && lines.length > 0 && (
+          <p className="mb-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <AlertTriangle className="size-4 shrink-0" />
+            ວຽກໝົດຮັບປະກັນ — ຕ້ອງມີໃບສະເໜີລາຄາທີ່ລູກຄ້າອະນຸມັດແລ້ວ ກ່ອນສາງຈຶ່ງຈ່າຍອາໄຫຼ່ອອກໃຫ້
+          </p>
+        )}
+
+        {lines.length === 0 ? (
+          <Empty>
+            ວຽກນີ້ຍັງບໍ່ມີອາໄຫຼ່ — ຖ້າພໍລົງມືສ້ອມແລ້ວພົບວ່າຕ້ອງປ່ຽນອາໄຫຼ່ ໃຫ້ກົດ &quot;ເພີ່ມອາໄຫຼ່&quot; ແລ້ວສ້າງໃບຂໍເບີກ
+          </Empty>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[700px] border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                  <th className="w-10 px-3 py-2 text-center font-semibold">#</th>
+                  <th className="px-3 py-2 font-semibold">ອາໄຫຼ່</th>
+                  <th className="w-24 px-3 py-2 text-right font-semibold">ຈຳນວນ</th>
+                  <th className="w-24 px-3 py-2 font-semibold">ຫົວໜ່ວຍ</th>
+                  <th className="w-32 px-3 py-2 font-semibold">ສະຖານະ</th>
+                  <th className="w-12 px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((line) => (
+                  <SpareRow key={line.roworder} code={head.code} line={line} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {head.spare_requested && (
+          <p className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500">
+            <Package className="size-3.5" />
+            ສ້າງໃບຂໍເບີກແລ້ວ — ຕິດຕາມສະຖານະໄດ້ທີ່{" "}
+            <Link href="/stock/requests" className="font-medium text-[#0536a9] underline">
+              ໃບຂໍເບີກ
+            </Link>
+          </p>
+        )}
+      </Card>
+
+      {searching && (
+        <SpareSearchDialog
+          chosen={new Set(lines.map((line) => line.item_code))}
+          onAdd={(item, qty) =>
+            addUsedSpare(head.code, { code: item.code, name_1: item.name_1, unit_code: item.unit_code }, qty)
+          }
+          onClose={() => setSearching(false)}
+        />
+      )}
+    </div>
+  );
+}

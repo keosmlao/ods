@@ -1,0 +1,56 @@
+import { Chatter } from "@/components/chatter/chatter";
+import { LinkPending } from "@/components/link-pending";
+import { RepairForm, type RepairHead, type SpareLine } from "@/components/repair/repair-form";
+import { query } from "@/lib/db";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+/** ຖອດແບບຈາກ ods: repair.py show_repar() + templates/repair/repair_page.html (ອອກແບບໃໝ່) */
+
+type Props = { params: Promise<{ code: string }> };
+
+export default async function RepairDetail({ params }: Props) {
+  const { code } = await params;
+
+  const head = (
+    await query<RepairHead>(
+      `select a.code, a.roworder, to_char(a.time_finish_check,'DD-MM-YYYY HH24:MI') finished_check,
+          concat_ws('-', b.name_1, b.tel) customer, concat_ws(' · ', a.name_1, a.sn) product, a.p_brand brand,
+          a.warrunty warranty, a.issue, a.issue_2, a.emp_code technician, a.repair_note,
+          to_char(a.time_repair,'DD-MM-YYYY HH24:MI') repair_started,
+          greatest(0, round(extract(epoch from (localtimestamp - a.time_repair))))::int repair_seconds,
+          (a.spare_reg is not null) spare_requested,
+          (a.qt_start is not null and a.qt_finish is not null) quotation_done
+        from tb_product a
+        left join ar_customer b on b.code=a.cust_code
+        where a.code=$1 limit 1`,
+      [code],
+    )
+  ).rows[0];
+  if (!head) notFound();
+
+  const lines = (
+    await query<SpareLine>(
+      `select row_number() over (order by roworder)::int rnum, roworder, item_code, item_name,
+          qty::text qty, unit_code, (pick_finish is not null) picked
+        from tb_used_spare where product_code=$1 order by roworder`,
+      [code],
+    )
+  ).rows;
+
+  return (
+    <div className="mx-auto w-full max-w-6xl space-y-4">
+      <div>
+        <Link href="/repair" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600">
+          <ArrowLeft className="size-3.5" />
+          ກັບລາຍການ
+          <LinkPending className="size-3" />
+        </Link>
+        <h1 className="text-xl font-bold text-slate-700">ສ້ອມແປງ #{head.code}</h1>
+      </div>
+      <RepairForm head={head} lines={lines} />
+      <Chatter model="tb_product" resId={head.code} />
+    </div>
+  );
+}

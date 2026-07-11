@@ -1,0 +1,56 @@
+import { LinkPending } from "@/components/link-pending";
+import { countBy, ReportShell, reportState } from "@/components/report-shell";
+import { columns, fetchInstallations, one, safeDate, toTableColumns, todayIso, type Row, type SearchParams } from "@/lib/report-sql";
+import Link from "next/link";
+
+/* ods: /install_pending + /install_allpd — home.py (excel: /report_pd_install) */
+export default async function InstallationsReport({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  const all = one(params.all) === "1";
+  const from = safeDate(one(params.from), todayIso());
+  const to = safeDate(one(params.to), todayIso());
+  const state = reportState(params);
+
+  let rows: Row[] = [];
+  let error: string | null = null;
+  try {
+    rows = await fetchInstallations(from, to, all);
+  } catch (exception) {
+    error = exception instanceof Error ? exception.message : "ດຶງຂໍ້ມູນບໍ່ສຳເລັດ";
+  }
+
+  return (
+    <ReportShell
+      title="ລາຍງານການຕິດຕັ້ງ"
+      subtitle={all ? "ທັງໝົດ" : `ແຕ່ວັນທີ ${from} ຫາ ${to}`}
+      basePath="/reports/installations"
+      query={all ? { all: "1" } : { from, to }}
+      omitFromForm={["all"]}
+      state={state}
+      dateRange={{ from, to }}
+      columns={toTableColumns(columns.installations)}
+      rows={rows}
+      error={error}
+      /* ສະຫຼຸບຕາມສະຖານະງານຕິດຕັ້ງ — ນັບຈາກແຖວຊຸດດຽວກັນກັບຕາຕະລາງ */
+      summary={countBy(rows, "status_name")}
+      // ຢູ່ໂໝດ "ສະແດງທັງໝົດ" ຕ້ອງສົ່ງ all=1 ໄປນຳ ບໍ່ດັ່ງນັ້ນ Excel ຈະໄດ້ແຕ່ຊ່ວງວັນທີ
+      // ທັງທີ່ໜ້າຈໍສະແດງທຸກແຖວ (ຄືກັບ /reports/customer-feedback)
+      exportHref={
+        all ? "/api/reports/export/installations?all=1" : `/api/reports/export/installations?from=${from}&to=${to}`
+      }
+      minWidth={2800}
+      searchPlaceholder="ຄົ້ນຫາ ລະຫັດຕິດຕັ້ງ, ລູກຄ້າ, ເບີໂທ, ເລກບີນ, SN, ຊ່າງ..."
+      actions={
+        <Link
+          href={all ? `/reports/installations?${new URLSearchParams({ from, to })}` : "/reports/installations?all=1"}
+          className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-medium ${
+            all ? "bg-sky-500 text-white hover:bg-sky-600" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          ສະແດງທັງໝົດ
+          <LinkPending className="size-3" />
+        </Link>
+      }
+    />
+  );
+}

@@ -1,0 +1,578 @@
+"use server";
+import { logChange } from "@/app/actions/chatter";
+import { getSession } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { extname, join } from "node:path";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import type { PoolClient } from "pg";
+import { z } from "zod";
+
+const schema = z.object({
+  /** ລະຫັດ ODS — ຫວ່າງໄດ້ ຖ້າລູກຄ້າມາຈາກ ERP ແລະ ຍັງບໍ່ມີບັນຊີ ODS */
+  cust_code: z.string(),
+  /** ລະຫັດລູກຄ້າຢູ່ ERP + ຂໍ້ມູນ ເພື່ອ copy ເຂົ້າ ODS ຕອນບັນທຶກ */
+  cust_ref: z.string().optional().default(""),
+  cust_name: z.string().optional().default(""),
+  cust_tel: z.string().optional().default(""),
+  cust_address: z.string().optional().default(""),
+  proname: z.string().min(1),
+  /** SN ຫວ່າງໄດ້ — ເຄື່ອງເກົ່າ/ເຄື່ອງນອກ ບາງໜ່ວຍບໍ່ມີປ້າຍ */
+  pro_sn: z.string(),
+  pro_model: z.string().min(1),
+  pro_type: z.string().min(1),
+  pro_brand: z.string().min(1),
+  pro_acc: z.string(),
+  pro_wa: z.string().min(1),
+  pro_deli: z.string().min(1),
+  service_type: z.string().min(1),
+  pro_issue: z.string().min(1),
+  pro_remark: z.string(),
+  sup_id: z.string(),
+  billon: z.string(),
+  billdate: z.string(),
+  emp: z.string().min(1),
+});
+
+export type ServiceState = { error?: string };
+
+/** ຊື່ຊ່ອງເປັນພາສາລາວ — ໃຊ້ບອກຜູ້ໃຊ້ວ່າຂາດຊ່ອງໃດ ແທນທີ່ຈະບອກແຕ່ "ປ້ອນໃຫ້ຄົບ" */
+const FIELD_LABELS: Record<string, string> = {
+  cust_code: "ລູກຄ້າ",
+  proname: "ຊື່ເຄື່ອງ",
+  pro_sn: "Serial Number",
+  pro_model: "Model",
+  pro_type: "ປະເພດສິນຄ້າ",
+  pro_brand: "ຫຍີ່ຫໍ້",
+  pro_wa: "ການຮັບປະກັນ",
+  pro_deli: "ການຈັດສົ່ງຄືນ",
+  service_type: "ປະເພດບໍລິການ",
+  pro_issue: "ອາການເບື້ອງຕົ້ນ",
+  emp: "ຊ່າງ",
+};
+
+/** ລວມຊື່ຊ່ອງທີ່ຍັງບໍ່ຄົບ ເປັນຂໍ້ຄວາມດຽວ */
+function missingFieldsError(issues: { path: PropertyKey[] }[]) {
+  const names = [...new Set(issues.map((issue) => String(issue.path[0])))]
+    .map((key) => FIELD_LABELS[key] ?? key)
+    .filter(Boolean);
+  return names.length ? `ກະລຸນາປ້ອນ: ${names.join(", ")}` : "ກະລຸນາປ້ອນຊ່ອງທີ່ຈຳເປັນໃຫ້ຄົບ";
+}
+
+const uploadsDir = process.env.ODS_UPLOADS_DIR;
+const ALLOWED = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
+const MAX_BYTES = 16 * 1024 * 1024; // ຄືກັບ MAX_CONTENT_LENGTH ຂອງ Flask
+
+/** ຄື secure_filename() ຂອງ Werkzeug */
+function secureFilename(name: string) {
+  const cleaned = name
+    .normalize("NFKD")
+    .replace(/[^\w.-]+/g, "_")
+    .replace(/^[._]+/, "")
+    .slice(-120);
+  return cleaned || "image";
+}
+
+type Upload = { line: number; filename: string; bytes: Buffer };
+
+/**
+ * ອ່ານຮູບອອກຈາກຟອມ — ບໍ່ຈຳກັດຈຳນວນ.
+ * ods ຈຳກັດ 4 ຮູບ (file1..file4) ແຕ່ຕາຕະລາງ product_image ບໍ່ມີຂໍ້ຈຳກັດເລີຍ
+ * (line_number ເປັນ smallint ທຳມະດາ; ຂໍ້ມູນຈິງມີວຽກທີ່ມີ 9 ຮູບຢູ່ແລ້ວ).
+ * ຮັບທັງ field ໃໝ່ "photos" ແລະ file1..file4 ຂອງເກົ່າ ເພື່ອບໍ່ໃຫ້ຟອມເກົ່າພັງ.
+ *
+ * line ທີ່ຄືນມາເປັນລຳດັບຂອງຮູບໃນຄັ້ງນີ້ (0,1,2...) — saveUploads ຈະບວກ offset ໃຫ້ເອງ.
+ */
+async function collectUploads(formData: FormData): Promise<{ ok: true; uploads: Upload[] } | { ok: false; error: string }> {
+  const files = [
+    ...formData.getAll("photos"),
+    ...["file1", "file2", "file3", "file4"].map((key) => formData.get(key)),
+  ].filter((file): file is File => file instanceof File && file.size > 0);
+
+  const uploads: Upload[] = [];
+  for (const [index, file] of files.entries()) {
+    if (!uploadsDir) return { ok: false, error: "ບໍ່ໄດ້ຕັ້ງຄ່າ ODS_UPLOADS_DIR — ອັບໂຫລດຮູບບໍ່ໄດ້" };
+    if (file.size > MAX_BYTES) return { ok: false, error: `ຮູບທີ ${index + 1} ໃຫຍ່ເກີນ 16MB` };
+    const filename = secureFilename(file.name);
+    if (!ALLOWED.has(extname(filename).toLowerCase())) return { ok: false, error: `ຮູບທີ ${index + 1} ບໍ່ແມ່ນໄຟລ໌ຮູບ` };
+    uploads.push({ line: index, filename, bytes: Buffer.from(await file.arrayBuffer()) });
+  }
+  return { ok: true, uploads };
+}
+
+/**
+ * ຂຽນໄຟລ໌ລົງ ODS_UPLOADS_DIR ແລ້ວ insert product_image.
+ * ນັບ line_number ຕໍ່ຈາກຮູບທີ່ມີຢູ່ແລ້ວສະເໝີ ຈຶ່ງເພີ່ມຮູບໃສ່ວຽກເກົ່າໄດ້ໂດຍບໍ່ທັບກັນ.
+ * ເກັບ path ໄວ້ໃນ written ເພື່ອລຶບຖິ້ມຖ້າ transaction rollback.
+ */
+async function saveUploads(client: PoolClient, code: string, uploads: Upload[], written: string[]) {
+  if (!uploads.length || !uploadsDir) return;
+  await mkdir(uploadsDir, { recursive: true });
+
+  const next = await client.query<{ line: number }>(
+    "select coalesce(max(line_number), -1) + 1 as line from product_image where iteme_code = $1",
+    [code],
+  );
+  const offset = next.rows[0]?.line ?? 0;
+
+  for (const { line, filename, bytes } of uploads) {
+    const lineNumber = offset + line;
+    const stored = `${code}_${lineNumber}_${filename}`;
+    const path = join(uploadsDir, stored);
+    await writeFile(path, bytes);
+    written.push(path);
+    await client.query("insert into product_image(iteme_code, product_url, line_number) values($1,$2,$3)", [
+      code,
+      stored,
+      lineNumber,
+    ]);
+  }
+}
+
+/**
+ * ຄືນລະຫັດລູກຄ້າຂອງ ODS ໃຫ້ໄດ້ສະເໝີ.
+ * ຖ້າພະນັກງານເລືອກລູກຄ້າຈາກ ERP ທີ່ຍັງບໍ່ມີບັນຊີ ODS → copy ເຂົ້າ ar_customer ໃຫ້ເລີຍ
+ * (ຜູກດ້ວຍ ref_code = ລະຫັດ ERP). ນີ້ຄືວິທີດຽວກັບທີ່ install_admin.py ຂອງ ods ໃຊ້ຢູ່.
+ * ຕ້ອງເອີ້ນພາຍໃນ transaction ທີ່ຖື advisory lock ແລ້ວ.
+ */
+async function resolveCustomer(
+  client: PoolClient,
+  d: { cust_code: string; cust_ref: string; cust_name: string; cust_tel: string; cust_address: string },
+): Promise<string | null> {
+  if (d.cust_code) return d.cust_code;
+  if (!d.cust_ref || !d.cust_name) return null;
+
+  const existing = await client.query<{ code: string }>(
+    "select code from ar_customer where ref_code = $1 limit 1",
+    [d.cust_ref],
+  );
+  if (existing.rows[0]) return existing.rows[0].code;
+
+  // ບາງລະຫັດລູກຄ້າບໍ່ແມ່ນຕົວເລກ → ກອງອອກ ບໍ່ດັ່ງນັ້ນ code::int ຈະ crash
+  const next = await client.query<{ code: number }>(
+    "select coalesce(max(code::int),0)+1 code from ar_customer where code ~ '^[0-9]+$'",
+  );
+  const code = String(next.rows[0].code);
+  await client.query(
+    "insert into ar_customer(code, name_1, tel, address, ref_code, ar_type) values($1,$2,$3,$4,$5,'erp')",
+    [code, d.cust_name, d.cust_tel, d.cust_address, d.cust_ref],
+  );
+  return code;
+}
+
+export async function createService(_: ServiceState, formData: FormData): Promise<ServiceState> {
+  const session = await getSession();
+  if (!session) return { error: "Session ໝົດອາຍຸ" };
+
+  const parsed = schema.safeParse(
+    Object.fromEntries([...formData.entries()].filter(([, value]) => typeof value === "string")),
+  );
+  if (!parsed.success) return { error: missingFieldsError(parsed.error.issues) };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const files = await collectUploads(formData);
+  if (!files.ok) return { error: files.error };
+  const uploads = files.uploads;
+
+  const d = parsed.data;
+  const client = await db.connect();
+  const written: string[] = [];
+  let code = "";
+  let customer = "";
+
+  try {
+    await client.query("begin");
+    // ລັອກ ກັນສອງຄົນຮັບເຄື່ອງພ້ອມກັນແລ້ວໄດ້ເລກຊ້ຳ (ods ໃຊ້ max(code)+1 ເສີຍໆ)
+    await client.query("select pg_advisory_xact_lock(734210)");
+
+    const custCode = await resolveCustomer(client, d);
+    if (!custCode) {
+      await client.query("rollback");
+      return { error: "ກະລຸນາເລືອກລູກຄ້າ" };
+    }
+    customer = custCode;
+
+    const duplicate = await client.query(
+      `select code from tb_product where cust_code=$1 and name_1=$2
+       and replace(sn,' ','')=replace($3,' ','') and p_model=$4
+       and time_register > now() - interval '2 minutes' limit 1`,
+      [custCode, d.proname, d.pro_sn, d.pro_model],
+    );
+    if (duplicate.rows[0]) {
+      await client.query("rollback");
+      return { error: `ພົບລາຍການຊ້ຳ: ${duplicate.rows[0].code}` };
+    }
+
+    code = String(
+      (await client.query("select coalesce(max(code::int),0)+1 code from tb_product where code~'^[0-9]+$'")).rows[0].code,
+    );
+
+    await client.query(
+      `insert into tb_product(code,name_1,sn,p_model,p_brand,p_access,issue,p_type,p_abrasion,p_delivery,
+         warrunty,service_type,cust_code,ap_code,doc_def,doc_date_ref,status,emp_code,time_register,user_regis)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,localtimestamp,$18)`,
+      [code, d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
+        d.pro_deli, d.pro_wa, d.service_type, custCode, d.sup_id, d.billon, d.billdate, d.emp, session.username],
+    );
+
+    await saveUploads(client, code, uploads, written);
+
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    // ໄຟລ໌ຂຽນລົງແລ້ວແຕ່ DB rollback → ລຶບຖິ້ມ
+    await Promise.all(written.map((path) => unlink(path).catch(() => {})));
+    console.error("Create service failed", error);
+    return { error: "ບັນທຶກບໍ່ສຳເລັດ ກະລຸນາກວດຂໍ້ມູນ" };
+  } finally {
+    client.release();
+  }
+
+  const item = [d.proname, d.pro_brand, d.pro_model].filter(Boolean).join(" ");
+  // ແຈ້ງຊ່າງທີ່ຖືກມອບງານ (ods ຍິງ LINE Notify ຢູ່ຈຸດນີ້)
+  await logChange("tb_product", code, `ເປີດໃບຮັບເຄື່ອງ: ${item} · ອາການ: ${d.pro_issue} · ຊ່າງ ${d.emp}`, {
+    users: [d.emp],
+  });
+  // ຄຽງກັນ ໃຫ້ເຫັນຢູ່ໜ້າລູກຄ້ານຳ ວ່າລູກຄ້າຄົນນີ້ເອົາເຄື່ອງມາສ້ອມເມື່ອໃດ
+  await logChange("ar_customer", customer, `ເປີດໃບຮັບເຄື່ອງ #${code}: ${item}`);
+
+  // ລູກຄ້າຍັງຢືນລໍຢູ່ໜ້າເຄົາເຕີ — ໄປໜ້າພິມໃບຮັບເລີຍ ບໍ່ໃຫ້ຕ້ອງກົດຫາເອງ
+  redirect(`/service/${code}/print`);
+}
+
+/* ---------- ສ້າງລູກຄ້າໃໝ່ ຈາກໃນຟອມຮັບເຄື່ອງເລີຍ ---------- */
+
+export type NewCustomer = { code: string; name_1: string; tel: string; address: string; ref_code: string };
+export type CustomerState = { error?: string; customer?: NewCustomer };
+
+/**
+ * ລູກຄ້າໃໝ່ຍ່າງເຂົ້າມາ — ສ້າງໄດ້ໂດຍບໍ່ຕ້ອງອອກຈາກຟອມຮັບເຄື່ອງ.
+ * ເອົາເບີໂທເປັນ ref_code ຄືກັບແຖວອື່ນໆໃນ ar_customer (ref_code ຄືລະຫັດດຽວກັນຢູ່ ERP).
+ */
+export async function createCustomer(_: CustomerState, formData: FormData): Promise<CustomerState> {
+  const session = await getSession();
+  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const parsed = z
+    .object({ name_1: z.string().trim().min(1), tel: z.string().trim().min(1), address: z.string().trim() })
+    .safeParse(Object.fromEntries([...formData.entries()].filter(([, value]) => typeof value === "string")));
+  if (!parsed.success) return { error: "ຕ້ອງມີ ຊື່ ແລະ ເບີໂທ" };
+
+  const { name_1, tel, address } = parsed.data;
+  const client = await db.connect();
+  try {
+    await client.query("begin");
+    // ລັອກ ກັນສອງຄົນສ້າງພ້ອມກັນແລ້ວໄດ້ລະຫັດຊ້ຳ
+    await client.query("select pg_advisory_xact_lock(734211)");
+
+    const existing = await client.query<NewCustomer>(
+      `select code, name_1, coalesce(tel,'') tel, coalesce(address,'') address, coalesce(ref_code,'') ref_code
+       from ar_customer where replace(coalesce(tel,''),' ','') = replace($1,' ','') limit 1`,
+      [tel],
+    );
+    if (existing.rows[0]) {
+      await client.query("rollback");
+      return { error: `ເບີໂທນີ້ມີລູກຄ້າແລ້ວ: ${existing.rows[0].name_1}`, customer: existing.rows[0] };
+    }
+
+    // ບາງລະຫັດລູກຄ້າບໍ່ແມ່ນຕົວເລກ → ກອງອອກກ່ອນ ບໍ່ດັ່ງນັ້ນ code::int ຈະ crash
+    const code = String(
+      (await client.query<{ code: number }>(
+        "select coalesce(max(code::int),0)+1 code from ar_customer where code ~ '^[0-9]+$'",
+      )).rows[0].code,
+    );
+
+    await client.query(
+      "insert into ar_customer(code, name_1, tel, address, ref_code, ar_type) values($1,$2,$3,$4,$5,'walkin')",
+      [code, name_1, tel, address, tel],
+    );
+    await client.query("commit");
+    return { customer: { code, name_1, tel, address, ref_code: tel } };
+  } catch (error) {
+    await client.query("rollback");
+    console.error("Create customer failed", error);
+    return { error: "ສ້າງລູກຄ້າບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+  }
+}
+
+/* ---------- ແກ້ໄຂໃບຮັບເຄື່ອງ — ຄື /rcpdedit + /update_rcpro ຂອງ ods ---------- */
+
+export async function updateService(_: ServiceState, formData: FormData): Promise<ServiceState> {
+  const session = await getSession();
+  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const parsed = schema.extend({ code: z.string().min(1) }).safeParse(
+    Object.fromEntries([...formData.entries()].filter(([, value]) => typeof value === "string")),
+  );
+  if (!parsed.success) return { error: missingFieldsError(parsed.error.issues) };
+
+  const files = await collectUploads(formData);
+  if (!files.ok) return { error: files.error };
+
+  const d = parsed.data;
+  const client = await db.connect();
+  const written: string[] = [];
+
+  try {
+    await client.query("begin");
+    const updated = await client.query(
+      `update tb_product set name_1=$1, sn=$2, p_model=$3, p_brand=$4, p_access=$5, issue=$6, p_type=$7,
+         p_abrasion=$8, p_delivery=$9, warrunty=$10, service_type=$11, cust_code=$12, ap_code=$13, doc_def=$14,
+         doc_date_ref=$15, emp_code=$16, user_edit=$17
+       where code=$18`,
+      [d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
+        d.pro_deli, d.pro_wa, d.service_type, d.cust_code, d.sup_id, d.billon, d.billdate, d.emp, session.username, d.code],
+    );
+    if (!updated.rowCount) {
+      await client.query("rollback");
+      return { error: "ບໍ່ພົບລາຍການ" };
+    }
+    // ຮູບໃໝ່ຈະຖືກ "ເພີ່ມ" ເຂົ້າໄປ ຄື update_rcpro() ຂອງ ods (ຮູບເກົ່າຍັງຢູ່)
+    await saveUploads(client, d.code, files.uploads, written);
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    await Promise.all(written.map((path) => unlink(path).catch(() => {})));
+    console.error("Update service failed", error);
+    return { error: "ບັນທຶກບໍ່ສຳເລັດ ກະລຸນາກວດຂໍ້ມູນ" };
+  } finally {
+    client.release();
+  }
+
+  // ຊ່າງອາດຖືກປ່ຽນຕອນແກ້ໄຂ → ແຈ້ງຊ່າງຄົນປັດຈຸບັນນຳ
+  await logChange("tb_product", d.code, `ແກ້ໄຂໃບຮັບເຄື່ອງ · ອາການ: ${d.pro_issue} · ຊ່າງ ${d.emp}`, {
+    users: [d.emp],
+  });
+
+  redirect(`/service/${d.code}`);
+}
+
+/* ---------- ລົບໃບຮັບເຄື່ອງ — ຄື /del_rcp/<code> ຂອງ ods ---------- */
+
+export async function deleteService(code: string): Promise<ServiceState> {
+  const session = await getSession();
+  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const client = await db.connect();
+  let toRemove: string[] = [];
+  try {
+    await client.query("begin");
+    // ລົບໄດ້ສະເພາະທີ່ຍັງບໍ່ທັນກວດເຊັກ (time_check isnull) ຄື ods
+    const found = await client.query<{ code: string }>(
+      "select code from tb_product where code=$1 and time_check is null for update",
+      [code],
+    );
+    if (!found.rowCount) {
+      await client.query("rollback");
+      return { error: "ບໍ່ສາມາດລົບໄດ້ ຂໍ້ມູນຖືກໃຊ້ເເລ້ວ!" };
+    }
+
+    // ຮູບຂອງໃບແຈ້ງສ້ອມອອນລາຍ (ref_code) ບໍ່ຖືກລົບ — ພຽງແຕ່ຕັດອອກຈາກງານ.
+    // (ods ລຶບໄຟລ໌ຮູບເຫຼົ່ານັ້ນຖິ້ມນຳ ທັງທີ່ຍັງເກັບແຖວໄວ້ → ຮູບເສຍ. ບ່ອນນີ້ບໍ່ລຶບ)
+    const images = await client.query<{ product_url: string }>(
+      "select product_url from product_image where iteme_code=$1 and coalesce(ref_code,'')=''",
+      [code],
+    );
+    toRemove = images.rows.map((row) => row.product_url).filter(Boolean);
+
+    await client.query("delete from ic_trans where product_code=$1", [code]);
+    await client.query("delete from tb_product where code=$1", [code]);
+    await client.query("update product_image set iteme_code=null where iteme_code=$1 and coalesce(ref_code,'')<>''", [code]);
+    await client.query("delete from product_image where iteme_code=$1 and coalesce(ref_code,'')=''", [code]);
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    console.error("Delete service failed", error);
+    return { error: "ລົບບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+  }
+
+  // ລຶບໄຟລ໌ຫຼັງ commit ສຳເລັດເທົ່ານັ້ນ
+  if (uploadsDir) await Promise.all(toRemove.map((name) => unlink(join(uploadsDir, name)).catch(() => {})));
+  revalidatePath("/service");
+  return {};
+}
+
+/* ---------- ຍົກເລີກ / ຖອນການຍົກເລີກ — ຄື /submit_ccpro + /cc_ccpro ຂອງ ods ---------- */
+
+export async function requestCancel(code: string, remark: string): Promise<ServiceState> {
+  const session = await getSession();
+  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  if (!remark.trim()) return { error: "ກະລຸນາປ້ອນລາຍລະອຽດ" };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const updated = await db.query(
+    "update tb_product set status=6, remark=$1, cancel_start=localtimestamp, request_cancel=$2 where code=$3 and status<>6",
+    [remark.trim(), session.username, code],
+  );
+  if (!updated.rowCount) return { error: "ບໍ່ພົບລາຍການ ຫຼືຖືກຍົກເລີກໄປແລ້ວ" };
+  await logChange("tb_product", code, `ຂໍຍົກເລີກໃບຮັບເຄື່ອງ: ${remark.trim()}`);
+  revalidatePath("/service/cancel");
+  revalidatePath("/service");
+  return {};
+}
+
+export async function undoCancel(code: string): Promise<ServiceState> {
+  const session = await getSession();
+  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  // ຖອນຄືນໄດ້ສະເພາະທີ່ຍັງບໍ່ທັນອະນຸມັດ (cancel_finish isnull)
+  const updated = await db.query(
+    "update tb_product set status=1, remark='', cancel_start=null, request_cancel=null where code=$1 and status=6 and cancel_finish is null",
+    [code],
+  );
+  if (!updated.rowCount) return { error: "ບໍ່ສາມາດຖອນຄືນໄດ້ ອະນຸມັດຍົກເລີກໄປແລ້ວ" };
+  await logChange("tb_product", code, "ຖອນຄຳຂໍຍົກເລີກ — ວຽກກັບຄືນສູ່ຄິວປົກກະຕິ");
+  revalidatePath("/service/cancel");
+  revalidatePath("/service");
+  return {};
+}
+
+/* ---------- ບັນທຶກການຕິດຕໍ່ລູກຄ້າ — ຄື /add_cust_contact/<code> ຂອງ ods ---------- */
+
+export async function addContact(code: string, datetime: string, remark: string): Promise<ServiceState> {
+  const session = await getSession();
+  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  if (!datetime) return { error: "ກະລຸນາເລືອກວັນ/ເວລາ" };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const client = await db.connect();
+  try {
+    await client.query("begin");
+    // ຄິດເລກຮອບໃນ transaction ດຽວກັນ ກັນສອງຄົນເພີ່ມພ້ອມກັນແລ້ວໄດ້ຮອບຊ້ຳ
+    await client.query("select pg_advisory_xact_lock(734211)");
+    const next = await client.query<{ round: number }>(
+      "select coalesce(max(round),0)+1 round from cust_contactor where product_code=$1",
+      [code],
+    );
+    await client.query(
+      "insert into cust_contactor(product_code, round, datetime, remark) values($1,$2,$3,$4)",
+      [code, next.rows[0].round, datetime, remark],
+    );
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    console.error("Add contact failed", error);
+    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+  }
+  await logChange("tb_product", code, `ຕິດຕໍ່ລູກຄ້າ (${datetime})${remark.trim() ? `: ${remark.trim()}` : ""}`);
+  revalidatePath(`/service/${code}/contacts`);
+  return {};
+}
+
+/* ---------- ຮັບງານຈາກໃບແຈ້ງສ້ອມອອນລາຍ — ຄື /save_rcpro_online ຂອງ ods ---------- */
+
+const onlineSchema = schema.omit({ cust_code: true }).extend({
+  ref_notice: z.string().min(1),
+  custname: z.string().min(1),
+  tel: z.string(),
+  address: z.string(),
+  sup_name: z.string(),
+  ref_cust: z.string(),
+});
+
+export async function createServiceFromNotice(_: ServiceState, formData: FormData): Promise<ServiceState> {
+  const session = await getSession();
+  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const parsed = onlineSchema.safeParse(
+    Object.fromEntries([...formData.entries()].filter(([, value]) => typeof value === "string")),
+  );
+  if (!parsed.success) return { error: missingFieldsError(parsed.error.issues) };
+
+  const files = await collectUploads(formData);
+  if (!files.ok) return { error: files.error };
+
+  const d = parsed.data;
+  const client = await db.connect();
+  const written: string[] = [];
+  let code = "";
+
+  try {
+    await client.query("begin");
+    await client.query("select pg_advisory_xact_lock(734210)");
+
+    const done = await client.query("select code from tb_product where ref_notice=$1 limit 1", [d.ref_notice]);
+    if (done.rows[0]) {
+      await client.query("rollback");
+      return { error: `ໃບແຈ້ງນີ້ຖືກຮັບເຂົ້າແລ້ວ: ${done.rows[0].code}` };
+    }
+
+    // ຫາລູກຄ້າ: ref_code ຂອງ ERP ກ່ອນ (ods ບໍ່ໄດ້ເຊັກ → ສ້າງລູກຄ້າຊ້ຳ) ແລ້ວຈຶ່ງຊື່+ເບີໂທ
+    let custCode = "";
+    if (d.ref_cust) {
+      const byRef = await client.query<{ code: string }>("select code from ar_customer where ref_code=$1 limit 1", [d.ref_cust]);
+      custCode = byRef.rows[0]?.code ?? "";
+    }
+    if (!custCode) {
+      const byName = await client.query<{ code: string }>(
+        `select code from ar_customer
+         where replace(lower(name_1),' ','')=replace(lower($1),' ','')
+           and replace(lower(coalesce(tel,'')),' ','')=replace(lower($2),' ','') limit 1`,
+        [d.custname, d.tel],
+      );
+      custCode = byName.rows[0]?.code ?? "";
+    }
+    if (!custCode) {
+      custCode = String(
+        (await client.query<{ code: number }>("select coalesce(max(code::int),0)+1 code from ar_customer where code~'^[0-9]+$'")).rows[0].code,
+      );
+      await client.query(
+        "insert into ar_customer(code,name_1,tel,address,ar_type,provine,city,ref_code) values($1,$2,$3,$4,'online','','',$5)",
+        [custCode, d.custname, d.tel, d.address, d.ref_cust || null],
+      );
+    }
+
+    code = String(
+      (await client.query<{ code: number }>("select coalesce(max(code::int),0)+1 code from tb_product where code~'^[0-9]+$'")).rows[0].code,
+    );
+
+    await client.query(
+      `insert into tb_product(code,name_1,sn,p_model,p_brand,p_access,issue,p_type,p_abrasion,p_delivery,
+         warrunty,service_type,cust_code,ap_code,doc_def,doc_date_ref,status,emp_code,time_register,user_regis,sup_name,ref_notice)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,localtimestamp,$18,$19,$20)`,
+      [code, d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
+        d.pro_deli, d.pro_wa, d.service_type, custCode, d.sup_id, d.billon, d.billdate, d.emp, session.username,
+        d.sup_name, d.ref_notice],
+    );
+
+    // ຮູບທີ່ລູກຄ້າແນບມາ (ref_code = ລະຫັດໃບແຈ້ງ) → ຍ້າຍມາເປັນຮູບຂອງງານນີ້
+    const taken = files.uploads.map((upload) => upload.line);
+    await client.query(
+      `update product_image set iteme_code=$1 where ref_code=$2 and not (line_number = any($3::int[]))`,
+      [code, d.ref_notice, taken],
+    );
+    // ຮູບໃໝ່ທີ່ພະນັກງານແນບເພີ່ມ (ທັບແຖວທີ່ມີເລກ line ດຽວກັນ)
+    await saveUploads(client, code, files.uploads, written);
+
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    await Promise.all(written.map((path) => unlink(path).catch(() => {})));
+    console.error("Create service from notice failed", error);
+    return { error: "ບັນທຶກບໍ່ສຳເລັດ ກະລຸນາກວດຂໍ້ມູນ" };
+  } finally {
+    client.release();
+  }
+
+  const item = [d.proname, d.pro_brand, d.pro_model].filter(Boolean).join(" ");
+  await logChange(
+    "tb_product",
+    code,
+    `ເປີດໃບຮັບເຄື່ອງຈາກໃບແຈ້ງສ້ອມອອນລາຍ ${d.ref_notice}: ${item} · ອາການ: ${d.pro_issue}`,
+  );
+
+  revalidatePath("/service/notices");
+  redirect(`/service/${code}`);
+}
