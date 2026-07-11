@@ -6,6 +6,8 @@ import { query } from "@/lib/db";
 import { INSTALL_CANCELLED, INSTALL_CLOSED, INSTALL_OPEN, INSTALL_STAGE_TIME_COL } from "@/lib/install-stage";
 import { Ban, Bell, CheckCircle2, FilePlus2, History, ListChecks, Loader, Pencil, Printer } from "lucide-react";
 import Link from "next/link";
+import { CancelledSpares } from "./cancelled-spares";
+import { getInstallOutstandingByJob } from "./outstanding";
 import {
   INSTALL_PLAIN_COLUMNS,
   INSTALL_SEARCH,
@@ -95,6 +97,15 @@ export default async function InstallationsPage({ searchParams }: Props) {
     }),
   ]);
 
+  /**
+   * ງານທີ່ຍົກເລີກແລ້ວ ແຕ່ອາໄຫຼ່ຍັງຄ້າງນອກສາງ (B5) — cancelInstall ບໍ່ດຶງອາໄຫຼ່ຄືນເອງ
+   * (ຫ້າມຍ້າຍສະຕັອກແບບງຽບໆ) ຈຶ່ງສະແດງໃຫ້ເຫັນຢູ່ນີ້ ແລ້ວພາໄປຂັ້ນຕອນສົ່ງຄືນທີ່ມີຢູ່ແລ້ວ
+   * (SRI 59 → SRT 58) — ຄືກັບທີ່ /approvals/cancellations ເຮັດໃຫ້ຝັ່ງສ້ອມ.
+   */
+  const outstanding =
+    tab === "cancelled" ? await getInstallOutstandingByJob(jobs.rows.map((row) => row.code)) : new Map();
+  const outstandingJobs = [...outstanding.entries()].map(([code, docs]) => ({ code, docs }));
+
   const pages = Math.max(1, Math.ceil(jobs.total / PAGE_SIZE));
   const base = () => ({ ...(tab !== "open" && { tab }), ...(q && { q }) });
   const tabHref = (target: Tab) =>
@@ -160,6 +171,8 @@ export default async function InstallationsPage({ searchParams }: Props) {
         dir={dir}
         hidden={tab !== "open" ? { tab } : {}}
       />
+
+      {tab === "cancelled" && <CancelledSpares jobs={outstandingJobs} />}
 
       <TableShell total={jobs.total} minWidth={1250}>
         <InstallTableHead

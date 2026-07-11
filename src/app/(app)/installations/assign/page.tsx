@@ -2,7 +2,7 @@ import { chooseNewTech } from "@/app/actions/installation";
 import { AssignTechButton } from "@/components/installation/assign-tech";
 import { JobButton } from "@/components/installation/job-buttons";
 import { query } from "@/lib/db";
-import { installStageIs } from "@/lib/install-stage";
+import { INSTALL_ACCEPT_CLOCK, installStageIs } from "@/lib/install-stage";
 import { Clock, UserCheck } from "lucide-react";
 import {
   INSTALL_PLAIN_COLUMNS,
@@ -44,14 +44,22 @@ const EXTRA = `to_char(a.appoint_date,'YYYY-MM-DD') appoint_input,
   coalesce(a.remark,'') remark,
   coalesce(a.tech_before,'-') tech_before`;
 
+/**
+ * ໂມງຄ້າງຂອງສອງຄິວນີ້ວັດຄົນລະຢ່າງ (B6):
+ *   ລໍຖ້າຈັດຊ່າງ  → ນັບຈາກ time_register (ຜູ້ຈັດຍັງບໍ່ໄດ້ລົງມື)
+ *   ລໍຖ້າຊ່າງຮັບງານ → ນັບຈາກ assigt_time (ຈັດແລ້ວ ຊ່າງຍັງບໍ່ຮັບ) — ຖອຍໄປໃຊ້ time_register
+ *                    ສຳລັບ 6,829 ແຖວເກົ່າທີ່ບໍ່ມີ assigt_time ຈຶ່ງບໍ່ມີໂມງ 20,000 ວັນ.
+ * ແທັບ accept ບໍ່ກອງ reg_start ອີກແລ້ວ (B2 — ເບິ່ງ /installations/accept) ແຕ່ປຸ່ມ "ເລືອກໃໝ່"
+ * (chooseNewTech) ປະຕິເສດເອງ ຖ້າມີໃບຂໍເບີກແລ້ວ. ຈຳນວນແຖວມື້ນີ້ບໍ່ປ່ຽນ (0 → 0).
+ */
 const BUCKET: Record<Tab, { where: string; timeCol: string }> = {
   // ຂັ້ນ 0 = ຍັງບໍ່ມີຊ່າງ
   assign: { where: installStageIs(0), timeCol: "a.time_register" },
   // ຈັດຊ່າງແລ້ວ ແຕ່ຊ່າງຍັງບໍ່ທັນຮັບງານ — ຜູ້ຈັດການປ່ຽນຊ່າງໄດ້ຢູ່ນີ້
   accept: {
     where: `a.time_register is not null and a.tech_code is not null and a.tech_confirm is null
-      and a.reg_start is null and a.cancel_date is null`,
-    timeCol: "a.time_register",
+      and a.start_install is null and a.job_finish is null and a.cancel_date is null`,
+    timeCol: INSTALL_ACCEPT_CLOCK,
   },
 };
 
@@ -130,7 +138,7 @@ export default async function AssignPage({ searchParams }: Props) {
         <tbody>
           {jobs.rows.map((row) => (
             <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
-              <InstallCells row={row} timeLabel="ວັນ/ເວລາເປີດງານ" />
+              <InstallCells row={row} timeLabel={tab === "assign" ? "ວັນ/ເວລາເປີດງານ" : "ວັນ/ເວລາຈັດຊ່າງ"} />
               <td className="whitespace-nowrap px-3 py-2.5 text-center">
                 {tab === "assign" ? (row.tech_before || "-") : (row.tech_code || "-")}
               </td>

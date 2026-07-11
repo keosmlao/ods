@@ -44,8 +44,17 @@ type Props = { searchParams: Promise<ListSearchParams> };
 
 type ReqRow = InstallDocRow & { reg_finished: number };
 
-/** ງານທີ່ໃຊ້ອາໄຫຼ່ ແຕ່ຍັງບໍ່ທັນຂໍເບີກ */
-const WAIT_WHERE = "a.reg_start is null and a.used_spare = 1 and a.cancel_date is null";
+/**
+ * ງານທີ່ໃຊ້ອາໄຫຼ່ ແຕ່ຍັງບໍ່ທັນຂໍເບີກ — **ຊ່າງຕ້ອງຮັບງານກ່ອນ** (B2).
+ *
+ * ກ່ອນແກ້ ໜ້ານີ້ບໍ່ໄດ້ຮຽກຮ້ອງ tech_confirm ເລີຍ ⇒ ຂໍເບີກໄດ້ກ່ອນຊ່າງຮັບງານ, reg_start ຖືກ set,
+ * ແລ້ວງານກໍ່ຫາຍອອກຈາກໜ້າ /installations/accept (ທັງສອງແທັບກອງ reg_start is null) ⇒
+ * tech_confirm ບໍ່ມີວັນຖືກ set ໄດ້ອີກ ⇒ /installations/work ບໍ່ສະແດງ ⇒ ງານຕາຍຖາວອນ
+ * (ຫຼັງສາງເບີກແລ້ວ ລຶບໃບຂໍເບີກກໍ່ບໍ່ໄດ້). saveSpareRequest ບັງຄັບກົດເກນນີ້ຢູ່ຝັ່ງ server ນຳ.
+ * ຈຳນວນແຖວມື້ນີ້ບໍ່ປ່ຽນ (0 → 0).
+ */
+const WAIT_WHERE = `a.reg_start is null and a.used_spare = 1 and a.cancel_date is null
+  and a.job_finish is null and a.tech_confirm is not null`;
 
 /** ໃບ SION ຂອງງານທີ່ຍັງບໍ່ທັນປິດ — left join ຈຶ່ງໄດ້ຈຳນວນແຖວຄືເກົ່າ (ມີໃບເກົ່າທີ່ຫາງານຄູ່ບໍ່ພົບ) */
 const REQ_FROM = `from ic_trans ic

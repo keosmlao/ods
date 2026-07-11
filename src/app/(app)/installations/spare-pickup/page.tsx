@@ -35,13 +35,23 @@ export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<ListSearchParams> };
 
-/** ໃບເບີກ SWC (56) ທີ່ຊ່າງຍັງບໍ່ທັນມາຮັບ (ຍັງບໍ່ມີ PISP ອ້າງອີງ) */
+/**
+ * ໃບເບີກ SWC (56) ທີ່ຊ່າງຍັງບໍ່ທັນມາຮັບ (ຍັງບໍ່ມີ PISP ອ້າງອີງ) — ອີງ **ເອກະສານ** ຢ່າງດຽວ (B4/B7).
+ *
+ * ກ່ອນແກ້ ໜ້ານີ້ຍັງກອງດ້ວຍ `a.used_spare = 1`, `a.reg_start is not null` ແລະ ຮຽກຮ້ອງໃຫ້ມີແຖວ
+ * tb_used_spare ທີ່ reg_finish notnull / pick_finish null. ສາມເງື່ອນໄຂນັ້ນລ້ວນອີງຄ່າທີ່ **ຊິດອອກ
+ * ຈາກຄວາມຈິງໄດ້**: INST-6883 ແລະ INST-6892 ມີ used_spare=0 (ທຸງຖືກປັດລົງພາຍຫຼັງ) ທັງທີ່ສາງເບີກ
+ * ອາໄຫຼ່ອອກໄປແລ້ວ ⇒ ໃບເບີກ 9 ໃບຂອງສອງງານນີ້ **ບໍ່ປາກົດຢູ່ໜ້າໃດເລີຍ** ແລະ ຊ່າງເຊັນຮັບບໍ່ໄດ້.
+ * ດຽວນີ້ໃຊ້ນິຍາມດຽວກັນກັບ savePickSpare (ໃບເບີກຂອງງານທີ່ຍັງບໍ່ປິດ/ບໍ່ຍົກເລີກ ແລະ ຍັງບໍ່ມີ PISP)
+ * ⇒ ໜ້າ ແລະ ການ stamp ຂັ້ນ ບໍ່ມີວັນຂັດກັນ ແລະ ໃບເບີກທຸກໃບມີບ່ອນຮັບສະເໝີ.
+ *
+ * ຜົນຕໍ່ຈຳນວນແຖວ: 0 → 9 (ໃບເບີກຈິງທີ່ຖືກເຊື່ອງໄວ້ຂອງ INST-6883 = 4 ໃບ, INST-6892 = 5 ໃບ).
+ */
 const FROM = `from ic_trans ic
   join ods_tb_install a on a.code = ic.product_code
   left join ar_customer c on c.code = a.cust_code`;
-const WHERE = `ic.trans_flag = 56 and a.used_spare = 1 and a.reg_start is not null and a.cancel_date is null
-  and a.code in (select distinct product_code from tb_used_spare
-                 where reg_finish is not null and pick_finish is null and product_code like 'INST%')
+const WHERE = `ic.trans_flag = 56 and ic.job_type = 'install'
+  and a.cancel_date is null and a.job_finish is null
   and ic.doc_no not in (select doc_ref from ic_trans where trans_flag = 166 and doc_ref is not null)`;
 
 export default async function SparePickupPage({ searchParams }: Props) {

@@ -1,6 +1,7 @@
 import { acceptJob, declineJob, techFilter, unacceptJob } from "@/app/actions/installation";
 import { JobButton } from "@/components/installation/job-buttons";
 import { query } from "@/lib/db";
+import { INSTALL_ACCEPT_CLOCK } from "@/lib/install-stage";
 import { CheckCircle2, Clock } from "lucide-react";
 import {
   INSTALL_PLAIN_COLUMNS,
@@ -32,11 +33,23 @@ export const dynamic = "force-dynamic";
 type Tab = "waiting" | "accepted";
 type Props = { searchParams: Promise<ListSearchParams> };
 
+/**
+ * BUG ທີ່ແກ້ຢູ່ນີ້ (B2): ແທັບ "ລໍຖ້າຮັບງານ" ເຄີຍກອງ `a.reg_start is null` —
+ * ພໍໃບຂໍເບີກອອກ (reg_start ຖືກ set) ງານກໍ່ຫາຍອອກຈາກໜ້ານີ້ ⇒ tech_confirm ບໍ່ມີວັນຖືກ set ໄດ້ອີກ
+ * ແລະ /installations/work (ຕ້ອງການ tech_confirm) ກໍ່ບໍ່ສະແດງ ⇒ ງານຕາຍ ບໍ່ມີໜ້າໃດພາໄປຕໍ່ໄດ້.
+ * ດຽວນີ້ ① saveSpareRequest ບັງຄັບໃຫ້ຮັບງານກ່ອນຈຶ່ງຂໍເບີກໄດ້ (ຕົ້ນທາງ) ແລະ
+ * ② ແທັບນີ້ບໍ່ອີງ reg_start ອີກ ແຕ່ອີງ "ຍັງບໍ່ເລີ່ມຕິດຕັ້ງ ແລະ ຍັງບໍ່ປິດງານ" (ຕາໜ່າງຮັບ) —
+ * ງານທີ່ຫຼົງເຂົ້າສະຖານະນັ້ນ (ຂໍ້ມູນເກົ່າ) ຈຶ່ງຍັງເຫັນ ແລະ ຮັບງານໄດ້.
+ * ຈຳນວນແຖວມື້ນີ້ບໍ່ປ່ຽນ (0 ແຖວທັງກ່ອນ ແລະ ຫຼັງ — ບໍ່ມີງານໃດຢູ່ໃນສະຖານະນັ້ນ).
+ *
+ * ໂມງຄ້າງ (B6): ນັບຈາກ **ເວລາຈັດຊ່າງ** (assigt_time) ບໍ່ແມ່ນເວລາເປີດງານ —
+ * ຄິວນີ້ວັດ "ຊ່າງຮັບຊ້າ", ຄິວຈັດຊ່າງ (/installations/assign) ວັດ "ຜູ້ຈັດຈັດຊ້າ".
+ */
 const BUCKET: Record<Tab, { where: string; timeCol: string }> = {
   waiting: {
     where: `a.cancel_date is null and a.time_register is not null and a.tech_code is not null
-      and a.tech_confirm is null and a.reg_start is null`,
-    timeCol: "a.time_register",
+      and a.tech_confirm is null and a.start_install is null and a.job_finish is null`,
+    timeCol: INSTALL_ACCEPT_CLOCK,
   },
   accepted: {
     where: `a.cancel_date is null and a.time_register is not null and a.tech_code is not null
@@ -132,7 +145,7 @@ export default async function AcceptPage({ searchParams }: Props) {
         <tbody>
           {jobs.rows.map((row) => (
             <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
-              <InstallCells row={row} timeLabel={tab === "waiting" ? "ວັນ/ເວລາເປີດງານ" : "ວັນ/ເວລາຮັບງານ"} />
+              <InstallCells row={row} timeLabel={tab === "waiting" ? "ວັນ/ເວລາຈັດຊ່າງ" : "ວັນ/ເວລາຮັບງານ"} />
               <td className="whitespace-nowrap px-3 py-2.5">
                 {tab === "waiting" ? (
                   <div className="flex justify-center gap-2">

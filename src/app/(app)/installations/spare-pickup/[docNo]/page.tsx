@@ -15,7 +15,7 @@ export default async function PickSpareDetail({ params }: Props) {
   const docNo = decodeURIComponent((await params).docNo);
 
   const doc = await query<{ product_code: string }>(
-    "select product_code from ic_trans where doc_no=$1 and trans_flag=56 limit 1",
+    "select product_code from ic_trans where doc_no=$1 and trans_flag=56 and job_type='install' limit 1",
     [docNo],
   );
   if (!doc.rows[0]) notFound();
@@ -29,10 +29,12 @@ export default async function PickSpareDetail({ params }: Props) {
        where a.code = $1 limit 1`,
       [productCode],
     ),
+    // ລາຍການທັງໝົດຂອງໃບເບີກ — ນິຍາມດຽວກັນກັບ savePickSpare (ໃບໜຶ່ງຮັບເທື່ອດຽວ, ຮັບໝົດໃບ).
+    // ກ່ອນໜ້ານີ້ກອງ status = 0 ຢູ່ນີ້ ແຕ່ action ກອງດ້ວຍການ join tb_used_spare ⇒ ສອງບ່ອນບໍ່ຄືກັນ.
     query<Line>(
       `select row_number() over (order by a.roworder asc) as rnum, a.item_code, a.item_name, a.qty, a.unit_code
        from ic_trans_detail a
-       where a.job_type = 'install' and a.doc_no = $1 and a.status = 0
+       where a.trans_flag = 56 and a.doc_no = $1
        order by a.roworder asc`,
       [docNo],
     ),

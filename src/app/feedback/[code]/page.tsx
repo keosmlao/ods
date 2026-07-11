@@ -1,3 +1,4 @@
+import { feedbackGate } from "@/app/actions/installation";
 import { FeedbackForm, type Topic } from "@/components/installation/feedback-form";
 import { query } from "@/lib/db";
 import { notFound } from "next/navigation";
@@ -9,6 +10,19 @@ import { notFound } from "next/navigation";
  *
  * ໃນ ods ມີ 2 ສະບັບ (feedback2 ເກົ່າ / feedback3 ໃໝ່) ທີ່ໃຊ້ຄຳຖາມຊຸດດຽວກັນ (topic_code '002')
  * — ບ່ອນນີ້ລວມເປັນໜ້າດຽວ.
+ *
+ * ── ຄວາມປອດໄພ (B1) ──
+ * ໜ້ານີ້ບໍ່ມີ session ແລະ ລະຫັດ INST-xxxx ເປັນເລກລຽງ (ເດົາໄດ້). ດ່ານກວດຢູ່ຝັ່ງ server
+ * (feedbackGate/saveFeedback): ຕອບໄດ້ສະເພາະງານທີ່ **ຕິດຕັ້ງສຳເລັດແລ້ວ** ແລະ **ບໍ່ຖືກຍົກເລີກ**
+ * ແລະ ຕອບໄດ້ເທື່ອດຽວ. ນອກນັ້ນສະແດງຂໍ້ຄວາມແທນຟອມ.
+ *
+ * ── ເລື່ອງ token ໃນ URL ──
+ * ບໍ່ໄດ້ເພີ່ມ. ຕາຕະລາງ ods_tb_install ບໍ່ມີຖັນເກັບ token ແລະ ການເພີ່ມຖັນເປັນ DDL ເຊິ່ງນອກຂອບເຂດ.
+ * ເຖິງຈະສ້າງ token ແບບ HMAC(AUTH_SECRET, code) ໂດຍບໍ່ຕ້ອງມີຖັນກໍ່ຕາມ — ລິ້ງເກົ່າທີ່ພິມ/ສົ່ງ
+ * ໃຫ້ລູກຄ້າໄປແລ້ວບໍ່ມີ token ຈຶ່ງຕ້ອງຍອມຮັບ URL ທີ່ບໍ່ມີ token ຕໍ່ໄປ ⇒ token ຈະບໍ່ກັນຫຍັງໄດ້ເລີຍ
+ * (ຄົນເດົາລະຫັດກໍ່ພຽງແຕ່ບໍ່ໃສ່ token). ດ່ານກວດສະຖານະຂ້າງເທິງຈຶ່ງເປັນຕົວປິດຮູທີ່ແທ້ຈິງ:
+ * ງານທີ່ຍັງບໍ່ຕິດຕັ້ງ ຫຼື ຖືກຍົກເລີກ ຖືກປະຕິເສດ ແລະ ງານທີ່ຕິດຕັ້ງແລ້ວ ຄຳຕອບກໍ່ບໍ່ຍ້າຍຂັ້ນ
+ * ຂ້າມການຕິດຕັ້ງໄດ້ອີກ (ຮ້າຍແຮງສຸດຄື ຄະແນນປອມ ເຊິ່ງພະນັກງານແກ້ໄດ້ຢູ່ /installations/close).
  */
 export const dynamic = "force-dynamic";
 
@@ -74,6 +88,19 @@ export default async function FeedbackPage({ params, searchParams }: Props) {
             </div>
           ))}
         </dl>
+      </div>,
+    );
+  }
+
+  // ຍັງບໍ່ຕິດຕັ້ງສຳເລັດ / ຖືກຍົກເລີກ → ບໍ່ສະແດງຟອມ (ດ່ານດຽວກັນກັບທີ່ saveFeedback ບັງຄັບ)
+  const gate = await feedbackGate(code);
+  if (!gate.ok) {
+    return shell(
+      <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-5 text-center">
+        <p className="text-sm font-semibold text-amber-800">{gate.message}</p>
+        <p className="text-xs text-amber-700">
+          ຖ້າທ່ານຄິດວ່ານີ້ບໍ່ຖືກຕ້ອງ ກະລຸນາຕິດຕໍ່ພະນັກງານຂອງພວກເຮົາ
+        </p>
       </div>,
     );
   }

@@ -647,7 +647,13 @@ export async function fetchPurchaseOrders(from: string, to: string) {
 /* ------------------------------------------------------------- 10. ລາຍງານຕິດຕັ້ງ
  * ods: /install_pending + /install_allpd + /report_pd_install (excel)
  */
+/**
+ * FIX (B5): ບໍ່ມີສາຂາ "ຍົກເລີກ" ເລີຍ ⇒ ງານທີ່ຍົກເລີກແລ້ວຖືກລາຍງານເປັນງານທີ່ຍັງເຄື່ອນໄຫວ
+ * (ຕົວຢ່າງ INST-5849/INST-5850 ອອກມາເປັນ 'ລໍຖ້າຈັດຊ່າງ' ແລະ INST-6864 ອອກມາເປັນຄ່າຫວ່າງ).
+ * cancel_date ຕ້ອງມາກ່ອນທຸກເງື່ອນໄຂ — ຄືກັບຂັ້ນໄດຢູ່ lib/install-stage (ຂັ້ນ -1).
+ */
 const installStatusName = `case
+  when a.cancel_date notnull then 'ຍົກເລີກ'
   when a.tech_code isnull or a.tech_code = '' then 'ລໍຖ້າຈັດຊ່າງ'
   when a.reg_start isnull and a.used_spare = 1 then 'ລໍຖ້າຊ່າງຂໍເບີກ'
   when a.reg_start notnull and a.reg_finish isnull and a.used_spare = 1 then 'ລໍຖ້າສາງເບີກ'

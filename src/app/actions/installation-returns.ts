@@ -67,8 +67,12 @@ const startSchema = z.object({ doc_no: z.string().min(1) });
  * ກ໋ອບແຖວອາໄຫຼ່ຂອງໃບເບີກ SWC ມາເປັນແຖວຮ່າງ (ic_trans_detail_draft, trans_flag 33)
  * ແລ້ວເປີດໜ້າຂໍສົ່ງຄືນ. ຖ້າມີແຖວຮ່າງຂອງຜູ້ໃຊ້ນີ້ຢູ່ແລ້ວກໍ່ຂ້າມການກ໋ອບ (ຄືກັບ ods).
  *
- * ໝາຍເຫດ: ຝັ່ງຕິດຕັ້ງກ໋ອບແຖວ status=1 (ຊ່າງຮັບອາໄຫຼ່ແລ້ວ — PISP) ຕ່າງຈາກຝັ່ງສ້ອມທີ່ກ໋ອບ status=0.
- * ນີ້ຄືກັບ ods ແລະ ຖືກຕ້ອງ: ສົ່ງຄືນໄດ້ສະເພາະອາໄຫຼ່ທີ່ຊ່າງຮັບອອກໄປແລ້ວ.
+ * BUG ທີ່ແກ້ຢູ່ນີ້ (B5): ods (ແລະ ສະບັບກ່ອນໜ້າ) ກ໋ອບສະເພາະແຖວ status=1 (ຊ່າງຮັບແລ້ວ — PISP).
+ * ແຕ່ສະຕັອກຖືກຕັດອອກຕັ້ງແຕ່ **ສາງເບີກ (56)** ບໍ່ແມ່ນຕອນຊ່າງມາຮັບ ⇒ ແຖວ status=0
+ * (ຈ່າຍອອກແລ້ວ ຊ່າງຍັງບໍ່ມາຮັບ) ກໍ່ຢູ່ນອກສາງຄືກັນ ແລະ ຕ້ອງສົ່ງຄືນໄດ້.
+ * ຂໍ້ມູນຈິງຂອງ 3 ງານທີ່ຍົກເລີກ: 36 ແຖວຄ້າງ = status 0 ຈຳນວນ 33 ແຖວ + status 1 ພຽງ 3 ແຖວ
+ * ⇒ ຖ້າກ໋ອບແຕ່ status=1 ໜ້າຂໍສົ່ງຄືນຈະຫວ່າງເປົ່າ ແລະ ອາໄຫຼ່ 33 ແຖວຄືນສາງບໍ່ໄດ້ຈັກເທື່ອ.
+ * ດຽວນີ້ກ໋ອບ status ∈ (0,1) — ຕົງກັບນິຍາມ "ຄ້າງນອກສາງ" ໃນ installations/outstanding.ts.
  */
 export async function startInstallReturnRequest(formData: FormData): Promise<void> {
   const session = await requireSession();
@@ -93,8 +97,9 @@ export async function startInstallReturnRequest(formData: FormData): Promise<voi
     await db.query(
       `insert into ic_trans_detail_draft(doc_no,product_code,item_code,item_name,qty,unit_code,row_ref,user_created,trans_flag)
        select doc_no,product_code,item_code,item_name,qty,unit_code,roworder,$1,$2
-       from ic_trans_detail where doc_no=$3 and status=$4 and job_type='install' order by roworder asc`,
-      [session.username, TRANS.DRAFT, docNo, LINE_STATUS.ISSUED],
+       from ic_trans_detail
+       where doc_no=$3 and trans_flag=$4 and status = any($5::int[]) order by roworder asc`,
+      [session.username, TRANS.DRAFT, docNo, TRANS.DISPATCH, [LINE_STATUS.PENDING, LINE_STATUS.ISSUED]],
     );
   }
   redirect(draftPath(docNo));

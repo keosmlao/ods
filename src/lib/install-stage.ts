@@ -31,15 +31,39 @@
  * ທຸກແຖວຕ້ອງໄດ້ຂັ້ນນຶ່ງສະເໝີ (-1 ຫຼື 0..8).
  */
 
-/** ໃຊ້ໃນ SQL — ຕ້ອງ alias ຕາຕະລາງ ods_tb_install ເປັນ a */
+/**
+ * ໃຊ້ໃນ SQL — ຕ້ອງ alias ຕາຕະລາງ ods_tb_install ເປັນ a
+ *
+ * ── ຂັ້ນໄດ "ປ້ອງກັນຕົວເອງ" (2 ຈຸດທີ່ຕ່າງຈາກສະບັບກ່ອນ) ──
+ *
+ * ① complain_finish ຢ່າງດຽວ ຂຶ້ນຂັ້ນ 7 ບໍ່ໄດ້
+ *    ໜ້າ /feedback/<code> ເປັນໜ້າສາທາລະນະ (ບໍ່ຕ້ອງ login) ແລະ ລະຫັດງານ INST-xxxx
+ *    ເປັນເລກລຽງ ⇒ ເດົາໄດ້. ຖ້າຂັ້ນ 7 ເຊື່ອ complain_finish ກ່ອນ finish_install
+ *    ຄົນນອກກໍ່ຍູ້ງານທີ່ "ຍັງບໍ່ທັນຕິດຕັ້ງ" ເຂົ້າຄິວ "ລໍຖ້າປິດງານ" ໄດ້.
+ *    saveFeedback ກັນໄວ້ຢູ່ຝັ່ງ server ແລ້ວ — ອັນນີ້ຄືເກາະປ້ອງກັນຊັ້ນທີສອງ:
+ *    ຕ້ອງ **ຕິດຕັ້ງແລ້ວຈິງ** ຈຶ່ງໄປຂັ້ນ 6/7 ໄດ້.
+ *
+ * ② used_spare = 0 ເຊື່ອບໍ່ໄດ້ ຖ້າມີຮ່ອງຮອຍການເບີກອາໄຫຼ່ຢູ່ໃນແຖວແລ້ວ
+ *    ຂໍ້ມູນຈິງ: INST-6883 / INST-6892 / INST-6952 ມີ used_spare=0 ທັງທີ່ມີໃບຂໍເບີກ (122)
+ *    ແລະ ໃບເບີກ (56) ຢູ່ — ທຸງຖືກປັດລົງພາຍຫຼັງເອກະສານເກີດແລ້ວ. ຖ້າເຊື່ອທຸງ ງານພວກນີ້
+ *    ຈະຂ້າມຂັ້ນ 1-3 ໄປຂັ້ນ 4 ທັນທີ ທັງທີ່ອາໄຫຼ່ຍັງຄ້າງຢູ່ນອກສາງ. ຈຶ່ງໃຫ້ຂ້າມໄດ້
+ *    ສະເພາະງານທີ່ **ບໍ່ມີ** ຮ່ອງຮອຍເບີກ (reg_start/reg_finish/pick_finish ຫວ່າງທັງໝົດ).
+ *    ໃຊ້ພຽງຖັນຂອງແຖວເອງ — ບໍ່ມີ subquery ຈຶ່ງບໍ່ກະທົບຄວາມໄວຂອງໜ້າລາຍການ.
+ *
+ * ການແຈກຢາຍຂັ້ນຂອງ 6,832 ແຖວບໍ່ປ່ຽນ: -1=3, 0=27, 5=3, 8=6799 (ກ່ອນ ແລະ ຫຼັງ).
+ */
 export const INSTALL_STAGE_SQL = `case
   when a.cancel_date is not null                     then -1
   when a.job_finish is not null                      then 8
-  when a.complain_finish is not null                 then 7
+  when a.finish_install is not null
+   and a.complain_finish is not null                 then 7
   when a.finish_install is not null                  then 6
   when a.start_install is not null                   then 5
   when a.tech_code is null or a.tech_code = ''       then 0
-  when coalesce(a.used_spare,0) = 0                  then 4
+  when coalesce(a.used_spare,0) = 0
+   and a.reg_start is null
+   and a.reg_finish is null
+   and a.pick_finish is null                         then 4
   when a.reg_start is null                           then 1
   when a.reg_finish is null                          then 2
   when a.pick_finish is null                         then 3
@@ -105,6 +129,16 @@ export const INSTALL_STAGE_TIME_COL = `case (${INSTALL_STAGE_SQL})
   when -1 then a.cancel_date
   else a.time_register
 end`;
+
+/**
+ * ໂມງຂອງຄິວ "ລໍຖ້າຊ່າງຮັບງານ" — ນັບຈາກ **ເວລາຈັດຊ່າງ** ບໍ່ແມ່ນເວລາເປີດງານ.
+ *
+ * ຖັນ assigt_time / user_assigt ມີຢູ່ໃນຕາຕະລາງແລ້ວ ແຕ່ຖືກຂຽນພຽງ 3/6,832 ແຖວ
+ * (ຜູ້ໃຊ້ 'keo', ຕຸລາ 2024) ⇒ ວັດບໍ່ໄດ້ວ່າ "ຜູ້ຈັດຊ້າ" ຫຼື "ຊ່າງຮັບຊ້າ".
+ * assignTech / updateInstall stamp ໃຫ້ແລ້ວ (ເບິ່ງ actions/installation.ts).
+ * coalesce ກັບ time_register ໄວ້ ເພື່ອບໍ່ໃຫ້ 6,829 ແຖວເກົ່າສະແດງໂມງ 20,000 ວັນ.
+ */
+export const INSTALL_ACCEPT_CLOCK = "coalesce(a.assigt_time, a.time_register)";
 
 /** ຈຳນວນວິນາທີທີ່ຄ້າງຢູ່ຂັ້ນປັດຈຸບັນ — ສົ່ງໃຫ້ <Elapsed seconds=... /> */
 export const INSTALL_ELAPSED_SQL = `greatest(0, round(extract(epoch from (localtimestamp - (${INSTALL_STAGE_TIME_COL})))))::int`;

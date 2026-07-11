@@ -2,17 +2,59 @@ import { JOB_HEAD_COLUMNS, JobHeader, type JobHead } from "@/components/installa
 import { SpareRequestForm, type SpareLine } from "@/components/installation/spare-request-form";
 import { Card, Empty, PageTitle, Table } from "@/components/ui";
 import { query, queryOdg } from "@/lib/db";
+import { AlertTriangle } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
-/** ຖອດແບບຈາກ ods: /in_add_req/<id> + req_page.html (tech_reg_install.py) */
+/**
+ * ຖອດແບບຈາກ ods: /in_add_req/<id> + req_page.html (tech_reg_install.py)
+ *
+ * ດ່ານກວດ (B2/B3) — ods ແລະ ສະບັບກ່ອນໜ້າຂອງໜ້ານີ້ບໍ່ກວດຫຍັງເລີຍ ຈຶ່ງພິມ URL ເຂົ້າມາ
+ * ຂໍເບີກໃຫ້ງານທີ່ຍົກເລີກແລ້ວ / ປິດແລ້ວ / ຊ່າງຍັງບໍ່ຮັບ ໄດ້ ແລະ ຟອມກໍ່ສະແດງ **ທຸກ** ແຖວກະຕ່າ
+ * ລວມທັງແຖວທີ່ຖືກເບີກອອກໄປແລ້ວ ⇒ ກົດບັນທຶກຊ້ຳກໍ່ຂໍອາໄຫຼ່ຊຸດເກົ່າຄືນອີກ (double issue).
+ * ດຽວນີ້ຟອມສະແດງສະເພາະ "ຈຳນວນທີ່ຍັງຄ້າງ" ຄິດຈາກບັນຊີເອກະສານ (122 ລົບດ້ວຍ 59)
+ * — ນິຍາມດຽວກັນກັບ saveSpareRequest ຈຶ່ງບໍ່ຂັດກັນ.
+ */
 export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ code: string }> };
 
+/** ຈຳນວນທີ່ຍັງບໍ່ທັນຂໍເບີກ = ກະຕ່າ − (ຂໍໄປແລ້ວ 122 − ສົ່ງຄືນ 59) — ຄືກັບ OUTSTANDING_INSTALL_SPARES */
+const OUTSTANDING = `
+  select n.roworder, n.item_code, n.item_name, n.unit_code,
+      round(n.qty - coalesce(c.qty, 0), 0) as qty
+  from (
+    select min(roworder) roworder, item_code, max(item_name) item_name, max(unit_code) unit_code, sum(qty) qty
+    from tb_used_spare where product_code = $1 group by item_code
+  ) n
+  left join (
+    select item_code, sum(case when trans_flag = 122 then qty else -qty end) qty
+    from ic_trans_detail where product_code = $1 and trans_flag in (122, 59) group by item_code
+  ) c on c.item_code = n.item_code
+  where n.qty - coalesce(c.qty, 0) > 0
+  order by n.roworder asc`;
+
+type Guard = { cancelled: boolean; closed: boolean; assigned: boolean; accepted: boolean };
+
+const BLOCKED: Record<string, string> = {
+  cancelled: "ງານນີ້ຖືກຍົກເລີກແລ້ວ — ຂໍເບີກອາໄຫຼ່ບໍ່ໄດ້",
+  closed: "ງານນີ້ປິດແລ້ວ — ຂໍເບີກອາໄຫຼ່ບໍ່ໄດ້",
+  unassigned: "ງານນີ້ຍັງບໍ່ມີຊ່າງ — ຕ້ອງຈັດຊ່າງກ່ອນ",
+  unaccepted: "ຊ່າງຍັງບໍ່ທັນຮັບງານນີ້ — ຕ້ອງຮັບງານກ່ອນຈຶ່ງຂໍເບີກອາໄຫຼ່ໄດ້",
+};
+
+function blockedReason(guard: Guard) {
+  if (guard.cancelled) return "cancelled";
+  if (guard.closed) return "closed";
+  if (!guard.assigned) return "unassigned";
+  if (!guard.accepted) return "unaccepted";
+  return null;
+}
+
 export default async function SpareRequestPage({ params }: Props) {
   const code = decodeURIComponent((await params).code);
 
-  const [head, lines, standard, warehouses] = await Promise.all([
+  const [head, guard, lines, standard, warehouses] = await Promise.all([
     query<JobHead>(
       `select ${JOB_HEAD_COLUMNS}
        from ods_tb_install a
@@ -20,11 +62,13 @@ export default async function SpareRequestPage({ params }: Props) {
        where a.code = $1 limit 1`,
       [code],
     ),
-    query<SpareLine>(
-      `select roworder, item_code, item_name, round(qty,0) as qty, unit_code
-       from tb_used_spare where product_code = $1 order by roworder asc`,
+    query<Guard>(
+      `select cancel_date is not null as cancelled, job_finish is not null as closed,
+          (tech_code is not null and tech_code <> '') as assigned, tech_confirm is not null as accepted
+       from ods_tb_install where code = $1 limit 1`,
       [code],
     ),
+    query<SpareLine>(OUTSTANDING, [code]),
     query<{ rnum: string; item_code: string; item_name: string; qty: string; unit_code: string | null }>(
       `select row_number() over (order by line_number asc) as rnum, item_code, item_name, round(qty,2) as qty, unit_code
        from ods_tb_install_detail where code = $1 order by line_number asc`,
@@ -35,8 +79,27 @@ export default async function SpareRequestPage({ params }: Props) {
     ),
   ]);
 
-  if (!head.rows[0]) notFound();
+  if (!head.rows[0] || !guard.rows[0]) notFound();
   const today = new Date().toISOString().slice(0, 10);
+  const blocked = blockedReason(guard.rows[0]);
+
+  if (blocked) {
+    return (
+      <div className="w-full space-y-5">
+        <PageTitle>ໃບຂໍເບີກຕິດຕັ້ງ</PageTitle>
+        <JobHeader head={head.rows[0]} />
+        <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-5 shadow-sm">
+          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />
+          <div className="space-y-2">
+            <p className="text-sm font-bold text-amber-800">{BLOCKED[blocked]}</p>
+            <Link href="/installations/spare-requests" className="text-xs text-amber-700 underline">
+              ກັບຄືນລາຍການໃບຂໍເບີກ
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-5">
