@@ -1,4 +1,4 @@
-import { ReportShell, reportState, type SummaryItem } from "@/components/report-shell";
+import { defaultFromIso, ReportShell, reportState, type SummaryItem } from "@/components/report-shell";
 import {
   columns,
   fetchCancelledReceipts,
@@ -13,7 +13,7 @@ import {
 /* ods: /ccrcpd_daily_rp — pdrcreport.py */
 export default async function CancelledReceiptsReport({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const from = safeDate(one(params.from), todayIso());
+  const from = safeDate(one(params.from), defaultFromIso());
   const to = safeDate(one(params.to), todayIso());
   const state = reportState(params);
 

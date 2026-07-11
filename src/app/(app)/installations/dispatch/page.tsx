@@ -1,117 +1,116 @@
-import { Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
-import { query } from "@/lib/db";
-import { remainingCase } from "@/lib/install-status";
+import { LinkPending } from "@/components/link-pending";
+import { PackageMinus } from "lucide-react";
+import Link from "next/link";
+import {
+  DocCell,
+  INSTALL_DOC_COLUMN,
+  INSTALL_DOC_SEARCH,
+  INSTALL_DOC_SORT_SQL,
+  INSTALL_PLAIN_COLUMNS,
+  INSTALL_SORTABLE_COLUMNS,
+  InstallCells,
+  InstallTableHead,
+  ListHeader,
+  PAGE_SIZE,
+  Pager,
+  SearchBar,
+  TableShell,
+  fetchInstallDocRows,
+  installOrderBy,
+  readParams,
+  type InstallDocRow,
+  type ListSearchParams,
+} from "../shared";
 
 /**
  * ສາງເບີກອາໄຫຼ່ໃຫ້ງານຕິດຕັ້ງ (SWC, trans_flag 56).
- * ຖອດແບບຈາກ ods: /showdisp_install + /save_dispatch_install (tech_install.py).
- * ໃນ ods ໜ້ານີ້ຢູ່ໃນໂມດູນສາງ (spdispatch) — ບ່ອນນີ້ຍ້າຍມາຢູ່ໃນວຽກຕິດຕັ້ງ
- * ເພື່ອໃຫ້ຄົບຂັ້ນຕອນ SION → SWC → PISP.
+ * ຖອດແບບຈາກ ods: /showdisp_install + /save_dispatch_install (tech_install.py) — ອອກແບບໃໝ່
+ * ໃຫ້ຄືກັນກັບໜ້າ /checking (ຄົ້ນຫາ, ຈັດຮຽງ, ແບ່ງໜ້າຢູ່ server, ຕົວນັບເວລາຄ້າງ).
+ * ໃນ ods ໜ້ານີ້ຢູ່ໃນໂມດູນສາງ (spdispatch) — ບ່ອນນີ້ຢູ່ໃນວຽກຕິດຕັ້ງ ເພື່ອໃຫ້ຄົບຂັ້ນຕອນ SION → SWC → PISP.
+ *
+ * ໝາຍເຫດ: ຕາຕະລາງ "ລາຍການເບີກສຳເລັດ" ຖືກຕັດອອກ — ໜ້າວຽກສະແດງແຕ່ສິ່ງທີ່ຍັງຄ້າງ,
+ * ປະຫວັດການເບີກເບິ່ງໄດ້ຢູ່ /reports/stock ແລະ /reports/job-dispatch.
  */
 export const dynamic = "force-dynamic";
 
-type Row = {
-  rnum: number;
-  doc_no: string;
-  doc_date: string | null;
-  reg_start: string | null;
-  product_code: string;
-  customer: string | null;
-  item_name: string | null;
-  pro_brand: string | null;
-  pro_model: string | null;
-  pro_type: string | null;
-  pro_size: string | null;
-  tech_code: string | null;
-  user_created: string | null;
-  remaining: string | null;
-};
+type Props = { searchParams: Promise<ListSearchParams> };
 
-const COLUMNS = `row_number() over (order by ic.doc_no asc)::int as rnum, ic.doc_no,
-  to_char(ic.doc_date,'DD-MM-YYYY') as doc_date,
-  to_char(a.reg_start,'DD-MM-YYYY HH24:MI:SS') as reg_start,
-  ic.product_code, a.cust_code || '-' || coalesce(c.name_1,'') as customer,
-  a.item_name, a.pro_brand, a.pro_model, a.pro_type, a.pro_size, a.tech_code, ic.user_created,
-  ${remainingCase("a.reg_start")} as remaining`;
+/** ໃບ SION (122) ທີ່ຍັງບໍ່ທັນຖືກເບີກອອກເປັນ SWC (56) */
+const FROM = `from ic_trans ic
+  left join ods_tb_install a on a.code = ic.product_code
+  left join ar_customer c on c.code = a.cust_code`;
+const WHERE = `ic.trans_flag = 122 and ic.job_type = 'install' and a.reg_finish is null
+  and ic.doc_no not in (select doc_ref from ic_trans where trans_flag = 56 and doc_ref is not null)`;
 
-const HEAD = ["#", "ເລກຂໍເບີກ", "ວັນທີ", "ວັນ/ເວລາຂໍເບີກ", "ລະຫັດຕິດຕັ້ງ", "ລູກຄ້າ", "ລາຍການຕິດຕັ້ງ",
-  "ຍີ່ຫໍ້", "model", "ປະເພດ", "ຂະໜາດ", "ຮອດປະຈຸບັນ", "ຊ່າງ"];
+export default async function DispatchPage({ searchParams }: Props) {
+  const raw = await searchParams;
+  const { q, page, sort, dir } = readParams(raw);
 
-export default async function DispatchPage() {
-  const [waiting, done] = await Promise.all([
-    // SION ທີ່ຍັງບໍ່ທັນຖືກເບີກເປັນ SWC
-    query<Row>(
-      `select ${COLUMNS}
-       from ic_trans ic
-       left join ods_tb_install a on a.code = ic.product_code
-       left join ar_customer c on c.code = a.cust_code
-       where ic.trans_flag = 122 and ic.job_type = 'install' and a.reg_finish is null
-         and ic.doc_no not in (select doc_ref from ic_trans where trans_flag = 56 and doc_ref is not null)
-       order by ic.doc_no asc`,
-    ),
-    query<Row>(
-      `select ${COLUMNS}
-       from ic_trans ic
-       left join ods_tb_install a on a.code = ic.product_code
-       left join ar_customer c on c.code = a.cust_code
-       where ic.trans_flag = 56 and ic.job_type = 'install'
-       order by ic.doc_no desc
-       limit 50`,
-    ),
-  ]);
+  const params: (string | number)[] = [];
+  const where = [WHERE];
+  if (q) {
+    params.push(`%${q}%`);
+    where.push(INSTALL_DOC_SEARCH.replaceAll("$Q", `$${params.length}`));
+  }
 
-  const cells = (row: Row) => (
-    <>
-      <td className="px-3 py-2 text-center">{row.rnum}</td>
-      <td className="whitespace-nowrap px-3 py-2 font-bold text-[#0536a9]">{row.doc_no}</td>
-      <td className="whitespace-nowrap px-3 py-2">{row.doc_date}</td>
-      <td className="whitespace-nowrap px-3 py-2">{row.reg_start}</td>
-      <td className="whitespace-nowrap px-3 py-2">{row.product_code}</td>
-      <td className="px-3 py-2">{row.customer}</td>
-      <td className="max-w-72 truncate px-3 py-2" title={row.item_name ?? ""}>{row.item_name}</td>
-      <td className="px-3 py-2">{row.pro_brand}</td>
-      <td className="px-3 py-2">{row.pro_model}</td>
-      <td className="px-3 py-2">{row.pro_type}</td>
-      <td className="px-3 py-2">{row.pro_size}</td>
-      <td className="whitespace-nowrap px-3 py-2 text-right">{row.remaining ?? "-"}</td>
-      <td className="px-3 py-2 text-center">{row.tech_code}</td>
-    </>
-  );
+  const list = await fetchInstallDocRows<InstallDocRow>({
+    from: FROM,
+    where: where.join(" and "),
+    params,
+    // ຄ້າງນັບຈາກເວລາທີ່ຊ່າງຂໍເບີກ (reg_start)
+    orderBy: installOrderBy(sort, dir, "a.reg_start", INSTALL_DOC_SORT_SQL),
+    page,
+  });
+
+  const pages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
+  const base = (): Record<string, string> => (q ? { q } : {});
+  const sortHref = (key: string, nextDir: "asc" | "desc") =>
+    `/installations/dispatch?${new URLSearchParams({ ...base(), sort: key, dir: nextDir })}`;
+  const pageHref = (n: number) =>
+    `/installations/dispatch?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
   return (
-    <div className="w-full space-y-5">
-      <PageTitle>ສາງເບີກອາໄຫຼ່ (ຕິດຕັ້ງ)</PageTitle>
+    <div className="w-full space-y-4">
+      <ListHeader
+        title="ສາງເບີກອາໄຫຼ່ (ຕິດຕັ້ງ)"
+        scope="ລາຍການລໍຖ້າສາງເບີກ"
+        total={list.total}
+        page={page}
+        pages={pages}
+      />
 
-      <Card title="ລາຍການລໍຖ້າສາງເບີກ">
-        {waiting.rows.length === 0 ? (
-          <Empty />
-        ) : (
-          <Table head={[...HEAD, ""]} minWidth={1700}>
-            {waiting.rows.map((row) => (
-              <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                {cells(row)}
-                <td className="px-3 py-2 text-center">
-                  <LinkButton href={`/installations/dispatch/${encodeURIComponent(row.doc_no)}`}>ເບີກ</LinkButton>
-                </td>
-              </tr>
-            ))}
-          </Table>
-        )}
-      </Card>
+      <SearchBar q={q} sort={sort} dir={dir} placeholder="ຄົ້ນຫາ ເລກຂໍເບີກ, ລະຫັດຕິດຕັ້ງ, ລູກຄ້າ, ຊ່າງ, ລາຍການ..." />
 
-      <Card title="ລາຍການເບີກສຳເລັດ">
-        {done.rows.length === 0 ? (
-          <Empty />
-        ) : (
-          <Table head={HEAD} minWidth={1600}>
-            {done.rows.map((row) => (
-              <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                {cells(row)}
-              </tr>
-            ))}
-          </Table>
-        )}
-      </Card>
+      <TableShell total={list.total} minWidth={1450}>
+        <InstallTableHead
+          columns={INSTALL_SORTABLE_COLUMNS}
+          plain={INSTALL_PLAIN_COLUMNS}
+          trailing={[{ ...INSTALL_DOC_COLUMN, label: "ເລກຂໍເບີກ" }]}
+          sort={sort}
+          dir={dir}
+          sortHref={sortHref}
+        />
+        <tbody>
+          {list.rows.map((row) => (
+            <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
+              <InstallCells row={row} timeLabel="ວັນ/ເວລາຂໍເບີກ" />
+              <DocCell row={row} />
+              <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                <Link
+                  href={`/installations/dispatch/${encodeURIComponent(row.doc_no)}`}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                >
+                  <PackageMinus className="size-3.5" />
+                  ເບີກ
+                  <LinkPending className="size-3" />
+                </Link>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </TableShell>
+
+      <Pager page={page} pages={pages} total={list.total} pageHref={pageHref} />
     </div>
   );
 }

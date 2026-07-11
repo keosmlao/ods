@@ -1,138 +1,123 @@
 import { techFilter } from "@/app/actions/installation";
-import { Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
-import { query } from "@/lib/db";
-import { remainingCase } from "@/lib/install-status";
+import { LinkPending } from "@/components/link-pending";
+import { PackageCheck } from "lucide-react";
+import Link from "next/link";
+import {
+  DocCell,
+  INSTALL_DOC_COLUMN,
+  INSTALL_DOC_SEARCH,
+  INSTALL_DOC_SORT_SQL,
+  INSTALL_PLAIN_COLUMNS,
+  INSTALL_SORTABLE_COLUMNS,
+  InstallCells,
+  InstallTableHead,
+  ListHeader,
+  PAGE_SIZE,
+  Pager,
+  SearchBar,
+  TableShell,
+  fetchInstallDocRows,
+  installOrderBy,
+  readParams,
+  type InstallDocRow,
+  type ListSearchParams,
+} from "../shared";
 
 /**
- * ຖອດແບບຈາກ ods: /home_rc_spare (tech_reg_install.py).
+ * ຊ່າງຮັບອາໄຫຼ່ຂອງງານຕິດຕັ້ງ (PISP, trans_flag 166).
+ * ຖອດແບບຈາກ ods: /home_rc_spare (tech_reg_install.py) — ອອກແບບໃໝ່ ໃຫ້ຄືກັນກັບໜ້າ /checking.
  * ods ຕໍ່ session name ເຂົ້າ SQL ໂດຍກົງ (tech_reg_install.py:355) — ບ່ອນນີ້ໃຊ້ parameter.
+ *
+ * ໝາຍເຫດ: ຕາຕະລາງ "ລາຍການຮັບອາໄຫຼ່ສຳເລັດ" ຖືກຕັດອອກ — ໜ້າວຽກສະແດງແຕ່ສິ່ງທີ່ຍັງຄ້າງ,
+ * ປະຫວັດການຮັບອາໄຫຼ່ເບິ່ງໄດ້ຢູ່ /reports/job-dispatch ແລະ /reports/stock.
  */
 export const dynamic = "force-dynamic";
 
-type Row = {
-  rnum: number;
-  doc_no: string;
-  doc_date: string | null;
-  stamp: string | null;
-  code: string;
-  customer: string | null;
-  item_name: string | null;
-  pro_brand: string | null;
-  pro_model: string | null;
-  pro_type: string | null;
-  pro_size: string | null;
-  user_created: string | null;
-  tech_code: string | null;
-  remaining: string | null;
-};
+type Props = { searchParams: Promise<ListSearchParams> };
 
-const HEAD = ["ລຳດັບ", "ເລກທີເບີກ", "ວັນ/ເວລາເບີກ", "ເລກທີເປີດງານ", "ລູກຄ້າ", "ລາຍການຕິດຕັ້ງ",
-  "ຍີ່ຫໍ້", "model", "ປະເພດ", "ຂະໜາດ", "ຜູ້ສ້າງ", "ຮອດປະຈຸບັນ", "ຊ່າງ"];
+/** ໃບເບີກ SWC (56) ທີ່ຊ່າງຍັງບໍ່ທັນມາຮັບ (ຍັງບໍ່ມີ PISP ອ້າງອີງ) */
+const FROM = `from ic_trans ic
+  join ods_tb_install a on a.code = ic.product_code
+  left join ar_customer c on c.code = a.cust_code`;
+const WHERE = `ic.trans_flag = 56 and a.used_spare = 1 and a.reg_start is not null and a.cancel_date is null
+  and a.code in (select distinct product_code from tb_used_spare
+                 where reg_finish is not null and pick_finish is null and product_code like 'INST%')
+  and ic.doc_no not in (select doc_ref from ic_trans where trans_flag = 166 and doc_ref is not null)`;
 
-export default async function SparePickupPage() {
+export default async function SparePickupPage({ searchParams }: Props) {
   const tech = await techFilter();
-  const params = tech ? [tech] : [];
+  const raw = await searchParams;
+  const { q, page, sort, dir } = readParams(raw);
 
-  const [waiting, done] = await Promise.all([
-    // SWC ທີ່ຍັງບໍ່ທັນຮັບ (ຍັງບໍ່ມີ PISP ອ້າງອີງ)
-    query<Row>(
-      `select row_number() over (order by ic.doc_no asc)::int as rnum, ic.doc_no,
-         to_char(ic.doc_date,'DD-MM-YYYY') as doc_date,
-         to_char(ic.create_date_time_now,'DD-MM-YYYY HH24:MI:SS') as stamp,
-         a.code, a.cust_code || '-' || coalesce(c.name_1,'') as customer,
-         a.item_name, a.pro_brand, a.pro_model, a.pro_type, a.pro_size,
-         a.user_created, a.tech_code, ${remainingCase("ic.create_date_time_now")} as remaining
-       from ods_tb_install a
-       left join ar_customer c on c.code = a.cust_code
-       join ic_trans ic on ic.product_code = a.code and ic.trans_flag = 56
-       where a.used_spare = 1 and a.reg_start is not null and a.cancel_date is null
-         and a.code in (select distinct product_code from tb_used_spare
-                        where reg_finish is not null and pick_finish is null and product_code like 'INST%')
-         and ic.doc_no not in (select doc_ref from ic_trans where trans_flag = 166 and doc_ref is not null)
-         ${tech ? "and a.tech_code = $1" : ""}
-       order by ic.doc_no asc`,
-      params,
-    ),
-    query<Row>(
-      `select row_number() over (order by ic.doc_no asc)::int as rnum, ic.doc_no,
-         to_char(ic.doc_date,'DD-MM-YYYY') as doc_date,
-         to_char(ic.create_date_time_now,'DD-MM-YYYY HH24:MI:SS') as stamp,
-         ic.product_code as code, b.cust_code || '-' || coalesce(c.name_1,'') as customer,
-         b.item_name, b.pro_brand, b.pro_model, b.pro_type, b.pro_size,
-         ic.user_created, b.tech_code, ${remainingCase("ic.create_date_time_now")} as remaining
-       from ic_trans ic
-       left join ods_tb_install b on b.code = ic.product_code and b.used_spare = 1
-       left join ar_customer c on c.code = b.cust_code
-       where ic.trans_flag = 166 and ic.job_type = 'install'
-         ${tech ? "and b.tech_code = $1" : ""}
-       order by ic.doc_no desc
-       limit 50`,
-      params,
-    ),
-  ]);
+  const params: (string | number)[] = [];
+  const where = [WHERE];
+  if (tech) {
+    params.push(tech);
+    where.push(`a.tech_code = $${params.length}`);
+  }
+  if (q) {
+    params.push(`%${q}%`);
+    where.push(INSTALL_DOC_SEARCH.replaceAll("$Q", `$${params.length}`));
+  }
 
-  const cells = (row: Row) => (
-    <>
-      <td className="px-3 py-2 text-center">{row.rnum}</td>
-      <td className="whitespace-nowrap px-3 py-2 font-bold text-[#0536a9]">{row.doc_no}</td>
-      <td className="whitespace-nowrap px-3 py-2">{row.stamp ?? row.doc_date}</td>
-      <td className="whitespace-nowrap px-3 py-2">{row.code}</td>
-      <td className="px-3 py-2">{row.customer}</td>
-      <td className="max-w-72 truncate px-3 py-2" title={row.item_name ?? ""}>{row.item_name}</td>
-      <td className="px-3 py-2">{row.pro_brand}</td>
-      <td className="px-3 py-2">{row.pro_model}</td>
-      <td className="px-3 py-2">{row.pro_type}</td>
-      <td className="px-3 py-2">{row.pro_size}</td>
-      <td className="px-3 py-2 text-center">{row.user_created}</td>
-      <td className="whitespace-nowrap px-3 py-2 text-right">{row.remaining ?? "-"}</td>
-      <td className="px-3 py-2 text-center">{row.tech_code}</td>
-    </>
-  );
+  const list = await fetchInstallDocRows<InstallDocRow>({
+    from: FROM,
+    where: where.join(" and "),
+    params,
+    // ຄ້າງນັບຈາກເວລາທີ່ສາງເບີກອອກ (reg_finish)
+    orderBy: installOrderBy(sort, dir, "a.reg_finish", INSTALL_DOC_SORT_SQL),
+    page,
+  });
+
+  const pages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
+  const base = (): Record<string, string> => (q ? { q } : {});
+  const sortHref = (key: string, nextDir: "asc" | "desc") =>
+    `/installations/spare-pickup?${new URLSearchParams({ ...base(), sort: key, dir: nextDir })}`;
+  const pageHref = (n: number) =>
+    `/installations/spare-pickup?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
   return (
-    <div className="w-full space-y-5">
-      <PageTitle>ຮັບອາໄຫຼ່ (ຕິດຕັ້ງ)</PageTitle>
+    <div className="w-full space-y-4">
+      <ListHeader
+        title="ຮັບອາໄຫຼ່ (ຕິດຕັ້ງ)"
+        scope={`ລາຍການລໍຖ້າຮັບອາໄຫຼ່ · ${tech ? "ສະແດງສະເພາະງານຂອງທ່ານ" : "ສະແດງທຸກງານ"}`}
+        total={list.total}
+        page={page}
+        pages={pages}
+      />
 
-      <Card title="ລາຍການລໍຖ້າຮັບອາໄຫຼ່ (ຕິດຕັ້ງ)">
-        {waiting.rows.length === 0 ? (
-          <Empty />
-        ) : (
-          <Table head={[...HEAD, ""]} minWidth={1700}>
-            {waiting.rows.map((row) => (
-              <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                {cells(row)}
-                <td className="px-3 py-2 text-center">
-                  <LinkButton href={`/installations/spare-pickup/${encodeURIComponent(row.doc_no)}`}>
-                    ຮັບອາໄຫຼ່
-                  </LinkButton>
-                </td>
-              </tr>
-            ))}
-          </Table>
-        )}
-      </Card>
+      <SearchBar q={q} sort={sort} dir={dir} placeholder="ຄົ້ນຫາ ເລກທີເບີກ, ລະຫັດຕິດຕັ້ງ, ລູກຄ້າ, ຊ່າງ, ລາຍການ..." />
 
-      <Card title="ລາຍການຮັບອາໄຫຼ່ສຳເລັດ">
-        {done.rows.length === 0 ? (
-          <Empty />
-        ) : (
-          <Table head={[...HEAD, ""]} minWidth={1700}>
-            {done.rows.map((row) => (
-              <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                {cells(row)}
-                <td className="px-3 py-2 text-center">
-                  <LinkButton
-                    href={`/installations/spare-pickup/view/${encodeURIComponent(row.doc_no)}`}
-                    tone="neutral"
-                  >
-                    ເບິ່ງ
-                  </LinkButton>
-                </td>
-              </tr>
-            ))}
-          </Table>
-        )}
-      </Card>
+      <TableShell total={list.total} minWidth={1450}>
+        <InstallTableHead
+          columns={INSTALL_SORTABLE_COLUMNS}
+          plain={INSTALL_PLAIN_COLUMNS}
+          trailing={[{ ...INSTALL_DOC_COLUMN, label: "ເລກທີເບີກ" }]}
+          sort={sort}
+          dir={dir}
+          sortHref={sortHref}
+        />
+        <tbody>
+          {list.rows.map((row) => (
+            <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
+              <InstallCells row={row} timeLabel="ວັນ/ເວລາເບີກ" />
+              <DocCell row={row} />
+              <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                <Link
+                  href={`/installations/spare-pickup/${encodeURIComponent(row.doc_no)}`}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                >
+                  <PackageCheck className="size-3.5" />
+                  ຮັບອາໄຫຼ່
+                  <LinkPending className="size-3" />
+                </Link>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </TableShell>
+
+      <Pager page={page} pages={pages} total={list.total} pageHref={pageHref} />
     </div>
   );
 }

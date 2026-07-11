@@ -19,10 +19,11 @@ export default async function CheckingDetail({ params }: Props) {
     await query<CheckHead>(
       `select a.code, to_char(a.time_register,'DD-MM-YYYY HH24:MI:SS') registered,
           concat_ws('-', b.name_1, b.tel) customer, concat_ws('-', a.name_1, a.sn) product,
-          a.warrunty warranty, a.issue, a.user_regis receiver, a.emp_code technician,
+          a.warrunty warranty, a.warranty_reason, a.issue, a.user_regis receiver, a.emp_code technician,
           to_char(a.time_check,'DD-MM-YYYY HH24:MI') check_started,
           greatest(0, round(extract(epoch from (localtimestamp - a.time_check))))::int check_seconds,
-          a.service_type
+          a.service_type,
+          (a.time_finish_check is not null) check_saved
         from tb_product a
         left join ar_customer b on b.code=a.cust_code
         where a.code=$1 limit 1`,

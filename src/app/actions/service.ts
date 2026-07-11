@@ -2,6 +2,7 @@
 import { logChange } from "@/app/actions/chatter";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { APPROVER_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { revalidatePath } from "next/cache";
@@ -419,20 +420,74 @@ export async function requestCancel(code: string, remark: string): Promise<Servi
   return {};
 }
 
-export async function undoCancel(code: string): Promise<ServiceState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+/**
+ * ສະຖານະທີ່ຄວນເປັນ ຖ້າບໍ່ໄດ້ຖືກຍົກເລີກ — ຄິດຄືນຈາກຖັນເວລາຂອງໃບນັ້ນເອງ.
+ *
+ * ods (ແລະ undoCancel ເກົ່າ) ຕັ້ງ status=1 ຕາຍຕົວ ⇒ ວຽກທີ່ຂໍຍົກເລີກຕອນກຳລັງສ້ອມ
+ * ຖືກໂຍນກັບໄປ "ລໍຖ້າກວດເຊັກ" ທັງທີ່ກວດ ແລະ ສ້ອມໄປແລ້ວ. ບ່ອນນີ້ຄືນສູ່ຂັ້ນຈິງຂອງມັນ
+ * (ສູດຫຼັງກວດເຊັກ = ສູດດຽວກັນກັບ saveCheck ຂອງ actions/checking.ts).
+ */
+const RESTORED_STATUS = `case
+  when p.time_check is null                then 1
+  when p.time_finish_check is null         then 2
+  when p.time_finish_repair is not null    then 5
+  when coalesce(p.used_spare,0)=1          then (case when p.warrunty='ຮັບປະກັນ' then 3 else 2 end)
+  else (case when p.warrunty='ຮັບປະກັນ' then 4 else 2 end)
+end`;
 
-  // ຖອນຄືນໄດ້ສະເພາະທີ່ຍັງບໍ່ທັນອະນຸມັດ (cancel_finish isnull)
-  const updated = await db.query(
-    "update tb_product set status=1, remark='', cancel_start=null, request_cancel=null where code=$1 and status=6 and cancel_finish is null",
+export type ClearCancelResult = { ok: boolean; error?: string; requester?: string; reason?: string };
+
+/**
+ * ລ້າງ "ຄຳຂໍຍົກເລີກ" ອອກຈາກໃບຮັບເຄື່ອງ ແລ້ວດຶງວຽກກັບຄືນສູ່ຂັ້ນປົກກະຕິ.
+ *
+ * ໃຊ້ຮ່ວມກັນ 2 ບ່ອນ:
+ *   · undoCancel()          — ຜູ້ຂໍ (ຝ່າຍບໍລິການ) ຖອນຄຳຂໍຂອງຕົນເອງ
+ *   · rejectCancellation()  — ຜູ້ອະນຸມັດ **ບໍ່ອະນຸມັດ** ການຍົກເລີກ (actions/approval.ts)
+ *
+ * ຄືນ request_cancel (ຜູ້ຂໍ) ແລະ remark (ເຫດຜົນເດີມ) ຂອງ **ຄ່າກ່ອນລ້າງ** ດ້ວຍ CTE
+ * ເພື່ອໃຫ້ຜູ້ເອີ້ນເອົາໄປແຈ້ງເຕືອນ ແລະ ຂຽນ chatter ໄດ້.
+ * ລ້າງໄດ້ສະເພາະທີ່ຍັງບໍ່ທັນອະນຸມັດ (cancel_finish isnull) — ອະນຸມັດແລ້ວຫ້າມຍ້ອນ.
+ */
+export async function clearCancelRequest(code: string): Promise<ClearCancelResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Session ໝົດອາຍຸ" };
+  if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };
+  // server action ຖືກຍິງໂດຍກົງໄດ້ (ບໍ່ຜ່ານໜ້າ) ⇒ ກວດສິດຢູ່ນີ້ອີກຊັ້ນ:
+  // ຝ່າຍບໍລິການ (ຜູ້ຂໍ) ຫຼື ຜູ້ອະນຸມັດ ເທົ່ານັ້ນ — ຊ່າງ/ສາງ ບໍ່ກ່ຽວ
+  const role = roleOf(session);
+  if (!SERVICE_SIDE.includes(role) && !APPROVER_SIDE.includes(role)) {
+    return { ok: false, error: "ບໍ່ມີສິດຖອນຄຳຂໍຍົກເລີກ" };
+  }
+
+  const cleared = await db.query<{ request_cancel: string | null; remark: string | null }>(
+    `with target as (
+        select code, request_cancel, remark from tb_product
+         where code=$1 and status=6 and cancel_start is not null and cancel_finish is null
+         for update)
+      update tb_product p
+         set status=(${RESTORED_STATUS}), remark='', cancel_start=null, request_cancel=null
+        from target t
+       where p.code = t.code
+      returning t.request_cancel, t.remark`,
     [code],
   );
-  if (!updated.rowCount) return { error: "ບໍ່ສາມາດຖອນຄືນໄດ້ ອະນຸມັດຍົກເລີກໄປແລ້ວ" };
+  if (!cleared.rowCount) return { ok: false, error: "ບໍ່ສາມາດຖອນຄືນໄດ້ — ອະນຸມັດຍົກເລີກໄປແລ້ວ ຫຼື ບໍ່ມີຄຳຂໍຍົກເລີກ" };
+
+  return {
+    ok: true,
+    requester: (cleared.rows[0]?.request_cancel ?? "").trim(),
+    reason: (cleared.rows[0]?.remark ?? "").trim(),
+  };
+}
+
+export async function undoCancel(code: string): Promise<ServiceState> {
+  const cleared = await clearCancelRequest(code);
+  if (!cleared.ok) return { error: cleared.error };
+
   await logChange("tb_product", code, "ຖອນຄຳຂໍຍົກເລີກ — ວຽກກັບຄືນສູ່ຄິວປົກກະຕິ");
   revalidatePath("/service/cancel");
   revalidatePath("/service");
+  revalidatePath("/approvals/cancellations", "layout");
   return {};
 }
 

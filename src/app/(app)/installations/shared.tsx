@@ -21,7 +21,8 @@ import type { ComponentType, ReactNode } from "react";
 
 export const PAGE_SIZE = 20;
 
-export type InstallRow = {
+/** ຊ່ອງທີ່ <InstallCells/> ຕ້ອງການ — ໜ້າທີ່ດຶງຈາກ ic_trans ກໍໃຫ້ຊ່ອງຊຸດນີ້ຄືກັນ */
+export type InstallCellRow = {
   code: string;
   customer: string | null;
   item_name: string | null;
@@ -39,11 +40,21 @@ export type InstallRow = {
   elapsed_seconds: number | null;
   /** ວັນ/ເວລາທີ່ເຂົ້າຂັ້ນປັດຈຸບັນ */
   stage_time: string | null;
+};
+
+export type InstallRow = InstallCellRow & {
   complain_cust: string | null;
   cancel_date: string | null;
   cancel_remark: string | null;
   cancel_code: string | null;
   used_spare: number | null;
+};
+
+/** ແຖວທີ່ມາຈາກໃບເອກະສານ (ic_trans) — ໃບຂໍເບີກ / ໃບເບີກ / ໃບຮັບອາໄຫຼ່ */
+export type InstallDocRow = InstallCellRow & {
+  doc_no: string;
+  /** ວັນ/ເວລາຂອງໃບ */
+  doc_time: string | null;
 };
 
 /** ຕາຕະລາງ ods_tb_install = a · ar_customer = c */
@@ -81,15 +92,74 @@ export const INSTALL_SORT_SQL: Record<string, string> = {
 /**
  * ປະໂຫຍກ ORDER BY — "ຄ້າງດົນສຸດກ່ອນ" ໝາຍເຖິງເວລາເກົ່າສຸດກ່ອນ ຈຶ່ງກັບທິດໃຫ້.
  * timeCol = ຖັນເວລາທີ່ໜ້ານັ້ນນັບຄ້າງຈາກ (ຫຼື ຂັ້ນປັດຈຸບັນ).
+ * sortSql = whitelist ຂອງໜ້ານັ້ນ (ໜ້າໃບເບີກໃຊ້ INSTALL_DOC_SORT_SQL ທີ່ມີ doc_no ເພີ່ມ).
  */
-export function installOrderBy(sort: string, dir: SortDir, timeCol = INSTALL_STAGE_TIME_COL) {
-  const column = INSTALL_SORT_SQL[sort] ?? "at_col";
+export function installOrderBy(
+  sort: string,
+  dir: SortDir,
+  timeCol = INSTALL_STAGE_TIME_COL,
+  sortSql: Record<string, string> = INSTALL_SORT_SQL,
+) {
+  const column = sortSql[sort] ?? "at_col";
   if (column === "at_col") return `(${timeCol}) ${dir === "desc" ? "asc" : "desc"} nulls last`;
   return `${column} ${dir === "asc" ? "asc" : "desc"} nulls last`;
 }
 
+/* ── ໜ້າທີ່ດຶງຈາກໃບເອກະສານ (ic_trans = ic) ແທນທີ່ຈະດຶງຈາກງານ (ods_tb_install = a) ── */
+
+/**
+ * ຊ່ອງມາດຕະຖານຂອງແຖວໃບເບີກ — ic = ic_trans, a = ods_tb_install (left join), c = ar_customer.
+ * ໃຊ້ left join ຈຶ່ງມີແຖວໃບເບີກທີ່ຫາງານຄູ່ບໍ່ພົບ (ຂໍ້ມູນເກົ່າ) ນຳ — ຈຳນວນແຖວຄືເກົ່າທຸກປະການ.
+ */
+export const INSTALL_DOC_COLUMNS = `ic.doc_no,
+  coalesce(a.code, ic.product_code) code,
+  concat_ws('-', c.name_1, c.tel) customer,
+  a.item_name, a.pro_brand, a.pro_model, a.pro_type, a.pro_size,
+  a.doc_ref_1, a.tech_code, coalesce(ic.user_created, a.user_created) user_created, a.location_inst,
+  to_char(a.time_register,'DD-MM-YYYY HH24:MI') time_register,
+  to_char(a.appoint_date,'DD-MM-YYYY') appoint_date,
+  (${INSTALL_STAGE_SQL}) stage,
+  ${INSTALL_ELAPSED_SQL} elapsed_seconds,
+  to_char((${INSTALL_STAGE_TIME_COL}),'DD-MM-YYYY HH24:MI') stage_time,
+  to_char(coalesce(ic.create_date_time_now, ic.doc_date),'DD-MM-YYYY HH24:MI') doc_time`;
+
+/** ຄົ້ນຫາໃນໜ້າໃບເບີກ — ຄືກັບ INSTALL_SEARCH ແຕ່ຄົ້ນເລກທີໃບໄດ້ນຳ */
+export const INSTALL_DOC_SEARCH = `(ic.doc_no ilike $Q or ic.product_code ilike $Q or a.code ilike $Q
+  or a.doc_ref_1 ilike $Q or a.item_name ilike $Q or a.pro_brand ilike $Q or a.pro_model ilike $Q
+  or a.pro_sn ilike $Q or a.tech_code ilike $Q or a.location_inst ilike $Q
+  or c.name_1 ilike $Q or c.tel ilike $Q)`;
+
+/** whitelist ຂອງໜ້າໃບເບີກ — ເພີ່ມ doc_no ຈາກ whitelist ຂອງງານ */
+export const INSTALL_DOC_SORT_SQL: Record<string, string> = { ...INSTALL_SORT_SQL, doc_no: "ic.doc_no" };
+
+/** ຖັນທີ່ຈັດຮຽງໄດ້ ຕໍ່ທ້າຍຕາຕະລາງໜ້າໃບເບີກ */
+export const INSTALL_DOC_COLUMN: Column = { key: "doc_no", label: "ເລກທີໃບ", defaultDir: "desc" };
+
+/** ດຶງແຖວໃບເບີກ + ນັບຈຳນວນທັງໝົດພ້ອມກັນ */
+export async function fetchInstallDocRows<T extends InstallDocRow>(options: {
+  /** ປະໂຫຍກ from ເຕັມ (ຕ້ອງ alias ic / a / c) */
+  from: string;
+  where: string;
+  params: (string | number)[];
+  orderBy: string;
+  page: number;
+  extraColumns?: string;
+}) {
+  const { from, where, params, orderBy, page, extraColumns = "" } = options;
+  const select = `${INSTALL_DOC_COLUMNS}${extraColumns ? `,\n  ${extraColumns}` : ""}`;
+  const [rows, count] = await Promise.all([
+    query<T>(
+      `select ${select} ${from} where ${where} order by ${orderBy}
+       limit $${params.length + 1} offset $${params.length + 2}`,
+      [...params, PAGE_SIZE, (page - 1) * PAGE_SIZE],
+    ),
+    query<{ total: number }>(`select count(*)::int total ${from} where ${where}`, params),
+  ]);
+  return { rows: rows.rows, total: count.rows[0]?.total ?? 0 };
+}
+
 /** ດຶງແຖວ + ນັບຈຳນວນທັງໝົດພ້ອມກັນ */
-export async function fetchInstallRows(options: {
+export async function fetchInstallRows<T extends InstallRow = InstallRow>(options: {
   where: string;
   params: (string | number)[];
   orderBy: string;
@@ -99,7 +169,7 @@ export async function fetchInstallRows(options: {
   const { where, params, orderBy, page, extraColumns = "" } = options;
   const select = `${INSTALL_COLUMNS}${extraColumns ? `,\n  ${extraColumns}` : ""}`;
   const [rows, count] = await Promise.all([
-    query<InstallRow>(
+    query<T>(
       `select ${select} ${INSTALL_FROM} where ${where} order by ${orderBy}
        limit $${params.length + 1} offset $${params.length + 2}`,
       [...params, PAGE_SIZE, (page - 1) * PAGE_SIZE],
@@ -188,18 +258,45 @@ export function TabsAndSearch<T extends string>({
   );
 }
 
+/** ຊ່ອງຄົ້ນຫາລ້ວນ — ສຳລັບໜ້າທີ່ບໍ່ມີແທັບ */
+export function SearchBar({
+  q,
+  sort,
+  dir,
+  placeholder = "ຄົ້ນຫາ ເລກທີໃບ, ເລກທີງານ, ລູກຄ້າ, ຊ່າງ, ລາຍການ...",
+}: {
+  q: string;
+  sort: string;
+  dir: SortDir;
+  placeholder?: string;
+}) {
+  return (
+    <form className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+      <input type="hidden" name="sort" value={sort} />
+      <input type="hidden" name="dir" value={dir} />
+      <div className="flex h-9 min-w-56 flex-1 items-center gap-2 rounded-lg border border-slate-300 px-2.5">
+        <Search className="size-3.5 shrink-0 text-slate-400" />
+        <input name="q" defaultValue={q} placeholder={placeholder} className="w-full text-xs outline-none" />
+      </div>
+      <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+    </form>
+  );
+}
+
 export type Column = { key: string; label: string; defaultDir: SortDir };
 
-/** ຫົວຕາຕະລາງ: ຖັນຈັດຮຽງໄດ້ + ຖັນຄົງທີ່ */
+/** ຫົວຕາຕະລາງ: ຖັນຈັດຮຽງໄດ້ + ຖັນຄົງທີ່ + ຖັນຈັດຮຽງໄດ້ທ້າຍສຸດ (ເຊັ່ນ ເລກທີໃບ) */
 export function InstallTableHead({
   columns,
   plain = [],
+  trailing = [],
   sort,
   dir,
   sortHref,
 }: {
   columns: Column[];
   plain?: string[];
+  trailing?: Column[];
   sort: string;
   dir: SortDir;
   sortHref: (key: string, dir: SortDir) => string;
@@ -224,9 +321,31 @@ export function InstallTableHead({
             {label}
           </th>
         ))}
+        {trailing.map((column) => (
+          <SortHeader
+            key={column.key}
+            label={column.label}
+            sortKey={column.key}
+            current={sort}
+            dir={dir}
+            href={sortHref}
+            defaultDir={column.defaultDir}
+            className="py-2.5"
+          />
+        ))}
         <th className="px-3 py-2.5" />
       </tr>
     </thead>
+  );
+}
+
+/** ຊ່ອງ "ເລກທີໃບ" — ເລກທີ + ວັນ/ເວລາຂອງໃບ */
+export function DocCell({ row }: { row: InstallDocRow }) {
+  return (
+    <td className="whitespace-nowrap px-3 py-2.5">
+      <span className="font-semibold text-slate-700">{row.doc_no}</span>
+      <span className="mt-0.5 block text-[10px] text-slate-400">{row.doc_time ?? "-"}</span>
+    </td>
   );
 }
 
@@ -234,7 +353,7 @@ export function InstallTableHead({
  * ຊ່ອງມາດຕະຖານຂອງແຖວງານຕິດຕັ້ງ — ຕ້ອງກົງລຳດັບກັບ INSTALL_TABLE_COLUMNS.
  * ໜ້າໃດຢາກເພີ່ມຊ່ອງ ໃຫ້ຕໍ່ <td> ຂອງຕົນຫຼັງຈາກນີ້.
  */
-export function InstallCells({ row, timeLabel }: { row: InstallRow; timeLabel?: string }) {
+export function InstallCells({ row, timeLabel }: { row: InstallCellRow; timeLabel?: string }) {
   const tone = elapsedTone(row.elapsed_seconds);
   return (
     <>

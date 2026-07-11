@@ -17,11 +17,14 @@ export default async function RepairDetail({ params }: Props) {
     await query<RepairHead>(
       `select a.code, a.roworder, to_char(a.time_finish_check,'DD-MM-YYYY HH24:MI') finished_check,
           concat_ws('-', b.name_1, b.tel) customer, concat_ws(' · ', a.name_1, a.sn) product, a.p_brand brand,
-          a.warrunty warranty, a.issue, a.issue_2, a.emp_code technician, a.repair_note,
+          a.warrunty warranty, a.warranty_reason, a.issue, a.issue_2, a.emp_code technician, a.repair_note,
           to_char(a.time_repair,'DD-MM-YYYY HH24:MI') repair_started,
           greatest(0, round(extract(epoch from (localtimestamp - a.time_repair))))::int repair_seconds,
           (a.spare_reg is not null) spare_requested,
-          (a.qt_start is not null and a.qt_finish is not null) quotation_done
+          (a.qt_start is not null and a.qt_finish is not null) quotation_done,
+          (a.time_repair is not null) repair_running,
+          to_char(a.time_finish_repair,'DD-MM-YYYY HH24:MI') repair_finished,
+          (a.return_complete is not null) returned
         from tb_product a
         left join ar_customer b on b.code=a.cust_code
         where a.code=$1 limit 1`,

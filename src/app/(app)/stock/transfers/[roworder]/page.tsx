@@ -1,7 +1,8 @@
 import { Card, ErrorBox, PageTitle, Table } from "@/components/ui";
 import { query, queryOdg } from "@/lib/db";
 import { docPrefix } from "@/lib/doc-no";
-import { TRANS } from "@/lib/stock-constants";
+import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TransferForm } from "./transfer-form";
 
@@ -55,8 +56,10 @@ async function getLine(roworder: string) {
       a.item_code, a.item_name, a.qty, a.unit_code,
       round(st.total_balance, 2)::text total_balance,
       round(st.current_wh_balance, 2)::text wh_balance,
-      exists(select 1 from ic_trans_detail t
-             where t.trans_flag = $2 and t.doc_ref = a.doc_no and t.item_code = a.item_code) transfer_requested
+      exists(select 1 from ic_trans t
+             join ic_trans_detail td on td.doc_no = t.doc_no and td.trans_flag = t.trans_flag
+             where t.trans_flag = $2 and t.doc_ref = a.doc_no and td.item_code = a.item_code
+               and coalesce(t.status,0) = ${LINE_STATUS.PENDING}) transfer_requested
     from ic_trans_detail a
     left join ic_trans b on b.doc_no = a.doc_no
     left join tb_product c on c.code = a.product_code
@@ -82,7 +85,9 @@ export default async function TransferRequestPage({ params }: Props) {
 
   return (
     <div className="w-full space-y-6">
-      <PageTitle sub="ຂໍໂອນອາໄຫຼ່ຈາກສາງອື່ນເຂົ້າສາງສ້ອມ">ໃບຂໍໂອນອາໄຫຼ່</PageTitle>
+      <PageTitle sub="ຂໍໂອນອາໄຫຼ່ຈາກສາງອື່ນເຂົ້າສາງຂອງໃບຂໍເບີກ — ໃບນີ້ບໍ່ຂະຫຍັບສະຕັອກ, ສາງໃຫຍ່ຕ້ອງອອກໃບໂອນ (FT) ໃນ ERP">
+        ໃບຂໍໂອນອາໄຫຼ່
+      </PageTitle>
 
       <TransferForm
         docNo={docNo}
@@ -103,7 +108,14 @@ export default async function TransferRequestPage({ params }: Props) {
         ]}
       />
 
-      {line.transfer_requested && <ErrorBox>ອາໄຫຼ່ລາຍການນີ້ຂໍໂອນໄປແລ້ວ</ErrorBox>}
+      {line.transfer_requested && (
+        <ErrorBox>
+          ອາໄຫຼ່ລາຍການນີ້ຂໍໂອນໄປແລ້ວ ແລະ ຍັງລໍຖ້າຂອງມາຮອດ —{" "}
+          <Link href="/stock/transfers" className="font-semibold underline">
+            ເບິ່ງໜ້າຕິດຕາມການໂອນ
+          </Link>
+        </ErrorBox>
+      )}
 
       <Card title="ອາໄຫຼ່ທີ່ຂໍໂອນ">
         <Table head={["#", "ລະຫັດສິນຄ້າ", "ຊື່ສິນຄ້າ", "ຈຳນວນ", "ຫົວໜ່ວຍ", "ຄົງເຫຼືອສາງນີ້", "ຄົງເຫຼືອສາງອື່ນ"]} minWidth={900}>

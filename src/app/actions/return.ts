@@ -32,7 +32,83 @@ export type CartRow = {
   unit_code: string;
   price: string;
   sum_amount: string;
+  /** ic_trans_detail.roworder ຂອງແຖວໃບສະເໜີລາຄາທີ່ແຖວນີ້ມາຈາກ (ຄື flag ອື່ນຂອງຕາຕະລາງຮ່າງ) */
+  row_ref: number | null;
+  /** ລາຄາທີ່ລູກຄ້າຕົກລົງໄວ້ໃນໃບສະເໜີລາຄາ — null = ແຖວນີ້ບໍ່ໄດ້ມາຈາກໃບສະເໜີລາຄາ */
+  quoted_price: string | null;
+  quoted_qty: string | null;
+  quote_no: string | null;
 };
+
+/**
+ * ຕະກ້າ 1 ແຖວ ພ້ອມລາຄາທີ່ສະເໜີໄວ້ (join ຜ່ານ row_ref → ic_trans_detail ຂອງໃບສະເໜີລາຄາ)
+ * ໃຊ້ຮ່ວມກັນລະຫວ່າງ getCart() ແລະ saveInvoice() ຈຶ່ງບໍ່ຕ່າງກັນ.
+ */
+const CART_SQL = `select d.roworder, d.item_code, d.item_name, coalesce(d.qty,0) qty, d.unit_code,
+        coalesce(d.price,0) price, coalesce(d.sum_amount,0) sum_amount, d.row_ref,
+        q.price quoted_price, coalesce(q.qty,0)::text quoted_qty, q.doc_no quote_no
+   from ic_trans_detail_draft d
+   left join ic_trans_detail q on q.roworder = d.row_ref and q.trans_flag = 17
+  where d.trans_flag=$1 and d.product_code=$2 and d.user_created=$3
+  order by d.roworder`;
+
+/* ------------------------------------------------- ໃບສະເໜີລາຄາທີ່ຕົກລົງແລ້ວ */
+
+export type ApprovedQuote = {
+  doc_no: string;
+  doc_date: string | null;
+  total_value: string;
+  total_discount: string;
+  total_amount: string;
+};
+
+export type QuoteLine = {
+  roworder: number;
+  item_code: string;
+  item_name: string;
+  qty: string;
+  unit_code: string;
+  price: string;
+  sum_amount: string;
+};
+
+/**
+ * ໃບສະເໜີລາຄາ (trans_flag 17) ທີ່ **ອະນຸມັດພາຍໃນແລ້ວ (aprove_status=1) ແລະ ລູກຄ້າຕົກລົງແລ້ວ
+ * (aprove_status_2=1 → tb_product.qt_finish)** ຂອງວຽກນີ້.
+ *
+ * ວຽກ 'ຮັບປະກັນ' ບໍ່ມີໃບສະເໜີລາຄາ (ບໍ່ເກັບຄ່າອາໄຫຼ່) → ຄືນ null ສະເໝີ ເຖິງວ່າຈະມີໃບຄ້າງຢູ່ກໍ່ຕາມ
+ * ⇒ ເສັ້ນທາງ 'ຮັບປະກັນ' ຢູ່ຂ້າງລຸ່ມບໍ່ປ່ຽນເລີຍ (ອາໄຫຼ່ລາຄາ 0 ຄືເກົ່າ).
+ */
+export async function getApprovedQuote(productCode: string): Promise<ApprovedQuote | null> {
+  if (!db) return null;
+  const result = await db.query<ApprovedQuote>(
+    `select q.doc_no, to_char(q.doc_date,'DD-MM-YYYY') doc_date,
+        coalesce(q.total_value,0)::text total_value, coalesce(q.total_discount,0)::text total_discount,
+        coalesce(q.total_amount,0)::text total_amount
+     from ic_trans q
+     join tb_product p on p.code = q.product_code
+     where q.trans_flag=17 and q.product_code=$1
+       and coalesce(q.aprove_status,0)=1 and coalesce(q.aprove_status_2,0)=1
+       and p.qt_finish is not null and coalesce(p.warrunty,'') <> 'ຮັບປະກັນ'
+     order by q.doc_no desc
+     limit 1`,
+    [productCode],
+  );
+  return result.rows[0] ?? null;
+}
+
+/** ລາຍການໃນໃບສະເໜີລາຄາ — ໃຊ້ປຽບທຽບກັບຕະກ້າຢູ່ໜ້າຈໍ */
+export async function getQuoteLines(docNo: string): Promise<QuoteLine[]> {
+  if (!db) return [];
+  const result = await db.query<QuoteLine>(
+    `select roworder, item_code, item_name, coalesce(qty,0)::text qty, unit_code,
+        coalesce(price,0)::text price, coalesce(sum_amount,0)::text sum_amount
+     from ic_trans_detail where doc_no=$1 and trans_flag=17 and item_code is not null
+     order by roworder`,
+    [docNo],
+  );
+  return result.rows;
+}
 
 /** ອັດຕາເເລກປ່ຽນ — tb_bill_rate ຢູ່ຖານ ERP (ods ໃຊ້ getcursor2) */
 export type Rates = { "01": number; "02": number; "03": number };
@@ -59,16 +135,48 @@ function toBaht(value: number, currency: string, rates: Rates) {
 /* ---------------------------------------------------------------- ຕະກ້າ */
 
 /**
- * ຕື່ມອາໄຫຼ່ເຂົ້າຕະກ້າຄັ້ງທຳອິດ (ຄື showreturn() ຂອງ ods).
- * 'ຮັບປະກັນ' + used_spare=1 → ເອົາຈາກ tb_used_spare
- * 'ໝົດຮັບປະກັນ'            → ເອົາຈາກ ic_trans_detail
+ * ຕື່ມລາຍການເຂົ້າຕະກ້າຄັ້ງທຳອິດ (ຄື showreturn() ຂອງ ods).
+ *
+ * ── ຊ່ອງຫວ່າງເລື່ອງເງິນທີ່ແກ້ຢູ່ນີ້ ──
+ * ods ດຶງອາໄຫຼ່ມາໃສ່ຕະກ້າດ້ວຍ price=0, sum_amount=0 **ທຸກແຖວ** (ເຖິງວ່າຈະ SELECT price ມາກໍ່ຕາມ)
+ * ⇒ ພະນັກງານເກັບເງິນຕ້ອງພິມລາຄາຄືນເອງທຸກແຖວ ທັງທີ່ລູກຄ້າຕົກລົງ **ໃບສະເໜີລາຄາທີ່ມີລາຄາຢູ່ແລ້ວ**
+ * (ໃນຂໍ້ມູນຈິງ: ໃບຮັບເງິນ 4,437 ໃບ ຍອດເປັນ 0 ໝົດ — ເງິນບໍ່ເຄີຍລົງລະບົບ).
+ *
+ * ດຽວນີ້:
+ *   ມີໃບສະເໜີລາຄາທີ່ອະນຸມັດ + ລູກຄ້າຕົກລົງແລ້ວ → ດຶງ ລາຍການ/ຈຳນວນ/ຫົວໜ່ວຍ/**ລາຄາ** ຈາກໃບນັ້ນ
+ *       ພ້ອມຜູກ row_ref ໄວ້ກັບແຖວຂອງໃບສະເໜີລາຄາ ⇒ ໜ້າຈໍປຽບທຽບໄດ້ວ່າພະນັກງານແກ້ລາຄາໃດແດ່
+ *   'ຮັບປະກັນ' + used_spare=1 → ເອົາຈາກ tb_used_spare ລາຄາ 0 (ບໍ່ເກັບເງິນຄ່າອາໄຫຼ່) — ຄືເກົ່າ
+ *   ບໍ່ມີໃບສະເໜີລາຄາ         → ເອົາຈາກ ic_trans_detail ລາຄາ 0 — ຄືເກົ່າ
+ *
  * ໃຊ້ INSERT..SELECT..WHERE NOT EXISTS → ເອີ້ນຊ້ຳກໍ່ບໍ່ຊ້ຳແຖວ.
  */
 export async function seedCart(productCode: string, warranty: string | null, usedSpare: number | null) {
   const session = await getSession();
   if (!session || !db) return;
 
-  // ods ໃສ່ price/sum_amount = 0 ທຸກກໍລະນີ (ເຖິງວ່າຈະ SELECT price ມາກໍ່ຕາມ) — ຜູ້ໃຊ້ພິມລາຄາເອງ
+  const quote = await getApprovedQuote(productCode);
+  if (quote) {
+    // ລາຄາທີ່ລູກຄ້າຕົກລົງ = ລາຄາທີ່ຕ້ອງເກັບ. row_ref ຜູກແຖວຕະກ້າກັບແຖວໃບສະເໜີລາຄາ
+    // (ຮູບແບບດຽວກັນກັບ trans_flag ອື່ນຂອງ ic_trans_detail_draft — ບໍ່ຕ້ອງເພີ່ມຖັນໃໝ່)
+    // ເງື່ອນໄຂ not exists ກວດທັງ row_ref ແລະ item_code ⇒ ຕະກ້າເກົ່າ (ຮ່າງກ່ອນແກ້ໄຂ, row_ref ຫວ່າງ)
+    // ກໍ່ບໍ່ຖືກຕື່ມຊ້ຳ.
+    await db.query(
+      `insert into ic_trans_detail_draft(trans_flag, product_code, item_code, item_name, qty, unit_code, price, sum_amount, row_ref, user_created)
+       select $1, $2, t.item_code, t.item_name, coalesce(t.qty,0), t.unit_code,
+              coalesce(t.price,0), coalesce(t.sum_amount, coalesce(t.price,0)*coalesce(t.qty,0)),
+              t.roworder, $4::varchar
+       from ic_trans_detail t
+       where t.doc_no = $3 and t.trans_flag = 17 and t.item_code is not null
+         and not exists (
+           select 1 from ic_trans_detail_draft d
+           where d.trans_flag = $1 and d.product_code = $2 and d.user_created = $4::varchar
+             and (d.row_ref = t.roworder or (d.row_ref is null and d.item_code = t.item_code)))
+       order by t.roworder`,
+      [CART_FLAG, productCode, quote.doc_no, session.username],
+    );
+    return;
+  }
+
   if (warranty === "ຮັບປະກັນ" && usedSpare === 1) {
     await db.query(
       `insert into ic_trans_detail_draft(trans_flag, product_code, item_code, item_name, qty, unit_code, price, sum_amount, user_created)
@@ -99,14 +207,7 @@ export async function seedCart(productCode: string, warranty: string | null, use
 export async function getCart(productCode: string): Promise<CartRow[]> {
   const session = await getSession();
   if (!session || !db) return [];
-  const result = await db.query<CartRow>(
-    `select roworder, item_code, item_name, coalesce(qty,0) qty, unit_code,
-            coalesce(price,0) price, coalesce(sum_amount,0) sum_amount
-     from ic_trans_detail_draft
-     where trans_flag=$1 and product_code=$2 and user_created=$3
-     order by roworder`,
-    [CART_FLAG, productCode, session.username],
-  );
+  const result = await db.query<CartRow>(CART_SQL, [CART_FLAG, productCode, session.username]);
   return result.rows;
 }
 
@@ -284,24 +385,25 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
   const written: string[] = [];
   let docNo = "";
   let billTotal = 0;
+  let quoteNo: string | null = null;
+  let editedLines = 0;
 
   try {
     await client.query("begin");
     await client.query("select pg_advisory_xact_lock(734244)"); // ກັນເລກບິນຊ້ຳ
     docNo = await nextDocNo(client, "SIN");
 
-    const cart = await client.query<CartRow>(
-      `select roworder, item_code, item_name, coalesce(qty,0) qty, unit_code,
-              coalesce(price,0) price, coalesce(sum_amount,0) sum_amount
-       from ic_trans_detail_draft
-       where trans_flag=$1 and product_code=$2 and user_created=$3
-       order by roworder`,
-      [CART_FLAG, d.pro_code, session.username],
-    );
+    const cart = await client.query<CartRow>(CART_SQL, [CART_FLAG, d.pro_code, session.username]);
 
     // ຍອດລວມ ຄິດຈາກຕະກ້າຢູ່ server — ບໍ່ເຊື່ອຄ່າຈາກ browser
     const total = cart.rows.reduce((sum, row) => sum + Number(row.sum_amount), 0);
     billTotal = total;
+
+    // ອອກບິນດ້ວຍລາຄາທີ່ຕ່າງຈາກໃບສະເໜີລາຄາ = ເລື່ອງທີ່ຕ້ອງມີຫຼັກຖານ → ລົງ chatter ໄວ້
+    quoteNo = cart.rows.find((row) => row.quote_no)?.quote_no ?? null;
+    editedLines = cart.rows.filter(
+      (row) => row.quoted_price !== null && Number(row.quoted_price) !== Number(row.price),
+    ).length;
 
     await client.query(
       `insert into ic_trans(trans_flag, doc_date, doc_no, cust_code, product_code, remark, user_created, total_value, total_amount)
@@ -377,7 +479,9 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
   await logChange(
     "tb_product",
     d.pro_code,
-    `ສົ່ງຄືນລູກຄ້າ · ໃບຮັບເງິນ ${docNo} · ຍອດ ${billTotal.toLocaleString("en-US")} ບາດ`,
+    `ສົ່ງຄືນລູກຄ້າ · ໃບຮັບເງິນ ${docNo} · ຍອດ ${billTotal.toLocaleString("en-US")} ບາດ` +
+      (quoteNo ? ` · ລາຄາອີງໃບສະເໜີລາຄາ ${quoteNo}` : "") +
+      (editedLines > 0 ? ` · ມີ ${editedLines} ລາຍການທີ່ລາຄາຕ່າງຈາກໃບສະເໜີລາຄາ` : ""),
   );
   await logChange("ar_customer", d.cust_code, `ຮັບເຄື່ອງຄືນ #${d.pro_code} · ໃບຮັບເງິນ ${docNo}`);
 

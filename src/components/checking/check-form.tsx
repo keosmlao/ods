@@ -2,6 +2,7 @@
 import { Elapsed } from "@/components/elapsed";
 import { slaLabel, slaState, slaTone } from "@/lib/sla";
 import { addSpareItem, deleteSpareItem, saveCheck, updateSpareQty } from "@/app/actions/checking";
+import { CancelCheckButton, UndoStartCheckButton } from "@/components/checking/check-actions";
 import { useConfirm } from "@/components/confirm-dialog";
 import { SelectField } from "@/components/select-field";
 import { SpareSearchDialog } from "@/components/spare-search";
@@ -18,6 +19,8 @@ export type CheckHead = {
   customer: string | null;
   product: string | null;
   warranty: string | null;
+  /** ເຫດຜົນທີ່ຊ່າງຕັດສິນວ່າ ໝົດຮັບປະກັນ (tb_product.warranty_reason) — ຫຼັກຖານຕໍ່ລູກຄ້າ */
+  warranty_reason: string | null;
   issue: string | null;
   receiver: string | null;
   technician: string | null;
@@ -25,6 +28,8 @@ export type CheckHead = {
   check_started: string | null;
   check_seconds: number | null;
   service_type: string | null;
+  /** ບັນທຶກຜົນກວດເຊັກໄປແລ້ວບໍ (time_finish_check) — ຕັດສິນວ່າຈະສະແດງປຸ່ມຖອນຄືນອັນໃດ */
+  check_saved: boolean;
 };
 
 export type BasketLine = {
@@ -130,14 +135,15 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
   // ມີອາໄຫຼ່ຄ້າງໃນກະຕ່າຢູ່ແລ້ວ → ເປີດຕາຕະລາງໃຫ້ເລີຍ
   const [useSpare, setUseSpare] = useState(lines.length > 0 ? "1" : "0");
   const [warByT, setWarByT] = useState("0");
-  const [reason, setReason] = useState("");
+  // ເຫດຜົນເກົ່າ (ຖ້າເຄີຍຕັດສິນວ່າໝົດປະກັນ) ຄ້າງໄວ້ໃຫ້ ບໍ່ໃຫ້ພິມຄືນໃໝ່ຕອນແກ້ໄຂຜົນກວດ
+  const [reason, setReason] = useState(head.warranty_reason ?? "");
   const [issue, setIssue] = useState("");
   const [searching, setSearching] = useState(false);
 
   function reset() {
     setIssue("");
     setWarByT("0");
-    setReason("");
+    setReason(head.warranty_reason ?? "");
     setUseSpare("0");
   }
 
@@ -172,6 +178,16 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
             <Printer className="size-4" />
             ພິມໃບກວດເຊັກ
           </Link>
+
+          {/* ແກ້ໄຂການກົດຜິດ — ຍັງບໍ່ບັນທຶກຜົນ: ຖອນ "ເລີ່ມກວດເຊັກ" · ບັນທຶກແລ້ວ: ລ້າງຜົນກວດ
+              (ປຸ່ມຢູ່ນອກ <form> ບໍ່ໄດ້ ເພາະຢູ່ໃນແຖບນີ້ — ຈຶ່ງເປັນ type="button" ພາຍໃນ UndoButton) */}
+          <span className="ml-auto flex flex-wrap items-center gap-2">
+            {head.check_saved ? (
+              <CancelCheckButton code={head.code} />
+            ) : (
+              <UndoStartCheckButton code={head.code} />
+            )}
+          </span>
         </div>
 
         {state.error && <ErrorBox>{state.error}</ErrorBox>}
@@ -182,6 +198,8 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
             <Info label="ລູກຄ້າ" value={head.customer} />
             <Info label="ຊື່ສິນຄ້າ" value={head.product} />
             <Info label="ຮັບປະກັນ" value={head.warranty} />
+            {/* ເຫດຜົນທີ່ຊ່າງຕັດສິນວ່າໝົດຮັບປະກັນ — ຫຼັກຖານເມື່ອລູກຄ້າຄ້ານ */}
+            {head.warranty_reason && <Info label="ເຫດຜົນໝົດຮັບປະກັນ" value={head.warranty_reason} danger />}
             <Info label="ອາການເສຍ" value={head.issue} danger />
             <Info label="ຜູ້ຮັບເຄື່ອງ" value={head.receiver} danger />
             <Info label="ຊ່າງ" value={head.technician} />
@@ -230,9 +248,19 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
               />
             </div>
 
+            {/* ເຫດຜົນ = ຫຼັກຖານຂອງການຕັດສິນປະກັນ → ບັງຄັບເມື່ອ "ຂໍປ່ຽນປະກັນ" (ບັງຄັບຢູ່ server ນຳ) */}
             <div>
-              <label className={labelClass}>ເຫດຜົນ</label>
-              <input name="t_reason" value={reason} onChange={(event) => setReason(event.target.value)} className={inputClass} />
+              <label className={labelClass}>
+                ເຫດຜົນ (ຕັດສິນວ່າໝົດຮັບປະກັນ){warByT === "1" && <span className="text-red-500"> *</span>}
+              </label>
+              <input
+                name="t_reason"
+                required={warByT === "1"}
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder={warByT === "1" ? "ເຊັ່ນ: ນ້ຳເຂົ້າເຄື່ອງ, ຖືກແກະສ້ອມມາກ່ອນ, ໝົດອາຍຸປະກັນ..." : ""}
+                className={inputClass}
+              />
             </div>
 
             <div>

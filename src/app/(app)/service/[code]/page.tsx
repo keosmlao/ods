@@ -30,6 +30,8 @@ type Job = {
   product_type: string | null;
   accessory: string | null;
   warranty: string | null;
+  /** ເຫດຜົນທີ່ຊ່າງຕັດສິນວ່າໝົດຮັບປະກັນ (tb_product.warranty_reason) — ຫຼັກຖານເມື່ອລູກຄ້າຄ້ານ */
+  warranty_reason: string | null;
   service_type: string | null;
   issue: string | null;
   issue_2: string | null;
@@ -57,7 +59,7 @@ export default async function ServiceDetail({ params }: Props) {
          (${STAGE_SQL}) stage,
          c.code customer_code, c.name_1 customer, c.tel phone, c.address,
          a.name_1 product, a.sn, a.p_model model, a.p_brand brand, a.p_type product_type, a.p_access accessory,
-         a.warrunty warranty, a.service_type, a.issue, a.issue_2, a.p_abrasion remark, a.repair_note note,
+         a.warrunty warranty, a.warranty_reason, a.service_type, a.issue, a.issue_2, a.p_abrasion remark, a.repair_note note,
          a.p_delivery delivery, a.ap_code supplier, a.doc_def bill_no, a.doc_date_ref bill_date,
          a.emp_code technician, a.user_regis receiver,
          (select count(*) from product_image i
@@ -96,6 +98,8 @@ export default async function ServiceDetail({ params }: Props) {
         ["ປະເພດ", job.product_type],
         ["ອຸປະກອນ", job.accessory],
         ["ປະກັນ", job.warranty],
+        // ຫຼັກຖານທີ່ຊ່າງໃຫ້ໄວ້ຕອນຕັດສິນວ່າໝົດປະກັນ — ສະແດງຄູ່ກັບສະຖານະປະກັນສະເໝີ
+        ["ເຫດຜົນໝົດຮັບປະກັນ", job.warranty_reason],
         ["ປະເພດບໍລິການ", job.service_type ? SERVICE_TYPE_LABEL[job.service_type] ?? job.service_type : null],
         ["ການສົ່ງມອບ", job.delivery],
         ["ອາການເສຍ (ລູກຄ້າແຈ້ງ)", job.issue],

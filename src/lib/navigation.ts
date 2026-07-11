@@ -76,6 +76,7 @@ const STOCK: NavGroup = {
   items: [
     { label: "ເບີກອາໄຫຼ່", href: "/stock/dispatch" },
     { label: "ຮັບອາໄຫຼ່ທີ່ສັ່ງຊື້", href: "/stock/arrivals" },
+    { label: "ຕິດຕາມການໂອນອາໄຫຼ່", href: "/stock/transfers" },
     { label: "ລາຍການສົ່ງ​ຄືນອາໄຫຼ່", href: "/stock/receive-returns" },
     { label: "ລາຍການອາໄຫຼ່", href: "/stock/spare-parts", divider: true },
     { label: "ສິນຄ້າສ້ອມແປງ", href: "/stock/products" },

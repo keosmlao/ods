@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb } from "@/lib/db";
 import { docPrefix, nextDocNo } from "@/lib/doc-no";
+import { getBalances } from "@/lib/stock-balance";
 import { ppDb, PP_NOT_CONFIGURED } from "@/lib/stock-db";
 import {
   CALC_IN,
@@ -787,7 +788,17 @@ export async function saveReturnRequest(_: StockState, formData: FormData): Prom
       LINE_STATUS.ISSUED,
       rowRefs,
     ]);
-    await client.query(`update tb_product set spare_reg=localtimestamp(0) where code=$1`, [productCode]);
+
+    /*
+     * BUG ທີ່ແກ້ຢູ່ນີ້ (ods ກໍ່ເປັນ): ບ່ອນນີ້ ods ຂຽນ `update tb_product set spare_reg=now()`.
+     * spare_reg = "ເວລາທີ່ຊ່າງຂໍເບີກອາໄຫຼ່" ເຊິ່ງເປັນໂມງຈັບເວລາ (SLA) ຂອງໜ້າ /stock/dispatch,
+     * /stock/requests ແລະ ເປັນເງື່ອນໄຂຂອງຂັ້ນວຽກ (lib/stage: spare_reg is null → ຂັ້ນ 5).
+     * ການ "ຂໍສົ່ງອາໄຫຼ່ຄືນ" ຈຶ່ງໄປຕັ້ງໂມງ SLA ຄືນໃໝ່ ແລະ ຍ້າຍຂັ້ນຂອງວຽກໄດ້ —
+     * ຂໍ້ມູນຈິງ: 40 ວຽກມີ spare_reg ຕົງກັບເວລາອອກໃບຂໍສົ່ງຄືນ (ບາງວຽກ spare_reg > spare_finish
+     * ເຊິ່ງເປັນໄປບໍ່ໄດ້ຕາມທຳມະຊາດ). ໃບຂໍສົ່ງຄືນມີໂມງຂອງມັນເອງຢູ່ແລ້ວ
+     * (ic_trans.create_date_time_now default now() — 84/84 ແຖວມີຄ່າ, ໜ້າ /stock/receive-returns
+     * ໃຊ້ຖັນນີ້ນັບ "ຄ້າງມາ") ⇒ ບໍ່ຕ້ອງ stamp ຫຍັງລົງ tb_product ອີກ.
+     */
 
     // ods ລຶບແຖວຮ່າງໃນ route ຕ່າງຫາກ (/back_stock_return) — ຢູ່ນີ້ລຶບໃນ transaction ດຽວກັນ
     await client.query(`delete from ic_trans_detail_draft where trans_flag=$1 and user_created=$2`, [
@@ -831,7 +842,6 @@ export async function saveReceiveReturn(_: StockState, formData: FormData): Prom
 
   const docRef = text(formData, "doc_ref");
   const remark = text(formData, "remark");
-  const productCode = text(formData, "Product_code");
   if (!docRef) return { error: "ບໍ່ພົບເລກທີໃບຂໍສົ່ງຄືນ" };
 
   const { date: docDate, time: docTime, at } = nowParts();
@@ -840,21 +850,26 @@ export async function saveReceiveReturn(_: StockState, formData: FormData): Prom
   const odg = await odgDb.connect();
   let receiveNo = "";
   let receiveLines = 0;
+  let productCode = "";
   try {
     await ods.query("begin");
     await odg.query("begin");
     await ods.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
 
-    const head = await ods.query<{ doc_no: string; doc_date: Date; user_created: string | null }>(
-      `select doc_no, doc_date, user_created from ic_trans where doc_no=$1 limit 1`,
-      [docRef],
-    );
+    // ວຽກເຈົ້າຂອງເອົາຈາກໃບຂໍສົ່ງຄືນ (ບໍ່ເຊື່ອ product_code ທີ່ມາຈາກ form)
+    const head = await ods.query<{
+      doc_no: string;
+      doc_date: Date;
+      user_created: string | null;
+      product_code: string | null;
+    }>(`select doc_no, doc_date, user_created, product_code from ic_trans where doc_no=$1 limit 1`, [docRef]);
     const ref = head.rows[0];
     if (!ref) {
       await ods.query("rollback");
       await odg.query("rollback");
       return { error: "ບໍ່ພົບໃບຂໍສົ່ງຄືນ" };
     }
+    productCode = ref.product_code ?? "";
 
     // ກັນບັນທຶກຊ້ຳ — ໃບຂໍສົ່ງຄືນນຶ່ງໃບຮັບຄືນໄດ້ເທື່ອດຽວ
     const already = await ods.query<{ count: number }>(
@@ -899,7 +914,22 @@ export async function saveReceiveReturn(_: StockState, formData: FormData): Prom
       [TRANS.RECEIVE_BACK, docDate, docNo, CALC_OUT, session.username, docRef],
     );
 
-    await ods.query(`update tb_used_spare set status='2' where product_code=$1`, [productCode]);
+    /*
+     * BUG ທີ່ແກ້ຢູ່ນີ້ (ods ກໍ່ເປັນ): ods ຂຽນ `update tb_used_spare set status='2' where product_code=%s`
+     * ⇒ ສົ່ງຄືນອາໄຫຼ່ 1 ໃນ 5 ລາຍການ ກໍ່ໄປໝາຍວ່າ "ສົ່ງຄືນແລ້ວ" ໝົດທັງວຽກ.
+     * ຂໍ້ມູນຈິງ: tb_used_spare ມີ 45 ແຖວ status='2' ແຕ່ 36 ແຖວໃນນັ້ນບໍ່ເຄີຍຢູ່ໃນໃບສົ່ງຄືນ/ຮັບຄືນໃດເລີຍ.
+     * ດຽວນີ້ໝາຍສະເພາະແຖວທີ່ຕົງກັບອາໄຫຼ່ໃນໃບນີ້ ແຖວລະລາຍການ (ຄືວິທີ stamp reg_finish/pick_finish).
+     */
+    for (const line of lines.rows) {
+      await ods.query(
+        `update tb_used_spare set status='2'
+         where roworder = (
+           select roworder from tb_used_spare
+           where product_code=$1 and item_code=$2 and coalesce(status,'') <> '2'
+           order by (qty = $3::numeric) desc, (reg_finish is not null) desc, roworder asc limit 1)`,
+        [productCode, line.item_code, line.qty],
+      );
+    }
 
     // ── ODS: ບວກສະຕັອກຄືນ
     for (const line of lines.rows) {
@@ -959,13 +989,15 @@ export async function saveReceiveReturn(_: StockState, formData: FormData): Prom
 /* ─────────────────────────── ຂໍໂອນອາໄຫຼ່ຂ້າມສາງ (trans_flag 124) ─────────────────────────── */
 
 /**
- * ສາງຕົ້ນທາງ/ປາຍທາງຂອງໃບຂໍໂອນ — ods ຝັງໄວ້ຕາຍຕົວໃນ /save_reqest_trans
- * (ສາງອາໄຫຼ່ໃຫຍ່ 1204 → ສາງສ້ອມ 1103). ຢູ່ນີ້ຕັ້ງຊື່ໃຫ້ ບໍ່ໄດ້ປ່ຽນຄ່າ.
+ * ສາງຕົ້ນທາງຂອງໃບຂໍໂອນ — ods ຝັງໄວ້ຕາຍຕົວ (ສາງອາໄຫຼ່ໃຫຍ່ 1204). ຢູ່ນີ້ຕັ້ງຊື່ໃຫ້ ບໍ່ໄດ້ປ່ຽນຄ່າ.
+ *
+ * ສາງ **ປາຍທາງ** ບໍ່ຝັງຕາຍຕົວອີກແລ້ວ: ods ໂອນເຂົ້າ 1103 ສະເໝີ ແຕ່ໜ້າ /stock/dispatch
+ * ເບີກຈາກ **ສາງຂອງໃບຂໍເບີກ** (ic_trans.wh_code — ຂໍ້ມູນຈິງມີ 1206: 677 ໃບ, 1204: 528,
+ * 1203: 192, 1104: 27) ⇒ ຖ້າໃບຂໍເບີກຢູ່ສາງ 1206 ແລ້ວໂອນຂອງເຂົ້າ 1103 ຂອງກໍ່ໄປຜິດສາງ
+ * ແລະ ເບີກບໍ່ໄດ້ຕະຫຼອດໄປ. ດຽວນີ້ປາຍທາງ = ສາງຂອງໃບຂໍເບີກ (ບໍ່ໄດ້ລະບຸ → 1103 ຄືເກົ່າ).
  */
 const TRANSFER_FROM_WH = "1204";
 const TRANSFER_FROM_SHELF = "120401";
-const TRANSFER_TO_WH = "1103";
-const TRANSFER_TO_SHELF = "110301";
 /** doc_format_code ຂອງໃບໂອນຢູ່ ERP (ods: 'IO') */
 const TRANSFER_FORMAT = "IO";
 /** ໃບຂໍເບີກທີ່ຂໍໂອນແລ້ວ — ods ໝາຍ ic_trans.used_status=4 */
@@ -975,6 +1007,12 @@ const transferSchema = z.object({
   /** roworder ຂອງແຖວອາໄຫຼ່ (ic_trans_detail) ທີ່ບໍ່ມີຢູ່ໃນສາງຂອງໃບຂໍເບີກ */
   roworder: z.coerce.number().int().positive(),
   doc_ref: z.string().min(1),
+  remark: z.string().default(""),
+});
+
+const receiveTransferSchema = z.object({
+  /** ເລກທີໃບຂໍໂອນ (SFRK) */
+  doc_no: z.string().min(1),
   remark: z.string().default(""),
 });
 
@@ -1019,8 +1057,10 @@ export async function saveTransferRequest(_: StockState, formData: FormData): Pr
       user_created: string | null;
       cust_code: string | null;
       product_code: string | null;
+      wh_code: string | null;
+      shelf_code: string | null;
     }>(
-      `select doc_no, doc_date, user_created, cust_code, product_code
+      `select doc_no, doc_date, user_created, cust_code, product_code, wh_code, shelf_code
        from ic_trans where doc_no=$1 and trans_flag=$2 limit 1`,
       [docRef, TRANS.REQUEST],
     );
@@ -1030,6 +1070,9 @@ export async function saveTransferRequest(_: StockState, formData: FormData): Pr
       await odg.query("rollback");
       return { error: "ບໍ່ພົບໃບຂໍເບີກ" };
     }
+    // ປາຍທາງ = ສາງທີ່ໃບຂໍເບີກຈະເບີກອອກ (saveDispatch ໃຊ້ສາງນີ້) ⇒ ຂອງໂອນມາຮອດແລ້ວເບີກໄດ້ທັນທີ
+    const toWh = ref.wh_code || DEFAULT_WH;
+    const toShelf = ref.shelf_code || DEFAULT_SHELF;
 
     const line = (
       await ods.query<{ item_code: string; item_name: string | null; unit_code: string | null; qty: string }>(
@@ -1044,16 +1087,21 @@ export async function saveTransferRequest(_: StockState, formData: FormData): Pr
       return { error: "ບໍ່ພົບອາໄຫຼ່ໃນໃບຂໍເບີກ" };
     }
 
-    // ກັນຂໍໂອນຊ້ຳ — ອາໄຫຼ່ແຖວດຽວກັນຂອງໃບຂໍເບີກໃບດຽວກັນ ຂໍໂອນໄດ້ເທື່ອດຽວ
+    /*
+     * ກັນຂໍໂອນຊ້ຳ — ນັບສະເພາະໃບຂໍໂອນທີ່ **ຍັງບໍ່ທັນຮັບຂອງ** (head.status = 0).
+     * ໃບທີ່ຮັບຂອງແລ້ວບໍ່ຄວນລັອກໄວ້ຕະຫຼອດ: ຖ້າຂອງທີ່ໂອນມາຖືກເບີກໄປໃຫ້ວຽກອື່ນກ່ອນ
+     * ສາງຕ້ອງຂໍໂອນໃໝ່ໄດ້ອີກ.
+     */
     const already = await ods.query<{ count: number }>(
-      `select count(*)::int count from ic_trans_detail
-       where trans_flag=$1 and doc_ref=$2 and item_code=$3`,
-      [TRANS.TRANSFER, docRef, line.item_code],
+      `select count(*)::int count from ic_trans_detail d
+       join ic_trans t on t.doc_no = d.doc_no and t.trans_flag = d.trans_flag
+       where d.trans_flag=$1 and d.doc_ref=$2 and d.item_code=$3 and coalesce(t.status,0) = $4`,
+      [TRANS.TRANSFER, docRef, line.item_code, LINE_STATUS.PENDING],
     );
     if (already.rows[0]?.count) {
       await ods.query("rollback");
       await odg.query("rollback");
-      return { error: "ອາໄຫຼ່ລາຍການນີ້ຂໍໂອນໄປແລ້ວ" };
+      return { error: "ອາໄຫຼ່ລາຍການນີ້ຂໍໂອນໄປແລ້ວ ແລະ ຍັງລໍຖ້າຂອງມາຮອດ" };
     }
 
     // ເລກຈາກ ODS ອາດຊ້ຳກັບໃບທີ່ລະບົບເກົ່າ (Flask) ອອກໄວ້ໃນ ERP ຂອງເດືອນນີ້ → ຂ້າມໄປເລກຖັດຈາກ ERP
@@ -1078,7 +1126,7 @@ export async function saveTransferRequest(_: StockState, formData: FormData): Pr
        values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
       [
         TRANS.TRANSFER, docDate, docNo, ref.doc_no, ref.doc_date, ref.cust_code, ref.product_code,
-        remark, session.username, TRANSFER_TO_WH, TRANSFER_TO_SHELF, LINE_STATUS.PENDING,
+        remark, session.username, toWh, toShelf, LINE_STATUS.PENDING,
       ],
     );
     await ods.query(
@@ -1101,8 +1149,8 @@ export async function saveTransferRequest(_: StockState, formData: FormData): Pr
        values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
       [
         ERP.TRANS_TYPE, TRANS.TRANSFER, docNo, docDate, ref.doc_no, ref.doc_date, ref.user_created, docTime,
-        TRANSFER_FORMAT, TRANSFER_FROM_WH, TRANSFER_FROM_SHELF, TRANSFER_TO_WH, TRANSFER_TO_SHELF,
-        session.username, branchOf(TRANSFER_TO_WH), remark,
+        TRANSFER_FORMAT, TRANSFER_FROM_WH, TRANSFER_FROM_SHELF, toWh, toShelf,
+        session.username, branchOf(toWh), remark,
       ],
     );
     await odg.query(
@@ -1111,7 +1159,7 @@ export async function saveTransferRequest(_: StockState, formData: FormData): Pr
        values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,1,1,$14,$15,0)`,
       [
         ERP.TRANS_TYPE, TRANS.TRANSFER, docNo, docDate, ref.doc_no, line.item_code, line.item_name, line.unit_code,
-        line.qty, TRANSFER_FROM_WH, TRANSFER_FROM_SHELF, TRANSFER_TO_WH, TRANSFER_TO_SHELF, docDate, docTime,
+        line.qty, TRANSFER_FROM_WH, TRANSFER_FROM_SHELF, toWh, toShelf, docDate, docTime,
       ],
     );
 
@@ -1138,7 +1186,130 @@ export async function saveTransferRequest(_: StockState, formData: FormData): Pr
   }
 
   revalidatePath("/stock/dispatch");
+  revalidatePath("/stock/transfers");
   redirect("/stock/dispatch");
+}
+
+/**
+ * ຮັບຂອງທີ່ໂອນມາ — ປິດໃບຂໍໂອນ (124) ແລ້ວປ່ອຍແຖວກັບເຂົ້າຄິວເບີກ.
+ *
+ * ── ເປັນຫຍັງບໍ່ຕັດ/ບວກສະຕັອກຢູ່ຂັ້ນນີ້ ──
+ * ໃບ trans_flag 124 ເປັນ "ໃບຂໍໂອນ" ບໍ່ແມ່ນ "ໃບໂອນ". ໃນ ERP (SML):
+ *   • 124 (doc_format FR/IO) — calc_flag = 0 ທຸກແຖວ (45,364/45,364 ແຖວ) ແລະ trans_flag 124
+ *     **ບໍ່ຢູ່ໃນລາຍການທຸງທີ່ຟັງຊັນຄິດຍອດ (sml_ic_function_stock_balance_warehouse_location)
+ *     ນັບເລີຍ** ⇒ ໃບນີ້ບໍ່ຂະຫຍັບສະຕັອກແມ່ນແຕ່ໜ່ວຍດຽວ ບໍ່ວ່າຈະຂຽນຫຍັງລົງໄປ.
+ *   • ການໂອນຈິງເກີດຕອນ ERP ອອກໃບໂອນ (doc_format FT): ຄູ່ trans_flag 72 (calc_flag -1,
+ *     ສາງຕົ້ນທາງ) + 70 (calc_flag +1, ສາງປາຍທາງ) ໂດຍ doc_ref ຊີ້ກັບມາໃບ 124.
+ * ⇒ ແອັບນີ້ຕ້ອງ **ບໍ່** ສ້າງການເຄື່ອນໄຫວສະຕັອກເອງ (ຈະກາຍເປັນນັບສອງເທື່ອ). ຂັ້ນນີ້ຈຶ່ງເປັນ
+ * ການ "ຢືນຢັນວ່າຂອງມາຮອດແລ້ວ" ເທົ່ານັ້ນ ແລະ ຢືນຢັນໄດ້ກໍ່ຕໍ່ເມື່ອ ERP ອອກໃບໂອນ (FT) ແລ້ວຈິງ —
+ * ກວດດ້ວຍຍອດຄົງເຫຼືອຂອງ ERP ໃນສາງປາຍທາງ (ເງື່ອນໄຂດຽວກັນກັບທີ່ saveDispatch ໃຊ້ຕອນເບີກ)
+ * ຈຶ່ງບໍ່ມີທາງທີ່ຈະ "ປິດ" ໃບຂໍໂອນທີ່ຂອງຍັງບໍ່ມາ ແລ້ວແຖວກັບໄປຄ້າງຢູ່ຄິວເບີກຄືເກົ່າ.
+ */
+export async function saveReceiveTransfer(_: StockState, formData: FormData): Promise<StockState> {
+  const session = await getSession();
+  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const parsed = receiveTransferSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "ຂໍ້ມູນບໍ່ຄົບ" };
+  const { doc_no: docNo, remark } = parsed.data;
+
+  const client = await db.connect();
+  let productCode = "";
+  let docRef = "";
+  let itemNames = "";
+  let lineCount = 0;
+  try {
+    const head = (
+      await client.query<{
+        doc_no: string;
+        doc_ref: string | null;
+        product_code: string | null;
+        wh_code: string | null;
+        status: number | null;
+      }>(`select doc_no, doc_ref, product_code, wh_code, status from ic_trans where doc_no=$1 and trans_flag=$2 limit 1`, [
+        docNo,
+        TRANS.TRANSFER,
+      ])
+    ).rows[0];
+    if (!head) return { error: "ບໍ່ພົບໃບຂໍໂອນ" };
+    if ((head.status ?? 0) === LINE_STATUS.ISSUED) return { error: "ໃບນີ້ຮັບຂອງໄປແລ້ວ" };
+    productCode = head.product_code ?? "";
+    docRef = head.doc_ref ?? "";
+    const toWh = head.wh_code || DEFAULT_WH;
+
+    const lines = (
+      await client.query<{ item_code: string; item_name: string | null; qty: string }>(
+        `select item_code, item_name, qty from ic_trans_detail where doc_no=$1 and trans_flag=$2 order by roworder`,
+        [docNo, TRANS.TRANSFER],
+      )
+    ).rows;
+    if (lines.length === 0) return { error: "ບໍ່ມີອາໄຫຼ່ໃນໃບນີ້" };
+    lineCount = lines.length;
+    itemNames = lines.map((line) => line.item_name ?? line.item_code).join(", ");
+
+    // ຂອງມາຮອດແທ້ບໍ? — ຖາມຍອດ ERP ໃນສາງປາຍທາງ (ອ່ານຢ່າງດຽວ ບໍ່ຂຽນຫຍັງລົງ ERP)
+    const balances = await getBalances(lines.map((line) => line.item_code));
+    const missing = lines.filter(
+      (line) => (balances.get(line.item_code)?.byWarehouse.get(toWh) ?? 0) <= 0,
+    );
+    if (missing.length > 0) {
+      return {
+        error:
+          `ຍັງບໍ່ເຫັນຍອດຂອງ ${missing.map((line) => line.item_name ?? line.item_code).join(", ")} ໃນສາງ ${toWh} — ` +
+          `ສາງໃຫຍ່ຕ້ອງອອກໃບໂອນ (FT) ໃນ ERP ກ່ອນ ຈຶ່ງຈະຮັບຂອງໄດ້`,
+      };
+    }
+
+    await client.query("begin");
+    // ປິດໃບຂໍໂອນ (ຫົວ + ລາຍລະອຽດ) — ບໍ່ແຕະ ic_inventory ແລະ ບໍ່ຂຽນ ERP
+    await client.query(`update ic_trans set status=$1, remark_2=$2 where doc_no=$3 and trans_flag=$4`, [
+      LINE_STATUS.ISSUED,
+      remark || null,
+      docNo,
+      TRANS.TRANSFER,
+    ]);
+    await client.query(`update ic_trans_detail set status=$1 where doc_no=$2 and trans_flag=$3`, [
+      LINE_STATUS.ISSUED,
+      docNo,
+      TRANS.TRANSFER,
+    ]);
+    // ໃບຂໍເບີກບໍ່ຄ້າງຢູ່ສະຖານະ "ຂໍໂອນແລ້ວ" ອີກ ຖ້າບໍ່ມີໃບຂໍໂອນອື່ນຂອງມັນທີ່ຍັງລໍຖ້າຢູ່
+    if (docRef) {
+      await client.query(
+        `update ic_trans set used_status=0
+         where doc_no=$1 and trans_flag=$2
+           and not exists (select 1 from ic_trans t
+                           where t.trans_flag=$3 and t.doc_ref=$1 and coalesce(t.status,0)=$4)`,
+        [docRef, TRANS.REQUEST, TRANS.TRANSFER, LINE_STATUS.PENDING],
+      );
+    }
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("saveReceiveTransfer failed", error);
+    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+  }
+
+  if (productCode) {
+    // ຂອງມາຮອດແລ້ວ — ສາງເບີກໃຫ້ວຽກນີ້ໄດ້ແລ້ວ
+    await logChange(
+      jobModel(productCode),
+      productCode,
+      `ຮັບຂອງທີ່ໂອນມາ ${docNo} · ${lineCount} ລາຍການ (${itemNames})${docRef ? ` (ອ້າງອີງໃບຂໍເບີກ ${docRef})` : ""}${
+        remark ? ` · ${remark}` : ""
+      }`,
+      { roles: ROLE_WAREHOUSE },
+    );
+  } else {
+    await notify("ic_trans", docNo, `ຮັບຂອງທີ່ໂອນມາ ${docNo} · ${lineCount} ລາຍການ`, "log", { roles: ROLE_WAREHOUSE });
+  }
+
+  revalidatePath("/stock/transfers");
+  revalidatePath("/stock/dispatch");
+  redirect("/stock/transfers");
 }
 
 /* ─────────────────────────── ລາຍການອາໄຫຼ່ ─────────────────────────── */

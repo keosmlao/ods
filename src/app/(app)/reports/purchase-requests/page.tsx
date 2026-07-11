@@ -1,5 +1,5 @@
 import { LinkPending } from "@/components/link-pending";
-import { countBy, ReportShell, reportState } from "@/components/report-shell";
+import { countBy, defaultFromIso, ReportShell, reportState } from "@/components/report-shell";
 import { SelectField } from "@/components/select-field";
 import {
   columns,
@@ -18,7 +18,7 @@ import Link from "next/link";
 export default async function PurchaseRequestsReport({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const all = one(params.all) === "1";
-  const from = safeDate(one(params.from), todayIso());
+  const from = safeDate(one(params.from), defaultFromIso());
   const to = safeDate(one(params.to), todayIso());
   const reportType = safeReportType(one(params.report_type));
   const state = reportState(params);

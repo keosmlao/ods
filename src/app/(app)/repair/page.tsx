@@ -1,6 +1,7 @@
+import { CancelCheckButton } from "@/components/checking/check-actions";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
-import { StartRepairButton } from "@/components/repair/repair-actions";
+import { StartRepairButton, UndoFinishRepairButton, UndoStartRepairButton } from "@/components/repair/repair-actions";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
@@ -16,7 +17,7 @@ import Link from "next/link";
 
 const PAGE_SIZE = 20;
 
-type Tab = "waiting" | "progress";
+type Tab = "waiting" | "progress" | "done";
 type Props = { searchParams: Promise<{ tab?: string; q?: string; page?: string; sort?: string; dir?: string }> };
 
 type JobRow = {
@@ -60,6 +61,15 @@ const BUCKET: Record<Tab, { where: string; timeCol: string }> = {
   progress: {
     where: `${OPEN_JOBS} and a.time_repair is not null and a.time_finish_repair is null`,
     timeCol: "a.time_repair",
+  },
+  /**
+   * ສ້ອມແປງຈົບແລ້ວ ແຕ່ຍັງບໍ່ໄດ້ສົ່ງຄືນ (ຂັ້ນ 10 = ລໍຖ້າສົ່ງຄືນ).
+   * ແທັບນີ້ເພີ່ມໃໝ່ ເພື່ອໃຫ້ຊ່າງ "ຍົກເລີກ ຈົບການສ້ອມແປງ" ໄດ້ — ແຕ່ກ່ອນວຽກທີ່ກົດຈົບໄວເກີນ
+   * ຫາຍອອກຈາກໜ້າຊ່າງທັນທີ ແລ້ວກັບມາສ້ອມຕໍ່ບໍ່ໄດ້ອີກເລີຍ.
+   */
+  done: {
+    where: `${OPEN_JOBS} and a.time_finish_repair is not null`,
+    timeCol: "a.time_finish_repair",
   },
 };
 
@@ -117,10 +127,11 @@ async function getCounts(emp: string | null) {
   const scope = emp ? "and a.emp_code = $1" : "";
   const sql = `select
       count(*) filter (where ${BUCKET.waiting.where})::int waiting,
-      count(*) filter (where ${BUCKET.progress.where})::int progress
+      count(*) filter (where ${BUCKET.progress.where})::int progress,
+      count(*) filter (where ${BUCKET.done.where})::int done
     from tb_product a where true ${scope}`;
-  const row = (await query<{ waiting: number; progress: number }>(sql, emp ? [emp] : [])).rows[0];
-  return { waiting: row?.waiting ?? 0, progress: row?.progress ?? 0 };
+  const row = (await query<{ waiting: number; progress: number; done: number }>(sql, emp ? [emp] : [])).rows[0];
+  return { waiting: row?.waiting ?? 0, progress: row?.progress ?? 0, done: row?.done ?? 0 };
 }
 
 const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
@@ -177,7 +188,7 @@ export default async function RepairPage({ searchParams }: Props) {
   const emp = ownJobsOnly(session);
 
   const params = await searchParams;
-  const tab: Tab = params.tab === "progress" ? "progress" : "waiting";
+  const tab: Tab = params.tab === "progress" ? "progress" : params.tab === "done" ? "done" : "waiting";
   const q = (params.q ?? "").trim();
   const page = Math.max(1, Number(params.page) || 1);
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
@@ -197,9 +208,10 @@ export default async function RepairPage({ searchParams }: Props) {
   const TABS: { key: Tab; label: string; icon: typeof Clock; count: number }[] = [
     { key: "waiting", label: "ລໍຖ້າສ້ອມແປງ", icon: Clock, count: counts.waiting },
     { key: "progress", label: "ກຳລັງສ້ອມແປງ", icon: Wrench, count: counts.progress },
+    { key: "done", label: "ສ້ອມແປງແລ້ວ (ລໍຖ້າສົ່ງຄືນ)", icon: CheckCircle2, count: counts.done },
   ];
 
-  const timeLabel = tab === "waiting" ? "ຄ້າງມາ" : "ສ້ອມມາແລ້ວ";
+  const timeLabel = tab === "waiting" ? "ຄ້າງມາ" : tab === "progress" ? "ສ້ອມມາແລ້ວ" : "ຈົບສ້ອມມາແລ້ວ";
 
   return (
     <div className="w-full space-y-4">
@@ -333,19 +345,31 @@ export default async function RepairPage({ searchParams }: Props) {
                       )}
                     </td>
 
-                    <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                      {tab === "waiting" ? (
-                        <StartRepairButton code={row.code} />
-                      ) : (
-                        <Link
-                          href={`/repair/${row.code}`}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
-                        >
-                          <CheckCircle2 className="size-3.5" />
-                          ເປີດວຽກ
-                          <LinkPending className="size-3" />
-                        </Link>
-                      )}
+                    {/* ແຕ່ລະຂັ້ນມີທາງຖອນຄືນຂອງມັນ:
+                          ລໍຖ້າສ້ອມ → ຍົກເລີກຜົນກວດເຊັກ (ກັບໄປກວດເຊັກໃໝ່)
+                          ກຳລັງສ້ອມ → ຍົກເລີກເລີ່ມສ້ອມແປງ
+                          ຈົບແລ້ວ   → ຍົກເລີກ ຈົບການສ້ອມແປງ (ດຶງກັບມາສ້ອມຕໍ່) */}
+                    <td className="whitespace-nowrap px-3 py-2.5">
+                      <span className="flex items-center justify-center gap-1.5">
+                        {tab === "waiting" && (
+                          <>
+                            <StartRepairButton code={row.code} />
+                            <CancelCheckButton code={row.code} variant="icon" />
+                          </>
+                        )}
+                        {tab !== "waiting" && (
+                          <Link
+                            href={`/repair/${row.code}`}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                          >
+                            <CheckCircle2 className="size-3.5" />
+                            ເປີດວຽກ
+                            <LinkPending className="size-3" />
+                          </Link>
+                        )}
+                        {tab === "progress" && <UndoStartRepairButton code={row.code} variant="icon" />}
+                        {tab === "done" && <UndoFinishRepairButton code={row.code} variant="icon" />}
+                      </span>
                     </td>
                   </tr>
                 );

@@ -47,8 +47,12 @@ type Line = {
   status: number | null;
   at_time: string | null;
   elapsed_seconds: number | null;
-  /** ຂໍໂອນອາໄຫຼ່ແຖວນີ້ໄປແລ້ວບໍ (ic_trans_detail trans_flag 124) */
-  transfer_requested: boolean;
+  /**
+   * ສະຖານະໃບຂໍໂອນ (trans_flag 124) ຂອງອາໄຫຼ່ແຖວນີ້:
+   * null = ຍັງບໍ່ໄດ້ຂໍໂອນ · 0 = ຂໍໂອນແລ້ວ ລໍຖ້າຂອງມາຮອດ · 1 = ຮັບຂອງທີ່ໂອນມາແລ້ວ (ປິດແລ້ວ)
+   * (ມີໃບຄ້າງຢູ່ 1 ໃບ ຖືວ່າຍັງລໍຖ້າ → ໃຊ້ min)
+   */
+  transfer_status: number | null;
 };
 
 type Doc = {
@@ -151,8 +155,9 @@ async function getPending(warehouses: string[], q: string, page: number, sort: s
       a.qty, a.unit_code, e.unit_code inv_unit_code, a.roworder, a.status, b.wh_code,
       to_char(c.spare_reg,'DD-MM-YYYY HH24:MI') at_time,
       greatest(0, round(extract(epoch from (localtimestamp - c.spare_reg))))::int elapsed_seconds,
-      exists(select 1 from ic_trans_detail t
-             where t.trans_flag = ${TRANS.TRANSFER} and t.doc_ref = a.doc_no and t.item_code = a.item_code) transfer_requested
+      (select min(coalesce(t.status,0)) from ic_trans t
+         join ic_trans_detail td on td.doc_no = t.doc_no and td.trans_flag = t.trans_flag
+        where t.trans_flag = ${TRANS.TRANSFER} and t.doc_ref = a.doc_no and td.item_code = a.item_code) transfer_status
     from ic_trans_detail a
     left join ic_trans b on a.doc_no = b.doc_no
     left join tb_product c on c.code = a.product_code
@@ -302,19 +307,29 @@ function RowAction({ line }: { line: Line }) {
       <LinkPending className="size-3" />
     </Link>
   );
-  // ods: /showrequesttrans/<roworder>/<doc_no> — ຂໍໃຫ້ສາງໃຫຍ່ໂອນອາໄຫຼ່ເຂົ້າສາງສ້ອມ
-  const transfer = line.transfer_requested ? (
-    <span className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-500">
-      <ArrowLeftRight className="size-3.5" />
-      ຂໍໂອນແລ້ວ
-    </span>
-  ) : (
-    <Link href={`/stock/transfers/${line.roworder}`} className={`${actionClass} bg-sky-500 hover:bg-sky-600`}>
-      <ArrowLeftRight className="size-3.5" />
-      ຂໍໂອນ
-      <LinkPending className="size-3" />
-    </Link>
-  );
+  /*
+   * ods: /showrequesttrans/<roworder>/<doc_no> — ຂໍໃຫ້ສາງອື່ນໂອນອາໄຫຼ່ເຂົ້າສາງຂອງໃບຂໍເບີກ.
+   * ແຕ່ກ່ອນ: ຂໍໂອນແລ້ວປ້າຍ "ຂໍໂອນແລ້ວ" ຄ້າງຢູ່ຕະຫຼອດ ບໍ່ມີບ່ອນໃຫ້ໄປຕໍ່ (ທາງຕັນ).
+   * ດຽວນີ້ປ້າຍພາໄປໜ້າຕິດຕາມການໂອນ ບ່ອນທີ່ສາງກົດ "ຮັບຂອງທີ່ໂອນມາ" ໄດ້ —
+   * ຮັບແລ້ວຍອດຂຶ້ນຢູ່ສາງນີ້ ປຸ່ມ "ເບີກ" ຈຶ່ງກັບມາເອງ.
+   */
+  const transfer =
+    line.transfer_status === LINE_STATUS.PENDING ? (
+      <Link
+        href={`/stock/transfers?q=${encodeURIComponent(line.doc_no)}`}
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-50 px-3 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+      >
+        <ArrowLeftRight className="size-3.5" />
+        ຂໍໂອນແລ້ວ · ລໍຖ້າຂອງ
+        <LinkPending className="size-3" />
+      </Link>
+    ) : (
+      <Link href={`/stock/transfers/${line.roworder}`} className={`${actionClass} bg-sky-500 hover:bg-sky-600`}>
+        <ArrowLeftRight className="size-3.5" />
+        ຂໍໂອນ
+        <LinkPending className="size-3" />
+      </Link>
+    );
   // ods: orderspare.py /showsparefororder/<doc_no>/<item_code>
   const purchase = (
     <Link
@@ -641,9 +656,13 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{doc.doc_ref_date ?? "-"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">
-                      {tab === "dispatched" ? (
+                      {tab === "dispatched" || tab === "transfers" ? (
                         <Link
-                          href={`/stock/dispatch/bill/${encodeURIComponent(doc.doc_no)}`}
+                          href={
+                            tab === "dispatched"
+                              ? `/stock/dispatch/bill/${encodeURIComponent(doc.doc_no)}`
+                              : `/stock/transfers?q=${encodeURIComponent(doc.doc_no)}`
+                          }
                           className={`${actionClass} bg-sky-500 hover:bg-sky-600`}
                         >
                           ເບີ່ງ

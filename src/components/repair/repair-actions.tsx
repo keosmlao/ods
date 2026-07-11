@@ -1,5 +1,6 @@
 "use client";
-import { startRepair } from "@/app/actions/repair";
+import { startRepair, undoFinishRepair, undoStartRepair } from "@/app/actions/repair";
+import { UndoButton } from "@/components/checking/undo-button";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui";
 import { CheckCircle2, LoaderCircle } from "lucide-react";
@@ -35,5 +36,47 @@ export function StartRepairButton({ code }: { code: string }) {
         ເລີ່ມສ້ອມແປງ
       </Button>
     </>
+  );
+}
+
+/**
+ * ປຸ່ມ "ຍົກເລີກເລີ່ມສ້ອມແປງ" — ກົດຜິດໃບ ໃຫ້ຖອນຄືນໄດ້.
+ * ວຽກກັບໄປ "ລໍຖ້າສ້ອມແປງ" ໂດຍ **ບໍ່** ແຕະອາໄຫຼ່ ຫຼື ໃບເບີກໃດເລີຍ.
+ */
+export function UndoStartRepairButton({ code, variant }: { code: string; variant?: "button" | "icon" }) {
+  return (
+    <UndoButton
+      variant={variant}
+      label="ຍົກເລີກເລີ່ມສ້ອມແປງ"
+      title="ຍົກເລີກ ເລີ່ມສ້ອມແປງ?"
+      message={
+        <>
+          ໃບຮັບເຄື່ອງ <b className="text-slate-700">#{code}</b> ຈະກັບໄປ &quot;ລໍຖ້າສ້ອມແປງ&quot; ແລະ ຢຸດຈັບເວລາ.
+          ອາໄຫຼ່ ແລະ ໃບເບີກທີ່ອອກໄປແລ້ວຍັງຢູ່ຄືເກົ່າ.
+        </>
+      }
+      action={() => undoStartRepair(code)}
+    />
+  );
+}
+
+/**
+ * ປຸ່ມ "ຍົກເລີກ ຈົບການສ້ອມແປງ" — ດຶງວຽກທີ່ກົດຈົບໄວເກີນກັບມາສ້ອມຕໍ່.
+ * server ປະຕິເສດ ຖ້າສົ່ງຄືນລູກຄ້າແລ້ວ ຫຼື ອອກໃບຮັບເງິນແລ້ວ.
+ */
+export function UndoFinishRepairButton({ code, variant }: { code: string; variant?: "button" | "icon" }) {
+  return (
+    <UndoButton
+      variant={variant}
+      label="ຍົກເລີກ ຈົບການສ້ອມແປງ"
+      title="ຍົກເລີກ ຈົບການສ້ອມແປງ?"
+      message={
+        <>
+          ໃບຮັບເຄື່ອງ <b className="text-slate-700">#{code}</b> ຈະຖືກດຶງອອກຈາກ &quot;ລໍຖ້າສົ່ງຄືນ&quot; ກັບມາ
+          &quot;ກຳລັງສ້ອມແປງ&quot;. ບັນທຶກການສ້ອມ (ໝາຍເຫດຂອງຊ່າງ) ຍັງຢູ່ຄືເກົ່າ.
+        </>
+      }
+      action={() => undoFinishRepair(code)}
+    />
   );
 }

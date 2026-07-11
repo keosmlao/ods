@@ -1,4 +1,3 @@
-import { CancelApproveActions } from "@/components/quotation/approve-actions";
 import { LinkPending } from "@/components/link-pending";
 import { Card, PageTitle } from "@/components/ui";
 import { query } from "@/lib/db";
@@ -6,6 +5,7 @@ import { PackageCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CancelDecision } from "../cancel-decision";
 import { getOutstandingSpares, groupByDoc } from "../outstanding";
 import { OutstandingSpares } from "../outstanding-spares";
 
@@ -20,6 +20,8 @@ type Head = {
   sn: string | null;
   brand: string | null;
   warranty: string | null;
+  /** ເຫດຜົນທີ່ຊ່າງຕັດສິນວ່າໝົດຮັບປະກັນ — ມັກເປັນຕົ້ນເຫດຂອງການຂໍຍົກເລີກ */
+  warranty_reason: string | null;
   issue: string | null;
   issue_2: string | null;
   technician: string | null;
@@ -47,7 +49,7 @@ export default async function CancellationDetailPage({ params }: Props) {
   const head = (
     await query<Head>(
       `select concat_ws('-', b.name_1, b.tel) customer, a.name_1 product, a.p_model model, a.sn, a.p_brand brand,
-          a.warrunty warranty, a.issue, a.issue_2, a.emp_code technician, a.code, c.product_url,
+          a.warrunty warranty, a.warranty_reason, a.issue, a.issue_2, a.emp_code technician, a.code, c.product_url,
           b.code cust_code, a.remark, a.request_cancel,
           to_char(a.cancel_finish,'DD-MM-YYYY HH24:MI:SS') cancel_finish,
           to_char(a.return_complete,'DD-MM-YYYY HH24:MI') return_complete
@@ -90,7 +92,8 @@ export default async function CancellationDetailPage({ params }: Props) {
             )}
           </div>
         ) : (
-          <CancelApproveActions productCode={head.code} />
+          /* ຍັງບໍ່ອະນຸມັດ → ຕັດສິນໄດ້ 2 ທາງ: ອະນຸມັດ ຫຼື ບໍ່ອະນຸມັດ (ພ້ອມເຫດຜົນ) */
+          <CancelDecision productCode={head.code} />
         )}
 
         <div className="mt-5 grid gap-5 md:grid-cols-3">
@@ -101,6 +104,8 @@ export default async function CancellationDetailPage({ params }: Props) {
             <Field label="SN" value={head.sn} />
             <Field label="ຫຍີ່ຫໍ້" value={head.brand} accent />
             <Field label="ຮັບປະກັນ" value={head.warranty} />
+            {/* ຫຼັກຖານຂອງການຕັດສິນປະກັນ — ຜູ້ອະນຸມັດຕ້ອງເຫັນກ່ອນຕັດສິນຄຳຂໍຍົກເລີກ */}
+            {head.warranty_reason && <Field label="ເຫດຜົນໝົດຮັບປະກັນ" value={head.warranty_reason} accent />}
             <Field label="ອາການ" value={head.issue} accent />
             <Field label="ອາການຊ່າງ" value={head.issue_2} />
             <Field label="ຊ່າງ" value={head.technician} />

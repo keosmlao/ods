@@ -1,12 +1,13 @@
 import { getOutstandingSpares, groupByDoc } from "@/app/(app)/approvals/cancellations/outstanding";
 import { OutstandingSpares } from "@/app/(app)/approvals/cancellations/outstanding-spares";
-import { getCart, getRates, seedCart } from "@/app/actions/return";
+import { getApprovedQuote, getCart, getQuoteLines, getRates, seedCart } from "@/app/actions/return";
 import { Chatter } from "@/components/chatter/chatter";
 import { InvoiceEditor, type Bank, type BillHead, type Service } from "@/components/return/invoice-editor";
 import { PageTitle } from "@/components/ui";
 import { db, queryOdg } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
 import { notFound } from "next/navigation";
+import { QuotationPrices } from "./quotation-prices";
 import { ReturnWithoutInvoice } from "./return-without-invoice";
 
 /** ຖອດແບບຈາກ ods: returnproduct.py showreturn() + templates/returnProduct/showDetail.html */
@@ -80,14 +81,18 @@ export default async function ReturnDetailPage({ params }: { params: Promise<{ c
     await seedCart(head.code, head.warranty, head.used_spare);
   }
 
-  const [cart, rates, banks, services, docNo, spares] = await Promise.all([
+  const [cart, rates, banks, services, docNo, spares, quote] = await Promise.all([
     getCart(head.code),
     getRates(),
     getBanks(),
     getServices(),
     previewDocNo(),
     cancelled ? getOutstandingSpares(head.code) : Promise.resolve([]),
+    // ວຽກຍົກເລີກ: ບໍ່ຄິດຄ່າອາໄຫຼ່ → ບໍ່ຕ້ອງດຶງໃບສະເໜີລາຄາ (ຄິດແຕ່ຄ່າກວດເຊັກ)
+    cancelled ? Promise.resolve(null) : getApprovedQuote(head.code),
   ]);
+  // ລາຄາໃນຕະກ້າມາຈາກໃບສະເໜີລາຄາໃບນີ້ — ສະແດງໃຫ້ເຫັນ ແລະ ປຽບທຽບແຖວຕໍ່ແຖວ
+  const quoteLines = quote ? await getQuoteLines(quote.doc_no) : [];
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -107,15 +112,20 @@ export default async function ReturnDetailPage({ params }: { params: Promise<{ c
           ໃບຮັບເຄື່ອງນີ້ຢູ່ໃນຂັ້ນຕອນຂໍຍົກເລີກ ແລະ ຍັງບໍ່ໄດ້ຮັບການອະນຸມັດ — ຕ້ອງອະນຸມັດການຍົກເລີກກ່ອນ ຈຶ່ງສົ່ງຄືນລູກຄ້າໄດ້
         </p>
       ) : (
-        <InvoiceEditor
-          head={head}
-          cart={cart}
-          rates={rates}
-          banks={banks}
-          services={services}
-          docNo={docNo}
-          today={today}
-        />
+        <>
+          {quote && quoteLines.length > 0 && (
+            <QuotationPrices quote={quote} lines={quoteLines} cart={cart} />
+          )}
+          <InvoiceEditor
+            head={head}
+            cart={cart}
+            rates={rates}
+            banks={banks}
+            services={services}
+            docNo={docNo}
+            today={today}
+          />
+        </>
       )}
       <Chatter model="tb_product" resId={head.code} />
     </div>

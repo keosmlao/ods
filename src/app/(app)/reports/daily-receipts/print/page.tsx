@@ -1,10 +1,11 @@
+import { defaultFromIso } from "@/components/report-shell";
 import { PrintLayout, PrintTable } from "@/components/report/print-layout";
 import { columns, fetchDailyReceipts, one, safeDate, todayIso, type SearchParams } from "@/lib/report-sql";
 
 /* ods: /printpdrcd/<id1>/<id2> — pdrcreport.py */
 export default async function DailyReceiptsPrint({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const from = safeDate(one(params.from), todayIso());
+  const from = safeDate(one(params.from), defaultFromIso());
   const to = safeDate(one(params.to), todayIso());
   const { rows, summary } = await fetchDailyReceipts(from, to);
 

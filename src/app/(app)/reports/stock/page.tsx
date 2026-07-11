@@ -1,4 +1,4 @@
-import { countBy, ReportShell, reportState, type ReportTab, type SummaryItem } from "@/components/report-shell";
+import { countBy, defaultFromIso, ReportShell, reportState, type ReportTab, type SummaryItem } from "@/components/report-shell";
 import {
   columns,
   fetchSpareRequests,
@@ -24,7 +24,7 @@ export default async function StockReport({ searchParams }: { searchParams: Sear
   const params = await searchParams;
   const raw = one(params.tab);
   const tab = raw === "122" || raw === "56" ? raw : "stock";
-  const from = safeDate(one(params.from), todayIso());
+  const from = safeDate(one(params.from), defaultFromIso());
   const to = safeDate(one(params.to), todayIso());
   const state = reportState(params);
 

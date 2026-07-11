@@ -1,6 +1,5 @@
 "use client";
 import {
-  approveCancellation,
   approveQuote,
   customerApproveQuote,
   customerRejectQuote,
@@ -132,31 +131,3 @@ export function CustomerApproveActions({ docNo, productCode }: { docNo: string; 
 }
 
 /** ອະນຸມັດຍົກເລີກເຄື່ອງສ້ອມ */
-export function CancelApproveActions({ productCode }: { productCode: string }) {
-  const { pending, error, run } = useApproval();
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          tone="success"
-          disabled={pending}
-          onClick={() => run(approveCancellation, { pro_code: productCode })}
-        >
-          {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />}
-          ອະນູມັດ
-        </Button>
-        <Link
-          href="/approvals/cancellations"
-          className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-        >
-          <LogOut className="size-4" />
-          ອອກ
-        </Link>
-      </div>
-
-      {error && <ErrorBox>{error}</ErrorBox>}
-    </div>
-  );
-}

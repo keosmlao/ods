@@ -1,10 +1,10 @@
-import { countBy, ReportShell, reportState } from "@/components/report-shell";
+import { countBy, defaultFromIso, ReportShell, reportState } from "@/components/report-shell";
 import { columns, fetchPurchaseOrders, one, safeDate, toTableColumns, todayIso, type Row, type SearchParams } from "@/lib/report-sql";
 
 /* ods: /purchase_order_rp — orderspare.py */
 export default async function PurchaseOrdersReport({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const from = safeDate(one(params.from), todayIso());
+  const from = safeDate(one(params.from), defaultFromIso());
   const to = safeDate(one(params.to), todayIso());
   const state = reportState(params);
 

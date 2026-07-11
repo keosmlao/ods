@@ -1,5 +1,6 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
+import { clearCancelRequest } from "@/app/actions/service";
 import { getSession, type Session } from "@/lib/auth";
 import { ROLE_APPROVER, ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, query } from "@/lib/db";
@@ -252,8 +253,10 @@ export async function customerRejectQuote(_: ApprovalState, formData: FormData):
  *   2. ພາຜູ້ໃຊ້ໄປໜ້າລາຍລະອຽດ ທີ່ມີປຸ່ມ "ຂໍສົ່ງຄືນອາໄຫຼ່" ຂອງຂັ້ນຕອນເກົ່າ (/stock/returns → ໃບ 59)
  */
 export async function approveCancellation(_: ApprovalState, formData: FormData): Promise<ApprovalState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  // ແຕ່ກ່ອນກວດແຕ່ "login ຢູ່ບໍ" ⇒ ໃຜກໍ່ຍິງ action ນີ້ໄດ້. ດຽວນີ້ຕ້ອງເປັນຜູ້ອະນຸມັດ (ຄືສິດເຂົ້າ /approvals)
+  const guard = await requireRole(APPROVER_SIDE, "ບໍ່ມີສິດອະນຸມັດການຍົກເລີກ");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   const parsed = z.object({ pro_code: z.string().trim().min(1) }).safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "ບໍ່ພົບລະຫັດເຄື່ອງ" };
   const productCode = parsed.data.pro_code;
@@ -298,4 +301,47 @@ export async function approveCancellation(_: ApprovalState, formData: FormData):
   revalidatePath("/service/cancel");
   // ມີອາໄຫຼ່ຄ້າງ → ຢູ່ໜ້າລາຍລະອຽດ ເພື່ອໃຫ້ເຫັນຄຳເຕືອນ ແລະ ກົດຂໍສົ່ງຄືນໄດ້ທັນທີ
   redirect(outstanding.lines > 0 ? `/approvals/cancellations/${encodeURIComponent(productCode)}` : "/approvals/cancellations");
+}
+
+/**
+ * ບໍ່ອະນຸມັດການຍົກເລີກ — ບໍ່ມີໃນ ods ເລີຍ (ຜູ້ອະນຸມັດມີແຕ່ປຸ່ມ "ອະນຸມັດ" ດຽວ
+ * ⇒ ຄຳຂໍທີ່ບໍ່ຄວນຍົກເລີກ ຄ້າງຢູ່ຄິວຕະຫຼອດ ຫຼື ຖືກອະນຸມັດໄປທັງທີ່ບໍ່ຄວນ).
+ *
+ * ຜົນ: ລ້າງຄຳຂໍຍົກເລີກ (status ຄືນສູ່ຂັ້ນຈິງ, cancel_start / request_cancel / remark ຖືກລ້າງ)
+ * ⇒ ວຽກກັບເຂົ້າສາຍງານປົກກະຕິ ຄືກັບບໍ່ເຄີຍຂໍຍົກເລີກ. ບໍ່ມີການເຄື່ອນໄຫວສະຕັອກ ຫຼື ເອກະສານເງິນ
+ * ໃດຖືກແຕະ (ອາໄຫຼ່ທີ່ເບີກອອກໄປແລ້ວຍັງຢູ່ກັບວຽກຄືເກົ່າ ເພາະວຽກຍັງດຳເນີນຕໍ່).
+ *
+ * ກົດ: ຜູ້ອະນຸມັດ (ຜູ້ຈັດການ + ຫົວໜ້າຊ່າງ) ເທົ່ານັ້ນ · ຕ້ອງມີເຫດຜົນ ·
+ *      ອະນຸມັດຍົກເລີກໄປແລ້ວ (cancel_finish) ຫ້າມກັບຄືນ — ເພາະຂັ້ນຕໍ່ໄປ (ສົ່ງຄືນ/ໃບຮັບເງິນ)
+ *      ອາດເລີ່ມແລ້ວ. ⇒ ໃຊ້ clearCancelRequest() ຂອງ actions/service.ts ທີ່ກັນເງື່ອນໄຂນີ້ຢູ່ SQL.
+ */
+export async function rejectCancellation(_: ApprovalState, formData: FormData): Promise<ApprovalState> {
+  const guard = await requireRole(APPROVER_SIDE, "ບໍ່ມີສິດອະນຸມັດການຍົກເລີກ");
+  if (!guard.ok) return { error: guard.error };
+
+  const parsed = z
+    .object({ pro_code: z.string().trim().min(1), reason: z.string().trim().min(1) })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: "ກະລຸນາລະບຸເຫດຜົນທີ່ບໍ່ອະນຸມັດການຍົກເລີກ — ຜູ້ຂໍຕ້ອງຮູ້ວ່າຍ້ອນຫຍັງ" };
+  }
+  const { pro_code: productCode, reason } = parsed.data;
+
+  const cleared = await clearCancelRequest(productCode);
+  if (!cleared.ok) return { error: cleared.error ?? "ບໍ່ອະນຸມັດການຍົກເລີກບໍ່ສຳເລັດ" };
+
+  // ແຈ້ງຜູ້ຂໍໂດຍກົງ — ລາວແມ່ນຄົນທີ່ຕ້ອງຮູ້ວ່າວຽກກັບເຂົ້າສາຍງານຄືນແລ້ວ
+  const previous = cleared.reason ? ` · ຄຳຂໍເດີມ: ${cleared.reason}` : "";
+  await logChange(
+    "tb_product",
+    productCode,
+    `ບໍ່ອະນຸມັດການຍົກເລີກ · ເຫດຜົນ: ${reason}${previous} — ວຽກກັບຄືນສູ່ຂັ້ນຕອນປົກກະຕິ`,
+    { users: cleared.requester ? [cleared.requester] : [] },
+  );
+
+  revalidateAll();
+  revalidatePath("/service/cancel");
+  revalidatePath("/service");
+  revalidatePath(`/service/${productCode}`);
+  redirect("/approvals/cancellations");
 }

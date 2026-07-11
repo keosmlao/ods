@@ -1,5 +1,5 @@
 import { LinkPending } from "@/components/link-pending";
-import { ReportShell, reportState, type SummaryItem } from "@/components/report-shell";
+import { defaultFromIso, ReportShell, reportState, type SummaryItem } from "@/components/report-shell";
 import { columns, fetchCustomerFeedback, one, safeDate, toTableColumns, todayIso, type Row, type SearchParams } from "@/lib/report-sql";
 import Link from "next/link";
 
@@ -7,7 +7,7 @@ import Link from "next/link";
 export default async function CustomerFeedbackReport({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const all = one(params.all) === "1";
-  const from = safeDate(one(params.from), todayIso());
+  const from = safeDate(one(params.from), defaultFromIso());
   const to = safeDate(one(params.to), todayIso());
   const state = reportState(params);
 

@@ -365,7 +365,18 @@ export async function approveRqOrder(_: PurchaseState, formData: FormData): Prom
 
 /* --------------------------------------------- /not_approverqorder */
 
-/** ຄື /not_approverqorder — ບໍ່ອະນຸມັດ RQ ແລ້ວປົດ status ຂອງແຖວຕົ້ນທາງຄືນ */
+/**
+ * ຄື /not_approverqorder — ບໍ່ອະນຸມັດ RQ ແລ້ວປົດ status ຂອງແຖວຕົ້ນທາງຄືນ
+ *
+ * ── ວຽກຄ້າງ "ກຳລັງສັ່ງຊື້ອາໄຫຼ່" ຕະຫຼອດໄປ (GAP) ──
+ * ods (ແລະ code ອັນເກົ່າຢູ່ນີ້) ປົດແຕ່ ic_trans_detail.status ຄືນ ແຕ່ **ບໍ່ລ້າງ tb_product.spare_order**
+ * ⇒ STAGE_SQL (lib/stage.ts) ຍັງເຫັນ spare_order ຢູ່ ຈຶ່ງຄາໃບໄວ້ຂັ້ນ 7 "ກຳລັງສັ່ງຊື້ອາໄຫຼ່"
+ * ທັງທີ່ບໍ່ມີໃບສັ່ງຊື້ໃດຄ້າງຢູ່ເລີຍ — ບໍ່ມີໜ້າໃດຮັບວຽກຕໍ່ ແລະ ບໍ່ມີໃຜຮູ້ວ່າຕ້ອງລົງມືຫຍັງ.
+ *
+ * ດຽວນີ້ລ້າງ spare_order (+ spare_arrive ຖ້າມີ) ⇒ ວຽກຕົກກັບໄປຂັ້ນອາໄຫຼ່ (5/6) ໃຫ້ຄົນລົງມືຕໍ່ໄດ້.
+ * ລ້າງໄດ້ສະເພາະເມື່ອ **ບໍ່ມີໃບສັ່ງຊື້ອື່ນຄ້າງຢູ່** (SPR ອື່ນ ຫຼື RQ ອື່ນທີ່ອະນຸມັດແລ້ວ)
+ * ບໍ່ດັ່ງນັ້ນຈະດຶງວຽກທີ່ຍັງລໍຖ້າຂອງຈາກໃບອື່ນອອກຈາກຂັ້ນ 7 ຜິດ.
+ */
 export async function notApproveRqOrder(_: PurchaseState, formData: FormData): Promise<PurchaseState> {
   const session = await getSession();
   if (!session) return { error: "Session ໝົດອາຍຸ" };
@@ -376,14 +387,18 @@ export async function notApproveRqOrder(_: PurchaseState, formData: FormData): P
 
   const client = await db.connect();
   let productCode = "";
+  let requester = "";
+  let technician = "";
+  let released = false;
   try {
     await client.query("begin");
-    // returning → ໄດ້ລະຫັດວຽກມາຂຽນ log ໂດຍບໍ່ຕ້ອງ query ຊ້ຳ
-    const rejected = await client.query<{ product_code: string | null }>(
-      `update ic_trans set aprove_status=2 where doc_no=$1 returning product_code`,
+    // returning → ໄດ້ລະຫັດວຽກ + ຜູ້ຂໍ ມາຂຽນ log/ແຈ້ງເຕືອນ ໂດຍບໍ່ຕ້ອງ query ຊ້ຳ
+    const rejected = await client.query<{ product_code: string | null; user_created: string | null }>(
+      `update ic_trans set aprove_status=2 where doc_no=$1 returning product_code, user_created`,
       [docNo],
     );
     productCode = rejected.rows[0]?.product_code ?? "";
+    requester = rejected.rows[0]?.user_created ?? "";
 
     // ods ປົດ status=0 ໃຫ້ "ທຸກ" ແຖວຂອງໃບຂໍເບີກຕົ້ນທາງ → ລ້າງ status ຂອງແຖວທີ່ບໍ່ກ່ຽວນຳ.
     // ບ່ອນນີ້ປົດສະເພາະອາໄຫຼ່ທີ່ຢູ່ໃນໃບ RQ ນີ້ເທົ່ານັ້ນ.
@@ -393,6 +408,29 @@ export async function notApproveRqOrder(_: PurchaseState, formData: FormData): P
          and item_code in (select item_code from ic_trans_detail where doc_no=$1)`,
       [docNo],
     );
+
+    // ວຽກສ້ອມ (tb_product) ເທົ່ານັ້ນ — ງານຕິດຕັ້ງ (INST-) ບໍ່ໄດ້ໃຊ້ຖັນເຫຼົ່ານີ້
+    if (productCode && jobModel(productCode) === "tb_product") {
+      // ໃບສັ່ງຊື້ (SPR) ທີ່ອອກມາຈາກໃບ RQ ໃບນີ້ເອງ (doc_ref = RQ) ບໍ່ນັບ — ໃບນີ້ຖືກປະຕິເສດແລ້ວ.
+      // ນັບແຕ່ໃບຂໍຊື້ອື່ນທີ່ຍັງມີຜົນ ⇒ ຖ້າຍັງມີ ວຽກຕ້ອງຄ້າງຂັ້ນ 7 ຕໍ່ໄປ (ຂອງຍັງມາບໍ່ຮອດ)
+      const others = await client.query<{ n: number }>(
+        `select count(*)::int n from ic_trans
+         where product_code=$1 and doc_no <> $2 and coalesce(doc_ref,'') <> $2
+           and (trans_flag = 2 or (trans_flag = 78 and coalesce(aprove_status,0) = 1))`,
+        [productCode, docNo],
+      );
+      if ((others.rows[0]?.n ?? 0) === 0) {
+        const cleared = await client.query<{ emp_code: string | null }>(
+          `update tb_product
+              set spare_order = null, spare_arrive = null, spare_arrive_by = null
+            where code = $1 and spare_order is not null
+            returning emp_code`,
+          [productCode],
+        );
+        released = (cleared.rowCount ?? 0) > 0;
+        technician = cleared.rows[0]?.emp_code ?? "";
+      }
+    }
     await client.query("commit");
   } catch (error) {
     await client.query("rollback").catch(() => {});
@@ -403,10 +441,25 @@ export async function notApproveRqOrder(_: PurchaseState, formData: FormData): P
   }
 
   if (productCode) {
-    await logChange(jobModel(productCode), productCode, `ບໍ່ອະນຸມັດໃບຂໍສັ່ງຊື້ອາໄຫຼ່ ${docNo}`);
+    // ຊ່າງ (ຄົນລໍອາໄຫຼ່) + ຜູ້ຂໍ ຕ້ອງຮູ້ວ່າໃບຂໍຊື້ຕົກ ແລະ ວຽກກັບມາຢູ່ຂັ້ນອາໄຫຼ່ແລ້ວ
+    const users = [technician, requester].filter((name) => name && name !== session.username);
+    await logChange(
+      jobModel(productCode),
+      productCode,
+      `ບໍ່ອະນຸມັດໃບຂໍສັ່ງຊື້ອາໄຫຼ່ ${docNo}` +
+        (released
+          ? " — ຍົກເລີກສະຖານະ “ກຳລັງສັ່ງຊື້ອາໄຫຼ່” ວຽກກັບໄປຂັ້ນອາໄຫຼ່ ລໍຖ້າການລົງມືໃໝ່"
+          : ""),
+      { users },
+    );
   }
 
   revalidatePath("/approvals/purchase-requests");
+  revalidatePath("/purchase-requests");
+  revalidatePath("/stock/arrivals");
+  revalidatePath("/stock/dispatch");
+  revalidatePath("/dashboard");
+  if (productCode) revalidatePath(`/service/${productCode}`);
   redirect("/approvals/purchase-requests");
 }
 

@@ -2,6 +2,7 @@
 import { logChange } from "@/app/actions/chatter";
 import { getSession } from "@/lib/auth";
 import { db, query } from "@/lib/db";
+import { roleOf, TECH_SIDE } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -19,6 +20,78 @@ import { z } from "zod";
 const NOW = "timezone('Asia/Bangkok', now())::timestamp(0)";
 
 export type CheckState = { error?: string };
+export type UndoState = { error?: string };
+
+/* ── ການແກ້ໄຂຂໍ້ຜິດພາດ (undo) — ກົດເກນກາງ ─────────────────────────
+ *
+ * ods ບໍ່ມີທາງຖອນຄືນເລີຍ: ກົດຜິດເທື່ອດຽວ = ຜິດຕະຫຼອດ. ບ່ອນນີ້ໃຫ້ຖອນຄືນໄດ້
+ * ແຕ່ **ຫ້າມຖອນຄືນຂ້າມຂັ້ນທີ່ຍ້ອນກັບບໍ່ໄດ້**: ຖ້າມີເອກະສານສາງ ຫຼື ເອກະສານເງິນ
+ * ອອກໄປແລ້ວ ການຖອນຄືນຈະໄປເຮັດໃຫ້ບັນຊີບໍ່ຕົງກັນຢ່າງງຽບໆ ⇒ ປະຕິເສດ ພ້ອມບອກ
+ * ເລກທີເອກະສານທີ່ກີດຂວາງຢູ່ ໃຫ້ຜູ້ໃຊ້ຮູ້ວ່າຕ້ອງໄປຈັດການໃບໃດກ່ອນ.
+ *
+ * ເລກ trans_flag (ic_trans / ic_trans_detail) — ຄືກັບ lib/stock-constants + qt.py:
+ *   17 = ໃບສະເໜີລາຄາ · 44 = ໃບຮັບເງິນ · 122 = ໃບຂໍເບີກ · 56 = ໃບເບີກ (ຂອງອອກສາງແລ້ວ)
+ */
+const QUOTE = 17;
+const INVOICE = 44;
+const REQUEST = 122;
+const DISPATCH = 56;
+
+type JobSnapshot = {
+  code: string;
+  status: number | null;
+  emp_code: string | null;
+  warrunty: string | null;
+  used_spare: number;
+  time_check: Date | null;
+  time_finish_check: Date | null;
+  time_repair: Date | null;
+  time_finish_repair: Date | null;
+  return_complete: Date | null;
+  qt_start: Date | null;
+  quote_doc: string | null;
+  invoice_doc: string | null;
+  request_doc: string | null;
+  dispatch_doc: string | null;
+};
+
+const JOB_SQL = `select a.code, a.status, a.emp_code, a.warrunty, coalesce(a.used_spare,0)::int used_spare,
+    a.time_check, a.time_finish_check, a.time_repair, a.time_finish_repair, a.return_complete, a.qt_start,
+    (select t.doc_no from ic_trans t where t.trans_flag=${QUOTE} and t.product_code=a.code order by t.doc_no limit 1) quote_doc,
+    (select t.doc_no from ic_trans t where t.trans_flag=${INVOICE} and t.product_code=a.code order by t.doc_no limit 1) invoice_doc,
+    (select d.doc_no from ic_trans_detail d where d.trans_flag=${REQUEST} and d.product_code=a.code order by d.doc_no limit 1) request_doc,
+    (select d.doc_no from ic_trans_detail d where d.trans_flag=${DISPATCH} and d.product_code=a.code order by d.doc_no limit 1) dispatch_doc
+  from tb_product a where a.code=$1 limit 1`;
+
+/**
+ * ດຶງພາບລວມຂອງວຽກ + ກວດສິດ.
+ * ຊ່າງ (technical) ຖອນຄືນໄດ້ສະເພາະວຽກຂອງຕົນເອງ · ຜູ້ຈັດການ ແລະ ຫົວໜ້າຊ່າງ ໄດ້ທຸກວຽກ
+ * (ຄືກົດເກນ ownJobsOnly ຂອງໜ້າລາຍການ ແຕ່ບັງຄັບຢູ່ຝັ່ງ server).
+ */
+async function loadJob(code: string): Promise<{ ok: true; job: JobSnapshot } | { ok: false; error: string }> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Session ໝົດອາຍຸ" };
+  const role = roleOf(session);
+  if (!TECH_SIDE.includes(role)) return { ok: false, error: "ບໍ່ມີສິດແກ້ໄຂຂັ້ນຕອນຂອງຊ່າງ" };
+
+  const job = (await query<JobSnapshot>(JOB_SQL, [code])).rows[0];
+  if (!job) return { ok: false, error: "ບໍ່ພົບໃບຮັບເຄື່ອງ" };
+  if (role === "technical" && (job.emp_code ?? "") !== session.username) {
+    return { ok: false, error: "ວຽກນີ້ບໍ່ແມ່ນຂອງທ່ານ — ຖອນຄືນບໍ່ໄດ້" };
+  }
+  return { ok: true, job };
+}
+
+/**
+ * ຂັ້ນທີ່ຍ້ອນກັບບໍ່ໄດ້ — ຖ້າຂໍ້ໃດຂໍ້ນຶ່ງຈິງ ໃຫ້ປະຕິເສດການຖອນຄືນ ພ້ອມເລກທີເອກະສານ.
+ * ຮຽງຈາກ "ໜັກສຸດ" ລົງມາ ເພື່ອໃຫ້ຜູ້ໃຊ້ເຫັນສາເຫດທີ່ແທ້ຈິງກ່ອນ.
+ */
+function blockedBy(job: JobSnapshot): string | null {
+  if (job.return_complete) return "ສົ່ງເຄື່ອງຄືນລູກຄ້າໄປແລ້ວ — ຖອນຄືນບໍ່ໄດ້";
+  if (job.invoice_doc) return `ອອກໃບຮັບເງິນ ${job.invoice_doc} ໄປແລ້ວ — ຖອນຄືນບໍ່ໄດ້`;
+  if (job.status === 6) return "ໃບນີ້ຢູ່ໃນຂັ້ນຕອນຍົກເລີກ — ໃຫ້ຖອນຄຳຂໍຍົກເລີກກ່ອນ";
+  return null;
+}
 
 /* ── ຄົ້ນຫາອາໄຫຼ່ (search_item_spare) ───────────────────────────── */
 
@@ -73,6 +146,50 @@ export async function startCheck(code: string) {
   await logChange("tb_product", code, "ເລີ່ມກວດເຊັກ");
   revalidatePath("/checking");
   redirect("/checking");
+}
+
+/* ── ຍົກເລີກ "ເລີ່ມກວດເຊັກ" (ບໍ່ມີໃນ ods) ────────────────────────
+ *
+ * ກົດຜິດໃບ → ລ້າງ time_check ແລ້ວວຽກກັບໄປ "ລໍຖ້າກວດເຊັກ" (status=1).
+ * ບໍ່ແຕະສະຕັອກ ຫຼື ເອກະສານໃດເລີຍ — ລ້າງແຕ່ຖັນເວລາ.
+ *
+ * ປະຕິເສດເມື່ອ:
+ *   · ບັນທຶກຜົນກວດເຊັກໄປແລ້ວ (time_finish_check) → ໃຫ້ "ຍົກເລີກຜົນກວດເຊັກ" ກ່ອນ
+ *   · ວຽກຍ້າຍໄປຂັ້ນຕໍ່ໄປແລ້ວ (ໃບສະເໜີລາຄາ / ໃບຂໍເບີກ / ໃບເບີກ / ສ້ອມແປງ)
+ *   · ຫຼື ຕິດເງື່ອນໄຂກາງ (blockedBy)
+ */
+export async function undoStartCheck(code: string): Promise<UndoState> {
+  const loaded = await loadJob(code);
+  if (!loaded.ok) return { error: loaded.error };
+  const job = loaded.job;
+
+  if (!job.time_check) return { error: "ໃບນີ້ຍັງບໍ່ໄດ້ເລີ່ມກວດເຊັກ" };
+  const blocker = blockedBy(job);
+  if (blocker) return { error: `ຍົກເລີກ "ເລີ່ມກວດເຊັກ" ບໍ່ໄດ້: ${blocker}` };
+  if (job.time_finish_check) {
+    return { error: 'ຍົກເລີກ "ເລີ່ມກວດເຊັກ" ບໍ່ໄດ້: ບັນທຶກຜົນກວດເຊັກໄປແລ້ວ — ໃຫ້ກົດ "ຍົກເລີກຜົນກວດເຊັກ" ກ່ອນ' };
+  }
+  if (job.time_repair) return { error: 'ຍົກເລີກ "ເລີ່ມກວດເຊັກ" ບໍ່ໄດ້: ເລີ່ມສ້ອມແປງໄປແລ້ວ' };
+  if (job.quote_doc || job.qt_start) {
+    return { error: `ຍົກເລີກ "ເລີ່ມກວດເຊັກ" ບໍ່ໄດ້: ມີໃບສະເໜີລາຄາ ${job.quote_doc ?? ""} ແລ້ວ`.trim() };
+  }
+  if (job.request_doc) return { error: `ຍົກເລີກ "ເລີ່ມກວດເຊັກ" ບໍ່ໄດ້: ມີໃບຂໍເບີກອາໄຫຼ່ ${job.request_doc} ແລ້ວ` };
+  if (job.dispatch_doc) {
+    return { error: `ຍົກເລີກ "ເລີ່ມກວດເຊັກ" ບໍ່ໄດ້: ອາໄຫຼ່ຖືກເບີກອອກຈາກສາງແລ້ວ (ໃບເບີກ ${job.dispatch_doc})` };
+  }
+
+  // ເງື່ອນໄຂຊ້ຳຢູ່ SQL — ກັນສອງຄົນກົດພ້ອມກັນ (ບັນທຶກຜົນກວດແລ້ວຖອນຄືນ)
+  const undone = await query(
+    "update tb_product set time_check=null, status=1 where code=$1 and time_check is not null and time_finish_check is null and status<>6",
+    [code],
+  );
+  if (!undone.rowCount) return { error: "ຖອນຄືນບໍ່ສຳເລັດ — ວຽກຖືກປ່ຽນໄປແລ້ວ" };
+
+  await logChange("tb_product", code, 'ຍົກເລີກ "ເລີ່ມກວດເຊັກ" — ວຽກກັບໄປ "ລໍຖ້າກວດເຊັກ"');
+  revalidatePath("/checking");
+  revalidatePath(`/checking/${code}`);
+  revalidatePath(`/service/${code}`);
+  return {};
 }
 
 /* ── ກະຕ່າອາໄຫຼ່ (additem / updateqty / delete_item) ─────────────── */
@@ -161,7 +278,16 @@ export async function saveCheck(_: CheckState, formData: FormData): Promise<Chec
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const { code, isue_bytech, war_by_t, use_spare, warrunty } = parsed.data;
-  // t_reason: ods ຮັບຄ່ານີ້ແຕ່ບໍ່ໄດ້ບັນທຶກລົງ DB — ບ່ອນນີ້ກໍ່ບໍ່ບັນທຶກຄືກັນ
+
+  /**
+   * t_reason = ເຫດຜົນທີ່ຊ່າງຕັດສິນວ່າ "ໝົດຮັບປະກັນ".
+   * ods ຮັບຄ່ານີ້ແລ້ວ **ຖິ້ມຖິ້ມ** ⇒ ພໍລູກຄ້າຄ້ານວ່າ "ເປັນຫຍັງຈຶ່ງໝົດປະກັນ" ບໍ່ມີຫຼັກຖານໃດເລີຍ.
+   * ດຽວນີ້ເກັບລົງ tb_product.warranty_reason ແລະ ສະແດງທຸກບ່ອນທີ່ສະແດງສະຖານະປະກັນ.
+   */
+  const reason = parsed.data.t_reason.trim();
+  if (war_by_t === "1" && !reason) {
+    return { error: "ກະລຸນາປ້ອນເຫດຜົນ ທີ່ຕັດສິນວ່າ ໝົດຮັບປະກັນ — ເປັນຫຼັກຖານເມື່ອລູກຄ້າຄ້ານ" };
+  }
 
   const usesSpare = use_spare === "1";
   const underWarranty = warrunty === "ຮັບປະກັນ";
@@ -207,9 +333,12 @@ export async function saveCheck(_: CheckState, formData: FormData): Promise<Chec
       ]);
     }
 
-    // ຂໍປ່ຽນປະກັນ → ຊ່າງຕັດສິນວ່າໝົດຮັບປະກັນ
+    // ຂໍປ່ຽນປະກັນ → ຊ່າງຕັດສິນວ່າໝົດຮັບປະກັນ (ພ້ອມເຫດຜົນ = ຫຼັກຖານ)
     if (war_by_t === "1") {
-      await client.query("update tb_product set warrunty='ໝົດຮັບປະກັນ' where code=$1", [code]);
+      await client.query("update tb_product set warrunty='ໝົດຮັບປະກັນ', warranty_reason=$1 where code=$2", [
+        reason,
+        code,
+      ]);
     }
 
     await client.query("commit");
@@ -222,55 +351,105 @@ export async function saveCheck(_: CheckState, formData: FormData): Promise<Chec
   }
 
   const spareNote = usesSpare ? `ໃຊ້ອາໄຫຼ່ ${spareCount} ລາຍການ` : "ບໍ່ໃຊ້ອາໄຫຼ່";
-  const warrantyNote = war_by_t === "1" ? " · ຊ່າງແຈ້ງວ່າໝົດຮັບປະກັນ" : "";
+  // ເຫດຜົນປະກັນເຂົ້າ chatter ນຳ — ຫຼັກຖານທີ່ອ່ານໄດ້ ພ້ອມຊື່ຊ່າງ ແລະ ວັນເວລາ
+  const warrantyNote = war_by_t === "1" ? ` · ຊ່າງແຈ້ງວ່າໝົດຮັບປະກັນ ເຫດຜົນ: ${reason}` : "";
   await logChange("tb_product", code, `ບັນທຶກຜົນກວດເຊັກ: ${isue_bytech} · ${spareNote}${warrantyNote}`);
 
   revalidatePath("/checking");
+  revalidatePath("/repair");
   redirect("/checking");
 }
 
-/* ── ຍົກເລີກການກວດເຊັກ (cancelchecking) ─────────────────────────── */
-
-export async function cancelChecking(code: string) {
+/* ── ຍົກເລີກຜົນກວດເຊັກ (cancelchecking) ──────────────────────────
+ *
+ * ຊ່າງບັນທຶກຜົນກວດຜິດ (ອາການຜິດ, ໃສ່/ບໍ່ໃສ່ອາໄຫຼ່ຜິດ) → ລ້າງຜົນກວດ ແລ້ວກັບໄປ
+ * "ກຳລັງກວດເຊັກ" (status=2, time_check ຍັງຢູ່) ເພື່ອກວດ ແລະ ບັນທຶກໃໝ່.
+ *
+ * ປະຕິເສດເມື່ອວຽກຍ້າຍໄປຂັ້ນຕໍ່ໄປແລ້ວ — ໝາຍທີ່ໃຊ້ຈິງ (ບໍ່ແມ່ນຄາດເດົາ):
+ *   · ໃບຂໍເບີກອາໄຫຼ່ — ic_trans_detail.trans_flag=122 ຫຼື tb_product.spare_reg
+ *   · ໃບເບີກ (ຂອງອອກສາງແລ້ວ) — ic_trans_detail.trans_flag=56
+ *   · ໃບສະເໜີລາຄາ — ic_trans.trans_flag=17 ຫຼື tb_product.qt_start
+ *   · ເລີ່ມສ້ອມແປງ — tb_product.time_repair
+ *   · ບວກເງື່ອນໄຂກາງ: ສົ່ງຄືນລູກຄ້າແລ້ວ / ມີໃບຮັບເງິນ / ຢູ່ໃນຂັ້ນຕອນຍົກເລີກ
+ *
+ * ເຫດຜົນທີ່ຕ້ອງກັນ: ບ່ອນນີ້ລຶບແຖວ tb_used_spare ຖິ້ມ — ຖ້າອາໄຫຼ່ພວກນັ້ນເຂົ້າໃບຂໍເບີກ
+ * ຫຼື ຖືກເບີກອອກສາງໄປແລ້ວ ການລຶບຈະເຮັດໃຫ້ໃບຢູ່ສາງກັບວຽກບໍ່ຕົງກັນຢ່າງງຽບໆ.
+ *
+ * ອາໄຫຼ່ທີ່ຊ່າງເລືອກໄວ້ບໍ່ຫາຍ — ຖືກຍ້າຍກັບເຂົ້າກະຕ່າຮ່າງ (ic_trans_detail_draft)
+ * ຂອງຊ່າງຄົນນັ້ນ ຈຶ່ງບໍ່ຕ້ອງພິມຄືນໃໝ່ໝົດ.
+ *
+ * ໝາຍເຫດ: **ບໍ່** ແຕະ warrunty / warranty_reason. ສະຖານະປະກັນ ແລະ ເຫດຜົນຂອງມັນ
+ * ຢູ່ຄູ່ກັນສະເໝີ (ເຫດຜົນມີຄວາມໝາຍສະເພາະຕອນ 'ໝົດຮັບປະກັນ') ແລະ ເປັນຫຼັກຖານຕໍ່ລູກຄ້າ
+ * ⇒ ບໍ່ລຶບຖິ້ມງຽບໆ. ບັນທຶກຜົນກວດຄືນໃໝ່ດ້ວຍ "ຂໍປ່ຽນປະກັນ" ຈະຂຽນເຫດຜົນທັບໃຫ້,
+ * ຖ້າຕັດສິນປະກັນຜິດແທ້ ຝ່າຍບໍລິການແກ້ໄດ້ທີ່ /service/[code]/edit.
+ */
+export async function cancelChecking(code: string): Promise<UndoState> {
   const session = await getSession();
-  if (!session) redirect("/login");
-  if (!db) throw new Error("DATABASE_URL is not configured");
+  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const loaded = await loadJob(code);
+  if (!loaded.ok) return { error: loaded.error };
+  const job = loaded.job;
+
+  if (!job.time_finish_check) return { error: "ໃບນີ້ຍັງບໍ່ໄດ້ບັນທຶກຜົນກວດເຊັກ" };
+  const blocker = blockedBy(job);
+  if (blocker) return { error: `ຍົກເລີກຜົນກວດເຊັກບໍ່ໄດ້: ${blocker}` };
+  if (job.dispatch_doc) {
+    return {
+      error: `ຍົກເລີກຜົນກວດເຊັກບໍ່ໄດ້: ອາໄຫຼ່ຖືກເບີກອອກຈາກສາງແລ້ວ (ໃບເບີກ ${job.dispatch_doc}) — ຕ້ອງສົ່ງອາໄຫຼ່ຄືນສາງກ່ອນ`,
+    };
+  }
+  if (job.request_doc) {
+    return { error: `ຍົກເລີກຜົນກວດເຊັກບໍ່ໄດ້: ມີໃບຂໍເບີກອາໄຫຼ່ ${job.request_doc} ແລ້ວ — ຕ້ອງຍົກເລີກໃບຂໍເບີກກ່ອນ` };
+  }
+  if (job.quote_doc) return { error: `ຍົກເລີກຜົນກວດເຊັກບໍ່ໄດ້: ມີໃບສະເໜີລາຄາ ${job.quote_doc} ແລ້ວ` };
+  if (job.qt_start) return { error: "ຍົກເລີກຜົນກວດເຊັກບໍ່ໄດ້: ເລີ່ມສະເໜີລາຄາໄປແລ້ວ" };
+  if (job.time_repair) return { error: 'ຍົກເລີກຜົນກວດເຊັກບໍ່ໄດ້: ເລີ່ມສ້ອມແປງໄປແລ້ວ — ໃຫ້ຍົກເລີກ "ເລີ່ມສ້ອມແປງ" ກ່ອນ' };
 
   const client = await db.connect();
-  let cancelled = false;
+  let spareCount = 0;
   try {
     await client.query("begin");
-    const product = (
-      await client.query<{ code: string; used_spare: number | null }>(
-        "select code, used_spare from tb_product where code=$1 limit 1",
-        [code],
-      )
-    ).rows[0];
 
-    if (product) {
-      cancelled = true;
-      if (product.used_spare === 1) {
-        await client.query(
-          "update tb_product set time_finish_check=null, used_spare=0, status=2, issue_2=null where code=$1",
-          [code],
-        );
-        await client.query("delete from tb_used_spare where product_code=$1", [product.code]);
-      } else {
-        // ods ບໍ່ໄດ້ຕັ້ງ status ຄືນໃນກໍລະນີນີ້ — ຮັກສາໄວ້ຄືເກົ່າ
-        await client.query("update tb_product set time_finish_check=null where code=$1", [code]);
-      }
+    // ເງື່ອນໄຂຊ້ຳຢູ່ SQL — ກັນສອງຄົນກົດພ້ອມກັນ (ຂໍເບີກ ແລະ ຖອນຄືນພ້ອມກັນ)
+    const undone = await client.query(
+      `update tb_product set time_finish_check=null, issue_2=null, used_spare=0, status=2
+        where code=$1 and time_finish_check is not null and time_repair is null
+          and qt_start is null and spare_reg is null and status<>6`,
+      [code],
+    );
+    if (!undone.rowCount) {
+      await client.query("rollback");
+      return { error: "ຖອນຄືນບໍ່ສຳເລັດ — ວຽກຖືກປ່ຽນໄປແລ້ວ" };
     }
+
+    // ອາໄຫຼ່ກັບເຂົ້າກະຕ່າຮ່າງຂອງຊ່າງ (trans_flag 12 ຄືກັບ addSpareItem) ແລ້ວຈຶ່ງລຶບຕົວຈິງ
+    const moved = await client.query(
+      `insert into ic_trans_detail_draft(trans_flag, cust_code, product_code, item_code, item_name, qty, unit_code, user_created)
+       select 12, p.cust_code, s.product_code, s.item_code, s.item_name, s.qty, s.unit_code, $2
+         from tb_used_spare s join tb_product p on p.code = s.product_code
+        where s.product_code=$1`,
+      [code, session.username],
+    );
+    spareCount = moved.rowCount ?? 0;
+    await client.query("delete from tb_used_spare where product_code=$1", [code]);
+
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");
-    cancelled = false;
     console.error("cancelchecking failed", error);
+    return { error: "ຖອນຄືນບໍ່ສຳເລັດ" };
   } finally {
     client.release();
   }
 
-  if (cancelled) await logChange("tb_product", code, "ຍົກເລີກຜົນກວດເຊັກ — ກັບໄປກວດເຊັກຄືນໃໝ່");
+  const spareNote = spareCount > 0 ? ` · ອາໄຫຼ່ ${spareCount} ລາຍການ ກັບເຂົ້າກະຕ່າ` : "";
+  await logChange("tb_product", code, `ຍົກເລີກຜົນກວດເຊັກ — ກັບໄປກວດເຊັກຄືນໃໝ່${spareNote}`);
 
   revalidatePath("/checking");
-  redirect("/checking");
+  revalidatePath(`/checking/${code}`);
+  revalidatePath("/repair");
+  revalidatePath(`/service/${code}`);
+  return {};
 }

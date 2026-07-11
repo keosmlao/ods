@@ -1,10 +1,11 @@
+import { defaultFromIso } from "@/components/report-shell";
 import { PrintLayout, PrintTable } from "@/components/report/print-layout";
 import { checkingFlags, columns, fetchChecking, one, safeDate, safeFlag, todayIso, type SearchParams } from "@/lib/report-sql";
 
 /* ods: /checking_reportprint (122) + /checking_reportprint1 (56) — check_report.py */
 export default async function CheckingPrint({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const from = safeDate(one(params.from), todayIso());
+  const from = safeDate(one(params.from), defaultFromIso());
   const to = safeDate(one(params.to), todayIso());
   const flag = safeFlag(one(params.flag));
   const rows = await fetchChecking(from, to, flag);

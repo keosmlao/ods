@@ -1,5 +1,6 @@
 "use client";
 import { addUsedSpare, deleteUsedSpare, saveRepair, updateUsedSpareQty } from "@/app/actions/repair";
+import { UndoFinishRepairButton, UndoStartRepairButton } from "@/components/repair/repair-actions";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Elapsed } from "@/components/elapsed";
 import { SpareSearchDialog } from "@/components/spare-search";
@@ -31,6 +32,8 @@ export type RepairHead = {
   product: string | null;
   brand: string | null;
   warranty: string | null;
+  /** ເຫດຜົນທີ່ຊ່າງຕັດສິນວ່າໝົດຮັບປະກັນ (tb_product.warranty_reason) */
+  warranty_reason: string | null;
   issue: string | null;
   issue_2: string | null;
   technician: string | null;
@@ -41,6 +44,12 @@ export type RepairHead = {
   /** ໝົດຮັບປະກັນ ຕ້ອງມີໃບສະເໜີລາຄາຈົບກ່ອນຈຶ່ງເບີກອາໄຫຼ່ໄດ້ */
   quotation_done: boolean;
   repair_note: string | null;
+  /** ເລີ່ມສ້ອມແປງແລ້ວ (time_repair) — ຕັດສິນວ່າຈະສະແດງປຸ່ມຖອນຄືນອັນໃດ */
+  repair_running: boolean;
+  /** ບັນທຶກ "ສ້ອມແປງສຳເລັດ" ແລ້ວເມື່ອໃດ (time_finish_repair) */
+  repair_finished: string | null;
+  /** ສົ່ງຄືນລູກຄ້າແລ້ວ — ຖອນຄືນຫຍັງບໍ່ໄດ້ອີກ */
+  returned: boolean;
 };
 
 export type SpareLine = {
@@ -214,6 +223,18 @@ export function RepairForm({ head, lines }: { head: RepairHead; lines: SpareLine
             ພິມໃບສ້ອມແປງ
           </Link>
 
+          {/* ແກ້ໄຂການກົດຜິດ — ສະແດງປຸ່ມຖອນຄືນຂອງຂັ້ນທີ່ວຽກຢູ່ຕົວຈິງ
+              (ສົ່ງຄືນລູກຄ້າແລ້ວ = ຖອນຫຍັງບໍ່ໄດ້ ⇒ ບໍ່ສະແດງປຸ່ມ) */}
+          {!head.returned && (
+            <span className="flex flex-wrap items-center gap-2">
+              {head.repair_finished ? (
+                <UndoFinishRepairButton code={head.code} />
+              ) : (
+                head.repair_running && <UndoStartRepairButton code={head.code} />
+              )}
+            </span>
+          )}
+
           {/* ເວລາທີ່ໃຊ້ສ້ອມມາແລ້ວ */}
           <span className="ml-auto flex items-center gap-1.5 text-[11px] text-slate-500">
             ສ້ອມມາແລ້ວ
@@ -223,6 +244,15 @@ export function RepairForm({ head, lines }: { head: RepairHead; lines: SpareLine
             />
           </span>
         </div>
+
+        {/* ບັນທຶກຈົບແລ້ວ — ບອກສະຖານະໃຫ້ຊັດ ພ້ອມທາງດຶງກັບມາສ້ອມຕໍ່ (ປຸ່ມຢູ່ແຖບເທິງ) */}
+        {head.repair_finished && !head.returned && (
+          <p className="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+            <Check className="size-4 shrink-0" />
+            ບັນທຶກ &quot;ສ້ອມແປງສຳເລັດ&quot; ແລ້ວ ({head.repair_finished}) · ວຽກຢູ່ຄິວ &quot;ລໍຖ້າສົ່ງຄືນ&quot; —
+            ຖ້າກົດຈົບໄວເກີນ ໃຫ້ກົດ &quot;ຍົກເລີກ ຈົບການສ້ອມແປງ&quot; ຢູ່ແຖບເທິງ
+          </p>
+        )}
 
         {state.error && <ErrorBox>{state.error}</ErrorBox>}
 
@@ -251,6 +281,8 @@ export function RepairForm({ head, lines }: { head: RepairHead; lines: SpareLine
             <Info label="ຊື່ສິນຄ້າ / SN" value={head.product} />
             <Info label="ຫຍີ່ຫໍ້" value={head.brand} />
             <Info label="ປະກັນ" value={head.warranty} />
+            {/* ເຫດຜົນທີ່ຊ່າງຕັດສິນວ່າໝົດຮັບປະກັນ — ຫຼັກຖານເມື່ອລູກຄ້າຄ້ານ */}
+            {head.warranty_reason && <Info label="ເຫດຜົນໝົດຮັບປະກັນ" value={head.warranty_reason} danger />}
             <Info label="ອາການເບື້ອງຕົ້ນ" value={head.issue} danger />
             <Info label="ອາການທີ່ຊ່າງວິເຄາະ" value={head.issue_2} danger />
             <Info label="ຊ່າງ" value={head.technician} />

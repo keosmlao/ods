@@ -1,4 +1,4 @@
-import { StartCheckButton } from "@/components/checking/check-actions";
+import { StartCheckButton, UndoStartCheckButton } from "@/components/checking/check-actions";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
 import { SortHeader, type SortDir } from "@/components/sort-header";
@@ -299,14 +299,18 @@ export default async function CheckingPage({ searchParams }: Props) {
                         {tab === "waiting" ? (
                           <StartCheckButton code={row.code} />
                         ) : (
-                          <Link
-                            href={`/checking/${row.code}`}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
-                          >
-                            <ClipboardCheck className="size-3.5" />
-                            ກວດເຊັກຕໍ່
-                            <LinkPending className="size-3" />
-                          </Link>
+                          /* ກຳລັງກວດເຊັກ — ກົດ "ເລີ່ມກວດເຊັກ" ຜິດໃບ ຖອນຄືນໄດ້ຢູ່ນີ້ */
+                          <span className="flex items-center gap-1.5">
+                            <Link
+                              href={`/checking/${row.code}`}
+                              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                            >
+                              <ClipboardCheck className="size-3.5" />
+                              ກວດເຊັກຕໍ່
+                              <LinkPending className="size-3" />
+                            </Link>
+                            <UndoStartCheckButton code={row.code} variant="icon" />
+                          </span>
                         )}
                       </td>
                     </tr>

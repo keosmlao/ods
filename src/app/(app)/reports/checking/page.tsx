@@ -1,4 +1,4 @@
-import { countBy, ReportShell, reportState } from "@/components/report-shell";
+import { countBy, defaultFromIso, ReportShell, reportState } from "@/components/report-shell";
 import { SelectField } from "@/components/select-field";
 import {
   checkingFlags,
@@ -16,7 +16,7 @@ import {
 /* ods: /checking_report + /checking_reportprint (122) + /checking_reportprint1 (56) — check_report.py */
 export default async function CheckingReport({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const from = safeDate(one(params.from), todayIso());
+  const from = safeDate(one(params.from), defaultFromIso());
   const to = safeDate(one(params.to), todayIso());
   const flag = safeFlag(one(params.flag));
   const state = reportState(params);

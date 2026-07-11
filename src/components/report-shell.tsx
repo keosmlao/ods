@@ -1,6 +1,6 @@
 import { LinkPending } from "@/components/link-pending";
 import { SortHeader, type SortDir } from "@/components/sort-header";
-import { searchRows } from "@/lib/report-sql";
+import { searchRows, todayIso } from "@/lib/report-sql";
 import { ChevronLeft, ChevronRight, Download, Printer, Search } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -17,6 +17,23 @@ import type { ReactNode } from "react";
  */
 
 export const PAGE_SIZE = 20;
+
+/**
+ * ຊ່ວງວັນທີຕັ້ງຕົ້ນຂອງລາຍງານ = 30 ມື້ຫຼ້າສຸດ (ວັນນີ້ຍ້ອນຫຼັງ 30 ມື້ → ວັນນີ້).
+ *
+ * ແຕ່ກ່ອນຕັ້ງຕົ້ນເປັນ ມື້ນີ້ → ມື້ນີ້ ⇒ ເປີດລາຍງານມາເຫັນ 0 ແຖວທຸກເທື່ອ.
+ * ໃຊ້ເປັນ "ຄ່າຕັ້ງຕົ້ນ" ເທົ່ານັ້ນ — link ທີ່ມີ ?from=&to= ມາແລ້ວ ຍັງໃຊ້ຄ່າຂອງມັນຄືເກົ່າ
+ * ແລະ ປຸ່ມ "ສະແດງທັງໝົດ" (all=1) ກໍບໍ່ຖືກກະທົບ.
+ */
+export const DEFAULT_RANGE_DAYS = 30;
+
+/** ວັນທີເລີ່ມຕົ້ນຕັ້ງຕົ້ນ (YYYY-MM-DD) — ນັບຈາກ "ມື້ນີ້" ຂອງ todayIso (Asia/Bangkok) */
+export function defaultFromIso(days = DEFAULT_RANGE_DAYS) {
+  // ຄິດເປັນ UTC ລ້ວນ ຈຶ່ງບໍ່ຂຶ້ນກັບເຂດເວລາຂອງເຄື່ອງ server
+  const day = new Date(`${todayIso()}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() - days);
+  return day.toISOString().slice(0, 10);
+}
 
 export type ReportRow = Record<string, string | number | null>;
 export type ReportColumn = { key: string; label: string };

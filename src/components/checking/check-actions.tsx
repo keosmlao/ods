@@ -1,8 +1,9 @@
 "use client";
-import { cancelChecking, startCheck } from "@/app/actions/checking";
+import { cancelChecking, startCheck, undoStartCheck } from "@/app/actions/checking";
+import { UndoButton } from "@/components/checking/undo-button";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui";
-import { CheckCircle2, LoaderCircle, X } from "lucide-react";
+import { CheckCircle2, LoaderCircle } from "lucide-react";
 import { useTransition } from "react";
 
 /** ປຸ່ມ "ເລີ່ມກວດເຊັກ" — ods ຖາມຢືນຢັນດ້ວຍ Swal ກ່ອນ */
@@ -39,40 +40,44 @@ export function StartCheckButton({ code }: { code: string }) {
 }
 
 /**
- * ປຸ່ມ "ຍົກເລີກ" — ຍົກເລີກການກວດເຊັກທີ່ບັນທຶກໄປແລ້ວ (ods: cancelchecking).
- * ໝາຍເຫດ: ຍັງບໍ່ທັນຖືກໃສ່ໃນໜ້າ /checking — ເກັບໄວ້ຄູ່ກັບ action cancelChecking()
- * ເພາະເປັນຟັງຊັນທີ່ຍ້າຍມາຈາກ ods ຄົບແລ້ວ ພຽງແຕ່ຍັງບໍ່ໄດ້ຕໍ່ເຂົ້າໜ້າຈໍ.
+ * ປຸ່ມ "ຍົກເລີກເລີ່ມກວດເຊັກ" — ກົດ "ເລີ່ມກວດເຊັກ" ຜິດໃບ ໃຫ້ຖອນຄືນໄດ້.
+ * ວຽກກັບໄປແທັບ "ລໍຖ້າກວດເຊັກ". ກົດເກນຈິງກວດຢູ່ server (undoStartCheck).
  */
-export function CancelCheckButton({ code }: { code: string }) {
-  const [pending, start] = useTransition();
-  const { ask, dialog } = useConfirm();
-
+export function UndoStartCheckButton({ code, variant }: { code: string; variant?: "button" | "icon" }) {
   return (
-    <>
-      {dialog}
-      <button
-        type="button"
-        title="ຍົກເລີກການກວດເຊັກ"
-        disabled={pending}
-        onClick={async () => {
-          const ok = await ask({
-            title: "ຍົກເລີກການກວດເຊັກ?",
-            message: (
-              <>
-                ຜົນກວດເຊັກຂອງໃບ <b className="text-slate-700">#{code}</b> ຈະຖືກລົບ ແລະ ວຽກກັບໄປຂັ້ນ &quot;ກຳລັງກວດເຊັກ&quot;
-              </>
-            ),
-            confirmLabel: "ຍົກເລີກການກວດ",
-            cancelLabel: "ບໍ່",
-            tone: "danger",
-          });
-          if (!ok) return;
-          start(() => void cancelChecking(code));
-        }}
-        className="mx-auto grid size-7 place-items-center rounded-full text-[#DE3163] transition hover:bg-red-50 disabled:opacity-50"
-      >
-        {pending ? <LoaderCircle className="size-4 animate-spin" /> : <X className="size-4" />}
-      </button>
-    </>
+    <UndoButton
+      variant={variant}
+      label="ຍົກເລີກເລີ່ມກວດເຊັກ"
+      title="ຍົກເລີກ ເລີ່ມກວດເຊັກ?"
+      message={
+        <>
+          ໃບຮັບເຄື່ອງ <b className="text-slate-700">#{code}</b> ຈະກັບໄປ &quot;ລໍຖ້າກວດເຊັກ&quot; ແລະ ຢຸດຈັບເວລາ
+        </>
+      }
+      action={() => undoStartCheck(code)}
+    />
+  );
+}
+
+/**
+ * ປຸ່ມ "ຍົກເລີກຜົນກວດເຊັກ" — ລ້າງຜົນກວດທີ່ບັນທຶກຜິດ (ods: cancelchecking).
+ *
+ * server ຈະປະຕິເສດ ຖ້າວຽກຍ້າຍໄປຂັ້ນຕໍ່ໄປແລ້ວ (ໃບຂໍເບີກ / ໃບເບີກ / ໃບສະເໜີລາຄາ /
+ * ເລີ່ມສ້ອມແປງ / ໃບຮັບເງິນ / ສົ່ງຄືນແລ້ວ) ພ້ອມບອກເລກທີເອກະສານທີ່ກີດຂວາງ.
+ */
+export function CancelCheckButton({ code, variant }: { code: string; variant?: "button" | "icon" }) {
+  return (
+    <UndoButton
+      variant={variant}
+      label="ຍົກເລີກຜົນກວດເຊັກ"
+      title="ຍົກເລີກຜົນກວດເຊັກ?"
+      message={
+        <>
+          ຜົນກວດເຊັກຂອງໃບ <b className="text-slate-700">#{code}</b> (ອາການທີ່ຊ່າງວິເຄາະ ແລະ ອາໄຫຼ່ທີ່ເລືອກ) ຈະຖືກລ້າງ
+          ແລະ ວຽກກັບໄປ &quot;ກຳລັງກວດເຊັກ&quot; ເພື່ອບັນທຶກຄືນໃໝ່. ອາໄຫຼ່ທີ່ເລືອກໄວ້ຈະກັບເຂົ້າກະຕ່າໃຫ້ອັດຕະໂນມັດ.
+        </>
+      }
+      action={() => cancelChecking(code)}
+    />
   );
 }
