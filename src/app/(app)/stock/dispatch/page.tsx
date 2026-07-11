@@ -5,6 +5,7 @@ import { SortHeader, type SortDir } from "@/components/sort-header";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { fmtQty, getBalances } from "@/lib/stock-balance";
 import { DISPATCH_WAREHOUSES, LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import {
   ArrowLeftRight,
@@ -26,6 +27,9 @@ const PAGE_SIZE = 20;
 
 type Tab = "pending" | "install" | "dispatched" | "ordered" | "transfers";
 type Props = { searchParams: Promise<{ tab?: string; q?: string; page?: string; sort?: string; dir?: string }> };
+
+/** ແຖວດິບຈາກ SQL — ຍັງບໍ່ມີຍອດສະຕັອກ (ຄິດເພີ່ມພາຍຫຼັງດ້ວຍ getBalances) */
+type RawLine = Omit<Line, "balance_qty" | "balance_qty_wh" | "owh_qty"> & { wh_code: string | null };
 
 type Line = {
   doc_no: string;
@@ -77,15 +81,10 @@ async function getOwnWarehouses(username: string) {
  * ຫາຍໄປຈາກໜ້າຈໍເລີຍ ຈຶ່ງບໍ່ມີໃຜກົດ "ຂໍໂອນ" ຫຼື "ສັ່ງຊື້" ໄດ້ (ວຽກຄ້າງແບບງຽບໆ).
  * ຢູ່ນີ້ສະແດງທຸກແຖວ ແລ້ວໃຫ້ປຸ່ມທ້າຍແຖວຕັດສິນ: ມີໃນສາງ → ເບີກ, ຢູ່ສາງອື່ນ → ຂໍໂອນ, ບໍ່ມີເລີຍ → ສັ່ງຊື້.
  */
-const PENDING_FROM = `from ic_trans_detail a
+/** FROM ສຳລັບ "ນັບ" ເທົ່ານັ້ນ — ບໍ່ມີ lateral ຄິດຍອດສະຕັອກ (ເບົາກວ່າ ~67 ເທົ່າ) */
+const PENDING_COUNT_FROM = `from ic_trans_detail a
   left join ic_trans b on a.doc_no = b.doc_no
-  left join tb_product c on c.code = a.product_code
-  left join ic_inventory e on a.item_code = e.code
-  cross join lateral (
-    select sum(coalesce(balance_qty,0)) total_balance,
-      sum(case when wh_code = b.wh_code then coalesce(balance_qty,0) else 0 end) current_wh_balance
-    from odg_stock_balance_location(a.item_code, '', '')
-  ) st`;
+  left join tb_product c on c.code = a.product_code`;
 
 const PENDING_WHERE = `a.trans_flag = $1 and a.status != $2
   and (b.job_type != 'install' or b.job_type is null)
@@ -133,27 +132,67 @@ async function getPending(warehouses: string[], q: string, page: number, sort: s
     where += ` and ${PENDING_SEARCH.replaceAll("$Q", `$${params.length}`)}`;
   }
 
-  const rowsSql = `select a.doc_no, c.name_1||'_'||c.sn product, a.product_code, a.item_code, a.item_name, a.qty, a.unit_code,
-      round(st.total_balance, 2)::text balance_qty,
-      round(st.current_wh_balance, 2)::text balance_qty_wh,
-      round(st.total_balance - st.current_wh_balance, 2)::text owh_qty,
-      e.unit_code inv_unit_code, a.roworder, a.status,
+  /**
+   * ດຶງແຖວ — **ບໍ່ຄິດຍອດສະຕັອກໃນ SQL ອີກແລ້ວ**.
+   *
+   * ods ໃຊ້ `cross join lateral odg_stock_balance_location(item_code,...)` ຢູ່ນີ້
+   * ແຕ່ຟັງຊັນນັ້ນຍິງ dblink ຂ້າມໄປ ERP ໃໝ່ທຸກຄັ້ງທີ່ເອີ້ນ (63ms ຕໍ່ 1 ລາຍການ)
+   * ⇒ 48 ແຖວ = ຫຼາຍວິນາທີ. ດຽວນີ້ດຶງແຖວກ່ອນ ແລ້ວຄິດຍອດ **ຄັ້ງດຽວ** ໃຫ້ທຸກລາຍການ
+   * ໃນໜ້ານັ້ນ (lib/stock-balance.ts). ວັດຈິງ: 2,915ms → ເບິ່ງລຸ່ມ.
+   *
+   * ຈັດຮຽງຕາມ "ຄົງເຫຼືອ" ຕ້ອງຮູ້ຍອດກ່ອນ ⇒ ດຶງທຸກແຖວທີ່ຕົງເງື່ອນໄຂ (ຈຳກັດ 500)
+   * ຄິດຍອດເທື່ອດຽວ ແລ້ວຮຽງ/ຕັດໜ້າຢູ່ Node.
+   */
+  const sortsByBalance = PENDING_SORT[sort] === "st.total_balance";
+  // ຄົງເຫຼືອບໍ່ມີຢູ່ໃນ SQL ອີກແລ້ວ → ໃຫ້ SQL ຮຽງຕາມເວລາຂໍເບີກໄປກ່ອນ ແລ້ວຮຽງຄືນຢູ່ Node
+  const orderBy = sortsByBalance ? order(PENDING_SORT, "elapsed", "desc", "c.spare_reg") : order(PENDING_SORT, sort, dir, "c.spare_reg");
+
+  const rowsSql = `select a.doc_no, c.name_1||'_'||c.sn product, a.product_code, a.item_code, a.item_name,
+      a.qty, a.unit_code, e.unit_code inv_unit_code, a.roworder, a.status, b.wh_code,
       to_char(c.spare_reg,'DD-MM-YYYY HH24:MI') at_time,
       greatest(0, round(extract(epoch from (localtimestamp - c.spare_reg))))::int elapsed_seconds,
       exists(select 1 from ic_trans_detail t
              where t.trans_flag = ${TRANS.TRANSFER} and t.doc_ref = a.doc_no and t.item_code = a.item_code) transfer_requested
-    ${PENDING_FROM}
+    from ic_trans_detail a
+    left join ic_trans b on a.doc_no = b.doc_no
+    left join tb_product c on c.code = a.product_code
+    left join ic_inventory e on a.item_code = e.code
     where ${where}
-    order by ${order(PENDING_SORT, sort, dir, "c.spare_reg")}
+    order by ${orderBy}
     limit $${params.length + 1} offset $${params.length + 2}`;
 
-  const countSql = `select count(*)::int total ${PENDING_FROM} where ${where}`;
+  /**
+   * ນັບແຖວ — ຢ່າໃຊ້ FROM ອັນທີ່ມີ lateral: ການນັບບໍ່ຕ້ອງໃຊ້ຍອດສະຕັອກເລີຍ
+   * ແຕ່ຈ່າຍລາຄາເຕັມ (ວັດຈິງ 2,423ms → 36ms ດ້ວຍຜົນລັບດຽວກັນ 48 ແຖວ).
+   */
+  const countSql = `select count(*)::int total ${PENDING_COUNT_FROM} where ${where}`;
 
   const [rows, count] = await Promise.all([
-    query<Line>(rowsSql, [...params, PAGE_SIZE, (page - 1) * PAGE_SIZE]),
+    query<RawLine>(rowsSql, sortsByBalance ? [...params, 500, 0] : [...params, PAGE_SIZE, (page - 1) * PAGE_SIZE]),
     query<{ total: number }>(countSql, params),
   ]);
-  return { rows: rows.rows, total: count.rows[0]?.total ?? 0 };
+
+  // ຄິດຍອດສະຕັອກຄັ້ງດຽວໃຫ້ທຸກລາຍການທີ່ດຶງມາ (1 ຄຳຖາມໄປ ERP ແທນ 1 ຄັ້ງຕໍ່ແຖວ)
+  const balances = await getBalances(rows.rows.map((row) => row.item_code));
+
+  let lines: Line[] = rows.rows.map((row) => {
+    const balance = balances.get(row.item_code) ?? { total: 0, byWarehouse: new Map<string, number>() };
+    const inWarehouse = row.wh_code ? (balance.byWarehouse.get(row.wh_code) ?? 0) : 0;
+    return {
+      ...row,
+      balance_qty: fmtQty(balance.total),
+      balance_qty_wh: fmtQty(inWarehouse),
+      owh_qty: fmtQty(balance.total - inWarehouse),
+    };
+  });
+
+  // ຮຽງຕາມ "ຄົງເຫຼືອ" ເຮັດຢູ່ Node ໄດ້ ເພາະຍອດພຶ່ງຄິດຂຶ້ນມາບ່ອນນີ້
+  if (sortsByBalance) {
+    lines.sort((a, b) => (dir === "asc" ? 1 : -1) * (Number(a.balance_qty) - Number(b.balance_qty)));
+    lines = lines.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  }
+
+  return { rows: lines, total: count.rows[0]?.total ?? 0 };
 }
 
 /** ໃບຂໍເບີກຂອງງານຕິດຕັ້ງ — ຍັງບໍ່ທັນຍ້າຍມາ Next.js (ເປັນຂອງໂມດູນຕິດຕັ້ງ) */
@@ -211,7 +250,7 @@ async function getDocs(transFlag: number, q: string, page: number, sort: string,
 /** ນັບຫົວແທັບ — ບໍ່ດຶງແຖວ */
 async function getCounts(warehouses: string[]) {
   const [pending, installs, docs] = await Promise.all([
-    query<{ total: number }>(`select count(*)::int total ${PENDING_FROM} where ${PENDING_WHERE}`, [
+    query<{ total: number }>(`select count(*)::int total ${PENDING_COUNT_FROM} where ${PENDING_WHERE}`, [
       TRANS.REQUEST,
       LINE_STATUS.ISSUED,
       warehouses,
