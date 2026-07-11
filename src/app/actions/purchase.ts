@@ -2,7 +2,7 @@
 import { logChange } from "@/app/actions/chatter";
 import { getSession } from "@/lib/auth";
 import { ROLE_APPROVER } from "@/lib/chatter";
-import { db, odgDb } from "@/lib/db";
+import { db, odgDb, query } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
@@ -526,4 +526,104 @@ export async function savePr(_: PurchaseState, formData: FormData): Promise<Purc
 
   revalidatePath("/purchase-requests");
   redirect("/purchase-requests");
+}
+
+/* ------------------------------------------- ອາໄຫຼ່ມາຮອດແລ້ວ (/stock/arrivals) */
+
+/**
+ * ຂັ້ນ "ກຳລັງສັ່ງຊື້ອາໄຫຼ່" ບໍ່ເຄີຍມີທາງອອກ.
+ *
+ * ໃບຮັບເຄື່ອງເຂົ້າຂັ້ນ 7 ຕອນໃບຂໍຊື້ຖືກອະນຸມັດ (spare_order) ແຕ່ຖັນທີ່ໝາຍວ່າ "ຂອງມາຮອດແລ້ວ"
+ * (spare_order_finish) ບໍ່ມີ code ບ່ອນໃດຂຽນເລີຍ ແລະ ຍັງເປັນ `time` (ບໍ່ມີວັນທີ) ນຳ
+ * ⇒ ວຽກຄ້າງຢູ່ຂັ້ນ 7 ຈົນກວ່າສາງຈະເບີກອາໄຫຼ່ໃຫ້ (spare_finish) ໂດຍບໍ່ມີໃຜຮູ້ວ່າຂອງມາຮອດຫຼືຍັງ.
+ *
+ * ດຽວນີ້ສາງກົດຢືນຢັນເອງ → ຂຽນ spare_arrive / spare_arrive_by (ຖັນໃໝ່ timestamp)
+ * ⇒ ຂັ້ນຕົກເປັນ 6 (ກຳລັງເບີກອາໄຫຼ່) ທັນທີ ແລ້ວວຽກໄປໂຜ່ຢູ່ /stock/dispatch ໃຫ້ເບີກຕໍ່.
+ * ບໍ່ໄປແຕະ ic_trans_detail.status ເລີຍ — ໜ້າເບີກອາໄຫຼ່ບໍ່ໄດ້ອີງໃສ່ຂັ້ນຂອງໃບ ຈຶ່ງບໍ່ກະທົບກັນ.
+ */
+const arrivalSchema = z.object({ code: z.string().trim().min(1).max(50) });
+
+/** ຊ່າງທີ່ລໍຖ້າອາໄຫຼ່ຕົວນີ້ຢູ່ — ໃຫ້ໄດ້ຮັບການແຈ້ງເຕືອນກ່ອນໃຜ */
+type ArrivalJob = { emp_code: string | null; spare_arrive_by: string | null };
+
+export async function confirmSpareArrival(rawCode: string): Promise<PurchaseState> {
+  const session = await getSession();
+  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const parsed = arrivalSchema.safeParse({ code: rawCode });
+  if (!parsed.success) return { error: "ລະຫັດວຽກບໍ່ຖືກຕ້ອງ" };
+  const { code } = parsed.data;
+
+  let job: ArrivalJob | undefined;
+  try {
+    // ເງື່ອນໄຂໃນ where ຄຸມໃຫ້ກົດຊ້ຳບໍ່ໄດ້ (spare_arrive is null) ແລະ ກົດໃສ່ໃບທີ່ບໍ່ໄດ້ສັ່ງຊື້ບໍ່ໄດ້
+    const updated = await query<ArrivalJob>(
+      `update tb_product
+          set spare_arrive = localtimestamp(0), spare_arrive_by = $2
+        where code = $1 and spare_order is not null and spare_arrive is null
+          and status <> 6 and return_complete is null
+        returning emp_code, spare_arrive_by`,
+      [code, session.username],
+    );
+    job = updated.rows[0];
+  } catch (error) {
+    console.error("confirmSpareArrival failed", error);
+    return { error: "ບັນທຶກບໍ່ສຳເລັດ ກະລຸນາລອງໃໝ່" };
+  }
+  if (!job) return { error: "ໃບນີ້ບໍ່ໄດ້ລໍຖ້າອາໄຫຼ່ ຫຼື ຢືນຢັນໄປແລ້ວ" };
+
+  // ຊ່າງລໍຖ້າອາໄຫຼ່ຕົວນີ້ມາດົນ — ແຈ້ງລາວ + ຜູ້ຕິດຕາມໃບນີ້ (logChange ຍິງ notify ໃຫ້ໃນຕົວ)
+  await logChange(
+    "tb_product",
+    code,
+    `ອາໄຫຼ່ມາຮອດແລ້ວ — ພ້ອມເບີກໃຫ້ຊ່າງ (ຢືນຢັນໂດຍ ${session.username})`,
+    { users: job.emp_code ? [job.emp_code] : [] },
+  );
+
+  revalidatePath("/stock/arrivals");
+  revalidatePath("/stock/dispatch");
+  revalidatePath("/purchase-requests");
+  revalidatePath(`/service/${code}`);
+  revalidatePath("/dashboard");
+  return {};
+}
+
+/** ກົດຜິດໃບ → ຖອນຄືນ ແລ້ວວຽກກັບໄປຂັ້ນ 7 ຄືເກົ່າ */
+export async function undoSpareArrival(rawCode: string): Promise<PurchaseState> {
+  const session = await getSession();
+  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const parsed = arrivalSchema.safeParse({ code: rawCode });
+  if (!parsed.success) return { error: "ລະຫັດວຽກບໍ່ຖືກຕ້ອງ" };
+  const { code } = parsed.data;
+
+  let job: ArrivalJob | undefined;
+  try {
+    // ເບີກອາໄຫຼ່ໄປແລ້ວ (spare_finish) ຖອນບໍ່ໄດ້ — ຈະດຶງວຽກກັບຫຼັງຂ້າມຂັ້ນ
+    const updated = await query<ArrivalJob>(
+      `update tb_product
+          set spare_arrive = null, spare_arrive_by = null
+        where code = $1 and spare_arrive is not null and spare_finish is null
+        returning emp_code, spare_arrive_by`,
+      [code],
+    );
+    job = updated.rows[0];
+  } catch (error) {
+    console.error("undoSpareArrival failed", error);
+    return { error: "ຖອນຄືນບໍ່ສຳເລັດ ກະລຸນາລອງໃໝ່" };
+  }
+  if (!job) return { error: "ຖອນຄືນບໍ່ໄດ້ — ເບີກອາໄຫຼ່ໄປແລ້ວ ຫຼື ຍັງບໍ່ໄດ້ຢືນຢັນ" };
+
+  await logChange("tb_product", code, `ຖອນຄືນການຢືນຢັນ "ອາໄຫຼ່ມາຮອດແລ້ວ" — ກັບໄປລໍຖ້າອາໄຫຼ່ຕາມເກົ່າ`, {
+    users: job.emp_code ? [job.emp_code] : [],
+  });
+
+  revalidatePath("/stock/arrivals");
+  revalidatePath("/stock/dispatch");
+  revalidatePath("/purchase-requests");
+  revalidatePath(`/service/${code}`);
+  revalidatePath("/dashboard");
+  return {};
 }

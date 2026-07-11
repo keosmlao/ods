@@ -1,3 +1,4 @@
+import { OUTSTANDING_SUMMARY_SQL, type OutstandingSummary } from "@/app/(app)/approvals/cancellations/outstanding";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
 import { CancelJobButton, UndoCancelButton } from "@/components/service-cancel-buttons";
@@ -5,7 +6,7 @@ import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import { CANCELLED_JOBS, OPEN_JOBS } from "@/lib/stage";
-import { ArrowLeft, Ban, ChevronLeft, ChevronRight, FileText, Search } from "lucide-react";
+import { ArrowLeft, Ban, ChevronLeft, ChevronRight, FileText, PackageCheck, Search } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -36,6 +37,8 @@ type Row = {
   cancel_start: string | null;
   remark: string | null;
   approved: boolean;
+  returned: string | null;
+  spares: OutstandingSummary | null;
 };
 
 const CUSTOMER = "left join ar_customer b on b.code = a.cust_code";
@@ -106,7 +109,9 @@ async function getRows(tab: Tab, q: string, page: number, sort: string, dir: Sor
       concat_ws('-', b.name_1, b.tel) customer, a.name_1 product, a.sn, a.p_brand brand, a.warrunty warranty,
       a.issue, a.emp_code technician, a.user_regis receiver,
       to_char(a.cancel_start,'DD-MM-YYYY HH24:MI') cancel_start, a.remark,
-      (a.cancel_finish is not null) approved
+      (a.cancel_finish is not null) approved,
+      to_char(a.return_complete,'DD-MM-YYYY HH24:MI') returned,
+      ${OUTSTANDING_SUMMARY_SQL} spares
     from tb_product a ${CUSTOMER}
     where ${filter}
     order by ${orderBy}
@@ -232,6 +237,7 @@ export default async function CancelService({ searchParams }: Props) {
                 {tab === "cancelled" && (
                   <>
                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໝາຍເຫດ</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາໄຫຼ່ຄ້າງນອກສາງ</th>
                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສະຖານະ</th>
                   </>
                 )}
@@ -300,13 +306,30 @@ export default async function CancelService({ searchParams }: Props) {
                         <td className="max-w-44 truncate px-3 py-2.5 text-slate-600" title={row.remark ?? ""}>
                           {row.remark || "-"}
                         </td>
+                        {/* GAP B — ອາໄຫຼ່ທີ່ເບີກອອກແລ້ວ ແຕ່ຍັງບໍ່ໄດ້ສົ່ງຄືນສາງ */}
+                        <td className="whitespace-nowrap px-3 py-2.5">
+                          {row.spares && row.spares.lines > 0 ? (
+                            <Link
+                              href={`/approvals/cancellations/${encodeURIComponent(row.code)}`}
+                              className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 hover:bg-amber-100"
+                            >
+                              {row.spares.lines} ລາຍການ · {row.spares.units.toLocaleString()} ໜ່ວຍ
+                            </Link>
+                          ) : (
+                            <span className="text-[10px] text-slate-400">-</span>
+                          )}
+                        </td>
                         <td className="whitespace-nowrap px-3 py-2.5">
                           <span
                             className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                              row.approved ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                              row.returned
+                                ? "bg-slate-100 text-slate-600"
+                                : row.approved
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-amber-50 text-amber-700"
                             }`}
                           >
-                            {row.approved ? "ອະນຸມັດເເລ້ວ" : "ລໍຖ້າອະນຸມັດ"}
+                            {row.returned ? "ສົ່ງຄືນລູກຄ້າແລ້ວ" : row.approved ? "ອະນຸມັດເເລ້ວ" : "ລໍຖ້າອະນຸມັດ"}
                           </span>
                         </td>
                       </>
@@ -314,8 +337,21 @@ export default async function CancelService({ searchParams }: Props) {
 
                     <td className="whitespace-nowrap px-3 py-2.5">
                       {tab === "cancelled" ? (
-                        // ຖອນຄືນໄດ້ສະເພາະໃບທີ່ຍັງບໍ່ທັນອະນຸມັດ
-                        !row.approved && <UndoCancelButton code={row.code} />
+                        <>
+                          {/* ຖອນຄືນໄດ້ສະເພາະໃບທີ່ຍັງບໍ່ທັນອະນຸມັດ */}
+                          {!row.approved && <UndoCancelButton code={row.code} />}
+                          {/* GAP A — ອະນຸມັດຍົກເລີກແລ້ວ ແຕ່ເຄື່ອງຍັງຢູ່ນຳເຮົາ → ສົ່ງຄືນລູກຄ້າ */}
+                          {row.approved && !row.returned && (
+                            <Link
+                              href={`/returns/${encodeURIComponent(row.code)}`}
+                              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                            >
+                              <PackageCheck className="size-3.5" />
+                              ສົ່ງຄືນລູກຄ້າ
+                              <LinkPending className="size-3" />
+                            </Link>
+                          )}
+                        </>
                       ) : (
                         <CancelJobButton code={row.code} />
                       )}

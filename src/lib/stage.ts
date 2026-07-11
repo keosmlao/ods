@@ -10,6 +10,14 @@
  *
  * ຕົວນີ້ເປັນ case ແບບ "ອັນທຳອິດທີ່ຖືກ ຊະນະ" ຈຶ່ງ **ບໍ່ມີທາງຕົກຫຼົ່ນ**:
  * ທຸກໃບຕ້ອງໄດ້ຂັ້ນນຶ່ງສະເໝີ (-1 ຫຼື 1..11).
+ *
+ * ── ທາງອອກຂອງຂັ້ນ 7 (ກຳລັງສັ່ງຊື້ອາໄຫຼ່) ──
+ * ເດີມຂັ້ນ 7 ອອກໄດ້ດ້ວຍ spare_order_finish ເທົ່ານັ້ນ ແຕ່ຖັນນັ້ນເປັນ `time` (ບໍ່ມີວັນທີ)
+ * ແລະ **ບໍ່ມີ code ບ່ອນໃດຂຽນມັນເລີຍ** (505 ໃບມີ spare_order, ມີແຕ່ 2 ໃບທີ່ມີ spare_order_finish)
+ * ⇒ ວຽກຄ້າງຢູ່ຂັ້ນ 7 ຕະຫຼອດ (27 ໃບ, ເກົ່າສຸດ 225 ມື້) ຈົນກວ່າສາງຈະເບີກອາໄຫຼ່ໃຫ້.
+ * ດຽວນີ້ສາງກົດ "ອາໄຫຼ່ມາຮອດແລ້ວ" (/stock/arrivals) → ຂຽນ spare_arrive (timestamp)
+ * ⇒ ວຽກຕົກລົງຂັ້ນ 6 (ກຳລັງເບີກອາໄຫຼ່) ແລ້ວໄປໂຜ່ຢູ່ /stock/dispatch ຕາມປົກກະຕິ.
+ * ຍັງນັບ spare_order_finish ຄືເກົ່າ ຈຶ່ງບໍ່ມີໃບເກົ່າໃບໃດປ່ຽນຂັ້ນ.
  */
 
 /** ໃຊ້ໃນ SQL — ຕ້ອງ alias ຕາຕະລາງ tb_product ເປັນ a */
@@ -26,7 +34,8 @@ export const STAGE_SQL = `case
   when coalesce(a.used_spare,0) = 1 and a.spare_reg is null    then 5
   when coalesce(a.used_spare,0) = 1 and a.spare_finish is null
        and a.spare_order is not null
-       and a.spare_order_finish is null                        then 7
+       and a.spare_order_finish is null
+       and a.spare_arrive is null                              then 7
   when coalesce(a.used_spare,0) = 1 and a.spare_finish is null then 6
   else 8
 end`;

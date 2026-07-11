@@ -381,6 +381,62 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
   );
   await logChange("ar_customer", d.cust_code, `ຮັບເຄື່ອງຄືນ #${d.pro_code} · ໃບຮັບເງິນ ${docNo}`);
 
-  revalidatePath("/returns");
+  revalidatePath("/returns", "layout");
+  revalidatePath("/approvals/cancellations", "layout");
+  revalidatePath("/service/cancel");
   redirect(`/returns/${docNo}/print`);
+}
+
+/* ─────────────────────── ສົ່ງຄືນໂດຍບໍ່ສ້ອມ (GAP A) ─────────────────────── */
+
+/**
+ * ວຽກທີ່ຖືກຍົກເລີກ (status=6, ອະນຸມັດຍົກເລີກແລ້ວ) ກໍ່ຕ້ອງໄດ້ສົ່ງເຄື່ອງຄືນລູກຄ້າຄືກັນ
+ * ແຕ່ ods (ແລະ ໜ້າ /returns ເກົ່າ) ບໍ່ມີທາງໃຫ້ເລີຍ — ວຽກຄ້າງເປີດຕະຫຼອດໄປ.
+ *
+ * ມີ 2 ທາງອອກ ແລະ ທັງສອງປະທັບ tb_product.return_complete:
+ *   1. ອອກໃບຮັບເງິນ (ຄ່າກວດເຊັກ/ວິນິດໄສ) → saveInvoice() ຂ້າງເທິງ — ໄດ້ ic_trans trans_flag 44
+ *   2. ບໍ່ເກັບເງິນ → returnWithoutInvoice() ຂ້າງລຸ່ມນີ້ — ບໍ່ອອກເອກະສານເງິນເລີຍ
+ *
+ * status ຍັງເປັນ 6 (ຍົກເລີກ) ຄືເກົ່າ — ຄວາມໝາຍຂອງ "ຍົກເລີກ" ບໍ່ປ່ຽນ.
+ */
+export type ReturnState = { error?: string };
+
+export async function returnWithoutInvoice(_: ReturnState, formData: FormData): Promise<ReturnState> {
+  const session = await getSession();
+  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const parsed = z.object({ pro_code: z.string().trim().min(1) }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "ບໍ່ພົບລະຫັດເຄື່ອງ" };
+  const productCode = parsed.data.pro_code;
+
+  let custCode = "";
+  try {
+    // ເງື່ອນໄຂດຽວກັນກັບແທັບ "ສົ່ງຄືນໂດຍບໍ່ສ້ອມ" — ກັນການປະທັບຊ້ຳ ແລະ ກັນວຽກທີ່ຍັງບໍ່ອະນຸມັດຍົກເລີກ
+    const done = await db.query<{ cust_code: string | null }>(
+      `update tb_product set return_complete=localtimestamp(0)
+       where code=$1 and status=6 and cancel_finish is not null and return_complete is null
+       returning cust_code`,
+      [productCode],
+    );
+    if (!done.rowCount) return { error: "ວຽກນີ້ສົ່ງຄືນແລ້ວ ຫຼື ຍັງບໍ່ໄດ້ອະນຸມັດການຍົກເລີກ" };
+    custCode = done.rows[0]?.cust_code ?? "";
+
+    // ຕະກ້າຮ່າງທີ່ຄ້າງໄວ້ (ຖ້າມີ) ບໍ່ຕ້ອງການແລ້ວ
+    await db.query(
+      `delete from ic_trans_detail_draft where trans_flag=$1 and product_code=$2 and user_created=$3`,
+      [CART_FLAG, productCode, session.username],
+    );
+  } catch (error) {
+    console.error("returnWithoutInvoice failed", error);
+    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
+  }
+
+  await logChange("tb_product", productCode, "ສົ່ງຄືນລູກຄ້າໂດຍບໍ່ສ້ອມ (ວຽກຍົກເລີກ) · ບໍ່ໄດ້ອອກໃບຮັບເງິນ");
+  if (custCode) await logChange("ar_customer", custCode, `ຮັບເຄື່ອງຄືນ #${productCode} · ຍົກເລີກ ບໍ່ໄດ້ສ້ອມ`);
+
+  revalidatePath("/returns", "layout");
+  revalidatePath("/approvals/cancellations", "layout");
+  revalidatePath("/service/cancel");
+  redirect("/returns?tab=cancelled");
 }

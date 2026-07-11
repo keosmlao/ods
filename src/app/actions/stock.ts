@@ -41,6 +41,46 @@ export type StockState = { error?: string; ok?: string };
 /** ລັອກຕອນອອກເລກເອກະສານ ກັນສອງຄົນກົດພ້ອມກັນແລ້ວໄດ້ເລກຊ້ຳ */
 const DOC_LOCK = 734211;
 
+/**
+ * trans_flag 166 = "ຊ່າງຮັບອາໄຫຼ່" (PISP) — ເອກະສານຢູ່ ODS ຢ່າງດຽວ ບໍ່ຕັດສະຕັອກ
+ * (ສະຕັອກຕັດໄປແລ້ວຕອນສາງເບີກ 56). ງານຕິດຕັ້ງໃຊ້ flag ນີ້ຢູ່ແລ້ວ (installation.ts)
+ * — ບ່ອນນີ້ເອົາຂັ້ນດຽວກັນມາໃຫ້ງານສ້ອມ ເຊິ່ງແຕ່ກ່ອນບໍ່ມີເລີຍ (tb_used_spare.pick_finish
+ * ຂອງວຽກສ້ອມເປັນ null ທຸກແຖວ ⇒ ປ້າຍ/ການປ້ອງກັນຢູ່ໜ້າສ້ອມແປງບໍ່ເຄີຍເຮັດວຽກ).
+ * ບໍ່ໄດ້ໃສ່ໃນ lib/stock-constants.ts ເພາະໄຟລ໌ນັ້ນຢູ່ນອກຂອບເຂດການແກ້ໄຂຄັ້ງນີ້.
+ */
+const TRANS_PICK = 166;
+
+/**
+ * ອາໄຫຼ່ຂອງວຽກນຶ່ງ ທີ່ "ຍັງບໍ່ທັນຖືກຂໍເບີກ" — ຄິດເປັນ **ຈຳນວນ** ບໍ່ແມ່ນເປັນແຖວ.
+ *
+ * ເປັນຫຍັງຈຶ່ງອີງໃສ່ເອກະສານ (ic_trans_detail) ບໍ່ແມ່ນຖັນຂອງ tb_used_spare:
+ *   • tb_used_spare.status  — ເຊື່ອບໍ່ໄດ້: ວຽກສ້ອມ 2,945 ແຖວມີ status='1' ແຕ່ມີພຽງ 2,107
+ *     ແຖວທີ່ມີໃບເບີກ (56) ຈິງ ແລະ ຍັງມີ 60 ແຖວ status='0' ທີ່ຖືກເບີກອອກໄປແລ້ວ.
+ *   • pick_finish           — ວຽກສ້ອມ 0/3,384 ແຖວ (ນີ້ຄືຕົວບັນຫາທີ່ກຳລັງແກ້ຢູ່).
+ *   • reg_finish            — ວຽກສ້ອມ 148/3,384 ແຖວ, ສາຍງານສ້ອມບໍ່ເຄີຍຂຽນລົງ.
+ * ⇒ ມີແຕ່ບັນຊີເອກະສານເທົ່ານັ້ນທີ່ບອກຄວາມຈິງໄດ້ວ່າ "ຂໍໄປແລ້ວ / ເບີກອອກແລ້ວ".
+ *
+ * ນັບໃບຂໍເບີກ (122) ທັງໝົດເປັນ "ຂໍໄປແລ້ວ" — ລວມແຖວທີ່ສາງເບີກອອກໄປແລ້ວນຳ ເພາະຕອນເບີກ
+ * ແຖວ 122 ພຽງແຕ່ປ່ຽນ status ເປັນ 1 (ບໍ່ໄດ້ຖືກລຶບ) — ແລ້ວຫັກຄືນດ້ວຍໃບຂໍສົ່ງຄືນ (59)
+ * ເພາະອາໄຫຼ່ທີ່ສົ່ງຄືນສາງແລ້ວ ຂໍເບີກໃໝ່ໄດ້ອີກ.
+ * ໃບຂໍເບີກທີ່ຖືກຍົກເລີກ (deleteRequest) ລຶບແຖວອອກ ⇒ ກັບມາຂໍໄດ້ເອງ.
+ */
+const OUTSTANDING_SPARES = `
+  select n.item_code, n.item_name, n.unit_code, (n.qty - coalesce(c.qty, 0))::numeric qty
+  from (
+    select item_code, min(roworder) rn, max(item_name) item_name, max(unit_code) unit_code, sum(qty) qty
+    from tb_used_spare where product_code = $1 group by item_code
+  ) n
+  left join (
+    select item_code,
+      sum(case when trans_flag = ${TRANS.REQUEST} then qty else -qty end) qty
+    from ic_trans_detail
+    where product_code = $1 and trans_flag in (${TRANS.REQUEST}, ${TRANS.RETURN_REQUEST})
+    group by item_code
+  ) c on c.item_code = n.item_code
+  where n.qty - coalesce(c.qty, 0) > 0
+  order by n.rn`;
+
 function text(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value.trim() : "";
@@ -122,7 +162,14 @@ export async function deleteSpareFromRequest(formData: FormData): Promise<void> 
 
 /* ─────────────────────────── ໃບຂໍເບີກ (trans_flag 122) ─────────────────────────── */
 
-/** ods: /save_req — ສ້າງໃບຂໍເບີກຈາກກະຕ່າ tb_used_spare */
+/**
+ * ods: /save_req — ສ້າງໃບຂໍເບີກຈາກກະຕ່າ tb_used_spare
+ *
+ * BUG ທີ່ແກ້ຢູ່ນີ້ (ods ກໍ່ເປັນ): ໃບຂໍເບີກກ໋ອບ **ທຸກ** ແຖວຂອງ tb_used_spare ໂດຍບໍ່ກອງ
+ * ອາໄຫຼ່ທີ່ສາງເບີກອອກໄປແລ້ວ. /stock/requests/again ແມ່ນທາງເຂົ້າທີ່ຖືກຕ້ອງສຳລັບອາໄຫຼ່
+ * ທີ່ຫາກໍ່ພົບຕອນສ້ອມ ⇒ ໃບທີສອງຈຶ່ງຂໍອາໄຫຼ່ຊຸດເກົ່າຄືນອີກ ແລ້ວສາງເບີກ (ແລະ ຕັດສະຕັອກ ERP)
+ * ອາໄຫຼ່ຕົວດຽວກັນສອງເທື່ອ. ດຽວນີ້ຂໍສະເພາະ "ຈຳນວນທີ່ຍັງຄ້າງ" ເທົ່ານັ້ນ (OUTSTANDING_SPARES).
+ */
 export async function saveRequest(_: StockState, formData: FormData): Promise<StockState> {
   const session = await getSession();
   if (!session) return { error: "Session ໝົດອາຍຸ" };
@@ -143,15 +190,27 @@ export async function saveRequest(_: StockState, formData: FormData): Promise<St
     await client.query("begin");
     await client.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
 
-    const lines = await client.query<{ count: number }>(
+    const cart = await client.query<{ count: number }>(
       `select count(*)::int count from tb_used_spare where product_code=$1`,
       [productCode],
     );
-    if (!lines.rows[0]?.count) {
+    if (!cart.rows[0]?.count) {
       await client.query("rollback");
       return { error: "ຍັງບໍ່ມີອາໄຫຼ່ໃນລາຍການ" };
     }
-    lineCount = lines.rows[0].count;
+
+    // ສະເພາະຈຳນວນທີ່ຍັງບໍ່ທັນຂໍເບີກ/ເບີກອອກ — ກັນຂໍຊ້ຳແລ້ວສາງເບີກອາໄຫຼ່ຕົວດຽວກັນສອງເທື່ອ
+    const lines = await client.query<{
+      item_code: string;
+      item_name: string | null;
+      unit_code: string | null;
+      qty: string;
+    }>(OUTSTANDING_SPARES, [productCode]);
+    if (lines.rows.length === 0) {
+      await client.query("rollback");
+      return { error: "ອາໄຫຼ່ທຸກລາຍການຂອງວຽກນີ້ ຖືກຂໍເບີກ ຫຼື ເບີກອອກໄປແລ້ວ" };
+    }
+    lineCount = lines.rows.length;
 
     docNo = await nextDocNo(client, "SIO", at);
 
@@ -160,10 +219,21 @@ export async function saveRequest(_: StockState, formData: FormData): Promise<St
        values($1,$2,$3,$4,$5,$6,$7,$8)`,
       [TRANS.REQUEST, docDate, docNo, productCode, remark, session.username, whCode, shelfCode],
     );
+    for (const line of lines.rows) {
+      await client.query(
+        `insert into ic_trans_detail(trans_flag, doc_date, doc_no, product_code, item_code, item_name, qty, unit_code, calc_flag, user_created, status)
+         values($1,$2,$3,$4,$5,$6,$7,$8,1,$9,$10)`,
+        [
+          TRANS.REQUEST, docDate, docNo, productCode, line.item_code, line.item_name, line.qty, line.unit_code,
+          session.username, LINE_STATUS.PENDING,
+        ],
+      );
+    }
+    // ໝາຍແຖວກະຕ່າຂອງອາໄຫຼ່ທີ່ຢູ່ໃນໃບນີ້ວ່າ "ຂໍເບີກແລ້ວ" (ຄືສາຍງານຕິດຕັ້ງ)
     await client.query(
-      `insert into ic_trans_detail(trans_flag, doc_date, doc_no, product_code, item_code, item_name, qty, unit_code, calc_flag, user_created, status)
-       select $1,$2,$3, product_code, item_code, item_name, qty, unit_code, 1, $4, $5 from tb_used_spare where product_code=$6`,
-      [TRANS.REQUEST, docDate, docNo, session.username, LINE_STATUS.PENDING, productCode],
+      `update tb_used_spare set reg_start=localtimestamp(0)
+       where product_code=$1 and reg_start is null and item_code = any($2::varchar[])`,
+      [productCode, lines.rows.map((line) => line.item_code)],
     );
     await client.query(`update tb_product set spare_reg=localtimestamp(0) where code=$1`, [productCode]);
 
@@ -236,6 +306,11 @@ export async function deleteRequest(formData: FormData): Promise<void> {
  * ods: /save_dispatch — ຫົວໃຈຂອງການເຄື່ອນໄຫວສາງ.
  * ຂຽນທັງຖານ ODS ແລະ ຖານ ERP (odg) ພ້ອມກັນ ແລະ ຕັດ ic_inventory ທັງສອງຖານ.
  * ຖ້າຝັ່ງໃດຜິດພາດ rollback ທັງສອງ.
+ *
+ * BUG ທີ່ແກ້ຢູ່ນີ້ (ods ກໍ່ເປັນ): ເບີກສະເພາະແຖວທີ່ມີຂອງໃນສາງ ແຕ່ໄປ stamp
+ * tb_product.spare_finish + status=4 ທຸກເທື່ອ ⇒ ມີອາໄຫຼ່ພຽງ 1 ໃນ 5 ລາຍການ
+ * ວຽກກໍ່ຍ້າຍຈາກ "ກຳລັງເບີກອາໄຫຼ່" ໄປ "ລໍຖ້າສ້ອມແປງ" ທັງທີ່ຍັງຂາດອາໄຫຼ່ 4 ລາຍການ.
+ * ດຽວນີ້ stamp ໃຫ້ກໍ່ຕໍ່ເມື່ອ **ທຸກ** ແຖວຂອງທຸກໃບຂໍເບີກຂອງວຽກນັ້ນຖືກເບີກອອກແລ້ວ.
  */
 export async function saveDispatch(_: StockState, formData: FormData): Promise<StockState> {
   const session = await getSession();
@@ -245,7 +320,6 @@ export async function saveDispatch(_: StockState, formData: FormData): Promise<S
 
   const docRef = text(formData, "doc_ref");
   const remark = text(formData, "remark");
-  const productCode = text(formData, "Product_code");
   if (!docRef) return { error: "ບໍ່ພົບເລກທີໃບຂໍເບີກ" };
 
   const { date: docDate, time: docTime, at } = nowParts();
@@ -254,14 +328,25 @@ export async function saveDispatch(_: StockState, formData: FormData): Promise<S
   const odg = await odgDb.connect();
   let dispatchNo = "";
   let dispatchLines = 0;
+  let productCode = "";
+  let outstanding = 0;
+  let technician: string | null = null;
   try {
     await ods.query("begin");
     await odg.query("begin");
     await ods.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
 
-    // ສາງ/ທີ່ເກັບ ເອົາຈາກໃບຂໍເບີກ
-    const head = await ods.query<{ doc_no: string; doc_date: Date; user_created: string | null; wh_code: string | null; shelf_code: string | null }>(
-      `select doc_no, doc_date, user_created, wh_code, shelf_code from ic_trans where doc_no=$1 limit 1`,
+    // ສາງ/ທີ່ເກັບ ແລະ ວຽກເຈົ້າຂອງ ເອົາຈາກໃບຂໍເບີກ (ບໍ່ເຊື່ອ product_code ທີ່ມາຈາກ form)
+    const head = await ods.query<{
+      doc_no: string;
+      doc_date: Date;
+      user_created: string | null;
+      wh_code: string | null;
+      shelf_code: string | null;
+      product_code: string | null;
+    }>(
+      `select doc_no, doc_date, user_created, wh_code, shelf_code, product_code
+       from ic_trans where doc_no=$1 limit 1`,
       [docRef],
     );
     const ref = head.rows[0];
@@ -270,6 +355,7 @@ export async function saveDispatch(_: StockState, formData: FormData): Promise<S
       await odg.query("rollback");
       return { error: "ບໍ່ພົບໃບຂໍເບີກ" };
     }
+    productCode = ref.product_code ?? "";
     const whCode = ref.wh_code || DEFAULT_WH;
     const shelfCode = ref.shelf_code || DEFAULT_SHELF;
     const branchCode = branchOf(whCode);
@@ -328,7 +414,46 @@ export async function saveDispatch(_: StockState, formData: FormData): Promise<S
       LINE_STATUS.ISSUED,
       rowOrders,
     ]);
-    await ods.query(`update tb_product set spare_finish=localtimestamp(0), status=4 where code=$1`, [productCode]);
+
+    // ໝາຍແຖວກະຕ່າ (tb_used_spare) ວ່າສາງຈ່າຍອອກແລ້ວ — ແຖວລະໜຶ່ງລາຍການທີ່ເບີກ
+    for (const line of lines.rows) {
+      await ods.query(
+        `update tb_used_spare set reg_finish=localtimestamp(0)
+         where roworder = (
+           select roworder from tb_used_spare
+           where product_code=$1 and item_code=$2 and reg_finish is null
+           order by (qty = $3::numeric) desc, roworder asc limit 1)`,
+        [productCode, line.item_code, line.qty],
+      );
+    }
+
+    /*
+     * ວຽກນີ້ "ໄດ້ອາໄຫຼ່ຄົບ" ແທ້ບໍ? — ນັບແຖວທີ່ຍັງຄ້າງຂອງ **ທຸກ** ໃບຂໍເບີກຂອງວຽກນີ້
+     * (ວຽກນຶ່ງອາດມີຫຼາຍໃບ: ຂໍຮອບທຳອິດ + ຂໍເບີກຊ້ຳຕອນສ້ອມ).
+     * ຍັງຄ້າງ = ລໍຖ້າ (0) ຫຼື ກຳລັງສັ່ງຊື້ (5).
+     */
+    outstanding =
+      (
+        await ods.query<{ count: number }>(
+          `select count(*)::int count from ic_trans_detail
+           where trans_flag=$1 and product_code=$2 and status in ($3,$4)`,
+          [TRANS.REQUEST, productCode, LINE_STATUS.PENDING, LINE_STATUS.ON_PURCHASE_ORDER],
+        )
+      ).rows[0]?.count ?? 0;
+
+    if (outstanding === 0) {
+      await ods.query(`update tb_product set spare_finish=localtimestamp(0), status=4 where code=$1`, [productCode]);
+    } else {
+      /*
+       * ຍັງຂາດອາໄຫຼ່ຢູ່ → ວຽກຕ້ອງຄ້າງຢູ່ຂັ້ນ "ກຳລັງເບີກອາໄຫຼ່" (lib/stage: spare_finish is null).
+       * ລ້າງ spare_finish ຖ້າໃບກ່ອນໜ້າ stamp ໄວ້ຜິດ (ຂໍ້ມູນເກົ່າ) — ວຽກທີ່ຊ່າງລົງມືສ້ອມແລ້ວ
+       * (time_repair) ບໍ່ຖືກກະທົບ ເພາະ STAGE_SQL ອ່ານ time_repair ກ່ອນ spare_finish.
+       */
+      await ods.query(`update tb_product set spare_finish=null where code=$1`, [productCode]);
+    }
+    technician =
+      (await ods.query<{ emp_code: string | null }>(`select emp_code from tb_product where code=$1`, [productCode]))
+        .rows[0]?.emp_code ?? null;
 
     // ── ERP (odg): ຫົວບິນ
     await odg.query(
@@ -376,14 +501,145 @@ export async function saveDispatch(_: StockState, formData: FormData): Promise<S
   }
 
   if (productCode) {
-    await logChange(
-      jobModel(productCode),
-      productCode,
-      `ສາງເບີກອາໄຫຼ່ອອກ ${dispatchNo} · ${dispatchLines} ລາຍການ (ອ້າງອີງໃບຂໍເບີກ ${docRef})`,
-    );
+    const head = `ສາງເບີກອາໄຫຼ່ອອກ ${dispatchNo} · ${dispatchLines} ລາຍການ (ອ້າງອີງໃບຂໍເບີກ ${docRef})`;
+    if (outstanding > 0) {
+      // ເບີກໄດ້ບໍ່ຄົບ — ວຽກຍັງຄ້າງຢູ່ຂັ້ນອາໄຫຼ່ ແລະ ສາງຍັງຕ້ອງລົງມືຕໍ່
+      await logChange(jobModel(productCode), productCode, `${head} · ຍັງຂາດ ${outstanding} ລາຍການ`, {
+        roles: ROLE_WAREHOUSE,
+      });
+    } else {
+      // ຄົບແລ້ວ — ຊ່າງໄປຮັບອາໄຫຼ່ໄດ້ (ຂັ້ນ "ຊ່າງຮັບອາໄຫຼ່")
+      await logChange(jobModel(productCode), productCode, `${head} · ອາໄຫຼ່ຄົບແລ້ວ — ຊ່າງໄປຮັບອາໄຫຼ່ໄດ້`, {
+        users: technician ? [technician] : [],
+      });
+    }
   }
 
+  revalidatePath("/repair");
+  revalidatePath("/stock/requests");
+  revalidatePath("/stock/requests/pickup");
   redirect("/stock/dispatch");
+}
+
+/* ─────────────────────── ຊ່າງຮັບອາໄຫຼ່ — ວຽກສ້ອມ (trans_flag 166) ─────────────────────── */
+
+/**
+ * ຊ່າງມາຮັບອາໄຫຼ່ທີ່ສາງເບີກອອກໃຫ້ແລ້ວ — ຂັ້ນນີ້ມີຢູ່ໃນສາຍງານຕິດຕັ້ງ (installation.ts
+ * savePickSpare) ແຕ່ **ບໍ່ເຄີຍມີໃນສາຍງານສ້ອມ**: tb_used_spare.pick_finish ຂອງວຽກສ້ອມ
+ * ເປັນ null ທຸກແຖວ (0/3,384) ທັງທີ່ໜ້າສ້ອມແປງອ່ານມັນຢູ່ແລ້ວ —
+ *   /repair            → ປ້າຍ "ລໍຖ້າອາໄຫຼ່ n/m" ຈຶ່ງບໍ່ເຄີຍຖືກ
+ *   /repair/[code]     → ທຸງ picked (ກັນຊ່າງລຶບອາໄຫຼ່ທີ່ສາງເບີກອອກໄປແລ້ວ) ຈຶ່ງບໍ່ເຄີຍກັນ
+ * ບ່ອນນີ້ຈຶ່ງເພີ່ມຂັ້ນນັ້ນໃຫ້ຄົບ: ອອກໃບ PISP (166) ອ້າງອີງໃບເບີກ SWC ແລ້ວ stamp pick_finish.
+ * ບໍ່ແຕະ ic_inventory — ສະຕັອກຖືກຕັດໄປແລ້ວຕອນສາງເບີກ (56).
+ */
+export async function savePickSpare(_: StockState, formData: FormData): Promise<StockState> {
+  const session = await getSession();
+  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const docRef = text(formData, "doc_ref"); // ເລກທີໃບເບີກ (SWC)
+  const remark = text(formData, "remark");
+  if (!docRef) return { error: "ບໍ່ພົບເລກທີໃບເບີກ" };
+
+  const { date: docDate, at } = nowParts();
+
+  const client = await db.connect();
+  let pickNo = "";
+  let pickLines = 0;
+  let productCode = "";
+  try {
+    await client.query("begin");
+    await client.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
+
+    const head = (
+      await client.query<{ product_code: string | null }>(
+        `select product_code from ic_trans
+         where doc_no=$1 and trans_flag=$2 and (job_type is null or job_type <> 'install') limit 1`,
+        [docRef, TRANS.DISPATCH],
+      )
+    ).rows[0];
+    if (!head?.product_code) {
+      await client.query("rollback");
+      return { error: "ບໍ່ພົບໃບເບີກອາໄຫຼ່" };
+    }
+    productCode = head.product_code;
+
+    // ກັນຮັບຊ້ຳ — ໃບເບີກນຶ່ງໃບຮັບໄດ້ເທື່ອດຽວ
+    const already = await client.query<{ count: number }>(
+      `select count(*)::int count from ic_trans where trans_flag=$1 and doc_ref=$2`,
+      [TRANS_PICK, docRef],
+    );
+    if (already.rows[0]?.count) {
+      await client.query("rollback");
+      return { error: "ໃບນີ້ຮັບອາໄຫຼ່ໄປແລ້ວ" };
+    }
+
+    const lines = await client.query<{
+      item_code: string;
+      item_name: string | null;
+      unit_code: string | null;
+      qty: string;
+    }>(
+      `select item_code, item_name, unit_code, qty from ic_trans_detail
+       where doc_no=$1 and trans_flag=$2 order by roworder asc`,
+      [docRef, TRANS.DISPATCH],
+    );
+    if (lines.rows.length === 0) {
+      await client.query("rollback");
+      return { error: "ບໍ່ມີອາໄຫຼ່ໃນໃບນີ້" };
+    }
+
+    const docNo = await nextDocNo(client, "PISP", at);
+    pickNo = docNo;
+    pickLines = lines.rows.length;
+
+    await client.query(
+      `insert into ic_trans(trans_flag, doc_date, doc_no, doc_ref, product_code, remark, user_created, status)
+       values($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [TRANS_PICK, docDate, docNo, docRef, productCode, remark, session.username, LINE_STATUS.PENDING],
+    );
+
+    for (const line of lines.rows) {
+      await client.query(
+        `insert into ic_trans_detail(trans_flag, doc_date, doc_no, doc_ref, product_code,
+           item_code, item_name, qty, unit_code, calc_flag, user_created, status)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9,1,$10,$11)`,
+        [
+          TRANS_PICK, docDate, docNo, docRef, productCode, line.item_code, line.item_name, line.qty, line.unit_code,
+          session.username, LINE_STATUS.ISSUED,
+        ],
+      );
+      // ແຖວກະຕ່າອັນທີ່ຕົງກັບອາໄຫຼ່ແຖວນີ້ (ເລືອກແຖວທີ່ສາງຈ່າຍແລ້ວ ແລະ ຈຳນວນຕົງກັນກ່ອນ)
+      await client.query(
+        `update tb_used_spare
+           set pick_finish=localtimestamp(0), reg_finish=coalesce(reg_finish, localtimestamp(0))
+         where roworder = (
+           select roworder from tb_used_spare
+           where product_code=$1 and item_code=$2 and pick_finish is null
+           order by (reg_finish is not null) desc, (qty = $3::numeric) desc, roworder asc limit 1)`,
+        [productCode, line.item_code, line.qty],
+      );
+    }
+
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    console.error("savePickSpare failed", error);
+    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+  }
+
+  await logChange(
+    jobModel(productCode),
+    productCode,
+    `ຊ່າງຮັບອາໄຫຼ່ ${pickNo} · ${pickLines} ລາຍການ (ອ້າງອີງໃບເບີກ ${docRef})`,
+  );
+
+  revalidatePath("/repair");
+  revalidatePath(`/repair/${productCode}`);
+  revalidatePath("/stock/requests/pickup");
+  redirect("/stock/requests/pickup");
 }
 
 /** ods: /update_stock_new — ດຶງຍອດຄົງເຫຼືອຈາກ view ມາອັບເດດ ic_inventory */

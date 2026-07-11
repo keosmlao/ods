@@ -38,6 +38,7 @@ const REPAIR: NavGroup = {
     { label: "ໃບສະເໜີລາຄາ", href: "/quotations" },
     { label: "ລູກຄ້າອະນຸມັດ(ສະເໜີລາຄາ)", href: "/quotations/customer-approval" },
     { label: "ໃບຂໍເບີກອາໄຫຼ່", href: "/stock/requests", divider: true },
+    { label: "ຮັບອາໄຫຼ່", href: "/stock/requests/pickup" },
     { label: "ໃບຂໍສົ່ງຄືນອາໄຫຼ່", href: "/stock/returns" },
     { label: "ສ້ອມແປງ", href: "/repair" },
     { label: "ໃບສົ່ງເຄື່ອງ/ໃບຮັບເງິນ", href: "/returns", divider: true },
@@ -74,6 +75,7 @@ const STOCK: NavGroup = {
   icon: Boxes,
   items: [
     { label: "ເບີກອາໄຫຼ່", href: "/stock/dispatch" },
+    { label: "ຮັບອາໄຫຼ່ທີ່ສັ່ງຊື້", href: "/stock/arrivals" },
     { label: "ລາຍການສົ່ງ​ຄືນອາໄຫຼ່", href: "/stock/receive-returns" },
     { label: "ລາຍການອາໄຫຼ່", href: "/stock/spare-parts", divider: true },
     { label: "ສິນຄ້າສ້ອມແປງ", href: "/stock/products" },

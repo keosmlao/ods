@@ -4,14 +4,15 @@ import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import { CANCELLED_JOBS } from "@/lib/stage";
-import { CheckCheck, ChevronLeft, ChevronRight, Clock, FileCheck2, Search } from "lucide-react";
+import { CheckCheck, ChevronLeft, ChevronRight, Clock, FileCheck2, PackageX, Search } from "lucide-react";
 import Link from "next/link";
+import { HAS_OUTSTANDING_SPARES, OUTSTANDING_SUMMARY_SQL, type OutstandingSummary } from "./outstanding";
 
 /** ຖອດແບບຈາກ ods: Services.py home_cc_approve() + templates/Service/approve_cc.html (ອອກແບບໃໝ່) */
 
 const PAGE_SIZE = 20;
 
-type Tab = "waiting" | "done";
+type Tab = "waiting" | "done" | "spares";
 type Props = { searchParams: Promise<{ tab?: string; q?: string; page?: string; sort?: string; dir?: string }> };
 
 type Row = {
@@ -33,9 +34,16 @@ type Row = {
   user_regis: string | null;
   request_cancel: string | null;
   approve_cancel: string | null;
+  returned: string | null;
+  spares: OutstandingSummary | null;
 };
 
-/** ວຽກທີ່ຖືກຍົກເລີກ (status = 6 ຕາມ CANCELLED_JOBS ຂອງ lib/stage) */
+/**
+ * ວຽກທີ່ຖືກຍົກເລີກ (status = 6 ຕາມ CANCELLED_JOBS ຂອງ lib/stage)
+ *
+ * ແທັບ "ອາໄຫຼ່ຄ້າງສາງ" (GAP B) = ວຽກທີ່ຍົກເລີກແລ້ວ ແຕ່ຍັງມີອາໄຫຼ່ທີ່ເບີກອອກຈາກສາງ
+ * ຢູ່ນອກສາງ (ແຖວໃບເບີກ 56 ຍັງ status=0) — ລາຍການນີ້ຄືບັນຊີ "ໜີ້ອາໄຫຼ່" ທີ່ຕ້ອງເກັບຄືນ.
+ */
 const BUCKET: Record<Tab, { where: string; timeCol: string }> = {
   waiting: {
     where: `${CANCELLED_JOBS} and a.cancel_start is not null and a.cancel_finish is null`,
@@ -44,6 +52,10 @@ const BUCKET: Record<Tab, { where: string; timeCol: string }> = {
   done: {
     where: `${CANCELLED_JOBS} and a.cancel_start is not null and a.cancel_finish is not null`,
     timeCol: "a.cancel_finish",
+  },
+  spares: {
+    where: `${CANCELLED_JOBS} and ${HAS_OUTSTANDING_SPARES}`,
+    timeCol: "coalesce(a.cancel_start, a.time_register)",
   },
 };
 
@@ -86,7 +98,9 @@ async function getRows(tab: Tab, q: string, page: number, sort: string, dir: Sor
       greatest(0, round(extract(epoch from (localtimestamp - ${timeCol}))))::int elapsed_seconds,
       concat_ws('-', b.name_1, b.tel) customer, a.name_1 product, a.p_model model, a.sn, a.p_brand brand,
       a.warrunty warranty, a.issue, a.issue_2, a.emp_code technician, a.user_regis,
-      a.request_cancel, a.approve_cancel
+      a.request_cancel, a.approve_cancel,
+      to_char(a.return_complete,'DD-MM-YYYY HH24:MI') returned,
+      ${OUTSTANDING_SUMMARY_SQL} spares
     from tb_product a
     left join ar_customer b on b.code = a.cust_code
     where ${filter}
@@ -106,13 +120,14 @@ async function getRows(tab: Tab, q: string, page: number, sort: string, dir: Sor
 /** ນັບຫົວແທັບ — ບໍ່ດຶງແຖວ */
 async function getCounts() {
   const row = (
-    await query<{ waiting: number; done: number }>(
+    await query<{ waiting: number; done: number; spares: number }>(
       `select count(*) filter (where ${BUCKET.waiting.where})::int waiting,
-          count(*) filter (where ${BUCKET.done.where})::int done
+          count(*) filter (where ${BUCKET.done.where})::int done,
+          count(*) filter (where ${BUCKET.spares.where})::int spares
         from tb_product a`,
     )
   ).rows[0];
-  return { waiting: row?.waiting ?? 0, done: row?.done ?? 0 };
+  return { waiting: row?.waiting ?? 0, done: row?.done ?? 0, spares: row?.spares ?? 0 };
 }
 
 const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
@@ -127,7 +142,7 @@ const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
 
 export default async function CancellationsPage({ searchParams }: Props) {
   const params = await searchParams;
-  const tab: Tab = params.tab === "done" ? "done" : "waiting";
+  const tab: Tab = params.tab === "done" ? "done" : params.tab === "spares" ? "spares" : "waiting";
   const q = (params.q ?? "").trim();
   const page = Math.max(1, Number(params.page) || 1);
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
@@ -148,9 +163,10 @@ export default async function CancellationsPage({ searchParams }: Props) {
   const TABS: { key: Tab; label: string; icon: typeof Clock; count: number }[] = [
     { key: "waiting", label: "ລໍຖ້າອະນຸມັດຍົກເລີກເຄື່ອງສ້ອມ", icon: Clock, count: counts.waiting },
     { key: "done", label: "ອະນຸມັດຍົກເລີກເຄື່ອງສ້ອມເເລ້ວ", icon: CheckCheck, count: counts.done },
+    { key: "spares", label: "ອາໄຫຼ່ຄ້າງສາງ", icon: PackageX, count: counts.spares },
   ];
 
-  const timeLabel = tab === "waiting" ? "ຂໍຍົກເລີກມາແລ້ວ" : "ອະນຸມັດມາແລ້ວ";
+  const timeLabel = tab === "waiting" ? "ຂໍຍົກເລີກມາແລ້ວ" : tab === "done" ? "ອະນຸມັດມາແລ້ວ" : "ຍົກເລີກມາແລ້ວ";
 
   return (
     <div className="w-full space-y-4">
@@ -219,14 +235,19 @@ export default async function CancellationsPage({ searchParams }: Props) {
                 ))}
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາການເບື້ອງຕົ້ນ</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ວັນ/ເວລາຮັບເຄື່ອງ</th>
-                {tab === "done" ? (
+                {tab === "done" && (
                   <>
                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ວັນ/ເວລາຂໍຍົກເລີກ</th>
                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຜູ້ອະນຸມັດ</th>
                   </>
-                ) : (
-                  <th className="px-3 py-2.5" />
                 )}
+                {tab === "spares" && (
+                  <>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາໄຫຼ່ຄ້າງນອກສາງ</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສະຖານະສົ່ງຄືນ</th>
+                  </>
+                )}
+                {tab !== "done" && <th className="px-3 py-2.5" />}
               </tr>
             </thead>
             <tbody>
@@ -280,19 +301,45 @@ export default async function CancellationsPage({ searchParams }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">{row.registered ?? "-"}</td>
 
-                    {tab === "done" ? (
+                    {tab === "done" && (
                       <>
                         <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">{row.cancel_start ?? "-"}</td>
                         <td className="whitespace-nowrap px-3 py-2.5">{row.approve_cancel ?? "-"}</td>
                       </>
-                    ) : (
+                    )}
+
+                    {tab === "spares" && (
+                      <>
+                        <td className="whitespace-nowrap px-3 py-2.5">
+                          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                            {row.spares?.lines ?? 0} ລາຍການ · {(row.spares?.units ?? 0).toLocaleString()} ໜ່ວຍ
+                          </span>
+                          <span className="mt-0.5 block text-[10px] text-slate-400">
+                            {row.spares?.docs ?? 0} ໃບເບີກ
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5">
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                              row.returned ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            {row.returned ? "ສົ່ງຄືນແລ້ວ" : "ຍັງບໍ່ສົ່ງຄືນ"}
+                          </span>
+                        </td>
+                      </>
+                    )}
+
+                    {tab !== "done" && (
                       <td className="whitespace-nowrap px-3 py-2.5 text-center">
                         <Link
                           href={`/approvals/cancellations/${encodeURIComponent(row.code)}`}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                          className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white ${
+                            tab === "spares" ? "bg-amber-600 hover:bg-amber-700" : "bg-teal-600 hover:bg-teal-700"
+                          }`}
                         >
-                          <FileCheck2 className="size-3.5" />
-                          ລາຍລະອຽດ
+                          {tab === "spares" ? <PackageX className="size-3.5" /> : <FileCheck2 className="size-3.5" />}
+                          {tab === "spares" ? "ຈັດການອາໄຫຼ່" : "ລາຍລະອຽດ"}
                           <LinkPending className="size-3" />
                         </Link>
                       </td>

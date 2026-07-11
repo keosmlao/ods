@@ -1,9 +1,10 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
-import { getSession } from "@/lib/auth";
+import { getSession, type Session } from "@/lib/auth";
 import { ROLE_APPROVER } from "@/lib/chatter";
 import { db, query } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
+import { roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -13,6 +14,13 @@ import { z } from "zod";
  * ການແກ້ໄຂລາຍການທັງໝົດເກີດຢູ່ຕາຕະລາງຮ່າງ ic_trans_detail_draft
  *  - ຕອນສ້າງ:  ຮ່າງຜູກກັບ product_code (doc_no ຫວ່າງ)
  *  - ຕອນແກ້ໄຂ: ຮ່າງຜູກກັບ doc_no
+ *
+ * ── ວົງຈອນສະຖານະ (ic_trans.aprove_status / aprove_status_2) ──
+ *   0/0 ລໍຖ້າອະນຸມັດພາຍໃນ   → ແກ້ໄຂໄດ້ · ລຶບໄດ້
+ *   2/0 ບໍ່ອະນຸມັດພາຍໃນ     → ແກ້ໄຂແລ້ວສົ່ງອະນຸມັດຄືນໄດ້ (ກັບເປັນ 0/0) · ຫຼື ລຶບຖິ້ມແລ້ວອອກໃບໃໝ່
+ *   1/0 ອະນຸມັດພາຍໃນແລ້ວ    → ແກ້ໄຂໄດ້ ແຕ່ **ຕ້ອງອະນຸມັດຄືນໃໝ່** (ຕັດກັບເປັນ 0/0) · ລຶບບໍ່ໄດ້
+ *   1/1, 1/2 ລູກຄ້າຕອບແລ້ວ  → ແກ້ໄຂ/ລຶບບໍ່ໄດ້ອີກ
+ * ກົດເກນນີ້ບັງຄັບຢູ່ຝັ່ງ server (ຂ້າງລຸ່ມ) ບໍ່ແມ່ນແຕ່ຢູ່ປຸ່ມ — ເອີ້ນ action ໂດຍກົງກໍ່ຜ່ານບໍ່ໄດ້.
  */
 
 export type QuoteState = { error?: string };
@@ -28,6 +36,49 @@ function revalidateAll() {
   revalidatePath("/approvals", "layout");
 }
 
+/* ───────────────────────── ສິດ ───────────────────────── */
+
+type Guard = { ok: true; session: Session } | { ok: false; error: string };
+
+/**
+ * ອອກ / ແກ້ໄຂ / ລຶບ ໃບສະເໜີລາຄາ = ຝ່າຍບໍລິການ (ຜູ້ຈັດການ + CS) ຄືກັບສິດເຂົ້າໜ້າ /quotations.
+ * middleware ກັນສະເພາະ "ໜ້າ" — server action ຖືກຍິງໂດຍກົງໄດ້ ຈຶ່ງຕ້ອງກວດສິດຢູ່ນີ້ອີກຊັ້ນ.
+ */
+async function requireService(): Promise<Guard> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Session ໝົດອາຍຸ" };
+  if (!SERVICE_SIDE.includes(roleOf(session))) return { ok: false, error: "ບໍ່ມີສິດອອກ ຫຼື ແກ້ໄຂໃບສະເໜີລາຄາ" };
+  return { ok: true, session };
+}
+
+/** ສະຖານະປັດຈຸບັນຂອງໃບສະເໜີລາຄາ (ລັອກແຖວໄວ້ ກັນສອງຄົນລົງມືພ້ອມກັນ) */
+type QuoteHead = { product_code: string | null; aprove_status: number; aprove_status_2: number };
+
+const HEAD_SQL = `select product_code, coalesce(aprove_status,0)::int aprove_status,
+    coalesce(aprove_status_2,0)::int aprove_status_2
+  from ic_trans where doc_no=$1 and trans_flag=17 for update`;
+
+/**
+ * ແກ້ໄຂໄດ້ບໍ? — ຄືນຂໍ້ຄວາມຜິດພາດເປັນພາສາລາວ ຖ້າບໍ່ໄດ້.
+ * ລູກຄ້າຕອບກັບແລ້ວ (1/1 ຫຼື 1/2) = ວຽກຜ່ານຂັ້ນສະເໜີລາຄາໄປແລ້ວ ⇒ ຫ້າມແຕະ.
+ * ອະນຸມັດພາຍໃນແລ້ວ (1/0) = ແກ້ໄຂໄດ້ ແຕ່ saveQuoteEdit ຈະຕັດໃຫ້ອະນຸມັດຄືນໃໝ່.
+ */
+function blockEdit(head: QuoteHead | undefined): string | null {
+  if (!head) return "ບໍ່ພົບໃບສະເໜີລາຄາ";
+  if (head.aprove_status_2 !== 0) return "ລູກຄ້າຕອບກັບໃບສະເໜີລາຄານີ້ແລ້ວ — ແກ້ໄຂບໍ່ໄດ້";
+  return null;
+}
+
+/** ລຶບໄດ້ບໍ? — ເຂັ້ມກວ່າແກ້ໄຂ: ໃບທີ່ອະນຸມັດແລ້ວ ລຶບຖິ້ມງຽບໆບໍ່ໄດ້ */
+function blockDelete(head: QuoteHead | undefined): string | null {
+  if (!head) return "ບໍ່ພົບໃບສະເໜີລາຄາ";
+  if (head.aprove_status_2 !== 0) return "ລູກຄ້າຕອບກັບໃບສະເໜີລາຄານີ້ແລ້ວ — ລຶບບໍ່ໄດ້";
+  if (head.aprove_status === 1) {
+    return "ໃບສະເໜີລາຄານີ້ອະນຸມັດພາຍໃນແລ້ວ — ລຶບບໍ່ໄດ້ (ຖ້າຕ້ອງປ່ຽນລາຄາ ໃຫ້ແກ້ໄຂ ແລ້ວຂໍອະນຸມັດຄືນ)";
+  }
+  return null;
+}
+
 /* ───────────────────────── ລາຍການໃນຮ່າງ ───────────────────────── */
 
 const itemSchema = z.object({
@@ -41,8 +92,8 @@ const itemSchema = z.object({
 
 /** ຄື /choseitem ແລະ /choseitemeditqt */
 export async function addDraftItem(input: z.input<typeof itemSchema>): Promise<QuoteState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireService();
+  if (!guard.ok) return { error: guard.error };
   const parsed = itemSchema.safeParse(input);
   if (!parsed.success) return { error: "ຂໍ້ມູນລາຍການບໍ່ຄົບ" };
   const d = parsed.data;
@@ -51,7 +102,7 @@ export async function addDraftItem(input: z.input<typeof itemSchema>): Promise<Q
     await query(
       `insert into ic_trans_detail_draft(product_code, item_code, item_name, qty, unit_code, price, sum_amount, user_created, doc_no)
        values($1,$2,$3,1,$4,$5,$5,$6,$7)`,
-      [d.productCode, d.itemCode, d.itemName, d.unitCode, d.price, session.username, d.docNo],
+      [d.productCode, d.itemCode, d.itemName, d.unitCode, d.price, guard.session.username, d.docNo],
     );
   } catch (error) {
     console.error("addDraftItem failed", error);
@@ -63,8 +114,8 @@ export async function addDraftItem(input: z.input<typeof itemSchema>): Promise<Q
 
 /** ຄື /addprice ແລະ /addprice_qt */
 export async function setDraftPrice(roworder: number, price: number): Promise<QuoteState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireService();
+  if (!guard.ok) return { error: guard.error };
   if (!Number.isInteger(roworder) || !Number.isFinite(price) || price < 0) return { error: "ລາຄາບໍ່ຖືກຕ້ອງ" };
 
   try {
@@ -82,8 +133,8 @@ export async function setDraftPrice(roworder: number, price: number): Promise<Qu
 
 /** ຄື /deleteitemqt ແລະ /deleteitemeditqt */
 export async function deleteDraftItem(roworder: number): Promise<QuoteState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireService();
+  if (!guard.ok) return { error: guard.error };
   if (!Number.isInteger(roworder)) return { error: "ລາຍການບໍ່ຖືກຕ້ອງ" };
 
   try {
@@ -103,8 +154,9 @@ export async function deleteDraftItem(roworder: number): Promise<QuoteState> {
  * ແລະ ອອກເລກທີຄືນໃໝ່ພາຍໃນ transaction ທີ່ລັອກແລ້ວ ຈຶ່ງບໍ່ຊ້ຳ
  */
 export async function saveQuote(_: QuoteState, formData: FormData): Promise<QuoteState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireService();
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const productCode = String(formData.get("pro_code") ?? "");
@@ -133,10 +185,22 @@ export async function saveQuote(_: QuoteState, formData: FormData): Promise<Quot
       return { error: "ຍັງບໍ່ມີລາຍການ — ກະລຸນາເລືອກລາຍການກ່ອນ" };
     }
 
-    const exists = await client.query("select 1 from ic_trans where trans_flag=17 and product_code=$1", [productCode]);
+    // ເຄື່ອງ 1 ໜ່ວຍ = ໃບສະເໜີລາຄາ 1 ໃບ. ຖ້າມີແລ້ວ ບອກເລກທີ ແລະ ທາງອອກໃຫ້ຊັດ
+    // (ບໍ່ດັ່ງນັ້ນໃບທີ່ "ບໍ່ອະນຸມັດ" ຈະກາຍເປັນທາງຕັນ: ອອກໃໝ່ກໍ່ບໍ່ໄດ້ ຫາໃບເກົ່າກໍ່ບໍ່ພົບ)
+    const exists = await client.query<{ doc_no: string; aprove_status: number }>(
+      `select doc_no, coalesce(aprove_status,0)::int aprove_status
+       from ic_trans where trans_flag=17 and product_code=$1 limit 1`,
+      [productCode],
+    );
     if (exists.rowCount) {
       await client.query("rollback");
-      return { error: "ເຄື່ອງນີ້ມີໃບສະເໜີລາຄາແລ້ວ" };
+      const found = exists.rows[0];
+      return {
+        error:
+          found.aprove_status === 2
+            ? `ເຄື່ອງນີ້ມີໃບສະເໜີລາຄາ ${found.doc_no} ທີ່ບໍ່ໄດ້ຮັບອະນຸມັດຢູ່ແລ້ວ — ໃຫ້ແກ້ໄຂແລ້ວສົ່ງອະນຸມັດຄືນ ຫຼື ລຶບໃບເກົ່າອອກກ່ອນ (ແທັບ "ລໍຖ້າອອກໃບສະເໜີລາຄາ")`
+            : `ເຄື່ອງນີ້ມີໃບສະເໜີລາຄາ ${found.doc_no} ແລ້ວ`,
+      };
     }
 
     const totalValue = Number(lines.rows[0].total);
@@ -187,26 +251,33 @@ export async function saveQuote(_: QuoteState, formData: FormData): Promise<Quot
 /* ───────────────────────── ແກ້ໄຂ ───────────────────────── */
 
 /** ຄື /before_edit_qt — ລ້າງຮ່າງເກົ່າ ແລ້ວ copy ຈາກ ic_trans_detail ມາໃສ່ຮ່າງ */
-export async function beginEditQuote(docNo: string) {
-  const session = await getSession();
-  if (!session) redirect("/login");
-  if (!db) throw new Error("DATABASE_URL is not configured");
+export async function beginEditQuote(docNo: string): Promise<QuoteState> {
+  const guard = await requireService();
+  if (!guard.ok) return { error: guard.error };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const client = await db.connect();
   try {
     await client.query("begin");
+    const head = await client.query<QuoteHead>(HEAD_SQL, [docNo]);
+    const blocked = blockEdit(head.rows[0]);
+    if (blocked) {
+      await client.query("rollback");
+      return { error: blocked };
+    }
+
     await client.query("delete from ic_trans_detail_draft where doc_no=$1", [docNo]);
     await client.query(
       `insert into ic_trans_detail_draft(product_code, item_code, item_name, qty, unit_code, price, sum_amount, user_created, doc_no)
        select product_code, item_code, item_name, qty, unit_code, price, sum_amount, $1, $2
        from ic_trans_detail where doc_no=$2`,
-      [session.username, docNo],
+      [guard.session.username, docNo],
     );
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");
     console.error("beginEditQuote failed", error);
-    throw error;
+    return { error: "ເປີດແກ້ໄຂບໍ່ສຳເລັດ" };
   } finally {
     client.release();
   }
@@ -215,10 +286,10 @@ export async function beginEditQuote(docNo: string) {
   redirect(`/quotations/${encodeURIComponent(docNo)}/edit`);
 }
 
-/** ຄື /exit_edit_qt — ອອກໂດຍບໍ່ບັນທຶກ, ລຶບຮ່າງຖິ້ມ */
+/** ຄື /exit_edit_qt — ອອກໂດຍບໍ່ບັນທຶກ, ລຶບຮ່າງຖິ້ມ (ປຸ່ມ "ອອກ" ⇒ ບໍ່ຄືນ state, ພາໄປໜ້າອື່ນເລີຍ) */
 export async function exitEditQuote(docNo: string) {
-  const session = await getSession();
-  if (!session) redirect("/login");
+  const guard = await requireService();
+  if (!guard.ok) redirect("/forbidden");
   await query("delete from ic_trans_detail_draft where doc_no=$1", [docNo]);
   revalidateAll();
   redirect("/quotations");
@@ -227,10 +298,14 @@ export async function exitEditQuote(docNo: string) {
 /**
  * ຄື /editsubmit_qt — ແຕ່ບັນທຶກລາຍການທັງໝົດຄືນ (ods ບັນທຶກສະເພາະ item_code ຂຶ້ນຕົ້ນ '9900'
  * ເຮັດໃຫ້ລາຍການບໍລິການທີ່ເພີ່ມໃໝ່ຫາຍໄປ)
+ *
+ * ບ່ອນນີ້ຄື "ສົ່ງອະນຸມັດຄືນ" ນຳ: ທຸກຄັ້ງທີ່ລາຄາຖືກແກ້ ໃບນັ້ນຕັດກັບເປັນ ລໍຖ້າອະນຸມັດ (0/0)
+ * ⇒ ໃບທີ່ "ບໍ່ອະນຸມັດ" ກັບເຂົ້າຄິວອະນຸມັດໄດ້ · ແລະ ລາຄາທີ່ອະນຸມັດແລ້ວ ຈະຖືກປ່ຽນລັບຫຼັງບໍ່ໄດ້.
  */
 export async function saveQuoteEdit(_: QuoteState, formData: FormData): Promise<QuoteState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireService();
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const docNo = String(formData.get("doc_no") ?? "");
@@ -245,8 +320,19 @@ export async function saveQuoteEdit(_: QuoteState, formData: FormData): Promise<
   const client = await db.connect();
   let productCode = "";
   let quoteTotal = 0;
+  let wasStatus = 0;
   try {
     await client.query("begin");
+
+    // ເອົາລະຫັດເຄື່ອງ + ສະຖານະປັດຈຸບັນ (ຟອມບໍ່ໄດ້ສົ່ງມາ ແລະ ຟອມເຊື່ອບໍ່ໄດ້ຢູ່ແລ້ວ)
+    const head = await client.query<QuoteHead>(HEAD_SQL, [docNo]);
+    const blocked = blockEdit(head.rows[0]);
+    if (blocked) {
+      await client.query("rollback");
+      return { error: blocked };
+    }
+    productCode = head.rows[0].product_code ?? "";
+    wasStatus = head.rows[0].aprove_status;
 
     const lines = await client.query<{ total: string; count: string }>(
       "select coalesce(sum(sum_amount),0) total, count(*) count from ic_trans_detail_draft where doc_no=$1",
@@ -257,20 +343,15 @@ export async function saveQuoteEdit(_: QuoteState, formData: FormData): Promise<
       return { error: "ຍັງບໍ່ມີລາຍການ — ກະລຸນາເລືອກລາຍການກ່ອນ" };
     }
 
-    // ເອົາລະຫັດເຄື່ອງໄວ້ຂຽນ log ໃສ່ໃບຮັບເຄື່ອງ (ຟອມບໍ່ໄດ້ສົ່ງມາ)
-    const head = await client.query<{ product_code: string | null }>(
-      "select product_code from ic_trans where doc_no=$1 and trans_flag=17 limit 1",
-      [docNo],
-    );
-    productCode = head.rows[0]?.product_code ?? "";
-
     const totalValue = Number(lines.rows[0].total);
     const totalAmount = totalValue - discount;
     quoteTotal = totalAmount;
 
+    // ຕັດການອະນຸມັດເກົ່າຖິ້ມ → ໃບນີ້ກັບເຂົ້າຄິວ "ລໍຖ້າອະນຸມັດ" ສະເໝີ
     await client.query(
       `update ic_trans set doc_date=$1, remark=$2, user_created=$3, exchange_rate=$4,
-         total_amount_2=$5, total_value=$6, total_discount=$7, total_amount=$8
+         total_amount_2=$5, total_value=$6, total_discount=$7, total_amount=$8,
+         aprove_status=0, approver1=null, aprove_date1=null, remark_2=null
        where doc_no=$9 and trans_flag=17`,
       [docDate, remark, session.username, rate, totalAmount * rate, totalValue, discount, totalAmount, docNo],
     );
@@ -284,6 +365,14 @@ export async function saveQuoteEdit(_: QuoteState, formData: FormData): Promise<
       [docDate, docNo, custCode, session.username],
     );
     await client.query("delete from ic_trans_detail_draft where doc_no=$1", [docNo]);
+
+    // ຕອນບໍ່ອະນຸມັດ qt_start ຖືກລ້າງ (ວຽກກັບໄປຂັ້ນ "ລໍຖ້າສະເໜີລາຄາ") → ຕັ້ງຄືນຕອນສົ່ງອະນຸມັດຄືນ
+    if (productCode) {
+      await client.query(
+        "update tb_product set qt_start=coalesce(qt_start, localtimestamp(0)) where code=$1",
+        [productCode],
+      );
+    }
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");
@@ -294,11 +383,14 @@ export async function saveQuoteEdit(_: QuoteState, formData: FormData): Promise<
   }
 
   if (productCode) {
-    await logChange(
-      "tb_product",
-      productCode,
-      `ແກ້ໄຂໃບສະເໜີລາຄາ ${docNo} · ຍອດ ${quoteTotal.toLocaleString("en-US")} ບາດ`,
-    );
+    const total = quoteTotal.toLocaleString("en-US");
+    const body =
+      wasStatus === 2
+        ? `ແກ້ໄຂໃບສະເໜີລາຄາ ${docNo} ທີ່ບໍ່ອະນຸມັດ ແລ້ວສົ່ງອະນຸມັດຄືນ · ຍອດ ${total} ບາດ — ລໍຖ້າອະນຸມັດ`
+        : wasStatus === 1
+          ? `ແກ້ໄຂໃບສະເໜີລາຄາ ${docNo} ທີ່ອະນຸມັດແລ້ວ · ຍອດ ${total} ບາດ — ຕ້ອງອະນຸມັດຄືນໃໝ່`
+          : `ແກ້ໄຂໃບສະເໜີລາຄາ ${docNo} · ຍອດ ${total} ບາດ — ລໍຖ້າອະນຸມັດ`;
+    await logChange("tb_product", productCode, body, { roles: ROLE_APPROVER });
   }
 
   revalidateAll();
@@ -307,21 +399,29 @@ export async function saveQuoteEdit(_: QuoteState, formData: FormData): Promise<
 
 /* ───────────────────────── ຍົກເລີກໃບສະເໜີລາຄາ ───────────────────────── */
 
-/** ຄື /qtcancle — ລຶບໃບສະເໜີລາຄາ ແລ້ວປ່ອຍເຄື່ອງກັບຄືນຄິວ */
-export async function cancelQuote(docNo: string) {
-  const session = await getSession();
-  if (!session) redirect("/login");
-  if (!db) throw new Error("DATABASE_URL is not configured");
+/**
+ * ຄື /qtcancle — ລຶບໃບສະເໜີລາຄາ ແລ້ວປ່ອຍເຄື່ອງກັບຄືນຄິວ "ລໍຖ້າສະເໜີລາຄາ" (ອອກໃບໃໝ່ໄດ້)
+ * ລຶບໄດ້ສະເພາະໃບທີ່ຍັງລໍຖ້າອະນຸມັດ (0/0) ຫຼື ບໍ່ອະນຸມັດ (2/0) — ເບິ່ງ blockDelete
+ */
+export async function cancelQuote(docNo: string): Promise<QuoteState> {
+  const guard = await requireService();
+  if (!guard.ok) return { error: guard.error };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const client = await db.connect();
   let cancelledFor = "";
+  let wasStatus = 0;
   try {
     await client.query("begin");
-    const head = await client.query<{ product_code: string | null }>(
-      "select product_code from ic_trans where doc_no=$1 and trans_flag=17",
-      [docNo],
-    );
-    const productCode = head.rows[0]?.product_code;
+    const head = await client.query<QuoteHead>(HEAD_SQL, [docNo]);
+    const blocked = blockDelete(head.rows[0]);
+    if (blocked) {
+      await client.query("rollback");
+      return { error: blocked };
+    }
+    const productCode = head.rows[0].product_code;
+    wasStatus = head.rows[0].aprove_status;
+
     await client.query("delete from ic_trans where doc_no=$1 and trans_flag=17", [docNo]);
     await client.query("delete from ic_trans_detail where doc_no=$1", [docNo]);
     await client.query("delete from ic_trans_detail_draft where doc_no=$1", [docNo]);
@@ -331,13 +431,19 @@ export async function cancelQuote(docNo: string) {
   } catch (error) {
     await client.query("rollback");
     console.error("cancelQuote failed", error);
-    throw error;
+    return { error: "ລຶບບໍ່ສຳເລັດ" };
   } finally {
     client.release();
   }
 
-  if (cancelledFor) await logChange("tb_product", cancelledFor, `ຍົກເລີກໃບສະເໜີລາຄາ ${docNo}`);
+  if (cancelledFor) {
+    await logChange(
+      "tb_product",
+      cancelledFor,
+      `ລຶບໃບສະເໜີລາຄາ ${docNo}${wasStatus === 2 ? " (ບໍ່ອະນຸມັດ)" : ""} — ກັບໄປລໍຖ້າສະເໜີລາຄາໃໝ່`,
+    );
+  }
 
   revalidateAll();
-  redirect("/quotations");
+  return {};
 }

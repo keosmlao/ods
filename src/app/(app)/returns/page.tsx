@@ -1,9 +1,10 @@
+import { OUTSTANDING_SUMMARY_SQL, type OutstandingSummary } from "@/app/(app)/approvals/cancellations/outstanding";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
-import { CheckCircle2, ChevronLeft, ChevronRight, PackageCheck, Printer, Receipt, Search } from "lucide-react";
+import { Ban, CheckCircle2, ChevronLeft, ChevronRight, PackageCheck, Printer, Receipt, Search } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -11,7 +12,8 @@ import Link from "next/link";
 
 const PAGE_SIZE = 20;
 
-type Tab = "waiting" | "bills";
+type Tab = "waiting" | "cancelled" | "bills";
+type JobTab = "waiting" | "cancelled";
 type Props = { searchParams: Promise<{ tab?: string; q?: string; page?: string; sort?: string; dir?: string }> };
 
 type WaitRow = {
@@ -24,9 +26,11 @@ type WaitRow = {
   warranty: string | null;
   finished: string | null;
   elapsed_seconds: number | null;
+  issue: string | null;
   issue_2: string | null;
   emp_code: string | null;
   product_url: string | null;
+  spares: OutstandingSummary | null;
 };
 
 type BillRow = {
@@ -49,6 +53,22 @@ type BillRow = {
  * ບ່ອນນີ້ໃຊ້ເງື່ອນໄຂຕາມຄວາມຈິງ: ສ້ອມຈົບແລ້ວ + ຍັງບໍ່ໄດ້ສົ່ງຄືນ + ບໍ່ຖືກຍົກເລີກ.
  */
 const WAITING = "a.time_finish_repair is not null and a.return_complete is null and a.status <> 6";
+
+/**
+ * ສົ່ງຄືນໂດຍບໍ່ສ້ອມ (GAP A) — ວຽກທີ່ຍົກເລີກແລ້ວ (status=6) ແລະ ອະນຸມັດການຍົກເລີກແລ້ວ
+ * ແຕ່ເຄື່ອງຍັງບໍ່ໄດ້ສົ່ງຄືນລູກຄ້າ.
+ *
+ * ກ່ອນນີ້ວຽກກຸ່ມນີ້ບໍ່ມີໜ້າໃດຮັບເລີຍ: ໜ້າ "ລໍຖ້າສົ່ງຄືນ" ຂ້າງເທິງກັນ status=6 ອອກ
+ * ແລະ ບໍ່ມີບ່ອນອື່ນປະທັບ return_complete → ເຄື່ອງກັບບ້ານລູກຄ້າໄປແລ້ວ ແຕ່ລະບົບຍັງເປີດຄ້າງຕະຫຼອດ
+ * ແລະ ຄ່າກວດເຊັກກໍ່ເກັບບໍ່ໄດ້. ແທັບນີ້ພາໄປໜ້າ /returns/<code> ອັນເກົ່າ (ໃບຮັບເງິນ trans_flag 44)
+ * ໂດຍບໍ່ປ່ຽນຄວາມໝາຍຂອງ "ຍົກເລີກ" (status ຍັງເປັນ 6 ຄືເກົ່າ).
+ */
+const CANCELLED = "a.status = 6 and a.cancel_finish is not null and a.return_complete is null";
+
+const JOB_BUCKET: Record<JobTab, { where: string; timeCol: string }> = {
+  waiting: { where: WAITING, timeCol: "a.time_finish_repair" },
+  cancelled: { where: CANCELLED, timeCol: "a.cancel_finish" },
+};
 
 /** ໃບຮັບເງິນທີ່ອອກແລ້ວ — ic_trans trans_flag 44 */
 const BILLS = "a.trans_flag = 44";
@@ -79,11 +99,10 @@ const BILL_SORT: Record<string, string> = {
   amount: "a.total_amount",
 };
 
-const TIME_COL = "a.time_finish_repair";
-
-/** ລໍຖ້າສົ່ງຄືນ — ນັບ "ເວລາລໍຖ້າສົ່ງຄືນ" ຈາກເວລາສ້ອມຈົບ */
-async function getWaiting(q: string, page: number, sort: string, dir: SortDir) {
-  const where = [WAITING];
+/** ລໍຖ້າສົ່ງຄືນ / ສົ່ງຄືນໂດຍບໍ່ສ້ອມ — ນັບເວລາຈາກ "ສ້ອມຈົບ" ຫຼື "ອະນຸມັດຍົກເລີກ" ຕາມແທັບ */
+async function getJobs(tab: JobTab, q: string, page: number, sort: string, dir: SortDir) {
+  const { where: bucket, timeCol } = JOB_BUCKET[tab];
+  const where = [bucket];
   const params: (string | number)[] = [];
   if (q) {
     params.push(`%${q}%`);
@@ -94,13 +113,14 @@ async function getWaiting(q: string, page: number, sort: string, dir: SortDir) {
   const column = WAIT_SORT[sort] ?? "at_col";
   // ຄ້າງດົນສຸດກ່ອນ = ເວລາເກົ່າສຸດກ່ອນ ຈຶ່ງກັບທິດໃຫ້
   const orderBy =
-    column === "at_col" ? `${TIME_COL} ${dir === "desc" ? "asc" : "desc"} nulls last` : `${column} ${dir}`;
+    column === "at_col" ? `${timeCol} ${dir === "desc" ? "asc" : "desc"} nulls last` : `${column} ${dir}`;
 
   const rowsSql = `select a.code,
       concat_ws('-', b.name_1, b.tel) customer, a.name_1 product, a.p_model model, a.sn, a.p_brand brand,
-      a.warrunty warranty, to_char(${TIME_COL},'DD-MM-YYYY HH24:MI') finished,
-      greatest(0, round(extract(epoch from (localtimestamp - ${TIME_COL}))))::int elapsed_seconds,
-      a.issue_2, a.emp_code, c.product_url
+      a.warrunty warranty, to_char(${timeCol},'DD-MM-YYYY HH24:MI') finished,
+      greatest(0, round(extract(epoch from (localtimestamp - ${timeCol}))))::int elapsed_seconds,
+      a.issue, a.issue_2, a.emp_code, c.product_url,
+      ${OUTSTANDING_SUMMARY_SQL} spares
     from tb_product a
     left join ar_customer b on b.code = a.cust_code
     left join product_image c on c.iteme_code = a.code and c.line_number = 0
@@ -155,11 +175,19 @@ async function getBills(q: string, page: number, sort: string, dir: SortDir) {
 
 /** ນັບຫົວແທັບ — ບໍ່ດຶງແຖວ */
 async function getCounts() {
-  const [waiting, bills] = await Promise.all([
-    query<{ n: number }>(`select count(*)::int n from tb_product a where ${WAITING}`),
+  const [jobs, bills] = await Promise.all([
+    query<{ waiting: number; cancelled: number }>(
+      `select count(*) filter (where ${WAITING})::int waiting,
+          count(*) filter (where ${CANCELLED})::int cancelled
+        from tb_product a`,
+    ),
     query<{ n: number }>(`select count(*)::int n from ic_trans a where ${BILLS}`),
   ]);
-  return { waiting: waiting.rows[0]?.n ?? 0, bills: bills.rows[0]?.n ?? 0 };
+  return {
+    waiting: jobs.rows[0]?.waiting ?? 0,
+    cancelled: jobs.rows[0]?.cancelled ?? 0,
+    bills: bills.rows[0]?.n ?? 0,
+  };
 }
 
 const WAIT_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
@@ -185,19 +213,20 @@ const money = (value: string | null) =>
 
 export default async function ReturnsPage({ searchParams }: Props) {
   const params = await searchParams;
-  const tab: Tab = params.tab === "bills" ? "bills" : "waiting";
+  const tab: Tab = params.tab === "bills" ? "bills" : params.tab === "cancelled" ? "cancelled" : "waiting";
+  const isJobTab = tab !== "bills";
   const q = (params.q ?? "").trim();
   const page = Math.max(1, Number(params.page) || 1);
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
   const sort = (params.sort ?? (tab === "bills" ? "doc_no" : "elapsed")).trim();
 
-  const [counts, waiting, bills] = await Promise.all([
+  const [counts, jobs, bills] = await Promise.all([
     getCounts(),
-    tab === "waiting" ? getWaiting(q, page, sort, dir) : Promise.resolve({ rows: [] as WaitRow[], total: 0 }),
+    isJobTab ? getJobs(tab, q, page, sort, dir) : Promise.resolve({ rows: [] as WaitRow[], total: 0 }),
     tab === "bills" ? getBills(q, page, sort, dir) : Promise.resolve({ rows: [] as BillRow[], total: 0 }),
   ]);
 
-  const total = tab === "waiting" ? waiting.total : bills.total;
+  const total = isJobTab ? jobs.total : bills.total;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const base = () => ({ ...(tab !== "waiting" && { tab }), ...(q && { q }) });
@@ -210,10 +239,11 @@ export default async function ReturnsPage({ searchParams }: Props) {
 
   const TABS: { key: Tab; label: string; icon: typeof PackageCheck; count: number }[] = [
     { key: "waiting", label: "ລໍຖ້າສົ່ງຄືນ", icon: PackageCheck, count: counts.waiting },
+    { key: "cancelled", label: "ສົ່ງຄືນໂດຍບໍ່ສ້ອມ", icon: Ban, count: counts.cancelled },
     { key: "bills", label: "ໃບຮັບເງິນ", icon: Receipt, count: counts.bills },
   ];
 
-  const columns = tab === "waiting" ? WAIT_COLUMNS : BILL_COLUMNS;
+  const columns = isJobTab ? WAIT_COLUMNS : BILL_COLUMNS;
 
   return (
     <div className="w-full space-y-4">
@@ -255,7 +285,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
               name="q"
               defaultValue={q}
               placeholder={
-                tab === "waiting" ? "ຄົ້ນຫາ ເລກທີ, SN, ລູກຄ້າ, ຫຍີ່ຫໍ້, ຊ່າງ..." : "ຄົ້ນຫາ ເລກທີ, ລູກຄ້າ, ສິນຄ້າ, ໝາຍເຫດ..."
+                isJobTab ? "ຄົ້ນຫາ ເລກທີ, SN, ລູກຄ້າ, ຫຍີ່ຫໍ້, ຊ່າງ..." : "ຄົ້ນຫາ ເລກທີ, ລູກຄ້າ, ສິນຄ້າ, ໝາຍເຫດ..."
               }
               className="w-full text-xs outline-none"
             />
@@ -267,13 +297,15 @@ export default async function ReturnsPage({ searchParams }: Props) {
       {/* ຕາຕະລາງ */}
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className={`w-full ${tab === "waiting" ? "min-w-[1150px]" : "min-w-[1000px]"} border-collapse text-xs`}>
+          <table className={`w-full ${isJobTab ? "min-w-[1250px]" : "min-w-[1000px]"} border-collapse text-xs`}>
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
                 {columns.map((column) => (
                   <SortHeader
                     key={column.key}
-                    label={column.label}
+                    label={
+                      column.key === "elapsed" && tab === "cancelled" ? "ອະນຸມັດຍົກເລີກມາແລ້ວ" : column.label
+                    }
                     sortKey={column.key}
                     current={sort}
                     dir={dir}
@@ -282,9 +314,12 @@ export default async function ReturnsPage({ searchParams }: Props) {
                     className="py-2.5"
                   />
                 ))}
-                {tab === "waiting" ? (
+                {isJobTab ? (
                   <>
                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາການ</th>
+                    {tab === "cancelled" && (
+                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາໄຫຼ່ຄ້າງນອກສາງ</th>
+                    )}
                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຮູບ</th>
                   </>
                 ) : (
@@ -294,8 +329,8 @@ export default async function ReturnsPage({ searchParams }: Props) {
               </tr>
             </thead>
             <tbody>
-              {tab === "waiting" &&
-                waiting.rows.map((row) => {
+              {isJobTab &&
+                jobs.rows.map((row) => {
                   const tone = elapsedTone(row.elapsed_seconds);
                   const inWarranty = row.warranty === "ຮັບປະກັນ";
                   return (
@@ -333,9 +368,30 @@ export default async function ReturnsPage({ searchParams }: Props) {
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5">{row.emp_code || "-"}</td>
-                      <td className="max-w-52 truncate px-3 py-2.5 font-semibold text-red-600" title={row.issue_2 ?? ""}>
-                        {row.issue_2 || "-"}
+                      <td
+                        className="max-w-52 truncate px-3 py-2.5 font-semibold text-red-600"
+                        title={(tab === "cancelled" ? row.issue : row.issue_2) ?? ""}
+                      >
+                        {(tab === "cancelled" ? row.issue_2 || row.issue : row.issue_2) || "-"}
                       </td>
+                      {tab === "cancelled" && (
+                        <td className="whitespace-nowrap px-3 py-2.5">
+                          {row.spares && row.spares.lines > 0 ? (
+                            <>
+                              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                                {row.spares.lines} ລາຍການ · {row.spares.units.toLocaleString()} ໜ່ວຍ
+                              </span>
+                              <span className="mt-0.5 block text-[10px] text-slate-400">
+                                {row.spares.docs} ໃບເບີກ ຍັງບໍ່ຄືນສາງ
+                              </span>
+                            </>
+                          ) : (
+                            <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                              ຄືນສາງຄົບ
+                            </span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-3 py-2.5 text-center">
                         {row.product_url ? (
                           <a
@@ -363,7 +419,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                           className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
                         >
                           <CheckCircle2 className="size-3.5" />
-                          ເບີກ
+                          {tab === "cancelled" ? "ສົ່ງຄືນ" : "ເບີກ"}
                           <LinkPending className="size-3" />
                         </Link>
                       </td>

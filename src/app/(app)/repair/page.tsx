@@ -8,7 +8,8 @@ import { elapsedTone } from "@/lib/elapsed-tone";
 import { ownJobsOnly } from "@/lib/scope";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { OPEN_JOBS, STAGE_SQL } from "@/lib/stage";
-import { CheckCircle2, ChevronLeft, ChevronRight, Clock, Package, Search, Wrench } from "lucide-react";
+import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
+import { CheckCircle2, ChevronLeft, ChevronRight, Clock, Package, PackageX, Search, Wrench } from "lucide-react";
 import Link from "next/link";
 
 /** ຖອດແບບຈາກ ods: repair.py repair() + templates/repair/home_repair.html (ອອກແບບໃໝ່) */
@@ -37,6 +38,8 @@ type JobRow = {
   spare_lines: number;
   spare_requested: boolean;
   spare_pending: number;
+  /** ຂໍໄປແລ້ວ ແຕ່ສາງຍັງບໍ່ທັນເບີກອອກ (ic_trans_detail 122 ທີ່ status ຍັງ 0/5) */
+  spare_missing: number;
 };
 
 const CUSTOMER = "left join ar_customer b on b.code = a.cust_code";
@@ -91,7 +94,10 @@ async function getJobs(tab: Tab, emp: string | null, q: string, page: number, so
       greatest(0, round(extract(epoch from (localtimestamp - ${timeCol}))))::int elapsed_seconds,
       (select count(*) from tb_used_spare s where s.product_code=a.code)::int spare_lines,
       (a.spare_reg is not null) spare_requested,
-      (select count(*) from tb_used_spare s where s.product_code=a.code and s.pick_finish is null)::int spare_pending
+      (select count(*) from tb_used_spare s where s.product_code=a.code and s.pick_finish is null)::int spare_pending,
+      (select count(*) from ic_trans_detail d
+        where d.trans_flag=${TRANS.REQUEST} and d.product_code=a.code
+          and d.status in (${LINE_STATUS.PENDING},${LINE_STATUS.ON_PURCHASE_ORDER}))::int spare_missing
     from tb_product a ${CUSTOMER}
     where ${filter}
     order by ${orderBy}
@@ -127,7 +133,12 @@ const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
   { key: "technician", label: "ຊ່າງ", defaultDir: "asc" },
 ];
 
-/** ປ້າຍສະຖານະອາໄຫຼ່ຂອງວຽກນຶ່ງ */
+/**
+ * ປ້າຍສະຖານະອາໄຫຼ່ຂອງວຽກນຶ່ງ.
+ *
+ * "ຍັງຂາດ N ລາຍການ" ຄືປ້າຍໃໝ່ — ແຕ່ກ່ອນສາງເບີກໄດ້ພຽງບາງລາຍການ ວຽກກໍ່ຍ້າຍມາ
+ * "ລໍຖ້າສ້ອມແປງ" ຢ່າງງຽບໆ ໂດຍບໍ່ມີບ່ອນໃດບອກວ່າຍັງຂາດອາໄຫຼ່ຢູ່.
+ */
 function SpareBadge({ row }: { row: JobRow }) {
   if (row.spare_lines === 0) return <span className="text-[10px] text-slate-400">ບໍ່ໃຊ້ອາໄຫຼ່</span>;
   if (!row.spare_requested)
@@ -137,11 +148,19 @@ function SpareBadge({ row }: { row: JobRow }) {
         ຍັງບໍ່ໄດ້ຂໍເບີກ ({row.spare_lines})
       </span>
     );
+  // ຂໍໄປແລ້ວ ແຕ່ສາງເບີກອອກໃຫ້ບໍ່ຄົບ — ວຽກນີ້ຍັງສ້ອມບໍ່ໄດ້
+  if (row.spare_missing > 0)
+    return (
+      <span className="inline-flex items-center gap-1 rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
+        <PackageX className="size-3" />
+        ຍັງຂາດ {row.spare_missing} ລາຍການ
+      </span>
+    );
   if (row.spare_pending > 0)
     return (
       <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
         <Package className="size-3" />
-        ລໍຖ້າອາໄຫຼ່ {row.spare_pending}/{row.spare_lines}
+        ລໍຖ້າຮັບອາໄຫຼ່ {row.spare_pending}/{row.spare_lines}
       </span>
     );
   return (

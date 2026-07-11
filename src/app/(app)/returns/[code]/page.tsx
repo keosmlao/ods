@@ -1,3 +1,5 @@
+import { getOutstandingSpares, groupByDoc } from "@/app/(app)/approvals/cancellations/outstanding";
+import { OutstandingSpares } from "@/app/(app)/approvals/cancellations/outstanding-spares";
 import { getCart, getRates, seedCart } from "@/app/actions/return";
 import { Chatter } from "@/components/chatter/chatter";
 import { InvoiceEditor, type Bank, type BillHead, type Service } from "@/components/return/invoice-editor";
@@ -5,10 +7,11 @@ import { PageTitle } from "@/components/ui";
 import { db, queryOdg } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
 import { notFound } from "next/navigation";
+import { ReturnWithoutInvoice } from "./return-without-invoice";
 
 /** ຖອດແບບຈາກ ods: returnproduct.py showreturn() + templates/returnProduct/showDetail.html */
 
-type Head = BillHead & { used_spare: number | null };
+type Head = BillHead & { used_spare: number | null; status: number | null; cancel_finish: string | null };
 
 async function getHead(code: string) {
   if (!db) throw new Error("DATABASE_URL is not configured");
@@ -16,7 +19,8 @@ async function getHead(code: string) {
     `select a.code, a.cust_code, b.name_1 cust_name, b.tel,
         concat_ws(',', b.address, d.name_1, c.name_1) address,
         a.name_1 product, a.p_model model, a.p_brand brand, a.sn, a.warrunty warranty,
-        a.issue, a.issue_2, a.emp_code, a.p_access, a.user_regis, a.used_spare, e.product_url
+        a.issue, a.issue_2, a.emp_code, a.p_access, a.user_regis, a.used_spare, e.product_url,
+        a.status, to_char(a.cancel_finish,'DD-MM-YYYY HH24:MI') cancel_finish
      from tb_product a
      left join ar_customer b on b.code = a.cust_code
      left join province c on c.code = b.provine
@@ -66,31 +70,53 @@ export default async function ReturnDetailPage({ params }: { params: Promise<{ c
   const head = await getHead(decodeURIComponent(code));
   if (!head) notFound();
 
-  // ຕື່ມອາໄຫຼ່ເຂົ້າຕະກ້າຄັ້ງທຳອິດ — idempotent, ເອີ້ນຊ້ຳກໍ່ບໍ່ຊ້ຳແຖວ
-  await seedCart(head.code, head.warranty, head.used_spare);
+  // ວຽກທີ່ຖືກຍົກເລີກ (GAP A): ບໍ່ຕື່ມອາໄຫຼ່ເຂົ້າຕະກ້າ — ອາໄຫຼ່ຕ້ອງກັບຄືນສາງ ບໍ່ແມ່ນຄິດເງິນລູກຄ້າ.
+  // ຜູ້ໃຊ້ຕື່ມ "ຄ່າບໍລິການ" (ຄ່າກວດເຊັກ) ເອງໄດ້ ຫຼື ສົ່ງຄືນໂດຍບໍ່ອອກໃບຮັບເງິນ.
+  const cancelled = head.status === 6;
+  // ຂໍຍົກເລີກແຕ່ຍັງບໍ່ໄດ້ອະນຸມັດ → ຍັງສົ່ງຄືນ/ອອກໃບຮັບເງິນບໍ່ໄດ້
+  const waitingApproval = cancelled && !head.cancel_finish;
+  if (!cancelled) {
+    // ຕື່ມອາໄຫຼ່ເຂົ້າຕະກ້າຄັ້ງທຳອິດ — idempotent, ເອີ້ນຊ້ຳກໍ່ບໍ່ຊ້ຳແຖວ
+    await seedCart(head.code, head.warranty, head.used_spare);
+  }
 
-  const [cart, rates, banks, services, docNo] = await Promise.all([
+  const [cart, rates, banks, services, docNo, spares] = await Promise.all([
     getCart(head.code),
     getRates(),
     getBanks(),
     getServices(),
     previewDocNo(),
+    cancelled ? getOutstandingSpares(head.code) : Promise.resolve([]),
   ]);
 
   const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="w-full space-y-5">
-      <PageTitle sub="ໃບຮັບເງິນ">ລະລະອຽດໃບເບີກ</PageTitle>
-      <InvoiceEditor
-        head={head}
-        cart={cart}
-        rates={rates}
-        banks={banks}
-        services={services}
-        docNo={docNo}
-        today={today}
-      />
+      <PageTitle sub={cancelled ? "ສົ່ງຄືນໂດຍບໍ່ສ້ອມ · ໃບຮັບເງິນ" : "ໃບຮັບເງິນ"}>ລະລະອຽດໃບເບີກ</PageTitle>
+
+      {cancelled && !waitingApproval && (
+        <>
+          <ReturnWithoutInvoice code={head.code} outstandingLines={spares.length} />
+          <OutstandingSpares code={head.code} docs={groupByDoc(spares)} />
+        </>
+      )}
+
+      {waitingApproval ? (
+        <p className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-medium text-amber-800">
+          ໃບຮັບເຄື່ອງນີ້ຢູ່ໃນຂັ້ນຕອນຂໍຍົກເລີກ ແລະ ຍັງບໍ່ໄດ້ຮັບການອະນຸມັດ — ຕ້ອງອະນຸມັດການຍົກເລີກກ່ອນ ຈຶ່ງສົ່ງຄືນລູກຄ້າໄດ້
+        </p>
+      ) : (
+        <InvoiceEditor
+          head={head}
+          cart={cart}
+          rates={rates}
+          banks={banks}
+          services={services}
+          docNo={docNo}
+          today={today}
+        />
+      )}
       <Chatter model="tb_product" resId={head.code} />
     </div>
   );

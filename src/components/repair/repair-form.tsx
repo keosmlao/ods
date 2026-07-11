@@ -4,7 +4,19 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { Elapsed } from "@/components/elapsed";
 import { SpareSearchDialog } from "@/components/spare-search";
 import { Button, Card, Empty, ErrorBox } from "@/components/ui";
-import { AlertTriangle, Check, ClipboardList, LoaderCircle, LogOut, Package, Plus, Printer, Save, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  ClipboardList,
+  LoaderCircle,
+  LogOut,
+  Package,
+  PackageCheck,
+  Plus,
+  Printer,
+  Save,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 
@@ -38,9 +50,16 @@ export type SpareLine = {
   item_name: string | null;
   qty: string;
   unit_code: string | null;
-  /** ສາງຈ່າຍອອກແລ້ວ → ຫ້າມແກ້/ລຶບ */
+  /** ຊ່າງມາຮັບຂອງແລ້ວ (tb_used_spare.pick_finish) */
   picked: boolean;
+  /** ສາງເບີກອອກແລ້ວ (ມີໃບເບີກ 56) — ຂອງອອກຈາກສາງໄປແລ້ວ ຈຶ່ງຫ້າມລຶບ/ແກ້ */
+  issued: boolean;
+  /** ຢູ່ໃນໃບຂໍເບີກ (122) ແລ້ວ — ແກ້ຈຳນວນບໍ່ໄດ້ ບໍ່ດັ່ງນັ້ນກະຕ່າກັບໃບຈະບໍ່ຕົງກັນ */
+  requested: boolean;
 };
+
+/** ອາໄຫຼ່ແຖວນີ້ເຂົ້າເອກະສານໄປແລ້ວບໍ — ເຂົ້າແລ້ວ ຊ່າງແກ້/ລຶບເອງບໍ່ໄດ້ */
+const locked = (line: SpareLine) => line.picked || line.issued || line.requested;
 
 function Info({ label, value, danger }: { label: string; value: string | null; danger?: boolean }) {
   return (
@@ -51,7 +70,22 @@ function Info({ label, value, danger }: { label: string; value: string | null; d
   );
 }
 
-/** ແຖວອາໄຫຼ່ທີ່ຈະປ່ຽນ — ແກ້ຈຳນວນ ຫຼື ລຶບໄດ້ ຖ້າສາງຍັງບໍ່ທັນຈ່າຍອອກ */
+/** ປ້າຍສະຖານະຂອງອາໄຫຼ່ແຖວນຶ່ງ — 4 ຂັ້ນ: ຍັງບໍ່ຂໍ → ຂໍແລ້ວ → ສາງເບີກແລ້ວ → ຮັບແລ້ວ */
+function LineStatus({ line }: { line: SpareLine }) {
+  if (line.picked)
+    return <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">ໄດ້ຮັບແລ້ວ</span>;
+  if (line.issued)
+    return (
+      <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
+        ສາງເບີກແລ້ວ — ລໍຖ້າຮັບ
+      </span>
+    );
+  if (line.requested)
+    return <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">ລໍຖ້າສາງເບີກ</span>;
+  return <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">ຍັງບໍ່ໄດ້ຂໍເບີກ</span>;
+}
+
+/** ແຖວອາໄຫຼ່ທີ່ຈະປ່ຽນ — ແກ້ຈຳນວນ ຫຼື ລຶບໄດ້ ຖ້າຍັງບໍ່ທັນເຂົ້າໃບຂໍເບີກ/ໃບເບີກ */
 function SpareRow({ code, line }: { code: string; line: SpareLine }) {
   const [qty, setQty] = useState(line.qty);
   const [editing, setEditing] = useState(false);
@@ -90,7 +124,7 @@ function SpareRow({ code, line }: { code: string; line: SpareLine }) {
               {pending ? <LoaderCircle className="size-3 animate-spin" /> : <Check className="size-3" />}
             </Button>
           </span>
-        ) : line.picked ? (
+        ) : locked(line) ? (
           <span className="font-medium tabular-nums text-slate-700">{line.qty}</span>
         ) : (
           <button
@@ -107,14 +141,10 @@ function SpareRow({ code, line }: { code: string; line: SpareLine }) {
       </td>
       <td className="px-3 py-2 text-slate-500">{line.unit_code ?? "-"}</td>
       <td className="px-3 py-2">
-        {line.picked ? (
-          <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">ໄດ້ຮັບແລ້ວ</span>
-        ) : (
-          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">ລໍຖ້າສາງຈ່າຍ</span>
-        )}
+        <LineStatus line={line} />
       </td>
       <td className="px-3 py-2 text-center">
-        {!line.picked && (
+        {!locked(line) && (
           <button
             type="button"
             title="ລຶບ"
@@ -149,6 +179,10 @@ export function RepairForm({ head, lines }: { head: RepairHead; lines: SpareLine
   const [searching, setSearching] = useState(false);
 
   const waitingSpare = lines.filter((line) => !line.picked).length;
+  // ສາງເບີກອອກໃຫ້ແລ້ວ ແຕ່ຊ່າງຍັງບໍ່ໄດ້ໄປຮັບ → ພາໄປໜ້າ "ຮັບອາໄຫຼ່"
+  const toPickUp = lines.filter((line) => line.issued && !line.picked).length;
+  // ຂໍໄປແລ້ວ ແຕ່ສາງຍັງບໍ່ທັນເບີກອອກ (ເບີກບໍ່ຄົບ)
+  const notIssued = lines.filter((line) => line.requested && !line.issued).length;
   // ໝົດຮັບປະກັນ → ຕ້ອງມີໃບສະເໜີລາຄາທີ່ຈົບແລ້ວ ຈຶ່ງເບີກອາໄຫຼ່ອອກສາງໄດ້ (ຕາມ ods)
   const needsQuotation = head.warranty === "ໝົດຮັບປະກັນ" && !head.quotation_done;
 
@@ -192,12 +226,22 @@ export function RepairForm({ head, lines }: { head: RepairHead; lines: SpareLine
 
         {state.error && <ErrorBox>{state.error}</ErrorBox>}
 
-        {/* ຍັງມີອາໄຫຼ່ທີ່ສາງບໍ່ທັນຈ່າຍ → ເຕືອນ ແຕ່ບໍ່ຫ້າມ */}
+        {/* ຍັງມີອາໄຫຼ່ທີ່ຊ່າງບໍ່ທັນໄດ້ຮັບ → ເຕືອນ ແຕ່ບໍ່ຫ້າມບັນທຶກ */}
         {waitingSpare > 0 && (
-          <p className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <p className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             <AlertTriangle className="size-4 shrink-0" />
-            ຍັງມີອາໄຫຼ່ <b>{waitingSpare}</b> ລາຍການ ທີ່ສາງຍັງບໍ່ທັນຈ່າຍອອກ
+            ຍັງມີອາໄຫຼ່ <b>{waitingSpare}</b> ລາຍການ ທີ່ຍັງບໍ່ໄດ້ຮັບ
             {!head.spare_requested && " ແລະ ຍັງບໍ່ໄດ້ສ້າງໃບຂໍເບີກ"}
+            {notIssued > 0 && ` · ສາງຍັງບໍ່ທັນເບີກອອກ ${notIssued} ລາຍການ`}
+            {toPickUp > 0 && (
+              <Link
+                href="/stock/requests/pickup"
+                className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-[#0536a9] px-2.5 text-[11px] font-semibold text-white transition hover:opacity-90"
+              >
+                <PackageCheck className="size-3.5" />
+                ໄປຮັບອາໄຫຼ່ ({toPickUp})
+              </Link>
+            )}
           </p>
         )}
 

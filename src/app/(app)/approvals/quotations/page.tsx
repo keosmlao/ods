@@ -29,6 +29,8 @@ type Row = {
   approver1: string | null;
   at_time: string | null;
   elapsed_seconds: number | null;
+  aprove_status: number;
+  remark_2: string | null;
 };
 
 const BASE = "a.trans_flag = 17";
@@ -76,7 +78,8 @@ async function getRows(tab: Tab, q: string, page: number, sort: string, dir: Sor
       c.name_1 product, c.p_model model, c.sn, c.p_brand brand, c.issue, c.warrunty warranty, c.issue_2,
       c.emp_code technician, a.user_created, a.approver1,
       to_char(${TIME_COL},'DD-MM-YYYY HH24:MI') at_time,
-      greatest(0, round(extract(epoch from (localtimestamp - ${TIME_COL}))))::int elapsed_seconds
+      greatest(0, round(extract(epoch from (localtimestamp - ${TIME_COL}))))::int elapsed_seconds,
+      coalesce(a.aprove_status,0)::int aprove_status, a.remark_2
     from ic_trans a
     left join ar_customer b on b.code = a.cust_code
     left join tb_product c on c.code = a.product_code
@@ -212,7 +215,7 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
                 ))}
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາການຊ່າງ / ອາການເບື້ອງຕົ້ນ</th>
                 {tab === "done" ? (
-                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຜູ້ອະນຸມັດ</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຜົນ / ຜູ້ອະນຸມັດ</th>
                 ) : (
                   <th className="px-3 py-2.5" />
                 )}
@@ -267,7 +270,20 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
                     </td>
 
                     {tab === "done" ? (
-                      <td className="whitespace-nowrap px-3 py-2.5">{row.approver1 ?? "-"}</td>
+                      <td className="max-w-56 px-3 py-2.5">
+                        <span
+                          className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                            row.aprove_status === 2 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+                          }`}
+                        >
+                          {row.aprove_status === 2 ? "ບໍ່ອະນຸມັດ" : "ອະນຸມັດ"} · {row.approver1 ?? "-"}
+                        </span>
+                        {row.remark_2?.trim() && (
+                          <span className="mt-0.5 block truncate text-[10px] text-slate-500" title={row.remark_2}>
+                            {row.remark_2}
+                          </span>
+                        )}
+                      </td>
                     ) : (
                       <td className="whitespace-nowrap px-3 py-2.5 text-center">
                         <Link

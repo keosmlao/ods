@@ -1,8 +1,13 @@
 import { CancelApproveActions } from "@/components/quotation/approve-actions";
+import { LinkPending } from "@/components/link-pending";
 import { Card, PageTitle } from "@/components/ui";
 import { query } from "@/lib/db";
+import { PackageCheck } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getOutstandingSpares, groupByDoc } from "../outstanding";
+import { OutstandingSpares } from "../outstanding-spares";
 
 /** ຖອດແບບຈາກ ods: Services.py cc_approve_page() + templates/Service/approve_cc_page.html */
 
@@ -24,6 +29,7 @@ type Head = {
   remark: string | null;
   cancel_finish: string | null;
   request_cancel: string | null;
+  return_complete: string | null;
 };
 
 function Field({ label, value, accent }: { label: string; value: string | null; accent?: boolean }) {
@@ -43,7 +49,8 @@ export default async function CancellationDetailPage({ params }: Props) {
       `select concat_ws('-', b.name_1, b.tel) customer, a.name_1 product, a.p_model model, a.sn, a.p_brand brand,
           a.warrunty warranty, a.issue, a.issue_2, a.emp_code technician, a.code, c.product_url,
           b.code cust_code, a.remark, a.request_cancel,
-          to_char(a.cancel_finish,'DD-MM-YYYY HH24:MI:SS') cancel_finish
+          to_char(a.cancel_finish,'DD-MM-YYYY HH24:MI:SS') cancel_finish,
+          to_char(a.return_complete,'DD-MM-YYYY HH24:MI') return_complete
         from tb_product a
         left join ar_customer b on b.code = a.cust_code
         left join product_image c on a.code = c.iteme_code and c.line_number = 0
@@ -54,15 +61,34 @@ export default async function CancellationDetailPage({ params }: Props) {
 
   if (!head) notFound();
 
+  // GAP B — ອາໄຫຼ່ທີ່ເບີກອອກໄປແລ້ວ ແຕ່ຍັງບໍ່ໄດ້ສົ່ງຄືນສາງ
+  const docs = groupByDoc(await getOutstandingSpares(head.code));
+
   return (
     <div className="w-full space-y-5">
       <PageTitle sub="ອະນຸມັດຍົກເລີກເຄື່ອງສ້ອມ">ອະນຸມັດຍົກເລີກເຄື່ອງສ້ອມ</PageTitle>
 
+      <OutstandingSpares code={head.code} docs={docs} />
+
       <Card title={`ລະຫັດຮັບເຄື່ອງ ${head.code}`}>
         {head.cancel_finish ? (
-          <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-            ອະນຸມັດຍົກເລີກເເລ້ວ ({head.cancel_finish})
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+              ອະນຸມັດຍົກເລີກເເລ້ວ ({head.cancel_finish})
+              {head.return_complete && <> · ສົ່ງຄືນລູກຄ້າແລ້ວ ({head.return_complete})</>}
+            </p>
+            {/* GAP A — ຍົກເລີກແລ້ວກໍ່ຍັງຕ້ອງສົ່ງເຄື່ອງຄືນລູກຄ້າ (ອອກໃບຮັບເງິນຄ່າກວດເຊັກ ຫຼື ບໍ່ອອກກໍ່ໄດ້) */}
+            {!head.return_complete && (
+              <Link
+                href={`/returns/${encodeURIComponent(head.code)}`}
+                className="inline-flex h-10 items-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700"
+              >
+                <PackageCheck className="size-4" />
+                ສົ່ງຄືນລູກຄ້າ
+                <LinkPending className="size-3.5" />
+              </Link>
+            )}
+          </div>
         ) : (
           <CancelApproveActions productCode={head.code} />
         )}

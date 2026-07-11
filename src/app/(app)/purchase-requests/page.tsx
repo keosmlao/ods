@@ -3,7 +3,7 @@ import { LinkPending } from "@/components/link-pending";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
-import { CheckCheck, ChevronLeft, ChevronRight, Clock, Search, ShoppingCart } from "lucide-react";
+import { CheckCheck, ChevronLeft, ChevronRight, Clock, PackageCheck, Search, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -149,11 +149,22 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
 
   return (
     <div className="w-full space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-slate-700">ລາຍການຂໍສັ່ງຊື້ອາໄຫຼ່</h1>
-        <p className="mt-0.5 text-xs text-slate-500">
-          {total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-slate-700">ລາຍການຂໍສັ່ງຊື້ອາໄຫຼ່</h1>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+          </p>
+        </div>
+        {/* ສັ່ງຊື້ໄປແລ້ວ ລໍຖ້າຂອງມາຮອດ → ຢືນຢັນຢູ່ໜ້າ "ຮັບອາໄຫຼ່ທີ່ສັ່ງຊື້" (ທາງອອກຂອງຂັ້ນ 7) */}
+        <Link
+          href="/stock/arrivals"
+          className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <PackageCheck className="size-4" />
+          ຮັບອາໄຫຼ່ທີ່ສັ່ງຊື້
+          <LinkPending className="size-3.5" />
+        </Link>
       </div>
 
       {/* ແທັບ + ຄົ້ນຫາ */}

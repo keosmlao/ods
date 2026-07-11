@@ -29,6 +29,11 @@ type WaitingRow = {
   issue: string | null;
   technician: string | null;
   product_url: string | null;
+  /* ໃບສະເໜີລາຄາທີ່ຄ້າງຢູ່ກັບເຄື່ອງໜ່ວຍນີ້ (ປົກກະຕິ = ໃບທີ່ຖືກ "ບໍ່ອະນຸມັດ") */
+  quote_doc_no: string | null;
+  quote_status: number | null;
+  quote_remark: string | null;
+  quote_approver: string | null;
 };
 
 type QuoteRow = {
@@ -118,10 +123,17 @@ async function getWaiting(q: string, page: number, sort: string, dir: SortDir) {
       a.p_brand brand, a.warrunty warranty,
       to_char(${WAIT_TIME}, 'DD-MM-YYYY HH24:MI') at_time,
       greatest(0, round(extract(epoch from (localtimestamp - ${WAIT_TIME}))))::int elapsed_seconds,
-      a.issue, a.emp_code technician, c.product_url
+      a.issue, a.emp_code technician, c.product_url,
+      d.doc_no quote_doc_no, d.aprove_status quote_status, d.remark_2 quote_remark, d.approver1 quote_approver
     from tb_product a
     left join ar_customer b on b.code = a.cust_code
     left join product_image c on c.iteme_code = a.code and c.line_number = 0
+    left join lateral (
+      select t.doc_no, coalesce(t.aprove_status,0)::int aprove_status, t.remark_2, t.approver1
+        from ic_trans t
+       where t.trans_flag = 17 and t.product_code = a.code and coalesce(t.aprove_status_2,0) = 0
+       order by t.doc_no desc limit 1
+    ) d on true
     where ${filter}
     order by ${orderBy}
     limit $${params.length + 1} offset $${params.length + 2}`;
@@ -358,6 +370,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">
                   {tab === "waiting" ? "ອາການເບື້ອງຕົ້ນ" : "ອາການຊ່າງ"}
                 </th>
+                {tab === "waiting" && <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໃບສະເໜີລາຄາຄ້າງ</th>}
                 {tab === "all" && <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສະຖານະ</th>}
                 {tab !== "all" && <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຮູບ</th>}
                 <th className="px-3 py-2.5" />
@@ -400,18 +413,43 @@ export default async function QuotationsPage({ searchParams }: Props) {
                     <td className="max-w-52 truncate px-3 py-2.5 font-semibold text-red-600" title={row.issue ?? ""}>
                       {row.issue || "-"}
                     </td>
+
+                    {/* ໃບເກົ່າທີ່ຖືກ "ບໍ່ອະນຸມັດ" — ສະແດງເລກທີ ແລະ ເຫດຜົນ ບໍ່ດັ່ງນັ້ນຜູ້ຮັບຜິດຊອບບໍ່ຮູ້ວ່າຕ້ອງແກ້ຫຍັງ */}
+                    <td className="max-w-56 px-3 py-2.5">
+                      {row.quote_doc_no ? (
+                        <>
+                          <span className="inline-block rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
+                            {row.quote_status === 2 ? "ບໍ່ອະນຸມັດ" : "ຄ້າງລໍຖ້າອະນຸມັດ"} · {row.quote_doc_no}
+                          </span>
+                          <span
+                            className="mt-0.5 block truncate text-[10px] text-slate-500"
+                            title={row.quote_remark ?? ""}
+                          >
+                            {row.quote_remark?.trim() ? `ເຫດຜົນ: ${row.quote_remark}` : "ບໍ່ໄດ້ລະບຸເຫດຜົນ"}
+                            {row.quote_approver ? ` · ${row.quote_approver}` : ""}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </td>
+
                     <td className="px-3 py-2.5 text-center">
                       <Thumb url={row.product_url} />
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                      <Link
-                        href={`/quotations/new/${encodeURIComponent(row.code)}`}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
-                      >
-                        <FileCheck2 className="size-3.5" />
-                        ສະເໜີລາຄາ
-                        <LinkPending className="size-3" />
-                      </Link>
+                      {row.quote_doc_no ? (
+                        <QuoteRowActions docNo={row.quote_doc_no} variant="rejected" />
+                      ) : (
+                        <Link
+                          href={`/quotations/new/${encodeURIComponent(row.code)}`}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                        >
+                          <FileCheck2 className="size-3.5" />
+                          ສະເໜີລາຄາ
+                          <LinkPending className="size-3" />
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 );

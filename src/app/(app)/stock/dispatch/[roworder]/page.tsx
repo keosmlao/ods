@@ -1,14 +1,18 @@
 import { DocForm } from "@/components/stock/doc-form";
 import { SpareLineTable, type SpareLine } from "@/components/stock/spare-lines";
-import { ErrorBox, PageTitle } from "@/components/ui";
+import { Card, ErrorBox, PageTitle, Table } from "@/components/ui";
 import { query } from "@/lib/db";
 import { docPrefix } from "@/lib/doc-no";
-import { LINE_STATUS } from "@/lib/stock-constants";
+import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
+import { AlertTriangle } from "lucide-react";
 import { notFound } from "next/navigation";
 
 /** ods: stock.py /showdisp/<roworder> + templates/stock/showdispatch.html */
 
 type Props = { params: Promise<{ roworder: string }> };
+
+/** ແຖວທີ່ຂໍມາ ແຕ່ເບີກບໍ່ໄດ້ (ບໍ່ມີຂອງໃນສາງ/ທີ່ເກັບຂອງໃບຂໍເບີກນີ້) */
+type Missing = { item_code: string; item_name: string | null; qty: string; unit_code: string | null; status: number | null };
 
 type Head = {
   doc_no: string;
@@ -56,6 +60,22 @@ export default async function ShowDispatchPage({ params }: Props) {
     [bill.doc_no, LINE_STATUS.PENDING, LINE_STATUS.ON_PURCHASE_ORDER],
   );
 
+  /*
+   * ແຖວທີ່ຈະ **ບໍ່** ຖືກເບີກເທື່ອນີ້ — ເມື່ອກ່ອນບໍ່ໄດ້ສະແດງເລີຍ: ສາງກົດ "ບັນທຶກ" ໂດຍນຶກວ່າ
+   * ເບີກຄົບ ແຕ່ຄວາມຈິງເບີກໄດ້ພຽງບາງລາຍການ. ດຽວນີ້ບອກໃຫ້ຮູ້ກ່ອນບັນທຶກ ແລະ ວຽກຈະຄ້າງຢູ່
+   * ຂັ້ນອາໄຫຼ່ຕໍ່ໄປ (ບໍ່ຖືກ stamp spare_finish — ເບິ່ງ actions/stock.ts saveDispatch).
+   * ນັບແຖວທີ່ຄ້າງຂອງ **ທຸກ** ໃບຂໍເບີກຂອງວຽກນີ້ ບໍ່ແມ່ນສະເພາະໃບນີ້.
+   */
+  const missing = await query<Missing>(
+    `select a.item_code, a.item_name, a.qty::text qty, a.unit_code, a.status
+     from ic_trans_detail a
+     left join ic_trans b on a.doc_no = b.doc_no
+     where a.trans_flag = $1 and a.product_code = $2 and a.status in ($3,$4)
+       and coalesce((select round(balance_qty,2) from odg_stock_balance_location(a.item_code, b.wh_code, b.shelf_code) limit 1), 0) <= 0
+     order by a.doc_no, a.roworder`,
+    [TRANS.REQUEST, bill.product_code ?? "", LINE_STATUS.PENDING, LINE_STATUS.ON_PURCHASE_ORDER],
+  );
+
   const docNo = await previewDocNo();
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
 
@@ -84,7 +104,45 @@ export default async function ShowDispatchPage({ params }: Props) {
         ]}
       />
 
+      {/* ເບີກບໍ່ຄົບ → ບອກໃຫ້ຮູ້ກ່ອນກົດບັນທຶກ */}
+      {missing.rows.length > 0 && (
+        <p className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+          <AlertTriangle className="size-4 shrink-0" />
+          ເບີກບໍ່ຄົບ — ຍັງຂາດ {missing.rows.length} ລາຍການ. ບັນທຶກແລ້ວວຽກນີ້ຈະຄ້າງຢູ່ຂັ້ນ &quot;ກຳລັງເບີກອາໄຫຼ່&quot; ຕໍ່ໄປ
+          ຈົນກວ່າຈະເບີກຄົບ
+        </p>
+      )}
+
       <SpareLineTable lines={lines.rows} />
+
+      {missing.rows.length > 0 && (
+        <Card title={`ຍັງຂາດ ${missing.rows.length} ລາຍການ (ບໍ່ມີຂອງໃນສາງນີ້)`}>
+          <Table head={["ລະຫັດ", "ຊື່ອາໄຫຼ່", "ຈຳນວນ", "ຫົວໜ່ວຍ", "ສະຖານະ"]} minWidth={700}>
+            {missing.rows.map((line) => (
+              <tr key={line.item_code} className="border-b border-slate-100">
+                <td className="px-3 py-3">{line.item_code}</td>
+                <td className="px-3 py-3">{line.item_name ?? "-"}</td>
+                <td className="px-3 py-3 text-center">{Number(line.qty)}</td>
+                <td className="px-3 py-3 text-center">{line.unit_code ?? "-"}</td>
+                <td className="px-3 py-3 text-center">
+                  {line.status === LINE_STATUS.ON_PURCHASE_ORDER ? (
+                    <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700">
+                      ກຳລັງສັ່ງຊື້
+                    </span>
+                  ) : (
+                    <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
+                      ບໍ່ມີໃນສາງນີ້
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </Table>
+          <p className="mt-3 text-xs text-slate-400">
+            ຂໍໂອນຈາກສາງອື່ນ ຫຼື ສັ່ງຊື້ໄດ້ທີ່ໜ້າ &quot;ເບີກອາໄຫຼ່&quot;
+          </p>
+        </Card>
+      )}
 
       {lines.rows.length === 0 && <ErrorBox>ບໍ່ມີອາໄຫຼ່ທີ່ເບີກໄດ້ໃນສາງນີ້</ErrorBox>}
     </div>

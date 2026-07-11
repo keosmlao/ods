@@ -101,6 +101,7 @@ const RULES: Rule[] = [
 
   /* ສາງ — ods: ເມນູ "ສາງ" (manager, stock) */
   { path: "/stock/dispatch", roles: STOCK_SIDE },
+  { path: "/stock/arrivals", roles: STOCK_SIDE },
   { path: "/stock/receive-returns", roles: STOCK_SIDE },
   { path: "/stock/spare-parts", roles: STOCK_SIDE },
   { path: "/stock/products", roles: STOCK_SIDE },
