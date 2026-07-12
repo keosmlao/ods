@@ -132,6 +132,7 @@ const USERS: NavGroup = {
   items: [
     { label: "ກຳນົດສິດ", href: "/manage/employees" },
     { label: "ຄ່າບໍລິການ / ຄ່າຄອມຊ່າງ", href: "/manage/service-rates" },
+    { label: "ເຊື່ອມຕົວຕົນຊ່າງ", href: "/manage/technicians" },
   ],
 };
 

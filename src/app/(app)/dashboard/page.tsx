@@ -31,6 +31,7 @@ import {
   TrendingUp,
   Truck,
   UserCheck,
+  Wallet,
   Users,
   Wrench,
 } from "lucide-react";
@@ -736,6 +737,39 @@ export default async function Dashboard() {
             ເລກແດງ (+) = ເປີດຫຼາຍກວ່າປິດ ⇒ ວຽກຄ້າງກຳລັງເພີ່ມ · ເລກຂຽວ (−) = ກຳລັງລົງ
           </p>
         </section>
+      )}
+
+      {/* ຄ່າຄອມເດືອນນີ້ — ຊ່າງເຫັນຂອງຕົນ · ຄົນອື່ນເຫັນລວມ */}
+      {data && (data.payout.assigned_thb > 0 || data.payout.orphan_thb > 0) && (
+        <Link
+          href="/reports/technician-income"
+          className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow"
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600">
+            <Wallet className="size-5" />
+          </span>
+          <div className="min-w-48 flex-1">
+            <p className="text-sm font-bold text-slate-700">
+              {tech ? "ລາຍຮັບຂອງທ່ານ ເດືອນນີ້" : "ຄ່າຄອມຊ່າງ ເດືອນນີ້"}
+            </p>
+            <p className="mt-0.5 text-[11px] text-slate-500">
+              ຈາກ {data.payout.jobs.toLocaleString()} ງານທີ່ປິດ · ຕົວເລກແຊ່ໄວ້ຕອນປິດງານ
+            </p>
+            {/* ເງິນທີ່ຍັງບໍ່ມີເຈົ້າຂອງ — ບໍ່ຢູ່ໃນຍອດຂວາ ຈຶ່ງຕ້ອງບອກ ບໍ່ດັ່ງນັ້ນຫາຍງຽບໆ */}
+            {data.payout.orphan_thb > 0 && (
+              <p className="mt-1 text-[11px] font-semibold text-amber-700">
+                ⚠ ອີກ {data.payout.orphan_thb.toLocaleString("en-US", { minimumFractionDigits: 2 })} ບາທ
+                ຍັງບໍ່ມີເຈົ້າຂອງ (ຊ່າງຍັງບໍ່ເຊື່ອມຕົວຕົນ)
+              </p>
+            )}
+          </div>
+          <div className="text-right">
+            <p className="text-3xl font-bold text-slate-900">
+              {data.payout.assigned_thb.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            </p>
+            <p className="text-[11px] text-slate-400">ບາທ</p>
+          </div>
+        </Link>
       )}
 
       {/* ③ ແບບປະເມີນລູກຄ້າ — ມາດຕາສ່ວນກັບຫົວ (1 ດີສຸດ) ຈຶ່ງຕ້ອງບອກໃຫ້ຊັດທຸກບ່ອນ */}

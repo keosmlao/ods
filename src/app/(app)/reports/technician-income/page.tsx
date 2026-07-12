@@ -57,13 +57,26 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
   }
   const filter = where.join(" and ");
 
-  const [summary, details, unpriced] = await Promise.all([
+  const [summary, unassigned, details, unpriced] = await Promise.all([
+    /**
+     * ສະຫຼຸບ — **ສະເພາະຜູ້ທີ່ຖືກກຳນົດ** (employee_code ບໍ່ຫວ່າງ).
+     * ຄື: ຊ່າງທີ່ເຊື່ອມຕົວຕົນແລ້ວ (/manage/technicians) ແລະ ບົດບາດທີ່ລະບຸຜູ້ຮັບແລ້ວ
+     * (/manage/service-rates). ຄົນທີ່ຍັງບໍ່ກຳນົດ ບໍ່ຂຶ້ນຢູ່ນີ້ — ແຕ່ເງິນບໍ່ຫາຍ
+     * (ນັບແຍກໄວ້ຢູ່ `unassigned` ແລ້ວຂຶ້ນເປັນຄຳເຕືອນ).
+     */
     query<Row>(
       `select p.employee_code, p.role, count(*)::int jobs, sum(p.pay_thb)::text total_thb
          from ods_service_payout p
-        where ${filter}
+        where ${filter} and p.employee_code is not null
         group by p.employee_code, p.role
         order by sum(p.pay_thb) desc`,
+      args,
+    ),
+    // ເງິນທີ່ຍັງບໍ່ມີເຈົ້າຂອງ — ຕ້ອງເຫັນ ບໍ່ດັ່ງນັ້ນເງິນຫາຍງຽບໆ
+    query<{ jobs: number; total_thb: string | null }>(
+      `select count(*)::int jobs, sum(p.pay_thb)::text total_thb
+         from ods_service_payout p
+        where ${filter} and p.employee_code is null`,
       args,
     ),
     query<Detail>(
@@ -98,6 +111,8 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
 
   const grand = summary.rows.reduce((sum, row) => sum + Number(row.total_thb), 0);
   const missing = unpriced.rows.reduce((sum, row) => sum + row.n, 0);
+  const orphanJobs = unassigned.rows[0]?.jobs ?? 0;
+  const orphanThb = Number(unassigned.rows[0]?.total_thb ?? 0);
 
   /**
    * ຊື່ຂອງຜູ້ຮັບເງິນ — ຕ້ອງແປງຈາກ **ສອງລະບົບຕົວຕົນ** ບໍ່ດັ່ງນັ້ນຈະສະແດງເປັນລະຫັດດິບ:
@@ -149,6 +164,21 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
         </span>
       </div>
 
+      {/* ເງິນທີ່ຄິດແລ້ວ ແຕ່ຍັງບໍ່ມີເຈົ້າຂອງ — ບໍ່ຢູ່ໃນຕາຕະລາງລຸ່ມ ຈຶ່ງຕ້ອງເຕືອນຢູ່ນີ້ */}
+      {orphanJobs > 0 && (
+        <Link
+          href="/manage/technicians"
+          className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-800 transition hover:bg-amber-100"
+        >
+          <AlertTriangle className="size-4 shrink-0" />
+          <span className="flex-1">
+            <b>{orphanThb.toLocaleString("en-US", { minimumFractionDigits: 2 })} ບາທ</b> ({orphanJobs} ແຖວ)
+            ຄິດແລ້ວແຕ່ <b>ຍັງບໍ່ມີເຈົ້າຂອງ</b> — ຊ່າງຍັງບໍ່ໄດ້ເຊື່ອມຕົວຕົນ ຫຼື ບົດບາດຍັງບໍ່ໄດ້ລະບຸຜູ້ຮັບ.
+            ເງິນບໍ່ຫາຍ ແຕ່ຍັງບໍ່ຂຶ້ນຕາຕະລາງລຸ່ມ. ກົດເພື່ອໄປເຊື່ອມ.
+          </span>
+        </Link>
+      )}
+
       {/* ງານທີ່ຄິດເງິນບໍ່ໄດ້ — ຕ້ອງເຫັນ ບໍ່ດັ່ງນັ້ນເງິນຫາຍງຽບໆ */}
       {missing > 0 && (
         <Link
@@ -170,12 +200,8 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
           <Table head={["ຜູ້ຮັບ", "ບົດບາດ", "ຈຳນວນງານ", "ລວມ (ບາທ)"]} minWidth={520}>
             {summary.rows.map((row) => (
               <tr key={`${row.employee_code}-${row.role}`} className="border-b border-slate-100">
-                <td className="px-3 py-2 text-xs font-semibold text-slate-800">
-                  {/* null = ຍັງບໍ່ໄດ້ກຳນົດຜູ້ຮັບ — ເງິນຄ້າງລໍ ບໍ່ໄດ້ຫາຍ */}
-                  {nameOf(row.employee_code) ?? (
-                    <span className="text-amber-700">ຍັງບໍ່ໄດ້ກຳນົດຜູ້ຮັບ</span>
-                  )}
-                </td>
+                {/* ຕາຕະລາງນີ້ມີແຕ່ຜູ້ທີ່ຖືກກຳນົດແລ້ວ (query ກອງ employee_code is not null) */}
+                <td className="px-3 py-2 text-xs font-semibold text-slate-800">{nameOf(row.employee_code)}</td>
                 <td className="px-3 py-2 text-xs text-slate-600">{ROLE_LABEL[row.role] ?? row.role}</td>
                 <td className="px-3 py-2 text-xs text-slate-600">{row.jobs.toLocaleString()}</td>
                 <td className="px-3 py-2 text-xs font-bold text-slate-900">

@@ -90,6 +90,22 @@ export async function computePayout(client: PoolClient, workflow: Workflow, dims
   const rate = await matchRate(client, workflow, dims);
   if (!rate) return;
 
+  /**
+   * ຕົວຕົນຂອງຊ່າງ — ງານເກັບໄວ້ເປັນ **ຊື່ຜູ້ໃຊ້ ODS** ('Xiew', 'sak') ແຕ່ຜູ້ຮັບເງິນ
+   * ບົດບາດອື່ນເປັນ employee_code ຂອງ ERP ⇒ ຖ້າປະໄວ້ ຈະຢູ່ຄົນລະລະບົບຕົວຕົນ
+   * ແລະ ຈ່າຍເຂົ້າບັນຊີ ERP ບໍ່ໄດ້. ແປງຜ່ານສະພານ (ods_user_employee) ຕັ້ງແຕ່ຕອນ
+   * **ແຊ່ເງິນ** ⇒ ຄ່າຄອມທຸກແຖວອອກມາເປັນລະຫັດອັນດຽວກັນ.
+   * ຍັງບໍ່ເຊື່ອມ → ໃຊ້ຄ່າເດີມ (ບໍ່ຫາຍ ແຕ່ບໍ່ຜູກກັບ ERP — ຂຶ້ນເຕືອນຢູ່ /manage/technicians).
+   */
+  let technician = dims.technician;
+  if (technician) {
+    const linked = await client.query<{ employee_code: string }>(
+      "select employee_code from ods_user_employee where user_code = $1",
+      [technician],
+    );
+    technician = linked.rows[0]?.employee_code ?? technician;
+  }
+
   const splits = await client.query<{ role: string; pct: string }>(
     "select role, pct from ods_service_commission_split where workflow = $1 and pct > 0",
     [workflow],
@@ -106,8 +122,8 @@ export async function computePayout(client: PoolClient, workflow: Workflow, dims
 
   for (const split of splits.rows) {
     const pct = Number(split.pct);
-    // ຊ່າງ = ຄົນທີ່ຮັບງານ (ຈາກງານເອງ) · ບົດບາດອື່ນ = ຄົນທີ່ຜູ້ຈັດການລະບຸ (null ໄດ້)
-    const employee = split.role === "technician" ? dims.technician : (payeeOf.get(split.role) ?? null);
+    // ຊ່າງ = ຄົນທີ່ຮັບງານ (ແປງເປັນ employee_code ແລ້ວ) · ບົດບາດອື່ນ = ຄົນທີ່ຜູ້ຈັດການລະບຸ
+    const employee = split.role === "technician" ? technician : (payeeOf.get(split.role) ?? null);
 
     await client.query(
       `insert into ods_service_payout(

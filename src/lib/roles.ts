@@ -166,6 +166,8 @@ const RULES: Rule[] = [
   { path: "/manage/employees", roles: [M] },
   // ຄ່າບໍລິການ/ຄ່າຄອມ = ເລື່ອງເງິນ ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ (actions/service-rate ກວດຊ້ຳ)
   { path: "/manage/service-rates", roles: [M] },
+  // ເຊື່ອມຕົວຕົນຊ່າງ — ຕັດສິນວ່າຄ່າຄອມເຂົ້າບັນຊີໃຜ ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ
+  { path: "/manage/technicians", roles: [M] },
 
   /* ລາຍງານ — ods ໃຫ້ manager ຄົບ, admin ໄດ້ 2 ໜ້າ; ສາງໄດ້ສະເພາະລາຍງານສາງ/ສັ່ງຊື້ */
   { path: "/reports", roles: SERVICE_SIDE },
