@@ -115,7 +115,7 @@ export async function approveQuote(_: ApprovalState, formData: FormData): Promis
   try {
     // returning → ໄດ້ລະຫັດເຄື່ອງມາຂຽນ log ໂດຍບໍ່ຕ້ອງ query ຊ້ຳ (ຟອມບໍ່ໄດ້ສົ່ງມາ)
     const approved = await query<{ product_code: string | null; user_created: string | null }>(
-      `update ic_trans set remark_2=$1, approver1=$2, aprove_date1=localtime(0), aprove_status=1
+      `update ic_trans set remark_2=$1, approver1=$2, aprove_date1=localtime(0), approve_at=localtimestamp(0), aprove_status=1
        where doc_no=$3 and trans_flag=17 and coalesce(aprove_status,0)=0 and coalesce(aprove_status_2,0)=0
        returning product_code, user_created`,
       [remark, guard.session.username, docNo],
@@ -197,7 +197,7 @@ export async function undoQuoteApproval(docNo: string): Promise<ApprovalState> {
     }
 
     await client.query(
-      `update ic_trans set aprove_status=0, approver1=null, aprove_date1=null, remark_2=null
+      `update ic_trans set aprove_status=0, approver1=null, aprove_date1=null, approve_at=null, remark_2=null
        where doc_no=$1 and trans_flag=17`,
       [docNo],
     );
@@ -253,7 +253,7 @@ export async function rejectQuote(_: ApprovalState, formData: FormData): Promise
     await client.query("begin");
     // ລະຫັດເຄື່ອງ + ຜູ້ອອກບິນ ເອົາຈາກຖານຂໍ້ມູນ ບໍ່ແມ່ນຈາກຟອມ (ຟອມເຊື່ອບໍ່ໄດ້)
     const rejected = await client.query<{ product_code: string | null; user_created: string | null }>(
-      `update ic_trans set remark_2=$1, approver1=$2, aprove_date1=localtime(0), aprove_status=2
+      `update ic_trans set remark_2=$1, approver1=$2, aprove_date1=localtime(0), approve_at=localtimestamp(0), aprove_status=2
        where doc_no=$3 and trans_flag=17 and coalesce(aprove_status,0)=0 and coalesce(aprove_status_2,0)=0
        returning product_code, user_created`,
       [remark, guard.session.username, docNo],
@@ -312,7 +312,7 @@ export async function customerApproveQuote(_: ApprovalState, formData: FormData)
   try {
     await client.query("begin");
     const done = await client.query<{ product_code: string | null }>(
-      `update ic_trans set aprove_date2=localtime(0), aprove_status_2=1
+      `update ic_trans set aprove_date2=localtime(0), approve_at_2=localtimestamp(0), aprove_status_2=1
        where doc_no=$1 and trans_flag=17 and aprove_status=1 and coalesce(aprove_status_2,0)=0
        returning product_code`,
       [docNo],
@@ -374,7 +374,7 @@ export async function customerRejectQuote(_: ApprovalState, formData: FormData):
   try {
     await client.query("begin");
     const done = await client.query<{ product_code: string | null }>(
-      `update ic_trans set aprove_date2=localtime(0), aprove_status_2=2
+      `update ic_trans set aprove_date2=localtime(0), approve_at_2=localtimestamp(0), aprove_status_2=2
        where doc_no=$1 and trans_flag=17 and aprove_status=1 and coalesce(aprove_status_2,0)=0
        returning product_code`,
       [docNo],
@@ -465,7 +465,7 @@ export async function undoCustomerDecision(docNo: string): Promise<ApprovalState
     }
 
     await client.query(
-      `update ic_trans set aprove_status_2=0, aprove_date2=null
+      `update ic_trans set aprove_status_2=0, aprove_date2=null, approve_at_2=null
        where doc_no=$1 and trans_flag=17 and aprove_status=1`,
       [docNo],
     );

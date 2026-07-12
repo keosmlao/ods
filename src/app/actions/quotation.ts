@@ -438,7 +438,7 @@ export async function saveQuoteEdit(_: QuoteState, formData: FormData): Promise<
       `update ic_trans set doc_date=$1, remark=$2, user_created=$3, exchange_rate=$4,
          total_amount_2=$5, total_value=$6, total_discount=$7, total_amount=$8,
          currency_code='01', vat_rate=0, total_vat_value=0,
-         aprove_status=0, approver1=null, aprove_date1=null, remark_2=null
+         aprove_status=0, approver1=null, aprove_date1=null, approve_at=null, remark_2=null
        where doc_no=$9 and trans_flag=17`,
       [docDate, remark, session.username, rate, totalAmount * rate, totalValue, discount, totalAmount, docNo],
     );

@@ -400,7 +400,7 @@ export async function approveRqOrder(_: PurchaseState, formData: FormData): Prom
     }
 
     await client.query(
-      `update ic_trans set remark_2=$1, approver1=$2, aprove_date1=localtimestamp(0), aprove_status=1
+      `update ic_trans set remark_2=$1, approver1=$2, aprove_date1=localtimestamp(0), approve_at=localtimestamp(0), aprove_status=1
         where doc_no=$3 and trans_flag=78 and coalesce(aprove_status,0)=0`,
       [d.remark, session.username, d.doc_ref],
     );
