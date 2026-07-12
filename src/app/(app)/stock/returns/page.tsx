@@ -5,8 +5,9 @@ import { Todo } from "@/components/ui";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
-import { Activity, ChevronLeft, ChevronRight, FileBarChart, PackageOpen, Undo2 } from "lucide-react";
+import { Activity, Ban, ChevronLeft, ChevronRight, FileBarChart, PackageOpen, Undo2 } from "lucide-react";
 import Link from "next/link";
+import { Fragment } from "react";
 import { ReturnFilters } from "./filters";
 import { ReturnRequestButton } from "./return-request-button";
 
@@ -14,7 +15,7 @@ import { ReturnRequestButton } from "./return-request-button";
 
 const PAGE_SIZE = 20;
 
-type Tab = "dispatched" | "requested" | "movements";
+type Tab = "dispatched" | "cancelled" | "requested" | "movements";
 type Props = {
   searchParams: Promise<{ tab?: string; q?: string; job?: string; page?: string; sort?: string; dir?: string }>;
 };
@@ -64,6 +65,56 @@ const DISPATCHED_SQL = `(
 /** ໃບເບີກທີ່ຂໍສົ່ງຄືນແລ້ວ (status = 3) — ຮັບເລກ placeholder ຂອງ status ເພາະໃຊ້ຮ່ວມກັບ query ນັບແທັບ */
 const requestedSql = (statusPlaceholder: string) => `(a.trans_flag = $1 and a.status = ${statusPlaceholder})`;
 
+/**
+ * ງານທີ່ **ຍົກເລີກແລ້ວ ແຕ່ອາໄຫຼ່ຍັງຢູ່ນອກສາງ** — ຄິວ "ຖ້າສົ່ງຄືນ".
+ *
+ * ໃບເບີກຂອງງານພວກນີ້ເຄີຍປົນຢູ່ໃນລາຍການເບີກລວມ (4,600+ ໃບ) ຈຶ່ງບໍ່ມີໃຜເຫັນ:
+ * ຕະຫຼອດ 3 ປີ **ບໍ່ເຄີຍມີໃບຂໍສົ່ງຄືນ (59) ຂອງງານ INST- ຈັກໃບ** ທັງທີ່ INST-5849 /
+ * INST-5850 / INST-6864 ມີອາໄຫຼ່ 36 ແຖວ (12 ໃບເບີກ) ຄ້າງນອກສາງ ⇒ ຂອງຫາຍໄປຈາກສາງ
+ * ໂດຍບໍ່ມີເອກະສານຮັບຮູ້. ດຶງແຍກອອກມາເປັນຄິວຂອງຕົນເອງ ພ້ອມລາຍການອາໄຫຼ່ໃຫ້ເຫັນເລີຍ.
+ *
+ * ຄຸມທັງສອງສາຍງານ — ນິຍາມ "ຍົກເລີກ" ຄົນລະຕາຕະລາງ:
+ *   ຕິດຕັ້ງ (job_type='install') → ods_tb_install.cancel_date  (lib/install-stage ຂັ້ນ -1)
+ *   ສ້ອມແປງ                      → tb_product.status = 6       (lib/stage ຂັ້ນ -1)
+ */
+const CANCELLED_JOB_SQL = `(
+    ( a.job_type = 'install'
+      and exists (select 1 from ods_tb_install i
+                  where i.code = a.product_code and i.cancel_date is not null) )
+ or ( coalesce(a.job_type,'') <> 'install'
+      and exists (select 1 from tb_product p
+                  where p.code = a.product_code and p.status = 6) )
+)`;
+
+/** ແທັບທີ່ຍັງ "ຂໍສົ່ງຄືນໄດ້" (ມີປຸ່ມ) — ລາຍການເບີກລວມ ແລະ ຄິວງານທີ່ຍົກເລີກ */
+const canRequest = (tab: Tab) => tab === "dispatched" || tab === "cancelled";
+
+type SpareLine = { doc_no: string; item_code: string | null; item_name: string | null; qty: string; unit_code: string | null };
+
+/**
+ * ອາໄຫຼ່ທີ່ຍັງຄ້າງນອກສາງ ຂອງໃບເບີກທີ່ສະແດງຢູ່ໜ້ານີ້ — ນິຍາມດຽວກັນກັບ
+ * installations/outstanding.ts: ແຖວ status 0 (ຈ່າຍອອກແລ້ວ ຍັງບໍ່ມາຮັບ) ຫຼື 1 (ຮັບໄປແລ້ວ).
+ * ສະຕັອກຖືກຕັດຕັ້ງແຕ່ຕອນສາງເບີກ (56) ⇒ ສອງກໍລະນີນີ້ຂອງຢູ່ນອກສາງທັງຄູ່.
+ */
+async function getSpareLines(docNos: string[]): Promise<Map<string, SpareLine[]>> {
+  const grouped = new Map<string, SpareLine[]>();
+  if (docNos.length === 0) return grouped;
+
+  const result = await query<SpareLine>(
+    `select d.doc_no, d.item_code, d.item_name, coalesce(d.qty,0)::text qty, d.unit_code
+       from ic_trans_detail d
+      where d.doc_no = any($1::varchar[]) and d.status = any($2::int[])
+      order by d.doc_no, d.roworder`,
+    [docNos, [LINE_STATUS.PENDING, LINE_STATUS.ISSUED]],
+  );
+  for (const row of result.rows) {
+    const lines = grouped.get(row.doc_no) ?? [];
+    lines.push(row);
+    grouped.set(row.doc_no, lines);
+  }
+  return grouped;
+}
+
 const DOC_SEARCH = "(a.doc_no ilike $Q or a.doc_ref ilike $Q or a.remark ilike $Q or a.product_code ilike $Q)";
 const MOVE_SEARCH = "(a.code ilike $Q or a.name_1 ilike $Q or a.sn ilike $Q or a.p_model ilike $Q or a.p_brand ilike $Q or a.emp_code ilike $Q)";
 
@@ -88,10 +139,15 @@ const MOVE_SORT: Record<string, string> = {
 const DOC_AT = "coalesce(a.create_date_time_now, a.doc_date::timestamp)";
 
 /** ເອກະສານ (ແທັບ "ລາຍການເບີກອາໄຫຼ່" ແລະ "ຂໍສົ່ງຄືນແລ້ວ") */
-async function getDocs(tab: "dispatched" | "requested", q: string, job: string, page: number, sort: string, dir: SortDir) {
-  const params: (string | number)[] =
-    tab === "dispatched" ? [TRANS.DISPATCH, LINE_STATUS.PENDING] : [TRANS.DISPATCH, LINE_STATUS.RETURN_REQUESTED];
-  const where = [tab === "dispatched" ? DISPATCHED_SQL : requestedSql("$2")];
+type DocTab = Exclude<Tab, "movements">;
+
+async function getDocs(tab: DocTab, q: string, job: string, page: number, sort: string, dir: SortDir) {
+  const params: (string | number)[] = canRequest(tab)
+    ? [TRANS.DISPATCH, LINE_STATUS.PENDING]
+    : [TRANS.DISPATCH, LINE_STATUS.RETURN_REQUESTED];
+  const where = [canRequest(tab) ? DISPATCHED_SQL : requestedSql("$2")];
+  // ຄິວ "ຍົກເລີກ" = ໃບເບີກທີ່ຍັງຄືນໄດ້ ແລະ ງານເຈົ້າຂອງຖືກຍົກເລີກແລ້ວ
+  if (tab === "cancelled") where.push(CANCELLED_JOB_SQL);
 
   if (q) { params.push(`%${q}%`); where.push(DOC_SEARCH.replaceAll("$Q", `$${params.length}`)); }
   // ງານສ້ອມແປງ = job_type ວ່າງ · ງານຕິດຕັ້ງ = 'install'
@@ -150,16 +206,22 @@ async function getMovements(q: string, page: number, sort: string, dir: SortDir)
 /** ນັບຫົວແທັບ — ບໍ່ດຶງແຖວ */
 async function getCounts() {
   const docSql = `select count(*) filter (where ${DISPATCHED_SQL})::int dispatched,
+      count(*) filter (where ${DISPATCHED_SQL} and ${CANCELLED_JOB_SQL})::int cancelled,
       count(*) filter (where ${requestedSql("$3")})::int requested
     from ic_trans a`;
   const moveSql = "select count(*)::int total from tb_product a where a.used_spare = 1";
 
   const [docs, moves] = await Promise.all([
-    query<{ dispatched: number; requested: number }>(docSql, [TRANS.DISPATCH, LINE_STATUS.PENDING, LINE_STATUS.RETURN_REQUESTED]),
+    query<{ dispatched: number; cancelled: number; requested: number }>(docSql, [
+      TRANS.DISPATCH,
+      LINE_STATUS.PENDING,
+      LINE_STATUS.RETURN_REQUESTED,
+    ]),
     query<{ total: number }>(moveSql),
   ]);
   return {
     dispatched: docs.rows[0]?.dispatched ?? 0,
+    cancelled: docs.rows[0]?.cancelled ?? 0,
     requested: docs.rows[0]?.requested ?? 0,
     movements: moves.rows[0]?.total ?? 0,
   };
@@ -203,7 +265,13 @@ function JobBadge({ jobType }: { jobType: string | null }) {
 export default async function StockReturnsPage({ searchParams }: Props) {
   const params = await searchParams;
   const tab: Tab =
-    params.tab === "requested" ? "requested" : params.tab === "movements" ? "movements" : "dispatched";
+    params.tab === "requested"
+      ? "requested"
+      : params.tab === "movements"
+        ? "movements"
+        : params.tab === "cancelled"
+          ? "cancelled"
+          : "dispatched";
   const q = (params.q ?? "").trim();
   const job = params.job === "install" || params.job === "repair" ? params.job : "";
   const page = Math.max(1, Number(params.page) || 1);
@@ -216,6 +284,12 @@ export default async function StockReturnsPage({ searchParams }: Props) {
   ]);
   const pages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
 
+  // ຄິວ "ຍົກເລີກ" ສະແດງ **ລາຍການອາໄຫຼ່** ຂອງແຕ່ລະໃບເບີກນຳ — ດຶງສະເພາະໃບທີ່ຢູ່ໜ້ານີ້
+  const spareLines =
+    tab === "cancelled"
+      ? await getSpareLines((list.rows as Doc[]).map((doc) => doc.doc_no))
+      : new Map<string, SpareLine[]>();
+
   const base = () => ({ ...(tab !== "dispatched" && { tab }), ...(q && { q }), ...(job && tab !== "movements" && { job }) });
   const tabHref = (target: Tab) =>
     `/stock/returns?${new URLSearchParams({ ...(target !== "dispatched" && { tab: target }), ...(q && { q }) })}`;
@@ -226,6 +300,8 @@ export default async function StockReturnsPage({ searchParams }: Props) {
 
   const TABS: { key: Tab; label: string; icon: typeof PackageOpen; count: number }[] = [
     { key: "dispatched", label: "ລາຍການເບີກອາໄຫຼ່", icon: PackageOpen, count: counts.dispatched },
+    // ງານຍົກເລີກແຕ່ອາໄຫຼ່ຍັງຢູ່ນອກສາງ — ຕ້ອງສ້າງໃບຂໍຄືນ ບໍ່ດັ່ງນັ້ນຂອງຫາຍໂດຍບໍ່ມີເອກະສານ
+    { key: "cancelled", label: "ຍົກເລີກ — ຖ້າສົ່ງຄືນ", icon: Ban, count: counts.cancelled },
     { key: "requested", label: "ລາຍການຂໍສົ່ງ​ຄືນອາໄລ່", icon: Undo2, count: counts.requested },
     { key: "movements", label: "ການເຄື່ອນໃຫວ", icon: Activity, count: counts.movements },
   ];
@@ -372,14 +448,16 @@ export default async function StockReturnsPage({ searchParams }: Props) {
                     />
                   ))}
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສະຖານະ</th>
-                  {tab === "dispatched" && <th className="px-3 py-2.5" />}
+                  {canRequest(tab) && <th className="px-3 py-2.5" />}
                 </tr>
               </thead>
               <tbody>
                 {docs.map((doc) => {
                   const tone = elapsedTone(doc.elapsed_seconds);
+                  const lines = spareLines.get(doc.doc_no) ?? [];
                   return (
-                    <tr key={doc.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
+                    <Fragment key={doc.doc_no}>
+                    <tr className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
                         <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                         {doc.doc_no}
@@ -405,18 +483,48 @@ export default async function StockReturnsPage({ searchParams }: Props) {
                       <td className="whitespace-nowrap px-3 py-2.5">
                         <span
                           className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                            tab === "dispatched" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"
+                            tab === "cancelled"
+                              ? "bg-red-100 text-red-700"
+                              : tab === "dispatched"
+                                ? "bg-blue-50 text-blue-700"
+                                : "bg-amber-50 text-amber-700"
                           }`}
                         >
-                          {tab === "dispatched" ? "ເບີກອາໄຫຼ່ສຳເລັດ" : "ຂໍສົ່ງຄືນອາໄຫຼ່"}
+                          {tab === "cancelled"
+                            ? "ງານຍົກເລີກ — ຕ້ອງສົ່ງຄືນ"
+                            : tab === "dispatched"
+                              ? "ເບີກອາໄຫຼ່ສຳເລັດ"
+                              : "ຂໍສົ່ງຄືນອາໄຫຼ່"}
                         </span>
                       </td>
-                      {tab === "dispatched" && (
+                      {canRequest(tab) && (
                         <td className="whitespace-nowrap px-3 py-2.5 text-center">
                           <ReturnRequestButton docNo={doc.doc_no} jobType={doc.job_type} />
                         </td>
                       )}
                     </tr>
+
+                    {/* ລາຍການອາໄຫຼ່ທີ່ຍັງຄ້າງນອກສາງຂອງໃບເບີກນີ້ — ຄິວ "ຍົກເລີກ" ເທົ່ານັ້ນ */}
+                    {tab === "cancelled" && lines.length > 0 && (
+                      <tr className="border-b border-slate-100 bg-red-50/40">
+                        <td colSpan={DOC_COLUMNS.length + 2} className="px-3 pb-3 pt-0">
+                          <p className="mb-1 text-[11px] font-bold text-red-800">
+                            ອາໄຫຼ່ຄ້າງນອກສາງ {lines.length} ລາຍການ
+                          </p>
+                          <ul className="grid gap-x-6 gap-y-0.5 sm:grid-cols-2 lg:grid-cols-3">
+                            {lines.map((line, index) => (
+                              <li key={`${doc.doc_no}-${line.item_code}-${index}`} className="text-[11px] text-slate-600">
+                                {line.item_code} · {line.item_name || "-"} ·{" "}
+                                <b className="text-slate-800">
+                                  {Number(line.qty).toLocaleString()} {line.unit_code ?? ""}
+                                </b>
+                              </li>
+                            ))}
+                          </ul>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>
