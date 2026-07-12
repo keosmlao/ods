@@ -2,13 +2,20 @@ import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
 import { getSession } from "@/lib/auth";
 import { installStatuses, pipelineOf, repairStatuses, type StatusDef } from "@/lib/dashboard-status";
-import { type Counts, type DashboardData, getDashboard, type StaleJob } from "@/lib/dashboard";
+import {
+  type Counts,
+  type DashboardData,
+  getDashboard,
+  type StageAge,
+  type StaleJob,
+} from "@/lib/dashboard";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import { canAccess, ROLE_LABEL, type Role, roleOf } from "@/lib/roles";
 import { ownJobsOnly } from "@/lib/scope";
 import {
   AlertCircle,
   Ban,
+  CalendarClock,
   ClipboardCheck,
   HardHat,
   PackageX,
@@ -16,6 +23,9 @@ import {
   ShoppingCart,
   Smile,
   Timer,
+  TrendingDown,
+  TrendingUp,
+  Truck,
   UserCheck,
   Wrench,
 } from "lucide-react";
@@ -102,6 +112,27 @@ function alertsFor(role: Role, data: DashboardData): Alert[] {
       tone: "amber",
     },
     {
+      /**
+       * ສັນຍາວັນນັດໄວ້ກັບລູກຄ້າແລ້ວ ແຕ່ວັນນັດຜ່ານໄປ ແລະ ຍັງບໍ່ໄດ້ຕິດຕັ້ງ.
+       * appoint_date ຖືກຂຽນຢູ່ຕອນຈັດຊ່າງ ແຕ່ບໍ່ເຄີຍມີໜ້າໃດເຕືອນເມື່ອມັນຜ່ານໄປ.
+       */
+      label: "ງານຕິດຕັ້ງເລີຍວັນນັດ",
+      value: data.overdueAppointments,
+      detail: "ນັດລູກຄ້າໄວ້ແລ້ວ ແຕ່ຍັງບໍ່ໄດ້ຕິດຕັ້ງ",
+      href: "/installations/work",
+      icon: CalendarClock,
+      tone: "red",
+    },
+    {
+      // ຂັ້ນທີ່ວຽກຕິດດົນທີ່ສຸດຂອງລະບົບ — ຈຳນວນຢ່າງດຽວບໍ່ບອກຄວາມຮ້າຍແຮງ ຈຶ່ງໃສ່ອາຍຸນຳ
+      label: "ອາໄຫຼ່ສັ່ງຊື້ຍັງບໍ່ມາຮອດ",
+      value: data.onOrder.n,
+      detail: `ດົນສຸດ ${Math.floor(data.onOrder.max_seconds / 86400).toLocaleString()} ມື້`,
+      href: "/stock/arrivals",
+      icon: Truck,
+      tone: "red",
+    },
+    {
       label: "ລໍຖ້າຊ່າງຮັບງານຕິດຕັ້ງ",
       value: data.install["wait-accept"] ?? 0,
       href: "/installations/accept",
@@ -124,11 +155,13 @@ function Pipeline({
   workflow,
   statuses,
   counts,
+  ages,
   role,
 }: {
   workflow: "repair" | "install";
   statuses: Record<string, StatusDef>;
   counts: Counts;
+  ages: StageAge;
   role: Role;
 }) {
   const stages = pipelineOf(statuses);
@@ -143,10 +176,16 @@ function Pipeline({
         const width = (value / peak) * 100;
         // ຄໍຂວດ = ຂັ້ນທີ່ກອງວຽກໄວ້ຫຼາຍສຸດ (ແລະ ບໍ່ແມ່ນສູນ)
         const isPeak = value > 0 && value === peak && total > 0;
+        /**
+         * ອາຍຸຂອງຂັ້ນ — "ວຽກທີ່ຄ້າງຢູ່ຂັ້ນນີ້ດົນສຸດ".
+         * ຈຳນວນຢ່າງດຽວຫຼອກຕາ: 3 ວຽກຄ້າງ 19 ມື້ ຮ້າຍແຮງກວ່າ 29 ວຽກຄ້າງ 7 ມື້.
+         */
+        const age = value > 0 ? (ages[def.stage as number]?.max ?? null) : null;
+        const tone = elapsedTone(age);
 
         const row = (
           <>
-            <span className="w-40 shrink-0 truncate text-xs text-slate-600" title={def.label}>
+            <span className="w-36 shrink-0 truncate text-xs text-slate-600" title={def.label}>
               {def.label}
             </span>
             <span className="relative h-5 flex-1 overflow-hidden rounded bg-slate-100">
@@ -156,8 +195,16 @@ function Pipeline({
                 aria-hidden
               />
             </span>
+            {/* ຄ້າງດົນສຸດຢູ່ຂັ້ນນີ້ — ສີເຕືອນຕາມເກນດຽວກັນກັບທຸກໜ້າ (elapsedTone) */}
+            <span className="w-24 shrink-0 text-right">
+              {age != null ? (
+                <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${tone.chip}`}>
+                  {Math.floor(age / 86400).toLocaleString()} ມື້
+                </span>
+              ) : null}
+            </span>
             <b
-              className={`w-12 shrink-0 text-right text-xs tabular-nums ${
+              className={`w-10 shrink-0 text-right text-xs tabular-nums ${
                 value > 0 ? "text-slate-900" : "text-slate-300"
               }`}
             >
@@ -185,7 +232,8 @@ function Pipeline({
       })}
 
       <p className="border-t border-slate-100 pt-1.5 text-right text-[11px] text-slate-400">
-        ລວມ <b className="text-slate-700">{total.toLocaleString()}</b> ວຽກຄ້າງ
+        ປ້າຍເວລາ = ວຽກທີ່ຄ້າງຢູ່ຂັ້ນນັ້ນ<b>ດົນສຸດ</b> · ລວມ{" "}
+        <b className="text-slate-700">{total.toLocaleString()}</b> ວຽກຄ້າງ
       </p>
     </div>
   );
@@ -261,6 +309,36 @@ function StaleTable({
         {rows.length === 0 && <p className="py-10 text-center text-xs text-slate-400">ບໍ່ມີວຽກຄ້າງ</p>}
       </div>
     </article>
+  );
+}
+
+/**
+ * ຜົນງານ 30 ມື້ — ເປີດ vs ປິດ.
+ * ຈຳນວນຄ້າງຢ່າງດຽວບອກບໍ່ໄດ້ວ່າ **ກຳລັງດີຂຶ້ນ ຫຼື ຊຸດໂຊມລົງ**: ຄ້າງ 98 ວຽກ ຈະໝາຍຄວາມ
+ * ຕ່າງກັນສິ້ນເຊີງ ຖ້າເດືອນນີ້ປິດໄດ້ຫຼາຍກວ່າເປີດ (ກຳລັງລົງ) ຫຼື ໜ້ອຍກວ່າ (ກຳລັງທ້ວມ).
+ */
+function Throughput({ label, opened, closed }: { label: string; opened: number; closed: number }) {
+  const delta = opened - closed;
+  const growing = delta > 0;
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
+      <div className="min-w-0">
+        <p className="truncate text-xs font-semibold text-slate-700">{label}</p>
+        <p className="mt-0.5 text-[11px] text-slate-500">
+          ເປີດ <b className="text-slate-700">{opened.toLocaleString()}</b> · ປິດ{" "}
+          <b className="text-slate-700">{closed.toLocaleString()}</b>
+        </p>
+      </div>
+      <span
+        className={`flex shrink-0 items-center gap-1 rounded px-2 py-1 text-xs font-bold ${
+          growing ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+        }`}
+      >
+        {growing ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />}
+        {delta > 0 ? "+" : ""}
+        {delta.toLocaleString()}
+      </span>
+    </div>
   );
 }
 
@@ -356,7 +434,13 @@ export default async function Dashboard() {
               />
             </span>
           </div>
-          <Pipeline workflow="repair" statuses={repairStatuses} counts={repair} role={role} />
+          <Pipeline
+            workflow="repair"
+            statuses={repairStatuses}
+            counts={repair}
+            ages={data?.repairAge ?? {}}
+            role={role}
+          />
         </article>
 
         <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -371,9 +455,37 @@ export default async function Dashboard() {
               />
             </span>
           </div>
-          <Pipeline workflow="install" statuses={installStatuses} counts={install} role={role} />
+          <Pipeline
+            workflow="install"
+            statuses={installStatuses}
+            counts={install}
+            ages={data?.installAge ?? {}}
+            role={role}
+          />
         </article>
       </section>
+
+      {/* ຜົນງານ 30 ມື້ — ບອກທິດທາງ ບໍ່ແມ່ນແຕ່ຍອດ */}
+      {data && !tech && (
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="mb-3 text-sm font-bold text-slate-700">ຜົນງານ 30 ມື້ຜ່ານມາ (ເປີດ ທຽບ ປິດ)</h2>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Throughput
+              label="ວຽກສ້ອມແປງ"
+              opened={data.throughput.repair_opened}
+              closed={data.throughput.repair_closed}
+            />
+            <Throughput
+              label="ວຽກຕິດຕັ້ງ"
+              opened={data.throughput.install_opened}
+              closed={data.throughput.install_closed}
+            />
+          </div>
+          <p className="mt-2 text-[11px] text-slate-400">
+            ເລກແດງ (+) = ເປີດຫຼາຍກວ່າປິດ ⇒ ວຽກຄ້າງກຳລັງເພີ່ມ · ເລກຂຽວ (−) = ກຳລັງລົງ
+          </p>
+        </section>
+      )}
 
       {/* ③ ຄະແນນລູກຄ້າ — ມາດຕາສ່ວນກັບຫົວ (1 ດີສຸດ) ຈຶ່ງຕ້ອງບອກໃຫ້ຊັດ */}
       {score != null && (

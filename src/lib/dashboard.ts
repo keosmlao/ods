@@ -1,8 +1,8 @@
 import { query } from "@/lib/db";
 import { installStatuses, repairStatuses, type StatusDef } from "@/lib/dashboard-status";
-import { INSTALL_OPEN, INSTALL_STAGE_SQL } from "@/lib/install-stage";
+import { INSTALL_ELAPSED_SQL, INSTALL_OPEN, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { SLA_SQL } from "@/lib/sla";
-import { OPEN_JOBS, STAGE_SQL } from "@/lib/stage";
+import { OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_SQL } from "@/lib/stage";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 
 /**
@@ -145,9 +145,68 @@ const STALE_INSTALL = (where: string) => `select a.code, c.name_1 customer,
   where ${where}
   order by a.time_register asc nulls last limit 8`;
 
+/**
+ * ອາຍຸຂອງແຕ່ລະຂັ້ນ — **ຄ້າງຢູ່ຂັ້ນນີ້ດົນປານໃດ** (ບໍ່ແມ່ນ "ເປີດງານມາດົນປານໃດ").
+ *
+ * ຈຳນວນຢ່າງດຽວຫຼອກຕາ: ຂັ້ນ "ກຳລັງຕິດຕັ້ງ" ມີ 3 ວຽກ ແຕ່ຄ້າງສະເລ່ຍ 19 ມື້ —
+ * ຮ້າຍແຮງກວ່າຂັ້ນ "ລໍຖ້າຈັດຊ່າງ" ທີ່ມີ 29 ວຽກ ແຕ່ຄ້າງ 7 ມື້. ແຖບທີ່ວັດແຕ່ຈຳນວນ
+ * ຈະຊີ້ຄໍຂວດຜິດຄົນ ⇒ ເອົາ "ດົນສຸດຂອງຂັ້ນນັ້ນ" ມາໃສ່ນຳ.
+ */
+export type StageAge = Record<number, { avg: number; max: number }>;
+
+const AGE_SQL = (stageSql: string, elapsedSql: string, from: string, where: string) =>
+  `select (${stageSql})::int stage,
+      round(avg(${elapsedSql}))::int avg_seconds,
+      max(${elapsedSql})::int max_seconds
+    from ${from} where ${where} group by 1`;
+
+function readAges(rows: { stage: number; avg_seconds: number; max_seconds: number }[]): StageAge {
+  const out: StageAge = {};
+  for (const row of rows) out[row.stage] = { avg: row.avg_seconds ?? 0, max: row.max_seconds ?? 0 };
+  return out;
+}
+
+/**
+ * ງານຕິດຕັ້ງທີ່ **ເລີຍວັນນັດລູກຄ້າ** — ສັນຍາໄວ້ກັບລູກຄ້າແລ້ວແຕ່ຍັງບໍ່ໄດ້ຕິດຕັ້ງ.
+ * ຖັນ appoint_date ຖືກຂຽນຢູ່ຕອນຈັດຊ່າງ ແຕ່ບໍ່ມີໜ້າໃດເຕືອນເມື່ອວັນນັດຜ່ານໄປແລ້ວ.
+ */
+const OVERDUE_APPOINTMENT_SQL = `select count(*)::int n from ods_tb_install a
+  where ${INSTALL_OPEN} and a.appoint_date is not null
+    and a.appoint_date::date < current_date and a.finish_install is null`;
+
+/**
+ * ອາໄຫຼ່ທີ່ສັ່ງຊື້ໄປແລ້ວ ແຕ່ຍັງບໍ່ມາຮອດ (ຂັ້ນ 7) — ເງື່ອນໄຂດຽວກັນກັບ /stock/arrivals.
+ * ຂັ້ນນີ້ເປັນຈຸດທີ່ວຽກຕິດດົນທີ່ສຸດຂອງລະບົບ (ດົນສຸດ 225 ມື້) ຈຶ່ງເອົາອາຍຸມາສະແດງນຳ.
+ */
+const ON_ORDER_SQL = `select count(*)::int n,
+    coalesce(max(round(extract(epoch from (localtimestamp - a.spare_order)))), 0)::int max_seconds
+  from tb_product a
+  where ${OPEN_JOBS} and coalesce(a.used_spare,0) = 1 and a.spare_finish is null
+    and a.spare_order is not null and a.spare_order_finish is null and a.spare_arrive is null`;
+
+/**
+ * ຜົນງານ 30 ມື້ — ເປີດ vs ປິດ. ບອກວ່າ **ກອງວຽກເພີ່ມ ຫຼື ຫຼຸດ**
+ * (ຈຳນວນຄ້າງຢ່າງດຽວບອກບໍ່ໄດ້ວ່າກຳລັງດີຂຶ້ນ ຫຼື ຊຸດໂຊມລົງ).
+ */
+const THROUGHPUT_SQL = `select
+    (select count(*)::int from tb_product a where a.time_register >= current_date - 30) repair_opened,
+    (select count(*)::int from tb_product a where a.return_complete >= current_date - 30) repair_closed,
+    (select count(*)::int from ods_tb_install a where a.time_register >= current_date - 30) install_opened,
+    (select count(*)::int from ods_tb_install a where a.job_finish >= current_date - 30) install_closed`;
+
 export type DashboardData = {
   repair: Counts;
   install: Counts;
+  repairAge: StageAge;
+  installAge: StageAge;
+  overdueAppointments: number;
+  onOrder: { n: number; max_seconds: number };
+  throughput: {
+    repair_opened: number;
+    repair_closed: number;
+    install_opened: number;
+    install_closed: number;
+  };
   staleRepairs: StaleJob[];
   staleInstalls: StaleJob[];
   slaLate: number;
@@ -168,10 +227,28 @@ export async function getDashboard(tech: string | null): Promise<{ data: Dashboa
   const args = tech ? [tech] : [];
 
   try {
-    const [repair, install, staleRepairs, staleInstalls, sla, spares, approvals, cancels, feedback, oldest] =
-      await Promise.all([
+    type AgeRow = { stage: number; avg_seconds: number; max_seconds: number };
+    const [
+      repair,
+      install,
+      repairAge,
+      installAge,
+      staleRepairs,
+      staleInstalls,
+      sla,
+      spares,
+      approvals,
+      cancels,
+      feedback,
+      oldest,
+      appointments,
+      onOrder,
+      throughput,
+    ] = await Promise.all([
       query<Record<string, number>>(countsSql(repairStatuses, "tb_product a", repairWhere), args),
       query<Record<string, number>>(countsSql(installStatuses, "ods_tb_install a", installWhere), args),
+      query<AgeRow>(AGE_SQL(STAGE_SQL, STAGE_ELAPSED_SQL, "tb_product a", repairWhere), args),
+      query<AgeRow>(AGE_SQL(INSTALL_STAGE_SQL, INSTALL_ELAPSED_SQL, "ods_tb_install a", installWhere), args),
       query<StaleJob>(STALE_REPAIR(repairWhere), args),
       query<StaleJob>(STALE_INSTALL(installWhere), args),
       query<{ wait_late: number; check_late: number }>(SLA_LATE_SQL),
@@ -180,6 +257,9 @@ export async function getDashboard(tech: string | null): Promise<{ data: Dashboa
       query<{ n: number }>(CANCEL_REQUESTS_SQL),
       query<{ avg_points: number | null; jobs: number }>(FEEDBACK_SQL),
       query<{ repair_seconds: number; install_seconds: number }>(OLDEST_SQL),
+      query<{ n: number }>(OVERDUE_APPOINTMENT_SQL),
+      query<{ n: number; max_seconds: number }>(ON_ORDER_SQL),
+      query<DashboardData["throughput"]>(THROUGHPUT_SQL),
     ]);
 
     const late = sla.rows[0];
@@ -187,6 +267,16 @@ export async function getDashboard(tech: string | null): Promise<{ data: Dashboa
       data: {
         repair: readCounts(repairStatuses, repair.rows[0]),
         install: readCounts(installStatuses, install.rows[0]),
+        repairAge: readAges(repairAge.rows),
+        installAge: readAges(installAge.rows),
+        overdueAppointments: appointments.rows[0]?.n ?? 0,
+        onOrder: onOrder.rows[0] ?? { n: 0, max_seconds: 0 },
+        throughput: throughput.rows[0] ?? {
+          repair_opened: 0,
+          repair_closed: 0,
+          install_opened: 0,
+          install_closed: 0,
+        },
         staleRepairs: staleRepairs.rows,
         staleInstalls: staleInstalls.rows,
         slaLate: (late?.wait_late ?? 0) + (late?.check_late ?? 0),

@@ -59,3 +59,31 @@ export const STAGE_LABEL: Record<number, string> = {
 export const OPEN_JOBS = "a.status <> 6 and a.return_complete is null";
 export const DONE_JOBS = "a.status <> 6 and a.return_complete is not null";
 export const CANCELLED_JOBS = "a.status = 6";
+
+/**
+ * ເວລາທີ່ **ເຂົ້າຂັ້ນປັດຈຸບັນ** — ຄູ່ກັບ INSTALL_STAGE_TIME_COL ຂອງຝັ່ງຕິດຕັ້ງ.
+ *
+ * ຝັ່ງຕິດຕັ້ງມີອັນນີ້ມາແຕ່ຕົ້ນ ແຕ່ຝັ່ງສ້ອມບໍ່ມີ ⇒ ວັດ "ຄ້າງຢູ່ຂັ້ນນີ້ດົນປານໃດ" ບໍ່ໄດ້
+ * ໄດ້ແຕ່ວັດ "ເປີດງານມາດົນປານໃດ" ເຊິ່ງບອກຄໍຂວດບໍ່ໄດ້: ວຽກທີ່ເປີດມາ 300 ມື້ ອາດຫາກໍ່
+ * ຍ້າຍມາຂັ້ນນີ້ມື້ວານກໍ່ໄດ້. ແຕ່ລະຂັ້ນນັບຈາກເວລາທີ່ຂັ້ນກ່ອນໜ້າຈົບ.
+ *
+ * ຂັ້ນ 3/4 (ສະເໜີລາຄາ) ແລະ 5/8: ຖ້າຖັນທີ່ຄວນມີເປັນ null (ຂໍ້ມູນເກົ່າຂອງ ods)
+ * ໃຫ້ຖອຍໄປໃຊ້ຖັນກ່ອນໜ້າ ດ້ວຍ coalesce — ບໍ່ດັ່ງນັ້ນຈະໄດ້ null ແລ້ວແຖວນັ້ນຫາຍຈາກການນັບ.
+ */
+export const STAGE_TIME_COL = `case (${STAGE_SQL})
+  when 11 then a.return_complete
+  when 10 then a.time_finish_repair
+  when 9  then a.time_repair
+  when 8  then coalesce(a.spare_finish, a.qt_finish, a.time_finish_check)
+  when 7  then a.spare_order
+  when 6  then coalesce(a.spare_arrive, a.spare_reg)
+  when 5  then coalesce(a.qt_finish, a.time_finish_check)
+  when 4  then coalesce(a.qt_start, a.time_finish_check)
+  when 3  then a.time_finish_check
+  when 2  then a.time_check
+  when -1 then coalesce(a.cancel_start, a.time_register)
+  else a.time_register
+end`;
+
+/** ວິນາທີທີ່ຄ້າງຢູ່ຂັ້ນປັດຈຸບັນ (ບໍ່ແມ່ນ "ຕັ້ງແຕ່ເປີດງານ") */
+export const STAGE_ELAPSED_SQL = `greatest(0, round(extract(epoch from (localtimestamp - (${STAGE_TIME_COL})))))::int`;
