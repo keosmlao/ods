@@ -8,9 +8,10 @@ import {
   getDashboard,
   type StageAge,
   type StaleJob,
+  type TechLoad,
 } from "@/lib/dashboard";
 import { elapsedTone } from "@/lib/elapsed-tone";
-import { canAccess, ROLE_LABEL, type Role, roleOf } from "@/lib/roles";
+import { APPROVER_SIDE, canAccess, ROLE_LABEL, type Role, roleOf } from "@/lib/roles";
 import { ownJobsOnly } from "@/lib/scope";
 import {
   AlertCircle,
@@ -18,6 +19,8 @@ import {
   CalendarClock,
   ClipboardCheck,
   HardHat,
+  PackageCheck,
+  PackageOpen,
   PackageX,
   Radar,
   ShoppingCart,
@@ -27,6 +30,7 @@ import {
   TrendingUp,
   Truck,
   UserCheck,
+  Users,
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
@@ -133,10 +137,70 @@ function alertsFor(role: Role, data: DashboardData): Alert[] {
       tone: "red",
     },
     {
+      // ໜ້າວຽກຫຼັກຂອງສາງ — ແປກທີ່ໜ້າລວມບໍ່ເຄີຍສະແດງ (ສາງເຫັນພຽງບັດດຽວ)
+      label: "ອາໄຫຼ່ລໍສາງເບີກ (ສ້ອມ)",
+      value: data.warehouse.repair_lines,
+      detail: "ຊ່າງຂໍມາແລ້ວ ລໍສາງເບີກອອກ",
+      href: "/stock/dispatch",
+      icon: PackageCheck,
+      tone: "amber",
+    },
+    {
+      label: "ໃບຂໍເບີກລໍສາງເບີກ (ຕິດຕັ້ງ)",
+      value: data.warehouse.install_docs,
+      href: "/installations/dispatch",
+      icon: PackageCheck,
+      tone: "amber",
+    },
+    {
+      // ສາງເບີກອອກໃຫ້ແລ້ວ ແຕ່ຊ່າງຍັງບໍ່ໄປຮັບ ⇒ ອາໄຫຼ່ຢູ່ນອກສາງ ແລະ ວຽກຄ້າງລໍຢູ່
+      label: "ອາໄຫຼ່ພ້ອມໃຫ້ຮັບ (ສ້ອມ)",
+      value: data.pickup.repair_docs,
+      detail: "ສາງເບີກແລ້ວ ຊ່າງຍັງບໍ່ໄປຮັບ",
+      href: "/stock/requests/pickup",
+      icon: PackageOpen,
+      tone: "amber",
+    },
+    {
+      label: "ອາໄຫຼ່ພ້ອມໃຫ້ຮັບ (ຕິດຕັ້ງ)",
+      value: data.pickup.install_docs,
+      href: "/installations/spare-pickup",
+      icon: PackageOpen,
+      tone: "amber",
+    },
+    {
       label: "ລໍຖ້າຊ່າງຮັບງານຕິດຕັ້ງ",
       value: data.install["wait-accept"] ?? 0,
       href: "/installations/accept",
       icon: HardHat,
+      tone: "amber",
+    },
+
+    /* ── ຄິວຫຼັກຂອງ CS (ຝ່າຍບໍລິການ) ──
+     * ບັດຂ້າງເທິງລ້ວນເປັນຂອງ ຊ່າງ · ສາງ · ຜູ້ອະນຸມັດ ⇒ CS ບໍ່ເຫັນຫຍັງເລີຍ.
+     * ສາມອັນນີ້ຄືວຽກທີ່ CS ຕ້ອງລົງມືເອງ ແລະ ເປັນຄໍຂວດຖ້າບໍ່ມີໃຜເຮັດ. */
+    {
+      label: "ລໍຖ້າຈັດຊ່າງ (ຕິດຕັ້ງ)",
+      value: data.install["wait-assign"] ?? 0,
+      detail: "ເປີດງານແລ້ວ ຍັງບໍ່ມີຊ່າງ",
+      href: "/installations/assign",
+      icon: HardHat,
+      tone: "amber",
+    },
+    {
+      label: "ລໍຖ້າສົ່ງເຄື່ອງຄືນລູກຄ້າ",
+      value: data.repair["wait-return"] ?? 0,
+      detail: "ສ້ອມແລ້ວ ລໍອອກໃບຮັບເງິນ/ສົ່ງຄືນ",
+      href: "/returns",
+      icon: PackageCheck,
+      tone: "amber",
+    },
+    {
+      label: "ລໍຖ້າປິດງານຕິດຕັ້ງ",
+      value: data.install["wait-close"] ?? 0,
+      detail: "ລູກຄ້າຕອບແບບສອບຖາມແລ້ວ",
+      href: "/installations/close",
+      icon: ClipboardCheck,
       tone: "amber",
     },
   ];
@@ -342,6 +406,55 @@ function Throughput({ label, opened, closed }: { label: string; opened: number; 
   );
 }
 
+/**
+ * ພາລະງານຕໍ່ຊ່າງ — **ຫົວໜ້າຊ່າງ ແລະ ຜູ້ຈັດການເທົ່ານັ້ນ** (APPROVER_SIDE).
+ *
+ * ບໍ່ມີໜ້າໃດໃນລະບົບບອກໄດ້ວ່າ "ໃຜຖືວຽກຄ້າງເທົ່າໃດ" ທັງທີ່ຂໍ້ມູນຈິງບໍ່ສົມດຸນຮ້າຍແຮງ:
+ * ຊ່າງຄົນນຶ່ງຖື 41 ວຽກ (ດົນສຸດ 327 ມື້) ອີກຄົນຖື 4. ຫົວໜ້າຊ່າງຈຶ່ງແບ່ງງານໃໝ່ບໍ່ຖືກ.
+ * ບໍ່ໂຊໃຫ້ຊ່າງທົ່ວໄປ — ບໍ່ແມ່ນຂໍ້ມູນທີ່ເຂົາຕ້ອງໃຊ້ ແລະ ເປັນການປຽບທຽບກັນເອງ.
+ */
+function TechLoadPanel({ rows }: { rows: TechLoad[] }) {
+  if (rows.length === 0) return null;
+  const peak = Math.max(1, ...rows.map((row) => row.jobs));
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700">
+        <Users className="size-4 text-slate-400" />
+        ພາລະງານຕໍ່ຊ່າງ (ວຽກສ້ອມທີ່ຍັງຄ້າງ)
+      </h2>
+      <div className="space-y-1">
+        {rows.map((row) => {
+          const tone = elapsedTone(row.oldest_seconds);
+          return (
+            <div key={row.tech} className="flex items-center gap-2 px-1 py-0.5">
+              <span className="w-28 shrink-0 truncate text-xs text-slate-600" title={row.tech}>
+                {row.tech}
+              </span>
+              <span className="relative h-5 flex-1 overflow-hidden rounded bg-slate-100">
+                <span
+                  className="absolute inset-y-0 left-0 rounded bg-indigo-400"
+                  style={{ width: `${(row.jobs / peak) * 100}%` }}
+                  aria-hidden
+                />
+              </span>
+              <span className="w-24 shrink-0 text-right">
+                <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${tone.chip}`}>
+                  {Math.floor(row.oldest_seconds / 86400).toLocaleString()} ມື້
+                </span>
+              </span>
+              <b className="w-10 shrink-0 text-right text-xs tabular-nums text-slate-900">{row.jobs}</b>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-2 border-t border-slate-100 pt-1.5 text-right text-[11px] text-slate-400">
+        ປ້າຍເວລາ = ວຽກທີ່ຊ່າງຄົນນັ້ນຖືໄວ້<b>ດົນສຸດ</b>
+      </p>
+    </section>
+  );
+}
+
 /* ── ໜ້າ ─────────────────────────────────────────────────────── */
 
 export default async function Dashboard() {
@@ -464,6 +577,9 @@ export default async function Dashboard() {
           />
         </article>
       </section>
+
+      {/* ພາລະງານຕໍ່ຊ່າງ — ຫົວໜ້າຊ່າງ/ຜູ້ຈັດການ ໃຊ້ແບ່ງງານ */}
+      {data && APPROVER_SIDE.includes(role) && <TechLoadPanel rows={data.techLoad} />}
 
       {/* ຜົນງານ 30 ມື້ — ບອກທິດທາງ ບໍ່ແມ່ນແຕ່ຍອດ */}
       {data && !tech && (

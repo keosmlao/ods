@@ -46,7 +46,7 @@ function readCounts(statuses: Record<string, StatusDef>, row: Record<string, num
  *   ລໍຖ້າກວດເຊັກ  → ນັບຈາກ time_register
  *   ກຳລັງກວດເຊັກ → ນັບຈາກ time_check
  */
-const SLA_LATE_SQL = `select
+const SLA_LATE_SQL = (techArg: boolean) => `select
     count(*) filter (
       where a.time_check is null and a.time_finish_check is null and a.status = 1
         and (${SLA_SQL}) is not null
@@ -55,7 +55,8 @@ const SLA_LATE_SQL = `select
       where a.time_check is not null and a.time_finish_check is null and a.status <> 6
         and (${SLA_SQL}) is not null
         and extract(epoch from (localtimestamp - a.time_check)) > (${SLA_SQL}))::int check_late
-  from tb_product a`;
+  from tb_product a
+  where ${techArg ? "a.emp_code = $1" : "true"}`;
 
 /**
  * ອາໄຫຼ່ຄ້າງນອກສາງ ຂອງງານທີ່ **ຍົກເລີກແລ້ວ** — ຄືກັນທຸກປະການກັບແທັບ
@@ -170,9 +171,10 @@ function readAges(rows: { stage: number; avg_seconds: number; max_seconds: numbe
  * ງານຕິດຕັ້ງທີ່ **ເລີຍວັນນັດລູກຄ້າ** — ສັນຍາໄວ້ກັບລູກຄ້າແລ້ວແຕ່ຍັງບໍ່ໄດ້ຕິດຕັ້ງ.
  * ຖັນ appoint_date ຖືກຂຽນຢູ່ຕອນຈັດຊ່າງ ແຕ່ບໍ່ມີໜ້າໃດເຕືອນເມື່ອວັນນັດຜ່ານໄປແລ້ວ.
  */
-const OVERDUE_APPOINTMENT_SQL = `select count(*)::int n from ods_tb_install a
+const OVERDUE_APPOINTMENT_SQL = (techArg: boolean) => `select count(*)::int n from ods_tb_install a
   where ${INSTALL_OPEN} and a.appoint_date is not null
-    and a.appoint_date::date < current_date and a.finish_install is null`;
+    and a.appoint_date::date < current_date and a.finish_install is null
+    ${techArg ? "and a.tech_code = $1" : ""}`;
 
 /**
  * ອາໄຫຼ່ທີ່ສັ່ງຊື້ໄປແລ້ວ ແຕ່ຍັງບໍ່ມາຮອດ (ຂັ້ນ 7) — ເງື່ອນໄຂດຽວກັນກັບ /stock/arrivals.
@@ -194,11 +196,66 @@ const THROUGHPUT_SQL = `select
     (select count(*)::int from ods_tb_install a where a.time_register >= current_date - 30) install_opened,
     (select count(*)::int from ods_tb_install a where a.job_finish >= current_date - 30) install_closed`;
 
+/**
+ * ຄິວປະຈຳວັນຂອງ **ສາງ** — ອາໄຫຼ່ທີ່ຊ່າງຂໍມາ ແລະ ລໍສາງເບີກອອກ.
+ * ນີ້ຄືໜ້າວຽກຫຼັກຂອງສາງ ແຕ່ໜ້າລວມບໍ່ເຄີຍສະແດງ (ສາງເຫັນພຽງບັດດຽວ).
+ * ເງື່ອນໄຂຄັດລອກມາຈາກ /stock/dispatch (ນັບແຖວ) ແລະ /installations/dispatch (ນັບໃບ).
+ */
+const WAREHOUSE_QUEUE_SQL = `select
+    (select count(*)::int from ic_trans_detail d
+       left join ic_trans t on t.doc_no = d.doc_no
+      where d.trans_flag = ${TRANS.REQUEST} and d.status <> ${LINE_STATUS.ISSUED}
+        and (t.job_type <> 'install' or t.job_type is null)) repair_lines,
+    (select count(*)::int from ic_trans ic
+       left join ods_tb_install i on i.code = ic.product_code
+      where ic.trans_flag = ${TRANS.REQUEST} and ic.job_type = 'install' and i.reg_finish is null
+        and ic.doc_no not in (select doc_ref from ic_trans
+                              where trans_flag = ${TRANS.DISPATCH} and doc_ref is not null)) install_docs`;
+
+/**
+ * ຄິວປະຈຳວັນຂອງ **ຊ່າງ** — ສາງເບີກອອກໃຫ້ແລ້ວ ແຕ່ຊ່າງຍັງບໍ່ໄປຮັບ.
+ * ອາໄຫຼ່ຢູ່ນອກສາງແລ້ວ ແລະ ວຽກຄ້າງລໍຢູ່ ⇒ ເປັນວຽກທີ່ຄວນລົງມືທັນທີ.
+ * ເງື່ອນໄຂຄັດລອກມາຈາກ /stock/requests/pickup ແລະ /installations/spare-pickup.
+ * `techArg` = ຊື່ຜູ້ໃຊ້ຂອງຊ່າງ (ກອງໃຫ້ເຫັນສະເພາະຂອງຕົນ) ຫຼື null.
+ */
+const PICKUP_QUEUE_SQL = (techArg: boolean) => `select
+    (select count(*)::int from ic_trans ic
+       join tb_product p on p.code = ic.product_code
+      where ic.trans_flag = ${TRANS.DISPATCH}
+        and (ic.job_type is null or ic.job_type <> 'install')
+        and p.status <> 6 and p.return_complete is null
+        and not exists (select 1 from ic_trans t where t.trans_flag = 166 and t.doc_ref = ic.doc_no)
+        and exists (select 1 from tb_used_spare s
+                    where s.product_code = ic.product_code and s.pick_finish is null)
+        ${techArg ? "and p.emp_code = $1" : ""}) repair_docs,
+    (select count(*)::int from ic_trans ic
+       join ods_tb_install a on a.code = ic.product_code
+      where ic.trans_flag = ${TRANS.DISPATCH} and ic.job_type = 'install'
+        and a.cancel_date is null and a.job_finish is null
+        and ic.doc_no not in (select doc_ref from ic_trans
+                              where trans_flag = 166 and doc_ref is not null)
+        ${techArg ? "and a.tech_code = $1" : ""}) install_docs`;
+
+/**
+ * ພາລະງານຕໍ່ຊ່າງ — ຫົວໜ້າຊ່າງ/ຜູ້ຈັດການເທົ່ານັ້ນ.
+ * ຂໍ້ມູນຈິງ: ຊ່າງຄົນນຶ່ງຖື 41 ວຽກ (ດົນສຸດ 327 ມື້) ອີກຄົນຖື 4 — ບໍ່ມີບ່ອນເຫັນເລີຍ.
+ */
+export type TechLoad = { tech: string; jobs: number; oldest_seconds: number };
+
+const TECH_LOAD_SQL = `select coalesce(nullif(a.emp_code,''), '(ບໍ່ມີຊ່າງ)') tech,
+    count(*)::int jobs,
+    max(round(extract(epoch from (localtimestamp - a.time_register))))::int oldest_seconds
+  from tb_product a where ${OPEN_JOBS}
+  group by 1 order by jobs desc limit 8`;
+
 export type DashboardData = {
   repair: Counts;
   install: Counts;
   repairAge: StageAge;
   installAge: StageAge;
+  warehouse: { repair_lines: number; install_docs: number };
+  pickup: { repair_docs: number; install_docs: number };
+  techLoad: TechLoad[];
   overdueAppointments: number;
   onOrder: { n: number; max_seconds: number };
   throughput: {
@@ -244,6 +301,9 @@ export async function getDashboard(tech: string | null): Promise<{ data: Dashboa
       appointments,
       onOrder,
       throughput,
+      warehouse,
+      pickup,
+      techLoad,
     ] = await Promise.all([
       query<Record<string, number>>(countsSql(repairStatuses, "tb_product a", repairWhere), args),
       query<Record<string, number>>(countsSql(installStatuses, "ods_tb_install a", installWhere), args),
@@ -251,15 +311,18 @@ export async function getDashboard(tech: string | null): Promise<{ data: Dashboa
       query<AgeRow>(AGE_SQL(INSTALL_STAGE_SQL, INSTALL_ELAPSED_SQL, "ods_tb_install a", installWhere), args),
       query<StaleJob>(STALE_REPAIR(repairWhere), args),
       query<StaleJob>(STALE_INSTALL(installWhere), args),
-      query<{ wait_late: number; check_late: number }>(SLA_LATE_SQL),
+      query<{ wait_late: number; check_late: number }>(SLA_LATE_SQL(Boolean(tech)), args),
       query<{ docs: number; lines: number }>(CANCELLED_SPARES_SQL),
       query<{ quotes: number; customer: number; purchases: number }>(APPROVALS_SQL),
       query<{ n: number }>(CANCEL_REQUESTS_SQL),
       query<{ avg_points: number | null; jobs: number }>(FEEDBACK_SQL),
       query<{ repair_seconds: number; install_seconds: number }>(OLDEST_SQL),
-      query<{ n: number }>(OVERDUE_APPOINTMENT_SQL),
+      query<{ n: number }>(OVERDUE_APPOINTMENT_SQL(Boolean(tech)), args),
       query<{ n: number; max_seconds: number }>(ON_ORDER_SQL),
       query<DashboardData["throughput"]>(THROUGHPUT_SQL),
+      query<DashboardData["warehouse"]>(WAREHOUSE_QUEUE_SQL),
+      query<DashboardData["pickup"]>(PICKUP_QUEUE_SQL(Boolean(tech)), args),
+      query<TechLoad>(TECH_LOAD_SQL),
     ]);
 
     const late = sla.rows[0];
@@ -277,6 +340,9 @@ export async function getDashboard(tech: string | null): Promise<{ data: Dashboa
           install_opened: 0,
           install_closed: 0,
         },
+        warehouse: warehouse.rows[0] ?? { repair_lines: 0, install_docs: 0 },
+        pickup: pickup.rows[0] ?? { repair_docs: 0, install_docs: 0 },
+        techLoad: techLoad.rows,
         staleRepairs: staleRepairs.rows,
         staleInstalls: staleInstalls.rows,
         slaLate: (late?.wait_late ?? 0) + (late?.check_late ?? 0),
