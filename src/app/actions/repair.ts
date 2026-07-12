@@ -3,6 +3,7 @@ import { logChange } from "@/app/actions/chatter";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { roleOf, TECH_SIDE } from "@/lib/roles";
+import { STAGE_SQL } from "@/lib/stage";
 import { TRANS } from "@/lib/stock-constants";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -92,11 +93,28 @@ const NOT_ON_DOC = `pick_finish is null and not exists (
 
 /* ── ເລີ່ມສ້ອມແປງ (start_repair) ────────────────────────────────── */
 
+/**
+ * ເລີ່ມສ້ອມແປງ — ຕ້ອງຢູ່ຂັ້ນ 8 (ລໍຖ້າສ້ອມແປງ) ຈິງໆ.
+ *
+ * ແຕ່ກ່ອນກວດແຕ່ "login ຢູ່ບໍ" ແລ້ວຂຽນ time_repair ລົງໄປເລີຍ. ອັນຕະລາຍເພາະ
+ * STAGE_SQL (lib/stage) ອ່ານ **time_repair ກ່ອນ** spare_reg/spare_finish ⇒ ຍິງ action ນີ້
+ * ໃສ່ວຽກຂັ້ນ 5 (ລໍຖ້າຂໍເບີກອາໄຫຼ່) ວຽກຈະ **ໂດດໄປຂັ້ນ 9 ທັນທີ ຂ້າມການເບີກອາໄຫຼ່ທັງໝົດ**
+ * ໂດຍບໍ່ມີ error ຈັກຂໍ້ — ອາໄຫຼ່ບໍ່ເຄີຍຖືກເບີກ ແຕ່ວຽກຂຶ້ນວ່າ "ກຳລັງສ້ອມແປງ".
+ *
+ * ດຽວນີ້ເງື່ອນໄຂຂັ້ນຢູ່ໃນ WHERE ເອງ (ໃຊ້ STAGE_SQL ອັນດຽວກັບທັງລະບົບ) ⇒ ນອກຂັ້ນ 8
+ * ບໍ່ມີຫຍັງເກີດຂຶ້ນ, ກົດຊ້ຳກໍ່ບໍ່ຂຽນທັບ (ບໍ່ຣີເຊັດໂມງ) ແລະ ສອງຄົນກົດພ້ອມກັນກໍ່ບໍ່ຊ້ຳ.
+ */
 export async function startRepair(code: string) {
   const session = await getSession();
   if (!session) redirect("/login");
-  await query(`update tb_product set time_repair=${NOW} where code=$1`, [code]);
-  await logChange("tb_product", code, "ເລີ່ມສ້ອມແປງ");
+
+  const loaded = await loadJob(code); // ສິດຝ່າຍຊ່າງ + ຕ້ອງເປັນວຽກຂອງຕົນ
+  if (!loaded.ok) redirect("/forbidden");
+
+  const done = await query(`update tb_product a set time_repair=${NOW} where a.code=$1 and (${STAGE_SQL}) = 8`, [
+    code,
+  ]);
+  if (done.rowCount) await logChange("tb_product", code, "ເລີ່ມສ້ອມແປງ");
   revalidatePath("/repair");
   redirect("/repair");
 }
@@ -220,11 +238,12 @@ const saveSchema = z.object({
 });
 
 export async function saveRepair(_: RepairState, formData: FormData): Promise<RepairState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
-
   const parsed = saveSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "ຂໍ້ມູນບໍ່ຄົບ" };
+
+  // ສິດຝ່າຍຊ່າງ + ຕ້ອງເປັນວຽກຂອງຕົນ (ແຕ່ກ່ອນກວດແຕ່ session)
+  const loaded = await loadJob(parsed.data.pro_code);
+  if (!loaded.ok) return { error: loaded.error };
 
   /**
    * save_rp ຂອງ ods ອັບເດດແຕ່ tb_product: status=5 (ລໍຖ້າສົ່ງຄືນ) + time_finish_repair
@@ -234,10 +253,17 @@ export async function saveRepair(_: RepairState, formData: FormData): Promise<Re
   const { pro_code: code, repair_note: note } = parsed.data;
 
   try {
-    await query(`update tb_product set status=5, time_finish_repair=${NOW}, repair_note=nullif($2,'') where code=$1`, [
-      code,
-      note,
-    ]);
+    /**
+     * ຕ້ອງຢູ່ຂັ້ນ 9 (ກຳລັງສ້ອມແປງ) ຈິງໆ. ແຕ່ກ່ອນບໍ່ກວດຫຍັງເລີຍ ⇒ ຍິງ action ນີ້ໃສ່ວຽກ
+     * ຂັ້ນ 1 (ຍັງບໍ່ທັນກວດເຊັກ) ວຽກກໍ່ໄປໂຜ່ຢູ່ "ລໍຖ້າສົ່ງຄືນ" (ຂັ້ນ 10) ໄດ້ເລີຍ.
+     * ເງື່ອນໄຂຢູ່ໃນ WHERE ⇒ ກັນການແຂ່ງກັນ (race) ນຳ.
+     */
+    const done = await query(
+      `update tb_product a set status=5, time_finish_repair=${NOW}, repair_note=nullif($2,'')
+        where a.code=$1 and (${STAGE_SQL}) = 9`,
+      [code, note],
+    );
+    if (!done.rowCount) return { error: 'ບັນທຶກບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ "ກຳລັງສ້ອມແປງ"' };
   } catch (error) {
     console.error("save_rp failed", error);
     return { error: "ບັນທຶກບໍ່ສຳເລັດ" };

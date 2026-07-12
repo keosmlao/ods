@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/auth";
+import { apiAllowed } from "@/lib/api-guard";
 import { queryOdg } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -17,7 +17,8 @@ import { NextRequest, NextResponse } from "next/server";
  *          ສ່ວນ sn_inventory.sn ຄືເລກຈາກໂຮງງານ — ຈຶ່ງຕ້ອງ join ເອົາ.
  */
 export async function GET(request: NextRequest) {
-  if (!(await getSession())) return NextResponse.json([], { status: 401 });
+  // ຟອມທີ່ເອີ້ນ route ນີ້ຢູ່ໜ້າ /service/new (ຝ່າຍບໍລິການ) — /api ຢູ່ນອກ matcher ຂອງ proxy
+  if (!(await apiAllowed("/service/new"))) return NextResponse.json([], { status: 403 });
 
   const sn = request.nextUrl.searchParams.get("sn")?.trim() ?? "";
   if (sn) {

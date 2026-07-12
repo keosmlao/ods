@@ -1,4 +1,6 @@
-import { closeJob } from "@/app/actions/installation";
+import { closeJob, reopenJob } from "@/app/actions/installation";
+import { UndoButton } from "@/components/checking/undo-button";
+import { FeedbackQrButton } from "@/components/installation/feedback-qr";
 import { JobButton } from "@/components/installation/job-buttons";
 import { query } from "@/lib/db";
 import { installStageIs } from "@/lib/install-stage";
@@ -192,14 +194,18 @@ export default async function ClosePage({ searchParams }: Props) {
               <td className="whitespace-nowrap px-3 py-2.5">
                 <div className="flex items-center justify-center gap-2">
                   {tab === "feedback" ? (
-                    <Link
-                      href={`/feedback/${encodeURIComponent(row.code)}`}
-                      target="_blank"
-                      title="ແບບສອບຖາມລູກຄ້າ"
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:underline"
-                    >
-                      <ClipboardList className="size-4" /> ແບບສອບຖາມ
-                    </Link>
+                    <>
+                      {/* ງານຄ້າງຢູ່ຂັ້ນນີ້ຈົນກວ່າລູກຄ້າຈະຕອບ — QR ໃຫ້ສົ່ງ/ໃຫ້ລູກຄ້າສະແກນເອງ */}
+                      <FeedbackQrButton code={row.code} />
+                      <Link
+                        href={`/feedback/${encodeURIComponent(row.code)}`}
+                        target="_blank"
+                        title="ແບບສອບຖາມລູກຄ້າ"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:underline"
+                      >
+                        <ClipboardList className="size-4" /> ແບບສອບຖາມ
+                      </Link>
+                    </>
                   ) : (
                     <>
                       <FeedbackEditButton
@@ -219,6 +225,21 @@ export default async function ClosePage({ searchParams }: Props) {
                         >
                           ປິດງານ
                         </JobButton>
+                      )}
+                      {tab === "closed" && (
+                        /* ປິດງານຜິດ → ເປີດຄືນໄປ "ລໍຖ້າປິດງານ" (ແຕ່ກ່ອນປິດແລ້ວປິດເລີຍ ແກ້ບໍ່ໄດ້) */
+                        <UndoButton
+                          variant="icon"
+                          label="ເປີດງານຄືນ"
+                          title="ເປີດງານຄືນ?"
+                          message={
+                            <>
+                              ງານ <b className="text-slate-700">#{row.code}</b> ຈະກັບໄປ &quot;ລໍຖ້າປິດງານ&quot;.
+                              ຄຳຕອບແບບສອບຖາມຂອງລູກຄ້າຍັງຢູ່ຄືເກົ່າ.
+                            </>
+                          }
+                          action={() => reopenJob(row.code)}
+                        />
                       )}
                     </>
                   )}

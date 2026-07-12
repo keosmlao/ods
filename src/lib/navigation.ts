@@ -61,6 +61,12 @@ const INSTALL: NavGroup = {
     { label: "ໃບຂໍເບີກ(ຕິດຕັ້ງ)", href: "/installations/spare-requests", divider: true },
     { label: "ເບີກອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/installations/dispatch" },
     { label: "ຮັບອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/installations/spare-pickup" },
+    /**
+     * ສົ່ງອາໄຫຼ່ຄືນສາງ — ໜ້າ /stock/returns ຮັບໃຊ້ **ທັງສອງສາຍງານ** (ມີຕົວກອງ job=install)
+     * ແຕ່ເມື່ອກ່ອນມີລິ້ງຢູ່ໃນເມນູ "ສ້ອມແປງ" ບ່ອນດຽວ ⇒ ຄົນເຮັດງານຕິດຕັ້ງບໍ່ຮູ້ວ່າມີ
+     * ແລະ ຕະຫຼອດ 3 ປີບໍ່ເຄີຍມີໃບສົ່ງຄືນຂອງງານ INST- ຈັກໃບ ທັງທີ່ມີອາໄຫຼ່ຄ້າງນອກສາງຢູ່.
+     */
+    { label: "ສົ່ງຄືນອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/stock/returns?job=install" },
     { label: "ຕິດຕັ້ງ", href: "/installations/work", divider: true },
     { label: "ປິດງານ", href: "/installations/close" },
     { label: "ລາຍງານງານຕິດຕັ້ງ", href: "/reports/installations", divider: true },
@@ -136,6 +142,15 @@ export const navigation: NavGroup[] = [REPAIR, INSTALL, STOCK, APPROVE, REPORT, 
  */
 export function navigationFor(role: Role): NavGroup[] {
   return navigation
-    .map((group) => ({ ...group, items: group.items.filter((item) => canAccess(role, item.href)) }))
+    .map((group) => ({ ...group, items: group.items.filter((item) => canAccess(role, pathOf(item.href))) }))
     .filter((group) => group.items.length > 0);
+}
+
+/**
+ * ເສັ້ນທາງລ້ວນຂອງລິ້ງ — ຕັດ query ອອກ (`/stock/returns?job=install` → `/stock/returns`).
+ * canAccess ແຍກເສັ້ນທາງເປັນ segment ⇒ ຖ້າສົ່ງ query ຕິດໄປນຳ segment ສຸດທ້າຍຈະກາຍເປັນ
+ * "returns?job=install" ເຊິ່ງບໍ່ຕົງກັບກົດໃດເລີຍ ແລ້ວ **ເມນູນັ້ນຫາຍໄປທັງລາຍການ** ຢ່າງງຽບໆ.
+ */
+function pathOf(href: string) {
+  return href.split("?")[0];
 }

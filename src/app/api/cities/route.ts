@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/auth";
+import { apiAllowed } from "@/lib/api-guard";
 import { query } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -7,7 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
  * ໃຊ້ໂດຍ dropdown ແຂວງ→ເມືອງ ຂອງຟອມລູກຄ້າ
  */
 export async function GET(req: NextRequest) {
-  if (!(await getSession())) return NextResponse.json([], { status: 401 });
+  // ຟອມທີ່ເອີ້ນ route ນີ້ຢູ່ໜ້າ /customers (ຝ່າຍບໍລິການ) — /api ຢູ່ນອກ matcher ຂອງ proxy
+  if (!(await apiAllowed("/customers"))) return NextResponse.json([], { status: 403 });
 
   const province = req.nextUrl.searchParams.get("province")?.trim() ?? "";
   if (!province) return NextResponse.json([]);

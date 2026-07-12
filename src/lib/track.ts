@@ -107,3 +107,17 @@ export async function publicBaseUrl() {
 export async function trackUrl(code: string) {
   return `${await publicBaseUrl()}/track/${encodeURIComponent(code)}`;
 }
+
+/**
+ * ລິ້ງແບບສອບຖາມຂອງງານຕິດຕັ້ງ (ໜ້າສາທາລະນະ /feedback/<ລະຫັດງານ>).
+ *
+ * ງານຕິດຕັ້ງຄ້າງຢູ່ຂັ້ນ 6 (ຕິດຕັ້ງສຳເລັດ) ຈົນກວ່າລູກຄ້າຈະຕອບແບບສອບຖາມ ແຕ່ LINE Notify
+ * ທີ່ ods ໃຊ້ສົ່ງລິ້ງໃຫ້ລູກຄ້າ **ປິດບໍລິການແລ້ວ** (31-03-2025) ແລະ ບໍ່ມີຫຍັງມາແທນ
+ * ⇒ ຕ້ອງສົ່ງລິ້ງດ້ວຍມື ແລະ ງານກອງຢູ່ຂັ້ນ 6.
+ *
+ * ຊ່າງບໍ່ຕ້ອງສົ່ງລິ້ງເລີຍ: ເອົາ QR ນີ້ໃຫ້ລູກຄ້າສະແກນຢູ່ໜ້າງານຕອນຕິດຕັ້ງແລ້ວ
+ * (ຄືກັບ QR ຕິດຕາມສະຖານະໃນໃບຮັບເຄື່ອງ — trackUrl ຂ້າງເທິງ). ບໍ່ຕ້ອງມີບໍລິການພາຍນອກ.
+ */
+export async function feedbackUrl(code: string) {
+  return `${await publicBaseUrl()}/feedback/${encodeURIComponent(code)}`;
+}

@@ -1,6 +1,8 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
 import { getSession } from "@/lib/auth";
+import { requireRole, requireRoleOrRedirect } from "@/lib/guard";
+import { SERVICE_SIDE } from "@/lib/roles";
 import { db, queryOdg } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
@@ -151,8 +153,8 @@ function toBaht(value: number, currency: string, rates: Rates) {
  * ໃຊ້ INSERT..SELECT..WHERE NOT EXISTS → ເອີ້ນຊ້ຳກໍ່ບໍ່ຊ້ຳແຖວ.
  */
 export async function seedCart(productCode: string, warranty: string | null, usedSpare: number | null) {
-  const session = await getSession();
-  if (!session || !db) return;
+  const session = await requireRoleOrRedirect(SERVICE_SIDE);
+  if (!db) return;
 
   const quote = await getApprovedQuote(productCode);
   if (quote) {
@@ -215,8 +217,9 @@ export type CartState = { error?: string };
 
 /** ຄື /additeminvioce */
 export async function addInvoiceItem(_: CartState, formData: FormData): Promise<CartState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດແກ້ໄຂໃບຮັບເງິນ");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const parsed = z
@@ -241,8 +244,9 @@ export async function addInvoiceItem(_: CartState, formData: FormData): Promise<
 
 /** ຄື /deleteiteminvoice */
 export async function deleteInvoiceItem(_: CartState, formData: FormData): Promise<CartState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດແກ້ໄຂໃບຮັບເງິນ");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const parsed = z
@@ -260,8 +264,7 @@ export async function deleteInvoiceItem(_: CartState, formData: FormData): Promi
 
 /** ຄື /deletealliteminvoice — ລຶບຕະກ້າທັງໝົດແລ້ວອອກ */
 export async function deleteAllInvoiceItems(formData: FormData) {
-  const session = await getSession();
-  if (!session) redirect("/login");
+  const session = await requireRoleOrRedirect(SERVICE_SIDE);
   const productCode = String(formData.get("product_code") ?? "");
   if (db && productCode) {
     await db.query(
@@ -277,8 +280,9 @@ export async function deleteAllInvoiceItems(formData: FormData) {
  * ບ່ອນນີ້ລວມເປັນແຖວລະ 1 ຟອມ ບັນທຶກທັງ ຈຳນວນ ແລະ ລາຄາ ພ້ອມກັນ.
  */
 export async function updateInvoiceLine(_: CartState, formData: FormData): Promise<CartState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດແກ້ໄຂໃບຮັບເງິນ");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const parsed = z
@@ -347,8 +351,9 @@ export type SaveInvoiceState = { error?: string };
  *  - ຜິດພາດແລ້ວ rollback ຈິງ (ods ຈັບ exception ແລ້ວປ່ອຍຜ່ານ → ຂໍ້ມູນຄ້າງເຄິ່ງທາງ)
  */
 export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Promise<SaveInvoiceState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດອອກໃບຮັບເງິນ");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const parsed = saveSchema.safeParse(
@@ -522,8 +527,9 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
 export type ReturnState = { error?: string };
 
 export async function returnWithoutInvoice(_: ReturnState, formData: FormData): Promise<ReturnState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດສົ່ງເຄື່ອງຄືນ");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const parsed = z.object({ pro_code: z.string().trim().min(1) }).safeParse(Object.fromEntries(formData));

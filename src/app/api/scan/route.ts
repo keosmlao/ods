@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/auth";
+import { apiAllowed } from "@/lib/api-guard";
 import { query, queryOdg } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -61,7 +61,8 @@ left join sale s on true
 left join ar_customer c on c.code = s.erp_cust`;
 
 export async function GET(request: NextRequest) {
-  if (!(await getSession())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // ຟອມທີ່ເອີ້ນ route ນີ້ຢູ່ໜ້າ /service/new (ຝ່າຍບໍລິການ) — /api ຢູ່ນອກ matcher ຂອງ proxy
+  if (!(await apiAllowed("/service/new"))) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
   const code = request.nextUrl.searchParams.get("code")?.trim() ?? "";
   if (code.length < 3) return NextResponse.json({ found: false });

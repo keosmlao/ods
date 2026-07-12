@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/auth";
+import { apiAllowed } from "@/lib/api-guard";
 import { query, queryOdg } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -15,7 +15,8 @@ type ErpRow = { erp_code: string; name_1: string; tel: string; address: string }
 type OdsRow = { code: string; ref_code: string };
 
 export async function GET(request: NextRequest) {
-  if (!(await getSession())) return NextResponse.json([], { status: 401 });
+  // ຟອມທີ່ເອີ້ນ route ນີ້ຢູ່ໜ້າ /service/new (ຝ່າຍບໍລິການ) — /api ຢູ່ນອກ matcher ຂອງ proxy
+  if (!(await apiAllowed("/service/new"))) return NextResponse.json([], { status: 403 });
   const q = request.nextUrl.searchParams.get("q")?.trim() ?? "";
   if (q.length < 2) return NextResponse.json([]);
 

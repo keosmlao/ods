@@ -1,4 +1,12 @@
-import { finishInstall, startInstall, techFilter } from "@/app/actions/installation";
+import {
+  finishInstall,
+  startInstall,
+  techFilter,
+  undoFinishInstall,
+  undoStartInstall,
+} from "@/app/actions/installation";
+import { UndoButton } from "@/components/checking/undo-button";
+import { FeedbackQrButton } from "@/components/installation/feedback-qr";
 import { JobButton } from "@/components/installation/job-buttons";
 import { query } from "@/lib/db";
 import { installStageIs } from "@/lib/install-stage";
@@ -149,16 +157,50 @@ export default async function WorkPage({ searchParams }: Props) {
                   </JobButton>
                 )}
                 {tab === "doing" && (
-                  <JobButton
-                    code={row.code}
-                    action={finishInstall}
-                    tone="success"
-                    className="h-8 px-3 text-xs"
-                    confirmTitle={`ຕິດຕັ້ງ ${row.code} ສຳເລັດແລ້ວບໍ?`}
-                    confirmTone="warning"
-                  >
-                    ຕິດຕັ້ງສຳເລັດ
-                  </JobButton>
+                  <div className="flex items-center justify-center gap-2">
+                    <JobButton
+                      code={row.code}
+                      action={finishInstall}
+                      tone="success"
+                      className="h-8 px-3 text-xs"
+                      confirmTitle={`ຕິດຕັ້ງ ${row.code} ສຳເລັດແລ້ວບໍ?`}
+                      confirmTone="warning"
+                    >
+                      ຕິດຕັ້ງສຳເລັດ
+                    </JobButton>
+                    {/* ກົດ "ເລີ່ມຕິດຕັ້ງ" ຜິດງານ → ດຶງກັບໄປ "ລໍຖ້າຊ່າງຕິດຕັ້ງ" (ກົດເກນຢູ່ server) */}
+                    <UndoButton
+                      variant="icon"
+                      label="ຖອນ ເລີ່ມຕິດຕັ້ງ"
+                      title="ຖອນ ເລີ່ມຕິດຕັ້ງ?"
+                      message={
+                        <>
+                          ງານ <b className="text-slate-700">#{row.code}</b> ຈະກັບໄປ &quot;ລໍຖ້າຊ່າງຕິດຕັ້ງ&quot; ແລະ
+                          ຢຸດຈັບເວລາ. ອາໄຫຼ່ ແລະ ໃບເບີກທີ່ອອກໄປແລ້ວຍັງຢູ່ຄືເກົ່າ.
+                        </>
+                      }
+                      action={() => undoStartInstall(row.code)}
+                    />
+                  </div>
+                )}
+                {tab === "done" && (
+                  <div className="flex items-center justify-center gap-2">
+                    {/* ຕິດຕັ້ງແລ້ວ ແຕ່ງານຄ້າງຢູ່ຂັ້ນນີ້ຈົນກວ່າລູກຄ້າຈະຕອບ → ໃຫ້ສະແກນຕອບຢູ່ໜ້າງານເລີຍ */}
+                    <FeedbackQrButton code={row.code} />
+                    {/* ກົດ "ຕິດຕັ້ງສຳເລັດ" ໄວເກີນ → ດຶງກັບມາ "ກຳລັງຕິດຕັ້ງ" (ຖ້າລູກຄ້າຍັງບໍ່ຕອບ) */}
+                    <UndoButton
+                      variant="icon"
+                      label="ຖອນ ຕິດຕັ້ງສຳເລັດ"
+                      title="ຖອນ ຕິດຕັ້ງສຳເລັດ?"
+                      message={
+                        <>
+                          ງານ <b className="text-slate-700">#{row.code}</b> ຈະກັບໄປ &quot;ກຳລັງຕິດຕັ້ງ&quot;.
+                          ຖອນບໍ່ໄດ້ ຖ້າລູກຄ້າຕອບແບບສອບຖາມໄປແລ້ວ.
+                        </>
+                      }
+                      action={() => undoFinishInstall(row.code)}
+                    />
+                  </div>
                 )}
               </td>
             </tr>

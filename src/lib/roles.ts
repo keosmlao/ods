@@ -62,6 +62,13 @@ export const SERVICE_SIDE: Role[] = [M, A];
 export const STOCK_SIDE: Role[] = [M, S];
 /** ຜູ້ອະນຸມັດ — ຕົງກັບ ROLE_APPROVER ໃນ lib/chatter */
 export const APPROVER_SIDE: Role[] = [M, HT];
+/**
+ * ຜູ້ທີ່ສ້າງ/ແກ້ໃບຂໍສົ່ງອາໄຫຼ່ຄືນສາງໄດ້ — ຊ່າງເປັນຄົນສ້າງ, ສາງເປັນຄົນຮັບຄືນ,
+ * ແລະ **CS ນຳ**: ປ້າຍເຕືອນ "ອາໄຫຼ່ຂອງງານທີ່ຍົກເລີກຍັງບໍ່ໄດ້ສົ່ງຄືນ" ຢູ່ໜ້າ /installations
+ * ເຊິ່ງເປັນໜ້າຂອງ CS ແລະ ປຸ່ມຂອງມັນພາມາທີ່ນີ້ — ຖ້າບໍ່ໃສ່ admin, CS ກົດປຸ່ມຂອງຕົນເອງ
+ * ແລ້ວເດັ້ງໄປ /forbidden (ແລະ ຊ່າງກໍ່ບໍ່ເຫັນປ້າຍນັ້ນ ເພາະເຂົ້າ /installations ບໍ່ໄດ້).
+ */
+export const RETURN_SIDE: Role[] = [M, HT, T, S, A];
 /** ທຸກຄົນທີ່ login ແລ້ວ */
 export const EVERYONE: Role[] = [...ROLES];
 
@@ -97,7 +104,9 @@ const RULES: Rule[] = [
   { path: "/repair", roles: TECH_SIDE },
   // ໃບຂໍເບີກ / ໃບຂໍສົ່ງຄືນ: ຊ່າງເປັນຄົນສ້າງ, ສາງເປັນຄົນຈ່າຍ/ຮັບ ⇒ ເຫັນທັງສອງຝ່າຍ
   { path: "/stock/requests", roles: [...TECH_SIDE, S] },
-  { path: "/stock/returns", roles: [...TECH_SIDE, S] },
+  // ໃບຂໍສົ່ງຄືນ: ຊ່າງ+ສາງ ຄືເກົ່າ ບວກ **CS** — saveInstallReturnRequest / cancelInstallReturnRequest
+  // redirect ມາທີ່ນີ້ ແລະ CS ເປັນຄົນສ້າງໃບຂໍສົ່ງຄືນຂອງງານຕິດຕັ້ງທີ່ຍົກເລີກ (ເບິ່ງ RETURN_SIDE)
+  { path: "/stock/returns", roles: RETURN_SIDE },
 
   /* ສາງ — ods: ເມນູ "ສາງ" (manager, stock) */
   { path: "/stock/dispatch", roles: STOCK_SIDE },
@@ -123,11 +132,22 @@ const RULES: Rule[] = [
   { path: "/installations/work", roles: TECH_SIDE },
   { path: "/installations/spare-requests", roles: TECH_SIDE },
   { path: "/installations/spare-pickup", roles: TECH_SIDE },
-  { path: "/installations/spare-returns", roles: TECH_SIDE },
+  { path: "/installations/spare-returns", roles: RETURN_SIDE },
   { path: "/installations/spare-returns/receive", roles: STOCK_SIDE },
   { path: "/installations/dispatch", roles: STOCK_SIDE },
   { path: "/installations/*/edit", roles: SERVICE_SIDE },
   { path: "/installations/*/print", roles: EVERYONE },
+  /**
+   * ໜ້າລາຍລະອຽດງານຕິດຕັ້ງ (ອ່ານຢ່າງດຽວ + chatter) — ທຸກຄົນທີ່ login ເປີດໄດ້,
+   * ຄູ່ກັບ `/service/*` ຂອງຝັ່ງສ້ອມ ແລະ ດ້ວຍເຫດຜົນອັນດຽວກັນ: ການແຈ້ງເຕືອນຂອງ
+   * ods_tb_install ຊີ້ມາທີ່ນີ້ (lib/chatter recordHref) ແລະ ຄົນທີ່ຖືກແຈ້ງແມ່ນ
+   * **ຊ່າງ** (ຈັດງານໃຫ້) ກັບ **ສາງ** (ມີໃບຂໍເບີກ) — ສອງ role ທີ່ເຂົ້າ /installations
+   * ບໍ່ໄດ້. ຢ່າຫຸບອັນນີ້ໃຫ້ແຄບລົງ ບໍ່ດັ່ງນັ້ນການແຈ້ງເຕືອນຈະຕົກໃສ່ /forbidden ອີກ.
+   *
+   * ວາງໄວ້ **ຫຼັງ** ກົດຊື່ຕົງຕົວທັງໝົດ (assign/accept/work/…) ຈຶ່ງບໍ່ແຍ່ງກັນ:
+   * ຊື່ຕົງຕົວໄດ້ຄະແນນ 22, `*` ໄດ້ 21 ⇒ ຄຸມແຕ່ /installations/<ລະຫັດງານ> ເທົ່ານັ້ນ.
+   */
+  { path: "/installations/*", roles: EVERYONE },
 
   /* ອະນຸມັດ — ods: ເມນູ "ອະນຸມັດ" (manager ເທົ່ານັ້ນ) + headtechnical (ROLE_APPROVER) */
   { path: "/approvals", roles: APPROVER_SIDE },
