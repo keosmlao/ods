@@ -297,44 +297,18 @@ export async function updateInstall(_: ActionState, formData: FormData): Promise
   redirect("/installations");
 }
 
-/* ── ລົບງານ (del_installjob) ──────────────────────────────── */
-
-export async function deleteInstall(code: string): Promise<ActionState> {
-  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດລົບງານຕິດຕັ້ງ");
-  if (!guard.ok) return { error: guard.error };
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
-
-  const client = await db.connect();
-  try {
-    await client.query("begin");
-    // ຖືກໃຊ້ໃນເອກະສານແລ້ວ ຫຼື ຊ່າງຮັບງານ/ເລີ່ມແລ້ວ → ລົບບໍ່ໄດ້
-    const used = await client.query<{ count: string }>(
-      "select count(roworder) count from ic_trans where product_code=$1",
-      [code],
-    );
-    const started = await client.query<{ count: string }>(
-      `select count(roworder) count from ods_tb_install
-       where code=$1 and (tech_confirm is not null or tech_code is not null or start_install is not null)`,
-      [code],
-    );
-    if (Number(used.rows[0].count) !== 0 || Number(started.rows[0].count) !== 0) {
-      await client.query("rollback");
-      return { error: "ບໍ່ສາມາດລົບໄດ້ ຂໍ້ມູນຖືກໃຊ້ເເລ້ວ!" };
-    }
-    await client.query("delete from ods_tb_install where code=$1", [code]);
-    await client.query("delete from ods_tb_install_detail where code=$1", [code]);
-    await client.query("delete from tb_used_spare where product_code=$1", [code]);
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    console.error("deleteInstall failed", error);
-    return { error: "ລົບບໍ່ສຳເລັດ" };
-  } finally {
-    client.release();
-  }
-  revalidateAll();
-  return { ok: "ລົບສຳເລັດ" };
-}
+/* ── ລົບງານ — **ຖອດອອກແລ້ວ** ─────────────────────────────────
+ *
+ * ງານ **ລົບບໍ່ໄດ້ອີກຕໍ່ໄປ** (ທຸກງານ). ໃຊ້ "ຍົກເລີກງານ" ແທນ:
+ *   ຍົກເລີກ  → ເຫຼືອຮ່ອງຮອຍ (cancel_date · cancel_remark · cancel_code · chatter)
+ *              ແລະ ພາໄປສົ່ງອາໄຫຼ່ຄືນສາງ ຖ້າຍັງມີຂອງຄ້າງ
+ *   ລົບ      → ຂໍ້ມູນຫາຍໄປເລີຍ ບໍ່ຮູ້ວ່າໃຜລົບ ບໍ່ຮູ້ວ່າເປັນຫຍັງ
+ *
+ * ດຽວນີ້ງານຜູກກັບ **ຄ່າຄອມຂອງຊ່າງ** (ods_service_payout) ຄືນຮອດເລື່ອງເງິນ
+ * ⇒ ລົບງານແລ້ວແຖວເງິນຈະຊີ້ໄປງານທີ່ບໍ່ມີຢູ່ ແລະ ບັນຊີກັບສະລິບຈະບໍ່ຕົງກັນ.
+ *
+ * ຖອດທັງ action ບໍ່ແມ່ນເຊື່ອງແຕ່ປຸ່ມ — server action ຖືກຍິງໂດຍກົງໄດ້ (lib/guard).
+ */
 
 /* ── ຍົກເລີກງານ (cancel_install) ──────────────────────────── */
 

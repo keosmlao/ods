@@ -4,6 +4,20 @@ import { INSTALL_ELAPSED_SQL, INSTALL_OPEN, INSTALL_STAGE_SQL } from "@/lib/inst
 import { SLA_SQL } from "@/lib/sla";
 import { OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_SQL } from "@/lib/stage";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
+import type { QueryResultRow } from "pg";
+
+async function optionalDashboardQuery<T extends QueryResultRow>(label: string, sql: string, params: unknown[] = []) {
+  const started = Date.now();
+  try {
+    const result = await query<T>(sql, params);
+    const elapsed = Date.now() - started;
+    if (elapsed > 1_500) console.warn(`Slow dashboard query: ${label} (${elapsed}ms)`);
+    return result;
+  } catch (error) {
+    console.error(`Optional dashboard panel failed: ${label}`, error);
+    return { rows: [] as T[] };
+  }
+}
 
 /**
  * ຂໍ້ມູນຂອງໜ້າລວມ (/dashboard).
@@ -48,13 +62,31 @@ function readCounts(statuses: Record<string, StatusDef>, row: Record<string, num
  */
 const SLA_LATE_SQL = (techArg: boolean) => `select
     count(*) filter (
+      where (case when a.time_check is null then extract(epoch from (localtimestamp - a.time_register))
+                   else extract(epoch from (localtimestamp - a.time_check)) end) >= (${SLA_SQL}) * 0.75
+        and (case when a.time_check is null then extract(epoch from (localtimestamp - a.time_register))
+                   else extract(epoch from (localtimestamp - a.time_check)) end) <= (${SLA_SQL})
+        and a.time_finish_check is null and a.status <> 6 and (a.time_check is not null or a.status = 1)
+        and (${SLA_SQL}) is not null
+    )::int warning,
+    count(*) filter (
       where a.time_check is null and a.time_finish_check is null and a.status = 1
         and (${SLA_SQL}) is not null
         and extract(epoch from (localtimestamp - a.time_register)) > (${SLA_SQL}))::int wait_late,
     count(*) filter (
       where a.time_check is not null and a.time_finish_check is null and a.status <> 6
         and (${SLA_SQL}) is not null
-        and extract(epoch from (localtimestamp - a.time_check)) > (${SLA_SQL}))::int check_late
+        and extract(epoch from (localtimestamp - a.time_check)) > (${SLA_SQL}))::int check_late,
+    count(*) filter (
+      where a.time_finish_check is null and a.status <> 6 and (a.time_check is not null or a.status = 1)
+        and (${SLA_SQL}) is not null
+        and (case when a.time_check is null then extract(epoch from (localtimestamp - a.time_register))
+                  else extract(epoch from (localtimestamp - a.time_check)) end) > (${SLA_SQL}) * 2
+    )::int critical,
+    coalesce(max(case when a.time_finish_check is null and a.status <> 6
+      and (a.time_check is not null or a.status = 1) and (${SLA_SQL}) is not null
+      then (case when a.time_check is null then extract(epoch from (localtimestamp - a.time_register))
+                 else extract(epoch from (localtimestamp - a.time_check)) end) end), 0)::int max_seconds
   from tb_product a
   where ${techArg ? "a.emp_code = $1" : "true"}`;
 
@@ -210,6 +242,37 @@ const OVERDUE_APPOINTMENT_SQL = (techArg: boolean) => `select count(*)::int n fr
     and a.appoint_date::date < current_date and a.finish_install is null
     ${techArg ? "and a.tech_code = $1" : ""}`;
 
+const TODAY_SQL = (techArg: boolean) => `select
+    (select count(*)::int from ods_tb_install a where ${INSTALL_OPEN}
+      and a.appoint_date::date = current_date ${techArg ? "and a.tech_code = $1" : ""}) appointments,
+    (select count(*)::int from tb_product a where ${OPEN_JOBS}
+      and a.time_check is not null and a.time_finish_check is null ${techArg ? "and a.emp_code = $1" : ""}) checking,
+    (select count(*)::int from tb_product a where ${OPEN_JOBS}
+      and a.time_repair is not null and a.time_finish_repair is null ${techArg ? "and a.emp_code = $1" : ""}) repairing`;
+
+const UNASSIGNED_SQL = `select
+    (select count(*)::int from tb_product a where ${OPEN_JOBS} and nullif(trim(a.emp_code),'') is null) repair,
+    (select count(*)::int from ods_tb_install a where ${INSTALL_OPEN} and nullif(trim(a.tech_code),'') is null) install`;
+
+export type UpcomingAppointment = {
+  code: string;
+  appoint_date: string;
+  customer: string | null;
+  product: string | null;
+  tech: string | null;
+  same_day_jobs: number;
+};
+
+const UPCOMING_APPOINTMENTS_SQL = (techArg: boolean) => `select a.code,
+    to_char(a.appoint_date,'DD-MM-YYYY') appoint_date,
+    c.name_1 customer, concat_ws(' ',a.item_name,a.pro_brand,a.pro_model) product,
+    nullif(trim(a.tech_code),'') tech,
+    count(*) over (partition by a.tech_code, a.appoint_date::date)::int same_day_jobs
+  from ods_tb_install a left join ar_customer c on c.code = a.cust_code
+  where ${INSTALL_OPEN} and a.appoint_date::date between current_date and current_date + 6
+    ${techArg ? "and a.tech_code = $1" : ""}
+  order by a.appoint_date, a.tech_code nulls last limit 12`;
+
 /**
  * ອາໄຫຼ່ທີ່ສັ່ງຊື້ໄປແລ້ວ ແຕ່ຍັງບໍ່ມາຮອດ (ຂັ້ນ 7) — ເງື່ອນໄຂດຽວກັນກັບ /stock/arrivals.
  * ຂັ້ນນີ້ເປັນຈຸດທີ່ວຽກຕິດດົນທີ່ສຸດຂອງລະບົບ (ດົນສຸດ 225 ມື້) ຈຶ່ງເອົາອາຍຸມາສະແດງນຳ.
@@ -224,11 +287,11 @@ const ON_ORDER_SQL = `select count(*)::int n,
  * ຜົນງານ 30 ມື້ — ເປີດ vs ປິດ. ບອກວ່າ **ກອງວຽກເພີ່ມ ຫຼື ຫຼຸດ**
  * (ຈຳນວນຄ້າງຢ່າງດຽວບອກບໍ່ໄດ້ວ່າກຳລັງດີຂຶ້ນ ຫຼື ຊຸດໂຊມລົງ).
  */
-const THROUGHPUT_SQL = `select
-    (select count(*)::int from tb_product a where a.time_register >= current_date - 30) repair_opened,
-    (select count(*)::int from tb_product a where a.return_complete >= current_date - 30) repair_closed,
-    (select count(*)::int from ods_tb_install a where a.time_register >= current_date - 30) install_opened,
-    (select count(*)::int from ods_tb_install a where a.job_finish >= current_date - 30) install_closed`;
+const THROUGHPUT_SQL = (days: number) => `select
+    (select count(*)::int from tb_product a where a.time_register >= current_date - ${days}) repair_opened,
+    (select count(*)::int from tb_product a where a.return_complete >= current_date - ${days}) repair_closed,
+    (select count(*)::int from ods_tb_install a where a.time_register >= current_date - ${days}) install_opened,
+    (select count(*)::int from ods_tb_install a where a.job_finish >= current_date - ${days}) install_closed`;
 
 /**
  * ຄິວປະຈຳວັນຂອງ **ສາງ** — ອາໄຫຼ່ທີ່ຊ່າງຂໍມາ ແລະ ລໍສາງເບີກອອກ.
@@ -316,6 +379,10 @@ export type DashboardData = {
   staleRepairs: StaleJob[];
   staleInstalls: StaleJob[];
   slaLate: number;
+  sla: { warning: number; late: number; critical: number; max_seconds: number };
+  today: { appointments: number; checking: number; repairing: number };
+  unassigned: { repair: number; install: number };
+  upcomingAppointments: UpcomingAppointment[];
   cancelledSpares: { docs: number; lines: number };
   approvals: { quotes: number; customer: number; purchases: number };
   cancelRequests: number;
@@ -328,7 +395,7 @@ export type DashboardData = {
 /**
  * @param tech ຊື່ຜູ້ໃຊ້ຂອງຊ່າງ — ກອງໃຫ້ເຫັນສະເພາະວຽກຂອງຕົນ (null = ເຫັນໝົດ)
  */
-export async function getDashboard(tech: string | null): Promise<{ data: DashboardData | null; error: boolean }> {
+export async function getDashboard(tech: string | null, days = 30): Promise<{ data: DashboardData | null; error: boolean }> {
   // ຊ່າງ: ຝັ່ງສ້ອມກອງດ້ວຍ emp_code · ຝັ່ງຕິດຕັ້ງກອງດ້ວຍ tech_code (ຄືກັບທຸກໜ້າອື່ນ)
   const repairWhere = tech ? `${OPEN_JOBS} and a.emp_code = $1` : OPEN_JOBS;
   const installWhere = tech ? `${INSTALL_OPEN} and a.tech_code = $1` : INSTALL_OPEN;
@@ -358,6 +425,9 @@ export async function getDashboard(tech: string | null): Promise<{ data: Dashboa
       payout,
       pickup,
       techLoad,
+      today,
+      unassigned,
+      upcomingAppointments,
     ] = await Promise.all([
       query<Record<string, number>>(countsSql(repairStatuses, "tb_product a", repairWhere), args),
       query<Record<string, number>>(countsSql(installStatuses, "ods_tb_install a", installWhere), args),
@@ -365,24 +435,28 @@ export async function getDashboard(tech: string | null): Promise<{ data: Dashboa
       query<AgeRow>(AGE_SQL(INSTALL_STAGE_SQL, INSTALL_ELAPSED_SQL, "ods_tb_install a", installWhere), args),
       query<StaleJob>(STALE_REPAIR(repairWhere), args),
       query<StaleJob>(STALE_INSTALL(installWhere), args),
-      query<{ wait_late: number; check_late: number }>(SLA_LATE_SQL(Boolean(tech)), args),
+      query<{ wait_late: number; check_late: number; warning: number; critical: number; max_seconds: number }>(SLA_LATE_SQL(Boolean(tech)), args),
       query<{ docs: number; lines: number }>(CANCELLED_SPARES_SQL),
       query<{ quotes: number; customer: number; purchases: number }>(APPROVALS_SQL),
       query<{ n: number }>(CANCEL_REQUESTS_SQL),
-      query<DashboardData["feedback"]>(FEEDBACK_SQL),
-      query<FeedbackTopic>(FEEDBACK_TOPICS_SQL),
-      query<FeedbackTrend>(FEEDBACK_TREND_SQL),
+      optionalDashboardQuery<DashboardData["feedback"]>("feedback", FEEDBACK_SQL),
+      optionalDashboardQuery<FeedbackTopic>("feedback-topics", FEEDBACK_TOPICS_SQL),
+      optionalDashboardQuery<FeedbackTrend>("feedback-trend", FEEDBACK_TREND_SQL),
       query<{ repair_seconds: number; install_seconds: number }>(OLDEST_SQL),
       query<{ n: number }>(OVERDUE_APPOINTMENT_SQL(Boolean(tech)), args),
       query<{ n: number; max_seconds: number }>(ON_ORDER_SQL),
-      query<DashboardData["throughput"]>(THROUGHPUT_SQL),
+      query<DashboardData["throughput"]>(THROUGHPUT_SQL([1, 7, 30, 90].includes(days) ? days : 30)),
       query<DashboardData["warehouse"]>(WAREHOUSE_QUEUE_SQL),
-      query<DashboardData["payout"]>(PAYOUT_SQL(Boolean(tech)), args),
+      optionalDashboardQuery<DashboardData["payout"]>("payout", PAYOUT_SQL(Boolean(tech)), args),
       query<DashboardData["pickup"]>(PICKUP_QUEUE_SQL(Boolean(tech)), args),
       query<TechLoad>(TECH_LOAD_SQL),
+      query<DashboardData["today"]>(TODAY_SQL(Boolean(tech)), args),
+      query<DashboardData["unassigned"]>(UNASSIGNED_SQL),
+      query<UpcomingAppointment>(UPCOMING_APPOINTMENTS_SQL(Boolean(tech)), args),
     ]);
 
     const late = sla.rows[0];
+    const lateTotal = (late?.wait_late ?? 0) + (late?.check_late ?? 0);
     return {
       data: {
         repair: readCounts(repairStatuses, repair.rows[0]),
@@ -403,7 +477,11 @@ export async function getDashboard(tech: string | null): Promise<{ data: Dashboa
         techLoad: techLoad.rows,
         staleRepairs: staleRepairs.rows,
         staleInstalls: staleInstalls.rows,
-        slaLate: (late?.wait_late ?? 0) + (late?.check_late ?? 0),
+        slaLate: lateTotal,
+        sla: { warning: late?.warning ?? 0, late: lateTotal, critical: late?.critical ?? 0, max_seconds: late?.max_seconds ?? 0 },
+        today: today.rows[0] ?? { appointments: 0, checking: 0, repairing: 0 },
+        unassigned: unassigned.rows[0] ?? { repair: 0, install: 0 },
+        upcomingAppointments: upcomingAppointments.rows,
         cancelledSpares: spares.rows[0] ?? { docs: 0, lines: 0 },
         approvals: approvals.rows[0] ?? { quotes: 0, customer: 0, purchases: 0 },
         cancelRequests: cancels.rows[0]?.n ?? 0,

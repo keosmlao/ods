@@ -1,4 +1,3 @@
-import { DeleteServiceButton } from "@/components/service-delete-button";
 import { Elapsed } from "@/components/elapsed";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import { Pencil, Printer } from "lucide-react";
@@ -92,7 +91,6 @@ function Card({ card }: { card: BoardCard }) {
             <Link href={`/service/${card.code}/edit`} title="ແກ້ໄຂ" className="text-slate-500 hover:opacity-70">
               <Pencil className="size-3.5" />
             </Link>
-            <DeleteServiceButton code={card.code} />
           </div>
         </div>
       </div>

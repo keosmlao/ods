@@ -365,53 +365,19 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
   redirect(`/service/${d.code}`);
 }
 
-/* ---------- ລົບໃບຮັບເຄື່ອງ — ຄື /del_rcp/<code> ຂອງ ods ---------- */
-
-export async function deleteService(code: string): Promise<ServiceState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
-
-  const client = await db.connect();
-  let toRemove: string[] = [];
-  try {
-    await client.query("begin");
-    // ລົບໄດ້ສະເພາະທີ່ຍັງບໍ່ທັນກວດເຊັກ (time_check isnull) ຄື ods
-    const found = await client.query<{ code: string }>(
-      "select code from tb_product where code=$1 and time_check is null for update",
-      [code],
-    );
-    if (!found.rowCount) {
-      await client.query("rollback");
-      return { error: "ບໍ່ສາມາດລົບໄດ້ ຂໍ້ມູນຖືກໃຊ້ເເລ້ວ!" };
-    }
-
-    // ຮູບຂອງໃບແຈ້ງສ້ອມອອນລາຍ (ref_code) ບໍ່ຖືກລົບ — ພຽງແຕ່ຕັດອອກຈາກງານ.
-    // (ods ລຶບໄຟລ໌ຮູບເຫຼົ່ານັ້ນຖິ້ມນຳ ທັງທີ່ຍັງເກັບແຖວໄວ້ → ຮູບເສຍ. ບ່ອນນີ້ບໍ່ລຶບ)
-    const images = await client.query<{ product_url: string }>(
-      "select product_url from product_image where iteme_code=$1 and coalesce(ref_code,'')=''",
-      [code],
-    );
-    toRemove = images.rows.map((row) => row.product_url).filter(Boolean);
-
-    await client.query("delete from ic_trans where product_code=$1", [code]);
-    await client.query("delete from tb_product where code=$1", [code]);
-    await client.query("update product_image set iteme_code=null where iteme_code=$1 and coalesce(ref_code,'')<>''", [code]);
-    await client.query("delete from product_image where iteme_code=$1 and coalesce(ref_code,'')=''", [code]);
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    console.error("Delete service failed", error);
-    return { error: "ລົບບໍ່ສຳເລັດ" };
-  } finally {
-    client.release();
-  }
-
-  // ລຶບໄຟລ໌ຫຼັງ commit ສຳເລັດເທົ່ານັ້ນ
-  if (uploadsDir) await Promise.all(toRemove.map((name) => unlink(join(uploadsDir, name)).catch(() => {})));
-  revalidatePath("/service");
-  return {};
-}
+/* ---------- ລົບໃບຮັບເຄື່ອງ — **ຖອດອອກແລ້ວ** ----------------------
+ *
+ * ໃບຮັບເຄື່ອງ **ລົບບໍ່ໄດ້ອີກຕໍ່ໄປ** (ທຸກໃບ). ໃຊ້ "ຂໍຍົກເລີກ" ແທນ (requestCancel)
+ * ເຊິ່ງມີຂັ້ນຕອນອະນຸມັດ ແລະ ເຫຼືອຮ່ອງຮອຍຄົບ.
+ *
+ * ຂອງເກົ່າອັນຕະລາຍກວ່າທີ່ຄິດ: ມັນ `delete from ic_trans where product_code=$1`
+ * ⇒ ລຶບ **ໃບສະເໜີລາຄາ · ໃບຂໍເບີກ · ໃບເບີກ · ໃບຮັບເງິນ** ຂອງງານນັ້ນຖິ້ມນຳ
+ * ທັງທີ່ອາໄຫຼ່ອອກຈາກສາງໄປແລ້ວ ແລະ ສະຕັອກ ERP ຖືກຕັດໄປແລ້ວ
+ * ⇒ ຂອງຫາຍຈາກສາງໂດຍບໍ່ມີເອກະສານຮັບຮູ້ ແລະ ຍອດຂາຍຫາຍຈາກລາຍງານ.
+ * ດຽວນີ້ງານຍັງຜູກກັບຄ່າຄອມຂອງຊ່າງ (ods_service_payout) ນຳ.
+ *
+ * ຖອດທັງ action ບໍ່ແມ່ນເຊື່ອງແຕ່ປຸ່ມ — server action ຖືກຍິງໂດຍກົງໄດ້ (lib/guard).
+ */
 
 /* ---------- ຍົກເລີກ / ຖອນການຍົກເລີກ — ຄື /submit_ccpro + /cc_ccpro ຂອງ ods ---------- */
 

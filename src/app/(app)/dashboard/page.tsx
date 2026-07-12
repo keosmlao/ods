@@ -1,4 +1,5 @@
 import { Elapsed } from "@/components/elapsed";
+import { DashboardAutoRefresh } from "@/components/dashboard-auto-refresh";
 import { LinkPending } from "@/components/link-pending";
 import { getSession } from "@/lib/auth";
 import { installStatuses, pipelineOf, repairStatuses, type StatusDef } from "@/lib/dashboard-status";
@@ -17,6 +18,7 @@ import {
   AlertCircle,
   Ban,
   CalendarClock,
+  CalendarDays,
   ClipboardCheck,
   Frown,
   HardHat,
@@ -24,6 +26,7 @@ import {
   PackageOpen,
   PackageX,
   Radar,
+  RefreshCw,
   ShoppingCart,
   Smile,
   Timer,
@@ -63,8 +66,8 @@ type Alert = {
 };
 
 const TONE = {
-  red: { card: "border-red-300 bg-red-50", icon: "bg-red-100 text-red-600", value: "text-red-700" },
-  amber: { card: "border-amber-300 bg-amber-50", icon: "bg-amber-100 text-amber-700", value: "text-amber-800" },
+  red: { card: "border-red-200 bg-white hover:border-red-300", icon: "bg-red-50 text-red-600", value: "text-red-700", bar: "bg-red-500" },
+  amber: { card: "border-amber-200 bg-white hover:border-amber-300", icon: "bg-amber-50 text-amber-700", value: "text-amber-800", bar: "bg-amber-400" },
 };
 
 function alertsFor(role: Role, data: DashboardData): Alert[] {
@@ -176,6 +179,22 @@ function alertsFor(role: Role, data: DashboardData): Alert[] {
       href: "/installations/accept",
       icon: HardHat,
       tone: "amber",
+    },
+    {
+      label: "ວຽກສ້ອມຍັງບໍ່ມີຊ່າງ",
+      value: data.unassigned.repair,
+      detail: "ຕ້ອງກວດສອບ ແລະມອບໝາຍຜູ້ຮັບຜິດຊອບ",
+      href: "/service",
+      icon: UserCheck,
+      tone: "red",
+    },
+    {
+      label: "ວຽກຕິດຕັ້ງຍັງບໍ່ມີຊ່າງ",
+      value: data.unassigned.install,
+      detail: "ລໍຖ້າ CS ຈັດຊ່າງ",
+      href: "/installations/assign",
+      icon: UserCheck,
+      tone: "red",
     },
 
     /* ── ຄິວຫຼັກຂອງ CS (ຝ່າຍບໍລິການ) ──
@@ -324,8 +343,8 @@ function StaleTable({
   hrefOf: (code: string) => string;
 }) {
   return (
-    <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <h2 className="border-b border-slate-100 px-4 py-2.5 text-sm font-bold text-slate-700">{title}</h2>
+    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <h2 className="border-b border-slate-100 px-5 py-4 text-sm font-bold text-slate-800">{title}</h2>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[620px] border-collapse text-xs">
           <thead>
@@ -342,7 +361,7 @@ function StaleTable({
             {rows.map((row) => {
               const tone = elapsedTone(row.elapsed_seconds);
               return (
-                <tr key={row.code} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                <tr key={row.code} className="border-b border-slate-100 transition last:border-0 hover:bg-teal-50/40">
                   <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
                     <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                     <Link href={hrefOf(row.code)} className="hover:underline">
@@ -387,7 +406,7 @@ function Throughput({ label, opened, closed }: { label: string; opened: number; 
   const delta = opened - closed;
   const growing = delta > 0;
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
       <div className="min-w-0">
         <p className="truncate text-xs font-semibold text-slate-700">{label}</p>
         <p className="mt-0.5 text-[11px] text-slate-500">
@@ -420,7 +439,7 @@ function TechLoadPanel({ rows }: { rows: TechLoad[] }) {
   const peak = Math.max(1, ...rows.map((row) => row.jobs));
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700">
         <Users className="size-4 text-slate-400" />
         ພາລະງານຕໍ່ຊ່າງ (ວຽກສ້ອມທີ່ຍັງຄ້າງ)
@@ -480,7 +499,7 @@ function FeedbackPanel({ data, score }: { data: DashboardData; score: number }) 
   const worsening = last && prev ? last.avg_points > prev.avg_points : false;
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-teal-50 text-teal-600">
           <Smile className="size-4" />
@@ -593,13 +612,15 @@ function FeedbackPanel({ data, score }: { data: DashboardData; score: number }) 
 
 /* ── ໜ້າ ─────────────────────────────────────────────────────── */
 
-export default async function Dashboard() {
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+  const params = await searchParams;
+  const days = [1, 7, 30, 90].includes(Number(params.range)) ? Number(params.range) : 30;
   const session = await getSession();
   const role = roleOf(session);
   // ຊ່າງເຫັນສະເພາະວຽກຂອງຕົນ — ກົດເກນອັນດຽວກັບທຸກໜ້າ (lib/scope)
   const tech = ownJobsOnly(session);
 
-  const { data, error } = await getDashboard(tech);
+  const { data, error } = await getDashboard(tech, days);
   const repair: Counts = data?.repair ?? {};
   const install: Counts = data?.install ?? {};
   const alerts = data ? alertsFor(role, data) : [];
@@ -607,26 +628,88 @@ export default async function Dashboard() {
   const score = data?.feedback.avg_points ?? null;
   const oldestRepair = data?.oldest.repair_seconds ?? 0;
   const oldestInstall = data?.oldest.install_seconds ?? 0;
+  const actionTotal = alerts.reduce((sum, alert) => sum + alert.value, 0);
+  const updatedAt = new Intl.DateTimeFormat("lo-LA", {
+    timeZone: "Asia/Vientiane",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date());
+  const kpis = [
+    { label: "ວຽກສ້ອມຄ້າງ", value: repair.total ?? 0, tone: "text-sky-700", bg: "bg-sky-50" },
+    { label: "ວຽກຕິດຕັ້ງຄ້າງ", value: install.total ?? 0, tone: "text-violet-700", bg: "bg-violet-50" },
+    { label: "ເກີນ SLA", value: data?.sla.late ?? 0, tone: "text-red-700", bg: "bg-red-50" },
+    { label: "ລາຍການຕ້ອງລົງມື", value: actionTotal, tone: "text-amber-700", bg: "bg-amber-50" },
+  ];
 
   return (
-    <div className="w-full space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="w-full space-y-6 pb-6">
+      <DashboardAutoRefresh />
+      <div className="relative overflow-hidden rounded-2xl bg-slate-950 px-5 py-6 text-white shadow-xl shadow-slate-200 sm:px-7 sm:py-7">
+        <div className="pointer-events-none absolute -right-12 -top-24 size-64 rounded-full bg-teal-500/20 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 right-1/3 size-32 rounded-full bg-sky-500/10 blur-2xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-5">
         <div>
-          <h1 className="text-xl font-bold text-slate-700">ໜ້າລວມ</h1>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-300">ODIEN Service Operations</p>
+          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">ສູນຄວບຄຸມວຽກ</h1>
+          <p className="mt-2 text-xs text-slate-300">
             {ROLE_LABEL[role]}
             {tech ? " · ສະແດງສະເພາະວຽກຂອງທ່ານ" : " · ສະແດງວຽກຄ້າງທັງໝົດ"}
           </p>
         </div>
-        <Link
-          href="/dashboard/tracking"
-          className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
-        >
-          <Radar className="size-4" />
-          ຕິດຕາມວຽກ
-          <LinkPending className="size-3.5" />
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] text-slate-400">ອັບເດດ {updatedAt}</span>
+          <Link href={`/dashboard?range=${days}`} className="grid size-10 place-items-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20" title="ໂຫຼດຂໍ້ມູນໃໝ່"><RefreshCw className="size-4" /></Link>
+          <Link
+            href="/dashboard/tracking"
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 text-xs font-semibold text-white backdrop-blur transition hover:bg-white/20"
+          >
+            <Radar className="size-4" /> ຕິດຕາມວຽກ <LinkPending className="size-3.5" />
+          </Link>
+        </div>
+        </div>
       </div>
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {kpis.map((kpi) => (
+          <div key={kpi.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className={`mb-3 h-1.5 w-10 rounded-full ${kpi.bg}`} />
+            <p className="text-[11px] font-medium text-slate-500">{kpi.label}</p>
+            <p className={`mt-1 text-3xl font-bold tracking-tight ${kpi.tone}`}>{kpi.value.toLocaleString()}</p>
+          </div>
+        ))}
+      </section>
+
+      {data && ["/installations/work", "/checking", "/repair"].some((path) => canAccess(role, path)) && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+            <div><h2 className="text-base font-bold text-slate-900">ວຽກມື້ນີ້</h2><p className="mt-0.5 text-[11px] text-slate-500">ຄິວທີ່ກຳລັງເຮັດ ແລະນັດໝາຍຂອງມື້ນີ້</p></div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {canAccess(role, "/installations/work") && <Link href="/installations/work" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-teal-300 hover:bg-teal-50"><p className="text-xs font-semibold text-slate-600">ນັດຕິດຕັ້ງມື້ນີ້</p><p className="mt-1 text-2xl font-bold text-teal-700">{data.today.appointments.toLocaleString()}</p></Link>}
+            {canAccess(role, "/checking") && <Link href="/checking" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-sky-300 hover:bg-sky-50"><p className="text-xs font-semibold text-slate-600">ກຳລັງກວດເຊັກ</p><p className="mt-1 text-2xl font-bold text-sky-700">{data.today.checking.toLocaleString()}</p></Link>}
+            {canAccess(role, "/repair") && <Link href="/repair" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-violet-300 hover:bg-violet-50"><p className="text-xs font-semibold text-slate-600">ກຳລັງສ້ອມແປງ</p><p className="mt-1 text-2xl font-bold text-violet-700">{data.today.repairing.toLocaleString()}</p></Link>}
+          </div>
+          {(data.sla.warning > 0 || data.sla.late > 0) && canAccess(role, "/checking") && <div className="mt-3 flex flex-wrap gap-2 text-[11px]"><Link href="/checking?sla=warning&sort=elapsed&dir=desc" className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-800 hover:bg-amber-200">ໃກ້ເກີນ SLA {data.sla.warning}</Link><Link href="/checking?sla=late&sort=elapsed&dir=desc" className="rounded-full bg-red-100 px-2.5 py-1 font-semibold text-red-700 hover:bg-red-200">ເກີນ SLA {data.sla.late}</Link><Link href="/checking?sla=critical&sort=elapsed&dir=desc" className="rounded-full bg-red-700 px-2.5 py-1 font-semibold text-white hover:bg-red-800">ຮ້າຍແຮງ {data.sla.critical}</Link></div>}
+        </section>
+      )}
+
+      {data && canAccess(role, "/installations/work") && data.upcomingAppointments.length > 0 && (
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+            <span className="grid size-9 place-items-center rounded-xl bg-teal-50 text-teal-700"><CalendarDays className="size-4" /></span>
+            <div className="flex-1"><h2 className="text-sm font-bold text-slate-800">ນັດຕິດຕັ້ງ 7 ມື້ຕໍ່ໜ້າ</h2><p className="text-[11px] text-slate-500">ສະແດງ 12 ນັດທຳອິດ · ປ້າຍແດງແມ່ນຊ່າງມີຫຼາຍກວ່າ 1 ນັດໃນມື້ດຽວ</p></div>
+          </div>
+          <div className="grid divide-y divide-slate-100 md:grid-cols-2 md:divide-x md:divide-y-0">
+            {data.upcomingAppointments.map((item) => (
+              <Link key={item.code} href={`/installations/${encodeURIComponent(item.code)}`} className="flex min-w-0 items-center gap-3 border-b border-slate-100 px-5 py-3 transition hover:bg-teal-50/40">
+                <div className="w-20 shrink-0 text-center"><p className="text-xs font-bold text-slate-800">{item.appoint_date}</p>{item.same_day_jobs > 1 && <span className="mt-1 inline-block rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700">ນັດຊ້ອນ {item.same_day_jobs}</span>}</div>
+                <div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-[#0536a9]">{item.code} · {item.customer || "-"}</p><p className="mt-0.5 truncate text-[11px] text-slate-500">{item.product || "-"}</p></div>
+                <span className="max-w-24 truncate text-[10px] font-semibold text-slate-500">{item.tech || "ຍັງບໍ່ມີຊ່າງ"}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {error && (
         <p className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
@@ -637,8 +720,11 @@ export default async function Dashboard() {
 
       {/* ① ຕ້ອງລົງມື — ສະເພາະສິ່ງທີ່ຜູ້ນີ້ເຮັດໄດ້ ແລະ ມີຄ້າງຢູ່ຈິງ */}
       {alerts.length > 0 && (
-        <section>
-          <h2 className="mb-2 text-sm font-bold text-slate-700">ຕ້ອງລົງມື</h2>
+        <section className="space-y-3">
+          <div className="flex items-end justify-between gap-3">
+            <div><h2 className="text-base font-bold text-slate-900">ວຽກທີ່ຕ້ອງລົງມື</h2><p className="mt-0.5 text-[11px] text-slate-500">ຈັດລຳດັບສິ່ງທີ່ຄວນດຳເນີນການກ່ອນ</p></div>
+            <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-bold text-white">{alerts.length} ຄິວ</span>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {alerts.map(({ label, value, detail, href, icon: Icon, tone }) => {
               const t = TONE[tone];
@@ -646,15 +732,16 @@ export default async function Dashboard() {
                 <Link
                   key={href}
                   href={href}
-                  className={`flex items-center justify-between gap-3 rounded-xl border p-3.5 shadow-sm transition hover:shadow ${t.card}`}
+                  className={`group relative flex min-h-28 items-center justify-between gap-3 overflow-hidden rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${t.card}`}
                 >
+                  <span className={`absolute inset-y-0 left-0 w-1 ${t.bar}`} />
                   <div className="min-w-0">
                     <p className="truncate text-xs font-semibold text-slate-700">{label}</p>
-                    <p className={`mt-0.5 text-2xl font-bold ${t.value}`}>{value.toLocaleString()}</p>
+                    <p className={`mt-1 text-3xl font-bold tracking-tight ${t.value}`}>{value.toLocaleString()}</p>
                     {detail && <p className="mt-0.5 truncate text-[11px] text-slate-500">{detail}</p>}
                   </div>
-                  <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${t.icon}`}>
-                    <Icon className="size-4" />
+                  <span className={`grid size-11 shrink-0 place-items-center rounded-xl transition group-hover:scale-105 ${t.icon}`}>
+                    <Icon className="size-5" />
                   </span>
                 </Link>
               );
@@ -671,7 +758,7 @@ export default async function Dashboard() {
 
       {/* ② ຂັ້ນໄດ — ບໍ່ຫຼົ້ນກັນ ລວມກັນໄດ້ຍອດພໍດີ */}
       <section className="grid gap-4 xl:grid-cols-2">
-        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <Wrench className="size-4 text-slate-400" />
             <h2 className="text-sm font-bold text-slate-700">ຂັ້ນຕອນວຽກສ້ອມແປງ</h2>
@@ -692,7 +779,7 @@ export default async function Dashboard() {
           />
         </article>
 
-        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <HardHat className="size-4 text-slate-400" />
             <h2 className="text-sm font-bold text-slate-700">ຂັ້ນຕອນວຽກຕິດຕັ້ງ</h2>
@@ -719,8 +806,13 @@ export default async function Dashboard() {
 
       {/* ຜົນງານ 30 ມື້ — ບອກທິດທາງ ບໍ່ແມ່ນແຕ່ຍອດ */}
       {data && !tech && (
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-sm font-bold text-slate-700">ຜົນງານ 30 ມື້ຜ່ານມາ (ເປີດ ທຽບ ປິດ)</h2>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-bold text-slate-800">ຜົນງານ {days} ມື້ຜ່ານມາ (ເປີດ ທຽບ ປິດ)</h2>
+            <div className="flex overflow-hidden rounded-lg border border-slate-200">
+              {[1, 7, 30, 90].map((value) => <Link key={value} href={`/dashboard?range=${value}`} className={`px-2.5 py-1.5 text-[10px] font-semibold ${days === value ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>{value} ມື້</Link>)}
+            </div>
+          </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <Throughput
               label="ວຽກສ້ອມແປງ"
@@ -740,10 +832,10 @@ export default async function Dashboard() {
       )}
 
       {/* ຄ່າຄອມເດືອນນີ້ — ຊ່າງເຫັນຂອງຕົນ · ຄົນອື່ນເຫັນລວມ */}
-      {data && (data.payout.assigned_thb > 0 || data.payout.orphan_thb > 0) && (
+      {data && canAccess(role, "/reports/technician-income") && (data.payout.assigned_thb > 0 || data.payout.orphan_thb > 0) && (
         <Link
           href="/reports/technician-income"
-          className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow"
+          className="flex flex-wrap items-center gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-white to-emerald-50/60 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         >
           <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600">
             <Wallet className="size-5" />
