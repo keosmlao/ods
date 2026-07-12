@@ -1,16 +1,17 @@
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
+import { UndoCustomerButton } from "@/components/quotation/approve-actions";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
-import { ChevronLeft, ChevronRight, Clock, FileCheck2, Search } from "lucide-react";
+import { CheckCheck, ChevronLeft, ChevronRight, Clock, FileCheck2, Search } from "lucide-react";
 import Link from "next/link";
 
 /** ຖອດແບບຈາກ ods: qt.py cust_qt_approve() + templates/approve/qt/custhomeqt.html (ອອກແບບໃໝ່) */
 
 const PAGE_SIZE = 20;
 
-type Tab = "waiting";
+type Tab = "waiting" | "done";
 type Props = { searchParams: Promise<{ tab?: string; q?: string; page?: string; sort?: string; dir?: string }> };
 
 type Row = {
@@ -31,6 +32,11 @@ type Row = {
   at_time: string | null;
   elapsed_seconds: number | null;
   status_name: string | null;
+  aprove_status_2: number;
+  total_amount: string;
+  total_discount: string;
+  /** ເຫດຜົນທີ່ລູກຄ້າປະຕິເສດ (tb_product.remark) */
+  cancel_reason: string | null;
 };
 
 /** ປ້າຍສະຖານະ — ຄັດລອກຈາກ cust_qt_approve() (ຮັກສາຕົວສະກົດເດີມຂອງ ods) */
@@ -39,10 +45,17 @@ const STATUS_CASE = `case when a.aprove_status_2=0 then 'ລໍຖ້າລູ�
     when a.aprove_status_2=2 then 'ລູກຄ່້າບໍ່ອະນຸມັດ'
     else '-' end`;
 
-/** ໃບສະເໜີລາຄາທີ່ຜ່ານການອະນຸມັດພາຍໃນແລ້ວ — ຄອຍລູກຄ້າຕອບກັບ */
+/**
+ * ໃບສະເໜີລາຄາທີ່ຜ່ານການອະນຸມັດພາຍໃນແລ້ວ — ຄອຍລູກຄ້າຕອບກັບ.
+ *
+ * ແທັບ "ຕອບແລ້ວ" ເປັນຂອງໃໝ່: ແຕ່ກ່ອນມີແຕ່ແທັບ "ລໍຖ້າ" ⇒ ໃບທີ່ຕອບແລ້ວ (ໂດຍສະເພາະ 31 ໃບທີ່
+ * **ລູກຄ້າບໍ່ຕົກລົງ**) ຫາຍອອກຈາກໜ້ານີ້ໝົດ ແລະ ບໍ່ມີບ່ອນໃດເຂົ້າເຖິງໄດ້ອີກ — ກົດຜິດກໍ່ແກ້ບໍ່ໄດ້.
+ * (ຕົວນັບ done ຖືກຄິດຢູ່ແລ້ວ ແຕ່ບໍ່ເຄີຍຖືກໃຊ້.)
+ */
 const BASE = "a.trans_flag = 17 and a.aprove_status = 1";
 const BUCKET: Record<Tab, string> = {
   waiting: `${BASE} and a.aprove_status_2 = 0`,
+  done: `${BASE} and a.aprove_status_2 <> 0`,
 };
 
 const SEARCH = `(a.doc_no ilike $Q or a.user_created ilike $Q or a.approver1 ilike $Q
@@ -55,6 +68,7 @@ const SORT_SQL: Record<string, string> = {
   doc_no: "a.doc_no",
   doc_date: "a.doc_date",
   elapsed: "at_col",
+  amount: "a.total_amount",
   customer: "b.name_1",
   product: "c.name_1",
   brand: "c.p_brand",
@@ -90,7 +104,9 @@ async function getRows(tab: Tab, q: string, page: number, sort: string, dir: Sor
       c.user_regis, c.emp_code technician, a.user_created, a.approver1,
       to_char(${TIME_COL},'DD-MM-YYYY HH24:MI') at_time,
       greatest(0, round(extract(epoch from (localtimestamp - ${TIME_COL}))))::int elapsed_seconds,
-      ${STATUS_CASE} status_name
+      ${STATUS_CASE} status_name, coalesce(a.aprove_status_2,0)::int aprove_status_2,
+      coalesce(a.total_amount,0)::text total_amount, coalesce(a.total_discount,0)::text total_discount,
+      c.remark cancel_reason
     from ic_trans a
     left join ar_customer b on b.code = a.cust_code
     left join tb_product c on c.code = a.product_code
@@ -126,6 +142,7 @@ const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
   { key: "doc_no", label: "ໃບສະເໜີລາຄາ", defaultDir: "desc" },
   { key: "doc_date", label: "ວັນທີ", defaultDir: "desc" },
   { key: "elapsed", label: "ລໍຖ້າມາແລ້ວ", defaultDir: "desc" },
+  { key: "amount", label: "ຍອດ (ບາດ)", defaultDir: "desc" },
   { key: "product", label: "ລາຍການ / SN", defaultDir: "asc" },
   { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
   { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
@@ -134,19 +151,26 @@ const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
   { key: "user_created", label: "ຜູ້ອອກບິນ", defaultDir: "asc" },
 ];
 
+const money = (v: string | null) => {
+  const n = Number(v ?? 0);
+  return (Number.isFinite(n) ? n : 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
+};
+
 export default async function CustomerApprovalPage({ searchParams }: Props) {
   const params = await searchParams;
-  const tab: Tab = "waiting";
+  const tab: Tab = params.tab === "done" ? "done" : "waiting";
   const q = (params.q ?? "").trim();
   const page = Math.max(1, Number(params.page) || 1);
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
-  const sort = (params.sort ?? "elapsed").trim();
+  const sort = (params.sort ?? (tab === "done" ? "doc_no" : "elapsed")).trim();
 
   const [counts, list] = await Promise.all([getCounts(), getRows(tab, q, page, sort, dir)]);
   const total = list.total;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const base = (): Record<string, string> => (q ? { q } : {});
+  const base = () => ({ ...(tab !== "waiting" && { tab }), ...(q && { q }) });
+  const tabHref = (target: Tab) =>
+    `/quotations/customer-approval?${new URLSearchParams({ ...(target !== "waiting" && { tab: target }), ...(q && { q }) })}`;
   const sortHref = (key: string, nextDir: SortDir) =>
     `/quotations/customer-approval?${new URLSearchParams({ ...base(), sort: key, dir: nextDir })}`;
   const pageHref = (n: number) =>
@@ -154,6 +178,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
 
   const TABS: { key: Tab; label: string; icon: typeof Clock; count: number }[] = [
     { key: "waiting", label: "ລໍຖ້າລູກຄ້າອະນຸມັດ", icon: Clock, count: counts.waiting },
+    { key: "done", label: "ຕອບແລ້ວ", icon: CheckCheck, count: counts.done },
   ];
 
   return (
@@ -171,7 +196,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
           {TABS.map(({ key, label, icon: Icon, count }) => (
             <Link
               key={key}
-              href="/quotations/customer-approval"
+              href={tabHref(key)}
               className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
                 tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
@@ -221,7 +246,9 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
                     className="py-2.5"
                   />
                 ))}
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາການຊ່າງ / ອາການເບື້ອງຕົ້ນ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">
+                  {tab === "done" ? "ຄຳຕອບ / ເຫດຜົນ" : "ອາການຊ່າງ / ອາການເບື້ອງຕົ້ນ"}
+                </th>
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -229,6 +256,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
               {list.rows.map((row) => {
                 const tone = elapsedTone(row.elapsed_seconds);
                 const inWarranty = row.warranty === "ຮັບປະກັນ";
+                const discount = Number(row.total_discount);
                 return (
                   <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
@@ -242,6 +270,15 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
                         className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`}
                       />
                       <span className="mt-0.5 block text-[10px] text-slate-400">{row.at_time ?? "-"}</span>
+                    </td>
+                    {/* ຍອດທີ່ລູກຄ້າຕ້ອງຕົກລົງ — ແຕ່ກ່ອນໜ້ານີ້ບໍ່ສະແດງເງິນເລີຍ */}
+                    <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                      <span className="font-bold text-[#e75555]">{money(row.total_amount)}</span>
+                      {discount > 0 && (
+                        <span className="mt-0.5 block text-[10px] text-emerald-700">
+                          ສ່ວນຫຼຸດ {money(row.total_discount)}
+                        </span>
+                      )}
                     </td>
                     <td className="max-w-64 px-3 py-2.5">
                       <span className="block truncate font-medium text-slate-800" title={row.product ?? ""}>
@@ -264,24 +301,44 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.technician || "-"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.user_created || "-"}</td>
-                    <td className="max-w-64 px-3 py-2.5">
-                      <span className="block truncate font-semibold text-red-600" title={row.issue_2 ?? ""}>
-                        {row.issue_2 || "-"}
-                      </span>
-                      <span className="block truncate text-[10px] text-slate-400" title={row.issue ?? ""}>
-                        ເບື້ອງຕົ້ນ: {row.issue || "-"}
-                      </span>
-                    </td>
+                    {tab === "done" ? (
+                      <td className="max-w-64 px-3 py-2.5">
+                        <span
+                          className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                            row.aprove_status_2 === 2 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+                          }`}
+                        >
+                          {row.status_name}
+                        </span>
+                        {row.aprove_status_2 === 2 && (
+                          <span className="mt-0.5 block truncate text-[10px] text-slate-500" title={row.cancel_reason ?? ""}>
+                            {row.cancel_reason?.trim() || "ບໍ່ໄດ້ລະບຸເຫດຜົນ"}
+                          </span>
+                        )}
+                      </td>
+                    ) : (
+                      <td className="max-w-64 px-3 py-2.5">
+                        <span className="block truncate font-semibold text-red-600" title={row.issue_2 ?? ""}>
+                          {row.issue_2 || "-"}
+                        </span>
+                        <span className="block truncate text-[10px] text-slate-400" title={row.issue ?? ""}>
+                          ເບື້ອງຕົ້ນ: {row.issue || "-"}
+                        </span>
+                      </td>
+                    )}
 
                     <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                      <Link
-                        href={`/quotations/customer-approval/${encodeURIComponent(row.doc_no)}`}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
-                      >
-                        <FileCheck2 className="size-3.5" />
-                        ລາຍລະອຽດ
-                        <LinkPending className="size-3" />
-                      </Link>
+                      <div className="flex items-center justify-center gap-2">
+                        {tab === "done" && <UndoCustomerButton docNo={row.doc_no} />}
+                        <Link
+                          href={`/quotations/customer-approval/${encodeURIComponent(row.doc_no)}`}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                        >
+                          <FileCheck2 className="size-3.5" />
+                          ລາຍລະອຽດ
+                          <LinkPending className="size-3" />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 );

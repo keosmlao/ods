@@ -53,7 +53,7 @@ export default async function QuotationPrintPage({ params }: Props) {
           c.warrunty warranty, c.issue_2, c.emp_code technician, a.user_created, a.remark,
           coalesce(a.total_value, 0)::text total_value,
           coalesce(a.total_discount, 0)::text total_discount,
-          coalesce(a.vat_rate, 10)::text vat_rate,
+          coalesce(a.vat_rate, 0)::text vat_rate,
           coalesce(a.total_vat_value, 0)::text total_vat_value,
           coalesce(a.total_amount, 0)::text total_amount,
           a.exchange_rate::text exchange_rate,
@@ -147,10 +147,15 @@ export default async function QuotationPrintPage({ params }: Props) {
             <td colSpan={4} className="px-2 py-1 text-right">ສ່ວນຫຼຸດ</td>
             <td colSpan={2} className="border border-slate-900 px-2 py-1 text-right">{money(head.total_discount)} ບາດ</td>
           </tr>
-          <tr>
-            <td colSpan={4} className="px-2 py-1 text-right">ອມພ {head.vat_rate}%</td>
-            <td colSpan={2} className="border border-slate-900 px-2 py-1 text-right">{money(head.total_vat_value)} ບາດ</td>
-          </tr>
+          {/* ອມພ: ໃບເກົ່າ 6 ໃບເທົ່ານັ້ນທີ່ຄິດ ອມພ ຈິງ. ແຕ່ກ່ອນ query coalesce(vat_rate,10)
+              ⇒ ທຸກໃບໃໝ່ພິມອອກມາເປັນ "ອມພ 10% = 0.00 ບາດ" ທັງທີ່ບໍ່ໄດ້ຄິດ ອມພ ເລີຍ (ຕົວເລກຫຼອກລູກຄ້າ).
+              ດຽວນີ້ສະແດງແຖວນີ້ສະເພາະໃບທີ່ມີ ອມພ ແທ້ */}
+          {Number(head.total_vat_value) > 0 && (
+            <tr>
+              <td colSpan={4} className="px-2 py-1 text-right">ອມພ {money(head.vat_rate)}%</td>
+              <td colSpan={2} className="border border-slate-900 px-2 py-1 text-right">{money(head.total_vat_value)} ບາດ</td>
+            </tr>
+          )}
           <tr>
             <td colSpan={4} className="px-2 py-1 text-right font-bold">ລວມທັງໝົດ</td>
             <td colSpan={2} className="border border-slate-900 px-2 py-1 text-right font-bold">{money(head.total_amount)} ບາດ</td>

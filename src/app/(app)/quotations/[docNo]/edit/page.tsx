@@ -2,6 +2,7 @@ import { QuoteBuilder } from "@/components/quotation/quote-builder";
 import { getDraftLinesByDoc, getKipRate, getServiceItems } from "@/components/quotation/queries";
 import { getSession } from "@/lib/auth";
 import { db, query } from "@/lib/db";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 /** ຖອດແບບຈາກ ods: qt.py before_edit_qt() + editpage_qt() + templates/Qutation/edit_page.html */
@@ -27,6 +28,7 @@ type HeadRow = {
   exchange_rate: string | null;
   total_discount: string | null;
   aprove_status: number;
+  aprove_status_2: number;
   remark_2: string | null;
   approver1: string | null;
 };
@@ -39,11 +41,12 @@ async function seedDraft(docNo: string, username: string) {
     await client.query("begin");
     await client.query("select pg_advisory_xact_lock(734219)");
     await client.query(
-      `insert into ic_trans_detail_draft(product_code, item_code, item_name, qty, unit_code, price, sum_amount, user_created, doc_no)
-       select product_code, item_code, item_name, qty, unit_code, price, sum_amount, $1, $2
+      `insert into ic_trans_detail_draft(trans_flag, product_code, item_code, item_name, qty, unit_code, price, sum_amount, user_created, doc_no)
+       select null, product_code, item_code, item_name, qty, unit_code, price, sum_amount, $1, $2
        from ic_trans_detail t
-       where t.doc_no = $2
-         and not exists (select 1 from ic_trans_detail_draft d where d.doc_no = $2)`,
+       where t.doc_no = $2 and t.trans_flag = 17
+         and not exists (
+           select 1 from ic_trans_detail_draft d where d.doc_no = $2 and d.trans_flag is null)`,
       [username, docNo],
     );
     await client.query("commit");
@@ -65,7 +68,8 @@ export default async function EditQuotationPage({ params }: Props) {
           c.p_brand brand, c.warrunty warranty, c.issue, c.issue_2, c.emp_code technician, d.product_url,
           a.remark, to_char(a.doc_date, 'YYYY-MM-DD') doc_date, a.doc_no, a.product_code, a.cust_code,
           coalesce(a.exchange_rate, 0)::text exchange_rate, coalesce(a.total_discount, 0)::text total_discount,
-          coalesce(a.aprove_status, 0)::int aprove_status, a.remark_2, a.approver1
+          coalesce(a.aprove_status, 0)::int aprove_status, coalesce(a.aprove_status_2, 0)::int aprove_status_2,
+          a.remark_2, a.approver1
         from ic_trans a
         left join ar_customer b on b.code = a.cust_code
         left join tb_product c on c.code = a.product_code
@@ -76,6 +80,32 @@ export default async function EditQuotationPage({ params }: Props) {
   ).rows[0];
 
   if (!head) notFound();
+
+  /**
+   * ລູກຄ້າຕອບກັບແລ້ວ (1/1 ຫຼື 1/2) → saveQuoteEdit ປະຕິເສດຢູ່ແລ້ວ ແຕ່ໜ້ານີ້ຍັງເປີດຟອມໃຫ້ພິມ
+   * ແລະ ຍັງ copy ຮ່າງລົງຖານຂໍ້ມູນ ⇒ ຜູ້ໃຊ້ເສຍເວລາແກ້ໄຂແລ້ວບັນທຶກບໍ່ໄດ້ + ຮ່າງຄ້າງ.
+   * ບ່ອນນີ້ຢຸດຕັ້ງແຕ່ຕົ້ນ ພ້ອມບອກທາງອອກ (ຖອນຄຳຕອບຂອງລູກຄ້າກ່ອນ).
+   */
+  if (head.aprove_status_2 !== 0) {
+    return (
+      <div className="w-full space-y-4">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+          <p className="font-semibold">ແກ້ໄຂໃບສະເໜີລາຄາ {head.doc_no} ບໍ່ໄດ້</p>
+          <p className="mt-1">
+            ລູກຄ້າ{head.aprove_status_2 === 1 ? "ຕົກລົງ" : "ບໍ່ຕົກລົງ"}ໃບນີ້ແລ້ວ — ລາຄາທີ່ຕົກລົງກັນແລ້ວແກ້ລັບຫຼັງບໍ່ໄດ້
+          </p>
+          <p className="mt-2 text-xs">
+            ຖ້າຕ້ອງແກ້ແທ້ ໃຫ້ໄປໜ້າ{" "}
+            <Link href="/quotations/customer-approval?tab=done" className="font-semibold underline">
+              ລູກຄ້າອະນຸມັດ → ແທັບ “ຕອບແລ້ວ”
+            </Link>{" "}
+            ແລ້ວກົດ “ຖອນຄຳຕອບ” ກ່ອນ (ຖອນບໍ່ໄດ້ຖ້າອອກໃບຮັບເງິນແລ້ວ)
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (session) await seedDraft(docNo, session.username);
 
   const [lines, items] = await Promise.all([getDraftLinesByDoc(docNo), getServiceItems()]);

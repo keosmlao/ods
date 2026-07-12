@@ -1,5 +1,6 @@
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
+import { UndoApprovalButton } from "@/components/quotation/approve-actions";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
@@ -30,7 +31,11 @@ type Row = {
   at_time: string | null;
   elapsed_seconds: number | null;
   aprove_status: number;
+  aprove_status_2: number;
   remark_2: string | null;
+  /** ຍອດຕາມຫົວບິນ — ຕົວເລກທີ່ຜູ້ອະນຸມັດກຳລັງອະນຸມັດ (ບໍ່ແມ່ນຜົນບວກຂອງແຖວ ຖ້າມີສ່ວນຫຼຸດ) */
+  total_amount: string;
+  total_discount: string;
 };
 
 const BASE = "a.trans_flag = 17";
@@ -49,6 +54,7 @@ const SORT_SQL: Record<string, string> = {
   doc_no: "a.doc_no",
   doc_date: "a.doc_date",
   elapsed: "at_col",
+  amount: "a.total_amount",
   customer: "b.name_1",
   product: "c.name_1",
   brand: "c.p_brand",
@@ -79,7 +85,8 @@ async function getRows(tab: Tab, q: string, page: number, sort: string, dir: Sor
       c.emp_code technician, a.user_created, a.approver1,
       to_char(${TIME_COL},'DD-MM-YYYY HH24:MI') at_time,
       greatest(0, round(extract(epoch from (localtimestamp - ${TIME_COL}))))::int elapsed_seconds,
-      coalesce(a.aprove_status,0)::int aprove_status, a.remark_2
+      coalesce(a.aprove_status,0)::int aprove_status, coalesce(a.aprove_status_2,0)::int aprove_status_2,
+      a.remark_2, coalesce(a.total_amount,0)::text total_amount, coalesce(a.total_discount,0)::text total_discount
     from ic_trans a
     left join ar_customer b on b.code = a.cust_code
     left join tb_product c on c.code = a.product_code
@@ -111,10 +118,16 @@ async function getCounts() {
   return { waiting: row?.waiting ?? 0, done: row?.done ?? 0 };
 }
 
+const money = (v: string | null) => {
+  const n = Number(v ?? 0);
+  return (Number.isFinite(n) ? n : 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
+};
+
 const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
   { key: "doc_no", label: "ໃບສະເໜີລາຄາ", defaultDir: "desc" },
   { key: "doc_date", label: "ວັນທີ", defaultDir: "desc" },
   { key: "elapsed", label: "ລໍຖ້າມາແລ້ວ", defaultDir: "desc" },
+  { key: "amount", label: "ຍອດ (ບາດ)", defaultDir: "desc" },
   { key: "product", label: "ລາຍການ / SN", defaultDir: "asc" },
   { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
   { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
@@ -239,6 +252,15 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
                       />
                       <span className="mt-0.5 block text-[10px] text-slate-400">{row.at_time ?? "-"}</span>
                     </td>
+                    {/* ຍອດທີ່ກຳລັງອະນຸມັດ — ແຕ່ກ່ອນຄິວອະນຸມັດບໍ່ສະແດງເງິນເລີຍ */}
+                    <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                      <span className="font-bold text-[#e75555]">{money(row.total_amount)}</span>
+                      {Number(row.total_discount) > 0 && (
+                        <span className="mt-0.5 block text-[10px] text-emerald-700">
+                          ສ່ວນຫຼຸດ {money(row.total_discount)}
+                        </span>
+                      )}
+                    </td>
                     <td className="max-w-64 px-3 py-2.5">
                       <span className="block truncate font-medium text-slate-800" title={row.product ?? ""}>
                         {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
@@ -270,19 +292,30 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
                     </td>
 
                     {tab === "done" ? (
-                      <td className="max-w-56 px-3 py-2.5">
-                        <span
-                          className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                            row.aprove_status === 2 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
-                          }`}
-                        >
-                          {row.aprove_status === 2 ? "ບໍ່ອະນຸມັດ" : "ອະນຸມັດ"} · {row.approver1 ?? "-"}
-                        </span>
-                        {row.remark_2?.trim() && (
-                          <span className="mt-0.5 block truncate text-[10px] text-slate-500" title={row.remark_2}>
-                            {row.remark_2}
-                          </span>
-                        )}
+                      <td className="max-w-72 px-3 py-2.5">
+                        <div className="flex items-start gap-2">
+                          <div className="min-w-0 flex-1">
+                            <span
+                              className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                                row.aprove_status === 2 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+                              }`}
+                            >
+                              {row.aprove_status === 2 ? "ບໍ່ອະນຸມັດ" : "ອະນຸມັດ"} · {row.approver1 ?? "-"}
+                            </span>
+                            {row.remark_2?.trim() && (
+                              <span className="mt-0.5 block truncate text-[10px] text-slate-500" title={row.remark_2}>
+                                {row.remark_2}
+                              </span>
+                            )}
+                            {row.aprove_status_2 !== 0 && (
+                              <span className="mt-0.5 block text-[10px] text-slate-400">
+                                ລູກຄ້າ{row.aprove_status_2 === 1 ? "ຕົກລົງແລ້ວ" : "ບໍ່ຕົກລົງ"} — ຖອນຄືນບໍ່ໄດ້
+                              </span>
+                            )}
+                          </div>
+                          {/* ກົດຜິດ → ຖອນຄືນໄດ້ ຕາບໃດທີ່ລູກຄ້າຍັງບໍ່ຕອບ */}
+                          {row.aprove_status_2 === 0 && <UndoApprovalButton docNo={row.doc_no} />}
+                        </div>
                       </td>
                     ) : (
                       <td className="whitespace-nowrap px-3 py-2.5 text-center">

@@ -1,11 +1,13 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
-import { getSession } from "@/lib/auth";
-import { ROLE_APPROVER } from "@/lib/chatter";
+import { getSession, type Session } from "@/lib/auth";
+import { ROLE_APPROVER, ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb, query } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
+import { APPROVER_SIDE, roleOf, STOCK_SIDE, type Role } from "@/lib/roles";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
+import type { PoolClient } from "pg";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -18,6 +20,24 @@ import { z } from "zod";
  *
  * ບໍ່ໄດ້ copy ການແຈ້ງເຕືອນ LINE Notify ມາ (ບໍລິການປິດແລ້ວ + token ຝັງໃນ code).
  */
+
+/* ── ສິດ (RBAC) ────────────────────────────────────────────────────
+ * ods ກວດແຕ່ "login ຢູ່ບໍ" ໃນທຸກ route ຂອງການສັ່ງຊື້ — ບ່ອນນີ້ບັງຄັບ role ຢູ່ຝັ່ງ server
+ * ເພາະ server action ເປັນ endpoint ໃນຕົວມັນເອງ (ດ່ານ proxy ກັນໄດ້ແຕ່ເສັ້ນທາງໜ້າ).
+ *   ອອກ/ຖອນ ໃບຂໍຊື້  → PURCHASE_SIDE (ຄືກົດ /purchase-requests ໃນ lib/roles)
+ *   ອະນຸມັດ/ບໍ່ອະນຸມັດ → APPROVER_SIDE
+ *   ຮັບອາໄຫຼ່ເຂົ້າສາງ  → STOCK_SIDE
+ */
+const PURCHASE_SIDE: Role[] = ["manager", "admin", "stock"];
+
+type Guard = { ok: true; session: Session } | { ok: false; error: string };
+
+async function requireRole(allowed: readonly Role[], denied: string): Promise<Guard> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Session ໝົດອາຍຸ" };
+  if (!allowed.includes(roleOf(session))) return { ok: false, error: denied };
+  return { ok: true, session };
+}
 
 const uploadsDir = process.env.ODS_UPLOADS_DIR;
 const ALLOWED = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
@@ -53,10 +73,16 @@ export type PurchaseState = { error?: string };
 
 /* ------------------------------------------------- /add_price_rqorder */
 
-/** ໃສ່ລາຄາໃຫ້ແຖວອາໄຫຼ່ກ່ອນສ້າງໃບຂໍອະນຸມັດ */
+/**
+ * ໃສ່ລາຄາໃຫ້ແຖວອາໄຫຼ່ກ່ອນສ້າງໃບຂໍອະນຸມັດ
+ *
+ * ods ຍິງ `update ic_trans_detail set price=.. where roworder=%s` ດ້ວຍ roworder ທີ່ມາຈາກ form ເສີຍໆ
+ * ⇒ ໃຜກໍ່ຕາມທີ່ login ຢູ່ ແກ້ລາຄາຂອງແຖວໃດກໍ່ໄດ້ໃນຕາຕະລາງ (ລວມທັງໃບເບີກທີ່ຈົບໄປແລ້ວ).
+ * ບ່ອນນີ້ຜູກ roworder ໄວ້ກັບໃບຂໍເບີກ + ລະຫັດວຽກ ແລະ ແຖວທີ່ຍັງບໍ່ທັນຖືກເບີກ/ສັ່ງຊື້ເທົ່ານັ້ນ.
+ */
 export async function addPriceRqOrder(_: PurchaseState, formData: FormData): Promise<PurchaseState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(PURCHASE_SIDE, "ບໍ່ມີສິດໃສ່ລາຄາອາໄຫຼ່ສັ່ງຊື້");
+  if (!guard.ok) return { error: guard.error };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const parsed = z
@@ -73,10 +99,14 @@ export async function addPriceRqOrder(_: PurchaseState, formData: FormData): Pro
   if (!Number.isFinite(price) || price < 0) return { error: "ລາຄາບໍ່ຖືກຕ້ອງ" };
 
   // ods ຕັ້ງ sum_amount = price (ບໍ່ຄູນ qty). ບ່ອນນີ້ຄູນ qty ໃຫ້ຖືກ.
-  await db.query(
-    `update ic_trans_detail set price=$1, sum_amount=$1*coalesce(qty,1) where roworder=$2`,
-    [price, parsed.data.roworder],
+  const updated = await db.query(
+    `update ic_trans_detail set price=$1, sum_amount=$1*coalesce(qty,1)
+      where roworder=$2 and doc_no=$3 and product_code=$4 and trans_flag=122
+        and coalesce(status,0) not in (1,5,7)`,
+    [price, parsed.data.roworder, parsed.data.doc_ref, parsed.data.product_code],
   );
+  if ((updated.rowCount ?? 0) === 0) return { error: "ແກ້ລາຄາແຖວນີ້ບໍ່ໄດ້ — ອາດຖືກເບີກ ຫຼື ສັ່ງຊື້ໄປແລ້ວ" };
+
   revalidatePath(`/purchase-requests/new/${parsed.data.product_code}/${parsed.data.doc_ref}`);
   return {};
 }
@@ -95,8 +125,9 @@ const rqSchema = z.object({
 
 /** ຄື /save_request_order — ສ້າງໃບຂໍອະນຸມັດສະເໜີຊື້ (RQ, trans_flag 78) */
 export async function saveRequestOrder(_: PurchaseState, formData: FormData): Promise<PurchaseState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(PURCHASE_SIDE, "ບໍ່ມີສິດອອກໃບຂໍສັ່ງຊື້ອາໄຫຼ່");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const parsed = rqSchema.safeParse(
@@ -193,6 +224,7 @@ export async function saveRequestOrder(_: PurchaseState, formData: FormData): Pr
   );
 
   revalidatePath("/purchase-requests");
+  revalidatePath("/approvals/purchase-requests");
   redirect("/purchase-requests");
 }
 
@@ -224,8 +256,9 @@ type RqLine = {
  * (ເຫັນຢູ່ໃນຂໍ້ມູນຈິງ: SPR26070004 ມີ 4 ແຖວ ແຕ່ມີແຕ່ 2 ລາຍການ). ບ່ອນນີ້ຍິງເທື່ອດຽວຕໍ່ສາຂາ.
  */
 export async function approveRqOrder(_: PurchaseState, formData: FormData): Promise<PurchaseState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(APPROVER_SIDE, "ບໍ່ມີສິດອະນຸມັດໃບຂໍສັ່ງຊື້ອາໄຫຼ່");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db || !odgDb) return { error: "ບໍ່ພົບການເຊື່ອມຕໍ່ຖານຂໍ້ມູນ" };
 
   const parsed = approveSchema.safeParse(
@@ -237,14 +270,26 @@ export async function approveRqOrder(_: PurchaseState, formData: FormData): Prom
 
   const client = await db.connect();
   const erp = await odgDb.connect();
+  let productCode = "";
+  let requester = "";
+  const issued: string[] = [];
 
   try {
     await client.query("begin");
     await erp.query("begin");
     await client.query("select pg_advisory_xact_lock(734202)");
 
-    const ref = await client.query<{ doc_no: string; doc_date: string; doc_ref: string | null }>(
-      `select doc_no, doc_date, doc_ref from ic_trans where doc_no=$1 and trans_flag=78`,
+    // `for update` = ສອງຄົນກົດ "ອະນຸມັດ" ພ້ອມກັນ ຄົນທີ 2 ຕ້ອງລໍ ແລ້ວຈຶ່ງເຫັນວ່າອະນຸມັດໄປແລ້ວ
+    const ref = await client.query<{
+      doc_no: string;
+      doc_date: string;
+      doc_ref: string | null;
+      product_code: string | null;
+      user_created: string | null;
+      aprove_status: number;
+    }>(
+      `select doc_no, doc_date, doc_ref, product_code, user_created, coalesce(aprove_status,0) aprove_status
+         from ic_trans where doc_no=$1 and trans_flag=78 for update`,
       [d.doc_ref],
     );
     const rq = ref.rows[0];
@@ -253,6 +298,31 @@ export async function approveRqOrder(_: PurchaseState, formData: FormData): Prom
       await erp.query("rollback");
       return { error: "ບໍ່ພົບໃບຂໍອະນຸມັດ" };
     }
+
+    /**
+     * ກັນການອະນຸມັດຊ້ຳ — ໃນ ods ໜ້າອະນຸມັດເປີດຈາກລິ້ງ/ແຈ້ງເຕືອນເກົ່າໄດ້ ແລະ ບໍ່ໄດ້ກວດ aprove_status
+     * ⇒ ກົດ "ອະນຸມັດ" ອີກເທື່ອ = ອອກໃບສັ່ງຊື້ SPR ໃໝ່ໃຫ້ ERP ອີກໃບ (ຊື້ຂອງອັນດຽວກັນສອງເທື່ອ).
+     * ຂໍ້ມູນຈິງ: 5 ໃບ RQ ມີ SPR ຊ້ຳກັນ 31 ຄູ່ ທີ່ມີອາໄຫຼ່ລາຍການດຽວກັນ (RQ2024010108 → SPR24010007/8, 27 ລາຍການ).
+     */
+    const priorSpr = await client.query<{ doc_no: string }>(
+      `select doc_no from ic_trans where trans_flag=2 and doc_ref=$1 order by doc_no`,
+      [d.doc_ref],
+    );
+    if (rq.aprove_status !== 0 || priorSpr.rows.length > 0) {
+      await client.query("rollback");
+      await erp.query("rollback");
+      if (rq.aprove_status === 2) return { error: `ໃບຂໍສັ່ງຊື້ ${rq.doc_no} ຖືກປະຕິເສດໄປແລ້ວ` };
+      const names = priorSpr.rows.map((row) => row.doc_no).join(", ");
+      return {
+        error: names
+          ? `ໃບຂໍສັ່ງຊື້ ${rq.doc_no} ອະນຸມັດໄປແລ້ວ — ອອກໃບສັ່ງຊື້ ${names} ໃຫ້ແລ້ວ ອະນຸມັດຊ້ຳບໍ່ໄດ້`
+          : `ໃບຂໍສັ່ງຊື້ ${rq.doc_no} ອະນຸມັດໄປແລ້ວ`,
+      };
+    }
+
+    // ລະຫັດວຽກເອົາຈາກໃບ RQ ເອງ — ບໍ່ເຊື່ອຄ່າທີ່ສົ່ງມາທາງ form (ods ໃຊ້ຄ່າຈາກ form ໄປ update tb_product)
+    productCode = rq.product_code ?? "";
+    requester = rq.user_created ?? "";
 
     const detail = await client.query<RqLine>(
       `select a.item_code, a.item_name, coalesce(a.qty,0) qty, a.unit_code,
@@ -290,6 +360,7 @@ export async function approveRqOrder(_: PurchaseState, formData: FormData): Prom
       // ອອກເລກໃໝ່ຕໍ່ໃບ — ເອີ້ນຫຼັງ insert ໃບກ່ອນໜ້າ ຈຶ່ງບໍ່ຊ້ຳ
       // (ods ເອົາເລກໃບທີ 2 ດ້ວຍການ +1 ໃສ່ຕົວເລກຂອງໃບທຳອິດ → ພັງງ່າຍ)
       const docNo = await nextDocNo(client, "SPR");
+      issued.push(docNo);
 
       await client.query(
         `insert into ic_trans(trans_flag, doc_date, doc_no, doc_ref, doc_ref_date, cust_code, product_code, issue,
@@ -329,12 +400,14 @@ export async function approveRqOrder(_: PurchaseState, formData: FormData): Prom
     }
 
     await client.query(
-      `update ic_trans set remark_2=$1, approver1=$2, aprove_date1=localtimestamp(0), aprove_status=1 where doc_no=$3`,
+      `update ic_trans set remark_2=$1, approver1=$2, aprove_date1=localtimestamp(0), aprove_status=1
+        where doc_no=$3 and trans_flag=78 and coalesce(aprove_status,0)=0`,
       [d.remark, session.username, d.doc_ref],
     );
 
-    if (d.product_code) {
-      await client.query(`update tb_product set spare_order=localtimestamp(0) where code=$1`, [d.product_code]);
+    // ວຽກສ້ອມເທົ່ານັ້ນ (ງານຕິດຕັ້ງ INST- ບໍ່ໄດ້ຢູ່ tb_product) — ຂັ້ນ 7 "ກຳລັງສັ່ງຊື້ອາໄຫຼ່"
+    if (productCode && jobModel(productCode) === "tb_product") {
+      await client.query(`update tb_product set spare_order=localtimestamp(0) where code=$1`, [productCode]);
     }
 
     // ຂຽນຄົບທັງສອງຖານແລ້ວຈຶ່ງ commit — ຜິດພາດຢູ່ບ່ອນໃດກໍ່ rollback ໄດ້ທັງຄູ່
@@ -351,15 +424,21 @@ export async function approveRqOrder(_: PurchaseState, formData: FormData): Prom
   }
 
   // ຜູ້ຂໍ (ຜູ້ຕິດຕາມວຽກ) ຮູ້ວ່າໃບຂໍຊື້ຜ່ານແລ້ວ — ອອກໃບສັ່ງຊື້ SPR ໃຫ້ ERP ແລ້ວ
-  if (d.product_code) {
+  // ສາງກໍ່ຕ້ອງຮູ້ນຳ: ວຽກຫາກໄປຄ້າງຢູ່ໜ້າ "ຮັບອາໄຫຼ່ທີ່ສັ່ງຊື້" ລໍໃຫ້ສາງຢືນຢັນວ່າຂອງມາຮອດ
+  if (productCode) {
     await logChange(
-      jobModel(d.product_code),
-      d.product_code,
-      `ອະນຸມັດໃບຂໍສັ່ງຊື້ອາໄຫຼ່ ${d.doc_ref}${d.remark ? ` · ${d.remark}` : ""}`,
+      jobModel(productCode),
+      productCode,
+      `ອະນຸມັດໃບຂໍສັ່ງຊື້ອາໄຫຼ່ ${d.doc_ref} — ອອກໃບສັ່ງຊື້ ${issued.join(", ")}${d.remark ? ` · ${d.remark}` : ""}`,
+      { users: requester ? [requester] : [], roles: ROLE_WAREHOUSE },
     );
   }
 
   revalidatePath("/approvals/purchase-requests");
+  revalidatePath("/purchase-requests");
+  revalidatePath("/stock/arrivals");
+  revalidatePath("/dashboard");
+  if (productCode) revalidatePath(`/service/${productCode}`);
   redirect("/approvals/purchase-requests");
 }
 
@@ -377,60 +456,110 @@ export async function approveRqOrder(_: PurchaseState, formData: FormData): Prom
  * ລ້າງໄດ້ສະເພາະເມື່ອ **ບໍ່ມີໃບສັ່ງຊື້ອື່ນຄ້າງຢູ່** (SPR ອື່ນ ຫຼື RQ ອື່ນທີ່ອະນຸມັດແລ້ວ)
  * ບໍ່ດັ່ງນັ້ນຈະດຶງວຽກທີ່ຍັງລໍຖ້າຂອງຈາກໃບອື່ນອອກຈາກຂັ້ນ 7 ຜິດ.
  */
+type ReleasedRq = { productCode: string; requester: string; technician: string; released: boolean };
+
+/**
+ * ປິດໃບ RQ ທີ່ຍັງບໍ່ໄດ້ອອກໃບສັ່ງຊື້ (ບໍ່ອະນຸມັດ ຫຼື ຜູ້ຂໍຖອນຄືນເອງ) — ຂໍ້ຄວາມຜິດພາດເປັນພາສາລາວ
+ * ພ້ອມບອກ "ໃບທີ່ຂວາງ" ຢູ່ ⇒ ຖອນຄືນຂ້າມໃບສັ່ງຊື້ທີ່ອອກໄປແລ້ວບໍ່ໄດ້ເດັດຂາດ.
+ */
+async function releaseRq(client: PoolClient, docNo: string): Promise<ReleasedRq | { error: string }> {
+  const head = await client.query<{
+    product_code: string | null;
+    user_created: string | null;
+    doc_ref: string | null;
+    aprove_status: number;
+  }>(
+    `select product_code, user_created, doc_ref, coalesce(aprove_status,0) aprove_status
+       from ic_trans where doc_no=$1 and trans_flag=78 for update`,
+    [docNo],
+  );
+  const rq = head.rows[0];
+  if (!rq) return { error: "ບໍ່ພົບໃບຂໍສັ່ງຊື້" };
+
+  // ໃບສັ່ງຊື້ທີ່ອອກໄປແລ້ວ = ເອກະສານທີ່ຂວາງການຖອນຄືນ (ຂອງສັ່ງໄປ ERP ແລ້ວ)
+  const spr = await client.query<{ doc_no: string }>(
+    `select doc_no from ic_trans where trans_flag=2 and doc_ref=$1 order by doc_no`,
+    [docNo],
+  );
+  if (spr.rows.length > 0) {
+    return {
+      error: `ຖອນຄືນບໍ່ໄດ້ — ອອກໃບສັ່ງຊື້ ${spr.rows.map((row) => row.doc_no).join(", ")} ໄປແລ້ວ`,
+    };
+  }
+  if (rq.aprove_status === 1) return { error: `ໃບຂໍສັ່ງຊື້ ${docNo} ອະນຸມັດໄປແລ້ວ` };
+  if (rq.aprove_status === 2) return { error: `ໃບຂໍສັ່ງຊື້ ${docNo} ຖືກປິດໄປແລ້ວ` };
+
+  await client.query(`update ic_trans set aprove_status=2 where doc_no=$1 and trans_flag=78`, [docNo]);
+
+  // ods ປົດ status=0 ໃຫ້ "ທຸກ" ແຖວຂອງໃບຂໍເບີກຕົ້ນທາງ → ລ້າງ status ຂອງແຖວທີ່ບໍ່ກ່ຽວນຳ.
+  // ບ່ອນນີ້ປົດສະເພາະອາໄຫຼ່ທີ່ຢູ່ໃນໃບ RQ ນີ້ ແລະ ຍັງບໍ່ໄດ້ຖືກເບີກ (status 1) ເທົ່ານັ້ນ.
+  await client.query(
+    `update ic_trans_detail set status=0
+      where doc_no=$2 and coalesce(status,0) <> 1
+        and item_code in (select item_code from ic_trans_detail where doc_no=$1)`,
+    [docNo, rq.doc_ref],
+  );
+
+  const result: ReleasedRq = {
+    productCode: rq.product_code ?? "",
+    requester: rq.user_created ?? "",
+    technician: "",
+    released: false,
+  };
+
+  // ວຽກສ້ອມ (tb_product) ເທົ່ານັ້ນ — ງານຕິດຕັ້ງ (INST-) ບໍ່ໄດ້ໃຊ້ຖັນເຫຼົ່ານີ້
+  if (result.productCode && jobModel(result.productCode) === "tb_product") {
+    // ນັບໃບຂໍຊື້ອື່ນທີ່ຍັງມີຜົນ ⇒ ຖ້າຍັງມີ ວຽກຕ້ອງຄ້າງຂັ້ນ 7 ຕໍ່ໄປ (ຂອງຍັງມາບໍ່ຮອດ)
+    const others = await client.query<{ n: number }>(
+      `select count(*)::int n from ic_trans
+        where product_code=$1 and doc_no <> $2 and coalesce(doc_ref,'') <> $2
+          and (trans_flag = 2 or (trans_flag = 78 and coalesce(aprove_status,0) = 1))`,
+      [result.productCode, docNo],
+    );
+    if ((others.rows[0]?.n ?? 0) === 0) {
+      const cleared = await client.query<{ emp_code: string | null }>(
+        `update tb_product
+            set spare_order = null, spare_arrive = null, spare_arrive_by = null
+          where code = $1 and spare_order is not null
+          returning emp_code`,
+        [result.productCode],
+      );
+      result.released = (cleared.rowCount ?? 0) > 0;
+      result.technician = cleared.rows[0]?.emp_code ?? "";
+    }
+  }
+  return result;
+}
+
+/** ລ້າງ cache ຂອງທຸກໜ້າທີ່ໄດ້ຮັບຜົນຈາກການປິດໃບ RQ */
+function revalidateRq(productCode: string) {
+  revalidatePath("/approvals/purchase-requests");
+  revalidatePath("/purchase-requests");
+  revalidatePath("/stock/arrivals");
+  revalidatePath("/stock/dispatch");
+  revalidatePath("/dashboard");
+  if (productCode) revalidatePath(`/service/${productCode}`);
+}
+
 export async function notApproveRqOrder(_: PurchaseState, formData: FormData): Promise<PurchaseState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(APPROVER_SIDE, "ບໍ່ມີສິດອະນຸມັດ ຫຼື ປະຕິເສດໃບຂໍສັ່ງຊື້");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const docNo = String(formData.get("doc_no") ?? "");
   if (!docNo) return { error: "ຂໍ້ມູນບໍ່ຄົບ" };
 
   const client = await db.connect();
-  let productCode = "";
-  let requester = "";
-  let technician = "";
-  let released = false;
+  let done: ReleasedRq;
   try {
     await client.query("begin");
-    // returning → ໄດ້ລະຫັດວຽກ + ຜູ້ຂໍ ມາຂຽນ log/ແຈ້ງເຕືອນ ໂດຍບໍ່ຕ້ອງ query ຊ້ຳ
-    const rejected = await client.query<{ product_code: string | null; user_created: string | null }>(
-      `update ic_trans set aprove_status=2 where doc_no=$1 returning product_code, user_created`,
-      [docNo],
-    );
-    productCode = rejected.rows[0]?.product_code ?? "";
-    requester = rejected.rows[0]?.user_created ?? "";
-
-    // ods ປົດ status=0 ໃຫ້ "ທຸກ" ແຖວຂອງໃບຂໍເບີກຕົ້ນທາງ → ລ້າງ status ຂອງແຖວທີ່ບໍ່ກ່ຽວນຳ.
-    // ບ່ອນນີ້ປົດສະເພາະອາໄຫຼ່ທີ່ຢູ່ໃນໃບ RQ ນີ້ເທົ່ານັ້ນ.
-    await client.query(
-      `update ic_trans_detail set status=0
-       where doc_no = (select doc_ref from ic_trans where doc_no=$1 limit 1)
-         and item_code in (select item_code from ic_trans_detail where doc_no=$1)`,
-      [docNo],
-    );
-
-    // ວຽກສ້ອມ (tb_product) ເທົ່ານັ້ນ — ງານຕິດຕັ້ງ (INST-) ບໍ່ໄດ້ໃຊ້ຖັນເຫຼົ່ານີ້
-    if (productCode && jobModel(productCode) === "tb_product") {
-      // ໃບສັ່ງຊື້ (SPR) ທີ່ອອກມາຈາກໃບ RQ ໃບນີ້ເອງ (doc_ref = RQ) ບໍ່ນັບ — ໃບນີ້ຖືກປະຕິເສດແລ້ວ.
-      // ນັບແຕ່ໃບຂໍຊື້ອື່ນທີ່ຍັງມີຜົນ ⇒ ຖ້າຍັງມີ ວຽກຕ້ອງຄ້າງຂັ້ນ 7 ຕໍ່ໄປ (ຂອງຍັງມາບໍ່ຮອດ)
-      const others = await client.query<{ n: number }>(
-        `select count(*)::int n from ic_trans
-         where product_code=$1 and doc_no <> $2 and coalesce(doc_ref,'') <> $2
-           and (trans_flag = 2 or (trans_flag = 78 and coalesce(aprove_status,0) = 1))`,
-        [productCode, docNo],
-      );
-      if ((others.rows[0]?.n ?? 0) === 0) {
-        const cleared = await client.query<{ emp_code: string | null }>(
-          `update tb_product
-              set spare_order = null, spare_arrive = null, spare_arrive_by = null
-            where code = $1 and spare_order is not null
-            returning emp_code`,
-          [productCode],
-        );
-        released = (cleared.rowCount ?? 0) > 0;
-        technician = cleared.rows[0]?.emp_code ?? "";
-      }
+    const result = await releaseRq(client, docNo);
+    if ("error" in result) {
+      await client.query("rollback");
+      return { error: result.error };
     }
+    done = result;
     await client.query("commit");
   } catch (error) {
     await client.query("rollback").catch(() => {});
@@ -440,27 +569,72 @@ export async function notApproveRqOrder(_: PurchaseState, formData: FormData): P
     client.release();
   }
 
-  if (productCode) {
+  if (done.productCode) {
     // ຊ່າງ (ຄົນລໍອາໄຫຼ່) + ຜູ້ຂໍ ຕ້ອງຮູ້ວ່າໃບຂໍຊື້ຕົກ ແລະ ວຽກກັບມາຢູ່ຂັ້ນອາໄຫຼ່ແລ້ວ
-    const users = [technician, requester].filter((name) => name && name !== session.username);
+    const users = [done.technician, done.requester].filter((name) => name && name !== session.username);
     await logChange(
-      jobModel(productCode),
-      productCode,
+      jobModel(done.productCode),
+      done.productCode,
       `ບໍ່ອະນຸມັດໃບຂໍສັ່ງຊື້ອາໄຫຼ່ ${docNo}` +
-        (released
+        (done.released
           ? " — ຍົກເລີກສະຖານະ “ກຳລັງສັ່ງຊື້ອາໄຫຼ່” ວຽກກັບໄປຂັ້ນອາໄຫຼ່ ລໍຖ້າການລົງມືໃໝ່"
           : ""),
       { users },
     );
   }
 
-  revalidatePath("/approvals/purchase-requests");
-  revalidatePath("/purchase-requests");
-  revalidatePath("/stock/arrivals");
-  revalidatePath("/stock/dispatch");
-  revalidatePath("/dashboard");
-  if (productCode) revalidatePath(`/service/${productCode}`);
+  revalidateRq(done.productCode);
   redirect("/approvals/purchase-requests");
+}
+
+/* --------------------------------------------- ຖອນໃບຂໍສັ່ງຊື້ຄືນ (ກົດຜິດ) */
+
+/**
+ * ຜູ້ຂໍກົດ "ສັ່ງຊື້" ຜິດໃບ → ຖອນຄືນເອງໄດ້ ຕາບໃດທີ່ຍັງບໍ່ທັນອະນຸມັດ.
+ * ໃນ ods ບໍ່ມີທາງນີ້ເລີຍ: ພໍກົດແລ້ວແຖວອາໄຫຼ່ຄາ status=7 ຈົນກວ່າຜູ້ອະນຸມັດຈະປະຕິເສດໃຫ້.
+ * ອອກໃບສັ່ງຊື້ (SPR) ໄປແລ້ວ ຖອນບໍ່ໄດ້ — releaseRq ຈະປະຕິເສດ ພ້ອມບອກເລກໃບທີ່ຂວາງຢູ່.
+ */
+export async function withdrawRequestOrder(rawDocNo: string): Promise<PurchaseState> {
+  const guard = await requireRole(PURCHASE_SIDE, "ບໍ່ມີສິດຖອນໃບຂໍສັ່ງຊື້");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const parsed = z.string().trim().min(1).max(50).safeParse(rawDocNo);
+  if (!parsed.success) return { error: "ເລກໃບຂໍສັ່ງຊື້ບໍ່ຖືກຕ້ອງ" };
+  const docNo = parsed.data;
+
+  const client = await db.connect();
+  let done: ReleasedRq;
+  try {
+    await client.query("begin");
+    const result = await releaseRq(client, docNo);
+    if ("error" in result) {
+      await client.query("rollback");
+      return { error: result.error };
+    }
+    done = result;
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("withdrawRequestOrder failed", error);
+    return { error: "ຖອນຄືນບໍ່ສຳເລັດ ກະລຸນາລອງໃໝ່" };
+  } finally {
+    client.release();
+  }
+
+  if (done.productCode) {
+    const users = [done.technician, done.requester].filter((name) => name && name !== session.username);
+    await logChange(
+      jobModel(done.productCode),
+      done.productCode,
+      `ຖອນໃບຂໍສັ່ງຊື້ອາໄຫຼ່ ${docNo} ຄືນ (ໂດຍ ${session.username}) — ອາໄຫຼ່ກັບໄປລໍຖ້າການສັ່ງຊື້ໃໝ່`,
+      { users, roles: ROLE_APPROVER },
+    );
+  }
+
+  revalidateRq(done.productCode);
+  return {};
 }
 
 /* ------------------------------------------------ /save_pr (orderspare.py) */
@@ -479,8 +653,9 @@ const prSchema = z.object({
  * (ຄືກັບທີ່ approverqorder ເຮັດ) ບໍ່ດັ່ງນັ້ນອາໄຫຼ່ສາຂາ 05 ຈະໄປໂຜ່ຢູ່ສາຂາ 00.
  */
 export async function savePr(_: PurchaseState, formData: FormData): Promise<PurchaseState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(PURCHASE_SIDE, "ບໍ່ມີສິດອອກໃບສັ່ງຊື້ອາໄຫຼ່");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db || !odgDb) return { error: "ບໍ່ພົບການເຊື່ອມຕໍ່ຖານຂໍ້ມູນ" };
 
   const parsed = prSchema.safeParse(
@@ -506,18 +681,46 @@ export async function savePr(_: PurchaseState, formData: FormData): Promise<Purc
       [d.doc_ref],
     );
     const source = head.rows[0];
-    const lines = await client.query<RqLine>(
+    const lines = await client.query<RqLine & { status: number | null }>(
       `select a.item_code, a.item_name, coalesce(a.qty,0) qty, a.unit_code,
-              coalesce(a.price,0) price, coalesce(a.sum_amount,0) sum_amount, ${BRANCH} branch
+              coalesce(a.price,0) price, coalesce(a.sum_amount,0) sum_amount, ${BRANCH} branch, a.status
        from ic_trans_detail a
        left join ic_inventory_branch ib on ib.code = a.item_code
-       where a.doc_no=$1 and a.item_code=$2`,
+       where a.doc_no=$1 and a.item_code=$2
+       for update of a`,
       [d.doc_ref, d.item_code],
     );
     if (!source || lines.rows.length === 0) {
       await client.query("rollback");
       await erp.query("rollback");
       return { error: "ບໍ່ພົບລາຍການອາໄຫຼ່" };
+    }
+
+    /**
+     * ກັນການສັ່ງຊື້ຊ້ຳ — ໜ້າ /stock/dispatch ສະແດງປຸ່ມ "ສັ່ງຊື້" ໃສ່ແຖວອາໄຫຼ່ທຸກເທື່ອທີ່ເປີດ
+     * ⇒ ກົດສອງເທື່ອ = ອອກໃບສັ່ງຊື້ໃຫ້ ERP ສອງໃບ. ods ບໍ່ໄດ້ກວດຫຍັງເລີຍ.
+     * ຂວາງໄວ້ຖ້າອາໄຫຼ່ຕົວນີ້ຢູ່ໃນໃບຂໍອະນຸມັດ (RQ) ຫຼື ໃບສັ່ງຊື້ (SPR) ທີ່ຍັງມີຜົນ.
+     */
+    const blocking = await client.query<{ doc_no: string }>(
+      `select t.doc_no
+         from ic_trans t
+         join ic_trans_detail td on td.doc_no = t.doc_no and td.item_code = $2
+        where t.trans_flag in (2,78) and coalesce(t.aprove_status,0) <> 2
+          and (t.doc_ref = $1 or t.doc_ref in (select doc_no from ic_trans where trans_flag=78 and doc_ref=$1))
+        order by t.doc_no desc
+        limit 1`,
+      [d.doc_ref, d.item_code],
+    );
+    const lineStatus = lines.rows[0].status ?? 0;
+    if (blocking.rows[0] || lineStatus === 5 || lineStatus === 7) {
+      await client.query("rollback");
+      await erp.query("rollback");
+      const name = blocking.rows[0]?.doc_no;
+      return {
+        error: name
+          ? `ອາໄຫຼ່ ${d.item_code} ຢູ່ໃນໃບ ${name} ແລ້ວ — ອອກໃບສັ່ງຊື້ຊ້ຳບໍ່ໄດ້`
+          : `ອາໄຫຼ່ ${d.item_code} ຖືກສັ່ງຊື້ ຫຼື ເບີກໄປແລ້ວ`,
+      };
     }
 
     await client.query(
@@ -528,10 +731,13 @@ export async function savePr(_: PurchaseState, formData: FormData): Promise<Purc
        from ic_trans where doc_no=$5`,
       [d.doc_date, docNo, d.remark, session.username, d.doc_ref],
     );
+    // ods ບໍ່ໄດ້ກ໋ອບ price/sum_amount ມານຳ (ທັງ ODS ແລະ ERP) ⇒ ໃບສັ່ງຊື້ອອກໄປດ້ວຍລາຄາ 0
+    // ຂໍ້ມູນຈິງ: 324 ໃນ 812 ແຖວ SPR ມີລາຄາ 0. ບ່ອນນີ້ເອົາລາຄາຂອງແຖວຕົ້ນທາງໄປນຳ.
     await client.query(
       `insert into ic_trans_detail(trans_flag, doc_date, doc_no, doc_ref_date, doc_ref, cust_code, product_code,
-         item_code, item_name, qty, unit_code, calc_flag, user_created)
-       select 2,$1,$2, doc_date, doc_no, cust_code, product_code, item_code, item_name, qty, unit_code, 1, $3
+         item_code, item_name, qty, unit_code, calc_flag, user_created, price, sum_amount)
+       select 2,$1,$2, doc_date, doc_no, cust_code, product_code, item_code, item_name, qty, unit_code, 1, $3,
+         price, sum_amount
        from ic_trans_detail where doc_no=$4 and item_code=$5`,
       [d.doc_date, docNo, session.username, d.doc_ref, d.item_code],
     );
@@ -541,7 +747,10 @@ export async function savePr(_: PurchaseState, formData: FormData): Promise<Purc
       d.doc_ref,
       d.item_code,
     ]);
-    await client.query(`update tb_product set spare_order=localtimestamp(0) where code=$1`, [d.product_code]);
+    // ວຽກສ້ອມເທົ່ານັ້ນ — INST- ຢູ່ຄົນລະຕາຕະລາງ (ods ຍິງ update ໃສ່ tb_product ທຸກເທື່ອ)
+    if (jobModel(d.product_code) === "tb_product") {
+      await client.query(`update tb_product set spare_order=localtimestamp(0) where code=$1`, [d.product_code]);
+    }
 
     const branch = lines.rows[0].branch;
     await erp.query(
@@ -553,9 +762,10 @@ export async function savePr(_: PurchaseState, formData: FormData): Promise<Purc
     for (const line of lines.rows) {
       await erp.query(
         `insert into ic_trans_detail(trans_type, trans_flag, doc_no, doc_date, inquiry_type, item_code, item_name,
-           qty, unit_code, branch_code, stand_value, divide_value, calc_flag, vat_type, doc_time_calc)
-         values(1,2,$1,$2,0,$3,$4,$5,$6,$7,1,1,1,2,$8)`,
-        [docNo, d.doc_date, line.item_code, line.item_name, line.qty, line.unit_code, branch, docTime],
+           qty, unit_code, price, sum_amount, branch_code, stand_value, divide_value, calc_flag, vat_type, doc_time_calc)
+         values(1,2,$1,$2,0,$3,$4,$5,$6,$7,$8,$9,1,1,1,2,$10)`,
+        [docNo, d.doc_date, line.item_code, line.item_name, line.qty, line.unit_code, line.price, line.sum_amount,
+          branch, docTime],
       );
     }
 
@@ -571,13 +781,19 @@ export async function savePr(_: PurchaseState, formData: FormData): Promise<Purc
     erp.release();
   }
 
+  // ສາງຕ້ອງຮູ້ວ່າມີໃບສັ່ງຊື້ຄ້າງຢູ່ (ໄປໂຜ່ຢູ່ໜ້າ "ຮັບອາໄຫຼ່ທີ່ສັ່ງຊື້") · ຜູ້ອະນຸມັດຮູ້ວ່າມີໃບອອກໂດຍບໍ່ຜ່ານ RQ
   await logChange(
     jobModel(d.product_code),
     d.product_code,
-    `ອອກໃບສັ່ງຊື້ອາໄຫຼ່ ${orderNo}: ${d.item_code} (ອ້າງອີງໃບຂໍເບີກ ${d.doc_ref})`,
+    `ອອກໃບສັ່ງຊື້ອາໄຫຼ່ ${orderNo}: ${d.item_code} (ອ້າງອີງໃບຂໍເບີກ ${d.doc_ref}) — ບໍ່ຜ່ານໃບຂໍອະນຸມັດ`,
+    { roles: [...ROLE_WAREHOUSE, ...ROLE_APPROVER] },
   );
 
   revalidatePath("/purchase-requests");
+  revalidatePath("/stock/arrivals");
+  revalidatePath("/stock/dispatch");
+  revalidatePath("/dashboard");
+  revalidatePath(`/service/${d.product_code}`);
   redirect("/purchase-requests");
 }
 
@@ -600,8 +816,9 @@ const arrivalSchema = z.object({ code: z.string().trim().min(1).max(50) });
 type ArrivalJob = { emp_code: string | null; spare_arrive_by: string | null };
 
 export async function confirmSpareArrival(rawCode: string): Promise<PurchaseState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(STOCK_SIDE, "ບໍ່ມີສິດຢືນຢັນການຮັບອາໄຫຼ່ (ສະເພາະສາງ)");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const parsed = arrivalSchema.safeParse({ code: rawCode });
@@ -644,8 +861,8 @@ export async function confirmSpareArrival(rawCode: string): Promise<PurchaseStat
 
 /** ກົດຜິດໃບ → ຖອນຄືນ ແລ້ວວຽກກັບໄປຂັ້ນ 7 ຄືເກົ່າ */
 export async function undoSpareArrival(rawCode: string): Promise<PurchaseState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(STOCK_SIDE, "ບໍ່ມີສິດຖອນຄືນການຮັບອາໄຫຼ່ (ສະເພາະສາງ)");
+  if (!guard.ok) return { error: guard.error };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const parsed = arrivalSchema.safeParse({ code: rawCode });

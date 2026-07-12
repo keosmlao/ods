@@ -31,9 +31,29 @@ export type DetailLine = {
   sum_amount: string;
 };
 
+/**
+ * ຍອດເງິນຂອງຫົວບິນ (ic_trans) — ເກັບໄວ້ຢູ່ຖານຂໍ້ມູນແຕ່ໜ້າອະນຸມັດບໍ່ເຄີຍສະແດງ:
+ * ຜູ້ອະນຸມັດເຫັນແຕ່ຜົນບວກຂອງແຖວ (= total_value) ຈຶ່ງ **ອະນຸມັດຕົວເລກທີ່ບໍ່ແມ່ນຕົວເລກທີ່ພິມໃສ່ໃບ**
+ * ຕອນມີສ່ວນຫຼຸດ (ຂໍ້ມູນຈິງ: 12 ໃບມີສ່ວນຫຼຸດ). ດຽວນີ້ສະແດງຄົບ ພ້ອມກວດວ່າຫົວບິນກັບແຖວຕົງກັນບໍ.
+ */
+export type DetailTotals = {
+  total_value: string;
+  total_discount: string;
+  vat_rate: string | null;
+  total_vat_value: string | null;
+  total_amount: string;
+  exchange_rate: string | null;
+  total_amount_2: string | null;
+};
+
 const money = (v: string | number | null) => {
   const n = Number(String(v ?? "0").replace(/,/g, ""));
   return (Number.isFinite(n) ? n : 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const num = (v: string | number | null) => {
+  const n = Number(String(v ?? "0").replace(/,/g, ""));
+  return Number.isFinite(n) ? n : 0;
 };
 
 function Field({ label, value, accent }: { label: string; value: string | null | undefined; accent?: boolean }) {
@@ -45,21 +65,47 @@ function Field({ label, value, accent }: { label: string; value: string | null |
   );
 }
 
+function Money({ label, value, unit, strong }: { label: string; value: number; unit: string; strong?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-1.5 last:border-0">
+      <span className={strong ? "font-bold text-slate-700" : "text-slate-500"}>{label}</span>
+      <span className={`whitespace-nowrap ${strong ? "text-sm font-bold text-[#e75555]" : "font-semibold text-slate-700"}`}>
+        {money(value)} {unit}
+      </span>
+    </div>
+  );
+}
+
 export function QuoteDetail({
   head,
   lines,
+  totals,
   actions,
   showApprover,
+  banner,
 }: {
   head: DetailHead;
   lines: DetailLine[];
+  totals?: DetailTotals;
   actions: React.ReactNode;
   showApprover?: boolean;
+  banner?: React.ReactNode;
 }) {
   const total = lines.reduce((sum, line) => sum + Number(line.sum_amount ?? 0), 0);
 
+  const totalValue = totals ? num(totals.total_value) : total;
+  const discount = totals ? num(totals.total_discount) : 0;
+  const vat = totals ? num(totals.total_vat_value) : 0;
+  const vatRate = totals ? num(totals.vat_rate) : 0;
+  const totalAmount = totals ? num(totals.total_amount) : total;
+  const rate = totals ? num(totals.exchange_rate) : 0;
+  const kip = totals ? num(totals.total_amount_2) : 0;
+  // ຫົວບິນບໍ່ຕົງກັບແຖວ = ຂໍ້ມູນເພື້ຍນ (ມີຈິງ 6 ໃບ ຈາກ ods ເກົ່າ + ເລກທີຊ້ຳ) → ຕ້ອງເຫັນ ບໍ່ແມ່ນປິດງຽບ
+  const mismatch = totals !== undefined && Math.abs(totalValue - total) >= 0.01;
+
   return (
     <div className="w-full space-y-5">
+      {banner}
       <Card title={`ໃບສະເໜີລາຄາ ${head.doc_no}`}>
         {actions}
 
@@ -116,10 +162,30 @@ export function QuoteDetail({
             <tr><td colSpan={6} className="py-10 text-center text-sm text-slate-400">ບໍ່ພົບລາຍການ</td></tr>
           )}
           <tr className="border-t border-slate-200">
-            <td colSpan={5} className="px-3 py-3 text-right font-bold">ລວມ</td>
+            <td colSpan={5} className="px-3 py-3 text-right font-bold">ລວມແຖວ</td>
             <td className="whitespace-nowrap px-3 py-3 text-right font-bold text-[#e75555]">{money(total)}</td>
           </tr>
         </Table>
+
+        {/* ຍອດຕາມຫົວບິນ — ຕົວເລກທີ່ພິມໃສ່ໃບໃຫ້ລູກຄ້າ ແລະ ທີ່ໃບຮັບເງິນຈະອີງໃສ່ */}
+        <div className="mt-4 ml-auto max-w-md text-xs">
+          <Money label="ລວມມູນຄ່າ (ບາດ)" value={totalValue} unit="ບາດ" />
+          {discount > 0 && <Money label="ສ່ວນຫຼຸດ (ບາດ)" value={discount} unit="ບາດ" />}
+          {vat > 0 && <Money label={`ອມພ ${money(vatRate)}%`} value={vat} unit="ບາດ" />}
+          <Money label="ລວມທັງໝົດ (ຍອດທີ່ອະນຸມັດ)" value={totalAmount} unit="ບາດ" strong />
+          {rate > 0 && (
+            <div className="flex items-center justify-between gap-4 py-1.5 text-slate-500">
+              <span>ອັດຕາເເລກປ່ຽນ {money(rate)}</span>
+              <span className="whitespace-nowrap font-semibold text-slate-700">{money(kip)} ກີບ</span>
+            </div>
+          )}
+        </div>
+
+        {mismatch && (
+          <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-right text-[11px] font-semibold text-amber-700">
+            ⚠ ຍອດຫົວບິນ ({money(totalValue)}) ບໍ່ຕົງກັບຜົນບວກຂອງແຖວ ({money(total)}) — ກວດຂໍ້ມູນກ່ອນອະນຸມັດ
+          </p>
+        )}
       </Card>
     </div>
   );

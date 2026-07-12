@@ -1,3 +1,4 @@
+import { WithdrawButton } from "@/app/(app)/purchase-requests/withdraw-button";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
 import { SortHeader, type SortDir } from "@/components/sort-header";
@@ -32,6 +33,10 @@ type Row = {
   product_code: string | null;
   at_time: string | null;
   elapsed_seconds: number | null;
+  /** ໃບຂໍອະນຸມັດ (RQ) ທີ່ຍັງລໍຖ້າຢູ່ — ມີ = ຖອນຄືນໄດ້ */
+  rq_no: string | null;
+  /** ໃບສັ່ງຊື້/ໃບຂໍອະນຸມັດທີ່ອອກໃຫ້ອາໄຫຼ່ແຖວນີ້ແລ້ວ (ແທັບ "ອະນຸມັດແລ້ວ") */
+  order_no: string | null;
 };
 
 const FROM = `from ic_trans_detail a
@@ -85,7 +90,17 @@ async function getRows(tab: Tab, q: string, page: number, sort: string, dir: Sor
       coalesce(a.qty,0) qty, a.unit_code, coalesce(e.balance_qty::int,0) balance_qty,
       e.wh_qty, e.owh_qty, e.unit_code inv_unit, a.status, c.code product_code,
       to_char(${TIME_COL},'DD-MM-YYYY HH24:MI') at_time,
-      greatest(0, round(extract(epoch from (localtimestamp - ${TIME_COL}))))::int elapsed_seconds
+      greatest(0, round(extract(epoch from (localtimestamp - ${TIME_COL}))))::int elapsed_seconds,
+      (select r.doc_no from ic_trans r
+         join ic_trans_detail rd on rd.doc_no = r.doc_no and rd.item_code = a.item_code
+        where r.trans_flag = 78 and r.doc_ref = a.doc_no and coalesce(r.aprove_status,0) = 0
+        order by r.doc_no desc limit 1) rq_no,
+      (select s.doc_no from ic_trans s
+         join ic_trans_detail sd on sd.doc_no = s.doc_no and sd.item_code = a.item_code
+        where s.trans_flag = 2
+          and (s.doc_ref = a.doc_no
+               or s.doc_ref in (select doc_no from ic_trans where trans_flag = 78 and doc_ref = a.doc_no))
+        order by s.doc_no desc limit 1) order_no
     ${FROM}
     where ${filter}
     order by ${orderBy}
@@ -269,13 +284,23 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5 text-center">{row.inv_unit || "-"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-center">
                       {tab === "approved" ? (
-                        <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
-                          ອະນຸມັດເເລ້ວ
-                        </span>
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                            ອະນຸມັດເເລ້ວ
+                          </span>
+                          {/* ເລກໃບສັ່ງຊື້ — ບໍ່ດັ່ງນັ້ນຄົນເບິ່ງບໍ່ຮູ້ວ່າອາໄຫຼ່ຕົວນີ້ຢູ່ໃບໃດ */}
+                          {row.order_no && <span className="text-[10px] font-bold text-[#0536a9]">{row.order_no}</span>}
+                        </div>
                       ) : row.status === 7 ? (
-                        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
-                          ລໍຖ້າອະນຸມັດຂໍສັ່ງຊື້
-                        </span>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                            ລໍຖ້າອະນຸມັດຂໍສັ່ງຊື້ {row.rq_no ?? ""}
+                          </span>
+                          {/* ກົດ "ສັ່ງຊື້" ຜິດໃບ → ຖອນຄືນໄດ້ ຕາບໃດທີ່ຍັງບໍ່ທັນອອກໃບສັ່ງຊື້ */}
+                          {row.rq_no && (
+                            <WithdrawButton docNo={row.rq_no} item={`${row.item_code} ${row.item_name ?? ""}`} />
+                          )}
+                        </div>
                       ) : row.product_code ? (
                         <Link
                           href={`/purchase-requests/new/${encodeURIComponent(row.product_code)}/${encodeURIComponent(row.doc_no)}`}

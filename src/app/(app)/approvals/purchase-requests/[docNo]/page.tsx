@@ -6,7 +6,10 @@ import { notFound } from "next/navigation";
 
 /**
  * ຖອດແບບຈາກ ods: order.py approve_rq_order_page() + templates/request_order/approve_rq_order_page.html
- * ods ບັງຄັບ role=manager ຢູ່ໜ້ານີ້ — ໂຄງການນີ້ຕັດ role gating ອອກທັງລະບົບ.
+ * ສິດ: APPROVER_SIDE (ດ່ານ proxy /approvals) + ກວດຊ້ຳຢູ່ server action.
+ *
+ * ໃບທີ່ຕັດສິນໄປແລ້ວ (ອະນຸມັດ/ບໍ່ອະນຸມັດ) ຍັງເປີດເບິ່ງໄດ້ ແຕ່ບໍ່ມີປຸ່ມ — ໃນ ods ປຸ່ມ "ອະນຸມັດ"
+ * ຍັງກົດໄດ້ຄືນອີກ ⇒ ອອກໃບສັ່ງຊື້ SPR ຊ້ຳໃຫ້ ERP (ພົບແລ້ວ 5 ໃບ RQ ໃນຂໍ້ມູນຈິງ).
  */
 
 type Props = { params: Promise<{ docNo: string }> };
@@ -20,7 +23,9 @@ async function getHead(docNo: string) {
       c.code product_code, b.code cust_code,
       case when a.wanrunty = 'Warranty' then 'ຮັບປະກັນ' else 'ໝົດຮັບປະກັນ' end warranty,
       case when a.status_doc = 'Urgent' then 'ດ່ວນ' else 'ປົກກະຕິ' end status_doc,
-      a.remark
+      a.remark, coalesce(a.aprove_status,0) aprove_status, a.approver1,
+      (select string_agg(s.doc_no, ', ' order by s.doc_no) from ic_trans s
+        where s.trans_flag = 2 and s.doc_ref = a.doc_no) spr_no
     from ic_trans a
     left join ar_customer b on b.code = a.cust_code
     left join tb_product c on c.code = a.product_code

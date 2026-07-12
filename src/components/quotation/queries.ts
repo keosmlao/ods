@@ -33,11 +33,19 @@ export async function getKipRate() {
   return (rows[0]?.baht_price ?? "0").replace(/,/g, "");
 }
 
+/**
+ * ⚠ ic_trans_detail_draft ໃຊ້ຮ່ວມກັບຂັ້ນຕອນອື່ນ (ຕະກ້າໃບຮັບເງິນ trans_flag=44, ຮ່າງສາງ 12/33).
+ * ຮ່າງຂອງໃບສະເໜີລາຄາ = trans_flag ຫວ່າງ ເທົ່ານັ້ນ — ບໍ່ດັ່ງນັ້ນລາຍການຂອງຕະກ້າຄົນອື່ນ
+ * ຈະໂຜ່ຂຶ້ນມາໃນໃບສະເໜີລາຄາ ແລ້ວຖືກລຶບຖິ້ມຕອນບັນທຶກ.
+ */
+const QUOTE_DRAFT = "trans_flag is null";
+
 export async function getDraftLinesByProduct(productCode: string) {
   return (
     await query<DraftLine>(
       `select roworder, item_code, item_name, qty, unit_code, price, sum_amount
-       from ic_trans_detail_draft where product_code=$1 and doc_no is null order by roworder`,
+       from ic_trans_detail_draft
+       where product_code=$1 and doc_no is null and ${QUOTE_DRAFT} order by roworder`,
       [productCode],
     )
   ).rows;
@@ -47,7 +55,7 @@ export async function getDraftLinesByDoc(docNo: string) {
   return (
     await query<DraftLine>(
       `select roworder, item_code, item_name, qty, unit_code, price, sum_amount
-       from ic_trans_detail_draft where doc_no=$1 order by roworder`,
+       from ic_trans_detail_draft where doc_no=$1 and ${QUOTE_DRAFT} order by roworder`,
       [docNo],
     )
   ).rows;

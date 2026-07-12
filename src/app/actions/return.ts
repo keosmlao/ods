@@ -405,10 +405,26 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
       (row) => row.quoted_price !== null && Number(row.quoted_price) !== Number(row.price),
     ).length;
 
+    /**
+     * ສ່ວນຫຼຸດຈາກໃບສະເໜີລາຄາທີ່ລູກຄ້າຕົກລົງ ຕ້ອງຕິດມານຳ.
+     *
+     * ເມື່ອກ່ອນຂຽນ total_amount = ຍອດລວມແຖວເສີຍໆ ⇒ ສ່ວນຫຼຸດຫາຍ ⇒ ເກັບເງິນ
+     * ເກີນກວ່າທີ່ຕົກລົງກັບລູກຄ້າ (12 ໃບສະເໜີລາຄາມີສ່ວນຫຼຸດ, 11 ໃບອອກບິນໄປແລ້ວ).
+     * ຫຼຸດບໍ່ເກີນຍອດແຖວ ແລະ ຫຼຸດສະເພາະຕອນແຄັດເຊຍບໍ່ໄດ້ແກ້ລາຄາເອງ
+     * (ແກ້ລາຄາ = ຕົກລົງກັນໃໝ່ ⇒ ບໍ່ຫຼຸດຊ້ຳ).
+     */
+    const quoteForBill = await getApprovedQuote(d.pro_code);
+    const discount =
+      quoteForBill && editedLines === 0
+        ? Math.min(Math.max(Number(quoteForBill.total_discount) || 0, 0), total)
+        : 0;
+    billTotal = total - discount;
+
     await client.query(
-      `insert into ic_trans(trans_flag, doc_date, doc_no, cust_code, product_code, remark, user_created, total_value, total_amount)
-       values(44,$1,$2,$3,$4,$5,$6,$7,$7)`,
-      [d.doc_date, docNo, d.cust_code, d.pro_code, d.remark, session.username, total],
+      `insert into ic_trans(trans_flag, doc_date, doc_no, cust_code, product_code, remark, user_created,
+         total_value, total_discount, total_amount)
+       values(44,$1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [d.doc_date, docNo, d.cust_code, d.pro_code, d.remark, session.username, total, discount, total - discount],
     );
 
     for (const row of cart.rows) {

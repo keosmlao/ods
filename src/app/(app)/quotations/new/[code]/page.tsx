@@ -33,14 +33,17 @@ async function seedDraft(productCode: string) {
   try {
     await client.query("begin");
     await client.query("select pg_advisory_xact_lock(734218)");
+    // trans_flag ຫວ່າງ = ຮ່າງຂອງໃບສະເໜີລາຄາ (ຕາຕະລາງນີ້ຍັງເກັບຕະກ້າໃບຮັບເງິນ 44 ແລະ ຮ່າງສາງ 12/33)
     await client.query(
-      `insert into ic_trans_detail_draft(product_code, item_code, item_name, qty, unit_code, price, sum_amount)
-       select a.product_code, a.item_code, a.item_name, a.qty, a.unit_code,
+      `insert into ic_trans_detail_draft(trans_flag, product_code, item_code, item_name, qty, unit_code, price, sum_amount)
+       select null, a.product_code, a.item_code, a.item_name, a.qty, a.unit_code,
               coalesce(b.price, 0), coalesce(b.price, 0) * a.qty
        from tb_used_spare a
        left join ic_inventory b on a.item_code = b.code
        where a.product_code = $1
-         and not exists (select 1 from ic_trans_detail_draft d where d.product_code = $1 and d.doc_no is null)`,
+         and not exists (
+           select 1 from ic_trans_detail_draft d
+           where d.product_code = $1 and d.doc_no is null and d.trans_flag is null)`,
       [productCode],
     );
     await client.query("commit");

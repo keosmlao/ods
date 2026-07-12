@@ -42,6 +42,63 @@ async function requireRole(allowed: readonly string[], denied: string): Promise<
 const requireApprover = () => requireRole(APPROVER_SIDE, "ບໍ່ມີສິດອະນຸມັດໃບສະເໜີລາຄາ");
 const requireService = () => requireRole(SERVICE_SIDE, "ບໍ່ມີສິດບັນທຶກຄຳຕອບຂອງລູກຄ້າ");
 
+/* ───────── ເງິນ ແລະ ເອກະສານທີ່ຂວາງການຖອນຄືນ ───────── */
+
+const fmt = (value: string | number | null) => {
+  const n = Number(value ?? 0);
+  return (Number.isFinite(n) ? n : 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
+};
+
+type QuoteMoney = {
+  product_code: string | null;
+  user_created: string | null;
+  total_value: string;
+  total_discount: string;
+  total_amount: string;
+  exchange_rate: string | null;
+  total_amount_2: string | null;
+};
+
+const MONEY_SQL = `select product_code, user_created,
+    coalesce(total_value,0)::text total_value, coalesce(total_discount,0)::text total_discount,
+    coalesce(total_amount,0)::text total_amount, exchange_rate::text, total_amount_2::text
+  from ic_trans where doc_no=$1 and trans_flag=17 limit 1`;
+
+/** ຂໍ້ຄວາມເງິນມາດຕະຖານ — ຍອດສຸດທ້າຍ (ຫຼັງສ່ວນຫຼຸດ) + ຍອດກີບ ⇒ ຕົວເລກດຽວກັນທຸກບ່ອນ */
+function moneyLine(m: QuoteMoney | undefined) {
+  if (!m) return "";
+  const discount = Number(m.total_discount);
+  const kip = Number(m.total_amount_2 ?? 0);
+  return (
+    ` · ຍອດ ${fmt(m.total_amount)} ບາດ` +
+    (discount > 0 ? ` (ລວມ ${fmt(m.total_value)} − ສ່ວນຫຼຸດ ${fmt(discount)})` : "") +
+    (kip > 0 ? ` ≈ ${fmt(kip)} ກີບ` : "")
+  );
+}
+
+/**
+ * ເອກະສານທີ່ອອກໄປແລ້ວ ແລະ ຂວາງການຖອນຄືນ (ຖອນຄືນຂ້າມເອກະສານທີ່ອອກແລ້ວບໍ່ໄດ້).
+ * ຄືນຂໍ້ຄວາມພາສາລາວທີ່ **ບອກຊື່ເອກະສານ** ໃຫ້ຜູ້ໃຊ້ຮູ້ວ່າຕິດຢູ່ໃສ.
+ */
+async function blockingDoc(productCode: string): Promise<string | null> {
+  if (!productCode) return null;
+  const row = (
+    await query<{ receipt: string | null; returned: boolean; cancel_done: boolean }>(
+      `select (select doc_no from ic_trans where trans_flag=44 and product_code=$1 order by doc_no desc limit 1) receipt,
+          coalesce(p.return_complete is not null, false) returned,
+          coalesce(p.cancel_finish is not null, false) cancel_done
+        from tb_product p where p.code=$1`,
+      [productCode],
+    )
+  ).rows[0];
+  if (!row) return null;
+
+  if (row.receipt) return `ອອກໃບຮັບເງິນ ${row.receipt} ໄປແລ້ວ — ຖອນຄືນບໍ່ໄດ້`;
+  if (row.returned) return "ສົ່ງເຄື່ອງຄືນລູກຄ້າໄປແລ້ວ — ຖອນຄືນບໍ່ໄດ້";
+  if (row.cancel_done) return "ອະນຸມັດການຍົກເລີກວຽກນີ້ໄປແລ້ວ — ຖອນຄືນບໍ່ໄດ້";
+  return null;
+}
+
 /* ───────── ອະນຸມັດພາຍໃນ (ຊັ້ນ 1) ───────── */
 
 /** ຄື /approveqtbill */
@@ -53,31 +110,124 @@ export async function approveQuote(_: ApprovalState, formData: FormData): Promis
   if (!docNo) return { error: "ບໍ່ພົບເລກທີໃບສະເໜີລາຄາ" };
 
   let productCode = "";
+  let owner = "";
+  let amounts: QuoteMoney | undefined;
   try {
     // returning → ໄດ້ລະຫັດເຄື່ອງມາຂຽນ log ໂດຍບໍ່ຕ້ອງ query ຊ້ຳ (ຟອມບໍ່ໄດ້ສົ່ງມາ)
-    const approved = await query<{ product_code: string | null }>(
+    const approved = await query<{ product_code: string | null; user_created: string | null }>(
       `update ic_trans set remark_2=$1, approver1=$2, aprove_date1=localtime(0), aprove_status=1
        where doc_no=$3 and trans_flag=17 and coalesce(aprove_status,0)=0 and coalesce(aprove_status_2,0)=0
-       returning product_code`,
+       returning product_code, user_created`,
       [remark, guard.session.username, docNo],
     );
     if (!approved.rowCount) return { error: "ໃບສະເໜີລາຄານີ້ຖືກດຳເນີນການໄປແລ້ວ" };
     productCode = approved.rows[0]?.product_code ?? "";
+    owner = (approved.rows[0]?.user_created ?? "").trim();
+    amounts = (await query<QuoteMoney>(MONEY_SQL, [docNo])).rows[0];
   } catch (error) {
     console.error("approveQuote failed", error);
     return { error: "ອະນຸມັດບໍ່ສຳເລັດ" };
   }
 
   if (productCode) {
+    // ແຈ້ງຜູ້ອອກບິນໂດຍກົງ — ລາວແມ່ນຄົນທີ່ຕ້ອງໄປສະເໜີລາຄາໃຫ້ລູກຄ້າຕໍ່
     await logChange(
       "tb_product",
       productCode,
-      `ອະນຸມັດໃບສະເໜີລາຄາ ${docNo} (ພາຍໃນ)${remark.trim() ? ` · ${remark.trim()}` : ""}`,
+      `ອະນຸມັດໃບສະເໜີລາຄາ ${docNo} (ພາຍໃນ)${moneyLine(amounts)}${remark.trim() ? ` · ${remark.trim()}` : ""} — ລໍຖ້າລູກຄ້າຕອບ`,
+      { users: owner ? [owner] : [] },
     );
   }
 
   revalidateAll();
   redirect("/approvals/quotations");
+}
+
+/**
+ * ຖອນການອະນຸມັດ / ບໍ່ອະນຸມັດ ພາຍໃນ — ບໍ່ມີໃນ ods ເລີຍ (ກົດຜິດແລ້ວແກ້ບໍ່ໄດ້).
+ *
+ * 1/0 ຫຼື 2/0 → ກັບເປັນ 0/0 (ເຂົ້າຄິວລໍຖ້າອະນຸມັດຄືນ) ພ້ອມລ້າງ ຜູ້ອະນຸມັດ/ວັນທີ/ໝາຍເຫດ.
+ * ຖອນ "ບໍ່ອະນຸມັດ" ຕ້ອງຕັ້ງ qt_start ຄືນ ເພາະ rejectQuote ລ້າງມັນຖິ້ມ (ວຽກກັບໄປຂັ້ນ 3).
+ *
+ * ກັນຖອຍຂ້າມເອກະສານທີ່ອອກແລ້ວ:
+ *   ລູກຄ້າຕອບແລ້ວ (aprove_status_2 <> 0) → ຫ້າມ (ໃຫ້ຖອນຄຳຕອບຂອງລູກຄ້າກ່ອນ)
+ *   ມີໃບຮັບເງິນ / ສົ່ງເຄື່ອງຄືນ / ອະນຸມັດຍົກເລີກແລ້ວ → ຫ້າມ ພ້ອມບອກຊື່ເອກະສານ
+ */
+export async function undoQuoteApproval(docNo: string): Promise<ApprovalState> {
+  const guard = await requireApprover();
+  if (!guard.ok) return { error: guard.error };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+  if (!docNo) return { error: "ບໍ່ພົບເລກທີໃບສະເໜີລາຄາ" };
+
+  const client = await db.connect();
+  let productCode = "";
+  let owner = "";
+  let wasStatus = 0;
+  try {
+    await client.query("begin");
+    const head = await client.query<{ product_code: string | null; user_created: string | null; s1: number; s2: number }>(
+      `select product_code, user_created, coalesce(aprove_status,0)::int s1, coalesce(aprove_status_2,0)::int s2
+       from ic_trans where doc_no=$1 and trans_flag=17 for update`,
+      [docNo],
+    );
+    const row = head.rows[0];
+    if (!row) {
+      await client.query("rollback");
+      return { error: "ບໍ່ພົບໃບສະເໜີລາຄາ" };
+    }
+    if (row.s1 === 0) {
+      await client.query("rollback");
+      return { error: "ໃບນີ້ຍັງລໍຖ້າອະນຸມັດຢູ່ແລ້ວ — ບໍ່ມີຫຍັງໃຫ້ຖອນ" };
+    }
+    if (row.s2 !== 0) {
+      await client.query("rollback");
+      return {
+        error: `ລູກຄ້າຕອບກັບໃບສະເໜີລາຄາ ${docNo} ແລ້ວ — ຕ້ອງຖອນຄຳຕອບຂອງລູກຄ້າກ່ອນ (ໜ້າ "ລູກຄ້າອະນຸມັດ" ແທັບ "ຕອບແລ້ວ")`,
+      };
+    }
+
+    productCode = row.product_code ?? "";
+    owner = (row.user_created ?? "").trim();
+    wasStatus = row.s1;
+
+    const blocked = await blockingDoc(productCode);
+    if (blocked) {
+      await client.query("rollback");
+      return { error: blocked };
+    }
+
+    await client.query(
+      `update ic_trans set aprove_status=0, approver1=null, aprove_date1=null, remark_2=null
+       where doc_no=$1 and trans_flag=17`,
+      [docNo],
+    );
+    // ຖອນ "ບໍ່ອະນຸມັດ" → ວຽກກັບຄືນຂັ້ນ "ກຳລັງສະເໜີລາຄາ" ຈຶ່ງຕ້ອງມີ qt_start ຄືນ
+    if (productCode && wasStatus === 2) {
+      await client.query(
+        "update tb_product set qt_start=coalesce(qt_start, localtimestamp(0)), qt_finish=null where code=$1",
+        [productCode],
+      );
+    }
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    console.error("undoQuoteApproval failed", error);
+    return { error: "ຖອນຄືນບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+  }
+
+  if (productCode) {
+    await logChange(
+      "tb_product",
+      productCode,
+      `ຖອນ${wasStatus === 2 ? "ການບໍ່ອະນຸມັດ" : "ການອະນຸມັດ"}ໃບສະເໜີລາຄາ ${docNo} (ພາຍໃນ) — ກັບເຂົ້າຄິວລໍຖ້າອະນຸມັດ`,
+      { roles: ROLE_APPROVER, users: owner ? [owner] : [] },
+    );
+  }
+
+  revalidateAll();
+  return {};
 }
 
 /**
@@ -143,12 +293,18 @@ export async function rejectQuote(_: ApprovalState, formData: FormData): Promise
 
 /* ───────── ລູກຄ້າອະນຸມັດ (ຊັ້ນ 2) ───────── */
 
-/** ຄື /approveqt_bycust */
+/**
+ * ຄື /approveqt_bycust
+ *
+ * ຍອດທີ່ລູກຄ້າຕົກລົງ ຖືກຂຽນລົງ chatter ດ້ວຍ (ຍອດສຸດທ້າຍ + ສ່ວນຫຼຸດ + ຍອດກີບ) —
+ * ນີ້ຄືຕົວເລກທີ່ຝ່າຍເກັບເງິນຕ້ອງເກັບ ຕອນອອກໃບຮັບເງິນ (actions/return.ts ດຶງລາຄາຈາກໃບນີ້).
+ */
 export async function customerApproveQuote(_: ApprovalState, formData: FormData): Promise<ApprovalState> {
   const guard = await requireService();
   if (!guard.ok) return { error: guard.error };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
   const docNo = String(formData.get("doc_no") ?? "");
+  const note = String(formData.get("remark") ?? "").trim();
   let productCode = "";
   if (!docNo) return { error: "ບໍ່ພົບເລກທີໃບສະເໜີລາຄາ" };
 
@@ -178,7 +334,14 @@ export async function customerApproveQuote(_: ApprovalState, formData: FormData)
     client.release();
   }
 
-  if (productCode) await logChange("tb_product", productCode, `ລູກຄ້າຕົກລົງໃບສະເໜີລາຄາ ${docNo}`);
+  if (productCode) {
+    const amounts = (await query<QuoteMoney>(MONEY_SQL, [docNo])).rows[0];
+    await logChange(
+      "tb_product",
+      productCode,
+      `ລູກຄ້າຕົກລົງໃບສະເໜີລາຄາ ${docNo}${moneyLine(amounts)}${note ? ` · ${note}` : ""} — ຍອດນີ້ຄືຍອດທີ່ຕ້ອງເກັບຕອນອອກໃບຮັບເງິນ`,
+    );
+  }
 
   revalidateAll();
   redirect("/quotations/customer-approval");
@@ -189,7 +352,11 @@ export async function customerApproveQuote(_: ApprovalState, formData: FormData)
  *
  * tb_product.remark = "ເຫດຜົນການຍົກເລີກ" ທີ່ໜ້າ /approvals/cancellations ສະແດງ (ຊ່ອງ ໝາຍເຫດ).
  * ເສັ້ນທາງນີ້ບໍ່ເຄີຍຂຽນມັນເລີຍ ⇒ ຜູ້ອະນຸມັດເຫັນເຫດຜົນຫວ່າງພໍດີກັບເຄສທີ່ສຳຄັນທີ່ສຸດ.
- * ບ່ອນນີ້ຈຶ່ງບັນທຶກເຫດຜົນເປັນພາສາລາວໃຫ້ຄົບ (+ ໝາຍເຫດຂອງ CS ຖ້າມີ).
+ * ບ່ອນນີ້ຈຶ່ງບັນທຶກເຫດຜົນເປັນພາສາລາວໃຫ້ຄົບ + ເຫດຜົນຂອງລູກຄ້າ (**ບັງຄັບ**).
+ *
+ * ເຫດຜົນບັງຄັບ: ຟອມເກົ່າບໍ່ມີຊ່ອງໃຫ້ພິມເລີຍ ທັງທີ່ action ອ່ານ remark ຢູ່ ⇒ ຂໍ້ມູນສຳຄັນທີ່ສຸດ
+ * (ລູກຄ້າປະຕິເສດຍ້ອນຫຍັງ — ລາຄາແພງ? ບໍ່ຄຸ້ມສ້ອມ?) ຖືກຖິ້ມທຸກເທື່ອ. ຜູ້ອະນຸມັດການຍົກເລີກ
+ * ຕ້ອງໃຊ້ຂໍ້ມູນນີ້ຕັດສິນ ແລະ ຝ່າຍບໍລິການຕ້ອງໃຊ້ມັນຕັດສິນວ່າຄວນສະເໜີລາຄາໃໝ່ບໍ.
  */
 export async function customerRejectQuote(_: ApprovalState, formData: FormData): Promise<ApprovalState> {
   const guard = await requireService();
@@ -198,6 +365,7 @@ export async function customerRejectQuote(_: ApprovalState, formData: FormData):
   const docNo = String(formData.get("doc_no") ?? "");
   const note = String(formData.get("remark") ?? "").trim();
   if (!docNo) return { error: "ບໍ່ພົບເລກທີໃບສະເໜີລາຄາ" };
+  if (!note) return { error: "ກະລຸນາລະບຸເຫດຜົນທີ່ລູກຄ້າບໍ່ຕົກລົງ — ຜູ້ອະນຸມັດການຍົກເລີກຕ້ອງໃຊ້ຂໍ້ມູນນີ້" };
 
   const reason = `ລູກຄ້າບໍ່ຕົກລົງລາຄາ (ໃບສະເໜີລາຄາ ${docNo})${note ? ` · ${note}` : ""}`;
 
@@ -235,11 +403,104 @@ export async function customerRejectQuote(_: ApprovalState, formData: FormData):
   }
 
   if (productCode) {
-    await logChange("tb_product", productCode, `${reason} — ເຂົ້າຂັ້ນຕອນຂໍຍົກເລີກ`, { roles: ROLE_APPROVER });
+    const amounts = (await query<QuoteMoney>(MONEY_SQL, [docNo])).rows[0];
+    await logChange("tb_product", productCode, `${reason}${moneyLine(amounts)} — ເຂົ້າຂັ້ນຕອນຂໍຍົກເລີກ`, {
+      roles: ROLE_APPROVER,
+    });
   }
 
   revalidateAll();
   redirect("/quotations/customer-approval");
+}
+
+/**
+ * ຖອນຄຳຕອບຂອງລູກຄ້າ — ບໍ່ມີໃນ ods ເລີຍ.
+ *
+ * ແກ້ 2 ບັນຫາພ້ອມກັນ:
+ *  1. ກົດຜິດ (ລູກຄ້າຕົກລົງ/ບໍ່ຕົກລົງ) ແລ້ວແກ້ບໍ່ໄດ້ — ວຽກແລ່ນຕໍ່ດ້ວຍຄຳຕອບຜິດ
+ *  2. **ທາງຕັນ**: ໃບ 1/2 (ລູກຄ້າບໍ່ຕົກລົງ) ແກ້ບໍ່ໄດ້ ລຶບບໍ່ໄດ້ ⇒ ຖ້າຜູ້ອະນຸມັດ "ບໍ່ອະນຸມັດການຍົກເລີກ"
+ *     ວຽກກັບເຂົ້າສາຍງານປົກກະຕິພ້ອມໃບສະເໜີລາຄາທີ່ລູກຄ້າປະຕິເສດຄາຢູ່ ແລະ ອອກໃບໃໝ່ກໍ່ບໍ່ໄດ້
+ *
+ * ຜົນ: 1/1 ຫຼື 1/2 → ກັບເປັນ 1/0 (ລໍຖ້າລູກຄ້າຕອບ), ລ້າງ qt_finish.
+ *   ຖ້າເປັນ 1/2 ແລະ ຄຳຂໍຍົກເລີກຍັງບໍ່ຖືກອະນຸມັດ → ຖອນຄຳຂໍຍົກເລີກໃຫ້ນຳ (clearCancelRequest)
+ *   ⇒ ວຽກກັບຄືນສາຍງານປົກກະຕິຢ່າງສົມບູນ ແລ້ວແກ້ລາຄາ/ສະເໜີຄືນໄດ້.
+ *
+ * ກັນຖອຍຂ້າມເອກະສານທີ່ອອກແລ້ວ: ໃບຮັບເງິນ / ສົ່ງເຄື່ອງຄືນ / ອະນຸມັດຍົກເລີກແລ້ວ → ປະຕິເສດ ພ້ອມບອກຊື່ເອກະສານ.
+ */
+export async function undoCustomerDecision(docNo: string): Promise<ApprovalState> {
+  const guard = await requireService();
+  if (!guard.ok) return { error: guard.error };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+  if (!docNo) return { error: "ບໍ່ພົບເລກທີໃບສະເໜີລາຄາ" };
+
+  const client = await db.connect();
+  let productCode = "";
+  let owner = "";
+  let wasStatus = 0;
+  try {
+    await client.query("begin");
+    const head = await client.query<{ product_code: string | null; user_created: string | null; s2: number }>(
+      `select product_code, user_created, coalesce(aprove_status_2,0)::int s2
+       from ic_trans where doc_no=$1 and trans_flag=17 for update`,
+      [docNo],
+    );
+    const row = head.rows[0];
+    if (!row) {
+      await client.query("rollback");
+      return { error: "ບໍ່ພົບໃບສະເໜີລາຄາ" };
+    }
+    if (row.s2 === 0) {
+      await client.query("rollback");
+      return { error: "ໃບນີ້ຍັງລໍຖ້າລູກຄ້າຕອບຢູ່ແລ້ວ — ບໍ່ມີຫຍັງໃຫ້ຖອນ" };
+    }
+
+    productCode = row.product_code ?? "";
+    owner = (row.user_created ?? "").trim();
+    wasStatus = row.s2;
+
+    const blocked = await blockingDoc(productCode);
+    if (blocked) {
+      await client.query("rollback");
+      return { error: blocked };
+    }
+
+    await client.query(
+      `update ic_trans set aprove_status_2=0, aprove_date2=null
+       where doc_no=$1 and trans_flag=17 and aprove_status=1`,
+      [docNo],
+    );
+    if (productCode) {
+      await client.query("update tb_product set qt_finish=null where code=$1", [productCode]);
+    }
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    console.error("undoCustomerDecision failed", error);
+    return { error: "ຖອນຄືນບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+  }
+
+  // ລູກຄ້າເຄີຍປະຕິເສດ → ວຽກຖືກສົ່ງໄປຂໍຍົກເລີກ. ຖອນຄຳຕອບແລ້ວ ຄຳຂໍຍົກເລີກນັ້ນກໍ່ບໍ່ມີເຫດຜົນອີກ.
+  let restored = "";
+  if (wasStatus === 2 && productCode) {
+    const cleared = await clearCancelRequest(productCode);
+    restored = cleared.ok ? " · ຖອນຄຳຂໍຍົກເລີກໃຫ້ນຳ ⇒ ວຽກກັບຄືນສາຍງານປົກກະຕິ" : "";
+  }
+
+  if (productCode) {
+    await logChange(
+      "tb_product",
+      productCode,
+      `ຖອນຄຳຕອບຂອງລູກຄ້າ (${wasStatus === 1 ? "ຕົກລົງ" : "ບໍ່ຕົກລົງ"}) ໃບສະເໜີລາຄາ ${docNo}${restored} — ກັບເປັນ ລໍຖ້າລູກຄ້າອະນຸມັດ`,
+      { roles: ROLE_APPROVER, users: owner ? [owner] : [] },
+    );
+  }
+
+  revalidateAll();
+  revalidatePath("/service/cancel");
+  revalidatePath("/approvals/cancellations", "layout");
+  return {};
 }
 
 /* ───────── ອະນຸມັດຍົກເລີກເຄື່ອງສ້ອມ ───────── */

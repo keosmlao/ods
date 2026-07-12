@@ -16,8 +16,15 @@ import { NextResponse, type NextRequest } from "next/server";
  * ຈຶ່ງໃຊ້ lib/auth (node:crypto, jose) ຮ່ວມກັນໄດ້.
  */
 
-/** ໜ້າສາທາລະນະ — ບໍ່ຕ້ອງ login (ລູກຄ້າ/QR ເປີດເອງ) */
-const PUBLIC = ["/login", "/track", "/servicefuond", "/tracking", "/feedback", "/pr-view"];
+/**
+ * ໜ້າສາທາລະນະ — ບໍ່ຕ້ອງ login (ລູກຄ້າ/QR ເປີດເອງ).
+ *
+ * ⚠ /pr-view ຖືກ **ຖອດອອກ** ຈາກລາຍການນີ້: ມັນສະແດງໃບຂໍສັ່ງຊື້ພ້ອມ **ລາຄາ**,
+ * ຊື່ລູກຄ້າ ແລະ ຮູບເອກະສານແນບ ໂດຍບໍ່ຕ້ອງ login — ແລະ ເລກເອກະສານຮຽງຕາມລຳດັບ
+ * (RQ2026070656) ຈຶ່ງເດົາໄດ້ງ່າຍ. ພິສູດແລ້ວວ່າເປີດອ່ານໄດ້ຈິງ.
+ * ດຽວນີ້ຕ້ອງ login ກ່ອນ (ສິດຕາມກົດຂອງ /pr-view ໃນ lib/roles).
+ */
+const PUBLIC = ["/login", "/track", "/servicefuond", "/tracking", "/feedback"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

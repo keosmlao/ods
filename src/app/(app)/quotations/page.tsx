@@ -53,6 +53,9 @@ type QuoteRow = {
   user_created: string | null;
   status_name: string;
   product_url: string | null;
+  /** ຍອດຕາມຫົວບິນ (ຫຼັງສ່ວນຫຼຸດ) — ເກັບຢູ່ ic_trans ແຕ່ລາຍການບໍ່ເຄີຍສະແດງເງິນເລີຍ */
+  total_amount: string;
+  total_discount: string;
 };
 
 /** ຕາຕະລາງປ້າຍສະຖານະ — ຄັດລອກຈາກ home_qt() */
@@ -95,6 +98,7 @@ const QUOTE_SORT: Record<string, string> = {
   doc_no: "a.doc_no",
   doc_date: "a.doc_date",
   elapsed: "at_col",
+  amount: "a.total_amount",
   customer: "b.name_1",
   product: "c.name_1",
   brand: "c.p_brand",
@@ -167,7 +171,8 @@ async function getQuotes(bucket: string, q: string, page: number, sort: string, 
       greatest(0, round(extract(epoch from (localtimestamp - ${QUOTE_TIME}))))::int elapsed_seconds,
       to_char(c.qt_finish, 'DD-MM-YYYY HH24:MI') qt_finish,
       (c.qt_finish - c.qt_start)::text duration,
-      a.user_created, ${STATUS_CASE} status_name, e.product_url
+      a.user_created, ${STATUS_CASE} status_name, e.product_url,
+      coalesce(a.total_amount,0)::text total_amount, coalesce(a.total_discount,0)::text total_discount
     from ic_trans a
     left join ar_customer b on b.code = a.cust_code
     left join tb_product c on c.code = a.product_code
@@ -218,6 +223,7 @@ const PROGRESS_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = 
   { key: "doc_no", label: "ໃບສະເໜີລາຄາ", defaultDir: "desc" },
   { key: "doc_date", label: "ວັນທີ", defaultDir: "desc" },
   { key: "elapsed", label: "ເລີ່ມສນຄ / ໄລຍະ", defaultDir: "desc" },
+  { key: "amount", label: "ຍອດ (ບາດ)", defaultDir: "desc" },
   { key: "product", label: "ລາຍການ / SN", defaultDir: "asc" },
   { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
   { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
@@ -229,12 +235,18 @@ const ALL_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
   { key: "doc_no", label: "ໃບສະເໜີລາຄາ", defaultDir: "desc" },
   { key: "doc_date", label: "ວັນທີ", defaultDir: "desc" },
   { key: "elapsed", label: "ເລີ່ມສນຄ", defaultDir: "desc" },
+  { key: "amount", label: "ຍອດ (ບາດ)", defaultDir: "desc" },
   { key: "product", label: "ລາຍການ / SN", defaultDir: "asc" },
   { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
   { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
   { key: "warranty", label: "ປະກັນ", defaultDir: "asc" },
   { key: "user_created", label: "ຜູ້ອອກບິນ", defaultDir: "asc" },
 ];
+
+const money = (v: string | null) => {
+  const n = Number(v ?? 0);
+  return (Number.isFinite(n) ? n : 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
+};
 
 /** ປ້າຍສະຖານະໃບສະເໜີລາຄາ */
 const STATUS_TONE: Record<string, string> = {
@@ -477,6 +489,15 @@ export default async function QuotationsPage({ searchParams }: Props) {
                         </span>
                       )}
                       <span className="mt-0.5 block text-[10px] text-slate-400">{row.at_time ?? "-"}</span>
+                    </td>
+                    {/* ຍອດຫຼັງສ່ວນຫຼຸດ — ຕົວເລກທີ່ພິມໃສ່ໃບ ແລະ ທີ່ໃບຮັບເງິນຈະອີງໃສ່ */}
+                    <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                      <span className="font-bold text-[#e75555]">{money(row.total_amount)}</span>
+                      {Number(row.total_discount) > 0 && (
+                        <span className="mt-0.5 block text-[10px] text-emerald-700">
+                          ສ່ວນຫຼຸດ {money(row.total_discount)}
+                        </span>
+                      )}
                     </td>
                     <td className="max-w-64 px-3 py-2.5">
                       <span className="block truncate font-medium text-slate-800" title={row.product ?? ""}>

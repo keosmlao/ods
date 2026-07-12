@@ -110,6 +110,8 @@ const RULES: Rule[] = [
   // (ການແຈ້ງເຕືອນ ROLE_WAREHOUSE ຊີ້ມາໜ້ານີ້) ⇒ ເພີ່ມ stock ເຂົ້ານຳ
   { path: "/spare-parts/new", roles: [M, A, S] },
   { path: "/purchase-requests", roles: [M, A, S] },
+  // ໃບຂໍສັ່ງຊື້ (ມີລາຄາ) — ເມື່ອກ່ອນເປີດສາທາລະນະ ⇒ ດຽວນີ້ຕ້ອງ login
+  { path: "/pr-view", roles: [M, A, S, HT] },
 
   /* ຕິດຕັ້ງ — ods ແຍກເປັນ 2 ຝັ່ງ: ຝ່າຍບໍລິການເປີດ/ປິດງານ · ຊ່າງລົງມື */
   { path: "/installations", exact: true, roles: SERVICE_SIDE },

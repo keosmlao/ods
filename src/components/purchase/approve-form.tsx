@@ -1,9 +1,10 @@
 "use client";
 import { approveRqOrder, notApproveRqOrder } from "@/app/actions/purchase";
+import { useConfirm } from "@/components/confirm-dialog";
 import { Button, Card, Empty, ErrorBox, inputClass, labelClass, LinkButton, Table } from "@/components/ui";
 import { Check, LoaderCircle, LogOut, X } from "lucide-react";
 import Image from "next/image";
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useRef, useState } from "react";
 
 /** ຖອດແບບຈາກ ods: templates/request_order/approve_rq_order_page.html */
 
@@ -27,6 +28,11 @@ export type ApproveHead = {
   warranty: string | null;
   status_doc: string | null;
   remark: string | null;
+  /** 0 = ລໍຖ້າ · 1 = ອະນຸມັດແລ້ວ · 2 = ບໍ່ອະນຸມັດ/ຖອນຄືນ */
+  aprove_status: number;
+  approver1: string | null;
+  /** ເລກໃບສັ່ງຊື້ທີ່ອອກຈາກໃບນີ້ແລ້ວ */
+  spr_no: string | null;
 };
 
 export type ApproveLine = {
@@ -55,44 +61,107 @@ export function ApproveForm({
   const [approveState, approve, approving] = useActionState(approveRqOrder, {});
   const [rejectState, reject, rejecting] = useActionState(notApproveRqOrder, {});
   const [remark, setRemark] = useState(head.remark ?? "");
+  const approveRef = useRef<HTMLFormElement>(null);
+  const rejectRef = useRef<HTMLFormElement>(null);
+  const { ask, dialog } = useConfirm();
 
   const total = useMemo(() => lines.reduce((sum, line) => sum + Number(line.sum_amount), 0), [lines]);
   const busy = approving || rejecting;
+  /** ຕັດສິນໄປແລ້ວ = ບໍ່ມີປຸ່ມ (ກັນການອະນຸມັດຊ້ຳ ⇒ ໃບສັ່ງຊື້ຊ້ຳ) */
+  const decided = head.aprove_status !== 0;
 
   return (
     <div className="w-full space-y-5">
+      {dialog}
       {approveState.error && <ErrorBox>{approveState.error}</ErrorBox>}
       {rejectState.error && <ErrorBox>{rejectState.error}</ErrorBox>}
 
       <Card>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex gap-2">
-            {/* ອະນຸມັດ */}
-            <form action={approve}>
-              <input type="hidden" name="doc_ref" value={head.doc_no} />
-              <input type="hidden" name="doc_date" value={today} />
-              <input type="hidden" name="product_code" value={head.product_code ?? ""} />
-              <input type="hidden" name="remark" value={remark} />
-              <Button type="submit" tone="success" disabled={busy}>
-                {approving ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />}
-                ອະນຸມັດ
-              </Button>
-            </form>
+        {decided ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p
+              className={`rounded-lg px-3 py-2 text-sm font-semibold ${
+                head.aprove_status === 1 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+              }`}
+            >
+              {head.aprove_status === 1
+                ? `ອະນຸມັດໄປແລ້ວ${head.approver1 ? ` ໂດຍ ${head.approver1}` : ""}${
+                    head.spr_no ? ` — ໃບສັ່ງຊື້ ${head.spr_no}` : ""
+                  }`
+                : "ໃບນີ້ຖືກປະຕິເສດ ຫຼື ຖອນຄືນໄປແລ້ວ"}
+            </p>
             <LinkButton href="/approvals/purchase-requests" tone="neutral">
               <LogOut className="size-4" />
               ອອກ
             </LinkButton>
           </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex gap-2">
+              {/* ອະນຸມັດ — ອອກໃບສັ່ງຊື້ໃຫ້ ERP ທັນທີ ຈຶ່ງຖາມຢືນຢັນກ່ອນ */}
+              <form ref={approveRef} action={approve}>
+                <input type="hidden" name="doc_ref" value={head.doc_no} />
+                <input type="hidden" name="doc_date" value={today} />
+                <input type="hidden" name="product_code" value={head.product_code ?? ""} />
+                <input type="hidden" name="remark" value={remark} />
+                <Button
+                  type="button"
+                  tone="success"
+                  disabled={busy}
+                  onClick={async () => {
+                    const ok = await ask({
+                      title: "ອະນຸມັດໃບຂໍສັ່ງຊື້?",
+                      message: (
+                        <>
+                          ຈະອອກໃບສັ່ງຊື້ <b className="text-slate-700">{docNo}</b> ລົງລະບົບ ERP ທັນທີ ແລະ ຖອນຄືນບໍ່ໄດ້
+                          <span className="mt-1 block text-slate-500">
+                            {lines.length} ລາຍການ · ລວມ {money(total)}
+                          </span>
+                        </>
+                      ),
+                      confirmLabel: "ອະນຸມັດ",
+                    });
+                    if (ok) approveRef.current?.requestSubmit();
+                  }}
+                >
+                  {approving ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />}
+                  ອະນຸມັດ
+                </Button>
+              </form>
+              <LinkButton href="/approvals/purchase-requests" tone="neutral">
+                <LogOut className="size-4" />
+                ອອກ
+              </LinkButton>
+            </div>
 
-          {/* ບໍ່ອະນຸມັດ */}
-          <form action={reject}>
-            <input type="hidden" name="doc_no" value={head.doc_no} />
-            <Button type="submit" tone="danger" disabled={busy}>
-              {rejecting ? <LoaderCircle className="size-4 animate-spin" /> : <X className="size-4" />}
-              ບໍ່ອະນຸມັດ
-            </Button>
-          </form>
-        </div>
+            {/* ບໍ່ອະນຸມັດ */}
+            <form ref={rejectRef} action={reject}>
+              <input type="hidden" name="doc_no" value={head.doc_no} />
+              <Button
+                type="button"
+                tone="danger"
+                disabled={busy}
+                onClick={async () => {
+                  const ok = await ask({
+                    title: "ບໍ່ອະນຸມັດໃບຂໍສັ່ງຊື້?",
+                    message: (
+                      <>
+                        ໃບ <b className="text-slate-700">{head.doc_no}</b> ຈະຖືກປິດ ແລະ ອາໄຫຼ່ກັບໄປລໍຖ້າການສັ່ງຊື້ໃໝ່
+                      </>
+                    ),
+                    confirmLabel: "ບໍ່ອະນຸມັດ",
+                    cancelLabel: "ຍົກເລີກ",
+                    tone: "danger",
+                  });
+                  if (ok) rejectRef.current?.requestSubmit();
+                }}
+              >
+                {rejecting ? <LoaderCircle className="size-4 animate-spin" /> : <X className="size-4" />}
+                ບໍ່ອະນຸມັດ
+              </Button>
+            </form>
+          </div>
+        )}
       </Card>
 
       <div className="grid gap-5 lg:grid-cols-3">
