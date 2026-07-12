@@ -206,6 +206,13 @@ export function ServiceForm({
                   isLoading={loadingProducts}
                 />
                 <input type="hidden" name="proname" value={productQuery} />
+                {/**
+                 * ລະຫັດສິນຄ້າ ERP — ຟອມນີ້ຄົ້ນ ERP ຢູ່ແລ້ວ ແຕ່ແຕ່ກ່ອນ **ຖິ້ມລະຫັດຖິ້ມ**
+                 * ເກັບແຕ່ຊື່/ຮຸ່ນ/ຫຍີ່ຫໍ້. ຜົນຄື ໃບຮັບເຄື່ອງໄປຫາ ic_size / ic_design
+                 * ຂອງ ERP ບໍ່ໄດ້ ⇒ ຄິດຄ່າບໍລິການ (ທີ່ແບ່ງຕາມຂະໜາດ/ແບບ) ບໍ່ໄດ້.
+                 * ຫວ່າງໄດ້ — ສິນຄ້າທີ່ບໍ່ມີໃນ ERP (ພິມຊື່ເອງ) ຈະບໍ່ມີລະຫັດ.
+                 */}
+                <input type="hidden" name="item_code" value={product?.item_code ?? ""} />
               </div>
 
               <div className="sm:col-span-2">

@@ -19,6 +19,11 @@ const schema = z.object({
   cust_tel: z.string().optional().default(""),
   cust_address: z.string().optional().default(""),
   proname: z.string().min(1),
+  /**
+   * ລະຫັດສິນຄ້າ ERP — ຫວ່າງໄດ້ (ສິນຄ້າທີ່ພິມຊື່ເອງ ບໍ່ມີໃນ ERP).
+   * ມີແລ້ວຈຶ່ງໄປຫາ ic_size / ic_design ໄດ້ ⇒ ຄິດຄ່າບໍລິການຂອງຊ່າງໄດ້.
+   */
+  item_code: z.string().optional(),
   /** SN ຫວ່າງໄດ້ — ເຄື່ອງເກົ່າ/ເຄື່ອງນອກ ບາງໜ່ວຍບໍ່ມີປ້າຍ */
   pro_sn: z.string(),
   pro_model: z.string().min(1),
@@ -209,12 +214,19 @@ export async function createService(_: ServiceState, formData: FormData): Promis
       (await client.query("select coalesce(max(code::int),0)+1 code from tb_product where code~'^[0-9]+$'")).rows[0].code,
     );
 
+    /**
+     * item_code = ລະຫັດສິນຄ້າ ERP.
+     * ຟອມຄົ້ນ ERP ຢູ່ແລ້ວ (/api/products) ແຕ່ແຕ່ກ່ອນຖິ້ມລະຫັດຖິ້ມ ⇒ ໃບຮັບເຄື່ອງ
+     * ໄປຫາ ic_size / ic_design ຂອງ ERP ບໍ່ໄດ້ ແລະ ຄິດຄ່າບໍລິການ (ທີ່ແບ່ງຕາມ
+     * ຂະໜາດ/ແບບ) ບໍ່ໄດ້. ຫວ່າງໄດ້ — ສິນຄ້າທີ່ພິມຊື່ເອງບໍ່ມີລະຫັດ ERP.
+     */
     await client.query(
       `insert into tb_product(code,name_1,sn,p_model,p_brand,p_access,issue,p_type,p_abrasion,p_delivery,
-         warrunty,service_type,cust_code,ap_code,doc_def,doc_date_ref,status,emp_code,time_register,user_regis)
-       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,localtimestamp,$18)`,
+         warrunty,service_type,cust_code,ap_code,doc_def,doc_date_ref,status,emp_code,time_register,user_regis,item_code)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,localtimestamp,$18,nullif($19,''))`,
       [code, d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
-        d.pro_deli, d.pro_wa, d.service_type, custCode, d.sup_id, d.billon, d.billdate, d.emp, session.username],
+        d.pro_deli, d.pro_wa, d.service_type, custCode, d.sup_id, d.billon, d.billdate, d.emp, session.username,
+        d.item_code ?? ""],
     );
 
     await saveUploads(client, code, uploads, written);

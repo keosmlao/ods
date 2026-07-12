@@ -125,3 +125,34 @@ create index ods_employee_role_identity on ods_employee_role(identity);
   ແຕ່ຕົວໃໝ່ດຶງຂໍ້ມູນຫຼັກຈາກ ERP ແທນ.
 - ຕາຕະລາງ `unit`, `products`, `category` ທີ່ ods ອ້າງເຖິງ — **ບໍ່ມີໃນຖານຂໍ້ມູນເລີຍ**
   (3 ໜ້ານັ້ນຂອງ ods ເປັນໂຄ້ດຕາຍ, ເປີດແລ້ວ 500).
+
+---
+
+## ຄ່າບໍລິການ ແລະ ຄ່າຄອມຂອງຊ່າງ — 1 ຄໍລຳ + 4 ຕາຕະລາງໃໝ່
+
+ໄຟລ໌: `migrations/2026-07-12-service-commission.sql` (apply ແລ້ວ)
+
+```sql
+alter table tb_product add column if not exists item_code varchar;
+create table ods_service_rate (...);               -- ອັດຕາຄ່າບໍລິການ (ບາທ)
+create table ods_service_commission_split (...);   -- ເປີເຊັນຕໍ່ບົດບາດ
+create table ods_service_commission_payee (...);   -- ໃຜຮັບເງິນຂອງແຕ່ລະບົດບາດ
+create table ods_service_payout (...);             -- ເງິນທີ່ **ແຊ່ໄວ້ຕອນປິດງານ**
+```
+
+**ເປັນຫຍັງ `tb_product.item_code`:** ໜ້າ `/service/new` ຄົ້ນສິນຄ້າ ERP ຢູ່ແລ້ວ
+(`/api/products` ຄືນ `item_code` ມາ) ແຕ່ `createService` **ຖິ້ມລະຫັດຖິ້ມ** ⇒ ໃບຮັບເຄື່ອງ
+ໄປຫາ `ic_size` / `ic_design` ຂອງ ERP ບໍ່ໄດ້ ແລະ ຄິດຄ່າບໍລິການ (ທີ່ແບ່ງຕາມຂະໜາດ/ແບບ) ບໍ່ໄດ້.
+(`master_product` ຫວ່າງ 0/5,066 · ຕາຕະລາງ serial ຂອງ ERP ວ່າງເປົ່າ ⇒ ບໍ່ມີເສັ້ນທາງອື່ນ)
+
+**ມິຕິຂອງອັດຕາມາຈາກ ERP ບ່ອນດຽວ** (ອ່ານຢ່າງດຽວ): `ic_category` · `ic_design`
+(ແອຕິດຝາ/ແອແຄັດເສັດ/ແອຕູ້ຕັ້ງ) · `ic_size` (`"11,000-14,999 btu."` — ເປັນຊ່ວງພ້ອມແລ້ວ)
+⇒ ບໍ່ຕ້ອງແກະ BTU ອອກຈາກຂໍ້ຄວາມ ແລະ ບໍ່ເກັບຂະໜາດຊ້ຳໃນ ODS.
+
+**ເປັນຫຍັງຕ້ອງແຊ່ເງິນ (`ods_service_payout`):** ຖ້າຄິດສົດທຸກຄັ້ງທີ່ເປີດລາຍງານ
+ພໍປ່ຽນອັດຕາເດືອນໜ້າ **ເງິນຂອງເດືອນທີ່ຈ່າຍໄປແລ້ວຈະປ່ຽນຕາມ**.
+
+**namespace ຂອງຜູ້ຮັບເງິນ:** ໃຊ້ `users.code` ຂອງ ODS (ຄ່າດຽວກັບ `tech_code`/`emp_code`)
+**ບໍ່ແມ່ນ** `odg_employee.employee_code` ຂອງ ERP — ຄ່າຈິງໃນງານປົນກັນລະຫວ່າງ
+ຊື່ຜູ້ໃຊ້ ('Xiew', 'sak') ກັບ ລະຫັດພະນັກງານ ('22040') ⇒ ຖ້າໃຊ້ຄົນລະ namespace
+ລາຍງານຈະຈັດກຸ່ມເງິນບໍ່ຕົງກັນ ແລະ ເງິນຂອງບາງຄົນຫາຍ.

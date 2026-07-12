@@ -1,5 +1,6 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
+import { recordPayout } from "@/app/actions/commission";
 import { getSession } from "@/lib/auth";
 import { requireRole, requireRoleOrRedirect } from "@/lib/guard";
 import { SERVICE_SIDE } from "@/lib/roles";
@@ -505,6 +506,13 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
       (editedLines > 0 ? ` · ມີ ${editedLines} ລາຍການທີ່ລາຄາຕ່າງຈາກໃບສະເໜີລາຄາ` : ""),
   );
   await logChange("ar_customer", d.cust_code, `ຮັບເຄື່ອງຄືນ #${d.pro_code} · ໃບຮັບເງິນ ${docNo}`);
+
+  /**
+   * ຄິດ ແລະ **ແຊ່** ຄ່າຄອມຂອງຊ່າງ — ງານສ້ອມຈົບເມື່ອສົ່ງເຄື່ອງຄືນລູກຄ້າ.
+   * ບໍ່ໃສ່ໃນ returnWithoutInvoice: ນັ້ນແມ່ນງານທີ່ **ຍົກເລີກ** (status=6) ບໍ່ໄດ້ສ້ອມຫຍັງ
+   * ⇒ ບໍ່ຄວນມີຄ່າບໍລິການ. ກືນ error ໄວ້ — ການສົ່ງຄືນຫ້າມພັງເພາະເລື່ອງເງິນ.
+   */
+  await recordPayout("repair", d.pro_code);
 
   revalidatePath("/returns", "layout");
   revalidatePath("/approvals/cancellations", "layout");

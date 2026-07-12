@@ -1,5 +1,6 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
+import { recordPayout } from "@/app/actions/commission";
 import { getSession, type Session } from "@/lib/auth";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb, query } from "@/lib/db";
@@ -617,6 +618,8 @@ export async function closeJob(code: string): Promise<ActionState> {
 
   await query("update ods_tb_install set job_finish=localtimestamp(0) where code=$1 and job_finish is null", [code]);
   await logChange("ods_tb_install", code, "ປິດງານຕິດຕັ້ງ");
+  // ຄິດ ແລະ **ແຊ່** ຄ່າຄອມຂອງງານນີ້ — ກືນ error ໄວ້ ການປິດງານຫ້າມພັງເພາະເລື່ອງເງິນ
+  await recordPayout("install", code);
   revalidateAll();
   return { ok: "ສຳເລັດ" };
 }

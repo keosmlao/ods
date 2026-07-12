@@ -117,6 +117,7 @@ const REPORT: NavGroup = {
     { label: "ລາຍງານການສັ່ງຊື້", href: "/reports/purchase-requests" },
     { label: "ລາຍງານໃບສັ່ງຊື້", href: "/reports/purchase-orders" },
     { label: "ລາຍງານມອບໝາຍງານ", href: "/reports/job-dispatch" },
+    { label: "ລາຍຮັບຊ່າງ (ຄ່າຄອມ)", href: "/reports/technician-income", divider: true },
   ],
 };
 
@@ -128,7 +129,10 @@ const USERS: NavGroup = {
   id: "user_menu",
   label: "ຜູ້ໃຊ້",
   icon: ShieldCheck,
-  items: [{ label: "ກຳນົດສິດ", href: "/manage/employees" }],
+  items: [
+    { label: "ກຳນົດສິດ", href: "/manage/employees" },
+    { label: "ຄ່າບໍລິການ / ຄ່າຄອມຊ່າງ", href: "/manage/service-rates" },
+  ],
 };
 
 /** ເມນູທັງໝົດ (ກ່ອນກັ່ນຕອງສິດ) */

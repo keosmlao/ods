@@ -164,6 +164,8 @@ const RULES: Rule[] = [
    * ໝາຍເຫດ: ເມນູ "ການຈັດການ" ເກົ່າ (/manage/*) ຖືກລົບຖິ້ມໂດຍເຈດຕະນາ — ຢ່າກູ້ຄືນ.
    * ເຫຼືອແຕ່ໜ້ານີ້ໜ້າດຽວໃນເສັ້ນທາງ /manage */
   { path: "/manage/employees", roles: [M] },
+  // ຄ່າບໍລິການ/ຄ່າຄອມ = ເລື່ອງເງິນ ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ (actions/service-rate ກວດຊ້ຳ)
+  { path: "/manage/service-rates", roles: [M] },
 
   /* ລາຍງານ — ods ໃຫ້ manager ຄົບ, admin ໄດ້ 2 ໜ້າ; ສາງໄດ້ສະເພາະລາຍງານສາງ/ສັ່ງຊື້ */
   { path: "/reports", roles: SERVICE_SIDE },
@@ -171,6 +173,9 @@ const RULES: Rule[] = [
   { path: "/reports/stock", roles: [M, A, S] },
   { path: "/reports/purchase-requests", roles: [M, A, S] },
   { path: "/reports/purchase-orders", roles: [M, A, S] },
+  // ລາຍຮັບຊ່າງ — ຊ່າງເບິ່ງ **ຂອງຕົນເອງ** ໄດ້ (ໜ້ານັ້ນກອງດ້ວຍ ownJobsOnly)
+  // ຜູ້ຈັດການ/ຫົວໜ້າຊ່າງເບິ່ງໝົດ. CS/ສາງ ບໍ່ກ່ຽວ.
+  { path: "/reports/technician-income", roles: [...TECH_SIDE] },
 ];
 
 /** ຄະແນນຄວາມລະອຽດ — ຊັ້ນຫຼາຍ ແລະ ຊື່ຕົງຕົວ (ບໍ່ແມ່ນ `*`) ຊະນະ */
