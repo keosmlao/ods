@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "ODIEN Service",
+    "slug": "odss-tech",
+    "scheme": "odss",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "net.odien.service.tech",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "ໃຊ້ພິກັດເພື່ອຢືນຢັນວ່າຊ່າງໄປຮອດໜ້າງານຈິງ (check-in)",
+        "NSCameraUsageDescription": "ຖ່າຍຮູບໜ້າງານເປັນຫຼັກຖານການເຮັດວຽກ"
+      }
+    },
+    "android": {
+      "package": "net.odien.service.tech",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "CAMERA"]
+    },
+    "plugins": ["expo-router", "expo-secure-store", "expo-location", "expo-image-picker"],
+    "extra": {
+      "apiUrl": "https://service.odien.net"
+    }
+  }
+}

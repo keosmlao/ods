@@ -1,5 +1,7 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
+import { acceptInstall, finishInstallFlow, startInstallFlow } from "@/lib/job-flow";
+import { pushToUser } from "@/lib/push";
 import { recordPayout } from "@/app/actions/commission";
 import { getSession, type Session } from "@/lib/auth";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
@@ -417,6 +419,17 @@ export async function assignTech(_: ActionState, formData: FormData): Promise<Ac
     `ຈັດຊ່າງ: ${techCode}${appointDate ? ` · ນັດວັນທີ ${appointDate}` : ""}${locationInst ? ` · ${locationInst}` : ""}`,
     { users: [techCode] },
   );
+  /**
+   * ແຈ້ງເຕືອນອອກມືຖືຂອງຊ່າງ (Expo push) — ຊ່າງຢູ່ໜ້າງານ ບໍ່ໄດ້ເປີດເວັບຄ້າງໄວ້
+   * ⇒ ການແຈ້ງເຕືອນໃນແອັບຢ່າງດຽວບໍ່ພຽງພໍ. ລົ້ມເຫຼວກໍ່ບໍ່ເປັນຫຍັງ (lib/push ຈັບໄວ້ໝົດ)
+   * — ງານຕ້ອງຖືກມອບໝາຍໄດ້ ເຖິງແອັບຈະສົ່ງບໍ່ອອກ.
+   */
+  await pushToUser(
+    techCode,
+    "ມີງານຕິດຕັ້ງໃໝ່",
+    `${code}${appointDate ? ` · ນັດ ${appointDate}` : ""}${locationInst ? ` · ${locationInst}` : ""}`,
+    { workflow: "install", code },
+  );
 
   revalidateAll();
   return { ok: "ສຳເລັດ" };
@@ -481,18 +494,12 @@ export async function chooseNewTech(code: string): Promise<ActionState> {
 export async function acceptJob(code: string): Promise<ActionState> {
   const guard = await guardJob(code, TECH_SIDE);
   if (!guard.ok) return { error: guard.error };
-  const { job } = guard;
-  if (job.cancelled) return { error: IS_CANCELLED };
-  if (job.closed) return { error: IS_CLOSED };
-  if (!job.assigned) return { error: "ງານນີ້ຍັງບໍ່ມີຊ່າງ" };
-  if (job.accepted) return { ok: `ຮັບງານຕິດຕັ້ງ ເລກທີ ${code} ສຳເລັດ` };
 
-  await query("update ods_tb_install set tech_confirm=localtimestamp(0) where code=$1 and tech_confirm is null", [
-    code,
-  ]);
-  await logChange("ods_tb_install", code, "ຊ່າງຮັບງານແລ້ວ");
+  // ຕົວປ່ຽນຂັ້ນຢູ່ lib/job-flow ບ່ອນດຽວ — **ອັນດຽວກັບທີ່ແອັບມືຖືເອີ້ນ**
+  const result = await acceptInstall(guard.session, code);
+  if (!result.ok) return { error: result.error };
   revalidateAll();
-  return { ok: `ຮັບງານຕິດຕັ້ງ ເລກທີ ${code} ສຳເລັດ` };
+  return { ok: result.message };
 }
 
 /**
@@ -514,71 +521,26 @@ export async function unacceptJob(code: string): Promise<ActionState> {
   return { ok: `ຍົກເລີກຮັບງານ ເລກທີ ${code} ສຳເລັດ` };
 }
 
-/** ບໍ່ຮັບງານ — ຄືນງານໄປລໍຖ້າຈັດຊ່າງໃໝ່ (ລ້າງໂມງຈັດຊ່າງນຳ — ເບິ່ງ chooseNewTech) */
-export async function declineJob(code: string): Promise<ActionState> {
-  const guard = await guardJob(code, TECH_SIDE);
-  if (!guard.ok) return { error: guard.error };
-  const { job } = guard;
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
-  if (job.cancelled) return { error: IS_CANCELLED };
-  if (job.requested) return { error: "ບໍ່ຮັບງານບໍ່ໄດ້ ມີໃບຂໍເບີກອາໄຫຼ່ແລ້ວ!" };
-  if (job.started) return { error: "ບໍ່ຮັບງານບໍ່ໄດ້ ເລີ່ມຕິດຕັ້ງແລ້ວ!" };
-
-  const client = await db.connect();
-  try {
-    await client.query("begin");
-    await client.query("update ods_tb_install set tech_before=tech_code where code=$1", [code]);
-    await client.query(
-      "update ods_tb_install set tech_confirm=null, tech_code=null, assigt_time=null, user_assigt=null where code=$1",
-      [code],
-    );
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    console.error("declineJob failed", error);
-    return { error: "ບໍ່ສຳເລັດ" };
-  } finally {
-    client.release();
-  }
-  await logChange("ods_tb_install", code, "ຊ່າງບໍ່ຮັບງານ — ຄືນໄປລໍຖ້າຈັດຊ່າງໃໝ່");
-  revalidateAll();
-  return { ok: `ຍົກເລີກຮັບງານ ເລກທີ ${code} ສຳເລັດ` };
-}
-
 /* ── ຕິດຕັ້ງ (start/finish_tech_install) ──────────────────── */
 
 export async function startInstall(code: string): Promise<ActionState> {
   const guard = await guardJob(code, TECH_SIDE);
   if (!guard.ok) return { error: guard.error };
-  const { job } = guard;
-  if (job.cancelled) return { error: IS_CANCELLED };
-  if (job.closed) return { error: IS_CLOSED };
-  if (!job.accepted) return { error: "ຊ່າງຍັງບໍ່ທັນຮັບງານນີ້" };
 
-  await query("update ods_tb_install set start_install=localtimestamp(0) where code=$1 and start_install is null", [
-    code,
-  ]);
-  await logChange("ods_tb_install", code, "ເລີ່ມຕິດຕັ້ງ");
+  const result = await startInstallFlow(guard.session, code);
+  if (!result.ok) return { error: result.error };
   revalidateAll();
-  return { ok: `ເລີ່ມຕິດຕັ້ງ ເລກທີ ${code}` };
+  return { ok: result.message };
 }
 
 export async function finishInstall(code: string): Promise<ActionState> {
   const guard = await guardJob(code, TECH_SIDE);
   if (!guard.ok) return { error: guard.error };
-  const { job } = guard;
-  if (job.cancelled) return { error: IS_CANCELLED };
-  if (job.closed) return { error: IS_CLOSED };
-  if (!job.started) return { error: "ຍັງບໍ່ທັນເລີ່ມຕິດຕັ້ງ" };
 
-  await query("update ods_tb_install set finish_install=localtimestamp(0) where code=$1 and finish_install is null", [
-    code,
-  ]);
-  // ຜູ້ຕິດຕາມຮູ້ວ່າຕິດຕັ້ງແລ້ວ. ລິ້ງແບບສອບຖາມຍັງຕ້ອງສົ່ງໃຫ້ລູກຄ້າດ້ວຍມື —
-  // ລູກຄ້າບໍ່ມີບັນຊີໃນລະບົບ ຈຶ່ງແຈ້ງເຕືອນໃນແອັບຫາລູກຄ້າບໍ່ໄດ້ (ods ໃຊ້ LINE)
-  await logChange("ods_tb_install", code, "ຕິດຕັ້ງສຳເລັດ — ລໍຖ້າລູກຄ້າຕອບແບບສອບຖາມ");
+  const result = await finishInstallFlow(guard.session, code);
+  if (!result.ok) return { error: result.error };
   revalidateAll();
-  return { ok: `ຕິດຕັ້ງ ເລກທີ ${code} ສຳເລັດ` };
+  return { ok: result.message };
 }
 
 /* ── ປິດງານ (close_pending_success) ───────────────────────── */

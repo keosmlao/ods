@@ -1,9 +1,9 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
-import { getSession } from "@/lib/auth";
+import { getSession, type Session } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { finishRepairFlow, startRepairFlow } from "@/lib/job-flow";
 import { roleOf, TECH_SIDE } from "@/lib/roles";
-import { STAGE_SQL } from "@/lib/stage";
 import { TRANS } from "@/lib/stock-constants";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -56,7 +56,9 @@ const POST_CHECK_STATUS = `case
 end`;
 
 /** ດຶງພາບລວມ + ກວດສິດ — ຊ່າງຖອນຄືນໄດ້ສະເພາະວຽກຂອງຕົນເອງ */
-async function loadJob(code: string): Promise<{ ok: true; job: JobSnapshot } | { ok: false; error: string }> {
+async function loadJob(
+  code: string,
+): Promise<{ ok: true; job: JobSnapshot; session: Session } | { ok: false; error: string }> {
   const session = await getSession();
   if (!session) return { ok: false, error: "Session ໝົດອາຍຸ" };
   const role = roleOf(session);
@@ -67,7 +69,7 @@ async function loadJob(code: string): Promise<{ ok: true; job: JobSnapshot } | {
   if (role === "technical" && (job.emp_code ?? "") !== session.username) {
     return { ok: false, error: "ວຽກນີ້ບໍ່ແມ່ນຂອງທ່ານ — ຖອນຄືນບໍ່ໄດ້" };
   }
-  return { ok: true, job };
+  return { ok: true, job, session };
 }
 
 /** ຂັ້ນທີ່ຍ້ອນກັບບໍ່ໄດ້ — ເອກະສານເງິນ ຫຼື ເຄື່ອງອອກຈາກມືໄປແລ້ວ */
@@ -111,10 +113,8 @@ export async function startRepair(code: string) {
   const loaded = await loadJob(code); // ສິດຝ່າຍຊ່າງ + ຕ້ອງເປັນວຽກຂອງຕົນ
   if (!loaded.ok) redirect("/forbidden");
 
-  const done = await query(`update tb_product a set time_repair=${NOW} where a.code=$1 and (${STAGE_SQL}) = 8`, [
-    code,
-  ]);
-  if (done.rowCount) await logChange("tb_product", code, "ເລີ່ມສ້ອມແປງ");
+  // ຕົວປ່ຽນຂັ້ນຢູ່ lib/job-flow ບ່ອນດຽວ — ອັນດຽວກັບທີ່ແອັບມືຖືເອີ້ນ (ເງື່ອນໄຂຂັ້ນ 8 ຢູ່ໃນ WHERE)
+  await startRepairFlow(session, code);
   revalidatePath("/repair");
   redirect("/repair");
 }
@@ -252,24 +252,10 @@ export async function saveRepair(_: RepairState, formData: FormData): Promise<Re
    */
   const { pro_code: code, repair_note: note } = parsed.data;
 
-  try {
-    /**
-     * ຕ້ອງຢູ່ຂັ້ນ 9 (ກຳລັງສ້ອມແປງ) ຈິງໆ. ແຕ່ກ່ອນບໍ່ກວດຫຍັງເລີຍ ⇒ ຍິງ action ນີ້ໃສ່ວຽກ
-     * ຂັ້ນ 1 (ຍັງບໍ່ທັນກວດເຊັກ) ວຽກກໍ່ໄປໂຜ່ຢູ່ "ລໍຖ້າສົ່ງຄືນ" (ຂັ້ນ 10) ໄດ້ເລີຍ.
-     * ເງື່ອນໄຂຢູ່ໃນ WHERE ⇒ ກັນການແຂ່ງກັນ (race) ນຳ.
-     */
-    const done = await query(
-      `update tb_product a set status=5, time_finish_repair=${NOW}, repair_note=nullif($2,'')
-        where a.code=$1 and (${STAGE_SQL}) = 9`,
-      [code, note],
-    );
-    if (!done.rowCount) return { error: 'ບັນທຶກບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ "ກຳລັງສ້ອມແປງ"' };
-  } catch (error) {
-    console.error("save_rp failed", error);
-    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
-  }
-
-  await logChange("tb_product", code, note.trim() ? `ສ້ອມແປງສຳເລັດ: ${note.trim()}` : "ສ້ອມແປງສຳເລັດ");
+  // ຕົວປ່ຽນຂັ້ນຢູ່ lib/job-flow ບ່ອນດຽວ (ເງື່ອນໄຂ "ຕ້ອງຢູ່ຂັ້ນ 9" ຢູ່ໃນ WHERE ຂອງມັນ)
+  // — ອັນດຽວກັບທີ່ແອັບມືຖືເອີ້ນ ຈຶ່ງບໍ່ມີວັນປ່ຽນຂັ້ນຄົນລະແບບ.
+  const result = await finishRepairFlow(loaded.session, code, note);
+  if (!result.ok) return { error: result.error };
 
   revalidatePath("/repair");
   revalidatePath("/returns");

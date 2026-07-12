@@ -1,5 +1,6 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
+import { pushToUser } from "@/lib/push";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { APPROVER_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
@@ -249,6 +250,11 @@ export async function createService(_: ServiceState, formData: FormData): Promis
   });
   // ຄຽງກັນ ໃຫ້ເຫັນຢູ່ໜ້າລູກຄ້ານຳ ວ່າລູກຄ້າຄົນນີ້ເອົາເຄື່ອງມາສ້ອມເມື່ອໃດ
   await logChange("ar_customer", customer, `ເປີດໃບຮັບເຄື່ອງ #${code}: ${item}`);
+  // ແຈ້ງອອກມືຖືຂອງຊ່າງ — ຊ່າງບໍ່ໄດ້ນັ່ງເຝົ້າເວັບ (lib/push ຈັບ error ໄວ້ໝົດ)
+  if (d.emp) await pushToUser(d.emp, "ມີງານສ້ອມແປງໃໝ່", `${code} · ${item} — ${d.pro_issue}`, {
+    workflow: "repair",
+    code,
+  });
 
   // ລູກຄ້າຍັງຢືນລໍຢູ່ໜ້າເຄົາເຕີ — ໄປໜ້າພິມໃບຮັບເລີຍ ບໍ່ໃຫ້ຕ້ອງກົດຫາເອງ
   redirect(`/service/${code}/print`);
@@ -360,6 +366,11 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
   // ຊ່າງອາດຖືກປ່ຽນຕອນແກ້ໄຂ → ແຈ້ງຊ່າງຄົນປັດຈຸບັນນຳ
   await logChange("tb_product", d.code, `ແກ້ໄຂໃບຮັບເຄື່ອງ · ອາການ: ${d.pro_issue} · ຊ່າງ ${d.emp}`, {
     users: [d.emp],
+  });
+  // ແຈ້ງອອກມືຖືຂອງຊ່າງນຳ (ລົ້ມເຫຼວກໍ່ບໍ່ກະທົບການບັນທຶກ — ເບິ່ງ lib/push)
+  if (d.emp) await pushToUser(d.emp, "ມີງານສ້ອມແປງ", `${d.code} · ${d.proname} — ${d.pro_issue}`, {
+    workflow: "repair",
+    code: d.code,
   });
 
   redirect(`/service/${d.code}`);
