@@ -65,6 +65,7 @@ export type JobState = {
   closed: boolean;
   assigned: boolean;
   accepted: boolean;
+  qc_passed: boolean;
   requested: boolean;
   started: boolean;
   finished: boolean;
@@ -80,6 +81,7 @@ const JOB_STATE_SQL = `select code, nullif(tech_code,'') as tech_code,
     job_finish is not null as closed,
     (tech_code is not null and tech_code <> '') as assigned,
     tech_confirm is not null as accepted,
+    qc_finish is not null as qc_passed,
     reg_start is not null as requested,
     start_install is not null as started,
     finish_install is not null as finished,
@@ -588,6 +590,7 @@ export async function closeJob(code: string): Promise<ActionState> {
   const { job } = guard;
   if (job.cancelled) return { error: IS_CANCELLED };
   if (!job.finished) return { error: "ປິດງານບໍ່ໄດ້ ຍັງບໍ່ທັນຕິດຕັ້ງສຳເລັດ" };
+  if (!job.qc_passed) return { error: "ປິດງານບໍ່ໄດ້ ຍັງບໍ່ຜ່ານການກວດຮັບຄຸນນະພາບ" };
   if (!job.complained) return { error: "ປິດງານບໍ່ໄດ້ ລູກຄ້າຍັງບໍ່ທັນຕອບແບບສອບຖາມ" };
 
   await query("update ods_tb_install set job_finish=localtimestamp(0) where code=$1 and job_finish is null", [code]);
@@ -1317,9 +1320,10 @@ export async function feedbackQr(code: string): Promise<FeedbackQr> {
 export type FeedbackGate = { ok: true } | { ok: false; message: string };
 
 const FEEDBACK_NOT_INSTALLED = "ງານຕິດຕັ້ງນີ້ຍັງບໍ່ທັນຕິດຕັ້ງສຳເລັດ ຈຶ່ງຍັງຕອບແບບສອບຖາມບໍ່ໄດ້ເທື່ອ";
+const FEEDBACK_NOT_QC = "ງານນີ້ຍັງບໍ່ຜ່ານການກວດຮັບຄຸນນະພາບ ຈຶ່ງຍັງຕອບແບບສອບຖາມບໍ່ໄດ້ເທື່ອ";
 
 export async function feedbackGate(code: string): Promise<FeedbackGate> {
-  const job = await query<{ cancelled: boolean; finished: boolean; answered: boolean }>(
+  const job = await query<{ cancelled: boolean; finished: boolean; qc_passed: boolean; answered: boolean }>(
     /**
      * "ຕອບແລ້ວ" = **complain_finish ຫຼື ມີແຖວຄະແນນ** — ຂໍ້ໃດຂໍ້ນຶ່ງກໍ່ຖື.
      *
@@ -1332,6 +1336,7 @@ export async function feedbackGate(code: string): Promise<FeedbackGate> {
      * ດຽວນີ້ໃຊ້ຫຼັກດຽວກັນທັງສອງບ່ອນ ຈຶ່ງບໍ່ຫຼົ້ນກັນອີກ.
      */
     `select a.cancel_date is not null as cancelled, a.finish_install is not null as finished,
+        a.qc_finish is not null as qc_passed,
         (a.complain_finish is not null
          or exists (select 1 from cust_complain c where c.product_code=a.code and c.topic_code='002')) as answered
      from ods_tb_install a where a.code=$1 limit 1`,
@@ -1342,6 +1347,8 @@ export async function feedbackGate(code: string): Promise<FeedbackGate> {
   if (row.answered) return { ok: false, message: "ຕອບແບບສອບຖາມນີ້ແລ້ວ" };
   if (row.cancelled) return { ok: false, message: "ງານຕິດຕັ້ງນີ້ຖືກຍົກເລີກແລ້ວ ຈຶ່ງຕອບແບບສອບຖາມບໍ່ໄດ້" };
   if (!row.finished) return { ok: false, message: FEEDBACK_NOT_INSTALLED };
+  // ດ່ານ QC — ຍັງບໍ່ຜ່ານການກວດຮັບ ຈຶ່ງຍັງບໍ່ຄວນຖາມລູກຄ້າ
+  if (!row.qc_passed) return { ok: false, message: FEEDBACK_NOT_QC };
   return { ok: true };
 }
 
@@ -1399,7 +1406,8 @@ export async function saveFeedback(_: ActionState, formData: FormData): Promise<
     // ເງື່ອນໄຂ finish_install/cancel_date ຢູ່ໃນ WHERE ເອງ ⇒ ກັນການແຂ່ງກັນ (ຍົກເລີກລະຫວ່າງທາງ)
     const stamped = await client.query(
       `update ods_tb_install set complain_status=1, complain_cust=$1, complain_finish=localtimestamp(0)
-       where code=$2 and complain_finish is null and finish_install is not null and cancel_date is null`,
+       where code=$2 and complain_finish is null and finish_install is not null
+         and qc_finish is not null and cancel_date is null`,
       [comment, code],
     );
     if (!stamped.rowCount) {

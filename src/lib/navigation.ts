@@ -1,5 +1,6 @@
 import { canAccess, type Role } from "@/lib/roles";
 import {
+  BadgeCheck,
   Boxes,
   ClipboardCheck,
   FileBarChart,
@@ -14,6 +15,12 @@ export type NavItem = {
   href: string;
   /** ເສັ້ນຂັ້ນເທິງລາຍການນີ້ (ຄື <hr> ໃນ layout.html ເກົ່າ) */
   divider?: boolean;
+  /**
+   * ສິດທີ່ **ບໍ່ໄດ້ຢູ່ໃນຕາຕະລາງ RULES** ແຕ່ຢູ່ໃນຖານຂໍ້ມູນ.
+   * ດຽວນີ້ມີອັນດຽວ: "qc" — ຜູ້ຈັດການກຳນົດຜູ້ກວດເອງທີ່ ods_qc_role
+   * ⇒ canAccess() ບອກບໍ່ໄດ້ວ່າໃຜເຫັນລາຍການນີ້ ຕ້ອງຖາມຖານຂໍ້ມູນ (layout ສົ່ງມາໃຫ້).
+   */
+  flag?: "qc";
 };
 
 export type NavGroup = { id: string; label: string; icon: LucideIcon; items: NavItem[] };
@@ -102,6 +109,19 @@ const APPROVE: NavGroup = {
   ],
 };
 
+/* ── ຄຸນນະພາບ (QC) — ດ່ານກ່ອນສົ່ງມອບລູກຄ້າ ─────────────────────
+ * ໃຊ້ຮ່ວມກັນທັງສ້ອມແປງ ແລະ ຕິດຕັ້ງ ⇒ ຢູ່ກຸ່ມຂອງຕົນເອງ ບໍ່ຢູ່ໃນສາຍງານໃດສາຍງານນຶ່ງ.
+ */
+const QUALITY: NavGroup = {
+  id: "qc_menu",
+  label: "ຄຸນນະພາບ",
+  icon: BadgeCheck,
+  items: [
+    { label: "ຄິວກວດຮັບຄຸນນະພາບ", href: "/qc", flag: "qc" },
+    { label: "ຕັ້ງລາຍການກວດຮັບ", href: "/manage/qc-checklist" },
+  ],
+};
+
 const REPORT: NavGroup = {
   id: "report_menu",
   label: "ລາຍງານ",
@@ -137,7 +157,7 @@ const USERS: NavGroup = {
 };
 
 /** ເມນູທັງໝົດ (ກ່ອນກັ່ນຕອງສິດ) */
-export const navigation: NavGroup[] = [REPAIR, INSTALL, STOCK, APPROVE, REPORT, USERS];
+export const navigation: NavGroup[] = [REPAIR, INSTALL, STOCK, QUALITY, APPROVE, REPORT, USERS];
 
 /**
  * ເມນູຂອງ role ນີ້ — ກັ່ນຕອງດ້ວຍ canAccess() ຂອງ lib/roles ໂດຍກົງ
@@ -145,9 +165,17 @@ export const navigation: NavGroup[] = [REPAIR, INSTALL, STOCK, APPROVE, REPORT, 
  * (ຖ້າແຍກ 2 ຕາຕະລາງ ມື້ໜຶ່ງມັນຈະບໍ່ຕົງກັນແນ່ນອນ).
  * ກຸ່ມທີ່ບໍ່ເຫຼືອລາຍການໃດ = ຫາຍໄປທັງກຸ່ມ.
  */
-export function navigationFor(role: Role): NavGroup[] {
+/** ສິດທີ່ຜູ້ຈັດການກຳນົດຢູ່ຖານຂໍ້ມູນ — layout ຄິດໃຫ້ ແລ້ວສົ່ງລົງມາເຖິງເມນູ */
+export type NavFlags = { qc?: boolean };
+
+export function navigationFor(role: Role, flags: NavFlags = {}): NavGroup[] {
   return navigation
-    .map((group) => ({ ...group, items: group.items.filter((item) => canAccess(role, pathOf(item.href))) }))
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => canAccess(role, pathOf(item.href)) && (item.flag !== "qc" || flags.qc === true),
+      ),
+    }))
     .filter((group) => group.items.length > 0);
 }
 

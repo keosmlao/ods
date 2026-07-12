@@ -1,11 +1,12 @@
 "use client";
 import { NavTree } from "@/components/sidebar";
+import type { NavFlags } from "@/lib/navigation";
 import type { Role } from "@/lib/roles";
 import { Menu, Wrench, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-export function MobileNav({ role }: { role: Role }) {
+export function MobileNav({ role, navFlags }: { role: Role; navFlags: NavFlags }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -22,7 +23,7 @@ export function MobileNav({ role }: { role: Role }) {
       </header>
       {open && (
         <div className="no-print fixed inset-0 z-10 flex flex-col overflow-y-auto bg-slate-950 pb-6 pt-16 text-slate-300 lg:hidden">
-          <NavTree role={role} onNavigate={() => setOpen(false)} />
+          <NavTree role={role} navFlags={navFlags} onNavigate={() => setOpen(false)} />
         </div>
       )}
     </>

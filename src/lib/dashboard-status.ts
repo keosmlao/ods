@@ -32,7 +32,9 @@ export const repairStatuses: Record<string, StatusDef> = {
   purchasing: { label: "ກຳລັງສັ່ງຊື້", condition: stageIs(7), stage: 7 },
   "wait-repair": { label: "ລໍຖ້າສ້ອມ", condition: stageIs(8), stage: 8 },
   repairing: { label: "ກຳລັງສ້ອມ", condition: stageIs(9), stage: 9 },
-  "wait-return": { label: "ລໍຖ້າສົ່ງຄືນ", condition: stageIs(10), stage: 10 },
+  // ດ່ານກວດຮັບຄຸນນະພາບ — ຂັ້ນໃໝ່ (ສ້ອມສຳເລັດແລ້ວ ແຕ່ຍັງບໍ່ຜ່ານ QC)
+  "wait-qc": { label: "ລໍກວດຮັບຄຸນນະພາບ", condition: stageIs(10), stage: 10 },
+  "wait-return": { label: "ລໍຖ້າສົ່ງຄືນ", condition: stageIs(11), stage: 11 },
   // ບໍ່ມີ "ຂໍ້ມູນຜິດປົກກະຕິ" ອີກຕໍ່ໄປ — STAGE_SQL ໃຫ້ຂັ້ນທຸກໃບສະເໝີ ຈຶ່ງຕົກຫຼົ່ນບໍ່ໄດ້
 };
 
@@ -52,8 +54,10 @@ export const installStatuses: Record<string, StatusDef> = {
   "wait-pick": { label: "ລໍຖ້າຮັບອາໄຫຼ່", condition: installStageIs(3), stage: 3 },
   "wait-install": { label: "ລໍຖ້າຕິດຕັ້ງ", condition: installStageIs(4), stage: 4 },
   installing: { label: "ກຳລັງຕິດຕັ້ງ", condition: installStageIs(5), stage: 5 },
-  "wait-feedback": { label: "ລໍຖ້າແບບສອບຖາມ", condition: installStageIs(6), stage: 6 },
-  "wait-close": { label: "ລໍຖ້າປິດງານ", condition: installStageIs(7), stage: 7 },
+  // ດ່ານກວດຮັບຄຸນນະພາບ — ຂັ້ນໃໝ່ (ຕິດຕັ້ງສຳເລັດແລ້ວ ແຕ່ຍັງບໍ່ຜ່ານ QC)
+  "wait-qc": { label: "ລໍກວດຮັບຄຸນນະພາບ", condition: installStageIs(6), stage: 6 },
+  "wait-feedback": { label: "ລໍຖ້າແບບສອບຖາມ", condition: installStageIs(7), stage: 7 },
+  "wait-close": { label: "ລໍຖ້າປິດງານ", condition: installStageIs(8), stage: 8 },
 
   /**
    * ⚠️ ຄິວທີ່ **ຕັດຂວາງຂັ້ນ** — ບໍ່ແມ່ນຂັ້ນຂອງຕົນເອງ.

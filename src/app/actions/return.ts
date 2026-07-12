@@ -481,7 +481,19 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
       );
     }
 
-    await client.query(`update tb_product set return_complete=localtimestamp(0) where code=$1`, [d.pro_code]);
+    /**
+     * ດ່ານກວດຮັບຄຸນນະພາບ — ງານທີ່ **ຍັງບໍ່ຜ່ານ QC** ອອກໃບຮັບເງິນ/ສົ່ງຄືນບໍ່ໄດ້.
+     * ເງື່ອນໄຂຢູ່ໃນ WHERE ⇒ ກັນການແຂ່ງກັນ (ບໍ່ແມ່ນກວດແລ້ວຄ່ອຍຂຽນ).
+     */
+    const returned = await client.query(
+      `update tb_product set return_complete=localtimestamp(0)
+        where code=$1 and qc_finish is not null and return_complete is null`,
+      [d.pro_code],
+    );
+    if (!returned.rowCount) {
+      await client.query("rollback");
+      return { error: "ສົ່ງຄືນບໍ່ໄດ້ — ງານນີ້ຍັງບໍ່ຜ່ານການກວດຮັບຄຸນນະພາບ ຫຼື ສົ່ງຄືນໄປແລ້ວ" };
+    }
 
     await client.query(
       `delete from ic_trans_detail_draft where trans_flag=$1 and product_code=$2 and user_created=$3`,

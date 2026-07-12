@@ -41,9 +41,9 @@ type Props = { searchParams: Promise<ListSearchParams & { from?: string; to?: st
 
 /** ຂັ້ນ 6 = ຕິດຕັ້ງສຳເລັດ (ລໍຖ້າ complain) · 7 = ລໍຖ້າປິດງານ · 8 = ປິດງານເເລ້ວ */
 const BUCKET: Record<Tab, { where: string; timeCol: string }> = {
-  feedback: { where: installStageIs(6), timeCol: "a.finish_install" },
-  close: { where: installStageIs(7), timeCol: "a.complain_finish" },
-  closed: { where: installStageIs(8), timeCol: "a.job_finish" },
+  feedback: { where: installStageIs(7), timeCol: "a.qc_finish" },
+  close: { where: installStageIs(8), timeCol: "a.complain_finish" },
+  closed: { where: installStageIs(9), timeCol: "a.job_finish" },
 };
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;

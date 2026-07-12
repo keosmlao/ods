@@ -21,9 +21,16 @@
  */
 
 /** ໃຊ້ໃນ SQL — ຕ້ອງ alias ຕາຕະລາງ tb_product ເປັນ a */
+/**
+ * ── ດ່ານກວດຮັບຄຸນນະພາບ (QC) — ຂັ້ນ 10 ໃໝ່ ──
+ * ກຳລັງສ້ອມ → **ລໍກວດ QC** → ລໍສົ່ງຄືນ → ສົ່ງຄືນສຳເລັດ
+ * ຂັ້ນ 10/11 ເກົ່າ ເລື່ອນເປັນ 11/12. ງານທີ່ QC ຍັງບໍ່ຜ່ານ ອອກໃບຮັບເງິນ/ສົ່ງຄືນບໍ່ໄດ້.
+ */
 export const STAGE_SQL = `case
   when a.status = 6                                            then -1
-  when a.return_complete is not null                           then 11
+  when a.return_complete is not null                           then 12
+  when a.time_finish_repair is not null
+   and a.qc_finish is not null                                 then 11
   when a.time_finish_repair is not null                        then 10
   when a.time_repair is not null                               then 9
   when a.time_check is null and a.time_finish_check is null    then 1
@@ -51,9 +58,19 @@ export const STAGE_LABEL: Record<number, string> = {
   7: "ກຳລັງສັ່ງຊື້ອາໄຫຼ່",
   8: "ລໍຖ້າສ້ອມແປງ",
   9: "ກຳລັງສ້ອມແປງ",
-  10: "ລໍຖ້າສົ່ງຄືນ",
-  11: "ສົ່ງຄືນສຳເລັດ",
+  10: "ລໍກວດຮັບຄຸນນະພາບ",
+  11: "ລໍຖ້າສົ່ງຄືນ",
+  12: "ສົ່ງຄືນສຳເລັດ",
 };
+
+/**
+ * ຊື່ຂັ້ນ ໃນຮູບ SQL — **ສ້າງຈາກ STAGE_LABEL ບ່ອນດຽວ**.
+ * ແຕ່ກ່ອນ 3 ໄຟລ໌ຂຽນ `case … when 10 then 'ລໍຖ້າສົ່ງຄືນ' …` ຊ້ຳກັນເອງ
+ * ⇒ ພໍເພີ່ມຂັ້ນ QC ເລກເລື່ອນໝົດ ແລະ ລາຍງານຈະສະແດງຊື່ຂັ້ນຜິດຢ່າງງຽບໆ.
+ */
+export const STAGE_LABEL_SQL = `case (${STAGE_SQL})
+${Object.entries(STAGE_LABEL).map(([stage, label]) => `  when ${stage} then '${label}'`).join("\n")}
+  else '-' end`;
 
 /** ເງື່ອນໄຂ 3 ກຸ່ມໃຫຍ່ — ລວມກັນແລ້ວໄດ້ທຸກແຖວຂອງ tb_product ພໍດີ */
 export const OPEN_JOBS = "a.status <> 6 and a.return_complete is null";
@@ -71,7 +88,8 @@ export const CANCELLED_JOBS = "a.status = 6";
  * ໃຫ້ຖອຍໄປໃຊ້ຖັນກ່ອນໜ້າ ດ້ວຍ coalesce — ບໍ່ດັ່ງນັ້ນຈະໄດ້ null ແລ້ວແຖວນັ້ນຫາຍຈາກການນັບ.
  */
 export const STAGE_TIME_COL = `case (${STAGE_SQL})
-  when 11 then a.return_complete
+  when 12 then a.return_complete
+  when 11 then a.qc_finish
   when 10 then a.time_finish_repair
   when 9  then a.time_repair
   when 8  then coalesce(a.spare_finish, a.qt_finish, a.time_finish_check)

@@ -16,6 +16,7 @@ import { APPROVER_SIDE, canAccess, ROLE_LABEL, type Role, roleOf } from "@/lib/r
 import { ownJobsOnly } from "@/lib/scope";
 import {
   AlertCircle,
+  ArrowRight,
   Ban,
   CalendarClock,
   CalendarDays,
@@ -25,6 +26,7 @@ import {
   PackageCheck,
   PackageOpen,
   PackageX,
+  Plus,
   Radar,
   RefreshCw,
   ShoppingCart,
@@ -640,6 +642,18 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     { label: "ເກີນ SLA", value: data?.sla.late ?? 0, tone: "text-red-700", bg: "bg-red-50" },
     { label: "ລາຍການຕ້ອງລົງມື", value: actionTotal, tone: "text-amber-700", bg: "bg-amber-50" },
   ];
+  const criticalTotal = (data?.sla.critical ?? 0) + (data?.overdueAppointments ?? 0) + (data?.unassigned.repair ?? 0) + (data?.unassigned.install ?? 0);
+  const health = criticalTotal === 0 ? { label: "ປົກກະຕິ", detail: "ບໍ່ມີຄິວວິກິດ", tone: "text-emerald-700", ring: "bg-emerald-500" }
+    : criticalTotal < 10 ? { label: "ຕ້ອງຕິດຕາມ", detail: `${criticalTotal} ລາຍການສຳຄັນ`, tone: "text-amber-700", ring: "bg-amber-500" }
+      : { label: "ຕ້ອງລົງມື", detail: `${criticalTotal} ລາຍການສຳຄັນ`, tone: "text-red-700", ring: "bg-red-500" };
+  const quickActions = [
+    { label: "ເປີດຮັບເຄື່ອງໃໝ່", href: "/service/new", icon: Plus },
+    { label: "ເປີດງານຕິດຕັ້ງ", href: "/installations/new", icon: Plus },
+    { label: "ກວດເຊັກ", href: "/checking", icon: ClipboardCheck },
+    { label: "ວຽກສ້ອມ", href: "/repair", icon: Wrench },
+    { label: "ເບີກອາໄຫຼ່", href: "/stock/dispatch", icon: PackageCheck },
+    { label: "ຈັດຊ່າງ", href: "/installations/assign", icon: Users },
+  ].filter((item) => canAccess(role, item.href));
 
   return (
     <div className="w-full space-y-6 pb-6">
@@ -677,6 +691,30 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             <p className={`mt-1 text-3xl font-bold tracking-tight ${kpi.tone}`}>{kpi.value.toLocaleString()}</p>
           </div>
         ))}
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="pointer-events-none absolute -bottom-16 -right-12 size-40 rounded-full bg-teal-100/70 blur-3xl" />
+          <div className="relative flex flex-wrap items-center gap-5">
+            <div className={`grid size-16 shrink-0 place-items-center rounded-2xl ${health.ring} text-white shadow-lg shadow-slate-200`}>
+              <span className="text-2xl font-black">{criticalTotal}</span>
+            </div>
+            <div className="min-w-48 flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Operational health</p>
+              <h2 className={`mt-1 text-xl font-bold ${health.tone}`}>{health.label}</h2>
+              <p className="mt-1 text-xs text-slate-500">{health.detail} · ຄິດຈາກ SLA ຮ້າຍແຮງ, ນັດເລີຍກຳນົດ ແລະວຽກບໍ່ມີຊ່າງ</p>
+            </div>
+            <Link href="/dashboard/tracking" className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-teal-700">ເບິ່ງພາບລວມ <ArrowRight className="size-3.5" /></Link>
+          </div>
+        </div>
+
+        {quickActions.length > 0 && <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-3"><h2 className="text-sm font-bold text-slate-800">ທາງລັດປະຈຳວັນ</h2><p className="mt-0.5 text-[11px] text-slate-500">ສະແດງສະເພາະເມນູທີ່ທ່ານມີສິດ</p></div>
+          <div className="grid grid-cols-2 gap-2">
+            {quickActions.slice(0, 6).map(({ label, href, icon: Icon }) => <Link key={href} href={href} className="group flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800"><span className="grid size-7 place-items-center rounded-lg bg-white text-slate-500 shadow-sm group-hover:text-teal-700"><Icon className="size-3.5" /></span><span className="truncate">{label}</span></Link>)}
+          </div>
+        </div>}
       </section>
 
       {data && ["/installations/work", "/checking", "/repair"].some((path) => canAccess(role, path)) && (

@@ -1,8 +1,8 @@
 import { query } from "@/lib/db";
 import { installStatuses, repairStatuses, type StatusDef } from "@/lib/dashboard-status";
-import { INSTALL_ELAPSED_SQL, INSTALL_OPEN, INSTALL_STAGE_SQL } from "@/lib/install-stage";
+import { INSTALL_ELAPSED_SQL, INSTALL_OPEN, INSTALL_STAGE_LABEL_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { SLA_SQL } from "@/lib/sla";
-import { OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_SQL } from "@/lib/stage";
+import { OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import type { QueryResultRow } from "pg";
 
@@ -192,11 +192,7 @@ export type StaleJob = {
 const STALE_REPAIR = (where: string) => `select a.code, b.name_1 customer,
     concat_ws(' ', a.name_1, a.p_brand, a.p_model) product, a.emp_code who,
     greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int elapsed_seconds,
-    case (${STAGE_SQL})
-      when 1 then 'ລໍຖ້າກວດເຊັກ' when 2 then 'ກຳລັງກວດເຊັກ' when 3 then 'ລໍຖ້າສະເໜີລາຄາ'
-      when 4 then 'ກຳລັງສະເໜີລາຄາ' when 5 then 'ລໍຖ້າເບີກອາໄຫຼ່' when 6 then 'ກຳລັງເບີກອາໄຫຼ່'
-      when 7 then 'ກຳລັງສັ່ງຊື້' when 8 then 'ລໍຖ້າສ້ອມ' when 9 then 'ກຳລັງສ້ອມ'
-      when 10 then 'ລໍຖ້າສົ່ງຄືນ' else '-' end stage
+    (${STAGE_LABEL_SQL}) as stage
   from tb_product a left join ar_customer b on b.code = a.cust_code
   where ${where}
   order by a.time_register asc nulls last limit 8`;
@@ -204,10 +200,7 @@ const STALE_REPAIR = (where: string) => `select a.code, b.name_1 customer,
 const STALE_INSTALL = (where: string) => `select a.code, c.name_1 customer,
     concat_ws(' ', a.item_name, a.pro_brand, a.pro_model) product, a.tech_code who,
     greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int elapsed_seconds,
-    case (${INSTALL_STAGE_SQL})
-      when 0 then 'ລໍຖ້າຈັດຊ່າງ' when 1 then 'ລໍຖ້າຊ່າງຂໍເບີກ' when 2 then 'ລໍຖ້າສາງເບີກ'
-      when 3 then 'ລໍຖ້າຮັບອາໄຫຼ່' when 4 then 'ລໍຖ້າຕິດຕັ້ງ' when 5 then 'ກຳລັງຕິດຕັ້ງ'
-      when 6 then 'ລໍຖ້າແບບສອບຖາມ' when 7 then 'ລໍຖ້າປິດງານ' else '-' end stage
+    (${INSTALL_STAGE_LABEL_SQL}) as stage
   from ods_tb_install a left join ar_customer c on c.code = a.cust_code
   where ${where}
   order by a.time_register asc nulls last limit 8`;

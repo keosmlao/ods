@@ -52,11 +52,19 @@
  *
  * ການແຈກຢາຍຂັ້ນຂອງ 6,832 ແຖວບໍ່ປ່ຽນ: -1=3, 0=27, 5=3, 8=6799 (ກ່ອນ ແລະ ຫຼັງ).
  */
+/**
+ * ── ດ່ານກວດຮັບຄຸນນະພາບ (QC) — ຂັ້ນ 6 ໃໝ່ ──
+ * ຕິດຕັ້ງສຳເລັດ → **ລໍກວດ QC** → ລໍແບບປະເມີນ → ລໍປິດງານ → ປິດແລ້ວ
+ * ຂັ້ນ 6/7/8 ເກົ່າ ເລື່ອນເປັນ 7/8/9. ງານທີ່ QC ຍັງບໍ່ຜ່ານ ລູກຄ້າຕອບແບບປະເມີນບໍ່ໄດ້.
+ */
 export const INSTALL_STAGE_SQL = `case
   when a.cancel_date is not null                     then -1
-  when a.job_finish is not null                      then 8
+  when a.job_finish is not null                      then 9
   when a.finish_install is not null
-   and a.complain_finish is not null                 then 7
+   and a.qc_finish is not null
+   and a.complain_finish is not null                 then 8
+  when a.finish_install is not null
+   and a.qc_finish is not null                       then 7
   when a.finish_install is not null                  then 6
   when a.start_install is not null                   then 5
   when a.tech_code is null or a.tech_code = ''       then 0
@@ -78,9 +86,10 @@ export const INSTALL_STAGE_LABEL: Record<number, string> = {
   3: "ລໍຖ້າຊ່າງຮັບອາໄຫຼ່",
   4: "ລໍຖ້າຊ່າງຕິດຕັ້ງ",
   5: "ກຳລັງຕິດຕັ້ງ",
-  6: "ຕິດຕັ້ງສຳເລັດ",
-  7: "ລໍຖ້າປິດງານ",
-  8: "ປິດງານເເລ້ວ",
+  6: "ລໍກວດຮັບຄຸນນະພາບ",
+  7: "ລໍຖ້າແບບປະເມີນ",
+  8: "ລໍຖ້າປິດງານ",
+  9: "ປິດງານເເລ້ວ",
 };
 
 /** ສີຂອງປ້າຍສະຖານະ — ໃຫ້ໜ້າຕາຄືກັນທຸກໜ້າ */
@@ -92,10 +101,16 @@ export const INSTALL_STAGE_CHIP: Record<number, string> = {
   3: "bg-blue-50 text-blue-700",
   4: "bg-indigo-50 text-indigo-700",
   5: "bg-emerald-50 text-emerald-700",
-  6: "bg-teal-50 text-teal-700",
-  7: "bg-orange-50 text-orange-700",
-  8: "bg-slate-100 text-slate-600",
+  6: "bg-purple-100 text-purple-800",
+  7: "bg-teal-50 text-teal-700",
+  8: "bg-orange-50 text-orange-700",
+  9: "bg-slate-100 text-slate-600",
 };
+
+/** ຊື່ຂັ້ນ ໃນຮູບ SQL — ສ້າງຈາກ INSTALL_STAGE_LABEL ບ່ອນດຽວ (ເບິ່ງ lib/stage) */
+export const INSTALL_STAGE_LABEL_SQL = `case (${INSTALL_STAGE_SQL})
+${Object.entries(INSTALL_STAGE_LABEL).map(([stage, label]) => `  when ${stage} then '${label}'`).join("\n")}
+  else '-' end`;
 
 export const installStageLabel = (stage: number | null) =>
   stage == null ? "-" : (INSTALL_STAGE_LABEL[stage] ?? "-");
@@ -119,8 +134,9 @@ export const installStageIs = (stage: number) => `(${INSTALL_STAGE_SQL}) = ${Num
  * ຂັ້ນນຶ່ງນັບຈາກເວລາທີ່ເຂົ້າຂັ້ນນັ້ນ (ຂັ້ນ 0 ຍັງບໍ່ມີຫຍັງ ຈຶ່ງນັບຈາກເປີດງານ).
  */
 export const INSTALL_STAGE_TIME_COL = `case (${INSTALL_STAGE_SQL})
-  when 8 then a.job_finish
-  when 7 then a.complain_finish
+  when 9 then a.job_finish
+  when 8 then a.complain_finish
+  when 7 then a.qc_finish
   when 6 then a.finish_install
   when 5 then a.start_install
   when 4 then coalesce(a.pick_finish, a.tech_confirm, a.time_register)
