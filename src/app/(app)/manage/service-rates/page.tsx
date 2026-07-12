@@ -1,4 +1,4 @@
-import { type Option, rateOptions } from "@/app/actions/service-rate";
+import { type Option, payeeOptions, rateOptions } from "@/app/actions/service-rate";
 import { Card, Empty, PageTitle, Table } from "@/components/ui";
 import { ROLE_LABEL, type Workflow } from "@/lib/commission";
 import { query } from "@/lib/db";
@@ -47,30 +47,21 @@ export default async function ServiceRatesPage() {
     query<{ workflow: string; role: string; employee_code: string }>(
       "select workflow, role, employee_code from ods_service_commission_payee",
     ),
-    /**
-     * ⚠️ ຜູ້ຮັບເງິນຕ້ອງມາຈາກ **users ຂອງ ODS** ບໍ່ແມ່ນ odg_employee ຂອງ ERP.
-     *
-     * ງານບັນທຶກຊ່າງໄວ້ເປັນ users.code (assignTech ເລືອກຈາກຕາຕະລາງນີ້) ແລະ ຄ່າຈິງ
-     * ເປັນ **ຊື່ຜູ້ໃຊ້** ('Xiew', 'Mee', 'sak') **ປົນກັບ** ລະຫັດພະນັກງານ ERP ('22040').
-     * ຖ້າໃຫ້ເລືອກຜູ້ຮັບຈາກ employee_code ຂອງ ERP (25069) ຄ່າຈະຢູ່ຄົນລະ namespace
-     * ກັບ tech_code/emp_code ⇒ ລາຍງານຈັດກຸ່ມເງິນບໍ່ຕົງກັນ ແລະ ເງິນຂອງບາງຄົນຫາຍ.
-     * ⇒ ໃຊ້ namespace ອັນດຽວກັບທີ່ງານໃຊ້ຈິງ.
-     */
-    query<Option>(
-      `select code, coalesce(nullif(name_1,''), username, code) as name
-         from users where coalesce(code,'') <> '' order by name_1, code`,
-    ),
+    // ຜູ້ຮັບເງິນ — ຝ່າຍບໍລິການ ຂອງ ERP (ເບິ່ງໝາຍເຫດເລື່ອງຕົວຕົນໃນ actions/service-rate)
+    payeeOptions(),
   ]);
 
-  // ຊື່ຂອງ ໝວດ/ແບບ/ຂະໜາດ — ຈັບຄູ່ຢູ່ຝັ່ງ app ເພາະ ODS ກັບ ERP ຄົນລະຖານ (join ຂ້າມບໍ່ໄດ້)
+  // ຊື່ໝວດ — ຈັບຄູ່ຢູ່ຝັ່ງ app ເພາະ ODS ກັບ ERP ຄົນລະຖານ (join ຂ້າມບໍ່ໄດ້).
+  // ແບບ/ຂະໜາດ ບໍ່ໂຫຼດມາທັງໝົດອີກແລ້ວ (56 + 489 ແຖວ) ⇒ ຕາຕະລາງສະແດງລະຫັດ
+  // ພ້ອມຄຳອະທິບາຍທີ່ຄົນປ້ອນ (label) ເຊິ່ງບອກຂະໜາດຢູ່ແລ້ວ.
   const nameOf = (list: Option[], code: string | null) =>
     code ? (list.find((option) => option.code === code)?.name ?? code) : null;
 
   const rows: RateRow[] = rates.rows.map((rate) => ({
     ...rate,
     category_name: nameOf(options.categories, rate.category_code),
-    design_name: nameOf(options.designs, rate.design_code),
-    size_name: nameOf(options.sizes, rate.size_code),
+    design_name: rate.design_code,
+    size_name: rate.size_code,
   }));
 
   const splitOf = (workflow: Workflow): Record<string, number> => {
@@ -85,7 +76,7 @@ export default async function ServiceRatesPage() {
     <div className="w-full space-y-5">
       <PageTitle sub="ຄ່າບໍລິການ ແລະ ຄ່າຄອມຂອງຊ່າງ (ບາທ)">ກຳນົດຄ່າບໍລິການ</PageTitle>
 
-      <AddRateForm categories={options.categories} designs={options.designs} sizes={options.sizes} />
+      <AddRateForm categories={options.categories} />
 
       <Card title={`ອັດຕາທີ່ໃຊ້ຢູ່ (${rows.length})`}>
         {rows.length === 0 ? (
@@ -148,7 +139,7 @@ export default async function ServiceRatesPage() {
                   workflow={workflow}
                   role={role}
                   current={payeeOf(workflow, role)}
-                  employees={employees.rows}
+                  employees={employees}
                 />
               ))}
             </div>

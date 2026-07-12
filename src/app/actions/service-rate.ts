@@ -23,14 +23,80 @@ async function requireManager(): Promise<{ ok: true; username: string } | { ok: 
 
 export type Option = { code: string; name: string };
 
-/** ໝວດ / ແບບ / ຂະໜາດ — ມາຈາກ ERP ບ່ອນດຽວ ຈຶ່ງບໍ່ມີທາງຫຼົ້ນກັບຂໍ້ມູນຈິງ */
-export async function rateOptions(): Promise<{ categories: Option[]; designs: Option[]; sizes: Option[] }> {
-  const [categories, designs, sizes] = await Promise.all([
-    queryOdg<Option>("select code, name_1 as name from ic_category where coalesce(name_1,'') <> '' order by name_1"),
-    queryOdg<Option>("select code, name_1 as name from ic_design where coalesce(name_1,'') <> '' order by name_1"),
-    queryOdg<Option>("select code, name_1 as name from ic_size where coalesce(name_1,'') <> '' order by name_1"),
+/**
+ * ໝວດສິນຄ້າ — ສະເພາະໝວດທີ່ **ມີສິນຄ້າຈິງ** ຢູ່ໃນ ERP.
+ *
+ * ic_category ມີ 325 ແຖວ (ລວມ 'UNIFORM', 'ກອນ', 'ກະຈົກ' …) ⇒ ເທລົງມາທັງໝົດ
+ * ຄົນເລືອກບໍ່ຖືກ. ກອງດ້ວຍ exists ⇒ ເຫຼືອສະເພາະໝວດທີ່ໃຊ້ໄດ້ຈິງ.
+ */
+export async function rateOptions(): Promise<{ categories: Option[] }> {
+  const categories = await queryOdg<Option>(
+    `select c.code, c.name_1 as name
+       from ic_category c
+      where coalesce(c.name_1,'') <> ''
+        and exists (select 1 from ic_inventory i where i.item_category = c.code)
+      order by c.name_1`,
+  );
+  return { categories: categories.rows };
+}
+
+/**
+ * ແບບ ແລະ ຂະໜາດ ຂອງ **ໝວດທີ່ເລືອກ** — ກອງຕໍ່ກັນ (cascade).
+ *
+ * ic_design ມີ 56 ແຖວ ແລະ ic_size ມີ 489 ແຖວ ສຳລັບທຸກໝວດລວມກັນ (ມີ '0.2ລິດ',
+ * '3ຊ່ອງ' …). ຖ້າສະແດງທັງໝົດ ຜູ້ຈັດການຈະເລືອກຂະໜາດທີ່ **ໝວດນັ້ນບໍ່ເຄີຍມີ** ໄດ້
+ * ⇒ ອັດຕານັ້ນຈະບໍ່ມີວັນຈັບຄູ່ກັບງານໃດເລີຍ (ອັດຕາຕາຍ ໂດຍບໍ່ມີໃຜຮູ້).
+ *
+ * ດຶງຈາກ **ສິນຄ້າຈິງ** ຂອງໝວດນັ້ນ (ic_inventory) ບໍ່ແມ່ນຈາກຕາຕະລາງ master ລ້ວນ
+ * ⇒ ສະແດງແຕ່ຄ່າທີ່ງານຈິງຈະສົ່ງມາໄດ້.
+ */
+export async function optionsForCategory(
+  categoryCode: string,
+): Promise<{ designs: Option[]; sizes: Option[] }> {
+  if (!categoryCode.trim()) return { designs: [], sizes: [] };
+
+  const [designs, sizes] = await Promise.all([
+    queryOdg<Option>(
+      `select distinct d.code, d.name_1 as name
+         from ic_inventory i
+         join ic_design d on d.code = i.item_design
+        where i.item_category = $1 and coalesce(d.name_1,'') <> ''
+        order by d.name_1`,
+      [categoryCode],
+    ),
+    queryOdg<Option>(
+      `select distinct s.code, s.name_1 as name
+         from ic_inventory i
+         join ic_size s on s.code = i.item_size
+        where i.item_category = $1 and coalesce(s.name_1,'') <> ''
+        order by s.name_1`,
+      [categoryCode],
+    ),
   ]);
-  return { categories: categories.rows, designs: designs.rows, sizes: sizes.rows };
+  return { designs: designs.rows, sizes: sizes.rows };
+}
+
+/**
+ * ພະນັກງານທີ່ເລືອກເປັນຜູ້ຮັບເງິນໄດ້ — **ຝ່າຍບໍລິການ ຂອງ ERP** (division 400).
+ *
+ * ⚠️ ໝາຍເຫດເລື່ອງຕົວຕົນ (ສຳຄັນ — ນີ້ເປັນເລື່ອງເງິນ):
+ * ງານບັນທຶກຊ່າງໄວ້ເປັນ tech_code / emp_code ເຊິ່ງ **ປົນສອງລະບົບ**:
+ *   ຊ່າງ 25 ຄົນທີ່ປາກົດໃນງານ — ມີພຽງ 2 ຄົນທີ່ຄ່າຕົງກັບ odg_employee.employee_code
+ *   ອີກ 23 ຄົນເປັນຊື່ຜູ້ໃຊ້ເກົ່າ ('Xiew', 'sak', 'Mee' …) ບໍ່ມີໃນ ERP
+ * ⇒ ຜູ້ຮັບເງິນທີ່ເລືອກຈາກນີ້ຈະຖືກເກັບເປັນ employee_code ສ່ວນ **ຊ່າງ** ຍັງເປັນ
+ *   ຄ່າທີ່ຢູ່ໃນງານ. ສອງອັນນີ້ເປັນ **ຕົວຕົນຄົນລະອັນ** ແຕ່ບໍ່ຊ້ຳກັນ ⇒ ເງິນບໍ່ຫາຍ
+ *   ແລະ ບໍ່ຖືກລວມຜິດຄົນ. ລາຍງານແປງຊື່ຈາກ **ທັງສອງ** ລະບົບ (ເບິ່ງ reports/technician-income)
+ *   ຈຶ່ງບໍ່ມີໃຜສະແດງອອກມາເປັນລະຫັດດິບ.
+ */
+export async function payeeOptions(): Promise<Option[]> {
+  const result = await queryOdg<Option>(
+    `select e.employee_code as code,
+        coalesce(nullif(e.fullname_lo,''), e.employee_code) as name
+      from odg_employee e
+      where e.employment_status = 'ACTIVE' and e.division_code = '400'
+      order by e.fullname_lo`,
+  );
+  return result.rows;
 }
 
 /* ── ອັດຕາ ─────────────────────────────────────────────────────── */

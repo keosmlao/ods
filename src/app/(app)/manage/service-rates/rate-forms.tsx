@@ -1,5 +1,12 @@
 "use client";
-import { deactivateRate, type Option, saveRate, savePayee, saveSplit } from "@/app/actions/service-rate";
+import {
+  deactivateRate,
+  type Option,
+  optionsForCategory,
+  savePayee,
+  saveRate,
+  saveSplit,
+} from "@/app/actions/service-rate";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Button, ErrorBox, inputClass } from "@/components/ui";
 import { ROLE_LABEL, type Workflow } from "@/lib/commission";
@@ -23,13 +30,35 @@ const SERVICE_TYPES: Option[] = [
   { code: "PS", name: "ໄປຮັບບ້ານລູກຄ້າ" },
 ];
 
-function Select({ name, label, options, hint }: { name: string; label: string; options: Option[]; hint?: string }) {
+function Select({
+  name,
+  label,
+  options,
+  value,
+  onChange,
+  disabled,
+  hint,
+}: {
+  name: string;
+  label: string;
+  options: Option[];
+  value?: string;
+  onChange?: (value: string) => void;
+  disabled?: boolean;
+  hint?: string;
+}) {
   return (
     <label className="block">
       <span className="mb-1 block text-xs text-slate-600">
         {label} <span className="text-slate-400">{hint ?? "(ຫວ່າງ = ທຸກອັນ)"}</span>
       </span>
-      <select name={name} className={inputClass} defaultValue="">
+      <select
+        name={name}
+        className={inputClass}
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange?.(event.target.value)}
+      >
         <option value="">— ທຸກອັນ —</option>
         {options.map((option) => (
           <option key={option.code} value={option.code}>
@@ -41,16 +70,32 @@ function Select({ name, label, options, hint }: { name: string; label: string; o
   );
 }
 
-export function AddRateForm({
-  categories,
-  designs,
-  sizes,
-}: {
-  categories: Option[];
-  designs: Option[];
-  sizes: Option[];
-}) {
+/**
+ * ເພີ່ມອັດຕາ — **ແບບ ແລະ ຂະໜາດ ກອງຕາມໝວດທີ່ເລືອກ**.
+ *
+ * ERP ມີ 56 ແບບ ແລະ 489 ຂະໜາດ ລວມທຸກໝວດ ('0.2ລິດ', '3ຊ່ອງ' …). ຖ້າເທລົງມາທັງໝົດ
+ * ຜູ້ຈັດການຈະເລືອກຂະໜາດທີ່ **ໝວດນັ້ນບໍ່ເຄີຍມີ** ໄດ້ ⇒ ອັດຕານັ້ນຈະບໍ່ມີວັນຈັບຄູ່
+ * ກັບງານໃດເລີຍ (ອັດຕາຕາຍ ໂດຍບໍ່ມີໃຜຮູ້). ດຶງຈາກສິນຄ້າຈິງຂອງໝວດນັ້ນ.
+ */
+export function AddRateForm({ categories }: { categories: Option[] }) {
   const [state, action, pending] = useActionState(saveRate, {});
+  const [category, setCategory] = useState("");
+  const [designs, setDesigns] = useState<Option[]>([]);
+  const [sizes, setSizes] = useState<Option[]>([]);
+  const [loading, startLoad] = useTransition();
+
+  function pickCategory(code: string) {
+    setCategory(code);
+    // ປ່ຽນໝວດ → ແບບ/ຂະໜາດ ເກົ່າໃຊ້ບໍ່ໄດ້ອີກ ⇒ ລ້າງທັນທີ ບໍ່ດັ່ງນັ້ນຈະສົ່ງຄ່າທີ່ຂັດກັນໄປ
+    setDesigns([]);
+    setSizes([]);
+    if (!code) return;
+    startLoad(async () => {
+      const options = await optionsForCategory(code);
+      setDesigns(options.designs);
+      setSizes(options.sizes);
+    });
+  }
 
   return (
     <form action={action} className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -69,11 +114,42 @@ export function AddRateForm({
           </select>
         </label>
 
-        {/* ຮູບອັດຕາຂອງຜູ້ໃຊ້ມີແຖວທີ່ເງື່ອນໄຂຄືກັນແຕ່ລາຄາຕ່າງກັນ ⇒ ມິຕິນີ້ຄືຕົວແຍກ */}
         <Select name="service_type" label="ປະເພດບໍລິການ" options={SERVICE_TYPES} />
-        <Select name="category_code" label="ໝວດສິນຄ້າ" options={categories} />
-        <Select name="design_code" label="ແບບ (Wall/Cassette/…)" options={designs} />
-        <Select name="size_code" label="ຂະໜາດ (BTU/ນິ້ວ/ກິໂລ)" options={sizes} />
+
+        {/* ໝວດ → ກອງ ແບບ ແລະ ຂະໜາດ ໃຫ້ເຫຼືອສະເພາະທີ່ໝວດນັ້ນມີຈິງໃນ ERP */}
+        <Select
+          name="category_code"
+          label="ໝວດສິນຄ້າ"
+          options={categories}
+          value={category}
+          onChange={pickCategory}
+        />
+        <Select
+          name="design_code"
+          label="ແບບ (Wall/Cassette/…)"
+          options={designs}
+          disabled={!category || loading}
+          hint={
+            !category
+              ? "(ເລືອກໝວດກ່ອນ)"
+              : loading
+                ? "(ກຳລັງໂຫຼດ…)"
+                : `(${designs.length} ແບບໃນໝວດນີ້ · ຫວ່າງ = ທຸກອັນ)`
+          }
+        />
+        <Select
+          name="size_code"
+          label="ຂະໜາດ (BTU/ນິ້ວ/ກິໂລ)"
+          options={sizes}
+          disabled={!category || loading}
+          hint={
+            !category
+              ? "(ເລືອກໝວດກ່ອນ)"
+              : loading
+                ? "(ກຳລັງໂຫຼດ…)"
+                : `(${sizes.length} ຂະໜາດໃນໝວດນີ້ · ຫວ່າງ = ທຸກອັນ)`
+          }
+        />
 
         <label className="block">
           <span className="mb-1 block text-xs text-slate-600">ຄ່າບໍລິການ (ບາທ)</span>

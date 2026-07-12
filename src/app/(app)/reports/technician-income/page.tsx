@@ -1,7 +1,7 @@
 import { Card, Empty, PageTitle, Table } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABEL } from "@/lib/commission";
-import { query } from "@/lib/db";
+import { query, queryOdg } from "@/lib/db";
 import { roleOf } from "@/lib/roles";
 import { ownJobsOnly } from "@/lib/scope";
 import { AlertTriangle } from "lucide-react";
@@ -99,6 +99,29 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
   const grand = summary.rows.reduce((sum, row) => sum + Number(row.total_thb), 0);
   const missing = unpriced.rows.reduce((sum, row) => sum + row.n, 0);
 
+  /**
+   * ຊື່ຂອງຜູ້ຮັບເງິນ — ຕ້ອງແປງຈາກ **ສອງລະບົບຕົວຕົນ** ບໍ່ດັ່ງນັ້ນຈະສະແດງເປັນລະຫັດດິບ:
+   *
+   *   ຊ່າງ         ← tech_code / emp_code ຂອງງານ ('Xiew', 'sak', 'Mee' …)
+   *                  ⇒ ຢູ່ໃນ users ຂອງ ODS (23 ໃນ 25 ຄົນ ບໍ່ມີໃນ ERP)
+   *   ຜູ້ຄຸມ/ຫົວໜ້າທີມ/Admin ← employee_code ຂອງ odg_employee ('25069')
+   *
+   * ຄົ້ນ ODS ກ່ອນ ແລ້ວຄ່ອຍ ERP. ບໍ່ພົບທັງສອງ → ສະແດງລະຫັດດິບ (ດີກວ່າຫວ່າງ).
+   */
+  const [odsUsers, erpStaff] = await Promise.all([
+    query<{ code: string; name: string }>(
+      `select code, coalesce(nullif(name_1,''), username, code) as name from users`,
+    ),
+    queryOdg<{ code: string; name: string }>(
+      `select employee_code as code, coalesce(nullif(fullname_lo,''), employee_code) as name
+         from odg_employee`,
+    ).catch(() => ({ rows: [] as { code: string; name: string }[] })),
+  ]);
+  const names = new Map<string, string>();
+  for (const staff of erpStaff.rows) names.set(staff.code, staff.name);
+  for (const user of odsUsers.rows) names.set(user.code, user.name); // ODS ຊະນະ (ຊື່ທີ່ຄົນຮູ້ຈັກ)
+  const nameOf = (code: string | null) => (code ? (names.get(code) ?? code) : null);
+
   const monthHref = (value: string) => `/reports/technician-income?month=${value}`;
   const shift = (delta: number) => {
     const [year, mon] = month.split("-").map(Number);
@@ -149,7 +172,7 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
               <tr key={`${row.employee_code}-${row.role}`} className="border-b border-slate-100">
                 <td className="px-3 py-2 text-xs font-semibold text-slate-800">
                   {/* null = ຍັງບໍ່ໄດ້ກຳນົດຜູ້ຮັບ — ເງິນຄ້າງລໍ ບໍ່ໄດ້ຫາຍ */}
-                  {row.employee_code ?? (
+                  {nameOf(row.employee_code) ?? (
                     <span className="text-amber-700">ຍັງບໍ່ໄດ້ກຳນົດຜູ້ຮັບ</span>
                   )}
                 </td>
@@ -200,7 +223,7 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
                   {Number(row.amount_thb).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-700">
-                  {row.employee_code ?? <span className="text-amber-700">—</span>}
+                  {nameOf(row.employee_code) ?? <span className="text-amber-700">—</span>}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-600">
                   {ROLE_LABEL[row.role] ?? row.role}
