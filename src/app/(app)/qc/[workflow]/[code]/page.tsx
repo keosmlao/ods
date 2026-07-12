@@ -1,4 +1,5 @@
 import { canQc, qcChecklist } from "@/app/actions/qc";
+import { jobPhotos } from "@/lib/job-flow";
 import { Card, Empty, ErrorBox, PageTitle } from "@/components/ui";
 import type { Workflow } from "@/lib/commission";
 import { qcJob, WORKFLOW_LABEL } from "@/lib/qc";
@@ -29,7 +30,7 @@ export default async function QcJobPage({ params }: Props) {
 
   if (!(await canQc(workflow, code))) redirect("/forbidden");
 
-  const items = await qcChecklist(workflow, code);
+  const [items, photos] = await Promise.all([qcChecklist(workflow, code), jobPhotos(workflow, code)]);
 
   return (
     <div className="space-y-5">
@@ -47,6 +48,23 @@ export default async function QcJobPage({ params }: Props) {
           <Field label="ສຳເລັດເມື່ອ" value={job.finished_at} />
         </dl>
       </Card>
+
+      {/* ຮູບຜົນງານທີ່ຊ່າງຖ່າຍໄວ້ຕອນຈົບງານ — ຜູ້ກວດຕ້ອງເຫັນ ບໍ່ດັ່ງນັ້ນກວດຈາກຄວາມຊົງຈຳ */}
+      {photos.length > 0 && (
+        <Card title={`ຮູບຜົນງານຈາກຊ່າງ (${photos.length})`}>
+          <div className="flex flex-wrap gap-2">
+            {photos.map((photo) => (
+              <figure key={photo.id} className="w-40">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photo.photo} alt="" className="h-32 w-40 rounded-lg border border-slate-200 object-cover" />
+                <figcaption className="mt-1 text-[11px] text-slate-400">
+                  {photo.created_by} · {photo.created_at}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card title={`ລາຍການທີ່ຕ້ອງກວດ (${items.length})`}>
         {items.length === 0 ? (

@@ -67,11 +67,24 @@ export default function Jobs() {
     <View style={styles.page}>
       <View style={styles.topRow}>
         <Text style={styles.count}>{jobs.length} ງານ</Text>
-        <Link href="/income" asChild>
-          <Pressable style={styles.incomeLink}>
-            <Text style={styles.incomeText}>ລາຍຮັບຂອງຂ້ອຍ</Text>
-          </Pressable>
-        </Link>
+        <View style={styles.links}>
+          <Link href="/spares" asChild>
+            <Pressable style={styles.link}>
+              <Text style={styles.linkText}>ຮັບອາໄຫຼ່</Text>
+            </Pressable>
+          </Link>
+          {/* QC ຂຶ້ນສະເພາະຜູ້ທີ່ຜູ້ຈັດການກຳນົດ (ຫົວໜ້າຊ່າງ/CS) — ຄົນອື່ນກົດເຂົ້າໄປ server ປະຕິເສດ */}
+          <Link href="/qc" asChild>
+            <Pressable style={styles.link}>
+              <Text style={styles.linkText}>QC</Text>
+            </Pressable>
+          </Link>
+          <Link href="/income" asChild>
+            <Pressable style={styles.incomeLink}>
+              <Text style={styles.incomeText}>ລາຍຮັບ</Text>
+            </Pressable>
+          </Link>
+        </View>
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -119,6 +132,9 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
   count: { fontWeight: "700", color: "#0f172a" },
+  links: { flexDirection: "row", gap: 6 },
+  link: { backgroundColor: "#0d9488", paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10 },
+  linkText: { color: "#fff", fontWeight: "700", fontSize: 12 },
   incomeLink: { backgroundColor: "#0f172a", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
   incomeText: { color: "#fff", fontWeight: "700", fontSize: 12 },
   card: { backgroundColor: "#fff", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "#e2e8f0", gap: 2 },

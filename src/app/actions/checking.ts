@@ -1,9 +1,15 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
-import { getSession } from "@/lib/auth";
+import { getSession, type Session } from "@/lib/auth";
 import { db, query } from "@/lib/db";
 import { roleOf, TECH_SIDE } from "@/lib/roles";
-import { STAGE_SQL } from "@/lib/stage";
+import {
+  addDraftSpare,
+  removeDraftSpare,
+  saveCheckFlow,
+  searchSpares,
+  startCheckFlow,
+} from "@/lib/tech-flow";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -18,7 +24,6 @@ import { z } from "zod";
  */
 
 /** ods ໃຊ້ເວລາ Asia/Bangkok (UTC+7) ຄືກັນກັບລາວ */
-const NOW = "timezone('Asia/Bangkok', now())::timestamp(0)";
 
 export type CheckState = { error?: string };
 export type UndoState = { error?: string };
@@ -69,7 +74,9 @@ const JOB_SQL = `select a.code, a.status, a.emp_code, a.warrunty, coalesce(a.use
  * ຊ່າງ (technical) ຖອນຄືນໄດ້ສະເພາະວຽກຂອງຕົນເອງ · ຜູ້ຈັດການ ແລະ ຫົວໜ້າຊ່າງ ໄດ້ທຸກວຽກ
  * (ຄືກົດເກນ ownJobsOnly ຂອງໜ້າລາຍການ ແຕ່ບັງຄັບຢູ່ຝັ່ງ server).
  */
-async function loadJob(code: string): Promise<{ ok: true; job: JobSnapshot } | { ok: false; error: string }> {
+async function loadJob(
+  code: string,
+): Promise<{ ok: true; job: JobSnapshot; session: Session } | { ok: false; error: string }> {
   const session = await getSession();
   if (!session) return { ok: false, error: "Session ໝົດອາຍຸ" };
   const role = roleOf(session);
@@ -80,7 +87,7 @@ async function loadJob(code: string): Promise<{ ok: true; job: JobSnapshot } | {
   if (role === "technical" && (job.emp_code ?? "") !== session.username) {
     return { ok: false, error: "ວຽກນີ້ບໍ່ແມ່ນຂອງທ່ານ — ຖອນຄືນບໍ່ໄດ້" };
   }
-  return { ok: true, job };
+  return { ok: true, job, session };
 }
 
 /**
@@ -115,27 +122,7 @@ export type SpareItem = {
 export async function searchSpare(q: string, inStockOnly = false): Promise<SpareItem[]> {
   const session = await getSession();
   if (!session) return [];
-
-  const text = q.trim();
-  const where: string[] = [];
-  const params: string[] = [];
-
-  if (text) {
-    params.push(`%${text}%`);
-    where.push(`(code ilike $1 or name_1 ilike $1 or item_brand ilike $1)`);
-  }
-  if (inStockOnly) where.push("coalesce(balance_qty,0) > 0");
-
-  const result = await query<SpareItem>(
-    // balance_qty ເປັນ null ໄດ້ → ໃຫ້ເປັນ 0 (ods ສະແດງເປັນຫວ່າງ)
-    `select code, name_1, item_brand as brand, unit_code, coalesce(balance_qty,0)::int as balance_qty
-       from ic_inventory
-      ${where.length ? `where ${where.join(" and ")}` : ""}
-      order by coalesce(balance_qty,0) desc, code
-      limit 50`,
-    params,
-  );
-  return result.rows;
+  return searchSpares(q, inStockOnly); // lib/tech-flow — ອັນດຽວກັບທີ່ແອັບໃຊ້
 }
 
 /* ── ເລີ່ມກວດເຊັກ (start_check) ─────────────────────────────────── */
@@ -154,11 +141,8 @@ export async function startCheck(code: string) {
   const loaded = await loadJob(code); // ສິດຝ່າຍຊ່າງ + ຕ້ອງເປັນວຽກຂອງຕົນ
   if (!loaded.ok) redirect("/forbidden");
 
-  const done = await query(
-    `update tb_product a set time_check=${NOW}, status=1 where a.code=$1 and (${STAGE_SQL}) = 1`,
-    [code],
-  );
-  if (done.rowCount) await logChange("tb_product", code, "ເລີ່ມກວດເຊັກ");
+  // ຕົວປ່ຽນຂັ້ນຢູ່ lib/tech-flow ບ່ອນດຽວ — ອັນດຽວກັບທີ່ແອັບມືຖືເອີ້ນ
+  await startCheckFlow(session, code);
   revalidatePath("/checking");
   redirect("/checking");
 }
@@ -216,32 +200,10 @@ export async function addSpareItem(
 ) {
   const session = await getSession();
   if (!session) return { error: "Session ໝົດອາຍຸ" };
-  if (!Number.isFinite(qty) || qty <= 0) return { error: "ຈຳນວນບໍ່ຖືກຕ້ອງ" };
 
-  // ods ດຶງ cust_code ຈາກ session (ຄ້າງມາຈາກໜ້າອື່ນ → ມັກຜິດ) — ບ່ອນນີ້ດຶງຈາກ tb_product ໂດຍກົງ
-  const product = (await query<{ cust_code: string | null }>("select cust_code from tb_product where code=$1 limit 1", [code])).rows[0];
-  if (!product) return { error: "ບໍ່ພົບລາຍການ" };
-
-  // ອາໄຫຼ່ຕົວດຽວກັນເພີ່ມຊ້ຳ → ບວກຈຳນວນເຂົ້າແຖວເກົ່າ ແທນທີ່ຈະສ້າງແຖວຊ້ຳ
-  const existing = await query(
-    `update ic_trans_detail_draft set qty = coalesce(qty,0) + $1
-      where user_created=$2 and product_code=$3 and item_code=$4`,
-    [qty, session.username, code, item.code],
-  );
-  if (existing.rowCount) {
-    await logChange("tb_product", code, `ເພີ່ມອາໄຫຼ່ທີ່ຄາດວ່າຈະໃຊ້: ${item.name_1} × ${qty}`);
-    revalidatePath(`/checking/${code}`);
-    return {};
-  }
-
-  await query(
-    `insert into ic_trans_detail_draft(trans_flag, cust_code, product_code, item_code, item_name, qty, unit_code, user_created)
-     values(12, $1, $2, $3, $4, $5, $6, $7)`,
-    [product.cust_code, code, item.code, item.name_1, qty, item.unit_code, session.username],
-  );
-  await logChange("tb_product", code, `ເພີ່ມອາໄຫຼ່ທີ່ຄາດວ່າຈະໃຊ້: ${item.name_1} × ${qty}`);
+  const result = await addDraftSpare(session, code, item, qty);
   revalidatePath(`/checking/${code}`);
-  return {};
+  return result.ok ? {} : { error: result.error };
 }
 
 export async function updateSpareQty(code: string, rowOrder: number, qty: number) {
@@ -261,16 +223,10 @@ export async function updateSpareQty(code: string, rowOrder: number, qty: number
 export async function deleteSpareItem(code: string, rowOrder: number) {
   const session = await getSession();
   if (!session) return { error: "Session ໝົດອາຍຸ" };
-  // ເອົາຊື່ອາໄຫຼ່ຄືນມາພ້ອມຕອນລຶບ — ໃຊ້ຂຽນ log ໃຫ້ອ່ານຮູ້ເລື່ອງ
-  const removed = await query<{ item_name: string | null }>(
-    `delete from ic_trans_detail_draft where roworder=$1 and user_created=$2 and product_code=$3
-     returning item_name`,
-    [rowOrder, session.username, code],
-  );
-  const name = removed.rows[0]?.item_name;
-  if (name) await logChange("tb_product", code, `ຖອດອາໄຫຼ່ອອກຈາກລາຍການ: ${name}`);
+
+  const result = await removeDraftSpare(session, code, rowOrder);
   revalidatePath(`/checking/${code}`);
-  return {};
+  return result.ok ? {} : { error: result.error };
 }
 
 /* ── ບັນທຶກການກວດເຊັກ (save_check) ──────────────────────────────── */
@@ -285,108 +241,25 @@ const saveSchema = z.object({
 });
 
 export async function saveCheck(_: CheckState, formData: FormData): Promise<CheckState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
-
   const parsed = saveSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "ກະລຸນາປ້ອນ ອາການຊ່າງວິເຄາະ" };
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
-  const { code, isue_bytech, war_by_t, use_spare, warrunty } = parsed.data;
-
-  // ສິດຝ່າຍຊ່າງ + ຕ້ອງເປັນວຽກຂອງຕົນ (ແຕ່ກ່ອນກວດແຕ່ session)
-  const loaded = await loadJob(code);
+  // ສິດຝ່າຍຊ່າງ + ຕ້ອງເປັນວຽກຂອງຕົນ
+  const loaded = await loadJob(parsed.data.code);
   if (!loaded.ok) return { error: loaded.error };
 
   /**
-   * t_reason = ເຫດຜົນທີ່ຊ່າງຕັດສິນວ່າ "ໝົດຮັບປະກັນ".
-   * ods ຮັບຄ່ານີ້ແລ້ວ **ຖິ້ມຖິ້ມ** ⇒ ພໍລູກຄ້າຄ້ານວ່າ "ເປັນຫຍັງຈຶ່ງໝົດປະກັນ" ບໍ່ມີຫຼັກຖານໃດເລີຍ.
-   * ດຽວນີ້ເກັບລົງ tb_product.warranty_reason ແລະ ສະແດງທຸກບ່ອນທີ່ສະແດງສະຖານະປະກັນ.
+   * ກົດເກນທັງໝົດ (ຕ້ອງຢູ່ຂັ້ນ 2 · ຍ້າຍກະຕ່າຮ່າງ → tb_used_spare · status ໃໝ່ ·
+   * ເຫດຜົນປະກັນເປັນຫຼັກຖານ) ຢູ່ lib/tech-flow ບ່ອນດຽວ — **ອັນດຽວກັບທີ່ແອັບມືຖືເອີ້ນ**.
    */
-  const reason = parsed.data.t_reason.trim();
-  if (war_by_t === "1" && !reason) {
-    return { error: "ກະລຸນາປ້ອນເຫດຜົນ ທີ່ຕັດສິນວ່າ ໝົດຮັບປະກັນ — ເປັນຫຼັກຖານເມື່ອລູກຄ້າຄ້ານ" };
-  }
-
-  const usesSpare = use_spare === "1";
-  const underWarranty = warrunty === "ຮັບປະກັນ";
-
-  /**
-   * ສະຖານະໃໝ່ — ຕາມ check.py save_check() ຢ່າງແທ້ຈິງ:
-   *   ໃຊ້ອາໄຫຼ່ + ຮັບປະກັນ      → 3  (ລໍຖ້າສະເໜີລາຄາ)
-   *   ໃຊ້ອາໄຫຼ່ + ໝົດຮັບປະກັນ   → 2
-   *   ບໍ່ໃຊ້ອາໄຫຼ່ + ຮັບປະກັນ    → 4  (ກຳລັງສະເໜີລາຄາ)
-   *   ບໍ່ໃຊ້ອາໄຫຼ່ + ໝົດຮັບປະກັນ → 2
-   */
-  const status = usesSpare ? (underWarranty ? 3 : 2) : underWarranty ? 4 : 2;
-
-  const client = await db.connect();
-  let spareCount = 0;
-  try {
-    await client.query("begin");
-
-    /**
-     * ຕ້ອງຢູ່ຂັ້ນ 2 (ກຳລັງກວດເຊັກ) ຈິງໆ. ແຕ່ກ່ອນບໍ່ກວດຂັ້ນເລີຍ ⇒ ຍິງ action ນີ້ໃສ່ວຽກທີ່
-     * ຜ່ານການກວດເຊັກໄປແລ້ວ ກໍ່ຂຽນ time_finish_check/status ທັບໄດ້ ແລະ ຍ້າຍກະຕ່າອາໄຫຼ່ຊ້ຳ.
-     * `for update` ລັອກແຖວໄວ້ ⇒ ສອງຄົນກົດພ້ອມກັນບໍ່ຜ່ານທັງຄູ່.
-     */
-    const stage = await client.query<{ stage: number }>(
-      `select (${STAGE_SQL})::int stage from tb_product a where a.code=$1 for update`,
-      [code],
-    );
-    if (stage.rows[0]?.stage !== 2) {
-      await client.query("rollback");
-      return { error: 'ບັນທຶກບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ "ກຳລັງກວດເຊັກ"' };
-    }
-
-    if (usesSpare) {
-      const moved = await client.query(
-        `insert into tb_used_spare(product_code, item_code, item_name, qty, unit_code)
-         select product_code, item_code, item_name, qty, unit_code
-           from ic_trans_detail_draft where user_created=$1 and product_code=$2`,
-        [session.username, code],
-      );
-      spareCount = moved.rowCount ?? 0;
-      await client.query("delete from ic_trans_detail_draft where user_created=$1 and product_code=$2", [
-        session.username,
-        code,
-      ]);
-    }
-
-    if (usesSpare) {
-      await client.query(
-        `update tb_product set time_finish_check=${NOW}, used_spare=1, status=$1, issue_2=$2 where code=$3`,
-        [status, isue_bytech, code],
-      );
-    } else {
-      await client.query(`update tb_product set time_finish_check=${NOW}, status=$1, issue_2=$2 where code=$3`, [
-        status,
-        isue_bytech,
-        code,
-      ]);
-    }
-
-    // ຂໍປ່ຽນປະກັນ → ຊ່າງຕັດສິນວ່າໝົດຮັບປະກັນ (ພ້ອມເຫດຜົນ = ຫຼັກຖານ)
-    if (war_by_t === "1") {
-      await client.query("update tb_product set warrunty='ໝົດຮັບປະກັນ', warranty_reason=$1 where code=$2", [
-        reason,
-        code,
-      ]);
-    }
-
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    console.error("save_check failed", error);
-    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
-  } finally {
-    client.release();
-  }
-
-  const spareNote = usesSpare ? `ໃຊ້ອາໄຫຼ່ ${spareCount} ລາຍການ` : "ບໍ່ໃຊ້ອາໄຫຼ່";
-  // ເຫດຜົນປະກັນເຂົ້າ chatter ນຳ — ຫຼັກຖານທີ່ອ່ານໄດ້ ພ້ອມຊື່ຊ່າງ ແລະ ວັນເວລາ
-  const warrantyNote = war_by_t === "1" ? ` · ຊ່າງແຈ້ງວ່າໝົດຮັບປະກັນ ເຫດຜົນ: ${reason}` : "";
-  await logChange("tb_product", code, `ບັນທຶກຜົນກວດເຊັກ: ${isue_bytech} · ${spareNote}${warrantyNote}`);
+  const result = await saveCheckFlow(loaded.session, {
+    code: parsed.data.code,
+    diagnosis: parsed.data.isue_bytech,
+    warranty_void: parsed.data.war_by_t === "1",
+    warranty_reason: parsed.data.t_reason,
+    use_spare: parsed.data.use_spare === "1",
+  });
+  if (!result.ok) return { error: result.error };
 
   revalidatePath("/checking");
   revalidatePath("/repair");

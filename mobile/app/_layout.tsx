@@ -46,6 +46,10 @@ export default function RootLayout() {
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="index" options={{ title: "ວຽກຂອງຂ້ອຍ" }} />
       <Stack.Screen name="job/[workflow]/[code]" options={{ title: "ລາຍລະອຽດງານ" }} />
+      <Stack.Screen name="check/[code]" options={{ title: "ກວດເຊັກ" }} />
+      <Stack.Screen name="spare-request/[code]" options={{ title: "ໃບຂໍເບີກອາໄຫຼ່" }} />
+      <Stack.Screen name="spares" options={{ title: "ຮັບອາໄຫຼ່" }} />
+      <Stack.Screen name="qc" options={{ title: "ກວດຮັບຄຸນນະພາບ" }} />
       <Stack.Screen name="income" options={{ title: "ລາຍຮັບຂອງຂ້ອຍ" }} />
     </Stack>
   );

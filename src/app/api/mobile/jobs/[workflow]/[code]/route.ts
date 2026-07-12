@@ -28,6 +28,8 @@ type Body = {
   lat?: number;
   lng?: number;
   photo?: string;
+  /** ຮູບຜົນງານຕອນຈົບງານ — ບັງຄັບຝັ່ງຕິດຕັ້ງ (ເບິ່ງ lib/job-flow) */
+  photos?: string[];
 };
 
 export async function POST(request: Request, context: { params: Promise<{ workflow: string; code: string }> }) {
@@ -47,8 +49,13 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
     return NextResponse.json({ error: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ" }, { status: 400 });
   }
 
-  if (body.photo && body.photo.length > MAX_PHOTO_CHARS) {
+  const photos = (body.photos ?? []).filter(Boolean);
+  const tooBig = [body.photo ?? "", ...photos].some((photo) => photo.length > MAX_PHOTO_CHARS);
+  if (tooBig) {
     return NextResponse.json({ error: "ຮູບໃຫຍ່ເກີນໄປ — ກະລຸນາຖ່າຍໃໝ່" }, { status: 413 });
+  }
+  if (photos.length > 6) {
+    return NextResponse.json({ error: "ແນບຮູບໄດ້ສູງສຸດ 6 ຮູບ" }, { status: 413 });
   }
 
   const user = guard.user;
@@ -72,8 +79,8 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
       case "finish":
         result =
           workflow === "install"
-            ? await finishInstallFlow(user, code)
-            : await finishRepairFlow(user, code, String(body.note ?? ""));
+            ? await finishInstallFlow(user, code, photos)
+            : await finishRepairFlow(user, code, String(body.note ?? ""), photos);
         break;
       case "checkin":
         result = await checkIn(user, workflow, code, {

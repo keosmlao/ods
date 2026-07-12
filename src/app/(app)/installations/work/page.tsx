@@ -1,5 +1,4 @@
 import {
-  finishInstall,
   startInstall,
   techFilter,
   undoFinishInstall,
@@ -7,6 +6,7 @@ import {
 } from "@/app/actions/installation";
 import { UndoButton } from "@/components/checking/undo-button";
 import { FeedbackQrButton } from "@/components/installation/feedback-qr";
+import { FinishInstallButton } from "@/components/installation/finish-install-button";
 import { JobButton } from "@/components/installation/job-buttons";
 import { query } from "@/lib/db";
 import { installStageIs } from "@/lib/install-stage";
@@ -158,16 +158,8 @@ export default async function WorkPage({ searchParams }: Props) {
                 )}
                 {tab === "doing" && (
                   <div className="flex items-center justify-center gap-2">
-                    <JobButton
-                      code={row.code}
-                      action={finishInstall}
-                      tone="success"
-                      className="h-8 px-3 text-xs"
-                      confirmTitle={`ຕິດຕັ້ງ ${row.code} ສຳເລັດແລ້ວບໍ?`}
-                      confirmTone="warning"
-                    >
-                      ຕິດຕັ້ງສຳເລັດ
-                    </JobButton>
+                    {/* ຈົບງານຕິດຕັ້ງ = ຕ້ອງແນບຮູບຜົນງານ (ບັງຄັບຢູ່ lib/job-flow — ແອັບກໍ່ບັງຄັບຄືກັນ) */}
+                    <FinishInstallButton code={row.code} />
                     {/* ກົດ "ເລີ່ມຕິດຕັ້ງ" ຜິດງານ → ດຶງກັບໄປ "ລໍຖ້າຊ່າງຕິດຕັ້ງ" (ກົດເກນຢູ່ server) */}
                     <UndoButton
                       variant="icon"

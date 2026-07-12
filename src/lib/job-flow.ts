@@ -152,9 +152,45 @@ export async function startInstallFlow(session: Session, code: string): Promise<
   return { ok: true, message: `ເລີ່ມຕິດຕັ້ງ ${code}` };
 }
 
-export async function finishInstallFlow(session: Session, code: string): Promise<FlowResult> {
+/**
+ * ຮູບຜົນງານ — **ບັງຄັບຢ່າງໜ້ອຍ 1 ຮູບ ຕອນຈົບງານຕິດຕັ້ງ**.
+ *
+ * ຮູບ check-in ຄືສະພາບ "ກ່ອນເຮັດ" ແລະ ຮູບ QC ຖ່າຍໂດຍ**ຄົນອື່ນ** ໃນມື້ຕໍ່ມາ
+ * ⇒ ບໍ່ມີຫຼັກຖານວ່າຕອນຊ່າງອອກຈາກໜ້າງານ ວຽກຢູ່ໃນສະພາບໃດ. ພໍລູກຄ້າຄ້ານ ຫຼື QC ຕົກ
+ * ກໍ່ຖຽງກັນບໍ່ຈົບ. ຝັ່ງສ້ອມ **ບໍ່ບັງຄັບ** (ວຽກສ່ວນຫຼາຍຢູ່ໃນສູນ ແລະ ເຄື່ອງຍັງຢູ່ໃນມືເຮົາ).
+ */
+async function savePhotos(
+  session: Session,
+  workflow: Workflow,
+  code: string,
+  photos: string[],
+  note: string,
+): Promise<number> {
+  let saved = 0;
+  for (const photo of photos) {
+    if (!photo) continue;
+    await query(
+      `insert into ods_job_photo(workflow, job_code, kind, photo, note, created_by)
+       values($1,$2,'finish',$3,nullif($4,''),$5)`,
+      [workflow, code, photo, note, session.username],
+    );
+    saved += 1;
+  }
+  return saved;
+}
+
+export async function finishInstallFlow(
+  session: Session,
+  code: string,
+  photos: string[] = [],
+): Promise<FlowResult> {
   const own = await ownJob(session, "install", code);
   if (!own.ok) return own;
+
+  const clean = photos.filter(Boolean);
+  if (clean.length === 0) {
+    return { ok: false, error: "ຕ້ອງແນບຮູບຜົນງານຢ່າງໜ້ອຍ 1 ຮູບ ກ່ອນຈົບງານຕິດຕັ້ງ" };
+  }
 
   const done = await query(
     `update ods_tb_install set finish_install=${NOW}
@@ -163,8 +199,22 @@ export async function finishInstallFlow(session: Session, code: string): Promise
   );
   if (!done.rowCount) return { ok: false, error: "ບັນທຶກບໍ່ໄດ້ — ຍັງບໍ່ໄດ້ເລີ່ມຕິດຕັ້ງ ຫຼື ຈົບໄປແລ້ວ" };
 
-  await logChange("ods_tb_install", code, "ຕິດຕັ້ງສຳເລັດ — ລໍຖ້າກວດຮັບຄຸນນະພາບ");
+  const saved = await savePhotos(session, "install", code, clean, "");
+  await logChange("ods_tb_install", code, `ຕິດຕັ້ງສຳເລັດ · ຮູບຜົນງານ ${saved} ຮູບ — ລໍຖ້າກວດຮັບຄຸນນະພາບ`);
   return { ok: true, message: `ຕິດຕັ້ງ ${code} ສຳເລັດ — ລໍຖ້າ QC` };
+}
+
+/** ຮູບຜົນງານຂອງງານ — ໃຊ້ຢູ່ໜ້າ QC ແລະ ໜ້າລາຍລະອຽດ */
+export async function jobPhotos(workflow: Workflow, code: string) {
+  return (
+    await query<{ id: number; photo: string; created_by: string; created_at: string }>(
+      `select id, photo, created_by, to_char(created_at,'DD-MM-YYYY HH24:MI') as created_at
+         from ods_job_photo
+        where workflow=$1 and job_code=$2 and kind='finish'
+        order by id`,
+      [workflow, code],
+    )
+  ).rows;
 }
 
 /* ── ຂັ້ນຕອນສ້ອມແປງ ─────────────────────────────────────────────── */
@@ -181,7 +231,12 @@ export async function startRepairFlow(session: Session, code: string): Promise<F
   return { ok: true, message: `ເລີ່ມສ້ອມແປງ ${code}` };
 }
 
-export async function finishRepairFlow(session: Session, code: string, note: string): Promise<FlowResult> {
+export async function finishRepairFlow(
+  session: Session,
+  code: string,
+  note: string,
+  photos: string[] = [],
+): Promise<FlowResult> {
   const own = await ownJob(session, "repair", code);
   if (!own.ok) return own;
 
@@ -193,10 +248,12 @@ export async function finishRepairFlow(session: Session, code: string, note: str
   );
   if (!done.rowCount) return { ok: false, error: 'ບັນທຶກບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ "ກຳລັງສ້ອມແປງ"' };
 
+  // ຝັ່ງສ້ອມ ຮູບ **ບໍ່ບັງຄັບ** (ເຄື່ອງຢູ່ໃນສູນ) ແຕ່ຖ້າມີ ກໍ່ເກັບໄວ້ໃຫ້ QC ເບິ່ງ
+  const saved = await savePhotos(session, "repair", code, photos.filter(Boolean), note.trim());
   await logChange(
     "tb_product",
     code,
-    note.trim() ? `ສ້ອມແປງສຳເລັດ: ${note.trim()}` : "ສ້ອມແປງສຳເລັດ — ລໍຖ້າກວດຮັບຄຸນນະພາບ",
+    `${note.trim() ? `ສ້ອມແປງສຳເລັດ: ${note.trim()}` : "ສ້ອມແປງສຳເລັດ"}${saved ? ` · ຮູບ ${saved} ຮູບ` : ""} — ລໍຖ້າກວດຮັບຄຸນນະພາບ`,
   );
   return { ok: true, message: `ສ້ອມແປງ ${code} ສຳເລັດ — ລໍຖ້າ QC` };
 }

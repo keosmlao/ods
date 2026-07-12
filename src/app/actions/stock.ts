@@ -8,6 +8,7 @@ import { docPrefix, nextDocNo } from "@/lib/doc-no";
 import { requireRole, requireRoleOrRedirect } from "@/lib/guard";
 import { RETURN_SIDE, SERVICE_SIDE, STOCK_SIDE, TECH_SIDE } from "@/lib/roles";
 import { getBalances } from "@/lib/stock-balance";
+import { createSpareRequest, pickupSpares } from "@/lib/tech-flow";
 import { ppDb, PP_NOT_CONFIGURED } from "@/lib/stock-db";
 import {
   CALC_IN,
@@ -50,7 +51,6 @@ const DOC_LOCK = 734211;
  * ຂອງວຽກສ້ອມເປັນ null ທຸກແຖວ ⇒ ປ້າຍ/ການປ້ອງກັນຢູ່ໜ້າສ້ອມແປງບໍ່ເຄີຍເຮັດວຽກ).
  * ບໍ່ໄດ້ໃສ່ໃນ lib/stock-constants.ts ເພາະໄຟລ໌ນັ້ນຢູ່ນອກຂອບເຂດການແກ້ໄຂຄັ້ງນີ້.
  */
-const TRANS_PICK = 166;
 
 /**
  * ອາໄຫຼ່ຂອງວຽກນຶ່ງ ທີ່ "ຍັງບໍ່ທັນຖືກຂໍເບີກ" — ຄິດເປັນ **ຈຳນວນ** ບໍ່ແມ່ນເປັນແຖວ.
@@ -67,21 +67,6 @@ const TRANS_PICK = 166;
  * ເພາະອາໄຫຼ່ທີ່ສົ່ງຄືນສາງແລ້ວ ຂໍເບີກໃໝ່ໄດ້ອີກ.
  * ໃບຂໍເບີກທີ່ຖືກຍົກເລີກ (deleteRequest) ລຶບແຖວອອກ ⇒ ກັບມາຂໍໄດ້ເອງ.
  */
-const OUTSTANDING_SPARES = `
-  select n.item_code, n.item_name, n.unit_code, (n.qty - coalesce(c.qty, 0))::numeric qty
-  from (
-    select item_code, min(roworder) rn, max(item_name) item_name, max(unit_code) unit_code, sum(qty) qty
-    from tb_used_spare where product_code = $1 group by item_code
-  ) n
-  left join (
-    select item_code,
-      sum(case when trans_flag = ${TRANS.REQUEST} then qty else -qty end) qty
-    from ic_trans_detail
-    where product_code = $1 and trans_flag in (${TRANS.REQUEST}, ${TRANS.RETURN_REQUEST})
-    group by item_code
-  ) c on c.item_code = n.item_code
-  where n.qty - coalesce(c.qty, 0) > 0
-  order by n.rn`;
 
 function text(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -176,87 +161,19 @@ export async function deleteSpareFromRequest(formData: FormData): Promise<void> 
 export async function saveRequest(_: StockState, formData: FormData): Promise<StockState> {
   const guard = await requireRole(TECH_SIDE, "ບໍ່ມີສິດສ້າງໃບຂໍເບີກອາໄຫຼ່");
   if (!guard.ok) return { error: guard.error };
-  const session = guard.session;
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
-  const productCode = text(formData, "Product_code");
-  const remark = text(formData, "remark");
-  const whCode = text(formData, "wh_code");
-  const shelfCode = text(formData, "shelf_code");
-  if (!productCode) return { error: "ບໍ່ພົບລະຫັດສິນຄ້າ" };
-  if (!whCode || !shelfCode) return { error: "ກະລຸນາເລືອກສາງ ແລະ ທີ່ເກັບ" };
-
-  const { date: docDate, at } = nowParts();
-  const client = await db.connect();
-  let docNo = "";
-  let lineCount = 0;
-  try {
-    await client.query("begin");
-    await client.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
-
-    const cart = await client.query<{ count: number }>(
-      `select count(*)::int count from tb_used_spare where product_code=$1`,
-      [productCode],
-    );
-    if (!cart.rows[0]?.count) {
-      await client.query("rollback");
-      return { error: "ຍັງບໍ່ມີອາໄຫຼ່ໃນລາຍການ" };
-    }
-
-    // ສະເພາະຈຳນວນທີ່ຍັງບໍ່ທັນຂໍເບີກ/ເບີກອອກ — ກັນຂໍຊ້ຳແລ້ວສາງເບີກອາໄຫຼ່ຕົວດຽວກັນສອງເທື່ອ
-    const lines = await client.query<{
-      item_code: string;
-      item_name: string | null;
-      unit_code: string | null;
-      qty: string;
-    }>(OUTSTANDING_SPARES, [productCode]);
-    if (lines.rows.length === 0) {
-      await client.query("rollback");
-      return { error: "ອາໄຫຼ່ທຸກລາຍການຂອງວຽກນີ້ ຖືກຂໍເບີກ ຫຼື ເບີກອອກໄປແລ້ວ" };
-    }
-    lineCount = lines.rows.length;
-
-    docNo = await nextDocNo(client, "SIO", at);
-
-    await client.query(
-      `insert into ic_trans(trans_flag, doc_date, doc_no, product_code, remark, user_created, wh_code, shelf_code)
-       values($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [TRANS.REQUEST, docDate, docNo, productCode, remark, session.username, whCode, shelfCode],
-    );
-    for (const line of lines.rows) {
-      await client.query(
-        `insert into ic_trans_detail(trans_flag, doc_date, doc_no, product_code, item_code, item_name, qty, unit_code, calc_flag, user_created, status)
-         values($1,$2,$3,$4,$5,$6,$7,$8,1,$9,$10)`,
-        [
-          TRANS.REQUEST, docDate, docNo, productCode, line.item_code, line.item_name, line.qty, line.unit_code,
-          session.username, LINE_STATUS.PENDING,
-        ],
-      );
-    }
-    // ໝາຍແຖວກະຕ່າຂອງອາໄຫຼ່ທີ່ຢູ່ໃນໃບນີ້ວ່າ "ຂໍເບີກແລ້ວ" (ຄືສາຍງານຕິດຕັ້ງ)
-    await client.query(
-      `update tb_used_spare set reg_start=localtimestamp(0)
-       where product_code=$1 and reg_start is null and item_code = any($2::varchar[])`,
-      [productCode, lines.rows.map((line) => line.item_code)],
-    );
-    await client.query(`update tb_product set spare_reg=localtimestamp(0) where code=$1`, [productCode]);
-
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    console.error("saveRequest failed", error);
-    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
-  } finally {
-    client.release();
-  }
-
-  // ສາງຕ້ອງເບີກອາໄຫຼ່ໃຫ້ (ods ຍິງ LINE Notify ຫາສາງຢູ່ຈຸດນີ້)
-  await logChange(
-    jobModel(productCode),
-    productCode,
-    `ສ້າງໃບຂໍເບີກ ${docNo} · ອາໄຫຼ່ ${lineCount} ລາຍການ${remark ? ` · ${remark}` : ""}`,
-    { roles: ROLE_WAREHOUSE },
-  );
+  /**
+   * ຕົວອອກເອກະສານຢູ່ lib/tech-flow ບ່ອນດຽວ — **ອັນດຽວກັບທີ່ແອັບມືຖືເອີ້ນ**.
+   * ຂໍສະເພາະ "ຈຳນວນທີ່ຍັງຄ້າງ" (OUTSTANDING_SPARES) ⇒ ບໍ່ຂໍຊ້ຳຂອງທີ່ເບີກອອກໄປແລ້ວ
+   * ເຊິ່ງເປັນບັກຂອງ ods ທີ່ພາໃຫ້ສາງຕັດສະຕັອກ ERP ອາໄຫຼ່ຕົວດຽວກັນສອງເທື່ອ.
+   */
+  const result = await createSpareRequest(guard.session, {
+    code: text(formData, "Product_code"),
+    remark: text(formData, "remark"),
+    wh_code: text(formData, "wh_code"),
+    shelf_code: text(formData, "shelf_code"),
+  });
+  if (!result.ok) return { error: result.error };
 
   redirect("/stock/requests");
 }
@@ -541,110 +458,12 @@ export async function saveDispatch(_: StockState, formData: FormData): Promise<S
 export async function savePickSpare(_: StockState, formData: FormData): Promise<StockState> {
   const guard = await requireRole(TECH_SIDE, "ບໍ່ມີສິດຮັບອາໄຫຼ່");
   if (!guard.ok) return { error: guard.error };
-  const session = guard.session;
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
-  const docRef = text(formData, "doc_ref"); // ເລກທີໃບເບີກ (SWC)
-  const remark = text(formData, "remark");
-  if (!docRef) return { error: "ບໍ່ພົບເລກທີໃບເບີກ" };
-
-  const { date: docDate, at } = nowParts();
-
-  const client = await db.connect();
-  let pickNo = "";
-  let pickLines = 0;
-  let productCode = "";
-  try {
-    await client.query("begin");
-    await client.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
-
-    const head = (
-      await client.query<{ product_code: string | null }>(
-        `select product_code from ic_trans
-         where doc_no=$1 and trans_flag=$2 and (job_type is null or job_type <> 'install') limit 1`,
-        [docRef, TRANS.DISPATCH],
-      )
-    ).rows[0];
-    if (!head?.product_code) {
-      await client.query("rollback");
-      return { error: "ບໍ່ພົບໃບເບີກອາໄຫຼ່" };
-    }
-    productCode = head.product_code;
-
-    // ກັນຮັບຊ້ຳ — ໃບເບີກນຶ່ງໃບຮັບໄດ້ເທື່ອດຽວ
-    const already = await client.query<{ count: number }>(
-      `select count(*)::int count from ic_trans where trans_flag=$1 and doc_ref=$2`,
-      [TRANS_PICK, docRef],
-    );
-    if (already.rows[0]?.count) {
-      await client.query("rollback");
-      return { error: "ໃບນີ້ຮັບອາໄຫຼ່ໄປແລ້ວ" };
-    }
-
-    const lines = await client.query<{
-      item_code: string;
-      item_name: string | null;
-      unit_code: string | null;
-      qty: string;
-    }>(
-      `select item_code, item_name, unit_code, qty from ic_trans_detail
-       where doc_no=$1 and trans_flag=$2 order by roworder asc`,
-      [docRef, TRANS.DISPATCH],
-    );
-    if (lines.rows.length === 0) {
-      await client.query("rollback");
-      return { error: "ບໍ່ມີອາໄຫຼ່ໃນໃບນີ້" };
-    }
-
-    const docNo = await nextDocNo(client, "PISP", at);
-    pickNo = docNo;
-    pickLines = lines.rows.length;
-
-    await client.query(
-      `insert into ic_trans(trans_flag, doc_date, doc_no, doc_ref, product_code, remark, user_created, status)
-       values($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [TRANS_PICK, docDate, docNo, docRef, productCode, remark, session.username, LINE_STATUS.PENDING],
-    );
-
-    for (const line of lines.rows) {
-      await client.query(
-        `insert into ic_trans_detail(trans_flag, doc_date, doc_no, doc_ref, product_code,
-           item_code, item_name, qty, unit_code, calc_flag, user_created, status)
-         values($1,$2,$3,$4,$5,$6,$7,$8,$9,1,$10,$11)`,
-        [
-          TRANS_PICK, docDate, docNo, docRef, productCode, line.item_code, line.item_name, line.qty, line.unit_code,
-          session.username, LINE_STATUS.ISSUED,
-        ],
-      );
-      // ແຖວກະຕ່າອັນທີ່ຕົງກັບອາໄຫຼ່ແຖວນີ້ (ເລືອກແຖວທີ່ສາງຈ່າຍແລ້ວ ແລະ ຈຳນວນຕົງກັນກ່ອນ)
-      await client.query(
-        `update tb_used_spare
-           set pick_finish=localtimestamp(0), reg_finish=coalesce(reg_finish, localtimestamp(0))
-         where roworder = (
-           select roworder from tb_used_spare
-           where product_code=$1 and item_code=$2 and pick_finish is null
-           order by (reg_finish is not null) desc, (qty = $3::numeric) desc, roworder asc limit 1)`,
-        [productCode, line.item_code, line.qty],
-      );
-    }
-
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    console.error("savePickSpare failed", error);
-    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
-  } finally {
-    client.release();
-  }
-
-  await logChange(
-    jobModel(productCode),
-    productCode,
-    `ຊ່າງຮັບອາໄຫຼ່ ${pickNo} · ${pickLines} ລາຍການ (ອ້າງອີງໃບເບີກ ${docRef})`,
-  );
+  // lib/tech-flow ບ່ອນດຽວ (ອອກໃບ PISP 166 ອ້າງອີງໃບເບີກ SWC + stamp pick_finish)
+  const result = await pickupSpares(guard.session, text(formData, "doc_ref"), text(formData, "remark"));
+  if (!result.ok) return { error: result.error };
 
   revalidatePath("/repair");
-  revalidatePath(`/repair/${productCode}`);
   revalidatePath("/stock/requests/pickup");
   redirect("/stock/requests/pickup");
 }

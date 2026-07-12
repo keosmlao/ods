@@ -533,11 +533,15 @@ export async function startInstall(code: string): Promise<ActionState> {
   return { ok: result.message };
 }
 
-export async function finishInstall(code: string): Promise<ActionState> {
+/**
+ * ຈົບງານຕິດຕັ້ງ — **ຕ້ອງແນບຮູບຜົນງານ** (ບັງຄັບຢູ່ lib/job-flow ບ່ອນດຽວ ⇒ ແອັບກໍ່ບັງຄັບຄືກັນ).
+ * ຮູບຖືກບີບຢູ່ຝັ່ງ client ກ່ອນສົ່ງ (components/installation/finish-install-button).
+ */
+export async function finishInstall(code: string, photos: string[] = []): Promise<ActionState> {
   const guard = await guardJob(code, TECH_SIDE);
   if (!guard.ok) return { error: guard.error };
 
-  const result = await finishInstallFlow(guard.session, code);
+  const result = await finishInstallFlow(guard.session, code, photos);
   if (!result.ok) return { error: result.error };
   revalidateAll();
   return { ok: result.message };

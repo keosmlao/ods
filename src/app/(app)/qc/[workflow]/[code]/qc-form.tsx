@@ -1,5 +1,6 @@
 "use client";
-import { type QcItem, saveQc } from "@/app/actions/qc";
+import { saveQc } from "@/app/actions/qc";
+import type { QcItem } from "@/lib/qc-flow";
 import type { Workflow } from "@/lib/commission";
 import { Button, ErrorBox, inputClass } from "@/components/ui";
 import { Camera, Check, LoaderCircle, X } from "lucide-react";
