@@ -2,6 +2,7 @@ import { query } from "@/lib/db";
 import { installStatuses, repairStatuses, type StatusDef } from "@/lib/dashboard-status";
 import { INSTALL_ELAPSED_SQL, INSTALL_OPEN, INSTALL_STAGE_LABEL_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { SLA_SQL } from "@/lib/sla";
+import { openRepeatJobs, type RepeatJob } from "@/lib/repeat";
 import { OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import type { QueryResultRow } from "pg";
@@ -383,6 +384,8 @@ export type DashboardData = {
   feedbackTopics: FeedbackTopic[];
   feedbackTrend: FeedbackTrend[];
   oldest: { repair_seconds: number; install_seconds: number };
+  /** ສ້ອມຊ້ຳ — ເຄື່ອງໜ່ວຍດຽວກັນກັບມາພາຍໃນ 30 ມື້ (ເບິ່ງ lib/repeat) */
+  repeats: RepeatJob[];
 };
 
 /**
@@ -421,6 +424,7 @@ export async function getDashboard(tech: string | null, days = 30): Promise<{ da
       today,
       unassigned,
       upcomingAppointments,
+      repeats,
     ] = await Promise.all([
       query<Record<string, number>>(countsSql(repairStatuses, "tb_product a", repairWhere), args),
       query<Record<string, number>>(countsSql(installStatuses, "ods_tb_install a", installWhere), args),
@@ -446,6 +450,7 @@ export async function getDashboard(tech: string | null, days = 30): Promise<{ da
       query<DashboardData["today"]>(TODAY_SQL(Boolean(tech)), args),
       query<DashboardData["unassigned"]>(UNASSIGNED_SQL),
       query<UpcomingAppointment>(UPCOMING_APPOINTMENTS_SQL(Boolean(tech)), args),
+      openRepeatJobs(),
     ]);
 
     const late = sla.rows[0];
@@ -482,6 +487,8 @@ export async function getDashboard(tech: string | null, days = 30): Promise<{ da
         feedbackTopics: feedbackTopics.rows,
         feedbackTrend: feedbackTrend.rows,
         oldest: oldest.rows[0] ?? { repair_seconds: 0, install_seconds: 0 },
+        // ຊ່າງເຫັນສະເພາະທີ່ຕົນກ່ຽວຂ້ອງ (ຄືທຸກແຜງອື່ນ) — ຜູ້ຈັດການ/ຫົວໜ້າຊ່າງເຫັນໝົດ
+        repeats: tech ? repeats.filter((row) => row.tech === tech || row.prev_tech === tech) : repeats,
       },
       error: false,
     };

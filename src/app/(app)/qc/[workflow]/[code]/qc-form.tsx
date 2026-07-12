@@ -4,6 +4,7 @@ import type { Workflow } from "@/lib/commission";
 import { Button, ErrorBox, inputClass } from "@/components/ui";
 import { Camera, Check, LoaderCircle, X } from "lucide-react";
 import { useActionState, useState } from "react";
+import { SignaturePad } from "./signature-pad";
 
 /**
  * ຟອມ QC — ຊ້ອນ checklist · ຮູບ · ລາຍເຊັນລູກຄ້າ.
@@ -85,9 +86,6 @@ export function QcForm({
           })),
         )}
       />
-      {/* ລາຍເຊັນ: ພິມຊື່ຜູ້ຮັບມອບ — ຮູບລາຍເຊັນຍັງບໍ່ຮອງຮັບການແຕ້ມ (ຮອບຕໍ່ໄປ) */}
-      <input type="hidden" name="signature" value="" />
-
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
       {state.ok && (
         <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">{state.ok}</p>
@@ -170,10 +168,10 @@ export function QcForm({
         })}
       </div>
 
-      {/* ຮັບມອບງານ — ບັນທຶກກໍ່ຕໍ່ເມື່ອ QC ຜ່ານ */}
-      {failed === 0 && complete && (
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <p className="mb-2 text-sm font-bold text-slate-700">ຜູ້ຮັບມອບງານ (ລູກຄ້າ)</p>
+      {/* ຮັບມອບງານ — ບັນທຶກກໍ່ຕໍ່ເມື່ອ QC ຜ່ານ (ລູກຄ້າຮັບມອບແຕ່ງານທີ່ຜ່ານແລ້ວ) */}
+      {failed === 0 && complete ? (
+        <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3">
+          <p className="text-sm font-bold text-slate-700">ຜູ້ຮັບມອບງານ (ລູກຄ້າ)</p>
           <div className="grid gap-2 sm:grid-cols-2">
             <input
               name="signer_name"
@@ -190,12 +188,13 @@ export function QcForm({
               className={inputClass}
             />
           </div>
+          <SignaturePad name="signature" />
         </div>
-      )}
-      {!(failed === 0 && complete) && (
+      ) : (
         <>
           <input type="hidden" name="signer_name" value="" />
           <input type="hidden" name="signer_tel" value="" />
+          <input type="hidden" name="signature" value="" />
         </>
       )}
 

@@ -118,6 +118,7 @@ const QUALITY: NavGroup = {
   icon: BadgeCheck,
   items: [
     { label: "ຄິວກວດຮັບຄຸນນະພາບ", href: "/qc", flag: "qc" },
+    { label: "ຄິວແຈ້ງລູກຄ້າ", href: "/customer-contact" },
     { label: "ຕັ້ງລາຍການກວດຮັບ", href: "/manage/qc-checklist" },
   ],
 };

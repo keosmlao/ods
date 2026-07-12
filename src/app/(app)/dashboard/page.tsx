@@ -1,3 +1,4 @@
+import { qcWorkflows } from "@/app/actions/qc";
 import { Elapsed } from "@/components/elapsed";
 import { DashboardAutoRefresh } from "@/components/dashboard-auto-refresh";
 import { LinkPending } from "@/components/link-pending";
@@ -12,6 +13,7 @@ import {
   type TechLoad,
 } from "@/lib/dashboard";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { REPEAT_DAYS, type RepeatJob } from "@/lib/repeat";
 import { APPROVER_SIDE, canAccess, ROLE_LABEL, type Role, roleOf } from "@/lib/roles";
 import { ownJobsOnly } from "@/lib/scope";
 import {
@@ -29,6 +31,8 @@ import {
   Plus,
   Radar,
   RefreshCw,
+  RotateCcw,
+  ShieldCheck,
   ShoppingCart,
   Smile,
   Timer,
@@ -72,8 +76,33 @@ const TONE = {
   amber: { card: "border-amber-200 bg-white hover:border-amber-300", icon: "bg-amber-50 text-amber-700", value: "text-amber-800", bar: "bg-amber-400" },
 };
 
-function alertsFor(role: Role, data: DashboardData): Alert[] {
+function alertsFor(role: Role, data: DashboardData, canQc: boolean): Alert[] {
   const all: Alert[] = [
+    /**
+     * ດ່ານກວດຮັບຄຸນນະພາບ — ຂຶ້ນສະເພາະຜູ້ທີ່ **ຜູ້ຈັດການກຳນົດໃຫ້ກວດ** (ods_qc_role).
+     * canAccess ບອກບໍ່ໄດ້ (ເສັ້ນທາງ /qc ເປີດໃຫ້ທຸກຄົນໃນ RULES ໂດຍເຈດຕະນາ — ເບິ່ງ lib/roles)
+     * ⇒ ຖ້າບໍ່ກັນດ້ວຍ canQc ຊ່າງຈະເຫັນບັດແລ້ວກົດເຂົ້າໄປຕົກ /forbidden.
+     */
+    ...(canQc
+      ? ([
+          {
+            label: "ລໍກວດຮັບຄຸນນະພາບ (ສ້ອມ)",
+            value: data.repair["wait-qc"] ?? 0,
+            detail: "ສ້ອມແລ້ວ ຍັງບໍ່ຜ່ານ QC — ສົ່ງຄືນບໍ່ໄດ້",
+            href: "/qc",
+            icon: ShieldCheck,
+            tone: "amber",
+          },
+          {
+            label: "ລໍກວດຮັບຄຸນນະພາບ (ຕິດຕັ້ງ)",
+            value: data.install["wait-qc"] ?? 0,
+            detail: "ຕິດຕັ້ງແລ້ວ ຍັງບໍ່ຜ່ານ QC — ປິດງານບໍ່ໄດ້",
+            href: "/qc",
+            icon: ShieldCheck,
+            tone: "amber",
+          },
+        ] as Alert[])
+      : []),
     {
       label: "ກວດເຊັກເກີນກຳນົດເວລາ",
       value: data.slaLate,
@@ -333,6 +362,65 @@ function Pipeline({
  * ໜ້າລວມເກົ່າຮຽງ "ໃໝ່ສຸດກ່ອນ" ເຊິ່ງເປັນວຽກທີ່ຫາກໍ່ເປີດ = ດ່ວນນ້ອຍທີ່ສຸດ.
  * ທັງສອງໜ້າລາຍລະອຽດ (/service/<code> ແລະ /installations/<code>) ເປີດໄດ້ທຸກ role.
  */
+/**
+ * ສ້ອມຊ້ຳ — ເຄື່ອງໜ່ວຍດຽວກັນ (serial ດຽວກັນ) ກັບມາສ້ອມອີກພາຍໃນ 30 ມື້ ນັບແຕ່ສົ່ງຄືນ.
+ *
+ * ນີ້ຄື "ຄຸນນະພາບການສ້ອມ" ທີ່ບໍ່ເຄີຍມີໃຜວັດ: ຄ່າຄອມຖືກຈ່າຍສອງເທື່ອ ໃຫ້ວຽກທີ່ຈິງໆແມ່ນ
+ * ຄັ້ງດຽວ ແລະ ລູກຄ້າຫອບເຄື່ອງມາສອງເທື່ອ. ເບິ່ງເງື່ອນໄຂຢູ່ lib/repeat.ts
+ */
+function RepeatPanel({ rows }: { rows: RepeatJob[] }) {
+  return (
+    <article className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
+      <h2 className="flex items-center gap-2 border-b border-amber-100 bg-amber-50 px-5 py-4 text-sm font-bold text-amber-900">
+        <RotateCcw className="size-4" />
+        ສ້ອມຊ້ຳ — ເຄື່ອງກັບມາພາຍໃນ {REPEAT_DAYS} ມື້
+        <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[11px] text-amber-900">{rows.length}</span>
+      </h2>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[680px] border-collapse text-xs">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໃບໃໝ່</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໃບເກົ່າ</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຫ່າງກັນ</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລູກຄ້າ</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">Serial</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຊ່າງ (ໃໝ່ / ເກົ່າ)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.code} className="border-b border-slate-100 transition last:border-0 hover:bg-amber-50/40">
+                <td className="px-3 py-2.5">
+                  <Link href={`/service/${encodeURIComponent(row.code)}`} className="font-bold text-teal-700 hover:underline">
+                    #{row.code}
+                  </Link>
+                </td>
+                <td className="px-3 py-2.5">
+                  <Link href={`/service/${encodeURIComponent(row.prev_code)}`} className="font-semibold text-slate-600 hover:underline">
+                    #{row.prev_code}
+                  </Link>
+                  <span className="ml-1 text-slate-400">{row.prev_returned}</span>
+                </td>
+                <td className="whitespace-nowrap px-3 py-2.5">
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">
+                    {row.days_between} ມື້
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 text-slate-600">{row.customer ?? "-"}</td>
+                <td className="px-3 py-2.5 text-slate-500">{row.sn}</td>
+                <td className="px-3 py-2.5 text-slate-600">
+                  {row.tech ?? "-"} / {row.prev_tech ?? "-"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  );
+}
+
 function StaleTable({
   title,
   rows,
@@ -622,10 +710,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   // ຊ່າງເຫັນສະເພາະວຽກຂອງຕົນ — ກົດເກນອັນດຽວກັບທຸກໜ້າ (lib/scope)
   const tech = ownJobsOnly(session);
 
-  const { data, error } = await getDashboard(tech, days);
+  const [{ data, error }, qc] = await Promise.all([getDashboard(tech, days), qcWorkflows()]);
   const repair: Counts = data?.repair ?? {};
   const install: Counts = data?.install ?? {};
-  const alerts = data ? alertsFor(role, data) : [];
+  const alerts = data ? alertsFor(role, data, qc.length > 0) : [];
 
   const score = data?.feedback.avg_points ?? null;
   const oldestRepair = data?.oldest.repair_seconds ?? 0;
@@ -920,6 +1008,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           hrefOf={(code) => `/installations/${encodeURIComponent(code)}`}
         />
       </section>
+
+      {/* ⑤ ສ້ອມຊ້ຳ — ເຄື່ອງໜ່ວຍດຽວກັນກັບມາພາຍໃນ 30 ມື້ = ຄັ້ງກ່ອນສ້ອມບໍ່ຈົບ */}
+      {(data?.repeats.length ?? 0) > 0 && <RepeatPanel rows={data!.repeats} />}
 
       <p className="text-center text-[11px] text-slate-400">
         ຕົວເລກທຸກຊ່ອງໃຊ້ເງື່ອນໄຂອັນດຽວກັນກັບໜ້າປາຍທາງ — ກົດເບິ່ງໄດ້ວ່າແມ່ນວຽກໃດແດ່
