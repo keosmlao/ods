@@ -3,6 +3,7 @@ import { logChange } from "@/app/actions/chatter";
 import { getSession } from "@/lib/auth";
 import { db, query } from "@/lib/db";
 import { roleOf, TECH_SIDE } from "@/lib/roles";
+import { STAGE_SQL } from "@/lib/stage";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -139,11 +140,25 @@ export async function searchSpare(q: string, inStockOnly = false): Promise<Spare
 
 /* ── ເລີ່ມກວດເຊັກ (start_check) ─────────────────────────────────── */
 
+/**
+ * ເລີ່ມກວດເຊັກ — ຕ້ອງຢູ່ຂັ້ນ 1 (ລໍຖ້າກວດເຊັກ) ຈິງໆ.
+ *
+ * ແຕ່ກ່ອນກວດແຕ່ "login ຢູ່ບໍ": ໃຜກໍ່ໄດ້ (ລວມສາງ/CS) stamp ໃບໃດກໍ່ໄດ້ ແລະ **ກົດຊ້ຳໄດ້** —
+ * ການກົດຊ້ຳຂຽນທັບ time_check ⇒ **ໂມງ SLA ຖືກຣີເຊັດງຽບໆ** (ໜ້າ /checking ແລະ ລາຍງານ
+ * ນັບເວລາຈາກຖັນນີ້). ດຽວນີ້ເງື່ອນໄຂຂັ້ນຢູ່ໃນ WHERE ⇒ ກົດຊ້ຳບໍ່ຂຽນທັບ ແລະ ນອກຂັ້ນ 1 ບໍ່ເກີດຫຍັງ.
+ */
 export async function startCheck(code: string) {
   const session = await getSession();
   if (!session) redirect("/login");
-  await query(`update tb_product set time_check=${NOW}, status=1 where code=$1`, [code]);
-  await logChange("tb_product", code, "ເລີ່ມກວດເຊັກ");
+
+  const loaded = await loadJob(code); // ສິດຝ່າຍຊ່າງ + ຕ້ອງເປັນວຽກຂອງຕົນ
+  if (!loaded.ok) redirect("/forbidden");
+
+  const done = await query(
+    `update tb_product a set time_check=${NOW}, status=1 where a.code=$1 and (${STAGE_SQL}) = 1`,
+    [code],
+  );
+  if (done.rowCount) await logChange("tb_product", code, "ເລີ່ມກວດເຊັກ");
   revalidatePath("/checking");
   redirect("/checking");
 }
@@ -279,6 +294,10 @@ export async function saveCheck(_: CheckState, formData: FormData): Promise<Chec
 
   const { code, isue_bytech, war_by_t, use_spare, warrunty } = parsed.data;
 
+  // ສິດຝ່າຍຊ່າງ + ຕ້ອງເປັນວຽກຂອງຕົນ (ແຕ່ກ່ອນກວດແຕ່ session)
+  const loaded = await loadJob(code);
+  if (!loaded.ok) return { error: loaded.error };
+
   /**
    * t_reason = ເຫດຜົນທີ່ຊ່າງຕັດສິນວ່າ "ໝົດຮັບປະກັນ".
    * ods ຮັບຄ່ານີ້ແລ້ວ **ຖິ້ມຖິ້ມ** ⇒ ພໍລູກຄ້າຄ້ານວ່າ "ເປັນຫຍັງຈຶ່ງໝົດປະກັນ" ບໍ່ມີຫຼັກຖານໃດເລີຍ.
@@ -305,6 +324,20 @@ export async function saveCheck(_: CheckState, formData: FormData): Promise<Chec
   let spareCount = 0;
   try {
     await client.query("begin");
+
+    /**
+     * ຕ້ອງຢູ່ຂັ້ນ 2 (ກຳລັງກວດເຊັກ) ຈິງໆ. ແຕ່ກ່ອນບໍ່ກວດຂັ້ນເລີຍ ⇒ ຍິງ action ນີ້ໃສ່ວຽກທີ່
+     * ຜ່ານການກວດເຊັກໄປແລ້ວ ກໍ່ຂຽນ time_finish_check/status ທັບໄດ້ ແລະ ຍ້າຍກະຕ່າອາໄຫຼ່ຊ້ຳ.
+     * `for update` ລັອກແຖວໄວ້ ⇒ ສອງຄົນກົດພ້ອມກັນບໍ່ຜ່ານທັງຄູ່.
+     */
+    const stage = await client.query<{ stage: number }>(
+      `select (${STAGE_SQL})::int stage from tb_product a where a.code=$1 for update`,
+      [code],
+    );
+    if (stage.rows[0]?.stage !== 2) {
+      await client.query("rollback");
+      return { error: 'ບັນທຶກບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ "ກຳລັງກວດເຊັກ"' };
+    }
 
     if (usesSpare) {
       const moved = await client.query(

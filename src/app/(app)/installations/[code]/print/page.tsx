@@ -1,5 +1,7 @@
 import { query } from "@/lib/db";
+import { feedbackUrl } from "@/lib/track";
 import { notFound } from "next/navigation";
+import QRCode from "qrcode";
 
 /** ຖອດແບບຈາກ ods: /install_print/<id> (bill.py) + templates/install_print.html */
 export const dynamic = "force-dynamic";
@@ -30,6 +32,15 @@ export default async function InstallPrint({ params }: Props) {
   const x = job.rows[0];
   if (!x) notFound();
   const co = company.rows[0];
+
+  /**
+   * QR ແບບສອບຖາມ — ຊ່າງພົກໃບນີ້ໄປໜ້າງານ ພໍຕິດຕັ້ງແລ້ວກໍ່ໃຫ້ລູກຄ້າສະແກນຕອບເລີຍ.
+   * ງານຄ້າງຢູ່ຂັ້ນ "ຕິດຕັ້ງສຳເລັດ" ຈົນກວ່າລູກຄ້າຈະຕອບ ແລະ LINE ທີ່ ods ໃຊ້ສົ່ງລິ້ງ
+   * ປິດບໍລິການໄປແລ້ວ (ຄືກັບ QR ຕິດຕາມສະຖານະໃນໃບຮັບເຄື່ອງສ້ອມ).
+   * ໜ້າ /feedback ເອງກັນໄວ້ຢູ່ແລ້ວ: ຍັງບໍ່ຕິດຕັ້ງສຳເລັດ ຕອບບໍ່ໄດ້.
+   */
+  const url = await feedbackUrl(x.code ?? "");
+  const qr = await QRCode.toString(url, { type: "svg", margin: 0, errorCorrectionLevel: "M", width: 96 });
 
   return (
     <div className="mx-auto max-w-4xl bg-white p-8 text-slate-950">
@@ -73,7 +84,19 @@ export default async function InstallPrint({ params }: Props) {
         </div>
       </section>
 
-      <div className="mt-20 grid grid-cols-2 text-center text-sm">
+      <section className="mt-6 flex items-center gap-4 rounded border border-slate-300 p-4">
+        {/* svg ມາຈາກ qrcode ຢູ່ຝັ່ງ server — ບໍ່ແມ່ນ input ຂອງຜູ້ໃຊ້ */}
+        <div className="shrink-0" dangerouslySetInnerHTML={{ __html: qr }} />
+        <div className="text-sm">
+          <p className="font-bold">ແບບສອບຖາມຄວາມພໍໃຈ</p>
+          <p className="mt-1 text-slate-600">
+            ຫຼັງຕິດຕັ້ງສຳເລັດ ກະລຸນາໃຫ້ລູກຄ້າສະແກນ QR ນີ້ ເພື່ອຕອບແບບສອບຖາມ — ງານຈຶ່ງຈະປິດໄດ້.
+          </p>
+          <p className="mt-1 break-all text-xs text-slate-400">{url}</p>
+        </div>
+      </section>
+
+      <div className="mt-16 grid grid-cols-2 text-center text-sm">
         <div>
           <p>____________________</p>
           <p className="mt-2">ລູກຄ້າ</p>

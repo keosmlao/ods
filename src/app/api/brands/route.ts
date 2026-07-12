@@ -1,17 +1,19 @@
-import { getSession } from "@/lib/auth";
+import { apiAllowed } from "@/lib/api-guard";
 import { query } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 
 /** ຄື /showbrand ຂອງ ods */
 export async function GET() {
-  if (!(await getSession())) return NextResponse.json([], { status: 401 });
+  // ຟອມທີ່ເອີ້ນ route ນີ້ຢູ່ໜ້າ /service/new (ຝ່າຍບໍລິການ) — /api ຢູ່ນອກ matcher ຂອງ proxy
+  if (!(await apiAllowed("/service/new"))) return NextResponse.json([], { status: 403 });
   const r = await query<{ code: string; name_1: string }>("select code,name_1 from tb_brand order by code");
   return NextResponse.json(r.rows);
 }
 
 /** ຄື /save_newbrand ຂອງ ods — tb_brand.code = tb_brand.name_1 */
 export async function POST(req: NextRequest) {
-  if (!(await getSession())) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  // ຟອມທີ່ເອີ້ນ route ນີ້ຢູ່ໜ້າ /service/new (ຝ່າຍບໍລິການ) — /api ຢູ່ນອກ matcher ຂອງ proxy
+  if (!(await apiAllowed("/service/new"))) return NextResponse.json({ error: "unauthorized" }, { status: 403 });
   const body = (await req.json().catch(() => null)) as { name_1?: unknown } | null;
   const name = typeof body?.name_1 === "string" ? body.name_1.trim() : "";
   if (!name) return NextResponse.json({ error: "ກະລຸນາປ້ອນຊື່ຫຍີ່ຫໍ້" }, { status: 400 });

@@ -1,5 +1,6 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
+import { pushToUser } from "@/lib/push";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { APPROVER_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
@@ -19,6 +20,11 @@ const schema = z.object({
   cust_tel: z.string().optional().default(""),
   cust_address: z.string().optional().default(""),
   proname: z.string().min(1),
+  /**
+   * ລະຫັດສິນຄ້າ ERP — ຫວ່າງໄດ້ (ສິນຄ້າທີ່ພິມຊື່ເອງ ບໍ່ມີໃນ ERP).
+   * ມີແລ້ວຈຶ່ງໄປຫາ ic_size / ic_design ໄດ້ ⇒ ຄິດຄ່າບໍລິການຂອງຊ່າງໄດ້.
+   */
+  item_code: z.string().optional(),
   /** SN ຫວ່າງໄດ້ — ເຄື່ອງເກົ່າ/ເຄື່ອງນອກ ບາງໜ່ວຍບໍ່ມີປ້າຍ */
   pro_sn: z.string(),
   pro_model: z.string().min(1),
@@ -209,12 +215,19 @@ export async function createService(_: ServiceState, formData: FormData): Promis
       (await client.query("select coalesce(max(code::int),0)+1 code from tb_product where code~'^[0-9]+$'")).rows[0].code,
     );
 
+    /**
+     * item_code = ລະຫັດສິນຄ້າ ERP.
+     * ຟອມຄົ້ນ ERP ຢູ່ແລ້ວ (/api/products) ແຕ່ແຕ່ກ່ອນຖິ້ມລະຫັດຖິ້ມ ⇒ ໃບຮັບເຄື່ອງ
+     * ໄປຫາ ic_size / ic_design ຂອງ ERP ບໍ່ໄດ້ ແລະ ຄິດຄ່າບໍລິການ (ທີ່ແບ່ງຕາມ
+     * ຂະໜາດ/ແບບ) ບໍ່ໄດ້. ຫວ່າງໄດ້ — ສິນຄ້າທີ່ພິມຊື່ເອງບໍ່ມີລະຫັດ ERP.
+     */
     await client.query(
       `insert into tb_product(code,name_1,sn,p_model,p_brand,p_access,issue,p_type,p_abrasion,p_delivery,
-         warrunty,service_type,cust_code,ap_code,doc_def,doc_date_ref,status,emp_code,time_register,user_regis)
-       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,localtimestamp,$18)`,
+         warrunty,service_type,cust_code,ap_code,doc_def,doc_date_ref,status,emp_code,time_register,user_regis,item_code)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,localtimestamp,$18,nullif($19,''))`,
       [code, d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
-        d.pro_deli, d.pro_wa, d.service_type, custCode, d.sup_id, d.billon, d.billdate, d.emp, session.username],
+        d.pro_deli, d.pro_wa, d.service_type, custCode, d.sup_id, d.billon, d.billdate, d.emp, session.username,
+        d.item_code ?? ""],
     );
 
     await saveUploads(client, code, uploads, written);
@@ -237,6 +250,11 @@ export async function createService(_: ServiceState, formData: FormData): Promis
   });
   // ຄຽງກັນ ໃຫ້ເຫັນຢູ່ໜ້າລູກຄ້ານຳ ວ່າລູກຄ້າຄົນນີ້ເອົາເຄື່ອງມາສ້ອມເມື່ອໃດ
   await logChange("ar_customer", customer, `ເປີດໃບຮັບເຄື່ອງ #${code}: ${item}`);
+  // ແຈ້ງອອກມືຖືຂອງຊ່າງ — ຊ່າງບໍ່ໄດ້ນັ່ງເຝົ້າເວັບ (lib/push ຈັບ error ໄວ້ໝົດ)
+  if (d.emp) await pushToUser(d.emp, "ມີງານສ້ອມແປງໃໝ່", `${code} · ${item} — ${d.pro_issue}`, {
+    workflow: "repair",
+    code,
+  });
 
   // ລູກຄ້າຍັງຢືນລໍຢູ່ໜ້າເຄົາເຕີ — ໄປໜ້າພິມໃບຮັບເລີຍ ບໍ່ໃຫ້ຕ້ອງກົດຫາເອງ
   redirect(`/service/${code}/print`);
@@ -349,57 +367,28 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
   await logChange("tb_product", d.code, `ແກ້ໄຂໃບຮັບເຄື່ອງ · ອາການ: ${d.pro_issue} · ຊ່າງ ${d.emp}`, {
     users: [d.emp],
   });
+  // ແຈ້ງອອກມືຖືຂອງຊ່າງນຳ (ລົ້ມເຫຼວກໍ່ບໍ່ກະທົບການບັນທຶກ — ເບິ່ງ lib/push)
+  if (d.emp) await pushToUser(d.emp, "ມີງານສ້ອມແປງ", `${d.code} · ${d.proname} — ${d.pro_issue}`, {
+    workflow: "repair",
+    code: d.code,
+  });
 
   redirect(`/service/${d.code}`);
 }
 
-/* ---------- ລົບໃບຮັບເຄື່ອງ — ຄື /del_rcp/<code> ຂອງ ods ---------- */
-
-export async function deleteService(code: string): Promise<ServiceState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
-
-  const client = await db.connect();
-  let toRemove: string[] = [];
-  try {
-    await client.query("begin");
-    // ລົບໄດ້ສະເພາະທີ່ຍັງບໍ່ທັນກວດເຊັກ (time_check isnull) ຄື ods
-    const found = await client.query<{ code: string }>(
-      "select code from tb_product where code=$1 and time_check is null for update",
-      [code],
-    );
-    if (!found.rowCount) {
-      await client.query("rollback");
-      return { error: "ບໍ່ສາມາດລົບໄດ້ ຂໍ້ມູນຖືກໃຊ້ເເລ້ວ!" };
-    }
-
-    // ຮູບຂອງໃບແຈ້ງສ້ອມອອນລາຍ (ref_code) ບໍ່ຖືກລົບ — ພຽງແຕ່ຕັດອອກຈາກງານ.
-    // (ods ລຶບໄຟລ໌ຮູບເຫຼົ່ານັ້ນຖິ້ມນຳ ທັງທີ່ຍັງເກັບແຖວໄວ້ → ຮູບເສຍ. ບ່ອນນີ້ບໍ່ລຶບ)
-    const images = await client.query<{ product_url: string }>(
-      "select product_url from product_image where iteme_code=$1 and coalesce(ref_code,'')=''",
-      [code],
-    );
-    toRemove = images.rows.map((row) => row.product_url).filter(Boolean);
-
-    await client.query("delete from ic_trans where product_code=$1", [code]);
-    await client.query("delete from tb_product where code=$1", [code]);
-    await client.query("update product_image set iteme_code=null where iteme_code=$1 and coalesce(ref_code,'')<>''", [code]);
-    await client.query("delete from product_image where iteme_code=$1 and coalesce(ref_code,'')=''", [code]);
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    console.error("Delete service failed", error);
-    return { error: "ລົບບໍ່ສຳເລັດ" };
-  } finally {
-    client.release();
-  }
-
-  // ລຶບໄຟລ໌ຫຼັງ commit ສຳເລັດເທົ່ານັ້ນ
-  if (uploadsDir) await Promise.all(toRemove.map((name) => unlink(join(uploadsDir, name)).catch(() => {})));
-  revalidatePath("/service");
-  return {};
-}
+/* ---------- ລົບໃບຮັບເຄື່ອງ — **ຖອດອອກແລ້ວ** ----------------------
+ *
+ * ໃບຮັບເຄື່ອງ **ລົບບໍ່ໄດ້ອີກຕໍ່ໄປ** (ທຸກໃບ). ໃຊ້ "ຂໍຍົກເລີກ" ແທນ (requestCancel)
+ * ເຊິ່ງມີຂັ້ນຕອນອະນຸມັດ ແລະ ເຫຼືອຮ່ອງຮອຍຄົບ.
+ *
+ * ຂອງເກົ່າອັນຕະລາຍກວ່າທີ່ຄິດ: ມັນ `delete from ic_trans where product_code=$1`
+ * ⇒ ລຶບ **ໃບສະເໜີລາຄາ · ໃບຂໍເບີກ · ໃບເບີກ · ໃບຮັບເງິນ** ຂອງງານນັ້ນຖິ້ມນຳ
+ * ທັງທີ່ອາໄຫຼ່ອອກຈາກສາງໄປແລ້ວ ແລະ ສະຕັອກ ERP ຖືກຕັດໄປແລ້ວ
+ * ⇒ ຂອງຫາຍຈາກສາງໂດຍບໍ່ມີເອກະສານຮັບຮູ້ ແລະ ຍອດຂາຍຫາຍຈາກລາຍງານ.
+ * ດຽວນີ້ງານຍັງຜູກກັບຄ່າຄອມຂອງຊ່າງ (ods_service_payout) ນຳ.
+ *
+ * ຖອດທັງ action ບໍ່ແມ່ນເຊື່ອງແຕ່ປຸ່ມ — server action ຖືກຍິງໂດຍກົງໄດ້ (lib/guard).
+ */
 
 /* ---------- ຍົກເລີກ / ຖອນການຍົກເລີກ — ຄື /submit_ccpro + /cc_ccpro ຂອງ ods ---------- */
 

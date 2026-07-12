@@ -1,7 +1,8 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
-import { getSession } from "@/lib/auth";
+import { getSession, type Session } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { finishRepairFlow, startRepairFlow } from "@/lib/job-flow";
 import { roleOf, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
 import { revalidatePath } from "next/cache";
@@ -55,7 +56,9 @@ const POST_CHECK_STATUS = `case
 end`;
 
 /** ດຶງພາບລວມ + ກວດສິດ — ຊ່າງຖອນຄືນໄດ້ສະເພາະວຽກຂອງຕົນເອງ */
-async function loadJob(code: string): Promise<{ ok: true; job: JobSnapshot } | { ok: false; error: string }> {
+async function loadJob(
+  code: string,
+): Promise<{ ok: true; job: JobSnapshot; session: Session } | { ok: false; error: string }> {
   const session = await getSession();
   if (!session) return { ok: false, error: "Session ໝົດອາຍຸ" };
   const role = roleOf(session);
@@ -66,7 +69,7 @@ async function loadJob(code: string): Promise<{ ok: true; job: JobSnapshot } | {
   if (role === "technical" && (job.emp_code ?? "") !== session.username) {
     return { ok: false, error: "ວຽກນີ້ບໍ່ແມ່ນຂອງທ່ານ — ຖອນຄືນບໍ່ໄດ້" };
   }
-  return { ok: true, job };
+  return { ok: true, job, session };
 }
 
 /** ຂັ້ນທີ່ຍ້ອນກັບບໍ່ໄດ້ — ເອກະສານເງິນ ຫຼື ເຄື່ອງອອກຈາກມືໄປແລ້ວ */
@@ -92,11 +95,26 @@ const NOT_ON_DOC = `pick_finish is null and not exists (
 
 /* ── ເລີ່ມສ້ອມແປງ (start_repair) ────────────────────────────────── */
 
+/**
+ * ເລີ່ມສ້ອມແປງ — ຕ້ອງຢູ່ຂັ້ນ 8 (ລໍຖ້າສ້ອມແປງ) ຈິງໆ.
+ *
+ * ແຕ່ກ່ອນກວດແຕ່ "login ຢູ່ບໍ" ແລ້ວຂຽນ time_repair ລົງໄປເລີຍ. ອັນຕະລາຍເພາະ
+ * STAGE_SQL (lib/stage) ອ່ານ **time_repair ກ່ອນ** spare_reg/spare_finish ⇒ ຍິງ action ນີ້
+ * ໃສ່ວຽກຂັ້ນ 5 (ລໍຖ້າຂໍເບີກອາໄຫຼ່) ວຽກຈະ **ໂດດໄປຂັ້ນ 9 ທັນທີ ຂ້າມການເບີກອາໄຫຼ່ທັງໝົດ**
+ * ໂດຍບໍ່ມີ error ຈັກຂໍ້ — ອາໄຫຼ່ບໍ່ເຄີຍຖືກເບີກ ແຕ່ວຽກຂຶ້ນວ່າ "ກຳລັງສ້ອມແປງ".
+ *
+ * ດຽວນີ້ເງື່ອນໄຂຂັ້ນຢູ່ໃນ WHERE ເອງ (ໃຊ້ STAGE_SQL ອັນດຽວກັບທັງລະບົບ) ⇒ ນອກຂັ້ນ 8
+ * ບໍ່ມີຫຍັງເກີດຂຶ້ນ, ກົດຊ້ຳກໍ່ບໍ່ຂຽນທັບ (ບໍ່ຣີເຊັດໂມງ) ແລະ ສອງຄົນກົດພ້ອມກັນກໍ່ບໍ່ຊ້ຳ.
+ */
 export async function startRepair(code: string) {
   const session = await getSession();
   if (!session) redirect("/login");
-  await query(`update tb_product set time_repair=${NOW} where code=$1`, [code]);
-  await logChange("tb_product", code, "ເລີ່ມສ້ອມແປງ");
+
+  const loaded = await loadJob(code); // ສິດຝ່າຍຊ່າງ + ຕ້ອງເປັນວຽກຂອງຕົນ
+  if (!loaded.ok) redirect("/forbidden");
+
+  // ຕົວປ່ຽນຂັ້ນຢູ່ lib/job-flow ບ່ອນດຽວ — ອັນດຽວກັບທີ່ແອັບມືຖືເອີ້ນ (ເງື່ອນໄຂຂັ້ນ 8 ຢູ່ໃນ WHERE)
+  await startRepairFlow(session, code);
   revalidatePath("/repair");
   redirect("/repair");
 }
@@ -220,11 +238,12 @@ const saveSchema = z.object({
 });
 
 export async function saveRepair(_: RepairState, formData: FormData): Promise<RepairState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
-
   const parsed = saveSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "ຂໍ້ມູນບໍ່ຄົບ" };
+
+  // ສິດຝ່າຍຊ່າງ + ຕ້ອງເປັນວຽກຂອງຕົນ (ແຕ່ກ່ອນກວດແຕ່ session)
+  const loaded = await loadJob(parsed.data.pro_code);
+  if (!loaded.ok) return { error: loaded.error };
 
   /**
    * save_rp ຂອງ ods ອັບເດດແຕ່ tb_product: status=5 (ລໍຖ້າສົ່ງຄືນ) + time_finish_repair
@@ -233,17 +252,10 @@ export async function saveRepair(_: RepairState, formData: FormData): Promise<Re
    */
   const { pro_code: code, repair_note: note } = parsed.data;
 
-  try {
-    await query(`update tb_product set status=5, time_finish_repair=${NOW}, repair_note=nullif($2,'') where code=$1`, [
-      code,
-      note,
-    ]);
-  } catch (error) {
-    console.error("save_rp failed", error);
-    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
-  }
-
-  await logChange("tb_product", code, note.trim() ? `ສ້ອມແປງສຳເລັດ: ${note.trim()}` : "ສ້ອມແປງສຳເລັດ");
+  // ຕົວປ່ຽນຂັ້ນຢູ່ lib/job-flow ບ່ອນດຽວ (ເງື່ອນໄຂ "ຕ້ອງຢູ່ຂັ້ນ 9" ຢູ່ໃນ WHERE ຂອງມັນ)
+  // — ອັນດຽວກັບທີ່ແອັບມືຖືເອີ້ນ ຈຶ່ງບໍ່ມີວັນປ່ຽນຂັ້ນຄົນລະແບບ.
+  const result = await finishRepairFlow(loaded.session, code, note);
+  if (!result.ok) return { error: result.error };
 
   revalidatePath("/repair");
   revalidatePath("/returns");

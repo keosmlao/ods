@@ -1,4 +1,3 @@
-import { DeleteServiceButton } from "@/components/service-delete-button";
 import { Elapsed } from "@/components/elapsed";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import type { BoardCard } from "@/components/service-board";
@@ -120,7 +119,6 @@ export function ServicePendingTable({
                       <Link href={`/service/${card.code}/edit`} title="ແກ້ໄຂ" className="text-slate-500 hover:opacity-70">
                         <Pencil className="size-4" />
                       </Link>
-                      <DeleteServiceButton code={card.code} />
                     </div>
                   </td>
                 </tr>

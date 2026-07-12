@@ -1,11 +1,17 @@
 import { getSession } from "@/lib/auth";
 import { queryOdg } from "@/lib/db";
+import { roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
  * ຄົ້ນຫາບີນຂາຍຈາກ ERP (odg) ເພື່ອເປີດງານຕິດຕັ້ງ.
  * ຖອດແບບຈາກ ods: get_bill_invoice_od() + /search_sml_install (install_admin.py).
  * trans_flag 44 = ໃບຮັບເງິນ/ບີນຂາຍ.
+ *
+ * ── ສິດ ──
+ * matcher ຂອງ src/proxy.ts **ຕັດ /api ອອກ** ⇒ ດ່ານກວດ role ຂອງໜ້າບໍ່ຄຸມມາຮອດນີ້.
+ * route ນີ້ປ່ອຍ ຊື່/ເບີໂທ/ທີ່ຢູ່ ຂອງລູກຄ້າຈາກ ERP ອອກມາ ຈຶ່ງຕ້ອງກວດເອງ.
+ * ຜູ້ໃຊ້: ໜ້າ /installations/new (ຝ່າຍບໍລິການ) ⇒ ຈຳກັດຕາມນັ້ນ.
  */
 export type BillRow = {
   doc_date: string;
@@ -26,6 +32,9 @@ export type BillRow = {
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!SERVICE_SIDE.includes(roleOf(session))) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   const q = (request.nextUrl.searchParams.get("q") ?? "").trim();
 

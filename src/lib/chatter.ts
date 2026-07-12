@@ -24,8 +24,14 @@ export function recordHref(model: string, resId: string) {
   switch (model) {
     case "tb_product":
       return `/service/${resId}`;
+    /**
+     * ໜ້າ **ອ່ານ** ຂອງງານຕິດຕັ້ງ — ບໍ່ແມ່ນ /edit ອີກຕໍ່ໄປ.
+     * /edit ເປັນຂອງຝ່າຍບໍລິການເທົ່ານັ້ນ ແຕ່ຄົນທີ່ຖືກແຈ້ງແມ່ນ **ຊ່າງ** (ຈັດງານໃຫ້)
+     * ແລະ **ສາງ** (ມີໃບຂໍເບີກ) ⇒ ແຕ່ກ່ອນທຸກການແຈ້ງເຕືອນຂອງງານຕິດຕັ້ງພາສອງ role ນັ້ນ
+     * ໄປຕົກໃສ່ /forbidden. ຄູ່ກັບ /service/<code> ຂອງຝັ່ງສ້ອມ ທີ່ເປີດໃຫ້ທຸກຄົນມາແຕ່ຕົ້ນ.
+     */
     case "ods_tb_install":
-      return `/installations/${resId}/edit`;
+      return `/installations/${resId}`;
     case "ar_customer":
       return `/customers/${resId}/edit`;
     // ຮ່າງຂໍລະຫັດອາໄຫຼ່ໃໝ່ຢູ່ຄົນລະຖານ (pp_od_manage) — ບໍ່ມີ chatter ຂອງມັນເອງ

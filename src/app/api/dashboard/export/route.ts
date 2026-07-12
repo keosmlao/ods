@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/auth";
+import { guardApi } from "@/lib/api-guard";
 import { installStatuses, repairStatuses } from "@/lib/dashboard-status";
 import { query } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
@@ -9,7 +9,9 @@ const csv = (rows: Record<string, unknown>[]) => {
   return `\uFEFF${keys.map(cell).join(",")}\n${rows.map((row)=>keys.map((key)=>cell(row[key])).join(",")).join("\n")}`;
 };
 export async function GET(request: NextRequest) {
-  if (!await getSession()) return NextResponse.json({error:"Unauthorized"},{status:401});
+  // ສິດຕາມໜ້າ /dashboard — /api ຢູ່ນອກ matcher ຂອງ proxy (ເບິ່ງ lib/api-guard)
+  const denied = await guardApi("/dashboard");
+  if (denied) return denied;
   const workflow=request.nextUrl.searchParams.get("workflow"); const status=request.nextUrl.searchParams.get("status")??"";
   const config=workflow==="repair"?repairStatuses[status]:workflow==="install"?installStatuses[status]:null;
   if(!config)return NextResponse.json({error:"Invalid status"},{status:400});

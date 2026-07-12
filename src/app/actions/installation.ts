@@ -1,11 +1,18 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
-import { getSession } from "@/lib/auth";
+import { acceptInstall, finishInstallFlow, startInstallFlow } from "@/lib/job-flow";
+import { pushToUser } from "@/lib/push";
+import { recordPayout } from "@/app/actions/commission";
+import { getSession, type Session } from "@/lib/auth";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb, query } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
+import { requireRole } from "@/lib/guard";
+import { type Role, roleOf, SERVICE_SIDE, STOCK_SIDE, TECH_SIDE } from "@/lib/roles";
+import { feedbackUrl } from "@/lib/track";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import QRCode from "qrcode";
 import { z } from "zod";
 
 /* ─────────────────────────────────────────────────────────────
@@ -55,21 +62,28 @@ export async function techFilter() {
  */
 export type JobState = {
   code: string;
+  tech_code: string | null;
   cancelled: boolean;
   closed: boolean;
   assigned: boolean;
   accepted: boolean;
+  qc_passed: boolean;
   requested: boolean;
   started: boolean;
   finished: boolean;
   complained: boolean;
 };
 
-const JOB_STATE_SQL = `select code,
+/**
+ * ດຶງ tech_code ມານຳ (ບໍ່ພຽງແຕ່ `assigned`) — ບໍ່ດັ່ງນັ້ນກວດ "ງານນີ້ແມ່ນຂອງຊ່າງຄົນນີ້ບໍ"
+ * ບໍ່ໄດ້ເລີຍ. ນີ້ຄືສາເຫດທີ່ຝັ່ງຕິດຕັ້ງບໍ່ເຄີຍມີການກວດເຈົ້າຂອງງານ ໃນຂະນະທີ່ຝັ່ງສ້ອມມີ.
+ */
+const JOB_STATE_SQL = `select code, nullif(tech_code,'') as tech_code,
     cancel_date is not null as cancelled,
     job_finish is not null as closed,
     (tech_code is not null and tech_code <> '') as assigned,
     tech_confirm is not null as accepted,
+    qc_finish is not null as qc_passed,
     reg_start is not null as requested,
     start_install is not null as started,
     finish_install is not null as finished,
@@ -85,6 +99,32 @@ async function jobState(code: string): Promise<JobState | null> {
 const NOT_FOUND = "ບໍ່ພົບງານຕິດຕັ້ງນີ້";
 const IS_CANCELLED = "ງານນີ້ຖືກຍົກເລີກແລ້ວ";
 const IS_CLOSED = "ງານນີ້ປິດແລ້ວ";
+const NOT_YOURS = "ງານນີ້ບໍ່ແມ່ນຂອງທ່ານ";
+
+/**
+ * ດ່ານກວດຮ່ວມຂອງ action ທີ່ອ້າງເຖິງງານນຶ່ງງານ — ລວມ 3 ຢ່າງໄວ້ບ່ອນດຽວ:
+ *   ① ສິດຕາມ role (proxy ກັນແຕ່ "ໜ້າ" — action ຖືກຍິງໂດຍກົງໄດ້, ເບິ່ງ lib/guard)
+ *   ② ງານມີຢູ່ຈິງ
+ *   ③ **ເຈົ້າຂອງງານ** — ຊ່າງ (technical) ແຕະໄດ້ສະເພາະງານທີ່ຕົນຖືກຈັດໃຫ້
+ *
+ * ຂໍ້ ③ ຄືກັບ loadJob() ຂອງ actions/repair.ts ແລະ actions/checking.ts ທຸກປະການ.
+ * ຫົວໜ້າຊ່າງ/ຜູ້ຈັດການເຫັນຄົບທຸກງານຄືເກົ່າ (ບໍ່ຖືກກວດຂໍ້ ③) — ຄືກັບຝັ່ງສ້ອມ.
+ * ຈຳເປັນ ເພາະລະຫັດ INST-xxxx ເປັນເລກລຽງ ⇒ ເດົາລະຫັດງານຂອງຊ່າງຄົນອື່ນໄດ້ງ່າຍ.
+ */
+type JobGuard = { ok: true; session: Session; job: JobState } | { ok: false; error: string };
+
+async function guardJob(code: string, allowed: readonly Role[]): Promise<JobGuard> {
+  const guard = await requireRole(allowed);
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  const job = await jobState(code);
+  if (!job) return { ok: false, error: NOT_FOUND };
+
+  if (roleOf(guard.session) === "technical" && (job.tech_code ?? "") !== guard.session.username) {
+    return { ok: false, error: NOT_YOURS };
+  }
+  return { ok: true, session: guard.session, job };
+}
 
 /* ── ເປີດງານຕິດຕັ້ງ (save_install_create) ─────────────────── */
 
@@ -108,7 +148,9 @@ const createSchema = z.object({
 });
 
 export async function createInstall(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await requireSession();
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດເປີດງານຕິດຕັ້ງ");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const parsed = createSchema.safeParse(Object.fromEntries(formData));
@@ -212,7 +254,9 @@ const editSchema = z.object({
 });
 
 export async function updateInstall(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await requireSession();
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດແກ້ໄຂງານຕິດຕັ້ງ");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   const parsed = editSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ" };
   const d = parsed.data;
@@ -257,43 +301,18 @@ export async function updateInstall(_: ActionState, formData: FormData): Promise
   redirect("/installations");
 }
 
-/* ── ລົບງານ (del_installjob) ──────────────────────────────── */
-
-export async function deleteInstall(code: string): Promise<ActionState> {
-  await requireSession();
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
-
-  const client = await db.connect();
-  try {
-    await client.query("begin");
-    // ຖືກໃຊ້ໃນເອກະສານແລ້ວ ຫຼື ຊ່າງຮັບງານ/ເລີ່ມແລ້ວ → ລົບບໍ່ໄດ້
-    const used = await client.query<{ count: string }>(
-      "select count(roworder) count from ic_trans where product_code=$1",
-      [code],
-    );
-    const started = await client.query<{ count: string }>(
-      `select count(roworder) count from ods_tb_install
-       where code=$1 and (tech_confirm is not null or tech_code is not null or start_install is not null)`,
-      [code],
-    );
-    if (Number(used.rows[0].count) !== 0 || Number(started.rows[0].count) !== 0) {
-      await client.query("rollback");
-      return { error: "ບໍ່ສາມາດລົບໄດ້ ຂໍ້ມູນຖືກໃຊ້ເເລ້ວ!" };
-    }
-    await client.query("delete from ods_tb_install where code=$1", [code]);
-    await client.query("delete from ods_tb_install_detail where code=$1", [code]);
-    await client.query("delete from tb_used_spare where product_code=$1", [code]);
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    console.error("deleteInstall failed", error);
-    return { error: "ລົບບໍ່ສຳເລັດ" };
-  } finally {
-    client.release();
-  }
-  revalidateAll();
-  return { ok: "ລົບສຳເລັດ" };
-}
+/* ── ລົບງານ — **ຖອດອອກແລ້ວ** ─────────────────────────────────
+ *
+ * ງານ **ລົບບໍ່ໄດ້ອີກຕໍ່ໄປ** (ທຸກງານ). ໃຊ້ "ຍົກເລີກງານ" ແທນ:
+ *   ຍົກເລີກ  → ເຫຼືອຮ່ອງຮອຍ (cancel_date · cancel_remark · cancel_code · chatter)
+ *              ແລະ ພາໄປສົ່ງອາໄຫຼ່ຄືນສາງ ຖ້າຍັງມີຂອງຄ້າງ
+ *   ລົບ      → ຂໍ້ມູນຫາຍໄປເລີຍ ບໍ່ຮູ້ວ່າໃຜລົບ ບໍ່ຮູ້ວ່າເປັນຫຍັງ
+ *
+ * ດຽວນີ້ງານຜູກກັບ **ຄ່າຄອມຂອງຊ່າງ** (ods_service_payout) ຄືນຮອດເລື່ອງເງິນ
+ * ⇒ ລົບງານແລ້ວແຖວເງິນຈະຊີ້ໄປງານທີ່ບໍ່ມີຢູ່ ແລະ ບັນຊີກັບສະລິບຈະບໍ່ຕົງກັນ.
+ *
+ * ຖອດທັງ action ບໍ່ແມ່ນເຊື່ອງແຕ່ປຸ່ມ — server action ຖືກຍິງໂດຍກົງໄດ້ (lib/guard).
+ */
 
 /* ── ຍົກເລີກງານ (cancel_install) ──────────────────────────── */
 
@@ -307,11 +326,10 @@ export async function deleteInstall(code: string): Promise<ActionState> {
  * ຂອງງານ INST- ຈັກໃບ) ⇒ ອາໄຫຼ່ຫາຍໄປຈາກສາງໂດຍບໍ່ມີເອກະສານຮັບຮູ້.
  */
 export async function cancelInstall(code: string, remark: string): Promise<ActionState> {
-  const session = await requireSession();
+  const guard = await guardJob(code, SERVICE_SIDE);
+  if (!guard.ok) return { error: guard.error };
+  const { session, job } = guard;
   if (!remark.trim()) return { error: "ກະລຸນາໃສ່ຫມາຍເຫດ" };
-
-  const job = await jobState(code);
-  if (!job) return { error: NOT_FOUND };
   if (job.cancelled) return { error: IS_CANCELLED };
 
   let cancelled = false;
@@ -369,7 +387,6 @@ export async function cancelInstall(code: string, remark: string): Promise<Actio
  * ກັບ /installations/accept ຈຶ່ງນັບໂມງຄ້າງຈາກຖານທີ່ຖືກຕ້ອງຂອງແຕ່ລະຄິວໄດ້.
  */
 export async function assignTech(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await requireSession();
   const code = String(formData.get("code") ?? "");
   const techCode = String(formData.get("tech_code") ?? "");
   const appointDate = String(formData.get("appoint_date") ?? "");
@@ -377,8 +394,9 @@ export async function assignTech(_: ActionState, formData: FormData): Promise<Ac
   const remark = String(formData.get("remark") ?? "");
   if (!code || !techCode) return { error: "ກະລຸນາເລືອກຊ່າງ" };
 
-  const job = await jobState(code);
-  if (!job) return { error: NOT_FOUND };
+  const guard = await guardJob(code, SERVICE_SIDE);
+  if (!guard.ok) return { error: guard.error };
+  const { session, job } = guard;
   if (job.cancelled) return { error: IS_CANCELLED };
   if (job.closed) return { error: IS_CLOSED };
 
@@ -401,6 +419,17 @@ export async function assignTech(_: ActionState, formData: FormData): Promise<Ac
     `ຈັດຊ່າງ: ${techCode}${appointDate ? ` · ນັດວັນທີ ${appointDate}` : ""}${locationInst ? ` · ${locationInst}` : ""}`,
     { users: [techCode] },
   );
+  /**
+   * ແຈ້ງເຕືອນອອກມືຖືຂອງຊ່າງ (Expo push) — ຊ່າງຢູ່ໜ້າງານ ບໍ່ໄດ້ເປີດເວັບຄ້າງໄວ້
+   * ⇒ ການແຈ້ງເຕືອນໃນແອັບຢ່າງດຽວບໍ່ພຽງພໍ. ລົ້ມເຫຼວກໍ່ບໍ່ເປັນຫຍັງ (lib/push ຈັບໄວ້ໝົດ)
+   * — ງານຕ້ອງຖືກມອບໝາຍໄດ້ ເຖິງແອັບຈະສົ່ງບໍ່ອອກ.
+   */
+  await pushToUser(
+    techCode,
+    "ມີງານຕິດຕັ້ງໃໝ່",
+    `${code}${appointDate ? ` · ນັດ ${appointDate}` : ""}${locationInst ? ` · ${locationInst}` : ""}`,
+    { workflow: "install", code },
+  );
 
   revalidateAll();
   return { ok: "ສຳເລັດ" };
@@ -413,7 +442,8 @@ export async function assignTech(_: ActionState, formData: FormData): Promise<Ac
  * ຖ້າອາໄຫຼ່ຖືກຂໍເບີກໄປແລ້ວ (reg_start) ປ່ຽນຊ່າງບໍ່ໄດ້ — ເອກະສານອອກໃນນາມຊ່າງຄົນເກົ່າແລ້ວ.
  */
 export async function chooseNewTech(code: string): Promise<ActionState> {
-  await requireSession();
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດປ່ຽນຊ່າງ");
+  if (!guard.ok) return { error: guard.error };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
   const client = await db.connect();
   try {
@@ -462,20 +492,14 @@ export async function chooseNewTech(code: string): Promise<ActionState> {
 /* ── ຊ່າງຮັບງານ (tech_accept_*) ───────────────────────────── */
 
 export async function acceptJob(code: string): Promise<ActionState> {
-  await requireSession();
-  const job = await jobState(code);
-  if (!job) return { error: NOT_FOUND };
-  if (job.cancelled) return { error: IS_CANCELLED };
-  if (job.closed) return { error: IS_CLOSED };
-  if (!job.assigned) return { error: "ງານນີ້ຍັງບໍ່ມີຊ່າງ" };
-  if (job.accepted) return { ok: `ຮັບງານຕິດຕັ້ງ ເລກທີ ${code} ສຳເລັດ` };
+  const guard = await guardJob(code, TECH_SIDE);
+  if (!guard.ok) return { error: guard.error };
 
-  await query("update ods_tb_install set tech_confirm=localtimestamp(0) where code=$1 and tech_confirm is null", [
-    code,
-  ]);
-  await logChange("ods_tb_install", code, "ຊ່າງຮັບງານແລ້ວ");
+  // ຕົວປ່ຽນຂັ້ນຢູ່ lib/job-flow ບ່ອນດຽວ — **ອັນດຽວກັບທີ່ແອັບມືຖືເອີ້ນ**
+  const result = await acceptInstall(guard.session, code);
+  if (!result.ok) return { error: result.error };
   revalidateAll();
-  return { ok: `ຮັບງານຕິດຕັ້ງ ເລກທີ ${code} ສຳເລັດ` };
+  return { ok: result.message };
 }
 
 /**
@@ -484,9 +508,9 @@ export async function acceptJob(code: string): Promise<ActionState> {
  * ງານຈະຕົກໄປຢູ່ສະຖານະ "ຂໍເບີກແລ້ວ ແຕ່ຍັງບໍ່ຮັບງານ" ເຊິ່ງບໍ່ມີໜ້າໃດພາໄປຕໍ່ໄດ້ (B2).
  */
 export async function unacceptJob(code: string): Promise<ActionState> {
-  await requireSession();
-  const job = await jobState(code);
-  if (!job) return { error: NOT_FOUND };
+  const guard = await guardJob(code, TECH_SIDE);
+  if (!guard.ok) return { error: guard.error };
+  const { job } = guard;
   if (job.cancelled) return { error: IS_CANCELLED };
   if (job.requested) return { error: "ຖອນການຮັບງານບໍ່ໄດ້ ມີໃບຂໍເບີກອາໄຫຼ່ແລ້ວ!" };
   if (job.started) return { error: "ຖອນການຮັບງານບໍ່ໄດ້ ເລີ່ມຕິດຕັ້ງແລ້ວ!" };
@@ -497,88 +521,135 @@ export async function unacceptJob(code: string): Promise<ActionState> {
   return { ok: `ຍົກເລີກຮັບງານ ເລກທີ ${code} ສຳເລັດ` };
 }
 
-/** ບໍ່ຮັບງານ — ຄືນງານໄປລໍຖ້າຈັດຊ່າງໃໝ່ (ລ້າງໂມງຈັດຊ່າງນຳ — ເບິ່ງ chooseNewTech) */
-export async function declineJob(code: string): Promise<ActionState> {
-  await requireSession();
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
-
-  const job = await jobState(code);
-  if (!job) return { error: NOT_FOUND };
-  if (job.cancelled) return { error: IS_CANCELLED };
-  if (job.requested) return { error: "ບໍ່ຮັບງານບໍ່ໄດ້ ມີໃບຂໍເບີກອາໄຫຼ່ແລ້ວ!" };
-  if (job.started) return { error: "ບໍ່ຮັບງານບໍ່ໄດ້ ເລີ່ມຕິດຕັ້ງແລ້ວ!" };
-
-  const client = await db.connect();
-  try {
-    await client.query("begin");
-    await client.query("update ods_tb_install set tech_before=tech_code where code=$1", [code]);
-    await client.query(
-      "update ods_tb_install set tech_confirm=null, tech_code=null, assigt_time=null, user_assigt=null where code=$1",
-      [code],
-    );
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    console.error("declineJob failed", error);
-    return { error: "ບໍ່ສຳເລັດ" };
-  } finally {
-    client.release();
-  }
-  await logChange("ods_tb_install", code, "ຊ່າງບໍ່ຮັບງານ — ຄືນໄປລໍຖ້າຈັດຊ່າງໃໝ່");
-  revalidateAll();
-  return { ok: `ຍົກເລີກຮັບງານ ເລກທີ ${code} ສຳເລັດ` };
-}
-
 /* ── ຕິດຕັ້ງ (start/finish_tech_install) ──────────────────── */
 
 export async function startInstall(code: string): Promise<ActionState> {
-  await requireSession();
-  const job = await jobState(code);
-  if (!job) return { error: NOT_FOUND };
-  if (job.cancelled) return { error: IS_CANCELLED };
-  if (job.closed) return { error: IS_CLOSED };
-  if (!job.accepted) return { error: "ຊ່າງຍັງບໍ່ທັນຮັບງານນີ້" };
+  const guard = await guardJob(code, TECH_SIDE);
+  if (!guard.ok) return { error: guard.error };
 
-  await query("update ods_tb_install set start_install=localtimestamp(0) where code=$1 and start_install is null", [
-    code,
-  ]);
-  await logChange("ods_tb_install", code, "ເລີ່ມຕິດຕັ້ງ");
+  const result = await startInstallFlow(guard.session, code);
+  if (!result.ok) return { error: result.error };
   revalidateAll();
-  return { ok: `ເລີ່ມຕິດຕັ້ງ ເລກທີ ${code}` };
+  return { ok: result.message };
 }
 
 export async function finishInstall(code: string): Promise<ActionState> {
-  await requireSession();
-  const job = await jobState(code);
-  if (!job) return { error: NOT_FOUND };
-  if (job.cancelled) return { error: IS_CANCELLED };
-  if (!job.started) return { error: "ຍັງບໍ່ທັນເລີ່ມຕິດຕັ້ງ" };
+  const guard = await guardJob(code, TECH_SIDE);
+  if (!guard.ok) return { error: guard.error };
 
-  await query("update ods_tb_install set finish_install=localtimestamp(0) where code=$1 and finish_install is null", [
-    code,
-  ]);
-  // ຜູ້ຕິດຕາມຮູ້ວ່າຕິດຕັ້ງແລ້ວ. ລິ້ງແບບສອບຖາມຍັງຕ້ອງສົ່ງໃຫ້ລູກຄ້າດ້ວຍມື —
-  // ລູກຄ້າບໍ່ມີບັນຊີໃນລະບົບ ຈຶ່ງແຈ້ງເຕືອນໃນແອັບຫາລູກຄ້າບໍ່ໄດ້ (ods ໃຊ້ LINE)
-  await logChange("ods_tb_install", code, "ຕິດຕັ້ງສຳເລັດ — ລໍຖ້າລູກຄ້າຕອບແບບສອບຖາມ");
+  const result = await finishInstallFlow(guard.session, code);
+  if (!result.ok) return { error: result.error };
   revalidateAll();
-  return { ok: `ຕິດຕັ້ງ ເລກທີ ${code} ສຳເລັດ` };
+  return { ok: result.message };
 }
 
 /* ── ປິດງານ (close_pending_success) ───────────────────────── */
 
 /** ປິດງານໄດ້ສະເພາະງານທີ່ຕິດຕັ້ງແລ້ວ ແລະ ລູກຄ້າຕອບແບບສອບຖາມແລ້ວ (ຂັ້ນ 7) */
 export async function closeJob(code: string): Promise<ActionState> {
-  await requireSession();
-  const job = await jobState(code);
-  if (!job) return { error: NOT_FOUND };
+  const guard = await guardJob(code, SERVICE_SIDE);
+  if (!guard.ok) return { error: guard.error };
+  const { job } = guard;
   if (job.cancelled) return { error: IS_CANCELLED };
   if (!job.finished) return { error: "ປິດງານບໍ່ໄດ້ ຍັງບໍ່ທັນຕິດຕັ້ງສຳເລັດ" };
+  if (!job.qc_passed) return { error: "ປິດງານບໍ່ໄດ້ ຍັງບໍ່ຜ່ານການກວດຮັບຄຸນນະພາບ" };
   if (!job.complained) return { error: "ປິດງານບໍ່ໄດ້ ລູກຄ້າຍັງບໍ່ທັນຕອບແບບສອບຖາມ" };
 
   await query("update ods_tb_install set job_finish=localtimestamp(0) where code=$1 and job_finish is null", [code]);
   await logChange("ods_tb_install", code, "ປິດງານຕິດຕັ້ງ");
+  // ຄິດ ແລະ **ແຊ່** ຄ່າຄອມຂອງງານນີ້ — ກືນ error ໄວ້ ການປິດງານຫ້າມພັງເພາະເລື່ອງເງິນ
+  await recordPayout("install", code);
   revalidateAll();
   return { ok: "ສຳເລັດ" };
+}
+
+/* ── ຖອນຄືນຂັ້ນຕອນຂອງງານຕິດຕັ້ງ (ບໍ່ມີໃນ ods) ─────────────────
+ *
+ * ຝັ່ງສ້ອມມີ undoStartCheck / undoStartRepair / undoFinishRepair ມາແຕ່ຕົ້ນ
+ * ແຕ່ຝັ່ງຕິດຕັ້ງບໍ່ມີຈັກອັນ — ກົດ "ເລີ່ມຕິດຕັ້ງ" ຫຼື "ຕິດຕັ້ງສຳເລັດ" ຜິດງານເທື່ອດຽວ
+ * ແກ້ບໍ່ໄດ້ອີກເລີຍ (ຕ້ອງໄປແກ້ຖານຂໍ້ມູນດ້ວຍມື).
+ *
+ * ຫຼັກການດຽວກັນກັບຝັ່ງສ້ອມ: ລ້າງແຕ່ **ຖັນເວລາ** — ບໍ່ແຕະສະຕັອກ ຫຼື ເອກະສານໃດເລີຍ
+ * (ອາໄຫຼ່ທີ່ເບີກອອກໄປແລ້ວຍັງຜູກກັບງານຄືເກົ່າ) ແລະ ປະຕິເສດຖ້າຂັ້ນຕໍ່ໄປເກີດຂຶ້ນແລ້ວ.
+ * ເງື່ອນໄຂຢູ່ໃນ WHERE ນຳ ⇒ ສອງຄົນກົດພ້ອມກັນບໍ່ຜ່ານທັງຄູ່.
+ */
+
+/** ຖອນ "ເລີ່ມຕິດຕັ້ງ" — ງານກັບໄປ "ລໍຖ້າຊ່າງຕິດຕັ້ງ" (ຂັ້ນ 4) */
+export async function undoStartInstall(code: string): Promise<ActionState> {
+  const guard = await guardJob(code, TECH_SIDE);
+  if (!guard.ok) return { error: guard.error };
+  const { job } = guard;
+
+  if (job.cancelled) return { error: IS_CANCELLED };
+  if (job.closed) return { error: IS_CLOSED };
+  if (!job.started) return { error: "ງານນີ້ຍັງບໍ່ໄດ້ເລີ່ມຕິດຕັ້ງ" };
+  if (job.finished) {
+    return { error: 'ຖອນ "ເລີ່ມຕິດຕັ້ງ" ບໍ່ໄດ້: ຕິດຕັ້ງສຳເລັດໄປແລ້ວ — ໃຫ້ຖອນ "ຕິດຕັ້ງສຳເລັດ" ກ່ອນ' };
+  }
+
+  const undone = await query(
+    `update ods_tb_install set start_install=null
+      where code=$1 and start_install is not null and finish_install is null
+        and cancel_date is null and job_finish is null`,
+    [code],
+  );
+  if (!undone.rowCount) return { error: "ຖອນຄືນບໍ່ສຳເລັດ — ງານຖືກປ່ຽນໄປແລ້ວ" };
+
+  await logChange("ods_tb_install", code, 'ຖອນ "ເລີ່ມຕິດຕັ້ງ" — ງານກັບໄປ "ລໍຖ້າຊ່າງຕິດຕັ້ງ"');
+  revalidateAll();
+  return { ok: "ຖອນຄືນສຳເລັດ" };
+}
+
+/**
+ * ຖອນ "ຕິດຕັ້ງສຳເລັດ" — ງານກັບໄປ "ກຳລັງຕິດຕັ້ງ" (ຂັ້ນ 5).
+ *
+ * ປະຕິເສດຖ້າລູກຄ້າຕອບແບບສອບຖາມແລ້ວ: complain_finish ເປັນຄຳຕອບຂອງລູກຄ້າຕໍ່ງານທີ່
+ * "ຕິດຕັ້ງແລ້ວ" — ຖ້າດຶງງານກັບໄປ "ຍັງຕິດຕັ້ງບໍ່ແລ້ວ" ຄຳຕອບນັ້ນຈະລອຍ ແລະ ຂັ້ນໄດ
+ * (lib/install-stage ຂໍ້ ①) ບໍ່ຍອມຮັບ complain_finish ທີ່ບໍ່ມີ finish_install ຢູ່ແລ້ວ.
+ */
+export async function undoFinishInstall(code: string): Promise<ActionState> {
+  const guard = await guardJob(code, TECH_SIDE);
+  if (!guard.ok) return { error: guard.error };
+  const { job } = guard;
+
+  if (job.cancelled) return { error: IS_CANCELLED };
+  if (job.closed) return { error: IS_CLOSED };
+  if (!job.finished) return { error: "ງານນີ້ຍັງບໍ່ໄດ້ຕິດຕັ້ງສຳເລັດ" };
+  if (job.complained) {
+    return { error: 'ຖອນ "ຕິດຕັ້ງສຳເລັດ" ບໍ່ໄດ້: ລູກຄ້າຕອບແບບສອບຖາມໄປແລ້ວ' };
+  }
+
+  const undone = await query(
+    `update ods_tb_install set finish_install=null
+      where code=$1 and finish_install is not null and complain_finish is null
+        and cancel_date is null and job_finish is null`,
+    [code],
+  );
+  if (!undone.rowCount) return { error: "ຖອນຄືນບໍ່ສຳເລັດ — ງານຖືກປ່ຽນໄປແລ້ວ" };
+
+  await logChange("ods_tb_install", code, 'ຖອນ "ຕິດຕັ້ງສຳເລັດ" — ງານກັບໄປ "ກຳລັງຕິດຕັ້ງ"');
+  revalidateAll();
+  return { ok: "ຖອນຄືນສຳເລັດ" };
+}
+
+/** ເປີດງານທີ່ປິດແລ້ວຄືນ — ງານກັບໄປ "ລໍຖ້າປິດງານ" (ຂັ້ນ 7). ຝ່າຍບໍລິການເປັນຄົນປິດ ຈຶ່ງເປັນຄົນເປີດຄືນ */
+export async function reopenJob(code: string): Promise<ActionState> {
+  const guard = await guardJob(code, SERVICE_SIDE);
+  if (!guard.ok) return { error: guard.error };
+  const { job } = guard;
+
+  if (job.cancelled) return { error: IS_CANCELLED };
+  if (!job.closed) return { error: "ງານນີ້ຍັງບໍ່ໄດ້ປິດ" };
+
+  const undone = await query(
+    "update ods_tb_install set job_finish=null where code=$1 and job_finish is not null and cancel_date is null",
+    [code],
+  );
+  if (!undone.rowCount) return { error: "ເປີດງານຄືນບໍ່ສຳເລັດ — ງານຖືກປ່ຽນໄປແລ້ວ" };
+
+  await logChange("ods_tb_install", code, 'ເປີດງານຄືນ — ງານກັບໄປ "ລໍຖ້າປິດງານ"');
+  revalidateAll();
+  return { ok: "ເປີດງານຄືນສຳເລັດ" };
 }
 
 /* ── ໃບຂໍເບີກ SION (tech_reg_install.py) ──────────────────── */
@@ -601,11 +672,10 @@ export async function closeJob(code: string): Promise<ActionState> {
 
 /** ເພີ່ມອາໄຫຼ່ເຂົ້າໃບຂໍເບີກ (additemtoreg_inst) — ຍົກທຸງ used_spare ຂຶ້ນນຳ */
 export async function addSpareLine(code: string, itemCode: string, itemName: string, unitCode: string) {
-  await requireSession();
+  const guard = await guardJob(code, TECH_SIDE);
+  if (!guard.ok) return { error: guard.error } satisfies ActionState;
+  const { job } = guard;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" } satisfies ActionState;
-
-  const job = await jobState(code);
-  if (!job) return { error: NOT_FOUND } satisfies ActionState;
   if (job.cancelled) return { error: IS_CANCELLED } satisfies ActionState;
   if (job.closed) return { error: IS_CLOSED } satisfies ActionState;
 
@@ -636,7 +706,8 @@ export async function addSpareLine(code: string, itemCode: string, itemName: str
  * ແລ້ວ savePickSpare ຫາແຖວກະຕ່າຄູ່ຂອງໃບເບີກບໍ່ພົບ (ຕົ້ນເຫດຂອງ B4).
  */
 export async function deleteSpareLine(code: string, roworder: number) {
-  await requireSession();
+  const guard = await guardJob(code, TECH_SIDE);
+  if (!guard.ok) return { error: guard.error } satisfies ActionState;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" } satisfies ActionState;
 
   const client = await db.connect();
@@ -680,7 +751,8 @@ export async function deleteSpareLine(code: string, roworder: number) {
 
 /** ແກ້ຈຳນວນ (update_qty_reg_spare) — ແກ້ໄດ້ສະເພາະແຖວທີ່ຍັງບໍ່ທັນຂໍເບີກ */
 export async function updateSpareQty(code: string, roworder: number, qty: number) {
-  await requireSession();
+  const guard = await guardJob(code, TECH_SIDE);
+  if (!guard.ok) return { error: guard.error } satisfies ActionState;
   if (!Number.isFinite(qty) || qty <= 0) return { error: "ຈຳນວນບໍ່ຖືກຕ້ອງ" } satisfies ActionState;
   const done = await query(
     "update tb_used_spare set qty=round($1,2) where roworder=$2 and product_code=$3 and reg_start is null and reg_finish is null",
@@ -729,9 +801,6 @@ const OUTSTANDING_INSTALL_SPARES = `
  * (ຕ້ອງການ tech_confirm) ກໍ່ບໍ່ສະແດງ ⇒ ງານຕາຍ (ລຶບໃບຂໍເບີກກໍ່ບໍ່ໄດ້ຫຼັງສາງເບີກແລ້ວ).
  */
 export async function saveSpareRequest(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await requireSession();
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
-
   const productCode = String(formData.get("product_code") ?? "");
   const docDate = String(formData.get("doc_date") ?? "");
   const whCode = String(formData.get("wh_code") ?? "");
@@ -739,8 +808,10 @@ export async function saveSpareRequest(_: ActionState, formData: FormData): Prom
   const remark = String(formData.get("remark") ?? "");
   if (!productCode || !docDate || !whCode) return { error: "ຂໍ້ມູນບໍ່ຄົບ" };
 
-  const guard = await jobState(productCode);
-  if (!guard) return { error: NOT_FOUND };
+  const guarded = await guardJob(productCode, TECH_SIDE);
+  if (!guarded.ok) return { error: guarded.error };
+  const { session, job: guard } = guarded;
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
   if (guard.cancelled) return { error: IS_CANCELLED };
   if (guard.closed) return { error: IS_CLOSED };
   if (!guard.assigned) return { error: "ຂໍເບີກບໍ່ໄດ້ ງານນີ້ຍັງບໍ່ມີຊ່າງ" };
@@ -826,7 +897,8 @@ export async function saveSpareRequest(_: ActionState, formData: FormData): Prom
 
 /** ລົບໃບຂໍເບີກ (delete_in_req) */
 export async function deleteSpareRequest(docNo: string, code: string): Promise<ActionState> {
-  await requireSession();
+  const guard = await guardJob(code, TECH_SIDE);
+  if (!guard.ok) return { error: guard.error };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
   const client = await db.connect();
   try {
@@ -881,7 +953,10 @@ export async function deleteSpareRequest(docNo: string, code: string): Promise<A
  * ຖ້າ ERP ລົ້ມ → ODS rollback ນຳ (ຄືກັບ ods ທີ່ໃຊ້ getcursor_tx/getcursor2_tx).
  */
 export async function saveDispatch(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await requireSession();
+  // ຕັດສະຕັອກຈິງທັງ ODS ແລະ **ERP** ⇒ ສາງເທົ່ານັ້ນ (ຊ່າງ/CS ຍິງ action ນີ້ບໍ່ໄດ້ອີກ)
+  const guard = await requireRole(STOCK_SIDE, "ບໍ່ມີສິດເບີກອາໄຫຼ່ອອກຈາກສາງ");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db || !odgDb) return { error: "ບໍ່ພົບ DATABASE_URL / ODG_DATABASE_URL" };
 
   const docRef = String(formData.get("doc_ref") ?? "");     // ເລກ SION
@@ -1046,7 +1121,9 @@ export async function saveDispatch(_: ActionState, formData: FormData): Promise<
  * ແຕ່ກະຕ່າເຫຼືອ 4 ແຖວ) ແລ້ວຄືນ "ບໍ່ມີລາຍການສຳລັບຮັບ!" ທັງທີ່ໃບເບີກມີຂອງຢູ່.
  */
 export async function savePickSpare(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await requireSession();
+  const guard = await requireRole(TECH_SIDE, "ບໍ່ມີສິດຮັບອາໄຫຼ່");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const docRef = String(formData.get("doc_ref") ?? "");   // ເລກ SWC
@@ -1071,6 +1148,17 @@ export async function savePickSpare(_: ActionState, formData: FormData): Promise
     if (!productCode) {
       await client.query("rollback");
       return { error: "ບໍ່ພົບໃບເບີກອາໄຫຼ່" };
+    }
+
+    // ເຈົ້າຂອງງານຮູ້ໄດ້ກໍ່ຕໍ່ເມື່ອອ່ານໃບເບີກແລ້ວ (form ສົ່ງມາແຕ່ເລກ SWC) ⇒ ກວດຢູ່ນີ້.
+    // ຖ້າບໍ່ກວດ ຊ່າງຄົນໃດກໍ່ຮັບອາໄຫຼ່ຂອງໃບເບີກຂອງຊ່າງຄົນອື່ນໄປໄດ້.
+    const owner = await client.query<{ tech_code: string | null }>(
+      "select nullif(tech_code,'') tech_code from ods_tb_install where code=$1",
+      [productCode],
+    );
+    if (roleOf(session) === "technical" && (owner.rows[0]?.tech_code ?? "") !== session.username) {
+      await client.query("rollback");
+      return { error: NOT_YOURS };
     }
 
     // ກັນຮັບຊ້ຳ — ໃບເບີກນຶ່ງໃບຮັບໄດ້ເທື່ອດຽວ (ຄືກັບໜ້າ spare-pickup ທີ່ເຊື່ອງໃບທີ່ມີ PISP)
@@ -1155,6 +1243,31 @@ export async function savePickSpare(_: ActionState, formData: FormData): Promise
   redirect("/installations/spare-pickup");
 }
 
+/* ── QR ແບບສອບຖາມ — ໃຫ້ລູກຄ້າສະແກນຕອບຢູ່ໜ້າງານ ────────────
+ *
+ * ຂັ້ນ 6 → 7 ຕ້ອງໃຫ້ **ລູກຄ້າ** ຕອບແບບສອບຖາມ ແຕ່ LINE Notify ທີ່ ods ໃຊ້ສົ່ງລິ້ງ
+ * ປິດບໍລິການໄປແລ້ວ ແລະ ບໍ່ມີຫຍັງມາແທນ ⇒ ງານກອງຢູ່ຂັ້ນ 6 ຈົນກວ່າຈະມີໃຜສົ່ງລິ້ງດ້ວຍມື.
+ *
+ * ຊ່າງເປີດ QR ນີ້ຢູ່ໜ້າງານໃຫ້ລູກຄ້າສະແກນຕອບເລີຍ — ບໍ່ຕ້ອງມີບໍລິການສົ່ງຂໍ້ຄວາມພາຍນອກ,
+ * ບໍ່ມີຄ່າໃຊ້ຈ່າຍ ແລະ ໄດ້ຄຳຕອບທັນທີ. ສ້າງຕອນກົດ (ບໍ່ແມ່ນທຸກແຖວຕອນ render ລາຍການ).
+ */
+export type FeedbackQr = { url: string; svg: string } | { error: string };
+
+export async function feedbackQr(code: string): Promise<FeedbackQr> {
+  const guard = await guardJob(code, [...TECH_SIDE, ...SERVICE_SIDE]);
+  if (!guard.ok) return { error: guard.error };
+  const { job } = guard;
+
+  if (job.cancelled) return { error: IS_CANCELLED };
+  // ດ່ານດຽວກັນກັບ feedbackGate — ຕອບໄດ້ສະເພາະງານທີ່ຕິດຕັ້ງແລ້ວຈິງ ຈຶ່ງບໍ່ໃຫ້ QR ກ່ອນ
+  if (!job.finished) return { error: "ຍັງບໍ່ທັນຕິດຕັ້ງສຳເລັດ — ຕອບແບບສອບຖາມບໍ່ໄດ້ເທື່ອ" };
+  if (job.complained) return { error: "ລູກຄ້າຕອບແບບສອບຖາມນີ້ແລ້ວ" };
+
+  const url = await feedbackUrl(code);
+  const svg = await QRCode.toString(url, { type: "svg", margin: 0, errorCorrectionLevel: "M", width: 220 });
+  return { url, svg };
+}
+
 /* ── Feedback ລູກຄ້າ (ສາທາລະນະ — ບໍ່ຕ້ອງ login) ───────────── */
 
 /**
@@ -1169,19 +1282,35 @@ export async function savePickSpare(_: ActionState, formData: FormData): Promise
 export type FeedbackGate = { ok: true } | { ok: false; message: string };
 
 const FEEDBACK_NOT_INSTALLED = "ງານຕິດຕັ້ງນີ້ຍັງບໍ່ທັນຕິດຕັ້ງສຳເລັດ ຈຶ່ງຍັງຕອບແບບສອບຖາມບໍ່ໄດ້ເທື່ອ";
+const FEEDBACK_NOT_QC = "ງານນີ້ຍັງບໍ່ຜ່ານການກວດຮັບຄຸນນະພາບ ຈຶ່ງຍັງຕອບແບບສອບຖາມບໍ່ໄດ້ເທື່ອ";
 
 export async function feedbackGate(code: string): Promise<FeedbackGate> {
-  const job = await query<{ cancelled: boolean; finished: boolean; answers: number }>(
+  const job = await query<{ cancelled: boolean; finished: boolean; qc_passed: boolean; answered: boolean }>(
+    /**
+     * "ຕອບແລ້ວ" = **complain_finish ຫຼື ມີແຖວຄະແນນ** — ຂໍ້ໃດຂໍ້ນຶ່ງກໍ່ຖື.
+     *
+     * ແຕ່ກ່ອນດ່ານນີ້ເບິ່ງແຕ່ຈຳນວນແຖວ cust_complain ໃນຂະນະທີ່ saveFeedback ຂ້າງລຸ່ມ
+     * ກັນດ້ວຍ `complain_finish is null` ⇒ ສອງບ່ອນຕັດສິນຄົນລະຫຼັກ. ຂໍ້ມູນຈິງ:
+     * **5,833 ງານ** ມີ complain_finish ແຕ່ **ບໍ່ມີ** ແຖວ cust_complain ຈັກແຖວ
+     * (ຕໍ່ 967 ງານທີ່ມີຄົບທັງສອງ) — ເປັນຮູບແບບສ່ວນໃຫຍ່ຂອງຂໍ້ມູນເກົ່າຈາກ ods.
+     * ⇒ ດ່ານປ່ອຍໃຫ້ຟອມສະແດງ (ລະຫັດ INST-xxxx ເປັນເລກລຽງ ເດົາໄດ້) ແລ້ວພໍກົດສົ່ງ
+     * saveFeedback ປະຕິເສດ ແຕ່ຄືນຂໍ້ຄວາມຜິດວ່າ "ຍັງບໍ່ທັນຕິດຕັ້ງສຳເລັດ".
+     * ດຽວນີ້ໃຊ້ຫຼັກດຽວກັນທັງສອງບ່ອນ ຈຶ່ງບໍ່ຫຼົ້ນກັນອີກ.
+     */
     `select a.cancel_date is not null as cancelled, a.finish_install is not null as finished,
-        (select count(*)::int from cust_complain c where c.product_code=a.code and c.topic_code='002') answers
+        a.qc_finish is not null as qc_passed,
+        (a.complain_finish is not null
+         or exists (select 1 from cust_complain c where c.product_code=a.code and c.topic_code='002')) as answered
      from ods_tb_install a where a.code=$1 limit 1`,
     [code],
   );
   const row = job.rows[0];
   if (!row) return { ok: false, message: "ບໍ່ພົບງານຕິດຕັ້ງນີ້" };
-  if (row.answers > 0) return { ok: false, message: "ຕອບແບບສອບຖາມນີ້ແລ້ວ" };
+  if (row.answered) return { ok: false, message: "ຕອບແບບສອບຖາມນີ້ແລ້ວ" };
   if (row.cancelled) return { ok: false, message: "ງານຕິດຕັ້ງນີ້ຖືກຍົກເລີກແລ້ວ ຈຶ່ງຕອບແບບສອບຖາມບໍ່ໄດ້" };
   if (!row.finished) return { ok: false, message: FEEDBACK_NOT_INSTALLED };
+  // ດ່ານ QC — ຍັງບໍ່ຜ່ານການກວດຮັບ ຈຶ່ງຍັງບໍ່ຄວນຖາມລູກຄ້າ
+  if (!row.qc_passed) return { ok: false, message: FEEDBACK_NOT_QC };
   return { ok: true };
 }
 
@@ -1219,11 +1348,19 @@ export async function saveFeedback(_: ActionState, formData: FormData): Promise<
   const client = await db.connect();
   try {
     await client.query("begin");
-    const done = await client.query<{ count: string }>(
-      "select count(product_code) count from cust_complain where product_code=$1 and topic_code='002'",
+    // ຫຼັກ "ຕອບແລ້ວ" ອັນດຽວກັນກັບ feedbackGate (complain_finish ຫຼື ມີແຖວຄະແນນ)
+    const done = await client.query<{ answered: boolean }>(
+      `select (a.complain_finish is not null
+          or exists (select 1 from cust_complain c where c.product_code=a.code and c.topic_code='002')) as answered
+        from ods_tb_install a where a.code=$1 for update`,
       [code],
     );
-    if (Number(done.rows[0].count) !== 0) {
+    const state = done.rows[0];
+    if (!state) {
+      await client.query("rollback");
+      return { error: "ບໍ່ພົບງານຕິດຕັ້ງນີ້" };
+    }
+    if (state.answered) {
       await client.query("rollback");
       return { error: "ຕອບແບບສອບຖາມນີ້ແລ້ວ" };
     }
@@ -1231,7 +1368,8 @@ export async function saveFeedback(_: ActionState, formData: FormData): Promise<
     // ເງື່ອນໄຂ finish_install/cancel_date ຢູ່ໃນ WHERE ເອງ ⇒ ກັນການແຂ່ງກັນ (ຍົກເລີກລະຫວ່າງທາງ)
     const stamped = await client.query(
       `update ods_tb_install set complain_status=1, complain_cust=$1, complain_finish=localtimestamp(0)
-       where code=$2 and complain_finish is null and finish_install is not null and cancel_date is null`,
+       where code=$2 and complain_finish is null and finish_install is not null
+         and qc_finish is not null and cancel_date is null`,
       [comment, code],
     );
     if (!stamped.rowCount) {
@@ -1281,7 +1419,11 @@ const feedbackEditSchema = z.object({
 });
 
 export async function updateFeedback(_: ActionState, formData: FormData): Promise<ActionState> {
-  await requireSession();
+  // ພະນັກງານແກ້/ຕອບແທນລູກຄ້າ (ປຸ່ມຢູ່ /installations/close) ⇒ ຝ່າຍບໍລິການ.
+  // ໝາຍເຫດ: saveFeedback ຂ້າງເທິງເປັນ **ສາທາລະນະ** ໂດຍເຈດຕະນາ (ລູກຄ້າບໍ່ມີບັນຊີ) —
+  // ດ່ານຂອງມັນຄື feedbackGate ບໍ່ແມ່ນ role.
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດແກ້ໄຂແບບສອບຖາມ");
+  if (!guard.ok) return { error: guard.error };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const parsed = feedbackEditSchema.safeParse({

@@ -3,9 +3,11 @@ import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { previousJobOf, REPEAT_DAYS } from "@/lib/repeat";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { STAGE_LABEL, STAGE_SQL } from "@/lib/stage";
-import { ArrowLeft, ImageIcon, Pencil, Phone, Printer } from "lucide-react";
+import { DONE_STAGE } from "@/lib/track";
+import { ArrowLeft, ImageIcon, Pencil, Phone, Printer, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -76,7 +78,8 @@ export default async function ServiceDetail({ params }: Props) {
   const tone = elapsedTone(job.elapsed_seconds);
   const inWarranty = job.warranty === "ຮັບປະກັນ";
   const cancelled = job.stage === -1;
-  const done = job.stage === 11;
+  // ຂັ້ນ 12 = ສົ່ງຄືນສຳເລັດ (ຂັ້ນ 11 ດຽວນີ້ແມ່ນ "ລໍຖ້າສົ່ງຄືນ" ຫຼັງເພີ່ມດ່ານ QC)
+  const done = job.stage === DONE_STAGE;
 
   const groups: { title: string; fields: [string, string | null][] }[] = [
     {
@@ -124,8 +127,33 @@ export default async function ServiceDetail({ params }: Props) {
 
   const action = "inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50";
 
+  /**
+   * ສ້ອມຊ້ຳ — ເຄື່ອງໜ່ວຍນີ້ (serial ດຽວກັນ) ຫາກໍ່ສົ່ງຄືນໄປພາຍໃນ 30 ມື້ແລ້ວກັບມາອີກ.
+   * ຊ່າງຕ້ອງເຫັນໃບເກົ່າກ່ອນລົງມື (ອາການ ແລະ ສິ່ງທີ່ເຮັດໄປແລ້ວ) ບໍ່ດັ່ງນັ້ນຈະໄລ່ຫາເຫດຜົນຄືນໃໝ່
+   * ຕັ້ງແຕ່ຕົ້ນ ແລະ ອາດປ່ຽນອາໄຫຼ່ອັນເກົ່າຊ້ຳອີກ.
+   */
+  const previous = await previousJobOf(code);
+
   return (
     <div className="w-full space-y-4">
+      {previous && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <RotateCcw className="size-4 shrink-0" />
+          <span>
+            <b>ສ້ອມຊ້ຳ</b> — ເຄື່ອງໜ່ວຍນີ້ສົ່ງຄືນໄປເມື່ອ {previous.prev_returned} ({previous.days_between} ມື້ກ່ອນຮັບເຄື່ອງຄັ້ງນີ້
+            · ພາຍໃນ {REPEAT_DAYS} ມື້)
+            {previous.prev_tech && <> · ຊ່າງຄັ້ງກ່ອນ: {previous.prev_tech}</>}
+          </span>
+          <Link
+            href={`/service/${previous.prev_code}`}
+            className="ml-auto inline-flex h-8 items-center gap-1 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700"
+          >
+            ເບິ່ງໃບເກົ່າ #{previous.prev_code}
+            <LinkPending className="size-3" />
+          </Link>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <Link href="/service" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">

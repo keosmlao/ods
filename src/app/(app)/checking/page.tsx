@@ -14,7 +14,8 @@ import Link from "next/link";
 const PAGE_SIZE = 20;
 
 type Tab = "waiting" | "progress";
-type Props = { searchParams: Promise<{ tab?: string; q?: string; page?: string; sort?: string; dir?: string }> };
+type SlaFilter = "warning" | "late" | "critical" | "";
+type Props = { searchParams: Promise<{ tab?: string; q?: string; page?: string; sort?: string; dir?: string; sla?: string }> };
 
 type JobRow = {
   code: string;
@@ -57,6 +58,7 @@ async function getJobs(
   page: number,
   sort: string,
   dir: SortDir,
+  sla: SlaFilter,
 ) {
   const timeCol = tab === "waiting" ? "a.time_register" : "a.time_check";
   const where =
@@ -67,6 +69,9 @@ async function getJobs(
   const params: (string | number)[] = [];
   if (emp) { params.push(emp); where.push(`a.emp_code = $${params.length}`); }
   if (q) { params.push(`%${q}%`); where.push(SEARCH.replaceAll("$Q", `$${params.length}`)); }
+  if (sla === "warning") where.push(`(${SLA_SQL}) is not null and extract(epoch from (localtimestamp - ${timeCol})) >= (${SLA_SQL}) * 0.75 and extract(epoch from (localtimestamp - ${timeCol})) <= (${SLA_SQL})`);
+  if (sla === "late") where.push(`(${SLA_SQL}) is not null and extract(epoch from (localtimestamp - ${timeCol})) > (${SLA_SQL})`);
+  if (sla === "critical") where.push(`(${SLA_SQL}) is not null and extract(epoch from (localtimestamp - ${timeCol})) > (${SLA_SQL}) * 2`);
   const filter = where.join(" and ");
 
   // at_col = ຖັນເວລາຂອງແທັບນີ້ — ໃຫ້ຈັດຮຽງ "ຄ້າງມາ" ໄດ້ (ເກົ່າກວ່າ = ຄ້າງດົນກວ່າ)
@@ -132,15 +137,16 @@ export default async function CheckingPage({ searchParams }: Props) {
   const page = Math.max(1, Number(params.page) || 1);
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
   const sort = (params.sort ?? "elapsed").trim();
+  const sla: SlaFilter = params.sla === "warning" || params.sla === "late" || params.sla === "critical" ? params.sla : "";
 
-  const [counts, jobs] = await Promise.all([getCounts(emp), getJobs(tab, emp, q, page, sort, dir)]);
+  const [counts, jobs] = await Promise.all([getCounts(emp), getJobs(tab, emp, q, page, sort, dir, sla)]);
 
   const total = jobs.total;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const base = () => ({ ...(tab !== "waiting" && { tab }), ...(q && { q }) });
+  const base = () => ({ ...(tab !== "waiting" && { tab }), ...(q && { q }), ...(sla && { sla }) });
   const tabHref = (target: Tab) =>
-    `/checking?${new URLSearchParams({ ...(target !== "waiting" && { tab: target }), ...(q && { q }) })}`;
+    `/checking?${new URLSearchParams({ ...(target !== "waiting" && { tab: target }), ...(q && { q }), ...(sla && { sla }) })}`;
   const sortHref = (key: string, nextDir: SortDir) =>
     `/checking?${new URLSearchParams({ ...base(), sort: key, dir: nextDir })}`;
   const pageHref = (n: number) =>
@@ -206,6 +212,7 @@ export default async function CheckingPage({ searchParams }: Props) {
 
         <form className="flex flex-1 items-center gap-2">
           {tab !== "waiting" && <input type="hidden" name="tab" value={tab} />}
+          {sla && <input type="hidden" name="sla" value={sla} />}
           <input type="hidden" name="sort" value={sort} />
           <input type="hidden" name="dir" value={dir} />
           <div className="flex h-9 min-w-56 flex-1 items-center gap-2 rounded-lg border border-slate-300 px-2.5">
@@ -220,6 +227,13 @@ export default async function CheckingPage({ searchParams }: Props) {
           <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
         </form>
       </div>
+
+      {sla && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+          <span>ກຳລັງກອງ SLA: <b>{sla === "warning" ? "ໃກ້ເກີນ" : sla === "late" ? "ເກີນກຳນົດ" : "ຮ້າຍແຮງ"}</b> · {total.toLocaleString()} ລາຍການ</span>
+          <Link href={tab === "progress" ? "/checking?tab=progress" : "/checking"} className="font-semibold hover:underline">ລ້າງຕົວກອງ</Link>
+        </div>
+      )}
 
       {/* ຕາຕະລາງ */}
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">

@@ -2,10 +2,11 @@
 
 import { logChange } from "@/app/actions/chatter";
 import { notify } from "@/app/actions/notification";
-import { getSession } from "@/lib/auth";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb } from "@/lib/db";
 import { docPrefix, nextDocNo } from "@/lib/doc-no";
+import { requireRole, requireRoleOrRedirect } from "@/lib/guard";
+import { RETURN_SIDE, SERVICE_SIDE, STOCK_SIDE, TECH_SIDE } from "@/lib/roles";
 import { getBalances } from "@/lib/stock-balance";
 import { ppDb, PP_NOT_CONFIGURED } from "@/lib/stock-db";
 import {
@@ -119,8 +120,9 @@ function nowParts() {
 
 /** ods: /additemtoreg — ເພີ່ມອາໄຫຼ່ໃສ່ໃບຂໍເບີກ (ຍັງບໍ່ທັນບັນທຶກເປັນເອກະສານ) */
 export async function addSpareToRequest(formData: FormData): Promise<void> {
-  const session = await getSession();
-  if (!session || !db) return;
+  // ໃບຂໍເບີກ: ຊ່າງເປັນຄົນສ້າງ · ສາງເປັນຄົນຈ່າຍ (ເບິ່ງ lib/roles ແຖວ /stock/requests)
+  await requireRoleOrRedirect(TECH_SIDE);
+  if (!db) return;
 
   const roworder = text(formData, "roworder");
   const productCode = text(formData, "product_code");
@@ -138,8 +140,8 @@ export async function addSpareToRequest(formData: FormData): Promise<void> {
 
 /** ods: /updateqtytoreg — ແກ້ຈຳນວນອາໄຫຼ່ */
 export async function updateSpareQty(formData: FormData): Promise<void> {
-  const session = await getSession();
-  if (!session || !db) return;
+  await requireRoleOrRedirect(TECH_SIDE);
+  if (!db) return;
 
   const roworder = text(formData, "roworder");
   const rowId = text(formData, "row_id");
@@ -152,8 +154,8 @@ export async function updateSpareQty(formData: FormData): Promise<void> {
 
 /** ods: /delete_itemfromreg — ລຶບອາໄຫຼ່ອອກຈາກໃບຂໍເບີກ */
 export async function deleteSpareFromRequest(formData: FormData): Promise<void> {
-  const session = await getSession();
-  if (!session || !db) return;
+  await requireRoleOrRedirect(TECH_SIDE);
+  if (!db) return;
 
   const roworder = text(formData, "roworder");
   const rowId = text(formData, "row_id");
@@ -172,8 +174,9 @@ export async function deleteSpareFromRequest(formData: FormData): Promise<void> 
  * ອາໄຫຼ່ຕົວດຽວກັນສອງເທື່ອ. ດຽວນີ້ຂໍສະເພາະ "ຈຳນວນທີ່ຍັງຄ້າງ" ເທົ່ານັ້ນ (OUTSTANDING_SPARES).
  */
 export async function saveRequest(_: StockState, formData: FormData): Promise<StockState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(TECH_SIDE, "ບໍ່ມີສິດສ້າງໃບຂໍເບີກອາໄຫຼ່");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const productCode = text(formData, "Product_code");
@@ -260,8 +263,8 @@ export async function saveRequest(_: StockState, formData: FormData): Promise<St
 
 /** ods: /del_request/<product_code>/<doc_no> — ຍົກເລີກໃບຂໍເບີກ */
 export async function deleteRequest(formData: FormData): Promise<void> {
-  const session = await getSession();
-  if (!session || !db) return;
+  await requireRoleOrRedirect(TECH_SIDE);
+  if (!db) return;
 
   const productCode = text(formData, "product_code");
   const docNo = text(formData, "doc_no");
@@ -314,8 +317,10 @@ export async function deleteRequest(formData: FormData): Promise<void> {
  * ດຽວນີ້ stamp ໃຫ້ກໍ່ຕໍ່ເມື່ອ **ທຸກ** ແຖວຂອງທຸກໃບຂໍເບີກຂອງວຽກນັ້ນຖືກເບີກອອກແລ້ວ.
  */
 export async function saveDispatch(_: StockState, formData: FormData): Promise<StockState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  // ຕັດສະຕັອກຈິງທັງ ODS ແລະ ERP ⇒ ສາງເທົ່ານັ້ນ
+  const guard = await requireRole(STOCK_SIDE, "ບໍ່ມີສິດເບີກອາໄຫຼ່ອອກຈາກສາງ");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
   if (!odgDb) return { error: "ບໍ່ພົບ ODG_DATABASE_URL" };
 
@@ -534,8 +539,9 @@ export async function saveDispatch(_: StockState, formData: FormData): Promise<S
  * ບໍ່ແຕະ ic_inventory — ສະຕັອກຖືກຕັດໄປແລ້ວຕອນສາງເບີກ (56).
  */
 export async function savePickSpare(_: StockState, formData: FormData): Promise<StockState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(TECH_SIDE, "ບໍ່ມີສິດຮັບອາໄຫຼ່");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const docRef = text(formData, "doc_ref"); // ເລກທີໃບເບີກ (SWC)
@@ -645,8 +651,8 @@ export async function savePickSpare(_: StockState, formData: FormData): Promise<
 
 /** ods: /update_stock_new — ດຶງຍອດຄົງເຫຼືອຈາກ view ມາອັບເດດ ic_inventory */
 export async function refreshInventory(): Promise<void> {
-  const session = await getSession();
-  if (!session || !db) return;
+  await requireRoleOrRedirect(STOCK_SIDE);
+  if (!db) return;
 
   const scope = `(select a.item_code from ic_trans_detail a
       where a.trans_flag = ${TRANS.REQUEST} and a.status = ${LINE_STATUS.PENDING} or a.status = ${LINE_STATUS.ON_PURCHASE_ORDER})`;
@@ -684,8 +690,8 @@ export async function refreshInventory(): Promise<void> {
  * ແລ້ວເປີດໜ້າຂໍສົ່ງຄືນ. ຖ້າມີແຖວຮ່າງຢູ່ແລ້ວກໍ່ຂ້າມການກ໋ອບ.
  */
 export async function startReturnRequest(formData: FormData): Promise<void> {
-  const session = await getSession();
-  if (!session || !db) return;
+  const session = await requireRoleOrRedirect(RETURN_SIDE);
+  if (!db) return;
 
   const docNo = text(formData, "doc_no");
   if (!docNo) return;
@@ -707,8 +713,8 @@ export async function startReturnRequest(formData: FormData): Promise<void> {
 
 /** ods: /not_choose_req — ເອົາອາໄຫຼ່ແຖວນຶ່ງອອກຈາກໃບຂໍສົ່ງຄືນ */
 export async function removeReturnDraftLine(formData: FormData): Promise<void> {
-  const session = await getSession();
-  if (!session || !db) return;
+  const session = await requireRoleOrRedirect(RETURN_SIDE);
+  if (!db) return;
 
   const rowId = text(formData, "row_id");
   const docNo = text(formData, "doc_no");
@@ -720,8 +726,8 @@ export async function removeReturnDraftLine(formData: FormData): Promise<void> {
 
 /** ods: /back_stock_return — ຖິ້ມແຖວຮ່າງທັງໝົດຂອງຜູ້ໃຊ້ ແລ້ວກັບຄືນ */
 export async function cancelReturnRequest(): Promise<void> {
-  const session = await getSession();
-  if (!session || !db) return;
+  const session = await requireRoleOrRedirect(RETURN_SIDE);
+  if (!db) return;
 
   await db.query(`delete from ic_trans_detail_draft where trans_flag=$1 and user_created=$2`, [
     TRANS.DRAFT,
@@ -732,8 +738,9 @@ export async function cancelReturnRequest(): Promise<void> {
 
 /** ods: /save_return_req — ບັນທຶກໃບຂໍສົ່ງຄືນຈາກແຖວຮ່າງ */
 export async function saveReturnRequest(_: StockState, formData: FormData): Promise<StockState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(RETURN_SIDE, "ບໍ່ມີສິດສ້າງໃບຂໍສົ່ງຄືນອາໄຫຼ່");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const docRef = text(formData, "doc_ref");
@@ -835,8 +842,10 @@ export async function saveReturnRequest(_: StockState, formData: FormData): Prom
  * ຂຽນທັງ ODS ແລະ ERP (odg) ແລະ ບວກ ic_inventory ຄືນທັງສອງຖານ.
  */
 export async function saveReceiveReturn(_: StockState, formData: FormData): Promise<StockState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  // ບວກສະຕັອກຄືນທັງ ODS ແລະ ERP ⇒ ສາງເທົ່ານັ້ນ
+  const guard = await requireRole(STOCK_SIDE, "ບໍ່ມີສິດຮັບອາໄຫຼ່ຄືນເຂົ້າສາງ");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
   if (!odgDb) return { error: "ບໍ່ພົບ ODG_DATABASE_URL" };
 
@@ -1030,8 +1039,9 @@ const receiveTransferSchema = z.object({
  *  - ບໍ່ຕັດ/ບວກ ic_inventory (ຄືກັບ ods) — ໃບນີ້ເປັນພຽງ "ຄຳຂໍ" ໃຫ້ສາງໃຫຍ່ໂອນ (calc_flag=0).
  */
 export async function saveTransferRequest(_: StockState, formData: FormData): Promise<StockState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(STOCK_SIDE, "ບໍ່ມີສິດຂໍໂອນອາໄຫຼ່");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
   if (!odgDb) return { error: "ບໍ່ພົບ ODG_DATABASE_URL" };
 
@@ -1206,8 +1216,8 @@ export async function saveTransferRequest(_: StockState, formData: FormData): Pr
  * ຈຶ່ງບໍ່ມີທາງທີ່ຈະ "ປິດ" ໃບຂໍໂອນທີ່ຂອງຍັງບໍ່ມາ ແລ້ວແຖວກັບໄປຄ້າງຢູ່ຄິວເບີກຄືເກົ່າ.
  */
 export async function saveReceiveTransfer(_: StockState, formData: FormData): Promise<StockState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole(STOCK_SIDE, "ບໍ່ມີສິດຢືນຢັນການຮັບໂອນ");
+  if (!guard.ok) return { error: guard.error };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const parsed = receiveTransferSchema.safeParse(Object.fromEntries(formData));
@@ -1316,8 +1326,8 @@ export async function saveReceiveTransfer(_: StockState, formData: FormData): Pr
 
 /** ods: /loadspa — ດຶງອາໄຫຼ່ໃໝ່ຈາກ sparepart_list ເຂົ້າ ic_inventory */
 export async function loadSpareParts(): Promise<void> {
-  const session = await getSession();
-  if (!session || !db) return;
+  await requireRoleOrRedirect(STOCK_SIDE);
+  if (!db) return;
 
   await db.query(
     `insert into ic_inventory(code, name_1, part_number, unit_code, group_main, group_sub2, item_brand)
@@ -1331,8 +1341,10 @@ export async function loadSpareParts(): Promise<void> {
 
 /** ods: /save_newspare — newspare.py, ຖານ pp_od_manage */
 export async function createSpareDraft(_: StockState, formData: FormData): Promise<StockState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  // ຕົງກັບກົດ /spare-parts/new ໃນ lib/roles: ຜູ້ຈັດການ · CS · ສາງ
+  const guard = await requireRole([...SERVICE_SIDE, "stock"], "ບໍ່ມີສິດຂໍສ້າງລະຫັດອາໄຫຼ່");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!ppDb) return { error: PP_NOT_CONFIGURED };
 
   const docDate = text(formData, "doc_date");

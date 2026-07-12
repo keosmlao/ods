@@ -1,6 +1,6 @@
 "use client";
 import { LinkPending } from "@/components/link-pending";
-import { navigationFor, type NavGroup } from "@/lib/navigation";
+import { navigationFor, type NavFlags, type NavGroup } from "@/lib/navigation";
 import type { Role } from "@/lib/roles";
 import { ChevronDown, PanelLeftClose, PanelLeftOpen, Search, Wrench, X } from "lucide-react";
 import Link from "next/link";
@@ -14,12 +14,15 @@ const isActive = (pathname: string, href: string) =>
 
 export function NavTree({
   role,
+  navFlags,
   onNavigate,
   collapsed = false,
   onExpand,
 }: {
   /** ສິດຂອງຜູ້ໃຊ້ — ເມນູທີ່ບໍ່ມີສິດຈະບໍ່ຖືກສະແດງ */
   role: Role;
+  /** ສິດທີ່ຢູ່ໃນຖານຂໍ້ມູນ ບໍ່ແມ່ນຢູ່ໃນຕາຕະລາງ RULES (ດຽວນີ້ມີແຕ່ QC — ເບິ່ງ lib/navigation) */
+  navFlags: NavFlags;
   onNavigate?: () => void;
   collapsed?: boolean;
   /** ຕອນພັບຢູ່ ກົດໄອຄອນກຸ່ມ → ຂະຫຍາຍເມນູ */
@@ -31,13 +34,13 @@ export function NavTree({
 
   /** ເມນູຕາມສິດ ແລ້ວຄົ້ນຫາ — ພິມແລ້ວເຫຼືອສະເພາະທີ່ຕົງ */
   const groups = useMemo(() => {
-    const allowed = navigationFor(role);
+    const allowed = navigationFor(role, navFlags);
     const text = query.trim().toLowerCase();
     if (!text) return allowed;
     return allowed
       .map((group) => ({ ...group, items: group.items.filter((item) => item.label.toLowerCase().includes(text)) }))
       .filter((group) => group.items.length > 0);
-  }, [role, query]);
+  }, [role, navFlags, query]);
 
   const searching = query.trim().length > 0;
 
@@ -147,7 +150,17 @@ export function NavTree({
 
 /* ---------------- Sidebar (desktop) ---------------- */
 
-export function Sidebar({ role, collapsed, onToggle }: { role: Role; collapsed: boolean; onToggle: () => void }) {
+export function Sidebar({
+  role,
+  navFlags,
+  collapsed,
+  onToggle,
+}: {
+  role: Role;
+  navFlags: NavFlags;
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
   return (
     <aside
       data-collapsed={collapsed}
@@ -192,7 +205,7 @@ export function Sidebar({ role, collapsed, onToggle }: { role: Role; collapsed: 
       )}
 
       <div className="min-h-0 flex-1 pt-3">
-        <NavTree role={role} collapsed={collapsed} onExpand={onToggle} />
+        <NavTree role={role} navFlags={navFlags} collapsed={collapsed} onExpand={onToggle} />
       </div>
     </aside>
   );

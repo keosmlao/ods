@@ -1,5 +1,6 @@
-import { acceptJob, declineJob, techFilter, unacceptJob } from "@/app/actions/installation";
+import { acceptJob, techFilter, unacceptJob } from "@/app/actions/installation";
 import { JobButton } from "@/components/installation/job-buttons";
+import { RejectButton } from "@/components/installation/reject-button";
 import { query } from "@/lib/db";
 import { INSTALL_ACCEPT_CLOCK } from "@/lib/install-stage";
 import { CheckCircle2, Clock } from "lucide-react";
@@ -152,16 +153,8 @@ export default async function AcceptPage({ searchParams }: Props) {
                     <JobButton code={row.code} action={acceptJob} tone="primary" className="h-8 px-3 text-xs">
                       ຮັບງານ
                     </JobButton>
-                    <JobButton
-                      code={row.code}
-                      action={declineJob}
-                      tone="danger"
-                      className="h-8 px-3 text-xs"
-                      confirmTitle={`ບໍ່ຮັບງານ ${row.code}?`}
-                      confirmTone="danger"
-                    >
-                      ບໍ່ຮັບ
-                    </JobButton>
+                    {/* ບໍ່ຮັບງານ = ປະຕິເສດ **ພ້ອມເຫດຜົນ** (lib/job-flow — ອັນດຽວກັບແອັບມືຖື) */}
+                    <RejectButton workflow="install" code={row.code} />
                   </div>
                 ) : (
                   <div className="flex justify-center">

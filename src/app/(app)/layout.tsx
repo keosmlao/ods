@@ -1,6 +1,7 @@
 import { logoutAction } from "@/app/actions/auth";
 import { myActivityCount } from "@/app/actions/chatter";
 import { myNotificationCount } from "@/app/actions/notification";
+import { qcWorkflows } from "@/app/actions/qc";
 import { AppShell } from "@/components/app-shell";
 import { getSession } from "@/lib/auth";
 import { canAccess, roleOf } from "@/lib/roles";
@@ -26,12 +27,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const pathname = (await headers()).get("x-pathname");
   if (pathname && !canAccess(role, pathname)) redirect(`/forbidden?from=${encodeURIComponent(pathname)}`);
 
-  const [activities, notifications] = await Promise.all([myActivityCount(), myNotificationCount()]);
+  /**
+   * ເມນູ "ຄິວກວດຮັບຄຸນນະພາບ" ຂຶ້ນກັບ ods_qc_role (ຜູ້ຈັດການກຳນົດ) ບໍ່ແມ່ນ role ລ້ວນໆ
+   * ⇒ ຄິດຢູ່ນີ້ບ່ອນດຽວ ແລ້ວສົ່ງລົງໄປໃຫ້ເມນູ (lib/navigation NavFlags).
+   */
+  const [activities, notifications, qc] = await Promise.all([
+    myActivityCount(),
+    myNotificationCount(),
+    qcWorkflows(),
+  ]);
 
   return (
     <AppShell
       username={session.username}
       role={role}
+      navFlags={{ qc: qc.length > 0 }}
       activities={activities}
       notifications={notifications}
       logout={logoutAction}

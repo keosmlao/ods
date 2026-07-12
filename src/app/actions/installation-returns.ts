@@ -1,10 +1,11 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
 import type { ActionState } from "@/app/actions/installation";
-import { getSession } from "@/lib/auth";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
+import { requireRole, requireRoleOrRedirect } from "@/lib/guard";
+import { RETURN_SIDE, STOCK_SIDE } from "@/lib/roles";
 import {
   CALC_IN,
   CALC_OUT,
@@ -49,10 +50,13 @@ function revalidateReturns() {
   for (const path of RETURN_PATHS) revalidatePath(path);
 }
 
+/**
+ * ໃບຂໍສົ່ງຄືນສ້າງໄດ້ໂດຍ: ຊ່າງ (ຄົນເບີກ), ສາງ (ຄົນຮັບຄືນ) ແລະ **CS**
+ * — ປ້າຍເຕືອນ "ອາໄຫຼ່ຂອງງານທີ່ຍົກເລີກ" ຢູ່ໜ້າ /installations ເປັນໜ້າຂອງ CS.
+ * ເບິ່ງ RETURN_SIDE ໃນ lib/roles.
+ */
 async function requireSession() {
-  const session = await getSession();
-  if (!session) redirect("/login");
-  return session;
+  return requireRoleOrRedirect(RETURN_SIDE);
 }
 
 function draftPath(docNo: string) {
@@ -290,7 +294,10 @@ const receiveSchema = z.object({
  * ສາງ/ທີ່ເກັບທີ່ຮັບຄືນ: ods ຝັງໄວ້ຕາຍຕົວ 1103/110301 → ໃຊ້ RETURN_WH/RETURN_SHELF ຄືກັນ.
  */
 export async function saveInstallReceiveReturn(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await requireSession();
+  // ບວກສະຕັອກຄືນທັງ ODS ແລະ **ERP** ⇒ ສາງເທົ່ານັ້ນ (ບໍ່ແມ່ນ RETURN_SIDE ທັງກຸ່ມ)
+  const guard = await requireRole(STOCK_SIDE, "ບໍ່ມີສິດຮັບອາໄຫຼ່ຄືນເຂົ້າສາງ");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
   if (!odgDb) return { error: "ບໍ່ພົບ ODG_DATABASE_URL" };
 
@@ -361,7 +368,24 @@ export async function saveInstallReceiveReturn(_: ActionState, formData: FormDat
       [TRANS.RECEIVE_BACK, docDate, docNo, CALC_OUT, session.username, docRef],
     );
 
-    await ods.query("update tb_used_spare set status='2' where product_code=$1", [productCode]);
+    /**
+     * ໝາຍແຖວກະຕ່າວ່າ "ຄືນສາງແລ້ວ" — **ສະເພາະອາໄຫຼ່ທີ່ຢູ່ໃນໃບຂໍສົ່ງຄືນໃບນີ້**.
+     *
+     * ແຕ່ກ່ອນ: `where product_code=$1` ຢ່າງດຽວ ⇒ ໝາຍ **ທຸກແຖວ** ຂອງງານ. ສົ່ງຄືນ
+     * 1 ໃນ 10 ລາຍການ ອີກ 9 ລາຍການທີ່ຍັງຢູ່ໃນມືຊ່າງກໍ່ຖືກໝາຍວ່າຄືນແລ້ວ ⇒ ບັນຊີອາໄຫຼ່
+     * ນອກສາງຜິດທັນທີ. ດຽວນີ້ຜູກກັບແຖວທີ່ຄືນຈິງ ແລະ ໝາຍເທົ່າຈຳນວນແຖວທີ່ຄືນ
+     * (ອາໄຫຼ່ຕົວດຽວກັນອາດມີຫຼາຍແຖວ — ເລືອກແຖວທີ່ຍັງບໍ່ຄືນ ຈາກເກົ່າຫາໃໝ່).
+     */
+    for (const line of lines.rows) {
+      await ods.query(
+        `update tb_used_spare set status='2'
+         where roworder = (
+           select roworder from tb_used_spare
+           where product_code=$1 and item_code=$2 and coalesce(status,'0') <> '2'
+           order by roworder asc limit 1)`,
+        [productCode, line.item_code],
+      );
+    }
 
     // ── ODS: ບວກສະຕັອກຄືນ
     for (const line of lines.rows) {

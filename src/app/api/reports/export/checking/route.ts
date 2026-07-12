@@ -1,13 +1,15 @@
-import { getSession } from "@/lib/auth";
+import { guardApi } from "@/lib/api-guard";
 import { checkingFlags, columns, fetchChecking, safeDate, safeFlag, searchRows } from "@/lib/report-sql";
 import { respondXlsx } from "@/lib/xlsx";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 
 /* ods: /checking_report (+ /checking_reportprint 122, /checking_reportprint1 56) — check_report.py */
 export async function GET(request: NextRequest) {
-  if (!(await getSession())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // ສິດຕາມໜ້າ /reports/checking — /api ຢູ່ນອກ matcher ຂອງ proxy (ເບິ່ງ lib/api-guard)
+  const denied = await guardApi("/reports/checking");
+  if (denied) return denied;
   const search = request.nextUrl.searchParams;
   const flag = safeFlag(search.get("flag") ?? undefined);
   const rows = await fetchChecking(

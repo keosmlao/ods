@@ -1,4 +1,4 @@
-import { CancelJobButton, DeleteJobButton } from "@/components/installation/job-buttons";
+import { CancelJobButton } from "@/components/installation/job-buttons";
 import { LinkPending } from "@/components/link-pending";
 import { LinkButton } from "@/components/ui";
 import { getSession } from "@/lib/auth";
@@ -216,7 +216,6 @@ export default async function InstallationsPage({ searchParams }: Props) {
                             <Pencil className="size-4" />
                           </Link>
                           <CancelJobButton code={row.code} />
-                          <DeleteJobButton code={row.code} />
                         </>
                       )}
                     </div>

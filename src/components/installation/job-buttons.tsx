@@ -1,9 +1,9 @@
 "use client";
 import type { ActionState } from "@/app/actions/installation";
-import { cancelInstall, deleteInstall } from "@/app/actions/installation";
+import { cancelInstall } from "@/app/actions/installation";
 import { useConfirm, type ConfirmTone } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui";
-import { Ban, Trash2 } from "lucide-react";
+import { Ban } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 
@@ -126,49 +126,6 @@ export function CancelJobButton({ code, onDone }: { code: string; onDone?: () =>
           </div>
         </div>
       )}
-    </>
-  );
-}
-
-/** ລົບງານ — ລົບໄດ້ສະເພາະງານທີ່ຍັງບໍ່ຖືກໃຊ້ */
-export function DeleteJobButton({ code, onDone }: { code: string; onDone?: () => void }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  const { ask, dialog } = useConfirm();
-
-  return (
-    <>
-      {dialog}
-      <button
-        type="button"
-        title="ລົບ"
-        disabled={pending}
-        className="text-slate-500 hover:text-red-600 disabled:opacity-50"
-        onClick={async () => {
-          const ok = await ask({
-            title: "ທ່ານແນ່ໃຈບໍ?",
-            message: (
-              <>
-                ລະຫັດ: <b className="text-slate-700">{code}</b> — ທ່ານບໍ່ສາມາດເອີ້ນກັບຄືນໄດ້!
-              </>
-            ),
-            confirmLabel: "ລົບ",
-            cancelLabel: "ບໍ່",
-            tone: "danger",
-          });
-          if (!ok) return;
-          start(async () => {
-            const result = await deleteInstall(code);
-            if (result.error) window.alert(result.error);
-            else {
-              router.refresh();
-              onDone?.();
-            }
-          });
-        }}
-      >
-        <Trash2 className="size-4" />
-      </button>
     </>
   );
 }

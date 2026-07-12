@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // ແອັບມືຖື (Expo/React Native) — ມີກົດເກນ ແລະ tsconfig ຂອງຕົນເອງ
+    "mobile/**",
   ]),
 ]);
 

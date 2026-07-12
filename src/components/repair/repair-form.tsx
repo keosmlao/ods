@@ -13,6 +13,7 @@ import {
   LogOut,
   Package,
   PackageCheck,
+  PackagePlus,
   Plus,
   Printer,
   Save,
@@ -192,6 +193,18 @@ export function RepairForm({ head, lines }: { head: RepairHead; lines: SpareLine
   const toPickUp = lines.filter((line) => line.issued && !line.picked).length;
   // ຂໍໄປແລ້ວ ແຕ່ສາງຍັງບໍ່ທັນເບີກອອກ (ເບີກບໍ່ຄົບ)
   const notIssued = lines.filter((line) => line.requested && !line.issued).length;
+
+  /**
+   * ອາໄຫຼ່ທີ່ **ຍັງບໍ່ເຄີຍເຂົ້າໃບຂໍເບີກຈັກໃບ** — ສ່ວນຫຼາຍຄືຕົວທີ່ຊ່າງຫາກໍ່ເພີ່ມຕອນສ້ອມ
+   * (ພໍລົງມືສ້ອມ ອາໄຫຼ່ທີ່ຕ້ອງປ່ຽນມັກປ່ຽນໄປ).
+   *
+   * ຖ້າບໍ່ບອກ ຊ່າງຈະຄິດວ່າ "ເພີ່ມເຂົ້າກະຕ່າແລ້ວ = ຂໍເບີກແລ້ວ" ແລ້ວປິດວຽກໄປ
+   * ⇒ ອາໄຫຼ່ບໍ່ເຄີຍຖືກເບີກອອກສາງ ແລະ ບັນຊີບໍ່ຕົງກັບຂອງຈິງ. ທາງເຂົ້າທີ່ຖືກຕ້ອງ
+   * (/stock/requests/again) ຢູ່ເລິກໃນໜ້າສາງ ຊ່າງຫາບໍ່ພົບ ⇒ ພາໄປໃຫ້ຈາກບ່ອນນີ້ເລີຍ.
+   */
+  const notRequested = lines.filter((line) => !line.requested).length;
+  // ເຄີຍມີໃບຂໍເບີກແລ້ວ → ຕ້ອງໃຊ້ "ຂໍເບີກຊ້ຳ" (ໃບທີ 2 ຂໍສະເພາະຈຳນວນທີ່ຍັງຄ້າງ)
+  const requestHref = head.spare_requested ? "/stock/requests/again" : "/stock/requests";
   // ໝົດຮັບປະກັນ → ຕ້ອງມີໃບສະເໜີລາຄາທີ່ຈົບແລ້ວ ຈຶ່ງເບີກອາໄຫຼ່ອອກສາງໄດ້ (ຕາມ ods)
   const needsQuotation = head.warranty === "ໝົດຮັບປະກັນ" && !head.quotation_done;
 
@@ -256,12 +269,29 @@ export function RepairForm({ head, lines }: { head: RepairHead; lines: SpareLine
 
         {state.error && <ErrorBox>{state.error}</ErrorBox>}
 
+        {/* ເພີ່ມອາໄຫຼ່ຕອນສ້ອມ ແຕ່ຍັງບໍ່ໄດ້ຂໍເບີກ → ພາໄປໜ້າຂໍເບີກໂດຍກົງ (ບໍ່ດັ່ງນັ້ນຊ່າງຫາບໍ່ພົບ) */}
+        {notRequested > 0 && (
+          <p className="flex flex-wrap items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+            <PackagePlus className="size-4 shrink-0" />
+            <span className="min-w-40 flex-1">
+              ມີອາໄຫຼ່ <b>{notRequested}</b> ລາຍການ ທີ່ຍັງ<b>ບໍ່ໄດ້ສ້າງໃບຂໍເບີກ</b> —
+              ເພີ່ມເຂົ້າລາຍການແລ້ວຍັງບໍ່ພໍ, ຕ້ອງຂໍເບີກ ແລ້ວໃຫ້ສາງເບີກອອກມາ ຈຶ່ງຈະໄດ້ຂອງຈິງ
+            </span>
+            <Link
+              href={requestHref}
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg bg-[#0536a9] px-2.5 text-[11px] font-semibold text-white transition hover:opacity-90"
+            >
+              <PackagePlus className="size-3.5" />
+              {head.spare_requested ? "ຂໍເບີກອາໄຫຼ່ເພີ່ມ" : "ສ້າງໃບຂໍເບີກ"}
+            </Link>
+          </p>
+        )}
+
         {/* ຍັງມີອາໄຫຼ່ທີ່ຊ່າງບໍ່ທັນໄດ້ຮັບ → ເຕືອນ ແຕ່ບໍ່ຫ້າມບັນທຶກ */}
         {waitingSpare > 0 && (
           <p className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             <AlertTriangle className="size-4 shrink-0" />
             ຍັງມີອາໄຫຼ່ <b>{waitingSpare}</b> ລາຍການ ທີ່ຍັງບໍ່ໄດ້ຮັບ
-            {!head.spare_requested && " ແລະ ຍັງບໍ່ໄດ້ສ້າງໃບຂໍເບີກ"}
             {notIssued > 0 && ` · ສາງຍັງບໍ່ທັນເບີກອອກ ${notIssued} ລາຍການ`}
             {toPickUp > 0 && (
               <Link
@@ -338,7 +368,8 @@ export function RepairForm({ head, lines }: { head: RepairHead; lines: SpareLine
 
         {lines.length === 0 ? (
           <Empty>
-            ວຽກນີ້ຍັງບໍ່ມີອາໄຫຼ່ — ຖ້າພໍລົງມືສ້ອມແລ້ວພົບວ່າຕ້ອງປ່ຽນອາໄຫຼ່ ໃຫ້ກົດ &quot;ເພີ່ມອາໄຫຼ່&quot; ແລ້ວສ້າງໃບຂໍເບີກ
+            ວຽກນີ້ຍັງບໍ່ມີອາໄຫຼ່ — ຖ້າພໍລົງມືສ້ອມແລ້ວພົບວ່າຕ້ອງປ່ຽນອາໄຫຼ່ ໃຫ້ກົດ &quot;ເພີ່ມອາໄຫຼ່&quot; ຂ້າງເທິງ
+            ແລ້ວກົດປຸ່ມ &quot;ສ້າງໃບຂໍເບີກ&quot; ທີ່ຈະປາກົດຂຶ້ນ — ອາໄຫຼ່ຈະອອກຈາກສາງໄດ້ກໍ່ຕໍ່ເມື່ອມີໃບຂໍເບີກ
           </Empty>
         ) : (
           <div className="overflow-x-auto">

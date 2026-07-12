@@ -52,7 +52,12 @@ type BillRow = {
  *
  * ບ່ອນນີ້ໃຊ້ເງື່ອນໄຂຕາມຄວາມຈິງ: ສ້ອມຈົບແລ້ວ + ຍັງບໍ່ໄດ້ສົ່ງຄືນ + ບໍ່ຖືກຍົກເລີກ.
  */
-const WAITING = "a.time_finish_repair is not null and a.return_complete is null and a.status <> 6";
+/**
+ * ລໍສົ່ງຄືນ = **ຜ່ານ QC ແລ້ວ** (ຂັ້ນ 11). ງານທີ່ສ້ອມແລ້ວແຕ່ QC ຍັງບໍ່ຜ່ານ
+ * ຄ້າງຢູ່ຂັ້ນ 10 (ລໍກວດ QC) ⇒ ອອກໃບຮັບເງິນ/ສົ່ງຄືນບໍ່ໄດ້.
+ */
+const WAITING =
+  "a.time_finish_repair is not null and a.qc_finish is not null and a.return_complete is null and a.status <> 6";
 
 /**
  * ສົ່ງຄືນໂດຍບໍ່ສ້ອມ (GAP A) — ວຽກທີ່ຍົກເລີກແລ້ວ (status=6) ແລະ ອະນຸມັດການຍົກເລີກແລ້ວ

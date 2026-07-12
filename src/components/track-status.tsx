@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { NEXT_STEP, STAGE_TEXT, STEPS, stepOfStage, type TrackJob } from "@/lib/track";
+import { DONE_STAGE, NEXT_STEP, STAGE_TEXT, STEPS, stepOfStage, type TrackJob } from "@/lib/track";
 
 /**
  * ບັດສະຖານະສຳລັບລູກຄ້າ — ໃຊ້ຮ່ວມກັນລະຫວ່າງ /track ແລະ /track/[code].
@@ -33,7 +33,7 @@ export function TrackStatus({ job }: { job: TrackJob }) {
       <div className="p-4">
         <p
           className={`rounded-lg px-3 py-2 text-xs font-medium ${
-            cancelled ? "bg-red-50 text-red-700" : job.stage === 11 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"
+            cancelled ? "bg-red-50 text-red-700" : job.stage === DONE_STAGE ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"
           }`}
         >
           {NEXT_STEP[job.stage] ?? "ກະລຸນາຕິດຕໍ່ສູນບໍລິການ"}
@@ -51,8 +51,8 @@ export function TrackStatus({ job }: { job: TrackJob }) {
         {!cancelled && (
           <ol className="mt-4 border-t border-slate-100 pt-4">
             {STEPS.map((step, index) => {
-              const done = index < current || job.stage === 11;
-              const active = index === current && job.stage !== 11;
+              const done = index < current || job.stage === DONE_STAGE;
+              const active = index === current && job.stage !== DONE_STAGE;
               return (
                 <li key={step} className="relative flex gap-3 pb-4 last:pb-0">
                   {index < STEPS.length - 1 && (
