@@ -1,55 +1,83 @@
-# ODIEN Service — ແອັບຊ່າງ (Expo)
+# ODIEN Service — ແອັບຊ່າງ (Flutter)
 
-ແອັບມືຖືສຳລັບຊ່າງ: ຮັບ/ປະຕິເສດງານ · ດຳເນີນຕາມຂັ້ນຕອນ · check-in/out ໜ້າງານ (ພິກັດ+ຮູບ) ·
-ເບິ່ງລາຍຮັບ · ຮັບການແຈ້ງເຕືອນເມື່ອມີງານໃໝ່.
+ຮັບ/ປະຕິເສດງານ · ກວດເຊັກ · ຂໍເບີກ/ຮັບອາໄຫຼ່ · ດຳເນີນຂັ້ນຕອນ · check-in/out ໜ້າງານ ·
+ຮູບຜົນງານ · QC · ລາຍຮັບ · ແຈ້ງເຕືອນເມື່ອມີງານໃໝ່.
 
-## ຫຼັກການອອກແບບ
+## ຫຼັກການອອກແບບ (ຢ່າແກ້ໂດຍບໍ່ຄິດ)
 
 **ແອັບບໍ່ຄິດຂັ້ນຕອນເອງ.** server ສົ່ງ `action` ມາໃຫ້ໃນແຕ່ລະງານ (`accept` / `start` /
-`finish` / `wait_spare` / `wait_other`) ແລ້ວແອັບພຽງແຕ່ສະແດງປຸ່ມນັ້ນ. ຂັ້ນໄດຢູ່ຝັ່ງ server
-ບ່ອນດຽວ (`src/lib/stage.ts`, `src/lib/install-stage.ts`, `src/lib/job-flow.ts`) —
-ຖ້າແອັບຄິດເອງ ມື້ທີ່ຂັ້ນໄດປ່ຽນ ແອັບເກົ່າໃນມືຖືຊ່າງຈະພາງານໄປຜິດຂັ້ນ.
+`finish` / `wait_spare` / `wait_other`) ແລ້ວແອັບພຽງແຕ່ສະແດງປຸ່ມນັ້ນ. ຂັ້ນໄດ ແລະ ກົດເກນ
+ຢູ່ຝັ່ງ server ບ່ອນດຽວ (`src/lib/job-flow.ts` · `src/lib/tech-flow.ts` · `src/lib/qc-flow.ts`)
+— **ອັນດຽວກັບທີ່ປຸ່ມຢູ່ເວັບເອີ້ນ** ⇒ ກົດຈາກແອັບ ຫຼື ຈາກເວັບ ໄດ້ຜົນຄືກັນທຸກປະການ
+ແລະ ຂ້າມຂັ້ນບໍ່ໄດ້.
 
-ທຸກຄຳສັ່ງຍິງໄປຫາ `/api/mobile/*` ຂອງເວັບ ແລະ **ຜ່ານ `lib/job-flow` ອັນດຽວກັບປຸ່ມຢູ່ເວັບ**
-⇒ ກົດຈາກແອັບ ຫຼື ຈາກເວັບ ໄດ້ຜົນຄືກັນທຸກປະການ.
+## ແລ່ນຕອນພັດທະນາ
 
-## ຕັ້ງຄ່າ
+1. ເປີດ server ODSS ໃຫ້ຮັບຈາກ Wi-Fi (ບໍ່ແມ່ນແຕ່ localhost):
 
-1. ຊີ້ໄປຫາ server: ແກ້ `expo.extra.apiUrl` ໃນ `app.json`
-   (ຕອນພັດທະນາໃນເຄື່ອງ: `http://<IP ຂອງເຄື່ອງ>:3000` — `localhost` ໃນມືຖືຈະຊີ້ຫາຕົວມືຖືເອງ)
-2. ຕິດຕັ້ງ ແລະ ແລ່ນ:
+```bash
+cd ..            # ຫ້ອງ odss-next
+npm run dev -- -H 0.0.0.0
+```
+
+2. ແລ່ນແອັບ ພ້ອມຊີ້ URL ຂອງ server (**ຢ່າໃຊ້ `localhost`** — ໃນມືຖື localhost = ຕົວມືຖືເອງ):
 
 ```bash
 cd mobile
-npm install
-npx expo start
+flutter pub get
+flutter run --dart-define=API_URL=http://192.168.1.51:3000     # IP: ipconfig getifaddr en0
 ```
 
-3. ສ້າງ APK ໃຫ້ຊ່າງຕິດຕັ້ງ (ບໍ່ຕ້ອງຜ່ານ Play Store):
+3. Login ດ້ວຍ **ລະຫັດພະນັກງານ** + ລະຫັດຜ່ານ (ອັນດຽວກັບເວັບ).
+
+## ສ້າງ APK ໃຫ້ຊ່າງ
 
 ```bash
-npx eas build --platform android --profile preview
+flutter build apk --release --dart-define=API_URL=https://service.odien.net
+# ໄດ້ໄຟລ໌: build/app/outputs/flutter-apk/app-release.apk
 ```
 
-## ການແຈ້ງເຕືອນ (push)
+`API_URL` ຕ້ອງເປັນ URL ຈິງຂອງ server ຕອນ build — ບໍ່ດັ່ງນັ້ນແອັບໃນມືຊ່າງຈະໄປຫາ IP ໃນຫ້ອງການ.
 
-ໃຊ້ **Expo Push** — ບໍ່ຕ້ອງມີກະແຈ FCM/APNs ຢູ່ຝັ່ງ server.
-ແອັບລົງທະບຽນ token ຫຼັງ login (`/api/mobile/push-token`) ແລ້ວ server ຍິງແຈ້ງເຕືອນ
-ຕອນ **ຈັດຊ່າງ** (ຕິດຕັ້ງ) ແລະ ຕອນ **ເປີດ/ແກ້ໃບຮັບເຄື່ອງ** (ສ້ອມ).
-Push ລົ້ມເຫຼວ **ບໍ່ເຮັດໃຫ້ການມອບໝາຍງານລົ້ມເຫຼວ** (ເບິ່ງ `src/lib/push.ts`).
+## ແຈ້ງເຕືອນ (FCM)
 
-ຕ້ອງທົດສອບຢູ່ **ເຄື່ອງຈິງ** — ຕົວຈຳລອງຮັບ push ບໍ່ໄດ້.
+ແອັບໃຊ້ **Firebase Cloud Messaging** (ຮຸ່ນ Expo ເກົ່າໃຊ້ Expo Push — Flutter ໃຊ້ອັນນັ້ນບໍ່ໄດ້).
+
+ຝັ່ງແອັບ:
+
+```bash
+dart pub global activate flutterfire_cli
+flutterfire configure          # ສ້າງ firebase_options.dart + google-services.json
+```
+
+ຝັ່ງ server (`.env` ຂອງ odss-next) — Firebase Console → Project settings →
+Service accounts → Generate new private key:
+
+```
+FCM_PROJECT_ID=...
+FCM_CLIENT_EMAIL=...@....iam.gserviceaccount.com
+FCM_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+```
+
+ຍັງບໍ່ຕັ້ງຄ່າກໍ່ **ໃຊ້ໄດ້ປົກກະຕິ** — ພຽງແຕ່ບໍ່ມີແຈ້ງເຕືອນ (ທັງ `lib/push.dart` ຂອງແອັບ
+ແລະ `src/lib/push.ts` ຂອງ server ຈັບ error ໄວ້: push ລົ້ມ **ຫ້າມ** ເຮັດໃຫ້ການມອບໝາຍງານລົ້ມ).
+
+ທົດສອບ push ຕ້ອງໃຊ້ **ເຄື່ອງຈິງ** (emulator ບໍ່ໄດ້).
 
 ## ໂຄງສ້າງ
 
 ```
-app/
-  _layout.tsx              ດ່ານ login (token ອາຍຸ 30 ມື້, ເກັບໃນ SecureStore)
-  login.tsx                ເຂົ້າລະບົບດ້ວຍລະຫັດພະນັກງານ
-  index.tsx                ຄິວວຽກ (ຕິດຕັ້ງ + ສ້ອມ ຢູ່ບ່ອນດຽວ)
-  job/[workflow]/[code].tsx ລາຍລະອຽດງານ + ປຸ່ມຂັ້ນຕອນ + check-in/out
-  income.tsx               ລາຍຮັບເດືອນນີ້
 lib/
-  api.ts                   ຕົວເຊື່ອມກັບ /api/mobile/*
-  push.ts                  ລົງທະບຽນ Expo push
+  main.dart                     ດ່ານ login (token 30 ມື້, ເກັບໃນ Keychain/Keystore)
+  api.dart                      ຕົວເຊື່ອມກັບ /api/mobile/* ບ່ອນດຽວ
+  push.dart                     FCM (ບໍ່ຕັ້ງຄ່າກໍ່ບໍ່ພັງ)
+  screens/
+    login_screen.dart           ລະຫັດພະນັກງານ + ລະຫັດຜ່ານ
+    jobs_screen.dart            ຄິວວຽກ (ຕິດຕັ້ງ + ສ້ອມ ຢູ່ບ່ອນດຽວ)
+    job_screen.dart             ຂັ້ນຕອນ · ຮູບຜົນງານ · check-in/out · ໂທຫາລູກຄ້າ
+    check_screen.dart           ກວດເຊັກ + ອາໄຫຼ່ທີ່ຄາດວ່າຈະໃຊ້
+    spare_request_screen.dart   ອອກໃບຂໍເບີກອາໄຫຼ່ (ຊ່າງເຮັດເອງ ບໍ່ຜ່ານ CS)
+    pickup_screen.dart          ກົດຮັບອາໄຫຼ່ທີ່ສາງເບີກອອກແລ້ວ
+    qc_screen.dart              QC (ຫົວໜ້າຊ່າງ / CS) — checklist + ຮູບ
+    income_screen.dart          ລາຍຮັບເດືອນນີ້
 ```

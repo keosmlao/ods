@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ແອັບ Flutter — ຜົນຜະລິດຂອງການ build (ບໍ່ເອົາເຂົ້າ git)
+mobile/build/
+mobile/.dart_tool/
+mobile/android/.gradle/
+mobile/ios/Pods/

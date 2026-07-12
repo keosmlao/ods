@@ -14,8 +14,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ" }, { status: 400 });
   }
 
+  /**
+   * ດຽວນີ້ເປັນ **FCM token** (ແອັບເປັນ Flutter ແລ້ວ — ຮຸ່ນເກົ່າເປັນ ExponentPushToken).
+   * ຮູບແບບຂອງ FCM ບໍ່ຄົງທີ່ ⇒ ກວດພຽງຄວາມຍາວ (ຖັນເປັນ varchar(200)).
+   */
   const token = String(body.token ?? "").trim();
-  if (!token.startsWith("ExponentPushToken[") || token.length > 200) {
+  if (token.length < 20 || token.length > 200) {
     return NextResponse.json({ error: "token ບໍ່ຖືກຕ້ອງ" }, { status: 400 });
   }
 

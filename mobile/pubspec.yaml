@@ -1,0 +1,36 @@
+name: odss_tech
+description: "ODIEN Service — ແອັບຊ່າງ (ຮັບງານ · ຂັ້ນຕອນ · check-in · QC · ລາຍຮັບ)"
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ຕິດຕໍ່ /api/mobile/* ຂອງ ODSS
+  http: ^1.2.2
+  # token ເກັບໃນບ່ອນປອດໄພຂອງລະບົບ (Keychain / Keystore) ບໍ່ແມ່ນ SharedPreferences
+  flutter_secure_storage: ^9.2.2
+  # ຮູບຜົນງານ · ຮູບ QC · ຮູບ check-in
+  image_picker: ^1.1.2
+  # ພິກັດ check-in (ຫຼັກຖານວ່າຊ່າງໄປຮອດໜ້າງານຈິງ)
+  geolocator: ^13.0.2
+  # ກົດໂທຫາລູກຄ້າ
+  url_launcher: ^6.3.1
+
+  # ── ແຈ້ງເຕືອນ (FCM) ──
+  # ໃຊ້ໄດ້ຕໍ່ເມື່ອແລ່ນ `flutterfire configure` ແລ້ວ (ເບິ່ງ README).
+  # ຖ້າຍັງບໍ່ຕັ້ງຄ່າ ແອັບຍັງແລ່ນປົກກະຕິ — ພຽງແຕ່ບໍ່ໄດ້ຮັບແຈ້ງເຕືອນ (main.dart ຈັບ error ໄວ້).
+  firebase_core: ^3.8.0
+  firebase_messaging: ^15.1.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
