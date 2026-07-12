@@ -18,6 +18,7 @@ import {
   Ban,
   CalendarClock,
   ClipboardCheck,
+  Frown,
   HardHat,
   PackageCheck,
   PackageOpen,
@@ -455,6 +456,140 @@ function TechLoadPanel({ rows }: { rows: TechLoad[] }) {
   );
 }
 
+/* ── ແບບປະເມີນລູກຄ້າ ──────────────────────────────────────────── */
+
+/**
+ * ⚠️ ມາດຕາສ່ວນ **1 = ດີສຸດ · 4 = ແຍ່ສຸດ** — **ຕໍ່າກວ່າ = ດີກວ່າ** (ກັບຫົວຈາກດາວຄະແນນ).
+ * ທຸກຕົວເລກໃນແຜງນີ້ຈຶ່ງຕ້ອງບອກທິດໃຫ້ຊັດ ບໍ່ດັ່ງນັ້ນຄົນອ່ານຈະຕີຄວາມກັບກັນ.
+ *
+ * ຄະແນນລວມສະສົມອັນດຽວ (1.23) **ເຊື່ອງ 3 ຢ່າງທີ່ສຳຄັນກວ່າ** ໄວ້ໝົດ:
+ *   · ແນວໂນ້ມ — ຂໍ້ມູນຈິງຊຸດໂຊມລົງ 1.11 → 1.42 ໃນ 3 ເດືອນ
+ *   · ຂໍ້ໃດແຍ່ — ຄະແນນຕໍ່ຄຳຖາມ (ການແຕ່ງກາຍ? ຄວາມສະອາດ?)
+ *   · ໃຜບໍ່ພໍໃຈ — ງານທີ່ລູກຄ້າໃຫ້ຄະແນນ ≥3 ຄວນຕິດຕາມ
+ */
+const scoreTone = (value: number) =>
+  value >= 2.5 ? "text-red-600" : value >= 1.5 ? "text-amber-600" : "text-emerald-600";
+
+function FeedbackPanel({ data, score }: { data: DashboardData; score: number }) {
+  const trend = data.feedbackTrend;
+  const peak = Math.max(1, ...data.feedbackTopics.map((topic) => topic.avg_points));
+  // ຊຸດໂຊມ = ເດືອນລ່າສຸດແຍ່ກວ່າເດືອນກ່ອນ (ຕົວເລກສູງຂຶ້ນ = ແຍ່ລົງ)
+  const last = trend.at(-1);
+  const prev = trend.at(-2);
+  const worsening = last && prev ? last.avg_points > prev.avg_points : false;
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-teal-50 text-teal-600">
+          <Smile className="size-4" />
+        </span>
+        <div className="min-w-40 flex-1">
+          <h2 className="text-sm font-bold text-slate-700">ແບບປະເມີນລູກຄ້າ (ງານຕິດຕັ້ງ)</h2>
+          <p className="mt-0.5 text-[11px] text-slate-500">
+            ຈາກ {data.feedback.jobs.toLocaleString()} ງານ ·{" "}
+            <b className="text-slate-700">1 = ດີສຸດ · 4 = ແຍ່ສຸດ</b> (ຕໍ່າກວ່າ = ດີກວ່າ)
+          </p>
+        </div>
+        <div className="text-right">
+          <p className={`text-3xl font-bold ${scoreTone(score)}`}>{score.toFixed(2)}</p>
+          <p className="text-[11px] text-slate-400">ຄະແນນລວມ</p>
+        </div>
+      </div>
+
+      {/* ລູກຄ້າບໍ່ພໍໃຈ — ຄວນຕິດຕາມ */}
+      {data.feedback.unhappy_jobs > 0 && (
+        <Link
+          href="/reports/customer-feedback"
+          className="mb-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 transition hover:bg-red-100"
+        >
+          <Frown className="size-4 shrink-0" />
+          <span className="flex-1">
+            <b>{data.feedback.unhappy_jobs.toLocaleString()} ງານ</b> ທີ່ລູກຄ້າໃຫ້ຄະແນນແຍ່ (3 ຫຼື 4) — ຄວນຕິດຕາມ
+          </span>
+          <LinkPending className="size-3.5" />
+        </Link>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* ແນວໂນ້ມ 6 ເດືອນ */}
+        {trend.length > 1 && (
+          <div>
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-slate-600">
+              ແນວໂນ້ມ 6 ເດືອນ
+              {worsening ? (
+                <span className="flex items-center gap-0.5 rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
+                  <TrendingUp className="size-3" /> ຊຸດໂຊມລົງ
+                </span>
+              ) : (
+                <span className="flex items-center gap-0.5 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                  <TrendingDown className="size-3" /> ດີຂຶ້ນ
+                </span>
+              )}
+            </p>
+            {/* ແທ່ງສູງ = ຄະແນນສູງ = ແຍ່ (ຕໍ່າ=ດີ) ⇒ ສີແດງເມື່ອສູງ */}
+            <div className="flex h-24 items-end gap-1.5">
+              {trend.map((month) => (
+                <div key={month.month} className="flex flex-1 flex-col items-center gap-1">
+                  <span className={`text-[10px] font-bold ${scoreTone(month.avg_points)}`}>
+                    {month.avg_points.toFixed(2)}
+                  </span>
+                  <div
+                    className={`w-full rounded-t ${
+                      month.avg_points >= 2.5
+                        ? "bg-red-400"
+                        : month.avg_points >= 1.5
+                          ? "bg-amber-400"
+                          : "bg-emerald-400"
+                    }`}
+                    // ມາດຕາສ່ວນ 1-4 → ຄວາມສູງ (4 = ເຕັມ)
+                    style={{ height: `${Math.max(6, (month.avg_points / 4) * 100)}%` }}
+                    title={`${month.jobs} ງານ`}
+                  />
+                  <span className="text-[10px] text-slate-400">{month.month}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-1 text-[10px] text-slate-400">ແທ່ງສູງ = ຄະແນນສູງ = ແຍ່ລົງ</p>
+          </div>
+        )}
+
+        {/* ຄະແນນແຍກຕາມຄຳຖາມ — ຮຽງແຍ່ສຸດກ່ອນ */}
+        {data.feedbackTopics.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-bold text-slate-600">ຄະແນນຕໍ່ຄຳຖາມ (ແຍ່ສຸດກ່ອນ)</p>
+            <div className="space-y-1">
+              {data.feedbackTopics.map((topic) => (
+                <div key={topic.line_number} className="flex items-center gap-2">
+                  <span className="w-40 shrink-0 truncate text-[11px] text-slate-600" title={topic.name}>
+                    {topic.name}
+                  </span>
+                  <span className="relative h-4 flex-1 overflow-hidden rounded bg-slate-100">
+                    <span
+                      className={`absolute inset-y-0 left-0 rounded ${
+                        topic.avg_points >= 2.5
+                          ? "bg-red-400"
+                          : topic.avg_points >= 1.5
+                            ? "bg-amber-400"
+                            : "bg-emerald-400"
+                      }`}
+                      style={{ width: `${(topic.avg_points / peak) * 100}%` }}
+                      aria-hidden
+                    />
+                  </span>
+                  <b className={`w-10 shrink-0 text-right text-[11px] tabular-nums ${scoreTone(topic.avg_points)}`}>
+                    {topic.avg_points.toFixed(2)}
+                  </b>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 /* ── ໜ້າ ─────────────────────────────────────────────────────── */
 
 export default async function Dashboard() {
@@ -603,27 +738,8 @@ export default async function Dashboard() {
         </section>
       )}
 
-      {/* ③ ຄະແນນລູກຄ້າ — ມາດຕາສ່ວນກັບຫົວ (1 ດີສຸດ) ຈຶ່ງຕ້ອງບອກໃຫ້ຊັດ */}
-      {score != null && (
-        <section className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-teal-50 text-teal-600">
-            <Smile className="size-5" />
-          </span>
-          <div className="min-w-48 flex-1">
-            <p className="text-sm font-bold text-slate-700">ຄະແນນແບບສອບຖາມລູກຄ້າ (ງານຕິດຕັ້ງ)</p>
-            <p className="mt-0.5 text-[11px] text-slate-500">
-              ຈາກ {(data?.feedback.jobs ?? 0).toLocaleString()} ງານ ·{" "}
-              <b className="text-slate-700">1 = ດີສຸດ · 4 = ແຍ່ສຸດ</b> (ຕໍ່າກວ່າ = ດີກວ່າ)
-            </p>
-          </div>
-          <div className="text-right">
-            <p className={`text-3xl font-bold ${score <= 2 ? "text-emerald-600" : "text-red-600"}`}>
-              {score.toFixed(2)}
-            </p>
-            <p className="text-[11px] text-slate-400">{score <= 2 ? "ດີ" : "ຄວນປັບປຸງ"}</p>
-          </div>
-        </section>
-      )}
+      {/* ③ ແບບປະເມີນລູກຄ້າ — ມາດຕາສ່ວນກັບຫົວ (1 ດີສຸດ) ຈຶ່ງຕ້ອງບອກໃຫ້ຊັດທຸກບ່ອນ */}
+      {data && score != null && <FeedbackPanel data={data} score={score} />}
 
       {/* ④ ວຽກທີ່ຖືກລືມ — ຄ້າງດົນສຸດ (ບໍ່ແມ່ນ "ລ່າສຸດ" ເຊິ່ງແມ່ນວຽກທີ່ດ່ວນນ້ອຍທີ່ສຸດ) */}
       <section className="grid gap-4 xl:grid-cols-2">

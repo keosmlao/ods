@@ -98,8 +98,42 @@ const CANCEL_REQUESTS_SQL = `select count(*)::int n from tb_product a
  * ບໍ່ດັ່ງນັ້ນຄວາມໝາຍຈະກັບຫົວ. ໃຊ້ topic_code '002' (ຊຸດຄຳຖາມປັດຈຸບັນ).
  */
 const FEEDBACK_SQL = `select round(avg(points)::numeric, 2)::float avg_points,
-    count(distinct product_code)::int jobs
+    count(distinct product_code)::int jobs,
+    count(distinct product_code) filter (where points >= 3)::int unhappy_jobs
   from cust_complain where topic_code = '002'`;
+
+/**
+ * ຄະແນນ **ແຍກຕາມຄຳຖາມ** — ຊື່ຄຳຖາມມາຈາກ topic_complain (ຊຸດ '002' ທີ່ໃຊ້ຢູ່).
+ * ຄະແນນລວມອັນດຽວບອກບໍ່ໄດ້ວ່າ **ຂໍ້ໃດ** ຄວນປັບປຸງ (ການແຕ່ງກາຍ? ຄວາມສະອາດ?).
+ */
+export type FeedbackTopic = { line_number: number; name: string; avg_points: number; bad: number };
+
+// ໝາຍເຫດ: `name` ແລະ `month` ເປັນ keyword ຂອງ Postgres ⇒ ຕ້ອງໃສ່ `as` ບໍ່ດັ່ງນັ້ນ syntax error
+const FEEDBACK_TOPICS_SQL = `select t.line_number, t.name_1 as name,
+    round(avg(c.points)::numeric, 2)::float avg_points,
+    count(*) filter (where c.points >= 3)::int bad
+  from topic_complain t
+  join cust_complain c on c.topic_code = t.code and c.line_number = t.line_number
+  where t.code = '002'
+  group by t.line_number, t.name_1
+  order by avg_points desc`;
+
+/**
+ * ແນວໂນ້ມຄະແນນ 6 ເດືອນ — **ດີຂຶ້ນ ຫຼື ຊຸດໂຊມລົງ**.
+ *
+ * ຄະແນນລວມສະສົມ (1.23) ເຊື່ອງການປ່ຽນແປງໄວ້ໝົດ: ຂໍ້ມູນຈິງສະແດງວ່າຄະແນນ
+ * ຊຸດໂຊມລົງຢ່າງຊັດເຈນ (1.11 → 1.27 → 1.42 ໃນ 3 ເດືອນ · ຕໍ່າ = ດີ).
+ */
+export type FeedbackTrend = { month: string; jobs: number; avg_points: number };
+
+const FEEDBACK_TREND_SQL = `select to_char(i.complain_finish, 'MM/YY') as month,
+    count(distinct i.code)::int jobs,
+    round(avg(c.points)::numeric, 2)::float avg_points
+  from ods_tb_install i
+  join cust_complain c on c.product_code = i.code and c.topic_code = '002'
+  where i.complain_finish >= current_date - interval '6 months'
+  group by to_char(i.complain_finish, 'YYYY-MM'), to_char(i.complain_finish, 'MM/YY')
+  order by to_char(i.complain_finish, 'YYYY-MM')`;
 
 /** ວຽກຄ້າງດົນສຸດ (ວັນ) — ໃຫ້ຮູ້ວ່າ "ດົນສຸດ" ຮ້າຍແຮງປານໃດ */
 const OLDEST_SQL = `select
@@ -270,7 +304,9 @@ export type DashboardData = {
   cancelledSpares: { docs: number; lines: number };
   approvals: { quotes: number; customer: number; purchases: number };
   cancelRequests: number;
-  feedback: { avg_points: number | null; jobs: number };
+  feedback: { avg_points: number | null; jobs: number; unhappy_jobs: number };
+  feedbackTopics: FeedbackTopic[];
+  feedbackTrend: FeedbackTrend[];
   oldest: { repair_seconds: number; install_seconds: number };
 };
 
@@ -297,6 +333,8 @@ export async function getDashboard(tech: string | null): Promise<{ data: Dashboa
       approvals,
       cancels,
       feedback,
+      feedbackTopics,
+      feedbackTrend,
       oldest,
       appointments,
       onOrder,
@@ -315,7 +353,9 @@ export async function getDashboard(tech: string | null): Promise<{ data: Dashboa
       query<{ docs: number; lines: number }>(CANCELLED_SPARES_SQL),
       query<{ quotes: number; customer: number; purchases: number }>(APPROVALS_SQL),
       query<{ n: number }>(CANCEL_REQUESTS_SQL),
-      query<{ avg_points: number | null; jobs: number }>(FEEDBACK_SQL),
+      query<DashboardData["feedback"]>(FEEDBACK_SQL),
+      query<FeedbackTopic>(FEEDBACK_TOPICS_SQL),
+      query<FeedbackTrend>(FEEDBACK_TREND_SQL),
       query<{ repair_seconds: number; install_seconds: number }>(OLDEST_SQL),
       query<{ n: number }>(OVERDUE_APPOINTMENT_SQL(Boolean(tech)), args),
       query<{ n: number; max_seconds: number }>(ON_ORDER_SQL),
@@ -349,7 +389,9 @@ export async function getDashboard(tech: string | null): Promise<{ data: Dashboa
         cancelledSpares: spares.rows[0] ?? { docs: 0, lines: 0 },
         approvals: approvals.rows[0] ?? { quotes: 0, customer: 0, purchases: 0 },
         cancelRequests: cancels.rows[0]?.n ?? 0,
-        feedback: feedback.rows[0] ?? { avg_points: null, jobs: 0 },
+        feedback: feedback.rows[0] ?? { avg_points: null, jobs: 0, unhappy_jobs: 0 },
+        feedbackTopics: feedbackTopics.rows,
+        feedbackTrend: feedbackTrend.rows,
         oldest: oldest.rows[0] ?? { repair_seconds: 0, install_seconds: 0 },
       },
       error: false,
