@@ -64,11 +64,31 @@ export async function verifyCredentials(username: string, password: string): Pro
       )
     ).rows[0];
 
+    /**
+     * ── ຕົວຕົນ ຕ້ອງຕົງກັບຄ່າທີ່ **ຢູ່ໃນງານຈິງ** (tb_product.emp_code / tech_code) ──
+     *
+     * ເດີມ ODS ຂຽນ **ຊື່ຫຼິ້ນ** ລົງງານ ('Xiew') ⇒ ຕົວຕົນຄື identity.
+     * ແຕ່ເມື່ອຜູ້ຈັດການ **ເຊື່ອມຄົນນັ້ນກັບພະນັກງານ ERP** (/manage/technicians)
+     * ຂໍ້ມູນເກົ່າຂອງລາວຖືກຂຽນທັບເປັນ **ລະຫັດ ERP** ໝົດແລ້ວ (actions/user-link)
+     * ⇒ ຕົວຕົນຂອງລາວກາຍເປັນ employee_code. ຖ້າຍັງໃຫ້ session ເປັນຊື່ຫຼິ້ນຢູ່
+     * "ວຽກຂອງຂ້ອຍ" ຈະຫວ່າງເປົ່າ ເພາະງານຍ້າຍໄປຢູ່ໃຕ້ລະຫັດແລ້ວ.
+     *
+     * ⇒ **ເຊື່ອມແລ້ວ = ໃຊ້ລະຫັດ ERP · ຍັງບໍ່ເຊື່ອມ = ໃຊ້ຊື່ຫຼິ້ນຄືເກົ່າ**
+     * (ຍ້າຍທີ່ລະຄົນໄດ້ ບໍ່ຕ້ອງຕັດຜ່ານທັງບໍລິສັດພ້ອມກັນ).
+     */
+    const linked = (
+      await query<{ employee_code: string }>(
+        `select employee_code from ods_user_employee
+          where employee_code = $1 or lower(user_code) in (lower($1), lower($2), lower($3))
+          limit 1`,
+        [employee.employee_code, identity, employee.fullname_lo],
+      )
+    ).rows[0];
+
     return {
       ok: true,
       session: {
-        // ຕົວຕົນ = ຄ່າດຽວກັບທີ່ເກັບໃນ tb_product.emp_code ຈຶ່ງກອງ "ວຽກຂອງຂ້ອຍ" ໄດ້
-        username: identity,
+        username: linked?.employee_code ?? identity,
         role:
           assigned?.app_role ||
           override?.roles ||

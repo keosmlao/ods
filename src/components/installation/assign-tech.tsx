@@ -1,22 +1,26 @@
 "use client";
 import { assignTech } from "@/app/actions/installation";
-import { SelectField } from "@/components/select-field";
 import { Button, ErrorBox, inputClass, labelClass } from "@/components/ui";
-import { CalendarDays, LoaderCircle, MapPin, StickyNote, UserRound, X } from "lucide-react";
+import { CalendarDays, Check, LoaderCircle, MapPin, Search, StickyNote, TriangleAlert, UserRound, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 /**
  * ຈັດຊ່າງໃຫ້ງານຕິດຕັ້ງ (ຖອດແບບຈາກ ods: assign_tech.html modal + /assign_tech_submit).
  *
- * ── ອອກແບບໃໝ່ ──
- * ຮຸ່ນກ່ອນວາງ 5 ຊ່ອງນ້ຳໜັກເທົ່າກັນ ແລະ ເອົາ **ຊື່ລູກຄ້າໃສ່ຊ່ອງ input ທີ່ພິມບໍ່ໄດ້**
- * (readOnly) ⇒ ເບິ່ງຄືພິມໄດ້ ແຕ່ພິມບໍ່ໄດ້ ແລະ ກິນທີ່ເທົ່າຊ່ອງທີ່ຕ້ອງຕັດສິນໃຈຈິງ.
+ * ── ອອກແບບໃໝ່: **ວັນກ່ອນ ແລ້ວຄ່ອຍຊ່າງ** ──
+ * ຮຸ່ນກ່ອນເປັນ dropdown ລາຍຊື່ຊ່າງລ້ວນ ⇒ ຜູ້ຈັດງານ **ບໍ່ຮູ້ວ່າຊ່າງຄົນນັ້ນມື້ນັ້ນຖືກນັດຢູ່ຈັກບ່ອນແລ້ວ**
+ * ⇒ ນັດຊ້ອນກັນໄດ້ ແລະ ຮູ້ຕໍ່ເມື່ອຊ່າງໂທມາຟ້ອງ.
  *
- * ຄວາມຈິງ: ຜູ້ຈັດງານຕັດສິນໃຈ **2 ຢ່າງ** — ຊ່າງຄົນໃດ ແລະ ວັນໃດ.
- * ⇒ ລູກຄ້າ/ລະຫັດງານ ກາຍເປັນ **ຫົວກ່ອງ** (ຂໍ້ຄວາມ ບໍ່ແມ່ນຊ່ອງ) · ຊ່າງ ກັບ ວັນນັດ
- *   ຢູ່ເທິງສຸດ ແລະ **ວັນນັດມີປຸ່ມດ່ວນ ມື້ນີ້/ມື້ອື່ນ** (ຄ່າທີ່ໃຊ້ຫຼາຍທີ່ສຸດ) ·
- *   ສະຖານທີ່/ໝາຍເຫດ ຢູ່ລຸ່ມ (ຕື່ມມາຈາກງານແລ້ວ ສ່ວນຫຼາຍບໍ່ຕ້ອງແຕະ).
+ * ດຽວນີ້:
+ *   ① ເລືອກ **ວັນນັດ** ກ່ອນ (ມີປຸ່ມດ່ວນ ມື້ນີ້/ມື້ອື່ນ — ຄ່າທີ່ໃຊ້ຫຼາຍທີ່ສຸດ)
+ *   ② ລາຍຊື່ຊ່າງຂຶ້ນມາເປັນ **ບັດ ພ້ອມພາລະງານຂອງມື້ນັ້ນ** (api/installations/tech-load):
+ *        "ນັດມື້ນັ້ນ N ງານ" · "ຄ້າງໃນມື M ງານ" (ຕິດຕັ້ງ+ສ້ອມ)
+ *        ນັດ ≥4 ບ່ອນ/ມື້ = ເປັນໄປໄດ້ຍາກ ⇒ ຂຶ້ນສີແດງ ເຕືອນກ່ອນກົດ (ບໍ່ໄດ້ຫ້າມ)
+ *   ③ ສະຖານທີ່/ໝາຍເຫດ ຢູ່ລຸ່ມ — ຕື່ມມາຈາກງານແລ້ວ ສ່ວນຫຼາຍບໍ່ຕ້ອງແຕະ
+ *
+ * ⚠️ ງານ**ສ້ອມ**ບໍ່ມີວັນນັດໃນຖານ (tb_product ມີແຕ່ emp_code) ⇒ ນັບເປັນ "ຄ້າງໃນມື"
+ * ບໍ່ແມ່ນ "ນັດມື້ນັ້ນ" — ສອງເລກນີ້ຢ່າເອົາໄປປົນກັນ.
  */
 
 export type AssignRow = {
@@ -28,8 +32,12 @@ export type AssignRow = {
 };
 
 type Tech = { code: string; username: string };
+type Load = { tech: string; day: number; open: number };
 
-/** ວັນທີຮູບແບບ YYYY-MM-DD ຂອງ **ມື້ນີ້ຕາມເວລາເຄື່ອງ** (ບໍ່ແມ່ນ UTC — ລາວ +7 ⇒ ຄາດເຄື່ອນ 1 ມື້ໄດ້) */
+/** ນັດເກີນນີ້ຕໍ່ມື້ = ເປັນໄປໄດ້ຍາກ (ຄ່າດຽວກັບໜ້າ /installations/schedule) */
+const BUSY = 4;
+
+/** YYYY-MM-DD ຕາມ **ເວລາເຄື່ອງ** — ບໍ່ແມ່ນ UTC (ລາວ +7 ⇒ ຄາດເຄື່ອນ 1 ມື້ໄດ້) */
 function isoDate(offsetDays = 0) {
   const date = new Date();
   date.setDate(date.getDate() + offsetDays);
@@ -44,6 +52,24 @@ export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Tech[]
 
   const [tech, setTech] = useState("");
   const [day, setDay] = useState(row.appoint_date ?? "");
+  const [q, setQ] = useState("");
+  const [load, setLoad] = useState<Record<string, Load>>({});
+
+  // ພາລະງານຂອງຊ່າງ ຂຶ້ນກັບ **ວັນທີ່ເລືອກ** ⇒ ດຶງໃໝ່ທຸກເທື່ອທີ່ປ່ຽນວັນ
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    fetch(`/api/installations/tech-load?d=${encodeURIComponent(day)}`)
+      .then((response) => response.json())
+      .then((body: { data?: Load[] }) => {
+        if (!alive) return;
+        setLoad(Object.fromEntries((body.data ?? []).map((item) => [item.tech, item])));
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [open, day]);
 
   const submit = (formData: FormData) =>
     start(async () => {
@@ -55,6 +81,9 @@ export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Tech[]
       }
     });
 
+  const shown = techs.filter((item) => item.username.toLowerCase().includes(q.trim().toLowerCase()));
+  const chosen = tech ? load[tech] : undefined;
+
   return (
     <>
       <Button
@@ -63,7 +92,8 @@ export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Tech[]
         onClick={() => {
           setError("");
           setTech("");
-          setDay(row.appoint_date ?? "");
+          setQ("");
+          setDay(row.appoint_date ?? isoDate(0));
           setOpen(true);
         }}
       >
@@ -72,15 +102,18 @@ export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Tech[]
 
       {open && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4">
-          <form action={submit} className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
-            {/* ຫົວກ່ອງ = ບໍລິບົດຂອງງານ (ບໍ່ແມ່ນຊ່ອງໃຫ້ພິມ) */}
+          <form
+            action={submit}
+            className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+          >
+            {/* ຫົວກ່ອງ = ບໍລິບົດຂອງງານ (ບໍ່ແມ່ນຊ່ອງໃຫ້ພິມ ຄືຮຸ່ນກ່ອນ) */}
             <header className="flex items-start gap-3 border-b border-slate-100 p-4">
-              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-teal-50 text-teal-600">
-                <UserRound className="size-5" />
-              </span>
               <div className="min-w-0 flex-1">
                 <h2 className="font-bold text-slate-800">ຈັດຊ່າງໃຫ້ງານ {row.code}</h2>
-                <p className="truncate text-xs text-slate-500">{row.customer ?? "-"}</p>
+                <p className="truncate text-xs text-slate-500">
+                  {row.customer ?? "-"}
+                  {row.location_inst ? ` · ${row.location_inst}` : ""}
+                </p>
               </div>
               <button
                 type="button"
@@ -91,26 +124,12 @@ export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Tech[]
               </button>
             </header>
 
-            <div className="space-y-4 p-4">
+            <div className="flex-1 space-y-4 overflow-auto p-4">
               {error && <ErrorBox>{error}</ErrorBox>}
               <input type="hidden" name="code" value={row.code} />
+              <input type="hidden" name="tech_code" value={tech} />
 
-              {/* ① ຊ່າງ — ການຕັດສິນໃຈຫຼັກ */}
-              <div>
-                <label className={labelClass}>
-                  <UserRound className="mr-1 inline size-3.5 text-slate-400" />
-                  ຊ່າງ *
-                </label>
-                <SelectField
-                  name="tech_code"
-                  value={tech}
-                  onChange={setTech}
-                  options={techs.map((row) => ({ value: row.username, label: row.username }))}
-                  placeholder="ພິມຊື່ຊ່າງເພື່ອຄົ້ນຫາ..."
-                />
-              </div>
-
-              {/* ② ວັນນັດ — ຄ່າທີ່ໃຊ້ຫຼາຍທີ່ສຸດຄື ມື້ນີ້/ມື້ອື່ນ ⇒ ໃຫ້ກົດເອົາ ບໍ່ຕ້ອງເປີດປະຕິທິນ */}
+              {/* ① ວັນນັດ — ຕ້ອງມາກ່ອນ ເພາະພາລະງານຂອງຊ່າງຂຶ້ນກັບວັນ */}
               <div>
                 <label className={labelClass}>
                   <CalendarDays className="mr-1 inline size-3.5 text-slate-400" />
@@ -144,7 +163,76 @@ export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Tech[]
                 </div>
               </div>
 
-              {/* ③ ຕື່ມມາຈາກງານແລ້ວ — ສ່ວນຫຼາຍບໍ່ຕ້ອງແຕະ */}
+              {/* ② ຊ່າງ — ບັດພ້ອມພາລະງານຂອງມື້ນັ້ນ (ບໍ່ແມ່ນ dropdown ຊື່ລ້ວນ) */}
+              <div>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <label className={`${labelClass} mb-0`}>
+                    <UserRound className="mr-1 inline size-3.5 text-slate-400" />
+                    ຊ່າງ *
+                  </label>
+                  <span className="text-[11px] text-slate-400">
+                    ຕົວເລກ = ງານທີ່ນັດໄວ້ໃນວັນທີ່ເລືອກ · ຄ້າງໃນມື = ຕິດຕັ້ງ+ສ້ອມທີ່ຍັງບໍ່ຈົບ
+                  </span>
+                </div>
+
+                {techs.length > 6 && (
+                  <div className="mb-2 flex h-9 items-center gap-2 rounded-lg border border-slate-300 px-2.5">
+                    <Search className="size-3.5 shrink-0 text-slate-400" />
+                    <input
+                      value={q}
+                      onChange={(event) => setQ(event.target.value)}
+                      placeholder="ພິມຊື່ຊ່າງ..."
+                      className="w-full text-xs outline-none"
+                    />
+                  </div>
+                )}
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {shown.map((item) => {
+                    const row2 = load[item.username];
+                    const busy = (row2?.day ?? 0) >= BUSY;
+                    const active = tech === item.username;
+                    return (
+                      <button
+                        key={item.username}
+                        type="button"
+                        onClick={() => setTech(item.username)}
+                        className={`flex items-center gap-2 rounded-xl border p-2.5 text-left transition ${
+                          active
+                            ? "border-teal-500 bg-teal-50"
+                            : busy
+                              ? "border-red-200 hover:border-red-300"
+                              : "border-slate-200 hover:border-teal-300"
+                        }`}
+                      >
+                        <span
+                          className={`grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold ${
+                            active ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
+                          {active ? <Check className="size-4" /> : (row2?.day ?? 0)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-slate-800">{item.username}</span>
+                          <span className={`block text-[11px] ${busy ? "font-semibold text-red-600" : "text-slate-500"}`}>
+                            ນັດມື້ນັ້ນ {row2?.day ?? 0} ງານ · ຄ້າງໃນມື {row2?.open ?? 0}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* ນັດ 4 ບ່ອນຂຶ້ນໄປໃນມື້ດຽວ = ເປັນໄປໄດ້ຍາກ ⇒ ເຕືອນ ແຕ່ບໍ່ຫ້າມ (ບາງເທື່ອບ້ານຢູ່ຕິດກັນ) */}
+                {chosen && chosen.day >= BUSY && (
+                  <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                    <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+                    ຊ່າງຄົນນີ້ຖືກນັດ {chosen.day} ບ່ອນໃນມື້ນັ້ນແລ້ວ — ແນ່ໃຈບໍ່ວ່າຈະເພີ່ມອີກ?
+                  </p>
+                )}
+              </div>
+
+              {/* ③ ຕື່ມມາຈາກງານແລ້ວ */}
               <div>
                 <label className={labelClass}>
                   <MapPin className="mr-1 inline size-3.5 text-slate-400" />
@@ -175,7 +263,7 @@ export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Tech[]
                 {/* ບໍ່ເລືອກຊ່າງ = ບັນທຶກບໍ່ໄດ້ (server ກໍ່ປະຕິເສດຢູ່ແລ້ວ ແຕ່ຢ່າໃຫ້ຄົນກົດຜ່ານກ່ອນ) */}
                 <Button type="submit" tone="success" disabled={pending || !tech} className="h-9 text-xs">
                   {pending && <LoaderCircle className="size-3.5 animate-spin" />}
-                  ຈັດຊ່າງ
+                  ຈັດຊ່າງ {tech && `→ ${tech}`}
                 </Button>
               </div>
             </footer>

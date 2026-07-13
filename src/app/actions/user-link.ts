@@ -107,7 +107,56 @@ export async function technicianLinks(): Promise<{ rows: TechRow[]; employees: E
   return { rows, employees: staff.rows };
 }
 
-/** ເຊື່ອມ (ຫຼື ຖອນ) ຄູ່ຕົວຕົນ — ຄ່າຫວ່າງ = ຖອນການເຊື່ອມ */
+/**
+ * ── ທຸກບ່ອນທີ່ເກັບ "ຕົວຕົນຂອງຄົນ" ໄວ້ເປັນຂໍ້ຄວາມ ──
+ *
+ * ODS ບໍ່ມີ "ລະຫັດພະນັກງານ" — ມັນຂຽນ **ຊື່ຫຼິ້ນ** ລົງທຸກຕາຕະລາງ ('Xiew', 'sak').
+ * ຈຶ່ງບໍ່ມີບ່ອນດຽວທີ່ຈະປ່ຽນ — ຕ້ອງໄລ່ຂຽນທັບໃຫ້ຄົບ ບໍ່ດັ່ງນັ້ນຈະເກີດ "ຄົນເຄິ່ງຄົນ":
+ * ງານໃໝ່ຢູ່ໃຕ້ລະຫັດ ERP ແຕ່ງານເກົ່າ · ຮູບ · check-in · ຄ່າຄອມ ຍັງຢູ່ໃຕ້ຊື່ເກົ່າ
+ * ⇒ "ວຽກຂອງຂ້ອຍ" ບໍ່ຄົບ ແລະ ລາຍງານລາຍຮັບຂາດເຄິ່ງ.
+ *
+ * ຮູບແບບ: [ຕາຕະລາງ, ຖັນ] — ຂຽນທັບສະເພາະແຖວທີ່ **ຄ່າຕົງກັນທຸກຕົວອັກສອນ** ກັບຊື່ເກົ່າ.
+ */
+const IDENTITY_COLUMNS: [table: string, column: string][] = [
+  // ງານຕິດຕັ້ງ — ຊ່າງ · ຊ່າງກ່ອນໜ້າ · ຜູ້ຈັດ · ຜູ້ສ້າງ · ຜູ້ແກ້ · ຜູ້ QC
+  ["ods_tb_install", "tech_code"],
+  ["ods_tb_install", "tech_before"],
+  ["ods_tb_install", "user_assigt"],
+  ["ods_tb_install", "user_created"],
+  ["ods_tb_install", "user_edit"],
+  ["ods_tb_install", "qc_by"],
+  // ງານສ້ອມ
+  ["tb_product", "emp_code"],
+  ["tb_product", "user_regis"],
+  ["tb_product", "user_edit"],
+  ["tb_product", "qc_by"],
+  ["tb_product", "spare_arrive_by"],
+  // ຮ່ອງຮອຍຂອງແອັບຊ່າງ
+  ["ods_job_checkin", "tech_code"],
+  ["ods_job_reject", "tech_code"],
+  ["ods_job_photo", "created_by"],
+  ["ods_qc_result", "checked_by"],
+  ["ods_push_token", "user_code"],
+  // ຂ່າວສານ/ຜູ້ຕິດຕາມ (ແຈ້ງເຕືອນຈະໄປຫາລະຫັດໃໝ່)
+  ["ods_chatter_message", "author"],
+  ["ods_chatter_follower", "username"],
+  // ເອກະສານສາງທີ່ອອກໃນນາມຄົນນີ້
+  ["ic_trans", "user_created"],
+];
+
+/**
+ * ເຊື່ອມ (ຫຼື ຖອນ) ຄູ່ຕົວຕົນ — ຄ່າຫວ່າງ = ຖອນການເຊື່ອມ.
+ *
+ * ── ເຊື່ອມແລ້ວ = **ຍ້າຍຂໍ້ມູນເກົ່າມາໃຊ້ລະຫັດ ERP ທັນທີ** ──
+ * ເປົ້າໝາຍຄື **ລະຫັດດຽວທັງລະບົບ** (ລະຫັດພະນັກງານ ERP). ດັ່ງນັ້ນຕອນເຊື່ອມ ຈຶ່ງຂຽນ
+ * ລະຫັດ ERP ທັບຊື່ເກົ່າໃນທຸກຕາຕະລາງ (IDENTITY_COLUMNS) **ໃນ transaction ດຽວ** —
+ * ບໍ່ດັ່ງນັ້ນຈະໄດ້ "ຄົນເຄິ່ງຄົນ" ຄືທີ່ອະທິບາຍຂ້າງເທິງ.
+ *
+ * ຫຼັງຈາກນີ້ ຕອນຄົນນັ້ນ login (lib/credentials) session.username ຈະເປັນ **ລະຫັດ ERP**
+ * ເພາະມີແຖວເຊື່ອມຢູ່ ⇒ "ວຽກຂອງຂ້ອຍ" ຫາງານເກົ່າພົບຄືເກົ່າ.
+ *
+ * ຍ້ອນຄືນໄດ້: ແຖວເຊື່ອມເກັບ user_code ເກົ່າໄວ້ ⇒ ຮູ້ສະເໝີວ່າ '23037' ແມ່ນ 'Xiew'.
+ */
 export async function linkTechnician(_: LinkState, formData: FormData): Promise<LinkState> {
   const guard = await requireManager();
   if (!guard.ok) return { error: guard.error };
@@ -117,21 +166,59 @@ export async function linkTechnician(_: LinkState, formData: FormData): Promise<
   const employeeCode = String(formData.get("employee_code") ?? "").trim();
   if (!userCode) return { error: "ບໍ່ພົບຜູ້ໃຊ້" };
 
+  // ຖອນການເຊື່ອມ — **ບໍ່ຂຽນຂໍ້ມູນຄືນ** (ງານທີ່ຍ້າຍໄປລະຫັດ ERP ແລ້ວ ຍັງຢູ່ລະຫັດ ERP
+  // ເພາະນັ້ນຄືຕົວຕົນທີ່ຖືກຕ້ອງ — ຖອນພຽງແຕ່ຢຸດການຈ່າຍເງິນເຂົ້າບັນຊີນັ້ນ)
   if (!employeeCode) {
     await db.query("delete from ods_user_employee where user_code = $1", [userCode]);
-  } else {
+    revalidatePath("/manage/technicians");
+    revalidatePath("/reports/technician-income");
+    return { ok: "ຖອນການເຊື່ອມແລ້ວ" };
+  }
+
+  if (employeeCode === userCode) {
+    // ຄ່າໃນງານເປັນລະຫັດ ERP ຢູ່ແລ້ວ ⇒ ບັນທຶກຄູ່ໄວ້ຢ່າງດຽວ ບໍ່ຕ້ອງຂຽນຫຍັງທັບ
     await db.query(
-      `insert into ods_user_employee(user_code, employee_code, updated_by)
-       values($1,$2,$3)
-       on conflict (user_code) do update
-          set employee_code = excluded.employee_code,
-              updated_by = excluded.updated_by,
-              updated_at = localtimestamp(0)`,
+      `insert into ods_user_employee(user_code, employee_code, updated_by) values($1,$2,$3)
+       on conflict (user_code) do update set employee_code = excluded.employee_code,
+          updated_by = excluded.updated_by, updated_at = localtimestamp(0)`,
       [userCode, employeeCode, guard.username],
     );
+    revalidatePath("/manage/technicians");
+    return { ok: "ບັນທຶກສຳເລັດ" };
+  }
+
+  const client = await db.connect();
+  let moved = 0;
+  try {
+    await client.query("begin");
+
+    await client.query(
+      `insert into ods_user_employee(user_code, employee_code, updated_by) values($1,$2,$3)
+       on conflict (user_code) do update set employee_code = excluded.employee_code,
+          updated_by = excluded.updated_by, updated_at = localtimestamp(0)`,
+      [userCode, employeeCode, guard.username],
+    );
+
+    // ຂຽນລະຫັດ ERP ທັບຊື່ເກົ່າ ທຸກຕາຕະລາງ (ຊື່ຕາຕະລາງ/ຖັນ ມາຈາກລາຍການຄົງທີ່ຂ້າງເທິງ
+    // ບໍ່ແມ່ນຈາກຜູ້ໃຊ້ ⇒ ຕໍ່ເປັນ SQL ໄດ້ · ຄ່າຍັງເປັນ parameter ຄືເກົ່າ)
+    for (const [table, column] of IDENTITY_COLUMNS) {
+      const done = await client.query(`update ${table} set ${column} = $1 where ${column} = $2`, [
+        employeeCode,
+        userCode,
+      ]);
+      moved += done.rowCount ?? 0;
+    }
+
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    console.error("linkTechnician backfill failed", error);
+    return { error: "ຍ້າຍຂໍ້ມູນບໍ່ສຳເລັດ — ບໍ່ໄດ້ປ່ຽນຫຍັງເລີຍ" };
+  } finally {
+    client.release();
   }
 
   revalidatePath("/manage/technicians");
   revalidatePath("/reports/technician-income");
-  return { ok: "ບັນທຶກສຳເລັດ" };
+  return { ok: `ເຊື່ອມແລ້ວ — ຍ້າຍ ${moved.toLocaleString()} ແຖວມາໃຊ້ລະຫັດ ${employeeCode}` };
 }

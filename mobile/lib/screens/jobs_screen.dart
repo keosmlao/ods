@@ -83,13 +83,20 @@ class _JobsScreenState extends State<JobsScreen> {
     ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 
-  List<Job> get shown => filter == 'all'
-      ? jobs
-      : filter == 'action'
-      ? jobs
-            .where((j) => ['accept', 'start', 'finish'].contains(j.action))
-            .toList()
-      : jobs.where((j) => j.action == 'wait_spare').toList();
+  List<Job> get shown {
+    final rows = filter == 'all'
+        ? [...jobs]
+        : filter == 'action'
+        ? jobs
+              .where((j) => ['accept', 'start', 'finish'].contains(j.action))
+              .toList()
+        : jobs.where((j) => j.action == 'wait_spare').toList();
+    const priority = {'accept': 0, 'finish': 1, 'start': 2, 'wait_spare': 3};
+    rows.sort(
+      (a, b) => (priority[a.action] ?? 4).compareTo(priority[b.action] ?? 4),
+    );
+    return rows;
+  }
 
   Future<void> openPage(Widget page) async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
@@ -103,8 +110,13 @@ class _JobsScreenState extends State<JobsScreen> {
         .length;
     final onsiteCount = jobs.where((j) => j.onsite).length;
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F7F6),
       appBar: AppBar(
-        toolbarHeight: 68,
+        backgroundColor: Colors.white,
+        foregroundColor: ink,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        toolbarHeight: 72,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -113,7 +125,7 @@ class _JobsScreenState extends State<JobsScreen> {
               style: TextStyle(
                 fontSize: 11,
                 letterSpacing: 1.6,
-                color: Color(0xFF5EEAD4),
+                color: Color(0xFF0F766E),
               ),
             ),
             Text(
@@ -123,31 +135,37 @@ class _JobsScreenState extends State<JobsScreen> {
           ],
         ),
         actions: [
-          IconButton(onPressed: load, icon: const Icon(Icons.refresh_rounded)),
-          IconButton(onPressed: logout, icon: const Icon(Icons.logout_rounded)),
+          IconButton(
+            tooltip: 'ໂຫຼດຄືນໃໝ່',
+            onPressed: load,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'ເມນູ',
+            onSelected: (value) {
+              if (value == 'logout') logout();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout_rounded, size: 19),
+                    SizedBox(width: 10),
+                    Text('ອອກຈາກລະບົບ'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: _BottomNav(
         selectedIndex: 0,
-        onDestinationSelected: (i) {
+        onSelected: (i) {
           if (i == 1) openPage(const PickupScreen());
           if (i == 2) openPage(const IncomeScreen());
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.work_outline_rounded),
-            selectedIcon: Icon(Icons.work_rounded),
-            label: 'ວຽກ',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.inventory_2_outlined),
-            label: 'ອາໄຫຼ່',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.payments_outlined),
-            label: 'ລາຍຮັບ',
-          ),
-        ],
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -157,37 +175,50 @@ class _JobsScreenState extends State<JobsScreen> {
                 slivers: [
                   SliverToBoxAdapter(
                     child: Container(
-                      padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
-                      decoration: const BoxDecoration(
-                        color: ink,
-                        borderRadius: BorderRadius.vertical(
-                          bottom: Radius.circular(28),
-                        ),
-                      ),
+                      padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+                      color: Colors.white,
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          const Text(
+                            'ພາບລວມມື້ນີ້',
+                            style: TextStyle(
+                              color: ink,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          const Text(
+                            'ສະແດງສະເພາະວຽກທີ່ມອບໝາຍໃຫ້ທ່ານ',
+                            style: TextStyle(color: muted, fontSize: 11),
+                          ),
+                          const SizedBox(height: 14),
                           Row(
                             children: [
                               _Metric(
                                 label: 'ວຽກທັງໝົດ',
                                 value: jobs.length,
-                                color: Colors.white,
+                                color: ink,
+                                icon: Icons.work_outline_rounded,
                               ),
                               const SizedBox(width: 10),
                               _Metric(
                                 label: 'ຕ້ອງລົງມື',
                                 value: actionCount,
-                                color: const Color(0xFFFBBF24),
+                                color: const Color(0xFFD97706),
+                                icon: Icons.bolt_rounded,
                               ),
                               const SizedBox(width: 10),
                               _Metric(
                                 label: 'ວຽກໜ້າງານ',
                                 value: onsiteCount,
-                                color: const Color(0xFF5EEAD4),
+                                color: const Color(0xFF0F766E),
+                                icon: Icons.location_on_outlined,
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 18),
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Row(
@@ -255,38 +286,135 @@ class _JobsScreenState extends State<JobsScreen> {
   }
 }
 
+class _BottomNav extends StatelessWidget {
+  const _BottomNav({required this.selectedIndex, required this.onSelected});
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  static const items = [
+    (Icons.work_outline_rounded, Icons.work_rounded, 'ວຽກ'),
+    (Icons.inventory_2_outlined, Icons.inventory_2_rounded, 'ອາໄຫຼ່'),
+    (Icons.payments_outlined, Icons.payments_rounded, 'ລາຍຮັບ'),
+  ];
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    top: false,
+    minimum: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+    child: Container(
+      height: 62,
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFDCE5E2)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x220F172A),
+            blurRadius: 24,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: List.generate(items.length, (index) {
+          final item = items[index];
+          final active = index == selectedIndex;
+          return Expanded(
+            child: Semantics(
+              selected: active,
+              button: true,
+              label: item.$3,
+              child: InkWell(
+                onTap: () => onSelected(index),
+                borderRadius: BorderRadius.circular(18),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
+                  height: 48,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: active
+                        ? const Color(0xFF087F6B)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        active ? item.$2 : item.$1,
+                        size: 22,
+                        color: active ? Colors.white : muted,
+                      ),
+                      if (active) ...[
+                        const SizedBox(width: 7),
+                        Flexible(
+                          child: Text(
+                            item.$3,
+                            overflow: TextOverflow.fade,
+                            softWrap: false,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    ),
+  );
+}
+
 class _Metric extends StatelessWidget {
   const _Metric({
     required this.label,
     required this.value,
     required this.color,
+    required this.icon,
   });
   final String label;
   final int value;
   final Color color;
+  final IconData icon;
   @override
   Widget build(BuildContext context) => Expanded(
     child: Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .08),
+        color: color.withValues(alpha: .07),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: .08)),
+        border: Border.all(color: color.withValues(alpha: .13)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$value',
-            style: TextStyle(
-              color: color,
-              fontSize: 25,
-              fontWeight: FontWeight.w900,
-            ),
+          Row(
+            children: [
+              Icon(icon, size: 16, color: color),
+              const Spacer(),
+              Text(
+                '$value',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 23,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
           Text(
             label,
-            style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10),
+            maxLines: 1,
+            style: const TextStyle(color: muted, fontSize: 10),
           ),
         ],
       ),
@@ -316,13 +444,14 @@ class _Filter extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
           decoration: BoxDecoration(
-            color: active ? teal : Colors.white.withValues(alpha: .08),
+            color: active ? teal : const Color(0xFFF1F5F4),
             borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: active ? teal : const Color(0xFFDCE5E2)),
           ),
           child: Text(
             '$label  $count',
             style: TextStyle(
-              color: active ? Colors.white : const Color(0xFFCBD5E1),
+              color: active ? Colors.white : const Color(0xFF475569),
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
