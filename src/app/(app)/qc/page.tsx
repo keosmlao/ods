@@ -21,12 +21,26 @@ import { redirect } from "next/navigation";
  */
 export const dynamic = "force-dynamic";
 
-export default async function QcPage() {
-  const [session, workflows] = await Promise.all([getSession(), qcWorkflows()]);
+type Props = { searchParams: Promise<{ workflow?: string }> };
+
+export default async function QcPage({ searchParams }: Props) {
+  const [{ workflow: wanted }, session, workflows] = await Promise.all([
+    searchParams,
+    getSession(),
+    qcWorkflows(),
+  ]);
   if (workflows.length === 0) redirect("/forbidden");
 
+  /**
+   * ── ເຂົ້າຈາກເມນູ **ຕິດຕັ້ງ** ເຫັນສະເພາະງານຕິດຕັ້ງ · ເຂົ້າຈາກ **ສ້ອມແປງ** ເຫັນສະເພາະງານສ້ອມ ──
+   * ໜ້າດຽວກັນ ແຕ່ QC ຄື **ຂັ້ນຕອນຂອງແຕ່ລະສາຍງານ** ⇒ ສະແດງທັງສອງພ້ອມກັນ
+   * ເຮັດໃຫ້ຄົນທີ່ມາຈາກສາຍງານນຶ່ງ ຕ້ອງເລື່ອນຜ່ານຄິວຂອງອີກສາຍງານ (ຫຼື ຫຼົງວ່າຄິວຫວ່າງ).
+   * ບໍ່ລະບຸ ?workflow ⇒ ສະແດງທຸກສາຍງານທີ່ຄົນນີ້ກວດໄດ້ (ຄືເກົ່າ).
+   */
+  const shown = workflows.filter((workflow) => !wanted || workflow === wanted);
+
   const queues = await Promise.all(
-    workflows.map(async (workflow) => ({ workflow, rows: await qcQueue(workflow) })),
+    shown.map(async (workflow) => ({ workflow, rows: await qcQueue(workflow) })),
   );
 
   return (

@@ -5,7 +5,7 @@ import type { NavCounts } from "@/lib/nav-counts";
 import type { Role } from "@/lib/roles";
 import { ChevronDown, PanelLeftClose, PanelLeftOpen, Search, Wrench, X } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 /**
@@ -16,6 +16,19 @@ import { useMemo, useState } from "react";
  * ສະຫວ່າງພ້ອມກັນ ເພາະເສັ້ນທາງນຶ່ງເປັນຄຳນຳໜ້າຂອງອີກອັນ.
  * ດຽວນີ້ຄິດຈາກ **ຄວາມຍາວທີ່ຕົງກັນ**: ອັນທີ່ຍາວກວ່າຊະນະ.
  */
+/**
+ * ── ລາຍການທີ່ແຍກດ້ວຍ query (ເຊັ່ນ /qc?workflow=install ກັບ ?workflow=repair) ──
+ * ຖ້າທຽບແຕ່ path ທັງສອງຈະຂຶ້ນ **active ພ້ອມກັນ** ⇒ ຄົນບໍ່ຮູ້ວ່າຕົນຢູ່ສາຍງານໃດ.
+ * ⇒ ມີ query = ຕ້ອງຕົງທັງ path ແລະ query ຈຶ່ງນັບວ່າ active.
+ */
+const queryMatches = (search: string, href: string) => {
+  const query = href.split("?")[1];
+  if (!query) return true;
+  const wanted = new URLSearchParams(query);
+  const current = new URLSearchParams(search);
+  return [...wanted.entries()].every(([key, value]) => current.get(key) === value);
+};
+
 const matchLength = (pathname: string, href: string) => {
   const path = href.split("?")[0];
   if (path === "#") return -1;
@@ -27,7 +40,8 @@ const matchLength = (pathname: string, href: string) => {
 const bestMatch = (pathname: string, groups: NavGroup[]) =>
   Math.max(-1, ...groups.flatMap((group) => group.items.map((item) => matchLength(pathname, item.href))));
 
-const isActive = (pathname: string, href: string, best: number) => {
+const isActive = (pathname: string, href: string, best: number, search = "") => {
+  if (!queryMatches(search, href)) return false;
   const length = matchLength(pathname, href);
   return length >= 0 && length === best;
 };
@@ -57,6 +71,7 @@ export function NavTree({
   onExpand?: () => void;
 }) {
   const pathname = usePathname();
+  const search = useSearchParams().toString();
   const [query, setQuery] = useState("");
   /**
    * ເປີດໄດ້ **ທີລະກຸ່ມ** (accordion) — ເປີດອັນໃໝ່ ອັນເກົ່າພັບເອງ.
@@ -107,7 +122,7 @@ export function NavTree({
 
         {groups.map((group: NavGroup) => {
           const Icon = group.icon;
-          const hasActive = group.items.some((item) => isActive(pathname, item.href, best));
+          const hasActive = group.items.some((item) => isActive(pathname, item.href, best, search));
           // ວຽກຄ້າງລວມຂອງກຸ່ມ — ຕອນກຸ່ມປິດຢູ່ ຄົນຍັງຮູ້ວ່າຂ້າງໃນມີວຽກ
           const groupTotal = group.items.reduce(
             (sum, item) => sum + (item.count ? (counts[item.count] ?? 0) : 0),
@@ -159,7 +174,7 @@ export function NavTree({
               {open && (
                 <ul className="mb-1 space-y-0.5">
                   {group.items.map((item, index) => {
-                    const active = isActive(pathname, item.href, best);
+                    const active = isActive(pathname, item.href, best, search);
                     return (
                       <li key={`${item.href}-${index}`}>
                         {item.divider && <hr className="my-1.5 ml-8 border-white/5" />}

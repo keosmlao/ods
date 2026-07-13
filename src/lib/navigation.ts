@@ -83,7 +83,7 @@ const REPAIR: NavGroup = {
      * actions/return) ແຕ່ລິ້ງມີແຕ່ຢູ່ກຸ່ມ "ຄຸນນະພາບ" ⇒ ຄົນເຮັດງານສ້ອມບໍ່ເຫັນວ່າ
      * ຕ້ອງຜ່ານມັນ ແລ້ວງານຄ້າງຢູ່ຂັ້ນ "ລໍກວດຮັບຄຸນນະພາບ" ໂດຍບໍ່ຮູ້ຕົວ (ຂໍ້ມູນຈິງ: 16 ໃບ).
      */
-    { label: "ກວດຮັບຄຸນນະພາບ", href: "/qc", flag: "qc", count: "/qc" },
+    { label: "ກວດຮັບຄຸນນະພາບ", href: "/qc?workflow=repair", flag: "qc", count: "/qc" },
     /**
      * ຄິວແຈ້ງລູກຄ້າ — ງານທີ່ຢຸດຢູ່ຈົນກວ່າຈະມີຄົນໂທບອກລູກຄ້າວ່າ "ເຄື່ອງແລ້ວ, ມາຮັບໄດ້"
      * ⇒ ມັນຄື **ຂັ້ນຕອນລະຫວ່າງ QC ກັບ ໃບສົ່ງເຄື່ອງ** ບໍ່ແມ່ນເລື່ອງ "ຄຸນນະພາບ"
@@ -123,9 +123,11 @@ const INSTALL: NavGroup = {
      */
     { label: "ສົ່ງຄືນອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/stock/returns?job=install" },
     { label: "ຕິດຕັ້ງ", href: "/installations/work", count: "/installations/work", divider: true },
-    // QC ເປັນຂັ້ນຕອນຂອງສາຍງານຕິດຕັ້ງນຳ — ປິດງານບໍ່ໄດ້ຖ້າຍັງບໍ່ຜ່ານ (actions/installation.closeJob)
-    // ຂໍ້ມູນຈິງ: 14 ງານຄ້າງຢູ່ຂັ້ນ "ລໍກວດຮັບຄຸນນະພາບ"
-    { label: "ກວດຮັບຄຸນນະພາບ", href: "/qc", flag: "qc", count: "/qc" },
+    /**
+     * QC ຂອງ **ສາຍງານຕິດຕັ້ງ** — ໜ້າດຽວກັນແຕ່ກອງດ້ວຍ ?workflow ⇒ ເຂົ້າຈາກເມນູຕິດຕັ້ງ
+     * ເຫັນສະເພາະງານຕິດຕັ້ງ (ແລະ ເມນູ active ອັນດຽວ ບໍ່ແມ່ນສະຫວ່າງທັງສອງກຸ່ມ).
+     */
+    { label: "ກວດຮັບຄຸນນະພາບ", href: "/qc?workflow=install", flag: "qc", count: "/qc" },
     { label: "ປິດງານ", href: "/installations/close", count: "/installations/close" },
     { label: "ລາຍງານງານຕິດຕັ້ງ", href: "/reports/installations", divider: true },
     { label: "ລາຍງານແບບສອບຖາມລູກຄ້າ", href: "/reports/customer-feedback" },
@@ -169,6 +171,8 @@ const REPORT: NavGroup = {
   icon: FileBarChart,
   items: [
     { label: "ໜ້າລວມລາຍງານ", href: "/reports" },
+    // KPI: ງານໄຫຼດີບໍ · **ຄ້າງຢູ່ຂັ້ນໃດ** (ຄໍຂວດ) · ໃຜເຮັດໄດ້ເທົ່າໃດ — ທັງສອງສາຍງານ
+    { label: "KPI ປະສິດທິພາບ", href: "/reports/kpi" },
     { label: "ລາຍງານກວດເຊັກ", href: "/reports/checking" },
     { label: "ລາຍງານຮັບເຄື່ອງປະຈຳວັນ", href: "/reports/daily-receipts" },
     { label: "ລາຍງານໃບຮັບເງິນ", href: "/reports/receipts" },
