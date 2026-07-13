@@ -2,6 +2,7 @@ import { logoutAction } from "@/app/actions/auth";
 import { myActivityCount } from "@/app/actions/chatter";
 import { myNotificationCount } from "@/app/actions/notification";
 import { qcWorkflows } from "@/app/actions/qc";
+import { navCounts } from "@/lib/nav-counts";
 import { AppShell } from "@/components/app-shell";
 import { getSession } from "@/lib/auth";
 import { canAccess, roleOf } from "@/lib/roles";
@@ -31,10 +32,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
    * ເມນູ "ຄິວກວດຮັບຄຸນນະພາບ" ຂຶ້ນກັບ ods_qc_role (ຜູ້ຈັດການກຳນົດ) ບໍ່ແມ່ນ role ລ້ວນໆ
    * ⇒ ຄິດຢູ່ນີ້ບ່ອນດຽວ ແລ້ວສົ່ງລົງໄປໃຫ້ເມນູ (lib/navigation NavFlags).
    */
-  const [activities, notifications, qc] = await Promise.all([
+  const [activities, notifications, qc, counts] = await Promise.all([
     myActivityCount(),
     myNotificationCount(),
     qcWorkflows(),
+    navCounts(session), // ຕົວເລກຄິວຂ້າງເມນູ — ລົ້ມກໍ່ຄືນ {} (ເມນູຍັງໃຊ້ໄດ້)
   ]);
 
   return (
@@ -42,6 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       username={session.username}
       role={role}
       navFlags={{ qc: qc.length > 0 }}
+      counts={counts}
       activities={activities}
       notifications={notifications}
       logout={logoutAction}

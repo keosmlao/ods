@@ -1,6 +1,7 @@
 "use client";
 import { LinkPending } from "@/components/link-pending";
 import { navigationFor, type NavFlags, type NavGroup } from "@/lib/navigation";
+import type { NavCounts } from "@/lib/nav-counts";
 import type { Role } from "@/lib/roles";
 import { ChevronDown, PanelLeftClose, PanelLeftOpen, Search, Wrench, X } from "lucide-react";
 import Link from "next/link";
@@ -36,6 +37,7 @@ const isActive = (pathname: string, href: string, best: number) => {
 export function NavTree({
   role,
   navFlags,
+  counts,
   onNavigate,
   collapsed = false,
   onExpand,
@@ -44,6 +46,8 @@ export function NavTree({
   role: Role;
   /** ສິດທີ່ຢູ່ໃນຖານຂໍ້ມູນ ບໍ່ແມ່ນຢູ່ໃນຕາຕະລາງ RULES (ດຽວນີ້ມີແຕ່ QC — ເບິ່ງ lib/navigation) */
   navFlags: NavFlags;
+  /** ຕົວເລກຄິວຕໍ່ລາຍການ (lib/nav-counts) — ຫວ່າງໄດ້ (ຖ້າ query ລົ້ມ ເມນູຍັງໃຊ້ໄດ້) */
+  counts: NavCounts;
   onNavigate?: () => void;
   collapsed?: boolean;
   /** ຕອນພັບຢູ່ ກົດໄອຄອນກຸ່ມ → ຂະຫຍາຍເມນູ */
@@ -96,6 +100,11 @@ export function NavTree({
         {groups.map((group: NavGroup) => {
           const Icon = group.icon;
           const hasActive = group.items.some((item) => isActive(pathname, item.href, best));
+          // ວຽກຄ້າງລວມຂອງກຸ່ມ — ຕອນກຸ່ມປິດຢູ່ ຄົນຍັງຮູ້ວ່າຂ້າງໃນມີວຽກ
+          const groupTotal = group.items.reduce(
+            (sum, item) => sum + (item.count ? (counts[item.count] ?? 0) : 0),
+            0,
+          );
           // ຄົ້ນຫາຢູ່ → ເປີດໝົດ; ບໍ່ດັ່ງນັ້ນເປີດກຸ່ມທີ່ກຳລັງໃຊ້ ເວັ້ນແຕ່ຜູ້ໃຊ້ພັບເອງ
           const open = searching || (closed[group.id] === undefined ? hasActive : !closed[group.id]);
 
@@ -106,11 +115,14 @@ export function NavTree({
                   type="button"
                   onClick={onExpand}
                   title={group.label}
-                  className={`grid h-10 w-full place-items-center rounded-lg transition ${
+                  className={`relative grid h-10 w-full place-items-center rounded-lg transition ${
                     hasActive ? "bg-teal-500 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
                   }`}
                 >
                   <Icon className="size-5" />
+                  {groupTotal > 0 && (
+                    <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500" />
+                  )}
                 </button>
               </div>
             );
@@ -128,6 +140,11 @@ export function NavTree({
               >
                 <Icon className={`size-4 shrink-0 ${hasActive ? "text-teal-400" : ""}`} />
                 <span className="flex-1 text-left">{group.label}</span>
+                {!open && groupTotal > 0 && (
+                  <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-slate-300">
+                    {groupTotal > 99 ? "99+" : groupTotal}
+                  </span>
+                )}
                 <ChevronDown className={`size-3.5 shrink-0 text-slate-600 transition-transform ${open ? "rotate-180" : ""}`} />
               </button>
 
@@ -156,6 +173,16 @@ export function NavTree({
                             {/* ແຖບຂີດຊ້າຍ = ໜ້າທີ່ກຳລັງເປີດ */}
                             {active && <span className="absolute inset-y-1 left-3 w-0.5 rounded-full bg-teal-400" />}
                             <span className="truncate">{item.label}</span>
+                            {/* ຕົວເລກຄິວ — ນັບດ້ວຍເງື່ອນໄຂອັນດຽວກັບໜ້າປາຍທາງ (lib/nav-counts) */}
+                            {item.count && (counts[item.count] ?? 0) > 0 && (
+                              <span
+                                className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                                  active ? "bg-teal-400 text-slate-900" : "bg-white/10 text-slate-300"
+                                }`}
+                              >
+                                {counts[item.count]! > 99 ? "99+" : counts[item.count]}
+                              </span>
+                            )}
                             <LinkPending className="size-3.5 shrink-0" />
                           </Link>
                         )}
@@ -177,11 +204,13 @@ export function NavTree({
 export function Sidebar({
   role,
   navFlags,
+  counts,
   collapsed,
   onToggle,
 }: {
   role: Role;
   navFlags: NavFlags;
+  counts: NavCounts;
   collapsed: boolean;
   onToggle: () => void;
 }) {
@@ -229,7 +258,7 @@ export function Sidebar({
       )}
 
       <div className="min-h-0 flex-1 pt-3">
-        <NavTree role={role} navFlags={navFlags} collapsed={collapsed} onExpand={onToggle} />
+        <NavTree role={role} navFlags={navFlags} counts={counts} collapsed={collapsed} onExpand={onToggle} />
       </div>
     </aside>
   );

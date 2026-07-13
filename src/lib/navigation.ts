@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   FileBarChart,
   HardHat,
+  LayoutDashboard,
   type LucideIcon,
   ShieldCheck,
   Wrench,
@@ -21,6 +22,11 @@ export type NavItem = {
    * ⇒ canAccess() ບອກບໍ່ໄດ້ວ່າໃຜເຫັນລາຍການນີ້ ຕ້ອງຖາມຖານຂໍ້ມູນ (layout ສົ່ງມາໃຫ້).
    */
   flag?: "qc";
+  /**
+   * ຕົວເລກຄິວທີ່ຂຶ້ນຂ້າງລາຍການ — ກຸນແຈຂອງ lib/nav-counts (ປົກກະຕິແມ່ນ href ຂອງມັນເອງ).
+   * ບໍ່ໃສ່ = ບໍ່ມີຕົວເລກ.
+   */
+  count?: string;
 };
 
 export type NavGroup = { id: string; label: string; icon: LucideIcon; items: NavItem[] };
@@ -34,6 +40,22 @@ export type NavGroup = { id: string; label: string; icon: LucideIcon; items: Nav
  * ກັບ ງານຕິດຕັ້ງ → ມອບໝາຍ → ເບີກອາໄຫຼ່ → ຕິດຕັ້ງ → ປິດງານ.
  */
 
+/* ── ປັກໝຸດເທິງສຸດ ─────────────────────────────────────────────────
+ * ໜ້າລວມ **ບໍ່ເຄີຍມີໃນ sidebar ເລີຍ** (ເຂົ້າໄດ້ແຕ່ຜ່ານໂລໂກ້) ທັງທີ່ເປັນໜ້າທີ່ຄົນເປີດຫຼາຍສຸດ.
+ * ແລະ "ກິດຈະກຳ/ແຈ້ງເຕືອນ" ເປັນເລື່ອງສ່ວນຕົວ ບໍ່ແມ່ນເລື່ອງສ້ອມແປງ ແຕ່ຖືກຝັງໄວ້ທ້າຍກຸ່ມ
+ * "ສ້ອມແປງ" ⇒ ສາງ/CS ຫາບໍ່ພົບ. ດຽວນີ້ຂຶ້ນເທິງສຸດ ເຫັນທຸກ role.
+ */
+const HOME: NavGroup = {
+  id: "home_menu",
+  label: "ຂອງຂ້ອຍ",
+  icon: LayoutDashboard,
+  items: [
+    { label: "ໜ້າລວມ", href: "/dashboard" },
+    { label: "ກິດຈະກຳຂອງຂ້ອຍ", href: "/activities" },
+    { label: "ການແຈ້ງເຕືອນ", href: "/notifications" },
+  ],
+};
+
 /* ── ສາຍງານສ້ອມແປງ ─────────────────────────────────────────────── */
 const REPAIR: NavGroup = {
   id: "repair_menu",
@@ -41,17 +63,15 @@ const REPAIR: NavGroup = {
   icon: Wrench,
   items: [
     { label: "ຮັບເຄື່ອງສ້ອມ", href: "/service" },
-    { label: "ກວດເຊັກ", href: "/checking" },
+    { label: "ກວດເຊັກ", href: "/checking", count: "/checking" },
     { label: "ໃບສະເໜີລາຄາ", href: "/quotations" },
-    { label: "ລູກຄ້າອະນຸມັດ(ສະເໜີລາຄາ)", href: "/quotations/customer-approval" },
+    { label: "ລູກຄ້າອະນຸມັດ(ສະເໜີລາຄາ)", href: "/quotations/customer-approval", count: "/quotations/customer-approval" },
     { label: "ໃບຂໍເບີກອາໄຫຼ່", href: "/stock/requests", divider: true },
     { label: "ຮັບອາໄຫຼ່", href: "/stock/requests/pickup" },
     { label: "ໃບຂໍສົ່ງຄືນອາໄຫຼ່", href: "/stock/returns" },
-    { label: "ສ້ອມແປງ", href: "/repair" },
-    { label: "ໃບສົ່ງເຄື່ອງ/ໃບຮັບເງິນ", href: "/returns", divider: true },
+    { label: "ສ້ອມແປງ", href: "/repair", count: "/repair" },
+    { label: "ໃບສົ່ງເຄື່ອງ/ໃບຮັບເງິນ", href: "/returns", count: "/returns", divider: true },
     { label: "ຕິດຕາມສະຖານະ", href: "/dashboard/tracking" },
-    { label: "ກິດຈະກຳຂອງຂ້ອຍ", href: "/activities" },
-    { label: "ການແຈ້ງເຕືອນ", href: "/notifications" },
   ],
 };
 
@@ -62,8 +82,8 @@ const INSTALL: NavGroup = {
   icon: HardHat,
   items: [
     { label: "ງານຕິດຕັ້ງ", href: "/installations" },
-    { label: "ມອບໝາຍງານ", href: "/installations/assign" },
-    { label: "ຮັບງານຕິດຕັ້ງ", href: "/installations/accept" },
+    { label: "ມອບໝາຍງານ", href: "/installations/assign", count: "/installations/assign" },
+    { label: "ຮັບງານຕິດຕັ້ງ", href: "/installations/accept", count: "/installations/accept" },
     { label: "ໃບຂໍເບີກ(ຕິດຕັ້ງ)", href: "/installations/spare-requests", divider: true },
     { label: "ເບີກອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/installations/dispatch" },
     { label: "ຮັບອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/installations/spare-pickup" },
@@ -73,8 +93,8 @@ const INSTALL: NavGroup = {
      * ແລະ ຕະຫຼອດ 3 ປີບໍ່ເຄີຍມີໃບສົ່ງຄືນຂອງງານ INST- ຈັກໃບ ທັງທີ່ມີອາໄຫຼ່ຄ້າງນອກສາງຢູ່.
      */
     { label: "ສົ່ງຄືນອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/stock/returns?job=install" },
-    { label: "ຕິດຕັ້ງ", href: "/installations/work", divider: true },
-    { label: "ປິດງານ", href: "/installations/close" },
+    { label: "ຕິດຕັ້ງ", href: "/installations/work", count: "/installations/work", divider: true },
+    { label: "ປິດງານ", href: "/installations/close", count: "/installations/close" },
     { label: "ລາຍງານງານຕິດຕັ້ງ", href: "/reports/installations", divider: true },
     { label: "ລາຍງານແບບສອບຖາມລູກຄ້າ", href: "/reports/customer-feedback" },
   ],
@@ -86,7 +106,7 @@ const STOCK: NavGroup = {
   label: "ສາງ ແລະ ອາໄຫຼ່",
   icon: Boxes,
   items: [
-    { label: "ເບີກອາໄຫຼ່", href: "/stock/dispatch" },
+    { label: "ເບີກອາໄຫຼ່", href: "/stock/dispatch", count: "/stock/dispatch" },
     { label: "ຮັບອາໄຫຼ່ທີ່ສັ່ງຊື້", href: "/stock/arrivals" },
     { label: "ຕິດຕາມການໂອນອາໄຫຼ່", href: "/stock/transfers" },
     { label: "ລາຍການສົ່ງ​ຄືນອາໄຫຼ່", href: "/stock/receive-returns" },
@@ -102,9 +122,9 @@ const APPROVE: NavGroup = {
   label: "ອະນຸມັດ",
   icon: ClipboardCheck,
   items: [
-    { label: "ອະນຸມັດໃບສະເໜີລາຄາ", href: "/approvals/quotations" },
-    { label: "ອະນຸມັດຍົກເລີກເຄື່ອງສ້ອມ", href: "/approvals/cancellations" },
-    { label: "ອະນຸມັດຂໍສັ່ງຊື່", href: "/approvals/purchase-requests" },
+    { label: "ອະນຸມັດໃບສະເໜີລາຄາ", href: "/approvals/quotations", count: "/approvals/quotations" },
+    { label: "ອະນຸມັດຍົກເລີກເຄື່ອງສ້ອມ", href: "/approvals/cancellations", count: "/approvals/cancellations" },
+    { label: "ອະນຸມັດຂໍສັ່ງຊື່", href: "/approvals/purchase-requests", count: "/approvals/purchase-requests" },
   ],
 };
 
@@ -116,7 +136,7 @@ const QUALITY: NavGroup = {
   label: "ຄຸນນະພາບ",
   icon: BadgeCheck,
   items: [
-    { label: "ຄິວກວດຮັບຄຸນນະພາບ", href: "/qc", flag: "qc" },
+    { label: "ຄິວກວດຮັບຄຸນນະພາບ", href: "/qc", flag: "qc", count: "/qc" },
     { label: "ຄິວແຈ້ງລູກຄ້າ", href: "/customer-contact" },
     { label: "ຕັ້ງລາຍການກວດຮັບ", href: "/manage/qc-checklist" },
   ],
@@ -157,7 +177,7 @@ const USERS: NavGroup = {
 };
 
 /** ເມນູທັງໝົດ (ກ່ອນກັ່ນຕອງສິດ) */
-export const navigation: NavGroup[] = [REPAIR, INSTALL, STOCK, QUALITY, APPROVE, REPORT, USERS];
+export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, STOCK, QUALITY, APPROVE, REPORT, USERS];
 
 /**
  * ເມນູຂອງ role ນີ້ — ກັ່ນຕອງດ້ວຍ canAccess() ຂອງ lib/roles ໂດຍກົງ

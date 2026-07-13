@@ -2,6 +2,7 @@
 import { MobileNav } from "@/components/mobile-nav";
 import { Sidebar } from "@/components/sidebar";
 import type { NavFlags } from "@/lib/navigation";
+import type { NavCounts } from "@/lib/nav-counts";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
 import { Bell, BellRing, LogOut, UserRound } from "lucide-react";
 import Link from "next/link";
@@ -38,6 +39,7 @@ export function AppShell({
   username,
   role,
   navFlags,
+  counts,
   activities,
   notifications,
   logout,
@@ -48,6 +50,8 @@ export function AppShell({
   role: Role;
   /** ສິດທີ່ຜູ້ຈັດການກຳນົດຢູ່ຖານຂໍ້ມູນ (QC) — role ຢ່າງດຽວບອກບໍ່ໄດ້ */
   navFlags: NavFlags;
+  /** ຕົວເລກຄິວຂອງເມນູ (lib/nav-counts) */
+  counts: NavCounts;
   /** ກິດຈະກຳຄ້າງຂອງຜູ້ໃຊ້ນີ້ — ແດງ = ມີລາຍການເລີຍກຳນົດ */
   activities: { total: number; late: number };
   /** ການແຈ້ງເຕືອນທີ່ຍັງບໍ່ໄດ້ອ່ານ — ແທນ LINE Notify ຂອງ ods */
@@ -59,8 +63,8 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Sidebar role={role} navFlags={navFlags} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
-      <MobileNav role={role} navFlags={navFlags} />
+      <Sidebar role={role} navFlags={navFlags} counts={counts} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+      <MobileNav role={role} navFlags={navFlags} counts={counts} />
 
       <div className={`transition-[padding] duration-200 ${collapsed ? "lg:pl-16" : "lg:pl-64"}`}>
         {/* Topbar — ເຕ້ຍ (56px), ຄ້າງໄວ້ */}
