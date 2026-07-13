@@ -87,7 +87,14 @@ export async function pendingInstallBills(withDismissed = false): Promise<Pendin
         dismissed: mark ? { reason: mark.reason, by: mark.by, at: mark.at } : undefined,
       };
     })
-    .filter((bill) => bill.missing > 0)
+    /**
+     * ── ມີໃບງານແລ້ວ = ຈັດການແລ້ວ (ນະໂຍບາຍ 13-07-2026) ──
+     * ເມື່ອກ່ອນຍັງທວງບິນທີ່ "ເປີດບໍ່ຄົບ" (ໃບງານ < ຈຳນວນຄ່າຕິດຕັ້ງ) ແຕ່ການທຽບຈຳນວນນັ້ນ
+     * ເຊື່ອບໍ່ໄດ້: ຄ່າຕິດຕັ້ງ 1 ແຖວອາດຄຸມຫຼາຍໜ່ວຍ · ແອນັບເປັນຊຸດ · ບາງບິນຕິດພຽງບາງໜ່ວຍ
+     * ຕາມທີ່ຕົກລົງກັບລູກຄ້າ ⇒ ບິນທີ່ CS ເປີດງານໄປແລ້ວຖືກທວງຊ້ຳໂດຍບໍ່ມີເຫດ.
+     * ດຽວນີ້ຄິວນີ້ຖາມຄຳຖາມດຽວ: **"ບິນນີ້ຍັງບໍ່ມີໃບງານຈັກໃບບໍ"**.
+     */
+    .filter((bill) => bill.opened === 0)
     // ໝາຍວ່າຄົບແລ້ວ ⇒ ອອກຈາກຄິວ (ຍົກເວັ້ນຕອນຂໍ "ລາຍການທີ່ໝາຍໄວ້")
     .filter((bill) => (withDismissed ? Boolean(bill.dismissed) : !bill.dismissed))
     // ຄ້າງດົນສຸດຂຶ້ນກ່ອນ — ນັ້ນຄືລູກຄ້າທີ່ລໍດົນສຸດ

@@ -18,7 +18,7 @@ import Link from "next/link";
  */
 export const dynamic = "force-dynamic";
 
-type Tab = "all" | "none" | "partial" | "dismissed";
+type Tab = "all" | "dismissed";
 type Props = { searchParams: Promise<{ tab?: string; q?: string }> };
 
 /** ຄ້າງເກີນນີ້ = ລູກຄ້າລໍດົນເກີນໄປ (ຈ່າຍເງິນແລ້ວ) */
@@ -26,31 +26,25 @@ const LATE = 7;
 
 export default async function PendingBillsPage({ searchParams }: Props) {
   const params = await searchParams;
-  const tab: Tab =
-    params.tab === "none" || params.tab === "partial" || params.tab === "dismissed" ? params.tab : "all";
+  const tab: Tab = params.tab === "dismissed" ? "dismissed" : "all";
   const q = (params.q ?? "").trim().toLowerCase();
 
   // ບິນທີ່ຄ້າງຈິງ + ບິນທີ່ **ຖືກໝາຍວ່າຄົບແລ້ວ** (ເກັບໄວ້ໃຫ້ຍົກເລີກການໝາຍໄດ້)
   const [all, dismissed] = await Promise.all([pendingInstallBills(), pendingInstallBills(true)]);
-  const none = all.filter((bill) => bill.opened === 0);
-  const partial = all.filter((bill) => bill.opened > 0);
-
-  const bucket =
-    tab === "none" ? none : tab === "partial" ? partial : tab === "dismissed" ? dismissed : all;
+  const bucket = tab === "dismissed" ? dismissed : all;
   const rows = q
     ? bucket.filter((bill) =>
         `${bill.doc_no} ${bill.cust_name ?? ""} ${bill.telephone ?? ""}`.toLowerCase().includes(q),
       )
     : bucket;
 
-  const units = all.reduce((sum, bill) => sum + bill.missing, 0);
+  // ບິນທີ່ຍັງບໍ່ມີໃບງານຈັກໃບ ⇒ ໜ່ວຍທີ່ຄ້າງ = ຈຳນວນຄ່າຕິດຕັ້ງທີ່ຈ່າຍມາທັງໝົດ
+  const units = all.reduce((sum, bill) => sum + bill.paid, 0);
   const oldest = all[0]?.days ?? 0;
   const late = all.filter((bill) => bill.days >= LATE).length;
 
   const TABS: { key: Tab; label: string; count: number }[] = [
-    { key: "all", label: "ທັງໝົດ", count: all.length },
-    { key: "none", label: "ຍັງບໍ່ເປີດເລີຍ", count: none.length },
-    { key: "partial", label: "ເປີດບໍ່ຄົບ", count: partial.length },
+    { key: "all", label: "ຍັງບໍ່ມີໃບງານ", count: all.length },
     { key: "dismissed", label: "ໝາຍວ່າຄົບແລ້ວ", count: dismissed.length },
   ];
 
@@ -108,7 +102,7 @@ export default async function PendingBillsPage({ searchParams }: Props) {
       {rows.length === 0 ? (
         <Empty>{q ? "ບໍ່ພົບບິນຕາມຄຳຄົ້ນ" : "ບໍ່ມີບິນຄ້າງ — ທຸກບິນທີ່ຈ່າຍຄ່າຕິດຕັ້ງ ມີໃບງານຄົບແລ້ວ"}</Empty>
       ) : (
-        <Table head={["ຄ້າງມາ", "ເລກບິນ", "ລູກຄ້າ", "ເປີດແລ້ວ / ຈ່າຍມາ", "ຍັງຂາດ", ""]} minWidth={980}>
+        <Table head={["ຄ້າງມາ", "ເລກບິນ", "ລູກຄ້າ", "ຈ່າຍຄ່າຕິດຕັ້ງ", ""]} minWidth={900}>
           {rows.map((bill) => {
             const overdue = bill.days >= LATE;
             return (
@@ -151,23 +145,9 @@ export default async function PendingBillsPage({ searchParams }: Props) {
                   )}
                 </td>
 
-                {/* ② ຄວາມຄືບໜ້າ — ບໍ່ໃຫ້ຄົນລົບເລກເອງ */}
-                <td className="px-3 py-2.5">
-                  <span className="mx-auto block w-32">
-                    <span className="block text-center text-xs tabular-nums text-slate-500">
-                      {bill.opened}/{bill.paid}
-                    </span>
-                    <span className="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                      <span
-                        className="block h-full rounded-full bg-teal-500"
-                        style={{ width: `${Math.round((bill.opened / bill.paid) * 100)}%` }}
-                      />
-                    </span>
-                  </span>
-                </td>
-
+                {/* ② ຈຳນວນທີ່ຈ່າຍຄ່າຕິດຕັ້ງ = ຈຳນວນໃບງານທີ່ຄວນເປີດ */}
                 <td className="whitespace-nowrap px-3 py-2.5 text-center text-sm font-bold text-red-600 tabular-nums">
-                  {bill.missing}
+                  {bill.paid} ໜ່ວຍ
                 </td>
 
                 {/* ③ ລົງມື — ເປີດໃບງານ ຫຼື ໝາຍວ່າຄົບແລ້ວ (ບາງບິນບໍ່ຕ້ອງມີໃບງານແທ້ໆ) */}
