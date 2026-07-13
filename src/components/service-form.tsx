@@ -278,11 +278,8 @@ export function ServiceForm({
               ບິນຊື້ ແລະ ການຮັບປະກັນ
             </h2>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <label className={label}>ລະຫັດຮ້ານຄ້າ</label>
-                <input name="sup_id" className={field} />
-              </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* ຊ່ອງ "ລະຫັດຮ້ານຄ້າ" ຖືກຖອດອອກ — ມັນຄືລະຫັດລູກຄ້າອັນດຽວກັນ (server ຂຽນ ap_code ໃຫ້ເອງ) */}
               <div>
                 <label className={label}>ເລກທີບິນ</label>
                 <input name="billon" value={billNo} onChange={(event) => setBillNo(event.target.value)} className={field} />

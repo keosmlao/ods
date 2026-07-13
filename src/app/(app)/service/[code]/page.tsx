@@ -40,7 +40,6 @@ type Job = {
   remark: string | null;
   note: string | null;
   delivery: string | null;
-  supplier: string | null;
   bill_no: string | null;
   bill_date: string | null;
   technician: string | null;
@@ -62,7 +61,7 @@ export default async function ServiceDetail({ params }: Props) {
          c.code customer_code, c.name_1 customer, c.tel phone, c.address,
          a.name_1 product, a.sn, a.p_model model, a.p_brand brand, a.p_type product_type, a.p_access accessory,
          a.warrunty warranty, a.warranty_reason, a.service_type, a.issue, a.issue_2, a.p_abrasion remark, a.repair_note note,
-         a.p_delivery delivery, a.ap_code supplier, a.doc_def bill_no, a.doc_date_ref bill_date,
+         a.p_delivery delivery, a.doc_def bill_no, a.doc_date_ref bill_date,
          a.emp_code technician, a.user_regis receiver,
          (select count(*) from product_image i
            where i.iteme_code = a.code and coalesce(i.product_url,'') <> '')::int images,
@@ -118,7 +117,7 @@ export default async function ServiceDetail({ params }: Props) {
         ["ຊ່າງ", job.technician],
         ["ຜູ້ຮັບ", job.receiver],
         ["ສະຖານະ", STAGE_LABEL[job.stage] ?? "-"],
-        ["ຮ້ານຄ້າ", job.supplier],
+        // "ຮ້ານຄ້າ" (ap_code) ຖືກຖອດ — ມັນຄື**ລະຫັດລູກຄ້າ**ອັນດຽວກັນ (ສະແດງຢູ່ກຸ່ມລູກຄ້າແລ້ວ)
         ["ເລກບິນ", job.bill_no],
         ["ວັນທີບິນ", job.bill_date],
       ],

@@ -165,11 +165,8 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="mb-4 border-b border-slate-100 pb-2 font-bold text-slate-700">ຂໍ້ມູນຮ້ານຄ້າ / ບິນຊື້</h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          <div>
-            <label className={label}>ລະຫັດຮ້ານຄ້າ</label>
-            <input name="sup_id" defaultValue={head.ap_code ?? ""} className={field} />
-          </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* ຊ່ອງ "ລະຫັດຮ້ານຄ້າ" ຖືກຖອດ — ຄືລະຫັດລູກຄ້າອັນດຽວກັນ (server ຂຽນ ap_code ໃຫ້) */}
           <div>
             <label className={label}>ເລກທີບິນ</label>
             <input name="billon" defaultValue={head.doc_def ?? ""} className={field} />

@@ -36,7 +36,6 @@ const schema = z.object({
   service_type: z.string().min(1),
   pro_issue: z.string().min(1),
   pro_remark: z.string(),
-  sup_id: z.string(),
   billon: z.string(),
   billdate: z.string(),
   emp: z.string().min(1),
@@ -226,7 +225,9 @@ export async function createService(_: ServiceState, formData: FormData): Promis
          warrunty,service_type,cust_code,ap_code,doc_def,doc_date_ref,status,emp_code,time_register,user_regis,item_code)
        values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,localtimestamp,$18,nullif($19,''))`,
       [code, d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
-        d.pro_deli, d.pro_wa, d.service_type, custCode, d.sup_id, d.billon, d.billdate, d.emp, session.username,
+        // ap_code (ຮ້ານຄ້າ) = **ລະຫັດລູກຄ້າ** ອັນດຽວກັນ (ນະໂຍບາຍ 13-07-2026)
+        // ⇒ ບໍ່ຮັບຈາກຟອມອີກ (ຊ່ອງນັ້ນຖືກຖອດອອກ) ຈຶ່ງບໍ່ມີທາງພິມຜິດ/ຫຼົ້ນກັນ
+        d.pro_deli, d.pro_wa, d.service_type, custCode, custCode, d.billon, d.billdate, d.emp, session.username,
         d.item_code ?? ""],
     );
 
@@ -345,7 +346,8 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
          doc_date_ref=$15, emp_code=$16, user_edit=$17
        where code=$18`,
       [d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
-        d.pro_deli, d.pro_wa, d.service_type, d.cust_code, d.sup_id, d.billon, d.billdate, d.emp, session.username, d.code],
+        // ap_code = ລະຫັດລູກຄ້າ (ອັນດຽວກັນ — ເບິ່ງ createService)
+        d.pro_deli, d.pro_wa, d.service_type, d.cust_code, d.cust_code, d.billon, d.billdate, d.emp, session.username, d.code],
     );
     if (!updated.rowCount) {
       await client.query("rollback");
@@ -587,7 +589,7 @@ export async function createServiceFromNotice(_: ServiceState, formData: FormDat
          warrunty,service_type,cust_code,ap_code,doc_def,doc_date_ref,status,emp_code,time_register,user_regis,sup_name,ref_notice)
        values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,localtimestamp,$18,$19,$20)`,
       [code, d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
-        d.pro_deli, d.pro_wa, d.service_type, custCode, d.sup_id, d.billon, d.billdate, d.emp, session.username,
+        d.pro_deli, d.pro_wa, d.service_type, custCode, custCode, d.billon, d.billdate, d.emp, session.username,
         d.sup_name, d.ref_notice],
     );
 

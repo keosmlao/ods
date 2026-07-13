@@ -4,4 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Local ODSS development server uses http://<LAN-IP>:3000. Production remains HTTPS-only. -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>
