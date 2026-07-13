@@ -135,7 +135,6 @@ const RULES: Rule[] = [
   /* ຕິດຕັ້ງ — ods ແຍກເປັນ 2 ຝັ່ງ: ຝ່າຍບໍລິການເປີດ/ປິດງານ · ຊ່າງລົງມື */
   { path: "/installations", exact: true, roles: SERVICE_SIDE },
   { path: "/installations/new", roles: SERVICE_SIDE },
-  { path: "/installations/all", roles: SERVICE_SIDE },
   { path: "/installations/assign", roles: SERVICE_SIDE },
   { path: "/installations/close", roles: SERVICE_SIDE },
   { path: "/installations/accept", roles: TECH_SIDE },

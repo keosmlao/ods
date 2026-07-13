@@ -62,7 +62,6 @@ const INSTALL: NavGroup = {
   icon: HardHat,
   items: [
     { label: "ງານຕິດຕັ້ງ", href: "/installations" },
-    { label: "ງານທັງໝົດ", href: "/installations/all" },
     { label: "ມອບໝາຍງານ", href: "/installations/assign" },
     { label: "ຮັບງານຕິດຕັ້ງ", href: "/installations/accept" },
     { label: "ໃບຂໍເບີກ(ຕິດຕັ້ງ)", href: "/installations/spare-requests", divider: true },

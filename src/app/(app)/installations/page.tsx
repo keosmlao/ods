@@ -1,10 +1,9 @@
 import { CancelJobButton } from "@/components/installation/job-buttons";
-import { LinkPending } from "@/components/link-pending";
 import { LinkButton } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { INSTALL_CANCELLED, INSTALL_CLOSED, INSTALL_OPEN, INSTALL_STAGE_TIME_COL } from "@/lib/install-stage";
-import { Ban, Bell, CheckCircle2, FilePlus2, History, ListChecks, Loader, Pencil, Printer } from "lucide-react";
+import { Ban, Bell, CheckCircle2, FilePlus2, ListChecks, Loader, Pencil, Printer } from "lucide-react";
 import Link from "next/link";
 import { CancelledSpares } from "./cancelled-spares";
 import { getInstallOutstandingByJob } from "./outstanding";
@@ -130,16 +129,7 @@ export default async function InstallationsPage({ searchParams }: Props) {
         total={jobs.total}
         page={page}
         pages={pages}
-      >
-        <Link
-          href="/installations/all"
-          className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
-        >
-          <History className="size-4" />
-          ງານທັງໝົດ
-          <LinkPending className="size-3.5" />
-        </Link>
-      </ListHeader>
+      />
 
       {/* ເມນູຍ່ອຍຂອງໂມດູນຕິດຕັ້ງ */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">

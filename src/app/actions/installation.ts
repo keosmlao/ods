@@ -28,7 +28,6 @@ export type ActionState = { error?: string; ok?: string };
 
 const INSTALL_PATHS = [
   "/installations",
-  "/installations/all",
   "/installations/assign",
   "/installations/accept",
   "/installations/work",

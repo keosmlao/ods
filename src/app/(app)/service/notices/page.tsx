@@ -1,4 +1,5 @@
 import { LinkPending } from "@/components/link-pending";
+import { NoticeDeleteButton } from "@/components/service/notice-delete-button";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { ArrowLeft, ChevronLeft, ChevronRight, ImageIcon, Search } from "lucide-react";
@@ -190,13 +191,17 @@ export default async function ServiceNotices({ searchParams }: Props) {
                     )}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5">
-                    <Link
-                      href={`/service/notices/${encodeURIComponent(row.code)}`}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700"
-                    >
-                      ເປີດງານ
-                      <LinkPending className="size-3" />
-                    </Link>
+                    <div className="flex items-center justify-end gap-2">
+                      <Link
+                        href={`/service/notices/${encodeURIComponent(row.code)}`}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700"
+                      >
+                        ເປີດງານ
+                        <LinkPending className="size-3" />
+                      </Link>
+                      {/* ລຶບ**ຄຳແຈ້ງ** (ບໍ່ແມ່ນລຶບງານ — ອັນນັ້ນຍັງຫ້າມ). ຄຳແຈ້ງທີ່ເປີດງານແລ້ວ server ກັນໃຫ້ */}
+                      <NoticeDeleteButton code={row.code} />
+                    </div>
                   </td>
                 </tr>
               ))}
