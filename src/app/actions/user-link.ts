@@ -1,6 +1,7 @@
 "use server";
 import { getSession } from "@/lib/auth";
 import { db, query, queryOdg } from "@/lib/db";
+import { laoLatinScore } from "@/lib/lao-latin";
 import { roleOf } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 
@@ -79,7 +80,6 @@ export async function technicianLinks(): Promise<{ rows: TechRow[]; employees: E
    * (Xiew → ຊີວ · Mee → ມີ · sak → ສັກ). ການທັບສັບບໍ່ແນ່ນອນ ⇒ ນີ້ເປັນພຽງ
    * **ຄຳແນະນຳ** ຜູ້ຈັດການຕ້ອງຢືນຢັນເອງ (ນີ້ເປັນເລື່ອງເງິນ).
    */
-  const norm = (value: string) => value.trim().toLowerCase();
   const byCode = new Map(staff.rows.map((employee) => [employee.code, employee]));
 
   const rows: TechRow[] = [...totals.entries()]
@@ -91,11 +91,20 @@ export async function technicianLinks(): Promise<{ rows: TechRow[]; employees: E
         if (byCode.has(user_code)) suggestion = user_code;
         // ② ຊື່ຫຼິ້ນ ຫຼື ຊື່ເຕັມ ມີຄຳນີ້ຢູ່
         else {
-          const found = staff.rows.find(
-            (employee) =>
-              (employee.nickname && norm(employee.nickname) === norm(user_code)) ||
-              (norm(user_code).length >= 3 && norm(employee.name).includes(norm(user_code))),
-          );
+          /**
+           * ── ຊື່ໃນງານເປັນ **ລາຕິນ** ແຕ່ ERP ເປັນ **ອັກສອນລາວ** ──
+           * ທຽບກົງໆບໍ່ຕົງຈັກຄົນ (ຂໍ້ມູນຈິງ: 23 ຊື່ ຈັບຄູ່ໄດ້ 1) ⇒ ຖອດອັກສອນລາວ
+           * ເປັນລາຕິນກ່ອນແລ້ວຄ່ອຍທຽບ (lib/lao-latin) — ທຽບກັບ **ຊື່ຫຼິ້ນ** ແລະ
+           * **ທຸກຄຳໃນຊື່ເຕັມ** (Santi → ສັນຕິ ເທບທາລາ · Mee → ບຸນມີ).
+           *
+           * ⚠️ ຮັບສະເພາະຄູ່ທີ່ **ຕົງແທ້** (ຄະແນນ 1) — ຄຳໃກ້ຄຽງພາໃຫ້ Tong → ຕິ່ງ
+           * ແລະ wang → ນາງ ເຊິ່ງເປັນຄົນລະຄົນ. ນີ້ຄືເລື່ອງເງິນ ⇒ "ຫາບໍ່ພົບ"
+           * ປອດໄພກວ່າ "ແນະນຳຜິດຄົນ".
+           */
+          const found = staff.rows.find((employee) => {
+            if (employee.nickname && laoLatinScore(user_code, employee.nickname) === 1) return true;
+            return employee.name.split(/\s+/).some((word) => laoLatinScore(user_code, word) === 1);
+          });
           suggestion = found?.code ?? null;
         }
       }

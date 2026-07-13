@@ -5,6 +5,7 @@ import { INSTALL_STAGE_LABEL_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage"
 import { roleOf } from "@/lib/roles";
 import { ownJobsOnly } from "@/lib/scope";
 import { STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
+import { listTechnicians } from "@/lib/technicians";
 import { CalendarDays, ChevronLeft, ChevronRight, ExternalLink, MapPin, Navigation, Phone, UserRound } from "lucide-react";
 import Link from "next/link";
 
@@ -69,7 +70,7 @@ export default async function SchedulePage({ searchParams }: Props) {
   const values = tech ? [day, tech] : [day];
   const monthValues = tech ? [monthStart, monthEnd, tech] : [monthStart, monthEnd];
 
-  const [jobsResult, countResult] = await Promise.all([
+  const [jobsResult, countResult, technicians] = await Promise.all([
     query<Row>(
       `select 'install' as workflow, a.code,
           nullif(a.tech_code,'') as tech,
@@ -127,11 +128,14 @@ export default async function SchedulePage({ searchParams }: Props) {
         order by q.appoint_date`,
       monthValues,
     ),
+    listTechnicians(),
   ]);
 
   const rows = jobsResult.rows;
   const counts = new Map(countResult.rows.map((row) => [row.day, Number(row.jobs)]));
   const monthTotal = countResult.rows.reduce((sum, row) => sum + Number(row.jobs), 0);
+  const installTotal = rows.filter((row) => row.workflow === "install").length;
+  const repairTotal = rows.length - installTotal;
   const cells = calendarDays(monthStart);
   const selectedLabel = new Intl.DateTimeFormat("lo-LA", {
     weekday: "long",
@@ -151,6 +155,13 @@ export default async function SchedulePage({ searchParams }: Props) {
     const who = row.tech ?? "(ຍັງບໍ່ມີຊ່າງ)";
     byTech.set(who, [...(byTech.get(who) ?? []), row]);
   }
+  const technicianNames = new Map<string, string>();
+  for (const technician of technicians) {
+    technicianNames.set(technician.code.toLowerCase(), technician.name);
+    technicianNames.set(technician.employee_code.toLowerCase(), technician.name);
+  }
+  const technicianName = (code: string) =>
+    code === "(ຍັງບໍ່ມີຊ່າງ)" ? code : technicianNames.get(code.toLowerCase()) ?? code;
   const canSeeAll = roleOf(session) !== "technical";
 
   return (
@@ -240,7 +251,11 @@ export default async function SchedulePage({ searchParams }: Props) {
                 <CalendarDays className="size-5 text-teal-600" />
                 {selectedLabel}
               </h2>
-              <p className="mt-0.5 text-xs text-slate-500">{rows.length} ງານ · {byTech.size} ຊ່າງ</p>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-bold">
+                <span className="text-slate-500">ລວມ {rows.length} ງານ · {byTech.size} ຊ່າງ</span>
+                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-teal-700">ຕິດຕັ້ງ {installTotal}</span>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">ສ້ອມ {repairTotal}</span>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Link href={`/installations/schedule?d=${shift(day, -1)}`} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
@@ -252,6 +267,37 @@ export default async function SchedulePage({ searchParams }: Props) {
             </div>
           </div>
 
+          {rows.length > 0 && (
+            <div className="border-b border-slate-200 bg-white px-4 py-4">
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">ສະຫຼຸບຈຳນວນງານຕາມຊ່າງ</h3>
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                {[...byTech.entries()].map(([who, techJobs]) => {
+                  const installs = techJobs.filter((job) => job.workflow === "install").length;
+                  const repairs = techJobs.length - installs;
+                  const displayName = technicianName(who);
+                  return (
+                    <div key={who} className={`rounded-xl border p-3 ${techJobs.length >= 4 ? "border-red-200 bg-red-50" : "border-slate-200 bg-slate-50"}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-slate-800">{displayName}</p>
+                          {displayName !== who && <p className="truncate text-[10px] text-slate-400">ລະຫັດ: {who}</p>}
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${techJobs.length >= 4 ? "bg-red-600 text-white" : "bg-teal-600 text-white"}`}>
+                          {techJobs.length} ງານ
+                        </span>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 text-[10px] font-semibold">
+                        <span className="rounded-full bg-teal-100 px-2 py-0.5 text-teal-700">ຕິດຕັ້ງ {installs}</span>
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">ສ້ອມ {repairs}</span>
+                        {techJobs.length >= 4 && canSeeAll && <span className="ml-auto text-red-600">ວຽກຫຼາຍ</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {rows.length === 0 ? (
             <div className="bg-white p-8"><Empty>ບໍ່ມີງານນັດໃນວັນທີ່ເລືອກ</Empty></div>
           ) : (
@@ -260,7 +306,8 @@ export default async function SchedulePage({ searchParams }: Props) {
                 <section key={who}>
                   <div className="mb-2 flex items-center gap-2 px-1">
                     <UserRound className="size-4 text-teal-600" />
-                    <h3 className="text-sm font-bold text-slate-700">{who}</h3>
+                    <h3 className="text-sm font-bold text-slate-700">{technicianName(who)}</h3>
+                    {technicianName(who) !== who && <span className="text-[10px] text-slate-400">({who})</span>}
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${techJobs.length >= 4 ? "bg-red-100 text-red-700" : "bg-slate-200 text-slate-600"}`}>
                       {techJobs.length} ງານ
                     </span>
