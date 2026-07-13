@@ -81,9 +81,21 @@ export async function GET(request: NextRequest) {
         ).rows.map((row) => row.code)
       : [];
 
-    const where = q
-      ? "and (i.doc_no ilike $2 or ($3::text[] <> '{}' and a0.cust_code = any($3::text[])))"
-      : `and i.doc_date >= current_date - ${RECENT_DAYS}`;
+    /**
+     * ⚠️ `ilike '%q%'` **ໃຊ້ index ບໍ່ໄດ້** (2.4 ວິນາທີ). ເລກບິນເປັນຕົວພິມໃຫຍ່ສະເໝີ
+     * ⇒ ໃຊ້ `like upper(q) || '%'` (ຄົ້ນຈາກຫົວ, case-sensitive) ⇒ index ໃຊ້ໄດ້:
+     *   ຫົວເລກບິນ = 0.72s · ເລກບິນເຕັມ = **0.006s**
+     * ຝັ່ງລູກຄ້າກອງດ້ວຍ cust_code ທີ່ມີ index = 0.01s.
+     */
+    /**
+     * ບໍ່ພົບລູກຄ້າ ⇒ **ຢ່າໃສ່ເງື່ອນໄຂ OR cust_code** — ຕົວ OR ບັງຄັບໃຫ້ planner scan
+     * ທັງໆທີ່ຂ້າງນຶ່ງຫວ່າງ (ເລກບິນເຕັມ: 2.0s → 0.2s).
+     */
+    const where = !q
+      ? `and i.doc_date >= current_date - ${RECENT_DAYS}`
+      : custCodes.length > 0
+        ? "and (i.doc_no like upper($2) || '%' or a0.cust_code = any($3::text[]))"
+        : "and i.doc_no like upper($2) || '%'";
 
     const rows = (
       await queryOdg<BillRow>(
@@ -92,7 +104,7 @@ export async function GET(request: NextRequest) {
            select i.doc_no, i.doc_date, i.item_code, i.item_name, i.qty
              from ic_trans_detail i
              join ic_inventory inv on inv.code = i.item_code
-             ${q ? "join ic_trans a0 on a0.doc_no = i.doc_no and a0.trans_flag = 44" : ""}
+             ${custCodes.length > 0 ? "join ic_trans a0 on a0.doc_no = i.doc_no and a0.trans_flag = 44" : ""}
             where i.trans_flag = 44
               and inv.item_size = any($1::text[])
               and i.item_type in (0,1,3)
@@ -172,7 +184,11 @@ export async function GET(request: NextRequest) {
           left join ar_contactor ar on ar.ar_code = a.cust_code and ar.name = a.contactor
           left join ar_customer ar2 on ar2.code = a.cust_code
          order by k.doc_date desc, k.doc_no desc`,
-        q ? [INSTALL_SIZES, `%${q}%`, custCodes] : [INSTALL_SIZES],
+        !q
+          ? [INSTALL_SIZES]
+          : custCodes.length > 0
+            ? [INSTALL_SIZES, q, custCodes]
+            : [INSTALL_SIZES, q],
       )
     ).rows;
 
