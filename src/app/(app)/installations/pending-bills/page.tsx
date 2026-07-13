@@ -1,71 +1,227 @@
-import { Empty, LinkButton, PageTitle, Table } from "@/components/ui";
+import { Empty, LinkButton, PageTitle } from "@/components/ui";
+import { BillDismissButton, BillRestoreButton } from "@/components/installation/bill-dismiss-button";
 import { pendingInstallBills } from "@/lib/pending-bills";
-import { FilePlus2, TriangleAlert } from "lucide-react";
+import { CalendarClock, FilePlus2, Phone, Search, TriangleAlert } from "lucide-react";
+import Link from "next/link";
 
 /**
  * **ບິນທີ່ຄ້າງອອກໃບງານ** — ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ ແຕ່ຍັງບໍ່ມີໃບງານ (ຫຼື ມີບໍ່ຄົບ).
  *
- * ຄິວທຸກໜ້າຂອງໂມດູນຕິດຕັ້ງເລີ່ມນັບຈາກ "ໃບງານທີ່ເປີດແລ້ວ" ⇒ ບິນທີ່ລືມເປີດ
- * **ບໍ່ປາກົດຢູ່ໃສເລີຍ**. ໜ້ານີ້ຄືດ້ານກົງກັນຂ້າມ: ເລີ່ມຈາກ **ເງິນທີ່ຮັບມາແລ້ວ**
- * ແລ້ວຖາມວ່າ "ງານຢູ່ໃສ" (ເບິ່ງ lib/pending-bills — ຂໍ້ມູນຈິງ 181 ໜ່ວຍຄ້າງ).
+ * ຄິວທຸກໜ້າຂອງໂມດູນຕິດຕັ້ງເລີ່ມນັບຈາກ "ໃບງານທີ່ເປີດແລ້ວ" ⇒ ບິນທີ່ລືມເປີດ **ບໍ່ປາກົດຢູ່ໃສເລີຍ**.
+ * ໜ້ານີ້ຄືດ້ານກົງກັນຂ້າມ: ເລີ່ມຈາກ **ເງິນທີ່ຮັບມາແລ້ວ** ແລ້ວຖາມວ່າ "ງານຢູ່ໃສ".
+ *
+ * ── ອອກແບບ ──
+ * ນີ້ຄື **ຄິວວຽກ** ບໍ່ແມ່ນລາຍງານ ⇒ ແຕ່ລະແຖວຕ້ອງຕອບ 3 ຄຳຖາມທັນທີ:
+ *   ຄ້າງດົນປານໃດ (ສີບອກຄວາມຮ້ອນ) · ໃຜ/ໂທຫາໃສ · ຂາດຈັກໜ່ວຍ ⇒ ກົດເປີດ
+ * ຮຸ່ນກ່ອນເປັນຕາຕະລາງ 8 ຖັນ ທີ່ມີ 3 ຖັນຕົວເລກ (ຈ່າຍ · ເປີດແລ້ວ · ຂາດ) ⇒ ຄົນຕ້ອງລົບເລກເອງ.
+ * ດຽວນີ້ເປັນ **ແຖບຄວາມຄືບໜ້າ** (ເປີດແລ້ວ 1/2) ອ່ານໄດ້ທັນທີ.
  */
 export const dynamic = "force-dynamic";
 
-export default async function PendingBillsPage() {
-  const bills = await pendingInstallBills();
-  const units = bills.reduce((sum, bill) => sum + bill.missing, 0);
+type Tab = "all" | "none" | "partial" | "dismissed";
+type Props = { searchParams: Promise<{ tab?: string; q?: string }> };
+
+/** ຄ້າງເກີນນີ້ = ລູກຄ້າລໍດົນເກີນໄປ (ຈ່າຍເງິນແລ້ວ) */
+const LATE = 7;
+
+export default async function PendingBillsPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const tab: Tab =
+    params.tab === "none" || params.tab === "partial" || params.tab === "dismissed" ? params.tab : "all";
+  const q = (params.q ?? "").trim().toLowerCase();
+
+  // ບິນທີ່ຄ້າງຈິງ + ບິນທີ່ **ຖືກໝາຍວ່າຄົບແລ້ວ** (ເກັບໄວ້ໃຫ້ຍົກເລີກການໝາຍໄດ້)
+  const [all, dismissed] = await Promise.all([pendingInstallBills(), pendingInstallBills(true)]);
+  const none = all.filter((bill) => bill.opened === 0);
+  const partial = all.filter((bill) => bill.opened > 0);
+
+  const bucket =
+    tab === "none" ? none : tab === "partial" ? partial : tab === "dismissed" ? dismissed : all;
+  const rows = q
+    ? bucket.filter((bill) =>
+        `${bill.doc_no} ${bill.cust_name ?? ""} ${bill.telephone ?? ""}`.toLowerCase().includes(q),
+      )
+    : bucket;
+
+  const units = all.reduce((sum, bill) => sum + bill.missing, 0);
+  const oldest = all[0]?.days ?? 0;
+  const late = all.filter((bill) => bill.days >= LATE).length;
+
+  const TABS: { key: Tab; label: string; count: number }[] = [
+    { key: "all", label: "ທັງໝົດ", count: all.length },
+    { key: "none", label: "ຍັງບໍ່ເປີດເລີຍ", count: none.length },
+    { key: "partial", label: "ເປີດບໍ່ຄົບ", count: partial.length },
+    { key: "dismissed", label: "ໝາຍວ່າຄົບແລ້ວ", count: dismissed.length },
+  ];
+
+  const href = (next: Tab) =>
+    `/installations/pending-bills?${new URLSearchParams({ ...(next !== "all" && { tab: next }), ...(q && { q }) })}`;
 
   return (
     <div className="w-full space-y-4">
       <PageTitle sub="ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ ແຕ່ຍັງບໍ່ມີໃບງານ — ຄ້າງດົນສຸດຂຶ້ນກ່ອນ">
-        ບິນທີ່ຄ້າງອອກໃບງານ
+        ບິນຄ້າງອອກໃບງານ
       </PageTitle>
 
-      {bills.length > 0 && (
-        <p className="flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
-          <TriangleAlert className="size-4" />
-          {bills.length} ບິນ · ຄ້າງ {units} ໜ່ວຍ — ເງິນຮັບມາແລ້ວ ແຕ່ຍັງບໍ່ມີໃຜໄປຕິດ
-        </p>
-      )}
+      {/* ສະຫຼຸບ 3 ຕົວເລກທີ່ຕັດສິນໃຈໄດ້ — ບໍ່ແມ່ນປະໂຫຍກຍາວ */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Stat label="ໜ່ວຍທີ່ຍັງບໍ່ມີໃຜໄປຕິດ" value={units} tone="danger" note={`${all.length} ບິນ`} />
+        <Stat label={`ຄ້າງເກີນ ${LATE} ມື້`} value={late} tone="warn" note="ລູກຄ້າຈ່າຍເງິນແລ້ວ" />
+        <Stat label="ບິນເກົ່າສຸດຄ້າງມາ" value={oldest} tone="plain" note="ມື້" />
+      </div>
 
-      {bills.length === 0 ? (
-        <Empty>ບໍ່ມີບິນຄ້າງ — ທຸກບິນທີ່ຈ່າຍຄ່າຕິດຕັ້ງ ມີໃບງານຄົບແລ້ວ</Empty>
+      {/* ແທັບ + ຄົ້ນຫາ (ຮູບແບບດຽວກັບໜ້າຄິວອື່ນ) */}
+      <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
+        {TABS.map((item) => (
+          <Link
+            key={item.key}
+            href={href(item.key)}
+            className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition ${
+              tab === item.key ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            {item.label}
+            <span
+              className={`rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+                tab === item.key ? "bg-white/20" : "bg-slate-100 text-slate-500"
+              }`}
+            >
+              {item.count}
+            </span>
+          </Link>
+        ))}
+
+        <form className="ml-auto flex min-w-64 items-center md:max-w-sm">
+          {tab !== "all" && <input type="hidden" name="tab" value={tab} />}
+          <div className="flex h-9 w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-2.5 focus-within:border-teal-500">
+            <Search className="size-3.5 shrink-0 text-slate-400" />
+            <input
+              name="q"
+              defaultValue={params.q ?? ""}
+              placeholder="ຄົ້ນຫາ ເລກບິນ, ລູກຄ້າ, ເບີໂທ..."
+              className="w-full text-xs outline-none"
+            />
+          </div>
+        </form>
+      </div>
+
+      {rows.length === 0 ? (
+        <Empty>{q ? "ບໍ່ພົບບິນຕາມຄຳຄົ້ນ" : "ບໍ່ມີບິນຄ້າງ — ທຸກບິນທີ່ຈ່າຍຄ່າຕິດຕັ້ງ ມີໃບງານຄົບແລ້ວ"}</Empty>
       ) : (
-        <Table head={["ເລກບິນ", "ວັນທີ", "ຄ້າງມາ", "ລູກຄ້າ", "ຈ່າຍຄ່າຕິດຕັ້ງ", "ເປີດໃບງານແລ້ວ", "ຍັງຂາດ", ""]} minWidth={1000}>
-          {bills.map((bill) => (
-            <tr key={bill.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-              <td className="whitespace-nowrap px-3 py-2.5 font-bold text-slate-800">{bill.doc_no}</td>
-              <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">
-                {bill.doc_date.split("-").reverse().join("-")}
-              </td>
-              <td className="whitespace-nowrap px-3 py-2.5">
-                {/* ຄ້າງເກີນ 7 ມື້ = ລູກຄ້າລໍດົນເກີນໄປແລ້ວ */}
+        <div className="space-y-2">
+          {rows.map((bill) => {
+            const overdue = bill.days >= LATE;
+            return (
+              <div
+                key={bill.doc_no}
+                className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-white p-3 shadow-sm ${
+                  overdue ? "border-red-200" : "border-slate-200"
+                }`}
+              >
+                {/* ① ຄ້າງດົນປານໃດ — ຕົວທຳອິດທີ່ຕາເຫັນ */}
                 <span
-                  className={`rounded px-1.5 py-0.5 text-xs font-bold ${
-                    bill.days >= 7 ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"
+                  className={`inline-flex h-12 w-16 shrink-0 flex-col items-center justify-center rounded-lg text-xs font-bold ${
+                    overdue ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"
                   }`}
                 >
+                  <CalendarClock className="size-3.5" />
                   {bill.days} ມື້
                 </span>
-              </td>
-              <td className="px-3 py-2.5 text-sm text-slate-700">
-                {bill.cust_name || "-"}
-                {bill.telephone && <span className="ml-2 text-xs text-slate-400">{bill.telephone}</span>}
-              </td>
-              <td className="px-3 py-2.5 text-center text-sm">{bill.paid}</td>
-              <td className="px-3 py-2.5 text-center text-sm text-slate-500">{bill.opened}</td>
-              <td className="px-3 py-2.5 text-center text-sm font-bold text-red-600">{bill.missing}</td>
-              <td className="whitespace-nowrap px-3 py-2.5 text-right">
-                {/* ຟອມເປີດງານຄົ້ນບິນດ້ວຍເລກຢູ່ແລ້ວ ⇒ ສົ່ງເລກໄປໃຫ້ມັນຄົ້ນເອງ */}
-                <LinkButton href={`/installations/new?bill=${encodeURIComponent(bill.doc_no)}`} tone="success" className="h-8 text-xs">
-                  <FilePlus2 className="size-3.5" />
-                  ເປີດໃບງານ
-                </LinkButton>
-              </td>
-            </tr>
-          ))}
-        </Table>
+
+                {/* ② ບິນ ແລະ ລູກຄ້າ (ໂທໄດ້ເລີຍ) */}
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-center gap-2">
+                    <span className="font-bold text-slate-800">{bill.doc_no}</span>
+                    <span className="text-[11px] text-slate-400">{bill.doc_date.split("-").reverse().join("-")}</span>
+                  </p>
+                  {/* ຖືກໝາຍໄວ້ ⇒ ບອກເຫດຜົນ ແລະ ໃຜໝາຍ (ຫຼັກຖານ) */}
+                  {bill.dismissed && (
+                    <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                      ໝາຍວ່າຄົບແລ້ວ: {bill.dismissed.reason} · {bill.dismissed.by} · {bill.dismissed.at}
+                    </p>
+                  )}
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs">
+                    <span className="truncate text-slate-600">{bill.cust_name || "-"}</span>
+                    {bill.telephone && (
+                      <a
+                        href={`tel:${bill.telephone}`}
+                        className="inline-flex items-center gap-1 font-semibold text-emerald-700"
+                      >
+                        <Phone className="size-3" />
+                        {bill.telephone}
+                      </a>
+                    )}
+                  </p>
+                </div>
+
+                {/* ③ ຂາດຈັກໜ່ວຍ — ເປັນຄວາມຄືບໜ້າ ບໍ່ໃຫ້ຄົນລົບເລກເອງ */}
+                <div className="w-40 shrink-0">
+                  <p className="flex items-baseline justify-between text-xs">
+                    <span className="font-bold text-red-600">ຂາດ {bill.missing} ໜ່ວຍ</span>
+                    <span className="text-slate-400">
+                      {bill.opened}/{bill.paid}
+                    </span>
+                  </p>
+                  <span className="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                    <span
+                      className="block h-full rounded-full bg-teal-500"
+                      style={{ width: `${Math.round((bill.opened / bill.paid) * 100)}%` }}
+                    />
+                  </span>
+                </div>
+
+                {/* ④ ລົງມື — ເປີດໃບງານ ຫຼື ໝາຍວ່າຄົບແລ້ວ (ບາງບິນບໍ່ຕ້ອງມີໃບງານແທ້ໆ) */}
+                {bill.dismissed ? (
+                  <BillRestoreButton docNo={bill.doc_no} />
+                ) : (
+                  <div className="flex shrink-0 items-center gap-2">
+                    <BillDismissButton docNo={bill.doc_no} />
+                    <LinkButton
+                      href={`/installations/new?bill=${encodeURIComponent(bill.doc_no)}`}
+                      tone="success"
+                      className="h-9 text-xs"
+                    >
+                      <FilePlus2 className="size-3.5" />
+                      ເປີດໃບງານ
+                    </LinkButton>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  note,
+  tone,
+}: {
+  label: string;
+  value: number;
+  note: string;
+  tone: "danger" | "warn" | "plain";
+}) {
+  const color =
+    tone === "danger"
+      ? "border-red-200 bg-red-50 text-red-700"
+      : tone === "warn"
+        ? "border-amber-200 bg-amber-50 text-amber-800"
+        : "border-slate-200 bg-white text-slate-700";
+  return (
+    <div className={`rounded-xl border p-3 ${color}`}>
+      <p className="flex items-center gap-1.5 text-xs font-semibold">
+        {tone !== "plain" && <TriangleAlert className="size-3.5" />}
+        {label}
+      </p>
+      <p className="mt-1 text-2xl font-bold tabular-nums">
+        {value.toLocaleString()}
+        <span className="ml-1 text-xs font-normal opacity-70">{note}</span>
+      </p>
     </div>
   );
 }

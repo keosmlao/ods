@@ -19,6 +19,8 @@ import { query, queryOdg } from "@/lib/db";
  * ⚠️ ຄົນລະຖານຂໍ້ມູນ (ERP ↔ ODS) ⇒ ນັບຄົນລະບ່ອນແລ້ວຄ່ອຍທາບກັນ.
  */
 export type PendingBill = {
+  /** ຖືກໝາຍວ່າ "ບໍ່ຕ້ອງເປີດໃບງານ" ແລ້ວ (ods_bill_dismissed) — ພ້ອມເຫດຜົນ */
+  dismissed?: { reason: string; by: string; at: string };
   doc_no: string;
   doc_date: string;
   cust_name: string | null;
@@ -36,8 +38,13 @@ export type PendingBill = {
 /** ບໍ່ໄລ່ຍ້ອນຫຼັງເກີນນີ້ — ບິນເກົ່າກວ່ານີ້ຖືວ່າຈົບໄປແລ້ວ (ຫຼື ຕິດເອງ) */
 const DAYS = 120;
 
-export async function pendingInstallBills(): Promise<PendingBill[]> {
-  const [bills, jobs] = await Promise.all([
+/**
+ * ບິນທີ່ຄ້າງ — **ຕັດບິນທີ່ຖືກໝາຍວ່າ "ຄົບແລ້ວ" ອອກ** (ods_bill_dismissed).
+ * ບາງບິນຄ້າງຕະຫຼອດໄປໂດຍບໍ່ມີໃຜຜິດ (ລູກຄ້າຍົກເລີກ · ຕິດເອງ · ບິນເກົ່າທີ່ຕິດໄປແລ້ວ)
+ * ⇒ ຄິວທີ່ປິດບໍ່ໄດ້ ຄືຄິວທີ່ຄົນຈະເລີກເບິ່ງ. `withDismissed` = ເອົາລາຍການທີ່ຖືກໝາຍມານຳ.
+ */
+export async function pendingInstallBills(withDismissed = false): Promise<PendingBill[]> {
+  const [bills, jobs, dismissed] = await Promise.all([
     queryOdg<{ doc_no: string; doc_date: string; cust_name: string | null; telephone: string | null; paid: number }>(
       `select sv.doc_no,
           to_char(max(sv.doc_date),'YYYY-MM-DD') as doc_date,
@@ -58,22 +65,31 @@ export async function pendingInstallBills(): Promise<PendingBill[]> {
         where coalesce(doc_ref_1,'') <> '' and cancel_date is null
         group by doc_ref_1`,
     ),
+    query<{ doc_no: string; reason: string; by: string; at: string }>(
+      `select doc_no, reason, dismissed_by as by, to_char(dismissed_at,'DD-MM-YYYY') as at
+         from ods_bill_dismissed`,
+    ),
   ]);
 
   const opened = new Map(jobs.rows.map((row) => [row.doc_no, row.opened]));
+  const marked = new Map(dismissed.rows.map((row) => [row.doc_no, row]));
   const today = Date.now();
 
   return bills.rows
     .map((bill) => {
       const already = opened.get(bill.doc_no) ?? 0;
+      const mark = marked.get(bill.doc_no);
       return {
         ...bill,
         opened: already,
         missing: bill.paid - already,
         days: Math.floor((today - new Date(`${bill.doc_date}T00:00:00`).getTime()) / 86_400_000),
+        dismissed: mark ? { reason: mark.reason, by: mark.by, at: mark.at } : undefined,
       };
     })
     .filter((bill) => bill.missing > 0)
+    // ໝາຍວ່າຄົບແລ້ວ ⇒ ອອກຈາກຄິວ (ຍົກເວັ້ນຕອນຂໍ "ລາຍການທີ່ໝາຍໄວ້")
+    .filter((bill) => (withDismissed ? Boolean(bill.dismissed) : !bill.dismissed))
     // ຄ້າງດົນສຸດຂຶ້ນກ່ອນ — ນັ້ນຄືລູກຄ້າທີ່ລໍດົນສຸດ
     .sort((left, right) => right.days - left.days);
 }

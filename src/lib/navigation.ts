@@ -101,12 +101,13 @@ const INSTALL: NavGroup = {
   label: "ຕິດຕັ້ງ",
   icon: HardHat,
   items: [
-    { label: "ງານຕິດຕັ້ງ", href: "/installations" },
     /**
-     * ບິນທີ່ຄ້າງອອກໃບງານ — ຄິວທຸກໜ້າເລີ່ມນັບຈາກ "ໃບງານທີ່ເປີດແລ້ວ" ⇒ ບິນທີ່ **ລືມເປີດ**
-     * ບໍ່ປາກົດຢູ່ໃສເລີຍ (ຂໍ້ມູນຈິງ: 181 ໜ່ວຍຄ້າງ · ບິນເກົ່າສຸດແຕ່ເດືອນເມສາ).
+     * ── ຂັ້ນທຳອິດຂອງສາຍງານ = **ບິນທີ່ຍັງບໍ່ມີໃບງານ** ──
+     * ງານຕິດຕັ້ງເລີ່ມຈາກ "ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງໃນບິນ" ບໍ່ແມ່ນຈາກ "ໃບງານ" ⇒ ບິນທີ່ລືມເປີດ
+     * ຕ້ອງເຫັນ **ກ່ອນ** ລາຍການງານ (ຂໍ້ມູນຈິງ: 232 ໜ່ວຍຄ້າງ · ບິນເກົ່າສຸດ 120 ມື້).
      */
     { label: "ບິນຄ້າງອອກໃບງານ", href: "/installations/pending-bills" },
+    { label: "ງານຕິດຕັ້ງ", href: "/installations" },
     { label: "ມອບໝາຍງານ", href: "/installations/assign", count: "/installations/assign" },
     { label: "ຮັບງານຕິດຕັ້ງ", href: "/installations/accept", count: "/installations/accept" },
     { label: "ໃບຂໍເບີກ(ຕິດຕັ້ງ)", href: "/installations/spare-requests", divider: true },
