@@ -56,6 +56,18 @@ const INSTALL_SIZES = ["112", "023", "033", "051", "121"];
 /** ບໍ່ພິມຫຍັງ = ບິນ 90 ມື້ຫຼ້າສຸດ (ບໍ່ດັ່ງນັ້ນຕ້ອງ scan ບິນ 7 ປີ) */
 const RECENT_DAYS = 90;
 
+/**
+ * ບິນ **ໜ້າຮ້ານທີ່ມີບໍລິການຕິດຕັ້ງ** — ຕ້ອງມີແຖວ "ບໍລິການຕິດຕັ້ງ…" ຢູ່ໃນບິນ.
+ *
+ * ⚠️ ນີ້ຄືເກນທີ່ຖືກ — ບໍ່ແມ່ນເດົາຈາກ item_size ຂອງສິນຄ້າ.
+ * ຂໍ້ມູນ 90 ມື້: ບິນທີ່ມີສິນຄ້າແອ **922 ໃບ** ແຕ່ມີບໍລິການຕິດຕັ້ງພຽງ **738 ໃບ**
+ * ⇒ 184 ໃບທີ່ເຫຼືອຄືຂາຍສົ່ງ/ລູກຄ້າຫອບໄປເອງ (CAHAC…) — **ບໍ່ຄວນເປີດງານຕິດຕັ້ງໃຫ້**.
+ *
+ * ລະຫັດບໍລິການຕິດຕັ້ງ: 9701xx (ແອ · ເຄື່ອງໃຊ້ໄຟຟ້າ · Cassette · ຕູ້ຕັ້ງ · ໂຄງການ)
+ * ແລະ 970102xx (ເຄື່ອງເຮັດນ້ຳອຸ່ນ).
+ */
+const INSTALL_SERVICE_ITEM = "(sv.item_code like '9701%' or sv.item_code like '970102%')";
+
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -91,6 +103,15 @@ export async function GET(request: NextRequest) {
      * ບໍ່ພົບລູກຄ້າ ⇒ **ຢ່າໃສ່ເງື່ອນໄຂ OR cust_code** — ຕົວ OR ບັງຄັບໃຫ້ planner scan
      * ທັງໆທີ່ຂ້າງນຶ່ງຫວ່າງ (ເລກບິນເຕັມ: 2.0s → 0.2s).
      */
+    /** ຂອບເຂດຂອງ svc ຕ້ອງແຄບຄືກັບຕົວກອງຫຼັກ ບໍ່ດັ່ງນັ້ນມັນຈະດຶງບິນ 7 ປີມາທັງໝົດ */
+    const svcWhere = !q
+      ? `and sv.doc_date >= current_date - ${RECENT_DAYS}`
+      : custCodes.length > 0
+        ? `and (sv.doc_no like upper($2) || '%'
+               or sv.doc_no in (select t.doc_no from ic_trans t
+                                 where t.trans_flag = 44 and t.cust_code = any($3::text[])))`
+        : "and sv.doc_no like upper($2) || '%'";
+
     const where = !q
       ? `and i.doc_date >= current_date - ${RECENT_DAYS}`
       : custCodes.length > 0
@@ -99,10 +120,21 @@ export async function GET(request: NextRequest) {
 
     const rows = (
       await queryOdg<BillRow>(
-        `with candidate as (
+        `with svc as (
+           /**
+            * ບິນທີ່ **ມີບໍລິການຕິດຕັ້ງ** — ຄິດເປັນຊຸດກ່ອນ ແລ້ວຄ່ອຍ join.
+            * ໃສ່ເປັນ exists ຕໍ່ແຖວ = 1.6-5.0 ວິນາທີ · ເປັນ CTE ແບບນີ້ = 0.3-0.5 ວິນາທີ.
+            */
+           select distinct sv.doc_no
+             from ic_trans_detail sv
+            where sv.trans_flag = 44 and ${INSTALL_SERVICE_ITEM}
+              ${svcWhere}
+         ),
+         candidate as (
            -- ② ຄັດຜູ້ສະໝັກກ່ອນ ດ້ວຍ ic_trans_detail (ມີ index ຢູ່ doc_date)
            select i.doc_no, i.doc_date, i.item_code, i.item_name, i.qty
              from ic_trans_detail i
+             join svc on svc.doc_no = i.doc_no
              join ic_inventory inv on inv.code = i.item_code
              ${custCodes.length > 0 ? "join ic_trans a0 on a0.doc_no = i.doc_no and a0.trans_flag = 44" : ""}
             where i.trans_flag = 44

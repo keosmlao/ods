@@ -328,7 +328,7 @@ function BillPicker({ onClose, onPick }: { onClose: () => void; onPick: (bill: B
             {loading && <LoaderCircle className="size-4 shrink-0 animate-spin text-slate-400" />}
           </div>
           <p className="mt-2 text-xs text-slate-400">
-            ສະແດງສະເພາະບິນທີ່ມີ<b> ສິນຄ້າຕ້ອງຕິດຕັ້ງ</b> · ແອຂຶ້ນເປັນ [SET] ບໍ່ແຍກໜ່ວຍໃນ/ນອກ
+            ສະແດງສະເພາະບິນທີ່ມີ<b> ບໍລິການຕິດຕັ້ງ</b> ຢູ່ໃນບິນ · ແອຂຶ້ນເປັນ [SET] ບໍ່ແຍກໜ່ວຍໃນ/ນອກ
           </p>
         </header>
 
@@ -361,7 +361,7 @@ function BillPicker({ onClose, onPick }: { onClose: () => void; onPick: (bill: B
           ))}
 
           {!loading && rows.length === 0 && (
-            <p className="py-12 text-center text-sm text-slate-400">ບໍ່ພົບບິນຂາຍທີ່ມີລາຍການຕິດຕັ້ງ</p>
+            <p className="py-12 text-center text-sm text-slate-400">ບໍ່ພົບບິນຂາຍທີ່ມີບໍລິການຕິດຕັ້ງ</p>
           )}
         </div>
       </div>
