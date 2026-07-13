@@ -80,7 +80,11 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
         result = await rejectJob(user, workflow, code, String(body.reason ?? ""));
         break;
       case "start":
-        result = workflow === "install" ? await startInstallFlow(user, code) : await startRepairFlow(user, code);
+        // ແອັບ = ຊ່າງຢູ່ໜ້າງານ ⇒ **ບັງຄັບ check-in** (ຝັ່ງເວັບບໍ່ບັງຄັບ — ເບິ່ງ lib/job-flow)
+        result =
+          workflow === "install"
+            ? await startInstallFlow(user, code, { requireCheckin: true })
+            : await startRepairFlow(user, code, { requireCheckin: true });
         break;
       case "finish":
         result =

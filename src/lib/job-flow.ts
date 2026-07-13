@@ -189,14 +189,31 @@ export async function rejectJob(
 
 /* ── ຂັ້ນຕອນຕິດຕັ້ງ ─────────────────────────────────────────────── */
 
-export async function startInstallFlow(session: Session, code: string): Promise<FlowResult> {
+/**
+ * ເລີ່ມຕິດຕັ້ງ.
+ *
+ * ── check-in ບັງຄັບ **ສະເພາະແອັບ** (13-07-2026) ──
+ * check-in ຄືຫຼັກຖານວ່າຊ່າງ **ໄປຮອດໜ້າງານຈິງ** (ພິກັດ + ຮູບ) ⇒ ມີຄວາມໝາຍກໍ່ຕໍ່ເມື່ອ
+ * ຄົນກົດຄືຊ່າງທີ່ຢູ່ໜ້າງານ = **ແອັບມືຖື**.
+ * ຝັ່ງ **ເວັບ** ຄົນທີ່ກົດມັກເປັນ CS/ຫົວໜ້າ ທີ່ນັ່ງຢູ່ຫ້ອງການ (ຊ່າງໂທບອກແລ້ວກົດແທນ)
+ * ⇒ ບັງຄັບ check-in ຢູ່ເວັບ = **ງານຕັນ** (ຄົນກົດບໍ່ໄດ້ຢູ່ໜ້າງານ ຈຶ່ງ check-in ບໍ່ໄດ້).
+ * ⇒ ເວັບບໍ່ບັງຄັບ · ແອັບບັງຄັບ (ຝັ່ງເອີ້ນເປັນຄົນບອກ ບໍ່ແມ່ນເດົາຢູ່ນີ້).
+ */
+export async function startInstallFlow(
+  session: Session,
+  code: string,
+  options: { requireCheckin?: boolean } = {},
+): Promise<FlowResult> {
   const own = await ownJob(session, "install", code);
   if (!own.ok) return own;
-  const arrived = await query<{ n: number }>(
-    "select count(*)::int n from ods_job_checkin where workflow='install' and job_code=$1 and tech_code=$2",
-    [code, session.username],
-  );
-  if (!arrived.rows[0]?.n) return { ok: false, error: "ຕ້ອງ check-in ໜ້າງານກ່ອນເລີ່ມຕິດຕັ້ງ" };
+
+  if (options.requireCheckin) {
+    const arrived = await query<{ n: number }>(
+      "select count(*)::int n from ods_job_checkin where workflow='install' and job_code=$1 and tech_code=$2",
+      [code, session.username],
+    );
+    if (!arrived.rows[0]?.n) return { ok: false, error: "ຕ້ອງ check-in ໜ້າງານກ່ອນເລີ່ມຕິດຕັ້ງ" };
+  }
 
   const done = await query(
     `update ods_tb_install set start_install=${NOW}
@@ -292,10 +309,15 @@ export async function jobPhotos(workflow: Workflow, code: string) {
 
 /* ── ຂັ້ນຕອນສ້ອມແປງ ─────────────────────────────────────────────── */
 
-export async function startRepairFlow(session: Session, code: string): Promise<FlowResult> {
+/** ເລີ່ມສ້ອມແປງ — check-in ບັງຄັບສະເພາະ **ແອັບ** ແລະ **ງານນອກສະຖານທີ່** (ເບິ່ງ startInstallFlow) */
+export async function startRepairFlow(
+  session: Session,
+  code: string,
+  options: { requireCheckin?: boolean } = {},
+): Promise<FlowResult> {
   const own = await ownJob(session, "repair", code);
   if (!own.ok) return own;
-  if (own.job?.onsite) {
+  if (options.requireCheckin && own.job?.onsite) {
     const arrived = await query<{ n: number }>(
       "select count(*)::int n from ods_job_checkin where workflow='repair' and job_code=$1 and tech_code=$2",
       [code, session.username],
