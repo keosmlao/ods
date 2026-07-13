@@ -51,6 +51,12 @@ const HOME: NavGroup = {
   icon: LayoutDashboard,
   items: [
     { label: "ໜ້າລວມ", href: "/dashboard" },
+    /**
+     * ຄິວງານປະຈຳວັນ = "ມື້ນີ້ຂ້ອຍ/ຊ່າງຂ້ອຍຕ້ອງໄປໃສແດ່" — ເປັນເລື່ອງ **ຂອງມື້ນີ້**
+     * ບໍ່ແມ່ນເລື່ອງ "ຂັ້ນຕອນຂອງໂມດູນຕິດຕັ້ງ" ແລະ ດຽວນີ້ມັນລວມງານ **ສ້ອມ** ນຳແລ້ວ
+     * ⇒ ຢູ່ໃຕ້ກຸ່ມ "ຕິດຕັ້ງ" ບໍ່ຖືກຕໍ່ໄປ. ຊ່າງເປີດອັນນີ້ທຸກເຊົ້າ ⇒ ຂຶ້ນມາຢູ່ "ຂອງຂ້ອຍ".
+     */
+    { label: "ຄິວງານປະຈຳວັນ", href: "/installations/schedule" },
     { label: "ກິດຈະກຳຂອງຂ້ອຍ", href: "/activities" },
     { label: "ການແຈ້ງເຕືອນ", href: "/notifications" },
   ],
@@ -84,7 +90,6 @@ const INSTALL: NavGroup = {
     { label: "ງານຕິດຕັ້ງ", href: "/installations" },
     { label: "ມອບໝາຍງານ", href: "/installations/assign", count: "/installations/assign" },
     { label: "ຮັບງານຕິດຕັ້ງ", href: "/installations/accept", count: "/installations/accept" },
-    { label: "ຄິວງານຊ່າງປະຈຳວັນ", href: "/installations/schedule" },
     { label: "ໃບຂໍເບີກ(ຕິດຕັ້ງ)", href: "/installations/spare-requests", divider: true },
     { label: "ເບີກອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/installations/dispatch" },
     { label: "ຮັບອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/installations/spare-pickup" },
