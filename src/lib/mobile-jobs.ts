@@ -113,7 +113,7 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         exists (select 1 from ods_job_checkin h where h.workflow='install' and h.job_code=a.code and h.tech_code=$1) as has_checked_in,
         exists (select 1 from ods_job_checkin h where h.workflow='install' and h.job_code=a.code and h.tech_code=$1 and h.checkout_at is not null) as has_checked_out,
         (a.tech_confirm is not null
-          and (${INSTALL_STAGE_SQL}) between 1 and 5
+          and (${INSTALL_STAGE_SQL}) in (4,5)
           and not ${CHECKED_IN("install")}) as can_check_in,
         ${CHECKED_IN("install")} as can_check_out,
         ${CHECKED_IN("install")} as checked_in,
@@ -129,30 +129,30 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
 
   const repair = await query<MobileJob>(
     `select 'repair' as workflow, a.code,
-        b.name_1 as customer, b.tel, b.address,
+        b.name_1 as customer, b.tel, coalesce(nullif(a.location_repair,''), b.address) as address,
         a.name_1 as product,
         concat_ws(' ', a.p_brand, a.p_model) as detail,
         (${REPAIR_ONSITE}) as onsite,
         (${STAGE_SQL}) as stage,
         (${STAGE_LABEL_SQL}) as stage_label,
         ${STAGE_ELAPSED_SQL} as elapsed_seconds,
-        null as appointment,
+        to_char(a.appoint_date,'DD-MM-YYYY') as appointment,
         (${REPAIR_ACTION}) as action,
         a.repair_confirm is not null as accepted,
         exists (select 1 from ods_job_checkin h where h.workflow='repair' and h.job_code=a.code and h.tech_code=$1) as has_checked_in,
         exists (select 1 from ods_job_checkin h where h.workflow='repair' and h.job_code=a.code and h.tech_code=$1 and h.checkout_at is not null) as has_checked_out,
         ((${REPAIR_ONSITE}) and a.repair_confirm is not null
-          and (${STAGE_SQL}) between 1 and 9
+          and (${STAGE_SQL}) in (1,2,8,9)
           and not ${CHECKED_IN("repair")}) as can_check_in,
         ${CHECKED_IN("repair")} as can_check_out,
         ${CHECKED_IN("repair")} as checked_in,
-        null::double precision as lat, null::double precision as lng
+        a.location_lat as lat, a.location_lng as lng
       from tb_product a
       left join ar_customer b on b.code = a.cust_code
      where ${OPEN_JOBS}
        and coalesce(a.emp_code,'') <> ''
        and a.emp_code = $1
-     order by a.time_register asc`,
+     order by a.appoint_date asc nulls last, a.time_register asc`,
     [tech],
   );
 

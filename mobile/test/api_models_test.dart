@@ -18,12 +18,24 @@ void main() {
       'appointment': '13-07-2026',
       'action': 'start',
       'checked_in': false,
+      'accepted': true,
+      'has_checked_in': true,
+      'has_checked_out': false,
+      'can_check_in': false,
+      'can_check_out': true,
+      'lat': 17.9757,
+      'lng': 102.6331,
     });
 
     expect(job.workflow, 'install');
     expect(job.action, 'start');
     expect(job.days, 1);
     expect(job.onsite, isTrue);
+    expect(job.accepted, isTrue);
+    expect(job.hasCheckedIn, isTrue);
+    expect(job.canCheckOut, isTrue);
+    expect(job.lat, 17.9757);
+    expect(job.lng, 102.6331);
   });
 
   test('ApiError exposes a readable message', () {

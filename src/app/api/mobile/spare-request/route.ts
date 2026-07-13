@@ -1,7 +1,7 @@
 import { requireMobile } from "@/lib/mobile-auth";
 import { ownMobileJob } from "@/lib/job-flow";
 import { TECH_SIDE } from "@/lib/roles";
-import { createSpareRequest, pickupSpares } from "@/lib/tech-flow";
+import { createInstallSpareRequest, createSpareRequest, pickupSpares } from "@/lib/tech-flow";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
@@ -13,7 +13,7 @@ import { NextResponse } from "next/server";
  * ຕົວອອກເອກະສານຢູ່ lib/tech-flow ບ່ອນດຽວ (ອັນດຽວກັບປຸ່ມຢູ່ເວັບ).
  */
 type Body =
-  | { action: "request"; code: string; remark?: string; wh_code: string; shelf_code: string }
+  | { action: "request"; workflow?: "install" | "repair"; code: string; remark?: string; wh_code: string; shelf_code: string }
   | { action: "pickup"; doc_ref: string; remark?: string };
 
 export async function POST(request: Request) {
@@ -29,12 +29,13 @@ export async function POST(request: Request) {
 
   try {
     if (body.action === "request") {
-      const own = await ownMobileJob(guard.user, "repair", String(body.code ?? ""));
+      const workflow = body.workflow === "install" ? "install" : "repair";
+      const own = await ownMobileJob(guard.user, workflow, String(body.code ?? ""));
       if (!own.ok) return NextResponse.json({ error: own.error }, { status: 403 });
     }
     const result =
       body.action === "request"
-        ? await createSpareRequest(guard.user, {
+        ? await (body.workflow === "install" ? createInstallSpareRequest : createSpareRequest)(guard.user, {
             code: String(body.code ?? ""),
             remark: String(body.remark ?? ""),
             wh_code: String(body.wh_code ?? ""),

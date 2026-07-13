@@ -1,6 +1,6 @@
 import { verifyCredentials } from "@/lib/credentials";
 import { createMobileToken } from "@/lib/mobile-auth";
-import { ROLE_LABEL, roleOf } from "@/lib/roles";
+import { ROLE_LABEL, roleOf, TECH_SIDE } from "@/lib/roles";
 import { NextResponse } from "next/server";
 
 /**
@@ -21,6 +21,9 @@ export async function POST(request: Request) {
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 401 });
 
     const role = roleOf(result.session);
+    if (!TECH_SIDE.includes(role)) {
+      return NextResponse.json({ error: "ແອັບນີ້ສຳລັບພະນັກງານຝ່າຍຊ່າງເທົ່ານັ້ນ" }, { status: 403 });
+    }
     return NextResponse.json({
       token: await createMobileToken(result.session),
       user: { username: result.session.username, role, role_label: ROLE_LABEL[role] },

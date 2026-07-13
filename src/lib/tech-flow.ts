@@ -94,6 +94,19 @@ export async function searchSpares(text: string, inStockOnly = false): Promise<S
 /* ── ກວດເຊັກ ────────────────────────────────────────────────────── */
 
 export async function startCheckFlow(session: Session, code: string): Promise<FlowResult> {
+  const allowed = await query<{ allowed: boolean }>(
+    `select (
+       repair_confirm is not null and emp_code=$2 and
+       (coalesce(service_type,'') not in ('IH','PS') or exists (
+         select 1 from ods_job_checkin c
+          where c.workflow='repair' and c.job_code=a.code and c.tech_code=$2
+       ))
+     ) allowed from tb_product a where a.code=$1`,
+    [code, session.username],
+  );
+  if (!allowed.rows[0]?.allowed) {
+    return { ok: false, error: "ຕ້ອງຮັບງານ ແລະ check-in ໜ້າງານກ່ອນເລີ່ມກວດເຊັກ" };
+  }
   // ຂັ້ນ 1 = ລໍຖ້າກວດເຊັກ ເທົ່ານັ້ນ (ກົດຊ້ຳບໍ່ຂຽນທັບ ⇒ ໂມງ SLA ບໍ່ຖືກຣີເຊັດ)
   const done = await query(
     `update tb_product a set time_check=${NOW}, status=1
@@ -212,6 +225,16 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
         [session.username, input.code],
       );
       spareCount = moved.rowCount ?? 0;
+      if (spareCount === 0) {
+        await client.query("rollback");
+        return { ok: false, error: "ເລືອກວ່າໃຊ້ອາໄຫຼ່ ແຕ່ຍັງບໍ່ມີລາຍການອາໄຫຼ່" };
+      }
+      await client.query("delete from ic_trans_detail_draft where user_created=$1 and product_code=$2", [
+        session.username,
+        input.code,
+      ]);
+    } else {
+      // ຖ້າປ່ຽນໃຈວ່າບໍ່ໃຊ້ ຢ່າປ່ອຍກະຕ່າຮ່າງຄ້າງໄປປົນກັບວຽກຄັ້ງຕໍ່ໄປ.
       await client.query("delete from ic_trans_detail_draft where user_created=$1 and product_code=$2", [
         session.username,
         input.code,
@@ -322,10 +345,82 @@ export async function createSpareRequest(
   return { ok: true, message: `ສ້າງໃບຂໍເບີກ ${docNo} (${lineCount} ລາຍການ)`, doc_no: docNo };
 }
 
+/** ໃບຂໍເບີກອາໄຫຼ່ຂອງງານຕິດຕັ້ງ — ໃຊ້ກົດ outstanding ດຽວກັນ. */
+export async function createInstallSpareRequest(
+  session: Session,
+  input: { code: string; remark: string; wh_code: string; shelf_code: string },
+): Promise<FlowResult & { doc_no?: string }> {
+  if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };
+  if (!input.wh_code || !input.shelf_code) return { ok: false, error: "ກະລຸນາເລືອກສາງ ແລະ ທີ່ເກັບ" };
+  const { date: docDate, at } = nowParts();
+  const client = await db.connect();
+  let docNo = "";
+  let lineCount = 0;
+  try {
+    await client.query("begin");
+    await client.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
+    const owner = await client.query<{ accepted: boolean }>(
+      `select tech_confirm is not null accepted from ods_tb_install
+        where code=$1 and tech_code=$2 and cancel_date is null and job_finish is null for update`,
+      [input.code, session.username],
+    );
+    if (!owner.rows[0]?.accepted) {
+      await client.query("rollback");
+      return { ok: false, error: "ຕ້ອງຮັບງານຕິດຕັ້ງກ່ອນຂໍເບີກອາໄຫຼ່" };
+    }
+    const lines = await client.query<{
+      item_code: string;
+      item_name: string | null;
+      unit_code: string | null;
+      qty: string;
+    }>(OUTSTANDING_SPARES, [input.code]);
+    if (lines.rows.length === 0) {
+      await client.query("rollback");
+      return { ok: false, error: "ບໍ່ມີອາໄຫຼ່ທີ່ຄ້າງຂໍເບີກ" };
+    }
+    docNo = await nextDocNo(client, "SION", at);
+    lineCount = lines.rows.length;
+    await client.query(
+      `insert into ic_trans(trans_flag,doc_date,doc_no,product_code,remark,status,used_status,user_created,job_type,wh_code,shelf_code)
+       values($1,$2,$3,$4,$5,0,1,$6,'install',$7,$8)`,
+      [TRANS.REQUEST, docDate, docNo, input.code, input.remark, session.username, input.wh_code, input.shelf_code],
+    );
+    for (const line of lines.rows) {
+      await client.query(
+        `insert into ic_trans_detail(trans_flag,doc_date,doc_no,product_code,item_code,item_name,qty,unit_code,calc_flag,status,user_created,job_type)
+         values($1,$2,$3,$4,$5,$6,$7,$8,1,0,$9,'install')`,
+        [TRANS.REQUEST, docDate, docNo, input.code, line.item_code, line.item_name, line.qty, line.unit_code, session.username],
+      );
+    }
+    await client.query(
+      `update tb_used_spare set reg_start=${NOW}
+        where product_code=$1 and reg_start is null and item_code=any($2::varchar[])`,
+      [input.code, lines.rows.map((line) => line.item_code)],
+    );
+    await client.query(`update ods_tb_install set reg_start=coalesce(reg_start,${NOW}) where code=$1`, [input.code]);
+    await client.query(`update ods_tb_install_detail set reg_start=coalesce(reg_start,${NOW}) where code=$1`, [input.code]);
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    console.error("createInstallSpareRequest failed", error);
+    return { ok: false, error: "ສ້າງໃບຂໍເບີກບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+  }
+  await logChange(
+    "ods_tb_install",
+    input.code,
+    `ສ້າງໃບຂໍເບີກ ${docNo} · ອາໄຫຼ່ ${lineCount} ລາຍການ`,
+    { roles: ROLE_WAREHOUSE },
+  );
+  return { ok: true, message: `ສ້າງໃບຂໍເບີກ ${docNo} (${lineCount} ລາຍການ)`, doc_no: docNo };
+}
+
 /* ── ຊ່າງຮັບອາໄຫຼ່ (PISP · 166) ─────────────────────────────────── */
 
 /** ໃບເບີກທີ່ສາງຈ່າຍໃຫ້ແລ້ວ ແຕ່ຊ່າງຍັງບໍ່ໄປຮັບ — ຄິວ "ຮັບອາໄຫຼ່" ຂອງຊ່າງ */
 export type PickupDoc = {
+  workflow: "install" | "repair";
   doc_no: string;
   job_code: string;
   doc_date: string;
@@ -335,7 +430,7 @@ export type PickupDoc = {
 export async function pickupQueue(session: Session): Promise<PickupDoc[]> {
   return (
     await query<PickupDoc>(
-      `select ic.doc_no, ic.product_code as job_code,
+      `select 'repair'::varchar workflow, ic.doc_no, ic.product_code as job_code,
           to_char(ic.doc_date,'DD-MM-YYYY') as doc_date,
           (select count(*)::int from ic_trans_detail d where d.doc_no = ic.doc_no and d.trans_flag = ${TRANS.DISPATCH}) as lines
         from ic_trans ic
@@ -344,7 +439,16 @@ export async function pickupQueue(session: Session): Promise<PickupDoc[]> {
          and (ic.job_type is null or ic.job_type <> 'install')
          and not exists (select 1 from ic_trans k where k.trans_flag = ${TRANS_PICK} and k.doc_ref = ic.doc_no)
          and p.emp_code = $1
-       order by ic.doc_date asc`,
+       union all
+       select 'install'::varchar workflow, ic.doc_no, ic.product_code as job_code,
+          to_char(ic.doc_date,'DD-MM-YYYY') as doc_date,
+          (select count(*)::int from ic_trans_detail d where d.doc_no=ic.doc_no and d.trans_flag=${TRANS.DISPATCH}) lines
+         from ic_trans ic
+         join ods_tb_install i on i.code=ic.product_code
+        where ic.trans_flag=${TRANS.DISPATCH} and ic.job_type='install'
+          and not exists (select 1 from ic_trans k where k.trans_flag=${TRANS_PICK} and k.doc_ref=ic.doc_no)
+          and i.tech_code=$1
+       order by doc_date asc`,
       [session.username],
     )
   ).rows;
@@ -363,19 +467,27 @@ export async function pickupSpares(session: Session, docRef: string, remark: str
   let pickNo = "";
   let productCode = "";
   let pickLines = 0;
+  let workflow: "install" | "repair" = "repair";
 
   try {
     await client.query("begin");
     await client.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
 
     const head = (
-      await client.query<{ product_code: string | null }>(
-        `select ic.product_code
+      await client.query<{ product_code: string | null; workflow: "install" | "repair" }>(
+        `select ic.product_code,
+                case when ic.job_type='install' then 'install' else 'repair' end workflow
            from ic_trans ic
-           join tb_product p on p.code = ic.product_code
           where ic.doc_no=$1 and ic.trans_flag=$2
-            and (ic.job_type is null or ic.job_type <> 'install')
-            and p.emp_code=$3
+            and (
+              (ic.job_type='install' and exists (
+                select 1 from ods_tb_install i where i.code=ic.product_code and i.tech_code=$3
+              ))
+              or
+              ((ic.job_type is null or ic.job_type<>'install') and exists (
+                select 1 from tb_product p where p.code=ic.product_code and p.emp_code=$3
+              ))
+            )
           limit 1`,
         [docRef, TRANS.DISPATCH, session.username],
       )
@@ -385,6 +497,7 @@ export async function pickupSpares(session: Session, docRef: string, remark: str
       return { ok: false, error: "ບໍ່ພົບໃບເບີກອາໄຫຼ່" };
     }
     productCode = head.product_code;
+    workflow = head.workflow;
 
     const already = await client.query<{ count: number }>(
       "select count(*)::int count from ic_trans where trans_flag=$1 and doc_ref=$2",
@@ -408,19 +521,29 @@ export async function pickupSpares(session: Session, docRef: string, remark: str
 
     pickNo = await nextDocNo(client, "PISP", at);
     await client.query(
-      `insert into ic_trans(trans_flag, doc_date, doc_no, doc_ref, product_code, remark, user_created, status)
-       values($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [TRANS_PICK, docDate, pickNo, docRef, productCode, remark, session.username, LINE_STATUS.PENDING],
+      `insert into ic_trans(trans_flag, doc_date, doc_no, doc_ref, product_code, remark, user_created, status, job_type)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [
+        TRANS_PICK,
+        docDate,
+        pickNo,
+        docRef,
+        productCode,
+        remark,
+        session.username,
+        LINE_STATUS.PENDING,
+        workflow === "install" ? "install" : null,
+      ],
     );
 
     for (const line of lines.rows) {
       await client.query(
         `insert into ic_trans_detail(trans_flag, doc_date, doc_no, doc_ref, product_code,
-           item_code, item_name, qty, unit_code, calc_flag, user_created, status)
-         values($1,$2,$3,$4,$5,$6,$7,$8,$9,1,$10,$11)`,
+           item_code, item_name, qty, unit_code, calc_flag, user_created, status, job_type)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9,1,$10,$11,$12)`,
         [
           TRANS_PICK, docDate, pickNo, docRef, productCode, line.item_code, line.item_name, line.qty, line.unit_code,
-          session.username, LINE_STATUS.ISSUED,
+          session.username, LINE_STATUS.ISSUED, workflow === "install" ? "install" : null,
         ],
       );
       await client.query(
@@ -432,6 +555,19 @@ export async function pickupSpares(session: Session, docRef: string, remark: str
              order by (reg_finish is not null) desc, (qty = $3::numeric) desc, roworder asc limit 1)`,
         [productCode, line.item_code, line.qty],
       );
+    }
+
+    if (workflow === "install") {
+      const unpicked = await client.query<{ count: number }>(
+        `select count(*)::int count from ic_trans t
+          where t.trans_flag=$1 and t.product_code=$2 and t.job_type='install'
+            and not exists (select 1 from ic_trans p where p.trans_flag=$3 and p.doc_ref=t.doc_no)`,
+        [TRANS.DISPATCH, productCode, TRANS_PICK],
+      );
+      if (!unpicked.rows[0]?.count) {
+        await client.query(`update ods_tb_install set pick_finish=${NOW} where code=$1`, [productCode]);
+        await client.query(`update ods_tb_install_detail set pick_finish=${NOW} where code=$1`, [productCode]);
+      }
     }
 
     await client.query("commit");

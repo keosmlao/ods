@@ -34,6 +34,13 @@ class _JobScreenState extends State<JobScreen> {
 
   final picker = ImagePicker();
 
+  @override
+  void dispose() {
+    note.dispose();
+    reason.dispose();
+    super.dispose();
+  }
+
   Future<void> reload() async {
     final rows = await Api.jobs();
     final fresh = rows.where(
@@ -112,11 +119,19 @@ class _JobScreenState extends State<JobScreen> {
     final point = await coordinates();
     if (point == null) return;
     final photo = await shoot();
+    if (photo == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ຕ້ອງຖ່າຍຮູບໜ້າງານກ່ອນ check-in')),
+        );
+      }
+      return;
+    }
     await run({
       'action': 'checkin',
       'lat': point.latitude,
       'lng': point.longitude,
-      if (photo != null) 'photo': photo,
+      'photo': photo,
     });
   }
 
@@ -159,7 +174,8 @@ class _JobScreenState extends State<JobScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final installWithoutPhoto = job.workflow == 'install' && photos.isEmpty;
+    final evidenceRequired =
+        (job.workflow == 'install' || job.onsite) && photos.isEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -170,6 +186,8 @@ class _JobScreenState extends State<JobScreen> {
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
+          _WorkflowProgress(job: job),
+          const SizedBox(height: 12),
           _Card(
             children: [
               Text(
@@ -267,38 +285,52 @@ class _JobScreenState extends State<JobScreen> {
               if (job.workflow == 'repair' &&
                   (job.stage == 1 || job.stage == 2))
                 _button(
-                  job.stage == 1 ? 'ເລີ່ມກວດເຊັກ' : 'ບັນທຶກຜົນກວດເຊັກ',
-                  teal,
-                  () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    final navigator = Navigator.of(context);
-                    if (job.stage == 1) {
-                      try {
-                        await Api.check(job.code, {'action': 'start'});
-                      } on ApiError catch (failure) {
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text(failure.message),
-                            backgroundColor: danger,
-                          ),
-                        );
-                        return;
-                      }
-                    }
-                    await navigator.push(
-                      MaterialPageRoute(
-                        builder: (_) => CheckScreen(code: job.code),
-                      ),
-                    );
-                    if (mounted) await reload();
-                  },
+                  job.stage == 1 && job.onsite && !job.hasCheckedIn
+                      ? 'ຕ້ອງ check-in ກ່ອນກວດເຊັກ'
+                      : job.stage == 1
+                      ? 'ເລີ່ມກວດເຊັກ'
+                      : 'ບັນທຶກຜົນກວດເຊັກ',
+                  job.stage == 1 && job.onsite && !job.hasCheckedIn
+                      ? muted
+                      : teal,
+                  job.stage == 1 && job.onsite && !job.hasCheckedIn
+                      ? null
+                      : () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final navigator = Navigator.of(context);
+                          if (job.stage == 1) {
+                            try {
+                              await Api.check(job.code, {'action': 'start'});
+                            } on ApiError catch (failure) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(failure.message),
+                                  backgroundColor: danger,
+                                ),
+                              );
+                              return;
+                            }
+                          }
+                          await navigator.push(
+                            MaterialPageRoute(
+                              builder: (_) => CheckScreen(code: job.code),
+                            ),
+                          );
+                          if (mounted) await reload();
+                        },
                 ),
 
               if (job.action == 'start')
                 _button(
-                  job.workflow == 'install' ? 'ເລີ່ມຕິດຕັ້ງ' : 'ເລີ່ມສ້ອມແປງ',
-                  teal,
-                  () => run({'action': 'start'}),
+                  job.onsite && !job.hasCheckedIn
+                      ? 'ຕ້ອງ check-in ກ່ອນເລີ່ມງານ'
+                      : job.workflow == 'install'
+                      ? 'ເລີ່ມຕິດຕັ້ງ'
+                      : 'ເລີ່ມສ້ອມແປງ',
+                  job.onsite && !job.hasCheckedIn ? muted : teal,
+                  job.onsite && !job.hasCheckedIn
+                      ? null
+                      : () => run({'action': 'start'}),
                 ),
 
               if (job.action == 'finish') ...[
@@ -320,7 +352,7 @@ class _JobScreenState extends State<JobScreen> {
                 Text(
                   'ຮູບຜົນງານ ${photos.isNotEmpty
                       ? '(${photos.length} ຮູບ)'
-                      : job.workflow == 'install'
+                      : job.workflow == 'install' || job.onsite
                       ? '— ບັງຄັບຢ່າງໜ້ອຍ 1 ຮູບ'
                       : '(ບໍ່ບັງຄັບ)'}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
@@ -402,22 +434,23 @@ class _JobScreenState extends State<JobScreen> {
                 ],
                 const SizedBox(height: 8),
                 _button(
-                  installWithoutPhoto
+                  evidenceRequired
                       ? 'ຕ້ອງແນບຮູບກ່ອນ'
                       : 'ບັນທຶກສຳເລັດ — ສົ່ງກວດ QC',
-                  installWithoutPhoto ? muted : ok,
-                  installWithoutPhoto
+                  evidenceRequired ? muted : ok,
+                  evidenceRequired
                       ? null
                       : () => run({
                           'action': 'finish',
                           'note': note.text,
                           'photos': photos,
-                        }, pop: true),
+                        }),
                 ),
               ],
 
               if (job.action == 'wait_spare') ...[
-                if (job.workflow == 'repair' && job.stage == 5) ...[
+                if ((job.workflow == 'repair' && job.stage == 5) ||
+                    (job.workflow == 'install' && job.stage == 1)) ...[
                   const Text(
                     'ຕ້ອງອອກໃບຂໍເບີກອາໄຫຼ່ກ່ອນ',
                     style: TextStyle(color: muted),
@@ -427,7 +460,10 @@ class _JobScreenState extends State<JobScreen> {
                     await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => SpareRequestScreen(code: job.code),
+                        builder: (_) => SpareRequestScreen(
+                          code: job.code,
+                          workflow: job.workflow,
+                        ),
                       ),
                     );
                     if (mounted) await reload();
@@ -468,13 +504,13 @@ class _JobScreenState extends State<JobScreen> {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                job.checkedIn
+                job.canCheckOut
                     ? _button(
                         'check-out (ອອກຈາກໜ້າງານ)',
                         const Color(0xFF334155),
                         checkOut,
                       )
-                    : job.workflow == 'install' && job.action == 'accept'
+                    : !job.accepted
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -491,7 +527,13 @@ class _JobScreenState extends State<JobScreen> {
                           _button('ຍັງ check-in ບໍ່ໄດ້', muted, null),
                         ],
                       )
-                    : _button('check-in ໜ້າງານ (ພິກັດ + ຮູບ)', ink, checkIn),
+                    : job.canCheckIn
+                    ? _button('check-in ໜ້າງານ (ພິກັດ + ຮູບ)', ink, checkIn)
+                    : const Text(
+                        'ຂັ້ນປັດຈຸບັນບໍ່ສາມາດ check-in ໄດ້',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: muted),
+                      ),
               ],
             ),
           ],
@@ -546,6 +588,105 @@ class _JobScreenState extends State<JobScreen> {
               ),
             )
           : Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+    );
+  }
+}
+
+class _WorkflowProgress extends StatelessWidget {
+  const _WorkflowProgress({required this.job});
+  final Job job;
+
+  @override
+  Widget build(BuildContext context) {
+    final started = job.workflow == 'install' ? job.stage >= 5 : job.stage >= 2;
+    final finished = job.workflow == 'install'
+        ? job.stage >= 6
+        : job.stage >= 10;
+    final steps = job.onsite
+        ? [
+            ('ຮັບງານ', job.accepted),
+            ('ເຖິງໜ້າງານ', job.hasCheckedIn),
+            ('ລົງມື', started),
+            ('ສຳເລັດ', finished),
+            ('ອອກໜ້າງານ', job.hasCheckedOut),
+          ]
+        : [('ຮັບງານ', job.accepted), ('ລົງມື', started), ('ສຳເລັດ', finished)];
+
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F2F2B),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'ຄວາມຄືບໜ້າວຽກ',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 13),
+          Row(
+            children: List.generate(steps.length, (index) {
+              final step = steps[index];
+              final done = step.$2;
+              return Expanded(
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        if (index > 0)
+                          Expanded(
+                            child: Container(
+                              height: 2,
+                              color: done ? teal : const Color(0xFF36534F),
+                            ),
+                          ),
+                        Container(
+                          width: 23,
+                          height: 23,
+                          decoration: BoxDecoration(
+                            color: done ? teal : const Color(0xFF36534F),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            done ? Icons.check_rounded : Icons.circle,
+                            size: done ? 15 : 7,
+                            color: done
+                                ? Colors.white
+                                : const Color(0xFF89A7A2),
+                          ),
+                        ),
+                        if (index < steps.length - 1)
+                          Expanded(
+                            child: Container(
+                              height: 2,
+                              color: steps[index + 1].$2
+                                  ? teal
+                                  : const Color(0xFF36534F),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      step.$1,
+                      maxLines: 2,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: done ? Colors.white : const Color(0xFF9BB4B0),
+                        fontSize: 8,
+                        height: 1.2,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
     );
   }
 }

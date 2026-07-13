@@ -12,10 +12,10 @@ import { NextResponse, type NextRequest } from "next/server";
  * ແຕ່ຢູ່ຄົນລະໜ້າກັບຕອນທີ່ຕັດສິນໃຈ.
  *
  * ສອງເລກທີ່ສົ່ງກັບ:
- *   day  — ງານ **ຕິດຕັ້ງທີ່ນັດໄວ້ໃນມື້ນັ້ນ** (ຕົວກັນນັດຊ້ອນໂດຍກົງ)
- *   open — ງານທີ່ **ຍັງຖືຢູ່ໃນມື** ທັງຕິດຕັ້ງ ແລະ ສ້ອມ (ຊ່າງຄົນດຽວກັນຮັບທັງສອງຝັ່ງ)
- *          ⚠️ ງານສ້ອມ **ບໍ່ມີວັນນັດ** ໃນຖານ (tb_product ມີແຕ່ emp_code + ໂມງຂັ້ນຕອນ)
- *          ⇒ ນັບເປັນ "ຄ້າງໃນມື" ບໍ່ແມ່ນ "ນັດມື້ນັ້ນ" — ຢ່າເອົາໄປປົນກັນ.
+ *   day  — ງານທີ່ **ນັດໄວ້ໃນມື້ນັ້ນ** ທັງ ຕິດຕັ້ງ ແລະ ສ້ອມ (ຕົວກັນນັດຊ້ອນໂດຍກົງ)
+ *          ຝັ່ງສ້ອມນັດວັນໄດ້ຕັ້ງແຕ່ migration 2026-07-13-repair-location (tb_product.appoint_date)
+ *          — ກ່ອນນັ້ນນັບໄດ້ແຕ່ຝັ່ງຕິດຕັ້ງ ⇒ ຊ່າງຖືກນັດຊ້ອນຂ້າມສອງຝັ່ງໂດຍບໍ່ມີໃຜເຫັນ.
+ *   open — ງານທີ່ **ຍັງຖືຢູ່ໃນມື** ທັງສອງຝັ່ງ (ຮວມທັງງານທີ່ບໍ່ໄດ້ນັດວັນ)
  *
  * ສິດ: matcher ຂອງ src/proxy.ts ຕັດ /api ອອກ ⇒ ກວດ role ເອງ (ຝ່າຍບໍລິການ — ຄືໜ້າຈັດຊ່າງ).
  */
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     const rows = (
       await query<TechLoad>(
         `select t.tech,
-            coalesce(i.day, 0)::int as day,
+            (coalesce(i.day, 0) + coalesce(r.day, 0))::int as day,
             (coalesce(i.open, 0) + coalesce(r.open, 0))::int as open
           from (
             -- ຊ່າງທຸກຄົນທີ່ມີງານໃນມື ຫຼື ຖືກນັດມື້ນັ້ນ (ຊື່ຊ່າງມາຈາກຕາຕະລາງງານ ບໍ່ແມ່ນຜູ້ໃຊ້
@@ -61,8 +61,10 @@ export async function GET(request: NextRequest) {
              group by 1
           ) i on i.tech = t.tech
           left join (
-            -- ງານສ້ອມທີ່ຊ່າງຮັບແລ້ວ ແຕ່ຍັງບໍ່ຈົບ (ບໍ່ມີວັນນັດ ⇒ ນັບເປັນຄ້າງໃນມື)
-            select nullif(emp_code,'') as tech, count(*)::int as open
+            -- ງານສ້ອມທີ່ຊ່າງຖືຢູ່ ແລະ ທີ່ນັດໄວ້ໃນມື້ນັ້ນ (ດຽວນີ້ tb_product ມີ appoint_date ແລ້ວ)
+            select nullif(emp_code,'') as tech,
+                count(*)::int as open,
+                count(*) filter (where $1::date is not null and appoint_date = $1::date)::int as day
               from tb_product
              where nullif(emp_code,'') is not null
                and time_finish_repair is null

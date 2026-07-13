@@ -8,6 +8,8 @@ import { SelectField } from "@/components/select-field";
 import type { ScanResult } from "@/components/service-scan";
 import { AlertTriangle, LoaderCircle, LogOut, RotateCcw, Save, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { LocationPicker, type Point } from "@/components/installation/location-picker";
+import { ONSITE_SERVICE_TYPES } from "@/lib/sla";
 import { useActionState, useEffect, useState } from "react";
 
 type Option = { code: string; name_1: string };
@@ -64,6 +66,18 @@ export function ServiceForm({
   const [billDate, setBillDate] = useState(scanned?.billDate ?? prefill.billdate ?? "");
   /** ຄ່າທີ່ພະນັກງານເລືອກເອງ — null ຄື "ຍັງບໍ່ໄດ້ແຕະ, ໃຫ້ໃຊ້ຄ່າທີ່ແນະນຳ" */
   const [warrantyChoice, setWarrantyChoice] = useState<string | null>(null);
+
+  /**
+   * ປະເພດບໍລິການ — ຕ້ອງເປັນ state ເພາະ **ງານນອກສະຖານທີ່ (IH/PS) ຕ້ອງມີສະຖານທີ່ໜ້າງານ**
+   * (75% ຂອງໃບ). ແຕ່ກ່ອນ tb_product ບໍ່ມີຖັນນີ້ ⇒ ຊ່າງອາໄສທີ່ຢູ່ລູກຄ້າ ເຊິ່ງອາດເປັນ
+   * ທີ່ຢູ່ຮ້ານ ບໍ່ແມ່ນບ່ອນທີ່ເຄື່ອງຕິດຢູ່.
+   */
+  const [serviceType, setServiceType] = useState("");
+  /** ພິກັດໜ້າງານ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງໄດ້ຈາກແອັບ */
+  const [point, setPoint] = useState<Point | null>(null);
+
+  /** IH ສ້ອມບ້ານລູກຄ້າ · PS ໄປຮັບບ້ານລູກຄ້າ ⇒ ຊ່າງອອກໜ້າງານ (ນິຍາມດຽວກັບ lib/sla) */
+  const onsite = ONSITE_SERVICE_TYPES.includes(serviceType as "IH" | "PS");
 
   const suggestion = warrantyFromBill(billDate);
   // ຄຳນວນຕອນ render — ບໍ່ຕ້ອງ setState ໃນ effect
@@ -357,6 +371,8 @@ export function ServiceForm({
                 <label className={label}>ປະເພດບໍລິການ *</label>
                 <SelectField
                   name="service_type"
+                  value={serviceType}
+                  onChange={setServiceType}
                   options={[
                     { value: "CI", label: "ລູກຄ້ານຳເຄື່ອງເຂົ້າ" },
                     { value: "PS", label: "ໄປຮັບບ້ານລູກຄ້າ" },
@@ -365,6 +381,37 @@ export function ServiceForm({
                   ]}
                 />
               </div>
+
+              {/* ── ນອກສະຖານທີ່ ⇒ ຕ້ອງຮູ້ວ່າ "ໄປໃສ" ແລະ "ໄປມື້ໃດ" (CI/ST ເຮັດຢູ່ສູນ ບໍ່ຕ້ອງ) ── */}
+              {onsite && (
+                <>
+                  <div className="sm:col-span-2">
+                    <label className={label}>ສະຖານທີ່ໜ້າງານ *</label>
+                    <input
+                      name="location_repair"
+                      required
+                      defaultValue={customer?.address ?? ""}
+                      key={customer?.code ?? "none"}
+                      placeholder="ບ້ານ / ເມືອງ / ຈຸດສັງເກດ"
+                      className={field}
+                    />
+                    <p className="mt-1 text-xs text-slate-400">
+                      ຕື່ມມາຈາກທີ່ຢູ່ລູກຄ້າ — ແກ້ໄດ້ ຖ້າເຄື່ອງຢູ່ຄົນລະບ່ອນກັບທີ່ຢູ່ໃນລະບົບ
+                    </p>
+
+                    {/* ພິກັດ (ບໍ່ບັງຄັບ) — ວາງລິງ Google Maps ໄດ້ ຫຼື ປັກໝຸດເອງ */}
+                    <LocationPicker value={point} onChange={setPoint} />
+                    <input type="hidden" name="location_lat" value={point ? String(point.lat) : ""} />
+                    <input type="hidden" name="location_lng" value={point ? String(point.lng) : ""} />
+                  </div>
+
+                  <div>
+                    <label className={label}>ວັນນັດເຂົ້າສ້ອມ</label>
+                    <input type="date" name="appoint_date" className={field} />
+                    <p className="mt-1 text-xs text-slate-400">ຜູ້ຈັດຊ່າງປ່ຽນໄດ້ພາຍຫຼັງ</p>
+                  </div>
+                </>
+              )}
 
               <div className="sm:col-span-2">
                 <label className={label}>ການຈັດສົ່ງຄືນ *</label>

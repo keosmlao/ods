@@ -9,8 +9,13 @@ import '../main.dart';
 /// (server ກອງໃຫ້) ⇒ ໃບທີສອງບໍ່ຂໍຂອງເກົ່າຄືນອີກ ແລ້ວສາງຕັດສະຕັອກສອງເທື່ອ.
 /// ສາງ/ທີ່ເກັບ ດຶງມາຈາກລາຍການທີ່ອະນຸຍາດຢູ່ server (ບໍ່ຝັງໄວ້ໃນແອັບ).
 class SpareRequestScreen extends StatefulWidget {
-  const SpareRequestScreen({super.key, required this.code});
+  const SpareRequestScreen({
+    super.key,
+    required this.code,
+    this.workflow = 'repair',
+  });
   final String code;
+  final String workflow;
 
   @override
   State<SpareRequestScreen> createState() => _SpareRequestScreenState();
@@ -29,6 +34,12 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
     load();
   }
 
+  @override
+  void dispose() {
+    remark.dispose();
+    super.dispose();
+  }
+
   Future<void> load() async {
     try {
       final value = await Api.lookups();
@@ -45,6 +56,7 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
     setState(() => busy = true);
     try {
       final message = await Api.requestSpares(
+        widget.workflow,
         widget.code,
         wh!,
         shelf!,

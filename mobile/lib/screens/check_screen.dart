@@ -29,7 +29,23 @@ class _CheckScreenState extends State<CheckScreen> {
   @override
   void initState() {
     super.initState();
+    diagnosis.addListener(_refreshValidation);
+    reason.addListener(_refreshValidation);
     load();
+  }
+
+  void _refreshValidation() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    diagnosis.removeListener(_refreshValidation);
+    reason.removeListener(_refreshValidation);
+    diagnosis.dispose();
+    reason.dispose();
+    term.dispose();
+    super.dispose();
   }
 
   Future<void> load() async {
@@ -200,7 +216,11 @@ class _CheckScreenState extends State<CheckScreen> {
               backgroundColor: ok,
               minimumSize: const Size.fromHeight(52),
             ),
-            onPressed: busy || diagnosis.text.trim().isEmpty
+            onPressed:
+                busy ||
+                    diagnosis.text.trim().isEmpty ||
+                    (warrantyVoid && reason.text.trim().isEmpty) ||
+                    (useSpare && draft.isEmpty)
                 ? null
                 : () => send({
                     'action': 'save',

@@ -207,6 +207,7 @@ class Api {
   }
 
   static Future<String> requestSpares(
+    String workflow,
     String code,
     String whCode,
     String shelfCode,
@@ -217,6 +218,7 @@ class Api {
       '/api/mobile/spare-request',
       body: {
         'action': 'request',
+        'workflow': workflow,
         'code': code,
         'wh_code': whCode,
         'shelf_code': shelfCode,
@@ -432,11 +434,13 @@ class SpareItem {
 }
 
 class PickupDoc {
+  final String workflow;
   final String docNo;
   final String jobCode;
   final String docDate;
   final int lines;
   PickupDoc({
+    required this.workflow,
     required this.docNo,
     required this.jobCode,
     required this.docDate,
@@ -444,6 +448,7 @@ class PickupDoc {
   });
 
   factory PickupDoc.fromJson(Map<String, dynamic> json) => PickupDoc(
+    workflow: json['workflow'] as String? ?? 'repair',
     docNo: json['doc_no'] as String,
     jobCode: json['job_code'] as String? ?? '-',
     docDate: json['doc_date'] as String? ?? '-',

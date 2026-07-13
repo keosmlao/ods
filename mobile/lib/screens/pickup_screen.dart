@@ -112,7 +112,7 @@ class _PickupScreenState extends State<PickupScreen> {
                                 ),
                               ),
                               Text(
-                                'ໃບຮັບເຄື່ອງ ${doc.jobCode} · ${doc.lines} ລາຍການ · ${doc.docDate}',
+                                '${doc.workflow == 'install' ? 'ຕິດຕັ້ງ' : 'ສ້ອມແປງ'} ${doc.jobCode} · ${doc.lines} ລາຍການ · ${doc.docDate}',
                                 style: const TextStyle(
                                   color: muted,
                                   fontSize: 12,

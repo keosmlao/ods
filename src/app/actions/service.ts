@@ -4,6 +4,7 @@ import { pushToUser } from "@/lib/push";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { APPROVER_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
+import { ONSITE_SERVICE_TYPES } from "@/lib/sla";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { revalidatePath } from "next/cache";
@@ -39,6 +40,18 @@ const schema = z.object({
   billon: z.string(),
   billdate: z.string(),
   emp: z.string().min(1),
+  /**
+   * ── ງານນອກສະຖານທີ່ (IH ສ້ອມບ້ານລູກຄ້າ · PS ໄປຮັບບ້ານລູກຄ້າ = 75% ຂອງໃບ) ──
+   * ແຕ່ກ່ອນ tb_product ບໍ່ມີຖັນສະຖານທີ່ເລີຍ ⇒ ຊ່າງອາໄສທີ່ຢູ່ຂອງ **ລູກຄ້າ** ເຊິ່ງ
+   * ອາດເປັນທີ່ຢູ່ຮ້ານ/ສຳນັກງານໃຫຍ່ ບໍ່ແມ່ນບ່ອນທີ່ເຄື່ອງຕິດຢູ່ ⇒ ໄປຜິດບ່ອນ.
+   * ບັງຄັບສະເພາະ IH/PS (ກວດລຸ່ມນີ້) — CI/ST ເຮັດຢູ່ສູນ ບໍ່ຕ້ອງມີ.
+   */
+  location_repair: z.string().optional().default(""),
+  /** ວັນນັດເຂົ້າສ້ອມ — ຝັ່ງຕິດຕັ້ງມີມາແຕ່ຕົ້ນ ຝັ່ງສ້ອມຫາກໍ່ມີ ⇒ ຈັດຄິວເປັນມື້ໄດ້ */
+  appoint_date: z.string().optional().default(""),
+  /** ພິກັດໜ້າງານ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງ ແລະ ທຽບກັບ check-in ໄດ້ */
+  location_lat: z.string().optional().default(""),
+  location_lng: z.string().optional().default(""),
 });
 
 export type ServiceState = { error?: string };
@@ -56,7 +69,11 @@ const FIELD_LABELS: Record<string, string> = {
   service_type: "ປະເພດບໍລິການ",
   pro_issue: "ອາການເບື້ອງຕົ້ນ",
   emp: "ຊ່າງ",
+  location_repair: "ສະຖານທີ່ໜ້າງານ",
 };
+
+/** ປະເພດບໍລິການທີ່ຊ່າງຕ້ອງອອກໜ້າງານ ⇒ ຕ້ອງມີສະຖານທີ່ (ນິຍາມດຽວກັບ lib/sla) */
+const NEEDS_LOCATION = (serviceType: string) => ONSITE_SERVICE_TYPES.includes(serviceType as "IH" | "PS");
 
 /** ລວມຊື່ຊ່ອງທີ່ຍັງບໍ່ຄົບ ເປັນຂໍ້ຄວາມດຽວ */
 function missingFieldsError(issues: { path: PropertyKey[] }[]) {
@@ -177,6 +194,11 @@ export async function createService(_: ServiceState, formData: FormData): Promis
   if (!parsed.success) return { error: missingFieldsError(parsed.error.issues) };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
+  // ງານນອກສະຖານທີ່ຕ້ອງຮູ້ວ່າ "ໄປໃສ" — ທີ່ຢູ່ລູກຄ້າບໍ່ພຽງພໍ (ອາດເປັນທີ່ຢູ່ຮ້ານ)
+  if (NEEDS_LOCATION(parsed.data.service_type) && !parsed.data.location_repair.trim()) {
+    return { error: "ງານນອກສະຖານທີ່ (ສ້ອມບ້ານລູກຄ້າ / ໄປຮັບບ້ານລູກຄ້າ) ຕ້ອງລະບຸສະຖານທີ່ໜ້າງານ" };
+  }
+
   const files = await collectUploads(formData);
   if (!files.ok) return { error: files.error };
   const uploads = files.uploads;
@@ -222,13 +244,15 @@ export async function createService(_: ServiceState, formData: FormData): Promis
      */
     await client.query(
       `insert into tb_product(code,name_1,sn,p_model,p_brand,p_access,issue,p_type,p_abrasion,p_delivery,
-         warrunty,service_type,cust_code,ap_code,doc_def,doc_date_ref,status,emp_code,time_register,user_regis,item_code)
-       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,localtimestamp,$18,nullif($19,''))`,
+         warrunty,service_type,cust_code,ap_code,doc_def,doc_date_ref,status,emp_code,time_register,user_regis,item_code,
+         location_repair,appoint_date,location_lat,location_lng)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,localtimestamp,$18,nullif($19,''),
+         nullif($20,''), nullif($21,'')::date, nullif($22,'')::double precision, nullif($23,'')::double precision)`,
       [code, d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
         // ap_code (ຮ້ານຄ້າ) = **ລະຫັດລູກຄ້າ** ອັນດຽວກັນ (ນະໂຍບາຍ 13-07-2026)
         // ⇒ ບໍ່ຮັບຈາກຟອມອີກ (ຊ່ອງນັ້ນຖືກຖອດອອກ) ຈຶ່ງບໍ່ມີທາງພິມຜິດ/ຫຼົ້ນກັນ
         d.pro_deli, d.pro_wa, d.service_type, custCode, custCode, d.billon, d.billdate, d.emp, session.username,
-        d.item_code ?? ""],
+        d.item_code ?? "", d.location_repair, d.appoint_date, d.location_lat, d.location_lng],
     );
 
     await saveUploads(client, code, uploads, written);

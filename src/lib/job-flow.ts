@@ -2,8 +2,11 @@ import { logChange } from "@/app/actions/chatter";
 import type { Session } from "@/lib/auth";
 import type { Workflow } from "@/lib/commission";
 import { query } from "@/lib/db";
+import { db } from "@/lib/db";
 import { roleOf } from "@/lib/roles";
+import { INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { STAGE_SQL } from "@/lib/stage";
+import type { PoolClient } from "pg";
 
 /**
  * ຂັ້ນຕອນທີ່ **ຊ່າງ** ລົງມື — ໃຊ້ຮ່ວມກັນລະຫວ່າງ ເວັບ (server actions) ແລະ
@@ -22,21 +25,31 @@ const NOW = "localtimestamp(0)";
 
 /* ── ເປັນວຽກຂອງຊ່າງຄົນນີ້ບໍ ────────────────────────────────────── */
 
-export type JobOwner = { code: string; tech: string | null; cancelled: boolean; accepted: boolean };
+export type JobOwner = {
+  code: string;
+  tech: string | null;
+  cancelled: boolean;
+  accepted: boolean;
+  onsite: boolean;
+  stage: number;
+};
 
 async function ownerOf(workflow: Workflow, code: string): Promise<JobOwner | null> {
   const rows =
     workflow === "install"
       ? await query<JobOwner>(
           `select code, nullif(tech_code,'') as tech, cancel_date is not null as cancelled,
-                  tech_confirm is not null as accepted
-             from ods_tb_install where code=$1`,
+                  tech_confirm is not null as accepted, true as onsite,
+                  (${INSTALL_STAGE_SQL})::int as stage
+             from ods_tb_install a where a.code=$1`,
           [code],
         )
       : await query<JobOwner>(
           `select code, nullif(emp_code,'') as tech, status = 6 as cancelled,
-                  repair_confirm is not null as accepted
-             from tb_product where code=$1`,
+                  repair_confirm is not null as accepted,
+                  coalesce(service_type,'') in ('IH','PS') as onsite,
+                  (${STAGE_SQL})::int as stage
+             from tb_product a where a.code=$1`,
           [code],
         );
   return rows.rows[0] ?? null;
@@ -179,6 +192,11 @@ export async function rejectJob(
 export async function startInstallFlow(session: Session, code: string): Promise<FlowResult> {
   const own = await ownJob(session, "install", code);
   if (!own.ok) return own;
+  const arrived = await query<{ n: number }>(
+    "select count(*)::int n from ods_job_checkin where workflow='install' and job_code=$1 and tech_code=$2",
+    [code, session.username],
+  );
+  if (!arrived.rows[0]?.n) return { ok: false, error: "ຕ້ອງ check-in ໜ້າງານກ່ອນເລີ່ມຕິດຕັ້ງ" };
 
   const done = await query(
     `update ods_tb_install set start_install=${NOW}
@@ -199,6 +217,7 @@ export async function startInstallFlow(session: Session, code: string): Promise<
  * ກໍ່ຖຽງກັນບໍ່ຈົບ. ຝັ່ງສ້ອມ **ບໍ່ບັງຄັບ** (ວຽກສ່ວນຫຼາຍຢູ່ໃນສູນ ແລະ ເຄື່ອງຍັງຢູ່ໃນມືເຮົາ).
  */
 async function savePhotos(
+  client: PoolClient,
   session: Session,
   workflow: Workflow,
   code: string,
@@ -208,7 +227,7 @@ async function savePhotos(
   let saved = 0;
   for (const photo of photos) {
     if (!photo) continue;
-    await query(
+    await client.query(
       `insert into ods_job_photo(workflow, job_code, kind, photo, note, created_by)
        values($1,$2,'finish',$3,nullif($4,''),$5)`,
       [workflow, code, photo, note, session.username],
@@ -231,14 +250,29 @@ export async function finishInstallFlow(
     return { ok: false, error: "ຕ້ອງແນບຮູບຜົນງານຢ່າງໜ້ອຍ 1 ຮູບ ກ່ອນຈົບງານຕິດຕັ້ງ" };
   }
 
-  const done = await query(
-    `update ods_tb_install set finish_install=${NOW}
-      where code=$1 and finish_install is null and start_install is not null`,
-    [code],
-  );
-  if (!done.rowCount) return { ok: false, error: "ບັນທຶກບໍ່ໄດ້ — ຍັງບໍ່ໄດ້ເລີ່ມຕິດຕັ້ງ ຫຼື ຈົບໄປແລ້ວ" };
-
-  const saved = await savePhotos(session, "install", code, clean, "");
+  if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };
+  const client = await db.connect();
+  let saved = 0;
+  try {
+    await client.query("begin");
+    const done = await client.query(
+      `update ods_tb_install set finish_install=${NOW}
+        where code=$1 and finish_install is null and start_install is not null`,
+      [code],
+    );
+    if (!done.rowCount) {
+      await client.query("rollback");
+      return { ok: false, error: "ບັນທຶກບໍ່ໄດ້ — ຍັງບໍ່ໄດ້ເລີ່ມຕິດຕັ້ງ ຫຼື ຈົບໄປແລ້ວ" };
+    }
+    saved = await savePhotos(client, session, "install", code, clean, "");
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    console.error("finishInstallFlow failed", error);
+    return { ok: false, error: "ບັນທຶກຜົນງານບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+  }
   await logChange("ods_tb_install", code, `ຕິດຕັ້ງສຳເລັດ · ຮູບຜົນງານ ${saved} ຮູບ — ລໍຖ້າກວດຮັບຄຸນນະພາບ`);
   return { ok: true, message: `ຕິດຕັ້ງ ${code} ສຳເລັດ — ລໍຖ້າ QC` };
 }
@@ -261,6 +295,13 @@ export async function jobPhotos(workflow: Workflow, code: string) {
 export async function startRepairFlow(session: Session, code: string): Promise<FlowResult> {
   const own = await ownJob(session, "repair", code);
   if (!own.ok) return own;
+  if (own.job?.onsite) {
+    const arrived = await query<{ n: number }>(
+      "select count(*)::int n from ods_job_checkin where workflow='repair' and job_code=$1 and tech_code=$2",
+      [code, session.username],
+    );
+    if (!arrived.rows[0]?.n) return { ok: false, error: "ຕ້ອງ check-in ໜ້າງານກ່ອນເລີ່ມສ້ອມແປງ" };
+  }
 
   // ຂັ້ນ 8 = ລໍຖ້າສ້ອມແປງ ເທົ່ານັ້ນ (ເງື່ອນໄຂຢູ່ໃນ WHERE — ຢ່າຍ້າຍອອກ)
   const done = await query(`update tb_product a set time_repair=${NOW} where a.code=$1 and (${STAGE_SQL}) = 8`, [code]);
@@ -278,17 +319,34 @@ export async function finishRepairFlow(
 ): Promise<FlowResult> {
   const own = await ownJob(session, "repair", code);
   if (!own.ok) return own;
+  if (own.job?.onsite && photos.filter(Boolean).length === 0) {
+    return { ok: false, error: "ງານສ້ອມນອກສະຖານທີ່ຕ້ອງມີຮູບຜົນງານຢ່າງໜ້ອຍ 1 ຮູບ" };
+  }
 
   // ຂັ້ນ 9 = ກຳລັງສ້ອມແປງ ເທົ່ານັ້ນ
-  const done = await query(
-    `update tb_product a set status=5, time_finish_repair=${NOW}, repair_note=nullif($2,'')
-      where a.code=$1 and (${STAGE_SQL}) = 9`,
-    [code, note.trim()],
-  );
-  if (!done.rowCount) return { ok: false, error: 'ບັນທຶກບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ "ກຳລັງສ້ອມແປງ"' };
-
-  // ຝັ່ງສ້ອມ ຮູບ **ບໍ່ບັງຄັບ** (ເຄື່ອງຢູ່ໃນສູນ) ແຕ່ຖ້າມີ ກໍ່ເກັບໄວ້ໃຫ້ QC ເບິ່ງ
-  const saved = await savePhotos(session, "repair", code, photos.filter(Boolean), note.trim());
+  if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };
+  const client = await db.connect();
+  let saved = 0;
+  try {
+    await client.query("begin");
+    const done = await client.query(
+      `update tb_product a set status=5, time_finish_repair=${NOW}, repair_note=nullif($2,'')
+        where a.code=$1 and (${STAGE_SQL}) = 9`,
+      [code, note.trim()],
+    );
+    if (!done.rowCount) {
+      await client.query("rollback");
+      return { ok: false, error: 'ບັນທຶກບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ "ກຳລັງສ້ອມແປງ"' };
+    }
+    saved = await savePhotos(client, session, "repair", code, photos.filter(Boolean), note.trim());
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    console.error("finishRepairFlow failed", error);
+    return { ok: false, error: "ບັນທຶກຜົນງານບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+  }
   await logChange(
     "tb_product",
     code,
@@ -316,6 +374,11 @@ export async function checkIn(
   if (!own.ok) return own;
   if (!own.job?.accepted) {
     return { ok: false, error: "ຕ້ອງກົດຮັບງານກ່ອນ ຈຶ່ງສາມາດ check-in ໄດ້" };
+  }
+  if (!own.job?.onsite) return { ok: false, error: "ງານນີ້ເຮັດຢູ່ໃນສູນ ບໍ່ຕ້ອງ check-in" };
+  const allowedStages = workflow === "install" ? [4, 5] : [1, 2, 8, 9];
+  if (!allowedStages.includes(own.job.stage)) {
+    return { ok: false, error: "ຂັ້ນປັດຈຸບັນຍັງບໍ່ສາມາດ check-in ໄດ້" };
   }
   if (!input.photo) return { ok: false, error: "ຕ້ອງຖ່າຍຮູບໜ້າງານກ່ອນ check-in" };
 
