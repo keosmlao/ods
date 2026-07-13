@@ -1,6 +1,8 @@
 "use client";
 import { updateService } from "@/app/actions/service";
+import { LocationPicker, type Point } from "@/components/installation/location-picker";
 import { SelectField } from "@/components/select-field";
+import { ONSITE_SERVICE_TYPES } from "@/lib/sla";
 import { BrandField } from "@/components/service-brand-field";
 import { LoaderCircle, LogOut, Save, Search } from "lucide-react";
 import Image from "next/image";
@@ -31,6 +33,11 @@ export type ServiceHead = {
   cust_name: string;
   tel: string;
   address: string;
+  /** ງານນອກສະຖານທີ່ (IH/PS) — ໃບເກົ່າຍັງຫວ່າງ (migration ບໍ່ໄດ້ເດົາຄ່າໃຫ້) */
+  location_repair: string;
+  appoint_date: string;
+  location_lat: number | null;
+  location_lng: number | null;
 };
 
 const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 disabled:bg-slate-50 read-only:bg-slate-50";
@@ -90,6 +97,19 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selected, setSelected] = useState<Customer>({ code: head.cust_code, name_1: head.cust_name, tel: head.tel, address: head.address });
   const [brand, setBrand] = useState(head.p_brand);
+
+  /**
+   * ງານນອກສະຖານທີ່ (IH/PS = 75% ຂອງໃບ) ຕ້ອງມີສະຖານທີ່ໜ້າງານ.
+   * ໃບ **ເກົ່າ** 3,792 ໃບຍັງຫວ່າງ (migration ບໍ່ backfill ເພາະຈະເປັນການເດົາ)
+   * ⇒ ໜ້ານີ້ຄືບ່ອນທີ່ຄ່ອຍໆເຕີມໃສ່ໃບທີ່ຍັງເປີດຢູ່.
+   */
+  const [serviceType, setServiceType] = useState(head.service_type ?? "");
+  const onsite = ONSITE_SERVICE_TYPES.includes(serviceType as "IH" | "PS");
+  const [point, setPoint] = useState<Point | null>(
+    head.location_lat != null && head.location_lng != null
+      ? { lat: head.location_lat, lng: head.location_lng }
+      : null,
+  );
 
   useEffect(() => {
     if (q.length < 2 || selected.name_1 === q) return;
@@ -236,7 +256,8 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
             <label className={label}>ປະເພດບໍລິການ *</label>
             <SelectField
               name="service_type"
-              defaultValue={head.service_type ?? ""}
+              value={serviceType}
+              onChange={setServiceType}
               options={[
                 { value: "CI", label: "ລູກຄ້ານຳເຄື່ອງເຂົ້າ" },
                 { value: "PS", label: "ໄປຮັບບ້ານລູກຄ້າ" },
@@ -245,6 +266,32 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
               ]}
             />
           </div>
+
+          {/* ນອກສະຖານທີ່ ⇒ ຕ້ອງຮູ້ວ່າໄປໃສ ແລະ ໄປມື້ໃດ (CI/ST ເຮັດຢູ່ສູນ ບໍ່ຂຶ້ນ) */}
+          {onsite && (
+            <>
+              <div className="md:col-span-2">
+                <label className={label}>ສະຖານທີ່ໜ້າງານ *</label>
+                <input
+                  name="location_repair"
+                  required
+                  defaultValue={head.location_repair || head.address}
+                  placeholder="ບ້ານ / ເມືອງ / ຈຸດສັງເກດ"
+                  className={field}
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  ໃບເກົ່າຍັງບໍ່ມີຄ່ານີ້ — ຕື່ມມາຈາກທີ່ຢູ່ລູກຄ້າໃຫ້ກ່ອນ ແກ້ໄດ້
+                </p>
+                <LocationPicker value={point} onChange={setPoint} />
+                <input type="hidden" name="location_lat" value={point ? String(point.lat) : ""} />
+                <input type="hidden" name="location_lng" value={point ? String(point.lng) : ""} />
+              </div>
+              <div>
+                <label className={label}>ວັນນັດເຂົ້າສ້ອມ</label>
+                <input type="date" name="appoint_date" defaultValue={head.appoint_date} className={field} />
+              </div>
+            </>
+          )}
           <div>
             <label className={label}>ຊ່າງ *</label>
             <SelectField

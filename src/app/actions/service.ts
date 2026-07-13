@@ -355,6 +355,11 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
   );
   if (!parsed.success) return { error: missingFieldsError(parsed.error.issues) };
 
+  // ງານນອກສະຖານທີ່ຕ້ອງຮູ້ວ່າ "ໄປໃສ" (ຄືກັບຕອນສ້າງ — ຟອມກວດແລ້ວ ແຕ່ action ຖືກຍິງໂດຍກົງໄດ້)
+  if (NEEDS_LOCATION(parsed.data.service_type) && !parsed.data.location_repair.trim()) {
+    return { error: "ງານນອກສະຖານທີ່ (ສ້ອມບ້ານລູກຄ້າ / ໄປຮັບບ້ານລູກຄ້າ) ຕ້ອງລະບຸສະຖານທີ່ໜ້າງານ" };
+  }
+
   const files = await collectUploads(formData);
   if (!files.ok) return { error: files.error };
 
@@ -369,11 +374,14 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
          p_abrasion=$8, p_delivery=$9, warrunty=$10, service_type=$11, cust_code=$12, ap_code=$13, doc_def=$14,
          doc_date_ref=$15,
          repair_confirm=case when emp_code is distinct from $16::varchar then null else repair_confirm end,
-         emp_code=$16, user_edit=$17
+         emp_code=$16, user_edit=$17,
+         location_repair=nullif($19,''), appoint_date=nullif($20,'')::date,
+         location_lat=nullif($21,'')::double precision, location_lng=nullif($22,'')::double precision
        where code=$18`,
       [d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
         // ap_code = ລະຫັດລູກຄ້າ (ອັນດຽວກັນ — ເບິ່ງ createService)
-        d.pro_deli, d.pro_wa, d.service_type, d.cust_code, d.cust_code, d.billon, d.billdate, d.emp, session.username, d.code],
+        d.pro_deli, d.pro_wa, d.service_type, d.cust_code, d.cust_code, d.billon, d.billdate, d.emp, session.username, d.code,
+        d.location_repair, d.appoint_date, d.location_lat, d.location_lng],
     );
     if (!updated.rowCount) {
       await client.query("rollback");
@@ -562,6 +570,11 @@ export async function createServiceFromNotice(_: ServiceState, formData: FormDat
     Object.fromEntries([...formData.entries()].filter(([, value]) => typeof value === "string")),
   );
   if (!parsed.success) return { error: missingFieldsError(parsed.error.issues) };
+
+  // ງານນອກສະຖານທີ່ຕ້ອງຮູ້ວ່າ "ໄປໃສ" (ຄືກັບຕອນສ້າງ — ຟອມກວດແລ້ວ ແຕ່ action ຖືກຍິງໂດຍກົງໄດ້)
+  if (NEEDS_LOCATION(parsed.data.service_type) && !parsed.data.location_repair.trim()) {
+    return { error: "ງານນອກສະຖານທີ່ (ສ້ອມບ້ານລູກຄ້າ / ໄປຮັບບ້ານລູກຄ້າ) ຕ້ອງລະບຸສະຖານທີ່ໜ້າງານ" };
+  }
 
   const files = await collectUploads(formData);
   if (!files.ok) return { error: files.error };

@@ -27,6 +27,9 @@ export default async function EditService({ params }: Props) {
          coalesce(a.p_delivery,'') p_delivery, coalesce(a.service_type,'') service_type, coalesce(a.issue,'') issue,
          coalesce(a.p_abrasion,'') p_abrasion, coalesce(a.cust_code,'') cust_code, coalesce(a.emp_code,'') emp_code,
          coalesce(a.ap_code,'') ap_code, coalesce(a.doc_def,'') doc_def, coalesce(a.doc_date_ref,'') doc_date_ref,
+         coalesce(a.location_repair,'') location_repair,
+         coalesce(to_char(a.appoint_date,'YYYY-MM-DD'),'') appoint_date,
+         a.location_lat, a.location_lng,
          coalesce(b.name_1,'') cust_name, coalesce(b.tel,'') tel,
          coalesce(concat_ws('-', nullif(b.address,''), d.name_1, c.name_1),'') address
        from tb_product a
