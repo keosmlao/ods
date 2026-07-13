@@ -5,6 +5,7 @@ import {
   checkOut,
   finishInstallFlow,
   finishRepairFlow,
+  ownMobileJob,
   rejectJob,
   startInstallFlow,
   startRepairFlow,
@@ -62,6 +63,11 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
   let result: FlowResult;
 
   try {
+    const ownership = await ownMobileJob(user, workflow, code);
+    if (!ownership.ok) {
+      return NextResponse.json({ error: ownership.error }, { status: 403 });
+    }
+
     switch (body.action) {
       case "accept":
         // ຝັ່ງສ້ອມບໍ່ມີຂັ້ນ "ຮັບງານ" — CS ມອບໝາຍແລ້ວຖືວ່າຮັບ (ຄືເວັບ)

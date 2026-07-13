@@ -54,6 +54,21 @@ export async function ownJob(session: Session, workflow: Workflow, code: string)
   return { ok: true, message: "", job };
 }
 
+/**
+ * Mobile ເປັນພື້ນທີ່ລົງມືຂອງຜູ້ຮັບງານ, ບໍ່ແມ່ນໜ້າຄຸ້ມຄອງ.
+ * ຈຶ່ງບັງຄັບ ownership ທຸກ role; ສິດຫົວໜ້າທີ່ເຮັດງານຂອງຄົນອື່ນ
+ * ຍັງຄົງໄວ້ສຳລັບ workflow ຝັ່ງ web ຜ່ານ ownJob ຕາມເດີມ.
+ */
+export async function ownMobileJob(session: Session, workflow: Workflow, code: string): Promise<FlowResult> {
+  const job = await ownerOf(workflow, code);
+  if (!job) return { ok: false, error: "ບໍ່ພົບງານນີ້" };
+  if (job.cancelled) return { ok: false, error: "ງານນີ້ຖືກຍົກເລີກແລ້ວ" };
+  if ((job.tech ?? "") !== session.username) {
+    return { ok: false, error: "ງານນີ້ບໍ່ແມ່ນວຽກທີ່ມອບໝາຍໃຫ້ທ່ານ" };
+  }
+  return { ok: true, message: "" };
+}
+
 /* ── ຮັບງານ / ປະຕິເສດງານ ───────────────────────────────────────── */
 
 export async function acceptInstall(session: Session, code: string): Promise<FlowResult> {

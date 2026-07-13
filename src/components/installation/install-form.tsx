@@ -3,23 +3,22 @@ import { createInstall, type ActionState } from "@/app/actions/installation";
 import { LocationPicker, type Point } from "@/components/installation/location-picker";
 import { SelectField } from "@/components/select-field";
 import { Button, Card, ErrorBox, LinkButton, inputClass, labelClass } from "@/components/ui";
-import { CheckCircle2, LoaderCircle, MapPin, Package, Plus, Receipt, Save, Search, X } from "lucide-react";
+import { CheckCircle2, LoaderCircle, MapPin, Receipt, Save, Search, X } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
 
 /**
- * ເປີດງານຕິດຕັ້ງ — ຈັດລຳດັບຕາມ **ຂັ້ນຕອນຈິງ**:
+ * ເປີດງານຕິດຕັ້ງ — **ໜ້າດຽວ ບໍ່ມີໂໝດ**:
  *
  *   ① ຄົ້ນຫາ ແລະ ເລືອກ **ບິນຂາຍ** (ສະເພາະບິນທີ່ມີ "ບໍລິການຕິດຕັ້ງ" ຢູ່ໃນນັ້ນ)
- *   ② ເລືອກວ່າ **ຈະຕິດຕັ້ງລາຍການໃດ ໃນບິນນັ້ນ** (ບິນນຶ່ງອາດຂາຍຫຼາຍລາຍການ)
- *   ③ **ຈັກໜ່ວຍ** — 1 ໜ່ວຍ = 1 ງານ (ຊ່າງໄປຕິດຄົນລະໜ່ວຍ) ພ້ອມ S/N ຂອງແຕ່ລະໜ່ວຍ
- *   ④ Model · ປະເພດ · ຂະໜາດ (ປະເພດ/ຂະໜາດ ດຶງມາຈາກ ERP ແລ້ວ)
- *   ⑤ ສະຖານທີ່ຕິດຕັ້ງ (**ບັງຄັບ**) ແລະ ວັນຄາດວ່າຈະເຂົ້າຕິດຕັ້ງ
- *   ⑥ ບັນທຶກ (ລຸ່ມສຸດ — ກົດບໍ່ໄດ້ຈົນກວ່າຂໍ້ມູນຄົບ)
+ *   ② ລາຍການໃນບິນຂຶ້ນມາເປັນກ່ອງ — **ຕິກອັນທີ່ຈະຕິດຕັ້ງ** ແລ້ວຕື່ມຂໍ້ມູນຢູ່ໃນກ່ອງນັ້ນເລີຍ
+ *      (ໜ່ວຍ · S/N ຕໍ່ໜ່ວຍ · Model · ປະເພດ · ຂະໜາດ — ສ່ວນຫຼາຍຕື່ມມາຈາກ ERP ໃຫ້ແລ້ວ)
+ *   ③ ສະຖານທີ່ (**ບັງຄັບ**) · ວັນນັດ · ໝາຍເຫດ — **ໃຊ້ຮ່ວມກັນທຸກລາຍການ** (ບ້ານດຽວກັນ)
+ *   ④ ບັນທຶກເທື່ອດຽວ ⇒ ສ້າງທຸກງານ (1 ລາຍການ × 1 ໜ່ວຍ = 1 ງານ)
  *
- * ── ບັນຫາຂອງຮູບແບບເກົ່າ ──
- * · ຄົນເປີດມາເຫັນຊ່ອງຫວ່າງ 8 ຊ່ອງທີ່ພິມບໍ່ໄດ້ (readOnly + required) ⇒ ກົດບັນທຶກແລ້ວ
- *   browser ຮ້ອງໃສ່ຊ່ອງທີ່ພິມບໍ່ໄດ້ — ຕັນ ບໍ່ມີທາງອອກ.
- * · ບິນທີ່ຂາຍແອ 2 ຊຸດ **ເປີດໄດ້ງານດຽວ** ⇒ CS ຕ້ອງເປີດຊ້ຳເອງ ແລະ ງານທີ 2 ມັກຖືກລືມ.
+ * ── ເປັນຫຍັງບໍ່ມີປຸ່ມ "ເພີ່ມລາຍການ" ອີກ ──
+ * ຮຸ່ນກ່ອນໃຫ້ເລືອກລາຍການ → ຕັ້ງຄ່າ → ກົດ "ເພີ່ມ" → ກັບໄປເລືອກອັນຕໍ່ໄປ. ມັນມີ **ໂໝດ**
+ * (ກຳລັງຕັ້ງຄ່າ / ເພີ່ມແລ້ວ) ທີ່ຄົນຕ້ອງຈື່ ແລະ ລືມກົດ "ເພີ່ມ" ໄດ້ງ່າຍ.
+ * ດຽວນີ້ **ຕິກ = ຈະສ້າງ** — ເຫັນທຸກລາຍການພ້ອມກັນ ບໍ່ຕ້ອງຈື່ວ່າຢູ່ຂັ້ນໃດ.
  */
 
 type Category = { code: string; name_1: string };
@@ -86,202 +85,142 @@ function guessModel(itemName: string): string {
   return candidates[0] ?? "";
 }
 
-/** ລາຍການທີ່ **ຕັ້ງຄ່າແລ້ວ** ພ້ອມສ້າງງານ — ຮູບແບບດຽວກັບ InstallLine ຢູ່ server */
-type Line = {
-  item_code: string;
-  item_name: string;
-  sv_type: string;
-  pro_brand: string;
-  pro_model: string;
-  pro_type: string;
-  pro_size: string;
+/** ສະຖານະຂອງ 1 ລາຍການໃນບິນ — ຕິກ = ຈະສ້າງງານ */
+type Draft = {
+  on: boolean;
   units: number;
+  /** S/N ຂອງແຕ່ລະໜ່ວຍ (ໜ່ວຍໃນ [C] ຖ້າເປັນແອ) — ຍາວເທົ່າ units ສະເໝີ */
   serials: string[];
+  /** S/N ໜ່ວຍນອກ [H] — ສະເພາະແອ (ບໍ່ບັງຄັບ) */
   outdoor: string[];
+  model: string;
+  type: string;
+  size: string;
+  /** ISN ຈາກຄັງ — ໃຊ້ເມື່ອບິນບໍ່ໄດ້ລົງ ISN ໄວ້ */
+  stock: Serial[];
+  loading: boolean;
+  /** ຫາ ISN ບໍ່ພົບໃນລາຍການ ⇒ ພິມເອງ */
+  manual: boolean;
 };
+
+/** ຈຳນວນງານທີ່ຈ່າຍຄ່າຕິດຕັ້ງແລ້ວໃນບິນ (ລວມທຸກແຖວບໍລິການ) */
+const paidUnits = (bill: Bill) => Math.round(bill.services.reduce((sum, service) => sum + (service.qty || 0), 0));
 
 export function InstallForm({ categories, username }: { categories: Category[]; username: string }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(createInstall, {});
   const [open, setOpen] = useState(false);
   const [bill, setBill] = useState<Bill | null>(null);
-  const [item, setItem] = useState<BillItem | null>(null);
-  const [units, setUnits] = useState(1);
-
-  /**
-   * ── ບິນນຶ່ງ ຕິດຕັ້ງໄດ້ **ຫຼາຍລາຍການ** ──
-   * ຂໍ້ມູນຈິງ 1 ປີ: 2 ລາຍການ = 504 ບິນ (20%) · 3+ = 123 ບິນ (5%)
-   * ⇒ ຕັ້ງຄ່າລາຍການນຶ່ງແລ້ວ "ເພີ່ມ" ເຂົ້າລາຍການທີ່ຈະສ້າງ ແລ້ວເລືອກລາຍການຕໍ່ໄປໄດ້.
-   * ສະຖານທີ່ · ວັນນັດ · ໝາຍເຫດ ໃຊ້ຮ່ວມກັນ (ບ້ານດຽວກັນ) ⇒ ກອກເທື່ອດຽວ.
-   */
-  const [done, setDone] = useState<Line[]>([]);
-
-  /** ຄ່າສິນຄ້າຂອງລາຍການທີ່ກຳລັງຕັ້ງຄ່າ — ຕ້ອງເປັນ state (ບໍ່ແມ່ນ defaultValue) ຈຶ່ງເກັບເຂົ້າ Line ໄດ້ */
-  const [model, setModel] = useState("");
-  const [typeCode, setTypeCode] = useState("");
-  const [size, setSize] = useState("");
-
-  /** S/N **ໜ່ວຍໃນ [C]** ຂອງແຕ່ລະໜ່ວຍ — ຍາວເທົ່າ units ສະເໝີ */
-  const [serials, setSerials] = useState<string[]>([""]);
-  /** S/N **ໜ່ວຍນອກ [H]** — ສະເພາະແອ (ບໍ່ບັງຄັບ) */
-  const [outdoor, setOutdoor] = useState<string[]>([""]);
+  /** ສະຖານະຂອງແຕ່ລະລາຍການ — key = item_code */
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   /** ພິກັດສະຖານທີ່ຕິດຕັ້ງ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງໄດ້ຈາກແອັບ */
   const [point, setPoint] = useState<Point | null>(null);
 
-  /**
-   * ── ບິນທີ່ ERP **ບໍ່ໄດ້ລົງ ISN** ⇒ ດຶງ ISN ຂອງລາຍການນັ້ນຈາກຄັງ ──
-   * ບິນຈິງບາງໃບບໍ່ມີ ISN ເລີຍ (CAK26008723: ຈັກຊັກ + ຕູ້ເຢັນ = 0 ແຖວ)
-   * ⇒ ຮຸ່ນກ່ອນຕົກລົງເປັນຊ່ອງພິມມື ແລະ ພິມຜິດໄດ້. ດຽວນີ້ຄົ້ນຈາກ sn_inventory
-   * (api/installations/serials) ໃຫ້ເລືອກແທນ — ຍັງພິມເອງໄດ້ຖ້າຫາບໍ່ພົບ.
-   */
-  const [stockSerials, setStockSerials] = useState<Serial[]>([]);
-  const [loadingSerials, setLoadingSerials] = useState(false);
-  const [manualSerial, setManualSerial] = useState(false);
+  const patch = (code: string, change: Partial<Draft>) =>
+    setDrafts((current) => ({ ...current, [code]: { ...current[code], ...change } }));
+
+  /** ປ່ຽນຈຳນວນໜ່ວຍ — ຕັດ/ຕໍ່ແຖວ S/N ໃຫ້ຍາວເທົ່າກັນສະເໝີ */
+  const setUnits = (code: string, value: number) => {
+    const units = Math.min(20, Math.max(1, value || 1));
+    setDrafts((current) => {
+      const draft = current[code];
+      const grow = (list: string[]) => Array.from({ length: units }, (_, index) => list[index] ?? "");
+      return { ...current, [code]: { ...draft, units, serials: grow(draft.serials), outdoor: grow(draft.outdoor) } };
+    });
+  };
+
+  const setSerial = (code: string, index: number, value: string, outdoor = false) =>
+    setDrafts((current) => {
+      const draft = current[code];
+      const list = [...(outdoor ? draft.outdoor : draft.serials)];
+      list[index] = value;
+      return { ...current, [code]: { ...draft, [outdoor ? "outdoor" : "serials"]: list } };
+    });
 
   /**
-   * ── ຈຳນວນງານ = ຈຳນວນ **ຄ່າຕິດຕັ້ງ** ບໍ່ແມ່ນຈຳນວນເຄື່ອງທີ່ຂາຍ ──
-   * ຂໍ້ມູນຈິງ (1 ປີ): 1,034/2,493 ບິນ (41%) **ຂາຍຫຼາຍກວ່າຈຳນວນທີ່ຈ່າຍຄ່າຕິດຕັ້ງ**
-   * (ລູກຄ້າຊື້ 3 ໜ່ວຍ ແຕ່ຈ້າງຕິດ 2 — ອີກໜ່ວຍເອົາໄປໃສ່ບ້ານອື່ນ/ຕິດເອງ).
-   * ⇒ ຕັ້ງຕົ້ນຕາມຄ່າຕິດຕັ້ງ ແລ້ວໃຫ້ CS ແກ້ໄດ້ ພ້ອມເຕືອນເມື່ອບໍ່ຕົງກັນ.
+   * ເລືອກບິນແລ້ວ ⇒ ຕັ້ງຄ່າຕັ້ງຕົ້ນຂອງທຸກລາຍການໃຫ້ເລີຍ (ຄົນບໍ່ຕ້ອງກົດຫຍັງອີກ ນອກຈາກກວດ).
+   *
+   * · ຕິກໃຫ້ **ທຸກລາຍການ** — ບິນນີ້ຈ່າຍຄ່າຕິດຕັ້ງມາແລ້ວ ⇒ ຄາດວ່າຕິດທັງໝົດ (ຕິກອອກໄດ້)
+   * · ຈຳນວນໜ່ວຍ: ບິນມີລາຍການດຽວ ⇒ ຕາມຈຳນວນ**ຄ່າຕິດຕັ້ງ** (41% ຂອງບິນຂາຍຫຼາຍກວ່າທີ່ຈ້າງຕິດ)
+   *   ຫຼາຍລາຍການ ⇒ ຄ່າຕິດຕັ້ງແບ່ງກັນບໍ່ໄດ້ ⇒ ຕາມຈຳນວນທີ່ຂາຍ
+   * · S/N: ຈັບຄູ່ ISN ຂອງບິນຕາມລຳດັບ (ແອ: ໜ່ວຍໃນ [C] ກັບ ໜ່ວຍນອກ [H] ຄົນລະເລກ)
+   * · ບິນບໍ່ໄດ້ລົງ ISN ⇒ ດຶງ ISN ຂອງລາຍການນັ້ນຈາກຄັງມາໃຫ້ເລືອກ (ບໍ່ໃຫ້ພິມມື)
    */
-  const paidUnits = (chosenBill: Bill | null) =>
-    chosenBill ? Math.round(chosenBill.services.reduce((sum, service) => sum + (service.qty || 0), 0)) : 0;
+  function loadBill(chosen: Bill) {
+    const paid = paidUnits(chosen);
+    const single = chosen.items.length === 1;
 
-  /** ລາຍການທີ່ກຳລັງຕັ້ງຄ່າ — ພ້ອມເພີ່ມເມື່ອຂໍ້ມູນຄົບ */
-  const draft: Line | null =
-    item && model.trim() && typeCode && size.trim() && serials.length === units && serials.every((s) => s.trim())
-      ? {
-          item_code: item.item_code,
-          item_name: item.item_name,
-          sv_type: item.sv_type,
-          pro_brand: item.item_brand ?? "",
-          pro_model: model.trim(),
-          pro_type: typeCode,
-          pro_size: size.trim(),
-          units,
-          serials: serials.map((serial) => serial.trim()),
-          outdoor: outdoor.map((serial) => serial.trim()),
-        }
-      : null;
+    const next: Record<string, Draft> = {};
+    for (const item of chosen.items) {
+      const sold = Math.max(1, Math.round(item.qty || 1));
+      const units = Math.max(1, single && paid > 0 ? Math.min(paid, sold) : sold);
+      const indoor = item.serials.filter((serial) => serial.part !== "ໜ່ວຍນອກ");
+      const outer = item.serials.filter((serial) => serial.part === "ໜ່ວຍນອກ");
+      const valueOf = (serial?: Serial) => (serial ? serial.sn || serial.isn : "");
 
-  /** ລາຍການທັງໝົດທີ່ຈະສ້າງ = ທີ່ເພີ່ມແລ້ວ + ອັນທີ່ກຳລັງຕັ້ງຄ່າ (ຢ່າໃຫ້ວຽກທີ່ກອກແລ້ວຫາຍ ຖ້າລືມກົດ "ເພີ່ມ") */
-  const allLines = draft ? [...done, draft] : done;
-  const totalJobs = allLines.reduce((sum, line) => sum + line.units, 0);
-
-  function clearEditor() {
-    setItem(null);
-    setUnits(1);
-    setSerials([""]);
-    setOutdoor([""]);
-    setModel("");
-    setTypeCode("");
-    setSize("");
-    setStockSerials([]);
-    setManualSerial(false);
-  }
-
-  /** ເພີ່ມລາຍການທີ່ກຳລັງຕັ້ງຄ່າເຂົ້າລາຍການທີ່ຈະສ້າງ ແລ້ວລ້າງຊ່ອງໃຫ້ຕັ້ງລາຍການຕໍ່ໄປ */
-  function addLine() {
-    if (!draft) return;
-    setDone((current) => [...current.filter((line) => line.item_code !== draft.item_code), draft]);
-    clearEditor();
-  }
-
-  /** ເອົາລາຍການທີ່ເພີ່ມແລ້ວກັບມາແກ້ (ຫຼື ລຶບຖິ້ມ) */
-  function removeLine(itemCode: string) {
-    setDone((current) => current.filter((line) => line.item_code !== itemCode));
-  }
-
-  function pickItem(chosen: BillItem, forBill?: Bill) {
-    // ລາຍການທີ່ກຳລັງຕັ້ງຄ່າຢູ່ ແລະ ຄົບແລ້ວ ⇒ ເກັບເຂົ້າກ່ອນ (ຢ່າໃຫ້ວຽກຫາຍຕອນປ່ຽນລາຍການ)
-    if (draft && draft.item_code !== chosen.item_code) {
-      setDone((current) => [...current.filter((line) => line.item_code !== draft.item_code), draft]);
+      next[item.item_code] = {
+        on: true,
+        units,
+        serials: Array.from({ length: units }, (_, index) => valueOf(indoor[index])),
+        outdoor: Array.from({ length: units }, (_, index) => valueOf(outer[index])),
+        model: guessModel(item.item_name),
+        type: matchCategory(categories, item.pro_type_name),
+        size: item.pro_size ?? "",
+        stock: [],
+        loading: indoor.length === 0,
+        manual: false,
+      };
     }
-    /**
-     * ເລືອກລາຍການທີ່ **ເພີ່ມແລ້ວ** = ເອົາກັບມາແກ້ ⇒ ຕ້ອງຄືນຄ່າທີ່ຄົນແກ້ໄວ້ (ບໍ່ແມ່ນຄ່າ ERP ໃໝ່)
-     * ບໍ່ດັ່ງນັ້ນ Model/S/N ທີ່ພິມແກ້ໄວ້ຈະຫາຍທຸກເທື່ອທີ່ກົດເບິ່ງຄືນ.
-     */
-    const saved = done.find((line) => line.item_code === chosen.item_code);
-    setDone((current) => current.filter((line) => line.item_code !== chosen.item_code));
+    setBill(chosen);
+    setDrafts(next);
+    setPoint(null);
 
-    setModel(saved?.pro_model ?? guessModel(chosen.item_name));
-    setTypeCode(saved?.pro_type ?? matchCategory(categories, chosen.pro_type_name));
-    setSize(saved?.pro_size ?? chosen.pro_size ?? "");
-
-    const paid = paidUnits(forBill ?? bill);
-    const sold = Math.max(1, Math.round(chosen.qty || 1));
-    // ບິນມີລາຍການດຽວ ⇒ ໃຊ້ຈຳນວນຄ່າຕິດຕັ້ງ · ຫຼາຍລາຍການ ⇒ ຄ່າຕິດຕັ້ງແບ່ງກັນບໍ່ໄດ້ ໃຊ້ຈຳນວນຂາຍ
-    const single = (forBill ?? bill)?.items.length === 1;
-    const count = saved?.units ?? Math.max(1, single && paid > 0 ? Math.min(paid, sold) : sold);
-    setItem(chosen);
-    setUnits(count);
-
-    if (saved) {
-      setSerials(saved.serials);
-      setOutdoor(saved.outdoor);
-      setStockSerials([]);
-      setManualSerial(false);
-      return;
-    }
-
-    /**
-     * ── ແອ = 2 ໜ່ວຍ (ໃນ + ນອກ) ⇒ 2 ISN ຄົນລະເລກ ──
-     * ERP ລົງ ISN ໃຫ້ **ໜ່ວຍໃນ [C]** ແລະ **ໜ່ວຍນອກ [H]** ແຍກກັນ
-     * (ບິນ CAK26008714: ໃນ 032A0028508 · ນອກ 032A0000558).
-     * ⇒ ຈັບຄູ່ຕາມລຳດັບ: ໜ່ວຍງານທີ i ໄດ້ ISN ໃນທີ i ແລະ ISN ນອກທີ i.
-     */
-    const indoor = chosen.serials.filter((serial) => serial.part !== "ໜ່ວຍນອກ");
-    const outer = chosen.serials.filter((serial) => serial.part === "ໜ່ວຍນອກ");
-    const valueOf = (serial?: Serial) => (serial ? serial.sn || serial.isn : "");
-
-    setSerials(Array.from({ length: count }, (_, index) => valueOf(indoor[index])));
-    setOutdoor(Array.from({ length: count }, (_, index) => valueOf(outer[index])));
-
-    // ບິນບໍ່ມີ ISN ⇒ ດຶງ ISN ຂອງລາຍການນີ້ຈາກຄັງມາໃຫ້ເລືອກ (ຢ່າໃຫ້ພິມມື)
-    setStockSerials([]);
-    setManualSerial(false);
-    if (indoor.length === 0) {
-      setLoadingSerials(true);
-      fetch(`/api/installations/serials?item_code=${encodeURIComponent(chosen.item_code)}`)
+    // ບິນບໍ່ໄດ້ລົງ ISN ⇒ ດຶງຈາກຄັງ (api/installations/serials)
+    for (const item of chosen.items) {
+      if (item.serials.some((serial) => serial.part !== "ໜ່ວຍນອກ")) continue;
+      fetch(`/api/installations/serials?item_code=${encodeURIComponent(item.item_code)}`)
         .then((response) => response.json())
         .then((body: { data?: { isn: string; sn: string; in_stock: boolean }[] }) =>
-          setStockSerials(
-            (body.data ?? []).map((row) => ({
+          patch(item.item_code, {
+            stock: (body.data ?? []).map((row) => ({
               isn: row.isn,
               sn: row.sn,
               part: row.in_stock ? "ໃນສາງ" : "",
             })),
-          ),
+            loading: false,
+          }),
         )
-        .catch(() => setStockSerials([]))
-        .finally(() => setLoadingSerials(false));
+        .catch(() => patch(item.item_code, { stock: [], loading: false }));
     }
   }
 
-  function changeUnits(count: number) {
-    const safe = Math.min(20, Math.max(1, count || 1));
-    setUnits(safe);
-    const grow = (current: string[]) =>
-      Array.from({ length: safe }, (_, index) => current[index] ?? "");
-    setSerials(grow);
-    setOutdoor(grow);
-  }
+  /** ລາຍການທີ່ຕິກ ແລະ ຂໍ້ມູນຄົບ ⇒ ຈະຖືກສ້າງ */
+  const lines = (bill?.items ?? [])
+    .map((item) => ({ item, draft: drafts[item.item_code] }))
+    .filter(({ draft }) => draft?.on)
+    .filter(
+      ({ draft }) =>
+        draft.model.trim() && draft.type && draft.size.trim() && draft.serials.every((serial) => serial.trim()),
+    )
+    .map(({ item, draft }) => ({
+      item_code: item.item_code,
+      item_name: item.item_name,
+      sv_type: item.sv_type,
+      pro_brand: item.item_brand ?? "",
+      pro_model: draft.model.trim(),
+      pro_type: draft.type,
+      pro_size: draft.size.trim(),
+      units: draft.units,
+      serials: draft.serials.map((serial) => serial.trim()),
+      outdoor: draft.outdoor.map((serial) => serial.trim()),
+    }));
 
-  const setSerial = (index: number, value: string) =>
-    setSerials((current) => current.map((old, position) => (position === index ? value : old)));
+  /** ຕິກໄວ້ ແຕ່ຂໍ້ມູນຍັງບໍ່ຄົບ — ຕ້ອງບອກ ບໍ່ດັ່ງນັ້ນປຸ່ມບັນທຶກ "ບໍ່ຄົບ" ໂດຍບໍ່ຮູ້ວ່າຂາດຫຍັງ */
+  const incomplete = (bill?.items ?? []).filter(
+    (item) => drafts[item.item_code]?.on && !lines.some((line) => line.item_code === item.item_code),
+  );
 
-  const setOutdoorSerial = (index: number, value: string) =>
-    setOutdoor((current) => current.map((old, position) => (position === index ? value : old)));
-
-  /** ISN ຂອງແອ ແຍກເປັນ ໃນ/ນອກ — ບໍ່ແມ່ນແອ = ບໍ່ມີໜ່ວຍນອກ */
-  const billIndoor = item?.serials.filter((serial) => serial.part !== "ໜ່ວຍນອກ") ?? [];
-  const outdoorOptions = item?.serials.filter((serial) => serial.part === "ໜ່ວຍນອກ") ?? [];
-  /** ບິນບໍ່ມີ ISN ⇒ ໃຊ້ ISN ຈາກຄັງ (ດຶງຕອນເລືອກລາຍການ) */
-  const fromStock = billIndoor.length === 0 && stockSerials.length > 0;
-  const indoorOptions = billIndoor.length > 0 ? billIndoor : stockSerials;
-  const isAc = outdoorOptions.length > 0 || (item?.pro_type_name ?? "").includes("ແອ");
-
-  // ບັນທຶກໄດ້ເມື່ອມີບິນ ແລະ ມີຢ່າງໜ້ອຍ 1 ລາຍການທີ່ຂໍ້ມູນຄົບ (ເພີ່ມແລ້ວ ຫຼື ກຳລັງຕັ້ງຄ່າຢູ່)
-  const ready = Boolean(bill) && allLines.length > 0;
+  const totalJobs = lines.reduce((sum, line) => sum + line.units, 0);
+  const ready = Boolean(bill) && lines.length > 0 && incomplete.length === 0;
 
   return (
     <form action={formAction} className="space-y-5">
@@ -337,305 +276,239 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
         )}
       </Card>
 
-      {/* ② ລາຍການໃນບິນ — ເລືອກວ່າຈະຕິດຕັ້ງອັນໃດ (ເລືອກໄດ້ຫຼາຍລາຍການ) */}
+      {/* ② ລາຍການໃນບິນ — ຕິກອັນທີ່ຈະຕິດຕັ້ງ ແລ້ວຕື່ມຂໍ້ມູນຢູ່ໃນກ່ອງເລີຍ */}
+      {bill &&
+        bill.items.map((item) => {
+          const draft = drafts[item.item_code];
+          if (!draft) return null;
+
+          const billIndoor = item.serials.filter((serial) => serial.part !== "ໜ່ວຍນອກ");
+          const outdoorOptions = item.serials.filter((serial) => serial.part === "ໜ່ວຍນອກ");
+          const fromStock = billIndoor.length === 0 && draft.stock.length > 0;
+          const indoorOptions = billIndoor.length > 0 ? billIndoor : draft.stock;
+          const isAc = outdoorOptions.length > 0 || (item.pro_type_name ?? "").includes("ແອ");
+          const missing = draft.on && !lines.some((line) => line.item_code === item.item_code);
+
+          return (
+            <div
+              key={item.item_code}
+              className={`rounded-2xl border bg-white p-4 shadow-sm transition ${
+                draft.on ? (missing ? "border-amber-300" : "border-teal-300") : "border-slate-200"
+              }`}
+            >
+              {/* ຫົວກ່ອງ = ຕິກ ⇒ ຈະສ້າງງານ */}
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={draft.on}
+                  onChange={(event) => patch(item.item_code, { on: event.target.checked })}
+                  className="mt-1 size-5 shrink-0 accent-teal-600"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold text-slate-800">{item.item_name}</span>
+                  <span className="block text-xs text-slate-500">
+                    {item.pro_type_name ?? "-"} · {item.pro_size ?? "-"} · ຂາຍ {item.qty} ໜ່ວຍ
+                  </span>
+                </span>
+                {draft.on && (
+                  <span className="shrink-0 rounded-full bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-800">
+                    {draft.units} ງານ
+                  </span>
+                )}
+              </label>
+
+              {draft.on && (
+                <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+                  {/* ຈຳນວນໜ່ວຍ — 1 ໜ່ວຍ = 1 ງານ */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className={labelClass}>ຈະຕິດຕັ້ງ</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={draft.units}
+                      onChange={(event) => setUnits(item.item_code, Number(event.target.value))}
+                      className={`${inputClass} w-20`}
+                    />
+                    <span className="text-xs text-slate-500">ໜ່ວຍ ⇒ ສ້າງ {draft.units} ງານ (1 ໜ່ວຍ = 1 ງານ)</span>
+                  </div>
+
+                  {/* S/N ຕໍ່ໜ່ວຍ */}
+                  <div className="space-y-2">
+                    {draft.serials.map((serial, index) => (
+                      <div key={index} className={`grid gap-2 ${isAc ? "md:grid-cols-2" : ""}`}>
+                        <div>
+                          <label className="mb-1 block text-xs text-slate-500">
+                            {isAc ? `ໜ່ວຍທີ ${index + 1} · S/N ໜ່ວຍໃນ [C] *` : `ໜ່ວຍທີ ${index + 1} · S/N *`}
+                          </label>
+                          {indoorOptions.length > 0 && !draft.manual ? (
+                            <select
+                              value={serial}
+                              onChange={(event) => setSerial(item.item_code, index, event.target.value)}
+                              className={inputClass}
+                            >
+                              <option value="">— ເລືອກ ISN —</option>
+                              {indoorOptions.map((row) => (
+                                <option key={row.isn} value={row.sn || row.isn}>
+                                  {row.isn}
+                                  {row.sn ? ` · S/N ${row.sn}` : ""}
+                                  {row.part === "ໃນສາງ" ? " · ຍັງຢູ່ສາງ" : ""}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              value={serial}
+                              onChange={(event) => setSerial(item.item_code, index, event.target.value)}
+                              placeholder={draft.loading ? "ກຳລັງດຶງ ISN..." : "ອ່ານຈາກປ້າຍຕົວເຄື່ອງ"}
+                              className={inputClass}
+                            />
+                          )}
+                        </div>
+
+                        {/* ແອມີຄອມເພຣສເຊີຢູ່ນອກ — ຄົນລະ S/N ⇒ ຮັບປະກັນ/ສ້ອມພາຍຫຼັງອ້າງອີງໄດ້ */}
+                        {isAc && (
+                          <div>
+                            <label className="mb-1 block text-xs text-slate-500">S/N ໜ່ວຍນອກ [H]</label>
+                            {outdoorOptions.length > 0 && !draft.manual ? (
+                              <select
+                                value={draft.outdoor[index] ?? ""}
+                                onChange={(event) => setSerial(item.item_code, index, event.target.value, true)}
+                                className={inputClass}
+                              >
+                                <option value="">— ເລືອກ ISN —</option>
+                                {outdoorOptions.map((row) => (
+                                  <option key={row.isn} value={row.sn || row.isn}>
+                                    {row.isn}
+                                    {row.sn ? ` · S/N ${row.sn}` : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                value={draft.outdoor[index] ?? ""}
+                                onChange={(event) => setSerial(item.item_code, index, event.target.value, true)}
+                                placeholder="ອ່ານຈາກຄອມເພຣສເຊີ (ບໍ່ບັງຄັບ)"
+                                className={inputClass}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* ບອກແຫຼ່ງທີ່ມາຂອງ ISN ແລະ ທາງອອກເມື່ອຫາບໍ່ພົບ */}
+                    <p className="text-[11px] text-slate-400">
+                      {draft.loading
+                        ? "ກຳລັງດຶງ ISN ຂອງລາຍການນີ້..."
+                        : indoorOptions.length === 0
+                          ? "ບໍ່ພົບ ISN ຂອງລາຍການນີ້ໃນ ERP — ພິມຈາກປ້າຍຕົວເຄື່ອງ"
+                          : fromStock
+                            ? "⚠️ ບິນນີ້ບໍ່ໄດ້ລົງ ISN — ນີ້ຄື ISN ຂອງລາຍການນີ້ຈາກຄັງ ⇒ ທຽບກັບປ້າຍຕົວເຄື່ອງກ່ອນເລືອກ"
+                            : "ISN ທີ່ຂາຍໃນບິນນີ້"}
+                      {indoorOptions.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => patch(item.item_code, { manual: !draft.manual })}
+                          className="ml-2 font-semibold text-teal-700 hover:underline"
+                        >
+                          {draft.manual ? "ກັບໄປເລືອກຈາກລາຍການ" : "ບໍ່ມີໃນລາຍການ? ພິມເອງ"}
+                        </button>
+                      )}
+                    </p>
+                  </div>
+
+                  {/* ຂໍ້ມູນສິນຄ້າ — ດຶງມາຈາກ ERP ແລ້ວ ສ່ວນຫຼາຍບໍ່ຕ້ອງແຕະ */}
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div>
+                      <label className={labelClass}>ລຸ້ນ/Model *</label>
+                      <input
+                        value={draft.model}
+                        onChange={(event) => patch(item.item_code, { model: event.target.value })}
+                        placeholder="ອ່ານຈາກປ້າຍຕົວເຄື່ອງ"
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>ປະເພດ *</label>
+                      <SelectField
+                        name={`type_${item.item_code}`}
+                        value={draft.type}
+                        onChange={(value) => patch(item.item_code, { type: value })}
+                        options={categories.map((category) => ({ value: category.code, label: category.name_1 }))}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>ຂະໜາດ *</label>
+                      <input
+                        value={draft.size}
+                        onChange={(event) => patch(item.item_code, { size: event.target.value })}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                  {missing && (
+                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                      ຍັງຂາດ: {!draft.serials.every((serial) => serial.trim()) && "S/N ບາງໜ່ວຍ · "}
+                      {!draft.model.trim() && "Model · "}
+                      {!draft.type && "ປະເພດ · "}
+                      {!draft.size.trim() && "ຂະໜາດ · "}
+                      (ຫຼື ຕິກອອກ ຖ້າບໍ່ຕິດຕັ້ງລາຍການນີ້)
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+      {/* ⚠️ ຈຳນວນງານບໍ່ຕົງກັບຄ່າຕິດຕັ້ງທີ່ຈ່າຍມາ — ບອກໄວ້ ບໍ່ໄດ້ຫ້າມ (41% ຂອງບິນຂາຍຫຼາຍກວ່າທີ່ຈ້າງຕິດ) */}
+      {bill && bill.services.length > 0 && totalJobs > 0 && totalJobs !== paidUnits(bill) && (
+        <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
+          ⚠️ ບິນນີ້ຈ່າຍຄ່າຕິດຕັ້ງ {paidUnits(bill)} ໜ່ວຍ ແຕ່ກຳລັງຈະສ້າງ {totalJobs} ງານ — ກວດເບິ່ງກ່ອນບັນທຶກ
+        </p>
+      )}
+
+      {/* ③ ສະຖານທີ່ ແລະ ວັນນັດ — ໃຊ້ຮ່ວມກັນທຸກລາຍການ (ບ້ານດຽວກັນ) */}
       {bill && (
         <Card
           title={
             <span className="inline-flex items-center gap-2">
-              <Package className="size-4 text-teal-600" />
-              ລາຍການທີ່ຈະຕິດຕັ້ງ ({bill.items.length} ລາຍການໃນບິນ)
+              <MapPin className="size-4 text-teal-600" />
+              ສະຖານທີ່ ແລະ ວັນນັດ
             </span>
           }
         >
-          {bill.items.length > 1 && (
-            <p className="mb-2 text-xs text-slate-500">
-              ບິນນີ້ຕິດຕັ້ງໄດ້ຫຼາຍລາຍການ — <b>ຕັ້ງຄ່າເທື່ອລະລາຍການ</b> ແລ້ວກົດ &quot;ເພີ່ມ&quot; ⇒ ບັນທຶກເທື່ອດຽວ
-            </p>
-          )}
-          <div className="space-y-2">
-            {bill.items.map((row) => {
-              const active = item?.item_code === row.item_code;
-              const added = done.find((line) => line.item_code === row.item_code);
-              return (
-                <button
-                  key={row.item_code}
-                  type="button"
-                  onClick={() => pickItem(row)}
-                  className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${
-                    active
-                      ? "border-teal-500 bg-teal-50/60"
-                      : added
-                        ? "border-emerald-300 bg-emerald-50/50"
-                        : "border-slate-200 hover:border-teal-300"
-                  }`}
-                >
-                  <span
-                    className={`grid size-5 shrink-0 place-items-center rounded-full border-2 ${
-                      active ? "border-teal-600" : added ? "border-emerald-500" : "border-slate-300"
-                    }`}
-                  >
-                    {active && <span className="size-2.5 rounded-full bg-teal-600" />}
-                    {!active && added && <CheckCircle2 className="size-4 text-emerald-600" />}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-slate-800">{row.item_name}</span>
-                    <span className="block text-xs text-slate-500">
-                      {row.pro_type_name ?? "-"} · {row.pro_size ?? "-"}
-                      {row.serials.length > 0 && ` · ມີ ISN ${row.serials.length}`}
-                    </span>
-                  </span>
-                  {added ? (
-                    <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
-                      ເພີ່ມແລ້ວ · {added.units} ງານ
-                    </span>
-                  ) : (
-                    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
-                      ຂາຍ {row.qty} ໜ່ວຍ
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* ສະຫຼຸບວ່າກົດບັນທຶກແລ້ວຈະໄດ້ຫຍັງແດ່ — ຄົນຕ້ອງເຫັນກ່ອນກົດ */}
-          {allLines.length > 0 && (
-            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
-              <p className="mb-1 text-xs font-bold text-emerald-800">ຈະສ້າງ {totalJobs} ງານ</p>
-              <ul className="space-y-1">
-                {allLines.map((line) => (
-                  <li key={line.item_code} className="flex items-center gap-2 text-xs text-emerald-900">
-                    <span className="min-w-0 flex-1 truncate">
-                      {line.item_name} — {line.units} ງານ
-                      {line.item_code === item?.item_code && " (ກຳລັງຕັ້ງຄ່າ)"}
-                    </span>
-                    {line.item_code !== item?.item_code && (
-                      <button
-                        type="button"
-                        onClick={() => removeLine(line.item_code)}
-                        className="shrink-0 font-semibold text-slate-400 hover:text-red-600"
-                      >
-                        ເອົາອອກ
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {/* ③ ຈຳນວນໜ່ວຍ + S/N ຕໍ່ໜ່ວຍ */}
-      {bill && item && (
-        <>
-          <Card title="ຈຳນວນ ແລະ S/N ຂອງແຕ່ລະໜ່ວຍ">
-            <p className="mb-3 text-xs text-slate-500">
-              <b>1 ໜ່ວຍ = 1 ງານ</b> (ຊ່າງໄປຕິດຄົນລະໜ່ວຍ) — ບິນນີ້ຂາຍ {item.qty} ໜ່ວຍ ·
-              ຈ່າຍຄ່າຕິດຕັ້ງ {paidUnits(bill)} ໜ່ວຍ
-            </p>
-
-            {bill.services.length > 0 && units !== paidUnits(bill) && (
-              <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-                ⚠️ ບິນນີ້ຈ່າຍຄ່າຕິດຕັ້ງ {paidUnits(bill)} ໜ່ວຍ ແຕ່ກຳລັງຈະສ້າງ {units} ງານ —
-                ກວດເບິ່ງກ່ອນບັນທຶກ
-              </p>
-            )}
-
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <label className={labelClass}>ຈະຕິດຕັ້ງ</label>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              {/* ບັງຄັບ — 146 ງານທີ່ຜ່ານມາບໍ່ມີສະຖານທີ່ ⇒ ຊ່າງບໍ່ຮູ້ວ່າໄປໃສ */}
+              <label className={labelClass}>ສະຖານທີ່ຕິດຕັ້ງ *</label>
               <input
-                name="units"
-                type="number"
-                min={1}
-                max={20}
-                value={units}
-                onChange={(event) => changeUnits(Number(event.target.value))}
-                className={`${inputClass} w-24`}
+                name="location_inst"
+                required
+                defaultValue={bill.address ?? ""}
+                placeholder="ບ້ານ / ເມືອງ / ຈຸດສັງເກດ"
+                className={inputClass}
               />
-              <span className="text-sm text-slate-500">ໜ່ວຍ ⇒ ຈະສ້າງ {units} ງານ</span>
+              <p className="mt-1 text-xs text-slate-400">ຕື່ມມາຈາກທີ່ຢູ່ລູກຄ້າ — ແກ້ໄດ້ຖ້າຕິດຕັ້ງບ່ອນອື່ນ</p>
+
+              {/* ພິກັດ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງໄດ້ ແລະ ທຽບກັບ check-in ໄດ້ */}
+              <LocationPicker value={point} onChange={setPoint} />
+              <input type="hidden" name="location_lat" value={point ? String(point.lat) : ""} />
+              <input type="hidden" name="location_lng" value={point ? String(point.lng) : ""} />
             </div>
-
-            <div className="space-y-3">
-              {serials.map((serial, index) => (
-                <div key={index} className="rounded-xl border border-slate-200 p-3">
-                  <p className="mb-2 text-xs font-bold text-slate-600">ໜ່ວຍທີ {index + 1}</p>
-
-                  <div className={`grid gap-2 ${isAc ? "md:grid-cols-2" : ""}`}>
-                    <div>
-                      <label className="mb-1 block text-xs text-slate-500">
-                        {isAc ? "S/N ໜ່ວຍໃນ [C] *" : "S/N *"}
-                      </label>
-                      {indoorOptions.length > 0 && !manualSerial ? (
-                        <select
-                          value={serial}
-                          onChange={(event) => setSerial(index, event.target.value)}
-                          className={inputClass}
-                        >
-                          <option value="">— ເລືອກ ISN —</option>
-                          {indoorOptions.map((row) => (
-                            <option key={row.isn} value={row.sn || row.isn}>
-                              {row.isn}
-                              {row.sn ? ` · S/N ${row.sn}` : ""}
-                              {row.part === "ໃນສາງ" ? " · ຍັງຢູ່ສາງ" : ""}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          value={serial}
-                          onChange={(event) => setSerial(index, event.target.value)}
-                          placeholder={loadingSerials ? "ກຳລັງດຶງ ISN..." : "ອ່ານຈາກປ້າຍຕົວເຄື່ອງ"}
-                          className={inputClass}
-                        />
-                      )}
-
-                      {/* ບອກແຫຼ່ງທີ່ມາໃຫ້ຄົນຮັບເຄື່ອງຮູ້ວ່າກຳລັງເລືອກຈາກຫຍັງ */}
-                      {index === 0 && (
-                        <p className="mt-1 text-[11px] text-slate-400">
-                          {loadingSerials
-                            ? "ກຳລັງດຶງ ISN ຂອງລາຍການນີ້..."
-                            : indoorOptions.length === 0
-                              ? "ບໍ່ພົບ ISN ຂອງລາຍການນີ້ໃນ ERP — ພິມຈາກປ້າຍຕົວເຄື່ອງ"
-                              : fromStock
-                                ? "⚠️ ບິນນີ້ບໍ່ໄດ້ລົງ ISN — ນີ້ຄື ISN ຂອງລາຍການນີ້ຈາກຄັງ ⇒ ທຽບກັບປ້າຍຕົວເຄື່ອງກ່ອນເລືອກ"
-                                : "ISN ທີ່ຂາຍໃນບິນນີ້"}
-                        </p>
-                      )}
-
-                      {/* ຫາ ISN ບໍ່ພົບໃນລາຍການ ⇒ ຍັງພິມເອງໄດ້ (ຢ່າໃຫ້ຄົນຕິດຢູ່) */}
-                      {index === 0 && indoorOptions.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setManualSerial((current) => !current)}
-                          className="mt-1 text-[11px] font-semibold text-teal-700 hover:underline"
-                        >
-                          {manualSerial ? "ກັບໄປເລືອກຈາກລາຍການ" : "ບໍ່ມີໃນລາຍການ? ພິມເອງ"}
-                        </button>
-                      )}
-                    </div>
-
-                    {/* ແອມີຄອມເພຣສເຊີຢູ່ນອກ — ຄົນລະ S/N ⇒ ຮັບປະກັນ/ສ້ອມພາຍຫຼັງອ້າງອີງໄດ້ */}
-                    {isAc && (
-                      <div>
-                        <label className="mb-1 block text-xs text-slate-500">S/N ໜ່ວຍນອກ [H]</label>
-                        {outdoorOptions.length > 0 ? (
-                          <select
-                            value={outdoor[index] ?? ""}
-                            onChange={(event) => setOutdoorSerial(index, event.target.value)}
-                            className={inputClass}
-                          >
-                            <option value="">— ເລືອກ ISN —</option>
-                            {outdoorOptions.map((row) => (
-                              <option key={row.isn} value={row.sn || row.isn}>
-                                {row.isn}
-                                {row.sn ? ` · S/N ${row.sn}` : ""}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <input
-                            value={outdoor[index] ?? ""}
-                            onChange={(event) => setOutdoorSerial(index, event.target.value)}
-                            placeholder="ອ່ານຈາກຄອມເພຣສເຊີ (ບໍ່ບັງຄັບ)"
-                            className={inputClass}
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div>
+              <label className={labelClass}>ວັນຄາດວ່າຈະເຂົ້າຕິດຕັ້ງ</label>
+              <input type="date" name="appoint_date" className={inputClass} />
+              <p className="mt-1 text-xs text-slate-400">ຜູ້ຈັດຊ່າງປ່ຽນໄດ້ພາຍຫຼັງ</p>
             </div>
-
-          </Card>
-
-          {/* ④ ຂໍ້ມູນສິນຄ້າ */}
-          <Card title="ຂໍ້ມູນສິນຄ້າ">
-            <p className="mb-3 text-xs text-slate-500">
-              ປະເພດ ແລະ ຂະໜາດ <b>ດຶງມາຈາກ ERP ແລ້ວ</b> · Model ຢູ່ຕົວເຄື່ອງ (ERP ບໍ່ມີ) ຈຶ່ງຕ້ອງພິມ
-            </p>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <label className={labelClass}>ລຸ້ນ/Model *</label>
-                <input value={model} onChange={(event) => setModel(event.target.value)} className={inputClass} />
-                <p className="mt-1 truncate text-xs text-slate-400" title={item.item_name}>
-                  ເດົາຈາກຊື່: {item.item_name}
-                </p>
-              </div>
-              <div>
-                <label className={labelClass}>ປະເພດ *</label>
-                <SelectField
-                  name="pro_type_ui"
-                  value={typeCode}
-                  onChange={setTypeCode}
-                  options={categories.map((category) => ({ value: category.code, label: category.name_1 }))}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>ຂະໜາດ *</label>
-                <input value={size} onChange={(event) => setSize(event.target.value)} className={inputClass} />
-              </div>
+            <div className="md:col-span-2">
+              <label className={labelClass}>ໝາຍເຫດ</label>
+              <input name="remark" placeholder="ຊັ້ນ, ທາງເຂົ້າ, ນັດເວລາ..." className={inputClass} />
             </div>
-
-            {/* ບິນຍັງມີລາຍການອື່ນທີ່ຕິດຕັ້ງໄດ້ ⇒ ເພີ່ມອັນນີ້ແລ້ວໄປຕັ້ງອັນຕໍ່ໄປ (ບໍ່ຕ້ອງກອກບິນຄືນໃໝ່) */}
-            {bill.items.length > 1 && (
-              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-                <Button type="button" tone="info" disabled={!draft} onClick={addLine}>
-                  <Plus className="size-4" />
-                  ເພີ່ມລາຍການນີ້ ແລ້ວເລືອກລາຍການອື່ນ
-                </Button>
-                <span className="text-xs text-slate-500">
-                  {draft ? "ຂໍ້ມູນຄົບແລ້ວ — ຫຼື ກົດບັນທຶກລຸ່ມສຸດເລີຍກໍ່ໄດ້" : "ຕື່ມ S/N · Model · ປະເພດ · ຂະໜາດ ໃຫ້ຄົບກ່ອນ"}
-                </span>
-              </div>
-            )}
-          </Card>
-        </>
-      )}
-
-      {/* ⑤ ສະຖານທີ່ ແລະ ວັນນັດ — **ໃຊ້ຮ່ວມກັນທຸກລາຍການ** (ບ້ານດຽວກັນ) ⇒ ຢູ່ນອກຕົວຕັ້ງຄ່າລາຍການ
-          ບໍ່ດັ່ງນັ້ນມັນຈະຫາຍໄປພ້ອມກັບຊ່ອງທີ່ກອກແລ້ວ ຕອນກົດ "ເພີ່ມລາຍການ" */}
-      {bill && (
-        <>
-          <Card
-            title={
-              <span className="inline-flex items-center gap-2">
-                <MapPin className="size-4 text-teal-600" />
-                ສະຖານທີ່ ແລະ ວັນນັດ
-              </span>
-            }
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                {/* ບັງຄັບ — 146 ງານທີ່ຜ່ານມາບໍ່ມີສະຖານທີ່ ⇒ ຊ່າງບໍ່ຮູ້ວ່າໄປໃສ */}
-                <label className={labelClass}>ສະຖານທີ່ຕິດຕັ້ງ *</label>
-                <input
-                  name="location_inst"
-                  required
-                  defaultValue={bill.address ?? ""}
-                  placeholder="ບ້ານ / ເມືອງ / ຈຸດສັງເກດ"
-                  className={inputClass}
-                />
-                <p className="mt-1 text-xs text-slate-400">ຕື່ມມາຈາກທີ່ຢູ່ລູກຄ້າ — ແກ້ໄດ້ຖ້າຕິດຕັ້ງບ່ອນອື່ນ</p>
-
-                {/* ພິກັດ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງໄດ້ ແລະ ທຽບກັບ check-in ໄດ້ */}
-                <LocationPicker value={point} onChange={setPoint} />
-                <input type="hidden" name="location_lat" value={point ? String(point.lat) : ""} />
-                <input type="hidden" name="location_lng" value={point ? String(point.lng) : ""} />
-              </div>
-              <div>
-                <label className={labelClass}>ວັນຄາດວ່າຈະເຂົ້າຕິດຕັ້ງ</label>
-                <input type="date" name="appoint_date" className={inputClass} />
-                <p className="mt-1 text-xs text-slate-400">ຜູ້ຈັດຊ່າງປ່ຽນໄດ້ພາຍຫຼັງ</p>
-              </div>
-              <div className="md:col-span-2">
-                <label className={labelClass}>ໝາຍເຫດ</label>
-                <input name="remark" placeholder="ຊັ້ນ, ທາງເຂົ້າ, ນັດເວລາ..." className={inputClass} />
-              </div>
-            </div>
-          </Card>
-        </>
+          </div>
+        </Card>
       )}
 
       {/* ຄ່າທີ່ ERP ໃຫ້ມາ — ສົ່ງໄປ server ໂດຍບໍ່ໃຫ້ຄົນແກ້ (ແກ້ໄດ້ = ຂໍ້ມູນຫຼົ້ນກັບ ERP) */}
@@ -645,19 +518,22 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
       <input type="hidden" name="custname" value={bill?.cust_name ?? ""} />
       <input type="hidden" name="tel" value={bill?.telephone ?? ""} />
       <input type="hidden" name="address" value={bill?.address ?? ""} />
-      {/* ລາຍການທີ່ຈະສ້າງທັງໝົດ (ລວມອັນທີ່ກຳລັງຕັ້ງຄ່າ) — server ກວດຊ້ຳດ້ວຍ zod */}
-      <input type="hidden" name="lines" value={JSON.stringify(allLines)} />
+      {/* ລາຍການທີ່ຕິກ ແລະ ຂໍ້ມູນຄົບ — server ກວດຊ້ຳດ້ວຍ zod */}
+      <input type="hidden" name="lines" value={JSON.stringify(lines)} />
 
-      {/* ⑥ ບັນທຶກ */}
+      {/* ④ ບັນທຶກ */}
       <div className="sticky bottom-0 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <span className="text-xs text-slate-500">
           ຜູ້ສ້າງ: <b className="text-slate-700">{username}</b>
-          {allLines.length > 0 && (
+          {totalJobs > 0 && (
             <>
               {" · ຈະສ້າງ "}
               <b className="text-slate-700">{totalJobs} ງານ</b>
-              {allLines.length > 1 && ` ຈາກ ${allLines.length} ລາຍການ`}
+              {lines.length > 1 && ` ຈາກ ${lines.length} ລາຍການ`}
             </>
+          )}
+          {incomplete.length > 0 && (
+            <span className="font-semibold text-amber-700"> · ຍັງມີ {incomplete.length} ລາຍການທີ່ຂໍ້ມູນບໍ່ຄົບ</span>
           )}
         </span>
         <div className="ml-auto flex gap-2">
@@ -675,11 +551,7 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
         <BillPicker
           onClose={() => setOpen(false)}
           onPick={(chosen) => {
-            setBill(chosen);
-            setDone([]); // ປ່ຽນບິນ = ລາຍການທີ່ຕັ້ງໄວ້ຂອງບິນເກົ່າໃຊ້ບໍ່ໄດ້ອີກ
-            clearEditor();
-            // ບິນມີລາຍການດຽວ ⇒ ເລືອກໃຫ້ເລີຍ (ບໍ່ໃຫ້ກົດຊ້ຳໂດຍບໍ່ຈຳເປັນ)
-            if (chosen.items.length === 1) pickItem(chosen.items[0], chosen);
+            loadBill(chosen);
             setOpen(false);
           }}
         />

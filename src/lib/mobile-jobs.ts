@@ -6,7 +6,6 @@ import {
   INSTALL_ELAPSED_SQL,
   INSTALL_OPEN,
 } from "@/lib/install-stage";
-import { roleOf } from "@/lib/roles";
 import { OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 
 /**
@@ -80,8 +79,10 @@ const REPAIR_ACTION = `case
 
 export async function myJobs(session: Session): Promise<MobileJob[]> {
   const tech = session.username;
-  // ຫົວໜ້າຊ່າງ/ຜູ້ຈັດການ ເບິ່ງໄດ້ໝົດ — ຊ່າງເຫັນສະເພາະຂອງຕົນ (ຄືກົດເກນ lib/scope ຂອງເວັບ)
-  const all = roleOf(session) !== "technical";
+  // Mobile ແມ່ນໜ້າ "ວຽກຂອງຂ້ອຍ": ທຸກ role ຕ້ອງເຫັນສະເພາະງານທີ່
+  // ມອບໝາຍໃຫ້ identity ທີ່ login ເທົ່ານັ້ນ. ຫົວໜ້າ/ຜູ້ຈັດການ
+  // ເບິ່ງງານລວມຢູ່ web dashboard; ການໃຫ້ role ເຫຼົ່ານີ້ເຫັນທຸກງານ
+  // ໃນ mobile ເຮັດໃຫ້ສາມາດເປີດ/ດຳເນີນງານຂອງຊ່າງຄົນອື່ນໄດ້.
 
   const install = await query<MobileJob>(
     `select 'install' as workflow, a.code,
@@ -100,7 +101,7 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
       left join ar_customer c on c.code = a.cust_code
      where ${INSTALL_OPEN}
        and coalesce(a.tech_code,'') <> ''
-       ${all ? "" : "and a.tech_code = $1"}
+       and a.tech_code = $1
      order by a.appoint_date asc nulls last, a.time_register asc`,
     [tech],
   );
@@ -122,7 +123,7 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
       left join ar_customer b on b.code = a.cust_code
      where ${OPEN_JOBS}
        and coalesce(a.emp_code,'') <> ''
-       ${all ? "" : "and a.emp_code = $1"}
+       and a.emp_code = $1
      order by a.time_register asc`,
     [tech],
   );
