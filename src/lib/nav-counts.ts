@@ -57,9 +57,6 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
           (select count(*) from ods_tb_install a
             where ${installStageIs(8)})::int as "/installations/close",
 
-          -- ── ສາງ: ອາໄຫຼ່ທີ່ຊ່າງຂໍມາ ລໍເບີກອອກ ──
-          (select count(distinct d.doc_no) from ic_trans_detail d
-
           -- ── ອະນຸມັດ (ເງື່ອນໄຂອັນດຽວກັບ APPROVALS_SQL / CANCEL_REQUESTS_SQL ຂອງ lib/dashboard) ──
           (select count(*) from ic_trans t
             where t.trans_flag = 17 and t.aprove_status = 0)::int as "/approvals/quotations",

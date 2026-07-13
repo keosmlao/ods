@@ -33,6 +33,14 @@ export type ErpRequestLine = {
 };
 
 export type ErpRequestDoc = {
+  /**
+   * ປະເພດເອກະສານ — ຄ່າຕັ້ງຕົ້ນ = ໃບຂໍເບີກ (122).
+   * ໃບ**ຂໍສົ່ງຄືນ** (59) ໃຊ້ຕົວຂຽນອັນດຽວກັນ: ທັງສອງເປັນ "ຄຳຂໍ" ບໍ່ແຕະສະຕັອກ
+   * (ໃບເບີກ 56 / ໃບຮັບຄືນ 58 ຂອງສາງເປັນຄົນຍ້າຍສະຕັອກ ແລະ ອອກຢູ່ ERP).
+   */
+  trans_flag?: number;
+  /** doc_format_code ຂອງ ERP — SIO (ຂໍເບີກ) · SRI (ຂໍສົ່ງຄືນ) */
+  format?: string;
   doc_no: string;
   /** YYYY-MM-DD */
   doc_date: string;
@@ -75,6 +83,8 @@ export async function writeErpRequest(doc: ErpRequestDoc, client?: PoolClient): 
   const own = !client;
   const odg = client ?? (await odgDb.connect());
   const creator = await employeeCode(doc.requester);
+  const transFlag = doc.trans_flag ?? TRANS.REQUEST;
+  const format = doc.format ?? ERP.FORMAT_REQUEST;
 
   try {
     if (own) await odg.query("begin");
@@ -85,11 +95,11 @@ export async function writeErpRequest(doc: ErpRequestDoc, client?: PoolClient): 
          side_code, department_code, create_datetime)
        values($1,$2,$3,$4,$5,$3,$6,$7,$8,0,$9,$10,$11,$12,$13,$14,localtimestamp)`,
       [
-        ERP.TRANS_TYPE, TRANS.REQUEST, doc.doc_date, doc.doc_no,
+        ERP.TRANS_TYPE, transFlag, doc.doc_date, doc.doc_no,
         // ລະຫັດງານ — ທາງດຽວທີ່ຄົນ ERP ຈະຮູ້ວ່າໃບນີ້ຂອງງານໃດ (ERP ບໍ່ມີ product_code)
         doc.job_code, doc.doc_time, branchOf(doc.wh_code),
         doc.remark ? `${doc.job_code} · ${doc.remark}` : doc.job_code,
-        ERP.FORMAT_REQUEST, doc.wh_code, doc.shelf_code, creator,
+        format, doc.wh_code, doc.shelf_code, creator,
         ERP.SIDE_CODE, ERP.DEPARTMENT_CODE,
       ],
     );
@@ -103,7 +113,7 @@ export async function writeErpRequest(doc: ErpRequestDoc, client?: PoolClient): 
            stand_value, divide_value, doc_date_calc, doc_time_calc, doc_time)
          values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,0,$14,1,1,$3,$15,$15)`,
         [
-          ERP.TRANS_TYPE, TRANS.REQUEST, doc.doc_date, doc.doc_no, doc.job_code,
+          ERP.TRANS_TYPE, transFlag, doc.doc_date, doc.doc_no, doc.job_code,
           line.item_code, line.item_name ?? "", line.unit_code ?? "", Number(line.qty), lineNumber,
           branchOf(doc.wh_code), doc.wh_code, doc.shelf_code,
           // ໃບ**ຂໍ**ເບີກ ບໍ່ຕັດສະຕັອກ (ໃບເບີກ 56 ຂອງສາງເປັນຄົນຕັດ) ⇒ calc_flag 0
@@ -131,7 +141,7 @@ export async function writeErpRequest(doc: ErpRequestDoc, client?: PoolClient): 
  * ປອດໄພ: ຖ້າ ERP **ເບີກຕາມໃບນີ້ໄປແລ້ວ** (ມີໃບ 56 ທີ່ doc_ref ຊີ້ໃສ່) ⇒ ໂຍນ error
  * ⇒ ຜູ້ເອີ້ນຕ້ອງປະຕິເສດການລຶບ (ລຶບໃບຂໍທີ່ເບີກແລ້ວ = ບັນຊີອາໄຫຼ່ບໍ່ຕົງ).
  */
-export async function deleteErpRequest(docNo: string): Promise<void> {
+export async function deleteErpRequest(docNo: string, transFlag: number = TRANS.REQUEST): Promise<void> {
   if (!odgDb) throw new Error("ບໍ່ພົບ ODG_DATABASE_URL");
 
   const odg = await odgDb.connect();
@@ -148,8 +158,8 @@ export async function deleteErpRequest(docNo: string): Promise<void> {
       throw new Error(`ສາງເບີກຕາມໃບນີ້ໄປແລ້ວໃນ ERP (${dispatched.rows[0].doc_no}) — ລຶບບໍ່ໄດ້`);
     }
 
-    await odg.query("delete from ic_trans_detail where doc_no = $1 and trans_flag = $2", [docNo, TRANS.REQUEST]);
-    await odg.query("delete from ic_trans where doc_no = $1 and trans_flag = $2", [docNo, TRANS.REQUEST]);
+    await odg.query("delete from ic_trans_detail where doc_no = $1 and trans_flag = $2", [docNo, transFlag]);
+    await odg.query("delete from ic_trans where doc_no = $1 and trans_flag = $2", [docNo, transFlag]);
 
     await odg.query("commit");
   } catch (error) {

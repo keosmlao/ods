@@ -79,6 +79,8 @@ export const ERP = {
   FORMAT_REQUEST: "SIO",
   /** doc_format_code ຂອງໃບຮັບຄືນ */
   FORMAT_RECEIVE: "RIM",
+  /** doc_format_code ຂອງໃບ **ຂໍ**ສົ່ງຄືນ (59) */
+  FORMAT_RETURN: "SRI",
 } as const;
 
 /** calc_flag: -1 = ຕັດອອກຈາກສາງ, 1 = ບວກເຂົ້າສາງ */

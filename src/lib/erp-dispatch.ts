@@ -1,5 +1,5 @@
 import { db, queryOdg } from "@/lib/db";
-import { CALC_OUT, TRANS } from "@/lib/stock-constants";
+import { CALC_IN, CALC_OUT, LINE_STATUS, TRANS } from "@/lib/stock-constants";
 
 /**
  * **ດຶງໃບເບີກ (56) ທີ່ສາງອອກໃນ ERP ກັບຄືນມາໃສ່ ODS** — ບ່ອນດຽວຂອງລະບົບ.
@@ -185,6 +185,131 @@ export async function syncErpDispatch(): Promise<SyncResult> {
   } catch (error) {
     // ERP ລົ້ມ ⇒ ໜ້າຈໍຍັງເປີດໄດ້ (ພຽງແຕ່ຍັງບໍ່ເຫັນໃບໃໝ່)
     console.error("syncErpDispatch failed", error);
+    return empty;
+  }
+}
+
+
+/**
+ * **ດຶງໃບຮັບຄືນ (58) ທີ່ສາງຮັບໃນ ERP ກັບຄືນມາໃສ່ ODS.**
+ *
+ * ຄູ່ກັບ syncErpDispatch — ຫຼັກການດຽວກັນ: ເອກະສານທີ່ **ຍ້າຍສະຕັອກ** ອອກຢູ່ ERP,
+ * ODS ເປັນຝ່າຍອ່ານ. ຜູກກັນຜ່ານ doc_ref = ເລກໃບ**ຂໍສົ່ງຄືນ** (SRI…) ຂອງເຮົາ.
+ *
+ * ເຮັດໃຫ້: ① ໃບຮັບຄືນລົງ ODS  ② ບວກສະຕັອກເງົາຄືນ  ③ ໝາຍອາໄຫຼ່ວ່າ "ສົ່ງຄືນແລ້ວ"
+ * (tb_used_spare.status='2') **ແຖວລະລາຍການ** ບໍ່ແມ່ນທັງງານ (ບັກເກົ່າຂອງ ods)
+ * ④ ປິດແຖວຂອງໃບຂໍສົ່ງຄືນ ⇒ ໃບຫຼຸດອອກຈາກຄິວ "ລໍສາງຮັບຄືນ" ເອງ.
+ */
+export async function syncErpReturns(): Promise<SyncResult> {
+  const empty: SyncResult = { imported: 0, jobs: [] };
+  if (!db) return empty;
+
+  try {
+    const open = await db.query<{ doc_no: string }>(
+      `select distinct t.doc_no
+         from ic_trans t
+         join ic_trans_detail d on d.doc_no = t.doc_no and d.trans_flag = t.trans_flag
+        where t.trans_flag = $1 and d.status = $2
+          and t.doc_date >= current_date - 180`,
+      [TRANS.RETURN_REQUEST, LINE_STATUS.RETURN_REQUESTED],
+    );
+    if (open.rows.length === 0) return empty;
+
+    const heads = await queryOdg<{ doc_no: string; doc_date: string; doc_ref: string; remark: string | null; creator_code: string | null }>(
+      `select doc_no, to_char(doc_date,'YYYY-MM-DD') as doc_date,
+          split_part(trim(doc_ref), ' ', 1) as doc_ref, remark, creator_code
+        from ic_trans
+       where trans_flag = $1 and split_part(trim(doc_ref), ' ', 1) = any($2::text[])`,
+      [TRANS.RECEIVE_BACK, open.rows.map((row) => row.doc_no)],
+    );
+    if (heads.rows.length === 0) return empty;
+
+    const known = await db.query<{ doc_no: string }>(
+      "select doc_no from ic_trans where trans_flag = $1 and doc_no = any($2::varchar[])",
+      [TRANS.RECEIVE_BACK, heads.rows.map((row) => row.doc_no)],
+    );
+    const seen = new Set(known.rows.map((row) => row.doc_no));
+    const fresh = heads.rows.filter((row) => !seen.has(row.doc_no));
+    if (fresh.length === 0) return empty;
+
+    const lines = await queryOdg<ErpLine>(
+      `select doc_no, item_code, item_name, unit_code, qty::text as qty
+         from ic_trans_detail where trans_flag = $1 and doc_no = any($2::text[]) order by line_number`,
+      [TRANS.RECEIVE_BACK, fresh.map((row) => row.doc_no)],
+    );
+
+    const jobs: string[] = [];
+    let imported = 0;
+
+    for (const head of fresh) {
+      const docLines = lines.rows.filter((row) => row.doc_no === head.doc_no);
+      if (docLines.length === 0) continue;
+
+      const client = await db.connect();
+      try {
+        await client.query("begin");
+
+        const request = await client.query<{ product_code: string | null }>(
+          "select product_code from ic_trans where doc_no = $1 and trans_flag = $2 limit 1",
+          [head.doc_ref, TRANS.RETURN_REQUEST],
+        );
+        const job = request.rows[0]?.product_code ?? "";
+
+        await client.query(
+          `insert into ic_trans(trans_flag,doc_date,doc_no,doc_ref,doc_ref_date,product_code,remark,user_created)
+           values($1,$2,$3,$4,$2,$5,$6,$7)`,
+          [TRANS.RECEIVE_BACK, head.doc_date, head.doc_no, head.doc_ref, job || null, head.remark ?? "",
+            head.creator_code ?? ""],
+        );
+
+        for (const line of docLines) {
+          await client.query(
+            `insert into ic_trans_detail(trans_flag,doc_date,doc_no,doc_ref,product_code,item_code,item_name,qty,
+               unit_code,calc_flag,user_created)
+             values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+            [TRANS.RECEIVE_BACK, head.doc_date, head.doc_no, head.doc_ref, job || null, line.item_code,
+              line.item_name, line.qty, line.unit_code, CALC_IN, head.creator_code ?? ""],
+          );
+
+          // ບວກສະຕັອກເງົາຂອງ ODS ຄືນ (ERP ບວກໄປແລ້ວຕອນສາງຮັບ)
+          await client.query(
+            "update ic_inventory set balance_qty=balance_qty+$1, wh_qty=wh_qty+$1 where code=$2",
+            [Number(line.qty), line.item_code],
+          );
+
+          // ໝາຍ **ແຖວລະລາຍການ** ວ່າສົ່ງຄືນແລ້ວ (ods ໝາຍທັງງານ ⇒ ອາໄຫຼ່ 1 ໃນ 5 ກໍ່ຖືວ່າຄືນໝົດ)
+          if (job) {
+            await client.query(
+              `update tb_used_spare set status='2'
+                where roworder = (
+                  select roworder from tb_used_spare
+                   where product_code=$1 and item_code=$2 and coalesce(status,'') <> '2'
+                   order by (reg_finish is not null) desc, roworder asc limit 1)`,
+              [job, line.item_code],
+            );
+          }
+
+          // ແຖວຂອງໃບຂໍສົ່ງຄືນ = ຮັບຄືນແລ້ວ ⇒ ຫຼຸດອອກຈາກຄິວ
+          await client.query(
+            "update ic_trans_detail set status=$1 where doc_no=$2 and trans_flag=$3 and item_code=$4 and status=$5",
+            [LINE_STATUS.ISSUED, head.doc_ref, TRANS.RETURN_REQUEST, line.item_code, LINE_STATUS.RETURN_REQUESTED],
+          );
+        }
+
+        await client.query("commit");
+        imported += 1;
+        if (job) jobs.push(job);
+      } catch (error) {
+        await client.query("rollback").catch(() => {});
+        console.error("syncErpReturns failed", head.doc_no, error);
+      } finally {
+        client.release();
+      }
+    }
+
+    return { imported, jobs };
+  } catch (error) {
+    console.error("syncErpReturns failed", error);
     return empty;
   }
 }

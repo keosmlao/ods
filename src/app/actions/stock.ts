@@ -5,7 +5,7 @@ import { notify } from "@/app/actions/notification";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb } from "@/lib/db";
 import { docPrefix, nextDocNo } from "@/lib/doc-no";
-import { deleteErpRequest } from "@/lib/erp-request";
+import { deleteErpRequest, writeErpRequest } from "@/lib/erp-request";
 import { requirePermissionOrRedirect, requireRole, requireRoleOrRedirect } from "@/lib/guard";
 import { RETURN_SIDE, SERVICE_SIDE, STOCK_SIDE, TECH_SIDE } from "@/lib/roles";
 import { getBalances } from "@/lib/stock-balance";
@@ -374,12 +374,17 @@ export async function saveReturnRequest(_: StockState, formData: FormData): Prom
   const remark = text(formData, "remark");
   if (!docRef) return { error: "ບໍ່ພົບເລກທີໃບເບີກ" };
 
+  if (!odgDb) return { error: "ບໍ່ພົບ ODG_DATABASE_URL" };
+
   const { date: docDate, at } = nowParts();
   const client = await db.connect();
+  // ໃບຂໍສົ່ງຄືນລົງທັງ ODS ແລະ ERP — ERP ບໍ່ຮັບ = ບໍ່ບັນທຶກເລີຍ (ຄືໃບຂໍເບີກ)
+  const odgReturn = await odgDb.connect();
   let returnNo = "";
   let returnLines = 0;
   try {
     await client.query("begin");
+    await odgReturn.query("begin");
     await client.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
 
     const draft = await client.query<{ row_ref: number }>(
@@ -432,6 +437,37 @@ export async function saveReturnRequest(_: StockState, formData: FormData): Prom
      * ໃຊ້ຖັນນີ້ນັບ "ຄ້າງມາ") ⇒ ບໍ່ຕ້ອງ stamp ຫຍັງລົງ tb_product ອີກ.
      */
 
+    /**
+     * ── ໃບ**ຂໍສົ່ງຄືນ** ລົງ ERP ນຳ (13-07-2026) ──
+     * ຫຼັກການດຽວກັບໃບຂໍເບີກ: "ຄຳຂໍ" ຢູ່ທັງສອງຖານ ⇒ ສາງທີ່ເຮັດວຽກໃນ ERP ເຫັນວ່າ
+     * ມີອາໄຫຼ່ຈະສົ່ງຄືນ ແລ້ວຮັບຄືນ (ໃບ 58) ຢູ່ ERP. ERP ບໍ່ຮັບ ⇒ rollback ທັງສອງ.
+     */
+    const returnLinesForErp = await client.query<{
+      item_code: string; item_name: string | null; unit_code: string | null; qty: string;
+    }>(
+      "select item_code, item_name, unit_code, qty::text as qty from ic_trans_detail where doc_no=$1 and trans_flag=$2",
+      [docNo, TRANS.RETURN_REQUEST],
+    );
+    await writeErpRequest(
+      {
+        trans_flag: TRANS.RETURN_REQUEST,
+        format: ERP.FORMAT_RETURN,
+        doc_no: docNo,
+        doc_date: docDate,
+        // ໂມງ:ນາທີ ຕາມເຂດເວລາລາວ (ບໍ່ແມ່ນເວລາເຄື່ອງແມ່ຂ່າຍ)
+        doc_time: new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hour12: false,
+        }).format(new Date()),
+        job_code: productCode,
+        wh_code: RETURN_WH,
+        shelf_code: RETURN_SHELF,
+        remark: remark || `ສົ່ງຄືນຕາມໃບເບີກ ${docRef}`,
+        requester: session.username,
+        lines: returnLinesForErp.rows,
+      },
+      odgReturn,
+    );
+
     // ods ລຶບແຖວຮ່າງໃນ route ຕ່າງຫາກ (/back_stock_return) — ຢູ່ນີ້ລຶບໃນ transaction ດຽວກັນ
     await client.query(`delete from ic_trans_detail_draft where trans_flag=$1 and user_created=$2`, [
       TRANS.DRAFT,
@@ -439,12 +475,15 @@ export async function saveReturnRequest(_: StockState, formData: FormData): Prom
     ]);
 
     await client.query("commit");
+    await odgReturn.query("commit");
   } catch (error) {
-    await client.query("rollback");
+    await client.query("rollback").catch(() => {});
+    await odgReturn.query("rollback").catch(() => {});
     console.error("saveReturnRequest failed", error);
-    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
+    return { error: "ບັນທຶກບໍ່ສຳເລັດ — ERP ບໍ່ຮັບໃບຂໍສົ່ງຄືນນີ້ (ບໍ່ໄດ້ບັນທຶກຫຍັງເລີຍ)" };
   } finally {
     client.release();
+    odgReturn.release();
   }
 
   if (productCode) {
@@ -466,160 +505,14 @@ export async function saveReturnRequest(_: StockState, formData: FormData): Prom
  * ods: /save_com_return — ສາງຮັບອາໄຫຼ່ຄືນ.
  * ຂຽນທັງ ODS ແລະ ERP (odg) ແລະ ບວກ ic_inventory ຄືນທັງສອງຖານ.
  */
-export async function saveReceiveReturn(_: StockState, formData: FormData): Promise<StockState> {
-  // ບວກສະຕັອກຄືນທັງ ODS ແລະ ERP ⇒ ສາງເທົ່ານັ້ນ
-  const guard = await requireRole(STOCK_SIDE, "ບໍ່ມີສິດຮັບອາໄຫຼ່ຄືນເຂົ້າສາງ");
-  if (!guard.ok) return { error: guard.error };
-  const session = guard.session;
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
-  if (!odgDb) return { error: "ບໍ່ພົບ ODG_DATABASE_URL" };
-
-  const docRef = text(formData, "doc_ref");
-  const remark = text(formData, "remark");
-  if (!docRef) return { error: "ບໍ່ພົບເລກທີໃບຂໍສົ່ງຄືນ" };
-
-  const { date: docDate, time: docTime, at } = nowParts();
-
-  const ods = await db.connect();
-  const odg = await odgDb.connect();
-  let receiveNo = "";
-  let receiveLines = 0;
-  let productCode = "";
-  try {
-    await ods.query("begin");
-    await odg.query("begin");
-    await ods.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
-
-    // ວຽກເຈົ້າຂອງເອົາຈາກໃບຂໍສົ່ງຄືນ (ບໍ່ເຊື່ອ product_code ທີ່ມາຈາກ form)
-    const head = await ods.query<{
-      doc_no: string;
-      doc_date: Date;
-      user_created: string | null;
-      product_code: string | null;
-    }>(`select doc_no, doc_date, user_created, product_code from ic_trans where doc_no=$1 limit 1`, [docRef]);
-    const ref = head.rows[0];
-    if (!ref) {
-      await ods.query("rollback");
-      await odg.query("rollback");
-      return { error: "ບໍ່ພົບໃບຂໍສົ່ງຄືນ" };
-    }
-    productCode = ref.product_code ?? "";
-
-    // ກັນບັນທຶກຊ້ຳ — ໃບຂໍສົ່ງຄືນນຶ່ງໃບຮັບຄືນໄດ້ເທື່ອດຽວ
-    const already = await ods.query<{ count: number }>(
-      `select count(*)::int count from ic_trans where trans_flag=$1 and doc_ref=$2`,
-      [TRANS.RECEIVE_BACK, docRef],
-    );
-    if (already.rows[0]?.count) {
-      await ods.query("rollback");
-      await odg.query("rollback");
-      return { error: "ໃບນີ້ຮັບຄືນແລ້ວ" };
-    }
-
-    const lines = await ods.query<{ item_code: string; item_name: string; unit_code: string; qty: string }>(
-      `select item_code, item_name, unit_code, qty from ic_trans_detail where doc_no=$1`,
-      [docRef],
-    );
-    if (lines.rows.length === 0) {
-      await ods.query("rollback");
-      await odg.query("rollback");
-      return { error: "ບໍ່ມີອາໄຫຼ່ໃນໃບນີ້" };
-    }
-
-    const docNo = await nextDocNo(ods, "SRT", at);
-    receiveNo = docNo;
-    receiveLines = lines.rows.length;
-
-    // ── ODS: ຫົວບິນ + ລາຍລະອຽດ
-    await ods.query(
-      `insert into ic_trans(trans_flag, doc_date, doc_no, doc_ref, doc_ref_date, cust_code, product_code, issue, remark,
-         wanrunty, isue_2, waranty_request, emp, w_reason, used_spare)
-       select $1,$2,$3, doc_no, doc_date, cust_code, product_code, issue, $4,
-         wanrunty, isue_2, waranty_request, emp, w_reason, used_spare
-       from ic_trans where doc_no=$5`,
-      [TRANS.RECEIVE_BACK, docDate, docNo, remark, docRef],
-    );
-    await ods.query(
-      `insert into ic_trans_detail(trans_flag, doc_date, doc_no, doc_ref_date, doc_ref, cust_code, product_code,
-         item_code, item_name, qty, unit_code, calc_flag, user_created)
-       select $1,$2,$3, doc_date, doc_no, cust_code, product_code,
-         item_code, item_name, qty, unit_code, $4, $5
-       from ic_trans_detail where doc_no=$6`,
-      [TRANS.RECEIVE_BACK, docDate, docNo, CALC_OUT, session.username, docRef],
-    );
-
-    /*
-     * BUG ທີ່ແກ້ຢູ່ນີ້ (ods ກໍ່ເປັນ): ods ຂຽນ `update tb_used_spare set status='2' where product_code=%s`
-     * ⇒ ສົ່ງຄືນອາໄຫຼ່ 1 ໃນ 5 ລາຍການ ກໍ່ໄປໝາຍວ່າ "ສົ່ງຄືນແລ້ວ" ໝົດທັງວຽກ.
-     * ຂໍ້ມູນຈິງ: tb_used_spare ມີ 45 ແຖວ status='2' ແຕ່ 36 ແຖວໃນນັ້ນບໍ່ເຄີຍຢູ່ໃນໃບສົ່ງຄືນ/ຮັບຄືນໃດເລີຍ.
-     * ດຽວນີ້ໝາຍສະເພາະແຖວທີ່ຕົງກັບອາໄຫຼ່ໃນໃບນີ້ ແຖວລະລາຍການ (ຄືວິທີ stamp reg_finish/pick_finish).
-     */
-    for (const line of lines.rows) {
-      await ods.query(
-        `update tb_used_spare set status='2'
-         where roworder = (
-           select roworder from tb_used_spare
-           where product_code=$1 and item_code=$2 and coalesce(status,'') <> '2'
-           order by (qty = $3::numeric) desc, (reg_finish is not null) desc, roworder asc limit 1)`,
-        [productCode, line.item_code, line.qty],
-      );
-    }
-
-    // ── ODS: ບວກສະຕັອກຄືນ
-    for (const line of lines.rows) {
-      await ods.query(`update ic_inventory set balance_qty=balance_qty+$1, wh_qty=wh_qty+$1 where code=$2`, [
-        line.qty,
-        line.item_code,
-      ]);
-    }
-
-    // ── ERP (odg): ຫົວບິນ + ລາຍລະອຽດ + ບວກສະຕັອກຄືນ
-    await odg.query(
-      `insert into ic_trans(trans_type, trans_flag, doc_no, doc_date, doc_ref, doc_ref_date, sale_code, doc_time,
-         doc_format_code, wh_from, location_from, creator_code, branch_code, remark, side_code, department_code)
-       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
-      [
-        ERP.TRANS_TYPE, TRANS.RECEIVE_BACK, docNo, docDate, docRef, ref.doc_date, ref.user_created, docTime,
-        ERP.FORMAT_RECEIVE, RETURN_WH, RETURN_SHELF, session.username, branchOf(RETURN_WH), remark,
-        ERP.SIDE_CODE, ERP.DEPARTMENT_CODE,
-      ],
-    );
-    for (const line of lines.rows) {
-      await odg.query(
-        `insert into ic_trans_detail(trans_type, trans_flag, doc_no, doc_date, doc_ref, item_code, item_name, unit_code,
-           qty, wh_code, shelf_code, stand_value, divide_value, doc_date_calc, doc_time_calc, calc_flag)
-         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,1,1,$12,$13,$14)`,
-        [
-          ERP.TRANS_TYPE, TRANS.RECEIVE_BACK, docNo, docDate, ref.doc_no, line.item_code, line.item_name,
-          line.unit_code, line.qty, RETURN_WH, RETURN_SHELF, docDate, docTime, CALC_IN,
-        ],
-      );
-      await odg.query(`update ic_inventory set balance_qty=balance_qty+$1 where code=$2`, [line.qty, line.item_code]);
-    }
-
-    await odg.query("commit");
-    await ods.query("commit");
-  } catch (error) {
-    await odg.query("rollback").catch(() => {});
-    await ods.query("rollback").catch(() => {});
-    console.error("saveReceiveReturn failed", error);
-    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
-  } finally {
-    odg.release();
-    ods.release();
-  }
-
-  if (productCode) {
-    await logChange(
-      jobModel(productCode),
-      productCode,
-      `ສາງຮັບອາໄຫຼ່ຄືນ ${receiveNo} · ${receiveLines} ລາຍການ (ອ້າງອີງໃບຂໍສົ່ງຄືນ ${docRef})`,
-    );
-  }
-
-  redirect("/stock/receive-returns");
+/**
+ * ── **ຖອດອອກແລ້ວ** (13-07-2026) ──
+ * ໃບ**ຮັບຄືນ** (58) ຍ້າຍສະຕັອກຈິງ ⇒ ຕ້ອງອອກຢູ່ **ERP** ຄືກັບໃບເບີກ (56).
+ * ODS ດຶງມາເອງ (lib/erp-dispatch → syncErpReturns) ແລ້ວປິດໃບຂໍສົ່ງຄືນໃຫ້.
+ */
+export async function saveReceiveReturn(_: StockState): Promise<StockState> {
+  return { error: "ລະບົບນີ້ອອກໃບຮັບຄືນບໍ່ໄດ້ອີກ — ສາງຮັບຄືນຢູ່ ERP ແລ້ວລະບົບຈະດຶງມາເອງ" };
 }
-
 /* ─────────────────────────── ຂໍໂອນອາໄຫຼ່ຂ້າມສາງ (trans_flag 124) ─────────────────────────── */
 
 /**

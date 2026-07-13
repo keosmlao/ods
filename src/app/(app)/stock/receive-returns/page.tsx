@@ -1,3 +1,4 @@
+import { syncErpReturns } from "@/lib/erp-dispatch";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
 import { SortHeader, type SortDir } from "@/components/sort-header";
@@ -131,6 +132,9 @@ function JobBadge({ jobType }: { jobType: string | null }) {
 }
 
 export default async function ReceiveReturnsPage({ searchParams }: Props) {
+  // ດຶງໃບຮັບຄືນທີ່ສາງຮັບໃນ ERP ກັບມາ ⇒ ໃບທີ່ຮັບແລ້ວຫຼຸດອອກຈາກຄິວເອງ (lib/erp-dispatch)
+  await syncErpReturns();
+
   const params = await searchParams;
   const tab: Tab = params.tab === "received" ? "received" : "pending";
   const q = (params.q ?? "").trim();

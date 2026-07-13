@@ -1,28 +1,20 @@
-import { Card, Empty, PageTitle } from "@/components/ui";
+import { Empty, PageTitle } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { INSTALL_STAGE_LABEL_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
-import { STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 import { roleOf } from "@/lib/roles";
 import { ownJobsOnly } from "@/lib/scope";
-import { CalendarDays, ChevronLeft, ChevronRight, MapPin, Phone, UserRound } from "lucide-react";
+import { STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
+import { CalendarDays, ChevronLeft, ChevronRight, ExternalLink, MapPin, Navigation, Phone, UserRound } from "lucide-react";
 import Link from "next/link";
 
 /**
- * ຄິວງານຊ່າງປະຈຳວັນ — "ມື້ນີ້ ຊ່າງແຕ່ລະຄົນຕ້ອງໄປໃສແດ່".
- *
- * ── ເປັນຫຍັງຕ້ອງມີ ──
- * ວັນນັດ (appoint_date) ຖືກເກັບມາຕະຫຼອດ ແຕ່ **ບໍ່ມີໜ້າໃດສະແດງເປັນມື້**:
- * /installations/assign ເບິ່ງເປັນລາຍການ · /installations/work ເບິ່ງເປັນຄິວຂອງຊ່າງຄົນດຽວ
- * ⇒ ຜູ້ຈັດງານບໍ່ເຫັນພາບວ່າມື້ນຶ່ງຊ່າງຄົນນຶ່ງຖືກນັດໄວ້ຈັກບ່ອນ ແລະ ຈັດຊ້ອນກັນຫຼືບໍ່.
- *
- * ຂັ້ນ ແລະ ຊື່ຂັ້ນ ມາຈາກຂັ້ນໄດບ່ອນດຽວ (lib/install-stage) ⇒ ບໍ່ຫຼົ້ນກັບໜ້າອື່ນ.
- * ຊ່າງເປີດໜ້ານີ້ໄດ້ ແຕ່ເຫັນສະເພາະງານຂອງຕົນ (ownJobsOnly ຄືທຸກໜ້າ).
+ * ຄິວງານຊ່າງປະຈຳວັນ — ປະຕິທິນຢູ່ຊ້າຍ, ລາຍລະອຽດຂອງວັນທີ່ເລືອກຢູ່ຂວາ.
+ * ຊ່າງເຫັນສະເພາະຄິວຂອງຕົນ; ຜູ້ຈັດງານເຫັນທຸກຄົນ.
  */
 export const dynamic = "force-dynamic";
 
 type Row = {
-  /** ຄິວມື້ນຶ່ງຂອງຊ່າງ **ປົນສອງຝັ່ງ** — ຕິດຕັ້ງ ແລະ ສ້ອມ (ຄົນດຽວກັນຮັບທັງສອງ) */
   workflow: "install" | "repair";
   code: string;
   tech: string | null;
@@ -37,26 +29,48 @@ type Row = {
   lng: number | null;
 };
 
+type DayCount = { day: string; jobs: number };
 type Props = { searchParams: Promise<{ d?: string }> };
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
+const WEEKDAYS = ["ຈ", "ອ", "ພ", "ພຫ", "ສຸ", "ສ", "ອາ"];
 
-const shift = (iso: string, days: number) => {
-  const date = new Date(`${iso}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
-};
+function isoDate(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function shift(iso: string, days: number) {
+  const date = new Date(`${iso}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return isoDate(date);
+}
+
+function shiftMonth(iso: string, months: number) {
+  const [year, month] = iso.split("-").map(Number);
+  return isoDate(new Date(Date.UTC(year, month - 1 + months, 1)));
+}
+
+function calendarDays(monthStart: string) {
+  const first = new Date(`${monthStart}T00:00:00Z`);
+  const mondayOffset = (first.getUTCDay() + 6) % 7;
+  const start = shift(monthStart, -mondayOffset);
+  return Array.from({ length: 42 }, (_, index) => shift(start, index));
+}
 
 export default async function SchedulePage({ searchParams }: Props) {
   const params = await searchParams;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = isoDate(new Date());
   const day = ISO.test(params.d ?? "") ? params.d! : today;
+  const monthStart = `${day.slice(0, 7)}-01`;
+  const monthEnd = shiftMonth(monthStart, 1);
 
   const session = await getSession();
-  const tech = ownJobsOnly(session); // ຊ່າງເຫັນສະເພາະຂອງຕົນ
+  const tech = ownJobsOnly(session);
+  const values = tech ? [day, tech] : [day];
+  const monthValues = tech ? [monthStart, monthEnd, tech] : [monthStart, monthEnd];
 
-  const rows = (
-    await query<Row>(
+  const [jobsResult, countResult] = await Promise.all([
+    query<Row>(
       `select 'install' as workflow, a.code,
           nullif(a.tech_code,'') as tech,
           c.name_1 as customer, c.tel,
@@ -75,8 +89,6 @@ export default async function SchedulePage({ searchParams }: Props) {
 
        union all
 
-       -- ງານສ້ອມນັດວັນໄດ້ແລ້ວ (tb_product.appoint_date — migration 2026-07-13-repair-location)
-       -- ⇒ ຄິວປະຈຳວັນຕ້ອງລວມມັນນຳ ບໍ່ດັ່ງນັ້ນ "ມື້ນີ້ຊ່າງມີ 2 ບ່ອນ" ຄວາມຈິງອາດເປັນ 5
        select 'repair' as workflow, a.code,
           nullif(a.emp_code,'') as tech,
           c.name_1 as customer, c.tel,
@@ -94,137 +106,204 @@ export default async function SchedulePage({ searchParams }: Props) {
          ${tech ? "and a.emp_code = $2" : ""}
 
        order by tech nulls last, code`,
-      tech ? [day, tech] : [day],
-    )
-  ).rows;
+      values,
+    ),
+    query<DayCount>(
+      `select to_char(q.appoint_date,'YYYY-MM-DD') as day, count(*)::int as jobs
+         from (
+           select a.appoint_date
+             from ods_tb_install a
+            where a.appoint_date >= $1::date and a.appoint_date < $2::date
+              and a.cancel_date is null and a.job_finish is null
+              ${tech ? "and a.tech_code = $3" : ""}
+           union all
+           select a.appoint_date
+             from tb_product a
+            where a.appoint_date >= $1::date and a.appoint_date < $2::date
+              and a.cancel_start is null and a.return_complete is null
+              ${tech ? "and a.emp_code = $3" : ""}
+         ) q
+        group by q.appoint_date
+        order by q.appoint_date`,
+      monthValues,
+    ),
+  ]);
 
-  // ຈັດເປັນກຸ່ມຕໍ່ຊ່າງ — ຜູ້ຈັດງານຕ້ອງເຫັນວ່າ "ຄົນນີ້ມື້ນີ້ 4 ບ່ອນ, ຄົນນັ້ນ 0"
+  const rows = jobsResult.rows;
+  const counts = new Map(countResult.rows.map((row) => [row.day, Number(row.jobs)]));
+  const monthTotal = countResult.rows.reduce((sum, row) => sum + Number(row.jobs), 0);
+  const cells = calendarDays(monthStart);
+  const selectedLabel = new Intl.DateTimeFormat("lo-LA", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${day}T00:00:00Z`));
+  const monthLabel = new Intl.DateTimeFormat("lo-LA", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${monthStart}T00:00:00Z`));
+
   const byTech = new Map<string, Row[]>();
   for (const row of rows) {
-    const key = row.tech ?? "(ຍັງບໍ່ມີຊ່າງ)";
-    byTech.set(key, [...(byTech.get(key) ?? []), row]);
+    const who = row.tech ?? "(ຍັງບໍ່ມີຊ່າງ)";
+    byTech.set(who, [...(byTech.get(who) ?? []), row]);
   }
-
-  const isManager = roleOf(session) !== "technical";
+  const canSeeAll = roleOf(session) !== "technical";
 
   return (
     <div className="space-y-5">
-      <PageTitle sub="ວັນນັດຂອງແຕ່ລະຊ່າງ ທັງ ຕິດຕັ້ງ ແລະ ສ້ອມ — ຈັດຊ້ອນກັນຫຼືບໍ່ ເຫັນຢູ່ນີ້">ຄິວງານຊ່າງປະຈຳວັນ</PageTitle>
+      <PageTitle sub="ເລືອກວັນຈາກປະຕິທິນ ເພື່ອເບິ່ງຄິວຕິດຕັ້ງ ແລະສ້ອມຂອງຊ່າງ">
+        ຄິວງານຊ່າງປະຈຳວັນ
+      </PageTitle>
 
-      {/* ເລືອກມື້ */}
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        <Link
-          href={`/installations/schedule?d=${shift(day, -1)}`}
-          className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-        >
-          <ChevronLeft className="size-4" /> ມື້ກ່ອນ
-        </Link>
-
-        <span className="inline-flex h-9 items-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-bold text-white">
-          <CalendarDays className="size-4" />
-          {day.split("-").reverse().join("-")}
-          {day === today && <span className="rounded bg-teal-500 px-1.5 text-[10px]">ມື້ນີ້</span>}
-        </span>
-
-        <Link
-          href={`/installations/schedule?d=${shift(day, 1)}`}
-          className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-        >
-          ມື້ຕໍ່ໄປ <ChevronRight className="size-4" />
-        </Link>
-
-        {day !== today && (
-          <Link href="/installations/schedule" className="text-xs font-semibold text-teal-700 hover:underline">
-            ກັບມື້ນີ້
-          </Link>
-        )}
-      </div>
-
-      {rows.length === 0 ? (
-        <Empty>ບໍ່ມີງານນັດໃນມື້ນີ້</Empty>
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {[...byTech.entries()].map(([who, jobs]) => (
-            <Card
-              key={who}
-              title={
-                <span className="inline-flex items-center gap-2">
-                  <UserRound className="size-4 text-teal-600" />
-                  {who}
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                      jobs.length >= 4 ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    {jobs.length} ງານ
-                  </span>
-                  {/* ນັດ 4 ບ່ອນຂຶ້ນໄປໃນມື້ດຽວ = ເປັນໄປໄດ້ຍາກ ⇒ ເຕືອນຜູ້ຈັດງານ */}
-                  {jobs.length >= 4 && isManager && (
-                    <span className="text-xs font-semibold text-red-600">ນັດຫຼາຍເກີນ?</span>
-                  )}
-                </span>
-              }
+      <div className="grid items-start gap-4 lg:grid-cols-[390px_minmax(0,1fr)]">
+        {/* ຊ້າຍ: ປະຕິທິນ */}
+        <aside className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-20">
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+            <Link
+              href={`/installations/schedule?d=${shiftMonth(monthStart, -1)}`}
+              title="ເດືອນກ່ອນ"
+              className="grid size-8 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"
             >
-              <ul className="space-y-2">
-                {jobs.map((job) => (
-                  <li key={job.code} className="rounded-xl border border-slate-200 p-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Link
-                        href={job.workflow === "install" ? `/installations/${job.code}` : `/service/${job.code}`}
-                        className="font-bold text-teal-700 hover:underline"
-                      >
-                        {job.code}
-                      </Link>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                          job.workflow === "install" ? "bg-teal-50 text-teal-700" : "bg-amber-50 text-amber-700"
-                        }`}
-                      >
-                        {job.workflow === "install" ? "ຕິດຕັ້ງ" : "ສ້ອມ"}
+              <ChevronLeft className="size-4" />
+            </Link>
+            <div className="text-center">
+              <h2 className="text-sm font-bold text-slate-800">{monthLabel}</h2>
+              <p className="text-[10px] font-semibold text-slate-400">ລວມ {monthTotal} ງານ</p>
+            </div>
+            <Link
+              href={`/installations/schedule?d=${shiftMonth(monthStart, 1)}`}
+              title="ເດືອນຕໍ່ໄປ"
+              className="grid size-8 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"
+            >
+              <ChevronRight className="size-4" />
+            </Link>
+          </div>
+
+          <div className="p-3">
+            <div className="mb-1 grid grid-cols-7">
+              {WEEKDAYS.map((label, index) => (
+                <span key={`${label}-${index}`} className={`py-2 text-center text-[10px] font-bold ${index >= 5 ? "text-red-500" : "text-slate-400"}`}>
+                  {label}
+                </span>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {cells.map((date) => {
+                const inMonth = date.startsWith(day.slice(0, 7));
+                const selected = date === day;
+                const isToday = date === today;
+                const count = counts.get(date) ?? 0;
+                return (
+                  <Link
+                    key={date}
+                    href={`/installations/schedule?d=${date}`}
+                    aria-current={selected ? "date" : undefined}
+                    className={`relative flex h-12 flex-col items-center justify-center rounded-xl text-xs font-semibold transition ${
+                      selected
+                        ? "bg-teal-600 text-white shadow-sm"
+                        : inMonth
+                          ? "text-slate-700 hover:bg-teal-50 hover:text-teal-700"
+                          : "text-slate-300 hover:bg-slate-50"
+                    } ${isToday && !selected ? "ring-1 ring-inset ring-teal-400" : ""}`}
+                  >
+                    <span>{Number(date.slice(-2))}</span>
+                    {count > 0 && (
+                      <span className={`mt-0.5 min-w-4 rounded-full px-1 text-center text-[9px] font-bold ${selected ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700"}`}>
+                        {count}
                       </span>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                        {job.stage_label}
-                      </span>
-                    </div>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
 
-                    <p className="mt-1 text-sm font-semibold text-slate-800">{job.item ?? "-"}</p>
-                    <p className="text-xs text-slate-500">{job.customer ?? "-"}</p>
+          <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-4 py-3">
+            <span className="text-[10px] text-slate-500">ຕົວເລກສີເຫຼືອງ = ຈຳນວນງານ</span>
+            {day !== today && (
+              <Link href="/installations/schedule" className="text-xs font-bold text-teal-700 hover:underline">
+                ມື້ນີ້
+              </Link>
+            )}
+          </div>
+        </aside>
 
-                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                      {job.location && (
-                        <span className="inline-flex items-center gap-1 text-slate-600">
-                          <MapPin className="size-3.5 text-slate-400" />
-                          {job.location}
-                        </span>
-                      )}
-                      {job.tel && (
-                        <a href={`tel:${job.tel}`} className="inline-flex items-center gap-1 font-semibold text-emerald-700">
-                          <Phone className="size-3.5" />
-                          {job.tel}
-                        </a>
-                      )}
-                      {/* ມີພິກັດ ⇒ ກົດນຳທາງໄດ້ເລີຍ (ບໍ່ຕ້ອງໂທຖາມທາງ) */}
-                      {job.lat != null && job.lng != null && (
-                        <a
-                          href={`https://www.google.com/maps/dir/?api=1&destination=${job.lat},${job.lng}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 font-semibold text-teal-700"
-                        >
-                          <MapPin className="size-3.5" />
-                          ນຳທາງ
-                        </a>
-                      )}
-                    </div>
+        {/* ຂວາ: ລາຍລະອຽດວັນທີ່ເລືອກ */}
+        <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/60 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4">
+            <div>
+              <h2 className="flex items-center gap-2 text-base font-bold text-slate-800">
+                <CalendarDays className="size-5 text-teal-600" />
+                {selectedLabel}
+              </h2>
+              <p className="mt-0.5 text-xs text-slate-500">{rows.length} ງານ · {byTech.size} ຊ່າງ</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link href={`/installations/schedule?d=${shift(day, -1)}`} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+                ມື້ກ່ອນ
+              </Link>
+              <Link href={`/installations/schedule?d=${shift(day, 1)}`} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+                ມື້ຕໍ່ໄປ
+              </Link>
+            </div>
+          </div>
 
-                    {job.remark && <p className="mt-1 text-xs text-slate-400">{job.remark}</p>}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          ))}
-        </div>
-      )}
+          {rows.length === 0 ? (
+            <div className="bg-white p-8"><Empty>ບໍ່ມີງານນັດໃນວັນທີ່ເລືອກ</Empty></div>
+          ) : (
+            <div className="space-y-4 p-4">
+              {[...byTech.entries()].map(([who, techJobs]) => (
+                <section key={who}>
+                  <div className="mb-2 flex items-center gap-2 px-1">
+                    <UserRound className="size-4 text-teal-600" />
+                    <h3 className="text-sm font-bold text-slate-700">{who}</h3>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${techJobs.length >= 4 ? "bg-red-100 text-red-700" : "bg-slate-200 text-slate-600"}`}>
+                      {techJobs.length} ງານ
+                    </span>
+                    {techJobs.length >= 4 && canSeeAll && <span className="text-[10px] font-semibold text-red-600">ນັດຫຼາຍເກີນ?</span>}
+                  </div>
+
+                  <div className="grid gap-2 xl:grid-cols-2">
+                    {techJobs.map((job) => (
+                      <article key={`${job.workflow}:${job.code}`} className="rounded-xl border border-slate-200 bg-white p-3 hover:border-slate-300 hover:shadow-sm">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link href={job.workflow === "install" ? `/installations/${job.code}` : `/service/${job.code}`} className="font-bold text-teal-700 hover:underline">
+                            {job.code}
+                          </Link>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${job.workflow === "install" ? "bg-teal-50 text-teal-700" : "bg-amber-50 text-amber-700"}`}>
+                            {job.workflow === "install" ? "ຕິດຕັ້ງ" : "ສ້ອມ"}
+                          </span>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{job.stage_label}</span>
+                        </div>
+                        <p className="mt-1.5 text-sm font-bold text-slate-800">{job.item ?? "-"}</p>
+                        <p className="text-xs text-slate-500">{job.customer ?? "-"}</p>
+                        {job.location && <p className="mt-1 text-xs leading-5 text-slate-600"><MapPin className="mr-1 inline size-3.5 text-slate-400" />{job.location}</p>}
+                        {job.remark && <p className="mt-1 text-[11px] text-slate-400">{job.remark}</p>}
+
+                        <div className="mt-2 flex flex-wrap gap-2 border-t border-slate-100 pt-2">
+                          <Link href={job.workflow === "install" ? `/installations/${job.code}` : `/service/${job.code}`} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-200">
+                            <ExternalLink className="size-3.5" /> ເບິ່ງວຽກ
+                          </Link>
+                          {job.tel && <a href={`tel:${job.tel}`} className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700"><Phone className="size-3.5" /> {job.tel}</a>}
+                          {job.lat != null && job.lng != null && (
+                            <a href={`https://www.google.com/maps/dir/?api=1&destination=${job.lat},${job.lng}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1.5 text-[11px] font-bold text-blue-700">
+                              <Navigation className="size-3.5" /> ນຳທາງ
+                            </a>
+                          )}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
