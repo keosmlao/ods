@@ -906,7 +906,11 @@ export async function saveSpareRequest(_: ActionState, formData: FormData): Prom
   const whCode = String(formData.get("wh_code") ?? "");
   const shelfCode = String(formData.get("shelf_code") ?? "");
   const remark = String(formData.get("remark") ?? "");
-  if (!productCode || !docDate || !whCode) return { error: "ຂໍ້ມູນບໍ່ຄົບ" };
+  // ສາງ ແລະ ທີ່ເກັບ **ບັງຄັບ** — 2,518 ໃບເກົ່າບໍ່ມີທັງສອງ ⇒ ສາງບໍ່ຮູ້ວ່າຈະໄປຢິບຢູ່ຫ້ອງໃດ
+  // ແລະ ເອກະສານຂາດ wh_code/shelf_code ທີ່ ERP ຕ້ອງການ
+  if (!productCode || !docDate || !whCode || !shelfCode) {
+    return { error: "ກະລຸນາລະບຸ ສາງ ແລະ ທີ່ເກັບ" };
+  }
 
   const guarded = await guardJob(productCode, TECH_SIDE);
   if (!guarded.ok) return { error: guarded.error };

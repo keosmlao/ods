@@ -1,5 +1,5 @@
 import { JOB_HEAD_COLUMNS, JobHeader, type JobHead } from "@/components/installation/job-header";
-import { SpareRequestForm, type SpareLine } from "@/components/installation/spare-request-form";
+import { SpareRequestForm, type Shelf, type SpareLine } from "@/components/installation/spare-request-form";
 import { Empty, PageTitle, Table } from "@/components/ui";
 import { query, queryOdg } from "@/lib/db";
 import { AlertTriangle } from "lucide-react";
@@ -54,7 +54,7 @@ function blockedReason(guard: Guard) {
 export default async function SpareRequestPage({ params }: Props) {
   const code = decodeURIComponent((await params).code);
 
-  const [head, guard, lines, standard, warehouses] = await Promise.all([
+  const [head, guard, lines, standard, warehouses, shelves] = await Promise.all([
     query<JobHead>(
       `select ${JOB_HEAD_COLUMNS}
        from ods_tb_install a
@@ -76,6 +76,11 @@ export default async function SpareRequestPage({ params }: Props) {
     ),
     queryOdg<{ code: string; name_1: string }>(
       `select code, name_1 from ic_warehouse where code in ('1103','1104','1204','1203','1206') order by code asc`,
+    ),
+    // ທີ່ເກັບຂອງແຕ່ລະສາງ (ic_shelf ຂອງ ERP) — ບັງຄັບເລືອກຕັ້ງແຕ່ຕອນຂໍເບີກ
+    queryOdg<Shelf>(
+      `select whcode, code, name_1 from ic_shelf
+        where whcode in ('1103','1104','1204','1203','1206') order by whcode, code`,
     ),
   ]);
 
@@ -113,7 +118,7 @@ export default async function SpareRequestPage({ params }: Props) {
         ⇒ ຄົນຕ້ອງເລື່ອນຜ່ານຂໍ້ມູນອ້າງອີງທຸກເທື່ອ ກ່ອນຈະຮອດສິ່ງທີ່ມາເຮັດຈິງ.
         ດຽວນີ້ **ຟອມຂຶ້ນກ່ອນ** · ອຸປະກອນມາດຕະຖານພັບໄວ້ລຸ່ມ (ກົດເປີດເບິ່ງເມື່ອຢາກທຽບ).
       */}
-      <SpareRequestForm code={code} today={today} lines={lines.rows} warehouses={warehouses.rows} />
+      <SpareRequestForm code={code} today={today} lines={lines.rows} warehouses={warehouses.rows} shelves={shelves.rows} />
 
       <details className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <summary className="cursor-pointer list-none px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">

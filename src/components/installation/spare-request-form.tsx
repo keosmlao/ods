@@ -25,20 +25,35 @@ export type SpareLine = {
 };
 
 type Warehouse = { code: string; name_1: string };
+export type Shelf = { whcode: string; code: string; name_1: string };
 
 export function SpareRequestForm({
   code,
   today,
   lines,
   warehouses,
+  shelves,
 }: {
   code: string;
   today: string;
   lines: SpareLine[];
   warehouses: Warehouse[];
+  /** ທີ່ເກັບຂອງແຕ່ລະສາງ (ic_shelf ຂອງ ERP) — ກອງຕາມສາງທີ່ເລືອກ */
+  shelves: Shelf[];
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(saveSpareRequest, {});
   const [open, setOpen] = useState(false);
+
+  /**
+   * ── ສາງ ແລະ ທີ່ເກັບ ຕ້ອງລະບຸ **ຕັ້ງແຕ່ຕອນຂໍເບີກ** ──
+   * ຂໍ້ມູນຈິງ: ໃບຂໍເບີກ **2,518 ໃບ ບໍ່ມີທັງສາງ ແລະ ທີ່ເກັບ** ເພາະ "ຊັ້ນວາງ" ເປັນຊ່ອງພິມມື
+   * (ຄົນປະຫວ່າງໄວ້) ⇒ ສາງບໍ່ຮູ້ວ່າຈະໄປຢິບຢູ່ຫ້ອງໃດ ແລະ ເອກະສານທີ່ຈະສົ່ງເຂົ້າ ERP
+   * ກໍ່ຂາດ wh_code/shelf_code ທີ່ ERP ຕ້ອງການ.
+   * ດຽວນີ້ **ທັງສອງເປັນ dropdown ບັງຄັບ** ແລະ ທີ່ເກັບຂຶ້ນຕາມສາງທີ່ເລືອກ.
+   */
+  const [wh, setWh] = useState("");
+  const [shelf, setShelf] = useState("");
+  const shelfOptions = shelves.filter((row) => row.whcode === wh);
 
   return (
     <div className="space-y-5">
@@ -72,9 +87,14 @@ export function SpareRequestForm({
               <input type="date" name="doc_date" required defaultValue={today} className={inputClass} />
             </div>
             <div>
-              <label className={labelClass}>ສາງ</label>
+              <label className={labelClass}>ສາງ *</label>
               <SelectField
                 name="wh_code"
+                value={wh}
+                onChange={(value) => {
+                  setWh(value);
+                  setShelf(""); // ປ່ຽນສາງ ⇒ ທີ່ເກັບເກົ່າໃຊ້ບໍ່ໄດ້ອີກ
+                }}
                 options={warehouses.map((warehouse) => ({
                   value: warehouse.code,
                   label: `${warehouse.code} ~ ${warehouse.name_1}`,
@@ -82,8 +102,18 @@ export function SpareRequestForm({
               />
             </div>
             <div>
-              <label className={labelClass}>ຊັ້ນວາງ</label>
-              <input name="shelf_code" className={inputClass} />
+              <label className={labelClass}>ທີ່ເກັບ *</label>
+              <SelectField
+                name="shelf_code"
+                value={shelf}
+                onChange={setShelf}
+                isDisabled={!wh}
+                placeholder={wh ? "ເລືອກທີ່ເກັບ..." : "ເລືອກສາງກ່ອນ"}
+                options={shelfOptions.map((row) => ({
+                  value: row.code,
+                  label: `${row.code} ~ ${row.name_1}`,
+                }))}
+              />
             </div>
             <div>
               <label className={labelClass}>ໝາຍເຫດ</label>
@@ -91,7 +121,7 @@ export function SpareRequestForm({
             </div>
           </div>
           <div className="mt-4 flex gap-2">
-            <Button type="submit" tone="success" disabled={pending || lines.length === 0}>
+            <Button type="submit" tone="success" disabled={pending || lines.length === 0 || !wh || !shelf}>
               <Save className="size-4" />
               {pending ? "ກຳລັງບັນທຶກ..." : "ບັນທືກ"}
             </Button>
