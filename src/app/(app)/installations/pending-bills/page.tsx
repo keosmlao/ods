@@ -102,7 +102,7 @@ export default async function PendingBillsPage({ searchParams }: Props) {
       {rows.length === 0 ? (
         <Empty>{q ? "ບໍ່ພົບບິນຕາມຄຳຄົ້ນ" : "ບໍ່ມີບິນຄ້າງ — ທຸກບິນທີ່ຈ່າຍຄ່າຕິດຕັ້ງ ມີໃບງານຄົບແລ້ວ"}</Empty>
       ) : (
-        <Table head={["ຄ້າງມາ", "ເລກບິນ", "ລູກຄ້າ", "ຈ່າຍຄ່າຕິດຕັ້ງ", ""]} minWidth={900}>
+        <Table head={["ຄ້າງມາ", "ເລກບິນ", "ສິນຄ້າທີ່ຈະຕິດຕັ້ງ", "ລູກຄ້າ", "ຈ່າຍຄ່າຕິດຕັ້ງ", ""]} minWidth={1150}>
           {rows.map((bill) => {
             const overdue = bill.days >= LATE;
             return (
@@ -130,6 +130,30 @@ export default async function PendingBillsPage({ searchParams }: Props) {
                       ຄົບແລ້ວ: {bill.dismissed.reason} · {bill.dismissed.by}
                     </span>
                   )}
+                </td>
+
+                {/* ② ບິນນີ້ຈະໄປຕິດ **ຫຍັງ** — ບອກແຕ່ "ຄ້າງ 1 ໜ່ວຍ" ບໍ່ພຽງພໍ ⇒ ຈັດຊ່າງ/ອາໄຫຼ່ບໍ່ຖືກ */}
+                <td className="px-3 py-2.5">
+                  {bill.items.length === 0 ? (
+                    <span className="text-xs text-slate-400">
+                      — ບໍ່ພົບສິນຄ້າທີ່ຕິດຕັ້ງໄດ້ໃນບິນ (ອາດເປັນຄ່າບໍລິການລ້ວນ) —
+                    </span>
+                  ) : (
+                    <ul className="space-y-0.5">
+                      {bill.items.map((item) => (
+                        <li key={item.item_code} className="text-xs text-slate-700">
+                          <span className="font-semibold">{item.item_name}</span>
+                          <span className="ml-1 text-slate-400">× {item.qty}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {/* ຄ່າບໍລິການຕິດຕັ້ງທີ່ພະນັກງານຂາຍໃສ່ໄວ້ — ນີ້ຄືສາເຫດທີ່ບິນນີ້ຢູ່ໃນຄິວ */}
+                  {bill.services.map((service) => (
+                    <p key={service.item_code} className="mt-0.5 text-[11px] font-semibold text-teal-700">
+                      🛠 {service.item_name} × {service.qty}
+                    </p>
+                  ))}
                 </td>
 
                 <td className="px-3 py-2.5">
