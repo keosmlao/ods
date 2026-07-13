@@ -1,6 +1,7 @@
 import { acceptJob, techFilter, unacceptJob } from "@/app/actions/installation";
 import { JobButton } from "@/components/installation/job-buttons";
 import { RejectButton } from "@/components/installation/reject-button";
+import { Check } from "lucide-react";
 import { query } from "@/lib/db";
 import { INSTALL_ACCEPT_CLOCK } from "@/lib/install-stage";
 import { CheckCircle2, Clock } from "lucide-react";
@@ -150,7 +151,9 @@ export default async function AcceptPage({ searchParams }: Props) {
               <td className="whitespace-nowrap px-3 py-2.5">
                 {tab === "waiting" ? (
                   <div className="flex justify-center gap-2">
-                    <JobButton code={row.code} action={acceptJob} tone="primary" className="h-8 px-3 text-xs">
+                    {/* ຮັບງານ = ການກະທຳຫຼັກ (ເດັ່ນ) · ບໍ່ຮັບ = ຂໍ້ຍົກເວັ້ນ (ປຸ່ມຮອງ) */}
+                    <JobButton code={row.code} action={acceptJob} tone="success" className="h-8 px-3 text-xs">
+                      <Check className="size-3.5" />
                       ຮັບງານ
                     </JobButton>
                     {/* ບໍ່ຮັບງານ = ປະຕິເສດ **ພ້ອມເຫດຜົນ** (lib/job-flow — ອັນດຽວກັບແອັບມືຖື) */}
