@@ -55,7 +55,12 @@ export function NavTree({
 }) {
   const pathname = usePathname();
   const [query, setQuery] = useState("");
-  const [closed, setClosed] = useState<Record<string, boolean>>({});
+  /**
+   * ເປີດໄດ້ **ທີລະກຸ່ມ** (accordion) — ເປີດອັນໃໝ່ ອັນເກົ່າພັບເອງ.
+   * ເມນູມີ 51 ລາຍການ ⇒ ເປີດຫຼາຍກຸ່ມພ້ອມກັນ ຕ້ອງເລື່ອນຫາຍາວ ແລະ ຫຼົງທາງ.
+   * null = ຍັງບໍ່ໄດ້ກົດເອງ ⇒ ຖືເອົາກຸ່ມຂອງໜ້າທີ່ກຳລັງເປີດຢູ່.
+   */
+  const [openId, setOpenId] = useState<string | null>(null);
 
   /** ເມນູຕາມສິດ ແລ້ວຄົ້ນຫາ — ພິມແລ້ວເຫຼືອສະເພາະທີ່ຕົງ */
   const groups = useMemo(() => {
@@ -106,7 +111,7 @@ export function NavTree({
             0,
           );
           // ຄົ້ນຫາຢູ່ → ເປີດໝົດ; ບໍ່ດັ່ງນັ້ນເປີດກຸ່ມທີ່ກຳລັງໃຊ້ ເວັ້ນແຕ່ຜູ້ໃຊ້ພັບເອງ
-          const open = searching || (closed[group.id] === undefined ? hasActive : !closed[group.id]);
+          const open = searching || (openId === null ? hasActive : openId === group.id);
 
           if (collapsed) {
             return (
@@ -132,7 +137,7 @@ export function NavTree({
             <div key={group.id}>
               <button
                 type="button"
-                onClick={() => setClosed((prev) => ({ ...prev, [group.id]: open }))}
+                onClick={() => setOpenId(open ? "" : group.id)}
                 aria-expanded={open}
                 className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
                   hasActive ? "text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
