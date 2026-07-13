@@ -43,17 +43,17 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ສ້ອມແປງ", label: "ຕິດຕາມສະຖານະ", resource: "/dashboard/tracking", actions: READ_ONLY },
 
   { group: "ຕິດຕັ້ງ", label: "ງານຕິດຕັ້ງ", resource: "/installations" },
+  // ບິນທີ່ຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ ແຕ່ຍັງບໍ່ມີໃບງານ — ບໍ່ໃສ່ບ່ອນນີ້ = ໜ້າຖືກເຊື່ອງຈາກ sidebar
+  { group: "ຕິດຕັ້ງ", label: "ບິນຄ້າງອອກໃບງານ", resource: "/installations/pending-bills", actions: READ_ONLY },
   { group: "ຕິດຕັ້ງ", label: "ມອບໝາຍງານ", resource: "/installations/assign", actions: ["read", "update"] },
   { group: "ຕິດຕັ້ງ", label: "ຮັບງານຕິດຕັ້ງ", resource: "/installations/accept", actions: ["read", "update"] },
   { group: "ຕິດຕັ້ງ", label: "ໃບຂໍເບີກ", resource: "/installations/spare-requests" },
-  { group: "ຕິດຕັ້ງ", label: "ເບີກອາໄຫຼ່", resource: "/installations/dispatch", actions: ["read", "update"] },
   { group: "ຕິດຕັ້ງ", label: "ຮັບອາໄຫຼ່", resource: "/installations/spare-pickup", actions: ["read", "update"] },
   { group: "ຕິດຕັ້ງ", label: "ຕິດຕັ້ງ", resource: "/installations/work", actions: ["read", "update"] },
   { group: "ຕິດຕັ້ງ", label: "ປິດງານ", resource: "/installations/close", actions: ["read", "update"] },
   { group: "ຕິດຕັ້ງ", label: "ລາຍງານງານຕິດຕັ້ງ", resource: "/reports/installations", actions: READ_ONLY },
   { group: "ຕິດຕັ້ງ", label: "ລາຍງານແບບສອບຖາມ", resource: "/reports/customer-feedback", actions: READ_ONLY },
 
-  { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ເບີກອາໄຫຼ່", resource: "/stock/dispatch", actions: ["read", "update"] },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຮັບອາໄຫຼ່ທີ່ສັ່ງຊື້", resource: "/stock/arrivals", actions: ["read", "update"] },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຕິດຕາມການໂອນ", resource: "/stock/transfers" },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຮັບຄືນອາໄຫຼ່", resource: "/stock/receive-returns", actions: ["read", "update"] },
