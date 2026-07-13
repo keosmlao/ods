@@ -53,6 +53,7 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ຕິດຕັ້ງ", label: "ປິດງານ", resource: "/installations/close", actions: ["read", "update"] },
   { group: "ຕິດຕັ້ງ", label: "ລາຍງານງານຕິດຕັ້ງ", resource: "/reports/installations", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "KPI ປະສິດທິພາບ", resource: "/reports/kpi", actions: READ_ONLY },
+  { group: "ລາຍງານ", label: "ເຄື່ອງກັບມາສ້ອມຊ້ຳ", resource: "/reports/repeat-repairs", actions: READ_ONLY },
   { group: "ຕິດຕັ້ງ", label: "ລາຍງານແບບສອບຖາມ", resource: "/reports/customer-feedback", actions: READ_ONLY },
 
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຮັບອາໄຫຼ່ທີ່ສັ່ງຊື້", resource: "/stock/arrivals", actions: ["read", "update"] },

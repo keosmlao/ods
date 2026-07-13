@@ -173,6 +173,8 @@ const REPORT: NavGroup = {
     { label: "ໜ້າລວມລາຍງານ", href: "/reports" },
     // KPI: ງານໄຫຼດີບໍ · **ຄ້າງຢູ່ຂັ້ນໃດ** (ຄໍຂວດ) · ໃຜເຮັດໄດ້ເທົ່າໃດ — ທັງສອງສາຍງານ
     { label: "KPI ປະສິດທິພາບ", href: "/reports/kpi" },
+    // ສ້ອມບໍ່ຫາຍແຕ່ເທື່ອທຳອິດ = ຈ່າຍຄ່າຊ່າງ 2 ເທື່ອ — ບໍ່ມີໜ້າໃດເຄີຍເຫັນມັນ
+    { label: "ເຄື່ອງກັບມາສ້ອມຊ້ຳ", href: "/reports/repeat-repairs" },
     { label: "ລາຍງານກວດເຊັກ", href: "/reports/checking" },
     { label: "ລາຍງານຮັບເຄື່ອງປະຈຳວັນ", href: "/reports/daily-receipts" },
     { label: "ລາຍງານໃບຮັບເງິນ", href: "/reports/receipts" },

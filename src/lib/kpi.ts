@@ -266,14 +266,26 @@ export async function qualityKpi(days: Period): Promise<QualityKpi> {
          r.repeat_repairs, r.repair_with_sn
        from (
          select count(*) filter (
-                  where prev is not null and time_register - prev < interval '${REPEAT_DAYS} days'
+                  where prev is not null and time_register > prev
+                    and time_register - prev < interval '${REPEAT_DAYS} days'
                 )::int as repeat_repairs,
              count(*)::int as repair_with_sn
            from (
+             /**
+              * ⚠️ **S/N ຕ້ອງເປັນ S/N ຈິງ** — ຄ່າ '-' ຖືກໃຊ້ໃນ **269 ໃບ / 234 ລູກຄ້າ**
+              * (ເຄື່ອງທີ່ບໍ່ມີປ້າຍ) ⇒ ຖ້າຈັດກຸ່ມດ້ວຍມັນ ທຸກໃບຈະກາຍເປັນ "ເຄື່ອງໜ່ວຍດຽວກັນ"
+              * ແລ້ວອັດຕາສ້ອມຊ້ຳພຸ່ງເປັນ 29% (ຜິດ). ຄວາມຈິງ **3.5%**.
+              * ⇒ ນັບສະເພາະ S/N ທີ່ມີໂຕອັກສອນ/ໂຕເລກ ≥5 ຕົວ · ຈັດກຸ່ມດ້ວຍ **S/N + ລູກຄ້າ**
+              *   ແລະ ຕ້ອງເປັນໃບທີ່ເປີດ **ຫຼັງ** ໃບກ່ອນຈົບ (time_register > prev).
+              */
              select time_register,
-                 lag(return_complete) over (partition by nullif(sn,'') order by time_register) as prev
+                 lag(return_complete) over (
+                   partition by upper(regexp_replace(sn, '[^A-Za-z0-9]', '', 'g')), cust_code
+                   order by time_register
+                 ) as prev
                from tb_product
-              where coalesce(sn,'') <> '' and cancel_start is null
+              where length(regexp_replace(coalesce(sn,''), '[^A-Za-z0-9]', '', 'g')) >= 5
+                and cancel_start is null
            ) x
           where x.time_register >= current_date - ($1::int)
        ) r`,
