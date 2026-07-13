@@ -409,7 +409,7 @@ class _JobScreenState extends State<JobScreen> {
               if (job.action == 'wait_other' &&
                   !(job.workflow == 'repair' && job.stage <= 2))
                 const Text(
-                  'ວຽກຂອງທ່ານຈົບແລ້ວ — ລໍຂັ້ນຕອນອື່ນ (QC / CS)',
+                  'ວຽກຂອງທ່ານຈົບແລ້ວ — ລໍຫົວໜ້າ ຫຼື CS ດຳເນີນການຕໍ່',
                   style: TextStyle(color: muted),
                   textAlign: TextAlign.center,
                 ),

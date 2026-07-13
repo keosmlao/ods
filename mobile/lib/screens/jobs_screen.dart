@@ -7,7 +7,6 @@ import 'income_screen.dart';
 import 'job_screen.dart';
 import 'login_screen.dart';
 import 'pickup_screen.dart';
-import 'qc_screen.dart';
 
 const actionLabel = {
   'accept': 'ຕ້ອງຮັບງານ',
@@ -132,8 +131,7 @@ class _JobsScreenState extends State<JobsScreen> {
         selectedIndex: 0,
         onDestinationSelected: (i) {
           if (i == 1) openPage(const PickupScreen());
-          if (i == 2) openPage(const QcScreen());
-          if (i == 3) openPage(const IncomeScreen());
+          if (i == 2) openPage(const IncomeScreen());
         },
         destinations: const [
           NavigationDestination(
@@ -144,10 +142,6 @@ class _JobsScreenState extends State<JobsScreen> {
           NavigationDestination(
             icon: Icon(Icons.inventory_2_outlined),
             label: 'ອາໄຫຼ່',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.verified_outlined),
-            label: 'QC',
           ),
           NavigationDestination(
             icon: Icon(Icons.payments_outlined),

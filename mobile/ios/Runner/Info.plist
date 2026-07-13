@@ -49,6 +49,13 @@
 	<string>ຖ່າຍຮູບຜົນງານ ແລະ ຮູບໜ້າງານ ເປັນຫຼັກຖານການເຮັດວຽກ</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>ໃຊ້ພິກັດເພື່ອຢືນຢັນວ່າຊ່າງໄປຮອດໜ້າງານຈິງ (check-in)</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>ເຊື່ອມຕໍ່ຫາ ODSS server ຢູ່ໃນ network ຂອງບໍລິສັດ</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>ເລືອກຮູບຜົນງານຈາກຄັງຮູບ</string>
 </dict>

@@ -13,18 +13,56 @@ import 'package:http/http.dart' as http;
 /// URL ຂອງ server ໃສ່ຕອນ build:
 ///   flutter run --dart-define=API_URL=http://192.168.1.51:3000
 class Api {
-  static const baseUrl = String.fromEnvironment(
+  static const defaultBaseUrl = String.fromEnvironment(
     'API_URL',
     defaultValue: 'https://service.odien.net',
   );
 
   static const _storage = FlutterSecureStorage();
   static const _tokenKey = 'odss_token';
+  static const _serverKey = 'odss_server_url';
 
   static Future<String?> token() => _storage.read(key: _tokenKey);
   static Future<void> saveToken(String value) =>
       _storage.write(key: _tokenKey, value: value);
   static Future<void> clearToken() => _storage.delete(key: _tokenKey);
+  static Future<String> serverUrl() async =>
+      (await _storage.read(key: _serverKey)) ?? defaultBaseUrl;
+  static Future<void> saveServerUrl(String value) =>
+      _storage.write(key: _serverKey, value: normalizeServerUrl(value));
+  static Future<void> resetServerUrl() => _storage.delete(key: _serverKey);
+
+  static String normalizeServerUrl(String value) {
+    final text = value.trim().replaceFirst(RegExp(r'/+$'), '');
+    final uri = Uri.tryParse(text);
+    if (uri == null ||
+        !uri.hasScheme ||
+        !uri.hasAuthority ||
+        (uri.scheme != 'http' && uri.scheme != 'https')) {
+      throw const FormatException('URL ຕ້ອງເລີ່ມດ້ວຍ http:// ຫຼື https://');
+    }
+    return text;
+  }
+
+  static Future<void> testServer(String value) async {
+    final base = normalizeServerUrl(value);
+    try {
+      final response = await http
+          .get(Uri.parse('$base/api/mobile/jobs'))
+          .timeout(const Duration(seconds: 10));
+      // 401 ໝາຍເຖິງ server/API ເຂົ້າເຖິງໄດ້ ແຕ່ຍັງບໍ່ login.
+      if (response.statusCode != 401 && response.statusCode != 200) {
+        throw ApiError(
+          'server ຕອບກັບ HTTP ${response.statusCode}',
+          response.statusCode,
+        );
+      }
+    } on TimeoutException {
+      throw ApiError('ເຊື່ອມຕໍ່ບໍ່ທັນເວລາ', 408);
+    } on http.ClientException {
+      throw ApiError('ເຂົ້າເຖິງ server ບໍ່ໄດ້', 0);
+    }
+  }
 
   static Future<Map<String, dynamic>> _send(
     String method,
@@ -38,7 +76,7 @@ class Api {
       if (saved != null) headers['authorization'] = 'Bearer $saved';
     }
 
-    final uri = Uri.parse('$baseUrl$path');
+    final uri = Uri.parse('${await serverUrl()}$path');
     late http.Response response;
     try {
       response = await (switch (method) {
