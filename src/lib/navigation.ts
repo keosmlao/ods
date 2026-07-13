@@ -84,6 +84,7 @@ const INSTALL: NavGroup = {
     { label: "ງານຕິດຕັ້ງ", href: "/installations" },
     { label: "ມອບໝາຍງານ", href: "/installations/assign", count: "/installations/assign" },
     { label: "ຮັບງານຕິດຕັ້ງ", href: "/installations/accept", count: "/installations/accept" },
+    { label: "ຄິວງານຊ່າງປະຈຳວັນ", href: "/installations/schedule" },
     { label: "ໃບຂໍເບີກ(ຕິດຕັ້ງ)", href: "/installations/spare-requests", divider: true },
     { label: "ເບີກອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/installations/dispatch" },
     { label: "ຮັບອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/installations/spare-pickup" },

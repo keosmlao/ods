@@ -138,6 +138,8 @@ const RULES: Rule[] = [
   { path: "/installations/assign", roles: SERVICE_SIDE },
   { path: "/installations/close", roles: SERVICE_SIDE },
   { path: "/installations/accept", roles: TECH_SIDE },
+  // ຄິວງານປະຈຳວັນ — ຜູ້ຈັດງານ (CS) ແລະ ຊ່າງ (ເຫັນສະເພາະຂອງຕົນ) ເບິ່ງໄດ້ທັງສອງຝ່າຍ
+  { path: "/installations/schedule", roles: [M, HT, A, T] },
   { path: "/installations/work", roles: TECH_SIDE },
   { path: "/installations/spare-requests", roles: TECH_SIDE },
   { path: "/installations/spare-pickup", roles: TECH_SIDE },

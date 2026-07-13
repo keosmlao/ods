@@ -149,6 +149,8 @@ const createSchema = z.object({
    * ⇒ ບໍ່ໄດ້ເພີ່ມວຽກໃຫ້ CS ແຕ່ກັນຊ່ອງຫວ່າງ.
    */
   location_inst: z.string().min(1),
+  /** ວັນຄາດວ່າຈະເຂົ້າຕິດຕັ້ງ — ຕັ້ງແຕ່ຕອນເປີດງານໄດ້ (ຜູ້ຈັດຊ່າງແກ້ໄດ້ພາຍຫຼັງ) */
+  appoint_date: z.string().optional(),
   remark: z.string(),
 });
 
@@ -208,10 +210,11 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
     await client.query(
       `insert into ods_tb_install(code,doc_ref_1,cust_code,item_code,item_name,install_type,status,complain_status,
          remark,time_register,user_created,doc_ref_date,pro_brand,pro_model,pro_type,pro_size,location_inst,
-         used_spare,pro_sn,pro_type_code)
-       values($1,$2,$3,$4,$5,$6,0,0,$7,localtimestamp(0),$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+         used_spare,pro_sn,pro_type_code,appoint_date)
+       values($1,$2,$3,$4,$5,$6,0,0,$7,localtimestamp(0),$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,nullif($18,'')::date)`,
       [code, d.doc_no, custCode, d.item_code, d.item_name, d.sv_type, d.remark, session.username, d.billdate,
-        d.pro_brand, d.pro_model, proTypeName, d.pro_size, d.location_inst, usedSpare, d.pro_sn, d.pro_type],
+        d.pro_brand, d.pro_model, proTypeName, d.pro_size, d.location_inst, usedSpare, d.pro_sn, d.pro_type,
+        d.appoint_date ?? ""],
     );
 
     for (const line of lines.rows) {

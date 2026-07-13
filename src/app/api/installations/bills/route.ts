@@ -38,6 +38,16 @@ export type BillRow = {
   sv_type: string;
   item_brand: string | null;
   doc_date_raw: string;
+  /** ດຶງມາຈາກ ERP — ຟອມຕື່ມໃຫ້ ບໍ່ຕ້ອງພິມເອງ */
+  pro_type: string | null;
+  pro_type_name: string | null;
+  pro_size: string | null;
+  /**
+   * ISN (ເລກປ້າຍ) ທີ່ຂາຍໄປໃນບິນນີ້ — ຈາກ sn_trans_detail (ອັນດຽວກັບທີ່ຝັ່ງສ້ອມໃຊ້,
+   * ເບິ່ງ /api/serials). `sn` = ເລກໂຮງງານທີ່ຜູກກັບ ISN ນັ້ນ (sn_inventory) ຖ້າມີ.
+   * ບໍ່ມີ ISN ໃນບິນ = ພິມ S/N ເອງ.
+   */
+  serials: { isn: string; sn: string; part: string }[];
 };
 
 /** ຂະໜາດສິນຄ້າທີ່ **ຕ້ອງຕິດຕັ້ງ** — ຄ່າດຽວກັບທີ່ໃຊ້ຄິດ sv_type ຂ້າງລຸ່ມ */
@@ -68,13 +78,51 @@ export async function GET(request: NextRequest) {
                 else '' end as sv_type,
            inv.item_brand,
            case when ar.telephone is not null then ar.name else ar2.code end as cust_code,
-           to_char(a.doc_date,'YYYY-MM-DD') as doc_date_raw
+           to_char(a.doc_date,'YYYY-MM-DD') as doc_date_raw,
+           /**
+            * ── ດຶງຈາກ ERP ແທນທີ່ຈະໃຫ້ CS ພິມເອງ ──
+            * ປະເພດ (ic_category) ແລະ ຂະໜາດ (ic_size) ຢູ່ໃນ master ຂອງສິນຄ້າແລ້ວ.
+            * ⚠️ **Model ດຶງບໍ່ໄດ້** — ic_inventory.item_model ຫວ່າງ 24,156/24,281 ແຖວ
+            * ⇒ ຍັງຕ້ອງພິມເອງ (ຊື່ສິນຄ້າມີລະຫັດຮຸ່ນຢູ່ ໃຫ້ຄັດລອກເອົາ).
+            */
+           inv.item_category as pro_type,
+           cat.name_1 as pro_type_name,
+           siz.name_1 as pro_size,
+           /**
+            * ── ISN ຂອງແອຢູ່ **ອົງປະກອບຂອງຊຸດ** ບໍ່ແມ່ນຢູ່ແຖວ [SET] ──
+            * ພິສູດຈາກຂໍ້ມູນຈິງ (ບິນ CAK26008714): ແຖວ [SET] 120101-2606 ບໍ່ມີ ISN ເລີຍ
+            * ແຕ່ ISN ຢູ່ທີ່ [C] 120101-2607 ແລະ [H] 120101-2608.
+            * ⇒ ຕ້ອງແຕກຊຸດອອກກ່ອນ (ic_inventory_set_detail: ic_set_code → ic_code)
+            *   ແລ້ວຄົ້ນ ISN ຂອງ **ອົງປະກອບ** ພ້ອມ.
+            * ຖ້າຄົ້ນແຕ່ item_code ຂອງແຖວທີ່ເລືອກ ⇒ ແອ **ທຸກຊຸດ** ຈະບໍ່ມີ ISN ໃຫ້ເລືອກເລີຍ.
+            *
+            * ໜ່ວຍໃນ [C] ຂຶ້ນກ່ອນ — ເປັນຕົວທີ່ຖືເປັນເອກະລັກຂອງເຄື່ອງ.
+            */
+           coalesce((
+             select json_agg(json_build_object(
+                      'isn', d.sn,
+                      'sn', coalesce(inv2.sn, ''),
+                      'part', case when d.item_name ilike '%[C]%' then 'ໜ່ວຍໃນ'
+                                   when d.item_name ilike '%[H]%' then 'ໜ່ວຍນອກ'
+                                   else '' end)
+                      order by (d.item_name ilike '%[C]%') desc, d.sn)
+               from sn_trans_detail d
+               left join sn_inventory inv2 on inv2.isn = d.sn
+              where d.doc_ref = a.doc_no and d.trans_flag = 44 and coalesce(d.sn,'') <> ''
+                and (
+                  d.item_code = i.item_code
+                  or d.item_code in (
+                    select sd.ic_code from ic_inventory_set_detail sd where sd.ic_set_code = i.item_code)
+                )
+           ), '[]'::json) as serials
          from ic_trans a
          join ic_trans_detail i on i.doc_no = a.doc_no and i.trans_flag = 44
          join ic_inventory inv on inv.code = i.item_code
          left join (select ar_code, name, address, telephone, mobile from ar_contactor) as ar
            on ar.ar_code = a.cust_code and ar.name = a.contactor
          left join ar_customer ar2 on ar2.code = a.cust_code
+         left join ic_category cat on cat.code = inv.item_category
+         left join ic_size siz on siz.code = inv.item_size
          where a.trans_flag = 44
            -- ສະເພາະ **ແຖວສິນຄ້າທີ່ຕ້ອງຕິດຕັ້ງ** (ບໍ່ເອົາສາຍ/ທໍ່/ຂອງແຖມມາໃຫ້ເລືອກຜິດ)
            and inv.item_size = any($2::text[])

@@ -40,6 +40,10 @@ type Bill = {
   sv_type: string;
   item_brand: string | null;
   doc_date_raw: string;
+  pro_type: string | null;
+  pro_type_name: string | null;
+  pro_size: string | null;
+  serials: { isn: string; sn: string; part: string }[];
 };
 
 const empty = {
@@ -53,6 +57,10 @@ const empty = {
   tel: "",
   address: "",
   pro_brand: "",
+  /** ດຶງມາຈາກ ERP — CS ບໍ່ຕ້ອງພິມ (ແກ້ໄດ້ຖ້າຜິດ) */
+  pro_type: "",
+  pro_size: "",
+  serials: [] as { isn: string; sn: string; part: string }[],
 };
 
 export function InstallForm({ categories, username }: { categories: Category[]; username: string }) {
@@ -118,29 +126,57 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
       {/* ②-③ ສ່ວນທີ່ເຫຼືອຂຶ້ນກໍ່ຕໍ່ເມື່ອມີບິນແລ້ວ — ບໍ່ໃຫ້ຄົນພິມລົງຊ່ອງທີ່ຈະຖືກຂຽນທັບ */}
       {chosen && (
         <>
-          <Card title="ຂໍ້ມູນສິນຄ້າທີ່ຕ້ອງປ້ອນເອງ">
+          <Card title="ຂໍ້ມູນສິນຄ້າ">
             <p className="mb-3 text-xs text-slate-500">
-              ບິນຂາຍບອກແຕ່ຊື່ສິນຄ້າ — 4 ຢ່າງນີ້ຢູ່ຕົວເຄື່ອງ ຕ້ອງເບິ່ງແລ້ວພິມເອງ
+              ປະເພດ ແລະ ຂະໜາດ <b>ດຶງມາຈາກ ERP ແລ້ວ</b> — ແກ້ໄດ້ຖ້າຜິດ ·
+              Model ກັບ S/N ຢູ່ຕົວເຄື່ອງ (ERP ບໍ່ມີ) ຈຶ່ງຕ້ອງເບິ່ງແລ້ວພິມ
             </p>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label className={labelClass}>ລຸ້ນ/Model *</label>
                 <input name="pro_model" required autoFocus className={inputClass} />
+                <p className="mt-1 truncate text-xs text-slate-400" title={picked.item_name}>
+                  ຈາກຊື່ສິນຄ້າ: {picked.item_name}
+                </p>
               </div>
+
               <div>
                 <label className={labelClass}>S/N *</label>
-                <input name="pro_sn" required className={inputClass} />
+                {picked.serials.length > 0 ? (
+                  /**
+                   * ບິນນີ້ມີ **ISN** ຢູ່ ERP ແລ້ວ (sn_trans_detail) ⇒ ໃຫ້ເລືອກ ບໍ່ໃຫ້ພິມ
+                   * (ພິມເອງ = ພິມຜິດ ແລ້ວຜູກເຄື່ອງຜິດໜ່ວຍ). ຄ່າທີ່ເກັບ = ເລກໂຮງງານ
+                   * ຖ້າ ERP ຈັບຄູ່ໄວ້ ບໍ່ດັ່ງນັ້ນເກັບ ISN.
+                   */
+                  <select name="pro_sn" required defaultValue="" className={inputClass}>
+                    <option value="" disabled>
+                      ເລືອກ ISN ທີ່ຂາຍໃນບິນນີ້ ({picked.serials.length})
+                    </option>
+                    {picked.serials.map((serial) => (
+                      <option key={serial.isn} value={serial.sn || serial.isn}>
+                        {serial.part ? `${serial.part} · ` : ""}
+                        {serial.isn}
+                        {serial.sn ? ` · S/N ${serial.sn}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input name="pro_sn" required placeholder="ອ່ານຈາກປ້າຍຕົວເຄື່ອງ" className={inputClass} />
+                )}
               </div>
+
               <div>
                 <label className={labelClass}>ປະເພດ *</label>
                 <SelectField
                   name="pro_type"
+                  defaultValue={picked.pro_type}
                   options={categories.map((category) => ({ value: category.code, label: category.name_1 }))}
                 />
               </div>
+
               <div>
                 <label className={labelClass}>ຂະໜາດ *</label>
-                <input name="pro_size" required className={inputClass} />
+                <input name="pro_size" required defaultValue={picked.pro_size} className={inputClass} />
               </div>
             </div>
           </Card>
@@ -167,6 +203,16 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
                 <p className="mt-1 text-xs text-slate-400">ຕື່ມມາຈາກທີ່ຢູ່ລູກຄ້າ — ແກ້ໄດ້ຖ້າຕິດຕັ້ງບ່ອນອື່ນ</p>
               </div>
               <div>
+                {/**
+                 * ວັນຄາດວ່າຈະເຂົ້າຕິດຕັ້ງ — ແຕ່ກ່ອນຕັ້ງໄດ້ຕອນ **ຈັດຊ່າງ** ເທົ່ານັ້ນ
+                 * ⇒ ລູກຄ້າຖາມ "ມາມື້ໃດ" ຕັ້ງແຕ່ຕອນຊື້ ແຕ່ລະບົບບໍ່ມີບ່ອນເກັບ.
+                 * ຕັ້ງແຕ່ຕອນເປີດງານໄດ້ເລີຍ (ບໍ່ບັງຄັບ — ຜູ້ຈັດຊ່າງແກ້ໄດ້ພາຍຫຼັງ).
+                 */}
+                <label className={labelClass}>ວັນຄາດວ່າຈະເຂົ້າຕິດຕັ້ງ</label>
+                <input type="date" name="appoint_date" className={inputClass} />
+                <p className="mt-1 text-xs text-slate-400">ຜູ້ຈັດຊ່າງປ່ຽນໄດ້ພາຍຫຼັງ</p>
+              </div>
+              <div className="md:col-span-2">
                 <label className={labelClass}>ໝາຍເຫດ</label>
                 <input name="remark" placeholder="ຊັ້ນ, ທາງເຂົ້າ, ນັດເວລາ..." className={inputClass} />
               </div>
@@ -206,6 +252,9 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
               tel: bill.telephone ?? "",
               address: bill.address ?? "",
               pro_brand: bill.item_brand ?? "",
+              pro_type: bill.pro_type ?? "",
+              pro_size: bill.pro_size ?? "",
+              serials: bill.serials ?? [],
             });
             setOpen(false);
           }}
