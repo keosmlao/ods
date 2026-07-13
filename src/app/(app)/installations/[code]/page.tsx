@@ -1,6 +1,7 @@
 import { Chatter } from "@/components/chatter/chatter";
 import { Elapsed } from "@/components/elapsed";
 import { JOB_HEAD_COLUMNS, type JobHead, JobHeader } from "@/components/installation/job-header";
+import { ReopenJobButton } from "@/components/installation/undo-buttons";
 import { Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
 import { query } from "@/lib/db";
 import { INSTALL_ELAPSED_SQL, INSTALL_STAGE_SQL, installStageChip, installStageLabel } from "@/lib/install-stage";
@@ -105,6 +106,12 @@ export default async function InstallationDetail({ params }: Props) {
           className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600"
         />
         <div className="ml-auto flex gap-2">
+          {/*
+            ── ຍ້າຍມາຈາກແທັບ "ປິດງານແລ້ວ" ທີ່ຖືກຖອດອອກ (13-07-2026) ──
+            ປຸ່ມນີ້ເຄີຍຢູ່ໃນແທັບນັ້ນບ່ອນດຽວ ⇒ ຖອດແທັບແລ້ວ ຄວາມສາມາດ "ເປີດງານຄືນ"
+            ຈະຫາຍໄປນຳ. ຂັ້ນ 9 = ປິດງານແລ້ວ.
+          */}
+          {row.stage === 9 && <ReopenJobButton code={row.code} />}
           <LinkButton tone="neutral" href={`/installations/${encodeURIComponent(row.code)}/print`}>
             ພິມ
           </LinkButton>

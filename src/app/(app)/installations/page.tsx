@@ -33,14 +33,20 @@ import {
  */
 export const dynamic = "force-dynamic";
 
-type Tab = "open" | "done" | "closed" | "cancelled";
+/**
+ * ── ຖອດແທັບ "ຕິດຕັ້ງສຳເລັດ" ແລະ "ປິດງານແລ້ວ" ອອກ (13-07-2026) ──
+ * "ປິດງານແລ້ວ" ມີ **6,820 ງານ** ⇒ ນັບ ແລະ ດຶງທຸກເທື່ອທີ່ເປີດໜ້າ ໃນຂະນະທີ່ຄົນເຮັດວຽກ
+ * ຕ້ອງການແຕ່ **ງານທີ່ດຳເນີນຢູ່** ⇒ ໜ້າຊ້າໂດຍບໍ່ຈຳເປັນ (ຄືກັບໜ້າ /service ທີ່ຖອດໄປແລ້ວ).
+ * ງານທີ່ຈົບແລ້ວເບິ່ງໄດ້: **ຄົ້ນຫາ** · /installations/<ລະຫັດ> · ລາຍງານງານຕິດຕັ້ງ ·
+ * KPI · ລາຍງານແບບສອບຖາມລູກຄ້າ.
+ * ເຫຼືອ "ຍົກເລີກແລ້ວ" ໄວ້ (3 ງານ — ແລະ ມັນມີໜ້າທີ່ຈິງ: ບອກອາໄຫຼ່ທີ່ຄ້າງນອກສາງ).
+ */
+type Tab = "open" | "cancelled";
 type Props = { searchParams: Promise<ListSearchParams> };
 
 /** ຖັງງານ — ລວມກັນແລ້ວໄດ້ທຸກແຖວຂອງ ods_tb_install ພໍດີ (ຍົກເວັ້ນ done ທີ່ຢູ່ໃນ open ນຳ) */
 const BUCKET: Record<Tab, string> = {
   open: INSTALL_OPEN,
-  done: `${INSTALL_OPEN} and a.finish_install is not null`,
-  closed: INSTALL_CLOSED,
   cancelled: INSTALL_CANCELLED,
 };
 
@@ -49,19 +55,13 @@ async function getCounts(tech: string | null) {
   const mine = tech ? "and a.tech_code = $1" : "";
   const sql = `select
       count(*) filter (where ${BUCKET.open})::int open,
-      count(*) filter (where ${BUCKET.done})::int done,
-      count(*) filter (where ${BUCKET.closed})::int closed,
       count(*) filter (where ${BUCKET.cancelled})::int cancelled,
       count(*) filter (where ${INSTALL_OPEN} and (a.tech_code is null or a.tech_code = '')
         and a.start_install is null)::int unassigned
     from ods_tb_install a where true ${mine}`;
-  const row = (
-    await query<{ open: number; done: number; closed: number; cancelled: number; unassigned: number }>(sql, params)
-  ).rows[0];
+  const row = (await query<{ open: number; cancelled: number; unassigned: number }>(sql, params)).rows[0];
   return {
     open: row?.open ?? 0,
-    done: row?.done ?? 0,
-    closed: row?.closed ?? 0,
     cancelled: row?.cancelled ?? 0,
     unassigned: row?.unassigned ?? 0,
   };
@@ -76,8 +76,7 @@ export default async function InstallationsPage({ searchParams }: Props) {
     : { read: false, create: false, update: false, delete: false };
 
   const raw = await searchParams;
-  const tab: Tab =
-    raw.tab === "done" || raw.tab === "closed" || raw.tab === "cancelled" ? raw.tab : "open";
+  const tab: Tab = raw.tab === "cancelled" ? "cancelled" : "open";
   const { q, page, sort, dir } = readParams(raw);
 
   const where = [BUCKET[tab]];
@@ -121,8 +120,6 @@ export default async function InstallationsPage({ searchParams }: Props) {
 
   const TABS: TabItem<Tab>[] = [
     { key: "open", label: "ດຳເນີນຢູ່", icon: Loader, count: counts.open },
-    { key: "done", label: "ຕິດຕັ້ງສຳເລັດ", icon: CheckCircle2, count: counts.done },
-    { key: "closed", label: "ປິດງານເເລ້ວ", icon: ListChecks, count: counts.closed },
     { key: "cancelled", label: "ຍົກເລີກແລ້ວ", icon: Ban, count: counts.cancelled },
   ];
 

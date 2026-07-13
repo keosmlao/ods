@@ -35,7 +35,13 @@ import {
  */
 export const dynamic = "force-dynamic";
 
-type Tab = "feedback" | "close" | "closed";
+/**
+ * ── ຖອດແທັບ "ປິດງານຕິດຕັ້ງສຳເລັດ" ອອກ (13-07-2026) ──
+ * ມັນມີ **6,819 ງານ** ⇒ ນັບ ແລະ ດຶງທຸກເທື່ອທີ່ເປີດໜ້າ ໃນຂະນະທີ່ໜ້ານີ້ມີໄວ້ **ປິດງານ**
+ * (ຄິວທີ່ຍັງຄ້າງ) ບໍ່ແມ່ນເບິ່ງປະຫວັດ ⇒ ໜ້າຊ້າໂດຍບໍ່ຈຳເປັນ.
+ * ງານທີ່ປິດແລ້ວເບິ່ງໄດ້: ຄົ້ນຫາ · /installations/<ລະຫັດ> · ລາຍງານງານຕິດຕັ້ງ · KPI.
+ */
+type Tab = "feedback" | "close";
 type Row = InstallRow & { feedback: FeedbackAnswer[] | null };
 type Props = { searchParams: Promise<ListSearchParams & { from?: string; to?: string }> };
 
@@ -43,7 +49,6 @@ type Props = { searchParams: Promise<ListSearchParams & { from?: string; to?: st
 const BUCKET: Record<Tab, { where: string; timeCol: string }> = {
   feedback: { where: installStageIs(7), timeCol: "a.qc_finish" },
   close: { where: installStageIs(8), timeCol: "a.complain_finish" },
-  closed: { where: installStageIs(9), timeCol: "a.job_finish" },
 };
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -56,26 +61,24 @@ const FEEDBACK_JSON = `(select json_agg(json_build_object('line', cc.line_number
 /** ໝາຍເຫດ: "close" ເປັນຄຳສະຫງວນຂອງ Postgres — ໃຊ້ເປັນຊື່ຖັນບໍ່ໄດ້ */
 async function getCounts(dateWhere: string, dateParams: string[]) {
   const row = (
-    await query<{ wait_feedback: number; wait_close: number; done: number }>(
+    await query<{ wait_feedback: number; wait_close: number }>(
       `select count(*) filter (where ${BUCKET.feedback.where})::int wait_feedback,
-              count(*) filter (where ${BUCKET.close.where})::int wait_close,
-              count(*) filter (where ${BUCKET.closed.where})::int done
+              count(*) filter (where ${BUCKET.close.where})::int wait_close
        from ods_tb_install a where true ${dateWhere}`,
       dateParams,
     )
   ).rows[0];
-  return { feedback: row?.wait_feedback ?? 0, close: row?.wait_close ?? 0, closed: row?.done ?? 0 };
+  return { feedback: row?.wait_feedback ?? 0, close: row?.wait_close ?? 0 };
 }
 
 const TIME_LABEL: Record<Tab, string> = {
   feedback: "ວັນ/ເວລາຕິດຕັ້ງສຳເລັດ",
   close: "ວັນ/ເວລາ complain",
-  closed: "ວັນ/ເວລາປິດງານ",
 };
 
 export default async function ClosePage({ searchParams }: Props) {
   const raw = await searchParams;
-  const tab: Tab = raw.tab === "close" || raw.tab === "closed" ? raw.tab : "feedback";
+  const tab: Tab = raw.tab === "close" ? "close" : "feedback";
   const { q, page, sort, dir } = readParams(raw);
   const from = ISO.test(raw.from ?? "") ? (raw.from as string) : "";
   const to = ISO.test(raw.to ?? "") ? (raw.to as string) : "";
@@ -129,7 +132,6 @@ export default async function ClosePage({ searchParams }: Props) {
   const TABS: TabItem<Tab>[] = [
     { key: "feedback", label: "ລໍຖ້າລູກຄ້າ complain", icon: MessageSquare, count: counts.feedback },
     { key: "close", label: "ລໍຖ້າປິດງານຕິດຕັ້ງ", icon: Lock, count: counts.close },
-    { key: "closed", label: "ປິດງານຕິດຕັ້ງສຳເລັດ", icon: ListChecks, count: counts.closed },
   ];
 
   return (
@@ -225,10 +227,6 @@ export default async function ClosePage({ searchParams }: Props) {
                         >
                           ປິດງານ
                         </JobButton>
-                      )}
-                      {tab === "closed" && (
-                        /* ປິດງານຜິດ → ເປີດຄືນໄປ "ລໍຖ້າປິດງານ" (ແຕ່ກ່ອນປິດແລ້ວປິດເລີຍ ແກ້ບໍ່ໄດ້) */
-                        <ReopenJobButton code={row.code} variant="icon" />
                       )}
                     </>
                   )}
