@@ -1,5 +1,6 @@
 "use client";
 import { assignTech } from "@/app/actions/installation";
+import type { Technician } from "@/lib/technicians";
 import { Button, ErrorBox, inputClass, labelClass } from "@/components/ui";
 import { CalendarDays, Check, LoaderCircle, MapPin, Search, StickyNote, TriangleAlert, UserRound, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -31,7 +32,6 @@ export type AssignRow = {
   remark: string | null;
 };
 
-type Tech = { code: string; username: string };
 type Load = { tech: string; day: number; open: number };
 
 /** ນັດເກີນນີ້ຕໍ່ມື້ = ເປັນໄປໄດ້ຍາກ (ຄ່າດຽວກັບໜ້າ /installations/schedule) */
@@ -44,7 +44,7 @@ function isoDate(offsetDays = 0) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Tech[] }) {
+export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Technician[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
@@ -81,7 +81,7 @@ export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Tech[]
       }
     });
 
-  const shown = techs.filter((item) => item.username.toLowerCase().includes(q.trim().toLowerCase()));
+  const shown = techs.filter((item) => `${item.name} ${item.code}`.toLowerCase().includes(q.trim().toLowerCase()));
   const chosen = tech ? load[tech] : undefined;
 
   return (
@@ -189,14 +189,14 @@ export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Tech[]
 
                 <div className="grid gap-2 sm:grid-cols-2">
                   {shown.map((item) => {
-                    const row2 = load[item.username];
+                    const row2 = load[item.code];
                     const busy = (row2?.day ?? 0) >= BUSY;
-                    const active = tech === item.username;
+                    const active = tech === item.code;
                     return (
                       <button
-                        key={item.username}
+                        key={item.code}
                         type="button"
-                        onClick={() => setTech(item.username)}
+                        onClick={() => setTech(item.code)}
                         className={`flex items-center gap-2 rounded-xl border p-2.5 text-left transition ${
                           active
                             ? "border-teal-500 bg-teal-50"
@@ -213,7 +213,14 @@ export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Tech[]
                           {active ? <Check className="size-4" /> : (row2?.day ?? 0)}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold text-slate-800">{item.username}</span>
+                          <span className="block truncate text-sm font-semibold text-slate-800">
+                            {item.name}
+                            {item.head && (
+                              <span className="ml-1 rounded bg-slate-100 px-1 text-[10px] font-bold text-slate-500">
+                                ຫົວໜ້າຊ່າງ
+                              </span>
+                            )}
+                          </span>
                           <span className={`block text-[11px] ${busy ? "font-semibold text-red-600" : "text-slate-500"}`}>
                             ນັດມື້ນັ້ນ {row2?.day ?? 0} ງານ · ຄ້າງໃນມື {row2?.open ?? 0}
                           </span>

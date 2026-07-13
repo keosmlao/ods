@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../main.dart';
+import '../widgets/service_bottom_nav.dart';
 
 /// ຮັບອາໄຫຼ່ — ໃບທີ່ **ສາງເບີກອອກໃຫ້ແລ້ວ** ແຕ່ຊ່າງຍັງບໍ່ໄປຮັບ.
 ///
@@ -67,7 +68,15 @@ class _PickupScreenState extends State<PickupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F7F6),
       appBar: AppBar(title: Text('ຮັບອາໄຫຼ່ (${docs.length})')),
+      bottomNavigationBar: ServiceBottomNav(
+        selectedIndex: 1,
+        onSelected: (index) {
+          if (index == 0) Navigator.pushReplacementNamed(context, '/jobs');
+          if (index == 2) Navigator.pushReplacementNamed(context, '/income');
+        },
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : docs.isEmpty

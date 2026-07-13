@@ -2,6 +2,7 @@ import { Chatter } from "@/components/chatter/chatter";
 import { InstallEditForm, type InstallRow } from "@/components/installation/install-edit-form";
 import { PageTitle } from "@/components/ui";
 import { query } from "@/lib/db";
+import { listTechnicians } from "@/lib/technicians";
 import { notFound } from "next/navigation";
 
 /**
@@ -12,7 +13,6 @@ export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ code: string }> };
 type Option = { code: string; name_1: string };
-type Tech = { code: string; username: string };
 
 export default async function EditInstallation({ params }: Props) {
   const { code } = await params;
@@ -35,7 +35,8 @@ export default async function EditInstallation({ params }: Props) {
     ),
     query<Option>("select code,name_1 from tb_category order by name_1"),
     query<Option>("select code,name_1 from tb_brand order by name_1"),
-    query<Tech>("select code,username from users where roles='technical' order by username"),
+    // ຊ່າງມາຈາກ ERP + ຜູ້ທີ່ຖືກກຳນົດສິດເປັນຊ່າງ (lib/technicians) ບໍ່ແມ່ນຕາຕະລາງ users ເກົ່າ
+    listTechnicians(),
   ]);
 
   const install = row.rows[0];
@@ -44,7 +45,7 @@ export default async function EditInstallation({ params }: Props) {
   return (
     <div className="w-full space-y-5">
       <PageTitle>ເເກ້ໄຂງານຕິດຕັ້ງ</PageTitle>
-      <InstallEditForm row={install} categories={categories.rows} brands={brands.rows} techs={techs.rows} />
+      <InstallEditForm row={install} categories={categories.rows} brands={brands.rows} techs={techs} />
       <Chatter model="ods_tb_install" resId={install.code} />
     </div>
   );

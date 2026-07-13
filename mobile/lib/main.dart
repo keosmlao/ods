@@ -5,6 +5,7 @@ import 'push.dart';
 import 'screens/income_screen.dart';
 import 'screens/jobs_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/pickup_screen.dart';
 
 /// ODIEN Service — ແອັບຊ່າງ.
 ///
@@ -108,6 +109,7 @@ class OdssApp extends StatelessWidget {
       routes: {
         '/jobs': (_) => const JobsScreen(),
         '/income': (_) => const IncomeScreen(),
+        '/pickup': (_) => const PickupScreen(),
         '/login': (_) => const LoginScreen(),
       },
     );

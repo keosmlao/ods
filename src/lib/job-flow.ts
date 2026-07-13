@@ -22,18 +22,19 @@ const NOW = "localtimestamp(0)";
 
 /* ── ເປັນວຽກຂອງຊ່າງຄົນນີ້ບໍ ────────────────────────────────────── */
 
-export type JobOwner = { code: string; tech: string | null; cancelled: boolean };
+export type JobOwner = { code: string; tech: string | null; cancelled: boolean; accepted: boolean };
 
 async function ownerOf(workflow: Workflow, code: string): Promise<JobOwner | null> {
   const rows =
     workflow === "install"
       ? await query<JobOwner>(
-          `select code, nullif(tech_code,'') as tech, cancel_date is not null as cancelled
+          `select code, nullif(tech_code,'') as tech, cancel_date is not null as cancelled,
+                  tech_confirm is not null as accepted
              from ods_tb_install where code=$1`,
           [code],
         )
       : await query<JobOwner>(
-          `select code, nullif(emp_code,'') as tech, status = 6 as cancelled
+          `select code, nullif(emp_code,'') as tech, status = 6 as cancelled, true as accepted
              from tb_product where code=$1`,
           [code],
         );
@@ -290,6 +291,9 @@ export async function checkIn(
 ): Promise<FlowResult> {
   const own = await ownJob(session, workflow, code);
   if (!own.ok) return own;
+  if (workflow === "install" && !own.job?.accepted) {
+    return { ok: false, error: "ຕ້ອງກົດຮັບງານກ່ອນ ຈຶ່ງສາມາດ check-in ໄດ້" };
+  }
 
   const done = await query(
     `insert into ods_job_checkin(workflow, job_code, tech_code, checkin_lat, checkin_lng, checkin_photo, note)

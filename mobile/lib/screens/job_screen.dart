@@ -129,6 +129,34 @@ class _JobScreenState extends State<JobScreen> {
     });
   }
 
+  Future<void> openMap() async {
+    final destination = job.lat != null && job.lng != null
+        ? '${job.lat},${job.lng}'
+        : (job.address ?? '').trim();
+    if (destination.isEmpty) return;
+    final uri = Uri.https('www.google.com', '/maps/dir/', {
+      'api': '1',
+      'destination': destination,
+    });
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('ບໍ່ສາມາດເປີດແຜນທີ່ໄດ້')));
+    }
+  }
+
+  Future<void> callCustomer() async {
+    final phone = (job.tel ?? '').replaceAll(RegExp(r'[^0-9+]'), '');
+    if (phone.isEmpty) return;
+    final opened = await launchUrl(Uri(scheme: 'tel', path: phone));
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ອຸປະກອນນີ້ບໍ່ສາມາດໂທອອກໄດ້')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final installWithoutPhoto = job.workflow == 'install' && photos.isEmpty;
@@ -163,21 +191,20 @@ class _JobScreenState extends State<JobScreen> {
               _row('ບ່ອນຢູ່', job.address),
               _row('ວັນນັດ', job.appointment),
               // ມີພິກັດ ⇒ ນຳທາງໄປຈຸດທີ່ CS ປັກໝຸດໄວ້ (ບໍ່ຕ້ອງໂທຖາມທາງ)
-            if (job.lat != null && job.lng != null) ...[
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.navigation_outlined, color: teal),
-                label: const Text('ນຳທາງໄປສະຖານທີ່ຕິດຕັ້ງ', style: TextStyle(color: teal)),
-                onPressed: () => launchUrl(
-                  Uri.parse(
-                    'https://www.google.com/maps/dir/?api=1&destination=${job.lat},${job.lng}',
+              if ((job.lat != null && job.lng != null) ||
+                  (job.address ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.navigation_outlined, color: teal),
+                  label: const Text(
+                    'ນຳທາງໄປສະຖານທີ່ຕິດຕັ້ງ',
+                    style: TextStyle(color: teal),
                   ),
-                  mode: LaunchMode.externalApplication,
+                  onPressed: openMap,
                 ),
-              ),
-            ],
+              ],
 
-            if ((job.tel ?? '').isNotEmpty) ...[
+              if ((job.tel ?? '').isNotEmpty) ...[
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.phone, color: ok),
@@ -185,7 +212,7 @@ class _JobScreenState extends State<JobScreen> {
                     'ໂທຫາລູກຄ້າ ${job.tel}',
                     style: const TextStyle(color: ok),
                   ),
-                  onPressed: () => launchUrl(Uri.parse('tel:${job.tel}')),
+                  onPressed: callCustomer,
                 ),
               ],
             ],
@@ -446,6 +473,23 @@ class _JobScreenState extends State<JobScreen> {
                         'check-out (ອອກຈາກໜ້າງານ)',
                         const Color(0xFF334155),
                         checkOut,
+                      )
+                    : job.workflow == 'install' && job.action == 'accept'
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text(
+                            'ກະລຸນາກົດ “ຮັບງານ” ດ້ານເທິງກ່ອນ check-in',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color(0xFFB45309),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _button('ຍັງ check-in ບໍ່ໄດ້', muted, null),
+                        ],
                       )
                     : _button('check-in ໜ້າງານ (ພິກັດ + ຮູບ)', ink, checkIn),
               ],

@@ -32,7 +32,7 @@ export type InstallRow = {
 };
 
 type Option = { code: string; name_1: string };
-type Tech = { code: string; username: string };
+type Tech = { code: string; name: string };
 
 export function InstallEditForm({
   row,
@@ -152,7 +152,7 @@ export function InstallEditForm({
             <SelectField
               name="tech_code"
               defaultValue={row.tech_code ?? ""}
-              options={techs.map((tech) => ({ value: tech.username, label: tech.username }))}
+              options={techs.map((tech) => ({ value: tech.code, label: `${tech.name} (${tech.code})` }))}
               placeholder="ເລືອກຊ່າງ..."
             />
           </div>

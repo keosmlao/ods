@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../main.dart';
 import '../push.dart';
-import 'income_screen.dart';
+import '../widgets/service_bottom_nav.dart';
 import 'job_screen.dart';
 import 'login_screen.dart';
-import 'pickup_screen.dart';
 
 const actionLabel = {
   'accept': 'ຕ້ອງຮັບງານ',
@@ -98,11 +97,6 @@ class _JobsScreenState extends State<JobsScreen> {
     return rows;
   }
 
-  Future<void> openPage(Widget page) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-    await load();
-  }
-
   @override
   Widget build(BuildContext context) {
     final actionCount = jobs
@@ -160,11 +154,11 @@ class _JobsScreenState extends State<JobsScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: _BottomNav(
+      bottomNavigationBar: ServiceBottomNav(
         selectedIndex: 0,
         onSelected: (i) {
-          if (i == 1) openPage(const PickupScreen());
-          if (i == 2) openPage(const IncomeScreen());
+          if (i == 1) Navigator.pushReplacementNamed(context, '/pickup');
+          if (i == 2) Navigator.pushReplacementNamed(context, '/income');
         },
       ),
       body: loading
@@ -286,94 +280,6 @@ class _JobsScreenState extends State<JobsScreen> {
   }
 }
 
-class _BottomNav extends StatelessWidget {
-  const _BottomNav({required this.selectedIndex, required this.onSelected});
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-
-  static const items = [
-    (Icons.work_outline_rounded, Icons.work_rounded, 'ວຽກ'),
-    (Icons.inventory_2_outlined, Icons.inventory_2_rounded, 'ອາໄຫຼ່'),
-    (Icons.payments_outlined, Icons.payments_rounded, 'ລາຍຮັບ'),
-  ];
-
-  @override
-  Widget build(BuildContext context) => SafeArea(
-    top: false,
-    minimum: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-    child: Container(
-      height: 62,
-      padding: const EdgeInsets.all(7),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFDCE5E2)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x220F172A),
-            blurRadius: 24,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: List.generate(items.length, (index) {
-          final item = items[index];
-          final active = index == selectedIndex;
-          return Expanded(
-            child: Semantics(
-              selected: active,
-              button: true,
-              label: item.$3,
-              child: InkWell(
-                onTap: () => onSelected(index),
-                borderRadius: BorderRadius.circular(18),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeOut,
-                  height: 48,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: active
-                        ? const Color(0xFF087F6B)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        active ? item.$2 : item.$1,
-                        size: 22,
-                        color: active ? Colors.white : muted,
-                      ),
-                      if (active) ...[
-                        const SizedBox(width: 7),
-                        Flexible(
-                          child: Text(
-                            item.$3,
-                            overflow: TextOverflow.fade,
-                            softWrap: false,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        }),
-      ),
-    ),
-  );
-}
-
 class _Metric extends StatelessWidget {
   const _Metric({
     required this.label,
@@ -466,162 +372,237 @@ class _JobCard extends StatelessWidget {
   const _JobCard({required this.job, required this.onDone});
   final Job job;
   final Future<void> Function() onDone;
+
   @override
-  Widget build(BuildContext context) => Card(
-    child: InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => JobScreen(job: job)),
-      ).then((_) => onDone()),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: job.workflow == 'install'
-                        ? const Color(0xFFEDE9FE)
-                        : const Color(0xFFCCFBF1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    job.workflow == 'install'
-                        ? Icons.handyman_rounded
-                        : Icons.build_rounded,
-                    size: 19,
-                    color: job.workflow == 'install'
-                        ? const Color(0xFF7C3AED)
-                        : teal,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        job.code,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          color: ink,
-                        ),
-                      ),
-                      Text(
-                        job.stageLabel,
-                        style: const TextStyle(fontSize: 11, color: muted),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: actionColor[job.action]?.withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: Text(
-                    actionLabel[job.action] ?? '-',
-                    style: TextStyle(
-                      color: actionColor[job.action],
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              job.product ?? '-',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: ink,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Row(
-              children: [
-                const Icon(
-                  Icons.person_outline_rounded,
-                  size: 15,
-                  color: muted,
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    job.customer ?? '-',
-                    style: const TextStyle(color: muted, fontSize: 12),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            if ((job.address ?? '').isNotEmpty)
+  Widget build(BuildContext context) {
+    final install = job.workflow == 'install';
+    final typeColor = install ? const Color(0xFF6D4AFF) : teal;
+    final statusColor = actionColor[job.action] ?? muted;
+
+    void open() => Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => JobScreen(job: job)),
+    ).then((_) => onDone());
+
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFDDE6E3)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D0F172A),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: open,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(height: 4, color: statusColor),
               Padding(
-                padding: const EdgeInsets.only(top: 3),
-                child: Row(
+                padding: const EdgeInsets.fromLTRB(15, 13, 15, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.location_on_outlined,
-                      size: 15,
-                      color: muted,
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: typeColor.withValues(alpha: .10),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                install
+                                    ? Icons.handyman_outlined
+                                    : Icons.build_outlined,
+                                size: 14,
+                                color: typeColor,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                install ? 'ຕິດຕັ້ງ' : 'ສ້ອມແປງ',
+                                style: TextStyle(
+                                  color: typeColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            job.code,
+                            style: const TextStyle(
+                              color: ink,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: .10),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Text(
+                            actionLabel[job.action] ?? '-',
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        job.address!,
-                        style: const TextStyle(color: muted, fontSize: 11),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    const SizedBox(height: 13),
+                    Text(
+                      job.product ?? '-',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: ink,
+                        fontSize: 16,
+                        height: 1.25,
+                        fontWeight: FontWeight.w900,
                       ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      job.stageLabel,
+                      style: const TextStyle(color: muted, fontSize: 11),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(11),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF6F8F7),
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Column(
+                        children: [
+                          _InfoLine(
+                            icon: Icons.person_outline_rounded,
+                            text: job.customer ?? '-',
+                          ),
+                          if ((job.address ?? '').isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            _InfoLine(
+                              icon: Icons.location_on_outlined,
+                              text: job.address!,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        if (job.checkedIn)
+                          const _Mini(
+                            icon: Icons.location_on,
+                            text: 'ຢູ່ໜ້າງານ',
+                            color: ok,
+                          ),
+                        if (job.appointment != null)
+                          _Mini(
+                            icon: Icons.event_outlined,
+                            text: job.appointment!,
+                            color: teal,
+                          ),
+                        if (!job.checkedIn && job.appointment == null)
+                          Text(
+                            'ຄ້າງ ${job.days} ມື້',
+                            style: TextStyle(
+                              color: job.days > 7 ? danger : muted,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        const Spacer(),
+                        InkWell(
+                          onTap: open,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 11,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDDF4EE),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Row(
+                              children: [
+                                Text(
+                                  'ເບິ່ງວຽກ',
+                                  style: TextStyle(
+                                    color: teal,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                SizedBox(width: 3),
+                                Icon(
+                                  Icons.arrow_forward_rounded,
+                                  color: teal,
+                                  size: 14,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-            const SizedBox(height: 13),
-            const Divider(height: 1),
-            const SizedBox(height: 11),
-            Row(
-              children: [
-                if (job.checkedIn)
-                  const _Mini(
-                    icon: Icons.location_on,
-                    text: 'ຢູ່ໜ້າງານ',
-                    color: ok,
-                  ),
-                if (job.appointment != null)
-                  _Mini(
-                    icon: Icons.event_outlined,
-                    text: job.appointment!,
-                    color: teal,
-                  ),
-                const Spacer(),
-                Text(
-                  'ຄ້າງ ${job.days} ມື້',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: job.days > 7 ? danger : muted,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(Icons.chevron_right, size: 18, color: muted),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
+    );
+  }
+}
+
+class _InfoLine extends StatelessWidget {
+  const _InfoLine({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, size: 16, color: muted),
+      const SizedBox(width: 7),
+      Expanded(
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Color(0xFF475569), fontSize: 11),
+        ),
+      ),
+    ],
   );
 }
 

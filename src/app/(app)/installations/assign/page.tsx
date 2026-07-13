@@ -2,6 +2,7 @@ import { chooseNewTech } from "@/app/actions/installation";
 import { AssignTechButton } from "@/components/installation/assign-tech";
 import { JobButton } from "@/components/installation/job-buttons";
 import { query } from "@/lib/db";
+import { listTechnicians } from "@/lib/technicians";
 import { INSTALL_ACCEPT_CLOCK, installStageIs } from "@/lib/install-stage";
 import { Clock, UserCheck } from "lucide-react";
 import {
@@ -96,9 +97,9 @@ export default async function AssignPage({ searchParams }: Props) {
       page,
       extraColumns: EXTRA,
     }),
-    query<{ code: string; username: string }>(
-      "select code,username from users where roles='technical' order by username",
-    ),
+    // ລາຍຊື່ຊ່າງ = ພະນັກງານ ERP ທີ່ role ສຸດທ້າຍເປັນຊ່າງ (ລວມຄົນທີ່ຜູ້ຈັດການ
+    // ກຳນົດສິດເອງຢູ່ /manage/employees) — ບ່ອນດຽວຂອງລະບົບ (lib/technicians)
+    listTechnicians(),
   ]);
 
   const pages = Math.max(1, Math.ceil(jobs.total / PAGE_SIZE));
@@ -152,7 +153,7 @@ export default async function AssignPage({ searchParams }: Props) {
                       appoint_date: row.appoint_input,
                       remark: row.remark,
                     }}
-                    techs={techs.rows}
+                    techs={techs}
                   />
                 ) : (
                   <JobButton

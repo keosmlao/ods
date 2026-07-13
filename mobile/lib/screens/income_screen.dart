@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../main.dart';
+import '../widgets/service_bottom_nav.dart';
 
 /// ລາຍຮັບຂອງຊ່າງ (ເດືອນນີ້) — ຕົວເລກທີ່ **ແຊ່ໄວ້ຕອນປິດງານ** (ods_service_payout)
 /// ບໍ່ແມ່ນຄິດຄືນໃໝ່ ⇒ ອັດຕາປ່ຽນພາຍຫຼັງ ບໍ່ກະທົບເງິນຂອງງານທີ່ຈົບໄປແລ້ວ.
@@ -37,7 +38,15 @@ class _IncomeScreenState extends State<IncomeScreen> {
   Widget build(BuildContext context) {
     final data = income;
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F7F6),
       appBar: AppBar(title: const Text('ລາຍຮັບຂອງຂ້ອຍ')),
+      bottomNavigationBar: ServiceBottomNav(
+        selectedIndex: 2,
+        onSelected: (index) {
+          if (index == 0) Navigator.pushReplacementNamed(context, '/jobs');
+          if (index == 1) Navigator.pushReplacementNamed(context, '/pickup');
+        },
+      ),
       body: error.isNotEmpty
           ? Center(
               child: Text(error, style: const TextStyle(color: danger)),

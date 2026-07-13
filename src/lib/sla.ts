@@ -27,6 +27,19 @@ export const SERVICE_TYPE_LABEL: Record<string, string> = {
   ST: "ສ້ອມເຄື່ອງໃນສາງ",
 };
 
+/**
+ * ປະເພດບໍລິການທີ່ຊ່າງ **ຕ້ອງອອກໜ້າງານ** ⇒ ຕ້ອງ check-in/out ເປັນຫຼັກຖານ.
+ * ຂໍ້ມູນຈິງ (5,069 ໃບ): IH 3,669 + PS 123 = **3,792 ໃບ (75%)** · CI/ST ເຮັດຢູ່ສູນ.
+ *
+ * ⚠️ ຄ່າ 'in'/'out' **ບໍ່ມີຢູ່ໃນຖານເລີຍ** — lib/mobile-jobs ເຄີຍເດົາເອົາ
+ * (`service_type <> 'in'`) ⇒ ເປັນຈິງສະເໝີ ⇒ ແອັບບັງຄັບ check-in ແມ່ນແຕ່ງານທີ່ເຮັດຢູ່ສູນ.
+ * ນິຍາມຢູ່ບ່ອນນີ້ບ່ອນດຽວ (ຄູ່ກັບ SLA_SECONDS) ⇒ ບໍ່ໃຫ້ມີສອງແຫຼ່ງຄວາມຈິງອີກ.
+ */
+export const ONSITE_SERVICE_TYPES = ["IH", "PS"] as const;
+
+/** SQL ຂອງ "ງານສ້ອມນອກສະຖານທີ່" — ຕ້ອງ alias ຕາຕະລາງ tb_product ເປັນ a */
+export const REPAIR_ONSITE_SQL = `coalesce(a.service_type,'') in ('IH','PS')`;
+
 /** SQL ຂອງ "ວິນາທີທີ່ອະນຸຍາດ" — ໃຊ້ນັບຈຳນວນເກີນກຳນົດຢູ່ຝັ່ງ DB */
 export const SLA_SQL = `case a.service_type
   when 'CI' then ${2 * HOUR}
