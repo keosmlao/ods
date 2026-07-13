@@ -4,7 +4,7 @@ import { LinkButton } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { INSTALL_CANCELLED, INSTALL_CLOSED, INSTALL_OPEN, INSTALL_STAGE_TIME_COL } from "@/lib/install-stage";
-import { roleOf } from "@/lib/roles";
+import { permissionFor } from "@/lib/permissions";
 import { Ban, CheckCircle2, FilePlus2, ListChecks, Loader, Pencil, Printer } from "lucide-react";
 import Link from "next/link";
 import { CancelledSpares } from "./cancelled-spares";
@@ -71,8 +71,9 @@ export default async function InstallationsPage({ searchParams }: Props) {
   const session = await getSession();
   // ຊ່າງເຫັນສະເພາະງານຂອງຕົນ (ຄືກັບ ods /api/install_list)
   const tech = session?.role === "technical" ? session.username : null;
-  // ລຶບຖາວອນ = ຜູ້ຈັດການເທົ່ານັ້ນ (server ກວດຊ້ຳໃນ actions/install-delete)
-  const canDelete = roleOf(session) === "manager";
+  const installPermission = session
+    ? await permissionFor(session, "/installations")
+    : { read: false, create: false, update: false, delete: false };
 
   const raw = await searchParams;
   const tab: Tab =
@@ -141,10 +142,12 @@ export default async function InstallationsPage({ searchParams }: Props) {
         page={page}
         pages={pages}
       >
-        <LinkButton href="/installations/new" tone="success" className="h-9 text-xs">
-          <FilePlus2 className="size-4" />
-          ເປີດງານຕິດຕັ້ງ
-        </LinkButton>
+        {installPermission.create && (
+          <LinkButton href="/installations/new" tone="success" className="h-9 text-xs">
+            <FilePlus2 className="size-4" />
+            ເປີດງານຕິດຕັ້ງ
+          </LinkButton>
+        )}
       </ListHeader>
 
       <TabsAndSearch
@@ -192,7 +195,7 @@ export default async function InstallationsPage({ searchParams }: Props) {
                         >
                           <Printer className="size-4" />
                         </Link>
-                        {row.stage !== 8 && (
+                        {row.stage !== 8 && installPermission.update && (
                           <>
                             <Link
                               href={`/installations/${encodeURIComponent(row.code)}/edit`}
@@ -207,7 +210,7 @@ export default async function InstallationsPage({ searchParams }: Props) {
                       </>
                     )}
                     {/* ງານທີ່ຍົກເລີກແລ້ວກໍ່ລຶບໄດ້ — ມັນຄືງານທີ່ຄ້າງໃນລະບົບຫຼາຍທີ່ສຸດ */}
-                    {canDelete && <InstallDeleteButton code={row.code} />}
+                    {installPermission.delete && <InstallDeleteButton code={row.code} />}
                   </div>
                 </td>
               </tr>

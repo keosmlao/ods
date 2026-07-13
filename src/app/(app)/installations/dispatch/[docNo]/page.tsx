@@ -1,8 +1,7 @@
-import { saveDispatch } from "@/app/actions/installation";
-import { DocSaveForm } from "@/components/installation/doc-save-form";
 import { JOB_HEAD_COLUMNS, JobHeader, type JobHead } from "@/components/installation/job-header";
 import { Card, Empty, ErrorBox, PageTitle, Table } from "@/components/ui";
 import { query } from "@/lib/db";
+import { PackageMinus } from "lucide-react";
 import { notFound } from "next/navigation";
 
 /** ຖອດແບບຈາກ ods: /showdisp_install/<id> + /save_dispatch_install (tech_install.py) */
@@ -86,15 +85,21 @@ export default async function DispatchDetail({ params }: Props) {
         )}
       </Card>
 
-      <DocSaveForm
-        action={saveDispatch}
-        docRef={docNo}
-        productCode={productCode}
-        today={today}
-        backHref="/installations/dispatch"
-        submitLabel="ເບີກ"
-        disabled={lines.rows.length === 0 || short.length > 0}
-      />
+      {/*
+        ── ລະບົບນີ້ອອກໃບເບີກເອງບໍ່ໄດ້ອີກ (13-07-2026) ──
+        ສາງເບີກຢູ່ **ERP** (ບ່ອນທີ່ສະຕັອກຈິງຢູ່ ແລະ ບ່ອນທີ່ບັນຊີເບິ່ງ) ⇒ ODS ເປັນຝ່າຍອ່ານ:
+        lib/erp-dispatch ດຶງໃບເບີກຂອງ ERP ທີ່ອ້າງອີງໃບຂໍນີ້ ແລ້ວເລື່ອນຂັ້ນງານໃຫ້ເອງ.
+      */}
+      <div className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
+        <PackageMinus className="mt-0.5 size-5 shrink-0 text-sky-600" />
+        <div className="text-sm text-sky-900">
+          <p className="font-bold">ເບີກອາໄຫຼ່ຢູ່ ERP</p>
+          <p className="mt-1 text-xs">
+            ໃບຂໍເບີກ <b>{docNo}</b> ຖືກສົ່ງເຂົ້າ ERP ແລ້ວ — ສາງເບີກໃນ ERP ໂດຍອ້າງອີງເລກໃບນີ້.
+            ເບີກແລ້ວ ລະບົບຈະ <b>ດຶງໃບເບີກກັບມາເອງ</b> ແລະ ງານຈະເລື່ອນໄປຂັ້ນ &quot;ຮັບອາໄຫຼ່&quot;.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

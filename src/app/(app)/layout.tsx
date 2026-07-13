@@ -5,7 +5,8 @@ import { qcWorkflows } from "@/app/actions/qc";
 import { navCounts } from "@/lib/nav-counts";
 import { AppShell } from "@/components/app-shell";
 import { getSession } from "@/lib/auth";
-import { canAccess, roleOf } from "@/lib/roles";
+import { canUser, readableResources } from "@/lib/permissions";
+import { roleOf } from "@/lib/roles";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -26,17 +27,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const role = roleOf(session);
   const pathname = (await headers()).get("x-pathname");
-  if (pathname && !canAccess(role, pathname)) redirect(`/forbidden?from=${encodeURIComponent(pathname)}`);
+  if (pathname && !(await canUser(session, pathname))) redirect(`/forbidden?from=${encodeURIComponent(pathname)}`);
 
   /**
    * ເມນູ "ຄິວກວດຮັບຄຸນນະພາບ" ຂຶ້ນກັບ ods_qc_role (ຜູ້ຈັດການກຳນົດ) ບໍ່ແມ່ນ role ລ້ວນໆ
    * ⇒ ຄິດຢູ່ນີ້ບ່ອນດຽວ ແລ້ວສົ່ງລົງໄປໃຫ້ເມນູ (lib/navigation NavFlags).
    */
-  const [activities, notifications, qc, counts] = await Promise.all([
+  const [activities, notifications, qc, counts, readable] = await Promise.all([
     myActivityCount(),
     myNotificationCount(),
     qcWorkflows(),
     navCounts(session), // ຕົວເລກຄິວຂ້າງເມນູ — ລົ້ມກໍ່ຄືນ {} (ເມນູຍັງໃຊ້ໄດ້)
+    readableResources(session),
   ]);
 
   return (
@@ -44,6 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       username={session.username}
       role={role}
       navFlags={{ qc: qc.length > 0 }}
+      readableResources={readable}
       counts={counts}
       activities={activities}
       notifications={notifications}

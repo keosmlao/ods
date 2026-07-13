@@ -1,10 +1,10 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
 import { clearCancelRequest } from "@/app/actions/service";
-import { getSession, type Session } from "@/lib/auth";
 import { ROLE_APPROVER, ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, query } from "@/lib/db";
-import { APPROVER_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
+import { requireRole } from "@/lib/guard";
+import { APPROVER_SIDE, SERVICE_SIDE } from "@/lib/roles";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -30,15 +30,6 @@ function revalidateAll() {
  *   ອະນຸມັດ / ບໍ່ອະນຸມັດ ພາຍໃນ = ຜູ້ອະນຸມັດ (ຜູ້ຈັດການ + ຫົວໜ້າຊ່າງ) ຄືສິດເຂົ້າ /approvals
  *   ບັນທຶກຄຳຕອບຂອງລູກຄ້າ      = ຝ່າຍບໍລິການ (ຜູ້ຈັດການ + CS) ຄືສິດເຂົ້າ /quotations
  */
-type Guard = { ok: true; session: Session } | { ok: false; error: string };
-
-async function requireRole(allowed: readonly string[], denied: string): Promise<Guard> {
-  const session = await getSession();
-  if (!session) return { ok: false, error: "Session ໝົດອາຍຸ" };
-  if (!allowed.includes(roleOf(session))) return { ok: false, error: denied };
-  return { ok: true, session };
-}
-
 const requireApprover = () => requireRole(APPROVER_SIDE, "ບໍ່ມີສິດອະນຸມັດໃບສະເໜີລາຄາ");
 const requireService = () => requireRole(SERVICE_SIDE, "ບໍ່ມີສິດບັນທຶກຄຳຕອບຂອງລູກຄ້າ");
 

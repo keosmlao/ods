@@ -1,10 +1,10 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
-import { getSession, type Session } from "@/lib/auth";
 import { ROLE_APPROVER, ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb, query } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
-import { APPROVER_SIDE, roleOf, STOCK_SIDE, type Role } from "@/lib/roles";
+import { requireRole } from "@/lib/guard";
+import { APPROVER_SIDE, STOCK_SIDE, type Role } from "@/lib/roles";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import type { PoolClient } from "pg";
@@ -29,15 +29,6 @@ import { z } from "zod";
  *   ຮັບອາໄຫຼ່ເຂົ້າສາງ  → STOCK_SIDE
  */
 const PURCHASE_SIDE: Role[] = ["manager", "admin", "stock"];
-
-type Guard = { ok: true; session: Session } | { ok: false; error: string };
-
-async function requireRole(allowed: readonly Role[], denied: string): Promise<Guard> {
-  const session = await getSession();
-  if (!session) return { ok: false, error: "Session ໝົດອາຍຸ" };
-  if (!allowed.includes(roleOf(session))) return { ok: false, error: denied };
-  return { ok: true, session };
-}
 
 const uploadsDir = process.env.ODS_UPLOADS_DIR;
 const ALLOWED = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);

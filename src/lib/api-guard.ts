@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/auth";
-import { canAccess, roleOf } from "@/lib/roles";
+import type { PermissionAction } from "@/lib/permission-catalog";
+import { canUser } from "@/lib/permissions";
 import { NextResponse } from "next/server";
 
 /**
@@ -16,10 +17,10 @@ import { NextResponse } from "next/server";
  *   const denied = await guardApi("/reports/receipts");
  *   if (denied) return denied;
  */
-export async function guardApi(pagePath: string): Promise<NextResponse | null> {
+export async function guardApi(pagePath: string, action: PermissionAction = "read"): Promise<NextResponse | null> {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (!canAccess(roleOf(session), pagePath)) {
+  if (!(await canUser(session, pagePath, action))) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   return null;
@@ -30,7 +31,7 @@ export async function guardApi(pagePath: string): Promise<NextResponse | null> {
  * route ຄົ້ນຫາ (customers/products/brands/…) ຄືນ `[]` ຕອນປະຕິເສດ ບໍ່ແມ່ນ `{error}`
  * ⇒ ຖ້າບັງຄັບໃຫ້ຄືນ {error} ຝັ່ງ client ທີ່ຄາດຫວັງ array ຈະພັງ.
  */
-export async function apiAllowed(pagePath: string): Promise<boolean> {
+export async function apiAllowed(pagePath: string, action: PermissionAction = "read"): Promise<boolean> {
   const session = await getSession();
-  return Boolean(session) && canAccess(roleOf(session), pagePath);
+  return Boolean(session) && Boolean(session && (await canUser(session, pagePath, action)));
 }

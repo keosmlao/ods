@@ -1,4 +1,5 @@
 import { canAccess, type Role } from "@/lib/roles";
+import { resourceForPath } from "@/lib/permission-catalog";
 import {
   BadgeCheck,
   Boxes,
@@ -194,12 +195,18 @@ export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, STOCK, QUALITY, AP
 /** ສິດທີ່ຜູ້ຈັດການກຳນົດຢູ່ຖານຂໍ້ມູນ — layout ຄິດໃຫ້ ແລ້ວສົ່ງລົງມາເຖິງເມນູ */
 export type NavFlags = { qc?: boolean };
 
-export function navigationFor(role: Role, flags: NavFlags = {}): NavGroup[] {
+export function navigationFor(role: Role, flags: NavFlags = {}, readable?: readonly string[]): NavGroup[] {
+  const allowed = readable ? new Set(readable) : null;
   return navigation
     .map((group) => ({
       ...group,
       items: group.items.filter(
-        (item) => canAccess(role, pathOf(item.href)) && (item.flag !== "qc" || flags.qc === true),
+        (item) => {
+          const path = pathOf(item.href);
+          const resource = resourceForPath(path) ?? path;
+          const canRead = allowed ? allowed.has(resource) : canAccess(role, path);
+          return canRead && (item.flag !== "qc" || flags.qc === true);
+        },
       ),
     }))
     .filter((group) => group.items.length > 0);

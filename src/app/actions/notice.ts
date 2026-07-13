@@ -1,7 +1,7 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
 import { query } from "@/lib/db";
-import { requireRole } from "@/lib/guard";
+import { requirePermission } from "@/lib/guard";
 import { SERVICE_SIDE } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 
@@ -23,7 +23,7 @@ import { revalidatePath } from "next/cache";
 export type NoticeState = { error?: string; ok?: string };
 
 export async function deleteNotice(code: string): Promise<NoticeState> {
-  const guard = await requireRole(SERVICE_SIDE, "ພະນັກງານບໍລິການເທົ່ານັ້ນທີ່ລຶບຄຳແຈ້ງໄດ້");
+  const guard = await requirePermission("/service/notices", "delete", SERVICE_SIDE, "ບໍ່ມີສິດລຶບຄຳແຈ້ງ");
   if (!guard.ok) return { error: guard.error };
 
   // ເປີດງານໄປແລ້ວ = ມີໃບຮັບເຄື່ອງອ້າງອີງຢູ່ ⇒ ລຶບບໍ່ໄດ້ (ເງື່ອນໄຂຢູ່ໃນ WHERE)

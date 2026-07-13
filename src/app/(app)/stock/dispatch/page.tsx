@@ -1,3 +1,4 @@
+import { syncErpDispatch } from "@/lib/erp-dispatch";
 import { refreshInventory } from "@/app/actions/stock";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
@@ -376,6 +377,9 @@ const INSTALL_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
 ];
 
 export default async function StockDispatchPage({ searchParams }: Props) {
+  // ດຶງໃບເບີກທີ່ສາງອອກໃນ ERP ກັບມາກ່ອນ ⇒ ຄິວທີ່ເຫັນເປັນຄວາມຈິງລ້າສຸດ (lib/erp-dispatch)
+  await syncErpDispatch();
+
   const session = await getSession();
   const warehouses = await getOwnWarehouses(session?.username ?? "");
 

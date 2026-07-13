@@ -1,7 +1,7 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
 import { db, query } from "@/lib/db";
-import { requireRole } from "@/lib/guard";
+import { requirePermission } from "@/lib/guard";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -21,7 +21,7 @@ import { revalidatePath } from "next/cache";
 export type DeleteInstallState = { error?: string; ok?: string };
 
 export async function deleteInstall(code: string, reason: string): Promise<DeleteInstallState> {
-  const guard = await requireRole(["manager"], "ຜູ້ຈັດການເທົ່ານັ້ນທີ່ລຶບງານຕິດຕັ້ງໄດ້");
+  const guard = await requirePermission("/installations", "delete", ["manager"], "ບໍ່ມີສິດລຶບງານຕິດຕັ້ງ");
   if (!guard.ok) return { error: guard.error };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 

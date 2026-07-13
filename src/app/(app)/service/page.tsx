@@ -6,7 +6,7 @@ import type { SortDir } from "@/components/sort-header";
 import { ServiceTable, type TableRow } from "@/components/service-table";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { roleOf } from "@/lib/roles";
+import { permissionFor } from "@/lib/permissions";
 import { CANCELLED_JOBS, DONE_JOBS, OPEN_JOBS, STAGE_SQL, STAGE_TIME_COL } from "@/lib/stage";
 import { Bell, CheckCircle2, ChevronLeft, ChevronRight, Clock, FileBarChart, FilePlus2, FileSpreadsheet, LayoutGrid, Search, Table2, XCircle } from "lucide-react";
 import Link from "next/link";
@@ -137,8 +137,10 @@ export default async function ServicePage({ searchParams }: Props) {
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
   const sort = (params.sort ?? (isPending ? "elapsed" : "code")).trim();
 
-  // ປຸ່ມລຶບ — ຜູ້ຈັດການເທົ່ານັ້ນ (server ກວດຊ້ຳຢູ່ actions/service-delete)
-  const canDelete = roleOf(await getSession()) === "manager";
+  const session = await getSession();
+  const servicePermission = session
+    ? await permissionFor(session, "/service")
+    : { read: false, create: false, update: false, delete: false };
 
   const [board, closed, noticeCount] = await Promise.all([
     isPending ? getBoard(q, status) : Promise.resolve([]),
@@ -237,13 +239,15 @@ export default async function ServicePage({ searchParams }: Props) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/service/new"
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white transition hover:bg-emerald-700"
-          >
-            <FilePlus2 className="size-4" />
-            ໃບຮັບເຄື່ອງ
-          </Link>
+          {servicePermission.create && (
+            <Link
+              href="/service/new"
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white transition hover:bg-emerald-700"
+            >
+              <FilePlus2 className="size-4" />
+              ໃບຮັບເຄື່ອງ
+            </Link>
+          )}
           <Link
             href="/reports/job-dispatch"
             className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white transition hover:bg-emerald-700"
@@ -357,14 +361,21 @@ export default async function ServicePage({ searchParams }: Props) {
 
       {!isPending ? (
         <>
-          <ServiceTable rows={closed.rows} sort={sort} dir={dir} sortHref={sortHref} canDelete={canDelete} />
+          <ServiceTable rows={closed.rows} sort={sort} dir={dir} sortHref={sortHref} canDelete={servicePermission.delete} />
           {pagination}
         </>
       ) : board_view ? (
         <ServiceBoard cards={board} />
       ) : (
         <>
-          <ServicePendingTable cards={pendingPage} sort={sort} dir={dir} sortHref={sortHref} canDelete={canDelete} />
+          <ServicePendingTable
+            cards={pendingPage}
+            sort={sort}
+            dir={dir}
+            sortHref={sortHref}
+            canUpdate={servicePermission.update}
+            canDelete={servicePermission.delete}
+          />
           {pagination}
         </>
       )}

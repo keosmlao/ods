@@ -1,7 +1,8 @@
 "use server";
 
-import { getSession } from "@/lib/auth";
 import { db, query } from "@/lib/db";
+import { requirePermission } from "@/lib/guard";
+import { SERVICE_SIDE } from "@/lib/roles";
 import { MSG, type ActionState } from "@/components/manage/types";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -47,7 +48,8 @@ export async function nextCustomerCode() {
 }
 
 export async function createCustomer(_: ActionState, formData: FormData): Promise<ActionState> {
-  if (!(await getSession())) return fail(MSG.expired);
+  const guard = await requirePermission("/customers", "create", SERVICE_SIDE);
+  if (!guard.ok) return fail(guard.error);
 
   const d = readForm(formData);
   if (!d.name_1) return fail(MSG.required);
@@ -86,7 +88,8 @@ export async function createCustomer(_: ActionState, formData: FormData): Promis
 }
 
 export async function updateCustomer(_: ActionState, formData: FormData): Promise<ActionState> {
-  if (!(await getSession())) return fail(MSG.expired);
+  const guard = await requirePermission("/customers", "update", SERVICE_SIDE);
+  if (!guard.ok) return fail(guard.error);
 
   const d = readForm(formData);
   if (!d.code || !d.name_1) return fail(MSG.required);
@@ -106,7 +109,8 @@ export async function updateCustomer(_: ActionState, formData: FormData): Promis
 }
 
 export async function deleteCustomer(code: string): Promise<ActionState> {
-  if (!(await getSession())) return fail(MSG.expired);
+  const guard = await requirePermission("/customers", "delete", SERVICE_SIDE);
+  if (!guard.ok) return fail(guard.error);
   if (!code) return fail(MSG.failed);
 
   try {

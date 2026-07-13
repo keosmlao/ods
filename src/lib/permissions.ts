@@ -1,14 +1,16 @@
 import "server-only";
 
 import type { Session } from "@/lib/auth";
-import { query } from "@/lib/db";
+import { query, queryOdg } from "@/lib/db";
+import { getEmployeeOverride } from "@/lib/employee-role";
+import { ERP_IDENTITY_SQL, roleFromErp } from "@/lib/erp-auth";
 import {
   actionForPath,
   type CrudPermission,
   type PermissionAction,
   resourceForPath,
 } from "@/lib/permission-catalog";
-import { canAccess, roleOf } from "@/lib/roles";
+import { canAccess, normalizeRole, roleOf, type Role } from "@/lib/roles";
 
 type PermissionRow = {
   resource: string;
@@ -122,4 +124,56 @@ export async function readableResources(session: Session): Promise<string[]> {
     if (permissionFromOverrides(session, item.resource, overrides).read) resources.add(item.resource);
   }
   return [...resources];
+}
+
+export type EmployeePermissionProfile = {
+  employeeCode: string;
+  identity: string;
+  fullname: string;
+  role: Role;
+};
+
+/** profile + effective role ດ້ວຍລຳດັບດຽວກັບຕອນ login. */
+export async function employeePermissionProfile(employeeCode: string): Promise<EmployeePermissionProfile | null> {
+  const employee = (
+    await queryOdg<{
+      identity: string | null;
+      fullname_lo: string | null;
+      app_role: string | null;
+      position_code: string | null;
+      department_code: string | null;
+    }>(
+      `select ${ERP_IDENTITY_SQL} as identity, e.fullname_lo, e.app_role, e.position_code, e.department_code
+         from odg_employee e
+        where e.employee_code = $1 and e.employment_status = 'ACTIVE'
+        limit 1`,
+      [employeeCode],
+    )
+  ).rows[0];
+  if (!employee) return null;
+
+  const identity = (employee.identity ?? "").trim() || (employee.fullname_lo ?? "").trim() || employeeCode;
+  const [override, legacy] = await Promise.all([
+    getEmployeeOverride(employeeCode),
+    query<{ roles: string }>(
+      `select roles from users
+        where lower(username) in (lower($1), lower($2), lower($3))
+        order by case roles when 'manager' then 1 when 'headtechnical' then 2 else 3 end
+        limit 1`,
+      [employeeCode, identity, (employee.fullname_lo ?? "").trim()],
+    ),
+  ]);
+
+  const role = override?.app_role
+    ? normalizeRole(override.app_role)
+    : legacy.rows[0]?.roles
+      ? normalizeRole(legacy.rows[0].roles)
+      : normalizeRole(roleFromErp(employee.app_role, employee.position_code, employee.department_code));
+
+  return {
+    employeeCode,
+    identity,
+    fullname: (employee.fullname_lo ?? "").trim() || "-",
+    role,
+  };
 }

@@ -7,7 +7,7 @@ import { listEmployeeOverrides } from "@/lib/employee-role";
 import { query, queryOdg } from "@/lib/db";
 import { ERP_IDENTITY_SQL, roleFromErp } from "@/lib/erp-auth";
 import { normalizeRole, ROLE_LABEL, ROLES, type Role } from "@/lib/roles";
-import { Building2, ChevronLeft, ChevronRight, Search, ShieldCheck, Users } from "lucide-react";
+import { Building2, ChevronLeft, ChevronRight, Search, Settings2, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -324,7 +324,7 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
       {/* ຕາຕະລາງ */}
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1150px] border-collapse text-xs">
+          <table className="w-full min-w-[1240px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
                 {COLUMNS.map((column) => (
@@ -340,6 +340,7 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
                   />
                 ))}
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໃຊ້ງານໄດ້</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສິດເມນູ / CRUD</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຜູ້ແກ້ໄຂລ່າສຸດ</th>
               </tr>
             </thead>
@@ -368,6 +369,15 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5">
                     <ActiveToggle code={row.code} name={row.identity} active={row.active} />
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2.5">
+                    <Link
+                      href={`/manage/employees/${encodeURIComponent(row.code)}/permissions`}
+                      className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-2.5 text-[11px] font-semibold text-teal-700 hover:bg-teal-100"
+                    >
+                      <Settings2 className="size-3.5" />
+                      ກຳນົດລາຍເມນູ
+                    </Link>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">
                     {row.updated_by ? (

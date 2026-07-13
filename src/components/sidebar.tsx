@@ -37,6 +37,7 @@ const isActive = (pathname: string, href: string, best: number) => {
 export function NavTree({
   role,
   navFlags,
+  readableResources,
   counts,
   onNavigate,
   collapsed = false,
@@ -46,6 +47,8 @@ export function NavTree({
   role: Role;
   /** ສິດທີ່ຢູ່ໃນຖານຂໍ້ມູນ ບໍ່ແມ່ນຢູ່ໃນຕາຕະລາງ RULES (ດຽວນີ້ມີແຕ່ QC — ເບິ່ງ lib/navigation) */
   navFlags: NavFlags;
+  /** ເມນູທີ່ອ່ານໄດ້ຫຼັງລວມ role + override ລາຍ user. */
+  readableResources: string[];
   /** ຕົວເລກຄິວຕໍ່ລາຍການ (lib/nav-counts) — ຫວ່າງໄດ້ (ຖ້າ query ລົ້ມ ເມນູຍັງໃຊ້ໄດ້) */
   counts: NavCounts;
   onNavigate?: () => void;
@@ -64,13 +67,13 @@ export function NavTree({
 
   /** ເມນູຕາມສິດ ແລ້ວຄົ້ນຫາ — ພິມແລ້ວເຫຼືອສະເພາະທີ່ຕົງ */
   const groups = useMemo(() => {
-    const allowed = navigationFor(role, navFlags);
+    const allowed = navigationFor(role, navFlags, readableResources);
     const text = query.trim().toLowerCase();
     if (!text) return allowed;
     return allowed
       .map((group) => ({ ...group, items: group.items.filter((item) => item.label.toLowerCase().includes(text)) }))
       .filter((group) => group.items.length > 0);
-  }, [role, navFlags, query]);
+  }, [role, navFlags, readableResources, query]);
 
   // ຄິດຄັ້ງດຽວຕໍ່ການ render — ຢ່າຄິດຊ້ຳຢູ່ໃນ loop ຂອງແຕ່ລະລາຍການ
   const best = useMemo(() => bestMatch(pathname, groups), [pathname, groups]);
@@ -209,12 +212,14 @@ export function NavTree({
 export function Sidebar({
   role,
   navFlags,
+  readableResources,
   counts,
   collapsed,
   onToggle,
 }: {
   role: Role;
   navFlags: NavFlags;
+  readableResources: string[];
   counts: NavCounts;
   collapsed: boolean;
   onToggle: () => void;
@@ -263,7 +268,14 @@ export function Sidebar({
       )}
 
       <div className="min-h-0 flex-1 pt-3">
-        <NavTree role={role} navFlags={navFlags} counts={counts} collapsed={collapsed} onExpand={onToggle} />
+        <NavTree
+          role={role}
+          navFlags={navFlags}
+          readableResources={readableResources}
+          counts={counts}
+          collapsed={collapsed}
+          onExpand={onToggle}
+        />
       </div>
     </aside>
   );

@@ -26,12 +26,14 @@ const COLUMNS: { key: PendingSort; label: string; defaultDir: SortDir }[] = [
 
 /** ວຽກທີ່ຍັງຄ້າງ — ຕາຕະລາງ, ກົດຫົວຖັນເພື່ອຈັດຮຽງ */
 export function ServicePendingTable({
+  canUpdate = false,
   canDelete = false,
   cards,
   sort,
   dir,
   sortHref,
 }: {
+  canUpdate?: boolean;
   /** ຜູ້ຈັດການເທົ່ານັ້ນ — ປຸ່ມລຶບຍ້ອນຄືນບໍ່ໄດ້ */
   canDelete?: boolean;
   cards: BoardCard[];
@@ -120,9 +122,11 @@ export function ServicePendingTable({
                       >
                         <Printer className="size-4" />
                       </Link>
-                      <Link href={`/service/${card.code}/edit`} title="ແກ້ໄຂ" className="text-slate-500 hover:opacity-70">
-                        <Pencil className="size-4" />
-                      </Link>
+                      {canUpdate && (
+                        <Link href={`/service/${card.code}/edit`} title="ແກ້ໄຂ" className="text-slate-500 hover:opacity-70">
+                          <Pencil className="size-4" />
+                        </Link>
+                      )}
                       {/* ລຶບໃບຮັບເຄື່ອງ — ຜູ້ຈັດການເທົ່ານັ້ນ (server ກວດຊ້ຳ) */}
                       {canDelete && <ServiceDeleteButton code={card.code} />}
                     </div>

@@ -1085,160 +1085,20 @@ export async function deleteSpareRequest(docNo: string, code: string): Promise<A
   return { ok: `ລົບເລກທີຂໍເບີກ ${docNo} ສຳເລັດ` };
 }
 
-/* ── ສາງເບີກ SWC (save_dispatch_install) ──────────────────── */
-
-/**
- * ເບີກອາໄຫຼ່ອອກຈາກສາງ — ຂຽນລົງ 2 ຖານຂໍ້ມູນ (ODS + ERP) ໃນ transaction ດຽວກັນ.
- * ຖ້າ ERP ລົ້ມ → ODS rollback ນຳ (ຄືກັບ ods ທີ່ໃຊ້ getcursor_tx/getcursor2_tx).
+/* ── ສາງເບີກ SWC — **ຖອດອອກແລ້ວ** ────────────────────────────
+ *
+ * ນະໂຍບາຍ (13-07-2026): **ລະບົບນີ້ອອກໃບເບີກເອງບໍ່ໄດ້ອີກ.**
+ * ສາງເບີກຢູ່ **ERP** (ບ່ອນທີ່ສະຕັອກຈິງຢູ່ ແລະ ບ່ອນທີ່ບັນຊີເບິ່ງ) — ODS ເປັນຝ່າຍ **ອ່ານ**:
+ * lib/erp-dispatch ດຶງໃບ 56 ຂອງ ERP ທີ່ doc_ref ຊີ້ໃສ່ໃບຂໍຂອງເຮົາ ແລ້ວເລື່ອນຂັ້ນງານໃຫ້ເອງ.
+ *
+ * ຖອດທັງ action ບໍ່ແມ່ນເຊື່ອງແຕ່ປຸ່ມ — server action ຖືກຍິງໂດຍກົງໄດ້ (lib/guard).
+ * ເກັບຊື່ຟັງຊັນໄວ້ ເພື່ອບອກເຫດຜົນໃຫ້ຄົນທີ່ຍັງກົດປຸ່ມເກົ່າ (ໜ້າທີ່ cache ໄວ້).
  */
-export async function saveDispatch(_: ActionState, formData: FormData): Promise<ActionState> {
-  // ຕັດສະຕັອກຈິງທັງ ODS ແລະ **ERP** ⇒ ສາງເທົ່ານັ້ນ (ຊ່າງ/CS ຍິງ action ນີ້ບໍ່ໄດ້ອີກ)
-  const guard = await requireRole(STOCK_SIDE, "ບໍ່ມີສິດເບີກອາໄຫຼ່ອອກຈາກສາງ");
-  if (!guard.ok) return { error: guard.error };
-  const session = guard.session;
-  if (!db || !odgDb) return { error: "ບໍ່ພົບ DATABASE_URL / ODG_DATABASE_URL" };
-
-  const docRef = String(formData.get("doc_ref") ?? "");     // ເລກ SION
-  const docDate = String(formData.get("doc_date") ?? "");
-  const productCode = String(formData.get("product_code") ?? "");
-  const remark = String(formData.get("remark") ?? "");
-  if (!docRef || !docDate || !productCode) return { error: "ຂໍ້ມູນບໍ່ຄົບ" };
-
-  const docTime = new Date().toTimeString().slice(0, 5);
-
-  const client = await db.connect();
-  const odg = await odgDb.connect();
-  let dispatchNo = "";
-  let dispatchLines = 0;
-  try {
-    await client.query("begin");
-    await client.query("select pg_advisory_xact_lock(734213)");
-
-    const wh = await client.query<{ wh_code: string | null; shelf_code: string | null }>(
-      "select wh_code,shelf_code from ic_trans where doc_no=$1 limit 1",
-      [docRef],
-    );
-    const whCode = wh.rows[0]?.wh_code ?? "1103";
-    const shelfCode = wh.rows[0]?.shelf_code ?? "110301";
-
-    const itemCount = await client.query<{ count: string }>(
-      "select count(item_code) count from ic_trans_detail where doc_no=$1",
-      [docRef],
-    );
-
-    const spares = await client.query<{
-      roworder: number; item_code: string; item_name: string; qty: string; unit_code: string; stock: string;
-    }>(
-      `select a.roworder, a.item_code, a.item_name, a.qty, a.unit_code, coalesce(st.balance_qty,0) stock
-       from ic_trans_detail a
-       left join ic_trans b on b.doc_no = a.doc_no
-       left join get_odg_stock_balance('2099-12-31', a.item_code, b.wh_code, b.shelf_code) st on st.ic_code = a.item_code
-       where a.doc_no=$1 and a.status in (0,5)`,
-      [docRef],
-    );
-    if (spares.rowCount === 0) {
-      await client.query("rollback");
-      return { error: "ບໍ່ມີລາຍການສຳລັບເບີກ!" };
-    }
-    const inStock = spares.rows.filter((row) => Number(row.qty) <= Number(row.stock)).length;
-    if (Number(itemCount.rows[0].count) !== inStock) {
-      await client.query("rollback");
-      return { error: "ຈຳນວນບໍ່ພຽງພໍສຳລັບເບີກອະໄຫຼ່!" };
-    }
-
-    const docNo = await nextDocNo(client, "SWC");
-    dispatchNo = docNo;
-    dispatchLines = spares.rows.length;
-    const rowRefs = spares.rows.map((row) => row.roworder);
-
-    await client.query(
-      `insert into ic_trans(trans_flag,doc_date,doc_no,doc_ref,doc_ref_date,cust_code,product_code,issue,remark,
-         wanrunty,isue_2,waranty_request,emp,w_reason,used_spare,job_type)
-       select 56,$1,$2,doc_no,doc_date,cust_code,product_code,issue,$3,wanrunty,isue_2,waranty_request,emp,w_reason,used_spare,'install'
-       from ic_trans where doc_no=$4`,
-      [docDate, docNo, remark, docRef],
-    );
-    await client.query(
-      `insert into ic_trans_detail(trans_flag,doc_date,doc_no,doc_ref_date,doc_ref,cust_code,product_code,item_code,
-         item_name,qty,unit_code,calc_flag,user_created,status,job_type)
-       select 56,$1,$2,doc_date,doc_no,cust_code,product_code,item_code,item_name,qty,unit_code,-1,$3,0,'install'
-       from ic_trans_detail where roworder = any($4)`,
-      [docDate, docNo, session.username, rowRefs],
-    );
-
-    for (const row of spares.rows) {
-      await client.query(
-        `update tb_used_spare set reg_finish=localtimestamp(0)
-         where item_code=$1 and qty=$2 and product_code=$3 and reg_finish is null`,
-        [row.item_code, row.qty, productCode],
-      );
-      await client.query("update ic_inventory set balance_qty=balance_qty-$1, wh_qty=wh_qty-$1 where code=$2", [
-        row.qty, row.item_code,
-      ]);
-    }
-    await client.query("update ic_trans_detail set status=1 where roworder = any($1)", [rowRefs]);
-
-    const pending = await client.query<{ count: string }>(
-      "select count(item_code) count from ic_trans_detail where status=0 and doc_no=$1",
-      [docRef],
-    );
-    if (Number(pending.rows[0].count) === 0) {
-      await client.query("update ods_tb_install set reg_finish=localtimestamp(0) where code=$1", [productCode]);
-    }
-
-    const head = await client.query<{ doc_no: string; doc_date: string; user_created: string | null }>(
-      "select doc_no,doc_date,user_created from ic_trans where doc_no=$1",
-      [docRef],
-    );
-
-    // ── ERP (odg) ──
-    await odg.query("begin");
-    await odg.query(
-      `insert into ic_trans(trans_type,trans_flag,doc_no,doc_date,doc_ref,doc_ref_date,sale_code,doc_time,
-         doc_format_code,wh_from,location_from,creator_code,branch_code,remark,side_code,department_code)
-       values(3,56,$1,$2,$3,$4,$5,$6,'SWC',$7,$8,$9,'01',$10,'400','4001')`,
-      [docNo, docDate, head.rows[0].doc_no, head.rows[0].doc_date, head.rows[0].user_created, docTime,
-        whCode, shelfCode, session.username, remark],
-    );
-    for (const row of spares.rows) {
-      await odg.query(
-        `insert into ic_trans_detail(trans_type,trans_flag,doc_no,doc_date,doc_ref,item_code,item_name,unit_code,qty,
-           wh_code,shelf_code,stand_value,divide_value,doc_date_calc,doc_time_calc,calc_flag)
-         values(3,56,$1,$2,$3,$4,$5,$6,$7,$8,$9,1,1,$10,$11,-1)`,
-        [docNo, docDate, docRef, row.item_code, row.item_name, row.unit_code, row.qty, whCode, shelfCode,
-          docDate, docTime],
-      );
-      await odg.query("update ic_inventory set balance_qty=balance_qty-$1 where code=$2", [row.qty, row.item_code]);
-    }
-    await odg.query("commit");
-
-    try {
-      await client.query("commit");
-    } catch (error) {
-      // ODS ລົ້ມຫຼັງ ERP commit — ERP ຄືນບໍ່ໄດ້ແລ້ວ, ຕ້ອງແກ້ດ້ວຍມື
-      await odg.query("rollback").catch(() => {});
-      throw error;
-    }
-  } catch (error) {
-    await client.query("rollback").catch(() => {});
-    await odg.query("rollback").catch(() => {});
-    console.error("saveDispatch failed", error);
-    return { error: "ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກຂໍ້ມູນ!" };
-  } finally {
-    client.release();
-    odg.release();
-  }
-
-  await logChange(
-    "ods_tb_install",
-    productCode,
-    `ສາງເບີກອາໄຫຼ່ອອກ ${dispatchNo} · ${dispatchLines} ລາຍການ (ອ້າງອີງໃບຂໍເບີກ ${docRef})`,
-  );
-
-  revalidateAll();
-  redirect("/installations/dispatch");
+export async function saveDispatch(_: ActionState): Promise<ActionState> {
+  return {
+    error: "ລະບົບນີ້ອອກໃບເບີກບໍ່ໄດ້ອີກ — ສາງເບີກຢູ່ ERP ແລ້ວລະບົບຈະດຶງມາເອງ",
+  };
 }
-
 /* ── ຊ່າງຮັບອາໄຫຼ່ PISP (save_pick_spare) ─────────────────── */
 
 /**

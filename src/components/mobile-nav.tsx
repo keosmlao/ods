@@ -7,7 +7,17 @@ import { Menu, Wrench, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-export function MobileNav({ role, navFlags, counts }: { role: Role; navFlags: NavFlags; counts: NavCounts }) {
+export function MobileNav({
+  role,
+  navFlags,
+  readableResources,
+  counts,
+}: {
+  role: Role;
+  navFlags: NavFlags;
+  readableResources: string[];
+  counts: NavCounts;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -24,7 +34,13 @@ export function MobileNav({ role, navFlags, counts }: { role: Role; navFlags: Na
       </header>
       {open && (
         <div className="no-print fixed inset-0 z-10 flex flex-col overflow-y-auto bg-slate-950 pb-6 pt-16 text-slate-300 lg:hidden">
-          <NavTree role={role} navFlags={navFlags} counts={counts} onNavigate={() => setOpen(false)} />
+          <NavTree
+            role={role}
+            navFlags={navFlags}
+            readableResources={readableResources}
+            counts={counts}
+            onNavigate={() => setOpen(false)}
+          />
         </div>
       )}
     </>

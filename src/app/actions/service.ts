@@ -1,9 +1,9 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
 import { pushToUser } from "@/lib/push";
-import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { APPROVER_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
+import { requirePermission, requireRole } from "@/lib/guard";
+import { APPROVER_SIDE, SERVICE_SIDE } from "@/lib/roles";
 import { ONSITE_SERVICE_TYPES } from "@/lib/sla";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
@@ -185,8 +185,9 @@ async function resolveCustomer(
 }
 
 export async function createService(_: ServiceState, formData: FormData): Promise<ServiceState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requirePermission("/service", "create", SERVICE_SIDE);
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
 
   const parsed = schema.safeParse(
     Object.fromEntries([...formData.entries()].filter(([, value]) => typeof value === "string")),
@@ -295,8 +296,8 @@ export type CustomerState = { error?: string; customer?: NewCustomer };
  * ເອົາເບີໂທເປັນ ref_code ຄືກັບແຖວອື່ນໆໃນ ar_customer (ref_code ຄືລະຫັດດຽວກັນຢູ່ ERP).
  */
 export async function createCustomer(_: CustomerState, formData: FormData): Promise<CustomerState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requirePermission("/service", "create", SERVICE_SIDE);
+  if (!guard.ok) return { error: guard.error };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const parsed = z
@@ -346,8 +347,9 @@ export async function createCustomer(_: CustomerState, formData: FormData): Prom
 /* ---------- ແກ້ໄຂໃບຮັບເຄື່ອງ — ຄື /rcpdedit + /update_rcpro ຂອງ ods ---------- */
 
 export async function updateService(_: ServiceState, formData: FormData): Promise<ServiceState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requirePermission("/service", "update", SERVICE_SIDE);
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const parsed = schema.extend({ code: z.string().min(1) }).safeParse(
@@ -429,8 +431,9 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
 /* ---------- ຍົກເລີກ / ຖອນການຍົກເລີກ — ຄື /submit_ccpro + /cc_ccpro ຂອງ ods ---------- */
 
 export async function requestCancel(code: string, remark: string): Promise<ServiceState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requirePermission("/service", "update", SERVICE_SIDE);
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!remark.trim()) return { error: "ກະລຸນາປ້ອນລາຍລະອຽດ" };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
@@ -474,16 +477,11 @@ export type ClearCancelResult = { ok: boolean; error?: string; requester?: strin
  * ລ້າງໄດ້ສະເພາະທີ່ຍັງບໍ່ທັນອະນຸມັດ (cancel_finish isnull) — ອະນຸມັດແລ້ວຫ້າມຍ້ອນ.
  */
 export async function clearCancelRequest(code: string): Promise<ClearCancelResult> {
-  const session = await getSession();
-  if (!session) return { ok: false, error: "Session ໝົດອາຍຸ" };
+  const guard = await requireRole([...SERVICE_SIDE, ...APPROVER_SIDE], "ບໍ່ມີສິດຖອນຄຳຂໍຍົກເລີກ");
+  if (!guard.ok) return { ok: false, error: guard.error };
   if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };
   // server action ຖືກຍິງໂດຍກົງໄດ້ (ບໍ່ຜ່ານໜ້າ) ⇒ ກວດສິດຢູ່ນີ້ອີກຊັ້ນ:
   // ຝ່າຍບໍລິການ (ຜູ້ຂໍ) ຫຼື ຜູ້ອະນຸມັດ ເທົ່ານັ້ນ — ຊ່າງ/ສາງ ບໍ່ກ່ຽວ
-  const role = roleOf(session);
-  if (!SERVICE_SIDE.includes(role) && !APPROVER_SIDE.includes(role)) {
-    return { ok: false, error: "ບໍ່ມີສິດຖອນຄຳຂໍຍົກເລີກ" };
-  }
-
   const cleared = await db.query<{ request_cancel: string | null; remark: string | null }>(
     `with target as (
         select code, request_cancel, remark from tb_product
@@ -519,8 +517,8 @@ export async function undoCancel(code: string): Promise<ServiceState> {
 /* ---------- ບັນທຶກການຕິດຕໍ່ລູກຄ້າ — ຄື /add_cust_contact/<code> ຂອງ ods ---------- */
 
 export async function addContact(code: string, datetime: string, remark: string): Promise<ServiceState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requirePermission("/service", "update", SERVICE_SIDE);
+  if (!guard.ok) return { error: guard.error };
   if (!datetime) return { error: "ກະລຸນາເລືອກວັນ/ເວລາ" };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
@@ -562,8 +560,9 @@ const onlineSchema = schema.omit({ cust_code: true }).extend({
 });
 
 export async function createServiceFromNotice(_: ServiceState, formData: FormData): Promise<ServiceState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requirePermission("/service", "create", SERVICE_SIDE);
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const parsed = onlineSchema.safeParse(

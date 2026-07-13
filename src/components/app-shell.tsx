@@ -39,6 +39,7 @@ export function AppShell({
   username,
   role,
   navFlags,
+  readableResources,
   counts,
   activities,
   notifications,
@@ -50,6 +51,8 @@ export function AppShell({
   role: Role;
   /** ສິດທີ່ຜູ້ຈັດການກຳນົດຢູ່ຖານຂໍ້ມູນ (QC) — role ຢ່າງດຽວບອກບໍ່ໄດ້ */
   navFlags: NavFlags;
+  /** ສິດ read ລາຍ menu ຫຼັງລວມ role + override ຂອງ user. */
+  readableResources: string[];
   /** ຕົວເລກຄິວຂອງເມນູ (lib/nav-counts) */
   counts: NavCounts;
   /** ກິດຈະກຳຄ້າງຂອງຜູ້ໃຊ້ນີ້ — ແດງ = ມີລາຍການເລີຍກຳນົດ */
@@ -63,8 +66,15 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Sidebar role={role} navFlags={navFlags} counts={counts} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
-      <MobileNav role={role} navFlags={navFlags} counts={counts} />
+      <Sidebar
+        role={role}
+        navFlags={navFlags}
+        readableResources={readableResources}
+        counts={counts}
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(!collapsed)}
+      />
+      <MobileNav role={role} navFlags={navFlags} readableResources={readableResources} counts={counts} />
 
       <div className={`transition-[padding] duration-200 ${collapsed ? "lg:pl-16" : "lg:pl-64"}`}>
         {/* Topbar — ເຕ້ຍ (56px), ຄ້າງໄວ້ */}

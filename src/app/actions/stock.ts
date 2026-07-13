@@ -5,7 +5,7 @@ import { notify } from "@/app/actions/notification";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb } from "@/lib/db";
 import { docPrefix, nextDocNo } from "@/lib/doc-no";
-import { requireRole, requireRoleOrRedirect } from "@/lib/guard";
+import { requirePermissionOrRedirect, requireRole, requireRoleOrRedirect } from "@/lib/guard";
 import { RETURN_SIDE, SERVICE_SIDE, STOCK_SIDE, TECH_SIDE } from "@/lib/roles";
 import { getBalances } from "@/lib/stock-balance";
 import { createSpareRequest, pickupSpares } from "@/lib/tech-flow";
@@ -180,7 +180,7 @@ export async function saveRequest(_: StockState, formData: FormData): Promise<St
 
 /** ods: /del_request/<product_code>/<doc_no> — ຍົກເລີກໃບຂໍເບີກ */
 export async function deleteRequest(formData: FormData): Promise<void> {
-  await requireRoleOrRedirect(TECH_SIDE);
+  await requirePermissionOrRedirect("/stock/requests", "delete", TECH_SIDE);
   if (!db) return;
 
   const productCode = text(formData, "product_code");
@@ -233,217 +233,15 @@ export async function deleteRequest(formData: FormData): Promise<void> {
  * ວຽກກໍ່ຍ້າຍຈາກ "ກຳລັງເບີກອາໄຫຼ່" ໄປ "ລໍຖ້າສ້ອມແປງ" ທັງທີ່ຍັງຂາດອາໄຫຼ່ 4 ລາຍການ.
  * ດຽວນີ້ stamp ໃຫ້ກໍ່ຕໍ່ເມື່ອ **ທຸກ** ແຖວຂອງທຸກໃບຂໍເບີກຂອງວຽກນັ້ນຖືກເບີກອອກແລ້ວ.
  */
-export async function saveDispatch(_: StockState, formData: FormData): Promise<StockState> {
-  // ຕັດສະຕັອກຈິງທັງ ODS ແລະ ERP ⇒ ສາງເທົ່ານັ້ນ
-  const guard = await requireRole(STOCK_SIDE, "ບໍ່ມີສິດເບີກອາໄຫຼ່ອອກຈາກສາງ");
-  if (!guard.ok) return { error: guard.error };
-  const session = guard.session;
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
-  if (!odgDb) return { error: "ບໍ່ພົບ ODG_DATABASE_URL" };
-
-  const docRef = text(formData, "doc_ref");
-  const remark = text(formData, "remark");
-  if (!docRef) return { error: "ບໍ່ພົບເລກທີໃບຂໍເບີກ" };
-
-  const { date: docDate, time: docTime, at } = nowParts();
-
-  const ods = await db.connect();
-  const odg = await odgDb.connect();
-  let dispatchNo = "";
-  let dispatchLines = 0;
-  let productCode = "";
-  let outstanding = 0;
-  let technician: string | null = null;
-  try {
-    await ods.query("begin");
-    await odg.query("begin");
-    await ods.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
-
-    // ສາງ/ທີ່ເກັບ ແລະ ວຽກເຈົ້າຂອງ ເອົາຈາກໃບຂໍເບີກ (ບໍ່ເຊື່ອ product_code ທີ່ມາຈາກ form)
-    const head = await ods.query<{
-      doc_no: string;
-      doc_date: Date;
-      user_created: string | null;
-      wh_code: string | null;
-      shelf_code: string | null;
-      product_code: string | null;
-    }>(
-      `select doc_no, doc_date, user_created, wh_code, shelf_code, product_code
-       from ic_trans where doc_no=$1 limit 1`,
-      [docRef],
-    );
-    const ref = head.rows[0];
-    if (!ref) {
-      await ods.query("rollback");
-      await odg.query("rollback");
-      return { error: "ບໍ່ພົບໃບຂໍເບີກ" };
-    }
-    productCode = ref.product_code ?? "";
-    const whCode = ref.wh_code || DEFAULT_WH;
-    const shelfCode = ref.shelf_code || DEFAULT_SHELF;
-    const branchCode = branchOf(whCode);
-
-    // ເອົາສະເພາະແຖວທີ່ຍັງບໍ່ທັນເບີກ ແລະ ມີຂອງໃນສາງນັ້ນຈິງ
-    const lines = await ods.query<{ roworder: number; item_code: string; item_name: string; unit_code: string; qty: string }>(
-      `select a.roworder, a.item_code, a.item_name, a.unit_code, a.qty
-       from ic_trans_detail a
-       left join ic_trans b on a.doc_no = b.doc_no
-       where a.doc_no=$1 and a.status in ($2,$3)
-         and (select round(balance_qty,2) from odg_stock_balance_location(a.item_code, b.wh_code, b.shelf_code) limit 1) > 0`,
-      [docRef, LINE_STATUS.PENDING, LINE_STATUS.ON_PURCHASE_ORDER],
-    );
-    if (lines.rows.length === 0) {
-      await ods.query("rollback");
-      await odg.query("rollback");
-      return { error: "ບໍ່ມີອາໄຫຼ່ທີ່ເບີກໄດ້ໃນສາງນີ້" };
-    }
-    const rowOrders = lines.rows.map((row) => row.roworder);
-
-    const docNo = await nextDocNo(ods, "SWC", at);
-    dispatchNo = docNo;
-    dispatchLines = lines.rows.length;
-
-    // ── ODS: ຫົວບິນ + ລາຍລະອຽດ
-    await ods.query(
-      `insert into ic_trans(trans_flag, doc_date, doc_no, doc_ref, doc_ref_date, cust_code, product_code, issue, remark,
-         wanrunty, isue_2, waranty_request, emp, w_reason, used_spare, wh_code, shelf_code)
-       select $1,$2,$3, doc_no, doc_date, cust_code, product_code, issue, $4,
-         wanrunty, isue_2, waranty_request, emp, w_reason, used_spare, wh_code, shelf_code
-       from ic_trans where doc_no=$5`,
-      [TRANS.DISPATCH, docDate, docNo, remark, docRef],
-    );
-    await ods.query(
-      `insert into ic_trans_detail(trans_flag, doc_date, doc_no, doc_ref_date, doc_ref, cust_code, product_code,
-         item_code, item_name, qty, unit_code, calc_flag, user_created, status)
-       select $1,$2,$3, doc_date, doc_no, cust_code, product_code,
-         item_code, item_name, qty, unit_code, $4, $5, $6
-       from ic_trans_detail where roworder = any($7::int[])`,
-      [TRANS.DISPATCH, docDate, docNo, CALC_OUT, session.username, LINE_STATUS.PENDING, rowOrders],
-    );
-
-    // ── ODS: ຕັດສະຕັອກ (ສາງຫຼັກ 1103 ຕັດ wh_qty ນຳ)
-    for (const line of lines.rows) {
-      if (whCode === MAIN_WH) {
-        await ods.query(`update ic_inventory set balance_qty=balance_qty-$1, wh_qty=wh_qty-$1 where code=$2`, [
-          line.qty,
-          line.item_code,
-        ]);
-      } else {
-        await ods.query(`update ic_inventory set balance_qty=balance_qty-$1 where code=$2`, [line.qty, line.item_code]);
-      }
-    }
-
-    await ods.query(`update ic_trans_detail set status=$1 where roworder = any($2::int[])`, [
-      LINE_STATUS.ISSUED,
-      rowOrders,
-    ]);
-
-    // ໝາຍແຖວກະຕ່າ (tb_used_spare) ວ່າສາງຈ່າຍອອກແລ້ວ — ແຖວລະໜຶ່ງລາຍການທີ່ເບີກ
-    for (const line of lines.rows) {
-      await ods.query(
-        `update tb_used_spare set reg_finish=localtimestamp(0)
-         where roworder = (
-           select roworder from tb_used_spare
-           where product_code=$1 and item_code=$2 and reg_finish is null
-           order by (qty = $3::numeric) desc, roworder asc limit 1)`,
-        [productCode, line.item_code, line.qty],
-      );
-    }
-
-    /*
-     * ວຽກນີ້ "ໄດ້ອາໄຫຼ່ຄົບ" ແທ້ບໍ? — ນັບແຖວທີ່ຍັງຄ້າງຂອງ **ທຸກ** ໃບຂໍເບີກຂອງວຽກນີ້
-     * (ວຽກນຶ່ງອາດມີຫຼາຍໃບ: ຂໍຮອບທຳອິດ + ຂໍເບີກຊ້ຳຕອນສ້ອມ).
-     * ຍັງຄ້າງ = ລໍຖ້າ (0) ຫຼື ກຳລັງສັ່ງຊື້ (5).
-     */
-    outstanding =
-      (
-        await ods.query<{ count: number }>(
-          `select count(*)::int count from ic_trans_detail
-           where trans_flag=$1 and product_code=$2 and status in ($3,$4)`,
-          [TRANS.REQUEST, productCode, LINE_STATUS.PENDING, LINE_STATUS.ON_PURCHASE_ORDER],
-        )
-      ).rows[0]?.count ?? 0;
-
-    if (outstanding === 0) {
-      await ods.query(`update tb_product set spare_finish=localtimestamp(0), status=4 where code=$1`, [productCode]);
-    } else {
-      /*
-       * ຍັງຂາດອາໄຫຼ່ຢູ່ → ວຽກຕ້ອງຄ້າງຢູ່ຂັ້ນ "ກຳລັງເບີກອາໄຫຼ່" (lib/stage: spare_finish is null).
-       * ລ້າງ spare_finish ຖ້າໃບກ່ອນໜ້າ stamp ໄວ້ຜິດ (ຂໍ້ມູນເກົ່າ) — ວຽກທີ່ຊ່າງລົງມືສ້ອມແລ້ວ
-       * (time_repair) ບໍ່ຖືກກະທົບ ເພາະ STAGE_SQL ອ່ານ time_repair ກ່ອນ spare_finish.
-       */
-      await ods.query(`update tb_product set spare_finish=null where code=$1`, [productCode]);
-    }
-    technician =
-      (await ods.query<{ emp_code: string | null }>(`select emp_code from tb_product where code=$1`, [productCode]))
-        .rows[0]?.emp_code ?? null;
-
-    // ── ERP (odg): ຫົວບິນ
-    await odg.query(
-      `insert into ic_trans(trans_type, trans_flag, doc_no, doc_date, doc_ref, doc_ref_date, sale_code, doc_time,
-         doc_format_code, wh_from, location_from, creator_code, branch_code, remark, side_code, department_code)
-       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
-      [
-        ERP.TRANS_TYPE, TRANS.DISPATCH, docNo, docDate, ref.doc_no, ref.doc_date, ref.user_created, docTime,
-        ERP.FORMAT_DISPATCH, whCode, shelfCode, session.username, branchCode, remark, ERP.SIDE_CODE, ERP.DEPARTMENT_CODE,
-      ],
-    );
-
-    // ── ERP (odg): ລາຍລະອຽດ + ຕັດສະຕັອກ
-    for (const line of lines.rows) {
-      const cost = await odg.query<{ average_cost: string }>(
-        `select coalesce(average_cost,0) average_cost from ic_inventory where code=$1`,
-        [line.item_code],
-      );
-      const avgCost = Number(cost.rows[0]?.average_cost ?? 0);
-      const sumCost = avgCost * Number(line.qty);
-
-      await odg.query(
-        `insert into ic_trans_detail(trans_type, trans_flag, doc_no, doc_date, doc_ref, item_code, item_name, unit_code,
-           qty, wh_code, shelf_code, stand_value, divide_value, doc_date_calc, doc_time_calc, calc_flag,
-           sum_of_cost, average_cost, sum_of_cost_1, average_cost_1)
-         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,1,1,$12,$13,$14,$15,$16,$15,$16)`,
-        [
-          ERP.TRANS_TYPE, TRANS.DISPATCH, docNo, docDate, ref.doc_no, line.item_code, line.item_name, line.unit_code,
-          line.qty, whCode, shelfCode, docDate, docTime, CALC_OUT, sumCost, avgCost,
-        ],
-      );
-      await odg.query(`update ic_inventory set balance_qty=balance_qty-$1 where code=$2`, [line.qty, line.item_code]);
-    }
-
-    await odg.query("commit");
-    await ods.query("commit");
-  } catch (error) {
-    await odg.query("rollback").catch(() => {});
-    await ods.query("rollback").catch(() => {});
-    console.error("saveDispatch failed", error);
-    return { error: "ເບີກບໍ່ສຳເລັດ" };
-  } finally {
-    odg.release();
-    ods.release();
-  }
-
-  if (productCode) {
-    const head = `ສາງເບີກອາໄຫຼ່ອອກ ${dispatchNo} · ${dispatchLines} ລາຍການ (ອ້າງອີງໃບຂໍເບີກ ${docRef})`;
-    if (outstanding > 0) {
-      // ເບີກໄດ້ບໍ່ຄົບ — ວຽກຍັງຄ້າງຢູ່ຂັ້ນອາໄຫຼ່ ແລະ ສາງຍັງຕ້ອງລົງມືຕໍ່
-      await logChange(jobModel(productCode), productCode, `${head} · ຍັງຂາດ ${outstanding} ລາຍການ`, {
-        roles: ROLE_WAREHOUSE,
-      });
-    } else {
-      // ຄົບແລ້ວ — ຊ່າງໄປຮັບອາໄຫຼ່ໄດ້ (ຂັ້ນ "ຊ່າງຮັບອາໄຫຼ່")
-      await logChange(jobModel(productCode), productCode, `${head} · ອາໄຫຼ່ຄົບແລ້ວ — ຊ່າງໄປຮັບອາໄຫຼ່ໄດ້`, {
-        users: technician ? [technician] : [],
-      });
-    }
-  }
-
-  revalidatePath("/repair");
-  revalidatePath("/stock/requests");
-  revalidatePath("/stock/requests/pickup");
-  redirect("/stock/dispatch");
+/**
+ * ── **ຖອດອອກແລ້ວ** ──
+ * ນະໂຍບາຍ (13-07-2026): ລະບົບນີ້ **ອອກໃບເບີກເອງບໍ່ໄດ້ອີກ** — ສາງເບີກຢູ່ **ERP**
+ * (ບ່ອນທີ່ສະຕັອກຈິງຢູ່). ODS ດຶງໃບເບີກກັບຄືນມາເອງ (lib/erp-dispatch) ແລ້ວເລື່ອນຂັ້ນງານ.
+ * ເກັບຊື່ຟັງຊັນໄວ້ບອກເຫດຜົນ — action ຖືກຍິງໂດຍກົງໄດ້ ຈຶ່ງຕ້ອງປະຕິເສດຢູ່ server ບໍ່ແມ່ນເຊື່ອງປຸ່ມ.
+ */
+export async function saveDispatch(_: StockState): Promise<StockState> {
+  return { error: "ລະບົບນີ້ອອກໃບເບີກບໍ່ໄດ້ອີກ — ສາງເບີກຢູ່ ERP ແລ້ວລະບົບຈະດຶງມາເອງ" };
 }
-
 /* ─────────────────────── ຊ່າງຮັບອາໄຫຼ່ — ວຽກສ້ອມ (trans_flag 166) ─────────────────────── */
 
 /**

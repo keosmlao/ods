@@ -1,3 +1,4 @@
+import { syncErpDispatch } from "@/lib/erp-dispatch";
 import { techFilter } from "@/app/actions/installation";
 import { LinkPending } from "@/components/link-pending";
 import { PackageCheck } from "lucide-react";
@@ -55,6 +56,9 @@ const WHERE = `ic.trans_flag = 56 and ic.job_type = 'install'
   and ic.doc_no not in (select doc_ref from ic_trans where trans_flag = 166 and doc_ref is not null)`;
 
 export default async function SparePickupPage({ searchParams }: Props) {
+  // ດຶງໃບເບີກທີ່ສາງອອກໃນ ERP ກັບມາກ່ອນ ⇒ ຄິວທີ່ເຫັນເປັນຄວາມຈິງລ້າສຸດ (lib/erp-dispatch)
+  await syncErpDispatch();
+
   const tech = await techFilter();
   const raw = await searchParams;
   const { q, page, sort, dir } = readParams(raw);

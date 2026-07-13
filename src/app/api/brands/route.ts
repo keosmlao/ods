@@ -13,7 +13,7 @@ export async function GET() {
 /** ຄື /save_newbrand ຂອງ ods — tb_brand.code = tb_brand.name_1 */
 export async function POST(req: NextRequest) {
   // ຟອມທີ່ເອີ້ນ route ນີ້ຢູ່ໜ້າ /service/new (ຝ່າຍບໍລິການ) — /api ຢູ່ນອກ matcher ຂອງ proxy
-  if (!(await apiAllowed("/service/new"))) return NextResponse.json({ error: "unauthorized" }, { status: 403 });
+  if (!(await apiAllowed("/service/new", "create"))) return NextResponse.json({ error: "unauthorized" }, { status: 403 });
   const body = (await req.json().catch(() => null)) as { name_1?: unknown } | null;
   const name = typeof body?.name_1 === "string" ? body.name_1.trim() : "";
   if (!name) return NextResponse.json({ error: "ກະລຸນາປ້ອນຊື່ຫຍີ່ຫໍ້" }, { status: 400 });

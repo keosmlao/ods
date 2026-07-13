@@ -1,10 +1,11 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
-import { getSession, type Session } from "@/lib/auth";
+import type { Session } from "@/lib/auth";
 import { ROLE_APPROVER } from "@/lib/chatter";
 import { db, query } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
-import { roleOf, SERVICE_SIDE } from "@/lib/roles";
+import { requirePermission, requireRole } from "@/lib/guard";
+import { SERVICE_SIDE } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -57,10 +58,7 @@ type Guard = { ok: true; session: Session } | { ok: false; error: string };
  * middleware ກັນສະເພາະ "ໜ້າ" — server action ຖືກຍິງໂດຍກົງໄດ້ ຈຶ່ງຕ້ອງກວດສິດຢູ່ນີ້ອີກຊັ້ນ.
  */
 async function requireService(): Promise<Guard> {
-  const session = await getSession();
-  if (!session) return { ok: false, error: "Session ໝົດອາຍຸ" };
-  if (!SERVICE_SIDE.includes(roleOf(session))) return { ok: false, error: "ບໍ່ມີສິດອອກ ຫຼື ແກ້ໄຂໃບສະເໜີລາຄາ" };
-  return { ok: true, session };
+  return requireRole(SERVICE_SIDE, "ບໍ່ມີສິດອອກ ຫຼື ແກ້ໄຂໃບສະເໜີລາຄາ");
 }
 
 /** ສະຖານະປັດຈຸບັນຂອງໃບສະເໜີລາຄາ (ລັອກແຖວໄວ້ ກັນສອງຄົນລົງມືພ້ອມກັນ) */
@@ -491,7 +489,7 @@ export async function saveQuoteEdit(_: QuoteState, formData: FormData): Promise<
  * ລຶບໄດ້ສະເພາະໃບທີ່ຍັງລໍຖ້າອະນຸມັດ (0/0) ຫຼື ບໍ່ອະນຸມັດ (2/0) — ເບິ່ງ blockDelete
  */
 export async function cancelQuote(docNo: string): Promise<QuoteState> {
-  const guard = await requireService();
+  const guard = await requirePermission("/quotations", "delete", SERVICE_SIDE, "ບໍ່ມີສິດລຶບໃບສະເໜີລາຄາ");
   if (!guard.ok) return { error: guard.error };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 

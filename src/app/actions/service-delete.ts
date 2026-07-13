@@ -1,7 +1,7 @@
 "use server";
 import { logChange } from "@/app/actions/chatter";
 import { db, query } from "@/lib/db";
-import { requireRole } from "@/lib/guard";
+import { requirePermission } from "@/lib/guard";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -28,7 +28,7 @@ import { revalidatePath } from "next/cache";
 export type DeleteState = { error?: string; ok?: string };
 
 export async function deleteService(code: string, reason: string): Promise<DeleteState> {
-  const guard = await requireRole(["manager"], "ຜູ້ຈັດການເທົ່ານັ້ນທີ່ລຶບໃບຮັບເຄື່ອງໄດ້");
+  const guard = await requirePermission("/service", "delete", ["manager"], "ບໍ່ມີສິດລຶບໃບຮັບເຄື່ອງ");
   if (!guard.ok) return { error: guard.error };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 

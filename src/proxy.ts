@@ -1,5 +1,5 @@
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
-import { canAccess, roleOf } from "@/lib/roles";
+import { canUser } from "@/lib/permissions";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
@@ -38,7 +38,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (!canAccess(roleOf(session), pathname)) {
+  if (!(await canUser(session, pathname))) {
     const url = new URL("/forbidden", request.url);
     url.searchParams.set("from", pathname);
     return NextResponse.redirect(url);
