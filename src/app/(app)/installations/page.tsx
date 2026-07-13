@@ -1,8 +1,10 @@
+import { InstallDeleteButton } from "@/components/installation/install-delete-button";
 import { CancelJobButton } from "@/components/installation/job-buttons";
 import { LinkButton } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { INSTALL_CANCELLED, INSTALL_CLOSED, INSTALL_OPEN, INSTALL_STAGE_TIME_COL } from "@/lib/install-stage";
+import { roleOf } from "@/lib/roles";
 import { Ban, Bell, CheckCircle2, FilePlus2, ListChecks, Loader, Pencil, Printer } from "lucide-react";
 import Link from "next/link";
 import { CancelledSpares } from "./cancelled-spares";
@@ -69,6 +71,8 @@ export default async function InstallationsPage({ searchParams }: Props) {
   const session = await getSession();
   // ຊ່າງເຫັນສະເພາະງານຂອງຕົນ (ຄືກັບ ods /api/install_list)
   const tech = session?.role === "technical" ? session.username : null;
+  // ລຶບຖາວອນ = ຜູ້ຈັດການເທົ່ານັ້ນ (server ກວດຊ້ຳໃນ actions/install-delete)
+  const canDelete = roleOf(session) === "manager";
 
   const raw = await searchParams;
   const tab: Tab =
@@ -182,34 +186,38 @@ export default async function InstallationsPage({ searchParams }: Props) {
               >
                 <InstallCells row={row} />
                 <td className="whitespace-nowrap px-3 py-2.5">
-                  {cancelled ? (
-                    <span className="text-[10px] text-slate-500" title={row.cancel_remark ?? ""}>
-                      {row.cancel_code ?? "-"}
-                    </span>
-                  ) : (
-                    <div className="flex items-center justify-center gap-2">
-                      <Link
-                        href={`/installations/${encodeURIComponent(row.code)}/print`}
-                        target="_blank"
-                        title="ພິມ"
-                        className="text-[#D35400] hover:opacity-70"
-                      >
-                        <Printer className="size-4" />
-                      </Link>
-                      {row.stage !== 8 && (
-                        <>
-                          <Link
-                            href={`/installations/${encodeURIComponent(row.code)}/edit`}
-                            title="ແກ້ໄຂ"
-                            className="text-teal-600 hover:opacity-70"
-                          >
-                            <Pencil className="size-4" />
-                          </Link>
-                          <CancelJobButton code={row.code} />
-                        </>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex items-center justify-center gap-2">
+                    {cancelled ? (
+                      <span className="text-[10px] text-slate-500" title={row.cancel_remark ?? ""}>
+                        {row.cancel_code ?? "-"}
+                      </span>
+                    ) : (
+                      <>
+                        <Link
+                          href={`/installations/${encodeURIComponent(row.code)}/print`}
+                          target="_blank"
+                          title="ພິມ"
+                          className="text-[#D35400] hover:opacity-70"
+                        >
+                          <Printer className="size-4" />
+                        </Link>
+                        {row.stage !== 8 && (
+                          <>
+                            <Link
+                              href={`/installations/${encodeURIComponent(row.code)}/edit`}
+                              title="ແກ້ໄຂ"
+                              className="text-teal-600 hover:opacity-70"
+                            >
+                              <Pencil className="size-4" />
+                            </Link>
+                            <CancelJobButton code={row.code} />
+                          </>
+                        )}
+                      </>
+                    )}
+                    {/* ງານທີ່ຍົກເລີກແລ້ວກໍ່ລຶບໄດ້ — ມັນຄືງານທີ່ຄ້າງໃນລະບົບຫຼາຍທີ່ສຸດ */}
+                    {canDelete && <InstallDeleteButton code={row.code} />}
+                  </div>
                 </td>
               </tr>
             );
