@@ -127,27 +127,25 @@ export default async function InstallationsPage({ searchParams }: Props) {
 
   return (
     <div className="w-full space-y-4">
+      {/*
+        ── ຖອດ "ເມນູຍ່ອຍ" ອອກ ──
+        ແຖວປຸ່ມ (ຈັດງານຊ່າງ · ຮັບງານ · ໃບຂໍເບີກ · ສາງເບີກ · ຮັບອາໄຫຼ່ · ຕິດຕັ້ງ · ປິດງານ)
+        ຄື **ເມນູອັນດຽວກັບ sidebar** ທຸກລາຍການ ແລະ sidebar ມີເລກຄິວຄ້າງໃຫ້ຢູ່ແລ້ວ
+        (lib/nav-counts) ⇒ ເປັນທາງນຳທາງຊ້ອນກັນ 2 ບ່ອນ ທີ່ຕ້ອງດູແລໃຫ້ຕົງກັນ.
+        ເຫຼືອໄວ້ພຽງ **ການກະທຳຫຼັກຂອງໜ້ານີ້** (ເປີດງານ) — ຢູ່ແຖວດຽວກັບຊື່ໜ້າ.
+      */}
       <ListHeader
         title="ຕິດຕັ້ງເຄື່ອງ"
         scope={tech ? "ສະແດງສະເພາະງານຂອງທ່ານ" : "ສະແດງທຸກງານ"}
         total={jobs.total}
         page={page}
         pages={pages}
-      />
-
-      {/*
-        ── ຖອດ "ເມນູຍ່ອຍ" ອອກ ──
-        ແຖວປຸ່ມ (ຈັດງານຊ່າງ · ຮັບງານ · ໃບຂໍເບີກ · ສາງເບີກ · ຮັບອາໄຫຼ່ · ຕິດຕັ້ງ · ປິດງານ)
-        ຄື **ເມນູອັນດຽວກັບ sidebar** ທຸກລາຍການ ແລະ sidebar ມີເລກຄິວຄ້າງໃຫ້ຢູ່ແລ້ວ
-        (lib/nav-counts) ⇒ ເປັນທາງນຳທາງຊ້ອນກັນ 2 ບ່ອນ ທີ່ຕ້ອງດູແລໃຫ້ຕົງກັນ.
-        ເຫຼືອໄວ້ພຽງ **ການກະທຳຫຼັກຂອງໜ້ານີ້** (ເປີດງານ) — ອັນນີ້ບໍ່ມີໃນ sidebar.
-      */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
+      >
         <LinkButton href="/installations/new" tone="success" className="h-9 text-xs">
           <FilePlus2 className="size-4" />
           ເປີດງານຕິດຕັ້ງ
         </LinkButton>
-      </div>
+      </ListHeader>
 
       <TabsAndSearch
         tabs={TABS}

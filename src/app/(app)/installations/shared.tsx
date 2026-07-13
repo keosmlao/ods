@@ -196,7 +196,15 @@ export type TabItem<T extends string> = {
   count: number;
 };
 
-/** ແທັບ + ຊ່ອງຄົ້ນຫາ — ຫົວຂອງທຸກໜ້າລາຍການຕິດຕັ້ງ */
+/**
+ * ແທັບ + ຊ່ອງຄົ້ນຫາ — ຫົວຂອງທຸກໜ້າລາຍການຕິດຕັ້ງ.
+ *
+ * ── ອອກແບບໃໝ່ ──
+ * ຮຸ່ນກ່ອນເປັນ "ກ່ອງລອຍ" ອີກຊັ້ນນຶ່ງ (ຂອບ + ເງົາ) ວາງທັບຢູ່ເທິງກ່ອງຕາຕະລາງ
+ * ⇒ ຫົວໜ້າມີ 3 ຊັ້ນຊ້ອນກັນ (ຫົວຂໍ້ · ແຖວປຸ່ມ · ກ່ອງແທັບ) ກິນທີ່ສູງ ~200px
+ * ກ່ອນຈະເຫັນຂໍ້ມູນແຖວທຳອິດ. ດຽວນີ້ແທັບເປັນ **ປຸ່ມລອຍ** (ບໍ່ມີກ່ອງຫຸ້ມ) ແລະ
+ * ຊ່ອງຄົ້ນຫາຢູ່ຂວາແຖວດຽວກັນ — ກົດ Enter = ຄົ້ນຫາ ⇒ ບໍ່ຕ້ອງມີປຸ່ມ "ຄົ້ນຫາ" ອີກ.
+ */
 export function TabsAndSearch<T extends string>({
   tabs,
   current,
@@ -218,41 +226,48 @@ export function TabsAndSearch<T extends string>({
   placeholder?: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
-      <div className="flex overflow-hidden rounded-lg border border-slate-300">
-        {tabs.map(({ key, label, icon: Icon, count }) => (
+    <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
+      {/* ແທັບ = ຄິວງານ ⇒ ເລກຄ້າງຕ້ອງເຫັນແຕ່ໄກ (ບໍ່ແມ່ນຕົວເລກນ້ອຍໆຊ້ອນຢູ່ຫຼັງຊື່) */}
+      {tabs.map(({ key, label, icon: Icon, count }) => {
+        const active = current === key;
+        return (
           <Link
             key={key}
             href={tabHref(key)}
-            className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-              current === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+            className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition ${
+              active ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
             }`}
           >
-            <Icon className="size-3.5" />
+            <Icon className={`size-3.5 ${active ? "" : "text-slate-400"}`} />
             {label}
             <span
-              className={`rounded px-1 text-[10px] font-bold ${
-                current === key ? "bg-white/20" : "bg-slate-100 text-slate-600"
+              className={`rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+                active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
               }`}
             >
-              {count}
+              {count.toLocaleString()}
             </span>
             <LinkPending className="size-3" />
           </Link>
-        ))}
-      </div>
+        );
+      })}
 
-      <form className="flex flex-1 items-center gap-2">
+      {/* ຄົ້ນຫາ — Enter ພຽງພໍ ບໍ່ຕ້ອງມີປຸ່ມ (ຟອມ submit ເອງ) */}
+      <form className="ml-auto flex min-w-64 flex-1 items-center gap-2 md:max-w-sm md:flex-none">
         {Object.entries(hidden).map(([name, value]) => (
           <input key={name} type="hidden" name={name} value={value} />
         ))}
         <input type="hidden" name="sort" value={sort} />
         <input type="hidden" name="dir" value={dir} />
-        <div className="flex h-9 min-w-56 flex-1 items-center gap-2 rounded-lg border border-slate-300 px-2.5">
+        <div className="flex h-9 w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-2.5 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
           <Search className="size-3.5 shrink-0 text-slate-400" />
           <input name="q" defaultValue={q} placeholder={placeholder} className="w-full text-xs outline-none" />
+          {q && (
+            <Link href="?" className="shrink-0 text-[11px] font-semibold text-slate-400 hover:text-red-600">
+              ລ້າງ
+            </Link>
+          )}
         </div>
-        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
       </form>
     </div>
   );
@@ -471,6 +486,13 @@ export function Pager({
 }
 
 /** ຫົວໜ້າ: ຊື່ໜ້າ + ຈຳນວນ + ໜ້າທີ່ເທົ່າໃດ */
+/**
+ * ຫົວຂອງໜ້າລາຍການ — **ແຖວດຽວ**: ຊື່ໜ້າ + ຕົວເລກ ຢູ່ຊ້າຍ · ການກະທຳຢູ່ຂວາ.
+ *
+ * ຮຸ່ນກ່ອນ: ຊື່ໜ້າ → ບັນທັດຄຳອະທິບາຍ → ແຖວປຸ່ມ → ກ່ອງແທັບ = 4 ຊັ້ນກ່ອນຮອດຂໍ້ມູນ.
+ * ຕົວເລກ ("30 ລາຍການ · ໜ້າ 2/2") ຍ້າຍມາເປັນ **ປ້າຍ** ຢູ່ຂ້າງຊື່ ⇒ ອ່ານໄດ້ໄວກວ່າ
+ * ບັນທັດຂໍ້ຄວາມສີເທົາ ແລະ ບໍ່ກິນຄວາມສູງເພີ່ມ.
+ */
 export function ListHeader({
   title,
   scope,
@@ -487,14 +509,21 @@ export function ListHeader({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 className="text-xl font-bold text-slate-700">{title}</h1>
-        <p className="mt-0.5 text-xs text-slate-500">
-          {scope} · {total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
-        </p>
-      </div>
-      {children}
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <h1 className="text-xl font-bold text-slate-800">{title}</h1>
+
+      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 tabular-nums">
+        {total.toLocaleString()} ລາຍການ
+      </span>
+      {pages > 1 && (
+        <span className="text-[11px] font-semibold text-slate-400 tabular-nums">
+          ໜ້າ {page}/{pages}
+        </span>
+      )}
+      {/* ຊ່າງເຫັນສະເພາະງານຂອງຕົນ — ຕ້ອງບອກໃຫ້ຮູ້ ບໍ່ດັ່ງນັ້ນເຂົ້າໃຈວ່າງານຫາຍ */}
+      <span className="text-[11px] text-slate-400">{scope}</span>
+
+      {children && <div className="ml-auto flex flex-wrap items-center gap-2">{children}</div>}
     </div>
   );
 }
