@@ -52,6 +52,39 @@ type Bill = {
   services: BillService[];
 };
 
+/**
+ * ── ລະຫັດປະເພດເປັນຄົນລະຊຸດ (ນີ້ຄືເຫດຜົນທີ່ dropdown ເຄີຍຫວ່າງ) ──
+ * ODS `tb_category` ("ແອ" = 03) ກັບ ERP `ic_category` ("ແອ" = 032) **ບໍ່ແມ່ນລະຫັດດຽວກັນ**
+ * ⇒ ເອົາລະຫັດ ERP ໄປໃສ່ dropdown ຂອງ ODS ໂດຍກົງ = ຫາຄ່າບໍ່ພົບ ແລ້ວຂຶ້ນຫວ່າງ.
+ * ຈຶ່ງຈັບຄູ່ດ້ວຍ **ຊື່ໝວດ** ແທນ (ຊື່ຢູ່ສອງຖານຂຽນຄືກັນ: ແອ · ໂທລະທັດ · ຕູ້ເຢັນ …).
+ */
+function matchCategory(categories: Category[], erpName: string | null): string {
+  const name = (erpName ?? "").trim();
+  if (!name) return "";
+  const exact = categories.find((category) => category.name_1.trim() === name);
+  if (exact) return exact.code;
+  // ຊື່ບໍ່ຕົງເປັນຄຳຕໍ່ຄຳ (ເຊັ່ນ "ຈັກຊັກຜ້າ" ກັບ "ເຄື່ອງຊັກພ້າ…") ⇒ ຫາອັນທີ່ບັນຈຸກັນ
+  const loose = categories.find(
+    (category) => name.includes(category.name_1.trim()) || category.name_1.trim().includes(name),
+  );
+  return loose?.code ?? "";
+}
+
+/**
+ * ເດົາ Model ຈາກຊື່ສິນຄ້າ — ERP **ບໍ່ມີ** item_model (ຫວ່າງ 24,156/24,281 ແຖວ)
+ * ແຕ່ຊື່ສິນຄ້າມີລະຫັດຮຸ່ນຢູ່ (ເຊັ່ນ "AIR HISENSE WT 9,500BTU INVERTER **AS-10TRDB2T** 220V").
+ * ⇒ ເອົາຄຳທີ່ມີທັງໂຕອັກສອນ ແລະ ໂຕເລກ ຍາວ ≥5 (ບໍ່ນັບ 220V, BTU, ຂະໜາດ) ມາເປັນ **ຂໍ້ສະເໜີ**
+ * — ຄົນຮັບເຄື່ອງແກ້ໄດ້ສະເໝີ (ຊ່ອງນີ້ຍັງພິມໄດ້).
+ */
+function guessModel(itemName: string): string {
+  const skip = /^(220V|BTU|WT|[0-9,.]+BTU|R32|R410A?|\d+V)$/i;
+  const candidates = itemName
+    .replace(/[[\]()]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length >= 5 && /[A-Za-z]/.test(word) && /\d/.test(word) && !skip.test(word));
+  return candidates[0] ?? "";
+}
+
 export function InstallForm({ categories, username }: { categories: Category[]; username: string }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(createInstall, {});
   const [open, setOpen] = useState(false);
@@ -62,8 +95,21 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
   /** S/N ຂອງແຕ່ລະໜ່ວຍ — ຍາວເທົ່າ units ສະເໝີ */
   const [serials, setSerials] = useState<string[]>([""]);
 
-  function pickItem(chosen: BillItem) {
-    const count = Math.max(1, Math.round(chosen.qty || 1));
+  /**
+   * ── ຈຳນວນງານ = ຈຳນວນ **ຄ່າຕິດຕັ້ງ** ບໍ່ແມ່ນຈຳນວນເຄື່ອງທີ່ຂາຍ ──
+   * ຂໍ້ມູນຈິງ (1 ປີ): 1,034/2,493 ບິນ (41%) **ຂາຍຫຼາຍກວ່າຈຳນວນທີ່ຈ່າຍຄ່າຕິດຕັ້ງ**
+   * (ລູກຄ້າຊື້ 3 ໜ່ວຍ ແຕ່ຈ້າງຕິດ 2 — ອີກໜ່ວຍເອົາໄປໃສ່ບ້ານອື່ນ/ຕິດເອງ).
+   * ⇒ ຕັ້ງຕົ້ນຕາມຄ່າຕິດຕັ້ງ ແລ້ວໃຫ້ CS ແກ້ໄດ້ ພ້ອມເຕືອນເມື່ອບໍ່ຕົງກັນ.
+   */
+  const paidUnits = (chosenBill: Bill | null) =>
+    chosenBill ? Math.round(chosenBill.services.reduce((sum, service) => sum + (service.qty || 0), 0)) : 0;
+
+  function pickItem(chosen: BillItem, forBill?: Bill) {
+    const paid = paidUnits(forBill ?? bill);
+    const sold = Math.max(1, Math.round(chosen.qty || 1));
+    // ບິນມີລາຍການດຽວ ⇒ ໃຊ້ຈຳນວນຄ່າຕິດຕັ້ງ · ຫຼາຍລາຍການ ⇒ ຄ່າຕິດຕັ້ງແບ່ງກັນບໍ່ໄດ້ ໃຊ້ຈຳນວນຂາຍ
+    const single = (forBill ?? bill)?.items.length === 1;
+    const count = Math.max(1, single && paid > 0 ? Math.min(paid, sold) : sold);
     setItem(chosen);
     setUnits(count);
     // ມີ ISN ຈາກ ERP ⇒ ຕື່ມໃຫ້ຕາມລຳດັບ (ໜ່ວຍໃນຂຶ້ນກ່ອນ)
@@ -197,8 +243,16 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
         <>
           <Card title="ຈຳນວນ ແລະ S/N ຂອງແຕ່ລະໜ່ວຍ">
             <p className="mb-3 text-xs text-slate-500">
-              <b>1 ໜ່ວຍ = 1 ງານ</b> (ຊ່າງໄປຕິດຄົນລະໜ່ວຍ) — ບິນນີ້ຂາຍ {item.qty} ໜ່ວຍ
+              <b>1 ໜ່ວຍ = 1 ງານ</b> (ຊ່າງໄປຕິດຄົນລະໜ່ວຍ) — ບິນນີ້ຂາຍ {item.qty} ໜ່ວຍ ·
+              ຈ່າຍຄ່າຕິດຕັ້ງ {paidUnits(bill)} ໜ່ວຍ
             </p>
+
+            {bill.services.length > 0 && units !== paidUnits(bill) && (
+              <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                ⚠️ ບິນນີ້ຈ່າຍຄ່າຕິດຕັ້ງ {paidUnits(bill)} ໜ່ວຍ ແຕ່ກຳລັງຈະສ້າງ {units} ງານ —
+                ກວດເບິ່ງກ່ອນບັນທຶກ
+              </p>
+            )}
 
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <label className={labelClass}>ຈະຕິດຕັ້ງ</label>
@@ -258,9 +312,15 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
             <div className="grid gap-4 md:grid-cols-3">
               <div>
                 <label className={labelClass}>ລຸ້ນ/Model *</label>
-                <input name="pro_model" required className={inputClass} />
+                <input
+                  key={item.item_code}
+                  name="pro_model"
+                  required
+                  defaultValue={guessModel(item.item_name)}
+                  className={inputClass}
+                />
                 <p className="mt-1 truncate text-xs text-slate-400" title={item.item_name}>
-                  ຈາກຊື່: {item.item_name}
+                  ເດົາຈາກຊື່: {item.item_name}
                 </p>
               </div>
               <div>
@@ -268,7 +328,7 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
                 <SelectField
                   key={item.item_code}
                   name="pro_type"
-                  defaultValue={item.pro_type ?? ""}
+                  defaultValue={matchCategory(categories, item.pro_type_name)}
                   options={categories.map((category) => ({ value: category.code, label: category.name_1 }))}
                 />
               </div>
@@ -364,7 +424,7 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
             setUnits(1);
             setSerials([""]);
             // ບິນມີລາຍການດຽວ ⇒ ເລືອກໃຫ້ເລີຍ (ບໍ່ໃຫ້ກົດຊ້ຳໂດຍບໍ່ຈຳເປັນ)
-            if (chosen.items.length === 1) pickItem(chosen.items[0]);
+            if (chosen.items.length === 1) pickItem(chosen.items[0], chosen);
             setOpen(false);
           }}
         />
