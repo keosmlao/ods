@@ -1,7 +1,8 @@
 import { logChange } from "@/app/actions/chatter";
 import type { Session } from "@/lib/auth";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
-import { db, query } from "@/lib/db";
+import { db, odgDb, query } from "@/lib/db";
+import { writeErpRequest } from "@/lib/erp-request";
 import { nextDocNo } from "@/lib/doc-no";
 import type { FlowResult } from "@/lib/job-flow";
 import { STAGE_SQL } from "@/lib/stage";
@@ -33,9 +34,17 @@ function nowParts() {
     hour12: false,
   });
   const parts = Object.fromEntries(formatter.formatToParts(new Date()).map((p) => [p.type, p.value]));
+  // ໂມງ:ນາທີ ຕາມເຂດເວລາລາວ — ERP ຕ້ອງການ doc_time (HH:MM)
+  const time = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Bangkok",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date());
   return {
     date: `${parts.year}-${parts.month}-${parts.day}`,
     at: new Date(`${parts.year}-${parts.month}-${parts.day}T00:00:00`),
+    time,
   };
 }
 
@@ -284,13 +293,18 @@ export async function createSpareRequest(
   if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };
   if (!input.wh_code || !input.shelf_code) return { ok: false, error: "ກະລຸນາເລືອກສາງ ແລະ ທີ່ເກັບ" };
 
-  const { date: docDate, at } = nowParts();
+  if (!odgDb) return { ok: false, error: "ບໍ່ພົບ ODG_DATABASE_URL" };
+
+  const { date: docDate, at, time: docTime } = nowParts();
   const client = await db.connect();
+  // ໃບຂໍເບີກຕ້ອງລົງ **ທັງ ODS ແລະ ERP** — ERP ບໍ່ຜ່ານ = ບໍ່ບັນທຶກເລີຍ (ເບິ່ງ lib/erp-request)
+  const odg = await odgDb.connect();
   let docNo = "";
   let lineCount = 0;
 
   try {
     await client.query("begin");
+    await odg.query("begin");
     await client.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
 
     const lines = await client.query<{ item_code: string; item_name: string | null; unit_code: string | null; qty: string }>(
@@ -326,13 +340,25 @@ export async function createSpareRequest(
     );
     await client.query(`update tb_product set spare_reg=${NOW} where code=$1`, [input.code]);
 
+    await writeErpRequest(
+      {
+        doc_no: docNo, doc_date: docDate, doc_time: docTime,
+        job_code: input.code, wh_code: input.wh_code, shelf_code: input.shelf_code,
+        remark: input.remark, requester: session.username, lines: lines.rows,
+      },
+      odg,
+    );
+
     await client.query("commit");
+    await odg.query("commit");
   } catch (error) {
-    await client.query("rollback");
+    await client.query("rollback").catch(() => {});
+    await odg.query("rollback").catch(() => {});
     console.error("createSpareRequest failed", error);
-    return { ok: false, error: "ບັນທຶກບໍ່ສຳເລັດ" };
+    return { ok: false, error: "ບັນທຶກບໍ່ສຳເລັດ — ERP ບໍ່ຮັບໃບຂໍເບີກນີ້ (ບໍ່ໄດ້ບັນທຶກຫຍັງເລີຍ)" };
   } finally {
     client.release();
+    odg.release();
   }
 
   // ສາງຕ້ອງເບີກໃຫ້ — ບໍ່ດັ່ງນັ້ນໃບຂໍນອນຢູ່ບໍ່ມີໃຜເຫັນ
@@ -350,14 +376,16 @@ export async function createInstallSpareRequest(
   session: Session,
   input: { code: string; remark: string; wh_code: string; shelf_code: string },
 ): Promise<FlowResult & { doc_no?: string }> {
-  if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };
+  if (!db || !odgDb) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL / ODG_DATABASE_URL" };
   if (!input.wh_code || !input.shelf_code) return { ok: false, error: "ກະລຸນາເລືອກສາງ ແລະ ທີ່ເກັບ" };
-  const { date: docDate, at } = nowParts();
+  const { date: docDate, at, time: docTime } = nowParts();
   const client = await db.connect();
+  const odg = await odgDb.connect();
   let docNo = "";
   let lineCount = 0;
   try {
     await client.query("begin");
+    await odg.query("begin");
     await client.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
     const owner = await client.query<{ accepted: boolean }>(
       `select tech_confirm is not null accepted from ods_tb_install
@@ -399,13 +427,26 @@ export async function createInstallSpareRequest(
     );
     await client.query(`update ods_tb_install set reg_start=coalesce(reg_start,${NOW}) where code=$1`, [input.code]);
     await client.query(`update ods_tb_install_detail set reg_start=coalesce(reg_start,${NOW}) where code=$1`, [input.code]);
+
+    await writeErpRequest(
+      {
+        doc_no: docNo, doc_date: docDate, doc_time: docTime,
+        job_code: input.code, wh_code: input.wh_code, shelf_code: input.shelf_code,
+        remark: input.remark, requester: session.username, lines: lines.rows,
+      },
+      odg,
+    );
+
     await client.query("commit");
+    await odg.query("commit");
   } catch (error) {
-    await client.query("rollback");
+    await client.query("rollback").catch(() => {});
+    await odg.query("rollback").catch(() => {});
     console.error("createInstallSpareRequest failed", error);
-    return { ok: false, error: "ສ້າງໃບຂໍເບີກບໍ່ສຳເລັດ" };
+    return { ok: false, error: "ສ້າງໃບຂໍເບີກບໍ່ສຳເລັດ — ERP ບໍ່ຮັບໃບນີ້ (ບໍ່ໄດ້ບັນທຶກຫຍັງເລີຍ)" };
   } finally {
     client.release();
+    odg.release();
   }
   await logChange(
     "ods_tb_install",
@@ -462,7 +503,7 @@ export async function pickupSpares(session: Session, docRef: string, remark: str
   if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };
   if (!docRef) return { ok: false, error: "ບໍ່ພົບເລກທີໃບເບີກ" };
 
-  const { date: docDate, at } = nowParts();
+  const { date: docDate, at, time: docTime } = nowParts();
   const client = await db.connect();
   let pickNo = "";
   let productCode = "";

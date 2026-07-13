@@ -6,6 +6,7 @@ import { recordPayout } from "@/app/actions/commission";
 import { getSession, type Session } from "@/lib/auth";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb, query } from "@/lib/db";
+import { writeErpRequest } from "@/lib/erp-request";
 import { nextDocNo } from "@/lib/doc-no";
 import { requireRole } from "@/lib/guard";
 import { type Role, roleOf, SERVICE_SIDE, STOCK_SIDE, TECH_SIDE } from "@/lib/roles";
@@ -921,11 +922,22 @@ export async function saveSpareRequest(_: ActionState, formData: FormData): Prom
   if (!guard.assigned) return { error: "ຂໍເບີກບໍ່ໄດ້ ງານນີ້ຍັງບໍ່ມີຊ່າງ" };
   if (!guard.accepted) return { error: "ຂໍເບີກບໍ່ໄດ້ ຊ່າງຕ້ອງຮັບງານກ່ອນ" };
 
+  if (!odgDb) return { error: "ບໍ່ພົບ ODG_DATABASE_URL" };
+
+  /**
+   * ── ໃບຂໍເບີກຕ້ອງລົງ **ທັງ ODS ແລະ ERP** (ນະໂຍບາຍ 13-07-2026) ──
+   * "ERP ຜ່ານ = ສຳເລັດ": ຖ້າ ERP ປະຕິເສດ ⇒ rollback ທັງສອງຖານ ບໍ່ໃຫ້ບັນທຶກເລີຍ
+   * ⇒ ບໍ່ມີໃບຄ້າງເຄິ່ງທາງທີ່ຢູ່ ODS ແຕ່ບໍ່ຢູ່ ERP.
+   * ລຳດັບ: insert ERP (ຍັງບໍ່ commit) → commit ODS → commit ERP
+   * (insert ຜ່ານ trigger ໝົດແລ້ວ ⇒ commit ຂອງ ERP ຈະລົ້ມໄດ້ຍາກທີ່ສຸດ).
+   */
   const client = await db.connect();
+  const odg = await odgDb.connect();
   let requestNo = "";
   let requestLines = 0;
   try {
     await client.query("begin");
+    await odg.query("begin");
     await client.query("select pg_advisory_xact_lock(734212)");
 
     const cart = await client.query<{ count: number }>(
@@ -978,13 +990,36 @@ export async function saveSpareRequest(_: ActionState, formData: FormData): Prom
       "update ods_tb_install_detail set reg_start=coalesce(reg_start,localtimestamp(0)) where code=$1",
       [productCode],
     );
+
+    // ── ສົ່ງໃບດຽວກັນເຂົ້າ ERP (ເລກ SIO ອັນດຽວກັນ) ──
+    await writeErpRequest(
+      {
+        doc_no: docNo,
+        doc_date: docDate,
+        // ໂມງ:ນາທີ ຕາມເຂດເວລາລາວ (ບໍ່ແມ່ນເວລາເຄື່ອງແມ່ຂ່າຍ — ມັນອາດເປັນ UTC)
+        doc_time: new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hour12: false,
+        }).format(new Date()),
+        job_code: productCode,
+        wh_code: whCode,
+        shelf_code: shelfCode,
+        remark,
+        requester: session.username,
+        lines: lines.rows,
+      },
+      odg,
+    );
+
     await client.query("commit");
+    await odg.query("commit");
   } catch (error) {
-    await client.query("rollback");
+    await client.query("rollback").catch(() => {});
+    await odg.query("rollback").catch(() => {});
     console.error("saveSpareRequest failed", error);
-    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
+    return { error: "ບັນທຶກບໍ່ສຳເລັດ — ERP ບໍ່ຮັບໃບຂໍເບີກນີ້ (ບໍ່ໄດ້ບັນທຶກຫຍັງເລີຍ)" };
   } finally {
     client.release();
+    odg.release();
   }
 
   // ສາງຕ້ອງເບີກອາໄຫຼ່ໃຫ້ (ods ຍິງ LINE Notify ຫາສາງຢູ່ຈຸດນີ້)

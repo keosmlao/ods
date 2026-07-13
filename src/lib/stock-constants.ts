@@ -75,6 +75,8 @@ export const ERP = {
   DEPARTMENT_CODE: "4001",
   /** doc_format_code ຂອງໃບເບີກ */
   FORMAT_DISPATCH: "SWC",
+  /** doc_format_code ຂອງໃບ **ຂໍ**ເບີກ (122) — ໃບຂອງເຮົາໃຊ້ເລກ SIO… ⇒ ຮູບແບບ SIO */
+  FORMAT_REQUEST: "SIO",
   /** doc_format_code ຂອງໃບຮັບຄືນ */
   FORMAT_RECEIVE: "RIM",
 } as const;
@@ -82,3 +84,5 @@ export const ERP = {
 /** calc_flag: -1 = ຕັດອອກຈາກສາງ, 1 = ບວກເຂົ້າສາງ */
 export const CALC_OUT = -1;
 export const CALC_IN = 1;
+/** 0 = ບໍ່ແຕະສະຕັອກ — ໃບ**ຂໍ**ເບີກເປັນພຽງຄຳຂໍ (ໃບເບີກ 56 ຂອງສາງເປັນຄົນຕັດສະຕັອກ) */
+export const CALC_NONE = 0;
