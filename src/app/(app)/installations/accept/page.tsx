@@ -1,6 +1,8 @@
 import { acceptJob, techFilter, unacceptJob } from "@/app/actions/installation";
 import { JobButton } from "@/components/installation/job-buttons";
 import { RejectButton } from "@/components/installation/reject-button";
+import { SlaChip } from "@/components/installation/sla-chip";
+import { INSTALL_LEFT_SQL } from "@/lib/install-sla";
 import { Check } from "lucide-react";
 import { query } from "@/lib/db";
 import { INSTALL_ACCEPT_CLOCK } from "@/lib/install-stage";
@@ -17,6 +19,7 @@ import {
   TableShell,
   TabsAndSearch,
   fetchInstallRows,
+  type InstallRow,
   installOrderBy,
   readParams,
   type ListSearchParams,
@@ -47,6 +50,10 @@ type Props = { searchParams: Promise<ListSearchParams> };
  * ໂມງຄ້າງ (B6): ນັບຈາກ **ເວລາຈັດຊ່າງ** (assigt_time) ບໍ່ແມ່ນເວລາເປີດງານ —
  * ຄິວນີ້ວັດ "ຊ່າງຮັບຊ້າ", ຄິວຈັດຊ່າງ (/installations/assign) ວັດ "ຜູ້ຈັດຈັດຊ້າ".
  */
+/** ນາລິກາ 24 ຊມ ນັບແຕ່ອອກບິນ — ຂັ້ນນີ້ກິນເວລາ 44 ຊມ (ຄໍຂວດຮ່ວມກັບການຈັດຊ່າງ) */
+type Row = InstallRow & { sla_left: number | null };
+const EXTRA = `(${INSTALL_LEFT_SQL}) as sla_left`;
+
 const BUCKET: Record<Tab, { where: string; timeCol: string }> = {
   waiting: {
     where: `a.cancel_date is null and a.time_register is not null and a.tech_code is not null
@@ -94,11 +101,12 @@ export default async function AcceptPage({ searchParams }: Props) {
 
   const [counts, jobs] = await Promise.all([
     getCounts(tech),
-    fetchInstallRows({
+    fetchInstallRows<Row>({
       where: where.join(" and "),
       params,
       orderBy: installOrderBy(sort, dir, bucket.timeCol),
       page,
+      extraColumns: EXTRA,
     }),
   ]);
 
@@ -139,7 +147,7 @@ export default async function AcceptPage({ searchParams }: Props) {
       <TableShell total={jobs.total} minWidth={1300}>
         <InstallTableHead
           columns={INSTALL_SORTABLE_COLUMNS}
-          plain={INSTALL_PLAIN_COLUMNS}
+          plain={["24 ຊມ ຈາກບິນ", ...INSTALL_PLAIN_COLUMNS]}
           sort={sort}
           dir={dir}
           sortHref={sortHref}
@@ -148,6 +156,9 @@ export default async function AcceptPage({ searchParams }: Props) {
           {jobs.rows.map((row) => (
             <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
               <InstallCells row={row} timeLabel={tab === "waiting" ? "ວັນ/ເວລາຈັດຊ່າງ" : "ວັນ/ເວລາຮັບງານ"} />
+              <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                <SlaChip left={row.sla_left} />
+              </td>
               <td className="whitespace-nowrap px-3 py-2.5">
                 {tab === "waiting" ? (
                   <div className="flex justify-center gap-2">

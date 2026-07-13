@@ -1,5 +1,7 @@
 import { chooseNewTech } from "@/app/actions/installation";
 import { AssignTechButton } from "@/components/installation/assign-tech";
+import { SlaChip } from "@/components/installation/sla-chip";
+import { INSTALL_LEFT_SQL } from "@/lib/install-sla";
 import { JobButton } from "@/components/installation/job-buttons";
 import { query } from "@/lib/db";
 import { listTechnicians } from "@/lib/technicians";
@@ -39,11 +41,14 @@ type Row = InstallRow & {
   appoint_input: string | null;
   remark: string | null;
   tech_before: string | null;
+  /** ວິນາທີທີ່ຍັງເຫຼືອຈົນຄົບ 24 ຊມ ນັບແຕ່ອອກບິນ (ຕິດລົບ = ເລີຍກຳນົດ) */
+  sla_left: number | null;
 };
 
 const EXTRA = `to_char(a.appoint_date,'YYYY-MM-DD') appoint_input,
   coalesce(a.remark,'') remark,
-  coalesce(a.tech_before,'-') tech_before`;
+  coalesce(a.tech_before,'-') tech_before,
+  (${INSTALL_LEFT_SQL}) as sla_left`;
 
 /**
  * ໂມງຄ້າງຂອງສອງຄິວນີ້ວັດຄົນລະຢ່າງ (B6):
@@ -131,7 +136,7 @@ export default async function AssignPage({ searchParams }: Props) {
       <TableShell total={jobs.total} minWidth={1350}>
         <InstallTableHead
           columns={INSTALL_SORTABLE_COLUMNS}
-          plain={[...INSTALL_PLAIN_COLUMNS, tab === "assign" ? "ຊ່າງກ່ອນໜ້ານີ້" : "ຊ່າງທີ່ເລືອກ"]}
+          plain={["24 ຊມ ຈາກບິນ", ...INSTALL_PLAIN_COLUMNS, tab === "assign" ? "ຊ່າງກ່ອນໜ້ານີ້" : "ຊ່າງທີ່ເລືອກ"]}
           sort={sort}
           dir={dir}
           sortHref={sortHref}
@@ -140,6 +145,10 @@ export default async function AssignPage({ searchParams }: Props) {
           {jobs.rows.map((row) => (
             <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
               <InstallCells row={row} timeLabel={tab === "assign" ? "ວັນ/ເວລາເປີດງານ" : "ວັນ/ເວລາຈັດຊ່າງ"} />
+              {/* ນາລິກາ 24 ຊມ ນັບແຕ່ອອກບິນ — ຄໍຂວດອັນດັບ 1 ຢູ່ຂັ້ນນີ້ (44 ຊມ) */}
+              <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                <SlaChip left={row.sla_left} />
+              </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-center">
                 {tab === "assign" ? (row.tech_before || "-") : (row.tech_code || "-")}
               </td>
