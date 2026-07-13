@@ -146,8 +146,18 @@ const createSchema = z.object({
    * ຈຳນວນຕ້ອງເທົ່າກັບ `units`.
    */
   pro_sn: z.string().min(1),
+  /**
+   * S/N **ໜ່ວຍນອກ [H]** ຂອງແຕ່ລະໜ່ວຍ — ຄັ່ນດ້ວຍ "|" ຄືກັບ pro_sn.
+   * ແອປະກອບດ້ວຍ ໜ່ວຍໃນ [C] + ໜ່ວຍນອກ [H] ແລະ ERP ລົງ ISN **ຄົນລະເລກ**
+   * ⇒ ເກັບໜ່ວຍດຽວ = ຮັບປະກັນ/ສ້ອມຄອມເພຣສເຊີພາຍຫຼັງ ອ້າງອີງບໍ່ໄດ້.
+   * ບໍ່ບັງຄັບ (ເຄື່ອງທີ່ບໍ່ແມ່ນແອ ບໍ່ມີໜ່ວຍນອກ).
+   */
+  pro_sn_out: z.string().optional(),
   /** ຈະຕິດຕັ້ງຈັກໜ່ວຍ = ຈະສ້າງຈັກງານ (1 ໜ່ວຍ = 1 ງານ = 1 ຊ່າງໄປ 1 ບ່ອນ) */
   units: z.coerce.number().int().min(1).max(20).default(1),
+  /** ພິກັດສະຖານທີ່ຕິດຕັ້ງ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງໄດ້ຈາກແອັບ */
+  location_lat: z.string().optional(),
+  location_lng: z.string().optional(),
   /**
    * ສະຖານທີ່ຕິດຕັ້ງ — **ບັງຄັບ** (ແຕ່ກ່ອນຫວ່າງໄດ້).
    * ຂໍ້ມູນຈິງ: 146/6,841 ງານບໍ່ມີສະຖານທີ່ ⇒ ຊ່າງຖືກສົ່ງອອກໜ້າງານໂດຍບໍ່ຮູ້ວ່າໄປໃສ
@@ -225,8 +235,10 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
       await client.query("rollback");
       return { error: `ຕ້ອງລະບຸ S/N ໃຫ້ຄົບ ${d.units} ໜ່ວຍ` };
     }
+    // ໜ່ວຍນອກ (ແອ) — ຫວ່າງໄດ້ ແຕ່ຖ້າມີ ຕ້ອງຄົບຕາມຈຳນວນໜ່ວຍ
+    const outdoor = (d.pro_sn_out ?? "").split("|").map((value) => value.trim());
 
-    for (const serial of serials) {
+    for (const [index, serial] of serials.entries()) {
       next += 1;
       code = `INST-${next}`;
       codes.push(code);
@@ -234,11 +246,12 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
       await client.query(
         `insert into ods_tb_install(code,doc_ref_1,cust_code,item_code,item_name,install_type,status,complain_status,
            remark,time_register,user_created,doc_ref_date,pro_brand,pro_model,pro_type,pro_size,location_inst,
-           used_spare,pro_sn,pro_type_code,appoint_date)
-         values($1,$2,$3,$4,$5,$6,0,0,$7,localtimestamp(0),$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,nullif($18,'')::date)`,
+           used_spare,pro_sn,pro_type_code,appoint_date,pro_sn_out,location_lat,location_lng)
+         values($1,$2,$3,$4,$5,$6,0,0,$7,localtimestamp(0),$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,nullif($18,'')::date,
+                nullif($19,''), nullif($20,'')::double precision, nullif($21,'')::double precision)`,
         [code, d.doc_no, custCode, d.item_code, d.item_name, d.sv_type, d.remark, session.username, d.billdate,
           d.pro_brand, d.pro_model, proTypeName, d.pro_size, d.location_inst, usedSpare, serial, d.pro_type,
-          d.appoint_date ?? ""],
+          d.appoint_date ?? "", outdoor[index] ?? "", d.location_lat ?? "", d.location_lng ?? ""],
       );
 
       for (const line of lines.rows) {

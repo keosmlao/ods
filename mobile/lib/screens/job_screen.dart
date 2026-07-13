@@ -162,7 +162,22 @@ class _JobScreenState extends State<JobScreen> {
               ),
               _row('ບ່ອນຢູ່', job.address),
               _row('ວັນນັດ', job.appointment),
-              if ((job.tel ?? '').isNotEmpty) ...[
+              // ມີພິກັດ ⇒ ນຳທາງໄປຈຸດທີ່ CS ປັກໝຸດໄວ້ (ບໍ່ຕ້ອງໂທຖາມທາງ)
+            if (job.lat != null && job.lng != null) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.navigation_outlined, color: teal),
+                label: const Text('ນຳທາງໄປສະຖານທີ່ຕິດຕັ້ງ', style: TextStyle(color: teal)),
+                onPressed: () => launchUrl(
+                  Uri.parse(
+                    'https://www.google.com/maps/dir/?api=1&destination=${job.lat},${job.lng}',
+                  ),
+                  mode: LaunchMode.externalApplication,
+                ),
+              ),
+            ],
+
+            if ((job.tel ?? '').isNotEmpty) ...[
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.phone, color: ok),

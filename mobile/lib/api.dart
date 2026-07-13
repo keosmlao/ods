@@ -331,6 +331,10 @@ class Job {
   final String action;
   final bool checkedIn;
 
+  /// ພິກັດສະຖານທີ່ (ຖ້າ CS ປັກໝຸດໄວ້) — ກົດນຳທາງໄດ້
+  final double? lat;
+  final double? lng;
+
   Job({
     required this.workflow,
     required this.code,
@@ -346,6 +350,8 @@ class Job {
     required this.appointment,
     required this.action,
     required this.checkedIn,
+    this.lat,
+    this.lng,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) => Job(

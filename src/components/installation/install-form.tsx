@@ -1,5 +1,6 @@
 "use client";
 import { createInstall, type ActionState } from "@/app/actions/installation";
+import { LocationPicker, type Point } from "@/components/installation/location-picker";
 import { SelectField } from "@/components/select-field";
 import { Button, Card, ErrorBox, LinkButton, inputClass, labelClass } from "@/components/ui";
 import { CheckCircle2, LoaderCircle, MapPin, Package, Receipt, Save, Search, X } from "lucide-react";
@@ -92,8 +93,12 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
   const [item, setItem] = useState<BillItem | null>(null);
   const [units, setUnits] = useState(1);
 
-  /** S/N ຂອງແຕ່ລະໜ່ວຍ — ຍາວເທົ່າ units ສະເໝີ */
+  /** S/N **ໜ່ວຍໃນ [C]** ຂອງແຕ່ລະໜ່ວຍ — ຍາວເທົ່າ units ສະເໝີ */
   const [serials, setSerials] = useState<string[]>([""]);
+  /** S/N **ໜ່ວຍນອກ [H]** — ສະເພາະແອ (ບໍ່ບັງຄັບ) */
+  const [outdoor, setOutdoor] = useState<string[]>([""]);
+  /** ພິກັດສະຖານທີ່ຕິດຕັ້ງ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງໄດ້ຈາກແອັບ */
+  const [point, setPoint] = useState<Point | null>(null);
 
   /**
    * ── ຈຳນວນງານ = ຈຳນວນ **ຄ່າຕິດຕັ້ງ** ບໍ່ແມ່ນຈຳນວນເຄື່ອງທີ່ຂາຍ ──
@@ -112,29 +117,40 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
     const count = Math.max(1, single && paid > 0 ? Math.min(paid, sold) : sold);
     setItem(chosen);
     setUnits(count);
-    // ມີ ISN ຈາກ ERP ⇒ ຕື່ມໃຫ້ຕາມລຳດັບ (ໜ່ວຍໃນຂຶ້ນກ່ອນ)
-    setSerials(
-      Array.from({ length: count }, (_, index) => {
-        const serial = chosen.serials[index];
-        return serial ? serial.sn || serial.isn : "";
-      }),
-    );
+
+    /**
+     * ── ແອ = 2 ໜ່ວຍ (ໃນ + ນອກ) ⇒ 2 ISN ຄົນລະເລກ ──
+     * ERP ລົງ ISN ໃຫ້ **ໜ່ວຍໃນ [C]** ແລະ **ໜ່ວຍນອກ [H]** ແຍກກັນ
+     * (ບິນ CAK26008714: ໃນ 032A0028508 · ນອກ 032A0000558).
+     * ⇒ ຈັບຄູ່ຕາມລຳດັບ: ໜ່ວຍງານທີ i ໄດ້ ISN ໃນທີ i ແລະ ISN ນອກທີ i.
+     */
+    const indoor = chosen.serials.filter((serial) => serial.part !== "ໜ່ວຍນອກ");
+    const outer = chosen.serials.filter((serial) => serial.part === "ໜ່ວຍນອກ");
+    const valueOf = (serial?: Serial) => (serial ? serial.sn || serial.isn : "");
+
+    setSerials(Array.from({ length: count }, (_, index) => valueOf(indoor[index])));
+    setOutdoor(Array.from({ length: count }, (_, index) => valueOf(outer[index])));
   }
 
   function changeUnits(count: number) {
     const safe = Math.min(20, Math.max(1, count || 1));
     setUnits(safe);
-    setSerials((current) =>
-      Array.from({ length: safe }, (_, index) => {
-        if (current[index] !== undefined) return current[index];
-        const serial = item?.serials[index];
-        return serial ? serial.sn || serial.isn : "";
-      }),
-    );
+    const grow = (current: string[]) =>
+      Array.from({ length: safe }, (_, index) => current[index] ?? "");
+    setSerials(grow);
+    setOutdoor(grow);
   }
 
   const setSerial = (index: number, value: string) =>
     setSerials((current) => current.map((old, position) => (position === index ? value : old)));
+
+  const setOutdoorSerial = (index: number, value: string) =>
+    setOutdoor((current) => current.map((old, position) => (position === index ? value : old)));
+
+  /** ISN ຂອງແອ ແຍກເປັນ ໃນ/ນອກ — ບໍ່ແມ່ນແອ = ບໍ່ມີໜ່ວຍນອກ */
+  const indoorOptions = item?.serials.filter((serial) => serial.part !== "ໜ່ວຍນອກ") ?? [];
+  const outdoorOptions = item?.serials.filter((serial) => serial.part === "ໜ່ວຍນອກ") ?? [];
+  const isAc = outdoorOptions.length > 0 || (item?.pro_type_name ?? "").includes("ແອ");
 
   const ready = Boolean(bill && item && serials.length === units && serials.every((serial) => serial.trim()));
 
@@ -268,40 +284,76 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
               <span className="text-sm text-slate-500">ໜ່ວຍ ⇒ ຈະສ້າງ {units} ງານ</span>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               {serials.map((serial, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <span className="w-20 shrink-0 text-xs font-semibold text-slate-500">ໜ່ວຍທີ {index + 1}</span>
-                  {item.serials.length > 0 ? (
-                    // ERP ມີ ISN ຂອງບິນນີ້ ⇒ ເລືອກ (ພິມເອງ = ຜູກເຄື່ອງຜິດໜ່ວຍ)
-                    <select
-                      value={serial}
-                      onChange={(event) => setSerial(index, event.target.value)}
-                      className={inputClass}
-                    >
-                      <option value="">— ເລືອກ ISN —</option>
-                      {item.serials.map((row) => (
-                        <option key={row.isn} value={row.sn || row.isn}>
-                          {row.part ? `${row.part} · ` : ""}
-                          {row.isn}
-                          {row.sn ? ` · S/N ${row.sn}` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      value={serial}
-                      onChange={(event) => setSerial(index, event.target.value)}
-                      placeholder="ອ່ານ S/N ຈາກປ້າຍຕົວເຄື່ອງ"
-                      className={inputClass}
-                    />
-                  )}
+                <div key={index} className="rounded-xl border border-slate-200 p-3">
+                  <p className="mb-2 text-xs font-bold text-slate-600">ໜ່ວຍທີ {index + 1}</p>
+
+                  <div className={`grid gap-2 ${isAc ? "md:grid-cols-2" : ""}`}>
+                    <div>
+                      <label className="mb-1 block text-xs text-slate-500">
+                        {isAc ? "S/N ໜ່ວຍໃນ [C] *" : "S/N *"}
+                      </label>
+                      {indoorOptions.length > 0 ? (
+                        <select
+                          value={serial}
+                          onChange={(event) => setSerial(index, event.target.value)}
+                          className={inputClass}
+                        >
+                          <option value="">— ເລືອກ ISN —</option>
+                          {indoorOptions.map((row) => (
+                            <option key={row.isn} value={row.sn || row.isn}>
+                              {row.isn}
+                              {row.sn ? ` · S/N ${row.sn}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          value={serial}
+                          onChange={(event) => setSerial(index, event.target.value)}
+                          placeholder="ອ່ານຈາກປ້າຍຕົວເຄື່ອງ"
+                          className={inputClass}
+                        />
+                      )}
+                    </div>
+
+                    {/* ແອມີຄອມເພຣສເຊີຢູ່ນອກ — ຄົນລະ S/N ⇒ ຮັບປະກັນ/ສ້ອມພາຍຫຼັງອ້າງອີງໄດ້ */}
+                    {isAc && (
+                      <div>
+                        <label className="mb-1 block text-xs text-slate-500">S/N ໜ່ວຍນອກ [H]</label>
+                        {outdoorOptions.length > 0 ? (
+                          <select
+                            value={outdoor[index] ?? ""}
+                            onChange={(event) => setOutdoorSerial(index, event.target.value)}
+                            className={inputClass}
+                          >
+                            <option value="">— ເລືອກ ISN —</option>
+                            {outdoorOptions.map((row) => (
+                              <option key={row.isn} value={row.sn || row.isn}>
+                                {row.isn}
+                                {row.sn ? ` · S/N ${row.sn}` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            value={outdoor[index] ?? ""}
+                            onChange={(event) => setOutdoorSerial(index, event.target.value)}
+                            placeholder="ອ່ານຈາກຄອມເພຣສເຊີ (ບໍ່ບັງຄັບ)"
+                            className={inputClass}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
 
             {/* server ຮັບເປັນສາຍດຽວ ຄັ່ນດ້ວຍ | — ຈຳນວນຕ້ອງເທົ່າ units (ກວດຢູ່ server ອີກຊັ້ນ) */}
             <input type="hidden" name="pro_sn" value={serials.join("|")} />
+            <input type="hidden" name="pro_sn_out" value={outdoor.join("|")} />
           </Card>
 
           {/* ④ ຂໍ້ມູນສິນຄ້າ */}
@@ -366,6 +418,11 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
                   className={inputClass}
                 />
                 <p className="mt-1 text-xs text-slate-400">ຕື່ມມາຈາກທີ່ຢູ່ລູກຄ້າ — ແກ້ໄດ້ຖ້າຕິດຕັ້ງບ່ອນອື່ນ</p>
+
+                {/* ພິກັດ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງໄດ້ ແລະ ທຽບກັບ check-in ໄດ້ */}
+                <LocationPicker value={point} onChange={setPoint} />
+                <input type="hidden" name="location_lat" value={point ? String(point.lat) : ""} />
+                <input type="hidden" name="location_lng" value={point ? String(point.lng) : ""} />
               </div>
               <div>
                 <label className={labelClass}>ວັນຄາດວ່າຈະເຂົ້າຕິດຕັ້ງ</label>

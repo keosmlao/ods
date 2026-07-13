@@ -30,6 +30,8 @@ type Row = {
   stage: number;
   stage_label: string;
   remark: string | null;
+  lat: number | null;
+  lng: number | null;
 };
 
 type Props = { searchParams: Promise<{ d?: string }> };
@@ -59,7 +61,8 @@ export default async function SchedulePage({ searchParams }: Props) {
           a.item_name as item,
           (${INSTALL_STAGE_SQL}) as stage,
           (${INSTALL_STAGE_LABEL_SQL}) as stage_label,
-          nullif(a.remark,'') as remark
+          nullif(a.remark,'') as remark,
+          a.location_lat as lat, a.location_lng as lng
         from ods_tb_install a
         left join ar_customer c on c.code = a.cust_code
        where a.appoint_date = $1::date
@@ -164,6 +167,18 @@ export default async function SchedulePage({ searchParams }: Props) {
                         <a href={`tel:${job.tel}`} className="inline-flex items-center gap-1 font-semibold text-emerald-700">
                           <Phone className="size-3.5" />
                           {job.tel}
+                        </a>
+                      )}
+                      {/* ມີພິກັດ ⇒ ກົດນຳທາງໄດ້ເລີຍ (ບໍ່ຕ້ອງໂທຖາມທາງ) */}
+                      {job.lat != null && job.lng != null && (
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${job.lat},${job.lng}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 font-semibold text-teal-700"
+                        >
+                          <MapPin className="size-3.5" />
+                          ນຳທາງ
                         </a>
                       )}
                     </div>

@@ -43,6 +43,9 @@ export type MobileJob = {
   action: MobileAction;
   /** ຍັງ check-in ຄ້າງຢູ່ບໍ (ຍັງບໍ່ໄດ້ check-out) */
   checked_in: boolean;
+  /** ພິກັດສະຖານທີ່ (ຖ້າ CS ປັກໝຸດໄວ້) — ແອັບກົດນຳທາງໄດ້ */
+  lat: number | null;
+  lng: number | null;
 };
 
 /**
@@ -91,7 +94,8 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         ${INSTALL_ELAPSED_SQL} as elapsed_seconds,
         to_char(a.appoint_date,'DD-MM-YYYY') as appointment,
         (${INSTALL_ACTION}) as action,
-        ${CHECKED_IN("install")} as checked_in
+        ${CHECKED_IN("install")} as checked_in,
+        a.location_lat as lat, a.location_lng as lng
       from ods_tb_install a
       left join ar_customer c on c.code = a.cust_code
      where ${INSTALL_OPEN}
@@ -112,7 +116,8 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         ${STAGE_ELAPSED_SQL} as elapsed_seconds,
         null as appointment,
         (${REPAIR_ACTION}) as action,
-        ${CHECKED_IN("repair")} as checked_in
+        ${CHECKED_IN("repair")} as checked_in,
+        null::double precision as lat, null::double precision as lng
       from tb_product a
       left join ar_customer b on b.code = a.cust_code
      where ${OPEN_JOBS}
