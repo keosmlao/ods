@@ -1,4 +1,4 @@
-import { Empty, LinkButton, PageTitle } from "@/components/ui";
+import { Empty, LinkButton, PageTitle, Table } from "@/components/ui";
 import { BillDismissButton, BillRestoreButton } from "@/components/installation/bill-dismiss-button";
 import { pendingInstallBills } from "@/lib/pending-bills";
 import { CalendarClock, FilePlus2, Phone, Search, TriangleAlert } from "lucide-react";
@@ -108,88 +108,90 @@ export default async function PendingBillsPage({ searchParams }: Props) {
       {rows.length === 0 ? (
         <Empty>{q ? "ບໍ່ພົບບິນຕາມຄຳຄົ້ນ" : "ບໍ່ມີບິນຄ້າງ — ທຸກບິນທີ່ຈ່າຍຄ່າຕິດຕັ້ງ ມີໃບງານຄົບແລ້ວ"}</Empty>
       ) : (
-        <div className="space-y-2">
+        <Table head={["ຄ້າງມາ", "ເລກບິນ", "ລູກຄ້າ", "ເປີດແລ້ວ / ຈ່າຍມາ", "ຍັງຂາດ", ""]} minWidth={980}>
           {rows.map((bill) => {
             const overdue = bill.days >= LATE;
             return (
-              <div
-                key={bill.doc_no}
-                className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-white p-3 shadow-sm ${
-                  overdue ? "border-red-200" : "border-slate-200"
-                }`}
-              >
-                {/* ① ຄ້າງດົນປານໃດ — ຕົວທຳອິດທີ່ຕາເຫັນ */}
-                <span
-                  className={`inline-flex h-12 w-16 shrink-0 flex-col items-center justify-center rounded-lg text-xs font-bold ${
-                    overdue ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  <CalendarClock className="size-3.5" />
-                  {bill.days} ມື້
-                </span>
+              <tr key={bill.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
+                {/* ① ຄ້າງດົນປານໃດ — ຄ່າທີ່ຈັດລຳດັບຄວາມສຳຄັນ */}
+                <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                  <span
+                    className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-bold tabular-nums ${
+                      overdue ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    <CalendarClock className="size-3" />
+                    {bill.days} ມື້
+                  </span>
+                </td>
 
-                {/* ② ບິນ ແລະ ລູກຄ້າ (ໂທໄດ້ເລີຍ) */}
-                <div className="min-w-0 flex-1">
-                  <p className="flex flex-wrap items-center gap-2">
-                    <span className="font-bold text-slate-800">{bill.doc_no}</span>
-                    <span className="text-[11px] text-slate-400">{bill.doc_date.split("-").reverse().join("-")}</span>
-                  </p>
+                <td className="whitespace-nowrap px-3 py-2.5">
+                  <span className="block font-bold text-slate-800">{bill.doc_no}</span>
+                  <span className="block text-[11px] text-slate-400">
+                    {bill.doc_date.split("-").reverse().join("-")}
+                  </span>
                   {/* ຖືກໝາຍໄວ້ ⇒ ບອກເຫດຜົນ ແລະ ໃຜໝາຍ (ຫຼັກຖານ) */}
                   {bill.dismissed && (
-                    <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
-                      ໝາຍວ່າຄົບແລ້ວ: {bill.dismissed.reason} · {bill.dismissed.by} · {bill.dismissed.at}
-                    </p>
+                    <span className="mt-0.5 block text-[11px] font-semibold text-slate-500">
+                      ຄົບແລ້ວ: {bill.dismissed.reason} · {bill.dismissed.by}
+                    </span>
                   )}
-                  <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs">
-                    <span className="truncate text-slate-600">{bill.cust_name || "-"}</span>
-                    {bill.telephone && (
-                      <a
-                        href={`tel:${bill.telephone}`}
-                        className="inline-flex items-center gap-1 font-semibold text-emerald-700"
-                      >
-                        <Phone className="size-3" />
-                        {bill.telephone}
-                      </a>
-                    )}
-                  </p>
-                </div>
+                </td>
 
-                {/* ③ ຂາດຈັກໜ່ວຍ — ເປັນຄວາມຄືບໜ້າ ບໍ່ໃຫ້ຄົນລົບເລກເອງ */}
-                <div className="w-40 shrink-0">
-                  <p className="flex items-baseline justify-between text-xs">
-                    <span className="font-bold text-red-600">ຂາດ {bill.missing} ໜ່ວຍ</span>
-                    <span className="text-slate-400">
+                <td className="px-3 py-2.5">
+                  <span className="block truncate text-sm text-slate-700">{bill.cust_name || "-"}</span>
+                  {bill.telephone && (
+                    <a
+                      href={`tel:${bill.telephone}`}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"
+                    >
+                      <Phone className="size-3" />
+                      {bill.telephone}
+                    </a>
+                  )}
+                </td>
+
+                {/* ② ຄວາມຄືບໜ້າ — ບໍ່ໃຫ້ຄົນລົບເລກເອງ */}
+                <td className="px-3 py-2.5">
+                  <span className="mx-auto block w-32">
+                    <span className="block text-center text-xs tabular-nums text-slate-500">
                       {bill.opened}/{bill.paid}
                     </span>
-                  </p>
-                  <span className="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                    <span
-                      className="block h-full rounded-full bg-teal-500"
-                      style={{ width: `${Math.round((bill.opened / bill.paid) * 100)}%` }}
-                    />
+                    <span className="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                      <span
+                        className="block h-full rounded-full bg-teal-500"
+                        style={{ width: `${Math.round((bill.opened / bill.paid) * 100)}%` }}
+                      />
+                    </span>
                   </span>
-                </div>
+                </td>
 
-                {/* ④ ລົງມື — ເປີດໃບງານ ຫຼື ໝາຍວ່າຄົບແລ້ວ (ບາງບິນບໍ່ຕ້ອງມີໃບງານແທ້ໆ) */}
-                {bill.dismissed ? (
-                  <BillRestoreButton docNo={bill.doc_no} />
-                ) : (
-                  <div className="flex shrink-0 items-center gap-2">
-                    <BillDismissButton docNo={bill.doc_no} />
-                    <LinkButton
-                      href={`/installations/new?bill=${encodeURIComponent(bill.doc_no)}`}
-                      tone="success"
-                      className="h-9 text-xs"
-                    >
-                      <FilePlus2 className="size-3.5" />
-                      ເປີດໃບງານ
-                    </LinkButton>
-                  </div>
-                )}
-              </div>
+                <td className="whitespace-nowrap px-3 py-2.5 text-center text-sm font-bold text-red-600 tabular-nums">
+                  {bill.missing}
+                </td>
+
+                {/* ③ ລົງມື — ເປີດໃບງານ ຫຼື ໝາຍວ່າຄົບແລ້ວ (ບາງບິນບໍ່ຕ້ອງມີໃບງານແທ້ໆ) */}
+                <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                  {bill.dismissed ? (
+                    <BillRestoreButton docNo={bill.doc_no} />
+                  ) : (
+                    <span className="inline-flex items-center gap-2">
+                      <BillDismissButton docNo={bill.doc_no} />
+                      <LinkButton
+                        href={`/installations/new?bill=${encodeURIComponent(bill.doc_no)}`}
+                        tone="success"
+                        className="h-9 text-xs"
+                      >
+                        <FilePlus2 className="size-3.5" />
+                        ເປີດໃບງານ
+                      </LinkButton>
+                    </span>
+                  )}
+                </td>
+              </tr>
             );
           })}
-        </div>
+        </Table>
       )}
     </div>
   );
