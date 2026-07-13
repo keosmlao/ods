@@ -59,7 +59,6 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
 
           -- ── ສາງ: ອາໄຫຼ່ທີ່ຊ່າງຂໍມາ ລໍເບີກອອກ ──
           (select count(distinct d.doc_no) from ic_trans_detail d
-            where d.trans_flag = ${TRANS.REQUEST} and d.status = ${LINE_STATUS.PENDING})::int as "/stock/dispatch",
 
           -- ── ອະນຸມັດ (ເງື່ອນໄຂອັນດຽວກັບ APPROVALS_SQL / CANCEL_REQUESTS_SQL ຂອງ lib/dashboard) ──
           (select count(*) from ic_trans t

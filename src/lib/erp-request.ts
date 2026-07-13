@@ -121,3 +121,41 @@ export async function writeErpRequest(doc: ErpRequestDoc, client?: PoolClient): 
     if (own) odg.release();
   }
 }
+
+/**
+ * **ລຶບໃບຂໍເບີກອອກຈາກ ERP** — ໃຊ້ຄູ່ກັບການລຶບຢູ່ ODS.
+ *
+ * ⚠️ ບໍ່ລຶບຢູ່ ERP = ໃບກຳພ້າຄ້າງໃນ ERP ແລະ **ສາງອາດເບີກຕາມໃບທີ່ຖືກລຶບໄປແລ້ວ**
+ * (ອາໄຫຼ່ອອກຈາກສາງໂດຍບໍ່ມີງານຮອງຮັບ).
+ *
+ * ປອດໄພ: ຖ້າ ERP **ເບີກຕາມໃບນີ້ໄປແລ້ວ** (ມີໃບ 56 ທີ່ doc_ref ຊີ້ໃສ່) ⇒ ໂຍນ error
+ * ⇒ ຜູ້ເອີ້ນຕ້ອງປະຕິເສດການລຶບ (ລຶບໃບຂໍທີ່ເບີກແລ້ວ = ບັນຊີອາໄຫຼ່ບໍ່ຕົງ).
+ */
+export async function deleteErpRequest(docNo: string): Promise<void> {
+  if (!odgDb) throw new Error("ບໍ່ພົບ ODG_DATABASE_URL");
+
+  const odg = await odgDb.connect();
+  try {
+    await odg.query("begin");
+
+    const dispatched = await odg.query<{ doc_no: string }>(
+      `select doc_no from ic_trans
+        where trans_flag = $1 and split_part(trim(doc_ref), ' ', 1) = $2 limit 1`,
+      [TRANS.DISPATCH, docNo],
+    );
+    if (dispatched.rows[0]) {
+      await odg.query("rollback");
+      throw new Error(`ສາງເບີກຕາມໃບນີ້ໄປແລ້ວໃນ ERP (${dispatched.rows[0].doc_no}) — ລຶບບໍ່ໄດ້`);
+    }
+
+    await odg.query("delete from ic_trans_detail where doc_no = $1 and trans_flag = $2", [docNo, TRANS.REQUEST]);
+    await odg.query("delete from ic_trans where doc_no = $1 and trans_flag = $2", [docNo, TRANS.REQUEST]);
+
+    await odg.query("commit");
+  } catch (error) {
+    await odg.query("rollback").catch(() => {});
+    throw error;
+  } finally {
+    odg.release();
+  }
+}

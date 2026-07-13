@@ -5,6 +5,7 @@ import { notify } from "@/app/actions/notification";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb } from "@/lib/db";
 import { docPrefix, nextDocNo } from "@/lib/doc-no";
+import { deleteErpRequest } from "@/lib/erp-request";
 import { requirePermissionOrRedirect, requireRole, requireRoleOrRedirect } from "@/lib/guard";
 import { RETURN_SIDE, SERVICE_SIDE, STOCK_SIDE, TECH_SIDE } from "@/lib/roles";
 import { getBalances } from "@/lib/stock-balance";
@@ -199,6 +200,13 @@ export async function deleteRequest(formData: FormData): Promise<void> {
     if ((other.rows[0]?.count ?? 0) <= 1) {
       await client.query(`update tb_product set spare_reg=null where code=$1`, [productCode]);
     }
+    /**
+     * ລຶບຢູ່ **ERP** ນຳ — ໃບຂໍເບີກຢູ່ທັງສອງຖານແລ້ວ (13-07-2026).
+     * ລຶບແຕ່ ODS = ໃບກຳພ້າຄ້າງໃນ ERP ແລະ ສາງອາດເບີກຕາມໃບທີ່ຖືກລຶບໄປແລ້ວ.
+     * ERP ເບີກໄປແລ້ວ ⇒ deleteErpRequest ໂຍນ error ⇒ ລຶບບໍ່ໄດ້ (ຖືກຕ້ອງ).
+     */
+    await deleteErpRequest(docNo);
+
     await client.query(`delete from ic_trans where product_code=$1 and trans_flag=$2 and doc_no=$3`, [
       productCode,
       TRANS.REQUEST,

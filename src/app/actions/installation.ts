@@ -6,7 +6,7 @@ import { recordPayout } from "@/app/actions/commission";
 import { getSession, type Session } from "@/lib/auth";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb, query } from "@/lib/db";
-import { writeErpRequest } from "@/lib/erp-request";
+import { deleteErpRequest, writeErpRequest } from "@/lib/erp-request";
 import { nextDocNo } from "@/lib/doc-no";
 import { requireRole } from "@/lib/guard";
 import { type Role, roleOf, SERVICE_SIDE, STOCK_SIDE, TECH_SIDE } from "@/lib/roles";
@@ -1051,6 +1051,14 @@ export async function deleteSpareRequest(docNo: string, code: string): Promise<A
       await client.query("rollback");
       return { error: `ບໍ່ສາມາດລົບເລກທີຂໍເບີກ ${docNo} ນີ້ໂດ້` };
     }
+    /**
+     * ── ລຶບຢູ່ **ERP** ນຳ (13-07-2026) ──
+     * ໃບຂໍເບີກຢູ່ທັງສອງຖານແລ້ວ ⇒ ລຶບແຕ່ຢູ່ ODS = ໃບກຳພ້າຄ້າງໃນ ERP ແລະ
+     * **ສາງອາດເບີກຕາມໃບທີ່ຖືກລຶບໄປແລ້ວ** (ອາໄຫຼ່ອອກໂດຍບໍ່ມີງານຮອງຮັບ).
+     * ຖ້າ ERP ເບີກຕາມໃບນີ້ໄປແລ້ວ deleteErpRequest ຈະໂຍນ error ⇒ ລຶບບໍ່ໄດ້ (ຖືກຕ້ອງ).
+     */
+    await deleteErpRequest(docNo);
+
     await client.query("delete from ic_trans where doc_no=$1", [docNo]);
     await client.query("delete from ic_trans_detail where doc_no=$1", [docNo]);
     // ລ້າງ reg_start ຂອງງານ **ກໍ່ຕໍ່ເມື່ອ** ບໍ່ເຫຼືອໃບຂໍເບີກໃບອື່ນແລ້ວ — ບໍ່ດັ່ງນັ້ນງານທີ່ຍັງ
