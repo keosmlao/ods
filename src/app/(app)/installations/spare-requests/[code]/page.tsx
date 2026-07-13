@@ -1,6 +1,6 @@
 import { JOB_HEAD_COLUMNS, JobHeader, type JobHead } from "@/components/installation/job-header";
 import { SpareRequestForm, type SpareLine } from "@/components/installation/spare-request-form";
-import { Card, Empty, PageTitle, Table } from "@/components/ui";
+import { Empty, PageTitle, Table } from "@/components/ui";
 import { query, queryOdg } from "@/lib/db";
 import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
@@ -102,29 +102,45 @@ export default async function SpareRequestPage({ params }: Props) {
   }
 
   return (
-    <div className="w-full space-y-5">
-      <PageTitle>ໃບຂໍເບີກຕິດຕັ້ງ</PageTitle>
+    <div className="w-full space-y-4">
+      <PageTitle sub={`ງານ ${code} — ເລືອກອາໄຫຼ່ທີ່ຈະເບີກ ແລ້ວສົ່ງໃຫ້ສາງ`}>ໃບຂໍເບີກຕິດຕັ້ງ</PageTitle>
+
       <JobHeader head={head.rows[0]} />
 
-      <Card title="ອຸປະກອນຕິດຕັ້ງມາດຕະຖານ">
-        {standard.rows.length === 0 ? (
-          <Empty />
-        ) : (
-          <Table head={["ລຳດັບ", "ລະຫັດ", "ຊື່ອຸປະກອນ", "ຈຳນວນ", "ຫົວໜ່ວຍ"]} minWidth={700}>
-            {standard.rows.map((row) => (
-              <tr key={`${row.item_code}-${row.rnum}`} className="border-b border-slate-100">
-                <td className="px-3 py-2 text-center">{row.rnum}</td>
-                <td className="whitespace-nowrap px-3 py-2">{row.item_code}</td>
-                <td className="px-3 py-2">{row.item_name}</td>
-                <td className="px-3 py-2 text-center">{Number(row.qty)}</td>
-                <td className="px-3 py-2 text-center">{row.unit_code}</td>
-              </tr>
-            ))}
-          </Table>
-        )}
-      </Card>
-
+      {/*
+        ── ລຳດັບຂອງໜ້າ ──
+        ຮຸ່ນກ່ອນເອົາຕາຕະລາງ "ອຸປະກອນມາດຕະຖານ" (13 ແຖວ) ໄວ້ **ກ່ອນ** ຟອມຂໍເບີກ
+        ⇒ ຄົນຕ້ອງເລື່ອນຜ່ານຂໍ້ມູນອ້າງອີງທຸກເທື່ອ ກ່ອນຈະຮອດສິ່ງທີ່ມາເຮັດຈິງ.
+        ດຽວນີ້ **ຟອມຂຶ້ນກ່ອນ** · ອຸປະກອນມາດຕະຖານພັບໄວ້ລຸ່ມ (ກົດເປີດເບິ່ງເມື່ອຢາກທຽບ).
+      */}
       <SpareRequestForm code={code} today={today} lines={lines.rows} warehouses={warehouses.rows} />
+
+      <details className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">
+          ອຸປະກອນຕິດຕັ້ງມາດຕະຖານຂອງເຄື່ອງນີ້
+          <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+            {standard.rows.length} ລາຍການ
+          </span>
+          <span className="ml-2 text-[11px] font-normal text-slate-400">(ຂໍ້ມູນອ້າງອີງ — ກົດເພື່ອເບິ່ງ)</span>
+        </summary>
+        <div className="border-t border-slate-100 p-4">
+          {standard.rows.length === 0 ? (
+            <Empty />
+          ) : (
+            <Table head={["ລຳດັບ", "ລະຫັດ", "ຊື່ອຸປະກອນ", "ຈຳນວນ", "ຫົວໜ່ວຍ"]} minWidth={700}>
+              {standard.rows.map((row) => (
+                <tr key={`${row.item_code}-${row.rnum}`} className="border-b border-slate-100">
+                  <td className="px-3 py-2 text-center">{row.rnum}</td>
+                  <td className="whitespace-nowrap px-3 py-2">{row.item_code}</td>
+                  <td className="px-3 py-2">{row.item_name}</td>
+                  <td className="px-3 py-2 text-center">{Number(row.qty)}</td>
+                  <td className="px-3 py-2 text-center">{row.unit_code}</td>
+                </tr>
+              ))}
+            </Table>
+          )}
+        </div>
+      </details>
     </div>
   );
 }

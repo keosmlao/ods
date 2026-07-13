@@ -62,17 +62,35 @@ const REQ_FROM = `from ic_trans ic
   left join ar_customer c on c.code = a.cust_code`;
 const REQ_WHERE = "ic.trans_flag = 122 and ic.job_type = 'install' and a.job_finish is null";
 
+/**
+ * ງານທີ່ **ໃຊ້ອາໄຫຼ່ ແລະ ຍັງບໍ່ຂໍເບີກ ແຕ່ຍັງບໍ່ພ້ອມ** — ຄ້າງຢູ່ຂັ້ນກ່ອນໜ້າ.
+ * ບໍ່ບອກ = ຄິວຂຶ້ນ 0 ແລ້ວຄົນເຂົ້າໃຈວ່າ "ງານແອທີ່ຫາກໍ່ເປີດຫາຍໄປໃສ".
+ */
+const NOT_READY = `a.reg_start is null and a.used_spare = 1 and a.cancel_date is null
+  and a.job_finish is null and a.tech_confirm is null`;
+
 async function getCounts(tech: string | null) {
   const params = tech ? [tech] : [];
   const mine = tech ? "and a.tech_code = $1" : "";
-  const [waiting, requested] = await Promise.all([
+  const [waiting, requested, blocked] = await Promise.all([
     query<{ total: number }>(
       `select count(*)::int total from ods_tb_install a where ${WAIT_WHERE} ${mine}`,
       params,
     ),
     query<{ total: number }>(`select count(*)::int total ${REQ_FROM} where ${REQ_WHERE} ${mine}`, params),
+    query<{ unassigned: number; unaccepted: number }>(
+      `select count(*) filter (where coalesce(a.tech_code,'') = '')::int unassigned,
+          count(*) filter (where coalesce(a.tech_code,'') <> '')::int unaccepted
+        from ods_tb_install a where ${NOT_READY} ${mine}`,
+      params,
+    ),
   ]);
-  return { waiting: waiting.rows[0]?.total ?? 0, requested: requested.rows[0]?.total ?? 0 };
+  return {
+    waiting: waiting.rows[0]?.total ?? 0,
+    requested: requested.rows[0]?.total ?? 0,
+    unassigned: blocked.rows[0]?.unassigned ?? 0,
+    unaccepted: blocked.rows[0]?.unaccepted ?? 0,
+  };
 }
 
 export default async function SpareRequestsPage({ searchParams }: Props) {
@@ -148,6 +166,28 @@ export default async function SpareRequestsPage({ searchParams }: Props) {
         dir={dir}
         hidden={tab !== "waiting" ? { tab } : {}}
       />
+
+      {/*
+        ── ບອກວ່າງານທີ່ "ຫາຍໄປ" ຄ້າງຢູ່ໃສ ──
+        ງານທີ່ໃຊ້ອາໄຫຼ່ (ແອ) ຈະຂຶ້ນຄິວນີ້ **ຕໍ່ເມື່ອຊ່າງກົດຮັບງານແລ້ວ** (ກັນໃບເບີກ
+        ອອກໃນນາມຊ່າງທີ່ຍັງບໍ່ໄດ້ຮັບງານ ແລ້ວລາວປະຕິເສດ). ບໍ່ບອກ = ຄິວ 0 ແລ້ວຄົນຫາງານບໍ່ພົບ.
+      */}
+      {tab === "waiting" && counts.unassigned + counts.unaccepted > 0 && (
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
+          ຍັງມີງານທີ່ໃຊ້ອາໄຫຼ່ ແຕ່ຍັງບໍ່ຂຶ້ນຄິວນີ້:
+          {counts.unassigned > 0 && (
+            <Link href="/installations/assign" className="underline">
+              {counts.unassigned} ງານ ຍັງບໍ່ໄດ້ຈັດຊ່າງ
+            </Link>
+          )}
+          {counts.unaccepted > 0 && (
+            <Link href="/installations/accept" className="underline">
+              {counts.unaccepted} ງານ ຊ່າງຍັງບໍ່ກົດຮັບງານ
+            </Link>
+          )}
+          <span className="font-normal">— ຊ່າງຕ້ອງຮັບງານກ່ອນ ຈຶ່ງຂໍເບີກອາໄຫຼ່ໄດ້</span>
+        </p>
+      )}
 
       <TableShell total={list.total} minWidth={tab === "waiting" ? 1300 : 1450}>
         <InstallTableHead
