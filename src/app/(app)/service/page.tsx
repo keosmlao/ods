@@ -63,35 +63,12 @@ const CLOSED_SORT_SQL: Record<string, string> = {
   receiver: "a.user_regis",
 };
 
-async function getClosed(tab: "done" | "cancelled", q: string, page: number, sort: string, dir: "asc" | "desc") {
-  // ຈົບແລ້ວ = ສົ່ງຄືນສຳເລັດ (ຂັ້ນ 11) · ຍົກເລີກ = ຂັ້ນ -1
-  const where = [tab === "done" ? DONE_JOBS : CANCELLED_JOBS];
-  const params: (string | number)[] = [];
-  if (q) { params.push(`%${q}%`); where.push(SEARCH.replaceAll("$1", `$${params.length}`)); }
-  const filter = where.join(" and ");
-  const orderBy = `${CLOSED_SORT_SQL[sort] ?? "a.roworder"} ${dir === "asc" ? "asc" : "desc"}`;
-
-  // ບໍ່ດຶງຮູບ ດ້ວຍເຫດຜົນດຽວກັບກະດານ — ແຕ່ລະຮູບ = 1 request ໄປ /api/uploads
-  const rowsSql = `select a.code, to_char(a.time_register,'DD-MM-YYYY HH24:MI') registered,
-      concat_ws('-', b.name_1, b.tel) customer, concat_ws(' ', a.name_1, a.p_model) product, a.sn,
-      a.p_brand brand, a.warrunty warranty, a.issue, a.emp_code technician, a.user_regis receiver,
-      a.status raw_status,
-      case (${STAGE_SQL}) when 11 then 'ສົ່ງຄືນສຳເລັດ' when -1 then 'ຍົກເລີກເເລ້ວ' else '-' end status
-    from tb_product a
-    left join ar_customer b on b.code = a.cust_code
-    where ${filter}
-    order by ${orderBy} limit $${params.length + 1} offset $${params.length + 2}`;
-
-  const countSql = `select count(*)::int total from tb_product a
-    left join ar_customer b on b.code = a.cust_code
-    where ${filter}`;
-
-  const [rows, count] = await Promise.all([
-    query<TableRow>(rowsSql, [...params, PAGE_SIZE, (page - 1) * PAGE_SIZE]),
-    query<{ total: number }>(countSql, params),
-  ]);
-  return { rows: rows.rows, total: count.rows[0]?.total ?? 0 };
-}
+/**
+ * ── ຖອດ getClosed() ອອກ (13-07-2026) ──
+ * ມັນ scan ໃບຮັບເຄື່ອງ 5,000+ ໃບ ທຸກເທື່ອທີ່ເປີດໜ້າ ເພື່ອຕື່ມແທັບ "ຈົບແລ້ວ / ຍົກເລີກ"
+ * ທີ່ຄົນເຮັດວຽກປະຈຳວັນບໍ່ໄດ້ໃຊ້ ⇒ ໜ້າຊ້າໂດຍບໍ່ຈຳເປັນ.
+ * ໃບເກົ່າເບິ່ງໄດ້ຜ່ານ: ຄົ້ນຫາ · /service/<ລະຫັດ> · ລາຍງານໃບຮັບເງິນ/ຍົກເລີກ.
+ */
 
 async function getNoticeCount() {
   const sql = `select count(*)::int count from tb_product_notice
