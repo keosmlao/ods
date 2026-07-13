@@ -3,22 +3,21 @@ import { createInstall, type ActionState } from "@/app/actions/installation";
 import { LocationPicker, type Point } from "@/components/installation/location-picker";
 import { SelectField } from "@/components/select-field";
 import { Button, Card, ErrorBox, LinkButton, inputClass, labelClass } from "@/components/ui";
-import { CheckCircle2, LoaderCircle, MapPin, Receipt, Save, Search, X } from "lucide-react";
+import { CheckCircle2, LoaderCircle, MapPin, Package, Plus, Receipt, Save, Search, X } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
 
 /**
  * ເປີດງານຕິດຕັ້ງ — **ໜ້າດຽວ ບໍ່ມີໂໝດ**:
  *
  *   ① ຄົ້ນຫາ ແລະ ເລືອກ **ບິນຂາຍ** (ສະເພາະບິນທີ່ມີ "ບໍລິການຕິດຕັ້ງ" ຢູ່ໃນນັ້ນ)
- *   ② ລາຍການໃນບິນຂຶ້ນມາເປັນກ່ອງ — **ຕິກອັນທີ່ຈະຕິດຕັ້ງ** ແລ້ວຕື່ມຂໍ້ມູນຢູ່ໃນກ່ອງນັ້ນເລີຍ
- *      (ໜ່ວຍ · S/N ຕໍ່ໜ່ວຍ · Model · ປະເພດ · ຂະໜາດ — ສ່ວນຫຼາຍຕື່ມມາຈາກ ERP ໃຫ້ແລ້ວ)
- *   ③ ສະຖານທີ່ (**ບັງຄັບ**) · ວັນນັດ · ໝາຍເຫດ — **ໃຊ້ຮ່ວມກັນທຸກລາຍການ** (ບ້ານດຽວກັນ)
- *   ④ ບັນທຶກເທື່ອດຽວ ⇒ ສ້າງທຸກງານ (1 ລາຍການ × 1 ໜ່ວຍ = 1 ງານ)
+ *   ② **modal ເລືອກລາຍການທີ່ຈະຕິດຕັ້ງ** — ຕິກໄດ້ຫຼາຍລາຍການພ້ອມກັນ (ເປີດເອງຫຼັງເລືອກບິນ
+ *      ຖ້າບິນມີຫຼາຍລາຍການ · ບິນລາຍການດຽວ ໃສ່ໃຫ້ເລີຍ) ⇒ ລາຍການທີ່ເລືອກລົງມາເປັນກ່ອງ
+ *   ③ ຕື່ມຂໍ້ມູນຢູ່ໃນກ່ອງ (ໜ່ວຍ · S/N ຕໍ່ໜ່ວຍ · Model · ປະເພດ · ຂະໜາດ — ດຶງຈາກ ERP ໃຫ້ແລ້ວ)
+ *   ④ ສະຖານທີ່ (**ບັງຄັບ**) · ວັນນັດ · ໝາຍເຫດ — **ໃຊ້ຮ່ວມກັນທຸກລາຍການ** (ບ້ານດຽວກັນ)
+ *   ⑤ ບັນທຶກເທື່ອດຽວ ⇒ ສ້າງທຸກງານ (1 ລາຍການ × 1 ໜ່ວຍ = 1 ງານ)
  *
- * ── ເປັນຫຍັງບໍ່ມີປຸ່ມ "ເພີ່ມລາຍການ" ອີກ ──
- * ຮຸ່ນກ່ອນໃຫ້ເລືອກລາຍການ → ຕັ້ງຄ່າ → ກົດ "ເພີ່ມ" → ກັບໄປເລືອກອັນຕໍ່ໄປ. ມັນມີ **ໂໝດ**
- * (ກຳລັງຕັ້ງຄ່າ / ເພີ່ມແລ້ວ) ທີ່ຄົນຕ້ອງຈື່ ແລະ ລືມກົດ "ເພີ່ມ" ໄດ້ງ່າຍ.
- * ດຽວນີ້ **ຕິກ = ຈະສ້າງ** — ເຫັນທຸກລາຍການພ້ອມກັນ ບໍ່ຕ້ອງຈື່ວ່າຢູ່ຂັ້ນໃດ.
+ * ບິນ 1 ໃນ 4 ໃບຕິດຕັ້ງຫຼາຍລາຍການ (2 ລາຍການ 504 ບິນ · 3+ 123 ບິນ ໃນ 1 ປີ) ⇒ ການເລືອກ
+ * ຕ້ອງເປັນ **ຊຸດ** ບໍ່ແມ່ນເທື່ອລະອັນ. ເລືອກຜິດ/ຢາກຕື່ມພາຍຫຼັງ ⇒ ກົດ "ເພີ່ມລາຍການ" ຫຼື ✕ ໄດ້ຕະຫຼອດ.
  */
 
 type Category = { code: string; name_1: string };
@@ -109,6 +108,8 @@ const paidUnits = (bill: Bill) => Math.round(bill.services.reduce((sum, service)
 export function InstallForm({ categories, username }: { categories: Category[]; username: string }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(createInstall, {});
   const [open, setOpen] = useState(false);
+  /** modal ເລືອກລາຍການທີ່ຈະຕິດຕັ້ງ — ຕິກໄດ້ຫຼາຍລາຍການພ້ອມກັນ */
+  const [picking, setPicking] = useState(false);
   const [bill, setBill] = useState<Bill | null>(null);
   /** ສະຖານະຂອງແຕ່ລະລາຍການ — key = item_code */
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -137,9 +138,9 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
     });
 
   /**
-   * ເລືອກບິນແລ້ວ ⇒ ຕັ້ງຄ່າຕັ້ງຕົ້ນຂອງທຸກລາຍການໃຫ້ເລີຍ (ຄົນບໍ່ຕ້ອງກົດຫຍັງອີກ ນອກຈາກກວດ).
+   * ເລືອກບິນແລ້ວ ⇒ ຕຽມຄ່າຕັ້ງຕົ້ນຂອງທຸກລາຍການໄວ້ ແລ້ວ **ເປີດ modal ໃຫ້ເລືອກລາຍການ**
+   * (ບິນມີລາຍການດຽວ ⇒ ໃສ່ໃຫ້ເລີຍ ບໍ່ຕ້ອງເປີດ modal).
    *
-   * · ຕິກໃຫ້ **ທຸກລາຍການ** — ບິນນີ້ຈ່າຍຄ່າຕິດຕັ້ງມາແລ້ວ ⇒ ຄາດວ່າຕິດທັງໝົດ (ຕິກອອກໄດ້)
    * · ຈຳນວນໜ່ວຍ: ບິນມີລາຍການດຽວ ⇒ ຕາມຈຳນວນ**ຄ່າຕິດຕັ້ງ** (41% ຂອງບິນຂາຍຫຼາຍກວ່າທີ່ຈ້າງຕິດ)
    *   ຫຼາຍລາຍການ ⇒ ຄ່າຕິດຕັ້ງແບ່ງກັນບໍ່ໄດ້ ⇒ ຕາມຈຳນວນທີ່ຂາຍ
    * · S/N: ຈັບຄູ່ ISN ຂອງບິນຕາມລຳດັບ (ແອ: ໜ່ວຍໃນ [C] ກັບ ໜ່ວຍນອກ [H] ຄົນລະເລກ)
@@ -158,7 +159,8 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
       const valueOf = (serial?: Serial) => (serial ? serial.sn || serial.isn : "");
 
       next[item.item_code] = {
-        on: true,
+        // ບິນລາຍການດຽວ = ບໍ່ມີຫຍັງໃຫ້ເລືອກ ⇒ ໃສ່ໃຫ້ເລີຍ · ຫຼາຍລາຍການ ⇒ ໃຫ້ເລືອກໃນ modal
+        on: single,
         units,
         serials: Array.from({ length: units }, (_, index) => valueOf(indoor[index])),
         outdoor: Array.from({ length: units }, (_, index) => valueOf(outer[index])),
@@ -173,6 +175,7 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
     setBill(chosen);
     setDrafts(next);
     setPoint(null);
+    setPicking(!single);
 
     // ບິນບໍ່ໄດ້ລົງ ISN ⇒ ດຶງຈາກຄັງ (api/installations/serials)
     for (const item of chosen.items) {
@@ -192,6 +195,10 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
         .catch(() => patch(item.item_code, { stock: [], loading: false }));
     }
   }
+
+  /** ລາຍການທີ່ **ເລືອກແລ້ວ** (ຜ່ານ modal) ແລະ ລາຍການທີ່ຍັງເລືອກໄດ້ */
+  const chosenItems = (bill?.items ?? []).filter((item) => drafts[item.item_code]?.on);
+  const remaining = (bill?.items ?? []).filter((item) => !drafts[item.item_code]?.on);
 
   /** ລາຍການທີ່ຕິກ ແລະ ຂໍ້ມູນຄົບ ⇒ ຈະຖືກສ້າງ */
   const lines = (bill?.items ?? [])
@@ -276,48 +283,86 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
         )}
       </Card>
 
-      {/* ② ລາຍການໃນບິນ — ຕິກອັນທີ່ຈະຕິດຕັ້ງ ແລ້ວຕື່ມຂໍ້ມູນຢູ່ໃນກ່ອງເລີຍ */}
+      {/* ② ລາຍການທີ່ຈະຕິດຕັ້ງ — ເພີ່ມຜ່ານ modal (ຕິກໄດ້ຫຼາຍລາຍການພ້ອມກັນ) */}
+      {bill && (
+        <Card
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Package className="size-4 text-teal-600" />
+              ລາຍການທີ່ຈະຕິດຕັ້ງ
+              {chosenItems.length > 0 && (
+                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-800">
+                  {chosenItems.length} ລາຍການ · {totalJobs} ງານ
+                </span>
+              )}
+            </span>
+          }
+          actions={
+            remaining.length > 0 ? (
+              <Button type="button" tone="info" onClick={() => setPicking(true)}>
+                <Plus className="size-4" /> ເພີ່ມລາຍການ
+              </Button>
+            ) : undefined
+          }
+        >
+          {chosenItems.length === 0 ? (
+            <button
+              type="button"
+              onClick={() => setPicking(true)}
+              className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 py-8 text-slate-500 transition hover:border-teal-400 hover:bg-teal-50/40"
+            >
+              <Plus className="size-6" />
+              <span className="text-sm font-semibold">ເລືອກລາຍການທີ່ຈະຕິດຕັ້ງ</span>
+              <span className="text-xs">ບິນນີ້ມີ {bill.items.length} ລາຍການທີ່ຕິດຕັ້ງໄດ້ — ເລືອກໄດ້ຫຼາຍອັນພ້ອມກັນ</span>
+            </button>
+          ) : (
+            <p className="text-xs text-slate-500">
+              ຕື່ມ S/N · Model · ປະເພດ · ຂະໜາດ ຂອງແຕ່ລະລາຍການລຸ່ມນີ້ (ສ່ວນຫຼາຍດຶງມາຈາກ ERP ໃຫ້ແລ້ວ)
+            </p>
+          )}
+        </Card>
+      )}
+
+      {/* ກ່ອງຂອງແຕ່ລະລາຍການທີ່ເລືອກແລ້ວ */}
       {bill &&
-        bill.items.map((item) => {
+        chosenItems.map((item) => {
           const draft = drafts[item.item_code];
-          if (!draft) return null;
 
           const billIndoor = item.serials.filter((serial) => serial.part !== "ໜ່ວຍນອກ");
           const outdoorOptions = item.serials.filter((serial) => serial.part === "ໜ່ວຍນອກ");
           const fromStock = billIndoor.length === 0 && draft.stock.length > 0;
           const indoorOptions = billIndoor.length > 0 ? billIndoor : draft.stock;
           const isAc = outdoorOptions.length > 0 || (item.pro_type_name ?? "").includes("ແອ");
-          const missing = draft.on && !lines.some((line) => line.item_code === item.item_code);
+          const missing = !lines.some((line) => line.item_code === item.item_code);
 
           return (
             <div
               key={item.item_code}
               className={`rounded-2xl border bg-white p-4 shadow-sm transition ${
-                draft.on ? (missing ? "border-amber-300" : "border-teal-300") : "border-slate-200"
+                missing ? "border-amber-300" : "border-teal-300"
               }`}
             >
-              {/* ຫົວກ່ອງ = ຕິກ ⇒ ຈະສ້າງງານ */}
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={draft.on}
-                  onChange={(event) => patch(item.item_code, { on: event.target.checked })}
-                  className="mt-1 size-5 shrink-0 accent-teal-600"
-                />
+              <div className="flex items-start gap-3">
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-bold text-slate-800">{item.item_name}</span>
                   <span className="block text-xs text-slate-500">
                     {item.pro_type_name ?? "-"} · {item.pro_size ?? "-"} · ຂາຍ {item.qty} ໜ່ວຍ
                   </span>
                 </span>
-                {draft.on && (
-                  <span className="shrink-0 rounded-full bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-800">
-                    {draft.units} ງານ
-                  </span>
-                )}
-              </label>
+                <span className="shrink-0 rounded-full bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-800">
+                  {draft.units} ງານ
+                </span>
+                <button
+                  type="button"
+                  title="ເອົາລາຍການນີ້ອອກ"
+                  onClick={() => patch(item.item_code, { on: false })}
+                  className="shrink-0 text-slate-400 hover:text-red-600"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
 
-              {draft.on && (
+              {(
                 <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
                   {/* ຈຳນວນໜ່ວຍ — 1 ໜ່ວຍ = 1 ງານ */}
                   <div className="flex flex-wrap items-center gap-2">
@@ -454,7 +499,7 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
                       {!draft.model.trim() && "Model · "}
                       {!draft.type && "ປະເພດ · "}
                       {!draft.size.trim() && "ຂະໜາດ · "}
-                      (ຫຼື ຕິກອອກ ຖ້າບໍ່ຕິດຕັ້ງລາຍການນີ້)
+                      (ຫຼື ກົດ ✕ ເອົາລາຍການນີ້ອອກ)
                     </p>
                   )}
                 </div>
@@ -556,7 +601,121 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
           }}
         />
       )}
+
+      {picking && bill && (
+        <ItemPicker
+          items={remaining}
+          onClose={() => setPicking(false)}
+          onAdd={(codes) => {
+            setDrafts((current) => {
+              const next = { ...current };
+              for (const code of codes) next[code] = { ...next[code], on: true };
+              return next;
+            });
+            setPicking(false);
+          }}
+        />
+      )}
     </form>
+  );
+}
+
+/**
+ * ເລືອກ **ລາຍການທີ່ຈະຕິດຕັ້ງ** ຈາກບິນ — ຕິກໄດ້ຫຼາຍລາຍການພ້ອມກັນ ແລ້ວກົດເພີ່ມເທື່ອດຽວ.
+ *
+ * ບິນ 1 ໃນ 4 ໃບມີຫຼາຍລາຍການທີ່ຕິດຕັ້ງໄດ້ (2 ລາຍການ 504 ບິນ · 3+ 123 ບິນ ໃນ 1 ປີ)
+ * ⇒ ໃຫ້ເລືອກເປັນຊຸດ ດີກວ່າກົດເພີ່ມທີ່ລະອັນ. ຕິກໃຫ້ໝົດໄວ້ກ່ອນ (ບິນຈ່າຍຄ່າຕິດຕັ້ງມາແລ້ວ
+ * ⇒ ຄາດວ່າຕິດທັງໝົດ) — ອັນທີ່ບໍ່ຕິດ ຕິກອອກ.
+ */
+function ItemPicker({
+  items,
+  onClose,
+  onAdd,
+}: {
+  items: BillItem[];
+  onClose: () => void;
+  onAdd: (codes: string[]) => void;
+}) {
+  const [picked, setPicked] = useState<string[]>(items.map((item) => item.item_code));
+
+  const toggle = (code: string) =>
+    setPicked((current) => (current.includes(code) ? current.filter((row) => row !== code) : [...current, code]));
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4" onClick={onClose}>
+      <div
+        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="flex items-start justify-between gap-3 border-b border-slate-100 p-4">
+          <div>
+            <h2 className="font-bold text-slate-800">ເລືອກລາຍການທີ່ຈະຕິດຕັ້ງ</h2>
+            <p className="mt-0.5 text-xs text-slate-500">ຕິກໄດ້ຫຼາຍລາຍການພ້ອມກັນ — ອັນທີ່ບໍ່ຕິດຕັ້ງ ຕິກອອກ</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-slate-100"
+          >
+            <X className="size-4" />
+          </button>
+        </header>
+
+        <div className="flex-1 space-y-2 overflow-auto p-4">
+          {items.map((item) => {
+            const on = picked.includes(item.item_code);
+            return (
+              <label
+                key={item.item_code}
+                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${
+                  on ? "border-teal-400 bg-teal-50/50" : "border-slate-200 hover:border-teal-300"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={on}
+                  onChange={() => toggle(item.item_code)}
+                  className="mt-0.5 size-5 shrink-0 accent-teal-600"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-slate-800">{item.item_name}</span>
+                  <span className="block text-xs text-slate-500">
+                    {item.pro_type_name ?? "-"} · {item.pro_size ?? "-"}
+                    {item.serials.length > 0 && ` · ມີ ISN ${item.serials.length}`}
+                  </span>
+                </span>
+                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
+                  ຂາຍ {item.qty} ໜ່ວຍ
+                </span>
+              </label>
+            );
+          })}
+
+          {items.length === 0 && (
+            <p className="py-10 text-center text-sm text-slate-400">ລາຍການໃນບິນນີ້ຖືກເລືອກໝົດແລ້ວ</p>
+          )}
+        </div>
+
+        <footer className="flex items-center gap-3 border-t border-slate-100 p-3">
+          <span className="text-xs text-slate-500">ເລືອກແລ້ວ {picked.length} ລາຍການ</span>
+          <div className="ml-auto flex gap-2">
+            <Button type="button" tone="neutral" onClick={onClose} className="h-9 text-xs">
+              ຍົກເລີກ
+            </Button>
+            <Button
+              type="button"
+              tone="success"
+              disabled={picked.length === 0}
+              onClick={() => onAdd(picked)}
+              className="h-9 text-xs"
+            >
+              <Plus className="size-4" />
+              ເພີ່ມ {picked.length} ລາຍການ
+            </Button>
+          </div>
+        </footer>
+      </div>
+    </div>
   );
 }
 

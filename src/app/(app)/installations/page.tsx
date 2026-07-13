@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { INSTALL_CANCELLED, INSTALL_CLOSED, INSTALL_OPEN, INSTALL_STAGE_TIME_COL } from "@/lib/install-stage";
 import { roleOf } from "@/lib/roles";
-import { Ban, Bell, CheckCircle2, FilePlus2, ListChecks, Loader, Pencil, Printer } from "lucide-react";
+import { Ban, CheckCircle2, FilePlus2, ListChecks, Loader, Pencil, Printer } from "lucide-react";
 import Link from "next/link";
 import { CancelledSpares } from "./cancelled-spares";
 import { getInstallOutstandingByJob } from "./outstanding";
@@ -135,25 +135,18 @@ export default async function InstallationsPage({ searchParams }: Props) {
         pages={pages}
       />
 
-      {/* ເມນູຍ່ອຍຂອງໂມດູນຕິດຕັ້ງ */}
+      {/*
+        ── ຖອດ "ເມນູຍ່ອຍ" ອອກ ──
+        ແຖວປຸ່ມ (ຈັດງານຊ່າງ · ຮັບງານ · ໃບຂໍເບີກ · ສາງເບີກ · ຮັບອາໄຫຼ່ · ຕິດຕັ້ງ · ປິດງານ)
+        ຄື **ເມນູອັນດຽວກັບ sidebar** ທຸກລາຍການ ແລະ sidebar ມີເລກຄິວຄ້າງໃຫ້ຢູ່ແລ້ວ
+        (lib/nav-counts) ⇒ ເປັນທາງນຳທາງຊ້ອນກັນ 2 ບ່ອນ ທີ່ຕ້ອງດູແລໃຫ້ຕົງກັນ.
+        ເຫຼືອໄວ້ພຽງ **ການກະທຳຫຼັກຂອງໜ້ານີ້** (ເປີດງານ) — ອັນນີ້ບໍ່ມີໃນ sidebar.
+      */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
         <LinkButton href="/installations/new" tone="success" className="h-9 text-xs">
           <FilePlus2 className="size-4" />
           ເປີດງານຕິດຕັ້ງ
         </LinkButton>
-        <LinkButton href="/installations/assign" tone="neutral" className="h-9 border-2 border-[#E74033] text-xs">
-          ຈັດງານຊ່າງຕິດຕັ້ງ
-          <Bell className="size-4" />
-          <span className="grid min-w-5 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-            {counts.unassigned}
-          </span>
-        </LinkButton>
-        <LinkButton href="/installations/accept" tone="neutral" className="h-9 text-xs">ຮັບງານຕິດຕັ້ງ</LinkButton>
-        <LinkButton href="/installations/spare-requests" tone="neutral" className="h-9 text-xs">ໃບຂໍເບີກຕິດຕັ້ງ</LinkButton>
-        <LinkButton href="/installations/dispatch" tone="neutral" className="h-9 text-xs">ສາງເບີກອາໄຫຼ່</LinkButton>
-        <LinkButton href="/installations/spare-pickup" tone="neutral" className="h-9 text-xs">ຮັບອາໄຫຼ່</LinkButton>
-        <LinkButton href="/installations/work" tone="neutral" className="h-9 text-xs">ຕິດຕັ້ງ</LinkButton>
-        <LinkButton href="/installations/close" tone="neutral" className="h-9 text-xs">ປິດງານ</LinkButton>
       </div>
 
       <TabsAndSearch
