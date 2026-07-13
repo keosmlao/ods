@@ -105,9 +105,18 @@ type Draft = {
 /** ຈຳນວນງານທີ່ຈ່າຍຄ່າຕິດຕັ້ງແລ້ວໃນບິນ (ລວມທຸກແຖວບໍລິການ) */
 const paidUnits = (bill: Bill) => Math.round(bill.services.reduce((sum, service) => sum + (service.qty || 0), 0));
 
-export function InstallForm({ categories, username }: { categories: Category[]; username: string }) {
+export function InstallForm({
+  categories,
+  username,
+  bill: presetBill = "",
+}: {
+  categories: Category[];
+  username: string;
+  /** ເລກບິນທີ່ສົ່ງມາຈາກໜ້າ "ບິນຄ້າງອອກໃບງານ" — ເປີດ modal ຄົ້ນໃຫ້ເລີຍ */
+  bill?: string;
+}) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(createInstall, {});
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(Boolean(presetBill));
   /** modal ເລືອກລາຍການທີ່ຈະຕິດຕັ້ງ — ຕິກໄດ້ຫຼາຍລາຍການພ້ອມກັນ */
   const [picking, setPicking] = useState(false);
   const [bill, setBill] = useState<Bill | null>(null);
@@ -594,6 +603,7 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
 
       {open && (
         <BillPicker
+          preset={presetBill}
           onClose={() => setOpen(false)}
           onPick={(chosen) => {
             loadBill(chosen);
@@ -733,8 +743,8 @@ function Field({ label, value }: { label: string; value: string }) {
  * ແລະ ປຸ່ມ "ເລືອກ" ຖືກຕັດອອກນອກຈໍ). **1 ບັດ = 1 ບິນ** ພ້ອມລາຍການທີ່ຈະຕິດຕັ້ງ
  * ⇒ ເຫັນກ່ອນວ່າບິນນັ້ນມີຫຍັງແດ່ ຈຶ່ງກົດເລືອກ.
  */
-function BillPicker({ onClose, onPick }: { onClose: () => void; onPick: (bill: Bill) => void }) {
-  const [q, setQ] = useState("");
+function BillPicker({ onClose, onPick, preset = "" }: { onClose: () => void; onPick: (bill: Bill) => void; preset?: string }) {
+  const [q, setQ] = useState(preset);
   const [rows, setRows] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(false);
 

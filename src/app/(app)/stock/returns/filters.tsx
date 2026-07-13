@@ -36,6 +36,7 @@ export function ReturnFilters({
       {tab !== "dispatched" && <input type="hidden" name="tab" value={tab} />}
       <input type="hidden" name="sort" value={sort} />
       <input type="hidden" name="dir" value={dir} />
+      {!showJob && <input type="hidden" name="job" value={job} />}
 
       <div className="flex h-9 min-w-56 flex-1 items-center gap-2 rounded-lg border border-slate-300 px-2.5">
         <Search className="size-3.5 shrink-0 text-slate-400" />
@@ -53,7 +54,7 @@ export function ReturnFilters({
               // ລໍຖ້າໃຫ້ hidden input ຮັບຄ່າໃໝ່ກ່ອນຈຶ່ງສົ່ງຟອມ
               setTimeout(() => formRef.current?.requestSubmit(), 0);
             }}
-            placeholder="ທຸກປະເພດວຽກ"
+            placeholder="ເລືອກສາຍງານ"
           />
         </div>
       )}

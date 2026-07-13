@@ -75,7 +75,7 @@ const REPAIR: NavGroup = {
     { label: "ລູກຄ້າອະນຸມັດ(ສະເໜີລາຄາ)", href: "/quotations/customer-approval", count: "/quotations/customer-approval" },
     { label: "ໃບຂໍເບີກອາໄຫຼ່", href: "/stock/requests", divider: true },
     { label: "ຮັບອາໄຫຼ່", href: "/stock/requests/pickup" },
-    { label: "ໃບຂໍສົ່ງຄືນອາໄຫຼ່", href: "/stock/returns" },
+    { label: "ສົ່ງຄືນອາໄຫຼ່(ສ້ອມແປງ)", href: "/stock/returns?job=repair" },
     { label: "ສ້ອມແປງ", href: "/repair", count: "/repair" },
     /**
      * ── QC ເປັນ **ຂັ້ນຕອນ** ຂອງສາຍງານ ບໍ່ແມ່ນເມນູແຍກ (13-07-2026) ──
@@ -84,6 +84,12 @@ const REPAIR: NavGroup = {
      * ຕ້ອງຜ່ານມັນ ແລ້ວງານຄ້າງຢູ່ຂັ້ນ "ລໍກວດຮັບຄຸນນະພາບ" ໂດຍບໍ່ຮູ້ຕົວ (ຂໍ້ມູນຈິງ: 16 ໃບ).
      */
     { label: "ກວດຮັບຄຸນນະພາບ", href: "/qc", flag: "qc", count: "/qc" },
+    /**
+     * ຄິວແຈ້ງລູກຄ້າ — ງານທີ່ຢຸດຢູ່ຈົນກວ່າຈະມີຄົນໂທບອກລູກຄ້າວ່າ "ເຄື່ອງແລ້ວ, ມາຮັບໄດ້"
+     * ⇒ ມັນຄື **ຂັ້ນຕອນລະຫວ່າງ QC ກັບ ໃບສົ່ງເຄື່ອງ** ບໍ່ແມ່ນເລື່ອງ "ຄຸນນະພາບ"
+     * (ຢູ່ກຸ່ມ "ຄຸນນະພາບ" ຄົນເຮັດງານສ້ອມຫາບໍ່ພົບ).
+     */
+    { label: "ຄິວແຈ້ງລູກຄ້າ", href: "/customer-contact" },
     { label: "ໃບສົ່ງເຄື່ອງ/ໃບຮັບເງິນ", href: "/returns", count: "/returns", divider: true },
     { label: "ຕິດຕາມສະຖານະ", href: "/dashboard/tracking" },
   ],
@@ -96,6 +102,11 @@ const INSTALL: NavGroup = {
   icon: HardHat,
   items: [
     { label: "ງານຕິດຕັ້ງ", href: "/installations" },
+    /**
+     * ບິນທີ່ຄ້າງອອກໃບງານ — ຄິວທຸກໜ້າເລີ່ມນັບຈາກ "ໃບງານທີ່ເປີດແລ້ວ" ⇒ ບິນທີ່ **ລືມເປີດ**
+     * ບໍ່ປາກົດຢູ່ໃສເລີຍ (ຂໍ້ມູນຈິງ: 181 ໜ່ວຍຄ້າງ · ບິນເກົ່າສຸດແຕ່ເດືອນເມສາ).
+     */
+    { label: "ບິນຄ້າງອອກໃບງານ", href: "/installations/pending-bills" },
     { label: "ມອບໝາຍງານ", href: "/installations/assign", count: "/installations/assign" },
     { label: "ຮັບງານຕິດຕັ້ງ", href: "/installations/accept", count: "/installations/accept" },
     { label: "ໃບຂໍເບີກ(ຕິດຕັ້ງ)", href: "/installations/spare-requests", divider: true },
@@ -106,9 +117,8 @@ const INSTALL: NavGroup = {
      */
     { label: "ຮັບອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/installations/spare-pickup" },
     /**
-     * ສົ່ງອາໄຫຼ່ຄືນສາງ — ໜ້າ /stock/returns ຮັບໃຊ້ **ທັງສອງສາຍງານ** (ມີຕົວກອງ job=install)
-     * ແຕ່ເມື່ອກ່ອນມີລິ້ງຢູ່ໃນເມນູ "ສ້ອມແປງ" ບ່ອນດຽວ ⇒ ຄົນເຮັດງານຕິດຕັ້ງບໍ່ຮູ້ວ່າມີ
-     * ແລະ ຕະຫຼອດ 3 ປີບໍ່ເຄີຍມີໃບສົ່ງຄືນຂອງງານ INST- ຈັກໃບ ທັງທີ່ມີອາໄຫຼ່ຄ້າງນອກສາງຢູ່.
+     * ໜ້າດຽວກັນໃຊ້ query scope ຄົນລະຄ່າ: job=install ແລະ job=repair.
+     * ຕ້ອງຮັກສາ scope ນີ້ຂ້າມທຸກແທັບ ເພື່ອບໍ່ໃຫ້ໃບຂອງສອງສາຍງານປົນກັນ.
      */
     { label: "ສົ່ງຄືນອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/stock/returns?job=install" },
     { label: "ຕິດຕັ້ງ", href: "/installations/work", count: "/installations/work", divider: true },
@@ -151,16 +161,6 @@ const APPROVE: NavGroup = {
 /* ── ຄຸນນະພາບ (QC) — ດ່ານກ່ອນສົ່ງມອບລູກຄ້າ ─────────────────────
  * ໃຊ້ຮ່ວມກັນທັງສ້ອມແປງ ແລະ ຕິດຕັ້ງ ⇒ ຢູ່ກຸ່ມຂອງຕົນເອງ ບໍ່ຢູ່ໃນສາຍງານໃດສາຍງານນຶ່ງ.
  */
-const QUALITY: NavGroup = {
-  id: "qc_menu",
-  label: "ຄຸນນະພາບ",
-  icon: BadgeCheck,
-  items: [
-    { label: "ຄິວກວດຮັບຄຸນນະພາບ", href: "/qc", flag: "qc", count: "/qc" },
-    { label: "ຄິວແຈ້ງລູກຄ້າ", href: "/customer-contact" },
-    { label: "ຕັ້ງລາຍການກວດຮັບ", href: "/manage/qc-checklist" },
-  ],
-};
 
 const REPORT: NavGroup = {
   id: "report_menu",
@@ -191,13 +191,23 @@ const USERS: NavGroup = {
   icon: ShieldCheck,
   items: [
     { label: "ກຳນົດສິດ", href: "/manage/employees" },
+    // ຕັ້ງລາຍການກວດຮັບ = **ການຕັ້ງຄ່າ** (ຜູ້ຈັດການເຮັດເທື່ອດຽວ) ບໍ່ແມ່ນຄິວງານປະຈຳວັນ
+    { label: "ຕັ້ງລາຍການກວດຮັບ (QC)", href: "/manage/qc-checklist" },
     { label: "ຄ່າບໍລິການ / ຄ່າຄອມຊ່າງ", href: "/manage/service-rates" },
     { label: "ເຊື່ອມຕົວຕົນຊ່າງ", href: "/manage/technicians" },
   ],
 };
 
 /** ເມນູທັງໝົດ (ກ່ອນກັ່ນຕອງສິດ) */
-export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, STOCK, QUALITY, APPROVE, REPORT, USERS];
+/**
+ * ── ກຸ່ມ "ຄຸນນະພາບ" **ຖອດອອກແລ້ວ** (13-07-2026) ──
+ * ມັນເປັນກຸ່ມທີ່ຈັດຕາມ "ຫົວຂໍ້" ບໍ່ແມ່ນຕາມ **ລຳດັບການເຮັດວຽກ** ⇒ ຂັ້ນຕອນທີ່ຕ້ອງຜ່ານຈິງ
+ * (QC · ແຈ້ງລູກຄ້າ) ໄປລີ້ຢູ່ນັ້ນ ແລ້ວຄົນເຮັດງານຫາບໍ່ພົບ. ດຽວນີ້:
+ *   ກວດຮັບຄຸນນະພາບ → ຢູ່ໃນລຳດັບຂອງ **ທັງສອງສາຍງານ** (ສ້ອມ · ຕິດຕັ້ງ)
+ *   ຄິວແຈ້ງລູກຄ້າ  → ຢູ່ໃນສາຍງານ **ສ້ອມ** (ລະຫວ່າງ QC ກັບ ໃບສົ່ງເຄື່ອງ)
+ *   ຕັ້ງລາຍການກວດຮັບ → ຢູ່ກຸ່ມ **ຜູ້ໃຊ້/ຕັ້ງຄ່າ** (ເປັນການຕັ້ງຄ່າ ບໍ່ແມ່ນຄິວງານ)
+ */
+export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, STOCK, APPROVE, REPORT, USERS];
 
 /**
  * ເມນູຂອງ role ນີ້ — ກັ່ນຕອງດ້ວຍ canAccess() ຂອງ lib/roles ໂດຍກົງ

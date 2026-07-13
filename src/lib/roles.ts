@@ -146,6 +146,7 @@ const RULES: Rule[] = [
   { path: "/installations/spare-returns", roles: RETURN_SIDE },
   { path: "/installations/spare-returns/receive", roles: STOCK_SIDE },
   { path: "/installations/dispatch", roles: STOCK_SIDE },
+  { path: "/installations/pending-bills", roles: SERVICE_SIDE },
   { path: "/installations/*/edit", roles: SERVICE_SIDE },
   { path: "/installations/*/print", roles: EVERYONE },
   /**

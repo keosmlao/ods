@@ -205,12 +205,16 @@ async function getMovements(q: string, page: number, sort: string, dir: SortDir)
 }
 
 /** ນັບຫົວແທັບ — ບໍ່ດຶງແຖວ */
-async function getCounts() {
-  const docSql = `select count(*) filter (where ${DISPATCHED_SQL})::int dispatched,
-      count(*) filter (where ${DISPATCHED_SQL} and ${CANCELLED_JOB_SQL})::int cancelled,
-      count(*) filter (where ${requestedSql("$3")})::int requested
+async function getCounts(job: "install" | "repair") {
+  const jobSql = job === "install" ? "a.job_type = 'install'" : "coalesce(a.job_type,'') <> 'install'";
+  const docSql = `select count(*) filter (where ${DISPATCHED_SQL} and ${jobSql})::int dispatched,
+      count(*) filter (where ${DISPATCHED_SQL} and ${CANCELLED_JOB_SQL} and ${jobSql})::int cancelled,
+      count(*) filter (where ${requestedSql("$3")} and ${jobSql})::int requested
     from ic_trans a`;
-  const moveSql = "select count(*)::int total from tb_product a where a.used_spare = 1";
+  // ການເຄື່ອນໄຫວອ່ານຈາກ tb_product ຈຶ່ງເປັນສາຍສ້ອມແປງເທົ່ານັ້ນ
+  const moveSql = job === "repair"
+    ? "select count(*)::int total from tb_product a where a.used_spare = 1"
+    : "select 0::int total";
 
   const [docs, moves] = await Promise.all([
     query<{ dispatched: number; cancelled: number; requested: number }>(docSql, [
@@ -268,22 +272,24 @@ export default async function StockReturnsPage({ searchParams }: Props) {
   await syncErpReturns();
 
   const params = await searchParams;
+  // ໜ້າສ້ອມແປງເປັນຄ່າເລີ່ມຕົ້ນ; ງານຕິດຕັ້ງຕ້ອງເຂົ້າດ້ວຍ job=install
+  // ບໍ່ມີສະຖານະ "ທັງໝົດ" ເພື່ອບໍ່ໃຫ້ສອງ workflow ປົນກັນອີກ
+  const job: "install" | "repair" = params.job === "install" ? "install" : "repair";
   const tab: Tab =
     params.tab === "requested"
       ? "requested"
-      : params.tab === "movements"
+      : params.tab === "movements" && job === "repair"
         ? "movements"
         : params.tab === "cancelled"
           ? "cancelled"
           : "dispatched";
   const q = (params.q ?? "").trim();
-  const job = params.job === "install" || params.job === "repair" ? params.job : "";
   const page = Math.max(1, Number(params.page) || 1);
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
   const sort = (params.sort ?? "elapsed").trim();
 
   const [counts, list] = await Promise.all([
-    getCounts(),
+    getCounts(job),
     tab === "movements" ? getMovements(q, page, sort, dir) : getDocs(tab, q, job, page, sort, dir),
   ]);
   const pages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
@@ -294,9 +300,9 @@ export default async function StockReturnsPage({ searchParams }: Props) {
       ? await getSpareLines((list.rows as Doc[]).map((doc) => doc.doc_no))
       : new Map<string, SpareLine[]>();
 
-  const base = () => ({ ...(tab !== "dispatched" && { tab }), ...(q && { q }), ...(job && tab !== "movements" && { job }) });
+  const base = () => ({ ...(tab !== "dispatched" && { tab }), ...(q && { q }), job });
   const tabHref = (target: Tab) =>
-    `/stock/returns?${new URLSearchParams({ ...(target !== "dispatched" && { tab: target }), ...(q && { q }) })}`;
+    `/stock/returns?${new URLSearchParams({ ...(target !== "dispatched" && { tab: target }), ...(q && { q }), job })}`;
   const sortHref = (key: string, nextDir: SortDir) =>
     `/stock/returns?${new URLSearchParams({ ...base(), sort: key, dir: nextDir })}`;
   const pageHref = (n: number) =>
@@ -307,7 +313,9 @@ export default async function StockReturnsPage({ searchParams }: Props) {
     // ງານຍົກເລີກແຕ່ອາໄຫຼ່ຍັງຢູ່ນອກສາງ — ຕ້ອງສ້າງໃບຂໍຄືນ ບໍ່ດັ່ງນັ້ນຂອງຫາຍໂດຍບໍ່ມີເອກະສານ
     { key: "cancelled", label: "ຍົກເລີກ — ຖ້າສົ່ງຄືນ", icon: Ban, count: counts.cancelled },
     { key: "requested", label: "ລາຍການຂໍສົ່ງ​ຄືນອາໄລ່", icon: Undo2, count: counts.requested },
-    { key: "movements", label: "ການເຄື່ອນໃຫວ", icon: Activity, count: counts.movements },
+    ...(job === "repair"
+      ? [{ key: "movements" as const, label: "ການເຄື່ອນໃຫວ", icon: Activity, count: counts.movements }]
+      : []),
   ];
 
   const docs = tab === "movements" ? [] : (list.rows as Doc[]);
@@ -317,7 +325,9 @@ export default async function StockReturnsPage({ searchParams }: Props) {
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-700">ສົ່ງຄືນອາໄຫຼ່</h1>
+          <h1 className="text-xl font-bold text-slate-700">
+            ສົ່ງຄືນອາໄຫຼ່ ({job === "install" ? "ຕິດຕັ້ງ" : "ສ້ອມແປງ"})
+          </h1>
           <p className="mt-0.5 text-xs text-slate-500">
             ໃບຂໍສົ່ງອາໄຫຼ່ · {list.total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
           </p>
