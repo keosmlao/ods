@@ -127,34 +127,61 @@ async function guardJob(code: string, allowed: readonly Role[]): Promise<JobGuar
 
 /* ── ເປີດງານຕິດຕັ້ງ (save_install_create) ─────────────────── */
 
-const createSchema = z.object({
-  doc_no: z.string().min(1),
-  billdate: z.string().min(1),
+/**
+ * ── ລາຍການທີ່ຈະຕິດຕັ້ງ 1 ລາຍການ ──
+ *
+ * ບິນນຶ່ງອາດຕິດຕັ້ງ **ຫຼາຍລາຍການ**: ຂໍ້ມູນຈິງ 1 ປີ (ບິນທີ່ມີບໍລິການຕິດຕັ້ງ)
+ *   1 ລາຍການ = 1,856 ບິນ (75%) · **2 ລາຍການ = 504 ບິນ (20%)** · 3+ = 123 ບິນ (5%)
+ * ⇒ ບັງຄັບໃຫ້ເປີດເທື່ອລະລາຍການ = CS ຕ້ອງກອກບິນ/ລູກຄ້າ/ສະຖານທີ່ຄືນໃໝ່ທຸກເທື່ອ
+ *   ແລະ ລາຍການທີ 2 ມັກຖືກລືມ (ຄືກັບບັນຫາ "1 ໜ່ວຍ = 1 ງານ" ທີ່ແກ້ໄປແລ້ວ).
+ *
+ * ແຕ່ລະລາຍການມີ Model · ປະເພດ · ຂະໜາດ · ອາໄຫຼ່ມາດຕະຖານ (sv_type) **ຂອງຕົນເອງ**
+ * ⇒ ຈຶ່ງເປັນ object ບໍ່ແມ່ນພຽງລະຫັດ. ສະຖານທີ່/ວັນນັດ/ໝາຍເຫດ ໃຊ້ຮ່ວມກັນ (ບ້ານດຽວກັນ).
+ */
+const lineSchema = z.object({
   item_code: z.string().min(1),
   item_name: z.string().min(1),
   sv_type: z.string(),
-  cust_code: z.string().min(1),
-  custname: z.string().min(1),
-  tel: z.string(),
-  address: z.string(),
   pro_brand: z.string(),
   pro_model: z.string().min(1),
   pro_type: z.string().min(1),
   pro_size: z.string().min(1),
-  /**
-   * S/N ຂອງແຕ່ລະໜ່ວຍ — ຄັ່ນດ້ວຍ "|" (ບິນນຶ່ງອາດຂາຍແອ 2 ຊຸດ ⇒ 2 ງານ ຄົນລະ S/N).
-   * ຈຳນວນຕ້ອງເທົ່າກັບ `units`.
-   */
-  pro_sn: z.string().min(1),
-  /**
-   * S/N **ໜ່ວຍນອກ [H]** ຂອງແຕ່ລະໜ່ວຍ — ຄັ່ນດ້ວຍ "|" ຄືກັບ pro_sn.
-   * ແອປະກອບດ້ວຍ ໜ່ວຍໃນ [C] + ໜ່ວຍນອກ [H] ແລະ ERP ລົງ ISN **ຄົນລະເລກ**
-   * ⇒ ເກັບໜ່ວຍດຽວ = ຮັບປະກັນ/ສ້ອມຄອມເພຣສເຊີພາຍຫຼັງ ອ້າງອີງບໍ່ໄດ້.
-   * ບໍ່ບັງຄັບ (ເຄື່ອງທີ່ບໍ່ແມ່ນແອ ບໍ່ມີໜ່ວຍນອກ).
-   */
-  pro_sn_out: z.string().optional(),
   /** ຈະຕິດຕັ້ງຈັກໜ່ວຍ = ຈະສ້າງຈັກງານ (1 ໜ່ວຍ = 1 ງານ = 1 ຊ່າງໄປ 1 ບ່ອນ) */
-  units: z.coerce.number().int().min(1).max(20).default(1),
+  units: z.number().int().min(1).max(20),
+  /** S/N (ໜ່ວຍໃນ [C] ຖ້າເປັນແອ) ຂອງແຕ່ລະໜ່ວຍ — ຕ້ອງຄົບຕາມ units */
+  serials: z.array(z.string().trim().min(1)),
+  /**
+   * S/N **ໜ່ວຍນອກ [H]** ຂອງແຕ່ລະໜ່ວຍ — ບໍ່ບັງຄັບ (ເຄື່ອງທີ່ບໍ່ແມ່ນແອບໍ່ມີໜ່ວຍນອກ).
+   * ແອປະກອບດ້ວຍ ໜ່ວຍໃນ + ໜ່ວຍນອກ ແລະ ERP ລົງ ISN **ຄົນລະເລກ** ⇒ ເກັບໜ່ວຍດຽວ =
+   * ຮັບປະກັນ/ສ້ອມຄອມເພຣສເຊີພາຍຫຼັງ ອ້າງອີງບໍ່ໄດ້.
+   */
+  outdoor: z.array(z.string()),
+});
+
+export type InstallLine = z.infer<typeof lineSchema>;
+
+/** ເພດານຂອງງານທີ່ສ້າງໄດ້ໃນເທື່ອດຽວ — ກັນການກົດຜິດທີ່ສ້າງງານເປັນຮ້ອຍ */
+const MAX_JOBS_PER_SAVE = 20;
+
+const createSchema = z.object({
+  doc_no: z.string().min(1),
+  billdate: z.string().min(1),
+  cust_code: z.string().min(1),
+  custname: z.string().min(1),
+  tel: z.string(),
+  address: z.string(),
+  /** ລາຍການທີ່ຈະຕິດຕັ້ງ (JSON) — ຢ່າງໜ້ອຍ 1 ລາຍການ */
+  lines: z
+    .string()
+    .min(1)
+    .transform((raw, ctx) => {
+      try {
+        return z.array(lineSchema).min(1).parse(JSON.parse(raw));
+      } catch {
+        ctx.addIssue({ code: "custom", message: "ລາຍການທີ່ຈະຕິດຕັ້ງບໍ່ຖືກຕ້ອງ" });
+        return z.NEVER;
+      }
+    }),
   /** ພິກັດສະຖານທີ່ຕິດຕັ້ງ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງໄດ້ຈາກແອັບ */
   location_lat: z.string().optional(),
   location_lng: z.string().optional(),
@@ -179,6 +206,17 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
   const parsed = createSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "ກະລຸນາປ້ອນຊ່ອງທີ່ຈຳເປັນໃຫ້ຄົບ" };
   const d = parsed.data;
+
+  // S/N ຕ້ອງຄົບຕໍ່ໜ່ວຍ — ກວດຢູ່ server ອີກຊັ້ນ (ຟອມກວດແລ້ວ ແຕ່ action ຖືກຍິງໂດຍກົງໄດ້)
+  for (const line of d.lines) {
+    if (line.serials.length !== line.units) {
+      return { error: `${line.item_name}: ຕ້ອງລະບຸ S/N ໃຫ້ຄົບ ${line.units} ໜ່ວຍ` };
+    }
+  }
+  const totalJobs = d.lines.reduce((sum, line) => sum + line.units, 0);
+  if (totalJobs > MAX_JOBS_PER_SAVE) {
+    return { error: `ສ້າງໄດ້ສູງສຸດ ${MAX_JOBS_PER_SAVE} ງານຕໍ່ຄັ້ງ (ກຳລັງຈະສ້າງ ${totalJobs})` };
+  }
 
   const client = await db.connect();
   let code = "";
@@ -205,65 +243,63 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
       );
     }
 
-    // ອາໄຫຼ່ມາດຕະຖານຂອງປະເພດຕິດຕັ້ງນີ້
-    const lines = await client.query<{
-      line_number: number; ic_code: string; name_1: string; qty: string; unit_code: string;
-    }>(
-      "select line_number,ic_code,name_1,round(qty,2) qty,unit_code from used_spare_install where install_type=$1 order by line_number",
-      [d.sv_type],
-    );
-
     const seq = await client.query<{ max: number | null }>(
       "select max(nullif(regexp_replace(code,'\\D','','g'),'')::int) max from ods_tb_install",
     );
     let next = (seq.rows[0].max ?? 0);
 
-    // ສິນຄ້າລະຫັດຂຶ້ນຕົ້ນ '97' ບໍ່ໃຊ້ອາໄຫຼ່ (ຄືກັບ ods)
-    const usedSpare = lines.rowCount === 0 || d.item_code.slice(0, 2) === "97" ? 0 : 1;
-
-    const category = await client.query<{ name_1: string }>("select name_1 from tb_category where code=$1", [d.pro_type]);
-    const proTypeName = category.rows[0]?.name_1 ?? "";
-
     /**
-     * ── 1 ໜ່ວຍ = 1 ງານ ──
-     * ບິນນຶ່ງອາດຂາຍແອ 2-3 ຊຸດ. ແຕ່ກ່ອນເປີດໄດ້ **ງານດຽວ** ⇒ CS ຕ້ອງເປີດຊ້ຳເອງ
-     * ແລະ ງານທີ່ 2 ມັກຖືກລືມ. ດຽວນີ້ເລືອກ "ຈັກໜ່ວຍ" ແລ້ວສ້າງໃຫ້ຄົບ —
-     * ແຕ່ລະງານມີ S/N ຂອງຕົນເອງ (ຊ່າງໄປຕິດຄົນລະໜ່ວຍ ຈຶ່ງຕ້ອງແຍກງານ).
+     * ── 1 ລາຍການ × 1 ໜ່ວຍ = 1 ງານ ──
+     * ບິນນຶ່ງອາດຕິດຕັ້ງ **ຫຼາຍລາຍການ** (ແອ + ຈັກຊັກ) ແລະ ແຕ່ລະລາຍການ **ຫຼາຍໜ່ວຍ**.
+     * ຊ່າງໄປຕິດຄົນລະໜ່ວຍ ແລະ ແຕ່ລະໜ່ວຍມີ S/N ຂອງຕົນ ⇒ ຕ້ອງແຍກເປັນຄົນລະງານ.
+     * ອາໄຫຼ່ມາດຕະຖານ (used_spare_install) ຂຶ້ນກັບ **ປະເພດຕິດຕັ້ງຂອງລາຍການນັ້ນ**
+     * ⇒ ດຶງຕໍ່ລາຍການ ບໍ່ແມ່ນຕໍ່ບິນ.
      */
-    const serials = d.pro_sn.split("|").map((value) => value.trim());
-    if (serials.length !== d.units) {
-      await client.query("rollback");
-      return { error: `ຕ້ອງລະບຸ S/N ໃຫ້ຄົບ ${d.units} ໜ່ວຍ` };
-    }
-    // ໜ່ວຍນອກ (ແອ) — ຫວ່າງໄດ້ ແຕ່ຖ້າມີ ຕ້ອງຄົບຕາມຈຳນວນໜ່ວຍ
-    const outdoor = (d.pro_sn_out ?? "").split("|").map((value) => value.trim());
-
-    for (const [index, serial] of serials.entries()) {
-      next += 1;
-      code = `INST-${next}`;
-      codes.push(code);
-
-      await client.query(
-        `insert into ods_tb_install(code,doc_ref_1,cust_code,item_code,item_name,install_type,status,complain_status,
-           remark,time_register,user_created,doc_ref_date,pro_brand,pro_model,pro_type,pro_size,location_inst,
-           used_spare,pro_sn,pro_type_code,appoint_date,pro_sn_out,location_lat,location_lng)
-         values($1,$2,$3,$4,$5,$6,0,0,$7,localtimestamp(0),$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,nullif($18,'')::date,
-                nullif($19,''), nullif($20,'')::double precision, nullif($21,'')::double precision)`,
-        [code, d.doc_no, custCode, d.item_code, d.item_name, d.sv_type, d.remark, session.username, d.billdate,
-          d.pro_brand, d.pro_model, proTypeName, d.pro_size, d.location_inst, usedSpare, serial, d.pro_type,
-          d.appoint_date ?? "", outdoor[index] ?? "", d.location_lat ?? "", d.location_lng ?? ""],
+    for (const row of d.lines) {
+      // ອາໄຫຼ່ມາດຕະຖານຂອງປະເພດຕິດຕັ້ງນີ້
+      const spares = await client.query<{
+        line_number: number; ic_code: string; name_1: string; qty: string; unit_code: string;
+      }>(
+        "select line_number,ic_code,name_1,round(qty,2) qty,unit_code from used_spare_install where install_type=$1 order by line_number",
+        [row.sv_type],
       );
 
-      for (const line of lines.rows) {
+      // ສິນຄ້າລະຫັດຂຶ້ນຕົ້ນ '97' ບໍ່ໃຊ້ອາໄຫຼ່ (ຄືກັບ ods)
+      const usedSpare = spares.rowCount === 0 || row.item_code.slice(0, 2) === "97" ? 0 : 1;
+
+      const category = await client.query<{ name_1: string }>("select name_1 from tb_category where code=$1", [
+        row.pro_type,
+      ]);
+      const proTypeName = category.rows[0]?.name_1 ?? "";
+
+      for (const [index, serial] of row.serials.entries()) {
+        next += 1;
+        code = `INST-${next}`;
+        codes.push(code);
+
         await client.query(
-          `insert into ods_tb_install_detail(line_number,code,cust_code,time_register,item_code,item_name,qty,unit_code)
-           values($1,$2,$3,localtimestamp(0),$4,$5,$6,$7)`,
-          [line.line_number, code, custCode, line.ic_code, line.name_1, line.qty, line.unit_code],
+          `insert into ods_tb_install(code,doc_ref_1,cust_code,item_code,item_name,install_type,status,complain_status,
+             remark,time_register,user_created,doc_ref_date,pro_brand,pro_model,pro_type,pro_size,location_inst,
+             used_spare,pro_sn,pro_type_code,appoint_date,pro_sn_out,location_lat,location_lng)
+           values($1,$2,$3,$4,$5,$6,0,0,$7,localtimestamp(0),$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,nullif($18,'')::date,
+                  nullif($19,''), nullif($20,'')::double precision, nullif($21,'')::double precision)`,
+          [code, d.doc_no, custCode, row.item_code, row.item_name, row.sv_type, d.remark, session.username, d.billdate,
+            row.pro_brand, row.pro_model, proTypeName, row.pro_size, d.location_inst, usedSpare, serial.trim(),
+            row.pro_type, d.appoint_date ?? "", (row.outdoor[index] ?? "").trim(),
+            d.location_lat ?? "", d.location_lng ?? ""],
         );
-        await client.query(
-          "insert into tb_used_spare(product_code,item_code,item_name,qty,unit_code) values($1,$2,$3,$4,$5)",
-          [code, line.ic_code, line.name_1, line.qty, line.unit_code],
-        );
+
+        for (const line of spares.rows) {
+          await client.query(
+            `insert into ods_tb_install_detail(line_number,code,cust_code,time_register,item_code,item_name,qty,unit_code)
+             values($1,$2,$3,localtimestamp(0),$4,$5,$6,$7)`,
+            [line.line_number, code, custCode, line.ic_code, line.name_1, line.qty, line.unit_code],
+          );
+          await client.query(
+            "insert into tb_used_spare(product_code,item_code,item_name,qty,unit_code) values($1,$2,$3,$4,$5)",
+            [code, line.ic_code, line.name_1, line.qty, line.unit_code],
+          );
+        }
       }
     }
 
@@ -276,13 +312,23 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
     client.release();
   }
 
-  for (const created of codes) {
-    await logChange(
-      "ods_tb_install",
-      created,
-      `ເປີດງານຕິດຕັ້ງ: ${d.item_name} · ລູກຄ້າ ${d.custname} · ບິນອ້າງອີງ ${d.doc_no}` +
-        (codes.length > 1 ? ` (${codes.indexOf(created) + 1}/${codes.length} ໜ່ວຍ)` : ""),
-    );
+  /**
+   * chatter ຕໍ່ງານ — ບອກວ່າງານນີ້ຄືໜ່ວຍທີ່ເທົ່າໃດ **ຂອງລາຍການໃດ** (ບໍ່ແມ່ນຂອງບິນ)
+   * ⇒ ບິນທີ່ຕິດຕັ້ງ ແອ 2 ໜ່ວຍ + ຈັກຊັກ 1 ໜ່ວຍ ອ່ານອອກວ່າງານໃດເປັນຫຍັງ.
+   */
+  let cursor = 0;
+  for (const line of d.lines) {
+    for (let unit = 0; unit < line.units; unit += 1) {
+      const jobCode = codes[cursor];
+      cursor += 1;
+      await logChange(
+        "ods_tb_install",
+        jobCode,
+        `ເປີດງານຕິດຕັ້ງ: ${line.item_name} · ລູກຄ້າ ${d.custname} · ບິນອ້າງອີງ ${d.doc_no}` +
+          (line.units > 1 ? ` (ໜ່ວຍທີ ${unit + 1}/${line.units})` : "") +
+          (d.lines.length > 1 ? ` · ບິນນີ້ເປີດພ້ອມກັນ ${codes.length} ງານ` : ""),
+      );
+    }
   }
 
   revalidateAll();

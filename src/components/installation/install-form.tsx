@@ -3,7 +3,7 @@ import { createInstall, type ActionState } from "@/app/actions/installation";
 import { LocationPicker, type Point } from "@/components/installation/location-picker";
 import { SelectField } from "@/components/select-field";
 import { Button, Card, ErrorBox, LinkButton, inputClass, labelClass } from "@/components/ui";
-import { CheckCircle2, LoaderCircle, MapPin, Package, Receipt, Save, Search, X } from "lucide-react";
+import { CheckCircle2, LoaderCircle, MapPin, Package, Plus, Receipt, Save, Search, X } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
 
 /**
@@ -86,12 +86,39 @@ function guessModel(itemName: string): string {
   return candidates[0] ?? "";
 }
 
+/** ລາຍການທີ່ **ຕັ້ງຄ່າແລ້ວ** ພ້ອມສ້າງງານ — ຮູບແບບດຽວກັບ InstallLine ຢູ່ server */
+type Line = {
+  item_code: string;
+  item_name: string;
+  sv_type: string;
+  pro_brand: string;
+  pro_model: string;
+  pro_type: string;
+  pro_size: string;
+  units: number;
+  serials: string[];
+  outdoor: string[];
+};
+
 export function InstallForm({ categories, username }: { categories: Category[]; username: string }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(createInstall, {});
   const [open, setOpen] = useState(false);
   const [bill, setBill] = useState<Bill | null>(null);
   const [item, setItem] = useState<BillItem | null>(null);
   const [units, setUnits] = useState(1);
+
+  /**
+   * ── ບິນນຶ່ງ ຕິດຕັ້ງໄດ້ **ຫຼາຍລາຍການ** ──
+   * ຂໍ້ມູນຈິງ 1 ປີ: 2 ລາຍການ = 504 ບິນ (20%) · 3+ = 123 ບິນ (5%)
+   * ⇒ ຕັ້ງຄ່າລາຍການນຶ່ງແລ້ວ "ເພີ່ມ" ເຂົ້າລາຍການທີ່ຈະສ້າງ ແລ້ວເລືອກລາຍການຕໍ່ໄປໄດ້.
+   * ສະຖານທີ່ · ວັນນັດ · ໝາຍເຫດ ໃຊ້ຮ່ວມກັນ (ບ້ານດຽວກັນ) ⇒ ກອກເທື່ອດຽວ.
+   */
+  const [done, setDone] = useState<Line[]>([]);
+
+  /** ຄ່າສິນຄ້າຂອງລາຍການທີ່ກຳລັງຕັ້ງຄ່າ — ຕ້ອງເປັນ state (ບໍ່ແມ່ນ defaultValue) ຈຶ່ງເກັບເຂົ້າ Line ໄດ້ */
+  const [model, setModel] = useState("");
+  const [typeCode, setTypeCode] = useState("");
+  const [size, setSize] = useState("");
 
   /** S/N **ໜ່ວຍໃນ [C]** ຂອງແຕ່ລະໜ່ວຍ — ຍາວເທົ່າ units ສະເໝີ */
   const [serials, setSerials] = useState<string[]>([""]);
@@ -119,14 +146,82 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
   const paidUnits = (chosenBill: Bill | null) =>
     chosenBill ? Math.round(chosenBill.services.reduce((sum, service) => sum + (service.qty || 0), 0)) : 0;
 
+  /** ລາຍການທີ່ກຳລັງຕັ້ງຄ່າ — ພ້ອມເພີ່ມເມື່ອຂໍ້ມູນຄົບ */
+  const draft: Line | null =
+    item && model.trim() && typeCode && size.trim() && serials.length === units && serials.every((s) => s.trim())
+      ? {
+          item_code: item.item_code,
+          item_name: item.item_name,
+          sv_type: item.sv_type,
+          pro_brand: item.item_brand ?? "",
+          pro_model: model.trim(),
+          pro_type: typeCode,
+          pro_size: size.trim(),
+          units,
+          serials: serials.map((serial) => serial.trim()),
+          outdoor: outdoor.map((serial) => serial.trim()),
+        }
+      : null;
+
+  /** ລາຍການທັງໝົດທີ່ຈະສ້າງ = ທີ່ເພີ່ມແລ້ວ + ອັນທີ່ກຳລັງຕັ້ງຄ່າ (ຢ່າໃຫ້ວຽກທີ່ກອກແລ້ວຫາຍ ຖ້າລືມກົດ "ເພີ່ມ") */
+  const allLines = draft ? [...done, draft] : done;
+  const totalJobs = allLines.reduce((sum, line) => sum + line.units, 0);
+
+  function clearEditor() {
+    setItem(null);
+    setUnits(1);
+    setSerials([""]);
+    setOutdoor([""]);
+    setModel("");
+    setTypeCode("");
+    setSize("");
+    setStockSerials([]);
+    setManualSerial(false);
+  }
+
+  /** ເພີ່ມລາຍການທີ່ກຳລັງຕັ້ງຄ່າເຂົ້າລາຍການທີ່ຈະສ້າງ ແລ້ວລ້າງຊ່ອງໃຫ້ຕັ້ງລາຍການຕໍ່ໄປ */
+  function addLine() {
+    if (!draft) return;
+    setDone((current) => [...current.filter((line) => line.item_code !== draft.item_code), draft]);
+    clearEditor();
+  }
+
+  /** ເອົາລາຍການທີ່ເພີ່ມແລ້ວກັບມາແກ້ (ຫຼື ລຶບຖິ້ມ) */
+  function removeLine(itemCode: string) {
+    setDone((current) => current.filter((line) => line.item_code !== itemCode));
+  }
+
   function pickItem(chosen: BillItem, forBill?: Bill) {
+    // ລາຍການທີ່ກຳລັງຕັ້ງຄ່າຢູ່ ແລະ ຄົບແລ້ວ ⇒ ເກັບເຂົ້າກ່ອນ (ຢ່າໃຫ້ວຽກຫາຍຕອນປ່ຽນລາຍການ)
+    if (draft && draft.item_code !== chosen.item_code) {
+      setDone((current) => [...current.filter((line) => line.item_code !== draft.item_code), draft]);
+    }
+    /**
+     * ເລືອກລາຍການທີ່ **ເພີ່ມແລ້ວ** = ເອົາກັບມາແກ້ ⇒ ຕ້ອງຄືນຄ່າທີ່ຄົນແກ້ໄວ້ (ບໍ່ແມ່ນຄ່າ ERP ໃໝ່)
+     * ບໍ່ດັ່ງນັ້ນ Model/S/N ທີ່ພິມແກ້ໄວ້ຈະຫາຍທຸກເທື່ອທີ່ກົດເບິ່ງຄືນ.
+     */
+    const saved = done.find((line) => line.item_code === chosen.item_code);
+    setDone((current) => current.filter((line) => line.item_code !== chosen.item_code));
+
+    setModel(saved?.pro_model ?? guessModel(chosen.item_name));
+    setTypeCode(saved?.pro_type ?? matchCategory(categories, chosen.pro_type_name));
+    setSize(saved?.pro_size ?? chosen.pro_size ?? "");
+
     const paid = paidUnits(forBill ?? bill);
     const sold = Math.max(1, Math.round(chosen.qty || 1));
     // ບິນມີລາຍການດຽວ ⇒ ໃຊ້ຈຳນວນຄ່າຕິດຕັ້ງ · ຫຼາຍລາຍການ ⇒ ຄ່າຕິດຕັ້ງແບ່ງກັນບໍ່ໄດ້ ໃຊ້ຈຳນວນຂາຍ
     const single = (forBill ?? bill)?.items.length === 1;
-    const count = Math.max(1, single && paid > 0 ? Math.min(paid, sold) : sold);
+    const count = saved?.units ?? Math.max(1, single && paid > 0 ? Math.min(paid, sold) : sold);
     setItem(chosen);
     setUnits(count);
+
+    if (saved) {
+      setSerials(saved.serials);
+      setOutdoor(saved.outdoor);
+      setStockSerials([]);
+      setManualSerial(false);
+      return;
+    }
 
     /**
      * ── ແອ = 2 ໜ່ວຍ (ໃນ + ນອກ) ⇒ 2 ISN ຄົນລະເລກ ──
@@ -185,7 +280,8 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
   const indoorOptions = billIndoor.length > 0 ? billIndoor : stockSerials;
   const isAc = outdoorOptions.length > 0 || (item?.pro_type_name ?? "").includes("ແອ");
 
-  const ready = Boolean(bill && item && serials.length === units && serials.every((serial) => serial.trim()));
+  // ບັນທຶກໄດ້ເມື່ອມີບິນ ແລະ ມີຢ່າງໜ້ອຍ 1 ລາຍການທີ່ຂໍ້ມູນຄົບ (ເພີ່ມແລ້ວ ຫຼື ກຳລັງຕັ້ງຄ່າຢູ່)
+  const ready = Boolean(bill) && allLines.length > 0;
 
   return (
     <form action={formAction} className="space-y-5">
@@ -241,7 +337,7 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
         )}
       </Card>
 
-      {/* ② ລາຍການໃນບິນ — ເລືອກວ່າຈະຕິດຕັ້ງອັນໃດ */}
+      {/* ② ລາຍການໃນບິນ — ເລືອກວ່າຈະຕິດຕັ້ງອັນໃດ (ເລືອກໄດ້ຫຼາຍລາຍການ) */}
       {bill && (
         <Card
           title={
@@ -251,24 +347,35 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
             </span>
           }
         >
+          {bill.items.length > 1 && (
+            <p className="mb-2 text-xs text-slate-500">
+              ບິນນີ້ຕິດຕັ້ງໄດ້ຫຼາຍລາຍການ — <b>ຕັ້ງຄ່າເທື່ອລະລາຍການ</b> ແລ້ວກົດ &quot;ເພີ່ມ&quot; ⇒ ບັນທຶກເທື່ອດຽວ
+            </p>
+          )}
           <div className="space-y-2">
             {bill.items.map((row) => {
               const active = item?.item_code === row.item_code;
+              const added = done.find((line) => line.item_code === row.item_code);
               return (
                 <button
                   key={row.item_code}
                   type="button"
                   onClick={() => pickItem(row)}
                   className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${
-                    active ? "border-teal-500 bg-teal-50/60" : "border-slate-200 hover:border-teal-300"
+                    active
+                      ? "border-teal-500 bg-teal-50/60"
+                      : added
+                        ? "border-emerald-300 bg-emerald-50/50"
+                        : "border-slate-200 hover:border-teal-300"
                   }`}
                 >
                   <span
                     className={`grid size-5 shrink-0 place-items-center rounded-full border-2 ${
-                      active ? "border-teal-600" : "border-slate-300"
+                      active ? "border-teal-600" : added ? "border-emerald-500" : "border-slate-300"
                     }`}
                   >
                     {active && <span className="size-2.5 rounded-full bg-teal-600" />}
+                    {!active && added && <CheckCircle2 className="size-4 text-emerald-600" />}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-slate-800">{row.item_name}</span>
@@ -277,13 +384,45 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
                       {row.serials.length > 0 && ` · ມີ ISN ${row.serials.length}`}
                     </span>
                   </span>
-                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
-                    ຂາຍ {row.qty} ໜ່ວຍ
-                  </span>
+                  {added ? (
+                    <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
+                      ເພີ່ມແລ້ວ · {added.units} ງານ
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
+                      ຂາຍ {row.qty} ໜ່ວຍ
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
+
+          {/* ສະຫຼຸບວ່າກົດບັນທຶກແລ້ວຈະໄດ້ຫຍັງແດ່ — ຄົນຕ້ອງເຫັນກ່ອນກົດ */}
+          {allLines.length > 0 && (
+            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+              <p className="mb-1 text-xs font-bold text-emerald-800">ຈະສ້າງ {totalJobs} ງານ</p>
+              <ul className="space-y-1">
+                {allLines.map((line) => (
+                  <li key={line.item_code} className="flex items-center gap-2 text-xs text-emerald-900">
+                    <span className="min-w-0 flex-1 truncate">
+                      {line.item_name} — {line.units} ງານ
+                      {line.item_code === item?.item_code && " (ກຳລັງຕັ້ງຄ່າ)"}
+                    </span>
+                    {line.item_code !== item?.item_code && (
+                      <button
+                        type="button"
+                        onClick={() => removeLine(line.item_code)}
+                        className="shrink-0 font-semibold text-slate-400 hover:text-red-600"
+                      >
+                        ເອົາອອກ
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </Card>
       )}
 
@@ -409,9 +548,6 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
               ))}
             </div>
 
-            {/* server ຮັບເປັນສາຍດຽວ ຄັ່ນດ້ວຍ | — ຈຳນວນຕ້ອງເທົ່າ units (ກວດຢູ່ server ອີກຊັ້ນ) */}
-            <input type="hidden" name="pro_sn" value={serials.join("|")} />
-            <input type="hidden" name="pro_sn_out" value={outdoor.join("|")} />
           </Card>
 
           {/* ④ ຂໍ້ມູນສິນຄ້າ */}
@@ -422,13 +558,7 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
             <div className="grid gap-4 md:grid-cols-3">
               <div>
                 <label className={labelClass}>ລຸ້ນ/Model *</label>
-                <input
-                  key={item.item_code}
-                  name="pro_model"
-                  required
-                  defaultValue={guessModel(item.item_name)}
-                  className={inputClass}
-                />
+                <input value={model} onChange={(event) => setModel(event.target.value)} className={inputClass} />
                 <p className="mt-1 truncate text-xs text-slate-400" title={item.item_name}>
                   ເດົາຈາກຊື່: {item.item_name}
                 </p>
@@ -436,26 +566,38 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
               <div>
                 <label className={labelClass}>ປະເພດ *</label>
                 <SelectField
-                  key={item.item_code}
-                  name="pro_type"
-                  defaultValue={matchCategory(categories, item.pro_type_name)}
+                  name="pro_type_ui"
+                  value={typeCode}
+                  onChange={setTypeCode}
                   options={categories.map((category) => ({ value: category.code, label: category.name_1 }))}
                 />
               </div>
               <div>
                 <label className={labelClass}>ຂະໜາດ *</label>
-                <input
-                  key={item.item_code}
-                  name="pro_size"
-                  required
-                  defaultValue={item.pro_size ?? ""}
-                  className={inputClass}
-                />
+                <input value={size} onChange={(event) => setSize(event.target.value)} className={inputClass} />
               </div>
             </div>
-          </Card>
 
-          {/* ⑤ ສະຖານທີ່ ແລະ ວັນນັດ */}
+            {/* ບິນຍັງມີລາຍການອື່ນທີ່ຕິດຕັ້ງໄດ້ ⇒ ເພີ່ມອັນນີ້ແລ້ວໄປຕັ້ງອັນຕໍ່ໄປ (ບໍ່ຕ້ອງກອກບິນຄືນໃໝ່) */}
+            {bill.items.length > 1 && (
+              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                <Button type="button" tone="info" disabled={!draft} onClick={addLine}>
+                  <Plus className="size-4" />
+                  ເພີ່ມລາຍການນີ້ ແລ້ວເລືອກລາຍການອື່ນ
+                </Button>
+                <span className="text-xs text-slate-500">
+                  {draft ? "ຂໍ້ມູນຄົບແລ້ວ — ຫຼື ກົດບັນທຶກລຸ່ມສຸດເລີຍກໍ່ໄດ້" : "ຕື່ມ S/N · Model · ປະເພດ · ຂະໜາດ ໃຫ້ຄົບກ່ອນ"}
+                </span>
+              </div>
+            )}
+          </Card>
+        </>
+      )}
+
+      {/* ⑤ ສະຖານທີ່ ແລະ ວັນນັດ — **ໃຊ້ຮ່ວມກັນທຸກລາຍການ** (ບ້ານດຽວກັນ) ⇒ ຢູ່ນອກຕົວຕັ້ງຄ່າລາຍການ
+          ບໍ່ດັ່ງນັ້ນມັນຈະຫາຍໄປພ້ອມກັບຊ່ອງທີ່ກອກແລ້ວ ຕອນກົດ "ເພີ່ມລາຍການ" */}
+      {bill && (
+        <>
           <Card
             title={
               <span className="inline-flex items-center gap-2">
@@ -503,19 +645,18 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
       <input type="hidden" name="custname" value={bill?.cust_name ?? ""} />
       <input type="hidden" name="tel" value={bill?.telephone ?? ""} />
       <input type="hidden" name="address" value={bill?.address ?? ""} />
-      <input type="hidden" name="item_code" value={item?.item_code ?? ""} />
-      <input type="hidden" name="item_name" value={item?.item_name ?? ""} />
-      <input type="hidden" name="sv_type" value={item?.sv_type ?? ""} />
-      <input type="hidden" name="pro_brand" value={item?.item_brand ?? ""} />
+      {/* ລາຍການທີ່ຈະສ້າງທັງໝົດ (ລວມອັນທີ່ກຳລັງຕັ້ງຄ່າ) — server ກວດຊ້ຳດ້ວຍ zod */}
+      <input type="hidden" name="lines" value={JSON.stringify(allLines)} />
 
       {/* ⑥ ບັນທຶກ */}
       <div className="sticky bottom-0 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <span className="text-xs text-slate-500">
           ຜູ້ສ້າງ: <b className="text-slate-700">{username}</b>
-          {item && (
+          {allLines.length > 0 && (
             <>
               {" · ຈະສ້າງ "}
-              <b className="text-slate-700">{units} ງານ</b>
+              <b className="text-slate-700">{totalJobs} ງານ</b>
+              {allLines.length > 1 && ` ຈາກ ${allLines.length} ລາຍການ`}
             </>
           )}
         </span>
@@ -525,7 +666,7 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
           </LinkButton>
           <Button type="submit" tone="success" disabled={pending || !ready}>
             <Save className="size-4" />
-            {pending ? "ກຳລັງບັນທຶກ..." : `ບັນທຶກ${units > 1 ? ` ${units} ງານ` : ""}`}
+            {pending ? "ກຳລັງບັນທຶກ..." : `ບັນທຶກ${totalJobs > 1 ? ` ${totalJobs} ງານ` : ""}`}
           </Button>
         </div>
       </div>
@@ -535,9 +676,8 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
           onClose={() => setOpen(false)}
           onPick={(chosen) => {
             setBill(chosen);
-            setItem(null);
-            setUnits(1);
-            setSerials([""]);
+            setDone([]); // ປ່ຽນບິນ = ລາຍການທີ່ຕັ້ງໄວ້ຂອງບິນເກົ່າໃຊ້ບໍ່ໄດ້ອີກ
+            clearEditor();
             // ບິນມີລາຍການດຽວ ⇒ ເລືອກໃຫ້ເລີຍ (ບໍ່ໃຫ້ກົດຊ້ຳໂດຍບໍ່ຈຳເປັນ)
             if (chosen.items.length === 1) pickItem(chosen.items[0], chosen);
             setOpen(false);
