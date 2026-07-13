@@ -77,6 +77,13 @@ const REPAIR: NavGroup = {
     { label: "ຮັບອາໄຫຼ່", href: "/stock/requests/pickup" },
     { label: "ໃບຂໍສົ່ງຄືນອາໄຫຼ່", href: "/stock/returns" },
     { label: "ສ້ອມແປງ", href: "/repair", count: "/repair" },
+    /**
+     * ── QC ເປັນ **ຂັ້ນຕອນ** ຂອງສາຍງານ ບໍ່ແມ່ນເມນູແຍກ (13-07-2026) ──
+     * ດ່ານນີ້ບັງຄັບຢູ່ server ແລ້ວ (ສົ່ງຄືນ/ຮັບເງິນບໍ່ໄດ້ຖ້າ qc_finish ຫວ່າງ —
+     * actions/return) ແຕ່ລິ້ງມີແຕ່ຢູ່ກຸ່ມ "ຄຸນນະພາບ" ⇒ ຄົນເຮັດງານສ້ອມບໍ່ເຫັນວ່າ
+     * ຕ້ອງຜ່ານມັນ ແລ້ວງານຄ້າງຢູ່ຂັ້ນ "ລໍກວດຮັບຄຸນນະພາບ" ໂດຍບໍ່ຮູ້ຕົວ (ຂໍ້ມູນຈິງ: 16 ໃບ).
+     */
+    { label: "ກວດຮັບຄຸນນະພາບ", href: "/qc", flag: "qc", count: "/qc" },
     { label: "ໃບສົ່ງເຄື່ອງ/ໃບຮັບເງິນ", href: "/returns", count: "/returns", divider: true },
     { label: "ຕິດຕາມສະຖານະ", href: "/dashboard/tracking" },
   ],
@@ -105,6 +112,9 @@ const INSTALL: NavGroup = {
      */
     { label: "ສົ່ງຄືນອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/stock/returns?job=install" },
     { label: "ຕິດຕັ້ງ", href: "/installations/work", count: "/installations/work", divider: true },
+    // QC ເປັນຂັ້ນຕອນຂອງສາຍງານຕິດຕັ້ງນຳ — ປິດງານບໍ່ໄດ້ຖ້າຍັງບໍ່ຜ່ານ (actions/installation.closeJob)
+    // ຂໍ້ມູນຈິງ: 14 ງານຄ້າງຢູ່ຂັ້ນ "ລໍກວດຮັບຄຸນນະພາບ"
+    { label: "ກວດຮັບຄຸນນະພາບ", href: "/qc", flag: "qc", count: "/qc" },
     { label: "ປິດງານ", href: "/installations/close", count: "/installations/close" },
     { label: "ລາຍງານງານຕິດຕັ້ງ", href: "/reports/installations", divider: true },
     { label: "ລາຍງານແບບສອບຖາມລູກຄ້າ", href: "/reports/customer-feedback" },

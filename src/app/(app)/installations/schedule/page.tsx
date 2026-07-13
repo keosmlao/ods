@@ -314,24 +314,35 @@ export default async function SchedulePage({ searchParams }: Props) {
                     {techJobs.length >= 4 && canSeeAll && <span className="text-[10px] font-semibold text-red-600">ນັດຫຼາຍເກີນ?</span>}
                   </div>
 
-                  <div className="grid gap-2 xl:grid-cols-2">
+                  <div className="space-y-2">
                     {techJobs.map((job) => (
-                      <article key={`${job.workflow}:${job.code}`} className="rounded-xl border border-slate-200 bg-white p-3 hover:border-slate-300 hover:shadow-sm">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Link href={job.workflow === "install" ? `/installations/${job.code}` : `/service/${job.code}`} className="font-bold text-teal-700 hover:underline">
-                            {job.code}
-                          </Link>
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${job.workflow === "install" ? "bg-teal-50 text-teal-700" : "bg-amber-50 text-amber-700"}`}>
-                            {job.workflow === "install" ? "ຕິດຕັ້ງ" : "ສ້ອມ"}
-                          </span>
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{job.stage_label}</span>
+                      <article
+                        key={`${job.workflow}:${job.code}`}
+                        className="grid gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-slate-300 hover:shadow-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link href={job.workflow === "install" ? `/installations/${job.code}` : `/service/${job.code}`} className="font-bold text-teal-700 hover:underline">
+                              {job.code}
+                            </Link>
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${job.workflow === "install" ? "bg-teal-50 text-teal-700" : "bg-amber-50 text-amber-700"}`}>
+                              {job.workflow === "install" ? "ຕິດຕັ້ງ" : "ສ້ອມ"}
+                            </span>
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{job.stage_label}</span>
+                          </div>
+                          <div className="mt-1.5 grid min-w-0 gap-x-5 gap-y-1 lg:grid-cols-[minmax(220px,1fr)_minmax(180px,0.8fr)]">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-bold text-slate-800" title={job.item ?? undefined}>{job.item ?? "-"}</p>
+                              <p className="truncate text-xs text-slate-500" title={job.customer ?? undefined}>{job.customer ?? "-"}</p>
+                            </div>
+                            <div className="min-w-0">
+                              {job.location && <p className="truncate text-xs text-slate-600" title={job.location}><MapPin className="mr-1 inline size-3.5 text-slate-400" />{job.location}</p>}
+                              {job.remark && <p className="truncate text-[11px] text-slate-400" title={job.remark}>{job.remark}</p>}
+                            </div>
+                          </div>
                         </div>
-                        <p className="mt-1.5 text-sm font-bold text-slate-800">{job.item ?? "-"}</p>
-                        <p className="text-xs text-slate-500">{job.customer ?? "-"}</p>
-                        {job.location && <p className="mt-1 text-xs leading-5 text-slate-600"><MapPin className="mr-1 inline size-3.5 text-slate-400" />{job.location}</p>}
-                        {job.remark && <p className="mt-1 text-[11px] text-slate-400">{job.remark}</p>}
 
-                        <div className="mt-2 flex flex-wrap gap-2 border-t border-slate-100 pt-2">
+                        <div className="flex shrink-0 flex-wrap gap-2 border-t border-slate-100 pt-2 md:border-l md:border-t-0 md:pl-3 md:pt-0">
                           <Link href={job.workflow === "install" ? `/installations/${job.code}` : `/service/${job.code}`} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-200">
                             <ExternalLink className="size-3.5" /> ເບິ່ງວຽກ
                           </Link>
