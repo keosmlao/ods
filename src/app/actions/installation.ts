@@ -195,6 +195,13 @@ const createSchema = z.object({
   location_inst: z.string().min(1),
   /** ວັນຄາດວ່າຈະເຂົ້າຕິດຕັ້ງ — ຕັ້ງແຕ່ຕອນເປີດງານໄດ້ (ຜູ້ຈັດຊ່າງແກ້ໄດ້ພາຍຫຼັງ) */
   appoint_date: z.string().optional(),
+  /**
+   * ── ຈັດຊ່າງໄດ້ **ຕັ້ງແຕ່ຕອນເປີດງານ** (ນະໂຍບາຍ 13-07-2026) ──
+   * ຂໍ້ມູນຈິງ: "ເປີດງານ → ຈັດຊ່າງ" ກິນເວລາມັດທະຍົມ **44 ຊມ** ⇒ ເກືອບເຄິ່ງນຶ່ງຂອງ
+   * ເປົ້າໝາຍ 24 ຊມ ຫາຍໄປກັບການລໍໃຫ້ມີຄົນມາກົດຈັດຊ່າງ. CS ທີ່ຮັບເຄື່ອງມັກຮູ້ຢູ່ແລ້ວ
+   * ວ່າຈະໃຫ້ໃຜໄປ ⇒ ໃສ່ໄດ້ເລີຍ. ຫວ່າງໄດ້ (ຄືເກົ່າ — ໄປຈັດຢູ່ໜ້າ /installations/assign).
+   */
+  tech_code: z.string().optional(),
   remark: z.string(),
 });
 
@@ -218,6 +225,8 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
   if (totalJobs > MAX_JOBS_PER_SAVE) {
     return { error: `ສ້າງໄດ້ສູງສຸດ ${MAX_JOBS_PER_SAVE} ງານຕໍ່ຄັ້ງ (ກຳລັງຈະສ້າງ ${totalJobs})` };
   }
+
+  const tech = (d.tech_code ?? "").trim();
 
   const client = await db.connect();
   let code = "";
@@ -290,6 +299,14 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
             d.location_lat ?? "", d.location_lng ?? ""],
         );
 
+        // ຈັດຊ່າງໃຫ້ເລີຍ (ຖ້າ CS ເລືອກໄວ້) — stamp assigt_time ຄືກັບ assignTech
+        if (tech) {
+          await client.query(
+            `update ods_tb_install set tech_code=$1, assigt_time=localtimestamp(0), user_assigt=$2 where code=$3`,
+            [tech, session.username, code],
+          );
+        }
+
         for (const line of spares.rows) {
           await client.query(
             `insert into ods_tb_install_detail(line_number,code,cust_code,time_register,item_code,item_name,qty,unit_code)
@@ -330,6 +347,19 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
           (d.lines.length > 1 ? ` · ບິນນີ້ເປີດພ້ອມກັນ ${codes.length} ງານ` : ""),
       );
     }
+  }
+
+  // ຈັດຊ່າງຕັ້ງແຕ່ຕອນເປີດງານ ⇒ ຊ່າງຕ້ອງຮູ້ທັນທີ (ບໍ່ດັ່ງນັ້ນນາລິກາ 24 ຊມ ແລ່ນຢູ່ໂດຍລາວບໍ່ຮູ້)
+  if (tech) {
+    for (const created of codes) {
+      await logChange("ods_tb_install", created, `ຈັດຊ່າງຕັ້ງແຕ່ຕອນເປີດງານ: ${tech}`, { users: [tech] });
+    }
+    await pushToUser(
+      tech,
+      codes.length > 1 ? `ມີງານຕິດຕັ້ງໃໝ່ ${codes.length} ງານ` : "ມີງານຕິດຕັ້ງໃໝ່",
+      `${codes.join(", ")}${d.appoint_date ? ` · ນັດ ${d.appoint_date}` : ""} · ${d.location_inst}`,
+      { workflow: "install", code: codes[0] },
+    );
   }
 
   revalidateAll();

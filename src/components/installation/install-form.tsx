@@ -108,10 +108,13 @@ const paidUnits = (bill: Bill) => Math.round(bill.services.reduce((sum, service)
 export function InstallForm({
   categories,
   username,
+  technicians,
   bill: presetBill = "",
 }: {
   categories: Category[];
   username: string;
+  /** ລາຍຊື່ຊ່າງ (lib/technicians) — ຈັດຊ່າງໄດ້ຕັ້ງແຕ່ຕອນເປີດງານ */
+  technicians: { code: string; name: string }[];
   /** ເລກບິນທີ່ສົ່ງມາຈາກໜ້າ "ບິນຄ້າງອອກໃບງານ" — ເປີດ modal ຄົ້ນໃຫ້ເລີຍ */
   bill?: string;
 }) {
@@ -124,6 +127,8 @@ export function InstallForm({
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   /** ພິກັດສະຖານທີ່ຕິດຕັ້ງ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງໄດ້ຈາກແອັບ */
   const [point, setPoint] = useState<Point | null>(null);
+  /** ຊ່າງທີ່ຈັດໃຫ້ເລີຍ (ຫວ່າງ = ໄປຈັດພາຍຫຼັງ) */
+  const [tech, setTech] = useState("");
 
   const patch = (code: string, change: Partial<Draft>) =>
     setDrafts((current) => ({ ...current, [code]: { ...current[code], ...change } }));

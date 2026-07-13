@@ -83,7 +83,13 @@ async function getCounts() {
 export default async function AssignPage({ searchParams }: Props) {
   const raw = await searchParams;
   const tab: Tab = raw.tab === "accept" ? "accept" : "assign";
-  const { q, page, sort, dir } = readParams(raw);
+  /**
+   * ── ຮຽງຕາມ **ນາລິກາ 24 ຊມ** ເປັນຄ່າຕັ້ງຕົ້ນ ──
+   * ເມື່ອກ່ອນຮຽງຕາມ "ຄ້າງມາດົນ" ນັບຈາກເວລາເປີດງານ ⇒ ງານທີ່ບິນອອກກ່ອນ (ລູກຄ້າລໍດົນກວ່າ)
+   * ອາດຢູ່ລຸ່ມສຸດ ຖ້າ CS ຫາກໍ່ເປີດໃບງານໃຫ້ມັນ. ດຽວນີ້ຮຽງດ້ວຍ **ເວລາທີ່ຍັງເຫຼືອ**
+   * ⇒ ງານທີ່ເລີຍກຳນົດ/ໃກ້ໝົດ ຂຶ້ນເທິງສຸດ (ບິນເກົ່າທີ່ບໍ່ມີວັນທີ ຕົກລຸ່ມສຸດ).
+   */
+  const { q, page, sort, dir } = readParams(raw, "sla");
 
   const bucket = BUCKET[tab];
   const where = [bucket.where];

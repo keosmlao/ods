@@ -3,6 +3,7 @@ import { LinkPending } from "@/components/link-pending";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { INSTALL_LEFT_SQL } from "@/lib/install-sla";
 import {
   INSTALL_ELAPSED_SQL,
   INSTALL_STAGE_SQL,
@@ -94,12 +95,16 @@ export const INSTALL_SORT_SQL: Record<string, string> = {
  * timeCol = ຖັນເວລາທີ່ໜ້ານັ້ນນັບຄ້າງຈາກ (ຫຼື ຂັ້ນປັດຈຸບັນ).
  * sortSql = whitelist ຂອງໜ້ານັ້ນ (ໜ້າໃບເບີກໃຊ້ INSTALL_DOC_SORT_SQL ທີ່ມີ doc_no ເພີ່ມ).
  */
+/** ຮຽງຕາມນາລິກາ 24 ຊມ (ນ້ອຍສຸດ = ໃກ້ໝົດ/ເລີຍແລ້ວ ຂຶ້ນກ່ອນ) — ບິນທີ່ບໍ່ມີວັນທີ ຕົກລຸ່ມສຸດ */
+const SLA_ORDER = `(${INSTALL_LEFT_SQL}) asc nulls last`;
+
 export function installOrderBy(
   sort: string,
   dir: SortDir,
   timeCol = INSTALL_STAGE_TIME_COL,
   sortSql: Record<string, string> = INSTALL_SORT_SQL,
 ) {
+  if (sort === "sla") return SLA_ORDER;
   const column = sortSql[sort] ?? "at_col";
   if (column === "at_col") return `(${timeCol}) ${dir === "desc" ? "asc" : "desc"} nulls last`;
   return `${column} ${dir === "asc" ? "asc" : "desc"} nulls last`;
