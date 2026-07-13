@@ -1,3 +1,5 @@
+import { qcRoles } from "@/app/actions/qc-admin";
+import { QcRoleMatrix } from "./qc-role-matrix";
 import { ActiveToggle, RoleSelect } from "./role-controls";
 import { LinkPending } from "@/components/link-pending";
 import { SortHeader, type SortDir } from "@/components/sort-header";
@@ -185,7 +187,8 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
     ? (params.sort as SortKey)
     : "department";
 
-  const all = await getRows(scope);
+  // ຜູ້ມີສິດກວດ QC (ods_qc_role) — ສະແດງຢູ່ບັດທ້າຍໜ້າ
+  const [all, qcRoleRows] = await Promise.all([getRows(scope), qcRoles()]);
 
   // ລາຍການພະແນກສຳລັບຕົວກອງ — ມາຈາກຂອບເຂດປັດຈຸບັນ
   const departments = [...new Map(all.map((row) => [row.department_code, row.department])).entries()]
@@ -413,6 +416,25 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
           </div>
         </nav>
       )}
+
+      {/**
+       * ໃຜກວດຮັບຄຸນນະພາບ (QC) ໄດ້ — **ຢູ່ໜ້າກຳນົດສິດນີ້** ບໍ່ແມ່ນໜ້າແຍກຕ່າງຫາກ.
+       * ເລື່ອງ "ໃຜເຮັດຫຍັງໄດ້" ຄວນຢູ່ບ່ອນດຽວ ບໍ່ດັ່ງນັ້ນຜູ້ຈັດການຕ້ອງໄລ່ຫາຕາມໜ້າຕ່າງໆ.
+       * (ຄ່າເກັບຢູ່ ods_qc_role — ໜ້າ /manage/qc-checklist ເຫຼືອແຕ່ລາຍການທີ່ຕ້ອງກວດ)
+       */}
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-1 flex items-center gap-2 font-bold text-slate-700">
+          <ShieldCheck className="size-4 text-slate-400" />
+          ໃຜກວດຮັບຄຸນນະພາບ (QC) ໄດ້
+        </h2>
+        <p className="mb-4 text-xs text-slate-500">
+          ດ່ານກ່ອນສົ່ງມອບລູກຄ້າ — ງານທີ່ບໍ່ຜ່ານຈະຖືກສົ່ງກັບໃຫ້ຊ່າງແກ້ ·{" "}
+          <Link href="/manage/qc-checklist" className="font-semibold text-teal-700 hover:underline">
+            ຕັ້ງລາຍການທີ່ຕ້ອງກວດ
+          </Link>
+        </p>
+        <QcRoleMatrix current={qcRoleRows} />
+      </section>
     </div>
   );
 }

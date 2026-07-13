@@ -21,11 +21,24 @@ class Api {
   static const _storage = FlutterSecureStorage();
   static const _tokenKey = 'odss_token';
   static const _serverKey = 'odss_server_url';
+  static String? _sessionToken;
 
-  static Future<String?> token() => _storage.read(key: _tokenKey);
-  static Future<void> saveToken(String value) =>
-      _storage.write(key: _tokenKey, value: value);
-  static Future<void> clearToken() => _storage.delete(key: _tokenKey);
+  static Future<String?> token() async =>
+      _sessionToken ?? await _storage.read(key: _tokenKey);
+  static Future<void> saveToken(String value, {bool remember = true}) async {
+    _sessionToken = value;
+    if (remember) {
+      await _storage.write(key: _tokenKey, value: value);
+    } else {
+      await _storage.delete(key: _tokenKey);
+    }
+  }
+
+  static Future<void> clearToken() async {
+    _sessionToken = null;
+    await _storage.delete(key: _tokenKey);
+  }
+
   static Future<String> serverUrl() async =>
       (await _storage.read(key: _serverKey)) ?? defaultBaseUrl;
   static Future<void> saveServerUrl(String value) =>
@@ -116,14 +129,18 @@ class Api {
 
   /* ── ຕົວຕົນ ─────────────────────────────────────────────────── */
 
-  static Future<MobileUser> login(String username, String password) async {
+  static Future<MobileUser> login(
+    String username,
+    String password, {
+    bool remember = true,
+  }) async {
     final result = await _send(
       'POST',
       '/api/mobile/login',
       auth: false,
       body: {'username': username, 'password': password},
     );
-    await saveToken(result['token'] as String);
+    await saveToken(result['token'] as String, remember: remember);
     return MobileUser.fromJson(result['user'] as Map<String, dynamic>);
   }
 

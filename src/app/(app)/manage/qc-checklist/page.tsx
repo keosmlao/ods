@@ -1,10 +1,10 @@
-import { qcItems, qcRoles } from "@/app/actions/qc-admin";
+import { qcItems } from "@/app/actions/qc-admin";
 import { rateOptions } from "@/app/actions/service-rate";
 import { Card, Empty, PageTitle, Table } from "@/components/ui";
 import { WORKFLOW_LABEL } from "@/lib/qc";
 import { requireRoleOrRedirect } from "@/lib/guard";
 import { Camera } from "lucide-react";
-import { ItemForm, ItemRowActions, RoleMatrix } from "./checklist-forms";
+import { ItemForm, ItemRowActions } from "./checklist-forms";
 
 /**
  * ຕັ້ງລາຍການກວດຮັບຄຸນນະພາບ — ຜູ້ຈັດການເທົ່ານັ້ນ.
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 export default async function QcChecklistPage() {
   await requireRoleOrRedirect(["manager"]);
-  const [items, roles, options] = await Promise.all([qcItems(), qcRoles(), rateOptions()]);
+  const [items, options] = await Promise.all([qcItems(), rateOptions()]);
   const categoryName = new Map(options.categories.map((category) => [category.code, category.name]));
 
   return (
@@ -67,9 +67,8 @@ export default async function QcChecklistPage() {
         )}
       </Card>
 
-      <Card title="ໃຜກວດຮັບຄຸນນະພາບໄດ້">
-        <RoleMatrix current={roles} />
-      </Card>
+      {/* "ໃຜກວດ QC ໄດ້" ຍ້າຍໄປຢູ່ໜ້າ **ກຳນົດສິດ** (/manage/employees) ແລ້ວ —
+          ເລື່ອງສິດຄວນຢູ່ບ່ອນດຽວ ບໍ່ແມ່ນກະຈາຍໄປຕາມໜ້າຕ່າງໆ */}
     </div>
   );
 }

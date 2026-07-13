@@ -37,6 +37,8 @@ type BillItem = {
   serials: Serial[];
 };
 
+type BillService = { item_code: string; item_name: string; qty: number };
+
 type Bill = {
   doc_date: string;
   doc_date_raw: string;
@@ -46,6 +48,8 @@ type Bill = {
   telephone: string | null;
   address: string | null;
   items: BillItem[];
+  /** ບໍລິການຕິດຕັ້ງທີ່ພະນັກງານຂາຍເພີ່ມເຂົ້າບິນ — ຈຳນວນທີ່ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ */
+  services: BillService[];
 };
 
 export function InstallForm({ categories, username }: { categories: Category[]; username: string }) {
@@ -114,6 +118,20 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
             <Field label="ລູກຄ້າ" value={`${bill.cust_name ?? "-"} (${bill.cust_code ?? "-"})`} />
             <Field label="ເບີໂທ" value={bill.telephone ?? ""} />
             <Field label="ທີ່ຢູ່ລູກຄ້າ" value={bill.address ?? ""} />
+            <div className="sm:col-span-2">
+              <dt className="text-slate-500">ບໍລິການຕິດຕັ້ງໃນບິນ</dt>
+              <dd className="mt-1 space-y-0.5">
+                {bill.services.length === 0 ? (
+                  <span className="text-xs text-slate-400">-</span>
+                ) : (
+                  bill.services.map((service) => (
+                    <span key={service.item_code} className="block text-xs font-semibold text-teal-700">
+                      🛠 {service.item_name} × {service.qty}
+                    </span>
+                  ))
+                )}
+              </dd>
+            </div>
           </dl>
         ) : (
           <button
@@ -433,12 +451,23 @@ function BillPicker({ onClose, onPick }: { onClose: () => void; onPick: (bill: B
                 <span className="rounded-md bg-slate-900 px-2 py-0.5 text-xs font-bold text-white">{bill.doc_no}</span>
                 <span className="text-xs text-slate-500">{bill.doc_date}</span>
                 <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-bold text-teal-800">
-                  {bill.items.length} ລາຍການ · {bill.items.reduce((sum, row) => sum + Math.round(row.qty || 0), 0)} ໜ່ວຍ
+                  ຄ່າຕິດຕັ້ງ {bill.services.reduce((sum, row) => sum + Math.round(row.qty || 0), 0)} ໜ່ວຍ
                 </span>
               </div>
 
-              {/* ລາຍການທີ່ຈະຕິດຕັ້ງໃນບິນນີ້ — ເຫັນກ່ອນເລືອກ */}
-              <ul className="mt-1.5 space-y-0.5">
+              {/* ① ບໍລິການຕິດຕັ້ງທີ່ພະນັກງານຂາຍໃສ່ໄວ້ — ນີ້ຄືຈຳນວນງານທີ່ຈ່າຍເງິນແລ້ວ */}
+              {bill.services.length > 0 && (
+                <ul className="mt-1.5 space-y-0.5">
+                  {bill.services.map((service) => (
+                    <li key={service.item_code} className="text-xs font-semibold text-teal-700">
+                      🛠 {service.item_name} <span className="text-teal-600">× {service.qty}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* ② ເຄື່ອງທີ່ຈະຕິດ */}
+              <ul className="mt-1 space-y-0.5">
                 {bill.items.map((row) => (
                   <li key={row.item_code} className="text-sm font-semibold text-slate-800">
                     · {row.item_name}

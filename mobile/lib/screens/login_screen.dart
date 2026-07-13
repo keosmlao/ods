@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String error = '';
   bool busy = false;
   bool hidePassword = true;
+  bool rememberMe = true;
   String serverUrl = Api.defaultBaseUrl;
 
   @override
@@ -46,7 +47,11 @@ class _LoginScreenState extends State<LoginScreen> {
       error = '';
     });
     try {
-      await Api.login(username.text.trim(), password.text);
+      await Api.login(
+        username.text.trim(),
+        password.text,
+        remember: rememberMe,
+      );
       await Push.register();
       if (!mounted) return;
       Navigator.of(
@@ -350,6 +355,31 @@ class _LoginScreenState extends State<LoginScreen> {
                                       : Icons.visibility_off_outlined,
                                 ),
                               ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          CheckboxListTile(
+                            value: rememberMe,
+                            onChanged: busy
+                                ? null
+                                : (value) => setState(
+                                    () => rememberMe = value ?? false,
+                                  ),
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            visualDensity: VisualDensity.compact,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            title: const Text(
+                              'ຈື່ການເຂົ້າລະບົບ',
+                              style: TextStyle(
+                                color: ink,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'ຄົງການ Login ໄວ້ໃນເຄື່ອງນີ້',
+                              style: TextStyle(color: muted, fontSize: 10),
                             ),
                           ),
                           if (error.isNotEmpty) ...[

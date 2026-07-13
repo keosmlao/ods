@@ -45,6 +45,13 @@ export type BillItem = {
   serials: { isn: string; sn: string; part: string }[];
 };
 
+/** ແຖວ "ບໍລິການຕິດຕັ້ງ" ທີ່ພະນັກງານຂາຍເພີ່ມເຂົ້າບິນ — ຈຳນວນນີ້ຄື **ຈຳນວນງານທີ່ຈ່າຍເງິນແລ້ວ** */
+export type BillService = {
+  item_code: string;
+  item_name: string;
+  qty: number;
+};
+
 /** ບິນ 1 ໃບ = 1 ແຖວ (ບໍ່ແມ່ນ 1 ລາຍການ = 1 ແຖວ ຄືເກົ່າ) */
 export type BillRow = {
   doc_date: string;
@@ -55,10 +62,22 @@ export type BillRow = {
   telephone: string | null;
   address: string | null;
   items: BillItem[];
+  /** ບໍລິການຕິດຕັ້ງທີ່ຢູ່ໃນບິນ (ອັນທີ່ເຮັດໃຫ້ບິນນີ້ຖືກເອົາມາສະແດງ) */
+  services: BillService[];
 };
 
-/** ຂະໜາດສິນຄ້າທີ່ **ຕ້ອງຕິດຕັ້ງ** — ຄ່າດຽວກັບທີ່ໃຊ້ຄິດ sv_type */
-const INSTALL_SIZES = ["112", "023", "033", "051", "121"];
+/**
+ * ສິນຄ້າທີ່ **ຕິດຕັ້ງໄດ້** = ເຄື່ອງຈິງ ບໍ່ແມ່ນຂອງແຖມ/ທໍ່/ຄູປອງ.
+ *
+ * ⚠️ ຮຸ່ນກ່ອນກອງດ້ວຍ item_size ຂອງ**ແອ** ⇒ ບິນທີ່ຕິດຕັ້ງ **ໂທລະທັດ · ຈັກຊັກເຄື່ອງ ·
+ * ຕູ້ເຢັນ · ເຄື່ອງເຮັດນ້ຳອຸ່ນ** (ບໍລິການ 970101-0013 "ຕິດຕັ້ງເຄື່ອງໃຊ້ໄຟຟ້າ" ແລະ
+ * 970102 "ນ້ຳອຸ່ນ") **ບໍ່ຂຶ້ນມາເລີຍ**.
+ *
+ * ຂໍ້ມູນຈິງ (1 ປີ, ບິນທີ່ມີບໍລິການຕິດຕັ້ງ): ກຸ່ມ **11** = ເຄື່ອງໃຊ້ໄຟຟ້າ (2,770 ແຖວ —
+ * ໂທລະທັດ · ຈັກຊັກ · ຕູ້ເຢັນ · ນ້ຳອຸ່ນ) · ກຸ່ມ **12** = ແອ (1,559) ·
+ * ສ່ວນ 14 = ທໍ່/ຂາຈັບ · 98/96 = ຂອງແຖມ · LU = ຄູປອງ · 97 = ຕົວບໍລິການເອງ ⇒ ບໍ່ເອົາ.
+ */
+const INSTALLABLE_GROUPS = "(i.item_code like '11%' or i.item_code like '12%')";
 
 /** ບໍ່ພິມຫຍັງ = ບິນ 90 ມື້ຫຼ້າສຸດ (ບໍ່ດັ່ງນັ້ນຕ້ອງ scan ບິນ 7 ປີ) */
 const RECENT_DAYS = 90;
@@ -114,16 +133,16 @@ export async function GET(request: NextRequest) {
     const svcWhere = !q
       ? `and sv.doc_date >= current_date - ${RECENT_DAYS}`
       : custCodes.length > 0
-        ? `and (sv.doc_no like upper($2) || '%'
+        ? `and (sv.doc_no like upper($1) || '%'
                or sv.doc_no in (select t.doc_no from ic_trans t
-                                 where t.trans_flag = 44 and t.cust_code = any($3::text[])))`
-        : "and sv.doc_no like upper($2) || '%'";
+                                 where t.trans_flag = 44 and t.cust_code = any($2::text[])))`
+        : "and sv.doc_no like upper($1) || '%'";
 
     const where = !q
       ? `and i.doc_date >= current_date - ${RECENT_DAYS}`
       : custCodes.length > 0
-        ? "and (i.doc_no like upper($2) || '%' or a0.cust_code = any($3::text[]))"
-        : "and i.doc_no like upper($2) || '%'";
+        ? "and (i.doc_no like upper($1) || '%' or a0.cust_code = any($2::text[]))"
+        : "and i.doc_no like upper($1) || '%'";
 
     const rows = (
       await queryOdg<BillRow>(
@@ -145,7 +164,7 @@ export async function GET(request: NextRequest) {
              join ic_inventory inv on inv.code = i.item_code
              ${custCodes.length > 0 ? "join ic_trans a0 on a0.doc_no = i.doc_no and a0.trans_flag = 44" : ""}
             where i.trans_flag = 44
-              and inv.item_size = any($1::text[])
+              and ${INSTALLABLE_GROUPS}
               and i.item_type in (0,1,3)
               and i.item_name not ilike '%[H]%'   -- ແອ: ຕັດໜ່ວຍນອກສະເໝີ
               ${where}
@@ -226,6 +245,18 @@ export async function GET(request: NextRequest) {
             case when ar.telephone is not null then ar.mobile else ar2.telephone end as telephone,
             case when ar.telephone is not null then ar.address else ar2.address end as address,
             case when ar.telephone is not null then ar.name else ar2.code end as cust_code,
+            /**
+             * ບໍລິການຕິດຕັ້ງທີ່ **ພະນັກງານຂາຍເພີ່ມເຂົ້າບິນ** — ຈຳນວນນີ້ຄືຈຳນວນງານທີ່
+             * ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ (ຂໍ້ມູນຈິງ: ຕົງກັບຈຳນວນເຄື່ອງພໍດີ —
+             * CAK25010452 ຂາຍແອ 21+2 ໜ່ວຍ ⇒ ຄ່າຕິດຕັ້ງ ×21 ແລະ ×2).
+             * ⇒ ໃຊ້ເປັນຄ່າຕັ້ງຕົ້ນຂອງ "ຈະຕິດຕັ້ງຈັກໜ່ວຍ" ແລະ ເປັນຫຼັກຖານໃຫ້ CS ເຫັນ.
+             */
+            (select coalesce(json_agg(json_build_object(
+                      'item_code', sv2.item_code, 'item_name', sv2.item_name, 'qty', sv2.qty::float)
+                      order by sv2.item_code), '[]'::json)
+               from ic_trans_detail sv2
+              where sv2.doc_no = l.doc_no and sv2.trans_flag = 44
+                and (sv2.item_code like '9701%' or sv2.item_code like '970102%')) as services,
             json_agg(json_build_object(
               'item_code', l.item_code, 'item_name', l.item_name, 'qty', l.qty,
               'sv_type', l.sv_type, 'item_brand', l.item_brand,
@@ -237,11 +268,7 @@ export async function GET(request: NextRequest) {
           left join ar_customer ar2 on ar2.code = a.cust_code
          group by l.doc_no, l.doc_date, ar.telephone, ar.mobile, ar.address, ar.name, ar2.name_1, ar2.telephone, ar2.address, ar2.code
          order by l.doc_date desc, l.doc_no desc`,
-        !q
-          ? [INSTALL_SIZES]
-          : custCodes.length > 0
-            ? [INSTALL_SIZES, q, custCodes]
-            : [INSTALL_SIZES, q],
+        !q ? [] : custCodes.length > 0 ? [q, custCodes] : [q],
       )
     ).rows;
 
