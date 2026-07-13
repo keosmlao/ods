@@ -44,9 +44,16 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
   Future<void> submit() async {
     setState(() => busy = true);
     try {
-      final message = await Api.requestSpares(widget.code, wh!, shelf!, remark.text);
+      final message = await Api.requestSpares(
+        widget.code,
+        wh!,
+        shelf!,
+        remark.text,
+      );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: ok));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message), backgroundColor: ok));
       Navigator.pop(context);
     } on ApiError catch (failure) {
       if (mounted) {
@@ -62,7 +69,9 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
   @override
   Widget build(BuildContext context) {
     final data = lookups;
-    final shelves = data == null ? <Map<String, String>>[] : data.shelves.where((row) => row['wh_code'] == wh).toList();
+    final shelves = data == null
+        ? <Map<String, String>>[]
+        : data.shelves.where((row) => row['wh_code'] == wh).toList();
 
     return Scaffold(
       appBar: AppBar(title: Text('ໃບຂໍເບີກອາໄຫຼ່ · ${widget.code}')),
@@ -71,31 +80,42 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
           : ListView(
               padding: const EdgeInsets.all(12),
               children: [
-                const Text('ສາງ', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'ສາງ',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 Wrap(
                   spacing: 8,
                   children: data.warehouses
-                      .map((row) => ChoiceChip(
-                            label: Text(row['name']!),
-                            selected: wh == row['code'],
-                            onSelected: (_) => setState(() {
-                              wh = row['code'];
-                              shelf = null;
-                            }),
-                          ))
+                      .map(
+                        (row) => ChoiceChip(
+                          label: Text(row['name']!),
+                          selected: wh == row['code'],
+                          onSelected: (_) => setState(() {
+                            wh = row['code'];
+                            shelf = null;
+                          }),
+                        ),
+                      )
                       .toList(),
                 ),
                 if (wh != null) ...[
                   const SizedBox(height: 12),
-                  const Text('ທີ່ເກັບ', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text(
+                    'ທີ່ເກັບ',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   Wrap(
                     spacing: 8,
                     children: shelves
-                        .map((row) => ChoiceChip(
-                              label: Text(row['name']!),
-                              selected: shelf == row['code'],
-                              onSelected: (_) => setState(() => shelf = row['code']),
-                            ))
+                        .map(
+                          (row) => ChoiceChip(
+                            label: Text(row['name']!),
+                            selected: shelf == row['code'],
+                            onSelected: (_) =>
+                                setState(() => shelf = row['code']),
+                          ),
+                        )
                         .toList(),
                   ),
                 ],
@@ -109,13 +129,26 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
                 ),
                 const SizedBox(height: 16),
                 FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: teal, minimumSize: const Size.fromHeight(52)),
-                  onPressed: (wh == null || shelf == null || busy) ? null : submit,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: teal,
+                    minimumSize: const Size.fromHeight(52),
+                  ),
+                  onPressed: (wh == null || shelf == null || busy)
+                      ? null
+                      : submit,
                   child: busy
                       ? const SizedBox(
-                          height: 20, width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('ອອກໃບຂໍເບີກ', style: TextStyle(fontWeight: FontWeight.bold)),
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'ອອກໃບຂໍເບີກ',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                 ),
               ],
             ),

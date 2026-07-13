@@ -1,4 +1,5 @@
 import { SortHeader, type SortDir } from "@/components/sort-header";
+import { ServiceDeleteButton } from "@/components/service/service-delete-button";
 import { Printer } from "lucide-react";
 import Link from "next/link";
 
@@ -34,11 +35,14 @@ const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
 ];
 
 export function ServiceTable({
+  canDelete = false,
   rows,
   sort,
   dir,
   sortHref,
 }: {
+  /** ຜູ້ຈັດການເທົ່ານັ້ນ */
+  canDelete?: boolean;
   rows: TableRow[];
   sort: string;
   dir: SortDir;
@@ -97,9 +101,12 @@ export function ServiceTable({
                   <td className="max-w-64 truncate px-3 py-3 font-semibold text-red-600" title={row.issue ?? ""}>{row.issue ?? "-"}</td>
                   <td className="whitespace-nowrap px-3 py-3">{row.status}</td>
                   <td className="px-3 py-3 text-center">
-                    <Link href={`/service/${row.code}/print`} target="_blank" title="ພິມ" className="inline-block text-[#D35400] hover:opacity-70">
-                      <Printer className="size-4" />
-                    </Link>
+                    <div className="flex items-center justify-center gap-2.5">
+                      <Link href={`/service/${row.code}/print`} target="_blank" title="ພິມ" className="text-[#D35400] hover:opacity-70">
+                        <Printer className="size-4" />
+                      </Link>
+                      {canDelete && <ServiceDeleteButton code={row.code} />}
+                    </div>
                   </td>
                 </tr>
               );

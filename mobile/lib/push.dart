@@ -24,7 +24,9 @@ class Push {
       await Firebase.initializeApp();
       ready = true;
     } catch (error) {
-      debugPrint('Firebase ຍັງບໍ່ໄດ້ຕັ້ງຄ່າ — ແອັບແລ່ນຕໍ່ ແຕ່ບໍ່ມີແຈ້ງເຕືອນ ($error)');
+      debugPrint(
+        'Firebase ຍັງບໍ່ໄດ້ຕັ້ງຄ່າ — ແອັບແລ່ນຕໍ່ ແຕ່ບໍ່ມີແຈ້ງເຕືອນ ($error)',
+      );
     }
   }
 
@@ -42,10 +44,25 @@ class Push {
 
       // token ປ່ຽນເອງໄດ້ (ຕິດຕັ້ງໃໝ່, ລ້າງຂໍ້ມູນ) ⇒ ອັບເດດໃຫ້ server ທຸກຄັ້ງ
       messaging.onTokenRefresh.listen((fresh) {
-        Api.registerPushToken(fresh, Platform.isIOS ? 'ios' : 'android').catchError((_) {});
+        Api.registerPushToken(
+          fresh,
+          Platform.isIOS ? 'ios' : 'android',
+        ).catchError((_) {});
       });
     } catch (error) {
       debugPrint('ລົງທະບຽນແຈ້ງເຕືອນບໍ່ສຳເລັດ: $error');
+    }
+  }
+
+  static Future<void> unregister() async {
+    if (!ready) return;
+    try {
+      final messaging = FirebaseMessaging.instance;
+      final token = await messaging.getToken();
+      if (token != null) await Api.removePushToken(token);
+      await messaging.deleteToken();
+    } catch (error) {
+      debugPrint('ຖອນ push token ບໍ່ສຳເລັດ: $error');
     }
   }
 }

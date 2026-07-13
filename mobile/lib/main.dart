@@ -40,7 +40,11 @@ class OdssApp extends StatelessWidget {
         appBarTheme: const AppBarTheme(
           backgroundColor: ink,
           foregroundColor: Colors.white,
-          titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+          titleTextStyle: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         useMaterial3: true,
       ),

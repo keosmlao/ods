@@ -29,9 +29,9 @@ class _LoginScreenState extends State<LoginScreen> {
       await Api.login(username.text.trim(), password.text);
       await Push.register(); // ຮັບແຈ້ງເຕືອນທັນທີ — ຊ່າງບໍ່ຕ້ອງໄປຫາປຸ່ມເອງ
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const JobsScreen()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const JobsScreen()));
     } on ApiError catch (failure) {
       setState(() => error = failure.message);
     } catch (_) {
@@ -51,13 +51,28 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('ODIEN SERVICE',
-                    style: TextStyle(color: teal, fontWeight: FontWeight.w800, letterSpacing: 2)),
+                const Text(
+                  'ODIEN SERVICE',
+                  style: TextStyle(
+                    color: teal,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 2,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                const Text('ເຂົ້າສູ່ລະບົບ',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: ink)),
+                const Text(
+                  'ເຂົ້າສູ່ລະບົບ',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: ink,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                const Text('ໃຊ້ລະຫັດພະນັກງານ ແລະ ລະຫັດຜ່ານຂອງທ່ານ', style: TextStyle(color: muted)),
+                const Text(
+                  'ໃຊ້ລະຫັດພະນັກງານ ແລະ ລະຫັດຜ່ານຂອງທ່ານ',
+                  style: TextStyle(color: muted),
+                ),
                 const SizedBox(height: 24),
                 TextField(
                   controller: username,
@@ -79,7 +94,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 if (error.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  Text(error, style: const TextStyle(color: danger, fontWeight: FontWeight.w600)),
+                  Text(
+                    error,
+                    style: const TextStyle(
+                      color: danger,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 20),
                 FilledButton(
@@ -92,9 +113,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
-                      : const Text('ເຂົ້າສູ່ລະບົບ', style: TextStyle(fontWeight: FontWeight.bold)),
+                      : const Text(
+                          'ເຂົ້າສູ່ລະບົບ',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                 ),
               ],
             ),

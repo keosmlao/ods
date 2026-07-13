@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../main.dart';
+import '../push.dart';
 import 'income_screen.dart';
 import 'job_screen.dart';
 import 'login_screen.dart';
@@ -59,7 +60,9 @@ class _JobsScreenState extends State<JobsScreen> {
       if (failure.status == 401) {
         await Api.clearToken();
         if (!mounted) return;
-        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
         return;
       }
       setState(() {
@@ -77,9 +80,12 @@ class _JobsScreenState extends State<JobsScreen> {
   }
 
   Future<void> logout() async {
+    await Push.unregister();
     await Api.clearToken();
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 
   @override
@@ -112,7 +118,11 @@ class _JobsScreenState extends State<JobsScreen> {
               MaterialPageRoute(builder: (_) => const IncomeScreen()),
             ),
           ),
-          IconButton(tooltip: 'ອອກຈາກລະບົບ', icon: const Icon(Icons.logout), onPressed: logout),
+          IconButton(
+            tooltip: 'ອອກຈາກລະບົບ',
+            icon: const Icon(Icons.logout),
+            onPressed: logout,
+          ),
         ],
       ),
       body: loading
@@ -120,28 +130,41 @@ class _JobsScreenState extends State<JobsScreen> {
           : RefreshIndicator(
               onRefresh: load,
               child: error.isNotEmpty
-                  ? ListView(children: [
-                      Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(error,
+                  ? ListView(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            error,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(color: danger, fontWeight: FontWeight.w600)),
-                      )
-                    ])
-                  : jobs.isEmpty
-                      ? ListView(children: const [
-                          Padding(
-                            padding: EdgeInsets.all(40),
-                            child: Text('ບໍ່ມີງານຄ້າງ',
-                                textAlign: TextAlign.center, style: TextStyle(color: muted)),
-                          )
-                        ])
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(12),
-                          itemCount: jobs.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 10),
-                          itemBuilder: (context, index) => _JobCard(job: jobs[index], onDone: load),
+                            style: const TextStyle(
+                              color: danger,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
+                      ],
+                    )
+                  : jobs.isEmpty
+                  ? ListView(
+                      children: const [
+                        Padding(
+                          padding: EdgeInsets.all(40),
+                          child: Text(
+                            'ບໍ່ມີງານຄ້າງ',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: muted),
+                          ),
+                        ),
+                      ],
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: jobs.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) =>
+                          _JobCard(job: jobs[index], onDone: load),
+                    ),
             ),
     );
   }
@@ -175,33 +198,62 @@ class _JobCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     '${job.workflow == 'install' ? 'ຕິດຕັ້ງ' : 'ສ້ອມ'} · ${job.code}',
-                    style: const TextStyle(fontWeight: FontWeight.w800, color: ink),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: ink,
+                    ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: actionColor[job.action],
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
                     actionLabel[job.action] ?? '-',
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 4),
-            Text(job.product ?? '-', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ink)),
-            Text(job.customer ?? '-', style: const TextStyle(color: muted, fontSize: 12)),
+            Text(
+              job.product ?? '-',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: ink,
+              ),
+            ),
+            Text(
+              job.customer ?? '-',
+              style: const TextStyle(color: muted, fontSize: 12),
+            ),
             if ((job.address ?? '').isNotEmpty)
-              Text(job.address!, style: const TextStyle(color: muted, fontSize: 12)),
+              Text(
+                job.address!,
+                style: const TextStyle(color: muted, fontSize: 12),
+              ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(job.stageLabel,
-                    style: const TextStyle(color: teal, fontWeight: FontWeight.bold, fontSize: 12)),
+                Text(
+                  job.stageLabel,
+                  style: const TextStyle(
+                    color: teal,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
                 Text(
                   '${job.checkedIn ? '🟢 ຢູ່ໜ້າງານ · ' : ''}'
                   '${job.appointment != null ? 'ນັດ ${job.appointment} · ' : ''}'

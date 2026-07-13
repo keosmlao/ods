@@ -32,6 +32,14 @@ flutter run --dart-define=API_URL=http://192.168.1.51:3000     # IP: ipconfig ge
 
 ## ສ້າງ APK ໃຫ້ຊ່າງ
 
+ສ້າງ release key ຄັ້ງທຳອິດ (ຫ້າມ commit key/password):
+
+```bash
+keytool -genkeypair -v -keystore android/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+cp android/key.properties.example android/key.properties
+# ແກ້ password ໃນ android/key.properties ໃຫ້ກົງກັບ key ຈິງ
+```
+
 ```bash
 flutter build apk --release --dart-define=API_URL=https://service.odien.net
 # ໄດ້ໄຟລ໌: build/app/outputs/flutter-apk/app-release.apk

@@ -28,7 +28,12 @@ class _PickupScreenState extends State<PickupScreen> {
   Future<void> load() async {
     try {
       final rows = await Api.pickups();
-      if (mounted) setState(() { docs = rows; loading = false; });
+      if (mounted) {
+        setState(() {
+          docs = rows;
+          loading = false;
+        });
+      }
     } on ApiError catch (failure) {
       if (mounted) {
         setState(() => loading = false);
@@ -44,7 +49,9 @@ class _PickupScreenState extends State<PickupScreen> {
     try {
       final message = await Api.pickupSpares(doc.docNo);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: ok));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message), backgroundColor: ok));
       await load();
     } on ApiError catch (failure) {
       if (mounted) {
@@ -64,47 +71,69 @@ class _PickupScreenState extends State<PickupScreen> {
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : docs.isEmpty
-              ? const Center(child: Text('ບໍ່ມີອາໄຫຼ່ລໍຮັບ', style: TextStyle(color: muted)))
-              : RefreshIndicator(
-                  onRefresh: load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: docs.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final doc = docs[index];
-                      return Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+          ? const Center(
+              child: Text('ບໍ່ມີອາໄຫຼ່ລໍຮັບ', style: TextStyle(color: muted)),
+            )
+          : RefreshIndicator(
+              onRefresh: load,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(12),
+                itemCount: docs.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final doc = docs[index];
+                  return Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                doc.docNo,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: ink,
+                                ),
+                              ),
+                              Text(
+                                'ໃບຮັບເຄື່ອງ ${doc.jobCode} · ${doc.lines} ລາຍການ · ${doc.docDate}',
+                                style: const TextStyle(
+                                  color: muted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Row(children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(doc.docNo, style: const TextStyle(fontWeight: FontWeight.w800, color: ink)),
-                                Text('ໃບຮັບເຄື່ອງ ${doc.jobCode} · ${doc.lines} ລາຍການ · ${doc.docDate}',
-                                    style: const TextStyle(color: muted, fontSize: 12)),
-                              ],
-                            ),
-                          ),
-                          FilledButton(
-                            style: FilledButton.styleFrom(backgroundColor: teal),
-                            onPressed: busyDoc == doc.docNo ? null : () => pickup(doc),
-                            child: busyDoc == doc.docNo
-                                ? const SizedBox(
-                                    height: 18, width: 18,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                : const Text('ກົດຮັບ'),
-                          ),
-                        ]),
-                      );
-                    },
-                  ),
-                ),
+                        FilledButton(
+                          style: FilledButton.styleFrom(backgroundColor: teal),
+                          onPressed: busyDoc == doc.docNo
+                              ? null
+                              : () => pickup(doc),
+                          child: busyDoc == doc.docNo
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('ກົດຮັບ'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }

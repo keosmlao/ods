@@ -4,9 +4,11 @@ import { ServiceBoard, STAGES, type BoardCard } from "@/components/service-board
 import { ServicePendingTable } from "@/components/service-pending-table";
 import type { SortDir } from "@/components/sort-header";
 import { ServiceTable, type TableRow } from "@/components/service-table";
+import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { CANCELLED_JOBS, DONE_JOBS, OPEN_JOBS, STAGE_SQL } from "@/lib/stage";
-import { Bell, CheckCircle2, ChevronLeft, ChevronRight, Clock, FileBarChart, FilePlus2, LayoutGrid, Search, Table2, XCircle } from "lucide-react";
+import { roleOf } from "@/lib/roles";
+import { CANCELLED_JOBS, DONE_JOBS, OPEN_JOBS, STAGE_SQL, STAGE_TIME_COL } from "@/lib/stage";
+import { Bell, CheckCircle2, ChevronLeft, ChevronRight, Clock, FileBarChart, FilePlus2, FileSpreadsheet, LayoutGrid, Search, Table2, XCircle } from "lucide-react";
 import Link from "next/link";
 
 /** 3 ແທັບ: ວຽກຄ້າງ · ຈົບແລ້ວ · ຍົກເລີກ */
@@ -17,18 +19,14 @@ type Props = { searchParams: Promise<{ q?: string; tab?: string; page?: string; 
  * ຂັ້ນທີ່ວຽກກຳລັງຄ້າງຢູ່ ເລີ່ມແຕ່ເມື່ອໃດ — ໃຊ້ຄຳນວນວ່າຄ້າງດົນປານໃດແລ້ວ.
  * ຂັ້ນ (STAGE_SQL) ຄຳນວນມາຈາກ timestamp ເຫຼົ່ານີ້ຢູ່ແລ້ວ.
  */
-const STAGE_SINCE = `case (${STAGE_SQL})
-  when 1 then a.time_register
-  when 2 then a.time_check
-  when 3 then a.time_finish_check
-  when 4 then a.qt_start
-  when 5 then coalesce(a.qt_finish, a.time_finish_check)
-  when 6 then a.spare_reg
-  when 7 then a.spare_order
-  when 8 then coalesce(a.spare_finish, a.time_finish_check)
-  when 9 then a.time_repair
-  when 10 then a.time_finish_repair
-end`;
+/**
+ * ຂັ້ນທີ່ວຽກກຳລັງຄ້າງຢູ່ ເລີ່ມແຕ່ເມື່ອໃດ — ໃຊ້ຄຳນວນວ່າຄ້າງດົນປານໃດແລ້ວ.
+ *
+ * ⚠️ ແຕ່ກ່ອນຂຽນ CASE ຂອງຕົນເອງຢູ່ນີ້ ແລະ ຢຸດທີ່ຂັ້ນ 10 ⇒ ຫຼັງເພີ່ມດ່ານ QC
+ * (ຂັ້ນເລື່ອນເປັນ 11/12) ງານທີ່ "ລໍຖ້າສົ່ງຄືນ" ໄດ້ null ແລ້ວເວລາຄ້າງຫາຍໄປງຽບໆ.
+ * ດຽວນີ້ໃຊ້ STAGE_TIME_COL ຂອງ lib/stage ບ່ອນດຽວ — ຂັ້ນໄດປ່ຽນອີກກໍ່ຕາມມາເອງ.
+ */
+const STAGE_SINCE = STAGE_TIME_COL;
 
 const SEARCH = `(a.code ilike $1 or a.sn ilike $1 or a.name_1 ilike $1 or a.p_brand ilike $1
   or a.issue ilike $1 or b.name_1 ilike $1 or b.tel ilike $1)`;
@@ -131,13 +129,16 @@ export default async function ServicePage({ searchParams }: Props) {
   const board_view = isPending && params.view === "board";
   const page = Math.max(1, Number(params.page) || 1);
 
-  // ຕົວກອງສະຖານະ (ສະເພາະແທັບວຽກຄ້າງ) — 1..10
+  // ຕົວກອງສະຖານະ (ສະເພາະແທັບວຽກຄ້າງ) — ຂັ້ນ 1..11 (11 = ລໍຖ້າສົ່ງຄືນ, ຫຼັງເພີ່ມດ່ານ QC)
   const statusRaw = Number(params.status);
-  const status = isPending && statusRaw >= 1 && statusRaw <= 10 ? statusRaw : null;
+  const status = isPending && statusRaw >= 1 && statusRaw <= 11 ? statusRaw : null;
 
   // ຈັດຮຽງ
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
   const sort = (params.sort ?? (isPending ? "elapsed" : "code")).trim();
+
+  // ປຸ່ມລຶບ — ຜູ້ຈັດການເທົ່ານັ້ນ (server ກວດຊ້ຳຢູ່ actions/service-delete)
+  const canDelete = roleOf(await getSession()) === "manager";
 
   const [board, closed, noticeCount] = await Promise.all([
     isPending ? getBoard(q, status) : Promise.resolve([]),
@@ -250,6 +251,18 @@ export default async function ServicePage({ searchParams }: Props) {
             <FileBarChart className="size-4" />
             ລາຍງານ
           </Link>
+          {/* Excel — ໃຊ້ຕົວກອງອັນດຽວກັບໜ້າຈໍ (ແທັບ · ຄຳຄົ້ນຫາ · ຂັ້ນ) ແຕ່ເອົາ **ຄົບທຸກແຖວ** ບໍ່ແບ່ງໜ້າ */}
+          <a
+            href={`/api/reports/export/service?${new URLSearchParams({
+              tab,
+              ...(q && { q }),
+              ...(status && { status: String(status) }),
+            })}`}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            <FileSpreadsheet className="size-4 text-emerald-700" />
+            Excel
+          </a>
           <Link
             href="/service/notices"
             className="inline-flex h-10 items-center gap-2 rounded-lg border-2 border-red-500 bg-slate-100 px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-200"
@@ -344,14 +357,14 @@ export default async function ServicePage({ searchParams }: Props) {
 
       {!isPending ? (
         <>
-          <ServiceTable rows={closed.rows} sort={sort} dir={dir} sortHref={sortHref} />
+          <ServiceTable rows={closed.rows} sort={sort} dir={dir} sortHref={sortHref} canDelete={canDelete} />
           {pagination}
         </>
       ) : board_view ? (
         <ServiceBoard cards={board} />
       ) : (
         <>
-          <ServicePendingTable cards={pendingPage} sort={sort} dir={dir} sortHref={sortHref} />
+          <ServicePendingTable cards={pendingPage} sort={sort} dir={dir} sortHref={sortHref} canDelete={canDelete} />
           {pagination}
         </>
       )}

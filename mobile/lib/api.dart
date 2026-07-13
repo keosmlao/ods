@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -21,7 +22,8 @@ class Api {
   static const _tokenKey = 'odss_token';
 
   static Future<String?> token() => _storage.read(key: _tokenKey);
-  static Future<void> saveToken(String value) => _storage.write(key: _tokenKey, value: value);
+  static Future<void> saveToken(String value) =>
+      _storage.write(key: _tokenKey, value: value);
   static Future<void> clearToken() => _storage.delete(key: _tokenKey);
 
   static Future<Map<String, dynamic>> _send(
@@ -37,15 +39,33 @@ class Api {
     }
 
     final uri = Uri.parse('$baseUrl$path');
-    final response = switch (method) {
-      'POST' => await http.post(uri, headers: headers, body: jsonEncode(body)),
-      'DELETE' => await http.delete(uri, headers: headers),
-      _ => await http.get(uri, headers: headers),
-    };
+    late http.Response response;
+    try {
+      response = await (switch (method) {
+        'POST' => http.post(uri, headers: headers, body: jsonEncode(body)),
+        'DELETE' => http.delete(uri, headers: headers),
+        _ => http.get(uri, headers: headers),
+      }).timeout(const Duration(seconds: 25));
+    } on TimeoutException {
+      throw ApiError(
+        'ການເຊື່ອມຕໍ່ໃຊ້ເວລາດົນເກີນໄປ — ກະລຸນາກວດສັນຍານແລ້ວລອງໃໝ່',
+        408,
+      );
+    } on http.ClientException {
+      throw ApiError('ເຊື່ອມຕໍ່ server ບໍ່ໄດ້ — ກະລຸນາກວດ internet', 0);
+    }
 
-    final decoded = response.body.isEmpty
-        ? <String, dynamic>{}
-        : jsonDecode(response.body) as Map<String, dynamic>;
+    Map<String, dynamic> decoded;
+    try {
+      decoded = response.body.isEmpty
+          ? <String, dynamic>{}
+          : jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      throw ApiError(
+        'server ຕອບກັບບໍ່ຖືກຮູບແບບ (HTTP ${response.statusCode})',
+        response.statusCode,
+      );
+    }
 
     if (response.statusCode >= 400) {
       throw ApiError(
@@ -59,8 +79,12 @@ class Api {
   /* ── ຕົວຕົນ ─────────────────────────────────────────────────── */
 
   static Future<MobileUser> login(String username, String password) async {
-    final result = await _send('POST', '/api/mobile/login',
-        auth: false, body: {'username': username, 'password': password});
+    final result = await _send(
+      'POST',
+      '/api/mobile/login',
+      auth: false,
+      body: {'username': username, 'password': password},
+    );
     await saveToken(result['token'] as String);
     return MobileUser.fromJson(result['user'] as Map<String, dynamic>);
   }
@@ -78,7 +102,11 @@ class Api {
     String code,
     Map<String, dynamic> body,
   ) async {
-    final result = await _send('POST', '/api/mobile/jobs/$workflow/$code', body: body);
+    final result = await _send(
+      'POST',
+      '/api/mobile/jobs/$workflow/$code',
+      body: body,
+    );
     return result['message'] as String;
   }
 
@@ -86,7 +114,9 @@ class Api {
 
   static Future<List<DraftLine>> draft(String code) async {
     final result = await _send('GET', '/api/mobile/check/$code');
-    return (result['draft'] as List).map((row) => DraftLine.fromJson(row)).toList();
+    return (result['draft'] as List)
+        .map((row) => DraftLine.fromJson(row))
+        .toList();
   }
 
   static Future<String> check(String code, Map<String, dynamic> body) async {
@@ -94,19 +124,26 @@ class Api {
     return result['message'] as String;
   }
 
-  static Future<List<SpareItem>> searchSpares(String query, {bool inStock = true}) async {
+  static Future<List<SpareItem>> searchSpares(
+    String query, {
+    bool inStock = true,
+  }) async {
     final result = await _send(
       'GET',
       '/api/mobile/spares?q=${Uri.encodeQueryComponent(query)}${inStock ? '&in_stock=1' : ''}',
     );
-    return (result['items'] as List).map((row) => SpareItem.fromJson(row)).toList();
+    return (result['items'] as List)
+        .map((row) => SpareItem.fromJson(row))
+        .toList();
   }
 
   /* ── ອາໄຫຼ່: ຂໍເບີກ ແລະ ກົດຮັບ ───────────────────────────────── */
 
   static Future<List<PickupDoc>> pickups() async {
     final result = await _send('GET', '/api/mobile/spares?queue=pickup');
-    return (result['docs'] as List).map((row) => PickupDoc.fromJson(row)).toList();
+    return (result['docs'] as List)
+        .map((row) => PickupDoc.fromJson(row))
+        .toList();
   }
 
   static Future<Lookups> lookups() async {
@@ -120,19 +157,26 @@ class Api {
     String shelfCode,
     String remark,
   ) async {
-    final result = await _send('POST', '/api/mobile/spare-request', body: {
-      'action': 'request',
-      'code': code,
-      'wh_code': whCode,
-      'shelf_code': shelfCode,
-      'remark': remark,
-    });
+    final result = await _send(
+      'POST',
+      '/api/mobile/spare-request',
+      body: {
+        'action': 'request',
+        'code': code,
+        'wh_code': whCode,
+        'shelf_code': shelfCode,
+        'remark': remark,
+      },
+    );
     return result['message'] as String;
   }
 
   static Future<String> pickupSpares(String docRef) async {
-    final result = await _send('POST', '/api/mobile/spare-request',
-        body: {'action': 'pickup', 'doc_ref': docRef});
+    final result = await _send(
+      'POST',
+      '/api/mobile/spare-request',
+      body: {'action': 'pickup', 'doc_ref': docRef},
+    );
     return result['message'] as String;
   }
 
@@ -144,7 +188,10 @@ class Api {
   }
 
   static Future<QcDetail> qcJob(String workflow, String code) async {
-    final result = await _send('GET', '/api/mobile/qc?workflow=$workflow&code=$code');
+    final result = await _send(
+      'GET',
+      '/api/mobile/qc?workflow=$workflow&code=$code',
+    );
     return QcDetail.fromJson(result);
   }
 
@@ -154,21 +201,34 @@ class Api {
     List<Map<String, dynamic>> answers,
     String signerName,
   ) async {
-    final result = await _send('POST', '/api/mobile/qc', body: {
-      'workflow': workflow,
-      'code': code,
-      'answers': answers,
-      'signer_name': signerName,
-    });
+    final result = await _send(
+      'POST',
+      '/api/mobile/qc',
+      body: {
+        'workflow': workflow,
+        'code': code,
+        'answers': answers,
+        'signer_name': signerName,
+      },
+    );
     return result['message'] as String;
   }
 
   /* ── ລາຍຮັບ ແລະ ແຈ້ງເຕືອນ ────────────────────────────────────── */
 
-  static Future<Income> income() async => Income.fromJson(await _send('GET', '/api/mobile/income'));
+  static Future<Income> income() async =>
+      Income.fromJson(await _send('GET', '/api/mobile/income'));
 
-  static Future<void> registerPushToken(String token, String platform) =>
-      _send('POST', '/api/mobile/push-token', body: {'token': token, 'platform': platform});
+  static Future<void> registerPushToken(String token, String platform) => _send(
+    'POST',
+    '/api/mobile/push-token',
+    body: {'token': token, 'platform': platform},
+  );
+
+  static Future<void> removePushToken(String token) => _send(
+    'DELETE',
+    '/api/mobile/push-token?token=${Uri.encodeQueryComponent(token)}',
+  );
 }
 
 class ApiError implements Exception {
@@ -185,13 +245,17 @@ class MobileUser {
   final String username;
   final String role;
   final String roleLabel;
-  MobileUser({required this.username, required this.role, required this.roleLabel});
+  MobileUser({
+    required this.username,
+    required this.role,
+    required this.roleLabel,
+  });
 
   factory MobileUser.fromJson(Map<String, dynamic> json) => MobileUser(
-        username: json['username'] as String,
-        role: json['role'] as String,
-        roleLabel: json['role_label'] as String? ?? '',
-      );
+    username: json['username'] as String,
+    role: json['role'] as String,
+    roleLabel: json['role_label'] as String? ?? '',
+  );
 }
 
 class Job {
@@ -230,21 +294,21 @@ class Job {
   });
 
   factory Job.fromJson(Map<String, dynamic> json) => Job(
-        workflow: json['workflow'] as String,
-        code: json['code'] as String,
-        customer: json['customer'] as String?,
-        tel: json['tel'] as String?,
-        address: json['address'] as String?,
-        product: json['product'] as String?,
-        detail: json['detail'] as String?,
-        onsite: json['onsite'] as bool? ?? false,
-        stage: (json['stage'] as num).toInt(),
-        stageLabel: json['stage_label'] as String? ?? '-',
-        elapsedSeconds: (json['elapsed_seconds'] as num?)?.toInt() ?? 0,
-        appointment: json['appointment'] as String?,
-        action: json['action'] as String? ?? 'wait_other',
-        checkedIn: json['checked_in'] as bool? ?? false,
-      );
+    workflow: json['workflow'] as String,
+    code: json['code'] as String,
+    customer: json['customer'] as String?,
+    tel: json['tel'] as String?,
+    address: json['address'] as String?,
+    product: json['product'] as String?,
+    detail: json['detail'] as String?,
+    onsite: json['onsite'] as bool? ?? false,
+    stage: (json['stage'] as num).toInt(),
+    stageLabel: json['stage_label'] as String? ?? '-',
+    elapsedSeconds: (json['elapsed_seconds'] as num?)?.toInt() ?? 0,
+    appointment: json['appointment'] as String?,
+    action: json['action'] as String? ?? 'wait_other',
+    checkedIn: json['checked_in'] as bool? ?? false,
+  );
 
   int get days => elapsedSeconds ~/ 86400;
 }
@@ -254,14 +318,19 @@ class DraftLine {
   final String itemCode;
   final String? itemName;
   final double qty;
-  DraftLine({required this.roworder, required this.itemCode, required this.itemName, required this.qty});
+  DraftLine({
+    required this.roworder,
+    required this.itemCode,
+    required this.itemName,
+    required this.qty,
+  });
 
   factory DraftLine.fromJson(Map<String, dynamic> json) => DraftLine(
-        roworder: (json['roworder'] as num).toInt(),
-        itemCode: json['item_code'] as String,
-        itemName: json['item_name'] as String?,
-        qty: (json['qty'] as num).toDouble(),
-      );
+    roworder: (json['roworder'] as num).toInt(),
+    itemCode: json['item_code'] as String,
+    itemName: json['item_name'] as String?,
+    qty: (json['qty'] as num).toDouble(),
+  );
 }
 
 class SpareItem {
@@ -269,14 +338,19 @@ class SpareItem {
   final String name;
   final String? unitCode;
   final int balance;
-  SpareItem({required this.code, required this.name, required this.unitCode, required this.balance});
+  SpareItem({
+    required this.code,
+    required this.name,
+    required this.unitCode,
+    required this.balance,
+  });
 
   factory SpareItem.fromJson(Map<String, dynamic> json) => SpareItem(
-        code: json['code'] as String,
-        name: json['name_1'] as String? ?? '',
-        unitCode: json['unit_code'] as String?,
-        balance: (json['balance_qty'] as num?)?.toInt() ?? 0,
-      );
+    code: json['code'] as String,
+    name: json['name_1'] as String? ?? '',
+    unitCode: json['unit_code'] as String?,
+    balance: (json['balance_qty'] as num?)?.toInt() ?? 0,
+  );
 }
 
 class PickupDoc {
@@ -284,14 +358,19 @@ class PickupDoc {
   final String jobCode;
   final String docDate;
   final int lines;
-  PickupDoc({required this.docNo, required this.jobCode, required this.docDate, required this.lines});
+  PickupDoc({
+    required this.docNo,
+    required this.jobCode,
+    required this.docDate,
+    required this.lines,
+  });
 
   factory PickupDoc.fromJson(Map<String, dynamic> json) => PickupDoc(
-        docNo: json['doc_no'] as String,
-        jobCode: json['job_code'] as String? ?? '-',
-        docDate: json['doc_date'] as String? ?? '-',
-        lines: (json['lines'] as num?)?.toInt() ?? 0,
-      );
+    docNo: json['doc_no'] as String,
+    jobCode: json['job_code'] as String? ?? '-',
+    docDate: json['doc_date'] as String? ?? '-',
+    lines: (json['lines'] as num?)?.toInt() ?? 0,
+  );
 }
 
 class Lookups {
@@ -300,17 +379,24 @@ class Lookups {
   Lookups({required this.warehouses, required this.shelves});
 
   factory Lookups.fromJson(Map<String, dynamic> json) => Lookups(
-        warehouses: (json['warehouses'] as List)
-            .map((row) => {'code': row['code'] as String, 'name': row['name'] as String})
-            .toList(),
-        shelves: (json['shelves'] as List)
-            .map((row) => {
-                  'code': row['code'] as String,
-                  'name': row['name'] as String,
-                  'wh_code': row['wh_code'] as String,
-                })
-            .toList(),
-      );
+    warehouses: (json['warehouses'] as List)
+        .map(
+          (row) => {
+            'code': row['code'] as String,
+            'name': row['name'] as String,
+          },
+        )
+        .toList(),
+    shelves: (json['shelves'] as List)
+        .map(
+          (row) => {
+            'code': row['code'] as String,
+            'name': row['name'] as String,
+            'wh_code': row['wh_code'] as String,
+          },
+        )
+        .toList(),
+  );
 }
 
 class QcJob {
@@ -330,13 +416,13 @@ class QcJob {
   });
 
   factory QcJob.fromJson(Map<String, dynamic> json) => QcJob(
-        workflow: json['workflow'] as String,
-        code: json['code'] as String,
-        customer: json['customer'] as String?,
-        item: json['item'] as String?,
-        worker: json['worker'] as String?,
-        finishedAt: json['finished_at'] as String?,
-      );
+    workflow: json['workflow'] as String,
+    code: json['code'] as String,
+    customer: json['customer'] as String?,
+    item: json['item'] as String?,
+    worker: json['worker'] as String?,
+    finishedAt: json['finished_at'] as String?,
+  );
 }
 
 class QcItem {
@@ -357,13 +443,13 @@ class QcItem {
   });
 
   factory QcItem.fromJson(Map<String, dynamic> json) => QcItem(
-        id: (json['id'] as num).toInt(),
-        name: json['name'] as String,
-        requirePhoto: json['require_photo'] as bool? ?? false,
-        passed: json['passed'] as bool?,
-        note: json['note'] as String? ?? '',
-        photo: json['photo'] as String? ?? '',
-      );
+    id: (json['id'] as num).toInt(),
+    name: json['name'] as String,
+    requirePhoto: json['require_photo'] as bool? ?? false,
+    passed: json['passed'] as bool?,
+    note: json['note'] as String? ?? '',
+    photo: json['photo'] as String? ?? '',
+  );
 }
 
 class QcDetail {
@@ -374,9 +460,11 @@ class QcDetail {
   QcDetail({required this.items, required this.photos});
 
   factory QcDetail.fromJson(Map<String, dynamic> json) => QcDetail(
-        items: (json['items'] as List).map((row) => QcItem.fromJson(row)).toList(),
-        photos: (json['photos'] as List).map((row) => row['photo'] as String).toList(),
-      );
+    items: (json['items'] as List).map((row) => QcItem.fromJson(row)).toList(),
+    photos: (json['photos'] as List)
+        .map((row) => row['photo'] as String)
+        .toList(),
+  );
 }
 
 class Income {
@@ -384,12 +472,17 @@ class Income {
   final int jobs;
   final double totalThb;
   final List<Map<String, dynamic>> rows;
-  Income({required this.linked, required this.jobs, required this.totalThb, required this.rows});
+  Income({
+    required this.linked,
+    required this.jobs,
+    required this.totalThb,
+    required this.rows,
+  });
 
   factory Income.fromJson(Map<String, dynamic> json) => Income(
-        linked: json['linked'] as bool? ?? false,
-        jobs: (json['jobs'] as num?)?.toInt() ?? 0,
-        totalThb: (json['total_thb'] as num?)?.toDouble() ?? 0,
-        rows: (json['rows'] as List).cast<Map<String, dynamic>>(),
-      );
+    linked: json['linked'] as bool? ?? false,
+    jobs: (json['jobs'] as num?)?.toInt() ?? 0,
+    totalThb: (json['total_thb'] as num?)?.toDouble() ?? 0,
+    rows: (json['rows'] as List).cast<Map<String, dynamic>>(),
+  );
 }

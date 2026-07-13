@@ -3,6 +3,7 @@ import { elapsedTone } from "@/lib/elapsed-tone";
 import type { BoardCard } from "@/components/service-board";
 import { STAGES } from "@/components/service-board";
 import { SortHeader, type SortDir } from "@/components/sort-header";
+import { ServiceDeleteButton } from "@/components/service/service-delete-button";
 import { Pencil, Printer } from "lucide-react";
 import Link from "next/link";
 
@@ -25,11 +26,14 @@ const COLUMNS: { key: PendingSort; label: string; defaultDir: SortDir }[] = [
 
 /** ວຽກທີ່ຍັງຄ້າງ — ຕາຕະລາງ, ກົດຫົວຖັນເພື່ອຈັດຮຽງ */
 export function ServicePendingTable({
+  canDelete = false,
   cards,
   sort,
   dir,
   sortHref,
 }: {
+  /** ຜູ້ຈັດການເທົ່ານັ້ນ — ປຸ່ມລຶບຍ້ອນຄືນບໍ່ໄດ້ */
+  canDelete?: boolean;
   cards: BoardCard[];
   sort: string;
   dir: SortDir;
@@ -119,6 +123,8 @@ export function ServicePendingTable({
                       <Link href={`/service/${card.code}/edit`} title="ແກ້ໄຂ" className="text-slate-500 hover:opacity-70">
                         <Pencil className="size-4" />
                       </Link>
+                      {/* ລຶບໃບຮັບເຄື່ອງ — ຜູ້ຈັດການເທົ່ານັ້ນ (server ກວດຊ້ຳ) */}
+                      {canDelete && <ServiceDeleteButton code={card.code} />}
                     </div>
                   </td>
                 </tr>

@@ -7,8 +7,29 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 
-const isActive = (pathname: string, href: string) =>
-  href !== "#" && (pathname === href || pathname.startsWith(`${href}/`));
+/**
+ * ລາຍການເມນູທີ່ **ຕົງທີ່ສຸດ** ຈຶ່ງສະຫວ່າງ — ອັນດຽວເທົ່ານັ້ນ.
+ *
+ * ແຕ່ກ່ອນໃຊ້ `pathname.startsWith(href)` ລ້ວນໆ ⇒ ຢູ່ໜ້າ /stock/requests/pickup
+ * ທັງ "ໃບຂໍເບີກອາໄຫຼ່" (/stock/requests) ແລະ "ຮັບອາໄຫຼ່" (/stock/requests/pickup)
+ * ສະຫວ່າງພ້ອມກັນ ເພາະເສັ້ນທາງນຶ່ງເປັນຄຳນຳໜ້າຂອງອີກອັນ.
+ * ດຽວນີ້ຄິດຈາກ **ຄວາມຍາວທີ່ຕົງກັນ**: ອັນທີ່ຍາວກວ່າຊະນະ.
+ */
+const matchLength = (pathname: string, href: string) => {
+  const path = href.split("?")[0];
+  if (path === "#") return -1;
+  if (pathname === path) return path.length;
+  return pathname.startsWith(`${path}/`) ? path.length : -1;
+};
+
+/** ເສັ້ນທາງທີ່ຍາວທີ່ສຸດໃນເມນູທັງໝົດ ທີ່ຕົງກັບໜ້າປັດຈຸບັນ */
+const bestMatch = (pathname: string, groups: NavGroup[]) =>
+  Math.max(-1, ...groups.flatMap((group) => group.items.map((item) => matchLength(pathname, item.href))));
+
+const isActive = (pathname: string, href: string, best: number) => {
+  const length = matchLength(pathname, href);
+  return length >= 0 && length === best;
+};
 
 /* ---------------- ເມນູ (ໃຊ້ຮ່ວມກັບ mobile) ---------------- */
 
@@ -42,6 +63,9 @@ export function NavTree({
       .filter((group) => group.items.length > 0);
   }, [role, navFlags, query]);
 
+  // ຄິດຄັ້ງດຽວຕໍ່ການ render — ຢ່າຄິດຊ້ຳຢູ່ໃນ loop ຂອງແຕ່ລະລາຍການ
+  const best = useMemo(() => bestMatch(pathname, groups), [pathname, groups]);
+
   const searching = query.trim().length > 0;
 
   return (
@@ -71,7 +95,7 @@ export function NavTree({
 
         {groups.map((group: NavGroup) => {
           const Icon = group.icon;
-          const hasActive = group.items.some((item) => isActive(pathname, item.href));
+          const hasActive = group.items.some((item) => isActive(pathname, item.href, best));
           // ຄົ້ນຫາຢູ່ → ເປີດໝົດ; ບໍ່ດັ່ງນັ້ນເປີດກຸ່ມທີ່ກຳລັງໃຊ້ ເວັ້ນແຕ່ຜູ້ໃຊ້ພັບເອງ
           const open = searching || (closed[group.id] === undefined ? hasActive : !closed[group.id]);
 
@@ -110,7 +134,7 @@ export function NavTree({
               {open && (
                 <ul className="mb-1 space-y-0.5">
                   {group.items.map((item, index) => {
-                    const active = isActive(pathname, item.href);
+                    const active = isActive(pathname, item.href, best);
                     return (
                       <li key={`${item.href}-${index}`}>
                         {item.divider && <hr className="my-1.5 ml-8 border-white/5" />}
