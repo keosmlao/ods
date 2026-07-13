@@ -1,5 +1,14 @@
 import { Card, Empty, PageTitle, Table } from "@/components/ui";
-import { installKpi, repairKpi, technicianKpi, type FlowKpi, type Period } from "@/lib/kpi";
+import {
+  INSTALL_TARGET_HOURS,
+  installKpi,
+  qualityKpi,
+  repairKpi,
+  technicianKpi,
+  weeklyThroughput,
+  type FlowKpi,
+  type Period,
+} from "@/lib/kpi";
 import { HardHat, TrendingUp, TriangleAlert, Wrench } from "lucide-react";
 import Link from "next/link";
 
@@ -33,7 +42,20 @@ export default async function KpiPage({ searchParams }: Props) {
   const params = await searchParams;
   const days = (PERIODS.includes(Number(params.d) as Period) ? Number(params.d) : 90) as Period;
 
-  const [install, repair, techs] = await Promise.all([installKpi(days), repairKpi(days), technicianKpi(days)]);
+  const [install, repair, techs, quality, weeks] = await Promise.all([
+    installKpi(days),
+    repairKpi(days),
+    technicianKpi(days),
+    qualityKpi(days),
+    weeklyThroughput(days),
+  ]);
+
+  const repeatPct = quality.repair_with_sn
+    ? Math.round((quality.repeat_repairs / quality.repair_with_sn) * 1000) / 10
+    : 0;
+  const unhappyPct = quality.feedback_jobs
+    ? Math.round((quality.feedback_unhappy / quality.feedback_jobs) * 1000) / 10
+    : 0;
 
   return (
     <div className="w-full space-y-5">
@@ -55,6 +77,40 @@ export default async function KpiPage({ searchParams }: Props) {
         <span className="ml-2 text-[11px] text-slate-400">ນັບຈາກງານທີ່ **ປິດ** ໃນໄລຍະນີ້</span>
       </div>
 
+      {/* ── ເປົ້າໝາຍຫຼັກ: ຕິດຕັ້ງແລ້ວພາຍໃນ 24 ຊມ ນັບແຕ່ **ອອກບິນ** ── */}
+      {install.target && (
+        <div
+          className={`flex flex-wrap items-center gap-4 rounded-2xl border p-4 ${
+            install.target.pct >= 80
+              ? "border-emerald-200 bg-emerald-50"
+              : install.target.pct >= 50
+                ? "border-amber-200 bg-amber-50"
+                : "border-red-200 bg-red-50"
+          }`}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-slate-600">
+              ເປົ້າໝາຍ: ຕິດຕັ້ງແລ້ວພາຍໃນ <b>{INSTALL_TARGET_HOURS} ຊົ່ວໂມງ</b> ນັບແຕ່ອອກບິນ
+            </p>
+            <p className="mt-1 text-3xl font-bold tabular-nums text-slate-800">
+              {install.target.pct}%
+              <span className="ml-2 text-sm font-normal text-slate-500">
+                ({install.target.done.toLocaleString()} / {install.target.total.toLocaleString()} ງານ)
+              </span>
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              ຄວາມຈິງດຽວນີ້: ມັດທະຍົມ <b>{hours(install.target.median)}</b> ຈາກອອກບິນຫາຕິດຕັ້ງແລ້ວ
+            </p>
+          </div>
+          <span className="h-2 w-full overflow-hidden rounded-full bg-white sm:w-64">
+            <span
+              className={`block h-full rounded-full ${install.target.pct >= 80 ? "bg-emerald-500" : "bg-red-500"}`}
+              style={{ width: `${Math.max(1, install.target.pct)}%` }}
+            />
+          </span>
+        </div>
+      )}
+
       <Flow title="ຕິດຕັ້ງ" icon={<HardHat className="size-4 text-teal-600" />} kpi={install} overdueLabel="ເລີຍວັນນັດ" />
       <Flow
         title="ສ້ອມແປງ"
@@ -62,6 +118,48 @@ export default async function KpiPage({ searchParams }: Props) {
         kpi={repair}
         overdueLabel="ເກີນກຳນົດກວດເຊັກ (SLA)"
       />
+
+      {/* ── ຄຸນນະພາບ: ໄວຢ່າງດຽວບໍ່ພຽງພໍ ── */}
+      <Card title="ຄຸນນະພາບ">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Stat
+            label="ສ້ອມຊ້ຳພາຍໃນ 60 ມື້"
+            text={`${repeatPct}%`}
+            note={`${quality.repeat_repairs.toLocaleString()} / ${quality.repair_with_sn.toLocaleString()} ໃບ`}
+            tone={repeatPct >= 20 ? "bad" : "plain"}
+          />
+          <Stat
+            label="ລູກຄ້າບໍ່ພໍໃຈ (ຄະແນນ ≥3)"
+            text={`${unhappyPct}%`}
+            note={`${quality.feedback_jobs.toLocaleString()} ງານທີ່ຕອບແບບສອບຖາມ`}
+            tone={unhappyPct >= 20 ? "bad" : "plain"}
+          />
+          <Stat
+            label="ຄະແນນສະເລ່ຍ (1 ດີສຸດ)"
+            text={quality.feedback_avg ? String(quality.feedback_avg) : "-"}
+            note="1 = ພໍໃຈ · 4 = ບໍ່ພໍໃຈ"
+          />
+          <Stat
+            label="ຊ່າງປະຕິເສດງານ"
+            value={quality.rejects}
+            note={`QC ພົບຂໍ້ບົກຜ່ອງ ${quality.qc_failed_jobs} ງານ`}
+            tone={quality.rejects > 0 ? "bad" : "plain"}
+          />
+        </div>
+        {quality.qc_answers === 0 && (
+          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+            ⚠️ ຍັງບໍ່ມີການບັນທຶກຜົນ QC ໃນໄລຍະນີ້ — ຕົວເລກ &quot;QC ພົບຂໍ້ບົກຜ່ອງ&quot; ຈຶ່ງເຊື່ອບໍ່ໄດ້
+          </p>
+        )}
+      </Card>
+
+      {/* ── ປະລິມານຕໍ່ອາທິດ: ຮັບເຂົ້າ vs ປິດໄດ້ (ຮັບເຂົ້າ > ປິດ ຕິດຕໍ່ກັນ = ງານກອງ) ── */}
+      <Card title="ປະລິມານງານຕໍ່ອາທິດ (ຮັບເຂົ້າ vs ປິດໄດ້)">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Weekly title="ຕິດຕັ້ງ" points={weeks.install} />
+          <Weekly title="ສ້ອມແປງ" points={weeks.repair} />
+        </div>
+      </Card>
 
       {/* ③ ຕໍ່ຊ່າງ */}
       <Card
@@ -166,6 +264,41 @@ function Flow({
         )}
       </div>
     </Card>
+  );
+}
+
+/** ແທ່ງຕໍ່ອາທິດ — ບໍ່ໃຊ້ library ກຣາຟ (ໜ້ານີ້ບໍ່ຄຸ້ມທີ່ຈະເພີ່ມ dependency) */
+function Weekly({ title, points }: { title: string; points: { week: string; opened: number; closed: number }[] }) {
+  const max = Math.max(1, ...points.flatMap((point) => [point.opened, point.closed]));
+  return (
+    <div>
+      <p className="mb-2 text-xs font-semibold text-slate-600">
+        {title}
+        <span className="ml-3 text-[11px] font-normal text-slate-400">
+          <span className="mr-1 inline-block size-2 rounded-sm bg-slate-400" /> ຮັບເຂົ້າ
+          <span className="ml-2 mr-1 inline-block size-2 rounded-sm bg-teal-500" /> ປິດໄດ້
+        </span>
+      </p>
+      <div className="flex h-28 items-end gap-1 overflow-x-auto">
+        {points.map((point) => (
+          <div key={point.week} className="flex min-w-6 flex-1 flex-col items-center gap-1">
+            <div className="flex h-24 w-full items-end justify-center gap-0.5">
+              <span
+                title={`ຮັບເຂົ້າ ${point.opened}`}
+                className="w-1/2 rounded-t bg-slate-300"
+                style={{ height: `${Math.round((point.opened / max) * 100)}%` }}
+              />
+              <span
+                title={`ປິດໄດ້ ${point.closed}`}
+                className="w-1/2 rounded-t bg-teal-500"
+                style={{ height: `${Math.round((point.closed / max) * 100)}%` }}
+              />
+            </div>
+            <span className="text-[9px] text-slate-400">{point.week}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
