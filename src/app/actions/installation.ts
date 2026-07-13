@@ -141,7 +141,13 @@ const createSchema = z.object({
   pro_model: z.string().min(1),
   pro_type: z.string().min(1),
   pro_size: z.string().min(1),
+  /**
+   * S/N ຂອງແຕ່ລະໜ່ວຍ — ຄັ່ນດ້ວຍ "|" (ບິນນຶ່ງອາດຂາຍແອ 2 ຊຸດ ⇒ 2 ງານ ຄົນລະ S/N).
+   * ຈຳນວນຕ້ອງເທົ່າກັບ `units`.
+   */
   pro_sn: z.string().min(1),
+  /** ຈະຕິດຕັ້ງຈັກໜ່ວຍ = ຈະສ້າງຈັກງານ (1 ໜ່ວຍ = 1 ງານ = 1 ຊ່າງໄປ 1 ບ່ອນ) */
+  units: z.coerce.number().int().min(1).max(20).default(1),
   /**
    * ສະຖານທີ່ຕິດຕັ້ງ — **ບັງຄັບ** (ແຕ່ກ່ອນຫວ່າງໄດ້).
    * ຂໍ້ມູນຈິງ: 146/6,841 ງານບໍ່ມີສະຖານທີ່ ⇒ ຊ່າງຖືກສົ່ງອອກໜ້າງານໂດຍບໍ່ຮູ້ວ່າໄປໃສ
@@ -166,6 +172,7 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
 
   const client = await db.connect();
   let code = "";
+  const codes: string[] = [];
   try {
     await client.query("begin");
     // ods ໃຊ້ max()+1 ໂດຍບໍ່ລັອກ → ສອງຄົນເປີດງານພ້ອມກັນໄດ້ເລກຊ້ຳ. ບ່ອນນີ້ລັອກກ່ອນ.
@@ -199,7 +206,7 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
     const seq = await client.query<{ max: number | null }>(
       "select max(nullif(regexp_replace(code,'\\D','','g'),'')::int) max from ods_tb_install",
     );
-    code = `INST-${(seq.rows[0].max ?? 0) + 1}`;
+    let next = (seq.rows[0].max ?? 0);
 
     // ສິນຄ້າລະຫັດຂຶ້ນຕົ້ນ '97' ບໍ່ໃຊ້ອາໄຫຼ່ (ຄືກັບ ods)
     const usedSpare = lines.rowCount === 0 || d.item_code.slice(0, 2) === "97" ? 0 : 1;
@@ -207,27 +214,46 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
     const category = await client.query<{ name_1: string }>("select name_1 from tb_category where code=$1", [d.pro_type]);
     const proTypeName = category.rows[0]?.name_1 ?? "";
 
-    await client.query(
-      `insert into ods_tb_install(code,doc_ref_1,cust_code,item_code,item_name,install_type,status,complain_status,
-         remark,time_register,user_created,doc_ref_date,pro_brand,pro_model,pro_type,pro_size,location_inst,
-         used_spare,pro_sn,pro_type_code,appoint_date)
-       values($1,$2,$3,$4,$5,$6,0,0,$7,localtimestamp(0),$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,nullif($18,'')::date)`,
-      [code, d.doc_no, custCode, d.item_code, d.item_name, d.sv_type, d.remark, session.username, d.billdate,
-        d.pro_brand, d.pro_model, proTypeName, d.pro_size, d.location_inst, usedSpare, d.pro_sn, d.pro_type,
-        d.appoint_date ?? ""],
-    );
-
-    for (const line of lines.rows) {
-      await client.query(
-        `insert into ods_tb_install_detail(line_number,code,cust_code,time_register,item_code,item_name,qty,unit_code)
-         values($1,$2,$3,localtimestamp(0),$4,$5,$6,$7)`,
-        [line.line_number, code, custCode, line.ic_code, line.name_1, line.qty, line.unit_code],
-      );
-      await client.query(
-        "insert into tb_used_spare(product_code,item_code,item_name,qty,unit_code) values($1,$2,$3,$4,$5)",
-        [code, line.ic_code, line.name_1, line.qty, line.unit_code],
-      );
+    /**
+     * ── 1 ໜ່ວຍ = 1 ງານ ──
+     * ບິນນຶ່ງອາດຂາຍແອ 2-3 ຊຸດ. ແຕ່ກ່ອນເປີດໄດ້ **ງານດຽວ** ⇒ CS ຕ້ອງເປີດຊ້ຳເອງ
+     * ແລະ ງານທີ່ 2 ມັກຖືກລືມ. ດຽວນີ້ເລືອກ "ຈັກໜ່ວຍ" ແລ້ວສ້າງໃຫ້ຄົບ —
+     * ແຕ່ລະງານມີ S/N ຂອງຕົນເອງ (ຊ່າງໄປຕິດຄົນລະໜ່ວຍ ຈຶ່ງຕ້ອງແຍກງານ).
+     */
+    const serials = d.pro_sn.split("|").map((value) => value.trim());
+    if (serials.length !== d.units) {
+      await client.query("rollback");
+      return { error: `ຕ້ອງລະບຸ S/N ໃຫ້ຄົບ ${d.units} ໜ່ວຍ` };
     }
+
+    for (const serial of serials) {
+      next += 1;
+      code = `INST-${next}`;
+      codes.push(code);
+
+      await client.query(
+        `insert into ods_tb_install(code,doc_ref_1,cust_code,item_code,item_name,install_type,status,complain_status,
+           remark,time_register,user_created,doc_ref_date,pro_brand,pro_model,pro_type,pro_size,location_inst,
+           used_spare,pro_sn,pro_type_code,appoint_date)
+         values($1,$2,$3,$4,$5,$6,0,0,$7,localtimestamp(0),$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,nullif($18,'')::date)`,
+        [code, d.doc_no, custCode, d.item_code, d.item_name, d.sv_type, d.remark, session.username, d.billdate,
+          d.pro_brand, d.pro_model, proTypeName, d.pro_size, d.location_inst, usedSpare, serial, d.pro_type,
+          d.appoint_date ?? ""],
+      );
+
+      for (const line of lines.rows) {
+        await client.query(
+          `insert into ods_tb_install_detail(line_number,code,cust_code,time_register,item_code,item_name,qty,unit_code)
+           values($1,$2,$3,localtimestamp(0),$4,$5,$6,$7)`,
+          [line.line_number, code, custCode, line.ic_code, line.name_1, line.qty, line.unit_code],
+        );
+        await client.query(
+          "insert into tb_used_spare(product_code,item_code,item_name,qty,unit_code) values($1,$2,$3,$4,$5)",
+          [code, line.ic_code, line.name_1, line.qty, line.unit_code],
+        );
+      }
+    }
+
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");
@@ -237,11 +263,14 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
     client.release();
   }
 
-  await logChange(
-    "ods_tb_install",
-    code,
-    `ເປີດງານຕິດຕັ້ງ: ${d.item_name} · ລູກຄ້າ ${d.custname} · ບິນອ້າງອີງ ${d.doc_no}`,
-  );
+  for (const created of codes) {
+    await logChange(
+      "ods_tb_install",
+      created,
+      `ເປີດງານຕິດຕັ້ງ: ${d.item_name} · ລູກຄ້າ ${d.custname} · ບິນອ້າງອີງ ${d.doc_no}` +
+        (codes.length > 1 ? ` (${codes.indexOf(created) + 1}/${codes.length} ໜ່ວຍ)` : ""),
+    );
+  }
 
   revalidateAll();
   redirect("/installations");

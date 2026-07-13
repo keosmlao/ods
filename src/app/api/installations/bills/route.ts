@@ -29,25 +29,32 @@ import { NextResponse, type NextRequest } from "next/server";
  * matcher ຂອງ src/proxy.ts ຕັດ /api ອອກ ⇒ route ນີ້ປ່ອຍຊື່/ເບີ/ທີ່ຢູ່ລູກຄ້າອອກມາ
  * ຈຶ່ງຕ້ອງກວດ role ເອງ (ຝ່າຍບໍລິການ — ຄືໜ້າ /installations/new).
  */
-export type BillRow = {
-  doc_date: string;
-  doc_no: string;
+/** ລາຍການ **ທີ່ຕ້ອງຕິດຕັ້ງ** ໃນບິນ — 1 ບິນ ອາດມີຫຼາຍລາຍການ ແລະ ຫຼາຍໜ່ວຍ */
+export type BillItem = {
   item_code: string;
   item_name: string;
-  qty: string;
-  cust_code: string | null;
-  cust_name: string | null;
-  telephone: string | null;
-  address: string | null;
+  /** ຈຳນວນທີ່ຂາຍໃນບິນ — ຕັ້ງຕົ້ນຂອງ "ຈະຕິດຕັ້ງຈັກໜ່ວຍ" */
+  qty: number;
   sv_type: string;
   item_brand: string | null;
-  doc_date_raw: string;
   /** ດຶງມາຈາກ ERP — ຟອມຕື່ມໃຫ້ ບໍ່ຕ້ອງພິມເອງ */
   pro_type: string | null;
   pro_type_name: string | null;
   pro_size: string | null;
   /** ISN ທີ່ຂາຍໃນບິນນີ້ (ແອ: ຢູ່ອົງປະກອບຂອງຊຸດ) ພ້ອມເລກໂຮງງານ */
   serials: { isn: string; sn: string; part: string }[];
+};
+
+/** ບິນ 1 ໃບ = 1 ແຖວ (ບໍ່ແມ່ນ 1 ລາຍການ = 1 ແຖວ ຄືເກົ່າ) */
+export type BillRow = {
+  doc_date: string;
+  doc_date_raw: string;
+  doc_no: string;
+  cust_code: string | null;
+  cust_name: string | null;
+  telephone: string | null;
+  address: string | null;
+  items: BillItem[];
 };
 
 /** ຂະໜາດສິນຄ້າທີ່ **ຕ້ອງຕິດຕັ້ງ** — ຄ່າດຽວກັບທີ່ໃຊ້ຄິດ sv_type */
@@ -170,52 +177,66 @@ export async function GET(request: NextRequest) {
              left join sn_inventory sni on sni.isn = d.sn
             where d.trans_flag = 44 and coalesce(d.sn,'') <> ''
               and d.doc_ref = any(select doc_no from kept)
+         ),
+         lines as (
+           -- ⑤ ແຖວລາຍການ ພ້ອມຂໍ້ມູນທີ່ດຶງຈາກ ERP
+           select k.doc_no, k.doc_date, k.item_code, k.item_name, k.qty::float as qty,
+              case when inv.item_size='112' then '9900-0020'
+                   when inv.item_size='023' then '9900-0019'
+                   when inv.item_size='033' then '9900-0018'
+                   when inv.item_size='051' then '9900-0017'
+                   when inv.item_size='121' then '9900-0016'
+                   else '' end as sv_type,
+              inv.item_brand,
+              inv.item_category as pro_type,
+              cat.name_1 as pro_type_name,
+              siz.name_1 as pro_size,
+              /**
+               * ISN — ⚠️ ຂອງແອຢູ່ **ອົງປະກອບຂອງຊຸດ** ບໍ່ແມ່ນຢູ່ແຖວ [SET]
+               * (ບິນ CAK26008714: [SET] ບໍ່ມີ ISN ແຕ່ [C]/[H] ມີ) ⇒ ແຕກຊຸດຜ່ານ
+               * ic_inventory_set_detail ກ່ອນ ບໍ່ດັ່ງນັ້ນແອທຸກຊຸດຈະບໍ່ມີ ISN ໃຫ້ເລືອກ.
+               */
+              coalesce((
+                select json_agg(json_build_object(
+                         'isn', x.isn, 'sn', x.sn,
+                         'part', case when x.item_name ilike '%[C]%' then 'ໜ່ວຍໃນ'
+                                      when x.item_name ilike '%[H]%' then 'ໜ່ວຍນອກ'
+                                      else '' end)
+                         order by (x.item_name ilike '%[C]%') desc, x.isn)
+                  from isn x
+                 where x.doc_ref = k.doc_no
+                   and (x.item_code = k.item_code
+                        or x.item_code in (select c2.ic_code from comp c2
+                                            where c2.doc_no = k.doc_no and c2.item_code = k.item_code))
+              ), '[]'::json) as serials
+             from kept k
+             join ic_inventory inv on inv.code = k.item_code
+             left join ic_category cat on cat.code = inv.item_category
+             left join ic_size siz on siz.code = inv.item_size
          )
-         select to_char(k.doc_date,'dd/mm/yyyy') as doc_date,
-            to_char(k.doc_date,'YYYY-MM-DD') as doc_date_raw,
-            k.doc_no, k.item_code, k.item_name, k.qty,
+         /**
+          * ⑥ **1 ບິນ = 1 ແຖວ** (ບໍ່ແມ່ນ 1 ລາຍການ = 1 ແຖວ ຄືເກົ່າ).
+          * ບິນນຶ່ງອາດຂາຍແອ 2 ຊຸດ ຫຼື ຫຼາຍລາຍການ ⇒ ຄົນເລືອກ **ບິນ** ກ່ອນ
+          * ແລ້ວຄ່ອຍກຳນົດວ່າຈະຕິດຕັ້ງລາຍການໃດ ຈັກໜ່ວຍ (ຢູ່ຟອມ).
+          */
+         select to_char(l.doc_date,'dd/mm/yyyy') as doc_date,
+            to_char(l.doc_date,'YYYY-MM-DD') as doc_date_raw,
+            l.doc_no,
             case when ar.telephone is not null then ar.telephone else ar2.name_1 end as cust_name,
             case when ar.telephone is not null then ar.mobile else ar2.telephone end as telephone,
             case when ar.telephone is not null then ar.address else ar2.address end as address,
             case when ar.telephone is not null then ar.name else ar2.code end as cust_code,
-            case when inv.item_size='112' then '9900-0020'
-                 when inv.item_size='023' then '9900-0019'
-                 when inv.item_size='033' then '9900-0018'
-                 when inv.item_size='051' then '9900-0017'
-                 when inv.item_size='121' then '9900-0016'
-                 else '' end as sv_type,
-            inv.item_brand,
-            inv.item_category as pro_type,
-            cat.name_1 as pro_type_name,
-            siz.name_1 as pro_size,
-            /**
-             * ④ ISN — ຄິດສະເພາະ 30 ແຖວທີ່ຄັດແລ້ວ.
-             * ⚠️ ISN ຂອງແອຢູ່ **ອົງປະກອບຂອງຊຸດ** ບໍ່ແມ່ນຢູ່ແຖວ [SET] (ພິສູດຈາກບິນ
-             * CAK26008714: [SET] ບໍ່ມີ ISN ແຕ່ [C]/[H] ມີ) ⇒ ຕ້ອງແຕກຊຸດຜ່ານ
-             * ic_inventory_set_detail ກ່ອນ ບໍ່ດັ່ງນັ້ນແອທຸກຊຸດຈະບໍ່ມີ ISN ໃຫ້ເລືອກ.
-             */
-            coalesce((
-              select json_agg(json_build_object(
-                       'isn', x.isn,
-                       'sn', x.sn,
-                       'part', case when x.item_name ilike '%[C]%' then 'ໜ່ວຍໃນ'
-                                    when x.item_name ilike '%[H]%' then 'ໜ່ວຍນອກ'
-                                    else '' end)
-                       order by (x.item_name ilike '%[C]%') desc, x.isn)
-                from isn x
-               where x.doc_ref = k.doc_no
-                 and (x.item_code = k.item_code
-                      or x.item_code in (select c2.ic_code from comp c2
-                                          where c2.doc_no = k.doc_no and c2.item_code = k.item_code))
-            ), '[]'::json) as serials
-          from kept k
-          join ic_trans a on a.doc_no = k.doc_no and a.trans_flag = 44
-          join ic_inventory inv on inv.code = k.item_code
-          left join ic_category cat on cat.code = inv.item_category
-          left join ic_size siz on siz.code = inv.item_size
+            json_agg(json_build_object(
+              'item_code', l.item_code, 'item_name', l.item_name, 'qty', l.qty,
+              'sv_type', l.sv_type, 'item_brand', l.item_brand,
+              'pro_type', l.pro_type, 'pro_type_name', l.pro_type_name, 'pro_size', l.pro_size,
+              'serials', l.serials) order by l.item_name) as items
+          from lines l
+          join ic_trans a on a.doc_no = l.doc_no and a.trans_flag = 44
           left join ar_contactor ar on ar.ar_code = a.cust_code and ar.name = a.contactor
           left join ar_customer ar2 on ar2.code = a.cust_code
-         order by k.doc_date desc, k.doc_no desc`,
+         group by l.doc_no, l.doc_date, ar.telephone, ar.mobile, ar.address, ar.name, ar2.name_1, ar2.telephone, ar2.address, ar2.code
+         order by l.doc_date desc, l.doc_no desc`,
         !q
           ? [INSTALL_SIZES]
           : custCodes.length > 0

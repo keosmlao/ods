@@ -2,101 +2,118 @@
 import { createInstall, type ActionState } from "@/app/actions/installation";
 import { SelectField } from "@/components/select-field";
 import { Button, Card, ErrorBox, LinkButton, inputClass, labelClass } from "@/components/ui";
-import { CheckCircle2, LoaderCircle, MapPin, Receipt, Save, Search, X } from "lucide-react";
+import { CheckCircle2, LoaderCircle, MapPin, Package, Receipt, Save, Search, X } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
 
 /**
- * ເປີດງານຕິດຕັ້ງ — ຈັດລຳດັບຕາມ **ຂັ້ນຕອນຈິງ** ບໍ່ແມ່ນຕາມໂຄງຕາຕະລາງ.
+ * ເປີດງານຕິດຕັ້ງ — ຈັດລຳດັບຕາມ **ຂັ້ນຕອນຈິງ**:
+ *
+ *   ① ຄົ້ນຫາ ແລະ ເລືອກ **ບິນຂາຍ** (ສະເພາະບິນທີ່ມີ "ບໍລິການຕິດຕັ້ງ" ຢູ່ໃນນັ້ນ)
+ *   ② ເລືອກວ່າ **ຈະຕິດຕັ້ງລາຍການໃດ ໃນບິນນັ້ນ** (ບິນນຶ່ງອາດຂາຍຫຼາຍລາຍການ)
+ *   ③ **ຈັກໜ່ວຍ** — 1 ໜ່ວຍ = 1 ງານ (ຊ່າງໄປຕິດຄົນລະໜ່ວຍ) ພ້ອມ S/N ຂອງແຕ່ລະໜ່ວຍ
+ *   ④ Model · ປະເພດ · ຂະໜາດ (ປະເພດ/ຂະໜາດ ດຶງມາຈາກ ERP ແລ້ວ)
+ *   ⑤ ສະຖານທີ່ຕິດຕັ້ງ (**ບັງຄັບ**) ແລະ ວັນຄາດວ່າຈະເຂົ້າຕິດຕັ້ງ
+ *   ⑥ ບັນທຶກ (ລຸ່ມສຸດ — ກົດບໍ່ໄດ້ຈົນກວ່າຂໍ້ມູນຄົບ)
  *
  * ── ບັນຫາຂອງຮູບແບບເກົ່າ ──
- * ① ທຸກຢ່າງ (ລູກຄ້າ · ບິນ · ສິນຄ້າ) **ມາຈາກບິນຂາຍ ERP ອັນດຽວ** ແຕ່ປຸ່ມ "ຄົ້ນຫາບິນຂາຍ"
- *    ຢູ່ກາງໜ້າ ⇒ ຄົນເປີດມາເຫັນຊ່ອງຫວ່າງ 8 ຊ່ອງທີ່ **ພິມບໍ່ໄດ້** (readOnly) ກ່ອນ.
- * ② ຊ່ອງ readOnly ຫຼາຍອັນເປັນ `required` ⇒ ຍັງບໍ່ເລືອກບິນແລ້ວກົດບັນທຶກ browser ຈະບອກ
- *    "ກະລຸນາຕື່ມຊ່ອງນີ້" ໃສ່ຊ່ອງທີ່ພິມບໍ່ໄດ້ — ຕັນ ບໍ່ມີທາງອອກ.
- * ③ ປຸ່ມ "ບັນທຶກ" ຢູ່ເທິງສຸດ ກ່ອນມີຫຍັງໃຫ້ບັນທຶກ.
- * ④ **ສະຖານທີ່ຕິດຕັ້ງ** ຢູ່ທ້າຍສຸດ ແລະ ບໍ່ບັງຄັບ — ຂໍ້ມູນຈິງ: **146 ງານບໍ່ມີສະຖານທີ່**
- *    ⇒ ຊ່າງຖືກສົ່ງອອກໜ້າງານໂດຍບໍ່ຮູ້ວ່າໄປໃສ.
- *
- * ── ລຳດັບໃໝ່ (ຕາມສິ່ງທີ່ຄົນຕ້ອງເຮັດ) ──
- *   ① ຄົ້ນຫາບິນຂາຍ  → ບໍ່ມີບິນ = ເປີດງານບໍ່ໄດ້ ⇒ ຢູ່ເທິງສຸດ ແລະ ເປັນອັນດຽວທີ່ເຫັນຕອນເລີ່ມ
- *   ② ຂໍ້ມູນທີ່ ERP ຕື່ມໃຫ້ (ລູກຄ້າ · ບິນ · ສິນຄ້າ) → ສະຫຼຸບອ່ານຢ່າງດຽວ ບໍ່ແມ່ນຊ່ອງພິມ
- *   ③ ຂໍ້ມູນທີ່ **ຕ້ອງພິມເອງ** (Model · ປະເພດ · ຂະໜາດ · S/N) → ເນັ້ນໄວ້ຊັດ
- *   ④ ສະຖານທີ່ຕິດຕັ້ງ (**ບັງຄັບ**) + ໝາຍເຫດ
- *   ⑤ ບັນທຶກ (ລຸ່ມສຸດ · ກົດບໍ່ໄດ້ຈົນກວ່າຈະເລືອກບິນ)
+ * · ຄົນເປີດມາເຫັນຊ່ອງຫວ່າງ 8 ຊ່ອງທີ່ພິມບໍ່ໄດ້ (readOnly + required) ⇒ ກົດບັນທຶກແລ້ວ
+ *   browser ຮ້ອງໃສ່ຊ່ອງທີ່ພິມບໍ່ໄດ້ — ຕັນ ບໍ່ມີທາງອອກ.
+ * · ບິນທີ່ຂາຍແອ 2 ຊຸດ **ເປີດໄດ້ງານດຽວ** ⇒ CS ຕ້ອງເປີດຊ້ຳເອງ ແລະ ງານທີ 2 ມັກຖືກລືມ.
  */
 
 type Category = { code: string; name_1: string };
 
-type Bill = {
-  doc_date: string;
-  doc_no: string;
+type Serial = { isn: string; sn: string; part: string };
+
+type BillItem = {
   item_code: string;
   item_name: string;
-  qty: string;
+  qty: number;
+  sv_type: string;
+  item_brand: string | null;
+  pro_type: string | null;
+  pro_type_name: string | null;
+  pro_size: string | null;
+  serials: Serial[];
+};
+
+type Bill = {
+  doc_date: string;
+  doc_date_raw: string;
+  doc_no: string;
   cust_code: string | null;
   cust_name: string | null;
   telephone: string | null;
   address: string | null;
-  sv_type: string;
-  item_brand: string | null;
-  doc_date_raw: string;
-  pro_type: string | null;
-  pro_type_name: string | null;
-  pro_size: string | null;
-  serials: { isn: string; sn: string; part: string }[];
-};
-
-const empty = {
-  doc_no: "",
-  billdate: "",
-  item_code: "",
-  item_name: "",
-  sv_type: "",
-  cust_code: "",
-  custname: "",
-  tel: "",
-  address: "",
-  pro_brand: "",
-  /** ດຶງມາຈາກ ERP — CS ບໍ່ຕ້ອງພິມ (ແກ້ໄດ້ຖ້າຜິດ) */
-  pro_type: "",
-  pro_size: "",
-  serials: [] as { isn: string; sn: string; part: string }[],
+  items: BillItem[];
 };
 
 export function InstallForm({ categories, username }: { categories: Category[]; username: string }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(createInstall, {});
-  const [picked, setPicked] = useState(empty);
   const [open, setOpen] = useState(false);
+  const [bill, setBill] = useState<Bill | null>(null);
+  const [item, setItem] = useState<BillItem | null>(null);
+  const [units, setUnits] = useState(1);
 
-  const chosen = picked.doc_no !== "";
+  /** S/N ຂອງແຕ່ລະໜ່ວຍ — ຍາວເທົ່າ units ສະເໝີ */
+  const [serials, setSerials] = useState<string[]>([""]);
+
+  function pickItem(chosen: BillItem) {
+    const count = Math.max(1, Math.round(chosen.qty || 1));
+    setItem(chosen);
+    setUnits(count);
+    // ມີ ISN ຈາກ ERP ⇒ ຕື່ມໃຫ້ຕາມລຳດັບ (ໜ່ວຍໃນຂຶ້ນກ່ອນ)
+    setSerials(
+      Array.from({ length: count }, (_, index) => {
+        const serial = chosen.serials[index];
+        return serial ? serial.sn || serial.isn : "";
+      }),
+    );
+  }
+
+  function changeUnits(count: number) {
+    const safe = Math.min(20, Math.max(1, count || 1));
+    setUnits(safe);
+    setSerials((current) =>
+      Array.from({ length: safe }, (_, index) => {
+        if (current[index] !== undefined) return current[index];
+        const serial = item?.serials[index];
+        return serial ? serial.sn || serial.isn : "";
+      }),
+    );
+  }
+
+  const setSerial = (index: number, value: string) =>
+    setSerials((current) => current.map((old, position) => (position === index ? value : old)));
+
+  const ready = Boolean(bill && item && serials.length === units && serials.every((serial) => serial.trim()));
 
   return (
     <form action={formAction} className="space-y-5">
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
 
-      {/* ① ບິນຂາຍ — ຈຸດເລີ່ມຕົ້ນ. ບໍ່ມີບິນ = ເປີດງານບໍ່ໄດ້ */}
+      {/* ① ບິນຂາຍ */}
       <Card
         title={
           <span className="inline-flex items-center gap-2">
             <Receipt className="size-4 text-teal-600" />
             ບິນຂາຍ
-            {chosen && <CheckCircle2 className="size-4 text-emerald-600" />}
+            {bill && <CheckCircle2 className="size-4 text-emerald-600" />}
           </span>
         }
         actions={
-          <Button type="button" tone={chosen ? "neutral" : "info"} onClick={() => setOpen(true)}>
-            <Search className="size-4" /> {chosen ? "ປ່ຽນບິນ" : "ຄົ້ນຫາບີນຂາຍ"}
+          <Button type="button" tone={bill ? "neutral" : "info"} onClick={() => setOpen(true)}>
+            <Search className="size-4" /> {bill ? "ປ່ຽນບິນ" : "ຄົ້ນຫາບີນຂາຍ"}
           </Button>
         }
       >
-        {chosen ? (
+        {bill ? (
           <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-            <Field label="ບິນເລກທີ" value={picked.doc_no} />
-            <Field label="ວັນທີອອກບິນ" value={picked.billdate} />
-            <Field label="ລູກຄ້າ" value={`${picked.custname} (${picked.cust_code})`} />
-            <Field label="ເບີໂທ" value={picked.tel} />
-            <Field label="ທີ່ຢູ່ລູກຄ້າ" value={picked.address} />
-            <Field label="ສິນຄ້າ" value={`${picked.item_name}${picked.pro_brand ? ` · ${picked.pro_brand}` : ""}`} />
+            <Field label="ບິນເລກທີ" value={bill.doc_no} />
+            <Field label="ວັນທີອອກບິນ" value={bill.doc_date} />
+            <Field label="ລູກຄ້າ" value={`${bill.cust_name ?? "-"} (${bill.cust_code ?? "-"})`} />
+            <Field label="ເບີໂທ" value={bill.telephone ?? ""} />
+            <Field label="ທີ່ຢູ່ລູກຄ້າ" value={bill.address ?? ""} />
           </dl>
         ) : (
           <button
@@ -106,86 +123,156 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
           >
             <Search className="size-6" />
             <span className="text-sm font-semibold">ເລີ່ມຈາກຄົ້ນຫາບິນຂາຍ</span>
-            <span className="text-xs">ຂໍ້ມູນລູກຄ້າ ແລະ ສິນຄ້າ ຈະຖືກຕື່ມໃຫ້ອັດຕະໂນມັດຈາກ ERP</span>
+            <span className="text-xs">ຂໍ້ມູນລູກຄ້າ ແລະ ລາຍການສິນຄ້າ ຈະຖືກດຶງມາຈາກ ERP</span>
           </button>
         )}
-
-        {/* ຄ່າທີ່ ERP ຕື່ມໃຫ້ — ສົ່ງໄປ server ໂດຍບໍ່ໃຫ້ຄົນແກ້ (ແກ້ໄດ້ = ຂໍ້ມູນຫຼົ້ນກັບ ERP) */}
-        <input type="hidden" name="doc_no" value={picked.doc_no} />
-        <input type="hidden" name="billdate" value={picked.billdate} />
-        <input type="hidden" name="cust_code" value={picked.cust_code} />
-        <input type="hidden" name="custname" value={picked.custname} />
-        <input type="hidden" name="tel" value={picked.tel} />
-        <input type="hidden" name="address" value={picked.address} />
-        <input type="hidden" name="item_code" value={picked.item_code} />
-        <input type="hidden" name="item_name" value={picked.item_name} />
-        <input type="hidden" name="sv_type" value={picked.sv_type} />
-        <input type="hidden" name="pro_brand" value={picked.pro_brand} />
       </Card>
 
-      {/* ②-③ ສ່ວນທີ່ເຫຼືອຂຶ້ນກໍ່ຕໍ່ເມື່ອມີບິນແລ້ວ — ບໍ່ໃຫ້ຄົນພິມລົງຊ່ອງທີ່ຈະຖືກຂຽນທັບ */}
-      {chosen && (
+      {/* ② ລາຍການໃນບິນ — ເລືອກວ່າຈະຕິດຕັ້ງອັນໃດ */}
+      {bill && (
+        <Card
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Package className="size-4 text-teal-600" />
+              ລາຍການທີ່ຈະຕິດຕັ້ງ ({bill.items.length} ລາຍການໃນບິນ)
+            </span>
+          }
+        >
+          <div className="space-y-2">
+            {bill.items.map((row) => {
+              const active = item?.item_code === row.item_code;
+              return (
+                <button
+                  key={row.item_code}
+                  type="button"
+                  onClick={() => pickItem(row)}
+                  className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${
+                    active ? "border-teal-500 bg-teal-50/60" : "border-slate-200 hover:border-teal-300"
+                  }`}
+                >
+                  <span
+                    className={`grid size-5 shrink-0 place-items-center rounded-full border-2 ${
+                      active ? "border-teal-600" : "border-slate-300"
+                    }`}
+                  >
+                    {active && <span className="size-2.5 rounded-full bg-teal-600" />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-slate-800">{row.item_name}</span>
+                    <span className="block text-xs text-slate-500">
+                      {row.pro_type_name ?? "-"} · {row.pro_size ?? "-"}
+                      {row.serials.length > 0 && ` · ມີ ISN ${row.serials.length}`}
+                    </span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
+                    ຂາຍ {row.qty} ໜ່ວຍ
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* ③ ຈຳນວນໜ່ວຍ + S/N ຕໍ່ໜ່ວຍ */}
+      {bill && item && (
         <>
+          <Card title="ຈຳນວນ ແລະ S/N ຂອງແຕ່ລະໜ່ວຍ">
+            <p className="mb-3 text-xs text-slate-500">
+              <b>1 ໜ່ວຍ = 1 ງານ</b> (ຊ່າງໄປຕິດຄົນລະໜ່ວຍ) — ບິນນີ້ຂາຍ {item.qty} ໜ່ວຍ
+            </p>
+
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <label className={labelClass}>ຈະຕິດຕັ້ງ</label>
+              <input
+                name="units"
+                type="number"
+                min={1}
+                max={20}
+                value={units}
+                onChange={(event) => changeUnits(Number(event.target.value))}
+                className={`${inputClass} w-24`}
+              />
+              <span className="text-sm text-slate-500">ໜ່ວຍ ⇒ ຈະສ້າງ {units} ງານ</span>
+            </div>
+
+            <div className="space-y-2">
+              {serials.map((serial, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <span className="w-20 shrink-0 text-xs font-semibold text-slate-500">ໜ່ວຍທີ {index + 1}</span>
+                  {item.serials.length > 0 ? (
+                    // ERP ມີ ISN ຂອງບິນນີ້ ⇒ ເລືອກ (ພິມເອງ = ຜູກເຄື່ອງຜິດໜ່ວຍ)
+                    <select
+                      value={serial}
+                      onChange={(event) => setSerial(index, event.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">— ເລືອກ ISN —</option>
+                      {item.serials.map((row) => (
+                        <option key={row.isn} value={row.sn || row.isn}>
+                          {row.part ? `${row.part} · ` : ""}
+                          {row.isn}
+                          {row.sn ? ` · S/N ${row.sn}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      value={serial}
+                      onChange={(event) => setSerial(index, event.target.value)}
+                      placeholder="ອ່ານ S/N ຈາກປ້າຍຕົວເຄື່ອງ"
+                      className={inputClass}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* server ຮັບເປັນສາຍດຽວ ຄັ່ນດ້ວຍ | — ຈຳນວນຕ້ອງເທົ່າ units (ກວດຢູ່ server ອີກຊັ້ນ) */}
+            <input type="hidden" name="pro_sn" value={serials.join("|")} />
+          </Card>
+
+          {/* ④ ຂໍ້ມູນສິນຄ້າ */}
           <Card title="ຂໍ້ມູນສິນຄ້າ">
             <p className="mb-3 text-xs text-slate-500">
-              ປະເພດ ແລະ ຂະໜາດ <b>ດຶງມາຈາກ ERP ແລ້ວ</b> — ແກ້ໄດ້ຖ້າຜິດ ·
-              Model ກັບ S/N ຢູ່ຕົວເຄື່ອງ (ERP ບໍ່ມີ) ຈຶ່ງຕ້ອງເບິ່ງແລ້ວພິມ
+              ປະເພດ ແລະ ຂະໜາດ <b>ດຶງມາຈາກ ERP ແລ້ວ</b> · Model ຢູ່ຕົວເຄື່ອງ (ERP ບໍ່ມີ) ຈຶ່ງຕ້ອງພິມ
             </p>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <div>
                 <label className={labelClass}>ລຸ້ນ/Model *</label>
-                <input name="pro_model" required autoFocus className={inputClass} />
-                <p className="mt-1 truncate text-xs text-slate-400" title={picked.item_name}>
-                  ຈາກຊື່ສິນຄ້າ: {picked.item_name}
+                <input name="pro_model" required className={inputClass} />
+                <p className="mt-1 truncate text-xs text-slate-400" title={item.item_name}>
+                  ຈາກຊື່: {item.item_name}
                 </p>
               </div>
-
-              <div>
-                <label className={labelClass}>S/N *</label>
-                {picked.serials.length > 0 ? (
-                  /**
-                   * ບິນນີ້ມີ **ISN** ຢູ່ ERP ແລ້ວ (sn_trans_detail) ⇒ ໃຫ້ເລືອກ ບໍ່ໃຫ້ພິມ
-                   * (ພິມເອງ = ພິມຜິດ ແລ້ວຜູກເຄື່ອງຜິດໜ່ວຍ). ຄ່າທີ່ເກັບ = ເລກໂຮງງານ
-                   * ຖ້າ ERP ຈັບຄູ່ໄວ້ ບໍ່ດັ່ງນັ້ນເກັບ ISN.
-                   */
-                  <select name="pro_sn" required defaultValue="" className={inputClass}>
-                    <option value="" disabled>
-                      ເລືອກ ISN ທີ່ຂາຍໃນບິນນີ້ ({picked.serials.length})
-                    </option>
-                    {picked.serials.map((serial) => (
-                      <option key={serial.isn} value={serial.sn || serial.isn}>
-                        {serial.part ? `${serial.part} · ` : ""}
-                        {serial.isn}
-                        {serial.sn ? ` · S/N ${serial.sn}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input name="pro_sn" required placeholder="ອ່ານຈາກປ້າຍຕົວເຄື່ອງ" className={inputClass} />
-                )}
-              </div>
-
               <div>
                 <label className={labelClass}>ປະເພດ *</label>
                 <SelectField
+                  key={item.item_code}
                   name="pro_type"
-                  defaultValue={picked.pro_type}
+                  defaultValue={item.pro_type ?? ""}
                   options={categories.map((category) => ({ value: category.code, label: category.name_1 }))}
                 />
               </div>
-
               <div>
                 <label className={labelClass}>ຂະໜາດ *</label>
-                <input name="pro_size" required defaultValue={picked.pro_size} className={inputClass} />
+                <input
+                  key={item.item_code}
+                  name="pro_size"
+                  required
+                  defaultValue={item.pro_size ?? ""}
+                  className={inputClass}
+                />
               </div>
             </div>
           </Card>
 
+          {/* ⑤ ສະຖານທີ່ ແລະ ວັນນັດ */}
           <Card
             title={
               <span className="inline-flex items-center gap-2">
                 <MapPin className="size-4 text-teal-600" />
-                ສະຖານທີ່ຕິດຕັ້ງ
+                ສະຖານທີ່ ແລະ ວັນນັດ
               </span>
             }
           >
@@ -196,18 +283,13 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
                 <input
                   name="location_inst"
                   required
-                  defaultValue={picked.address}
+                  defaultValue={bill.address ?? ""}
                   placeholder="ບ້ານ / ເມືອງ / ຈຸດສັງເກດ"
                   className={inputClass}
                 />
                 <p className="mt-1 text-xs text-slate-400">ຕື່ມມາຈາກທີ່ຢູ່ລູກຄ້າ — ແກ້ໄດ້ຖ້າຕິດຕັ້ງບ່ອນອື່ນ</p>
               </div>
               <div>
-                {/**
-                 * ວັນຄາດວ່າຈະເຂົ້າຕິດຕັ້ງ — ແຕ່ກ່ອນຕັ້ງໄດ້ຕອນ **ຈັດຊ່າງ** ເທົ່ານັ້ນ
-                 * ⇒ ລູກຄ້າຖາມ "ມາມື້ໃດ" ຕັ້ງແຕ່ຕອນຊື້ ແຕ່ລະບົບບໍ່ມີບ່ອນເກັບ.
-                 * ຕັ້ງແຕ່ຕອນເປີດງານໄດ້ເລີຍ (ບໍ່ບັງຄັບ — ຜູ້ຈັດຊ່າງແກ້ໄດ້ພາຍຫຼັງ).
-                 */}
                 <label className={labelClass}>ວັນຄາດວ່າຈະເຂົ້າຕິດຕັ້ງ</label>
                 <input type="date" name="appoint_date" className={inputClass} />
                 <p className="mt-1 text-xs text-slate-400">ຜູ້ຈັດຊ່າງປ່ຽນໄດ້ພາຍຫຼັງ</p>
@@ -221,18 +303,36 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
         </>
       )}
 
-      {/* ⑤ ບັນທຶກ — ລຸ່ມສຸດ ຫຼັງຂໍ້ມູນຄົບ (ຂອງເກົ່າຢູ່ເທິງສຸດ ກ່ອນມີຫຍັງໃຫ້ບັນທຶກ) */}
+      {/* ຄ່າທີ່ ERP ໃຫ້ມາ — ສົ່ງໄປ server ໂດຍບໍ່ໃຫ້ຄົນແກ້ (ແກ້ໄດ້ = ຂໍ້ມູນຫຼົ້ນກັບ ERP) */}
+      <input type="hidden" name="doc_no" value={bill?.doc_no ?? ""} />
+      <input type="hidden" name="billdate" value={bill?.doc_date_raw ?? ""} />
+      <input type="hidden" name="cust_code" value={bill?.cust_code ?? ""} />
+      <input type="hidden" name="custname" value={bill?.cust_name ?? ""} />
+      <input type="hidden" name="tel" value={bill?.telephone ?? ""} />
+      <input type="hidden" name="address" value={bill?.address ?? ""} />
+      <input type="hidden" name="item_code" value={item?.item_code ?? ""} />
+      <input type="hidden" name="item_name" value={item?.item_name ?? ""} />
+      <input type="hidden" name="sv_type" value={item?.sv_type ?? ""} />
+      <input type="hidden" name="pro_brand" value={item?.item_brand ?? ""} />
+
+      {/* ⑥ ບັນທຶກ */}
       <div className="sticky bottom-0 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <span className="text-xs text-slate-500">
           ຜູ້ສ້າງ: <b className="text-slate-700">{username}</b>
+          {item && (
+            <>
+              {" · ຈະສ້າງ "}
+              <b className="text-slate-700">{units} ງານ</b>
+            </>
+          )}
         </span>
         <div className="ml-auto flex gap-2">
           <LinkButton href="/installations" tone="neutral">
             ອອກ
           </LinkButton>
-          <Button type="submit" tone="success" disabled={pending || !chosen}>
+          <Button type="submit" tone="success" disabled={pending || !ready}>
             <Save className="size-4" />
-            {pending ? "ກຳລັງບັນທຶກ..." : "ບັນທຶກ"}
+            {pending ? "ກຳລັງບັນທຶກ..." : `ບັນທຶກ${units > 1 ? ` ${units} ງານ` : ""}`}
           </Button>
         </div>
       </div>
@@ -240,22 +340,13 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
       {open && (
         <BillPicker
           onClose={() => setOpen(false)}
-          onPick={(bill) => {
-            setPicked({
-              doc_no: bill.doc_no,
-              billdate: bill.doc_date_raw,
-              item_code: bill.item_code,
-              item_name: bill.item_name,
-              sv_type: bill.sv_type,
-              cust_code: bill.cust_code ?? "",
-              custname: bill.cust_name ?? "",
-              tel: bill.telephone ?? "",
-              address: bill.address ?? "",
-              pro_brand: bill.item_brand ?? "",
-              pro_type: bill.pro_type ?? "",
-              pro_size: bill.pro_size ?? "",
-              serials: bill.serials ?? [],
-            });
+          onPick={(chosen) => {
+            setBill(chosen);
+            setItem(null);
+            setUnits(1);
+            setSerials([""]);
+            // ບິນມີລາຍການດຽວ ⇒ ເລືອກໃຫ້ເລີຍ (ບໍ່ໃຫ້ກົດຊ້ຳໂດຍບໍ່ຈຳເປັນ)
+            if (chosen.items.length === 1) pickItem(chosen.items[0]);
             setOpen(false);
           }}
         />
@@ -274,11 +365,9 @@ function Field({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * ໜ້າຕ່າງຄົ້ນຫາບິນຂາຍ — **ບັດ ບໍ່ແມ່ນຕາຕະລາງ**.
- *
- * ຂອງເກົ່າເປັນຕາຕະລາງ 8 ຖັນ (minWidth 900) ⇒ ຕ້ອງເລື່ອນຂວາ ແລະ **ປຸ່ມ "ເລືອກ" ຖືກຕັດ**
- * ອອກນອກຈໍ — ຄົນເຫັນຂໍ້ມູນແຕ່ກົດເລືອກບໍ່ໄດ້. ຊື່ສິນຄ້າ ERP ຍາວ 60+ ຕົວ ຈຶ່ງບີບເປັນຖັນບໍ່ໄດ້.
- * ບັດແກ້ໄດ້ໝົດ: ຂໍ້ມູນຄົບ, ບໍ່ເລື່ອນຂວາ, ກົດບ່ອນໃດກໍ່ເລືອກໄດ້ (ບໍ່ຕ້ອງເລັງປຸ່ມ).
+ * ໜ້າຕ່າງຄົ້ນຫາບິນຂາຍ — **ບັດ ບໍ່ແມ່ນຕາຕະລາງ** (ຕາຕະລາງ 8 ຖັນ ຕ້ອງເລື່ອນຂວາ
+ * ແລະ ປຸ່ມ "ເລືອກ" ຖືກຕັດອອກນອກຈໍ). **1 ບັດ = 1 ບິນ** ພ້ອມລາຍການທີ່ຈະຕິດຕັ້ງ
+ * ⇒ ເຫັນກ່ອນວ່າບິນນັ້ນມີຫຍັງແດ່ ຈຶ່ງກົດເລືອກ.
  */
 function BillPicker({ onClose, onPick }: { onClose: () => void; onPick: (bill: Bill) => void }) {
   const [q, setQ] = useState("");
@@ -333,9 +422,9 @@ function BillPicker({ onClose, onPick }: { onClose: () => void; onPick: (bill: B
         </header>
 
         <div className="flex-1 space-y-2 overflow-auto p-4">
-          {rows.map((bill, index) => (
+          {rows.map((bill) => (
             <button
-              key={`${bill.doc_no}-${bill.item_code}-${index}`}
+              key={bill.doc_no}
               type="button"
               onClick={() => onPick(bill)}
               className="w-full rounded-xl border border-slate-200 p-3 text-left transition hover:border-teal-400 hover:bg-teal-50/40"
@@ -343,14 +432,20 @@ function BillPicker({ onClose, onPick }: { onClose: () => void; onPick: (bill: B
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-md bg-slate-900 px-2 py-0.5 text-xs font-bold text-white">{bill.doc_no}</span>
                 <span className="text-xs text-slate-500">{bill.doc_date}</span>
-                {Number(bill.qty) > 1 && (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-                    {Number(bill.qty)} ໜ່ວຍ
-                  </span>
-                )}
+                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-bold text-teal-800">
+                  {bill.items.length} ລາຍການ · {bill.items.reduce((sum, row) => sum + Math.round(row.qty || 0), 0)} ໜ່ວຍ
+                </span>
               </div>
 
-              <p className="mt-1.5 text-sm font-semibold text-slate-800">{bill.item_name}</p>
+              {/* ລາຍການທີ່ຈະຕິດຕັ້ງໃນບິນນີ້ — ເຫັນກ່ອນເລືອກ */}
+              <ul className="mt-1.5 space-y-0.5">
+                {bill.items.map((row) => (
+                  <li key={row.item_code} className="text-sm font-semibold text-slate-800">
+                    · {row.item_name}
+                    <span className="ml-1 text-xs font-normal text-slate-500">× {row.qty}</span>
+                  </li>
+                ))}
+              </ul>
 
               <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500">
                 <span>{bill.cust_name || "-"}</span>
