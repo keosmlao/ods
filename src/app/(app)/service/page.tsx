@@ -3,12 +3,11 @@ import { SelectField } from "@/components/select-field";
 import { ServiceBoard, STAGES, type BoardCard } from "@/components/service-board";
 import { ServicePendingTable } from "@/components/service-pending-table";
 import type { SortDir } from "@/components/sort-header";
-import { ServiceTable, type TableRow } from "@/components/service-table";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { permissionFor } from "@/lib/permissions";
 import { CANCELLED_JOBS, DONE_JOBS, OPEN_JOBS, STAGE_SQL, STAGE_TIME_COL } from "@/lib/stage";
-import { Bell, CheckCircle2, ChevronLeft, ChevronRight, Clock, FileBarChart, FilePlus2, FileSpreadsheet, LayoutGrid, Search, Table2, XCircle } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, FileBarChart, FilePlus2, FileSpreadsheet, LayoutGrid, Search, Table2 } from "lucide-react";
 import Link from "next/link";
 
 /** 3 ແທັບ: ວຽກຄ້າງ · ຈົບແລ້ວ · ຍົກເລີກ */
@@ -123,8 +122,15 @@ function sortPending(cards: BoardCard[], sort: string, dir: SortDir): BoardCard[
 export default async function ServicePage({ searchParams }: Props) {
   const params = await searchParams;
   const q = (params.q ?? "").trim();
-  const tab: Tab = params.tab === "done" ? "done" : params.tab === "cancelled" ? "cancelled" : "pending";
-  const isPending = tab === "pending";
+  /**
+   * ── ຖອດແທັບ "ຈົບແລ້ວ / ຍົກເລີກ" ອອກ (13-07-2026) ──
+   * ສອງແທັບນັ້ນ scan ໃບຮັບເຄື່ອງເປັນ **ພັນໆໃບ** ທຸກເທື່ອທີ່ເປີດໜ້າ (5,000+ ໃບ)
+   * ⇒ ໜ້າຊ້າ ໃນຂະນະທີ່ຄົນເຮັດວຽກຕ້ອງການແຕ່ **ວຽກຄ້າງ**.
+   * ໃບທີ່ຈົບ/ຍົກເລີກແລ້ວ ຍັງເປີດເບິ່ງໄດ້ຜ່ານ **ຄົ້ນຫາ** ແລະ ໜ້າລາຍລະອຽດ /service/<ລະຫັດ>
+   * ພ້ອມທັງລາຍງານ (ລາຍງານໃບຮັບເງິນ · ຍົກເລີກຮັບເຄື່ອງ) ທີ່ມີຢູ່ແລ້ວ.
+   */
+  const tab: Tab = "pending";
+  const isPending = true;
   // ວຽກຄ້າງ: ຕາຕະລາງເປັນຄ່າຕັ້ງຕົ້ນ, ກະດານເປັນທາງເລືອກ
   const board_view = isPending && params.view === "board";
   const page = Math.max(1, Number(params.page) || 1);
@@ -142,13 +148,9 @@ export default async function ServicePage({ searchParams }: Props) {
     ? await permissionFor(session, "/service")
     : { read: false, create: false, update: false, delete: false };
 
-  const [board, closed, noticeCount] = await Promise.all([
-    isPending ? getBoard(q, status) : Promise.resolve([]),
-    isPending ? Promise.resolve({ rows: [], total: 0 }) : getClosed(tab as "done" | "cancelled", q, page, sort, dir),
-    getNoticeCount(),
-  ]);
+  const [board, noticeCount] = await Promise.all([getBoard(q, status), getNoticeCount()]);
 
-  const total = isPending ? board.length : closed.total;
+  const total = board.length;
 
   // ວຽກຄ້າງໂຫຼດຄົບ (96 ໃບ) ຈຶ່ງຈັດຮຽງ ແລະ ແບ່ງໜ້າຢູ່ນີ້ໄດ້ເລີຍ
   const pendingSorted = sortPending(board, sort, dir);
@@ -157,7 +159,6 @@ export default async function ServicePage({ searchParams }: Props) {
 
   /** ຄ່າທີ່ຕ້ອງພາໄປນຳທຸກລິ້ງ */
   const base = () => ({
-    ...(!isPending && { tab }),
     ...(board_view && { view: "board" }),
     ...(q && { q }),
     ...(status && { status: String(status) }),
@@ -228,13 +229,9 @@ export default async function ServicePage({ searchParams }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-slate-700">ລາຍການຮັບສິນຄ້າເຂົ້າສ້ອມ</h1>
           <p className="mt-1 text-sm text-slate-500">
-            {tab === "done"
-              ? `ສົ່ງຄືນສຳເລັດ ${total.toLocaleString()} ໃບ · ໜ້າ ${page}/${pages}`
-              : tab === "cancelled"
-                ? `ຍົກເລີກແລ້ວ ${total.toLocaleString()} ໃບ · ໜ້າ ${page}/${pages}`
-                : board_view
-                  ? `ວຽກທີ່ຍັງຄ້າງ ${total} ໃບ`
-                  : `ວຽກທີ່ຍັງຄ້າງ ${total} ໃບ · ໜ້າ ${page}/${pages}`}
+            {board_view
+              ? `ວຽກທີ່ຍັງຄ້າງ ${total} ໃບ`
+              : `ວຽກທີ່ຍັງຄ້າງ ${total} ໃບ · ໜ້າ ${page}/${pages}`}
           </p>
         </div>
 
@@ -330,41 +327,9 @@ export default async function ServicePage({ searchParams }: Props) {
           </div>
         )}
 
-        {/* 3 ແທັບ: ວຽກຄ້າງ · ຈົບແລ້ວ · ຍົກເລີກ */}
-        <div className="ml-auto flex overflow-hidden rounded-lg border border-slate-300">
-          <Link
-            href={tabHref("pending")}
-            className={`inline-flex h-10 items-center gap-2 px-4 text-sm font-medium ${isPending ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
-          >
-            <Clock className="size-4" />
-            ວຽກຄ້າງ
-            <LinkPending />
-          </Link>
-          <Link
-            href={tabHref("done")}
-            className={`inline-flex h-10 items-center gap-2 border-l border-slate-300 px-4 text-sm font-medium ${tab === "done" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
-          >
-            <CheckCircle2 className="size-4" />
-            ຈົບແລ້ວ
-            <LinkPending />
-          </Link>
-          <Link
-            href={tabHref("cancelled")}
-            className={`inline-flex h-10 items-center gap-2 border-l border-slate-300 px-4 text-sm font-medium ${tab === "cancelled" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
-          >
-            <XCircle className="size-4" />
-            ຍົກເລີກ
-            <LinkPending />
-          </Link>
-        </div>
       </form>
 
-      {!isPending ? (
-        <>
-          <ServiceTable rows={closed.rows} sort={sort} dir={dir} sortHref={sortHref} canDelete={servicePermission.delete} />
-          {pagination}
-        </>
-      ) : board_view ? (
+      {board_view ? (
         <ServiceBoard cards={board} />
       ) : (
         <>
