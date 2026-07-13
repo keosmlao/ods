@@ -92,7 +92,11 @@ const INSTALL: NavGroup = {
     { label: "ມອບໝາຍງານ", href: "/installations/assign", count: "/installations/assign" },
     { label: "ຮັບງານຕິດຕັ້ງ", href: "/installations/accept", count: "/installations/accept" },
     { label: "ໃບຂໍເບີກ(ຕິດຕັ້ງ)", href: "/installations/spare-requests", divider: true },
-    { label: "ເບີກອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/installations/dispatch" },
+    /**
+     * "ເບີກອາໄຫຼ່" **ຖອດອອກແລ້ວ** (13-07-2026) — ລະບົບນີ້ອອກໃບເບີກເອງບໍ່ໄດ້ອີກ,
+     * ສາງເບີກຢູ່ **ERP** ແລ້ວ ODS ດຶງກັບມາເອງ (lib/erp-dispatch ແລ່ນຕອນເປີດ
+     * ໜ້າ "ໃບຂໍເບີກ" ແລະ "ຮັບອາໄຫຼ່"). ເມນູທີ່ພາໄປໜ້າທີ່ກົດຫຍັງບໍ່ໄດ້ = ຫຼອກຄົນ.
+     */
     { label: "ຮັບອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/installations/spare-pickup" },
     /**
      * ສົ່ງອາໄຫຼ່ຄືນສາງ — ໜ້າ /stock/returns ຮັບໃຊ້ **ທັງສອງສາຍງານ** (ມີຕົວກອງ job=install)
@@ -113,7 +117,6 @@ const STOCK: NavGroup = {
   label: "ສາງ ແລະ ອາໄຫຼ່",
   icon: Boxes,
   items: [
-    { label: "ເບີກອາໄຫຼ່", href: "/stock/dispatch", count: "/stock/dispatch" },
     { label: "ຮັບອາໄຫຼ່ທີ່ສັ່ງຊື້", href: "/stock/arrivals" },
     { label: "ຕິດຕາມການໂອນອາໄຫຼ່", href: "/stock/transfers" },
     { label: "ລາຍການສົ່ງ​ຄືນອາໄຫຼ່", href: "/stock/receive-returns" },

@@ -1,3 +1,4 @@
+import { syncErpDispatch } from "@/lib/erp-dispatch";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
 import { SortHeader, type SortDir } from "@/components/sort-header";
@@ -304,6 +305,9 @@ const MOVE_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
 ];
 
 export default async function StockRequestsPage({ searchParams }: Props) {
+  // ດຶງໃບເບີກທີ່ສາງອອກໃນ ERP ກັບມາກ່ອນ ⇒ ໃບທີ່ເບີກແລ້ວຫຼຸດອອກຈາກຄິວເອງ (lib/erp-dispatch)
+  await syncErpDispatch();
+
   const session = await getSession();
   // ຊ່າງເຫັນສະເພາະໃບຂອງຕົນ (ຄື ods) — ບົດບາດອື່ນເຫັນທຸກໃບ
   const emp = session?.role === "technical" ? session.username : null;

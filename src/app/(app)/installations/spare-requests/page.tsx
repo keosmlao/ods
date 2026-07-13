@@ -1,3 +1,4 @@
+import { syncErpDispatch } from "@/lib/erp-dispatch";
 import { deleteSpareRequest, techFilter } from "@/app/actions/installation";
 import { DeleteSpareRequestButton } from "@/components/installation/spare-request-buttons";
 import { LinkPending } from "@/components/link-pending";
@@ -94,6 +95,9 @@ async function getCounts(tech: string | null) {
 }
 
 export default async function SpareRequestsPage({ searchParams }: Props) {
+  // ດຶງໃບເບີກທີ່ສາງອອກໃນ ERP ກັບມາກ່ອນ ⇒ ໃບທີ່ເບີກແລ້ວຫຼຸດອອກຈາກຄິວເອງ (lib/erp-dispatch)
+  await syncErpDispatch();
+
   const tech = await techFilter();
   const raw = await searchParams;
   const tab: Tab = raw.tab === "requested" ? "requested" : "waiting";
