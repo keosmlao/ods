@@ -330,6 +330,11 @@ class Job {
   /// ປຸ່ມທີ່ຊ່າງກົດໄດ້ດຽວນີ້ — **server ຄິດໃຫ້** (accept/start/finish/wait_spare/wait_other)
   final String action;
   final bool checkedIn;
+  final bool accepted;
+  final bool hasCheckedIn;
+  final bool hasCheckedOut;
+  final bool canCheckIn;
+  final bool canCheckOut;
 
   /// ພິກັດສະຖານທີ່ (ຖ້າ CS ປັກໝຸດໄວ້) — ກົດນຳທາງໄດ້
   final double? lat;
@@ -350,6 +355,11 @@ class Job {
     required this.appointment,
     required this.action,
     required this.checkedIn,
+    required this.accepted,
+    required this.hasCheckedIn,
+    required this.hasCheckedOut,
+    required this.canCheckIn,
+    required this.canCheckOut,
     this.lat,
     this.lng,
   });
@@ -369,6 +379,13 @@ class Job {
     appointment: json['appointment'] as String?,
     action: json['action'] as String? ?? 'wait_other',
     checkedIn: json['checked_in'] as bool? ?? false,
+    accepted: json['accepted'] as bool? ?? false,
+    hasCheckedIn: json['has_checked_in'] as bool? ?? false,
+    hasCheckedOut: json['has_checked_out'] as bool? ?? false,
+    canCheckIn: json['can_check_in'] as bool? ?? false,
+    canCheckOut: json['can_check_out'] as bool? ?? false,
+    lat: (json['lat'] as num?)?.toDouble(),
+    lng: (json['lng'] as num?)?.toDouble(),
   );
 
   int get days => elapsedSeconds ~/ 86400;

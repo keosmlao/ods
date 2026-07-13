@@ -1,6 +1,6 @@
 import { requireMobile } from "@/lib/mobile-auth";
 import { TECH_SIDE } from "@/lib/roles";
-import { ownJob } from "@/lib/job-flow";
+import { ownMobileJob } from "@/lib/job-flow";
 import {
   addDraftSpare,
   draftSpares,
@@ -35,7 +35,7 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
   if (!guard.ok) return guard.response;
 
   const { code } = await context.params;
-  const own = await ownJob(guard.user, "repair", code);
+  const own = await ownMobileJob(guard.user, "repair", code);
   if (!own.ok) return NextResponse.json({ error: own.error }, { status: 403 });
 
   return NextResponse.json({ draft: await draftSpares(guard.user, code) });
@@ -47,7 +47,7 @@ export async function POST(request: Request, context: { params: Promise<{ code: 
 
   const { code } = await context.params;
   // ຊ່າງແຕະໄດ້ແຕ່ວຽກຂອງຕົນ (ກົດເກນອັນດຽວກັບເວັບ)
-  const own = await ownJob(guard.user, "repair", code);
+  const own = await ownMobileJob(guard.user, "repair", code);
   if (!own.ok) return NextResponse.json({ error: own.error }, { status: 403 });
 
   let body: Body;

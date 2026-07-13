@@ -40,6 +40,11 @@ export type MobileJob = {
   elapsed_seconds: number;
   appointment: string | null;
   action: MobileAction;
+  accepted: boolean;
+  has_checked_in: boolean;
+  has_checked_out: boolean;
+  can_check_in: boolean;
+  can_check_out: boolean;
   /** ຍັງ check-in ຄ້າງຢູ່ບໍ (ຍັງບໍ່ໄດ້ check-out) */
   checked_in: boolean;
   /** ພິກັດສະຖານທີ່ (ຖ້າ CS ປັກໝຸດໄວ້) — ແອັບກົດນຳທາງໄດ້ */
@@ -80,6 +85,7 @@ const INSTALL_ACTION = `case
 
 /** ສ້ອມ: 1-2 ກວດເຊັກ · 3-4 ລາຄາ · 5-7 ອາໄຫຼ່ · 8 ລໍສ້ອມ · 9 ກຳລັງສ້ອມ · 10+ ລໍ QC */
 const REPAIR_ACTION = `case
+  when a.repair_confirm is null      then 'accept'
   when (${STAGE_SQL}) in (5,6,7) then 'wait_spare'
   when (${STAGE_SQL}) = 8        then 'start'
   when (${STAGE_SQL}) = 9        then 'finish'
@@ -103,6 +109,13 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         ${INSTALL_ELAPSED_SQL} as elapsed_seconds,
         to_char(a.appoint_date,'DD-MM-YYYY') as appointment,
         (${INSTALL_ACTION}) as action,
+        a.tech_confirm is not null as accepted,
+        exists (select 1 from ods_job_checkin h where h.workflow='install' and h.job_code=a.code and h.tech_code=$1) as has_checked_in,
+        exists (select 1 from ods_job_checkin h where h.workflow='install' and h.job_code=a.code and h.tech_code=$1 and h.checkout_at is not null) as has_checked_out,
+        (a.tech_confirm is not null
+          and (${INSTALL_STAGE_SQL}) between 1 and 5
+          and not ${CHECKED_IN("install")}) as can_check_in,
+        ${CHECKED_IN("install")} as can_check_out,
         ${CHECKED_IN("install")} as checked_in,
         a.location_lat as lat, a.location_lng as lng
       from ods_tb_install a
@@ -125,6 +138,13 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         ${STAGE_ELAPSED_SQL} as elapsed_seconds,
         null as appointment,
         (${REPAIR_ACTION}) as action,
+        a.repair_confirm is not null as accepted,
+        exists (select 1 from ods_job_checkin h where h.workflow='repair' and h.job_code=a.code and h.tech_code=$1) as has_checked_in,
+        exists (select 1 from ods_job_checkin h where h.workflow='repair' and h.job_code=a.code and h.tech_code=$1 and h.checkout_at is not null) as has_checked_out,
+        ((${REPAIR_ONSITE}) and a.repair_confirm is not null
+          and (${STAGE_SQL}) between 1 and 9
+          and not ${CHECKED_IN("repair")}) as can_check_in,
+        ${CHECKED_IN("repair")} as can_check_out,
         ${CHECKED_IN("repair")} as checked_in,
         null::double precision as lat, null::double precision as lng
       from tb_product a

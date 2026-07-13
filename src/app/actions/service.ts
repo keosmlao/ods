@@ -343,7 +343,9 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
     const updated = await client.query(
       `update tb_product set name_1=$1, sn=$2, p_model=$3, p_brand=$4, p_access=$5, issue=$6, p_type=$7,
          p_abrasion=$8, p_delivery=$9, warrunty=$10, service_type=$11, cust_code=$12, ap_code=$13, doc_def=$14,
-         doc_date_ref=$15, emp_code=$16, user_edit=$17
+         doc_date_ref=$15,
+         repair_confirm=case when emp_code is distinct from $16::varchar then null else repair_confirm end,
+         emp_code=$16, user_edit=$17
        where code=$18`,
       [d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
         // ap_code = ລະຫັດລູກຄ້າ (ອັນດຽວກັນ — ເບິ່ງ createService)

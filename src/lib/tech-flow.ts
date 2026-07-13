@@ -96,8 +96,9 @@ export async function searchSpares(text: string, inStockOnly = false): Promise<S
 export async function startCheckFlow(session: Session, code: string): Promise<FlowResult> {
   // ຂັ້ນ 1 = ລໍຖ້າກວດເຊັກ ເທົ່ານັ້ນ (ກົດຊ້ຳບໍ່ຂຽນທັບ ⇒ ໂມງ SLA ບໍ່ຖືກຣີເຊັດ)
   const done = await query(
-    `update tb_product a set time_check=${NOW}, status=1 where a.code=$1 and (${STAGE_SQL}) = 1`,
-    [code],
+    `update tb_product a set time_check=${NOW}, status=1
+      where a.code=$1 and a.emp_code=$2 and a.repair_confirm is not null and (${STAGE_SQL}) = 1`,
+    [code, session.username],
   );
   if (!done.rowCount) return { ok: false, error: 'ເລີ່ມກວດເຊັກບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ "ລໍຖ້າກວດເຊັກ"' };
 
@@ -331,7 +332,7 @@ export type PickupDoc = {
   lines: number;
 };
 
-export async function pickupQueue(session: Session, all: boolean): Promise<PickupDoc[]> {
+export async function pickupQueue(session: Session): Promise<PickupDoc[]> {
   return (
     await query<PickupDoc>(
       `select ic.doc_no, ic.product_code as job_code,
@@ -342,7 +343,7 @@ export async function pickupQueue(session: Session, all: boolean): Promise<Picku
        where ic.trans_flag = ${TRANS.DISPATCH}
          and (ic.job_type is null or ic.job_type <> 'install')
          and not exists (select 1 from ic_trans k where k.trans_flag = ${TRANS_PICK} and k.doc_ref = ic.doc_no)
-         ${all ? "" : "and p.emp_code = $1"}
+         and p.emp_code = $1
        order by ic.doc_date asc`,
       [session.username],
     )
@@ -369,9 +370,14 @@ export async function pickupSpares(session: Session, docRef: string, remark: str
 
     const head = (
       await client.query<{ product_code: string | null }>(
-        `select product_code from ic_trans
-          where doc_no=$1 and trans_flag=$2 and (job_type is null or job_type <> 'install') limit 1`,
-        [docRef, TRANS.DISPATCH],
+        `select ic.product_code
+           from ic_trans ic
+           join tb_product p on p.code = ic.product_code
+          where ic.doc_no=$1 and ic.trans_flag=$2
+            and (ic.job_type is null or ic.job_type <> 'install')
+            and p.emp_code=$3
+          limit 1`,
+        [docRef, TRANS.DISPATCH, session.username],
       )
     ).rows[0];
     if (!head?.product_code) {

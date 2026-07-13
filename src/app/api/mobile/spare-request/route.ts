@@ -1,4 +1,5 @@
 import { requireMobile } from "@/lib/mobile-auth";
+import { ownMobileJob } from "@/lib/job-flow";
 import { TECH_SIDE } from "@/lib/roles";
 import { createSpareRequest, pickupSpares } from "@/lib/tech-flow";
 import { revalidatePath } from "next/cache";
@@ -27,6 +28,10 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (body.action === "request") {
+      const own = await ownMobileJob(guard.user, "repair", String(body.code ?? ""));
+      if (!own.ok) return NextResponse.json({ error: own.error }, { status: 403 });
+    }
     const result =
       body.action === "request"
         ? await createSpareRequest(guard.user, {

@@ -1,5 +1,5 @@
-import { closeJob, reopenJob } from "@/app/actions/installation";
-import { UndoButton } from "@/components/checking/undo-button";
+import { closeJob } from "@/app/actions/installation";
+import { ReopenJobButton } from "@/components/installation/undo-buttons";
 import { FeedbackQrButton } from "@/components/installation/feedback-qr";
 import { JobButton } from "@/components/installation/job-buttons";
 import { query } from "@/lib/db";
@@ -228,18 +228,7 @@ export default async function ClosePage({ searchParams }: Props) {
                       )}
                       {tab === "closed" && (
                         /* ປິດງານຜິດ → ເປີດຄືນໄປ "ລໍຖ້າປິດງານ" (ແຕ່ກ່ອນປິດແລ້ວປິດເລີຍ ແກ້ບໍ່ໄດ້) */
-                        <UndoButton
-                          variant="icon"
-                          label="ເປີດງານຄືນ"
-                          title="ເປີດງານຄືນ?"
-                          message={
-                            <>
-                              ງານ <b className="text-slate-700">#{row.code}</b> ຈະກັບໄປ &quot;ລໍຖ້າປິດງານ&quot;.
-                              ຄຳຕອບແບບສອບຖາມຂອງລູກຄ້າຍັງຢູ່ຄືເກົ່າ.
-                            </>
-                          }
-                          action={() => reopenJob(row.code)}
-                        />
+                        <ReopenJobButton code={row.code} variant="icon" />
                       )}
                     </>
                   )}

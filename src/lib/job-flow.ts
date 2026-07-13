@@ -34,7 +34,8 @@ async function ownerOf(workflow: Workflow, code: string): Promise<JobOwner | nul
           [code],
         )
       : await query<JobOwner>(
-          `select code, nullif(emp_code,'') as tech, status = 6 as cancelled, true as accepted
+          `select code, nullif(emp_code,'') as tech, status = 6 as cancelled,
+                  repair_confirm is not null as accepted
              from tb_product where code=$1`,
           [code],
         );
@@ -95,6 +96,28 @@ export async function acceptInstall(session: Session, code: string): Promise<Flo
   return { ok: true, message: `ຮັບງານຕິດຕັ້ງ ${code} ສຳເລັດ` };
 }
 
+export async function acceptRepair(session: Session, code: string): Promise<FlowResult> {
+  const own = await ownJob(session, "repair", code);
+  if (!own.ok) return own;
+
+  const done = await query(
+    `update tb_product a set repair_confirm=${NOW}
+      where a.code=$1 and repair_confirm is null and (${STAGE_SQL}) = 1`,
+    [code],
+  );
+  if (!done.rowCount) {
+    const already = await query<{ n: number }>(
+      "select count(*)::int n from tb_product where code=$1 and repair_confirm is not null",
+      [code],
+    );
+    if (already.rows[0]?.n) return { ok: true, message: `ຮັບງານສ້ອມ ${code} ສຳເລັດ` };
+    return { ok: false, error: "ຮັບງານບໍ່ໄດ້ — ງານບໍ່ໄດ້ຢູ່ຂັ້ນລໍກວດເຊັກ" };
+  }
+
+  await logChange("tb_product", code, "ຊ່າງຮັບງານສ້ອມແລ້ວ");
+  return { ok: true, message: `ຮັບງານສ້ອມ ${code} ສຳເລັດ` };
+}
+
 /**
  * ປະຕິເສດງານ — ຊ່າງບໍ່ຮັບ ພ້ອມເຫດຜົນ.
  *
@@ -124,8 +147,8 @@ export async function rejectJob(
         )
       : await query(
           // ຝັ່ງສ້ອມ: ປະຕິເສດໄດ້ກ່ອນລົງມືກວດເຊັກ/ສ້ອມ (ຂັ້ນ 1 = ລໍຖ້າກວດເຊັກ)
-          `update tb_product a set emp_code = ''
-            where a.code = $1 and (${STAGE_SQL}) = 1`,
+          `update tb_product a set emp_code = '', repair_confirm = null
+            where a.code = $1 and repair_confirm is null and (${STAGE_SQL}) = 1`,
           [code],
         );
 
@@ -291,9 +314,10 @@ export async function checkIn(
 ): Promise<FlowResult> {
   const own = await ownJob(session, workflow, code);
   if (!own.ok) return own;
-  if (workflow === "install" && !own.job?.accepted) {
+  if (!own.job?.accepted) {
     return { ok: false, error: "ຕ້ອງກົດຮັບງານກ່ອນ ຈຶ່ງສາມາດ check-in ໄດ້" };
   }
+  if (!input.photo) return { ok: false, error: "ຕ້ອງຖ່າຍຮູບໜ້າງານກ່ອນ check-in" };
 
   const done = await query(
     `insert into ods_job_checkin(workflow, job_code, tech_code, checkin_lat, checkin_lng, checkin_photo, note)

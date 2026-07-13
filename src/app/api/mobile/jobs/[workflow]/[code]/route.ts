@@ -1,6 +1,7 @@
 import type { Workflow } from "@/lib/commission";
 import {
   acceptInstall,
+  acceptRepair,
   checkIn,
   checkOut,
   finishInstallFlow,
@@ -70,11 +71,10 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
 
     switch (body.action) {
       case "accept":
-        // ຝັ່ງສ້ອມບໍ່ມີຂັ້ນ "ຮັບງານ" — CS ມອບໝາຍແລ້ວຖືວ່າຮັບ (ຄືເວັບ)
         result =
           workflow === "install"
             ? await acceptInstall(user, code)
-            : { ok: false, error: "ງານສ້ອມບໍ່ຕ້ອງກົດຮັບ — ເລີ່ມກວດເຊັກໄດ້ເລີຍ" };
+            : await acceptRepair(user, code);
         break;
       case "reject":
         result = await rejectJob(user, workflow, code, String(body.reason ?? ""));
