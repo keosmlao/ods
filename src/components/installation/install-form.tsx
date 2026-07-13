@@ -101,6 +101,16 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
   const [point, setPoint] = useState<Point | null>(null);
 
   /**
+   * ── ບິນທີ່ ERP **ບໍ່ໄດ້ລົງ ISN** ⇒ ດຶງ ISN ຂອງລາຍການນັ້ນຈາກຄັງ ──
+   * ບິນຈິງບາງໃບບໍ່ມີ ISN ເລີຍ (CAK26008723: ຈັກຊັກ + ຕູ້ເຢັນ = 0 ແຖວ)
+   * ⇒ ຮຸ່ນກ່ອນຕົກລົງເປັນຊ່ອງພິມມື ແລະ ພິມຜິດໄດ້. ດຽວນີ້ຄົ້ນຈາກ sn_inventory
+   * (api/installations/serials) ໃຫ້ເລືອກແທນ — ຍັງພິມເອງໄດ້ຖ້າຫາບໍ່ພົບ.
+   */
+  const [stockSerials, setStockSerials] = useState<Serial[]>([]);
+  const [loadingSerials, setLoadingSerials] = useState(false);
+  const [manualSerial, setManualSerial] = useState(false);
+
+  /**
    * ── ຈຳນວນງານ = ຈຳນວນ **ຄ່າຕິດຕັ້ງ** ບໍ່ແມ່ນຈຳນວນເຄື່ອງທີ່ຂາຍ ──
    * ຂໍ້ມູນຈິງ (1 ປີ): 1,034/2,493 ບິນ (41%) **ຂາຍຫຼາຍກວ່າຈຳນວນທີ່ຈ່າຍຄ່າຕິດຕັ້ງ**
    * (ລູກຄ້າຊື້ 3 ໜ່ວຍ ແຕ່ຈ້າງຕິດ 2 — ອີກໜ່ວຍເອົາໄປໃສ່ບ້ານອື່ນ/ຕິດເອງ).
@@ -130,6 +140,26 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
 
     setSerials(Array.from({ length: count }, (_, index) => valueOf(indoor[index])));
     setOutdoor(Array.from({ length: count }, (_, index) => valueOf(outer[index])));
+
+    // ບິນບໍ່ມີ ISN ⇒ ດຶງ ISN ຂອງລາຍການນີ້ຈາກຄັງມາໃຫ້ເລືອກ (ຢ່າໃຫ້ພິມມື)
+    setStockSerials([]);
+    setManualSerial(false);
+    if (indoor.length === 0) {
+      setLoadingSerials(true);
+      fetch(`/api/installations/serials?item_code=${encodeURIComponent(chosen.item_code)}`)
+        .then((response) => response.json())
+        .then((body: { data?: { isn: string; sn: string; in_stock: boolean }[] }) =>
+          setStockSerials(
+            (body.data ?? []).map((row) => ({
+              isn: row.isn,
+              sn: row.sn,
+              part: row.in_stock ? "ໃນສາງ" : "",
+            })),
+          ),
+        )
+        .catch(() => setStockSerials([]))
+        .finally(() => setLoadingSerials(false));
+    }
   }
 
   function changeUnits(count: number) {
@@ -148,8 +178,11 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
     setOutdoor((current) => current.map((old, position) => (position === index ? value : old)));
 
   /** ISN ຂອງແອ ແຍກເປັນ ໃນ/ນອກ — ບໍ່ແມ່ນແອ = ບໍ່ມີໜ່ວຍນອກ */
-  const indoorOptions = item?.serials.filter((serial) => serial.part !== "ໜ່ວຍນອກ") ?? [];
+  const billIndoor = item?.serials.filter((serial) => serial.part !== "ໜ່ວຍນອກ") ?? [];
   const outdoorOptions = item?.serials.filter((serial) => serial.part === "ໜ່ວຍນອກ") ?? [];
+  /** ບິນບໍ່ມີ ISN ⇒ ໃຊ້ ISN ຈາກຄັງ (ດຶງຕອນເລືອກລາຍການ) */
+  const fromStock = billIndoor.length === 0 && stockSerials.length > 0;
+  const indoorOptions = billIndoor.length > 0 ? billIndoor : stockSerials;
   const isAc = outdoorOptions.length > 0 || (item?.pro_type_name ?? "").includes("ແອ");
 
   const ready = Boolean(bill && item && serials.length === units && serials.every((serial) => serial.trim()));
@@ -294,7 +327,7 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
                       <label className="mb-1 block text-xs text-slate-500">
                         {isAc ? "S/N ໜ່ວຍໃນ [C] *" : "S/N *"}
                       </label>
-                      {indoorOptions.length > 0 ? (
+                      {indoorOptions.length > 0 && !manualSerial ? (
                         <select
                           value={serial}
                           onChange={(event) => setSerial(index, event.target.value)}
@@ -305,6 +338,7 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
                             <option key={row.isn} value={row.sn || row.isn}>
                               {row.isn}
                               {row.sn ? ` · S/N ${row.sn}` : ""}
+                              {row.part === "ໃນສາງ" ? " · ຍັງຢູ່ສາງ" : ""}
                             </option>
                           ))}
                         </select>
@@ -312,9 +346,33 @@ export function InstallForm({ categories, username }: { categories: Category[]; 
                         <input
                           value={serial}
                           onChange={(event) => setSerial(index, event.target.value)}
-                          placeholder="ອ່ານຈາກປ້າຍຕົວເຄື່ອງ"
+                          placeholder={loadingSerials ? "ກຳລັງດຶງ ISN..." : "ອ່ານຈາກປ້າຍຕົວເຄື່ອງ"}
                           className={inputClass}
                         />
+                      )}
+
+                      {/* ບອກແຫຼ່ງທີ່ມາໃຫ້ຄົນຮັບເຄື່ອງຮູ້ວ່າກຳລັງເລືອກຈາກຫຍັງ */}
+                      {index === 0 && (
+                        <p className="mt-1 text-[11px] text-slate-400">
+                          {loadingSerials
+                            ? "ກຳລັງດຶງ ISN ຂອງລາຍການນີ້..."
+                            : indoorOptions.length === 0
+                              ? "ບໍ່ພົບ ISN ຂອງລາຍການນີ້ໃນ ERP — ພິມຈາກປ້າຍຕົວເຄື່ອງ"
+                              : fromStock
+                                ? "⚠️ ບິນນີ້ບໍ່ໄດ້ລົງ ISN — ນີ້ຄື ISN ຂອງລາຍການນີ້ຈາກຄັງ ⇒ ທຽບກັບປ້າຍຕົວເຄື່ອງກ່ອນເລືອກ"
+                                : "ISN ທີ່ຂາຍໃນບິນນີ້"}
+                        </p>
+                      )}
+
+                      {/* ຫາ ISN ບໍ່ພົບໃນລາຍການ ⇒ ຍັງພິມເອງໄດ້ (ຢ່າໃຫ້ຄົນຕິດຢູ່) */}
+                      {index === 0 && indoorOptions.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setManualSerial((current) => !current)}
+                          className="mt-1 text-[11px] font-semibold text-teal-700 hover:underline"
+                        >
+                          {manualSerial ? "ກັບໄປເລືອກຈາກລາຍການ" : "ບໍ່ມີໃນລາຍການ? ພິມເອງ"}
+                        </button>
                       )}
                     </div>
 

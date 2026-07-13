@@ -23,6 +23,32 @@ const VIENTIANE: [number, number] = [17.9757, 102.6331];
 
 export type Point = { lat: number; lng: number };
 
+/**
+ * ອ່ານພິກັດຈາກສິ່ງທີ່ຄົນ **ວາງ (paste) ຈາກ Google Maps** — ຮັບໄດ້ທຸກຮູບແບບທີ່ພົບຈິງ:
+ *   "17.97570, 102.63310"                                  (ກົດຂວາເທິງແຜນທີ່ → copy)
+ *   "https://maps.google.com/maps?q=17.9757,102.6331"      (ແຊຣ໌ລິງ)
+ *   "https://www.google.com/maps/@17.9757,102.6331,17z"    (ກັອບປີ້ຈາກແຖບທີ່ຢູ່)
+ *   "https://www.google.com/maps/place/…/@17.9757,102.6331,17z/…"
+ *
+ * ⚠️ ລິງຫຍໍ້ (maps.app.goo.gl) **ບໍ່ມີພິກັດຢູ່ໃນຕົວ** ⇒ ອ່ານບໍ່ໄດ້ (ຕ້ອງເປີດລິງແລ້ວ
+ * ກັອບປີ້ພິກັດມາ). ບອກຄົນໃຊ້ໃຫ້ຮູ້ແທນທີ່ຈະງຽບໆ.
+ */
+export function parseLatLng(text: string): Point | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  // ເອົາຄູ່ເລກທຳອິດທີ່ຄ້າຍພິກັດ (ຮັບທັງ "17.97,102.63" ແລະ "@17.97,102.63,17z")
+  const match = trimmed.match(/(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
+  if (!match) return null;
+
+  const lat = Number(match[1]);
+  const lng = Number(match[2]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+
+  return { lat, lng };
+}
+
 export function LocationPicker({
   value,
   onChange,
@@ -32,6 +58,8 @@ export function LocationPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [pasted, setPasted] = useState("");
+  const [pasteError, setPasteError] = useState("");
 
   return (
     <div className="mt-2">
@@ -69,9 +97,15 @@ export function LocationPicker({
 
         {value && (
           <>
-            <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${value.lat},${value.lng}`}
+              target="_blank"
+              rel="noreferrer"
+              title="ເປີດເບິ່ງໃນ Google Maps"
+              className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:underline"
+            >
               {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
-            </span>
+            </a>
             <button
               type="button"
               onClick={() => onChange(null)}
@@ -81,6 +115,34 @@ export function LocationPicker({
             </button>
           </>
         )}
+      </div>
+
+      {/*
+        ຄົນສ່ວນຫຼາຍຫາບ້ານລູກຄ້າໃນ Google Maps ຢູ່ແລ້ວ (ລູກຄ້າສົ່ງລິງມາທາງ WhatsApp)
+        ⇒ ໃຫ້ວາງລິງ/ພິກັດໃສ່ນີ້ໄດ້ເລີຍ ໄວກວ່າມາຫາໝຸດຄືນເທິງແຜນທີ່ຂອງເຮົາ.
+      */}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <input
+          value={pasted}
+          onChange={(event) => {
+            const text = event.target.value;
+            setPasted(text);
+            setPasteError("");
+            const point = parseLatLng(text);
+            if (point) {
+              onChange(point);
+              setPasted("");
+            } else if (text.includes("goo.gl") || text.includes("maps.app")) {
+              // ລິງຫຍໍ້ບໍ່ມີພິກັດຢູ່ໃນຕົວ — ບອກໃຫ້ຮູ້ ບໍ່ແມ່ນງຽບໆ
+              setPasteError("ລິງຫຍໍ້ບໍ່ມີພິກັດ — ເປີດລິງ, ກົດຂວາເທິງໝຸດ ແລ້ວກັອບປີ້ເລກພິກັດມາວາງ");
+            } else if (text.trim().length > 8) {
+              setPasteError("ຫາພິກັດໃນຂໍ້ຄວາມນີ້ບໍ່ພົບ");
+            }
+          }}
+          placeholder="ວາງລິງ Google Maps ຫຼື ພິກັດ (17.9757, 102.6331)"
+          className="h-9 w-full max-w-md rounded-lg border border-slate-300 px-3 text-xs outline-none focus:border-teal-500 md:w-96"
+        />
+        {pasteError && <span className="text-[11px] font-semibold text-amber-600">{pasteError}</span>}
       </div>
 
       {open && <MapDialog value={value} onClose={() => setOpen(false)} onPick={onChange} />}
