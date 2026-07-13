@@ -211,66 +211,89 @@ class _LoginScreenState extends State<LoginScreen> {
         SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
+              constraints: const BoxConstraints(maxWidth: 400),
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(22),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Row(
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _BrandMark(),
-                        SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const Row(
                           children: [
-                            Text(
-                              'ODIEN SERVICE',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                            Text(
-                              'FIELD OPERATIONS',
-                              style: TextStyle(
-                                color: Color(0xFF5EEAD4),
-                                fontSize: 9,
-                                letterSpacing: 2,
-                              ),
+                            _BrandMark(),
+                            SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'ODIEN SERVICE',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                                Text(
+                                  'TECHNICIAN APP',
+                                  style: TextStyle(
+                                    color: Color(0xFF5EEAD4),
+                                    fontSize: 9,
+                                    letterSpacing: 1.8,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
+                        IconButton(
+                          tooltip: 'ຕັ້ງຄ່າ Server',
+                          onPressed: configureServer,
+                          style: IconButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            backgroundColor: Colors.white.withValues(
+                              alpha: .08,
+                            ),
+                          ),
+                          icon: const Icon(Icons.settings_ethernet_rounded),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 44),
+                    const SizedBox(height: 16),
+                    const Center(child: _TechnicianHero()),
+                    const SizedBox(height: 12),
                     const Text(
-                      'ຈັດການວຽກບໍລິການ\nໄດ້ທຸກບ່ອນ',
+                      'ພ້ອມຮັບວຽກມື້ນີ້ບໍ?',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 31,
-                        height: 1.25,
+                        fontSize: 22,
+                        height: 1.2,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 9),
+                    const SizedBox(height: 6),
                     const Text(
-                      'ຮັບງານ · ກວດເຊັກ · ອາໄຫຼ່ · ບັນທຶກຜົນງານ',
-                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      'ເຂົ້າລະບົບເພື່ອເບິ່ງຄິວຕິດຕັ້ງ ແລະ ສ້ອມແປງ',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
                     ),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 15),
                     Container(
-                      padding: const EdgeInsets.all(21),
+                      padding: const EdgeInsets.all(17),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(25),
+                        borderRadius: BorderRadius.circular(20),
                         boxShadow: const [
                           BoxShadow(
                             color: Colors.black26,
-                            blurRadius: 32,
-                            offset: Offset(0, 18),
+                            blurRadius: 24,
+                            offset: Offset(0, 12),
                           ),
                         ],
                       ),
@@ -278,9 +301,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const Text(
-                            'ຍິນດີຕ້ອນຮັບ',
+                            'ເຂົ້າສູ່ລະບົບຊ່າງ',
                             style: TextStyle(
-                              fontSize: 22,
+                              fontSize: 19,
                               fontWeight: FontWeight.w900,
                               color: ink,
                             ),
@@ -290,7 +313,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             'ເຂົ້າລະບົບດ້ວຍບັນຊີພະນັກງານ',
                             style: TextStyle(color: muted, fontSize: 12),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 15),
                           TextField(
                             controller: username,
                             autocorrect: false,
@@ -302,7 +325,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               hintText: 'ຕົວຢ່າງ: EMP001',
                             ),
                           ),
-                          const SizedBox(height: 13),
+                          const SizedBox(height: 10),
                           TextField(
                             controller: password,
                             focusNode: passwordFocus,
@@ -360,11 +383,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ],
-                          const SizedBox(height: 19),
+                          const SizedBox(height: 15),
                           FilledButton(
                             style: FilledButton.styleFrom(
                               backgroundColor: teal,
-                              minimumSize: const Size.fromHeight(55),
+                              minimumSize: const Size.fromHeight(48),
                             ),
                             onPressed: busy ? null : submit,
                             child: busy
@@ -388,7 +411,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ],
                                   ),
                           ),
-                          const SizedBox(height: 13),
+                          const SizedBox(height: 10),
                           const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -407,18 +430,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    TextButton.icon(
-                      onPressed: configureServer,
-                      icon: const Icon(
-                        Icons.settings_ethernet_rounded,
-                        size: 17,
-                      ),
-                      label: Text(serverUrl, overflow: TextOverflow.ellipsis),
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF94A3B8),
+                    const SizedBox(height: 8),
+                    Text(
+                      serverUrl,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 9,
                       ),
                     ),
+                    const SizedBox(height: 4),
                     const Text(
                       'ODIEN Group · Service Operations',
                       textAlign: TextAlign.center,
@@ -447,19 +469,86 @@ class _Glow extends StatelessWidget {
   );
 }
 
+class _TechnicianHero extends StatelessWidget {
+  const _TechnicianHero();
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 150,
+    height: 82,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: 118,
+          height: 72,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .08),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withValues(alpha: .10)),
+          ),
+        ),
+        Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            color: teal,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(color: teal.withValues(alpha: .35), blurRadius: 22),
+            ],
+          ),
+          child: const Icon(
+            Icons.engineering_rounded,
+            color: Colors.white,
+            size: 36,
+          ),
+        ),
+        const Positioned(
+          left: 4,
+          bottom: 7,
+          child: _ToolBadge(icon: Icons.build_rounded),
+        ),
+        const Positioned(
+          right: 4,
+          top: 7,
+          child: _ToolBadge(icon: Icons.home_repair_service_rounded),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ToolBadge extends StatelessWidget {
+  const _ToolBadge({required this.icon});
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 32,
+    height: 32,
+    decoration: BoxDecoration(
+      color: const Color(0xFF1E293B),
+      shape: BoxShape.circle,
+      border: Border.all(color: const Color(0xFF475569)),
+    ),
+    child: Icon(icon, color: const Color(0xFF5EEAD4), size: 16),
+  );
+}
+
 class _BrandMark extends StatelessWidget {
   const _BrandMark();
   @override
   Widget build(BuildContext context) => Container(
-    width: 49,
-    height: 49,
+    width: 42,
+    height: 42,
     decoration: BoxDecoration(
       color: teal,
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(13),
       boxShadow: [
         BoxShadow(color: teal.withValues(alpha: .35), blurRadius: 18),
       ],
     ),
-    child: const Icon(Icons.handyman_rounded, color: Colors.white, size: 27),
+    child: const Icon(Icons.handyman_rounded, color: Colors.white, size: 23),
   );
 }

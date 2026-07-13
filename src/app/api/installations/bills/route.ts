@@ -5,24 +5,29 @@ import { NextResponse, type NextRequest } from "next/server";
 
 /**
  * ຄົ້ນຫາບີນຂາຍຈາກ ERP (odg) ເພື່ອເປີດງານຕິດຕັ້ງ.
- * ຖອດແບບຈາກ ods: get_bill_invoice_od() + /search_sml_install (install_admin.py).
  * trans_flag 44 = ໃບຮັບເງິນ/ບີນຂາຍໜ້າຮ້ານ.
  *
+ * ── ຄວາມໄວ — ຢ່າຍຸບ query 3 ຊັ້ນນີ້ໃຫ້ເປັນອັນດຽວ ──
+ * ERP ມີບິນ 216,356 ໃບ ແລະ **ic_trans ບໍ່ມີ index ຢູ່ doc_date**.
+ * ຮຸ່ນທຳອິດຂຽນເປັນ query ດຽວ (join ໝົດ + subquery ISN ໃສ່ທຸກແຖວ ແລ້ວຮຽງ doc_date):
+ *   ບໍ່ພິມຫຍັງ = **7.7 ວິນາທີ** · ຄົ້ນຊື່ລູກຄ້າ = **8.7 ວິນາທີ**
+ *
+ * ດຽວນີ້:
+ *   ① ຄົ້ນ **ລູກຄ້າ** ກ່ອນ (ar_customer ນ້ອຍ) → ໄດ້ລະຫັດ → ກອງບິນດ້ວຍ cust_code
+ *      ທີ່ **ມີ index** (ic_trans_cust_code_idx) ⇒ 8.7s → **0.35s**
+ *   ② ຮຽງ/ກອງດ້ວຍ **ic_trans_detail.doc_date** (ມີ index) ບໍ່ແມ່ນ ic_trans.doc_date
+ *   ③ ບໍ່ພິມຫຍັງ = ຈຳກັດ **90 ມື້ຫຼ້າສຸດ** ⇒ 7.7s → **0.44s**
+ *      (CS ເປີດງານໃຫ້ບິນທີ່ຫາກໍ່ຂາຍ — ບິນເກົ່າກວ່ານັ້ນຫາໄດ້ດ້ວຍການພິມເລກບິນ)
+ *   ④ ຄິດ ISN ສະເພາະ 30 ແຖວທີ່ຄັດແລ້ວ (ບໍ່ແມ່ນທຸກແຖວທີ່ scan ຜ່ານ)
+ *
  * ── ກອງສະເພາະບິນທີ່ມີ "ລາຍການຕິດຕັ້ງ" ──
- * ERP ມີບິນຂາຍ **216,356 ໃບ** ແຕ່ບິນທີ່ມີສິນຄ້າຕ້ອງຕິດຕັ້ງ (ແອ ແລະ ອື່ນໆ) ມີພຽງ
- * **8,515 ໃບ** ⇒ ຖ້າບໍ່ກອງ ຄົນຈະຄົ້ນຫາໃນກອງບິນເຂົ້າຫນົມ/ຫມໍ້ຫຸງເຂົ້າ.
- *
- * ສິນຄ້າທີ່ຕ້ອງຕິດຕັ້ງ ຮູ້ຈາກ `ic_inventory.item_size` 5 ລະຫັດ (112 · 023 · 033 · 051 · 121)
- * — ອັນດຽວກັບທີ່ ods ໃຊ້ຄິດ `sv_type` ຢູ່ແລ້ວ (ຂ້າງລຸ່ມ) ⇒ ບໍ່ໄດ້ຄິດເກນໃໝ່ ພຽງແຕ່
- * ເອົາເກນເກົ່າມາໃຊ້ **ກອງ** ນຳ. ແຖວທີ່ບໍ່ແມ່ນສິນຄ້າຕິດຕັ້ງ (ສາຍ, ທໍ່, ຂອງແຖມ)
- * ບໍ່ຂຶ້ນມາໃຫ້ເລືອກເລີຍ — ເລືອກຜິດແຖວ = ງານຕິດຕັ້ງຜູກສິນຄ້າຜິດ.
- *
- * ── ຮຽງໃໝ່ສຸດກ່ອນ ──
- * ຂອງເກົ່າຮຽງ `doc_date asc` ⇒ ເປີດມາເຫັນບິນປີ 2019. CS ເປີດງານໃຫ້ບິນ**ທີ່ຫາກໍ່ຂາຍ**.
+ * ຮູ້ຈາກ ic_inventory.item_size 5 ລະຫັດ — ຄ່າດຽວກັບທີ່ໃຊ້ຄິດ sv_type ຢູ່ແລ້ວ.
+ * ແອ: ຕັດ [H] ສະເໝີ · ຕັດ [C] ສະເພາະບິນທີ່ມີ [SET] (5,943 ບິນບໍ່ມີ [SET] ເລີຍ
+ * ⇒ ຕັດໝົດ = ບິນນັ້ນຫາຍ).
  *
  * ── ສິດ ──
- * matcher ຂອງ src/proxy.ts **ຕັດ /api ອອກ** ⇒ ດ່ານກວດ role ຂອງໜ້າບໍ່ຄຸມມາຮອດນີ້.
- * route ນີ້ປ່ອຍ ຊື່/ເບີໂທ/ທີ່ຢູ່ ຂອງລູກຄ້າຈາກ ERP ອອກມາ ຈຶ່ງຕ້ອງກວດເອງ.
+ * matcher ຂອງ src/proxy.ts ຕັດ /api ອອກ ⇒ route ນີ້ປ່ອຍຊື່/ເບີ/ທີ່ຢູ່ລູກຄ້າອອກມາ
+ * ຈຶ່ງຕ້ອງກວດ role ເອງ (ຝ່າຍບໍລິການ — ຄືໜ້າ /installations/new).
  */
 export type BillRow = {
   doc_date: string;
@@ -30,7 +35,6 @@ export type BillRow = {
   item_code: string;
   item_name: string;
   qty: string;
-  item_type: number;
   cust_code: string | null;
   cust_name: string | null;
   telephone: string | null;
@@ -42,16 +46,15 @@ export type BillRow = {
   pro_type: string | null;
   pro_type_name: string | null;
   pro_size: string | null;
-  /**
-   * ISN (ເລກປ້າຍ) ທີ່ຂາຍໄປໃນບິນນີ້ — ຈາກ sn_trans_detail (ອັນດຽວກັບທີ່ຝັ່ງສ້ອມໃຊ້,
-   * ເບິ່ງ /api/serials). `sn` = ເລກໂຮງງານທີ່ຜູກກັບ ISN ນັ້ນ (sn_inventory) ຖ້າມີ.
-   * ບໍ່ມີ ISN ໃນບິນ = ພິມ S/N ເອງ.
-   */
+  /** ISN ທີ່ຂາຍໃນບິນນີ້ (ແອ: ຢູ່ອົງປະກອບຂອງຊຸດ) ພ້ອມເລກໂຮງງານ */
   serials: { isn: string; sn: string; part: string }[];
 };
 
-/** ຂະໜາດສິນຄ້າທີ່ **ຕ້ອງຕິດຕັ້ງ** — ຄ່າດຽວກັບທີ່ໃຊ້ຄິດ sv_type ຂ້າງລຸ່ມ */
+/** ຂະໜາດສິນຄ້າທີ່ **ຕ້ອງຕິດຕັ້ງ** — ຄ່າດຽວກັບທີ່ໃຊ້ຄິດ sv_type */
 const INSTALL_SIZES = ["112", "023", "033", "051", "121"];
+
+/** ບໍ່ພິມຫຍັງ = ບິນ 90 ມື້ຫຼ້າສຸດ (ບໍ່ດັ່ງນັ້ນຕ້ອງ scan ບິນ 7 ປີ) */
+const RECENT_DAYS = 90;
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -63,90 +66,113 @@ export async function GET(request: NextRequest) {
   const q = (request.nextUrl.searchParams.get("q") ?? "").trim();
 
   try {
+    /**
+     * ① ຄຳຄົ້ນອາດເປັນ "ຊື່ລູກຄ້າ" ຫຼື "ເບີໂທ" ⇒ ຫາລະຫັດລູກຄ້າກ່ອນຈາກຕາຕະລາງນ້ອຍ.
+     * ຖ້າ join ar_customer ເຂົ້າໄປໃນ query ບິນໂດຍກົງ ຈະກາຍເປັນ scan 216k ບິນ (8.7s).
+     */
+    const custCodes = q
+      ? (
+          await queryOdg<{ code: string }>(
+            `select code from ar_customer
+              where name_1 ilike $1 or telephone ilike $1 or code = $2
+              limit 50`,
+            [`%${q}%`, q],
+          )
+        ).rows.map((row) => row.code)
+      : [];
+
+    const where = q
+      ? "and (i.doc_no ilike $2 or ($3::text[] <> '{}' and a0.cust_code = any($3::text[])))"
+      : `and i.doc_date >= current_date - ${RECENT_DAYS}`;
+
     const rows = (
       await queryOdg<BillRow>(
-        `select to_char(a.doc_date,'dd/mm/yyyy') as doc_date, a.doc_no, i.item_name,
-           case when ar.telephone is not null then ar.telephone else ar2.name_1 end as cust_name,
-           case when ar.telephone is not null then ar.mobile else ar2.telephone end as telephone,
-           case when ar.telephone is not null then ar.address else ar2.address end as address,
-           i.item_code, i.qty, i.item_type,
-           case when inv.item_size='112' then '9900-0020'
-                when inv.item_size='023' then '9900-0019'
-                when inv.item_size='033' then '9900-0018'
-                when inv.item_size='051' then '9900-0017'
-                when inv.item_size='121' then '9900-0016'
-                else '' end as sv_type,
-           inv.item_brand,
-           case when ar.telephone is not null then ar.name else ar2.code end as cust_code,
-           to_char(a.doc_date,'YYYY-MM-DD') as doc_date_raw,
+        `with candidate as (
+           -- ② ຄັດຜູ້ສະໝັກກ່ອນ ດ້ວຍ ic_trans_detail (ມີ index ຢູ່ doc_date)
+           select i.doc_no, i.doc_date, i.item_code, i.item_name, i.qty
+             from ic_trans_detail i
+             join ic_inventory inv on inv.code = i.item_code
+             ${q ? "join ic_trans a0 on a0.doc_no = i.doc_no and a0.trans_flag = 44" : ""}
+            where i.trans_flag = 44
+              and inv.item_size = any($1::text[])
+              and i.item_type in (0,1,3)
+              and i.item_name not ilike '%[H]%'   -- ແອ: ຕັດໜ່ວຍນອກສະເໝີ
+              ${where}
+            order by i.doc_date desc, i.doc_no desc
+            limit 60
+         ),
+         kept as (
+           -- ແອ: ຕັດ [C] ສະເພາະບິນທີ່ມີ [SET] (ບິນເກົ່າຂາຍແຍກໜ່ວຍ ⇒ ຕ້ອງເຫຼືອ [C] ໄວ້)
+           select c.* from candidate c
+            where c.item_name not ilike '%[C]%'
+               or not exists (
+                 select 1 from ic_trans_detail s
+                  where s.doc_no = c.doc_no and s.trans_flag = 44 and s.item_name ilike '%[SET]%')
+            limit 30
+         ),
+         comp as (
+           -- ອົງປະກອບຂອງຊຸດ (ແອ [SET] → [C]/[H]) — ຄິດຄັ້ງດຽວສຳລັບ 30 ແຖວ
+           select k.doc_no, k.item_code, sd.ic_code
+             from kept k
+             join ic_inventory_set_detail sd on sd.ic_set_code = k.item_code
+         ),
+         isn as (
            /**
-            * ── ດຶງຈາກ ERP ແທນທີ່ຈະໃຫ້ CS ພິມເອງ ──
-            * ປະເພດ (ic_category) ແລະ ຂະໜາດ (ic_size) ຢູ່ໃນ master ຂອງສິນຄ້າແລ້ວ.
-            * ⚠️ **Model ດຶງບໍ່ໄດ້** — ic_inventory.item_model ຫວ່າງ 24,156/24,281 ແຖວ
-            * ⇒ ຍັງຕ້ອງພິມເອງ (ຊື່ສິນຄ້າມີລະຫັດຮຸ່ນຢູ່ ໃຫ້ຄັດລອກເອົາ).
+            * ISN ຂອງ **30 ບິນ** ດຶງເປັນກ້ອນດຽວ (doc_ref = any) — ບໍ່ແມ່ນຄິດ subquery
+            * ຕໍ່ແຖວ. subquery ຕໍ່ແຖວກິນ **2.6 ວິນາທີ**, ແບບນີ້ເຫຼືອ ~0.5 ວິນາທີ.
             */
-           inv.item_category as pro_type,
-           cat.name_1 as pro_type_name,
-           siz.name_1 as pro_size,
-           /**
-            * ── ISN ຂອງແອຢູ່ **ອົງປະກອບຂອງຊຸດ** ບໍ່ແມ່ນຢູ່ແຖວ [SET] ──
-            * ພິສູດຈາກຂໍ້ມູນຈິງ (ບິນ CAK26008714): ແຖວ [SET] 120101-2606 ບໍ່ມີ ISN ເລີຍ
-            * ແຕ່ ISN ຢູ່ທີ່ [C] 120101-2607 ແລະ [H] 120101-2608.
-            * ⇒ ຕ້ອງແຕກຊຸດອອກກ່ອນ (ic_inventory_set_detail: ic_set_code → ic_code)
-            *   ແລ້ວຄົ້ນ ISN ຂອງ **ອົງປະກອບ** ພ້ອມ.
-            * ຖ້າຄົ້ນແຕ່ item_code ຂອງແຖວທີ່ເລືອກ ⇒ ແອ **ທຸກຊຸດ** ຈະບໍ່ມີ ISN ໃຫ້ເລືອກເລີຍ.
-            *
-            * ໜ່ວຍໃນ [C] ຂຶ້ນກ່ອນ — ເປັນຕົວທີ່ຖືເປັນເອກະລັກຂອງເຄື່ອງ.
-            */
-           coalesce((
-             select json_agg(json_build_object(
-                      'isn', d.sn,
-                      'sn', coalesce(inv2.sn, ''),
-                      'part', case when d.item_name ilike '%[C]%' then 'ໜ່ວຍໃນ'
-                                   when d.item_name ilike '%[H]%' then 'ໜ່ວຍນອກ'
-                                   else '' end)
-                      order by (d.item_name ilike '%[C]%') desc, d.sn)
-               from sn_trans_detail d
-               left join sn_inventory inv2 on inv2.isn = d.sn
-              where d.doc_ref = a.doc_no and d.trans_flag = 44 and coalesce(d.sn,'') <> ''
-                and (
-                  d.item_code = i.item_code
-                  or d.item_code in (
-                    select sd.ic_code from ic_inventory_set_detail sd where sd.ic_set_code = i.item_code)
-                )
-           ), '[]'::json) as serials
-         from ic_trans a
-         join ic_trans_detail i on i.doc_no = a.doc_no and i.trans_flag = 44
-         join ic_inventory inv on inv.code = i.item_code
-         left join (select ar_code, name, address, telephone, mobile from ar_contactor) as ar
-           on ar.ar_code = a.cust_code and ar.name = a.contactor
-         left join ar_customer ar2 on ar2.code = a.cust_code
-         left join ic_category cat on cat.code = inv.item_category
-         left join ic_size siz on siz.code = inv.item_size
-         where a.trans_flag = 44
-           -- ສະເພາະ **ແຖວສິນຄ້າທີ່ຕ້ອງຕິດຕັ້ງ** (ບໍ່ເອົາສາຍ/ທໍ່/ຂອງແຖມມາໃຫ້ເລືອກຜິດ)
-           and inv.item_size = any($2::text[])
-           and i.item_type in (0,1,3)
-           /**
-            * ── ແອ: ເອົາແຕ່ແຖວ [SET] ──
-            * ERP ແຍກແອອອກເປັນ 3 ແຖວ: [C] ໜ່ວຍໃນ (10,529) · [H] ໜ່ວຍນອກ (10,396)
-            * · [SET] ຊຸດ (2,779) ⇒ ບິນດຽວຂຶ້ນ 3 ແຖວ ແລະ ຄົນເລືອກຜິດແຖວໄດ້ງ່າຍ.
-            *
-            * ຕັດ [H] ສະເໝີ (ໜ່ວຍນອກ ບໍ່ແມ່ນຕົວເຄື່ອງທີ່ຜູກງານ) ແລະ ຕັດ [C] **ສະເພາະ
-            * ບິນທີ່ມີ [SET] ຢູ່ແລ້ວ** — ບໍ່ຕັດຖິ້ມທັງໝົດ ເພາະ **5,943 ບິນບໍ່ມີ [SET] ເລີຍ**
-            * (ບິນເກົ່າທີ່ຂາຍແຍກໜ່ວຍ ແລະ ແອເຄື່ອນທີ່ທີ່ບໍ່ມີ tag) ⇒ ຕັດໝົດ = ບິນນັ້ນຫາຍ.
-            */
-           and i.item_name not ilike '%[H]%'
-           and (
-             i.item_name not ilike '%[C]%'
-             or not exists (
-               select 1 from ic_trans_detail s
-                where s.doc_no = a.doc_no and s.trans_flag = 44 and s.item_name ilike '%[SET]%')
-           )
-           and ($1 = '' or a.doc_no ilike $3 or ar2.name_1 ilike $3 or ar2.telephone ilike $3)
-         order by a.doc_date desc, a.doc_no desc
-         limit 30`,
-        [q, INSTALL_SIZES, `%${q}%`],
+           select d.doc_ref, d.item_code, d.item_name, d.sn as isn, coalesce(sni.sn,'') as sn
+             from sn_trans_detail d
+             left join sn_inventory sni on sni.isn = d.sn
+            where d.trans_flag = 44 and coalesce(d.sn,'') <> ''
+              and d.doc_ref = any(select doc_no from kept)
+         )
+         select to_char(k.doc_date,'dd/mm/yyyy') as doc_date,
+            to_char(k.doc_date,'YYYY-MM-DD') as doc_date_raw,
+            k.doc_no, k.item_code, k.item_name, k.qty,
+            case when ar.telephone is not null then ar.telephone else ar2.name_1 end as cust_name,
+            case when ar.telephone is not null then ar.mobile else ar2.telephone end as telephone,
+            case when ar.telephone is not null then ar.address else ar2.address end as address,
+            case when ar.telephone is not null then ar.name else ar2.code end as cust_code,
+            case when inv.item_size='112' then '9900-0020'
+                 when inv.item_size='023' then '9900-0019'
+                 when inv.item_size='033' then '9900-0018'
+                 when inv.item_size='051' then '9900-0017'
+                 when inv.item_size='121' then '9900-0016'
+                 else '' end as sv_type,
+            inv.item_brand,
+            inv.item_category as pro_type,
+            cat.name_1 as pro_type_name,
+            siz.name_1 as pro_size,
+            /**
+             * ④ ISN — ຄິດສະເພາະ 30 ແຖວທີ່ຄັດແລ້ວ.
+             * ⚠️ ISN ຂອງແອຢູ່ **ອົງປະກອບຂອງຊຸດ** ບໍ່ແມ່ນຢູ່ແຖວ [SET] (ພິສູດຈາກບິນ
+             * CAK26008714: [SET] ບໍ່ມີ ISN ແຕ່ [C]/[H] ມີ) ⇒ ຕ້ອງແຕກຊຸດຜ່ານ
+             * ic_inventory_set_detail ກ່ອນ ບໍ່ດັ່ງນັ້ນແອທຸກຊຸດຈະບໍ່ມີ ISN ໃຫ້ເລືອກ.
+             */
+            coalesce((
+              select json_agg(json_build_object(
+                       'isn', x.isn,
+                       'sn', x.sn,
+                       'part', case when x.item_name ilike '%[C]%' then 'ໜ່ວຍໃນ'
+                                    when x.item_name ilike '%[H]%' then 'ໜ່ວຍນອກ'
+                                    else '' end)
+                       order by (x.item_name ilike '%[C]%') desc, x.isn)
+                from isn x
+               where x.doc_ref = k.doc_no
+                 and (x.item_code = k.item_code
+                      or x.item_code in (select c2.ic_code from comp c2
+                                          where c2.doc_no = k.doc_no and c2.item_code = k.item_code))
+            ), '[]'::json) as serials
+          from kept k
+          join ic_trans a on a.doc_no = k.doc_no and a.trans_flag = 44
+          join ic_inventory inv on inv.code = k.item_code
+          left join ic_category cat on cat.code = inv.item_category
+          left join ic_size siz on siz.code = inv.item_size
+          left join ar_contactor ar on ar.ar_code = a.cust_code and ar.name = a.contactor
+          left join ar_customer ar2 on ar2.code = a.cust_code
+         order by k.doc_date desc, k.doc_no desc`,
+        q ? [INSTALL_SIZES, `%${q}%`, custCodes] : [INSTALL_SIZES],
       )
     ).rows;
 
