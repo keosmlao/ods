@@ -6,7 +6,7 @@ import { writeErpRequest } from "@/lib/erp-request";
 import { nextDocNo } from "@/lib/doc-no";
 import type { FlowResult } from "@/lib/job-flow";
 import { STAGE_SQL } from "@/lib/stage";
-import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
+import { ERP, LINE_STATUS, RETURN_SHELF, RETURN_WH, TRANS } from "@/lib/stock-constants";
 
 /**
  * ຂັ້ນຕອນຂອງຊ່າງ ພາກ **ກວດເຊັກ ແລະ ອາໄຫຼ່** — ໃຊ້ຮ່ວມກັນລະຫວ່າງເວັບ ແລະ ແອັບມືຖື
@@ -626,4 +626,122 @@ export async function pickupSpares(session: Session, docRef: string, remark: str
     `ຊ່າງຮັບອາໄຫຼ່ ${pickNo} · ${pickLines} ລາຍການ (ອ້າງອີງໃບເບີກ ${docRef})`,
   );
   return { ok: true, message: `ຮັບອາໄຫຼ່ແລ້ວ (ໃບ ${pickNo} · ${pickLines} ລາຍການ)` };
+}
+
+
+/* ── ໃບຂໍສົ່ງຄືນອາໄຫຼ່ (SRI · trans_flag 59) — ຈາກ **ແອັບຊ່າງ** ────────
+ *
+ * ── ເປັນຫຍັງ ──
+ * ອາໄຫຼ່ທີ່ສາງເບີກອອກໄປແລ້ວ ແຕ່ຊ່າງບໍ່ໄດ້ໃຊ້ ຕ້ອງມີໃບສົ່ງຄືນ — ບໍ່ດັ່ງນັ້ນ
+ * **ອາໄຫຼ່ຄ້າງຢູ່ນຳຊ່າງ ໂດຍບໍ່ມີເອກະສານ** (ຂໍ້ມູນຈິງ: ງານທີ່ຍົກເລີກແລ້ວມີອາໄຫຼ່ 36 ແຖວ
+ * ທີ່ບໍ່ເຄີຍມີໃບສົ່ງຄືນຈັກໃບ). ເມື່ອກ່ອນເຮັດໄດ້ແຕ່ຢູ່ເວັບ ⇒ ຊ່າງທີ່ຢູ່ໜ້າງານເຮັດບໍ່ໄດ້.
+ *
+ * ນະໂຍບາຍ 13-07-2026: ໃບ**ຂໍ** (59) ລົງທັງ ODS ແລະ ERP · ໃບ**ຮັບຄືນ** (58) ສາງເຮັດຢູ່ ERP
+ * ແລ້ວ ODS ດຶງມາເອງ (lib/erp-dispatch → syncErpReturns).
+ */
+
+/** ອາໄຫຼ່ທີ່ **ຢູ່ນຳຊ່າງ** — ເບີກອອກໄປແລ້ວ ແລະ ຍັງບໍ່ໄດ້ຂໍສົ່ງຄືນ */
+export async function outstandingSpares(code: string) {
+  return (
+    await query<{ doc_no: string; item_code: string; item_name: string; qty: string; unit_code: string | null }>(
+      `select d.doc_no, d.item_code, d.item_name, d.qty::text as qty, d.unit_code
+         from ic_trans_detail d
+         join ic_trans t on t.doc_no = d.doc_no and t.trans_flag = d.trans_flag
+        where t.trans_flag = ${TRANS.DISPATCH} and t.product_code = $1
+          and d.status = ${LINE_STATUS.PENDING}
+        order by d.roworder`,
+      [code],
+    )
+  ).rows;
+}
+
+export async function createSpareReturn(
+  session: Session,
+  input: { code: string; remark: string; items: { item_code: string; qty: number }[] },
+): Promise<FlowResult & { doc_no?: string }> {
+  if (!db || !odgDb) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL / ODG_DATABASE_URL" };
+  if (input.items.length === 0) return { ok: false, error: "ບໍ່ໄດ້ເລືອກອາໄຫຼ່ທີ່ຈະສົ່ງຄືນ" };
+
+  const { date: docDate, at, time: docTime } = nowParts();
+  const client = await db.connect();
+  const odg = await odgDb.connect();
+  let docNo = "";
+
+  try {
+    await client.query("begin");
+    await odg.query("begin");
+    await client.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
+
+    // ອາໄຫຼ່ທີ່ຂໍຄືນ ຕ້ອງເປັນອາໄຫຼ່ **ຂອງງານນີ້ ທີ່ຍັງຢູ່ນຳຊ່າງຈິງ** (ບໍ່ດັ່ງນັ້ນສະຕັອກເກີນ)
+    const wanted = new Map(input.items.map((item) => [item.item_code, item.qty]));
+    const lines = (await outstandingSpares(input.code)).filter((line) => wanted.has(line.item_code));
+    if (lines.length === 0) {
+      await client.query("rollback");
+      await odg.query("rollback");
+      return { ok: false, error: "ບໍ່ມີອາໄຫຼ່ຂອງງານນີ້ທີ່ຄ້າງຢູ່ນຳຊ່າງ" };
+    }
+
+    docNo = await nextDocNo(client, "SRI", at);
+
+    await client.query(
+      `insert into ic_trans(trans_flag, doc_date, doc_no, doc_ref, doc_ref_date, product_code, remark, user_created, status)
+       values($1,$2,$3,$4,$2,$5,$6,$7,0)`,
+      [TRANS.RETURN_REQUEST, docDate, docNo, lines[0].doc_no, input.code, input.remark, session.username],
+    );
+
+    for (const line of lines) {
+      const qty = Math.min(Number(wanted.get(line.item_code) ?? 0), Number(line.qty));
+      if (qty <= 0) continue;
+      await client.query(
+        `insert into ic_trans_detail(trans_flag, doc_date, doc_no, doc_ref, product_code, item_code, item_name,
+           qty, unit_code, calc_flag, user_created, status)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9,1,$10,$11)`,
+        [TRANS.RETURN_REQUEST, docDate, docNo, line.doc_no, input.code, line.item_code, line.item_name, qty,
+          line.unit_code, session.username, LINE_STATUS.RETURN_REQUESTED],
+      );
+      // ແຖວຂອງໃບເບີກ = ຂໍຄືນແລ້ວ ⇒ ບໍ່ໃຫ້ຂໍຊ້ຳ
+      await client.query(
+        `update ic_trans_detail set status=$1
+          where doc_no=$2 and trans_flag=${TRANS.DISPATCH} and item_code=$3 and status=${LINE_STATUS.PENDING}`,
+        [LINE_STATUS.RETURN_REQUESTED, line.doc_no, line.item_code],
+      );
+    }
+
+    await writeErpRequest(
+      {
+        trans_flag: TRANS.RETURN_REQUEST,
+        format: ERP.FORMAT_RETURN,
+        doc_no: docNo,
+        doc_date: docDate,
+        doc_time: docTime,
+        job_code: input.code,
+        wh_code: RETURN_WH,
+        shelf_code: RETURN_SHELF,
+        remark: input.remark || `ສົ່ງຄືນອາໄຫຼ່ຂອງງານ ${input.code}`,
+        requester: session.username,
+        lines: lines.map((line) => ({
+          item_code: line.item_code,
+          item_name: line.item_name,
+          unit_code: line.unit_code,
+          qty: Math.min(Number(wanted.get(line.item_code) ?? 0), Number(line.qty)),
+        })),
+      },
+      odg,
+    );
+
+    await client.query("commit");
+    await odg.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    await odg.query("rollback").catch(() => {});
+    console.error("createSpareReturn failed", error);
+    return { ok: false, error: "ສ້າງໃບຂໍສົ່ງຄືນບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+    odg.release();
+  }
+
+  // ສາງຕ້ອງຮັບຄືນ (ຢູ່ ERP) — ບອກໃຫ້ຮູ້
+  await logChange(jobModel(input.code), input.code, `ຊ່າງຂໍສົ່ງຄືນອາໄຫຼ່ ${docNo}`, { roles: ROLE_WAREHOUSE });
+  return { ok: true, message: `ສ້າງໃບຂໍສົ່ງຄືນ ${docNo}`, doc_no: docNo };
 }

@@ -10,6 +10,7 @@ import '../main.dart';
 import 'check_screen.dart';
 import 'pickup_screen.dart';
 import 'spare_request_screen.dart';
+import 'spare_return_screen.dart';
 
 /// ໜ້າງານດຽວ — ປຸ່ມທີ່ສະແດງ **ມາຈາກ server** (`job.action`) ບໍ່ແມ່ນແອັບຄິດເອງ.
 ///
@@ -190,12 +191,46 @@ class _JobScreenState extends State<JobScreen> {
           const SizedBox(height: 12),
           _Card(
             children: [
-              Text(
-                job.stageLabel,
-                style: const TextStyle(
-                  color: teal,
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      job.stageLabel,
+                      style: const TextStyle(
+                        color: teal,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  // ນາລິກາ 24 ຊມ ນັບແຕ່ອອກບິນ — ຊ່າງຕ້ອງເຫັນອັນດຽວກັບຜູ້ຈັດການ
+                  if (job.slaLabel != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: job.slaLate
+                            ? const Color(0xFFFEE2E2)
+                            : job.slaSoon
+                            ? const Color(0xFFFEF3C7)
+                            : const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        job.slaLabel!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: job.slaLate
+                              ? const Color(0xFFB91C1C)
+                              : job.slaSoon
+                              ? const Color(0xFF92400E)
+                              : const Color(0xFF047857),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 8),
               _row('ລູກຄ້າ', job.customer),
@@ -215,7 +250,7 @@ class _JobScreenState extends State<JobScreen> {
                 OutlinedButton.icon(
                   icon: const Icon(Icons.navigation_outlined, color: teal),
                   label: const Text(
-                    'ນຳທາງໄປສະຖານທີ່ຕິດຕັ້ງ',
+                    'ນຳທາງໄປສະຖານທີ່ໜ້າງານ',
                     style: TextStyle(color: teal),
                   ),
                   onPressed: openMap,
@@ -233,6 +268,31 @@ class _JobScreenState extends State<JobScreen> {
                   onPressed: callCustomer,
                 ),
               ],
+              /*
+                ── ສົ່ງຄືນອາໄຫຼ່ທີ່ບໍ່ໄດ້ໃຊ້ ──
+                ເມື່ອກ່ອນເຮັດໄດ້ແຕ່ຢູ່ເວັບ ⇒ ອາໄຫຼ່ຄ້າງຢູ່ນຳຊ່າງໂດຍບໍ່ມີເອກະສານ
+                (ງານທີ່ຍົກເລີກແລ້ວມີອາໄຫຼ່ 36 ແຖວ ທີ່ບໍ່ເຄີຍມີໃບສົ່ງຄືນຈັກໃບ).
+              */
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.assignment_return, color: muted),
+                label: const Text(
+                  'ສົ່ງຄືນອາໄຫຼ່ທີ່ບໍ່ໄດ້ໃຊ້',
+                  style: TextStyle(color: muted),
+                ),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SpareReturnScreen(
+                        workflow: job.workflow,
+                        code: job.code,
+                      ),
+                    ),
+                  );
+                  if (mounted) await reload();
+                },
+              ),
             ],
           ),
           const SizedBox(height: 12),

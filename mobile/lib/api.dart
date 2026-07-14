@@ -228,6 +228,63 @@ class Api {
     return result['message'] as String;
   }
 
+  /// ອາໄຫຼ່ທີ່ຄ້າງຢູ່ນຳຊ່າງ (ເບີກອອກແລ້ວ ຍັງບໍ່ໄດ້ຂໍສົ່ງຄືນ)
+  static Future<List<OutstandingSpare>> outstandingSpares(
+    String workflow,
+    String code,
+  ) async {
+    final result = await _send(
+      'POST',
+      '/api/mobile/spare-request',
+      body: {'action': 'outstanding', 'workflow': workflow, 'code': code},
+    );
+    return (result['data'] as List)
+        .map((row) => OutstandingSpare.fromJson(row))
+        .toList();
+  }
+
+  /// ຂໍສົ່ງຄືນອາໄຫຼ່ທີ່ບໍ່ໄດ້ໃຊ້ — ບໍ່ດັ່ງນັ້ນອາໄຫຼ່ຄ້າງຢູ່ນຳຊ່າງໂດຍບໍ່ມີເອກະສານ
+  static Future<String> returnSpares(
+    String workflow,
+    String code,
+    List<Map<String, dynamic>> items,
+    String remark,
+  ) async {
+    final result = await _send(
+      'POST',
+      '/api/mobile/spare-request',
+      body: {
+        'action': 'return',
+        'workflow': workflow,
+        'code': code,
+        'items': items,
+        'remark': remark,
+      },
+    );
+    return result['message'] as String;
+  }
+
+  /* ── ແຈ້ງເຕືອນ (ຕາຕະລາງດຽວກັບເວັບ) ───────────────────────────── */
+
+  static Future<(List<AppNotification>, int)> notifications({
+    bool unreadOnly = true,
+  }) async {
+    final result = await _send(
+      'GET',
+      '/api/mobile/notifications?tab=${unreadOnly ? 'unread' : 'all'}',
+    );
+    final rows = (result['data'] as List)
+        .map((row) => AppNotification.fromJson(row))
+        .toList();
+    return (rows, (result['unread'] as num?)?.toInt() ?? 0);
+  }
+
+  static Future<void> markNotificationRead({int? id, bool all = false}) => _send(
+    'POST',
+    '/api/mobile/notifications',
+    body: all ? {'all': true} : {'id': id},
+  ).then((_) {});
+
   static Future<String> pickupSpares(String docRef) async {
     final result = await _send(
       'POST',
@@ -342,6 +399,10 @@ class Job {
   final double? lat;
   final double? lng;
 
+  /// ວິນາທີທີ່ຍັງເຫຼືອຈົນຄົບ **24 ຊມ ນັບແຕ່ອອກບິນ** (ຕິດລົບ = ເລີຍກຳນົດ) — ສະເພາະຕິດຕັ້ງ.
+  /// ຊ່າງຕ້ອງເຫັນນາລິກາອັນດຽວກັບຜູ້ຈັດການ ບໍ່ດັ່ງນັ້ນ "ດ່ວນ" ຂອງສອງຝ່າຍບໍ່ຕົງກັນ.
+  final double? slaLeft;
+
   Job({
     required this.workflow,
     required this.code,
@@ -364,6 +425,7 @@ class Job {
     required this.canCheckOut,
     this.lat,
     this.lng,
+    this.slaLeft,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) => Job(
@@ -388,7 +450,23 @@ class Job {
     canCheckOut: json['can_check_out'] as bool? ?? false,
     lat: (json['lat'] as num?)?.toDouble(),
     lng: (json['lng'] as num?)?.toDouble(),
+    slaLeft: (json['sla_left'] as num?)?.toDouble(),
   );
+
+  /// "ເຫຼືອ 5 ຊມ" · "ເລີຍ 2 ມື້" · null = ບໍ່ມີນາລິກາ (ບິນເກົ່າບໍ່ມີວັນທີ / ງານສ້ອມ)
+  String? get slaLabel {
+    final left = slaLeft;
+    if (left == null) return null;
+    final late = left < 0;
+    final total = left.abs();
+    final days = total ~/ 86400;
+    final hours = (total % 86400) ~/ 3600;
+    final text = days > 0 ? '$days ມື້ $hours ຊມ' : '$hours ຊມ';
+    return late ? 'ເລີຍ $text' : 'ເຫຼືອ $text';
+  }
+
+  bool get slaLate => (slaLeft ?? 1) < 0;
+  bool get slaSoon => slaLeft != null && slaLeft! >= 0 && slaLeft! < 6 * 3600;
 
   int get days => elapsedSeconds ~/ 86400;
 }
@@ -567,5 +645,61 @@ class Income {
     jobs: (json['jobs'] as num?)?.toInt() ?? 0,
     totalThb: (json['total_thb'] as num?)?.toDouble() ?? 0,
     rows: (json['rows'] as List).cast<Map<String, dynamic>>(),
+  );
+}
+
+/// ແຈ້ງເຕືອນ 1 ລາຍການ (ots ດຽວກັບເວັບ — ods_notification)
+class AppNotification {
+  final int id;
+  final String body;
+  final String? actor;
+  final String createdAt;
+  final bool read;
+  final String model;
+  final String resId;
+
+  AppNotification({
+    required this.id,
+    required this.body,
+    required this.actor,
+    required this.createdAt,
+    required this.read,
+    required this.model,
+    required this.resId,
+  });
+
+  factory AppNotification.fromJson(Map<String, dynamic> json) => AppNotification(
+    id: (json['id'] as num).toInt(),
+    body: json['body'] as String? ?? '',
+    actor: json['actor'] as String?,
+    createdAt: json['created_at'] as String? ?? '',
+    read: json['read'] as bool? ?? false,
+    model: json['model'] as String? ?? '',
+    resId: json['res_id'] as String? ?? '',
+  );
+}
+
+/// ອາໄຫຼ່ທີ່ **ຢູ່ນຳຊ່າງ** (ເບີກອອກແລ້ວ ຍັງບໍ່ໄດ້ຂໍສົ່ງຄືນ)
+class OutstandingSpare {
+  final String docNo;
+  final String itemCode;
+  final String itemName;
+  final double qty;
+  final String? unitCode;
+
+  OutstandingSpare({
+    required this.docNo,
+    required this.itemCode,
+    required this.itemName,
+    required this.qty,
+    required this.unitCode,
+  });
+
+  factory OutstandingSpare.fromJson(Map<String, dynamic> json) => OutstandingSpare(
+    docNo: json['doc_no'] as String,
+    itemCode: json['item_code'] as String,
+    itemName: json['item_name'] as String? ?? '',
+    qty: double.tryParse('${json['qty']}') ?? 0,
+    unitCode: json['unit_code'] as String?,
   );
 }

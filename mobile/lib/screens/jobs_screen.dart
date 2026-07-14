@@ -4,6 +4,7 @@ import '../api.dart';
 import '../main.dart';
 import '../push.dart';
 import '../widgets/service_bottom_nav.dart';
+import 'notifications_screen.dart';
 import 'job_screen.dart';
 import 'login_screen.dart';
 
@@ -129,6 +130,15 @@ class _JobsScreenState extends State<JobsScreen> {
           ],
         ),
         actions: [
+          // ກ່ອງແຈ້ງເຕືອນ — push ທີ່ຖືກປັດຖິ້ມ / ມືຖືປິດ ຍັງອ່ານໄດ້ຢູ່ນີ້
+          IconButton(
+            tooltip: 'ແຈ້ງເຕືອນ',
+            icon: const Icon(Icons.notifications_none),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            ),
+          ),
           IconButton(
             tooltip: 'ໂຫຼດຄືນໃໝ່',
             onPressed: load,

@@ -1,7 +1,13 @@
 import { requireMobile } from "@/lib/mobile-auth";
 import { ownMobileJob } from "@/lib/job-flow";
 import { TECH_SIDE } from "@/lib/roles";
-import { createInstallSpareRequest, createSpareRequest, pickupSpares } from "@/lib/tech-flow";
+import {
+  createInstallSpareRequest,
+  createSpareRequest,
+  createSpareReturn,
+  outstandingSpares,
+  pickupSpares,
+} from "@/lib/tech-flow";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
@@ -14,7 +20,20 @@ import { NextResponse } from "next/server";
  */
 type Body =
   | { action: "request"; workflow?: "install" | "repair"; code: string; remark?: string; wh_code: string; shelf_code: string }
-  | { action: "pickup"; doc_ref: string; remark?: string };
+  | { action: "pickup"; doc_ref: string; remark?: string }
+  /** ອາໄຫຼ່ທີ່ **ຢູ່ນຳຊ່າງ** ຂອງງານນີ້ (ເບີກອອກແລ້ວ ຍັງບໍ່ຂໍຄືນ) */
+  | { action: "outstanding"; workflow?: "install" | "repair"; code: string }
+  /**
+   * ຂໍສົ່ງຄືນອາໄຫຼ່ທີ່ບໍ່ໄດ້ໃຊ້ — ເມື່ອກ່ອນເຮັດໄດ້ແຕ່ຢູ່ເວັບ ⇒ ຊ່າງທີ່ຢູ່ໜ້າງານເຮັດບໍ່ໄດ້
+   * ແລ້ວອາໄຫຼ່ຄ້າງຢູ່ນຳຊ່າງໂດຍບໍ່ມີເອກະສານ.
+   */
+  | {
+      action: "return";
+      workflow?: "install" | "repair";
+      code: string;
+      remark?: string;
+      items: { item_code: string; qty: number }[];
+    };
 
 export async function POST(request: Request) {
   const guard = await requireMobile(request, TECH_SIDE);
@@ -28,10 +47,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (body.action === "request") {
+    // ທຸກຄຳສັ່ງທີ່ອ້າງເຖິງ "ງານ" ຕ້ອງເປັນງານຂອງຊ່າງຄົນນີ້ເອງ
+    if (body.action === "request" || body.action === "return" || body.action === "outstanding") {
       const workflow = body.workflow === "install" ? "install" : "repair";
       const own = await ownMobileJob(guard.user, workflow, String(body.code ?? ""));
       if (!own.ok) return NextResponse.json({ error: own.error }, { status: 403 });
+    }
+
+    // ອາໄຫຼ່ທີ່ຄ້າງຢູ່ນຳຊ່າງ — ອ່ານຢ່າງດຽວ (ໃຫ້ແອັບເອົາໄປສະແດງກ່ອນເລືອກສົ່ງຄືນ)
+    if (body.action === "outstanding") {
+      return NextResponse.json({ data: await outstandingSpares(String(body.code ?? "")) });
     }
     const result =
       body.action === "request"
@@ -43,11 +68,17 @@ export async function POST(request: Request) {
           })
         : body.action === "pickup"
           ? await pickupSpares(guard.user, String(body.doc_ref ?? ""), String(body.remark ?? ""))
-          : { ok: false as const, error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" };
+          : body.action === "return"
+            ? await createSpareReturn(guard.user, {
+                code: String(body.code ?? ""),
+                remark: String(body.remark ?? ""),
+                items: Array.isArray(body.items) ? body.items : [],
+              })
+            : { ok: false as const, error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" };
 
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
-    for (const path of ["/stock/requests", "/stock/requests/pickup", "/stock/dispatch", "/repair", "/dashboard"]) {
+    for (const path of ["/stock/requests", "/stock/requests/pickup", "/stock/returns", "/repair", "/dashboard"]) {
       revalidatePath(path);
     }
     return NextResponse.json({ ok: true, message: result.message });

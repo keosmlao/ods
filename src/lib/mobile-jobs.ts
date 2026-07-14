@@ -6,6 +6,7 @@ import {
   INSTALL_ELAPSED_SQL,
   INSTALL_OPEN,
 } from "@/lib/install-stage";
+import { INSTALL_LEFT_SQL } from "@/lib/install-sla";
 import { OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 
 /**
@@ -50,6 +51,11 @@ export type MobileJob = {
   /** ພິກັດສະຖານທີ່ (ຖ້າ CS ປັກໝຸດໄວ້) — ແອັບກົດນຳທາງໄດ້ */
   lat: number | null;
   lng: number | null;
+  /**
+   * ວິນາທີທີ່ຍັງເຫຼືອຈົນຄົບ **24 ຊມ ນັບແຕ່ອອກບິນ** (ຕິດລົບ = ເລີຍກຳນົດ) — ສະເພາະຕິດຕັ້ງ.
+   * ຊ່າງຕ້ອງເຫັນນາລິກາອັນດຽວກັບທີ່ຜູ້ຈັດການເຫັນ ບໍ່ດັ່ງນັ້ນ "ດ່ວນ" ຂອງສອງຝ່າຍບໍ່ຕົງກັນ.
+   */
+  sla_left: number | null;
 };
 
 /**
@@ -117,7 +123,8 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
           and not ${CHECKED_IN("install")}) as can_check_in,
         ${CHECKED_IN("install")} as can_check_out,
         ${CHECKED_IN("install")} as checked_in,
-        a.location_lat as lat, a.location_lng as lng
+        a.location_lat as lat, a.location_lng as lng,
+        (${INSTALL_LEFT_SQL}) as sla_left
       from ods_tb_install a
       left join ar_customer c on c.code = a.cust_code
      where ${INSTALL_OPEN}
@@ -146,7 +153,8 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
           and not ${CHECKED_IN("repair")}) as can_check_in,
         ${CHECKED_IN("repair")} as can_check_out,
         ${CHECKED_IN("repair")} as checked_in,
-        a.location_lat as lat, a.location_lng as lng
+        a.location_lat as lat, a.location_lng as lng,
+        null::double precision as sla_left
       from tb_product a
       left join ar_customer b on b.code = a.cust_code
      where ${OPEN_JOBS}
