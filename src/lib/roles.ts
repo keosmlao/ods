@@ -106,6 +106,7 @@ const RULES: Rule[] = [
   { path: "/quotations", roles: SERVICE_SIDE },
   // ຄິວແຈ້ງລູກຄ້າ (ລໍຕັດສິນລາຄາ · ມາຮັບເຄື່ອງ · ຢືນຢັນນັດ) — ຝ່າຍບໍລິການເປັນຜູ້ຕິດຕໍ່ລູກຄ້າ
   { path: "/customer-contact", roles: SERVICE_SIDE },
+  { path: "/repair/assign", roles: SERVICE_SIDE },
   { path: "/returns", roles: SERVICE_SIDE },
   { path: "/customers", roles: SERVICE_SIDE },
 

@@ -32,6 +32,7 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ສ້ອມແປງ", label: "ຄຳແຈ້ງສ້ອມ", resource: "/service/notices" },
   { group: "ສ້ອມແປງ", label: "ຄິວຍົກເລີກງານ", resource: "/service/cancel", actions: ["read", "update"] },
   { group: "ສ້ອມແປງ", label: "ຂໍ້ມູນລູກຄ້າ", resource: "/customers" },
+  { group: "ສ້ອມແປງ", label: "ຈັດຊ່າງງານສ້ອມ", resource: "/repair/assign", actions: ["read", "update"] },
   { group: "ສ້ອມແປງ", label: "ກວດເຊັກ", resource: "/checking", actions: ["read", "update"] },
   { group: "ສ້ອມແປງ", label: "ໃບສະເໜີລາຄາ", resource: "/quotations" },
   { group: "ສ້ອມແປງ", label: "ລູກຄ້າອະນຸມັດລາຄາ", resource: "/quotations/customer-approval", actions: ["read", "update"] },

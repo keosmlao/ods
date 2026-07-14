@@ -70,6 +70,11 @@ const REPAIR: NavGroup = {
   icon: Wrench,
   items: [
     { label: "ຮັບເຄື່ອງສ້ອມ", href: "/service" },
+    /**
+     * ຈັດຊ່າງງານສ້ອມ — ຊ່າງເຄີຍໃສ່ໄດ້ **ຕອນຮັບເຄື່ອງເທົ່ານັ້ນ** ແລະ ບໍ່ມີວັນນັດຈັກໃບ
+     * (101 ໃບຄ້າງ = 0 ວັນນັດ) ທັ້ງທີ່ 75% ຂອງງານສ້ອມຕ້ອງອອກໜ້າງານ.
+     */
+    { label: "ຈັດຊ່າງງານສ້ອມ", href: "/repair/assign" },
     { label: "ກວດເຊັກ", href: "/checking", count: "/checking" },
     { label: "ໃບສະເໜີລາຄາ", href: "/quotations" },
     { label: "ລູກຄ້າອະນຸມັດ(ສະເໜີລາຄາ)", href: "/quotations/customer-approval", count: "/quotations/customer-approval" },

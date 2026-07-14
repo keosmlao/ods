@@ -1,5 +1,6 @@
 "use client";
 import { assignTech } from "@/app/actions/installation";
+import { assignRepairTech } from "@/app/actions/repair";
 import type { Technician } from "@/lib/technicians";
 import { Button, ErrorBox, inputClass, labelClass } from "@/components/ui";
 import { CalendarDays, Check, LoaderCircle, MapPin, Search, StickyNote, TriangleAlert, UserRound, X } from "lucide-react";
@@ -32,6 +33,14 @@ export type AssignRow = {
   remark: string | null;
 };
 
+/**
+ * ── ໃຊ້ຮ່ວມ **ສອງສາຍງານ** (13-07-2026) ──
+ * ຝັ່ງສ້ອມເມື່ອກ່ອນໃສ່ຊ່າງໄດ້ **ຕອນຮັບເຄື່ອງເທົ່ານັ້ນ** ແລະ ບໍ່ມີວັນນັດຈັກໃບ
+ * (101/101 ໃບຄ້າງ = 0 ວັນນັດ) ⇒ ໃຊ້ modal ອັນດຽວກັນ ພຽງແຕ່ປ່ຽນ action.
+ * ພາລະງານຂອງຊ່າງ (api/installations/tech-load) ນັບ **ທັງສອງຝັ່ງ** ຢູ່ແລ້ວ.
+ */
+type Workflow = "install" | "repair";
+
 type Load = { tech: string; day: number; open: number };
 
 /** ນັດເກີນນີ້ຕໍ່ມື້ = ເປັນໄປໄດ້ຍາກ (ຄ່າດຽວກັບໜ້າ /installations/schedule) */
@@ -44,7 +53,15 @@ function isoDate(offsetDays = 0) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Technician[] }) {
+export function AssignTechButton({
+  row,
+  techs,
+  workflow = "install",
+}: {
+  row: AssignRow;
+  techs: Technician[];
+  workflow?: Workflow;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
@@ -73,7 +90,7 @@ export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Techni
 
   const submit = (formData: FormData) =>
     start(async () => {
-      const result = await assignTech({}, formData);
+      const result = await (workflow === "repair" ? assignRepairTech : assignTech)({}, formData);
       if (result.error) setError(result.error);
       else {
         setOpen(false);
@@ -109,7 +126,9 @@ export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Techni
             {/* ຫົວກ່ອງ = ບໍລິບົດຂອງງານ (ບໍ່ແມ່ນຊ່ອງໃຫ້ພິມ ຄືຮຸ່ນກ່ອນ) */}
             <header className="flex items-start gap-3 border-b border-slate-100 p-4">
               <div className="min-w-0 flex-1">
-                <h2 className="font-bold text-slate-800">ຈັດຊ່າງໃຫ້ງານ {row.code}</h2>
+                <h2 className="font-bold text-slate-800">
+                  ຈັດຊ່າງໃຫ້ງານ{workflow === "repair" ? "ສ້ອມ" : "ຕິດຕັ້ງ"} {row.code}
+                </h2>
                 <p className="truncate text-xs text-slate-500">
                   {row.customer ?? "-"}
                   {row.location_inst ? ` · ${row.location_inst}` : ""}
@@ -133,7 +152,7 @@ export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Techni
               <div>
                 <label className={labelClass}>
                   <CalendarDays className="mr-1 inline size-3.5 text-slate-400" />
-                  ວັນທີນັດຕິດຕັ້ງ
+                  {workflow === "repair" ? "ວັນທີນັດເຂົ້າສ້ອມ" : "ວັນທີນັດຕິດຕັ້ງ"}
                 </label>
                 <div className="flex flex-wrap items-center gap-2">
                   <input
@@ -243,7 +262,7 @@ export function AssignTechButton({ row, techs }: { row: AssignRow; techs: Techni
               <div>
                 <label className={labelClass}>
                   <MapPin className="mr-1 inline size-3.5 text-slate-400" />
-                  ສະຖານທີ່ຕິດຕັ້ງ
+                  {workflow === "repair" ? "ສະຖານທີ່ໜ້າງານ" : "ສະຖານທີ່ຕິດຕັ້ງ"}
                 </label>
                 <input name="location_inst" defaultValue={row.location_inst ?? ""} className={inputClass} />
               </div>

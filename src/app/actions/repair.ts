@@ -3,7 +3,9 @@ import { logChange } from "@/app/actions/chatter";
 import { getSession, type Session } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { finishRepairFlow, startRepairFlow } from "@/lib/job-flow";
-import { roleOf, TECH_SIDE } from "@/lib/roles";
+import { requireRole } from "@/lib/guard";
+import { pushToUser } from "@/lib/push";
+import { roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -14,7 +16,7 @@ import { z } from "zod";
 /** ods ໃຊ້ເວລາ Asia/Bangkok (UTC+7) */
 const NOW = "timezone('Asia/Bangkok', now())::timestamp(0)";
 
-export type RepairState = { error?: string };
+export type RepairState = { error?: string; ok?: string };
 export type UndoState = { error?: string };
 
 /* ── ການແກ້ໄຂຂໍ້ຜິດພາດ (undo) — ກົດເກນດຽວກັນກັບ actions/checking.ts ──
@@ -296,4 +298,78 @@ export async function undoFinishRepair(code: string): Promise<UndoState> {
   revalidatePath("/returns");
   revalidatePath(`/service/${code}`);
   return {};
+}
+
+/* ── ຈັດຊ່າງງານສ້ອມ (ບໍ່ມີໃນ ods) ─────────────────────────────────
+ *
+ * ── ຮູຮົ່ວທີ່ອຸດຢູ່ນີ້ ──
+ * ຊ່າງຂອງງານສ້ອມຖືກໃສ່ **ຕອນຮັບເຄື່ອງເທົ່ານັ້ນ** (tb_product.emp_code) ແລ້ວ
+ * **ປ່ຽນພາຍຫຼັງບໍ່ໄດ້ເລີຍ** — ຊ່າງລາພັກ/ລາອອກ/ຕິດງານ ⇒ ໃບນັ້ນຄ້າງຢູ່ນຳລາວຕະຫຼອດ.
+ * ແລະ ງານສ້ອມ **ບໍ່ມີວັນນັດຈັກໃບ** (101/101 ໃບຄ້າງ = 0 ວັນນັດ) ທັ້ງທີ່ 75% ຕ້ອງອອກໜ້າງານ
+ * ⇒ ຈັດຄິວປະຈຳວັນບໍ່ໄດ້ ແລະ ລູກຄ້າບໍ່ຮູ້ວ່າຊ່າງຈະມາມື້ໃດ.
+ *
+ * ດຽວນີ້ຈັດ/ປ່ຽນຊ່າງ ພ້ອມວັນນັດ ແລະ ສະຖານທີ່ໄດ້ — ຄືຝັ່ງຕິດຕັ້ງ (assignTech).
+ * ⚠️ ປ່ຽນຊ່າງບໍ່ໄດ້ຫຼັງ **ຂໍເບີກອາໄຫຼ່ແລ້ວ** — ໃບເບີກອອກໃນນາມຊ່າງຄົນເກົ່າແລ້ວ
+ * (ກົດເກນດຽວກັບ chooseNewTech ຂອງຝັ່ງຕິດຕັ້ງ).
+ */
+export async function assignRepairTech(_: RepairState, formData: FormData): Promise<RepairState> {
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດຈັດຊ່າງ");
+  if (!guard.ok) return { error: guard.error };
+
+  const code = String(formData.get("code") ?? "");
+  const tech = String(formData.get("tech_code") ?? "").trim();
+  const appoint = String(formData.get("appoint_date") ?? "").trim();
+  const location = String(formData.get("location_inst") ?? "").trim();
+  const remark = String(formData.get("remark") ?? "").trim();
+  if (!code || !tech) return { error: "ກະລຸນາເລືອກຊ່າງ" };
+
+  const job = (
+    await query<{ emp_code: string | null; spare_reg: string | null; done: boolean; cancelled: boolean }>(
+      `select nullif(emp_code,'') as emp_code, spare_reg,
+          (return_complete is not null) as done, (cancel_start is not null) as cancelled
+        from tb_product where code = $1 limit 1`,
+      [code],
+    )
+  ).rows[0];
+  if (!job) return { error: "ບໍ່ພົບໃບຮັບເຄື່ອງນີ້" };
+  if (job.cancelled) return { error: "ໃບນີ້ຖືກຍົກເລີກແລ້ວ" };
+  if (job.done) return { error: "ໃບນີ້ສົ່ງຄືນລູກຄ້າແລ້ວ" };
+  // ຂໍເບີກແລ້ວ = ເອກະສານອອກໃນນາມຊ່າງຄົນເກົ່າ ⇒ ປ່ຽນຄົນບໍ່ໄດ້ (ບໍ່ດັ່ງນັ້ນອາໄຫຼ່ບໍ່ມີເຈົ້າຂອງ)
+  if (job.spare_reg && job.emp_code && job.emp_code !== tech) {
+    return { error: "ປ່ຽນຊ່າງບໍ່ໄດ້ — ມີໃບຂໍເບີກອາໄຫຼ່ໃນນາມຊ່າງຄົນເກົ່າແລ້ວ" };
+  }
+
+  try {
+    await query(
+      `update tb_product set emp_code = $1,
+          -- ປ່ຽນຊ່າງ ⇒ ການຮັບງານຂອງຄົນເກົ່າໃຊ້ບໍ່ໄດ້ອີກ (ຊ່າງໃໝ່ຕ້ອງກົດຮັບເອງ)
+          repair_confirm = case when nullif(emp_code,'') is distinct from $1::varchar then null else repair_confirm end,
+          appoint_date = nullif($2,'')::date,
+          location_repair = coalesce(nullif($3,''), location_repair),
+          remark = coalesce(nullif($4,''), remark),
+          user_edit = $5
+        where code = $6`,
+      [tech, appoint, location, remark, guard.session.username, code],
+    );
+  } catch (error) {
+    console.error("assignRepairTech failed", error);
+    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
+  }
+
+  await logChange(
+    "tb_product",
+    code,
+    `ຈັດຊ່າງສ້ອມ: ${tech}${appoint ? ` · ນັດວັນທີ ${appoint}` : ""}${location ? ` · ${location}` : ""}`,
+    { users: [tech] },
+  );
+  // ຊ່າງຢູ່ໜ້າງານ ບໍ່ໄດ້ເປີດເວັບຄ້າງໄວ້ ⇒ ຕ້ອງເຂົ້າມືຖື
+  await pushToUser(tech, "ມີງານສ້ອມໃໝ່", `${code}${appoint ? ` · ນັດ ${appoint}` : ""}`, {
+    workflow: "repair",
+    code,
+  });
+
+  revalidatePath("/repair/assign");
+  revalidatePath("/repair");
+  revalidatePath("/installations/schedule");
+  return { ok: "ຈັດຊ່າງສຳເລັດ" };
 }
