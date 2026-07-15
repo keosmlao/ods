@@ -840,21 +840,6 @@ export async function saveReceiveTransfer(_: StockState, formData: FormData): Pr
   redirect("/stock/transfers");
 }
 
-/* ─────────────────────────── ລາຍການອາໄຫຼ່ ─────────────────────────── */
-
-/** ods: /loadspa — ດຶງອາໄຫຼ່ໃໝ່ຈາກ sparepart_list ເຂົ້າ ic_inventory */
-export async function loadSpareParts(): Promise<void> {
-  await requireRoleOrRedirect(STOCK_SIDE);
-  if (!db) return;
-
-  await db.query(
-    `insert into ic_inventory(code, name_1, part_number, unit_code, group_main, group_sub2, item_brand)
-     select code, name_1, name_eng_2, unit_cost, group_main, group_sub2, item_brand
-     from sparepart_list where code not in (select code from ic_inventory)`,
-  );
-  revalidatePath("/stock/spare-parts");
-}
-
 /* ─────────────────────────── ຂໍສ້າງລະຫັດອາໄຫຼ່ (pp_od_manage) ─────────────────────────── */
 
 /** ods: /save_newspare — newspare.py, ຖານ pp_od_manage */
