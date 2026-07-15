@@ -27,8 +27,14 @@ export type Notice = {
   p_model: string;
   service_type: string;
   ref_code: string;
+  cust_code: string;
   cust_name: string;
   cust_address: string;
+  doc_ref: string;
+  location_repair: string;
+  appoint_date: string;
+  location_lat: number | null;
+  location_lng: number | null;
 };
 
 const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100";
@@ -51,21 +57,22 @@ function warrantyFromBill(billDate: string) {
  * ເລືອກລູກຄ້າຈາກ ERP (ຫຼືສ້າງໃໝ່), ເລືອກສິນຄ້າ ERP ⇒ Model/ປະເພດ/ຫຍີ່ຫໍ້/item_code ຕື່ມໃຫ້ຄົບ,
  * ແລະ ງານນອກສະຖານທີ່ (IH/PS) ຕ້ອງມີສະຖານທີ່ໜ້າງານ. ຄ່າຕົ້ນມາຈາກໃບແຈ້ງ — ແກ້ໄດ້ໝົດ.
  */
-export function ServiceNoticeForm({ notice, types, brands, techs, images }: {
+export function ServiceNoticeForm({ notice, types, brands, techs, images, initialProduct }: {
   notice: Notice;
   types: Option[];
   brands: Option[];
   techs: { code: string; name_1: string; department?: string }[];
   images: Record<number, string>;
+  initialProduct: Product | null;
 }) {
   const [state, action, pending] = useActionState(createServiceFromNotice, {});
   const noticeImages = Object.values(images).filter(Boolean);
 
-  // ໃບແຈ້ງທີ່ຜູກກັບລູກຄ້າ ERP ຢູ່ແລ້ວ (ref_code) → ເລືອກໃຫ້ເລີຍ; ບໍ່ດັ່ງນັ້ນປະໃຫ້ພະນັກງານຄົ້ນ/ສ້າງ
+  // ໃບແຈ້ງທີ່ຜູກກັບລູກຄ້າ ODS/ERP ຢູ່ແລ້ວ → ເລືອກໃຫ້ເລີຍ; ບໍ່ດັ່ງນັ້ນປະໃຫ້ພະນັກງານຄົ້ນ/ສ້າງ
   const [customer, setCustomer] = useState<Customer | null>(
-    notice.ref_code
+    notice.ref_code || notice.cust_code
       ? {
-          code: "",
+          code: notice.cust_code,
           name_1: notice.cust_name || notice.creator_name,
           tel: notice.telephone,
           address: notice.cust_address,
@@ -77,22 +84,26 @@ export function ServiceNoticeForm({ notice, types, brands, techs, images }: {
   const [productQuery, setProductQuery] = useState(notice.name_1);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
-  const [product, setProduct] = useState<Product | null>(null);
+  const [product, setProduct] = useState<Product | null>(initialProduct);
 
   const [serialQuery, setSerialQuery] = useState(notice.sn);
   const [serials, setSerials] = useState<Serial[]>([]);
   const [loadingSerials, setLoadingSerials] = useState(false);
   const [, setSerial] = useState<Serial | null>(null);
 
-  const [model, setModel] = useState(notice.p_model);
-  const [brand, setBrand] = useState(notice.p_brand);
-  const [productType, setProductType] = useState("");
-  const [billNo, setBillNo] = useState("");
-  const [billDate, setBillDate] = useState("");
+  const [model, setModel] = useState(notice.p_model || initialProduct?.model || "");
+  const [brand, setBrand] = useState(notice.p_brand || initialProduct?.brand || "");
+  const [productType, setProductType] = useState(initialProduct?.product_type || "");
+  const [billNo, setBillNo] = useState(notice.doc_ref || initialProduct?.doc_no || "");
+  const [billDate, setBillDate] = useState(initialProduct?.doc_date || "");
   const [warrantyChoice, setWarrantyChoice] = useState<string | null>(null);
 
   const [serviceType, setServiceType] = useState(notice.service_type || "");
-  const [point, setPoint] = useState<Point | null>(null);
+  const [point, setPoint] = useState<Point | null>(
+    notice.location_lat != null && notice.location_lng != null
+      ? { lat: notice.location_lat, lng: notice.location_lng }
+      : null,
+  );
 
   const onsite = ONSITE_SERVICE_TYPES.includes(serviceType as "IH" | "PS");
 
@@ -398,7 +409,7 @@ export function ServiceNoticeForm({ notice, types, brands, techs, images }: {
                     <input
                       name="location_repair"
                       required
-                      defaultValue={customer?.address ?? notice.cust_address ?? ""}
+                      defaultValue={notice.location_repair || customer?.address || notice.cust_address || ""}
                       key={customer?.code ?? "none"}
                       placeholder="ບ້ານ / ເມືອງ / ຈຸດສັງເກດ"
                       className={field}
@@ -414,7 +425,7 @@ export function ServiceNoticeForm({ notice, types, brands, techs, images }: {
 
                   <div>
                     <label className={label}>ວັນນັດເຂົ້າສ້ອມ</label>
-                    <input type="date" name="appoint_date" className={field} />
+                    <input type="date" name="appoint_date" defaultValue={notice.appoint_date} className={field} />
                     <p className="mt-1 text-xs text-slate-400">ຜູ້ຈັດຊ່າງປ່ຽນໄດ້ພາຍຫຼັງ</p>
                   </div>
                 </>
