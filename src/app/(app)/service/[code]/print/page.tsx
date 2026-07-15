@@ -1,47 +1,50 @@
 import { getCompany } from "@/components/report/print-layout";
+import { PrintButton } from "@/components/print-button";
 import { query } from "@/lib/db";
-import { SERVICE_TYPE_LABEL } from "@/lib/sla";
+import { getErpCategories } from "@/lib/erp-master";
 import { trackUrl } from "@/lib/track";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 
 /**
- * ພິມໃບຮັບເຄື່ອງ.
+ * ພິມໃບຮັບເຄື່ອງສ້ອມແປງ — ຖອດແບບຈາກ ods/templates/billprint/reciptpd.html (ໂຄງ 2 ພາສາ ລາວ/ອັງກິດ).
  *
- * ແກ້ບັກ: ເກົ່າມີປຸ່ມ <button onClick={undefined}> ຢູ່ໃນ server component (ກົດບໍ່ໄດ້ ແລະ ບໍ່ຄວນເປັນປຸ່ມ)
- * ແລະ ຫົວກະດາດ hardcode ວ່າ "ODIEN SERVICE" → ດຽວນີ້ດຶງຊື່/ທີ່ຢູ່ບໍລິສັດຈາກ company_profile
- * ຄືກັບໃບພິມອື່ນທັງໝົດ ແລະ ຂໍ້ຄວາມ "ກົດ Ctrl/Cmd + P" ເປັນປ້າຍທຳມະດາທີ່ບໍ່ຖືກພິມອອກ (.no-print).
+ * ໃບພິມແບບທີ 2 — ?layout=anniv (ໃບງານລ້າງຈັກຊັກຜ້າ) ຄື ods /sprint2 (reciptpd_anniv.html):
+ * ຕ່າງກັນພຽງຫົວຂໍ້ຂອງໃບ — SQL/ຄໍລຳ/ໂຄງ ຄືກັນໝົດ ຈຶ່ງໃຊ້ໜ້າດຽວກັນ.
  *
- * ໃບພິມແບບທີ 2 — ?layout=anniv
- * ods ມີ 2 ເສັ້ນທາງ: /sprint (billprint/reciptpd.html) ແລະ /sprint2 (billprint/reciptpd_anniv.html).
- * ສອງ template ນັ້ນ **ຕ່າງກັນພຽງແຖວດຽວ** ຄື ຫົວຂໍ້ຂອງໃບ:
- *      reciptpd.html        → "ໃບຮັບເຄື່ອງສ້ອມແປງ"
- *      reciptpd_anniv.html  → "ໃບງານລ້າງຈັກຊັກຜ້າ"
- * (SQL, ຄໍລຳ, ຂໍ້ມູນ ແລະ ໂຄງໜ້າ ຄືກັນທຸກປະການ — bill.py:19 ກັບ bill.py:44 ໃຊ້ query ດຽວກັນ)
- * ຈຶ່ງບໍ່ສ້າງໜ້າໃໝ່ຊ້ຳກັນ ແຕ່ຮັບເປັນ ?layout= ຂອງໜ້າດຽວກັນນີ້.
+ * "ແປງເປັນ PDF" = ໃຊ້ browser print (ປຸ່ມ "ພິມ / ບັນທຶກ PDF") → ເລືອກ Save as PDF.
  */
 const LAYOUT_TITLE = {
-  default: "ໃບຮັບເຄື່ອງເຂົ້າສ້ອມ",
-  anniv: "ໃບງານລ້າງຈັກຊັກຜ້າ",
+  default: "ໃບຮັບເຄື່ອງສ້ອມແປງ",
+  anniv: "ໃບຮັບເຄື່ອງສ້ອມ",
 } as const;
 type Layout = keyof typeof LAYOUT_TITLE;
 const safeLayout = (value: string | string[] | undefined): Layout => (value === "anniv" ? "anniv" : "default");
+
+/** ການຈັດສົ່ງ — ເກັບເປັນລະຫັດ '1'/'2' (ຄືຟອມຮັບເຄື່ອງ) */
+const DELIVERY_LABEL: Record<string, string> = { "1": "ໂອດ້ຽນຈັດສົ່ງ", "2": "ລູກຄ້າຮັບເອງ" };
+
 type Receipt = {
   code: string;
-  registered: string | null;
+  reg_date: string | null;
+  reg_time: string | null;
   customer: string | null;
   phone: string | null;
   address: string | null;
+  province: string | null;
+  city: string | null;
   product: string | null;
   sn: string | null;
   model: string | null;
   brand: string | null;
   accessory: string | null;
   warranty: string | null;
-  service_type: string | null;
-  issue: string | null;
+  product_type: string | null;
+  type_name: string | null;
+  delivery: string | null;
+  symptom: string | null;
   remark: string | null;
-  technician: string | null;
   receiver: string | null;
 };
 
@@ -50,12 +53,21 @@ type Props = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-function Field({ label, value, wide }: { label: string; value: string | null; wide?: boolean }) {
+/** ຫ້ອງປ້າຍ 2 ພາສາ (ລາວ / ອັງກິດ) */
+function LabelCell({ lo, en, width }: { lo: string; en: string; width?: string }) {
   return (
-    <p className={wide ? "col-span-2" : ""}>
-      <span className="text-slate-500">{label}: </span>
-      <b className="font-semibold">{value || "-"}</b>
-    </p>
+    <td className="border border-black px-2 py-1 align-top" style={width ? { width } : undefined}>
+      <div>{lo}</div>
+      <div className="text-[10px] leading-tight text-slate-600">{en}</div>
+    </td>
+  );
+}
+
+function ValueCell({ value, colSpan }: { value: string | null; colSpan?: number }) {
+  return (
+    <td className="border border-black px-2 py-1 align-top font-semibold" colSpan={colSpan}>
+      {value || " "}
+    </td>
   );
 }
 
@@ -63,91 +75,168 @@ export default async function PrintReceipt({ params, searchParams }: Props) {
   const { code } = await params;
   const layout = safeLayout((await searchParams).layout);
 
-  const [receipt, company] = await Promise.all([
+  const [receipt, company, categories] = await Promise.all([
     query<Receipt>(
-      `select a.code, to_char(a.time_register,'DD-MM-YYYY HH24:MI') registered,
+      `select a.code, to_char(a.time_register,'DD-MM-YYYY') reg_date, to_char(a.time_register,'HH24:MI') reg_time,
          c.name_1 customer, c.tel phone, c.address,
+         (select name_1 from province where code = c.provine) province,
+         (select name_1 from city where code = c.city and province = c.provine) city,
          a.name_1 product, a.sn, a.p_model model, a.p_brand brand, a.p_access accessory,
-         a.warrunty warranty, a.service_type, a.issue, a.p_abrasion remark,
-         a.emp_code technician, a.user_regis receiver
+         a.warrunty warranty, a.p_type product_type, a.p_delivery delivery, a.issue symptom,
+         a.p_abrasion remark, a.user_regis receiver,
+         (select name_1 from tb_type where code = a.p_type) type_name
        from tb_product a left join ar_customer c on c.code = a.cust_code
        where a.code = $1 limit 1`,
       [code],
     ).then((result) => result.rows[0]),
     getCompany(),
+    // ປະເພດສິນຄ້າ ເກັບເປັນລະຫັດ ERP — map ເປັນຊື່. ERP ຂັດຂ້ອງກໍ່ພິມຕໍ່ໄດ້ (fallback ໃຊ້ລະຫັດ)
+    getErpCategories().catch(() => []),
   ]);
   if (!receipt) notFound();
 
+  // ປະເພດສິນຄ້າ: ງານເກົ່າ (ods) ໃຊ້ລະຫັດ tb_type · ງານໃໝ່ໃຊ້ລະຫັດ ERP ic_category · ບໍ່ພົບ = ໃຊ້ລະຫັດດິບ
+  const typeLabel =
+    receipt.type_name ??
+    categories.find((category) => category.code === receipt.product_type)?.name_1 ??
+    (receipt.product_type && receipt.product_type !== "ເລືອກ..." ? receipt.product_type : null);
+  const deliveryLabel = receipt.delivery ? DELIVERY_LABEL[receipt.delivery] ?? receipt.delivery : null;
+
   /**
    * QR ໃຫ້ລູກຄ້າສະແກນຕິດຕາມເອງ → ໜ້າສາທາລະນະ /track/<ເລກທີ> (ບໍ່ຕ້ອງ login).
-   * ods ຝັງ qrcode('https://www.odienmall.com/servicefuond/' + code) — ໃຊ້ code ອັນດຽວກັນ
-   * ຈຶ່ງມີເສັ້ນທາງຮັບຂອງເກົ່າໄວ້ທີ່ /servicefuond/<code> ແລະ /tracking/<sn> ນຳ.
-   * ຕັ້ງ PUBLIC_BASE_URL ໃນ .env ຂອງເຄື່ອງແມ່ຂ່າຍ ບໍ່ດັ່ງນັ້ນ QR ຈະຊີ້ໃສ່ host ທີ່ພິມຈາກ.
+   * ຕັ້ງ PUBLIC_BASE_URL ໃນ .env ຂອງແມ່ຂ່າຍ ບໍ່ດັ່ງນັ້ນ QR ຈະຊີ້ໃສ່ host ທີ່ພິມຈາກ.
    */
   const url = await trackUrl(receipt.code);
-  const qr = await QRCode.toString(url, { type: "svg", margin: 0, errorCorrectionLevel: "M", width: 88 });
+  const qr = await QRCode.toString(url, { type: "svg", margin: 0, errorCorrectionLevel: "M", width: 96 });
 
   return (
-    <div className="mx-auto max-w-3xl bg-white p-8 text-sm text-slate-950">
-      <p className="no-print mb-4 rounded-lg bg-slate-100 px-4 py-2 text-center text-xs text-slate-600">
-        ກົດ Ctrl/Cmd + P ເພື່ອພິມ
-      </p>
+    <div className="mx-auto max-w-[210mm] bg-white p-8 text-sm text-black print:p-0">
+      <style>{`@media print { @page { size: A4; margin: 12mm } .no-print { display: none !important } }`}</style>
 
-      <header className="relative border-b-2 border-slate-900 pb-4 text-center">
-        <h1 className="text-xl font-bold">{company.name_1 || "ODIEN SERVICE"}</h1>
-        {company.name_2 && <p className="text-xs">{company.name_2}</p>}
-        {company.address && <p className="text-xs">{company.address}</p>}
-        {company.tel && <p className="text-xs">ໂທ: {company.tel}</p>}
-        <p className="mt-2 text-base font-bold">{LAYOUT_TITLE[layout]}</p>
-        <div className="absolute top-0 right-0 w-[88px] text-center">
+      <div className="no-print mb-4 flex items-center justify-between rounded-lg bg-slate-100 px-4 py-2">
+        <span className="text-xs text-slate-600">ໃບຮັບເຄື່ອງ #{receipt.code}</span>
+        <PrintButton />
+      </div>
+
+      {/* ຫົວກະດາດ: ໂລໂກ້ · ຂໍ້ມູນບໍລິສັດ · QR */}
+      <header className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <Image src="/odm.png" alt="" width={96} height={68} priority className="h-auto w-24 object-contain" />
+          <div className="text-xs leading-5">
+            <p className="text-sm font-bold">{company.name_1 || "ODIEN SERVICE"}</p>
+            {company.name_2 && <p>{company.name_2}</p>}
+            {company.address && <p>ຕັ້ງຢູ່: {company.address}</p>}
+            {company.tel && <p>ໂທລະສັບ: {company.tel}</p>}
+          </div>
+        </div>
+        <div className="w-24 shrink-0 text-center">
           <div className="[&>svg]:h-auto [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: qr }} />
-          <p className="mt-1 text-[9px] leading-tight">ສະແກນເພື່ອຕິດຕາມເຄື່ອງສ້ອມ</p>
+          <p className="mt-1 text-[9px] leading-tight">scan ເພື່ອຕິດຕາມເຄື່ອງສ້ອມ</p>
         </div>
       </header>
 
-      <div className="mt-4 flex justify-between text-xs">
-        <b>ເລກທີ: {receipt.code}</b>
-        <span>ວັນທີ: {receipt.registered || "-"}</span>
+      <div className="mt-3 flex justify-end text-xs leading-5">
+        <div>
+          <p>ວັນທີ: {receipt.reg_date || "-"}</p>
+          <p>ເວລາ: {receipt.reg_time || "-"}</p>
+          <p>
+            ລະຫັດເຄື່ອງສ້ອມ: <b className="text-base">{receipt.code}</b>
+          </p>
+        </div>
       </div>
 
-      <section className="mt-5">
-        <h2 className="border border-slate-300 bg-slate-100 px-2 py-1 text-xs font-bold">ຂໍ້ມູນລູກຄ້າ</h2>
-        <div className="grid grid-cols-2 gap-2 border border-t-0 border-slate-300 p-3 text-xs">
-          <Field label="ຊື່" value={receipt.customer} />
-          <Field label="ເບີໂທ" value={receipt.phone} />
-          <Field label="ທີ່ຢູ່" value={receipt.address} wide />
-        </div>
-      </section>
+      <h1 className="my-3 text-center text-xl font-bold">{LAYOUT_TITLE[layout]}</h1>
 
-      <section className="mt-4">
-        <h2 className="border border-slate-300 bg-slate-100 px-2 py-1 text-xs font-bold">ຂໍ້ມູນເຄື່ອງ</h2>
-        <div className="grid grid-cols-2 gap-2 border border-t-0 border-slate-300 p-3 text-xs">
-          <Field label="ສິນຄ້າ" value={receipt.product} />
-          <Field label="SN" value={receipt.sn} />
-          <Field label="ຍີ່ຫໍ້" value={receipt.brand} />
-          <Field label="Model" value={receipt.model} />
-          <Field label="ປະກັນ" value={receipt.warranty} />
-          <Field
-            label="ປະເພດບໍລິການ"
-            value={receipt.service_type ? SERVICE_TYPE_LABEL[receipt.service_type] ?? receipt.service_type : null}
-          />
-          <Field label="ອຸປະກອນ" value={receipt.accessory} wide />
-          <Field label="ອາການ" value={receipt.issue} wide />
-          <Field label="ຮ່ອງຮອຍ / ໝາຍເຫດ" value={receipt.remark} wide />
-          <Field label="ຊ່າງ" value={receipt.technician} />
-        </div>
-      </section>
+      {/* ຂໍ້ມູນລູກຄ້າ */}
+      <p className="mb-1 font-bold underline">ຂໍ້ມູນລູກຄ້າ / Customer Information</p>
+      <table className="w-full border-collapse text-xs">
+        <tbody>
+          <tr>
+            <LabelCell lo="ຊື່ລູກຄ້າ" en="Customer Name" width="180px" />
+            <ValueCell value={receipt.customer} colSpan={3} />
+          </tr>
+          <tr>
+            <LabelCell lo="ຕັ້ງຢູ່ບ້ານ" en="Address" />
+            <ValueCell value={receipt.address} />
+            <LabelCell lo="ເມືອງ" en="City" width="130px" />
+            <ValueCell value={receipt.city} />
+          </tr>
+          <tr>
+            <LabelCell lo="ແຂວງ" en="Province" />
+            <ValueCell value={receipt.province} />
+            <LabelCell lo="ໂທລະສັບ" en="Tel" width="130px" />
+            <ValueCell value={receipt.phone} />
+          </tr>
+        </tbody>
+      </table>
 
-      <div className="mt-20 grid grid-cols-2 text-center text-xs">
+      {/* ຂໍ້ມູນສິນຄ້າ */}
+      <p className="mb-1 mt-4 font-bold underline">ຂໍ້ມູນສິນຄ້າ / Product Information</p>
+      <table className="w-full border-collapse text-xs">
+        <tbody>
+          <tr>
+            <LabelCell lo="ຊື່ສິນຄ້າ" en="Product Name" width="180px" />
+            <ValueCell value={receipt.product} colSpan={3} />
+          </tr>
+          <tr>
+            <LabelCell lo="ປະເພດສິນຄ້າ" en="Product Type" />
+            <ValueCell value={typeLabel} />
+            <LabelCell lo="ຮຸ່ນ" en="Product Model" width="150px" />
+            <ValueCell value={receipt.model} />
+          </tr>
+          <tr>
+            <LabelCell lo="ຫຍີ່ຫໍ້" en="Product brand" />
+            <ValueCell value={receipt.brand} />
+            <LabelCell lo="ໝາຍເລກເຄື່ອງ" en="SN" width="150px" />
+            <ValueCell value={receipt.sn} />
+          </tr>
+          <tr>
+            <LabelCell lo="ອຸປະກອນມາກັບເຄື່ອງ" en="Accessory" />
+            <ValueCell value={receipt.accessory} colSpan={3} />
+          </tr>
+          <tr>
+            <LabelCell lo="ອາການເພ" en="Symptom" />
+            <ValueCell value={receipt.symptom} colSpan={3} />
+          </tr>
+          <tr>
+            <LabelCell lo="ໝາຍເຫດ / ຕຳນິ" en="Remark" />
+            <ValueCell value={receipt.remark} colSpan={3} />
+          </tr>
+          <tr>
+            <LabelCell lo="ປະກັນເຄື່ອງ" en="Warunty" />
+            <ValueCell value={receipt.warranty} />
+            <LabelCell lo="ການຈັດສົ່ງ" en="Delivery" width="150px" />
+            <ValueCell value={deliveryLabel} />
+          </tr>
+        </tbody>
+      </table>
+
+      {/* ລາຍເຊັນ */}
+      <div className="mt-12 grid grid-cols-3 text-center text-xs">
         <div>
-          <p>____________________</p>
-          <p className="mt-2">ຜູ້ສົ່ງເຄື່ອງ</p>
+          <p>................</p>
+          <p className="mt-1">ຜູ້ສົ່ງເຄື່ອງສ້ອມ</p>
         </div>
         <div>
-          <p>____________________</p>
-          <p className="mt-2">ຜູ້ຮັບ: {receipt.receiver || "-"}</p>
+          <p>....{receipt.receiver || ""}..</p>
+          <p className="mt-1">ຜູ້ຮັບເຄື່ອງສ້ອມ</p>
+        </div>
+        <div>
+          <p>................</p>
+          <p className="mt-1">ຜູ້ຮັບເຄື່ອງກັບ</p>
         </div>
       </div>
+
+      {/* ເງື່ອນໄຂ */}
+      <ol className="mt-8 space-y-1 text-[11px] leading-snug text-[#0536a9]">
+        <li>1. ຜູ້ຮັບເຄື່ອງນີ້ຕ້ອງເອົາເອກະສານເຄື່ອງນີ້ມາສະເເດງ ແລະ ຕ້ອງເປັນເຈົ້າຂອງເຄື່ອງເທົ່ານັ້ນ ຫຼື ໃບມອບສິດຈາກເຈົ້າຂອງເຄື່ອງ</li>
+        <li>2. ທ່ານຕ້ອງມາຮັບພາຍໃນ 30 ວັນ ນັບຈາກມື້ທີ່ເເຈ້ງໃຫ້ມາຮັບເຄື່ອງຄືນ ຖ້າເຄື່ອງເສຍຫາຍທາງຮ້ານຈະບໍ່ຮັບຜິດຊອບ</li>
+        <li>3. ສູນບໍລິການໂອດ້ຽນເຄື່ອງເຢັນຮັບປະກັນພາຍຫຼັງເເປງ 90 ວັນ ບໍ່ໄລ່ຄ່າແຮງງານ ແລະ ຄ່າອາໄຫຼ່ ຍົກເວັ້ນອາໄຫຼ່ທີ່ເສຍຫາຍເພີ່ມ ທ່ານຕ້ອງຈ່າຍເພີ່ມ</li>
+        <li>4. ກໍລະນີນຳສົ່ງ ທາງສູນບໍລິການ ໂອດ້ຽນເຄື່ອງເຢັນ ຂໍຄິດຄ່າບໍລິການເພີ່ມຕາມເງື່ອນໄຂຂອງການຈັດສົ່ງ</li>
+      </ol>
+
+      <p className="mt-4 text-center font-bold">ຕິດຕໍ່ໂດຍກົງ: ໂທ 77799899</p>
+      <p className="mt-1 text-center text-base font-bold">ODIEN SERVICES 5S &quot;SPEED SMART STANDARD SURE SMILE&quot;</p>
     </div>
   );
 }

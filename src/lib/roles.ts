@@ -18,7 +18,7 @@ import type { Session } from "@/lib/auth";
 
 /* ── role ມາດຕະຖານ ─────────────────────────────────────────────── */
 
-export const ROLES = ["manager", "headtechnical", "admin", "stock", "technical", "user"] as const;
+export const ROLES = ["manager", "headtechnical", "admin", "stock", "technical", "sales", "user"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ROLE_LABEL: Record<Role, string> = {
@@ -27,6 +27,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   admin: "ພະນັກງານບໍລິການ (CS)",
   stock: "ພະນັກງານສາງ",
   technical: "ຊ່າງ",
+  sales: "ພະນັກງານຂາຍ",
   user: "ພະນັກງານທົ່ວໄປ",
 };
 
@@ -53,6 +54,7 @@ const HT: Role = "headtechnical";
 const A: Role = "admin";
 const S: Role = "stock";
 const T: Role = "technical";
+const SL: Role = "sales";
 
 /** ກຸ່ມ "ຊ່າງ" ຂອງ ods = ທຸກຄົນທີ່ບໍ່ແມ່ນ manager/admin/stock ({% else %}) */
 export const TECH_SIDE: Role[] = [M, HT, T];
@@ -62,6 +64,8 @@ export const SERVICE_SIDE: Role[] = [M, A];
 export const STOCK_SIDE: Role[] = [M, S];
 /** ຜູ້ອະນຸມັດ — ຕົງກັບ ROLE_APPROVER ໃນ lib/chatter */
 export const APPROVER_SIDE: Role[] = [M, HT];
+/** ພະນັກງານຂາຍ — ແຈ້ງສ້ອມ · ຕິດຕາມງານຕາມເຂດ (`/sales/*`) */
+export const SALES_SIDE: Role[] = [M, SL];
 /**
  * ຂະບວນການອາໄຫຼ່ — **ຊ່າງ ກັບ ສາງ ເທົ່ານັ້ນ, ບໍ່ຜ່ານ CS** (ນະໂຍບາຍຂອງຜູ້ຈັດການ):
  *
@@ -102,6 +106,9 @@ const RULES: Rule[] = [
   // ໃບຮັບເຄື່ອງ (ອ່ານ/ພິມ/ຮູບ/ຜູ້ຕິດຕໍ່) — ຊ່າງຕ້ອງເປີດເບິ່ງໄດ້ ເພາະການແຈ້ງເຕືອນ
   // ຂອງ tb_product ຊີ້ມາທີ່ /service/{code} (lib/chatter recordHref)
   { path: "/service/*", roles: EVERYONE },
+
+  /* ພະນັກງານຂາຍ — ແຈ້ງສ້ອມແທນລູກຄ້າ · ຕິດຕາມງານສ້ອມຕາມເຂດຮັບຜິດຊອບ (`/sales/*`) */
+  { path: "/sales", roles: [M, SL] },
 
   { path: "/quotations", roles: SERVICE_SIDE },
   // ຄິວແຈ້ງລູກຄ້າ (ລໍຕັດສິນລາຄາ · ມາຮັບເຄື່ອງ · ຢືນຢັນນັດ) — ຝ່າຍບໍລິການເປັນຜູ້ຕິດຕໍ່ລູກຄ້າ
@@ -182,6 +189,8 @@ const RULES: Rule[] = [
    * ໝາຍເຫດ: ເມນູ "ການຈັດການ" ເກົ່າ (/manage/*) ຖືກລົບຖິ້ມໂດຍເຈດຕະນາ — ຢ່າກູ້ຄືນ.
    * ເຫຼືອແຕ່ໜ້ານີ້ໜ້າດຽວໃນເສັ້ນທາງ /manage */
   { path: "/manage/employees", roles: [M] },
+  // ຈັດການເຂດຮັບຜິດຊອບຂອງພະນັກງານຂາຍ — ຜູ້ຈັດການເທົ່ານັ້ນ
+  { path: "/manage/sales-zones", roles: [M] },
   // ຄ່າບໍລິການ/ຄ່າຄອມ = ເລື່ອງເງິນ ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ (actions/service-rate ກວດຊ້ຳ)
   { path: "/manage/service-rates", roles: [M] },
   // ເຊື່ອມຕົວຕົນຊ່າງ — ຕັດສິນວ່າຄ່າຄອມເຂົ້າບັນຊີໃຜ ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ

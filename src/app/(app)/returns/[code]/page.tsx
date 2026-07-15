@@ -81,12 +81,14 @@ export default async function ReturnDetailPage({ params }: { params: Promise<{ c
     await seedCart(head.code, head.warranty, head.used_spare);
   }
 
+  // ຄ່າຈາກ ERP (ອັດຕາ/ບັນຊີ/ຄ່າບໍລິການ) ຂັດຂ້ອງຊົ່ວຄາວ → ໃຫ້ໜ້າໂຫຼດຕໍ່ໄດ້ດ້ວຍຄ່າວ່າງ
+    // ແທນທີ່ຈະພັງທັງໜ້າ ("This page couldn't load"). ຕອນບັນທຶກ server ດຶງອັດຕາຄືນເອງ.
   const [cart, rates, banks, services, docNo, spares, quote] = await Promise.all([
     getCart(head.code),
-    getRates(),
-    getBanks(),
-    getServices(),
-    previewDocNo(),
+    getRates().catch(() => ({ "01": 1, "02": 0, "03": 0 })),
+    getBanks().catch(() => []),
+    getServices().catch(() => []),
+    previewDocNo().catch(() => ""),
     cancelled ? getOutstandingSpares(head.code) : Promise.resolve([]),
     // ວຽກຍົກເລີກ: ບໍ່ຄິດຄ່າອາໄຫຼ່ → ບໍ່ຕ້ອງດຶງໃບສະເໜີລາຄາ (ຄິດແຕ່ຄ່າກວດເຊັກ)
     cancelled ? Promise.resolve(null) : getApprovedQuote(head.code),

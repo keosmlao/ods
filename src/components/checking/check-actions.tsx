@@ -3,38 +3,52 @@ import { cancelChecking, startCheck, undoStartCheck } from "@/app/actions/checki
 import { UndoButton } from "@/components/checking/undo-button";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui";
-import { CheckCircle2, LoaderCircle } from "lucide-react";
-import { useTransition } from "react";
+import { AlertTriangle, CheckCircle2, LoaderCircle } from "lucide-react";
+import { useState, useTransition } from "react";
 
 /** ປຸ່ມ "ເລີ່ມກວດເຊັກ" — ods ຖາມຢືນຢັນດ້ວຍ Swal ກ່ອນ */
 export function StartCheckButton({ code }: { code: string }) {
   const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const { ask, dialog } = useConfirm();
 
   return (
     <>
       {dialog}
-      <Button
-        tone="primary"
-        disabled={pending}
-        className="h-8 px-3 text-xs"
-        onClick={async () => {
-          const ok = await ask({
-            title: "ເລີ່ມກວດເຊັກ?",
-            message: (
-              <>
-                ໃບຮັບເຄື່ອງ <b className="text-slate-700">#{code}</b> ຈະຖືກຍ້າຍໄປ &quot;ກຳລັງກວດເຊັກ&quot; ແລະ ເລີ່ມຈັບເວລາ
-              </>
-            ),
-            confirmLabel: "ເລີ່ມກວດເຊັກ",
-          });
-          if (!ok) return;
-          start(() => void startCheck(code));
-        }}
-      >
-        {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
-        ເລີ່ມກວດເຊັກ
-      </Button>
+      <div className="flex flex-col items-start gap-1">
+        <Button
+          tone="primary"
+          disabled={pending}
+          className="h-8 px-3 text-xs"
+          onClick={async () => {
+            const ok = await ask({
+              title: "ເລີ່ມກວດເຊັກ?",
+              message: (
+                <>
+                  ໃບຮັບເຄື່ອງ <b className="text-slate-700">#{code}</b> ຈະຖືກຍ້າຍໄປ &quot;ກຳລັງກວດເຊັກ&quot; ແລະ ເລີ່ມຈັບເວລາ
+                </>
+              ),
+              confirmLabel: "ເລີ່ມກວດເຊັກ",
+            });
+            if (!ok) return;
+            setError(null);
+            // startCheck redirect ເມື່ອສຳເລັດ · ຄືນ { error } ເມື່ອຂັ້ນຕອນຖືກກັນ
+            start(async () => {
+              const res = await startCheck(code);
+              if (res?.error) setError(res.error);
+            });
+          }}
+        >
+          {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+          ເລີ່ມກວດເຊັກ
+        </Button>
+        {error && (
+          <p className="flex items-center gap-1 text-[11px] font-medium text-red-600">
+            <AlertTriangle className="size-3 shrink-0" />
+            {error}
+          </p>
+        )}
+      </div>
     </>
   );
 }

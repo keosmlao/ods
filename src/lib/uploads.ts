@@ -1,0 +1,97 @@
+import "server-only";
+import { mkdir, writeFile } from "node:fs/promises";
+import { extname, join } from "node:path";
+import type { PoolClient } from "pg";
+
+/**
+ * ອັບໂຫລດຮູບເຂົ້າ product_image — ຂອງກາງ ໃຊ້ຮ່ວມກັນລະຫວ່າງ:
+ *   - ໃບຮັບເຄື່ອງ (tb_product)      → key = "iteme_code"
+ *   - ຄຳແຈ້ງສ້ອມ (tb_product_notice) → key = "ref_code" (ຄືກັບ ods ເກົ່າ ແລະ /cppro_online)
+ *
+ * ແຕ່ກ່ອນ collectUploads/saveUploads ເປັນ private ຂອງ actions/service.ts — ຍົກຂຶ້ນເປັນ
+ * ຂອງກາງ ຈຶ່ງບໍ່ຕ້ອງຂຽນ logic ອັບໂຫລດ (ກວດຊະນິດ · ຈຳກັດ 16MB · ນັບ line ຕໍ່) ຊ້ຳ.
+ */
+
+const uploadsDir = process.env.ODS_UPLOADS_DIR;
+const ALLOWED = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
+const MAX_BYTES = 16 * 1024 * 1024; // ຄືກັບ MAX_CONTENT_LENGTH ຂອງ Flask
+
+/** ຄໍລຳທີ່ product_image ໃຊ້ຜູກຮູບ — ໃບຮັບເຄື່ອງ ຫຼື ຄຳແຈ້ງ */
+export type ImageKey = "iteme_code" | "ref_code";
+
+/** ຄື secure_filename() ຂອງ Werkzeug */
+function secureFilename(name: string) {
+  const cleaned = name
+    .normalize("NFKD")
+    .replace(/[^\w.-]+/g, "_")
+    .replace(/^[._]+/, "")
+    .slice(-120);
+  return cleaned || "image";
+}
+
+export type Upload = { line: number; filename: string; bytes: Buffer };
+
+/**
+ * ອ່ານຮູບອອກຈາກຟອມ — ບໍ່ຈຳກັດຈຳນວນ.
+ * ods ຈຳກັດ 4 ຮູບ (file1..file4) ແຕ່ຕາຕະລາງ product_image ບໍ່ມີຂໍ້ຈຳກັດເລີຍ
+ * (line_number ເປັນ smallint ທຳມະດາ; ຂໍ້ມູນຈິງມີວຽກທີ່ມີ 9 ຮູບຢູ່ແລ້ວ).
+ * ຮັບທັງ field ໃໝ່ "photos" ແລະ file1..file4 ຂອງເກົ່າ ເພື່ອບໍ່ໃຫ້ຟອມເກົ່າພັງ.
+ *
+ * line ທີ່ຄືນມາເປັນລຳດັບຂອງຮູບໃນຄັ້ງນີ້ (0,1,2...) — saveUploads ຈະບວກ offset ໃຫ້ເອງ.
+ */
+export async function collectUploads(
+  formData: FormData,
+): Promise<{ ok: true; uploads: Upload[] } | { ok: false; error: string }> {
+  const files = [
+    ...formData.getAll("photos"),
+    ...["file1", "file2", "file3", "file4"].map((key) => formData.get(key)),
+  ].filter((file): file is File => file instanceof File && file.size > 0);
+
+  const uploads: Upload[] = [];
+  for (const [index, file] of files.entries()) {
+    if (!uploadsDir) return { ok: false, error: "ບໍ່ໄດ້ຕັ້ງຄ່າ ODS_UPLOADS_DIR — ອັບໂຫລດຮູບບໍ່ໄດ້" };
+    if (file.size > MAX_BYTES) return { ok: false, error: `ຮູບທີ ${index + 1} ໃຫຍ່ເກີນ 16MB` };
+    const filename = secureFilename(file.name);
+    if (!ALLOWED.has(extname(filename).toLowerCase())) return { ok: false, error: `ຮູບທີ ${index + 1} ບໍ່ແມ່ນໄຟລ໌ຮູບ` };
+    uploads.push({ line: index, filename, bytes: Buffer.from(await file.arrayBuffer()) });
+  }
+  return { ok: true, uploads };
+}
+
+/**
+ * ຂຽນໄຟລ໌ລົງ ODS_UPLOADS_DIR ແລ້ວ insert product_image.
+ * ນັບ line_number ຕໍ່ຈາກຮູບທີ່ມີຢູ່ແລ້ວສະເໝີ ຈຶ່ງເພີ່ມຮູບໃສ່ບັນທຶກເກົ່າໄດ້ໂດຍບໍ່ທັບກັນ.
+ * ເກັບ path ໄວ້ໃນ written ເພື່ອລຶບຖິ້ມຖ້າ transaction rollback.
+ *
+ * key = ຄໍລຳທີ່ຜູກຮູບ ("iteme_code" ໃບຮັບເຄື່ອງ · "ref_code" ຄຳແຈ້ງ) — ຄ່າຄົງທີ່,
+ * ບໍ່ໄດ້ມາຈາກ user ⇒ ຝັງໃນ SQL ໄດ້ຢ່າງປອດໄພ.
+ */
+export async function saveUploads(
+  client: PoolClient,
+  code: string,
+  uploads: Upload[],
+  written: string[],
+  key: ImageKey = "iteme_code",
+) {
+  if (!uploads.length || !uploadsDir) return;
+  await mkdir(uploadsDir, { recursive: true });
+
+  const next = await client.query<{ line: number }>(
+    `select coalesce(max(line_number), -1) + 1 as line from product_image where ${key} = $1`,
+    [code],
+  );
+  const offset = next.rows[0]?.line ?? 0;
+
+  for (const { line, filename, bytes } of uploads) {
+    const lineNumber = offset + line;
+    const stored = `${code}_${lineNumber}_${filename}`;
+    const path = join(uploadsDir, stored);
+    await writeFile(path, bytes);
+    written.push(path);
+    await client.query(`insert into product_image(${key}, product_url, line_number) values($1,$2,$3)`, [
+      code,
+      stored,
+      lineNumber,
+    ]);
+  }
+}

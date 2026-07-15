@@ -75,7 +75,7 @@ export default async function NoticeIntake({ params }: Props) {
         notice={notice}
         types={types}
         brands={brands}
-        techs={techs.map((tech) => ({ code: tech.code, username: tech.code }))}
+        techs={techs}
         images={images}
       />
     </div>

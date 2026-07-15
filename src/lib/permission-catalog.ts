@@ -43,6 +43,8 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ສ້ອມແປງ", label: "ໃບສົ່ງເຄື່ອງ/ໃບຮັບເງິນ", resource: "/returns" },
   { group: "ສ້ອມແປງ", label: "ຕິດຕາມສະຖານະ", resource: "/dashboard/tracking", actions: READ_ONLY },
 
+  { group: "ພະນັກງານຂາຍ", label: "ແຈ້ງສ້ອມ / ຕິດຕາມງານ", resource: "/sales" },
+
   { group: "ຕິດຕັ້ງ", label: "ງານຕິດຕັ້ງ", resource: "/installations" },
   // ບິນທີ່ຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ ແຕ່ຍັງບໍ່ມີໃບງານ — ບໍ່ໃສ່ບ່ອນນີ້ = ໜ້າຖືກເຊື່ອງຈາກ sidebar
   { group: "ຕິດຕັ້ງ", label: "ບິນຄ້າງອອກໃບງານ", resource: "/installations/pending-bills", actions: READ_ONLY },
@@ -86,6 +88,7 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ລາຍງານ", label: "ລາຍຮັບຊ່າງ", resource: "/reports/technician-income", actions: READ_ONLY },
 
   { group: "ຜູ້ໃຊ້", label: "ກຳນົດສິດ", resource: "/manage/employees", protected: true },
+  { group: "ຜູ້ໃຊ້", label: "ຈັດການເຂດຂາຍ", resource: "/manage/sales-zones" },
   { group: "ຜູ້ໃຊ້", label: "ຄ່າບໍລິການ / ຄ່າຄອມ", resource: "/manage/service-rates" },
   { group: "ຜູ້ໃຊ້", label: "ເຊື່ອມຕົວຕົນຊ່າງ", resource: "/manage/technicians" },
 ] as const;

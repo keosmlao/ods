@@ -5,8 +5,8 @@ import { db } from "@/lib/db";
 import { requirePermission, requireRole } from "@/lib/guard";
 import { APPROVER_SIDE, SERVICE_SIDE } from "@/lib/roles";
 import { ONSITE_SERVICE_TYPES } from "@/lib/sla";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { collectUploads, saveUploads } from "@/lib/uploads";
+import { unlink } from "node:fs/promises";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { PoolClient } from "pg";
@@ -83,75 +83,6 @@ function missingFieldsError(issues: { path: PropertyKey[] }[]) {
   return names.length ? `ກະລຸນາປ້ອນ: ${names.join(", ")}` : "ກະລຸນາປ້ອນຊ່ອງທີ່ຈຳເປັນໃຫ້ຄົບ";
 }
 
-const uploadsDir = process.env.ODS_UPLOADS_DIR;
-const ALLOWED = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
-const MAX_BYTES = 16 * 1024 * 1024; // ຄືກັບ MAX_CONTENT_LENGTH ຂອງ Flask
-
-/** ຄື secure_filename() ຂອງ Werkzeug */
-function secureFilename(name: string) {
-  const cleaned = name
-    .normalize("NFKD")
-    .replace(/[^\w.-]+/g, "_")
-    .replace(/^[._]+/, "")
-    .slice(-120);
-  return cleaned || "image";
-}
-
-type Upload = { line: number; filename: string; bytes: Buffer };
-
-/**
- * ອ່ານຮູບອອກຈາກຟອມ — ບໍ່ຈຳກັດຈຳນວນ.
- * ods ຈຳກັດ 4 ຮູບ (file1..file4) ແຕ່ຕາຕະລາງ product_image ບໍ່ມີຂໍ້ຈຳກັດເລີຍ
- * (line_number ເປັນ smallint ທຳມະດາ; ຂໍ້ມູນຈິງມີວຽກທີ່ມີ 9 ຮູບຢູ່ແລ້ວ).
- * ຮັບທັງ field ໃໝ່ "photos" ແລະ file1..file4 ຂອງເກົ່າ ເພື່ອບໍ່ໃຫ້ຟອມເກົ່າພັງ.
- *
- * line ທີ່ຄືນມາເປັນລຳດັບຂອງຮູບໃນຄັ້ງນີ້ (0,1,2...) — saveUploads ຈະບວກ offset ໃຫ້ເອງ.
- */
-async function collectUploads(formData: FormData): Promise<{ ok: true; uploads: Upload[] } | { ok: false; error: string }> {
-  const files = [
-    ...formData.getAll("photos"),
-    ...["file1", "file2", "file3", "file4"].map((key) => formData.get(key)),
-  ].filter((file): file is File => file instanceof File && file.size > 0);
-
-  const uploads: Upload[] = [];
-  for (const [index, file] of files.entries()) {
-    if (!uploadsDir) return { ok: false, error: "ບໍ່ໄດ້ຕັ້ງຄ່າ ODS_UPLOADS_DIR — ອັບໂຫລດຮູບບໍ່ໄດ້" };
-    if (file.size > MAX_BYTES) return { ok: false, error: `ຮູບທີ ${index + 1} ໃຫຍ່ເກີນ 16MB` };
-    const filename = secureFilename(file.name);
-    if (!ALLOWED.has(extname(filename).toLowerCase())) return { ok: false, error: `ຮູບທີ ${index + 1} ບໍ່ແມ່ນໄຟລ໌ຮູບ` };
-    uploads.push({ line: index, filename, bytes: Buffer.from(await file.arrayBuffer()) });
-  }
-  return { ok: true, uploads };
-}
-
-/**
- * ຂຽນໄຟລ໌ລົງ ODS_UPLOADS_DIR ແລ້ວ insert product_image.
- * ນັບ line_number ຕໍ່ຈາກຮູບທີ່ມີຢູ່ແລ້ວສະເໝີ ຈຶ່ງເພີ່ມຮູບໃສ່ວຽກເກົ່າໄດ້ໂດຍບໍ່ທັບກັນ.
- * ເກັບ path ໄວ້ໃນ written ເພື່ອລຶບຖິ້ມຖ້າ transaction rollback.
- */
-async function saveUploads(client: PoolClient, code: string, uploads: Upload[], written: string[]) {
-  if (!uploads.length || !uploadsDir) return;
-  await mkdir(uploadsDir, { recursive: true });
-
-  const next = await client.query<{ line: number }>(
-    "select coalesce(max(line_number), -1) + 1 as line from product_image where iteme_code = $1",
-    [code],
-  );
-  const offset = next.rows[0]?.line ?? 0;
-
-  for (const { line, filename, bytes } of uploads) {
-    const lineNumber = offset + line;
-    const stored = `${code}_${lineNumber}_${filename}`;
-    const path = join(uploadsDir, stored);
-    await writeFile(path, bytes);
-    written.push(path);
-    await client.query("insert into product_image(iteme_code, product_url, line_number) values($1,$2,$3)", [
-      code,
-      stored,
-      lineNumber,
-    ]);
-  }
-}
 
 /**
  * ຄືນລະຫັດລູກຄ້າຂອງ ODS ໃຫ້ໄດ້ສະເໝີ.
@@ -550,13 +481,10 @@ export async function addContact(code: string, datetime: string, remark: string)
 
 /* ---------- ຮັບງານຈາກໃບແຈ້ງສ້ອມອອນລາຍ — ຄື /save_rcpro_online ຂອງ ods ---------- */
 
-const onlineSchema = schema.omit({ cust_code: true }).extend({
+// ໃຊ້ຊ່ອງລູກຄ້າ/ສິນຄ້າ ຊຸດດຽວກັບໜ້າ "ຮັບເຄື່ອງໂດຍພະນັກງານ" (schema) — ບວກ ref_notice ຂອງໃບແຈ້ງ
+const onlineSchema = schema.extend({
   ref_notice: z.string().min(1),
-  custname: z.string().min(1),
-  tel: z.string(),
-  address: z.string(),
-  sup_name: z.string(),
-  ref_cust: z.string(),
+  sup_name: z.string().optional().default(""),
 });
 
 export async function createServiceFromNotice(_: ServiceState, formData: FormData): Promise<ServiceState> {
@@ -593,29 +521,11 @@ export async function createServiceFromNotice(_: ServiceState, formData: FormDat
       return { error: `ໃບແຈ້ງນີ້ຖືກຮັບເຂົ້າແລ້ວ: ${done.rows[0].code}` };
     }
 
-    // ຫາລູກຄ້າ: ref_code ຂອງ ERP ກ່ອນ (ods ບໍ່ໄດ້ເຊັກ → ສ້າງລູກຄ້າຊ້ຳ) ແລ້ວຈຶ່ງຊື່+ເບີໂທ
-    let custCode = "";
-    if (d.ref_cust) {
-      const byRef = await client.query<{ code: string }>("select code from ar_customer where ref_code=$1 limit 1", [d.ref_cust]);
-      custCode = byRef.rows[0]?.code ?? "";
-    }
+    // ລູກຄ້າ: ຄືກັບໜ້າຮັບເຄື່ອງໂດຍພະນັກງານ — ເລືອກຈາກ ERP (copy ເຂົ້າ ODS ໃຫ້ ຖ້າຍັງບໍ່ມີບັນຊີ)
+    const custCode = await resolveCustomer(client, d);
     if (!custCode) {
-      const byName = await client.query<{ code: string }>(
-        `select code from ar_customer
-         where replace(lower(name_1),' ','')=replace(lower($1),' ','')
-           and replace(lower(coalesce(tel,'')),' ','')=replace(lower($2),' ','') limit 1`,
-        [d.custname, d.tel],
-      );
-      custCode = byName.rows[0]?.code ?? "";
-    }
-    if (!custCode) {
-      custCode = String(
-        (await client.query<{ code: number }>("select coalesce(max(code::int),0)+1 code from ar_customer where code~'^[0-9]+$'")).rows[0].code,
-      );
-      await client.query(
-        "insert into ar_customer(code,name_1,tel,address,ar_type,provine,city,ref_code) values($1,$2,$3,$4,'online','','',$5)",
-        [custCode, d.custname, d.tel, d.address, d.ref_cust || null],
-      );
+      await client.query("rollback");
+      return { error: "ກະລຸນາເລືອກລູກຄ້າ" };
     }
 
     code = String(
@@ -624,20 +534,18 @@ export async function createServiceFromNotice(_: ServiceState, formData: FormDat
 
     await client.query(
       `insert into tb_product(code,name_1,sn,p_model,p_brand,p_access,issue,p_type,p_abrasion,p_delivery,
-         warrunty,service_type,cust_code,ap_code,doc_def,doc_date_ref,status,emp_code,time_register,user_regis,sup_name,ref_notice)
-       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,localtimestamp,$18,$19,$20)`,
+         warrunty,service_type,cust_code,ap_code,doc_def,doc_date_ref,status,emp_code,time_register,user_regis,sup_name,ref_notice,
+         item_code,location_repair,appoint_date,location_lat,location_lng)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,localtimestamp,$18,$19,$20,
+         nullif($21,''),nullif($22,''),nullif($23,'')::date,nullif($24,'')::double precision,nullif($25,'')::double precision)`,
       [code, d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
         d.pro_deli, d.pro_wa, d.service_type, custCode, custCode, d.billon, d.billdate, d.emp, session.username,
-        d.sup_name, d.ref_notice],
+        d.sup_name, d.ref_notice, d.item_code ?? "", d.location_repair, d.appoint_date, d.location_lat, d.location_lng],
     );
 
-    // ຮູບທີ່ລູກຄ້າແນບມາ (ref_code = ລະຫັດໃບແຈ້ງ) → ຍ້າຍມາເປັນຮູບຂອງງານນີ້
-    const taken = files.uploads.map((upload) => upload.line);
-    await client.query(
-      `update product_image set iteme_code=$1 where ref_code=$2 and not (line_number = any($3::int[]))`,
-      [code, d.ref_notice, taken],
-    );
-    // ຮູບໃໝ່ທີ່ພະນັກງານແນບເພີ່ມ (ທັບແຖວທີ່ມີເລກ line ດຽວກັນ)
+    // ຮູບທີ່ລູກຄ້າແນບມາ (ref_code = ລະຫັດໃບແຈ້ງ) → ຍ້າຍທັງໝົດມາເປັນຮູບຂອງງານນີ້
+    await client.query(`update product_image set iteme_code=$1 where ref_code=$2`, [code, d.ref_notice]);
+    // ຮູບໃໝ່ທີ່ພະນັກງານແນບເພີ່ມ (ບໍ່ຈຳກັດຈຳນວນ) — ຕໍ່ທ້າຍ line_number ຈາກຮູບເກົ່າ
     await saveUploads(client, code, files.uploads, written);
 
     await client.query("commit");

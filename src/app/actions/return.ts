@@ -381,13 +381,9 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
     upload = { filename, bytes: Buffer.from(await image.arrayBuffer()) };
   }
 
-  const rates = await getRates();
-  const amountCash = toBaht(cashValue, d.cash_type, rates);
-  const bankAmount = bankValue > 0 && d.bexch ? toBaht(bankValue, d.bexch, rates) : 0;
-  const exValue = rates[d.cash_type as keyof Rates] ?? 1;
-  const exBank = (d.bexch && rates[d.bexch as keyof Rates]) || 1;
-
-  const client = await db.connect();
+  // ເຊື່ອມຕໍ່ຖານຂໍ້ມູນ — ລົ້ມເຫຼວກໍ່ຄືນເປັນ error ທຳມະດາ ບໍ່ໃຫ້ throw ຫຼຸດອອກໄປພັງໜ້າ
+  const client = await db.connect().catch(() => null);
+  if (!client) return { error: "ເຊື່ອມຕໍ່ຖານຂໍ້ມູນບໍ່ໄດ້ ກະລຸນາລອງໃໝ່" };
   const written: string[] = [];
   let docNo = "";
   let billTotal = 0;
@@ -397,6 +393,15 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
   try {
     await client.query("begin");
     await client.query("select pg_advisory_xact_lock(734244)"); // ກັນເລກບິນຊ້ຳ
+
+    // ອັດຕາແລກປ່ຽນຢູ່ຖານ ERP — ດຶງໃນ try ⇒ ຖ້າ ERP ຂັດຂ້ອງ (timeout) ຄືນເປັນ error ທຳມະດາ
+    // ບໍ່ throw ຫຼຸດອອກໄປ (ບໍ່ດັ່ງນັ້ນ action ພັງເປັນ "This page couldn't load")
+    const rates = await getRates();
+    const amountCash = toBaht(cashValue, d.cash_type, rates);
+    const bankAmount = bankValue > 0 && d.bexch ? toBaht(bankValue, d.bexch, rates) : 0;
+    const exValue = rates[d.cash_type as keyof Rates] ?? 1;
+    const exBank = (d.bexch && rates[d.bexch as keyof Rates]) || 1;
+
     docNo = await nextDocNo(client, "SIN");
 
     const cart = await client.query<CartRow>(CART_SQL, [CART_FLAG, d.pro_code, session.username]);

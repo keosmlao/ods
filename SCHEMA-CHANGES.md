@@ -184,3 +184,29 @@ create table ods_user_employee (user_code varchar(50) primary key, employee_code
 
 `computePayout` ແປງຜ່ານສະພານນີ້ **ຕັ້ງແຕ່ຕອນແຊ່ເງິນ** ⇒ ຄ່າຄອມທຸກແຖວອອກມາເປັນ
 `employee_code` ອັນດຽວກັນ. ຍັງບໍ່ເຊື່ອມ → ໃຊ້ຄ່າເດີມ (ເງິນບໍ່ຫາຍ ແຕ່ບໍ່ຜູກກັບ ERP).
+
+---
+
+## ພະນັກງານຂາຍ: ເຂດຮັບຜິດຊອບ + ແຂວງ/ເມືອງ ໃນຄຳແຈ້ງສ້ອມ
+
+ໄຟລ໌: `migrations/2026-07-15-sales-notice-zone.sql`
+
+```sql
+create table ods_sales_zone (
+  employee_code varchar(32) not null,   -- odg_employee.employee_code
+  provine varchar(32) not null,         -- ຕົງກັບ ar_customer.provine
+  city varchar(32),                     -- null = ທັງແຂວງ
+  created_by varchar(100) not null,
+  created_at timestamp not null default localtimestamp(0),
+  primary key (employee_code, provine, city));
+
+alter table tb_product_notice add column if not exists provine varchar(32);
+alter table tb_product_notice add column if not exists city    varchar(32);
+```
+
+**ເປັນຫຍັງ:** role ໃໝ່ `sales` (ພະນັກງານຂາຍ) **ແຈ້ງສ້ອມແທນລູກຄ້າ** ແລະ **ຕິດຕາມງານສ້ອມ
+ຕາມເຂດຮັບຜິດຊອບ**. ເຂດນິຍາມດ້ວຍ ແຂວງ/ເມືອງ (`ods_sales_zone`) ແລ້ວກອງງານດ້ວຍ
+`ar_customer.provine`/`city`. ຄຳແຈ້ງສ້ອມ (ຝັ່ງລູກຄ້າ = ຟອມສາທາລະນະ `/report-repair`)
+ເກັບ ແຂວງ/ເມືອງ ⇒ ພໍ CS ແປງເປັນໃບຮັບເຄື່ອງ (`createServiceFromNotice`) ຂໍ້ມູນຕົກໄປໃສ່
+`ar_customer` ⇒ ງານໂຜ່ຢູ່ເຂດຖືກຕ້ອງ. role `sales` ມອບໃຫ້ຢູ່ `/manage/employees`
+(ຄືກັບ role ອື່ນ); ຈັດເຂດຢູ່ `/manage/sales-zones`.

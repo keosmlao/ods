@@ -69,7 +69,8 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ c
        from cb_trans_detail where trans_flag = 44 and doc_no = $1 order by roworder`,
       [head.doc_no],
     ).then((result) => result.rows),
-    getRates(),
+    // ອັດຕາ ERP ຂັດຂ້ອງ → ພິມຕໍ່ໄດ້ (ໂຊ້ວມູນຄ່າກີບເປັນ 0) ບໍ່ພັງໜ້າພິມ
+    getRates().catch(() => ({ "01": 1, "02": 0, "03": 0 })),
   ]);
 
   const total = Number(head.total_amount ?? 0);

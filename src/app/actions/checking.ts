@@ -134,15 +134,18 @@ export async function searchSpare(q: string, inStockOnly = false): Promise<Spare
  * ການກົດຊ້ຳຂຽນທັບ time_check ⇒ **ໂມງ SLA ຖືກຣີເຊັດງຽບໆ** (ໜ້າ /checking ແລະ ລາຍງານ
  * ນັບເວລາຈາກຖັນນີ້). ດຽວນີ້ເງື່ອນໄຂຂັ້ນຢູ່ໃນ WHERE ⇒ ກົດຊ້ຳບໍ່ຂຽນທັບ ແລະ ນອກຂັ້ນ 1 ບໍ່ເກີດຫຍັງ.
  */
-export async function startCheck(code: string) {
+export async function startCheck(code: string): Promise<CheckState> {
   const session = await getSession();
   if (!session) redirect("/login");
 
   const loaded = await loadJob(code); // ສິດຝ່າຍຊ່າງ + ຕ້ອງເປັນວຽກຂອງຕົນ
   if (!loaded.ok) redirect("/forbidden");
 
-  // ຕົວປ່ຽນຂັ້ນຢູ່ lib/tech-flow ບ່ອນດຽວ — ອັນດຽວກັບທີ່ແອັບມືຖືເອີ້ນ
-  await startCheckFlow(session, code);
+  // ຕົວປ່ຽນຂັ້ນຢູ່ lib/tech-flow ບ່ອນດຽວ — ອັນດຽວກັບທີ່ແອັບມືຖືເອີ້ນ.
+  // ຖ້າຂັ້ນຕອນຖືກກັນ (ຍັງບໍ່ຮັບງານ / ຍັງບໍ່ check-in / ບໍ່ຢູ່ຂັ້ນ "ລໍຖ້າກວດເຊັກ")
+  // ຕ້ອງສົ່ງເຫດຜົນກັບຄືນ — ບໍ່ດັ່ງນັ້ນປຸ່ມກົດແລ້ວ "ບໍ່ໄປ" ໂດຍບໍ່ບອກຫຍັງ.
+  const result = await startCheckFlow(session, code);
+  if (!result.ok) return { error: result.error };
   revalidatePath("/checking");
   redirect("/checking");
 }
