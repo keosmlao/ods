@@ -173,6 +173,7 @@ const ROLE_TONE: Record<Role, string> = {
   admin: "bg-sky-50 text-sky-700",
   stock: "bg-orange-50 text-orange-700",
   technical: "bg-teal-50 text-teal-700",
+  sales: "bg-rose-50 text-rose-700",
   user: "bg-slate-100 text-slate-600",
 };
 
