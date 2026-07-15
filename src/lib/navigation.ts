@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   type LucideIcon,
   ShieldCheck,
-  Store,
   Wrench,
 } from "lucide-react";
 
@@ -140,20 +139,6 @@ const INSTALL: NavGroup = {
   ],
 };
 
-/* ── ພະນັກງານຂາຍ ─────────────────────────────────────────────────
- * ແຈ້ງສ້ອມແທນລູກຄ້າ · ຕິດຕາມງານສ້ອມຕາມເຂດຮັບຜິດຊອບ (ໜ້າກອງດ້ວຍ ods_sales_zone).
- */
-const SALES: NavGroup = {
-  id: "sales_menu",
-  label: "ພະນັກງານຂາຍ",
-  icon: Store,
-  items: [
-    { label: "ໜ້າຫຼັກຂາຍ", href: "/sales" },
-    { label: "ແຈ້ງສ້ອມ", href: "/sales/report-repair" },
-    { label: "ຕິດຕາມງານສ້ອມ", href: "/sales/jobs" },
-  ],
-};
-
 /* ── ສາງ ແລະ ອາໄຫຼ່ (ໃຊ້ຮ່ວມກັນທັງສອງສາຍງານ) ──────────────────── */
 const STOCK: NavGroup = {
   id: "stock_menu",
@@ -235,7 +220,7 @@ const USERS: NavGroup = {
  *   ຄິວແຈ້ງລູກຄ້າ  → ຢູ່ໃນສາຍງານ **ສ້ອມ** (ລະຫວ່າງ QC ກັບ ໃບສົ່ງເຄື່ອງ)
  *   ຕັ້ງລາຍການກວດຮັບ → ຢູ່ກຸ່ມ **ຜູ້ໃຊ້/ຕັ້ງຄ່າ** (ເປັນການຕັ້ງຄ່າ ບໍ່ແມ່ນຄິວງານ)
  */
-export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, SALES, STOCK, APPROVE, REPORT, USERS];
+export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, STOCK, APPROVE, REPORT, USERS];
 
 /**
  * ເມນູຂອງ role ນີ້ — ກັ່ນຕອງດ້ວຍ canAccess() ຂອງ lib/roles ໂດຍກົງ
