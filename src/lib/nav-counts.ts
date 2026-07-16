@@ -1,10 +1,23 @@
 import type { Session } from "@/lib/auth";
+import { pipelineOf, repairStatuses } from "@/lib/dashboard-status";
 import { query } from "@/lib/db";
 import { installStageIs } from "@/lib/install-stage";
 import { canAccess, roleOf } from "@/lib/roles";
 import { ownJobsOnly } from "@/lib/scope";
 import { STAGE_SQL } from "@/lib/stage";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
+
+/**
+ * ຕົວເລກຄິວຂອງແຕ່ລະຂັ້ນສ້ອມ — ຄູ່ກັບກຸ່ມເມນູ "ສະຖານະງານສ້ອມ" (lib/navigation).
+ *
+ * ນັບຈາກ CTE `rst` (ຂັ້ນ + ຈຳນວນ, ສະແກນ tb_product ເທື່ອດຽວ) ⇒ ບໍ່ຕ້ອງຍິງ 11 subquery.
+ * **ບໍ່ກອງຕາມຊ່າງ** ໂດຍເຈດຕະນາ: ໜ້າ /dashboard/status/repair/<slug> ສະແດງທຸກວຽກ
+ * (ບໍ່ໃຊ້ ownJobsOnly) ⇒ ຕົວເລກຕ້ອງນັບທຸກວຽກຄືກັນ ຈຶ່ງບໍ່ຫຼົ້ນກັບແຖວທີ່ເຫັນ (ກົດເກນ ①).
+ * key = href ຂອງລາຍການເມນູ; slug + ຂັ້ນ ມາຈາກ repairStatuses ບ່ອນດຽວ.
+ */
+const REPAIR_STAGE_COUNTS = pipelineOf(repairStatuses)
+  .map(([slug, def]) => `coalesce((select n from rst where st = ${def.stage}), 0)::int as "/dashboard/status/repair/${slug}"`)
+  .join(",\n          ");
 
 /**
  * ຕົວເລກຄິວທີ່ຂຶ້ນຂ້າງລາຍການເມນູ.
@@ -35,7 +48,13 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
   try {
     const row = (
       await query<NavCounts>(
-        `select
+        `with rst as (
+          select (${STAGE_SQL}) st, count(*)::int n
+          from tb_product a
+          where a.status <> 6
+          group by 1
+        )
+        select
           -- ── ສ້ອມແປງ ──
           (select count(*) from tb_product a
             where a.status <> 6 and (${STAGE_SQL}) in (1,2) ${mineRepair})::int as "/checking",
@@ -67,7 +86,14 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
 
           -- ── ຄຸນນະພາບ ──
           (select count(*) from tb_product a where a.status <> 6 and (${STAGE_SQL}) = 10)::int
-            + (select count(*) from ods_tb_install a where ${installStageIs(6)})::int as "/qc"`,
+            + (select count(*) from ods_tb_install a where ${installStageIs(6)})::int as "/qc",
+
+          -- ── ສະຖານະງານສ້ອມ (ແຕ່ລະຂັ້ນ 1-11) ──
+          ${REPAIR_STAGE_COUNTS},
+
+          -- ── ຄິວຕັດຂວາງຂັ້ນ: ຊ່າງຖືກຈັດແລ້ວ ແຕ່ຍັງບໍ່ກົດຮັບ (ບໍ່ກອງຕາມຊ່າງ, ຄືໜ້າປາຍທາງ) ──
+          (select count(*) from tb_product a where ${repairStatuses["wait-accept"].condition})::int
+            as "/dashboard/status/repair/wait-accept"`,
         args,
       )
     ).rows[0];

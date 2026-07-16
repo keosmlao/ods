@@ -1,5 +1,4 @@
 import { AssignTechButton, type AssignRow } from "@/components/installation/assign-tech";
-import { Empty, PageTitle, Table } from "@/components/ui";
 import { query } from "@/lib/db";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
@@ -56,67 +55,85 @@ export default async function RepairAssignPage() {
 
   return (
     <div className="w-full space-y-4">
-      <PageTitle sub="ປ່ຽນຊ່າງ · ຕັ້ງວັນນັດ · ໃສ່ສະຖານທີ່ໜ້າງານ — ງານທີ່ຍັງບໍ່ຈົບທັງໝົດ">
-        ຈັດຊ່າງງານສ້ອມ
-      </PageTitle>
+      <div>
+        <h1 className="text-xl font-bold text-slate-700">ຈັດຊ່າງງານສ້ອມ</h1>
+        <p className="mt-0.5 text-xs text-slate-500">
+          ປ່ຽນຊ່າງ · ຕັ້ງວັນນັດ · ໃສ່ສະຖານທີ່ໜ້າງານ · {rows.rows.length.toLocaleString()} ລາຍການ
+        </p>
+      </div>
 
       {(noAppoint > 0 || notAccepted > 0) && (
-        <p className="flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+        <p className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
           <TriangleAlert className="size-4" />
           {noAppoint > 0 && <span>{noAppoint} ໃບ ຍັງບໍ່ມີວັນນັດ (ຈັດຄິວປະຈຳວັນບໍ່ໄດ້)</span>}
           {notAccepted > 0 && <span>· {notAccepted} ໃບ ຊ່າງຍັງບໍ່ກົດຮັບງານ</span>}
         </p>
       )}
 
-      {rows.rows.length === 0 ? (
-        <Empty>ບໍ່ມີງານສ້ອມທີ່ຄ້າງ</Empty>
-      ) : (
-        <Table head={["ໃບຮັບເຄື່ອງ", "ລູກຄ້າ / ເຄື່ອງ", "ປະເພດ", "ຂັ້ນຕອນ", "ຊ່າງ", "ວັນນັດ", ""]} minWidth={1100}>
-          {rows.rows.map((row) => (
-            <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
-              <td className="whitespace-nowrap px-3 py-2.5">
-                <Link href={`/service/${row.code}`} className="font-bold text-teal-700 hover:underline">
-                  {row.code}
-                </Link>
-                <span className="block text-[11px] text-slate-400">{row.registered}</span>
-              </td>
-              <td className="px-3 py-2.5">
-                <span className="block truncate text-sm text-slate-700">{row.customer ?? "-"}</span>
-                <span className="block truncate text-[11px] text-slate-500">{row.product ?? "-"}</span>
-              </td>
-              <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-600">
-                {row.service_type ? (SERVICE_TYPE_LABEL[row.service_type] ?? row.service_type) : "-"}
-              </td>
-              <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-600">{row.stage_label}</td>
-              <td className="whitespace-nowrap px-3 py-2.5 text-center text-xs">
-                <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
-                  <UserRound className="size-3.5 text-slate-400" />
-                  {row.tech ?? "-"}
-                </span>
-                {/* ຊ່າງຍັງບໍ່ກົດຮັບ = ອາດບໍ່ຮູ້ວ່າມີງານ ⇒ ຄວນປ່ຽນຄົນ ຫຼື ໂທເຕືອນ */}
-                {row.tech && !row.accepted && (
-                  <span className="block rounded bg-amber-100 px-1 py-0.5 text-[10px] font-bold text-amber-800">
-                    ຍັງບໍ່ຮັບງານ
-                  </span>
-                )}
-              </td>
-              <td className="whitespace-nowrap px-3 py-2.5 text-center text-xs">
-                {row.appoint_date ? (
-                  <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
-                    <CalendarDays className="size-3.5 text-slate-400" />
-                    {row.appoint_date.split("-").reverse().join("-")}
-                  </span>
-                ) : (
-                  <span className="rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-bold text-red-700">ບໍ່ມີວັນນັດ</span>
-                )}
-              </td>
-              <td className="whitespace-nowrap px-3 py-2.5 text-right">
-                <AssignTechButton row={row} techs={techs} workflow="repair" />
-              </td>
-            </tr>
-          ))}
-        </Table>
-      )}
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1100px] border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໃບຮັບເຄື່ອງ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລູກຄ້າ / ເຄື່ອງ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ປະເພດ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຂັ້ນຕອນ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-center font-semibold">ຊ່າງ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-center font-semibold">ວັນນັດ</th>
+                <th className="px-3 py-2.5" />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.rows.map((row) => (
+                <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="whitespace-nowrap px-3 py-2.5">
+                    <Link href={`/service/${row.code}`} className="font-bold text-[#0536a9] hover:underline">
+                      {row.code}
+                    </Link>
+                    <span className="block text-[10px] text-slate-400">{row.registered}</span>
+                  </td>
+                  <td className="max-w-64 px-3 py-2.5">
+                    <span className="block truncate font-medium text-slate-800">{row.customer ?? "-"}</span>
+                    <span className="block truncate text-[10px] text-slate-400">{row.product ?? "-"}</span>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
+                    {row.service_type ? (SERVICE_TYPE_LABEL[row.service_type] ?? row.service_type) : "-"}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{row.stage_label}</td>
+                  <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                    <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
+                      <UserRound className="size-3.5 text-slate-400" />
+                      {row.tech ?? "-"}
+                    </span>
+                    {/* ຊ່າງຍັງບໍ່ກົດຮັບ = ອາດບໍ່ຮູ້ວ່າມີງານ ⇒ ຄວນປ່ຽນຄົນ ຫຼື ໂທເຕືອນ */}
+                    {row.tech && !row.accepted && (
+                      <span className="mt-0.5 block rounded bg-amber-100 px-1 py-0.5 text-[10px] font-bold text-amber-800">
+                        ຍັງບໍ່ຮັບງານ
+                      </span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                    {row.appoint_date ? (
+                      <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
+                        <CalendarDays className="size-3.5 text-slate-400" />
+                        {row.appoint_date.split("-").reverse().join("-")}
+                      </span>
+                    ) : (
+                      <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">ບໍ່ມີວັນນັດ</span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                    <AssignTechButton row={row} techs={techs} workflow="repair" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {rows.rows.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ມີງານສ້ອມທີ່ຄ້າງ</p>}
+      </section>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { canAccess, type Role } from "@/lib/roles";
 import { resourceForPath } from "@/lib/permission-catalog";
+import { pipelineOf, repairStatuses } from "@/lib/dashboard-status";
 import {
   BadgeCheck,
   Boxes,
@@ -63,41 +64,29 @@ const HOME: NavGroup = {
   ],
 };
 
-/* ── ສາຍງານສ້ອມແປງ ─────────────────────────────────────────────── */
+/* ── ສາຍງານສ້ອມແປງ — ເມນູດຽວ, ອ່ານເປັນ workflow ຕາມລຳດັບຂັ້ນ ─────────
+ * ຕັດ "ກຸ່ມລົງມື" ເກົ່າອອກ (ຕາມຄຳຂໍ) ⇒ ແຕ່ລະລາຍການ = ໜຶ່ງຂັ້ນຂອງສາຍງານ, ພາໄປໜ້າ
+ * /dashboard/status/repair/<slug> (ເບິ່ງ/ຄົ້ນຫາ/export). ຂັ້ນ setup ທຳອິດ (ລົງທະບຽນ/
+ * ຈັດຊ່າງ) ພາໄປໜ້າລົງມື /repair/assign; "ລໍຖ້າຊ່າງຮັບ" ເປັນຄິວຕັດຂວາງຂັ້ນ (ຊ່າງຖືກຈັດ
+ * ແລ້ວ ແຕ່ຍັງບໍ່ກົດຮັບ). ໃສ່ເລກຂັ້ນນຳໜ້າຢູ່ນີ້ບ່ອນດຽວ ບໍ່ແຕະ repairStatuses ⇒ ຫົວຂໍ້
+ * ຢູ່ໜ້າ /dashboard/status ຍັງເປັນຊື່ຂັ້ນລ້ວນ.
+ *
+ * ໝາຍເຫດ: ໜ້າ /dashboard/status ເປັນ **ອ່ານຢ່າງດຽວ** (ບໍ່ມີปุ่มລົງມື) — ການລົງມື
+ * (ເລີ່ມ/ຈົບສ້ອມ · QC · ອອກໃບຮັບເງິນ) ເຮັດຢູ່ໜ້າລາຍລະອຽດ /service/<code> ຂອງແຕ່ລະໃບ.
+ */
 const REPAIR: NavGroup = {
   id: "repair_menu",
   label: "ສ້ອມແປງ",
   icon: Wrench,
   items: [
-    { label: "ຮັບເຄື່ອງສ້ອມ", href: "/service" },
-    /**
-     * ຈັດຊ່າງງານສ້ອມ — ຊ່າງເຄີຍໃສ່ໄດ້ **ຕອນຮັບເຄື່ອງເທົ່ານັ້ນ** ແລະ ບໍ່ມີວັນນັດຈັກໃບ
-     * (101 ໃບຄ້າງ = 0 ວັນນັດ) ທັ້ງທີ່ 75% ຂອງງານສ້ອມຕ້ອງອອກໜ້າງານ.
-     */
-    { label: "ຈັດຊ່າງງານສ້ອມ", href: "/repair/assign" },
-    { label: "ກວດເຊັກ", href: "/checking", count: "/checking" },
-    { label: "ໃບສະເໜີລາຄາ", href: "/quotations" },
-    { label: "ລູກຄ້າອະນຸມັດ(ສະເໜີລາຄາ)", href: "/quotations/customer-approval", count: "/quotations/customer-approval" },
-    { label: "ໃບຂໍເບີກອາໄຫຼ່", href: "/stock/requests", divider: true },
-    { label: "ຮັບອາໄຫຼ່", href: "/stock/requests/pickup" },
-    { label: "ສົ່ງຄືນອາໄຫຼ່(ສ້ອມແປງ)", href: "/stock/returns?job=repair" },
-    { label: "ສ້ອມແປງ", href: "/repair", count: "/repair" },
-    /**
-     * ── QC ເປັນ **ຂັ້ນຕອນ** ຂອງສາຍງານ ບໍ່ແມ່ນເມນູແຍກ (13-07-2026) ──
-     * ດ່ານນີ້ບັງຄັບຢູ່ server ແລ້ວ (ສົ່ງຄືນ/ຮັບເງິນບໍ່ໄດ້ຖ້າ qc_finish ຫວ່າງ —
-     * actions/return) ແຕ່ລິ້ງມີແຕ່ຢູ່ກຸ່ມ "ຄຸນນະພາບ" ⇒ ຄົນເຮັດງານສ້ອມບໍ່ເຫັນວ່າ
-     * ຕ້ອງຜ່ານມັນ ແລ້ວງານຄ້າງຢູ່ຂັ້ນ "ລໍກວດຮັບຄຸນນະພາບ" ໂດຍບໍ່ຮູ້ຕົວ (ຂໍ້ມູນຈິງ: 16 ໃບ).
-     */
-    { label: "ກວດຮັບຄຸນນະພາບ", href: "/qc?workflow=repair", flag: "qc", count: "/qc" },
-    /**
-     * ຄິວແຈ້ງລູກຄ້າ — ງານທີ່ຢຸດຢູ່ຈົນກວ່າຈະມີຄົນໂທບອກລູກຄ້າວ່າ "ເຄື່ອງແລ້ວ, ມາຮັບໄດ້"
-     * ⇒ ມັນຄື **ຂັ້ນຕອນລະຫວ່າງ QC ກັບ ໃບສົ່ງເຄື່ອງ** ບໍ່ແມ່ນເລື່ອງ "ຄຸນນະພາບ"
-     * (ຢູ່ກຸ່ມ "ຄຸນນະພາບ" ຄົນເຮັດງານສ້ອມຫາບໍ່ພົບ).
-     */
-    { label: "ຄິວແຈ້ງລູກຄ້າ", href: "/customer-contact" },
-    { label: "ໃບສົ່ງເຄື່ອງ/ໃບຮັບເງິນ", href: "/returns", count: "/returns", divider: true },
-    { label: "ຕິດຕາມສະຖານະ", href: "/dashboard/tracking" },
-  ],
+    { label: "ລົງທະບຽນ / ຈັດຊ່າງ", href: "/repair/assign" },
+    { label: "ລໍຖ້າຊ່າງຮັບ", href: "/dashboard/status/repair/wait-accept", count: "/dashboard/status/repair/wait-accept" },
+    ...pipelineOf(repairStatuses).map(([slug, def]) => ({
+      label: def.label,
+      href: `/dashboard/status/repair/${slug}`,
+      count: `/dashboard/status/repair/${slug}`,
+    })),
+  ].map((item, index) => ({ ...item, label: `${index + 1}. ${item.label}` })),
 };
 
 /* ── ສາຍງານຕິດຕັ້ງ ─────────────────────────────────────────────── */

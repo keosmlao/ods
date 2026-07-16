@@ -35,6 +35,16 @@ export const repairStatuses: Record<string, StatusDef> = {
   // ດ່ານກວດຮັບຄຸນນະພາບ — ຂັ້ນໃໝ່ (ສ້ອມສຳເລັດແລ້ວ ແຕ່ຍັງບໍ່ຜ່ານ QC)
   "wait-qc": { label: "ລໍກວດຮັບຄຸນນະພາບ", condition: stageIs(10), stage: 10 },
   "wait-return": { label: "ລໍຖ້າສົ່ງຄືນ", condition: stageIs(11), stage: 11 },
+
+  /**
+   * ⚠️ ຄິວ **ຕັດຂວາງຂັ້ນ** — ຊ່າງຖືກຈັດແລ້ວ ແຕ່ຍັງບໍ່ກົດຮັບງານ (repair_confirm ຫວ່າງ).
+   * ນັບຊ້ຳກັບຂັ້ນ 1+ (ວຽກຍັງນອນຢູ່ຂັ້ນຂອງມັນ) ຈຶ່ງ **ບໍ່ມີ `stage`** ຫ້າມລວມຍອດ pipeline
+   * — ຄືກັບ wait-accept ຝັ່ງຕິດຕັ້ງ. ເງື່ອນໄຂຄືກັນກັບ notAccepted ຂອງ /repair/assign.
+   */
+  "wait-accept": {
+    label: "ລໍຖ້າຊ່າງຮັບ",
+    condition: "a.status <> 6 and a.return_complete is null and coalesce(a.emp_code,'') <> '' and a.repair_confirm is null",
+  },
   // ບໍ່ມີ "ຂໍ້ມູນຜິດປົກກະຕິ" ອີກຕໍ່ໄປ — STAGE_SQL ໃຫ້ຂັ້ນທຸກໃບສະເໝີ ຈຶ່ງຕົກຫຼົ່ນບໍ່ໄດ້
 };
 

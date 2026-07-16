@@ -1,6 +1,7 @@
 import "server-only";
 import { mkdir, writeFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { extname, join, resolve as resolvePath } from "node:path";
+import os from "node:os";
 import type { PoolClient } from "pg";
 
 /**
@@ -12,7 +13,29 @@ import type { PoolClient } from "pg";
  * ຂອງກາງ ຈຶ່ງບໍ່ຕ້ອງຂຽນ logic ອັບໂຫລດ (ກວດຊະນິດ · ຈຳກັດ 16MB · ນັບ line ຕໍ່) ຊ້ຳ.
  */
 
-const uploadsDir = process.env.ODS_UPLOADS_DIR;
+const configuredUploadsDir = process.env.ODS_UPLOADS_DIR;
+
+/**
+ * Resolve a safe uploads directory. If `ODS_UPLOADS_DIR` points outside
+ * the project root and outside the current user's home directory, fall back
+ * to a project-local `var/uploads` directory to avoid attempting to create
+ * or write top-level system folders (which can cause EPERM on Windows).
+ */
+function getSafeUploadsDir() {
+  if (!configuredUploadsDir) return null;
+  const projectRoot = resolvePath(process.cwd());
+  const home = resolvePath(os.homedir());
+  const resolved = resolvePath(configuredUploadsDir);
+
+  if (resolved.startsWith(projectRoot) || resolved.startsWith(home)) {
+    return resolved;
+  }
+
+  // Fallback: project-local uploads directory
+  return resolvePath(projectRoot, "var", "uploads");
+}
+
+const uploadsDir = getSafeUploadsDir();
 const ALLOWED = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
 /** ວິດີໂອ — ໃຊ້ຮ່ວມຕາຕະລາງ product_image ໂດຍບໍ່ແກ້ schema, ແຍກຊະນິດດ້ວຍ **ນາມສະກຸນ** */
 const ALLOWED_VIDEO = new Set([".mp4", ".webm", ".mov", ".m4v", ".3gp"]);
