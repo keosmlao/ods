@@ -14,7 +14,22 @@ import type { PoolClient } from "pg";
 
 const uploadsDir = process.env.ODS_UPLOADS_DIR;
 const ALLOWED = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
-const MAX_BYTES = 16 * 1024 * 1024; // ຄືກັບ MAX_CONTENT_LENGTH ຂອງ Flask
+/** ວິດີໂອ — ໃຊ້ຮ່ວມຕາຕະລາງ product_image ໂດຍບໍ່ແກ້ schema, ແຍກຊະນິດດ້ວຍ **ນາມສະກຸນ** */
+const ALLOWED_VIDEO = new Set([".mp4", ".webm", ".mov", ".m4v", ".3gp"]);
+const MAX_BYTES = 16 * 1024 * 1024; // ຮູບ — ຄືກັບ MAX_CONTENT_LENGTH ຂອງ Flask
+const MAX_VIDEO_BYTES = 100 * 1024 * 1024; // ວິດີໂອ 100MB/ອັນ (ຂອບເຂດລວມ submit ຢູ່ next.config bodySizeLimit)
+
+/**
+ * SQL guard: `product_url` ບໍ່ແມ່ນວິດີໂອ. ໃຊ້ໃນ query ທີ່ດຶງ "ຮູບໜ້າປົກ" ອັນດຽວ
+ * (pr-view) ເພື່ອບໍ່ໃຫ້ວິດີໂອຖືກເລືອກມາໃສ່ບ່ອນທີ່ຄາດຫວັງຮູບ. ຝັງ SQL ໄດ້ (ຄ່າຄົງທີ່).
+ */
+export const NOT_VIDEO_SQL = "lower(product_url) !~ '\\.(mp4|webm|mov|m4v|3gp)$'";
+
+/** ໄຟລ໌ນີ້ແມ່ນວິດີໂອບໍ (ຕັດສິນຕາມນາມສະກຸນ) — ໃຊ້ຝັ່ງ render ເລືອກ <video>/<img> */
+export function isVideoUrl(url: string): boolean {
+  const dot = url.lastIndexOf(".");
+  return dot >= 0 && ALLOWED_VIDEO.has(url.slice(dot).toLowerCase());
+}
 
 /** ຄໍລຳທີ່ product_image ໃຊ້ຜູກຮູບ — ໃບຮັບເຄື່ອງ ຫຼື ຄຳແຈ້ງ */
 export type ImageKey = "iteme_code" | "ref_code";
@@ -49,10 +64,14 @@ export async function collectUploads(
 
   const uploads: Upload[] = [];
   for (const [index, file] of files.entries()) {
-    if (!uploadsDir) return { ok: false, error: "ບໍ່ໄດ້ຕັ້ງຄ່າ ODS_UPLOADS_DIR — ອັບໂຫລດຮູບບໍ່ໄດ້" };
-    if (file.size > MAX_BYTES) return { ok: false, error: `ຮູບທີ ${index + 1} ໃຫຍ່ເກີນ 16MB` };
+    if (!uploadsDir) return { ok: false, error: "ບໍ່ໄດ້ຕັ້ງຄ່າ ODS_UPLOADS_DIR — ອັບໂຫລດບໍ່ໄດ້" };
     const filename = secureFilename(file.name);
-    if (!ALLOWED.has(extname(filename).toLowerCase())) return { ok: false, error: `ຮູບທີ ${index + 1} ບໍ່ແມ່ນໄຟລ໌ຮູບ` };
+    const ext = extname(filename).toLowerCase();
+    const isVideo = ALLOWED_VIDEO.has(ext);
+    if (!isVideo && !ALLOWED.has(ext)) return { ok: false, error: `ໄຟລ໌ທີ ${index + 1} ບໍ່ແມ່ນຮູບ ຫຼື ວິດີໂອ` };
+    if (file.size > (isVideo ? MAX_VIDEO_BYTES : MAX_BYTES)) {
+      return { ok: false, error: `${isVideo ? "ວິດີໂອ" : "ຮູບ"}ທີ ${index + 1} ໃຫຍ່ເກີນ ${isVideo ? "100MB" : "16MB"}` };
+    }
     uploads.push({ line: index, filename, bytes: Buffer.from(await file.arrayBuffer()) });
   }
   return { ok: true, uploads };

@@ -1,0 +1,20 @@
+{
+  "common": {
+    "language": "Language",
+    "loading": "Loading…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "search": "Search",
+    "logout": "Log out"
+  },
+  "shell": {
+    "notifications": "Notifications",
+    "myActivity": "My activity"
+  },
+  "login": {
+    "title": "Sign in",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign in"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "common": {
+    "language": "ພາສາ",
+    "loading": "ກຳລັງໂຫຼດ…",
+    "save": "ບັນທຶກ",
+    "cancel": "ຍົກເລີກ",
+    "search": "ຄົ້ນຫາ",
+    "logout": "ອອກຈາກລະບົບ"
+  },
+  "shell": {
+    "notifications": "ການແຈ້ງເຕືອນ",
+    "myActivity": "ກິດຈະກຳຂອງຂ້ອຍ"
+  },
+  "login": {
+    "title": "ເຂົ້າສູ່ລະບົບ",
+    "username": "ຊື່ຜູ້ໃຊ້",
+    "password": "ລະຫັດຜ່ານ",
+    "submit": "ເຂົ້າສູ່ລະບົບ"
+  }
+}

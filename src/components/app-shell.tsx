@@ -1,6 +1,9 @@
 "use client";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { MobileNav } from "@/components/mobile-nav";
 import { Sidebar } from "@/components/sidebar";
+import type { Locale } from "@/lib/i18n/config";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
 import type { NavFlags } from "@/lib/navigation";
 import type { NavCounts } from "@/lib/nav-counts";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
@@ -44,6 +47,8 @@ export function AppShell({
   activities,
   notifications,
   logout,
+  locale,
+  shellLabels,
   children,
 }: {
   username: string;
@@ -60,6 +65,10 @@ export function AppShell({
   /** ການແຈ້ງເຕືອນທີ່ຍັງບໍ່ໄດ້ອ່ານ — ແທນ LINE Notify ຂອງ ods */
   notifications: number;
   logout: () => Promise<void>;
+  /** ພາສາປັດຈຸບັນ (cookie) — ໃຫ້ປຸ່ມສະຫຼັບຮູ້ວ່າ active ອັນໃດ */
+  locale: Locale;
+  /** ຂໍ້ຄວາມ topbar ຕາມພາສາ (dictionary.shell) */
+  shellLabels: Dictionary["shell"];
   children: ReactNode;
 }) {
   const collapsed = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -79,10 +88,12 @@ export function AppShell({
       <div className={`transition-[padding] duration-200 ${collapsed ? "lg:pl-16" : "lg:pl-64"}`}>
         {/* Topbar — ເຕ້ຍ (56px), ຄ້າງໄວ້ */}
         <header className="no-print sticky top-0 z-20 hidden h-14 items-center justify-end gap-3 border-b border-slate-200 bg-white/90 px-6 backdrop-blur lg:flex">
+          <LanguageSwitcher locale={locale} />
+
           {/* ການແຈ້ງເຕືອນທີ່ຍັງບໍ່ໄດ້ອ່ານ — ແທນ LINE Notify ຂອງ ods */}
           <Link
             href="/notifications"
-            title="ການແຈ້ງເຕືອນ"
+            title={shellLabels.notifications}
             className="relative grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
           >
             <BellRing className="size-4" />
@@ -96,7 +107,7 @@ export function AppShell({
           {/* ກິດຈະກຳຄ້າງ — ແດງເມື່ອມີລາຍການເລີຍກຳນົດ */}
           <Link
             href="/activities"
-            title="ກິດຈະກຳຂອງຂ້ອຍ"
+            title={shellLabels.myActivity}
             className="relative grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
           >
             <Bell className="size-4" />

@@ -1,0 +1,20 @@
+{
+  "common": {
+    "language": "ภาษา",
+    "loading": "กำลังโหลด…",
+    "save": "บันทึก",
+    "cancel": "ยกเลิก",
+    "search": "ค้นหา",
+    "logout": "ออกจากระบบ"
+  },
+  "shell": {
+    "notifications": "การแจ้งเตือน",
+    "myActivity": "กิจกรรมของฉัน"
+  },
+  "login": {
+    "title": "เข้าสู่ระบบ",
+    "username": "ชื่อผู้ใช้",
+    "password": "รหัสผ่าน",
+    "submit": "เข้าสู่ระบบ"
+  }
+}

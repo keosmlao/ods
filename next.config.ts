@@ -26,6 +26,20 @@ const extra = (process.env.DEV_ORIGINS ?? "")
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["localhost", "127.0.0.1", ...localAddresses(), ...extra],
+
+  /**
+   * ອັບໂຫລດຮູບ/ວິດີໂອ ຢູ່ໃບຮັບເຄື່ອງ ສົ່ງຜ່ານ **Server Action** (createService).
+   * Next 16 ຈຳກັດ body ຂອງ action ໄວ້ 1MB ໂດຍຄ່າຕັ້ງຕົ້ນ ⇒ ຮູບຫຼາຍໃບ ຫຼື ວິດີໂອ
+   * (ສູງສຸດ 100MB/ອັນ) ຈະ submit ບໍ່ຜ່ານ. ຕັ້ງເປັນ 256MB ໃຫ້ຮັບໄດ້ 1 ວິດີໂອ + ຮູບ
+   * ຕໍ່ 1 ຄັ້ງບັນທຶກ. ⚠ ຄ່ານີ້ = ຂອບເຂດ **ລວມທັງ submit** (raw multipart body):
+   * ໃສ່ວິດີໂອຫຼາຍອັນຈົນລວມເກີນ 256MB ໃນຄັ້ງດຽວຈະບໍ່ຜ່ານ. body ທັງກ້ອນຖືກ buffer
+   * ໃນ RAM ຂອງ server ⇒ ຢ່າຕັ້ງໃຫຍ່ກວ່າຄວາມຈຳເປັນ.
+   */
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "256mb",
+    },
+  },
 };
 
 export default nextConfig;

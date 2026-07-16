@@ -1,3 +1,4 @@
+import { getLocale } from "@/lib/i18n/locale";
 import type { Metadata } from "next";
 import { Noto_Sans_Lao } from "next/font/google";
 import "./globals.css";
@@ -14,9 +15,10 @@ export const metadata: Metadata = { title: "ODIEN Service", description: "ລະ
  * ທຸງນີ້ບອກໃຫ້ຂ້າມຄວາມຕ່າງຂອງ **attribute ຢູ່ tag ນີ້ tag ດຽວ** — ຄວາມຕ່າງຂອງເນື້ອຫາ
  * ຂ້າງໃນ (ຄືບັກຈິງ) ຍັງຖືກລາຍງານຄືເກົ່າ.
  */
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getLocale();
   return (
-    <html lang="lo">
+    <html lang={locale}>
       <body suppressHydrationWarning className={`${font.variable} antialiased`}>
         {children}
       </body>

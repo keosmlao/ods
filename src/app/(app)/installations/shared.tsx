@@ -379,7 +379,10 @@ export function InstallCells({ row, timeLabel }: { row: InstallCellRow; timeLabe
     <>
       <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
         <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
-        {row.code}
+        {/* ກົດເລກງານ → ໜ້າລາຍລະອຽດ (ອ່ານຢ່າງດຽວ, ເປີດໃຫ້ທຸກ role). list ບໍ່ເຄີຍລິ້ງໄປ detail ມາກ່ອນ */}
+        <Link href={`/installations/${encodeURIComponent(row.code)}`} className="hover:underline">
+          {row.code}
+        </Link>
         {row.doc_ref_1 && <span className="mt-0.5 block text-[10px] font-normal text-slate-400">{row.doc_ref_1}</span>}
       </td>
       <td className="whitespace-nowrap px-3 py-2.5">

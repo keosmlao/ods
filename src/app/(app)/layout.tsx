@@ -4,6 +4,8 @@ import { myNotificationCount } from "@/app/actions/notification";
 import { qcWorkflows } from "@/app/actions/qc";
 import { navCounts } from "@/lib/nav-counts";
 import { AppShell } from "@/components/app-shell";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { getSession } from "@/lib/auth";
 import { canUser, readableResources } from "@/lib/permissions";
 import { roleOf } from "@/lib/roles";
@@ -33,12 +35,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
    * ເມນູ "ຄິວກວດຮັບຄຸນນະພາບ" ຂຶ້ນກັບ ods_qc_role (ຜູ້ຈັດການກຳນົດ) ບໍ່ແມ່ນ role ລ້ວນໆ
    * ⇒ ຄິດຢູ່ນີ້ບ່ອນດຽວ ແລ້ວສົ່ງລົງໄປໃຫ້ເມນູ (lib/navigation NavFlags).
    */
-  const [activities, notifications, qc, counts, readable] = await Promise.all([
+  const locale = await getLocale();
+  const [activities, notifications, qc, counts, readable, dict] = await Promise.all([
     myActivityCount(),
     myNotificationCount(),
     qcWorkflows(),
     navCounts(session), // ຕົວເລກຄິວຂ້າງເມນູ — ລົ້ມກໍ່ຄືນ {} (ເມນູຍັງໃຊ້ໄດ້)
     readableResources(session),
+    getDictionary(locale),
   ]);
 
   return (
@@ -51,6 +55,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       activities={activities}
       notifications={notifications}
       logout={logoutAction}
+      locale={locale}
+      shellLabels={dict.shell}
     >
       {children}
     </AppShell>

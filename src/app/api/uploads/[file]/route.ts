@@ -12,6 +12,12 @@ const contentTypes: Record<string, string> = {
   ".png": "image/png",
   ".gif": "image/gif",
   ".webp": "image/webp",
+  // ວິດີໂອ — ໃບຮັບເຄື່ອງແນບໄດ້ (ເກັບຮ່ວມ product_image, ແຍກດ້ວຍນາມສະກຸນ)
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
+  ".m4v": "video/x-m4v",
+  ".3gp": "video/3gpp",
 };
 
 export async function GET(_: Request, { params }: { params: Promise<{ file: string }> }) {
