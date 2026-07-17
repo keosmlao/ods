@@ -1,8 +1,8 @@
 "use server";
-import { logChange } from "@/app/actions/chatter";
+import { logChange } from "@/lib/chatter-log";
 import { acceptInstall, finishInstallFlow, startInstallFlow } from "@/lib/job-flow";
 import { pushToUser } from "@/lib/push";
-import { recordPayout } from "@/app/actions/commission";
+import { recordPayout } from "@/lib/commission-record";
 import { getSession, type Session } from "@/lib/auth";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb, query } from "@/lib/db";
@@ -1366,7 +1366,8 @@ export async function feedbackGate(code: string): Promise<FeedbackGate> {
 export async function saveFeedback(_: ActionState, formData: FormData): Promise<ActionState> {
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
   const code = String(formData.get("code") ?? "");
-  const comment = String(formData.get("cust_complain") ?? "");
+  // ໜ້າສາທາລະນະ (ລູກຄ້າສະແກນ QR) ⇒ ຕັດຄວາມຍາວຄືກັນກັບ updateFeedback (2000)
+  const comment = String(formData.get("cust_complain") ?? "").slice(0, 2000);
   if (!code) return { error: "ບໍ່ພົບລະຫັດງານ" };
 
   const answers: { line: number; points: number }[] = [];

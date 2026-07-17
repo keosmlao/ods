@@ -268,7 +268,7 @@ const UPCOMING_APPOINTMENTS_SQL = (techArg: boolean) => `select a.code,
   order by a.appoint_date, a.tech_code nulls last limit 12`;
 
 /**
- * ອາໄຫຼ່ທີ່ສັ່ງຊື້ໄປແລ້ວ ແຕ່ຍັງບໍ່ມາຮອດ (ຂັ້ນ 7) — ເງື່ອນໄຂດຽວກັນກັບ /stock/arrivals.
+ * ອາໄຫຼ່ທີ່ສັ່ງຊື້ໄປແລ້ວ ແຕ່ຍັງບໍ່ມາຮອດ (ຂັ້ນ 7) — ກົດແລ້ວໄປ /dashboard/status/repair/purchasing.
  * ຂັ້ນນີ້ເປັນຈຸດທີ່ວຽກຕິດດົນທີ່ສຸດຂອງລະບົບ (ດົນສຸດ 225 ມື້) ຈຶ່ງເອົາອາຍຸມາສະແດງນຳ.
  */
 const ON_ORDER_SQL = `select count(*)::int n,

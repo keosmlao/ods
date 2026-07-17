@@ -1,10 +1,12 @@
 import { JOB_HEAD_COLUMNS, JobHeader, type JobHead } from "@/components/installation/job-header";
 import { SpareRequestForm, type Shelf, type SpareLine } from "@/components/installation/spare-request-form";
 import { Empty, PageTitle, Table } from "@/components/ui";
+import { getSession } from "@/lib/auth";
 import { query, queryOdg } from "@/lib/db";
+import { canViewAssignedJob } from "@/lib/scope";
 import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 /**
  * ຖອດແບບຈາກ ods: /in_add_req/<id> + req_page.html (tech_reg_install.py)
@@ -53,6 +55,8 @@ function blockedReason(guard: Guard) {
 
 export default async function SpareRequestPage({ params }: Props) {
   const code = decodeURIComponent((await params).code);
+  const session = await getSession();
+  if (!session) redirect("/login");
 
   const [head, guard, lines, standard, warehouses, shelves] = await Promise.all([
     query<JobHead>(
@@ -85,6 +89,7 @@ export default async function SpareRequestPage({ params }: Props) {
   ]);
 
   if (!head.rows[0] || !guard.rows[0]) notFound();
+  if (!canViewAssignedJob(session, head.rows[0].tech_code)) redirect("/forbidden");
   const today = new Date().toISOString().slice(0, 10);
   const blocked = blockedReason(guard.rows[0]);
 

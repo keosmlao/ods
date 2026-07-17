@@ -22,7 +22,7 @@ type City = { code: string; name_1: string; province: string };
 
 const SERVICE_TYPES: Option[] = [
   { code: "CI", name_1: "ລູກຄ້ານຳເຄື່ອງເຂົ້າ" },
-  { code: "PS", name_1: "ໄປຮັບບ້ານລູກຄ້າ" },
+  { code: "PS", name_1: "ໄປຮັບເຄື່ອງທີ່ບ້ານລູກຄ້າມາສ້ອມຢູ່ສູນ" },
   { code: "IH", name_1: "ສ້ອມບ້ານລູກຄ້າ" },
   { code: "ST", name_1: "ສ້ອມເຄື່ອງໃນສາງ" },
 ];

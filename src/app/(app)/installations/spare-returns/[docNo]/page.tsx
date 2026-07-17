@@ -3,6 +3,7 @@ import { JOB_HEAD_COLUMNS, JobHeader, type JobHead } from "@/components/installa
 import { PageTitle } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { canViewAssignedJob } from "@/lib/scope";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import { notFound, redirect } from "next/navigation";
 
@@ -51,6 +52,7 @@ export default async function InstallReturnRequestPage({ params }: Props) {
   ]);
 
   if (!job.rows[0]) notFound();
+  if (!canViewAssignedJob(session, job.rows[0].tech_code)) redirect("/forbidden");
   if (draft.rows.length === 0) {
     // ບໍ່ມີແຖວຮ່າງ — ອາດບັນທຶກໄປແລ້ວ ຫຼື ຊ່າງຍັງບໍ່ທັນຮັບອາໄຫຼ່ (ຍັງບໍ່ມີແຖວ status=1)
     const issued = await query<{ count: number }>(

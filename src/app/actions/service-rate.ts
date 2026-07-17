@@ -1,6 +1,6 @@
 "use server";
 import { getSession } from "@/lib/auth";
-import { type Workflow } from "@/lib/commission";
+import { ROLE_LABEL, type Workflow } from "@/lib/commission";
 import { db, queryOdg } from "@/lib/db";
 import { roleOf } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
@@ -29,7 +29,13 @@ export type Option = { code: string; name: string };
  * ic_category ມີ 325 ແຖວ (ລວມ 'UNIFORM', 'ກອນ', 'ກະຈົກ' …) ⇒ ເທລົງມາທັງໝົດ
  * ຄົນເລືອກບໍ່ຖືກ. ກອງດ້ວຍ exists ⇒ ເຫຼືອສະເພາະໝວດທີ່ໃຊ້ໄດ້ຈິງ.
  */
+/**
+ * ── ⚠️ ຟັງຊັນອ່ານໃນໄຟລ໌ `"use server"` ກໍ່ເປັນ endpoint ສາທາລະນະ ──
+ * ບໍ່ໄດ້ກວດ session = ຄົນນອກດຶງໄດ້ໂດຍບໍ່ຕ້ອງ login. ຈຶ່ງກວດ session ທຸກຕົວ
+ * (ບໍ່ຕ້ອງກວດ role — ເປັນລາຍການໃຫ້ເລືອກທຳມະດາ ແຕ່ຕ້ອງເປັນຄົນໃນອົງກອນ).
+ */
 export async function rateOptions(): Promise<{ categories: Option[] }> {
+  if (!(await getSession())) return { categories: [] };
   const categories = await queryOdg<Option>(
     `select c.code, c.name_1 as name
        from ic_category c
@@ -53,6 +59,7 @@ export async function rateOptions(): Promise<{ categories: Option[] }> {
 export async function optionsForCategory(
   categoryCode: string,
 ): Promise<{ designs: Option[]; sizes: Option[] }> {
+  if (!(await getSession())) return { designs: [], sizes: [] };
   if (!categoryCode.trim()) return { designs: [], sizes: [] };
 
   const [designs, sizes] = await Promise.all([
@@ -89,6 +96,8 @@ export async function optionsForCategory(
  *   ຈຶ່ງບໍ່ມີໃຜສະແດງອອກມາເປັນລະຫັດດິບ.
  */
 export async function payeeOptions(): Promise<Option[]> {
+  // ລາຍຊື່ພະນັກງານ ERP ທັງພະແນກ — ຫ້າມຫຼຸດອອກນອກອົງກອນ
+  if (!(await getSession())) return [];
   const result = await queryOdg<Option>(
     `select e.employee_code as code,
         coalesce(nullif(e.fullname_lo,''), e.employee_code) as name
@@ -213,7 +222,18 @@ export async function saveSplit(workflow: Workflow, pcts: Record<string, number>
   if (!guard.ok) return { error: guard.error };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
-  const total = Object.values(pcts).reduce((sum, value) => sum + value, 0);
+  /**
+   * ກວດ**ແຕ່ລະຄ່າ**ກ່ອນ ບໍ່ແມ່ນກວດແຕ່ຍອດລວມ: type ຂອງ TS ຫາຍໄປຕອນ run ⇒ ຜູ້ເອີ້ນ
+   * ສົ່ງຫຍັງມາກໍ່ໄດ້. `{supervisor: 200, admin: -100}` ລວມເປັນ 100 ພໍດີ ແລະ ຜ່ານ
+   * ດ່ານຍອດລວມສະບາຍ — ກາຍເປັນຄ່າຄອມ**ຕິດລົບ**. ຊື່ບົດບາດກໍ່ຕ້ອງມີຈິງ (ROLE_LABEL)
+   * ບໍ່ດັ່ງນັ້ນເປີເຊັນຈະໄປແອບຢູ່ບົດບາດທີ່ບໍ່ມີໃຜ ແລ້ວເງິນສ່ວນນັ້ນຫາຍງຽບໆ.
+   */
+  const parsed = z
+    .record(z.enum(Object.keys(ROLE_LABEL) as [string, ...string[]]), z.number().min(0).max(100))
+    .safeParse(pcts);
+  if (!parsed.success) return { error: "ເປີເຊັນ ຫຼື ບົດບາດບໍ່ຖືກຕ້ອງ" };
+
+  const total = Object.values(parsed.data).reduce((sum, value) => sum + value, 0);
   if (Math.abs(total - 100) > 0.001) {
     return { error: `ເປີເຊັນຕ້ອງລວມເປັນ 100 ພໍດີ (ຕອນນີ້ ${total})` };
   }
@@ -221,7 +241,7 @@ export async function saveSplit(workflow: Workflow, pcts: Record<string, number>
   const client = await db.connect();
   try {
     await client.query("begin");
-    for (const [role, pct] of Object.entries(pcts)) {
+    for (const [role, pct] of Object.entries(parsed.data)) {
       await client.query(
         `insert into ods_service_commission_split(workflow, role, pct) values($1,$2,$3)
          on conflict (workflow, role) do update set pct = excluded.pct`,

@@ -1,4 +1,4 @@
-import { logChange } from "@/app/actions/chatter";
+import { logChange } from "@/lib/chatter-log";
 import type { Session } from "@/lib/auth";
 import type { Workflow } from "@/lib/commission";
 import { db, query, queryOdg } from "@/lib/db";
@@ -17,9 +17,13 @@ import { roleOf, type Role } from "@/lib/roles";
 
 export const MAX_PHOTO_CHARS = 400_000;
 
-const TABLE: Record<Workflow, { name: string; finishCol: string; model: string }> = {
-  install: { name: "ods_tb_install", finishCol: "finish_install", model: "ods_tb_install" },
-  repair: { name: "tb_product", finishCol: "time_finish_repair", model: "tb_product" },
+/**
+ * `finishCol` = ຖັນ "ເຮັດວຽກຈົບ" (ເງື່ອນໄຂເຂົ້າດ່ານ QC) ·
+ * `returnedCol` = ຖັນ "ປິດງານແລ້ວ" (ຫຼັງຈາກນີ້ QC ແຕະບໍ່ໄດ້ອີກ).
+ */
+const TABLE: Record<Workflow, { name: string; finishCol: string; returnedCol: string; model: string }> = {
+  install: { name: "ods_tb_install", finishCol: "finish_install", returnedCol: "job_finish", model: "ods_tb_install" },
+  repair: { name: "tb_product", finishCol: "time_finish_repair", returnedCol: "return_complete", model: "tb_product" },
 };
 
 export type QcItem = {
@@ -153,13 +157,46 @@ export async function saveQcFlow(session: Session, input: SaveQcInput): Promise<
     }
 
     if (failed.length > 0) {
-      // ສົ່ງກັບໃຫ້ຊ່າງ — ລ້າງຖັນ "ສຳເລັດ" (qc_finish ຍັງເປັນ null ຢູ່ແລ້ວ)
-      await client.query(`update ${table.name} set ${table.finishCol} = null where code = $1`, [input.jobCode]);
+      /**
+       * ສົ່ງກັບໃຫ້ຊ່າງ — ລ້າງຖັນ "ສຳເລັດ" (qc_finish ຍັງເປັນ null ຢູ່ແລ້ວ).
+       * ດ່ານດຽວກັນກັບກິ່ງ "ຜ່ານ": ງານທີ່ **ສົ່ງຄືນລູກຄ້າໄປແລ້ວ** ຫ້າມແຕະ —
+       * ບໍ່ດັ່ງນັ້ນ QC ຍ້ອນຫຼັງຈະລຶບເວລາເຮັດວຽກຈົບຖິ້ມ ໂດຍວຽກຍັງຄ້າງຂັ້ນ "ສົ່ງຄືນສຳເລັດ".
+       */
+      const sentBack = await client.query(
+        `update ${table.name} set ${table.finishCol} = null
+          where code = $1 and ${table.finishCol} is not null and ${table.returnedCol} is null`,
+        [input.jobCode],
+      );
+      if (!sentBack.rowCount) {
+        await client.query("rollback");
+        return { ok: false, error: "ສົ່ງງານກັບບໍ່ໄດ້ — ງານນີ້ຍັງບໍ່ທັນເຮັດສຳເລັດ ຫຼື ປິດໄປແລ້ວ" };
+      }
     } else {
-      await client.query(`update ${table.name} set qc_finish = localtimestamp(0), qc_by = $2 where code = $1`, [
-        input.jobCode,
-        session.username,
-      ]);
+      /**
+       * ── ຕ້ອງເຮັດວຽກຈົບແລ້ວ ຈຶ່ງ QC ໄດ້ ──
+       * ເງື່ອນໄຂຢູ່ໃນ WHERE ເອງ (ບໍ່ແມ່ນກວດກ່ອນແລ້ວຄ່ອຍຂຽນ) ຕາມກົດຂອງ lib/job-flow.
+       *
+       * ແຕ່ກ່ອນເປັນ `where code = $1` ລ້ວນໆ ⇒ stamp qc_finish ໃສ່ວຽກຂັ້ນໃດກໍ່ໄດ້.
+       * ອັນຕະລາຍເພາະ STAGE_SQL ອ່ານ **qc_finish ຄູ່ກັບ time_finish_repair**:
+       *   when time_finish_repair is not null and qc_finish is not null then 11 (ລໍສົ່ງຄືນ)
+       *   when time_finish_repair is not null                          then 10 (ລໍກວດ QC)
+       * ⇒ QC ໄວ້ລ່ວງໜ້າ ແລ້ວພໍຊ່າງກົດຈົບ ວຽກຈະ **ໂດດ 9 → 11 ຂ້າມດ່ານ QC ທັງດ່ານ**
+       * ໂດຍບໍ່ມີໃຜຮູ້ — ແລະ ດ່ານກັນຂອງ actions/return (qc_finish is not null) ກໍ່ຜ່ານນຳ.
+       *
+       * ຍັງບໍ່ມີໃບໃດຕິດຮູນີ້ (ກວດ 4,406 ໃບທີ່ QC ແລ້ວ = 0 ໃບ) — ອຸດກ່ອນມີ.
+       */
+      const stamped = await client.query(
+        `update ${table.name} set qc_finish = localtimestamp(0), qc_by = $2
+          where code = $1 and ${table.finishCol} is not null and qc_finish is null`,
+        [input.jobCode, session.username],
+      );
+      if (!stamped.rowCount) {
+        await client.query("rollback");
+        return {
+          ok: false,
+          error: "ກວດ QC ບໍ່ໄດ້ — ງານນີ້ຍັງບໍ່ທັນເຮັດສຳເລັດ ຫຼື ຜ່ານ QC ໄປແລ້ວ",
+        };
+      }
       if (input.signer_name.trim()) {
         await client.query(
           `insert into ods_qc_signature(workflow, job_code, signer_name, signer_tel, signature)

@@ -1,5 +1,5 @@
 "use server";
-import { logChange } from "@/app/actions/chatter";
+import { logChange } from "@/lib/chatter-log";
 import { getSession, type Session } from "@/lib/auth";
 import { db, query } from "@/lib/db";
 import { roleOf, TECH_SIDE } from "@/lib/roles";

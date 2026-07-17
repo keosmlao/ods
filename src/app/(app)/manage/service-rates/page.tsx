@@ -1,5 +1,5 @@
 import { type Option, payeeOptions, rateOptions } from "@/app/actions/service-rate";
-import { Card, Empty, PageTitle, Table } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { ROLE_LABEL, type Workflow } from "@/lib/commission";
 import { query } from "@/lib/db";
 import { AddRateForm, DeactivateRateButton, PayeeForm, SplitForm } from "./rate-forms";
@@ -27,7 +27,7 @@ const SERVICE_TYPE_LABEL: Record<string, string> = {
   CI: "ລູກຄ້ານຳເຄື່ອງເຂົ້າ",
   ST: "ສ້ອມໃນສາງ",
   IH: "ສ້ອມບ້ານລູກຄ້າ",
-  PS: "ໄປຮັບບ້ານລູກຄ້າ",
+  PS: "ໄປຮັບເຄື່ອງທີ່ບ້ານລູກຄ້າມາສ້ອມຢູ່ສູນ",
 };
 
 export default async function ServiceRatesPage() {
@@ -74,48 +74,72 @@ export default async function ServiceRatesPage() {
 
   return (
     <div className="w-full space-y-5">
-      <PageTitle sub="ຄ່າບໍລິການ ແລະ ຄ່າຄອມຂອງຊ່າງ (ບາທ)">ກຳນົດຄ່າບໍລິການ</PageTitle>
+      <div>
+        <h1 className="text-xl font-bold text-slate-700">ກຳນົດຄ່າບໍລິການ</h1>
+        <p className="mt-0.5 text-xs text-slate-500">ຄ່າບໍລິການ ແລະ ຄ່າຄອມຂອງຊ່າງ (ບາທ)</p>
+      </div>
 
       <AddRateForm categories={options.categories} />
 
-      <Card title={`ອັດຕາທີ່ໃຊ້ຢູ່ (${rows.length})`}>
-        {rows.length === 0 ? (
-          <Empty>ຍັງບໍ່ມີອັດຕາ — ງານທີ່ປິດຈະຍັງບໍ່ຖືກຄິດຄ່າບໍລິການຈົນກວ່າຈະເພີ່ມອັດຕາ</Empty>
-        ) : (
-          <Table head={["ສາຍງານ", "ຄຳອະທິບາຍ", "ປະເພດບໍລິການ", "ໝວດ", "ແບບ", "ຂະໜາດ", "ບາທ", ""]} minWidth={900}>
-            {rows.map((rate) => (
-              <tr key={rate.id} className="border-b border-slate-100">
-                <td className="whitespace-nowrap px-3 py-2 text-xs">
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                      rate.workflow === "install" ? "bg-violet-50 text-violet-700" : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    {rate.workflow === "install" ? "ຕິດຕັ້ງ" : "ສ້ອມແປງ"}
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-xs font-medium text-slate-800">{rate.label}</td>
-                {/* ຫວ່າງ = "ທຸກອັນ" — ສະແດງໃຫ້ຊັດ ບໍ່ດັ່ງນັ້ນຄົນອ່ານຄິດວ່າຂໍ້ມູນຂາດ */}
-                <td className="px-3 py-2 text-xs text-slate-500">
-                  {rate.service_type ? (SERVICE_TYPE_LABEL[rate.service_type] ?? rate.service_type) : "ທຸກອັນ"}
-                </td>
-                <td className="px-3 py-2 text-xs text-slate-500">{rate.category_name ?? "ທຸກອັນ"}</td>
-                <td className="px-3 py-2 text-xs text-slate-500">{rate.design_name ?? "ທຸກອັນ"}</td>
-                <td className="px-3 py-2 text-xs text-slate-500">{rate.size_name ?? "ທຸກອັນ"}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-slate-900">
-                  {Number(rate.amount_thb).toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                </td>
-                <td className="px-3 py-2 text-center">
-                  <DeactivateRateButton id={rate.id} label={rate.label} />
-                </td>
-              </tr>
-            ))}
-          </Table>
-        )}
-        <p className="mt-2 text-[11px] text-slate-400">
+      <div className="space-y-2">
+        <h2 className="text-sm font-bold text-slate-700">ອັດຕາທີ່ໃຊ້ຢູ່ ({rows.length})</h2>
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-xs" style={{ minWidth: 900 }}>
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສາຍງານ</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຄຳອະທິບາຍ</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ປະເພດບໍລິການ</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໝວດ</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ແບບ</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຂະໜາດ</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ບາທ</th>
+                  <th className="px-3 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((rate) => (
+                  <tr key={rate.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="whitespace-nowrap px-3 py-2.5 text-xs">
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                          rate.workflow === "install" ? "bg-violet-50 text-violet-700" : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {rate.workflow === "install" ? "ຕິດຕັ້ງ" : "ສ້ອມແປງ"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-xs font-medium text-slate-800">{rate.label}</td>
+                    {/* ຫວ່າງ = "ທຸກອັນ" — ສະແດງໃຫ້ຊັດ ບໍ່ດັ່ງນັ້ນຄົນອ່ານຄິດວ່າຂໍ້ມູນຂາດ */}
+                    <td className="px-3 py-2.5 text-xs text-slate-500">
+                      {rate.service_type ? (SERVICE_TYPE_LABEL[rate.service_type] ?? rate.service_type) : "ທຸກອັນ"}
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-slate-500">{rate.category_name ?? "ທຸກອັນ"}</td>
+                    <td className="px-3 py-2.5 text-xs text-slate-500">{rate.design_name ?? "ທຸກອັນ"}</td>
+                    <td className="px-3 py-2.5 text-xs text-slate-500">{rate.size_name ?? "ທຸກອັນ"}</td>
+                    <td className="whitespace-nowrap px-3 py-2.5 text-xs font-bold text-slate-900">
+                      {Number(rate.amount_thb).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <DeactivateRateButton id={rate.id} label={rate.label} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {rows.length === 0 && (
+            <p className="py-12 text-center text-xs text-slate-400">
+              ຍັງບໍ່ມີອັດຕາ — ງານທີ່ປິດຈະຍັງບໍ່ຖືກຄິດຄ່າບໍລິການຈົນກວ່າຈະເພີ່ມອັດຕາ
+            </p>
+          )}
+        </section>
+        <p className="text-[11px] text-slate-400">
           ຕອນຄິດເງິນ ແຖວທີ່<b>ລະບຸລະອຽດກວ່າຊະນະ</b> (ຂະໜາດ &gt; ແບບ &gt; ໝວດ &gt; ປະເພດບໍລິການ)
         </p>
-      </Card>
+      </div>
 
       <section className="grid gap-4 xl:grid-cols-2">
         <SplitForm workflow="repair" current={splitOf("repair")} />

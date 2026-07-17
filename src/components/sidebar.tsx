@@ -1,8 +1,8 @@
 "use client";
 import { LinkPending } from "@/components/link-pending";
-import { navigationFor, type NavFlags, type NavGroup } from "@/lib/navigation";
+import { navigationFor, type NavFlags, type NavGroup, type NavItem } from "@/lib/navigation";
 import type { NavCounts } from "@/lib/nav-counts";
-import type { Role } from "@/lib/roles";
+import { homeForRole, type Role } from "@/lib/roles";
 import { ChevronDown, PanelLeftClose, PanelLeftOpen, Search, Wrench, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -36,13 +36,29 @@ const matchLength = (pathname: string, href: string) => {
   return pathname.startsWith(`${path}/`) ? path.length : -1;
 };
 
+/** ຄວາມຍາວທີ່ຕົງທີ່ສຸດຂອງລາຍການ — ນັບທັງ href ແລະ ເສັ້ນທາງ match ເພີ່ມ (ໜ້າລົງມືທີ່ບໍ່ມີເມນູ) */
+const itemMatchLength = (pathname: string, item: NavItem) =>
+  Math.max(matchLength(pathname, item.href), ...(item.match ?? []).map((path) => matchLength(pathname, path)));
+
 /** ເສັ້ນທາງທີ່ຍາວທີ່ສຸດໃນເມນູທັງໝົດ ທີ່ຕົງກັບໜ້າປັດຈຸບັນ */
 const bestMatch = (pathname: string, groups: NavGroup[]) =>
-  Math.max(-1, ...groups.flatMap((group) => group.items.map((item) => matchLength(pathname, item.href))));
+  Math.max(-1, ...groups.flatMap((group) => group.items.map((item) => itemMatchLength(pathname, item))));
 
-const isActive = (pathname: string, href: string, best: number, search = "") => {
-  if (!queryMatches(search, href)) return false;
-  const length = matchLength(pathname, href);
+/**
+ * ── ໜ້າລາຍລະອຽດທີ່ເປີດມາຈາກຄິວ (`?from=`) ──
+ * ທຸກຄິວຂອງສາຍງານສ້ອມພາໄປໜ້າດຽວກັນ: /service/<code> ⇒ ກົດເຂົ້າລາຍລະອຽດຈາກຄິວໃດກໍ່ຕາມ
+ * ເມນູຈະໂດດໄປສະຫວ່າງທີ່ "ລາຍການຮັບສິນຄ້າເຂົ້າສ້ອມ" (/service) ເພາະມັນຄືອັນດຽວທີ່ຕົງ
+ * ⇒ ຄົນເສຍບ່ອນຢືນ ບໍ່ຮູ້ວ່າຕົນມາຈາກຄິວໃດ ແລະ ກົດກັບຄືນຜິດບ່ອນ.
+ *
+ * ແກ້ດ້ວຍການໃຫ້**ລິ້ງບອກມາ** (`?from=<href ຂອງຄິວ>`) — ໃຊ້ກົນໄກ query ທີ່ມີຢູ່ແລ້ວ
+ * ບໍ່ຕ້ອງໃຫ້ sidebar ໄປຖາມຖານຂໍ້ມູນວ່າວຽກຢູ່ຂັ້ນໃດ (ມັນເປັນ client component).
+ * ບໍ່ມີ `from` (ເປີດຈາກ bookmark/ຄົ້ນຫາ) ⇒ ກັບໄປໃຊ້ກົດ "ຍາວສຸດຊະນະ" ຄືເກົ່າ.
+ */
+const isActive = (pathname: string, item: NavItem, best: number, search = "") => {
+  const from = new URLSearchParams(search).get("from");
+  if (from) return item.href === from;
+  if (!queryMatches(search, item.href)) return false;
+  const length = itemMatchLength(pathname, item);
   return length >= 0 && length === best;
 };
 
@@ -122,7 +138,7 @@ export function NavTree({
 
         {groups.map((group: NavGroup) => {
           const Icon = group.icon;
-          const hasActive = group.items.some((item) => isActive(pathname, item.href, best, search));
+          const hasActive = group.items.some((item) => isActive(pathname, item, best, search));
           // ວຽກຄ້າງລວມຂອງກຸ່ມ — ຕອນກຸ່ມປິດຢູ່ ຄົນຍັງຮູ້ວ່າຂ້າງໃນມີວຽກ
           const groupTotal = group.items.reduce(
             (sum, item) => sum + (item.count ? (counts[item.count] ?? 0) : 0),
@@ -174,7 +190,7 @@ export function NavTree({
               {open && (
                 <ul className="mb-1 space-y-0.5">
                   {group.items.map((item, index) => {
-                    const active = isActive(pathname, item.href, best, search);
+                    const active = isActive(pathname, item, best, search);
                     return (
                       <li key={`${item.href}-${index}`}>
                         {item.divider && <hr className="my-1.5 ml-8 border-white/5" />}
@@ -247,7 +263,7 @@ export function Sidebar({
       }`}
     >
       <div className={`flex h-14 shrink-0 items-center border-b border-white/5 ${collapsed ? "justify-center px-2" : "gap-2.5 px-3"}`}>
-        <Link href="/dashboard" title="ODIEN SERVICE" className="flex items-center gap-3 overflow-hidden">
+        <Link href={homeForRole(role)} title="ODIEN SERVICE" className="flex items-center gap-3 overflow-hidden">
           <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-teal-500 text-white">
             <Wrench className="size-4" />
           </span>

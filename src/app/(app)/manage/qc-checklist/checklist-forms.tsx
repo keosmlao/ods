@@ -2,7 +2,7 @@
 import type { Option } from "@/app/actions/service-rate";
 import { saveQcItem, toggleQcItem, type QcItemRow } from "@/app/actions/qc-admin";
 import { Button, ErrorBox, inputClass, labelClass } from "@/components/ui";
-import type { Workflow } from "@/lib/commission";
+import type { Workflow } from "@/lib/commission-roles";
 import { Camera, LoaderCircle, Pencil, Plus, Power, PowerOff } from "lucide-react";
 import { useActionState, useState, useTransition } from "react";
 

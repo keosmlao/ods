@@ -1,18 +1,19 @@
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
+import { RowLink } from "@/components/row-link";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { Todo } from "@/components/ui";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
-import { CANCELLED_JOBS, DONE_JOBS, OPEN_JOBS, STAGE_LABEL, STAGE_SQL } from "@/lib/stage";
-import { CheckCircle2, ChevronLeft, ChevronRight, FileBarChart, Search, Wrench, X } from "lucide-react";
+import { OPEN_JOBS, STAGE_LABEL, STAGE_SQL } from "@/lib/stage";
+import { ChevronLeft, ChevronRight, FileBarChart, Search, X } from "lucide-react";
 import Link from "next/link";
 
 /** ods: stock.py /home_stock + templates/stock/index.html (ອອກແບບໃໝ່) */
 
 const PAGE_SIZE = 20;
 
-type Tab = "open" | "done" | "cancelled";
+type Tab = "open";
 type Props = { searchParams: Promise<{ tab?: string; q?: string; code?: string; page?: string; sort?: string; dir?: string }> };
 
 type Product = {
@@ -40,7 +41,14 @@ const SEARCH = `(a.code ilike $Q or a.sn ilike $Q or a.name_1 ilike $Q or a.p_mo
  * ບໍ່ຮູ້ຈັກ "ກຳລັງສ້ອມແປງ" / "ກຳລັງສັ່ງຊື້ອາໄຫຼ່" / "ຍົກເລີກ" ແລະ ຕົກໄປ 'ຈັດສົ່ງສຳເລັດ' ໝົດ.
  * ຢູ່ນີ້ໃຊ້ STAGE_SQL ອັນດຽວກັບໜ້າອື່ນ ຈຶ່ງບໍ່ມີໃບໃດຕົກຫຼົ່ນ ຫຼື ຕິດປ້າຍຜິດ.
  */
-const BUCKET: Record<Tab, string> = { open: OPEN_JOBS, done: DONE_JOBS, cancelled: CANCELLED_JOBS };
+/**
+ * ── ຖອດແທັບ "ສົ່ງຄືນສຳເລັດ" (4,435) ແລະ "ຍົກເລີກ" (570) ອອກ (17-07-2026) ──
+ * ໜ້ານີ້ຄື "ການເຄື່ອນໄຫວສາງສິນຄ້າ" = ເຄື່ອງທີ່**ຢູ່ໃນສາງ**ຕອນນີ້. ເຄື່ອງທີ່ສົ່ງຄືນລູກຄ້າ
+ * ຫຼື ຍົກເລີກໄປແລ້ວ **ບໍ່ຢູ່ໃນສາງ** ⇒ ບໍ່ແມ່ນເລື່ອງຂອງໜ້ານີ້ ແລະ ຄົນສາງບໍ່ໄດ້ໃຊ້.
+ * ຜົນພ່ວງ: ບໍ່ຕ້ອງນັບ 3 ຕົວເລກຂ້າມ 5,000+ ແຖວ ທຸກເທື່ອທີ່ເປີດໜ້າ ⇒ ໄວຂຶ້ນ.
+ * ໃບເກົ່າເບິ່ງໄດ້ຜ່ານ: ຄົ້ນຫາ · /service/<ລະຫັດ> · ລາຍງານ.
+ */
+const BUCKET: Record<Tab, string> = { open: OPEN_JOBS };
 
 /** ຖັນທີ່ຈັດຮຽງໄດ້ — whitelist ກັນ SQL injection */
 const SORT_SQL: Record<string, string> = {
@@ -100,19 +108,6 @@ async function getProducts(tab: Tab, q: string, page: number, sort: string, dir:
 }
 
 /** ນັບຫົວແທັບ — ບໍ່ດຶງແຖວ */
-async function getCounts(q: string) {
-  const params: string[] = [];
-  let search = "true";
-  if (q) { params.push(`%${q}%`); search = SEARCH.replaceAll("$Q", "$1"); }
-
-  const sql = `select count(*) filter (where ${BUCKET.open})::int open_n,
-      count(*) filter (where ${BUCKET.done})::int done_n,
-      count(*) filter (where ${BUCKET.cancelled})::int cancelled_n
-    from tb_product a ${CUSTOMER} where ${search}`;
-  const row = (await query<{ open_n: number; done_n: number; cancelled_n: number }>(sql, params)).rows[0];
-  return { open: row?.open_n ?? 0, done: row?.done_n ?? 0, cancelled: row?.cancelled_n ?? 0 };
-}
-
 /**
  * ໄທມ໌ໄລນ໌ຂອງເຄື່ອງໜຶ່ງໜ່ວຍ.
  * ods ສ້າງ union ຂອງທຸກຂັ້ນຈາກ tb_product ທັງຕາຕະລາງ ແລ້ວຈຶ່ງກັ່ນເອົາລະຫັດດຽວຢູ່ຊັ້ນນອກ
@@ -156,23 +151,20 @@ const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
 
 export default async function StockProductsPage({ searchParams }: Props) {
   const params = await searchParams;
-  const tab: Tab = params.tab === "done" ? "done" : params.tab === "cancelled" ? "cancelled" : "open";
+  const tab: Tab = "open";
   const q = (params.q ?? "").trim();
   const code = (params.code ?? "").trim();
   const page = Math.max(1, Number(params.page) || 1);
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
   const sort = (params.sort ?? "elapsed").trim();
 
-  const [counts, products, movements] = await Promise.all([
-    getCounts(q),
+  const [products, movements] = await Promise.all([
     getProducts(tab, q, page, sort, dir),
     code ? getMovements(code) : Promise.resolve([]),
   ]);
   const pages = Math.max(1, Math.ceil(products.total / PAGE_SIZE));
 
-  const base = () => ({ ...(tab !== "open" && { tab }), ...(q && { q }) });
-  const tabHref = (target: Tab) =>
-    `/stock/products?${new URLSearchParams({ ...(target !== "open" && { tab: target }), ...(q && { q }) })}`;
+  const base = () => ({ ...(q && { q }) });
   const sortHref = (key: string, nextDir: SortDir) =>
     `/stock/products?${new URLSearchParams({ ...base(), sort: key, dir: nextDir, ...(code && { code }) })}`;
   const pageHref = (n: number) =>
@@ -185,12 +177,6 @@ export default async function StockProductsPage({ searchParams }: Props) {
       ...(page > 1 && { page: String(page) }),
       ...(target !== code && { code: target }),
     })}`;
-
-  const TABS: { key: Tab; label: string; icon: typeof Wrench; count: number }[] = [
-    { key: "open", label: "ຢູ່ໃນສາງ", icon: Wrench, count: counts.open },
-    { key: "done", label: "ສົ່ງຄືນສຳເລັດ", icon: CheckCircle2, count: counts.done },
-    { key: "cancelled", label: "ຍົກເລີກ", icon: X, count: counts.cancelled },
-  ];
 
   return (
     <div className="w-full space-y-4">
@@ -213,29 +199,9 @@ export default async function StockProductsPage({ searchParams }: Props) {
         </div>
       </div>
 
-      {/* ແທັບ + ຄົ້ນຫາ */}
+      {/* ຄົ້ນຫາ */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
-        <div className="flex overflow-hidden rounded-lg border border-slate-300">
-          {TABS.map(({ key, label, icon: Icon, count }) => (
-            <Link
-              key={key}
-              href={tabHref(key)}
-              className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              <Icon className="size-3.5" />
-              {label}
-              <span className={`rounded px-1 text-[10px] font-bold ${tab === key ? "bg-white/20" : "bg-slate-100 text-slate-600"}`}>
-                {count.toLocaleString()}
-              </span>
-              <LinkPending className="size-3" />
-            </Link>
-          ))}
-        </div>
-
         <form className="flex flex-1 items-center gap-2">
-          {tab !== "open" && <input type="hidden" name="tab" value={tab} />}
           <input type="hidden" name="sort" value={sort} />
           <input type="hidden" name="dir" value={dir} />
           <div className="flex h-9 min-w-56 flex-1 items-center gap-2 rounded-lg border border-slate-300 px-2.5">
@@ -278,8 +244,9 @@ export default async function StockProductsPage({ searchParams }: Props) {
                 const tone = elapsedTone(product.elapsed_seconds);
                 const selected = product.code === code;
                 return (
-                  <tr
+                  <RowLink
                     key={product.code}
+                    href={`/service/${product.code}`}
                     className={`border-b border-slate-100 ${selected ? "bg-teal-50" : "hover:bg-slate-50"}`}
                   >
                     <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
@@ -332,7 +299,7 @@ export default async function StockProductsPage({ searchParams }: Props) {
                         <LinkPending className="size-3" />
                       </Link>
                     </td>
-                  </tr>
+                  </RowLink>
                 );
               })}
             </tbody>

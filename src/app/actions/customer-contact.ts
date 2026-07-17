@@ -1,5 +1,5 @@
 "use server";
-import { logChange } from "@/app/actions/chatter";
+import { logChange } from "@/lib/chatter-log";
 import { CONTACT_MODEL, contactMark, type ContactKind } from "@/lib/customer-contact";
 import { requireRole } from "@/lib/guard";
 import { SERVICE_SIDE } from "@/lib/roles";

@@ -37,8 +37,16 @@ export type Employee = { code: string; name: string; nickname: string | null };
  * ຊ່າງທຸກຄົນທີ່ **ປາກົດໃນງານຈິງ** (ບໍ່ແມ່ນທຸກຜູ້ໃຊ້) — ພ້ອມຈຳນວນງານ ແລະ ຄູ່ທີ່ເຊື່ອມແລ້ວ.
  * ຮຽງຄົນທີ່ຍັງບໍ່ເຊື່ອມກ່ອນ — ນັ້ນຄືຄົນທີ່ເງິນຈະຕົກຫຼົ່ນ.
  */
+/**
+ * ບົດບາດທີ່ **ຂຽນເອກະສານລົງ ERP** (ໃບຂໍຊື້ · PO · ໃບເບີກ) ⇒ ຕ້ອງມີລະຫັດພະນັກງານ
+ * ບໍ່ດັ່ງນັ້ນໃບໄປລົງ ERP ໂດຍ `creator_code` ຫວ່າງ (ຄົນ ERP ບໍ່ຮູ້ໃຜອອກໃບ).
+ */
+const DOC_WRITER_ROLES = ["manager", "admin", "stock", "headtechnical"];
+
 export async function technicianLinks(): Promise<{ rows: TechRow[]; employees: Employee[] }> {
-  const [techs, links, staff] = await Promise.all([
+  // ຜັງ ຊ່າງ↔ລະຫັດ ERP ເປັນຂໍ້ມູນພາຍໃນ — ໜ້ານີ້ຂອງຜູ້ຈັດການຢູ່ແລ້ວ
+  if (!(await getSession())) return { rows: [], employees: [] };
+  const [techs, writers, links, staff] = await Promise.all([
     query<{ user_code: string; ods_name: string | null; jobs: number }>(
       `select t.code as user_code,
           (select coalesce(nullif(u.name_1,''), u.username) from users u where u.code = t.code) as ods_name,
@@ -52,13 +60,33 @@ export async function technicianLinks(): Promise<{ rows: TechRow[]; employees: E
         ) t
         group by t.code, t.jobs`,
     ),
+    /**
+     * ── ຄົນທີ່ອອກເອກະສານ ERP (17-07-2026) ──
+     * ໜ້ານີ້ເຄີຍລວມແຕ່ **ຊ່າງທີ່ປາກົດໃນງານ** ⇒ ຄົນສາງ/ຈັດຊື້/ຜູ້ຈັດການ (stk · keo …)
+     * **ບໍ່ເຄີຍຂຶ້ນມາໃຫ້ຜູກເລີຍ** ທັງທີ່ໃບຂໍຊື້/PO ຂອງເຂົາຕ້ອງມີຊື່ຜູ້ສ້າງໃນ ERP.
+     * ຂໍ້ມູນຈິງ: 23/42 ຜູ້ໃຊ້ຍັງບໍ່ຜູກ ໃນນັ້ນມີ stk · stkservice · ຜູ້ຈັດການ 5 ຄົນ.
+     */
+    query<{ user_code: string; ods_name: string | null }>(
+      `select u.username as user_code, coalesce(nullif(u.name_1,''), u.username) as ods_name
+         from users u
+        where u.roles = any($1::text[]) and u.username !~ '^[0-9]+$'`,
+      [DOC_WRITER_ROLES],
+    ),
     query<{ user_code: string; employee_code: string }>("select user_code, employee_code from ods_user_employee"),
     queryOdg<Employee>(
+      /**
+       * **ພະນັກງານ ACTIVE ທັງບໍລິສັດ** — ບໍ່ກອງຝ່າຍ.
+       *
+       * ⚠️ ເຄີຍກອງແຕ່ຝ່າຍບໍລິການ (400) ⇒ ຄົນທີ່ອອກເອກະສານແຕ່ຢູ່ຝ່າຍອື່ນ **ບໍ່ມີໃນລາຍຊື່
+       * ໃຫ້ເລືອກເລີຍ** ຈຶ່ງຜູກບໍ່ໄດ້ຕະຫຼອດການ (ຕົວຢ່າງຈິງ: keo = ພູມີພົນ ຂູນວິເສດ 22020
+       * ຢູ່ຝ່າຍ 800 · stk = ພຸດທະສອນ ວໍລະບຸດ 20019 ຢູ່ພະແນກ 501).
+       * ຜູ້ຈັດການເປັນຄົນເລືອກຢູ່ແລ້ວ — ໃຫ້ລາຍຊື່ຄົບດີກວ່າເຊື່ອງຄົນທີ່ຖືກຕ້ອງ.
+       */
       `select employee_code as code,
           coalesce(nullif(fullname_lo,''), employee_code) as name,
           nullif(nickname,'') as nickname
         from odg_employee
-        where employment_status = 'ACTIVE' and division_code = '400'
+        where employment_status = 'ACTIVE'
         order by fullname_lo`,
     ),
   ]);
@@ -73,6 +101,10 @@ export async function technicianLinks(): Promise<{ rows: TechRow[]; employees: E
       ods_name: tech.ods_name ?? current?.ods_name ?? null,
       jobs: (current?.jobs ?? 0) + tech.jobs,
     });
+  }
+  // ຄົນອອກເອກະສານທີ່ບໍ່ມີງານສ້ອມ — ໃສ່ດ້ວຍງານ 0 ເພື່ອໃຫ້ຜູກໄດ້ (ບໍ່ທັບຂໍ້ມູນງານທີ່ມີແລ້ວ)
+  for (const writer of writers.rows) {
+    if (!totals.has(writer.user_code)) totals.set(writer.user_code, { ods_name: writer.ods_name, jobs: 0 });
   }
 
   /**

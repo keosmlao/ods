@@ -19,6 +19,7 @@ export type RqHead = {
   issue: string | null;
   warranty: string | null;
   product_code: string;
+  source_type: "request" | "check";
 };
 
 export type RqLine = {
@@ -38,6 +39,32 @@ const money = (value: string | number) =>
 /** ແຖວອາໄຫຼ່ + ຟອມໃສ່ລາຄາ (ຄື /add_price_rqorder) */
 function PriceRow({ line, index, head }: { line: RqLine; index: number; head: RqHead }) {
   const [state, action, pending] = useActionState(addPriceRqOrder, {});
+
+  if (head.source_type === "check") {
+    return (
+      <tr className="border-b border-slate-100">
+        <td className="px-3 py-2 text-center">{index + 1}</td>
+        <td className="px-3 py-2">{line.item_code}</td>
+        <td className="px-3 py-2">{line.item_name}</td>
+        <td className="px-3 py-2 text-center">{Number(line.qty)}</td>
+        <td className="px-3 py-2 text-center">{line.unit_code}</td>
+        <td className="px-3 py-2 text-right">
+          <input
+            form="purchase-request-form"
+            name={`price_${line.roworder}`}
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={Number(line.price)}
+            required
+            aria-label={`ລາຄາ ${line.item_code}`}
+            className={`${inputClass} h-8 w-28 text-right`}
+          />
+        </td>
+        <td className="px-3 py-2 text-right font-semibold text-slate-400">ຄິດຕອນບັນທຶກ</td>
+      </tr>
+    );
+  }
 
   return (
     <tr className="border-b border-slate-100">
@@ -80,15 +107,21 @@ export function RqForm({ head, lines, docNo, today }: { head: RqHead; lines: RqL
     <div className="w-full space-y-5">
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
 
-      <form action={save} encType="multipart/form-data" className="space-y-5">
+      {/**
+       * ຢ່າໃສ່ `encType`/`method` ເອງ — `action` ເປັນ server action ⇒ React ຕັ້ງ
+       * multipart/form-data ໃຫ້ອັດຕະໂນມັດ (ໄຟລ໌ແນບ `file1` ຈຶ່ງສົ່ງໄດ້ຢູ່ແລ້ວ).
+       * ໃສ່ເອງ = React ເຕືອນ "They will get overridden" ແລ້ວຂຽນທັບຢູ່ດີ.
+       */}
+      <form id="purchase-request-form" action={save} className="space-y-5">
         <input type="hidden" name="doc_ref" value={head.doc_no} />
         <input type="hidden" name="product_code" value={head.product_code} />
         <input type="hidden" name="cust_code" value={head.cust_code ?? ""} />
+        <input type="hidden" name="source_type" value={head.source_type} />
 
         <Card>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="flex gap-2">
-              <Button type="submit" tone="success" disabled={saving}>
+              <Button type="submit" tone="success" disabled={saving || lines.length === 0}>
                 {saving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
                 ບັນທືກ
               </Button>
@@ -110,9 +143,9 @@ export function RqForm({ head, lines, docNo, today }: { head: RqHead; lines: RqL
           </div>
         </Card>
 
-        <Card title="ຂໍ້ມູນໃບຂໍເບີກ">
+        <Card title={head.source_type === "check" ? "ຂໍ້ມູນຈາກຜົນກວດເຊັກ" : "ຂໍ້ມູນໃບຂໍເບີກ"}>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-            <Field label="ເລກທິໃບຂໍເບີກ" value={head.doc_no} />
+            <Field label={head.source_type === "check" ? "ອ້າງອີງຜົນກວດ" : "ເລກທິໃບຂໍເບີກ"} value={head.doc_no} />
             <Field label="ວັນທີ" value={head.doc_date} />
             <Field label="ລູກຄ້າ" value={head.customer} />
             <Field label="ຊື່ສິນຄ້າ" value={head.product} />
@@ -145,6 +178,25 @@ export function RqForm({ head, lines, docNo, today }: { head: RqHead; lines: RqL
                 options={[
                   { value: "Warranty", label: "ຮັບປະກັນ" },
                   { value: "Out of Warranty", label: "ໝົດຮັບປະກັນ" },
+                ]}
+              />
+            </div>
+            {/**
+             * ສາຂາທີ່ຈະສັ່ງຊື້ຜ່ານ — ຄ່າຕົງກັບ erp_branch_list.code ຂອງ ERP.
+             * ແຕ່ກ່ອນລະບົບເດົາເອົາຈາກຂໍ້ມູນສິນຄ້າ (ic_inventory_branch) ແລ້ວແຍກໃບ SPR ຕາມນັ້ນ
+             * ⇒ ຄົນທີ່ຮູ້ວ່າຕົວນີ້ຕ້ອງສັ່ງຜ່ານໄທ ບອກລະບົບບໍ່ໄດ້. ດຽວນີ້ເລືອກເອງ ແລະ
+             * ຄ່ານີ້ຄືຄຳສັ່ງໄປຫາຝ່າຍຈັດຊື້ວ່າໃຫ້ອອກໃບຢູ່ສາຂາໃດໃນ ERP.
+             */}
+            <div>
+              <label className={labelClass}>
+                <span className="text-red-500">*</span> ສັ່ງຊື້ຜ່ານສາຂາ
+              </label>
+              <SelectField
+                name="branch_code"
+                defaultValue="05"
+                options={[
+                  { value: "05", label: "ໂອດ່ຽນໄທ" },
+                  { value: "00", label: "ໂອດ່ຽນ (ສຳນັກງານໃຫ່ຍ)" },
                 ]}
               />
             </div>

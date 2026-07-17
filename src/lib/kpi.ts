@@ -1,5 +1,10 @@
 import { query } from "@/lib/db";
-import { SLA_SQL } from "@/lib/sla";
+import {
+  REPAIR_SERVICE_TYPES,
+  REPAIR_STAGE_OVERDUE_SQL,
+  REPAIR_STAGE_POLICIES,
+  type RepairServiceType,
+} from "@/lib/repair-sla";
 
 /**
  * **KPI ປະສິດທິພາບ — ຕິດຕັ້ງ ແລະ ສ້ອມແປງ.**
@@ -38,7 +43,7 @@ export type FlowKpi = {
   closed: number;
   /** ຍັງດຳເນີນຢູ່ດຽວນີ້ (ບໍ່ອີງໄລຍະ) */
   open_now: number;
-  /** ຄ້າງເກີນກຳນົດ (ຕິດຕັ້ງ: ເລີຍວັນນັດ · ສ້ອມ: ເກີນ SLA ຂອງຂັ້ນກວດເຊັກ) */
+  /** ຄ້າງເກີນກຳນົດ (ຕິດຕັ້ງ: ເລີຍວັນນັດ · ສ້ອມ: ເກີນ SLA ຂອງຂັ້ນປັດຈຸບັນ) */
   overdue: number;
   /** ຊົ່ວໂມງລວມຕໍ່ງານ (median · p90) */
   total: StageTime;
@@ -60,13 +65,64 @@ export type TechKpi = {
   qc_failed: number;
 };
 
+export type RepairSlaCompliance = {
+  stage: number;
+  service_type: RepairServiceType;
+  total: number;
+  within_sla: number;
+  pct: number;
+};
+
+/** ຈຸດເລີ່ມ/ຈົບທີ່ວັດ SLA ຈິງຂອງແຕ່ລະຂັ້ນ. */
+const REPAIR_STAGE_PERIOD: Record<number, { start: string; finish: string }> = {
+  1: { start: "a.time_register", finish: "a.time_check" },
+  2: { start: "a.time_check", finish: "a.time_finish_check" },
+  3: { start: "a.time_finish_check", finish: "a.qt_start" },
+  4: { start: "a.qt_start", finish: "a.qt_finish" },
+  5: { start: "coalesce(a.qt_finish,a.time_finish_check)", finish: "coalesce(a.spare_order,a.spare_reg)" },
+  6: { start: "a.spare_reg", finish: "case when a.spare_order is not null then a.spare_order else a.spare_finish end" },
+  7: { start: "a.spare_order", finish: "a.spare_arrive" },
+  8: { start: "coalesce(a.spare_finish,a.qt_finish,a.time_finish_check)", finish: "a.time_repair" },
+  9: { start: "a.time_repair", finish: "a.time_finish_repair" },
+  10: { start: "a.time_finish_repair", finish: "a.qc_finish" },
+  11: { start: "a.qc_finish", finish: "a.return_complete" },
+};
+
+/** ອັດຕາທີ່ຈົບແຕ່ລະຂັ້ນພາຍໃນ SLA — ແຍກ CI/ST/IH/PS. */
+export async function repairSlaCompliance(days: Period): Promise<RepairSlaCompliance[]> {
+  const branches = REPAIR_STAGE_POLICIES.flatMap((policy) => {
+    const period = REPAIR_STAGE_PERIOD[policy.stage];
+    if (!period) return [];
+    return REPAIR_SERVICE_TYPES.map((serviceType) => {
+      const duration = `extract(epoch from (${period.finish} - ${period.start}))`;
+      return `select ${policy.stage}::int stage, '${serviceType}'::text service_type,
+          count(*)::int total,
+          count(*) filter (where ${duration} between 0 and ${policy.hours[serviceType] * 3600})::int within_sla
+        from tb_product a
+       where a.status <> 6 and a.service_type='${serviceType}'
+         and ${period.start} is not null and ${period.finish} is not null
+         and ${period.finish} >= current_date - ($1::int)`;
+    });
+  });
+
+  const rows = (await query<Omit<RepairSlaCompliance, "pct">>(branches.join(" union all "), [days])).rows;
+  return rows.map((row) => ({
+    ...row,
+    total: Number(row.total),
+    within_sla: Number(row.within_sla),
+    pct: Number(row.total) ? Math.round((Number(row.within_sla) / Number(row.total)) * 1000) / 10 : 0,
+  }));
+}
+
 /**
  * median + p90 ຂອງໄລຍະຫ່າງສອງໂມງ (ຊົ່ວໂມງ) — ອອກ **2 ຖັນ**: `<name>` ແລະ `<name>_p90`.
  * median ບອກ "ງານທຳມະດາໃຊ້ເວລາເທົ່າໃດ" · p90 ບອກ "ງານຊ້າສຸດ 10% ໃຊ້ເວລາເທົ່າໃດ"
  * (ຄ່າສະເລ່ຍຖືກງານທີ່ຄ້າງ 3 ເດືອນ 1 ງານ ດຶງໃຫ້ຜິດຮູບໝົດ).
  */
 const gap = (name: string, from: string, to: string) => {
-  const hours = `extract(epoch from (${to} - ${from}))/3600`;
+  // ຂໍ້ມູນເກົ່າບາງໃບມີ timestamp ກັບລຳດັບ. ຄ່າຕິດລົບບໍ່ແມ່ນເວລາເຮັດວຽກ ຈຶ່ງບໍ່ນຳໄປບິດ median/p90.
+  const hours = `case when ${from} is not null and ${to} is not null and ${to} >= ${from}
+    then extract(epoch from (${to} - ${from}))/3600 end`;
   return `round(percentile_cont(0.5) within group (order by ${hours})::numeric, 1)::float as ${name},
       round(percentile_cont(0.9) within group (order by ${hours})::numeric, 1)::float as ${name}_p90`;
 };
@@ -151,16 +207,22 @@ export async function repairKpi(days: Period): Promise<FlowKpi> {
            where return_complete >= current_date - ($1::int)) as closed,
          (select count(*)::int from tb_product
            where return_complete is null and cancel_start is null) as open_now,
-         -- ເກີນກຳນົດເວລາຂອງຂັ້ນກວດເຊັກ (lib/sla — CI/ST 2 ຊມ · IH/PS 12 ຊມ)
+         -- ເກີນ SLA ຂອງຂັ້ນປັດຈຸບັນ ແລະປະເພດ CI/ST/IH/PS (lib/repair-sla)
          (select count(*)::int from tb_product a
-           where a.time_finish_check is null and a.cancel_start is null
-             and (${SLA_SQL}) is not null
-             and extract(epoch from (localtimestamp - a.time_register)) > (${SLA_SQL})) as overdue,
+           where a.return_complete is null and a.status <> 6
+             and (${REPAIR_STAGE_OVERDUE_SQL})) as overdue,
          t.* from (
         select ${gap("total", "time_register", "return_complete")},
-            ${gap("wait_check", "time_register", "time_check")},
+            ${gap("accept", "time_register", "repair_confirm")},
+            ${gap("start_check", "coalesce(repair_confirm, time_register)", "time_check")},
             ${gap("check_work", "time_check", "time_finish_check")},
-            ${gap("wait_repair", "time_finish_check", "coalesce(time_repair, time_finish_check)")},
+            ${gap("wait_quote", "time_finish_check", "qt_start")},
+            ${gap("quote", "qt_start", "qt_finish")},
+            ${gap("request_spare", "coalesce(qt_finish, time_finish_check)", "coalesce(spare_order,spare_reg)")},
+            ${gap("after_purchase_request", "spare_arrive", "spare_reg")},
+            ${gap("stock", "spare_reg", "coalesce(spare_finish, spare_arrive)")},
+            ${gap("purchase", "spare_order", "spare_arrive")},
+            ${gap("wait_repair", "coalesce(spare_finish, qt_finish, time_finish_check)", "time_repair")},
             ${gap("repair_work", "time_repair", "time_finish_repair")},
             ${gap("qc", "time_finish_repair", "qc_finish")},
             ${gap("handover", "qc_finish", "return_complete")}
@@ -178,9 +240,16 @@ export async function repairKpi(days: Period): Promise<FlowKpi> {
     overdue: Number(row?.overdue ?? 0),
     total: { label: "ລວມທັງໝົດ", median: Number(row?.total ?? 0), p90: Number(row?.total_p90 ?? 0) },
     stages: [
-      { label: "ລໍກວດເຊັກ", median: Number(row?.wait_check ?? 0), p90: Number(row?.wait_check_p90 ?? 0) },
+      { label: "ລໍຊ່າງຮັບງານ", median: Number(row?.accept ?? 0), p90: Number(row?.accept_p90 ?? 0) },
+      { label: "ຮັບງານ → ເລີ່ມກວດ", median: Number(row?.start_check ?? 0), p90: Number(row?.start_check_p90 ?? 0) },
       { label: "ກຳລັງກວດເຊັກ", median: Number(row?.check_work ?? 0), p90: Number(row?.check_work_p90 ?? 0) },
-      { label: "ລໍສ້ອມ (ລາຄາ/ອາໄຫຼ່)", median: Number(row?.wait_repair ?? 0), p90: Number(row?.wait_repair_p90 ?? 0) },
+      { label: "ລໍສ້າງໃບສະເໜີລາຄາ", median: Number(row?.wait_quote ?? 0), p90: Number(row?.wait_quote_p90 ?? 0) },
+      { label: "ຈັດທຳ/ອະນຸມັດລາຄາ", median: Number(row?.quote ?? 0), p90: Number(row?.quote_p90 ?? 0) },
+      { label: "ກວດ Stock / ສ້າງໃບຊື້ຫຼືຂໍເບີກ", median: Number(row?.request_spare ?? 0), p90: Number(row?.request_spare_p90 ?? 0) },
+      { label: "ຮັບເຂົ້າສາງ → ສ້າງໃບຂໍເບີກ", median: Number(row?.after_purchase_request ?? 0), p90: Number(row?.after_purchase_request_p90 ?? 0) },
+      { label: "ສາງຈ່າຍອາໄຫຼ່", median: Number(row?.stock ?? 0), p90: Number(row?.stock_p90 ?? 0) },
+      { label: "ຈັດຊື້/ລໍອາໄຫຼ່ເຂົ້າ", median: Number(row?.purchase ?? 0), p90: Number(row?.purchase_p90 ?? 0) },
+      { label: "ອາໄຫຼ່ພ້ອມ → ເລີ່ມສ້ອມ", median: Number(row?.wait_repair ?? 0), p90: Number(row?.wait_repair_p90 ?? 0) },
       { label: "ກຳລັງສ້ອມ", median: Number(row?.repair_work ?? 0), p90: Number(row?.repair_work_p90 ?? 0) },
       { label: "ລໍກວດຮັບຄຸນນະພາບ", median: Number(row?.qc ?? 0), p90: Number(row?.qc_p90 ?? 0) },
       { label: "ລໍສົ່ງເຄື່ອງ/ຮັບເງິນ", median: Number(row?.handover ?? 0), p90: Number(row?.handover_p90 ?? 0) },

@@ -2,6 +2,7 @@ import { Chatter } from "@/components/chatter/chatter";
 import { CheckForm, type BasketLine, type CheckHead } from "@/components/checking/check-form";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { canViewAssignedJob } from "@/lib/scope";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -31,6 +32,7 @@ export default async function CheckingDetail({ params }: Props) {
     )
   ).rows[0];
   if (!head) notFound();
+  if (!canViewAssignedJob(session, head.technician)) redirect("/forbidden");
 
   // ກະຕ່າອາໄຫຼ່ຂອງຜູ້ໃຊ້ຄົນນີ້ ສຳລັບເຄື່ອງໜ່ວຍນີ້
   const lines = (

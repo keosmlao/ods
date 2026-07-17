@@ -3,6 +3,8 @@ import { elapsedTone } from "@/lib/elapsed-tone";
 import type { BoardCard } from "@/components/service-board";
 import { STAGES } from "@/components/service-board";
 import { SortHeader, type SortDir } from "@/components/sort-header";
+import { HoldButtons } from "@/components/repair/hold-buttons";
+import { RemarkCell } from "@/components/service/remark-cell";
 import { ServiceDeleteButton } from "@/components/service/service-delete-button";
 import { Pencil, Printer } from "lucide-react";
 import Link from "next/link";
@@ -28,6 +30,7 @@ const COLUMNS: { key: PendingSort; label: string; defaultDir: SortDir }[] = [
 export function ServicePendingTable({
   canUpdate = false,
   canDelete = false,
+  canHold = false,
   cards,
   sort,
   dir,
@@ -36,6 +39,11 @@ export function ServicePendingTable({
   canUpdate?: boolean;
   /** ຜູ້ຈັດການເທົ່ານັ້ນ — ປຸ່ມລຶບຍ້ອນຄືນບໍ່ໄດ້ */
   canDelete?: boolean;
+  /**
+   * ຫົວໜ້າ/ຜູ້ມີສິດອະນຸມັດເທົ່ານັ້ນ — ທຸງ "ມີບັນຫາ" **ຢຸດນາລິກາ KPI**
+   * ⇒ ຖ້າໃຜກໍ່ໝາຍໄດ້ ມັນຈະກາຍເປັນບ່ອນລີ້ຄວາມຊັກຊ້າ (server ກວດຊ້ຳຢູ່ດີ).
+   */
+  canHold?: boolean;
   cards: BoardCard[];
   sort: string;
   dir: SortDir;
@@ -52,7 +60,7 @@ export function ServicePendingTable({
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1280px] border-collapse text-sm">
+        <table className="w-full min-w-[1480px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
               {COLUMNS.map((column) => (
@@ -68,6 +76,9 @@ export function ServicePendingTable({
                 />
               ))}
               <th className="whitespace-nowrap px-3 py-3 font-semibold">ປະກັນ</th>
+              {/* ໝາຍເຫດ — ຂຽນໄດ້ຢູ່ນີ້ເລີຍ (ບໍ່ຕ້ອງເປີດເຂົ້າໃບ) */}
+              <th className="whitespace-nowrap px-3 py-3 font-semibold">ໝາຍເຫດ</th>
+              {canHold && <th className="whitespace-nowrap px-3 py-3 font-semibold">ບັນຫາ</th>}
               <th className="px-3 py-3" />
             </tr>
           </thead>
@@ -90,6 +101,8 @@ export function ServicePendingTable({
                       seconds={card.stage_seconds}
                       className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${tone.chip}`}
                     />
+                    {/* ນາລິກາຢຸດຢູ່ ⇒ ຕ້ອງບອກ ບໍ່ດັ່ງນັ້ນຄົນອ່ານເລກນີ້ຜິດ */}
+                    {card.hold && <b className="mt-0.5 block text-[10px] text-amber-600">ນາລິກາຢຸດ</b>}
                   </td>
                   <td className="max-w-72 px-3 py-3">
                     <span className="block truncate font-medium text-slate-800" title={card.product ?? ""}>
@@ -112,6 +125,16 @@ export function ServicePendingTable({
                       {card.warranty || "-"}
                     </span>
                   </td>
+                  {/* ໝາຍເຫດ — ກົດພິມໄດ້ເລີຍ (ສິດດຽວກັບການແກ້ໃບ · server ກວດຊ້ຳ) */}
+                  <td className="w-56 min-w-44 px-3 py-3">
+                    <RemarkCell code={card.code} value={card.remark ?? null} canEdit={canUpdate} />
+                  </td>
+                  {/* ໝາຍວ່າມີບັນຫາ — ວຽກຄາຢູ່ຂັ້ນດຽວດ້ວຍເຫດຜົນທີ່ຄິວແກ້ບໍ່ໄດ້ */}
+                  {canHold && (
+                    <td className="whitespace-nowrap px-3 py-3">
+                      <HoldButtons key={card.hold ? "held" : "free"} code={card.code} hold={card.hold ?? null} />
+                    </td>
+                  )}
                   <td className="whitespace-nowrap px-3 py-3">
                     <div className="flex items-center gap-2.5">
                       <Link

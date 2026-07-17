@@ -1,3 +1,18 @@
+import { holdSinceSql } from "@/lib/job-hold";
+
+/**
+ * ສະວິດ "ໝາຍວຽກມີບັນຫາ" ເປີດຢູ່ບໍ່ — **ຖາມໃນ SQL** ບໍ່ແມ່ນ await ຢູ່ TypeScript.
+ *
+ * ເປັນຫຍັງ: `STAGE_ELAPSED_SQL` ເປັນ string ຄົງທີ່ ທີ່ 7 ໄຟລ໌ເອົາໄປແປະໃນ query ຂອງໃຜລາວ
+ * ⇒ ຖ້າໃຫ້ມັນຮັບ argument ຕ້ອງແກ້ 7 ບ່ອນ ແລະ ມີບ່ອນລືມແນ່ນອນ. ຖາມໃນ SQL ແທນ
+ * ⇒ ນິຍາມຢູ່ບ່ອນດຽວ ແລະ **ທຸກບ່ອນຖືກຕ້ອງພ້ອມກັນສະເໝີ**. ຕາຕະລາງ 1 ແຖວ ຫາດ້ວຍ PK.
+ *
+ * ⚠️ ຝັງ key/ຄ່າຕັ້ງຕົ້ນເປັນ literal ບໍ່ import ຈາກ lib/settings — ໄຟລ໌ນີ້ຖືກ import
+ * ໂດຍ client component (STAGE_LABEL) ⇒ import settings (→ pg) ຈະພັງ build.
+ * key ຕ້ອງຕົງກັບ `SETTING.JOB_HOLD` · ຄ່າຕັ້ງຕົ້ນ 'on' ຕົງກັບ `fallback:true` ໃນ lib/settings.
+ */
+const HOLD_ENABLED_SQL = `coalesce((select s.value from ods_setting s where s.key = 'job_hold_enabled'), 'on') <> 'off'`;
+
 /**
  * ຂັ້ນຕອນຂອງໃບຮັບເຄື່ອງສ້ອມ (tb_product) — ຄິດຈາກຖັນເວລາໂດຍກົງ.
  *
@@ -15,8 +30,8 @@
  * ເດີມຂັ້ນ 7 ອອກໄດ້ດ້ວຍ spare_order_finish ເທົ່ານັ້ນ ແຕ່ຖັນນັ້ນເປັນ `time` (ບໍ່ມີວັນທີ)
  * ແລະ **ບໍ່ມີ code ບ່ອນໃດຂຽນມັນເລີຍ** (505 ໃບມີ spare_order, ມີແຕ່ 2 ໃບທີ່ມີ spare_order_finish)
  * ⇒ ວຽກຄ້າງຢູ່ຂັ້ນ 7 ຕະຫຼອດ (27 ໃບ, ເກົ່າສຸດ 225 ມື້) ຈົນກວ່າສາງຈະເບີກອາໄຫຼ່ໃຫ້.
- * ດຽວນີ້ສາງກົດ "ອາໄຫຼ່ມາຮອດແລ້ວ" (/stock/arrivals) → ຂຽນ spare_arrive (timestamp)
- * ⇒ ວຽກຕົກລົງຂັ້ນ 6 (ກຳລັງເບີກອາໄຫຼ່) ແລ້ວໄປໂຜ່ຢູ່ /stock/dispatch ຕາມປົກກະຕິ.
+ * ດຽວນີ້ ERP ຮັບເຂົ້າ → ຂຽນ spare_arrive (timestamp) → ກັບຂັ້ນ 5 ເພື່ອສ້າງ SIO
+ * ແລ້ວຈຶ່ງໄປຂັ້ນ 6 (ສາງຈ່າຍ). ບໍ່ມີ SIO ກ່ອນສັ່ງຊື້ອີກ.
  * ຍັງນັບ spare_order_finish ຄືເກົ່າ ຈຶ່ງບໍ່ມີໃບເກົ່າໃບໃດປ່ຽນຂັ້ນ.
  */
 
@@ -27,6 +42,18 @@
  * ຂັ້ນ 10/11 ເກົ່າ ເລື່ອນເປັນ 11/12. ງານທີ່ QC ຍັງບໍ່ຜ່ານ ອອກໃບຮັບເງິນ/ສົ່ງຄືນບໍ່ໄດ້.
  */
 export const STAGE_SQL = `case
+  -- ── ຍົກເລີກ = **ທຸງ ບໍ່ແມ່ນຂັ້ນ** (17-07-2026) ─────────────────────────────
+  -- ເມື່ອກ່ອນ status=6 ຢູ່ບັນທັດທຳອິດ ⇒ ງານທີ່ຍົກເລີກ **ຫຼົບອອກຈາກທຸກຄິວທັນທີ**
+  -- ທັງທີ່ **ເຄື່ອງຂອງລູກຄ້າຍັງນອນຢູ່ຮ້ານ** ແລະ ຍັງຕ້ອງອອກໃບຄືນເຄື່ອງ + ເກັບຄ່າກວດ.
+  -- ຂໍ້ມູນຈິງ: **570 ໜ່ວຍ** ຍົກເລີກແລ້ວແຕ່ບໍ່ເຄີຍສົ່ງຄືນ (ເກົ່າສຸດ 925 ມື້) ແລະ
+  -- ງານຍົກເລີກ **ຈັກໜ່ວຍກໍ່ບໍ່ເຄີຍ**ຖືກໝາຍວ່າສົ່ງຄືນ (0 ໃບ) — ບໍ່ມີຄິວໃດເຝົ້າມັນເລີຍ.
+  -- ດຽວນີ້: **ອະນຸມັດຍົກເລີກແລ້ວ + ເຄື່ອງຍັງຢູ່** ⇒ ເຂົ້າຄິວ **ລໍຖ້າສົ່ງຄືນ (11)**
+  -- ຄືກັບງານທີ່ສ້ອມສຳເລັດ — ບ່ອນອອກໃບຄືນເຄື່ອງ ແລະ ເກັບຄ່າກວດ (261 ໜ່ວຍ).
+  -- ⚠️ ຍັງ**ບໍ່ທັນອະນຸມັດ**ການຍົກເລີກ (cancel_finish ຫວ່າງ · 309 ໜ່ວຍ) ຍັງເປັນ -1 ຄືເກົ່າ —
+  -- ມັນຢູ່ຄິວ /approvals/cancellations ຍັງບໍ່ຕົກລົງວ່າຈະຍົກເລີກ ຈຶ່ງຍັງບໍ່ຄືນເຄື່ອງ.
+  -- ຄວາມເປັນ "ຍົກເລີກ" ຍັງອ່ານໄດ້ຈາກ status=6 (CANCELLED_JOBS) ⇒ ໜ້າຈໍຕິດປ້າຍໄດ້ ບໍ່ຕ້ອງເບິ່ງຂັ້ນ.
+  when a.status = 6 and a.cancel_finish is not null
+       and a.return_complete is null                           then 11
   when a.status = 6                                            then -1
   when a.return_complete is not null                           then 12
   when a.time_finish_repair is not null
@@ -38,11 +65,12 @@ export const STAGE_SQL = `case
   when a.warrunty = 'ໝົດຮັບປະກັນ' and a.qt_start is null
        and a.qt_finish is null                                 then 3
   when a.warrunty = 'ໝົດຮັບປະກັນ' and a.qt_finish is null      then 4
-  when coalesce(a.used_spare,0) = 1 and a.spare_reg is null    then 5
-  when coalesce(a.used_spare,0) = 1 and a.spare_finish is null
-       and a.spare_order is not null
+  -- ຖ້າ stock ບໍ່ພໍ: ສັ່ງຊື້/ຮັບເຂົ້າກ່ອນ SIO. ກວດ stage 7 ກ່ອນ stage 5
+  -- ເພາະໃນ workflow ໃໝ່ spare_reg ຍັງເປັນ null ຕະຫຼອດຊ່ວງສັ່ງຊື້.
+  when coalesce(a.used_spare,0) = 1 and a.spare_order is not null
        and a.spare_order_finish is null
        and a.spare_arrive is null                              then 7
+  when coalesce(a.used_spare,0) = 1 and a.spare_reg is null    then 5
   when coalesce(a.used_spare,0) = 1 and a.spare_finish is null then 6
   else 8
 end`;
@@ -53,13 +81,13 @@ export const STAGE_LABEL: Record<number, string> = {
   2: "ກຳລັງກວດເຊັກ",
   3: "ລໍຖ້າສະເໜີລາຄາ",
   4: "ກຳລັງສະເໜີລາຄາ",
-  5: "ລໍຖ້າຂໍເບີກອາໄຫຼ່",
+  5: "ກວດ Stock / ດຳເນີນອາໄຫຼ່",
   6: "ກຳລັງເບີກອາໄຫຼ່",
   7: "ກຳລັງສັ່ງຊື້ອາໄຫຼ່",
   8: "ລໍຖ້າສ້ອມແປງ",
   9: "ກຳລັງສ້ອມແປງ",
   10: "ລໍກວດຮັບຄຸນນະພາບ",
-  11: "ລໍຖ້າສົ່ງຄືນ",
+  11: "ລໍຖ້າສົ່ງຄືນ",  // ລວມງານທີ່ຍົກເລີກແຕ່ເຄື່ອງຍັງຢູ່ຮ້ານ — ເບິ່ງໝາຍເຫດຢູ່ STAGE_SQL
   12: "ສົ່ງຄືນສຳເລັດ",
 };
 
@@ -72,9 +100,23 @@ export const STAGE_LABEL_SQL = `case (${STAGE_SQL})
 ${Object.entries(STAGE_LABEL).map(([stage, label]) => `  when ${stage} then '${label}'`).join("\n")}
   else '-' end`;
 
-/** ເງື່ອນໄຂ 3 ກຸ່ມໃຫຍ່ — ລວມກັນແລ້ວໄດ້ທຸກແຖວຂອງ tb_product ພໍດີ */
-export const OPEN_JOBS = "a.status <> 6 and a.return_complete is null";
-export const DONE_JOBS = "a.status <> 6 and a.return_complete is not null";
+/**
+ * ── ນິຍາມ "ວຽກຄ້າງ" (17-07-2026) ──
+ * **ຄ້າງ = ທຸກໃບ ຍົກເວັ້ນສົ່ງຄືນສຳເລັດ.** ບໍ່ໄດ້ຕັດໃບຍົກເລີກອອກອີກຕໍ່ໄປ.
+ *
+ * ແຕ່ກ່ອນ `status <> 6` ຕັດໃບຍົກເລີກອອກໝົດ ⇒ ເຄື່ອງທີ່ຍົກເລີກແລ້ວ **ແຕ່ຍັງຢູ່ຮ້ານ**
+ * ຫາຍອອກຈາກທຸກຕົວເລກ ທັງທີ່ຍັງເປັນວຽກ: ຍັງຕ້ອງອອກໃບຄືນເຄື່ອງ ແລະ ເກັບເງິນ.
+ * ງານຈົບເມື່ອ**ເຄື່ອງອອກຈາກຮ້ານ** ບໍ່ແມ່ນເມື່ອກົດຍົກເລີກ.
+ *
+ * ⚠️ ຕອນປ່ຽນນິຍາມ ມີໃບຍົກເລີກເກົ່າ 570 ໃບທີ່ບໍ່ເຄີຍຖືກໝາຍຄືນ (ເກົ່າສຸດ 1,397 ມື້)
+ * ຖືກປິດດ້ວຍ migrations/2026-07-17-close-cancelled-returns.sql (ໃສ່ວັນທີ່ຍົກເລີກຈິງ)
+ * ບໍ່ດັ່ງນັ້ນວຽກຄ້າງຈະເດັ້ງຈາກ 103 ເປັນ 673 ໃບໃນວັນດຽວ ໂດຍບໍ່ມີວຽກເພີ່ມແທ້ໆ.
+ *
+ * 3 ກຸ່ມນີ້ **ບໍ່ຕັດກັນພໍດີອີກຕໍ່ໄປ**: ໃບຍົກເລີກທີ່ຍັງບໍ່ຄືນ ຢູ່ທັງ OPEN_JOBS ແລະ
+ * CANCELLED_JOBS (ຕັ້ງໃຈ — ມັນຄ້າງຢູ່ ແລະ ມັນຖືກຍົກເລີກ ພ້ອມກັນ).
+ */
+export const OPEN_JOBS = "a.return_complete is null";
+export const DONE_JOBS = "a.return_complete is not null";
 export const CANCELLED_JOBS = "a.status = 6";
 
 /**
@@ -89,13 +131,15 @@ export const CANCELLED_JOBS = "a.status = 6";
  */
 export const STAGE_TIME_COL = `case (${STAGE_SQL})
   when 12 then a.return_complete
-  when 11 then a.qc_finish
+  -- ຂັ້ນ 11 ມີ 2 ທາງເຂົ້າ: ສ້ອມສຳເລັດຜ່ານ QC (qc_finish) · ຫຼື ຍົກເລີກແລ້ວເຄື່ອງຍັງຢູ່
+  -- (qc_finish = null, ໃຫ້ນັບແຕ່ວັນອະນຸມັດຍົກເລີກ) — ບໍ່ດັ່ງນັ້ນ elapsed = NULL ອາຍຸ blank
+  when 11 then coalesce(a.qc_finish, a.cancel_finish, a.cancel_start)
   when 10 then a.time_finish_repair
   when 9  then a.time_repair
   when 8  then coalesce(a.spare_finish, a.qt_finish, a.time_finish_check)
   when 7  then a.spare_order
   when 6  then coalesce(a.spare_arrive, a.spare_reg)
-  when 5  then coalesce(a.qt_finish, a.time_finish_check)
+  when 5  then coalesce(a.spare_arrive, a.qt_finish, a.time_finish_check)
   when 4  then coalesce(a.qt_start, a.time_finish_check)
   when 3  then a.time_finish_check
   when 2  then a.time_check
@@ -103,5 +147,20 @@ export const STAGE_TIME_COL = `case (${STAGE_SQL})
   else a.time_register
 end`;
 
-/** ວິນາທີທີ່ຄ້າງຢູ່ຂັ້ນປັດຈຸບັນ (ບໍ່ແມ່ນ "ຕັ້ງແຕ່ເປີດງານ") */
-export const STAGE_ELAPSED_SQL = `greatest(0, round(extract(epoch from (localtimestamp - (${STAGE_TIME_COL})))))::int`;
+/**
+ * ວິນາທີທີ່ຄ້າງຢູ່ຂັ້ນປັດຈຸບັນ (ບໍ່ແມ່ນ "ຕັ້ງແຕ່ເປີດງານ").
+ *
+ * ── ນາລິກາ **ຢຸດ** ຕອນວຽກຖືກໝາຍວ່າ "ມີບັນຫາ" (17-07-2026) ──
+ * ນັບເຖິງ `coalesce(ເວລາທີ່ໝາຍທຸງ, ດຽວນີ້)` ⇒ ໝາຍທຸງແລ້ວເວລາຢຸດຢູ່ຈຸດນັ້ນ,
+ * ປົດທຸງແລ້ວເດີນຕໍ່. ເປັນຫຍັງ: ວຽກທີ່ລໍອາໄຫຼ່ນອກ 300 ມື້ ບໍ່ແມ່ນຄວາມຊັກຊ້າຂອງຄົນ
+ * ⇒ ປ່ອຍໃຫ້ນາລິກາເດີນ ຕົວເລກ SLA/ຄໍຂວດຈະຖືກມັນກົບໄວ້ຈົນອ່ານບໍ່ອອກ.
+ * ⚠️ ຢຸດ**ນາລິກາ**ເທົ່ານັ້ນ — ວຽກຍັງຢູ່ຂັ້ນເດີມ ແລະ ຍັງນັບເປັນວຽກຄ້າງ (OPEN_JOBS)
+ * ບໍ່ດັ່ງນັ້ນຈະກາຍເປັນ "ຫຼົບອອກຈາກຄິວ" ຄືບັກຂອງໃບຍົກເລີກ.
+ * ຖ້າທຸງເກົ່າກວ່າເວລາເຂົ້າຂັ້ນ (ໝາຍໄວ້ຕັ້ງແຕ່ຂັ້ນກ່ອນ) ຈະໄດ້ຄ່າລົບ → greatest(0,…) = 0.
+ *
+ * ⚙️ ຜູ້ຈັດການ**ປິດສະວິດ**ໄດ້ (/manage/settings) ⇒ ນາລິກາເດີນປົກກະຕິທຸກວຽກ
+ * ເຖິງວ່າຈະມີທຸງເກົ່າຄ້າງຢູ່ (ທຸງບໍ່ຖືກລຶບ — ເປີດຄືນແລ້ວໄດ້ຄືເກົ່າ).
+ */
+export const STAGE_ELAPSED_SQL = `greatest(0, round(extract(epoch from (
+  coalesce(case when ${HOLD_ENABLED_SQL} then ${holdSinceSql("repair")} end, localtimestamp) - (${STAGE_TIME_COL})
+))))::int`;

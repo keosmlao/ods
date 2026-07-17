@@ -16,8 +16,8 @@ export function StartRepairButton({ code }: { code: string }) {
       {dialog}
       <Button
         tone="primary"
+        size="sm"
         disabled={pending}
-        className="h-8 px-3 text-xs"
         onClick={async () => {
           const ok = await ask({
             title: "ເລີ່ມສ້ອມແປງ?",
@@ -43,10 +43,19 @@ export function StartRepairButton({ code }: { code: string }) {
  * ປຸ່ມ "ຍົກເລີກເລີ່ມສ້ອມແປງ" — ກົດຜິດໃບ ໃຫ້ຖອນຄືນໄດ້.
  * ວຽກກັບໄປ "ລໍຖ້າສ້ອມແປງ" ໂດຍ **ບໍ່** ແຕະອາໄຫຼ່ ຫຼື ໃບເບີກໃດເລີຍ.
  */
-export function UndoStartRepairButton({ code, variant }: { code: string; variant?: "button" | "icon" }) {
+export function UndoStartRepairButton({
+  code,
+  variant,
+  buttonLabel,
+}: {
+  code: string;
+  variant?: "button" | "icon";
+  buttonLabel?: string;
+}) {
   return (
     <UndoButton
       variant={variant}
+      buttonLabel={buttonLabel}
       label="ຍົກເລີກເລີ່ມສ້ອມແປງ"
       title="ຍົກເລີກ ເລີ່ມສ້ອມແປງ?"
       message={
@@ -64,12 +73,21 @@ export function UndoStartRepairButton({ code, variant }: { code: string; variant
  * ປຸ່ມ "ຍົກເລີກ ຈົບການສ້ອມແປງ" — ດຶງວຽກທີ່ກົດຈົບໄວເກີນກັບມາສ້ອມຕໍ່.
  * server ປະຕິເສດ ຖ້າສົ່ງຄືນລູກຄ້າແລ້ວ ຫຼື ອອກໃບຮັບເງິນແລ້ວ.
  */
-export function UndoFinishRepairButton({ code, variant }: { code: string; variant?: "button" | "icon" }) {
+export function UndoFinishRepairButton({
+  code,
+  variant,
+  buttonLabel,
+}: {
+  code: string;
+  variant?: "button" | "icon";
+  buttonLabel?: string;
+}) {
   return (
     <UndoButton
       variant={variant}
-      label="ຍົກເລີກ ຈົບການສ້ອມແປງ"
-      title="ຍົກເລີກ ຈົບການສ້ອມແປງ?"
+      buttonLabel={buttonLabel}
+      label="ຍົກເລີກສຳເລັດການສ້ອມແປງ"
+      title="ຍົກເລີກສຳເລັດການສ້ອມແປງ?"
       message={
         <>
           ໃບຮັບເຄື່ອງ <b className="text-slate-700">#{code}</b> ຈະຖືກດຶງອອກຈາກ &quot;ລໍຖ້າສົ່ງຄືນ&quot; ກັບມາ

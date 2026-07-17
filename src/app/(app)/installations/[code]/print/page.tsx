@@ -1,6 +1,8 @@
+import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { canViewAssignedJob } from "@/lib/scope";
 import { feedbackUrl } from "@/lib/track";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import QRCode from "qrcode";
 
 /** ຖອດແບບຈາກ ods: /install_print/<id> (bill.py) + templates/install_print.html */
@@ -11,6 +13,8 @@ type Row = Record<string, string | null>;
 type Company = Record<string, string | null>;
 
 export default async function InstallPrint({ params }: Props) {
+  const session = await getSession();
+  if (!session) redirect("/login");
   const { code } = await params;
 
   const [job, company] = await Promise.all([
@@ -31,6 +35,7 @@ export default async function InstallPrint({ params }: Props) {
 
   const x = job.rows[0];
   if (!x) notFound();
+  if (!canViewAssignedJob(session, x.tech_code)) redirect("/forbidden");
   const co = company.rows[0];
 
   /**

@@ -1,10 +1,13 @@
 import { syncErpReturns } from "@/lib/erp-dispatch";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
+import { RowLink } from "@/components/row-link";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { Todo } from "@/components/ui";
+import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { ownJobsOnly } from "@/lib/scope";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import { Activity, Ban, ChevronLeft, ChevronRight, FileBarChart, PackageOpen, Undo2 } from "lucide-react";
 import Link from "next/link";
@@ -142,7 +145,7 @@ const DOC_AT = "coalesce(a.create_date_time_now, a.doc_date::timestamp)";
 /** ເອກະສານ (ແທັບ "ລາຍການເບີກອາໄຫຼ່" ແລະ "ຂໍສົ່ງຄືນແລ້ວ") */
 type DocTab = Exclude<Tab, "movements">;
 
-async function getDocs(tab: DocTab, q: string, job: string, page: number, sort: string, dir: SortDir) {
+async function getDocs(tab: DocTab, q: string, job: string, page: number, sort: string, dir: SortDir, tech: string | null) {
   const params: (string | number)[] = canRequest(tab)
     ? [TRANS.DISPATCH, LINE_STATUS.PENDING]
     : [TRANS.DISPATCH, LINE_STATUS.RETURN_REQUESTED];
@@ -154,6 +157,15 @@ async function getDocs(tab: DocTab, q: string, job: string, page: number, sort: 
   // ງານສ້ອມແປງ = job_type ວ່າງ · ງານຕິດຕັ້ງ = 'install'
   if (job === "install") where.push("a.job_type = 'install'");
   else if (job === "repair") where.push("coalesce(a.job_type,'') <> 'install'");
+  if (tech) {
+    params.push(tech);
+    const p = `$${params.length}`;
+    where.push(
+      job === "install"
+        ? `exists (select 1 from ods_tb_install own where own.code = a.product_code and own.tech_code = ${p})`
+        : `exists (select 1 from tb_product own where own.code = a.product_code and own.emp_code = ${p})`,
+    );
+  }
   const filter = where.join(" and ");
 
   const column = DOC_SORT[sort] ?? "at_col";
@@ -176,9 +188,10 @@ async function getDocs(tab: DocTab, q: string, job: string, page: number, sort: 
 }
 
 /** ການເຄື່ອນໃຫວອາໄຫຼ່ຂອງແຕ່ລະເຄື່ອງ (tb_product.used_spare = 1) */
-async function getMovements(q: string, page: number, sort: string, dir: SortDir) {
+async function getMovements(q: string, page: number, sort: string, dir: SortDir, tech: string | null) {
   const params: (string | number)[] = [];
   const where = ["a.used_spare = 1"];
+  if (tech) { params.push(tech); where.push(`a.emp_code = $${params.length}`); }
   if (q) { params.push(`%${q}%`); where.push(MOVE_SEARCH.replaceAll("$Q", `$${params.length}`)); }
   const filter = where.join(" and ");
 
@@ -205,24 +218,28 @@ async function getMovements(q: string, page: number, sort: string, dir: SortDir)
 }
 
 /** ນັບຫົວແທັບ — ບໍ່ດຶງແຖວ */
-async function getCounts(job: "install" | "repair") {
+async function getCounts(job: "install" | "repair", tech: string | null) {
   const jobSql = job === "install" ? "a.job_type = 'install'" : "coalesce(a.job_type,'') <> 'install'";
-  const docSql = `select count(*) filter (where ${DISPATCHED_SQL} and ${jobSql})::int dispatched,
-      count(*) filter (where ${DISPATCHED_SQL} and ${CANCELLED_JOB_SQL} and ${jobSql})::int cancelled,
-      count(*) filter (where ${requestedSql("$3")} and ${jobSql})::int requested
+  const ownerSql = !tech
+    ? "true"
+    : job === "install"
+      ? "exists (select 1 from ods_tb_install own where own.code = a.product_code and own.tech_code = $4)"
+      : "exists (select 1 from tb_product own where own.code = a.product_code and own.emp_code = $4)";
+  const docSql = `select count(*) filter (where ${DISPATCHED_SQL} and ${jobSql} and ${ownerSql})::int dispatched,
+      count(*) filter (where ${DISPATCHED_SQL} and ${CANCELLED_JOB_SQL} and ${jobSql} and ${ownerSql})::int cancelled,
+      count(*) filter (where ${requestedSql("$3")} and ${jobSql} and ${ownerSql})::int requested
     from ic_trans a`;
   // ການເຄື່ອນໄຫວອ່ານຈາກ tb_product ຈຶ່ງເປັນສາຍສ້ອມແປງເທົ່ານັ້ນ
   const moveSql = job === "repair"
-    ? "select count(*)::int total from tb_product a where a.used_spare = 1"
+    ? `select count(*)::int total from tb_product a where a.used_spare = 1 ${tech ? "and a.emp_code = $1" : ""}`
     : "select 0::int total";
 
   const [docs, moves] = await Promise.all([
-    query<{ dispatched: number; cancelled: number; requested: number }>(docSql, [
-      TRANS.DISPATCH,
-      LINE_STATUS.PENDING,
-      LINE_STATUS.RETURN_REQUESTED,
-    ]),
-    query<{ total: number }>(moveSql),
+    query<{ dispatched: number; cancelled: number; requested: number }>(
+      docSql,
+      [TRANS.DISPATCH, LINE_STATUS.PENDING, LINE_STATUS.RETURN_REQUESTED, ...(tech ? [tech] : [])],
+    ),
+    query<{ total: number }>(moveSql, tech && job === "repair" ? [tech] : []),
   ]);
   return {
     dispatched: docs.rows[0]?.dispatched ?? 0,
@@ -270,6 +287,7 @@ function JobBadge({ jobType }: { jobType: string | null }) {
 export default async function StockReturnsPage({ searchParams }: Props) {
   // ດຶງໃບຮັບຄືນຈາກ ERP ກ່ອນ ⇒ ຄິວທີ່ເຫັນເປັນຄວາມຈິງລ້າສຸດ
   await syncErpReturns();
+  const tech = ownJobsOnly(await getSession());
 
   const params = await searchParams;
   // ໜ້າສ້ອມແປງເປັນຄ່າເລີ່ມຕົ້ນ; ງານຕິດຕັ້ງຕ້ອງເຂົ້າດ້ວຍ job=install
@@ -289,8 +307,8 @@ export default async function StockReturnsPage({ searchParams }: Props) {
   const sort = (params.sort ?? "elapsed").trim();
 
   const [counts, list] = await Promise.all([
-    getCounts(job),
-    tab === "movements" ? getMovements(q, page, sort, dir) : getDocs(tab, q, job, page, sort, dir),
+    getCounts(job, tech),
+    tab === "movements" ? getMovements(q, page, sort, dir, tech) : getDocs(tab, q, job, page, sort, dir, tech),
   ]);
   const pages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
 
@@ -329,7 +347,7 @@ export default async function StockReturnsPage({ searchParams }: Props) {
             ສົ່ງຄືນອາໄຫຼ່ ({job === "install" ? "ຕິດຕັ້ງ" : "ສ້ອມແປງ"})
           </h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            ໃບຂໍສົ່ງອາໄຫຼ່ · {list.total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+            ໃບຂໍສົ່ງອາໄຫຼ່ · {tech ? "ສະເພາະງານຂອງທ່ານ · " : ""}{list.total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
           </p>
         </div>
         <Todo className="h-9 px-3 text-xs">
@@ -402,7 +420,7 @@ export default async function StockReturnsPage({ searchParams }: Props) {
                   // ເບີກແລ້ວ = ຢຸດຈັບເວລາ (ບໍ່ຕ້ອງເຕືອນສີ) · ຍັງບໍ່ເບີກ = ນັບຕໍ່ ແລະ ເຕືອນຕາມເວລາ
                   const tone = done ? { chip: "bg-slate-100 text-slate-500", bar: "" } : elapsedTone(row.elapsed_seconds);
                   return (
-                    <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
+                    <RowLink key={row.code} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="max-w-64 px-3 py-2.5">
                         <Link href={`/service/${row.code}`} className="block truncate font-medium text-[#0536a9] hover:underline" title={row.name_1 ?? ""}>
                           {row.name_1 || "-"}
@@ -440,7 +458,7 @@ export default async function StockReturnsPage({ searchParams }: Props) {
                           {row.status_name}
                         </span>
                       </td>
-                    </tr>
+                    </RowLink>
                   );
                 })}
               </tbody>

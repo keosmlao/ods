@@ -15,3 +15,9 @@ import type { Session } from "@/lib/auth";
 export function ownJobsOnly(session: Session | null): string | null {
   return session?.role === "technical" ? session.username : null;
 }
+
+/** ກວດໜ້າ detail: ຊ່າງເປີດໄດ້ສະເພາະ record ທີ່ assigned ໃຫ້ຕົນ. */
+export function canViewAssignedJob(session: Session | null, assignedTo: string | null | undefined): boolean {
+  const owner = ownJobsOnly(session);
+  return owner === null || (assignedTo ?? "").trim().toLowerCase() === owner.trim().toLowerCase();
+}

@@ -93,6 +93,12 @@ export function permissionFromOverrides(
     return { read: allowed, create: allowed, update: allowed, delete: allowed };
   }
 
+  /**
+   * ຊ່າງມີ hard ceiling ຕາມ TECH_SIDE: permission override ເກົ່າຫ້າມເປີດ dashboard/
+   * ໜ້າຈັດການລວມກັບຄືນ. ສິດລາຍ user ຍັງປິດເມນູຊ່າງໄດ້ຕາມປົກກະຕິ.
+   */
+  if (roleOf(session) === "technical" && !canAccess("technical", resource)) return EMPTY;
+
   const assigned = overrides.get(resource);
   if (assigned) return assigned;
 

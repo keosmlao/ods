@@ -2,8 +2,10 @@ import { savePickSpare } from "@/app/actions/installation";
 import { DocSaveForm } from "@/components/installation/doc-save-form";
 import { JOB_HEAD_COLUMNS, JobHeader, type JobHead } from "@/components/installation/job-header";
 import { Card, Empty, PageTitle, Table } from "@/components/ui";
+import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { notFound } from "next/navigation";
+import { canViewAssignedJob } from "@/lib/scope";
+import { notFound, redirect } from "next/navigation";
 
 /** ຖອດແບບຈາກ ods: /pick_spare/<id> + /save_pick_spare (tech_reg_install.py) */
 export const dynamic = "force-dynamic";
@@ -13,6 +15,8 @@ type Line = { rnum: string; item_code: string; item_name: string; qty: string; u
 
 export default async function PickSpareDetail({ params }: Props) {
   const docNo = decodeURIComponent((await params).docNo);
+  const session = await getSession();
+  if (!session) redirect("/login");
 
   const doc = await query<{ product_code: string }>(
     "select product_code from ic_trans where doc_no=$1 and trans_flag=56 and job_type='install' limit 1",
@@ -41,6 +45,7 @@ export default async function PickSpareDetail({ params }: Props) {
   ]);
 
   if (!head.rows[0]) notFound();
+  if (!canViewAssignedJob(session, head.rows[0].tech_code)) redirect("/forbidden");
   const today = new Date().toISOString().slice(0, 10);
 
   return (

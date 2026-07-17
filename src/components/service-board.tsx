@@ -1,25 +1,39 @@
 import { Elapsed } from "@/components/elapsed";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import type { JobHold } from "@/lib/job-hold";
+import { STAGE_LABEL } from "@/lib/stage";
 import { Pencil, Printer } from "lucide-react";
 import Link from "next/link";
 
-/** 10 ຂັ້ນຂອງວຽກທີ່ຍັງຄ້າງ — ຕາມ STAGE_SQL (src/lib/stage.ts) */
-export const STAGES = [
-  { id: 1, label: "ລໍຖ້າກວດເຊັກ", accent: "bg-slate-400" },
-  { id: 2, label: "ກຳລັງກວດເຊັກ", accent: "bg-sky-500" },
-  { id: 3, label: "ລໍຖ້າສະເໜີລາຄາ", accent: "bg-slate-400" },
-  { id: 4, label: "ກຳລັງສະເໜີລາຄາ", accent: "bg-sky-500" },
-  { id: 5, label: "ລໍຖ້າເບີກອາໄຫຼ່", accent: "bg-slate-400" },
-  { id: 6, label: "ກຳລັງເບີກອາໄຫຼ່", accent: "bg-sky-500" },
-  { id: 7, label: "ກຳລັງສັ່ງຊື້ອາໄຫຼ່", accent: "bg-violet-500" },
-  { id: 8, label: "ລໍຖ້າສ້ອມແປງ", accent: "bg-slate-400" },
-  { id: 9, label: "ກຳລັງສ້ອມແປງ", accent: "bg-amber-500" },
-  { id: 10, label: "ລໍຖ້າສົ່ງຄືນ", accent: "bg-emerald-500" },
-] as const;
+/**
+ * ຂັ້ນຂອງວຽກທີ່ຍັງຄ້າງ (1..11) — **ປ້າຍດຶງຈາກ `STAGE_LABEL` ບ່ອນດຽວ**, ບ່ອນນີ້ຖືແຕ່ສີ.
+ *
+ * ແຕ່ກ່ອນພິມປ້າຍໄວ້ນີ້ເອງ ⇒ ພໍເພີ່ມຂັ້ນ QC ເລກເລື່ອນ ແຕ່ບ່ອນນີ້ບໍ່ໄດ້ເລື່ອນນຳ:
+ * ງານທີ່ລໍກວດ QC ຂຶ້ນວ່າ "ລໍຖ້າສົ່ງຄືນ" ແລະ ຂັ້ນ 11 ຫຼົ່ນອອກຈາກທັງກະດານ ແລະ ຕົວກອງ.
+ */
+const ACCENT: Record<number, string> = {
+  1: "bg-slate-400",
+  2: "bg-sky-500",
+  3: "bg-slate-400",
+  4: "bg-sky-500",
+  5: "bg-slate-400",
+  6: "bg-sky-500",
+  7: "bg-violet-500",
+  8: "bg-slate-400",
+  9: "bg-amber-500",
+  10: "bg-teal-500",
+  11: "bg-emerald-500",
+};
+
+export const STAGES = Object.entries(ACCENT).map(([stage, accent]) => ({
+  id: Number(stage),
+  label: STAGE_LABEL[Number(stage)],
+  accent,
+}));
 
 export type BoardCard = {
   code: string;
-  /** ຂັ້ນຂອງວຽກ 1..10 (ຈາກ STAGE_SQL) */
+  /** ຂັ້ນຂອງວຽກ 1..11 (ຈາກ STAGE_SQL) */
   stage: number;
   customer: string | null;
   product: string | null;
@@ -31,6 +45,10 @@ export type BoardCard = {
   creator: string | null;
   /** ວິນາທີທີ່ຄ້າງຢູ່ຂັ້ນນີ້ — ໜ້າຈໍນັບຕໍ່ເອງທຸກວິນາທີ */
   stage_seconds: number | null;
+  /** ໝາຍເຫດ (tb_product.remark) — ແກ້ໄດ້ໃນຕາຕະລາງ ບໍ່ຕ້ອງເປີດໃບ */
+  remark?: string | null;
+  /** ທຸງ "ມີບັນຫາ" ທີ່ເປີດຢູ່ — null = ປົກກະຕິ (ເບິ່ງ src/lib/job-hold.ts) */
+  hold?: JobHold | null;
 };
 
 function Card({ card }: { card: BoardCard }) {

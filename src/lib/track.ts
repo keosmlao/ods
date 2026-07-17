@@ -23,11 +23,17 @@ export type TrackJob = {
   registered: string | null;
   returned: string | null;
   stage: number;
+  /** ຍົກເລີກ = ທຸງ (status=6) — ອາດຍັງຢູ່ຂັ້ນ "ລໍຖ້າສົ່ງຄືນ" ເພາະເຄື່ອງຍັງບໍ່ຄືນລູກຄ້າ */
+  cancelled: boolean;
 };
 
 /** ຄຳອະທິບາຍຂັ້ນຕໍ່ໄປ ໃນພາສາລູກຄ້າ (ບໍ່ແມ່ນພາສາພາຍໃນ) */
+/** ຂໍ້ຄວາມພິເສດຂອງງານທີ່ **ຍົກເລີກ** — ຂຶ້ນກ່ອນຂໍ້ຄວາມຕາມຂັ້ນ (ທຸງຊະນະຂັ້ນ) */
+export const CANCELLED_TEXT = "ໃບຮັບເຄື່ອງນີ້ຖືກຍົກເລີກ";
+export const CANCELLED_NEXT = "ກະລຸນາຕິດຕໍ່ສູນບໍລິການເພື່ອຮັບເຄື່ອງຄືນ";
+
 export const NEXT_STEP: Record<number, string> = {
-  [-1]: "ໃບຮັບເຄື່ອງນີ້ຖືກຍົກເລີກ — ກະລຸນາຕິດຕໍ່ສູນບໍລິການ",
+  [-1]: "ໃບຮັບເຄື່ອງນີ້ຖືກຍົກເລີກ ແລະ ຮັບເຄື່ອງຄືນແລ້ວ",
   1: "ຊ່າງຈະເລີ່ມກວດເຊັກເຄື່ອງຂອງທ່ານ",
   2: "ລໍຖ້າຜົນການກວດເຊັກຈາກຊ່າງ",
   3: "ທາງສູນຈະແຈ້ງລາຄາສ້ອມແປງໃຫ້ທ່ານພິຈາລະນາ",
@@ -70,7 +76,8 @@ export const stepOfStage = (stage: number) => STEP_OF_STAGE[stage] ?? 0;
 const SELECT = `select a.code, a.name_1 as product, a.p_brand as brand, a.p_model as model, a.sn,
     to_char(a.time_register,'DD-MM-YYYY') as registered,
     to_char(a.return_complete,'DD-MM-YYYY') as returned,
-    ${STAGE_SQL} as stage
+    ${STAGE_SQL} as stage,
+    (a.status = 6) as cancelled
   from tb_product a`;
 
 /** ຄົ້ນດ້ວຍເລກທີໃບຮັບເຄື່ອງ — ໃຊ້ index idx_tb_product_code (ຄົ້ນຄັ້ງດຽວ, ບໍ່ scan) */

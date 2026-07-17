@@ -12,7 +12,7 @@ import { useState, useTransition } from "react";
  *              ເພື່ອໃຫ້ຜູ້ຮັບຜິດຊອບເຫັນທາງອອກ 2 ທາງຢ່າງຊັດເຈນ:
  *              ແກ້ໄຂແລ້ວສົ່ງອະນຸມັດຄືນ · ຫຼື ລຶບຖິ້ມແລ້ວອອກໃບໃໝ່
  */
-type Props = { docNo: string; variant?: "compact" | "rejected" };
+type Props = { docNo: string; variant?: "compact" | "rejected" | "cancel" };
 
 export function QuoteRowActions({ docNo, variant = "compact" }: Props) {
   const [pending, startTransition] = useTransition();
@@ -70,6 +70,24 @@ export function QuoteRowActions({ docNo, variant = "compact" }: Props) {
             ລຶບ
           </button>
         </div>
+        {error && <span className="text-[10px] font-medium text-red-600">{error}</span>}
+      </div>
+    );
+  }
+
+  if (variant === "cancel") {
+    return (
+      <div className="flex flex-col items-center gap-1">
+        {dialog}
+        <button
+          type="button"
+          disabled={pending}
+          onClick={remove}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+        >
+          {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+          ຍົກເລີກການສະເໜີລາຄາ
+        </button>
         {error && <span className="text-[10px] font-medium text-red-600">{error}</span>}
       </div>
     );

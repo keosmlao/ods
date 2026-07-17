@@ -4,9 +4,10 @@ import { Card, Empty, ErrorBox, PageTitle, Table } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { docPrefix } from "@/lib/doc-no";
+import { canViewAssignedJob } from "@/lib/scope";
 import { TRANS } from "@/lib/stock-constants";
 import { Trash2 } from "lucide-react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 /** ods: stock.py /return_req_check + /show_return_req/<doc_no> + templates/stock/return_req_page.html */
 
@@ -43,6 +44,7 @@ async function previewDocNo() {
 
 export default async function ReturnRequestPage({ params }: Props) {
   const session = await getSession();
+  if (!session) redirect("/login");
   const { docNo } = await params;
   const code = decodeURIComponent(docNo);
 
@@ -58,6 +60,7 @@ export default async function ReturnRequestPage({ params }: Props) {
   );
   const bill = head.rows[0];
   if (!bill) notFound();
+  if (!canViewAssignedJob(session, bill.technician)) redirect("/forbidden");
 
   const draft = await query<DraftLine>(
     `select row_number() over (order by roworder)::int rnum, item_code, item_name, qty, unit_code, roworder

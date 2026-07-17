@@ -76,7 +76,7 @@ export function ServiceForm({
   /** ພິກັດໜ້າງານ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງໄດ້ຈາກແອັບ */
   const [point, setPoint] = useState<Point | null>(null);
 
-  /** IH ສ້ອມບ້ານລູກຄ້າ · PS ໄປຮັບບ້ານລູກຄ້າ ⇒ ຊ່າງອອກໜ້າງານ (ນິຍາມດຽວກັບ lib/sla) */
+  /** IH ສ້ອມບ້ານລູກຄ້າ · PS ໄປຮັບເຄື່ອງຈາກບ້ານມາສ້ອມຢູ່ສູນ ⇒ ຊ່າງອອກໜ້າງານ (ນິຍາມດຽວກັບ lib/sla) */
   const onsite = ONSITE_SERVICE_TYPES.includes(serviceType as "IH" | "PS");
 
   const suggestion = warrantyFromBill(billDate);
@@ -375,7 +375,7 @@ export function ServiceForm({
                   onChange={setServiceType}
                   options={[
                     { value: "CI", label: "ລູກຄ້ານຳເຄື່ອງເຂົ້າ" },
-                    { value: "PS", label: "ໄປຮັບບ້ານລູກຄ້າ" },
+                    { value: "PS", label: "ໄປຮັບເຄື່ອງທີ່ບ້ານລູກຄ້າມາສ້ອມຢູ່ສູນ" },
                     { value: "IH", label: "ສ້ອມບ້ານລູກຄ້າ" },
                     { value: "ST", label: "ສ້ອມເຄື່ອງໃນສາງ" },
                   ]}

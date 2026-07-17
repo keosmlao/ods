@@ -1,4 +1,4 @@
-import { getOutstandingSpares, groupByDoc } from "@/app/(app)/approvals/cancellations/outstanding";
+import { getOutstandingSpares, groupByDoc } from "@/lib/outstanding-spares";
 import { OutstandingSpares } from "@/app/(app)/approvals/cancellations/outstanding-spares";
 import { getApprovedQuote, getCart, getQuoteLines, getRates, seedCart } from "@/app/actions/return";
 import { Chatter } from "@/components/chatter/chatter";
@@ -100,7 +100,9 @@ export default async function ReturnDetailPage({ params }: { params: Promise<{ c
 
   return (
     <div className="w-full space-y-5">
-      <PageTitle sub={cancelled ? "ສົ່ງຄືນໂດຍບໍ່ສ້ອມ · ໃບຮັບເງິນ" : "ໃບຮັບເງິນ"}>ລະລະອຽດໃບເບີກ</PageTitle>
+      {waitingApproval && (
+        <PageTitle sub="ສົ່ງຄືນໂດຍບໍ່ສ້ອມ · ໃບຮັບເງິນ">ລາຍລະອຽດໃບເບີກ</PageTitle>
+      )}
 
       {cancelled && !waitingApproval && (
         <>

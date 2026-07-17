@@ -1,4 +1,4 @@
-import { logChange } from "@/app/actions/chatter";
+import { logChange } from "@/lib/chatter-log";
 import type { Session } from "@/lib/auth";
 import type { Workflow } from "@/lib/commission";
 import { query } from "@/lib/db";
@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { roleOf } from "@/lib/roles";
 import { INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { STAGE_SQL } from "@/lib/stage";
+import { TRANS } from "@/lib/stock-constants";
 import type { PoolClient } from "pg";
 
 /**
@@ -333,6 +334,34 @@ export async function startRepairFlow(
   return { ok: true, message: `ເລີ່ມສ້ອມແປງ ${code}` };
 }
 
+/**
+ * ອາໄຫຼ່ຂອງວຽກຕ້ອງ **ຮັບຄົບກ່ອນ** ຈຶ່ງບັນທຶກ "ສ້ອມແປງສຳເລັດ" ໄດ້.
+ *
+ * ແຕ່ກ່ອນເປັນແຕ່ຄຳເຕືອນຢູ່ໜ້າຈໍ ⇒ ຊ່າງກົດຈົບໄດ້ທັງທີ່ອາໄຫຼ່ບໍ່ເຄີຍຖືກຂໍເບີກ/ເບີກອອກສາງ
+ * → ວຽກປິດແລ້ວ ແຕ່ບັນຊີສາງບໍ່ຕົງກັບຂອງຈິງ ແລະ ບໍ່ມີໃຜກັບມາແກ້ອີກ.
+ * ທຸກສະຖານະທີ່ຕິດຢູ່ນີ້ມີໜ້າສຳລັບແກ້ສະເໝີ (ຂໍເບີກ / ສາງເບີກ / ຮັບອາໄຫຼ່)
+ * ຫຼື ລຶບແຖວທີ່ບໍ່ໄດ້ໃຊ້ຈິງອອກຈາກໜ້າສ້ອມແປງ.
+ */
+async function pendingSpareBlocker(code: string): Promise<string | null> {
+  const onDoc = (flag: number) => `exists (select 1 from ic_trans_detail d
+      where d.product_code = s.product_code and d.item_code = s.item_code and d.trans_flag = ${flag})`;
+  const row = (
+    await query<{ waiting: number; not_requested: number; not_issued: number }>(
+      `select count(*) filter (where s.pick_finish is null)::int waiting,
+          count(*) filter (where s.pick_finish is null and not ${onDoc(TRANS.REQUEST)})::int not_requested,
+          count(*) filter (where s.pick_finish is null and not ${onDoc(TRANS.DISPATCH)})::int not_issued
+        from tb_used_spare s where s.product_code = $1`,
+      [code],
+    )
+  ).rows[0];
+  if (!row?.waiting) return null;
+  if (row.not_requested)
+    return `ຍັງມີອາໄຫຼ່ ${row.not_requested} ລາຍການທີ່ບໍ່ໄດ້ສ້າງໃບຂໍເບີກ — ຕ້ອງຂໍເບີກ ແລະ ຮັບອາໄຫຼ່ໃຫ້ຄົບກ່ອນ ຈຶ່ງບັນທຶກສ້ອມແປງສຳເລັດໄດ້ (ຖ້າບໍ່ໄດ້ໃຊ້ຈິງ ໃຫ້ລຶບອອກຈາກລາຍການ)`;
+  if (row.not_issued)
+    return `ສາງຍັງບໍ່ທັນເບີກອາໄຫຼ່ອອກໃຫ້ ${row.not_issued} ລາຍການ — ລໍຖ້າສາງເບີກອອກ ແລະ ຮັບອາໄຫຼ່ກ່ອນ ຈຶ່ງບັນທຶກສ້ອມແປງສຳເລັດໄດ້`;
+  return `ຍັງມີອາໄຫຼ່ ${row.waiting} ລາຍການທີ່ຍັງບໍ່ໄດ້ກົດຮັບ — ໄປຢືນຢັນຮັບອາໄຫຼ່ທີ່ໜ້າ "ຮັບອາໄຫຼ່" ກ່ອນ ຈຶ່ງບັນທຶກສ້ອມແປງສຳເລັດໄດ້`;
+}
+
 export async function finishRepairFlow(
   session: Session,
   code: string,
@@ -344,6 +373,10 @@ export async function finishRepairFlow(
   if (own.job?.onsite && photos.filter(Boolean).length === 0) {
     return { ok: false, error: "ງານສ້ອມນອກສະຖານທີ່ຕ້ອງມີຮູບຜົນງານຢ່າງໜ້ອຍ 1 ຮູບ" };
   }
+
+  // ບໍ່ຖືກຂັ້ນຕອນ = ບໍ່ໃຫ້ຈົບ — ໃຊ້ທັງເວັບ ແລະ ແອັບມືຖື ເພາະຢູ່ flow ດຽວກັນ
+  const blocker = await pendingSpareBlocker(code);
+  if (blocker) return { ok: false, error: blocker };
 
   // ຂັ້ນ 9 = ກຳລັງສ້ອມແປງ ເທົ່ານັ້ນ
   if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };

@@ -1,4 +1,4 @@
-import { logChange } from "@/app/actions/chatter";
+import { logChange } from "@/lib/chatter-log";
 import { query } from "@/lib/db";
 import { pushToUser } from "@/lib/push";
 

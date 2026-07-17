@@ -1,7 +1,9 @@
 import { Card, Empty, PageTitle, Table } from "@/components/ui";
+import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { canViewAssignedJob } from "@/lib/scope";
 import { TRANS } from "@/lib/stock-constants";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PickupForm } from "./pickup-form";
 
 /** ຊ່າງຮັບອາໄຫຼ່ຕາມໃບເບີກ (SWC) ໃບນຶ່ງ — ຄູ່ກັບ /installations/spare-pickup/[docNo] ຂອງງານຕິດຕັ້ງ */
@@ -46,6 +48,8 @@ function Info({ label, value }: { label: string; value: string | null }) {
 
 export default async function SparePickupDetail({ params }: Props) {
   const docNo = decodeURIComponent((await params).docNo);
+  const session = await getSession();
+  if (!session) redirect("/login");
 
   const head = (
     await query<Head>(
@@ -63,6 +67,7 @@ export default async function SparePickupDetail({ params }: Props) {
     )
   ).rows[0];
   if (!head) notFound();
+  if (!canViewAssignedJob(session, head.technician)) redirect("/forbidden");
 
   const lines = (
     await query<Line>(

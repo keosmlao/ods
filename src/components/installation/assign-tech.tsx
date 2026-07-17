@@ -31,6 +31,8 @@ export type AssignRow = {
   location_inst: string | null;
   appoint_date: string | null;
   remark: string | null;
+  /** ຊ່າງປັດຈຸບັນ — ມີຄ່າ = ນີ້ແມ່ນ "ປ່ຽນຊ່າງ" ⇒ ຕ້ອງໃສ່ເຫດຜົນ */
+  technician?: string | null;
 };
 
 /**
@@ -57,11 +59,17 @@ export function AssignTechButton({
   row,
   techs,
   workflow = "install",
+  label = "ເລືອກຊ່າງ",
+  size = "md",
 }: {
   row: AssignRow;
   techs: Technician[];
   workflow?: Workflow;
+  label?: string;
+  size?: "sm" | "md";
 }) {
+  // ມີຊ່າງຢູ່ແລ້ວ ⇒ ນີ້ແມ່ນ "ປ່ຽນຊ່າງ" ⇒ ບັງຄັບໃສ່ເຫດຜົນ
+  const changing = Boolean(row.technician);
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
@@ -101,24 +109,32 @@ export function AssignTechButton({
   const shown = techs.filter((item) => `${item.name} ${item.code}`.toLowerCase().includes(q.trim().toLowerCase()));
   const chosen = tech ? load[tech] : undefined;
 
+  const openModal = () => {
+    setError("");
+    setTech("");
+    setQ("");
+    setDay(row.appoint_date ?? isoDate(0));
+    setOpen(true);
+  };
+
   return (
     <>
-      <Button
-        type="button"
-        tone="primary"
-        onClick={() => {
-          setError("");
-          setTech("");
-          setQ("");
-          setDay(row.appoint_date ?? isoDate(0));
-          setOpen(true);
-        }}
-      >
-        ເລືອກຊ່າງ
-      </Button>
+      {size === "sm" ? (
+        <button
+          type="button"
+          onClick={openModal}
+          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white transition hover:bg-teal-700"
+        >
+          {label}
+        </button>
+      ) : (
+        <Button type="button" tone="primary" onClick={openModal}>
+          {label}
+        </Button>
+      )}
 
       {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4">
+        <div data-no-nav className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4">
           <form
             action={submit}
             className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
@@ -278,6 +294,22 @@ export function AssignTechButton({
                   className={inputClass}
                 />
               </div>
+
+              {/* ປ່ຽນຊ່າງ (ມີຄົນເກົ່າຢູ່ແລ້ວ) ⇒ ຕ້ອງບອກເຫດຜົນ ເກັບໄວ້ໃນປະຫວັດ */}
+              {changing && (
+                <div>
+                  <label className={labelClass}>
+                    <TriangleAlert className="mr-1 inline size-3.5 text-amber-500" />
+                    ເຫດຜົນການປ່ຽນຊ່າງ *
+                  </label>
+                  <input
+                    name="reason"
+                    required
+                    placeholder="ຍ້ອນຫຍັງຈຶ່ງປ່ຽນຊ່າງ (ຊ່າງລາພັກ, ຕິດງານ, ລູກຄ້າຂໍ...)"
+                    className={inputClass}
+                  />
+                </div>
+              )}
             </div>
 
             <footer className="flex items-center gap-2 border-t border-slate-100 bg-slate-50 p-3">

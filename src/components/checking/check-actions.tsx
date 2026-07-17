@@ -18,8 +18,8 @@ export function StartCheckButton({ code }: { code: string }) {
       <div className="flex flex-col items-start gap-1">
         <Button
           tone="primary"
+          size="sm"
           disabled={pending}
-          className="h-8 px-3 text-xs"
           onClick={async () => {
             const ok = await ask({
               title: "ເລີ່ມກວດເຊັກ?",
@@ -57,10 +57,19 @@ export function StartCheckButton({ code }: { code: string }) {
  * ປຸ່ມ "ຍົກເລີກເລີ່ມກວດເຊັກ" — ກົດ "ເລີ່ມກວດເຊັກ" ຜິດໃບ ໃຫ້ຖອນຄືນໄດ້.
  * ວຽກກັບໄປແທັບ "ລໍຖ້າກວດເຊັກ". ກົດເກນຈິງກວດຢູ່ server (undoStartCheck).
  */
-export function UndoStartCheckButton({ code, variant }: { code: string; variant?: "button" | "icon" }) {
+export function UndoStartCheckButton({
+  code,
+  variant,
+  buttonLabel,
+}: {
+  code: string;
+  variant?: "button" | "icon";
+  buttonLabel?: string;
+}) {
   return (
     <UndoButton
       variant={variant}
+      buttonLabel={buttonLabel}
       label="ຍົກເລີກເລີ່ມກວດເຊັກ"
       title="ຍົກເລີກ ເລີ່ມກວດເຊັກ?"
       message={
@@ -79,12 +88,21 @@ export function UndoStartCheckButton({ code, variant }: { code: string; variant?
  * server ຈະປະຕິເສດ ຖ້າວຽກຍ້າຍໄປຂັ້ນຕໍ່ໄປແລ້ວ (ໃບຂໍເບີກ / ໃບເບີກ / ໃບສະເໜີລາຄາ /
  * ເລີ່ມສ້ອມແປງ / ໃບຮັບເງິນ / ສົ່ງຄືນແລ້ວ) ພ້ອມບອກເລກທີເອກະສານທີ່ກີດຂວາງ.
  */
-export function CancelCheckButton({ code, variant }: { code: string; variant?: "button" | "icon" }) {
+export function CancelCheckButton({
+  code,
+  variant,
+  buttonLabel,
+}: {
+  code: string;
+  variant?: "button" | "icon";
+  buttonLabel?: string;
+}) {
   return (
     <UndoButton
       variant={variant}
-      label="ຍົກເລີກຜົນກວດເຊັກ"
-      title="ຍົກເລີກຜົນກວດເຊັກ?"
+      buttonLabel={buttonLabel}
+      label="ຍົກເລີກສຳເລັດການກວດເຊັກ"
+      title="ຍົກເລີກສຳເລັດການກວດເຊັກ?"
       message={
         <>
           ຜົນກວດເຊັກຂອງໃບ <b className="text-slate-700">#{code}</b> (ອາການທີ່ຊ່າງວິເຄາະ ແລະ ອາໄຫຼ່ທີ່ເລືອກ) ຈະຖືກລ້າງ

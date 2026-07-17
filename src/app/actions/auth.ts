@@ -1,6 +1,7 @@
 "use server";
 import { clearSession, createSession } from "@/lib/auth";
 import { verifyCredentials } from "@/lib/credentials";
+import { homeForRole, roleOf } from "@/lib/roles";
 import { redirect } from "next/navigation";
 
 type LoginState = { error?: string };
@@ -18,7 +19,7 @@ export async function loginAction(_: LoginState, formData: FormData): Promise<Lo
     const result = await verifyCredentials(username, password);
     if (!result.ok) return { error: result.error };
     await createSession(result.session);
-    redirect("/dashboard");
+    redirect(homeForRole(roleOf(result.session)));
   } catch (error) {
     // redirect() ຂອງ Next ໂຍນ error ພິເສດອອກມາ — ຕ້ອງປ່ອຍຜ່ານ ບໍ່ແມ່ນຈັບໄວ້
     if (error && typeof error === "object" && "digest" in error) throw error;

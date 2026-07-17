@@ -1,5 +1,4 @@
 import { technicianLinks } from "@/app/actions/user-link";
-import { Card, Empty, PageTitle, Table } from "@/components/ui";
 import { AlertTriangle } from "lucide-react";
 import { LinkRow } from "./link-form";
 
@@ -20,10 +19,13 @@ export default async function TechnicianLinkPage() {
   const unlinked = rows.filter((row) => !row.employee_code).length;
 
   return (
-    <div className="w-full space-y-5">
-      <PageTitle sub="ຈັບຄູ່ຊື່ຜູ້ໃຊ້ໃນງານ ກັບ ພະນັກງານ ERP — ຕັດສິນວ່າຄ່າຄອມເຂົ້າບັນຊີໃຜ">
-        ເຊື່ອມຕົວຕົນຊ່າງ
-      </PageTitle>
+    <div className="w-full space-y-4">
+      <div>
+        <h1 className="text-xl font-bold text-slate-700">ເຊື່ອມຕົວຕົນຊ່າງ</h1>
+        <p className="mt-0.5 text-xs text-slate-500">
+          ຈັບຄູ່ຊື່ຜູ້ໃຊ້ໃນງານ ກັບ ພະນັກງານ ERP — ຕັດສິນວ່າຄ່າຄອມເຂົ້າບັນຊີໃຜ · {rows.length} ລາຍການ
+        </p>
+      </div>
 
       {unlinked > 0 && (
         <p className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-800">
@@ -36,17 +38,26 @@ export default async function TechnicianLinkPage() {
         </p>
       )}
 
-      <Card title={`ຊ່າງທີ່ປາກົດໃນງານ (${rows.length})`}>
-        {rows.length === 0 ? (
-          <Empty>ບໍ່ມີຊ່າງໃນງານ</Empty>
-        ) : (
-          <Table head={["ຊື່ໃນງານ", "ຈຳນວນງານ", "ພະນັກງານ ERP"]} minWidth={760}>
-            {rows.map((row) => (
-              <LinkRow key={row.user_code} row={row} employees={employees} />
-            ))}
-          </Table>
-        )}
-      </Card>
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-xs" style={{ minWidth: 760 }}>
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຊື່ໃນງານ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຈຳນວນງານ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ພະນັກງານ ERP</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <LinkRow key={row.user_code} row={row} employees={employees} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {rows.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ມີຊ່າງໃນງານ</p>}
+      </section>
     </div>
   );
 }

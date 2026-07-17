@@ -1,5 +1,6 @@
 "use server";
 
+import { getSession } from "@/lib/auth";
 import { db, query } from "@/lib/db";
 import { requirePermission } from "@/lib/guard";
 import { SERVICE_SIDE } from "@/lib/roles";
@@ -41,6 +42,7 @@ function readForm(formData: FormData) {
 
 /** ລະຫັດລູກຄ້າຕໍ່ໄປ — ຄື addcust() ແຕ່ກັນລະຫັດທີ່ບໍ່ແມ່ນຕົວເລກເຮັດໃຫ້ code::int ພັງ */
 export async function nextCustomerCode() {
+  if (!(await getSession())) return "";
   const r = await query<{ code: string }>(
     "select coalesce(max(code::int),0)+1 code from ar_customer where code ~ '^[0-9]+$'",
   );

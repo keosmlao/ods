@@ -9,7 +9,8 @@ import {
 } from "@/app/actions/service-rate";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Button, ErrorBox, inputClass } from "@/components/ui";
-import { ROLE_LABEL, type Workflow } from "@/lib/commission";
+// ⚠️ ຢ່າ import ຈາກ lib/commission — ມັນດຶງ `pg` ເຂົ້າ browser ແລ້ວ build ພັງ
+import { ROLE_LABEL, type Workflow } from "@/lib/commission-roles";
 import { LoaderCircle, Plus, Trash2 } from "lucide-react";
 import { useActionState, useState, useTransition } from "react";
 
@@ -27,7 +28,7 @@ const SERVICE_TYPES: Option[] = [
   { code: "CI", name: "ລູກຄ້ານຳເຄື່ອງເຂົ້າ" },
   { code: "ST", name: "ສ້ອມເຄື່ອງໃນສາງ" },
   { code: "IH", name: "ສ້ອມບ້ານລູກຄ້າ" },
-  { code: "PS", name: "ໄປຮັບບ້ານລູກຄ້າ" },
+  { code: "PS", name: "ໄປຮັບເຄື່ອງທີ່ບ້ານລູກຄ້າມາສ້ອມຢູ່ສູນ" },
 ];
 
 function Select({

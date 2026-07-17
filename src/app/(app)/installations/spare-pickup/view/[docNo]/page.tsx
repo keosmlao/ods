@@ -1,7 +1,9 @@
 import { JOB_HEAD_COLUMNS, JobHeader, type JobHead } from "@/components/installation/job-header";
 import { Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
+import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { notFound } from "next/navigation";
+import { canViewAssignedJob } from "@/lib/scope";
+import { notFound, redirect } from "next/navigation";
 
 /** ຖອດແບບຈາກ ods: /view_rc_spare/<id> (tech_reg_install.py) */
 export const dynamic = "force-dynamic";
@@ -10,6 +12,8 @@ type Props = { params: Promise<{ docNo: string }> };
 type Line = { rnum: string; item_code: string; item_name: string; qty: string; unit_code: string | null };
 
 export default async function ViewPickSpare({ params }: Props) {
+  const session = await getSession();
+  if (!session) redirect("/login");
   const docNo = decodeURIComponent((await params).docNo);
 
   const doc = await query<{ product_code: string; doc_ref: string | null; doc_date: string | null }>(
@@ -36,6 +40,7 @@ export default async function ViewPickSpare({ params }: Props) {
   ]);
 
   if (!head.rows[0]) notFound();
+  if (!canViewAssignedJob(session, head.rows[0].tech_code)) redirect("/forbidden");
 
   return (
     <div className="w-full space-y-5">

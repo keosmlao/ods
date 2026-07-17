@@ -1,15 +1,17 @@
 import { Chatter } from "@/components/chatter/chatter";
+import { getSession } from "@/lib/auth";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import { previousJobOf, REPEAT_DAYS } from "@/lib/repeat";
+import { canViewAssignedJob } from "@/lib/scope";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { STAGE_LABEL, STAGE_SQL } from "@/lib/stage";
 import { DONE_STAGE } from "@/lib/track";
-import { ArrowLeft, ImageIcon, Pencil, Phone, Printer, RotateCcw } from "lucide-react";
+import { ArrowLeft, Barcode, ImageIcon, Pencil, Phone, Printer, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 /**
  * ລາຍລະອຽດໃບຮັບເຄື່ອງ.
@@ -44,6 +46,8 @@ type Job = {
   bill_date: string | null;
   technician: string | null;
   receiver: string | null;
+  /** ຍົກເລີກ = **ທຸງ** (status=6) ບໍ່ແມ່ນຂັ້ນ — ງານທີ່ຍົກເລີກແຕ່ເຄື່ອງຍັງຢູ່ ຢູ່ຂັ້ນ 11 */
+  cancelled: boolean;
   images: number;
   contacts: number;
 };
@@ -52,12 +56,14 @@ type Props = { params: Promise<{ code: string }> };
 
 export default async function ServiceDetail({ params }: Props) {
   const { code } = await params;
+  const session = await getSession();
+  if (!session) redirect("/login");
 
   const job = (
     await query<Job>(
       `select a.code, to_char(a.time_register,'DD-MM-YYYY HH24:MI') registered,
          greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int elapsed_seconds,
-         (${STAGE_SQL}) stage,
+         (${STAGE_SQL}) stage, (a.status = 6) cancelled,
          c.code customer_code, c.name_1 customer, c.tel phone, c.address,
          a.name_1 product, a.sn, a.p_model model, a.p_brand brand, a.p_type product_type, a.p_access accessory,
          a.warrunty warranty, a.warranty_reason, a.service_type, a.issue, a.issue_2, a.p_abrasion remark, a.repair_note note,
@@ -73,10 +79,11 @@ export default async function ServiceDetail({ params }: Props) {
     )
   ).rows[0];
   if (!job) notFound();
+  if (!canViewAssignedJob(session, job.technician)) redirect("/forbidden");
 
   const tone = elapsedTone(job.elapsed_seconds);
   const inWarranty = job.warranty === "ຮັບປະກັນ";
-  const cancelled = job.stage === -1;
+  const cancelled = job.cancelled;
   // ຂັ້ນ 12 = ສົ່ງຄືນສຳເລັດ (ຂັ້ນ 11 ດຽວນີ້ແມ່ນ "ລໍຖ້າສົ່ງຄືນ" ຫຼັງເພີ່ມດ່ານ QC)
   const done = job.stage === DONE_STAGE;
 
@@ -205,6 +212,11 @@ export default async function ServiceDetail({ params }: Props) {
             <Pencil className="size-3.5" />
             ແກ້ໄຂ
             <LinkPending className="size-3" />
+          </Link>
+          {/* ປ້າຍບາໂຄດ 50×30mm — ຕິດໃສ່ເຄື່ອງ ໃຫ້ສະແກນຫາໃບໄດ້ໄວ */}
+          <Link href={`/service/${code}/barcode`} target="_blank" className={action}>
+            <Barcode className="size-3.5" />
+            ພິມປ້າຍບາໂຄດ
           </Link>
           {/* ໃບພິມແບບທີ 2 (ods: /sprint2 — reciptpd_anniv.html): ໂຄງ ແລະ ຂໍ້ມູນຄືກັນ ຕ່າງກັນພຽງຫົວຂໍ້ໃບ */}
           <Link href={`/service/${code}/print?layout=anniv`} target="_blank" className={action}>

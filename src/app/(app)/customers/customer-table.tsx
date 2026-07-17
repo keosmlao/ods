@@ -1,6 +1,7 @@
 "use client";
 
 import { deleteCustomer } from "@/app/actions/customer";
+import { KindCell } from "@/components/service/kind-cell";
 import { LinkPending } from "@/components/link-pending";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { Alert, DeleteButton, useActionAlert } from "@/components/manage/shared";
@@ -18,6 +19,8 @@ export type CustomerRow = {
   address: string | null;
   tel: string | null;
   jobs: number;
+  /** ຮ້ານຄ້າ / ທົ່ວໄປ — ໃຊ້ແຍກລາຍງານງານສ້ອມ (null = ຍັງບໍ່ລະບຸ) */
+  cust_kind: "shop" | "general" | null;
 };
 
 /** ຕົງກັບ whitelist ຢູ່ຝັ່ງ server (customers/page.tsx) */
@@ -37,6 +40,7 @@ export function CustomerTable({
   pages,
   sort,
   dir,
+  canUpdate = false,
 }: {
   rows: CustomerRow[];
   q: string;
@@ -46,6 +50,8 @@ export function CustomerTable({
   pages: number;
   sort: string;
   dir: SortDir;
+  /** ແກ້ຂໍ້ມູນລູກຄ້າໄດ້ບໍ — ຄຸມຊ່ອງ "ປະເພດ" (server ກວດຊ້ຳຢູ່ action) */
+  canUpdate?: boolean;
 }) {
   const { state: alert, setState: setAlert, clear } = useActionAlert();
 
@@ -111,6 +117,8 @@ export function CustomerTable({
                   />
                 ))}
                 {/* ນັບຢູ່ 1 query ຕ່າງຫາກ ສະເພາະ 20 ແຖວຂອງໜ້ານີ້ ຈຶ່ງຈັດຮຽງບໍ່ໄດ້ (ຈະຕ້ອງນັບໝົດ 9,995 ລູກຄ້າ) */}
+                {/* ປະເພດລູກຄ້າ — ລະບຸໄດ້ຈາກແຖວເລີຍ (ລາຍງານ /reports/service-by-kind ໃຊ້ຄ່ານີ້) */}
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ປະເພດ</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໃບຮັບເຄື່ອງ</th>
                 <th className="px-3 py-2.5" />
               </tr>
@@ -142,6 +150,9 @@ export function CustomerTable({
                   </td>
                   <td className="max-w-80 truncate px-3 py-2.5 text-slate-600" title={row.address ?? ""}>
                     {row.address || "-"}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2.5">
+                    <KindCell code={row.code} value={row.cust_kind} canEdit={canUpdate} />
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5">
                     {/* ລູກຄ້າທີ່ມີໃບຮັບເຄື່ອງແລ້ວ ລົບບໍ່ໄດ້ — ບອກໄວ້ກ່ອນ ຈຶ່ງບໍ່ຕ້ອງກົດແລ້ວຄ່ອຍຮູ້ */}

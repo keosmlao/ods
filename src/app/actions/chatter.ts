@@ -1,8 +1,10 @@
 "use server";
-import { notify } from "@/app/actions/notification";
-import { getSession } from "@/lib/auth";
+import { addFollowerSilently, logChange } from "@/lib/chatter-log";
+import { notify } from "@/lib/notify";
+import { getSession, type Session } from "@/lib/auth";
 import type { Activity, ChatterMessage } from "@/lib/chatter";
 import { query } from "@/lib/db";
+import { roleOf } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -15,16 +17,6 @@ import { z } from "zod";
  */
 
 const NOW = "localtimestamp(0)";
-
-export type ChatterState = { error?: string; ok?: string };
-
-/**
- * ຕົວເລືອກຂອງ logChange — ຄວບຄຸມວ່າໃຜໄດ້ຮັບການແຈ້ງເຕືອນນອກຈາກຜູ້ຕິດຕາມ.
- *   author → ຜູ້ຂຽນ log ຖ້າບໍ່ແມ່ນຄົນທີ່ login (ເຊັ່ນ "ລູກຄ້າ")
- *   users  → ຄົນທີ່ຖືກມອບໝາຍໂດຍກົງ (ຊ່າງ, ຜູ້ຮັບຜິດຊອບກິດຈະກຳ)
- *   roles  → ກຸ່ມທີ່ຕ້ອງລົງມືຕໍ່ (ROLE_WAREHOUSE / ROLE_APPROVER ຈາກ lib/chatter)
- */
-export type LogOptions = { author?: string; users?: string[]; roles?: string[] };
 
 /* ── ອ່ານ ───────────────────────────────────────────────────────── */
 
@@ -64,48 +56,8 @@ export async function getFollowers(model: string, resId: string): Promise<string
   return result.rows.map((row) => row.username);
 }
 
-/* ── ຂຽນ ────────────────────────────────────────────────────────── */
 
-/**
- * ບັນທຶກ log ອັດຕະໂນມັດ + ແຈ້ງເຕືອນຜູ້ກ່ຽວຂ້ອງ — ເອີ້ນຈາກ action ອື່ນຕອນວຽກປ່ຽນຂັ້ນ.
- * ຕັ້ງໃຈໃຫ້ "ບໍ່ພັງງານຫຼັກ": ຖ້າ log ຫຼື ການແຈ້ງເຕືອນລົ້ມ ກໍ່ບໍ່ໃຫ້ການບັນທຶກວຽກຈິງລົ້ມນຳ.
- *
- * ຂໍ້ຄວາມອັນດຽວກັນນີ້ໄປ 2 ບ່ອນພ້ອມກັນ:
- *   ods_chatter_message → ປະຫວັດເທິງເອກະສານ
- *   ods_notification    → ກ່ອງແຈ້ງເຕືອນຂອງຜູ້ຕິດຕາມ (ແທນ LINE Notify ຂອງ ods)
- */
-export async function logChange(model: string, resId: string, body: string, options?: LogOptions) {
-  const assignees = (options?.users ?? []).map((name) => name.trim()).filter(Boolean);
-  try {
-    const session = await getSession();
-    const who = options?.author ?? session?.username ?? "ລະບົບ";
-    await query(
-      `insert into ods_chatter_message(model, res_id, kind, body, author, created_at)
-       values($1,$2,'log',$3,$4,${NOW})`,
-      [model, resId, body, who],
-    );
-    // ຄົນທີ່ລົງມືເຮັດ ກາຍເປັນຜູ້ຕິດຕາມເອກະສານນັ້ນເອງ (ຄື Odoo)
-    if (session?.username) await addFollowerSilently(model, resId, session.username);
-    // ຄົນທີ່ຖືກມອບໝາຍກໍ່ຕິດຕາມນຳ ຈຶ່ງໄດ້ຮັບຄວາມເຄື່ອນໄຫວຄັ້ງຕໍ່ໆໄປ
-    for (const user of assignees) await addFollowerSilently(model, resId, user);
-  } catch (error) {
-    console.error("logChange failed", error);
-  }
-
-  await notify(model, resId, body, assignees.length ? "assign" : "log", {
-    users: assignees,
-    roles: options?.roles,
-    actor: options?.author,
-  });
-}
-
-async function addFollowerSilently(model: string, resId: string, username: string) {
-  await query(
-    `insert into ods_chatter_follower(model, res_id, username, created_at)
-     values($1,$2,$3,${NOW}) on conflict (model, res_id, username) do nothing`,
-    [model, resId, username],
-  );
-}
+export type ChatterState = { error?: string; ok?: string };
 
 const messageSchema = z.object({
   model: z.string().min(1),
@@ -194,6 +146,14 @@ export async function scheduleActivity(_: ChatterState, formData: FormData): Pro
   return { ok: "ນັດກິດຈະກຳແລ້ວ" };
 }
 
+/**
+ * ໃຜແຕະກິດຈະກຳໄດ້ — **ຜູ້ຮັບຜິດຊອບ ຫຼື ຜູ້ນັດ** (ຜູ້ຈັດການແຕະໄດ້ໝົດ).
+ * ແຕ່ກ່ອນເງື່ອນໄຂມີແຕ່ `id=$1` ⇒ ຜູ້ໃຊ້ຄົນໃດກໍ່ປິດ/ຍົກເລີກກິດຈະກຳຂອງຄົນອື່ນໄດ້
+ * ພຽງແຕ່ຮູ້ເລກ id (ເປັນເລກລຽງລຳດັບ ⇒ ເດົາງ່າຍ).
+ */
+const activityScope = (session: Session, placeholder: string) =>
+  roleOf(session) === "manager" ? "true" : `(assigned_to=${placeholder} or created_by=${placeholder})`;
+
 export async function completeActivity(id: number, doneNote?: string) {
   const session = await getSession();
   if (!session) return { error: "Session ໝົດອາຍຸ" };
@@ -201,16 +161,16 @@ export async function completeActivity(id: number, doneNote?: string) {
   const row = (
     await query<{ model: string; res_id: string; summary: string }>(
       `update ods_activity set state='done', done_at=${NOW}, done_note=nullif($2,'')
-        where id=$1 and state='planned'
+        where id=$1 and state='planned' and ${activityScope(session, "$3")}
         returning model, res_id, summary`,
-      [id, doneNote ?? ""],
+      [id, doneNote ?? "", session.username],
     )
   ).rows[0];
 
-  if (row) {
-    const suffix = doneNote?.trim() ? ` — ${doneNote.trim()}` : "";
-    await logChange(row.model, row.res_id, `ກິດຈະກຳສຳເລັດ: ${row.summary}${suffix}`);
-  }
+  if (!row) return { error: "ກິດຈະກຳນີ້ປິດໄປແລ້ວ ຫຼື ບໍ່ແມ່ນຂອງທ່ານ" };
+
+  const suffix = doneNote?.trim() ? ` — ${doneNote.trim()}` : "";
+  await logChange(row.model, row.res_id, `ກິດຈະກຳສຳເລັດ: ${row.summary}${suffix}`);
 
   revalidatePath("/", "layout");
   return {};
@@ -223,12 +183,15 @@ export async function cancelActivity(id: number) {
   const row = (
     await query<{ model: string; res_id: string; summary: string }>(
       `update ods_activity set state='cancelled', done_at=${NOW}
-        where id=$1 and state='planned' returning model, res_id, summary`,
-      [id],
+        where id=$1 and state='planned' and ${activityScope(session, "$2")}
+        returning model, res_id, summary`,
+      [id, session.username],
     )
   ).rows[0];
 
-  if (row) await logChange(row.model, row.res_id, `ຍົກເລີກກິດຈະກຳ: ${row.summary}`);
+  if (!row) return { error: "ກິດຈະກຳນີ້ປິດໄປແລ້ວ ຫຼື ບໍ່ແມ່ນຂອງທ່ານ" };
+
+  await logChange(row.model, row.res_id, `ຍົກເລີກກິດຈະກຳ: ${row.summary}`);
 
   revalidatePath("/", "layout");
   return {};

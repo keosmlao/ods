@@ -1,13 +1,14 @@
 "use client";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { MobileNav } from "@/components/mobile-nav";
+import { NotificationBell } from "@/components/notification-bell";
 import { Sidebar } from "@/components/sidebar";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import type { NavFlags } from "@/lib/navigation";
 import type { NavCounts } from "@/lib/nav-counts";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
-import { Bell, BellRing, LogOut, UserRound } from "lucide-react";
+import { Bell, LogOut, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useSyncExternalStore, type ReactNode } from "react";
 
@@ -90,19 +91,8 @@ export function AppShell({
         <header className="no-print sticky top-0 z-20 hidden h-14 items-center justify-end gap-3 border-b border-slate-200 bg-white/90 px-6 backdrop-blur lg:flex">
           <LanguageSwitcher locale={locale} />
 
-          {/* ການແຈ້ງເຕືອນທີ່ຍັງບໍ່ໄດ້ອ່ານ — ແທນ LINE Notify ຂອງ ods */}
-          <Link
-            href="/notifications"
-            title={shellLabels.notifications}
-            className="relative grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-          >
-            <BellRing className="size-4" />
-            {notifications > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white">
-                {notifications > 99 ? "99+" : notifications}
-              </span>
-            )}
-          </Link>
+          {/* ການແຈ້ງເຕືອນທີ່ຍັງບໍ່ໄດ້ອ່ານ — ແທນ LINE Notify ຂອງ ods (ກ່ອງເລື່ອນລົງ 17-07-2026) */}
+          <NotificationBell count={notifications} label={shellLabels.notifications} />
 
           {/* ກິດຈະກຳຄ້າງ — ແດງເມື່ອມີລາຍການເລີຍກຳນົດ */}
           <Link

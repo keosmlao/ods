@@ -1,11 +1,13 @@
 import { Chatter } from "@/components/chatter/chatter";
+import { getSession } from "@/lib/auth";
 import { Elapsed } from "@/components/elapsed";
 import { JOB_HEAD_COLUMNS, type JobHead, JobHeader } from "@/components/installation/job-header";
 import { ReopenJobButton } from "@/components/installation/undo-buttons";
 import { Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
 import { query } from "@/lib/db";
 import { INSTALL_ELAPSED_SQL, INSTALL_STAGE_SQL, installStageChip, installStageLabel } from "@/lib/install-stage";
-import { notFound } from "next/navigation";
+import { canViewAssignedJob } from "@/lib/scope";
+import { notFound, redirect } from "next/navigation";
 
 /**
  * ໜ້າລາຍລະອຽດງານຕິດຕັ້ງ — **ອ່ານຢ່າງດຽວ**, ເປີດໃຫ້ທຸກຄົນທີ່ login (lib/roles).
@@ -59,6 +61,8 @@ const DOC_LABEL: Record<number, string> = {
 
 export default async function InstallationDetail({ params }: Props) {
   const code = decodeURIComponent((await params).code);
+  const session = await getSession();
+  if (!session) redirect("/login");
 
   const [job, spares, docs] = await Promise.all([
     query<Row>(
@@ -92,6 +96,7 @@ export default async function InstallationDetail({ params }: Props) {
 
   const row = job.rows[0];
   if (!row) notFound();
+  if (!canViewAssignedJob(session, row.tech_code)) redirect("/forbidden");
 
   return (
     <div className="w-full space-y-5">

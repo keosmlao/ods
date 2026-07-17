@@ -68,6 +68,37 @@ export function branchOf(whCode: string) {
   return whCode === "1204" ? "00" : "01";
 }
 
+/**
+ * ຕ່ອງໂສ້ການສັ່ງຊື້ຝັ່ງ **ERP** — ຜູກກັນຜ່ານ `ic_trans_detail.ref_doc_no` (ບໍ່ແມ່ນ doc_ref ຂອງຫົວໃບ).
+ *
+ *   ໃບຂໍຊື້ (SPR)  →  ອະນຸມັດ (WPRA)  →  ໃບສັ່ງຊື້ (POT/POH)  →  ຮັບເຂົ້າສາງ (PUIT/PUIH)
+ *      PR_REQUEST        PR_APPROVE           ORDER                  RECEIPT
+ *
+ * ຢືນຢັນກັບຂໍ້ມູນຈິງແລ້ວ (16-07-2026): SPR ຂອງວຽກສ້ອມ 549 ໃບ — ປີ 2024 ມີ 268 ໃບ
+ * ຕໍ່ຕ່ອງໂສ້ໄດ້ຄົບເຖິງ "ຮັບເຂົ້າສາງ" 244 ໃບ ⇒ ຕິດຕາມຜ່ານຕ່ອງໂສ້ນີ້ໄດ້ຈິງ.
+ */
+export const ERP_PURCHASE = {
+  /** ໃບຂໍຊື້ (SPR ຂອງວຽກສ້ອມ · PRHN/PRTM… ຂອງຝ່າຍອື່ນ) */
+  /** ອະນຸມັດໃບສັ່ງຊື້ (WPOA) — ref_doc_no ຊີ້ໃສ່ໃບສັ່ງຊື້ */
+  ORDER_APPROVE: 8,
+  PR_REQUEST: 2,
+  /** ອະນຸມັດໃບຂໍຊື້ (WPRA) — ref_doc_no ຊີ້ໃສ່ໃບຂໍຊື້ໄຟຢົຢໄ  ຟຢຟຢຢ */
+  PR_APPROVE: 4,
+  /** ໃບສັ່ງຊື້ (POT/POH) — ref_doc_no ຊີ້ໃສ່ໃບອະນຸມັດ */
+  ORDER: 6,
+  /** ຮັບເຂົ້າສາງ (PUIT/PUIH) — ref_doc_no ຊີ້ໃສ່ໃບສັ່ງຊື້ */
+  RECEIPT: 12,
+} as const;
+
+/**
+ * **ສົດ ຫຼື ຕິດໜີ້ — ເປັນຄຳເວົ້າ.** ນິຍາມບ່ອນດຽວ ໃຊ້ທັງຟອມ · ໜ້າເອກະສານ · ໃບພິມ.
+ *
+ * ERP ບໍ່ມີຖັນ "ສົດ/ຕິດໜີ້" ແຍກ — ມັນບອກດ້ວຍ `ic_trans.credit_day` ດຽວ
+ * (0 = ສົດ · >0 = ຕິດໜີ້ N ວັນ). ເບິ່ງ `PoTerms` ໃນ erp-po.ts ສຳລັບຂໍ້ມູນຢືນຢັນ.
+ */
+export const payTermLabel = (creditDay: number | null | undefined) =>
+  creditDay && creditDay > 0 ? `ຕິດໜີ້ ${creditDay} ວັນ` : "ຈ່າຍສົດ";
+
 /** ຄ່າຄົງທີ່ຂອງເອກະສານຝັ່ງ ERP (odg) */
 export const ERP = {
   TRANS_TYPE: 3,

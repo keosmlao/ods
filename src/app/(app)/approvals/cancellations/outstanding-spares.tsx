@@ -3,7 +3,7 @@ import { startReturnRequest } from "@/app/actions/stock";
 import { useConfirm } from "@/components/confirm-dialog";
 import { AlertTriangle, LoaderCircle, Undo2 } from "lucide-react";
 import { useTransition } from "react";
-import type { OutstandingSpare } from "./outstanding";
+import type { OutstandingSpare } from "@/lib/outstanding-spares";
 
 /**
  * ຄຳເຕືອນ "ອາໄຫຼ່ຍັງຄ້າງນອກສາງ" ຂອງໃບຮັບເຄື່ອງທີ່ຖືກຍົກເລີກ (GAP B).

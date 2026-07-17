@@ -1,6 +1,9 @@
 import { CustomerTable, type CustomerRow } from "@/app/(app)/customers/customer-table";
 import type { SortDir } from "@/components/sort-header";
+import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { permissionFor } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 
 /**
  * ກຳນົດລູກຄ້າ — ແທນ /customer ຂອງ ods (customer.py)
@@ -32,6 +35,11 @@ const SORT_SQL: Record<string, string> = {
 };
 
 export default async function CustomersPage({ searchParams }: Props) {
+  // ສິດແກ້ຂໍ້ມູນລູກຄ້າ — ຄຸມຊ່ອງ "ປະເພດ" (ຮ້ານຄ້າ/ທົ່ວໄປ) ຢູ່ຕາຕະລາງ
+  const session = await getSession();
+  if (!session) redirect("/login");
+  const permission = await permissionFor(session, "/customers");
+
   const params = await searchParams;
   const q = (params.q ?? "").trim();
   const page = Math.max(1, Number(params.page) || 1);
@@ -44,7 +52,7 @@ export default async function CustomersPage({ searchParams }: Props) {
 
   const [list, total] = await Promise.all([
     query<Omit<CustomerRow, "jobs">>(
-      `select a.code, a.name_1, a.name_2,
+      `select a.code, a.name_1, a.name_2, a.cust_kind,
          concat_ws(', ', nullif(a.address,''), nullif('ເມືອງ ' || c.name_1, 'ເມືອງ '), nullif('ເເຂວງ ' || b.name_1, 'ເເຂວງ ')) address,
          a.tel
        ${FROM} ${where}
@@ -79,6 +87,7 @@ export default async function CustomersPage({ searchParams }: Props) {
       pages={Math.max(1, Math.ceil(count / PAGE_SIZE))}
       sort={sort}
       dir={dir}
+      canUpdate={permission.update}
     />
   );
 }

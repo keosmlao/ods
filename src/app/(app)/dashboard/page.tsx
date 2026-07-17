@@ -2,6 +2,7 @@ import { qcWorkflows } from "@/app/actions/qc";
 import { Elapsed } from "@/components/elapsed";
 import { DashboardAutoRefresh } from "@/components/dashboard-auto-refresh";
 import { LinkPending } from "@/components/link-pending";
+import { RowLink } from "@/components/row-link";
 import { getSession } from "@/lib/auth";
 import { installStatuses, pipelineOf, repairStatuses, type StatusDef } from "@/lib/dashboard-status";
 import {
@@ -168,7 +169,8 @@ function alertsFor(role: Role, data: DashboardData, canQc: boolean): Alert[] {
       label: "ອາໄຫຼ່ສັ່ງຊື້ຍັງບໍ່ມາຮອດ",
       value: data.onOrder.n,
       detail: `ດົນສຸດ ${Math.floor(data.onOrder.max_seconds / 86400).toLocaleString()} ມື້`,
-      href: "/stock/arrivals",
+      // ໜ້າ /stock/arrivals ຖືກລົບ — ຄວາມຄືບໜ້າຈິງອ່ານຈາກ ERP ຢູ່ໜ້າສະຖານະຂັ້ນ 7
+      href: "/dashboard/status/repair/purchasing",
       icon: Truck,
       tone: "red",
     },
@@ -230,15 +232,13 @@ function alertsFor(role: Role, data: DashboardData, canQc: boolean): Alert[] {
 
     /* ── ຄິວຫຼັກຂອງ CS (ຝ່າຍບໍລິການ) ──
      * ບັດຂ້າງເທິງລ້ວນເປັນຂອງ ຊ່າງ · ສາງ · ຜູ້ອະນຸມັດ ⇒ CS ບໍ່ເຫັນຫຍັງເລີຍ.
-     * ສາມອັນນີ້ຄືວຽກທີ່ CS ຕ້ອງລົງມືເອງ ແລະ ເປັນຄໍຂວດຖ້າບໍ່ມີໃຜເຮັດ. */
-    {
-      label: "ລໍຖ້າຈັດຊ່າງ (ຕິດຕັ້ງ)",
-      value: data.install["wait-assign"] ?? 0,
-      detail: "ເປີດງານແລ້ວ ຍັງບໍ່ມີຊ່າງ",
-      href: "/installations/assign",
-      icon: HardHat,
-      tone: "amber",
-    },
+     * ອັນນີ້ຄືວຽກທີ່ CS ຕ້ອງລົງມືເອງ ແລະ ເປັນຄໍຂວດຖ້າບໍ່ມີໃຜເຮັດ.
+     *
+     * ⚠️ ເຄີຍມີບັດ "ລໍຖ້າຈັດຊ່າງ (ຕິດຕັ້ງ)" (install["wait-assign"]) ຢູ່ນີ້ ແຕ່ຖືກຖອດ
+     * (17-07-2026): ມັນນັບ**ວຽກຊຸດດຽວກັນເປັນະ**ກັບບັດ "ວຽກຕິດຕັ້ງຍັງບໍ່ມີຊ່າງ"
+     * ຂ້າງເທິງ (ຢືນຢັນຂໍ້ມູນຈິງ: 9 = 9 · ບໍ່ຕ່າງກັນຈັກໜ່ວຍ) ແລະ ໄປໜ້າດຽວກັນ
+     * (/installations/assign) ⇒ ຄົນເຫັນເລກ 9 ສອງບ່ອນ ຄິດວ່າມີ 18 ວຽກ.
+     * ບັດທີ່ເຫຼືອເປັນສີແດງ ແລະ ຖືກນັບໃນ criticalTotal ຢູ່ແລ້ວ. */
     {
       label: "ລໍຖ້າສົ່ງເຄື່ອງຄືນລູກຄ້າ",
       value: data.repair["wait-return"] ?? 0,
@@ -451,7 +451,7 @@ function StaleTable({
             {rows.map((row) => {
               const tone = elapsedTone(row.elapsed_seconds);
               return (
-                <tr key={row.code} className="border-b border-slate-100 transition last:border-0 hover:bg-teal-50/40">
+                <RowLink key={row.code} href={hrefOf(row.code)} className="border-b border-slate-100 transition last:border-0 hover:bg-teal-50/40">
                   <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
                     <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                     <Link href={hrefOf(row.code)} className="hover:underline">
@@ -476,7 +476,7 @@ function StaleTable({
                       {row.stage}
                     </span>
                   </td>
-                </tr>
+                </RowLink>
               );
             })}
           </tbody>
@@ -856,7 +856,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               const t = TONE[tone];
               return (
                 <Link
-                  key={href}
+                  /**
+                   * key = label ບໍ່ແມ່ນ href — **href ຊ້ຳກັນໄດ້ໂດຍເຈດຕະນາ**: ບັດ
+                   * "ລໍກວດ QC (ສ້ອມ)" ກັບ "(ຕິດຕັ້ງ)" ເປັນຄົນລະຄິວ ແຕ່ໄປ /qc ບ່ອນດຽວກັນ
+                   * ⇒ key={href} ເຮັດໃຫ້ React ຖືວ່າເປັນບັດດຽວກັນ ແລ້ວບັດນຶ່ງຫາຍ.
+                   * label ບໍ່ຊ້ຳ (20/20) ແລະ ເປັນສິ່ງທີ່ບອກຄວາມເປັນບັດນັ້ນແທ້.
+                   */
+                  key={label}
                   href={href}
                   className={`group relative flex min-h-28 items-center justify-between gap-3 overflow-hidden rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${t.card}`}
                 >

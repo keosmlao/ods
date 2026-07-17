@@ -2,6 +2,7 @@ import { closeJob } from "@/app/actions/installation";
 import { ReopenJobButton } from "@/components/installation/undo-buttons";
 import { FeedbackQrButton } from "@/components/installation/feedback-qr";
 import { JobButton } from "@/components/installation/job-buttons";
+import { RowLink } from "@/components/row-link";
 import { query } from "@/lib/db";
 import { installStageIs } from "@/lib/install-stage";
 import { ClipboardList, ListChecks, Lock, MessageSquare } from "lucide-react";
@@ -186,7 +187,7 @@ export default async function ClosePage({ searchParams }: Props) {
         />
         <tbody>
           {rows.map((row) => (
-            <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
+            <RowLink key={row.code} href={`/installations/${encodeURIComponent(row.code)}`} className="border-b border-slate-100 hover:bg-slate-50">
               <InstallCells row={row} timeLabel={TIME_LABEL[tab]} />
               <td className="max-w-64 px-3 py-2.5">
                 <span className="block truncate" title={row.complain_cust ?? ""}>
@@ -232,7 +233,7 @@ export default async function ClosePage({ searchParams }: Props) {
                   )}
                 </div>
               </td>
-            </tr>
+            </RowLink>
           ))}
         </tbody>
       </TableShell>

@@ -1,5 +1,7 @@
+import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { notFound } from "next/navigation";
+import { canViewAssignedJob } from "@/lib/scope";
+import { notFound, redirect } from "next/navigation";
 
 /**
  * ໃບສ້ອມແປງ / ອາໄຫຼ່ທີ່ໃຊ້ (ພິມ) — ຖອດແບບຈາກ ods: repair.py showbilrp()
@@ -30,6 +32,7 @@ type Head = {
   issue: string | null;
   issue_2: string | null;
   technician: string | null;
+  technician_code: string | null;
   repair_note: string | null;
   used_spare: number | null;
 };
@@ -39,6 +42,8 @@ type Line = { rnum: number; item_code: string; item_name: string | null; qty: st
 type Company = { name_1: string | null; name_2: string | null; address: string | null; tel: string | null };
 
 export default async function RepairPrintPage({ params }: { params: Promise<{ code: string }> }) {
+  const session = await getSession();
+  if (!session) redirect("/login");
   const { code } = await params;
   const product = decodeURIComponent(code);
 
@@ -51,7 +56,8 @@ export default async function RepairPrintPage({ params }: { params: Promise<{ co
           to_char(a.time_finish_repair,'DD-MM-YYYY HH24:MI') repair_finished,
           b.name_1 customer, b.tel, a.name_1 product, a.p_model model, a.p_brand brand, a.sn,
           a.warrunty warranty, a.issue, a.issue_2,
-          coalesce(d.name_1, a.emp_code) technician, a.repair_note, coalesce(a.used_spare,0) used_spare
+          coalesce(d.name_1, a.emp_code) technician, a.emp_code technician_code,
+          a.repair_note, coalesce(a.used_spare,0) used_spare
         from tb_product a
         left join ar_customer b on b.code = a.cust_code
         left join tb_techemp d on d.code = a.emp_code
@@ -60,6 +66,7 @@ export default async function RepairPrintPage({ params }: { params: Promise<{ co
     )
   ).rows[0];
   if (!head) notFound();
+  if (!canViewAssignedJob(session, head.technician_code)) redirect("/forbidden");
 
   const [doc, lines, company] = await Promise.all([
     query<Doc>(

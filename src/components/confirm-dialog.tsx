@@ -63,6 +63,7 @@ export function ConfirmDialog({
   return (
     <dialog
       ref={ref}
+      data-no-nav
       onCancel={(event) => { event.preventDefault(); if (!pending) onCancel(); }}
       onClick={(event) => { if (event.target === ref.current && !pending) onCancel(); }}
       className="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 p-0 shadow-2xl backdrop:bg-slate-900/50 backdrop:backdrop-blur-sm"

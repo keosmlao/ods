@@ -1,4 +1,5 @@
 import { syncErpDispatch } from "@/lib/erp-dispatch";
+import { syncErpPurchase } from "@/lib/erp-purchase";
 import { refreshInventory } from "@/app/actions/stock";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
@@ -26,7 +27,12 @@ import Link from "next/link";
 
 const PAGE_SIZE = 20;
 
-type Tab = "pending" | "install" | "dispatched" | "ordered" | "transfers";
+/**
+ * ⚠️ ຖອດແທັບ "ໃບຂໍໂອນ" ອອກ (17-07-2026) — ມັນ `select ... where trans_flag=124` ບໍ່ກອງສະຖານະ
+ * = 2 ແທັບຂອງ `/stock/transfers` ລວມກັນ ແຕ່ບໍ່ມີໂມງນັບເວລາ ແລະ ບໍ່ມີປຸ່ມຮັບຂອງ.
+ * /stock/transfers ຢູ່ໃນເມນູ (ສາງ ແລະ ອາໄຫຼ່) ⇒ ໃຫ້ບ່ອນນັ້ນເປັນເຈົ້າຂອງເລື່ອງໂອນ.
+ */
+type Tab = "pending" | "install" | "dispatched" | "ordered";
 type Props = { searchParams: Promise<{ tab?: string; q?: string; page?: string; sort?: string; dir?: string }> };
 
 /** ແຖວດິບຈາກ SQL — ຍັງບໍ່ມີຍອດສະຕັອກ (ຄິດເພີ່ມພາຍຫຼັງດ້ວຍ getBalances) */
@@ -278,7 +284,6 @@ async function getCounts(warehouses: string[]) {
     install: installs.rows[0]?.total ?? 0,
     dispatched: byFlag.get(TRANS.DISPATCH) ?? 0,
     ordered: byFlag.get(2) ?? 0,
-    transfers: byFlag.get(TRANS.TRANSFER) ?? 0,
   };
 }
 
@@ -378,14 +383,15 @@ const INSTALL_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
 
 export default async function StockDispatchPage({ searchParams }: Props) {
   // ດຶງໃບເບີກທີ່ສາງອອກໃນ ERP ກັບມາກ່ອນ ⇒ ຄິວທີ່ເຫັນເປັນຄວາມຈິງລ້າສຸດ (lib/erp-dispatch)
-  await syncErpDispatch();
+  // ພ້ອມກັນນັ້ນ ອາໄຫຼ່ທີ່ສັ່ງຊື້ ແລະ ຮັບເຂົ້າສາງແລ້ວຢູ່ ERP ຈະຕົກລົງມາຄິວນີ້ເອງ (lib/erp-purchase)
+  await Promise.all([syncErpDispatch(), syncErpPurchase()]);
 
   const session = await getSession();
   const warehouses = await getOwnWarehouses(session?.username ?? "");
 
   const params = await searchParams;
   const tab: Tab =
-    params.tab === "install" || params.tab === "dispatched" || params.tab === "ordered" || params.tab === "transfers"
+    params.tab === "install" || params.tab === "dispatched" || params.tab === "ordered"
       ? params.tab
       : "pending";
   const q = (params.q ?? "").trim();
@@ -418,13 +424,12 @@ export default async function StockDispatchPage({ searchParams }: Props) {
     { key: "pending", label: "ລໍຖ້າເບີກ", icon: PackageCheck, count: counts.pending },
     { key: "install", label: "ງານຕິດຕັ້ງ", icon: Hammer, count: counts.install },
     { key: "dispatched", label: "ໃບເບີກອາໄຫຼ່", icon: FileText, count: counts.dispatched },
-    { key: "transfers", label: "ໃບຂໍໂອນ", icon: ArrowLeftRight, count: counts.transfers },
-    { key: "ordered", label: "ໃບສັ່ງຊື້ອາໄຫຼ່", icon: ShoppingCart, count: counts.ordered },
+      { key: "ordered", label: "ໃບສັ່ງຊື້ອາໄຫຼ່", icon: ShoppingCart, count: counts.ordered },
   ];
 
   const lines = tab === "pending" ? (data.rows as Line[]) : [];
   const installs = tab === "install" ? (data.rows as Install[]) : [];
-  const docs = tab === "dispatched" || tab === "ordered" || tab === "transfers" ? (data.rows as Doc[]) : [];
+  const docs = tab === "dispatched" || tab === "ordered" ? (data.rows as Doc[]) : [];
 
   return (
     <div className="w-full space-y-4">
@@ -629,7 +634,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
             </table>
           )}
 
-          {(tab === "dispatched" || tab === "ordered" || tab === "transfers") && (
+          {(tab === "dispatched" || tab === "ordered") && (
             <table className="w-full min-w-[900px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
@@ -660,7 +665,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{doc.doc_ref_date ?? "-"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">
-                      {tab === "dispatched" || tab === "transfers" ? (
+                      {tab === "dispatched" ? (
                         <Link
                           href={
                             tab === "dispatched"

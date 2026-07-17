@@ -1,5 +1,5 @@
 import { query, queryOdg } from "@/lib/db";
-import { CANCELLED_JOBS, STAGE_SQL } from "@/lib/stage";
+import { CANCELLED_JOBS, STAGE_LABEL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 import type { XlsxColumn } from "@/lib/xlsx";
 
 /*
@@ -179,8 +179,9 @@ export const columns = {
     { header: "#", key: "rnum", width: 6 },
     { header: "ເລກບີນ", key: "doc_no", width: 18 },
     { header: "ວັນທີ", key: "doc_date" },
+    /** ເມື່ອກ່ອນສະແດງເລກ RQ (ຜິດຫົວຖັນ) — RQ ຖືກຍົກເລີກແລ້ວ, ດຽວນີ້ຄືລະຫັດວຽກ = ໃບຮັບເຄື່ອງແທ້ */
     { header: "ໃບຮັບເຄື່ອງ", key: "doc_ref", width: 18 },
-    { header: "ວັນທີ", key: "doc_ref_date" },
+    { header: "ວັນທີຮັບເຄື່ອງ", key: "doc_ref_date" },
     { header: "ລຸູກຄ້າ", key: "customer", width: 28 },
     { header: "ເຄື່ອງ", key: "product", width: 24 },
     { header: "ອາການເບື້ອງຕົ້ນ", key: "issue", width: 26 },
@@ -194,8 +195,9 @@ export const columns = {
     { header: "#", key: "rnum", width: 6 },
     { header: "ເລກບີນ", key: "doc_no", width: 18 },
     { header: "ວັນທີ", key: "doc_date" },
+    /** ເມື່ອກ່ອນສະແດງເລກ RQ (ຜິດຫົວຖັນ) — RQ ຖືກຍົກເລີກແລ້ວ, ດຽວນີ້ຄືລະຫັດວຽກ = ໃບຮັບເຄື່ອງແທ້ */
     { header: "ໃບຮັບເຄື່ອງ", key: "doc_ref", width: 18 },
-    { header: "ວັນທີ", key: "doc_ref_date" },
+    { header: "ວັນທີຮັບເຄື່ອງ", key: "doc_ref_date" },
     { header: "ລຸູກຄ້າ", key: "customer", width: 28 },
     { header: "ເຄື່ອງ", key: "product", width: 24 },
     { header: "ອາການເບື້ອງຕົ້ນ", key: "issue", width: 26 },
@@ -291,20 +293,12 @@ export function searchRows(rows: Row[], keys: string[], q: string): Row[] {
 }
 
 /* ---------------------------------------------------------------- ສະຖານະສ້ອມ */
-const statusName = `case (${STAGE_SQL})
-  when 1 then 'ລໍຖ້າກວດເຊັກ'
-  when 2 then 'ກຳລັງກວດເຊັກ'
-  when 3 then 'ລໍຖ້າສະເໜີລາຄາ'
-  when 4 then 'ກຳລັງສະເໜີລາຄາ'
-  when 5 then 'ລໍຖ້າເບີກອາໄຫຼ່'
-  when 6 then 'ກຳລັງເບີກອາໄຫຼ່'
-  when 7 then 'ກຳລັງສັ່ງຊື້ອາໄຫຼ່'
-  when 8 then 'ລໍຖ້າສ້ອມເເປງ'
-  when 9 then 'ກຳລັງສ້ອມເເປງ'
-  when 10 then 'ລໍຖ້າສົ່ງຄືນ'
-  when 11 then 'ສົ່ງຄືນສຳເລັດ'
-  when -1 then 'ຍົກເລີກເເລ້ວ'
-  else '-' end as status_name`;
+/**
+ * ຊື່ຂັ້ນ — ດຶງຈາກ `STAGE_LABEL_SQL` ບ່ອນດຽວ.
+ * ແຕ່ກ່ອນຂຽນ `case … when 10 then 'ລໍຖ້າສົ່ງຄືນ' …` ໄວ້ບ່ອນນີ້ເອງ ⇒ ພໍເພີ່ມຂັ້ນ QC
+ * ເລກເລື່ອນ ແຕ່ບ່ອນນີ້ບໍ່ໄດ້ເລື່ອນນຳ: ງານທີ່ລໍກວດ QC ຖືກລາຍງານວ່າ "ສົ່ງຄືນແລ້ວ".
+ */
+const statusName = `${STAGE_LABEL_SQL} as status_name`;
 
 /** ຄໍລຳວັນ/ເວລາຂອງແຕ່ລະຂັ້ນຕອນ — ໃຊ້ text ເພື່ອສະແດງຜົນ */
 const stageTimes = `to_char(a.time_register,'DD-MM-YYYY HH24:MI:SS') time_register,
@@ -620,28 +614,100 @@ export async function fetchPurchaseRequests(from: string | null, to: string | nu
 
 /* -------------------------------------------------------- 9. ລາຍງານການສັ່ງຊື້ອາໄຫຼ່
  * ods: /purchase_order_rp (orderspare.py) — trans_flag=2 (SPR)
- * FIX: ic_trans.cust_code null ທຸກແຖວ → ດຶງລູກຄ້າຜ່ານ tb_product; doc_ref_date ເປັນ varchar ຕ້ອງ cast.
+ *
+ * ── ⚠️ ຍ້າຍມາອ່ານ **ERP** ແລ້ວ (17-07-2026) ──
+ * ຮຸ່ນເກົ່າອ່ານ `ic_trans` ຂອງ **ODS** ເຊິ່ງ**ຢຸດຮັບໃບໃໝ່ຕັ້ງແຕ່ 16-07-2026** ຕອນຍ້າຍ
+ * ການອອກໃບໄປ ERP ບ່ອນດຽວ (ນະໂຍບາຍ "ທຸກຢ່າງຢູ່ ERP") ⇒ ລາຍງານຄ້າງຢູ່ 10-07-2026
+ * ໂດຍທີ່ຄົນເປີດເບິ່ງບໍ່ຮູ້ວ່າຂາດ — ອັນຕະລາຍກວ່າລາຍງານທີ່ພັງ.
+ *
+ * ຂ້າມຖານ join ບໍ່ໄດ້ (ໃບຢູ່ ERP · ຂໍ້ມູນວຽກ/ລູກຄ້າຢູ່ ODS) ⇒ ດຶງສອງເທື່ອແລ້ວປະສານໃນ Node
+ * ຄືທີ່ lib/erp-purchase ເຮັດ. ລະຫັດວຽກຢູ່ `doc_ref` ຂອງ ERP (ERP ບໍ່ມີ product_code).
  */
+
+/** ໃບເກົ່າ doc_ref ເປັນເລກ RQ/ຂໍ້ຄວາມ — ເອົາສະເພາະທີ່ເປັນລະຫັດວຽກແທ້ໄປຫາຂໍ້ມູນວຽກ */
+const isJobRef = (value: string) => /^(\d+|INST-\w+)$/.test(value);
+
+type SprHeadRow = {
+  doc_no: string;
+  doc_date: string;
+  job: string;
+  doc_ref_date: string | null;
+  remark: string | null;
+  user_created: string | null;
+};
+
+type JobInfoRow = {
+  code: string;
+  customer: string | null;
+  product: string | null;
+  issue: string | null;
+  warrunty: string | null;
+  issue_2: string | null;
+  emp_code: string | null;
+  doc_ref_date: string | null;
+};
+
 export async function fetchPurchaseOrders(from: string, to: string) {
-  return (
-    await query<Row>(
-      `select row_number() over (order by a.doc_date, a.doc_no) rnum,
-        a.doc_no,
-        to_char(a.doc_date,'DD-MM-YYYY') doc_date,
-        a.doc_ref,
-        to_char(a.doc_ref_date::date,'DD-MM-YYYY') doc_ref_date,
-        coalesce(b.name_1,'-') customer,
-        coalesce(p.name_1,'-') product,
-        p.issue, p.warrunty, p.issue_2, p.emp_code,
-        a.remark, a.user_created
-       from ic_trans a
-       left join tb_product p on p.code = a.product_code
-       left join ar_customer b on b.code = p.cust_code
-       where a.trans_flag = 2 and a.doc_date between $1 and $2
-       order by a.doc_date desc, a.doc_no`,
+  /**
+   * ① ໃບຂໍຊື້ຈາກ ERP (ແຫຼ່ງຈິງ) — ສະເພາະ `doc_format_code='SPR'` = ໃບທີ່**ລະບົບນີ້**ອອກ.
+   * ບໍ່ເອົາ PRHN/PRTN/PRTM ມາປົນ: ນັ້ນຄືໃບຂໍຊື້ຂອງຝ່າຍອື່ນ (ຂາຍ/ຄັງສິນຄ້າ) ທີ່ບໍ່ຜູກວຽກສ້ອມ
+   * ⇒ ຖ້າເອົາມາ ທຸກຖັນ (ລູກຄ້າ/ເຄື່ອງ/ອາການ) ຈະຫວ່າງ ແລະ ລາຍງານຈະອ່ານບໍ່ໄດ້ຄວາມ.
+   */
+  const docs = (
+    await queryOdg<SprHeadRow>(
+      `select a.doc_no,
+          to_char(a.doc_date,'DD-MM-YYYY') doc_date,
+          split_part(trim(coalesce(a.doc_ref,'')),' ',1) job,
+          to_char(a.doc_ref_date,'DD-MM-YYYY') doc_ref_date,
+          a.remark,
+          coalesce(nullif(a.creator_code,''), nullif(a.user_request,'')) user_created
+         from ic_trans a
+        where a.trans_flag = 2 and a.doc_format_code = 'SPR' and a.doc_date between $1 and $2
+        order by a.doc_date desc, a.doc_no`,
       [from, to],
     )
   ).rows;
+  if (docs.length === 0) return [];
+
+  // ② ຂໍ້ມູນວຽກ/ລູກຄ້າ ຈາກ ODS (ERP ບໍ່ຮູ້ຈັກ) — ດຶງເທື່ອດຽວດ້ວຍລະຫັດວຽກທັງໝົດ
+  const jobs = [...new Set(docs.map((row) => row.job).filter(isJobRef))];
+  const info = new Map<string, JobInfoRow>();
+  if (jobs.length > 0) {
+    const rows = (
+      await query<JobInfoRow>(
+        `select p.code,
+            coalesce(b.name_1,'-') customer,
+            coalesce(p.name_1,'-') product,
+            p.issue, p.warrunty, p.issue_2, p.emp_code,
+            to_char(p.time_register,'DD-MM-YYYY') doc_ref_date
+           from tb_product p
+           left join ar_customer b on b.code = p.cust_code
+          where p.code = any($1::varchar[])`,
+        [jobs],
+      )
+    ).rows;
+    for (const row of rows) info.set(row.code, row);
+  }
+
+  return docs.map((doc, index) => {
+    const job = info.get(doc.job);
+    return {
+      rnum: String(index + 1),
+      doc_no: doc.doc_no,
+      doc_date: doc.doc_date,
+      // "ໃບຮັບເຄື່ອງ" = ວຽກສ້ອມທີ່ໃບນີ້ຊື້ໃຫ້ (ໃບເກົ່າອາດເປັນເລກ RQ/ຂໍ້ຄວາມ — ສະແດງຕາມຕົວ)
+      doc_ref: doc.job || "-",
+      doc_ref_date: job?.doc_ref_date ?? doc.doc_ref_date ?? "-",
+      customer: job?.customer ?? "-",
+      product: job?.product ?? "-",
+      issue: job?.issue ?? "-",
+      warrunty: job?.warrunty ?? "-",
+      issue_2: job?.issue_2 ?? "-",
+      emp_code: job?.emp_code ?? "-",
+      remark: doc.remark ?? "-",
+      user_created: doc.user_created ?? "-",
+    } as Row;
+  });
 }
 
 /* ------------------------------------------------------------- 10. ລາຍງານຕິດຕັ້ງ
@@ -740,10 +806,12 @@ export const statusExports: Record<string, { title: string; filename: string; co
   "8": { title: "ສັ່ງອາໃຫຼ່", filename: "purchase.xlsx", condition: whereStage(7) },
   "9": { title: "ລໍຖ້າສ້ອມແປງ", filename: "waiting_fix.xlsx", condition: whereStage(8) },
   "10": { title: "ກຳລັງສ້ອມແປງ", filename: "fixing.xlsx", condition: whereStage(9) },
-  "11": { title: "ລໍຖ້າສົ່ງຄືນ", filename: "waiting_return.xlsx", condition: whereStage(10) },
+  "11": { title: STAGE_LABEL[11], filename: "waiting_return.xlsx", condition: whereStage(11) },
   // FIX: ods ຕັ້ງຊື່ໄຟລ໌ຂອງ id=-1 ເປັນ return_complete.xls ຄືກັນກັບ id=12 → ຕັ້ງຊື່ໃໝ່ໃຫ້ຖືກ
-  "12": { title: "ສົ່ງຄືນສຳເລັດ", filename: "return_complete.xlsx", condition: `where (${STAGE_SQL}) in (11, -1)` },
+  "12": { title: "ສົ່ງຄືນສຳເລັດ", filename: "return_complete.xlsx", condition: whereStage(12) },
   "-1": { title: "ຍົກເລີກເເລ້ວ", filename: "cancelled.xlsx", condition: `where ${CANCELLED_JOBS}` },
+  // ຂັ້ນ QC ເປັນຂັ້ນໃໝ່ — ບໍ່ມີ id ໃນ ods ເກົ່າ ⇒ ຕໍ່ທ້າຍເປັນ 13 (ແຊກກາງຈະຍ້າຍຄວາມໝາຍຂອງລິ້ງເກົ່າ)
+  "13": { title: STAGE_LABEL[10], filename: "waiting_qc.xlsx", condition: whereStage(10) },
 };
 
 export async function fetchStatusExport(id: string) {

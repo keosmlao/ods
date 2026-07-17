@@ -39,21 +39,37 @@ const tones: Record<ButtonTone, string> = {
   info: "bg-sky-500 text-white hover:bg-sky-600",
   neutral: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
 };
+type ButtonSize = "sm" | "md";
+/** ຂະໜາດແຍກຈາກ base ⇒ className ຂອງຄົນເອີ້ນ override ໄດ້ຈິງ (ບໍ່ຕ້ານ h-10 ຂອງ base) */
+const sizes: Record<ButtonSize, string> = {
+  md: "h-10 gap-2 px-4 text-sm",
+  sm: "h-8 gap-1.5 px-3 text-xs",
+};
 const buttonBase =
-  "inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex items-center justify-center rounded-lg font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
 
-export function Button({ tone = "primary", className = "", ...rest }: { tone?: ButtonTone } & ComponentProps<"button">) {
-  return <button {...rest} className={`${buttonBase} ${tones[tone]} ${className}`} />;
+export function Button({
+  tone = "primary",
+  size = "md",
+  className = "",
+  ...rest
+}: { tone?: ButtonTone; size?: ButtonSize } & ComponentProps<"button">) {
+  return <button {...rest} className={`${buttonBase} ${sizes[size]} ${tones[tone]} ${className}`} />;
 }
 
-export function LinkButton({ tone = "primary", className = "", ...rest }: { tone?: ButtonTone } & ComponentProps<typeof Link>) {
-  return <Link {...rest} className={`${buttonBase} ${tones[tone]} ${className}`} />;
+export function LinkButton({
+  tone = "primary",
+  size = "md",
+  className = "",
+  ...rest
+}: { tone?: ButtonTone; size?: ButtonSize } & ComponentProps<typeof Link>) {
+  return <Link {...rest} className={`${buttonBase} ${sizes[size]} ${tones[tone]} ${className}`} />;
 }
 
 /** ລາຍການທີ່ຍັງບໍ່ທັນຍ້າຍມາ Next.js — ສະແດງແຕ່ກົດບໍ່ໄດ້ */
 export function Todo({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <span title="ຍັງບໍ່ທັນຍ້າຍມາ Next.js" className={`${buttonBase} cursor-not-allowed bg-slate-200 text-slate-500 ${className}`}>
+    <span title="ຍັງບໍ່ທັນຍ້າຍມາ Next.js" className={`${buttonBase} ${sizes.md} cursor-not-allowed bg-slate-200 text-slate-500 ${className}`}>
       {children}
     </span>
   );

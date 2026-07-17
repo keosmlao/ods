@@ -23,11 +23,11 @@ export type StatusDef = {
 };
 
 export const repairStatuses: Record<string, StatusDef> = {
-  "wait-check": { label: "ລໍຖ້າກວດເຊັກ", condition: stageIs(1), stage: 1 },
+  "wait-check": { label: "ຮັບງານ / ລໍຖ້າກວດເຊັກ", condition: stageIs(1), stage: 1 },
   checking: { label: "ກຳລັງກວດເຊັກ", condition: stageIs(2), stage: 2 },
   "wait-quote": { label: "ລໍຖ້າສະເໜີລາຄາ", condition: stageIs(3), stage: 3 },
   quoting: { label: "ກຳລັງສະເໜີລາຄາ", condition: stageIs(4), stage: 4 },
-  "wait-withdraw": { label: "ລໍຖ້າເບີກອາໄຫຼ່", condition: stageIs(5), stage: 5 },
+  "wait-withdraw": { label: "ກວດ Stock / ຊື້ ຫຼື ຂໍເບີກ", condition: stageIs(5), stage: 5 },
   withdrawing: { label: "ກຳລັງເບີກອາໄຫຼ່", condition: stageIs(6), stage: 6 },
   purchasing: { label: "ກຳລັງສັ່ງຊື້", condition: stageIs(7), stage: 7 },
   "wait-repair": { label: "ລໍຖ້າສ້ອມ", condition: stageIs(8), stage: 8 },
@@ -43,7 +43,7 @@ export const repairStatuses: Record<string, StatusDef> = {
    */
   "wait-accept": {
     label: "ລໍຖ້າຊ່າງຮັບ",
-    condition: "a.status <> 6 and a.return_complete is null and coalesce(a.emp_code,'') <> '' and a.repair_confirm is null",
+    condition: `${stageIs(1)} and coalesce(a.emp_code,'') <> '' and a.repair_confirm is null`,
   },
   // ບໍ່ມີ "ຂໍ້ມູນຜິດປົກກະຕິ" ອີກຕໍ່ໄປ — STAGE_SQL ໃຫ້ຂັ້ນທຸກໃບສະເໝີ ຈຶ່ງຕົກຫຼົ່ນບໍ່ໄດ້
 };

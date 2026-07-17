@@ -1,6 +1,7 @@
-import { OUTSTANDING_SUMMARY_SQL, type OutstandingSummary } from "@/app/(app)/approvals/cancellations/outstanding";
+import { OUTSTANDING_SUMMARY_SQL, type OutstandingSummary } from "@/lib/outstanding-spares";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
+import { RowLink } from "@/components/row-link";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
@@ -339,7 +340,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                   const tone = elapsedTone(row.elapsed_seconds);
                   const inWarranty = row.warranty === "ຮັບປະກັນ";
                   return (
-                    <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
+                    <RowLink key={row.code} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
                         <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                         <Link href={`/service/${row.code}`} className="hover:underline">
@@ -428,7 +429,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                           <LinkPending className="size-3" />
                         </Link>
                       </td>
-                    </tr>
+                    </RowLink>
                   );
                 })}
 

@@ -1,5 +1,5 @@
 "use server";
-import { logChange } from "@/app/actions/chatter";
+import { logChange } from "@/lib/chatter-log";
 import { pushToUser } from "@/lib/push";
 import { db } from "@/lib/db";
 import { requirePermission, requireRole } from "@/lib/guard";
@@ -41,7 +41,7 @@ const schema = z.object({
   billdate: z.string(),
   emp: z.string().min(1),
   /**
-   * ── ງານນອກສະຖານທີ່ (IH ສ້ອມບ້ານລູກຄ້າ · PS ໄປຮັບບ້ານລູກຄ້າ = 75% ຂອງໃບ) ──
+   * ── ງານນອກສະຖານທີ່ (IH ສ້ອມບ້ານລູກຄ້າ · PS ໄປຮັບເຄື່ອງຈາກບ້ານມາສ້ອມຢູ່ສູນ = 75% ຂອງໃບ) ──
    * ແຕ່ກ່ອນ tb_product ບໍ່ມີຖັນສະຖານທີ່ເລີຍ ⇒ ຊ່າງອາໄສທີ່ຢູ່ຂອງ **ລູກຄ້າ** ເຊິ່ງ
    * ອາດເປັນທີ່ຢູ່ຮ້ານ/ສຳນັກງານໃຫຍ່ ບໍ່ແມ່ນບ່ອນທີ່ເຄື່ອງຕິດຢູ່ ⇒ ໄປຜິດບ່ອນ.
    * ບັງຄັບສະເພາະ IH/PS (ກວດລຸ່ມນີ້) — CI/ST ເຮັດຢູ່ສູນ ບໍ່ຕ້ອງມີ.
@@ -128,7 +128,7 @@ export async function createService(_: ServiceState, formData: FormData): Promis
 
   // ງານນອກສະຖານທີ່ຕ້ອງຮູ້ວ່າ "ໄປໃສ" — ທີ່ຢູ່ລູກຄ້າບໍ່ພຽງພໍ (ອາດເປັນທີ່ຢູ່ຮ້ານ)
   if (NEEDS_LOCATION(parsed.data.service_type) && !parsed.data.location_repair.trim()) {
-    return { error: "ງານນອກສະຖານທີ່ (ສ້ອມບ້ານລູກຄ້າ / ໄປຮັບບ້ານລູກຄ້າ) ຕ້ອງລະບຸສະຖານທີ່ໜ້າງານ" };
+    return { error: "ງານນອກສະຖານທີ່ (ສ້ອມບ້ານລູກຄ້າ / ໄປຮັບເຄື່ອງຈາກບ້ານມາສ້ອມຢູ່ສູນ) ຕ້ອງລະບຸສະຖານທີ່ໜ້າງານ" };
   }
 
   const files = await collectUploads(formData);
@@ -290,7 +290,7 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
 
   // ງານນອກສະຖານທີ່ຕ້ອງຮູ້ວ່າ "ໄປໃສ" (ຄືກັບຕອນສ້າງ — ຟອມກວດແລ້ວ ແຕ່ action ຖືກຍິງໂດຍກົງໄດ້)
   if (NEEDS_LOCATION(parsed.data.service_type) && !parsed.data.location_repair.trim()) {
-    return { error: "ງານນອກສະຖານທີ່ (ສ້ອມບ້ານລູກຄ້າ / ໄປຮັບບ້ານລູກຄ້າ) ຕ້ອງລະບຸສະຖານທີ່ໜ້າງານ" };
+    return { error: "ງານນອກສະຖານທີ່ (ສ້ອມບ້ານລູກຄ້າ / ໄປຮັບເຄື່ອງຈາກບ້ານມາສ້ອມຢູ່ສູນ) ຕ້ອງລະບຸສະຖານທີ່ໜ້າງານ" };
   }
 
   const files = await collectUploads(formData);
@@ -500,7 +500,7 @@ export async function createServiceFromNotice(_: ServiceState, formData: FormDat
 
   // ງານນອກສະຖານທີ່ຕ້ອງຮູ້ວ່າ "ໄປໃສ" (ຄືກັບຕອນສ້າງ — ຟອມກວດແລ້ວ ແຕ່ action ຖືກຍິງໂດຍກົງໄດ້)
   if (NEEDS_LOCATION(parsed.data.service_type) && !parsed.data.location_repair.trim()) {
-    return { error: "ງານນອກສະຖານທີ່ (ສ້ອມບ້ານລູກຄ້າ / ໄປຮັບບ້ານລູກຄ້າ) ຕ້ອງລະບຸສະຖານທີ່ໜ້າງານ" };
+    return { error: "ງານນອກສະຖານທີ່ (ສ້ອມບ້ານລູກຄ້າ / ໄປຮັບເຄື່ອງຈາກບ້ານມາສ້ອມຢູ່ສູນ) ຕ້ອງລະບຸສະຖານທີ່ໜ້າງານ" };
   }
 
   const files = await collectUploads(formData);
@@ -567,4 +567,49 @@ export async function createServiceFromNotice(_: ServiceState, formData: FormDat
 
   revalidatePath("/service/notices");
   redirect(`/service/${code}`);
+}
+
+/* ------------------------------------------------- ໝາຍເຫດຂອງໃບ (ແກ້ຢູ່ຕາຕະລາງ) */
+
+export type RemarkState = { error?: string; ok?: boolean };
+
+/**
+ * **ບັນທຶກໝາຍເຫດຂອງໃບຮັບເຄື່ອງ ຈາກໜ້າລາຍການ** — ບໍ່ຕ້ອງເປີດເຂົ້າໄປແກ້ທັງໃບ.
+ *
+ * ໝາຍເຫດຄືບ່ອນທີ່ CS ຂຽນເລື່ອງທີ່ຄົນຕໍ່ໄປຕ້ອງຮູ້ (ລູກຄ້າໂທມາຖາມ · ນັດຮັບໃໝ່ ...)
+ * ⇒ ຕ້ອງຂຽນໄດ້ໄວຈາກຄິວ. ໃຊ້ຖັນ `tb_product.remark` ອັນເກົ່າ (558/5,104 ໃບມີແລ້ວ)
+ * ບໍ່ສ້າງບ່ອນເກັບໃໝ່ — ໜ້າລາຍລະອຽດ/ພິມ ອ່ານຖັນນີ້ຢູ່ແລ້ວ.
+ *
+ * ສິດ: ຄືກັບການແກ້ໃບ (`/service` update) — ຄົນທີ່ແກ້ໃບໄດ້ ຂຽນໝາຍເຫດໄດ້.
+ * ທຸກການປ່ຽນລົງ timeline ຂອງໃບ (ໝາຍເຫດເປັນຂໍ້ມູນທີ່ຄົນອື່ນເຫັນ ⇒ ຕ້ອງຮູ້ວ່າໃຜແກ້).
+ */
+export async function saveJobRemark(_: RemarkState, formData: FormData): Promise<RemarkState> {
+  const guard = await requirePermission("/service", "update", SERVICE_SIDE, "ບໍ່ມີສິດແກ້ໃບຮັບເຄື່ອງ");
+  if (!guard.ok) return { error: guard.error };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const code = String(formData.get("code") ?? "").trim();
+  const remark = String(formData.get("remark") ?? "").trim().slice(0, 500);
+  if (!code) return { error: "ບໍ່ພົບເລກໃບ" };
+
+  const before = (
+    await db.query<{ remark: string | null }>(`select remark from tb_product where code = $1`, [code])
+  ).rows[0];
+  if (!before) return { error: `ບໍ່ພົບໃບ ${code}` };
+  // ບໍ່ປ່ຽນຫຍັງ ⇒ ບໍ່ຂຽນ ບໍ່ລົງ timeline (ກັນ timeline ເຕັມໄປດ້ວຍ "ແກ້ໝາຍເຫດ" ຊ້ຳໆ)
+  if ((before.remark ?? "").trim() === remark) return { ok: true };
+
+  await db.query(`update tb_product set remark = $2, user_edit = $3 where code = $1`, [
+    code,
+    remark || null,
+    guard.session.username,
+  ]);
+  await logChange(
+    "tb_product",
+    code,
+    remark ? `ໝາຍເຫດ: ${remark}` : `ລຶບໝາຍເຫດ (ເກົ່າ: ${before.remark ?? "-"})`,
+  );
+  revalidatePath("/service");
+  revalidatePath(`/service/${code}`);
+  return { ok: true };
 }

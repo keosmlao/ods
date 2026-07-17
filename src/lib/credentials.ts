@@ -2,6 +2,7 @@ import { type Session, verifyWerkzeugPassword } from "@/lib/auth";
 import { query, queryOdg } from "@/lib/db";
 import { getEmployeeOverride, isBlockedIdentity } from "@/lib/employee-role";
 import { ERP_IDENTITY_SQL, roleFromErp, verifyErpPassword } from "@/lib/erp-auth";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 /**
  * ກວດຊື່ຜູ້ໃຊ້ + ລະຫັດຜ່ານ — **ບ່ອນດຽວຂອງລະບົບ**.
@@ -13,6 +14,16 @@ import { ERP_IDENTITY_SQL, roleFromErp, verifyErpPassword } from "@/lib/erp-auth
 
 export const BLOCKED = "ບັນຊີນີ້ຖືກປິດການໃຊ້ງານ ກະລຸນາຕິດຕໍ່ຜູ້ຈັດການ";
 export const BAD_CREDENTIALS = "ລະຫັດພະນັກງານ ຫຼື ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ";
+export const TOO_MANY = "ລອງເຂົ້າຫຼາຍເທື່ອເກີນໄປ — ກະລຸນາລໍ 5 ນາທີແລ້ວລອງໃໝ່";
+
+/**
+ * ດ່ານກັນເດົາລະຫັດຜ່ານ — **ວາງໄວ້ບ່ອນນີ້ ບໍ່ແມ່ນຢູ່ໜ້າ login**.
+ * ທາງເຂົ້າມີ 2 ທາງ (ເວັບ + ແອັບມືຖື) ແຕ່ຜ່ານຟັງຊັນນີ້ທັງຄູ່ ⇒ ກັນບ່ອນນີ້ບ່ອນດຽວ
+ * ບໍ່ມີທາງລືມທາງໃດທາງໜຶ່ງ (ແອັບມືຖືເປັນທາງທີ່ຄົນລືມ ເພາະບໍ່ມີໜ້າຈໍໃຫ້ເຫັນ).
+ * ນັບ 2 ຂາ: ຕໍ່ IP (ກັນໄລ່ຫຼາຍບັນຊີ) ແລະ ຕໍ່ຊື່ຜູ້ໃຊ້ (ກັນໄລ່ລະຫັດຂອງຄົນດຽວຈາກຫຼາຍ IP).
+ */
+const TRIES = 10;
+const WINDOW_MS = 5 * 60_000;
 
 type ErpEmployee = {
   employee_code: string;
@@ -43,6 +54,10 @@ export type CredentialResult = { ok: true; session: Session } | { ok: false; err
 
 export async function verifyCredentials(username: string, password: string): Promise<CredentialResult> {
   if (!username || !password) return { ok: false, error: "ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບ" };
+
+  const ip = await clientIp();
+  if (!rateLimit(`login:ip:${ip}`, TRIES, WINDOW_MS)) return { ok: false, error: TOO_MANY };
+  if (!rateLimit(`login:user:${username.toLowerCase()}`, TRIES, WINDOW_MS)) return { ok: false, error: TOO_MANY };
 
   // 1) ພະນັກງານຈາກ ERP (ທາງຫຼັກ)
   const employee = (await queryOdg<ErpEmployee>(ERP_SQL, [username])).rows[0];

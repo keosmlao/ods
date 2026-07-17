@@ -2,6 +2,7 @@ import { logoutAction } from "@/app/actions/auth";
 import { myActivityCount } from "@/app/actions/chatter";
 import { myNotificationCount } from "@/app/actions/notification";
 import { qcWorkflows } from "@/app/actions/qc";
+import { FloatingChat } from "@/components/chat/floating-chat";
 import { navCounts } from "@/lib/nav-counts";
 import { AppShell } from "@/components/app-shell";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -59,6 +60,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       shellLabels={dict.shell}
     >
       {children}
+      {/**
+        * ປຸ່ມແຊັດລອຍ — ຢູ່ໃນ layout ຈຶ່ງເຫັນ**ທຸກໜ້າ** ໂດຍບໍ່ຕ້ອງໄປໃສ່ເທື່ອລະໜ້າ.
+        * ຕົວເລກເອົາຈາກ navCounts ທີ່ດຶງມາຢູ່ແລ້ວ (cache 60 ວິ) ⇒ ບໍ່ເພີ່ມ query ໃໝ່.
+        */}
+      <FloatingChat unread={counts["/chat"] ?? 0} />
     </AppShell>
   );
 }

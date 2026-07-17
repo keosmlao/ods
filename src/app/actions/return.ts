@@ -1,6 +1,6 @@
 "use server";
-import { logChange } from "@/app/actions/chatter";
-import { recordPayout } from "@/app/actions/commission";
+import { logChange } from "@/lib/chatter-log";
+import { recordPayout } from "@/lib/commission-record";
 import { getSession } from "@/lib/auth";
 import { requireRole, requireRoleOrRedirect } from "@/lib/guard";
 import { SERVICE_SIDE } from "@/lib/roles";
@@ -82,7 +82,14 @@ export type QuoteLine = {
  * ວຽກ 'ຮັບປະກັນ' ບໍ່ມີໃບສະເໜີລາຄາ (ບໍ່ເກັບຄ່າອາໄຫຼ່) → ຄືນ null ສະເໝີ ເຖິງວ່າຈະມີໃບຄ້າງຢູ່ກໍ່ຕາມ
  * ⇒ ເສັ້ນທາງ 'ຮັບປະກັນ' ຢູ່ຂ້າງລຸ່ມບໍ່ປ່ຽນເລີຍ (ອາໄຫຼ່ລາຄາ 0 ຄືເກົ່າ).
  */
+/**
+ * ── ⚠️ ຟັງຊັນອ່ານໃນໄຟລ໌ `"use server"` ກໍ່ເປັນ endpoint ສາທາລະນະ ──
+ * ບໍ່ໄດ້ກວດ session = ຄົນນອກດຶງໄດ້ໂດຍບໍ່ຕ້ອງ login. ຈຶ່ງກວດ session ທຸກຕົວ
+ * (ບໍ່ຕ້ອງກວດ role — ເປັນລາຍການໃຫ້ເລືອກທຳມະດາ ແຕ່ຕ້ອງເປັນຄົນໃນອົງກອນ).
+ */
 export async function getApprovedQuote(productCode: string): Promise<ApprovedQuote | null> {
+  // ລາຄາ/ຍອດເງິນຂອງໃບສະເໜີ + ເລກງານເປັນເລກລຽງ ⇒ ໄລ່ດຶງໄດ້ເປັນຊຸດ ຖ້າບໍ່ກວດ
+  if (!(await getSession())) return null;
   if (!db) return null;
   const result = await db.query<ApprovedQuote>(
     `select q.doc_no, to_char(q.doc_date,'DD-MM-YYYY') doc_date,
@@ -102,6 +109,7 @@ export async function getApprovedQuote(productCode: string): Promise<ApprovedQuo
 
 /** ລາຍການໃນໃບສະເໜີລາຄາ — ໃຊ້ປຽບທຽບກັບຕະກ້າຢູ່ໜ້າຈໍ */
 export async function getQuoteLines(docNo: string): Promise<QuoteLine[]> {
+  if (!(await getSession())) return [];
   if (!db) return [];
   const result = await db.query<QuoteLine>(
     `select roworder, item_code, item_name, coalesce(qty,0)::text qty, unit_code,
@@ -117,6 +125,7 @@ export async function getQuoteLines(docNo: string): Promise<QuoteLine[]> {
 export type Rates = { "01": number; "02": number; "03": number };
 
 export async function getRates(): Promise<Rates> {
+  if (!(await getSession())) return { "01": 1, "02": 0, "03": 0 };
   const result = await queryOdg<{ kip: string | null; dola: string | null }>(
     `select (select exchange_rate from tb_bill_rate where code='02') as kip,
             (select exchange_rate from tb_bill_rate where code='03') as dola`,

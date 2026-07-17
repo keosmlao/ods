@@ -1,6 +1,7 @@
 import { StartCheckButton, UndoStartCheckButton } from "@/components/checking/check-actions";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
+import { RowLink } from "@/components/row-link";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
@@ -184,7 +185,7 @@ export default async function CheckingPage({ searchParams }: Props) {
             ມີ <b>{jobs.late}</b> ລາຍການ <b>ເກີນກຳນົດເວລາ</b>
           </span>
           <span className="text-red-500">
-            (ລູກຄ້ານຳເຄື່ອງເຂົ້າ ແລະ ສ້ອມເຄື່ອງໃນສາງ = 2 ຊມ · ສ້ອມບ້ານລູກຄ້າ ແລະ ໄປຮັບບ້ານລູກຄ້າ = 12 ຊມ)
+            (ລູກຄ້ານຳເຄື່ອງເຂົ້າ ແລະ ສ້ອມເຄື່ອງໃນສາງ = 2 ຊມ · ສ້ອມບ້ານລູກຄ້າ ແລະ ໄປຮັບເຄື່ອງຈາກບ້ານມາສ້ອມຢູ່ສູນ = 12 ຊມ)
           </span>
         </p>
       )}
@@ -265,7 +266,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                   const limit = slaLabel(row.service_type);
                   const inWarranty = row.warranty === "ຮັບປະກັນ";
                   return (
-                    <tr key={row.code} className="relative border-b border-slate-100 hover:bg-slate-50">
+                    <RowLink key={row.code} href={`/service/${row.code}`} className="relative border-b border-slate-100 hover:bg-slate-50">
                       <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
                         <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                         <Link href={`/service/${row.code}`} className="hover:underline">{row.code}</Link>
@@ -327,7 +328,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                           </span>
                         )}
                       </td>
-                    </tr>
+                    </RowLink>
                   );
                 })}
               </tbody>

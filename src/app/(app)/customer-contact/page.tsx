@@ -1,5 +1,5 @@
 import { Elapsed } from "@/components/elapsed";
-import { Card, Empty, PageTitle, Table } from "@/components/ui";
+import { RowLink } from "@/components/row-link";
 import { CONTACT_LABEL, type ContactJob, type ContactKind } from "@/lib/customer-contact";
 import { contactQueue } from "@/lib/customer-contact-queue";
 import { elapsedTone } from "@/lib/elapsed-tone";
@@ -45,36 +45,53 @@ export default async function CustomerContactPage() {
   const jobs = await contactQueue();
 
   return (
-    <div className="space-y-6">
-      <PageTitle sub="ງານທີ່ຢຸດຢູ່ ຈົນກວ່າຈະມີຄົນຕິດຕໍ່ລູກຄ້າ — ບັນທຶກໄວ້ວ່າໃຜໂທເມື່ອໃດ">ຄິວແຈ້ງລູກຄ້າ</PageTitle>
+    <div className="w-full space-y-4">
+      <div>
+        <h1 className="text-xl font-bold text-slate-700">ຄິວແຈ້ງລູກຄ້າ</h1>
+        <p className="mt-0.5 text-xs text-slate-500">
+          ງານທີ່ຢຸດຢູ່ ຈົນກວ່າຈະມີຄົນຕິດຕໍ່ລູກຄ້າ — ບັນທຶກໄວ້ວ່າໃຜໂທເມື່ອໃດ · {jobs.length.toLocaleString()} ລາຍການ
+        </p>
+      </div>
 
       {GROUP.map((group) => {
         const rows = jobs.filter((job) => job.kind === group.kind);
         const Icon = group.icon;
         return (
-          <Card
-            key={group.kind}
-            title={
-              <span className="inline-flex items-center gap-2">
-                <Icon className="size-4 text-teal-600" />
-                {CONTACT_LABEL[group.kind]}
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                  {rows.length}
-                </span>
-                <span className="hidden text-xs font-normal text-slate-400 sm:inline">· {group.hint}</span>
+          <div key={group.kind} className="space-y-2">
+            <h2 className="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
+              <Icon className="size-4 text-teal-600" />
+              {CONTACT_LABEL[group.kind]}
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                {rows.length}
               </span>
-            }
-          >
-            {rows.length === 0 ? (
-              <Empty>ບໍ່ມີງານທີ່ຕ້ອງແຈ້ງ</Empty>
-            ) : (
-              <Table head={["ລະຫັດ", "ລູກຄ້າ", "ສິນຄ້າ", "ວັນທີ", "ລໍມາແລ້ວ", "ແຈ້ງລ່າສຸດ", ""]} minWidth={980}>
-                {rows.map((job) => (
-                  <Row key={`${job.kind}-${job.code}`} job={job} href={group.hrefOf(job.code)} />
-                ))}
-              </Table>
-            )}
-          </Card>
+              <span className="hidden text-xs font-normal text-slate-400 sm:inline">· {group.hint}</span>
+            </h2>
+
+            <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-xs" style={{ minWidth: 980 }}>
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລະຫັດ</th>
+                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລູກຄ້າ</th>
+                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສິນຄ້າ</th>
+                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ວັນທີ</th>
+                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລໍມາແລ້ວ</th>
+                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ແຈ້ງລ່າສຸດ</th>
+                      <th className="px-3 py-2.5" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((job) => (
+                      <Row key={`${job.kind}-${job.code}`} job={job} href={group.hrefOf(job.code)} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {rows.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ມີງານທີ່ຕ້ອງແຈ້ງ</p>}
+            </section>
+          </div>
         );
       })}
     </div>
@@ -83,22 +100,22 @@ export default async function CustomerContactPage() {
 
 function Row({ job, href }: { job: ContactJob; href: string }) {
   return (
-    <tr className="border-b border-slate-100 hover:bg-slate-50">
-      <td className="px-3 py-2 text-center">
+    <RowLink href={href} className="border-b border-slate-100 hover:bg-slate-50">
+      <td className="px-3 py-2.5 text-center">
         <Link href={href} className="font-semibold text-teal-700 hover:underline">
           {job.code}
         </Link>
       </td>
-      <td className="px-3 py-2">{job.customer ?? "-"}</td>
-      <td className="px-3 py-2">{job.product ?? "-"}</td>
-      <td className="px-3 py-2 text-center whitespace-nowrap">{job.at ?? "-"}</td>
-      <td className="px-3 py-2 text-center">
+      <td className="px-3 py-2.5">{job.customer ?? "-"}</td>
+      <td className="px-3 py-2.5">{job.product ?? "-"}</td>
+      <td className="px-3 py-2.5 text-center whitespace-nowrap">{job.at ?? "-"}</td>
+      <td className="px-3 py-2.5 text-center">
         <Elapsed
           seconds={job.waiting_seconds}
           className={`rounded-full px-2 py-0.5 text-xs font-semibold ${elapsedTone(job.waiting_seconds).chip}`}
         />
       </td>
-      <td className="px-3 py-2 text-center text-xs">
+      <td className="px-3 py-2.5 text-center text-xs">
         {job.last_contact ? (
           <span className="text-slate-600">
             {job.last_contact}
@@ -109,9 +126,9 @@ function Row({ job, href }: { job: ContactJob; href: string }) {
           <span className="rounded-full bg-red-50 px-2 py-0.5 font-semibold text-red-600">ຍັງບໍ່ໄດ້ແຈ້ງ</span>
         )}
       </td>
-      <td className="px-3 py-2">
+      <td className="px-3 py-2.5">
         <ContactActions job={job} />
       </td>
-    </tr>
+    </RowLink>
   );
 }

@@ -1,6 +1,8 @@
 import { Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
+import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { notFound } from "next/navigation";
+import { canViewAssignedJob } from "@/lib/scope";
+import { notFound, redirect } from "next/navigation";
 
 /** ຖອດແບບຈາກ ods: /in_view_req/<id> + view_reg_page.html (tech_reg_install.py) */
 export const dynamic = "force-dynamic";
@@ -24,6 +26,8 @@ type Head = {
 
 export default async function ViewSpareRequest({ params }: Props) {
   const docNo = decodeURIComponent((await params).docNo);
+  const session = await getSession();
+  if (!session) redirect("/login");
 
   const [head, lines] = await Promise.all([
     query<Head>(
@@ -45,6 +49,7 @@ export default async function ViewSpareRequest({ params }: Props) {
 
   const x = head.rows[0];
   if (!x) notFound();
+  if (!canViewAssignedJob(session, x.tech_code)) redirect("/forbidden");
 
   const fields: [string, string | null][] = [
     ["ເລກຂໍເບີກ", x.doc_no],

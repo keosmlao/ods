@@ -1,9 +1,7 @@
 import { getSession, type Session } from "@/lib/auth";
 import type { PermissionAction } from "@/lib/permission-catalog";
-import { actionForPath, resourceForPath } from "@/lib/permission-catalog";
 import { permissionFromOverrides, permissionOverrides } from "@/lib/permissions";
 import { type Role, roleOf } from "@/lib/roles";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 /**
@@ -23,31 +21,24 @@ export type Guard = { ok: true; session: Session } | { ok: false; error: string 
 export const NO_SESSION = "Session ໝົດອາຍຸ";
 export const NO_RIGHT = "ບໍ່ມີສິດເຮັດລາຍການນີ້";
 
-async function requestOverride(session: Session, action?: PermissionAction): Promise<boolean | null> {
-  const referer = (await headers()).get("referer");
-  if (!referer) return null;
-  let pathname: string;
-  try {
-    pathname = new URL(referer).pathname;
-  } catch {
-    return null;
-  }
-  const resource = resourceForPath(pathname);
-  if (!resource || resource === "/manage/employees") return null;
-  const overrides = await permissionOverrides(session.username);
-  if (!overrides.has(resource)) return null;
-  const permission = permissionFromOverrides(session, resource, overrides);
-  const pathAction = actionForPath(pathname);
-  const operation = action ?? (pathAction === "read" ? "update" : pathAction);
-  return permission.read && permission[operation];
-}
+/**
+ * ── ⚠️ ເປັນຫຍັງ requireRole ຈຶ່ງ**ບໍ່**ເບິ່ງສິດລາຍຄົນ (override) ──
+ * ແຕ່ກ່ອນມີ `requestOverride()` ທີ່ເອົາ resource ມາຈາກ header **`Referer`** ແລ້ວ
+ * ຖ້າຄົນນັ້ນມີ override read+update ຢູ່ resource ນັ້ນ ກໍ່**ຜ່ານໂດຍບໍ່ເບິ່ງ role ເລີຍ**.
+ * ແຕ່ `Referer` ມາຈາກ browser ⇒ **ຜູ້ຮ້າຍຕັ້ງເອງໄດ້**: ຄົນທີ່ໄດ້ສິດແກ້ໜ້າດຽວ
+ * (ເຊັ່ນ /customers) ຕັ້ງ `Referer: /customers` ແລ້ວຍິງ `approvePoOrder` ກໍ່ຜ່ານ.
+ * ຄວາມຕ່າງກັບ `requirePermission` ຄື ບ່ອນນັ້ນ resource **ສົ່ງມາຈາກໂຄ້ດ** ບໍ່ແມ່ນຈາກ header.
+ *
+ * ⇒ ຕັດອອກ. ຢາກໃຫ້ສິດລາຍຄົນກັບ action ໃດ → ໃຊ້ `requirePermission(resource, …)`
+ * ພ້ອມລະບຸ resource ຢູ່ບ່ອນເອີ້ນ. (ຕອນຕັດ ຕາຕະລາງ ods_user_menu_permission ຫວ່າງ
+ * ທັງໝົດ 0 ແຖວ ⇒ ບໍ່ມີໃຜເສຍສິດທີ່ເຄີຍໃຊ້ຢູ່)
+ */
 
 /** ສຳລັບ action ທີ່ຄືນ `{ error }` — ຜູ້ໃຊ້ເຫັນເຫດຜົນ */
 export async function requireRole(allowed: readonly Role[], denied: string = NO_RIGHT): Promise<Guard> {
   const session = await getSession();
   if (!session) return { ok: false, error: NO_SESSION };
-  const override = await requestOverride(session);
-  if (override === false || (override === null && !allowed.includes(roleOf(session)))) return { ok: false, error: denied };
+  if (!allowed.includes(roleOf(session))) return { ok: false, error: denied };
   return { ok: true, session };
 }
 
@@ -58,8 +49,7 @@ export async function requireRole(allowed: readonly Role[], denied: string = NO_
 export async function requireRoleOrRedirect(allowed: readonly Role[]): Promise<Session> {
   const session = await getSession();
   if (!session) redirect("/login");
-  const override = await requestOverride(session);
-  if (override === false || (override === null && !allowed.includes(roleOf(session)))) redirect("/forbidden");
+  if (!allowed.includes(roleOf(session))) redirect("/forbidden");
   return session;
 }
 

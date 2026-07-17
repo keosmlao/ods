@@ -394,7 +394,7 @@ export function ServiceNoticeForm({ notice, types, brands, techs, images, initia
                   onChange={setServiceType}
                   options={[
                     { value: "CI", label: "ລູກຄ້ານຳເຄື່ອງເຂົ້າ" },
-                    { value: "PS", label: "ໄປຮັບບ້ານລູກຄ້າ" },
+                    { value: "PS", label: "ໄປຮັບເຄື່ອງທີ່ບ້ານລູກຄ້າມາສ້ອມຢູ່ສູນ" },
                     { value: "IH", label: "ສ້ອມບ້ານລູກຄ້າ" },
                     { value: "ST", label: "ສ້ອມເຄື່ອງໃນສາງ" },
                   ]}

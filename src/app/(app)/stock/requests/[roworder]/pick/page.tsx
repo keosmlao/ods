@@ -1,8 +1,10 @@
 import { addSpareToRequest } from "@/app/actions/stock";
 import { Button, Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
+import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { canViewAssignedJob } from "@/lib/scope";
 import { ArrowLeft, Search } from "lucide-react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 /** ods: stock.py /showspareitemforreg + templates/stock/list_spare_for_reg.html */
 
@@ -26,21 +28,24 @@ async function getSpares(q: string) {
 }
 
 export default async function PickSparePage({ params, searchParams }: Props) {
+  const session = await getSession();
+  if (!session) redirect("/login");
   const { roworder } = await params;
   const q = ((await searchParams).q ?? "").trim();
 
-  const product = await query<{ code: string; label: string | null }>(
-    `select code, name_1||'-'||sn label from tb_product where roworder = $1`,
+  const product = await query<{ code: string; product_label: string | null; emp_code: string | null }>(
+    `select code, concat_ws(' - ', nullif(name_1, ''), nullif(sn, '')) as product_label, emp_code from tb_product where roworder = $1`,
     [roworder],
   );
   const target = product.rows[0];
   if (!target) notFound();
+  if (!canViewAssignedJob(session, target.emp_code)) redirect("/forbidden");
 
   const spares = await getSpares(q);
 
   return (
     <div className="w-full space-y-6">
-      <PageTitle sub={target.label ?? undefined}>ເລືອກອາໄຫຼ່</PageTitle>
+      <PageTitle sub={target.product_label ?? undefined}>ເລືອກອາໄຫຼ່</PageTitle>
 
       <Card
         title="ລາຍການອາໄຫຼ່"

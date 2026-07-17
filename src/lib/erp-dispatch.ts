@@ -152,10 +152,16 @@ export async function syncErpDispatch(): Promise<SyncResult> {
           );
         }
 
-        // ④ ໃບຂໍນີ້ຖືກເບີກຄົບແລ້ວ ⇒ ງານເລື່ອນໄປຂັ້ນ "ຮັບອາໄຫຼ່"
+        /**
+         * ④ ໃບຂໍ **ທຸກໃບ** ຂອງງານຖືກເບີກຄົບແລ້ວ ⇒ ງານເລື່ອນໄປຂັ້ນ "ຮັບອາໄຫຼ່".
+         *
+         * ⚠️ ນັບຂ້າມ**ທຸກໃບຂໍ**ຂອງງານ (product_code) ບໍ່ແມ່ນສະເພາະໃບນີ້ (head.doc_ref):
+         * ງານມີໄດ້ຫຼາຍໃບ SIO (ອາໄຫຼ່ພົບເພີ່ມຕອນສ້ອມ — 674 ງານມີ >1 ໃບ). ແຕ່ກ່ອນນັບແຕ່
+         * ໃບດຽວ ⇒ ໃບທຳອິດເບີກຄົບ ພາທັງງານໄປຂັ້ນ 8 ທັງທີ່ໃບທີສອງຍັງເປີດ (ຂັ້ນສະແດງຜິດ).
+         */
         const pending = await client.query<{ count: number }>(
-          "select count(*)::int count from ic_trans_detail where doc_no=$1 and trans_flag=$2 and status=0",
-          [head.doc_ref, TRANS.REQUEST],
+          "select count(*)::int count from ic_trans_detail where product_code=$1 and trans_flag=$2 and status=0",
+          [job.product_code, TRANS.REQUEST],
         );
         if ((pending.rows[0]?.count ?? 0) === 0) {
           if (install) {

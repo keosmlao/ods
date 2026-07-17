@@ -4,11 +4,13 @@ import {
   installKpi,
   qualityKpi,
   repairKpi,
+  repairSlaCompliance,
   technicianKpi,
   weeklyThroughput,
   type FlowKpi,
   type Period,
 } from "@/lib/kpi";
+import { REPAIR_STAGE_POLICIES, REPAIR_SERVICE_TYPES } from "@/lib/repair-sla";
 import { HardHat, TrendingUp, TriangleAlert, Wrench } from "lucide-react";
 import Link from "next/link";
 
@@ -42,13 +44,15 @@ export default async function KpiPage({ searchParams }: Props) {
   const params = await searchParams;
   const days = (PERIODS.includes(Number(params.d) as Period) ? Number(params.d) : 90) as Period;
 
-  const [install, repair, techs, quality, weeks] = await Promise.all([
+  const [install, repair, techs, quality, weeks, repairSla] = await Promise.all([
     installKpi(days),
     repairKpi(days),
     technicianKpi(days),
     qualityKpi(days),
     weeklyThroughput(days),
+    repairSlaCompliance(days),
   ]);
+  const repairSlaMap = new Map(repairSla.map((item) => [`${item.stage}:${item.service_type}`, item]));
 
   const repeatPct = quality.repair_with_sn
     ? Math.round((quality.repeat_repairs / quality.repair_with_sn) * 1000) / 10
@@ -116,8 +120,43 @@ export default async function KpiPage({ searchParams }: Props) {
         title="ສ້ອມແປງ"
         icon={<Wrench className="size-4 text-teal-600" />}
         kpi={repair}
-        overdueLabel="ເກີນກຳນົດກວດເຊັກ (SLA)"
+        overdueLabel="ເກີນ SLA ຂັ້ນປັດຈຸບັນ"
       />
+
+      <Card title="SLA ແລະ KPI ແຕ່ລະຂັ້ນຕອນສ້ອມແປງ">
+        <p className="mb-3 text-xs text-slate-500">
+          SLA ເປັນ calendar hours ແລະແຍກຕາມປະເພດບໍລິການ. ຂັ້ນທີ່ຂຶ້ນກັບລູກຄ້າ/ຜູ້ສະໜອງຈະຕິດຕາມແຍກ ໂດຍບໍ່ຫັກ KPI ພະນັກງານໂດຍກົງ.
+        </p>
+        <Table head={["ຂັ້ນ", "ຜູ້ຮັບຜິດຊອບ", "KPI", ...REPAIR_SERVICE_TYPES, "ເປົ້າ"]} minWidth={1100}>
+          {REPAIR_STAGE_POLICIES.map((policy) => (
+            <tr key={policy.stage} className="border-b border-slate-100 align-top hover:bg-slate-50">
+              <td className="whitespace-nowrap px-3 py-2.5 font-bold text-slate-800">
+                {policy.stage}. {policy.label}
+                {policy.external && (
+                  <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">External</span>
+                )}
+              </td>
+              <td className="px-3 py-2.5 text-slate-600">{policy.owner}</td>
+              <td className="max-w-80 px-3 py-2.5 text-slate-600">{policy.kpi}</td>
+              {REPAIR_SERVICE_TYPES.map((code) => {
+                const actual = repairSlaMap.get(`${policy.stage}:${code}`);
+                const met = actual && actual.total > 0 && actual.pct >= policy.targetPct;
+                return (
+                  <td key={code} className="whitespace-nowrap px-3 py-2.5 text-center tabular-nums">
+                    <span className="block font-semibold text-slate-700">SLA {hours(policy.hours[code])}</span>
+                    <span className={`mt-0.5 block text-[10px] font-bold ${
+                      !actual?.total ? "text-slate-400" : met ? "text-emerald-700" : "text-red-600"
+                    }`}>
+                      ຜົນ {actual?.total ? `${actual.pct}% (${actual.within_sla}/${actual.total})` : "-"}
+                    </span>
+                  </td>
+                );
+              })}
+              <td className="whitespace-nowrap px-3 py-2.5 text-center font-bold text-teal-700">≥ {policy.targetPct}%</td>
+            </tr>
+          ))}
+        </Table>
+      </Card>
 
       {/* ── ຄຸນນະພາບ: ໄວຢ່າງດຽວບໍ່ພຽງພໍ ── */}
       <Card title="ຄຸນນະພາບ">

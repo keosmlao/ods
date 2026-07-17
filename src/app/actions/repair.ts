@@ -1,12 +1,13 @@
 "use server";
-import { logChange } from "@/app/actions/chatter";
+import { logChange } from "@/lib/chatter-log";
 import { getSession, type Session } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { finishRepairFlow, startRepairFlow } from "@/lib/job-flow";
+import { acceptRepair, finishRepairFlow, startRepairFlow } from "@/lib/job-flow";
 import { requireRole } from "@/lib/guard";
 import { pushToUser } from "@/lib/push";
 import { roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
+import { listTechnicians } from "@/lib/technicians";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -35,6 +36,7 @@ type JobSnapshot = {
   used_spare: number;
   time_repair: Date | null;
   time_finish_repair: Date | null;
+  qc_finish: Date | null;
   return_complete: Date | null;
   quote_doc: string | null;
   invoice_doc: string | null;
@@ -42,7 +44,7 @@ type JobSnapshot = {
 };
 
 const JOB_SQL = `select a.code, a.status, a.emp_code, a.warrunty, coalesce(a.used_spare,0)::int used_spare,
-    a.time_repair, a.time_finish_repair, a.return_complete,
+    a.time_repair, a.time_finish_repair, a.qc_finish, a.return_complete,
     (select t.doc_no from ic_trans t where t.trans_flag=${QUOTE} and t.product_code=a.code order by t.doc_no limit 1) quote_doc,
     (select t.doc_no from ic_trans t where t.trans_flag=${INVOICE} and t.product_code=a.code order by t.doc_no limit 1) invoice_doc,
     (select d.doc_no from ic_trans_detail d where d.trans_flag=${TRANS.DISPATCH} and d.product_code=a.code order by d.doc_no limit 1) dispatch_doc
@@ -119,6 +121,86 @@ export async function startRepair(code: string) {
   await startRepairFlow(session, code);
   revalidatePath("/repair");
   redirect("/repair");
+}
+
+/**
+ * ເລີ່ມສ້ອມແປງ **ຈາກໜ້າລາຍລະອຽດ** — ຄື startRepair ແຕ່ບໍ່ redirect ອອກຈາກໜ້າ
+ * ແລະ ສົ່ງ error ກັບໄປສະແດງ (startRepair ຖິ້ມຜົນຂອງ flow ແລ້ວ redirect ໄປ list
+ * ⇒ ໃຊ້ຢູ່ໜ້າລາຍລະອຽດບໍ່ໄດ້: ກົດແລ້ວເດັ້ງໜີ ແລະ ຜິດພາດກໍ່ບໍ່ມີໃຜເຫັນ).
+ */
+export async function startRepairStay(code: string): Promise<RepairState> {
+  const session = await getSession();
+  if (!session) return { error: "ກະລຸນາເຂົ້າສູ່ລະບົບ" };
+  const loaded = await loadJob(code);
+  if (!loaded.ok) return { error: loaded.error };
+
+  const result = await startRepairFlow(session, code);
+  if (!result.ok) return { error: result.error };
+  revalidatePath("/repair");
+  revalidatePath(`/repair/${code}`);
+  return { ok: result.message };
+}
+
+/**
+ * ຊ່າງ **ຮັບງານສ້ອມ** (repair_confirm) — ຂັ້ນ "ລໍຖ້າຊ່າງຮັບ" → ຮັບແລ້ວ.
+ * ເງື່ອນໄຂ (ຕ້ອງເປັນວຽກຂອງຕົນ · ຢູ່ຂັ້ນ 1) ຢູ່ໃນ acceptRepair ຂອງ lib/job-flow ບ່ອນດຽວ
+ * (ອັນດຽວກັບທີ່ແອັບມືຖືເອີ້ນ). ບໍ່ redirect — ໃຫ້ໜ້າສະຖານະ refresh ຢູ່ບ່ອນເກົ່າ.
+ */
+export async function acceptRepairJob(code: string): Promise<RepairState> {
+  const session = await getSession();
+  if (!session) return { error: "ກະລຸນາເຂົ້າສູ່ລະບົບ" };
+  const result = await acceptRepair(session, code);
+  if (!result.ok) return { error: result.error };
+  revalidatePath("/repair");
+  revalidatePath("/dashboard");
+  return { ok: result.message };
+}
+
+/**
+ * ຍົກເລີກຂັ້ນ "ຈັດຊ່າງ / ຊ່າງຮັບງານ" ກ່ອນເລີ່ມກວດເຊັກ.
+ * ຮັບງານແລ້ວ -> ລ້າງ repair_confirm; ຍັງບໍ່ຮັບ -> ຖອນຊ່າງອອກຈາກງານ.
+ */
+export async function undoRepairAssignment(code: string): Promise<RepairState> {
+  const session = await getSession();
+  if (!session) return { error: "Session ໝົඔອາຍຸ" };
+  const role = roleOf(session);
+
+  const row = (
+    await query<{ emp_code: string | null; accepted: boolean; started: boolean }>(
+      `select nullif(emp_code,'') emp_code, repair_confirm is not null accepted, time_check is not null started
+         from tb_product where code=$1`,
+      [code],
+    )
+  ).rows[0];
+  if (!row?.emp_code) return { error: "ງານນີ້ຍັງບໍ່ມີຊ່າງໃຫ້ຍົກເລີກ" };
+  if (row.started) return { error: 'ເລີ່ມກວດເຊັກແລ້ວ — ໃຫ້ຍົກເລີກ "ເລີ່ມກວດເຊັກ" ກ່ອນ' };
+
+  if (row.accepted) {
+    if (!TECH_SIDE.includes(role)) return { error: "ບໍ່ມີສິດຍົກເລີກຊ່າງຮັບງານ" };
+    if (role === "technical" && row.emp_code !== session.username) {
+      return { error: "ວຽກນີ້ບໍ່ແມ່ນຂອງທ່ານ" };
+    }
+  } else if (!SERVICE_SIDE.includes(role)) {
+    return { error: "ບໍ່ມີສິດຍົກເລີກການຈັດຊ່າງ" };
+  }
+
+  const updated = row.accepted
+    ? await query("update tb_product set repair_confirm=null where code=$1 and time_check is null", [code])
+    : await query("update tb_product set emp_code='', repair_confirm=null where code=$1 and time_check is null", [code]);
+  if (!updated.rowCount) return { error: "ຍົກເລີກບໍ່ສຳເລັດ — ງານຖືກປ່ຽນໄປແລ້ວ" };
+
+  await logChange(
+    "tb_product",
+    code,
+    row.accepted
+      ? "ຍົກເລີກຊ່າງຮັບງານ — ກັບໄປລໍຖ້າຊ່າງຮັບ"
+      : "ຍົກເລີກການຈັດຊ່າງ — ກັບໄປລໍຖ້າຈັດຊ່າງ",
+  );
+  revalidatePath("/repair/assign");
+  revalidatePath("/checking");
+  revalidatePath("/dashboard");
+  revalidatePath(`/service/${code}`);
+  return {};
 }
 
 /* ── ຍົກເລີກ "ເລີ່ມສ້ອມແປງ" (ບໍ່ມີໃນ ods) ───────────────────────
@@ -282,12 +364,16 @@ export async function undoFinishRepair(code: string): Promise<UndoState> {
   const job = loaded.job;
 
   if (!job.time_finish_repair) return { error: "ໃບນີ້ຍັງບໍ່ໄດ້ບັນທຶກ ສ້ອມແປງສຳເລັດ" };
+  if (job.qc_finish) {
+    return { error: 'ຍົກເລີກ "ສ້ອມແປງສຳເລັດ" ບໍ່ໄດ້: QC ຜ່ານແລ້ວ — ໃຫ້ຍົກເລີກ "QC ຜ່ານ" ກ່ອນ' };
+  }
   const blocker = blockedBy(job);
   if (blocker) return { error: `ຍົກເລີກ "ຈົບການສ້ອມແປງ" ບໍ່ໄດ້: ${blocker}` };
 
   const undone = await query(
     `update tb_product set time_finish_repair=null, status=(${POST_CHECK_STATUS})
-      where code=$1 and time_finish_repair is not null and return_complete is null and status<>6`,
+      where code=$1 and time_finish_repair is not null and qc_finish is null
+        and return_complete is null and status<>6`,
     [code],
   );
   if (!undone.rowCount) return { error: "ຖອນຄືນບໍ່ສຳເລັດ — ວຽກຖືກປ່ຽນໄປແລ້ວ" };
@@ -321,6 +407,7 @@ export async function assignRepairTech(_: RepairState, formData: FormData): Prom
   const appoint = String(formData.get("appoint_date") ?? "").trim();
   const location = String(formData.get("location_inst") ?? "").trim();
   const remark = String(formData.get("remark") ?? "").trim();
+  const reason = String(formData.get("reason") ?? "").trim();
   if (!code || !tech) return { error: "ກະລຸນາເລືອກຊ່າງ" };
 
   const job = (
@@ -339,6 +426,11 @@ export async function assignRepairTech(_: RepairState, formData: FormData): Prom
     return { error: "ປ່ຽນຊ່າງບໍ່ໄດ້ — ມີໃບຂໍເບີກອາໄຫຼ່ໃນນາມຊ່າງຄົນເກົ່າແລ້ວ" };
   }
 
+  // ປ່ຽນຈາກຊ່າງຄົນເກົ່າ ⇒ ບັງຄັບໃສ່ເຫດຜົນ (ເກັບໄວ້ໃນປະຫວັດ)
+  const previous = job.emp_code;
+  const changed = Boolean(previous && previous !== tech);
+  if (changed && !reason) return { error: "ກະລຸນາໃສ່ເຫດຜົນການປ່ຽນຊ່າງ" };
+
   try {
     await query(
       `update tb_product set emp_code = $1,
@@ -356,10 +448,16 @@ export async function assignRepairTech(_: RepairState, formData: FormData): Prom
     return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
   }
 
+  // ເກັບປະຫວັດ "ປ່ຽນຊ່າງ" — ສະແດງ **ຊື່ ERP** (ບໍ່ແມ່ນລະຫັດ) ຈາກ ຄົນເກົ່າ → ຄົນໃໝ່
+  const techs = await listTechnicians();
+  const nameOf = (value: string | null) => (value ? techs.find((item) => item.code === value)?.name ?? value : value);
+  const action = changed
+    ? `ປ່ຽນຊ່າງສ້ອມ: ${nameOf(previous)} → ${nameOf(tech)} · ເຫດຜົນ: ${reason}`
+    : `ຈັດຊ່າງສ້ອມ: ${nameOf(tech)}`;
   await logChange(
     "tb_product",
     code,
-    `ຈັດຊ່າງສ້ອມ: ${tech}${appoint ? ` · ນັດວັນທີ ${appoint}` : ""}${location ? ` · ${location}` : ""}`,
+    `${action}${appoint ? ` · ນັດວັນທີ ${appoint}` : ""}${location ? ` · ${location}` : ""}`,
     { users: [tech] },
   );
   // ຊ່າງຢູ່ໜ້າງານ ບໍ່ໄດ້ເປີດເວັບຄ້າງໄວ້ ⇒ ຕ້ອງເຂົ້າມືຖື

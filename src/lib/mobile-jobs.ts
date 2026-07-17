@@ -1,5 +1,6 @@
 import type { Session } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { employeeCode } from "@/lib/erp-employee";
 import {
   INSTALL_STAGE_LABEL_SQL,
   INSTALL_STAGE_SQL,
@@ -7,6 +8,7 @@ import {
   INSTALL_OPEN,
 } from "@/lib/install-stage";
 import { INSTALL_LEFT_SQL } from "@/lib/install-sla";
+import { REPAIR_STAGE_SLA_HOURS_SQL } from "@/lib/repair-sla";
 import { OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 
 /**
@@ -52,7 +54,8 @@ export type MobileJob = {
   lat: number | null;
   lng: number | null;
   /**
-   * ວິນາທີທີ່ຍັງເຫຼືອຈົນຄົບ **24 ຊມ ນັບແຕ່ອອກບິນ** (ຕິດລົບ = ເລີຍກຳນົດ) — ສະເພາະຕິດຕັ້ງ.
+   * ວິນາທີທີ່ຍັງເຫຼືອກ່ອນຄົບ SLA (ຕິດລົບ = ເລີຍກຳນົດ).
+   * ຕິດຕັ້ງ = 24 ຊມ ນັບແຕ່ອອກບິນ · ສ້ອມ = SLA ຂັ້ນປັດຈຸບັນຕາມ CI/ST/IH/PS.
    * ຊ່າງຕ້ອງເຫັນນາລິກາອັນດຽວກັບທີ່ຜູ້ຈັດການເຫັນ ບໍ່ດັ່ງນັ້ນ "ດ່ວນ" ຂອງສອງຝ່າຍບໍ່ຕົງກັນ.
    */
   sla_left: number | null;
@@ -64,7 +67,7 @@ export type MobileJob = {
  * ⚠️ ຮຸ່ນກ່ອນຂຽນ `service_type <> 'in'` ໂດຍ **ເດົາຄ່າ** — ຄ່າ 'in'/'out' **ບໍ່ມີຢູ່ຈິງ**
  * ໃນຖານເລີຍ ⇒ ເງື່ອນໄຂເປັນຈິງສະເໝີ ⇒ ແອັບບັງຄັບ check-in ແມ່ນແຕ່ງານທີ່ເຮັດຢູ່ສູນ.
  *
- * ຄ່າຈິງ (5,069 ໃບ): **IH** ສ້ອມບ້ານລູກຄ້າ 3,669 · **PS** ໄປຮັບບ້ານລູກຄ້າ 123
+ * ຄ່າຈິງ (5,069 ໃບ): **IH** ສ້ອມບ້ານລູກຄ້າ 3,669 · **PS** ໄປຮັບເຄື່ອງທີ່ບ້ານມາສ້ອມຢູ່ສູນ 123
  *                    **CI** ລູກຄ້ານຳເຂົ້າມາ 1,218 · **ST** ສ້ອມເຄື່ອງໃນສາງ 59
  * ⇒ ນອກສະຖານທີ່ = IH, PS ເທົ່ານັ້ນ (3,792 ໃບ = 75%).
  *
@@ -154,13 +157,15 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         ${CHECKED_IN("repair")} as can_check_out,
         ${CHECKED_IN("repair")} as checked_in,
         a.location_lat as lat, a.location_lng as lng,
-        null::double precision as sla_left
+        case when (${REPAIR_STAGE_SLA_HOURS_SQL}) is not null
+          then (${REPAIR_STAGE_SLA_HOURS_SQL}) * 3600 - (${STAGE_ELAPSED_SQL})
+          else null end::double precision as sla_left
       from tb_product a
       left join ar_customer b on b.code = a.cust_code
      where ${OPEN_JOBS}
        and coalesce(a.emp_code,'') <> ''
        and a.emp_code = $1
-     order by a.appoint_date asc nulls last, a.time_register asc`,
+     order by sla_left asc nulls last, a.appoint_date asc nulls last, a.time_register asc`,
     [tech],
   );
 
@@ -180,11 +185,9 @@ export type MobileIncome = {
 };
 
 export async function myIncome(session: Session): Promise<MobileIncome> {
-  const employee = (
-    await query<{ employee_code: string }>("select employee_code from ods_user_employee where user_code = $1", [
-      session.username,
-    ])
-  ).rows[0];
+  // ຫາລະຫັດຜ່ານ `employeeCode` — ຢ່າຖາມ ods_user_employee ເອງ: ສຳເນົາແບບນັ້ນຫຼົ່ນ
+  // ທັງ `users.code` ແລະ ການທຽບແບບບໍ່ສົນໂຕພິມ ⇒ ຊ່າງທີ່ມີລະຫັດຢູ່ແລ້ວເຫັນລາຍໄດ້ເປັນ 0
+  const employee = await employeeCode(session.username);
 
   // ຍັງບໍ່ໄດ້ເຊື່ອມຕົວຕົນ ⇒ ບໍ່ມີເງິນຜູກກັບຄົນນີ້ (ບອກແອັບໄປຕາມຄວາມຈິງ ບໍ່ໃຫ້ເດົາ)
   if (!employee) return { month: "", jobs: 0, total_thb: 0, rows: [] };
@@ -196,7 +199,7 @@ export async function myIncome(session: Session): Promise<MobileIncome> {
      where p.employee_code = $1
        and p.closed_at >= date_trunc('month', current_date)
      order by p.closed_at desc`,
-    [employee.employee_code],
+    [employee],
   );
 
   const total = rows.rows.reduce((sum, row) => sum + row.pay_thb, 0);

@@ -1,4 +1,4 @@
-import { markAllNotificationsRead, markNotificationRead, myNotifications } from "@/app/actions/notification";
+import { markAllNotificationsRead, markNotificationRead, markNotificationUnread, myNotifications } from "@/app/actions/notification";
 import { LinkPending } from "@/components/link-pending";
 import { MODEL_LABEL, NOTIFICATION_KIND_LABEL, recordHref, type ChatterModel, type NotificationKind } from "@/lib/chatter";
 import { BellRing, Check, CheckCheck, ChevronLeft, ChevronRight, Inbox, Mail } from "lucide-react";
@@ -134,15 +134,23 @@ export default async function NotificationsPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{row.actor}</td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-400">{row.created_at}</td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-right">
-                      {!row.read && (
-                        <form action={markNotificationRead}>
-                          <input type="hidden" name="id" value={row.id} />
-                          <button className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
-                            <Check className="size-3.5" />
-                            ໝາຍວ່າອ່ານແລ້ວ
-                          </button>
-                        </form>
-                      )}
+                      {/* ກົດ read/unread ໄດ້ສອງທາງ — ອ່ານຜິດ ຫຼື ຢາກໝາຍໄວ້ອ່ານຄືນ ກໍ່ກັບໄດ້ */}
+                      <form action={row.read ? markNotificationUnread : markNotificationRead}>
+                        <input type="hidden" name="id" value={row.id} />
+                        <button className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                          {row.read ? (
+                            <>
+                              <Mail className="size-3.5" />
+                              ໝາຍວ່າຍັງບໍ່ອ່ານ
+                            </>
+                          ) : (
+                            <>
+                              <Check className="size-3.5" />
+                              ໝາຍວ່າອ່ານແລ້ວ
+                            </>
+                          )}
+                        </button>
+                      </form>
                     </td>
                   </tr>
                 );

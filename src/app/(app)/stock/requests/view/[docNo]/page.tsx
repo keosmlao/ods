@@ -1,7 +1,9 @@
 import { BillView } from "@/components/stock/bill-view";
 import type { SpareLine } from "@/components/stock/spare-lines";
+import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { notFound } from "next/navigation";
+import { canViewAssignedJob } from "@/lib/scope";
+import { notFound, redirect } from "next/navigation";
 
 /** ods: stock.py /showstkrq/<doc_no> + templates/stock/showrequstpage.html */
 
@@ -20,17 +22,20 @@ type Head = {
   warranty: string | null;
   issue_2: string | null;
   technician: string | null;
+  technician_code: string | null;
 };
 
 export default async function ShowRequestBillPage({ params }: Props) {
   const { docNo } = await params;
   const code = decodeURIComponent(docNo);
+  const session = await getSession();
+  if (!session) redirect("/login");
 
   const head = await query<Head>(
     `select a.doc_no, to_char(a.doc_date,'DD-MM-YYYY') doc_date, a.doc_ref,
        to_char(a.doc_ref_date::date,'DD-MM-YYYY') doc_ref_date,
        b.name_1||'-'||b.tel customer, c.name_1 product, c.p_model, c.sn, c.issue,
-       a.wanrunty warranty, a.isue_2 issue_2, d.name_1 technician
+       a.wanrunty warranty, a.isue_2 issue_2, d.name_1 technician, c.emp_code technician_code
      from ic_trans a
      left join ar_customer b on b.code = a.cust_code
      left join tb_product c on c.code = a.product_code
@@ -40,6 +45,7 @@ export default async function ShowRequestBillPage({ params }: Props) {
   );
   const bill = head.rows[0];
   if (!bill) notFound();
+  if (!canViewAssignedJob(session, bill.technician_code)) redirect("/forbidden");
 
   const lines = await query<Omit<SpareLine, "roworder">>(
     `select row_number() over ()::int rnum, item_code, item_name, qty, unit_code

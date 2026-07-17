@@ -1,10 +1,12 @@
-import { logChange } from "@/app/actions/chatter";
+import { logChange } from "@/lib/chatter-log";
 import type { Session } from "@/lib/auth";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
-import { db, odgDb, query } from "@/lib/db";
+import { db, odgDb, query, queryOdg } from "@/lib/db";
 import { writeErpRequest } from "@/lib/erp-request";
 import { nextDocNo } from "@/lib/doc-no";
 import type { FlowResult } from "@/lib/job-flow";
+import { roleOf } from "@/lib/roles";
+import { canViewAssignedJob } from "@/lib/scope";
 import { STAGE_SQL } from "@/lib/stage";
 import { ERP, LINE_STATUS, RETURN_SHELF, RETURN_WH, TRANS } from "@/lib/stock-constants";
 
@@ -79,6 +81,14 @@ export type SpareItem = {
 };
 
 /** ຄົ້ນຫາອາໄຫຼ່ຈາກ ic_inventory — ບໍ່ພິມຫຍັງກໍ່ຄືນລາຍການທີ່ມີຄົງເຫຼືອຫຼາຍສຸດ */
+/**
+ * ຄົ້ນຫາອາໄຫຼ່ (ຕອນກວດເຊັກ/ເພີ່ມອາໄຫຼ່) — **ດຶງຈາກ ERP ໂດຍກົງ** (16-07-2026).
+ *
+ * ແຕ່ກ່ອນອ່ານ `ic_inventory` ຂອງ ODS ເຊິ່ງເປັນ**ເງົາ**ທີ່ອັບເດດສະເພາະຕອນ sync
+ * ⇒ ຍອດຄ້າງເກົ່າ: ຊ່າງເຫັນວ່າ "ມີ" ຕອນເລືອກ ແຕ່ພໍຂໍເບີກ ERP ບອກວ່າບໍ່ມີ (ຫຼື ກົງກັນຂ້າມ)
+ * — ສາມຈຸດວັດ stock ຄົນລະບ່ອນ ຄືຕົ້ນເຫດຂອງ "ຕອນຂໍເບີກບອກວ່າບໍ່ມີ ຕອນຂໍຊື້ບອກວ່າມີ".
+ * ດຽວນີ້ທຸກຈຸດຖາມ ERP ບ່ອນດຽວ.
+ */
 export async function searchSpares(text: string, inStockOnly = false): Promise<SpareItem[]> {
   const where: string[] = [];
   const params: string[] = [];
@@ -88,39 +98,53 @@ export async function searchSpares(text: string, inStockOnly = false): Promise<S
   }
   if (inStockOnly) where.push("coalesce(balance_qty,0) > 0");
 
-  return (
-    await query<SpareItem>(
-      `select code, name_1, item_brand as brand, unit_code, coalesce(balance_qty,0)::int as balance_qty
-         from ic_inventory
-        ${where.length ? `where ${where.join(" and ")}` : ""}
-        order by coalesce(balance_qty,0) desc, code
-        limit 50`,
-      params,
-    )
-  ).rows;
+  try {
+    return (
+      await queryOdg<SpareItem>(
+        `select code, name_1, item_brand as brand, unit_standard as unit_code,
+            coalesce(balance_qty,0)::int as balance_qty
+           from ic_inventory
+          ${where.length ? `where ${where.join(" and ")}` : ""}
+          order by coalesce(balance_qty,0) desc, code
+          limit 50`,
+        params,
+      )
+    ).rows;
+  } catch (error) {
+    // ERP ລົ້ມ ⇒ ຄົ້ນຫາຫວ່າງ ດີກວ່າສະແດງຍອດເງົາທີ່ຜິດ
+    console.error("searchSpares (ERP) failed", error);
+    return [];
+  }
 }
 
 /* ── ກວດເຊັກ ────────────────────────────────────────────────────── */
 
 export async function startCheckFlow(session: Session, code: string): Promise<FlowResult> {
-  const allowed = await query<{ allowed: boolean }>(
-    `select (
-       repair_confirm is not null and emp_code=$2 and
-       (coalesce(service_type,'') not in ('IH','PS') or exists (
-         select 1 from ods_job_checkin c
-          where c.workflow='repair' and c.job_code=a.code and c.tech_code=$2
-       ))
-     ) allowed from tb_product a where a.code=$1`,
-    [code, session.username],
-  );
-  if (!allowed.rows[0]?.allowed) {
-    return { ok: false, error: "ຕ້ອງຮັບງານ ແລະ check-in ໜ້າງານກ່ອນເລີ່ມກວດເຊັກ" };
+  // ຊ່າງ: ຕ້ອງເປັນວຽກຂອງຕົນ + ຮັບງານກ່ອນ; ວຽກ **ນອກສະຖານທີ່** (IH/PS) ຕ້ອງ check-in ໜ້າງານ,
+  // ວຽກ **ນຳເຄື່ອງເຂົ້າ** (in-shop) ບໍ່ຕ້ອງ check-in. ຜູ້ຈັດການ/CS (ໜ້າ dashboard) ຂ້າມເງື່ອນໄຂນີ້ໄດ້.
+  if (roleOf(session) === "technical") {
+    const check = await query<{ accepted: boolean; onsite: boolean; checkedin: boolean }>(
+      `select a.repair_confirm is not null as accepted,
+              coalesce(a.service_type,'') in ('IH','PS') as onsite,
+              exists (select 1 from ods_job_checkin c
+                       where c.workflow='repair' and c.job_code=a.code and c.tech_code=$2) as checkedin
+         from tb_product a where a.code=$1 and a.emp_code=$2`,
+      [code, session.username],
+    );
+    const row = check.rows[0];
+    if (!row) return { ok: false, error: "ງານນີ້ບໍ່ແມ່ນຂອງທ່ານ" };
+    if (!row.accepted) return { ok: false, error: "ຕ້ອງຮັບງານກ່ອນເລີ່ມກວດເຊັກ" };
+    if (row.onsite && !row.checkedin) {
+      return { ok: false, error: "ຕ້ອງ check-in ໜ້າງານກ່ອນເລີ່ມກວດເຊັກ (ວຽກນອກສະຖານທີ່)" };
+    }
   }
-  // ຂັ້ນ 1 = ລໍຖ້າກວດເຊັກ ເທົ່ານັ້ນ (ກົດຊ້ຳບໍ່ຂຽນທັບ ⇒ ໂມງ SLA ບໍ່ຖືກຣີເຊັດ)
+
+  // ຂັ້ນ 1 = ລໍຖ້າກວດເຊັກ ເທົ່ານັ້ນ (ກົດຊ້ຳບໍ່ຂຽນທັບ ⇒ ໂມງ SLA ບໍ່ຖືກຣີເຊັດ).
+  // ຜູ້ຈັດການເລີ່ມກວດເຊັກເອງ (ວຽກຍັງບໍ່ຮັບ) ⇒ ຖືວ່າຮັບງານໃຫ້ນຳ (repair_confirm) ບໍ່ໃຫ້ຄ້າງ.
   const done = await query(
-    `update tb_product a set time_check=${NOW}, status=1
-      where a.code=$1 and a.emp_code=$2 and a.repair_confirm is not null and (${STAGE_SQL}) = 1`,
-    [code, session.username],
+    `update tb_product a set time_check=${NOW}, status=1, repair_confirm=coalesce(a.repair_confirm, ${NOW})
+      where a.code=$1 and (${STAGE_SQL}) = 1`,
+    [code],
   );
   if (!done.rowCount) return { ok: false, error: 'ເລີ່ມກວດເຊັກບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ "ລໍຖ້າກວດເຊັກ"' };
 
@@ -307,15 +331,87 @@ export async function createSpareRequest(
     await odg.query("begin");
     await client.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
 
+    /**
+     * ── ດ່ານ "ໝົດປະກັນຕ້ອງຈົບລາຄາກ່ອນ" ──
+     * ໜ້າເວັບ /stock/requests ມີກົດນີ້ຢູ່ແລ້ວ ແຕ່ມັນເປັນພຽງ **ຕົວກອງລາຍການ**
+     * (WAIT_WHERE — ຕັດສິນວ່າໃບໃດຂຶ້ນຄິວ) ບໍ່ແມ່ນດ່ານໃນ action ⇒ ເສັ້ນທາງ
+     * **ແອັບມືຖື** (/api/mobile/spare-request) ຂໍເບີກໄດ້ໂດຍບໍ່ຜ່ານກົດນີ້ເລີຍ.
+     *
+     * ຜົນທີ່ຕາມມາຖ້າບໍ່ກັນ: ສາງຈ່າຍອາໄຫຼ່ອອກໃຫ້ງານໝົດປະກັນ → ລູກຄ້າປະຕິເສດລາຄາ
+     * → ຂອງອອກຈາກສາງໄປແລ້ວ ໂດຍບໍ່ມີໃຜຈ່າຍ. ນີ້ຄືກໍລະນີທີ່ຄູ່ມືຂອງ lib/job-flow
+     * ເຕືອນໄວ້ພໍດີ: "ແອັບຂຽນ SQL ຂອງຕົນເອງ ⇒ ຂາດເງື່ອນໄຂໃດເງື່ອນໄຂນຶ່ງ".
+     *
+     * `for update` ລັອກແຖວໄວ້ ⇒ ອະນຸມັດລາຄາພ້ອມກັບຂໍເບີກ ກໍ່ບໍ່ຫຼົບກັນ.
+     */
+    const job = await client.query<{ warrunty: string | null; quoted: boolean; cancelled: boolean; emp_code: string | null }>(
+      `select a.warrunty, (a.qt_start is not null and a.qt_finish is not null) quoted, (a.status = 6) cancelled,
+              a.emp_code
+         from tb_product a where a.code = $1 for update`,
+      [input.code],
+    );
+    const head = job.rows[0];
+    if (!head) {
+      await client.query("rollback");
+      await odg.query("rollback");
+      return { ok: false, error: "ບໍ່ພົບໃບຮັບເຄື່ອງນີ້" };
+    }
+    /**
+     * ── ດ່ານ "ວຽກຂອງໃຜ" (17-07-2026) ──
+     * ໃບເບີກນີ້ຕັດສະຕັອກ ERP ຈິງ ⇒ ຊ່າງຄົນນຶ່ງຫ້າມເບີກໃສ່ງານຂອງຊ່າງອີກຄົນ.
+     * ໃຊ້ໂມເດວ scope ກາງ (lib/scope): ຊ່າງ (technical) ໄດ້ສະເພາະວຽກຕົນ · ຫົວໜ້າ/CS/ສາງ
+     * ຊ່ວຍໄດ້ທຸກວຽກ. ແຕ່ກ່ອນ web path ນີ້**ບໍ່ກວດ**ເລີຍ ຂະນະທີ່ mobile (ownMobileJob)
+     * ແລະ ຝັ່ງຕິດຕັ້ງ (createInstallSpareRequest) ກວດ ⇒ ຄວາມບໍ່ສົມມາດຄືບັກ ບໍ່ແມ່ນນະໂຍບາຍ.
+     */
+    if (!canViewAssignedJob(session, head.emp_code)) {
+      await client.query("rollback");
+      await odg.query("rollback");
+      return { ok: false, error: "ວຽກນີ້ບໍ່ແມ່ນວຽກຂອງທ່ານ — ຂໍເບີກອາໄຫຼ່ບໍ່ໄດ້" };
+    }
+    if (head.cancelled) {
+      await client.query("rollback");
+      await odg.query("rollback");
+      return { ok: false, error: "ໃບນີ້ຖືກຍົກເລີກແລ້ວ — ຂໍເບີກອາໄຫຼ່ບໍ່ໄດ້" };
+    }
+    if (head.warrunty === "ໝົດຮັບປະກັນ" && !head.quoted) {
+      await client.query("rollback");
+      await odg.query("rollback");
+      return {
+        ok: false,
+        error: "ຂໍເບີກບໍ່ໄດ້ — ວຽກໝົດຮັບປະກັນຕ້ອງມີໃບສະເໜີລາຄາທີ່ລູກຄ້າຕົກລົງແລ້ວກ່ອນ",
+      };
+    }
+
     const lines = await client.query<{ item_code: string; item_name: string | null; unit_code: string | null; qty: string }>(
       OUTSTANDING_SPARES,
       [input.code],
     );
     if (lines.rows.length === 0) {
       await client.query("rollback");
+      await odg.query("rollback");
       return { ok: false, error: "ບໍ່ມີອາໄຫຼ່ທີ່ຄ້າງຂໍເບີກ (ຂໍໄປແລ້ວ ຫຼື ເບີກອອກແລ້ວ)" };
     }
     lineCount = lines.rows.length;
+
+    // ຫ້າມອອກ SIO ກ່ອນຂອງເຂົ້າສາງຈິງ: ກວດ ERP ສາງ+ບ່ອນເກັບທີ່ເລືອກ ຢູ່ server ອີກຄັ້ງ.
+    const stock = await odg.query<{ code: string; balance_qty: string }>(
+      `select i.code, coalesce(sum(coalesce(b.balance_qty,0)),0)::text balance_qty
+         from unnest($1::text[]) i(code)
+         left join lateral sml_ic_function_stock_balance_warehouse_location('2099-12-31',i.code,$2,$3) b on true
+        group by i.code`,
+      [lines.rows.map((line) => line.item_code), input.wh_code, input.shelf_code],
+    );
+    const available = new Map(stock.rows.map((row) => [row.code, Number(row.balance_qty)]));
+    const shortage = lines.rows.filter((line) => (available.get(line.item_code) ?? 0) < Number(line.qty));
+    if (shortage.length > 0) {
+      await client.query("rollback");
+      await odg.query("rollback");
+      return {
+        ok: false,
+        error: `ຍັງຂໍເບີກບໍ່ໄດ້ — ERP ສາງ ${input.wh_code}/${input.shelf_code} ບໍ່ພໍ: ${shortage
+          .map((line) => `${line.item_code} ຕ້ອງການ ${Number(line.qty)} ມີ ${available.get(line.item_code) ?? 0}`)
+          .join(", ")} · ຕ້ອງສັ່ງຊື້ ແລະຮັບເຂົ້າສາງກ່ອນ`,
+      };
+    }
 
     docNo = await nextDocNo(client, "SIO", at);
     await client.query(

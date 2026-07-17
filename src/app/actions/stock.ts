@@ -1,13 +1,14 @@
 "use server";
 
-import { logChange } from "@/app/actions/chatter";
-import { notify } from "@/app/actions/notification";
+import { logChange } from "@/lib/chatter-log";
+import { notify } from "@/lib/notify";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb } from "@/lib/db";
 import { docPrefix, nextDocNo } from "@/lib/doc-no";
 import { deleteErpRequest, writeErpRequest } from "@/lib/erp-request";
 import { requirePermissionOrRedirect, requireRole, requireRoleOrRedirect } from "@/lib/guard";
 import { RETURN_SIDE, SERVICE_SIDE, STOCK_SIDE, TECH_SIDE } from "@/lib/roles";
+import { canViewAssignedJob } from "@/lib/scope";
 import { getBalances } from "@/lib/stock-balance";
 import { createSpareRequest, pickupSpares } from "@/lib/tech-flow";
 import { ppDb, PP_NOT_CONFIGURED } from "@/lib/stock-db";
@@ -124,7 +125,57 @@ export async function addSpareToRequest(formData: FormData): Promise<void> {
   redirect(`/stock/requests/${roworder}`);
 }
 
-/** ods: /updateqtytoreg — ແກ້ຈຳນວນອາໄຫຼ່ */
+/** ເພີ່ມອາໄຫຼ່ຈາກ modal ໂດຍບໍ່ redirect — ເພີ່ມຫຼາຍລາຍການຕໍ່ເນື່ອງໄດ້. */
+export async function addSpareToRequestFromDialog(
+  roworder: string,
+  productCode: string,
+  itemCode: string,
+  qty = 1,
+): Promise<StockState> {
+  const guard = await requireRole(TECH_SIDE, "ບໍ່ມີສິດເພີ່ມອາໄຫຼ່");
+  if (!guard.ok) return { error: guard.error };
+  if (!db) return { error: "ຖານຂໍ້ມູນຍັງບໍ່ພ້ອມ" };
+
+  const amount = Number(qty);
+  if (!roworder || !productCode || !itemCode || !Number.isFinite(amount) || amount <= 0) {
+    return { error: "ຂໍ້ມູນອາໄຫຼ່ ຫຼື ຈຳນວນບໍ່ຖືກຕ້ອງ" };
+  }
+
+  const target = await db.query<{ code: string; emp_code: string | null }>(
+    `select code, emp_code from tb_product where roworder=$1 and code=$2`,
+    [roworder, productCode],
+  );
+  const job = target.rows[0];
+  if (!job || !canViewAssignedJob(guard.session, job.emp_code)) {
+    return { error: "ບໍ່ພົບວຽກ ຫຼື ວຽກນີ້ບໍ່ແມ່ນຂອງທ່ານ" };
+  }
+
+  const inventory = await db.query<{ name_1: string | null; unit_code: string | null }>(
+    `select name_1, unit_code from ic_inventory where code=$1`,
+    [itemCode],
+  );
+  const item = inventory.rows[0];
+  if (!item) return { error: "ບໍ່ພົບອາໄຫຼ່ທີ່ເລືອກ" };
+
+  await db.query(
+    `insert into tb_used_spare(product_code, item_code, item_name, qty, unit_code) values($1,$2,$3,$4,$5)`,
+    [productCode, itemCode, item.name_1, amount, item.unit_code],
+  );
+  revalidatePath(`/stock/requests/${roworder}`);
+  return { ok: "ເພີ່ມອາໄຫຼ່ແລ້ວ" };
+}
+
+/**
+ * ແຖວອາໄຫຼ່ນີ້ **ຍັງບໍ່ເຂົ້າເອກະສານ** ບໍ (ໃບຂໍເບີກ 122 / ໃບເບີກ 56) — ອີງບັນຊີເອກະສານໂດຍກົງ.
+ * ນິຍາມດຽວກັບ NOT_ON_DOC ຂອງ actions/repair.ts: ຖ້າສາງເບີກອອກໄປແລ້ວ ຫ້າມແກ້/ລຶບ
+ * ບໍ່ດັ່ງນັ້ນກະຕ່າກັບເອກະສານ ERP ບໍ່ຕົງກັນ. ແຕ່ກ່ອນ cart edits ຢູ່ນີ້ບໍ່ກັນເລີຍ.
+ */
+const CART_NOT_ON_DOC = `not exists (
+    select 1 from ic_trans_detail d
+    where d.product_code = tb_used_spare.product_code and d.item_code = tb_used_spare.item_code
+      and d.trans_flag in (${TRANS.REQUEST}, ${TRANS.DISPATCH}))`;
+
+/** ods: /updateqtytoreg — ແກ້ຈຳນວນອາໄຫຼ່ (ສະເພາະແຖວທີ່ຍັງບໍ່ເຂົ້າໃບເບີກ) */
 export async function updateSpareQty(formData: FormData): Promise<void> {
   await requireRoleOrRedirect(TECH_SIDE);
   if (!db) return;
@@ -134,18 +185,19 @@ export async function updateSpareQty(formData: FormData): Promise<void> {
   const qty = Number(text(formData, "reg_qty"));
   if (!rowId || !Number.isFinite(qty) || qty <= 0) redirect(`/stock/requests/${roworder}`);
 
-  await db.query(`update tb_used_spare set qty=$1 where roworder=$2`, [qty, rowId]);
+  // ແຖວທີ່ເຂົ້າໃບເບີກ ERP ໄປແລ້ວ ບໍ່ຖືກແກ້ (rowCount 0) — ກັນກະຕ່າ≠ເອກະສານ
+  await db.query(`update tb_used_spare set qty=$1 where roworder=$2 and ${CART_NOT_ON_DOC}`, [qty, rowId]);
   redirect(`/stock/requests/${roworder}`);
 }
 
-/** ods: /delete_itemfromreg — ລຶບອາໄຫຼ່ອອກຈາກໃບຂໍເບີກ */
+/** ods: /delete_itemfromreg — ລຶບອາໄຫຼ່ອອກຈາກໃບຂໍເບີກ (ສະເພາະແຖວທີ່ຍັງບໍ່ເຂົ້າໃບເບີກ) */
 export async function deleteSpareFromRequest(formData: FormData): Promise<void> {
   await requireRoleOrRedirect(TECH_SIDE);
   if (!db) return;
 
   const roworder = text(formData, "roworder");
   const rowId = text(formData, "row_id");
-  if (rowId) await db.query(`delete from tb_used_spare where roworder=$1`, [rowId]);
+  if (rowId) await db.query(`delete from tb_used_spare where roworder=$1 and ${CART_NOT_ON_DOC}`, [rowId]);
   redirect(`/stock/requests/${roworder}`);
 }
 
@@ -176,7 +228,8 @@ export async function saveRequest(_: StockState, formData: FormData): Promise<St
   });
   if (!result.ok) return { error: result.error };
 
-  redirect("/stock/requests");
+  // ໜ້າລາຍການຖືກລົບ (17-07-2026) ⇒ ກັບໄປ**ຄິວຂອງຂັ້ນ** ບ່ອນທີ່ວຽກຍ້າຍໄປຢູ່
+  redirect("/dashboard/status/repair/withdrawing");
 }
 
 /** ods: /del_request/<product_code>/<doc_no> — ຍົກເລີກໃບຂໍເບີກ */
@@ -226,7 +279,8 @@ export async function deleteRequest(formData: FormData): Promise<void> {
     client.release();
   }
   if (deleted) await logChange(jobModel(productCode), productCode, `ຍົກເລີກໃບຂໍເບີກ ${docNo}`);
-  revalidatePath("/stock/requests");
+  revalidatePath("/dashboard/status/repair/withdrawing");
+  revalidatePath("/dashboard/status/repair/wait-withdraw");
 }
 
 /* ─────────────────────────── ເບີກອາໄຫຼ່ (trans_flag 56) ─────────────────────────── */

@@ -1,14 +1,13 @@
 import { PageTitle } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { salesZonesFor, zoneWhere } from "@/lib/sales-zone";
 import { OPEN_JOBS } from "@/lib/stage";
-import { ClipboardList, MapPin, Send } from "lucide-react";
+import { ClipboardList, Send } from "lucide-react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
 /**
- * ໜ້າຫຼັກຂອງພະນັກງານຂາຍ — ແຈ້ງສ້ອມ · ຕິດຕາມງານ · ສະຫຼຸບເຂດຮັບຜິດຊອບ.
+ * ໜ້າຫຼັກຂອງພະນັກງານຂາຍ — ແຈ້ງສ້ອມ · ຕິດຕາມງານ.
  */
 export const dynamic = "force-dynamic";
 
@@ -16,34 +15,24 @@ export default async function SalesHomePage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const zones = await salesZonesFor(session);
-  const zone = zoneWhere(zones, "b", 0);
-
-  const open = zones.length
-    ? (
-        await query<{ n: number }>(
-          `select count(*)::int n from tb_product a join ar_customer b on b.code = a.cust_code
-            where ${OPEN_JOBS} and ${zone.sql}`,
-          zone.params,
-        )
-      ).rows[0]?.n ?? 0
-    : 0;
-
-  const zoneText = zones.length
-    ? zones.map((z) => [z.city_name, z.province_name].filter(Boolean).join(", ") || z.provine).join(" · ")
-    : "ຍັງບໍ່ໄດ້ຮັບມອບເຂດ";
+  const open =
+    (
+      await query<{ n: number }>(
+        `select count(*)::int n from tb_product a join ar_customer b on b.code = a.cust_code
+          where ${OPEN_JOBS}`,
+      )
+    ).rows[0]?.n ?? 0;
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5">
-      <PageTitle sub="ແຈ້ງສ້ອມແທນລູກຄ້າ ແລະ ຕິດຕາມງານສ້ອມໃນເຂດຂອງທ່ານ">ພະນັກງານຂາຍ</PageTitle>
+      <PageTitle sub="ແຈ້ງສ້ອມແທນລູກຄ້າ ແລະ ຕິດຕາມງານສ້ອມ">ພະນັກງານຂາຍ</PageTitle>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-start gap-3">
-          <MapPin className="mt-0.5 size-5 text-teal-600" />
+          <ClipboardList className="mt-0.5 size-5 text-teal-600" />
           <div>
-            <p className="text-sm font-semibold text-slate-700">ເຂດຮັບຜິດຊອບ</p>
-            <p className="mt-0.5 text-sm text-slate-500">{zoneText}</p>
-            <p className="mt-1 text-xs text-slate-400">ງານກຳລັງດຳເນີນໃນເຂດ: <b className="text-slate-600">{open}</b> ລາຍການ</p>
+            <p className="text-sm font-semibold text-slate-700">ງານກຳລັງດຳເນີນ</p>
+            <p className="mt-1 text-xs text-slate-400">ທັງໝົດ: <b className="text-slate-600">{open}</b> ລາຍການ</p>
           </div>
         </div>
       </section>

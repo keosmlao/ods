@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { DONE_STAGE, NEXT_STEP, STAGE_TEXT, STEPS, stepOfStage, type TrackJob } from "@/lib/track";
+import { CANCELLED_NEXT, CANCELLED_TEXT, DONE_STAGE, NEXT_STEP, STAGE_TEXT, STEPS, stepOfStage, type TrackJob } from "@/lib/track";
 
 /**
  * ບັດສະຖານະສຳລັບລູກຄ້າ — ໃຊ້ຮ່ວມກັນລະຫວ່າງ /track ແລະ /track/[code].
@@ -17,7 +17,8 @@ function Row({ label, value }: { label: string; value: string | null | undefined
 }
 
 export function TrackStatus({ job }: { job: TrackJob }) {
-  const cancelled = job.stage === -1;
+  // ຍົກເລີກ = ທຸງ (status=6) — ງານທີ່ຍົກເລີກແຕ່ເຄື່ອງຍັງຢູ່ຮ້ານ ຢູ່ຂັ້ນ "ລໍຖ້າສົ່ງຄືນ"
+  const cancelled = job.cancelled;
   const current = stepOfStage(job.stage);
 
   return (
@@ -26,7 +27,7 @@ export function TrackStatus({ job }: { job: TrackJob }) {
         <p className="text-[11px] opacity-80">ເລກທີໃບຮັບເຄື່ອງ</p>
         <p className="text-2xl font-bold">{job.code}</p>
         <p className="mt-1.5 inline-block rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold">
-          {STAGE_TEXT[job.stage] ?? "ບໍ່ຮູ້ສະຖານະ"}
+          {cancelled ? CANCELLED_TEXT : (STAGE_TEXT[job.stage] ?? "ບໍ່ຮູ້ສະຖານະ")}
         </p>
       </header>
 
@@ -36,7 +37,7 @@ export function TrackStatus({ job }: { job: TrackJob }) {
             cancelled ? "bg-red-50 text-red-700" : job.stage === DONE_STAGE ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"
           }`}
         >
-          {NEXT_STEP[job.stage] ?? "ກະລຸນາຕິດຕໍ່ສູນບໍລິການ"}
+          {cancelled ? CANCELLED_NEXT : (NEXT_STEP[job.stage] ?? "ກະລຸນາຕິດຕໍ່ສູນບໍລິການ")}
         </p>
 
         <dl className="mt-3">

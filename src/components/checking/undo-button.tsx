@@ -19,6 +19,7 @@ export function UndoButton({
   message,
   action,
   variant = "button",
+  buttonLabel,
   className = "",
 }: {
   label: string;
@@ -27,6 +28,8 @@ export function UndoButton({
   action: () => Promise<{ error?: string }>;
   /** button = ປຸ່ມເຕັມ (ໜ້າລາຍລະອຽດ) · icon = ປຸ່ມນ້ອຍໃນຕາຕະລາງ */
   variant?: "button" | "icon";
+  /** ຂໍ້ຄວາມສັ້ນທີ່ສະແດງເທິງປຸ່ມ; label ຍັງໃຊ້ກັບ dialog/aria ເພື່ອບອກ action ຕົວຈິງ */
+  buttonLabel?: string;
   className?: string;
 }) {
   const [pending, start] = useTransition();
@@ -76,7 +79,7 @@ export function UndoButton({
           className={`inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50 ${className}`}
         >
           {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Undo2 className="size-3.5" />}
-          {label}
+          {buttonLabel ?? label}
         </button>
       )}
     </>

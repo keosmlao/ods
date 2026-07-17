@@ -1,8 +1,11 @@
 import { CancelCheckButton } from "@/components/checking/check-actions";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
+import { RowLink } from "@/components/row-link";
+import { CompleteRepairButton } from "@/components/repair/complete-repair-button";
 import { StartRepairButton, UndoFinishRepairButton, UndoStartRepairButton } from "@/components/repair/repair-actions";
 import { SortHeader, type SortDir } from "@/components/sort-header";
+import { LinkButton } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
@@ -10,7 +13,8 @@ import { ownJobsOnly } from "@/lib/scope";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { OPEN_JOBS, STAGE_SQL } from "@/lib/stage";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
-import { CheckCircle2, ChevronLeft, ChevronRight, Clock, Package, PackageX, Search, Wrench } from "lucide-react";
+import { listTechnicians } from "@/lib/technicians";
+import { CheckCircle2, ChevronLeft, ChevronRight, Clock, Package, PackageX, Printer, Search, Wrench } from "lucide-react";
 import Link from "next/link";
 
 /** ຖອດແບບຈາກ ods: repair.py repair() + templates/repair/home_repair.html (ອອກແບບໃໝ່) */
@@ -35,10 +39,12 @@ type JobRow = {
   elapsed_seconds: number | null;
   technician: string | null;
   service_type: string | null;
+  repair_note: string | null;
   /** ສະຖານະອາໄຫຼ່: ຕ້ອງການອາໄຫຼ່ບໍ, ຂໍເບີກແລ້ວບໍ, ໄດ້ຮັບຄົບບໍ */
   spare_lines: number;
   spare_requested: boolean;
   spare_pending: number;
+  qc_passed: boolean;
   /** ຂໍໄປແລ້ວ ແຕ່ສາງຍັງບໍ່ທັນເບີກອອກ (ic_trans_detail 122 ທີ່ status ຍັງ 0/5) */
   spare_missing: number;
 };
@@ -99,11 +105,12 @@ async function getJobs(tab: Tab, emp: string | null, q: string, page: number, so
 
   const rowsSql = `select a.code,
       concat_ws('-', b.name_1, b.tel) customer, a.name_1 product, a.p_model model, a.sn, a.p_brand brand,
-      a.warrunty warranty, a.issue, a.issue_2, a.emp_code technician, a.service_type,
+      a.warrunty warranty, a.issue, a.issue_2, a.emp_code technician, a.service_type, a.repair_note,
       to_char(${timeCol},'DD-MM-YYYY HH24:MI') at_time,
       greatest(0, round(extract(epoch from (localtimestamp - ${timeCol}))))::int elapsed_seconds,
       (select count(*) from tb_used_spare s where s.product_code=a.code)::int spare_lines,
       (a.spare_reg is not null) spare_requested,
+      (a.qc_finish is not null) qc_passed,
       (select count(*) from tb_used_spare s where s.product_code=a.code and s.pick_finish is null)::int spare_pending,
       (select count(*) from ic_trans_detail d
         where d.trans_flag=${TRANS.REQUEST} and d.product_code=a.code
@@ -194,7 +201,13 @@ export default async function RepairPage({ searchParams }: Props) {
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
   const sort = (params.sort ?? "elapsed").trim();
 
-  const [counts, jobs] = await Promise.all([getCounts(emp), getJobs(tab, emp, q, page, sort, dir)]);
+  const [counts, jobs, techs] = await Promise.all([
+    getCounts(emp),
+    getJobs(tab, emp, q, page, sort, dir),
+    listTechnicians(),
+  ]);
+  // emp_code → ຊື່ ERP (ຊື່ຢູ່ຖານ ERP ⇒ resolve ຢູ່ນີ້ ບໍ່ join ໃນ SQL)
+  const techName = new Map(techs.map((t) => [t.code, t.name]));
   const pages = Math.max(1, Math.ceil(jobs.total / PAGE_SIZE));
 
   const base = () => ({ ...(tab !== "waiting" && { tab }), ...(q && { q }) });
@@ -208,18 +221,24 @@ export default async function RepairPage({ searchParams }: Props) {
   const TABS: { key: Tab; label: string; icon: typeof Clock; count: number }[] = [
     { key: "waiting", label: "ລໍຖ້າສ້ອມແປງ", icon: Clock, count: counts.waiting },
     { key: "progress", label: "ກຳລັງສ້ອມແປງ", icon: Wrench, count: counts.progress },
-    { key: "done", label: "ສ້ອມແປງແລ້ວ (ລໍຖ້າສົ່ງຄືນ)", icon: CheckCircle2, count: counts.done },
+    { key: "done", label: "ສ້ອມແປງແລ້ວ (ລໍ QC / ສົ່ງຄືນ)", icon: CheckCircle2, count: counts.done },
   ];
 
   const timeLabel = tab === "waiting" ? "ຄ້າງມາ" : tab === "progress" ? "ສ້ອມມາແລ້ວ" : "ຈົບສ້ອມມາແລ້ວ";
 
   return (
     <div className="w-full space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-slate-700">ສ້ອມແປງ</h1>
-        <p className="mt-0.5 text-xs text-slate-500">
-          {emp ? "ສະແດງສະເພາະວຽກຂອງທ່ານ" : "ສະແດງທຸກວຽກ"} · {jobs.total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-slate-700">ສ້ອມແປງ</h1>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {emp ? "ສະແດງສະເພາະວຽກຂອງທ່ານ" : "ສະແດງທຸກວຽກ"} · {jobs.total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+          </p>
+        </div>
+        <LinkButton href="/service/new" tone="primary" className="h-9 px-3 text-xs">
+          <Wrench className="size-3.5" />
+          ລົງທະບຽນຮັບເຄື່ອງ
+        </LinkButton>
       </div>
 
       {/* ແທັບ + ຄົ້ນຫາ */}
@@ -288,7 +307,7 @@ export default async function RepairPage({ searchParams }: Props) {
                 const tone = elapsedTone(row.elapsed_seconds);
                 const inWarranty = row.warranty === "ຮັບປະກັນ";
                 return (
-                  <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
+                  <RowLink key={row.code} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                       <Link href={`/service/${row.code}`} className="hover:underline">
@@ -328,7 +347,9 @@ export default async function RepairPage({ searchParams }: Props) {
                         {row.warranty || "-"}
                       </span>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2.5">{row.technician || "-"}</td>
+                    <td className="whitespace-nowrap px-3 py-2.5">
+                      {row.technician ? (techName.get(row.technician) ?? row.technician) : "-"}
+                    </td>
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <SpareBadge row={row} />
                     </td>
@@ -357,21 +378,26 @@ export default async function RepairPage({ searchParams }: Props) {
                             <CancelCheckButton code={row.code} variant="icon" />
                           </>
                         )}
+                        {tab === "progress" && (
+                          <CompleteRepairButton code={row.code} initialNote={row.repair_note ?? ""} />
+                        )}
                         {tab !== "waiting" && (
                           <Link
-                            href={`/repair/${row.code}`}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                            href={`/repair/${row.code}/print`}
+                            target="_blank"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                           >
-                            <CheckCircle2 className="size-3.5" />
-                            ເປີດວຽກ
-                            <LinkPending className="size-3" />
+                            <Printer className="size-3.5" />
+                            ພິມ
                           </Link>
                         )}
                         {tab === "progress" && <UndoStartRepairButton code={row.code} variant="icon" />}
-                        {tab === "done" && <UndoFinishRepairButton code={row.code} variant="icon" />}
+                        {tab === "done" && !row.qc_passed && (
+                          <UndoFinishRepairButton code={row.code} variant="icon" />
+                        )}
                       </span>
                     </td>
-                  </tr>
+                  </RowLink>
                 );
               })}
             </tbody>

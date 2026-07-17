@@ -1,7 +1,7 @@
 "use client";
 import { saveQcRoles } from "@/app/actions/qc-admin";
 import { Button, ErrorBox } from "@/components/ui";
-import type { Workflow } from "@/lib/commission";
+import type { Workflow } from "@/lib/commission-roles";
 import { ROLE_LABEL, ROLES, type Role } from "@/lib/roles";
 import { LoaderCircle } from "lucide-react";
 import { useState, useTransition } from "react";

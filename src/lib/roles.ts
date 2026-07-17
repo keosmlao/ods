@@ -41,6 +41,11 @@ export function roleOf(session: Session | null | undefined): Role {
   return normalizeRole(session?.role);
 }
 
+/** ໜ້າທຳອິດຫຼັງ login — ຊ່າງເຂົ້າຄິວຂອງຕົນ, ບໍ່ເຂົ້າ dashboard ລວມ. */
+export function homeForRole(role: Role): string {
+  return role === "technical" ? "/installations/schedule" : "/dashboard";
+}
+
 /* ── ຕຳແໜ່ງ + ພະແນກ ຂອງ ERP → role ─────────────────────────────
  * ສູດຈິງຢູ່ທີ່ roleFromErp() / ERP_ROLE_CASE ໃນ src/lib/erp-auth.ts ບ່ອນດຽວ
  * (ຕຳແໜ່ງ 11 ຜູ້ຈັດການ · 12 ຫົວໜ້າໜວຍງານ · 13 ພະນັກງານ, ພະແນກບອກສາຍງານ)
@@ -93,8 +98,12 @@ type Rule = { path: string; exact?: boolean; roles: Role[] };
 const RULES: Rule[] = [
   /* ໜ້າກາງ — ທຸກຄົນເຫັນໄດ້ */
   { path: "/forbidden", roles: EVERYONE },
-  { path: "/dashboard", roles: EVERYONE },
+  // dashboard/status ເປັນພາບລວມທັງລະບົບ; ຊ່າງເຂົ້າຄິວຂອງຕົນແທນ.
+  { path: "/dashboard", roles: EVERYONE.filter((role) => role !== T) },
+  { path: "/assistant", roles: EVERYONE },
   { path: "/activities", roles: EVERYONE },
+  /** ສົນທະນາ — ທຸກຄົນທີ່ login ໄດ້ (ດ່ານຫ້ອງຢູ່ lib/chat.canJoin ບໍ່ແມ່ນທີ່ນີ້) */
+  { path: "/chat", roles: EVERYONE },
   { path: "/notifications", roles: EVERYONE },
 
   /* ບໍລິການ / ຮັບເຄື່ອງສ້ອມ — ods: ເມນູ "ບໍລິການ" (manager, admin) */
@@ -113,6 +122,11 @@ const RULES: Rule[] = [
   { path: "/quotations", roles: SERVICE_SIDE },
   // ຄິວແຈ້ງລູກຄ້າ (ລໍຕັດສິນລາຄາ · ມາຮັບເຄື່ອງ · ຢືນຢັນນັດ) — ຝ່າຍບໍລິການເປັນຜູ້ຕິດຕໍ່ລູກຄ້າ
   { path: "/customer-contact", roles: SERVICE_SIDE },
+  /**
+   * ⚠️ **ບໍ່ມີໜ້ານີ້ແລ້ວ** (ລົບ 17-07-2026 — ຊ້ຳກັບຄິວ "2. ລໍຖ້າກວດເຊັກ" ແລະ ບໍ່ມີລິ້ງໃດພາໄປ).
+   * ເກັບກົດໄວ້ເພາະມັນຍັງເປັນ **ສິດ** ທີ່ຄຸມປຸ່ມ "ຈັດຊ່າງ / ຍົກເລີກການຈັດ" ຢູ່ຄິວນັ້ນ
+   * (dashboard/status/… ໃຊ້ canAccess(role, "/repair/assign")) — ລຶບອອກ = ປຸ່ມຫາຍງຽບໆ.
+   */
   { path: "/repair/assign", roles: SERVICE_SIDE },
   { path: "/returns", roles: SERVICE_SIDE },
   { path: "/customers", roles: SERVICE_SIDE },
@@ -128,8 +142,12 @@ const RULES: Rule[] = [
 
   /* ສາງ — ods: ເມນູ "ສາງ" (manager, stock) */
   { path: "/stock/dispatch", roles: STOCK_SIDE },
-  { path: "/stock/arrivals", roles: STOCK_SIDE },
   { path: "/stock/receive-returns", roles: STOCK_SIDE },
+  /**
+   * ອາໄຫຼ່ຄ້າງນອກສາງ — ຍ້າຍມາຈາກແທັບຂອງ /approvals/cancellations (17-07-2026).
+   * ເປີດໃຫ້ **ຫົວໜ້າຊ່າງ** ນຳ ເພາະລາວຄຸມຊ່າງທີ່ຖືອາໄຫຼ່ຢູ່ (ຢູ່ໜ້າເກົ່າລາວເຫັນຢູ່ແລ້ວ).
+   */
+  { path: "/stock/spare-recovery", roles: [...STOCK_SIDE, HT] },
   { path: "/stock/spare-parts", roles: STOCK_SIDE },
   { path: "/stock/products", roles: STOCK_SIDE },
   { path: "/stock/transfers", roles: STOCK_SIDE },
@@ -137,6 +155,8 @@ const RULES: Rule[] = [
   // (ການແຈ້ງເຕືອນ ROLE_WAREHOUSE ຊີ້ມາໜ້ານີ້) ⇒ ເພີ່ມ stock ເຂົ້ານຳ
   { path: "/spare-parts/new", roles: [M, A, S] },
   { path: "/purchase-requests", roles: [M, A, S] },
+  // ໃບສັ່ງຊື້ (PO) ຢູ່ ERP — ເບິ່ງໄດ້ຝ່າຍຈັດຊື້/ສາງ, ອະນຸມັດສະເພາະ APPROVER_SIDE (ກວດຢູ່ action)
+  { path: "/purchase-orders", roles: [M, A, S, HT] },
   // ໃບຂໍສັ່ງຊື້ (ມີລາຄາ) — ເມື່ອກ່ອນເປີດສາທາລະນະ ⇒ ດຽວນີ້ຕ້ອງ login
   { path: "/pr-view", roles: [M, A, S, HT] },
 
@@ -189,12 +209,12 @@ const RULES: Rule[] = [
    * ໝາຍເຫດ: ເມນູ "ການຈັດການ" ເກົ່າ (/manage/*) ຖືກລົບຖິ້ມໂດຍເຈດຕະນາ — ຢ່າກູ້ຄືນ.
    * ເຫຼືອແຕ່ໜ້ານີ້ໜ້າດຽວໃນເສັ້ນທາງ /manage */
   { path: "/manage/employees", roles: [M] },
-  // ຈັດການເຂດຮັບຜິດຊອບຂອງພະນັກງານຂາຍ — ຜູ້ຈັດການເທົ່ານັ້ນ
-  { path: "/manage/sales-zones", roles: [M] },
   // ຄ່າບໍລິການ/ຄ່າຄອມ = ເລື່ອງເງິນ ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ (actions/service-rate ກວດຊ້ຳ)
   { path: "/manage/service-rates", roles: [M] },
   // ເຊື່ອມຕົວຕົນຊ່າງ — ຕັດສິນວ່າຄ່າຄອມເຂົ້າບັນຊີໃຜ ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ
   { path: "/manage/technicians", roles: [M] },
+  // ສະວິດເປີດ/ປິດຄວາມສາມາດຂອງທັງລະບົບ (ບາງອັນຢຸດນາລິກາ KPI) ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ
+  { path: "/manage/settings", roles: [M] },
 
   /* ລາຍງານ — ods ໃຫ້ manager ຄົບ, admin ໄດ້ 2 ໜ້າ; ສາງໄດ້ສະເພາະລາຍງານສາງ/ສັ່ງຊື້ */
   { path: "/reports", roles: SERVICE_SIDE },
@@ -202,6 +222,10 @@ const RULES: Rule[] = [
   { path: "/reports/stock", roles: [M, A, S] },
   { path: "/reports/purchase-requests", roles: [M, A, S] },
   { path: "/reports/purchase-orders", roles: [M, A, S] },
+  /** ເງິນຄ່າສ້ອມ — ຜູ້ຈັດການ/ແອດມິນ (CS ຮັບເງິນໜ້າຮ້ານ ໃຫ້ຜູ້ຈັດການເປີດສິດເປັນລາຍຄົນ) */
+  { path: "/reports/service-debts", roles: [M, A] },
+  { path: "/reports/service-revenue", roles: [M, A] },
+  { path: "/reports/service-by-kind", roles: [M, A] },
   // ລາຍຮັບຊ່າງ — ຊ່າງເບິ່ງ **ຂອງຕົນເອງ** ໄດ້ (ໜ້ານັ້ນກອງດ້ວຍ ownJobsOnly)
   // ຜູ້ຈັດການ/ຫົວໜ້າຊ່າງເບິ່ງໝົດ. CS/ສາງ ບໍ່ກ່ຽວ.
   { path: "/reports/technician-income", roles: [...TECH_SIDE] },

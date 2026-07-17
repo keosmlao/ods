@@ -24,7 +24,9 @@ const READ_ONLY = ["read"] as const;
 
 export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ຂອງຂ້ອຍ", label: "ໜ້າລວມ", resource: "/dashboard", actions: READ_ONLY },
+  { group: "ຂອງຂ້ອຍ", label: "AI ຜູ້ຊ່ວຍວຽກ", resource: "/assistant", actions: READ_ONLY },
   { group: "ຂອງຂ້ອຍ", label: "ຄິວງານປະຈຳວັນ", resource: "/installations/schedule", actions: READ_ONLY },
+  { group: "ຂອງຂ້ອຍ", label: "ສົນທະນາ", resource: "/chat", actions: ["read", "update"] },
   { group: "ຂອງຂ້ອຍ", label: "ກິດຈະກຳຂອງຂ້ອຍ", resource: "/activities" },
   { group: "ຂອງຂ້ອຍ", label: "ການແຈ້ງເຕືອນ", resource: "/notifications", actions: ["read", "update"] },
 
@@ -32,7 +34,8 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ສ້ອມແປງ", label: "ຄຳແຈ້ງສ້ອມ", resource: "/service/notices" },
   { group: "ສ້ອມແປງ", label: "ຄິວຍົກເລີກງານ", resource: "/service/cancel", actions: ["read", "update"] },
   { group: "ສ້ອມແປງ", label: "ຂໍ້ມູນລູກຄ້າ", resource: "/customers" },
-  { group: "ສ້ອມແປງ", label: "ຈັດຊ່າງງານສ້ອມ", resource: "/repair/assign", actions: ["read", "update"] },
+  /** ບໍ່ມີໜ້າແລ້ວ (ລົບ 17-07-2026) — ຄົງໄວ້ເປັນ **ສິດ** ທີ່ຄຸມປຸ່ມຈັດຊ່າງຢູ່ຄິວ "ລໍຖ້າກວດເຊັກ" */
+  { group: "ສ້ອມແປງ", label: "ຈັດຊ່າງ / ຍົກເລີກການຈັດ", resource: "/repair/assign", actions: ["read", "update"] },
   { group: "ສ້ອມແປງ", label: "ກວດເຊັກ", resource: "/checking", actions: ["read", "update"] },
   { group: "ສ້ອມແປງ", label: "ໃບສະເໜີລາຄາ", resource: "/quotations" },
   { group: "ສ້ອມແປງ", label: "ລູກຄ້າອະນຸມັດລາຄາ", resource: "/quotations/customer-approval", actions: ["read", "update"] },
@@ -59,21 +62,22 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ລາຍງານ", label: "ເຄື່ອງກັບມາສ້ອມຊ້ຳ", resource: "/reports/repeat-repairs", actions: READ_ONLY },
   { group: "ຕິດຕັ້ງ", label: "ລາຍງານແບບສອບຖາມ", resource: "/reports/customer-feedback", actions: READ_ONLY },
 
-  { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຮັບອາໄຫຼ່ທີ່ສັ່ງຊື້", resource: "/stock/arrivals", actions: ["read", "update"] },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຕິດຕາມການໂອນ", resource: "/stock/transfers" },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຮັບຄືນອາໄຫຼ່", resource: "/stock/receive-returns", actions: ["read", "update"] },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ລາຍການອາໄຫຼ່", resource: "/stock/spare-parts", actions: READ_ONLY },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ສິນຄ້າສ້ອມແປງ", resource: "/stock/products", actions: READ_ONLY },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ສ້າງອາໄຫຼ່", resource: "/spare-parts/new", actions: ["read", "create"] },
-  { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຂໍສັ່ງຊື້", resource: "/purchase-requests" },
+  { group: "ສັ່ງຊື້ອາໄຫຼ່", label: "ຂໍສັ່ງຊື້", resource: "/purchase-requests" },
+  { group: "ສັ່ງຊື້ອາໄຫຼ່", label: "ໃບສັ່ງຊື້ (PO)", resource: "/purchase-orders", actions: ["read", "update"] },
 
   { group: "ຄຸນນະພາບ", label: "ຄິວກວດຮັບ QC", resource: "/qc", actions: ["read", "update"] },
-  { group: "ຄຸນນະພາບ", label: "ຄິວແຈ້ງລູກຄ້າ", resource: "/customer-contact", actions: ["read", "update"] },
+  { group: "ສ້ອມແປງ", label: "ຄິວແຈ້ງລູກຄ້າ", resource: "/customer-contact", actions: ["read", "update"] },
   { group: "ຄຸນນະພາບ", label: "ຕັ້ງລາຍການກວດຮັບ", resource: "/manage/qc-checklist" },
 
   { group: "ອະນຸມັດ", label: "ອະນຸມັດໃບສະເໜີລາຄາ", resource: "/approvals/quotations", actions: ["read", "update"] },
   { group: "ອະນຸມັດ", label: "ອະນຸມັດຍົກເລີກ", resource: "/approvals/cancellations", actions: ["read", "update"] },
   { group: "ອະນຸມັດ", label: "ອະນຸມັດຂໍສັ່ງຊື້", resource: "/approvals/purchase-requests", actions: ["read", "update"] },
+  { group: "ອະນຸມັດ", label: "ອະນຸມັດໃບສັ່ງຊື້ (PO)", resource: "/approvals/purchase-orders", actions: ["read", "update"] },
 
   { group: "ລາຍງານ", label: "ໜ້າລວມລາຍງານ", resource: "/reports", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ລາຍງານກວດເຊັກ", resource: "/reports/checking", actions: READ_ONLY },
@@ -84,11 +88,14 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ລາຍງານ", label: "ລາຍງານສາງ", resource: "/reports/stock", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ລາຍງານການສັ່ງຊື້", resource: "/reports/purchase-requests", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ລາຍງານໃບສັ່ງຊື້", resource: "/reports/purchase-orders", actions: READ_ONLY },
+  /** ບັນທຶກການຮັບເງິນໄດ້ = update (ຄົນຮັບເງິນໜ້າຮ້ານ ອາດບໍ່ແມ່ນຜູ້ຈັດການ) */
+  { group: "ລາຍງານ", label: "ຕິດຕາມການຊຳລະ", resource: "/reports/service-debts", actions: ["read", "update"] },
+  { group: "ລາຍງານ", label: "ສະຫຼຸບລາຍຮັບງານສ້ອມ", resource: "/reports/service-revenue", actions: READ_ONLY },
+  { group: "ລາຍງານ", label: "ງານສ້ອມຕາມປະເພດລູກຄ້າ", resource: "/reports/service-by-kind", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ລາຍງານມອບໝາຍງານ", resource: "/reports/job-dispatch", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ລາຍຮັບຊ່າງ", resource: "/reports/technician-income", actions: READ_ONLY },
 
   { group: "ຜູ້ໃຊ້", label: "ກຳນົດສິດ", resource: "/manage/employees", protected: true },
-  { group: "ຜູ້ໃຊ້", label: "ຈັດການເຂດຂາຍ", resource: "/manage/sales-zones" },
   { group: "ຜູ້ໃຊ້", label: "ຄ່າບໍລິການ / ຄ່າຄອມ", resource: "/manage/service-rates" },
   { group: "ຜູ້ໃຊ້", label: "ເຊື່ອມຕົວຕົນຊ່າງ", resource: "/manage/technicians" },
 ] as const;

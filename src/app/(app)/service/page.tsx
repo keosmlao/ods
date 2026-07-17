@@ -6,7 +6,10 @@ import type { SortDir } from "@/components/sort-header";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { permissionFor } from "@/lib/permissions";
-import { CANCELLED_JOBS, DONE_JOBS, OPEN_JOBS, STAGE_SQL, STAGE_TIME_COL } from "@/lib/stage";
+import { holdJsonSql } from "@/lib/job-hold";
+import { APPROVER_SIDE, roleOf } from "@/lib/roles";
+import { SETTING, settingEnabled } from "@/lib/settings";
+import { OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_SQL } from "@/lib/stage";
 import { Bell, ChevronLeft, ChevronRight, FileBarChart, FilePlus2, FileSpreadsheet, LayoutGrid, Search, Table2 } from "lucide-react";
 import Link from "next/link";
 
@@ -15,17 +18,12 @@ type Tab = "pending" | "done" | "cancelled";
 type Props = { searchParams: Promise<{ q?: string; tab?: string; page?: string; view?: string; status?: string; sort?: string; dir?: string }> };
 
 /**
- * ຂັ້ນທີ່ວຽກກຳລັງຄ້າງຢູ່ ເລີ່ມແຕ່ເມື່ອໃດ — ໃຊ້ຄຳນວນວ່າຄ້າງດົນປານໃດແລ້ວ.
- * ຂັ້ນ (STAGE_SQL) ຄຳນວນມາຈາກ timestamp ເຫຼົ່ານີ້ຢູ່ແລ້ວ.
+ * ── ເວລາຄ້າງ: ໃຊ້ຂອງ lib/stage ບ່ອນດຽວ ຢ່າຄິດເອງ ──
+ * ໜ້ານີ້ເຄີຍຂຽນ CASE ຂອງຕົນເອງ ແລ້ວຢຸດທີ່ຂັ້ນ 10 ⇒ ຫຼັງເພີ່ມດ່ານ QC (ຂັ້ນເລື່ອນເປັນ 11/12)
+ * ງານ "ລໍຖ້າສົ່ງຄືນ" ໄດ້ null ແລ້ວເວລາຄ້າງຫາຍໄປງຽບໆ. ຕໍ່ມາໃຊ້ STAGE_TIME_COL ແຕ່ຍັງ
+ * ຄິດ `now() - …` ເອງ ⇒ ພໍເພີ່ມທຸງ "ມີບັນຫາ" ທີ່ຢຸດນາລິກາ ໜ້ານີ້ກໍ່ຈະນັບຕໍ່ຄົນດຽວອີກ.
+ * ດຽວນີ້ໃຊ້ **STAGE_ELAPSED_SQL** ໂດຍກົງ — ຫຼັກປ່ຽນອີກກໍ່ຕາມມາເອງ.
  */
-/**
- * ຂັ້ນທີ່ວຽກກຳລັງຄ້າງຢູ່ ເລີ່ມແຕ່ເມື່ອໃດ — ໃຊ້ຄຳນວນວ່າຄ້າງດົນປານໃດແລ້ວ.
- *
- * ⚠️ ແຕ່ກ່ອນຂຽນ CASE ຂອງຕົນເອງຢູ່ນີ້ ແລະ ຢຸດທີ່ຂັ້ນ 10 ⇒ ຫຼັງເພີ່ມດ່ານ QC
- * (ຂັ້ນເລື່ອນເປັນ 11/12) ງານທີ່ "ລໍຖ້າສົ່ງຄືນ" ໄດ້ null ແລ້ວເວລາຄ້າງຫາຍໄປງຽບໆ.
- * ດຽວນີ້ໃຊ້ STAGE_TIME_COL ຂອງ lib/stage ບ່ອນດຽວ — ຂັ້ນໄດປ່ຽນອີກກໍ່ຕາມມາເອງ.
- */
-const STAGE_SINCE = STAGE_TIME_COL;
 
 const SEARCH = `(a.code ilike $1 or a.sn ilike $1 or a.name_1 ilike $1 or a.p_brand ilike $1
   or a.issue ilike $1 or b.name_1 ilike $1 or b.tel ilike $1)`;
@@ -39,10 +37,18 @@ async function getBoard(q: string, status: number | null) {
 
   // ບໍ່ດຶງຮູບ: ບັດ 98 ໃບ = 98 request ໄປ /api/uploads ພ້ອມກັນ → ໜ້າຊ້າ.
   // ຮູບຍັງເບິ່ງໄດ້ຢູ່ໜ້າລາຍລະອຽດ ແລະ ຕາຕະລາງ "ຈົບແລ້ວ".
+  /**
+   * ເວລາຄ້າງ: ໃຊ້ `STAGE_ELAPSED_SQL` ຂອງ lib/stage **ບໍ່ຄິດເອງ** (17-07-2026).
+   * ແຕ່ກ່ອນຢູ່ນີ້ຂຽນ `now() - STAGE_SINCE` ເອງ ⇒ ພໍເພີ່ມທຸງ "ມີບັນຫາ" ທີ່ຢຸດນາລິກາ
+   * ໜ້ານີ້ຈະຍັງນັບຕໍ່ ແລ້ວເລກຢູ່ໜ້ານີ້ກັບໜ້າຄິວຈະ**ບໍ່ຕົງກັນ**ຢ່າງງຽບໆ —
+   * ຄືບັກ CASE ຂອງຕົນເອງທີ່ເຄີຍເກີດຕອນເພີ່ມຂັ້ນ QC (ເບິ່ງໝາຍເຫດ STAGE_SINCE ຂ້າງເທິງ).
+   */
   const sql = `select a.code, (${STAGE_SQL}) stage, b.name_1 customer,
       concat_ws(' ', a.name_1, a.p_model) product, a.sn, a.p_brand brand,
       a.warrunty warranty, a.emp_code technician, a.user_regis creator,
-      round(extract(epoch from (now() - (${STAGE_SINCE}))))::int stage_seconds
+      nullif(trim(coalesce(a.remark,'')),'') remark,
+      ${STAGE_ELAPSED_SQL} stage_seconds,
+      ${holdJsonSql("repair")}
     from tb_product a
     left join ar_customer b on b.code = a.cust_code
     where ${where.join(" and ")}`;
@@ -52,16 +58,6 @@ async function getBoard(q: string, status: number | null) {
 /** ວຽກທີ່ຈົບແລ້ວ / ຍົກເລີກ — ບໍ່ຂຶ້ນກະດານ (ມີເປັນພັນໃບ), ເບິ່ງເປັນຕາຕະລາງແທນ */
 export const PAGE_SIZE = 20;
 
-/** ຖັນທີ່ຈັດຮຽງໄດ້ໃນແທັບ ຈົບແລ້ວ/ຍົກເລີກ — whitelist ກັນ SQL injection */
-const CLOSED_SORT_SQL: Record<string, string> = {
-  code: "a.roworder",
-  registered: "a.time_register",
-  customer: "b.name_1",
-  product: "a.name_1",
-  brand: "a.p_brand",
-  technician: "a.emp_code",
-  receiver: "a.user_regis",
-};
 
 /**
  * ── ຖອດ getClosed() ອອກ (13-07-2026) ──
@@ -124,6 +120,8 @@ export default async function ServicePage({ searchParams }: Props) {
   const servicePermission = session
     ? await permissionFor(session, "/service")
     : { read: false, create: false, update: false, delete: false };
+  /** ໝາຍ/ປົດ ທຸງ "ມີບັນຫາ" — ຕ້ອງເປີດສະວິດ + ເປັນຫົວໜ້າ/ຜູ້ມີສິດອະນຸມັດ (ຄືກັນກັບໜ້າຄິວ) */
+  const canHold = (await settingEnabled(SETTING.JOB_HOLD)) && APPROVER_SIDE.includes(roleOf(session));
 
   const [board, noticeCount] = await Promise.all([getBoard(q, status), getNoticeCount()]);
 
@@ -317,6 +315,7 @@ export default async function ServicePage({ searchParams }: Props) {
             sortHref={sortHref}
             canUpdate={servicePermission.update}
             canDelete={servicePermission.delete}
+            canHold={canHold}
           />
           {pagination}
         </>

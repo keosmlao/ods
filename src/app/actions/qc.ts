@@ -1,5 +1,7 @@
 "use server";
+import { logChange } from "@/lib/chatter-log";
 import { getSession } from "@/lib/auth";
+import { db } from "@/lib/db";
 import type { Workflow } from "@/lib/commission";
 import { canQcJob, qcChecklistFor, qcWorkflowsFor, saveQcFlow, type QcAnswer, type QcItem } from "@/lib/qc-flow";
 import { roleOf } from "@/lib/roles";
@@ -35,6 +37,7 @@ export async function qcWorkflows(): Promise<Workflow[]> {
 }
 
 export async function qcChecklist(workflow: Workflow, jobCode: string): Promise<QcItem[]> {
+  if (!(await getSession())) return [];
   return qcChecklistFor(workflow, jobCode);
 }
 
@@ -81,4 +84,44 @@ export async function saveQc(_: QcState, formData: FormData): Promise<QcState> {
   revalidatePath("/qc");
   revalidatePath("/dashboard");
   return { ok: result.message };
+}
+
+/** ຍົກເລີກ "QC ຜ່ານ" -> ກັບໄປລໍກວດ QC ແລະສາມາດແກ້ຄຳຕອບເກົ່າໄດ້. */
+export async function undoQc(workflow: Workflow, jobCode: string): Promise<QcState> {
+  const session = await getSession();
+  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await canQcJob(session, workflow, jobCode);
+  if (!guard.ok) return { error: guard.error };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const table = workflow === "repair" ? "tb_product" : "ods_tb_install";
+  const returned = workflow === "repair" ? "return_complete" : "job_finish";
+  const client = await db.connect();
+  try {
+    await client.query("begin");
+    const updated = await client.query(
+      `update ${table} set qc_finish=null, qc_by=null
+        where code=$1 and qc_finish is not null and ${returned} is null`,
+      [jobCode],
+    );
+    if (!updated.rowCount) {
+      await client.query("rollback");
+      return { error: "ຍົກເລີກ QC ບໍ່ໄດ້ — ງານຖືກສົ່ງຄືນ/ປິດໄປແລ້ວ ຫຼືຍັງບໍ່ຜ່ານ QC" };
+    }
+    // ຄຳຕອບເກົ່າຍັງຢູ່ໃຫ້ແກ້ໄຂ; ລ້າງລາຍເຊັນເພາະຕ້ອງຢືນຢັນໃໝ່.
+    await client.query("delete from ods_qc_signature where workflow=$1 and job_code=$2", [workflow, jobCode]);
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    console.error("undoQc failed", error);
+    return { error: "ຍົກເລີກ QC ບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+  }
+
+  await logChange(workflow === "repair" ? "tb_product" : "ods_tb_install", jobCode, "ຍົກເລີກ QC ຜ່ານ — ກັບໄປລໍກວດຮັບຄຸນນະພາບ");
+  revalidatePath("/qc");
+  revalidatePath("/dashboard");
+  revalidatePath(`/dashboard/status/${workflow}/wait-return`);
+  return {};
 }

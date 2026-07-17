@@ -1,4 +1,4 @@
-import { Empty, LinkButton, PageTitle, Table } from "@/components/ui";
+import { LinkButton } from "@/components/ui";
 import { BillDismissButton, BillRestoreButton } from "@/components/installation/bill-dismiss-button";
 import { pendingInstallBills } from "@/lib/pending-bills";
 import { CalendarClock, FilePlus2, Phone, Search, TriangleAlert } from "lucide-react";
@@ -53,9 +53,12 @@ export default async function PendingBillsPage({ searchParams }: Props) {
 
   return (
     <div className="w-full space-y-4">
-      <PageTitle sub="ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ ແຕ່ຍັງບໍ່ມີໃບງານ — ຄ້າງດົນສຸດຂຶ້ນກ່ອນ">
-        ບິນຄ້າງອອກໃບງານ
-      </PageTitle>
+      <div>
+        <h1 className="text-xl font-bold text-slate-700">ບິນຄ້າງອອກໃບງານ</h1>
+        <p className="mt-0.5 text-xs text-slate-500">
+          ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ ແຕ່ຍັງບໍ່ມີໃບງານ — ຄ້າງດົນສຸດຂຶ້ນກ່ອນ · {rows.length.toLocaleString()} ລາຍການ
+        </p>
+      </div>
 
       {/* ສະຫຼຸບ 3 ຕົວເລກທີ່ຕັດສິນໃຈໄດ້ — ບໍ່ແມ່ນປະໂຫຍກຍາວ */}
       <div className="grid gap-3 sm:grid-cols-3">
@@ -65,29 +68,31 @@ export default async function PendingBillsPage({ searchParams }: Props) {
       </div>
 
       {/* ແທັບ + ຄົ້ນຫາ (ຮູບແບບດຽວກັບໜ້າຄິວອື່ນ) */}
-      <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
-        {TABS.map((item) => (
-          <Link
-            key={item.key}
-            href={href(item.key)}
-            className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition ${
-              tab === item.key ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            {item.label}
-            <span
-              className={`rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
-                tab === item.key ? "bg-white/20" : "bg-slate-100 text-slate-500"
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+        <div className="flex overflow-hidden rounded-lg border border-slate-300">
+          {TABS.map((item) => (
+            <Link
+              key={item.key}
+              href={href(item.key)}
+              className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
+                tab === item.key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
-              {item.count}
-            </span>
-          </Link>
-        ))}
+              {item.label}
+              <span
+                className={`rounded px-1 text-[10px] font-bold tabular-nums ${
+                  tab === item.key ? "bg-white/20" : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                {item.count}
+              </span>
+            </Link>
+          ))}
+        </div>
 
-        <form className="ml-auto flex min-w-64 items-center md:max-w-sm">
+        <form className="flex flex-1 items-center gap-2" action="/installations/pending-bills">
           {tab !== "all" && <input type="hidden" name="tab" value={tab} />}
-          <div className="flex h-9 w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-2.5 focus-within:border-teal-500">
+          <div className="flex h-9 min-w-56 flex-1 items-center gap-2 rounded-lg border border-slate-300 px-2.5">
             <Search className="size-3.5 shrink-0 text-slate-400" />
             <input
               name="q"
@@ -96,14 +101,25 @@ export default async function PendingBillsPage({ searchParams }: Props) {
               className="w-full text-xs outline-none"
             />
           </div>
+          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
         </form>
       </div>
 
-      {rows.length === 0 ? (
-        <Empty>{q ? "ບໍ່ພົບບິນຕາມຄຳຄົ້ນ" : "ບໍ່ມີບິນຄ້າງ — ທຸກບິນທີ່ຈ່າຍຄ່າຕິດຕັ້ງ ມີໃບງານຄົບແລ້ວ"}</Empty>
-      ) : (
-        <Table head={["ຄ້າງມາ", "ເລກບິນ", "ສິນຄ້າທີ່ຈະຕິດຕັ້ງ", "ລູກຄ້າ", "ຈ່າຍຄ່າຕິດຕັ້ງ", ""]} minWidth={1150}>
-          {rows.map((bill) => {
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-xs" style={{ minWidth: 1150 }}>
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຄ້າງມາ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ເລກບິນ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສິນຄ້າທີ່ຈະຕິດຕັ້ງ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລູກຄ້າ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຈ່າຍຄ່າຕິດຕັ້ງ</th>
+                <th className="px-3 py-2.5" />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((bill) => {
             const overdue = bill.days >= LATE;
             return (
               <tr key={bill.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
@@ -195,8 +211,16 @@ export default async function PendingBillsPage({ searchParams }: Props) {
               </tr>
             );
           })}
-        </Table>
-      )}
+            </tbody>
+          </table>
+        </div>
+
+        {rows.length === 0 && (
+          <p className="py-12 text-center text-xs text-slate-400">
+            {q ? "ບໍ່ພົບບິນຕາມຄຳຄົ້ນ" : "ບໍ່ມີບິນຄ້າງ — ທຸກບິນທີ່ຈ່າຍຄ່າຕິດຕັ້ງ ມີໃບງານຄົບແລ້ວ"}
+          </p>
+        )}
+      </section>
     </div>
   );
 }

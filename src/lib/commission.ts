@@ -1,4 +1,6 @@
 import type { PoolClient } from "pg";
+import { type Workflow } from "@/lib/commission-roles";
+import { employeeCode } from "@/lib/erp-employee";
 
 /**
  * ຄ່າບໍລິການ ແລະ ຄ່າຄອມຂອງຊ່າງ.
@@ -19,14 +21,16 @@ import type { PoolClient } from "pg";
  *    ເປັນ null (ຄ້າງລໍຜູ້ຮັບ) ບໍ່ແມ່ນຍັດໃສ່ໃຜຄົນນຶ່ງມົ້ວໆ.
  */
 
-export type Workflow = "repair" | "install";
+// ນິຍາມຢູ່ lib/commission-roles (ໄຟລ໌ບໍລິສຸດ) ເພາະ client ໃຊ້ນຳ — ເບິ່ງເຫດຜົນຢູ່ນັ້ນ.
+// re-export ໄວ້ ⇒ ໂຄ້ດຝັ່ງ server ທີ່ import ຈາກບ່ອນນີ້ຢູ່ແລ້ວ ບໍ່ຕ້ອງແກ້.
+export { ROLE_LABEL, type Workflow } from "@/lib/commission-roles";
 
-export const ROLE_LABEL: Record<string, string> = {
-  supervisor: "ຜູ້ຄຸມ",
-  team_lead: "ຫົວໜ້າທີມ",
-  admin: "Admin",
-  technician: "ຊ່າງ",
-};
+/**
+ * ⚠️ ໄຟລ໌ນີ້ຫ້າມ import `lib/db` — **client component ໃຊ້ `ROLE_LABEL` ຢູ່**
+ * (manage/service-rates/rate-forms.tsx) ⇒ ດຶງ `pg` ເຂົ້າ browser ແລ້ວ build ພັງ.
+ * ສ່ວນທີ່ຕ້ອງແຕະຖານຂໍ້ມູນຢູ່ `lib/commission-record.ts`. (`computePayout` ຮັບ
+ * `PoolClient` ມາຈາກຜູ້ເອີ້ນ ຈຶ່ງບໍ່ຕ້ອງ import db ເອງ.)
+ */
 
 /** ມິຕິຂອງງານ — ດຶງມາຈາກ ERP ຜ່ານ item_code */
 export type JobDims = {
@@ -99,11 +103,10 @@ export async function computePayout(client: PoolClient, workflow: Workflow, dims
    */
   let technician = dims.technician;
   if (technician) {
-    const linked = await client.query<{ employee_code: string }>(
-      "select employee_code from ods_user_employee where user_code = $1",
-      [technician],
-    );
-    technician = linked.rows[0]?.employee_code ?? technician;
+    // `employeeCode` ເບິ່ງ users.code ນຳ — ສຳເນົາເກົ່າຖາມແຕ່ ods_user_employee
+    // ⇒ ຊ່າງທີ່ມີລະຫັດຢູ່ users.code ຖືກຂຽນຄ່າຄອມເປັນ**ຊື່ຫຼິ້ນ** ຈ່າຍເຂົ້າ ERP ບໍ່ໄດ້.
+    // ຫາບໍ່ພົບຈິງໆ ⇒ ຄືນຄ່າເດີມຄືເກົ່າ (ບໍ່ໃຫ້ເງິນຫາຍ — ຂຶ້ນເຕືອນຢູ່ /manage/technicians)
+    technician = (await employeeCode(technician)) || technician;
   }
 
   const splits = await client.query<{ role: string; pct: string }>(

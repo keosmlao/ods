@@ -23,6 +23,7 @@ function SpareResult({
   onAdd: (item: SpareItem, qty: number) => Promise<unknown>;
 }) {
   const [qty, setQty] = useState(1);
+  const [error, setError] = useState("");
   const [pending, start] = useTransition();
   const outOfStock = item.balance_qty <= 0;
 
@@ -77,7 +78,20 @@ function SpareResult({
         tone={added ? "info" : "success"}
         disabled={pending}
         className="h-8 w-24 justify-center px-3 text-xs"
-        onClick={() => start(() => void onAdd(item, qty))}
+        onClick={() =>
+          start(async () => {
+            setError("");
+            const result = await onAdd(item, qty);
+            if (
+              result &&
+              typeof result === "object" &&
+              "error" in result &&
+              typeof result.error === "string"
+            ) {
+              setError(result.error);
+            }
+          })
+        }
       >
         {pending ? (
           <LoaderCircle className="size-3.5 animate-spin" />
@@ -93,6 +107,7 @@ function SpareResult({
           </>
         )}
       </Button>
+      {error && <p className="basis-full text-right text-[10px] font-medium text-red-600">{error}</p>}
     </li>
   );
 }
@@ -139,6 +154,9 @@ export function SpareSearchDialog({
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="ເລືອກອາໄຫຼ່"
       onClick={(event) => event.target === event.currentTarget && onClose()}
       className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-slate-900/50 p-4 pt-12 backdrop-blur-sm"
     >

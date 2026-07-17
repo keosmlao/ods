@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CancelDecision } from "../cancel-decision";
-import { getOutstandingSpares, groupByDoc } from "../outstanding";
+import { getOutstandingSpares, groupByDoc } from "@/lib/outstanding-spares";
 import { OutstandingSpares } from "../outstanding-spares";
 
 /** ຖອດແບບຈາກ ods: Services.py cc_approve_page() + templates/Service/approve_cc_page.html */

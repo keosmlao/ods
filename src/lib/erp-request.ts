@@ -1,4 +1,5 @@
-import { odgDb, query } from "@/lib/db";
+import { employeeCode } from "@/lib/erp-employee";
+import { odgDb } from "@/lib/db";
 import { branchOf, CALC_NONE, ERP, TRANS } from "@/lib/stock-constants";
 import type { PoolClient } from "pg";
 
@@ -56,22 +57,6 @@ export type ErpRequestDoc = {
   lines: ErpRequestLine[];
 };
 
-/**
- * creator_code ຂອງ ERP ຕ້ອງເປັນ **ລະຫັດພະນັກງານ** ບໍ່ແມ່ນຊື່ຫຼິ້ນ.
- * ຄົນທີ່ເຊື່ອມຕົວຕົນແລ້ວ (ods_user_employee) session.username ເປັນລະຫັດຢູ່ແລ້ວ —
- * ຄົນທີ່ຍັງບໍ່ເຊື່ອມ ຫາລະຫັດຈາກຕາຕະລາງເຊື່ອມ; ຫາບໍ່ພົບ ⇒ ປະຫວ່າງ (ERP ຮັບໄດ້)
- * ດີກວ່າຂຽນຊື່ຫຼິ້ນລົງໄປໃຫ້ຂໍ້ມູນ ERP ເປື້ອນ.
- */
-async function employeeCode(username: string): Promise<string> {
-  if (/^\d+$/.test(username)) return username;
-  const row = (
-    await query<{ employee_code: string }>(
-      "select employee_code from ods_user_employee where lower(user_code) = lower($1) limit 1",
-      [username],
-    )
-  ).rows[0];
-  return row?.employee_code ?? "";
-}
 
 /**
  * ຂຽນໃບຂໍເບີກລົງ ERP — **ໂຍນ error ຖ້າລົ້ມ** (ຜູ້ເອີ້ນຕ້ອງ rollback ຝັ່ງ ODS ນຳ).
