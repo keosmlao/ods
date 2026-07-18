@@ -1,3 +1,4 @@
+import { MobileCardList } from "@/components/mobile-card-list";
 import { PayButton } from "@/components/service/pay-button";
 import { SelectField } from "@/components/select-field";
 import { getSession } from "@/lib/auth";
@@ -125,7 +126,8 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         {/* ໂທລະສັບ — ບັດແທນຕາຕະລາງ (ຕາຕະລາງເຕັມສະແດງແຕ່ md ຂຶ້ນໄປ) */}
-        <div className="divide-y divide-slate-100 md:hidden">
+        <div className="md:hidden">
+          <MobileCardList className="divide-y divide-slate-100">
           {shown.map((row) => {
             const due = Number(row.due_thb.replace(/,/g, "")) || 0;
             return (
@@ -186,6 +188,7 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
               </div>
             );
           })}
+          </MobileCardList>
         </div>
 
         <div className="hidden overflow-x-auto md:block">

@@ -25,6 +25,7 @@ import {
 import { STAGE_ELAPSED_SQL, STAGE_TIME_COL } from "@/lib/stage";
 import { heldSql, holdJsonSql, notHeldSql, type JobHold } from "@/lib/job-hold";
 import { HoldButtons } from "@/components/repair/hold-buttons";
+import { MobileCardList } from "@/components/mobile-card-list";
 import { PurchaseState } from "@/components/stock/purchase-state";
 import { ReleaseGhostButton } from "@/components/stock/release-ghost-button";
 import { purchaseTracking, syncErpPurchase, type PurchaseTrack } from "@/lib/erp-purchase";
@@ -797,11 +798,12 @@ export default async function StatusPage({ params, searchParams }: Props) {
       </section>
 
       {/* ── ບັນຊີ card ສຳລັບມືຖື (ແຖວດຽວກັນກັບຕາຕະລາງ · ປຸ່ມ/ເງື່ອນໄຂດຽວກັນ) ── */}
-      <section className="space-y-2 md:hidden">
+      <section className="md:hidden">
         {total === 0 ? (
           <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>
         ) : (
-          list.rows.map((row) => {
+          <MobileCardList className="space-y-2">
+          {list.rows.map((row) => {
             const targetHours = isRepair ? repairStageTargetHours(config.stage ?? 0, row.service_type) : null;
             const tone = isRepair
               ? repairSlaTone(repairSlaState(row.elapsed_seconds, targetHours))
@@ -928,7 +930,8 @@ export default async function StatusPage({ params, searchParams }: Props) {
                 {hasAction && <div className="mt-2 flex flex-wrap items-center gap-1.5">{rowActions(row)}</div>}
               </div>
             );
-          })
+          })}
+          </MobileCardList>
         )}
       </section>
 

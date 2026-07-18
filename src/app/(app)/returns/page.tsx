@@ -1,6 +1,7 @@
 import { OUTSTANDING_SUMMARY_SQL, type OutstandingSummary } from "@/lib/outstanding-spares";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
+import { MobileCardList } from "@/components/mobile-card-list";
 import { RowLink } from "@/components/row-link";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
@@ -466,7 +467,8 @@ export default async function ReturnsPage({ searchParams }: Props) {
         </div>
 
         {/* ບັດ (mobile) — ແຖວດຽວກັນກັບຕາຕະລາງ, ປຸ່ມ/ເງື່ອນໄຂອັນດຽວກັນ */}
-        <div className="space-y-2 p-2 md:hidden">
+        <div className="p-2 md:hidden">
+          <MobileCardList className="space-y-2">
           {isJobTab &&
             jobs.rows.map((row) => {
               const tone = elapsedTone(row.elapsed_seconds);
@@ -587,6 +589,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                 </Link>
               </div>
             ))}
+          </MobileCardList>
         </div>
 
         {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}

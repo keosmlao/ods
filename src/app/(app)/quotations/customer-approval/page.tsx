@@ -1,5 +1,6 @@
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
+import { MobileCardList } from "@/components/mobile-card-list";
 import { UndoCustomerButton } from "@/components/quotation/approve-actions";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
@@ -348,7 +349,8 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
         </div>
 
         {/* ບັດ (mobile) — ຂໍ້ມູນ ແລະ ປຸ່ມດຽວກັນກັບແຖວ desktop */}
-        <div className="space-y-2 p-2.5 md:hidden">
+        <div className="p-2.5 md:hidden">
+          <MobileCardList className="space-y-2">
           {list.rows.map((row) => {
             const tone = elapsedTone(row.elapsed_seconds);
             const inWarranty = row.warranty === "ຮັບປະກັນ";
@@ -438,6 +440,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
               </div>
             );
           })}
+          </MobileCardList>
         </div>
 
         {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}

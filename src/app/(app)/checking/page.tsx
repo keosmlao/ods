@@ -1,6 +1,7 @@
 import { StartCheckButton, UndoStartCheckButton } from "@/components/checking/check-actions";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
+import { MobileCardList } from "@/components/mobile-card-list";
 import { RowLink } from "@/components/row-link";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { getSession } from "@/lib/auth";
@@ -339,7 +340,8 @@ export default async function CheckingPage({ searchParams }: Props) {
       </section>
 
       {/* ບັດ — ມືຖື */}
-      <div className="space-y-2 md:hidden">
+      <div className="md:hidden">
+        <MobileCardList className="space-y-2">
         {jobs.rows.map((row) => {
           const state = slaState(row.elapsed_seconds, row.service_type);
           const tone = slaTone(state);
@@ -410,6 +412,7 @@ export default async function CheckingPage({ searchParams }: Props) {
             </div>
           );
         })}
+        </MobileCardList>
         {total === 0 && (
           <p className="rounded-xl border border-slate-200 bg-white py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>
         )}

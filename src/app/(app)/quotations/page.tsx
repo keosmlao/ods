@@ -1,5 +1,6 @@
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
+import { MobileCardList } from "@/components/mobile-card-list";
 import { QuoteRowActions } from "@/components/quotation/quote-row-actions";
 import { RowLink } from "@/components/row-link";
 import { SortHeader, type SortDir } from "@/components/sort-header";
@@ -565,13 +566,14 @@ export default async function QuotationsPage({ searchParams }: Props) {
       </section>
 
       {/* ບັນຊີ card ສຳລັບມືຖື — ຂໍ້ມູນ ແລະ ປຸ່ມດຽວກັນກັບຕາຕະລາງ desktop */}
-      <div className="space-y-2 md:hidden">
+      <div className="md:hidden">
         {total === 0 && (
           <p className="rounded-xl border border-slate-200 bg-white py-12 text-center text-xs text-slate-400">
             ບໍ່ພົບລາຍການ
           </p>
         )}
 
+        <MobileCardList className="space-y-2">
         {waitingRows.map((row) => {
           const tone = elapsedTone(row.elapsed_seconds);
           return (
@@ -706,6 +708,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
             </div>
           );
         })}
+        </MobileCardList>
       </div>
 
       {pages > 1 && (

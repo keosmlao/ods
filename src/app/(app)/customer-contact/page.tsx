@@ -3,6 +3,7 @@ import { RowLink } from "@/components/row-link";
 import { CONTACT_LABEL, type ContactJob, type ContactKind } from "@/lib/customer-contact";
 import { contactQueue } from "@/lib/customer-contact-queue";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { MobileCardList } from "@/components/mobile-card-list";
 import { requireRoleOrRedirect } from "@/lib/guard";
 import { SERVICE_SIDE } from "@/lib/roles";
 import { CalendarClock, PackageCheck, UserCheck } from "lucide-react";
@@ -94,15 +95,17 @@ export default async function CustomerContactPage() {
             </section>
 
             {/* ── mobile: card ຕໍ່ແຖວ — ຂໍ້ມູນ ແລະ ປຸ່ມດຽວກັນກັບ desktop ── */}
-            <div className="space-y-2 md:hidden">
+            <div className="md:hidden">
               {rows.length === 0 ? (
                 <p className="rounded-xl border border-slate-200 bg-white py-10 text-center text-xs text-slate-400">
                   ບໍ່ມີງານທີ່ຕ້ອງແຈ້ງ
                 </p>
               ) : (
-                rows.map((job) => (
-                  <MobileCard key={`${job.kind}-${job.code}`} job={job} href={group.hrefOf(job.code)} />
-                ))
+                <MobileCardList className="space-y-2">
+                  {rows.map((job) => (
+                    <MobileCard key={`${job.kind}-${job.code}`} job={job} href={group.hrefOf(job.code)} />
+                  ))}
+                </MobileCardList>
               )}
             </div>
           </div>

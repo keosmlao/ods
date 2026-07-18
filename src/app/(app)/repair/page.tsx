@@ -1,5 +1,6 @@
 import { CancelCheckButton } from "@/components/checking/check-actions";
 import { Elapsed } from "@/components/elapsed";
+import { MobileCardList } from "@/components/mobile-card-list";
 import { LinkPending } from "@/components/link-pending";
 import { RowLink } from "@/components/row-link";
 import { CompleteRepairButton } from "@/components/repair/complete-repair-button";
@@ -405,7 +406,8 @@ export default async function RepairPage({ searchParams }: Props) {
         </div>
 
         {/* ບັດ (mobile) — ແຖວດຽວກັນກັບ desktop, ໃຊ້ປຸ່ມ action ຄືເກົ່າ */}
-        <div className="space-y-2 md:hidden">
+        <div className="md:hidden">
+          <MobileCardList className="space-y-2">
           {jobs.rows.map((row) => {
             const tone = elapsedTone(row.elapsed_seconds);
             const inWarranty = row.warranty === "ຮັບປະກັນ";
@@ -493,6 +495,7 @@ export default async function RepairPage({ searchParams }: Props) {
               </div>
             );
           })}
+          </MobileCardList>
         </div>
 
         {jobs.total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}

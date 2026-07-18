@@ -1,4 +1,5 @@
 import { LinkPending } from "@/components/link-pending";
+import { MobileCardList } from "@/components/mobile-card-list";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { searchRows, todayIso } from "@/lib/report-sql";
 import { BarChart3, ChevronLeft, ChevronRight, Download, Filter, Printer, Search } from "lucide-react";
@@ -381,34 +382,36 @@ export function ReportShell({
           </section>
 
           {/* ບັດ mobile — ໃຊ້ຖັນ/ແຖວດຽວກັນ, ຖັນທຳອິດເປັນຫົວບັດ ສ່ວນຖັນທີ່ເຫຼືອເປັນ ປ້າຍ:ຄ່າ */}
-          <div className="space-y-2 md:hidden">
-            {shown.map((row, index) => {
-              const [head, ...rest] = columns;
-              const headValue = row[head.key];
-              return (
-                <div
-                  key={`m-${row[head.key] ?? ""}-${index}`}
-                  className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
-                >
-                  <p className="mb-2 border-b border-slate-100 pb-2 text-sm font-bold text-slate-900">
-                    {headValue === null || headValue === undefined || headValue === "" ? "-" : headValue}
-                  </p>
-                  <dl className="space-y-1.5">
-                    {rest.map((column) => {
-                      const value = row[column.key];
-                      return (
-                        <div key={column.key} className="flex items-start justify-between gap-3 text-xs">
-                          <dt className="shrink-0 text-slate-500">{column.label}</dt>
-                          <dd className="min-w-0 break-words text-right font-medium text-slate-700">
-                            {value === null || value === undefined || value === "" ? "-" : value}
-                          </dd>
-                        </div>
-                      );
-                    })}
-                  </dl>
-                </div>
-              );
-            })}
+          <div className="md:hidden">
+            <MobileCardList className="space-y-2">
+              {shown.map((row, index) => {
+                const [head, ...rest] = columns;
+                const headValue = row[head.key];
+                return (
+                  <div
+                    key={`m-${row[head.key] ?? ""}-${index}`}
+                    className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+                  >
+                    <p className="mb-2 border-b border-slate-100 pb-2 text-sm font-bold text-slate-900">
+                      {headValue === null || headValue === undefined || headValue === "" ? "-" : headValue}
+                    </p>
+                    <dl className="space-y-1.5">
+                      {rest.map((column) => {
+                        const value = row[column.key];
+                        return (
+                          <div key={column.key} className="flex items-start justify-between gap-3 text-xs">
+                            <dt className="shrink-0 text-slate-500">{column.label}</dt>
+                            <dd className="min-w-0 break-words text-right font-medium text-slate-700">
+                              {value === null || value === undefined || value === "" ? "-" : value}
+                            </dd>
+                          </div>
+                        );
+                      })}
+                    </dl>
+                  </div>
+                );
+              })}
+            </MobileCardList>
             {ordered.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
           </div>
         </>

@@ -1,6 +1,7 @@
 import { qcWorkflows } from "@/app/actions/qc";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
+import { MobileCardList } from "@/components/mobile-card-list";
 import { getSession } from "@/lib/auth";
 import type { Workflow } from "@/lib/commission";
 import { elapsedTone } from "@/lib/elapsed-tone";
@@ -135,7 +136,8 @@ function QcQueueCard({
       </div>
 
       {/* Mobile: ບັດຊ້ອນ (ໃຊ້ action ດຽວກັນກັບ desktop) */}
-      <div className="space-y-2 p-2 md:hidden">
+      <div className="p-2 md:hidden">
+        <MobileCardList className="space-y-2">
         {rows.map((row) => {
           const mine = !!row.worker && row.worker === me;
           return (
@@ -183,6 +185,7 @@ function QcQueueCard({
             </div>
           );
         })}
+        </MobileCardList>
       </div>
 
       {rows.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ມີງານລໍກວດຮັບ</p>}
