@@ -204,6 +204,9 @@ export default async function StatusPage({ params, searchParams }: Props) {
   const canPickup = isRepair && SERVICE_SIDE.includes(role);
   const dispatchPickupQueue = canPickup && status === "wait-pickup";
   const receivePickupQueue = canPickup && status === "picking-up";
+  // ຄິວ PS ໄປຮັບເຄື່ອງ (ຂັ້ນ 0) ມີແຕ່ PS ⇒ ຕົວກອງ/ບັດ SLA ສະແດງແຕ່ປະເພດ PS
+  const pickupOnly = isRepair && (status === "wait-pickup" || status === "picking-up");
+  const serviceTypes = pickupOnly ? SERVICE_TYPES.filter((item) => item.code === "PS") : SERVICE_TYPES;
   const mergedCheckQueue = isRepair && status === "wait-check";
   const startCheck = mergedCheckQueue && canAccess(role, "/checking");
   const accept = mergedCheckQueue && canAccess(role, "/repair");
@@ -229,7 +232,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
 
   const search = await searchParams;
   const q = (search.q ?? "").trim();
-  const service = isRepair && SERVICE_TYPES.some((item) => item.code === search.service) ? search.service ?? "" : "";
+  const service = isRepair && serviceTypes.some((item) => item.code === search.service) ? search.service ?? "" : "";
   const page = Math.max(1, Number(search.page) || 1);
   const dir: SortDir = search.dir === "asc" ? "asc" : "desc";
   const sort = (search.sort ?? "elapsed").trim();
@@ -326,7 +329,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
              count(*) filter (where ${REPAIR_STAGE_OVERDUE_SQL})::int overdue ${from}
            where ${serviceCountFilter} and a.service_type = any($${serviceCountArgs.length + 1}::text[])
            group by a.service_type`,
-          [...serviceCountArgs, SERVICE_TYPES.map((item) => item.code)],
+          [...serviceCountArgs, serviceTypes.map((item) => item.code)],
         )
       : Promise.resolve({ rows: [] as { service_type: string; count: number; overdue: number }[] }),
     // ຕົວເລກອີກແທັບ (ມີບັນຫາ ↔ ປົກກະຕິ) — ສະເພາະງານສ້ອມ
@@ -500,7 +503,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
               )}
             </div>
             <div className="flex flex-wrap gap-1.5 text-[10px] font-bold">
-              {SERVICE_TYPES.map(({ code }) => (
+              {serviceTypes.map(({ code }) => (
                 <span key={code} className="rounded-lg border border-teal-200 bg-white px-2 py-1 text-teal-800">
                   {code} {stagePolicy.hours[code]} ຊມ
                 </span>
@@ -578,7 +581,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                 </span>
               </span>
             </Link>
-            {SERVICE_TYPES.map(({ code, label, icon: Icon, tone }) => {
+            {serviceTypes.map(({ code, label, icon: Icon, tone }) => {
               const active = service === code;
               const colors = SERVICE_TONE[tone];
               return (
