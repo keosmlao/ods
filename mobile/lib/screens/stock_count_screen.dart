@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../api.dart';
 import '../main.dart';
@@ -22,11 +21,12 @@ class _StockCountScreenState extends State<StockCountScreen> {
   bool _enabled = true;
   bool _busy = false;
   final _scanned = <String>{};
-  final _codes = <String>{};
+  final _lookup = <String, String>{}; // code ຫຼື SN → job code
   final _manual = TextEditingController();
   final _manualFocus = FocusNode();
   String? _flash;
   bool _flashOk = false;
+  String _type = 'all'; // ຕົວກອງປະເພດບໍລິການ (all/CI/ST/PS)
 
   @override
   void initState() {
@@ -48,9 +48,13 @@ class _StockCountScreenState extends State<StockCountScreen> {
     });
     try {
       final data = await Api.stockCount();
-      _codes
-        ..clear()
-        ..addAll(data.jobs.map((j) => j.code));
+      // ຍິງໄດ້ທັງ **ເລກງານ** (barcode ຂອງເຮົາ) ຫຼື **SN** (ປ້າຍໂຮງງານ) → ໝາຍງານດຽວກັນ
+      _lookup.clear();
+      for (final j in data.jobs) {
+        _lookup[j.code] = j.code;
+        final sn = j.sn?.trim();
+        if (sn != null && sn.isNotEmpty) _lookup[sn] = j.code;
+      }
       if (mounted) {
         setState(() {
           _items = data.jobs;
@@ -65,27 +69,21 @@ class _StockCountScreenState extends State<StockCountScreen> {
   }
 
   void _count(String raw) {
-    final code = raw.trim();
-    if (code.isEmpty) return;
+    final value = raw.trim();
+    if (value.isEmpty) return;
     setState(() {
-      if (_codes.contains(code)) {
+      final code = _lookup[value]; // ຈັບໄດ້ທັງເລກງານ ຫຼື SN
+      if (code != null) {
         _scanned.add(code);
         _flash = 'ພົບ $code — ນັບແລ້ວ';
         _flashOk = true;
       } else {
-        _flash = '$code ບໍ່ຢູ່ໃນລາຍການທີ່ຕ້ອງນັບ';
+        _flash = '$value ບໍ່ຢູ່ໃນລາຍການທີ່ຕ້ອງນັບ';
         _flashOk = false;
       }
     });
     _manual.clear();
     _manualFocus.requestFocus();
-  }
-
-  Future<void> _scanCamera() async {
-    final code = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const _ScannerPage()),
-    );
-    if (code != null) _count(code);
   }
 
   Future<void> _finalize() async {
@@ -147,11 +145,62 @@ class _StockCountScreenState extends State<StockCountScreen> {
     );
   }
 
+  Widget _typeChip(String value, String label, int f, int t) {
+    final active = _type == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8, top: 6, bottom: 6),
+      child: GestureDetector(
+        onTap: () => setState(() => _type = value),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: active ? ink : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: active ? ink : const Color(0xFFCBD5E1)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: active ? Colors.white : ink,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '$f/$t',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: active ? Colors.white70 : muted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final total = _items?.length ?? 0;
     final found = _scanned.length;
     final pct = total > 0 ? found / total : 0.0;
+    final items = _items ?? const <StockItem>[];
+    final typeTotal = <String, int>{};
+    final typeFound = <String, int>{};
+    for (final j in items) {
+      final k = j.serviceType ?? '-';
+      typeTotal[k] = (typeTotal[k] ?? 0) + 1;
+      if (_scanned.contains(j.code)) typeFound[k] = (typeFound[k] ?? 0) + 1;
+    }
+    final typeList = ['CI', 'ST', 'PS'].where(typeTotal.containsKey).toList();
+    final shown = _type == 'all'
+        ? items
+        : items.where((j) => (j.serviceType ?? '-') == _type).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -177,31 +226,16 @@ class _StockCountScreenState extends State<StockCountScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _manual,
-                              focusNode: _manualFocus,
-                              autofocus: true,
-                              textInputAction: TextInputAction.done,
-                              onSubmitted: _count,
-                              decoration: const InputDecoration(
-                                hintText: 'ພິມ/ຍິງເລກງານ ແລ້ວ Enter',
-                                prefixIcon: Icon(Icons.qr_code_2),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          FilledButton(
-                            onPressed: _scanCamera,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: teal,
-                              minimumSize: const Size(56, 52),
-                            ),
-                            child: const Icon(Icons.camera_alt),
-                          ),
-                        ],
+                      TextField(
+                        controller: _manual,
+                        focusNode: _manualFocus,
+                        autofocus: true,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: _count,
+                        decoration: const InputDecoration(
+                          hintText: 'ພິມ/ຍິງເລກງານ ແລ້ວ Enter',
+                          prefixIcon: Icon(Icons.qr_code_2),
+                        ),
                       ),
                       if (_flash != null) ...[
                         const SizedBox(height: 8),
@@ -278,9 +312,28 @@ class _StockCountScreenState extends State<StockCountScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                // ── ຕົວກອງປະເພດບໍລິການ (ພົບ/ທັງໝົດ ຕໍ່ປະເພດ) ──
+                if (typeList.length > 1)
+                  SizedBox(
+                    height: 46,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      children: [
+                        _typeChip('all', 'ທັງໝົດ', found, total),
+                        for (final code in typeList)
+                          _typeChip(
+                            code,
+                            code,
+                            typeFound[code] ?? 0,
+                            typeTotal[code] ?? 0,
+                          ),
+                      ],
+                    ),
+                  ),
                 // ── ລາຍການ ──
                 Expanded(
-                  child: total == 0
+                  child: shown.isEmpty
                       ? const Center(
                           child: Text(
                             'ບໍ່ມີເຄື່ອງທີ່ຕ້ອງນັບ',
@@ -291,12 +344,12 @@ class _StockCountScreenState extends State<StockCountScreen> {
                           onRefresh: _load,
                           child: ListView.separated(
                             padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-                            itemCount: total,
+                            itemCount: shown.length,
                             separatorBuilder: (_, _) =>
                                 const SizedBox(height: 8),
                             itemBuilder: (_, i) => _ItemCard(
-                              item: _items![i],
-                              found: _scanned.contains(_items![i].code),
+                              item: shown[i],
+                              found: _scanned.contains(shown[i].code),
                             ),
                           ),
                         ),
@@ -403,6 +456,24 @@ class _ItemCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: muted, fontSize: 12),
           ),
+          if (item.serviceType != null) ...[
+            const SizedBox(height: 5),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '${item.serviceType} · ${item.serviceTypeLabel}',
+                style: const TextStyle(
+                  color: Color(0xFF1D4ED8),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
           if (item.customer != null && item.customer!.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
@@ -438,37 +509,6 @@ class _ErrorView extends StatelessWidget {
             FilledButton(onPressed: onRetry, child: const Text('ລອງໃໝ່')),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// ໜ້າກ້ອງສະແກນ barcode — ຄືນ code ອັນທຳອິດທີ່ອ່ານໄດ້
-class _ScannerPage extends StatefulWidget {
-  const _ScannerPage();
-
-  @override
-  State<_ScannerPage> createState() => _ScannerPageState();
-}
-
-class _ScannerPageState extends State<_ScannerPage> {
-  bool _done = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('ສະແກນ barcode')),
-      body: MobileScanner(
-        onDetect: (capture) {
-          if (_done) return;
-          final code = capture.barcodes.isNotEmpty
-              ? capture.barcodes.first.rawValue
-              : null;
-          if (code != null && code.trim().isNotEmpty) {
-            _done = true;
-            Navigator.of(context).pop(code.trim());
-          }
-        },
       ),
     );
   }

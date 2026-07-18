@@ -424,6 +424,10 @@ class StockItem {
   final String? brand;
   final String? customer;
   final String stageLabel;
+
+  /// ປະເພດບໍລິການ — CI/ST/PS (IH ຖືກຂ້າມ)
+  final String? serviceType;
+  final String serviceTypeLabel;
   StockItem({
     required this.code,
     this.product,
@@ -431,6 +435,8 @@ class StockItem {
     this.brand,
     this.customer,
     required this.stageLabel,
+    this.serviceType,
+    required this.serviceTypeLabel,
   });
 
   factory StockItem.fromJson(Map<String, dynamic> json) => StockItem(
@@ -440,6 +446,8 @@ class StockItem {
     brand: json['brand'] as String?,
     customer: json['customer'] as String?,
     stageLabel: json['stage_label'] as String? ?? '-',
+    serviceType: json['service_type'] as String?,
+    serviceTypeLabel: json['service_type_label'] as String? ?? '-',
   );
 }
 

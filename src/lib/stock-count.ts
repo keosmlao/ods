@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { STAGE_LABEL, STAGE_SQL } from "@/lib/stage";
 
 /**
@@ -20,15 +21,18 @@ export type StockCountJob = {
   customer: string | null;
   stage: number;
   stage_label: string;
+  /** ປະເພດບໍລິການ — CI/ST/PS (IH ຖືກຂ້າມ) */
+  service_type: string | null;
+  service_type_label: string;
   registered: string | null;
   elapsed_seconds: number | null;
 };
 
 export async function inScopeRepairJobs(): Promise<StockCountJob[]> {
   const rows = (
-    await query<Omit<StockCountJob, "stage_label">>(
+    await query<Omit<StockCountJob, "stage_label" | "service_type_label">>(
       `select a.code, a.name_1 product, a.sn, a.p_brand brand, c.name_1 customer,
-          (${STAGE_SQL}) stage,
+          (${STAGE_SQL}) stage, a.service_type,
           to_char(a.time_register,'DD-MM-YYYY') registered,
           greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int elapsed_seconds
         from tb_product a
@@ -38,7 +42,11 @@ export async function inScopeRepairJobs(): Promise<StockCountJob[]> {
        order by a.time_register desc`,
     )
   ).rows;
-  return rows.map((row) => ({ ...row, stage_label: STAGE_LABEL[row.stage] ?? "-" }));
+  return rows.map((row) => ({
+    ...row,
+    stage_label: STAGE_LABEL[row.stage] ?? "-",
+    service_type_label: SERVICE_TYPE_LABEL[row.service_type ?? ""] ?? (row.service_type ?? "-"),
+  }));
 }
 
 /** code ຂອງເຄື່ອງທີ່ **ຄວນຢູ່** — server ໃຊ້ຕອນ finalize ເພື່ອຮູ້ວ່າອັນໃດ "ບໍ່ພົບ" */

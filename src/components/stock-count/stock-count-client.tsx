@@ -17,21 +17,44 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
   const { ask, dialog } = useConfirm();
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const codeSet = useRef(new Set(jobs.map((job) => job.code)));
+  // ຍິງໄດ້ທັງ **ເລກງານ** (barcode ຂອງເຮົາ) ຫຼື **SN** (ປ້າຍໂຮງງານ) → ໝາຍງານດຽວກັນ
+  const lookup = useRef(
+    new Map<string, string>(
+      jobs.flatMap((job) =>
+        job.sn?.trim() ? [[job.code, job.code], [job.sn.trim(), job.code]] : [[job.code, job.code]],
+      ),
+    ),
+  );
 
   const total = jobs.length;
   const found = scanned.size;
   const pct = total > 0 ? Math.round((found / total) * 100) : 0;
 
-  // ── ສະແກນ (keyboard-wedge: ພິມ code + Enter) ──
+  // ── ກອງຕາມປະເພດບໍລິການ (CI/ST/PS — IH ຖືກຂ້າມແລ້ວ) ──
+  const [type, setType] = useState<string>("all");
+  const typeCounts = new Map<string, { total: number; found: number }>();
+  for (const j of jobs) {
+    const key = j.service_type || "-";
+    const cur = typeCounts.get(key) ?? { total: 0, found: 0 };
+    cur.total += 1;
+    if (scanned.has(j.code)) cur.found += 1;
+    typeCounts.set(key, cur);
+  }
+  const typeList = ["CI", "ST", "PS"].filter((code) => typeCounts.has(code));
+  const typeLabel = (code: string) =>
+    jobs.find((j) => j.service_type === code)?.service_type_label ?? code;
+  const shownJobs = type === "all" ? jobs : jobs.filter((j) => (j.service_type || "-") === type);
+
+  // ── ສະແກນ (keyboard-wedge: ພິມ code/SN + Enter) ──
   const onScan = (raw: string) => {
-    const code = raw.trim();
-    if (!code) return;
-    if (codeSet.current.has(code)) {
+    const value = raw.trim();
+    if (!value) return;
+    const code = lookup.current.get(value); // ຈັບໄດ້ທັງເລກງານ ຫຼື SN
+    if (code) {
       setScanned((prev) => (prev.has(code) ? prev : new Set(prev).add(code)));
       setFlash({ code, ok: true });
     } else {
-      setFlash({ code, ok: false });
+      setFlash({ code: value, ok: false });
     }
     if (inputRef.current) {
       inputRef.current.value = "";
@@ -64,7 +87,7 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
       {dialog}
 
       {/* ── ແຖບສະແກນ + ຄວາມຄືບໜ້າ (ຕິດເທິງເມື່ອເລື່ອນ) ── */}
-      <div className="sticky top-0 z-10 space-y-3 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
+      <div className="sticky top-0 z-[5] space-y-3 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -120,6 +143,37 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
         )}
       </div>
 
+      {/* ── ຕົວກອງປະເພດບໍລິການ (ພົບ/ທັງໝົດ ຕໍ່ປະເພດ) ── */}
+      {typeList.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {[
+            { code: "all", label: "ທັງໝົດ", t: total, f: found },
+            ...typeList.map((code) => ({
+              code,
+              label: `${code} · ${typeLabel(code)}`,
+              t: typeCounts.get(code)?.total ?? 0,
+              f: typeCounts.get(code)?.found ?? 0,
+            })),
+          ].map((chip) => (
+            <button
+              key={chip.code}
+              type="button"
+              onClick={() => setType(chip.code)}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold ${
+                type === chip.code
+                  ? "border-slate-800 bg-slate-900 text-white"
+                  : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {chip.label}
+              <span className={`tabular-nums ${type === chip.code ? "opacity-80" : "text-slate-400"}`}>
+                {chip.f}/{chip.t}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {total === 0 ? (
         <p className="py-16 text-center text-sm text-slate-400">ບໍ່ມີເຄື່ອງທີ່ຕ້ອງນັບ (ທຸກງານສົ່ງຄືນແລ້ວ)</p>
       ) : (
@@ -135,11 +189,12 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
                   <th className="px-3 py-3 font-semibold">ຫຍີ່ຫໍ້</th>
                   <th className="px-3 py-3 font-semibold">ລູກຄ້າ</th>
                   <th className="px-3 py-3 font-semibold">ຂັ້ນ</th>
+                  <th className="px-3 py-3 font-semibold">ປະເພດບໍລິການ</th>
                   <th className="px-3 py-3 font-semibold">ຄ້າງມາ</th>
                 </tr>
               </thead>
               <tbody>
-                {jobs.map((job) => {
+                {shownJobs.map((job) => {
                   const isFound = scanned.has(job.code);
                   const tone = elapsedTone(job.elapsed_seconds);
                   return (
@@ -162,6 +217,16 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
                         <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">{job.stage_label}</span>
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5">
+                        {job.service_type ? (
+                          <span className="inline-flex items-center gap-1 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+                            <b>{job.service_type}</b>
+                            <span className="font-medium text-sky-600">{job.service_type_label}</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-300">-</span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2.5">
                         <Elapsed seconds={job.elapsed_seconds} className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${tone.chip}`} />
                       </td>
                     </tr>
@@ -174,7 +239,7 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
           {/* ── Mobile = card + ໂຫຼດເພີ່ມ (10 · +3 · 2ວິ) ── */}
           <div className="md:hidden">
             <MobileCardList className="grid grid-cols-1 gap-3">
-              {jobs.map((job) => {
+              {shownJobs.map((job) => {
                 const isFound = scanned.has(job.code);
                 const tone = elapsedTone(job.elapsed_seconds);
                 return (
@@ -195,6 +260,11 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
                     </div>
                     <p className="mt-1.5 truncate text-sm font-medium text-slate-800" title={job.product ?? ""}>{job.product || "-"}</p>
                     <p className="truncate text-xs text-slate-400">{[job.brand, job.sn].filter(Boolean).join(" · ") || "-"}</p>
+                    {job.service_type && (
+                      <span className="mt-1.5 inline-flex items-center gap-1 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+                        <b>{job.service_type}</b> {job.service_type_label}
+                      </span>
+                    )}
                     <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
                       <span className="truncate text-xs text-slate-500" title={job.customer ?? ""}>{job.customer || "-"}</span>
                       <Elapsed seconds={job.elapsed_seconds} className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${tone.chip}`} />
