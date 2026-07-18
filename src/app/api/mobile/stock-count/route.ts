@@ -1,6 +1,6 @@
 import { query } from "@/lib/db";
 import { requireMobile } from "@/lib/mobile-auth";
-import { APPROVER_SIDE, STOCK_SIDE } from "@/lib/roles";
+import { EVERYONE } from "@/lib/roles";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { inScopeCodes, inScopeRepairJobs } from "@/lib/stock-count";
 import { STAGE_SQL } from "@/lib/stage";
@@ -16,8 +16,10 @@ import { NextResponse } from "next/server";
  * ຈຶ່ງ insert ເຂົ້າ ods_job_hold ໂດຍກົງ ດ້ວຍ **schema ອັນດຽວກັບ holdJob** (on conflict do nothing).
  */
 
-/** ໃຜກວດນັບໄດ້ — ຫົວໜ້າ/ຜູ້ຈັດການ (APPROVER) + ພະນັກງານສາງ (STOCK) */
-const COUNT_ROLES = Array.from(new Set([...APPROVER_SIDE, ...STOCK_SIDE]));
+/** ໃຜກວດນັບໄດ້ — ທຸກ role ທີ່ **ບໍ່ແມ່ນຊ່າງພາກສະໜາມ** (ຊ່າງໄປໜ້າຄິວວຽກຕົນ) */
+const COUNT_ROLES = EVERYONE.filter(
+  (r) => r !== "technical" && r !== "headtechnical",
+);
 
 export async function GET(request: Request) {
   const guard = await requireMobile(request, COUNT_ROLES);
