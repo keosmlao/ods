@@ -2,6 +2,7 @@ import type { Workflow } from "@/lib/commission";
 import {
   acceptInstall,
   acceptRepair,
+  bringRepairToCenter,
   checkIn,
   checkOut,
   finishInstallFlow,
@@ -24,7 +25,7 @@ import { NextResponse } from "next/server";
  * ຢ່າຂຽນ SQL ປ່ຽນຂັ້ນຢູ່ນີ້ ບໍ່ດັ່ງນັ້ນແອັບຈະຂ້າມເງື່ອນໄຂຂັ້ນທີ່ເວັບກວດໄວ້.
  */
 type Body = {
-  action: "accept" | "reject" | "start" | "finish" | "checkin" | "checkout";
+  action: "accept" | "reject" | "start" | "finish" | "checkin" | "checkout" | "bring-in";
   reason?: string;
   note?: string;
   lat?: number;
@@ -107,6 +108,13 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
           note: body.note ?? "",
         });
         break;
+      case "bring-in":
+        // IH ສ້ອມໜ້າງານບໍ່ໄດ້ ⇒ ນຳເຂົ້າສູນ (ແປງ IH→PS). ສະເພາະສາຍງານສ້ອມ.
+        if (workflow !== "repair") {
+          return NextResponse.json({ error: "ຄຳສັ່ງນີ້ໃຊ້ໄດ້ແຕ່ງານສ້ອມ" }, { status: 400 });
+        }
+        result = await bringRepairToCenter(user, code, String(body.reason ?? ""));
+        break;
       default:
         return NextResponse.json({ error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" }, { status: 400 });
     }
@@ -118,7 +126,16 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
   // ໜ້າເວັບຕ້ອງເຫັນຜົນຂອງແອັບທັນທີ (ຄິວຂອງ CS · ສາງ · QC ອ່ານຈາກຖັນດຽວກັນ)
-  for (const path of ["/dashboard", "/installations", "/installations/accept", "/installations/work", "/repair", "/qc"]) {
+  for (const path of [
+    "/dashboard",
+    "/installations",
+    "/installations/accept",
+    "/installations/work",
+    "/repair",
+    "/qc",
+    "/dashboard/status/repair/picking-up",
+    "/dashboard/status/repair/wait-schedule",
+  ]) {
     revalidatePath(path);
   }
 

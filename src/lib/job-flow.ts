@@ -145,6 +145,37 @@ export async function acceptRepair(session: Session, code: string): Promise<Flow
 }
 
 /**
+ * ຊ່າງໜ້າງານ (IH) **ສ້ອມບໍ່ໄດ້ ⇒ ນຳເຄື່ອງເຂົ້າສູນ**. ແປງ IH→PS (ໄປຮັບມາສ້ອມຢູ່ສູນ)
+ * ເພາະຜົນລັບຄືກັນ: ເຄື່ອງເດີນທາງເຂົ້າສູນ → ສ້ອມ → **ຕ້ອງສົ່ງຄືນ** (ຕ່າງຈາກ IH ທີ່ຈົບໜ້າງານ).
+ *
+ * - pickup_start=now, pickup_at=null ⇒ ເຂົ້າຄິວ "ກຳລັງໄປຮັບ" (ຊ່າງກຳລັງເອົາເຄື່ອງເຂົ້າ);
+ *   CS ກົດ "ຮັບເຂົ້າສູນ" (receivePickup) ຕອນມາຮອດ ⇒ ຂັ້ນ 1 ກວດຄືນຢູ່ສູນ.
+ * - ລ້າງ time_check/time_finish_check ⇒ ຕົກຄືນຂັ້ນ 0 (PS ຄິວໄປຮັບ) ແລ້ວກວດຄືນດ້ວຍເຄື່ອງມືສູນ.
+ * - ອະນຸຍາດແຕ່ຕອນຍັງກວດ (ຂັ້ນ 1/2) — ຫຼັງມີໃບສະເໜີ/ເບີກ ຫ້າມ (ຈະ orphan ເອກະສານ).
+ */
+export async function bringRepairToCenter(session: Session, code: string, reason: string): Promise<FlowResult> {
+  const own = await ownJob(session, "repair", code);
+  if (!own.ok) return own;
+
+  const why = reason.trim();
+  if (!why) return { ok: false, error: "ກະລຸນາໃສ່ເຫດຜົນທີ່ສ້ອມໜ້າງານບໍ່ໄດ້" };
+
+  const done = await query(
+    `update tb_product a set
+        service_type='PS', pickup_start=${NOW}, pickup_at=null,
+        time_check=null, time_finish_check=null
+      where a.code=$1 and coalesce(service_type,'')='IH' and (${STAGE_SQL}) in (1,2)`,
+    [code],
+  );
+  if (!done.rowCount) {
+    return { ok: false, error: "ນຳເຂົ້າສູນບໍ່ໄດ້ — ວຽກບໍ່ແມ່ນ IH ທີ່ກຳລັງກວດໜ້າງານ ຫຼື ຖືກປ່ຽນໄປແລ້ວ" };
+  }
+
+  await logChange("tb_product", code, `ສ້ອມໜ້າງານບໍ່ໄດ້ → ນຳເຂົ້າສູນ (IH→PS): ${why}`);
+  return { ok: true, message: `ນຳ ${code} ເຂົ້າສູນແລ້ວ — ລໍ CS ຮັບເຂົ້າສູນ` };
+}
+
+/**
  * ປະຕິເສດງານ — ຊ່າງບໍ່ຮັບ ພ້ອມເຫດຜົນ.
  *
  * ງານກັບໄປຄິວ "ລໍຖ້າຈັດຊ່າງ" ຂອງ CS ທັນທີ (ລ້າງຊື່ຊ່າງອອກ) ບໍ່ດັ່ງນັ້ນມັນຈະນອນຢູ່

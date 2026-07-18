@@ -145,6 +145,55 @@ class _JobScreenState extends State<JobScreen> {
     });
   }
 
+  /// IH ສ້ອມໜ້າງານບໍ່ໄດ້ ⇒ ນຳເຄື່ອງເຂົ້າສູນ (ແປງເປັນ PS). ຕ້ອງໃສ່ເຫດຜົນ.
+  Future<void> bringIn() async {
+    reason.clear();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('ສ້ອມໜ້າງານບໍ່ໄດ້ — ນຳເຂົ້າສູນ?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'ເຄື່ອງຈະຖືກນຳເຂົ້າສູນ (ແປງເປັນ PS) ແລ້ວ CS ຮັບເຂົ້າສູນ. ໃສ່ເຫດຜົນໃຫ້ຊ່າງສູນ/CS ເຫັນ:',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: reason,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'ຕ້ອງໃຊ້ເຄື່ອງມືສູນ, ອາການໜັກ, ຕ້ອງກວດເລິກ...',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('ຍົກເລີກ'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('ນຳເຂົ້າສູນ'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (reason.text.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ຕ້ອງໃສ່ເຫດຜົນກ່ອນ')),
+        );
+      }
+      return;
+    }
+    await run({'action': 'bring-in', 'reason': reason.text.trim()});
+  }
+
   Future<void> openMap() async {
     final destination = job.lat != null && job.lng != null
         ? '${job.lat},${job.lng}'
@@ -379,6 +428,18 @@ class _JobScreenState extends State<JobScreen> {
                           if (mounted) await reload();
                         },
                 ),
+
+              // IH ໜ້າງານ ສ້ອມບໍ່ໄດ້ ⇒ ນຳເຂົ້າສູນ (ແປງເປັນ PS) — ມີແຕ່ຕອນກຳລັງກວດ (ຂັ້ນ 1/2)
+              if (job.workflow == 'repair' &&
+                  job.serviceType == 'IH' &&
+                  (job.stage == 1 || job.stage == 2)) ...[
+                const SizedBox(height: 8),
+                _button(
+                  'ສ້ອມໜ້າງານບໍ່ໄດ້ — ນຳເຂົ້າສູນ',
+                  const Color(0xFFB45309),
+                  bringIn,
+                ),
+              ],
 
               if (job.action == 'start')
                 _button(

@@ -460,6 +460,8 @@ class Job {
   final String? product;
   final String? detail;
   final bool onsite;
+  /// ປະເພດບໍລິການສ້ອມ (CI/ST/IH/PS) — null ຝັ່ງຕິດຕັ້ງ. IH = ໄປສ້ອມບ້ານ ⇒ ນຳເຂົ້າສູນໄດ້
+  final String? serviceType;
   final int stage;
   final String stageLabel;
   final int elapsedSeconds;
@@ -491,6 +493,7 @@ class Job {
     required this.product,
     required this.detail,
     required this.onsite,
+    this.serviceType,
     required this.stage,
     required this.stageLabel,
     required this.elapsedSeconds,
@@ -516,6 +519,7 @@ class Job {
     product: json['product'] as String?,
     detail: json['detail'] as String?,
     onsite: json['onsite'] as bool? ?? false,
+    serviceType: json['service_type'] as String?,
     stage: (json['stage'] as num).toInt(),
     stageLabel: json['stage_label'] as String? ?? '-',
     elapsedSeconds: (json['elapsed_seconds'] as num?)?.toInt() ?? 0,

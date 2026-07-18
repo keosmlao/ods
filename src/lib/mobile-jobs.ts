@@ -38,6 +38,8 @@ export type MobileJob = {
   detail: string | null;
   /** ງານນອກສະຖານທີ່ບໍ — ຕິດຕັ້ງແມ່ນສະເໝີ · ສ້ອມແມ່ນຕາມ service_type */
   onsite: boolean;
+  /** ປະເພດບໍລິການສ້ອມ (CI/ST/IH/PS) — null ຝັ່ງຕິດຕັ້ງ. ໃຊ້ໃຫ້ແອັບຮູ້ IH (ນຳເຂົ້າສູນໄດ້) */
+  service_type: string | null;
   stage: number;
   stage_label: string;
   elapsed_seconds: number;
@@ -113,6 +115,7 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         a.item_name as product,
         concat_ws(' ', a.pro_brand, a.pro_model) as detail,
         true as onsite,
+        null as service_type,
         (${INSTALL_STAGE_SQL}) as stage,
         (${INSTALL_STAGE_LABEL_SQL}) as stage_label,
         ${INSTALL_ELAPSED_SQL} as elapsed_seconds,
@@ -143,6 +146,7 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         a.name_1 as product,
         concat_ws(' ', a.p_brand, a.p_model) as detail,
         (${REPAIR_ONSITE}) as onsite,
+        a.service_type as service_type,
         (${STAGE_SQL}) as stage,
         (${STAGE_LABEL_SQL}) as stage_label,
         ${STAGE_ELAPSED_SQL} as elapsed_seconds,
