@@ -18,8 +18,8 @@ import {
 } from "@/lib/repair-sla";
 import {
   OPEN_JOBS,
+  stageLabel,
   STAGE_ELAPSED_SQL,
-  STAGE_LABEL,
   STAGE_LABEL_SQL,
   STAGE_SQL,
 } from "@/lib/stage";
@@ -226,7 +226,7 @@ async function getSlaSummary(session: Session, args: { service_type: "CI" | "ST"
   );
   return {
     service_type: args.service_type ?? "all",
-    stages: rows.rows.map((row) => ({ ...row, stage_label: STAGE_LABEL[row.stage] ?? "-" })),
+    stages: rows.rows.map((row) => ({ ...row, stage_label: stageLabel(row.stage, args.service_type) })),
   };
 }
 

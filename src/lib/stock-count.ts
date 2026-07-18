@@ -1,6 +1,6 @@
 import { query } from "@/lib/db";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
-import { STAGE_LABEL, STAGE_SQL } from "@/lib/stage";
+import { stageLabel, STAGE_SQL } from "@/lib/stage";
 
 /**
  * **ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມແປງ** — ນິຍາມ "ເຄື່ອງທີ່ຄວນຢູ່ໃນສູນຈິງ" ບ່ອນດຽວ.
@@ -45,7 +45,7 @@ export async function inScopeRepairJobs(): Promise<StockCountJob[]> {
   ).rows;
   return rows.map((row) => ({
     ...row,
-    stage_label: STAGE_LABEL[row.stage] ?? "-",
+    stage_label: stageLabel(row.stage, row.service_type),
     service_type_label: SERVICE_TYPE_LABEL[row.service_type ?? ""] ?? (row.service_type ?? "-"),
   }));
 }

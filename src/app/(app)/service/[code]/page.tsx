@@ -11,7 +11,7 @@ import { APPROVER_SIDE, roleOf } from "@/lib/roles";
 import { canViewAssignedJob } from "@/lib/scope";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
-import { STAGE_LABEL, STAGE_SQL } from "@/lib/stage";
+import { stageLabel, STAGE_SQL } from "@/lib/stage";
 import { DONE_STAGE } from "@/lib/track";
 import { ArrowLeft, Barcode, ImageIcon, Pencil, Phone, Printer, RotateCcw } from "lucide-react";
 import Link from "next/link";
@@ -130,7 +130,7 @@ export default async function ServiceDetail({ params }: Props) {
         ["ວັນທີຮັບ", job.registered],
         ["ຊ່າງ", job.technician],
         ["ຜູ້ຮັບ", job.receiver],
-        ["ສະຖານະ", STAGE_LABEL[job.stage] ?? "-"],
+        ["ສະຖານະ", stageLabel(job.stage, job.service_type)],
         // "ຮ້ານຄ້າ" (ap_code) ຖືກຖອດ — ມັນຄື**ລະຫັດລູກຄ້າ**ອັນດຽວກັນ (ສະແດງຢູ່ກຸ່ມລູກຄ້າແລ້ວ)
         ["ເລກບິນ", job.bill_no],
         ["ວັນທີບິນ", job.bill_date],
@@ -190,7 +190,7 @@ export default async function ServiceDetail({ params }: Props) {
                 cancelled ? "bg-red-100 text-red-700" : done ? "bg-emerald-100 text-emerald-700" : "bg-sky-100 text-sky-700"
               }`}
             >
-              {STAGE_LABEL[job.stage] ?? "-"}
+              {stageLabel(job.stage, job.service_type)}
             </span>
             <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
               {job.warranty || "-"}

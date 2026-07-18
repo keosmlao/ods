@@ -104,14 +104,33 @@ export const STAGE_LABEL: Record<number, string> = {
  * ແຕ່ກ່ອນ 3 ໄຟລ໌ຂຽນ `case … when 10 then 'ລໍຖ້າສົ່ງຄືນ' …` ຊ້ຳກັນເອງ
  * ⇒ ພໍເພີ່ມຂັ້ນ QC ເລກເລື່ອນໝົດ ແລະ ລາຍງານຈະສະແດງຊື່ຂັ້ນຜິດຢ່າງງຽບໆ.
  */
-// ປ້າຍ SQL ແຍກຕາມ service_type ບ່ອນຄວາມໝາຍຕ່າງ (ບ່ອນອື່ນ — ເມນູ/ຫົວໜ້າຄິວ — ເອົາຈາກ repairStatuses):
-//   ຂັ້ນ 0  PS "ລໍໄປຮັບເຄື່ອງ" · IH "ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ"
-//   ຂັ້ນ 11 CI/ST/PS "ລໍຖ້າສົ່ງຄືນ" · IH "ລໍປິດງານ" (ບໍ່ມີເຄື່ອງໃຫ້ສົ່ງຄືນ — ຢູ່ບ້ານແລ້ວ)
-//   ຂັ້ນ 12 CI/ST/PS "ສົ່ງຄືນສຳເລັດ" · IH "ຈົບງານ (ໜ້າງານ)"
+/**
+ * ຂັ້ນທີ່ **IH (ໄປສ້ອມບ້ານລູກຄ້າ)** ມີຄຳຕ່າງຈາກທົ່ວໄປ — ເຄື່ອງຢູ່ບ້ານລູກຄ້າ ບໍ່ໄດ້ຢູ່ສູນ:
+ *   0  ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ (ບໍ່ແມ່ນ "ລໍໄປຮັບເຄື່ອງ" ຂອງ PS)
+ *   11 ລໍປິດງານ · 12 ຈົບງານ (ບໍ່ແມ່ນ "ສົ່ງຄືນ" — ບໍ່ມີເຄື່ອງໃຫ້ສົ່ງຄືນ)
+ * **ບ່ອນດຽວ** ໃຊ້ທັງ SQL (STAGE_LABEL_SQL) ແລະ JS (stageLabel) ⇒ ບໍ່ຫຼົງກັນ.
+ */
+export const IH_STAGE_LABEL: Record<number, string> = {
+  0: "ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ",
+  11: "ລໍປິດງານ",
+  12: "ຈົບງານ (ໜ້າງານ)",
+};
+
+/**
+ * ຊື່ຂັ້ນ **ຮັບຮູ້ປະເພດບໍລິການ** — IH ຕ່າງຢູ່ຂັ້ນ 0/11/12. ໃຊ້ບ່ອນທີ່ມີ service_type
+ * (ໜ້າລາຍລະອຽດ, ລາຍການ). ບ່ອນທີ່ບໍ່ມີ (ຫົວຄໍລຳ board, ຫົວລາຍງານລວມທຸກປະເພດ) ໃຊ້ STAGE_LABEL ຊື່ໆ.
+ */
+export function stageLabel(stage: number | null | undefined, serviceType?: string | null): string {
+  if (stage == null) return "-";
+  if (serviceType === "IH" && stage in IH_STAGE_LABEL) return IH_STAGE_LABEL[stage];
+  return STAGE_LABEL[stage] ?? "-";
+}
+
+// ປ້າຍ SQL ແຍກຕາມ service_type (ບ່ອນອື່ນ — ເມນູ/ຫົວໜ້າຄິວ — ເອົາຈາກ repairStatuses).
 export const STAGE_LABEL_SQL = `case
-  when (${STAGE_SQL}) = 0  and coalesce(a.service_type,'') = 'IH' then 'ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ'
-  when (${STAGE_SQL}) = 11 and coalesce(a.service_type,'') = 'IH' then 'ລໍປິດງານ'
-  when (${STAGE_SQL}) = 12 and coalesce(a.service_type,'') = 'IH' then 'ຈົບງານ (ໜ້າງານ)'
+${Object.entries(IH_STAGE_LABEL)
+  .map(([stage, label]) => `  when (${STAGE_SQL}) = ${stage} and coalesce(a.service_type,'') = 'IH' then '${label}'`)
+  .join("\n")}
 ${Object.entries(STAGE_LABEL).map(([stage, label]) => `  when (${STAGE_SQL}) = ${stage} then '${label}'`).join("\n")}
   else '-' end`;
 
