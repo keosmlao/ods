@@ -34,6 +34,7 @@ export async function inScopeRepairJobs(): Promise<StockCountJob[]> {
         from tb_product a
         left join ar_customer c on c.code = a.cust_code
        where a.return_complete is null and (${STAGE_SQL}) between 1 and 11
+         and coalesce(a.service_type,'') <> 'IH'
        order by a.time_register desc`,
     )
   ).rows;
@@ -45,7 +46,8 @@ export async function inScopeCodes(): Promise<string[]> {
   const rows = (
     await query<{ code: string }>(
       `select a.code from tb_product a
-        where a.return_complete is null and (${STAGE_SQL}) between 1 and 11`,
+        where a.return_complete is null and (${STAGE_SQL}) between 1 and 11
+         and coalesce(a.service_type,'') <> 'IH'`,
     )
   ).rows;
   return rows.map((row) => row.code);
