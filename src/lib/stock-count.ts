@@ -38,7 +38,9 @@ export async function inScopeRepairJobs(): Promise<StockCountJob[]> {
         from tb_product a
         left join ar_customer c on c.code = a.cust_code
        where a.return_complete is null and (${STAGE_SQL}) between 1 and 11
+         -- IH ຢູ່ບ້ານລູກຄ້າ ⇒ ຂ້າມ · PS ນັບສະເພາະ **ໄປຮັບແລ້ວ** (time_check notnull = ຢູ່ສູນ)
          and coalesce(a.service_type,'') <> 'IH'
+         and not (coalesce(a.service_type,'') = 'PS' and a.time_check is null)
        order by a.time_register desc`,
     )
   ).rows;
@@ -55,7 +57,9 @@ export async function inScopeCodes(): Promise<string[]> {
     await query<{ code: string }>(
       `select a.code from tb_product a
         where a.return_complete is null and (${STAGE_SQL}) between 1 and 11
-         and coalesce(a.service_type,'') <> 'IH'`,
+         -- IH ຢູ່ບ້ານລູກຄ້າ ⇒ ຂ້າມ · PS ນັບສະເພາະ **ໄປຮັບແລ້ວ** (time_check notnull = ຢູ່ສູນ)
+         and coalesce(a.service_type,'') <> 'IH'
+         and not (coalesce(a.service_type,'') = 'PS' and a.time_check is null)`,
     )
   ).rows;
   return rows.map((row) => row.code);
