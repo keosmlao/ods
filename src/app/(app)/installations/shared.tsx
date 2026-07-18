@@ -373,7 +373,20 @@ export function DocCell({ row }: { row: InstallDocRow }) {
  * ຊ່ອງມາດຕະຖານຂອງແຖວງານຕິດຕັ້ງ — ຕ້ອງກົງລຳດັບກັບ INSTALL_TABLE_COLUMNS.
  * ໜ້າໃດຢາກເພີ່ມຊ່ອງ ໃຫ້ຕໍ່ <td> ຂອງຕົນຫຼັງຈາກນີ້.
  */
-export function InstallCells({ row, timeLabel }: { row: InstallCellRow; timeLabel?: string }) {
+export function InstallCells({
+  row,
+  timeLabel,
+  /**
+   * ຖັນ "ສະຖານະ" (install-stage) — ປິດຢູ່ **ໜ້າ doc-queue** (ຮັບອາໄຫຼ່ · ກຳລັງຂໍເບີກ)
+   * ບ່ອນທີ່ແຖວອີງ **ເອກະສານທີ່ຄ້າງ** ບໍ່ແມ່ນຂັ້ນຂອງງານ ⇒ install-stage ຫຼອກຕາ
+   * (ເຊັ່ນ INST-6883/6892 ເລີ່ມຕິດຕັ້ງແລ້ວ ແຕ່ຍັງບໍ່ເຊັນຮັບອາໄຫຼ່ ⇒ badge ‘ກຳລັງຕິດຕັ້ງ’).
+   */
+  showStatus = true,
+}: {
+  row: InstallCellRow;
+  timeLabel?: string;
+  showStatus?: boolean;
+}) {
   const tone = elapsedTone(row.elapsed_seconds);
   return (
     <>
@@ -418,9 +431,11 @@ export function InstallCells({ row, timeLabel }: { row: InstallCellRow; timeLabe
       </td>
       <td className="whitespace-nowrap px-3 py-2.5">{row.tech_code || "-"}</td>
       <td className="whitespace-nowrap px-3 py-2.5 text-center text-slate-500">{row.user_created || "-"}</td>
-      <td className="whitespace-nowrap px-3 py-2.5">
-        <StageChip stage={row.stage} />
-      </td>
+      {showStatus && (
+        <td className="whitespace-nowrap px-3 py-2.5">
+          <StageChip stage={row.stage} />
+        </td>
+      )}
     </>
   );
 }
@@ -436,6 +451,8 @@ export const INSTALL_SORTABLE_COLUMNS: Column[] = [
 ];
 /** ຖັນຄົງທີ່ 2 ຖັນສຸດທ້າຍຂອງ <InstallCells/> */
 export const INSTALL_PLAIN_COLUMNS = ["ຜູ້ສ້າງ", "ສະຖານະ"];
+/** ຄືກັນ ແຕ່ບໍ່ມີ "ສະຖານະ" — ໃຊ້ຄູ່ກັບ <InstallCells showStatus={false}/> ຢູ່ໜ້າ doc-queue */
+export const INSTALL_PLAIN_COLUMNS_NO_STATUS = ["ຜູ້ສ້າງ"];
 
 /** ກອບຕາຕະລາງ + ຂໍ້ຄວາມ "ບໍ່ພົບລາຍການ" */
 export function TableShell({ total, minWidth = 1200, children }: { total: number; minWidth?: number; children: ReactNode }) {

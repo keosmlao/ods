@@ -11,6 +11,7 @@ import {
   INSTALL_DOC_SEARCH,
   INSTALL_DOC_SORT_SQL,
   INSTALL_PLAIN_COLUMNS,
+  INSTALL_PLAIN_COLUMNS_NO_STATUS,
   INSTALL_SEARCH,
   INSTALL_SORTABLE_COLUMNS,
   InstallCells,
@@ -181,7 +182,7 @@ export default async function SpareRequestsPage({ searchParams }: Props) {
       <TableShell total={list.total} minWidth={tab === "waiting" ? 1300 : 1450}>
         <InstallTableHead
           columns={INSTALL_SORTABLE_COLUMNS}
-          plain={INSTALL_PLAIN_COLUMNS}
+          plain={tab === "requested" ? INSTALL_PLAIN_COLUMNS_NO_STATUS : INSTALL_PLAIN_COLUMNS}
           trailing={tab === "requested" ? [{ ...INSTALL_DOC_COLUMN, label: "ເລກຂໍເບີກ" }] : []}
           sort={sort}
           dir={dir}
@@ -192,7 +193,7 @@ export default async function SpareRequestsPage({ searchParams }: Props) {
             const req = "doc_no" in row ? row : null;
             return (
               <tr key={req ? req.doc_no : row.code} className="border-b border-slate-100 hover:bg-slate-50">
-                <InstallCells row={row} timeLabel={req ? "ວັນ/ເວລາຂໍເບີກ" : "ວັນ/ເວລາເປີດງານ"} />
+                <InstallCells row={row} timeLabel={req ? "ວັນ/ເວລາຂໍເບີກ" : "ວັນ/ເວລາເປີດງານ"} showStatus={tab !== "requested"} />
                 {req && <DocCell row={req} />}
                 <td className="whitespace-nowrap px-3 py-2.5 text-center">
                   {req ? (

@@ -8,7 +8,7 @@ import {
   INSTALL_DOC_COLUMN,
   INSTALL_DOC_SEARCH,
   INSTALL_DOC_SORT_SQL,
-  INSTALL_PLAIN_COLUMNS,
+  INSTALL_PLAIN_COLUMNS_NO_STATUS,
   INSTALL_SORTABLE_COLUMNS,
   InstallCells,
   InstallTableHead,
@@ -105,7 +105,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
       <TableShell total={list.total} minWidth={1450}>
         <InstallTableHead
           columns={INSTALL_SORTABLE_COLUMNS}
-          plain={INSTALL_PLAIN_COLUMNS}
+          plain={INSTALL_PLAIN_COLUMNS_NO_STATUS}
           trailing={[{ ...INSTALL_DOC_COLUMN, label: "ເລກທີເບີກ" }]}
           sort={sort}
           dir={dir}
@@ -114,7 +114,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
         <tbody>
           {list.rows.map((row) => (
             <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-              <InstallCells row={row} timeLabel="ວັນ/ເວລາເບີກ" />
+              <InstallCells row={row} timeLabel="ວັນ/ເວລາເບີກ" showStatus={false} />
               <DocCell row={row} />
               <td className="whitespace-nowrap px-3 py-2.5 text-center">
                 <Link
