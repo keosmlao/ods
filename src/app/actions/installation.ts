@@ -1,11 +1,15 @@
 "use server";
 import { logChange } from "@/lib/chatter-log";
-import { acceptInstall, finishInstallFlow, startInstallFlow } from "@/lib/job-flow";
+import {
+  acceptInstall,
+  finishInstallFlow,
+  startInstallFlow,
+} from "@/lib/job-flow";
 import { pushToUser } from "@/lib/push";
 import { recordPayout } from "@/lib/commission-record";
 import { getSession, type Session } from "@/lib/auth";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
-import { db, odgDb, query } from "@/lib/db";
+import { db, odgDb, query, queryOdg } from "@/lib/db";
 import { deleteErpRequest, writeErpRequest } from "@/lib/erp-request";
 import { nextDocNo } from "@/lib/doc-no";
 import { requireRole } from "@/lib/guard";
@@ -113,16 +117,23 @@ const NOT_YOURS = "ງານນີ້ບໍ່ແມ່ນຂອງທ່ານ"
  * ຫົວໜ້າຊ່າງ/ຜູ້ຈັດການເຫັນຄົບທຸກງານຄືເກົ່າ (ບໍ່ຖືກກວດຂໍ້ ③) — ຄືກັບຝັ່ງສ້ອມ.
  * ຈຳເປັນ ເພາະລະຫັດ INST-xxxx ເປັນເລກລຽງ ⇒ ເດົາລະຫັດງານຂອງຊ່າງຄົນອື່ນໄດ້ງ່າຍ.
  */
-type JobGuard = { ok: true; session: Session; job: JobState } | { ok: false; error: string };
+type JobGuard =
+  { ok: true; session: Session; job: JobState } | { ok: false; error: string };
 
-async function guardJob(code: string, allowed: readonly Role[]): Promise<JobGuard> {
+async function guardJob(
+  code: string,
+  allowed: readonly Role[],
+): Promise<JobGuard> {
   const guard = await requireRole(allowed);
   if (!guard.ok) return { ok: false, error: guard.error };
 
   const job = await jobState(code);
   if (!job) return { ok: false, error: NOT_FOUND };
 
-  if (roleOf(guard.session) === "technical" && (job.tech_code ?? "") !== guard.session.username) {
+  if (
+    roleOf(guard.session) === "technical" &&
+    (job.tech_code ?? "") !== guard.session.username
+  ) {
     return { ok: false, error: NOT_YOURS };
   }
   return { ok: true, session: guard.session, job };
@@ -181,7 +192,10 @@ const createSchema = z.object({
       try {
         return z.array(lineSchema).min(1).parse(JSON.parse(raw));
       } catch {
-        ctx.addIssue({ code: "custom", message: "ລາຍການທີ່ຈະຕິດຕັ້ງບໍ່ຖືກຕ້ອງ" });
+        ctx.addIssue({
+          code: "custom",
+          message: "ລາຍການທີ່ຈະຕິດຕັ້ງບໍ່ຖືກຕ້ອງ",
+        });
         return z.NEVER;
       }
     }),
@@ -207,7 +221,10 @@ const createSchema = z.object({
   remark: z.string(),
 });
 
-export async function createInstall(_: ActionState, formData: FormData): Promise<ActionState> {
+export async function createInstall(
+  _: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດເປີດງານຕິດຕັ້ງ");
   if (!guard.ok) return { error: guard.error };
   const session = guard.session;
@@ -220,12 +237,16 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
   // S/N ຕ້ອງຄົບຕໍ່ໜ່ວຍ — ກວດຢູ່ server ອີກຊັ້ນ (ຟອມກວດແລ້ວ ແຕ່ action ຖືກຍິງໂດຍກົງໄດ້)
   for (const line of d.lines) {
     if (line.serials.length !== line.units) {
-      return { error: `${line.item_name}: ຕ້ອງລະບຸ S/N ໃຫ້ຄົບ ${line.units} ໜ່ວຍ` };
+      return {
+        error: `${line.item_name}: ຕ້ອງລະບຸ S/N ໃຫ້ຄົບ ${line.units} ໜ່ວຍ`,
+      };
     }
   }
   const totalJobs = d.lines.reduce((sum, line) => sum + line.units, 0);
   if (totalJobs > MAX_JOBS_PER_SAVE) {
-    return { error: `ສ້າງໄດ້ສູງສຸດ ${MAX_JOBS_PER_SAVE} ງານຕໍ່ຄັ້ງ (ກຳລັງຈະສ້າງ ${totalJobs})` };
+    return {
+      error: `ສ້າງໄດ້ສູງສຸດ ${MAX_JOBS_PER_SAVE} ງານຕໍ່ຄັ້ງ (ກຳລັງຈະສ້າງ ${totalJobs})`,
+    };
   }
 
   const tech = (d.tech_code ?? "").trim();
@@ -247,7 +268,9 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
     if (existing.rows[0]) {
       custCode = existing.rows[0].code;
     } else {
-      const next = await client.query<{ max: number | null }>("select max(code::int) max from ar_customer");
+      const next = await client.query<{ max: number | null }>(
+        "select max(code::int) max from ar_customer",
+      );
       custCode = String((next.rows[0].max ?? 0) + 1);
       await client.query(
         "insert into ar_customer(code,name_1,address,city,provine,tel,ref_code) values($1,$2,$3,null,null,$4,$5)",
@@ -258,7 +281,7 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
     const seq = await client.query<{ max: number | null }>(
       "select max(nullif(regexp_replace(code,'\\D','','g'),'')::int) max from ods_tb_install",
     );
-    let next = (seq.rows[0].max ?? 0);
+    let next = seq.rows[0].max ?? 0;
 
     /**
      * ── 1 ລາຍການ × 1 ໜ່ວຍ = 1 ງານ ──
@@ -270,18 +293,24 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
     for (const row of d.lines) {
       // ອາໄຫຼ່ມາດຕະຖານຂອງປະເພດຕິດຕັ້ງນີ້
       const spares = await client.query<{
-        line_number: number; ic_code: string; name_1: string; qty: string; unit_code: string;
+        line_number: number;
+        ic_code: string;
+        name_1: string;
+        qty: string;
+        unit_code: string;
       }>(
         "select line_number,ic_code,name_1,round(qty,2) qty,unit_code from used_spare_install where install_type=$1 order by line_number",
         [row.sv_type],
       );
 
       // ສິນຄ້າລະຫັດຂຶ້ນຕົ້ນ '97' ບໍ່ໃຊ້ອາໄຫຼ່ (ຄືກັບ ods)
-      const usedSpare = spares.rowCount === 0 || row.item_code.slice(0, 2) === "97" ? 0 : 1;
+      const usedSpare =
+        spares.rowCount === 0 || row.item_code.slice(0, 2) === "97" ? 0 : 1;
 
-      const category = await client.query<{ name_1: string }>("select name_1 from tb_category where code=$1", [
-        row.pro_type,
-      ]);
+      const category = await client.query<{ name_1: string }>(
+        "select name_1 from tb_category where code=$1",
+        [row.pro_type],
+      );
       const proTypeName = category.rows[0]?.name_1 ?? "";
 
       for (const [index, serial] of row.serials.entries()) {
@@ -295,10 +324,29 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
              used_spare,pro_sn,pro_type_code,appoint_date,pro_sn_out,location_lat,location_lng)
            values($1,$2,$3,$4,$5,$6,0,0,$7,localtimestamp(0),$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,nullif($18,'')::date,
                   nullif($19,''), nullif($20,'')::double precision, nullif($21,'')::double precision)`,
-          [code, d.doc_no, custCode, row.item_code, row.item_name, row.sv_type, d.remark, session.username, d.billdate,
-            row.pro_brand, row.pro_model, proTypeName, row.pro_size, d.location_inst, usedSpare, serial.trim(),
-            row.pro_type, d.appoint_date ?? "", (row.outdoor[index] ?? "").trim(),
-            d.location_lat ?? "", d.location_lng ?? ""],
+          [
+            code,
+            d.doc_no,
+            custCode,
+            row.item_code,
+            row.item_name,
+            row.sv_type,
+            d.remark,
+            session.username,
+            d.billdate,
+            row.pro_brand,
+            row.pro_model,
+            proTypeName,
+            row.pro_size,
+            d.location_inst,
+            usedSpare,
+            serial.trim(),
+            row.pro_type,
+            d.appoint_date ?? "",
+            (row.outdoor[index] ?? "").trim(),
+            d.location_lat ?? "",
+            d.location_lng ?? "",
+          ],
         );
 
         // ຈັດຊ່າງໃຫ້ເລີຍ (ຖ້າ CS ເລືອກໄວ້) — stamp assigt_time ຄືກັບ assignTech
@@ -313,7 +361,15 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
           await client.query(
             `insert into ods_tb_install_detail(line_number,code,cust_code,time_register,item_code,item_name,qty,unit_code)
              values($1,$2,$3,localtimestamp(0),$4,$5,$6,$7)`,
-            [line.line_number, code, custCode, line.ic_code, line.name_1, line.qty, line.unit_code],
+            [
+              line.line_number,
+              code,
+              custCode,
+              line.ic_code,
+              line.name_1,
+              line.qty,
+              line.unit_code,
+            ],
           );
           await client.query(
             "insert into tb_used_spare(product_code,item_code,item_name,qty,unit_code) values($1,$2,$3,$4,$5)",
@@ -346,7 +402,9 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
         jobCode,
         `ເປີດງານຕິດຕັ້ງ: ${line.item_name} · ລູກຄ້າ ${d.custname} · ບິນອ້າງອີງ ${d.doc_no}` +
           (line.units > 1 ? ` (ໜ່ວຍທີ ${unit + 1}/${line.units})` : "") +
-          (d.lines.length > 1 ? ` · ບິນນີ້ເປີດພ້ອມກັນ ${codes.length} ງານ` : ""),
+          (d.lines.length > 1
+            ? ` · ບິນນີ້ເປີດພ້ອມກັນ ${codes.length} ງານ`
+            : ""),
       );
     }
   }
@@ -354,11 +412,18 @@ export async function createInstall(_: ActionState, formData: FormData): Promise
   // ຈັດຊ່າງຕັ້ງແຕ່ຕອນເປີດງານ ⇒ ຊ່າງຕ້ອງຮູ້ທັນທີ (ບໍ່ດັ່ງນັ້ນນາລິກາ 24 ຊມ ແລ່ນຢູ່ໂດຍລາວບໍ່ຮູ້)
   if (tech) {
     for (const created of codes) {
-      await logChange("ods_tb_install", created, `ຈັດຊ່າງຕັ້ງແຕ່ຕອນເປີດງານ: ${tech}`, { users: [tech] });
+      await logChange(
+        "ods_tb_install",
+        created,
+        `ຈັດຊ່າງຕັ້ງແຕ່ຕອນເປີດງານ: ${tech}`,
+        { users: [tech] },
+      );
     }
     await pushToUser(
       tech,
-      codes.length > 1 ? `ມີງານຕິດຕັ້ງໃໝ່ ${codes.length} ງານ` : "ມີງານຕິດຕັ້ງໃໝ່",
+      codes.length > 1
+        ? `ມີງານຕິດຕັ້ງໃໝ່ ${codes.length} ງານ`
+        : "ມີງານຕິດຕັ້ງໃໝ່",
       `${codes.join(", ")}${d.appoint_date ? ` · ນັດ ${d.appoint_date}` : ""} · ${d.location_inst}`,
       { workflow: "install", code: codes[0] },
     );
@@ -382,7 +447,10 @@ const editSchema = z.object({
   remark: z.string(),
 });
 
-export async function updateInstall(_: ActionState, formData: FormData): Promise<ActionState> {
+export async function updateInstall(
+  _: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດແກ້ໄຂງານຕິດຕັ້ງ");
   if (!guard.ok) return { error: guard.error };
   const session = guard.session;
@@ -398,7 +466,10 @@ export async function updateInstall(_: ActionState, formData: FormData): Promise
     if (current.accepted && (current.tech_code ?? "") !== d.tech_code) {
       return { error: "ປ່ຽນຊ່າງບໍ່ໄດ້ — ຊ່າງຮັບງານແລ້ວ" };
     }
-    const category = await query<{ name_1: string }>("select name_1 from tb_category where code=$1", [d.pro_type]);
+    const category = await query<{ name_1: string }>(
+      "select name_1 from tb_category where code=$1",
+      [d.pro_type],
+    );
     // ໜ້າແກ້ໄຂກໍ່ຈັດຊ່າງໄດ້ຄືກັນ → stamp assigt_time/user_assigt ເມື່ອ **ປ່ຽນ** ຊ່າງ (B6).
     // ຖ້າຖອນຊ່າງອອກ (ຄ່າຫວ່າງ) ໂມງຈັດຊ່າງກໍ່ຖືກລ້າງ — ງານກັບໄປຄິວ "ລໍຖ້າຈັດຊ່າງ".
     await query(
@@ -413,8 +484,19 @@ export async function updateInstall(_: ActionState, formData: FormData): Promise
            when tech_code is distinct from $3::varchar then $2::varchar
            else user_assigt end
        where code=$11 and cancel_date is null and job_finish is null`,
-      [d.remark, session.username, d.tech_code || null, d.appoint_date || null, d.location_inst, d.pro_sn,
-        category.rows[0]?.name_1 ?? "", d.pro_type, d.pro_model, d.pro_brand, d.code],
+      [
+        d.remark,
+        session.username,
+        d.tech_code || null,
+        d.appoint_date || null,
+        d.location_inst,
+        d.pro_sn,
+        category.rows[0]?.name_1 ?? "",
+        d.pro_type,
+        d.pro_model,
+        d.pro_brand,
+        d.code,
+      ],
     );
   } catch (error) {
     console.error("updateInstall failed", error);
@@ -429,9 +511,14 @@ export async function updateInstall(_: ActionState, formData: FormData): Promise
     .filter(Boolean)
     .join(" · ");
   // ຖ້າແກ້ໄຂແລ້ວມີຊ່າງ → ຊ່າງຄົນນັ້ນຮູ້ນຳ
-  await logChange("ods_tb_install", d.code, `ແກ້ໄຂງານຕິດຕັ້ງ${detail ? `: ${detail}` : ""}`, {
-    users: d.tech_code ? [d.tech_code] : [],
-  });
+  await logChange(
+    "ods_tb_install",
+    d.code,
+    `ແກ້ໄຂງານຕິດຕັ້ງ${detail ? `: ${detail}` : ""}`,
+    {
+      users: d.tech_code ? [d.tech_code] : [],
+    },
+  );
 
   revalidateAll();
   redirect("/installations");
@@ -461,7 +548,10 @@ export async function updateInstall(_: ActionState, formData: FormData): Promise
  * ທີ່ສາງເບີກອອກໄປແລ້ວ ແລະ **ບໍ່ມີ** ໃບສົ່ງຄືນຈັກໃບ (ທັງ 3 ປີ ບໍ່ເຄີຍມີໃບ 58/59
  * ຂອງງານ INST- ຈັກໃບ) ⇒ ອາໄຫຼ່ຫາຍໄປຈາກສາງໂດຍບໍ່ມີເອກະສານຮັບຮູ້.
  */
-export async function cancelInstall(code: string, remark: string): Promise<ActionState> {
+export async function cancelInstall(
+  code: string,
+  remark: string,
+): Promise<ActionState> {
   const guard = await guardJob(code, SERVICE_SIDE);
   if (!guard.ok) return { error: guard.error };
   const { session, job } = guard;
@@ -478,7 +568,11 @@ export async function cancelInstall(code: string, remark: string): Promise<Actio
     );
     cancelled = Boolean(done.rowCount);
     if (cancelled) {
-      const summary = await query<{ docs: number; lines: number; units: number }>(
+      const summary = await query<{
+        docs: number;
+        lines: number;
+        units: number;
+      }>(
         `select count(distinct t.doc_no)::int docs, count(d.roworder)::int lines,
             coalesce(sum(d.qty),0)::float units
          from ic_trans t
@@ -499,9 +593,14 @@ export async function cancelInstall(code: string, remark: string): Promise<Actio
       ? ` · ຍັງມີອາໄຫຼ່ຄ້າງນອກສາງ ${outstanding.lines} ລາຍການ ຈາກ ${outstanding.docs} ໃບເບີກ — ຕ້ອງສ້າງໃບຂໍສົ່ງຄືນ`
       : "";
   // ສາງຕ້ອງຮູ້ ຖ້າຍັງມີອາໄຫຼ່ຄ້າງ (ໃບຂໍສົ່ງຄືນ/ຮັບຄືນ ເປັນວຽກຂອງສາງ)
-  await logChange("ods_tb_install", code, `ຍົກເລີກງານຕິດຕັ້ງ: ${remark.trim()}${parts}`, {
-    roles: outstanding.lines > 0 ? ROLE_WAREHOUSE : [],
-  });
+  await logChange(
+    "ods_tb_install",
+    code,
+    `ຍົກເລີກງານຕິດຕັ້ງ: ${remark.trim()}${parts}`,
+    {
+      roles: outstanding.lines > 0 ? ROLE_WAREHOUSE : [],
+    },
+  );
 
   revalidateAll();
   return {
@@ -522,7 +621,10 @@ export async function cancelInstall(code: string, remark: string): Promise<Actio
  * ແຍກບໍ່ອອກວ່າແມ່ນ "ຜູ້ຈັດຈັດຊ້າ" ຫຼື "ຊ່າງຮັບຊ້າ". stamp ແລ້ວ ໜ້າ /installations/assign
  * ກັບ /installations/accept ຈຶ່ງນັບໂມງຄ້າງຈາກຖານທີ່ຖືກຕ້ອງຂອງແຕ່ລະຄິວໄດ້.
  */
-export async function assignTech(_: ActionState, formData: FormData): Promise<ActionState> {
+export async function assignTech(
+  _: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const code = String(formData.get("code") ?? "");
   const techCode = String(formData.get("tech_code") ?? "");
   const appointDate = String(formData.get("appoint_date") ?? "");
@@ -541,9 +643,17 @@ export async function assignTech(_: ActionState, formData: FormData): Promise<Ac
       `update ods_tb_install a set remark=$1, tech_code=$2, appoint_date=$3, location_inst=$4,
          assigt_time=localtimestamp(0), user_assigt=$5
        where a.code=$6 and (${INSTALL_STAGE_SQL}) in (0,1)`,
-      [remark, techCode, appointDate || null, locationInst, session.username, code],
+      [
+        remark,
+        techCode,
+        appointDate || null,
+        locationInst,
+        session.username,
+        code,
+      ],
     );
-    if (!done.rowCount) return { error: "ຈັດຊ່າງບໍ່ໄດ້ — ຊ່າງຮັບງານ ຫຼື ງານເລີ່ມດຳເນີນແລ້ວ" };
+    if (!done.rowCount)
+      return { error: "ຈັດຊ່າງບໍ່ໄດ້ — ຊ່າງຮັບງານ ຫຼື ງານເລີ່ມດຳເນີນແລ້ວ" };
   } catch (error) {
     console.error("assignTech failed", error);
     return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
@@ -585,7 +695,11 @@ export async function chooseNewTech(code: string): Promise<ActionState> {
   const client = await db.connect();
   try {
     await client.query("begin");
-    const job = await client.query<{ accepted: boolean; requested: boolean; cancelled: boolean }>(
+    const job = await client.query<{
+      accepted: boolean;
+      requested: boolean;
+      cancelled: boolean;
+    }>(
       `select tech_confirm is not null as accepted, reg_start is not null as requested,
           cancel_date is not null as cancelled
        from ods_tb_install where code=$1 for update`,
@@ -608,7 +722,10 @@ export async function chooseNewTech(code: string): Promise<ActionState> {
       await client.query("rollback");
       return { error: "ບໍ່ສາມາດເລືອກໃໝ່ໄດ້ ມີໃບຂໍເບີກອາໄຫຼ່ແລ້ວ!" };
     }
-    await client.query("update ods_tb_install set tech_before=tech_code where code=$1", [code]);
+    await client.query(
+      "update ods_tb_install set tech_before=tech_code where code=$1",
+      [code],
+    );
     await client.query(
       "update ods_tb_install set tech_confirm=null, tech_code=null, assigt_time=null, user_assigt=null where code=$1",
       [code],
@@ -655,7 +772,10 @@ export async function startInstall(code: string): Promise<ActionState> {
  * ຈົບງານຕິດຕັ້ງ — **ຕ້ອງແນບຮູບຜົນງານ** (ບັງຄັບຢູ່ lib/job-flow ບ່ອນດຽວ ⇒ ແອັບກໍ່ບັງຄັບຄືກັນ).
  * ຮູບຖືກບີບຢູ່ຝັ່ງ client ກ່ອນສົ່ງ (components/installation/finish-install-button).
  */
-export async function finishInstall(code: string, photos: string[] = []): Promise<ActionState> {
+export async function finishInstall(
+  code: string,
+  photos: string[] = [],
+): Promise<ActionState> {
   const guard = await guardJob(code, TECH_SIDE);
   if (!guard.ok) return { error: guard.error };
 
@@ -667,15 +787,17 @@ export async function finishInstall(code: string, photos: string[] = []): Promis
 
 /* ── ປິດງານ (close_pending_success) ───────────────────────── */
 
-/** ປິດງານໄດ້ສະເພາະງານທີ່ຕິດຕັ້ງແລ້ວ ແລະ ລູກຄ້າຕອບແບບສອບຖາມແລ້ວ (ຂັ້ນ 7) */
+/** ປິດງານໄດ້ສະເພາະງານທີ່ຕິດຕັ້ງແລ້ວ ແລະ ລູກຄ້າຕອບແບບສອບຖາມແລ້ວ (ຂັ້ນ 8) */
 export async function closeJob(code: string): Promise<ActionState> {
   const guard = await guardJob(code, SERVICE_SIDE);
   if (!guard.ok) return { error: guard.error };
   const { job } = guard;
   if (job.cancelled) return { error: IS_CANCELLED };
   if (!job.finished) return { error: "ປິດງານບໍ່ໄດ້ ຍັງບໍ່ທັນຕິດຕັ້ງສຳເລັດ" };
-  if (!job.qc_passed) return { error: "ປິດງານບໍ່ໄດ້ ຍັງບໍ່ຜ່ານການກວດຮັບຄຸນນະພາບ" };
-  if (!job.complained) return { error: "ປິດງານບໍ່ໄດ້ ລູກຄ້າຍັງບໍ່ທັນຕອບແບບສອບຖາມ" };
+  if (!job.qc_passed)
+    return { error: "ປິດງານບໍ່ໄດ້ ຍັງບໍ່ຜ່ານການກວດຮັບຄຸນນະພາບ" };
+  if (!job.complained)
+    return { error: "ປິດງານບໍ່ໄດ້ ລູກຄ້າຍັງບໍ່ທັນຕອບແບບສອບຖາມ" };
 
   const closed = await query(
     `update ods_tb_install set job_finish=localtimestamp(0)
@@ -683,7 +805,8 @@ export async function closeJob(code: string): Promise<ActionState> {
         and finish_install is not null and qc_finish is not null and complain_finish is not null`,
     [code],
   );
-  if (!closed.rowCount) return { error: "ປິດງານບໍ່ສຳເລັດ — ສະຖານະງານຖືກປ່ຽນໄປແລ້ວ" };
+  if (!closed.rowCount)
+    return { error: "ປິດງານບໍ່ສຳເລັດ — ສະຖານະງານຖືກປ່ຽນໄປແລ້ວ" };
   await logChange("ods_tb_install", code, "ປິດງານຕິດຕັ້ງ");
   // ຄິດ ແລະ **ແຊ່** ຄ່າຄອມຂອງງານນີ້ — ກືນ error ໄວ້ ການປິດງານຫ້າມພັງເພາະເລື່ອງເງິນ
   await recordPayout("install", code);
@@ -712,7 +835,10 @@ export async function undoStartInstall(code: string): Promise<ActionState> {
   if (job.closed) return { error: IS_CLOSED };
   if (!job.started) return { error: "ງານນີ້ຍັງບໍ່ໄດ້ເລີ່ມຕິດຕັ້ງ" };
   if (job.finished) {
-    return { error: 'ຖອນ "ເລີ່ມຕິດຕັ້ງ" ບໍ່ໄດ້: ຕິດຕັ້ງສຳເລັດໄປແລ້ວ — ໃຫ້ຖອນ "ຕິດຕັ້ງສຳເລັດ" ກ່ອນ' };
+    return {
+      error:
+        'ຖອນ "ເລີ່ມຕິດຕັ້ງ" ບໍ່ໄດ້: ຕິດຕັ້ງສຳເລັດໄປແລ້ວ — ໃຫ້ຖອນ "ຕິດຕັ້ງສຳເລັດ" ກ່ອນ',
+    };
   }
 
   const undone = await query(
@@ -723,13 +849,17 @@ export async function undoStartInstall(code: string): Promise<ActionState> {
   );
   if (!undone.rowCount) return { error: "ຖອນຄືນບໍ່ສຳເລັດ — ງານຖືກປ່ຽນໄປແລ້ວ" };
 
-  await logChange("ods_tb_install", code, 'ຖອນ "ເລີ່ມຕິດຕັ້ງ" — ງານກັບໄປ "ລໍຖ້າຊ່າງຕິດຕັ້ງ"');
+  await logChange(
+    "ods_tb_install",
+    code,
+    'ຖອນ "ເລີ່ມຕິດຕັ້ງ" — ງານກັບໄປ "ລໍຖ້າຊ່າງຕິດຕັ້ງ"',
+  );
   revalidateAll();
   return { ok: "ຖອນຄືນສຳເລັດ" };
 }
 
 /**
- * ຖອນ "ຕິດຕັ້ງສຳເລັດ" — ງານກັບໄປຄິວ "ລໍຖ້າຕິດຕັ້ງ" (ຂັ້ນ 4, ສະຖານະກຳລັງເຮັດ).
+ * ຖອນ "ຕິດຕັ້ງສຳເລັດ" — ງານກັບໄປຄິວ "ກຳລັງຕິດຕັ້ງ" (ຂັ້ນ 5).
  *
  * ປະຕິເສດຖ້າລູກຄ້າຕອບແບບສອບຖາມແລ້ວ: complain_finish ເປັນຄຳຕອບຂອງລູກຄ້າຕໍ່ງານທີ່
  * "ຕິດຕັ້ງແລ້ວ" — ຖ້າດຶງງານກັບໄປ "ຍັງຕິດຕັ້ງບໍ່ແລ້ວ" ຄຳຕອບນັ້ນຈະລອຍ ແລະ ຂັ້ນໄດ
@@ -758,12 +888,16 @@ export async function undoFinishInstall(code: string): Promise<ActionState> {
   );
   if (!undone.rowCount) return { error: "ຖອນຄືນບໍ່ສຳເລັດ — ງານຖືກປ່ຽນໄປແລ້ວ" };
 
-  await logChange("ods_tb_install", code, 'ຖອນ "ຕິດຕັ້ງສຳເລັດ" — ງານກັບໄປ "ກຳລັງຕິດຕັ້ງ"');
+  await logChange(
+    "ods_tb_install",
+    code,
+    'ຖອນ "ຕິດຕັ້ງສຳເລັດ" — ງານກັບໄປ "ກຳລັງຕິດຕັ້ງ"',
+  );
   revalidateAll();
   return { ok: "ຖອນຄືນສຳເລັດ" };
 }
 
-/** ເປີດງານທີ່ປິດແລ້ວຄືນ — ງານກັບໄປ "ລໍຖ້າປິດງານ" (ຂັ້ນ 7). ຝ່າຍບໍລິການເປັນຄົນປິດ ຈຶ່ງເປັນຄົນເປີດຄືນ */
+/** ເປີດງານທີ່ປິດແລ້ວຄືນ — ງານກັບໄປ "ລໍຖ້າປິດງານ" (ຂັ້ນ 8). ຝ່າຍບໍລິການເປັນຄົນປິດ ຈຶ່ງເປັນຄົນເປີດຄືນ */
 export async function reopenJob(code: string): Promise<ActionState> {
   const guard = await guardJob(code, SERVICE_SIDE);
   if (!guard.ok) return { error: guard.error };
@@ -776,9 +910,14 @@ export async function reopenJob(code: string): Promise<ActionState> {
     "update ods_tb_install set job_finish=null where code=$1 and job_finish is not null and cancel_date is null",
     [code],
   );
-  if (!undone.rowCount) return { error: "ເປີດງານຄືນບໍ່ສຳເລັດ — ງານຖືກປ່ຽນໄປແລ້ວ" };
+  if (!undone.rowCount)
+    return { error: "ເປີດງານຄືນບໍ່ສຳເລັດ — ງານຖືກປ່ຽນໄປແລ້ວ" };
 
-  await logChange("ods_tb_install", code, 'ເປີດງານຄືນ — ງານກັບໄປ "ລໍຖ້າປິດງານ"');
+  await logChange(
+    "ods_tb_install",
+    code,
+    'ເປີດງານຄືນ — ງານກັບໄປ "ລໍຖ້າປິດງານ"',
+  );
   revalidateAll();
   return { ok: "ເປີດງານຄືນສຳເລັດ" };
 }
@@ -802,15 +941,24 @@ export async function reopenJob(code: string): Promise<ActionState> {
  */
 
 /** ເພີ່ມອາໄຫຼ່ເຂົ້າໃບຂໍເບີກ (additemtoreg_inst) — ຍົກທຸງ used_spare ຂຶ້ນນຳ */
-export async function addSpareLine(code: string, itemCode: string, itemName: string, unitCode: string) {
+export async function addSpareLine(
+  code: string,
+  itemCode: string,
+  itemName: string,
+  unitCode: string,
+) {
   const guard = await guardJob(code, TECH_SIDE);
   if (!guard.ok) return { error: guard.error } satisfies ActionState;
   const { job } = guard;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" } satisfies ActionState;
   if (job.cancelled) return { error: IS_CANCELLED } satisfies ActionState;
   if (job.closed) return { error: IS_CLOSED } satisfies ActionState;
-  if (!job.accepted) return { error: "ຕ້ອງຮັບງານກ່ອນເພີ່ມອາໄຫຼ່" } satisfies ActionState;
-  if (job.started) return { error: "ເພີ່ມອາໄຫຼ່ບໍ່ໄດ້ — ເລີ່ມຕິດຕັ້ງແລ້ວ" } satisfies ActionState;
+  if (!job.accepted)
+    return { error: "ຕ້ອງຮັບງານກ່ອນເພີ່ມອາໄຫຼ່" } satisfies ActionState;
+  if (job.started)
+    return {
+      error: "ເພີ່ມອາໄຫຼ່ບໍ່ໄດ້ — ເລີ່ມຕິດຕັ້ງແລ້ວ",
+    } satisfies ActionState;
 
   const client = await db.connect();
   try {
@@ -820,7 +968,10 @@ export async function addSpareLine(code: string, itemCode: string, itemName: str
       [code, itemCode, itemName, unitCode],
     );
     // ມີອາໄຫຼ່ໃນກະຕ່າແລ້ວ ⇒ ງານນີ້ໃຊ້ອາໄຫຼ່ ຕາມຄວາມຈິງ
-    await client.query("update ods_tb_install set used_spare=1 where code=$1 and coalesce(used_spare,0)<>1", [code]);
+    await client.query(
+      "update ods_tb_install set used_spare=1 where code=$1 and coalesce(used_spare,0)<>1",
+      [code],
+    );
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");
@@ -846,7 +997,10 @@ export async function deleteSpareLine(code: string, roworder: number) {
   const client = await db.connect();
   try {
     await client.query("begin");
-    const line = await client.query<{ requested: boolean; dispatched: boolean }>(
+    const line = await client.query<{
+      requested: boolean;
+      dispatched: boolean;
+    }>(
       `select reg_start is not null as requested, reg_finish is not null as dispatched
        from tb_used_spare where roworder=$1 and product_code=$2 for update`,
       [roworder, code],
@@ -858,9 +1012,13 @@ export async function deleteSpareLine(code: string, roworder: number) {
     }
     if (row.requested || row.dispatched) {
       await client.query("rollback");
-      return { error: "ລົບບໍ່ໄດ້ ອາໄຫຼ່ແຖວນີ້ຖືກຂໍເບີກ/ເບີກອອກໄປແລ້ວ" } satisfies ActionState;
+      return {
+        error: "ລົບບໍ່ໄດ້ ອາໄຫຼ່ແຖວນີ້ຖືກຂໍເບີກ/ເບີກອອກໄປແລ້ວ",
+      } satisfies ActionState;
     }
-    await client.query("delete from tb_used_spare where roworder=$1", [roworder]);
+    await client.query("delete from tb_used_spare where roworder=$1", [
+      roworder,
+    ]);
 
     // ກະຕ່າຫວ່າງ ແລະ ບໍ່ມີເອກະສານເບີກຈັກໃບ ⇒ ປັດທຸງລົງໄດ້ (ຄວາມຈິງ = ບໍ່ໃຊ້ອາໄຫຼ່)
     await client.query(
@@ -883,16 +1041,24 @@ export async function deleteSpareLine(code: string, roworder: number) {
 }
 
 /** ແກ້ຈຳນວນ (update_qty_reg_spare) — ແກ້ໄດ້ສະເພາະແຖວທີ່ຍັງບໍ່ທັນຂໍເບີກ */
-export async function updateSpareQty(code: string, roworder: number, qty: number) {
+export async function updateSpareQty(
+  code: string,
+  roworder: number,
+  qty: number,
+) {
   const guard = await guardJob(code, TECH_SIDE);
   if (!guard.ok) return { error: guard.error } satisfies ActionState;
-  if (!Number.isFinite(qty) || qty <= 0) return { error: "ຈຳນວນບໍ່ຖືກຕ້ອງ" } satisfies ActionState;
+  if (!Number.isFinite(qty) || qty <= 0)
+    return { error: "ຈຳນວນບໍ່ຖືກຕ້ອງ" } satisfies ActionState;
   const done = await query(
     "update tb_used_spare set qty=round($1,2) where roworder=$2 and product_code=$3 and reg_start is null and reg_finish is null",
     [qty, roworder, code],
   );
   revalidatePath(`/installations/spare-requests/${code}`);
-  if (!done.rowCount) return { error: "ແກ້ບໍ່ໄດ້ ອາໄຫຼ່ແຖວນີ້ຖືກຂໍເບີກ/ເບີກອອກໄປແລ້ວ" } satisfies ActionState;
+  if (!done.rowCount)
+    return {
+      error: "ແກ້ບໍ່ໄດ້ ອາໄຫຼ່ແຖວນີ້ຖືກຂໍເບີກ/ເບີກອອກໄປແລ້ວ",
+    } satisfies ActionState;
   return { ok: "ສຳເລັດ" } satisfies ActionState;
 }
 
@@ -933,7 +1099,10 @@ const OUTSTANDING_INSTALL_SPARES = `
  * ຫາຍອອກຈາກໜ້າຮັບງານທັນທີ ແລ້ວ tech_confirm ຈະບໍ່ມີວັນຖືກ set ໄດ້ອີກ ⇒ /installations/work
  * (ຕ້ອງການ tech_confirm) ກໍ່ບໍ່ສະແດງ ⇒ ງານຕາຍ (ລຶບໃບຂໍເບີກກໍ່ບໍ່ໄດ້ຫຼັງສາງເບີກແລ້ວ).
  */
-export async function saveSpareRequest(_: ActionState, formData: FormData): Promise<ActionState> {
+export async function saveSpareRequest(
+  _: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const productCode = String(formData.get("product_code") ?? "");
   const docDate = String(formData.get("doc_date") ?? "");
   const whCode = String(formData.get("wh_code") ?? "");
@@ -953,9 +1122,18 @@ export async function saveSpareRequest(_: ActionState, formData: FormData): Prom
   if (guard.closed) return { error: IS_CLOSED };
   if (!guard.assigned) return { error: "ຂໍເບີກບໍ່ໄດ້ ງານນີ້ຍັງບໍ່ມີຊ່າງ" };
   if (!guard.accepted) return { error: "ຂໍເບີກບໍ່ໄດ້ ຊ່າງຕ້ອງຮັບງານກ່ອນ" };
-  if (guard.started || guard.finished) return { error: "ຂໍເບີກບໍ່ໄດ້ — ງານເລີ່ມຕິດຕັ້ງແລ້ວ" };
+  if (guard.started || guard.finished)
+    return { error: "ຂໍເບີກບໍ່ໄດ້ — ງານເລີ່ມຕິດຕັ້ງແລ້ວ" };
 
   if (!odgDb) return { error: "ບໍ່ພົບ ODG_DATABASE_URL" };
+
+  // ຢ່າເຊື່ອ wh_code/shelf_code ຈາກ browser: ທີ່ເກັບຕ້ອງເປັນຂອງສາງທີ່ເລືອກຈິງ.
+  const location = await queryOdg<{ valid: number }>(
+    `select 1::int valid from ic_shelf where whcode=$1 and code=$2 limit 1`,
+    [whCode, shelfCode],
+  );
+  if (!location.rows[0])
+    return { error: "ສາງ ແລະ ທີ່ເກັບບໍ່ກົງກັນ ກະລຸນາເລືອກໃໝ່" };
 
   /**
    * ── ໃບຂໍເບີກຕ້ອງລົງ **ທັງ ODS ແລະ ERP** (ນະໂຍບາຍ 13-07-2026) ──
@@ -984,7 +1162,10 @@ export async function saveSpareRequest(_: ActionState, formData: FormData): Prom
 
     // ສະເພາະຈຳນວນທີ່ຍັງບໍ່ທັນຂໍເບີກ/ເບີກອອກ — ກັນຂໍຊ້ຳແລ້ວສາງເບີກອາໄຫຼ່ຕົວດຽວກັນສອງເທື່ອ
     const lines = await client.query<{
-      item_code: string; item_name: string | null; unit_code: string | null; qty: string;
+      item_code: string;
+      item_name: string | null;
+      unit_code: string | null;
+      qty: string;
     }>(OUTSTANDING_INSTALL_SPARES, [productCode]);
     if (lines.rows.length === 0) {
       await client.query("rollback");
@@ -999,14 +1180,31 @@ export async function saveSpareRequest(_: ActionState, formData: FormData): Prom
     await client.query(
       `insert into ic_trans(trans_flag,doc_date,doc_no,product_code,remark,status,used_status,user_created,job_type,wh_code,shelf_code)
        values(122,$1,$2,$3,$4,0,1,$5,'install',$6,$7)`,
-      [docDate, docNo, productCode, remark, session.username, whCode, shelfCode],
+      [
+        docDate,
+        docNo,
+        productCode,
+        remark,
+        session.username,
+        whCode,
+        shelfCode,
+      ],
     );
 
     for (const line of lines.rows) {
       await client.query(
         `insert into ic_trans_detail(trans_flag,doc_date,doc_no,product_code,item_code,item_name,qty,unit_code,calc_flag,status,user_created,job_type)
          values(122,$1,$2,$3,$4,$5,$6,$7,1,0,$8,'install')`,
-        [docDate, docNo, productCode, line.item_code, line.item_name, line.qty, line.unit_code, session.username],
+        [
+          docDate,
+          docNo,
+          productCode,
+          line.item_code,
+          line.item_name,
+          line.qty,
+          line.unit_code,
+          session.username,
+        ],
       );
     }
     // ໝາຍແຖວກະຕ່າຂອງອາໄຫຼ່ທີ່ຢູ່ໃນໃບນີ້ວ່າ "ຂໍເບີກແລ້ວ" (ຄືກັບ actions/stock.ts saveRequest)
@@ -1016,9 +1214,10 @@ export async function saveSpareRequest(_: ActionState, formData: FormData): Prom
       [productCode, lines.rows.map((line) => line.item_code)],
     );
 
-    await client.query("update ods_tb_install set reg_start=coalesce(reg_start,localtimestamp(0)) where code=$1", [
-      productCode,
-    ]);
+    await client.query(
+      "update ods_tb_install set reg_start=coalesce(reg_start,localtimestamp(0)) where code=$1",
+      [productCode],
+    );
     await client.query(
       "update ods_tb_install_detail set reg_start=coalesce(reg_start,localtimestamp(0)) where code=$1",
       [productCode],
@@ -1031,7 +1230,10 @@ export async function saveSpareRequest(_: ActionState, formData: FormData): Prom
         doc_date: docDate,
         // ໂມງ:ນາທີ ຕາມເຂດເວລາລາວ (ບໍ່ແມ່ນເວລາເຄື່ອງແມ່ຂ່າຍ — ມັນອາດເປັນ UTC)
         doc_time: new Intl.DateTimeFormat("en-GB", {
-          timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hour12: false,
+          timeZone: "Asia/Bangkok",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
         }).format(new Date()),
         job_code: productCode,
         wh_code: whCode,
@@ -1049,7 +1251,9 @@ export async function saveSpareRequest(_: ActionState, formData: FormData): Prom
     await client.query("rollback").catch(() => {});
     await odg.query("rollback").catch(() => {});
     console.error("saveSpareRequest failed", error);
-    return { error: "ບັນທຶກບໍ່ສຳເລັດ — ERP ບໍ່ຮັບໃບຂໍເບີກນີ້ (ບໍ່ໄດ້ບັນທຶກຫຍັງເລີຍ)" };
+    return {
+      error: "ບັນທຶກບໍ່ສຳເລັດ — ERP ບໍ່ຮັບໃບຂໍເບີກນີ້ (ບໍ່ໄດ້ບັນທຶກຫຍັງເລີຍ)",
+    };
   } finally {
     client.release();
     odg.release();
@@ -1059,7 +1263,7 @@ export async function saveSpareRequest(_: ActionState, formData: FormData): Prom
   await logChange(
     "ods_tb_install",
     productCode,
-    `ສ້າງໃບຂໍເບີກ ${requestNo} · ອາໄຫຼ່ ${requestLines} ລາຍການ${remark ? ` · ${remark}` : ""}`,
+    `ສ້າງໃບຂໍເບີກ ${requestNo} · ສາງ ${whCode}/${shelfCode} · ອາໄຫຼ່ ${requestLines} ລາຍການ${remark ? ` · ${remark}` : ""}`,
     { roles: ROLE_WAREHOUSE },
   );
 
@@ -1068,10 +1272,14 @@ export async function saveSpareRequest(_: ActionState, formData: FormData): Prom
 }
 
 /** ລົບໃບຂໍເບີກ (delete_in_req) */
-export async function deleteSpareRequest(docNo: string, code: string): Promise<ActionState> {
+export async function deleteSpareRequest(
+  docNo: string,
+  code: string,
+): Promise<ActionState> {
   const guard = await guardJob(code, TECH_SIDE);
   if (!guard.ok) return { error: guard.error };
-  if (!db || !odgDb) return { error: "ບໍ່ພົບ DATABASE_URL ຫຼື ODG_DATABASE_URL" };
+  if (!db || !odgDb)
+    return { error: "ບໍ່ພົບ DATABASE_URL ຫຼື ODG_DATABASE_URL" };
   const client = await db.connect();
   const odg = await odgDb.connect();
   try {
@@ -1103,8 +1311,14 @@ export async function deleteSpareRequest(docNo: string, code: string): Promise<A
       [code],
     );
     if (!remaining.rows[0]?.count) {
-      await client.query("update ods_tb_install set reg_start=null where code=$1", [code]);
-      await client.query("update ods_tb_install_detail set reg_start=null where code=$1", [code]);
+      await client.query(
+        "update ods_tb_install set reg_start=null where code=$1",
+        [code],
+      );
+      await client.query(
+        "update ods_tb_install_detail set reg_start=null where code=$1",
+        [code],
+      );
     }
     // ods ລືມລ້າງ reg_start ຂອງ tb_used_spare → ຂໍເບີກຮອບໃໝ່ບໍ່ໄດ້. ບ່ອນນີ້ລ້າງນຳ —
     // ສະເພາະແຖວທີ່ຢູ່ໃນໃບທີ່ຖືກລຶບ ແລະ ຍັງບໍ່ຖືກເບີກອອກ (ບໍ່ແຕະແຖວຂອງໃບອື່ນ)
@@ -1118,7 +1332,10 @@ export async function deleteSpareRequest(docNo: string, code: string): Promise<A
     await client.query("commit");
     await odg.query("commit");
   } catch (error) {
-    await Promise.all([client.query("rollback").catch(() => {}), odg.query("rollback").catch(() => {})]);
+    await Promise.all([
+      client.query("rollback").catch(() => {}),
+      odg.query("rollback").catch(() => {}),
+    ]);
     console.error("deleteSpareRequest failed", error);
     return { error: "ລົບບໍ່ສຳເລັດ" };
   } finally {
@@ -1139,7 +1356,9 @@ export async function deleteSpareRequest(docNo: string, code: string): Promise<A
  * ຖອດທັງ action ບໍ່ແມ່ນເຊື່ອງແຕ່ປຸ່ມ — server action ຖືກຍິງໂດຍກົງໄດ້ (lib/guard).
  * ເກັບຊື່ຟັງຊັນໄວ້ ເພື່ອບອກເຫດຜົນໃຫ້ຄົນທີ່ຍັງກົດປຸ່ມເກົ່າ (ໜ້າທີ່ cache ໄວ້).
  */
-export async function saveDispatch(previousState: ActionState): Promise<ActionState> {
+export async function saveDispatch(
+  previousState: ActionState,
+): Promise<ActionState> {
   void previousState;
   return {
     error: "ລະບົບນີ້ອອກໃບເບີກບໍ່ໄດ້ອີກ — ສາງເບີກຢູ່ ERP ແລ້ວລະບົບຈະດຶງມາເອງ",
@@ -1165,13 +1384,16 @@ export async function saveDispatch(previousState: ActionState): Promise<ActionSt
  * ການ join ກະຕ່າດ້ວຍ item_code+qty ຂອງໂຄດເກົ່າພາດງ່າຍ (INST-6883 ມີ 23 ແຖວໃນໃບເບີກ
  * ແຕ່ກະຕ່າເຫຼືອ 4 ແຖວ) ແລ້ວຄືນ "ບໍ່ມີລາຍການສຳລັບຮັບ!" ທັງທີ່ໃບເບີກມີຂອງຢູ່.
  */
-export async function savePickSpare(_: ActionState, formData: FormData): Promise<ActionState> {
+export async function savePickSpare(
+  _: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const guard = await requireRole(TECH_SIDE, "ບໍ່ມີສິດຮັບອາໄຫຼ່");
   if (!guard.ok) return { error: guard.error };
   const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
-  const docRef = String(formData.get("doc_ref") ?? "");   // ເລກ SWC
+  const docRef = String(formData.get("doc_ref") ?? ""); // ເລກ SWC
   const docDate = String(formData.get("doc_date") ?? "");
   const remark = String(formData.get("remark") ?? "");
   if (!docRef || !docDate) return { error: "ຂໍ້ມູນບໍ່ຄົບ" };
@@ -1201,7 +1423,10 @@ export async function savePickSpare(_: ActionState, formData: FormData): Promise
       "select nullif(tech_code,'') tech_code from ods_tb_install where code=$1",
       [productCode],
     );
-    if (roleOf(session) === "technical" && (owner.rows[0]?.tech_code ?? "") !== session.username) {
+    if (
+      roleOf(session) === "technical" &&
+      (owner.rows[0]?.tech_code ?? "") !== session.username
+    ) {
       await client.query("rollback");
       return { error: NOT_YOURS };
     }
@@ -1217,7 +1442,11 @@ export async function savePickSpare(_: ActionState, formData: FormData): Promise
     }
 
     const lines = await client.query<{
-      item_code: string; item_name: string; qty: string; unit_code: string; detail_row: number;
+      item_code: string;
+      item_name: string;
+      qty: string;
+      unit_code: string;
+      detail_row: number;
     }>(
       `select item_code, item_name, qty, unit_code, roworder detail_row
        from ic_trans_detail where doc_no=$1 and trans_flag=56 order by roworder asc`,
@@ -1243,8 +1472,17 @@ export async function savePickSpare(_: ActionState, formData: FormData): Promise
         `insert into ic_trans_detail(trans_flag,doc_date,doc_no,product_code,item_code,item_name,qty,unit_code,
            calc_flag,status,user_created,job_type,doc_ref)
          values(166,$1,$2,$3,$4,$5,$6,$7,1,0,$8,'install',$9)`,
-        [docDate, docNo, productCode, line.item_code, line.item_name, line.qty, line.unit_code,
-          session.username, docRef],
+        [
+          docDate,
+          docNo,
+          productCode,
+          line.item_code,
+          line.item_name,
+          line.qty,
+          line.unit_code,
+          session.username,
+          docRef,
+        ],
       );
       // ແຖວກະຕ່າອັນທີ່ຕົງກັບອາໄຫຼ່ແຖວນີ້ (ເລືອກແຖວທີ່ສາງຈ່າຍແລ້ວ ແລະ ຈຳນວນຕົງກັນກ່ອນ)
       await client.query(
@@ -1256,7 +1494,10 @@ export async function savePickSpare(_: ActionState, formData: FormData): Promise
            order by (reg_finish is not null) desc, (qty = $3::numeric) desc, roworder asc limit 1)`,
         [productCode, line.item_code, line.qty],
       );
-      await client.query("update ic_trans_detail set status=1 where roworder=$1", [line.detail_row]);
+      await client.query(
+        "update ic_trans_detail set status=1 where roworder=$1",
+        [line.detail_row],
+      );
     }
 
     // ບໍ່ເຫຼືອໃບເບີກທີ່ຍັງບໍ່ໄດ້ຮັບແລ້ວ ⇒ ຂັ້ນ 3 ຈົບ (ນິຍາມດຽວກັບໜ້າ /installations/spare-pickup)
@@ -1267,7 +1508,10 @@ export async function savePickSpare(_: ActionState, formData: FormData): Promise
       [productCode],
     );
     if (!unpicked.rows[0]?.count) {
-      await client.query("update ods_tb_install set pick_finish=localtimestamp(0) where code=$1", [productCode]);
+      await client.query(
+        "update ods_tb_install set pick_finish=localtimestamp(0) where code=$1",
+        [productCode],
+      );
     }
     await client.query("commit");
   } catch (error) {
@@ -1290,8 +1534,8 @@ export async function savePickSpare(_: ActionState, formData: FormData): Promise
 
 /* ── QR ແບບສອບຖາມ — ໃຫ້ລູກຄ້າສະແກນຕອບຢູ່ໜ້າງານ ────────────
  *
- * ຂັ້ນ 6 → 7 ຕ້ອງໃຫ້ **ລູກຄ້າ** ຕອບແບບສອບຖາມ ແຕ່ LINE Notify ທີ່ ods ໃຊ້ສົ່ງລິ້ງ
- * ປິດບໍລິການໄປແລ້ວ ແລະ ບໍ່ມີຫຍັງມາແທນ ⇒ ງານກອງຢູ່ຂັ້ນ 6 ຈົນກວ່າຈະມີໃຜສົ່ງລິ້ງດ້ວຍມື.
+ * ຂັ້ນ 7 → 8 ຕ້ອງໃຫ້ **ລູກຄ້າ** ຕອບແບບສອບຖາມ ແຕ່ LINE Notify ທີ່ ods ໃຊ້ສົ່ງລິ້ງ
+ * ປິດບໍລິການໄປແລ້ວ ແລະ ບໍ່ມີຫຍັງມາແທນ ⇒ ງານກອງຢູ່ຂັ້ນ 7 ຈົນກວ່າຈະມີໃຜສົ່ງລິ້ງດ້ວຍມື.
  *
  * ຊ່າງເປີດ QR ນີ້ຢູ່ໜ້າງານໃຫ້ລູກຄ້າສະແກນຕອບເລີຍ — ບໍ່ຕ້ອງມີບໍລິການສົ່ງຂໍ້ຄວາມພາຍນອກ,
  * ບໍ່ມີຄ່າໃຊ້ຈ່າຍ ແລະ ໄດ້ຄຳຕອບທັນທີ. ສ້າງຕອນກົດ (ບໍ່ແມ່ນທຸກແຖວຕອນ render ລາຍການ).
@@ -1305,12 +1549,19 @@ export async function feedbackQr(code: string): Promise<FeedbackQr> {
 
   if (job.cancelled) return { error: IS_CANCELLED };
   // ດ່ານດຽວກັນກັບ feedbackGate — ຕອບໄດ້ສະເພາະງານທີ່ຕິດຕັ້ງແລ້ວຈິງ ຈຶ່ງບໍ່ໃຫ້ QR ກ່ອນ
-  if (!job.finished) return { error: "ຍັງບໍ່ທັນຕິດຕັ້ງສຳເລັດ — ຕອບແບບສອບຖາມບໍ່ໄດ້ເທື່ອ" };
-  if (!job.qc_passed) return { error: "ຍັງບໍ່ຜ່ານ QC — ຍັງສ້າງ QR ແບບປະເມີນບໍ່ໄດ້" };
+  if (!job.finished)
+    return { error: "ຍັງບໍ່ທັນຕິດຕັ້ງສຳເລັດ — ຕອບແບບສອບຖາມບໍ່ໄດ້ເທື່ອ" };
+  if (!job.qc_passed)
+    return { error: "ຍັງບໍ່ຜ່ານ QC — ຍັງສ້າງ QR ແບບປະເມີນບໍ່ໄດ້" };
   if (job.complained) return { error: "ລູກຄ້າຕອບແບບສອບຖາມນີ້ແລ້ວ" };
 
   const url = await feedbackUrl(code);
-  const svg = await QRCode.toString(url, { type: "svg", margin: 0, errorCorrectionLevel: "M", width: 220 });
+  const svg = await QRCode.toString(url, {
+    type: "svg",
+    margin: 0,
+    errorCorrectionLevel: "M",
+    width: 220,
+  });
   return { url, svg };
 }
 
@@ -1327,11 +1578,18 @@ export async function feedbackQr(code: string): Promise<FeedbackQr> {
  */
 export type FeedbackGate = { ok: true } | { ok: false; message: string };
 
-const FEEDBACK_NOT_INSTALLED = "ງານຕິດຕັ້ງນີ້ຍັງບໍ່ທັນຕິດຕັ້ງສຳເລັດ ຈຶ່ງຍັງຕອບແບບສອບຖາມບໍ່ໄດ້ເທື່ອ";
-const FEEDBACK_NOT_QC = "ງານນີ້ຍັງບໍ່ຜ່ານການກວດຮັບຄຸນນະພາບ ຈຶ່ງຍັງຕອບແບບສອບຖາມບໍ່ໄດ້ເທື່ອ";
+const FEEDBACK_NOT_INSTALLED =
+  "ງານຕິດຕັ້ງນີ້ຍັງບໍ່ທັນຕິດຕັ້ງສຳເລັດ ຈຶ່ງຍັງຕອບແບບສອບຖາມບໍ່ໄດ້ເທື່ອ";
+const FEEDBACK_NOT_QC =
+  "ງານນີ້ຍັງບໍ່ຜ່ານການກວດຮັບຄຸນນະພາບ ຈຶ່ງຍັງຕອບແບບສອບຖາມບໍ່ໄດ້ເທື່ອ";
 
 export async function feedbackGate(code: string): Promise<FeedbackGate> {
-  const job = await query<{ cancelled: boolean; finished: boolean; qc_passed: boolean; answered: boolean }>(
+  const job = await query<{
+    cancelled: boolean;
+    finished: boolean;
+    qc_passed: boolean;
+    answered: boolean;
+  }>(
     /**
      * "ຕອບແລ້ວ" = **complain_finish ຫຼື ມີແຖວຄະແນນ** — ຂໍ້ໃດຂໍ້ນຶ່ງກໍ່ຖື.
      *
@@ -1353,7 +1611,11 @@ export async function feedbackGate(code: string): Promise<FeedbackGate> {
   const row = job.rows[0];
   if (!row) return { ok: false, message: "ບໍ່ພົບງານຕິດຕັ້ງນີ້" };
   if (row.answered) return { ok: false, message: "ຕອບແບບສອບຖາມນີ້ແລ້ວ" };
-  if (row.cancelled) return { ok: false, message: "ງານຕິດຕັ້ງນີ້ຖືກຍົກເລີກແລ້ວ ຈຶ່ງຕອບແບບສອບຖາມບໍ່ໄດ້" };
+  if (row.cancelled)
+    return {
+      ok: false,
+      message: "ງານຕິດຕັ້ງນີ້ຖືກຍົກເລີກແລ້ວ ຈຶ່ງຕອບແບບສອບຖາມບໍ່ໄດ້",
+    };
   if (!row.finished) return { ok: false, message: FEEDBACK_NOT_INSTALLED };
   // ດ່ານ QC — ຍັງບໍ່ຜ່ານການກວດຮັບ ຈຶ່ງຍັງບໍ່ຄວນຖາມລູກຄ້າ
   if (!row.qc_passed) return { ok: false, message: FEEDBACK_NOT_QC };
@@ -1372,21 +1634,26 @@ export async function feedbackGate(code: string): Promise<FeedbackGate> {
  * ກວດຢູ່ຝັ່ງ server ທັງໃນ transaction (where finish_install is not null and cancel_date is null)
  * ຈຶ່ງແຂ່ງກັນ (race) ບໍ່ໄດ້.
  */
-export async function saveFeedback(_: ActionState, formData: FormData): Promise<ActionState> {
+export async function saveFeedback(
+  _: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
   const code = String(formData.get("code") ?? "");
   const token = String(formData.get("token") ?? "");
   // ໜ້າສາທາລະນະ (ລູກຄ້າສະແກນ QR) ⇒ ຕັດຄວາມຍາວຄືກັນກັບ updateFeedback (2000)
   const comment = String(formData.get("cust_complain") ?? "").slice(0, 2000);
   if (!code) return { error: "ບໍ່ພົບລະຫັດງານ" };
-  if (!validFeedbackToken(code, token)) return { error: "ລິ້ງແບບສອບຖາມບໍ່ຖືກຕ້ອງ ຫຼືໝົດສິດໃຊ້" };
+  if (!validFeedbackToken(code, token))
+    return { error: "ລິ້ງແບບສອບຖາມບໍ່ຖືກຕ້ອງ ຫຼືໝົດສິດໃຊ້" };
 
   const answers: { line: number; points: number }[] = [];
   for (const [key, value] of formData.entries()) {
     const match = key.match(/^points_(\d+)$/);
     if (!match) continue;
     const points = Number(value);
-    if (!Number.isInteger(points) || points < 1 || points > 4) return { error: "ຄະແນນບໍ່ຖືກຕ້ອງ" };
+    if (!Number.isInteger(points) || points < 1 || points > 4)
+      return { error: "ຄະແນນບໍ່ຖືກຕ້ອງ" };
     answers.push({ line: Number(match[1]), points });
   }
   if (answers.length === 0) return { error: "ກະລຸນາຕອບທຸກຂໍ້" };
@@ -1441,7 +1708,8 @@ export async function saveFeedback(_: ActionState, formData: FormData): Promise<
   }
 
   // ລູກຄ້າຕອບເອງ (ບໍ່ໄດ້ login) → logChange ຈະລົງຊື່ຜູ້ຂຽນເປັນ "ລະບົບ"
-  const average = answers.reduce((sum, row) => sum + row.points, 0) / answers.length;
+  const average =
+    answers.reduce((sum, row) => sum + row.points, 0) / answers.length;
   await logChange(
     "ods_tb_install",
     code,
@@ -1450,7 +1718,9 @@ export async function saveFeedback(_: ActionState, formData: FormData): Promise<
   );
 
   revalidateAll();
-  redirect(`/feedback/${encodeURIComponent(code)}?token=${encodeURIComponent(token)}&done=1`);
+  redirect(
+    `/feedback/${encodeURIComponent(code)}?token=${encodeURIComponent(token)}&done=1`,
+  );
 }
 
 /**
@@ -1467,7 +1737,10 @@ const feedbackEditSchema = z.object({
   cust_complain: z.string().max(2000),
 });
 
-export async function updateFeedback(_: ActionState, formData: FormData): Promise<ActionState> {
+export async function updateFeedback(
+  _: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   // ພະນັກງານແກ້/ຕອບແທນລູກຄ້າ (ປຸ່ມຢູ່ /installations/close) ⇒ ຝ່າຍບໍລິການ.
   // ໝາຍເຫດ: saveFeedback ຂ້າງເທິງເປັນ **ສາທາລະນະ** ໂດຍເຈດຕະນາ (ລູກຄ້າບໍ່ມີບັນຊີ) —
   // ດ່ານຂອງມັນຄື feedbackGate ບໍ່ແມ່ນ role.
@@ -1482,12 +1755,18 @@ export async function updateFeedback(_: ActionState, formData: FormData): Promis
   if (!parsed.success) return { error: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ" };
   const { code, cust_complain: comment } = parsed.data;
 
-  const answer = z.object({ line: z.number().int().positive(), points: z.number().int().min(1).max(4) });
+  const answer = z.object({
+    line: z.number().int().positive(),
+    points: z.number().int().min(1).max(4),
+  });
   const answers: z.infer<typeof answer>[] = [];
   for (const [key, value] of formData.entries()) {
     const match = key.match(/^points_(\d+)$/);
     if (!match) continue;
-    const row = answer.safeParse({ line: Number(match[1]), points: Number(value) });
+    const row = answer.safeParse({
+      line: Number(match[1]),
+      points: Number(value),
+    });
     if (!row.success) return { error: "ຄະແນນບໍ່ຖືກຕ້ອງ" };
     answers.push(row.data);
   }
@@ -1536,8 +1815,13 @@ export async function updateFeedback(_: ActionState, formData: FormData): Promis
     client.release();
   }
 
-  const average = answers.reduce((sum, row) => sum + row.points, 0) / answers.length;
-  await logChange("ods_tb_install", code, `ແກ້ໄຂແບບສອບຖາມລູກຄ້າ: ${average.toFixed(1)}/4`);
+  const average =
+    answers.reduce((sum, row) => sum + row.points, 0) / answers.length;
+  await logChange(
+    "ods_tb_install",
+    code,
+    `ແກ້ໄຂແບບສອບຖາມລູກຄ້າ: ${average.toFixed(1)}/4`,
+  );
 
   revalidateAll();
   revalidatePath(`/feedback/${code}`);

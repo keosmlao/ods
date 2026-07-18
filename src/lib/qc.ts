@@ -47,7 +47,7 @@ export async function qcQueue(workflow: Workflow, code?: string): Promise<QcQueu
             ${CHECKED_SQL("install")} as checked
           from ods_tb_install a
           left join ar_customer c on c.code = a.cust_code
-         where ${installStageIs(5)} ${only}
+         where ${installStageIs(6)} ${only}
          order by a.finish_install asc nulls last`,
         params,
       )

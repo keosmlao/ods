@@ -1,4 +1,5 @@
 import { query, queryOdg } from "@/lib/db";
+import { INSTALL_STAGE_LABEL_SQL } from "@/lib/install-stage";
 import { CANCELLED_JOBS, STAGE_LABEL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 import type { XlsxColumn } from "@/lib/xlsx";
 
@@ -718,20 +719,8 @@ export async function fetchPurchaseOrders(from: string, to: string) {
  * (ຕົວຢ່າງ INST-5849/INST-5850 ອອກມາເປັນ 'ລໍຖ້າຈັດຊ່າງ' ແລະ INST-6864 ອອກມາເປັນຄ່າຫວ່າງ).
  * cancel_date ຕ້ອງມາກ່ອນທຸກເງື່ອນໄຂ — ຄືກັບຂັ້ນໄດຢູ່ lib/install-stage (ຂັ້ນ -1).
  */
-const installStatusName = `case
-  when a.cancel_date notnull then 'ຍົກເລີກ'
-  when a.tech_code isnull or a.tech_code = '' then 'ລໍຖ້າຈັດຊ່າງ'
-  when a.reg_start isnull and a.used_spare = 1 then 'ລໍຖ້າຊ່າງຂໍເບີກ'
-  when a.reg_start notnull and a.reg_finish isnull and a.used_spare = 1 then 'ລໍຖ້າສາງເບີກ'
-  when a.reg_finish notnull and a.pick_finish isnull and a.used_spare = 1 then 'ລໍຖ້າຊ່າງຮັບອາໄຫຼ່'
-  when (a.pick_finish notnull and a.start_install isnull and a.used_spare = 1)
-    or (a.reg_start isnull and a.reg_finish isnull and a.pick_finish isnull and a.start_install isnull and a.used_spare = 0)
-    then 'ລໍຖ້າຊ່າງຕິດຕັ້ງ'
-  when a.start_install notnull and a.finish_install isnull then 'ກຳລັງຕິດຕັ້ງ'
-  when a.finish_install notnull and a.complain_finish isnull then 'ຕິດຕັ້ງສຳເລັດ'
-  when a.finish_install notnull and a.complain_finish notnull and a.job_finish isnull then 'ລໍຖ້າປິດງານ'
-  when a.finish_install notnull and a.complain_finish notnull and a.job_finish notnull then 'ປິດງານເເລ້ວ'
-  else '' end as status_name`;
+// ລາຍງານຕ້ອງໃຊ້ຂັ້ນດຽວກັບເມນູ/ໜ້າງານ; ບໍ່ສ້າງ CASE ຊ້ຳອີກບ່ອນ.
+const installStatusName = `${INSTALL_STAGE_LABEL_SQL} as status_name`;
 
 const installBase = `row_number() over (order by a.roworder) rnum,
   a.code,

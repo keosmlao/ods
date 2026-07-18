@@ -141,7 +141,9 @@ async function blockedNames(): Promise<Set<string>> {
 
 /**
  * ກະຈາຍການແຈ້ງເຕືອນ 1 ແຖວຕໍ່ຜູ້ຮັບ 1 ຄົນ.
- * ບໍ່ແຈ້ງກັບຄືນຫາຄົນທີ່ລົງມືເອງ (ຄື Odoo).
+ * ໂໝດປົກກະຕິບໍ່ແຈ້ງກັບຄືນຫາຄົນທີ່ລົງມືເອງ (ຄື Odoo).
+ * ແຕ່ໂໝດ audit feed ຕ້ອງລວມຜູ້ລົງມືນຳ ເພາະກະດິ່ງນີ້ແມ່ນປະຫວັດ
+ * “ທຸກການເຄື່ອນໄຫວ” ບໍ່ແມ່ນພຽງກ່ອງວຽກຂາເຂົ້າ.
  */
 export async function notify(
   model: string,
@@ -160,7 +162,7 @@ export async function notify(
     /**
      * ── ແຈ້ງທຸກຄົນ (audit feed) — ຄວບຄຸມດ້ວຍສະວິດ /manage/settings ──
      * ເປີດແລ້ວ: **ທຸກ role** ກາຍເປັນຜູ້ຮັບ ⇒ ພະນັກງານທຸກຄົນເຫັນທຸກການເຄື່ອນໄຫວ.
-     * (ຄົນທີ່ລົງມືເອງ ຍັງຖືກຕັດອອກ ຢູ່ SQL ດ້ວຍ `target.username <> actor` — ບໍ່ແຈ້ງກັບຄືນ)
+     * ລວມທັງການທີ່ຕົນເອງລົງມື ເພື່ອໃຫ້ກະດິ່ງເປັນ audit feed ທີ່ຄົບຖ້ວນ.
      * ປິດແລ້ວ: ຄືເກົ່າ — ແຈ້ງແຕ່ຄົນຕິດຕາມ + role ທີ່ລະບຸ.
      */
     const notifyAll = await settingEnabled(SETTING.NOTIFY_ALL);
@@ -173,7 +175,7 @@ export async function notify(
       (name) => !blocked.has(name.trim().toLowerCase()),
     );
 
-    await query(
+    const inserted = await query(
       `insert into ods_notification(username, model, res_id, kind, body, actor, created_at)
        select distinct target.username, $1, $2, $3, $4, $5, ${NOW}
          from (
@@ -181,12 +183,15 @@ export async function notify(
            union
            select unnest($6::varchar[])
          ) target(username)
-        where coalesce(trim(target.username),'') <> '' and target.username <> $5
+        where coalesce(trim(target.username),'') <> ''
+          and ($8::boolean or lower(trim(target.username)) <> lower(trim($5)))
           and lower(trim(target.username)) <> all($7::text[])`,
-      [model, resId, kind, body, actor, users, [...blocked]],
+      [model, resId, kind, body, actor, users, [...blocked], notifyAll],
     );
+    if ((inserted.rowCount ?? 0) > 0) {
+      await query("select pg_notify('ods_notification_events', $1)", [JSON.stringify({ model, resId })]);
+    }
   } catch (error) {
     console.error("notify failed", error);
   }
 }
-

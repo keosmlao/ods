@@ -131,7 +131,7 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
         ),
         ist as (
           -- ຂັ້ນຕິດຕັ້ງ: ສະແກນ ods_tb_install ເທື່ອດຽວ ⇒ ຄູ່ກັບກຸ່ມເມນູ "ຂັ້ນຕອນຕິດຕັ້ງ".
-          -- ຂັ້ນ 0-7 ແມ່ນຄິວເປີດ; INSTALL_STAGE_SQL ຈັດ -1/8 ເປັນຍົກເລີກ/ປິດແລ້ວ.
+          -- ຂັ້ນ 0-8 ແມ່ນຄິວເປີດ; INSTALL_STAGE_SQL ຈັດ -1/9 ເປັນຍົກເລີກ/ປິດແລ້ວ.
           -- ⇒ count ຕໍ່ຂັ້ນ = ຈຳນວນແຖວໜ້າ /dashboard/status/install/<slug> ພໍດີ (ກົດເກນ ①).
           select (${INSTALL_STAGE_SQL}) st, count(*)::int n
           from ods_tb_install a
@@ -168,11 +168,9 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
           (select count(*) from ods_tb_install a
             where ${installStageIs(4)} ${mineInstall})::int as "/installations/work",
           (select count(*) from ods_tb_install a
-            where ${installStageIs(7)})::int as "/installations/close",
-          -- ງານທີ່ອອກຈາກ 8 ຂັ້ນຕອນ — ເມນູແຍກ "ຍົກເລີກແລ້ວ"
+            where ${installStageIs(5)} ${mineInstall})::int as "/installations/work/doing",
           (select count(*) from ods_tb_install a
-            where ${installStageIs(-1)} ${mineInstall})::int as "/installations/cancelled",
-
+            where ${installStageIs(8)})::int as "/installations/close",
           -- ── ອະນຸມັດ (ເງື່ອນໄຂອັນດຽວກັບ APPROVALS_SQL / CANCEL_REQUESTS_SQL ຂອງ lib/dashboard) ──
           (select count(*) from ic_trans t
             where t.trans_flag = 17 and t.aprove_status = 0)::int as "/approvals/quotations",
@@ -187,13 +185,13 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
 
           -- ── ຄຸນນະພາບ ──
           (select count(*) from tb_product a where a.status <> 6 and (${STAGE_SQL}) = 10)::int
-            + (select count(*) from ods_tb_install a where ${installStageIs(5)})::int as "/qc",
-          (select count(*) from ods_tb_install a where ${installStageIs(5)})::int as "/qc/install",
+            + (select count(*) from ods_tb_install a where ${installStageIs(6)})::int as "/qc",
+          (select count(*) from ods_tb_install a where ${installStageIs(6)})::int as "/qc/install",
 
           -- ── ສະຖານະງານສ້ອມ: ຂັ້ນຮັບງານຖືກລວມເຂົ້າ wait-check ແລ້ວ ──
           ${REPAIR_STAGE_COUNTS},
 
-          -- ── 8 ຄິວຫຼັກຂອງງານຕິດຕັ້ງ (0-7) ──
+          -- ── 9 ຄິວຫຼັກຂອງງານຕິດຕັ້ງ (0-8) ──
           ${INSTALL_STAGE_COUNTS}`,
         args,
       )

@@ -76,7 +76,7 @@ const startSchema = z.object({ doc_no: z.string().min(1) });
  * (ຈ່າຍອອກແລ້ວ ຊ່າງຍັງບໍ່ມາຮັບ) ກໍ່ຢູ່ນອກສາງຄືກັນ ແລະ ຕ້ອງສົ່ງຄືນໄດ້.
  * ຂໍ້ມູນຈິງຂອງ 3 ງານທີ່ຍົກເລີກ: 36 ແຖວຄ້າງ = status 0 ຈຳນວນ 33 ແຖວ + status 1 ພຽງ 3 ແຖວ
  * ⇒ ຖ້າກ໋ອບແຕ່ status=1 ໜ້າຂໍສົ່ງຄືນຈະຫວ່າງເປົ່າ ແລະ ອາໄຫຼ່ 33 ແຖວຄືນສາງບໍ່ໄດ້ຈັກເທື່ອ.
- * ດຽວນີ້ກ໋ອບ status ∈ (0,1) — ຕົງກັບນິຍາມ "ຄ້າງນອກສາງ" ໃນ installations/outstanding.ts.
+ * ດຽວນີ້ກ໋ອບ status ∈ (0,1) — ຕົງກັບນິຍາມ "ຄ້າງນອກສາງ" ໃນ lib/outstanding-spares.
  */
 export async function startInstallReturnRequest(formData: FormData): Promise<void> {
   const session = await requireSession();
@@ -85,6 +85,16 @@ export async function startInstallReturnRequest(formData: FormData): Promise<voi
   const parsed = startSchema.safeParse({ doc_no: formData.get("doc_no") });
   if (!parsed.success) redirect("/stock/returns?job=install");
   const docNo = parsed.data.doc_no;
+
+  // ກັນທີ່ server ອີກຊັ້ນ: ເຊື່ອມໃບເບີກກັບງານຈິງ ແລະ ບໍ່ອະນຸຍາດຖ້າຕິດຕັ້ງສຳເລັດແລ້ວ.
+  const returnable = await db.query<{ count: number }>(
+    `select count(*)::int count
+       from ic_trans d
+       join ods_tb_install i on i.code = d.product_code
+      where d.doc_no=$1 and d.trans_flag=$2 and d.job_type='install' and i.finish_install is null`,
+    [docNo, TRANS.DISPATCH],
+  );
+  if (!returnable.rows[0]?.count) redirect("/stock/returns?job=install");
 
   // ods ບໍ່ກວດ — ໃບເບີກທີ່ຂໍສົ່ງຄືນແລ້ວກົດຊ້ຳໄດ້ອີກ
   const requested = await db.query<{ count: number }>(
@@ -203,6 +213,20 @@ export async function saveInstallReturnRequest(_: ActionState, formData: FormDat
     if (already.rows[0]?.count) {
       await client.query("rollback");
       return { error: "ໃບເບີກນີ້ຂໍສົ່ງຄືນແລ້ວ" };
+    }
+
+    const returnable = await client.query<{ code: string }>(
+      `select i.code
+         from ic_trans d
+         join ods_tb_install i on i.code = d.product_code
+        where d.doc_no=$1 and d.trans_flag=$2 and d.job_type='install'
+          and i.code=$3 and i.finish_install is null
+        limit 1 for update of i`,
+      [docRef, TRANS.DISPATCH, productCode],
+    );
+    if (!returnable.rowCount) {
+      await client.query("rollback");
+      return { error: "ງານນີ້ຕິດຕັ້ງສຳເລັດແລ້ວ — ບໍ່ຕ້ອງສົ່ງຄືນອາໄຫຼ່" };
     }
 
     // ວັນທີໃບເບີກ — ods ສົ່ງມາທາງ hidden field (ແກ້ໄດ້ຈາກ browser). ຢູ່ນີ້ອ່ານຈາກຖານຂໍ້ມູນເອງ.

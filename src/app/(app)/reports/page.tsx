@@ -5,6 +5,7 @@ import {
   ClipboardList,
   FileBarChart,
   FileX2,
+  PackageOpen,
   PackageSearch,
   ShoppingCart,
   Smile,
@@ -87,6 +88,12 @@ const GROUPS = [
         title: "ລາຍງານການຕິດຕັ້ງ",
         description: "ງານຕິດຕັ້ງທັງໝົດ ພ້ອມສະຖານະ ແລະ ໄລຍະເວລາ",
         icon: Truck,
+      },
+      {
+        href: "/reports/install-spares-monthly",
+        title: "ສະຫຼຸບອາໄຫຼ່ຕິດຕັ້ງປະຈຳເດືອນ",
+        description: "ຈຳນວນເບີກ, ຮັບຄືນ ແລະ ໃຊ້ສຸດທິ ແຍກຕາມອາໄຫຼ່ ແລະ ຊ່າງ",
+        icon: PackageOpen,
       },
       {
         href: "/reports/customer-feedback",

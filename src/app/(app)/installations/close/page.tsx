@@ -5,7 +5,7 @@ import { RowLink } from "@/components/row-link";
 import { query } from "@/lib/db";
 import { installStageIs } from "@/lib/install-stage";
 import { feedbackUrl } from "@/lib/track";
-import { ClipboardList, Lock, MessageSquare } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { FeedbackEditButton, type FeedbackAnswer } from "../feedback-edit";
 import {
@@ -17,14 +17,13 @@ import {
   ListHeader,
   PAGE_SIZE,
   Pager,
+  SearchBar,
   TableShell,
-  TabsAndSearch,
   fetchInstallRows,
   installOrderBy,
   readParams,
   type InstallRow,
   type ListSearchParams,
-  type TabItem,
 } from "../shared";
 
 /**
@@ -42,14 +41,14 @@ export const dynamic = "force-dynamic";
  * (ຄິວທີ່ຍັງຄ້າງ) ບໍ່ແມ່ນເບິ່ງປະຫວັດ ⇒ ໜ້າຊ້າໂດຍບໍ່ຈຳເປັນ.
  * ງານທີ່ປິດແລ້ວເບິ່ງໄດ້: ຄົ້ນຫາ · /installations/<ລະຫັດ> · ລາຍງານງານຕິດຕັ້ງ · KPI.
  */
-type Tab = "feedback" | "close";
+type Queue = "feedback" | "close";
 type Row = InstallRow & { feedback: FeedbackAnswer[] | null };
-type Props = { searchParams: Promise<ListSearchParams & { from?: string; to?: string }> };
+export type CloseQueueProps = { searchParams: Promise<ListSearchParams & { from?: string; to?: string }> };
 
-/** ຂັ້ນ 6 = ລໍລູກຄ້າປະເມີນ · 7 = ລໍປິດງານ · 8 = ປິດແລ້ວ */
-const BUCKET: Record<Tab, { where: string; timeCol: string }> = {
-  feedback: { where: installStageIs(6), timeCol: "a.qc_finish" },
-  close: { where: installStageIs(7), timeCol: "a.complain_finish" },
+/** ຂັ້ນ 7 = ລໍລູກຄ້າປະເມີນ · 8 = ລໍປິດງານ · 9 = ປິດແລ້ວ */
+const BUCKET: Record<Queue, { where: string; timeCol: string }> = {
+  feedback: { where: installStageIs(7), timeCol: "a.qc_finish" },
+  close: { where: installStageIs(8), timeCol: "a.complain_finish" },
 };
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -59,27 +58,13 @@ const FEEDBACK_JSON = `(select json_agg(json_build_object('line', cc.line_number
     order by cc.line_number)
   from cust_complain cc where cc.product_code = a.code and cc.topic_code = '002') feedback`;
 
-/** ໝາຍເຫດ: "close" ເປັນຄຳສະຫງວນຂອງ Postgres — ໃຊ້ເປັນຊື່ຖັນບໍ່ໄດ້ */
-async function getCounts(dateWhere: string, dateParams: string[]) {
-  const row = (
-    await query<{ wait_feedback: number; wait_close: number }>(
-      `select count(*) filter (where ${BUCKET.feedback.where})::int wait_feedback,
-              count(*) filter (where ${BUCKET.close.where})::int wait_close
-       from ods_tb_install a where true ${dateWhere}`,
-      dateParams,
-    )
-  ).rows[0];
-  return { feedback: row?.wait_feedback ?? 0, close: row?.wait_close ?? 0 };
-}
-
-const TIME_LABEL: Record<Tab, string> = {
+const TIME_LABEL: Record<Queue, string> = {
   feedback: "ວັນ/ເວລາຕິດຕັ້ງສຳເລັດ",
   close: "ວັນ/ເວລາ complain",
 };
 
-export default async function ClosePage({ searchParams }: Props) {
+export async function InstallationCloseQueue({ searchParams, queue }: CloseQueueProps & { queue: Queue }) {
   const raw = await searchParams;
-  const tab: Tab = raw.tab === "close" ? "close" : "feedback";
   const { q, page, sort, dir } = readParams(raw);
   const from = ISO.test(raw.from ?? "") ? (raw.from as string) : "";
   const to = ISO.test(raw.to ?? "") ? (raw.to as string) : "";
@@ -95,9 +80,7 @@ export default async function ClosePage({ searchParams }: Props) {
     dateParams.push(to);
     dateParts.push(`a.finish_install::date <= $${dateParams.length}::date`);
   }
-  const dateWhere = dateParts.length ? `and ${dateParts.join(" and ")}` : "";
-
-  const bucket = BUCKET[tab];
+  const bucket = BUCKET[queue];
   const where = [bucket.where, ...dateParts];
   const params: (string | number)[] = [...dateParams];
   if (q) {
@@ -105,8 +88,7 @@ export default async function ClosePage({ searchParams }: Props) {
     where.push(INSTALL_SEARCH.replaceAll("$Q", `$${params.length}`));
   }
 
-  const [counts, jobs, topics] = await Promise.all([
-    getCounts(dateWhere, dateParams),
+  const [jobs, topics] = await Promise.all([
     fetchInstallRows({
       where: where.join(" and "),
       params,
@@ -124,27 +106,25 @@ export default async function ClosePage({ searchParams }: Props) {
   );
 
   const pages = Math.max(1, Math.ceil(jobs.total / PAGE_SIZE));
+  const basePath = queue === "feedback" ? "/installations/feedback" : "/installations/close";
   const keep = { ...(q && { q }), ...(from && { from }), ...(to && { to }) };
-  const base = () => ({ ...(tab !== "feedback" && { tab }), ...keep });
-  const tabHref = (target: Tab) =>
-    `/installations/close?${new URLSearchParams({ ...(target !== "feedback" && { tab: target }), ...keep })}`;
   const sortHref = (key: string, nextDir: "asc" | "desc") =>
-    `/installations/close?${new URLSearchParams({ ...base(), sort: key, dir: nextDir })}`;
+    `${basePath}?${new URLSearchParams({ ...keep, sort: key, dir: nextDir })}`;
   const pageHref = (n: number) =>
-    `/installations/close?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
-
-  const TABS: TabItem<Tab>[] = [
-    { key: "feedback", label: "ລໍຖ້າລູກຄ້າ complain", icon: MessageSquare, count: counts.feedback },
-    { key: "close", label: "ລໍຖ້າປິດງານຕິດຕັ້ງ", icon: Lock, count: counts.close },
-  ];
+    `${basePath}?${new URLSearchParams({ ...keep, sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
   return (
     <div className="w-full space-y-4">
-      <ListHeader title="ປິດງານ" scope="ສະແດງທຸກງານ" total={jobs.total} page={page} pages={pages} />
+      <ListHeader
+        title={queue === "feedback" ? "ລໍຖ້າລູກຄ້າປະເມີນ" : "ລໍຖ້າປິດງານ"}
+        scope="ສະແດງທຸກງານ"
+        total={jobs.total}
+        page={page}
+        pages={pages}
+      />
 
       {/* ຊ່ວງວັນທີຕິດຕັ້ງສຳເລັດ */}
       <form className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
-        {tab !== "feedback" && <input type="hidden" name="tab" value={tab} />}
         {q && <input type="hidden" name="q" value={q} />}
         <input type="hidden" name="sort" value={sort} />
         <input type="hidden" name="dir" value={dir} />
@@ -164,20 +144,17 @@ export default async function ClosePage({ searchParams }: Props) {
         />
         <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ກັ່ນຕອງ</button>
         {(from || to) && (
-          <Link href="/installations/close" className="text-xs text-slate-500 underline">
+          <Link href={basePath} className="text-xs text-slate-500 underline">
             ລ້າງ
           </Link>
         )}
       </form>
 
-      <TabsAndSearch
-        tabs={TABS}
-        current={tab}
-        tabHref={tabHref}
+      <SearchBar
         q={q}
         sort={sort}
         dir={dir}
-        hidden={{ ...(tab !== "feedback" && { tab }), ...(from && { from }), ...(to && { to }) }}
+        hidden={{ ...(from && { from }), ...(to && { to }) }}
       />
 
       <TableShell total={jobs.total} minWidth={1400}>
@@ -191,7 +168,7 @@ export default async function ClosePage({ searchParams }: Props) {
         <tbody>
           {rows.map((row) => (
             <RowLink key={row.code} href={`/installations/${encodeURIComponent(row.code)}`} className="border-b border-slate-100 hover:bg-slate-50">
-              <InstallCells row={row} timeLabel={TIME_LABEL[tab]} />
+              <InstallCells row={row} timeLabel={TIME_LABEL[queue]} />
               <td className="max-w-64 px-3 py-2.5">
                 <span className="block truncate" title={row.complain_cust ?? ""}>
                   {row.complain_cust || "-"}
@@ -199,7 +176,7 @@ export default async function ClosePage({ searchParams }: Props) {
               </td>
               <td className="whitespace-nowrap px-3 py-2.5">
                 <div className="flex items-center justify-center gap-2">
-                  {tab === "feedback" ? (
+                  {queue === "feedback" ? (
                     <>
                       {/* ງານຄ້າງຢູ່ຂັ້ນນີ້ຈົນກວ່າລູກຄ້າຈະຕອບ — QR ໃຫ້ສົ່ງ/ໃຫ້ລູກຄ້າສະແກນເອງ */}
                       <FeedbackQrButton code={row.code} />
@@ -220,18 +197,16 @@ export default async function ClosePage({ searchParams }: Props) {
                         topics={topics.rows}
                         answers={row.feedback ?? []}
                       />
-                      {tab === "close" && (
-                        <JobButton
-                          code={row.code}
-                          action={closeJob}
-                          tone="success"
-                          className="h-8 px-3 text-xs"
-                          confirmTitle={`ປິດງານ ${row.code}?`}
-                          confirmTone="warning"
-                        >
-                          ປິດງານ
-                        </JobButton>
-                      )}
+                      <JobButton
+                        code={row.code}
+                        action={closeJob}
+                        tone="success"
+                        className="h-8 px-3 text-xs"
+                        confirmTitle={`ປິດງານ ${row.code}?`}
+                        confirmTone="warning"
+                      >
+                        ປິດງານ
+                      </JobButton>
                     </>
                   )}
                 </div>
@@ -244,4 +219,8 @@ export default async function ClosePage({ searchParams }: Props) {
       <Pager page={page} pages={pages} total={jobs.total} pageHref={pageHref} />
     </div>
   );
+}
+
+export default function ClosePage(props: CloseQueueProps) {
+  return <InstallationCloseQueue {...props} queue="close" />;
 }

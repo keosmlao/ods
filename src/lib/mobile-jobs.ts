@@ -88,8 +88,8 @@ const CHECKED_IN = (workflow: string) => `exists (
 const INSTALL_ACTION = `case
   when a.tech_confirm is null                       then 'accept'
   when (${INSTALL_STAGE_SQL}) in (2,3)              then 'wait_spare'
-  when (${INSTALL_STAGE_SQL}) = 4 and a.start_install is null then 'start'
-  when (${INSTALL_STAGE_SQL}) = 4 and a.finish_install is null then 'finish'
+  when (${INSTALL_STAGE_SQL}) = 4 then 'start'
+  when (${INSTALL_STAGE_SQL}) = 5 then 'finish'
   else 'wait_other' end`;
 
 /** ສ້ອມ: 1-2 ກວດເຊັກ · 3-4 ລາຄາ · 5-7 ອາໄຫຼ່ · 8 ລໍສ້ອມ · 9 ກຳລັງສ້ອມ · 10+ ລໍ QC */

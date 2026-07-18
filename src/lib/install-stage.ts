@@ -1,22 +1,22 @@
 /**
- * 8 ຄິວຫຼັກຂອງງານຕິດຕັ້ງ — ຄິດຈາກ timestamp ຂອງ ods_tb_install.
+ * 9 ຄິວຫຼັກຂອງງານຕິດຕັ້ງ — ຄິດຈາກ timestamp ຂອງ ods_tb_install.
  * ຕ້ອງ alias ຕາຕະລາງເປັນ `a` ເມື່ອນຳ SQL ນີ້ໄປໃຊ້.
  *
  * 0 ເປີດງານ/ຈັດຊ່າງ → 1 ຊ່າງຮັບ → 2 ເບີກອາໄຫຼ່ → 3 ຮັບອາໄຫຼ່
- * → 4 ຕິດຕັ້ງ → 5 QC → 6 ລູກຄ້າປະເມີນ → 7 ປິດງານ.
- * ຂັ້ນ 8 ເປັນປະຫວັດປິດແລ້ວ ແລະ -1 ເປັນງານຍົກເລີກ; ບໍ່ແມ່ນຄິວເປີດ.
+ * → 4 ລໍຕິດຕັ້ງ → 5 ກຳລັງຕິດຕັ້ງ → 6 QC → 7 ລູກຄ້າປະເມີນ → 8 ປິດງານ.
+ * ຂັ້ນ 9 ເປັນປະຫວັດປິດແລ້ວ ແລະ -1 ເປັນງານຍົກເລີກ; ບໍ່ແມ່ນຄິວເປີດ.
  * ງານບໍ່ໃຊ້ອາໄຫຼ່ຂ້າມ 2-3 ໄປ 4 ຫຼັງຊ່າງຮັບ.
  */
 export const INSTALL_STAGE_SQL = `case
   when a.cancel_date is not null                     then -1
-  when a.job_finish is not null                      then 8
+  when a.job_finish is not null                      then 9
   when a.finish_install is not null
    and a.qc_finish is not null
-   and a.complain_finish is not null                 then 7
+   and a.complain_finish is not null                 then 8
   when a.finish_install is not null
-   and a.qc_finish is not null                       then 6
-  when a.finish_install is not null                  then 5
-  when a.start_install is not null                   then 4
+   and a.qc_finish is not null                       then 7
+  when a.finish_install is not null                  then 6
+  when a.start_install is not null                   then 5
   when a.tech_code is null or a.tech_code = ''       then 0
   when a.tech_confirm is null                        then 1
   when coalesce(a.used_spare,0) = 0
@@ -35,10 +35,11 @@ export const INSTALL_STAGE_LABEL: Record<number, string> = {
   2: "ລໍຖ້າເບີກອາໄຫຼ່",
   3: "ລໍຖ້າຮັບອາໄຫຼ່ຈາກການເບີກ",
   4: "ລໍຖ້າຕິດຕັ້ງ",
-  5: "ລໍຖ້າກວດ QC",
-  6: "ລໍຖ້າລູກຄ້າປະເມີນ",
-  7: "ລໍຖ້າປິດງານ",
-  8: "ປິດງານແລ້ວ",
+  5: "ກຳລັງຕິດຕັ້ງ",
+  6: "ລໍຖ້າກວດ QC",
+  7: "ລໍຖ້າລູກຄ້າປະເມີນ",
+  8: "ລໍຖ້າປິດງານ",
+  9: "ປິດງານແລ້ວ",
 };
 
 /** ສີຂອງປ້າຍສະຖານະ — ໃຫ້ໜ້າຕາຄືກັນທຸກໜ້າ */
@@ -49,10 +50,11 @@ export const INSTALL_STAGE_CHIP: Record<number, string> = {
   2: "bg-blue-50 text-blue-700",
   3: "bg-blue-50 text-blue-700",
   4: "bg-indigo-50 text-indigo-700",
-  5: "bg-purple-100 text-purple-800",
-  6: "bg-teal-50 text-teal-700",
-  7: "bg-orange-50 text-orange-700",
-  8: "bg-slate-100 text-slate-600",
+  5: "bg-cyan-100 text-cyan-800",
+  6: "bg-purple-100 text-purple-800",
+  7: "bg-teal-50 text-teal-700",
+  8: "bg-orange-50 text-orange-700",
+  9: "bg-slate-100 text-slate-600",
 };
 
 /** ຊື່ຂັ້ນ ໃນຮູບ SQL — ສ້າງຈາກ INSTALL_STAGE_LABEL ບ່ອນດຽວ (ເບິ່ງ lib/stage) */
@@ -67,9 +69,9 @@ export const installStageChip = (stage: number | null) =>
 
 /* ── ເງື່ອນໄຂ 3 ກຸ່ມໃຫຍ່ — ລວມກັນແລ້ວໄດ້ທຸກແຖວຂອງ ods_tb_install ພໍດີ ── */
 
-/** ງານທີ່ຍັງດຳເນີນຢູ່ (ຂັ້ນ 0..7) */
+/** ງານທີ່ຍັງດຳເນີນຢູ່ (ຂັ້ນ 0..8) */
 export const INSTALL_OPEN = "a.cancel_date is null and a.job_finish is null";
-/** ງານທີ່ປິດແລ້ວ (ຂັ້ນ 8) */
+/** ງານທີ່ປິດແລ້ວ (ຂັ້ນ 9) */
 export const INSTALL_CLOSED = "a.cancel_date is null and a.job_finish is not null";
 /** ງານທີ່ຍົກເລີກ (ຂັ້ນ -1) */
 export const INSTALL_CANCELLED = "a.cancel_date is not null";
@@ -82,10 +84,11 @@ export const installStageIs = (stage: number) => `(${INSTALL_STAGE_SQL}) = ${Num
  * ຂັ້ນນຶ່ງນັບຈາກເວລາທີ່ເຂົ້າຂັ້ນນັ້ນ (ຂັ້ນ 0 ຍັງບໍ່ມີຫຍັງ ຈຶ່ງນັບຈາກເປີດງານ).
  */
 export const INSTALL_STAGE_TIME_COL = `case (${INSTALL_STAGE_SQL})
-  when 8 then a.job_finish
-  when 7 then a.complain_finish
-  when 6 then a.qc_finish
-  when 5 then a.finish_install
+  when 9 then a.job_finish
+  when 8 then a.complain_finish
+  when 7 then a.qc_finish
+  when 6 then a.finish_install
+  when 5 then a.start_install
   when 4 then coalesce(a.pick_finish, a.tech_confirm, a.time_register)
   when 3 then a.reg_start
   when 2 then a.tech_confirm

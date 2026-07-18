@@ -166,6 +166,7 @@ const RULES: Rule[] = [
   { path: "/installations", exact: true, roles: SERVICE_SIDE },
   { path: "/installations/new", roles: SERVICE_SIDE },
   { path: "/installations/assign", roles: SERVICE_SIDE },
+  { path: "/installations/feedback", roles: SERVICE_SIDE },
   { path: "/installations/close", roles: SERVICE_SIDE },
   { path: "/installations/accept", roles: TECH_SIDE },
   // ຄິວງານປະຈຳວັນ — ຜູ້ຈັດງານ (CS) ແລະ ຊ່າງ (ເຫັນສະເພາະຂອງຕົນ) ເບິ່ງໄດ້ທັງສອງຝ່າຍ
@@ -222,6 +223,7 @@ const RULES: Rule[] = [
   { path: "/reports", roles: SERVICE_SIDE },
   { path: "/reports", exact: true, roles: [M, A, S] },
   { path: "/reports/stock", roles: [M, A, S] },
+  { path: "/reports/install-spares-monthly", roles: [M, HT, A, S] },
   { path: "/reports/purchase-requests", roles: [M, A, S] },
   { path: "/reports/purchase-orders", roles: [M, A, S] },
   /** ເງິນຄ່າສ້ອມ — ຜູ້ຈັດການ/ແອດມິນ (CS ຮັບເງິນໜ້າຮ້ານ ໃຫ້ຜູ້ຈັດການເປີດສິດເປັນລາຍຄົນ) */

@@ -40,9 +40,21 @@ const matchLength = (pathname: string, href: string) => {
 const itemMatchLength = (pathname: string, item: NavItem) =>
   Math.max(matchLength(pathname, item.href), ...(item.match ?? []).map((path) => matchLength(pathname, path)));
 
-/** ເສັ້ນທາງທີ່ຍາວທີ່ສຸດໃນເມນູທັງໝົດ ທີ່ຕົງກັບໜ້າປັດຈຸບັນ */
-const bestMatch = (pathname: string, groups: NavGroup[]) =>
-  Math.max(-1, ...groups.flatMap((group) => group.items.map((item) => itemMatchLength(pathname, item))));
+/**
+ * ໃຫ້ path ທີ່ຍາວກວ່າຊະນະກ່ອນ ແລ້ວຈຶ່ງໃຫ້ລິ້ງທີ່ລະບຸ query ລະອຽດກວ່າຊະນະ.
+ * ຕົວຢ່າງ: /qc?workflow=install ຕ້ອງຊະນະ /qc ທີ່ບໍ່ລະບຸ query.
+ */
+const itemMatchScore = (pathname: string, search: string, item: NavItem) => {
+  if (!queryMatches(search, item.href)) return -1;
+  const length = itemMatchLength(pathname, item);
+  if (length < 0) return -1;
+  const querySize = [...new URLSearchParams(item.href.split("?")[1] ?? "").entries()].length;
+  return length * 1000 + querySize;
+};
+
+/** ຄະແນນທີ່ຕົງທີ່ສຸດໃນເມນູທັງໝົດ */
+const bestMatch = (pathname: string, search: string, groups: NavGroup[]) =>
+  Math.max(-1, ...groups.flatMap((group) => group.items.map((item) => itemMatchScore(pathname, search, item))));
 
 /**
  * ── ໜ້າລາຍລະອຽດທີ່ເປີດມາຈາກຄິວ (`?from=`) ──
@@ -57,9 +69,8 @@ const bestMatch = (pathname: string, groups: NavGroup[]) =>
 const isActive = (pathname: string, item: NavItem, best: number, search = "") => {
   const from = new URLSearchParams(search).get("from");
   if (from) return item.href === from;
-  if (!queryMatches(search, item.href)) return false;
-  const length = itemMatchLength(pathname, item);
-  return length >= 0 && length === best;
+  const score = itemMatchScore(pathname, search, item);
+  return score >= 0 && score === best;
 };
 
 /* ---------------- ເມນູ (ໃຊ້ຮ່ວມກັບ mobile) ---------------- */
@@ -107,7 +118,7 @@ export function NavTree({
   }, [role, navFlags, readableResources, query]);
 
   // ຄິດຄັ້ງດຽວຕໍ່ການ render — ຢ່າຄິດຊ້ຳຢູ່ໃນ loop ຂອງແຕ່ລະລາຍການ
-  const best = useMemo(() => bestMatch(pathname, groups), [pathname, groups]);
+  const best = useMemo(() => bestMatch(pathname, search, groups), [pathname, search, groups]);
 
   const searching = query.trim().length > 0;
 

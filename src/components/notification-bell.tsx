@@ -1,11 +1,11 @@
 "use client";
-import { markAllNotificationsRead, recentNotifications, type NotificationBrief } from "@/app/actions/notification";
+import { markAllNotificationsRead, type NotificationBrief } from "@/app/actions/notification";
 import { LinkPending } from "@/components/link-pending";
 import { NOTIFICATION_KIND_LABEL, recordHref, type NotificationKind } from "@/lib/chatter";
 import { BellRing, CheckCheck, LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 /**
  * **ກະດິງການເຄື່ອນໄຫວ** — ກ່ອງເລື່ອນລົງ ບໍ່ຕ້ອງຍ່າງໄປໜ້າ /notifications ກ່ອນ.
@@ -63,16 +63,51 @@ export function NotificationBell({ count, label }: { count: number; label: strin
     };
   }, [open]);
 
-  const load = async () => {
-    setLoading(true);
+  const load = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
-      const data = await recentNotifications();
+      const response = await fetch(`/api/notifications?t=${Date.now()}`, {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      if (!response.ok) throw new Error(`notification fetch failed: ${response.status}`);
+      const data = (await response.json()) as { rows: NotificationBrief[]; unread: number };
       setRows(data.rows);
       setUnread(data.unread);
+    } catch (error) {
+      console.error(error);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
-  };
+  }, []);
+
+  // PostgreSQL NOTIFY → SSE ປຸກ browser ທັນທີທີ່ມີ event. ການ poll 60 ວິນາທີ
+  // ເປັນພຽງ fallback ຖ້າ proxy/network ຕັດ SSE; ບໍ່ແມ່ນທາງຫຼັກ. Event ດຽວກັນ
+  // ຕ້ອງ refresh Server Components ຂອງໜ້າຄິວນຳ ເພື່ອໃຫ້ແຖວຍ້າຍຂັ້ນທັນທີ.
+  useEffect(() => {
+    const refreshBell = () => {
+      if (document.visibilityState === "visible") void load(false);
+    };
+    const refreshPage = () => {
+      if (document.visibilityState !== "visible") return;
+      void load(false);
+      router.refresh();
+    };
+    const initial = window.setTimeout(refreshPage, 0);
+    const source = new EventSource("/api/notifications/stream");
+    source.addEventListener("notification", refreshPage);
+    const timer = window.setInterval(refreshBell, 60_000);
+    window.addEventListener("focus", refreshPage);
+    document.addEventListener("visibilitychange", refreshPage);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
+      source.removeEventListener("notification", refreshPage);
+      source.close();
+      window.removeEventListener("focus", refreshPage);
+      document.removeEventListener("visibilitychange", refreshPage);
+    };
+  }, [load, router]);
 
   const toggle = () => {
     const next = !open;

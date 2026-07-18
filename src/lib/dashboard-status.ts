@@ -63,13 +63,13 @@ export const installStatuses: Record<string, StatusDef> = {
   "wait-register": { label: "ລໍຖ້າເບີກອາໄຫຼ່", condition: installStageIs(2), stage: 2 },
   "wait-pick": { label: "ລໍຖ້າຮັບອາໄຫຼ່ຈາກການເບີກ", condition: installStageIs(3), stage: 3 },
   "wait-install": { label: "ລໍຖ້າຕິດຕັ້ງ", condition: installStageIs(4), stage: 4 },
-  "wait-qc": { label: "ລໍຖ້າກວດ QC", condition: installStageIs(5), stage: 5 },
-  "wait-feedback": { label: "ລໍຖ້າລູກຄ້າປະເມີນ", condition: installStageIs(6), stage: 6 },
-  "wait-close": { label: "ລໍຖ້າປິດງານ", condition: installStageIs(7), stage: 7 },
+  installing: { label: "ກຳລັງຕິດຕັ້ງ", condition: installStageIs(5), stage: 5 },
+  "wait-qc": { label: "ລໍຖ້າກວດ QC", condition: installStageIs(6), stage: 6 },
+  "wait-feedback": { label: "ລໍຖ້າລູກຄ້າປະເມີນ", condition: installStageIs(7), stage: 7 },
+  "wait-close": { label: "ລໍຖ້າປິດງານ", condition: installStageIs(8), stage: 8 },
 
   // URL ເກົ່າຍັງເປີດໄດ້ ແຕ່ບໍ່ສະແດງເປັນຄິວເພີ່ມໃນ pipeline.
   "wait-dispatch": { label: "ລໍຖ້າຮັບອາໄຫຼ່ຈາກການເບີກ", condition: installStageIs(3) },
-  installing: { label: "ລໍຖ້າຕິດຕັ້ງ", condition: `${installStageIs(4)} and a.start_install is not null` },
 };
 
 /** ສະເພາະຂັ້ນລ້ວນໆ (ບໍ່ຫຼົ້ນກັນ) — ໃຊ້ເຮັດແຖບ pipeline ແລະ ລວມຍອດ */

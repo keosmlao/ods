@@ -1,8 +1,7 @@
 import { LinkButton } from "@/components/ui";
-import { BillDismissButton, BillRestoreButton } from "@/components/installation/bill-dismiss-button";
+import { BillDismissButton } from "@/components/installation/bill-dismiss-button";
 import { pendingInstallBills } from "@/lib/pending-bills";
 import { CalendarClock, FilePlus2, Phone, Search, TriangleAlert } from "lucide-react";
-import Link from "next/link";
 
 /**
  * **ບິນທີ່ຄ້າງອອກໃບງານ** — ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ ແຕ່ຍັງບໍ່ມີໃບງານ (ຫຼື ມີບໍ່ຄົບ).
@@ -18,38 +17,26 @@ import Link from "next/link";
  */
 export const dynamic = "force-dynamic";
 
-type Tab = "all" | "dismissed";
-type Props = { searchParams: Promise<{ tab?: string; q?: string }> };
+type Props = { searchParams: Promise<{ q?: string }> };
 
 /** ຄ້າງເກີນນີ້ = ລູກຄ້າລໍດົນເກີນໄປ (ຈ່າຍເງິນແລ້ວ) */
 const LATE = 7;
 
 export default async function PendingBillsPage({ searchParams }: Props) {
   const params = await searchParams;
-  const tab: Tab = params.tab === "dismissed" ? "dismissed" : "all";
   const q = (params.q ?? "").trim().toLowerCase();
 
-  // ບິນທີ່ຄ້າງຈິງ + ບິນທີ່ **ຖືກໝາຍວ່າຄົບແລ້ວ** (ເກັບໄວ້ໃຫ້ຍົກເລີກການໝາຍໄດ້)
-  const [all, dismissed] = await Promise.all([pendingInstallBills(), pendingInstallBills(true)]);
-  const bucket = tab === "dismissed" ? dismissed : all;
+  const all = await pendingInstallBills();
   const rows = q
-    ? bucket.filter((bill) =>
+    ? all.filter((bill) =>
         `${bill.doc_no} ${bill.cust_name ?? ""} ${bill.telephone ?? ""}`.toLowerCase().includes(q),
       )
-    : bucket;
+    : all;
 
   // ບິນທີ່ຍັງບໍ່ມີໃບງານຈັກໃບ ⇒ ໜ່ວຍທີ່ຄ້າງ = ຈຳນວນຄ່າຕິດຕັ້ງທີ່ຈ່າຍມາທັງໝົດ
   const units = all.reduce((sum, bill) => sum + bill.paid, 0);
   const oldest = all[0]?.days ?? 0;
   const late = all.filter((bill) => bill.days >= LATE).length;
-
-  const TABS: { key: Tab; label: string; count: number }[] = [
-    { key: "all", label: "ຍັງບໍ່ມີໃບງານ", count: all.length },
-    { key: "dismissed", label: "ໝາຍວ່າຄົບແລ້ວ", count: dismissed.length },
-  ];
-
-  const href = (next: Tab) =>
-    `/installations/pending-bills?${new URLSearchParams({ ...(next !== "all" && { tab: next }), ...(q && { q }) })}`;
 
   return (
     <div className="w-full space-y-4">
@@ -67,31 +54,9 @@ export default async function PendingBillsPage({ searchParams }: Props) {
         <Stat label="ບິນເກົ່າສຸດຄ້າງມາ" value={oldest} tone="plain" note="ມື້" />
       </div>
 
-      {/* ແທັບ + ຄົ້ນຫາ (ຮູບແບບດຽວກັບໜ້າຄິວອື່ນ) */}
+      {/* ໜ້ານີ້ມີຄິວດຽວ — ບໍ່ມີ tab ຊ້ອນ */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
-        <div className="flex overflow-hidden rounded-lg border border-slate-300">
-          {TABS.map((item) => (
-            <Link
-              key={item.key}
-              href={href(item.key)}
-              className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                tab === item.key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              {item.label}
-              <span
-                className={`rounded px-1 text-[10px] font-bold tabular-nums ${
-                  tab === item.key ? "bg-white/20" : "bg-slate-100 text-slate-600"
-                }`}
-              >
-                {item.count}
-              </span>
-            </Link>
-          ))}
-        </div>
-
         <form className="flex flex-1 items-center gap-2" action="/installations/pending-bills">
-          {tab !== "all" && <input type="hidden" name="tab" value={tab} />}
           <div className="flex h-9 min-w-56 flex-1 items-center gap-2 rounded-lg border border-slate-300 px-2.5">
             <Search className="size-3.5 shrink-0 text-slate-400" />
             <input
@@ -192,21 +157,17 @@ export default async function PendingBillsPage({ searchParams }: Props) {
 
                 {/* ③ ລົງມື — ເປີດໃບງານ ຫຼື ໝາຍວ່າຄົບແລ້ວ (ບາງບິນບໍ່ຕ້ອງມີໃບງານແທ້ໆ) */}
                 <td className="whitespace-nowrap px-3 py-2.5 text-right">
-                  {bill.dismissed ? (
-                    <BillRestoreButton docNo={bill.doc_no} />
-                  ) : (
-                    <span className="inline-flex items-center gap-2">
-                      <BillDismissButton docNo={bill.doc_no} />
-                      <LinkButton
-                        href={`/installations/new?bill=${encodeURIComponent(bill.doc_no)}`}
-                        tone="success"
-                        className="h-9 text-xs"
-                      >
-                        <FilePlus2 className="size-3.5" />
-                        ເປີດໃບງານ
-                      </LinkButton>
-                    </span>
-                  )}
+                  <span className="inline-flex items-center gap-2">
+                    <BillDismissButton docNo={bill.doc_no} />
+                    <LinkButton
+                      href={`/installations/new?bill=${encodeURIComponent(bill.doc_no)}`}
+                      tone="success"
+                      className="h-9 text-xs"
+                    >
+                      <FilePlus2 className="size-3.5" />
+                      ເປີດໃບງານ
+                    </LinkButton>
+                  </span>
                 </td>
               </tr>
             );

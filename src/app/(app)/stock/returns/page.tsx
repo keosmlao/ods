@@ -70,6 +70,14 @@ const DISPATCHED_SQL = `(
 const requestedSql = (statusPlaceholder: string) => `(a.trans_flag = $1 and a.status = ${statusPlaceholder})`;
 
 /**
+ * ອາໄຫຼ່ຂອງງານຕິດຕັ້ງສົ່ງຄືນໄດ້ສະເພາະຕອນງານຍັງບໍ່ສຳເລັດ.
+ * finish_install ມີຄ່າ = ຊ່າງຢືນຢັນວ່າຕິດຕັ້ງສຳເລັດແລ້ວ; ຈຶ່ງບໍ່ໃຫ້ໃບເບີກນັ້ນ
+ * ຂຶ້ນເປັນວຽກໃໝ່ທີ່ຕ້ອງສ້າງໃບສົ່ງຄືນ.
+ */
+const INSTALL_NOT_FINISHED_SQL = `exists (select 1 from ods_tb_install i
+  where i.code = a.product_code and i.finish_install is null)`;
+
+/**
  * ງານທີ່ **ຍົກເລີກແລ້ວ ແຕ່ອາໄຫຼ່ຍັງຢູ່ນອກສາງ** — ຄິວ "ຖ້າສົ່ງຄືນ".
  *
  * ໃບເບີກຂອງງານພວກນີ້ເຄີຍປົນຢູ່ໃນລາຍການເບີກລວມ (4,600+ ໃບ) ຈຶ່ງບໍ່ມີໃຜເຫັນ:
@@ -97,7 +105,7 @@ type SpareLine = { doc_no: string; item_code: string | null; item_name: string |
 
 /**
  * ອາໄຫຼ່ທີ່ຍັງຄ້າງນອກສາງ ຂອງໃບເບີກທີ່ສະແດງຢູ່ໜ້ານີ້ — ນິຍາມດຽວກັນກັບ
- * installations/outstanding.ts: ແຖວ status 0 (ຈ່າຍອອກແລ້ວ ຍັງບໍ່ມາຮັບ) ຫຼື 1 (ຮັບໄປແລ້ວ).
+ * lib/outstanding-spares: ແຖວ status 0 (ຈ່າຍອອກແລ້ວ ຍັງບໍ່ມາຮັບ) ຫຼື 1 (ຮັບໄປແລ້ວ).
  * ສະຕັອກຖືກຕັດຕັ້ງແຕ່ຕອນສາງເບີກ (56) ⇒ ສອງກໍລະນີນີ້ຂອງຢູ່ນອກສາງທັງຄູ່.
  */
 async function getSpareLines(docNos: string[]): Promise<Map<string, SpareLine[]>> {
@@ -155,7 +163,10 @@ async function getDocs(tab: DocTab, q: string, job: string, page: number, sort: 
 
   if (q) { params.push(`%${q}%`); where.push(DOC_SEARCH.replaceAll("$Q", `$${params.length}`)); }
   // ງານສ້ອມແປງ = job_type ວ່າງ · ງານຕິດຕັ້ງ = 'install'
-  if (job === "install") where.push("a.job_type = 'install'");
+  if (job === "install") {
+    where.push("a.job_type = 'install'");
+    if (canRequest(tab)) where.push(INSTALL_NOT_FINISHED_SQL);
+  }
   else if (job === "repair") where.push("coalesce(a.job_type,'') <> 'install'");
   if (tech) {
     params.push(tech);
@@ -220,13 +231,14 @@ async function getMovements(q: string, page: number, sort: string, dir: SortDir,
 /** ນັບຫົວແທັບ — ບໍ່ດຶງແຖວ */
 async function getCounts(job: "install" | "repair", tech: string | null) {
   const jobSql = job === "install" ? "a.job_type = 'install'" : "coalesce(a.job_type,'') <> 'install'";
+  const returnableSql = job === "install" ? `and ${INSTALL_NOT_FINISHED_SQL}` : "";
   const ownerSql = !tech
     ? "true"
     : job === "install"
       ? "exists (select 1 from ods_tb_install own where own.code = a.product_code and own.tech_code = $4)"
       : "exists (select 1 from tb_product own where own.code = a.product_code and own.emp_code = $4)";
-  const docSql = `select count(*) filter (where ${DISPATCHED_SQL} and ${jobSql} and ${ownerSql})::int dispatched,
-      count(*) filter (where ${DISPATCHED_SQL} and ${CANCELLED_JOB_SQL} and ${jobSql} and ${ownerSql})::int cancelled,
+  const docSql = `select count(*) filter (where ${DISPATCHED_SQL} and ${jobSql} and ${ownerSql} ${returnableSql})::int dispatched,
+      count(*) filter (where ${DISPATCHED_SQL} and ${CANCELLED_JOB_SQL} and ${jobSql} and ${ownerSql} ${returnableSql})::int cancelled,
       count(*) filter (where ${requestedSql("$3")} and ${jobSql} and ${ownerSql})::int requested
     from ic_trans a`;
   // ການເຄື່ອນໄຫວອ່ານຈາກ tb_product ຈຶ່ງເປັນສາຍສ້ອມແປງເທົ່ານັ້ນ

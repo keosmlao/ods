@@ -289,7 +289,7 @@ export async function finishInstallFlow(
     await client.query("begin");
     const done = await client.query(
       `update ods_tb_install a set finish_install=${NOW}
-        where a.code=$1 and (${INSTALL_STAGE_SQL}) = 4
+        where a.code=$1 and (${INSTALL_STAGE_SQL}) = 5
           and a.start_install is not null and a.finish_install is null`,
       [code],
     );

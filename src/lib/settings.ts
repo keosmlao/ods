@@ -36,7 +36,7 @@ export const SETTING_META: Record<SettingKey, { label: string; help: string; fal
     help:
       "ໃຫ້ພະນັກງານທຸກຄົນໄດ້ຮັບການແຈ້ງເຕືອນຂອງ “ທຸກ” ການເຄື່ອນໄຫວໃນລະບົບ (audit feed) ບໍ່ແມ່ນສະເພາະ " +
       "ເອກະສານທີ່ຕົນຕິດຕາມ. ປິດແລ້ວ: ແຕ່ລະຄົນໄດ້ຮັບແຕ່ເລື່ອງທີ່ຕົນຕິດຕາມ ຫຼື ຖືກມອບໝາຍ. " +
-      "ແຕ່ລະຄົນກົດ “ອ່ານ/ຍັງບໍ່ອ່ານ” ຈັດການເອງໄດ້. ໝາຍເຫດ: ການທີ່ຕົນລົງມືເອງ ຈະບໍ່ແຈ້ງກັບຄືນຫາຕົນ.",
+      "ແຕ່ລະຄົນກົດ “ອ່ານ/ຍັງບໍ່ອ່ານ” ຈັດການເອງໄດ້. ເມື່ອເປີດ audit feed ການທີ່ຕົນລົງມືເອງກໍ່ຈະສະແດງນຳ ເພື່ອໃຫ້ປະຫວັດຄົບຖ້ວນ.",
     fallback: true,
   },
 };
@@ -46,6 +46,7 @@ export const SETTING_META: Record<SettingKey, { label: string; help: string; fal
  * ແຕ່ມັນປ່ຽນປີລະເທື່ອ. ບັນທຶກການຕັ້ງຄ່າແລ້ວ action ຕ້ອງ `updateTag(SETTING_TAG)`.
  */
 export const SETTING_TAG = "ods-setting";
+const SETTING_CACHE_VERSION = "v2";
 
 const readSetting = unstable_cache(
   async (key: string): Promise<string | null> => {
@@ -53,7 +54,7 @@ const readSetting = unstable_cache(
     const row = (await query<{ value: string }>(`select value from ods_setting where key = $1`, [key])).rows[0];
     return row?.value ?? null;
   },
-  ["ods-setting"],
+  ["ods-setting", SETTING_CACHE_VERSION],
   { tags: [SETTING_TAG] },
 );
 

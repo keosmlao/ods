@@ -1,6 +1,6 @@
 import { canAccess, type Role } from "@/lib/roles";
 import { resourceForPath } from "@/lib/permission-catalog";
-import { installStatuses, pipelineOf, repairStatuses } from "@/lib/dashboard-status";
+import { pipelineOf, repairStatuses } from "@/lib/dashboard-status";
 import {
   Boxes,
   ClipboardCheck,
@@ -94,8 +94,6 @@ const REPAIR: NavGroup = {
       href: `/dashboard/status/repair/${slug}`,
       count: `/dashboard/status/repair/${slug}`,
     })),
-    // ເຄື່ອງມືກວດນັບສະຕ໋ອກ — ບໍ່ແມ່ນຂັ້ນ ແຕ່ຢູ່ສາຍງານສ້ອມ (ຫົວໜ້າ/ຜູ້ອະນຸມັດເຫັນ — ເບິ່ງ RULES)
-    { label: "ກວດນັບສະຕ໋ອກ", href: "/service/stock-count" },
   ].map((item, index) => ({ ...item, label: `${index + 1}. ${item.label}` })),
 };
 
@@ -112,26 +110,18 @@ const INSTALL_FLOW: NavItem[] = [
   { label: "ລໍຖ້າເບີກອາໄຫຼ່", href: "/installations/spare-requests", count: "/installations/spare-requests" },
   { label: "ລໍຖ້າຮັບອາໄຫຼ່ຈາກການເບີກ", href: "/installations/spare-pickup", count: "/installations/spare-pickup" },
   { label: "ລໍຖ້າຕິດຕັ້ງ", href: "/installations/work", count: "/installations/work" },
+  { label: "ກຳລັງຕິດຕັ້ງ", href: "/installations/work/doing", count: "/installations/work/doing" },
   { label: "ລໍຖ້າກວດ QC", href: "/qc?workflow=install", flag: "qc", count: "/qc/install" },
-  { label: "ລໍຖ້າລູກຄ້າປະເມີນ", href: "/installations/close?tab=feedback", count: "/dashboard/status/install/wait-feedback" },
-  { label: "ລໍຖ້າປິດງານ", href: "/installations/close?tab=close", count: "/installations/close" },
-];
-
-/** ງານທີ່ອອກຈາກສາຍງານ — ເປັນເມນູແຍກ ແລະ ບໍ່ນັບເປັນຂັ້ນທີ 9 */
-const INSTALL_CANCELLED_MENU: NavItem[] = [
-  {
-    label: "ຍົກເລີກແລ້ວ",
-    href: "/installations?tab=cancelled",
-    count: "/installations/cancelled",
-    divider: true,
-  },
+  { label: "ລໍຖ້າລູກຄ້າປະເມີນ", href: "/installations/feedback", count: "/dashboard/status/install/wait-feedback" },
+  { label: "ລໍຖ້າປິດງານ", href: "/installations/close", count: "/installations/close" },
 ];
 
 /** ລາຍງານຂອງສາຍງານຕິດຕັ້ງ — ບໍ່ແມ່ນຂັ້ນຕອນ ຈຶ່ງບໍ່ໃສ່ເລກ */
 const INSTALL_REPORTS: NavItem[] = [
-  { label: "ບິນຄ້າງອອກໃບງານ", href: "/installations/pending-bills", count: "/installations/pending-bills" },
+  { label: "ບິນຄ້າງອອກໃບງານ", href: "/installations/pending-bills", count: "/installations/pending-bills", divider: true },
   { label: "ສົ່ງຄືນອາໄຫຼ່ງານຕິດຕັ້ງ", href: "/stock/returns?job=install" },
   { label: "ລາຍງານງານຕິດຕັ້ງ", href: "/reports/installations" },
+  { label: "ສະຫຼຸບອາໄຫຼ່ຕິດຕັ້ງປະຈຳເດືອນ", href: "/reports/install-spares-monthly" },
   { label: "ລາຍງານແບບສອບຖາມລູກຄ້າ", href: "/reports/customer-feedback" },
 ];
 
@@ -141,25 +131,8 @@ const INSTALL: NavGroup = {
   icon: HardHat,
   items: [
     ...INSTALL_FLOW.map((item, index) => ({ ...item, label: `${index + 1}. ${item.label}` })),
-    ...INSTALL_CANCELLED_MENU,
     ...INSTALL_REPORTS,
   ],
-};
-
-/**
- * ── ຂັ້ນຕອນຕິດຕັ້ງ (overview ທຸກຂັ້ນ) — ຄູ່ກັບ "ສະຖານະງານສ້ອມ" ຝັ່ງສ້ອມ ──
- * ລາຍ 8 ຄິວຫຼັກ 0-7 ພ້ອມ badge ⇒ ເຫັນວຽກຄ້າງທຸກຂັ້ນໃນຕາດຽວ.
- * ໜ້າເຮັດວຽກຈິງຍັງຢູ່ກຸ່ມ "ຕິດຕັ້ງ" ຄືເກົ່າ. ຕົວເລກມາຈາກ lib/nav-counts (ist CTE).
- */
-const INSTALL_STATUS: NavGroup = {
-  id: "install_status_menu",
-  label: "ຕິດຕາມ 8 ຄິວຕິດຕັ້ງ",
-  icon: LayoutDashboard,
-  items: pipelineOf(installStatuses).map(([slug, def], index) => ({
-    label: `${index + 1}. ${def.label}`,
-    href: `/dashboard/status/install/${slug}`,
-    count: `/dashboard/status/install/${slug}`,
-  })),
 };
 
 /* ── ສາງ ແລະ ອາໄຫຼ່ (ໃຊ້ຮ່ວມກັນທັງສອງສາຍງານ) ──────────────────── */
@@ -175,6 +148,8 @@ const STOCK: NavGroup = {
     { label: "ລາຍການອາໄຫຼ່", href: "/stock/spare-parts", divider: true },
     { label: "ສິນຄ້າສ້ອມແປງ", href: "/stock/products" },
     { label: "ສ້າງອາໄຫຼ່", href: "/spare-parts/new" },
+    // ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ — ຍ້າຍມາຈາກເມນູສ້ອມ (ຫົວໜ້າ/ຜູ້ອະນຸມັດເຫັນ — RULES: /service/stock-count)
+    { label: "ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ", href: "/service/stock-count", divider: true },
   ],
 };
 
@@ -264,7 +239,7 @@ const USERS: NavGroup = {
  *   ຄິວແຈ້ງລູກຄ້າ  → ຢູ່ກຸ່ມ **ຂອງຂ້ອຍ** (ຄິວວຽກຂອງມື້ນີ້ ຂ້າມສາຍງານ — ເບິ່ງເຫດຜົນຢູ່ນັ້ນ)
  *   ຕັ້ງລາຍການກວດຮັບ → ຢູ່ກຸ່ມ **ຜູ້ໃຊ້/ຕັ້ງຄ່າ** (ເປັນການຕັ້ງຄ່າ ບໍ່ແມ່ນຄິວງານ)
  */
-export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, INSTALL_STATUS, STOCK, PURCHASE, APPROVE, REPORT, USERS];
+export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, STOCK, PURCHASE, APPROVE, REPORT, USERS];
 
 /**
  * Sidebar ສະເພາະຊ່າງ — ມີແຕ່ຄິວທີ່ຊ່າງລົງມືໄດ້ຈິງ.
@@ -310,15 +285,10 @@ const TECHNICIAN_NAVIGATION: NavGroup[] = [
       { label: "ຮັບງານ", href: "/installations/accept", count: "/installations/accept" },
       { label: "ຂໍເບີກອາໄຫຼ່", href: "/installations/spare-requests", count: "/installations/spare-requests" },
       { label: "ຮັບອາໄຫຼ່", href: "/installations/spare-pickup", count: "/installations/spare-pickup" },
-      { label: "ຕິດຕັ້ງ", href: "/installations/work", count: "/installations/work" },
+      { label: "ລໍຖ້າຕິດຕັ້ງ", href: "/installations/work", count: "/installations/work" },
+      { label: "ກຳລັງຕິດຕັ້ງ", href: "/installations/work/doing", count: "/installations/work/doing" },
       { label: "ສົ່ງຄືນອາໄຫຼ່", href: "/stock/returns?job=install" },
       { label: "ກວດຮັບຄຸນນະພາບ", href: "/qc?workflow=install", flag: "qc", count: "/qc/install" },
-      {
-        label: "ຍົກເລີກແລ້ວ",
-        href: "/installations?tab=cancelled",
-        count: "/installations/cancelled",
-        divider: true,
-      },
     ],
   },
   {

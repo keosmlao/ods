@@ -56,8 +56,10 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ຕິດຕັ້ງ", label: "ໃບຂໍເບີກ", resource: "/installations/spare-requests" },
   { group: "ຕິດຕັ້ງ", label: "ຮັບອາໄຫຼ່", resource: "/installations/spare-pickup", actions: ["read", "update"] },
   { group: "ຕິດຕັ້ງ", label: "ຕິດຕັ້ງ", resource: "/installations/work", actions: ["read", "update"] },
+  { group: "ຕິດຕັ້ງ", label: "ລູກຄ້າປະເມີນ", resource: "/installations/feedback", actions: ["read", "update"] },
   { group: "ຕິດຕັ້ງ", label: "ປິດງານ", resource: "/installations/close", actions: ["read", "update"] },
   { group: "ຕິດຕັ້ງ", label: "ລາຍງານງານຕິດຕັ້ງ", resource: "/reports/installations", actions: READ_ONLY },
+  { group: "ຕິດຕັ້ງ", label: "ສະຫຼຸບອາໄຫຼ່ປະຈຳເດືອນ", resource: "/reports/install-spares-monthly", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "KPI ປະສິດທິພາບ", resource: "/reports/kpi", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ເຄື່ອງກັບມາສ້ອມຊ້ຳ", resource: "/reports/repeat-repairs", actions: READ_ONLY },
   { group: "ຕິດຕັ້ງ", label: "ລາຍງານແບບສອບຖາມ", resource: "/reports/customer-feedback", actions: READ_ONLY },
@@ -98,6 +100,7 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ຜູ້ໃຊ້", label: "ກຳນົດສິດ", resource: "/manage/employees", protected: true },
   { group: "ຜູ້ໃຊ້", label: "ຄ່າບໍລິການ / ຄ່າຄອມ", resource: "/manage/service-rates" },
   { group: "ຜູ້ໃຊ້", label: "ເຊື່ອມຕົວຕົນຊ່າງ", resource: "/manage/technicians" },
+  { group: "ຜູ້ໃຊ້", label: "ການຕັ້ງຄ່າລະບົບ", resource: "/manage/settings", protected: true },
 ] as const;
 
 const RESOURCE_SET = new Set(PERMISSION_RESOURCES.map((item) => item.resource));

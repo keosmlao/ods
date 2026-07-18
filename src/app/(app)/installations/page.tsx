@@ -2,13 +2,10 @@ import { InstallDeleteButton } from "@/components/installation/install-delete-bu
 import { CancelJobButton } from "@/components/installation/job-buttons";
 import { LinkButton } from "@/components/ui";
 import { getSession } from "@/lib/auth";
-import { query } from "@/lib/db";
-import { INSTALL_CANCELLED, INSTALL_OPEN, INSTALL_STAGE_SQL, INSTALL_STAGE_TIME_COL } from "@/lib/install-stage";
+import { INSTALL_OPEN, INSTALL_STAGE_SQL, INSTALL_STAGE_TIME_COL } from "@/lib/install-stage";
 import { permissionFor } from "@/lib/permissions";
-import { Ban, FilePlus2, Loader, Pencil, Printer } from "lucide-react";
+import { FilePlus2, Pencil, Printer } from "lucide-react";
 import Link from "next/link";
-import { CancelledSpares } from "./cancelled-spares";
-import { getInstallOutstandingByJob } from "./outstanding";
 import {
   INSTALL_PLAIN_COLUMNS,
   INSTALL_SEARCH,
@@ -18,13 +15,12 @@ import {
   ListHeader,
   PAGE_SIZE,
   Pager,
+  SearchBar,
   TableShell,
-  TabsAndSearch,
   fetchInstallRows,
   installOrderBy,
   readParams,
   type ListSearchParams,
-  type TabItem,
 } from "./shared";
 
 /**
@@ -41,34 +37,10 @@ export const dynamic = "force-dynamic";
  * KPI · ລາຍງານແບບສອບຖາມລູກຄ້າ.
  * ເຫຼືອ "ຍົກເລີກແລ້ວ" ໄວ້ (3 ງານ — ແລະ ມັນມີໜ້າທີ່ຈິງ: ບອກອາໄຫຼ່ທີ່ຄ້າງນອກສາງ).
  */
-type Tab = "open" | "cancelled";
 type Props = { searchParams: Promise<ListSearchParams> };
 
-/** ຖັງງານ — ລວມກັນແລ້ວໄດ້ທຸກແຖວຂອງ ods_tb_install ພໍດີ (ຍົກເວັ້ນ done ທີ່ຢູ່ໃນ open ນຳ) */
-const BUCKET: Record<Tab, string> = {
-  open: INSTALL_OPEN,
-  cancelled: INSTALL_CANCELLED,
-};
-
-async function getCounts(tech: string | null) {
-  const params = tech ? [tech] : [];
-  const mine = tech ? "and a.tech_code = $1" : "";
-  const sql = `select
-      count(*) filter (where ${BUCKET.open})::int open,
-      count(*) filter (where ${BUCKET.cancelled})::int cancelled,
-      count(*) filter (where ${INSTALL_OPEN} and (a.tech_code is null or a.tech_code = '')
-        and a.start_install is null)::int unassigned
-    from ods_tb_install a where true ${mine}`;
-  const row = (await query<{ open: number; cancelled: number; unassigned: number }>(sql, params)).rows[0];
-  return {
-    open: row?.open ?? 0,
-    cancelled: row?.cancelled ?? 0,
-    unassigned: row?.unassigned ?? 0,
-  };
-}
-
-/** ຂັ້ນທີ່ກອງໄດ້ (ສະເພາະ 8 ຄິວງານດຳເນີນຢູ່: 0..7) */
-const OPEN_STAGES = [0, 1, 2, 3, 4, 5, 6, 7];
+/** ຂັ້ນທີ່ກອງໄດ້ (ສະເພາະ 9 ຄິວງານດຳເນີນຢູ່: 0..8) */
+const OPEN_STAGES = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
 export default async function InstallationsPage({ searchParams }: Props) {
   const session = await getSession();
@@ -79,23 +51,20 @@ export default async function InstallationsPage({ searchParams }: Props) {
     : { read: false, create: false, update: false, delete: false };
 
   const raw = await searchParams;
-  const tab: Tab = raw.tab === "cancelled" ? "cancelled" : "open";
   const { q, page, sort, dir } = readParams(raw);
   /**
-   * ຕົວກອງສະຖານະ — ສະເພາະແທັບ "ດຳເນີນຢູ່" (8 ຄິວ: ຂັ້ນ 0..7).
+   * ຕົວກອງສະຖານະ — ສະເພາະງານດຳເນີນຢູ່ (9 ຄິວ: ຂັ້ນ 0..8).
    * ໜ້ານີ້ຄື "ໃບງານ/ລໍຖ້າຈັດຊ່າງ" ⇒ **ຄ່າຕັ້ງຕົ້ນ = ຂັ້ນ 0 (ລໍຖ້າຈັດຊ່າງ)**.
    * ຢາກເຫັນທຸກຂັ້ນ ⇒ ?status=all (chip "ທຸກຂັ້ນ"). status = null ໝາຍວ່າ ທຸກຂັ້ນ.
    */
   const status =
-    tab !== "open"
+    raw.status === "all"
       ? null
-      : raw.status === "all"
-        ? null
-        : OPEN_STAGES.includes(Number(raw.status))
-          ? Number(raw.status)
-          : 0;
+      : OPEN_STAGES.includes(Number(raw.status))
+        ? Number(raw.status)
+        : 0;
 
-  const where = [BUCKET[tab]];
+  const where = [INSTALL_OPEN];
   const params: (string | number)[] = [];
   if (tech) {
     params.push(tech);
@@ -107,45 +76,24 @@ export default async function InstallationsPage({ searchParams }: Props) {
     where.push(INSTALL_SEARCH.replaceAll("$Q", `$${params.length}`));
   }
 
-  const [counts, jobs] = await Promise.all([
-    getCounts(tech),
-    fetchInstallRows({
-      where: where.join(" and "),
-      params,
-      orderBy: installOrderBy(sort, dir, INSTALL_STAGE_TIME_COL),
-      page,
-    }),
-  ]);
-
-  /**
-   * ງານທີ່ຍົກເລີກແລ້ວ ແຕ່ອາໄຫຼ່ຍັງຄ້າງນອກສາງ (B5) — cancelInstall ບໍ່ດຶງອາໄຫຼ່ຄືນເອງ
-   * (ຫ້າມຍ້າຍສະຕັອກແບບງຽບໆ) ຈຶ່ງສະແດງໃຫ້ເຫັນຢູ່ນີ້ ແລ້ວພາໄປຂັ້ນຕອນສົ່ງຄືນທີ່ມີຢູ່ແລ້ວ
-   * (SRI 59 → SRT 58) — ຄືກັບທີ່ /approvals/cancellations ເຮັດໃຫ້ຝັ່ງສ້ອມ.
-   */
-  const outstanding =
-    tab === "cancelled" ? await getInstallOutstandingByJob(jobs.rows.map((row) => row.code)) : new Map();
-  const outstandingJobs = [...outstanding.entries()].map(([code, docs]) => ({ code, docs }));
+  const jobs = await fetchInstallRows({
+    where: where.join(" and "),
+    params,
+    orderBy: installOrderBy(sort, dir, INSTALL_STAGE_TIME_COL),
+    page,
+  });
 
   const pages = Math.max(1, Math.ceil(jobs.total / PAGE_SIZE));
   // ຕົວກອງສະຖານະຕ້ອງໄປນຳທຸກລິ້ງ (ຈັດຮຽງ/ປ່ຽນໜ້າ) ບໍ່ດັ່ງນັ້ນກົດແລ້ວເດັ້ງອອກຈາກຕົວກອງ
   const base = () => ({
-    ...(tab !== "open" && { tab }),
     ...(q && { q }),
     // default (ບໍ່ມີ param) = ຂັ້ນ 0 ⇒ ລິ້ງຈັດຮຽງ/ປ່ຽນໜ້າ ຕ້ອງພົກ status ໄປນຳ (ລວມ "all")
-    ...(tab === "open" && { status: status === null ? "all" : String(status) }),
+    status: status === null ? "all" : String(status),
   });
-  const tabHref = (target: Tab) =>
-    `/installations?${new URLSearchParams({ ...(target !== "open" && { tab: target }), ...(q && { q }) })}`;
   const sortHref = (key: string, nextDir: "asc" | "desc") =>
     `/installations?${new URLSearchParams({ ...base(), sort: key, dir: nextDir })}`;
   const pageHref = (n: number) =>
     `/installations?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
-
-  // ໜ້ານີ້ = ຄິວ "ລໍຖ້າຈັດຊ່າງ" (ຂັ້ນ 0) — ການເບິ່ງຕໍ່ຂັ້ນອື່ນຍ້າຍໄປກຸ່ມ "ຂັ້ນຕອນຕິດຕັ້ງ" ໃນ sidebar ແລ້ວ
-  const TABS: TabItem<Tab>[] = [
-    { key: "open", label: "ລໍຖ້າຈັດຊ່າງ", icon: Loader, count: counts.unassigned },
-    { key: "cancelled", label: "ຍົກເລີກແລ້ວ", icon: Ban, count: counts.cancelled },
-  ];
 
   return (
     <div className="w-full space-y-4">
@@ -157,7 +105,7 @@ export default async function InstallationsPage({ searchParams }: Props) {
         ເຫຼືອໄວ້ພຽງ **ການກະທຳຫຼັກຂອງໜ້ານີ້** (ເປີດງານ) — ຢູ່ແຖວດຽວກັບຊື່ໜ້າ.
       */}
       <ListHeader
-        title="ຕິດຕັ້ງເຄື່ອງ"
+        title="ລໍຖ້າຈັດຊ່າງ"
         scope={tech ? "ສະແດງສະເພາະງານຂອງທ່ານ" : "ສະແດງທຸກງານ"}
         total={jobs.total}
         page={page}
@@ -171,17 +119,11 @@ export default async function InstallationsPage({ searchParams }: Props) {
         )}
       </ListHeader>
 
-      <TabsAndSearch
-        tabs={TABS}
-        current={tab}
-        tabHref={tabHref}
+      <SearchBar
         q={q}
         sort={sort}
         dir={dir}
-        hidden={tab !== "open" ? { tab } : {}}
       />
-
-      {tab === "cancelled" && <CancelledSpares jobs={outstandingJobs} />}
 
       <TableShell total={jobs.total} minWidth={1250}>
         <InstallTableHead
@@ -192,51 +134,36 @@ export default async function InstallationsPage({ searchParams }: Props) {
           sortHref={sortHref}
         />
         <tbody>
-          {jobs.rows.map((row) => {
-            const cancelled = Boolean(row.cancel_date);
-            return (
-              <tr
-                key={row.code}
-                className={cancelled ? "border-b border-slate-100 bg-[#fce8e6]" : "border-b border-slate-100 hover:bg-slate-50"}
-              >
-                <InstallCells row={row} />
-                <td className="whitespace-nowrap px-3 py-2.5">
-                  <div className="flex items-center justify-center gap-2">
-                    {cancelled ? (
-                      <span className="text-[10px] text-slate-500" title={row.cancel_remark ?? ""}>
-                        {row.cancel_code ?? "-"}
-                      </span>
-                    ) : (
-                      <>
-                        <Link
-                          href={`/installations/${encodeURIComponent(row.code)}/print`}
-                          target="_blank"
-                          title="ພິມ"
-                          className="text-[#D35400] hover:opacity-70"
-                        >
-                          <Printer className="size-4" />
-                        </Link>
-                        {row.stage !== 8 && installPermission.update && (
-                          <>
-                            <Link
-                              href={`/installations/${encodeURIComponent(row.code)}/edit`}
-                              title="ແກ້ໄຂ"
-                              className="text-teal-600 hover:opacity-70"
-                            >
-                              <Pencil className="size-4" />
-                            </Link>
-                            <CancelJobButton code={row.code} />
-                          </>
-                        )}
-                      </>
-                    )}
-                    {/* ງານທີ່ຍົກເລີກແລ້ວກໍ່ລຶບໄດ້ — ມັນຄືງານທີ່ຄ້າງໃນລະບົບຫຼາຍທີ່ສຸດ */}
-                    {installPermission.delete && <InstallDeleteButton code={row.code} />}
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
+          {jobs.rows.map((row) => (
+            <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
+              <InstallCells row={row} />
+              <td className="whitespace-nowrap px-3 py-2.5">
+                <div className="flex items-center justify-center gap-2">
+                  <Link
+                    href={`/installations/${encodeURIComponent(row.code)}/print`}
+                    target="_blank"
+                    title="ພິມ"
+                    className="text-[#D35400] hover:opacity-70"
+                  >
+                    <Printer className="size-4" />
+                  </Link>
+                  {row.stage !== 9 && installPermission.update && (
+                    <>
+                      <Link
+                        href={`/installations/${encodeURIComponent(row.code)}/edit`}
+                        title="ແກ້ໄຂ"
+                        className="text-teal-600 hover:opacity-70"
+                      >
+                        <Pencil className="size-4" />
+                      </Link>
+                      <CancelJobButton code={row.code} />
+                    </>
+                  )}
+                  {installPermission.delete && <InstallDeleteButton code={row.code} />}
+                </div>
+              </td>
+            </tr>
+          ))}
         </tbody>
       </TableShell>
 
