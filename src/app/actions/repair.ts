@@ -364,6 +364,7 @@ export async function addUsedSpare(
   await query("update tb_product set used_spare=1 where code=$1", [code]);
   await logChange("tb_product", code, `ເພີ່ມອາໄຫຼ່ທີ່ໃຊ້ສ້ອມ: ${canonical.name_1} × ${qty}`);
   revalidatePath(`/repair/${code}`);
+  revalidatePath(`/service/${code}`);
   return {};
 }
 
@@ -382,6 +383,7 @@ export async function updateUsedSpareQty(code: string, rowOrder: number, qty: nu
   if (!name) return { error: "ອາໄຫຼ່ນີ້ເຂົ້າໃບຂໍເບີກແລ້ວ — ແກ້ຈຳນວນບໍ່ໄດ້" };
   await logChange("tb_product", code, `ແກ້ຈຳນວນອາໄຫຼ່ທີ່ໃຊ້ສ້ອມ: ${name} = ${qty}`);
   revalidatePath(`/repair/${code}`);
+  revalidatePath(`/service/${code}`);
   return {};
 }
 
@@ -405,6 +407,7 @@ export async function deleteUsedSpare(code: string, rowOrder: number) {
   );
   await logChange("tb_product", code, `ຖອດອາໄຫຼ່ອອກຈາກລາຍການສ້ອມ: ${name}`);
   revalidatePath(`/repair/${code}`);
+  revalidatePath(`/service/${code}`);
   return {};
 }
 

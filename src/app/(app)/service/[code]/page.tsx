@@ -8,7 +8,9 @@ import { elapsedTone } from "@/lib/elapsed-tone";
 import { holdJsonSql, type JobHold } from "@/lib/job-hold";
 import { previousJobOf, REPEAT_DAYS } from "@/lib/repeat";
 import { AssignTechButton } from "@/components/installation/assign-tech";
+import { RepairSpareEditor, type UsedSpareLine } from "@/components/repair/repair-spare-editor";
 import { listTechnicians } from "@/lib/technicians";
+import { TRANS } from "@/lib/stock-constants";
 import { APPROVER_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { canViewAssignedJob } from "@/lib/scope";
 import { SETTING, settingEnabled } from "@/lib/settings";
@@ -54,6 +56,8 @@ type Job = {
   /** ວັນນັດ + ສະຖານທີ່ສ້ອມ — ໃຫ້ AssignTechButton (ປ່ຽນຊ່າງ) pre-fill ໄດ້ */
   appoint_date: string | null;
   location_inst: string | null;
+  /** ໃຊ້ເປັນ key ຂອງໜ້າ /stock/requests/[roworder] (ຂໍເບີກອາໄຫຼ່) */
+  roworder: number;
   receiver: string | null;
   /** ຍົກເລີກ = **ທຸງ** (status=6) ບໍ່ແມ່ນຂັ້ນ — ງານທີ່ຍົກເລີກແຕ່ເຄື່ອງຍັງຢູ່ ຢູ່ຂັ້ນ 11 */
   cancelled: boolean;
@@ -80,7 +84,7 @@ export default async function ServiceDetail({ params }: Props) {
          a.warrunty warranty, a.warranty_reason, a.service_type, a.issue, a.issue_2, a.p_abrasion remark, a.repair_note note,
          a.p_delivery delivery, a.doc_def bill_no, a.doc_date_ref bill_date,
          a.emp_code technician, to_char(a.appoint_date,'YYYY-MM-DD') appoint_date,
-         a.location_repair location_inst, a.user_regis receiver,
+         a.location_repair location_inst, a.roworder, a.user_regis receiver,
          (select count(*) from product_image i
            where i.iteme_code = a.code and coalesce(i.product_url,'') <> '')::int images,
          (select count(*) from cust_contactor t where t.product_code = a.code)::int contacts,
@@ -166,6 +170,28 @@ export default async function ServiceDetail({ params }: Props) {
    */
   const canReassign = !done && !cancelled && SERVICE_SIDE.includes(roleOf(session));
   const techs = canReassign ? await listTechnicians() : [];
+
+  /**
+   * ອາໄຫຼ່ຕອນສ້ອມ (ຂັ້ນ 9) — ພົບຕ້ອງໃຊ້ເພີ່ມ/ປ່ຽນ ⇒ ເພີ່ມລາຍການ ແລ້ວ "ຂໍເບີກເພີ່ມ" (ຮອບ 2).
+   * requested = ຢູ່ໃບຂໍເບີກແລ້ວ (reg_start) · locked = ເບີກ/ຈ່າຍອອກແລ້ວ (ແກ້/ລຶບບໍ່ໄດ້).
+   */
+  const spareLines: UsedSpareLine[] =
+    job.stage === 9
+      ? (
+          await query<UsedSpareLine>(
+            `select s.roworder, s.item_code, s.item_name, coalesce(s.qty,0)::int qty, s.unit_code,
+               (s.reg_start is not null) as "requested",
+               (s.pick_finish is not null or exists (
+                  select 1 from ic_trans_detail d
+                  where d.product_code = s.product_code and d.item_code = s.item_code
+                    and d.trans_flag in (${TRANS.REQUEST}, ${TRANS.DISPATCH}))) as "locked"
+             from tb_used_spare s where s.product_code = $1 order by s.roworder`,
+            [code],
+          )
+        ).rows
+      : [];
+  // "ຄ້າງເບີກ" = ຍັງບໍ່ຢູ່ໃບຂໍເບີກ/ໃບເບີກໃດ (locked=false) ⇒ ອັນທີ່ createSpareRequest ຈະດຶງ
+  const pendingSpares = spareLines.filter((line) => !line.locked).length;
 
   return (
     <div className="w-full space-y-4">
@@ -283,6 +309,15 @@ export default async function ServiceDetail({ params }: Props) {
             />
           )}
         </section>
+      )}
+
+      {job.stage === 9 && (
+        <RepairSpareEditor
+          code={job.code}
+          roworder={String(job.roworder)}
+          lines={spareLines}
+          pending={pendingSpares}
+        />
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
