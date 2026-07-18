@@ -775,6 +775,118 @@ export async function saveTransferRequest(_: StockState, formData: FormData): Pr
   redirect("/stock/dispatch");
 }
 
+const repairTransferSchema = z.object({
+  to_wh: z.string().min(1),
+  to_shelf: z.string().default(""),
+  remark: z.string().default(""),
+  items: z.string().min(1),
+});
+
+/**
+ * **ຂໍໂອນອາໄຫຼ່ມາຫ້ອງສ້ອມ ໂດຍບໍ່ຜ່ານໃບຂໍເບີກ** — ຕ່າງຈາກ saveTransferRequest ທີ່ຜູກກັບ
+ * ໃບຂໍເບີກຂອງວຽກ. ອັນນີ້ເລືອກອາໄຫຼ່ເອງ + ເລືອກສາງຫ້ອງສ້ອມປາຍທາງ (ບໍ່ຜູກ job).
+ *
+ * ⚠️ ໃບ trans_flag 124 (calc_flag=0) **ບໍ່ຂະຍັບສະຕ໋ອກ** — ເປັນພຽງ "ຄຳຂໍ" ໃຫ້ສາງໃຫຍ່ໂອນ
+ * (ການໂອນຈິງ = ໃບ FT ຂອງ ERP). ⇒ ປອດໄພ, ບໍ່ຕັດ/ບວກ inventory. mirror insert ຂອງ
+ * saveTransferRequest ທຸກຢ່າງ ຍົກເວັ້ນ doc_ref/product_code (standalone) ແລະ ຮັບຫຼາຍແຖວ.
+ */
+export async function saveRepairTransfer(_: StockState, formData: FormData): Promise<StockState> {
+  const guard = await requireRole(STOCK_SIDE, "ບໍ່ມີສິດຂໍໂອນອາໄຫຼ່");
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+  if (!odgDb) return { error: "ບໍ່ພົບ ODG_DATABASE_URL" };
+
+  const parsed = repairTransferSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "ຂໍ້ມູນບໍ່ຄົບ" };
+  const toWh = parsed.data.to_wh;
+  const toShelf = parsed.data.to_shelf || DEFAULT_SHELF;
+  const remark = parsed.data.remark;
+
+  let items: { item_code: string; item_name?: string; unit_code?: string | null; qty: number }[];
+  try {
+    items = (JSON.parse(parsed.data.items) as typeof items)
+      .filter((line) => line.item_code && Number(line.qty) > 0)
+      .map((line) => ({ ...line, qty: Number(line.qty) }));
+  } catch {
+    return { error: "ລາຍການອາໄຫຼ່ບໍ່ຖືກຕ້ອງ" };
+  }
+  if (items.length === 0) return { error: "ກະລຸນາເລືອກອາໄຫຼ່ຢ່າງໜ້ອຍ 1 ລາຍການ" };
+
+  const { date: docDate, time: docTime, at } = nowParts();
+  const ods = await db.connect();
+  const odg = await odgDb.connect();
+  let docNo = "";
+  try {
+    await ods.query("begin");
+    await odg.query("begin");
+    await ods.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
+
+    // ເລກ SFRK — ຂ້າມໄປເລກຖັດຈາກ ERP (ຄືກັບ saveTransferRequest)
+    const prefix = docPrefix("SFRK", at);
+    const odsSeq = Number((await nextDocNo(ods, "SFRK", at)).slice(prefix.length));
+    const erpSeq = (
+      await odg.query<{ seq: number }>(
+        `select coalesce(max(substring(doc_no from $1::int)::int), 0) seq from ic_trans
+         where doc_no like $2 and substring(doc_no from $1::int) ~ '^[0-9]+$'`,
+        [prefix.length + 1, `${prefix}%`],
+      )
+    ).rows[0].seq;
+    docNo = `${prefix}${String(Math.max(odsSeq, erpSeq + 1)).padStart(4, "0")}`;
+
+    // ── ODS ຫົວ + ລາຍລະອຽດ (standalone: ບໍ່ມີ doc_ref/product_code)
+    await ods.query(
+      `insert into ic_trans(trans_flag, doc_date, doc_no, remark, user_created, wh_code, shelf_code, status)
+       values($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [TRANS.TRANSFER, docDate, docNo, remark, session.username, toWh, toShelf, LINE_STATUS.PENDING],
+    );
+    for (const line of items) {
+      await ods.query(
+        `insert into ic_trans_detail(trans_flag, doc_date, doc_no, item_code, item_name, qty, unit_code, calc_flag, user_created, status)
+         values($1,$2,$3,$4,$5,$6,$7,0,$8,$9)`,
+        [TRANS.TRANSFER, docDate, docNo, line.item_code, line.item_name ?? "", line.qty, line.unit_code ?? "", session.username, LINE_STATUS.PENDING],
+      );
+    }
+
+    // ── ERP ຫົວ + ລາຍລະອຽດ (calc_flag=0 → ບໍ່ຕັດສະຕ໋ອກ · ຕົ້ນທາງ 1204 → ປາຍທາງ ຫ້ອງສ້ອມ)
+    await odg.query(
+      `insert into ic_trans(trans_type, trans_flag, doc_no, doc_date, sale_code, doc_time,
+         doc_format_code, wh_from, location_from, wh_to, location_to, creator_code, branch_code, remark)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+      [
+        ERP.TRANS_TYPE, TRANS.TRANSFER, docNo, docDate, session.username, docTime,
+        TRANSFER_FORMAT, TRANSFER_FROM_WH, TRANSFER_FROM_SHELF, toWh, toShelf,
+        session.username, branchOf(toWh), remark,
+      ],
+    );
+    for (const line of items) {
+      await odg.query(
+        `insert into ic_trans_detail(trans_type, trans_flag, doc_no, doc_date, item_code, item_name, unit_code,
+           qty, wh_code, shelf_code, wh_code_2, shelf_code_2, stand_value, divide_value, doc_date_calc, doc_time_calc, calc_flag)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,1,1,$13,$14,0)`,
+        [
+          ERP.TRANS_TYPE, TRANS.TRANSFER, docNo, docDate, line.item_code, line.item_name ?? "", line.unit_code ?? "",
+          line.qty, TRANSFER_FROM_WH, TRANSFER_FROM_SHELF, toWh, toShelf, docDate, docTime,
+        ],
+      );
+    }
+
+    await odg.query("commit");
+    await ods.query("commit");
+  } catch (error) {
+    await odg.query("rollback").catch(() => {});
+    await ods.query("rollback").catch(() => {});
+    console.error("saveRepairTransfer failed", error);
+    return { error: "ຂໍໂອນບໍ່ສຳເລັດ" };
+  } finally {
+    odg.release();
+    ods.release();
+  }
+
+  revalidatePath("/stock/transfers");
+  return { ok: `ສ້າງໃບຂໍໂອນ ${docNo} ແລ້ວ (${items.length} ລາຍການ → ${toWh}) — ສາງໃຫຍ່ໂອນເຂົ້າ ແລ້ວກົດຮັບທີ່ "ຕິດຕາມການໂອນ"` };
+}
+
 /**
  * ຮັບຂອງທີ່ໂອນມາ — ປິດໃບຂໍໂອນ (124) ແລ້ວປ່ອຍແຖວກັບເຂົ້າຄິວເບີກ.
  *

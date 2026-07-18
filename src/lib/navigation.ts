@@ -141,6 +141,7 @@ const STOCK: NavGroup = {
   label: "ສາງ ແລະ ອາໄຫຼ່",
   icon: Boxes,
   items: [
+    { label: "ຂໍໂອນອາໄຫຼ່ມາຫ້ອງສ້ອມ", href: "/stock/transfer-to-repair" },
     { label: "ຕິດຕາມການໂອນອາໄຫຼ່", href: "/stock/transfers" },
     { label: "ລາຍການສົ່ງ​ຄືນອາໄຫຼ່", href: "/stock/receive-returns" },
     // ອາໄຫຼ່ທີ່ເບີກອອກໄປແລ້ວ ແຕ່ວຽກຍົກເລີກ — ຕ້ອງເກັບຄືນ (ຍ້າຍມາຈາກໜ້າອະນຸມັດ 17-07-2026)
