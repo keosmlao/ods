@@ -344,20 +344,18 @@ export async function addUsedSpare(
   // ອາໄຫຼ່ຕົວດຽວກັນ ແລະ ຍັງບໍ່ໄດ້ເຂົ້າໃບຂໍເບີກ/ໃບເບີກ → ບວກຈຳນວນເຂົ້າແຖວເກົ່າ.
   // ຖ້າແຖວເກົ່າເຂົ້າເອກະສານໄປແລ້ວ ຕ້ອງແຍກເປັນແຖວໃໝ່ ບໍ່ດັ່ງນັ້ນຈຳນວນໃນກະຕ່າ
   // ຈະບໍ່ຕົງກັບໃບຂໍເບີກທີ່ອອກໄປແລ້ວ.
+  // ຂັ້ນ 9 ກວດຢູ່ JS ຂ້າງເທິງແລ້ວ (loaded.job.stage) ⇒ SQL ບໍ່ຕ້ອງ guard ຊ້ຳ (ຫຼີກ INSERT..SELECT type clash)
   const merged = await query(
     `update tb_used_spare set qty = coalesce(qty,0) + $1
-      where product_code=$2 and item_code=$3 and ${NOT_ON_DOC}
-        and exists (select 1 from tb_product a where a.code=$2 and (${STAGE_SQL})=9)`,
+      where product_code=$2 and item_code=$3 and ${NOT_ON_DOC}`,
     [qty, code, canonical.code],
   );
   if (!merged.rowCount) {
-    const inserted = await query(
+    await query(
       `insert into tb_used_spare(product_code, item_code, item_name, qty, unit_code, status, create_date_time_now)
-       select $1, $2, $3, $4, $5, '0', ${NOW}
-       where exists (select 1 from tb_product a where a.code=$1 and (${STAGE_SQL})=9)`,
+       values($1, $2, $3, $4, $5, '0', ${NOW})`,
       [code, canonical.code, canonical.name_1, qty, canonical.unit_code],
     );
-    if (!inserted.rowCount) return { error: "ວຽກຖືກປ່ຽນຂັ້ນໄປແລ້ວ — ເພີ່ມອາໄຫຼ່ບໍ່ໄດ້" };
   }
 
   // ມີອາໄຫຼ່ແລ້ວ → ໝາຍໃບນີ້ວ່າ "ໃຊ້ອາໄຫຼ່"

@@ -9,6 +9,7 @@ import '../api.dart';
 import '../main.dart';
 import 'check_screen.dart';
 import 'pickup_screen.dart';
+import 'repair_spare_screen.dart';
 import 'spare_request_screen.dart';
 import 'spare_return_screen.dart';
 
@@ -453,6 +454,22 @@ class _JobScreenState extends State<JobScreen> {
                       ? null
                       : () => run({'action': 'start'}),
                 ),
+
+              // ຂັ້ນ 9 ກຳລັງສ້ອມ (ສະເພາະສ້ອມ): ພົບຕ້ອງໃຊ້ອາໄຫຼ່ເພີ່ມ/ປ່ຽນ ⇒ ຂໍເບີກເພີ່ມ
+              if (job.workflow == 'repair' && job.stage == 9) ...[
+                _button(
+                  'ຂໍເບີກ / ປ່ຽນ ອາໄຫຼ່ (ຕອນສ້ອມ)',
+                  const Color(0xFF334155),
+                  () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => RepairSpareScreen(code: job.code)),
+                    );
+                    if (mounted) await reload();
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
 
               if (job.action == 'finish') ...[
                 if (job.workflow == 'repair') ...[

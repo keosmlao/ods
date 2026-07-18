@@ -216,6 +216,42 @@ class Api {
     return Lookups.fromJson(result);
   }
 
+  /* ── ອາໄຫຼ່ຕອນສ້ອມ (ຂັ້ນ 9): ລາຍການ · ເພີ່ມ · ຖອດ ── */
+
+  static Future<List<RepairSpareLine>> usedSpares(String code) async {
+    final result = await _send(
+      'POST',
+      '/api/mobile/spare-request',
+      body: {'action': 'used-list', 'code': code},
+    );
+    return (result['data'] as List)
+        .map((row) => RepairSpareLine.fromJson(row))
+        .toList();
+  }
+
+  static Future<String> addUsedSpare(String code, SpareItem item, int qty) async {
+    final result = await _send(
+      'POST',
+      '/api/mobile/spare-request',
+      body: {
+        'action': 'add-used',
+        'code': code,
+        'item': {'code': item.code, 'name_1': item.name, 'unit_code': item.unitCode},
+        'qty': qty,
+      },
+    );
+    return result['message'] as String;
+  }
+
+  static Future<String> removeUsedSpare(String code, int roworder) async {
+    final result = await _send(
+      'POST',
+      '/api/mobile/spare-request',
+      body: {'action': 'remove-used', 'code': code, 'roworder': roworder},
+    );
+    return result['message'] as String;
+  }
+
   static Future<String> requestSpares(
     String workflow,
     String code,
@@ -571,6 +607,36 @@ class DraftLine {
     itemCode: json['item_code'] as String,
     itemName: json['item_name'] as String?,
     qty: (json['qty'] as num).toDouble(),
+  );
+}
+
+/// ອາໄຫຼ່ຕອນສ້ອມ (ຂັ້ນ 9) — locked = ເບີກແລ້ວ (ຖອດບໍ່ໄດ້) · requested = ຢູ່ໃບຂໍເບີກແລ້ວ
+class RepairSpareLine {
+  final int roworder;
+  final String itemCode;
+  final String itemName;
+  final double qty;
+  final String? unitCode;
+  final bool requested;
+  final bool locked;
+  RepairSpareLine({
+    required this.roworder,
+    required this.itemCode,
+    required this.itemName,
+    required this.qty,
+    required this.unitCode,
+    required this.requested,
+    required this.locked,
+  });
+
+  factory RepairSpareLine.fromJson(Map<String, dynamic> json) => RepairSpareLine(
+    roworder: (json['roworder'] as num).toInt(),
+    itemCode: json['item_code'] as String,
+    itemName: json['item_name'] as String? ?? '',
+    qty: (json['qty'] as num).toDouble(),
+    unitCode: json['unit_code'] as String?,
+    requested: json['requested'] as bool? ?? false,
+    locked: json['locked'] as bool? ?? false,
   );
 }
 

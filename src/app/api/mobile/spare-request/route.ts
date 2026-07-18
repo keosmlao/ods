@@ -1,5 +1,6 @@
 import { requireMobile } from "@/lib/mobile-auth";
 import { ownMobileJob } from "@/lib/job-flow";
+import { addRepairSpare, listRepairSpares, removeRepairSpare } from "@/lib/repair-spare";
 import { TECH_SIDE } from "@/lib/roles";
 import {
   createInstallSpareRequest,
@@ -33,7 +34,11 @@ type Body =
       code: string;
       remark?: string;
       items: { item_code: string; qty: number }[];
-    };
+    }
+  /** ອາໄຫຼ່ຕອນສ້ອມ (ຂັ້ນ 9) — ລາຍການ · ເພີ່ມ · ຖອດ. ຫຼັງເພີ່ມແລ້ວ ໃຊ້ action "request" ຂໍເບີກ */
+  | { action: "used-list"; code: string }
+  | { action: "add-used"; code: string; item: { code: string; name_1: string; unit_code: string | null }; qty: number }
+  | { action: "remove-used"; code: string; roworder: number };
 
 export async function POST(request: Request) {
   const guard = await requireMobile(request, TECH_SIDE);
@@ -58,6 +63,12 @@ export async function POST(request: Request) {
     if (body.action === "outstanding") {
       return NextResponse.json({ data: await outstandingSpares(String(body.code ?? "")) });
     }
+    // ລາຍການອາໄຫຼ່ຕອນສ້ອມ (ຂັ້ນ 9) — ownMobileJob ກວດຢູ່ໃນ add/remove ເອງ; list ກວດຢູ່ນີ້
+    if (body.action === "used-list") {
+      const own = await ownMobileJob(guard.user, "repair", String(body.code ?? ""));
+      if (!own.ok) return NextResponse.json({ error: own.error }, { status: 403 });
+      return NextResponse.json({ data: await listRepairSpares(String(body.code ?? "")) });
+    }
     const result =
       body.action === "request"
         ? await (body.workflow === "install" ? createInstallSpareRequest : createSpareRequest)(guard.user, {
@@ -66,15 +77,19 @@ export async function POST(request: Request) {
             wh_code: String(body.wh_code ?? ""),
             shelf_code: String(body.shelf_code ?? ""),
           })
-        : body.action === "pickup"
-          ? await pickupSpares(guard.user, String(body.doc_ref ?? ""), String(body.remark ?? ""))
-          : body.action === "return"
-            ? await createSpareReturn(guard.user, {
-                code: String(body.code ?? ""),
-                remark: String(body.remark ?? ""),
-                items: Array.isArray(body.items) ? body.items : [],
-              })
-            : { ok: false as const, error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" };
+        : body.action === "add-used"
+          ? await addRepairSpare(guard.user, String(body.code ?? ""), body.item, Number(body.qty) || 1)
+          : body.action === "remove-used"
+            ? await removeRepairSpare(guard.user, String(body.code ?? ""), Number(body.roworder))
+            : body.action === "pickup"
+              ? await pickupSpares(guard.user, String(body.doc_ref ?? ""), String(body.remark ?? ""))
+              : body.action === "return"
+                ? await createSpareReturn(guard.user, {
+                    code: String(body.code ?? ""),
+                    remark: String(body.remark ?? ""),
+                    items: Array.isArray(body.items) ? body.items : [],
+                  })
+                : { ok: false as const, error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" };
 
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
