@@ -505,8 +505,14 @@ export async function assignRepairTech(_: RepairState, formData: FormData): Prom
   if (!code || !tech) return { error: "ກະລຸນາເລືອກຊ່າງ" };
 
   const job = (
-    await query<{ emp_code: string | null; spare_reg: string | null; done: boolean; cancelled: boolean }>(
-      `select nullif(emp_code,'') as emp_code, spare_reg,
+    await query<{
+      emp_code: string | null;
+      spare_reg: string | null;
+      service_type: string | null;
+      done: boolean;
+      cancelled: boolean;
+    }>(
+      `select nullif(emp_code,'') as emp_code, spare_reg, service_type,
           (return_complete is not null) as done, (cancel_start is not null) as cancelled
         from tb_product where code = $1 limit 1`,
       [code],
@@ -515,6 +521,8 @@ export async function assignRepairTech(_: RepairState, formData: FormData): Prom
   if (!job) return { error: "ບໍ່ພົບໃບຮັບເຄື່ອງນີ້" };
   if (job.cancelled) return { error: "ໃບນີ້ຖືກຍົກເລີກແລ້ວ" };
   if (job.done) return { error: "ໃບນີ້ສົ່ງຄືນລູກຄ້າແລ້ວ" };
+  // IH ໄປສ້ອມບ້ານລູກຄ້າ = ຕ້ອງມີວັນນັດ (ຈຸດປະສົງຂອງ "ນັດ+ຈັດຊ່າງ") — ບໍ່ດັ່ງນັ້ນລູກຄ້າບໍ່ຮູ້ຊ່າງມາມື້ໃດ
+  if (job.service_type === "IH" && !appoint) return { error: "ກະລຸນາໃສ່ວັນນັດໝາຍໄປສ້ອມ" };
   // ຂໍເບີກແລ້ວ = ເອກະສານອອກໃນນາມຊ່າງຄົນເກົ່າ ⇒ ປ່ຽນຄົນບໍ່ໄດ້ (ບໍ່ດັ່ງນັ້ນອາໄຫຼ່ບໍ່ມີເຈົ້າຂອງ)
   if (job.spare_reg && job.emp_code && job.emp_code !== tech) {
     return { error: "ປ່ຽນຊ່າງບໍ່ໄດ້ — ມີໃບຂໍເບີກອາໄຫຼ່ໃນນາມຊ່າງຄົນເກົ່າແລ້ວ" };

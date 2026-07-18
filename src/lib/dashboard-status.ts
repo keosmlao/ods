@@ -60,7 +60,7 @@ export const repairStatuses: Record<string, StatusDef> = {
   repairing: { label: "ກຳລັງສ້ອມ", condition: stageIs(9), stage: 9 },
   // ດ່ານກວດຮັບຄຸນນະພາບ — ຂັ້ນໃໝ່ (ສ້ອມສຳເລັດແລ້ວ ແຕ່ຍັງບໍ່ຜ່ານ QC)
   "wait-qc": { label: "ລໍກວດຮັບຄຸນນະພາບ", condition: stageIs(10), stage: 10 },
-  "wait-return": { label: "ລໍຖ້າສົ່ງຄືນ", condition: stageIs(11), stage: 11 },
+  "wait-return": { label: "ລໍຖ້າສົ່ງຄືນ / ປິດງານ (IH)", condition: stageIs(11), stage: 11 },
 
   /**
    * ⚠️ ຄິວ **ຕັດຂວາງຂັ້ນ** — ຊ່າງຖືກຈັດແລ້ວ ແຕ່ຍັງບໍ່ກົດຮັບງານ (repair_confirm ຫວ່າງ).

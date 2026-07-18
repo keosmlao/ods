@@ -104,10 +104,14 @@ export const STAGE_LABEL: Record<number, string> = {
  * ແຕ່ກ່ອນ 3 ໄຟລ໌ຂຽນ `case … when 10 then 'ລໍຖ້າສົ່ງຄືນ' …` ຊ້ຳກັນເອງ
  * ⇒ ພໍເພີ່ມຂັ້ນ QC ເລກເລື່ອນໝົດ ແລະ ລາຍງານຈະສະແດງຊື່ຂັ້ນຜິດຢ່າງງຽບໆ.
  */
-// ຂັ້ນ 0 ໃຊ້ 2 ຄວາມໝາຍ (PS "ລໍໄປຮັບເຄື່ອງ" · IH "ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ") ⇒ ປ້າຍ SQL
-// ແຍກຕາມ service_type. ບ່ອນອື່ນ (ເມນູ/ຫົວໜ້າຄິວ) ເອົາປ້າຍຈາກ repairStatuses ໂດຍກົງ.
+// ປ້າຍ SQL ແຍກຕາມ service_type ບ່ອນຄວາມໝາຍຕ່າງ (ບ່ອນອື່ນ — ເມນູ/ຫົວໜ້າຄິວ — ເອົາຈາກ repairStatuses):
+//   ຂັ້ນ 0  PS "ລໍໄປຮັບເຄື່ອງ" · IH "ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ"
+//   ຂັ້ນ 11 CI/ST/PS "ລໍຖ້າສົ່ງຄືນ" · IH "ລໍປິດງານ" (ບໍ່ມີເຄື່ອງໃຫ້ສົ່ງຄືນ — ຢູ່ບ້ານແລ້ວ)
+//   ຂັ້ນ 12 CI/ST/PS "ສົ່ງຄືນສຳເລັດ" · IH "ຈົບງານ (ໜ້າງານ)"
 export const STAGE_LABEL_SQL = `case
-  when (${STAGE_SQL}) = 0 and coalesce(a.service_type,'') = 'IH' then 'ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ'
+  when (${STAGE_SQL}) = 0  and coalesce(a.service_type,'') = 'IH' then 'ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ'
+  when (${STAGE_SQL}) = 11 and coalesce(a.service_type,'') = 'IH' then 'ລໍປິດງານ'
+  when (${STAGE_SQL}) = 12 and coalesce(a.service_type,'') = 'IH' then 'ຈົບງານ (ໜ້າງານ)'
 ${Object.entries(STAGE_LABEL).map(([stage, label]) => `  when (${STAGE_SQL}) = ${stage} then '${label}'`).join("\n")}
   else '-' end`;
 
