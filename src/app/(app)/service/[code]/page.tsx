@@ -7,7 +7,9 @@ import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import { holdJsonSql, type JobHold } from "@/lib/job-hold";
 import { previousJobOf, REPEAT_DAYS } from "@/lib/repeat";
-import { APPROVER_SIDE, roleOf } from "@/lib/roles";
+import { AssignTechButton } from "@/components/installation/assign-tech";
+import { listTechnicians } from "@/lib/technicians";
+import { APPROVER_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { canViewAssignedJob } from "@/lib/scope";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
@@ -49,6 +51,9 @@ type Job = {
   bill_no: string | null;
   bill_date: string | null;
   technician: string | null;
+  /** ວັນນັດ + ສະຖານທີ່ສ້ອມ — ໃຫ້ AssignTechButton (ປ່ຽນຊ່າງ) pre-fill ໄດ້ */
+  appoint_date: string | null;
+  location_inst: string | null;
   receiver: string | null;
   /** ຍົກເລີກ = **ທຸງ** (status=6) ບໍ່ແມ່ນຂັ້ນ — ງານທີ່ຍົກເລີກແຕ່ເຄື່ອງຍັງຢູ່ ຢູ່ຂັ້ນ 11 */
   cancelled: boolean;
@@ -74,7 +79,8 @@ export default async function ServiceDetail({ params }: Props) {
          a.name_1 product, a.sn, a.p_model model, a.p_brand brand, a.p_type product_type, a.p_access accessory,
          a.warrunty warranty, a.warranty_reason, a.service_type, a.issue, a.issue_2, a.p_abrasion remark, a.repair_note note,
          a.p_delivery delivery, a.doc_def bill_no, a.doc_date_ref bill_date,
-         a.emp_code technician, a.user_regis receiver,
+         a.emp_code technician, to_char(a.appoint_date,'YYYY-MM-DD') appoint_date,
+         a.location_repair location_inst, a.user_regis receiver,
          (select count(*) from product_image i
            where i.iteme_code = a.code and coalesce(i.product_url,'') <> '')::int images,
          (select count(*) from cust_contactor t where t.product_code = a.code)::int contacts,
@@ -154,6 +160,12 @@ export default async function ServiceDetail({ params }: Props) {
    * server ກວດສິດຊ້ຳ (holdJob/requestCancel/markJobRepaired).
    */
   const canHold = !done && !cancelled && (await settingEnabled(SETTING.JOB_HOLD)) && APPROVER_SIDE.includes(roleOf(session));
+  /**
+   * ປ່ຽນຊ່າງ ຢູ່ໜ້າລາຍລະອຽດ — ຮອງຮັບກໍລະນີ **ຊ່າງກວດ ≠ ຊ່າງສ້ອມ**: ຫຼັງ A ກວດເຊັກ,
+   * CS/ຫົວໜ້າ ປ່ຽນເປັນ B ໃຫ້ໄປສ້ອມ. assignRepairTech ກັນ (ປ່ຽນຫຼັງຂໍເບີກບໍ່ໄດ້) ຢູ່ແລ້ວ.
+   */
+  const canReassign = !done && !cancelled && SERVICE_SIDE.includes(roleOf(session));
+  const techs = canReassign ? await listTechnicians() : [];
 
   return (
     <div className="w-full space-y-4">
@@ -249,11 +261,27 @@ export default async function ServiceDetail({ params }: Props) {
         </div>
       </div>
 
-      {/* ຈັດການວຽກຄ້າງ — ຄືຄໍລຳໃນລາຍການ /service ແຕ່ຈັດການໄດ້ໃນໜ້າລາຍລະອຽດເລີຍ */}
-      {canHold && (
+      {/* ຈັດການວຽກຄ້າງ / ປ່ຽນຊ່າງ — ຄືຄໍລຳໃນລາຍການ /service ແຕ່ຈັດການໄດ້ໃນໜ້າລາຍລະອຽດເລີຍ */}
+      {(canHold || canReassign) && (
         <section className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-          <span className="text-xs font-bold text-slate-600">ຈັດການວຽກຄ້າງ</span>
-          <HoldButtons key={job.hold ? "held" : "free"} code={job.code} hold={job.hold} />
+          <span className="text-xs font-bold text-slate-600">ຈັດການວຽກ</span>
+          {canHold && <HoldButtons key={job.hold ? "held" : "free"} code={job.code} hold={job.hold} />}
+          {canReassign && (
+            <AssignTechButton
+              label={job.technician ? "ປ່ຽນຊ່າງ" : "ຈັດຊ່າງ"}
+              size="sm"
+              row={{
+                code: job.code,
+                customer: job.customer,
+                location_inst: job.location_inst,
+                appoint_date: job.appoint_date,
+                remark: job.remark,
+                technician: job.technician,
+              }}
+              techs={techs}
+              workflow="repair"
+            />
+          )}
         </section>
       )}
 
