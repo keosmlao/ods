@@ -48,8 +48,11 @@ export default async function JobBarcodePage({ params }: Props) {
         @page { size: 50mm 30mm; margin: 0 }
         @media print {
           .no-print { display: none !important }
-          html, body { margin: 0 }
-          .label { page-break-after: always }
+          /* ── ບັງຄັບ **ໜ້າດຽວ** ── ປ້າຍພໍດີ 30mm ⇒ ການປັດເສດ sub-pixel ດັນລົງໜ້າ 2.
+             ວິທີແໜ້ນ: ດຶງປ້າຍ **ອອກຈາກ flow** (position:absolute) ⇒ ບໍ່ຂັບການແບ່ງໜ້າ,
+             + body ສູງ 30mm overflow:hidden ⇒ ເອກະສານມີໜ້າດຽວແທ້. */
+          html, body { margin: 0; padding: 0; width: 50mm; height: 30mm; overflow: hidden }
+          .label { position: absolute; inset: 0; width: 50mm !important; height: 30mm !important; border: 0 !important }
         }
       `}</style>
 

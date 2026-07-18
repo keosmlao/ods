@@ -32,7 +32,7 @@ import { APPROVER_SIDE, canAccess, roleOf } from "@/lib/roles";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { listTechnicians } from "@/lib/technicians";
-import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, CircleAlert, Download, House, PackageOpen, Search, Truck, Warehouse } from "lucide-react";
+import { ArrowLeft, ArrowRight, Barcode, ChevronLeft, ChevronRight, CircleAlert, Download, House, PackageOpen, Search, Truck, Warehouse } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -583,6 +583,17 @@ export default async function StatusPage({ params, searchParams }: Props) {
                         <Link href={detailHref(row.code)} className="hover:underline">{row.code}</Link>
                       ) : (
                         row.code
+                      )}
+                      {/* ພິມ barcode ຕິດເຄື່ອງ — ເປີດແທັບໃໝ່ (RowLink ຂ້າມ <a> ⇒ ບໍ່ໄປໜ້າ detail) */}
+                      {isRepair && (
+                        <Link
+                          href={`/service/${encodeURIComponent(row.code)}/barcode`}
+                          target="_blank"
+                          title="ພິມ barcode"
+                          className="ml-1.5 inline-flex size-6 items-center justify-center rounded align-middle text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        >
+                          <Barcode className="size-3.5" />
+                        </Link>
                       )}
                       {/* ຄິວສົ່ງຄືນມາຈາກ 2 ກໍລະນີ — ບອກໃຫ້ຄົນສົ່ງເຄື່ອງຮູ້ທຸກແຖວ (ບໍ່ແມ່ນສະເພາະຍົກເລີກ) */}
                       {showCase && (

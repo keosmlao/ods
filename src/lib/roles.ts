@@ -112,6 +112,8 @@ const RULES: Rule[] = [
   { path: "/service/cancel", roles: SERVICE_SIDE },
   { path: "/service/notices", roles: SERVICE_SIDE },
   { path: "/service/*/edit", roles: SERVICE_SIDE },
+  // ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ — ຫົວໜ້າ/ຜູ້ອະນຸມັດເທົ່ານັ້ນ (ໝາຍ ‘ຕ້ອງກວດ’ ໄດ້). ຕ້ອງຢູ່ກ່ອນ /service/* (ຄະແນນ segment ຫຼາຍກວ່າ ⇒ ຊະນະ)
+  { path: "/service/stock-count", roles: APPROVER_SIDE },
   // ໃບຮັບເຄື່ອງ (ອ່ານ/ພິມ/ຮູບ/ຜູ້ຕິດຕໍ່) — ຊ່າງຕ້ອງເປີດເບິ່ງໄດ້ ເພາະການແຈ້ງເຕືອນ
   // ຂອງ tb_product ຊີ້ມາທີ່ /service/{code} (lib/chatter recordHref)
   { path: "/service/*", roles: EVERYONE },
