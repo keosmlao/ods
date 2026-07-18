@@ -1,6 +1,7 @@
 import { feedbackGate } from "@/app/actions/installation";
 import { FeedbackForm, type Topic } from "@/components/installation/feedback-form";
 import { query } from "@/lib/db";
+import { validFeedbackToken } from "@/lib/track";
 import { notFound } from "next/navigation";
 
 /**
@@ -26,13 +27,16 @@ import { notFound } from "next/navigation";
  */
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ code: string }>; searchParams: Promise<{ done?: string }> };
+type Props = { params: Promise<{ code: string }>; searchParams: Promise<{ done?: string; token?: string }> };
 
 const POINTS: Record<number, string> = { 1: "ດີຫຼາຍ", 2: "ດີ", 3: "ພໍໃຈ", 4: "ຄວນປັບປຸງ" };
 
 export default async function FeedbackPage({ params, searchParams }: Props) {
   const code = decodeURIComponent((await params).code);
-  const { done } = await searchParams;
+  const { done, token } = await searchParams;
+  const signedToken = token ?? "";
+  // Validate before reading or displaying any job/feedback data.
+  if (!validFeedbackToken(code, signedToken)) notFound();
 
   const job = await query<{ code: string; item_name: string | null; cust_name: string | null }>(
     `select a.code, a.item_name, c.name_1 as cust_name
@@ -109,5 +113,5 @@ export default async function FeedbackPage({ params, searchParams }: Props) {
     "select line_number, name_1 from topic_complain where code='002' order by line_number asc",
   );
 
-  return shell(<FeedbackForm code={code} topics={topics.rows} />);
+  return shell(<FeedbackForm code={code} token={signedToken} topics={topics.rows} />);
 }

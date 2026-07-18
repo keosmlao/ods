@@ -64,7 +64,7 @@ export function FloatingChat({ unread }: { unread: number }) {
   return (
     <>
       {open && (
-        <section className="fixed bottom-20 right-4 z-50 flex h-[32rem] w-[22rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <section className="no-print fixed bottom-20 right-4 z-50 flex h-[32rem] w-[22rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
           <header className="flex items-center gap-2 border-b border-slate-200 px-3 py-2.5">
             {room && (
               <button
@@ -164,7 +164,7 @@ export function FloatingChat({ unread }: { unread: number }) {
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-label="ສົນທະນາ"
-        className="fixed bottom-4 right-4 z-50 grid size-12 place-items-center rounded-full bg-[#0536a9] text-white shadow-lg transition hover:opacity-90"
+        className="no-print fixed bottom-4 right-4 z-50 grid size-12 place-items-center rounded-full bg-[#0536a9] text-white shadow-lg transition hover:opacity-90"
       >
         {open ? <X className="size-5" /> : <MessageCircle className="size-5" />}
         {!open && badge > 0 && (

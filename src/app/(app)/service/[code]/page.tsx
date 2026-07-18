@@ -1,11 +1,15 @@
 import { Chatter } from "@/components/chatter/chatter";
 import { getSession } from "@/lib/auth";
 import { Elapsed } from "@/components/elapsed";
+import { HoldButtons } from "@/components/repair/hold-buttons";
 import { LinkPending } from "@/components/link-pending";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { holdJsonSql, type JobHold } from "@/lib/job-hold";
 import { previousJobOf, REPEAT_DAYS } from "@/lib/repeat";
+import { APPROVER_SIDE, roleOf } from "@/lib/roles";
 import { canViewAssignedJob } from "@/lib/scope";
+import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { STAGE_LABEL, STAGE_SQL } from "@/lib/stage";
 import { DONE_STAGE } from "@/lib/track";
@@ -50,6 +54,8 @@ type Job = {
   cancelled: boolean;
   images: number;
   contacts: number;
+  /** ທຸງ "ຕ້ອງກວດ" ທີ່ຍັງເປີດຢູ່ (null = ບໍ່ມີ) — ໃຫ້ HoldButtons ສະແດງສະຖານະ/ປົດ */
+  hold: JobHold | null;
 };
 
 type Props = { params: Promise<{ code: string }> };
@@ -71,7 +77,8 @@ export default async function ServiceDetail({ params }: Props) {
          a.emp_code technician, a.user_regis receiver,
          (select count(*) from product_image i
            where i.iteme_code = a.code and coalesce(i.product_url,'') <> '')::int images,
-         (select count(*) from cust_contactor t where t.product_code = a.code)::int contacts
+         (select count(*) from cust_contactor t where t.product_code = a.code)::int contacts,
+         ${holdJsonSql("repair")}
        from tb_product a
        left join ar_customer c on c.code = a.cust_code
        where a.code = $1 limit 1`,
@@ -139,6 +146,14 @@ export default async function ServiceDetail({ params }: Props) {
    * ຕັ້ງແຕ່ຕົ້ນ ແລະ ອາດປ່ຽນອາໄຫຼ່ອັນເກົ່າຊ້ຳອີກ.
    */
   const previous = await previousJobOf(code);
+
+  /**
+   * ── ຈັດການວຽກຄ້າງ (ຄືຄໍລຳໃນລາຍການ /service) ──
+   * ເຫັນສະເພາະ ຫົວໜ້າ/ຜູ້ມີສິດອະນຸມັດ (APPROVER_SIDE) ເມື່ອເປີດ setting JOB_HOLD ໄວ້ ແລະ
+   * ວຽກ **ຍັງເຄື່ອນໄຫວຢູ່** (ບໍ່ຈົບ ບໍ່ຍົກເລີກ) — ວຽກຈົບ/ຍົກເລີກ ບໍ່ມີຫຍັງໃຫ້ຈັດການ.
+   * server ກວດສິດຊ້ຳ (holdJob/requestCancel/markJobRepaired).
+   */
+  const canHold = !done && !cancelled && (await settingEnabled(SETTING.JOB_HOLD)) && APPROVER_SIDE.includes(roleOf(session));
 
   return (
     <div className="w-full space-y-4">
@@ -233,6 +248,14 @@ export default async function ServiceDetail({ params }: Props) {
           </Link>
         </div>
       </div>
+
+      {/* ຈັດການວຽກຄ້າງ — ຄືຄໍລຳໃນລາຍການ /service ແຕ່ຈັດການໄດ້ໃນໜ້າລາຍລະອຽດເລີຍ */}
+      {canHold && (
+        <section className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <span className="text-xs font-bold text-slate-600">ຈັດການວຽກຄ້າງ</span>
+          <HoldButtons key={job.hold ? "held" : "free"} code={job.code} hold={job.hold} />
+        </section>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {groups.map((group, index) => (

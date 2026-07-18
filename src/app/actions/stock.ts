@@ -13,13 +13,10 @@ import { getBalances } from "@/lib/stock-balance";
 import { createSpareRequest, pickupSpares } from "@/lib/tech-flow";
 import { ppDb, PP_NOT_CONFIGURED } from "@/lib/stock-db";
 import {
-  CALC_IN,
-  CALC_OUT,
   DEFAULT_SHELF,
   DEFAULT_WH,
   ERP,
   LINE_STATUS,
-  MAIN_WH,
   RETURN_SHELF,
   RETURN_WH,
   TRANS,
@@ -235,16 +232,18 @@ export async function saveRequest(_: StockState, formData: FormData): Promise<St
 /** ods: /del_request/<product_code>/<doc_no> — ຍົກເລີກໃບຂໍເບີກ */
 export async function deleteRequest(formData: FormData): Promise<void> {
   await requirePermissionOrRedirect("/stock/requests", "delete", TECH_SIDE);
-  if (!db) return;
+  if (!db || !odgDb) return;
 
   const productCode = text(formData, "product_code");
   const docNo = text(formData, "doc_no");
   if (!productCode || !docNo) return;
 
   const client = await db.connect();
+  const odg = await odgDb.connect();
   let deleted = false;
   try {
     await client.query("begin");
+    await odg.query("begin");
     // ຖ້າສິນຄ້າມີໃບຂໍເບີກຫຼາຍໃບ ຢ່າລ້າງ spare_reg (ods ກໍ່ເຮັດແບບນີ້)
     const other = await client.query<{ count: number }>(
       `select count(*)::int count from ic_trans where product_code=$1 and trans_flag=$2`,
@@ -258,7 +257,7 @@ export async function deleteRequest(formData: FormData): Promise<void> {
      * ລຶບແຕ່ ODS = ໃບກຳພ້າຄ້າງໃນ ERP ແລະ ສາງອາດເບີກຕາມໃບທີ່ຖືກລຶບໄປແລ້ວ.
      * ERP ເບີກໄປແລ້ວ ⇒ deleteErpRequest ໂຍນ error ⇒ ລຶບບໍ່ໄດ້ (ຖືກຕ້ອງ).
      */
-    await deleteErpRequest(docNo);
+    await deleteErpRequest(docNo, TRANS.REQUEST, odg);
 
     await client.query(`delete from ic_trans where product_code=$1 and trans_flag=$2 and doc_no=$3`, [
       productCode,
@@ -271,12 +270,14 @@ export async function deleteRequest(formData: FormData): Promise<void> {
       docNo,
     ]);
     await client.query("commit");
+    await odg.query("commit");
     deleted = true;
   } catch (error) {
-    await client.query("rollback");
+    await Promise.all([client.query("rollback").catch(() => {}), odg.query("rollback").catch(() => {})]);
     console.error("deleteRequest failed", error);
   } finally {
     client.release();
+    odg.release();
   }
   if (deleted) await logChange(jobModel(productCode), productCode, `ຍົກເລີກໃບຂໍເບີກ ${docNo}`);
   revalidatePath("/dashboard/status/repair/withdrawing");
@@ -301,7 +302,8 @@ export async function deleteRequest(formData: FormData): Promise<void> {
  * (ບ່ອນທີ່ສະຕັອກຈິງຢູ່). ODS ດຶງໃບເບີກກັບຄືນມາເອງ (lib/erp-dispatch) ແລ້ວເລື່ອນຂັ້ນງານ.
  * ເກັບຊື່ຟັງຊັນໄວ້ບອກເຫດຜົນ — action ຖືກຍິງໂດຍກົງໄດ້ ຈຶ່ງຕ້ອງປະຕິເສດຢູ່ server ບໍ່ແມ່ນເຊື່ອງປຸ່ມ.
  */
-export async function saveDispatch(_: StockState): Promise<StockState> {
+export async function saveDispatch(previousState: StockState): Promise<StockState> {
+  void previousState;
   return { error: "ລະບົບນີ້ອອກໃບເບີກບໍ່ໄດ້ອີກ — ສາງເບີກຢູ່ ERP ແລ້ວລະບົບຈະດຶງມາເອງ" };
 }
 /* ─────────────────────── ຊ່າງຮັບອາໄຫຼ່ — ວຽກສ້ອມ (trans_flag 166) ─────────────────────── */
@@ -564,7 +566,8 @@ export async function saveReturnRequest(_: StockState, formData: FormData): Prom
  * ໃບ**ຮັບຄືນ** (58) ຍ້າຍສະຕັອກຈິງ ⇒ ຕ້ອງອອກຢູ່ **ERP** ຄືກັບໃບເບີກ (56).
  * ODS ດຶງມາເອງ (lib/erp-dispatch → syncErpReturns) ແລ້ວປິດໃບຂໍສົ່ງຄືນໃຫ້.
  */
-export async function saveReceiveReturn(_: StockState): Promise<StockState> {
+export async function saveReceiveReturn(previousState: StockState): Promise<StockState> {
+  void previousState;
   return { error: "ລະບົບນີ້ອອກໃບຮັບຄືນບໍ່ໄດ້ອີກ — ສາງຮັບຄືນຢູ່ ERP ແລ້ວລະບົບຈະດຶງມາເອງ" };
 }
 /* ─────────────────────────── ຂໍໂອນອາໄຫຼ່ຂ້າມສາງ (trans_flag 124) ─────────────────────────── */

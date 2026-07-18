@@ -1,12 +1,13 @@
 import type { Session } from "@/lib/auth";
 import { unreadTotal } from "@/lib/chat";
 import { unstable_cache } from "next/cache";
-import { pipelineOf, repairStatuses } from "@/lib/dashboard-status";
+import { installStatuses, pipelineOf, repairStatuses } from "@/lib/dashboard-status";
 import { query, queryOdg } from "@/lib/db";
-import { installStageIs } from "@/lib/install-stage";
+import { INSTALL_STAGE_SQL, installStageIs } from "@/lib/install-stage";
 import { canAccess, roleOf } from "@/lib/roles";
 import { ownJobsOnly } from "@/lib/scope";
 import { HAS_OUTSTANDING_SPARES } from "@/lib/outstanding-spares";
+import { pendingInstallBills } from "@/lib/pending-bills";
 import { CANCELLED_JOBS, STAGE_SQL } from "@/lib/stage";
 
 /**
@@ -19,6 +20,17 @@ import { CANCELLED_JOBS, STAGE_SQL } from "@/lib/stage";
  */
 const REPAIR_STAGE_COUNTS = pipelineOf(repairStatuses)
   .map(([slug, def]) => `coalesce((select n from rst where st = ${def.stage}), 0)::int as "/dashboard/status/repair/${slug}"`)
+  .join(",\n          ");
+
+/**
+ * ຕົວເລກຄິວຂອງແຕ່ລະຂັ້ນຕິດຕັ້ງ — ຄູ່ກັບກຸ່ມເມນູ "ຂັ້ນຕອນຕິດຕັ້ງ" (lib/navigation).
+ *
+ * ຄືກັບຝັ່ງສ້ອມທຸກປະການ ແຕ່ນັບຈາກ CTE `ist` (ຂັ້ນ ods_tb_install + ຈຳນວນ, ສະແກນເທື່ອດຽວ).
+ * **ບໍ່ກອງຕາມຊ່າງ**: ໜ້າ /dashboard/status/install/<slug> ສະແດງທຸກວຽກ (ບໍ່ໃຊ້ ownJobsOnly)
+ * ⇒ ຕົວເລກຕ້ອງນັບທຸກວຽກຄືກັນ ຈຶ່ງບໍ່ຫຼົ້ນກັບແຖວທີ່ເຫັນ (ກົດເກນ ①).
+ */
+const INSTALL_STAGE_COUNTS = pipelineOf(installStatuses)
+  .map(([slug, def]) => `coalesce((select n from ist where st = ${def.stage}), 0)::int as "/dashboard/status/install/${slug}"`)
   .join(",\n          ");
 
 /**
@@ -38,6 +50,22 @@ const REPAIR_STAGE_COUNTS = pipelineOf(repairStatuses)
 
 /** tag ຂອງຕົວເລກສາຍສັ່ງຊື້ — action ທີ່ປ່ຽນມັນຕ້ອງ revalidateTag ອັນນີ້ */
 export const PURCHASE_COUNT_TAG = "purchase-counts";
+
+/** tag ຂອງຕົວເລກ "ບິນຄ້າງອອກໃບງານ" — dismiss/restore ບິນ ຕ້ອງ revalidateTag ອັນນີ້ */
+export const PENDING_BILL_COUNT_TAG = "pending-bill-count";
+
+/**
+ * ນັບບິນທີ່ຄ້າງອອກໃບງານ — ຂ້າມ 2 database (ບິນ ERP · ໃບງານ/dismiss ODS · ໄລ່ໃນ JS)
+ * ⇒ ໃສ່ subquery ໃນ query ດຽວບໍ່ໄດ້. ໃຊ້ **ຟັງຊັນອັນດຽວກັບໜ້າ** (pendingInstallBills)
+ * ⇒ badge = ຈຳນວນແຖວແທັບ "ຍັງບໍ່ມີໃບງານ" ແທ້ (ກົດເກນ ①). ໜັກ ⇒ cache 60 ວິ + tag:
+ * dismissBill/restoreBill ເອີ້ນ `revalidateTag(PENDING_BILL_COUNT_TAG)` ⇒ ສົດທັນທີ.
+ * **ບໍ່ຂຶ້ນກັບຜູ້ໃຊ້** (ບໍ່ກອງຕາມຊ່າງ) ⇒ cache ຮ່ວມທັງລະບົບໄດ້.
+ */
+const cachedPendingBillCount = unstable_cache(
+  async () => (await pendingInstallBills()).length,
+  ["nav-counts-pending-bills"],
+  { revalidate: 60, tags: [PENDING_BILL_COUNT_TAG] },
+);
 
 /**
  * ນັບໃບຂໍຊື້/ໃບສັ່ງຊື້ທີ່ຄ້າງ ຢູ່ ERP — **ບໍ່ຂຶ້ນກັບຜູ້ໃຊ້** ຈຶ່ງ cache ຮ່ວມກັນທັງລະບົບໄດ້.
@@ -100,6 +128,14 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
           select (${STAGE_SQL}) st, count(*)::int n
           from tb_product a
           group by 1
+        ),
+        ist as (
+          -- ຂັ້ນຕິດຕັ້ງ: ສະແກນ ods_tb_install ເທື່ອດຽວ ⇒ ຄູ່ກັບກຸ່ມເມນູ "ຂັ້ນຕອນຕິດຕັ້ງ".
+          -- ຂັ້ນ 0-8 ບໍ່ມີວັນມີ cancel_date/job_finish (INSTALL_STAGE_SQL ຈັດ -1/9 ກ່ອນ)
+          -- ⇒ count ຕໍ່ຂັ້ນ = ຈຳນວນແຖວໜ້າ /dashboard/status/install/<slug> ພໍດີ (ກົດເກນ ①).
+          select (${INSTALL_STAGE_SQL}) st, count(*)::int n
+          from ods_tb_install a
+          group by 1
         )
         select
           -- ── ສ້ອມແປງ (ຂັ້ນ 1,2,8,9 ບໍ່ເຄີຍມີ status=6 ⇒ ບໍ່ຕ້ອງກອງ) ──
@@ -116,9 +152,29 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
           -- ── ຕິດຕັ້ງ ──
           (select count(*) from ods_tb_install a
             where ${installStageIs(0)})::int as "/installations/assign",
+          -- ລໍຖ້າຮັບງານ (BUCKET.waiting ຂອງ /installations/accept — ຕົງກັບໜ້າ ①)
           (select count(*) from ods_tb_install a
-            where a.cancel_date is null and coalesce(a.tech_code,'') <> ''
-              and a.tech_confirm is null and a.start_install is null ${mineInstall})::int as "/installations/accept",
+            where a.cancel_date is null and a.time_register is not null and a.tech_code is not null
+              and a.tech_confirm is null and a.start_install is null and a.job_finish is null ${mineInstall})::int as "/installations/accept",
+          -- ຮັບແລ້ວ ລໍດຳເນີນການ (BUCKET.accepted) — key ສັງເຄາະ (canAccess resolve → rule /installations/accept)
+          (select count(*) from ods_tb_install a
+            where a.cancel_date is null and a.time_register is not null and a.tech_code is not null
+              and a.tech_confirm is not null and a.reg_start is null and a.start_install is null ${mineInstall})::int as "/installations/accept/accepted",
+          -- ໃບຂໍເບີກ: ແທັບ "ລໍຖ້າຂໍເບີກ" (WAIT_WHERE ຂອງ /installations/spare-requests) — ໃຊ້ອາໄຫຼ່ ຮັບງານແລ້ວ ແຕ່ຍັງບໍ່ຂໍເບີກ
+          (select count(*) from ods_tb_install a
+            where a.reg_start is null and a.used_spare = 1 and a.cancel_date is null
+              and a.job_finish is null and a.tech_confirm is not null ${mineInstall})::int as "/installations/spare-requests",
+          -- ກຳລັງຂໍເບີກ (REQ_WHERE: ໃບ SION 122 ຂອງງານທີ່ຍັງບໍ່ປິດ) — key ສັງເຄາະ resolve → rule /installations/spare-requests
+          (select count(*) from ic_trans ic
+            left join ods_tb_install a on a.code = ic.product_code
+            where ic.trans_flag = 122 and ic.job_type = 'install' and a.job_finish is null ${mineInstall})::int as "/installations/spare-requests/requested",
+          -- ຮັບອາໄຫຼ່: ໃບເບີກ SWC(56) ທີ່ຊ່າງຍັງບໍ່ມາຮັບ (WHERE ຂອງ /installations/spare-pickup — count(*) ຄືກັນຄຳດຽວ)
+          (select count(*) from ic_trans ic
+            join ods_tb_install a on a.code = ic.product_code
+            where ic.trans_flag = 56 and ic.job_type = 'install'
+              and a.cancel_date is null and a.job_finish is null
+              and ic.doc_no not in (select doc_ref from ic_trans where trans_flag = 166 and doc_ref is not null)
+              ${mineInstall})::int as "/installations/spare-pickup",
           (select count(*) from ods_tb_install a
             where (${installStageIs(4)} or ${installStageIs(5)}) ${mineInstall})::int as "/installations/work",
           (select count(*) from ods_tb_install a
@@ -141,7 +197,10 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
             + (select count(*) from ods_tb_install a where ${installStageIs(6)})::int as "/qc",
 
           -- ── ສະຖານະງານສ້ອມ: ຂັ້ນຮັບງານຖືກລວມເຂົ້າ wait-check ແລ້ວ ──
-          ${REPAIR_STAGE_COUNTS}`,
+          ${REPAIR_STAGE_COUNTS},
+
+          -- ── ຂັ້ນຕອນຕິດຕັ້ງ: ທຸກຂັ້ນ (0-8) ⇒ ກຸ່ມເມນູ "ຂັ້ນຕອນຕິດຕັ້ງ" ──
+          ${INSTALL_STAGE_COUNTS}`,
         args,
       )
     ).rows[0];
@@ -174,6 +233,15 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
       row["/chat"] = await unreadTotal(session.username, role);
     } catch (error) {
       console.error("nav-counts chat unread failed", error);
+    }
+
+    /**
+     * ບິນຄ້າງອອກໃບງານ — cache 60 ວິ (ຂ້າມ 2 DB · ໜັກ). ລົ້ມ ⇒ ບໍ່ມີຕົວເລກ ບໍ່ແມ່ນເມນູພັງ.
+     */
+    try {
+      row["/installations/pending-bills"] = await cachedPendingBillCount();
+    } catch (error) {
+      console.error("nav-counts pending-bill count failed", error);
     }
 
     /**

@@ -2,8 +2,9 @@
 import { logChange } from "@/lib/chatter-log";
 import { query } from "@/lib/db";
 import { requireRole } from "@/lib/guard";
+import { PENDING_BILL_COUNT_TAG } from "@/lib/nav-counts";
 import { SERVICE_SIDE } from "@/lib/roles";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 /**
  * **ໝາຍວ່າບິນນີ້ຄົບແລ້ວ** — ບໍ່ໃຫ້ຂຶ້ນຄິວ "ບິນຄ້າງອອກໃບງານ" ອີກ.
@@ -38,6 +39,7 @@ export async function dismissBill(docNo: string, reason: string): Promise<Dismis
   await logChange("ic_trans", docNo.trim(), `ໝາຍບິນ ${docNo} ວ່າບໍ່ຕ້ອງເປີດໃບງານ · ເຫດຜົນ: ${clean}`);
 
   revalidatePath("/installations/pending-bills");
+  updateTag(PENDING_BILL_COUNT_TAG);
   return { ok: `ໝາຍ ${docNo} ວ່າຄົບແລ້ວ` };
 }
 
@@ -50,5 +52,6 @@ export async function restoreBill(docNo: string): Promise<DismissState> {
   await logChange("ic_trans", docNo, `ຍົກເລີກການໝາຍບິນ ${docNo} — ກັບຂຶ້ນຄິວຄ້າງອອກໃບງານ`);
 
   revalidatePath("/installations/pending-bills");
+  updateTag(PENDING_BILL_COUNT_TAG);
   return { ok: "ຍົກເລີກການໝາຍແລ້ວ" };
 }

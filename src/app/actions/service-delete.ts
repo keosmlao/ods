@@ -45,8 +45,9 @@ export async function deleteService(code: string, reason: string): Promise<Delet
       docs: string | null;
       doc_count: number;
       spares: number;
+      duplicate_count: number;
     }>(
-      `select a.code,
+      `select a.code, count(*) over()::int as duplicate_count,
           b.name_1 as customer, a.cust_code,
           concat_ws(' ', a.name_1, a.p_brand, a.p_model) as product,
           (select string_agg(distinct t.doc_no, ', ') from ic_trans t where t.product_code = a.code) as docs,
@@ -59,6 +60,9 @@ export async function deleteService(code: string, reason: string): Promise<Delet
     )
   ).rows[0];
   if (!job) return { error: "ບໍ່ພົບໃບຮັບເຄື່ອງນີ້" };
+  if (job.duplicate_count > 1) {
+    return { error: `ລຶບບໍ່ໄດ້ — ລະຫັດ ${code} ຊ້ຳ ${job.duplicate_count} ແຖວ ຕ້ອງແຍກຂໍ້ມູນເກົ່າກ່ອນ` };
+  }
 
   const client = await db.connect();
   try {

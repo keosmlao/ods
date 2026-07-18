@@ -6,12 +6,13 @@ import { useActionState } from "react";
 
 export type Topic = { line_number: number; name_1: string };
 
-export function FeedbackForm({ code, topics }: { code: string; topics: Topic[] }) {
+export function FeedbackForm({ code, token, topics }: { code: string; token: string; topics: Topic[] }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(saveFeedback, {});
 
   return (
     <form action={formAction} className="space-y-6">
       <input type="hidden" name="code" value={code} />
+      <input type="hidden" name="token" value={token} />
 
       {state.error && (
         <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{state.error}</p>

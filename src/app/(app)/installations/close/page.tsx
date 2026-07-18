@@ -1,11 +1,11 @@
 import { closeJob } from "@/app/actions/installation";
-import { ReopenJobButton } from "@/components/installation/undo-buttons";
 import { FeedbackQrButton } from "@/components/installation/feedback-qr";
 import { JobButton } from "@/components/installation/job-buttons";
 import { RowLink } from "@/components/row-link";
 import { query } from "@/lib/db";
 import { installStageIs } from "@/lib/install-stage";
-import { ClipboardList, ListChecks, Lock, MessageSquare } from "lucide-react";
+import { feedbackUrl } from "@/lib/track";
+import { ClipboardList, Lock, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { FeedbackEditButton, type FeedbackAnswer } from "../feedback-edit";
 import {
@@ -119,6 +119,9 @@ export default async function ClosePage({ searchParams }: Props) {
     ),
   ]);
   const rows = jobs.rows as Row[];
+  const feedbackLinks = new Map(
+    await Promise.all(rows.map(async (row) => [row.code, await feedbackUrl(row.code)] as const)),
+  );
 
   const pages = Math.max(1, Math.ceil(jobs.total / PAGE_SIZE));
   const keep = { ...(q && { q }), ...(from && { from }), ...(to && { to }) };
@@ -201,7 +204,7 @@ export default async function ClosePage({ searchParams }: Props) {
                       {/* ງານຄ້າງຢູ່ຂັ້ນນີ້ຈົນກວ່າລູກຄ້າຈະຕອບ — QR ໃຫ້ສົ່ງ/ໃຫ້ລູກຄ້າສະແກນເອງ */}
                       <FeedbackQrButton code={row.code} />
                       <Link
-                        href={`/feedback/${encodeURIComponent(row.code)}`}
+                        href={feedbackLinks.get(row.code) ?? "#"}
                         target="_blank"
                         title="ແບບສອບຖາມລູກຄ້າ"
                         className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:underline"

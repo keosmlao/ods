@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/guard";
 import { pushToUser } from "@/lib/push";
 import { roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
+import { STAGE_SQL } from "@/lib/stage";
 import { listTechnicians } from "@/lib/technicians";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -41,10 +42,12 @@ type JobSnapshot = {
   quote_doc: string | null;
   invoice_doc: string | null;
   dispatch_doc: string | null;
+  stage: number;
 };
 
 const JOB_SQL = `select a.code, a.status, a.emp_code, a.warrunty, coalesce(a.used_spare,0)::int used_spare,
     a.time_repair, a.time_finish_repair, a.qc_finish, a.return_complete,
+    (${STAGE_SQL})::int stage,
     (select t.doc_no from ic_trans t where t.trans_flag=${QUOTE} and t.product_code=a.code order by t.doc_no limit 1) quote_doc,
     (select t.doc_no from ic_trans t where t.trans_flag=${INVOICE} and t.product_code=a.code order by t.doc_no limit 1) invoice_doc,
     (select d.doc_no from ic_trans_detail d where d.trans_flag=${TRANS.DISPATCH} and d.product_code=a.code order by d.doc_no limit 1) dispatch_doc
@@ -250,39 +253,54 @@ export async function addUsedSpare(
   item: { code: string; name_1: string; unit_code: string | null },
   qty = 1,
 ) {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
-  if (!Number.isFinite(qty) || qty <= 0) return { error: "ຈຳນວນບໍ່ຖືກຕ້ອງ" };
+  const loaded = await loadJob(code);
+  if (!loaded.ok) return { error: loaded.error };
+  if (loaded.job.stage !== 9) return { error: "ແກ້ອາໄຫຼ່ໄດ້ສະເພາະຕອນກຳລັງສ້ອມແປງ" };
+  if (!Number.isFinite(qty) || qty <= 0 || qty > 9999) return { error: "ຈຳນວນບໍ່ຖືກຕ້ອງ" };
+
+  // Never trust name/unit supplied by the browser; re-read the canonical master row.
+  const canonical = (
+    await query<{ code: string; name_1: string; unit_code: string | null }>(
+      "select code, name_1, unit_code from ic_inventory where code=$1 limit 1",
+      [item.code],
+    )
+  ).rows[0];
+  if (!canonical) return { error: "ບໍ່ພົບອາໄຫຼ່ໃນລາຍການສິນຄ້າ" };
 
   // ອາໄຫຼ່ຕົວດຽວກັນ ແລະ ຍັງບໍ່ໄດ້ເຂົ້າໃບຂໍເບີກ/ໃບເບີກ → ບວກຈຳນວນເຂົ້າແຖວເກົ່າ.
   // ຖ້າແຖວເກົ່າເຂົ້າເອກະສານໄປແລ້ວ ຕ້ອງແຍກເປັນແຖວໃໝ່ ບໍ່ດັ່ງນັ້ນຈຳນວນໃນກະຕ່າ
   // ຈະບໍ່ຕົງກັບໃບຂໍເບີກທີ່ອອກໄປແລ້ວ.
   const merged = await query(
     `update tb_used_spare set qty = coalesce(qty,0) + $1
-      where product_code=$2 and item_code=$3 and ${NOT_ON_DOC}`,
-    [qty, code, item.code],
+      where product_code=$2 and item_code=$3 and ${NOT_ON_DOC}
+        and exists (select 1 from tb_product a where a.code=$2 and (${STAGE_SQL})=9)`,
+    [qty, code, canonical.code],
   );
   if (!merged.rowCount) {
-    await query(
+    const inserted = await query(
       `insert into tb_used_spare(product_code, item_code, item_name, qty, unit_code, status, create_date_time_now)
-       values($1, $2, $3, $4, $5, '0', ${NOW})`,
-      [code, item.code, item.name_1, qty, item.unit_code],
+       select $1, $2, $3, $4, $5, '0', ${NOW}
+       where exists (select 1 from tb_product a where a.code=$1 and (${STAGE_SQL})=9)`,
+      [code, canonical.code, canonical.name_1, qty, canonical.unit_code],
     );
+    if (!inserted.rowCount) return { error: "ວຽກຖືກປ່ຽນຂັ້ນໄປແລ້ວ — ເພີ່ມອາໄຫຼ່ບໍ່ໄດ້" };
   }
 
   // ມີອາໄຫຼ່ແລ້ວ → ໝາຍໃບນີ້ວ່າ "ໃຊ້ອາໄຫຼ່"
   await query("update tb_product set used_spare=1 where code=$1", [code]);
-  await logChange("tb_product", code, `ເພີ່ມອາໄຫຼ່ທີ່ໃຊ້ສ້ອມ: ${item.name_1} × ${qty}`);
+  await logChange("tb_product", code, `ເພີ່ມອາໄຫຼ່ທີ່ໃຊ້ສ້ອມ: ${canonical.name_1} × ${qty}`);
   revalidatePath(`/repair/${code}`);
   return {};
 }
 
 export async function updateUsedSpareQty(code: string, rowOrder: number, qty: number) {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
-  if (!Number.isFinite(qty) || qty <= 0) return { error: "ຈຳນວນບໍ່ຖືກຕ້ອງ" };
+  const loaded = await loadJob(code);
+  if (!loaded.ok) return { error: loaded.error };
+  if (loaded.job.stage !== 9) return { error: "ແກ້ອາໄຫຼ່ໄດ້ສະເພາະຕອນກຳລັງສ້ອມແປງ" };
+  if (!Number.isFinite(qty) || qty <= 0 || qty > 9999) return { error: "ຈຳນວນບໍ່ຖືກຕ້ອງ" };
   const updated = await query<{ item_name: string | null }>(
     `update tb_used_spare set qty=$1 where roworder=$2 and product_code=$3 and ${NOT_ON_DOC}
+       and exists (select 1 from tb_product a where a.code=$3 and (${STAGE_SQL})=9)
      returning item_name`,
     [qty, rowOrder, code],
   );
@@ -294,10 +312,12 @@ export async function updateUsedSpareQty(code: string, rowOrder: number, qty: nu
 }
 
 export async function deleteUsedSpare(code: string, rowOrder: number) {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const loaded = await loadJob(code);
+  if (!loaded.ok) return { error: loaded.error };
+  if (loaded.job.stage !== 9) return { error: "ແກ້ອາໄຫຼ່ໄດ້ສະເພາະຕອນກຳລັງສ້ອມແປງ" };
   const removed = await query<{ item_name: string | null }>(
     `delete from tb_used_spare where roworder=$1 and product_code=$2 and ${NOT_ON_DOC}
+       and exists (select 1 from tb_product a where a.code=$2 and (${STAGE_SQL})=9)
      returning item_name`,
     [rowOrder, code],
   );

@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // ແອັບມືຖື (Expo/React Native) — ມີກົດເກນ ແລະ tsconfig ຂອງຕົນເອງ
     "mobile/**",
+    // Local agent worktrees are separate checkouts and must not be linted twice.
+    ".claude/**",
   ]),
 ]);
 

@@ -1,5 +1,7 @@
 import { headers } from "next/headers";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { query } from "@/lib/db";
+import { authSecretText } from "@/lib/auth-secret";
 import { STAGE_LABEL, STAGE_SQL } from "@/lib/stage";
 
 /**
@@ -136,5 +138,18 @@ export async function trackUrl(code: string) {
  * (ຄືກັບ QR ຕິດຕາມສະຖານະໃນໃບຮັບເຄື່ອງ — trackUrl ຂ້າງເທິງ). ບໍ່ຕ້ອງມີບໍລິການພາຍນອກ.
  */
 export async function feedbackUrl(code: string) {
-  return `${await publicBaseUrl()}/feedback/${encodeURIComponent(code)}`;
+  const token = feedbackToken(code);
+  return `${await publicBaseUrl()}/feedback/${encodeURIComponent(code)}?token=${encodeURIComponent(token)}`;
+}
+
+/** Signed capability carried by the customer QR/link; no sequential job code is sufficient by itself. */
+export function feedbackToken(code: string): string {
+  return createHmac("sha256", authSecretText()).update(`odss-feedback:${code}`).digest("base64url");
+}
+
+export function validFeedbackToken(code: string, token: string | null | undefined): boolean {
+  if (!token) return false;
+  const expected = Buffer.from(feedbackToken(code));
+  const actual = Buffer.from(token);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }

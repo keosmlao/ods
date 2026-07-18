@@ -9,8 +9,9 @@ import { db, odgDb, query } from "@/lib/db";
 import { deleteErpRequest, writeErpRequest } from "@/lib/erp-request";
 import { nextDocNo } from "@/lib/doc-no";
 import { requireRole } from "@/lib/guard";
-import { type Role, roleOf, SERVICE_SIDE, STOCK_SIDE, TECH_SIDE } from "@/lib/roles";
-import { feedbackUrl } from "@/lib/track";
+import { type Role, roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
+import { TRANS } from "@/lib/stock-constants";
+import { feedbackUrl, validFeedbackToken } from "@/lib/track";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import QRCode from "qrcode";
@@ -1068,17 +1069,19 @@ export async function saveSpareRequest(_: ActionState, formData: FormData): Prom
 export async function deleteSpareRequest(docNo: string, code: string): Promise<ActionState> {
   const guard = await guardJob(code, TECH_SIDE);
   if (!guard.ok) return { error: guard.error };
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+  if (!db || !odgDb) return { error: "ບໍ່ພົບ DATABASE_URL ຫຼື ODG_DATABASE_URL" };
   const client = await db.connect();
+  const odg = await odgDb.connect();
   try {
     await client.query("begin");
+    await odg.query("begin");
     // ຖ້າສາງເບີກ (SWC) ອ້າງອີງໃບນີ້ແລ້ວ → ລົບບໍ່ໄດ້
     const used = await client.query<{ count: string }>(
       "select count(doc_no) count from ic_trans where doc_ref=$1",
       [docNo],
     );
     if (Number(used.rows[0].count) !== 0) {
-      await client.query("rollback");
+      await Promise.all([client.query("rollback"), odg.query("rollback")]);
       return { error: `ບໍ່ສາມາດລົບເລກທີຂໍເບີກ ${docNo} ນີ້ໂດ້` };
     }
     /**
@@ -1087,7 +1090,7 @@ export async function deleteSpareRequest(docNo: string, code: string): Promise<A
      * **ສາງອາດເບີກຕາມໃບທີ່ຖືກລຶບໄປແລ້ວ** (ອາໄຫຼ່ອອກໂດຍບໍ່ມີງານຮອງຮັບ).
      * ຖ້າ ERP ເບີກຕາມໃບນີ້ໄປແລ້ວ deleteErpRequest ຈະໂຍນ error ⇒ ລຶບບໍ່ໄດ້ (ຖືກຕ້ອງ).
      */
-    await deleteErpRequest(docNo);
+    await deleteErpRequest(docNo, TRANS.REQUEST, odg);
 
     await client.query("delete from ic_trans where doc_no=$1", [docNo]);
     await client.query("delete from ic_trans_detail where doc_no=$1", [docNo]);
@@ -1111,12 +1114,14 @@ export async function deleteSpareRequest(docNo: string, code: string): Promise<A
       [code],
     );
     await client.query("commit");
+    await odg.query("commit");
   } catch (error) {
-    await client.query("rollback");
+    await Promise.all([client.query("rollback").catch(() => {}), odg.query("rollback").catch(() => {})]);
     console.error("deleteSpareRequest failed", error);
     return { error: "ລົບບໍ່ສຳເລັດ" };
   } finally {
     client.release();
+    odg.release();
   }
   await logChange("ods_tb_install", code, `ລຶບໃບຂໍເບີກ ${docNo}`);
   revalidateAll();
@@ -1132,7 +1137,8 @@ export async function deleteSpareRequest(docNo: string, code: string): Promise<A
  * ຖອດທັງ action ບໍ່ແມ່ນເຊື່ອງແຕ່ປຸ່ມ — server action ຖືກຍິງໂດຍກົງໄດ້ (lib/guard).
  * ເກັບຊື່ຟັງຊັນໄວ້ ເພື່ອບອກເຫດຜົນໃຫ້ຄົນທີ່ຍັງກົດປຸ່ມເກົ່າ (ໜ້າທີ່ cache ໄວ້).
  */
-export async function saveDispatch(_: ActionState): Promise<ActionState> {
+export async function saveDispatch(previousState: ActionState): Promise<ActionState> {
+  void previousState;
   return {
     error: "ລະບົບນີ້ອອກໃບເບີກບໍ່ໄດ້ອີກ — ສາງເບີກຢູ່ ERP ແລ້ວລະບົບຈະດຶງມາເອງ",
   };
@@ -1366,9 +1372,11 @@ export async function feedbackGate(code: string): Promise<FeedbackGate> {
 export async function saveFeedback(_: ActionState, formData: FormData): Promise<ActionState> {
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
   const code = String(formData.get("code") ?? "");
+  const token = String(formData.get("token") ?? "");
   // ໜ້າສາທາລະນະ (ລູກຄ້າສະແກນ QR) ⇒ ຕັດຄວາມຍາວຄືກັນກັບ updateFeedback (2000)
   const comment = String(formData.get("cust_complain") ?? "").slice(0, 2000);
   if (!code) return { error: "ບໍ່ພົບລະຫັດງານ" };
+  if (!validFeedbackToken(code, token)) return { error: "ລິ້ງແບບສອບຖາມບໍ່ຖືກຕ້ອງ ຫຼືໝົດສິດໃຊ້" };
 
   const answers: { line: number; points: number }[] = [];
   for (const [key, value] of formData.entries()) {
@@ -1439,7 +1447,7 @@ export async function saveFeedback(_: ActionState, formData: FormData): Promise<
   );
 
   revalidateAll();
-  redirect(`/feedback/${encodeURIComponent(code)}?done=1`);
+  redirect(`/feedback/${encodeURIComponent(code)}?token=${encodeURIComponent(token)}&done=1`);
 }
 
 /**

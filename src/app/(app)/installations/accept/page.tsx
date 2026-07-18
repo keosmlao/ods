@@ -4,9 +4,7 @@ import { RejectButton } from "@/components/installation/reject-button";
 import { SlaChip } from "@/components/installation/sla-chip";
 import { INSTALL_LEFT_SQL } from "@/lib/install-sla";
 import { Check } from "lucide-react";
-import { query } from "@/lib/db";
 import { INSTALL_ACCEPT_CLOCK } from "@/lib/install-stage";
-import { CheckCircle2, Clock } from "lucide-react";
 import {
   INSTALL_PLAIN_COLUMNS,
   INSTALL_SEARCH,
@@ -16,14 +14,13 @@ import {
   ListHeader,
   PAGE_SIZE,
   Pager,
+  SearchBar,
   TableShell,
-  TabsAndSearch,
   fetchInstallRows,
   type InstallRow,
   installOrderBy,
   readParams,
   type ListSearchParams,
-  type TabItem,
 } from "../shared";
 
 /**
@@ -67,20 +64,6 @@ const BUCKET: Record<Tab, { where: string; timeCol: string }> = {
   },
 };
 
-async function getCounts(tech: string | null) {
-  const params = tech ? [tech] : [];
-  const mine = tech ? "and a.tech_code = $1" : "";
-  const row = (
-    await query<{ waiting: number; accepted: number }>(
-      `select count(*) filter (where ${BUCKET.waiting.where})::int waiting,
-              count(*) filter (where ${BUCKET.accepted.where})::int accepted
-       from ods_tb_install a where true ${mine}`,
-      params,
-    )
-  ).rows[0];
-  return { waiting: row?.waiting ?? 0, accepted: row?.accepted ?? 0 };
-}
-
 export default async function AcceptPage({ searchParams }: Props) {
   const tech = await techFilter();
   const raw = await searchParams;
@@ -105,50 +88,33 @@ export default async function AcceptPage({ searchParams }: Props) {
     where.push(INSTALL_SEARCH.replaceAll("$Q", `$${params.length}`));
   }
 
-  const [counts, jobs] = await Promise.all([
-    getCounts(tech),
-    fetchInstallRows<Row>({
-      where: where.join(" and "),
-      params,
-      orderBy: installOrderBy(sort, dir, bucket.timeCol),
-      page,
-      extraColumns: EXTRA,
-    }),
-  ]);
+  const jobs = await fetchInstallRows<Row>({
+    where: where.join(" and "),
+    params,
+    orderBy: installOrderBy(sort, dir, bucket.timeCol),
+    page,
+    extraColumns: EXTRA,
+  });
 
   const pages = Math.max(1, Math.ceil(jobs.total / PAGE_SIZE));
+  // tab ມາຈາກ **ເມນູ sidebar** (?tab=waiting/accepted) — ບໍ່ມີ tab ໃນໜ້າອີກ (ຍ້າຍໄປ sidebar ແລ້ວ)
   const base = () => ({ ...(tab !== "waiting" && { tab }), ...(q && { q }) });
-  const tabHref = (target: Tab) =>
-    `/installations/accept?${new URLSearchParams({ ...(target !== "waiting" && { tab: target }), ...(q && { q }) })}`;
   const sortHref = (key: string, nextDir: "asc" | "desc") =>
     `/installations/accept?${new URLSearchParams({ ...base(), sort: key, dir: nextDir })}`;
   const pageHref = (n: number) =>
     `/installations/accept?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
-  const TABS: TabItem<Tab>[] = [
-    { key: "waiting", label: "ລໍຖ້າຮັບງານຕິດຕັ້ງ", icon: Clock, count: counts.waiting },
-    { key: "accepted", label: "ຮັບງານເເລ້ວ (ລໍຖ້າດຳເນີນການ)", icon: CheckCircle2, count: counts.accepted },
-  ];
-
   return (
     <div className="w-full space-y-4">
       <ListHeader
-        title="ຮັບງານຕິດຕັ້ງ"
+        title={tab === "waiting" ? "ລໍຖ້າຮັບງານຕິດຕັ້ງ" : "ຮັບງານແລ້ວ (ລໍຖ້າດຳເນີນການ)"}
         scope={tech ? "ສະແດງສະເພາະງານຂອງທ່ານ" : "ສະແດງທຸກງານ"}
         total={jobs.total}
         page={page}
         pages={pages}
       />
 
-      <TabsAndSearch
-        tabs={TABS}
-        current={tab}
-        tabHref={tabHref}
-        q={q}
-        sort={sort}
-        dir={dir}
-        hidden={tab !== "waiting" ? { tab } : {}}
-      />
+      <SearchBar q={q} sort={sort} dir={dir} placeholder="ຄົ້ນຫາ ເລກທີ, ເລກບິນ, ລູກຄ້າ, ຊ່າງ, ລາຍການ..." />
 
       <TableShell total={jobs.total} minWidth={1300}>
         <InstallTableHead

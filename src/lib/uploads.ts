@@ -23,7 +23,7 @@ const configuredUploadsDir = process.env.ODS_UPLOADS_DIR;
  */
 function getSafeUploadsDir() {
   if (!configuredUploadsDir) return null;
-  const projectRoot = resolvePath(process.cwd());
+  const projectRoot = resolvePath(/*turbopackIgnore: true*/ process.cwd());
   const home = resolvePath(os.homedir());
   const resolved = resolvePath(configuredUploadsDir);
 
@@ -127,7 +127,7 @@ export async function saveUploads(
   for (const { line, filename, bytes } of uploads) {
     const lineNumber = offset + line;
     const stored = `${code}_${lineNumber}_${filename}`;
-    const path = join(uploadsDir, stored);
+    const path = join(/*turbopackIgnore: true*/ uploadsDir, stored);
     await writeFile(path, bytes);
     written.push(path);
     await client.query(`insert into product_image(${key}, product_url, line_number) values($1,$2,$3)`, [

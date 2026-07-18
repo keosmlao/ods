@@ -1,9 +1,10 @@
 import { pbkdf2Sync, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { jwtVerify, SignJWT } from "jose";
+import { authSecretBytes } from "@/lib/auth-secret";
 
 export const SESSION_COOKIE = "ods_session";
-const secret = new TextEncoder().encode(process.env.AUTH_SECRET ?? "development-only-change-this-secret");
+const secret = authSecretBytes();
 export type Session = { username: string; role: string };
 
 export async function createSession(session: Session) {

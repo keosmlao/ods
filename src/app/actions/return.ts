@@ -481,7 +481,7 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
       let storedName: string | null = null;
       if (upload && uploadsDir) {
         storedName = `${docNo}_pay_${upload.filename}`;
-        const path = join(uploadsDir, storedName);
+        const path = join(/*turbopackIgnore: true*/ uploadsDir, storedName);
         await mkdir(uploadsDir, { recursive: true });
         await writeFile(path, upload.bytes);
         written.push(path);

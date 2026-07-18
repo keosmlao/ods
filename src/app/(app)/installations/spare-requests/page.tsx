@@ -3,7 +3,7 @@ import { deleteSpareRequest, techFilter } from "@/app/actions/installation";
 import { DeleteSpareRequestButton } from "@/components/installation/spare-request-buttons";
 import { LinkPending } from "@/components/link-pending";
 import { query } from "@/lib/db";
-import { ClipboardList, Clock, Eye, PackagePlus } from "lucide-react";
+import { Eye, PackagePlus } from "lucide-react";
 import Link from "next/link";
 import {
   DocCell,
@@ -18,8 +18,8 @@ import {
   ListHeader,
   PAGE_SIZE,
   Pager,
+  SearchBar,
   TableShell,
-  TabsAndSearch,
   fetchInstallDocRows,
   fetchInstallRows,
   installOrderBy,
@@ -27,7 +27,6 @@ import {
   type InstallDocRow,
   type InstallRow,
   type ListSearchParams,
-  type TabItem,
 } from "../shared";
 
 /**
@@ -137,39 +136,25 @@ export default async function SpareRequestsPage({ searchParams }: Props) {
 
   const pages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
   const base = () => ({ ...(tab !== "waiting" && { tab }), ...(q && { q }) });
-  const tabHref = (target: Tab) =>
-    `/installations/spare-requests?${new URLSearchParams({ ...(target !== "waiting" && { tab: target }), ...(q && { q }) })}`;
   const sortHref = (key: string, nextDir: "asc" | "desc") =>
     `/installations/spare-requests?${new URLSearchParams({ ...base(), sort: key, dir: nextDir })}`;
   const pageHref = (n: number) =>
     `/installations/spare-requests?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
-  const TABS: TabItem<Tab>[] = [
-    { key: "waiting", label: "ລໍຖ້າຂໍເບີກ", icon: Clock, count: counts.waiting },
-    { key: "requested", label: "ກຳລັງຂໍເບີກອາໄຫຼ່", icon: ClipboardList, count: counts.requested },
-  ];
-
   const rows = list.rows as (InstallRow | ReqRow)[];
 
   return (
     <div className="w-full space-y-4">
+      {/* tab ມາຈາກ **ເມນູ sidebar** (?tab=waiting/requested) — ບໍ່ມີ tab ໃນໜ້າ (ຍ້າຍໄປ sidebar) */}
       <ListHeader
-        title="ໃບຂໍເບີກຕິດຕັ້ງ"
+        title={tab === "waiting" ? "ລໍຖ້າຂໍເບີກ (ຕິດຕັ້ງ)" : "ກຳລັງຂໍເບີກອາໄຫຼ່ (ຕິດຕັ້ງ)"}
         scope={tech ? "ສະແດງສະເພາະງານຂອງທ່ານ" : "ສະແດງທຸກງານ"}
         total={list.total}
         page={page}
         pages={pages}
       />
 
-      <TabsAndSearch
-        tabs={TABS}
-        current={tab}
-        tabHref={tabHref}
-        q={q}
-        sort={sort}
-        dir={dir}
-        hidden={tab !== "waiting" ? { tab } : {}}
-      />
+      <SearchBar q={q} sort={sort} dir={dir} placeholder="ຄົ້ນຫາ ເລກທີ, ເລກບິນ, ລູກຄ້າ, ຊ່າງ, ລາຍການ..." />
 
       {/*
         ── ບອກວ່າງານທີ່ "ຫາຍໄປ" ຄ້າງຢູ່ໃສ ──

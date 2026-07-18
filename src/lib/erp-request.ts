@@ -126,12 +126,17 @@ export async function writeErpRequest(doc: ErpRequestDoc, client?: PoolClient): 
  * ປອດໄພ: ຖ້າ ERP **ເບີກຕາມໃບນີ້ໄປແລ້ວ** (ມີໃບ 56 ທີ່ doc_ref ຊີ້ໃສ່) ⇒ ໂຍນ error
  * ⇒ ຜູ້ເອີ້ນຕ້ອງປະຕິເສດການລຶບ (ລຶບໃບຂໍທີ່ເບີກແລ້ວ = ບັນຊີອາໄຫຼ່ບໍ່ຕົງ).
  */
-export async function deleteErpRequest(docNo: string, transFlag: number = TRANS.REQUEST): Promise<void> {
+export async function deleteErpRequest(
+  docNo: string,
+  transFlag: number = TRANS.REQUEST,
+  client?: PoolClient,
+): Promise<void> {
   if (!odgDb) throw new Error("ບໍ່ພົບ ODG_DATABASE_URL");
 
-  const odg = await odgDb.connect();
+  const own = !client;
+  const odg = client ?? (await odgDb.connect());
   try {
-    await odg.query("begin");
+    if (own) await odg.query("begin");
 
     const dispatched = await odg.query<{ doc_no: string }>(
       `select doc_no from ic_trans
@@ -139,18 +144,18 @@ export async function deleteErpRequest(docNo: string, transFlag: number = TRANS.
       [TRANS.DISPATCH, docNo],
     );
     if (dispatched.rows[0]) {
-      await odg.query("rollback");
+      if (own) await odg.query("rollback");
       throw new Error(`ສາງເບີກຕາມໃບນີ້ໄປແລ້ວໃນ ERP (${dispatched.rows[0].doc_no}) — ລຶບບໍ່ໄດ້`);
     }
 
     await odg.query("delete from ic_trans_detail where doc_no = $1 and trans_flag = $2", [docNo, transFlag]);
     await odg.query("delete from ic_trans where doc_no = $1 and trans_flag = $2", [docNo, transFlag]);
 
-    await odg.query("commit");
+    if (own) await odg.query("commit");
   } catch (error) {
-    await odg.query("rollback").catch(() => {});
+    if (own) await odg.query("rollback").catch(() => {});
     throw error;
   } finally {
-    odg.release();
+    if (own) odg.release();
   }
 }

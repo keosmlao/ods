@@ -1,6 +1,6 @@
 import { canAccess, type Role } from "@/lib/roles";
 import { resourceForPath } from "@/lib/permission-catalog";
-import { pipelineOf, repairStatuses } from "@/lib/dashboard-status";
+import { installStatuses, pipelineOf, repairStatuses } from "@/lib/dashboard-status";
 import {
   Boxes,
   ClipboardCheck,
@@ -110,17 +110,23 @@ const INSTALL_FLOW: NavItem[] = [
      * ງານຕິດຕັ້ງເລີ່ມຈາກ "ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງໃນບິນ" ບໍ່ແມ່ນຈາກ "ໃບງານ" ⇒ ບິນທີ່ລືມເປີດ
      * ຕ້ອງເຫັນ **ກ່ອນ** ລາຍການງານ (ຂໍ້ມູນຈິງ: 232 ໜ່ວຍຄ້າງ · ບິນເກົ່າສຸດ 120 ມື້).
      */
-    { label: "ບິນຄ້າງອອກໃບງານ", href: "/installations/pending-bills" },
-    { label: "ງານຕິດຕັ້ງ", href: "/installations" },
-    { label: "ມອບໝາຍງານ", href: "/installations/assign", count: "/installations/assign" },
-    { label: "ຮັບງານຕິດຕັ້ງ", href: "/installations/accept", count: "/installations/accept" },
-    { label: "ໃບຂໍເບີກ(ຕິດຕັ້ງ)", href: "/installations/spare-requests", divider: true },
+    { label: "ບິນຄ້າງອອກໃບງານ", href: "/installations/pending-bills", count: "/installations/pending-bills" },
+    { label: "ໃບງານ/ລໍຖ້າຈັດຊ່າງ", href: "/installations" },
+    /**
+     * ── ຮັບງານ ແຍກເປັນ 2 ເມນູ (ຄິວ ↔ ຄິວ) ──
+     * ໜ້າ /installations/accept ມີ 2 tab ຢູ່ແລ້ວ ⇒ ຊີ້ໄປ tab ໂດຍກົງ. **ທັງສອງໃສ່ ?tab=**
+     * ເພື່ອບໍ່ໃຫ້ active ພ້ອມກັນ (ລິ້ງບໍ່ມີ query = ຕົງທຸກ URL — ເບິ່ງ queryMatches ຂອງ sidebar).
+     */
+    { label: "ລໍຖ້າຮັບງານຕິດຕັ້ງ", href: "/installations/accept?tab=waiting", count: "/installations/accept" },
+    { label: "ຮັບງານແລ້ວ (ລໍຖ້າດຳເນີນການ)", href: "/installations/accept?tab=accepted", count: "/installations/accept/accepted" },
+    { label: "ລໍຖ້າຂໍເບີກ(ຕິດຕັ້ງ)", href: "/installations/spare-requests?tab=waiting", count: "/installations/spare-requests", divider: true },
+    { label: "ກຳລັງຂໍເບີກອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/installations/spare-requests?tab=requested", count: "/installations/spare-requests/requested" },
     /**
      * "ເບີກອາໄຫຼ່" **ຖອດອອກແລ້ວ** (13-07-2026) — ລະບົບນີ້ອອກໃບເບີກເອງບໍ່ໄດ້ອີກ,
      * ສາງເບີກຢູ່ **ERP** ແລ້ວ ODS ດຶງກັບມາເອງ (lib/erp-dispatch ແລ່ນຕອນເປີດ
      * ໜ້າ "ໃບຂໍເບີກ" ແລະ "ຮັບອາໄຫຼ່"). ເມນູທີ່ພາໄປໜ້າທີ່ກົດຫຍັງບໍ່ໄດ້ = ຫຼອກຄົນ.
      */
-    { label: "ຮັບອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/installations/spare-pickup" },
+    { label: "ຮັບອາໄຫຼ່(ຕິດຕັ້ງ)", href: "/installations/spare-pickup", count: "/installations/spare-pickup" },
     /**
      * ໜ້າດຽວກັນໃຊ້ query scope ຄົນລະຄ່າ: job=install ແລະ job=repair.
      * ຕ້ອງຮັກສາ scope ນີ້ຂ້າມທຸກແທັບ ເພື່ອບໍ່ໃຫ້ໃບຂອງສອງສາຍງານປົນກັນ.
@@ -149,6 +155,23 @@ const INSTALL: NavGroup = {
     ...INSTALL_FLOW.map((item, index) => ({ ...item, label: `${index + 1}. ${item.label}` })),
     ...INSTALL_REPORTS,
   ],
+};
+
+/**
+ * ── ຂັ້ນຕອນຕິດຕັ້ງ (overview ທຸກຂັ້ນ) — ຄູ່ກັບ "ສະຖານະງານສ້ອມ" ຝັ່ງສ້ອມ ──
+ * ລາຍທຸກຂັ້ນ 0-8 ພ້ອມ badge ⇒ ເຫັນວຽກຄ້າງທຸກຂັ້ນໃນຕາດຽວ (ລວມຂັ້ນທີ່ບໍ່ມີໜ້າວຽກ
+ * ໂດຍກົງ ຄື "ລໍຖ້າສາງເບີກ", "ລໍຖ້າແບບປະເມີນ"). ລິ້ງໄປໜ້າ status (ອ່ານຢ່າງດຽວ) —
+ * ໜ້າເຮັດວຽກຈິງຍັງຢູ່ກຸ່ມ "ຕິດຕັ້ງ" ຄືເກົ່າ. ຕົວເລກມາຈາກ lib/nav-counts (ist CTE).
+ */
+const INSTALL_STATUS: NavGroup = {
+  id: "install_status_menu",
+  label: "ຂັ້ນຕອນຕິດຕັ້ງ",
+  icon: LayoutDashboard,
+  items: pipelineOf(installStatuses).map(([slug, def], index) => ({
+    label: `${index + 1}. ${def.label}`,
+    href: `/dashboard/status/install/${slug}`,
+    count: `/dashboard/status/install/${slug}`,
+  })),
 };
 
 /* ── ສາງ ແລະ ອາໄຫຼ່ (ໃຊ້ຮ່ວມກັນທັງສອງສາຍງານ) ──────────────────── */
@@ -253,7 +276,7 @@ const USERS: NavGroup = {
  *   ຄິວແຈ້ງລູກຄ້າ  → ຢູ່ກຸ່ມ **ຂອງຂ້ອຍ** (ຄິວວຽກຂອງມື້ນີ້ ຂ້າມສາຍງານ — ເບິ່ງເຫດຜົນຢູ່ນັ້ນ)
  *   ຕັ້ງລາຍການກວດຮັບ → ຢູ່ກຸ່ມ **ຜູ້ໃຊ້/ຕັ້ງຄ່າ** (ເປັນການຕັ້ງຄ່າ ບໍ່ແມ່ນຄິວງານ)
  */
-export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, STOCK, PURCHASE, APPROVE, REPORT, USERS];
+export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, INSTALL_STATUS, STOCK, PURCHASE, APPROVE, REPORT, USERS];
 
 /**
  * Sidebar ສະເພາະຊ່າງ — ມີແຕ່ຄິວທີ່ຊ່າງລົງມືໄດ້ຈິງ.
@@ -297,8 +320,8 @@ const TECHNICIAN_NAVIGATION: NavGroup[] = [
     icon: HardHat,
     items: [
       { label: "ຮັບງານ", href: "/installations/accept", count: "/installations/accept" },
-      { label: "ຂໍເບີກອາໄຫຼ່", href: "/installations/spare-requests" },
-      { label: "ຮັບອາໄຫຼ່", href: "/installations/spare-pickup" },
+      { label: "ຂໍເບີກອາໄຫຼ່", href: "/installations/spare-requests", count: "/installations/spare-requests" },
+      { label: "ຮັບອາໄຫຼ່", href: "/installations/spare-pickup", count: "/installations/spare-pickup" },
       { label: "ຕິດຕັ້ງ", href: "/installations/work", count: "/installations/work" },
       { label: "ສົ່ງຄືນອາໄຫຼ່", href: "/stock/returns?job=install" },
       { label: "ກວດຮັບຄຸນນະພາບ", href: "/qc?workflow=install", flag: "qc", count: "/qc" },

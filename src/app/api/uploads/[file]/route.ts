@@ -30,7 +30,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ file: stri
   if (!type) return new NextResponse(null, { status: 404 });
 
   try {
-    const body = await readFile(join(uploadsDir, file));
+    const body = await readFile(join(/*turbopackIgnore: true*/ uploadsDir, file));
     return new NextResponse(new Uint8Array(body), {
       headers: { "Content-Type": type, "Cache-Control": "private, max-age=3600" },
     });

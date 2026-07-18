@@ -2,6 +2,7 @@ import type { Session } from "@/lib/auth";
 import { type Role, roleOf } from "@/lib/roles";
 import { jwtVerify, SignJWT } from "jose";
 import { NextResponse } from "next/server";
+import { authSecretBytes } from "@/lib/auth-secret";
 
 /**
  * ດ່ານກວດຕົວຕົນຂອງ **ແອັບມືຖື** — Bearer token, ບໍ່ແມ່ນ cookie.
@@ -16,7 +17,7 @@ import { NextResponse } from "next/server";
  * ກັບກັນ (proxy ຂອງເວັບກວດ cookie ຢ່າງດຽວຢູ່ແລ້ວ ແຕ່ຖ້າມື້ໜ້າປ່ຽນ ອັນນີ້ກັນໄວ້ກ່ອນ).
  */
 
-const secret = new TextEncoder().encode(process.env.AUTH_SECRET ?? "development-only-change-this-secret");
+const secret = authSecretBytes();
 const AUDIENCE = "mobile";
 const EXPIRY = "30d";
 
