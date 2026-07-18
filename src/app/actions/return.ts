@@ -6,6 +6,7 @@ import { requireRole, requireRoleOrRedirect } from "@/lib/guard";
 import { SERVICE_SIDE } from "@/lib/roles";
 import { db, queryOdg } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
+import { HAS_OUTSTANDING_SPARES } from "@/lib/outstanding-spares";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { revalidatePath } from "next/cache";
@@ -569,6 +570,20 @@ export async function returnWithoutInvoice(_: ReturnState, formData: FormData): 
   const parsed = z.object({ pro_code: z.string().trim().min(1) }).safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "ບໍ່ພົບລະຫັດເຄື່ອງ" };
   const productCode = parsed.data.pro_code;
+
+  // ── ບັງຄັບ "ຄືນ ຫຼື ເກັບເງິນ" ອາໄຫຼ່ ກ່ອນປິດງານຍົກເລີກ (ບໍ່ໃຫ້ປິດຟຣີໂດຍອາໄຫຼ່ຄ້າງ) ──
+  // ຍັງມີອາໄຫຼ່ເບີກອອກແຕ່ບໍ່ຄືນ ⇒ ຕ້ອງ (ກ) ສົ່ງຄືນອາໄຫຼ່ (ໜ້າກູ້ອາໄຫຼ່) ຫຼື (ຂ) ອອກໃບຮັບເງິນ
+  // ເກັບຄ່າອາໄຫຼ່ (saveInvoice). ນີ້ອຸດຮູທີ່ເຮັດໃຫ້ 570 ໃບຍົກເລີກປິດໄປໂດຍອາໄຫຼ່ບໍ່ເຄີຍຄືນ.
+  const outstanding = await db.query<{ n: number }>(
+    `select count(*)::int n from tb_product a where a.code=$1 and ${HAS_OUTSTANDING_SPARES}`,
+    [productCode],
+  );
+  if (outstanding.rows[0]?.n) {
+    return {
+      error:
+        "ຍັງມີອາໄຫຼ່ທີ່ເບີກອອກຈາກສາງ ຍັງບໍ່ໄດ້ຄືນ — ຕ້ອງສົ່ງຄືນອາໄຫຼ່ (ໜ້າກູ້ອາໄຫຼ່) ຫຼື ອອກໃບຮັບເງິນເກັບຄ່າອາໄຫຼ່ ກ່ອນປິດງານ",
+    };
+  }
 
   let custCode = "";
   try {
