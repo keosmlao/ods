@@ -42,6 +42,9 @@ export async function GET(request: NextRequest) {
   const q = (params.get("q") ?? "").trim();
   const statusRaw = Number(params.get("status"));
   const status = tab === "pending" && statusRaw >= 1 && statusRaw <= 11 ? statusRaw : null;
+  const service = ["CI", "ST", "IH", "PS"].includes(params.get("service") ?? "")
+    ? (params.get("service") as string)
+    : null;
 
   const where = [TAB_WHERE[tab]];
   const args: (string | number)[] = [];
@@ -53,6 +56,10 @@ export async function GET(request: NextRequest) {
     args.push(status);
     where.push(`(${STAGE_SQL}) = $${args.length}`);
   }
+  if (service) {
+    args.push(service);
+    where.push(`a.service_type = $${args.length}`);
+  }
 
   const rows = await query<XlsxRow>(
     `select a.code as "ເລກທີ",
@@ -60,6 +67,12 @@ export async function GET(request: NextRequest) {
         b.name_1 as "ລູກຄ້າ", b.tel as "ເບີໂທ",
         a.name_1 as "ສິນຄ້າ", a.p_brand as "ຍີ່ຫໍ້", a.p_model as "ຮຸ່ນ", a.sn as "Serial",
         a.warrunty as "ປະກັນ",
+        case a.service_type
+          when 'CI' then 'CI · ລູກຄ້ານຳເຄື່ອງເຂົ້າ'
+          when 'ST' then 'ST · ສ້ອມເຄື່ອງໃນສາງ'
+          when 'IH' then 'IH · ສ້ອມບ້ານລູກຄ້າ'
+          when 'PS' then 'PS · ໄປຮັບເຄື່ອງທີ່ບ້ານລູກຄ້າມາສ້ອມຢູ່ສູນ'
+          else coalesce(a.service_type,'-') end as "ປະເພດບໍລິການ",
         a.issue as "ອາການ (ລູກຄ້າ)", a.issue_2 as "ອາການ (ຊ່າງ)",
         a.emp_code as "ຊ່າງ", a.user_regis as "ຜູ້ຮັບເຄື່ອງ",
         (${STAGE_LABEL_SQL}) as "ຂັ້ນຕອນ",

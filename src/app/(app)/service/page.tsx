@@ -1,5 +1,6 @@
 import { LinkPending } from "@/components/link-pending";
 import { SelectField } from "@/components/select-field";
+import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { ServiceBoard, STAGES, type BoardCard } from "@/components/service-board";
 import { ServicePendingTable } from "@/components/service-pending-table";
 import type { SortDir } from "@/components/sort-header";
@@ -15,7 +16,10 @@ import Link from "next/link";
 
 /** 3 ແທັບ: ວຽກຄ້າງ · ຈົບແລ້ວ · ຍົກເລີກ */
 type Tab = "pending" | "done" | "cancelled";
-type Props = { searchParams: Promise<{ q?: string; tab?: string; page?: string; view?: string; status?: string; sort?: string; dir?: string }> };
+type Props = { searchParams: Promise<{ q?: string; tab?: string; page?: string; view?: string; status?: string; service?: string; sort?: string; dir?: string }> };
+
+/** ປະເພດບໍລິການທີ່ກອງໄດ້ — CI/ST/IH/PS (lib/sla) */
+const SERVICE_CODES = ["CI", "ST", "IH", "PS"];
 
 /**
  * ── ເວລາຄ້າງ: ໃຊ້ຂອງ lib/stage ບ່ອນດຽວ ຢ່າຄິດເອງ ──
@@ -29,11 +33,12 @@ const SEARCH = `(a.code ilike $1 or a.sn ilike $1 or a.name_1 ilike $1 or a.p_br
   or a.issue ilike $1 or b.name_1 ilike $1 or b.tel ilike $1)`;
 
 /** ວຽກທີ່ຍັງຄ້າງ (ຂັ້ນ 1..10) — ສຳລັບກະດານ */
-async function getBoard(q: string, status: number | null) {
+async function getBoard(q: string, status: number | null, service: string | null) {
   const where = [OPEN_JOBS];
   const params: (string | number)[] = [];
   if (q) { params.push(`%${q}%`); where.push(SEARCH.replaceAll("$1", `$${params.length}`)); }
   if (status) { params.push(status); where.push(`(${STAGE_SQL}) = $${params.length}`); }
+  if (service) { params.push(service); where.push(`a.service_type = $${params.length}`); }
 
   // ບໍ່ດຶງຮູບ: ບັດ 98 ໃບ = 98 request ໄປ /api/uploads ພ້ອມກັນ → ໜ້າຊ້າ.
   // ຮູບຍັງເບິ່ງໄດ້ຢູ່ໜ້າລາຍລະອຽດ ແລະ ຕາຕະລາງ "ຈົບແລ້ວ".
@@ -111,6 +116,8 @@ export default async function ServicePage({ searchParams }: Props) {
   // ຕົວກອງສະຖານະ (ສະເພາະແທັບວຽກຄ້າງ) — ຂັ້ນ 1..11 (11 = ລໍຖ້າສົ່ງຄືນ, ຫຼັງເພີ່ມດ່ານ QC)
   const statusRaw = Number(params.status);
   const status = isPending && statusRaw >= 1 && statusRaw <= 11 ? statusRaw : null;
+  // ຕົວກອງປະເພດບໍລິການ (CI/ST/IH/PS) — ໃຊ້ໄດ້ທຸກແທັບ ແລະ ໄປນຳ export
+  const service = SERVICE_CODES.includes(params.service ?? "") ? params.service! : null;
 
   // ຈັດຮຽງ
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
@@ -123,7 +130,7 @@ export default async function ServicePage({ searchParams }: Props) {
   /** ໝາຍ/ປົດ ທຸງ "ມີບັນຫາ" — ຕ້ອງເປີດສະວິດ + ເປັນຫົວໜ້າ/ຜູ້ມີສິດອະນຸມັດ (ຄືກັນກັບໜ້າຄິວ) */
   const canHold = (await settingEnabled(SETTING.JOB_HOLD)) && APPROVER_SIDE.includes(roleOf(session));
 
-  const [board, noticeCount] = await Promise.all([getBoard(q, status), getNoticeCount()]);
+  const [board, noticeCount] = await Promise.all([getBoard(q, status, service), getNoticeCount()]);
 
   const total = board.length;
 
@@ -137,6 +144,7 @@ export default async function ServicePage({ searchParams }: Props) {
     ...(board_view && { view: "board" }),
     ...(q && { q }),
     ...(status && { status: String(status) }),
+    ...(service && { service }),
   });
 
   const pageHref = (n: number) =>
@@ -233,6 +241,7 @@ export default async function ServicePage({ searchParams }: Props) {
               tab,
               ...(q && { q }),
               ...(status && { status: String(status) }),
+              ...(service && { service }),
             })}`}
             className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
@@ -275,6 +284,16 @@ export default async function ServicePage({ searchParams }: Props) {
             />
           </div>
         )}
+
+        {/* ກອງຕາມປະເພດບໍລິການ (CI/ST/IH/PS) — ໃຊ້ໄດ້ທຸກແທັບ · export ຕາມນີ້ */}
+        <div className="w-56">
+          <SelectField
+            name="service"
+            defaultValue={service ?? ""}
+            placeholder="ທຸກປະເພດບໍລິການ"
+            options={SERVICE_CODES.map((code) => ({ value: code, label: `${code} · ${SERVICE_TYPE_LABEL[code] ?? code}` }))}
+          />
+        </div>
 
         <button className="h-10 rounded-lg bg-slate-900 px-5 text-sm font-medium text-white">ຄົ້ນຫາ</button>
 
