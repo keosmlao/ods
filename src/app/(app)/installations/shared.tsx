@@ -537,7 +537,7 @@ export function ListHeader({
 }
 
 /** ອ່ານ searchParams ມາດຕະຖານຂອງໜ້າລາຍການ */
-export type ListSearchParams = { tab?: string; q?: string; page?: string; sort?: string; dir?: string };
+export type ListSearchParams = { tab?: string; q?: string; page?: string; sort?: string; dir?: string; status?: string };
 export function readParams(params: ListSearchParams, defaultSort = "elapsed") {
   return {
     q: (params.q ?? "").trim(),

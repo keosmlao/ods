@@ -3,7 +3,7 @@ import { CancelJobButton } from "@/components/installation/job-buttons";
 import { LinkButton } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { INSTALL_CANCELLED, INSTALL_CLOSED, INSTALL_OPEN, INSTALL_STAGE_TIME_COL } from "@/lib/install-stage";
+import { INSTALL_CANCELLED, INSTALL_CLOSED, INSTALL_OPEN, INSTALL_STAGE_LABEL, INSTALL_STAGE_SQL, INSTALL_STAGE_TIME_COL } from "@/lib/install-stage";
 import { permissionFor } from "@/lib/permissions";
 import { Ban, CheckCircle2, FilePlus2, ListChecks, Loader, Pencil, Printer } from "lucide-react";
 import Link from "next/link";
@@ -67,6 +67,23 @@ async function getCounts(tech: string | null) {
   };
 }
 
+/** ຂັ້ນທີ່ກອງໄດ້ (ສະເພາະງານດຳເນີນຢູ່: 0..8) — ຄິວ "ປິດງານແລ້ວ (9)" ບໍ່ຢູ່ໃນ bucket open */
+const OPEN_STAGES = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+
+/** ຈຳນວນງານດຳເນີນຢູ່ ຕໍ່ຂັ້ນ — ໃຫ້ຊິບຕົວກອງບອກເລກ (ສະແກນ ods_tb_install ເທື່ອດຽວ) */
+async function getStageCounts(tech: string | null): Promise<Map<number, number>> {
+  const params = tech ? [tech] : [];
+  const mine = tech ? "and a.tech_code = $1" : "";
+  const rows = (
+    await query<{ stage: number; n: number }>(
+      `select (${INSTALL_STAGE_SQL}) stage, count(*)::int n
+         from ods_tb_install a where ${INSTALL_OPEN} ${mine} group by 1`,
+      params,
+    )
+  ).rows;
+  return new Map(rows.map((r) => [r.stage, r.n]));
+}
+
 export default async function InstallationsPage({ searchParams }: Props) {
   const session = await getSession();
   // ຊ່າງເຫັນສະເພາະງານຂອງຕົນ (ຄືກັບ ods /api/install_list)
@@ -78,6 +95,9 @@ export default async function InstallationsPage({ searchParams }: Props) {
   const raw = await searchParams;
   const tab: Tab = raw.tab === "cancelled" ? "cancelled" : "open";
   const { q, page, sort, dir } = readParams(raw);
+  // ຕົວກອງສະຖານະ — ສະເພາະແທັບ "ດຳເນີນຢູ່" (ຂັ້ນ 0..8). null = ທຸກຂັ້ນ
+  const statusRaw = Number(raw.status);
+  const status = tab === "open" && Number.isInteger(statusRaw) && OPEN_STAGES.includes(statusRaw) ? statusRaw : null;
 
   const where = [BUCKET[tab]];
   const params: (string | number)[] = [];
@@ -85,13 +105,15 @@ export default async function InstallationsPage({ searchParams }: Props) {
     params.push(tech);
     where.push(`a.tech_code = $${params.length}`);
   }
+  if (status !== null) where.push(`(${INSTALL_STAGE_SQL}) = ${status}`);
   if (q) {
     params.push(`%${q}%`);
     where.push(INSTALL_SEARCH.replaceAll("$Q", `$${params.length}`));
   }
 
-  const [counts, jobs] = await Promise.all([
+  const [counts, stageCounts, jobs] = await Promise.all([
     getCounts(tech),
+    tab === "open" ? getStageCounts(tech) : Promise.resolve(new Map<number, number>()),
     fetchInstallRows({
       where: where.join(" and "),
       params,
@@ -110,13 +132,17 @@ export default async function InstallationsPage({ searchParams }: Props) {
   const outstandingJobs = [...outstanding.entries()].map(([code, docs]) => ({ code, docs }));
 
   const pages = Math.max(1, Math.ceil(jobs.total / PAGE_SIZE));
-  const base = () => ({ ...(tab !== "open" && { tab }), ...(q && { q }) });
+  // ຕົວກອງສະຖານະຕ້ອງໄປນຳທຸກລິ້ງ (ຈັດຮຽງ/ປ່ຽນໜ້າ) ບໍ່ດັ່ງນັ້ນກົດແລ້ວເດັ້ງອອກຈາກຕົວກອງ
+  const base = () => ({ ...(tab !== "open" && { tab }), ...(q && { q }), ...(status !== null && { status: String(status) }) });
   const tabHref = (target: Tab) =>
     `/installations?${new URLSearchParams({ ...(target !== "open" && { tab: target }), ...(q && { q }) })}`;
   const sortHref = (key: string, nextDir: "asc" | "desc") =>
     `/installations?${new URLSearchParams({ ...base(), sort: key, dir: nextDir })}`;
   const pageHref = (n: number) =>
     `/installations?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
+  /** ເລືອກຂັ້ນ — ກັບໄປໜ້າ 1, ຮັກສາຄຳຄົ້ນຫາ. null = ທຸກຂັ້ນ */
+  const statusHref = (stage: number | null) =>
+    `/installations?${new URLSearchParams({ ...(q && { q }), ...(stage !== null && { status: String(stage) }) })}`;
 
   const TABS: TabItem<Tab>[] = [
     { key: "open", label: "ດຳເນີນຢູ່", icon: Loader, count: counts.open },
@@ -156,6 +182,36 @@ export default async function InstallationsPage({ searchParams }: Props) {
         dir={dir}
         hidden={tab !== "open" ? { tab } : {}}
       />
+
+      {/* ── ຕົວກອງສະຖານະ — ເລືອກສະແດງງານຕາມຂັ້ນ (ເຊັ່ນ ‘ລໍຖ້າຈັດຊ່າງ’ ຢ່າງດຽວ) ── */}
+      {tab === "open" && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Link
+            href={statusHref(null)}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium ${
+              status === null ? "border-slate-800 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            ທຸກຂັ້ນ
+            <span className="tabular-nums opacity-70">{counts.open}</span>
+          </Link>
+          {OPEN_STAGES.map((stage) => {
+            const n = stageCounts.get(stage) ?? 0;
+            return (
+              <Link
+                key={stage}
+                href={statusHref(stage)}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium ${
+                  status === stage ? "border-slate-800 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                } ${n === 0 && status !== stage ? "opacity-45" : ""}`}
+              >
+                {INSTALL_STAGE_LABEL[stage]}
+                <span className="tabular-nums opacity-70">{n}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
 
       {tab === "cancelled" && <CancelledSpares jobs={outstandingJobs} />}
 

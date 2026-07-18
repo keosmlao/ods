@@ -78,7 +78,7 @@ export function ServicePendingTable({
               <th className="whitespace-nowrap px-3 py-3 font-semibold">ປະກັນ</th>
               {/* ໝາຍເຫດ — ຂຽນໄດ້ຢູ່ນີ້ເລີຍ (ບໍ່ຕ້ອງເປີດເຂົ້າໃບ) */}
               <th className="whitespace-nowrap px-3 py-3 font-semibold">ໝາຍເຫດ</th>
-              {canHold && <th className="whitespace-nowrap px-3 py-3 font-semibold">ບັນຫາ</th>}
+              {canHold && <th className="whitespace-nowrap px-3 py-3 font-semibold">ຈັດການວຽກຄ້າງ</th>}
               <th className="px-3 py-3" />
             </tr>
           </thead>

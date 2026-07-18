@@ -422,7 +422,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
         <div className="flex w-fit overflow-hidden rounded-lg border border-slate-300 bg-white">
           {[
             { held: false, label: "ດຳເນີນປົກກະຕິ", count: holdTab ? otherTabTotal : total },
-            { held: true, label: "ມີບັນຫາ", count: holdTab ? total : otherTabTotal },
+            { held: true, label: "ຕ້ອງກວດ", count: holdTab ? total : otherTabTotal },
           ].map(({ held, label, count }) => (
             <Link
               key={label}
@@ -446,8 +446,8 @@ export default async function StatusPage({ params, searchParams }: Props) {
 
       {holdTab && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
-          ວຽກເຫຼົ່ານີ້ <b>ຍັງຄ້າງຢູ່ຂັ້ນນີ້</b> ແລະ ຍັງນັບເປັນວຽກຄ້າງ — ພຽງແຕ່ຖືກໝາຍວ່າມີບັນຫາ
-          ຈຶ່ງແຍກອອກມາ ແລະ <b>ນາລິກາຂັ້ນຢຸດນັບ</b> ຕັ້ງແຕ່ມື້ທີ່ໝາຍ. ປົດທຸງແລ້ວນາລິກາເດີນຕໍ່.
+          ວຽກເຫຼົ່ານີ້ <b>ຍັງຄ້າງຢູ່ຂັ້ນນີ້</b> ແລະ ຍັງນັບເປັນວຽກຄ້າງ — ພຽງແຕ່ຖືກໝາຍ “ຕ້ອງກວດວ່າຍັງຢູ່”
+          ຈຶ່ງແຍກອອກມາ ແລະ <b>ນາລິກາຂັ້ນຢຸດນັບ</b> ຕັ້ງແຕ່ມື້ທີ່ໝາຍ. ປົດແລ້ວນາລິກາເດີນຕໍ່.
         </p>
       )}
 

@@ -140,6 +140,59 @@ export async function releaseJobHold(_: HoldState, formData: FormData): Promise<
   return { ok: true };
 }
 
+const repairedSchema = z.object({
+  job_code: z.string().trim().min(1, "ບໍ່ພົບລະຫັດງານ"),
+  note: z.string().trim().min(3, "ກະລຸນາບອກເຫດຜົນ").max(200, "ເຫດຜົນຍາວເກີນ 200 ຕົວອັກສອນ"),
+});
+
+/**
+ * **"ແປງແລ້ວ" — ໝາຍວ່າສ້ອມສຳເລັດ (ຫົວໜ້າ override)** ສຳລັບວຽກຄ້າງ.
+ *
+ * ── ຕ່າງຈາກ finishRepairFlow ແນວໃດ ──
+ * `finishRepairFlow` ບັງຄັບຢູ່ຂັ້ນ 9 (ກຳລັງສ້ອມ) + ກັນອາໄຫຼ່ຄ້າງ ⇒ ໃຊ້ກັບວຽກຄ້າງ
+ * ຂັ້ນ 6 (ລໍເບີກ 100+ ມື້) ບໍ່ໄດ້. ອັນນີ້ຄື **ທາງລັດຂອງຫົວໜ້າ**: ເຄື່ອງຖືກສ້ອມ/ຈັດການ
+ * ໄປແລ້ວຈິງ ແຕ່ລະບົບຄ້າງ ⇒ ປິດ. ຕັ້ງ time_finish_repair+status=5 ⇒ ວຽກໄປ **ຂັ້ນ QC/ສົ່ງຄືນ**
+ * (ບໍ່ໄດ້ຂ້າມ QC ກັບການສົ່ງຄືນ — ຍັງຕ້ອງຜ່ານ). ບໍ່ແມ່ນວຽກປົກກະຕິ ⇒ **ຫົວໜ້າເທົ່ານັ້ນ** + ບັງຄັບເຫດຜົນ.
+ *
+ * ປົດ hold ທີ່ເປີດຢູ່ໃຫ້ເອງ (ວຽກຈົບການແປງແລ້ວ ບໍ່ຕ້ອງມີທຸງ "ຕ້ອງກວດ" ອີກ).
+ */
+export async function markJobRepaired(_: HoldState, formData: FormData): Promise<HoldState> {
+  const guard = await requireRole(APPROVER_SIDE, "ບໍ່ມີສິດໝາຍວ່າສ້ອມສຳເລັດ");
+  if (!guard.ok) return { error: guard.error };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const parsed = repairedSchema.safeParse({
+    job_code: String(formData.get("job_code") ?? ""),
+    note: String(formData.get("note") ?? ""),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "ຂໍ້ມູນບໍ່ຄົບ" };
+  const { job_code, note } = parsed.data;
+
+  try {
+    // ຍັງບໍ່ຈົບ (time_finish_repair null) · ບໍ່ຖືກຍົກເລີກ · ເຄື່ອງຍັງບໍ່ສົ່ງຄືນ ⇒ ຈຶ່ງໝາຍໄດ້
+    const done = await db.query(
+      `update tb_product set time_finish_repair = localtimestamp(0), status = 5, repair_note = nullif($2,'')
+        where code = $1 and time_finish_repair is null and status <> 6 and return_complete is null`,
+      [job_code, note],
+    );
+    if (!done.rowCount) return { error: `ງານ ${job_code} ໝາຍບໍ່ໄດ້ — ອາດຈົບ/ຍົກເລີກ/ສົ່ງຄືນໄປແລ້ວ` };
+    // ວຽກຈົບການແປງແລ້ວ ⇒ ປົດ hold "ຕ້ອງກວດ" ທີ່ອາດຄ້າງ (ບໍ່ໃຫ້ຄາຢູ່ແທັບ)
+    await db.query(
+      `update ods_job_hold set resolved_at = localtimestamp(0), resolved_by = $2, resolved_note = 'ໝາຍວ່າສ້ອມສຳເລັດ'
+        where workflow = 'repair' and job_code = $1 and resolved_at is null`,
+      [job_code, guard.session.username],
+    );
+  } catch (error) {
+    console.error("markJobRepaired failed", error);
+    return { error: "ໝາຍບໍ່ສຳເລັດ ກະລຸນາລອງໃໝ່" };
+  }
+
+  await logChange("tb_product", job_code,
+    `ໝາຍວ່າ "ແປງແລ້ວ" (ຫົວໜ້າ override ວຽກຄ້າງ) — ${note} · ວຽກໄປຂັ້ນ QC/ສົ່ງຄືນ`);
+  revalidateJobViews();
+  return { ok: true };
+}
+
 /**
  * ໜ້າທີ່ນັບ/ສະແດງວຽກຄ້າງ — ທຸງປ່ຽນທັງຕົວເລກ ແລະ ແທັບ ⇒ ຕ້ອງ revalidate ພ້ອມ.
  * ໜ້າຂັ້ນຕອນເປັນ route ແບບ dynamic ⇒ ຕ້ອງສົ່ງ**ຮູບແບບ route** + type 'page'
