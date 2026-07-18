@@ -114,9 +114,9 @@ export default async function InstallationDetail({ params }: Props) {
           {/*
             ── ຍ້າຍມາຈາກແທັບ "ປິດງານແລ້ວ" ທີ່ຖືກຖອດອອກ (13-07-2026) ──
             ປຸ່ມນີ້ເຄີຍຢູ່ໃນແທັບນັ້ນບ່ອນດຽວ ⇒ ຖອດແທັບແລ້ວ ຄວາມສາມາດ "ເປີດງານຄືນ"
-            ຈະຫາຍໄປນຳ. ຂັ້ນ 9 = ປິດງານແລ້ວ.
+            ຈະຫາຍໄປນຳ. ຂັ້ນ 8 = ປິດງານແລ້ວ.
           */}
-          {row.stage === 9 && <ReopenJobButton code={row.code} />}
+          {row.stage === 8 && <ReopenJobButton code={row.code} />}
           <LinkButton tone="neutral" href={`/installations/${encodeURIComponent(row.code)}/print`}>
             ພິມ
           </LinkButton>

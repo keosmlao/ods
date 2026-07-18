@@ -53,12 +53,13 @@ export function ServiceScan({
 }: {
   types: { code: string; name_1: string }[];
   onResolved: (result: ScanResult) => void;
-  onManual: () => void;
+  onManual: (sn: string) => void;
 }) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [notFound, setNotFound] = useState("");
+  const [scanError, setScanError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function scan() {
@@ -66,8 +67,10 @@ export function ServiceScan({
     if (value.length < 3) return;
     setBusy(true);
     setNotFound("");
+    setScanError(false);
     try {
       const response = await fetch(`/api/scan?code=${encodeURIComponent(value)}`);
+      if (!response.ok) throw new Error("scan failed");
       const data: Api = await response.json();
       if (!data.found) {
         setNotFound(value);
@@ -76,7 +79,8 @@ export function ServiceScan({
         setResult(data);
       }
     } catch {
-      setNotFound(value);
+      setResult(null);
+      setScanError(true);
     } finally {
       setBusy(false);
       inputRef.current?.select();
@@ -137,12 +141,18 @@ export function ServiceScan({
               </p>
               <button
                 type="button"
-                onClick={onManual}
+                onClick={() => onManual(notFound)}
                 className="mt-2.5 inline-flex h-9 items-center gap-2 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700"
               >
                 <PencilLine className="size-3.5" />
-                ປ້ອນຂໍ້ມູນເອງ
+                ໃຊ້ SN ນີ້ ແລະປ້ອນຂໍ້ມູນເອງ
               </button>
+            </div>
+          )}
+
+          {scanError && (
+            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+              ລະບົບ ERP ຕອບກັບບໍ່ສຳເລັດ — ກະລຸນາລອງຄົ້ນຫາອີກຄັ້ງ. ບັນຫານີ້ບໍ່ໄດ້ໝາຍຄວາມວ່າ SN ບໍ່ມີໃນ ERP.
             </div>
           )}
         </section>
@@ -169,11 +179,13 @@ export function ServiceScan({
 
           <button
             type="button"
-            onClick={onManual}
+            onClick={() => onManual(code.trim())}
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
           >
             <PencilLine className="size-4" />
-            ບໍ່ມີບາໂຄດ / ບໍ່ໄດ້ຊື້ຈາກໂອດ້ຽນ — ປ້ອນເອງ
+            {code.trim()
+              ? "ໃຊ້ເລກທີ່ພິມນີ້ ແລະປ້ອນເອງ"
+              : "ບໍ່ມີບາໂຄດ / ບໍ່ໄດ້ຊື້ຈາກໂອດ້ຽນ — ປ້ອນເອງ"}
           </button>
         </section>
       </div>

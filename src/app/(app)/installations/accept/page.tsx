@@ -1,4 +1,4 @@
-import { acceptJob, techFilter, unacceptJob } from "@/app/actions/installation";
+import { acceptJob, techFilter } from "@/app/actions/installation";
 import { JobButton } from "@/components/installation/job-buttons";
 import { RejectButton } from "@/components/installation/reject-button";
 import { SlaChip } from "@/components/installation/sla-chip";
@@ -24,50 +24,23 @@ import {
 } from "../shared";
 
 /**
- * ຖອດແບບຈາກ ods: /tech_accept_job + /tech_accept_already + /tech_accept_cc_already
- * + /tech_dont_accept (tech_install.py) — ອອກແບບໃໝ່.
- * ods ຕໍ່ session name ເຂົ້າ SQL ໂດຍກົງ (SQL injection) — ບ່ອນນີ້ໃຊ້ parameter.
- * BUG ໃນ ods: ຕາຕະລາງ "ຮັບງານແລ້ວ" ບໍ່ໄດ້ກັນງານທີ່ຕິດຕັ້ງໄປແລ້ວອອກ ⇒ ສະແດງງານເກົ່ານຳ
- * (ຫຼາຍພັນລາຍການ). ບ່ອນນີ້ເພີ່ມ start_install is null.
+ * ຄິວນີ້ມີແຕ່ງານທີ່ລໍຊ່າງກົດຮັບ. ຫຼັງຮັບແລ້ວຈະບໍ່ມີແທັບພັກກາງ:
+ * ແອໄປຄິວເບີກອາໄຫຼ່ ແລະ ສິນຄ້າອື່ນໄປຄິວຕິດຕັ້ງທັນທີ (lib/job-flow).
  */
 export const dynamic = "force-dynamic";
 
-type Tab = "waiting" | "accepted";
 type Props = { searchParams: Promise<ListSearchParams> };
 
-/**
- * BUG ທີ່ແກ້ຢູ່ນີ້ (B2): ແທັບ "ລໍຖ້າຮັບງານ" ເຄີຍກອງ `a.reg_start is null` —
- * ພໍໃບຂໍເບີກອອກ (reg_start ຖືກ set) ງານກໍ່ຫາຍອອກຈາກໜ້ານີ້ ⇒ tech_confirm ບໍ່ມີວັນຖືກ set ໄດ້ອີກ
- * ແລະ /installations/work (ຕ້ອງການ tech_confirm) ກໍ່ບໍ່ສະແດງ ⇒ ງານຕາຍ ບໍ່ມີໜ້າໃດພາໄປຕໍ່ໄດ້.
- * ດຽວນີ້ ① saveSpareRequest ບັງຄັບໃຫ້ຮັບງານກ່ອນຈຶ່ງຂໍເບີກໄດ້ (ຕົ້ນທາງ) ແລະ
- * ② ແທັບນີ້ບໍ່ອີງ reg_start ອີກ ແຕ່ອີງ "ຍັງບໍ່ເລີ່ມຕິດຕັ້ງ ແລະ ຍັງບໍ່ປິດງານ" (ຕາໜ່າງຮັບ) —
- * ງານທີ່ຫຼົງເຂົ້າສະຖານະນັ້ນ (ຂໍ້ມູນເກົ່າ) ຈຶ່ງຍັງເຫັນ ແລະ ຮັບງານໄດ້.
- * ຈຳນວນແຖວມື້ນີ້ບໍ່ປ່ຽນ (0 ແຖວທັງກ່ອນ ແລະ ຫຼັງ — ບໍ່ມີງານໃດຢູ່ໃນສະຖານະນັ້ນ).
- *
- * ໂມງຄ້າງ (B6): ນັບຈາກ **ເວລາຈັດຊ່າງ** (assigt_time) ບໍ່ແມ່ນເວລາເປີດງານ —
- * ຄິວນີ້ວັດ "ຊ່າງຮັບຊ້າ", ຄິວຈັດຊ່າງ (/installations/assign) ວັດ "ຜູ້ຈັດຈັດຊ້າ".
- */
 /** ນາລິກາ 24 ຊມ ນັບແຕ່ອອກບິນ — ຂັ້ນນີ້ກິນເວລາ 44 ຊມ (ຄໍຂວດຮ່ວມກັບການຈັດຊ່າງ) */
 type Row = InstallRow & { sla_left: number | null };
 const EXTRA = `(${INSTALL_LEFT_SQL}) as sla_left`;
 
-const BUCKET: Record<Tab, { where: string; timeCol: string }> = {
-  waiting: {
-    where: `a.cancel_date is null and a.time_register is not null and a.tech_code is not null
-      and a.tech_confirm is null and a.start_install is null and a.job_finish is null`,
-    timeCol: INSTALL_ACCEPT_CLOCK,
-  },
-  accepted: {
-    where: `a.cancel_date is null and a.time_register is not null and a.tech_code is not null
-      and a.tech_confirm is not null and a.reg_start is null and a.start_install is null`,
-    timeCol: "a.tech_confirm",
-  },
-};
+const WAITING = `a.cancel_date is null and a.time_register is not null and a.tech_code is not null
+  and a.tech_confirm is null and a.start_install is null and a.job_finish is null`;
 
 export default async function AcceptPage({ searchParams }: Props) {
   const tech = await techFilter();
   const raw = await searchParams;
-  const tab: Tab = raw.tab === "accepted" ? "accepted" : "waiting";
   /**
    * ── ຮຽງຕາມ **ນາລິກາ 24 ຊມ** ເປັນຄ່າຕັ້ງຕົ້ນ ──
    * ເມື່ອກ່ອນຮຽງຕາມ "ຄ້າງມາດົນ" ນັບຈາກເວລາເປີດງານ ⇒ ງານທີ່ບິນອອກກ່ອນ (ລູກຄ້າລໍດົນກວ່າ)
@@ -76,8 +49,7 @@ export default async function AcceptPage({ searchParams }: Props) {
    */
   const { q, page, sort, dir } = readParams(raw, "sla");
 
-  const bucket = BUCKET[tab];
-  const where = [bucket.where];
+  const where = [WAITING];
   const params: (string | number)[] = [];
   if (tech) {
     params.push(tech);
@@ -91,14 +63,13 @@ export default async function AcceptPage({ searchParams }: Props) {
   const jobs = await fetchInstallRows<Row>({
     where: where.join(" and "),
     params,
-    orderBy: installOrderBy(sort, dir, bucket.timeCol),
+    orderBy: installOrderBy(sort, dir, INSTALL_ACCEPT_CLOCK),
     page,
     extraColumns: EXTRA,
   });
 
   const pages = Math.max(1, Math.ceil(jobs.total / PAGE_SIZE));
-  // tab ມາຈາກ **ເມນູ sidebar** (?tab=waiting/accepted) — ບໍ່ມີ tab ໃນໜ້າອີກ (ຍ້າຍໄປ sidebar ແລ້ວ)
-  const base = () => ({ ...(tab !== "waiting" && { tab }), ...(q && { q }) });
+  const base = () => ({ ...(q && { q }) });
   const sortHref = (key: string, nextDir: "asc" | "desc") =>
     `/installations/accept?${new URLSearchParams({ ...base(), sort: key, dir: nextDir })}`;
   const pageHref = (n: number) =>
@@ -107,7 +78,7 @@ export default async function AcceptPage({ searchParams }: Props) {
   return (
     <div className="w-full space-y-4">
       <ListHeader
-        title={tab === "waiting" ? "ລໍຖ້າຮັບງານຕິດຕັ້ງ" : "ຮັບງານແລ້ວ (ລໍຖ້າດຳເນີນການ)"}
+        title="ລໍຖ້າຊ່າງຮັບ"
         scope={tech ? "ສະແດງສະເພາະງານຂອງທ່ານ" : "ສະແດງທຸກງານ"}
         total={jobs.total}
         page={page}
@@ -127,35 +98,20 @@ export default async function AcceptPage({ searchParams }: Props) {
         <tbody>
           {jobs.rows.map((row) => (
             <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
-              <InstallCells row={row} timeLabel={tab === "waiting" ? "ວັນ/ເວລາຈັດຊ່າງ" : "ວັນ/ເວລາຮັບງານ"} />
+              <InstallCells row={row} timeLabel="ວັນ/ເວລາຈັດຊ່າງ" />
               <td className="whitespace-nowrap px-3 py-2.5 text-center">
                 <SlaChip left={row.sla_left} />
               </td>
               <td className="whitespace-nowrap px-3 py-2.5">
-                {tab === "waiting" ? (
-                  <div className="flex justify-center gap-2">
-                    {/* ຮັບງານ = ການກະທຳຫຼັກ (ເດັ່ນ) · ບໍ່ຮັບ = ຂໍ້ຍົກເວັ້ນ (ປຸ່ມຮອງ) */}
-                    <JobButton code={row.code} action={acceptJob} tone="success" className="h-8 px-3 text-xs">
-                      <Check className="size-3.5" />
-                      ຮັບງານ
-                    </JobButton>
-                    {/* ບໍ່ຮັບງານ = ປະຕິເສດ **ພ້ອມເຫດຜົນ** (lib/job-flow — ອັນດຽວກັບແອັບມືຖື) */}
-                    <RejectButton workflow="install" code={row.code} />
-                  </div>
-                ) : (
-                  <div className="flex justify-center">
-                    <JobButton
-                      code={row.code}
-                      action={unacceptJob}
-                      tone="danger"
-                      className="h-8 px-3 text-xs"
-                      confirmTitle={`ຍົກເລີກຮັບງານ ${row.code}?`}
-                      confirmTone="danger"
-                    >
-                      ຍົກເລີກຮັບງານ
-                    </JobButton>
-                  </div>
-                )}
+                <div className="flex justify-center gap-2">
+                  {/* ຮັບງານ = ການກະທຳຫຼັກ (ເດັ່ນ) · ບໍ່ຮັບ = ຂໍ້ຍົກເວັ້ນ (ປຸ່ມຮອງ) */}
+                  <JobButton code={row.code} action={acceptJob} tone="success" className="h-8 px-3 text-xs">
+                    <Check className="size-3.5" />
+                    ຮັບງານ
+                  </JobButton>
+                  {/* ບໍ່ຮັບງານ = ປະຕິເສດ **ພ້ອມເຫດຜົນ** (lib/job-flow — ອັນດຽວກັບແອັບມືຖື) */}
+                  <RejectButton workflow="install" code={row.code} />
+                </div>
               </td>
             </tr>
           ))}

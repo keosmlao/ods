@@ -1,6 +1,8 @@
 import { syncErpDispatch } from "@/lib/erp-dispatch";
 import { techFilter } from "@/app/actions/installation";
 import { LinkPending } from "@/components/link-pending";
+import { query } from "@/lib/db";
+import { installStageIs } from "@/lib/install-stage";
 import { PackageCheck } from "lucide-react";
 import Link from "next/link";
 import {
@@ -60,6 +62,11 @@ export default async function SparePickupPage({ searchParams }: Props) {
   await syncErpDispatch();
 
   const tech = await techFilter();
+  const waitingWarehouse = await query<{ total: number }>(
+    `select count(*)::int total from ods_tb_install a
+      where ${installStageIs(3)} and a.reg_finish is null ${tech ? "and a.tech_code=$1" : ""}`,
+    tech ? [tech] : [],
+  );
   const raw = await searchParams;
   const { q, page, sort, dir } = readParams(raw);
 
@@ -99,6 +106,12 @@ export default async function SparePickupPage({ searchParams }: Props) {
         page={page}
         pages={pages}
       />
+
+      {(waitingWarehouse.rows[0]?.total ?? 0) > 0 && (
+        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+          ມີ {waitingWarehouse.rows[0]?.total ?? 0} ງານທີ່ສົ່ງຄຳຂໍເບີກແລ້ວ ແລະກຳລັງລໍສາງ ERP ເບີກອາໄຫຼ່. ເມື່ອສາງເບີກແລ້ວຈະຂຶ້ນລາຍການໃຫ້ຊ່າງກົດຮັບດ້ານລຸ່ມ.
+        </p>
+      )}
 
       <SearchBar q={q} sort={sort} dir={dir} placeholder="ຄົ້ນຫາ ເລກທີເບີກ, ລະຫັດຕິດຕັ້ງ, ລູກຄ້າ, ຊ່າງ, ລາຍການ..." />
 

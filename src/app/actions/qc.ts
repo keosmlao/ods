@@ -96,12 +96,13 @@ export async function undoQc(workflow: Workflow, jobCode: string): Promise<QcSta
 
   const table = workflow === "repair" ? "tb_product" : "ods_tb_install";
   const returned = workflow === "repair" ? "return_complete" : "job_finish";
+  const installActive = workflow === "install" ? "and complain_finish is null and cancel_date is null" : "";
   const client = await db.connect();
   try {
     await client.query("begin");
     const updated = await client.query(
       `update ${table} set qc_finish=null, qc_by=null
-        where code=$1 and qc_finish is not null and ${returned} is null`,
+        where code=$1 and qc_finish is not null and ${returned} is null ${installActive}`,
       [jobCode],
     );
     if (!updated.rowCount) {

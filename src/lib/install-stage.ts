@@ -1,95 +1,44 @@
 /**
- * ຂັ້ນຕອນຂອງງານຕິດຕັ້ງ (ods_tb_install) — ຄິດຈາກຖັນເວລາໂດຍກົງ.
+ * 8 ຄິວຫຼັກຂອງງານຕິດຕັ້ງ — ຄິດຈາກ timestamp ຂອງ ods_tb_install.
+ * ຕ້ອງ alias ຕາຕະລາງເປັນ `a` ເມື່ອນຳ SQL ນີ້ໄປໃຊ້.
  *
- * ── ຂັ້ນໄດຂອງ ods ──
- * ods ຂຽນ CASE ອັນນີ້ຄືນໃໝ່ໃນທຸກໜ້າ (install_admin.py, tech_install.py,
- * tech_reg_install.py …) ແລະ ແຕ່ລະສະບັບບໍ່ຄືກັນ. ສະບັບຫຍໍ້ທີ່ສຸດຢູ່
- * install_admin.py:1148-1155 (pending_success):
- *
- *   1 reg_start isnull                              → ລໍຖ້າຊ່າງຂໍເບີກ
- *   2 reg_start notnull, reg_finish isnull          → ລໍຖ້າສາງເບີກ
- *   3 reg_finish notnull, pick_finish isnull        → ລໍຖ້າຊ່າງຮັບອາໄຫຼ່
- *   4 pick_finish notnull, start_install isnull     → ລໍຖ້າຊ່າງຕິດຕັ້ງ
- *   5 start_install notnull, finish_install isnull  → ກຳລັງຕິດຕັ້ງ
- *   6 finish_install notnull, complain_finish isnull→ ຕິດຕັ້ງສຳເລັດ
- *   7 complain_finish notnull                       → ປິດຈັອບເເລ້ວ
- *
- * ── ເປັນຫຍັງບໍ່ຄັດລອກມາຊື່ໆ ──
- * ຂັ້ນໄດຫຍໍ້ນັ້ນຕົກຫຼົ່ນ 3 ຢ່າງ ທີ່ໜ້າອື່ນຂອງ ods ຕ້ອງໃຊ້:
- *   • cancel_date  — ງານທີ່ຍົກເລີກແລ້ວຈະຖືກຈັດເປັນ "ລໍຖ້າຊ່າງຂໍເບີກ"
- *   • used_spare=0 — ງານທີ່ບໍ່ໃຊ້ອາໄຫຼ່ບໍ່ມີ reg_start ຈັກເທື່ອ ⇒ ຄ້າງຢູ່ຂັ້ນ 1 ຕະຫຼອດ
- *     ທັງທີ່ຄວາມຈິງລໍຖ້າຊ່າງຕິດຕັ້ງຢູ່ (ຂັ້ນ 4)
- *   • tech_code / job_finish — "ລໍຖ້າຈັດຊ່າງ" ແລະ ການແຍກ
- *     "ລໍຖ້າປິດງານ" (complain ແລ້ວ ແຕ່ຍັງບໍ່ປິດ) ອອກຈາກ "ປິດງານເເລ້ວ"
- *
- * ຈຶ່ງຂະຫຍາຍຂັ້ນໄດຫຍໍ້ໃຫ້ຄົບ ໂດຍຮັກສາຄວາມໝາຍ ແລະ ລຳດັບເລກ 1-6 ໄວ້ຄືເກົ່າ
- * ແລ້ວເພີ່ມ 0 (ລໍຖ້າຈັດຊ່າງ), -1 (ຍົກເລີກ) ແລະ ແຍກຂັ້ນ 7 ຂອງ ods
- * ("ປິດຈັອບເເລ້ວ") ອອກເປັນ 7 = ລໍຖ້າປິດງານ ແລະ 8 = ປິດງານເເລ້ວ
- * — ຄືກັບທີ່ install_admin.py:559 (Home_install_all) ແລະ /api/install_list ເຮັດ.
- *
- * ເປັນ case ແບບ "ອັນທຳອິດທີ່ຖືກ ຊະນະ" ຈຶ່ງ **ບໍ່ມີທາງຕົກຫຼົ່ນ**:
- * ທຸກແຖວຕ້ອງໄດ້ຂັ້ນນຶ່ງສະເໝີ (-1 ຫຼື 0..8).
- */
-
-/**
- * ໃຊ້ໃນ SQL — ຕ້ອງ alias ຕາຕະລາງ ods_tb_install ເປັນ a
- *
- * ── ຂັ້ນໄດ "ປ້ອງກັນຕົວເອງ" (2 ຈຸດທີ່ຕ່າງຈາກສະບັບກ່ອນ) ──
- *
- * ① complain_finish ຢ່າງດຽວ ຂຶ້ນຂັ້ນ 7 ບໍ່ໄດ້
- *    ໜ້າ /feedback/<code> ເປັນໜ້າສາທາລະນະ (ບໍ່ຕ້ອງ login) ແລະ ລະຫັດງານ INST-xxxx
- *    ເປັນເລກລຽງ ⇒ ເດົາໄດ້. ຖ້າຂັ້ນ 7 ເຊື່ອ complain_finish ກ່ອນ finish_install
- *    ຄົນນອກກໍ່ຍູ້ງານທີ່ "ຍັງບໍ່ທັນຕິດຕັ້ງ" ເຂົ້າຄິວ "ລໍຖ້າປິດງານ" ໄດ້.
- *    saveFeedback ກັນໄວ້ຢູ່ຝັ່ງ server ແລ້ວ — ອັນນີ້ຄືເກາະປ້ອງກັນຊັ້ນທີສອງ:
- *    ຕ້ອງ **ຕິດຕັ້ງແລ້ວຈິງ** ຈຶ່ງໄປຂັ້ນ 6/7 ໄດ້.
- *
- * ② used_spare = 0 ເຊື່ອບໍ່ໄດ້ ຖ້າມີຮ່ອງຮອຍການເບີກອາໄຫຼ່ຢູ່ໃນແຖວແລ້ວ
- *    ຂໍ້ມູນຈິງ: INST-6883 / INST-6892 / INST-6952 ມີ used_spare=0 ທັງທີ່ມີໃບຂໍເບີກ (122)
- *    ແລະ ໃບເບີກ (56) ຢູ່ — ທຸງຖືກປັດລົງພາຍຫຼັງເອກະສານເກີດແລ້ວ. ຖ້າເຊື່ອທຸງ ງານພວກນີ້
- *    ຈະຂ້າມຂັ້ນ 1-3 ໄປຂັ້ນ 4 ທັນທີ ທັງທີ່ອາໄຫຼ່ຍັງຄ້າງຢູ່ນອກສາງ. ຈຶ່ງໃຫ້ຂ້າມໄດ້
- *    ສະເພາະງານທີ່ **ບໍ່ມີ** ຮ່ອງຮອຍເບີກ (reg_start/reg_finish/pick_finish ຫວ່າງທັງໝົດ).
- *    ໃຊ້ພຽງຖັນຂອງແຖວເອງ — ບໍ່ມີ subquery ຈຶ່ງບໍ່ກະທົບຄວາມໄວຂອງໜ້າລາຍການ.
- *
- * ການແຈກຢາຍຂັ້ນຂອງ 6,832 ແຖວບໍ່ປ່ຽນ: -1=3, 0=27, 5=3, 8=6799 (ກ່ອນ ແລະ ຫຼັງ).
- */
-/**
- * ── ດ່ານກວດຮັບຄຸນນະພາບ (QC) — ຂັ້ນ 6 ໃໝ່ ──
- * ຕິດຕັ້ງສຳເລັດ → **ລໍກວດ QC** → ລໍແບບປະເມີນ → ລໍປິດງານ → ປິດແລ້ວ
- * ຂັ້ນ 6/7/8 ເກົ່າ ເລື່ອນເປັນ 7/8/9. ງານທີ່ QC ຍັງບໍ່ຜ່ານ ລູກຄ້າຕອບແບບປະເມີນບໍ່ໄດ້.
+ * 0 ເປີດງານ/ຈັດຊ່າງ → 1 ຊ່າງຮັບ → 2 ເບີກອາໄຫຼ່ → 3 ຮັບອາໄຫຼ່
+ * → 4 ຕິດຕັ້ງ → 5 QC → 6 ລູກຄ້າປະເມີນ → 7 ປິດງານ.
+ * ຂັ້ນ 8 ເປັນປະຫວັດປິດແລ້ວ ແລະ -1 ເປັນງານຍົກເລີກ; ບໍ່ແມ່ນຄິວເປີດ.
+ * ງານບໍ່ໃຊ້ອາໄຫຼ່ຂ້າມ 2-3 ໄປ 4 ຫຼັງຊ່າງຮັບ.
  */
 export const INSTALL_STAGE_SQL = `case
   when a.cancel_date is not null                     then -1
-  when a.job_finish is not null                      then 9
+  when a.job_finish is not null                      then 8
   when a.finish_install is not null
    and a.qc_finish is not null
-   and a.complain_finish is not null                 then 8
+   and a.complain_finish is not null                 then 7
   when a.finish_install is not null
-   and a.qc_finish is not null                       then 7
-  when a.finish_install is not null                  then 6
-  when a.start_install is not null                   then 5
+   and a.qc_finish is not null                       then 6
+  when a.finish_install is not null                  then 5
+  when a.start_install is not null                   then 4
   when a.tech_code is null or a.tech_code = ''       then 0
+  when a.tech_confirm is null                        then 1
   when coalesce(a.used_spare,0) = 0
    and a.reg_start is null
    and a.reg_finish is null
    and a.pick_finish is null                         then 4
-  when a.reg_start is null                           then 1
-  when a.reg_finish is null                          then 2
+  when a.reg_start is null                           then 2
   when a.pick_finish is null                         then 3
   else 4
 end`;
 
 export const INSTALL_STAGE_LABEL: Record<number, string> = {
   [-1]: "ຍົກເລີກແລ້ວ",
-  0: "ລໍຖ້າຈັດຊ່າງ",
-  1: "ລໍຖ້າຊ່າງຂໍເບີກ",
-  2: "ລໍຖ້າສາງເບີກ",
-  3: "ລໍຖ້າຊ່າງຮັບອາໄຫຼ່",
-  4: "ລໍຖ້າຊ່າງຕິດຕັ້ງ",
-  5: "ກຳລັງຕິດຕັ້ງ",
-  6: "ລໍກວດຮັບຄຸນນະພາບ",
-  7: "ລໍຖ້າແບບປະເມີນ",
-  8: "ລໍຖ້າປິດງານ",
-  9: "ປິດງານເເລ້ວ",
+  0: "ເປີດງານ / ລໍຖ້າຈັດຊ່າງ",
+  1: "ລໍຖ້າຊ່າງຮັບ",
+  2: "ລໍຖ້າເບີກອາໄຫຼ່",
+  3: "ລໍຖ້າຮັບອາໄຫຼ່ຈາກການເບີກ",
+  4: "ລໍຖ້າຕິດຕັ້ງ",
+  5: "ລໍຖ້າກວດ QC",
+  6: "ລໍຖ້າລູກຄ້າປະເມີນ",
+  7: "ລໍຖ້າປິດງານ",
+  8: "ປິດງານແລ້ວ",
 };
 
 /** ສີຂອງປ້າຍສະຖານະ — ໃຫ້ໜ້າຕາຄືກັນທຸກໜ້າ */
@@ -100,11 +49,10 @@ export const INSTALL_STAGE_CHIP: Record<number, string> = {
   2: "bg-blue-50 text-blue-700",
   3: "bg-blue-50 text-blue-700",
   4: "bg-indigo-50 text-indigo-700",
-  5: "bg-emerald-50 text-emerald-700",
-  6: "bg-purple-100 text-purple-800",
-  7: "bg-teal-50 text-teal-700",
-  8: "bg-orange-50 text-orange-700",
-  9: "bg-slate-100 text-slate-600",
+  5: "bg-purple-100 text-purple-800",
+  6: "bg-teal-50 text-teal-700",
+  7: "bg-orange-50 text-orange-700",
+  8: "bg-slate-100 text-slate-600",
 };
 
 /** ຊື່ຂັ້ນ ໃນຮູບ SQL — ສ້າງຈາກ INSTALL_STAGE_LABEL ບ່ອນດຽວ (ເບິ່ງ lib/stage) */
@@ -134,14 +82,14 @@ export const installStageIs = (stage: number) => `(${INSTALL_STAGE_SQL}) = ${Num
  * ຂັ້ນນຶ່ງນັບຈາກເວລາທີ່ເຂົ້າຂັ້ນນັ້ນ (ຂັ້ນ 0 ຍັງບໍ່ມີຫຍັງ ຈຶ່ງນັບຈາກເປີດງານ).
  */
 export const INSTALL_STAGE_TIME_COL = `case (${INSTALL_STAGE_SQL})
-  when 9 then a.job_finish
-  when 8 then a.complain_finish
-  when 7 then a.qc_finish
-  when 6 then a.finish_install
-  when 5 then a.start_install
+  when 8 then a.job_finish
+  when 7 then a.complain_finish
+  when 6 then a.qc_finish
+  when 5 then a.finish_install
   when 4 then coalesce(a.pick_finish, a.tech_confirm, a.time_register)
-  when 3 then a.reg_finish
-  when 2 then a.reg_start
+  when 3 then a.reg_start
+  when 2 then a.tech_confirm
+  when 1 then coalesce(a.assigt_time, a.time_register)
   when -1 then a.cancel_date
   else a.time_register
 end`;

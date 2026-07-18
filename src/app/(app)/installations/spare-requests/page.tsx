@@ -3,6 +3,7 @@ import { deleteSpareRequest, techFilter } from "@/app/actions/installation";
 import { DeleteSpareRequestButton } from "@/components/installation/spare-request-buttons";
 import { LinkPending } from "@/components/link-pending";
 import { query } from "@/lib/db";
+import { installStageIs } from "@/lib/install-stage";
 import { Eye, PackagePlus } from "lucide-react";
 import Link from "next/link";
 import {
@@ -54,8 +55,7 @@ type ReqRow = InstallDocRow & { reg_finished: number };
  * (ຫຼັງສາງເບີກແລ້ວ ລຶບໃບຂໍເບີກກໍ່ບໍ່ໄດ້). saveSpareRequest ບັງຄັບກົດເກນນີ້ຢູ່ຝັ່ງ server ນຳ.
  * ຈຳນວນແຖວມື້ນີ້ບໍ່ປ່ຽນ (0 → 0).
  */
-const WAIT_WHERE = `a.reg_start is null and a.used_spare = 1 and a.cancel_date is null
-  and a.job_finish is null and a.tech_confirm is not null`;
+const WAIT_WHERE = installStageIs(2);
 
 /** ໃບ SION ຂອງງານທີ່ຍັງບໍ່ທັນປິດ — left join ຈຶ່ງໄດ້ຈຳນວນແຖວຄືເກົ່າ (ມີໃບເກົ່າທີ່ຫາງານຄູ່ບໍ່ພົບ) */
 const REQ_FROM = `from ic_trans ic
@@ -154,6 +154,18 @@ export default async function SpareRequestsPage({ searchParams }: Props) {
         page={page}
         pages={pages}
       />
+
+      <div className="flex flex-wrap gap-2">
+        <Link href="/installations/spare-requests?tab=waiting" className={`rounded-lg px-3 py-2 text-sm font-semibold ${tab === "waiting" ? "bg-teal-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}>
+          ລໍຖ້າເບີກອາໄຫຼ່
+        </Link>
+        <Link href="/installations/spare-requests?tab=requested" className={`rounded-lg px-3 py-2 text-sm font-semibold ${tab === "requested" ? "bg-teal-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}>
+          ສົ່ງຄຳຂໍແລ້ວ
+        </Link>
+        <Link href="/installations/spare-pickup" className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-600 ring-1 ring-slate-200">
+          ຮັບອາໄຫຼ່
+        </Link>
+      </div>
 
       <SearchBar q={q} sort={sort} dir={dir} placeholder="ຄົ້ນຫາ ເລກທີ, ເລກບິນ, ລູກຄ້າ, ຊ່າງ, ລາຍການ..." />
 

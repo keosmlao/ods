@@ -91,9 +91,21 @@ export async function acceptInstall(session: Session, code: string): Promise<Flo
   const own = await ownJob(session, "install", code);
   if (!own.ok) return own;
 
+  /**
+   * ຫຼັງຊ່າງຮັບງານ ຕ້ອງອອກຈາກຄິວຮັບທັນທີ:
+   *   • ໝວດແອ (ODS tb_category = 03) → ລໍຖ້າເບີກອາໄຫຼ່
+   *   • ສິນຄ້າອື່ນ              → ລໍຖ້າຕິດຕັ້ງ
+   * ກຳນົດ used_spare ໃນ UPDATE ດຽວກັບ tech_confirm ເພື່ອບໍ່ໃຫ້ມີຊ່ວງທີ່ງານຢູ່ຜິດຄິວ.
+   * ກວດຊື່ "ແອ" ນຳ ເພື່ອຮອງຮັບຂໍ້ມູນເກົ່າທີ່ pro_type_code ຫວ່າງ.
+   */
   const done = await query(
-    `update ods_tb_install set tech_confirm=${NOW}
-      where code=$1 and tech_confirm is null and coalesce(tech_code,'') <> '' and job_finish is null`,
+    `update ods_tb_install a
+      set tech_confirm=${NOW},
+          used_spare=case
+            when trim(coalesce(a.pro_type_code,''))='03' or trim(coalesce(a.pro_type,''))='ແອ' then 1
+            else 0
+          end
+      where a.code=$1 and (${INSTALL_STAGE_SQL}) = 1`,
     [code],
   );
   if (!done.rowCount) {
@@ -155,8 +167,10 @@ export async function rejectJob(
   const released =
     workflow === "install"
       ? await query(
-          `update ods_tb_install set tech_code = null, tech_before = tech_code
-            where code = $1 and tech_confirm is null and start_install is null and job_finish is null`,
+          `update ods_tb_install a
+              set tech_code = null, tech_before = tech_code,
+                  assigt_time = null, user_assigt = null
+            where a.code = $1 and (${INSTALL_STAGE_SQL}) = 1`,
           [code],
         )
       : await query(
@@ -217,11 +231,11 @@ export async function startInstallFlow(
   }
 
   const done = await query(
-    `update ods_tb_install set start_install=${NOW}
-      where code=$1 and start_install is null and tech_confirm is not null and job_finish is null`,
+    `update ods_tb_install a set start_install=${NOW}
+      where a.code=$1 and (${INSTALL_STAGE_SQL}) = 4 and a.start_install is null`,
     [code],
   );
-  if (!done.rowCount) return { ok: false, error: "ເລີ່ມຕິດຕັ້ງບໍ່ໄດ້ — ຍັງບໍ່ໄດ້ຮັບງານ ຫຼື ເລີ່ມໄປແລ້ວ" };
+  if (!done.rowCount) return { ok: false, error: "ເລີ່ມຕິດຕັ້ງບໍ່ໄດ້ — ຕ້ອງຮັບງານ ແລະ ຮັບອາໄຫຼ່ໃຫ້ຄົບກ່ອນ" };
 
   await logChange("ods_tb_install", code, "ເລີ່ມຕິດຕັ້ງ");
   return { ok: true, message: `ເລີ່ມຕິດຕັ້ງ ${code}` };
@@ -274,8 +288,9 @@ export async function finishInstallFlow(
   try {
     await client.query("begin");
     const done = await client.query(
-      `update ods_tb_install set finish_install=${NOW}
-        where code=$1 and finish_install is null and start_install is not null`,
+      `update ods_tb_install a set finish_install=${NOW}
+        where a.code=$1 and (${INSTALL_STAGE_SQL}) = 4
+          and a.start_install is not null and a.finish_install is null`,
       [code],
     );
     if (!done.rowCount) {
@@ -431,7 +446,7 @@ export async function checkIn(
     return { ok: false, error: "ຕ້ອງກົດຮັບງານກ່ອນ ຈຶ່ງສາມາດ check-in ໄດ້" };
   }
   if (!own.job?.onsite) return { ok: false, error: "ງານນີ້ເຮັດຢູ່ໃນສູນ ບໍ່ຕ້ອງ check-in" };
-  const allowedStages = workflow === "install" ? [4, 5] : [1, 2, 8, 9];
+  const allowedStages = workflow === "install" ? [4] : [1, 2, 8, 9];
   if (!allowedStages.includes(own.job.stage)) {
     return { ok: false, error: "ຂັ້ນປັດຈຸບັນຍັງບໍ່ສາມາດ check-in ໄດ້" };
   }

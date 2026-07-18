@@ -28,13 +28,14 @@ export function ServiceIntake({
   const hasPrefill = Boolean(prefill.proname || prefill.sn);
   const [mode, setMode] = useState<"scan" | "form">(hasPrefill ? "form" : "scan");
   const [scanned, setScanned] = useState<ScanResult | null>(null);
+  const [manualSn, setManualSn] = useState("");
 
   if (mode === "scan") {
     return (
       <ServiceScan
         types={types}
-        onResolved={(result) => { setScanned(result); setMode("form"); }}
-        onManual={() => { setScanned(null); setMode("form"); }}
+        onResolved={(result) => { setManualSn(""); setScanned(result); setMode("form"); }}
+        onManual={(sn) => { setManualSn(sn); setScanned(null); setMode("form"); }}
       />
     );
   }
@@ -47,13 +48,17 @@ export function ServiceIntake({
             <>
               ຕື່ມຂໍ້ມູນຈາກບາໂຄດ <b className="font-mono text-slate-800">{scanned.sn}</b> ແລ້ວ — ແກ້ໄດ້ທຸກຊ່ອງ
             </>
+          ) : manualSn ? (
+            <>
+              ບໍ່ພົບໃນ ERP — ເກັບ SN <b className="font-mono text-slate-800">{manualSn}</b> ໄວ້ໃນຟອມແລ້ວ; ກະລຸນາເລືອກສິນຄ້າ ແລະກວດສິດປະກັນເອງ
+            </>
           ) : (
             "ປ້ອນຂໍ້ມູນເອງ"
           )}
         </p>
         <button
           type="button"
-          onClick={() => { setScanned(null); setMode("scan"); }}
+          onClick={() => { setManualSn(""); setScanned(null); setMode("scan"); }}
           className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
           <ScanLine className="size-4" />
@@ -61,7 +66,13 @@ export function ServiceIntake({
         </button>
       </div>
 
-      <ServiceForm types={types} brands={brands} techs={techs} prefill={prefill} scanned={scanned} />
+      <ServiceForm
+        types={types}
+        brands={brands}
+        techs={techs}
+        prefill={{ ...prefill, sn: manualSn || prefill.sn }}
+        scanned={scanned}
+      />
     </div>
   );
 }

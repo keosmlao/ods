@@ -81,7 +81,9 @@ export function ServiceForm({
 
   const suggestion = warrantyFromBill(billDate);
   // ຄຳນວນຕອນ render — ບໍ່ຕ້ອງ setState ໃນ effect
-  const suggestedWarranty = suggestion ? (suggestion.inWarranty ? "ຮັບປະກັນ" : "ໝົດຮັບປະກັນ") : "ຮັບປະກັນ";
+  // ບໍ່ມີວັນທີບິນ = ຢືນຢັນສິດປະກັນອັດຕະໂນມັດບໍ່ໄດ້.
+  // ປະໄວ້ຫວ່າງເພື່ອບັງຄັບໃຫ້ພະນັກງານກວດຫຼັກຖານ ແລະເລືອກເອງ.
+  const suggestedWarranty = suggestion ? (suggestion.inWarranty ? "ຮັບປະກັນ" : "ໝົດຮັບປະກັນ") : "";
   const warranty = warrantyChoice ?? suggestedWarranty;
   const warrantyTouched = warrantyChoice !== null;
 
@@ -319,6 +321,7 @@ export function ServiceForm({
                     { value: "ຮັບປະກັນ", label: "ຮັບປະກັນ" },
                     { value: "ໝົດຮັບປະກັນ", label: "ໝົດຮັບປະກັນ" },
                   ]}
+                  placeholder="ກວດຫຼັກຖານ ແລ້ວເລືອກ..."
                 />
 
                 {suggestion && (
@@ -333,6 +336,12 @@ export function ServiceForm({
                       <b>{suggestion.inWarranty ? "ຮັບປະກັນ" : "ໝົດຮັບປະກັນ"}</b>
                       {warrantyTouched && " (ທ່ານເລືອກເອງແລ້ວ)"}
                     </span>
+                  </p>
+                )}
+                {!suggestion && (
+                  <p className="mt-2 flex items-start gap-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
+                    <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                    <span>ບໍ່ພົບວັນທີບິນ — ກວດໃບຊື້/ຫຼັກຖານຂອງລູກຄ້າ ແລ້ວເລືອກການຮັບປະກັນເອງ</span>
                   </p>
                 )}
                 <p className="mt-1 text-xs text-slate-400">

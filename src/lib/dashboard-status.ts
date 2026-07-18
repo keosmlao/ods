@@ -58,27 +58,18 @@ export const repairStatuses: Record<string, StatusDef> = {
  * ຫຼົ້ນກັນໄດ້. ດຽວນີ້ໃຊ້ນິຍາມອັນດຽວກັນທັງລະບົບ.
  */
 export const installStatuses: Record<string, StatusDef> = {
-  "wait-assign": { label: "ລໍຖ້າຈັດຊ່າງ", condition: installStageIs(0), stage: 0 },
-  "wait-register": { label: "ລໍຖ້າຊ່າງຂໍເບີກ", condition: installStageIs(1), stage: 1 },
-  "wait-dispatch": { label: "ລໍຖ້າສາງເບີກ", condition: installStageIs(2), stage: 2 },
-  "wait-pick": { label: "ລໍຖ້າຮັບອາໄຫຼ່", condition: installStageIs(3), stage: 3 },
+  "wait-assign": { label: "ເປີດງານ / ລໍຖ້າຈັດຊ່າງ", condition: installStageIs(0), stage: 0 },
+  "wait-accept": { label: "ລໍຖ້າຊ່າງຮັບ", condition: installStageIs(1), stage: 1 },
+  "wait-register": { label: "ລໍຖ້າເບີກອາໄຫຼ່", condition: installStageIs(2), stage: 2 },
+  "wait-pick": { label: "ລໍຖ້າຮັບອາໄຫຼ່ຈາກການເບີກ", condition: installStageIs(3), stage: 3 },
   "wait-install": { label: "ລໍຖ້າຕິດຕັ້ງ", condition: installStageIs(4), stage: 4 },
-  installing: { label: "ກຳລັງຕິດຕັ້ງ", condition: installStageIs(5), stage: 5 },
-  // ດ່ານກວດຮັບຄຸນນະພາບ — ຂັ້ນໃໝ່ (ຕິດຕັ້ງສຳເລັດແລ້ວ ແຕ່ຍັງບໍ່ຜ່ານ QC)
-  "wait-qc": { label: "ລໍກວດຮັບຄຸນນະພາບ", condition: installStageIs(6), stage: 6 },
-  "wait-feedback": { label: "ລໍຖ້າແບບສອບຖາມ", condition: installStageIs(7), stage: 7 },
-  "wait-close": { label: "ລໍຖ້າປິດງານ", condition: installStageIs(8), stage: 8 },
+  "wait-qc": { label: "ລໍຖ້າກວດ QC", condition: installStageIs(5), stage: 5 },
+  "wait-feedback": { label: "ລໍຖ້າລູກຄ້າປະເມີນ", condition: installStageIs(6), stage: 6 },
+  "wait-close": { label: "ລໍຖ້າປິດງານ", condition: installStageIs(7), stage: 7 },
 
-  /**
-   * ⚠️ ຄິວທີ່ **ຕັດຂວາງຂັ້ນ** — ບໍ່ແມ່ນຂັ້ນຂອງຕົນເອງ.
-   * ຊ່າງຖືກຈັດໃຫ້ແລ້ວ ແຕ່ຍັງບໍ່ກົດຮັບງານ: ງານນັ້ນຍັງນອນຢູ່ຂັ້ນ 1-4 ຢູ່ (ແລ້ວແຕ່ອາໄຫຼ່)
-   * ⇒ ນັບຊ້ຳກັບຂັ້ນຂ້າງເທິງ. ຫ້າມເອົາໄປລວມຍອດ (ຈຶ່ງບໍ່ມີ `stage`).
-   * ເງື່ອນໄຂຄືກັນກັບແທັບ "ຮັບງານ" ຂອງ /installations/accept.
-   */
-  "wait-accept": {
-    label: "ລໍຖ້າຊ່າງຮັບງານ",
-    condition: "a.tech_code is not null and a.tech_code <> '' and a.tech_confirm is null and a.start_install is null",
-  },
+  // URL ເກົ່າຍັງເປີດໄດ້ ແຕ່ບໍ່ສະແດງເປັນຄິວເພີ່ມໃນ pipeline.
+  "wait-dispatch": { label: "ລໍຖ້າຮັບອາໄຫຼ່ຈາກການເບີກ", condition: installStageIs(3) },
+  installing: { label: "ລໍຖ້າຕິດຕັ້ງ", condition: `${installStageIs(4)} and a.start_install is not null` },
 };
 
 /** ສະເພາະຂັ້ນລ້ວນໆ (ບໍ່ຫຼົ້ນກັນ) — ໃຊ້ເຮັດແຖບ pipeline ແລະ ລວມຍອດ */

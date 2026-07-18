@@ -132,6 +132,7 @@ export async function saveQcFlow(session: Session, input: SaveQcInput): Promise<
 
   const failed = input.answers.filter((answer) => !answer.passed);
   const table = TABLE[input.workflow];
+  const installActive = input.workflow === "install" ? "and cancel_date is null and complain_finish is null" : "";
 
   const client = await db.connect();
   try {
@@ -164,7 +165,7 @@ export async function saveQcFlow(session: Session, input: SaveQcInput): Promise<
        */
       const sentBack = await client.query(
         `update ${table.name} set ${table.finishCol} = null
-          where code = $1 and ${table.finishCol} is not null and ${table.returnedCol} is null`,
+          where code = $1 and ${table.finishCol} is not null and ${table.returnedCol} is null ${installActive}`,
         [input.jobCode],
       );
       if (!sentBack.rowCount) {
@@ -187,7 +188,8 @@ export async function saveQcFlow(session: Session, input: SaveQcInput): Promise<
        */
       const stamped = await client.query(
         `update ${table.name} set qc_finish = localtimestamp(0), qc_by = $2
-          where code = $1 and ${table.finishCol} is not null and qc_finish is null`,
+          where code = $1 and ${table.finishCol} is not null and qc_finish is null
+            and ${table.returnedCol} is null ${installActive}`,
         [input.jobCode, session.username],
       );
       if (!stamped.rowCount) {

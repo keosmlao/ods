@@ -3,9 +3,9 @@ import { CancelJobButton } from "@/components/installation/job-buttons";
 import { LinkButton } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { INSTALL_CANCELLED, INSTALL_CLOSED, INSTALL_OPEN, INSTALL_STAGE_SQL, INSTALL_STAGE_TIME_COL } from "@/lib/install-stage";
+import { INSTALL_CANCELLED, INSTALL_OPEN, INSTALL_STAGE_SQL, INSTALL_STAGE_TIME_COL } from "@/lib/install-stage";
 import { permissionFor } from "@/lib/permissions";
-import { Ban, CheckCircle2, FilePlus2, ListChecks, Loader, Pencil, Printer } from "lucide-react";
+import { Ban, FilePlus2, Loader, Pencil, Printer } from "lucide-react";
 import Link from "next/link";
 import { CancelledSpares } from "./cancelled-spares";
 import { getInstallOutstandingByJob } from "./outstanding";
@@ -67,8 +67,8 @@ async function getCounts(tech: string | null) {
   };
 }
 
-/** ຂັ້ນທີ່ກອງໄດ້ (ສະເພາະງານດຳເນີນຢູ່: 0..8) — ຄິວ "ປິດງານແລ້ວ (9)" ບໍ່ຢູ່ໃນ bucket open */
-const OPEN_STAGES = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+/** ຂັ້ນທີ່ກອງໄດ້ (ສະເພາະ 8 ຄິວງານດຳເນີນຢູ່: 0..7) */
+const OPEN_STAGES = [0, 1, 2, 3, 4, 5, 6, 7];
 
 export default async function InstallationsPage({ searchParams }: Props) {
   const session = await getSession();
@@ -82,7 +82,7 @@ export default async function InstallationsPage({ searchParams }: Props) {
   const tab: Tab = raw.tab === "cancelled" ? "cancelled" : "open";
   const { q, page, sort, dir } = readParams(raw);
   /**
-   * ຕົວກອງສະຖານະ — ສະເພາະແທັບ "ດຳເນີນຢູ່" (ຂັ້ນ 0..8).
+   * ຕົວກອງສະຖານະ — ສະເພາະແທັບ "ດຳເນີນຢູ່" (8 ຄິວ: ຂັ້ນ 0..7).
    * ໜ້ານີ້ຄື "ໃບງານ/ລໍຖ້າຈັດຊ່າງ" ⇒ **ຄ່າຕັ້ງຕົ້ນ = ຂັ້ນ 0 (ລໍຖ້າຈັດຊ່າງ)**.
    * ຢາກເຫັນທຸກຂັ້ນ ⇒ ?status=all (chip "ທຸກຂັ້ນ"). status = null ໝາຍວ່າ ທຸກຂັ້ນ.
    */

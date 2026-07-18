@@ -83,13 +83,13 @@ const CHECKED_IN = (workflow: string) => `exists (
 
 /**
  * ປຸ່ມທີ່ກົດໄດ້ດຽວນີ້ — ຄິດຈາກຂັ້ນ (ບໍ່ແມ່ນຈາກຖັນດິບ).
- * ຕິດຕັ້ງ: 0 ບໍ່ມີຊ່າງ · 1-3 ອາໄຫຼ່ · 4 ລໍຕິດຕັ້ງ · 5 ກຳລັງຕິດຕັ້ງ · 6+ ລໍ QC/ອື່ນ
+ * ຕິດຕັ້ງ: 1 ລໍຮັບ · 2-3 ອາໄຫຼ່ · 4 ຕິດຕັ້ງ · 5+ QC/ປະເມີນ/ປິດ
  */
 const INSTALL_ACTION = `case
   when a.tech_confirm is null                       then 'accept'
-  when (${INSTALL_STAGE_SQL}) in (1,2,3)            then 'wait_spare'
-  when (${INSTALL_STAGE_SQL}) = 4                   then 'start'
-  when (${INSTALL_STAGE_SQL}) = 5                   then 'finish'
+  when (${INSTALL_STAGE_SQL}) in (2,3)              then 'wait_spare'
+  when (${INSTALL_STAGE_SQL}) = 4 and a.start_install is null then 'start'
+  when (${INSTALL_STAGE_SQL}) = 4 and a.finish_install is null then 'finish'
   else 'wait_other' end`;
 
 /** ສ້ອມ: 1-2 ກວດເຊັກ · 3-4 ລາຄາ · 5-7 ອາໄຫຼ່ · 8 ລໍສ້ອມ · 9 ກຳລັງສ້ອມ · 10+ ລໍ QC */
@@ -122,7 +122,7 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         exists (select 1 from ods_job_checkin h where h.workflow='install' and h.job_code=a.code and h.tech_code=$1) as has_checked_in,
         exists (select 1 from ods_job_checkin h where h.workflow='install' and h.job_code=a.code and h.tech_code=$1 and h.checkout_at is not null) as has_checked_out,
         (a.tech_confirm is not null
-          and (${INSTALL_STAGE_SQL}) in (4,5)
+          and (${INSTALL_STAGE_SQL}) = 4
           and not ${CHECKED_IN("install")}) as can_check_in,
         ${CHECKED_IN("install")} as can_check_out,
         ${CHECKED_IN("install")} as checked_in,

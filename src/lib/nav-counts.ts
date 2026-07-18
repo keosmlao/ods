@@ -131,7 +131,7 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
         ),
         ist as (
           -- ຂັ້ນຕິດຕັ້ງ: ສະແກນ ods_tb_install ເທື່ອດຽວ ⇒ ຄູ່ກັບກຸ່ມເມນູ "ຂັ້ນຕອນຕິດຕັ້ງ".
-          -- ຂັ້ນ 0-8 ບໍ່ມີວັນມີ cancel_date/job_finish (INSTALL_STAGE_SQL ຈັດ -1/9 ກ່ອນ)
+          -- ຂັ້ນ 0-7 ແມ່ນຄິວເປີດ; INSTALL_STAGE_SQL ຈັດ -1/8 ເປັນຍົກເລີກ/ປິດແລ້ວ.
           -- ⇒ count ຕໍ່ຂັ້ນ = ຈຳນວນແຖວໜ້າ /dashboard/status/install/<slug> ພໍດີ (ກົດເກນ ①).
           select (${INSTALL_STAGE_SQL}) st, count(*)::int n
           from ods_tb_install a
@@ -152,33 +152,26 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
           -- ── ຕິດຕັ້ງ ──
           (select count(*) from ods_tb_install a
             where ${installStageIs(0)})::int as "/installations/assign",
-          -- ລໍຖ້າຮັບງານ (BUCKET.waiting ຂອງ /installations/accept — ຕົງກັບໜ້າ ①)
+          -- ລໍຖ້າຊ່າງຮັບ
           (select count(*) from ods_tb_install a
-            where a.cancel_date is null and a.time_register is not null and a.tech_code is not null
-              and a.tech_confirm is null and a.start_install is null and a.job_finish is null ${mineInstall})::int as "/installations/accept",
-          -- ຮັບແລ້ວ ລໍດຳເນີນການ (BUCKET.accepted) — key ສັງເຄາະ (canAccess resolve → rule /installations/accept)
-          (select count(*) from ods_tb_install a
-            where a.cancel_date is null and a.time_register is not null and a.tech_code is not null
-              and a.tech_confirm is not null and a.reg_start is null and a.start_install is null ${mineInstall})::int as "/installations/accept/accepted",
+            where ${installStageIs(1)} ${mineInstall})::int as "/installations/accept",
           -- ໃບຂໍເບີກ: ແທັບ "ລໍຖ້າຂໍເບີກ" (WAIT_WHERE ຂອງ /installations/spare-requests) — ໃຊ້ອາໄຫຼ່ ຮັບງານແລ້ວ ແຕ່ຍັງບໍ່ຂໍເບີກ
           (select count(*) from ods_tb_install a
-            where a.reg_start is null and a.used_spare = 1 and a.cancel_date is null
-              and a.job_finish is null and a.tech_confirm is not null ${mineInstall})::int as "/installations/spare-requests",
+            where ${installStageIs(2)} ${mineInstall})::int as "/installations/spare-requests",
           -- ກຳລັງຂໍເບີກ (REQ_WHERE: ໃບ SION 122 ຂອງງານທີ່ຍັງບໍ່ປິດ) — key ສັງເຄາະ resolve → rule /installations/spare-requests
           (select count(*) from ic_trans ic
             left join ods_tb_install a on a.code = ic.product_code
             where ic.trans_flag = 122 and ic.job_type = 'install' and a.job_finish is null ${mineInstall})::int as "/installations/spare-requests/requested",
-          -- ຮັບອາໄຫຼ່: ໃບເບີກ SWC(56) ທີ່ຊ່າງຍັງບໍ່ມາຮັບ (WHERE ຂອງ /installations/spare-pickup — count(*) ຄືກັນຄຳດຽວ)
-          (select count(*) from ic_trans ic
-            join ods_tb_install a on a.code = ic.product_code
-            where ic.trans_flag = 56 and ic.job_type = 'install'
-              and a.cancel_date is null and a.job_finish is null
-              and ic.doc_no not in (select doc_ref from ic_trans where trans_flag = 166 and doc_ref is not null)
-              ${mineInstall})::int as "/installations/spare-pickup",
+          -- ລໍຖ້າຮັບອາໄຫຼ່: ລວມຕັ້ງແຕ່ສົ່ງຄຳຂໍຈົນຊ່າງຮັບຄົບ
           (select count(*) from ods_tb_install a
-            where (${installStageIs(4)} or ${installStageIs(5)}) ${mineInstall})::int as "/installations/work",
+            where ${installStageIs(3)} ${mineInstall})::int as "/installations/spare-pickup",
           (select count(*) from ods_tb_install a
-            where ${installStageIs(8)})::int as "/installations/close",
+            where ${installStageIs(4)} ${mineInstall})::int as "/installations/work",
+          (select count(*) from ods_tb_install a
+            where ${installStageIs(7)})::int as "/installations/close",
+          -- ງານທີ່ອອກຈາກ 8 ຂັ້ນຕອນ — ເມນູແຍກ "ຍົກເລີກແລ້ວ"
+          (select count(*) from ods_tb_install a
+            where ${installStageIs(-1)} ${mineInstall})::int as "/installations/cancelled",
 
           -- ── ອະນຸມັດ (ເງື່ອນໄຂອັນດຽວກັບ APPROVALS_SQL / CANCEL_REQUESTS_SQL ຂອງ lib/dashboard) ──
           (select count(*) from ic_trans t
@@ -194,12 +187,13 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
 
           -- ── ຄຸນນະພາບ ──
           (select count(*) from tb_product a where a.status <> 6 and (${STAGE_SQL}) = 10)::int
-            + (select count(*) from ods_tb_install a where ${installStageIs(6)})::int as "/qc",
+            + (select count(*) from ods_tb_install a where ${installStageIs(5)})::int as "/qc",
+          (select count(*) from ods_tb_install a where ${installStageIs(5)})::int as "/qc/install",
 
           -- ── ສະຖານະງານສ້ອມ: ຂັ້ນຮັບງານຖືກລວມເຂົ້າ wait-check ແລ້ວ ──
           ${REPAIR_STAGE_COUNTS},
 
-          -- ── ຂັ້ນຕອນຕິດຕັ້ງ: ທຸກຂັ້ນ (0-8) ⇒ ກຸ່ມເມນູ "ຂັ້ນຕອນຕິດຕັ້ງ" ──
+          -- ── 8 ຄິວຫຼັກຂອງງານຕິດຕັ້ງ (0-7) ──
           ${INSTALL_STAGE_COUNTS}`,
         args,
       )

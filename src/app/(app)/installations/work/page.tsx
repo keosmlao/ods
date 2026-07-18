@@ -29,7 +29,7 @@ import {
  * — ອອກແບບໃໝ່.
  * ods ຕໍ່ session name ເຂົ້າ SQL ໂດຍກົງ (tech_install.py:157) — ບ່ອນນີ້ໃຊ້ parameter.
  * ods ຍັງລືມໃສ່ວົງເລັບໃນ WHERE ຂອງຕາຕະລາງ "ລໍຖ້າຕິດຕັ້ງ" ⇒ AND/OR ຜູກຜິດ.
- * ບ່ອນນີ້ໃຊ້ຂັ້ນຈາກ @/lib/install-stage ແທນ (ຂັ້ນ 4 = ລໍຖ້າຊ່າງຕິດຕັ້ງ, 5 = ກຳລັງຕິດຕັ້ງ).
+ * ຂັ້ນ 4 ລວມທັງລໍເລີ່ມ ແລະກຳລັງຕິດຕັ້ງ; ໃຊ້ start_install ແຍກປຸ່ມເລີ່ມ/ຈົບ.
  */
 export const dynamic = "force-dynamic";
 
@@ -39,10 +39,10 @@ type Props = { searchParams: Promise<ListSearchParams> };
 const BUCKET: Record<Tab, { where: string; timeCol: string }> = {
   // ຂັ້ນ 4 = ຮັບອາໄຫຼ່ຄົບແລ້ວ (ຫຼື ບໍ່ໃຊ້ອາໄຫຼ່) ແລະ ຍັງບໍ່ເລີ່ມ · ຕ້ອງຮັບງານກ່ອນ (tech_confirm)
   waiting: {
-    where: `${installStageIs(4)} and a.tech_confirm is not null`,
+    where: `${installStageIs(4)} and a.tech_confirm is not null and a.start_install is null`,
     timeCol: "coalesce(a.pick_finish, a.tech_confirm, a.time_register)",
   },
-  doing: { where: installStageIs(5), timeCol: "a.start_install" },
+  doing: { where: `${installStageIs(4)} and a.start_install is not null and a.finish_install is null`, timeCol: "a.start_install" },
   done: {
     where: "a.cancel_date is null and a.start_install is not null and a.finish_install is not null",
     timeCol: "a.finish_install",
