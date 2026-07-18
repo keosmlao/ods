@@ -228,9 +228,9 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
         </form>
       </div>
 
-      {/* ຕາຕະລາງ */}
+      {/* ຕາຕະລາງ (desktop) */}
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[1250px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
@@ -345,6 +345,99 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* ບັດ (mobile) — ຂໍ້ມູນ ແລະ ປຸ່ມດຽວກັນກັບແຖວ desktop */}
+        <div className="space-y-2 p-2.5 md:hidden">
+          {list.rows.map((row) => {
+            const tone = elapsedTone(row.elapsed_seconds);
+            const inWarranty = row.warranty === "ຮັບປະກັນ";
+            const discount = Number(row.total_discount);
+            return (
+              <div key={row.doc_no} className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
+                <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                <div className="flex items-start justify-between gap-2">
+                  <Link
+                    href={`/quotations/customer-approval/${encodeURIComponent(row.doc_no)}`}
+                    className="text-sm font-bold text-[#0536a9]"
+                  >
+                    {row.doc_no}
+                    <LinkPending className="ml-1 inline size-3" />
+                  </Link>
+                  <div className="text-right">
+                    <span className="font-bold text-[#e75555]">{money(row.total_amount)}</span>
+                    {discount > 0 && (
+                      <span className="block text-[10px] text-emerald-700">ສ່ວນຫຼຸດ {money(row.total_discount)}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <Elapsed
+                    seconds={row.elapsed_seconds}
+                    className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`}
+                  />
+                  <span className="text-[10px] text-slate-400">{row.at_time ?? "-"}</span>
+                  <span className="text-[10px] text-slate-400">· {row.doc_date ?? "-"}</span>
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                      inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {row.warranty || "-"}
+                  </span>
+                </div>
+
+                <div className="mt-1.5 text-xs">
+                  <span className="block font-medium text-slate-800">
+                    {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
+                  </span>
+                  <span className="block text-[10px] font-bold text-[#790404]">{row.sn || "-"}</span>
+                </div>
+
+                <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
+                  <span>ລູກຄ້າ: {row.customer || "-"}</span>
+                  <span>ຫຍີ່ຫໍ້: {row.brand || "-"}</span>
+                  <span>ຊ່າງ: {row.technician || "-"}</span>
+                  <span>ຜູ້ອອກບິນ: {row.user_created || "-"}</span>
+                </div>
+
+                {tab === "done" ? (
+                  <div className="mt-1.5 text-xs">
+                    <span
+                      className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                        row.aprove_status_2 === 2 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+                      }`}
+                    >
+                      {row.status_name}
+                    </span>
+                    {row.aprove_status_2 === 2 && (
+                      <span className="mt-0.5 block text-[10px] text-slate-500">
+                        {row.cancel_reason?.trim() || "ບໍ່ໄດ້ລະບຸເຫດຜົນ"}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-1.5 text-xs">
+                    <span className="block font-semibold text-red-600">{row.issue_2 || "-"}</span>
+                    <span className="block text-[10px] text-slate-400">ເບື້ອງຕົ້ນ: {row.issue || "-"}</span>
+                  </div>
+                )}
+
+                <div className="mt-2 flex items-center justify-end gap-2">
+                  {tab === "done" && <UndoCustomerButton docNo={row.doc_no} />}
+                  <Link
+                    href={`/quotations/customer-approval/${encodeURIComponent(row.doc_no)}`}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                  >
+                    <FileCheck2 className="size-3.5" />
+                    ລາຍລະອຽດ
+                    <LinkPending className="size-3" />
+                  </Link>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}

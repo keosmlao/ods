@@ -362,8 +362,8 @@ export default async function QuotationsPage({ searchParams }: Props) {
         </form>
       </div>
 
-      {/* ຕາຕະລາງ */}
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      {/* ຕາຕະລາງ — desktop ເທົ່ານັ້ນ (ມືຖືໃຊ້ card ຂ້າງລຸ່ມ) */}
+      <section className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1200px] border-collapse text-xs">
             <thead>
@@ -563,6 +563,150 @@ export default async function QuotationsPage({ searchParams }: Props) {
 
         {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
       </section>
+
+      {/* ບັນຊີ card ສຳລັບມືຖື — ຂໍ້ມູນ ແລະ ປຸ່ມດຽວກັນກັບຕາຕະລາງ desktop */}
+      <div className="space-y-2 md:hidden">
+        {total === 0 && (
+          <p className="rounded-xl border border-slate-200 bg-white py-12 text-center text-xs text-slate-400">
+            ບໍ່ພົບລາຍການ
+          </p>
+        )}
+
+        {waitingRows.map((row) => {
+          const tone = elapsedTone(row.elapsed_seconds);
+          return (
+            <div key={row.code} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="flex items-start justify-between gap-2">
+                <Link href={`/service/${row.code}`} className="font-bold text-[#0536a9] hover:underline">
+                  {row.code}
+                </Link>
+                <Elapsed
+                  seconds={row.elapsed_seconds}
+                  className={`inline-block shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`}
+                />
+              </div>
+              <p className="mt-0.5 text-[10px] text-slate-400">{row.at_time}</p>
+
+              <p className="mt-2 text-sm font-medium text-slate-800">
+                {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
+              </p>
+              <p className="text-[11px] text-slate-400">SN: {row.sn || "-"}</p>
+
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600">
+                <span>ຫຍີ່ຫໍ້: {row.brand || "-"}</span>
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-500">{row.warranty || "-"}</span>
+                <span>ຊ່າງ: {row.technician || "-"}</span>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-600">ລູກຄ້າ: {row.customer || "-"}</p>
+              {row.issue && <p className="mt-1 text-[11px] font-semibold text-red-600">ອາການ: {row.issue}</p>}
+
+              {row.quote_doc_no && (
+                <div className="mt-2">
+                  <span className="inline-block rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
+                    {row.quote_status === 2 ? "ບໍ່ອະນຸມັດ" : "ຄ້າງລໍຖ້າອະນຸມັດ"} · {row.quote_doc_no}
+                  </span>
+                  <p className="mt-0.5 text-[10px] text-slate-500">
+                    {row.quote_remark?.trim() ? `ເຫດຜົນ: ${row.quote_remark}` : "ບໍ່ໄດ້ລະບຸເຫດຜົນ"}
+                    {row.quote_approver ? ` · ${row.quote_approver}` : ""}
+                  </p>
+                </div>
+              )}
+
+              <div className="mt-3 flex justify-end">
+                {row.quote_doc_no ? (
+                  <QuoteRowActions docNo={row.quote_doc_no} variant="rejected" />
+                ) : (
+                  <Link
+                    href={`/quotations/new/${encodeURIComponent(row.code)}`}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                  >
+                    <FileCheck2 className="size-3.5" />
+                    ສະເໜີລາຄາ
+                    <LinkPending className="size-3" />
+                  </Link>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {quoteRows.map((row) => {
+          const tone = elapsedTone(row.elapsed_seconds);
+          const inWarranty = row.warranty === "ຮັບປະກັນ";
+          return (
+            <div key={row.doc_no} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-bold text-[#0536a9]">{row.doc_no}</span>
+                <span className="text-right text-[11px] text-slate-500">{row.doc_date ?? "-"}</span>
+              </div>
+
+              <div className="mt-1 flex items-center justify-between gap-2">
+                {tab === "progress" ? (
+                  <Elapsed
+                    seconds={row.elapsed_seconds}
+                    className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`}
+                  />
+                ) : (
+                  <span className="text-[11px] text-slate-600">
+                    {row.qt_finish ? `ອະນຸມັດ ${row.qt_finish}` : (row.duration ?? "-")}
+                  </span>
+                )}
+                <span className="text-right">
+                  <span className="font-bold text-[#e75555]">{money(row.total_amount)}</span>
+                  {Number(row.total_discount) > 0 && (
+                    <span className="ml-1 text-[10px] text-emerald-700">ຫຼຸດ {money(row.total_discount)}</span>
+                  )}
+                </span>
+              </div>
+              <p className="mt-0.5 text-[10px] text-slate-400">{row.at_time ?? "-"}</p>
+
+              <p className="mt-2 text-sm font-medium text-slate-800">
+                {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
+              </p>
+              <p className="text-[11px] text-slate-400">SN: {row.sn || "-"}</p>
+
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600">
+                <span>ຫຍີ່ຫໍ້: {row.brand || "-"}</span>
+                <span
+                  className={`rounded px-1.5 py-0.5 font-medium ${
+                    inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {row.warranty || "-"}
+                </span>
+                <span>ຜູ້ອອກ: {row.user_created || "-"}</span>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-600">ລູກຄ້າ: {row.customer || "-"}</p>
+              {row.issue_2 && <p className="mt-1 text-[11px] font-semibold text-red-600">ອາການ: {row.issue_2}</p>}
+
+              {tab === "all" && (
+                <div className="mt-2">
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                      STATUS_TONE[row.status_name] ?? "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {row.status_name}
+                  </span>
+                </div>
+              )}
+
+              <div className="mt-3 flex items-center justify-end gap-3">
+                {tab === "progress" && <QuoteRowActions docNo={row.doc_no} />}
+                <Link
+                  href={`/quotations/${encodeURIComponent(row.doc_no)}/print`}
+                  target="_blank"
+                  title="ພິມໃບສະເໜີລາຄາ"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-[#D35400] hover:opacity-70"
+                >
+                  <Printer className="size-4" />
+                  ພິມ
+                </Link>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">

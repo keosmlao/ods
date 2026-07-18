@@ -327,56 +327,91 @@ export function ReportShell({
       {error ? (
         <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-700">{error}</p>
       ) : (
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-4 py-3">
-            <h2 className="text-sm font-bold text-slate-800">ລາຍການຂໍ້ມູນ</h2>
-            <p className="mt-0.5 text-[11px] text-slate-500">ກົດທີ່ຫົວຖັນເພື່ອຈັດຮຽງ · ເລື່ອນຊ້າຍ-ຂວາເພື່ອເບິ່ງຂໍ້ມູນທັງໝົດ</p>
-          </div>
-          <div className="max-h-[calc(100vh-16rem)] overflow-auto">
-            <table className="w-full border-separate border-spacing-0 text-xs" style={{ minWidth }}>
-              <thead>
-                <tr className="bg-slate-50 text-left text-slate-600 [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:border-b [&>th]:border-slate-200 [&>th]:bg-slate-50">
-                  {columns.map((column) =>
-                    sortable ? (
-                      <SortHeader
-                        key={column.key}
-                        label={column.label}
-                        sortKey={column.key}
-                        current={sort}
-                        dir={state.dir}
-                        href={sortHref}
-                        className="py-2.5"
-                      />
-                    ) : (
-                      <th key={column.key} className="whitespace-nowrap px-3 py-2.5 font-semibold">
-                        {column.label}
-                      </th>
-                    ),
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((row, index) => (
-                  <tr key={`${row[columns[0].key] ?? ""}-${index}`} className="group transition hover:bg-teal-50/40">
-                    {columns.map((column) => {
+        <>
+          {/* ຕາຕະລາງ desktop — ເຊື່ອງໃນມືຖື, ຄົງເດີມທຸກປະການໃນຈໍໃຫຍ່ */}
+          <section className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
+            <div className="border-b border-slate-100 px-4 py-3">
+              <h2 className="text-sm font-bold text-slate-800">ລາຍການຂໍ້ມູນ</h2>
+              <p className="mt-0.5 text-[11px] text-slate-500">ກົດທີ່ຫົວຖັນເພື່ອຈັດຮຽງ · ເລື່ອນຊ້າຍ-ຂວາເພື່ອເບິ່ງຂໍ້ມູນທັງໝົດ</p>
+            </div>
+            <div className="max-h-[calc(100vh-16rem)] overflow-auto">
+              <table className="w-full border-separate border-spacing-0 text-xs" style={{ minWidth }}>
+                <thead>
+                  <tr className="bg-slate-50 text-left text-slate-600 [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:border-b [&>th]:border-slate-200 [&>th]:bg-slate-50">
+                    {columns.map((column) =>
+                      sortable ? (
+                        <SortHeader
+                          key={column.key}
+                          label={column.label}
+                          sortKey={column.key}
+                          current={sort}
+                          dir={state.dir}
+                          href={sortHref}
+                          className="py-2.5"
+                        />
+                      ) : (
+                        <th key={column.key} className="whitespace-nowrap px-3 py-2.5 font-semibold">
+                          {column.label}
+                        </th>
+                      ),
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {shown.map((row, index) => (
+                    <tr key={`${row[columns[0].key] ?? ""}-${index}`} className="group transition hover:bg-teal-50/40">
+                      {columns.map((column) => {
+                        const value = row[column.key];
+                        return (
+                          <td
+                            key={column.key}
+                            className="max-w-64 truncate border-b border-slate-100 px-3 py-3 text-slate-700 first:font-semibold first:text-slate-900"
+                            title={value === null || value === undefined ? "" : String(value)}
+                          >
+                            {value === null || value === undefined || value === "" ? "-" : value}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {ordered.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+          </section>
+
+          {/* ບັດ mobile — ໃຊ້ຖັນ/ແຖວດຽວກັນ, ຖັນທຳອິດເປັນຫົວບັດ ສ່ວນຖັນທີ່ເຫຼືອເປັນ ປ້າຍ:ຄ່າ */}
+          <div className="space-y-2 md:hidden">
+            {shown.map((row, index) => {
+              const [head, ...rest] = columns;
+              const headValue = row[head.key];
+              return (
+                <div
+                  key={`m-${row[head.key] ?? ""}-${index}`}
+                  className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+                >
+                  <p className="mb-2 border-b border-slate-100 pb-2 text-sm font-bold text-slate-900">
+                    {headValue === null || headValue === undefined || headValue === "" ? "-" : headValue}
+                  </p>
+                  <dl className="space-y-1.5">
+                    {rest.map((column) => {
                       const value = row[column.key];
                       return (
-                        <td
-                          key={column.key}
-                          className="max-w-64 truncate border-b border-slate-100 px-3 py-3 text-slate-700 first:font-semibold first:text-slate-900"
-                          title={value === null || value === undefined ? "" : String(value)}
-                        >
-                          {value === null || value === undefined || value === "" ? "-" : value}
-                        </td>
+                        <div key={column.key} className="flex items-start justify-between gap-3 text-xs">
+                          <dt className="shrink-0 text-slate-500">{column.label}</dt>
+                          <dd className="min-w-0 break-words text-right font-medium text-slate-700">
+                            {value === null || value === undefined || value === "" ? "-" : value}
+                          </dd>
+                        </div>
                       );
                     })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  </dl>
+                </div>
+              );
+            })}
+            {ordered.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
           </div>
-          {ordered.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
-        </section>
+        </>
       )}
 
       {pages > 1 && (

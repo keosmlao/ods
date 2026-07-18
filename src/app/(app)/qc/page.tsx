@@ -79,7 +79,8 @@ function QcQueueCard({
         </span>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Desktop: ຕາຕະລາງເຕັມ (ເຊື່ອງໃນມືຖື) */}
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[900px] border-collapse text-xs">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
@@ -131,6 +132,57 @@ function QcQueueCard({
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile: ບັດຊ້ອນ (ໃຊ້ action ດຽວກັນກັບ desktop) */}
+      <div className="space-y-2 p-2 md:hidden">
+        {rows.map((row) => {
+          const mine = !!row.worker && row.worker === me;
+          return (
+            <div key={row.code} className="rounded-xl border border-slate-200 bg-white p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-slate-700">{row.code}</span>
+                <Elapsed
+                  seconds={row.elapsed_seconds}
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${elapsedTone(row.elapsed_seconds).chip}`}
+                />
+              </div>
+              <p className="mt-1 text-sm text-slate-700">
+                {row.item ?? "-"}
+                {row.detail?.trim() && <span className="block text-xs text-slate-400">{row.detail}</span>}
+              </p>
+              <dl className="mt-1.5 space-y-0.5 text-xs text-slate-500">
+                <div className="flex gap-1">
+                  <dt className="text-slate-400">ລູກຄ້າ:</dt>
+                  <dd className="text-slate-600">{row.customer ?? "-"}</dd>
+                </div>
+                <div className="flex gap-1">
+                  <dt className="text-slate-400">ຊ່າງ:</dt>
+                  <dd className="text-slate-600">{row.worker ?? "-"}</dd>
+                </div>
+                <div className="flex gap-1">
+                  <dt className="text-slate-400">ສຳເລັດເມື່ອ:</dt>
+                  <dd className="text-slate-600">{row.finished_at ?? "-"}</dd>
+                </div>
+              </dl>
+              <div className="mt-2">
+                {mine ? (
+                  // ຄົນເຮັດກວດຂອງຕົນເອງບໍ່ໄດ້ — ບອກເຫດຜົນໄວ້ບ່ອນນີ້ ບໍ່ໃຫ້ກົດແລ້ວຄ່ອຍຖືກປະຕິເສດ
+                  <span className="text-xs text-slate-400">ງານຂອງທ່ານ — ຕ້ອງໃຫ້ຄົນອື່ນກວດ</span>
+                ) : (
+                  <Link
+                    href={`/qc/${workflow}/${row.code}`}
+                    className="inline-flex h-9 items-center gap-1 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                  >
+                    <LinkPending className="size-3.5" />
+                    <ClipboardCheck className="size-3.5" />
+                    {row.checked > 0 ? "ກວດຕໍ່" : "ກວດຮັບ"}
+                  </Link>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {rows.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ມີງານລໍກວດຮັບ</p>}

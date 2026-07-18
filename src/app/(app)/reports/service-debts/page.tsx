@@ -124,7 +124,71 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
       )}
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+        {/* ໂທລະສັບ — ບັດແທນຕາຕະລາງ (ຕາຕະລາງເຕັມສະແດງແຕ່ md ຂຶ້ນໄປ) */}
+        <div className="divide-y divide-slate-100 md:hidden">
+          {shown.map((row) => {
+            const due = Number(row.due_thb.replace(/,/g, "")) || 0;
+            return (
+              <div key={row.job} className="space-y-2 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <Link href={`/service/${row.job}`} className="font-bold text-[#0536a9] hover:underline">
+                      {row.job}
+                    </Link>
+                    <p className="truncate text-xs text-slate-600" title={row.customer ?? ""}>
+                      {row.customer ?? "-"}
+                      {row.tel && <span className="text-[10px] text-slate-400"> · {row.tel}</span>}
+                    </p>
+                  </div>
+                  {row.cust_kind ? (
+                    <span
+                      className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                        row.cust_kind === "shop" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {CUST_KIND_LABEL[row.cust_kind as CustKind]}
+                    </span>
+                  ) : (
+                    <span className="shrink-0 text-[10px] text-slate-300">{UNSET_KIND_LABEL}</span>
+                  )}
+                </div>
+                <p className="truncate text-xs text-slate-500" title={row.product ?? ""}>
+                  {row.product ?? "-"}
+                </p>
+                <p className="text-[10px] text-slate-400">
+                  <span className="font-mono text-slate-500">{row.quote_no ?? "-"}</span> · {row.quote_date}
+                  {row.age_days !== null && ` · ${row.age_days} ມື້`}
+                </p>
+                <div className="grid grid-cols-3 gap-2 text-xs tabular-nums">
+                  <div>
+                    <span className="block text-[10px] text-slate-400">ຕົກລົງ</span>
+                    {row.quoted_thb}
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-slate-400">ຮັບແລ້ວ</span>
+                    <span className="text-emerald-600">{row.paid_thb}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-slate-400">ຄ້າງ</span>
+                    <span className={`font-bold ${due > 0 ? "text-red-600" : "text-slate-300"}`}>{row.due_thb}</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  {row.returned_on ? (
+                    <span className={`text-[10px] ${due > 0 ? "font-semibold text-red-600" : "text-slate-500"}`}>
+                      ສົ່ງຄືນ {row.returned_on}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400">ເຄື່ອງຍັງຢູ່ຮ້ານ</span>
+                  )}
+                  {permission.update && due > 0 && <PayButton job={row.job} due={due} today={today} />}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[1100px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">

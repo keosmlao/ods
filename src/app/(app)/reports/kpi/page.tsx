@@ -277,7 +277,7 @@ function Flow({
           const bottleneck = stage.label === worst?.label && stage.median > 0;
           return (
             <div key={stage.label} className="flex items-center gap-3">
-              <span className="w-56 shrink-0 truncate text-xs text-slate-600">{stage.label}</span>
+              <span className="w-28 shrink-0 truncate text-xs text-slate-600 sm:w-56">{stage.label}</span>
               <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                 <span
                   className={`block h-full rounded-full ${bottleneck ? "bg-red-500" : "bg-teal-500"}`}
@@ -285,7 +285,7 @@ function Flow({
                 />
               </span>
               <span
-                className={`w-32 shrink-0 text-right text-xs tabular-nums ${
+                className={`w-24 shrink-0 text-right text-xs tabular-nums sm:w-32 ${
                   bottleneck ? "font-bold text-red-600" : "text-slate-600"
                 }`}
               >

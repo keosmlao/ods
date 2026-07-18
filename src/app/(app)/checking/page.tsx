@@ -236,8 +236,8 @@ export default async function CheckingPage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* ຕາຕະລາງ */}
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      {/* ຕາຕະລາງ — ເດັສທັອບ */}
+      <section className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block">
         <div className="overflow-x-auto">
             <table className="w-full min-w-[1050px] border-collapse text-xs">
               <thead>
@@ -337,6 +337,83 @@ export default async function CheckingPage({ searchParams }: Props) {
 
         {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
       </section>
+
+      {/* ບັດ — ມືຖື */}
+      <div className="space-y-2 md:hidden">
+        {jobs.rows.map((row) => {
+          const state = slaState(row.elapsed_seconds, row.service_type);
+          const tone = slaTone(state);
+          const limit = slaLabel(row.service_type);
+          const inWarranty = row.warranty === "ຮັບປະກັນ";
+          return (
+            <div key={row.code} className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+              <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+              <div className="flex items-start justify-between gap-2">
+                <Link href={`/service/${row.code}`} className="text-sm font-bold text-[#0536a9] hover:underline">
+                  {row.code}
+                </Link>
+                <span className="flex flex-wrap items-center justify-end gap-1">
+                  <Elapsed
+                    seconds={row.elapsed_seconds}
+                    className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`}
+                  />
+                  {state === "late" && (
+                    <span className="rounded bg-red-100 px-1 text-[10px] font-bold text-red-700">ເກີນກຳນົດ</span>
+                  )}
+                </span>
+              </div>
+
+              <p className="mt-0.5 text-[10px] text-slate-400">
+                {row.at_time}
+                {limit && <span className="ml-1 text-slate-500">· {limit}</span>}
+              </p>
+
+              <p className="mt-1.5 text-xs font-medium text-slate-800">
+                {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
+              </p>
+              <p className="text-[10px] text-slate-400">SN: {row.sn || "-"} · {row.brand || "-"}</p>
+
+              <p className="mt-1 text-xs text-slate-600">{row.customer || "-"}</p>
+
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
+                <span
+                  className={`rounded px-1.5 py-0.5 font-medium ${
+                    inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {row.warranty || "-"}
+                </span>
+                <span className="text-slate-500">{SERVICE_TYPE_LABEL[row.service_type ?? ""] ?? row.service_type ?? "-"}</span>
+                {row.receiver && <span className="text-slate-400">· {row.receiver}</span>}
+              </div>
+
+              {row.issue && <p className="mt-1 text-xs font-semibold text-red-600">{row.issue}</p>}
+
+              <div className="mt-2.5 border-t border-slate-100 pt-2.5">
+                {tab === "waiting" ? (
+                  <StartCheckButton code={row.code} />
+                ) : (
+                  /* ກຳລັງກວດເຊັກ — ກົດ "ເລີ່ມກວດເຊັກ" ຜິດໃບ ຖອນຄືນໄດ້ຢູ່ນີ້ */
+                  <div className="flex items-center gap-1.5">
+                    <Link
+                      href={`/checking/${row.code}`}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                    >
+                      <ClipboardCheck className="size-3.5" />
+                      ກວດເຊັກຕໍ່
+                      <LinkPending className="size-3" />
+                    </Link>
+                    <UndoStartCheckButton code={row.code} variant="icon" />
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {total === 0 && (
+          <p className="rounded-xl border border-slate-200 bg-white py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>
+        )}
+      </div>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">

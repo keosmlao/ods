@@ -67,7 +67,8 @@ export default async function CustomerContactPage() {
               <span className="hidden text-xs font-normal text-slate-400 sm:inline">· {group.hint}</span>
             </h2>
 
-            <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            {/* ── desktop: ຕາຕະລາງເດີມ (ເຊື່ອງໃນມືຖື) ── */}
+            <section className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block">
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-xs" style={{ minWidth: 980 }}>
                   <thead>
@@ -91,6 +92,19 @@ export default async function CustomerContactPage() {
 
               {rows.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ມີງານທີ່ຕ້ອງແຈ້ງ</p>}
             </section>
+
+            {/* ── mobile: card ຕໍ່ແຖວ — ຂໍ້ມູນ ແລະ ປຸ່ມດຽວກັນກັບ desktop ── */}
+            <div className="space-y-2 md:hidden">
+              {rows.length === 0 ? (
+                <p className="rounded-xl border border-slate-200 bg-white py-10 text-center text-xs text-slate-400">
+                  ບໍ່ມີງານທີ່ຕ້ອງແຈ້ງ
+                </p>
+              ) : (
+                rows.map((job) => (
+                  <MobileCard key={`${job.kind}-${job.code}`} job={job} href={group.hrefOf(job.code)} />
+                ))
+              )}
+            </div>
           </div>
         );
       })}
@@ -130,5 +144,41 @@ function Row({ job, href }: { job: ContactJob; href: string }) {
         <ContactActions job={job} />
       </td>
     </RowLink>
+  );
+}
+
+// ── card ສຳລັບມືຖື — ຂໍ້ມູນ ແລະ ປຸ່ມ (ContactActions) ດຽວກັນກັບແຖວ desktop ──
+function MobileCard({ job, href }: { job: ContactJob; href: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <Link href={href} className="text-base font-bold text-teal-700 hover:underline">
+          {job.code}
+        </Link>
+        <Elapsed
+          seconds={job.waiting_seconds}
+          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${elapsedTone(job.waiting_seconds).chip}`}
+        />
+      </div>
+
+      <p className="mt-1 text-sm font-medium text-slate-800">{job.product ?? "-"}</p>
+      <p className="text-xs text-slate-500">{job.customer ?? "-"}</p>
+
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+        {job.at && <span>ວັນທີ {job.at}</span>}
+        {job.last_contact ? (
+          <span className="text-slate-600">
+            ແຈ້ງລ່າສຸດ {job.last_contact}
+            {job.contacts > 1 && <span className="ml-1 text-slate-400">({job.contacts} ຄັ້ງ)</span>}
+          </span>
+        ) : (
+          <span className="rounded-full bg-red-50 px-2 py-0.5 font-semibold text-red-600">ຍັງບໍ່ໄດ້ແຈ້ງ</span>
+        )}
+      </div>
+
+      <div className="mt-2.5 border-t border-slate-100 pt-2.5">
+        <ContactActions job={job} />
+      </div>
+    </div>
   );
 }

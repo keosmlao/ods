@@ -366,6 +366,87 @@ export default async function StatusPage({ params, searchParams }: Props) {
   const detailHref = (code: string) =>
     `${isRepair ? `/service/${code}` : `/installations/${code}`}?from=/dashboard/status/${workflow}/${status}`;
 
+  /**
+   * ປຸ່ມລົງມືຕໍ່ຂັ້ນຂອງແຕ່ລະແຖວ — ດຶງອອກມາເປັນ fragment ດຽວ ເພື່ອໃຫ້ **ຕາຕະລາງ desktop**
+   * ແລະ **card ມືຖື** ໃຊ້ເງື່ອນໄຂ/ props ດຽວກັນເປັນະ (ບໍ່ຊ້ຳ logic — ຖ້າແກ້ ແກ້ບ່ອນດຽວ).
+   */
+  const rowActions = (row: RepairRow & InstallRow) => (
+    <>
+      {startCheck && row.repair_confirm && <StartCheckButton code={row.code} />}
+      {cancelAccepted && row.repair_confirm && (
+        <UndoRepairAssignmentButton code={row.code} accepted variant="icon" />
+      )}
+      {accept && !row.repair_confirm && <AcceptRepairButton code={row.code} />}
+      {cancelAssignment && !row.repair_confirm && (
+        <UndoRepairAssignmentButton code={row.code} variant="icon" />
+      )}
+      {canReassign && !row.repair_confirm && (
+        <AssignTechButton
+          label="ປ່ຽນຊ່າງ"
+          size="sm"
+          row={{
+            code: row.code,
+            customer: row.customer,
+            location_inst: row.location_inst,
+            appoint_date: row.appoint_date,
+            remark: row.remark,
+            technician: row.technician,
+          }}
+          techs={techs}
+          workflow="repair"
+        />
+      )}
+      {startRepair && <StartRepairButton code={row.code} />}
+      {cancelStartCheck && <UndoStartCheckButton code={row.code} variant="icon" />}
+      {cancelFinishedCheck && <CancelCheckButton code={row.code} variant="icon" />}
+      {cancelStartRepair && <UndoStartRepairButton code={row.code} variant="icon" />}
+      {cancelFinishedRepair && <UndoFinishRepairButton code={row.code} variant="icon" />}
+      {cancelQc && <UndoQcButton workflow="repair" code={row.code} variant="icon" />}
+      {quotingStage &&
+        row.quote_doc &&
+        (() => {
+          // ອະນຸມັດແລ້ວ (aprove_status≥1) → ລູກຄ້າຕັດສິນ; ຍັງ → ຜູ້ອະນຸມັດອະນຸມັດລາຄາກ່ອນ
+          const awaitingCustomer = (row.quote_apr ?? 0) >= 1;
+          const base = awaitingCustomer ? "/quotations" : "/approvals/quotations";
+          if (!canAccess(role, base)) return null;
+          const doc = encodeURIComponent(row.quote_doc);
+          return (
+            <Link
+              href={awaitingCustomer ? `/quotations/customer-approval/${doc}` : `/approvals/quotations/${doc}`}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+            >
+              {awaitingCustomer ? "ຕັດສິນລາຄາ" : "ອະນຸມັດລາຄາ"}
+              <LinkPending className="size-3" />
+            </Link>
+          );
+        })()}
+      {status === "quoting" && row.quote_doc && canAccess(role, "/quotations") && (
+        <QuoteRowActions docNo={row.quote_doc} variant="cancel" />
+      )}
+      {status === "wait-withdraw" && row.quote_doc && row.quote_customer_status !== 0 && (
+        <UndoCustomerButton docNo={row.quote_doc} size="md" />
+      )}
+      {status === "wait-withdraw" && !row.quote_doc && (
+        <CancelCheckButton code={row.code} variant="icon" />
+      )}
+      {status === "withdrawing" && row.request_doc && (
+        <CancelRequestButton docNo={row.request_doc} productCode={row.code} variant="icon" />
+      )}
+      {/* ປຸ່ມ "ໄປເຮັດຂັ້ນຕໍ່ໄປ" — ເນັ້ນສີເຕັມ (ນີ້ຄືສິ່ງທີ່ຄວນກົດ)
+          ສ່ວນປຸ່ມຖອນຄືນເປັນ icon ຈືດໆ ⇒ ຕາໄປຫາອັນທີ່ຖືກກ່ອນ */}
+      {linkAction && (
+        <Link
+          href={linkAction.href(row)}
+          title={linkAction.label}
+          aria-label={linkAction.label}
+          className="grid size-8 place-items-center rounded-lg bg-teal-600 text-white transition hover:bg-teal-700"
+        >
+          <ArrowRight className="size-4" />
+        </Link>
+      )}
+    </>
+  );
+
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -533,7 +614,8 @@ export default async function StatusPage({ params, searchParams }: Props) {
         <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
       </form>
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      {/* ── ຕາຕະລາງ desktop (ເຊື່ອງໃນມືຖື) ── */}
+      <section className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block">
         <div className="overflow-x-auto">
           <table className={`w-full border-collapse text-xs ${hasAction ? "min-w-[1400px]" : "min-w-[1250px]"}`}>
             <thead>
@@ -695,80 +777,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                           <td className="whitespace-nowrap px-3 py-2.5 text-center">
                             {/* ປຸ່ມທັງໝົດເປັນ icon ຂະໜາດດຽວກັນ ຮຽງແຖວດຽວ — ຂໍ້ຄວາມເຕັມເຮັດໃຫ້
                                 ແຖວສູງເປັນສອງເທົ່າ ແລະ ຕາຕະລາງອ່ານບໍ່ອອກ (ຄວາມໝາຍຢູ່ tooltip) */}
-                            <span className="inline-flex items-center justify-center gap-1">
-                              {startCheck && row.repair_confirm && <StartCheckButton code={row.code} />}
-                              {cancelAccepted && row.repair_confirm && (
-                                <UndoRepairAssignmentButton code={row.code} accepted variant="icon" />
-                              )}
-                              {accept && !row.repair_confirm && <AcceptRepairButton code={row.code} />}
-                              {cancelAssignment && !row.repair_confirm && (
-                                <UndoRepairAssignmentButton code={row.code} variant="icon" />
-                              )}
-                              {canReassign && !row.repair_confirm && (
-                                <AssignTechButton
-                                  label="ປ່ຽນຊ່າງ"
-                                  size="sm"
-                                  row={{
-                                    code: row.code,
-                                    customer: row.customer,
-                                    location_inst: row.location_inst,
-                                    appoint_date: row.appoint_date,
-                                    remark: row.remark,
-                                    technician: row.technician,
-                                  }}
-                                  techs={techs}
-                                  workflow="repair"
-                                />
-                              )}
-                              {startRepair && <StartRepairButton code={row.code} />}
-                              {cancelStartCheck && <UndoStartCheckButton code={row.code} variant="icon" />}
-                              {cancelFinishedCheck && <CancelCheckButton code={row.code} variant="icon" />}
-                              {cancelStartRepair && <UndoStartRepairButton code={row.code} variant="icon" />}
-                              {cancelFinishedRepair && <UndoFinishRepairButton code={row.code} variant="icon" />}
-                              {cancelQc && <UndoQcButton workflow="repair" code={row.code} variant="icon" />}
-                              {quotingStage &&
-                                row.quote_doc &&
-                                (() => {
-                                  // ອະນຸມັດແລ້ວ (aprove_status≥1) → ລູກຄ້າຕັດສິນ; ຍັງ → ຜູ້ອະນຸມັດອະນຸມັດລາຄາກ່ອນ
-                                  const awaitingCustomer = (row.quote_apr ?? 0) >= 1;
-                                  const base = awaitingCustomer ? "/quotations" : "/approvals/quotations";
-                                  if (!canAccess(role, base)) return null;
-                                  const doc = encodeURIComponent(row.quote_doc);
-                                  return (
-                                    <Link
-                                      href={awaitingCustomer ? `/quotations/customer-approval/${doc}` : `/approvals/quotations/${doc}`}
-                                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
-                                    >
-                                      {awaitingCustomer ? "ຕັດສິນລາຄາ" : "ອະນຸມັດລາຄາ"}
-                                      <LinkPending className="size-3" />
-                                    </Link>
-                                  );
-                                })()}
-                              {status === "quoting" && row.quote_doc && canAccess(role, "/quotations") && (
-                                <QuoteRowActions docNo={row.quote_doc} variant="cancel" />
-                              )}
-                              {status === "wait-withdraw" && row.quote_doc && row.quote_customer_status !== 0 && (
-                                <UndoCustomerButton docNo={row.quote_doc} size="md" />
-                              )}
-                              {status === "wait-withdraw" && !row.quote_doc && (
-                                <CancelCheckButton code={row.code} variant="icon" />
-                              )}
-                              {status === "withdrawing" && row.request_doc && (
-                                <CancelRequestButton docNo={row.request_doc} productCode={row.code} variant="icon" />
-                              )}
-                              {/* ປຸ່ມ "ໄປເຮັດຂັ້ນຕໍ່ໄປ" — ເນັ້ນສີເຕັມ (ນີ້ຄືສິ່ງທີ່ຄວນກົດ)
-                                  ສ່ວນປຸ່ມຖອນຄືນເປັນ icon ຈືດໆ ⇒ ຕາໄປຫາອັນທີ່ຖືກກ່ອນ */}
-                              {linkAction && (
-                                <Link
-                                  href={linkAction.href(row)}
-                                  title={linkAction.label}
-                                  aria-label={linkAction.label}
-                                  className="grid size-8 place-items-center rounded-lg bg-teal-600 text-white transition hover:bg-teal-700"
-                                >
-                                  <ArrowRight className="size-4" />
-                                </Link>
-                              )}
-                            </span>
+                            <span className="inline-flex items-center justify-center gap-1">{rowActions(row)}</span>
                           </td>
                         )}
                       </>
@@ -785,6 +794,142 @@ export default async function StatusPage({ params, searchParams }: Props) {
         </div>
 
         {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+      </section>
+
+      {/* ── ບັນຊີ card ສຳລັບມືຖື (ແຖວດຽວກັນກັບຕາຕະລາງ · ປຸ່ມ/ເງື່ອນໄຂດຽວກັນ) ── */}
+      <section className="space-y-2 md:hidden">
+        {total === 0 ? (
+          <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>
+        ) : (
+          list.rows.map((row) => {
+            const targetHours = isRepair ? repairStageTargetHours(config.stage ?? 0, row.service_type) : null;
+            const tone = isRepair
+              ? repairSlaTone(repairSlaState(row.elapsed_seconds, targetHours))
+              : elapsedTone(row.elapsed_seconds);
+            const inWarranty = row.warranty === "ຮັບປະກັນ";
+            const type = isRepair ? SERVICE_TYPES.find((item) => item.code === row.service_type) : undefined;
+            const track = tracking.get(row.code);
+            return (
+              <div key={row.code} className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                {/* ຫົວ card: ເລກທີ + ເວລາຄ້າງ */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Link href={detailHref(row.code)} className="text-sm font-bold text-[#0536a9] hover:underline">
+                        {row.code}
+                      </Link>
+                      {isRepair && (
+                        <Link
+                          href={`/service/${encodeURIComponent(row.code)}/barcode`}
+                          target="_blank"
+                          title="ພິມ barcode"
+                          className="inline-flex size-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        >
+                          <Barcode className="size-3.5" />
+                        </Link>
+                      )}
+                      {showCase && (
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                            (row as RepairRow).cancelled ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+                          }`}
+                        >
+                          {(row as RepairRow).cancelled ? "ຍົກເລີກ" : "ສ້ອມສຳເລັດ"}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-[10px] text-slate-400">
+                      {isRepair ? row.stage_started || row.registered || "-" : row.registered || "-"}
+                      {isRepair && holdOn && (row as RepairRow).hold && <b className="ml-1 text-amber-600">· ນາລິກາຢຸດ</b>}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <Elapsed
+                      seconds={row.elapsed_seconds}
+                      className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`}
+                    />
+                    {isRepair && targetHours != null && (
+                      <span className="mt-0.5 block text-[9px] font-semibold text-slate-400">SLA {targetHours} ຊມ</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* ສິນຄ້າ / SN */}
+                <div className="mt-2">
+                  <p className="truncate text-xs font-medium text-slate-800" title={row.product ?? ""}>
+                    {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
+                  </p>
+                  <p className="truncate text-[10px] text-slate-400">
+                    {isRepair
+                      ? row.sn || "-"
+                      : [row.product_type, row.product_size].filter(Boolean).join(" · ") || "-"}
+                  </p>
+                </div>
+
+                {/* ຊິບ: ຍີ່ຫໍ້ · ປະກັນ/ວັນນັດ · ປະເພດບໍລິການ */}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+                  {row.brand && <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-600">{row.brand}</span>}
+                  {isRepair ? (
+                    <span className={`rounded px-1.5 py-0.5 font-medium ${inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                      {row.warranty || "-"}
+                    </span>
+                  ) : (
+                    row.appointment && <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-600">ນັດ {row.appointment}</span>
+                  )}
+                  {type && (
+                    <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-bold ${SERVICE_TONE[type.tone].badge}`}>
+                      <b>{type.code}</b>
+                      <span className="font-medium">{type.label}</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* ລູກຄ້າ · ຊ່າງ · ຜູ້ຮັບ/ຜູ້ສ້າງ */}
+                <div className="mt-2 border-t border-slate-100 pt-2 text-[11px] text-slate-500">
+                  <p className="truncate" title={row.customer ?? ""}>
+                    <span className="text-slate-400">ລູກຄ້າ:</span> {row.customer || "-"}
+                    {isRepair && row.phone && <span className="text-slate-400"> · {row.phone}</span>}
+                  </p>
+                  <p className="truncate">
+                    <span className="text-slate-400">ຊ່າງ:</span> {showTech(row.technician)}
+                    <span className="text-slate-400"> · {isRepair ? "ຜູ້ຮັບ" : "ຜູ້ສ້າງ"}:</span>{" "}
+                    {isRepair ? row.receiver || "-" : row.creator || "-"}
+                  </p>
+                  {isRepair && row.issue && (
+                    <p className="truncate font-semibold text-red-600" title={row.issue}>
+                      <span className="font-normal text-slate-400">ອາການ:</span> {row.issue}
+                    </p>
+                  )}
+                </div>
+
+                {/* ຄວາມຄືບໜ້າ ERP (ຂັ້ນສັ່ງຊື້) */}
+                {isRepair && tracking.size > 0 && (
+                  <div className="mt-2">
+                    <PurchaseState track={track} compact />
+                    {!track && (
+                      <span className="mt-1 block">
+                        <ReleaseGhostButton job={row.code} />
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* ໝາຍ/ປົດ ທຸງ ແລະ ປຸ່ມລົງມືຕໍ່ຂັ້ນ — ຄືກັນກັບ desktop */}
+                {isRepair && canHold && (
+                  <div className="mt-2">
+                    <HoldButtons
+                      key={(row as RepairRow).hold ? "held" : "free"}
+                      code={row.code}
+                      hold={(row as RepairRow).hold}
+                    />
+                  </div>
+                )}
+                {hasAction && <div className="mt-2 flex flex-wrap items-center gap-1.5">{rowActions(row)}</div>}
+              </div>
+            );
+          })
+        )}
       </section>
 
       {pages > 1 && (

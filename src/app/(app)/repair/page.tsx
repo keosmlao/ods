@@ -279,9 +279,9 @@ export default async function RepairPage({ searchParams }: Props) {
         </form>
       </div>
 
-      {/* ຕາຕະລາງ */}
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+      {/* ຕາຕະລາງ (desktop) */}
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[1100px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
@@ -402,6 +402,97 @@ export default async function RepairPage({ searchParams }: Props) {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* ບັດ (mobile) — ແຖວດຽວກັນກັບ desktop, ໃຊ້ປຸ່ມ action ຄືເກົ່າ */}
+        <div className="space-y-2 md:hidden">
+          {jobs.rows.map((row) => {
+            const tone = elapsedTone(row.elapsed_seconds);
+            const inWarranty = row.warranty === "ຮັບປະກັນ";
+            return (
+              <div key={row.code} className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                <div className="flex items-start justify-between gap-2">
+                  <Link href={`/service/${row.code}`} className="text-sm font-bold text-[#0536a9] hover:underline">
+                    {row.code}
+                  </Link>
+                  <div className="text-right">
+                    <Elapsed
+                      seconds={row.elapsed_seconds}
+                      className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`}
+                    />
+                    <span className="mt-0.5 block text-[10px] text-slate-400">
+                      {timeLabel} · {row.at_time}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-2 text-xs">
+                  <p className="font-medium text-slate-800">
+                    {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    {row.sn || "-"}
+                    {row.brand && <span className="ml-1">· {row.brand}</span>}
+                    {row.service_type && (
+                      <span className="ml-1">· {SERVICE_TYPE_LABEL[row.service_type] ?? row.service_type}</span>
+                    )}
+                  </p>
+                </div>
+
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600">
+                  <span className="truncate">{row.customer || "-"}</span>
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                      inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {row.warranty || "-"}
+                  </span>
+                  <span className="text-slate-500">
+                    ຊ່າງ: {row.technician ? (techName.get(row.technician) ?? row.technician) : "-"}
+                  </span>
+                </div>
+
+                <div className="mt-1.5">
+                  <SpareBadge row={row} />
+                </div>
+
+                {(row.issue_2 || row.issue) && (
+                  <p className="mt-1.5 truncate text-xs font-semibold text-red-600" title={row.issue_2 || row.issue || ""}>
+                    {row.issue_2 || row.issue}
+                  </p>
+                )}
+
+                {/* ປຸ່ມ action ຄືກັນກັບແຖວ desktop — ເງື່ອນໄຂ/props ບໍ່ປ່ຽນ */}
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2.5">
+                  {tab === "waiting" && (
+                    <>
+                      <StartRepairButton code={row.code} />
+                      <CancelCheckButton code={row.code} variant="icon" />
+                    </>
+                  )}
+                  {tab === "progress" && (
+                    <CompleteRepairButton code={row.code} initialNote={row.repair_note ?? ""} />
+                  )}
+                  {tab !== "waiting" && (
+                    <Link
+                      href={`/repair/${row.code}/print`}
+                      target="_blank"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      <Printer className="size-3.5" />
+                      ພິມ
+                    </Link>
+                  )}
+                  {tab === "progress" && <UndoStartRepairButton code={row.code} variant="icon" />}
+                  {tab === "done" && !row.qc_passed && (
+                    <UndoFinishRepairButton code={row.code} variant="icon" />
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {jobs.total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
