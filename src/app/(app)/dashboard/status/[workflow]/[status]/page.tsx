@@ -5,6 +5,11 @@ import { AssignTechButton } from "@/components/installation/assign-tech";
 import { LinkPending } from "@/components/link-pending";
 import { RowLink } from "@/components/row-link";
 import { AcceptRepairButton } from "@/components/repair/accept-repair-button";
+import {
+  DispatchPickupButton,
+  ReceivePickupButton,
+  UndoDispatchPickupButton,
+} from "@/components/repair/receive-pickup-button";
 import { StartRepairButton, UndoFinishRepairButton, UndoStartRepairButton } from "@/components/repair/repair-actions";
 import { UndoRepairAssignmentButton } from "@/components/repair/undo-assignment-button";
 import { UndoQcButton } from "@/components/qc/undo-qc-button";
@@ -29,7 +34,7 @@ import { MobileCardList } from "@/components/mobile-card-list";
 import { PurchaseState } from "@/components/stock/purchase-state";
 import { ReleaseGhostButton } from "@/components/stock/release-ghost-button";
 import { purchaseTracking, syncErpPurchase, type PurchaseTrack } from "@/lib/erp-purchase";
-import { APPROVER_SIDE, canAccess, roleOf } from "@/lib/roles";
+import { APPROVER_SIDE, canAccess, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { listTechnicians } from "@/lib/technicians";
@@ -194,7 +199,11 @@ export default async function StatusPage({ params, searchParams }: Props) {
    */
   const holdOn = await settingEnabled(SETTING.JOB_HOLD);
   const canHold = isRepair && holdOn && APPROVER_SIDE.includes(role);
-  // inline actions ຕໍ່ຂັ້ນ (ຕາມລະບົບເກົ່າ): ເລີ່ມກວດເຊັກ · ຮັບງານ · ປ່ຽນຊ່າງ · ເລີ່ມສ້ອມ
+  // inline actions ຕໍ່ຂັ້ນ (ຕາມລະບົບເກົ່າ): ຮັບເຂົ້າສູນ · ເລີ່ມກວດເຊັກ · ຮັບງານ · ປ່ຽນຊ່າງ · ເລີ່ມສ້ອມ
+  // PS ຂັ້ນ 0 (ໄປຮັບເຄື່ອງ) ສອງຂັ້ນຍ່ອຍ — ຝ່າຍ CS/ບໍລິການ: ລໍໄປຮັບ→"ອອກໄປຮັບ" · ກຳລັງໄປຮັບ→"ຮັບເຂົ້າສູນ"
+  const canPickup = isRepair && SERVICE_SIDE.includes(role);
+  const dispatchPickupQueue = canPickup && status === "wait-pickup";
+  const receivePickupQueue = canPickup && status === "picking-up";
   const mergedCheckQueue = isRepair && status === "wait-check";
   const startCheck = mergedCheckQueue && canAccess(role, "/checking");
   const accept = mergedCheckQueue && canAccess(role, "/repair");
@@ -215,7 +224,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
   const stageAction = isRepair ? REPAIR_STAGE_ACTION[status] : undefined;
   const linkAction = stageAction && canAccess(role, stageAction.base) ? stageAction : undefined;
   const hasAction =
-    startCheck || accept || canReassign || startRepair || quotingStage || Boolean(linkAction) || cancelAssignment ||
+    dispatchPickupQueue || receivePickupQueue || startCheck || accept || canReassign || startRepair || quotingStage || Boolean(linkAction) || cancelAssignment ||
     cancelAccepted || cancelStartCheck || cancelFinishedCheck || cancelStartRepair || cancelFinishedRepair || cancelQc;
 
   const search = await searchParams;
@@ -373,6 +382,9 @@ export default async function StatusPage({ params, searchParams }: Props) {
    */
   const rowActions = (row: RepairRow & InstallRow) => (
     <>
+      {dispatchPickupQueue && <DispatchPickupButton code={row.code} />}
+      {receivePickupQueue && <ReceivePickupButton code={row.code} />}
+      {receivePickupQueue && <UndoDispatchPickupButton code={row.code} variant="icon" />}
       {startCheck && row.repair_confirm && <StartCheckButton code={row.code} />}
       {cancelAccepted && row.repair_confirm && (
         <UndoRepairAssignmentButton code={row.code} accepted variant="icon" />

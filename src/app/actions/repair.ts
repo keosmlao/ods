@@ -18,6 +18,80 @@ import { z } from "zod";
 /** ods ໃຊ້ເວລາ Asia/Bangkok (UTC+7) */
 const NOW = "timezone('Asia/Bangkok', now())::timestamp(0)";
 
+/**
+ * **ອອກໄປຮັບ** (PS) — CS/ຝ່າຍບໍລິການ ໝາຍວ່າຂົນສົ່ງອອກເດີນທາງໄປຮັບເຄື່ອງບ້ານລູກຄ້າແລ້ວ.
+ * ວຽກຍ້າຍຈາກ "ລໍໄປຮັບເຄື່ອງ" (pickup_start null) → "ກຳລັງໄປຮັບ" (pickup_start ໝາຍ) — ຍັງຢູ່ຂັ້ນ 0.
+ */
+export async function dispatchPickup(code: string): Promise<{ ok?: string; error?: string }> {
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດໝາຍອອກໄປຮັບ");
+  if (!guard.ok) return { error: guard.error };
+
+  const res = await query(
+    `update tb_product set pickup_start = ${NOW}
+      where code = $1 and coalesce(service_type,'') = 'PS'
+        and pickup_at is null and pickup_start is null`,
+    [code],
+  );
+  if (!res.rowCount) return { error: "ບໍ່ພົບວຽກ PS ທີ່ລໍໄປຮັບ (ອາດອອກໄປຮັບ ຫຼື ຮັບເຂົ້າສູນແລ້ວ)" };
+
+  await logChange("tb_product", code, "ອອກໄປຮັບເຄື່ອງ (PS) — ຂົນສົ່ງເດີນທາງໄປບ້ານລູກຄ້າ");
+  revalidatePath("/dashboard/status/repair/wait-pickup");
+  revalidatePath("/dashboard/status/repair/picking-up");
+  revalidatePath("/dashboard");
+  revalidatePath(`/service/${code}`);
+  return { ok: "ໝາຍອອກໄປຮັບແລ້ວ — ວຽກຍ້າຍໄປ ກຳລັງໄປຮັບ" };
+}
+
+/**
+ * **ຍົກເລີກອອກໄປຮັບ** (PS) — ໝາຍຜິດໃບ ໃຫ້ຖອນຄືນ. ວຽກກັບໄປ "ລໍໄປຮັບເຄື່ອງ".
+ */
+export async function undoDispatchPickup(code: string): Promise<{ ok?: string; error?: string }> {
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດຍົກເລີກອອກໄປຮັບ");
+  if (!guard.ok) return { error: guard.error };
+
+  const res = await query(
+    `update tb_product set pickup_start = null
+      where code = $1 and coalesce(service_type,'') = 'PS' and pickup_at is null`,
+    [code],
+  );
+  if (!res.rowCount) return { error: "ຍົກເລີກບໍ່ໄດ້ — ວຽກຮັບເຂົ້າສູນແລ້ວ ຫຼື ບໍ່ແມ່ນ PS" };
+
+  await logChange("tb_product", code, 'ຍົກເລີກ "ອອກໄປຮັບ" (PS) — ວຽກກັບໄປ ລໍໄປຮັບເຄື່ອງ');
+  revalidatePath("/dashboard/status/repair/wait-pickup");
+  revalidatePath("/dashboard/status/repair/picking-up");
+  revalidatePath("/dashboard");
+  revalidatePath(`/service/${code}`);
+  return { ok: "ຍົກເລີກອອກໄປຮັບແລ້ວ" };
+}
+
+/**
+ * **ຮັບເຄື່ອງເຂົ້າສູນ** (PS) — ຂົນສົ່ງໄປຮັບເຄື່ອງບ້ານລູກຄ້າມາຮອດສູນ, CS ກົດຢືນຢັນ.
+ *
+ * PS (service_type='PS') ຢູ່ຂັ້ນ 0 "ລໍໄປຮັບເຄື່ອງ" ຈົນກວ່າ pickup_at ຖືກໝາຍ ⇒ ຈາກນັ້ນ
+ * ເຂົ້າຂັ້ນ 1 "ລໍຖ້າກວດເຊັກ" ຄືວຽກສ້ອມທົ່ວໄປ ແລະ ເລີ່ມນັບໃນສະຕ໋ອກສູນ. ສິດ = ຝ່າຍ CS/ບໍລິການ.
+ */
+export async function receivePickup(code: string): Promise<{ ok?: string; error?: string }> {
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດຮັບເຄື່ອງເຂົ້າສູນ");
+  if (!guard.ok) return { error: guard.error };
+
+  // ໝາຍສະເພາະ PS ທີ່ຍັງບໍ່ຮັບ (pickup_at null) — ກັນກົດຊ້ຳ/ກົດຜິດປະເພດ
+  const res = await query(
+    `update tb_product set pickup_at = ${NOW}
+      where code = $1 and coalesce(service_type,'') = 'PS' and pickup_at is null`,
+    [code],
+  );
+  if (!res.rowCount) return { error: "ບໍ່ພົບວຽກ PS ທີ່ລໍໄປຮັບ (ອາດຮັບເຂົ້າສູນແລ້ວ)" };
+
+  await logChange("tb_product", code, "ຮັບເຄື່ອງເຂົ້າສູນ (PS) — ໄປຮັບບ້ານລູກຄ້າມາຮອດສູນ");
+  revalidatePath("/dashboard/status/repair/wait-pickup");
+  revalidatePath("/dashboard/status/repair/picking-up");
+  revalidatePath("/dashboard/status/repair/wait-check");
+  revalidatePath("/dashboard");
+  revalidatePath(`/service/${code}`);
+  revalidatePath("/service");
+  return { ok: "ຮັບເຄື່ອງເຂົ້າສູນແລ້ວ — ວຽກຍ້າຍໄປ ລໍຖ້າກວດເຊັກ" };
+}
+
 export type RepairState = { error?: string; ok?: string };
 export type UndoState = { error?: string };
 

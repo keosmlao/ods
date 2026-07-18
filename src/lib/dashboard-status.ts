@@ -23,6 +23,22 @@ export type StatusDef = {
 };
 
 export const repairStatuses: Record<string, StatusDef> = {
+  /**
+   * PS: ໄປຮັບເຄື່ອງບ້ານລູກຄ້າມາສ້ອມຢູ່ສູນ — ສອງ**ຂັ້ນຍ່ອຍ**ຂອງ STAGE 0 (ຍັງບໍ່ຮັບເຂົ້າສູນ).
+   * ແບ່ງດ້ວຍ pickup_start (ເວລາ "ອອກໄປຮັບ") — ບໍ່ຫຼົ້ນກັນ ແລະ ລວມກັນ = ຂັ້ນ 0 ທັງໝົດ
+   * ⇒ ຍັງໃສ່ stage:0 ໄດ້ທັງຄູ່ໂດຍບໍ່ທຳລາຍຍອດ pipeline (countsSql ນັບແຕ່ລະ condition ແຍກ).
+   *   ລໍໄປຮັບເຄື່ອງ = ຄິວ, ຍັງບໍ່ອອກ · ກຳລັງໄປຮັບ = ຂົນສົ່ງເດີນທາງແລ້ວ. CS ກົດ "ຮັບເຂົ້າສູນ".
+   */
+  "wait-pickup": {
+    label: "ລໍໄປຮັບເຄື່ອງ (PS)",
+    condition: `${stageIs(0)} and a.pickup_start is null`,
+    stage: 0,
+  },
+  "picking-up": {
+    label: "ກຳລັງໄປຮັບ (PS)",
+    condition: `${stageIs(0)} and a.pickup_start is not null`,
+    stage: 0,
+  },
   "wait-check": { label: "ຮັບງານ / ລໍຖ້າກວດເຊັກ", condition: stageIs(1), stage: 1 },
   checking: { label: "ກຳລັງກວດເຊັກ", condition: stageIs(2), stage: 2 },
   "wait-quote": { label: "ລໍຖ້າສະເໜີລາຄາ", condition: stageIs(3), stage: 3 },

@@ -60,6 +60,8 @@ export const STAGE_SQL = `case
    and a.qc_finish is not null                                 then 11
   when a.time_finish_repair is not null                        then 10
   when a.time_repair is not null                               then 9
+  when coalesce(a.service_type,'') = 'PS' and a.pickup_at is null
+   and a.time_check is null and a.time_finish_check is null    then 0
   when a.time_check is null and a.time_finish_check is null    then 1
   when a.time_finish_check is null                             then 2
   when a.warrunty = 'ໝົດຮັບປະກັນ' and a.qt_start is null
@@ -77,6 +79,7 @@ end`;
 
 export const STAGE_LABEL: Record<number, string> = {
   [-1]: "ຍົກເລີກ",
+  0: "ລໍໄປຮັບເຄື່ອງ",
   1: "ລໍຖ້າກວດເຊັກ",
   2: "ກຳລັງກວດເຊັກ",
   3: "ລໍຖ້າສະເໜີລາຄາ",
