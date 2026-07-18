@@ -563,5 +563,8 @@ export async function assignRepairTech(_: RepairState, formData: FormData): Prom
   revalidatePath("/repair/assign");
   revalidatePath("/repair");
   revalidatePath("/installations/schedule");
+  // IH: ຕັ້ງວັນນັດ ⇒ ວຽກຍ້າຍຈາກ "ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ" (ຂັ້ນ 0) ໄປ "ລໍຖ້າຊ່າງຮັບ" (ຂັ້ນ 1)
+  revalidatePath("/dashboard/status/repair/wait-schedule");
+  revalidatePath("/dashboard");
   return { ok: "ຈັດຊ່າງສຳເລັດ" };
 }

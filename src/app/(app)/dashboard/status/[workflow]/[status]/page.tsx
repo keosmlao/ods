@@ -204,9 +204,12 @@ export default async function StatusPage({ params, searchParams }: Props) {
   const canPickup = isRepair && SERVICE_SIDE.includes(role);
   const dispatchPickupQueue = canPickup && status === "wait-pickup";
   const receivePickupQueue = canPickup && status === "picking-up";
-  // ຄິວ PS ໄປຮັບເຄື່ອງ (ຂັ້ນ 0) ມີແຕ່ PS ⇒ ຕົວກອງ/ບັດ SLA ສະແດງແຕ່ປະເພດ PS
-  const pickupOnly = isRepair && (status === "wait-pickup" || status === "picking-up");
-  const serviceTypes = pickupOnly ? SERVICE_TYPES.filter((item) => item.code === "PS") : SERVICE_TYPES;
+  // IH ຂັ້ນ 0 "ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ": CS/ບໍລິການ ກົດ "ນັດ+ຈັດຊ່າງ" (AssignTechButton ຕັ້ງວັນນັດ+ຊ່າງ)
+  const scheduleIhQueue = canPickup && status === "wait-schedule";
+  // ຄິວຂັ້ນ 0 ຜູກກັບປະເພດດຽວ ⇒ ຕົວກອງ/ບັດ SLA ສະແດງແຕ່ປະເພດນັ້ນ (PS ໄປຮັບ · IH ໄປສ້ອມ)
+  const soloService =
+    status === "wait-pickup" || status === "picking-up" ? "PS" : status === "wait-schedule" ? "IH" : null;
+  const serviceTypes = isRepair && soloService ? SERVICE_TYPES.filter((item) => item.code === soloService) : SERVICE_TYPES;
   const mergedCheckQueue = isRepair && status === "wait-check";
   const startCheck = mergedCheckQueue && canAccess(role, "/checking");
   const accept = mergedCheckQueue && canAccess(role, "/repair");
@@ -227,7 +230,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
   const stageAction = isRepair ? REPAIR_STAGE_ACTION[status] : undefined;
   const linkAction = stageAction && canAccess(role, stageAction.base) ? stageAction : undefined;
   const hasAction =
-    dispatchPickupQueue || receivePickupQueue || startCheck || accept || canReassign || startRepair || quotingStage || Boolean(linkAction) || cancelAssignment ||
+    dispatchPickupQueue || receivePickupQueue || scheduleIhQueue || startCheck || accept || canReassign || startRepair || quotingStage || Boolean(linkAction) || cancelAssignment ||
     cancelAccepted || cancelStartCheck || cancelFinishedCheck || cancelStartRepair || cancelFinishedRepair || cancelQc;
 
   const search = await searchParams;
@@ -388,6 +391,22 @@ export default async function StatusPage({ params, searchParams }: Props) {
       {dispatchPickupQueue && <DispatchPickupButton code={row.code} />}
       {receivePickupQueue && <ReceivePickupButton code={row.code} />}
       {receivePickupQueue && <UndoDispatchPickupButton code={row.code} variant="icon" />}
+      {scheduleIhQueue && (
+        <AssignTechButton
+          label="ນັດ+ຈັດຊ່າງ"
+          size="sm"
+          row={{
+            code: row.code,
+            customer: row.customer,
+            location_inst: row.location_inst,
+            appoint_date: row.appoint_date,
+            remark: row.remark,
+            technician: row.technician,
+          }}
+          techs={techs}
+          workflow="repair"
+        />
+      )}
       {startCheck && row.repair_confirm && <StartCheckButton code={row.code} />}
       {cancelAccepted && row.repair_confirm && (
         <UndoRepairAssignmentButton code={row.code} accepted variant="icon" />

@@ -31,12 +31,22 @@ export const repairStatuses: Record<string, StatusDef> = {
    */
   "wait-pickup": {
     label: "ລໍໄປຮັບເຄື່ອງ (PS)",
-    condition: `${stageIs(0)} and a.pickup_start is null`,
+    condition: `${stageIs(0)} and coalesce(a.service_type,'') = 'PS' and a.pickup_start is null`,
     stage: 0,
   },
   "picking-up": {
     label: "ກຳລັງໄປຮັບ (PS)",
-    condition: `${stageIs(0)} and a.pickup_start is not null`,
+    condition: `${stageIs(0)} and coalesce(a.service_type,'') = 'PS' and a.pickup_start is not null`,
+    stage: 0,
+  },
+  /**
+   * IH: ໄປສ້ອມບ້ານລູກຄ້າ — ຂັ້ນ 0 "ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ" (ຍັງບໍ່ຕັ້ງວັນນັດ).
+   * CS/ຝ່າຍບໍລິການ ກົດ "ນັດ+ຈັດຊ່າງ" (ຕັ້ງ appoint_date + ຊ່າງ) ⇒ ວຽກຂຶ້ນຂັ້ນ 1.
+   * ຂັ້ນ 0 ແບ່ງຕາມ service_type: PS (2 ຄິວເທິງ) + IH (ອັນນີ້) ບໍ່ຫຼົ້ນກັນ, ລວມ = ຂັ້ນ 0.
+   */
+  "wait-schedule": {
+    label: "ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ (IH)",
+    condition: `${stageIs(0)} and coalesce(a.service_type,'') = 'IH'`,
     stage: 0,
   },
   "wait-check": { label: "ຮັບງານ / ລໍຖ້າກວດເຊັກ", condition: stageIs(1), stage: 1 },

@@ -62,6 +62,11 @@ export const STAGE_SQL = `case
   when a.time_repair is not null                               then 9
   when coalesce(a.service_type,'') = 'PS' and a.pickup_at is null
    and a.time_check is null and a.time_finish_check is null    then 0
+  -- IH ໄປສ້ອມບ້ານລູກຄ້າ: ຍັງບໍ່ນັດ/ຈັດຊ່າງ (appoint_date null) ⇒ ຂັ້ນ 0 "ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ".
+  -- ໝາຍວັນນັດ (assignRepairTech) ແລ້ວ ⇒ ຕົກໄປຂັ້ນ 1 ຄືວຽກທົ່ວໄປ. ຄຸມດ້ວຍ time_check null
+  -- ⇒ ໃບທີ່ເລີ່ມກວດແລ້ວບໍ່ຖືກດຶງກັບ (ຂໍ້ມູນເກົ່າ appoint_date ຫວ່າງ ຢູ່ຂັ້ນກາງບໍ່ຂະຍັບ).
+  when coalesce(a.service_type,'') = 'IH' and a.appoint_date is null
+   and a.time_check is null and a.time_finish_check is null    then 0
   when a.time_check is null and a.time_finish_check is null    then 1
   when a.time_finish_check is null                             then 2
   when a.warrunty = 'ໝົດຮັບປະກັນ' and a.qt_start is null
@@ -99,8 +104,11 @@ export const STAGE_LABEL: Record<number, string> = {
  * ແຕ່ກ່ອນ 3 ໄຟລ໌ຂຽນ `case … when 10 then 'ລໍຖ້າສົ່ງຄືນ' …` ຊ້ຳກັນເອງ
  * ⇒ ພໍເພີ່ມຂັ້ນ QC ເລກເລື່ອນໝົດ ແລະ ລາຍງານຈະສະແດງຊື່ຂັ້ນຜິດຢ່າງງຽບໆ.
  */
-export const STAGE_LABEL_SQL = `case (${STAGE_SQL})
-${Object.entries(STAGE_LABEL).map(([stage, label]) => `  when ${stage} then '${label}'`).join("\n")}
+// ຂັ້ນ 0 ໃຊ້ 2 ຄວາມໝາຍ (PS "ລໍໄປຮັບເຄື່ອງ" · IH "ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ") ⇒ ປ້າຍ SQL
+// ແຍກຕາມ service_type. ບ່ອນອື່ນ (ເມນູ/ຫົວໜ້າຄິວ) ເອົາປ້າຍຈາກ repairStatuses ໂດຍກົງ.
+export const STAGE_LABEL_SQL = `case
+  when (${STAGE_SQL}) = 0 and coalesce(a.service_type,'') = 'IH' then 'ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ'
+${Object.entries(STAGE_LABEL).map(([stage, label]) => `  when (${STAGE_SQL}) = ${stage} then '${label}'`).join("\n")}
   else '-' end`;
 
 /**
