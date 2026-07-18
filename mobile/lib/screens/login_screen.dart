@@ -5,6 +5,7 @@ import '../main.dart';
 import '../push.dart';
 import 'jobs_screen.dart';
 import 'stock_count_screen.dart';
+import 'server_settings_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -73,132 +74,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> configureServer() async {
-    final controller = TextEditingController(text: serverUrl);
-    String? message;
-    bool testing = false;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.dns_outlined, color: teal),
-              SizedBox(width: 9),
-              Text('ຕັ້ງຄ່າ Server'),
-            ],
-          ),
-          content: SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'ໃສ່ URL ຂອງ ODSS server',
-                  style: TextStyle(color: muted, fontSize: 12),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: controller,
-                  keyboardType: TextInputType.url,
-                  autocorrect: false,
-                  decoration: const InputDecoration(
-                    labelText: 'Server URL',
-                    hintText: 'http://10.0.21.161:3000',
-                    prefixIcon: Icon(Icons.link_rounded),
-                  ),
-                ),
-                if (message != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Text(
-                      message!,
-                      style: TextStyle(
-                        color: message!.startsWith('✓') ? ok : danger,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: testing
-                  ? null
-                  : () async {
-                      await Api.resetServerUrl();
-                      if (!dialogContext.mounted) return;
-                      controller.text = Api.defaultBaseUrl;
-                      setDialogState(() => message = 'ກັບຄືນຄ່າຕັ້ງຕົ້ນ');
-                    },
-              child: const Text('Reset'),
-            ),
-            OutlinedButton(
-              onPressed: testing
-                  ? null
-                  : () async {
-                      setDialogState(() {
-                        testing = true;
-                        message = null;
-                      });
-                      try {
-                        await Api.testServer(controller.text);
-                        if (!dialogContext.mounted) return;
-                        setDialogState(
-                          () => message = '✓ ເຊື່ອມຕໍ່ server ໄດ້',
-                        );
-                      } catch (e) {
-                        if (!dialogContext.mounted) return;
-                        setDialogState(
-                          () => message = e is ApiError
-                              ? e.message
-                              : e.toString(),
-                        );
-                      } finally {
-                        if (dialogContext.mounted) {
-                          setDialogState(() => testing = false);
-                        }
-                      }
-                    },
-              child: testing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('ທົດສອບ'),
-            ),
-            FilledButton(
-              onPressed: testing
-                  ? null
-                  : () async {
-                      try {
-                        final value = Api.normalizeServerUrl(controller.text);
-                        await Api.saveServerUrl(value);
-                        if (!dialogContext.mounted) return;
-                        if (mounted) setState(() => serverUrl = value);
-                        if (dialogContext.mounted) Navigator.pop(dialogContext);
-                      } catch (e) {
-                        if (!dialogContext.mounted) return;
-                        setDialogState(
-                          () => message = e.toString().replaceFirst(
-                            'FormatException: ',
-                            '',
-                          ),
-                        );
-                      }
-                    },
-              child: const Text('ບັນທຶກ'),
-            ),
-          ],
-        ),
+    final result = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => ServerSettingsScreen(current: serverUrl),
       ),
     );
-    // The dialog route may still be completing its inherited-widget teardown here.
-    // Let the controller be collected with the closed route instead of disposing it
-    // synchronously and racing Flutter's dependent cleanup during hot reload/pop.
+    if (result != null && mounted) setState(() => serverUrl = result);
   }
 
   @override
