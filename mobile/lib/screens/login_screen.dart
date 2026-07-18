@@ -202,8 +202,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF1F5F4),
+  Widget build(BuildContext context) {
+    // ຈໍ 4 ນິ້ວ (ສູງ ~530-640) → ຫຍໍ້ hero ແລະ ໄລຍະຫ່າງ ໃຫ້ຟອມພໍດີ ບໍ່ຕ້ອງເລື່ອນຫຼາຍ
+    final compact = MediaQuery.of(context).size.height < 680;
+    return Scaffold(
+      backgroundColor: const Color(0xFFF1F5F4),
     body: Stack(
       children: [
         Positioned(
@@ -274,31 +277,33 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 34),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        width: 68,
-                        height: 68,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE1F5F0),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFFB9E6DC)),
-                        ),
-                        child: const Icon(
-                          Icons.person_outline_rounded,
-                          color: Color(0xFF087F6B),
-                          size: 34,
+                    SizedBox(height: compact ? 12 : 34),
+                    if (!compact) ...[
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          width: 68,
+                          height: 68,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE1F5F0),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFFB9E6DC)),
+                          ),
+                          child: const Icon(
+                            Icons.person_outline_rounded,
+                            color: Color(0xFF087F6B),
+                            size: 34,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
+                      const SizedBox(height: 16),
+                    ],
+                    Text(
                       'ຍິນດີຕ້ອນຮັບ',
                       style: TextStyle(
                         color: ink,
-                        fontSize: 25,
+                        fontSize: compact ? 20 : 25,
                         height: 1.2,
                         fontWeight: FontWeight.w900,
                       ),
@@ -308,9 +313,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       'ເຂົ້າລະບົບສຳລັບພະນັກງານບໍລິການ',
                       style: TextStyle(color: muted, fontSize: 12),
                     ),
-                    const SizedBox(height: 22),
+                    SizedBox(height: compact ? 12 : 22),
                     Container(
-                      padding: const EdgeInsets.all(20),
+                      padding: EdgeInsets.all(compact ? 15 : 20),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
@@ -514,7 +519,8 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ],
     ),
-  );
+    );
+  }
 }
 
 class _Glow extends StatelessWidget {
