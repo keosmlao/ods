@@ -1,7 +1,13 @@
 import { verifyCredentials } from "@/lib/credentials";
 import { createMobileToken } from "@/lib/mobile-auth";
-import { ROLE_LABEL, roleOf, TECH_SIDE } from "@/lib/roles";
+import { APPROVER_SIDE, ROLE_LABEL, roleOf, STOCK_SIDE, TECH_SIDE } from "@/lib/roles";
 import { NextResponse } from "next/server";
+
+/**
+ * role ທີ່ໃຊ້ແອັບໄດ້ — ຊ່າງ (ຄິວວຽກຕົນ) + ຫົວໜ້າ/ຜູ້ຈັດການ/ສາງ (ກວດນັບສະຕ໋ອກ).
+ * ແອັບ route ຕາມ role: ຊ່າງ → ຄິວວຽກ · ບໍ່ແມ່ນຊ່າງ → ກວດນັບສະຕ໋ອກ.
+ */
+const APP_ROLES = new Set([...TECH_SIDE, ...APPROVER_SIDE, ...STOCK_SIDE]);
 
 /**
  * ເຂົ້າສູ່ລະບົບຈາກແອັບມືຖື — ລະຫັດພະນັກງານ (ຫຼື ຊື່ຫຼິ້ນ/ຊື່ເຕັມ) + ລະຫັດຜ່ານ.
@@ -21,12 +27,14 @@ export async function POST(request: Request) {
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 401 });
 
     const role = roleOf(result.session);
-    if (!TECH_SIDE.includes(role)) {
-      return NextResponse.json({ error: "ແອັບນີ້ສຳລັບພະນັກງານຝ່າຍຊ່າງເທົ່ານັ້ນ" }, { status: 403 });
+    if (!APP_ROLES.has(role)) {
+      return NextResponse.json({ error: "ບັນຊີນີ້ບໍ່ມີສິດໃຊ້ແອັບ" }, { status: 403 });
     }
+    // ຊ່າງ → ຄິວວຽກ · ບໍ່ແມ່ນຊ່າງ → ໜ້າກວດນັບສະຕ໋ອກ (ໃຫ້ແອັບ route ໄດ້ເລີຍ)
+    const home = TECH_SIDE.includes(role) ? "jobs" : "stock-count";
     return NextResponse.json({
       token: await createMobileToken(result.session),
-      user: { username: result.session.username, role, role_label: ROLE_LABEL[role] },
+      user: { username: result.session.username, role, role_label: ROLE_LABEL[role], home },
     });
   } catch (error) {
     console.error("Mobile login failed", error);

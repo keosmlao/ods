@@ -37,7 +37,15 @@ class Api {
   static Future<void> clearToken() async {
     _sessionToken = null;
     await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _homeKey);
   }
+
+  // ໜ້າຕັ້ງຕົ້ນ (jobs/stock-count) — ເກັບໄວ້ໃຫ້ _Gate route ຖືກຕອນເປີດແອັບຄືນ
+  static const _homeKey = 'odss_home';
+  static Future<String> savedHome() async =>
+      (await _storage.read(key: _homeKey)) ?? 'jobs';
+  static Future<void> saveHome(String value) =>
+      _storage.write(key: _homeKey, value: value);
 
   static Future<String> serverUrl() async =>
       (await _storage.read(key: _serverKey)) ?? defaultBaseUrl;
@@ -141,7 +149,9 @@ class Api {
       body: {'username': username, 'password': password},
     );
     await saveToken(result['token'] as String, remember: remember);
-    return MobileUser.fromJson(result['user'] as Map<String, dynamic>);
+    final user = MobileUser.fromJson(result['user'] as Map<String, dynamic>);
+    await saveHome(user.home);
+    return user;
   }
 
   /* ── ວຽກ ────────────────────────────────────────────────────── */
@@ -343,6 +353,28 @@ class Api {
     'DELETE',
     '/api/mobile/push-token?token=${Uri.encodeQueryComponent(token)}',
   );
+
+  /* ── ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ (ບໍ່ແມ່ນຊ່າງ) ────────────────────── */
+
+  static Future<StockCount> stockCount() async {
+    final result = await _send('GET', '/api/mobile/stock-count');
+    return StockCount(
+      jobs: (result['jobs'] as List)
+          .map((row) => StockItem.fromJson(row as Map<String, dynamic>))
+          .toList(),
+      enabled: result['enabled'] as bool? ?? true,
+    );
+  }
+
+  /// ສົ່ງ code ທີ່ສະແກນພົບ → server ໝາຍ 'ຕ້ອງກວດ' ໃຫ້ອັນທີ່ບໍ່ພົບ. ຄືນ (held, missing).
+  static Future<(int, int)> stockCountFinalize(List<String> scanned) async {
+    final result = await _send(
+      'POST',
+      '/api/mobile/stock-count',
+      body: {'scanned': scanned},
+    );
+    return (result['held'] as int? ?? 0, result['missing'] as int? ?? 0);
+  }
 }
 
 class ApiError implements Exception {
@@ -359,16 +391,55 @@ class MobileUser {
   final String username;
   final String role;
   final String roleLabel;
+
+  /// ໜ້າຕັ້ງຕົ້ນທີ່ server ບອກ: 'jobs' (ຊ່າງ) ຫຼື 'stock-count' (ບໍ່ແມ່ນຊ່າງ)
+  final String home;
   MobileUser({
     required this.username,
     required this.role,
     required this.roleLabel,
+    required this.home,
   });
 
   factory MobileUser.fromJson(Map<String, dynamic> json) => MobileUser(
     username: json['username'] as String,
     role: json['role'] as String,
     roleLabel: json['role_label'] as String? ?? '',
+    home: json['home'] as String? ?? 'jobs',
+  );
+}
+
+/// ລາຍການກວດນັບ + ສະຖານະ setting
+class StockCount {
+  final List<StockItem> jobs;
+  final bool enabled;
+  StockCount({required this.jobs, required this.enabled});
+}
+
+/// ເຄື່ອງທີ່ຕ້ອງນັບ (ຢູ່ສູນ · ຂ້າມ IH)
+class StockItem {
+  final String code;
+  final String? product;
+  final String? sn;
+  final String? brand;
+  final String? customer;
+  final String stageLabel;
+  StockItem({
+    required this.code,
+    this.product,
+    this.sn,
+    this.brand,
+    this.customer,
+    required this.stageLabel,
+  });
+
+  factory StockItem.fromJson(Map<String, dynamic> json) => StockItem(
+    code: json['code'] as String,
+    product: json['product'] as String?,
+    sn: json['sn'] as String?,
+    brand: json['brand'] as String?,
+    customer: json['customer'] as String?,
+    stageLabel: json['stage_label'] as String? ?? '-',
   );
 }
 

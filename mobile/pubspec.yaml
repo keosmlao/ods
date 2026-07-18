@@ -16,6 +16,8 @@ dependencies:
   flutter_secure_storage: ^9.2.2
   # ຮູບຜົນງານ · ຮູບ QC · ຮູບ check-in
   image_picker: ^1.1.2
+  # ສະແກນ barcode ດ້ວຍກ້ອງ (ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ)
+  mobile_scanner: ^5.2.3
   # ພິກັດ check-in (ຫຼັກຖານວ່າຊ່າງໄປຮອດໜ້າງານຈິງ)
   geolocator: ^13.0.2
   # ກົດໂທຫາລູກຄ້າ

@@ -6,6 +6,7 @@ import 'screens/income_screen.dart';
 import 'screens/jobs_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/pickup_screen.dart';
+import 'screens/stock_count_screen.dart';
 
 /// ODIEN Service — ແອັບຊ່າງ.
 ///
@@ -111,6 +112,7 @@ class OdssApp extends StatelessWidget {
         '/income': (_) => const IncomeScreen(),
         '/pickup': (_) => const PickupScreen(),
         '/login': (_) => const LoginScreen(),
+        '/stock-count': (_) => const StockCountScreen(),
       },
     );
   }
@@ -125,21 +127,31 @@ class _Gate extends StatefulWidget {
 }
 
 class _GateState extends State<_Gate> {
-  bool? signedIn;
+  Widget? _screen; // null = ກຳລັງໂຫຼດ
 
   @override
   void initState() {
     super.initState();
-    Api.token().then((value) {
-      if (mounted) setState(() => signedIn = value != null);
-    });
+    _decide();
+  }
+
+  Future<void> _decide() async {
+    final token = await Api.token();
+    Widget next;
+    if (token == null) {
+      next = const LoginScreen();
+    } else {
+      // ຊ່າງ → ຄິວວຽກ · ບໍ່ແມ່ນຊ່າງ → ກວດນັບສະຕ໋ອກ (server ບອກ home ຕອນ login)
+      next = (await Api.savedHome()) == 'stock-count'
+          ? const StockCountScreen()
+          : const JobsScreen();
+    }
+    if (mounted) setState(() => _screen = next);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (signedIn == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-    return signedIn! ? const JobsScreen() : const LoginScreen();
+    return _screen ??
+        const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

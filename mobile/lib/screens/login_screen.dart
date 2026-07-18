@@ -4,6 +4,7 @@ import '../api.dart';
 import '../main.dart';
 import '../push.dart';
 import 'jobs_screen.dart';
+import 'stock_count_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -47,16 +48,21 @@ class _LoginScreenState extends State<LoginScreen> {
       error = '';
     });
     try {
-      await Api.login(
+      final user = await Api.login(
         username.text.trim(),
         password.text,
         remember: rememberMe,
       );
       await Push.register();
       if (!mounted) return;
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const JobsScreen()));
+      // ຊ່າງ → ຄິວວຽກ · ບໍ່ແມ່ນຊ່າງ → ກວດນັບສະຕ໋ອກ
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => user.home == 'stock-count'
+              ? const StockCountScreen()
+              : const JobsScreen(),
+        ),
+      );
     } on ApiError catch (failure) {
       if (mounted) setState(() => error = failure.message);
     } catch (_) {
