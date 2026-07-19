@@ -4,6 +4,8 @@ import { SprDangerButtons } from "@/components/purchase/spr-danger-buttons";
 import { LinkPending } from "@/components/link-pending";
 import { getSession } from "@/lib/auth";
 import { APPROVER_SIDE, roleOf } from "@/lib/roles";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { query, queryOdg } from "@/lib/db";
 import { getBalances, withdrawableQty } from "@/lib/stock-balance";
 import { STAGE_SQL } from "@/lib/stage";
@@ -160,20 +162,21 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
     countSprDocs("approved"),
     getSession(),
   ]);
+  const t = (await getDictionary(await getLocale())).purchaseRequests;
   // ອະນຸມັດໄດ້ຈາກໜ້ານີ້ເລີຍ (ຜູ້ມີສິດເທົ່ານັ້ນ) — ບໍ່ຕ້ອງຍ່າງໄປເມນູອະນຸມັດ
   const canApprove = APPROVER_SIDE.includes(roleOf(session));
   const TABS: { key: SprTab; label: string; count: number }[] = [
-    { key: "wait", label: "ລໍຖ້າອະນຸມັດ", count: waitCount },
-    { key: "approved", label: "ອະນຸມັດແລ້ວ", count: approvedCount },
+    { key: "wait", label: t.waitApproval, count: waitCount },
+    { key: "approved", label: t.approved, count: approvedCount },
   ];
 
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-700">ຂໍສັ່ງຊື້ອາໄຫຼ່</h1>
+          <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            ວຽກທີ່ຕ້ອງສັ່ງຊື້ {directJobs.length} · ໃບສະເໜີຊື້ {waitCount + approvedCount} ໃບ (ບັນທຶກຢູ່ ERP)
+            {t.jobsToPurchase} {directJobs.length} · {t.purchaseRequestsLabel} {waitCount + approvedCount} {t.sheetsRecordedErp}
           </p>
         </div>
         <Link
@@ -181,7 +184,7 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
           className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
         >
           <PackageCheck className="size-4" />
-          ຕິດຕາມການສັ່ງຊື້
+          {t.trackPurchase}
           <LinkPending className="size-3.5" />
         </Link>
       </div>
@@ -189,17 +192,17 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
       {/* ① ວຽກທີ່ຕ້ອງສັ່ງຊື້ — ຈາກຜົນກວດເຊັກ (ຂັ້ນ 5, ERP ບໍ່ພໍ, ຍັງບໍ່ໄດ້ຂໍຊື້) */}
       <section className="overflow-hidden rounded-xl border border-amber-300 bg-white shadow-sm">
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-2.5">
-          <h2 className="text-sm font-bold text-amber-900">ວຽກທີ່ຕ້ອງສັ່ງຊື້ອາໄຫຼ່ ({directJobs.length})</h2>
-          <p className="text-[11px] text-amber-800">ດຶງຈາກຜົນກວດເຊັກ · ERP ບໍ່ມີ/ຈຳນວນບໍ່ພໍ · ຍັງບໍ່ໄດ້ຂໍຊື້</p>
+          <h2 className="text-sm font-bold text-amber-900">{t.jobsNeedingPurchase} ({directJobs.length})</h2>
+          <p className="text-[11px] text-amber-800">{t.jobsNeedingPurchaseDesc}</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                <th className="px-3 py-2.5 font-semibold">ວຽກ</th>
-                <th className="px-3 py-2.5 font-semibold">ສິນຄ້າ</th>
-                <th className="px-3 py-2.5 text-right font-semibold">ອາໄຫຼ່ຂາດ</th>
-                <th className="px-3 py-2.5 font-semibold">ກວດສຳເລັດ</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colJob}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colProduct}</th>
+                <th className="px-3 py-2.5 text-right font-semibold">{t.colShortage}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colChecked}</th>
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -220,7 +223,7 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
                       className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700"
                     >
                       <ShoppingCart className="size-3.5" />
-                      ສ້າງໃບຂໍສັ່ງຊື້
+                      {t.createPurchaseRequest}
                       <LinkPending className="size-3" />
                     </Link>
                   </td>
@@ -230,18 +233,16 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
           </table>
         </div>
         {directJobs.length === 0 && (
-          <p className="py-8 text-center text-xs text-slate-400">ບໍ່ມີວຽກທີ່ຕ້ອງສັ່ງຊື້ອາໄຫຼ່</p>
+          <p className="py-8 text-center text-xs text-slate-400">{t.noJobsToPurchase}</p>
         )}
       </section>
 
       {/* ② ໃບສະເໜີຊື້ (SPR) ຈາກ ERP — ແຍກ 2 ແທັບ (ກອງຢູ່ ERP ບໍ່ແມ່ນຢູ່ Node) */}
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 bg-slate-50 px-4 py-2.5">
-          <h2 className="text-sm font-bold text-slate-700">ໃບສະເໜີຊື້ (SPR)</h2>
+          <h2 className="text-sm font-bold text-slate-700">{t.sprTitle}</h2>
           <p className="text-[11px] text-slate-500">
-            {tab === "wait"
-              ? "ອອກແລ້ວ ບັນທຶກຢູ່ ERP · ຍັງລໍຜູ້ມີສິດອະນຸມັດ"
-              : "ອະນຸມັດແລ້ວ (ມີໃບ WPRA) · ຂັ້ນຕໍ່ໄປແມ່ນອອກໃບສັ່ງຊື້ (PO)"}
+            {tab === "wait" ? t.sprSubtitleWait : t.sprSubtitleApproved}
           </p>
           <div className="mt-2 flex w-fit overflow-hidden rounded-lg border border-slate-300 bg-white">
             {TABS.map(({ key, label, count }) => (
@@ -263,14 +264,14 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
           <table className="w-full min-w-[900px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                <th className="px-3 py-2.5 font-semibold">ເລກໃບສະເໜີຊື້ (ERP)</th>
-                <th className="px-3 py-2.5 font-semibold">ວັນທີ</th>
-                <th className="px-3 py-2.5 font-semibold">ວຽກ</th>
-                <th className="px-3 py-2.5 font-semibold">ສາຂາ</th>
-                <th className="px-3 py-2.5 text-right font-semibold">ລາຍການ</th>
-                <th className="px-3 py-2.5 text-right font-semibold">ຍອດ</th>
-                <th className="px-3 py-2.5 font-semibold">ສະຖານະ</th>
-                {canApprove && <th className="px-3 py-2.5 font-semibold">ຈັດການ</th>}
+                <th className="px-3 py-2.5 font-semibold">{t.colSprNo}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colDate}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colJob}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colBranch}</th>
+                <th className="px-3 py-2.5 text-right font-semibold">{t.colLines}</th>
+                <th className="px-3 py-2.5 text-right font-semibold">{t.colTotal}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colStatus}</th>
+                {canApprove && <th className="px-3 py-2.5 font-semibold">{t.colManage}</th>}
               </tr>
             </thead>
             <tbody>
@@ -299,15 +300,15 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
                   <td className="whitespace-nowrap px-3 py-2.5">
                     {doc.po ? (
                       <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
-                        ອອກ PO ແລ້ວ · {doc.po}
+                        {t.statusPoIssued} · {doc.po}
                       </span>
                     ) : doc.wpra ? (
                       <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
-                        ອະນຸມັດແລ້ວ · {doc.wpra}
+                        {t.approved} · {doc.wpra}
                       </span>
                     ) : (
                       <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
-                        ລໍອະນຸມັດ
+                        {t.pendingApproval}
                       </span>
                     )}
                   </td>
@@ -320,7 +321,7 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
                        *   ອອກ PO ແລ້ວ → ບໍ່ມີ (ຕ້ອງຍົກເລີກ PO ກ່ອນ — server ກັນຢູ່ດີ)
                        */}
                       {doc.po ? (
-                        <span className="text-[10px] text-slate-400" title={`ອອກ PO ແລ້ວ (${doc.po}) — ຕ້ອງຍົກເລີກ PO ກ່ອນຈຶ່ງລົບໄດ້`}>
+                        <span className="text-[10px] text-slate-400" title={`${t.statusPoIssued} (${doc.po}) — ${t.mustCancelPoFirst}`}>
                           -
                         </span>
                       ) : doc.wpra ? (
@@ -337,7 +338,7 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
         </div>
         {sprDocs.length === 0 && (
           <p className="py-8 text-center text-xs text-slate-400">
-            {tab === "wait" ? "ບໍ່ມີໃບລໍຖ້າອະນຸມັດ" : "ຍັງບໍ່ມີໃບທີ່ອະນຸມັດແລ້ວ"}
+            {tab === "wait" ? t.noWaitSheets : t.noApprovedSheets}
           </p>
         )}
       </section>
