@@ -3,6 +3,8 @@ import { RowLink } from "@/components/row-link";
 import { CONTACT_LABEL, type ContactJob, type ContactKind } from "@/lib/customer-contact";
 import { contactQueue } from "@/lib/customer-contact-queue";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { type Dictionary, getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { MobileCardList } from "@/components/mobile-card-list";
 import { requireRoleOrRedirect } from "@/lib/guard";
 import { SERVICE_SIDE } from "@/lib/roles";
@@ -20,23 +22,25 @@ import { ContactActions } from "./contact-row";
  */
 export const dynamic = "force-dynamic";
 
-const GROUP: { kind: ContactKind; icon: typeof UserCheck; hint: string; hrefOf: (code: string) => string }[] = [
+type Dict = Dictionary["customerContact"];
+
+const GROUP: { kind: ContactKind; icon: typeof UserCheck; hintKey: keyof Dict; hrefOf: (code: string) => string }[] = [
   {
     kind: "quote",
     icon: UserCheck,
-    hint: "ອອກໃບສະເໜີລາຄາແລ້ວ — ວຽກຢຸດຢູ່ຈົນກວ່າລູກຄ້າຈະຕັດສິນ",
+    hintKey: "reasonQuotation",
     hrefOf: (code) => `/service/${encodeURIComponent(code)}`,
   },
   {
     kind: "pickup",
     icon: PackageCheck,
-    hint: "ຜ່ານການກວດຮັບຄຸນນະພາບແລ້ວ — ລໍລູກຄ້າມາຮັບ ຫຼື ນັດຈັດສົ່ງ",
+    hintKey: "reasonQc",
     hrefOf: (code) => `/service/${encodeURIComponent(code)}`,
   },
   {
     kind: "appointment",
     icon: CalendarClock,
-    hint: "ນັດພາຍໃນ 2 ມື້ຂ້າງໜ້າ (ຫຼື ເລີຍນັດແລ້ວ) ແລະ ຍັງບໍ່ໄດ້ຕິດຕັ້ງ",
+    hintKey: "reasonAppointment",
     hrefOf: (code) => `/installations/${encodeURIComponent(code)}`,
   },
 ];
@@ -44,13 +48,14 @@ const GROUP: { kind: ContactKind; icon: typeof UserCheck; hint: string; hrefOf: 
 export default async function CustomerContactPage() {
   await requireRoleOrRedirect(SERVICE_SIDE);
   const jobs = await contactQueue();
+  const t = (await getDictionary(await getLocale())).customerContact;
 
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-700">ຄິວແຈ້ງລູກຄ້າ</h1>
+        <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          ງານທີ່ຢຸດຢູ່ ຈົນກວ່າຈະມີຄົນຕິດຕໍ່ລູກຄ້າ — ບັນທຶກໄວ້ວ່າໃຜໂທເມື່ອໃດ · {jobs.length.toLocaleString()} ລາຍການ
+          {t.subtitle} · {jobs.length.toLocaleString()} {t.items}
         </p>
       </div>
 
@@ -65,7 +70,7 @@ export default async function CustomerContactPage() {
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
                 {rows.length}
               </span>
-              <span className="hidden text-xs font-normal text-slate-400 sm:inline">· {group.hint}</span>
+              <span className="hidden text-xs font-normal text-slate-400 sm:inline">· {t[group.hintKey]}</span>
             </h2>
 
             {/* ── desktop: ຕາຕະລາງເດີມ (ເຊື່ອງໃນມືຖື) ── */}
@@ -74,36 +79,36 @@ export default async function CustomerContactPage() {
                 <table className="w-full border-collapse text-xs" style={{ minWidth: 980 }}>
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລະຫັດ</th>
-                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລູກຄ້າ</th>
-                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສິນຄ້າ</th>
-                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ວັນທີ</th>
-                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລໍມາແລ້ວ</th>
-                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ແຈ້ງລ່າສຸດ</th>
+                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.code}</th>
+                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.customer}</th>
+                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.product}</th>
+                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.date}</th>
+                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.waited}</th>
+                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.lastContact}</th>
                       <th className="px-3 py-2.5" />
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((job) => (
-                      <Row key={`${job.kind}-${job.code}`} job={job} href={group.hrefOf(job.code)} />
+                      <Row key={`${job.kind}-${job.code}`} job={job} href={group.hrefOf(job.code)} t={t} />
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              {rows.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ມີງານທີ່ຕ້ອງແຈ້ງ</p>}
+              {rows.length === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noJobs}</p>}
             </section>
 
             {/* ── mobile: card ຕໍ່ແຖວ — ຂໍ້ມູນ ແລະ ປຸ່ມດຽວກັນກັບ desktop ── */}
             <div className="md:hidden">
               {rows.length === 0 ? (
                 <p className="rounded-xl border border-slate-200 bg-white py-10 text-center text-xs text-slate-400">
-                  ບໍ່ມີງານທີ່ຕ້ອງແຈ້ງ
+                  {t.noJobs}
                 </p>
               ) : (
                 <MobileCardList className="space-y-2">
                   {rows.map((job) => (
-                    <MobileCard key={`${job.kind}-${job.code}`} job={job} href={group.hrefOf(job.code)} />
+                    <MobileCard key={`${job.kind}-${job.code}`} job={job} href={group.hrefOf(job.code)} t={t} />
                   ))}
                 </MobileCardList>
               )}
@@ -115,7 +120,7 @@ export default async function CustomerContactPage() {
   );
 }
 
-function Row({ job, href }: { job: ContactJob; href: string }) {
+function Row({ job, href, t }: { job: ContactJob; href: string; t: Dict }) {
   return (
     <RowLink href={href} className="border-b border-slate-100 hover:bg-slate-50">
       <td className="px-3 py-2.5 text-center">
@@ -136,11 +141,11 @@ function Row({ job, href }: { job: ContactJob; href: string }) {
         {job.last_contact ? (
           <span className="text-slate-600">
             {job.last_contact}
-            {job.contacts > 1 && <span className="ml-1 text-slate-400">({job.contacts} ຄັ້ງ)</span>}
+            {job.contacts > 1 && <span className="ml-1 text-slate-400">({job.contacts} {t.timesUnit})</span>}
           </span>
         ) : (
           // ຍັງບໍ່ເຄີຍແຈ້ງ — ນີ້ຄືເຫດຜົນທີ່ໜ້ານີ້ມີຢູ່
-          <span className="rounded-full bg-red-50 px-2 py-0.5 font-semibold text-red-600">ຍັງບໍ່ໄດ້ແຈ້ງ</span>
+          <span className="rounded-full bg-red-50 px-2 py-0.5 font-semibold text-red-600">{t.notContacted}</span>
         )}
       </td>
       <td className="px-3 py-2.5">
@@ -151,7 +156,7 @@ function Row({ job, href }: { job: ContactJob; href: string }) {
 }
 
 // ── card ສຳລັບມືຖື — ຂໍ້ມູນ ແລະ ປຸ່ມ (ContactActions) ດຽວກັນກັບແຖວ desktop ──
-function MobileCard({ job, href }: { job: ContactJob; href: string }) {
+function MobileCard({ job, href, t }: { job: ContactJob; href: string; t: Dict }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
       <div className="flex items-start justify-between gap-2">
@@ -168,14 +173,14 @@ function MobileCard({ job, href }: { job: ContactJob; href: string }) {
       <p className="text-xs text-slate-500">{job.customer ?? "-"}</p>
 
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-        {job.at && <span>ວັນທີ {job.at}</span>}
+        {job.at && <span>{t.date} {job.at}</span>}
         {job.last_contact ? (
           <span className="text-slate-600">
-            ແຈ້ງລ່າສຸດ {job.last_contact}
-            {job.contacts > 1 && <span className="ml-1 text-slate-400">({job.contacts} ຄັ້ງ)</span>}
+            {t.lastContact} {job.last_contact}
+            {job.contacts > 1 && <span className="ml-1 text-slate-400">({job.contacts} {t.timesUnit})</span>}
           </span>
         ) : (
-          <span className="rounded-full bg-red-50 px-2 py-0.5 font-semibold text-red-600">ຍັງບໍ່ໄດ້ແຈ້ງ</span>
+          <span className="rounded-full bg-red-50 px-2 py-0.5 font-semibold text-red-600">{t.notContacted}</span>
         )}
       </div>
 

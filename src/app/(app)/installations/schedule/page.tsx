@@ -1,6 +1,8 @@
 import { Empty } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { INSTALL_STAGE_LABEL_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { roleOf } from "@/lib/roles";
 import { ownJobsOnly } from "@/lib/scope";
@@ -34,7 +36,8 @@ type DayCount = { day: string; jobs: number };
 type Props = { searchParams: Promise<{ d?: string }> };
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
-const WEEKDAYS = ["ຈ", "ອ", "ພ", "ພຫ", "ສຸ", "ສ", "ອາ"];
+/** ຄ່າ sentinel ພາຍໃນ (ໃຊ້ເປັນ key ຂອງ Map + ປຽບທຽບ) — ບໍ່ແມ່ນຂໍ້ຄວາມສະແດງ; ແປຕອນ render */
+const NO_TECH = "(ຍັງບໍ່ມີຊ່າງ)";
 
 function isoDate(value: Date) {
   return value.toISOString().slice(0, 10);
@@ -60,6 +63,9 @@ function calendarDays(monthStart: string) {
 
 export default async function SchedulePage({ searchParams }: Props) {
   const params = await searchParams;
+  const locale = await getLocale();
+  const t = (await getDictionary(locale)).installSchedule;
+  const intlLocale = locale === "th" ? "th-TH" : locale === "en" ? "en-US" : "lo-LA";
   const today = isoDate(new Date());
   const day = ISO.test(params.d ?? "") ? params.d! : today;
   const monthStart = `${day.slice(0, 7)}-01`;
@@ -137,14 +143,14 @@ export default async function SchedulePage({ searchParams }: Props) {
   const installTotal = rows.filter((row) => row.workflow === "install").length;
   const repairTotal = rows.length - installTotal;
   const cells = calendarDays(monthStart);
-  const selectedLabel = new Intl.DateTimeFormat("lo-LA", {
+  const selectedLabel = new Intl.DateTimeFormat(intlLocale, {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${day}T00:00:00Z`));
-  const monthLabel = new Intl.DateTimeFormat("lo-LA", {
+  const monthLabel = new Intl.DateTimeFormat(intlLocale, {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
@@ -152,7 +158,7 @@ export default async function SchedulePage({ searchParams }: Props) {
 
   const byTech = new Map<string, Row[]>();
   for (const row of rows) {
-    const who = row.tech ?? "(ຍັງບໍ່ມີຊ່າງ)";
+    const who = row.tech ?? NO_TECH;
     byTech.set(who, [...(byTech.get(who) ?? []), row]);
   }
   const technicianNames = new Map<string, string>();
@@ -161,7 +167,7 @@ export default async function SchedulePage({ searchParams }: Props) {
     technicianNames.set(technician.employee_code.toLowerCase(), technician.name);
   }
   const technicianName = (code: string) =>
-    code === "(ຍັງບໍ່ມີຊ່າງ)" ? code : technicianNames.get(code.toLowerCase()) ?? code;
+    code === NO_TECH ? code : technicianNames.get(code.toLowerCase()) ?? code;
   const canSeeAll = roleOf(session) !== "technical";
 
   return (
@@ -175,16 +181,16 @@ export default async function SchedulePage({ searchParams }: Props) {
               <CalendarDays className="size-3.5" />
               SERVICE OPERATIONS
             </div>
-            <h1 className="text-2xl font-black tracking-tight sm:text-3xl">ຄິວງານປະຈຳວັນ</h1>
+            <h1 className="text-2xl font-black tracking-tight sm:text-3xl">{t.title}</h1>
             <p className="mt-1.5 max-w-2xl text-sm text-slate-300">
-              ຈັດຄິວຕິດຕັ້ງ ແລະງານສ້ອມຕາມຊ່າງ ພ້ອມເບິ່ງພາລະວຽກໃນແຕ່ລະມື້
+              {t.subtitle}
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2 sm:min-w-[430px]">
             {[
-              { label: "ວຽກທັງໝົດ", value: rows.length, tone: "text-white" },
-              { label: "ຕິດຕັ້ງ", value: installTotal, tone: "text-teal-300" },
-              { label: "ສ້ອມ", value: repairTotal, tone: "text-amber-300" },
+              { label: t.allJobs, value: rows.length, tone: "text-white" },
+              { label: t.installWord, value: installTotal, tone: "text-teal-300" },
+              { label: t.repairWord, value: repairTotal, tone: "text-amber-300" },
             ].map((stat) => (
               <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/[0.08] px-3 py-3 backdrop-blur">
                 <p className={`text-2xl font-black ${stat.tone}`}>{stat.value}</p>
@@ -201,18 +207,18 @@ export default async function SchedulePage({ searchParams }: Props) {
           <div className="flex items-center justify-between bg-gradient-to-b from-slate-50 to-white px-5 py-4">
             <Link
               href={`/installations/schedule?d=${shiftMonth(monthStart, -1)}`}
-              title="ເດືອນກ່ອນ"
+              title={t.prevMonth}
               className="grid size-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:-translate-x-0.5 hover:border-teal-300 hover:text-teal-700"
             >
               <ChevronLeft className="size-4" />
             </Link>
             <div className="text-center">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-teal-600">ປະຕິທິນວຽກ</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-teal-600">{t.calendarLabel}</p>
               <h2 className="mt-0.5 text-base font-black text-slate-900">{monthLabel}</h2>
             </div>
             <Link
               href={`/installations/schedule?d=${shiftMonth(monthStart, 1)}`}
-              title="ເດືອນຕໍ່ໄປ"
+              title={t.nextMonth}
               className="grid size-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:translate-x-0.5 hover:border-teal-300 hover:text-teal-700"
             >
               <ChevronRight className="size-4" />
@@ -221,7 +227,7 @@ export default async function SchedulePage({ searchParams }: Props) {
 
           <div className="border-y border-slate-100 px-4 pb-5 pt-2">
             <div className="mb-1 grid grid-cols-7 border-b border-slate-100 pb-1">
-              {WEEKDAYS.map((label, index) => (
+              {t.weekdays.map((label, index) => (
                 <span key={`${label}-${index}`} className={`py-2 text-center text-[10px] font-black ${index >= 5 ? "text-rose-500" : "text-slate-400"}`}>
                   {label}
                 </span>
@@ -259,10 +265,10 @@ export default async function SchedulePage({ searchParams }: Props) {
           </div>
 
           <div className="flex items-center justify-between bg-slate-50/80 px-5 py-3.5">
-            <span className="text-[10px] font-semibold text-slate-500">ເດືອນນີ້ {monthTotal} ງານ</span>
+            <span className="text-[10px] font-semibold text-slate-500">{t.monthThis} {monthTotal} {t.jobsWord}</span>
             {day !== today && (
               <Link href="/installations/schedule" className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-bold text-teal-700 shadow-sm ring-1 ring-slate-200 hover:bg-teal-50">
-                ມື້ນີ້
+                {t.today}
               </Link>
             )}
           </div>
@@ -272,17 +278,17 @@ export default async function SchedulePage({ searchParams }: Props) {
         <section className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-slate-200/80 bg-white px-5 py-4 shadow-sm">
             <div>
-              <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">ວັນທີ່ເລືອກ</p>
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{t.selectedDate}</p>
               <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
                 <span className="grid size-9 place-items-center rounded-xl bg-teal-50 text-teal-700"><CalendarDays className="size-5" /></span>
                 {selectedLabel}
               </h2>
             </div>
             <div className="flex items-center gap-2">
-              <Link href={`/installations/schedule?d=${shift(day, -1)}`} aria-label="ມື້ກ່ອນ" className="grid size-9 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:border-teal-300 hover:text-teal-700">
+              <Link href={`/installations/schedule?d=${shift(day, -1)}`} aria-label={t.prevDay} className="grid size-9 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:border-teal-300 hover:text-teal-700">
                 <ChevronLeft className="size-4" />
               </Link>
-              <Link href={`/installations/schedule?d=${shift(day, 1)}`} aria-label="ມື້ຕໍ່ໄປ" className="grid size-9 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:border-teal-300 hover:text-teal-700">
+              <Link href={`/installations/schedule?d=${shift(day, 1)}`} aria-label={t.nextDay} className="grid size-9 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:border-teal-300 hover:text-teal-700">
                 <ChevronRight className="size-4" />
               </Link>
             </div>
@@ -291,32 +297,33 @@ export default async function SchedulePage({ searchParams }: Props) {
           {rows.length > 0 && (
             <div>
               <div className="mb-2 flex items-center justify-between px-1">
-                <h3 className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">ພາລະວຽກຕາມຊ່າງ</h3>
-                <span className="text-[10px] font-semibold text-slate-400">{byTech.size} ທີມ / ຊ່າງ</span>
+                <h3 className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.loadByTech}</h3>
+                <span className="text-[10px] font-semibold text-slate-400">{byTech.size} {t.teamTech}</span>
               </div>
               <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-3">
                 {[...byTech.entries()].map(([who, techJobs]) => {
                   const installs = techJobs.filter((job) => job.workflow === "install").length;
                   const repairs = techJobs.length - installs;
-                  const displayName = technicianName(who);
+                  const isNoTech = who === NO_TECH;
+                  const displayName = isNoTech ? t.noTechParen : technicianName(who);
                   return (
                     <div key={who} className={`rounded-2xl border bg-white p-3.5 shadow-sm ${techJobs.length >= 4 ? "border-rose-200" : "border-slate-200"}`}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-2.5">
                           <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${techJobs.length >= 4 ? "bg-rose-50 text-rose-600" : "bg-teal-50 text-teal-700"}`}><UserRound className="size-4" /></span>
                           <div className="min-w-0"><p className="truncate text-sm font-black text-slate-800">{displayName}</p>
-                          {displayName !== who && <p className="truncate text-[10px] text-slate-400">ລະຫັດ: {who}</p>}
+                          {!isNoTech && displayName !== who && <p className="truncate text-[10px] text-slate-400">{t.codeLabel} {who}</p>}
                           </div>
                         </div>
                         <span className={`shrink-0 rounded-xl px-2.5 py-1 text-xs font-black ${techJobs.length >= 4 ? "bg-rose-600 text-white" : "bg-[#0b1f33] text-white"}`}>
-                          {techJobs.length} ງານ
+                          {techJobs.length} {t.jobsWord}
                         </span>
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-1.5 text-[10px] font-bold">
-                        <span className="rounded-lg bg-teal-50 px-2 py-1 text-center text-teal-700">ຕິດຕັ້ງ {installs}</span>
-                        <span className="rounded-lg bg-amber-50 px-2 py-1 text-center text-amber-700">ສ້ອມ {repairs}</span>
+                        <span className="rounded-lg bg-teal-50 px-2 py-1 text-center text-teal-700">{t.installWord} {installs}</span>
+                        <span className="rounded-lg bg-amber-50 px-2 py-1 text-center text-amber-700">{t.repairWord} {repairs}</span>
                       </div>
-                      {techJobs.length >= 4 && canSeeAll && <p className="mt-2 text-[10px] font-bold text-rose-600">ຄຳເຕືອນ: ພາລະວຽກສູງ</p>}
+                      {techJobs.length >= 4 && canSeeAll && <p className="mt-2 text-[10px] font-bold text-rose-600">{t.highLoadWarn}</p>}
                     </div>
                   );
                 })}
@@ -325,17 +332,17 @@ export default async function SchedulePage({ searchParams }: Props) {
           )}
 
           {rows.length === 0 ? (
-            <div className="rounded-[24px] border border-dashed border-slate-300 bg-white p-10 shadow-sm"><Empty>ບໍ່ມີງານນັດໃນວັນທີ່ເລືອກ</Empty></div>
+            <div className="rounded-[24px] border border-dashed border-slate-300 bg-white p-10 shadow-sm"><Empty>{t.noJobsSelected}</Empty></div>
           ) : (
             <div className="space-y-4">
               {[...byTech.entries()].map(([who, techJobs]) => (
                 <section key={who} className="overflow-hidden rounded-[24px] border border-slate-200/80 bg-white shadow-sm">
                   <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
                     <span className="grid size-8 place-items-center rounded-xl bg-white text-teal-700 shadow-sm ring-1 ring-slate-200"><UserRound className="size-4" /></span>
-                    <h3 className="text-sm font-black text-slate-800">{technicianName(who)}</h3>
-                    {technicianName(who) !== who && <span className="text-[10px] text-slate-400">({who})</span>}
+                    <h3 className="text-sm font-black text-slate-800">{who === NO_TECH ? t.noTechParen : technicianName(who)}</h3>
+                    {who !== NO_TECH && technicianName(who) !== who && <span className="text-[10px] text-slate-400">({who})</span>}
                     <span className={`ml-auto rounded-lg px-2 py-1 text-[10px] font-black ${techJobs.length >= 4 ? "bg-rose-100 text-rose-700" : "bg-slate-200 text-slate-600"}`}>
-                      {techJobs.length} ງານ
+                      {techJobs.length} {t.jobsWord}
                     </span>
                   </div>
 
@@ -351,7 +358,7 @@ export default async function SchedulePage({ searchParams }: Props) {
                               {job.code}
                             </Link>
                             <span className={`rounded-lg px-2 py-0.5 text-[10px] font-black ${job.workflow === "install" ? "bg-teal-50 text-teal-700" : "bg-amber-50 text-amber-700"}`}>
-                              {job.workflow === "install" ? "ຕິດຕັ້ງ" : "ສ້ອມ"}
+                              {job.workflow === "install" ? t.installWord : t.repairWord}
                             </span>
                             <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{job.stage_label}</span>
                           </div>
@@ -369,12 +376,12 @@ export default async function SchedulePage({ searchParams }: Props) {
 
                         <div className="flex shrink-0 flex-wrap gap-2 border-t border-slate-100 pt-3 md:border-l md:border-t-0 md:pl-4 md:pt-0">
                           <Link href={job.workflow === "install" ? `/installations/${job.code}` : `/service/${job.code}`} className="inline-flex items-center gap-1 rounded-xl bg-[#0b1f33] px-3 py-2 text-[11px] font-bold text-white hover:bg-slate-700">
-                            <ExternalLink className="size-3.5" /> ເບິ່ງວຽກ
+                            <ExternalLink className="size-3.5" /> {t.viewJob}
                           </Link>
                           {job.tel && <a href={`tel:${job.tel}`} className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-700"><Phone className="size-3.5" /> {job.tel}</a>}
                           {job.lat != null && job.lng != null && (
                             <a href={`https://www.google.com/maps/dir/?api=1&destination=${job.lat},${job.lng}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-2 text-[11px] font-bold text-blue-700">
-                              <Navigation className="size-3.5" /> ນຳທາງ
+                              <Navigation className="size-3.5" /> {t.navigate}
                             </a>
                           )}
                         </div>
