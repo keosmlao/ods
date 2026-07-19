@@ -206,13 +206,15 @@ export function NavTree({
                 <ul className="mb-1 space-y-0.5">
                   {group.items.map((item, index) => {
                     const active = isActive(pathname, item, best, search);
+                    // i18n: ແປປ້າຍລາຍການ ຕາມ href (dictionary.nav) — ຫວ່າງ = ໃຊ້ Lao ເດີມ
+                    const itemLabel = navLabels?.[item.href] ?? item.label;
                     return (
                       <li key={`${item.href}-${index}`}>
                         {item.divider && <hr className="my-1.5 ml-8 border-white/5" />}
                         {item.href === "#" ? (
                           // ods ເອງກໍປ່ອຍ href="#" ໄວ້ — ບໍ່ມີໜ້າປາຍທາງ
                           <span className="block cursor-not-allowed rounded-lg py-1.5 pl-9 pr-3 text-sm text-slate-600">
-                            {item.label}
+                            {itemLabel}
                           </span>
                         ) : (
                           <Link
@@ -226,7 +228,7 @@ export function NavTree({
                           >
                             {/* ແຖບຂີດຊ້າຍ = ໜ້າທີ່ກຳລັງເປີດ */}
                             {active && <span className="absolute inset-y-1 left-3 w-0.5 rounded-full bg-teal-400" />}
-                            <span className="truncate">{item.label}</span>
+                            <span className="truncate">{itemLabel}</span>
                             {/* ຕົວເລກຄິວ — ນັບດ້ວຍເງື່ອນໄຂອັນດຽວກັບໜ້າປາຍທາງ (lib/nav-counts) */}
                             {item.count && (counts[item.count] ?? 0) > 0 && (
                               <span

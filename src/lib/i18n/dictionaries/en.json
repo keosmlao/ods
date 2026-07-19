@@ -28,6 +28,13 @@
     "users": "Users",
     "myRepair": "My repairs",
     "myInstall": "My installations",
-    "myIncome": "My income"
+    "myIncome": "My income",
+    "/dashboard": "Overview",
+    "/assistant": "AI work assistant",
+    "/installations/schedule": "Daily job queue",
+    "/customer-contact": "Customer contact queue",
+    "/activities": "My activity",
+    "/notifications": "Notifications",
+    "/manual": "User manual"
   }
 }

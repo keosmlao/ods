@@ -28,6 +28,13 @@
     "users": "ຜູ້ໃຊ້",
     "myRepair": "ງານສ້ອມຂອງຂ້ອຍ",
     "myInstall": "ງານຕິດຕັ້ງຂອງຂ້ອຍ",
-    "myIncome": "ລາຍຮັບຂອງຂ້ອຍ"
+    "myIncome": "ລາຍຮັບຂອງຂ້ອຍ",
+    "/dashboard": "ໜ້າລວມ",
+    "/assistant": "AI ຜູ້ຊ່ວຍວຽກ",
+    "/installations/schedule": "ຄິວງານປະຈຳວັນ",
+    "/customer-contact": "ຄິວແຈ້ງລູກຄ້າ",
+    "/activities": "ກິດຈະກຳຂອງຂ້ອຍ",
+    "/notifications": "ການແຈ້ງເຕືອນ",
+    "/manual": "ຄູ່ມືການໃຊ້ງານ"
   }
 }

@@ -28,6 +28,13 @@
     "users": "ผู้ใช้",
     "myRepair": "งานซ่อมของฉัน",
     "myInstall": "งานติดตั้งของฉัน",
-    "myIncome": "รายได้ของฉัน"
+    "myIncome": "รายได้ของฉัน",
+    "/dashboard": "หน้ารวม",
+    "/assistant": "AI ผู้ช่วยงาน",
+    "/installations/schedule": "คิวงานประจำวัน",
+    "/customer-contact": "คิวแจ้งลูกค้า",
+    "/activities": "กิจกรรมของฉัน",
+    "/notifications": "การแจ้งเตือน",
+    "/manual": "คู่มือการใช้งาน"
   }
 }
