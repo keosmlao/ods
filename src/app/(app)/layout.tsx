@@ -6,6 +6,7 @@ import { FloatingChat } from "@/components/chat/floating-chat";
 import { navCounts } from "@/lib/nav-counts";
 import { AppShell } from "@/components/app-shell";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import { DictProvider } from "@/lib/i18n/context";
 import { getLocale } from "@/lib/i18n/locale";
 import { getSession } from "@/lib/auth";
 import { canUser, readableResources } from "@/lib/permissions";
@@ -47,6 +48,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
 
   return (
+    <DictProvider dict={dict}>
     <AppShell
       username={session.username}
       role={role}
@@ -67,5 +69,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         */}
       <FloatingChat unread={counts["/chat"] ?? 0} />
     </AppShell>
+    </DictProvider>
   );
 }
