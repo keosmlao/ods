@@ -2,6 +2,8 @@ import { LinkPending } from "@/components/link-pending";
 import { NoticeDeleteButton } from "@/components/service/notice-delete-button";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { ArrowLeft, ChevronLeft, ChevronRight, ImageIcon, Search } from "lucide-react";
 import Link from "next/link";
 
@@ -46,12 +48,14 @@ const SORT_SQL: Record<string, string> = {
   telephone: "a.telephone",
 };
 
-const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "code", label: "ລະຫັດເເຈ້ງສ້ອມ", defaultDir: "desc" },
-  { key: "noticed", label: "ວັນ/ເວລາ", defaultDir: "desc" },
-  { key: "creator", label: "ຊື່ຜູ້ເເຈ້ງ", defaultDir: "asc" },
-  { key: "telephone", label: "ເບີໂທ", defaultDir: "asc" },
-  { key: "product", label: "ຊື່ເຄືອງ", defaultDir: "asc" },
+type Dict = Record<string, string>;
+
+const columnDefs = (t: Dict): { key: string; label: string; defaultDir: SortDir }[] => [
+  { key: "code", label: t.colCode, defaultDir: "desc" },
+  { key: "noticed", label: t.colDateTime, defaultDir: "desc" },
+  { key: "creator", label: t.colNotifier, defaultDir: "asc" },
+  { key: "telephone", label: t.colPhone, defaultDir: "asc" },
+  { key: "product", label: t.colProduct, defaultDir: "asc" },
   { key: "sn", label: "SN", defaultDir: "asc" },
 ];
 
@@ -61,6 +65,7 @@ export default async function ServiceNotices({ searchParams }: Props) {
   const page = Math.max(1, Number(params.page) || 1);
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
   const sort = (params.sort ?? "noticed").trim();
+  const t = (await getDictionary(await getLocale())).serviceNotices;
 
   const where = [PENDING];
   const args: (string | number)[] = [];
@@ -107,12 +112,12 @@ export default async function ServiceNotices({ searchParams }: Props) {
         <div>
           <Link href="/service" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
             <ArrowLeft className="size-3.5" />
-            ກັບລາຍການຮັບສິນຄ້າເຂົ້າສ້ອມ
+            {t.back}
             <LinkPending className="size-3" />
           </Link>
-          <h1 className="text-xl font-bold text-slate-700">ລາຍການລູກຄ້າເເຈ້ງສ້ອມ</h1>
+          <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            ຍັງບໍ່ໄດ້ຮັບເຂົ້າ {total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+            {t.notReceived} {total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
           </p>
         </div>
       </div>
@@ -125,11 +130,11 @@ export default async function ServiceNotices({ searchParams }: Props) {
           <input
             name="q"
             defaultValue={q}
-            placeholder="ຄົ້ນຫາ ລະຫັດ, ຊື່ເຄື່ອງ, SN, ຜູ້ເເຈ້ງ, ເບີໂທ, ອາການ..."
+            placeholder={t.searchPlaceholder}
             className="w-full text-xs outline-none"
           />
         </div>
-        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
       </form>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -137,7 +142,7 @@ export default async function ServiceNotices({ searchParams }: Props) {
           <table className="w-full min-w-[1200px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                {COLUMNS.map((column) => (
+                {columnDefs(t).map((column) => (
                   <SortHeader
                     key={column.key}
                     label={column.label}
@@ -149,10 +154,10 @@ export default async function ServiceNotices({ searchParams }: Props) {
                     className="py-2.5"
                   />
                 ))}
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລູກຄ້າ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາການເບື້ອງຕົ້ນ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໝາຍເຫດ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຮູບ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colCustomer}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colInitialIssue}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colRemark}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colImage}</th>
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -184,10 +189,10 @@ export default async function ServiceNotices({ searchParams }: Props) {
                         className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 hover:bg-blue-100"
                       >
                         <ImageIcon className="size-3" />
-                        ເບິ່ງຮູບ
+                        {t.viewImage}
                       </a>
                     ) : (
-                      <span className="text-[10px] text-slate-400">ບໍ່ມີຮູບ</span>
+                      <span className="text-[10px] text-slate-400">{t.noImage}</span>
                     )}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5">
@@ -196,7 +201,7 @@ export default async function ServiceNotices({ searchParams }: Props) {
                         href={`/service/notices/${encodeURIComponent(row.code)}`}
                         className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700"
                       >
-                        ເປີດງານ
+                        {t.openJob}
                         <LinkPending className="size-3" />
                       </Link>
                       {/* ລຶບ**ຄຳແຈ້ງ** (ບໍ່ແມ່ນລຶບງານ — ອັນນັ້ນຍັງຫ້າມ). ຄຳແຈ້ງທີ່ເປີດງານແລ້ວ server ກັນໃຫ້ */}
@@ -209,13 +214,13 @@ export default async function ServiceNotices({ searchParams }: Props) {
           </table>
         </div>
 
-        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} ຈາກ {total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} {t.of} {total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -224,7 +229,7 @@ export default async function ServiceNotices({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">{page} / {pages}</span>
             <Link
@@ -232,7 +237,7 @@ export default async function ServiceNotices({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>

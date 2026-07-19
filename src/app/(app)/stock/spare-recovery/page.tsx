@@ -4,6 +4,8 @@ import { RowLink } from "@/components/row-link";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { HAS_OUTSTANDING_SPARES, OUTSTANDING_SUMMARY_SQL, type OutstandingSummary } from "@/lib/outstanding-spares";
 import { CANCELLED_JOBS } from "@/lib/stage";
 import { ChevronLeft, ChevronRight, PackageX, Search } from "lucide-react";
@@ -58,13 +60,15 @@ const SORT_SQL: Record<string, string> = {
   technician: "a.emp_code",
 };
 
-const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "code", label: "ເລກທີ", defaultDir: "desc" },
-  { key: "elapsed", label: "ຄ້າງມາແລ້ວ", defaultDir: "desc" },
-  { key: "product", label: "ລາຍການ / SN", defaultDir: "asc" },
-  { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
-  { key: "technician", label: "ຊ່າງທີ່ຖືອາໄຫຼ່", defaultDir: "asc" },
+type Dict = Record<string, string>;
+
+const columns = (t: Dict): { key: string; label: string; defaultDir: SortDir }[] => [
+  { key: "code", label: t.colCode, defaultDir: "desc" },
+  { key: "elapsed", label: t.colElapsed, defaultDir: "desc" },
+  { key: "product", label: t.colProduct, defaultDir: "asc" },
+  { key: "brand", label: t.colBrand, defaultDir: "asc" },
+  { key: "customer", label: t.colCustomer, defaultDir: "asc" },
+  { key: "technician", label: t.colTechnician, defaultDir: "asc" },
 ];
 
 async function getRows(q: string, page: number, sort: string, dir: SortDir) {
@@ -110,6 +114,8 @@ async function getRows(q: string, page: number, sort: string, dir: SortDir) {
 }
 
 export default async function SpareRecoveryPage({ searchParams }: Props) {
+  const t = (await getDictionary(await getLocale())).spareRecovery;
+
   const params = await searchParams;
   const q = (params.q ?? "").trim();
   const page = Math.max(1, Number(params.page) || 1);
@@ -128,18 +134,16 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-700">ອາໄຫຼ່ຄ້າງນອກສາງ</h1>
-        <p className="mt-0.5 text-xs text-slate-500">
-          ອາໄຫຼ່ທີ່ເບີກອອກໄປແລ້ວ ແຕ່ວຽກຖືກຍົກເລີກ — ຕ້ອງເກັບຄືນສາງ ບໍ່ດັ່ງນັ້ນສະຕັອກໃນລະບົບໜ້ອຍກວ່າຂອງຈິງ
-        </p>
+        <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
+        <p className="mt-0.5 text-xs text-slate-500">{t.subtitle}</p>
       </div>
 
       {/* ຍອດລວມ — ນີ້ຄື "ໜີ້ອາໄຫຼ່" ທັງໝົດ */}
       <div className="grid gap-3 sm:grid-cols-3">
         {[
-          { label: "ໃບຮັບເຄື່ອງ", value: list.total.toLocaleString() },
-          { label: "ລາຍການອາໄຫຼ່", value: list.lines.toLocaleString() },
-          { label: "ຈຳນວນໜ່ວຍ", value: list.units.toLocaleString() },
+          { label: t.statReceipts, value: list.total.toLocaleString() },
+          { label: t.statSpareLines, value: list.lines.toLocaleString() },
+          { label: t.statUnits, value: list.units.toLocaleString() },
         ].map((item) => (
           <div key={item.label} className="rounded-xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-xs text-amber-700">{item.label}</p>
@@ -156,11 +160,11 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
           <input
             name="q"
             defaultValue={q}
-            placeholder="ຄົ້ນຫາ ເລກທີ, SN, ລູກຄ້າ, ຫຍີ່ຫໍ້, ຊ່າງ..."
+            placeholder={t.searchPlaceholder}
             className="w-full text-xs outline-none"
           />
         </div>
-        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
       </form>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -168,7 +172,7 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
           <table className="w-full min-w-[1100px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                {COLUMNS.map((column) => (
+                {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
                     label={column.label}
@@ -180,8 +184,8 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
                     className="py-2.5"
                   />
                 ))}
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາໄຫຼ່ທີ່ຕ້ອງເກັບຄືນ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ເຄື່ອງສົ່ງຄືນລູກຄ້າ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colToRecover}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colReturnedToCustomer}</th>
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -216,9 +220,11 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5">{row.technician || "-"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
-                        {row.spares?.lines ?? 0} ລາຍການ · {(row.spares?.units ?? 0).toLocaleString()} ໜ່ວຍ
+                        {row.spares?.lines ?? 0} {t.lines} · {(row.spares?.units ?? 0).toLocaleString()} {t.units}
                       </span>
-                      <span className="mt-0.5 block text-[10px] text-slate-400">{row.spares?.docs ?? 0} ໃບເບີກ</span>
+                      <span className="mt-0.5 block text-[10px] text-slate-400">
+                        {row.spares?.docs ?? 0} {t.issueSlips}
+                      </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <span
@@ -226,7 +232,7 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
                           row.returned ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
                         }`}
                       >
-                        {row.returned ?? "ຍັງບໍ່ສົ່ງຄືນ"}
+                        {row.returned ?? t.notReturned}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-center">
@@ -236,7 +242,7 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
                         className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700"
                       >
                         <PackageX className="size-3.5" />
-                        ຈັດການອາໄຫຼ່
+                        {t.manageSpares}
                         <LinkPending className="size-3" />
                       </Link>
                     </td>
@@ -249,7 +255,7 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
         {list.total === 0 && (
           <p className="py-12 text-center text-xs text-slate-400">
             <PackageX className="mx-auto mb-2 size-6 text-slate-300" />
-            ບໍ່ມີອາໄຫຼ່ຄ້າງນອກສາງ — ເກັບຄືນຄົບໝົດແລ້ວ
+            {t.empty}
           </p>
         )}
       </section>
@@ -257,7 +263,8 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, list.total)} ຈາກ {list.total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, list.total)} {t.of}{" "}
+            {list.total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -266,7 +273,7 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -276,7 +283,7 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>

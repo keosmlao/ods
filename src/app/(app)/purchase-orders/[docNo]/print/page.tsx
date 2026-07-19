@@ -1,6 +1,8 @@
 import { PrintButton } from "@/components/print-button";
 import { query, queryOdg } from "@/lib/db";
 import { poTotals } from "@/lib/erp-po";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { ERP_PURCHASE, payTermLabel } from "@/lib/stock-constants";
 import { notFound } from "next/navigation";
 
@@ -50,6 +52,7 @@ const money = (value: number) => value.toLocaleString(undefined, { maximumFracti
 export default async function PrintPoPage({ params }: Props) {
   const { docNo } = await params;
   const poNo = decodeURIComponent(docNo);
+  const t = (await getDictionary(await getLocale())).poPrint;
 
   const head = (
     await queryOdg<Head>(
@@ -102,7 +105,7 @@ export default async function PrintPoPage({ params }: Props) {
       <style>{`@media print { .no-print { display: none !important } @page { margin: 12mm } }`}</style>
 
       <div className="no-print mb-6 flex items-center justify-between">
-        <p className="text-sm text-slate-500">ກົດປຸ່ມ ຫຼື Ctrl/Cmd + P ເພື່ອພິມ</p>
+        <p className="text-sm text-slate-500">{t.printHint}</p>
         <PrintButton />
       </div>
 
@@ -115,62 +118,62 @@ export default async function PrintPoPage({ params }: Props) {
         </div>
         <div className="text-right text-sm">
           <p className="font-mono text-base font-bold">{head.doc_no}</p>
-          <p>ວັນທີ {head.doc_date ?? "-"}</p>
-          <p>ສາຂາ {head.branch_code === "05" ? "ໂອດ່ຽນໄທ" : head.branch_code === "00" ? "ສຳນັກງານໃຫ່ຍ" : (head.branch_code ?? "-")}</p>
+          <p>{t.date} {head.doc_date ?? "-"}</p>
+          <p>{t.branch} {head.branch_code === "05" ? "ໂອດ່ຽນໄທ" : head.branch_code === "00" ? "ສຳນັກງານໃຫ່ຍ" : (head.branch_code ?? "-")}</p>
         </div>
       </header>
 
-      <h1 className="my-4 text-center text-xl font-bold">ໃບສັ່ງຊື້</h1>
+      <h1 className="my-4 text-center text-xl font-bold">{t.title}</h1>
 
       <section className="mb-3 grid grid-cols-2 gap-x-6 gap-y-1 rounded border border-slate-300 p-3 text-sm">
         <p>
-          <span className="text-slate-500">ຜູ້ສະໜອງ: </span>
+          <span className="text-slate-500">{t.supplier}: </span>
           <b>{head.supplier_name ?? head.supplier_code ?? "-"}</b>
         </p>
         <p>
-          <span className="text-slate-500">ຄາດວ່າຈະມາຮອດ: </span>
+          <span className="text-slate-500">{t.expectedArrival}: </span>
           {head.send_date ?? "-"}
         </p>
         {head.supplier_address && (
           <p>
-            <span className="text-slate-500">ທີ່ຢູ່: </span>
+            <span className="text-slate-500">{t.address}: </span>
             {head.supplier_address}
           </p>
         )}
         <p>
-          <span className="text-slate-500">ຊ່ອງທາງຈັດສົ່ງ: </span>
+          <span className="text-slate-500">{t.deliveryChannel}: </span>
           {head.transport_name ?? "-"}
         </p>
         {head.supplier_tel && (
           <p>
-            <span className="text-slate-500">ໂທ: </span>
+            <span className="text-slate-500">{t.tel}: </span>
             {head.supplier_tel}
           </p>
         )}
         <p>
-          <span className="text-slate-500">ສາງທີ່ຮັບເຂົ້າ: </span>
+          <span className="text-slate-500">{t.receivingWarehouse}: </span>
           {head.wh_name ?? "-"}
         </p>
         <p>
-          <span className="text-slate-500">ສະກຸນເງິນ: </span>
+          <span className="text-slate-500">{t.currency}: </span>
           {head.currency_name ?? "-"}
           {head.exchange_rate && Number(head.exchange_rate) !== 1 && ` (× ${Number(head.exchange_rate)})`}
         </p>
         {/* ສົດ/ຕິດໜີ້ — ຜູ້ສະໜອງຕ້ອງເຫັນເງື່ອນໄຂຈ່າຍຢູ່ໜ້າເຈ້ຍ ບໍ່ແມ່ນຮູ້ກັນແຕ່ໃນລະບົບ */}
         <p>
-          <span className="text-slate-500">ການຈ່າຍເງິນ: </span>
+          <span className="text-slate-500">{t.payment}: </span>
           <b>{payTermLabel(head.credit_day)}</b>
-          {Boolean(head.credit_day) && head.credit_date && ` (ຄົບກຳນົດ ${head.credit_date})`}
+          {Boolean(head.credit_day) && head.credit_date && ` (${t.dueOn} ${head.credit_date})`}
         </p>
         {head.ref_doc && (
           <p>
-            <span className="text-slate-500">ອ້າງອີງ: </span>
+            <span className="text-slate-500">{t.reference}: </span>
             {head.ref_doc}
           </p>
         )}
         {head.remark && (
           <p className="col-span-2">
-            <span className="text-slate-500">ໝາຍເຫດ: </span>
+            <span className="text-slate-500">{t.remark}: </span>
             {head.remark}
           </p>
         )}
@@ -180,11 +183,11 @@ export default async function PrintPoPage({ params }: Props) {
         <thead>
           <tr className="border-y border-slate-900 text-left">
             <th className="w-8 py-1.5">#</th>
-            <th className="py-1.5">ລາຍການ</th>
-            <th className="w-20 py-1.5 text-right">ຈຳນວນ</th>
-            <th className="w-16 py-1.5">ຫົວໜ່ວຍ</th>
-            <th className="w-28 py-1.5 text-right">ລາຄາ</th>
-            <th className="w-28 py-1.5 text-right">ລວມ</th>
+            <th className="py-1.5">{t.colItem}</th>
+            <th className="w-20 py-1.5 text-right">{t.colQty}</th>
+            <th className="w-16 py-1.5">{t.colUnit}</th>
+            <th className="w-28 py-1.5 text-right">{t.colPrice}</th>
+            <th className="w-28 py-1.5 text-right">{t.colTotal}</th>
           </tr>
         </thead>
         <tbody>
@@ -207,17 +210,17 @@ export default async function PrintPoPage({ params }: Props) {
       <div className="mt-3 flex justify-end">
         <dl className="w-64 space-y-1 text-sm">
           <div className="flex justify-between">
-            <dt className="text-slate-500">{head.vat_type === 0 ? "ຍອດກ່ອນ VAT" : "ຍອດ (ລວມ VAT ແລ້ວ)"}</dt>
+            <dt className="text-slate-500">{head.vat_type === 0 ? t.amountBeforeVat : t.amountInclVat}</dt>
             <dd className="tabular-nums">{money(totals.value)}</dd>
           </div>
           <div className="flex justify-between">
             <dt className="text-slate-500">
-              VAT {Number(head.vat_rate ?? 0)}%{head.vat_type === 2 && " (ລວມໃນລາຄາ)"}
+              VAT {Number(head.vat_rate ?? 0)}%{head.vat_type === 2 && ` (${t.vatIncluded})`}
             </dt>
             <dd className="tabular-nums">{money(totals.vat_value)}</dd>
           </div>
           <div className="flex justify-between border-t border-slate-900 pt-1 text-base font-bold">
-            <dt>ລວມທັງໝົດ</dt>
+            <dt>{t.grandTotal}</dt>
             <dd className="tabular-nums">
               {money(totals.amount)} {symbol}
             </dd>
@@ -226,7 +229,7 @@ export default async function PrintPoPage({ params }: Props) {
       </div>
 
       <footer className="mt-12 grid grid-cols-3 gap-6 text-center text-sm">
-        {["ຜູ້ສັ່ງຊື້", "ຜູ້ອະນຸມັດ", "ຜູ້ສະໜອງ"].map((role, index) => (
+        {[t.orderedBy, t.approvedBy, t.supplier].map((role, index) => (
           <div key={role}>
             <div className="h-14 border-b border-slate-400" />
             <p className="mt-1">{role}</p>

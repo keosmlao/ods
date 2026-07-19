@@ -2,6 +2,7 @@
 import { updateInstall, type ActionState } from "@/app/actions/installation";
 import { SelectField } from "@/components/select-field";
 import { Button, Card, ErrorBox, LinkButton, inputClass, labelClass } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { Save } from "lucide-react";
 import { useActionState } from "react";
 
@@ -45,6 +46,7 @@ export function InstallEditForm({
   brands: Option[];
   techs: Tech[];
 }) {
+  const t = useDict().installEditForm;
   const [state, formAction, pending] = useActionState<ActionState, FormData>(updateInstall, {});
   // ods: ສິນຄ້າລະຫັດຂຶ້ນຕົ້ນ '97' ໃຫ້ເລືອກຍີ່ຫໍ້ໄດ້, ນອກນັ້ນອ່ານຢ່າງດຽວ
   const brandEditable = row.item_prefix === "97";
@@ -58,80 +60,80 @@ export function InstallEditForm({
         <div className="flex gap-2">
           <Button type="submit" tone="success" disabled={pending}>
             <Save className="size-4" />
-            {pending ? "ກຳລັງບັນທຶກ..." : "ບັນທືກ"}
+            {pending ? t.saving : t.save}
           </Button>
-          <LinkButton href="/installations" tone="danger">ອອກ</LinkButton>
+          <LinkButton href="/installations" tone="danger">{t.exit}</LinkButton>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className={labelClass}>ເລກທີເປີດຈັອບ</span>
+            <span className={labelClass}>{t.jobNoLabel}</span>
             <input readOnly value={row.code} className={`${inputClass} w-40`} />
           </div>
           <div className="flex items-center gap-2">
-            <span className={labelClass}>ວັນທີເປີດຈັອບ</span>
+            <span className={labelClass}>{t.jobDateLabel}</span>
             <input readOnly value={row.time_register ?? ""} className={`${inputClass} w-48`} />
           </div>
           <div className="flex items-center gap-2">
-            <span className={labelClass}>ຜູ້ສ້າງ</span>
+            <span className={labelClass}>{t.createdBy}</span>
             <input readOnly value={row.user_created ?? ""} className={`${inputClass} w-32`} />
           </div>
         </div>
       </div>
 
-      <Card title="ຂໍ້ມູນລູກຄ້າ">
+      <Card title={t.customerInfo}>
         <div className="grid gap-4 md:grid-cols-4">
           <div>
-            <label className={labelClass}>ລູກຄ້າ</label>
+            <label className={labelClass}>{t.customer}</label>
             <input readOnly value={row.cust_code ?? ""} className={inputClass} />
           </div>
           <div className="md:col-span-3">
-            <label className={labelClass}>ຊື່</label>
+            <label className={labelClass}>{t.name}</label>
             <input readOnly value={row.cust_name ?? ""} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>ເບີໂທ</label>
+            <label className={labelClass}>{t.phone}</label>
             <input readOnly value={row.tel ?? ""} className={inputClass} />
           </div>
           <div className="md:col-span-3">
-            <label className={labelClass}>ທີ່ຢູ່</label>
+            <label className={labelClass}>{t.address}</label>
             <input readOnly value={row.address ?? ""} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>ບິນເລກທີ</label>
+            <label className={labelClass}>{t.billNoLabel}</label>
             <input readOnly value={row.doc_ref_1 ?? ""} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>ວັນທີອອກບີນ</label>
+            <label className={labelClass}>{t.billDateLabel}</label>
             <input readOnly value={row.doc_ref_date ?? ""} className={inputClass} />
           </div>
         </div>
       </Card>
 
-      <Card title="ລາຍການສິນຄ້າ">
+      <Card title={t.itemList}>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="md:col-span-2">
-            <label className={labelClass}>ຊື່ສິນຄ້າ *</label>
+            <label className={labelClass}>{t.itemName} *</label>
             <input readOnly value={row.item_name ?? ""} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>ຍີ່ຫໍ້/Brand *</label>
+            <label className={labelClass}>{t.brandLabel} *</label>
             {brandEditable ? (
               <SelectField
                 name="pro_brand"
                 defaultValue={row.pro_brand ?? ""}
                 options={brands.map((brand) => ({ value: brand.code, label: brand.name_1 }))}
-                placeholder="ຄົ້ນຫາຫຍີ່ຫໍ້..."
+                placeholder={t.searchBrandPlaceholder}
               />
             ) : (
               <input name="pro_brand" readOnly value={row.pro_brand ?? ""} className={inputClass} />
             )}
           </div>
           <div>
-            <label className={labelClass}>ລູ້ນ/Model *</label>
+            <label className={labelClass}>{t.modelLabel} *</label>
             <input name="pro_model" required defaultValue={row.pro_model ?? ""} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>ປະເພດ *</label>
+            <label className={labelClass}>{t.typeLabel} *</label>
             <SelectField
               name="pro_type"
               defaultValue={row.pro_type_code ?? ""}
@@ -145,27 +147,27 @@ export function InstallEditForm({
         </div>
       </Card>
 
-      <Card title="ຂໍ້ມູນຕິດຕັ້ງ">
+      <Card title={t.installInfo}>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className={labelClass}>ຊ່າງ</label>
+            <label className={labelClass}>{t.tech}</label>
             <SelectField
               name="tech_code"
               defaultValue={row.tech_code ?? ""}
               options={techs.map((tech) => ({ value: tech.code, label: `${tech.name} (${tech.code})` }))}
-              placeholder="ເລືອກຊ່າງ..."
+              placeholder={t.selectTechPlaceholder}
             />
           </div>
           <div>
-            <label className={labelClass}>ວັນທີນັດຕິດຕັ້ງ</label>
+            <label className={labelClass}>{t.appointDateLabel}</label>
             <input type="date" name="appoint_date" defaultValue={row.appoint_date ?? ""} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>ສະຖານທີ່ຕິດຕັ້ງ</label>
+            <label className={labelClass}>{t.installLocation}</label>
             <input name="location_inst" defaultValue={row.location_inst ?? ""} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>ໝາຍເຫດ</label>
+            <label className={labelClass}>{t.remark}</label>
             <input name="remark" defaultValue={row.remark ?? ""} className={inputClass} />
           </div>
         </div>
