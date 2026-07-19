@@ -343,6 +343,44 @@ export async function technicianSla(days: Period): Promise<TechSla[]> {
   }));
 }
 
+export type FrontStageKpi = {
+  /** PS: register → ຮັບເຂົ້າສູນ (pickup_at) — ໄວການໄປຮັບເຄື່ອງມາຮອດ */
+  ps: { count: number; median_hours: number | null };
+  /** IH: register → ນັດ/ຈັດຊ່າງ (dispatch_at) — ໄວການນັດໝາຍ */
+  ih: { count: number; median_hours: number | null };
+};
+
+/**
+ * **KPI ຂັ້ນໜ້າ (front-stage)** — ວັດ workflow ໃໝ່: PS ໄປຮັບເຄື່ອງ · IH ນັດ/ຈັດຊ່າງ.
+ * ⚠️ ຖັນ pickup_at/dispatch_at ໃໝ່ ⇒ ເກັບຂໍ້ມູນຈາກນີ້ໄປ (ໃບເກົ່າ null, ບໍ່ນັບ).
+ */
+export async function frontStageKpi(days: Period): Promise<FrontStageKpi> {
+  const row = (
+    await query<{ ps_n: number; ps_med: number | null; ih_n: number; ih_med: number | null }>(
+      `select count(*) filter (where kind='PS')::int as ps_n,
+          round(percentile_cont(0.5) within group (order by case when kind='PS' then hrs end)::numeric, 1)::float as ps_med,
+          count(*) filter (where kind='IH')::int as ih_n,
+          round(percentile_cont(0.5) within group (order by case when kind='IH' then hrs end)::numeric, 1)::float as ih_med
+        from (
+          select 'PS' as kind, extract(epoch from (pickup_at - time_register))/3600 as hrs
+            from tb_product
+           where service_type='PS' and pickup_at is not null
+             and pickup_at >= current_date - ($1::int) and pickup_at >= time_register
+          union all
+          select 'IH', extract(epoch from (dispatch_at - time_register))/3600
+            from tb_product
+           where service_type='IH' and dispatch_at is not null
+             and dispatch_at >= current_date - ($1::int) and dispatch_at >= time_register
+        ) x`,
+      [days],
+    )
+  ).rows[0];
+  return {
+    ps: { count: Number(row?.ps_n ?? 0), median_hours: row?.ps_med ?? null },
+    ih: { count: Number(row?.ih_n ?? 0), median_hours: row?.ih_med ?? null },
+  };
+}
+
 export type TechServiceMix = { tech: string; ci: number; st: number; ih: number; ps: number; total: number };
 
 /**

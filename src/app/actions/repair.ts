@@ -540,6 +540,8 @@ export async function assignRepairTech(_: RepairState, formData: FormData): Prom
           -- ປ່ຽນຊ່າງ ⇒ ການຮັບງານຂອງຄົນເກົ່າໃຊ້ບໍ່ໄດ້ອີກ (ຊ່າງໃໝ່ຕ້ອງກົດຮັບເອງ)
           repair_confirm = case when nullif(emp_code,'') is distinct from $1::varchar then null else repair_confirm end,
           appoint_date = nullif($2,'')::date,
+          -- ເວລາຈັດຊ່າງ/ນັດຄັ້ງທຳອິດ — ໃຫ້ວັດ "ໄວການນັດ" (register→dispatch) ຂອງ IH
+          dispatch_at = coalesce(dispatch_at, case when nullif($2,'')::date is not null then localtimestamp(0) end),
           location_repair = coalesce(nullif($3,''), location_repair),
           remark = coalesce(nullif($4,''), remark),
           user_edit = $5

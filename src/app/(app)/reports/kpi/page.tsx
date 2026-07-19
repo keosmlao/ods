@@ -1,5 +1,6 @@
 import { Card, Empty, PageTitle, Table } from "@/components/ui";
 import {
+  frontStageKpi,
   INSTALL_TARGET_HOURS,
   installKpi,
   qualityKpi,
@@ -46,7 +47,7 @@ export default async function KpiPage({ searchParams }: Props) {
   const params = await searchParams;
   const days = (PERIODS.includes(Number(params.d) as Period) ? Number(params.d) : 90) as Period;
 
-  const [install, repair, techs, quality, weeks, repairSla, techSla, serviceMix] = await Promise.all([
+  const [install, repair, techs, quality, weeks, repairSla, techSla, serviceMix, frontStage] = await Promise.all([
     installKpi(days),
     repairKpi(days),
     technicianKpi(days),
@@ -55,6 +56,7 @@ export default async function KpiPage({ searchParams }: Props) {
     repairSlaCompliance(days),
     technicianSla(days),
     technicianServiceMix(days),
+    frontStageKpi(days),
   ]);
   const repairSlaMap = new Map(repairSla.map((item) => [`${item.stage}:${item.service_type}`, item]));
   const techSlaMap = new Map(techSla.map((item) => [item.tech, item]));
@@ -296,6 +298,43 @@ export default async function KpiPage({ searchParams }: Props) {
             ))}
           </Table>
         )}
+      </Card>
+
+      {/* ⑤ ຂັ້ນໜ້າ (workflow ໃໝ່): PS ໄປຮັບ · IH ນັດ/ຈັດຊ່າງ — ຂໍ້ມູນເກັບຈາກນີ້ໄປ */}
+      <Card
+        title={
+          <span className="inline-flex items-center gap-2">
+            <TrendingUp className="size-4 text-teal-600" />
+            ໄວຂັ້ນໜ້າ — PS ໄປຮັບ · IH ນັດ ({days} ມື້)
+          </span>
+        }
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+            <p className="text-xs font-bold text-amber-700">PS · ໄປຮັບເຄື່ອງ → ຮັບເຂົ້າສູນ</p>
+            {frontStage.ps.count === 0 ? (
+              <p className="mt-2 text-sm text-slate-400">ຍັງບໍ່ມີຂໍ້ມູນ (ຖັນໃໝ່ — ເກັບຈາກນີ້ໄປ)</p>
+            ) : (
+              <p className="mt-2">
+                <span className="text-2xl font-extrabold tabular-nums text-slate-800">{hours(frontStage.ps.median_hours ?? 0)}</span>
+                <span className="ml-2 text-xs text-slate-500">ມັດທະຍົມ · {frontStage.ps.count} ໃບ</span>
+              </p>
+            )}
+            <p className="mt-1 text-[11px] text-slate-400">ນັບແຕ່ຮັບໃບ ຫາ ຮັບເຂົ້າສູນ (pickup_at)</p>
+          </div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+            <p className="text-xs font-bold text-emerald-700">IH · ຮັບໃບ → ນັດ/ຈັດຊ່າງ</p>
+            {frontStage.ih.count === 0 ? (
+              <p className="mt-2 text-sm text-slate-400">ຍັງບໍ່ມີຂໍ້ມູນ (ຖັນໃໝ່ — ເກັບຈາກນີ້ໄປ)</p>
+            ) : (
+              <p className="mt-2">
+                <span className="text-2xl font-extrabold tabular-nums text-slate-800">{hours(frontStage.ih.median_hours ?? 0)}</span>
+                <span className="ml-2 text-xs text-slate-500">ມັດທະຍົມ · {frontStage.ih.count} ໃບ</span>
+              </p>
+            )}
+            <p className="mt-1 text-[11px] text-slate-400">ນັບແຕ່ຮັບໃບ ຫາ ຕັ້ງວັນນັດ (dispatch_at)</p>
+          </div>
+        </div>
       </Card>
     </div>
   );
