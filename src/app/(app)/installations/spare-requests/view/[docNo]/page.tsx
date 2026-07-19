@@ -1,6 +1,8 @@
 import { Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { canViewAssignedJob } from "@/lib/scope";
 import { notFound, redirect } from "next/navigation";
 
@@ -25,6 +27,7 @@ type Head = {
 };
 
 export default async function ViewSpareRequest({ params }: Props) {
+  const t = (await getDictionary(await getLocale())).spareRequestsView;
   const docNo = decodeURIComponent((await params).docNo);
   const session = await getSession();
   if (!session) redirect("/login");
@@ -52,24 +55,24 @@ export default async function ViewSpareRequest({ params }: Props) {
   if (!canViewAssignedJob(session, x.tech_code)) redirect("/forbidden");
 
   const fields: [string, string | null][] = [
-    ["ເລກຂໍເບີກ", x.doc_no],
-    ["ວັນທີ", x.doc_date],
-    ["ລະຫັດຕິດຕັ້ງ", x.code],
-    ["ລູກຄ້າ", `${x.cust_code ?? ""}-${x.cust_name ?? ""}`],
-    ["ລາຍການຕິດຕັ້ງ", x.item_name],
-    ["ຍີ່ຫໍ້", x.pro_brand],
-    ["model", x.pro_model],
-    ["ປະເພດ", x.pro_type],
-    ["ຂະໜາດ", x.pro_size],
-    ["ຊ່າງ", x.tech_code],
-    ["ໝາຍເຫດ", x.remark],
+    [t.reqNo, x.doc_no],
+    [t.date, x.doc_date],
+    [t.installCode, x.code],
+    [t.customer, `${x.cust_code ?? ""}-${x.cust_name ?? ""}`],
+    [t.installItem, x.item_name],
+    [t.brand, x.pro_brand],
+    [t.model, x.pro_model],
+    [t.type, x.pro_type],
+    [t.size, x.pro_size],
+    [t.technician, x.tech_code],
+    [t.remark, x.remark],
   ];
 
   return (
     <div className="w-full space-y-5">
-      <PageTitle>ລາຍລະອຽດຂໍເບີກ</PageTitle>
+      <PageTitle>{t.title}</PageTitle>
 
-      <Card title="ຂໍ້ມູນໃບຂໍເບີກ" actions={<LinkButton href="/installations/spare-requests" tone="neutral">ກັບຄືນ</LinkButton>}>
+      <Card title={t.cardInfo} actions={<LinkButton href="/installations/spare-requests" tone="neutral">{t.back}</LinkButton>}>
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {fields.map(([label, value]) => (
             <div key={label} className="border-b border-slate-100 pb-2">
@@ -80,11 +83,11 @@ export default async function ViewSpareRequest({ params }: Props) {
         </dl>
       </Card>
 
-      <Card title="ອຸປະກອນຕິດຕັ້ງ">
+      <Card title={t.cardEquipment}>
         {lines.rows.length === 0 ? (
           <Empty />
         ) : (
-          <Table head={["ລຳດັບ", "ລະຫັດ", "ຊື່ອຸປະກອນ", "ຈຳນວນ", "ຫົວໜ່ວຍ"]} minWidth={700}>
+          <Table head={[t.colNo, t.colCode, t.colName, t.colQty, t.colUnit]} minWidth={700}>
             {lines.rows.map((row) => (
               <tr key={`${row.item_code}-${row.rnum}`} className="border-b border-slate-100">
                 <td className="px-3 py-2 text-center">{row.rnum}</td>

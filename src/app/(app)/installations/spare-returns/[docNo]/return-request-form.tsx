@@ -8,6 +8,7 @@ import {
 } from "@/app/actions/installation-returns";
 import { useConfirm, type ConfirmTone } from "@/components/confirm-dialog";
 import { Button, Card, Empty, ErrorBox, Table, inputClass, labelClass } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { LogOut, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useActionState, useState, useTransition, type ReactNode } from "react";
@@ -34,6 +35,7 @@ export function ReturnRequestForm({
   today: string;
   lines: DraftLine[];
 }) {
+  const t = useDict().returnRequestForm;
   const [state, formAction, pending] = useActionState<ActionState, FormData>(saveInstallReturnRequest, {});
   const [lineError, setLineError] = useState<string>();
   const { ask, dialog } = useConfirm();
@@ -44,11 +46,11 @@ export function ReturnRequestForm({
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
       {lineError && <ErrorBox>{lineError}</ErrorBox>}
 
-      <Card title="ອາໄຫຼ່ທີ່ຈະສົ່ງຄືນ">
+      <Card title={t.returnTitle}>
         {lines.length === 0 ? (
-          <Empty>ບໍ່ມີອາໄຫຼ່ໃຫ້ສົ່ງຄືນ</Empty>
+          <Empty>{t.noSpares}</Empty>
         ) : (
-          <Table head={["ລຳດັບ", "ລະຫັດສິນຄ້າ", "ຊື່ສິນຄ້າ", "ຈຳນວນ", "ຫົວໜ່ວຍ", "ເບີກອອກ", ""]} minWidth={900}>
+          <Table head={[t.colOrder, t.colItemCode, t.colItemName, t.colQty, t.colUnit, t.colIssued, ""]} minWidth={900}>
             {lines.map((line, index) => (
               <LineRow
                 key={line.roworder}
@@ -64,21 +66,21 @@ export function ReturnRequestForm({
       </Card>
 
       <form action={formAction}>
-        <Card title="ຂໍສົ່ງຄືນ">
+        <Card title={t.requestTitle}>
           <input type="hidden" name="doc_ref" value={docRef} />
           <input type="hidden" name="product_code" value={productCode} />
 
           <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <label className={labelClass}>ເລກທີໃບເບີກ</label>
+              <label className={labelClass}>{t.labelDocRef}</label>
               <input readOnly value={docRef} className={inputClass} />
             </div>
             <div>
-              <label className={labelClass}>ວັນທີ</label>
+              <label className={labelClass}>{t.labelDate}</label>
               <input type="date" name="doc_date" required defaultValue={today} className={inputClass} />
             </div>
             <div>
-              <label className={labelClass}>ໝາຍເຫດ</label>
+              <label className={labelClass}>{t.labelRemark}</label>
               <input name="remark" autoComplete="off" className={inputClass} />
             </div>
           </div>
@@ -86,7 +88,7 @@ export function ReturnRequestForm({
           <div className="mt-4 flex gap-2">
             <Button type="submit" tone="success" disabled={pending || lines.length === 0}>
               <Save className="size-4" />
-              {pending ? "ກຳລັງບັນທຶກ..." : "ບັນທືກ"}
+              {pending ? t.saving : t.save}
             </Button>
             {/* ປຸ່ມ "ອອກ" ຕ້ອງລຶບແຖວຮ່າງກ່ອນ → formAction ແທນລິ້ງ (ods ໃຊ້ /back_stock_return) */}
             <Button
@@ -97,7 +99,7 @@ export function ReturnRequestForm({
               disabled={pending}
             >
               <LogOut className="size-4" />
-              ອອກ
+              {t.exit}
             </Button>
           </div>
         </Card>
@@ -119,6 +121,7 @@ function LineRow({
   ask: (options: { title: string; message?: ReactNode; confirmLabel?: string; cancelLabel?: string; tone?: ConfirmTone }) => Promise<boolean>;
   onError: (message?: string) => void;
 }) {
+  const t = useDict().returnRequestForm;
   const router = useRouter();
   const [qty, setQty] = useState(String(Number(line.qty)));
   const [pending, start] = useTransition();
@@ -164,19 +167,19 @@ function LineRow({
       <td className="px-3 py-2 text-center">
         <button
           type="button"
-          title="ບໍ່ເອົາລາຍການນີ້"
+          title={t.removeLineTitle}
           disabled={pending}
           className="text-slate-500 hover:text-red-600 disabled:opacity-50"
           onClick={async () => {
             const ok = await ask({
-              title: "ຖິ້ມລາຍການນີ້?",
+              title: t.discardTitle,
               message: (
                 <>
-                  ອາໄຫຼ່ <b className="text-slate-700">{line.item_code}</b>
+                  {t.spare} <b className="text-slate-700">{line.item_code}</b>
                 </>
               ),
-              confirmLabel: "ຖິ້ມ",
-              cancelLabel: "ບໍ່",
+              confirmLabel: t.discardConfirm,
+              cancelLabel: t.no,
               tone: "danger",
             });
             if (!ok) return;

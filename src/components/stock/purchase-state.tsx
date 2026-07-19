@@ -1,4 +1,6 @@
 import { type PurchaseStage, type PurchaseTrack } from "@/lib/erp-purchase";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { AlertTriangle, Check } from "lucide-react";
 
 /**
@@ -28,21 +30,22 @@ function daysSince(date: string | null): number | null {
   return Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
 }
 
-export function PurchaseState({ track, compact }: { track: PurchaseTrack | undefined; compact?: boolean }) {
+export async function PurchaseState({ track, compact }: { track: PurchaseTrack | undefined; compact?: boolean }) {
+  const t = (await getDictionary(await getLocale())).purchaseState;
   if (!track) {
     return (
       <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
-        ບໍ່ພົບໃບຢູ່ ERP
+        {t.notFoundInErp}
       </span>
     );
   }
 
   const steps: Step[] = [
-    { label: "ຂໍສະເໜີຊື້", no: track.pr_no, date: track.pr_date, at: "requested" },
-    { label: "ອະນຸມັດ", no: track.approve_no, date: track.approve_date, at: "approved" },
-    { label: "ໃບສັ່ງຊື້", no: track.order_no, date: track.order_date, at: "ordered" },
-    { label: "ອະນຸມັດ PO", no: track.oa_no, date: track.oa_date, at: "po_approved" },
-    { label: "ຮັບເຂົ້າສາງ", no: track.receipt_no, date: track.receipt_date, at: "received" },
+    { label: t.stepRequested, no: track.pr_no, date: track.pr_date, at: "requested" },
+    { label: t.stepApproved, no: track.approve_no, date: track.approve_date, at: "approved" },
+    { label: t.stepOrdered, no: track.order_no, date: track.order_date, at: "ordered" },
+    { label: t.stepPoApproved, no: track.oa_no, date: track.oa_date, at: "po_approved" },
+    { label: t.stepReceived, no: track.receipt_no, date: track.receipt_date, at: "received" },
   ];
 
   const now = ORDER[track.stage];
@@ -74,7 +77,7 @@ export function PurchaseState({ track, compact }: { track: PurchaseTrack | undef
                 <span className={`h-0.5 min-w-2 flex-1 ${done ? "bg-emerald-400" : "bg-slate-200"}`} />
               )}
               <span
-                title={`${step.label}${step.no ? ` · ${step.no}` : ""}${step.date ? ` · ${step.date}` : current ? " · ລໍຖ້າ" : ""}`}
+                title={`${step.label}${step.no ? ` · ${step.no}` : ""}${step.date ? ` · ${step.date}` : current ? ` · ${t.waiting}` : ""}`}
                 className={`grid ${size} shrink-0 place-items-center rounded-full border ${
                   alert
                     ? "border-red-600 bg-red-600 text-white"
@@ -100,15 +103,15 @@ export function PurchaseState({ track, compact }: { track: PurchaseTrack | undef
       <div className={`flex flex-wrap items-center gap-x-1.5 gap-y-0.5 ${compact ? "text-[10px]" : "text-xs"}`}>
         {stuck ? (
           <span className="font-bold text-red-700">
-            ຂອງຢູ່ສາງແລ້ວ{track.days_since_receipt !== null && ` ${track.days_since_receipt} ມື້`}
-            {!compact && " — ວຽກຄວນໄປຕໍ່ໄດ້ແລ້ວ"}
+            {t.goodsInWarehouse}{track.days_since_receipt !== null && ` ${track.days_since_receipt} ${t.daysUnit}`}
+            {!compact && ` — ${t.shouldProceed}`}
           </span>
         ) : (
           <>
-            <span className="font-semibold text-blue-700">ລໍ{waiting?.label ?? "-"}</span>
+            <span className="font-semibold text-blue-700">{t.waitPrefix}{waiting?.label ?? "-"}</span>
             {partial && (
               <span className="font-semibold text-amber-700">
-                ມາ {track.items_received}/{track.items}
+                {t.arrived} {track.items_received}/{track.items}
               </span>
             )}
             {idle !== null && idle > 0 && (
@@ -116,9 +119,9 @@ export function PurchaseState({ track, compact }: { track: PurchaseTrack | undef
                 className={`rounded px-1 py-px text-[9px] font-bold ${
                   idle >= 7 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800"
                 }`}
-                title={`ເຄື່ອນໄຫວຫຼ້າສຸດ ${lastDone?.date ?? "-"} (${lastDone?.no ?? "-"})`}
+                title={`${t.lastMovement} ${lastDone?.date ?? "-"} (${lastDone?.no ?? "-"})`}
               >
-                ຄ້າງ {idle} ມື້
+                {t.pending} {idle} {t.daysUnit}
               </span>
             )}
           </>

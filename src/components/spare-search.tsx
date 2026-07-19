@@ -1,6 +1,7 @@
 "use client";
 import { searchSpare, type SpareItem } from "@/app/actions/checking";
 import { Button, Empty } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { Check, LoaderCircle, Minus, Plus, Search, X } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 
@@ -22,6 +23,7 @@ function SpareResult({
   added: boolean;
   onAdd: (item: SpareItem, qty: number) => Promise<unknown>;
 }) {
+  const t = useDict().spareSearch;
   const [qty, setQty] = useState(1);
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
@@ -45,9 +47,9 @@ function SpareResult({
         className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-bold ${
           outOfStock ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"
         }`}
-        title="ຄົງເຫຼືອໃນສາງ"
+        title={t.stockTooltip}
       >
-        {outOfStock ? "ໝົດສາງ" : `ຄົງເຫຼືອ ${item.balance_qty}`}
+        {outOfStock ? t.outOfStock : `${t.inStock} ${item.balance_qty}`}
       </span>
 
       {/* ຈຳນວນ */}
@@ -98,12 +100,12 @@ function SpareResult({
         ) : added ? (
           <>
             <Check className="size-3.5" />
-            ເພີ່ມອີກ
+            {t.addMore}
           </>
         ) : (
           <>
             <Plus className="size-3.5" />
-            ເພີ່ມ
+            {t.add}
           </>
         )}
       </Button>
@@ -122,6 +124,7 @@ export function SpareSearchDialog({
   onAdd: (item: SpareItem, qty: number) => Promise<unknown>;
   onClose: () => void;
 }) {
+  const t = useDict().spareSearch;
   const [q, setQ] = useState("");
   const [inStockOnly, setInStockOnly] = useState(false);
   const [items, setItems] = useState<SpareItem[] | null>(null);
@@ -156,13 +159,13 @@ export function SpareSearchDialog({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="ເລືອກອາໄຫຼ່"
+      aria-label={t.selectSpare}
       onClick={(event) => event.target === event.currentTarget && onClose()}
       className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-slate-900/50 p-4 pt-12 backdrop-blur-sm"
     >
       <div className="flex max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
-          <h2 className="text-sm font-bold text-slate-800">ເລືອກອາໄຫຼ່</h2>
+          <h2 className="text-sm font-bold text-slate-800">{t.selectSpare}</h2>
           <button type="button" onClick={onClose} className="text-slate-400 transition hover:text-slate-700">
             <X className="size-4" />
           </button>
@@ -179,7 +182,7 @@ export function SpareSearchDialog({
               autoFocus
               value={q}
               onChange={(event) => setQ(event.target.value)}
-              placeholder="ຄົ້ນຫາ ລະຫັດ, ຊື່ອາໄຫຼ່, ຫຍີ່ຫໍ້..."
+              placeholder={t.searchPlaceholder}
               className="w-full text-xs outline-none"
             />
             {q && (
@@ -195,15 +198,15 @@ export function SpareSearchDialog({
               onChange={(event) => setInStockOnly(event.target.checked)}
               className="size-3.5 accent-teal-600"
             />
-            ມີໃນສາງເທົ່ານັ້ນ
+            {t.inStockOnly}
           </label>
         </div>
 
         <div className="min-h-40 flex-1 overflow-y-auto">
           {items === null ? (
-            <p className="py-12 text-center text-xs text-slate-400">ກຳລັງໂຫຼດ...</p>
+            <p className="py-12 text-center text-xs text-slate-400">{t.loading}</p>
           ) : items.length === 0 ? (
-            <Empty>ບໍ່ພົບອາໄຫຼ່</Empty>
+            <Empty>{t.noSpareFound}</Empty>
           ) : (
             <ul className="divide-y divide-slate-100">
               {items.map((item) => (
@@ -215,11 +218,11 @@ export function SpareSearchDialog({
 
         <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-2.5 text-[11px] text-slate-500">
           <span>
-            {items ? `${items.length} ລາຍການ` : "..."}
-            {items?.length === 50 && " (ສະແດງ 50 ລາຍການທຳອິດ — ພິມເພື່ອກັ່ນຕອງ)"}
+            {items ? `${items.length} ${t.itemsUnit}` : "..."}
+            {items?.length === 50 && ` ${t.showingFirst50Hint}`}
           </span>
           <Button type="button" tone="info" className="h-8 px-3 text-xs" onClick={onClose}>
-            ແລ້ວໆ
+            {t.done}
           </Button>
         </div>
       </div>

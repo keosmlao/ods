@@ -2,6 +2,7 @@
 import { holdJob, markJobRepaired, releaseJobHold } from "@/app/actions/job-hold";
 import { requestCancel } from "@/app/actions/service";
 import { useConfirm } from "@/components/confirm-dialog";
+import { useDict } from "@/lib/i18n/context";
 import { type JobHold } from "@/lib/job-hold";
 import { CircleAlert, LoaderCircle, Undo2, Wrench, X } from "lucide-react";
 import { useState, useTransition } from "react";
@@ -19,13 +20,15 @@ import { useState, useTransition } from "react";
 
 type Mode = "verify" | "cancel" | "repaired";
 
-const MODE = {
-  verify: { label: "ຕ້ອງກວດວ່າຍັງຢູ່", icon: CircleAlert, tone: "text-amber-700 border-amber-300 hover:bg-amber-50", placeholder: "ຍ້ອນຫຍັງ (ຕ້ອງໄປກວດ/ຕິດຕໍ່ລູກຄ້າ)..." },
-  cancel: { label: "ຍົກເລີກ", icon: X, tone: "text-rose-700 border-rose-300 hover:bg-rose-50", placeholder: "ເຫດຜົນຍົກເລີກ..." },
-  repaired: { label: "ແປງແລ້ວ", icon: Wrench, tone: "text-emerald-700 border-emerald-300 hover:bg-emerald-50", placeholder: "ແປງແລ້ວ/ຈັດການແລ້ວແນວໃດ..." },
-} as const;
+const modeConfig = (t: Record<string, string>) => ({
+  verify: { label: t.verifyLabel, icon: CircleAlert, tone: "text-amber-700 border-amber-300 hover:bg-amber-50", placeholder: t.verifyPlaceholder },
+  cancel: { label: t.cancelLabel, icon: X, tone: "text-rose-700 border-rose-300 hover:bg-rose-50", placeholder: t.cancelPlaceholder },
+  repaired: { label: t.repairedLabel, icon: Wrench, tone: "text-emerald-700 border-emerald-300 hover:bg-emerald-50", placeholder: t.repairedPlaceholder },
+}) as const;
 
 export function HoldButtons({ code, hold }: { code: string; hold: JobHold | null }) {
+  const t = useDict().holdButtons;
+  const MODE = modeConfig(t);
   const [open, setOpen] = useState<Mode | null>(null);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -54,21 +57,21 @@ export function HoldButtons({ code, hold }: { code: string; hold: JobHold | null
       <span className="inline-flex items-center gap-1.5">
         {dialog}
         <span
-          title={`${hold.reason}\nໝາຍໂດຍ ${hold.created_by} · ${hold.created_at}`}
+          title={`${hold.reason}\n${t.markedBy} ${hold.created_by} · ${hold.created_at}`}
           className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700"
         >
           <CircleAlert className="size-3" />
-          ຕ້ອງກວດ · {hold.held_days} ມື້
+          {t.needCheckBadge} · {hold.held_days} {t.daysUnit}
         </span>
         <button
           type="button"
           disabled={busy}
-          title="ປົດ — ວຽກກັບເຂົ້າຄິວປົກກະຕິ ນາລິກາເດີນຕໍ່"
+          title={t.releaseTitle}
           onClick={async () => {
             const ok = await ask({
-              title: "ປົດ ‘ຕ້ອງກວດ’?",
-              message: `${code} ກັບເຂົ້າຄິວປົກກະຕິ ນາລິກາເດີນຕໍ່ຈາກຈຸດທີ່ຢຸດ (ຄ້າງມາ ${hold.held_days} ມື້)`,
-              confirmLabel: "ປົດ",
+              title: t.releaseAskTitle,
+              message: `${code} ${t.releaseAskBody} (${t.heldFor} ${hold.held_days} ${t.daysUnit})`,
+              confirmLabel: t.release,
             });
             if (!ok) return;
             setError(null);
@@ -106,10 +109,10 @@ export function HoldButtons({ code, hold }: { code: string; hold: JobHold | null
           onClick={async () => {
             const confirmMsg =
               open === "cancel"
-                ? `${code} ຈະເຂົ້າຄິວ "ອະນຸມັດການຍົກເລີກ" — ຕ້ອງໃຫ້ຜູ້ມີສິດອະນຸມັດກ່ອນຈຶ່ງຍົກເລີກແທ້`
+                ? `${code} ${t.cancelConfirm}`
                 : open === "repaired"
-                  ? `${code} ຈະຖືກໝາຍວ່າ **ສ້ອມສຳເລັດ** ແລະ ໄປຂັ້ນ QC/ສົ່ງຄືນ (ຂ້າມການເບີກອາໄຫຼ່ທີ່ຄ້າງ)`
-                  : `${code} ຈະຖືກໝາຍ "ຕ້ອງກວດວ່າຍັງຢູ່" — ນາລິກາຂັ້ນຢຸດ ວຽກຍ້າຍໄປແທັບ ‘ຕ້ອງກວດ’`;
+                  ? `${code} ${t.repairedConfirm}`
+                  : `${code} ${t.verifyConfirm}`;
             const ok = await ask({ title: `${m.label}?`, message: confirmMsg, confirmLabel: m.label, tone: open === "cancel" ? "danger" : undefined });
             if (ok) run(open);
           }}
@@ -119,7 +122,7 @@ export function HoldButtons({ code, hold }: { code: string; hold: JobHold | null
           {m.label}
         </button>
         <button type="button" disabled={busy} onClick={() => { setOpen(null); setReason(""); setError(null); }} className="h-6 px-1 text-[10px] text-slate-400 hover:text-slate-700">
-          ຍົກ
+          {t.dismiss}
         </button>
         {error && <span className="text-[10px] text-rose-600">{error}</span>}
       </span>

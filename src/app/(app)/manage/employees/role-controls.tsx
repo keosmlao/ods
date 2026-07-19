@@ -2,6 +2,7 @@
 import { setEmployeeActive, setEmployeeRole } from "@/app/actions/employee";
 import { useConfirm } from "@/components/confirm-dialog";
 import { SelectField, type Option } from "@/components/select-field";
+import { useDict } from "@/lib/i18n/context";
 import { ROLE_LABEL, ROLES, type Role } from "@/lib/roles";
 import { Ban, CircleCheck, LoaderCircle } from "lucide-react";
 import { useState, useTransition } from "react";
@@ -26,6 +27,7 @@ export function RoleSelect({
   current: Role | null;
   derived: Role;
 }) {
+  const t = useDict().roleControls;
   const [pending, start] = useTransition();
   const [value, setValue] = useState<string>(current ?? "");
   const [error, setError] = useState("");
@@ -36,19 +38,19 @@ export function RoleSelect({
     if (role === (current ?? null)) return;
 
     const ok = await ask({
-      title: role ? "ປ່ຽນສິດເຂົ້າໃຊ້?" : "ກັບໄປໃຊ້ສິດຕາມຕຳແໜ່ງ?",
+      title: role ? t.changeRoleTitle : t.revertRoleTitle,
       message: role ? (
         <>
-          <b className="text-slate-700">{name}</b> ຈະໄດ້ສິດ <b className="text-slate-700">{ROLE_LABEL[role]}</b>{" "}
-          ຄັ້ງຕໍ່ໄປທີ່ເຂົ້າລະບົບ
+          <b className="text-slate-700">{name}</b> {t.willGetRole}{" "}
+          <b className="text-slate-700">{ROLE_LABEL[role]}</b> {t.nextLogin}
         </>
       ) : (
         <>
-          ລົບສິດທີ່ກຳນົດເອງຂອງ <b className="text-slate-700">{name}</b> ອອກ — ຈະກັບໄປໃຊ້ສິດຕາມຕຳແໜ່ງ (
+          {t.removeCustomRoleOf} <b className="text-slate-700">{name}</b> {t.revertToPositionRole} (
           <b className="text-slate-700">{ROLE_LABEL[derived]}</b>)
         </>
       ),
-      confirmLabel: role ? "ບັນທຶກ" : "ລົບສິດທີ່ກຳນົດເອງ",
+      confirmLabel: role ? t.save : t.removeCustomRole,
       tone: role ? "default" : "warning",
     });
     if (!ok) return;
@@ -73,13 +75,13 @@ export function RoleSelect({
           options={ROLE_OPTIONS}
           value={value}
           onChange={(next) => void change(next)}
-          placeholder="ຕາມຕຳແໜ່ງ"
+          placeholder={t.byPosition}
           isDisabled={pending}
         />
         {pending && (
           <span className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-400">
             <LoaderCircle className="size-3 animate-spin" />
-            ກຳລັງບັນທຶກ
+            {t.saving}
           </span>
         )}
         {error && <span className="mt-0.5 block text-[10px] font-semibold text-red-600">{error}</span>}
@@ -90,6 +92,7 @@ export function RoleSelect({
 
 /** ໃຊ້ງານໄດ້ / ຖືກປິດ — ປິດແລ້ວ ຄົນນັ້ນເຂົ້າລະບົບບໍ່ໄດ້ ແລະ ບໍ່ໄດ້ຮັບການແຈ້ງເຕືອນ */
 export function ActiveToggle({ code, name, active }: { code: string; name: string; active: boolean }) {
+  const t = useDict().roleControls;
   const [pending, start] = useTransition();
   const [error, setError] = useState("");
   const { ask, dialog } = useConfirm();
@@ -97,18 +100,18 @@ export function ActiveToggle({ code, name, active }: { code: string; name: strin
   async function toggle() {
     const next = !active;
     const ok = await ask({
-      title: next ? "ເປີດການໃຊ້ງານຄືນ?" : "ປິດການໃຊ້ງານ?",
+      title: next ? t.enableTitle : t.disableTitle,
       message: next ? (
         <>
-          <b className="text-slate-700">{name}</b> ຈະເຂົ້າລະບົບໄດ້ຄືນ
+          <b className="text-slate-700">{name}</b> {t.canLoginAgain}
         </>
       ) : (
         <>
-          <b className="text-slate-700">{name}</b> ຈະ <b className="text-slate-700">ເຂົ້າລະບົບບໍ່ໄດ້</b> ແລະ
-          ບໍ່ໄດ້ຮັບການແຈ້ງເຕືອນອີກ
+          <b className="text-slate-700">{name}</b> {t.will} <b className="text-slate-700">{t.cannotLogin}</b>{" "}
+          {t.andNoNotify}
         </>
       ),
-      confirmLabel: next ? "ເປີດການໃຊ້ງານ" : "ປິດການໃຊ້ງານ",
+      confirmLabel: next ? t.enable : t.disable,
       tone: next ? "default" : "danger",
     });
     if (!ok) return;
@@ -127,7 +130,7 @@ export function ActiveToggle({ code, name, active }: { code: string; name: strin
         type="button"
         disabled={pending}
         onClick={() => void toggle()}
-        title={active ? "ກົດເພື່ອປິດການໃຊ້ງານ" : "ກົດເພື່ອເປີດການໃຊ້ງານ"}
+        title={active ? t.clickToDisable : t.clickToEnable}
         className={`inline-flex h-7 items-center gap-1 rounded-full px-2 text-[11px] font-semibold transition disabled:opacity-50 ${
           active
             ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
@@ -141,7 +144,7 @@ export function ActiveToggle({ code, name, active }: { code: string; name: strin
         ) : (
           <Ban className="size-3.5" />
         )}
-        {active ? "ໃຊ້ງານໄດ້" : "ຖືກປິດ"}
+        {active ? t.active : t.disabled}
       </button>
       {error && <span className="mt-0.5 block text-[10px] font-semibold text-red-600">{error}</span>}
     </>
