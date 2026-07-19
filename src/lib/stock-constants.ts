@@ -37,6 +37,12 @@ export const REQUEST_WAREHOUSES = ["1103", "1204", "1206", "1104"] as const;
 /** ສາງທີ່ໜ້າ "ເບີກອາໄຫຼ່" ເບິ່ງເຫັນ ຖ້າຜູ້ໃຊ້ບໍ່ໄດ້ຜູກສາງໄວ້ (ods: spdispatch) */
 export const DISPATCH_WAREHOUSES = ["1103", "1204", "1206", "1203"] as const;
 
+/**
+ * ສາງສ້ອມແປງ **ສູນບໍລິການ** ສອງສາງ — ປາຍທາງຂອງ "ຂໍໂອນອາໄຫຼ່ມາຫ້ອງສ້ອມ".
+ *   1104 = ສາງສ້ອມແປງ (ສູນບໍລິການ ຂົວຫຼວງ) · 1206 = ສາງສ້ອມແປງສູນບໍລິການ (ດອນຕີ້ວ)
+ */
+export const REPAIR_WAREHOUSES = ["1104", "1206"] as const;
+
 /** ທີ່ເກັບທີ່ອະນຸຍາດ (ods: fetch_data_shelfx) */
 export const ALLOWED_SHELVES = [
   "110301",
