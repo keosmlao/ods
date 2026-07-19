@@ -221,6 +221,7 @@ const RULES: Rule[] = [
   { path: "/manage/technicians", roles: [M] },
   // ສະວິດເປີດ/ປິດຄວາມສາມາດຂອງທັງລະບົບ (ບາງອັນຢຸດນາລິກາ KPI) ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ
   { path: "/manage/settings", roles: [M] },
+  { path: "/manage/login-log", roles: [M] },
 
   /* ລາຍງານ — ods ໃຫ້ manager ຄົບ, admin ໄດ້ 2 ໜ້າ; ສາງໄດ້ສະເພາະລາຍງານສາງ/ສັ່ງຊື້ */
   { path: "/reports", roles: SERVICE_SIDE },

@@ -1,4 +1,5 @@
 import { verifyCredentials } from "@/lib/credentials";
+import { recordLogin } from "@/lib/login-log";
 import { createMobileToken } from "@/lib/mobile-auth";
 import { ROLE_LABEL, roleOf } from "@/lib/roles";
 import { NextResponse } from "next/server";
@@ -28,6 +29,8 @@ export async function POST(request: Request) {
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 401 });
 
     const role = roleOf(result.session);
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || null;
+    await recordLogin(result.session.username, "mobile", ip, request.headers.get("user-agent"));
     // ພະນັກງານ ACTIVE ທຸກຄົນໃຊ້ແອັບໄດ້ (verifyCredentials ກັນຄົນປິດບັນຊີແລ້ວ) —
     // ຊ່າງ → ຄິວວຽກ · ບໍ່ແມ່ນຊ່າງ → ໜ້າກວດນັບສະຕ໋ອກ
     const home = FIELD_TECH.has(role) ? "jobs" : "stock-count";

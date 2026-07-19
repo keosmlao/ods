@@ -230,6 +230,7 @@ const USERS: NavGroup = {
     { label: "ຄ່າບໍລິການ / ຄ່າຄອມຊ່າງ", href: "/manage/service-rates" },
     { label: "ເຊື່ອມຕົວຕົນຊ່າງ", href: "/manage/technicians" },
     { label: "ການຕັ້ງຄ່າລະບົບ", href: "/manage/settings" },
+    { label: "ຕິດຕາມການເຂົ້າລະບົບ", href: "/manage/login-log" },
   ],
 };
 
