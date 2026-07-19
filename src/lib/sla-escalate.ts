@@ -111,3 +111,67 @@ export async function escalateInstallSla(): Promise<EscalationResult> {
 
   return result;
 }
+
+/** ຊົ່ວໂມງ ຄ້າງຂັ້ນໜ້າ ກ່ອນເຕືອນ — PS ໄປຮັບ · IH ນັດ */
+const PS_PICKUP_HOURS = 48;
+const IH_SCHEDULE_HOURS = 24;
+
+export type FrontStageEscalation = { ps_pickup: number; ih_schedule: number };
+
+/**
+ * **ເຕືອນ workflow ໃໝ່ຄ້າງຂັ້ນໜ້າ** — ຄິວ CS ບໍ່ໄດ້ເປີດ ⇒ ເຄື່ອງລູກຄ້າຄ້າງ:
+ *   PS ຄ້າງໄປຮັບ > 48ຊມ (ຍັງບໍ່ຮັບເຂົ້າສູນ) · IH ຄ້າງນັດ > 24ຊມ (ຍັງບໍ່ຈັດຊ່າງ)
+ * ⇒ ເຕືອນ CS/ຜູ້ຈັດການ (chatter). ເຕືອນເທື່ອດຽວຕໍ່ໃບຕໍ່ປະເພດ (ods_sla_escalation).
+ */
+export async function escalateRepairFrontStage(): Promise<FrontStageEscalation> {
+  const result: FrontStageEscalation = { ps_pickup: 0, ih_schedule: 0 };
+
+  const overdue = async (kind: "ps_pickup" | "ih_schedule", where: string) =>
+    (
+      await query<{ code: string; customer: string | null; hours: number }>(
+        `select a.code, c.name_1 as customer,
+            round(extract(epoch from (localtimestamp - a.time_register))/3600::numeric, 1)::float as hours
+          from tb_product a
+          left join ar_customer c on c.code = a.cust_code
+         where a.status <> 6 and a.return_complete is null and ${where}
+           and not exists (select 1 from ods_sla_escalation e where e.job_code = a.code and e.kind = '${kind}')
+         order by a.time_register`,
+      )
+    ).rows;
+
+  // ① PS ຄ້າງໄປຮັບເຄື່ອງ (ຂັ້ນ 0, ຍັງບໍ່ຮັບເຂົ້າສູນ)
+  const ps = await overdue(
+    "ps_pickup",
+    `coalesce(a.service_type,'')='PS' and a.pickup_at is null
+      and a.time_register < localtimestamp - interval '${PS_PICKUP_HOURS} hours'`,
+  );
+  for (const job of ps) {
+    await logChange(
+      "tb_product",
+      job.code,
+      `⏰ PS ຄ້າງໄປຮັບເຄື່ອງ ${Math.round(job.hours)} ຊມ ແລ້ວ — **ຍັງບໍ່ຮັບເຂົ້າສູນ** · ລູກຄ້າ ${job.customer ?? "-"}`,
+      { roles: ["admin", "manager"] },
+    );
+    await query("insert into ods_sla_escalation(job_code, kind) values($1,'ps_pickup') on conflict do nothing", [job.code]);
+    result.ps_pickup += 1;
+  }
+
+  // ② IH ຄ້າງນັດ/ຈັດຊ່າງ (ຂັ້ນ 0, ຍັງບໍ່ຕັ້ງວັນນັດ ແລະ ຍັງບໍ່ກວດ)
+  const ih = await overdue(
+    "ih_schedule",
+    `coalesce(a.service_type,'')='IH' and a.appoint_date is null and a.time_check is null
+      and a.time_register < localtimestamp - interval '${IH_SCHEDULE_HOURS} hours'`,
+  );
+  for (const job of ih) {
+    await logChange(
+      "tb_product",
+      job.code,
+      `⏰ IH ຄ້າງນັດ/ຈັດຊ່າງ ${Math.round(job.hours)} ຊມ ແລ້ວ — **ຍັງບໍ່ຈັດຊ່າງໄປສ້ອມ** · ລູກຄ້າ ${job.customer ?? "-"}`,
+      { roles: ["admin", "manager"] },
+    );
+    await query("insert into ods_sla_escalation(job_code, kind) values($1,'ih_schedule') on conflict do nothing", [job.code]);
+    result.ih_schedule += 1;
+  }
+
+  return result;
+}

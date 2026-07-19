@@ -1,4 +1,4 @@
-import { escalateInstallSla } from "@/lib/sla-escalate";
+import { escalateInstallSla, escalateRepairFrontStage } from "@/lib/sla-escalate";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await escalateInstallSla();
-    return NextResponse.json({ ok: true, ...result });
+    const [install, repair] = await Promise.all([escalateInstallSla(), escalateRepairFrontStage()]);
+    return NextResponse.json({ ok: true, ...install, ...repair });
   } catch (error) {
     console.error("sla cron failed", error);
     return NextResponse.json({ error: "ຕົວກວດລົ້ມເຫຼວ" }, { status: 500 });
