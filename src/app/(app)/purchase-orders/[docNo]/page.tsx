@@ -4,6 +4,8 @@ import { ApproveSprForm } from "@/components/purchase/approve-spr-form";
 import { SprDangerButtons } from "@/components/purchase/spr-danger-buttons";
 import { getSession } from "@/lib/auth";
 import { queryOdg } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { APPROVER_SIDE, roleOf, type Role } from "@/lib/roles";
 import { ERP_PURCHASE, payTermLabel } from "@/lib/stock-constants";
 import { Check, ChevronRight, Printer, ShoppingCart } from "lucide-react";
@@ -28,8 +30,10 @@ const PURCHASE_SIDE: Role[] = ["manager", "admin", "stock"];
 /** ໃບເກົ່າ doc_ref/remark ເປັນເລກ RQ ຫຼື ຂໍ້ຄວາມ — ລິ້ງສະເພາະທີ່ເປັນລະຫັດວຽກແທ້ */
 const isJobCode = (value: string | null): value is string => /^(\d+|INST-\w+)$/.test(value ?? "");
 
-const branchName = (code: string | null) =>
-  code === "05" ? "ໂອດ່ຽນໄທ" : code === "00" ? "ສຳນັກງານໃຫ່ຍ" : (code ?? "-");
+type Dict = Record<string, string>;
+
+const branchName = (code: string | null, t: Dict) =>
+  code === "05" ? t.branchOdienThai : code === "00" ? t.branchHeadOffice : (code ?? "-");
 
 type Props = { params: Promise<{ docNo: string }> };
 
@@ -123,6 +127,7 @@ async function linesOf(docNo: string, transFlag: number): Promise<Line[]> {
 export default async function PurchaseDocPage({ params }: Props) {
   const { docNo } = await params;
   const docId = decodeURIComponent(docNo);
+  const t = (await getDictionary(await getLocale())).poDetail;
 
   /* ── ຫາຮາກຂອງເອກະສານ ── */
   const sprHead = await headOf(docId, ERP_PURCHASE.PR_REQUEST);
@@ -200,8 +205,8 @@ export default async function PurchaseDocPage({ params }: Props) {
   /* ── ສະຖານະ + statusbar (ຕ່າງກັນຕາມຮາກ) ── */
   const STEPS =
     rooted === "spr"
-      ? ["ຂໍສະເໜີຊື້", "ອະນຸມັດແລ້ວ", "ອອກ PO ແລ້ວ", "ອະນຸມັດ PO", "ຮັບເຂົ້າສາງ"]
-      : ["ໃບສັ່ງຊື້", "ອະນຸມັດ PO", "ຮັບເຂົ້າສາງ"];
+      ? [t.stepRequest, t.stepApproved, t.stepPoIssued, t.stepPoApproved, t.stepReceived]
+      : [t.stepPo, t.stepPoApproved, t.stepReceived];
   const state =
     rooted === "spr"
       ? fullyReceived ? 4 : wpoa ? 3 : po ? 2 : wpra ? 1 : 0
@@ -221,12 +226,12 @@ export default async function PurchaseDocPage({ params }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs text-slate-400">
-            <Link href="/purchase-orders" className="hover:underline">ໃບສັ່ງຊື້</Link>
+            <Link href="/purchase-orders" className="hover:underline">{t.stepPo}</Link>
             <ChevronRight className="mx-0.5 inline size-3" />
             {head.doc_no}
           </p>
           <h1 className="text-xl font-bold text-slate-700">
-            {po ? `ໃບສັ່ງຊື້ ${po.doc_no}` : `ໃບຂໍສະເໜີຊື້ ${head.doc_no}`}
+            {po ? `${t.stepPo} ${po.doc_no}` : `${t.docRequest} ${head.doc_no}`}
           </h1>
         </div>
         {/* ພິມສົ່ງຜູ້ສະໜອງ — ມີແຕ່ເມື່ອອອກ PO ແລ້ວ (ໃບຂໍຊື້ບໍ່ໄດ້ສົ່ງໃຫ້ໃຜ) */}
@@ -237,7 +242,7 @@ export default async function PurchaseDocPage({ params }: Props) {
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"
           >
             <Printer className="size-3.5" />
-            ພິມ PO
+            {t.printPo}
           </Link>
         )}
         <ol className="flex overflow-hidden rounded-lg border border-slate-300 bg-white text-[11px] font-semibold">
@@ -265,18 +270,18 @@ export default async function PurchaseDocPage({ params }: Props) {
         {rooted === "spr" && state === 0 &&
           (canApprove ? (
             <div className="flex flex-wrap items-center gap-4">
-              <p className="text-xs text-slate-500">ໃບຂໍຊື້ລໍອະນຸມັດ — ອະນຸມັດ = ອອກ WPRA ລົງ ERP · ປະຕິເສດ = ລຶບໃບອອກຈາກ ERP</p>
+              <p className="text-xs text-slate-500">{t.sprPendingApproveHint}</p>
               <ApproveSprForm sprNo={head.doc_no} back={here} />
             </div>
           ) : (
-            <p className="text-xs text-slate-500">ລໍຜູ້ມີສິດອະນຸມັດໃບຂໍຊື້ (WPRA)</p>
+            <p className="text-xs text-slate-500">{t.sprWaitApprover}</p>
           ))}
         {rooted === "spr" && state === 1 && (
           <div className="space-y-3">
             {canPurchase ? (
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-slate-500">
-                  ອະນຸມັດແລ້ວ ({wpra?.doc_no}) — ອອກໃບສັ່ງຊື້: ເລືອກຜູ້ສະໜອງ ແລະ **ໃສ່ລາຄາ** (ໃບຂໍຊື້ບໍ່ຮູ້ລາຄາ) · ຫຼື ອອກໃນ ERP ໂດຍກົງກໍ່ໄດ້
+                  {t.stepApproved} ({wpra?.doc_no}) {t.issuePoHint}
                 </p>
                 {wpra && (
                   <Link
@@ -284,12 +289,12 @@ export default async function PurchaseDocPage({ params }: Props) {
                     className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-4 text-xs font-semibold text-white hover:bg-teal-700"
                   >
                     <ShoppingCart className="size-3.5" />
-                    ອອກ PO
+                    {t.issuePo}
                   </Link>
                 )}
               </div>
             ) : (
-              <p className="text-xs text-slate-500">ອະນຸມັດແລ້ວ ({wpra?.doc_no}) — ລໍຝ່າຍຈັດຊື້ອອກ PO (ເລືອກຜູ້ສະໜອງ + ໃສ່ລາຄາ)</p>
+              <p className="text-xs text-slate-500">{t.stepApproved} ({wpra?.doc_no}) {t.waitPurchaseIssuePo}</p>
             )}
             {/**
              * ທາງອອກຂອງໃບທີ່ອະນຸມັດແລ້ວ ແຕ່ **ຍັງບໍ່ໄດ້ອອກ PO** — ກ່ອນນີ້ບໍ່ມີເລີຍ:
@@ -306,7 +311,7 @@ export default async function PurchaseDocPage({ params }: Props) {
         {po && !wpoa && !fullyReceived && (
           <div className="flex flex-wrap items-center gap-3">
             <p className="flex-1 text-xs text-slate-500">
-              ອອກ PO ແລ້ວ ({po.doc_no} · {po.supplier_name ?? po.supplier ?? "-"}) — ລໍອະນຸມັດ PO (WPOA)
+              {t.stepPoIssued} ({po.doc_no} · {po.supplier_name ?? po.supplier ?? "-"}) {t.waitApprovePo}
             </p>
             {canApprove && <ApprovePoButton poNo={po.doc_no} back={here} />}
             {canPurchase && <CancelPoButton poNo={po.doc_no} back={here} />}
@@ -315,8 +320,8 @@ export default async function PurchaseDocPage({ params }: Props) {
         {wpoa && !fullyReceived && (
           <div className="flex flex-wrap items-center gap-3">
             <p className="flex-1 text-xs text-slate-600">
-              ອະນຸມັດ PO ແລ້ວ ({wpoa.doc_no}) — ລໍຜູ້ສະໜອງສົ່ງຂອງ ແລະ ສາງຮັບເຂົ້າ (PUI) ຢູ່ ERP
-              {receipts.length > 0 && ` · ຮັບແລ້ວ ${receivedItems.size}/${lines.length} ລາຍການ`}
+              {t.poApprovedPrefix} ({wpoa.doc_no}) {t.waitSupplierDeliver}
+              {receipts.length > 0 && ` · ${t.receivedWord} ${receivedItems.size}/${lines.length} ${t.itemsWord}`}
             </p>
             {/* ຍັງບໍ່ຮັບຂອງ ⇒ ຍົກເລີກໄດ້ (ຜູ້ອະນຸມັດເທົ່ານັ້ນ ເພາະຕ້ອງລຶບໃບອະນຸມັດນຳ) */}
             {po && receipts.length === 0 && canApprove && <CancelPoButton poNo={po.doc_no} back={here} />}
@@ -324,7 +329,7 @@ export default async function PurchaseDocPage({ params }: Props) {
         )}
         {fullyReceived && (
           <p className="text-xs font-semibold text-emerald-700">
-            ຮັບເຂົ້າສາງຄົບແລ້ວ ({receipts.map((r) => r.doc_no).join(", ")}) — ຈົບຕ່ອງໂສ້ການສັ່ງຊື້
+            {t.receivedAllPrefix} ({receipts.map((r) => r.doc_no).join(", ")}) {t.chainDone}
           </p>
         )}
       </div>
@@ -333,19 +338,19 @@ export default async function PurchaseDocPage({ params }: Props) {
       <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <h2 className="border-b border-slate-100 px-4 py-2.5 text-xs font-bold text-slate-600">
-            ລາຍການອາໄຫຼ່ ({lines.length})
-            {rooted === "spr" && po ? ` — ຕາມໃບ PO ${po.doc_no}` : rooted === "spr" && wpra ? ` — ຕາມໃບອະນຸມັດ ${wpra.doc_no}` : ""}
+            {t.sparePartsList} ({lines.length})
+            {rooted === "spr" && po ? ` — ${t.perPoDoc} ${po.doc_no}` : rooted === "spr" && wpra ? ` — ${t.perApprovalDoc} ${wpra.doc_no}` : ""}
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                  <th className="px-3 py-2 font-semibold">ອາໄຫຼ່</th>
-                  <th className="px-3 py-2 text-right font-semibold">ຈຳນວນ</th>
-                  <th className="px-3 py-2 font-semibold">ຫົວໜ່ວຍ</th>
-                  <th className="px-3 py-2 text-right font-semibold">ລາຄາ</th>
-                  <th className="px-3 py-2 text-right font-semibold">ລວມ</th>
-                  {po && <th className="px-3 py-2 text-center font-semibold">ຮັບແລ້ວ</th>}
+                  <th className="px-3 py-2 font-semibold">{t.colItem}</th>
+                  <th className="px-3 py-2 text-right font-semibold">{t.colQty}</th>
+                  <th className="px-3 py-2 font-semibold">{t.colUnit}</th>
+                  <th className="px-3 py-2 text-right font-semibold">{t.colPrice}</th>
+                  <th className="px-3 py-2 text-right font-semibold">{t.colSum}</th>
+                  {po && <th className="px-3 py-2 text-center font-semibold">{t.receivedWord}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -364,7 +369,7 @@ export default async function PurchaseDocPage({ params }: Props) {
                         {receivedItems.has(line.item_code) ? (
                           <Check className="inline size-3.5 text-emerald-600" strokeWidth={3} />
                         ) : (
-                          <span className="text-[10px] text-slate-400">ລໍຂອງ</span>
+                          <span className="text-[10px] text-slate-400">{t.awaitingGoods}</span>
                         )}
                       </td>
                     )}
@@ -373,7 +378,7 @@ export default async function PurchaseDocPage({ params }: Props) {
               </tbody>
               <tfoot>
                 <tr className="border-t border-slate-200 bg-slate-50">
-                  <td colSpan={4} className="px-3 py-2 text-right font-semibold text-slate-600">ລວມທັງໝົດ</td>
+                  <td colSpan={4} className="px-3 py-2 text-right font-semibold text-slate-600">{t.grandTotal}</td>
                   <td className="px-3 py-2 text-right font-bold tabular-nums">{total.toLocaleString()}</td>
                   {po && <td />}
                 </tr>
@@ -384,14 +389,14 @@ export default async function PurchaseDocPage({ params }: Props) {
 
         <div className="space-y-4">
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-xs font-bold text-slate-600">ຂໍ້ມູນໃບ</h2>
+            <h2 className="mb-3 text-xs font-bold text-slate-600">{t.docInfo}</h2>
             <dl className="space-y-2.5 text-xs">
               <div className="flex justify-between gap-2">
-                <dt className="text-slate-400">{rooted === "spr" ? "ວັນທີຂໍຊື້" : "ວັນທີອອກໃບ"}</dt>
+                <dt className="text-slate-400">{rooted === "spr" ? t.dateRequest : t.dateIssue}</dt>
                 <dd className="font-medium">{head.doc_date ?? "-"}</dd>
               </div>
               <div className="flex justify-between gap-2">
-                <dt className="text-slate-400">ວຽກສ້ອມ</dt>
+                <dt className="text-slate-400">{t.repairJob}</dt>
                 <dd>
                   {isJobCode(jobRef) ? (
                     <Link href={`/service/${jobRef}`} className="font-medium text-[#0536a9] hover:underline">{jobRef}</Link>
@@ -399,33 +404,33 @@ export default async function PurchaseDocPage({ params }: Props) {
                     // ໃບເກົ່າ doc_ref ເປັນເລກ RQ/ຂໍ້ຄວາມ — ສະແດງຕາມຕົວ ບໍ່ລິ້ງ
                     <span className="font-mono text-[11px] text-slate-500">{jobRef}</span>
                   ) : (
-                    <span className="text-slate-400">ບໍ່ຜູກວຽກ (ຊື້ເຂົ້າສາງ)</span>
+                    <span className="text-slate-400">{t.noJobLink}</span>
                   )}
                 </dd>
               </div>
-              <div className="flex justify-between gap-2"><dt className="text-slate-400">ສາຂາ</dt><dd className="font-medium">{branchName(head.branch_code)}</dd></div>
+              <div className="flex justify-between gap-2"><dt className="text-slate-400">{t.branch}</dt><dd className="font-medium">{branchName(head.branch_code, t)}</dd></div>
               <div className="flex justify-between gap-2">
-                <dt className="text-slate-400">ຜູ້ສະໜອງ</dt>
+                <dt className="text-slate-400">{t.supplier}</dt>
                 <dd className="max-w-44 truncate text-right font-medium" title={po?.supplier_name ?? ""}>
-                  {po ? (po.supplier_name ?? po.supplier ?? "-") : <span className="text-slate-400">ເລືອກຕອນອອກ PO</span>}
+                  {po ? (po.supplier_name ?? po.supplier ?? "-") : <span className="text-slate-400">{t.chooseAtPo}</span>}
                 </dd>
               </div>
               {poHeadInfo && (
                 <>
                   <div className="flex justify-between gap-2">
-                    <dt className="text-slate-400">ຄາດວ່າຈະມາຮອດ</dt>
+                    <dt className="text-slate-400">{t.eta}</dt>
                     <dd className="font-medium">{poHeadInfo.send_date ?? "-"}</dd>
                   </div>
                   <div className="flex justify-between gap-2">
-                    <dt className="text-slate-400">ຊ່ອງທາງຈັດສົ່ງ</dt>
+                    <dt className="text-slate-400">{t.transport}</dt>
                     <dd className="max-w-44 truncate text-right font-medium">{poHeadInfo.transport_name ?? "-"}</dd>
                   </div>
                   <div className="flex justify-between gap-2">
-                    <dt className="text-slate-400">ສາງທີ່ຮັບເຂົ້າ</dt>
+                    <dt className="text-slate-400">{t.warehouse}</dt>
                     <dd className="max-w-44 truncate text-right font-medium">{poHeadInfo.wh_name ?? "-"}</dd>
                   </div>
                   <div className="flex justify-between gap-2">
-                    <dt className="text-slate-400">ສະກຸນເງິນ</dt>
+                    <dt className="text-slate-400">{t.currency}</dt>
                     <dd className="font-medium">
                       {poHeadInfo.currency_name ?? "-"}
                       {poHeadInfo.exchange_rate && Number(poHeadInfo.exchange_rate) !== 1 && (
@@ -437,42 +442,42 @@ export default async function PurchaseDocPage({ params }: Props) {
                     <dt className="text-slate-400">VAT</dt>
                     <dd className="font-medium">
                       {poHeadInfo.vat_type === 0
-                        ? `ແຍກນອກ ${Number(poHeadInfo.vat_rate ?? 0)}%`
-                        : `ລວມໃນລາຄາແລ້ວ ${Number(poHeadInfo.vat_rate ?? 0)}%`}
+                        ? `${t.vatExclude} ${Number(poHeadInfo.vat_rate ?? 0)}%`
+                        : `${t.vatInclude} ${Number(poHeadInfo.vat_rate ?? 0)}%`}
                     </dd>
                   </div>
                   {/* ສົດ/ຕິດໜີ້ — ຜູ້ອະນຸມັດຕ້ອງເຫັນກ່ອນກົດອະນຸມັດ ບໍ່ແມ່ນເຫັນຕອນໃບຮອດແລ້ວ */}
                   <div className="flex justify-between gap-2">
-                    <dt className="text-slate-400">ການຈ່າຍເງິນ</dt>
+                    <dt className="text-slate-400">{t.payment}</dt>
                     <dd className="font-medium">
                       {payTermLabel(poHeadInfo.credit_day)}
                       {Boolean(poHeadInfo.credit_day) && poHeadInfo.credit_date && (
-                        <span className="ml-1 text-slate-400">(ຄົບ {poHeadInfo.credit_date})</span>
+                        <span className="ml-1 text-slate-400">({t.due} {poHeadInfo.credit_date})</span>
                       )}
                     </dd>
                   </div>
                 </>
               )}
               {head.remark && (
-                <div className="flex justify-between gap-2"><dt className="text-slate-400">ໝາຍເຫດ</dt><dd className="max-w-44 text-right font-medium">{head.remark}</dd></div>
+                <div className="flex justify-between gap-2"><dt className="text-slate-400">{t.remark}</dt><dd className="max-w-44 text-right font-medium">{head.remark}</dd></div>
               )}
             </dl>
           </section>
 
           {/* ── ໃບໃນຕ່ອງໂສ້ — ຄື "linked documents" ຂອງ Odoo ── */}
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-xs font-bold text-slate-600">ເອກະສານໃນ ERP</h2>
+            <h2 className="mb-3 text-xs font-bold text-slate-600">{t.docsInErp}</h2>
             <ul className="space-y-2 text-xs">
               {(rooted === "spr"
                 ? [
-                    { label: "ໃບຂໍຊື້ (SPR)", doc: { doc_no: head.doc_no, doc_date: head.doc_date } },
-                    { label: "ອະນຸມັດ (WPRA)", doc: wpra },
-                    { label: "ໃບສັ່ງຊື້ (PO)", doc: po },
-                    { label: "ອະນຸມັດ PO (WPOA)", doc: wpoa },
+                    { label: t.chainSpr, doc: { doc_no: head.doc_no, doc_date: head.doc_date } },
+                    { label: t.chainWpra, doc: wpra },
+                    { label: t.chainPo, doc: po },
+                    { label: t.chainWpoa, doc: wpoa },
                   ]
                 : [
-                    { label: "ໃບສັ່ງຊື້ (PO)", doc: { doc_no: head.doc_no, doc_date: head.doc_date } },
-                    { label: "ອະນຸມັດ PO (WPOA)", doc: wpoa },
+                    { label: t.chainPo, doc: { doc_no: head.doc_no, doc_date: head.doc_date } },
+                    { label: t.chainWpoa, doc: wpoa },
                   ]
               ).map(({ label, doc }) => (
                 <li key={label} className="flex items-center justify-between gap-2">
@@ -482,15 +487,15 @@ export default async function PurchaseDocPage({ params }: Props) {
                       {doc.doc_no} <span className="text-slate-400">· {doc.doc_date ?? "-"}</span>
                     </span>
                   ) : (
-                    <span className="text-slate-300">ຍັງບໍ່ມີ</span>
+                    <span className="text-slate-300">{t.none}</span>
                   )}
                 </li>
               ))}
               {receipts.map((receipt) => (
                 <li key={receipt.doc_no} className="flex items-center justify-between gap-2">
-                  <span className="text-slate-400">ຮັບເຂົ້າສາງ (PUI)</span>
+                  <span className="text-slate-400">{t.chainReceipt}</span>
                   <span className="font-mono text-[11px] font-medium text-emerald-700">
-                    {receipt.doc_no} <span className="text-slate-400">· {receipt.doc_date ?? "-"} · {receipt.items} ລາຍການ</span>
+                    {receipt.doc_no} <span className="text-slate-400">· {receipt.doc_date ?? "-"} · {receipt.items} {t.itemsWord}</span>
                   </span>
                 </li>
               ))}

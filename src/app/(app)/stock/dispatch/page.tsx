@@ -7,6 +7,8 @@ import { SortHeader, type SortDir } from "@/components/sort-header";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { fmtQty, getBalances } from "@/lib/stock-balance";
 import { DISPATCH_WAREHOUSES, LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import {
@@ -288,20 +290,22 @@ async function getCounts(warehouses: string[]) {
 }
 
 /** ປ້າຍບອກວ່າອາໄຫຼ່ຢູ່ໃສ */
-function StockChip({ inWh, other }: { inWh: number; other: number }) {
+function StockChip({ inWh, other, t }: { inWh: number; other: number; t: Dict }) {
   if (inWh > 0)
     return (
-      <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">ມີໃນສາງນີ້</span>
+      <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">{t.inThisWarehouse}</span>
     );
   if (other > 0)
-    return <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">ຢູ່ສາງອື່ນ</span>;
-  return <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">ບໍ່ມີໃນສະຕັອກ</span>;
+    return <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">{t.inOtherWarehouse}</span>;
+  return <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">{t.notInStock}</span>;
 }
 
 const actionClass = "inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white";
 
+type Dict = Record<string, string>;
+
 /** ປຸ່ມທ້າຍແຖວ — ຄືເງື່ອນໄຂໃນ spdispatch.html ຂອງ ods */
-function RowAction({ line }: { line: Line }) {
+function RowAction({ line, t }: { line: Line; t: Dict }) {
   const total = Number(line.balance_qty ?? 0);
   const inWh = Number(line.balance_qty_wh ?? 0);
   const other = Number(line.owh_qty ?? 0);
@@ -309,7 +313,7 @@ function RowAction({ line }: { line: Line }) {
   const dispatch = (
     <Link href={`/stock/dispatch/${line.roworder}`} className={`${actionClass} bg-teal-600 hover:bg-teal-700`}>
       <PackageCheck className="size-3.5" />
-      ເບີກ
+      {t.dispatch}
       <LinkPending className="size-3" />
     </Link>
   );
@@ -326,13 +330,13 @@ function RowAction({ line }: { line: Line }) {
         className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-50 px-3 text-xs font-semibold text-amber-700 hover:bg-amber-100"
       >
         <ArrowLeftRight className="size-3.5" />
-        ຂໍໂອນແລ້ວ · ລໍຖ້າຂອງ
+        {t.transferRequestedWaiting}
         <LinkPending className="size-3" />
       </Link>
     ) : (
       <Link href={`/stock/transfers/${line.roworder}`} className={`${actionClass} bg-sky-500 hover:bg-sky-600`}>
         <ArrowLeftRight className="size-3.5" />
-        ຂໍໂອນ
+        {t.requestTransfer}
         <LinkPending className="size-3" />
       </Link>
     );
@@ -343,7 +347,7 @@ function RowAction({ line }: { line: Line }) {
       className={`${actionClass} bg-indigo-600 hover:bg-indigo-700`}
     >
       <ShoppingCart className="size-3.5" />
-      ສັ່ງຊື້
+      {t.purchase}
       <LinkPending className="size-3" />
     </Link>
   );
@@ -351,40 +355,44 @@ function RowAction({ line }: { line: Line }) {
   if (line.status === LINE_STATUS.ON_PURCHASE_ORDER) {
     if (inWh > 0) return dispatch;
     if (other > 0) return transfer;
-    return <span className="text-[11px] font-semibold text-indigo-600">ກຳລັງສັ່ງຊື້</span>;
+    return <span className="text-[11px] font-semibold text-indigo-600">{t.purchasing}</span>;
   }
   if (total < 1) return purchase;
   if (inWh > 0) return dispatch;
   return transfer;
 }
 
-const PENDING_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "doc_no", label: "ເລກທີໃບຂໍເບີກ", defaultDir: "desc" },
-  { key: "elapsed", label: "ຄ້າງມາ", defaultDir: "desc" },
-  { key: "product", label: "ສິນຄ້າ", defaultDir: "asc" },
-  { key: "item", label: "ອາໄຫຼ່", defaultDir: "asc" },
-  { key: "qty", label: "ຈຳນວນ", defaultDir: "desc" },
-  { key: "balance", label: "ຄົງເຫຼືອ", defaultDir: "desc" },
+type Column = { key: string; label: string; defaultDir: SortDir };
+
+const pendingColumns = (t: Dict): Column[] => [
+  { key: "doc_no", label: t.colRequestNo, defaultDir: "desc" },
+  { key: "elapsed", label: t.colWaited, defaultDir: "desc" },
+  { key: "product", label: t.colProduct, defaultDir: "asc" },
+  { key: "item", label: t.colSpare, defaultDir: "asc" },
+  { key: "qty", label: t.colQty, defaultDir: "desc" },
+  { key: "balance", label: t.colBalance, defaultDir: "desc" },
 ];
 
-const DOC_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "doc_no", label: "ເລກທີ", defaultDir: "desc" },
-  { key: "doc_date", label: "ວັນທີ", defaultDir: "desc" },
-  { key: "doc_ref", label: "ເລກໃບອ້າງອີງ", defaultDir: "desc" },
-  { key: "remark", label: "ໝາຍເຫດ", defaultDir: "asc" },
+const docColumns = (t: Dict): Column[] => [
+  { key: "doc_no", label: t.colDocNo, defaultDir: "desc" },
+  { key: "doc_date", label: t.colDate, defaultDir: "desc" },
+  { key: "doc_ref", label: t.colRefNo, defaultDir: "desc" },
+  { key: "remark", label: t.colRemark, defaultDir: "asc" },
 ];
 
-const INSTALL_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "doc_no", label: "ເລກທີຂໍເບີກ", defaultDir: "desc" },
-  { key: "product", label: "ລາຍການຕິດຕັ້ງ", defaultDir: "asc" },
-  { key: "wh", label: "ສາງ", defaultDir: "asc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
+const installColumns = (t: Dict): Column[] => [
+  { key: "doc_no", label: t.colInstallRequestNo, defaultDir: "desc" },
+  { key: "product", label: t.colInstallItem, defaultDir: "asc" },
+  { key: "wh", label: t.warehouse, defaultDir: "asc" },
+  { key: "customer", label: t.colCustomer, defaultDir: "asc" },
 ];
 
 export default async function StockDispatchPage({ searchParams }: Props) {
   // ດຶງໃບເບີກທີ່ສາງອອກໃນ ERP ກັບມາກ່ອນ ⇒ ຄິວທີ່ເຫັນເປັນຄວາມຈິງລ້າສຸດ (lib/erp-dispatch)
   // ພ້ອມກັນນັ້ນ ອາໄຫຼ່ທີ່ສັ່ງຊື້ ແລະ ຮັບເຂົ້າສາງແລ້ວຢູ່ ERP ຈະຕົກລົງມາຄິວນີ້ເອງ (lib/erp-purchase)
   await Promise.all([syncErpDispatch(), syncErpPurchase()]);
+
+  const t = (await getDictionary(await getLocale())).stockDispatch;
 
   const session = await getSession();
   const warehouses = await getOwnWarehouses(session?.username ?? "");
@@ -421,10 +429,10 @@ export default async function StockDispatchPage({ searchParams }: Props) {
     `/stock/dispatch?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
   const TABS: { key: Tab; label: string; icon: typeof PackageCheck; count: number }[] = [
-    { key: "pending", label: "ລໍຖ້າເບີກ", icon: PackageCheck, count: counts.pending },
-    { key: "install", label: "ງານຕິດຕັ້ງ", icon: Hammer, count: counts.install },
-    { key: "dispatched", label: "ໃບເບີກອາໄຫຼ່", icon: FileText, count: counts.dispatched },
-      { key: "ordered", label: "ໃບສັ່ງຊື້ອາໄຫຼ່", icon: ShoppingCart, count: counts.ordered },
+    { key: "pending", label: t.tabPending, icon: PackageCheck, count: counts.pending },
+    { key: "install", label: t.tabInstall, icon: Hammer, count: counts.install },
+    { key: "dispatched", label: t.tabDispatched, icon: FileText, count: counts.dispatched },
+      { key: "ordered", label: t.tabOrdered, icon: ShoppingCart, count: counts.ordered },
   ];
 
   const lines = tab === "pending" ? (data.rows as Line[]) : [];
@@ -435,9 +443,9 @@ export default async function StockDispatchPage({ searchParams }: Props) {
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-700">ເບີກອາໄຫຼ່</h1>
+          <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            ສາງ: {warehouses.join(", ")} · {total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+            {t.warehouse}: {warehouses.join(", ")} · {total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
           </p>
         </div>
 
@@ -457,7 +465,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
             className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
             <FileBarChart className="size-4" />
-            ລາຍງານ
+            {t.report}
             <LinkPending className="size-3.5" />
           </Link>
         </div>
@@ -495,11 +503,11 @@ export default async function StockDispatchPage({ searchParams }: Props) {
             <input
               name="q"
               defaultValue={q}
-              placeholder="ຄົ້ນຫາ ເລກທີ, ອາໄຫຼ່, ສິນຄ້າ, ໝາຍເຫດ..."
+              placeholder={t.searchPlaceholder}
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -510,7 +518,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
             <table className="w-full min-w-[1250px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                  {PENDING_COLUMNS.map((column) => (
+                  {pendingColumns(t).map((column) => (
                     <SortHeader
                       key={column.key}
                       label={column.label}
@@ -522,9 +530,9 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                       className="py-2.5"
                     />
                   ))}
-                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສາງຈ່າຍ</th>
-                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສາງອື່ນ</th>
-                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສະຖານະ</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colIssuingWarehouse}</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colOtherWarehouse}</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colStatus}</th>
                   <th className="px-3 py-2.5" />
                 </tr>
               </thead>
@@ -573,15 +581,15 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-center">{other}</td>
                       <td className="whitespace-nowrap px-3 py-2.5">
-                        <StockChip inWh={inWh} other={other} />
+                        <StockChip inWh={inWh} other={other} t={t} />
                         {line.status === LINE_STATUS.ON_PURCHASE_ORDER && (
                           <span className="ml-1 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700">
-                            ກຳລັງສັ່ງຊື້
+                            {t.purchasing}
                           </span>
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5">
-                        <RowAction line={line} />
+                        <RowAction line={line} t={t} />
                       </td>
                     </tr>
                   );
@@ -594,7 +602,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
             <table className="w-full min-w-[900px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                  {INSTALL_COLUMNS.map((column) => (
+                  {installColumns(t).map((column) => (
                     <SortHeader
                       key={column.key}
                       label={column.label}
@@ -622,10 +630,10 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <span
-                        title="ຍັງບໍ່ທັນຍ້າຍມາ Next.js"
+                        title={t.notMigrated}
                         className="inline-flex h-8 cursor-not-allowed items-center rounded-lg bg-slate-200 px-3 text-xs font-semibold text-slate-500"
                       >
-                        ເບີກ
+                        {t.dispatch}
                       </span>
                     </td>
                   </tr>
@@ -638,10 +646,10 @@ export default async function StockDispatchPage({ searchParams }: Props) {
             <table className="w-full min-w-[900px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                  {DOC_COLUMNS.map((column) => (
+                  {docColumns(t).map((column) => (
                     <SortHeader
                       key={column.key}
-                      label={column.key === "doc_ref" && tab !== "ordered" ? "ເລກໃບຂໍເບີກ" : column.label}
+                      label={column.key === "doc_ref" && tab !== "ordered" ? t.colRequestBillNo : column.label}
                       sortKey={column.key}
                       current={sort}
                       dir={dir}
@@ -650,7 +658,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                       className="py-2.5"
                     />
                   ))}
-                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ວັນທີອ້າງອີງ</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colRefDate}</th>
                   <th className="px-3 py-2.5" />
                 </tr>
               </thead>
@@ -674,15 +682,15 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                           }
                           className={`${actionClass} bg-sky-500 hover:bg-sky-600`}
                         >
-                          ເບີ່ງ
+                          {t.view}
                           <LinkPending className="size-3" />
                         </Link>
                       ) : (
                         <span
-                          title="ຍັງບໍ່ທັນຍ້າຍມາ Next.js"
+                          title={t.notMigrated}
                           className="inline-flex h-8 cursor-not-allowed items-center rounded-lg bg-slate-200 px-3 text-xs font-semibold text-slate-500"
                         >
-                          ເບີ່ງ
+                          {t.view}
                         </span>
                       )}
                     </td>
@@ -693,13 +701,13 @@ export default async function StockDispatchPage({ searchParams }: Props) {
           )}
         </div>
 
-        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} ຈາກ {total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} {t.of} {total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -708,7 +716,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -718,7 +726,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>

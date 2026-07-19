@@ -6,6 +6,8 @@ import { RowLink } from "@/components/row-link";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { Ban, CheckCircle2, ChevronLeft, ChevronRight, PackageCheck, Printer, Receipt, Search } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -197,22 +199,25 @@ async function getCounts() {
   };
 }
 
-const WAIT_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "code", label: "ເລກທີ", defaultDir: "desc" },
-  { key: "elapsed", label: "ເວລາລໍຖ້າສົ່ງຄືນ", defaultDir: "desc" },
-  { key: "product", label: "ຊື່ເຄື່ອງ / SN", defaultDir: "asc" },
-  { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
-  { key: "warranty", label: "ປະກັນ", defaultDir: "asc" },
-  { key: "technician", label: "ຜູ້ສ້ອມ", defaultDir: "asc" },
+type Dict = Record<string, string>;
+type Column = { key: string; label: string; defaultDir: SortDir };
+
+const waitColumns = (t: Dict): Column[] => [
+  { key: "code", label: t.colCode, defaultDir: "desc" },
+  { key: "elapsed", label: t.colReturnWaitTime, defaultDir: "desc" },
+  { key: "product", label: t.colItemSn, defaultDir: "asc" },
+  { key: "brand", label: t.brand, defaultDir: "asc" },
+  { key: "customer", label: t.customer, defaultDir: "asc" },
+  { key: "warranty", label: t.colWarranty, defaultDir: "asc" },
+  { key: "technician", label: t.colTechnician, defaultDir: "asc" },
 ];
 
-const BILL_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "doc_no", label: "ເລກທີ", defaultDir: "desc" },
-  { key: "doc_date", label: "ວັນທີ", defaultDir: "desc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
-  { key: "product", label: "ລາຍການສິນຄ້າ", defaultDir: "asc" },
-  { key: "amount", label: "ມູນຄ່າ", defaultDir: "desc" },
+const billColumns = (t: Dict): Column[] => [
+  { key: "doc_no", label: t.colCode, defaultDir: "desc" },
+  { key: "doc_date", label: t.colDate, defaultDir: "desc" },
+  { key: "customer", label: t.customer, defaultDir: "asc" },
+  { key: "product", label: t.colProductList, defaultDir: "asc" },
+  { key: "amount", label: t.colAmount, defaultDir: "desc" },
 ];
 
 const money = (value: string | null) =>
@@ -226,6 +231,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
   const page = Math.max(1, Number(params.page) || 1);
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
   const sort = (params.sort ?? (tab === "bills" ? "doc_no" : "elapsed")).trim();
+  const t = (await getDictionary(await getLocale())).returnsList;
 
   const [counts, jobs, bills] = await Promise.all([
     getCounts(),
@@ -245,19 +251,19 @@ export default async function ReturnsPage({ searchParams }: Props) {
     `/returns?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
   const TABS: { key: Tab; label: string; icon: typeof PackageCheck; count: number }[] = [
-    { key: "waiting", label: "ລໍຖ້າສົ່ງຄືນ", icon: PackageCheck, count: counts.waiting },
-    { key: "cancelled", label: "ສົ່ງຄືນໂດຍບໍ່ສ້ອມ", icon: Ban, count: counts.cancelled },
-    { key: "bills", label: "ໃບຮັບເງິນ", icon: Receipt, count: counts.bills },
+    { key: "waiting", label: t.tabWaiting, icon: PackageCheck, count: counts.waiting },
+    { key: "cancelled", label: t.tabCancelled, icon: Ban, count: counts.cancelled },
+    { key: "bills", label: t.tabBills, icon: Receipt, count: counts.bills },
   ];
 
-  const columns = isJobTab ? WAIT_COLUMNS : BILL_COLUMNS;
+  const columns = isJobTab ? waitColumns(t) : billColumns(t);
 
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-700">ລາຍການລໍຖ້າສົ່ງຄືນສິນຄ້າ/ອອກໃບຮັບເງິນ</h1>
+        <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          {total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+          {total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
         </p>
       </div>
 
@@ -291,13 +297,11 @@ export default async function ReturnsPage({ searchParams }: Props) {
             <input
               name="q"
               defaultValue={q}
-              placeholder={
-                isJobTab ? "ຄົ້ນຫາ ເລກທີ, SN, ລູກຄ້າ, ຫຍີ່ຫໍ້, ຊ່າງ..." : "ຄົ້ນຫາ ເລກທີ, ລູກຄ້າ, ສິນຄ້າ, ໝາຍເຫດ..."
-              }
+              placeholder={isJobTab ? t.searchPlaceholderJob : t.searchPlaceholderBill}
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -311,7 +315,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                   <SortHeader
                     key={column.key}
                     label={
-                      column.key === "elapsed" && tab === "cancelled" ? "ອະນຸມັດຍົກເລີກມາແລ້ວ" : column.label
+                      column.key === "elapsed" && tab === "cancelled" ? t.colCancelApproved : column.label
                     }
                     sortKey={column.key}
                     current={sort}
@@ -323,14 +327,14 @@ export default async function ReturnsPage({ searchParams }: Props) {
                 ))}
                 {isJobTab ? (
                   <>
-                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາການ</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.issue}</th>
                     {tab === "cancelled" && (
-                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາໄຫຼ່ຄ້າງນອກສາງ</th>
+                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colSparesOutstanding}</th>
                     )}
-                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຮູບ</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.image}</th>
                   </>
                 ) : (
-                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໝາຍເຫດ</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colRemark}</th>
                 )}
                 <th className="px-3 py-2.5" />
               </tr>
@@ -386,15 +390,15 @@ export default async function ReturnsPage({ searchParams }: Props) {
                           {row.spares && row.spares.lines > 0 ? (
                             <>
                               <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
-                                {row.spares.lines} ລາຍການ · {row.spares.units.toLocaleString()} ໜ່ວຍ
+                                {row.spares.lines} {t.items} · {row.spares.units.toLocaleString()} {t.units}
                               </span>
                               <span className="mt-0.5 block text-[10px] text-slate-400">
-                                {row.spares.docs} ໃບເບີກ ຍັງບໍ່ຄືນສາງ
+                                {row.spares.docs} {t.issueDoc} {t.notReturnedToStock}
                               </span>
                             </>
                           ) : (
                             <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
-                              ຄືນສາງຄົບ
+                              {t.returnedComplete}
                             </span>
                           )}
                         </td>
@@ -426,7 +430,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                           className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
                         >
                           <CheckCircle2 className="size-3.5" />
-                          {tab === "cancelled" ? "ສົ່ງຄືນ" : "ເບີກ"}
+                          {tab === "cancelled" ? t.returnAction : t.withdrawAction}
                           <LinkPending className="size-3" />
                         </Link>
                       </td>
@@ -456,7 +460,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                         className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
                       >
                         <Printer className="size-3.5" />
-                        ເບີ່ງ
+                        {t.view}
                         <LinkPending className="size-3" />
                       </Link>
                     </td>
@@ -486,7 +490,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                     />
                   </div>
                   <p className="mt-0.5 text-[10px] text-slate-400">
-                    {tab === "cancelled" ? "ອະນຸມັດຍົກເລີກ" : "ສ້ອມຈົບ"}: {row.finished || "-"}
+                    {tab === "cancelled" ? t.cancelApproved : t.repairDone}: {row.finished || "-"}
                   </p>
 
                   <div className="mt-2 flex items-start gap-2">
@@ -512,16 +516,16 @@ export default async function ReturnsPage({ searchParams }: Props) {
                         {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
                       </p>
                       <p className="truncate text-[11px] text-slate-400">SN: {row.sn || "-"}</p>
-                      <p className="truncate text-[11px] text-slate-500">ຫຍີ່ຫໍ້: {row.brand || "-"}</p>
+                      <p className="truncate text-[11px] text-slate-500">{t.brand}: {row.brand || "-"}</p>
                     </div>
                   </div>
 
                   <p className="mt-1.5 truncate text-xs text-slate-600" title={row.customer ?? ""}>
-                    ລູກຄ້າ: {row.customer || "-"}
+                    {t.customer}: {row.customer || "-"}
                   </p>
                   {issue && (
                     <p className="mt-0.5 truncate text-xs font-semibold text-red-600" title={issue}>
-                      ອາການ: {issue}
+                      {t.issue}: {issue}
                     </p>
                   )}
 
@@ -534,16 +538,16 @@ export default async function ReturnsPage({ searchParams }: Props) {
                       {row.warranty || "-"}
                     </span>
                     <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
-                      ຊ່າງ: {row.emp_code || "-"}
+                      {t.techShort}: {row.emp_code || "-"}
                     </span>
                     {tab === "cancelled" &&
                       (row.spares && row.spares.lines > 0 ? (
                         <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
-                          ອາໄຫຼ່ຄ້າງ {row.spares.lines} ລາຍການ · {row.spares.docs} ໃບເບີກ
+                          {t.sparesOutstandingShort} {row.spares.lines} {t.items} · {row.spares.docs} {t.issueDoc}
                         </span>
                       ) : (
                         <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
-                          ຄືນສາງຄົບ
+                          {t.returnedComplete}
                         </span>
                       ))}
                   </div>
@@ -553,7 +557,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                     className="mt-2.5 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-3 text-sm font-semibold text-white hover:bg-teal-700"
                   >
                     <CheckCircle2 className="size-4" />
-                    {tab === "cancelled" ? "ສົ່ງຄືນ" : "ເບີກ"}
+                    {tab === "cancelled" ? t.returnAction : t.withdrawAction}
                     <LinkPending className="size-3.5" />
                   </Link>
                 </div>
@@ -568,7 +572,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                   <span className="shrink-0 text-[11px] text-slate-400">{row.doc_date ?? "-"}</span>
                 </div>
                 <p className="mt-1.5 truncate text-xs text-slate-600" title={row.customer ?? ""}>
-                  ລູກຄ້າ: {row.customer || "-"}
+                  {t.customer}: {row.customer || "-"}
                 </p>
                 <p className="mt-0.5 truncate text-sm font-medium text-slate-800" title={row.product ?? ""}>
                   {row.product || "-"}
@@ -576,7 +580,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                 <p className="mt-1 text-sm font-semibold text-slate-800">{money(row.total_amount)}</p>
                 {row.remark && (
                   <p className="mt-0.5 truncate text-[11px] text-slate-500" title={row.remark}>
-                    ໝາຍເຫດ: {row.remark}
+                    {t.colRemark}: {row.remark}
                   </p>
                 )}
                 <Link
@@ -584,7 +588,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                   className="mt-2.5 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 >
                   <Printer className="size-4" />
-                  ເບີ່ງ
+                  {t.view}
                   <LinkPending className="size-3.5" />
                 </Link>
               </div>
@@ -592,13 +596,13 @@ export default async function ReturnsPage({ searchParams }: Props) {
           </MobileCardList>
         </div>
 
-        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} ຈາກ {total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} {t.of} {total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -607,7 +611,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -617,7 +621,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>

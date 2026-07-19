@@ -3,9 +3,13 @@ import { LinkPending } from "@/components/link-pending";
 import { getSession } from "@/lib/auth";
 import { queryOdg } from "@/lib/db";
 import { APPROVER_SIDE, roleOf } from "@/lib/roles";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { ERP_PURCHASE } from "@/lib/stock-constants";
 import { ArrowLeft, BellRing, ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import Link from "next/link";
+
+type Dict = Record<string, string>;
 
 /**
  * ໃບສັ່ງຊື້ (PO) ຂອງວຽກສ້ອມ — **ອ່ານຈາກ ERP** (trans_flag=6, POT/POH).
@@ -29,7 +33,7 @@ const branchName = (code: string | null) =>
   code === "05" ? "ໂອດ່ຽນໄທ" : code === "00" ? "ສຳນັກງານໃຫ່ຍ" : (code ?? "-");
 
 /** ອາຍຸເອກະສານ — ນັບຈາກມື້ອອກຮອດມື້ນີ້, ຄ້າງດົນສີແດງ (ຂໍຈາກຜູ້ໃຊ້ 17-07-2026) */
-function AgeBadge({ days }: { days: number | null }) {
+function AgeBadge({ days, t }: { days: number | null; t: Dict }) {
   if (days === null) return <span className="text-slate-300">-</span>;
   return (
     <span
@@ -37,7 +41,7 @@ function AgeBadge({ days }: { days: number | null }) {
         days >= 14 ? "bg-red-100 text-red-700" : days >= 7 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"
       }`}
     >
-      {days} ມື້
+      {days} {t.daysUnit}
     </span>
   );
 }
@@ -115,11 +119,11 @@ const STATUS_WHERE: Record<PoStatus, string> = {
   received: HAS_PUI,
 };
 
-const STATUS_LABEL: Record<PoStatus, string> = {
-  wait: "ລໍອະນຸມັດ",
-  approved: "ອະນຸມັດແລ້ວ — ລໍຂອງ",
+const statusLabel = (t: Dict): Record<PoStatus, string> => ({
+  wait: t.statusWait,
+  approved: t.statusApproved,
   received: "ຮັບເຂົ້າສາງແລ້ວ",
-};
+});
 
 const statusOf = (value: string | undefined): PoStatus | null =>
   value === "wait" || value === "approved" || value === "received" ? value : null;
@@ -248,7 +252,7 @@ async function getWpraWaiting(): Promise<WpraRow[]> {
 }
 
 /** ສະຖານະທ້າຍຕ່ອງໂສ້ຂອງ PO ໃບນຶ່ງ — ໄລ່ຮອດ PUI ຮັບເຂົ້າສາງ (ຂໍຈາກຜູ້ໃຊ້ 17-07-2026) */
-function StatusChip({ row }: { row: Row }) {
+function StatusChip({ row, t }: { row: Row; t: Dict }) {
   if (row.pui && row.items_received >= row.items) {
     return (
       <span className="inline-flex flex-col items-start gap-0.5">
@@ -263,7 +267,7 @@ function StatusChip({ row }: { row: Row }) {
     return (
       <span className="inline-flex flex-col items-start gap-0.5">
         <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
-          ຮັບບາງສ່ວນ {row.items_received}/{row.items}
+          {t.receivedPartial} {row.items_received}/{row.items}
         </span>
         <span className="font-mono text-[9px] text-slate-400" title={row.pui}>{row.pui}</span>
       </span>
@@ -273,14 +277,14 @@ function StatusChip({ row }: { row: Row }) {
     return (
       <span className="inline-flex flex-col items-start gap-0.5">
         <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-          ອະນຸມັດແລ້ວ — ລໍຂອງ
+          {t.statusApproved}
         </span>
         <span className="font-mono text-[9px] text-slate-400">{row.wpoa}</span>
       </span>
     );
   }
   return (
-    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">ລໍອະນຸມັດ PO</span>
+    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">{t.waitApprovalPo}</span>
   );
 }
 
@@ -302,6 +306,8 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
     getWpraWaiting(),
     getSession(),
   ]);
+  const t = (await getDictionary(await getLocale())).poList;
+  const statusLabels = statusLabel(t);
   const statusCount: Record<PoStatus, number> = { wait, approved, received };
   /** ຮັກສາຕົວກອງອື່ນໄວ້ຕອນກົດປ່ຽນອັນໜຶ່ງ — ບໍ່ດັ່ງນັ້ນຄົນຕັ້ງໃໝ່ໝົດທຸກເທື່ອ */
   const hrefWith = (patch: Record<string, string | null>) => {
@@ -324,11 +330,11 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-700">{tab === "issue" ? "ຄິວລໍອອກ PO" : "ໃບສັ່ງຊື້ (PO)"}</h1>
+          <h1 className="text-xl font-bold text-slate-700">{tab === "issue" ? t.issueQueueTitle : t.poTitle}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
             {tab === "issue"
-              ? "ໃບຂໍຊື້ອະນຸມັດແລ້ວ (WPRA) ລໍເລືອກຜູ້ສະໜອງ + ອອກ PO — ກົດເປີດເອກະສານແລ້ວອອກຈາກໜ້ານັ້ນ"
-              : `ອອກຈາກນີ້ ຫຼື ອອກໃນ ERP ກໍ່ໄດ້ · ບັນທຶກຢູ່ ERP ບ່ອນດຽວ · ${total} ໃບ`}
+              ? t.issueSubtitle
+              : `${t.listSubtitle} · ${total} ${t.sheets}`}
           </p>
         </div>
         <div className="flex gap-2">
@@ -338,7 +344,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"
             >
               <ArrowLeft className="size-3.5" />
-              ກັບໄປລາຍການ PO
+              {t.backToPoList}
               <LinkPending className="size-3" />
             </Link>
           ) : (
@@ -347,7 +353,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
               className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
             >
               <Plus className="size-3.5" />
-              ສ້າງ PO
+              {t.createPo}
               <LinkPending className="size-3" />
             </Link>
           )}
@@ -362,12 +368,12 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
         >
           <BellRing className="size-5 shrink-0 text-amber-600" />
           <div className="flex-1">
-            <p className="text-sm font-semibold text-amber-800">ລໍຖ້າອອກ PO — {wpraRows.length} ໃບ</p>
+            <p className="text-sm font-semibold text-amber-800">{t.waitingToIssue} — {wpraRows.length} {t.sheets}</p>
             <p className="text-xs text-amber-700">
-              ໃບຂໍຊື້ອະນຸມັດແລ້ວ (WPRA) ແຕ່ຍັງບໍ່ໄດ້ອອກໃບສັ່ງຊື້ · ກົດເພື່ອເລືອກຜູ້ສະໜອງ ແລະ ອອກ PO
+              {t.waitingToIssueDesc}
             </p>
           </div>
-          <span className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white">ອອກ PO</span>
+          <span className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white">{t.issuePo}</span>
           <LinkPending className="size-3 text-amber-600" />
         </Link>
       )}
@@ -379,13 +385,13 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
             <table className="w-full min-w-[900px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                  <th className="px-3 py-2.5 font-semibold">ໃບອະນຸມັດ (WPRA)</th>
-                  <th className="px-3 py-2.5 font-semibold">ວັນທີ</th>
-                  <th className="px-3 py-2.5 font-semibold">ຄ້າງ</th>
-                  <th className="px-3 py-2.5 font-semibold">ໃບຂໍຊື້</th>
-                  <th className="px-3 py-2.5 font-semibold">ວຽກ</th>
-                  <th className="px-3 py-2.5 font-semibold">ສາຂາ</th>
-                  <th className="px-3 py-2.5 text-right font-semibold">ຍອດ</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.colApprovalWpra}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.colDate}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.colPending}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.purchaseRequest}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.job}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.branch}</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">{t.amount}</th>
                   <th className="px-3 py-2.5" />
                 </tr>
               </thead>
@@ -394,7 +400,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
                   <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="px-3 py-2.5 font-bold text-[#0536a9]">{row.doc_no}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.doc_date ?? "-"}</td>
-                    <td className="px-3 py-2.5"><AgeBadge days={row.age} /></td>
+                    <td className="px-3 py-2.5"><AgeBadge days={row.age} t={t} /></td>
                     <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[10px] text-slate-500">{row.spr ?? "-"}</td>
                     <td className="px-3 py-2.5">
                       {isJobCode(row.job) ? (
@@ -414,7 +420,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
                         className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
                       >
                         <Plus className="size-3.5" />
-                        ອອກ PO
+                        {t.issuePo}
                         <LinkPending className="size-3" />
                       </Link>
                     </td>
@@ -425,7 +431,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
           </div>
           {wpraRows.length === 0 && (
             <p className="py-12 text-center text-xs text-slate-400">
-              ບໍ່ມີໃບລໍອອກ PO — ໃບຂໍຊື້ທີ່ອະນຸມັດແລ້ວຈະຂຶ້ນຄິວນີ້ເອງ
+              {t.noIssueQueue}
             </p>
           )}
         </section>
@@ -436,7 +442,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
         <div className="flex w-fit overflow-hidden rounded-lg border border-slate-300 bg-white">
           {(
             [
-              { key: "all", label: "ທັງໝົດ", href: hrefWith({ src: null, page: null }), count: src === "all" ? total : null },
+              { key: "all", label: t.all, href: hrefWith({ src: null, page: null }), count: src === "all" ? total : null },
             ] as const
           ).map(({ key, label, href, count }) => (
             <Link
@@ -466,7 +472,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
                   status === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
                 }`}
               >
-                {key ? STATUS_LABEL[key] : "ທຸກສະຖານະ"}
+                {key ? statusLabels[key] : t.allStatuses}
                 {key && <span className="tabular-nums opacity-70">({statusCount[key]})</span>}
                 <LinkPending className="size-3" />
               </Link>
@@ -482,16 +488,16 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
               <input
                 name="q"
                 defaultValue={q}
-                placeholder="ຄົ້ນ ເລກ PO, ຜູ້ສະໜອງ, ເລກ SPR, ເລກວຽກ..."
+                placeholder={t.searchPlaceholder}
                 className="h-8 w-72 rounded-lg border border-slate-300 pl-7 pr-2 text-xs focus:border-[#0536a9] focus:outline-none focus:ring-2 focus:ring-[#0536a9]/10"
               />
             </div>
             <button className="inline-flex h-8 items-center rounded-lg bg-[#0536a9] px-3 text-xs font-medium text-white hover:opacity-90">
-              ຄົ້ນຫາ
+              {t.search}
             </button>
             {q && (
               <Link href={hrefWith({ q: null, page: null })} className="text-xs text-slate-500 hover:underline">
-                ລ້າງ
+                {t.clear}
               </Link>
             )}
           </form>
@@ -505,14 +511,14 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
             <table className="w-full min-w-[1050px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                  <th className="px-3 py-2.5 font-semibold">ເລກໃບສັ່ງຊື້ (ERP)</th>
-                  <th className="px-3 py-2.5 font-semibold">ວັນທີ</th>
-                  <th className="px-3 py-2.5 font-semibold">ອາຍຸໃບ</th>
-                  <th className="px-3 py-2.5 font-semibold">ແຫຼ່ງທີ່ມາ</th>
-                  <th className="px-3 py-2.5 font-semibold">ຜູ້ສະໜອງ</th>
-                  <th className="px-3 py-2.5 font-semibold">ສາຂາ</th>
-                  <th className="px-3 py-2.5 text-right font-semibold">ຍອດ</th>
-                  <th className="px-3 py-2.5 font-semibold">ສະຖານະ</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.colPoNumber}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.colDate}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.colAge}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.colSource}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.colSupplier}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.branch}</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">{t.amount}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.status}</th>
                   {canApprove && <th className="px-3 py-2.5" />}
                 </tr>
               </thead>
@@ -526,21 +532,21 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
                       </Link>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.doc_date ?? "-"}</td>
-                    <td className="px-3 py-2.5"><AgeBadge days={row.age} /></td>
+                    <td className="px-3 py-2.5"><AgeBadge days={row.age} t={t} /></td>
                     <td className="px-3 py-2.5">
                       {row.spr ? (
                         <span className="inline-flex flex-col items-start">
                           {isJobCode(row.job) ? (
                             <Link href={`/service/${row.job}`} className="font-medium text-[#0536a9] hover:underline">
-                              ວຽກ {row.job}
+                              {t.job} {row.job}
                             </Link>
                           ) : (
-                            <span className="font-medium text-slate-600">ໃບຂໍຊື້</span>
+                            <span className="font-medium text-slate-600">{t.purchaseRequest}</span>
                           )}
                           <span className="font-mono text-[9px] text-slate-400">{row.spr}</span>
                         </span>
                       ) : (
-                        <span className="text-[10px] text-slate-400">ອອກໂດຍກົງ</span>
+                        <span className="text-[10px] text-slate-400">{t.direct}</span>
                       )}
                     </td>
                     <td className="max-w-52 truncate px-3 py-2.5" title={row.supplier_name ?? ""}>
@@ -549,7 +555,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{branchName(row.branch_code)}</td>
                     <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{row.total ?? "0"}</td>
-                    <td className="px-3 py-2.5"><StatusChip row={row} /></td>
+                    <td className="px-3 py-2.5"><StatusChip row={row} t={t} /></td>
                     {canApprove && (
                       <td className="px-3 py-2.5 text-center">
                         {!row.wpoa && !row.pui && <ApprovePoButton poNo={row.doc_no} back="/purchase-orders" />}
@@ -562,7 +568,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
           </div>
           {rows.length === 0 && (
             <p className="py-12 text-center text-xs text-slate-400">
-              ຍັງບໍ່ມີໃບສັ່ງຊື້ — ເລີ່ມຈາກອະນຸມັດໃບຂໍຊື້ ຫຼື ກົດ &ldquo;ສ້າງ PO&rdquo;
+              {t.noPoPrefix} &ldquo;{t.createPo}&rdquo;
             </p>
           )}
 
@@ -570,7 +576,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
           {pages > 1 && (
             <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2.5 text-xs text-slate-500">
               <span>
-                ໜ້າ {page} / {pages} · ທັງໝົດ {total} ໃບ
+                {t.page} {page} / {pages} · {t.all} {total} {t.sheets}
               </span>
               <div className="flex gap-1.5">
                 <Link
@@ -583,7 +589,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
                   }`}
                 >
                   <ChevronLeft className="size-3.5" />
-                  ກ່ອນໜ້າ
+                  {t.prev}
                 </Link>
                 <Link
                   href={pageHref(page + 1)}
@@ -594,7 +600,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
                       : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
                   }`}
                 >
-                  ຖັດໄປ
+                  {t.next}
                   <ChevronRight className="size-3.5" />
                 </Link>
               </div>
