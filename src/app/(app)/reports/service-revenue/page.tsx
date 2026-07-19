@@ -1,4 +1,6 @@
 import { defaultFromIso, ReportShell, reportState } from "@/components/report-shell";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { one, safeDate, todayIso, type SearchParams } from "@/lib/report-sql";
 import { serviceRevenueByMonth } from "@/lib/service-money";
 
@@ -11,15 +13,18 @@ import { serviceRevenueByMonth } from "@/lib/service-money";
  */
 export const dynamic = "force-dynamic";
 
-const columns = [
-  { key: "month", label: "ເດືອນ" },
-  { key: "jobs", label: "ຈຳນວນງານ" },
-  { key: "quoted", label: "ຕົກລົງ (ບາດ)" },
-  { key: "paid", label: "ຮັບແລ້ວ (ບາດ)" },
-  { key: "due", label: "ຄ້າງ (ບາດ)" },
+type Dict = Record<string, string>;
+
+const columnsFor = (t: Dict) => [
+  { key: "month", label: t.colMonth },
+  { key: "jobs", label: t.colJobs },
+  { key: "quoted", label: t.colQuoted },
+  { key: "paid", label: t.colPaid },
+  { key: "due", label: t.colDue },
 ];
 
 export default async function ServiceRevenueReport({ searchParams }: { searchParams: SearchParams }) {
+  const t = (await getDictionary(await getLocale())).serviceRevenue;
   const params = await searchParams;
   const from = safeDate(one(params.from), defaultFromIso());
   const to = safeDate(one(params.to), todayIso());
@@ -30,7 +35,7 @@ export default async function ServiceRevenueReport({ searchParams }: { searchPar
   try {
     rows = await serviceRevenueByMonth(from, to);
   } catch (exception) {
-    error = exception instanceof Error ? exception.message : "ດຶງຂໍ້ມູນບໍ່ສຳເລັດ";
+    error = exception instanceof Error ? exception.message : t.fetchFailed;
   }
 
   const sum = (key: "quoted" | "paid" | "due") =>
@@ -38,23 +43,23 @@ export default async function ServiceRevenueReport({ searchParams }: { searchPar
 
   return (
     <ReportShell
-      title="ສະຫຼຸບລາຍຮັບຈາກງານສ້ອມ"
-      subtitle={`ຕາມວັນທີໃບສະເໜີລາຄາ ${from} ຫາ ${to} · ບັນທຶກການຊຳລະເລີ່ມ 17-07-2026`}
+      title={t.title}
+      subtitle={`${t.subtitlePrefix} ${from} ${t.subtitleTo} ${to} ${t.subtitleSuffix}`}
       basePath="/reports/service-revenue"
       query={{ from, to }}
       state={state}
       dateRange={{ from, to }}
-      columns={columns}
+      columns={columnsFor(t)}
       rows={rows}
       error={error}
       summary={[
-        { label: "ງານ", value: rows.reduce((total, row) => total + row.jobs, 0).toLocaleString() },
-        { label: "ຕົກລົງ", value: sum("quoted").toLocaleString() },
-        { label: "ຮັບແລ້ວ", value: sum("paid").toLocaleString() },
-        { label: "ຄ້າງ", value: sum("due").toLocaleString() },
+        { label: t.statJobs, value: rows.reduce((total, row) => total + row.jobs, 0).toLocaleString() },
+        { label: t.statQuoted, value: sum("quoted").toLocaleString() },
+        { label: t.statPaid, value: sum("paid").toLocaleString() },
+        { label: t.statDue, value: sum("due").toLocaleString() },
       ]}
       minWidth={700}
-      searchPlaceholder="ຄົ້ນຫາເດືອນ..."
+      searchPlaceholder={t.searchPlaceholder}
     />
   );
 }

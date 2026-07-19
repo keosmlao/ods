@@ -1,4 +1,5 @@
 "use client";
+import { useDict } from "@/lib/i18n/context";
 import "leaflet/dist/leaflet.css";
 import { Crosshair, MapPin, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -56,6 +57,7 @@ export function LocationPicker({
   value: Point | null;
   onChange: (point: Point | null) => void;
 }) {
+  const t = useDict().locationPicker;
   const [open, setOpen] = useState(false);
   const [locating, setLocating] = useState(false);
   const [pasted, setPasted] = useState("");
@@ -70,7 +72,7 @@ export function LocationPicker({
           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
         >
           <MapPin className="size-3.5 text-teal-600" />
-          {value ? "ປ່ຽນຈຸດເທິງແຜນທີ່" : "ປັກໝຸດເທິງແຜນທີ່"}
+          {value ? t.changePointOnMap : t.pinOnMap}
         </button>
 
         <button
@@ -92,7 +94,7 @@ export function LocationPicker({
           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
         >
           <Crosshair className="size-3.5" />
-          {locating ? "ກຳລັງຫາ..." : "ໃຊ້ຕຳແໜ່ງປັດຈຸບັນ"}
+          {locating ? t.locating : t.useCurrentLocation}
         </button>
 
         {value && (
@@ -101,7 +103,7 @@ export function LocationPicker({
               href={`https://www.google.com/maps/search/?api=1&query=${value.lat},${value.lng}`}
               target="_blank"
               rel="noreferrer"
-              title="ເປີດເບິ່ງໃນ Google Maps"
+              title={t.openInGoogleMaps}
               className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:underline"
             >
               {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
@@ -111,7 +113,7 @@ export function LocationPicker({
               onClick={() => onChange(null)}
               className="text-xs font-semibold text-slate-400 hover:text-red-600"
             >
-              ລຶບຈຸດ
+              {t.removePoint}
             </button>
           </>
         )}
@@ -134,27 +136,29 @@ export function LocationPicker({
               setPasted("");
             } else if (text.includes("goo.gl") || text.includes("maps.app")) {
               // ລິງຫຍໍ້ບໍ່ມີພິກັດຢູ່ໃນຕົວ — ບອກໃຫ້ຮູ້ ບໍ່ແມ່ນງຽບໆ
-              setPasteError("ລິງຫຍໍ້ບໍ່ມີພິກັດ — ເປີດລິງ, ກົດຂວາເທິງໝຸດ ແລ້ວກັອບປີ້ເລກພິກັດມາວາງ");
+              setPasteError(t.shortLinkNoCoords);
             } else if (text.trim().length > 8) {
-              setPasteError("ຫາພິກັດໃນຂໍ້ຄວາມນີ້ບໍ່ພົບ");
+              setPasteError(t.coordsNotFound);
             }
           }}
-          placeholder="ວາງລິງ Google Maps ຫຼື ພິກັດ (17.9757, 102.6331)"
+          placeholder={t.pastePlaceholder}
           className="h-9 w-full max-w-md rounded-lg border border-slate-300 px-3 text-xs outline-none focus:border-teal-500 md:w-96"
         />
         {pasteError && <span className="text-[11px] font-semibold text-amber-600">{pasteError}</span>}
       </div>
 
-      {open && <MapDialog value={value} onClose={() => setOpen(false)} onPick={onChange} />}
+      {open && <MapDialog t={t} value={value} onClose={() => setOpen(false)} onPick={onChange} />}
     </div>
   );
 }
 
 function MapDialog({
+  t,
   value,
   onClose,
   onPick,
 }: {
+  t: ReturnType<typeof useDict>["locationPicker"];
   value: Point | null;
   onClose: () => void;
   onPick: (point: Point) => void;
@@ -205,8 +209,8 @@ function MapDialog({
       <div className="flex h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <header className="flex items-center justify-between gap-3 border-b border-slate-100 p-4">
           <div>
-            <h2 className="font-bold text-slate-800">ປັກໝຸດສະຖານທີ່ຕິດຕັ້ງ</h2>
-            <p className="text-xs text-slate-500">ກົດເທິງແຜນທີ່ເພື່ອວາງໝຸດ — ຊ່າງຈະກົດນຳທາງໄປຈຸດນີ້</p>
+            <h2 className="font-bold text-slate-800">{t.dialogTitle}</h2>
+            <p className="text-xs text-slate-500">{t.dialogSubtitle}</p>
           </div>
           <button
             type="button"
@@ -221,7 +225,7 @@ function MapDialog({
 
         <footer className="flex items-center gap-3 border-t border-slate-100 p-3">
           <span className="text-xs text-slate-500">
-            {picked ? `${picked.lat.toFixed(5)}, ${picked.lng.toFixed(5)}` : "ຍັງບໍ່ໄດ້ວາງໝຸດ"}
+            {picked ? `${picked.lat.toFixed(5)}, ${picked.lng.toFixed(5)}` : t.noPinYet}
           </span>
           <button
             type="button"
@@ -232,7 +236,7 @@ function MapDialog({
             }}
             className="ml-auto inline-flex h-9 items-center rounded-lg bg-teal-600 px-4 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
           >
-            ໃຊ້ຈຸດນີ້
+            {t.useThisPoint}
           </button>
         </footer>
       </div>

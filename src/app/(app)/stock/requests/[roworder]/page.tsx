@@ -6,6 +6,8 @@ import { Card, ErrorBox, Table } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query, queryOdg } from "@/lib/db";
 import { docPrefix } from "@/lib/doc-no";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { TRANS } from "@/lib/stock-constants";
 import { canViewAssignedJob } from "@/lib/scope";
 import { getBalances } from "@/lib/stock-balance";
@@ -80,6 +82,7 @@ async function getWarehouses() {
 }
 
 export default async function StockRequestFormPage({ params }: Props) {
+  const t = (await getDictionary(await getLocale())).requestsRoworder;
   const { roworder } = await params;
   const session = await getSession();
   if (!session) redirect("/login");
@@ -120,21 +123,21 @@ export default async function StockRequestFormPage({ params }: Props) {
             className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700"
           >
             <ArrowLeft className="size-3.5" />
-            ກັບໄປລາຍການຂໍເບີກ
+            {t.backToList}
           </Link>
           <div className="flex items-center gap-3">
             <span className="grid size-11 place-items-center rounded-2xl bg-teal-600 text-white shadow-sm">
               <PackageOpen className="size-5" />
             </span>
             <div>
-              <h1 className="text-xl font-bold text-slate-800">ຂໍເບີກອາໄຫຼ່ #{head.product_code}</h1>
-              <p className="mt-0.5 text-xs text-slate-500">ເລືອກສາງ · ກວດຍອດຄົງເຫຼືອ · ຢືນຢັນລາຍການກ່ອນສົ່ງຄຳຂໍ</p>
+              <h1 className="text-xl font-bold text-slate-800">{t.title} #{head.product_code}</h1>
+              <p className="mt-0.5 text-xs text-slate-500">{t.subtitle}</p>
             </div>
           </div>
         </div>
         <span className="inline-flex h-9 items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 text-xs font-semibold text-sky-700">
           <ClipboardList className="size-4" />
-          ລໍສົ່ງຄຳຂໍ {pending.length} ລາຍການ
+          {t.pendingBadgePrefix} {pending.length} {t.items}
         </span>
       </div>
 
@@ -143,18 +146,18 @@ export default async function StockRequestFormPage({ params }: Props) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="flex items-center gap-2 text-sm font-bold text-amber-900">
-                <TriangleAlert className="size-4" /> ຕ້ອງສັ່ງຊື້ກ່ອນຂໍເບີກ
+                <TriangleAlert className="size-4" /> {t.purchaseTitle}
               </h2>
               <p className="mt-1 text-xs text-amber-800">
-                ERP ບໍ່ມີ/ຈຳນວນບໍ່ພໍ {purchaseNeeded.length} ລາຍການ. ຫຼັງຮັບເຂົ້າສາງແລ້ວ ຈຶ່ງກັບມາສ້າງໃບຂໍເບີກ.
+                {t.purchaseNeedPrefix} {purchaseNeeded.length} {t.purchaseNeedSuffix}
               </p>
             </div>
             {canPurchase ? (
               <Link href={`/purchase-requests/new/${encodeURIComponent(head.product_code)}/direct`} className="inline-flex h-9 items-center gap-2 rounded-lg bg-amber-600 px-4 text-xs font-bold text-white hover:bg-amber-700">
-                <ShoppingCart className="size-4" /> ສ້າງໃບຂໍສັ່ງຊື້
+                <ShoppingCart className="size-4" /> {t.createPurchaseDoc}
               </Link>
             ) : (
-              <span className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-amber-800">ສົ່ງເຂົ້າຄິວຝ່າຍຈັດຊື້ແລ້ວ</span>
+              <span className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-amber-800">{t.sentToPurchaseQueue}</span>
             )}
           </div>
         </section>
@@ -174,8 +177,8 @@ export default async function StockRequestFormPage({ params }: Props) {
 
       {/* ຂໍໄປແລ້ວ — ສະແດງໄວ້ໃຫ້ຮູ້ ແຕ່ຈະບໍ່ເຂົ້າໃບໃໝ່ (ກັນສາງເບີກອາໄຫຼ່ຕົວດຽວກັນສອງເທື່ອ) */}
       {requested.length > 0 && (
-        <Card title={`ຂໍເບີກໄປແລ້ວ ${requested.length} ລາຍການ (ຈະບໍ່ຖືກຂໍຊ້ຳ)`}>
-          <Table head={["ລະຫັດສິນຄ້າ", "ຊື່ສິນຄ້າ", "ຈຳນວນ", "ຫົວໜ່ວຍ"]} minWidth={700}>
+        <Card title={`${t.requestedTitlePrefix} ${requested.length} ${t.requestedTitleSuffix}`}>
+          <Table head={[t.colCode, t.colName, t.colQty, t.colUnit]} minWidth={700}>
             {requested.map((line) => (
               <tr key={line.roworder} className="border-b border-slate-100 text-slate-500">
                 <td className="px-3 py-3">{line.item_code}</td>
@@ -186,15 +189,15 @@ export default async function StockRequestFormPage({ params }: Props) {
             ))}
           </Table>
           <p className="mt-3 text-xs text-slate-400">
-            ອາໄຫຼ່ທີ່ຢູ່ໃນໃບຂໍເບີກເກົ່າແລ້ວ ຈະບໍ່ຖືກເອົາເຂົ້າໃບໃໝ່ — ຕິດຕາມສະຖານະໄດ້ທີ່ໜ້າ &quot;ໃບຂໍເບີກອາໄຫຼ່&quot;
+            {t.requestedNote}
           </p>
         </Card>
       )}
 
-      {lines.length === 0 && <ErrorBox>ຍັງບໍ່ມີອາໄຫຼ່ໃນລາຍການ — ກົດ &quot;ເລືອກ&quot; ເພື່ອເພີ່ມອາໄຫຼ່</ErrorBox>}
+      {lines.length === 0 && <ErrorBox>{t.emptyNoSpares}</ErrorBox>}
 
       {lines.length > 0 && pending.length === 0 && (
-        <ErrorBox>ອາໄຫຼ່ທຸກລາຍການຂອງວຽກນີ້ ຖືກຂໍເບີກ ຫຼື ເບີກອອກໄປແລ້ວ — ຖ້າຕ້ອງການອາໄຫຼ່ເພີ່ມ ໃຫ້ກົດ &quot;ເລືອກ&quot;</ErrorBox>
+        <ErrorBox>{t.allRequested}</ErrorBox>
       )}
     </div>
   );

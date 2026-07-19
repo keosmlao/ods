@@ -3,6 +3,7 @@ import { dispatchPickup, receivePickup, undoDispatchPickup } from "@/app/actions
 import { useConfirm } from "@/components/confirm-dialog";
 import { UndoButton } from "@/components/checking/undo-button";
 import { Button } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { AlertTriangle, LoaderCircle, PackageCheck, Truck } from "lucide-react";
 import { useState, useTransition } from "react";
 
@@ -14,6 +15,7 @@ export function DispatchPickupButton({ code }: { code: string }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const { ask, dialog } = useConfirm();
+  const t = useDict().receivePickupButton;
 
   return (
     <>
@@ -25,14 +27,14 @@ export function DispatchPickupButton({ code }: { code: string }) {
           disabled={pending}
           onClick={async () => {
             const ok = await ask({
-              title: "ອອກໄປຮັບເຄື່ອງ?",
+              title: t.dispatchTitle,
               message: (
                 <>
-                  ໝາຍວ່າຂົນສົ່ງ <b>ອອກເດີນທາງ</b> ໄປຮັບເຄື່ອງໃບ <b className="text-slate-700">#{code}</b> ທີ່ບ້ານລູກຄ້າ —
-                  ວຽກຍ້າຍໄປ &quot;ກຳລັງໄປຮັບ&quot;
+                  {t.dispatchMsgPre} <b>{t.dispatchMsgBold}</b> {t.dispatchMsgMid} <b className="text-slate-700">#{code}</b>{" "}
+                  {t.dispatchMsgTail}
                 </>
               ),
-              confirmLabel: "ອອກໄປຮັບ",
+              confirmLabel: t.dispatch,
             });
             if (!ok) return;
             setError(null);
@@ -43,7 +45,7 @@ export function DispatchPickupButton({ code }: { code: string }) {
           }}
         >
           {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Truck className="size-3.5" />}
-          ອອກໄປຮັບ
+          {t.dispatch}
         </Button>
         {error && (
           <p className="flex items-center gap-1 text-[11px] font-medium text-red-600">
@@ -58,14 +60,15 @@ export function DispatchPickupButton({ code }: { code: string }) {
 
 /** ປຸ່ມ "ຍົກເລີກອອກໄປຮັບ" — ໝາຍຜິດໃບ ໃຫ້ວຽກກັບໄປ "ລໍໄປຮັບເຄື່ອງ". */
 export function UndoDispatchPickupButton({ code, variant }: { code: string; variant?: "button" | "icon" }) {
+  const t = useDict().receivePickupButton;
   return (
     <UndoButton
       variant={variant}
-      label="ຍົກເລີກອອກໄປຮັບ"
-      title="ຍົກເລີກ ອອກໄປຮັບ?"
+      label={t.undoDispatchLabel}
+      title={t.undoDispatchTitle}
       message={
         <>
-          ໃບ <b className="text-slate-700">#{code}</b> ຈະກັບໄປ &quot;ລໍໄປຮັບເຄື່ອງ&quot; (ຍັງບໍ່ອອກເດີນທາງ)
+          {t.undoDispatchMsgPre} <b className="text-slate-700">#{code}</b> {t.undoDispatchMsgTail}
         </>
       }
       action={() => undoDispatchPickup(code)}
@@ -81,6 +84,7 @@ export function ReceivePickupButton({ code }: { code: string }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const { ask, dialog } = useConfirm();
+  const t = useDict().receivePickupButton;
 
   return (
     <>
@@ -92,14 +96,14 @@ export function ReceivePickupButton({ code }: { code: string }) {
           disabled={pending}
           onClick={async () => {
             const ok = await ask({
-              title: "ຮັບເຄື່ອງເຂົ້າສູນ?",
+              title: t.receiveTitle,
               message: (
                 <>
-                  ໃບຮັບເຄື່ອງ <b className="text-slate-700">#{code}</b> ຖືວ່າ <b>ມາຮອດສູນແລ້ວ</b> ແລະ ຈະຍ້າຍໄປ
-                  &quot;ລໍຖ້າກວດເຊັກ&quot; — ໝາຍເມື່ອຂົນສົ່ງເອົາເຄື່ອງມາຮອດຈິງເທົ່ານັ້ນ
+                  {t.receiveMsgPre} <b className="text-slate-700">#{code}</b> {t.receiveMsgMid} <b>{t.receiveMsgBold}</b>{" "}
+                  {t.receiveMsgTail}
                 </>
               ),
-              confirmLabel: "ຮັບເຂົ້າສູນ",
+              confirmLabel: t.receive,
             });
             if (!ok) return;
             setError(null);
@@ -110,7 +114,7 @@ export function ReceivePickupButton({ code }: { code: string }) {
           }}
         >
           {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <PackageCheck className="size-3.5" />}
-          ຮັບເຂົ້າສູນ
+          {t.receive}
         </Button>
         {error && (
           <p className="flex items-center gap-1 text-[11px] font-medium text-red-600">

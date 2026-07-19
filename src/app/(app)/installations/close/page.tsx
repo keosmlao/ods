@@ -3,6 +3,8 @@ import { FeedbackQrButton } from "@/components/installation/feedback-qr";
 import { JobButton } from "@/components/installation/job-buttons";
 import { RowLink } from "@/components/row-link";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { installStageIs } from "@/lib/install-stage";
 import { feedbackUrl } from "@/lib/track";
 import { ClipboardList } from "lucide-react";
@@ -58,13 +60,14 @@ const FEEDBACK_JSON = `(select json_agg(json_build_object('line', cc.line_number
     order by cc.line_number)
   from cust_complain cc where cc.product_code = a.code and cc.topic_code = '002') feedback`;
 
-const TIME_LABEL: Record<Queue, string> = {
-  feedback: "ວັນ/ເວລາຕິດຕັ້ງສຳເລັດ",
-  close: "ວັນ/ເວລາ complain",
-};
+const timeLabels = (t: Record<string, string>): Record<Queue, string> => ({
+  feedback: t.timeInstallFinish,
+  close: t.timeComplain,
+});
 
 export async function InstallationCloseQueue({ searchParams, queue }: CloseQueueProps & { queue: Queue }) {
   const raw = await searchParams;
+  const t = (await getDictionary(await getLocale())).installClose;
   const { q, page, sort, dir } = readParams(raw);
   const from = ISO.test(raw.from ?? "") ? (raw.from as string) : "";
   const to = ISO.test(raw.to ?? "") ? (raw.to as string) : "";
@@ -116,8 +119,8 @@ export async function InstallationCloseQueue({ searchParams, queue }: CloseQueue
   return (
     <div className="w-full space-y-4">
       <ListHeader
-        title={queue === "feedback" ? "ລໍຖ້າລູກຄ້າປະເມີນ" : "ລໍຖ້າປິດງານ"}
-        scope="ສະແດງທຸກງານ"
+        title={queue === "feedback" ? t.titleFeedback : t.titleClose}
+        scope={t.scopeAll}
         total={jobs.total}
         page={page}
         pages={pages}
@@ -128,24 +131,24 @@ export async function InstallationCloseQueue({ searchParams, queue }: CloseQueue
         {q && <input type="hidden" name="q" value={q} />}
         <input type="hidden" name="sort" value={sort} />
         <input type="hidden" name="dir" value={dir} />
-        <span className="text-xs font-medium text-slate-600">ວັນທີຕິດຕັ້ງສຳເລັດ</span>
+        <span className="text-xs font-medium text-slate-600">{t.installFinishDate}</span>
         <input
           type="date"
           name="from"
           defaultValue={from}
           className="h-9 rounded-lg border border-slate-300 px-2.5 text-xs outline-none"
         />
-        <span className="text-xs text-slate-400">ຫາ</span>
+        <span className="text-xs text-slate-400">{t.to}</span>
         <input
           type="date"
           name="to"
           defaultValue={to}
           className="h-9 rounded-lg border border-slate-300 px-2.5 text-xs outline-none"
         />
-        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ກັ່ນຕອງ</button>
+        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.filter}</button>
         {(from || to) && (
           <Link href={basePath} className="text-xs text-slate-500 underline">
-            ລ້າງ
+            {t.clear}
           </Link>
         )}
       </form>
@@ -160,7 +163,7 @@ export async function InstallationCloseQueue({ searchParams, queue }: CloseQueue
       <TableShell total={jobs.total} minWidth={1400}>
         <InstallTableHead
           columns={INSTALL_SORTABLE_COLUMNS}
-          plain={[...INSTALL_PLAIN_COLUMNS, "ຄຳເຫັນລູກຄ້າ"]}
+          plain={[...INSTALL_PLAIN_COLUMNS, t.customerComment]}
           sort={sort}
           dir={dir}
           sortHref={sortHref}
@@ -168,7 +171,7 @@ export async function InstallationCloseQueue({ searchParams, queue }: CloseQueue
         <tbody>
           {rows.map((row) => (
             <RowLink key={row.code} href={`/installations/${encodeURIComponent(row.code)}`} className="border-b border-slate-100 hover:bg-slate-50">
-              <InstallCells row={row} timeLabel={TIME_LABEL[queue]} />
+              <InstallCells row={row} timeLabel={timeLabels(t)[queue]} />
               <td className="max-w-64 px-3 py-2.5">
                 <span className="block truncate" title={row.complain_cust ?? ""}>
                   {row.complain_cust || "-"}
@@ -183,10 +186,10 @@ export async function InstallationCloseQueue({ searchParams, queue }: CloseQueue
                       <Link
                         href={feedbackLinks.get(row.code) ?? "#"}
                         target="_blank"
-                        title="ແບບສອບຖາມລູກຄ້າ"
+                        title={t.questionnaireTitle}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:underline"
                       >
-                        <ClipboardList className="size-4" /> ແບບສອບຖາມ
+                        <ClipboardList className="size-4" /> {t.questionnaire}
                       </Link>
                     </>
                   ) : (
@@ -202,10 +205,10 @@ export async function InstallationCloseQueue({ searchParams, queue }: CloseQueue
                         action={closeJob}
                         tone="success"
                         className="h-8 px-3 text-xs"
-                        confirmTitle={`ປິດງານ ${row.code}?`}
+                        confirmTitle={`${t.closeJob} ${row.code}?`}
                         confirmTone="warning"
                       >
-                        ປິດງານ
+                        {t.closeJob}
                       </JobButton>
                     </>
                   )}
