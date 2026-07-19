@@ -34,6 +34,12 @@ export type NavItem = {
    * ທີ່ບໍ່ມີເມນູຂອງຕົນ (ເຊັ່ນ /checking, /returns) ⇒ ໃຫ້ sidebar ຍັງ highlight ບ່ອນເຮັດວຽກ.
    */
   match?: string[];
+  /**
+   * key ໃນ dictionary.nav ສຳລັບແປປ້າຍລາຍການ (i18n). ບໍ່ໃສ່ = ໃຊ້ href ເປັນ key.
+   * ໃສ່ເມື່ອ href ດຽວກັນປາກົດຫຼາຍບ່ອນດ້ວຍປ້າຍຕ່າງກັນ (ຝັ່ງ CS ທຽບ ຝັ່ງຊ່າງ)
+   * ⇒ ໃຫ້ແຕ່ລະບ່ອນມີ key ຂອງຕົນ ບໍ່ໃຫ້ທັບກັນ.
+   */
+  labelKey?: string;
 };
 
 export type NavGroup = { id: string; label: string; icon: LucideIcon; items: NavItem[] };
@@ -306,20 +312,20 @@ const TECHNICIAN_NAVIGATION: NavGroup[] = [
     label: "ງານຕິດຕັ້ງຂອງຂ້ອຍ",
     icon: HardHat,
     items: [
-      { label: "ຮັບງານ", href: "/installations/accept", count: "/installations/accept" },
-      { label: "ຂໍເບີກອາໄຫຼ່", href: "/installations/spare-requests", count: "/installations/spare-requests" },
-      { label: "ຮັບອາໄຫຼ່", href: "/installations/spare-pickup", count: "/installations/spare-pickup" },
+      { label: "ຮັບງານ", href: "/installations/accept", count: "/installations/accept", labelKey: "tech:accept" },
+      { label: "ຂໍເບີກອາໄຫຼ່", href: "/installations/spare-requests", count: "/installations/spare-requests", labelKey: "tech:spare-requests" },
+      { label: "ຮັບອາໄຫຼ່", href: "/installations/spare-pickup", count: "/installations/spare-pickup", labelKey: "tech:spare-pickup" },
       { label: "ລໍຖ້າຕິດຕັ້ງ", href: "/installations/work", count: "/installations/work" },
       { label: "ກຳລັງຕິດຕັ້ງ", href: "/installations/work/doing", count: "/installations/work/doing" },
-      { label: "ສົ່ງຄືນອາໄຫຼ່", href: "/stock/returns?job=install" },
-      { label: "ກວດຮັບຄຸນນະພາບ", href: "/qc?workflow=install", flag: "qc", count: "/qc/install" },
+      { label: "ສົ່ງຄືນອາໄຫຼ່", href: "/stock/returns?job=install", labelKey: "tech:returns-install" },
+      { label: "ກວດຮັບຄຸນນະພາບ", href: "/qc?workflow=install", flag: "qc", count: "/qc/install", labelKey: "tech:qc-install" },
     ],
   },
   {
     id: "tech_income_menu",
     label: "ລາຍຮັບຂອງຂ້ອຍ",
     icon: FileBarChart,
-    items: [{ label: "ຄ່າຄອມຂອງຂ້ອຍ", href: "/reports/technician-income" }],
+    items: [{ label: "ຄ່າຄອມຂອງຂ້ອຍ", href: "/reports/technician-income", labelKey: "tech:income" }],
   },
 ];
 

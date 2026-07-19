@@ -207,7 +207,7 @@ export function NavTree({
                   {group.items.map((item, index) => {
                     const active = isActive(pathname, item, best, search);
                     // i18n: ແປປ້າຍລາຍການ ຕາມ href (dictionary.nav) — ຫວ່າງ = ໃຊ້ Lao ເດີມ
-                    const itemLabel = navLabels?.[item.href] ?? item.label;
+                    const itemLabel = navLabels?.[item.labelKey ?? item.href] ?? item.label;
                     return (
                       <li key={`${item.href}-${index}`}>
                         {item.divider && <hr className="my-1.5 ml-8 border-white/5" />}
