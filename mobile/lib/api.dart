@@ -204,6 +204,17 @@ class Api {
 
   /* ── ອາໄຫຼ່: ຂໍເບີກ ແລະ ກົດຮັບ ───────────────────────────────── */
 
+  /// ຕິດຕາມສິນຄ້າຄົງເຫຼືອ — ຄົ້ນອາໄຫຼ່ ໄດ້ຍອດແຍກຕາມສາງ
+  static Future<List<StockBalanceItem>> stockBalance(String query) async {
+    final result = await _send(
+      'GET',
+      '/api/mobile/stock-balance?q=${Uri.encodeQueryComponent(query)}',
+    );
+    return (result['items'] as List)
+        .map((row) => StockBalanceItem.fromJson(row))
+        .toList();
+  }
+
   static Future<List<PickupDoc>> pickups() async {
     final result = await _send('GET', '/api/mobile/spares?queue=pickup');
     return (result['docs'] as List)
@@ -637,6 +648,46 @@ class RepairSpareLine {
     unitCode: json['unit_code'] as String?,
     requested: json['requested'] as bool? ?? false,
     locked: json['locked'] as bool? ?? false,
+  );
+}
+
+/// ຍອດຄົງເຫຼືອຂອງອາໄຫຼ່ ໃນສາງໜຶ່ງ (ຕິດຕາມສິນຄ້າຄົງເຫຼືອ)
+class WhBalance {
+  final String code;
+  final String name;
+  final double qty;
+  WhBalance({required this.code, required this.name, required this.qty});
+  factory WhBalance.fromJson(Map<String, dynamic> json) => WhBalance(
+    code: json['code'] as String,
+    name: json['name'] as String? ?? json['code'] as String,
+    qty: (json['qty'] as num).toDouble(),
+  );
+}
+
+class StockBalanceItem {
+  final String code;
+  final String name;
+  final String? brand;
+  final String? unitCode;
+  final double total;
+  final List<WhBalance> warehouses;
+  StockBalanceItem({
+    required this.code,
+    required this.name,
+    required this.brand,
+    required this.unitCode,
+    required this.total,
+    required this.warehouses,
+  });
+  factory StockBalanceItem.fromJson(Map<String, dynamic> json) => StockBalanceItem(
+    code: json['code'] as String,
+    name: json['name'] as String? ?? '',
+    brand: json['brand'] as String?,
+    unitCode: json['unit_code'] as String?,
+    total: (json['total'] as num?)?.toDouble() ?? 0,
+    warehouses: ((json['warehouses'] as List?) ?? [])
+        .map((row) => WhBalance.fromJson(row))
+        .toList(),
   );
 }
 

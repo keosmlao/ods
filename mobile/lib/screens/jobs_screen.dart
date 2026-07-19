@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import 'stock_balance_screen.dart';
 import '../main.dart';
 import '../push.dart';
 import '../widgets/service_bottom_nav.dart';
@@ -148,8 +149,24 @@ class _JobsScreenState extends State<JobsScreen> {
             tooltip: 'ເມນູ',
             onSelected: (value) {
               if (value == 'logout') logout();
+              if (value == 'stock-balance') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const StockBalanceScreen()),
+                );
+              }
             },
             itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'stock-balance',
+                child: Row(
+                  children: [
+                    Icon(Icons.inventory_2_outlined, size: 19),
+                    SizedBox(width: 10),
+                    Text('ສິນຄ້າຄົງເຫຼືອ'),
+                  ],
+                ),
+              ),
               PopupMenuItem(
                 value: 'logout',
                 child: Row(
