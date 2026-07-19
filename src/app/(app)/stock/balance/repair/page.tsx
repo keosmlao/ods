@@ -3,7 +3,8 @@ import { PageTitle } from "@/components/ui";
 import { requireRoleOrRedirect } from "@/lib/guard";
 import { repairStockCache } from "@/lib/repair-stock-cache";
 import { STOCK_SIDE } from "@/lib/roles";
-import { Search } from "lucide-react";
+import { Download, Search } from "lucide-react";
+import Link from "next/link";
 
 /**
  * ຄົງເຫຼືອ ສາງສ້ອມ (ສູນບໍລິການ 1104/1206) — browse ທັງໝົດ ຈາກ cache (ໄວ) + ກອງ + ດຶງໃໝ່.
@@ -55,9 +56,17 @@ export default async function RepairBalancePage({ searchParams }: Props) {
         </p>
       ) : (
         <>
-          <p className="mb-2 text-xs text-slate-500">
-            {q ? "ຜົນການກອງ" : "ທັງໝົດ"}: <b className="tabular-nums">{items.length.toLocaleString()}</b> ລາຍການ
-          </p>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-xs text-slate-500">
+              {q ? "ຜົນການກອງ" : "ທັງໝົດ"}: <b className="tabular-nums">{items.length.toLocaleString()}</b> ລາຍການ
+            </p>
+            <Link
+              href={`/api/reports/export/repair-stock${q ? `?q=${encodeURIComponent(q)}` : ""}`}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <Download className="size-3.5" /> Export Excel
+            </Link>
+          </div>
           <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
             <table className="w-full min-w-[560px] border-collapse bg-white text-sm">
               <thead>
