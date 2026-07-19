@@ -12,11 +12,13 @@ export function MobileNav({
   navFlags,
   readableResources,
   counts,
+  navLabels,
 }: {
   role: Role;
   navFlags: NavFlags;
   readableResources: string[];
   counts: NavCounts;
+  navLabels?: Record<string, string>;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -39,6 +41,7 @@ export function MobileNav({
             navFlags={navFlags}
             readableResources={readableResources}
             counts={counts}
+            navLabels={navLabels}
             onNavigate={() => setOpen(false)}
           />
         </div>

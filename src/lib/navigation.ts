@@ -39,6 +39,25 @@ export type NavItem = {
 export type NavGroup = { id: string; label: string; icon: LucideIcon; items: NavItem[] };
 
 /**
+ * id ກຸ່ມ → key ໃນ dictionary.nav — ໃຫ້ sidebar ແປ**ປ້າຍກຸ່ມ**ຕາມພາສາ (i18n phase 1).
+ * ປ້າຍລາຍການ (item) + ໜ້າ ຍັງເປັນ phase ຕໍ່ໄປ.
+ */
+export const NAV_GROUP_KEY: Record<string, string> = {
+  home_menu: "myStuff",
+  repair_menu: "repair",
+  install_menu: "install",
+  stock_menu: "stock",
+  purchase_menu: "purchase",
+  approve_menu: "approve",
+  report_menu: "reports",
+  user_menu: "users",
+  tech_home_menu: "myStuff",
+  tech_repair_menu: "myRepair",
+  tech_install_menu: "myInstall",
+  tech_income_menu: "myIncome",
+};
+
+/**
  * ເມນູ — ແຍກ "ສ້ອມແປງ" ກັບ "ຕິດຕັ້ງ" ອອກເປັນຄົນລະສ່ວນ.
  *
  * ods ເອົາສອງງານນີ້ປົນກັນຢູ່ໃນກຸ່ມ "ບໍລິການ" ແລະ "ຊ່າງ" (layout.html:69-346)

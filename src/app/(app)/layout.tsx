@@ -58,6 +58,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       logout={logoutAction}
       locale={locale}
       shellLabels={dict.shell}
+      navLabels={dict.nav}
     >
       {children}
       {/**

@@ -16,5 +16,18 @@
     "username": "Username",
     "password": "Password",
     "submit": "Sign in"
+  },
+  "nav": {
+    "myStuff": "My work",
+    "repair": "Repair",
+    "install": "Installation",
+    "stock": "Stock & Parts",
+    "purchase": "Parts purchasing",
+    "approve": "Approvals",
+    "reports": "Reports",
+    "users": "Users",
+    "myRepair": "My repairs",
+    "myInstall": "My installations",
+    "myIncome": "My income"
   }
 }

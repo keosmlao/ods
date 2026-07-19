@@ -1,6 +1,6 @@
 "use client";
 import { LinkPending } from "@/components/link-pending";
-import { navigationFor, type NavFlags, type NavGroup, type NavItem } from "@/lib/navigation";
+import { navigationFor, NAV_GROUP_KEY, type NavFlags, type NavGroup, type NavItem } from "@/lib/navigation";
 import type { NavCounts } from "@/lib/nav-counts";
 import { homeForRole, type Role } from "@/lib/roles";
 import { ChevronDown, PanelLeftClose, PanelLeftOpen, Search, Wrench, X } from "lucide-react";
@@ -80,6 +80,7 @@ export function NavTree({
   navFlags,
   readableResources,
   counts,
+  navLabels,
   onNavigate,
   collapsed = false,
   onExpand,
@@ -92,6 +93,8 @@ export function NavTree({
   readableResources: string[];
   /** ຕົວເລກຄິວຕໍ່ລາຍການ (lib/nav-counts) — ຫວ່າງໄດ້ (ຖ້າ query ລົ້ມ ເມນູຍັງໃຊ້ໄດ້) */
   counts: NavCounts;
+  /** ປ້າຍກຸ່ມແປຕາມພາສາ (dictionary.nav) — key ຈາກ NAV_GROUP_KEY. ຫວ່າງ = ໃຊ້ Lao ເດີມ */
+  navLabels?: Record<string, string>;
   onNavigate?: () => void;
   collapsed?: boolean;
   /** ຕອນພັບຢູ່ ກົດໄອຄອນກຸ່ມ → ຂະຫຍາຍເມນູ */
@@ -149,6 +152,7 @@ export function NavTree({
 
         {groups.map((group: NavGroup) => {
           const Icon = group.icon;
+          const groupLabel = navLabels?.[NAV_GROUP_KEY[group.id]] ?? group.label;
           const hasActive = group.items.some((item) => isActive(pathname, item, best, search));
           // ວຽກຄ້າງລວມຂອງກຸ່ມ — ຕອນກຸ່ມປິດຢູ່ ຄົນຍັງຮູ້ວ່າຂ້າງໃນມີວຽກ
           const groupTotal = group.items.reduce(
@@ -164,7 +168,7 @@ export function NavTree({
                 <button
                   type="button"
                   onClick={onExpand}
-                  title={group.label}
+                  title={groupLabel}
                   className={`relative grid h-10 w-full place-items-center rounded-lg transition ${
                     hasActive ? "bg-teal-500 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
                   }`}
@@ -189,7 +193,7 @@ export function NavTree({
                 }`}
               >
                 <Icon className={`size-4 shrink-0 ${hasActive ? "text-teal-400" : ""}`} />
-                <span className="flex-1 text-left">{group.label}</span>
+                <span className="flex-1 text-left">{groupLabel}</span>
                 {!open && groupTotal > 0 && (
                   <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-slate-300">
                     {groupTotal > 99 ? "99+" : groupTotal}
@@ -256,6 +260,7 @@ export function Sidebar({
   navFlags,
   readableResources,
   counts,
+  navLabels,
   collapsed,
   onToggle,
 }: {
@@ -263,6 +268,7 @@ export function Sidebar({
   navFlags: NavFlags;
   readableResources: string[];
   counts: NavCounts;
+  navLabels?: Record<string, string>;
   collapsed: boolean;
   onToggle: () => void;
 }) {
@@ -315,6 +321,7 @@ export function Sidebar({
           navFlags={navFlags}
           readableResources={readableResources}
           counts={counts}
+          navLabels={navLabels}
           collapsed={collapsed}
           onExpand={onToggle}
         />

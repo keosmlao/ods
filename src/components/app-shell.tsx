@@ -50,6 +50,7 @@ export function AppShell({
   logout,
   locale,
   shellLabels,
+  navLabels,
   children,
 }: {
   username: string;
@@ -70,6 +71,8 @@ export function AppShell({
   locale: Locale;
   /** ຂໍ້ຄວາມ topbar ຕາມພາສາ (dictionary.shell) */
   shellLabels: Dictionary["shell"];
+  /** ປ້າຍກຸ່ມ sidebar ຕາມພາສາ (dictionary.nav) */
+  navLabels: Dictionary["nav"];
   children: ReactNode;
 }) {
   const collapsed = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -81,10 +84,11 @@ export function AppShell({
         navFlags={navFlags}
         readableResources={readableResources}
         counts={counts}
+        navLabels={navLabels}
         collapsed={collapsed}
         onToggle={() => setCollapsed(!collapsed)}
       />
-      <MobileNav role={role} navFlags={navFlags} readableResources={readableResources} counts={counts} />
+      <MobileNav role={role} navFlags={navFlags} readableResources={readableResources} counts={counts} navLabels={navLabels} />
 
       <div className={`transition-[padding] duration-200 ${collapsed ? "lg:pl-16" : "lg:pl-64"}`}>
         {/* Topbar — ເຕ້ຍ (56px), ຄ້າງໄວ້ */}
