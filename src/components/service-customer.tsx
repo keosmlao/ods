@@ -1,5 +1,6 @@
 "use client";
 import { createCustomer } from "@/app/actions/service";
+import { useDict } from "@/lib/i18n/context";
 import { Check, LoaderCircle, Search, UserPlus, X } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 
@@ -38,6 +39,7 @@ export function ServiceCustomer({
   onSelect: (customer: Customer | null) => void;
   buyer?: BuyerHint | null;
 }) {
+  const t = useDict().serviceCustomer;
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Customer[]>([]);
   const [searching, setSearching] = useState(false);
@@ -99,15 +101,15 @@ export function ServiceCustomer({
             </p>
             <dl className="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
               <div className="flex gap-2">
-                <dt className="text-slate-400">ລະຫັດ</dt>
+                <dt className="text-slate-400">{t.code}</dt>
                 <dd className="text-slate-700">{selected.ref_code || selected.code}</dd>
               </div>
-              <div className="flex gap-2"><dt className="text-slate-400">ເບີໂທ</dt><dd className="text-slate-700">{selected.tel || "-"}</dd></div>
-              <div className="flex gap-2 sm:col-span-2"><dt className="shrink-0 text-slate-400">ທີ່ຢູ່</dt><dd className="truncate text-slate-700">{selected.address || "-"}</dd></div>
+              <div className="flex gap-2"><dt className="text-slate-400">{t.tel}</dt><dd className="text-slate-700">{selected.tel || "-"}</dd></div>
+              <div className="flex gap-2 sm:col-span-2"><dt className="shrink-0 text-slate-400">{t.address}</dt><dd className="truncate text-slate-700">{selected.address || "-"}</dd></div>
             </dl>
           </div>
           <button type="button" onClick={() => onSelect(null)} className="shrink-0 text-sm font-medium text-slate-500 hover:text-red-600">
-            ປ່ຽນ
+            {t.change}
           </button>
         </div>
         <input type="hidden" name="cust_code" value={selected.code} />
@@ -123,12 +125,12 @@ export function ServiceCustomer({
   if (creating) {
     return (
       <div className="space-y-3 rounded-xl border border-slate-300 bg-slate-50 p-4">
-        <p className="text-sm font-semibold text-slate-700">ລູກຄ້າໃໝ່</p>
+        <p className="text-sm font-semibold text-slate-700">{t.newCustomer}</p>
         {error && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{error}</p>}
         <div className="grid gap-3 sm:grid-cols-3">
-          <input ref={nameRef} placeholder="ຊື່ລູກຄ້າ *" className={field} />
-          <input ref={telRef} placeholder="ເບີໂທ *" inputMode="tel" className={field} />
-          <input ref={addressRef} placeholder="ທີ່ຢູ່" className={field} />
+          <input ref={nameRef} placeholder={t.namePlaceholder} className={field} />
+          <input ref={telRef} placeholder={t.telPlaceholder} inputMode="tel" className={field} />
+          <input ref={addressRef} placeholder={t.address} className={field} />
         </div>
         <div className="flex gap-2">
           <button
@@ -138,7 +140,7 @@ export function ServiceCustomer({
             className="inline-flex h-9 items-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60"
           >
             {pending ? <LoaderCircle className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
-            ບັນທຶກລູກຄ້າ
+            {t.saveCustomer}
           </button>
           <button
             type="button"
@@ -146,7 +148,7 @@ export function ServiceCustomer({
             className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-600 hover:bg-slate-50"
           >
             <X className="size-4" />
-            ຍົກເລີກ
+            {t.cancel}
           </button>
         </div>
         <input type="hidden" name="cust_code" value="" />
@@ -160,7 +162,7 @@ export function ServiceCustomer({
       {buyer && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-slate-500">ຜູ້ຊື້ເດີມ (ຈາກບິນ)</p>
+            <p className="text-xs font-semibold text-slate-500">{t.previousBuyer}</p>
             <p className="truncate text-sm font-medium text-slate-800">{buyer.name}</p>
             {buyer.tel && <p className="truncate text-xs text-slate-500">{buyer.tel}</p>}
           </div>
@@ -177,7 +179,7 @@ export function ServiceCustomer({
             }}
             className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
           >
-            ແມ່ນຄົນນີ້
+            {t.thisPerson}
           </button>
         </div>
       )}
@@ -189,7 +191,7 @@ export function ServiceCustomer({
           <input
             value={q}
             onChange={(event) => setQ(event.target.value)}
-            placeholder="ຄົ້ນຫາລູກຄ້າ ດ້ວຍ ຊື່, ເບີໂທ ຫຼືລະຫັດ"
+            placeholder={t.searchPlaceholder}
             className="w-full text-sm outline-none"
           />
           {searching && <LoaderCircle className="size-4 shrink-0 animate-spin text-slate-400" />}
@@ -200,7 +202,7 @@ export function ServiceCustomer({
           className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
           <UserPlus className="size-4" />
-          ລູກຄ້າໃໝ່
+          {t.newCustomer}
         </button>
       </div>
 
@@ -208,9 +210,9 @@ export function ServiceCustomer({
         <div className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl">
           {results.length === 0 ? (
             <div className="p-3 text-center text-sm text-slate-500">
-              ບໍ່ພົບລູກຄ້າ
+              {t.notFound}
               <button type="button" onClick={() => setCreating(true)} className="ml-2 font-semibold text-teal-600 hover:underline">
-                ສ້າງໃໝ່
+                {t.createNew}
               </button>
             </div>
           ) : (
@@ -223,7 +225,7 @@ export function ServiceCustomer({
               >
                 <b className="text-slate-800">{customer.name_1}</b>
                 <span className="block text-xs text-slate-400">
-                  {customer.ref_code} · {customer.tel || "ບໍ່ມີເບີໂທ"}
+                  {customer.ref_code} · {customer.tel || t.noTel}
                 </span>
               </button>
             ))

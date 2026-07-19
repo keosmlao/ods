@@ -1,6 +1,8 @@
 import { RowLink } from "@/components/row-link";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { DONE_JOBS, OPEN_JOBS, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -31,6 +33,8 @@ type Props = { searchParams: Promise<{ q?: string; tab?: string; page?: string }
 export default async function SalesJobsPage({ searchParams }: Props) {
   const session = await getSession();
   if (!session) redirect("/login");
+
+  const t = (await getDictionary(await getLocale())).salesJobs;
 
   const params = await searchParams;
   const q = (params.q ?? "").trim();
@@ -76,9 +80,9 @@ export default async function SalesJobsPage({ searchParams }: Props) {
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-700">ຕິດຕາມງານສ້ອມ</h1>
+        <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          ງານສ້ອມຂອງລູກຄ້າ · {total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+          {t.customerRepairs} · {total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
         </p>
       </div>
 
@@ -89,13 +93,13 @@ export default async function SalesJobsPage({ searchParams }: Props) {
             href={tabHref("open")}
             className={`inline-flex h-9 items-center px-3 text-xs font-medium ${!done ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
           >
-            ກຳລັງດຳເນີນ
+            {t.tabOpen}
           </Link>
           <Link
             href={tabHref("done")}
             className={`inline-flex h-9 items-center border-l border-slate-300 px-3 text-xs font-medium ${done ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
           >
-            ສຳເລັດແລ້ວ
+            {t.tabDone}
           </Link>
         </div>
 
@@ -106,11 +110,11 @@ export default async function SalesJobsPage({ searchParams }: Props) {
             <input
               name="q"
               defaultValue={q}
-              placeholder="ຄົ້ນຫາ ລະຫັດ / ຊື່ເຄື່ອງ / SN / ລູກຄ້າ"
+              placeholder={t.searchPlaceholder}
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -120,13 +124,13 @@ export default async function SalesJobsPage({ searchParams }: Props) {
           <table className="w-full min-w-[900px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລະຫັດ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລູກຄ້າ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ເບີໂທ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ເຄື່ອງ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ເຂດ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຮັບເມື່ອ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສະຖານະ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colCode}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colCustomer}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colTel}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colDevice}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colArea}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colReceivedAt}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colStatus}</th>
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -157,7 +161,7 @@ export default async function SalesJobsPage({ searchParams }: Props) {
                       href={`/service/${row.code}`}
                       className="inline-flex h-8 items-center rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
                     >
-                      ເບິ່ງ
+                      {t.view}
                     </Link>
                   </td>
                 </RowLink>
@@ -166,13 +170,13 @@ export default async function SalesJobsPage({ searchParams }: Props) {
           </table>
         </div>
 
-        {list.rows.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບງານສ້ອມ</p>}
+        {list.rows.length === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} ຈາກ {total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} {t.of} {total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -181,7 +185,7 @@ export default async function SalesJobsPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -191,7 +195,7 @@ export default async function SalesJobsPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>

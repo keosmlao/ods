@@ -2,6 +2,7 @@
 
 import { deleteSpareFromRequest, updateSpareQty } from "@/app/actions/stock";
 import { Button, Card, Empty, Table, inputClass } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { AlertTriangle, Boxes, CheckCircle2, Plus, Trash2, Warehouse } from "lucide-react";
 
 export type SpareLine = {
@@ -21,12 +22,13 @@ export type SpareBalance = {
 
 /** ຕາຕະລາງ "ອາໄຫຼ່ທີ່ໃຊ້" — ອ່ານຢ່າງດຽວ (ໃຊ້ໃນໜ້າເບີກ/ສົ່ງຄືນ/ເບິ່ງບິນ) */
 export function SpareLineTable({ lines }: { lines: Omit<SpareLine, "roworder">[] }) {
+  const t = useDict().spareLines;
   return (
-    <Card title="ອາໄຫຼ່ທີ່ໃຊ້">
+    <Card title={t.sparesUsed}>
       {lines.length === 0 ? (
         <Empty />
       ) : (
-        <Table head={["#", "ລະຫັດສິນຄ້າ", "ຊື່ສິນຄ້າ", "ຈຳນວນ", "ຫົວໜ່ວຍ"]} minWidth={700}>
+        <Table head={["#", t.itemCode, t.itemName, t.qty, t.unit]} minWidth={700}>
           {lines.map((line, index) => (
             <tr key={`${line.item_code}-${index}`} className="border-b border-slate-100">
               <td className="px-3 py-3 text-center">{line.rnum}</td>
@@ -63,6 +65,7 @@ export function EditableSpareLines({
   warehouseLabel?: string;
   onAddSpare: () => void;
 }) {
+  const t = useDict().spareLines;
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
@@ -71,11 +74,11 @@ export function EditableSpareLines({
             <Boxes className="size-4.5" />
           </span>
           <div>
-            <h2 className="text-sm font-bold text-slate-800">ລາຍການອາໄຫຼ່ທີ່ຂໍເບີກ</h2>
+            <h2 className="text-sm font-bold text-slate-800">{t.requestedSpareList}</h2>
             <p className="mt-0.5 text-[11px] text-slate-400">
               {selectedWarehouse
-                ? `ກຳລັງກວດຍອດຈາກ ${warehouseLabel ?? selectedWarehouse}${selectedShelf ? ` / ${selectedShelf}` : ""}`
-                : "ເລືອກສາງດ້ານເທິງ ເພື່ອກວດຈຳນວນຄົງເຫຼືອ"}
+                ? `${t.checkingBalanceFrom} ${warehouseLabel ?? selectedWarehouse}${selectedShelf ? ` / ${selectedShelf}` : ""}`
+                : t.selectWarehouseHint}
             </p>
           </div>
         </div>
@@ -88,12 +91,12 @@ export function EditableSpareLines({
           ) : (
             <span className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-50 px-3 text-[11px] font-semibold text-amber-700">
               <AlertTriangle className="size-3.5" />
-              ຍັງບໍ່ເລືອກສາງ
+              {t.noWarehouseSelected}
             </span>
           )}
           <Button type="button" tone="info" className="h-8 px-3 text-xs" onClick={onAddSpare}>
             <Plus className="size-4" />
-            ເພີ່ມອາໄຫຼ່
+            {t.addSpare}
           </Button>
         </div>
       </div>
@@ -106,11 +109,11 @@ export function EditableSpareLines({
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-500">
                 <th className="w-14 px-4 py-3 text-center font-semibold">#</th>
-                <th className="px-4 py-3 font-semibold">ອາໄຫຼ່</th>
-                <th className="w-32 px-4 py-3 text-center font-semibold">ຈຳນວນຂໍ</th>
-                <th className="w-36 px-4 py-3 text-right font-semibold">ຄົງເຫຼືອສາງນີ້</th>
-                <th className="w-32 px-4 py-3 text-right font-semibold">ຄົງເຫຼືອລວມ</th>
-                <th className="w-36 px-4 py-3 text-center font-semibold">ກວດສອບ</th>
+                <th className="px-4 py-3 font-semibold">{t.spare}</th>
+                <th className="w-32 px-4 py-3 text-center font-semibold">{t.requestedQty}</th>
+                <th className="w-36 px-4 py-3 text-right font-semibold">{t.balanceThisWarehouse}</th>
+                <th className="w-32 px-4 py-3 text-right font-semibold">{t.totalBalance}</th>
+                <th className="w-36 px-4 py-3 text-center font-semibold">{t.check}</th>
                 <th className="w-16 px-4 py-3" />
               </tr>
             </thead>
@@ -141,7 +144,7 @@ export function EditableSpareLines({
                           min="1"
                           step="any"
                           defaultValue={requestedQty}
-                          aria-label={`ຈຳນວນ ${line.item_name ?? line.item_code}`}
+                          aria-label={`${t.qty} ${line.item_name ?? line.item_code}`}
                           className={`${inputClass} h-9 w-24 text-center font-semibold`}
                         />
                       </form>
@@ -154,14 +157,14 @@ export function EditableSpareLines({
                     </td>
                     <td className="px-4 py-3 text-center">
                       {selectedBalance === null ? (
-                        <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">ເລືອກສາງກ່ອນ</span>
+                        <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">{t.selectWarehouseFirst}</span>
                       ) : enough ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
-                          <CheckCircle2 className="size-3" /> ພຽງພໍ
+                          <CheckCircle2 className="size-3" /> {t.enough}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700">
-                          <AlertTriangle className="size-3" /> ຂາດ {Math.max(0, requestedQty - selectedBalance).toLocaleString()}
+                          <AlertTriangle className="size-3" /> {t.short} {Math.max(0, requestedQty - selectedBalance).toLocaleString()}
                         </span>
                       )}
                     </td>
@@ -169,7 +172,7 @@ export function EditableSpareLines({
                       <form action={deleteSpareFromRequest}>
                         <input type="hidden" name="roworder" value={roworder} />
                         <input type="hidden" name="row_id" value={line.roworder} />
-                        <button type="submit" title="ລຶບ" className="rounded-lg p-2 text-[#DE3163] hover:bg-red-50">
+                        <button type="submit" title={t.delete} className="rounded-lg p-2 text-[#DE3163] hover:bg-red-50">
                           <Trash2 className="size-4" />
                         </button>
                       </form>
@@ -182,7 +185,7 @@ export function EditableSpareLines({
         </div>
       )}
       <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-2.5 text-[11px] text-slate-400">
-        ປ່ຽນຈຳນວນແລ້ວກົດ Enter ເພື່ອບັນທຶກ · ຖ້າສາງນີ້ບໍ່ພຽງພໍ ຍັງສາມາດສົ່ງຄຳຂໍເພື່ອໃຫ້ສາງດຳເນີນການສັ່ງຊື້
+        {t.footerHint}
       </div>
     </section>
   );

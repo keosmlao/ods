@@ -1,6 +1,8 @@
 import { LinkButton } from "@/components/ui";
 import { BillDismissButton } from "@/components/installation/bill-dismiss-button";
 import { pendingInstallBills } from "@/lib/pending-bills";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { CalendarClock, FilePlus2, Phone, Search, TriangleAlert } from "lucide-react";
 
 /**
@@ -23,6 +25,7 @@ type Props = { searchParams: Promise<{ q?: string }> };
 const LATE = 7;
 
 export default async function PendingBillsPage({ searchParams }: Props) {
+  const t = (await getDictionary(await getLocale())).pendingBills;
   const params = await searchParams;
   const q = (params.q ?? "").trim().toLowerCase();
 
@@ -41,17 +44,17 @@ export default async function PendingBillsPage({ searchParams }: Props) {
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-700">ບິນຄ້າງອອກໃບງານ</h1>
+        <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ ແຕ່ຍັງບໍ່ມີໃບງານ — ຄ້າງດົນສຸດຂຶ້ນກ່ອນ · {rows.length.toLocaleString()} ລາຍການ
+          {t.subtitle} · {rows.length.toLocaleString()} {t.items}
         </p>
       </div>
 
       {/* ສະຫຼຸບ 3 ຕົວເລກທີ່ຕັດສິນໃຈໄດ້ — ບໍ່ແມ່ນປະໂຫຍກຍາວ */}
       <div className="grid gap-3 sm:grid-cols-3">
-        <Stat label="ໜ່ວຍທີ່ຍັງບໍ່ມີໃຜໄປຕິດ" value={units} tone="danger" note={`${all.length} ບິນ`} />
-        <Stat label={`ຄ້າງເກີນ ${LATE} ມື້`} value={late} tone="warn" note="ລູກຄ້າຈ່າຍເງິນແລ້ວ" />
-        <Stat label="ບິນເກົ່າສຸດຄ້າງມາ" value={oldest} tone="plain" note="ມື້" />
+        <Stat label={t.statNoInstaller} value={units} tone="danger" note={`${all.length} ${t.bills}`} />
+        <Stat label={`${t.statOverduePrefix} ${LATE} ${t.days}`} value={late} tone="warn" note={t.customerPaid} />
+        <Stat label={t.statOldest} value={oldest} tone="plain" note={t.days} />
       </div>
 
       {/* ໜ້ານີ້ມີຄິວດຽວ — ບໍ່ມີ tab ຊ້ອນ */}
@@ -62,11 +65,11 @@ export default async function PendingBillsPage({ searchParams }: Props) {
             <input
               name="q"
               defaultValue={params.q ?? ""}
-              placeholder="ຄົ້ນຫາ ເລກບິນ, ລູກຄ້າ, ເບີໂທ..."
+              placeholder={t.searchPlaceholder}
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -75,11 +78,11 @@ export default async function PendingBillsPage({ searchParams }: Props) {
           <table className="w-full border-collapse text-xs" style={{ minWidth: 1150 }}>
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຄ້າງມາ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ເລກບິນ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສິນຄ້າທີ່ຈະຕິດຕັ້ງ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລູກຄ້າ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຈ່າຍຄ່າຕິດຕັ້ງ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colWaited}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colDocNo}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colItems}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colCustomer}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colPaidInstall}</th>
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -96,7 +99,7 @@ export default async function PendingBillsPage({ searchParams }: Props) {
                     }`}
                   >
                     <CalendarClock className="size-3" />
-                    {bill.days} ມື້
+                    {bill.days} {t.days}
                   </span>
                 </td>
 
@@ -108,7 +111,7 @@ export default async function PendingBillsPage({ searchParams }: Props) {
                   {/* ຖືກໝາຍໄວ້ ⇒ ບອກເຫດຜົນ ແລະ ໃຜໝາຍ (ຫຼັກຖານ) */}
                   {bill.dismissed && (
                     <span className="mt-0.5 block text-[11px] font-semibold text-slate-500">
-                      ຄົບແລ້ວ: {bill.dismissed.reason} · {bill.dismissed.by}
+                      {t.dismissedLabel}: {bill.dismissed.reason} · {bill.dismissed.by}
                     </span>
                   )}
                 </td>
@@ -116,9 +119,7 @@ export default async function PendingBillsPage({ searchParams }: Props) {
                 {/* ② ບິນນີ້ຈະໄປຕິດ **ຫຍັງ** — ບອກແຕ່ "ຄ້າງ 1 ໜ່ວຍ" ບໍ່ພຽງພໍ ⇒ ຈັດຊ່າງ/ອາໄຫຼ່ບໍ່ຖືກ */}
                 <td className="px-3 py-2.5">
                   {bill.items.length === 0 ? (
-                    <span className="text-xs text-slate-400">
-                      — ບໍ່ພົບສິນຄ້າທີ່ຕິດຕັ້ງໄດ້ໃນບິນ (ອາດເປັນຄ່າບໍລິການລ້ວນ) —
-                    </span>
+                    <span className="text-xs text-slate-400">{t.noItems}</span>
                   ) : (
                     <ul className="space-y-0.5">
                       {bill.items.map((item) => (
@@ -152,7 +153,7 @@ export default async function PendingBillsPage({ searchParams }: Props) {
 
                 {/* ② ຈຳນວນທີ່ຈ່າຍຄ່າຕິດຕັ້ງ = ຈຳນວນໃບງານທີ່ຄວນເປີດ */}
                 <td className="whitespace-nowrap px-3 py-2.5 text-center text-sm font-bold text-red-600 tabular-nums">
-                  {bill.paid} ໜ່ວຍ
+                  {bill.paid} {t.units}
                 </td>
 
                 {/* ③ ລົງມື — ເປີດໃບງານ ຫຼື ໝາຍວ່າຄົບແລ້ວ (ບາງບິນບໍ່ຕ້ອງມີໃບງານແທ້ໆ) */}
@@ -165,7 +166,7 @@ export default async function PendingBillsPage({ searchParams }: Props) {
                       className="h-9 text-xs"
                     >
                       <FilePlus2 className="size-3.5" />
-                      ເປີດໃບງານ
+                      {t.openJob}
                     </LinkButton>
                   </span>
                 </td>
@@ -178,7 +179,7 @@ export default async function PendingBillsPage({ searchParams }: Props) {
 
         {rows.length === 0 && (
           <p className="py-12 text-center text-xs text-slate-400">
-            {q ? "ບໍ່ພົບບິນຕາມຄຳຄົ້ນ" : "ບໍ່ມີບິນຄ້າງ — ທຸກບິນທີ່ຈ່າຍຄ່າຕິດຕັ້ງ ມີໃບງານຄົບແລ້ວ"}
+            {q ? t.emptySearch : t.emptyAll}
           </p>
         )}
       </section>

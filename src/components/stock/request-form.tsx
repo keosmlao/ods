@@ -4,6 +4,7 @@ import { saveRequest, type StockState } from "@/app/actions/stock";
 import { FormError, SaveBar } from "@/components/stock/save-bar";
 import { WhShelfSelect, type Shelf, type Warehouse } from "@/components/stock/wh-shelf-select";
 import { inputClass } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { CalendarDays, FileText, PackageCheck, Warehouse as WarehouseIcon } from "lucide-react";
 import { useActionState } from "react";
 
@@ -43,6 +44,7 @@ export function RequestForm({
   onWarehouseChange: (value: string) => void;
   onShelfChange: (value: string) => void;
 }) {
+  const t = useDict().requestForm;
   const [state, action] = useActionState<StockState, FormData>(saveRequest, {});
 
   return (
@@ -55,11 +57,11 @@ export function RequestForm({
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-slate-600">
               <FileText className="size-3.5 text-teal-600" />
-              ເລກທີ <b className="font-mono text-slate-800">{docNo}</b>
+              {t.docNoLabel} <b className="font-mono text-slate-800">{docNo}</b>
             </span>
             <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-slate-600">
               <CalendarDays className="size-3.5 text-teal-600" />
-              ວັນທີ <b className="text-slate-800">{today}</b>
+              {t.dateLabel} <b className="text-slate-800">{today}</b>
             </span>
           </div>
         </div>
@@ -71,19 +73,19 @@ export function RequestForm({
                 <PackageCheck className="size-4" />
               </span>
               <div>
-                <h2 className="text-sm font-bold text-slate-800">ຂໍ້ມູນວຽກສ້ອມ</h2>
-                <p className="text-[11px] text-slate-400">ກວດສອບວຽກ ແລະອາການກ່ອນສ້າງໃບຂໍເບີກ</p>
+                <h2 className="text-sm font-bold text-slate-800">{t.jobInfoTitle}</h2>
+                <p className="text-[11px] text-slate-400">{t.jobInfoSubtitle}</p>
               </div>
             </div>
             <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
-              <Info label="ລູກຄ້າ" value={head.customer} />
-              <Info label="ສິນຄ້າ / SN" value={head.product} />
-              <Info label="ຍີ່ຫໍ້" value={head.brand} />
-              <Info label="ປະກັນ" value={head.warranty} badge />
-              <Info label="ອາການເບື້ອງຕົ້ນ" value={head.issue} danger />
-              <Info label="ອາການທີ່ຊ່າງວິເຄາະ" value={head.issue_2} danger />
-              <Info label="ຊ່າງສ້ອມ" value={head.technician} />
-              <Info label="ກວດເຊັກສຳເລັດ" value={head.checked_at} />
+              <Info label={t.customer} value={head.customer} />
+              <Info label={t.productSn} value={head.product} />
+              <Info label={t.brand} value={head.brand} />
+              <Info label={t.warranty} value={head.warranty} badge />
+              <Info label={t.initialIssue} value={head.issue} danger />
+              <Info label={t.analyzedIssue} value={head.issue_2} danger />
+              <Info label={t.technician} value={head.technician} />
+              <Info label={t.checkedComplete} value={head.checked_at} />
             </dl>
           </div>
 
@@ -93,8 +95,8 @@ export function RequestForm({
                 <WarehouseIcon className="size-4" />
               </span>
               <div>
-                <h2 className="text-sm font-bold text-slate-800">ສາງທີ່ຕ້ອງການຂໍເບີກ</h2>
-                <p className="text-[11px] text-slate-400">ເລືອກສາງເພື່ອກວດຍອດອາໄຫຼ່ດ້ານລຸ່ມ</p>
+                <h2 className="text-sm font-bold text-slate-800">{t.warehouseTitle}</h2>
+                <p className="text-[11px] text-slate-400">{t.warehouseSubtitle}</p>
               </div>
             </div>
             <div className="space-y-3">
@@ -109,15 +111,15 @@ export function RequestForm({
               />
               {!warehouseValue || !shelfValue ? (
                 <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
-                  ຕ້ອງເລືອກສາງ ແລະທີ່ເກັບກ່ອນ ຈຶ່ງຈະບັນທຶກໃບຂໍເບີກໄດ້
+                  {t.selectWarehouseWarning}
                 </p>
               ) : null}
               <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-600">ໝາຍເຫດສຳລັບສາງ</span>
+                <span className="mb-1 block text-xs font-medium text-slate-600">{t.warehouseRemark}</span>
                 <textarea
                   name="remark"
                   rows={3}
-                  placeholder="ເພີ່ມໝາຍເຫດ..."
+                  placeholder={t.remarkPlaceholder}
                   className={`${inputClass} min-h-20 resize-y py-2`}
                 />
               </label>

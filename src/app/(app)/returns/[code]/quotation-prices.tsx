@@ -1,5 +1,7 @@
 import type { ApprovedQuote, CartRow, QuoteLine } from "@/app/actions/return";
 import { Card, Table } from "@/components/ui";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { CheckCircle2, FileText, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
@@ -16,7 +18,7 @@ const money = (value: number) =>
 
 const chip = "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold";
 
-export function QuotationPrices({
+export async function QuotationPrices({
   quote,
   lines,
   cart,
@@ -25,6 +27,7 @@ export function QuotationPrices({
   lines: QuoteLine[];
   cart: CartRow[];
 }) {
+  const t = (await getDictionary(await getLocale())).quotationPrices;
   const byRef = new Map(cart.filter((row) => row.row_ref !== null).map((row) => [row.row_ref, row]));
   const extras = cart.filter((row) => row.row_ref === null);
 
@@ -43,7 +46,7 @@ export function QuotationPrices({
       title={
         <span className="inline-flex items-center gap-2">
           <FileText className="size-4 text-slate-500" />
-          ລາຄາມາຈາກໃບສະເໜີລາຄາ{" "}
+          {t.priceFromQuote}{" "}
           <Link
             href={`/quotations/${encodeURIComponent(quote.doc_no)}/print`}
             className="font-bold text-[#0536a9] hover:underline"
@@ -51,7 +54,7 @@ export function QuotationPrices({
             {quote.doc_no}
           </Link>
           <span className="text-xs font-normal text-slate-500">
-            ({quote.doc_date} · ລູກຄ້າຕົກລົງແລ້ວ)
+            ({quote.doc_date} · {t.customerAgreed})
           </span>
         </span>
       }
@@ -59,18 +62,18 @@ export function QuotationPrices({
         changed === 0 ? (
           <span className={`${chip} bg-emerald-50 text-emerald-700`}>
             <CheckCircle2 className="size-3.5" />
-            ຕົງກັບໃບສະເໜີລາຄາ
+            {t.matchesQuote}
           </span>
         ) : (
           <span className={`${chip} bg-amber-50 text-amber-700`}>
             <TriangleAlert className="size-3.5" />
-            ແກ້ໄຂແລ້ວ {changed} ລາຍການ
+            {t.editedPrefix} {changed} {t.itemsSuffix}
           </span>
         )
       }
     >
       <Table
-        head={["#", "ລະຫັດສິນຄ້າ", "ຊື່ສິນຄ້າ", "ຈຳນວນ", "ລາຄາທີ່ສະເໜີ", "ລາຄາໃນໃບຮັບເງິນ", "ສະຖານະ"]}
+        head={["#", t.colItemCode, t.colItemName, t.colQty, t.colQuotedPrice, t.colInvoicePrice, t.colStatus]}
         minWidth={900}
       >
         {lines.map((line, index) => {
@@ -95,17 +98,17 @@ export function QuotationPrices({
                 {!row ? (
                   <span className={`${chip} bg-amber-50 text-amber-700`}>
                     <TriangleAlert className="size-3.5" />
-                    ຖືກລຶບອອກຈາກໃບຮັບເງິນ
+                    {t.removedFromInvoice}
                   </span>
                 ) : differs ? (
                   <span className={`${chip} bg-amber-50 text-amber-700`}>
                     <TriangleAlert className="size-3.5" />
-                    ລາຄາຕ່າງຈາກໃບສະເໜີລາຄາ (ສະເໜີ {money(quotedPrice)} × {Number(line.qty)})
+                    {t.priceDiffersFromQuote} ({t.quotedLabel} {money(quotedPrice)} × {Number(line.qty)})
                   </span>
                 ) : (
                   <span className={`${chip} bg-emerald-50 text-emerald-700`}>
                     <CheckCircle2 className="size-3.5" />
-                    ຕົງກັນ
+                    {t.matches}
                   </span>
                 )}
               </td>
@@ -117,24 +120,24 @@ export function QuotationPrices({
       <dl className="mt-4 space-y-1 text-sm">
         {discount > 0 && (
           <div className="flex justify-end gap-3 text-slate-600">
-            <dt>ສ່ວນຫຼຸດໃນໃບສະເໜີລາຄາ</dt>
-            <dd className="w-36 text-right font-semibold">{money(discount)} ບາດ</dd>
+            <dt>{t.discountInQuote}</dt>
+            <dd className="w-36 text-right font-semibold">{money(discount)} {t.baht}</dd>
           </div>
         )}
         <div className="flex justify-end gap-3 text-slate-600">
-          <dt>ຍອດຕາມໃບສະເໜີລາຄາ</dt>
-          <dd className="w-36 text-right font-semibold">{money(quotedTotal)} ບາດ</dd>
+          <dt>{t.quoteTotal}</dt>
+          <dd className="w-36 text-right font-semibold">{money(quotedTotal)} {t.baht}</dd>
         </div>
         <div className="flex justify-end gap-3 text-slate-700">
-          <dt>ຍອດໃນໃບຮັບເງິນ</dt>
-          <dd className="w-36 text-right font-bold">{money(billTotal)} ບາດ</dd>
+          <dt>{t.invoiceTotal}</dt>
+          <dd className="w-36 text-right font-bold">{money(billTotal)} {t.baht}</dd>
         </div>
         {Math.abs(gap) >= 0.005 && (
           <div className="flex justify-end gap-3 text-amber-700">
-            <dt>ຕ່າງກັນ</dt>
+            <dt>{t.difference}</dt>
             <dd className="w-36 text-right font-bold">
               {gap > 0 ? "+" : ""}
-              {money(gap)} ບາດ
+              {money(gap)} {t.baht}
             </dd>
           </div>
         )}
@@ -142,12 +145,12 @@ export function QuotationPrices({
 
       {extras.length > 0 && (
         <p className="mt-2 text-right text-xs text-slate-500">
-          ມີ {extras.length} ລາຍການທີ່ພະນັກງານເພີ່ມເອງ (ບໍ່ຢູ່ໃນໃບສະເໜີລາຄາ)
+          {t.extrasPrefix} {extras.length} {t.extrasSuffix}
         </p>
       )}
       {discount > 0 && (
         <p className="mt-2 text-xs text-amber-700">
-          ໃບສະເໜີລາຄານີ້ມີສ່ວນຫຼຸດ {money(discount)} ບາດ — ໃບຮັບເງິນບໍ່ມີຊ່ອງສ່ວນຫຼຸດ ກະລຸນາປັບລາຄາໃນແຖວໃຫ້ຕົງກັບຍອດທີ່ຕົກລົງ
+          {t.discountNotePrefix} {money(discount)} {t.baht} {t.discountNoteSuffix}
         </p>
       )}
     </Card>
