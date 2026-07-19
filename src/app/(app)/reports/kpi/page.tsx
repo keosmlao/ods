@@ -6,6 +6,7 @@ import {
   repairKpi,
   repairSlaCompliance,
   technicianKpi,
+  technicianSla,
   weeklyThroughput,
   type FlowKpi,
   type Period,
@@ -44,15 +45,17 @@ export default async function KpiPage({ searchParams }: Props) {
   const params = await searchParams;
   const days = (PERIODS.includes(Number(params.d) as Period) ? Number(params.d) : 90) as Period;
 
-  const [install, repair, techs, quality, weeks, repairSla] = await Promise.all([
+  const [install, repair, techs, quality, weeks, repairSla, techSla] = await Promise.all([
     installKpi(days),
     repairKpi(days),
     technicianKpi(days),
     qualityKpi(days),
     weeklyThroughput(days),
     repairSlaCompliance(days),
+    technicianSla(days),
   ]);
   const repairSlaMap = new Map(repairSla.map((item) => [`${item.stage}:${item.service_type}`, item]));
+  const techSlaMap = new Map(techSla.map((item) => [item.tech, item]));
 
   const repeatPct = quality.repair_with_sn
     ? Math.round((quality.repeat_repairs / quality.repair_with_sn) * 1000) / 10
@@ -212,8 +215,10 @@ export default async function KpiPage({ searchParams }: Props) {
         {techs.length === 0 ? (
           <Empty>ບໍ່ມີງານທີ່ຈົບໃນໄລຍະນີ້</Empty>
         ) : (
-          <Table head={["ຊ່າງ", "ຕິດຕັ້ງ", "ສ້ອມ", "ລວມ", "ເວລາຕໍ່ງານ (ມັດທະຍົມ)", "ປະຕິເສດງານ", "QC ບໍ່ຜ່ານ"]} minWidth={800}>
-            {techs.map((tech) => (
+          <Table head={["ຊ່າງ", "ຕິດຕັ້ງ", "ສ້ອມ", "ລວມ", "ເວລາຕໍ່ງານ (ມັດທະຍົມ)", "ທັນເວລາ SLA (ກວດ/ສ້ອມ)", "ປະຕິເສດງານ", "QC ບໍ່ຜ່ານ"]} minWidth={920}>
+            {techs.map((tech) => {
+              const sla = techSlaMap.get(tech.tech);
+              return (
               <tr key={tech.tech} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="whitespace-nowrap px-3 py-2.5 font-semibold text-slate-800">{tech.tech}</td>
                 <td className="px-3 py-2.5 text-center tabular-nums">{tech.install_done}</td>
@@ -222,6 +227,20 @@ export default async function KpiPage({ searchParams }: Props) {
                   {tech.install_done + tech.repair_done}
                 </td>
                 <td className="px-3 py-2.5 text-center text-slate-600">{hours(tech.median_hours)}</td>
+                <td className="px-3 py-2.5 text-center tabular-nums">
+                  {sla ? (
+                    <span className="inline-flex flex-col items-center leading-tight">
+                      <span className={`font-bold ${sla.pct >= 90 ? "text-emerald-600" : sla.pct >= 75 ? "text-amber-600" : "text-red-600"}`}>
+                        {sla.pct}%
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        {sla.within_sla}/{sla.total}{sla.late > 0 ? ` · ຊ້າ ${sla.late}` : ""}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-slate-300">–</span>
+                  )}
+                </td>
                 <td className="px-3 py-2.5 text-center tabular-nums">
                   {/* ປະຕິເສດຫຼາຍ = ຈັດງານບໍ່ຕົງຄົນ ຫຼື ຊ່າງເລືອກງານ ⇒ ຄວນຖາມ */}
                   <span className={tech.rejects > 0 ? "font-bold text-amber-700" : "text-slate-400"}>
@@ -234,7 +253,8 @@ export default async function KpiPage({ searchParams }: Props) {
                   </span>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </Table>
         )}
       </Card>

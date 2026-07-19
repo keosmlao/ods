@@ -292,6 +292,57 @@ export async function technicianKpi(days: Period): Promise<TechKpi[]> {
 }
 
 
+export type TechSla = {
+  tech: string;
+  /** ຈຳນວນຂັ້ນທີ່ວັດໄດ້ (ກວດເຊັກ + ສ້ອມ ຂອງໃບທີ່ຈົບຂັ້ນນັ້ນໃນໄລຍະ) */
+  total: number;
+  within_sla: number;
+  late: number;
+  pct: number;
+};
+
+/**
+ * **ອັດຕາທັນເວລາ (SLA) ຕໍ່ຊ່າງ** — ວັດສະເພາະຂັ້ນທີ່ຊ່າງລົງມືເອງ: **ກວດເຊັກ (2) + ສ້ອມ (9)**.
+ * ໃຊ້ SLA ອັນດຽວກັບ repairSlaCompliance (REPAIR_STAGE_POLICIES ຕໍ່ປະເພດບໍລິການ) ແຕ່ຈັດຕາມ emp_code
+ * ⇒ ບໍ່ຫັກຊ່າງຈາກຂັ້ນທີ່ຄົນອື່ນຮັບຜິດຊອບ (ສະເໜີລາຄາ/ສາງ/ອະນຸມັດ).
+ */
+export async function technicianSla(days: Period): Promise<TechSla[]> {
+  const TECH_STAGES = [2, 9];
+  const branches = TECH_STAGES.flatMap((stage) => {
+    const policy = REPAIR_STAGE_POLICIES.find((p) => p.stage === stage);
+    const period = REPAIR_STAGE_PERIOD[stage];
+    if (!policy || !period) return [];
+    return REPAIR_SERVICE_TYPES.map((serviceType) => {
+      const duration = `extract(epoch from (${period.finish} - ${period.start}))`;
+      return `select nullif(a.emp_code,'') as tech,
+          (${duration} between 0 and ${policy.hours[serviceType] * 3600}) as ontime
+        from tb_product a
+       where a.status <> 6 and a.service_type = '${serviceType}' and nullif(a.emp_code,'') is not null
+         and ${period.start} is not null and ${period.finish} is not null
+         and ${period.finish} >= current_date - ($1::int)`;
+    });
+  });
+  const rows = (
+    await query<{ tech: string; total: number; within_sla: number; late: number }>(
+      `select tech, count(*)::int total,
+          count(*) filter (where ontime)::int within_sla,
+          count(*) filter (where not ontime)::int late
+        from (${branches.join(" union all ")}) x
+        group by tech
+        having count(*) > 0
+        order by count(*) desc`,
+      [days],
+    )
+  ).rows;
+  return rows.map((row) => ({
+    tech: row.tech,
+    total: Number(row.total),
+    within_sla: Number(row.within_sla),
+    late: Number(row.late),
+    pct: Number(row.total) ? Math.round((Number(row.within_sla) / Number(row.total)) * 1000) / 10 : 0,
+  }));
+}
+
 /**
  * **ຄຸນນະພາບ** — ໄວຢ່າງດຽວບໍ່ພຽງພໍ. ງານທີ່ໄວແຕ່ຕ້ອງກັບມາສ້ອມຊ້ຳ = ຂາດທຶນສອງເທື່ອ.
  */
