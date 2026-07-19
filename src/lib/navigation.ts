@@ -79,6 +79,7 @@ const HOME: NavGroup = {
      */
     { label: "ກິດຈະກຳຂອງຂ້ອຍ", href: "/activities" },
     { label: "ການແຈ້ງເຕືອນ", href: "/notifications" },
+    { label: "ຄູ່ມືການໃຊ້ງານ", href: "/manual" },
   ],
 };
 

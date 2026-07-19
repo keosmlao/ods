@@ -105,6 +105,7 @@ const RULES: Rule[] = [
   /** ສົນທະນາ — ທຸກຄົນທີ່ login ໄດ້ (ດ່ານຫ້ອງຢູ່ lib/chat.canJoin ບໍ່ແມ່ນທີ່ນີ້) */
   { path: "/chat", roles: EVERYONE },
   { path: "/notifications", roles: EVERYONE },
+  { path: "/manual", roles: EVERYONE },
 
   /* ບໍລິການ / ຮັບເຄື່ອງສ້ອມ — ods: ເມນູ "ບໍລິການ" (manager, admin) */
   { path: "/service", exact: true, roles: SERVICE_SIDE },
