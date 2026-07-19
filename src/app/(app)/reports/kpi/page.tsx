@@ -13,7 +13,7 @@ import {
   type Period,
 } from "@/lib/kpi";
 import { REPAIR_STAGE_POLICIES, REPAIR_SERVICE_TYPES } from "@/lib/repair-sla";
-import { HardHat, TrendingUp, TriangleAlert, Wrench } from "lucide-react";
+import { Download, HardHat, TrendingUp, TriangleAlert, Wrench } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -84,6 +84,12 @@ export default async function KpiPage({ searchParams }: Props) {
           </Link>
         ))}
         <span className="ml-2 text-[11px] text-slate-400">ນັບຈາກງານທີ່ **ປິດ** ໃນໄລຍະນີ້</span>
+        <Link
+          href={`/api/reports/export/kpi-tech?d=${days}`}
+          className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <Download className="size-3.5" /> Export ຊ່າງ (Excel)
+        </Link>
       </div>
 
       {/* ── ເປົ້າໝາຍຫຼັກ: ຕິດຕັ້ງແລ້ວພາຍໃນ 24 ຊມ ນັບແຕ່ **ອອກບິນ** ── */}
