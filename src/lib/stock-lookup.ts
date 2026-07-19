@@ -16,27 +16,38 @@ export type StockBalanceItem = {
   warehouses: { code: string; name: string; qty: number }[];
 };
 
-export async function stockBalanceLookup(query: string): Promise<StockBalanceItem[]> {
+/**
+ * @param onlyWarehouses ຖ້າກຳນົດ — ສະແດງ/ນັບສະເພາະສາງເຫຼົ່ານັ້ນ (ເຊັ່ນ ສາງສູນບໍລິການ 1104/1206)
+ *   ⇒ `total` ກາຍເປັນຍອດລວມ**ໃນສາງທີ່ກອງ** (ບໍ່ແມ່ນຍອດທຸກສາງ).
+ */
+export async function stockBalanceLookup(
+  query: string,
+  onlyWarehouses?: readonly string[],
+): Promise<StockBalanceItem[]> {
   const items = (await searchSpares(query, false)).slice(0, 25);
   if (items.length === 0) return [];
 
   const [balances, whs] = await Promise.all([getBalances(items.map((item) => item.code)), warehouses()]);
   const whName = new Map(whs.map((wh) => [wh.code, wh.name]));
+  const scope = onlyWarehouses ? new Set(onlyWarehouses) : null;
 
   return items.map((item) => {
     const balance = balances.get(item.code);
     const perWh = balance
       ? [...balance.byWarehouse.entries()]
-          .filter(([, qty]) => qty > 0)
+          .filter(([code, qty]) => qty > 0 && (!scope || scope.has(code)))
           .sort((a, b) => b[1] - a[1])
           .map(([code, qty]) => ({ code, name: whName.get(code) ?? code, qty }))
       : [];
+    const total = scope
+      ? perWh.reduce((sum, wh) => sum + wh.qty, 0)
+      : balance?.total ?? item.balance_qty ?? 0;
     return {
       code: item.code,
       name: item.name_1,
       brand: item.brand,
       unit_code: item.unit_code,
-      total: balance?.total ?? item.balance_qty ?? 0,
+      total,
       warehouses: perWh,
     };
   });
