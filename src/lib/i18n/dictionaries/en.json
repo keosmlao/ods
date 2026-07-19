@@ -3060,5 +3060,80 @@
     "colQty": "Qty",
     "colUnit": "Unit",
     "alreadyPicked": "Technician has already received these spares"
+  },
+  "docChrome": {
+    "back": "Back",
+    "dateLabel": "Date:",
+    "docNoLabel": "No.:",
+    "remark": "Remark"
+  },
+  "dispatchBill": {
+    "title": "Spare Parts Dispatch Bill",
+    "requestDocNoLabel": "Request No:",
+    "dateLabel": "Date:",
+    "checkDocNoLabel": "Inspection No:",
+    "customerLabel": "Customer:",
+    "productNameLabel": "Product Name:",
+    "modelLabel": "Model:",
+    "snLabel": "Serial No/SN:",
+    "faultLabel": "Fault:",
+    "warrantyLabel": "Warranty:",
+    "techFaultLabel": "Technician Diagnosis:",
+    "repairTechLabel": "Repair Technician:",
+    "remarkLabel": "Remark:"
+  },
+  "requestsView": {
+    "title": "Requisition Slip",
+    "requestNo": "Requisition No:",
+    "date": "Date:",
+    "customer": "Customer:",
+    "productName": "Product Name:",
+    "model": "Model:",
+    "serialNo": "Serial No/sn:",
+    "issue": "Fault:",
+    "warranty": "Warranty:",
+    "technicianDiagnosis": "Technician Diagnosis:",
+    "technician": "Technician:"
+  },
+  "receiveReturnsBill": {
+    "title": "Spare Parts Return Receipt",
+    "requestBillNo": "Request No:",
+    "date": "Date:",
+    "checkBillNo": "Inspection No:",
+    "customer": "Customer:",
+    "productName": "Product Name:",
+    "model": "Model:",
+    "serialNo": "Serial No:",
+    "issue": "Fault:",
+    "warranty": "Warranty:",
+    "technicianAnalysis": "Technician's Diagnosis:",
+    "technician": "Technician:",
+    "remark": "Remark:"
+  },
+  "transferForm": {
+    "save": "Save",
+    "exit": "Exit",
+    "remark": "Remark",
+    "dateLabel": "Date:",
+    "docNoLabel": "No.:",
+    "confirmTitle": "Request part transfer?",
+    "confirmSubmit": "Request transfer",
+    "confirmMessagePrefix": "Create transfer request",
+    "confirmMessageSuffix": "from another warehouse into the repair warehouse"
+  },
+  "sparePartsNew": {
+    "heading": "Request new spare code",
+    "configurePpDbUrl": "Please configure PP_DATABASE_URL",
+    "listTitle": "New spare code requests",
+    "searchPlaceholder": "Search spare name, unit, requester...",
+    "colSmlCode": "SML spare code",
+    "colName": "Spare name",
+    "colUnit": "Unit",
+    "colCreatedDate": "Request date",
+    "colElapsed": "Elapsed",
+    "colRequester": "Requester",
+    "readyInStock": "Ready in stock",
+    "notInStock": "Not in stock yet — click “Pull new spare”",
+    "creating": "Creating"
   }
 }

@@ -1,6 +1,8 @@
 import { BillView } from "@/components/stock/bill-view";
 import type { SpareLine } from "@/components/stock/spare-lines";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { notFound } from "next/navigation";
 
 /** ods: stock.py /showbillreturn/<doc_no> + templates/stock/showbillreturn.html */
@@ -26,6 +28,7 @@ type Head = {
 export default async function ShowReturnBillPage({ params }: Props) {
   const { docNo } = await params;
   const code = decodeURIComponent(docNo);
+  const t = (await getDictionary(await getLocale())).receiveReturnsBill;
 
   const head = await query<Head>(
     `select a.doc_no, to_char(a.doc_date,'DD-MM-YYYY') doc_date, a.doc_ref,
@@ -50,22 +53,22 @@ export default async function ShowReturnBillPage({ params }: Props) {
 
   return (
     <BillView
-      title="ໃບຮັບຄືນອາໄຫຼ່"
+      title={t.title}
       backHref="/stock/receive-returns"
       fields={[
-        { label: "ເລກທິໃບຂໍເບີກ:", value: bill.doc_no },
-        { label: "ວັນທີ:", value: bill.doc_date },
-        { label: "ເລກທິໃບກວດເຊັກ:", value: bill.doc_ref },
-        { label: "ວັນທີ:", value: bill.doc_ref_date },
-        { label: "ລູກຄ້າ:", value: bill.customer },
-        { label: "ຊື່ສິນຄ້າ:", value: bill.product },
-        { label: "ລູ້ນ/Model:", value: bill.p_model },
-        { label: "ເລກເຄື່ອງ/sn:", value: bill.sn },
-        { label: "ອາການເສຍ:", value: bill.issue, accent: true },
-        { label: "ປະກັນ:", value: bill.warranty },
-        { label: "ອາການຊ່າງວິເຄາະ:", value: bill.issue_2 },
-        { label: "ຊ່າງສ້ອມ:", value: bill.technician },
-        { label: "ໝາຍເຫດ:", value: bill.remark },
+        { label: t.requestBillNo, value: bill.doc_no },
+        { label: t.date, value: bill.doc_date },
+        { label: t.checkBillNo, value: bill.doc_ref },
+        { label: t.date, value: bill.doc_ref_date },
+        { label: t.customer, value: bill.customer },
+        { label: t.productName, value: bill.product },
+        { label: t.model, value: bill.p_model },
+        { label: t.serialNo, value: bill.sn },
+        { label: t.issue, value: bill.issue, accent: true },
+        { label: t.warranty, value: bill.warranty },
+        { label: t.technicianAnalysis, value: bill.issue_2 },
+        { label: t.technician, value: bill.technician },
+        { label: t.remark, value: bill.remark },
       ]}
       lines={lines.rows}
     />

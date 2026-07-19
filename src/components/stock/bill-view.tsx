@@ -1,5 +1,7 @@
 import { SpareLineTable, type SpareLine } from "@/components/stock/spare-lines";
 import { LinkButton, PageTitle } from "@/components/ui";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { ArrowLeft } from "lucide-react";
 
 export type BillField = { label: string; value: string | null; accent?: boolean };
@@ -8,7 +10,7 @@ export type BillField = { label: string; value: string | null; accent?: boolean 
  * ໜ້າເບິ່ງບິນແບບອ່ານຢ່າງດຽວ — ໃຊ້ຮ່ວມກັນ 3 ໜ້າຂອງ ods:
  * showrequstpage.html (/showstkrq), showbilldipatch.html (/showbilldp), showbillreturn.html (/showbillreturn)
  */
-export function BillView({
+export async function BillView({
   title,
   subtitle,
   backHref,
@@ -21,13 +23,14 @@ export function BillView({
   fields: BillField[];
   lines: Omit<SpareLine, "roworder">[];
 }) {
+  const t = (await getDictionary(await getLocale())).docChrome;
   return (
     <div className="w-full space-y-6">
       <PageTitle sub={subtitle}>{title}</PageTitle>
 
       <LinkButton href={backHref} tone="neutral">
         <ArrowLeft className="size-4" />
-        ກັບຄືນ
+        {t.back}
       </LinkButton>
 
       <div className="grid gap-x-8 gap-y-1 rounded-xl bg-[#0a5e96] p-5 text-sm text-white md:grid-cols-2">

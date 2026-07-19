@@ -6,6 +6,8 @@ import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import { PP_NOT_CONFIGURED, ppDb, queryPp } from "@/lib/stock-db";
 import type { SortDir } from "@/components/sort-header";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import Link from "next/link";
 
 /**
@@ -38,24 +40,25 @@ const SORT_SQL: Record<string, string> = {
   user: "user_created",
 };
 
-const COLUMNS: ListColumn[] = [
-  { label: "ລະຫັດອາໄຫຼ່ SML" },
-  { key: "name", label: "ຊື່ອາໄຫຼ່" },
-  { key: "unit", label: "ຫົວໜ່ວຍ" },
-  { key: "created", label: "ວັນທີຂໍສ້າງ", defaultDir: "desc" },
-  { label: "ຮອດປັດຈຸບັນ" },
-  { key: "user", label: "ຜູ້ຂໍສ້າງ" },
+const columns = (t: Record<string, string>): ListColumn[] => [
+  { label: t.colSmlCode },
+  { key: "name", label: t.colName },
+  { key: "unit", label: t.colUnit },
+  { key: "created", label: t.colCreatedDate, defaultDir: "desc" },
+  { label: t.colElapsed },
+  { key: "user", label: t.colRequester },
 ];
 
 export default async function NewSparePage({ searchParams }: Props) {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+  const t = (await getDictionary(await getLocale())).sparePartsNew;
 
   // ຖານ pp_od_manage ເປັນຖານທີ 3 — ຖ້າບໍ່ໄດ້ຕັ້ງ PP_DATABASE_URL ໃຫ້ບອກຜູ້ໃຊ້ ບໍ່ແມ່ນລົ້ມ
   if (!ppDb) {
     return (
       <div className="w-full space-y-4">
-        <h1 className="text-xl font-bold text-slate-700">ຂໍສ້າງລະຫັດອາໄຫຼ່</h1>
-        <ErrorBox>{PP_NOT_CONFIGURED} — ກະລຸນາຕັ້ງຄ່າ PP_DATABASE_URL</ErrorBox>
+        <h1 className="text-xl font-bold text-slate-700">{t.heading}</h1>
+        <ErrorBox>{PP_NOT_CONFIGURED} — {t.configurePpDbUrl}</ErrorBox>
       </div>
     );
   }
@@ -108,19 +111,19 @@ export default async function NewSparePage({ searchParams }: Props) {
 
   return (
     <div className="w-full space-y-4">
-      <Card title="ຂໍສ້າງລະຫັດອາໄຫຼ່">
+      <Card title={t.heading}>
         <NewSpareForm today={today} />
       </Card>
 
       <ListShell
-        title="ລາຍການຂໍສ້າງລະຫັດອາໄຫຼ່"
+        title={t.listTitle}
         total={count}
         page={page}
         perPage={PAGE_SIZE}
         pages={pageCount(count)}
         q={q}
-        searchPlaceholder="ຄົ້ນຫາ ຊື່ອາໄຫຼ່, ຫົວໜ່ວຍ, ຜູ້ຂໍສ້າງ..."
-        columns={COLUMNS}
+        searchPlaceholder={t.searchPlaceholder}
+        columns={columns(t)}
         sort={sort}
         dir={dir}
         sortHref={sortHref}
@@ -142,20 +145,20 @@ export default async function NewSparePage({ searchParams }: Props) {
                       {draft.ic_code}
                     </span>
                     {ready ? (
-                      <span className="text-[10px] text-slate-400">ພ້ອມໃຊ້ໃນສາງ</span>
+                      <span className="text-[10px] text-slate-400">{t.readyInStock}</span>
                     ) : (
                       // ລະຫັດອອກແລ້ວ ແຕ່ຍັງບໍ່ເຂົ້າ ic_inventory ⇒ ເບີກ/ສັ່ງຊື້ອາໄຫຼ່ຕົວນີ້ຍັງບໍ່ໄດ້
                       <Link
                         href="/stock/spare-parts"
                         className="text-[10px] font-semibold text-amber-700 underline underline-offset-2"
                       >
-                        ຍັງບໍ່ເຂົ້າສາງ — ກົດ “ດຶງອາໄຫຼ່ໃໝ່”
+                        {t.notInStock}
                       </Link>
                     )}
                   </div>
                 ) : (
                   <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
-                    ກຳລັງສ້າງ
+                    {t.creating}
                   </span>
                 )}
               </td>

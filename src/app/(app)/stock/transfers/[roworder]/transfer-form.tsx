@@ -5,12 +5,13 @@ import { useConfirm } from "@/components/confirm-dialog";
 import type { DocField } from "@/components/stock/doc-form";
 import { FormError } from "@/components/stock/save-bar";
 import { LinkButton, inputClass } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { LoaderCircle, LogOut, Save } from "lucide-react";
 import { useActionState, useRef } from "react";
 import { useFormStatus } from "react-dom";
 
 /** ປຸ່ມບັນທຶກ — ຢືນຢັນກ່ອນ ແລ້ວຈຶ່ງສົ່ງຟອມ (ໃຊ້ useConfirm ແທນ window.confirm) */
-function SaveButton({ onConfirmed }: { onConfirmed: () => void }) {
+function SaveButton({ onConfirmed, saveLabel }: { onConfirmed: () => void; saveLabel: string }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -20,7 +21,7 @@ function SaveButton({ onConfirmed }: { onConfirmed: () => void }) {
       className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
-      &nbsp;ບັນທືກ
+      &nbsp;{saveLabel}
     </button>
   );
 }
@@ -46,15 +47,16 @@ export function TransferForm({
   defaultRemark?: string;
   itemName: string;
 }) {
+  const t = useDict().transferForm;
   const [state, action] = useActionState<StockState, FormData>(saveTransferRequest, {});
   const formRef = useRef<HTMLFormElement>(null);
   const { ask, dialog } = useConfirm();
 
   async function confirmSave() {
     const ok = await ask({
-      title: "ຂໍໂອນອາໄຫຼ່?",
-      message: `ສ້າງໃບຂໍໂອນ ${docNo} — ${itemName} ຈາກສາງອື່ນເຂົ້າສາງສ້ອມ`,
-      confirmLabel: "ຂໍໂອນ",
+      title: t.confirmTitle,
+      message: `${t.confirmMessagePrefix} ${docNo} — ${itemName} ${t.confirmMessageSuffix}`,
+      confirmLabel: t.confirmSubmit,
     });
     if (ok) formRef.current?.requestSubmit();
   }
@@ -67,10 +69,10 @@ export function TransferForm({
         <input type="hidden" name="roworder" value={roworder} />
 
         <div className="flex flex-wrap items-center gap-3">
-          <SaveButton onConfirmed={confirmSave} />
+          <SaveButton onConfirmed={confirmSave} saveLabel={t.save} />
           <LinkButton href="/stock/dispatch" tone="neutral">
             <LogOut className="size-4" />
-            &nbsp;ອອກ
+            &nbsp;{t.exit}
           </LinkButton>
         </div>
 
@@ -79,10 +81,10 @@ export function TransferForm({
         <div className="grid gap-4 rounded-xl bg-[#0a5e96] p-5 text-white md:grid-cols-2">
           <div className="space-y-1 text-sm">
             <p>
-              <span className="text-white/70">ວັນທີ:</span> {today}
+              <span className="text-white/70">{t.dateLabel}</span> {today}
             </p>
             <p>
-              <span className="text-white/70">ເລກທີ:</span> {docNo}
+              <span className="text-white/70">{t.docNoLabel}</span> {docNo}
             </p>
           </div>
 
@@ -96,7 +98,7 @@ export function TransferForm({
           </div>
 
           <label className="block md:col-span-2">
-            <span className="mb-1 block text-sm text-white/80">ໝາຍເຫດ</span>
+            <span className="mb-1 block text-sm text-white/80">{t.remark}</span>
             <input type="text" name="remark" defaultValue={defaultRemark} autoComplete="off" className={inputClass} />
           </label>
         </div>

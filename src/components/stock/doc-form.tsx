@@ -3,6 +3,7 @@
 import { saveDispatch, saveReceiveReturn, saveReturnRequest, type StockState } from "@/app/actions/stock";
 import { FormError, SaveBar } from "@/components/stock/save-bar";
 import { inputClass } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { useActionState } from "react";
 
 export type DocField = { label: string; value: string | null; accent?: boolean };
@@ -44,6 +45,7 @@ export function DocForm({
   defaultRemark?: string;
   disabled?: boolean;
 }) {
+  const t = useDict().docChrome;
   const [state, action] = useActionState<StockState, FormData>(ACTIONS[kind], {});
 
   return (
@@ -58,10 +60,10 @@ export function DocForm({
       <div className="grid gap-4 rounded-xl bg-[#0a5e96] p-5 text-white md:grid-cols-2">
         <div className="space-y-1 text-sm">
           <p>
-            <span className="text-white/70">ວັນທີ:</span> {today}
+            <span className="text-white/70">{t.dateLabel}</span> {today}
           </p>
           <p>
-            <span className="text-white/70">ເລກທີ:</span> {docNo}
+            <span className="text-white/70">{t.docNoLabel}</span> {docNo}
           </p>
         </div>
 
@@ -75,7 +77,7 @@ export function DocForm({
         </div>
 
         <label className="block md:col-span-2">
-          <span className="mb-1 block text-sm text-white/80">ໝາຍເຫດ</span>
+          <span className="mb-1 block text-sm text-white/80">{t.remark}</span>
           <input type="text" name="remark" defaultValue={defaultRemark} autoComplete="off" className={inputClass} />
         </label>
       </div>

@@ -3060,5 +3060,80 @@
     "colQty": "ຈຳນວນ",
     "colUnit": "ຫົວໜ່ວຍ",
     "alreadyPicked": "ໃບນີ້ຊ່າງຮັບອາໄຫຼ່ໄປແລ້ວ"
+  },
+  "docChrome": {
+    "back": "ກັບຄືນ",
+    "dateLabel": "ວັນທີ:",
+    "docNoLabel": "ເລກທີ:",
+    "remark": "ໝາຍເຫດ"
+  },
+  "dispatchBill": {
+    "title": "ໃບເບີກອາໄຫຼ່",
+    "requestDocNoLabel": "ເລກທິໃບຂໍເບີກ:",
+    "dateLabel": "ວັນທີ:",
+    "checkDocNoLabel": "ເລກທິໃບກວດເຊັກ:",
+    "customerLabel": "ລູກຄ້າ:",
+    "productNameLabel": "ຊື່ສິນຄ້າ:",
+    "modelLabel": "ລູ້ນ/Model:",
+    "snLabel": "ເລກເຄື່ອງ/sn:",
+    "faultLabel": "ອາການເສຍ:",
+    "warrantyLabel": "ປະກັນ:",
+    "techFaultLabel": "ອາການຊ່າງວິເຄາະ:",
+    "repairTechLabel": "ຊ່າງສ້ອມ:",
+    "remarkLabel": "ໝາຍເຫດ:"
+  },
+  "requestsView": {
+    "title": "ໃບຂໍເບີກ",
+    "requestNo": "ເລກທິໃບຂໍເບີກ:",
+    "date": "ວັນທີ:",
+    "customer": "ລູກຄ້າ:",
+    "productName": "ຊື່ສິນຄ້າ:",
+    "model": "ລູ້ນ/Model:",
+    "serialNo": "ເລກເຄື່ອງ/sn:",
+    "issue": "ອາການເສຍ:",
+    "warranty": "ປະກັນ:",
+    "technicianDiagnosis": "ອາການຊ່າງວິເຄາະ:",
+    "technician": "ຊ່າງສ້ອມ:"
+  },
+  "receiveReturnsBill": {
+    "title": "ໃບຮັບຄືນອາໄຫຼ່",
+    "requestBillNo": "ເລກທິໃບຂໍເບີກ:",
+    "date": "ວັນທີ:",
+    "checkBillNo": "ເລກທິໃບກວດເຊັກ:",
+    "customer": "ລູກຄ້າ:",
+    "productName": "ຊື່ສິນຄ້າ:",
+    "model": "ລູ້ນ/Model:",
+    "serialNo": "ເລກເຄື່ອງ/sn:",
+    "issue": "ອາການເສຍ:",
+    "warranty": "ປະກັນ:",
+    "technicianAnalysis": "ອາການຊ່າງວິເຄາະ:",
+    "technician": "ຊ່າງສ້ອມ:",
+    "remark": "ໝາຍເຫດ:"
+  },
+  "transferForm": {
+    "save": "ບັນທືກ",
+    "exit": "ອອກ",
+    "remark": "ໝາຍເຫດ",
+    "dateLabel": "ວັນທີ:",
+    "docNoLabel": "ເລກທີ:",
+    "confirmTitle": "ຂໍໂອນອາໄຫຼ່?",
+    "confirmSubmit": "ຂໍໂອນ",
+    "confirmMessagePrefix": "ສ້າງໃບຂໍໂອນ",
+    "confirmMessageSuffix": "ຈາກສາງອື່ນເຂົ້າສາງສ້ອມ"
+  },
+  "sparePartsNew": {
+    "heading": "ຂໍສ້າງລະຫັດອາໄຫຼ່",
+    "configurePpDbUrl": "ກະລຸນາຕັ້ງຄ່າ PP_DATABASE_URL",
+    "listTitle": "ລາຍການຂໍສ້າງລະຫັດອາໄຫຼ່",
+    "searchPlaceholder": "ຄົ້ນຫາ ຊື່ອາໄຫຼ່, ຫົວໜ່ວຍ, ຜູ້ຂໍສ້າງ...",
+    "colSmlCode": "ລະຫັດອາໄຫຼ່ SML",
+    "colName": "ຊື່ອາໄຫຼ່",
+    "colUnit": "ຫົວໜ່ວຍ",
+    "colCreatedDate": "ວັນທີຂໍສ້າງ",
+    "colElapsed": "ຮອດປັດຈຸບັນ",
+    "colRequester": "ຜູ້ຂໍສ້າງ",
+    "readyInStock": "ພ້ອມໃຊ້ໃນສາງ",
+    "notInStock": "ຍັງບໍ່ເຂົ້າສາງ — ກົດ “ດຶງອາໄຫຼ່ໃໝ່”",
+    "creating": "ກຳລັງສ້າງ"
   }
 }

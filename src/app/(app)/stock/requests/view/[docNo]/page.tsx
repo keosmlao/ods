@@ -2,6 +2,8 @@ import { BillView } from "@/components/stock/bill-view";
 import type { SpareLine } from "@/components/stock/spare-lines";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { canViewAssignedJob } from "@/lib/scope";
 import { notFound, redirect } from "next/navigation";
 
@@ -31,6 +33,8 @@ export default async function ShowRequestBillPage({ params }: Props) {
   const session = await getSession();
   if (!session) redirect("/login");
 
+  const t = (await getDictionary(await getLocale())).requestsView;
+
   const head = await query<Head>(
     `select a.doc_no, to_char(a.doc_date,'DD-MM-YYYY') doc_date, a.doc_ref,
        to_char(a.doc_ref_date::date,'DD-MM-YYYY') doc_ref_date,
@@ -55,19 +59,19 @@ export default async function ShowRequestBillPage({ params }: Props) {
 
   return (
     <BillView
-      title="ໃບຂໍເບີກ"
+      title={t.title}
       backHref="/stock/requests"
       fields={[
-        { label: "ເລກທິໃບຂໍເບີກ:", value: bill.doc_no },
-        { label: "ວັນທີ:", value: bill.doc_date },
-        { label: "ລູກຄ້າ:", value: bill.customer },
-        { label: "ຊື່ສິນຄ້າ:", value: bill.product },
-        { label: "ລູ້ນ/Model:", value: bill.p_model },
-        { label: "ເລກເຄື່ອງ/sn:", value: bill.sn },
-        { label: "ອາການເສຍ:", value: bill.issue, accent: true },
-        { label: "ປະກັນ:", value: bill.warranty },
-        { label: "ອາການຊ່າງວິເຄາະ:", value: bill.issue_2 },
-        { label: "ຊ່າງສ້ອມ:", value: bill.technician },
+        { label: t.requestNo, value: bill.doc_no },
+        { label: t.date, value: bill.doc_date },
+        { label: t.customer, value: bill.customer },
+        { label: t.productName, value: bill.product },
+        { label: t.model, value: bill.p_model },
+        { label: t.serialNo, value: bill.sn },
+        { label: t.issue, value: bill.issue, accent: true },
+        { label: t.warranty, value: bill.warranty },
+        { label: t.technicianDiagnosis, value: bill.issue_2 },
+        { label: t.technician, value: bill.technician },
       ]}
       lines={lines.rows}
     />

@@ -3060,5 +3060,80 @@
     "colQty": "จำนวน",
     "colUnit": "หน่วย",
     "alreadyPicked": "ใบนี้ช่างรับอะไหล่ไปแล้ว"
+  },
+  "docChrome": {
+    "back": "กลับ",
+    "dateLabel": "วันที่:",
+    "docNoLabel": "เลขที่:",
+    "remark": "หมายเหตุ"
+  },
+  "dispatchBill": {
+    "title": "ใบเบิกอะไหล่",
+    "requestDocNoLabel": "เลขที่ใบขอเบิก:",
+    "dateLabel": "วันที่:",
+    "checkDocNoLabel": "เลขที่ใบตรวจเช็ค:",
+    "customerLabel": "ลูกค้า:",
+    "productNameLabel": "ชื่อสินค้า:",
+    "modelLabel": "รุ่น/Model:",
+    "snLabel": "หมายเลขเครื่อง/sn:",
+    "faultLabel": "อาการเสีย:",
+    "warrantyLabel": "ประกัน:",
+    "techFaultLabel": "อาการที่ช่างวิเคราะห์:",
+    "repairTechLabel": "ช่างซ่อม:",
+    "remarkLabel": "หมายเหตุ:"
+  },
+  "requestsView": {
+    "title": "ใบขอเบิก",
+    "requestNo": "เลขที่ใบขอเบิก:",
+    "date": "วันที่:",
+    "customer": "ลูกค้า:",
+    "productName": "ชื่อสินค้า:",
+    "model": "รุ่น/Model:",
+    "serialNo": "เลขเครื่อง/sn:",
+    "issue": "อาการเสีย:",
+    "warranty": "ประกัน:",
+    "technicianDiagnosis": "อาการที่ช่างวิเคราะห์:",
+    "technician": "ช่างซ่อม:"
+  },
+  "receiveReturnsBill": {
+    "title": "ใบรับคืนอะไหล่",
+    "requestBillNo": "เลขที่ใบเบิก:",
+    "date": "วันที่:",
+    "checkBillNo": "เลขที่ใบตรวจเช็ก:",
+    "customer": "ลูกค้า:",
+    "productName": "ชื่อสินค้า:",
+    "model": "รุ่น/Model:",
+    "serialNo": "เลขเครื่อง/sn:",
+    "issue": "อาการเสีย:",
+    "warranty": "ประกัน:",
+    "technicianAnalysis": "อาการที่ช่างวิเคราะห์:",
+    "technician": "ช่างซ่อม:",
+    "remark": "หมายเหตุ:"
+  },
+  "transferForm": {
+    "save": "บันทึก",
+    "exit": "ออก",
+    "remark": "หมายเหตุ",
+    "dateLabel": "วันที่:",
+    "docNoLabel": "เลขที่:",
+    "confirmTitle": "ขอโอนอะไหล่?",
+    "confirmSubmit": "ขอโอน",
+    "confirmMessagePrefix": "สร้างใบขอโอน",
+    "confirmMessageSuffix": "จากคลังอื่นเข้าคลังซ่อม"
+  },
+  "sparePartsNew": {
+    "heading": "ขอสร้างรหัสอะไหล่",
+    "configurePpDbUrl": "กรุณาตั้งค่า PP_DATABASE_URL",
+    "listTitle": "รายการขอสร้างรหัสอะไหล่",
+    "searchPlaceholder": "ค้นหา ชื่ออะไหล่, หน่วย, ผู้ขอสร้าง...",
+    "colSmlCode": "รหัสอะไหล่ SML",
+    "colName": "ชื่ออะไหล่",
+    "colUnit": "หน่วย",
+    "colCreatedDate": "วันที่ขอสร้าง",
+    "colElapsed": "ถึงปัจจุบัน",
+    "colRequester": "ผู้ขอสร้าง",
+    "readyInStock": "พร้อมใช้ในคลัง",
+    "notInStock": "ยังไม่เข้าคลัง — กด “ดึงอะไหล่ใหม่”",
+    "creating": "กำลังสร้าง"
   }
 }
