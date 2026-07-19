@@ -1,5 +1,6 @@
 "use client";
 import type { Customer } from "@/components/service-customer";
+import { useDict } from "@/lib/i18n/context";
 import { AlertTriangle, Check, LoaderCircle, PencilLine, ScanLine, Search, X } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -55,6 +56,7 @@ export function ServiceScan({
   onResolved: (result: ScanResult) => void;
   onManual: (sn: string) => void;
 }) {
+  const t = useDict().serviceScan;
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
@@ -100,8 +102,8 @@ export function ServiceScan({
               <ScanLine className="size-5" />
             </span>
             <div>
-              <h2 className="text-sm font-bold text-slate-800">ຍິງບາໂຄດຂອງເຄື່ອງ</h2>
-              <p className="text-xs text-slate-500">ຍິງປ້າຍ ISN ຫຼື Serial Number — ຫຼືພິມໃສ່ກໍໄດ້</p>
+              <h2 className="text-sm font-bold text-slate-800">{t.scanBarcode}</h2>
+              <p className="text-xs text-slate-500">{t.scanHint}</p>
             </div>
           </div>
 
@@ -117,7 +119,7 @@ export function ServiceScan({
                   scan();
                 }
               }}
-              placeholder="ຍິງ ຫຼືພິມເລກເຄື່ອງ..."
+              placeholder={t.inputPlaceholder}
               className="h-14 flex-1 rounded-xl border-2 border-slate-300 px-4 font-mono text-lg tracking-wider outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
             />
             <button
@@ -127,7 +129,7 @@ export function ServiceScan({
               className="inline-flex h-14 shrink-0 items-center justify-center gap-2 rounded-xl bg-teal-600 px-8 font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
             >
               {busy ? <LoaderCircle className="size-5 animate-spin" /> : <Search className="size-5" />}
-              ຄົ້ນຫາ
+              {t.search}
             </button>
           </div>
 
@@ -136,7 +138,7 @@ export function ServiceScan({
               <p className="flex items-start gap-2 text-xs text-amber-900">
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                 <span>
-                  ບໍ່ພົບເລກ <b className="font-mono">{notFound}</b> ໃນລະບົບ — ອາດເປັນເຄື່ອງທີ່ບໍ່ໄດ້ຊື້ຈາກໂອດ້ຽນ
+                  {t.notFoundPrefix} <b className="font-mono">{notFound}</b> {t.notFoundSuffix}
                 </span>
               </p>
               <button
@@ -145,14 +147,14 @@ export function ServiceScan({
                 className="mt-2.5 inline-flex h-9 items-center gap-2 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700"
               >
                 <PencilLine className="size-3.5" />
-                ໃຊ້ SN ນີ້ ແລະປ້ອນຂໍ້ມູນເອງ
+                {t.useThisSnManual}
               </button>
             </div>
           )}
 
           {scanError && (
             <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">
-              ລະບົບ ERP ຕອບກັບບໍ່ສຳເລັດ — ກະລຸນາລອງຄົ້ນຫາອີກຄັ້ງ. ບັນຫານີ້ບໍ່ໄດ້ໝາຍຄວາມວ່າ SN ບໍ່ມີໃນ ERP.
+              {t.scanErrorMessage}
             </div>
           )}
         </section>
@@ -160,13 +162,9 @@ export function ServiceScan({
         {/* ຄຳແນະນຳ + ທາງລັດປ້ອນເອງ */}
         <section className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
-            <h3 className="text-xs font-bold text-slate-600">ຂັ້ນຕອນການຮັບເຄື່ອງ</h3>
+            <h3 className="text-xs font-bold text-slate-600">{t.intakeSteps}</h3>
             <ol className="mt-3 space-y-2.5">
-              {[
-                "ຍິງບາໂຄດ — ລະບົບດຶງ ສິນຄ້າ, ຫຍີ່ຫໍ້, Model, ບິນ ໃຫ້ເອງ ແລະ ຄິດການຮັບປະກັນໃຫ້",
-                "ເລືອກລູກຄ້າທີ່ເອົາເຄື່ອງມາ (ສ້າງໃໝ່ໄດ້ທັນທີ)",
-                "ປ້ອນອາການເສຍ, ຖ່າຍຮູບ, ມອບໝາຍຊ່າງ ແລ້ວບັນທຶກ + ພິມໃບຮັບເຄື່ອງ",
-              ].map((step, index) => (
+              {[t.step1, t.step2, t.step3].map((step, index) => (
                 <li key={step} className="flex gap-2.5 text-xs text-slate-600">
                   <span className="grid size-5 shrink-0 place-items-center rounded-full bg-teal-50 text-[10px] font-bold text-teal-700">
                     {index + 1}
@@ -183,9 +181,7 @@ export function ServiceScan({
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
           >
             <PencilLine className="size-4" />
-            {code.trim()
-              ? "ໃຊ້ເລກທີ່ພິມນີ້ ແລະປ້ອນເອງ"
-              : "ບໍ່ມີບາໂຄດ / ບໍ່ໄດ້ຊື້ຈາກໂອດ້ຽນ — ປ້ອນເອງ"}
+            {code.trim() ? t.useTypedManual : t.noBarcodeManual}
           </button>
         </section>
       </div>
@@ -195,7 +191,7 @@ export function ServiceScan({
         <section className="overflow-hidden rounded-xl border-2 border-teal-500 bg-white shadow-sm">
           <header className="flex flex-wrap items-center gap-2 bg-teal-600 px-5 py-2.5 text-white">
             <Check className="size-4" />
-            <h3 className="text-sm font-bold">ພົບເຄື່ອງແລ້ວ</h3>
+            <h3 className="text-sm font-bold">{t.deviceFound}</h3>
             <span className="ml-auto font-mono text-xs opacity-90">{result.sn}</span>
           </header>
 
@@ -210,32 +206,30 @@ export function ServiceScan({
                   }`}
                 >
                   {inWarranty ? <Check className="size-4" /> : <AlertTriangle className="size-4" />}
-                  ຊື້ມາແລ້ວ {months} ເດືອນ · {inWarranty ? "ຢູ່ໃນປະກັນ" : "ໝົດປະກັນ"}
+                  {t.boughtAgo} {months} {t.monthsUnit} · {inWarranty ? t.inWarrantyStatus : t.outOfWarrantyStatus}
                 </p>
               ) : (
                 <p className="rounded-lg bg-slate-50 px-3 py-1.5 text-xs text-slate-500">
-                  ບໍ່ພົບບິນຂາຍ — ຕ້ອງເລືອກການຮັບປະກັນເອງ
+                  {t.noBillFound}
                 </p>
               )}
             </div>
 
             <dl className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
-              <Field label="ຫຍີ່ຫໍ້" value={result.brand} />
+              <Field label={t.brand} value={result.brand} />
               <Field label="Model" value={result.model} />
-              <Field label="ປະເພດ" value={types.find((type) => type.code === result.productType)?.name_1 ?? null} />
-              <Field label="ເລກບິນ" value={result.billNo} mono />
-              <Field label="ວັນທີບິນ" value={result.billDate} />
+              <Field label={t.productType} value={types.find((type) => type.code === result.productType)?.name_1 ?? null} />
+              <Field label={t.billNo} value={result.billNo} mono />
+              <Field label={t.billDate} value={result.billDate} />
             </dl>
 
             {result.buyer && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <span className="text-[10px] font-semibold text-slate-500">ຜູ້ຊື້ເດີມ (ຈາກບິນ)</span>
+                <span className="text-[10px] font-semibold text-slate-500">{t.originalBuyer}</span>
                 <span className="text-xs font-medium text-slate-800">{result.buyer.name || result.buyer.erpCode}</span>
                 {result.buyer.tel && <span className="text-xs text-slate-500">{result.buyer.tel}</span>}
                 <span className="text-[10px] text-slate-400">
-                  {result.buyer.ods
-                    ? "ຖ້າຄົນທີ່ເອົາເຄື່ອງມາແມ່ນຄົນນີ້ ຈະເລືອກໃຫ້ໃນຂັ້ນຕໍ່ໄປ"
-                    : "ຜູ້ຊື້ນີ້ຍັງບໍ່ມີໃນລະບົບສ້ອມ — ຈະໃຫ້ເລືອກ ຫຼືສ້າງລູກຄ້າໃນຂັ້ນຕໍ່ໄປ"}
+                  {result.buyer.ods ? t.buyerHintExists : t.buyerHintNew}
                 </span>
               </div>
             )}
@@ -247,7 +241,7 @@ export function ServiceScan({
                 className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 font-semibold text-white transition hover:bg-emerald-700"
               >
                 <Check className="size-5" />
-                ຖືກຕ້ອງ — ດຳເນີນຕໍ່
+                {t.correctContinue}
               </button>
               <button
                 type="button"
@@ -259,7 +253,7 @@ export function ServiceScan({
                 className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 font-medium text-slate-600 hover:bg-slate-50"
               >
                 <X className="size-4" />
-                ຍິງໃໝ່
+                {t.scanAgain}
               </button>
             </div>
           </div>

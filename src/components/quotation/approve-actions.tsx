@@ -11,6 +11,7 @@ import {
 import { beginEditQuote } from "@/app/actions/quotation";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Button, ErrorBox, inputClass, labelClass } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { Check, LoaderCircle, LogOut, Pencil, Undo2, X } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -35,6 +36,7 @@ function useApproval() {
 export function QuoteApproveActions({ docNo, productCode }: { docNo: string; productCode: string }) {
   const { pending, error, run } = useApproval();
   const [remark, setRemark] = useState("");
+  const t = useDict().approveActions;
 
   return (
     <div className="space-y-4">
@@ -46,7 +48,7 @@ export function QuoteApproveActions({ docNo, productCode }: { docNo: string; pro
           onClick={() => run(approveQuote, { doc_no: docNo, pro_id: productCode, remark })}
         >
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />}
-          ອະນຸມັດ
+          {t.approve}
         </Button>
         <Button
           type="button"
@@ -55,19 +57,19 @@ export function QuoteApproveActions({ docNo, productCode }: { docNo: string; pro
           onClick={() => run(rejectQuote, { doc_no: docNo, pro_id: productCode, remark })}
         >
           <X className="size-4" />
-          ບໍ່ອະນຸມັດ
+          {t.reject}
         </Button>
         <Link
           href="/approvals/quotations"
           className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
         >
           <LogOut className="size-4" />
-          ອອກ
+          {t.exit}
         </Link>
       </div>
 
       <div>
-        <label className={labelClass} htmlFor="remark">ໝາຍເຫດ</label>
+        <label className={labelClass} htmlFor="remark">{t.remark}</label>
         <input
           id="remark"
           value={remark}
@@ -94,6 +96,7 @@ export function CustomerApproveActions({ docNo, productCode }: { docNo: string; 
   const [remark, setRemark] = useState("");
   const [warn, setWarn] = useState("");
   const [editing, startEdit] = useTransition();
+  const t = useDict().approveActions;
 
   return (
     <div className="space-y-4">
@@ -106,7 +109,7 @@ export function CustomerApproveActions({ docNo, productCode }: { docNo: string; 
           onClick={() => run(customerApproveQuote, { doc_no: docNo, pro_id: productCode, remark })}
         >
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />}
-          ອະນຸມັດ
+          {t.approve}
         </Button>
         <Button
           type="button"
@@ -114,15 +117,15 @@ export function CustomerApproveActions({ docNo, productCode }: { docNo: string; 
           disabled={pending}
           onClick={async () => {
             if (!remark.trim()) {
-              setWarn("ກະລຸນາລະບຸເຫດຜົນທີ່ລູກຄ້າບໍ່ຕົກລົງຢູ່ຊ່ອງ ເຫດຜົນ / ໝາຍເຫດ ກ່ອນ");
+              setWarn(t.customerRejectWarn);
               return;
             }
             setWarn("");
             const ok = await ask({
-              title: "ລູກຄ້າບໍ່ອະນຸມັດ?",
-              message: <>ເຄື່ອງຈະຖືກສົ່ງໄປຂໍຍົກເລີກ · ຖອນຄືນໄດ້ຖ້າຍັງບໍ່ໄດ້ອອກໃບຮັບເງິນ</>,
-              confirmLabel: "ບໍ່ອະນຸມັດ",
-              cancelLabel: "ຍົກເລີກ",
+              title: t.customerRejectTitle,
+              message: <>{t.customerRejectMessage}</>,
+              confirmLabel: t.reject,
+              cancelLabel: t.cancel,
               tone: "danger",
             });
             if (!ok) return;
@@ -130,7 +133,7 @@ export function CustomerApproveActions({ docNo, productCode }: { docNo: string; 
           }}
         >
           <X className="size-4" />
-          ບໍ່ອະນຸມັດ
+          {t.reject}
         </Button>
         {/* ລູກຄ້າຕໍ່ລອງລາຄາ → ແກ້ໄຂແລ້ວຂໍອະນຸມັດຄືນ.
             ກົດເກນຮອງຮັບຢູ່ແລ້ວ (ໃບ 1/0 ແກ້ໄຂໄດ້ ແລ້ວຕັດກັບເປັນ 0/0) ແຕ່ບໍ່ມີປຸ່ມໃດພາໄປເລີຍ */}
@@ -141,26 +144,26 @@ export function CustomerApproveActions({ docNo, productCode }: { docNo: string; 
           onClick={() => startEdit(async () => { await beginEditQuote(docNo); })}
         >
           {editing ? <LoaderCircle className="size-4 animate-spin" /> : <Pencil className="size-4" />}
-          ແກ້ໄຂລາຄາ (ຂໍອະນຸມັດຄືນ)
+          {t.editPrice}
         </Button>
         <Link
           href="/quotations/customer-approval"
           className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
         >
           <LogOut className="size-4" />
-          ອອກ
+          {t.exit}
         </Link>
       </div>
 
       <div>
         <label className={labelClass} htmlFor="cust_remark">
-          ເຫດຜົນ / ໝາຍເຫດ <span className="text-red-600">(ບັງຄັບ ຕອນລູກຄ້າບໍ່ຕົກລົງ)</span>
+          {t.reasonRemarkLabel} <span className="text-red-600">{t.reasonRequiredNote}</span>
         </label>
         <input
           id="cust_remark"
           value={remark}
           onChange={(event) => setRemark(event.target.value)}
-          placeholder="ເຊັ່ນ: ລາຄາແພງເກີນ, ບໍ່ຄຸ້ມສ້ອມ, ຈະໄປສ້ອມບ່ອນອື່ນ..."
+          placeholder={t.reasonPlaceholder}
           className={inputClass}
           autoComplete="off"
         />
@@ -195,9 +198,10 @@ function UndoButton({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const { ask, dialog } = useConfirm();
+  const t = useDict().approveActions;
 
   const click = async () => {
-    const ok = await ask({ title, message, confirmLabel: "ຖອນຄືນ", cancelLabel: "ບໍ່", tone: "warning" });
+    const ok = await ask({ title, message, confirmLabel: t.undo, cancelLabel: t.undoNo, tone: "warning" });
     if (!ok) return;
     startTransition(async () => {
       const result = await action(docNo);
@@ -226,17 +230,17 @@ function UndoButton({
 
 /** ຜູ້ອະນຸມັດ: ຖອນການອະນຸມັດ / ບໍ່ອະນຸມັດ ພາຍໃນ → ກັບເຂົ້າຄິວລໍຖ້າອະນຸມັດ */
 export function UndoApprovalButton({ docNo, size }: { docNo: string; size?: "sm" | "md" }) {
+  const t = useDict().approveActions;
   return (
     <UndoButton
       docNo={docNo}
       action={undoQuoteApproval}
-      label="ຖອນຄືນ"
-      title="ຖອນການຕັດສິນຂອງທ່ານ?"
+      label={t.undo}
+      title={t.undoApprovalTitle}
       size={size}
       message={
         <>
-          ໃບສະເໜີລາຄາ <b className="text-slate-700">#{docNo}</b> ຈະກັບເຂົ້າຄິວ “ລໍຖ້າອະນຸມັດ” ອີກຄັ້ງ
-          (ຜູ້ອະນຸມັດ ແລະ ໝາຍເຫດເກົ່າຖືກລ້າງ)
+          {t.quotationWord} <b className="text-slate-700">#{docNo}</b> {t.undoApprovalMsgTail}
         </>
       }
     />
@@ -245,17 +249,17 @@ export function UndoApprovalButton({ docNo, size }: { docNo: string; size?: "sm"
 
 /** ຝ່າຍບໍລິການ: ຖອນຄຳຕອບຂອງລູກຄ້າ → ກັບເປັນ ລໍຖ້າລູກຄ້າອະນຸມັດ */
 export function UndoCustomerButton({ docNo, size }: { docNo: string; size?: "sm" | "md" }) {
+  const t = useDict().approveActions;
   return (
     <UndoButton
       docNo={docNo}
       action={undoCustomerDecision}
-      label="ຖອນຄຳຕອບ"
-      title="ຖອນຄຳຕອບຂອງລູກຄ້າ?"
+      label={t.undoCustomerLabel}
+      title={t.undoCustomerTitle}
       size={size}
       message={
         <>
-          ໃບສະເໜີລາຄາ <b className="text-slate-700">#{docNo}</b> ຈະກັບເປັນ “ລໍຖ້າລູກຄ້າອະນຸມັດ”.
-          ຖ້າລູກຄ້າເຄີຍປະຕິເສດ ຄຳຂໍຍົກເລີກຈະຖືກຖອນໃຫ້ນຳ. ຖອນບໍ່ໄດ້ຖ້າອອກໃບຮັບເງິນແລ້ວ.
+          {t.quotationWord} <b className="text-slate-700">#{docNo}</b> {t.undoCustomerMsgTail}
         </>
       }
     />
