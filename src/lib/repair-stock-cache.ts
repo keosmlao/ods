@@ -80,7 +80,11 @@ export async function repairStockCache(q = ""): Promise<{ items: RepairStockItem
     )
   ).rows;
 
-  const meta = (await query<{ at: string | null }>(`select to_char(max(refreshed_at),'DD-MM-YYYY HH24:MI') at from ods_repair_stock_cache`)).rows[0];
+  const meta = (
+    await query<{ reftime: string | null }>(
+      `select to_char(max(refreshed_at),'DD-MM-YYYY HH24:MI') as reftime from ods_repair_stock_cache`,
+    )
+  ).rows[0];
 
   const byItem = new Map<string, RepairStockItem>();
   for (const row of rows) {
@@ -98,5 +102,5 @@ export async function repairStockCache(q = ""): Promise<{ items: RepairStockItem
   }
   const items = [...byItem.values()];
   for (const item of items) item.warehouses.sort((a, b) => a.code.localeCompare(b.code));
-  return { items, refreshedAt: meta?.at ?? null };
+  return { items, refreshedAt: meta?.reftime ?? null };
 }
