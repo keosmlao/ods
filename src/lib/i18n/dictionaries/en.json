@@ -9,13 +9,20 @@
   },
   "shell": {
     "notifications": "Notifications",
-    "myActivity": "My activity"
+    "myActivity": "My activity",
+    "logout": "Log out"
   },
   "login": {
     "title": "Sign in",
     "username": "Username",
     "password": "Password",
-    "submit": "Sign in"
+    "submit": "Sign in",
+    "welcome": "Welcome",
+    "subtitle": "Sign in with your employee code and password",
+    "employeeCode": "Employee code",
+    "employeeCodePlaceholder": "Enter your employee code",
+    "employeeCodeHint": "You can use your nickname or full name instead",
+    "submitPending": "Signing in..."
   },
   "nav": {
     "myStuff": "My work",

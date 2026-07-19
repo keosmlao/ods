@@ -128,7 +128,7 @@ export function AppShell({
 
           <form action={logout}>
             <button
-              title="ອອກຈາກລະບົບ"
+              title={shellLabels.logout}
               className="grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600"
             >
               <LogOut className="size-4" />

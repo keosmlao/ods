@@ -9,13 +9,20 @@
   },
   "shell": {
     "notifications": "ການແຈ້ງເຕືອນ",
-    "myActivity": "ກິດຈະກຳຂອງຂ້ອຍ"
+    "myActivity": "ກິດຈະກຳຂອງຂ້ອຍ",
+    "logout": "ອອກຈາກລະບົບ"
   },
   "login": {
     "title": "ເຂົ້າສູ່ລະບົບ",
     "username": "ຊື່ຜູ້ໃຊ້",
     "password": "ລະຫັດຜ່ານ",
-    "submit": "ເຂົ້າສູ່ລະບົບ"
+    "submit": "ເຂົ້າສູ່ລະບົບ",
+    "welcome": "ຍິນດີຕ້ອນຮັບ",
+    "subtitle": "ເຂົ້າລະບົບຜ່ານລະຫັດພະນັກງານ ແລະ ລະຫັດຜ່ານຂອງທ່ານ",
+    "employeeCode": "ລະຫັດພະນັກງານ",
+    "employeeCodePlaceholder": "ປ້ອນລະຫັດພະນັກງານ",
+    "employeeCodeHint": "ໃຊ້ຊື່ຫຼິ້ນ ຫຼື ຊື່ເຕັມ ແທນກໍ່ໄດ້",
+    "submitPending": "ກຳລັງເຂົ້າ..."
   },
   "nav": {
     "myStuff": "ຂອງຂ້ອຍ",
