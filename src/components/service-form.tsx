@@ -10,6 +10,7 @@ import { AlertTriangle, LoaderCircle, LogOut, RotateCcw, Save, ShieldCheck } fro
 import Link from "next/link";
 import { LocationPicker, type Point } from "@/components/installation/location-picker";
 import { ONSITE_SERVICE_TYPES } from "@/lib/sla";
+import { useDict } from "@/lib/i18n/context";
 import { useActionState, useEffect, useState } from "react";
 
 type Option = { code: string; name_1: string };
@@ -45,6 +46,7 @@ export function ServiceForm({
   /** ຄ່າທີ່ໄດ້ຈາກການຍິງບາໂຄດ — ຕື່ມໃຫ້ ແຕ່ແກ້ໄດ້ໝົດ */
   scanned?: ScanResult | null;
 }) {
+  const t = useDict().serviceForm;
   const [state, action, pending] = useActionState(createService, {});
   const [customer, setCustomer] = useState<Customer | null>(null);
 
@@ -163,15 +165,15 @@ export function ServiceForm({
           className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
         >
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
-          {pending ? "ກຳລັງບັນທຶກ..." : "ບັນທຶກ ແລະ ພິມໃບຮັບ"}
+          {pending ? t.saving : t.saveAndPrint}
         </button>
         <Link href="/service" className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#DE3163] px-4 text-sm font-semibold text-white transition hover:opacity-90">
           <LogOut className="size-4" />
-          ອອກ
+          {t.exit}
         </Link>
         <button type="reset" onClick={resetAll} className="inline-flex h-10 items-center gap-2 rounded-lg bg-sky-500 px-4 text-sm font-semibold text-white transition hover:bg-sky-600">
           <RotateCcw className="size-4" />
-          ລ້າງ
+          {t.clear}
         </button>
       </div>
 
@@ -188,7 +190,7 @@ export function ServiceForm({
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 font-bold text-slate-700">
               <span className="grid size-6 place-items-center rounded-full bg-slate-800 text-xs text-white">1</span>
-              ລູກຄ້າ
+              {t.customer}
             </h2>
             <ServiceCustomer selected={customer} onSelect={setCustomer} buyer={scanned?.buyer ?? null} />
           </section>
@@ -196,21 +198,21 @@ export function ServiceForm({
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 font-bold text-slate-700">
               <span className="grid size-6 place-items-center rounded-full bg-slate-800 text-xs text-white">2</span>
-              ສິນຄ້າ
+              {t.productSection}
             </h2>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label className={label}>
-                  ຊື່ເຄື່ອງ *{" "}
+                  {t.productName} *{" "}
                   <span className="text-xs text-slate-400">
                     {customer
                       ? loadingProducts
-                        ? "(ກຳລັງດຶງສິນຄ້າທີ່ລູກຄ້າຊື້ໄປ...)"
+                        ? t.loadingCustomerProducts
                         : products.length
-                          ? `(ຊື້ໄປ ${products.length} ລາຍການ — ຫຼືພິມຄົ້ນຫາໃນ ERP / ສ້າງໃໝ່)`
-                          : "(ບໍ່ມີປະຫວັດຊື້ — ພິມຄົ້ນຫາໃນ ERP ຫຼືສ້າງໃໝ່)"
-                      : "(ພິມຄົ້ນຫາໃນ ERP ຫຼືສ້າງໃໝ່)"}
+                          ? `(${t.boughtCountPrefix} ${products.length} ${t.boughtCountSuffix})`
+                          : t.noPurchaseHistory
+                      : t.searchErpHint}
                   </span>
                 </label>
                 <ProductPicker
@@ -237,11 +239,11 @@ export function ServiceForm({
                   <span className="text-xs text-slate-400">
                     {product
                       ? loadingSerials
-                        ? "(ກຳລັງດຶງ...)"
+                        ? t.loading
                         : serials.length
-                          ? `(ຂາຍໃຫ້ລູກຄ້ານີ້ ${serials.length} ໜ່ວຍ — ຫຼືພິມເອງ, ຫວ່າງໄດ້)`
-                          : "(ບໍ່ພົບ ISN ຂອງລູກຄ້ານີ້ — ພິມເອງ ຫຼືປະຫວ່າງໄວ້)"
-                      : "(ບໍ່ມີກໍປະຫວ່າງໄວ້ໄດ້)"}
+                          ? `(${t.soldCountPrefix} ${serials.length} ${t.soldCountSuffix})`
+                          : t.noIsnFound
+                      : t.snOptional}
                   </span>
                 </label>
                 <SerialPicker
@@ -260,30 +262,30 @@ export function ServiceForm({
               </div>
 
               <div>
-                <label className={label}>ປະເພດສິນຄ້າ *</label>
+                <label className={label}>{t.productType} *</label>
                 <SelectField
                   name="pro_type"
                   value={productType}
                   onChange={setProductType}
                   options={types.map((item) => ({ value: item.code, label: item.name_1 }))}
-                  placeholder="ຄົ້ນຫາປະເພດ..."
+                  placeholder={t.searchTypePlaceholder}
                 />
               </div>
 
               <div>
-                <label className={label}>ຫຍີ່ຫໍ້ *</label>
+                <label className={label}>{t.brand} *</label>
                 <SelectField
                   name="pro_brand"
                   value={brand}
                   onChange={setBrand}
                   options={brands.map((item) => ({ value: item.code, label: item.name_1 }))}
-                  placeholder="ຄົ້ນຫາຫຍີ່ຫໍ້..."
+                  placeholder={t.searchBrandPlaceholder}
                 />
               </div>
 
               <div>
-                <label className={label}>ອຸປະກອນທີ່ນຳມາ</label>
-                <input name="pro_acc" className={field} placeholder="ສາຍໄຟ, ລີໂມດ..." />
+                <label className={label}>{t.accessories}</label>
+                <input name="pro_acc" className={field} placeholder={t.accessoriesPlaceholder} />
               </div>
             </div>
           </section>
@@ -291,17 +293,17 @@ export function ServiceForm({
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 font-bold text-slate-700">
               <span className="grid size-6 place-items-center rounded-full bg-slate-800 text-xs text-white">3</span>
-              ບິນຊື້ ແລະ ການຮັບປະກັນ
+              {t.billAndWarranty}
             </h2>
 
             <div className="grid gap-4 sm:grid-cols-2">
               {/* ຊ່ອງ "ລະຫັດຮ້ານຄ້າ" ຖືກຖອດອອກ — ມັນຄືລະຫັດລູກຄ້າອັນດຽວກັນ (server ຂຽນ ap_code ໃຫ້ເອງ) */}
               <div>
-                <label className={label}>ເລກທີບິນ</label>
+                <label className={label}>{t.billNo}</label>
                 <input name="billon" value={billNo} onChange={(event) => setBillNo(event.target.value)} className={field} />
               </div>
               <div>
-                <label className={label}>ວັນທີບິນ</label>
+                <label className={label}>{t.billDate}</label>
                 <input
                   name="billdate"
                   type="date"
@@ -312,7 +314,7 @@ export function ServiceForm({
               </div>
 
               <div className="sm:col-span-3">
-                <label className={label}>ການຮັບປະກັນ *</label>
+                <label className={label}>{t.warrantyLabel} *</label>
                 <SelectField
                   name="pro_wa"
                   value={warranty}
@@ -321,7 +323,7 @@ export function ServiceForm({
                     { value: "ຮັບປະກັນ", label: "ຮັບປະກັນ" },
                     { value: "ໝົດຮັບປະກັນ", label: "ໝົດຮັບປະກັນ" },
                   ]}
-                  placeholder="ກວດຫຼັກຖານ ແລ້ວເລືອກ..."
+                  placeholder={t.checkEvidencePlaceholder}
                 />
 
                 {suggestion && (
@@ -332,20 +334,20 @@ export function ServiceForm({
                   >
                     <ShieldCheck className="mt-0.5 size-4 shrink-0" />
                     <span>
-                      ຊື້ມາແລ້ວ <b>{suggestion.months} ເດືອນ</b> — ຕາມມາດຕະຖານ {WARRANTY_MONTHS} ເດືອນ ຄວນເປັນ{" "}
+                      {t.boughtAgo} <b>{suggestion.months} {t.monthsUnit}</b> {t.perStandard} {WARRANTY_MONTHS} {t.monthsShouldBe}{" "}
                       <b>{suggestion.inWarranty ? "ຮັບປະກັນ" : "ໝົດຮັບປະກັນ"}</b>
-                      {warrantyTouched && " (ທ່ານເລືອກເອງແລ້ວ)"}
+                      {warrantyTouched && ` ${t.youChoseManually}`}
                     </span>
                   </p>
                 )}
                 {!suggestion && (
                   <p className="mt-2 flex items-start gap-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
                     <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                    <span>ບໍ່ພົບວັນທີບິນ — ກວດໃບຊື້/ຫຼັກຖານຂອງລູກຄ້າ ແລ້ວເລືອກການຮັບປະກັນເອງ</span>
+                    <span>{t.noBillDateWarning}</span>
                   </p>
                 )}
                 <p className="mt-1 text-xs text-slate-400">
-                  ຕົວເລືອກນີ້ຕັດສິນວ່າວຽກຈະໄປທາງ &quot;ສ້ອມເລີຍ&quot; ຫຼື &quot;ຕ້ອງສະເໜີລາຄາກ່ອນ&quot;
+                  {t.warrantyDecisionNote}
                 </p>
               </div>
             </div>
@@ -354,39 +356,39 @@ export function ServiceForm({
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 font-bold text-slate-700">
               <span className="grid size-6 place-items-center rounded-full bg-slate-800 text-xs text-white">4</span>
-              ອາການ ແລະ ຜູ້ຮັບຜິດຊອບ
+              {t.symptomsAndOwner}
             </h2>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <label className={label}>ອາການເບື້ອງຕົ້ນ *</label>
-                <textarea name="pro_issue" required rows={2} autoFocus={Boolean(scanned)} className={`${field} h-auto py-2`} placeholder="ລູກຄ້າແຈ້ງວ່າ..." />
+                <label className={label}>{t.initialSymptom} *</label>
+                <textarea name="pro_issue" required rows={2} autoFocus={Boolean(scanned)} className={`${field} h-auto py-2`} placeholder={t.symptomPlaceholder} />
               </div>
               <div className="sm:col-span-2">
-                <label className={label}>ໝາຍເຫດ</label>
-                <input name="pro_remark" className={field} placeholder="ຮອຍຂູດ, ອຸປະກອນຂາດ..." />
+                <label className={label}>{t.remark}</label>
+                <input name="pro_remark" className={field} placeholder={t.remarkPlaceholder} />
               </div>
 
               <div>
-                <label className={label}>ຊ່າງ *</label>
+                <label className={label}>{t.tech} *</label>
                 <SelectField
                   name="emp"
                   options={techs.map((tech) => ({ value: tech.code, label: tech.name_1 }))}
-                  placeholder="ຄົ້ນຫາຊ່າງ..."
+                  placeholder={t.searchTechPlaceholder}
                 />
               </div>
 
               <div>
-                <label className={label}>ປະເພດບໍລິການ *</label>
+                <label className={label}>{t.serviceTypeLabel} *</label>
                 <SelectField
                   name="service_type"
                   value={serviceType}
                   onChange={setServiceType}
                   options={[
-                    { value: "CI", label: "ລູກຄ້ານຳເຄື່ອງເຂົ້າ" },
-                    { value: "PS", label: "ໄປຮັບເຄື່ອງທີ່ບ້ານລູກຄ້າມາສ້ອມຢູ່ສູນ" },
-                    { value: "IH", label: "ສ້ອມບ້ານລູກຄ້າ" },
-                    { value: "ST", label: "ສ້ອມເຄື່ອງໃນສາງ" },
+                    { value: "CI", label: t.serviceTypeCI },
+                    { value: "PS", label: t.serviceTypePS },
+                    { value: "IH", label: t.serviceTypeIH },
+                    { value: "ST", label: t.serviceTypeST },
                   ]}
                 />
               </div>
@@ -395,17 +397,17 @@ export function ServiceForm({
               {onsite && (
                 <>
                   <div className="sm:col-span-2">
-                    <label className={label}>ສະຖານທີ່ໜ້າງານ *</label>
+                    <label className={label}>{t.siteLocation} *</label>
                     <input
                       name="location_repair"
                       required
                       defaultValue={customer?.address ?? ""}
                       key={customer?.code ?? "none"}
-                      placeholder="ບ້ານ / ເມືອງ / ຈຸດສັງເກດ"
+                      placeholder={t.siteLocationPlaceholder}
                       className={field}
                     />
                     <p className="mt-1 text-xs text-slate-400">
-                      ຕື່ມມາຈາກທີ່ຢູ່ລູກຄ້າ — ແກ້ໄດ້ ຖ້າເຄື່ອງຢູ່ຄົນລະບ່ອນກັບທີ່ຢູ່ໃນລະບົບ
+                      {t.siteLocationNote}
                     </p>
 
                     {/* ພິກັດ (ບໍ່ບັງຄັບ) — ວາງລິງ Google Maps ໄດ້ ຫຼື ປັກໝຸດເອງ */}
@@ -415,21 +417,21 @@ export function ServiceForm({
                   </div>
 
                   <div>
-                    <label className={label}>ວັນນັດເຂົ້າສ້ອມ</label>
+                    <label className={label}>{t.appointDate}</label>
                     <input type="date" name="appoint_date" className={field} />
-                    <p className="mt-1 text-xs text-slate-400">ຜູ້ຈັດຊ່າງປ່ຽນໄດ້ພາຍຫຼັງ</p>
+                    <p className="mt-1 text-xs text-slate-400">{t.appointDateNote}</p>
                   </div>
                 </>
               )}
 
               <div className="sm:col-span-2">
-                <label className={label}>ການຈັດສົ່ງຄືນ *</label>
+                <label className={label}>{t.deliveryReturn} *</label>
                 <SelectField
                   name="pro_deli"
                   defaultValue="2"
                   options={[
-                    { value: "1", label: "ໂອດ້ຽນຈັດສົ່ງ" },
-                    { value: "2", label: "ລູກຄ້າຮັບເອງ" },
+                    { value: "1", label: t.deliveryByOdien },
+                    { value: "2", label: t.deliveryPickup },
                   ]}
                 />
               </div>
@@ -440,10 +442,10 @@ export function ServiceForm({
         {/* ຂວາ — ຮູບ (ຄ້າງໄວ້ ເລື່ອນຕາມ) */}
         <aside className="lg:sticky lg:top-40 lg:self-start">
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 border-b border-slate-100 pb-2 font-bold text-slate-700">ຮູບສິນຄ້າ</h2>
+            <h2 className="mb-4 border-b border-slate-100 pb-2 font-bold text-slate-700">{t.productPhotos}</h2>
             <ServicePhotos />
             <p className="mt-3 rounded-lg bg-slate-50 p-2 text-xs text-slate-500">
-              ຄວນຖ່າຍ: ສະພາບເຄື່ອງຕອນຮັບເຂົ້າ, ປ້າຍ SN, ຈຸດທີ່ເສຍ, ອຸປະກອນທີ່ນຳມາ
+              {t.photoHint}
             </p>
           </section>
         </aside>

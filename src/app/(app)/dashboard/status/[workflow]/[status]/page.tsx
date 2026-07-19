@@ -39,8 +39,12 @@ import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { listTechnicians } from "@/lib/technicians";
 import { ArrowLeft, ArrowRight, Barcode, ChevronLeft, ChevronRight, CircleAlert, Download, House, PackageOpen, Search, Truck, Warehouse } from "lucide-react";
+import { type Dictionary, getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+
+type Dict = Dictionary["statusList"];
 
 /**
  * ລາຍລະອຽດຂອງແຕ່ລະຂັ້ນ (ກົດມາຈາກໜ້າລວມ).
@@ -91,27 +95,27 @@ const INSTALL_SORT: Record<string, string> = {
   brand: "a.pro_brand", appointment: "a.appoint_date", technician: "a.tech_code", creator: "a.user_created",
 };
 
-const REPAIR_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "code", label: "ເລກທີ", defaultDir: "desc" },
-  { key: "elapsed", label: "ຄ້າງມາ", defaultDir: "desc" },
-  { key: "product", label: "ສິນຄ້າ / SN", defaultDir: "asc" },
-  { key: "brand", label: "ຍີ່ຫໍ້", defaultDir: "asc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
-  { key: "warranty", label: "ປະກັນ", defaultDir: "asc" },
-  { key: "service", label: "ປະເພດບໍລິການ", defaultDir: "asc" },
-  { key: "technician", label: "ຊ່າງ", defaultDir: "asc" },
-  { key: "receiver", label: "ຜູ້ຮັບ", defaultDir: "asc" },
+const REPAIR_COLUMNS = (t: Dict): { key: string; label: string; defaultDir: SortDir }[] => [
+  { key: "code", label: t.colCode, defaultDir: "desc" },
+  { key: "elapsed", label: t.colPending, defaultDir: "desc" },
+  { key: "product", label: t.colProductSn, defaultDir: "asc" },
+  { key: "brand", label: t.brand, defaultDir: "asc" },
+  { key: "customer", label: t.customer, defaultDir: "asc" },
+  { key: "warranty", label: t.warranty, defaultDir: "asc" },
+  { key: "service", label: t.serviceType, defaultDir: "asc" },
+  { key: "technician", label: t.tech, defaultDir: "asc" },
+  { key: "receiver", label: t.receiver, defaultDir: "asc" },
 ];
 
-const INSTALL_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "code", label: "ເລກທີ", defaultDir: "desc" },
-  { key: "elapsed", label: "ຄ້າງມາ", defaultDir: "desc" },
-  { key: "product", label: "ລາຍການ", defaultDir: "asc" },
-  { key: "brand", label: "ຍີ່ຫໍ້", defaultDir: "asc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
-  { key: "appointment", label: "ວັນນັດ", defaultDir: "asc" },
-  { key: "technician", label: "ຊ່າງ", defaultDir: "asc" },
-  { key: "creator", label: "ຜູ້ສ້າງ", defaultDir: "asc" },
+const INSTALL_COLUMNS = (t: Dict): { key: string; label: string; defaultDir: SortDir }[] => [
+  { key: "code", label: t.colCode, defaultDir: "desc" },
+  { key: "elapsed", label: t.colPending, defaultDir: "desc" },
+  { key: "product", label: t.items, defaultDir: "asc" },
+  { key: "brand", label: t.brand, defaultDir: "asc" },
+  { key: "customer", label: t.customer, defaultDir: "asc" },
+  { key: "appointment", label: t.apptDate, defaultDir: "asc" },
+  { key: "technician", label: t.tech, defaultDir: "asc" },
+  { key: "creator", label: t.creator, defaultDir: "asc" },
 ];
 
 const SERVICE_TYPES = [
@@ -134,13 +138,13 @@ const SERVICE_TONE = {
  * ຂັ້ນ wait-check (ຮັບງານ/ເລີ່ມກວດ) ແລະ wait-repair (ເລີ່ມສ້ອມ) ໃຊ້ inline ບໍ່ຢູ່ໃນນີ້.
  */
 type ActionRow = { code: string; roworder: number };
-const REPAIR_STAGE_ACTION: Record<string, { label: string; base: string; href: (row: ActionRow) => string }> = {
+const REPAIR_STAGE_ACTION = (t: Dict): Record<string, { label: string; base: string; href: (row: ActionRow) => string }> => ({
   // wait-check ໃຊ້ inline "ເລີ່ມກວດເຊັກ"; quoting ຈັດການແຍກ (ຂຶ້ນກັບຂັ້ນອະນຸມັດ) — ບໍ່ຢູ່ໃນນີ້
-  checking: { label: "ສຳເລັດການກວດເຊັກ", base: "/checking", href: (r) => `/checking/${encodeURIComponent(r.code)}` },
-  "wait-quote": { label: "ສະເໜີລາຄາ", base: "/quotations", href: (r) => `/quotations/new/${encodeURIComponent(r.code)}` },
+  checking: { label: t.actionFinishChecking, base: "/checking", href: (r) => `/checking/${encodeURIComponent(r.code)}` },
+  "wait-quote": { label: t.actionQuote, base: "/quotations", href: (r) => `/quotations/new/${encodeURIComponent(r.code)}` },
   // ຂໍເບີກ / ຈັດການອາໄຫຼ່ — ໄປໜ້າສາງໂດຍກົງ; /repair/<code> ຖືກລົບແລ້ວ.
   "wait-withdraw": {
-    label: "ກວດ Stock / ດຳເນີນອາໄຫຼ່",
+    label: t.actionCheckStock,
     base: "/stock/requests",
     href: (r) => `/stock/requests/${r.roworder}`,
   },
@@ -150,26 +154,27 @@ const REPAIR_STAGE_ACTION: Record<string, { label: string; base: string; href: (
    * (ປຸ່ມຍົກເລີກໃບຂໍເບີກຢູ່ໃນແຖວນີ້ຢູ່ແລ້ວ — CancelRequestButton)
    */
   withdrawing: {
-    label: "ໄປໜ້າເບີກອາໄຫຼ່",
+    label: t.actionGoWithdraw,
     base: "/stock/dispatch",
     href: (r) => `/stock/dispatch?q=${encodeURIComponent(r.code)}`,
   },
   purchasing: {
-    label: "ຈັດການ / ຍົກເລີກການສັ່ງຊື້",
+    label: t.actionManageCancelPurchase,
     base: "/purchase-requests",
     href: (r) => `/purchase-requests?q=${encodeURIComponent(r.code)}`,
   },
   repairing: {
-    label: "ໄປລາຍການສ້ອມ",
+    label: t.actionGoRepairList,
     base: "/repair",
     href: (r) => `/repair?tab=progress&q=${encodeURIComponent(r.code)}`,
   },
-  "wait-qc": { label: "ກວດ QC", base: "/qc", href: (r) => `/qc/repair/${encodeURIComponent(r.code)}` },
-  "wait-return": { label: "ສົ່ງຄືນ", base: "/returns", href: (r) => `/returns/${encodeURIComponent(r.code)}` },
-};
+  "wait-qc": { label: t.actionQc, base: "/qc", href: (r) => `/qc/repair/${encodeURIComponent(r.code)}` },
+  "wait-return": { label: t.actionReturn, base: "/returns", href: (r) => `/returns/${encodeURIComponent(r.code)}` },
+});
 
 export default async function StatusPage({ params, searchParams }: Props) {
   const { workflow, status } = await params;
+  const t = (await getDictionary(await getLocale())).statusList;
   if (workflow === "repair" && status === "wait-accept") {
     redirect("/dashboard/status/repair/wait-check");
   }
@@ -227,7 +232,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
   // ຂັ້ນສະເໜີລາຄາ: ຍັງບໍ່ອະນຸມັດ → ອະນຸມັດລາຄາ (ຜູ້ອະນຸມັດ) · ອະນຸມັດແລ້ວ → ຕັດສິນລາຄາ (ລູກຄ້າ/CS)
   const quotingStage =
     isRepair && status === "quoting" && (canAccess(role, "/quotations") || canAccess(role, "/approvals/quotations"));
-  const stageAction = isRepair ? REPAIR_STAGE_ACTION[status] : undefined;
+  const stageAction = isRepair ? REPAIR_STAGE_ACTION(t)[status] : undefined;
   const linkAction = stageAction && canAccess(role, stageAction.base) ? stageAction : undefined;
   const hasAction =
     dispatchPickupQueue || receivePickupQueue || scheduleIhQueue || startCheck || accept || canReassign || startRepair || quotingStage || Boolean(linkAction) || cancelAssignment ||
@@ -241,7 +246,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
   const sort = (search.sort ?? "elapsed").trim();
 
   const sortMap = isRepair ? REPAIR_SORT : INSTALL_SORT;
-  const columns = isRepair ? REPAIR_COLUMNS : INSTALL_COLUMNS;
+  const columns = isRepair ? REPAIR_COLUMNS(t) : INSTALL_COLUMNS(t);
 
   // "ຄ້າງມາ" = ຄ້າງດົນສຸດກ່ອນ → ເວລາເກົ່າສຸດກ່ອນ ຈຶ່ງກັບທິດໃຫ້
   const column = sortMap[sort] ?? sortMap.elapsed;
@@ -393,7 +398,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
       {receivePickupQueue && <UndoDispatchPickupButton code={row.code} variant="icon" />}
       {scheduleIhQueue && (
         <AssignTechButton
-          label="ນັດ+ຈັດຊ່າງ"
+          label={t.assignTechSchedule}
           size="sm"
           row={{
             code: row.code,
@@ -417,7 +422,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
       )}
       {canReassign && !row.repair_confirm && (
         <AssignTechButton
-          label="ປ່ຽນຊ່າງ"
+          label={t.reassignTech}
           size="sm"
           row={{
             code: row.code,
@@ -450,7 +455,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
               href={awaitingCustomer ? `/quotations/customer-approval/${doc}` : `/approvals/quotations/${doc}`}
               className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
             >
-              {awaitingCustomer ? "ຕັດສິນລາຄາ" : "ອະນຸມັດລາຄາ"}
+              {awaitingCustomer ? t.decidePrice : t.approvePrice}
               <LinkPending className="size-3" />
             </Link>
           );
@@ -488,12 +493,12 @@ export default async function StatusPage({ params, searchParams }: Props) {
         <div>
           <Link href="/dashboard" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
             <ArrowLeft className="size-3.5" />
-            ກັບໜ້າລວມ
+            {t.backToOverview}
             <LinkPending className="size-3" />
           </Link>
           <h1 className="text-xl font-bold text-slate-700">{config.label}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            {isRepair ? "ວຽກສ້ອມແປງ" : "ວຽກຕິດຕັ້ງ"} · {total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+            {isRepair ? t.repairJobs : t.installJobs} · {total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
           </p>
         </div>
         <a
@@ -510,24 +515,24 @@ export default async function StatusPage({ params, searchParams }: Props) {
           <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
             <div>
               <p className="text-xs font-bold text-teal-900">
-                SLA ຂັ້ນ {stagePolicy.stage}: {stagePolicy.label}
+                {t.slaStage} {stagePolicy.stage}: {stagePolicy.label}
               </p>
               <p className="mt-1 text-[11px] text-teal-800">
-                ຜູ້ຮັບຜິດຊອບ: <b>{stagePolicy.owner}</b> · KPI: {stagePolicy.kpi}
+                {t.owner}: <b>{stagePolicy.owner}</b> · KPI: {stagePolicy.kpi}
               </p>
               {stagePolicy.external && (
                 <p className="mt-1 text-[10px] font-semibold text-amber-700">
-                  ເວລາຂັ້ນນີ້ຂຶ້ນກັບລູກຄ້າ/ຜູ້ສະໜອງ: ຕິດຕາມແຍກ ແລະບໍ່ຫັກ KPI ພະນັກງານໂດຍກົງ
+                  {t.externalSlaNote}
                 </p>
               )}
             </div>
             <div className="flex flex-wrap gap-1.5 text-[10px] font-bold">
               {serviceTypes.map(({ code }) => (
                 <span key={code} className="rounded-lg border border-teal-200 bg-white px-2 py-1 text-teal-800">
-                  {code} {stagePolicy.hours[code]} ຊມ
+                  {code} {stagePolicy.hours[code]} {t.hoursUnit}
                 </span>
               ))}
-              <span className="rounded-lg bg-teal-700 px-2 py-1 text-white">ເປົ້າ {stagePolicy.targetPct}%</span>
+              <span className="rounded-lg bg-teal-700 px-2 py-1 text-white">{t.target} {stagePolicy.targetPct}%</span>
             </div>
           </div>
         </section>
@@ -537,8 +542,8 @@ export default async function StatusPage({ params, searchParams }: Props) {
       {isRepair && holdOn && (
         <div className="flex w-fit overflow-hidden rounded-lg border border-slate-300 bg-white">
           {[
-            { held: false, label: "ດຳເນີນປົກກະຕິ", count: holdTab ? otherTabTotal : total },
-            { held: true, label: "ຕ້ອງກວດ", count: holdTab ? total : otherTabTotal },
+            { held: false, label: t.tabNormal, count: holdTab ? otherTabTotal : total },
+            { held: true, label: t.tabNeedCheck, count: holdTab ? total : otherTabTotal },
           ].map(({ held, label, count }) => (
             <Link
               key={label}
@@ -562,21 +567,20 @@ export default async function StatusPage({ params, searchParams }: Props) {
 
       {holdTab && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
-          ວຽກເຫຼົ່ານີ້ <b>ຍັງຄ້າງຢູ່ຂັ້ນນີ້</b> ແລະ ຍັງນັບເປັນວຽກຄ້າງ — ພຽງແຕ່ຖືກໝາຍ “ຕ້ອງກວດວ່າຍັງຢູ່”
-          ຈຶ່ງແຍກອອກມາ ແລະ <b>ນາລິກາຂັ້ນຢຸດນັບ</b> ຕັ້ງແຕ່ມື້ທີ່ໝາຍ. ປົດແລ້ວນາລິກາເດີນຕໍ່.
+          {t.holdNoteLead} <b>{t.holdNoteStillHere}</b> {t.holdNoteMid} <b>{t.holdNoteClockStops}</b> {t.holdNoteTail}
         </p>
       )}
 
       {isRepair && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm" aria-label="ກອງຕາມປະເພດບໍລິການ">
+        <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm" aria-label={t.filterByServiceType}>
           <div className="mb-2 flex items-center justify-between gap-3 px-1">
             <div>
-              <h2 className="text-xs font-bold text-slate-700">ປະເພດບໍລິການ</h2>
-              <p className="mt-0.5 text-[10px] text-slate-400">ເລືອກເບິ່ງແຕ່ລະປະເພດໃນຂັ້ນຕອນນີ້</p>
+              <h2 className="text-xs font-bold text-slate-700">{t.serviceType}</h2>
+              <p className="mt-0.5 text-[10px] text-slate-400">{t.chooseServiceTypeHint}</p>
             </div>
             {service && (
               <Link href={serviceHref("")} className="text-[11px] font-semibold text-teal-600 hover:underline">
-                ລ້າງຕົວກອງ
+                {t.clearFilter}
               </Link>
             )}
           </div>
@@ -590,13 +594,13 @@ export default async function StatusPage({ params, searchParams }: Props) {
               }`}
             >
               <span>
-                <span className="block text-xs font-bold">ທັງໝົດ</span>
-                <span className={`mt-0.5 block text-[10px] ${!service ? "text-slate-300" : "text-slate-400"}`}>ທຸກປະເພດບໍລິການ</span>
+                <span className="block text-xs font-bold">{t.all}</span>
+                <span className={`mt-0.5 block text-[10px] ${!service ? "text-slate-300" : "text-slate-400"}`}>{t.allServiceTypes}</span>
               </span>
               <span className="text-right">
                 <b className="block text-lg tabular-nums">{allServiceCount.toLocaleString()}</b>
                 <span className={`block text-[9px] font-semibold ${!service ? "text-red-300" : "text-red-600"}`}>
-                  ເກີນ SLA {allServiceOverdue.toLocaleString()}
+                  {t.overSla} {allServiceOverdue.toLocaleString()}
                 </span>
               </span>
             </Link>
@@ -623,7 +627,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                   <span className="text-right">
                     <b className="block text-base tabular-nums">{(serviceCounts.get(code) ?? 0).toLocaleString()}</b>
                     <span className="block text-[9px] font-semibold text-red-600">
-                      ເກີນ {serviceOverdue.get(code) ?? 0}
+                      {t.over} {serviceOverdue.get(code) ?? 0}
                     </span>
                   </span>
                 </Link>
@@ -642,11 +646,11 @@ export default async function StatusPage({ params, searchParams }: Props) {
           <input
             name="q"
             defaultValue={q}
-            placeholder="ຄົ້ນຫາ ເລກທີ, SN, ລູກຄ້າ, ຫຍີ່ຫໍ້, ຊ່າງ..."
+            placeholder={t.searchPlaceholder}
             className="w-full text-xs outline-none"
           />
         </div>
-        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
       </form>
 
       {/* ── ຕາຕະລາງ desktop (ເຊື່ອງໃນມືຖື) ── */}
@@ -671,16 +675,16 @@ export default async function StatusPage({ params, searchParams }: Props) {
                   <>
                     {/* ຂັ້ນສັ່ງຊື້: ຄວາມຄືບໜ້າຈິງຢູ່ ERP ສຳຄັນກວ່າ "ອຸປະກອນ/ອ້າງອີງ" */}
                     {tracking.size > 0 && (
-                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຄວາມຄືບໜ້າ (ERP)</th>
+                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.progressErp}</th>
                     )}
-                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອຸປະກອນ</th>
-                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອ້າງອີງ</th>
-                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາການເສຍ</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.accessory}</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.reference}</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.faultCol}</th>
                   </>
                 ) : (
-                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ເລກບິນຂາຍ</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.saleBill}</th>
                 )}
-                {hasAction && <th className="whitespace-nowrap px-3 py-2.5 text-center font-semibold">ຈັດການ</th>}
+                {hasAction && <th className="whitespace-nowrap px-3 py-2.5 text-center font-semibold">{t.manage}</th>}
               </tr>
             </thead>
             <tbody>
@@ -706,7 +710,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                         <Link
                           href={`/service/${encodeURIComponent(row.code)}/barcode`}
                           target="_blank"
-                          title="ພິມ barcode"
+                          title={t.printBarcode}
                           className="ml-1.5 inline-flex size-6 items-center justify-center rounded align-middle text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                         >
                           <Barcode className="size-3.5" />
@@ -726,13 +730,13 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <Elapsed seconds={row.elapsed_seconds} className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`} />
                       {isRepair && targetHours != null && (
-                        <span className="ml-1 text-[9px] font-semibold text-slate-400">SLA {targetHours} ຊມ</span>
+                        <span className="ml-1 text-[9px] font-semibold text-slate-400">SLA {targetHours} {t.hoursUnit}</span>
                       )}
                       <span className="mt-0.5 block text-[10px] text-slate-400">
                         {isRepair ? row.stage_started || row.registered || "-" : row.registered || "-"}
                         {/* ນາລິກາຢຸດຢູ່ ⇒ ຕ້ອງບອກ ບໍ່ດັ່ງນັ້ນຄົນອ່ານວ່າ "ຄ້າງ 3 ມື້" ແລ້ວເຂົ້າໃຈຜິດ */}
                         {isRepair && holdOn && (row as RepairRow).hold && (
-                          <b className="ml-1 text-amber-600">· ນາລິກາຢຸດ</b>
+                          <b className="ml-1 text-amber-600">· {t.clockStopped}</b>
                         )}
                       </span>
                       {/* ໝາຍ/ປົດທຸງ — ຢູ່ຄຽງນາລິກາ ເພາະທຸງນີ້ຄືສິ່ງທີ່ຢຸດນາລິກາ */}
@@ -828,13 +832,13 @@ export default async function StatusPage({ params, searchParams }: Props) {
           </table>
         </div>
 
-        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
       {/* ── ບັນຊີ card ສຳລັບມືຖື (ແຖວດຽວກັນກັບຕາຕະລາງ · ປຸ່ມ/ເງື່ອນໄຂດຽວກັນ) ── */}
       <section className="md:hidden">
         {total === 0 ? (
-          <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>
+          <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>
         ) : (
           <MobileCardList className="space-y-2">
           {list.rows.map((row) => {
@@ -859,7 +863,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                         <Link
                           href={`/service/${encodeURIComponent(row.code)}/barcode`}
                           target="_blank"
-                          title="ພິມ barcode"
+                          title={t.printBarcode}
                           className="inline-flex size-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                         >
                           <Barcode className="size-3.5" />
@@ -877,7 +881,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     </div>
                     <p className="mt-0.5 text-[10px] text-slate-400">
                       {isRepair ? row.stage_started || row.registered || "-" : row.registered || "-"}
-                      {isRepair && holdOn && (row as RepairRow).hold && <b className="ml-1 text-amber-600">· ນາລິກາຢຸດ</b>}
+                      {isRepair && holdOn && (row as RepairRow).hold && <b className="ml-1 text-amber-600">· {t.clockStopped}</b>}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
@@ -886,7 +890,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                       className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`}
                     />
                     {isRepair && targetHours != null && (
-                      <span className="mt-0.5 block text-[9px] font-semibold text-slate-400">SLA {targetHours} ຊມ</span>
+                      <span className="mt-0.5 block text-[9px] font-semibold text-slate-400">SLA {targetHours} {t.hoursUnit}</span>
                     )}
                   </div>
                 </div>
@@ -911,7 +915,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                       {row.warranty || "-"}
                     </span>
                   ) : (
-                    row.appointment && <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-600">ນັດ {row.appointment}</span>
+                    row.appointment && <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-600">{t.appointment} {row.appointment}</span>
                   )}
                   {type && (
                     <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-bold ${SERVICE_TONE[type.tone].badge}`}>
@@ -924,17 +928,17 @@ export default async function StatusPage({ params, searchParams }: Props) {
                 {/* ລູກຄ້າ · ຊ່າງ · ຜູ້ຮັບ/ຜູ້ສ້າງ */}
                 <div className="mt-2 border-t border-slate-100 pt-2 text-[11px] text-slate-500">
                   <p className="truncate" title={row.customer ?? ""}>
-                    <span className="text-slate-400">ລູກຄ້າ:</span> {row.customer || "-"}
+                    <span className="text-slate-400">{t.customer}:</span> {row.customer || "-"}
                     {isRepair && row.phone && <span className="text-slate-400"> · {row.phone}</span>}
                   </p>
                   <p className="truncate">
-                    <span className="text-slate-400">ຊ່າງ:</span> {showTech(row.technician)}
-                    <span className="text-slate-400"> · {isRepair ? "ຜູ້ຮັບ" : "ຜູ້ສ້າງ"}:</span>{" "}
+                    <span className="text-slate-400">{t.tech}:</span> {showTech(row.technician)}
+                    <span className="text-slate-400"> · {isRepair ? t.receiver : t.creator}:</span>{" "}
                     {isRepair ? row.receiver || "-" : row.creator || "-"}
                   </p>
                   {isRepair && row.issue && (
                     <p className="truncate font-semibold text-red-600" title={row.issue}>
-                      <span className="font-normal text-slate-400">ອາການ:</span> {row.issue}
+                      <span className="font-normal text-slate-400">{t.issue}:</span> {row.issue}
                     </p>
                   )}
                 </div>
@@ -972,7 +976,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} ຈາກ {total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} {t.of} {total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -981,7 +985,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">{page} / {pages}</span>
             <Link
@@ -989,7 +993,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>

@@ -6,6 +6,8 @@ import { RowLink } from "@/components/row-link";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { OPEN_JOBS, STAGE_SQL } from "@/lib/stage";
 import { ChevronLeft, ChevronRight, Clock, FileCheck2, Files, Loader, Printer, Search } from "lucide-react";
 import Image from "next/image";
@@ -211,38 +213,41 @@ async function getCounts() {
   };
 }
 
-const WAIT_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "code", label: "ເລກທີ", defaultDir: "desc" },
-  { key: "elapsed", label: "ເວລາລໍຖ້າ", defaultDir: "desc" },
-  { key: "product", label: "ລາຍການ / SN", defaultDir: "asc" },
-  { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
-  { key: "warranty", label: "ປະກັນ", defaultDir: "asc" },
-  { key: "technician", label: "ຊ່າງສ້ອມ", defaultDir: "asc" },
+type Dict = Record<string, string>;
+type Column = { key: string; label: string; defaultDir: SortDir };
+
+const waitColumns = (t: Dict): Column[] => [
+  { key: "code", label: t.colCode, defaultDir: "desc" },
+  { key: "elapsed", label: t.colWaitingTime, defaultDir: "desc" },
+  { key: "product", label: t.colItemSn, defaultDir: "asc" },
+  { key: "brand", label: t.brand, defaultDir: "asc" },
+  { key: "customer", label: t.customer, defaultDir: "asc" },
+  { key: "warranty", label: t.colWarranty, defaultDir: "asc" },
+  { key: "technician", label: t.colTechnician, defaultDir: "asc" },
 ];
 
-const PROGRESS_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "doc_no", label: "ໃບສະເໜີລາຄາ", defaultDir: "desc" },
-  { key: "doc_date", label: "ວັນທີ", defaultDir: "desc" },
-  { key: "elapsed", label: "ເລີ່ມສນຄ / ໄລຍະ", defaultDir: "desc" },
-  { key: "amount", label: "ຍອດ (ບາດ)", defaultDir: "desc" },
-  { key: "product", label: "ລາຍການ / SN", defaultDir: "asc" },
-  { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
-  { key: "warranty", label: "ປະກັນ", defaultDir: "asc" },
-  { key: "user_created", label: "ຜູ້ອອກບິນ", defaultDir: "asc" },
+const progressColumns = (t: Dict): Column[] => [
+  { key: "doc_no", label: t.quotation, defaultDir: "desc" },
+  { key: "doc_date", label: t.colDate, defaultDir: "desc" },
+  { key: "elapsed", label: t.colStartDuration, defaultDir: "desc" },
+  { key: "amount", label: t.colAmount, defaultDir: "desc" },
+  { key: "product", label: t.colItemSn, defaultDir: "asc" },
+  { key: "brand", label: t.brand, defaultDir: "asc" },
+  { key: "customer", label: t.customer, defaultDir: "asc" },
+  { key: "warranty", label: t.colWarranty, defaultDir: "asc" },
+  { key: "user_created", label: t.colIssuedBy, defaultDir: "asc" },
 ];
 
-const ALL_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "doc_no", label: "ໃບສະເໜີລາຄາ", defaultDir: "desc" },
-  { key: "doc_date", label: "ວັນທີ", defaultDir: "desc" },
-  { key: "elapsed", label: "ເລີ່ມສນຄ", defaultDir: "desc" },
-  { key: "amount", label: "ຍອດ (ບາດ)", defaultDir: "desc" },
-  { key: "product", label: "ລາຍການ / SN", defaultDir: "asc" },
-  { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
-  { key: "warranty", label: "ປະກັນ", defaultDir: "asc" },
-  { key: "user_created", label: "ຜູ້ອອກບິນ", defaultDir: "asc" },
+const allColumns = (t: Dict): Column[] => [
+  { key: "doc_no", label: t.quotation, defaultDir: "desc" },
+  { key: "doc_date", label: t.colDate, defaultDir: "desc" },
+  { key: "elapsed", label: t.colStart, defaultDir: "desc" },
+  { key: "amount", label: t.colAmount, defaultDir: "desc" },
+  { key: "product", label: t.colItemSn, defaultDir: "asc" },
+  { key: "brand", label: t.brand, defaultDir: "asc" },
+  { key: "customer", label: t.customer, defaultDir: "asc" },
+  { key: "warranty", label: t.colWarranty, defaultDir: "asc" },
+  { key: "user_created", label: t.colIssuedBy, defaultDir: "asc" },
 ];
 
 const money = (v: string | null) => {
@@ -287,6 +292,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
   const page = Math.max(1, Number(params.page) || 1);
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
   const sort = (params.sort ?? (tab === "all" ? "doc_no" : "elapsed")).trim();
+  const t = (await getDictionary(await getLocale())).quotationsList;
 
   const [counts, list] = await Promise.all([
     getCounts(),
@@ -307,21 +313,21 @@ export default async function QuotationsPage({ searchParams }: Props) {
     `/quotations?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
   const TABS: { key: Tab; label: string; icon: typeof Clock; count: number }[] = [
-    { key: "waiting", label: "ລໍຖ້າອອກໃບສະເໜີລາຄາ", icon: Clock, count: counts.waiting },
-    { key: "progress", label: "ກຳລັງດຳເນີນການ", icon: Loader, count: counts.progress },
-    { key: "all", label: "ໃບສະເໜີລາຄາ", icon: Files, count: counts.all },
+    { key: "waiting", label: t.tabWaiting, icon: Clock, count: counts.waiting },
+    { key: "progress", label: t.tabProgress, icon: Loader, count: counts.progress },
+    { key: "all", label: t.quotation, icon: Files, count: counts.all },
   ];
 
-  const columns = tab === "waiting" ? WAIT_COLUMNS : tab === "progress" ? PROGRESS_COLUMNS : ALL_COLUMNS;
+  const columns = tab === "waiting" ? waitColumns(t) : tab === "progress" ? progressColumns(t) : allColumns(t);
   const waitingRows = tab === "waiting" ? (list.rows as WaitingRow[]) : [];
   const quoteRows = tab === "waiting" ? [] : (list.rows as QuoteRow[]);
 
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-700">ໃບສະເໜີລາຄາ</h1>
+        <h1 className="text-xl font-bold text-slate-700">{t.quotation}</h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          {total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+          {total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
         </p>
       </div>
 
@@ -355,11 +361,11 @@ export default async function QuotationsPage({ searchParams }: Props) {
             <input
               name="q"
               defaultValue={q}
-              placeholder="ຄົ້ນຫາ ເລກທີ, SN, ລູກຄ້າ, ຫຍີ່ຫໍ້, ອາການ..."
+              placeholder={t.searchPlaceholder}
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -382,11 +388,11 @@ export default async function QuotationsPage({ searchParams }: Props) {
                   />
                 ))}
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">
-                  {tab === "waiting" ? "ອາການເບື້ອງຕົ້ນ" : "ອາການຊ່າງ"}
+                  {tab === "waiting" ? t.initialIssue : t.techIssue}
                 </th>
-                {tab === "waiting" && <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໃບສະເໜີລາຄາຄ້າງ</th>}
-                {tab === "all" && <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສະຖານະ</th>}
-                {tab !== "all" && <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຮູບ</th>}
+                {tab === "waiting" && <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.pendingQuote}</th>}
+                {tab === "all" && <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.status}</th>}
+                {tab !== "all" && <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.image}</th>}
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -433,13 +439,13 @@ export default async function QuotationsPage({ searchParams }: Props) {
                       {row.quote_doc_no ? (
                         <>
                           <span className="inline-block rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
-                            {row.quote_status === 2 ? "ບໍ່ອະນຸມັດ" : "ຄ້າງລໍຖ້າອະນຸມັດ"} · {row.quote_doc_no}
+                            {row.quote_status === 2 ? t.rejected : t.pendingApproval} · {row.quote_doc_no}
                           </span>
                           <span
                             className="mt-0.5 block truncate text-[10px] text-slate-500"
                             title={row.quote_remark ?? ""}
                           >
-                            {row.quote_remark?.trim() ? `ເຫດຜົນ: ${row.quote_remark}` : "ບໍ່ໄດ້ລະບຸເຫດຜົນ"}
+                            {row.quote_remark?.trim() ? `${t.reason}: ${row.quote_remark}` : t.noReason}
                             {row.quote_approver ? ` · ${row.quote_approver}` : ""}
                           </span>
                         </>
@@ -460,7 +466,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                           className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
                         >
                           <FileCheck2 className="size-3.5" />
-                          ສະເໜີລາຄາ
+                          {t.quote}
                           <LinkPending className="size-3" />
                         </Link>
                       )}
@@ -487,7 +493,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                         />
                       ) : (
                         <span className="block text-[11px] text-slate-600">
-                          {row.qt_finish ? `ອະນຸມັດ ${row.qt_finish}` : (row.duration ?? "-")}
+                          {row.qt_finish ? `${t.approved} ${row.qt_finish}` : (row.duration ?? "-")}
                         </span>
                       )}
                       <span className="mt-0.5 block text-[10px] text-slate-400">{row.at_time ?? "-"}</span>
@@ -497,7 +503,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                       <span className="font-bold text-[#e75555]">{money(row.total_amount)}</span>
                       {Number(row.total_discount) > 0 && (
                         <span className="mt-0.5 block text-[10px] text-emerald-700">
-                          ສ່ວນຫຼຸດ {money(row.total_discount)}
+                          {t.discount} {money(row.total_discount)}
                         </span>
                       )}
                     </td>
@@ -548,7 +554,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                         <Link
                           href={`/quotations/${encodeURIComponent(row.doc_no)}/print`}
                           target="_blank"
-                          title="ພິມໃບສະເໜີລາຄາ"
+                          title={t.printQuote}
                           className="inline-block text-[#D35400] hover:opacity-70"
                         >
                           <Printer className="size-4" />
@@ -562,14 +568,14 @@ export default async function QuotationsPage({ searchParams }: Props) {
           </table>
         </div>
 
-        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
       {/* ບັນຊີ card ສຳລັບມືຖື — ຂໍ້ມູນ ແລະ ປຸ່ມດຽວກັນກັບຕາຕະລາງ desktop */}
       <div className="md:hidden">
         {total === 0 && (
           <p className="rounded-xl border border-slate-200 bg-white py-12 text-center text-xs text-slate-400">
-            ບໍ່ພົບລາຍການ
+            {t.noResults}
           </p>
         )}
 
@@ -595,20 +601,20 @@ export default async function QuotationsPage({ searchParams }: Props) {
               <p className="text-[11px] text-slate-400">SN: {row.sn || "-"}</p>
 
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600">
-                <span>ຫຍີ່ຫໍ້: {row.brand || "-"}</span>
+                <span>{t.brand}: {row.brand || "-"}</span>
                 <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-500">{row.warranty || "-"}</span>
-                <span>ຊ່າງ: {row.technician || "-"}</span>
+                <span>{t.techShort}: {row.technician || "-"}</span>
               </div>
-              <p className="mt-1 text-[11px] text-slate-600">ລູກຄ້າ: {row.customer || "-"}</p>
-              {row.issue && <p className="mt-1 text-[11px] font-semibold text-red-600">ອາການ: {row.issue}</p>}
+              <p className="mt-1 text-[11px] text-slate-600">{t.customer}: {row.customer || "-"}</p>
+              {row.issue && <p className="mt-1 text-[11px] font-semibold text-red-600">{t.issue}: {row.issue}</p>}
 
               {row.quote_doc_no && (
                 <div className="mt-2">
                   <span className="inline-block rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
-                    {row.quote_status === 2 ? "ບໍ່ອະນຸມັດ" : "ຄ້າງລໍຖ້າອະນຸມັດ"} · {row.quote_doc_no}
+                    {row.quote_status === 2 ? t.rejected : t.pendingApproval} · {row.quote_doc_no}
                   </span>
                   <p className="mt-0.5 text-[10px] text-slate-500">
-                    {row.quote_remark?.trim() ? `ເຫດຜົນ: ${row.quote_remark}` : "ບໍ່ໄດ້ລະບຸເຫດຜົນ"}
+                    {row.quote_remark?.trim() ? `${t.reason}: ${row.quote_remark}` : t.noReason}
                     {row.quote_approver ? ` · ${row.quote_approver}` : ""}
                   </p>
                 </div>
@@ -623,7 +629,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                     className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
                   >
                     <FileCheck2 className="size-3.5" />
-                    ສະເໜີລາຄາ
+                    {t.quote}
                     <LinkPending className="size-3" />
                   </Link>
                 )}
@@ -650,13 +656,13 @@ export default async function QuotationsPage({ searchParams }: Props) {
                   />
                 ) : (
                   <span className="text-[11px] text-slate-600">
-                    {row.qt_finish ? `ອະນຸມັດ ${row.qt_finish}` : (row.duration ?? "-")}
+                    {row.qt_finish ? `${t.approved} ${row.qt_finish}` : (row.duration ?? "-")}
                   </span>
                 )}
                 <span className="text-right">
                   <span className="font-bold text-[#e75555]">{money(row.total_amount)}</span>
                   {Number(row.total_discount) > 0 && (
-                    <span className="ml-1 text-[10px] text-emerald-700">ຫຼຸດ {money(row.total_discount)}</span>
+                    <span className="ml-1 text-[10px] text-emerald-700">{t.discountShort} {money(row.total_discount)}</span>
                   )}
                 </span>
               </div>
@@ -668,7 +674,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
               <p className="text-[11px] text-slate-400">SN: {row.sn || "-"}</p>
 
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600">
-                <span>ຫຍີ່ຫໍ້: {row.brand || "-"}</span>
+                <span>{t.brand}: {row.brand || "-"}</span>
                 <span
                   className={`rounded px-1.5 py-0.5 font-medium ${
                     inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
@@ -676,10 +682,10 @@ export default async function QuotationsPage({ searchParams }: Props) {
                 >
                   {row.warranty || "-"}
                 </span>
-                <span>ຜູ້ອອກ: {row.user_created || "-"}</span>
+                <span>{t.issuedByShort}: {row.user_created || "-"}</span>
               </div>
-              <p className="mt-1 text-[11px] text-slate-600">ລູກຄ້າ: {row.customer || "-"}</p>
-              {row.issue_2 && <p className="mt-1 text-[11px] font-semibold text-red-600">ອາການ: {row.issue_2}</p>}
+              <p className="mt-1 text-[11px] text-slate-600">{t.customer}: {row.customer || "-"}</p>
+              {row.issue_2 && <p className="mt-1 text-[11px] font-semibold text-red-600">{t.issue}: {row.issue_2}</p>}
 
               {tab === "all" && (
                 <div className="mt-2">
@@ -698,11 +704,11 @@ export default async function QuotationsPage({ searchParams }: Props) {
                 <Link
                   href={`/quotations/${encodeURIComponent(row.doc_no)}/print`}
                   target="_blank"
-                  title="ພິມໃບສະເໜີລາຄາ"
+                  title={t.printQuote}
                   className="inline-flex items-center gap-1 text-xs font-medium text-[#D35400] hover:opacity-70"
                 >
                   <Printer className="size-4" />
-                  ພິມ
+                  {t.print}
                 </Link>
               </div>
             </div>
@@ -714,7 +720,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} ຈາກ {total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} {t.of} {total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -723,7 +729,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -733,7 +739,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>

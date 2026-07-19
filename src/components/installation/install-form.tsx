@@ -3,8 +3,11 @@ import { createInstall, type ActionState } from "@/app/actions/installation";
 import { LocationPicker, type Point } from "@/components/installation/location-picker";
 import { SelectField } from "@/components/select-field";
 import { Button, Card, ErrorBox, LinkButton, inputClass, labelClass } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { CheckCircle2, LoaderCircle, MapPin, Package, Plus, Receipt, Save, Search, X } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
+
+type InstallFormDict = ReturnType<typeof useDict>["installForm"];
 
 /**
  * ເປີດງານຕິດຕັ້ງ — **ໜ້າດຽວ ບໍ່ມີໂໝດ**:
@@ -118,6 +121,7 @@ export function InstallForm({
   /** ເລກບິນທີ່ສົ່ງມາຈາກໜ້າ "ບິນຄ້າງອອກໃບງານ" — ເປີດ modal ຄົ້ນໃຫ້ເລີຍ */
   bill?: string;
 }) {
+  const t = useDict().installForm;
   const [state, formAction, pending] = useActionState<ActionState, FormData>(createInstall, {});
   const [open, setOpen] = useState(Boolean(presetBill));
   /** modal ເລືອກລາຍການທີ່ຈະຕິດຕັ້ງ — ຕິກໄດ້ຫຼາຍລາຍການພ້ອມກັນ */
@@ -252,25 +256,25 @@ export function InstallForm({
         title={
           <span className="inline-flex items-center gap-2">
             <Receipt className="size-4 text-teal-600" />
-            ບິນຂາຍ
+            {t.billSale}
             {bill && <CheckCircle2 className="size-4 text-emerald-600" />}
           </span>
         }
         actions={
           <Button type="button" tone={bill ? "neutral" : "info"} onClick={() => setOpen(true)}>
-            <Search className="size-4" /> {bill ? "ປ່ຽນບິນ" : "ຄົ້ນຫາບີນຂາຍ"}
+            <Search className="size-4" /> {bill ? t.changeBill : t.searchBill}
           </Button>
         }
       >
         {bill ? (
           <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-            <Field label="ບິນເລກທີ" value={bill.doc_no} />
-            <Field label="ວັນທີອອກບິນ" value={bill.doc_date} />
-            <Field label="ລູກຄ້າ" value={`${bill.cust_name ?? "-"} (${bill.cust_code ?? "-"})`} />
-            <Field label="ເບີໂທ" value={bill.telephone ?? ""} />
-            <Field label="ທີ່ຢູ່ລູກຄ້າ" value={bill.address ?? ""} />
+            <Field label={t.billNo} value={bill.doc_no} />
+            <Field label={t.billDate} value={bill.doc_date} />
+            <Field label={t.customer} value={`${bill.cust_name ?? "-"} (${bill.cust_code ?? "-"})`} />
+            <Field label={t.phone} value={bill.telephone ?? ""} />
+            <Field label={t.customerAddress} value={bill.address ?? ""} />
             <div className="sm:col-span-2">
-              <dt className="text-slate-500">ບໍລິການຕິດຕັ້ງໃນບິນ</dt>
+              <dt className="text-slate-500">{t.installServiceInBill}</dt>
               <dd className="mt-1 space-y-0.5">
                 {bill.services.length === 0 ? (
                   <span className="text-xs text-slate-400">-</span>
@@ -291,8 +295,8 @@ export function InstallForm({
             className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 py-10 text-slate-500 transition hover:border-teal-400 hover:bg-teal-50/40"
           >
             <Search className="size-6" />
-            <span className="text-sm font-semibold">ເລີ່ມຈາກຄົ້ນຫາບິນຂາຍ</span>
-            <span className="text-xs">ຂໍ້ມູນລູກຄ້າ ແລະ ລາຍການສິນຄ້າ ຈະຖືກດຶງມາຈາກ ERP</span>
+            <span className="text-sm font-semibold">{t.startBySearchingBill}</span>
+            <span className="text-xs">{t.customerAndItemsFromErp}</span>
           </button>
         )}
       </Card>
@@ -303,10 +307,10 @@ export function InstallForm({
           title={
             <span className="inline-flex items-center gap-2">
               <Package className="size-4 text-teal-600" />
-              ລາຍການທີ່ຈະຕິດຕັ້ງ
+              {t.itemsToInstall}
               {chosenItems.length > 0 && (
                 <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-800">
-                  {chosenItems.length} ລາຍການ · {totalJobs} ງານ
+                  {chosenItems.length} {t.itemsUnit} · {totalJobs} {t.jobsUnit}
                 </span>
               )}
             </span>
@@ -314,7 +318,7 @@ export function InstallForm({
           actions={
             remaining.length > 0 ? (
               <Button type="button" tone="info" onClick={() => setPicking(true)}>
-                <Plus className="size-4" /> ເພີ່ມລາຍການ
+                <Plus className="size-4" /> {t.addItem}
               </Button>
             ) : undefined
           }
@@ -326,13 +330,13 @@ export function InstallForm({
               className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 py-8 text-slate-500 transition hover:border-teal-400 hover:bg-teal-50/40"
             >
               <Plus className="size-6" />
-              <span className="text-sm font-semibold">ເລືອກລາຍການທີ່ຈະຕິດຕັ້ງ</span>
-              <span className="text-xs">ບິນນີ້ມີ {bill.items.length} ລາຍການທີ່ຕິດຕັ້ງໄດ້ — ເລືອກໄດ້ຫຼາຍອັນພ້ອມກັນ</span>
+              <span className="text-sm font-semibold">{t.selectItemsToInstall}</span>
+              <span className="text-xs">
+                {t.billHasPrefix} {bill.items.length} {t.installableItemsSuffix}
+              </span>
             </button>
           ) : (
-            <p className="text-xs text-slate-500">
-              ຕື່ມ S/N · Model · ປະເພດ · ຂະໜາດ ຂອງແຕ່ລະລາຍການລຸ່ມນີ້ (ສ່ວນຫຼາຍດຶງມາຈາກ ERP ໃຫ້ແລ້ວ)
-            </p>
+            <p className="text-xs text-slate-500">{t.fillDetailsHint}</p>
           )}
         </Card>
       )}
@@ -360,15 +364,15 @@ export function InstallForm({
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-bold text-slate-800">{item.item_name}</span>
                   <span className="block text-xs text-slate-500">
-                    {item.pro_type_name ?? "-"} · {item.pro_size ?? "-"} · ຂາຍ {item.qty} ໜ່ວຍ
+                    {item.pro_type_name ?? "-"} · {item.pro_size ?? "-"} · {t.soldPrefix} {item.qty} {t.unitsWord}
                   </span>
                 </span>
                 <span className="shrink-0 rounded-full bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-800">
-                  {draft.units} ງານ
+                  {draft.units} {t.jobsUnit}
                 </span>
                 <button
                   type="button"
-                  title="ເອົາລາຍການນີ້ອອກ"
+                  title={t.removeItem}
                   onClick={() => patch(item.item_code, { on: false })}
                   className="shrink-0 text-slate-400 hover:text-red-600"
                 >
@@ -380,7 +384,7 @@ export function InstallForm({
                 <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
                   {/* ຈຳນວນໜ່ວຍ — 1 ໜ່ວຍ = 1 ງານ */}
                   <div className="flex flex-wrap items-center gap-2">
-                    <label className={labelClass}>ຈະຕິດຕັ້ງ</label>
+                    <label className={labelClass}>{t.willInstall}</label>
                     <input
                       type="number"
                       min={1}
@@ -389,7 +393,9 @@ export function InstallForm({
                       onChange={(event) => setUnits(item.item_code, Number(event.target.value))}
                       className={`${inputClass} w-20`}
                     />
-                    <span className="text-xs text-slate-500">ໜ່ວຍ ⇒ ສ້າງ {draft.units} ງານ (1 ໜ່ວຍ = 1 ງານ)</span>
+                    <span className="text-xs text-slate-500">
+                      {t.unitsCreatePrefix} {draft.units} {t.jobsOneToOneSuffix}
+                    </span>
                   </div>
 
                   {/* S/N ຕໍ່ໜ່ວຍ */}
@@ -398,7 +404,7 @@ export function InstallForm({
                       <div key={index} className={`grid gap-2 ${isAc ? "md:grid-cols-2" : ""}`}>
                         <div>
                           <label className="mb-1 block text-xs text-slate-500">
-                            {isAc ? `ໜ່ວຍທີ ${index + 1} · S/N ໜ່ວຍໃນ [C] *` : `ໜ່ວຍທີ ${index + 1} · S/N *`}
+                            {t.unitNoLabel} {index + 1} {isAc ? t.snIndoorSuffix : t.snSuffix}
                           </label>
                           {indoorOptions.length > 0 && !draft.manual ? (
                             <select
@@ -406,12 +412,12 @@ export function InstallForm({
                               onChange={(event) => setSerial(item.item_code, index, event.target.value)}
                               className={inputClass}
                             >
-                              <option value="">— ເລືອກ ISN —</option>
+                              <option value="">{t.selectIsn}</option>
                               {indoorOptions.map((row) => (
                                 <option key={row.isn} value={row.sn || row.isn}>
                                   {row.isn}
                                   {row.sn ? ` · S/N ${row.sn}` : ""}
-                                  {row.part === "ໃນສາງ" ? " · ຍັງຢູ່ສາງ" : ""}
+                                  {row.part === "ໃນສາງ" ? ` · ${t.stillInStock}` : ""}
                                 </option>
                               ))}
                             </select>
@@ -419,7 +425,7 @@ export function InstallForm({
                             <input
                               value={serial}
                               onChange={(event) => setSerial(item.item_code, index, event.target.value)}
-                              placeholder={draft.loading ? "ກຳລັງດຶງ ISN..." : "ອ່ານຈາກປ້າຍຕົວເຄື່ອງ"}
+                              placeholder={draft.loading ? t.loadingIsn : t.readFromLabel}
                               className={inputClass}
                             />
                           )}
@@ -428,14 +434,14 @@ export function InstallForm({
                         {/* ແອມີຄອມເພຣສເຊີຢູ່ນອກ — ຄົນລະ S/N ⇒ ຮັບປະກັນ/ສ້ອມພາຍຫຼັງອ້າງອີງໄດ້ */}
                         {isAc && (
                           <div>
-                            <label className="mb-1 block text-xs text-slate-500">S/N ໜ່ວຍນອກ [H]</label>
+                            <label className="mb-1 block text-xs text-slate-500">{t.snOutdoor}</label>
                             {outdoorOptions.length > 0 && !draft.manual ? (
                               <select
                                 value={draft.outdoor[index] ?? ""}
                                 onChange={(event) => setSerial(item.item_code, index, event.target.value, true)}
                                 className={inputClass}
                               >
-                                <option value="">— ເລືອກ ISN —</option>
+                                <option value="">{t.selectIsn}</option>
                                 {outdoorOptions.map((row) => (
                                   <option key={row.isn} value={row.sn || row.isn}>
                                     {row.isn}
@@ -447,7 +453,7 @@ export function InstallForm({
                               <input
                                 value={draft.outdoor[index] ?? ""}
                                 onChange={(event) => setSerial(item.item_code, index, event.target.value, true)}
-                                placeholder="ອ່ານຈາກຄອມເພຣສເຊີ (ບໍ່ບັງຄັບ)"
+                                placeholder={t.readFromCompressor}
                                 className={inputClass}
                               />
                             )}
@@ -459,19 +465,19 @@ export function InstallForm({
                     {/* ບອກແຫຼ່ງທີ່ມາຂອງ ISN ແລະ ທາງອອກເມື່ອຫາບໍ່ພົບ */}
                     <p className="text-[11px] text-slate-400">
                       {draft.loading
-                        ? "ກຳລັງດຶງ ISN ຂອງລາຍການນີ້..."
+                        ? t.loadingItemIsn
                         : indoorOptions.length === 0
-                          ? "ບໍ່ພົບ ISN ຂອງລາຍການນີ້ໃນ ERP — ພິມຈາກປ້າຍຕົວເຄື່ອງ"
+                          ? t.isnNotFoundErp
                           : fromStock
-                            ? "⚠️ ບິນນີ້ບໍ່ໄດ້ລົງ ISN — ນີ້ຄື ISN ຂອງລາຍການນີ້ຈາກຄັງ ⇒ ທຽບກັບປ້າຍຕົວເຄື່ອງກ່ອນເລືອກ"
-                            : "ISN ທີ່ຂາຍໃນບິນນີ້"}
+                            ? t.isnFromStockWarn
+                            : t.isnSoldInBill}
                       {indoorOptions.length > 0 && (
                         <button
                           type="button"
                           onClick={() => patch(item.item_code, { manual: !draft.manual })}
                           className="ml-2 font-semibold text-teal-700 hover:underline"
                         >
-                          {draft.manual ? "ກັບໄປເລືອກຈາກລາຍການ" : "ບໍ່ມີໃນລາຍການ? ພິມເອງ"}
+                          {draft.manual ? t.backToList : t.notInListType}
                         </button>
                       )}
                     </p>
@@ -480,16 +486,16 @@ export function InstallForm({
                   {/* ຂໍ້ມູນສິນຄ້າ — ດຶງມາຈາກ ERP ແລ້ວ ສ່ວນຫຼາຍບໍ່ຕ້ອງແຕະ */}
                   <div className="grid gap-3 md:grid-cols-3">
                     <div>
-                      <label className={labelClass}>ລຸ້ນ/Model *</label>
+                      <label className={labelClass}>{t.modelLabel}</label>
                       <input
                         value={draft.model}
                         onChange={(event) => patch(item.item_code, { model: event.target.value })}
-                        placeholder="ອ່ານຈາກປ້າຍຕົວເຄື່ອງ"
+                        placeholder={t.readFromLabel}
                         className={inputClass}
                       />
                     </div>
                     <div>
-                      <label className={labelClass}>ປະເພດ *</label>
+                      <label className={labelClass}>{t.typeLabel}</label>
                       <SelectField
                         name={`type_${item.item_code}`}
                         value={draft.type}
@@ -498,7 +504,7 @@ export function InstallForm({
                       />
                     </div>
                     <div>
-                      <label className={labelClass}>ຂະໜາດ *</label>
+                      <label className={labelClass}>{t.sizeLabel}</label>
                       <input
                         value={draft.size}
                         onChange={(event) => patch(item.item_code, { size: event.target.value })}
@@ -509,11 +515,12 @@ export function InstallForm({
 
                   {missing && (
                     <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-                      ຍັງຂາດ: {!draft.serials.every((serial) => serial.trim()) && "S/N ບາງໜ່ວຍ · "}
-                      {!draft.model.trim() && "Model · "}
-                      {!draft.type && "ປະເພດ · "}
-                      {!draft.size.trim() && "ຂະໜາດ · "}
-                      (ຫຼື ກົດ ✕ ເອົາລາຍການນີ້ອອກ)
+                      {t.stillMissing}
+                      {!draft.serials.every((serial) => serial.trim()) && t.missingSomeSn}
+                      {!draft.model.trim() && t.missingModel}
+                      {!draft.type && t.missingType}
+                      {!draft.size.trim() && t.missingSize}
+                      {t.orPressXToRemove}
                     </p>
                   )}
                 </div>
@@ -525,7 +532,7 @@ export function InstallForm({
       {/* ⚠️ ຈຳນວນງານບໍ່ຕົງກັບຄ່າຕິດຕັ້ງທີ່ຈ່າຍມາ — ບອກໄວ້ ບໍ່ໄດ້ຫ້າມ (41% ຂອງບິນຂາຍຫຼາຍກວ່າທີ່ຈ້າງຕິດ) */}
       {bill && bill.services.length > 0 && totalJobs > 0 && totalJobs !== paidUnits(bill) && (
         <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
-          ⚠️ ບິນນີ້ຈ່າຍຄ່າຕິດຕັ້ງ {paidUnits(bill)} ໜ່ວຍ ແຕ່ກຳລັງຈະສ້າງ {totalJobs} ງານ — ກວດເບິ່ງກ່ອນບັນທຶກ
+          {t.paidMismatchPrefix} {paidUnits(bill)} {t.paidMismatchMid} {totalJobs} {t.paidMismatchSuffix}
         </p>
       )}
 
@@ -535,22 +542,22 @@ export function InstallForm({
           title={
             <span className="inline-flex items-center gap-2">
               <MapPin className="size-4 text-teal-600" />
-              ສະຖານທີ່ ແລະ ວັນນັດ
+              {t.locationAndAppointment}
             </span>
           }
         >
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               {/* ບັງຄັບ — 146 ງານທີ່ຜ່ານມາບໍ່ມີສະຖານທີ່ ⇒ ຊ່າງບໍ່ຮູ້ວ່າໄປໃສ */}
-              <label className={labelClass}>ສະຖານທີ່ຕິດຕັ້ງ *</label>
+              <label className={labelClass}>{t.installLocationLabel}</label>
               <input
                 name="location_inst"
                 required
                 defaultValue={bill.address ?? ""}
-                placeholder="ບ້ານ / ເມືອງ / ຈຸດສັງເກດ"
+                placeholder={t.locationPlaceholder}
                 className={inputClass}
               />
-              <p className="mt-1 text-xs text-slate-400">ຕື່ມມາຈາກທີ່ຢູ່ລູກຄ້າ — ແກ້ໄດ້ຖ້າຕິດຕັ້ງບ່ອນອື່ນ</p>
+              <p className="mt-1 text-xs text-slate-400">{t.locationHint}</p>
 
               {/* ພິກັດ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງໄດ້ ແລະ ທຽບກັບ check-in ໄດ້ */}
               <LocationPicker value={point} onChange={setPoint} />
@@ -558,13 +565,13 @@ export function InstallForm({
               <input type="hidden" name="location_lng" value={point ? String(point.lng) : ""} />
             </div>
             <div>
-              <label className={labelClass}>ວັນຄາດວ່າຈະເຂົ້າຕິດຕັ້ງ</label>
+              <label className={labelClass}>{t.appointDateLabel}</label>
               <input type="date" name="appoint_date" className={inputClass} />
-              <p className="mt-1 text-xs text-slate-400">ຜູ້ຈັດຊ່າງປ່ຽນໄດ້ພາຍຫຼັງ</p>
+              <p className="mt-1 text-xs text-slate-400">{t.dispatcherCanChange}</p>
             </div>
             <div className="md:col-span-2">
-              <label className={labelClass}>ໝາຍເຫດ</label>
-              <input name="remark" placeholder="ຊັ້ນ, ທາງເຂົ້າ, ນັດເວລາ..." className={inputClass} />
+              <label className={labelClass}>{t.remarkLabel}</label>
+              <input name="remark" placeholder={t.remarkPlaceholder} className={inputClass} />
             </div>
           </div>
         </Card>
@@ -583,31 +590,35 @@ export function InstallForm({
       {/* ④ ບັນທຶກ */}
       <div className="sticky bottom-0 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <span className="text-xs text-slate-500">
-          ຜູ້ສ້າງ: <b className="text-slate-700">{username}</b>
+          {t.createdBy} <b className="text-slate-700">{username}</b>
           {totalJobs > 0 && (
             <>
-              {" · ຈະສ້າງ "}
-              <b className="text-slate-700">{totalJobs} ງານ</b>
-              {lines.length > 1 && ` ຈາກ ${lines.length} ລາຍການ`}
+              {` ${t.willCreate} `}
+              <b className="text-slate-700">{totalJobs} {t.jobsUnit}</b>
+              {lines.length > 1 && ` ${t.fromPrefix} ${lines.length} ${t.itemsUnit}`}
             </>
           )}
           {incomplete.length > 0 && (
-            <span className="font-semibold text-amber-700"> · ຍັງມີ {incomplete.length} ລາຍການທີ່ຂໍ້ມູນບໍ່ຄົບ</span>
+            <span className="font-semibold text-amber-700">
+              {" "}
+              {t.incompletePrefix} {incomplete.length} {t.incompleteSuffix}
+            </span>
           )}
         </span>
         <div className="ml-auto flex gap-2">
           <LinkButton href="/installations" tone="neutral">
-            ອອກ
+            {t.exit}
           </LinkButton>
           <Button type="submit" tone="success" disabled={pending || !ready}>
             <Save className="size-4" />
-            {pending ? "ກຳລັງບັນທຶກ..." : `ບັນທຶກ${totalJobs > 1 ? ` ${totalJobs} ງານ` : ""}`}
+            {pending ? t.saving : `${t.save}${totalJobs > 1 ? ` ${totalJobs} ${t.jobsUnit}` : ""}`}
           </Button>
         </div>
       </div>
 
       {open && (
         <BillPicker
+          t={t}
           preset={presetBill}
           onClose={() => setOpen(false)}
           onPick={(chosen) => {
@@ -619,6 +630,7 @@ export function InstallForm({
 
       {picking && bill && (
         <ItemPicker
+          t={t}
           items={remaining}
           onClose={() => setPicking(false)}
           onAdd={(codes) => {
@@ -643,10 +655,12 @@ export function InstallForm({
  * ⇒ ຄາດວ່າຕິດທັງໝົດ) — ອັນທີ່ບໍ່ຕິດ ຕິກອອກ.
  */
 function ItemPicker({
+  t,
   items,
   onClose,
   onAdd,
 }: {
+  t: InstallFormDict;
   items: BillItem[];
   onClose: () => void;
   onAdd: (codes: string[]) => void;
@@ -664,8 +678,8 @@ function ItemPicker({
       >
         <header className="flex items-start justify-between gap-3 border-b border-slate-100 p-4">
           <div>
-            <h2 className="font-bold text-slate-800">ເລືອກລາຍການທີ່ຈະຕິດຕັ້ງ</h2>
-            <p className="mt-0.5 text-xs text-slate-500">ຕິກໄດ້ຫຼາຍລາຍການພ້ອມກັນ — ອັນທີ່ບໍ່ຕິດຕັ້ງ ຕິກອອກ</p>
+            <h2 className="font-bold text-slate-800">{t.selectItemsToInstall}</h2>
+            <p className="mt-0.5 text-xs text-slate-500">{t.tickMultipleHint}</p>
           </div>
           <button
             type="button"
@@ -696,26 +710,28 @@ function ItemPicker({
                   <span className="block text-sm font-semibold text-slate-800">{item.item_name}</span>
                   <span className="block text-xs text-slate-500">
                     {item.pro_type_name ?? "-"} · {item.pro_size ?? "-"}
-                    {item.serials.length > 0 && ` · ມີ ISN ${item.serials.length}`}
+                    {item.serials.length > 0 && ` · ${t.hasIsn} ${item.serials.length}`}
                   </span>
                 </span>
                 <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
-                  ຂາຍ {item.qty} ໜ່ວຍ
+                  {t.soldPrefix} {item.qty} {t.unitsWord}
                 </span>
               </label>
             );
           })}
 
           {items.length === 0 && (
-            <p className="py-10 text-center text-sm text-slate-400">ລາຍການໃນບິນນີ້ຖືກເລືອກໝົດແລ້ວ</p>
+            <p className="py-10 text-center text-sm text-slate-400">{t.allItemsSelected}</p>
           )}
         </div>
 
         <footer className="flex items-center gap-3 border-t border-slate-100 p-3">
-          <span className="text-xs text-slate-500">ເລືອກແລ້ວ {picked.length} ລາຍການ</span>
+          <span className="text-xs text-slate-500">
+            {t.selectedPrefix} {picked.length} {t.itemsUnit}
+          </span>
           <div className="ml-auto flex gap-2">
             <Button type="button" tone="neutral" onClick={onClose} className="h-9 text-xs">
-              ຍົກເລີກ
+              {t.cancel}
             </Button>
             <Button
               type="button"
@@ -725,7 +741,7 @@ function ItemPicker({
               className="h-9 text-xs"
             >
               <Plus className="size-4" />
-              ເພີ່ມ {picked.length} ລາຍການ
+              {t.addPrefix} {picked.length} {t.itemsUnit}
             </Button>
           </div>
         </footer>
@@ -748,7 +764,17 @@ function Field({ label, value }: { label: string; value: string }) {
  * ແລະ ປຸ່ມ "ເລືອກ" ຖືກຕັດອອກນອກຈໍ). **1 ບັດ = 1 ບິນ** ພ້ອມລາຍການທີ່ຈະຕິດຕັ້ງ
  * ⇒ ເຫັນກ່ອນວ່າບິນນັ້ນມີຫຍັງແດ່ ຈຶ່ງກົດເລືອກ.
  */
-function BillPicker({ onClose, onPick, preset = "" }: { onClose: () => void; onPick: (bill: Bill) => void; preset?: string }) {
+function BillPicker({
+  t,
+  onClose,
+  onPick,
+  preset = "",
+}: {
+  t: InstallFormDict;
+  onClose: () => void;
+  onPick: (bill: Bill) => void;
+  preset?: string;
+}) {
   const [q, setQ] = useState(preset);
   const [rows, setRows] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(false);
@@ -775,7 +801,7 @@ function BillPicker({ onClose, onPick, preset = "" }: { onClose: () => void; onP
       >
         <header className="border-b border-slate-100 p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="font-bold text-slate-800">ເລືອກບິນຂາຍ</h2>
+            <h2 className="font-bold text-slate-800">{t.selectBill}</h2>
             <button
               type="button"
               onClick={onClose}
@@ -790,13 +816,14 @@ function BillPicker({ onClose, onPick, preset = "" }: { onClose: () => void; onP
               autoFocus
               value={q}
               onChange={(event) => setQ(event.target.value)}
-              placeholder="ຄົ້ນຫາ ເລກບິນ, ຊື່ລູກຄ້າ, ເບີໂທ..."
+              placeholder={t.searchBillPlaceholder}
               className="w-full text-sm outline-none"
             />
             {loading && <LoaderCircle className="size-4 shrink-0 animate-spin text-slate-400" />}
           </div>
           <p className="mt-2 text-xs text-slate-400">
-            ສະແດງສະເພາະບິນທີ່ມີ<b> ບໍລິການຕິດຕັ້ງ</b> ຢູ່ໃນບິນ · ແອຂຶ້ນເປັນ [SET] ບໍ່ແຍກໜ່ວຍໃນ/ນອກ
+            {t.showBillsWithPrefix}
+            <b> {t.installServiceBold}</b> {t.showBillsWithSuffix}
           </p>
         </header>
 
@@ -812,7 +839,7 @@ function BillPicker({ onClose, onPick, preset = "" }: { onClose: () => void; onP
                 <span className="rounded-md bg-slate-900 px-2 py-0.5 text-xs font-bold text-white">{bill.doc_no}</span>
                 <span className="text-xs text-slate-500">{bill.doc_date}</span>
                 <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-bold text-teal-800">
-                  ຄ່າຕິດຕັ້ງ {bill.services.reduce((sum, row) => sum + Math.round(row.qty || 0), 0)} ໜ່ວຍ
+                  {t.installFeePrefix} {bill.services.reduce((sum, row) => sum + Math.round(row.qty || 0), 0)} {t.unitsWord}
                 </span>
               </div>
 
@@ -846,7 +873,7 @@ function BillPicker({ onClose, onPick, preset = "" }: { onClose: () => void; onP
           ))}
 
           {!loading && rows.length === 0 && (
-            <p className="py-12 text-center text-sm text-slate-400">ບໍ່ພົບບິນຂາຍທີ່ມີບໍລິການຕິດຕັ້ງ</p>
+            <p className="py-12 text-center text-sm text-slate-400">{t.noBillsFound}</p>
           )}
         </div>
       </div>

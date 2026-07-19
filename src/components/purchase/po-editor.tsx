@@ -4,6 +4,7 @@ import { SparePicker } from "@/components/purchase/spare-picker";
 import { useConfirm } from "@/components/confirm-dialog";
 import { SelectField } from "@/components/select-field";
 import { ErrorBox } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import type { Currency, Lookup } from "@/lib/erp-lookup";
 import type { Supplier } from "@/lib/erp-supplier";
 import { payTermLabel } from "@/lib/stock-constants";
@@ -83,6 +84,7 @@ export function PoEditor({
     from ? issuePoOrder : createPoOrder,
     {},
   );
+  const t = useDict().poEditor;
   const formRef = useRef<HTMLFormElement>(null);
   const { ask, dialog } = useConfirm();
 
@@ -168,22 +170,22 @@ export function PoEditor({
   const currencySymbol = currencies.find((c) => c.code === currency)?.symbol ?? "";
   /** ບອກສິ່ງທີ່ຍັງຂາດ ຢູ່ຂ້າງປຸ່ມບັນທຶກ — ຄື Odoo ທີ່ບອກເມື່ອບັນທຶກບໍ່ໄດ້ */
   const missing = !supplier
-    ? "ຕ້ອງເລືອກຜູ້ສະໜອງ"
+    ? t.missingSupplier
     : !transport
-      ? "ຕ້ອງເລືອກຊ່ອງທາງການຈັດສົ່ງ"
+      ? t.missingTransport
       : !wh
-        ? "ຕ້ອງເລືອກສາງທີ່ຮັບເຂົ້າ"
+        ? t.missingWarehouse
         : lines.length === 0
-          ? "ຕ້ອງມີຢ່າງໜ້ອຍ 1 ລາຍການ"
+          ? t.missingLines
           : !Number.isInteger(creditDay) || creditDay < 0 || creditDay > 365
-            ? "ຈຳນວນວັນຕິດໜີ້ຕ້ອງເປັນ 1–365"
+            ? t.missingCreditDay
             : "";
 
   const submit = async () => {
     const ok = await ask({
-      title: "ອອກໃບສັ່ງຊື້?",
-      message: `${from ? `ຈາກ ${from.wpraNo} · ` : ""}${lines.length} ລາຍການ · ຜູ້ສະໜອງ ${vendorName} · ${payLabel} · ຄາດຮອດ ${sendDate} · ເຂົ້າສາງ ${wh} — ໃບຈະລົງ ERP ທັນທີ ແລ້ວລໍອະນຸມັດ PO`,
-      confirmLabel: "ອອກໃບສັ່ງຊື້",
+      title: t.confirmTitle,
+      message: `${from ? `${t.confirmFrom} ${from.wpraNo} · ` : ""}${lines.length} ${t.confirmItems} · ${t.confirmSupplier} ${vendorName} · ${payLabel} · ${t.confirmEta} ${sendDate} · ${t.confirmToWarehouse} ${wh} — ${t.confirmTail}`,
+      confirmLabel: t.confirmSubmit,
     });
     if (ok) formRef.current?.requestSubmit();
   };
@@ -203,10 +205,10 @@ export function PoEditor({
         <div className="flex items-center gap-3">
           <p className="text-sm text-slate-400">
             <Link href="/purchase-orders" className="hover:text-slate-600 hover:underline">
-              ໃບສັ່ງຊື້
+              {t.breadcrumbPo}
             </Link>
             <ChevronRight className="mx-1 inline size-3.5" />
-            <span className="font-semibold text-slate-700">{from ? `ອອກ PO ຈາກ ${from.wpraNo}` : "ໃໝ່"}</span>
+            <span className="font-semibold text-slate-700">{from ? `${t.issuedFrom} ${from.wpraNo}` : t.newDoc}</span>
           </p>
           {dirty && !valid && <span className="text-xs text-amber-600">{missing}</span>}
           {dirty && (
@@ -214,7 +216,7 @@ export function PoEditor({
               <button
                 type="button"
                 disabled={!valid || saving}
-                title="ບັນທຶກ"
+                title={t.titleSave}
                 onClick={submit}
                 className="grid size-7 place-items-center rounded-full text-teal-600 hover:bg-teal-50 disabled:opacity-40"
               >
@@ -223,7 +225,7 @@ export function PoEditor({
               <button
                 type="button"
                 disabled={saving}
-                title="ຍົກເລີກ"
+                title={t.titleCancel}
                 onClick={() => {
                   setLines(from?.lines ?? []);
                   setRemark("");
@@ -263,19 +265,19 @@ export function PoEditor({
           )}
 
           {/* ຫົວ: ເລກທີ່ຈະໄດ້ຈາກ ERP (ຄື Odoo ທີ່ບອກເລກລ່ວງໜ້າ) */}
-          <h1 className="font-mono text-3xl font-bold text-slate-700">{docNo || "ໃໝ່"}</h1>
+          <h1 className="font-mono text-3xl font-bold text-slate-700">{docNo || t.newDoc}</h1>
           <p className="mt-1 text-xs text-slate-400">
-            ໃບສັ່ງຊື້ (PO) — {docNo ? "ເລກນີ້ຈະຢືນຢັນຕອນບັນທຶກ · " : ""}
-            {from ? "ລາຄາ/ຈຳນວນ ແກ້ໄດ້ຢູ່ນີ້ (ໃບຂໍຊື້ບໍ່ຮູ້ລາຄາ) · " : ""}
-            ຂັ້ນຕໍ່ໄປ: ອະນຸມັດ PO ແລ້ວລໍຮັບເຂົ້າສາງ
+            {t.subtitlePo} {docNo ? `${t.subtitleConfirmNo} ` : ""}
+            {from ? `${t.subtitleEditable} ` : ""}
+            {t.subtitleNext}
           </p>
           {from && (
             <p className="mt-2 inline-flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-1.5 text-xs text-slate-500">
-              <span>ອອກຈາກໃບອະນຸມັດ <b className="font-mono text-slate-700">{from.wpraNo}</b></span>
-              {from.sprNo && <span>· ໃບຂໍຊື້ <b className="font-mono text-slate-700">{from.sprNo}</b></span>}
+              <span>{t.issuedFromApproval} <b className="font-mono text-slate-700">{from.wpraNo}</b></span>
+              {from.sprNo && <span>· {t.prLabel} <b className="font-mono text-slate-700">{from.sprNo}</b></span>}
               {from.jobCode && (
                 <span>
-                  · ວຽກ{" "}
+                  · {t.jobLabel}{" "}
                   <Link href={`/service/${from.jobCode}`} className="font-semibold text-[#0536a9] hover:underline">
                     {from.jobCode}
                   </Link>
@@ -288,7 +290,7 @@ export function PoEditor({
           <div className="mt-6 grid gap-x-12 gap-y-4 lg:grid-cols-2">
             <div className="flex items-center gap-4">
               <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">
-                ຜູ້ສະໜອງ <span className="text-rose-500">*</span>
+                {t.labelSupplier} <span className="text-rose-500">*</span>
               </span>
               <div className="flex-1">
                 <SelectField
@@ -296,13 +298,13 @@ export function PoEditor({
                   options={suppliers.map((s) => ({ value: s.code, label: `${s.code} — ${s.name}` }))}
                   value={supplier}
                   onChange={setSupplier}
-                  placeholder="ຄົ້ນຫາຜູ້ສະໜອງ (AP Supplier ຈາກ ERP)..."
+                  placeholder={t.placeholderSupplier}
                 />
               </div>
             </div>
 
             <label className="flex items-center gap-4">
-              <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">ວັນທີ</span>
+              <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">{t.labelDate}</span>
               <input
                 type="date"
                 value={docDate}
@@ -318,7 +320,7 @@ export function PoEditor({
 
             <label className="flex items-center gap-4">
               <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">
-                ຄາດວ່າຈະມາຮອດ <span className="text-rose-500">*</span>
+                {t.labelEta} <span className="text-rose-500">*</span>
               </span>
               <input
                 type="date"
@@ -331,22 +333,22 @@ export function PoEditor({
 
             <div className="flex items-center gap-4">
               <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">
-                ຊ່ອງທາງການຈັດສົ່ງ <span className="text-rose-500">*</span>
+                {t.labelTransport} <span className="text-rose-500">*</span>
               </span>
               <div className="flex-1">
                 <SelectField
                   name="_transport_view"
-                  options={transports.map((t) => ({ value: t.code, label: t.name }))}
+                  options={transports.map((tr) => ({ value: tr.code, label: tr.name }))}
                   value={transport}
                   onChange={setTransport}
-                  placeholder="ເລືອກຊ່ອງທາງຂົນສົ່ງ..."
+                  placeholder={t.placeholderTransport}
                 />
               </div>
             </div>
 
             <div className="flex items-center gap-4">
               <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">
-                ສາງທີ່ຮັບເຂົ້າ <span className="text-rose-500">*</span>
+                {t.labelWarehouse} <span className="text-rose-500">*</span>
               </span>
               <div className="flex-1">
                 <SelectField
@@ -354,17 +356,17 @@ export function PoEditor({
                   options={warehouses.map((w) => ({ value: w.code, label: `${w.code} — ${w.name}` }))}
                   value={wh}
                   onChange={setWh}
-                  placeholder="ເລືອກສາງປາຍທາງ..."
+                  placeholder={t.placeholderWarehouse}
                 />
               </div>
             </div>
 
             <label className="flex items-center gap-4">
-              <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">ສາຂາທີ່ຊື້ຜ່ານ</span>
+              <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">{t.labelBranch}</span>
               <select
                 value={branch}
                 disabled={Boolean(from)}
-                title={from ? "ສາຂາຕາມໃບອະນຸມັດ — ແກ້ບໍ່ໄດ້" : undefined}
+                title={from ? t.branchLockedTitle : undefined}
                 onChange={(event) => {
                   const value = event.target.value;
                   setBranch(value);
@@ -383,7 +385,7 @@ export function PoEditor({
             </label>
 
             <div className="flex items-center gap-4">
-              <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">ສະກຸນເງິນ</span>
+              <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">{t.labelCurrency}</span>
               <div className="flex flex-1 items-center gap-2">
                 <select
                   value={currency}
@@ -402,14 +404,14 @@ export function PoEditor({
                     </option>
                   ))}
                 </select>
-                <span className="shrink-0 text-xs text-slate-400">ອັດຕາ</span>
+                <span className="shrink-0 text-xs text-slate-400">{t.labelRate}</span>
                 <input
                   type="number"
                   step="0.0000001"
                   min={0}
                   value={rate}
                   onChange={(event) => setRate(Number(event.target.value))}
-                  title="ບາດຕໍ່ 1 ໜ່ວຍ (ບາດ=1 · ໂດລາ=33 · ກີບ=0.0014598)"
+                  title={t.rateTitle}
                   className="h-8 w-28 border-0 border-b border-dashed border-slate-300 bg-transparent text-right text-sm tabular-nums text-slate-800 focus:border-solid focus:border-teal-500 focus:outline-none"
                 />
               </div>
@@ -433,9 +435,9 @@ export function PoEditor({
                   }}
                   className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 focus:border-solid focus:border-teal-500 focus:outline-none"
                 >
-                  <option value="none">ບໍ່ມີ VAT (0%)</option>
-                  <option value="exclude">ແຍກນອກ (ບວກເທິງລາຄາ)</option>
-                  <option value="include">ລວມໃນລາຄາແລ້ວ</option>
+                  <option value="none">{t.vatNone}</option>
+                  <option value="exclude">{t.vatExclude}</option>
+                  <option value="include">{t.vatInclude}</option>
                 </select>
                 <input
                   type="number"
@@ -454,7 +456,7 @@ export function PoEditor({
             {/* ສົດ/ຕິດໜີ້ — ບອກພ້ອມຕອນອອກໃບ (ERP ເກັບເປັນ credit_day: 0 = ສົດ) */}
             <div className="flex items-center gap-4">
               <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">
-                ການຈ່າຍເງິນ <span className="text-rose-500">*</span>
+                {t.labelPayment} <span className="text-rose-500">*</span>
               </span>
               <div className="flex flex-1 items-center gap-2">
                 <select
@@ -466,8 +468,8 @@ export function PoEditor({
                   }
                   className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 focus:border-solid focus:border-teal-500 focus:outline-none"
                 >
-                  <option value="cash">ຈ່າຍສົດ</option>
-                  <option value="credit">ຕິດໜີ້</option>
+                  <option value="cash">{t.payCash}</option>
+                  <option value="credit">{t.payCredit}</option>
                 </select>
                 {payMode === "credit" && (
                   <>
@@ -480,19 +482,19 @@ export function PoEditor({
                       onChange={(event) => setCreditDay(Math.trunc(Number(event.target.value)))}
                       className="h-8 w-16 border-0 border-b border-dashed border-slate-300 bg-transparent text-right text-sm tabular-nums text-slate-800 focus:border-solid focus:border-teal-500 focus:outline-none"
                     />
-                    <span className="shrink-0 text-xs text-slate-400">ວັນ · ຄົບ {dueDate}</span>
+                    <span className="shrink-0 text-xs text-slate-400">{t.daysUnit} · {t.dueLabel} {dueDate}</span>
                   </>
                 )}
               </div>
             </div>
 
             <label className="flex items-center gap-4">
-              <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">ໝາຍເຫດ</span>
+              <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">{t.labelRemark}</span>
               <input
                 value={remark}
                 onChange={(event) => setRemark(event.target.value)}
                 maxLength={200}
-                placeholder="ຊື້ເພື່ອຫຍັງ (ຕົວຢ່າງ: ຕຸນເຂົ້າສາງ)"
+                placeholder={t.placeholderRemark}
                 className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 placeholder:text-slate-300 focus:border-solid focus:border-teal-500 focus:outline-none"
               />
             </label>
@@ -501,7 +503,7 @@ export function PoEditor({
           {/* ── notebook tab ── */}
           <div className="mt-8 border-b border-slate-200">
             <span className="inline-block border-b-2 border-[#0536a9] px-1 pb-2 text-sm font-bold text-[#0536a9]">
-              ລາຍການອາໄຫຼ່
+              {t.tabSpares}
             </span>
           </div>
 
@@ -510,11 +512,11 @@ export function PoEditor({
             <table className="w-full min-w-[680px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
-                  <th className="py-2 pr-3 font-semibold">ອາໄຫຼ່</th>
-                  <th className="w-24 px-3 py-2 text-right font-semibold">ຈຳນວນ</th>
-                  <th className="w-20 px-3 py-2 font-semibold">ຫົວໜ່ວຍ</th>
-                  <th className="w-32 px-3 py-2 text-right font-semibold">ລາຄາ/ໜ່ວຍ</th>
-                  <th className="w-32 px-3 py-2 text-right font-semibold">ລວມ</th>
+                  <th className="py-2 pr-3 font-semibold">{t.colSpare}</th>
+                  <th className="w-24 px-3 py-2 text-right font-semibold">{t.colQty}</th>
+                  <th className="w-20 px-3 py-2 font-semibold">{t.colUnit}</th>
+                  <th className="w-32 px-3 py-2 text-right font-semibold">{t.colPrice}</th>
+                  <th className="w-32 px-3 py-2 text-right font-semibold">{t.colTotal}</th>
                   <th className="w-10 py-2" />
                 </tr>
               </thead>
@@ -552,7 +554,7 @@ export function PoEditor({
                         type="button"
                         hidden={Boolean(from)}
                         onClick={() => setLines((prev) => prev.filter((l) => l.item_code !== line.item_code))}
-                        title="ລຶບແຖວ"
+                        title={t.deleteRowTitle}
                         className="rounded p-1 text-slate-300 opacity-0 group-hover:opacity-100 hover:text-rose-600"
                       >
                         <Trash2 className="size-3.5" />
@@ -569,7 +571,7 @@ export function PoEditor({
           <div className="border-t border-slate-100 py-2">
             {from ? (
               // ອອກຈາກໃບອະນຸມັດ: ລາຍການຕ້ອງຕົງກັບໃບທີ່ຜູ້ອະນຸມັດເຫັນ ⇒ ເພີ່ມ item ໃໝ່ບໍ່ໄດ້
-              <span className="text-xs text-slate-400">ລາຍການຕາມໃບອະນຸມັດ {from.wpraNo} — ແກ້ໄດ້ແຕ່ຈຳນວນ ແລະ ລາຄາ</span>
+              <span className="text-xs text-slate-400">{t.linesFromApproval} {from.wpraNo} — {t.linesEditableNote}</span>
             ) : (
               <>
                 <button
@@ -578,9 +580,9 @@ export function PoEditor({
                   className="inline-flex items-center gap-1 text-xs font-semibold text-[#0536a9] hover:underline"
                 >
                   <Plus className="size-3.5" />
-                  ເພີ່ມແຖວ
+                  {t.addRow}
                 </button>
-                {lines.length === 0 && <span className="ml-3 text-xs text-slate-300">ຍັງບໍ່ມີລາຍການ</span>}
+                {lines.length === 0 && <span className="ml-3 text-xs text-slate-300">{t.noLines}</span>}
               </>
             )}
           </div>
@@ -589,15 +591,15 @@ export function PoEditor({
           <div className="mt-4 flex justify-end">
             <dl className="w-72 space-y-1.5 text-sm">
               <div className="flex justify-between text-slate-500">
-                <dt>{vatMode === "none" ? "ຍອດສິນຄ້າ" : vatType === 0 ? "ຍອດກ່ອນ VAT" : "ຍອດ (ລວມ VAT ແລ້ວ)"}</dt>
+                <dt>{vatMode === "none" ? t.subtotalGoods : vatType === 0 ? t.subtotalBeforeVat : t.subtotalWithVat}</dt>
                 <dd className="tabular-nums">{value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</dd>
               </div>
               <div className="flex justify-between text-slate-500">
-                <dt>VAT {vatRate}%{vatMode === "none" ? " (ບໍ່ມີ)" : vatType === 2 ? " (ລວມໃນລາຄາ)" : ""}</dt>
+                <dt>VAT {vatRate}%{vatMode === "none" ? ` ${t.vatSuffixNone}` : vatType === 2 ? ` ${t.vatSuffixIncluded}` : ""}</dt>
                 <dd className="tabular-nums">{vatValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</dd>
               </div>
               <div className="flex justify-between border-t border-slate-300 pt-1.5 text-base font-bold text-slate-800">
-                <dt>ລວມທັງໝົດ</dt>
+                <dt>{t.grandTotal}</dt>
                 <dd className="tabular-nums">
                   {total.toLocaleString(undefined, { maximumFractionDigits: 2 })}{" "}
                   <span className="text-xs font-normal text-slate-400">{currencySymbol}</span>
