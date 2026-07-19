@@ -108,7 +108,21 @@
     "tech:spare-pickup": "ຮັບອາໄຫຼ່",
     "tech:returns-install": "ສົ່ງຄືນອາໄຫຼ່",
     "tech:qc-install": "ກວດຮັບຄຸນນະພາບ",
-    "tech:income": "ຄ່າຄອມຂອງຂ້ອຍ"
+    "tech:income": "ຄ່າຄອມຂອງຂ້ອຍ",
+    "pipe:repair:wait-pickup": "ລໍໄປຮັບເຄື່ອງ (PS)",
+    "pipe:repair:picking-up": "ກຳລັງໄປຮັບ (PS)",
+    "pipe:repair:wait-schedule": "ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ (IH)",
+    "pipe:repair:wait-check": "ຮັບງານ / ລໍຖ້າກວດເຊັກ",
+    "pipe:repair:checking": "ກຳລັງກວດເຊັກ",
+    "pipe:repair:wait-quote": "ລໍຖ້າສະເໜີລາຄາ",
+    "pipe:repair:quoting": "ກຳລັງສະເໜີລາຄາ",
+    "pipe:repair:wait-withdraw": "ກວດ Stock / ຊື້ ຫຼື ຂໍເບີກ",
+    "pipe:repair:withdrawing": "ກຳລັງເບີກອາໄຫຼ່",
+    "pipe:repair:purchasing": "ກຳລັງສັ່ງຊື້",
+    "pipe:repair:wait-repair": "ລໍຖ້າສ້ອມ",
+    "pipe:repair:repairing": "ກຳລັງສ້ອມ",
+    "pipe:repair:wait-qc": "ລໍກວດຮັບຄຸນນະພາບ",
+    "pipe:repair:wait-return": "ລໍຖ້າສົ່ງຄືນ / ປິດງານ (IH)"
   },
   "dashboard": {
     "controlCenter": "ສູນຄວບຄຸມວຽກ",

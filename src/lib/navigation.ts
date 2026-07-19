@@ -119,6 +119,8 @@ const REPAIR: NavGroup = {
       label: def.label,
       href: `/dashboard/status/repair/${slug}`,
       count: `/dashboard/status/repair/${slug}`,
+      // labelKey ແຍກ (ບໍ່ໃຊ້ href) — ຂັ້ນ pipeline ໃຊ້ href ດຽວກັບເມນູຝັ່ງຊ່າງ ແຕ່ປ້າຍຕ່າງກັນ
+      labelKey: `pipe:repair:${slug}`,
     })),
   ].map((item, index) => ({ ...item, label: `${index + 1}. ${item.label}` })),
 };

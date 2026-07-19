@@ -108,7 +108,21 @@
     "tech:spare-pickup": "Pick up parts",
     "tech:returns-install": "Return parts",
     "tech:qc-install": "Quality acceptance",
-    "tech:income": "My commission"
+    "tech:income": "My commission",
+    "pipe:repair:wait-pickup": "Awaiting pickup (PS)",
+    "pipe:repair:picking-up": "Pickup in progress (PS)",
+    "pipe:repair:wait-schedule": "Awaiting scheduling/assign (IH)",
+    "pipe:repair:wait-check": "Job received / awaiting check",
+    "pipe:repair:checking": "Checking",
+    "pipe:repair:wait-quote": "Awaiting quotation",
+    "pipe:repair:quoting": "Quoting",
+    "pipe:repair:wait-withdraw": "Check stock / buy or request",
+    "pipe:repair:withdrawing": "Dispensing parts",
+    "pipe:repair:purchasing": "Purchasing",
+    "pipe:repair:wait-repair": "Awaiting repair",
+    "pipe:repair:repairing": "Repairing",
+    "pipe:repair:wait-qc": "Awaiting QC",
+    "pipe:repair:wait-return": "Awaiting return / close (IH)"
   },
   "dashboard": {
     "controlCenter": "Operations Control Center",

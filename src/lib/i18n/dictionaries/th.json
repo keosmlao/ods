@@ -108,7 +108,21 @@
     "tech:spare-pickup": "รับอะไหล่",
     "tech:returns-install": "ส่งคืนอะไหล่",
     "tech:qc-install": "ตรวจรับคุณภาพ",
-    "tech:income": "ค่าคอมของฉัน"
+    "tech:income": "ค่าคอมของฉัน",
+    "pipe:repair:wait-pickup": "รอไปรับเครื่อง (PS)",
+    "pipe:repair:picking-up": "กำลังไปรับ (PS)",
+    "pipe:repair:wait-schedule": "รอนัดหมาย/จัดช่างไปซ่อม (IH)",
+    "pipe:repair:wait-check": "รับงาน / รอตรวจเช็ก",
+    "pipe:repair:checking": "กำลังตรวจเช็ก",
+    "pipe:repair:wait-quote": "รอเสนอราคา",
+    "pipe:repair:quoting": "กำลังเสนอราคา",
+    "pipe:repair:wait-withdraw": "ตรวจ Stock / ซื้อ หรือ ขอเบิก",
+    "pipe:repair:withdrawing": "กำลังเบิกอะไหล่",
+    "pipe:repair:purchasing": "กำลังสั่งซื้อ",
+    "pipe:repair:wait-repair": "รอซ่อม",
+    "pipe:repair:repairing": "กำลังซ่อม",
+    "pipe:repair:wait-qc": "รอตรวจรับคุณภาพ",
+    "pipe:repair:wait-return": "รอส่งคืน / ปิดงาน (IH)"
   },
   "dashboard": {
     "controlCenter": "ศูนย์ควบคุมงาน",
