@@ -2,6 +2,7 @@
 import { approveCancellation, rejectCancellation, type ApprovalState } from "@/app/actions/approval";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Button, ErrorBox, inputClass, labelClass } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { Check, LoaderCircle, LogOut, X } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -20,6 +21,7 @@ export function CancelDecision({ productCode }: { productCode: string }) {
   const [error, setError] = useState("");
   const [reason, setReason] = useState("");
   const { ask, dialog } = useConfirm();
+  const t = useDict().cancelDecision;
 
   const run = (
     action: (state: ApprovalState, formData: FormData) => Promise<ApprovalState>,
@@ -43,20 +45,20 @@ export function CancelDecision({ productCode }: { productCode: string }) {
           disabled={pending}
           onClick={async () => {
             const ok = await ask({
-              title: "ອະນຸມັດການຍົກເລີກ?",
+              title: t.approveTitle,
               message: (
                 <>
-                  ໃບຮັບເຄື່ອງ <b className="text-slate-700">#{productCode}</b> ຈະຖືກຍົກເລີກ ແລະ ຕ້ອງສົ່ງເຄື່ອງຄືນລູກຄ້າ
+                  {t.approveMsgHead} <b className="text-slate-700">#{productCode}</b> {t.approveMsgTail}
                 </>
               ),
-              confirmLabel: "ອະນຸມັດ",
+              confirmLabel: t.approve,
             });
             if (!ok) return;
             run(approveCancellation, { pro_code: productCode });
           }}
         >
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />}
-          ອະນຸມັດການຍົກເລີກ
+          {t.approveButton}
         </Button>
 
         <Button
@@ -66,19 +68,18 @@ export function CancelDecision({ productCode }: { productCode: string }) {
           onClick={async () => {
             // ເຫດຜົນບັງຄັບ — ກວດຢູ່ນີ້ກ່ອນ ເພື່ອບໍ່ໃຫ້ຜູ້ໃຊ້ເສຍເວລາ (server ກວດຊ້ຳອີກ)
             if (!reason.trim()) {
-              setError("ກະລຸນາລະບຸເຫດຜົນທີ່ບໍ່ອະນຸມັດການຍົກເລີກຢູ່ຊ່ອງລຸ່ມນີ້ກ່ອນ");
+              setError(t.rejectReasonWarn);
               return;
             }
             const ok = await ask({
-              title: "ບໍ່ອະນຸມັດການຍົກເລີກ?",
+              title: t.rejectTitle,
               message: (
                 <>
-                  ຄຳຂໍຍົກເລີກຂອງໃບ <b className="text-slate-700">#{productCode}</b> ຈະຖືກລ້າງ ແລະ ວຽກກັບຄືນສູ່ຂັ້ນຕອນປົກກະຕິ
-                  · ຜູ້ຂໍຈະໄດ້ຮັບການແຈ້ງເຕືອນພ້ອມເຫດຜົນ
+                  {t.rejectMsgHead} <b className="text-slate-700">#{productCode}</b> {t.rejectMsgTail}
                 </>
               ),
-              confirmLabel: "ບໍ່ອະນຸມັດ",
-              cancelLabel: "ຍົກເລີກ",
+              confirmLabel: t.reject,
+              cancelLabel: t.cancel,
               tone: "danger",
             });
             if (!ok) return;
@@ -86,7 +87,7 @@ export function CancelDecision({ productCode }: { productCode: string }) {
           }}
         >
           <X className="size-4" />
-          ບໍ່ອະນຸມັດການຍົກເລີກ
+          {t.rejectButton}
         </Button>
 
         <Link
@@ -94,20 +95,20 @@ export function CancelDecision({ productCode }: { productCode: string }) {
           className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
         >
           <LogOut className="size-4" />
-          ອອກ
+          {t.exit}
         </Link>
       </div>
 
       <div>
         <label className={labelClass} htmlFor="reject-reason">
-          ເຫດຜົນທີ່ບໍ່ອະນຸມັດ <span className="text-red-500">*</span>{" "}
-          <span className="text-xs text-slate-400">(ຈຳເປັນສະເພາະຕອນ &quot;ບໍ່ອະນຸມັດ&quot;)</span>
+          {t.rejectReasonLabel} <span className="text-red-500">*</span>{" "}
+          <span className="text-xs text-slate-400">{t.rejectReasonNote}</span>
         </label>
         <input
           id="reject-reason"
           value={reason}
           onChange={(event) => setReason(event.target.value)}
-          placeholder="ເຊັ່ນ: ລູກຄ້າຢືນຢັນໃຫ້ສ້ອມຕໍ່ · ອາໄຫຼ່ມາຮອດແລ້ວ · ຂໍຜິດໃບ"
+          placeholder={t.reasonPlaceholder}
           className={inputClass}
           autoComplete="off"
         />

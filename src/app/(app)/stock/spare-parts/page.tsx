@@ -2,6 +2,8 @@ import { LinkPending } from "@/components/link-pending";
 import type { Option } from "@/components/select-field";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { queryOdg } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { Boxes, ChevronLeft, ChevronRight, PackageCheck, PackageX } from "lucide-react";
 import Link from "next/link";
 import { SpareFilters } from "./filters";
@@ -127,15 +129,18 @@ async function getBrands(): Promise<Option[]> {
   return (await queryOdg<{ item_brand: string }>(sql)).rows.map((row) => ({ value: row.item_brand, label: row.item_brand }));
 }
 
-const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "code", label: "ລະຫັດ", defaultDir: "asc" },
-  { key: "name", label: "ລາຍການ", defaultDir: "asc" },
-  { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
-  { key: "balance", label: "ຄົງເຫຼືອ", defaultDir: "desc" },
-  { key: "unit", label: "ຫົວໜ່ວຍ", defaultDir: "asc" },
+type Dict = Record<string, string>;
+
+const columns = (t: Dict): { key: string; label: string; defaultDir: SortDir }[] => [
+  { key: "code", label: t.colCode, defaultDir: "asc" },
+  { key: "name", label: t.items, defaultDir: "asc" },
+  { key: "brand", label: t.colBrand, defaultDir: "asc" },
+  { key: "balance", label: t.colBalance, defaultDir: "desc" },
+  { key: "unit", label: t.colUnit, defaultDir: "asc" },
 ];
 
 export default async function SparePartsPage({ searchParams }: Props) {
+  const t = (await getDictionary(await getLocale())).sparePartsPage;
   const params = await searchParams;
   const tab: Tab = params.tab === "in" ? "in" : params.tab === "out" ? "out" : "all";
   const q = (params.q ?? "").trim();
@@ -164,18 +169,18 @@ export default async function SparePartsPage({ searchParams }: Props) {
     `/stock/spare-parts?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
   const TABS: { key: Tab; label: string; icon: typeof Boxes; count: number }[] = [
-    { key: "all", label: "ທັງໝົດ", icon: Boxes, count: counts.all },
-    { key: "in", label: "ມີໃນສາງ", icon: PackageCheck, count: counts.in },
-    { key: "out", label: "ໝົດສາງ", icon: PackageX, count: counts.out },
+    { key: "all", label: t.tabAll, icon: Boxes, count: counts.all },
+    { key: "in", label: t.tabInStock, icon: PackageCheck, count: counts.in },
+    { key: "out", label: t.tabOutOfStock, icon: PackageX, count: counts.out },
   ];
 
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-700">ລາຍການອາໄຫຼ່</h1>
+          <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            {spares.total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+            {spares.total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
           </p>
         </div>
       </div>
@@ -210,7 +215,7 @@ export default async function SparePartsPage({ searchParams }: Props) {
           <table className="w-full min-w-[760px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                {COLUMNS.map((column) => (
+                {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
                     label={column.label}
@@ -256,7 +261,7 @@ export default async function SparePartsPage({ searchParams }: Props) {
                       </span>
                       {/* wh_qty = ຄົງເຫຼືອຂອງສາງໃຫຍ່ (1103) — ບອກໄວ້ເມື່ອຕ່າງຈາກຍອດລວມ */}
                       {spare.wh_qty !== spare.balance_qty && (
-                        <span className="ml-1 text-[10px] text-slate-400">ສາງໃຫຍ່ {spare.wh_qty.toLocaleString()}</span>
+                        <span className="ml-1 text-[10px] text-slate-400">{t.unitMain} {spare.wh_qty.toLocaleString()}</span>
                       )}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{spare.unit_code || "-"}</td>
@@ -267,13 +272,13 @@ export default async function SparePartsPage({ searchParams }: Props) {
           </table>
         </div>
 
-        {spares.total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+        {spares.total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, spares.total)} ຈາກ {spares.total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, spares.total)} {t.of} {spares.total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -282,7 +287,7 @@ export default async function SparePartsPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -292,7 +297,7 @@ export default async function SparePartsPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>

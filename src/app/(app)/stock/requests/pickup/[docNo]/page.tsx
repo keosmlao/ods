@@ -1,6 +1,8 @@
 import { Card, Empty, PageTitle, Table } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { canViewAssignedJob } from "@/lib/scope";
 import { TRANS } from "@/lib/stock-constants";
 import { notFound, redirect } from "next/navigation";
@@ -47,6 +49,7 @@ function Info({ label, value }: { label: string; value: string | null }) {
 }
 
 export default async function SparePickupDetail({ params }: Props) {
+  const t = (await getDictionary(await getLocale())).requestsPickupDetail;
   const docNo = decodeURIComponent((await params).docNo);
   const session = await getSession();
   if (!session) redirect("/login");
@@ -79,26 +82,26 @@ export default async function SparePickupDetail({ params }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-5">
-      <PageTitle sub={`ເລກທີໃບເບີກ ${head.doc_no}`}>ຮັບອາໄຫຼ່</PageTitle>
+      <PageTitle sub={`${t.docNoPrefix} ${head.doc_no}`}>{t.title}</PageTitle>
 
-      <Card title="ຂໍ້ມູນວຽກ">
+      <Card title={t.jobInfo}>
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Info label="ເລກທີວຽກ" value={head.code} />
-          <Info label="ລູກຄ້າ" value={head.customer} />
-          <Info label="ຊື່ເຄື່ອງ / SN" value={head.product} />
-          <Info label="ຫຍີ່ຫໍ້" value={head.brand} />
-          <Info label="ປະກັນ" value={head.warranty} />
-          <Info label="ຊ່າງ" value={head.technician} />
-          <Info label="ວັນທີເບີກ" value={head.doc_date} />
-          <Info label="ໃບຂໍເບີກອ້າງອີງ" value={head.doc_ref} />
+          <Info label={t.jobNo} value={head.code} />
+          <Info label={t.customer} value={head.customer} />
+          <Info label={t.productSn} value={head.product} />
+          <Info label={t.brand} value={head.brand} />
+          <Info label={t.warranty} value={head.warranty} />
+          <Info label={t.technician} value={head.technician} />
+          <Info label={t.pickupDate} value={head.doc_date} />
+          <Info label={t.docRef} value={head.doc_ref} />
         </dl>
       </Card>
 
-      <Card title={`ອາໄຫຼ່ທີ່ສາງເບີກອອກ (${lines.length} ລາຍການ)`}>
+      <Card title={`${t.spareIssuedTitle} (${lines.length} ${t.items})`}>
         {lines.length === 0 ? (
-          <Empty>ບໍ່ມີອາໄຫຼ່ໃນໃບນີ້</Empty>
+          <Empty>{t.noSpares}</Empty>
         ) : (
-          <Table head={["#", "ລະຫັດ", "ຊື່ອາໄຫຼ່", "ຈຳນວນ", "ຫົວໜ່ວຍ"]} minWidth={700}>
+          <Table head={["#", t.colCode, t.colSpareName, t.colQty, t.colUnit]} minWidth={700}>
             {lines.map((line) => (
               <tr key={line.rnum} className="border-b border-slate-100">
                 <td className="px-3 py-3 text-center">{line.rnum}</td>
@@ -114,7 +117,7 @@ export default async function SparePickupDetail({ params }: Props) {
 
       {head.picked ? (
         <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center text-sm font-semibold text-emerald-700">
-          ໃບນີ້ຊ່າງຮັບອາໄຫຼ່ໄປແລ້ວ
+          {t.alreadyPicked}
         </p>
       ) : (
         <PickupForm

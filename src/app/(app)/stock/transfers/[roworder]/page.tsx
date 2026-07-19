@@ -1,6 +1,8 @@
 import { Card, ErrorBox, PageTitle, Table } from "@/components/ui";
 import { query, queryOdg } from "@/lib/db";
 import { docPrefix } from "@/lib/doc-no";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -75,6 +77,7 @@ async function getLine(roworder: string) {
 }
 
 export default async function TransferRequestPage({ params }: Props) {
+  const t = (await getDictionary(await getLocale())).transfersRoworder;
   const { roworder } = await params;
   const line = await getLine(roworder);
   if (!line) notFound();
@@ -85,8 +88,8 @@ export default async function TransferRequestPage({ params }: Props) {
 
   return (
     <div className="w-full space-y-6">
-      <PageTitle sub="ຂໍໂອນອາໄຫຼ່ຈາກສາງອື່ນເຂົ້າສາງຂອງໃບຂໍເບີກ — ໃບນີ້ບໍ່ຂະຫຍັບສະຕັອກ, ສາງໃຫຍ່ຕ້ອງອອກໃບໂອນ (FT) ໃນ ERP">
-        ໃບຂໍໂອນອາໄຫຼ່
+      <PageTitle sub={t.pageSubtitle}>
+        {t.pageTitle}
       </PageTitle>
 
       <TransferForm
@@ -97,28 +100,31 @@ export default async function TransferRequestPage({ params }: Props) {
         itemName={line.item_name ?? line.item_code}
         defaultRemark={`${line.product_code ?? ""} ${line.customer ?? ""}`.trim()}
         fields={[
-          { label: "ເລກທິໃບຂໍເບີກ:", value: line.doc_no },
-          { label: "ວັນທີ:", value: line.doc_date },
-          { label: "ລູກຄ້າ:", value: line.customer },
-          { label: "ຊື່ສິນຄ້າ:", value: line.product },
-          { label: "ລູ້ນ/Model:", value: line.p_model },
-          { label: "ເລກເຄື່ອງ/sn:", value: line.sn },
-          { label: "ອາການເສຍ:", value: line.issue, accent: true },
-          { label: "ປະກັນ:", value: line.warranty },
+          { label: t.fieldRequestNo, value: line.doc_no },
+          { label: t.fieldDate, value: line.doc_date },
+          { label: t.fieldCustomer, value: line.customer },
+          { label: t.fieldProduct, value: line.product },
+          { label: t.fieldModel, value: line.p_model },
+          { label: t.fieldSn, value: line.sn },
+          { label: t.fieldIssue, value: line.issue, accent: true },
+          { label: t.fieldWarranty, value: line.warranty },
         ]}
       />
 
       {line.transfer_requested && (
         <ErrorBox>
-          ອາໄຫຼ່ລາຍການນີ້ຂໍໂອນໄປແລ້ວ ແລະ ຍັງລໍຖ້າຂອງມາຮອດ —{" "}
+          {t.alreadyTransferred}{" "}
           <Link href="/stock/transfers" className="font-semibold underline">
-            ເບິ່ງໜ້າຕິດຕາມການໂອນ
+            {t.viewTransferTracking}
           </Link>
         </ErrorBox>
       )}
 
-      <Card title="ອາໄຫຼ່ທີ່ຂໍໂອນ">
-        <Table head={["#", "ລະຫັດສິນຄ້າ", "ຊື່ສິນຄ້າ", "ຈຳນວນ", "ຫົວໜ່ວຍ", "ຄົງເຫຼືອສາງນີ້", "ຄົງເຫຼືອສາງອື່ນ"]} minWidth={900}>
+      <Card title={t.cardTitle}>
+        <Table
+          head={["#", t.colProductCode, t.colProductName, t.colQty, t.colUnit, t.colBalanceThisWarehouse, t.colBalanceOtherWarehouse]}
+          minWidth={900}
+        >
           <tr className="border-b border-slate-100">
             <td className="px-3 py-3 text-center">1</td>
             <td className="px-3 py-3">{line.item_code}</td>
