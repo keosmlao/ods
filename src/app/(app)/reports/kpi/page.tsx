@@ -61,6 +61,30 @@ export default async function KpiPage({ searchParams }: Props) {
   const repairSlaMap = new Map(repairSla.map((item) => [`${item.stage}:${item.service_type}`, item]));
   const techSlaMap = new Map(techSla.map((item) => [item.tech, item]));
 
+  // ── ອັດຕາທັນເວລາ ຕໍ່ຝ່າຍ — ລວມ SLA ຕໍ່ຂັ້ນ ຕາມຜູ້ຮັບຜິດຊອບ (ຂ້າມຂັ້ນ external: ລູກຄ້າ/ຜູ້ສະໜອງ)
+  const ownerAgg = new Map<string, { within: number; total: number; stages: Set<number> }>();
+  for (const policy of REPAIR_STAGE_POLICIES) {
+    if (policy.external) continue;
+    for (const serviceType of REPAIR_SERVICE_TYPES) {
+      const item = repairSlaMap.get(`${policy.stage}:${serviceType}`);
+      if (!item) continue;
+      const cur = ownerAgg.get(policy.owner) ?? { within: 0, total: 0, stages: new Set<number>() };
+      cur.within += item.within_sla;
+      cur.total += item.total;
+      cur.stages.add(policy.stage);
+      ownerAgg.set(policy.owner, cur);
+    }
+  }
+  const ownerRows = [...ownerAgg.entries()]
+    .map(([owner, v]) => ({
+      owner,
+      within: v.within,
+      total: v.total,
+      stages: [...v.stages].sort((a, b) => a - b),
+      pct: v.total ? Math.round((v.within / v.total) * 1000) / 10 : 0,
+    }))
+    .sort((a, b) => b.total - a.total);
+
   const repeatPct = quality.repair_with_sn
     ? Math.round((quality.repeat_repairs / quality.repair_with_sn) * 1000) / 10
     : 0;
@@ -300,7 +324,36 @@ export default async function KpiPage({ searchParams }: Props) {
         )}
       </Card>
 
-      {/* ⑤ ຂັ້ນໜ້າ (workflow ໃໝ່): PS ໄປຮັບ · IH ນັດ/ຈັດຊ່າງ — ຂໍ້ມູນເກັບຈາກນີ້ໄປ */}
+      {/* ⑤ ອັດຕາທັນເວລາ ຕໍ່ຝ່າຍ — ໃຜ (ຊ່າງ/CS/ສາງ/ຫົວໜ້າ) ຮັບຜິດຊອບ ແລ້ວທັນ SLA ບໍ */}
+      <Card
+        title={
+          <span className="inline-flex items-center gap-2">
+            <TriangleAlert className="size-4 text-teal-600" />
+            ອັດຕາທັນເວລາ (SLA) ຕໍ່ຝ່າຍ ({days} ມື້)
+          </span>
+        }
+      >
+        {ownerRows.length === 0 ? (
+          <Empty>ບໍ່ມີຂໍ້ມູນ SLA ໃນໄລຍະນີ້</Empty>
+        ) : (
+          <Table head={["ຝ່າຍຮັບຜິດຊອບ", "ຂັ້ນ", "ທັນເວລາ", "ໃບ (ທັນ/ທັງໝົດ)"]} minWidth={640}>
+            {ownerRows.map((row) => (
+              <tr key={row.owner} className="border-b border-slate-100 hover:bg-slate-50">
+                <td className="px-3 py-2.5 font-semibold text-slate-800">{row.owner}</td>
+                <td className="px-3 py-2.5 text-center font-mono text-xs text-slate-400">{row.stages.join(", ")}</td>
+                <td className="px-3 py-2.5 text-center">
+                  <span className={`font-bold ${row.pct >= 90 ? "text-emerald-600" : row.pct >= 75 ? "text-amber-600" : "text-red-600"}`}>
+                    {row.pct}%
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 text-center tabular-nums text-slate-500">{row.within}/{row.total}</td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+
+      {/* ⑥ ຂັ້ນໜ້າ (workflow ໃໝ່): PS ໄປຮັບ · IH ນັດ/ຈັດຊ່າງ — ຂໍ້ມູນເກັບຈາກນີ້ໄປ */}
       <Card
         title={
           <span className="inline-flex items-center gap-2">
