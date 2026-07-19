@@ -14,6 +14,8 @@ import {
   type TechLoad,
 } from "@/lib/dashboard";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { type Dictionary, getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { REPEAT_DAYS, type RepeatJob } from "@/lib/repeat";
 import { APPROVER_SIDE, canAccess, ROLE_LABEL, type Role, roleOf } from "@/lib/roles";
 import { ownJobsOnly } from "@/lib/scope";
@@ -60,6 +62,8 @@ import Link from "next/link";
  */
 export const dynamic = "force-dynamic";
 
+type Dict = Dictionary["dashboard"];
+
 /* ── ບັດ "ຕ້ອງລົງມື" ──────────────────────────────────────────── */
 
 type Alert = {
@@ -77,7 +81,7 @@ const TONE = {
   amber: { card: "border-amber-200 bg-white hover:border-amber-300", icon: "bg-amber-50 text-amber-700", value: "text-amber-800", bar: "bg-amber-400" },
 };
 
-function alertsFor(role: Role, data: DashboardData, canQc: boolean): Alert[] {
+function alertsFor(role: Role, data: DashboardData, canQc: boolean, t: Dict): Alert[] {
   const all: Alert[] = [
     /**
      * ດ່ານກວດຮັບຄຸນນະພາບ — ຂຶ້ນສະເພາະຜູ້ທີ່ **ຜູ້ຈັດການກຳນົດໃຫ້ກວດ** (ods_qc_role).
@@ -87,17 +91,17 @@ function alertsFor(role: Role, data: DashboardData, canQc: boolean): Alert[] {
     ...(canQc
       ? ([
           {
-            label: "ລໍກວດຮັບຄຸນນະພາບ (ສ້ອມ)",
+            label: t.alertQcRepairLabel,
             value: data.repair["wait-qc"] ?? 0,
-            detail: "ສ້ອມແລ້ວ ຍັງບໍ່ຜ່ານ QC — ສົ່ງຄືນບໍ່ໄດ້",
+            detail: t.alertQcRepairDetail,
             href: "/qc",
             icon: ShieldCheck,
             tone: "amber",
           },
           {
-            label: "ລໍກວດຮັບຄຸນນະພາບ (ຕິດຕັ້ງ)",
+            label: t.alertQcInstallLabel,
             value: data.install["wait-qc"] ?? 0,
-            detail: "ຕິດຕັ້ງແລ້ວ ຍັງບໍ່ຜ່ານ QC — ປິດງານບໍ່ໄດ້",
+            detail: t.alertQcInstallDetail,
             href: "/qc",
             icon: ShieldCheck,
             tone: "amber",
@@ -105,9 +109,9 @@ function alertsFor(role: Role, data: DashboardData, canQc: boolean): Alert[] {
         ] as Alert[])
       : []),
     {
-      label: "ກວດເຊັກເກີນກຳນົດເວລາ",
+      label: t.alertSlaLabel,
       value: data.slaLate,
-      detail: "ເກີນ SLA ຂອງປະເພດບໍລິການ",
+      detail: t.alertSlaDetail,
       href: "/checking",
       icon: Timer,
       tone: "red",
@@ -117,36 +121,36 @@ function alertsFor(role: Role, data: DashboardData, canQc: boolean): Alert[] {
        * "ໜີ້ອາໄຫຼ່" — ຂອງອອກຈາກສາງໄປແລ້ວ ງານຖືກຍົກເລີກ ແຕ່ບໍ່ມີໃບສົ່ງຄືນ.
        * ຕະຫຼອດ 3 ປີບໍ່ເຄີຍມີໃຜເຫັນເລກນີ້ ເພາະໃບເບີກປົນຢູ່ໃນລາຍການລວມ 4,600+ ໃບ.
        */
-      label: "ອາໄຫຼ່ຄ້າງ — ງານທີ່ຍົກເລີກ",
+      label: t.alertCancelledSparesLabel,
       value: data.cancelledSpares.docs,
-      detail: `${data.cancelledSpares.lines.toLocaleString()} ລາຍການ ຍັງບໍ່ໄດ້ສົ່ງຄືນສາງ`,
+      detail: `${data.cancelledSpares.lines.toLocaleString()} ${t.alertCancelledSparesDetail}`,
       href: "/stock/returns?tab=cancelled",
       icon: PackageX,
       tone: "red",
     },
     {
-      label: "ອະນຸມັດໃບສະເໜີລາຄາ",
+      label: t.alertQuotesLabel,
       value: data.approvals.quotes,
       href: "/approvals/quotations",
       icon: ClipboardCheck,
       tone: "amber",
     },
     {
-      label: "ອະນຸມັດຄຳຂໍຍົກເລີກ",
+      label: t.alertCancelReqLabel,
       value: data.cancelRequests,
       href: "/approvals/cancellations",
       icon: Ban,
       tone: "amber",
     },
     {
-      label: "ອະນຸມັດຂໍສັ່ງຊື້",
+      label: t.alertPurchaseLabel,
       value: data.approvals.purchases,
       href: "/approvals/purchase-requests",
       icon: ShoppingCart,
       tone: "amber",
     },
     {
-      label: "ລໍລູກຄ້າຕັດສິນ (ໃບສະເໜີລາຄາ)",
+      label: t.alertCustomerApprovalLabel,
       value: data.approvals.customer,
       href: "/quotations/customer-approval",
       icon: UserCheck,
@@ -157,18 +161,18 @@ function alertsFor(role: Role, data: DashboardData, canQc: boolean): Alert[] {
        * ສັນຍາວັນນັດໄວ້ກັບລູກຄ້າແລ້ວ ແຕ່ວັນນັດຜ່ານໄປ ແລະ ຍັງບໍ່ໄດ້ຕິດຕັ້ງ.
        * appoint_date ຖືກຂຽນຢູ່ຕອນຈັດຊ່າງ ແຕ່ບໍ່ເຄີຍມີໜ້າໃດເຕືອນເມື່ອມັນຜ່ານໄປ.
        */
-      label: "ງານຕິດຕັ້ງເລີຍວັນນັດ",
+      label: t.alertOverdueApptLabel,
       value: data.overdueAppointments,
-      detail: "ນັດລູກຄ້າໄວ້ແລ້ວ ແຕ່ຍັງບໍ່ໄດ້ຕິດຕັ້ງ",
+      detail: t.alertOverdueApptDetail,
       href: "/installations/work",
       icon: CalendarClock,
       tone: "red",
     },
     {
       // ຂັ້ນທີ່ວຽກຕິດດົນທີ່ສຸດຂອງລະບົບ — ຈຳນວນຢ່າງດຽວບໍ່ບອກຄວາມຮ້າຍແຮງ ຈຶ່ງໃສ່ອາຍຸນຳ
-      label: "ອາໄຫຼ່ສັ່ງຊື້ຍັງບໍ່ມາຮອດ",
+      label: t.alertOnOrderLabel,
       value: data.onOrder.n,
-      detail: `ດົນສຸດ ${Math.floor(data.onOrder.max_seconds / 86400).toLocaleString()} ມື້`,
+      detail: `${t.longest} ${Math.floor(data.onOrder.max_seconds / 86400).toLocaleString()} ${t.days}`,
       // ໜ້າ /stock/arrivals ຖືກລົບ — ຄວາມຄືບໜ້າຈິງອ່ານຈາກ ERP ຢູ່ໜ້າສະຖານະຂັ້ນ 7
       href: "/dashboard/status/repair/purchasing",
       icon: Truck,
@@ -176,15 +180,15 @@ function alertsFor(role: Role, data: DashboardData, canQc: boolean): Alert[] {
     },
     {
       // ໜ້າວຽກຫຼັກຂອງສາງ — ແປກທີ່ໜ້າລວມບໍ່ເຄີຍສະແດງ (ສາງເຫັນພຽງບັດດຽວ)
-      label: "ອາໄຫຼ່ລໍສາງເບີກ (ສ້ອມ)",
+      label: t.alertWarehouseRepairLabel,
       value: data.warehouse.repair_lines,
-      detail: "ຊ່າງຂໍມາແລ້ວ ລໍສາງເບີກອອກ",
+      detail: t.alertWarehouseRepairDetail,
       href: "/stock/dispatch",
       icon: PackageCheck,
       tone: "amber",
     },
     {
-      label: "ໃບຂໍເບີກລໍສາງເບີກ (ຕິດຕັ້ງ)",
+      label: t.alertWarehouseInstallLabel,
       value: data.warehouse.install_docs,
       href: "/installations/dispatch",
       icon: PackageCheck,
@@ -192,39 +196,39 @@ function alertsFor(role: Role, data: DashboardData, canQc: boolean): Alert[] {
     },
     {
       // ສາງເບີກອອກໃຫ້ແລ້ວ ແຕ່ຊ່າງຍັງບໍ່ໄປຮັບ ⇒ ອາໄຫຼ່ຢູ່ນອກສາງ ແລະ ວຽກຄ້າງລໍຢູ່
-      label: "ອາໄຫຼ່ພ້ອມໃຫ້ຮັບ (ສ້ອມ)",
+      label: t.alertPickupRepairLabel,
       value: data.pickup.repair_docs,
-      detail: "ສາງເບີກແລ້ວ ຊ່າງຍັງບໍ່ໄປຮັບ",
+      detail: t.alertPickupRepairDetail,
       href: "/stock/requests/pickup",
       icon: PackageOpen,
       tone: "amber",
     },
     {
-      label: "ອາໄຫຼ່ພ້ອມໃຫ້ຮັບ (ຕິດຕັ້ງ)",
+      label: t.alertPickupInstallLabel,
       value: data.pickup.install_docs,
       href: "/installations/spare-pickup",
       icon: PackageOpen,
       tone: "amber",
     },
     {
-      label: "ລໍຖ້າຊ່າງຮັບງານຕິດຕັ້ງ",
+      label: t.alertAcceptInstallLabel,
       value: data.install["wait-accept"] ?? 0,
       href: "/installations/accept",
       icon: HardHat,
       tone: "amber",
     },
     {
-      label: "ວຽກສ້ອມຍັງບໍ່ມີຊ່າງ",
+      label: t.alertUnassignedRepairLabel,
       value: data.unassigned.repair,
-      detail: "ຕ້ອງກວດສອບ ແລະມອບໝາຍຜູ້ຮັບຜິດຊອບ",
+      detail: t.alertUnassignedRepairDetail,
       href: "/service",
       icon: UserCheck,
       tone: "red",
     },
     {
-      label: "ວຽກຕິດຕັ້ງຍັງບໍ່ມີຊ່າງ",
+      label: t.alertUnassignedInstallLabel,
       value: data.unassigned.install,
-      detail: "ລໍຖ້າ CS ຈັດຊ່າງ",
+      detail: t.alertUnassignedInstallDetail,
       href: "/installations/assign",
       icon: UserCheck,
       tone: "red",
@@ -240,17 +244,17 @@ function alertsFor(role: Role, data: DashboardData, canQc: boolean): Alert[] {
      * (/installations/assign) ⇒ ຄົນເຫັນເລກ 9 ສອງບ່ອນ ຄິດວ່າມີ 18 ວຽກ.
      * ບັດທີ່ເຫຼືອເປັນສີແດງ ແລະ ຖືກນັບໃນ criticalTotal ຢູ່ແລ້ວ. */
     {
-      label: "ລໍຖ້າສົ່ງເຄື່ອງຄືນລູກຄ້າ",
+      label: t.alertReturnLabel,
       value: data.repair["wait-return"] ?? 0,
-      detail: "ສ້ອມແລ້ວ ລໍອອກໃບຮັບເງິນ/ສົ່ງຄືນ",
+      detail: t.alertReturnDetail,
       href: "/returns",
       icon: PackageCheck,
       tone: "amber",
     },
     {
-      label: "ລໍຖ້າປິດງານຕິດຕັ້ງ",
+      label: t.alertCloseInstallLabel,
       value: data.install["wait-close"] ?? 0,
-      detail: "ລູກຄ້າຕອບແບບສອບຖາມແລ້ວ",
+      detail: t.alertCloseInstallDetail,
       href: "/installations/close",
       icon: ClipboardCheck,
       tone: "amber",
@@ -273,12 +277,14 @@ function Pipeline({
   counts,
   ages,
   role,
+  t,
 }: {
   workflow: "repair" | "install";
   statuses: Record<string, StatusDef>;
   counts: Counts;
   ages: StageAge;
   role: Role;
+  t: Dict;
 }) {
   const stages = pipelineOf(statuses);
   const total = stages.reduce((sum, [slug]) => sum + (counts[slug] ?? 0), 0);
@@ -315,7 +321,7 @@ function Pipeline({
             <span className="w-24 shrink-0 text-right">
               {age != null ? (
                 <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${tone.chip}`}>
-                  {Math.floor(age / 86400).toLocaleString()} ມື້
+                  {Math.floor(age / 86400).toLocaleString()} {t.days}
                 </span>
               ) : null}
             </span>
@@ -348,8 +354,8 @@ function Pipeline({
       })}
 
       <p className="border-t border-slate-100 pt-1.5 text-right text-[11px] text-slate-400">
-        ປ້າຍເວລາ = ວຽກທີ່ຄ້າງຢູ່ຂັ້ນນັ້ນ<b>ດົນສຸດ</b> · ລວມ{" "}
-        <b className="text-slate-700">{total.toLocaleString()}</b> ວຽກຄ້າງ
+        {t.pipelineLegend}<b>{t.longest}</b> · {t.total}{" "}
+        <b className="text-slate-700">{total.toLocaleString()}</b> {t.pendingJobs}
       </p>
     </div>
   );
@@ -368,24 +374,24 @@ function Pipeline({
  * ນີ້ຄື "ຄຸນນະພາບການສ້ອມ" ທີ່ບໍ່ເຄີຍມີໃຜວັດ: ຄ່າຄອມຖືກຈ່າຍສອງເທື່ອ ໃຫ້ວຽກທີ່ຈິງໆແມ່ນ
  * ຄັ້ງດຽວ ແລະ ລູກຄ້າຫອບເຄື່ອງມາສອງເທື່ອ. ເບິ່ງເງື່ອນໄຂຢູ່ lib/repeat.ts
  */
-function RepeatPanel({ rows }: { rows: RepeatJob[] }) {
+function RepeatPanel({ rows, t }: { rows: RepeatJob[]; t: Dict }) {
   return (
     <article className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
       <h2 className="flex items-center gap-2 border-b border-amber-100 bg-amber-50 px-5 py-4 text-sm font-bold text-amber-900">
         <RotateCcw className="size-4" />
-        ສ້ອມຊ້ຳ — ເຄື່ອງກັບມາພາຍໃນ {REPEAT_DAYS} ມື້
+        {t.repeatTitle} {REPEAT_DAYS} {t.days}
         <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[11px] text-amber-900">{rows.length}</span>
       </h2>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[680px] border-collapse text-xs">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໃບໃໝ່</th>
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໃບເກົ່າ</th>
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຫ່າງກັນ</th>
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລູກຄ້າ</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colNewDoc}</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colOldDoc}</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colGap}</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.customer}</th>
               <th className="whitespace-nowrap px-3 py-2.5 font-semibold">Serial</th>
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຊ່າງ (ໃໝ່ / ເກົ່າ)</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.repeatTechCol}</th>
             </tr>
           </thead>
           <tbody>
@@ -404,7 +410,7 @@ function RepeatPanel({ rows }: { rows: RepeatJob[] }) {
                 </td>
                 <td className="whitespace-nowrap px-3 py-2.5">
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">
-                    {row.days_between} ມື້
+                    {row.days_between} {t.days}
                   </span>
                 </td>
                 <td className="px-3 py-2.5 text-slate-600">{row.customer ?? "-"}</td>
@@ -426,11 +432,13 @@ function StaleTable({
   rows,
   whoLabel,
   hrefOf,
+  t,
 }: {
   title: string;
   rows: StaleJob[];
   whoLabel: string;
   hrefOf: (code: string) => string;
+  t: Dict;
 }) {
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -439,12 +447,12 @@ function StaleTable({
         <table className="w-full min-w-[620px] border-collapse text-xs">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ເລກທີ</th>
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຄ້າງມາ</th>
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລູກຄ້າ</th>
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສິນຄ້າ</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colNumber}</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colPending}</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.customer}</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colProduct}</th>
               <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{whoLabel}</th>
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຂັ້ນຕອນ</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colStage}</th>
             </tr>
           </thead>
           <tbody>
@@ -481,7 +489,7 @@ function StaleTable({
             })}
           </tbody>
         </table>
-        {rows.length === 0 && <p className="py-10 text-center text-xs text-slate-400">ບໍ່ມີວຽກຄ້າງ</p>}
+        {rows.length === 0 && <p className="py-10 text-center text-xs text-slate-400">{t.noPending}</p>}
       </div>
     </article>
   );
@@ -492,7 +500,7 @@ function StaleTable({
  * ຈຳນວນຄ້າງຢ່າງດຽວບອກບໍ່ໄດ້ວ່າ **ກຳລັງດີຂຶ້ນ ຫຼື ຊຸດໂຊມລົງ**: ຄ້າງ 98 ວຽກ ຈະໝາຍຄວາມ
  * ຕ່າງກັນສິ້ນເຊີງ ຖ້າເດືອນນີ້ປິດໄດ້ຫຼາຍກວ່າເປີດ (ກຳລັງລົງ) ຫຼື ໜ້ອຍກວ່າ (ກຳລັງທ້ວມ).
  */
-function Throughput({ label, opened, closed }: { label: string; opened: number; closed: number }) {
+function Throughput({ label, opened, closed, t }: { label: string; opened: number; closed: number; t: Dict }) {
   const delta = opened - closed;
   const growing = delta > 0;
   return (
@@ -500,7 +508,7 @@ function Throughput({ label, opened, closed }: { label: string; opened: number; 
       <div className="min-w-0">
         <p className="truncate text-xs font-semibold text-slate-700">{label}</p>
         <p className="mt-0.5 text-[11px] text-slate-500">
-          ເປີດ <b className="text-slate-700">{opened.toLocaleString()}</b> · ປິດ{" "}
+          {t.opened} <b className="text-slate-700">{opened.toLocaleString()}</b> · {t.closed}{" "}
           <b className="text-slate-700">{closed.toLocaleString()}</b>
         </p>
       </div>
@@ -524,7 +532,7 @@ function Throughput({ label, opened, closed }: { label: string; opened: number; 
  * ຊ່າງຄົນນຶ່ງຖື 41 ວຽກ (ດົນສຸດ 327 ມື້) ອີກຄົນຖື 4. ຫົວໜ້າຊ່າງຈຶ່ງແບ່ງງານໃໝ່ບໍ່ຖືກ.
  * ບໍ່ໂຊໃຫ້ຊ່າງທົ່ວໄປ — ບໍ່ແມ່ນຂໍ້ມູນທີ່ເຂົາຕ້ອງໃຊ້ ແລະ ເປັນການປຽບທຽບກັນເອງ.
  */
-function TechLoadPanel({ rows }: { rows: TechLoad[] }) {
+function TechLoadPanel({ rows, t }: { rows: TechLoad[]; t: Dict }) {
   if (rows.length === 0) return null;
   const peak = Math.max(1, ...rows.map((row) => row.jobs));
 
@@ -532,7 +540,7 @@ function TechLoadPanel({ rows }: { rows: TechLoad[] }) {
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700">
         <Users className="size-4 text-slate-400" />
-        ພາລະງານຕໍ່ຊ່າງ (ວຽກສ້ອມທີ່ຍັງຄ້າງ)
+        {t.techLoadTitle}
       </h2>
       <div className="space-y-1">
         {rows.map((row) => {
@@ -551,7 +559,7 @@ function TechLoadPanel({ rows }: { rows: TechLoad[] }) {
               </span>
               <span className="w-24 shrink-0 text-right">
                 <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${tone.chip}`}>
-                  {Math.floor(row.oldest_seconds / 86400).toLocaleString()} ມື້
+                  {Math.floor(row.oldest_seconds / 86400).toLocaleString()} {t.days}
                 </span>
               </span>
               <b className="w-10 shrink-0 text-right text-xs tabular-nums text-slate-900">{row.jobs}</b>
@@ -560,7 +568,7 @@ function TechLoadPanel({ rows }: { rows: TechLoad[] }) {
         })}
       </div>
       <p className="mt-2 border-t border-slate-100 pt-1.5 text-right text-[11px] text-slate-400">
-        ປ້າຍເວລາ = ວຽກທີ່ຊ່າງຄົນນັ້ນຖືໄວ້<b>ດົນສຸດ</b>
+        {t.techLoadLegend}<b>{t.longest}</b>
       </p>
     </section>
   );
@@ -580,7 +588,7 @@ function TechLoadPanel({ rows }: { rows: TechLoad[] }) {
 const scoreTone = (value: number) =>
   value >= 2.5 ? "text-red-600" : value >= 1.5 ? "text-amber-600" : "text-emerald-600";
 
-function FeedbackPanel({ data, score }: { data: DashboardData; score: number }) {
+function FeedbackPanel({ data, score, t }: { data: DashboardData; score: number; t: Dict }) {
   const trend = data.feedbackTrend;
   const peak = Math.max(1, ...data.feedbackTopics.map((topic) => topic.avg_points));
   // ຊຸດໂຊມ = ເດືອນລ່າສຸດແຍ່ກວ່າເດືອນກ່ອນ (ຕົວເລກສູງຂຶ້ນ = ແຍ່ລົງ)
@@ -595,15 +603,15 @@ function FeedbackPanel({ data, score }: { data: DashboardData; score: number }) 
           <Smile className="size-4" />
         </span>
         <div className="min-w-40 flex-1">
-          <h2 className="text-sm font-bold text-slate-700">ແບບປະເມີນລູກຄ້າ (ງານຕິດຕັ້ງ)</h2>
+          <h2 className="text-sm font-bold text-slate-700">{t.feedbackTitle}</h2>
           <p className="mt-0.5 text-[11px] text-slate-500">
-            ຈາກ {data.feedback.jobs.toLocaleString()} ງານ ·{" "}
-            <b className="text-slate-700">1 = ດີສຸດ · 4 = ແຍ່ສຸດ</b> (ຕໍ່າກວ່າ = ດີກວ່າ)
+            {t.from} {data.feedback.jobs.toLocaleString()} {t.jobsWord} ·{" "}
+            <b className="text-slate-700">{t.scaleNote}</b> {t.lowerBetter}
           </p>
         </div>
         <div className="text-right">
           <p className={`text-3xl font-bold ${scoreTone(score)}`}>{score.toFixed(2)}</p>
-          <p className="text-[11px] text-slate-400">ຄະແນນລວມ</p>
+          <p className="text-[11px] text-slate-400">{t.totalScore}</p>
         </div>
       </div>
 
@@ -615,7 +623,7 @@ function FeedbackPanel({ data, score }: { data: DashboardData; score: number }) 
         >
           <Frown className="size-4 shrink-0" />
           <span className="flex-1">
-            <b>{data.feedback.unhappy_jobs.toLocaleString()} ງານ</b> ທີ່ລູກຄ້າໃຫ້ຄະແນນແຍ່ (3 ຫຼື 4) — ຄວນຕິດຕາມ
+            <b>{data.feedback.unhappy_jobs.toLocaleString()} {t.jobsWord}</b> {t.unhappyNote}
           </span>
           <LinkPending className="size-3.5" />
         </Link>
@@ -626,14 +634,14 @@ function FeedbackPanel({ data, score }: { data: DashboardData; score: number }) 
         {trend.length > 1 && (
           <div>
             <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-slate-600">
-              ແນວໂນ້ມ 6 ເດືອນ
+              {t.trend6mo}
               {worsening ? (
                 <span className="flex items-center gap-0.5 rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
-                  <TrendingUp className="size-3" /> ຊຸດໂຊມລົງ
+                  <TrendingUp className="size-3" /> {t.worsening}
                 </span>
               ) : (
                 <span className="flex items-center gap-0.5 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
-                  <TrendingDown className="size-3" /> ດີຂຶ້ນ
+                  <TrendingDown className="size-3" /> {t.improving}
                 </span>
               )}
             </p>
@@ -654,20 +662,20 @@ function FeedbackPanel({ data, score }: { data: DashboardData; score: number }) 
                     }`}
                     // ມາດຕາສ່ວນ 1-4 → ຄວາມສູງ (4 = ເຕັມ)
                     style={{ height: `${Math.max(6, (month.avg_points / 4) * 100)}%` }}
-                    title={`${month.jobs} ງານ`}
+                    title={`${month.jobs} ${t.jobsWord}`}
                   />
                   <span className="text-[10px] text-slate-400">{month.month}</span>
                 </div>
               ))}
             </div>
-            <p className="mt-1 text-[10px] text-slate-400">ແທ່ງສູງ = ຄະແນນສູງ = ແຍ່ລົງ</p>
+            <p className="mt-1 text-[10px] text-slate-400">{t.barHighNote}</p>
           </div>
         )}
 
         {/* ຄະແນນແຍກຕາມຄຳຖາມ — ຮຽງແຍ່ສຸດກ່ອນ */}
         {data.feedbackTopics.length > 0 && (
           <div>
-            <p className="mb-2 text-xs font-bold text-slate-600">ຄະແນນຕໍ່ຄຳຖາມ (ແຍ່ສຸດກ່ອນ)</p>
+            <p className="mb-2 text-xs font-bold text-slate-600">{t.scorePerQuestion}</p>
             <div className="space-y-1">
               {data.feedbackTopics.map((topic) => (
                 <div key={topic.line_number} className="flex items-center gap-2">
@@ -709,11 +717,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const role = roleOf(session);
   // ຊ່າງເຫັນສະເພາະວຽກຂອງຕົນ — ກົດເກນອັນດຽວກັບທຸກໜ້າ (lib/scope)
   const tech = ownJobsOnly(session);
+  const t = (await getDictionary(await getLocale())).dashboard;
 
   const [{ data, error }, qc] = await Promise.all([getDashboard(tech, days), qcWorkflows()]);
   const repair: Counts = data?.repair ?? {};
   const install: Counts = data?.install ?? {};
-  const alerts = data ? alertsFor(role, data, qc.length > 0) : [];
+  const alerts = data ? alertsFor(role, data, qc.length > 0, t) : [];
 
   const score = data?.feedback.avg_points ?? null;
   const oldestRepair = data?.oldest.repair_seconds ?? 0;
@@ -725,22 +734,22 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     minute: "2-digit",
   }).format(new Date());
   const kpis = [
-    { label: "ວຽກສ້ອມຄ້າງ", value: repair.total ?? 0, tone: "text-sky-700", bg: "bg-sky-50" },
-    { label: "ວຽກຕິດຕັ້ງຄ້າງ", value: install.total ?? 0, tone: "text-violet-700", bg: "bg-violet-50" },
-    { label: "ເກີນ SLA", value: data?.sla.late ?? 0, tone: "text-red-700", bg: "bg-red-50" },
-    { label: "ລາຍການຕ້ອງລົງມື", value: actionTotal, tone: "text-amber-700", bg: "bg-amber-50" },
+    { label: t.kpiRepairPending, value: repair.total ?? 0, tone: "text-sky-700", bg: "bg-sky-50" },
+    { label: t.kpiInstallPending, value: install.total ?? 0, tone: "text-violet-700", bg: "bg-violet-50" },
+    { label: t.overSla, value: data?.sla.late ?? 0, tone: "text-red-700", bg: "bg-red-50" },
+    { label: t.kpiActionItems, value: actionTotal, tone: "text-amber-700", bg: "bg-amber-50" },
   ];
   const criticalTotal = (data?.sla.critical ?? 0) + (data?.overdueAppointments ?? 0) + (data?.unassigned.repair ?? 0) + (data?.unassigned.install ?? 0);
-  const health = criticalTotal === 0 ? { label: "ປົກກະຕິ", detail: "ບໍ່ມີຄິວວິກິດ", tone: "text-emerald-700", ring: "bg-emerald-500" }
-    : criticalTotal < 10 ? { label: "ຕ້ອງຕິດຕາມ", detail: `${criticalTotal} ລາຍການສຳຄັນ`, tone: "text-amber-700", ring: "bg-amber-500" }
-      : { label: "ຕ້ອງລົງມື", detail: `${criticalTotal} ລາຍການສຳຄັນ`, tone: "text-red-700", ring: "bg-red-500" };
+  const health = criticalTotal === 0 ? { label: t.healthNormal, detail: t.healthNoCrisis, tone: "text-emerald-700", ring: "bg-emerald-500" }
+    : criticalTotal < 10 ? { label: t.healthWatch, detail: `${criticalTotal} ${t.criticalItems}`, tone: "text-amber-700", ring: "bg-amber-500" }
+      : { label: t.healthAct, detail: `${criticalTotal} ${t.criticalItems}`, tone: "text-red-700", ring: "bg-red-500" };
   const quickActions = [
-    { label: "ເປີດຮັບເຄື່ອງໃໝ່", href: "/service/new", icon: Plus },
-    { label: "ເປີດງານຕິດຕັ້ງ", href: "/installations/new", icon: Plus },
-    { label: "ກວດເຊັກ", href: "/checking", icon: ClipboardCheck },
-    { label: "ວຽກສ້ອມ", href: "/repair", icon: Wrench },
-    { label: "ເບີກອາໄຫຼ່", href: "/stock/dispatch", icon: PackageCheck },
-    { label: "ຈັດຊ່າງ", href: "/installations/assign", icon: Users },
+    { label: t.quickReceiveNew, href: "/service/new", icon: Plus },
+    { label: t.quickNewInstall, href: "/installations/new", icon: Plus },
+    { label: t.quickChecking, href: "/checking", icon: ClipboardCheck },
+    { label: t.quickRepair, href: "/repair", icon: Wrench },
+    { label: t.quickDispatch, href: "/stock/dispatch", icon: PackageCheck },
+    { label: t.quickAssign, href: "/installations/assign", icon: Users },
   ].filter((item) => canAccess(role, item.href));
 
   return (
@@ -752,20 +761,20 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <div className="relative flex flex-wrap items-center justify-between gap-5">
         <div>
           <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-300">ODIEN Service Operations</p>
-          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">ສູນຄວບຄຸມວຽກ</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{t.controlCenter}</h1>
           <p className="mt-2 text-xs text-slate-300">
             {ROLE_LABEL[role]}
-            {tech ? " · ສະແດງສະເພາະວຽກຂອງທ່ານ" : " · ສະແດງວຽກຄ້າງທັງໝົດ"}
+            {tech ? ` · ${t.showOwnJobs}` : ` · ${t.showAllJobs}`}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] text-slate-400">ອັບເດດ {updatedAt}</span>
-          <Link href={`/dashboard?range=${days}`} className="grid size-10 place-items-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20" title="ໂຫຼດຂໍ້ມູນໃໝ່"><RefreshCw className="size-4" /></Link>
+          <span className="text-[11px] text-slate-400">{t.updated} {updatedAt}</span>
+          <Link href={`/dashboard?range=${days}`} className="grid size-10 place-items-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20" title={t.refreshData}><RefreshCw className="size-4" /></Link>
           <Link
             href="/dashboard/tracking"
             className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 text-xs font-semibold text-white backdrop-blur transition hover:bg-white/20"
           >
-            <Radar className="size-4" /> ຕິດຕາມວຽກ <LinkPending className="size-3.5" />
+            <Radar className="size-4" /> {t.trackJobs} <LinkPending className="size-3.5" />
           </Link>
         </div>
         </div>
@@ -791,14 +800,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             <div className="min-w-48 flex-1">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Operational health</p>
               <h2 className={`mt-1 text-xl font-bold ${health.tone}`}>{health.label}</h2>
-              <p className="mt-1 text-xs text-slate-500">{health.detail} · ຄິດຈາກ SLA ຮ້າຍແຮງ, ນັດເລີຍກຳນົດ ແລະວຽກບໍ່ມີຊ່າງ</p>
+              <p className="mt-1 text-xs text-slate-500">{health.detail} · {t.healthBasis}</p>
             </div>
-            <Link href="/dashboard/tracking" className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-teal-700">ເບິ່ງພາບລວມ <ArrowRight className="size-3.5" /></Link>
+            <Link href="/dashboard/tracking" className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-teal-700">{t.viewOverview} <ArrowRight className="size-3.5" /></Link>
           </div>
         </div>
 
         {quickActions.length > 0 && <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-3"><h2 className="text-sm font-bold text-slate-800">ທາງລັດປະຈຳວັນ</h2><p className="mt-0.5 text-[11px] text-slate-500">ສະແດງສະເພາະເມນູທີ່ທ່ານມີສິດ</p></div>
+          <div className="mb-3"><h2 className="text-sm font-bold text-slate-800">{t.dailyShortcuts}</h2><p className="mt-0.5 text-[11px] text-slate-500">{t.shortcutsSubtitle}</p></div>
           <div className="grid grid-cols-2 gap-2">
             {quickActions.slice(0, 6).map(({ label, href, icon: Icon }) => <Link key={href} href={href} className="group flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800"><span className="grid size-7 place-items-center rounded-lg bg-white text-slate-500 shadow-sm group-hover:text-teal-700"><Icon className="size-3.5" /></span><span className="truncate">{label}</span></Link>)}
           </div>
@@ -808,14 +817,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {data && ["/installations/work", "/checking", "/repair"].some((path) => canAccess(role, path)) && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-            <div><h2 className="text-base font-bold text-slate-900">ວຽກມື້ນີ້</h2><p className="mt-0.5 text-[11px] text-slate-500">ຄິວທີ່ກຳລັງເຮັດ ແລະນັດໝາຍຂອງມື້ນີ້</p></div>
+            <div><h2 className="text-base font-bold text-slate-900">{t.todayJobs}</h2><p className="mt-0.5 text-[11px] text-slate-500">{t.todayJobsSubtitle}</p></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            {canAccess(role, "/installations/work") && <Link href="/installations/work" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-teal-300 hover:bg-teal-50"><p className="text-xs font-semibold text-slate-600">ນັດຕິດຕັ້ງມື້ນີ້</p><p className="mt-1 text-2xl font-bold text-teal-700">{data.today.appointments.toLocaleString()}</p></Link>}
-            {canAccess(role, "/checking") && <Link href="/checking" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-sky-300 hover:bg-sky-50"><p className="text-xs font-semibold text-slate-600">ກຳລັງກວດເຊັກ</p><p className="mt-1 text-2xl font-bold text-sky-700">{data.today.checking.toLocaleString()}</p></Link>}
-            {canAccess(role, "/repair") && <Link href="/repair" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-violet-300 hover:bg-violet-50"><p className="text-xs font-semibold text-slate-600">ກຳລັງສ້ອມແປງ</p><p className="mt-1 text-2xl font-bold text-violet-700">{data.today.repairing.toLocaleString()}</p></Link>}
+            {canAccess(role, "/installations/work") && <Link href="/installations/work" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-teal-300 hover:bg-teal-50"><p className="text-xs font-semibold text-slate-600">{t.todayAppointments}</p><p className="mt-1 text-2xl font-bold text-teal-700">{data.today.appointments.toLocaleString()}</p></Link>}
+            {canAccess(role, "/checking") && <Link href="/checking" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-sky-300 hover:bg-sky-50"><p className="text-xs font-semibold text-slate-600">{t.todayChecking}</p><p className="mt-1 text-2xl font-bold text-sky-700">{data.today.checking.toLocaleString()}</p></Link>}
+            {canAccess(role, "/repair") && <Link href="/repair" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-violet-300 hover:bg-violet-50"><p className="text-xs font-semibold text-slate-600">{t.todayRepairing}</p><p className="mt-1 text-2xl font-bold text-violet-700">{data.today.repairing.toLocaleString()}</p></Link>}
           </div>
-          {(data.sla.warning > 0 || data.sla.late > 0) && canAccess(role, "/checking") && <div className="mt-3 flex flex-wrap gap-2 text-[11px]"><Link href="/checking?sla=warning&sort=elapsed&dir=desc" className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-800 hover:bg-amber-200">ໃກ້ເກີນ SLA {data.sla.warning}</Link><Link href="/checking?sla=late&sort=elapsed&dir=desc" className="rounded-full bg-red-100 px-2.5 py-1 font-semibold text-red-700 hover:bg-red-200">ເກີນ SLA {data.sla.late}</Link><Link href="/checking?sla=critical&sort=elapsed&dir=desc" className="rounded-full bg-red-700 px-2.5 py-1 font-semibold text-white hover:bg-red-800">ຮ້າຍແຮງ {data.sla.critical}</Link></div>}
+          {(data.sla.warning > 0 || data.sla.late > 0) && canAccess(role, "/checking") && <div className="mt-3 flex flex-wrap gap-2 text-[11px]"><Link href="/checking?sla=warning&sort=elapsed&dir=desc" className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-800 hover:bg-amber-200">{t.nearSla} {data.sla.warning}</Link><Link href="/checking?sla=late&sort=elapsed&dir=desc" className="rounded-full bg-red-100 px-2.5 py-1 font-semibold text-red-700 hover:bg-red-200">{t.overSla} {data.sla.late}</Link><Link href="/checking?sla=critical&sort=elapsed&dir=desc" className="rounded-full bg-red-700 px-2.5 py-1 font-semibold text-white hover:bg-red-800">{t.critical} {data.sla.critical}</Link></div>}
         </section>
       )}
 
@@ -823,14 +832,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
             <span className="grid size-9 place-items-center rounded-xl bg-teal-50 text-teal-700"><CalendarDays className="size-4" /></span>
-            <div className="flex-1"><h2 className="text-sm font-bold text-slate-800">ນັດຕິດຕັ້ງ 7 ມື້ຕໍ່ໜ້າ</h2><p className="text-[11px] text-slate-500">ສະແດງ 12 ນັດທຳອິດ · ປ້າຍແດງແມ່ນຊ່າງມີຫຼາຍກວ່າ 1 ນັດໃນມື້ດຽວ</p></div>
+            <div className="flex-1"><h2 className="text-sm font-bold text-slate-800">{t.upcoming7days}</h2><p className="text-[11px] text-slate-500">{t.upcomingSubtitle}</p></div>
           </div>
           <div className="grid divide-y divide-slate-100 md:grid-cols-2 md:divide-x md:divide-y-0">
             {data.upcomingAppointments.map((item) => (
               <Link key={item.code} href={`/installations/${encodeURIComponent(item.code)}`} className="flex min-w-0 items-center gap-3 border-b border-slate-100 px-5 py-3 transition hover:bg-teal-50/40">
-                <div className="w-20 shrink-0 text-center"><p className="text-xs font-bold text-slate-800">{item.appoint_date}</p>{item.same_day_jobs > 1 && <span className="mt-1 inline-block rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700">ນັດຊ້ອນ {item.same_day_jobs}</span>}</div>
+                <div className="w-20 shrink-0 text-center"><p className="text-xs font-bold text-slate-800">{item.appoint_date}</p>{item.same_day_jobs > 1 && <span className="mt-1 inline-block rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700">{t.overlapAppointment} {item.same_day_jobs}</span>}</div>
                 <div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-[#0536a9]">{item.code} · {item.customer || "-"}</p><p className="mt-0.5 truncate text-[11px] text-slate-500">{item.product || "-"}</p></div>
-                <span className="max-w-24 truncate text-[10px] font-semibold text-slate-500">{item.tech || "ຍັງບໍ່ມີຊ່າງ"}</span>
+                <span className="max-w-24 truncate text-[10px] font-semibold text-slate-500">{item.tech || t.noTechYet}</span>
               </Link>
             ))}
           </div>
@@ -840,7 +849,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {error && (
         <p className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
           <AlertCircle className="size-4 shrink-0" />
-          ບໍ່ສາມາດໂຫຼດຂໍ້ມູນ dashboard ໄດ້
+          {t.loadError}
         </p>
       )}
 
@@ -848,8 +857,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {alerts.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-end justify-between gap-3">
-            <div><h2 className="text-base font-bold text-slate-900">ວຽກທີ່ຕ້ອງລົງມື</h2><p className="mt-0.5 text-[11px] text-slate-500">ຈັດລຳດັບສິ່ງທີ່ຄວນດຳເນີນການກ່ອນ</p></div>
-            <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-bold text-white">{alerts.length} ຄິວ</span>
+            <div><h2 className="text-base font-bold text-slate-900">{t.actionNeeded}</h2><p className="mt-0.5 text-[11px] text-slate-500">{t.actionNeededSubtitle}</p></div>
+            <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-bold text-white">{alerts.length} {t.queue}</span>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {alerts.map(({ label, value, detail, href, icon: Icon, tone }) => {
@@ -884,7 +893,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       {!error && alerts.length === 0 && (
         <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800">
-          ບໍ່ມີວຽກຄ້າງທີ່ຕ້ອງລົງມືດຽວນີ້
+          {t.noPendingWork}
         </p>
       )}
 
@@ -893,9 +902,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <Wrench className="size-4 text-slate-400" />
-            <h2 className="text-sm font-bold text-slate-700">ຂັ້ນຕອນວຽກສ້ອມແປງ</h2>
+            <h2 className="text-sm font-bold text-slate-700">{t.repairPipeline}</h2>
             <span className="ml-auto flex items-center gap-1 text-[11px] text-slate-400">
-              ຄ້າງດົນສຸດ
+              {t.longestPending}
               <Elapsed
                 seconds={oldestRepair}
                 className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${elapsedTone(oldestRepair).chip}`}
@@ -908,15 +917,16 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             counts={repair}
             ages={data?.repairAge ?? {}}
             role={role}
+            t={t}
           />
         </article>
 
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <HardHat className="size-4 text-slate-400" />
-            <h2 className="text-sm font-bold text-slate-700">ຂັ້ນຕອນວຽກຕິດຕັ້ງ</h2>
+            <h2 className="text-sm font-bold text-slate-700">{t.installPipeline}</h2>
             <span className="ml-auto flex items-center gap-1 text-[11px] text-slate-400">
-              ຄ້າງດົນສຸດ
+              {t.longestPending}
               <Elapsed
                 seconds={oldestInstall}
                 className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${elapsedTone(oldestInstall).chip}`}
@@ -929,36 +939,39 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             counts={install}
             ages={data?.installAge ?? {}}
             role={role}
+            t={t}
           />
         </article>
       </section>
 
       {/* ພາລະງານຕໍ່ຊ່າງ — ຫົວໜ້າຊ່າງ/ຜູ້ຈັດການ ໃຊ້ແບ່ງງານ */}
-      {data && APPROVER_SIDE.includes(role) && <TechLoadPanel rows={data.techLoad} />}
+      {data && APPROVER_SIDE.includes(role) && <TechLoadPanel rows={data.techLoad} t={t} />}
 
       {/* ຜົນງານ 30 ມື້ — ບອກທິດທາງ ບໍ່ແມ່ນແຕ່ຍອດ */}
       {data && !tech && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-sm font-bold text-slate-800">ຜົນງານ {days} ມື້ຜ່ານມາ (ເປີດ ທຽບ ປິດ)</h2>
+            <h2 className="text-sm font-bold text-slate-800">{t.performance} {days} {t.daysAgoCompare}</h2>
             <div className="flex overflow-hidden rounded-lg border border-slate-200">
-              {[1, 7, 30, 90].map((value) => <Link key={value} href={`/dashboard?range=${value}`} className={`px-2.5 py-1.5 text-[10px] font-semibold ${days === value ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>{value} ມື້</Link>)}
+              {[1, 7, 30, 90].map((value) => <Link key={value} href={`/dashboard?range=${value}`} className={`px-2.5 py-1.5 text-[10px] font-semibold ${days === value ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>{value} {t.days}</Link>)}
             </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <Throughput
-              label="ວຽກສ້ອມແປງ"
+              label={t.throughputRepair}
               opened={data.throughput.repair_opened}
               closed={data.throughput.repair_closed}
+              t={t}
             />
             <Throughput
-              label="ວຽກຕິດຕັ້ງ"
+              label={t.throughputInstall}
               opened={data.throughput.install_opened}
               closed={data.throughput.install_closed}
+              t={t}
             />
           </div>
           <p className="mt-2 text-[11px] text-slate-400">
-            ເລກແດງ (+) = ເປີດຫຼາຍກວ່າປິດ ⇒ ວຽກຄ້າງກຳລັງເພີ່ມ · ເລກຂຽວ (−) = ກຳລັງລົງ
+            {t.throughputNote}
           </p>
         </section>
       )}
@@ -974,16 +987,16 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           </span>
           <div className="min-w-48 flex-1">
             <p className="text-sm font-bold text-slate-700">
-              {tech ? "ລາຍຮັບຂອງທ່ານ ເດືອນນີ້" : "ຄ່າຄອມຊ່າງ ເດືອນນີ້"}
+              {tech ? t.myIncomeMonth : t.techCommissionMonth}
             </p>
             <p className="mt-0.5 text-[11px] text-slate-500">
-              ຈາກ {data.payout.jobs.toLocaleString()} ງານທີ່ປິດ · ຕົວເລກແຊ່ໄວ້ຕອນປິດງານ
+              {t.from} {data.payout.jobs.toLocaleString()} {t.payoutJobsClosed}
             </p>
             {/* ເງິນທີ່ຍັງບໍ່ມີເຈົ້າຂອງ — ບໍ່ຢູ່ໃນຍອດຂວາ ຈຶ່ງຕ້ອງບອກ ບໍ່ດັ່ງນັ້ນຫາຍງຽບໆ */}
             {data.payout.orphan_thb > 0 && (
               <p className="mt-1 text-[11px] font-semibold text-amber-700">
-                ⚠ ອີກ {data.payout.orphan_thb.toLocaleString("en-US", { minimumFractionDigits: 2 })} ບາທ
-                ຍັງບໍ່ມີເຈົ້າຂອງ (ຊ່າງຍັງບໍ່ເຊື່ອມຕົວຕົນ)
+                ⚠ {t.orphanMore} {data.payout.orphan_thb.toLocaleString("en-US", { minimumFractionDigits: 2 })} {t.baht}
+                {" "}{t.orphanNote}
               </p>
             )}
           </div>
@@ -991,35 +1004,37 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             <p className="text-3xl font-bold text-slate-900">
               {data.payout.assigned_thb.toLocaleString("en-US", { minimumFractionDigits: 2 })}
             </p>
-            <p className="text-[11px] text-slate-400">ບາທ</p>
+            <p className="text-[11px] text-slate-400">{t.baht}</p>
           </div>
         </Link>
       )}
 
       {/* ③ ແບບປະເມີນລູກຄ້າ — ມາດຕາສ່ວນກັບຫົວ (1 ດີສຸດ) ຈຶ່ງຕ້ອງບອກໃຫ້ຊັດທຸກບ່ອນ */}
-      {data && score != null && <FeedbackPanel data={data} score={score} />}
+      {data && score != null && <FeedbackPanel data={data} score={score} t={t} />}
 
       {/* ④ ວຽກທີ່ຖືກລືມ — ຄ້າງດົນສຸດ (ບໍ່ແມ່ນ "ລ່າສຸດ" ເຊິ່ງແມ່ນວຽກທີ່ດ່ວນນ້ອຍທີ່ສຸດ) */}
       <section className="grid gap-4 xl:grid-cols-2">
         <StaleTable
-          title="ວຽກສ້ອມແປງທີ່ຄ້າງດົນສຸດ"
+          title={t.staleRepairTitle}
           rows={data?.staleRepairs ?? []}
-          whoLabel="ຊ່າງ"
+          whoLabel={t.tech}
           hrefOf={(code) => `/service/${encodeURIComponent(code)}`}
+          t={t}
         />
         <StaleTable
-          title="ວຽກຕິດຕັ້ງທີ່ຄ້າງດົນສຸດ"
+          title={t.staleInstallTitle}
           rows={data?.staleInstalls ?? []}
-          whoLabel="ຊ່າງ"
+          whoLabel={t.tech}
           hrefOf={(code) => `/installations/${encodeURIComponent(code)}`}
+          t={t}
         />
       </section>
 
       {/* ⑤ ສ້ອມຊ້ຳ — ເຄື່ອງໜ່ວຍດຽວກັນກັບມາພາຍໃນ 30 ມື້ = ຄັ້ງກ່ອນສ້ອມບໍ່ຈົບ */}
-      {(data?.repeats.length ?? 0) > 0 && <RepeatPanel rows={data!.repeats} />}
+      {(data?.repeats.length ?? 0) > 0 && <RepeatPanel rows={data!.repeats} t={t} />}
 
       <p className="text-center text-[11px] text-slate-400">
-        ຕົວເລກທຸກຊ່ອງໃຊ້ເງື່ອນໄຂອັນດຽວກັນກັບໜ້າປາຍທາງ — ກົດເບິ່ງໄດ້ວ່າແມ່ນວຽກໃດແດ່
+        {t.footerNote}
       </p>
     </div>
   );
