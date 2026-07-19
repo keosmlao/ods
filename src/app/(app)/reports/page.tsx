@@ -12,110 +12,116 @@ import {
   Truck,
   Wrench,
 } from "lucide-react";
+import { type Dictionary, getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import Link from "next/link";
 
+type Dict = Dictionary["reportsIndex"];
+
 /** ກຸ່ມລາຍງານ — ຂໍ້ຄວາມທັງໝົດຄືເກົ່າ ພຽງແຕ່ຈັດເປັນກຸ່ມໃຫ້ຫາງ່າຍຂຶ້ນ */
-const GROUPS = [
+const groupsOf = (t: Dict) => [
   {
-    group: "ສ້ອມແປງ",
+    group: t.groupRepair,
     reports: [
       {
         href: "/reports/pending",
-        title: "ລາຍງານເຄື່ອງສ້ອມຄ້າງ",
-        description: "ເຄື່ອງທີ່ຍັງບໍ່ທັນສົ່ງຄືນລູກຄ້າ ພ້ອມທຸກຂັ້ນຕອນ ແລະ ສະຖານະ",
+        title: t.pendingTitle,
+        description: t.pendingDesc,
         icon: Wrench,
       },
       {
         href: "/reports/receipts",
-        title: "ລາຍງານການຮັບເຄື່ອງ / ໄລຍະເວລາສ້ອມ",
-        description: "ເຄື່ອງທີ່ຮັບເຂົ້າຕາມຊ່ວງວັນທີ ພ້ອມໄລຍະເວລາທີ່ໃຊ້",
+        title: t.receiptsTitle,
+        description: t.receiptsDesc,
         icon: FileBarChart,
       },
       {
         href: "/reports/daily-receipts",
-        title: "ລາຍງານການຮັບເຄື່ອງສ້ອມປະຈຳວັນ",
-        description: "ລາຍລະອຽດການຮັບເຄື່ອງສ້ອມແປງ ພ້ອມສະຫຼຸບຕາມປະເພດບໍລິການ",
+        title: t.dailyReceiptsTitle,
+        description: t.dailyReceiptsDesc,
         icon: ClipboardList,
       },
       {
         href: "/reports/cancelled-receipts",
-        title: "ລາຍງານການຍົກເລີກບິນສ້ອມ",
-        description: "ບິນຮັບເຄື່ອງທີ່ຖືກຍົກເລີກ ແລະ ອະນຸມັດແລ້ວ",
+        title: t.cancelledReceiptsTitle,
+        description: t.cancelledReceiptsDesc,
         icon: FileX2,
       },
       {
         href: "/reports/checking",
-        title: "ລາຍງານການກວດເຊັກປະຈຳວັນ",
-        description: "ໃບຂໍເບີກ / ໃບເບີກອາໄຫຼ່ ພ້ອມອາການຊ່າງ",
+        title: t.checkingTitle,
+        description: t.checkingDesc,
         icon: ClipboardCheck,
       },
     ],
   },
   {
-    group: "ອາໄຫຼ່ ແລະ ສາງ",
+    group: t.groupSparesWarehouse,
     reports: [
       {
         href: "/reports/job-dispatch",
-        title: "ລາຍງານການເບີກອາໄຫຼ່",
-        description: "ລາຍການອາໄຫຼ່ທີ່ເບີກອອກ ແຍກຕາມເຄື່ອງສ້ອມ",
+        title: t.jobDispatchTitle,
+        description: t.jobDispatchDesc,
         icon: PackageSearch,
       },
       {
         href: "/reports/stock",
-        title: "ລາຍງານສິນຄ້າໃນສາງສ້ອມທັງໝົດ",
-        description: "ເຄື່ອງທີ່ຍັງຢູ່ໃນສາງ ພ້ອມສະຫຼຸບຕາມສະຖານະ",
+        title: t.stockTitle,
+        description: t.stockDesc,
         icon: Boxes,
       },
       {
         href: "/reports/purchase-requests",
-        title: "ລາຍງານການສະເໜີຊື້ (ERP)",
-        description: "ຕິດຕາມ SPR → ອະນຸມັດ → ສັ່ງຊື້ → ຮັບເຂົ້າ",
+        title: t.purchaseRequestsTitle,
+        description: t.purchaseRequestsDesc,
         icon: ShoppingCart,
       },
       {
         href: "/reports/purchase-orders",
-        title: "ລາຍງານການສັ່ງຊື້ອາໄຫຼ່",
-        description: "ໃບສະເໜີຊື້ອາໄຫຼ່ຂອງເຄື່ອງສ້ອມ",
+        title: t.purchaseOrdersTitle,
+        description: t.purchaseOrdersDesc,
         icon: ShoppingCart,
       },
     ],
   },
   {
-    group: "ຕິດຕັ້ງ",
+    group: t.groupInstall,
     reports: [
       {
         href: "/reports/installations",
-        title: "ລາຍງານການຕິດຕັ້ງ",
-        description: "ງານຕິດຕັ້ງທັງໝົດ ພ້ອມສະຖານະ ແລະ ໄລຍະເວລາ",
+        title: t.installationsTitle,
+        description: t.installationsDesc,
         icon: Truck,
       },
       {
         href: "/reports/install-spares-monthly",
-        title: "ສະຫຼຸບອາໄຫຼ່ຕິດຕັ້ງປະຈຳເດືອນ",
-        description: "ຈຳນວນເບີກ, ຮັບຄືນ ແລະ ໃຊ້ສຸດທິ ແຍກຕາມອາໄຫຼ່ ແລະ ຊ່າງ",
+        title: t.installSparesMonthlyTitle,
+        description: t.installSparesMonthlyDesc,
         icon: PackageOpen,
       },
       {
         href: "/reports/customer-feedback",
-        title: "ລາຍງານຄວາມພໍໃຈຂອງລູກຄ້າ",
-        description: "ຄະແນນປະເມີນ 5 ຂໍ້ ຂອງງານຕິດຕັ້ງທີ່ປະເມີນແລ້ວ",
+        title: t.customerFeedbackTitle,
+        description: t.customerFeedbackDesc,
         icon: Smile,
       },
     ],
   },
 ];
 
-export default function ReportsIndex() {
-  const total = GROUPS.reduce((sum, group) => sum + group.reports.length, 0);
+export default async function ReportsIndex() {
+  const t = (await getDictionary(await getLocale())).reportsIndex;
+  const groups = groupsOf(t);
+  const total = groups.reduce((sum, group) => sum + group.reports.length, 0);
 
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-700">ລາຍງານ</h1>
-        <p className="mt-0.5 text-xs text-slate-500">ເລືອກລາຍງານທີ່ຕ້ອງການ · {total} ລາຍງານ</p>
+        <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
+        <p className="mt-0.5 text-xs text-slate-500">{t.chooseReport} · {total} {t.reportsUnit}</p>
       </div>
 
-      {GROUPS.map(({ group, reports }) => (
+      {groups.map(({ group, reports }) => (
         <section key={group} className="space-y-2">
           <h2 className="text-xs font-semibold text-slate-500">{group}</h2>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

@@ -1,4 +1,6 @@
 import { Card, Empty, PageTitle, Table } from "@/components/ui";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import {
   frontStageKpi,
   INSTALL_TARGET_HOURS,
@@ -32,18 +34,22 @@ export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<{ d?: string }> };
 
+type Dict = Record<string, string>;
+
 const PERIODS: Period[] = [30, 90, 180, 365];
 
 /** ຊົ່ວໂມງ → ຂໍ້ຄວາມທີ່ຄົນອ່ານອອກ (48.5 ຊມ = 2 ມື້ 0.5 ຊມ) */
-function hours(value: number): string {
+function hours(value: number, t: Dict): string {
   if (!value || value <= 0) return "-";
-  if (value < 24) return `${value} ຊມ`;
+  if (value < 24) return `${value} ${t.hoursUnitShort}`;
   const days = Math.floor(value / 24);
   const rest = Math.round(value - days * 24);
-  return rest > 0 ? `${days} ມື້ ${rest} ຊມ` : `${days} ມື້`;
+  return rest > 0 ? `${days} ${t.daysUnit} ${rest} ${t.hoursUnitShort}` : `${days} ${t.daysUnit}`;
 }
 
 export default async function KpiPage({ searchParams }: Props) {
+  const t = (await getDictionary(await getLocale())).kpiReport;
+
   const params = await searchParams;
   const days = (PERIODS.includes(Number(params.d) as Period) ? Number(params.d) : 90) as Period;
 
@@ -94,7 +100,7 @@ export default async function KpiPage({ searchParams }: Props) {
 
   return (
     <div className="w-full space-y-5">
-      <PageTitle sub="ງານໄຫຼໄດ້ດີບໍ · ຄ້າງຢູ່ຂັ້ນໃດ · ໃຜເຮັດໄດ້ເທົ່າໃດ">KPI ປະສິດທິພາບ</PageTitle>
+      <PageTitle sub={t.pageSub}>{t.pageTitle}</PageTitle>
 
       {/* ໄລຍະທີ່ເບິ່ງ */}
       <div className="flex flex-wrap items-center gap-1">
@@ -106,15 +112,15 @@ export default async function KpiPage({ searchParams }: Props) {
               days === period ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
             }`}
           >
-            {period} ມື້
+            {period} {t.daysUnit}
           </Link>
         ))}
-        <span className="ml-2 text-[11px] text-slate-400">ນັບຈາກງານທີ່ **ປິດ** ໃນໄລຍະນີ້</span>
+        <span className="ml-2 text-[11px] text-slate-400">{t.closedInPeriodNote}</span>
         <Link
           href={`/api/reports/export/kpi-tech?d=${days}`}
           className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
         >
-          <Download className="size-3.5" /> Export ຊ່າງ (Excel)
+          <Download className="size-3.5" /> {t.exportTech}
         </Link>
       </div>
 
@@ -131,16 +137,16 @@ export default async function KpiPage({ searchParams }: Props) {
         >
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold text-slate-600">
-              ເປົ້າໝາຍ: ຕິດຕັ້ງແລ້ວພາຍໃນ <b>{INSTALL_TARGET_HOURS} ຊົ່ວໂມງ</b> ນັບແຕ່ອອກບິນ
+              {t.targetPrefix} <b>{INSTALL_TARGET_HOURS} {t.hoursUnitFull}</b> {t.targetSuffix}
             </p>
             <p className="mt-1 text-3xl font-bold tabular-nums text-slate-800">
               {install.target.pct}%
               <span className="ml-2 text-sm font-normal text-slate-500">
-                ({install.target.done.toLocaleString()} / {install.target.total.toLocaleString()} ງານ)
+                ({install.target.done.toLocaleString()} / {install.target.total.toLocaleString()} {t.jobsUnit})
               </span>
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              ຄວາມຈິງດຽວນີ້: ມັດທະຍົມ <b>{hours(install.target.median)}</b> ຈາກອອກບິນຫາຕິດຕັ້ງແລ້ວ
+              {t.targetActualPrefix} <b>{hours(install.target.median, t)}</b> {t.targetActualSuffix}
             </p>
           </div>
           <span className="h-2 w-full overflow-hidden rounded-full bg-white sm:w-64">
@@ -152,19 +158,20 @@ export default async function KpiPage({ searchParams }: Props) {
         </div>
       )}
 
-      <Flow title="ຕິດຕັ້ງ" icon={<HardHat className="size-4 text-teal-600" />} kpi={install} overdueLabel="ເລີຍວັນນັດ" />
+      <Flow title={t.install} icon={<HardHat className="size-4 text-teal-600" />} kpi={install} overdueLabel={t.overdueInstall} t={t} />
       <Flow
-        title="ສ້ອມແປງ"
+        title={t.repairFull}
         icon={<Wrench className="size-4 text-teal-600" />}
         kpi={repair}
-        overdueLabel="ເກີນ SLA ຂັ້ນປັດຈຸບັນ"
+        overdueLabel={t.overdueRepair}
+        t={t}
       />
 
-      <Card title="SLA ແລະ KPI ແຕ່ລະຂັ້ນຕອນສ້ອມແປງ">
+      <Card title={t.repairSlaCardTitle}>
         <p className="mb-3 text-xs text-slate-500">
-          SLA ເປັນ calendar hours ແລະແຍກຕາມປະເພດບໍລິການ. ຂັ້ນທີ່ຂຶ້ນກັບລູກຄ້າ/ຜູ້ສະໜອງຈະຕິດຕາມແຍກ ໂດຍບໍ່ຫັກ KPI ພະນັກງານໂດຍກົງ.
+          {t.repairSlaCardNote}
         </p>
-        <Table head={["ຂັ້ນ", "ຜູ້ຮັບຜິດຊອບ", "KPI", ...REPAIR_SERVICE_TYPES, "ເປົ້າ"]} minWidth={1100}>
+        <Table head={[t.colStage, t.colOwner, "KPI", ...REPAIR_SERVICE_TYPES, t.colTarget]} minWidth={1100}>
           {REPAIR_STAGE_POLICIES.map((policy) => (
             <tr key={policy.stage} className="border-b border-slate-100 align-top hover:bg-slate-50">
               <td className="whitespace-nowrap px-3 py-2.5 font-bold text-slate-800">
@@ -180,11 +187,11 @@ export default async function KpiPage({ searchParams }: Props) {
                 const met = actual && actual.total > 0 && actual.pct >= policy.targetPct;
                 return (
                   <td key={code} className="whitespace-nowrap px-3 py-2.5 text-center tabular-nums">
-                    <span className="block font-semibold text-slate-700">SLA {hours(policy.hours[code])}</span>
+                    <span className="block font-semibold text-slate-700">SLA {hours(policy.hours[code], t)}</span>
                     <span className={`mt-0.5 block text-[10px] font-bold ${
                       !actual?.total ? "text-slate-400" : met ? "text-emerald-700" : "text-red-600"
                     }`}>
-                      ຜົນ {actual?.total ? `${actual.pct}% (${actual.within_sla}/${actual.total})` : "-"}
+                      {t.resultPrefix} {actual?.total ? `${actual.pct}% (${actual.within_sla}/${actual.total})` : "-"}
                     </span>
                   </td>
                 );
@@ -196,44 +203,44 @@ export default async function KpiPage({ searchParams }: Props) {
       </Card>
 
       {/* ── ຄຸນນະພາບ: ໄວຢ່າງດຽວບໍ່ພຽງພໍ ── */}
-      <Card title="ຄຸນນະພາບ">
+      <Card title={t.qualityCardTitle}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Stat
-            label="ສ້ອມຊ້ຳພາຍໃນ 60 ມື້"
+            label={t.repeatLabel}
             text={`${repeatPct}%`}
-            note={`${quality.repeat_repairs.toLocaleString()} / ${quality.repair_with_sn.toLocaleString()} ໃບ`}
+            note={`${quality.repeat_repairs.toLocaleString()} / ${quality.repair_with_sn.toLocaleString()} ${t.sheetsUnit}`}
             tone={repeatPct >= 20 ? "bad" : "plain"}
           />
           <Stat
-            label="ລູກຄ້າບໍ່ພໍໃຈ (ຄະແນນ ≥3)"
+            label={t.unhappyLabel}
             text={`${unhappyPct}%`}
-            note={`${quality.feedback_jobs.toLocaleString()} ງານທີ່ຕອບແບບສອບຖາມ`}
+            note={`${quality.feedback_jobs.toLocaleString()} ${t.feedbackJobsNote}`}
             tone={unhappyPct >= 20 ? "bad" : "plain"}
           />
           <Stat
-            label="ຄະແນນສະເລ່ຍ (1 ດີສຸດ)"
+            label={t.avgScoreLabel}
             text={quality.feedback_avg ? String(quality.feedback_avg) : "-"}
-            note="1 = ພໍໃຈ · 4 = ບໍ່ພໍໃຈ"
+            note={t.avgScoreNote}
           />
           <Stat
-            label="ຊ່າງປະຕິເສດງານ"
+            label={t.rejectsLabel}
             value={quality.rejects}
-            note={`QC ພົບຂໍ້ບົກຜ່ອງ ${quality.qc_failed_jobs} ງານ`}
+            note={`${t.qcDefectPrefix} ${quality.qc_failed_jobs} ${t.jobsUnit}`}
             tone={quality.rejects > 0 ? "bad" : "plain"}
           />
         </div>
         {quality.qc_answers === 0 && (
           <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-            ⚠️ ຍັງບໍ່ມີການບັນທຶກຜົນ QC ໃນໄລຍະນີ້ — ຕົວເລກ &quot;QC ພົບຂໍ້ບົກຜ່ອງ&quot; ຈຶ່ງເຊື່ອບໍ່ໄດ້
+            {t.qcNoDataNote}
           </p>
         )}
       </Card>
 
       {/* ── ປະລິມານຕໍ່ອາທິດ: ຮັບເຂົ້າ vs ປິດໄດ້ (ຮັບເຂົ້າ > ປິດ ຕິດຕໍ່ກັນ = ງານກອງ) ── */}
-      <Card title="ປະລິມານງານຕໍ່ອາທິດ (ຮັບເຂົ້າ vs ປິດໄດ້)">
+      <Card title={t.weeklyCardTitle}>
         <div className="grid gap-6 lg:grid-cols-2">
-          <Weekly title="ຕິດຕັ້ງ" points={weeks.install} />
-          <Weekly title="ສ້ອມແປງ" points={weeks.repair} />
+          <Weekly title={t.install} points={weeks.install} t={t} />
+          <Weekly title={t.repairFull} points={weeks.repair} t={t} />
         </div>
       </Card>
 
@@ -242,14 +249,14 @@ export default async function KpiPage({ searchParams }: Props) {
         title={
           <span className="inline-flex items-center gap-2">
             <TrendingUp className="size-4 text-teal-600" />
-            ຜົນງານຕໍ່ຊ່າງ ({days} ມື້)
+            {t.techResultsTitle} ({days} {t.daysUnit})
           </span>
         }
       >
         {techs.length === 0 ? (
-          <Empty>ບໍ່ມີງານທີ່ຈົບໃນໄລຍະນີ້</Empty>
+          <Empty>{t.techNoJobs}</Empty>
         ) : (
-          <Table head={["ຊ່າງ", "ຕິດຕັ້ງ", "ສ້ອມ", "ລວມ", "ເວລາຕໍ່ງານ (ມັດທະຍົມ)", "ທັນເວລາ SLA (ກວດ/ສ້ອມ)", "ປະຕິເສດງານ", "QC ບໍ່ຜ່ານ"]} minWidth={920}>
+          <Table head={[t.colTech, t.install, t.colRepair, t.colTotal, t.colTimePerJob, t.colSlaOnTime, t.colRejects, t.colQcFail]} minWidth={920}>
             {techs.map((tech) => {
               const sla = techSlaMap.get(tech.tech);
               return (
@@ -260,7 +267,7 @@ export default async function KpiPage({ searchParams }: Props) {
                 <td className="px-3 py-2.5 text-center font-bold tabular-nums text-slate-800">
                   {tech.install_done + tech.repair_done}
                 </td>
-                <td className="px-3 py-2.5 text-center text-slate-600">{hours(tech.median_hours)}</td>
+                <td className="px-3 py-2.5 text-center text-slate-600">{hours(tech.median_hours, t)}</td>
                 <td className="px-3 py-2.5 text-center tabular-nums">
                   {sla ? (
                     <span className="inline-flex flex-col items-center leading-tight">
@@ -268,7 +275,7 @@ export default async function KpiPage({ searchParams }: Props) {
                         {sla.pct}%
                       </span>
                       <span className="text-[11px] text-slate-400">
-                        {sla.within_sla}/{sla.total}{sla.late > 0 ? ` · ຊ້າ ${sla.late}` : ""}
+                        {sla.within_sla}/{sla.total}{sla.late > 0 ? ` · ${t.lateLabel} ${sla.late}` : ""}
                       </span>
                     </span>
                   ) : (
@@ -298,14 +305,14 @@ export default async function KpiPage({ searchParams }: Props) {
         title={
           <span className="inline-flex items-center gap-2">
             <Wrench className="size-4 text-teal-600" />
-            ງານສ້ອມຕໍ່ຊ່າງ ແຍກປະເພດບໍລິການ ({days} ມື້)
+            {t.serviceMixTitle} ({days} {t.daysUnit})
           </span>
         }
       >
         {serviceMix.length === 0 ? (
-          <Empty>ບໍ່ມີງານສ້ອມທີ່ຈົບໃນໄລຍະນີ້</Empty>
+          <Empty>{t.serviceMixNoJobs}</Empty>
         ) : (
-          <Table head={["ຊ່າງ", "CI ນຳເຂົ້າ", "ST ໃນສາງ", "IH ໄປບ້ານ", "PS ໄປຮັບ", "ລວມ"]} minWidth={720}>
+          <Table head={[t.colTech, t.colCiImport, t.colStStock, t.colIhHome, t.colPsPickup, t.colTotal]} minWidth={720}>
             {serviceMix.map((row) => (
               <tr key={row.tech} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="whitespace-nowrap px-3 py-2.5 font-semibold text-slate-800">{row.tech}</td>
@@ -329,14 +336,14 @@ export default async function KpiPage({ searchParams }: Props) {
         title={
           <span className="inline-flex items-center gap-2">
             <TriangleAlert className="size-4 text-teal-600" />
-            ອັດຕາທັນເວລາ (SLA) ຕໍ່ຝ່າຍ ({days} ມື້)
+            {t.ownerSlaTitle} ({days} {t.daysUnit})
           </span>
         }
       >
         {ownerRows.length === 0 ? (
-          <Empty>ບໍ່ມີຂໍ້ມູນ SLA ໃນໄລຍະນີ້</Empty>
+          <Empty>{t.ownerSlaNoData}</Empty>
         ) : (
-          <Table head={["ຝ່າຍຮັບຜິດຊອບ", "ຂັ້ນ", "ທັນເວລາ", "ໃບ (ທັນ/ທັງໝົດ)"]} minWidth={640}>
+          <Table head={[t.colOwnerDept, t.colStage, t.colOnTime, t.colSheetsWithinTotal]} minWidth={640}>
             {ownerRows.map((row) => (
               <tr key={row.owner} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="px-3 py-2.5 font-semibold text-slate-800">{row.owner}</td>
@@ -358,34 +365,34 @@ export default async function KpiPage({ searchParams }: Props) {
         title={
           <span className="inline-flex items-center gap-2">
             <TrendingUp className="size-4 text-teal-600" />
-            ໄວຂັ້ນໜ້າ — PS ໄປຮັບ · IH ນັດ ({days} ມື້)
+            {t.frontStageTitle} ({days} {t.daysUnit})
           </span>
         }
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-            <p className="text-xs font-bold text-amber-700">PS · ໄປຮັບເຄື່ອງ → ຮັບເຂົ້າສູນ</p>
+            <p className="text-xs font-bold text-amber-700">{t.psStageLabel}</p>
             {frontStage.ps.count === 0 ? (
-              <p className="mt-2 text-sm text-slate-400">ຍັງບໍ່ມີຂໍ້ມູນ (ຖັນໃໝ່ — ເກັບຈາກນີ້ໄປ)</p>
+              <p className="mt-2 text-sm text-slate-400">{t.noDataNewColumn}</p>
             ) : (
               <p className="mt-2">
-                <span className="text-2xl font-extrabold tabular-nums text-slate-800">{hours(frontStage.ps.median_hours ?? 0)}</span>
-                <span className="ml-2 text-xs text-slate-500">ມັດທະຍົມ · {frontStage.ps.count} ໃບ</span>
+                <span className="text-2xl font-extrabold tabular-nums text-slate-800">{hours(frontStage.ps.median_hours ?? 0, t)}</span>
+                <span className="ml-2 text-xs text-slate-500">{t.medianPrefix} · {frontStage.ps.count} {t.sheetsUnit}</span>
               </p>
             )}
-            <p className="mt-1 text-[11px] text-slate-400">ນັບແຕ່ຮັບໃບ ຫາ ຮັບເຂົ້າສູນ (pickup_at)</p>
+            <p className="mt-1 text-[11px] text-slate-400">{t.psStageNote}</p>
           </div>
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
-            <p className="text-xs font-bold text-emerald-700">IH · ຮັບໃບ → ນັດ/ຈັດຊ່າງ</p>
+            <p className="text-xs font-bold text-emerald-700">{t.ihStageLabel}</p>
             {frontStage.ih.count === 0 ? (
-              <p className="mt-2 text-sm text-slate-400">ຍັງບໍ່ມີຂໍ້ມູນ (ຖັນໃໝ່ — ເກັບຈາກນີ້ໄປ)</p>
+              <p className="mt-2 text-sm text-slate-400">{t.noDataNewColumn}</p>
             ) : (
               <p className="mt-2">
-                <span className="text-2xl font-extrabold tabular-nums text-slate-800">{hours(frontStage.ih.median_hours ?? 0)}</span>
-                <span className="ml-2 text-xs text-slate-500">ມັດທະຍົມ · {frontStage.ih.count} ໃບ</span>
+                <span className="text-2xl font-extrabold tabular-nums text-slate-800">{hours(frontStage.ih.median_hours ?? 0, t)}</span>
+                <span className="ml-2 text-xs text-slate-500">{t.medianPrefix} · {frontStage.ih.count} {t.sheetsUnit}</span>
               </p>
             )}
-            <p className="mt-1 text-[11px] text-slate-400">ນັບແຕ່ຮັບໃບ ຫາ ຕັ້ງວັນນັດ (dispatch_at)</p>
+            <p className="mt-1 text-[11px] text-slate-400">{t.ihStageNote}</p>
           </div>
         </div>
       </Card>
@@ -399,11 +406,13 @@ function Flow({
   icon,
   kpi,
   overdueLabel,
+  t,
 }: {
   title: string;
   icon: React.ReactNode;
   kpi: FlowKpi;
   overdueLabel: string;
+  t: Dict;
 }) {
   // ຂັ້ນທີ່ກິນເວລາຫຼາຍສຸດ = ຄໍຂວດ — ແກ້ຂັ້ນອື່ນໄປກໍ່ບໍ່ຊ່ວຍ
   const worst = kpi.stages.reduce((left, right) => (right.median > left.median ? right : left), kpi.stages[0]);
@@ -412,17 +421,17 @@ function Flow({
   return (
     <Card title={<span className="inline-flex items-center gap-2">{icon} {title}</span>}>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <Stat label="ຮັບເຂົ້າ" value={kpi.opened} />
-        <Stat label="ປິດໄດ້" value={kpi.closed} tone="good" />
-        <Stat label="ຄ້າງດຽວນີ້" value={kpi.open_now} />
+        <Stat label={t.opened} value={kpi.opened} />
+        <Stat label={t.closed} value={kpi.closed} tone="good" />
+        <Stat label={t.openNow} value={kpi.open_now} />
         <Stat label={overdueLabel} value={kpi.overdue} tone={kpi.overdue > 0 ? "bad" : "plain"} />
-        <Stat label="ເວລາຕໍ່ງານ" text={hours(kpi.total.median)} note={`ຊ້າສຸດ 10%: ${hours(kpi.total.p90)}`} />
+        <Stat label={t.timePerJob} text={hours(kpi.total.median, t)} note={`${t.slowest10} ${hours(kpi.total.p90, t)}`} />
       </div>
 
       {/* ເວລາຕໍ່ຂັ້ນ — ອັນຍາວສຸດຄືບ່ອນທີ່ຕ້ອງແກ້ */}
       <div className="mt-4 space-y-2">
         <p className="text-xs font-semibold text-slate-500">
-          ເວລາຕໍ່ຂັ້ນ (ມັດທະຍົມ) — ຂັ້ນທີ່ຍາວສຸດຄື <b className="text-red-600">ຄໍຂວດ</b>
+          {t.stageTimePrefix} <b className="text-red-600">{t.bottleneckLabel}</b>
         </p>
         {kpi.stages.map((stage) => {
           const bottleneck = stage.label === worst?.label && stage.median > 0;
@@ -440,8 +449,8 @@ function Flow({
                   bottleneck ? "font-bold text-red-600" : "text-slate-600"
                 }`}
               >
-                {hours(stage.median)}
-                <span className="ml-1 text-[10px] font-normal text-slate-400">p90 {hours(stage.p90)}</span>
+                {hours(stage.median, t)}
+                <span className="ml-1 text-[10px] font-normal text-slate-400">p90 {hours(stage.p90, t)}</span>
               </span>
             </div>
           );
@@ -449,7 +458,7 @@ function Flow({
         {worst && worst.median > 0 && (
           <p className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
             <TriangleAlert className="size-3.5" />
-            ຄໍຂວດ: <b>{worst.label}</b> — {hours(worst.median)} ຕໍ່ງານ (ຈາກທັງໝົດ {hours(kpi.total.median)})
+            {t.bottleneckLabel}: <b>{worst.label}</b> — {hours(worst.median, t)} {t.perJobFromTotal} {hours(kpi.total.median, t)})
           </p>
         )}
       </div>
@@ -458,15 +467,15 @@ function Flow({
 }
 
 /** ແທ່ງຕໍ່ອາທິດ — ບໍ່ໃຊ້ library ກຣາຟ (ໜ້ານີ້ບໍ່ຄຸ້ມທີ່ຈະເພີ່ມ dependency) */
-function Weekly({ title, points }: { title: string; points: { week: string; opened: number; closed: number }[] }) {
+function Weekly({ title, points, t }: { title: string; points: { week: string; opened: number; closed: number }[]; t: Dict }) {
   const max = Math.max(1, ...points.flatMap((point) => [point.opened, point.closed]));
   return (
     <div>
       <p className="mb-2 text-xs font-semibold text-slate-600">
         {title}
         <span className="ml-3 text-[11px] font-normal text-slate-400">
-          <span className="mr-1 inline-block size-2 rounded-sm bg-slate-400" /> ຮັບເຂົ້າ
-          <span className="ml-2 mr-1 inline-block size-2 rounded-sm bg-teal-500" /> ປິດໄດ້
+          <span className="mr-1 inline-block size-2 rounded-sm bg-slate-400" /> {t.opened}
+          <span className="ml-2 mr-1 inline-block size-2 rounded-sm bg-teal-500" /> {t.closed}
         </span>
       </p>
       <div className="flex h-28 items-end gap-1 overflow-x-auto">
@@ -474,12 +483,12 @@ function Weekly({ title, points }: { title: string; points: { week: string; open
           <div key={point.week} className="flex min-w-6 flex-1 flex-col items-center gap-1">
             <div className="flex h-24 w-full items-end justify-center gap-0.5">
               <span
-                title={`ຮັບເຂົ້າ ${point.opened}`}
+                title={`${t.opened} ${point.opened}`}
                 className="w-1/2 rounded-t bg-slate-300"
                 style={{ height: `${Math.round((point.opened / max) * 100)}%` }}
               />
               <span
-                title={`ປິດໄດ້ ${point.closed}`}
+                title={`${t.closed} ${point.closed}`}
                 className="w-1/2 rounded-t bg-teal-500"
                 style={{ height: `${Math.round((point.closed / max) * 100)}%` }}
               />

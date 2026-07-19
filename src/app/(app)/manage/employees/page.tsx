@@ -6,6 +6,8 @@ import { SortHeader, type SortDir } from "@/components/sort-header";
 import { listEmployeeOverrides } from "@/lib/employee-role";
 import { query, queryOdg } from "@/lib/db";
 import { ERP_IDENTITY_SQL, roleFromErp } from "@/lib/erp-auth";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { normalizeRole, ROLE_LABEL, ROLES, type Role } from "@/lib/roles";
 import { Building2, ChevronLeft, ChevronRight, Search, Settings2, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
@@ -138,14 +140,14 @@ async function getRows(scope: Scope): Promise<Row[]> {
 const SORT_KEYS = ["code", "identity", "fullname", "department", "position", "derived", "assigned"] as const;
 type SortKey = (typeof SORT_KEYS)[number];
 
-const COLUMNS: { key: SortKey; label: string; defaultDir: SortDir }[] = [
-  { key: "code", label: "ລະຫັດພະນັກງານ", defaultDir: "asc" },
-  { key: "identity", label: "ຊື່ຫຼິ້ນ (ຊື່ເຂົ້າລະບົບ)", defaultDir: "asc" },
-  { key: "fullname", label: "ຊື່ເຕັມ", defaultDir: "asc" },
-  { key: "department", label: "ພະແນກ", defaultDir: "asc" },
-  { key: "position", label: "ຕຳແໜ່ງ", defaultDir: "asc" },
-  { key: "derived", label: "ສິດຕາມຕຳແໜ່ງ", defaultDir: "asc" },
-  { key: "assigned", label: "ສິດທີ່ກຳນົດເອງ", defaultDir: "asc" },
+const columns = (t: Record<string, string>): { key: SortKey; label: string; defaultDir: SortDir }[] => [
+  { key: "code", label: t.colCode, defaultDir: "asc" },
+  { key: "identity", label: t.colNickname, defaultDir: "asc" },
+  { key: "fullname", label: t.colFullname, defaultDir: "asc" },
+  { key: "department", label: t.colDepartment, defaultDir: "asc" },
+  { key: "position", label: t.colPosition, defaultDir: "asc" },
+  { key: "derived", label: t.roleByPosition, defaultDir: "asc" },
+  { key: "assigned", label: t.assignedRight, defaultDir: "asc" },
 ];
 
 function sortValue(row: Row, key: SortKey): string {
@@ -178,6 +180,7 @@ const ROLE_TONE: Record<Role, string> = {
 };
 
 export default async function EmployeeRolesPage({ searchParams }: Props) {
+  const t = (await getDictionary(await getLocale())).manageEmployees;
   const params = await searchParams;
   const scope: Scope = params.scope === "all" ? "all" : "service";
   const dept = (params.dept ?? "").trim();
@@ -240,19 +243,19 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
         <div>
           <h1 className="flex items-center gap-2 text-xl font-bold text-slate-700">
             <ShieldCheck className="size-5 text-slate-400" />
-            ຈັດການພະນັກງານ / ກຳນົດສິດ
+            {t.title}
           </h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            {total.toLocaleString()} ຄົນ · ໜ້າ {page}/{pages} · ກຳນົດສິດເອງແລ້ວ {assignedCount} ຄົນ · ຖືກປິດ{" "}
-            {blockedCount} ຄົນ
+            {total.toLocaleString()} {t.people} · {t.page} {page}/{pages} · {t.assignedOwn} {assignedCount} {t.people} · {t.blocked}{" "}
+            {blockedCount} {t.people}
           </p>
         </div>
       </div>
 
       <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
-        ລາຍຊື່ ແລະ ຕຳແໜ່ງ ມາຈາກລະບົບ ERP (ອ່ານຢ່າງດຽວ). ຖ້າບໍ່ກຳນົດຫຍັງ ລະບົບຈະໃຫ້{" "}
-        <b>ສິດຕາມຕຳແໜ່ງ</b> ອັດຕະໂນມັດ. ສິດທີ່ກຳນົດເອງຈະຊະນະສິດຕາມຕຳແໜ່ງສະເໝີ ·{" "}
-        <b>ຖືກປິດ</b> = ເຂົ້າລະບົບບໍ່ໄດ້ ແລະ ບໍ່ໄດ້ຮັບການແຈ້ງເຕືອນ.
+        {t.infoPre}{" "}
+        <b>{t.roleByPosition}</b> {t.infoMid}{" "}
+        <b>{t.blocked}</b> {t.infoPost}
       </p>
 
       {/* ຂອບເຂດ + ຕົວກອງ + ຄົ້ນຫາ */}
@@ -260,8 +263,8 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
         <div className="flex overflow-hidden rounded-lg border border-slate-300">
           {(
             [
-              { key: "service", label: "ບໍລິການ ແລະ ສາງ", icon: Building2 },
-              { key: "all", label: "ພະນັກງານທັງໝົດ", icon: Users },
+              { key: "service", label: t.scopeService, icon: Building2 },
+              { key: "all", label: t.scopeAll, icon: Users },
             ] as const
           ).map(({ key, label, icon: Icon }) => (
             <Link
@@ -288,7 +291,7 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
             defaultValue={dept}
             className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-xs text-slate-700"
           >
-            <option value="">ທຸກພະແນກ</option>
+            <option value="">{t.allDepartments}</option>
             {departments.map(([code, name]) => (
               <option key={code} value={code}>
                 {name} ({deptCount.get(code) ?? 0})
@@ -301,7 +304,7 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
             defaultValue={roleFilter}
             className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-xs text-slate-700"
           >
-            <option value="">ທຸກສິດ</option>
+            <option value="">{t.allRoles}</option>
             {ROLES.map((role) => (
               <option key={role} value={role}>
                 {ROLE_LABEL[role]}
@@ -314,11 +317,11 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
             <input
               name="q"
               defaultValue={params.q ?? ""}
-              placeholder="ຄົ້ນຫາ ລະຫັດພະນັກງານ, ຊື່ຫຼິ້ນ, ຊື່ເຕັມ..."
+              placeholder={t.searchPlaceholder}
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -328,7 +331,7 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
           <table className="w-full min-w-[1240px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                {COLUMNS.map((column) => (
+                {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
                     label={column.label}
@@ -340,9 +343,9 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
                     className="py-2.5"
                   />
                 ))}
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໃຊ້ງານໄດ້</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສິດເມນູ / CRUD</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຜູ້ແກ້ໄຂລ່າສຸດ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colActive}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colMenuCrud}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colLastEditor}</th>
               </tr>
             </thead>
             <tbody>
@@ -361,7 +364,7 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
                     </span>
                     {row.legacy && row.legacy !== row.derived && (
                       <span className="mt-0.5 block text-[10px] text-slate-400">
-                        ລະບົບເກົ່າ: {ROLE_LABEL[row.legacy]}
+                        {t.legacyPrefix}: {ROLE_LABEL[row.legacy]}
                       </span>
                     )}
                   </td>
@@ -377,7 +380,7 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
                       className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-2.5 text-[11px] font-semibold text-teal-700 hover:bg-teal-100"
                     >
                       <Settings2 className="size-3.5" />
-                      ກຳນົດລາຍເມນູ
+                      {t.setMenus}
                     </Link>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">
@@ -396,13 +399,13 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
           </table>
         </div>
 
-        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບພະນັກງານ</p>}
+        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noEmployees}</p>}
       </section>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} ຈາກ {total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} {t.of} {total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -411,7 +414,7 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -421,7 +424,7 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>
@@ -436,12 +439,12 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="mb-1 flex items-center gap-2 font-bold text-slate-700">
           <ShieldCheck className="size-4 text-slate-400" />
-          ໃຜກວດຮັບຄຸນນະພາບ (QC) ໄດ້
+          {t.qcTitle}
         </h2>
         <p className="mb-4 text-xs text-slate-500">
-          ດ່ານກ່ອນສົ່ງມອບລູກຄ້າ — ງານທີ່ບໍ່ຜ່ານຈະຖືກສົ່ງກັບໃຫ້ຊ່າງແກ້ ·{" "}
+          {t.qcDesc}{" "}
           <Link href="/manage/qc-checklist" className="font-semibold text-teal-700 hover:underline">
-            ຕັ້ງລາຍການທີ່ຕ້ອງກວດ
+            {t.qcSetChecklist}
           </Link>
         </p>
         <QcRoleMatrix current={qcRoleRows} />

@@ -1,5 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { canViewAssignedJob } from "@/lib/scope";
 import { notFound, redirect } from "next/navigation";
 
@@ -42,6 +44,7 @@ export default async function CheckingPrintPage({ params }: { params: Promise<{ 
   if (!session) redirect("/login");
   const { code } = await params;
   const product = decodeURIComponent(code);
+  const t = (await getDictionary(await getLocale())).checkingPrint;
 
   const head = (
     await query<Head>(
@@ -84,7 +87,7 @@ export default async function CheckingPrintPage({ params }: { params: Promise<{ 
     <div className="mx-auto max-w-3xl bg-white p-8 text-slate-950 print:p-0">
       <style>{`@media print { .no-print { display: none !important } @page { margin: 12mm } }`}</style>
 
-      <p className="no-print mb-6 text-right text-sm text-slate-500">ກົດ Ctrl/Cmd + P ເພື່ອພິມ</p>
+      <p className="no-print mb-6 text-right text-sm text-slate-500">{t.pressToPrint}</p>
 
       <header className="flex items-start justify-between gap-6 border-b-2 border-slate-900 pb-4">
         <div className="text-sm leading-6">
@@ -94,51 +97,51 @@ export default async function CheckingPrintPage({ params }: { params: Promise<{ 
           <p>{company?.tel}</p>
         </div>
         <div className="text-right text-sm">
-          <p>ເລກທິໃບຮັບເຄື່ອງ {head.code}</p>
-          <p>ວັນທີ {head.registered ?? "-"}</p>
+          <p>{t.receiptNo} {head.code}</p>
+          <p>{t.date} {head.registered ?? "-"}</p>
         </div>
       </header>
 
-      <h1 className="my-4 text-center text-xl font-bold">ໃບກວດເຊັກ</h1>
+      <h1 className="my-4 text-center text-xl font-bold">{t.checkTitle}</h1>
 
       {doc && (
         <section className="mb-3 grid grid-cols-2 gap-x-6 gap-y-1 rounded border border-slate-300 p-3 text-sm">
-          <p>ເລກທິໃບຂໍເບີກ: {doc.doc_no}</p>
-          <p>ວັນທີ: {doc.doc_date ?? "-"}</p>
+          <p>{t.withdrawNo}: {doc.doc_no}</p>
+          <p>{t.date}: {doc.doc_date ?? "-"}</p>
         </section>
       )}
 
       <section className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-        <p className="col-span-2 font-bold">ຂໍ້ມູນລູກຄ້າ</p>
-        <p>ລູກຄ້າ: {head.customer ?? "-"}</p>
-        <p>ເບີໂທ: {head.tel ?? "-"}</p>
+        <p className="col-span-2 font-bold">{t.customerInfo}</p>
+        <p>{t.customer}: {head.customer ?? "-"}</p>
+        <p>{t.tel}: {head.tel ?? "-"}</p>
 
-        <p className="col-span-2 mt-2 font-bold">ຂໍ້ມູນສິນຄ້າ</p>
-        <p>ຊື່ສິນຄ້າ: {head.product ?? "-"}</p>
-        <p>ລູ້ນ/Model: {head.model ?? "-"}</p>
-        <p>ຫຍີ່ຫໍ້: {head.brand ?? "-"}</p>
-        <p>ເລກເຄື່ອງ/SN: {head.sn ?? "-"}</p>
-        <p className="col-span-2 text-red-700">ອາການເສຍ: {head.issue ?? "-"}</p>
-        <p>ປະກັນ: {head.warranty ?? "-"}</p>
-        <p>ຜູ້ຮັບເຄື່ອງ: {head.receiver ?? "-"}</p>
+        <p className="col-span-2 mt-2 font-bold">{t.productInfo}</p>
+        <p>{t.productName}: {head.product ?? "-"}</p>
+        <p>{t.model}: {head.model ?? "-"}</p>
+        <p>{t.brand}: {head.brand ?? "-"}</p>
+        <p>{t.serialNo}: {head.sn ?? "-"}</p>
+        <p className="col-span-2 text-red-700">{t.issue}: {head.issue ?? "-"}</p>
+        <p>{t.warranty}: {head.warranty ?? "-"}</p>
+        <p>{t.receiver}: {head.receiver ?? "-"}</p>
 
-        <p className="col-span-2 mt-2 font-bold">ຜົນການກວດເຊັກ</p>
-        <p className="col-span-2">ອາການຊ່າງວິເຄາະ: {head.issue_2 ?? "-"}</p>
-        <p>ພິຈາລະນາປະກັນ: {head.warranty_request === 1 ? "ຂໍປ່ຽນປະກັນ" : "ປົກກະຕິ"}</p>
-        <p>ເຫດຜົນ: {doc?.w_reason || "-"}</p>
-        <p>ຊ່າງສ້ອມ: {head.technician ?? "-"}</p>
-        <p>ໃຊ້ອາໄຫຼ່: {head.used_spare === 1 ? "ໃຊ້ອາໄຫຼ່" : "ບໍ່ໃຊ້ອາໃຫຼ່"}</p>
-        <p>ວັນ/ເວລາເລີ່ມກວດເຊັກ: {head.check_started ?? "-"}</p>
-        <p>ວັນ/ເວລາກວດເຊັກຈົບ: {head.check_finished ?? "-"}</p>
+        <p className="col-span-2 mt-2 font-bold">{t.checkResultSection}</p>
+        <p className="col-span-2">{t.technicianDiagnosis}: {head.issue_2 ?? "-"}</p>
+        <p>{t.warrantyConsideration}: {head.warranty_request === 1 ? t.requestWarrantyChange : t.normal}</p>
+        <p>{t.reason}: {doc?.w_reason || "-"}</p>
+        <p>{t.technician}: {head.technician ?? "-"}</p>
+        <p>{t.usesSpare}: {head.used_spare === 1 ? t.usesSpare : t.spareNotUsed}</p>
+        <p>{t.checkStartedAt}: {head.check_started ?? "-"}</p>
+        <p>{t.checkFinishedAt}: {head.check_finished ?? "-"}</p>
       </section>
 
       {head.used_spare === 1 && lines.length > 0 && (
         <>
-          <p className="mt-5 mb-1 font-bold">ອາໄຫຼ່ທີ່ຕ້ອງການ</p>
+          <p className="mt-5 mb-1 font-bold">{t.sparePartsNeeded}</p>
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr>
-                {["#", "ລະຫັດສິນຄ້າ", "ຊື່ສິນຄ້າ", "ຈຳນວນ", "ຫົວໜ່ວຍ"].map((cell) => (
+                {["#", t.itemCode, t.productName, t.qty, t.unit].map((cell) => (
                   <th key={cell} className="border border-slate-900 px-2 py-1 font-normal">
                     {cell}
                   </th>
@@ -161,12 +164,14 @@ export default async function CheckingPrintPage({ params }: { params: Promise<{ 
       )}
 
       <div className="mt-16 grid grid-cols-3 gap-4 text-center text-sm">
-        {["ລູກຄ້າ", "ຜູ້ຮັບເຄື່ອງ", "ຊ່າງກວດເຊັກ"].map((role) => (
-          <div key={role}>
-            <p className="mb-12">{role}</p>
-            <p className="border-t border-slate-900 pt-1">
-              {role === "ຜູ້ຮັບເຄື່ອງ" ? (head.receiver ?? "") : role === "ຊ່າງກວດເຊັກ" ? (head.technician ?? "") : ""}
-            </p>
+        {[
+          { label: t.customer, name: "" },
+          { label: t.receiver, name: head.receiver ?? "" },
+          { label: t.checkTechnician, name: head.technician ?? "" },
+        ].map((role) => (
+          <div key={role.label}>
+            <p className="mb-12">{role.label}</p>
+            <p className="border-t border-slate-900 pt-1">{role.name}</p>
           </div>
         ))}
       </div>
