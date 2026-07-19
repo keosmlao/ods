@@ -155,6 +155,7 @@ const RULES: Rule[] = [
   { path: "/stock/products", roles: STOCK_SIDE },
   { path: "/stock/transfers", roles: STOCK_SIDE },
   { path: "/stock/transfer-to-repair", roles: STOCK_SIDE },
+  { path: "/stock/balance", roles: [...STOCK_SIDE, HT] },
   // ສ້າງອາໄຫຼ່ / ຂໍສັ່ງຊື່: ods ໄວ້ໃນເມນູ "ບໍລິການ" ແຕ່ສາງເປັນຜູ້ລົງມືຕົວຈິງ
   // (ການແຈ້ງເຕືອນ ROLE_WAREHOUSE ຊີ້ມາໜ້ານີ້) ⇒ ເພີ່ມ stock ເຂົ້ານຳ
   { path: "/spare-parts/new", roles: [M, A, S] },

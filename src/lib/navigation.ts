@@ -147,6 +147,7 @@ const STOCK: NavGroup = {
     { label: "ລາຍການສົ່ງ​ຄືນອາໄຫຼ່", href: "/stock/receive-returns" },
     // ອາໄຫຼ່ທີ່ເບີກອອກໄປແລ້ວ ແຕ່ວຽກຍົກເລີກ — ຕ້ອງເກັບຄືນ (ຍ້າຍມາຈາກໜ້າອະນຸມັດ 17-07-2026)
     { label: "ອາໄຫຼ່ຄ້າງນອກສາງ", href: "/stock/spare-recovery", count: "/stock/spare-recovery" },
+    { label: "ຕິດຕາມສິນຄ້າຄົງເຫຼືອ", href: "/stock/balance" },
     { label: "ລາຍການອາໄຫຼ່", href: "/stock/spare-parts", divider: true },
     { label: "ສິນຄ້າສ້ອມແປງ", href: "/stock/products" },
     { label: "ສ້າງອາໄຫຼ່", href: "/spare-parts/new" },
