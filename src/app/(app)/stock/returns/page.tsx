@@ -7,6 +7,8 @@ import { Todo } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { ownJobsOnly } from "@/lib/scope";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import { Activity, Ban, ChevronLeft, ChevronRight, FileBarChart, PackageOpen, Undo2 } from "lucide-react";
@@ -265,25 +267,27 @@ async function getCounts(job: "install" | "repair", tech: string | null) {
  * ຫົວຕາຕະລາງ: ods ຂຽນ "ລູກຄ້າ/ລາຍການ/Model/SN..." ໄວ້ ແຕ່ query ຄືນຄ່າຄໍລຳຂອງເອກະສານ
  * (doc_no, doc_date, doc_ref, ...) → ຫົວກັບຂໍ້ມູນບໍ່ຕົງກັນ. ຢູ່ນີ້ໃສ່ຫົວໃຫ້ຕົງກັບຂໍ້ມູນຈິງ.
  */
-const DOC_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "doc_no", label: "ເລກທີໃບເບີກ", defaultDir: "desc" },
-  { key: "elapsed", label: "ຄ້າງມາ", defaultDir: "asc" },
-  { key: "doc_ref", label: "ເລກທີໃບກວດເຊັກ", defaultDir: "desc" },
-  { key: "product", label: "ລະຫັດເຄື່ອງ", defaultDir: "desc" },
-  { key: "remark", label: "ໝາຍເຫດ", defaultDir: "asc" },
+type Dict = Record<string, string>;
+
+const docColumns = (t: Dict): { key: string; label: string; defaultDir: SortDir }[] => [
+  { key: "doc_no", label: t.colDocNo, defaultDir: "desc" },
+  { key: "elapsed", label: t.colWaited, defaultDir: "asc" },
+  { key: "doc_ref", label: t.colCheckBillNo, defaultDir: "desc" },
+  { key: "product", label: t.colProductCode, defaultDir: "desc" },
+  { key: "remark", label: t.colRemark, defaultDir: "asc" },
 ];
 
-const MOVE_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "product", label: "ລາຍການ", defaultDir: "asc" },
+const moveColumns = (t: Dict): { key: string; label: string; defaultDir: SortDir }[] => [
+  { key: "product", label: t.colItem, defaultDir: "asc" },
   { key: "model", label: "Model", defaultDir: "asc" },
   { key: "sn", label: "SN", defaultDir: "asc" },
-  { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
-  { key: "elapsed", label: "ໄລຍະເວລາ", defaultDir: "asc" },
-  { key: "technician", label: "ຊ່າງ", defaultDir: "asc" },
+  { key: "brand", label: t.colBrand, defaultDir: "asc" },
+  { key: "elapsed", label: t.colElapsed, defaultDir: "asc" },
+  { key: "technician", label: t.colTechnician, defaultDir: "asc" },
 ];
 
 /** ປ້າຍປະເພດວຽກ */
-function JobBadge({ jobType }: { jobType: string | null }) {
+function JobBadge({ jobType, t }: { jobType: string | null; t: Dict }) {
   const install = jobType === "install";
   return (
     <span
@@ -291,7 +295,7 @@ function JobBadge({ jobType }: { jobType: string | null }) {
         install ? "bg-violet-50 text-violet-700" : "bg-slate-100 text-slate-600"
       }`}
     >
-      {install ? "ຕິດຕັ້ງ" : "ສ້ອມແປງ"}
+      {install ? t.jobInstall : t.jobRepair}
     </span>
   );
 }
@@ -299,6 +303,7 @@ function JobBadge({ jobType }: { jobType: string | null }) {
 export default async function StockReturnsPage({ searchParams }: Props) {
   // ດຶງໃບຮັບຄືນຈາກ ERP ກ່ອນ ⇒ ຄິວທີ່ເຫັນເປັນຄວາມຈິງລ້າສຸດ
   await syncErpReturns();
+  const t = (await getDictionary(await getLocale())).stockReturns;
   const tech = ownJobsOnly(await getSession());
 
   const params = await searchParams;
@@ -339,12 +344,12 @@ export default async function StockReturnsPage({ searchParams }: Props) {
     `/stock/returns?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
   const TABS: { key: Tab; label: string; icon: typeof PackageOpen; count: number }[] = [
-    { key: "dispatched", label: "ລາຍການເບີກອາໄຫຼ່", icon: PackageOpen, count: counts.dispatched },
+    { key: "dispatched", label: t.tabDispatched, icon: PackageOpen, count: counts.dispatched },
     // ງານຍົກເລີກແຕ່ອາໄຫຼ່ຍັງຢູ່ນອກສາງ — ຕ້ອງສ້າງໃບຂໍຄືນ ບໍ່ດັ່ງນັ້ນຂອງຫາຍໂດຍບໍ່ມີເອກະສານ
-    { key: "cancelled", label: "ຍົກເລີກ — ຖ້າສົ່ງຄືນ", icon: Ban, count: counts.cancelled },
-    { key: "requested", label: "ລາຍການຂໍສົ່ງ​ຄືນອາໄລ່", icon: Undo2, count: counts.requested },
+    { key: "cancelled", label: t.tabCancelled, icon: Ban, count: counts.cancelled },
+    { key: "requested", label: t.tabRequested, icon: Undo2, count: counts.requested },
     ...(job === "repair"
-      ? [{ key: "movements" as const, label: "ການເຄື່ອນໃຫວ", icon: Activity, count: counts.movements }]
+      ? [{ key: "movements" as const, label: t.tabMovements, icon: Activity, count: counts.movements }]
       : []),
   ];
 
@@ -356,15 +361,15 @@ export default async function StockReturnsPage({ searchParams }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-700">
-            ສົ່ງຄືນອາໄຫຼ່ ({job === "install" ? "ຕິດຕັ້ງ" : "ສ້ອມແປງ"})
+            {t.title} ({job === "install" ? t.jobInstall : t.jobRepair})
           </h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            ໃບຂໍສົ່ງອາໄຫຼ່ · {tech ? "ສະເພາະງານຂອງທ່ານ · " : ""}{list.total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+            {t.subtitle} · {tech ? `${t.yourJobsOnly} · ` : ""}{list.total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
           </p>
         </div>
         <Todo className="h-9 px-3 text-xs">
           <FileBarChart className="size-4" />
-          ລາຍງານ
+          {t.report}
         </Todo>
       </div>
 
@@ -396,9 +401,7 @@ export default async function StockReturnsPage({ searchParams }: Props) {
           sort={sort}
           dir={dir}
           showJob={tab !== "movements"}
-          placeholder={
-            tab === "movements" ? "ຄົ້ນຫາ ລາຍການ, SN, ຫຍີ່ຫໍ້, ຊ່າງ..." : "ຄົ້ນຫາ ເລກທີ, ໃບກວດເຊັກ, ໝາຍເຫດ..."
-          }
+          placeholder={tab === "movements" ? t.searchMovements : t.searchDocs}
         />
       </div>
 
@@ -409,7 +412,7 @@ export default async function StockReturnsPage({ searchParams }: Props) {
             <table className="w-full min-w-[1100px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                  {MOVE_COLUMNS.map((column) => (
+                  {moveColumns(t).map((column) => (
                     <SortHeader
                       key={column.key}
                       label={column.label}
@@ -421,9 +424,9 @@ export default async function StockReturnsPage({ searchParams }: Props) {
                       className="py-2.5"
                     />
                   ))}
-                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ເວລາຂໍເບີກ</th>
-                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ເວລາເບີກ</th>
-                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສະຖານະ</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colRequestTime}</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colDispatchTime}</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colStatus}</th>
                 </tr>
               </thead>
               <tbody>
@@ -445,7 +448,7 @@ export default async function StockReturnsPage({ searchParams }: Props) {
                         {done ? (
                           <span className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${tone.chip}`}>
                             {/* ຄ່າຄົງທີ່ — ຈາກຂໍເບີກຫາເບີກສຳເລັດ */}
-                            {formatSpan(row.elapsed_seconds)}
+                            {formatSpan(row.elapsed_seconds, t)}
                           </span>
                         ) : (
                           <Elapsed
@@ -455,8 +458,8 @@ export default async function StockReturnsPage({ searchParams }: Props) {
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5">{row.emp_code || "-"}</td>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">{row.reg_at ?? "ລໍຖ້າ"}</td>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">{row.finish_at ?? "ລໍຖ້າ"}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">{row.reg_at ?? t.waiting}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">{row.finish_at ?? t.waiting}</td>
                       <td className="whitespace-nowrap px-3 py-2.5">
                         <span
                           className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
@@ -479,7 +482,7 @@ export default async function StockReturnsPage({ searchParams }: Props) {
             <table className="w-full min-w-[1100px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                  {DOC_COLUMNS.map((column) => (
+                  {docColumns(t).map((column) => (
                     <SortHeader
                       key={column.key}
                       label={column.label}
@@ -491,7 +494,7 @@ export default async function StockReturnsPage({ searchParams }: Props) {
                       className="py-2.5"
                     />
                   ))}
-                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສະຖານະ</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colStatus}</th>
                   {canRequest(tab) && <th className="px-3 py-2.5" />}
                 </tr>
               </thead>
@@ -506,7 +509,7 @@ export default async function StockReturnsPage({ searchParams }: Props) {
                         <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                         {doc.doc_no}
                         <span className="mt-0.5 block">
-                          <JobBadge jobType={doc.job_type} />
+                          <JobBadge jobType={doc.job_type} t={t} />
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5">
@@ -535,10 +538,10 @@ export default async function StockReturnsPage({ searchParams }: Props) {
                           }`}
                         >
                           {tab === "cancelled"
-                            ? "ງານຍົກເລີກ — ຕ້ອງສົ່ງຄືນ"
+                            ? t.statusCancelled
                             : tab === "dispatched"
-                              ? "ເບີກອາໄຫຼ່ສຳເລັດ"
-                              : "ຂໍສົ່ງຄືນອາໄຫຼ່"}
+                              ? t.statusDispatched
+                              : t.statusRequested}
                         </span>
                       </td>
                       {canRequest(tab) && (
@@ -551,9 +554,9 @@ export default async function StockReturnsPage({ searchParams }: Props) {
                     {/* ລາຍການອາໄຫຼ່ທີ່ຍັງຄ້າງນອກສາງຂອງໃບເບີກນີ້ — ຄິວ "ຍົກເລີກ" ເທົ່ານັ້ນ */}
                     {tab === "cancelled" && lines.length > 0 && (
                       <tr className="border-b border-slate-100 bg-red-50/40">
-                        <td colSpan={DOC_COLUMNS.length + 2} className="px-3 pb-3 pt-0">
+                        <td colSpan={docColumns(t).length + 2} className="px-3 pb-3 pt-0">
                           <p className="mb-1 text-[11px] font-bold text-red-800">
-                            ອາໄຫຼ່ຄ້າງນອກສາງ {lines.length} ລາຍການ
+                            {t.sparesOutstanding} {lines.length} {t.items}
                           </p>
                           <ul className="grid gap-x-6 gap-y-0.5 sm:grid-cols-2 lg:grid-cols-3">
                             {lines.map((line, index) => (
@@ -576,13 +579,13 @@ export default async function StockReturnsPage({ searchParams }: Props) {
           )}
         </div>
 
-        {list.total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+        {list.total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, list.total)} ຈາກ {list.total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, list.total)} {t.of} {list.total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -591,7 +594,7 @@ export default async function StockReturnsPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -601,7 +604,7 @@ export default async function StockReturnsPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>
@@ -612,12 +615,12 @@ export default async function StockReturnsPage({ searchParams }: Props) {
 }
 
 /** ໄລຍະເວລາທີ່ຈົບແລ້ວ — ຮູບແບບດຽວກັບ <Elapsed> ແຕ່ບໍ່ເດີນ */
-function formatSpan(seconds: number | null) {
+function formatSpan(seconds: number | null, t: Dict) {
   if (seconds == null) return "-";
   const days = Math.floor(seconds / 86400);
   const rest = seconds % 86400;
   const clock = [Math.floor(rest / 3600), Math.floor((rest % 3600) / 60), rest % 60]
     .map((part) => String(part).padStart(2, "0"))
     .join(":");
-  return days > 0 ? `${days} ມື້ ${clock}` : clock;
+  return days > 0 ? `${days} ${t.days} ${clock}` : clock;
 }

@@ -1,6 +1,8 @@
 import { LinkPending } from "@/components/link-pending";
 import { SelectField } from "@/components/select-field";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { ArrowLeft, Search } from "lucide-react";
 import Link from "next/link";
 
@@ -70,6 +72,7 @@ function eventsSql(table: string, snColumn: string, events: [string, string][]) 
 
 export default async function TrackingPage({ searchParams }: Props) {
   const params = await searchParams;
+  const t = (await getDictionary(await getLocale())).dashboardTracking;
   const q = (params.q ?? "").trim();
   const type = params.type === "install" ? "install" : "repair";
 
@@ -84,7 +87,7 @@ export default async function TrackingPage({ searchParams }: Props) {
       events = (await query<Event>(sql, [q])).rows;
     } catch (e) {
       console.error(e);
-      error = "ຄົ້ນຫາບໍ່ສຳເລັດ";
+      error = t.searchFailed;
     }
   }
 
@@ -96,11 +99,11 @@ export default async function TrackingPage({ searchParams }: Props) {
       <div>
         <Link href="/dashboard" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
           <ArrowLeft className="size-3.5" />
-          ກັບໜ້າລວມ
+          {t.backToOverview}
           <LinkPending className="size-3" />
         </Link>
-        <h1 className="text-xl font-bold text-slate-700">ຕິດຕາມວຽກ</h1>
-        <p className="mt-0.5 text-xs text-slate-500">ຄົ້ນຫາດ້ວຍ Serial Number ຫຼື ເລກທີວຽກ</p>
+        <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
+        <p className="mt-0.5 text-xs text-slate-500">{t.subtitle}</p>
       </div>
 
       <form className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
@@ -108,10 +111,10 @@ export default async function TrackingPage({ searchParams }: Props) {
           <SelectField
             name="type"
             defaultValue={type}
-            placeholder="ປະເພດວຽກ..."
+            placeholder={t.jobTypePlaceholder}
             options={[
-              { value: "repair", label: "ວຽກສ້ອມ" },
-              { value: "install", label: "ວຽກຕິດຕັ້ງ" },
+              { value: "repair", label: t.repairJob },
+              { value: "install", label: t.installJob },
             ]}
           />
         </div>
@@ -121,11 +124,11 @@ export default async function TrackingPage({ searchParams }: Props) {
             name="q"
             defaultValue={q}
             required
-            placeholder="Serial Number / ເລກທີວຽກ"
+            placeholder={t.searchPlaceholder}
             className="w-full text-xs outline-none"
           />
         </div>
-        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.searchButton}</button>
       </form>
 
       {error && (
@@ -135,9 +138,9 @@ export default async function TrackingPage({ searchParams }: Props) {
       {q && (
         <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3">
-            <h2 className="text-sm font-bold text-slate-700">ການເຄື່ອນໄຫວ: {q}</h2>
+            <h2 className="text-sm font-bold text-slate-700">{t.activity}: {q}</h2>
             <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
-              {events.length} ເຫດການ
+              {events.length} {t.eventsWord}
             </span>
             {codes.map((code) =>
               type === "repair" ? (
@@ -146,11 +149,11 @@ export default async function TrackingPage({ searchParams }: Props) {
                   href={`/service/${code}`}
                   className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-[#0536a9] hover:underline"
                 >
-                  ໃບຮັບເຄື່ອງ {code}
+                  {t.receiptDoc} {code}
                 </Link>
               ) : (
                 <span key={code} className="rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
-                  ວຽກຕິດຕັ້ງ {code}
+                  {t.installJob} {code}
                 </span>
               ),
             )}
@@ -163,13 +166,13 @@ export default async function TrackingPage({ searchParams }: Props) {
                   <span className="absolute -left-[29px] top-1 size-2.5 rounded-full bg-teal-500 ring-4 ring-teal-50" />
                   <p className="text-xs font-semibold text-slate-800">{event.event}</p>
                   <p className="mt-0.5 text-[11px] text-slate-500">
-                    {event.date} · {event.time} · ເລກທີ {event.code}
+                    {event.date} · {event.time} · {t.docNo} {event.code}
                   </p>
                 </li>
               ))}
             </ol>
           ) : (
-            <p className="py-10 text-center text-xs text-slate-400">ບໍ່ພົບປະຫວັດ</p>
+            <p className="py-10 text-center text-xs text-slate-400">{t.noHistory}</p>
           )}
         </section>
       )}

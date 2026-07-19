@@ -2,6 +2,7 @@
 import { approveRqOrder, notApproveRqOrder } from "@/app/actions/purchase";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Button, Card, Empty, ErrorBox, inputClass, labelClass, LinkButton, Table } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { Check, LoaderCircle, LogOut, X } from "lucide-react";
 import Image from "next/image";
 import { useActionState, useMemo, useRef, useState } from "react";
@@ -64,6 +65,7 @@ export function ApproveForm({
   const approveRef = useRef<HTMLFormElement>(null);
   const rejectRef = useRef<HTMLFormElement>(null);
   const { ask, dialog } = useConfirm();
+  const t = useDict().approveForm;
 
   const total = useMemo(() => lines.reduce((sum, line) => sum + Number(line.sum_amount), 0), [lines]);
   const busy = approving || rejecting;
@@ -85,14 +87,14 @@ export function ApproveForm({
               }`}
             >
               {head.aprove_status === 1
-                ? `ອະນຸມັດໄປແລ້ວ${head.approver1 ? ` ໂດຍ ${head.approver1}` : ""}${
-                    head.spr_no ? ` — ໃບສັ່ງຊື້ ${head.spr_no}` : ""
+                ? `${t.decidedApproved}${head.approver1 ? ` ${t.by} ${head.approver1}` : ""}${
+                    head.spr_no ? ` — ${t.poRefLabel} ${head.spr_no}` : ""
                   }`
-                : "ໃບນີ້ຖືກປະຕິເສດ ຫຼື ຖອນຄືນໄປແລ້ວ"}
+                : t.decidedRejected}
             </p>
             <LinkButton href="/approvals/purchase-requests" tone="neutral">
               <LogOut className="size-4" />
-              ອອກ
+              {t.exit}
             </LinkButton>
           </div>
         ) : (
@@ -110,27 +112,27 @@ export function ApproveForm({
                   disabled={busy}
                   onClick={async () => {
                     const ok = await ask({
-                      title: "ອະນຸມັດໃບຂໍສັ່ງຊື້?",
+                      title: t.approveConfirmTitle,
                       message: (
                         <>
-                          ຈະອອກໃບສັ່ງຊື້ <b className="text-slate-700">{docNo}</b> ລົງລະບົບ ERP ທັນທີ ແລະ ຖອນຄືນບໍ່ໄດ້
+                          {t.approveConfirmLead} <b className="text-slate-700">{docNo}</b> {t.approveConfirmTail}
                           <span className="mt-1 block text-slate-500">
-                            {lines.length} ລາຍການ · ລວມ {money(total)}
+                            {lines.length} {t.items} · {t.total} {money(total)}
                           </span>
                         </>
                       ),
-                      confirmLabel: "ອະນຸມັດ",
+                      confirmLabel: t.approve,
                     });
                     if (ok) approveRef.current?.requestSubmit();
                   }}
                 >
                   {approving ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />}
-                  ອະນຸມັດ
+                  {t.approve}
                 </Button>
               </form>
               <LinkButton href="/approvals/purchase-requests" tone="neutral">
                 <LogOut className="size-4" />
-                ອອກ
+                {t.exit}
               </LinkButton>
             </div>
 
@@ -143,21 +145,21 @@ export function ApproveForm({
                 disabled={busy}
                 onClick={async () => {
                   const ok = await ask({
-                    title: "ບໍ່ອະນຸມັດໃບຂໍສັ່ງຊື້?",
+                    title: t.rejectConfirmTitle,
                     message: (
                       <>
-                        ໃບ <b className="text-slate-700">{head.doc_no}</b> ຈະຖືກປິດ ແລະ ອາໄຫຼ່ກັບໄປລໍຖ້າການສັ່ງຊື້ໃໝ່
+                        {t.docWord} <b className="text-slate-700">{head.doc_no}</b> {t.rejectConfirmTail}
                       </>
                     ),
-                    confirmLabel: "ບໍ່ອະນຸມັດ",
-                    cancelLabel: "ຍົກເລີກ",
+                    confirmLabel: t.reject,
+                    cancelLabel: t.cancel,
                     tone: "danger",
                   });
                   if (ok) rejectRef.current?.requestSubmit();
                 }}
               >
                 {rejecting ? <LoaderCircle className="size-4 animate-spin" /> : <X className="size-4" />}
-                ບໍ່ອະນຸມັດ
+                {t.reject}
               </Button>
             </form>
           </div>
@@ -166,28 +168,28 @@ export function ApproveForm({
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <Card title="ຂໍ້ມູນໃບຂໍອະນຸມັດ">
+          <Card title={t.headTitle}>
             <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-              <Field label="ເລກທິບິນອະນຸມັດ" value={docNo} highlight />
-              <Field label="ວັນທີອະນຸມັດ" value={today} highlight />
-              <Field label="ເລກທິຂໍສັ່ງຊື້" value={head.doc_no} />
-              <Field label="ວັນທີຂໍສັ່ງຊື້" value={head.doc_date} />
-              <Field label="ລູກຄ້າ" value={head.customer} wide />
-              <Field label="ຊື່ສິນຄ້າ" value={head.product} />
+              <Field label={t.fieldApproveNo} value={docNo} highlight />
+              <Field label={t.fieldApproveDate} value={today} highlight />
+              <Field label={t.fieldReqNo} value={head.doc_no} />
+              <Field label={t.fieldReqDate} value={head.doc_date} />
+              <Field label={t.fieldCustomer} value={head.customer} wide />
+              <Field label={t.productName} value={head.product} />
               <Field label="Model" value={head.model} />
               <Field label="SN" value={head.sn} />
               <Field label="BRAND" value={head.brand} />
-              <Field label="ອາການເສຍ" value={head.issue} highlight />
-              <Field label="ອາການຊ່າງ" value={head.issue_2} highlight />
-              <Field label="ຜູ້ຮັບເຄື່ອງ" value={head.user_regis} />
-              <Field label="ຊ່າງ" value={head.emp_code} />
-              <Field label="ສະຖານະ" value={head.status_doc} highlight />
-              <Field label="ປະກັນ" value={head.warranty} highlight />
-              <Field label="ຜູ້ຂໍອະນຸມັດ" value={head.user_created} />
+              <Field label={t.fieldIssue} value={head.issue} highlight />
+              <Field label={t.fieldIssue2} value={head.issue_2} highlight />
+              <Field label={t.fieldReceiver} value={head.user_regis} />
+              <Field label={t.fieldTech} value={head.emp_code} />
+              <Field label={t.fieldStatus} value={head.status_doc} highlight />
+              <Field label={t.fieldWarranty} value={head.warranty} highlight />
+              <Field label={t.fieldRequester} value={head.user_created} />
             </dl>
 
             <div className="mt-4">
-              <label className={labelClass} htmlFor="remark">ໝາຍເຫດ</label>
+              <label className={labelClass} htmlFor="remark">{t.remark}</label>
               <input
                 id="remark"
                 type="text"
@@ -199,19 +201,19 @@ export function ApproveForm({
           </Card>
         </div>
 
-        <Card title="ຮູບພາບ">
+        <Card title={t.picturesTitle}>
           <div className="space-y-4">
-            <Picture label="ຮູບພາບເຄື່ອງ" url={head.product_url} />
-            <Picture label="ເອກະສານເເນບ" url={head.attach_url} />
+            <Picture label={t.pictureDevice} url={head.product_url} />
+            <Picture label={t.pictureAttach} url={head.attach_url} />
           </div>
         </Card>
       </div>
 
-      <Card title="ອາໄຫຼ່ທີ່ໃຊ້">
+      <Card title={t.sparesTitle}>
         {lines.length === 0 ? (
           <Empty />
         ) : (
-          <Table head={["ລະຫັດສິນຄ້າ", "ຊື່ສິນຄ້າ", "ຈຳນວນ", "ຫົວໜ່ວຍ", "ລາຄາ", "ລວມ"]} minWidth={900}>
+          <Table head={[t.colItemCode, t.productName, t.colQty, t.colUnit, t.colPrice, t.total]} minWidth={900}>
             {lines.map((line) => (
               <tr key={line.item_code} className="border-b border-slate-100">
                 <td className="px-3 py-2">{line.item_code}</td>
@@ -223,7 +225,7 @@ export function ApproveForm({
               </tr>
             ))}
             <tr className="bg-slate-50 font-bold">
-              <td colSpan={5} className="px-3 py-3 text-right">ລວມ</td>
+              <td colSpan={5} className="px-3 py-3 text-right">{t.total}</td>
               <td className="px-3 py-3 text-right text-red-600">{money(total)}</td>
             </tr>
           </Table>
@@ -243,6 +245,7 @@ function Field({ label, value, wide, highlight }: { label: string; value: string
 }
 
 function Picture({ label, url }: { label: string; url: string | null }) {
+  const t = useDict().approveForm;
   return (
     <div>
       <p className="mb-1 text-xs text-slate-500">{label}</p>
@@ -256,7 +259,7 @@ function Picture({ label, url }: { label: string; url: string | null }) {
           className="h-48 w-full rounded-lg object-contain"
         />
       ) : (
-        <div className="grid h-48 place-items-center rounded-lg bg-slate-50 text-sm text-slate-400">ບໍ່ມີຮູບ</div>
+        <div className="grid h-48 place-items-center rounded-lg bg-slate-50 text-sm text-slate-400">{t.noImage}</div>
       )}
     </div>
   );
