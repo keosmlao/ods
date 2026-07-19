@@ -6,6 +6,8 @@ import { RowLink } from "@/components/row-link";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { type Dictionary, getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { ownJobsOnly } from "@/lib/scope";
 import { SERVICE_TYPE_LABEL, SLA_SQL, slaLabel, slaState, slaTone } from "@/lib/sla";
 import { AlertTriangle, ChevronLeft, ChevronRight, ClipboardCheck, Clock, FileBarChart, Search } from "lucide-react";
@@ -14,6 +16,8 @@ import Link from "next/link";
 /** ຖອດແບບຈາກ ods: check.py pro_cheching() + templates/checking/homecheck.html */
 
 const PAGE_SIZE = 20;
+
+type Dict = Dictionary["checking"];
 
 type Tab = "waiting" | "progress";
 type SlaFilter = "warning" | "late" | "critical" | "";
@@ -118,18 +122,19 @@ async function getCounts(emp: string | null) {
   return { waiting: row?.waiting ?? 0, progress: row?.progress ?? 0 };
 }
 
-const JOB_COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "code", label: "ເລກທີ", defaultDir: "desc" },
-  { key: "elapsed", label: "ຄ້າງມາ", defaultDir: "desc" },
-  { key: "product", label: "ຊື່ເຄື່ອງ / SN", defaultDir: "asc" },
-  { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
-  { key: "warranty", label: "ປະກັນ", defaultDir: "asc" },
-  { key: "receiver", label: "ຜູ້ຮັບເຄື່ອງ", defaultDir: "asc" },
+const JOB_COLUMNS: { key: string; labelKey: keyof Dict; defaultDir: SortDir }[] = [
+  { key: "code", labelKey: "colCode", defaultDir: "desc" },
+  { key: "elapsed", labelKey: "colElapsed", defaultDir: "desc" },
+  { key: "product", labelKey: "colProductSn", defaultDir: "asc" },
+  { key: "brand", labelKey: "colBrand", defaultDir: "asc" },
+  { key: "customer", labelKey: "colCustomer", defaultDir: "asc" },
+  { key: "warranty", labelKey: "colWarranty", defaultDir: "asc" },
+  { key: "receiver", labelKey: "colReceiver", defaultDir: "asc" },
 ];
 
 export default async function CheckingPage({ searchParams }: Props) {
   const session = await getSession();
+  const t = (await getDictionary(await getLocale())).checking;
   // ຊ່າງເຫັນສະເພາະວຽກຕົນເອງ · ຜູ້ຈັດການ ແລະ ຄົນອື່ນເຫັນທຸກວຽກ
   const emp = ownJobsOnly(session);
 
@@ -155,17 +160,17 @@ export default async function CheckingPage({ searchParams }: Props) {
     `/checking?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
   const TABS: { key: Tab; label: string; icon: typeof Clock; count: number }[] = [
-    { key: "waiting", label: "ລໍຖ້າກວດເຊັກ", icon: Clock, count: counts.waiting },
-    { key: "progress", label: "ກຳລັງກວດເຊັກ", icon: ClipboardCheck, count: counts.progress },
+    { key: "waiting", label: t.tabWaiting, icon: Clock, count: counts.waiting },
+    { key: "progress", label: t.tabProgress, icon: ClipboardCheck, count: counts.progress },
   ];
 
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-700">ກວດເຊັກ</h1>
+          <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            {emp ? "ສະແດງສະເພາະວຽກຂອງທ່ານ" : "ສະແດງທຸກວຽກ"} · {total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+            {emp ? t.showOwnJobs : t.showAllJobs} · {total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
           </p>
         </div>
         <Link
@@ -173,7 +178,7 @@ export default async function CheckingPage({ searchParams }: Props) {
           className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
         >
           <FileBarChart className="size-4" />
-          ລາຍງານ
+          {t.report}
           <LinkPending className="size-3.5" />
         </Link>
       </div>
@@ -183,10 +188,10 @@ export default async function CheckingPage({ searchParams }: Props) {
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
           <AlertTriangle className="size-4 shrink-0" />
           <span>
-            ມີ <b>{jobs.late}</b> ລາຍການ <b>ເກີນກຳນົດເວລາ</b>
+            {t.thereAre} <b>{jobs.late}</b> {t.items} <b>{t.overTimeLimit}</b>
           </span>
           <span className="text-red-500">
-            (ລູກຄ້ານຳເຄື່ອງເຂົ້າ ແລະ ສ້ອມເຄື່ອງໃນສາງ = 2 ຊມ · ສ້ອມບ້ານລູກຄ້າ ແລະ ໄປຮັບເຄື່ອງຈາກບ້ານມາສ້ອມຢູ່ສູນ = 12 ຊມ)
+            {t.slaNote}
           </span>
         </p>
       )}
@@ -222,18 +227,18 @@ export default async function CheckingPage({ searchParams }: Props) {
             <input
               name="q"
               defaultValue={q}
-              placeholder="ຄົ້ນຫາ ເລກທີ, SN, ລູກຄ້າ, ຫຍີ່ຫໍ້, ອາການ..."
+              placeholder={t.searchPlaceholder}
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
       {sla && (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
-          <span>ກຳລັງກອງ SLA: <b>{sla === "warning" ? "ໃກ້ເກີນ" : sla === "late" ? "ເກີນກຳນົດ" : "ຮ້າຍແຮງ"}</b> · {total.toLocaleString()} ລາຍການ</span>
-          <Link href={tab === "progress" ? "/checking?tab=progress" : "/checking"} className="font-semibold hover:underline">ລ້າງຕົວກອງ</Link>
+          <span>{t.filteringSla}: <b>{sla === "warning" ? t.slaWarning : sla === "late" ? t.slaLate : t.slaCritical}</b> · {total.toLocaleString()} {t.items}</span>
+          <Link href={tab === "progress" ? "/checking?tab=progress" : "/checking"} className="font-semibold hover:underline">{t.clearFilter}</Link>
         </div>
       )}
 
@@ -246,7 +251,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                   {JOB_COLUMNS.map((column) => (
                     <SortHeader
                       key={column.key}
-                      label={column.label}
+                      label={t[column.labelKey]}
                       sortKey={column.key}
                       current={sort}
                       dir={dir}
@@ -255,8 +260,8 @@ export default async function CheckingPage({ searchParams }: Props) {
                       className="py-2.5"
                     />
                   ))}
-                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ປະເພດບໍລິການ</th>
-                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາການເບື້ອງຕົ້ນ</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colServiceType}</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colIssue}</th>
                   <th className="px-3 py-2.5" />
                 </tr>
               </thead>
@@ -279,7 +284,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                             className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`}
                           />
                           {state === "late" && (
-                            <span className="rounded bg-red-100 px-1 text-[10px] font-bold text-red-700">ເກີນກຳນົດ</span>
+                            <span className="rounded bg-red-100 px-1 text-[10px] font-bold text-red-700">{t.slaLate}</span>
                           )}
                         </span>
                         <span className="mt-0.5 block text-[10px] text-slate-400">
@@ -322,7 +327,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                               className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
                             >
                               <ClipboardCheck className="size-3.5" />
-                              ກວດເຊັກຕໍ່
+                              {t.continueCheck}
                               <LinkPending className="size-3" />
                             </Link>
                             <UndoStartCheckButton code={row.code} variant="icon" />
@@ -336,7 +341,7 @@ export default async function CheckingPage({ searchParams }: Props) {
             </table>
         </div>
 
-        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
       {/* ບັດ — ມືຖື */}
@@ -360,7 +365,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                     className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`}
                   />
                   {state === "late" && (
-                    <span className="rounded bg-red-100 px-1 text-[10px] font-bold text-red-700">ເກີນກຳນົດ</span>
+                    <span className="rounded bg-red-100 px-1 text-[10px] font-bold text-red-700">{t.slaLate}</span>
                   )}
                 </span>
               </div>
@@ -402,7 +407,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                       className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
                     >
                       <ClipboardCheck className="size-3.5" />
-                      ກວດເຊັກຕໍ່
+                      {t.continueCheck}
                       <LinkPending className="size-3" />
                     </Link>
                     <UndoStartCheckButton code={row.code} variant="icon" />
@@ -414,14 +419,14 @@ export default async function CheckingPage({ searchParams }: Props) {
         })}
         </MobileCardList>
         {total === 0 && (
-          <p className="rounded-xl border border-slate-200 bg-white py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>
+          <p className="rounded-xl border border-slate-200 bg-white py-12 text-center text-xs text-slate-400">{t.noResults}</p>
         )}
       </div>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} ຈາກ {total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} {t.of} {total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -430,7 +435,7 @@ export default async function CheckingPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">{page} / {pages}</span>
             <Link
@@ -438,7 +443,7 @@ export default async function CheckingPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>

@@ -6,6 +6,8 @@ import { ServicePendingTable } from "@/components/service-pending-table";
 import type { SortDir } from "@/components/sort-header";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { permissionFor } from "@/lib/permissions";
 import { holdJsonSql } from "@/lib/job-hold";
 import { APPROVER_SIDE, roleOf } from "@/lib/roles";
@@ -124,6 +126,7 @@ export default async function ServicePage({ searchParams }: Props) {
   const sort = (params.sort ?? (isPending ? "elapsed" : "code")).trim();
 
   const session = await getSession();
+  const t = (await getDictionary(await getLocale())).service;
   const servicePermission = session
     ? await permissionFor(session, "/service")
     : { read: false, create: false, update: false, delete: false };
@@ -161,7 +164,7 @@ export default async function ServicePage({ searchParams }: Props) {
   const pagination = pages > 1 ? (
         <nav className="flex items-center justify-between gap-3 text-sm">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} ຈາກ {total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} {t.of} {total.toLocaleString()}
           </span>
 
           <div className="flex items-center gap-1">
@@ -170,7 +173,7 @@ export default async function ServicePage({ searchParams }: Props) {
               aria-disabled={page === 1}
               className="rounded-lg border border-slate-300 bg-white px-3 py-2 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ທຳອິດ
+              {t.first}
             </Link>
             <Link
               href={pageHref(page - 1)}
@@ -178,7 +181,7 @@ export default async function ServicePage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-2 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-4" />
-              ກ່ອນໜ້າ
+              {t.prev}
               <LinkPending />
             </Link>
 
@@ -191,7 +194,7 @@ export default async function ServicePage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-2 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <LinkPending />
               <ChevronRight className="size-4" />
             </Link>
@@ -200,7 +203,7 @@ export default async function ServicePage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="rounded-lg border border-slate-300 bg-white px-3 py-2 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ສຸດທ້າຍ
+              {t.last}
             </Link>
           </div>
         </nav>
@@ -210,11 +213,11 @@ export default async function ServicePage({ searchParams }: Props) {
     <div className="w-full space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-700">ລາຍການຮັບສິນຄ້າເຂົ້າສ້ອມ</h1>
+          <h1 className="text-2xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {board_view
-              ? `ວຽກທີ່ຍັງຄ້າງ ${total} ໃບ`
-              : `ວຽກທີ່ຍັງຄ້າງ ${total} ໃບ · ໜ້າ ${page}/${pages}`}
+              ? `${t.pendingJobs} ${total} ${t.unit}`
+              : `${t.pendingJobs} ${total} ${t.unit} · ${t.page} ${page}/${pages}`}
           </p>
         </div>
 
@@ -225,7 +228,7 @@ export default async function ServicePage({ searchParams }: Props) {
               className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white transition hover:bg-emerald-700"
             >
               <FilePlus2 className="size-4" />
-              ໃບຮັບເຄື່ອງ
+              {t.receipt}
             </Link>
           )}
           <Link
@@ -233,7 +236,7 @@ export default async function ServicePage({ searchParams }: Props) {
             className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white transition hover:bg-emerald-700"
           >
             <FileBarChart className="size-4" />
-            ລາຍງານ
+            {t.report}
           </Link>
           {/* Excel — ໃຊ້ຕົວກອງອັນດຽວກັບໜ້າຈໍ (ແທັບ · ຄຳຄົ້ນຫາ · ຂັ້ນ) ແຕ່ເອົາ **ຄົບທຸກແຖວ** ບໍ່ແບ່ງໜ້າ */}
           <a
@@ -252,7 +255,7 @@ export default async function ServicePage({ searchParams }: Props) {
             href="/service/notices"
             className="inline-flex h-10 items-center gap-2 rounded-lg border-2 border-red-500 bg-slate-100 px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-200"
           >
-            ລູກຄ້າເເຈ້ງສ້ອມ
+            {t.customerNotice}
             <Bell className="size-4" />
             <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-bold text-white">
               {noticeCount}
@@ -270,7 +273,7 @@ export default async function ServicePage({ searchParams }: Props) {
         <input type="hidden" name="dir" value={dir} />
         <div className="flex h-10 min-w-64 flex-1 items-center gap-2 rounded-lg border border-slate-300 px-3">
           <Search className="size-4 shrink-0 text-slate-400" />
-          <input name="q" defaultValue={q} placeholder="ຄົ້ນຫາ ເລກທີ, SN, ລູກຄ້າ, ຫຍີ່ຫໍ້, ອາການ..." className="w-full text-sm outline-none" />
+          <input name="q" defaultValue={q} placeholder={t.searchPlaceholder} className="w-full text-sm outline-none" />
         </div>
 
         {/* ກອງຕາມສະຖານະ — ສະເພາະແທັບວຽກຄ້າງ */}
@@ -279,7 +282,7 @@ export default async function ServicePage({ searchParams }: Props) {
             <SelectField
               name="status"
               defaultValue={status ? String(status) : ""}
-              placeholder="ສະຖານະທັງໝົດ"
+              placeholder={t.allStatus}
               options={STAGES.map((stage) => ({ value: String(stage.id), label: stage.label }))}
             />
           </div>
@@ -290,32 +293,32 @@ export default async function ServicePage({ searchParams }: Props) {
           <SelectField
             name="service"
             defaultValue={service ?? ""}
-            placeholder="ທຸກປະເພດບໍລິການ"
+            placeholder={t.allServiceTypes}
             options={SERVICE_CODES.map((code) => ({ value: code, label: `${code} · ${SERVICE_TYPE_LABEL[code] ?? code}` }))}
           />
         </div>
 
-        <button className="h-10 rounded-lg bg-slate-900 px-5 text-sm font-medium text-white">ຄົ້ນຫາ</button>
+        <button className="h-10 rounded-lg bg-slate-900 px-5 text-sm font-medium text-white">{t.search}</button>
 
         {/* ວຽກຄ້າງ: ສະຫຼັບ ຕາຕະລາງ ↔ ກະດານ */}
         {isPending && (
           <div className="flex overflow-hidden rounded-lg border border-slate-300">
             <Link
               href={tabHref("pending")}
-              title="ຕາຕະລາງ"
+              title={t.table}
               className={`inline-flex h-10 items-center gap-2 px-3 text-sm font-medium ${!board_view ? "bg-slate-900 text-white" : "bg-white text-slate-600"}`}
             >
               <Table2 className="size-4" />
-              ຕາຕະລາງ
+              {t.table}
               <LinkPending />
             </Link>
             <Link
               href={`/service?${new URLSearchParams({ view: "board", ...(q && { q }) })}`}
-              title="ກະດານ"
+              title={t.board}
               className={`inline-flex h-10 items-center gap-2 px-3 text-sm font-medium ${board_view ? "bg-slate-900 text-white" : "bg-white text-slate-600"}`}
             >
               <LayoutGrid className="size-4" />
-              ກະດານ
+              {t.board}
               <LinkPending />
             </Link>
           </div>

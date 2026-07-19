@@ -10,6 +10,8 @@ import { LinkButton } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { type Dictionary, getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { ownJobsOnly } from "@/lib/scope";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { OPEN_JOBS, STAGE_SQL } from "@/lib/stage";
@@ -21,6 +23,8 @@ import Link from "next/link";
 /** ຖອດແບບຈາກ ods: repair.py repair() + templates/repair/home_repair.html (ອອກແບບໃໝ່) */
 
 const PAGE_SIZE = 20;
+
+type Dict = Dictionary["repair"];
 
 type Tab = "waiting" | "progress" | "done";
 type Props = { searchParams: Promise<{ tab?: string; q?: string; page?: string; sort?: string; dir?: string }> };
@@ -142,14 +146,14 @@ async function getCounts(emp: string | null) {
   return { waiting: row?.waiting ?? 0, progress: row?.progress ?? 0, done: row?.done ?? 0 };
 }
 
-const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "code", label: "ເລກທີ", defaultDir: "desc" },
-  { key: "elapsed", label: "ເວລາ", defaultDir: "desc" },
-  { key: "product", label: "ຊື່ເຄື່ອງ / SN", defaultDir: "asc" },
-  { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
-  { key: "warranty", label: "ປະກັນ", defaultDir: "asc" },
-  { key: "technician", label: "ຊ່າງ", defaultDir: "asc" },
+const COLUMNS: { key: string; labelKey: keyof Dict; defaultDir: SortDir }[] = [
+  { key: "code", labelKey: "colCode", defaultDir: "desc" },
+  { key: "elapsed", labelKey: "colTime", defaultDir: "desc" },
+  { key: "product", labelKey: "colProductSn", defaultDir: "asc" },
+  { key: "brand", labelKey: "colBrand", defaultDir: "asc" },
+  { key: "customer", labelKey: "colCustomer", defaultDir: "asc" },
+  { key: "warranty", labelKey: "colWarranty", defaultDir: "asc" },
+  { key: "technician", labelKey: "tech", defaultDir: "asc" },
 ];
 
 /**
@@ -158,13 +162,13 @@ const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
  * "ຍັງຂາດ N ລາຍການ" ຄືປ້າຍໃໝ່ — ແຕ່ກ່ອນສາງເບີກໄດ້ພຽງບາງລາຍການ ວຽກກໍ່ຍ້າຍມາ
  * "ລໍຖ້າສ້ອມແປງ" ຢ່າງງຽບໆ ໂດຍບໍ່ມີບ່ອນໃດບອກວ່າຍັງຂາດອາໄຫຼ່ຢູ່.
  */
-function SpareBadge({ row }: { row: JobRow }) {
-  if (row.spare_lines === 0) return <span className="text-[10px] text-slate-400">ບໍ່ໃຊ້ອາໄຫຼ່</span>;
+function SpareBadge({ row, t }: { row: JobRow; t: Dict }) {
+  if (row.spare_lines === 0) return <span className="text-[10px] text-slate-400">{t.spareNone}</span>;
   if (!row.spare_requested)
     return (
       <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
         <Package className="size-3" />
-        ຍັງບໍ່ໄດ້ຂໍເບີກ ({row.spare_lines})
+        {t.spareNotRequested} ({row.spare_lines})
       </span>
     );
   // ຂໍໄປແລ້ວ ແຕ່ສາງເບີກອອກໃຫ້ບໍ່ຄົບ — ວຽກນີ້ຍັງສ້ອມບໍ່ໄດ້
@@ -172,26 +176,27 @@ function SpareBadge({ row }: { row: JobRow }) {
     return (
       <span className="inline-flex items-center gap-1 rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
         <PackageX className="size-3" />
-        ຍັງຂາດ {row.spare_missing} ລາຍການ
+        {t.spareShort} {row.spare_missing} {t.items}
       </span>
     );
   if (row.spare_pending > 0)
     return (
       <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
         <Package className="size-3" />
-        ລໍຖ້າຮັບອາໄຫຼ່ {row.spare_pending}/{row.spare_lines}
+        {t.spareWaiting} {row.spare_pending}/{row.spare_lines}
       </span>
     );
   return (
     <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
       <Package className="size-3" />
-      ໄດ້ຮັບອາໄຫຼ່ຄົບ
+      {t.spareComplete}
     </span>
   );
 }
 
 export default async function RepairPage({ searchParams }: Props) {
   const session = await getSession();
+  const t = (await getDictionary(await getLocale())).repair;
   // ຊ່າງເຫັນສະເພາະວຽກຕົນເອງ · ຜູ້ຈັດການເຫັນທຸກວຽກ
   const emp = ownJobsOnly(session);
 
@@ -220,25 +225,25 @@ export default async function RepairPage({ searchParams }: Props) {
     `/repair?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
   const TABS: { key: Tab; label: string; icon: typeof Clock; count: number }[] = [
-    { key: "waiting", label: "ລໍຖ້າສ້ອມແປງ", icon: Clock, count: counts.waiting },
-    { key: "progress", label: "ກຳລັງສ້ອມແປງ", icon: Wrench, count: counts.progress },
-    { key: "done", label: "ສ້ອມແປງແລ້ວ (ລໍ QC / ສົ່ງຄືນ)", icon: CheckCircle2, count: counts.done },
+    { key: "waiting", label: t.tabWaiting, icon: Clock, count: counts.waiting },
+    { key: "progress", label: t.tabProgress, icon: Wrench, count: counts.progress },
+    { key: "done", label: t.tabDone, icon: CheckCircle2, count: counts.done },
   ];
 
-  const timeLabel = tab === "waiting" ? "ຄ້າງມາ" : tab === "progress" ? "ສ້ອມມາແລ້ວ" : "ຈົບສ້ອມມາແລ້ວ";
+  const timeLabel = tab === "waiting" ? t.timePending : tab === "progress" ? t.timeRepairing : t.timeRepaired;
 
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-700">ສ້ອມແປງ</h1>
+          <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            {emp ? "ສະແດງສະເພາະວຽກຂອງທ່ານ" : "ສະແດງທຸກວຽກ"} · {jobs.total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+            {emp ? t.showOwnJobs : t.showAllJobs} · {jobs.total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
           </p>
         </div>
         <LinkButton href="/service/new" tone="primary" className="h-9 px-3 text-xs">
           <Wrench className="size-3.5" />
-          ລົງທະບຽນຮັບເຄື່ອງ
+          {t.registerReceipt}
         </LinkButton>
       </div>
 
@@ -272,11 +277,11 @@ export default async function RepairPage({ searchParams }: Props) {
             <input
               name="q"
               defaultValue={q}
-              placeholder="ຄົ້ນຫາ ເລກທີ, SN, ລູກຄ້າ, ຫຍີ່ຫໍ້, ຊ່າງ, ອາການ..."
+              placeholder={t.searchPlaceholder}
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -289,7 +294,7 @@ export default async function RepairPage({ searchParams }: Props) {
                 {COLUMNS.map((column) => (
                   <SortHeader
                     key={column.key}
-                    label={column.key === "elapsed" ? timeLabel : column.label}
+                    label={column.key === "elapsed" ? timeLabel : t[column.labelKey]}
                     sortKey={column.key}
                     current={sort}
                     dir={dir}
@@ -298,8 +303,8 @@ export default async function RepairPage({ searchParams }: Props) {
                     className="py-2.5"
                   />
                 ))}
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາໄຫຼ່</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາການ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colSpare}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colIssue}</th>
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -352,7 +357,7 @@ export default async function RepairPage({ searchParams }: Props) {
                       {row.technician ? (techName.get(row.technician) ?? row.technician) : "-"}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">
-                      <SpareBadge row={row} />
+                      <SpareBadge row={row} t={t} />
                     </td>
 
                     {/* ອາການຊ່າງວິເຄາະ (ຖ້າກວດແລ້ວ) ຫຼື ອາການເບື້ອງຕົ້ນ */}
@@ -362,7 +367,7 @@ export default async function RepairPage({ searchParams }: Props) {
                       </span>
                       {row.issue_2 && row.issue && (
                         <span className="block truncate text-[10px] text-slate-400" title={row.issue}>
-                          ເບື້ອງຕົ້ນ: {row.issue}
+                          {t.initial}: {row.issue}
                         </span>
                       )}
                     </td>
@@ -389,7 +394,7 @@ export default async function RepairPage({ searchParams }: Props) {
                             className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                           >
                             <Printer className="size-3.5" />
-                            ພິມ
+                            {t.print}
                           </Link>
                         )}
                         {tab === "progress" && <UndoStartRepairButton code={row.code} variant="icon" />}
@@ -452,12 +457,12 @@ export default async function RepairPage({ searchParams }: Props) {
                     {row.warranty || "-"}
                   </span>
                   <span className="text-slate-500">
-                    ຊ່າງ: {row.technician ? (techName.get(row.technician) ?? row.technician) : "-"}
+                    {t.tech}: {row.technician ? (techName.get(row.technician) ?? row.technician) : "-"}
                   </span>
                 </div>
 
                 <div className="mt-1.5">
-                  <SpareBadge row={row} />
+                  <SpareBadge row={row} t={t} />
                 </div>
 
                 {(row.issue_2 || row.issue) && (
@@ -484,7 +489,7 @@ export default async function RepairPage({ searchParams }: Props) {
                       className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                     >
                       <Printer className="size-3.5" />
-                      ພິມ
+                      {t.print}
                     </Link>
                   )}
                   {tab === "progress" && <UndoStartRepairButton code={row.code} variant="icon" />}
@@ -498,13 +503,13 @@ export default async function RepairPage({ searchParams }: Props) {
           </MobileCardList>
         </div>
 
-        {jobs.total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+        {jobs.total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, jobs.total)} ຈາກ {jobs.total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, jobs.total)} {t.of} {jobs.total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -513,7 +518,7 @@ export default async function RepairPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -523,7 +528,7 @@ export default async function RepairPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>
