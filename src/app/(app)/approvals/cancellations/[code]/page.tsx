@@ -1,6 +1,8 @@
 import { LinkPending } from "@/components/link-pending";
 import { Card, PageTitle } from "@/components/ui";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { PackageCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -45,6 +47,7 @@ function Field({ label, value, accent }: { label: string; value: string | null; 
 
 export default async function CancellationDetailPage({ params }: Props) {
   const { code } = await params;
+  const t = (await getDictionary(await getLocale())).cancellationDetail;
 
   const head = (
     await query<Head>(
@@ -68,16 +71,16 @@ export default async function CancellationDetailPage({ params }: Props) {
 
   return (
     <div className="w-full space-y-5">
-      <PageTitle sub="ອະນຸມັດຍົກເລີກເຄື່ອງສ້ອມ">ອະນຸມັດຍົກເລີກເຄື່ອງສ້ອມ</PageTitle>
+      <PageTitle sub={t.pageTitle}>{t.pageTitle}</PageTitle>
 
       <OutstandingSpares code={head.code} docs={docs} />
 
-      <Card title={`ລະຫັດຮັບເຄື່ອງ ${head.code}`}>
+      <Card title={`${t.receiptCode} ${head.code}`}>
         {head.cancel_finish ? (
           <div className="flex flex-wrap items-center gap-3">
             <p className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-              ອະນຸມັດຍົກເລີກເເລ້ວ ({head.cancel_finish})
-              {head.return_complete && <> · ສົ່ງຄືນລູກຄ້າແລ້ວ ({head.return_complete})</>}
+              {t.approvedCancel} ({head.cancel_finish})
+              {head.return_complete && <> · {t.returnedToCustomer} ({head.return_complete})</>}
             </p>
             {/* GAP A — ຍົກເລີກແລ້ວກໍ່ຍັງຕ້ອງສົ່ງເຄື່ອງຄືນລູກຄ້າ (ອອກໃບຮັບເງິນຄ່າກວດເຊັກ ຫຼື ບໍ່ອອກກໍ່ໄດ້) */}
             {!head.return_complete && (
@@ -86,7 +89,7 @@ export default async function CancellationDetailPage({ params }: Props) {
                 className="inline-flex h-10 items-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700"
               >
                 <PackageCheck className="size-4" />
-                ສົ່ງຄືນລູກຄ້າ
+                {t.returnToCustomer}
                 <LinkPending className="size-3.5" />
               </Link>
             )}
@@ -98,20 +101,20 @@ export default async function CancellationDetailPage({ params }: Props) {
 
         <div className="mt-5 grid gap-5 md:grid-cols-3">
           <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 md:col-span-2">
-            <Field label="ລູກຄ້າ" value={head.customer} />
-            <Field label="ຊື່ສິນຄ້າ" value={head.product} />
+            <Field label={t.customer} value={head.customer} />
+            <Field label={t.productName} value={head.product} />
             <Field label="Model" value={head.model} accent />
             <Field label="SN" value={head.sn} />
-            <Field label="ຫຍີ່ຫໍ້" value={head.brand} accent />
-            <Field label="ຮັບປະກັນ" value={head.warranty} />
+            <Field label={t.brand} value={head.brand} accent />
+            <Field label={t.warranty} value={head.warranty} />
             {/* ຫຼັກຖານຂອງການຕັດສິນປະກັນ — ຜູ້ອະນຸມັດຕ້ອງເຫັນກ່ອນຕັດສິນຄຳຂໍຍົກເລີກ */}
-            {head.warranty_reason && <Field label="ເຫດຜົນໝົດຮັບປະກັນ" value={head.warranty_reason} accent />}
-            <Field label="ອາການ" value={head.issue} accent />
-            <Field label="ອາການຊ່າງ" value={head.issue_2} />
-            <Field label="ຊ່າງ" value={head.technician} />
-            <Field label="ຜູ້ຂໍຍົກເລີກ" value={head.request_cancel} />
+            {head.warranty_reason && <Field label={t.warrantyVoidReason} value={head.warranty_reason} accent />}
+            <Field label={t.issue} value={head.issue} accent />
+            <Field label={t.issueChecked} value={head.issue_2} />
+            <Field label={t.technician} value={head.technician} />
+            <Field label={t.requestedBy} value={head.request_cancel} />
             <div className="flex gap-2 sm:col-span-2">
-              <dt className="shrink-0 text-slate-500">ໝາຍເຫດ:</dt>
+              <dt className="shrink-0 text-slate-500">{t.remark}:</dt>
               <dd className="text-slate-800">{head.remark || "-"}</dd>
             </div>
           </dl>
@@ -129,7 +132,7 @@ export default async function CancellationDetailPage({ params }: Props) {
                 />
               </a>
             ) : (
-              <span className="grid size-48 place-items-center rounded-lg bg-slate-100 text-sm text-slate-400">ບໍ່ມີຮູບ</span>
+              <span className="grid size-48 place-items-center rounded-lg bg-slate-100 text-sm text-slate-400">{t.noImage}</span>
             )}
           </div>
         </div>

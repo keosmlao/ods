@@ -1,5 +1,7 @@
 import { Card, ErrorBox, PageTitle, Table } from "@/components/ui";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { getBalances } from "@/lib/stock-balance";
 import { DEFAULT_WH, LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import { notFound } from "next/navigation";
@@ -31,6 +33,7 @@ type Head = {
 type Line = { item_code: string; item_name: string | null; qty: string; unit_code: string | null };
 
 export default async function ReceiveTransferPage({ params }: Props) {
+  const t = (await getDictionary(await getLocale())).transfersReceive;
   const { docNo } = await params;
   const code = decodeURIComponent(docNo);
 
@@ -70,7 +73,7 @@ export default async function ReceiveTransferPage({ params }: Props) {
 
   return (
     <div className="w-full space-y-6">
-      <PageTitle sub={`ປິດໃບຂໍໂອນ ແລ້ວປ່ອຍແຖວກັບເຂົ້າຄິວເບີກອາໄຫຼ່ (ສາງປາຍທາງ ${toWh})`}>ຮັບຂອງທີ່ໂອນມາ</PageTitle>
+      <PageTitle sub={`${t.subDestWarehouse} ${toWh})`}>{t.title}</PageTitle>
 
       <ReceiveTransferForm
         docNo={head.doc_no}
@@ -78,26 +81,25 @@ export default async function ReceiveTransferPage({ params }: Props) {
         defaultRemark={head.remark ?? ""}
         disabled={received || !ready}
         fields={[
-          { label: "ວັນທີໃບຂໍໂອນ:", value: head.doc_date },
-          { label: "ເລກທິໃບຂໍເບີກ:", value: head.doc_ref },
-          { label: "ວັນທີໃບຂໍເບີກ:", value: head.doc_ref_date },
-          { label: "ລູກຄ້າ:", value: head.customer },
-          { label: "ຊື່ສິນຄ້າ:", value: head.product },
-          { label: "ເລກເຄື່ອງ/sn:", value: head.sn },
-          { label: "ໂອນເຂົ້າສາງ:", value: `${toWh} / ${head.shelf_code ?? "-"}`, accent: true },
+          { label: t.fieldRequestDate, value: head.doc_date },
+          { label: t.fieldRequestNo, value: head.doc_ref },
+          { label: t.fieldRequestDocDate, value: head.doc_ref_date },
+          { label: t.fieldCustomer, value: head.customer },
+          { label: t.fieldProductName, value: head.product },
+          { label: t.fieldSn, value: head.sn },
+          { label: t.fieldToWarehouse, value: `${toWh} / ${head.shelf_code ?? "-"}`, accent: true },
         ]}
       />
 
-      {received && <ErrorBox>ໃບນີ້ຮັບຂອງໄປແລ້ວ</ErrorBox>}
+      {received && <ErrorBox>{t.alreadyReceived}</ErrorBox>}
       {!received && !ready && (
         <ErrorBox>
-          ຍັງບໍ່ເຫັນຍອດຄົງເຫຼືອຢູ່ສາງ {toWh} — ສາງໃຫຍ່ຕ້ອງອອກໃບໂອນ (FT) ໃນ ERP ກ່ອນ ຈຶ່ງຈະຮັບຂອງໄດ້.
-          ໃບຂໍໂອນ (124) ບໍ່ຂະຫຍັບສະຕັອກເອງ.
+          {t.notArrivedPrefix} {toWh} {t.notArrivedSuffix}
         </ErrorBox>
       )}
 
-      <Card title="ອາໄຫຼ່ໃນໃບຂໍໂອນ">
-        <Table head={["#", "ລະຫັດສິນຄ້າ", "ຊື່ສິນຄ້າ", "ຈຳນວນ", "ຫົວໜ່ວຍ", `ຄົງເຫຼືອສາງ ${toWh}`, "ສະຖານະ"]} minWidth={900}>
+      <Card title={t.cardTitle}>
+        <Table head={["#", t.colItemCode, t.colItemName, t.colQty, t.colUnit, `${t.colBalanceWarehouse} ${toWh}`, t.colStatus]} minWidth={900}>
           {arrived.map((line, index) => (
             <tr key={`${line.item_code}-${index}`} className="border-b border-slate-100">
               <td className="px-3 py-3 text-center">{index + 1}</td>
@@ -112,7 +114,7 @@ export default async function ReceiveTransferPage({ params }: Props) {
                     line.inWh > 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
                   }`}
                 >
-                  {line.inWh > 0 ? "ຂອງມາຮອດແລ້ວ" : "ຍັງບໍ່ມາຮອດ"}
+                  {line.inWh > 0 ? t.arrived : t.notArrived}
                 </span>
               </td>
             </tr>
@@ -120,7 +122,7 @@ export default async function ReceiveTransferPage({ params }: Props) {
         </Table>
       </Card>
 
-      {arrived.length === 0 && <ErrorBox>ບໍ່ມີອາໄຫຼ່ໃນໃບນີ້</ErrorBox>}
+      {arrived.length === 0 && <ErrorBox>{t.noSpares}</ErrorBox>}
     </div>
   );
 }

@@ -6,6 +6,8 @@ import { SortHeader, type SortDir } from "@/components/sort-header";
 import { HoldButtons } from "@/components/repair/hold-buttons";
 import { RemarkCell } from "@/components/service/remark-cell";
 import { ServiceDeleteButton } from "@/components/service/service-delete-button";
+import { getDictionary, type Dictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { Pencil, Printer } from "lucide-react";
 import Link from "next/link";
 
@@ -15,19 +17,19 @@ const stageLabel = new Map(STAGES.map((stage) => [stage.id as number, stage.labe
 export const PENDING_SORTS = ["code", "status", "elapsed", "product", "brand", "customer", "technician", "creator"] as const;
 export type PendingSort = (typeof PENDING_SORTS)[number];
 
-const COLUMNS: { key: PendingSort; label: string; defaultDir: SortDir }[] = [
-  { key: "code", label: "ເລກທີ", defaultDir: "desc" },
-  { key: "status", label: "ສະຖານະ", defaultDir: "asc" },
-  { key: "elapsed", label: "ຄ້າງມາ", defaultDir: "desc" },
-  { key: "product", label: "ຊື່ເຄືອງ / SN", defaultDir: "asc" },
-  { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
-  { key: "technician", label: "ຊ່າງ", defaultDir: "asc" },
-  { key: "creator", label: "ຜູ້ສ້າງເອກະສານ", defaultDir: "asc" },
+const columnsFor = (t: Dictionary["servicePendingTable"]): { key: PendingSort; label: string; defaultDir: SortDir }[] => [
+  { key: "code", label: t.colCode, defaultDir: "desc" },
+  { key: "status", label: t.colStatus, defaultDir: "asc" },
+  { key: "elapsed", label: t.colElapsed, defaultDir: "desc" },
+  { key: "product", label: t.colProduct, defaultDir: "asc" },
+  { key: "brand", label: t.colBrand, defaultDir: "asc" },
+  { key: "customer", label: t.colCustomer, defaultDir: "asc" },
+  { key: "technician", label: t.colTechnician, defaultDir: "asc" },
+  { key: "creator", label: t.colCreator, defaultDir: "asc" },
 ];
 
 /** ວຽກທີ່ຍັງຄ້າງ — ຕາຕະລາງ, ກົດຫົວຖັນເພື່ອຈັດຮຽງ */
-export function ServicePendingTable({
+export async function ServicePendingTable({
   canUpdate = false,
   canDelete = false,
   canHold = false,
@@ -49,13 +51,15 @@ export function ServicePendingTable({
   dir: SortDir;
   sortHref: (sort: string, dir: SortDir) => string;
 }) {
+  const t = (await getDictionary(await getLocale())).servicePendingTable;
   if (cards.length === 0) {
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="py-10 text-center text-sm text-slate-400">ບໍ່ພົບລາຍການ</p>
+        <p className="py-10 text-center text-sm text-slate-400">{t.noResults}</p>
       </section>
     );
   }
+  const columns = columnsFor(t);
 
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -63,7 +67,7 @@ export function ServicePendingTable({
         <table className="w-full min-w-[1480px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-              {COLUMNS.map((column) => (
+              {columns.map((column) => (
                 <SortHeader
                   key={column.key}
                   label={column.label}
@@ -75,10 +79,10 @@ export function ServicePendingTable({
                   className={column.key === "code" ? "text-center" : ""}
                 />
               ))}
-              <th className="whitespace-nowrap px-3 py-3 font-semibold">ປະກັນ</th>
+              <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colWarranty}</th>
               {/* ໝາຍເຫດ — ຂຽນໄດ້ຢູ່ນີ້ເລີຍ (ບໍ່ຕ້ອງເປີດເຂົ້າໃບ) */}
-              <th className="whitespace-nowrap px-3 py-3 font-semibold">ໝາຍເຫດ</th>
-              {canHold && <th className="whitespace-nowrap px-3 py-3 font-semibold">ຈັດການວຽກຄ້າງ</th>}
+              <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colRemark}</th>
+              {canHold && <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colHoldActions}</th>}
               <th className="px-3 py-3" />
             </tr>
           </thead>
@@ -102,7 +106,7 @@ export function ServicePendingTable({
                       className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${tone.chip}`}
                     />
                     {/* ນາລິກາຢຸດຢູ່ ⇒ ຕ້ອງບອກ ບໍ່ດັ່ງນັ້ນຄົນອ່ານເລກນີ້ຜິດ */}
-                    {card.hold && <b className="mt-0.5 block text-[10px] text-amber-600">ນາລິກາຢຸດ</b>}
+                    {card.hold && <b className="mt-0.5 block text-[10px] text-amber-600">{t.clockStopped}</b>}
                   </td>
                   <td className="max-w-72 px-3 py-3">
                     <span className="block truncate font-medium text-slate-800" title={card.product ?? ""}>
@@ -140,13 +144,13 @@ export function ServicePendingTable({
                       <Link
                         href={`/service/${card.code}/print`}
                         target="_blank"
-                        title="ພິມ"
+                        title={t.printTitle}
                         className="text-[#D35400] hover:opacity-70"
                       >
                         <Printer className="size-4" />
                       </Link>
                       {canUpdate && (
-                        <Link href={`/service/${card.code}/edit`} title="ແກ້ໄຂ" className="text-slate-500 hover:opacity-70">
+                        <Link href={`/service/${card.code}/edit`} title={t.editTitle} className="text-slate-500 hover:opacity-70">
                           <Pencil className="size-4" />
                         </Link>
                       )}

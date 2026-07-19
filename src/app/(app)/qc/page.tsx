@@ -5,6 +5,8 @@ import { MobileCardList } from "@/components/mobile-card-list";
 import { getSession } from "@/lib/auth";
 import type { Workflow } from "@/lib/commission";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { qcQueue, WORKFLOW_LABEL, type QcQueueRow } from "@/lib/qc";
 import { ClipboardCheck, ShieldCheck } from "lucide-react";
 import Link from "next/link";
@@ -24,10 +26,11 @@ export const dynamic = "force-dynamic";
 type Props = { searchParams: Promise<{ workflow?: string }> };
 
 export default async function QcPage({ searchParams }: Props) {
-  const [{ workflow: wanted }, session, workflows] = await Promise.all([
+  const [{ workflow: wanted }, session, workflows, t] = await Promise.all([
     searchParams,
     getSession(),
     qcWorkflows(),
+    getDictionary(await getLocale()).then((d) => d.qcPage),
   ]);
   if (workflows.length === 0) redirect("/forbidden");
 
@@ -48,14 +51,14 @@ export default async function QcPage({ searchParams }: Props) {
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-700">ກວດຮັບຄຸນນະພາບ (QC)</h1>
+        <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          ງານທີ່ຊ່າງເຮັດສຳເລັດແລ້ວ ລໍຖ້າກວດຮັບກ່ອນສົ່ງມອບລູກຄ້າ · {total.toLocaleString()} ລາຍການ
+          {t.subtitle} · {total.toLocaleString()} {t.items}
         </p>
       </div>
 
       {queues.map(({ workflow, rows }) => (
-        <QcQueueCard key={workflow} workflow={workflow} rows={rows} me={session?.username ?? ""} />
+        <QcQueueCard key={workflow} workflow={workflow} rows={rows} me={session?.username ?? ""} t={t} />
       ))}
     </div>
   );
@@ -65,10 +68,12 @@ function QcQueueCard({
   workflow,
   rows,
   me,
+  t,
 }: {
   workflow: Workflow;
   rows: QcQueueRow[];
   me: string;
+  t: Record<string, string>;
 }) {
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -85,12 +90,12 @@ function QcQueueCard({
         <table className="w-full min-w-[900px] border-collapse text-xs">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລະຫັດງານ</th>
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລູກຄ້າ</th>
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສິນຄ້າ</th>
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຊ່າງ</th>
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສຳເລັດເມື່ອ</th>
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຄ້າງ</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colCode}</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.customer}</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.item}</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.technician}</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.finishedAt}</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.pending}</th>
               <th className="px-3 py-2.5" />
             </tr>
           </thead>
@@ -116,7 +121,7 @@ function QcQueueCard({
                   <td className="px-3 py-2.5 text-center">
                     {mine ? (
                       // ຄົນເຮັດກວດຂອງຕົນເອງບໍ່ໄດ້ — ບອກເຫດຜົນໄວ້ບ່ອນນີ້ ບໍ່ໃຫ້ກົດແລ້ວຄ່ອຍຖືກປະຕິເສດ
-                      <span className="text-xs text-slate-400">ງານຂອງທ່ານ — ຕ້ອງໃຫ້ຄົນອື່ນກວດ</span>
+                      <span className="text-xs text-slate-400">{t.mineNote}</span>
                     ) : (
                       <Link
                         href={`/qc/${workflow}/${row.code}`}
@@ -124,7 +129,7 @@ function QcQueueCard({
                       >
                         <LinkPending className="size-3.5" />
                         <ClipboardCheck className="size-3.5" />
-                        {row.checked > 0 ? "ກວດຕໍ່" : "ກວດຮັບ"}
+                        {row.checked > 0 ? t.continueCheck : t.check}
                       </Link>
                     )}
                   </td>
@@ -155,22 +160,22 @@ function QcQueueCard({
               </p>
               <dl className="mt-1.5 space-y-0.5 text-xs text-slate-500">
                 <div className="flex gap-1">
-                  <dt className="text-slate-400">ລູກຄ້າ:</dt>
+                  <dt className="text-slate-400">{t.customer}:</dt>
                   <dd className="text-slate-600">{row.customer ?? "-"}</dd>
                 </div>
                 <div className="flex gap-1">
-                  <dt className="text-slate-400">ຊ່າງ:</dt>
+                  <dt className="text-slate-400">{t.technician}:</dt>
                   <dd className="text-slate-600">{row.worker ?? "-"}</dd>
                 </div>
                 <div className="flex gap-1">
-                  <dt className="text-slate-400">ສຳເລັດເມື່ອ:</dt>
+                  <dt className="text-slate-400">{t.finishedAt}:</dt>
                   <dd className="text-slate-600">{row.finished_at ?? "-"}</dd>
                 </div>
               </dl>
               <div className="mt-2">
                 {mine ? (
                   // ຄົນເຮັດກວດຂອງຕົນເອງບໍ່ໄດ້ — ບອກເຫດຜົນໄວ້ບ່ອນນີ້ ບໍ່ໃຫ້ກົດແລ້ວຄ່ອຍຖືກປະຕິເສດ
-                  <span className="text-xs text-slate-400">ງານຂອງທ່ານ — ຕ້ອງໃຫ້ຄົນອື່ນກວດ</span>
+                  <span className="text-xs text-slate-400">{t.mineNote}</span>
                 ) : (
                   <Link
                     href={`/qc/${workflow}/${row.code}`}
@@ -188,7 +193,7 @@ function QcQueueCard({
         </MobileCardList>
       </div>
 
-      {rows.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ມີງານລໍກວດຮັບ</p>}
+      {rows.length === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.emptyQueue}</p>}
     </section>
   );
 }

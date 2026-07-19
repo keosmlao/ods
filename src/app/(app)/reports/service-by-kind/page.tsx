@@ -1,6 +1,10 @@
 import { defaultFromIso, ReportShell, reportState } from "@/components/report-shell";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { one, safeDate, todayIso, type SearchParams } from "@/lib/report-sql";
 import { CUST_KIND_LABEL, serviceByCustomerKind, UNSET_KIND_LABEL, type CustKind } from "@/lib/service-money";
+
+type Dict = Record<string, string>;
 
 /**
  * **ງານສ້ອມ: ລູກຄ້າທົ່ວໄປ ແລະ ຮ້ານຄ້າ** — ນັບຕາມວັນທີຮັບເຄື່ອງ.
@@ -11,17 +15,18 @@ import { CUST_KIND_LABEL, serviceByCustomerKind, UNSET_KIND_LABEL, type CustKind
  */
 export const dynamic = "force-dynamic";
 
-const columns = [
-  { key: "kind_label", label: "ປະເພດລູກຄ້າ" },
-  { key: "jobs", label: "ຈຳນວນງານ" },
-  { key: "customers", label: "ຈຳນວນລູກຄ້າ" },
-  { key: "in_warranty", label: "ໃນປະກັນ" },
-  { key: "out_warranty", label: "ນອກປະກັນ" },
-  { key: "quoted", label: "ຄ່າສ້ອມທີ່ຕົກລົງ (ບາດ)" },
-  { key: "paid", label: "ຮັບແລ້ວ (ບາດ)" },
+const columnsFor = (t: Dict) => [
+  { key: "kind_label", label: t.colKindLabel },
+  { key: "jobs", label: t.colJobs },
+  { key: "customers", label: t.colCustomers },
+  { key: "in_warranty", label: t.colInWarranty },
+  { key: "out_warranty", label: t.colOutWarranty },
+  { key: "quoted", label: t.colQuoted },
+  { key: "paid", label: t.colPaid },
 ];
 
 export default async function ServiceByKindReport({ searchParams }: { searchParams: SearchParams }) {
+  const t = (await getDictionary(await getLocale())).serviceByKind;
   const params = await searchParams;
   const from = safeDate(one(params.from), defaultFromIso());
   const to = safeDate(one(params.to), todayIso());
@@ -32,7 +37,7 @@ export default async function ServiceByKindReport({ searchParams }: { searchPara
   try {
     rows = await serviceByCustomerKind(from, to);
   } catch (exception) {
-    error = exception instanceof Error ? exception.message : "ດຶງຂໍ້ມູນບໍ່ສຳເລັດ";
+    error = exception instanceof Error ? exception.message : t.fetchError;
   }
 
   const labelled = rows.map((row) => ({
@@ -43,26 +48,26 @@ export default async function ServiceByKindReport({ searchParams }: { searchPara
 
   return (
     <ReportShell
-      title="ງານສ້ອມ: ລູກຄ້າທົ່ວໄປ / ຮ້ານຄ້າ"
+      title={t.title}
       subtitle={
-        `ຕາມວັນທີຮັບເຄື່ອງ ${from} ຫາ ${to}` +
-        (unset ? ` · ຍັງບໍ່ໄດ້ລະບຸປະເພດ ${unset.jobs.toLocaleString()} ງານ — ລະບຸໄດ້ທີ່ໜ້າລູກຄ້າ` : "")
+        `${t.subtitleByReceivedDate} ${from} ${t.subtitleTo} ${to}` +
+        (unset ? ` ${t.subtitleUnsetPrefix} ${unset.jobs.toLocaleString()} ${t.subtitleUnsetSuffix}` : "")
       }
       basePath="/reports/service-by-kind"
       query={{ from, to }}
       state={state}
       dateRange={{ from, to }}
-      columns={columns}
+      columns={columnsFor(t)}
       rows={labelled}
       error={error}
       summary={[
-        { label: "ງານທັງໝົດ", value: rows.reduce((total, row) => total + row.jobs, 0).toLocaleString() },
-        { label: "ຮ້ານຄ້າ", value: (rows.find((row) => row.kind === "shop")?.jobs ?? 0).toLocaleString() },
-        { label: "ທົ່ວໄປ", value: (rows.find((row) => row.kind === "general")?.jobs ?? 0).toLocaleString() },
-        { label: "ຍັງບໍ່ລະບຸ", value: (unset?.jobs ?? 0).toLocaleString() },
+        { label: t.statTotalJobs, value: rows.reduce((total, row) => total + row.jobs, 0).toLocaleString() },
+        { label: t.statShop, value: (rows.find((row) => row.kind === "shop")?.jobs ?? 0).toLocaleString() },
+        { label: t.statGeneral, value: (rows.find((row) => row.kind === "general")?.jobs ?? 0).toLocaleString() },
+        { label: t.statUnset, value: (unset?.jobs ?? 0).toLocaleString() },
       ]}
       minWidth={800}
-      searchPlaceholder="ຄົ້ນຫາ..."
+      searchPlaceholder={t.searchPlaceholder}
     />
   );
 }
