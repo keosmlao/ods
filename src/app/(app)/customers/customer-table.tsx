@@ -5,6 +5,8 @@ import { KindCell } from "@/components/service/kind-cell";
 import { LinkPending } from "@/components/link-pending";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { Alert, DeleteButton, useActionAlert } from "@/components/manage/shared";
+import { useDict } from "@/lib/i18n/context";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { ChevronLeft, ChevronRight, Pencil, Phone, Plus, Search } from "lucide-react";
 import Link from "next/link";
 
@@ -24,11 +26,11 @@ export type CustomerRow = {
 };
 
 /** ຕົງກັບ whitelist ຢູ່ຝັ່ງ server (customers/page.tsx) */
-const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "code", label: "ລະຫັດ", defaultDir: "asc" },
-  { key: "name", label: "ຊື່", defaultDir: "asc" },
-  { key: "tel", label: "ເບີໂທ", defaultDir: "asc" },
-  { key: "address", label: "ທີ່ຢູ່", defaultDir: "asc" },
+const columns = (t: Dictionary["customerTable"]): { key: string; label: string; defaultDir: SortDir }[] => [
+  { key: "code", label: t.columnCode, defaultDir: "asc" },
+  { key: "name", label: t.columnName, defaultDir: "asc" },
+  { key: "tel", label: t.columnTel, defaultDir: "asc" },
+  { key: "address", label: t.columnAddress, defaultDir: "asc" },
 ];
 
 export function CustomerTable({
@@ -54,6 +56,7 @@ export function CustomerTable({
   canUpdate?: boolean;
 }) {
   const { state: alert, setState: setAlert, clear } = useActionAlert();
+  const t = useDict().customerTable;
 
   const base = () => ({ ...(q && { q }) });
   const sortHref = (key: string, nextDir: SortDir) =>
@@ -65,9 +68,9 @@ export function CustomerTable({
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-700">ກຳນົດລູກຄ້າ</h1>
+          <h1 className="text-xl font-bold text-slate-700">{t.heading}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            {total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+            {total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
           </p>
         </div>
         <Link
@@ -75,7 +78,7 @@ export function CustomerTable({
           className="inline-flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-3 text-xs font-medium text-white hover:bg-emerald-700"
         >
           <Plus className="size-4" />
-          ເພີ່ມລູກຄ້າ
+          {t.addCustomer}
           <LinkPending className="size-3.5" />
         </Link>
       </div>
@@ -91,11 +94,11 @@ export function CustomerTable({
           <input
             name="q"
             defaultValue={q}
-            placeholder="ຄົ້ນຫາ ລະຫັດ, ຊື່, ເບີໂທ, ທີ່ຢູ່..."
+            placeholder={t.searchPlaceholder}
             className="w-full text-xs outline-none"
           />
         </div>
-        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
       </form>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -104,7 +107,7 @@ export function CustomerTable({
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
                 <th className="w-10 px-3 py-2.5 font-semibold">#</th>
-                {COLUMNS.map((column) => (
+                {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
                     label={column.label}
@@ -118,8 +121,8 @@ export function CustomerTable({
                 ))}
                 {/* ນັບຢູ່ 1 query ຕ່າງຫາກ ສະເພາະ 20 ແຖວຂອງໜ້ານີ້ ຈຶ່ງຈັດຮຽງບໍ່ໄດ້ (ຈະຕ້ອງນັບໝົດ 9,995 ລູກຄ້າ) */}
                 {/* ປະເພດລູກຄ້າ — ລະບຸໄດ້ຈາກແຖວເລີຍ (ລາຍງານ /reports/service-by-kind ໃຊ້ຄ່ານີ້) */}
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ປະເພດ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໃບຮັບເຄື່ອງ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.kind}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.receipt}</th>
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -168,7 +171,7 @@ export function CustomerTable({
                     <div className="flex items-center gap-3">
                       <Link
                         href={`/customers/${encodeURIComponent(row.code)}/edit`}
-                        title="ເເກ້ໄຂ"
+                        title={t.edit}
                         className="text-[#F27B1A] transition hover:opacity-70"
                       >
                         <Pencil className="size-4" />
@@ -177,7 +180,7 @@ export function CustomerTable({
                         id={row.code}
                         action={deleteCustomer}
                         onResult={setAlert}
-                        confirmText={"ທ່ານຕ້ອງການລົບຂໍ້ມູນແທ້ບໍ?\nທ່ານຈະບໍ່ສາມາດຮ້ອງຄືນຂໍ້ມູນນີ້ໃດ້!"}
+                        confirmText={t.deleteConfirm}
                       />
                     </div>
                   </td>
@@ -187,13 +190,13 @@ export function CustomerTable({
           </table>
         </div>
 
-        {rows.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+        {rows.length === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} ຈາກ {total.toLocaleString()}
+            {t.showing} {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} {t.of} {total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -202,7 +205,7 @@ export function CustomerTable({
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -212,7 +215,7 @@ export function CustomerTable({
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>

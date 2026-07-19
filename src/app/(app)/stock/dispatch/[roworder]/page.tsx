@@ -3,6 +3,8 @@ import { SpareLineTable, type SpareLine } from "@/components/stock/spare-lines";
 import { Card, ErrorBox, PageTitle, Table } from "@/components/ui";
 import { query } from "@/lib/db";
 import { docPrefix } from "@/lib/doc-no";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import { AlertTriangle } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -36,6 +38,7 @@ async function previewDocNo() {
 
 export default async function ShowDispatchPage({ params }: Props) {
   const { roworder } = await params;
+  const t = (await getDictionary(await getLocale())).dispatchRoworder;
 
   const head = await query<Head>(
     `select a.doc_no, to_char(a.doc_date,'DD-MM-YYYY') doc_date,
@@ -81,7 +84,7 @@ export default async function ShowDispatchPage({ params }: Props) {
 
   return (
     <div className="w-full space-y-6">
-      <PageTitle sub="ເບີກອາໄຫຼ່">ໃບເບີກອາໄຫຼ່</PageTitle>
+      <PageTitle sub={t.pageSub}>{t.pageTitle}</PageTitle>
 
       <DocForm
         kind="dispatch"
@@ -108,16 +111,15 @@ export default async function ShowDispatchPage({ params }: Props) {
       {missing.rows.length > 0 && (
         <p className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
           <AlertTriangle className="size-4 shrink-0" />
-          ເບີກບໍ່ຄົບ — ຍັງຂາດ {missing.rows.length} ລາຍການ. ບັນທຶກແລ້ວວຽກນີ້ຈະຄ້າງຢູ່ຂັ້ນ &quot;ກຳລັງເບີກອາໄຫຼ່&quot; ຕໍ່ໄປ
-          ຈົນກວ່າຈະເບີກຄົບ
+          {t.notEnough} {missing.rows.length} {t.notEnoughSuffix}
         </p>
       )}
 
       <SpareLineTable lines={lines.rows} />
 
       {missing.rows.length > 0 && (
-        <Card title={`ຍັງຂາດ ${missing.rows.length} ລາຍການ (ບໍ່ມີຂອງໃນສາງນີ້)`}>
-          <Table head={["ລະຫັດ", "ຊື່ອາໄຫຼ່", "ຈຳນວນ", "ຫົວໜ່ວຍ", "ສະຖານະ"]} minWidth={700}>
+        <Card title={`${t.missingTitle} ${missing.rows.length} ${t.missingTitleSuffix}`}>
+          <Table head={[t.colCode, t.colSpareName, t.colQty, t.colUnit, t.colStatus]} minWidth={700}>
             {missing.rows.map((line) => (
               <tr key={line.item_code} className="border-b border-slate-100">
                 <td className="px-3 py-3">{line.item_code}</td>
@@ -127,24 +129,22 @@ export default async function ShowDispatchPage({ params }: Props) {
                 <td className="px-3 py-3 text-center">
                   {line.status === LINE_STATUS.ON_PURCHASE_ORDER ? (
                     <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700">
-                      ກຳລັງສັ່ງຊື້
+                      {t.purchasing}
                     </span>
                   ) : (
                     <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
-                      ບໍ່ມີໃນສາງນີ້
+                      {t.notInThisWarehouse}
                     </span>
                   )}
                 </td>
               </tr>
             ))}
           </Table>
-          <p className="mt-3 text-xs text-slate-400">
-            ຂໍໂອນຈາກສາງອື່ນ ຫຼື ສັ່ງຊື້ໄດ້ທີ່ໜ້າ &quot;ເບີກອາໄຫຼ່&quot;
-          </p>
+          <p className="mt-3 text-xs text-slate-400">{t.transferOrPurchaseHint}</p>
         </Card>
       )}
 
-      {lines.rows.length === 0 && <ErrorBox>ບໍ່ມີອາໄຫຼ່ທີ່ເບີກໄດ້ໃນສາງນີ້</ErrorBox>}
+      {lines.rows.length === 0 && <ErrorBox>{t.noSpareAvailable}</ErrorBox>}
     </div>
   );
 }

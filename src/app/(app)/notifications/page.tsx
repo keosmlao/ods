@@ -1,6 +1,8 @@
 import { markAllNotificationsRead, markNotificationRead, markNotificationUnread, myNotifications } from "@/app/actions/notification";
 import { LinkPending } from "@/components/link-pending";
 import { MODEL_LABEL, NOTIFICATION_KIND_LABEL, recordHref, type ChatterModel, type NotificationKind } from "@/lib/chatter";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { BellRing, Check, CheckCheck, ChevronLeft, ChevronRight, Inbox, Mail } from "lucide-react";
 import Link from "next/link";
 
@@ -24,6 +26,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
   const params = await searchParams;
   const tab: Tab = params.tab === "all" ? "all" : "unread";
   const page = Math.max(1, Number(params.page) || 1);
+  const t = (await getDictionary(await getLocale())).notificationsPage;
 
   const { rows, total, unread, all } = await myNotifications(tab, page);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -33,25 +36,25 @@ export default async function NotificationsPage({ searchParams }: Props) {
     `/notifications?${new URLSearchParams({ ...(tab === "all" && { tab }), ...(n > 1 && { page: String(n) }) })}`;
 
   const TABS: { key: Tab; label: string; icon: typeof Inbox; count: number }[] = [
-    { key: "unread", label: "ຍັງບໍ່ໄດ້ອ່ານ", icon: Mail, count: unread },
-    { key: "all", label: "ທັງໝົດ", icon: Inbox, count: all },
+    { key: "unread", label: t.unread, icon: Mail, count: unread },
+    { key: "all", label: t.all, icon: Inbox, count: all },
   ];
 
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-700">ການແຈ້ງເຕືອນ</h1>
+          <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            {total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
-            {unread > 0 && <span className="font-semibold text-teal-700"> · ຍັງບໍ່ໄດ້ອ່ານ {unread}</span>}
+            {total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
+            {unread > 0 && <span className="font-semibold text-teal-700"> · {t.unread} {unread}</span>}
           </p>
         </div>
         {unread > 0 && (
           <form action={markAllNotificationsRead}>
             <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
               <CheckCheck className="size-4" />
-              ອ່ານທັງໝົດ
+              {t.markAllRead}
             </button>
           </form>
         )}
@@ -89,11 +92,11 @@ export default async function NotificationsPage({ searchParams }: Props) {
           <table className="w-full min-w-[900px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ເອກະສານ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ປະເພດ</th>
-                <th className="px-3 py-2.5 font-semibold">ເນື້ອໃນ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຜູ້ລົງມື</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ເວລາ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colDocument}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colType}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colContent}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colActor}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colTime}</th>
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -141,12 +144,12 @@ export default async function NotificationsPage({ searchParams }: Props) {
                           {row.read ? (
                             <>
                               <Mail className="size-3.5" />
-                              ໝາຍວ່າຍັງບໍ່ອ່ານ
+                              {t.markUnread}
                             </>
                           ) : (
                             <>
                               <Check className="size-3.5" />
-                              ໝາຍວ່າອ່ານແລ້ວ
+                              {t.markRead}
                             </>
                           )}
                         </button>
@@ -162,7 +165,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
         {rows.length === 0 && (
           <p className="flex flex-col items-center gap-2 py-12 text-center text-xs text-slate-400">
             <BellRing className="size-5 text-slate-300" />
-            {tab === "unread" ? "ອ່ານໝົດແລ້ວ — ບໍ່ມີການແຈ້ງເຕືອນໃໝ່" : "ບໍ່ມີການແຈ້ງເຕືອນ"}
+            {tab === "unread" ? t.emptyUnread : t.emptyAll}
           </p>
         )}
       </section>
@@ -170,7 +173,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} ຈາກ {total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} {t.of} {total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -179,7 +182,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -189,7 +192,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>

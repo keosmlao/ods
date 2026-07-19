@@ -3,6 +3,8 @@ import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import { INSTALL_LEFT_SQL } from "@/lib/install-sla";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import {
   INSTALL_ELAPSED_SQL,
   INSTALL_STAGE_SQL,
@@ -194,12 +196,12 @@ export function StageChip({ stage }: { stage: number | null }) {
 }
 
 /** ຊ່ອງຄົ້ນຫາລ້ວນ — ແຕ່ລະໜ້າໃນຂະບວນການເປັນຄິວດຽວ */
-export function SearchBar({
+export async function SearchBar({
   q,
   sort,
   dir,
   hidden = {},
-  placeholder = "ຄົ້ນຫາ ເລກທີໃບ, ເລກທີງານ, ລູກຄ້າ, ຊ່າງ, ລາຍການ...",
+  placeholder,
 }: {
   q: string;
   sort: string;
@@ -208,6 +210,7 @@ export function SearchBar({
   hidden?: Record<string, string>;
   placeholder?: string;
 }) {
+  const t = (await getDictionary(await getLocale())).installationsShared;
   return (
     <form className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
       {Object.entries(hidden).map(([name, value]) => (
@@ -217,9 +220,9 @@ export function SearchBar({
       <input type="hidden" name="dir" value={dir} />
       <div className="flex h-9 min-w-56 flex-1 items-center gap-2 rounded-lg border border-slate-300 px-2.5">
         <Search className="size-3.5 shrink-0 text-slate-400" />
-        <input name="q" defaultValue={q} placeholder={placeholder} className="w-full text-xs outline-none" />
+        <input name="q" defaultValue={q} placeholder={placeholder ?? t.searchPlaceholder} className="w-full text-xs outline-none" />
       </div>
-      <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+      <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
     </form>
   );
 }
@@ -376,7 +379,8 @@ export const INSTALL_PLAIN_COLUMNS = ["ຜູ້ສ້າງ", "ສະຖານ�
 export const INSTALL_PLAIN_COLUMNS_NO_STATUS = ["ຜູ້ສ້າງ"];
 
 /** ກອບຕາຕະລາງ + ຂໍ້ຄວາມ "ບໍ່ພົບລາຍການ" */
-export function TableShell({ total, minWidth = 1200, children }: { total: number; minWidth?: number; children: ReactNode }) {
+export async function TableShell({ total, minWidth = 1200, children }: { total: number; minWidth?: number; children: ReactNode }) {
+  const t = (await getDictionary(await getLocale())).installationsShared;
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
@@ -384,12 +388,12 @@ export function TableShell({ total, minWidth = 1200, children }: { total: number
           {children}
         </table>
       </div>
-      {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+      {total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noItems}</p>}
     </section>
   );
 }
 
-export function Pager({
+export async function Pager({
   page,
   pages,
   total,
@@ -401,10 +405,11 @@ export function Pager({
   pageHref: (page: number) => string;
 }) {
   if (pages <= 1) return null;
+  const t = (await getDictionary(await getLocale())).installationsShared;
   return (
     <nav className="flex items-center justify-between gap-3 text-xs">
       <span className="text-slate-500">
-        ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} ຈາກ {total.toLocaleString()}
+        {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} {t.from} {total.toLocaleString()}
       </span>
       <div className="flex items-center gap-1">
         <Link
@@ -413,7 +418,7 @@ export function Pager({
           className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
         >
           <ChevronLeft className="size-3.5" />
-          ກ່ອນໜ້າ
+          {t.prev}
         </Link>
         <span className="px-3 font-medium text-slate-700">
           {page} / {pages}
@@ -423,7 +428,7 @@ export function Pager({
           aria-disabled={page >= pages}
           className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
         >
-          ຕໍ່ໄປ
+          {t.next}
           <ChevronRight className="size-3.5" />
         </Link>
       </div>
@@ -439,7 +444,7 @@ export function Pager({
  * ຕົວເລກ ("30 ລາຍການ · ໜ້າ 2/2") ຍ້າຍມາເປັນ **ປ້າຍ** ຢູ່ຂ້າງຊື່ ⇒ ອ່ານໄດ້ໄວກວ່າ
  * ບັນທັດຂໍ້ຄວາມສີເທົາ ແລະ ບໍ່ກິນຄວາມສູງເພີ່ມ.
  */
-export function ListHeader({
+export async function ListHeader({
   title,
   scope,
   total,
@@ -454,16 +459,17 @@ export function ListHeader({
   pages: number;
   children?: ReactNode;
 }) {
+  const t = (await getDictionary(await getLocale())).installationsShared;
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <h1 className="text-xl font-bold text-slate-800">{title}</h1>
 
       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 tabular-nums">
-        {total.toLocaleString()} ລາຍການ
+        {total.toLocaleString()} {t.items}
       </span>
       {pages > 1 && (
         <span className="text-[11px] font-semibold text-slate-400 tabular-nums">
-          ໜ້າ {page}/{pages}
+          {t.page} {page}/{pages}
         </span>
       )}
       {/* ຊ່າງເຫັນສະເພາະງານຂອງຕົນ — ຕ້ອງບອກໃຫ້ຮູ້ ບໍ່ດັ່ງນັ້ນເຂົ້າໃຈວ່າງານຫາຍ */}

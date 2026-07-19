@@ -1,4 +1,6 @@
 import { Button, Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import {
   fetchMonthlyInstallSpares,
   filterInstallSpareItems,
@@ -20,6 +22,7 @@ function shiftMonth(month: string, delta: number) {
 }
 
 export default async function InstallSpareMonthlyReport({ searchParams }: Props) {
+  const t = (await getDictionary(await getLocale())).installSparesMonthly;
   const params = await searchParams;
   const month = ISO_MONTH.test(params.month ?? "") ? (params.month as string) : new Date().toISOString().slice(0, 7);
   const q = (params.q ?? "").trim();
@@ -29,8 +32,8 @@ export default async function InstallSpareMonthlyReport({ searchParams }: Props)
 
   return (
     <div className="w-full space-y-5">
-      <PageTitle sub="ອ່ານຈາກໃບເບີກອາໄຫຼ່ຈາກສາງຂອງງານຕິດຕັ້ງ">
-        ສະຫຼຸບອາໄຫຼ່ຕິດຕັ້ງປະຈຳເດືອນ
+      <PageTitle sub={t.pageSub}>
+        {t.pageTitle}
       </PageTitle>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -38,7 +41,7 @@ export default async function InstallSpareMonthlyReport({ searchParams }: Props)
           href={`/reports/install-spares-monthly?month=${shiftMonth(month, -1)}`}
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
         >
-          ← ເດືອນກ່ອນ
+          ← {t.prevMonth}
         </Link>
         <form className="flex flex-1 flex-wrap items-center gap-2">
           <input
@@ -52,17 +55,17 @@ export default async function InstallSpareMonthlyReport({ searchParams }: Props)
             <input
               name="q"
               defaultValue={q}
-              placeholder="ຄົ້ນຫາລະຫັດ ຫຼື ຊື່ອາໄຫຼ່..."
+              placeholder={t.searchPlaceholder}
               className="w-full text-xs outline-none"
             />
           </div>
-          <Button type="submit" size="sm">ສະແດງ</Button>
+          <Button type="submit" size="sm">{t.show}</Button>
         </form>
         <Link
           href={`/reports/install-spares-monthly?month=${shiftMonth(month, 1)}`}
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
         >
-          ເດືອນຕໍ່ໄປ →
+          {t.nextMonth} →
         </Link>
         <LinkButton href={exportHref} tone="success" size="sm">
           <Download className="size-3.5" /> Excel
@@ -70,19 +73,19 @@ export default async function InstallSpareMonthlyReport({ searchParams }: Props)
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-        <Stat label="ໃບເບີກ" value={report.totals.documents} />
-        <Stat label="ງານຕິດຕັ້ງ" value={report.totals.jobs} />
-        <Stat label="ປະເພດອາໄຫຼ່" value={report.totals.item_types} />
-        <Stat label="ເບີກລວມ" value={qty(report.totals.issued_qty)} tone="blue" />
-        <Stat label="ຮັບຄືນ" value={qty(report.totals.returned_qty)} tone="amber" />
-        <Stat label="ໃຊ້ສຸດທິ" value={qty(report.totals.net_qty)} tone="green" />
+        <Stat label={t.documents} value={report.totals.documents} />
+        <Stat label={t.installJobs} value={report.totals.jobs} />
+        <Stat label={t.itemTypes} value={report.totals.item_types} />
+        <Stat label={t.issuedTotal} value={qty(report.totals.issued_qty)} tone="blue" />
+        <Stat label={t.returned} value={qty(report.totals.returned_qty)} tone="amber" />
+        <Stat label={t.netQty} value={qty(report.totals.net_qty)} tone="green" />
       </div>
 
-      <Card title={`ສະຫຼຸບຕາມອາໄຫຼ່ · ${items.length} ລາຍການ`}>
+      <Card title={`${t.itemSummary} · ${items.length} ${t.itemsUnit}`}>
         {items.length === 0 ? (
-          <Empty>ບໍ່ມີການເບີກອາໄຫຼ່ຕິດຕັ້ງໃນເດືອນນີ້</Empty>
+          <Empty>{t.emptyItems}</Empty>
         ) : (
-          <Table head={["ລະຫັດ", "ລາຍການອາໄຫຼ່", "ໜ່ວຍ", "ໃບເບີກ", "ງານ", "ເບີກ", "ຮັບຄືນ", "ໃຊ້ສຸດທິ"]} minWidth={1050}>
+          <Table head={[t.code, t.itemName, t.unit, t.documents, t.jobs, t.issued, t.returned, t.netQty]} minWidth={1050}>
             {items.map((row) => (
               <tr key={`${row.item_code}-${row.unit_code}`} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-[#0536a9]">{row.item_code}</td>
@@ -99,11 +102,11 @@ export default async function InstallSpareMonthlyReport({ searchParams }: Props)
         )}
       </Card>
 
-      <Card title="ສະຫຼຸບຕາມຊ່າງ">
+      <Card title={t.techSummary}>
         {report.techs.length === 0 ? (
           <Empty />
         ) : (
-          <Table head={["ຊ່າງ", "ຈຳນວນງານ", "ໃບເບີກ", "ປະເພດອາໄຫຼ່", "ເບີກ", "ຮັບຄືນ", "ໃຊ້ສຸດທິ"]} minWidth={850}>
+          <Table head={[t.tech, t.jobCount, t.documents, t.itemTypes, t.issued, t.returned, t.netQty]} minWidth={850}>
             {report.techs.map((row) => (
               <tr key={row.tech_code} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="px-3 py-2 text-xs font-semibold text-slate-800">
