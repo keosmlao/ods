@@ -29,6 +29,7 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ຂອງຂ້ອຍ", label: "ສົນທະນາ", resource: "/chat", actions: ["read", "update"] },
   { group: "ຂອງຂ້ອຍ", label: "ກິດຈະກຳຂອງຂ້ອຍ", resource: "/activities" },
   { group: "ຂອງຂ້ອຍ", label: "ການແຈ້ງເຕືອນ", resource: "/notifications", actions: ["read", "update"] },
+  { group: "ຂອງຂ້ອຍ", label: "ຄູ່ມືການໃຊ້ງານ", resource: "/manual", actions: READ_ONLY },
 
   { group: "ສ້ອມແປງ", label: "ຮັບເຄື່ອງສ້ອມ", resource: "/service" },
   { group: "ສ້ອມແປງ", label: "ຄຳແຈ້ງສ້ອມ", resource: "/service/notices" },
@@ -64,6 +65,8 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ລາຍງານ", label: "ເຄື່ອງກັບມາສ້ອມຊ້ຳ", resource: "/reports/repeat-repairs", actions: READ_ONLY },
   { group: "ຕິດຕັ້ງ", label: "ລາຍງານແບບສອບຖາມ", resource: "/reports/customer-feedback", actions: READ_ONLY },
 
+  { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຂໍໂອນອາໄຫຼ່ມາຫ້ອງສ້ອມ", resource: "/stock/transfer-to-repair", actions: ["read", "update"] },
+  { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຕິດຕາມສິນຄ້າຄົງເຫຼືອ", resource: "/stock/balance", actions: READ_ONLY },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຕິດຕາມການໂອນ", resource: "/stock/transfers" },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຮັບຄືນອາໄຫຼ່", resource: "/stock/receive-returns", actions: ["read", "update"] },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ລາຍການອາໄຫຼ່", resource: "/stock/spare-parts", actions: READ_ONLY },
