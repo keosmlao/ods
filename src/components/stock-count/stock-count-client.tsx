@@ -4,11 +4,13 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { Elapsed } from "@/components/elapsed";
 import { MobileCardList } from "@/components/mobile-card-list";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { useDict } from "@/lib/i18n/context";
 import type { StockCountJob } from "@/lib/stock-count";
 import { Check, CircleAlert, ScanLine } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 
 export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
+  const t = useDict().stockCount;
   const [scanned, setScanned] = useState<Set<string>>(new Set());
   const [flash, setFlash] = useState<{ code: string; ok: boolean } | null>(null);
   const [result, setResult] = useState<{ held: number; missing: number } | null>(null);
@@ -65,9 +67,9 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
   const finalize = async () => {
     const notScanned = total - found;
     const ok = await ask({
-      title: "ສຳເລັດການກວດນັບ?",
-      message: `ສະແກນພົບ ${found}/${total} ອັນ. ເຄື່ອງທີ່ບໍ່ພົບ ${notScanned} ອັນ ຈະຖືກໝາຍ “ຕ້ອງກວດວ່າຍັງຢູ່” ອັດຕະໂນມັດ (ນາລິກາຂັ້ນຢຸດ).`,
-      confirmLabel: "ໝາຍ ຕ້ອງກວດ",
+      title: t.finalizeTitle,
+      message: `${t.scanFound} ${found}/${total} ${t.itemsUnit}. ${t.itemsNotFound} ${notScanned} ${t.itemsUnit} ${t.willBeMarked} “ຕ້ອງກວດວ່າຍັງຢູ່” ${t.autoStopClock}`,
+      confirmLabel: `${t.markWord} ຕ້ອງກວດ`,
       tone: notScanned > 0 ? "danger" : undefined,
     });
     if (!ok) return;
@@ -100,25 +102,25 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
             ref={inputRef}
             autoFocus
             inputMode="text"
-            placeholder="ສະແກນ barcode ຫຼື ພິມເລກງານ ແລ້ວ Enter..."
+            placeholder={t.scanPlaceholder}
             className="h-11 w-full rounded-xl border border-slate-300 px-3 text-base focus:border-teal-500 focus:outline-none"
           />
           <button type="submit" className="h-11 shrink-0 rounded-xl bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700">
-            ນັບ
+            {t.count}
           </button>
         </form>
 
         {flash && (
           <p className={`flex items-center gap-1.5 text-xs font-semibold ${flash.ok ? "text-emerald-700" : "text-rose-700"}`}>
             {flash.ok ? <Check className="size-4" /> : <CircleAlert className="size-4" />}
-            {flash.ok ? `ພົບ ${flash.code} — ນັບແລ້ວ` : `${flash.code} ບໍ່ຢູ່ໃນລາຍການທີ່ຕ້ອງນັບ`}
+            {flash.ok ? `${t.foundWord} ${flash.code} — ${t.countedWord}` : `${flash.code} ${t.notInCountList}`}
           </p>
         )}
 
         <div>
           <div className="mb-1 flex items-center justify-between text-xs">
             <span className="font-semibold text-slate-700">
-              ສະແກນພົບ {found.toLocaleString()} / {total.toLocaleString()}
+              {t.scanFound} {found.toLocaleString()} / {total.toLocaleString()}
             </span>
             <span className="text-slate-400">{pct}%</span>
           </div>
@@ -133,12 +135,12 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
           onClick={finalize}
           className="h-11 w-full rounded-xl bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
         >
-          {busy ? "ກຳລັງໝາຍ..." : `ສຳເລັດການນັບ — ໝາຍ ${(total - found).toLocaleString()} ອັນທີ່ບໍ່ພົບເປັນ ‘ຕ້ອງກວດ’`}
+          {busy ? t.marking : `${t.finishCountMark} ${(total - found).toLocaleString()} ${t.itemsNotFoundAs} ‘ຕ້ອງກວດ’`}
         </button>
         {error && <p className="text-xs font-semibold text-rose-600">{error}</p>}
         {result && (
           <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
-            ສຳເລັດ — ໝາຍ “ຕ້ອງກວດ” {result.held.toLocaleString()} ອັນ (ບໍ່ພົບ {result.missing.toLocaleString()}). ວຽກເຫຼົ່ານັ້ນຍ້າຍໄປແທັບ ‘ຕ້ອງກວດ’.
+            {t.doneMark} “ຕ້ອງກວດ” {result.held.toLocaleString()} {t.itemsUnit} ({t.notFoundWord} {result.missing.toLocaleString()}). {t.jobsMovedTo} ‘ຕ້ອງກວດ’.
           </p>
         )}
       </div>
@@ -147,7 +149,7 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
       {typeList.length > 1 && (
         <div className="flex flex-wrap items-center gap-1.5">
           {[
-            { code: "all", label: "ທັງໝົດ", t: total, f: found },
+            { code: "all", label: t.all, t: total, f: found },
             ...typeList.map((code) => ({
               code,
               label: `${code} · ${typeLabel(code)}`,
@@ -175,7 +177,7 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
       )}
 
       {total === 0 ? (
-        <p className="py-16 text-center text-sm text-slate-400">ບໍ່ມີເຄື່ອງທີ່ຕ້ອງນັບ (ທຸກງານສົ່ງຄືນແລ້ວ)</p>
+        <p className="py-16 text-center text-sm text-slate-400">{t.emptyMsg}</p>
       ) : (
         <>
           {/* ── Desktop = ຕາຕະລາງ ── */}
@@ -183,14 +185,14 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
             <table className="w-full min-w-[860px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                  <th className="w-20 px-3 py-3 text-center font-semibold">ນັບ</th>
-                  <th className="px-3 py-3 font-semibold">ເລກທີ</th>
-                  <th className="px-3 py-3 font-semibold">ຊື່ເຄື່ອງ / SN</th>
-                  <th className="px-3 py-3 font-semibold">ຫຍີ່ຫໍ້</th>
-                  <th className="px-3 py-3 font-semibold">ລູກຄ້າ</th>
-                  <th className="px-3 py-3 font-semibold">ຂັ້ນ</th>
-                  <th className="px-3 py-3 font-semibold">ປະເພດບໍລິການ</th>
-                  <th className="px-3 py-3 font-semibold">ຄ້າງມາ</th>
+                  <th className="w-20 px-3 py-3 text-center font-semibold">{t.count}</th>
+                  <th className="px-3 py-3 font-semibold">{t.colNo}</th>
+                  <th className="px-3 py-3 font-semibold">{t.colProductSn}</th>
+                  <th className="px-3 py-3 font-semibold">{t.colBrand}</th>
+                  <th className="px-3 py-3 font-semibold">{t.colCustomer}</th>
+                  <th className="px-3 py-3 font-semibold">{t.colStage}</th>
+                  <th className="px-3 py-3 font-semibold">{t.colServiceType}</th>
+                  <th className="px-3 py-3 font-semibold">{t.colElapsed}</th>
                 </tr>
               </thead>
               <tbody>
@@ -252,7 +254,7 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
                       {isFound ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">
                           <Check className="size-3" />
-                          ພົບແລ້ວ
+                          {t.foundBadge}
                         </span>
                       ) : (
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">{job.stage_label}</span>

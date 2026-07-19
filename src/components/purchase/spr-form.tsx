@@ -2,6 +2,7 @@
 import { savePr } from "@/app/actions/purchase";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Button, Card, Empty, ErrorBox, inputClass, labelClass, LinkButton, Table } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { LoaderCircle, LogOut, Save } from "lucide-react";
 import { useActionState, useRef } from "react";
 
@@ -25,6 +26,7 @@ export type SprHead = {
 export type SprLine = { roworder: number; item_code: string; item_name: string | null; qty: string; unit_code: string | null };
 
 export function SprForm({ head, lines, docNo, today }: { head: SprHead; lines: SprLine[]; docNo: string; today: string }) {
+  const t = useDict().sprForm;
   const [state, save, saving] = useActionState(savePr, {});
   const formRef = useRef<HTMLFormElement>(null);
   const { ask, dialog } = useConfirm();
@@ -49,65 +51,64 @@ export function SprForm({ head, lines, docNo, today }: { head: SprHead; lines: S
                 disabled={saving}
                 onClick={async () => {
                   const ok = await ask({
-                    title: "ອອກໃບສັ່ງຊື້ອາໄຫຼ່?",
+                    title: t.issuePoTitle,
                     message: (
                       <>
-                        ໃບສັ່ງຊື້ <b className="text-slate-700">{docNo}</b> ຈະລົງລະບົບ ERP ທັນທີ (ບໍ່ຜ່ານໃບຂໍອະນຸມັດ)
-                        ແລະ ຖອນຄືນບໍ່ໄດ້
+                        {t.issuePoMsgBefore} <b className="text-slate-700">{docNo}</b> {t.issuePoMsgAfter}
                         <span className="mt-1 block text-slate-500">{head.item_code}</span>
                       </>
                     ),
-                    confirmLabel: "ອອກໃບສັ່ງຊື້",
+                    confirmLabel: t.confirmIssuePo,
                   });
                   if (ok) formRef.current?.requestSubmit();
                 }}
               >
                 {saving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
-                ບັນທືກ
+                {t.saveBtn}
               </Button>
               <LinkButton href="/purchase-requests" tone="neutral">
                 <LogOut className="size-4" />
-                ອອກ
+                {t.exit}
               </LinkButton>
             </div>
             <div className="flex flex-wrap gap-4">
               <div>
-                <label className={labelClass} htmlFor="doc_date">ວັນທີ</label>
+                <label className={labelClass} htmlFor="doc_date">{t.date}</label>
                 <input id="doc_date" type="date" name="doc_date" required defaultValue={today} className={inputClass} />
               </div>
               <div>
-                <label className={labelClass} htmlFor="doc_no">ເລກທີ</label>
+                <label className={labelClass} htmlFor="doc_no">{t.docNoLabel}</label>
                 <input id="doc_no" value={docNo} readOnly className={`${inputClass} font-bold`} />
               </div>
             </div>
           </div>
         </Card>
 
-        <Card title="ຂໍ້ມູນໃບຂໍເບີກ">
+        <Card title={t.headingWithdraw}>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-            <Field label="ເລກທິໃບຂໍເບີກ" value={head.doc_no} />
-            <Field label="ວັນທີ" value={head.doc_date} />
-            <Field label="ລູກຄ້າ" value={head.customer} />
-            <Field label="ຊື່ສິນຄ້າ" value={head.product} />
-            <Field label="ລູ້ນ/Model" value={head.model} />
-            <Field label="ເລກເຄື່ອງ/sn" value={head.sn} />
-            <Field label="ອາການເສຍ" value={head.issue} />
-            <Field label="ປະກັນ" value={head.warranty} />
-            <Field label="ອາການຊ່າງ" value={head.issue_2} />
-            <Field label="ອຸປະກອນມາກັບເຄື່ອງ" value={head.p_access} />
+            <Field label={t.withdrawNo} value={head.doc_no} />
+            <Field label={t.date} value={head.doc_date} />
+            <Field label={t.customer} value={head.customer} />
+            <Field label={t.productName} value={head.product} />
+            <Field label={t.model} value={head.model} />
+            <Field label={t.serial} value={head.sn} />
+            <Field label={t.issue} value={head.issue} />
+            <Field label={t.warranty} value={head.warranty} />
+            <Field label={t.techIssue} value={head.issue_2} />
+            <Field label={t.accessories} value={head.p_access} />
           </dl>
           <div className="mt-4">
-            <label className={labelClass} htmlFor="remark">ໝາຍເຫດ</label>
+            <label className={labelClass} htmlFor="remark">{t.remark}</label>
             <input id="remark" type="text" name="remark" className={inputClass} />
           </div>
         </Card>
       </form>
 
-      <Card title="ອາໄຫຼ່ທີ່ໃຊ້">
+      <Card title={t.sparesUsed}>
         {lines.length === 0 ? (
           <Empty />
         ) : (
-          <Table head={["#", "ລະຫັດສິນຄ້າ", "ຊື່ສິນຄ້າ", "ຈຳນວນ", "ຫົວໜ່ວຍ"]} minWidth={700}>
+          <Table head={["#", t.colCode, t.productName, t.colQty, t.colUnit]} minWidth={700}>
             {lines.map((line, index) => (
               <tr key={line.roworder} className="border-b border-slate-100">
                 <td className="px-3 py-2 text-center">{index + 1}</td>

@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { FormEvent, useMemo, useRef, useState } from "react";
 
+import { useDict } from "@/lib/i18n/context";
+
 /**
  * **AI ຜູ້ຊ່ວຍວຽກ — ໜ້າຈໍ.**
  *
@@ -28,14 +30,14 @@ type Message = {
   failed?: boolean;
 };
 
-const STARTERS = [
-  "ວຽກ 7518 ຢູ່ຂັ້ນຕອນໃດ?",
-  "ມີວຽກໃດເລີຍ SLA ແດ່?",
-  "ສະຫຼຸບ SLA ແຍກຕາມຂັ້ນຕອນ",
-  "ກວດ stock ອາໄຫຼ່ຕາມລະຫັດ",
-];
-
 export function AssistantChat({ configured }: { configured: boolean }) {
+  const t = useDict().assistantChat;
+  const starters = [
+    t.starterJobStage,
+    t.starterOverSla,
+    t.starterSlaByStage,
+    t.starterStockByCode,
+  ];
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
   const [pending, setPending] = useState(false);
@@ -78,7 +80,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
           ? { role: "assistant", content: data.answer }
           : {
               role: "assistant",
-              content: data.error ?? "AI ຕອບບໍ່ສຳເລັດ",
+              content: data.error ?? t.answerFailed,
               failed: true,
             },
       ]);
@@ -87,7 +89,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
         ...old,
         {
           role: "assistant",
-          content: "ຕິດຕໍ່ server ບໍ່ໄດ້ — ກວດອິນເຕີເນັດແລ້ວລອງໃໝ່",
+          content: t.connectionFailed,
           failed: true,
         },
       ]);
@@ -113,11 +115,11 @@ export function AssistantChat({ configured }: { configured: boolean }) {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-bold text-slate-800">
-            AI ຜູ້ຊ່ວຍວຽກ
+            {t.title}
           </span>
           <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500">
             <ShieldCheck className="size-3 text-emerald-600" />
-            ອ່ານຢ່າງດຽວ · ແກ້ໄຂຂໍ້ມູນບໍ່ໄດ້
+            {t.readonlyNote}
           </span>
         </span>
         {messages.length > 0 && (
@@ -126,7 +128,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
             onClick={() => setMessages([])}
             className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 px-3 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
           >
-            <RotateCcw className="size-3.5" /> ເລີ່ມໃໝ່
+            <RotateCcw className="size-3.5" /> {t.restart}
           </button>
         )}
       </header>
@@ -143,12 +145,12 @@ export function AssistantChat({ configured }: { configured: boolean }) {
             <div className="mx-auto flex max-w-xl items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs leading-5 text-amber-900">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
               <span>
-                <b className="block">AI ຍັງບໍ່ພ້ອມໃຊ້</b>
-                ຕ້ອງຕັ້ງ{" "}
+                <b className="block">{t.notReadyTitle}</b>
+                {t.notReadyBefore}{" "}
                 <code className="rounded bg-white px-1">
                   GEMINI_API_KEY
                 </code>{" "}
-                ຢູ່ server ກ່ອນ — ຕິດຕໍ່ຜູ້ດູແລລະບົບ.
+                {t.notReadyAfter}
               </span>
             </div>
           )}
@@ -159,14 +161,13 @@ export function AssistantChat({ configured }: { configured: boolean }) {
                 <Bot className="size-7" />
               </span>
               <h2 className="mt-3 text-base font-bold text-slate-800">
-                ຖາມຂໍ້ມູນງານບໍລິການ
+                {t.emptyTitle}
               </h2>
               <p className="mt-1 max-w-md text-xs leading-5 text-slate-500">
-                ສະຖານະວຽກ · stock ອາໄຫຼ່ໃນ ERP · SLA — ດຶງຈາກຂໍ້ມູນຈິງໃນຂະນະນີ້.
-                ຊ່າງເຫັນສະເພາະວຽກຂອງຕົນເອງ.
+                {t.emptyDescription}
               </p>
               <div className="mt-5 grid w-full gap-2 sm:grid-cols-2">
-                {STARTERS.map((starter) => (
+                {starters.map((starter) => (
                   <button
                     type="button"
                     key={starter}
@@ -191,7 +192,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
               >
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                 <span>
-                  <b className="block">ຖາມບໍ່ສຳເລັດ</b>
+                  <b className="block">{t.errorTitle}</b>
                   {message.content}
                 </span>
               </div>
@@ -225,7 +226,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
               </span>
               <span className="inline-flex items-center gap-2 rounded-2xl rounded-bl-sm border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-500 shadow-sm">
                 <LoaderCircle className="size-3.5 animate-spin text-[#0536a9]" />
-                ກຳລັງກວດຂໍ້ມູນ ODSS / ERP…
+                {t.checking}
               </span>
             </div>
           )}
@@ -242,7 +243,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
           {/* ຄຳຖາມແນະນຳຢູ່ຕິດຊ່ອງພິມຕະຫຼອດ — ຖາມເທື່ອທຳອິດແລ້ວກໍ່ຍັງຮູ້ວ່າຖາມຫຍັງໄດ້ອີກ */}
           {messages.length > 0 && (
             <div className="mb-2 flex gap-1.5 overflow-x-auto pb-1">
-              {STARTERS.map((starter) => (
+              {starters.map((starter) => (
                 <button
                   type="button"
                   key={starter}
@@ -269,13 +270,13 @@ export function AssistantChat({ configured }: { configured: boolean }) {
               disabled={!configured || pending}
               rows={1}
               maxLength={4000}
-              placeholder="ຖາມເລກວຽກ, SN, stock ຫຼື SLA…"
+              placeholder={t.inputPlaceholder}
               className="max-h-32 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-slate-400 disabled:bg-transparent"
             />
             <button
               disabled={!canSend}
               className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#0536a9] text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-slate-300"
-              aria-label="ສົ່ງຄຳຖາມ"
+              aria-label={t.sendQuestion}
             >
               {pending ? (
                 <LoaderCircle className="size-4 animate-spin" />
@@ -285,8 +286,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
             </button>
           </div>
           <p className="mt-2 text-center text-[10px] text-slate-400">
-            Enter = ສົ່ງ · Shift+Enter = ຂຶ້ນແຖວ · AI ອາດສະຫຼຸບຜິດໄດ້ —
-            ຕົວເລກທັງໝົດດຶງຈາກຖານຂໍ້ມູນຈິງ
+            {t.footerHint}
           </p>
         </div>
       </form>

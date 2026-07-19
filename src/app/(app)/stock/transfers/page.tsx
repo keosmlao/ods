@@ -3,6 +3,8 @@ import { LinkPending } from "@/components/link-pending";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import { ArrowLeftRight, ChevronLeft, ChevronRight, PackageCheck, Search } from "lucide-react";
 import Link from "next/link";
@@ -98,15 +100,18 @@ async function getCounts() {
   return { pending: row?.pending ?? 0, received: row?.received ?? 0 };
 }
 
-const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "doc_no", label: "ເລກທີໃບຂໍໂອນ", defaultDir: "desc" },
-  { key: "elapsed", label: "ຄ້າງມາ", defaultDir: "desc" },
-  { key: "doc_ref", label: "ເລກໃບຂໍເບີກ", defaultDir: "desc" },
-  { key: "item", label: "ອາໄຫຼ່", defaultDir: "asc" },
-  { key: "wh", label: "ໂອນເຂົ້າສາງ", defaultDir: "asc" },
+type Dict = Record<string, string>;
+
+const columns = (t: Dict): { key: string; label: string; defaultDir: SortDir }[] => [
+  { key: "doc_no", label: t.colTransferNo, defaultDir: "desc" },
+  { key: "elapsed", label: t.colWaited, defaultDir: "desc" },
+  { key: "doc_ref", label: t.colRequestNo, defaultDir: "desc" },
+  { key: "item", label: t.colSpare, defaultDir: "asc" },
+  { key: "wh", label: t.colTransferToWarehouse, defaultDir: "asc" },
 ];
 
 export default async function StockTransfersPage({ searchParams }: Props) {
+  const t = (await getDictionary(await getLocale())).stockTransfers;
   const params = await searchParams;
   const tab: Tab = params.tab === "received" ? "received" : "pending";
   const q = (params.q ?? "").trim();
@@ -126,17 +131,17 @@ export default async function StockTransfersPage({ searchParams }: Props) {
     `/stock/transfers?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
   const TABS: { key: Tab; label: string; icon: typeof PackageCheck; count: number }[] = [
-    { key: "pending", label: "ລໍຖ້າຂອງໂອນມາ", icon: ArrowLeftRight, count: counts.pending },
-    { key: "received", label: "ຮັບຂອງທີ່ໂອນມາແລ້ວ", icon: PackageCheck, count: counts.received },
+    { key: "pending", label: t.tabPending, icon: ArrowLeftRight, count: counts.pending },
+    { key: "received", label: t.tabReceived, icon: PackageCheck, count: counts.received },
   ];
 
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-700">ຕິດຕາມການໂອນອາໄຫຼ່ຂ້າມສາງ</h1>
+          <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            {data.total.toLocaleString()} ໃບ · ໜ້າ {page}/{pages}
+            {data.total.toLocaleString()} {t.docs} · {t.page} {page}/{pages}
           </p>
         </div>
       </div>
@@ -173,19 +178,18 @@ export default async function StockTransfersPage({ searchParams }: Props) {
             <input
               name="q"
               defaultValue={q}
-              placeholder="ຄົ້ນຫາ ເລກທີ, ອາໄຫຼ່, ລະຫັດເຄື່ອງ..."
+              placeholder={t.searchPlaceholder}
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
       {/* ຄຳເຕືອນ: ການໂອນຈິງເກີດຢູ່ ERP ບໍ່ແມ່ນຢູ່ນີ້ */}
       {tab === "pending" && data.total > 0 && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
-          ໃບຂໍໂອນ (124) ບໍ່ຕັດ/ບວກສະຕັອກ — ສາງໃຫຍ່ຕ້ອງອອກ <span className="font-semibold">ໃບໂອນ (FT)</span> ໃນ ERP ກ່ອນ.
-          ເມື່ອຍອດຂຶ້ນຢູ່ສາງປາຍທາງແລ້ວ ຈຶ່ງກົດ “ຮັບຂອງທີ່ໂອນມາ” ຢູ່ນີ້ ແລ້ວແຖວຈະກັບເຂົ້າຄິວເບີກອາໄຫຼ່.
+          {t.warningBefore} <span className="font-semibold">{t.warningTransferBill}</span> {t.warningAfter}
         </p>
       )}
 
@@ -195,7 +199,7 @@ export default async function StockTransfersPage({ searchParams }: Props) {
           <table className="w-full min-w-[1100px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                {COLUMNS.map((column) => (
+                {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
                     label={column.label}
@@ -207,8 +211,8 @@ export default async function StockTransfersPage({ searchParams }: Props) {
                     className="py-2.5"
                   />
                 ))}
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສິນຄ້າ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສະຖານະ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colProduct}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colStatus}</th>
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -263,7 +267,7 @@ export default async function StockTransfersPage({ searchParams }: Props) {
                           tab === "pending" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
                         }`}
                       >
-                        {tab === "pending" ? "ລໍຖ້າຂອງໂອນມາ" : "ຂອງມາຮອດແລ້ວ"}
+                        {tab === "pending" ? t.tabPending : t.statusReceived}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-center">
@@ -273,11 +277,11 @@ export default async function StockTransfersPage({ searchParams }: Props) {
                           className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
                         >
                           <PackageCheck className="size-3.5" />
-                          ຮັບຂອງທີ່ໂອນມາ
+                          {t.receiveTransfer}
                           <LinkPending className="size-3" />
                         </Link>
                       ) : (
-                        <span className="text-[11px] text-slate-400">ປິດແລ້ວ</span>
+                        <span className="text-[11px] text-slate-400">{t.closed}</span>
                       )}
                     </td>
                   </tr>
@@ -287,13 +291,13 @@ export default async function StockTransfersPage({ searchParams }: Props) {
           </table>
         </div>
 
-        {data.total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+        {data.total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, data.total)} ຈາກ{" "}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, data.total)} {t.of}{" "}
             {data.total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
@@ -303,7 +307,7 @@ export default async function StockTransfersPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -313,7 +317,7 @@ export default async function StockTransfersPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>

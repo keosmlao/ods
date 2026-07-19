@@ -5,6 +5,8 @@ import { JOB_HEAD_COLUMNS, type JobHead, JobHeader } from "@/components/installa
 import { ReopenJobButton } from "@/components/installation/undo-buttons";
 import { Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { INSTALL_ELAPSED_SQL, INSTALL_STAGE_SQL, installStageChip, installStageLabel } from "@/lib/install-stage";
 import { canViewAssignedJob } from "@/lib/scope";
 import { notFound, redirect } from "next/navigation";
@@ -63,6 +65,7 @@ export default async function InstallationDetail({ params }: Props) {
   const code = decodeURIComponent((await params).code);
   const session = await getSession();
   if (!session) redirect("/login");
+  const t = (await getDictionary(await getLocale())).installDetail;
 
   const [job, spares, docs] = await Promise.all([
     query<Row>(
@@ -100,7 +103,7 @@ export default async function InstallationDetail({ params }: Props) {
 
   return (
     <div className="w-full space-y-5">
-      <PageTitle sub={`ງານຕິດຕັ້ງ ${row.code}`}>ລາຍລະອຽດງານຕິດຕັ້ງ</PageTitle>
+      <PageTitle sub={`${t.installJob} ${row.code}`}>{t.pageTitle}</PageTitle>
 
       <div className="flex flex-wrap items-center gap-3">
         <span className={`rounded-full px-3 py-1 text-xs font-bold ${installStageChip(row.stage)}`}>
@@ -118,28 +121,28 @@ export default async function InstallationDetail({ params }: Props) {
           */}
           {row.stage === 9 && <ReopenJobButton code={row.code} />}
           <LinkButton tone="neutral" href={`/installations/${encodeURIComponent(row.code)}/print`}>
-            ພິມ
+            {t.print}
           </LinkButton>
         </div>
       </div>
 
       {row.cancel_date && (
         <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3">
-          <p className="text-sm font-bold text-red-800">ງານນີ້ຖືກຍົກເລີກແລ້ວ · {row.cancel_date}</p>
-          {row.cancel_remark && <p className="mt-0.5 text-xs text-red-700">ເຫດຜົນ: {row.cancel_remark}</p>}
+          <p className="text-sm font-bold text-red-800">{t.jobCancelled} · {row.cancel_date}</p>
+          {row.cancel_remark && <p className="mt-0.5 text-xs text-red-700">{t.reason} {row.cancel_remark}</p>}
         </div>
       )}
 
       <JobHeader head={row} />
 
-      <Card title="ຂໍ້ມູນເພີ່ມເຕີມ">
+      <Card title={t.moreInfo}>
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {(
             [
-              ["ສະຖານທີ່ຕິດຕັ້ງ", row.location_inst],
+              [t.installLocation, row.location_inst],
               ["Serial number", row.pro_sn],
-              ["ຜູ້ເປີດງານ", row.user_created],
-              ["ໝາຍເຫດ", row.remark],
+              [t.openedBy, row.user_created],
+              [t.remark, row.remark],
             ] as [string, string | null][]
           ).map(([label, value]) => (
             <div key={label} className="border-b border-slate-100 pb-2">
@@ -150,11 +153,11 @@ export default async function InstallationDetail({ params }: Props) {
         </dl>
       </Card>
 
-      <Card title={`ອາໄຫຼ່ຂອງງານ (${spares.rows.length})`}>
+      <Card title={`${t.jobSpares} (${spares.rows.length})`}>
         {spares.rows.length === 0 ? (
-          <Empty>ງານນີ້ບໍ່ໃຊ້ອາໄຫຼ່</Empty>
+          <Empty>{t.noSparesUsed}</Empty>
         ) : (
-          <Table head={["ລະຫັດ", "ຊື່ອາໄຫຼ່", "ຈຳນວນ", "ຂໍເບີກ", "ສາງເບີກ", "ຊ່າງຮັບ"]} minWidth={700}>
+          <Table head={[t.code, t.spareName, t.qty, t.requested, t.dispatched, t.received]} minWidth={700}>
             {spares.rows.map((spare, index) => (
               <tr key={`${spare.item_code}-${index}`} className="border-b border-slate-100">
                 <td className="px-3 py-2 text-xs">{spare.item_code ?? "-"}</td>
@@ -171,11 +174,11 @@ export default async function InstallationDetail({ params }: Props) {
         )}
       </Card>
 
-      <Card title={`ເອກະສານທີ່ກ່ຽວຂ້ອງ (${docs.rows.length})`}>
+      <Card title={`${t.relatedDocs} (${docs.rows.length})`}>
         {docs.rows.length === 0 ? (
-          <Empty>ຍັງບໍ່ມີເອກະສານ</Empty>
+          <Empty>{t.noDocs}</Empty>
         ) : (
-          <Table head={["ປະເພດ", "ເລກທີ", "ວັນທີ", "ລາຍການ"]} minWidth={600}>
+          <Table head={[t.docType, t.docNo, t.date, t.lines]} minWidth={600}>
             {docs.rows.map((doc) => (
               <tr key={doc.doc_no} className="border-b border-slate-100">
                 <td className="px-3 py-2 text-xs">{DOC_LABEL[doc.trans_flag] ?? doc.trans_flag}</td>
