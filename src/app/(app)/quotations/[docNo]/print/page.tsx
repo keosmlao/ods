@@ -1,5 +1,7 @@
 import { PrintButton } from "@/components/quotation/print-button";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -44,6 +46,7 @@ const money = (v: string | number | null) => {
 
 export default async function QuotationPrintPage({ params }: Props) {
   const { docNo } = await params;
+  const t = (await getDictionary(await getLocale())).quotationPrint;
 
   const [companyResult, headResult, lineResult] = await Promise.all([
     query<Company>("select name_1, name_2, address, tel from company_profile"),
@@ -81,7 +84,7 @@ export default async function QuotationPrintPage({ params }: Props) {
     <div className="mx-auto w-full max-w-4xl bg-white p-8 text-slate-950 print:p-0">
       <div className="no-print mb-6 flex items-center justify-between print:hidden">
         <Link href="/quotations" className="text-sm text-slate-500 hover:underline">
-          ← ກັບຄືນ
+          ← {t.back}
         </Link>
         <PrintButton />
       </div>
@@ -94,36 +97,36 @@ export default async function QuotationPrintPage({ params }: Props) {
           <p className="text-sm">{company?.tel ?? ""}</p>
         </div>
         <div className="text-right text-sm">
-          <p>ເລກທີ {head.doc_no}</p>
-          <p>ວັນທີ {head.doc_date ?? "-"}</p>
+          <p>{t.docNo} {head.doc_no}</p>
+          <p>{t.date} {head.doc_date ?? "-"}</p>
         </div>
       </header>
 
-      <h2 className="my-5 text-center text-2xl font-bold">ໃບສະເໜີລາຄາ</h2>
+      <h2 className="my-5 text-center text-2xl font-bold">{t.title}</h2>
 
       <section className="mb-4 text-sm">
-        <p className="font-bold">ຂໍ້ມູນລູກຄ້າ</p>
-        <p>ລູກຄ້າ: {head.customer ?? "-"}</p>
-        <p>ເບີໂທ: {head.tel ?? "-"}</p>
-        <p>ທີ່ຢູ່: {[head.address, head.city, head.province].filter(Boolean).join(" ") || "-"}</p>
+        <p className="font-bold">{t.customerInfo}</p>
+        <p>{t.customer}: {head.customer ?? "-"}</p>
+        <p>{t.phone}: {head.tel ?? "-"}</p>
+        <p>{t.address}: {[head.address, head.city, head.province].filter(Boolean).join(" ") || "-"}</p>
       </section>
 
       <section className="mb-4 grid grid-cols-2 gap-x-6 text-sm">
-        <p className="col-span-2 font-bold">ຂໍ້ມູນສິນຄ້າ</p>
-        <p>ສິນຄ້າ: {head.product ?? "-"}</p>
+        <p className="col-span-2 font-bold">{t.productInfo}</p>
+        <p>{t.product}: {head.product ?? "-"}</p>
         <p>Model: {head.model ?? "-"}</p>
-        <p>ຫຍີ່ຫໍ້: {head.brand ?? "-"}</p>
+        <p>{t.brand}: {head.brand ?? "-"}</p>
         <p>SN: {head.sn ?? "-"}</p>
-        <p>ອາການ: {head.issue_2 ?? "-"}</p>
-        <p>ການຮັບປະກັນ: {head.warranty ?? "-"}</p>
-        <p className="col-span-2">ຊ່າງ: {head.technician ?? "-"}</p>
+        <p>{t.symptom}: {head.issue_2 ?? "-"}</p>
+        <p>{t.warranty}: {head.warranty ?? "-"}</p>
+        <p className="col-span-2">{t.technician}: {head.technician ?? "-"}</p>
       </section>
 
-      <p className="mb-1 text-sm font-bold">ລາຍລະອຽດ</p>
+      <p className="mb-1 text-sm font-bold">{t.details}</p>
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr>
-            {["ລ/ດ", "ລາຍການ", "ຈຳນວນ", "ຫົວໜ່ວຍ", "ລາຄາ", "ລວມ"].map((cell) => (
+            {[t.colNo, t.colItem, t.colQty, t.colUnit, t.colPrice, t.colTotal].map((cell) => (
               <th key={cell} className="border border-slate-900 px-2 py-1 font-normal">{cell}</th>
             ))}
           </tr>
@@ -135,54 +138,54 @@ export default async function QuotationPrintPage({ params }: Props) {
               <td className="border border-slate-900 px-2 py-1">{line.item_name}</td>
               <td className="border border-slate-900 px-2 py-1 text-center">{Number(line.qty)}</td>
               <td className="border border-slate-900 px-2 py-1 text-center">{line.unit_code ?? "-"}</td>
-              <td className="border border-slate-900 px-2 py-1 text-right">{money(line.price)} ບາດ</td>
-              <td className="border border-slate-900 px-2 py-1 text-right">{money(line.sum_amount)} ບາດ</td>
+              <td className="border border-slate-900 px-2 py-1 text-right">{money(line.price)} {t.baht}</td>
+              <td className="border border-slate-900 px-2 py-1 text-right">{money(line.sum_amount)} {t.baht}</td>
             </tr>
           ))}
           <tr>
-            <td colSpan={4} className="px-2 py-1 text-right">ລວມມູນຄ່າ</td>
-            <td colSpan={2} className="border border-slate-900 px-2 py-1 text-right">{money(head.total_value)} ບາດ</td>
+            <td colSpan={4} className="px-2 py-1 text-right">{t.subtotal}</td>
+            <td colSpan={2} className="border border-slate-900 px-2 py-1 text-right">{money(head.total_value)} {t.baht}</td>
           </tr>
           <tr>
-            <td colSpan={4} className="px-2 py-1 text-right">ສ່ວນຫຼຸດ</td>
-            <td colSpan={2} className="border border-slate-900 px-2 py-1 text-right">{money(head.total_discount)} ບາດ</td>
+            <td colSpan={4} className="px-2 py-1 text-right">{t.discount}</td>
+            <td colSpan={2} className="border border-slate-900 px-2 py-1 text-right">{money(head.total_discount)} {t.baht}</td>
           </tr>
           {/* ອມພ: ໃບເກົ່າ 6 ໃບເທົ່ານັ້ນທີ່ຄິດ ອມພ ຈິງ. ແຕ່ກ່ອນ query coalesce(vat_rate,10)
               ⇒ ທຸກໃບໃໝ່ພິມອອກມາເປັນ "ອມພ 10% = 0.00 ບາດ" ທັງທີ່ບໍ່ໄດ້ຄິດ ອມພ ເລີຍ (ຕົວເລກຫຼອກລູກຄ້າ).
               ດຽວນີ້ສະແດງແຖວນີ້ສະເພາະໃບທີ່ມີ ອມພ ແທ້ */}
           {Number(head.total_vat_value) > 0 && (
             <tr>
-              <td colSpan={4} className="px-2 py-1 text-right">ອມພ {money(head.vat_rate)}%</td>
-              <td colSpan={2} className="border border-slate-900 px-2 py-1 text-right">{money(head.total_vat_value)} ບາດ</td>
+              <td colSpan={4} className="px-2 py-1 text-right">{t.vat} {money(head.vat_rate)}%</td>
+              <td colSpan={2} className="border border-slate-900 px-2 py-1 text-right">{money(head.total_vat_value)} {t.baht}</td>
             </tr>
           )}
           <tr>
-            <td colSpan={4} className="px-2 py-1 text-right font-bold">ລວມທັງໝົດ</td>
-            <td colSpan={2} className="border border-slate-900 px-2 py-1 text-right font-bold">{money(head.total_amount)} ບາດ</td>
+            <td colSpan={4} className="px-2 py-1 text-right font-bold">{t.total}</td>
+            <td colSpan={2} className="border border-slate-900 px-2 py-1 text-right font-bold">{money(head.total_amount)} {t.baht}</td>
           </tr>
           <tr>
             <td colSpan={2} className="px-2 py-1 text-right">
-              ອັດຕາເເລກປ່ຽນ: {head.exchange_rate === null ? "-" : money(head.exchange_rate)} ,
+              {t.exchangeRate}: {head.exchange_rate === null ? "-" : money(head.exchange_rate)} ,
             </td>
-            <td colSpan={2} className="px-2 py-1 text-right">ລວມທັງໝົດ (ມູນຄ່າກີບ)</td>
+            <td colSpan={2} className="px-2 py-1 text-right">{t.totalKip}</td>
             <td colSpan={2} className="border border-slate-900 px-2 py-1 text-right font-bold">
-              {head.total_amount_2 === null ? "-" : money(head.total_amount_2)} ກີບ
+              {head.total_amount_2 === null ? "-" : money(head.total_amount_2)} {t.kip}
             </td>
           </tr>
         </tbody>
       </table>
 
       <div className="mt-6 border border-slate-900 p-2 text-sm">
-        <u>ໝາຍເຫດ:</u>
+        <u>{t.remark}:</u>
         <p className="min-h-10">{head.remark ?? ""}</p>
       </div>
 
       <table className="mt-6 w-full border-collapse text-center text-sm">
         <tbody>
           <tr>
-            <td className="border border-slate-900 px-2 py-1">ລູກຄ້າ</td>
-            <td className="border border-slate-900 px-2 py-1">ຜູ້ອະນຸມັດ</td>
-            <td className="border border-slate-900 px-2 py-1">ຜູ້ສະເໜີ</td>
+            <td className="border border-slate-900 px-2 py-1">{t.customer}</td>
+            <td className="border border-slate-900 px-2 py-1">{t.approver}</td>
+            <td className="border border-slate-900 px-2 py-1">{t.proposer}</td>
           </tr>
           <tr className="h-24">
             <td className="border border-slate-900" />

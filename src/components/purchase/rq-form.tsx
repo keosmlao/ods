@@ -2,6 +2,7 @@
 import { addPriceRqOrder, saveRequestOrder } from "@/app/actions/purchase";
 import { SelectField } from "@/components/select-field";
 import { Button, Card, Empty, ErrorBox, inputClass, labelClass, LinkButton, Table } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { LoaderCircle, LogOut, Save } from "lucide-react";
 import Image from "next/image";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
@@ -38,6 +39,7 @@ const money = (value: string | number) =>
 
 /** ແຖວອາໄຫຼ່ + ຟອມໃສ່ລາຄາ (ຄື /add_price_rqorder) */
 function PriceRow({ line, index, head }: { line: RqLine; index: number; head: RqHead }) {
+  const t = useDict().rqForm;
   const [state, action, pending] = useActionState(addPriceRqOrder, {});
 
   if (head.source_type === "check") {
@@ -57,11 +59,11 @@ function PriceRow({ line, index, head }: { line: RqLine; index: number; head: Rq
             step="0.01"
             defaultValue={Number(line.price)}
             required
-            aria-label={`ລາຄາ ${line.item_code}`}
+            aria-label={`${t.price} ${line.item_code}`}
             className={`${inputClass} h-8 w-28 text-right`}
           />
         </td>
-        <td className="px-3 py-2 text-right font-semibold text-slate-400">ຄິດຕອນບັນທຶກ</td>
+        <td className="px-3 py-2 text-right font-semibold text-slate-400">{t.calcOnSave}</td>
       </tr>
     );
   }
@@ -81,11 +83,11 @@ function PriceRow({ line, index, head }: { line: RqLine; index: number; head: Rq
           <input
             name="price"
             defaultValue={Number(line.price)}
-            aria-label="ລາຄາ"
+            aria-label={t.price}
             className={`${inputClass} h-8 w-28 text-right`}
           />
           <Button type="submit" disabled={pending} className="h-8 px-3 text-xs">
-            {pending ? <LoaderCircle className="size-4 animate-spin" /> : "ບັນທຶກ"}
+            {pending ? <LoaderCircle className="size-4 animate-spin" /> : t.save}
           </Button>
         </form>
         {state.error && <p className="mt-1 text-right text-xs text-red-600">{state.error}</p>}
@@ -96,6 +98,7 @@ function PriceRow({ line, index, head }: { line: RqLine; index: number; head: Rq
 }
 
 export function RqForm({ head, lines, docNo, today }: { head: RqHead; lines: RqLine[]; docNo: string; today: string }) {
+  const t = useDict().rqForm;
   const [state, save, saving] = useActionState(saveRequestOrder, {});
   const [preview, setPreview] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -123,41 +126,41 @@ export function RqForm({ head, lines, docNo, today }: { head: RqHead; lines: RqL
             <div className="flex gap-2">
               <Button type="submit" tone="success" disabled={saving || lines.length === 0}>
                 {saving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
-                ບັນທືກ
+                {t.saveMain}
               </Button>
               <LinkButton href="/purchase-requests" tone="neutral">
                 <LogOut className="size-4" />
-                ອອກ
+                {t.exit}
               </LinkButton>
             </div>
             <div className="flex flex-wrap gap-4">
               <div>
-                <label className={labelClass} htmlFor="doc_date">ວັນທີ</label>
+                <label className={labelClass} htmlFor="doc_date">{t.date}</label>
                 <input id="doc_date" type="date" name="doc_date" required defaultValue={today} className={inputClass} />
               </div>
               <div>
-                <label className={labelClass} htmlFor="doc_no">ເລກທີ</label>
+                <label className={labelClass} htmlFor="doc_no">{t.docNoLabel}</label>
                 <input id="doc_no" value={docNo} readOnly className={`${inputClass} font-bold`} />
               </div>
             </div>
           </div>
         </Card>
 
-        <Card title={head.source_type === "check" ? "ຂໍ້ມູນຈາກຜົນກວດເຊັກ" : "ຂໍ້ມູນໃບຂໍເບີກ"}>
+        <Card title={head.source_type === "check" ? t.headingCheck : t.headingRequest}>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-            <Field label={head.source_type === "check" ? "ອ້າງອີງຜົນກວດ" : "ເລກທິໃບຂໍເບີກ"} value={head.doc_no} />
-            <Field label="ວັນທີ" value={head.doc_date} />
-            <Field label="ລູກຄ້າ" value={head.customer} />
-            <Field label="ຊື່ສິນຄ້າ" value={head.product} />
-            <Field label="ລູ້ນ/Model" value={head.model} />
-            <Field label="ເລກເຄື່ອງ/sn" value={head.sn} />
-            <Field label="ອາການເສຍ" value={head.issue} wide />
+            <Field label={head.source_type === "check" ? t.refCheck : t.refRequest} value={head.doc_no} />
+            <Field label={t.date} value={head.doc_date} />
+            <Field label={t.customer} value={head.customer} />
+            <Field label={t.productName} value={head.product} />
+            <Field label={t.model} value={head.model} />
+            <Field label={t.serial} value={head.sn} />
+            <Field label={t.issue} value={head.issue} wide />
           </dl>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>
-                <span className="text-red-500">*</span> ສະຖານະ
+                <span className="text-red-500">*</span> {t.status}
               </label>
               <SelectField
                 name="status_doc"
@@ -170,7 +173,7 @@ export function RqForm({ head, lines, docNo, today }: { head: RqHead; lines: RqL
             </div>
             <div>
               <label className={labelClass}>
-                <span className="text-red-500">*</span> ປະກັນ
+                <span className="text-red-500">*</span> {t.warrantyLabel}
               </label>
               <SelectField
                 name="wanrunty"
@@ -189,7 +192,7 @@ export function RqForm({ head, lines, docNo, today }: { head: RqHead; lines: RqL
              */}
             <div>
               <label className={labelClass}>
-                <span className="text-red-500">*</span> ສັ່ງຊື້ຜ່ານສາຂາ
+                <span className="text-red-500">*</span> {t.orderBranch}
               </label>
               <SelectField
                 name="branch_code"
@@ -201,12 +204,12 @@ export function RqForm({ head, lines, docNo, today }: { head: RqHead; lines: RqL
               />
             </div>
             <div className="sm:col-span-2">
-              <label className={labelClass} htmlFor="remark">ໝາຍເຫດ (ຫາກມີ)</label>
+              <label className={labelClass} htmlFor="remark">{t.remark}</label>
               <input id="remark" type="text" name="remark" className={inputClass} />
             </div>
             <div>
               <label className={labelClass} htmlFor="file1">
-                ເເນບເອກະສານ <span className="text-red-500">*</span>
+                {t.attachFile} <span className="text-red-500">*</span>
               </label>
               <input
                 id="file1"
@@ -229,23 +232,23 @@ export function RqForm({ head, lines, docNo, today }: { head: RqHead; lines: RqL
               {preview ? (
                 <Image src={preview} alt="" width={180} height={128} unoptimized className="size-full object-contain" />
               ) : (
-                <span className="text-xs text-slate-400">ບໍ່ມີຮູບ</span>
+                <span className="text-xs text-slate-400">{t.noImage}</span>
               )}
             </div>
           </div>
         </Card>
       </form>
 
-      <Card title="ອາໄຫຼ່ທີ່ໃຊ້">
+      <Card title={t.sparesUsed}>
         {lines.length === 0 ? (
-          <Empty>ບໍ່ມີອາໄຫຼ່ທີ່ຕ້ອງສັ່ງຊື້</Empty>
+          <Empty>{t.noSpares}</Empty>
         ) : (
-          <Table head={["#", "ລະຫັດສິນຄ້າ", "ຊື່ສິນຄ້າ", "ຈຳນວນ", "ຫົວໜ່ວຍ", "ລາຄາ", "ລວມ"]} minWidth={900}>
+          <Table head={["#", t.colCode, t.productName, t.colQty, t.colUnit, t.price, t.total]} minWidth={900}>
             {lines.map((line, index) => (
               <PriceRow key={line.roworder} line={line} index={index} head={head} />
             ))}
             <tr className="bg-slate-50 font-bold">
-              <td colSpan={6} className="px-3 py-3 text-right">ລວມ</td>
+              <td colSpan={6} className="px-3 py-3 text-right">{t.total}</td>
               <td className="px-3 py-3 text-right">{money(total)}</td>
             </tr>
           </Table>

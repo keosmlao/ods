@@ -5,6 +5,8 @@ import { SortHeader, type SortDir } from "@/components/sort-header";
 import { Todo } from "@/components/ui";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { OPEN_JOBS, STAGE_LABEL, STAGE_SQL } from "@/lib/stage";
 import { ChevronLeft, ChevronRight, FileBarChart, Search, X } from "lucide-react";
 import Link from "next/link";
@@ -140,16 +142,19 @@ async function getMovements(code: string) {
   return (await query<Movement>(sql, [code])).rows;
 }
 
-const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "code", label: "ລະຫັດ", defaultDir: "desc" },
-  { key: "elapsed", label: "ຄ້າງມາ", defaultDir: "desc" },
-  { key: "product", label: "ລາຍການ", defaultDir: "asc" },
-  { key: "sn", label: "ໝາຍເລກເຄື່ອງ", defaultDir: "asc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
-  { key: "stage", label: "ສະຖານະ", defaultDir: "asc" },
+type Dict = Record<string, string>;
+
+const columns = (t: Dict): { key: string; label: string; defaultDir: SortDir }[] => [
+  { key: "code", label: t.colCode, defaultDir: "desc" },
+  { key: "elapsed", label: t.colWaited, defaultDir: "desc" },
+  { key: "product", label: t.colProduct, defaultDir: "asc" },
+  { key: "sn", label: t.colSerial, defaultDir: "asc" },
+  { key: "customer", label: t.colCustomer, defaultDir: "asc" },
+  { key: "stage", label: t.colStatus, defaultDir: "asc" },
 ];
 
 export default async function StockProductsPage({ searchParams }: Props) {
+  const t = (await getDictionary(await getLocale())).stockProducts;
   const params = await searchParams;
   const tab: Tab = "open";
   const q = (params.q ?? "").trim();
@@ -182,19 +187,19 @@ export default async function StockProductsPage({ searchParams }: Props) {
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-700">ການເຄື່ອນໃຫວສາງສິນຄ້າ</h1>
+          <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            ສິນຄ້າສ້ອມແປງ · {products.total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+            {t.repairProducts} · {products.total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Todo className="h-9 px-3 text-xs">
             <FileBarChart className="size-4" />
-            ລາຍງານເຄື່ອງສ້ອມແປງຄົງເຫຼືອ
+            {t.reportRemaining}
           </Todo>
           <Todo className="h-9 px-3 text-xs">
             <FileBarChart className="size-4" />
-            ລາຍງານການເຄື່ອງໃຫວ
+            {t.reportMovements}
           </Todo>
         </div>
       </div>
@@ -209,11 +214,11 @@ export default async function StockProductsPage({ searchParams }: Props) {
             <input
               name="q"
               defaultValue={q}
-              placeholder="ຄົ້ນຫາ ລະຫັດ, SN, ລາຍການ, ລູກຄ້າ, ອາການ..."
+              placeholder={t.searchPlaceholder}
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -223,7 +228,7 @@ export default async function StockProductsPage({ searchParams }: Props) {
           <table className="w-full min-w-[1100px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                {COLUMNS.map((column) => (
+                {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
                     label={column.label}
@@ -235,7 +240,7 @@ export default async function StockProductsPage({ searchParams }: Props) {
                     className="py-2.5"
                   />
                 ))}
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາການເພ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colIssue}</th>
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -295,7 +300,7 @@ export default async function StockProductsPage({ searchParams }: Props) {
                             : "bg-sky-500 text-white hover:bg-sky-600"
                         }`}
                       >
-                        {selected ? "ປິດ" : "ລາຍລະອຽດ"}
+                        {selected ? t.close : t.detail}
                         <LinkPending className="size-3" />
                       </Link>
                     </td>
@@ -306,13 +311,13 @@ export default async function StockProductsPage({ searchParams }: Props) {
           </table>
         </div>
 
-        {products.total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+        {products.total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, products.total)} ຈາກ{" "}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, products.total)} {t.of}{" "}
             {products.total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
@@ -322,7 +327,7 @@ export default async function StockProductsPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -332,7 +337,7 @@ export default async function StockProductsPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>
@@ -343,28 +348,28 @@ export default async function StockProductsPage({ searchParams }: Props) {
       {code && (
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-2.5">
-            <h2 className="text-xs font-bold text-slate-700">ລາຍການເຄື່ອນໃຫວ — {code}</h2>
+            <h2 className="text-xs font-bold text-slate-700">{t.movements} — {code}</h2>
             <Link
               href={`/stock/products?${new URLSearchParams({ ...base(), sort, dir, ...(page > 1 && { page: String(page) }) })}`}
               scroll={false}
               className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-300 px-2.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
             >
               <X className="size-3" />
-              ປິດ
+              {t.close}
               <LinkPending className="size-3" />
             </Link>
           </div>
           {movements.length === 0 ? (
-            <p className="py-10 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>
+            <p className="py-10 text-center text-xs text-slate-400">{t.noResults}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[600px] border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">#</th>
-                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ວັນທີ</th>
-                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ເວລາ</th>
-                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ລານການ</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colDate}</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colTime}</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colTransaction}</th>
                   </tr>
                 </thead>
                 <tbody>
