@@ -4,6 +4,8 @@ import { Card, Empty, ErrorBox, PageTitle, Table } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { docPrefix } from "@/lib/doc-no";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { canViewAssignedJob } from "@/lib/scope";
 import { TRANS } from "@/lib/stock-constants";
 import { Trash2 } from "lucide-react";
@@ -45,6 +47,7 @@ async function previewDocNo() {
 export default async function ReturnRequestPage({ params }: Props) {
   const session = await getSession();
   if (!session) redirect("/login");
+  const t = (await getDictionary(await getLocale())).stockReturnsDetail;
   const { docNo } = await params;
   const code = decodeURIComponent(docNo);
 
@@ -73,7 +76,7 @@ export default async function ReturnRequestPage({ params }: Props) {
 
   return (
     <div className="w-full space-y-6">
-      <PageTitle sub="ໃບຂໍສົ່ງອາໄຫຼ່">ໃບຂໍສົ່ງຄືນອາໄຫຼ່</PageTitle>
+      <PageTitle sub={t.subtitle}>{t.title}</PageTitle>
 
       <DocForm
         kind="returnRequest"
@@ -85,21 +88,21 @@ export default async function ReturnRequestPage({ params }: Props) {
         productCode={bill.product_code}
         disabled={draft.rows.length === 0}
         fields={[
-          { label: "ວັນ/ເວລາເບີກສຳເລັດ:", value: bill.finished_at },
-          { label: "ເລກ​ທີ​ໃບ​ເບີກ:", value: bill.doc_no },
-          { label: "ລູກຄ້າ:", value: bill.customer },
-          { label: "ຊື່ສິນຄ້າ:", value: bill.product },
-          { label: "ອາການເສຍ:", value: bill.issue, accent: true },
-          { label: "ປະກັນ:", value: bill.warranty },
-          { label: "ຊ່າງສ້ອມ:", value: bill.technician },
+          { label: t.fieldFinishedAt, value: bill.finished_at },
+          { label: t.fieldBillNo, value: bill.doc_no },
+          { label: t.fieldCustomer, value: bill.customer },
+          { label: t.fieldProduct, value: bill.product },
+          { label: t.fieldIssue, value: bill.issue, accent: true },
+          { label: t.fieldWarranty, value: bill.warranty },
+          { label: t.fieldTechnician, value: bill.technician },
         ]}
       />
 
-      <Card title="ອາໄຫຼ່ທີ່ໃຊ້">
+      <Card title={t.sparesUsed}>
         {draft.rows.length === 0 ? (
           <Empty />
         ) : (
-          <Table head={["#", "ລະຫັດສິນຄ້າ", "ຊື່ສິນຄ້າ", "ຈຳນວນ", "ຫົວໜ່ວຍ", ""]} minWidth={800}>
+          <Table head={["#", t.colItemCode, t.colItemName, t.colQty, t.colUnit, ""]} minWidth={800}>
             {draft.rows.map((line) => (
               <tr key={line.roworder} className="border-b border-slate-100">
                 <td className="px-3 py-3 text-center">{line.rnum}</td>
@@ -111,7 +114,7 @@ export default async function ReturnRequestPage({ params }: Props) {
                   <form action={removeReturnDraftLine}>
                     <input type="hidden" name="row_id" value={line.roworder} />
                     <input type="hidden" name="doc_no" value={code} />
-                    <button type="submit" title="ບໍ່ເອົາລາຍການນີ້" className="text-[#DE3163] hover:opacity-70">
+                    <button type="submit" title={t.removeLine} className="text-[#DE3163] hover:opacity-70">
                       <Trash2 className="size-4" />
                     </button>
                   </form>
@@ -122,7 +125,7 @@ export default async function ReturnRequestPage({ params }: Props) {
         )}
       </Card>
 
-      {draft.rows.length === 0 && <ErrorBox>ບໍ່ມີອາໄຫຼ່ໃຫ້ສົ່ງຄືນ</ErrorBox>}
+      {draft.rows.length === 0 && <ErrorBox>{t.noSparesToReturn}</ErrorBox>}
     </div>
   );
 }

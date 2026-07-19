@@ -1,6 +1,7 @@
 "use client";
 import { reopenJob, undoFinishInstall, undoStartInstall } from "@/app/actions/installation";
 import { UndoButton } from "@/components/checking/undo-button";
+import { useDict } from "@/lib/i18n/context";
 
 /**
  * ປຸ່ມຖອນຄືນຂອງຝັ່ງຕິດຕັ້ງ (ຄູ່ກັບ components/repair/repair-actions ຂອງຝັ່ງສ້ອມ).
@@ -13,15 +14,15 @@ import { UndoButton } from "@/components/checking/undo-button";
  */
 
 export function UndoStartInstallButton({ code, variant }: { code: string; variant?: "button" | "icon" }) {
+  const t = useDict().undoButtons;
   return (
     <UndoButton
       variant={variant}
-      label="ຖອນ ເລີ່ມຕິດຕັ້ງ"
-      title="ຖອນ ເລີ່ມຕິດຕັ້ງ?"
+      label={t.undoStartLabel}
+      title={t.undoStartTitle}
       message={
         <>
-          ງານ <b className="text-slate-700">#{code}</b> ຈະກັບໄປ &quot;ລໍຖ້າຊ່າງຕິດຕັ້ງ&quot; ແລະ ຢຸດຈັບເວລາ.
-          ອາໄຫຼ່ ແລະ ໃບເບີກທີ່ອອກໄປແລ້ວຍັງຢູ່ຄືເກົ່າ.
+          {t.jobWord} <b className="text-slate-700">#{code}</b> {t.undoStartMsg}
         </>
       }
       action={() => undoStartInstall(code)}
@@ -30,15 +31,15 @@ export function UndoStartInstallButton({ code, variant }: { code: string; varian
 }
 
 export function UndoFinishInstallButton({ code, variant }: { code: string; variant?: "button" | "icon" }) {
+  const t = useDict().undoButtons;
   return (
     <UndoButton
       variant={variant}
-      label="ຖອນ ຕິດຕັ້ງສຳເລັດ"
-      title="ຖອນ ຕິດຕັ້ງສຳເລັດ?"
+      label={t.undoFinishLabel}
+      title={t.undoFinishTitle}
       message={
         <>
-          ງານ <b className="text-slate-700">#{code}</b> ຈະກັບໄປ &quot;ກຳລັງຕິດຕັ້ງ&quot;. ຖອນບໍ່ໄດ້
-          ຖ້າລູກຄ້າຕອບແບບສອບຖາມໄປແລ້ວ.
+          {t.jobWord} <b className="text-slate-700">#{code}</b> {t.undoFinishMsg}
         </>
       }
       action={() => undoFinishInstall(code)}
@@ -47,15 +48,15 @@ export function UndoFinishInstallButton({ code, variant }: { code: string; varia
 }
 
 export function ReopenJobButton({ code, variant }: { code: string; variant?: "button" | "icon" }) {
+  const t = useDict().undoButtons;
   return (
     <UndoButton
       variant={variant}
-      label="ເປີດງານຄືນ"
-      title="ເປີດງານຄືນ?"
+      label={t.reopenLabel}
+      title={t.reopenTitle}
       message={
         <>
-          ງານ <b className="text-slate-700">#{code}</b> ຈະກັບໄປ &quot;ລໍຖ້າປິດງານ&quot;.
-          ຄຳຕອບແບບສອບຖາມຂອງລູກຄ້າຍັງຢູ່ຄືເກົ່າ.
+          {t.jobWord} <b className="text-slate-700">#{code}</b> {t.reopenMsg}
         </>
       }
       action={() => reopenJob(code)}

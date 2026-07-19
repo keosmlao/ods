@@ -1,5 +1,7 @@
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { ServiceDeleteButton } from "@/components/service/service-delete-button";
+import { getDictionary, type Dictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { Printer } from "lucide-react";
 import Link from "next/link";
 
@@ -24,17 +26,17 @@ export type TableRow = {
 };
 
 /** ຖັນທີ່ຈັດຮຽງໄດ້ (whitelist ຕົງກັບ CLOSED_SORT_SQL ຢູ່ຝັ່ງ server) */
-const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "code", label: "ລະຫັດ", defaultDir: "desc" },
-  { key: "registered", label: "ວັນ/ເວລາ", defaultDir: "desc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
-  { key: "product", label: "ຊື່ເຄືອງ / SN", defaultDir: "asc" },
-  { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
-  { key: "technician", label: "ຊ່າງ", defaultDir: "asc" },
-  { key: "receiver", label: "ຜູ້ຮັບ", defaultDir: "asc" },
+const columnsFor = (t: Dictionary["serviceTable"]): { key: string; label: string; defaultDir: SortDir }[] => [
+  { key: "code", label: t.colCode, defaultDir: "desc" },
+  { key: "registered", label: t.colRegistered, defaultDir: "desc" },
+  { key: "customer", label: t.colCustomer, defaultDir: "asc" },
+  { key: "product", label: t.colProduct, defaultDir: "asc" },
+  { key: "brand", label: t.colBrand, defaultDir: "asc" },
+  { key: "technician", label: t.colTechnician, defaultDir: "asc" },
+  { key: "receiver", label: t.colReceiver, defaultDir: "asc" },
 ];
 
-export function ServiceTable({
+export async function ServiceTable({
   canDelete = false,
   rows,
   sort,
@@ -48,13 +50,15 @@ export function ServiceTable({
   dir: SortDir;
   sortHref: (sort: string, dir: SortDir) => string;
 }) {
+  const t = (await getDictionary(await getLocale())).serviceTable;
   if (rows.length === 0) {
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="py-10 text-center text-sm text-slate-400">ບໍ່ພົບລາຍການ</p>
+        <p className="py-10 text-center text-sm text-slate-400">{t.noResults}</p>
       </section>
     );
   }
+  const columns = columnsFor(t);
 
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -62,7 +66,7 @@ export function ServiceTable({
         <table className="w-full min-w-[1200px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-              {COLUMNS.map((column) => (
+              {columns.map((column) => (
                 <SortHeader
                   key={column.key}
                   label={column.label}
@@ -74,9 +78,9 @@ export function ServiceTable({
                   className={column.key === "code" ? "text-center" : ""}
                 />
               ))}
-              <th className="whitespace-nowrap px-3 py-3 font-semibold">ປະກັນ</th>
-              <th className="whitespace-nowrap px-3 py-3 font-semibold">ອາການເບື້ອງຕົ້ນ</th>
-              <th className="whitespace-nowrap px-3 py-3 font-semibold">ສະຖານະ</th>
+              <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colWarranty}</th>
+              <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colIssue}</th>
+              <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colStatus}</th>
               <th className="px-3 py-3" />
             </tr>
           </thead>
@@ -102,7 +106,7 @@ export function ServiceTable({
                   <td className="whitespace-nowrap px-3 py-3">{row.status}</td>
                   <td className="px-3 py-3 text-center">
                     <div className="flex items-center justify-center gap-2.5">
-                      <Link href={`/service/${row.code}/print`} target="_blank" title="ພິມ" className="text-[#D35400] hover:opacity-70">
+                      <Link href={`/service/${row.code}/print`} target="_blank" title={t.printTitle} className="text-[#D35400] hover:opacity-70">
                         <Printer className="size-4" />
                       </Link>
                       {canDelete && <ServiceDeleteButton code={row.code} />}

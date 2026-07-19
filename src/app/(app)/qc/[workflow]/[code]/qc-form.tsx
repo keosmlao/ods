@@ -5,6 +5,7 @@ import type { Workflow } from "@/lib/commission-roles";
 import { Button, ErrorBox, inputClass } from "@/components/ui";
 import { Camera, Check, LoaderCircle, X } from "lucide-react";
 import { useActionState, useState } from "react";
+import { useDict } from "@/lib/i18n/context";
 import { SignaturePad } from "./signature-pad";
 
 /**
@@ -40,6 +41,7 @@ export function QcForm({
   jobCode: string;
   items: QcItem[];
 }) {
+  const t = useDict().qcForm;
   const [state, action, pending] = useActionState(saveQc, {});
   const [answers, setAnswers] = useState<Record<number, Answer>>(() =>
     Object.fromEntries(
@@ -109,7 +111,7 @@ export function QcForm({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="min-w-48 flex-1 text-sm font-semibold text-slate-800">
                   {item.name}
-                  {item.require_photo && <span className="ml-1 text-[11px] text-slate-400">(ຕ້ອງມີຮູບ)</span>}
+                  {item.require_photo && <span className="ml-1 text-[11px] text-slate-400">{t.requirePhotoTag}</span>}
                 </span>
 
                 <button
@@ -121,7 +123,7 @@ export function QcForm({
                       : "border border-slate-300 bg-white text-slate-600"
                   }`}
                 >
-                  <Check className="size-3.5" /> ຜ່ານ
+                  <Check className="size-3.5" /> {t.pass}
                 </button>
                 <button
                   type="button"
@@ -130,12 +132,12 @@ export function QcForm({
                     answer?.passed === false ? "bg-red-600 text-white" : "border border-slate-300 bg-white text-slate-600"
                   }`}
                 >
-                  <X className="size-3.5" /> ບໍ່ຜ່ານ
+                  <X className="size-3.5" /> {t.fail}
                 </button>
 
                 <label className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">
                   {busy === item.id ? <LoaderCircle className="size-3.5 animate-spin" /> : <Camera className="size-3.5" />}
-                  {answer?.photo ? "ປ່ຽນຮູບ" : "ຖ່າຍຮູບ"}
+                  {answer?.photo ? t.changePhoto : t.takePhoto}
                   <input
                     type="file"
                     accept="image/*"
@@ -151,7 +153,7 @@ export function QcForm({
                 <input
                   value={answer.note}
                   onChange={(event) => set(item.id, { note: event.target.value })}
-                  placeholder="ເຫດຜົນທີ່ບໍ່ຜ່ານ — ຊ່າງຈະເຫັນຂໍ້ຄວາມນີ້"
+                  placeholder={t.failReasonPlaceholder}
                   className={`${inputClass} mt-2`}
                 />
               )}
@@ -172,20 +174,20 @@ export function QcForm({
       {/* ຮັບມອບງານ — ບັນທຶກກໍ່ຕໍ່ເມື່ອ QC ຜ່ານ (ລູກຄ້າຮັບມອບແຕ່ງານທີ່ຜ່ານແລ້ວ) */}
       {failed === 0 && complete ? (
         <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3">
-          <p className="text-sm font-bold text-slate-700">ຜູ້ຮັບມອບງານ (ລູກຄ້າ)</p>
+          <p className="text-sm font-bold text-slate-700">{t.receiverTitle}</p>
           <div className="grid gap-2 sm:grid-cols-2">
             <input
               name="signer_name"
               value={signer}
               onChange={(event) => setSigner(event.target.value)}
-              placeholder="ຊື່ຜູ້ຮັບມອບ"
+              placeholder={t.receiverNamePlaceholder}
               className={inputClass}
             />
             <input
               name="signer_tel"
               value={tel}
               onChange={(event) => setTel(event.target.value)}
-              placeholder="ເບີໂທ (ບໍ່ບັງຄັບ)"
+              placeholder={t.telPlaceholder}
               className={inputClass}
             />
           </div>
@@ -201,12 +203,12 @@ export function QcForm({
 
       <div className="sticky bottom-0 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <span className="text-xs text-slate-500">
-          ກວດແລ້ວ <b className="text-slate-800">{answered}/{items.length}</b>
-          {failed > 0 && <b className="ml-2 text-red-600">ບໍ່ຜ່ານ {failed}</b>}
+          {t.checked} <b className="text-slate-800">{answered}/{items.length}</b>
+          {failed > 0 && <b className="ml-2 text-red-600">{t.fail} {failed}</b>}
         </span>
         {missingPhoto.length > 0 && (
           <span className="text-xs font-semibold text-amber-700">
-            ຕ້ອງແນບຮູບ: {missingPhoto.map((item) => item.name).join(", ")}
+            {t.mustAttachPhoto} {missingPhoto.map((item) => item.name).join(", ")}
           </span>
         )}
         <Button
@@ -215,7 +217,7 @@ export function QcForm({
           className="ml-auto h-9 px-4 text-xs"
         >
           {pending && <LoaderCircle className="size-3.5 animate-spin" />}
-          {failed > 0 ? `ບໍ່ຜ່ານ — ສົ່ງກັບໃຫ້ຊ່າງ (${failed})` : "QC ຜ່ານ — ໄປຂັ້ນຕໍ່ໄປ"}
+          {failed > 0 ? `${t.failSendBack} (${failed})` : t.qcPassNext}
         </Button>
       </div>
     </form>
