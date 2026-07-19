@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import 'repair_stock_screen.dart';
 import 'stock_balance_screen.dart';
 import '../main.dart';
 import '../push.dart';
@@ -155,6 +156,12 @@ class _JobsScreenState extends State<JobsScreen> {
                   MaterialPageRoute(builder: (_) => const StockBalanceScreen()),
                 );
               }
+              if (value == 'repair-stock') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const RepairStockScreen()),
+                );
+              }
             },
             itemBuilder: (_) => const [
               PopupMenuItem(
@@ -164,6 +171,16 @@ class _JobsScreenState extends State<JobsScreen> {
                     Icon(Icons.inventory_2_outlined, size: 19),
                     SizedBox(width: 10),
                     Text('ສິນຄ້າຄົງເຫຼືອ'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'repair-stock',
+                child: Row(
+                  children: [
+                    Icon(Icons.warehouse_outlined, size: 19),
+                    SizedBox(width: 10),
+                    Text('ຄົງເຫຼືອ ສາງສ້ອມ'),
                   ],
                 ),
               ),

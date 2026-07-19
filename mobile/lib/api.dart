@@ -215,6 +215,18 @@ class Api {
         .toList();
   }
 
+  /// browse ຄົງເຫຼືອ ສາງສ້ອມ (1104/1206) ຈາກ cache — ໄວ. q = ກອງ.
+  static Future<({List<StockBalanceItem> items, String? refreshedAt})> repairStock(String query) async {
+    final result = await _send(
+      'GET',
+      '/api/mobile/repair-stock?q=${Uri.encodeQueryComponent(query)}',
+    );
+    final items = (result['items'] as List)
+        .map((row) => StockBalanceItem.fromJson(row))
+        .toList();
+    return (items: items, refreshedAt: result['refreshed_at'] as String?);
+  }
+
   static Future<List<PickupDoc>> pickups() async {
     final result = await _send('GET', '/api/mobile/spares?queue=pickup');
     return (result['docs'] as List)
