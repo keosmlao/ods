@@ -18,6 +18,7 @@ import {
   inputClass,
   labelClass,
 } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -41,6 +42,8 @@ export type SpareLine = {
   qty: string;
   unit_code: string | null;
 };
+
+type SpareRequestFormDict = ReturnType<typeof useDict>["spareRequestForm"];
 
 export type Warehouse = { code: string; name_1: string };
 export type Shelf = { whcode: string; code: string; name_1: string };
@@ -70,6 +73,7 @@ export function SpareRequestForm({
   shelves: Shelf[];
   balances: Record<string, SpareBalance>;
 }) {
+  const t = useDict().spareRequestForm;
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     saveSpareRequest,
     {},
@@ -98,7 +102,7 @@ export function SpareRequestForm({
     ).length;
     return {
       value: warehouse.code,
-      label: `${warehouse.code} ~ ${warehouse.name_1} · ມີ ${available}/${lines.length} · ພໍ ${enough}/${lines.length}`,
+      label: `${warehouse.code} ~ ${warehouse.name_1} · ${t.has} ${available}/${lines.length} · ${t.enough} ${enough}/${lines.length}`,
     };
   });
 
@@ -123,17 +127,17 @@ export function SpareRequestForm({
                 ) : (
                   <Save className="size-4" />
                 )}
-                ບັນທຶກ
+                {t.save}
               </Button>
               <LinkButton href="/installations/spare-requests" tone="neutral">
                 <LogOut className="size-4" />
-                ອອກ
+                {t.exit}
               </LinkButton>
             </div>
             <div className="flex flex-wrap gap-4">
               <div>
                 <label className={labelClass} htmlFor="doc_date">
-                  ວັນທີ
+                  {t.date}
                 </label>
                 <input
                   id="doc_date"
@@ -146,7 +150,7 @@ export function SpareRequestForm({
               </div>
               <div>
                 <label className={labelClass} htmlFor="doc_no">
-                  ເລກທີ
+                  {t.docNo}
                 </label>
                 <input
                   id="doc_no"
@@ -159,25 +163,25 @@ export function SpareRequestForm({
           </div>
         </Card>
 
-        <Card title="ຂໍ້ມູນໃບຂໍເບີກ">
+        <Card title={t.requestInfoTitle}>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-            <Field label="ເລກທີງານຕິດຕັ້ງ" value={head.code} />
-            <Field label="ວັນທີເປີດງານ" value={head.time_register} />
+            <Field label={t.installJobNo} value={head.code} />
+            <Field label={t.jobOpenDate} value={head.time_register} />
             <Field
-              label="ລູກຄ້າ"
+              label={t.customer}
               value={`${head.cust_code ?? ""}${head.cust_name ? ` - ${head.cust_name}` : ""}`}
             />
-            <Field label="ຊື່ສິນຄ້າ" value={head.item_name} />
-            <Field label="ຍີ່ຫໍ້" value={head.pro_brand} />
-            <Field label="ລຸ້ນ/Model" value={head.pro_model} />
-            <Field label="ປະເພດ" value={head.pro_type} />
-            <Field label="ຂະໜາດ" value={head.pro_size} />
+            <Field label={t.itemName} value={head.item_name} />
+            <Field label={t.brand} value={head.pro_brand} />
+            <Field label={t.model} value={head.pro_model} />
+            <Field label={t.type} value={head.pro_type} />
+            <Field label={t.size} value={head.pro_size} />
           </dl>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>
-                <span className="text-red-500">*</span> ສາງ
+                <span className="text-red-500">*</span> {t.warehouse}
               </label>
               <SelectField
                 name="wh_code"
@@ -186,20 +190,20 @@ export function SpareRequestForm({
                   setWh(value);
                   setShelf("");
                 }}
-                placeholder="ເລືອກສາງ..."
+                placeholder={t.selectWarehousePlaceholder}
                 options={warehouseOptions}
               />
             </div>
             <div>
               <label className={labelClass}>
-                <span className="text-red-500">*</span> ທີ່ເກັບ
+                <span className="text-red-500">*</span> {t.storage}
               </label>
               <SelectField
                 name="shelf_code"
                 value={shelf}
                 onChange={setShelf}
                 isDisabled={!wh}
-                placeholder={wh ? "ເລືອກທີ່ເກັບ..." : "ເລືອກສາງກ່ອນ"}
+                placeholder={wh ? t.selectStoragePlaceholder : t.selectWarehouseFirst}
                 options={shelfOptions.map((row) => ({
                   value: row.code,
                   label: `${row.code} ~ ${row.name_1}`,
@@ -207,19 +211,19 @@ export function SpareRequestForm({
               />
             </div>
             <div className="sm:col-span-2">
-              <label className={labelClass}>ໝາຍເຫດ</label>
+              <label className={labelClass}>{t.remark}</label>
               <input name="remark" className={inputClass} />
             </div>
           </div>
           {warehouses.length === 0 && (
             <p className="mt-4 flex items-center gap-2 rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-700">
-              <AlertTriangle className="size-4" /> ບໍ່ພົບອາໄຫຼ່ໃນສາງ ERP
+              <AlertTriangle className="size-4" /> {t.noSparesInErp}
             </p>
           )}
         </Card>
 
         <Card
-          title="ອາໄຫຼ່ທີ່ໃຊ້"
+          title={t.sparesUsedTitle}
           actions={
             <Button
               type="button"
@@ -227,20 +231,20 @@ export function SpareRequestForm({
               disabled={!wh}
               onClick={() => setOpen(true)}
             >
-              <Plus className="size-4" /> ເພີ່ມອາໄຫຼ່
+              <Plus className="size-4" /> {t.addSpare}
             </Button>
           }
         >
           {lines.length === 0 ? (
-            <Empty>ບໍ່ມີລາຍການອາໄຫຼ່</Empty>
+            <Empty>{t.noSpareLines}</Empty>
           ) : (
             <Table
               head={[
                 "#",
-                "ລະຫັດສິນຄ້າ",
-                "ຊື່ສິນຄ້າ / stock ຕາມສາງ",
-                "ຈຳນວນ",
-                "ຫົວໜ່ວຍ",
+                t.colItemCode,
+                t.colItemNameStock,
+                t.colQty,
+                t.colUnit,
                 "",
               ]}
               minWidth={900}
@@ -248,6 +252,7 @@ export function SpareRequestForm({
               {lines.map((line, index) => (
                 <LineRow
                   key={line.roworder}
+                  t={t}
                   code={code}
                   line={line}
                   index={index + 1}
@@ -261,12 +266,13 @@ export function SpareRequestForm({
         </Card>
       </form>
 
-      {open && <SparePicker code={code} onClose={() => setOpen(false)} />}
+      {open && <SparePicker t={t} code={code} onClose={() => setOpen(false)} />}
     </div>
   );
 }
 
 function LineRow({
+  t,
   code,
   line,
   index,
@@ -274,6 +280,7 @@ function LineRow({
   balance = { total: 0, byWarehouse: {}, byLocation: {} },
   warehouses,
 }: {
+  t: SpareRequestFormDict;
   code: string;
   line: SpareLine;
   index: number;
@@ -305,17 +312,17 @@ function LineRow({
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {selectedBalance === null ? (
             <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">
-              ເລືອກສາງກ່ອນ
+              {t.selectWarehouseFirst}
             </span>
           ) : enough ? (
             <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
-              <CheckCircle2 className="size-3" /> ສາງທີ່ເລືອກມີ{" "}
+              <CheckCircle2 className="size-3" /> {t.selectedWarehouseHas}{" "}
               {selectedBalance.toLocaleString()}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700">
-              <AlertTriangle className="size-3" /> ສາງທີ່ເລືອກມີ{" "}
-              {selectedBalance.toLocaleString()} · ຂາດ{" "}
+              <AlertTriangle className="size-3" /> {t.selectedWarehouseHas}{" "}
+              {selectedBalance.toLocaleString()} · {t.short}{" "}
               {Math.max(0, Number(line.qty) - selectedBalance).toLocaleString()}
             </span>
           )}
@@ -336,7 +343,7 @@ function LineRow({
           })}
           {availableWarehouses.length === 0 && (
             <span className="text-[10px] font-semibold text-red-500">
-              ໝົດທຸກສາງ
+              {t.outOfStockAll}
             </span>
           )}
         </div>
@@ -350,7 +357,7 @@ function LineRow({
       <td className="px-3 py-2 text-center">
         <button
           type="button"
-          title="ລົບ"
+          title={t.delete}
           disabled={pending}
           className="text-slate-500 hover:text-red-600 disabled:opacity-50"
           onClick={() =>
@@ -376,7 +383,15 @@ function Field({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-function SparePicker({ code, onClose }: { code: string; onClose: () => void }) {
+function SparePicker({
+  t,
+  code,
+  onClose,
+}: {
+  t: SpareRequestFormDict;
+  code: string;
+  onClose: () => void;
+}) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<SpareRow[]>([]);
@@ -408,21 +423,21 @@ function SparePicker({ code, onClose }: { code: string; onClose: () => void }) {
             autoFocus
             value={q}
             onChange={(event) => setQ(event.target.value)}
-            placeholder="ຄົ້ນຫາອາໄຫຼ່..."
+            placeholder={t.searchSparePlaceholder}
             className="w-full text-sm outline-none"
           />
           <Button type="button" tone="neutral" onClick={onClose}>
-            ອອກ
+            {t.exit}
           </Button>
         </div>
         <div className="overflow-auto p-4">
           <Table
             head={[
               "#",
-              "ລະຫັດ",
-              "ລາຍການ/Part-Number",
-              "ຫົວໜ່ວຍ",
-              "ຄົງເຫຼືອ",
+              t.colCode,
+              t.colItemPartNumber,
+              t.colUnit,
+              t.colBalance,
               "",
             ]}
             minWidth={700}
@@ -455,7 +470,7 @@ function SparePicker({ code, onClose }: { code: string; onClose: () => void }) {
                       })
                     }
                   >
-                    ເລືອກ
+                    {t.select}
                   </Button>
                 </td>
               </tr>
@@ -463,12 +478,12 @@ function SparePicker({ code, onClose }: { code: string; onClose: () => void }) {
           </Table>
           {!loading && rows.length === 0 && (
             <p className="py-10 text-center text-sm text-slate-400">
-              ບໍ່ພົບລາຍການ
+              {t.noItemsFound}
             </p>
           )}
           {loading && (
             <p className="py-10 text-center text-sm text-slate-400">
-              ກຳລັງໂຫລດ...
+              {t.loading}
             </p>
           )}
         </div>

@@ -1,6 +1,7 @@
 "use client";
 import { addDraftItem, deleteDraftItem, exitEditQuote, saveQuote, saveQuoteEdit, setDraftPrice, type QuoteState } from "@/app/actions/quotation";
 import { Button, ErrorBox, Table } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { LoaderCircle, Save, Search, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import { useActionState, useMemo, useState, useTransition } from "react";
@@ -70,6 +71,7 @@ export function QuoteBuilder({
   defaultDiscount: string;
   defaultRemark: string;
 }) {
+  const t = useDict().quoteBuilder;
   const [state, formAction, saving] = useActionState<QuoteState, FormData>(
     mode === "create" ? saveQuote : saveQuoteEdit,
     {},
@@ -103,9 +105,9 @@ export function QuoteBuilder({
   return (
     <div className="w-full space-y-3">
       <div className="flex items-center gap-2 text-xs text-slate-500">
-        <span>ໃບສະເໜີລາຄາ</span>
+        <span>{t.quotation}</span>
         <span>/</span>
-        <span>{mode === "create" ? "ໃໝ່" : docNo}</span>
+        <span>{mode === "create" ? t.newDoc : docNo}</span>
       </div>
 
       <form action={formAction} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -118,9 +120,9 @@ export function QuoteBuilder({
         <div className="flex min-h-12 flex-wrap items-center gap-3 border-b border-rose-100 bg-[#fffafa] px-3 py-2">
           <Button type="submit" disabled={busy} className="h-8 rounded-md bg-[#e99a9a] px-4 text-xs text-white hover:bg-[#df8787]">
             {saving ? <LoaderCircle className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
-            ບັນທຶກ
+            {t.save}
           </Button>
-          <span className="text-xs italic text-slate-400">ບັນທຶກແລ້ວຈະສົ່ງເຂົ້າຄິວອະນຸມັດ</span>
+          <span className="text-xs italic text-slate-400">{t.saveHint}</span>
           <span className="h-5 w-px bg-slate-200" />
           <button
             type="button"
@@ -128,14 +130,14 @@ export function QuoteBuilder({
             onClick={() => mode === "edit" ? startTransition(() => exitEditQuote(docNo)) : (window.location.href = "/quotations")}
             className="text-xs font-medium text-slate-600 hover:text-slate-900 disabled:opacity-50"
           >
-            ຍົກເລີກ
+            {t.cancel}
           </button>
         </div>
 
         <div className="px-5 py-7 sm:px-8 lg:px-10">
-          <p className="text-xs text-slate-500">ໃບສະເໜີລາຄາ</p>
+          <p className="text-xs text-slate-500">{t.quotation}</p>
           <h1 className="mt-1 text-3xl font-medium tracking-tight text-slate-900">{docNo}</h1>
-          {mode === "create" && <p className="mt-1 text-xs text-slate-400">ເລກທີຕົວຈິງຈະຢືນຢັນເມື່ອບັນທຶກ</p>}
+          {mode === "create" && <p className="mt-1 text-xs text-slate-400">{t.docNoHint}</p>}
 
           {(state.error || rowError) && (
             <div className="mt-5 space-y-2">
@@ -146,30 +148,30 @@ export function QuoteBuilder({
 
           <div className="mt-8 grid gap-x-16 gap-y-6 lg:grid-cols-2">
             <div className="space-y-3">
-              <QuoteField label="ລູກຄ້າ" required value={head.customer} />
-              <QuoteField label="ລະຫັດເຄື່ອງ" value={head.productCode} />
-              <QuoteField label="ສິນຄ້າ" value={[head.productName, head.brand, head.model].filter(Boolean).join(" · ")} />
+              <QuoteField label={t.customer} required value={head.customer} />
+              <QuoteField label={t.productCode} value={head.productCode} />
+              <QuoteField label={t.product} value={[head.productName, head.brand, head.model].filter(Boolean).join(" · ")} />
             </div>
             <div className="space-y-3">
               <div className="grid grid-cols-[130px_1fr] items-center gap-3 text-sm">
-                <label htmlFor="doc_date" className="text-slate-500">ວັນທີອອກໃບ</label>
+                <label htmlFor="doc_date" className="text-slate-500">{t.docDate}</label>
                 <input id="doc_date" type="date" name="doc_date" required defaultValue={docDate} className="h-8 border-b border-slate-200 bg-transparent px-1 text-sm outline-none focus:border-rose-300" />
               </div>
-              <QuoteField label="ສະກຸນເງິນ" value="THB → LAK" />
+              <QuoteField label={t.currency} value="THB → LAK" />
               <div className="grid grid-cols-[130px_1fr] items-center gap-3 text-sm">
-                <label htmlFor="rate" className="text-slate-500">ອັດຕາແລກປ່ຽນ</label>
+                <label htmlFor="rate" className="text-slate-500">{t.exchangeRate}</label>
                 <div className="flex items-center border-b border-slate-200">
                   <input id="rate" type="number" min={0} step="0.01" value={rate} onChange={(event) => setRate(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} className="h-8 w-full bg-transparent px-1 text-sm outline-none" />
                   <span className="text-xs text-slate-400">LAK</span>
                 </div>
               </div>
-              <QuoteField label="VAT" value="0% · ບໍ່ຄິດ VAT" />
+              <QuoteField label="VAT" value={t.vatNoneValue} />
             </div>
           </div>
 
           <div className="mt-10 flex gap-5 border-b border-slate-200">
-            <button type="button" onClick={() => setActiveTab("lines")} className={`border-b-2 px-2 pb-3 text-sm ${activeTab === "lines" ? "border-rose-400 text-rose-500" : "border-transparent text-slate-500"}`}>ລາຍການ</button>
-            <button type="button" onClick={() => setActiveTab("details")} className={`border-b-2 px-2 pb-3 text-sm ${activeTab === "details" ? "border-rose-400 text-rose-500" : "border-transparent text-slate-500"}`}>ຂໍ້ມູນອື່ນ</button>
+            <button type="button" onClick={() => setActiveTab("lines")} className={`border-b-2 px-2 pb-3 text-sm ${activeTab === "lines" ? "border-rose-400 text-rose-500" : "border-transparent text-slate-500"}`}>{t.tabLines}</button>
+            <button type="button" onClick={() => setActiveTab("details")} className={`border-b-2 px-2 pb-3 text-sm ${activeTab === "details" ? "border-rose-400 text-rose-500" : "border-transparent text-slate-500"}`}>{t.tabDetails}</button>
           </div>
 
           {activeTab === "lines" ? (
@@ -179,20 +181,20 @@ export function QuoteBuilder({
                   <thead>
                     <tr className="border-b border-slate-200 text-left text-slate-500">
                       <th className="w-9 px-2 py-3" />
-                      <th className="px-3 py-3 font-medium">ສິນຄ້າ / ບໍລິການ</th>
-                      <th className="px-3 py-3 font-medium">ລາຍລະອຽດ</th>
-                      <th className="px-3 py-3 text-center font-medium">ຈຳນວນ</th>
-                      <th className="px-3 py-3 text-center font-medium">ໜ່ວຍ</th>
-                      <th className="px-3 py-3 text-right font-medium">ລາຄາ</th>
+                      <th className="px-3 py-3 font-medium">{t.colItem}</th>
+                      <th className="px-3 py-3 font-medium">{t.colDetail}</th>
+                      <th className="px-3 py-3 text-center font-medium">{t.colQty}</th>
+                      <th className="px-3 py-3 text-center font-medium">{t.colUnit}</th>
+                      <th className="px-3 py-3 text-right font-medium">{t.price}</th>
                       <th className="px-3 py-3 text-center font-medium">VAT</th>
-                      <th className="px-3 py-3 text-right font-medium">ມູນຄ່າ</th>
+                      <th className="px-3 py-3 text-right font-medium">{t.colAmount}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {lines.map((line) => (
                       <tr key={line.roworder} className="border-b border-slate-100 hover:bg-slate-50/60">
                         <td className="px-2 py-3 text-center">
-                          <button type="button" title="ລຶບລາຍການ" disabled={busy} onClick={() => run(() => deleteDraftItem(line.roworder))} className="text-slate-300 hover:text-red-500 disabled:opacity-40"><Trash2 className="size-4" /></button>
+                          <button type="button" title={t.deleteItem} disabled={busy} onClick={() => run(() => deleteDraftItem(line.roworder))} className="text-slate-300 hover:text-red-500 disabled:opacity-40"><Trash2 className="size-4" /></button>
                         </td>
                         <td className="px-3 py-3"><span className="font-medium text-slate-800">{line.item_name}</span><span className="mt-0.5 block text-[10px] text-slate-400">{line.item_code}</span></td>
                         <td className="px-3 py-3 text-slate-500">{head.issue2 || head.issue || "-"}</td>
@@ -203,21 +205,21 @@ export function QuoteBuilder({
                         <td className="whitespace-nowrap px-3 py-3 text-right font-medium">{money(num(line.sum_amount))}</td>
                       </tr>
                     ))}
-                    {lines.length === 0 && <tr><td colSpan={8} className="py-12 text-center text-sm text-slate-400">ຍັງບໍ່ມີລາຍການ</td></tr>}
+                    {lines.length === 0 && <tr><td colSpan={8} className="py-12 text-center text-sm text-slate-400">{t.noLines}</td></tr>}
                   </tbody>
                 </table>
               </div>
 
-              <button type="button" disabled={busy} onClick={() => setPicker(true)} className="mt-3 inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-500 hover:text-rose-600 disabled:opacity-50"><Search className="size-3.5" />ເພີ່ມລາຍການ</button>
+              <button type="button" disabled={busy} onClick={() => setPicker(true)} className="mt-3 inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-500 hover:text-rose-600 disabled:opacity-50"><Search className="size-3.5" />{t.addItem}</button>
 
               <div className="mt-7 ml-auto w-full max-w-sm space-y-3 text-sm">
-                <Row label="ມູນຄ່າລວມ"><span>{money(totalValue)} ບາດ</span></Row>
-                <Row label="ສ່ວນຫຼຸດ">
-                  <div className="flex items-center gap-2"><input type="number" min={0} step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} className="h-8 w-32 border-b border-slate-300 bg-transparent px-1 text-right outline-none focus:border-rose-300" /><span className="text-xs text-slate-400">ບາດ</span></div>
+                <Row label={t.subtotal}><span>{money(totalValue)} {t.baht}</span></Row>
+                <Row label={t.discount}>
+                  <div className="flex items-center gap-2"><input type="number" min={0} step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} className="h-8 w-32 border-b border-slate-300 bg-transparent px-1 text-right outline-none focus:border-rose-300" /><span className="text-xs text-slate-400">{t.baht}</span></div>
                 </Row>
-                <Row label="ລວມຫຼັງສ່ວນຫຼຸດ"><span>{money(totalAmount)} ບາດ</span></Row>
-                <Row label="VAT 0%"><span>0.00 ບາດ</span></Row>
-                <div className="flex items-center justify-between gap-4 border-t border-slate-300 pt-3 font-bold text-slate-900"><span>ມູນຄ່າທັງໝົດ</span><span className="text-lg">{money(totalKip)} ກີບ</span></div>
+                <Row label={t.afterDiscount}><span>{money(totalAmount)} {t.baht}</span></Row>
+                <Row label="VAT 0%"><span>0.00 {t.baht}</span></Row>
+                <div className="flex items-center justify-between gap-4 border-t border-slate-300 pt-3 font-bold text-slate-900"><span>{t.grandTotal}</span><span className="text-lg">{money(totalKip)} {t.kip}</span></div>
               </div>
             </div>
           ) : (
@@ -225,19 +227,19 @@ export function QuoteBuilder({
               <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
                 <Field label="Model" value={head.model} />
                 <Field label="SN" value={head.sn} />
-                <Field label="ຍີ່ຫໍ້" value={head.brand} />
-                <Field label="ຮັບປະກັນ" value={head.warranty} />
-                <Field label="ອາການ" value={head.issue} accent />
-                <Field label="ຜົນກວດ" value={head.issue2} />
-                <Field label="ຊ່າງ" value={head.technician} />
+                <Field label={t.brand} value={head.brand} />
+                <Field label={t.warranty} value={head.warranty} />
+                <Field label={t.issue} value={head.issue} accent />
+                <Field label={t.inspection} value={head.issue2} />
+                <Field label={t.technician} value={head.technician} />
               </dl>
               {head.productUrl && <a href={`/api/uploads/${encodeURIComponent(head.productUrl)}`} target="_blank" rel="noreferrer"><Image src={`/api/uploads/${encodeURIComponent(head.productUrl)}`} alt="" width={160} height={160} unoptimized className="size-36 rounded-lg border border-slate-200 object-cover" /></a>}
             </div>
           )}
 
           <div className="mt-9 border-t border-slate-100 pt-4">
-            <label htmlFor="remark" className="text-xs text-slate-500">ເງື່ອນໄຂ ແລະ ໝາຍເຫດ</label>
-            <textarea id="remark" name="remark" defaultValue={defaultRemark} rows={3} placeholder="ກະລຸນາໃສ່ລາຍລະອຽດ..." className="mt-2 w-full resize-none border-b border-slate-200 bg-transparent px-1 py-2 text-sm outline-none focus:border-rose-300" />
+            <label htmlFor="remark" className="text-xs text-slate-500">{t.remarkLabel}</label>
+            <textarea id="remark" name="remark" defaultValue={defaultRemark} rows={3} placeholder={t.remarkPlaceholder} className="mt-2 w-full resize-none border-b border-slate-200 bg-transparent px-1 py-2 text-sm outline-none focus:border-rose-300" />
           </div>
         </div>
       </form>
@@ -252,16 +254,16 @@ export function QuoteBuilder({
                   autoFocus
                   value={q}
                   onChange={(event) => setQ(event.target.value)}
-                  placeholder="ຄົ້ນຫາ..."
+                  placeholder={t.searchPlaceholder}
                   className="w-full text-sm outline-none"
                 />
               </div>
-              <button type="button" onClick={() => setPicker(false)} className="text-slate-500 hover:text-slate-800" aria-label="ປິດ">
+              <button type="button" onClick={() => setPicker(false)} className="text-slate-500 hover:text-slate-800" aria-label={t.close}>
                 <X className="size-5" />
               </button>
             </div>
             <div className="overflow-auto p-4">
-              <Table head={["#", "ລະຫັດ", "ຊື່ບໍລິການ", "ຫົວໜ່ວຍ", "ລາຄາ", "ຊ່ວງວັນທີ", ""]} minWidth={800}>
+              <Table head={["#", t.colCode, t.colServiceName, t.colUnitName, t.price, t.colDateRange, ""]} minWidth={800}>
                 {filtered.map((item, index) => (
                   <tr key={item.code} className="border-b border-slate-100">
                     <td className="px-3 py-2 text-center">{index + 1}</td>
@@ -290,14 +292,14 @@ export function QuoteBuilder({
                           );
                         }}
                       >
-                        ເລືອກ
+                        {t.select}
                       </Button>
                     </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-10 text-center text-sm text-slate-400">ບໍ່ພົບລາຍການ</td>
+                    <td colSpan={7} className="py-10 text-center text-sm text-slate-400">{t.notFound}</td>
                   </tr>
                 )}
               </Table>

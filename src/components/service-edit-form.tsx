@@ -4,6 +4,7 @@ import { LocationPicker, type Point } from "@/components/installation/location-p
 import { SelectField } from "@/components/select-field";
 import { ONSITE_SERVICE_TYPES } from "@/lib/sla";
 import { BrandField } from "@/components/service-brand-field";
+import { useDict } from "@/lib/i18n/context";
 import { LoaderCircle, LogOut, Save, Search } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -44,7 +45,7 @@ const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text
 const label = "mb-1 block text-sm text-slate-600";
 
 /** ຮູບ 1 ຊ່ອງ — ສະແດງຮູບເກົ່າ ແລະເລືອກຮູບໃໝ່ໄດ້ (ຮູບໃໝ່ຈະຖືກເພີ່ມເຂົ້າ ຄື update_rcpro ຂອງ ods) */
-function ImageSlot({ name, index, current }: { name: string; index: number; current?: string }) {
+function ImageSlot({ name, index, current, t }: { name: string; index: number; current?: string; t: { photoNumber: string; noImage: string; removeImage: string } }) {
   const [preview, setPreview] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
@@ -52,12 +53,12 @@ function ImageSlot({ name, index, current }: { name: string; index: number; curr
 
   return (
     <div className="rounded-lg border border-dashed border-slate-300 p-3">
-      <p className="mb-2 text-xs font-medium text-slate-500">ຮູບທີ {index + 1}</p>
+      <p className="mb-2 text-xs font-medium text-slate-500">{t.photoNumber} {index + 1}</p>
       <div className="mb-2 grid h-28 place-items-center overflow-hidden rounded bg-slate-50">
         {shown ? (
           <Image src={shown} alt="" width={160} height={112} unoptimized className="size-full object-cover" />
         ) : (
-          <span className="text-xs text-slate-400">ບໍ່ມີຮູບ</span>
+          <span className="text-xs text-slate-400">{t.noImage}</span>
         )}
       </div>
       <input
@@ -77,7 +78,7 @@ function ImageSlot({ name, index, current }: { name: string; index: number; curr
           onClick={() => { if (inputRef.current) inputRef.current.value = ""; setPreview((old) => { if (old) URL.revokeObjectURL(old); return ""; }); }}
           className="mt-2 text-xs text-red-600 hover:underline"
         >
-          ເອົາຮູບອອກ
+          {t.removeImage}
         </button>
       )}
     </div>
@@ -91,6 +92,7 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
   techs: { code: string; username: string }[];
   images: Record<number, string>;
 }) {
+  const t = useDict().serviceEditForm;
   const [state, action, pending] = useActionState(updateService, {});
 
   const [q, setQ] = useState(head.cust_name);
@@ -127,28 +129,28 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
           className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
         >
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
-          {pending ? "ກຳລັງບັນທຶກ..." : "ບັນທຶກ"}
+          {pending ? t.saving : t.save}
         </button>
         <Link href="/service" className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#DE3163] px-5 text-sm font-semibold text-white transition hover:opacity-90">
           <LogOut className="size-4" />
-          ອອກ
+          {t.exit}
         </Link>
       </div>
 
       {state.error && <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{state.error}</p>}
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 border-b border-slate-100 pb-2 font-bold text-slate-700">ຂໍ້ມູນລູກຄ້າ</h2>
+        <h2 className="mb-4 border-b border-slate-100 pb-2 font-bold text-slate-700">{t.customerInfo}</h2>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className="relative">
-            <label className={label}>ລະຫັດລູກຄ້າ *</label>
+            <label className={label}>{t.customerCode} *</label>
             <div className="flex h-10 items-center rounded-lg border border-slate-300 px-3 focus-within:border-teal-500">
               <Search className="size-4 shrink-0 text-slate-400" />
               <input
                 value={q}
                 onChange={(event) => { setQ(event.target.value); setCustomers([]); }}
                 className="w-full px-2 text-sm outline-none"
-                placeholder="ຊື່, ລະຫັດ ຫຼືເບີໂທ"
+                placeholder={t.customerSearchPlaceholder}
               />
             </div>
             {customers.length > 0 && (
@@ -169,40 +171,40 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
             <input type="hidden" name="cust_code" value={selected.code} />
           </div>
           <div>
-            <label className={label}>ຊື່ລູກຄ້າ *</label>
+            <label className={label}>{t.customerName} *</label>
             <input readOnly value={selected.name_1 ?? ""} className={field} />
           </div>
           <div>
-            <label className={label}>ເບີໂທ</label>
+            <label className={label}>{t.tel}</label>
             <input readOnly value={selected.tel ?? ""} className={field} />
           </div>
           <div>
-            <label className={label}>ທີ່ຢູ່</label>
+            <label className={label}>{t.address}</label>
             <input readOnly value={selected.address ?? ""} className={field} />
           </div>
         </div>
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 border-b border-slate-100 pb-2 font-bold text-slate-700">ຂໍ້ມູນຮ້ານຄ້າ / ບິນຊື້</h2>
+        <h2 className="mb-4 border-b border-slate-100 pb-2 font-bold text-slate-700">{t.storeBillInfo}</h2>
         <div className="grid gap-4 md:grid-cols-2">
           {/* ຊ່ອງ "ລະຫັດຮ້ານຄ້າ" ຖືກຖອດ — ຄືລະຫັດລູກຄ້າອັນດຽວກັນ (server ຂຽນ ap_code ໃຫ້) */}
           <div>
-            <label className={label}>ເລກທີບິນ</label>
+            <label className={label}>{t.billNo}</label>
             <input name="billon" defaultValue={head.doc_def ?? ""} className={field} />
           </div>
           <div>
-            <label className={label}>ວັນທີບິນ</label>
+            <label className={label}>{t.billDate}</label>
             <input name="billdate" defaultValue={head.doc_date_ref ?? ""} className={field} placeholder="YYYY-MM-DD" />
           </div>
         </div>
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 border-b border-slate-100 pb-2 font-bold text-slate-700">ຂໍ້ມູນສິນຄ້າ</h2>
+        <h2 className="mb-4 border-b border-slate-100 pb-2 font-bold text-slate-700">{t.productInfo}</h2>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className="xl:col-span-2">
-            <label className={label}>ຊື່ເຄື່ອງ *</label>
+            <label className={label}>{t.productName} *</label>
             <input name="proname" required defaultValue={head.name_1 ?? ""} className={field} />
           </div>
           <div className="xl:col-span-2">
@@ -214,24 +216,24 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
             <input name="pro_model" required defaultValue={head.p_model ?? ""} className={field} />
           </div>
           <div>
-            <label className={label}>ປະເພດສິນຄ້າ *</label>
+            <label className={label}>{t.productType} *</label>
             <SelectField
               name="pro_type"
               defaultValue={head.p_type ?? ""}
               options={types.map((x) => ({ value: x.code, label: x.name_1 }))}
-              placeholder="ຄົ້ນຫາປະເພດ..."
+              placeholder={t.searchTypePlaceholder}
             />
           </div>
           <div>
-            <label className={label}>ຫຍີ່ຫໍ້ *</label>
+            <label className={label}>{t.brand} *</label>
             <BrandField brands={brands} value={brand} onChange={setBrand} />
           </div>
           <div>
-            <label className={label}>ອຸປະກອນທີ່ນຳມາ</label>
+            <label className={label}>{t.accessories}</label>
             <input name="pro_acc" defaultValue={head.p_access ?? ""} className={field} />
           </div>
           <div>
-            <label className={label}>ການຮັບປະກັນ *</label>
+            <label className={label}>{t.warrantyLabel} *</label>
             <SelectField
               name="pro_wa"
               defaultValue={head.warrunty ?? "ຮັບປະກັນ"}
@@ -242,27 +244,27 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
             />
           </div>
           <div>
-            <label className={label}>ການຈັດສົ່ງ *</label>
+            <label className={label}>{t.deliveryLabel} *</label>
             <SelectField
               name="pro_deli"
               defaultValue={head.p_delivery ?? "2"}
               options={[
-                { value: "1", label: "ໂອດ້ຽນຈັດສົ່ງ" },
-                { value: "2", label: "ລູກຄ້າຮັບເອງ" },
+                { value: "1", label: t.deliveryByOdien },
+                { value: "2", label: t.deliveryPickup },
               ]}
             />
           </div>
           <div>
-            <label className={label}>ປະເພດບໍລິການ *</label>
+            <label className={label}>{t.serviceTypeLabel} *</label>
             <SelectField
               name="service_type"
               value={serviceType}
               onChange={setServiceType}
               options={[
-                { value: "CI", label: "ລູກຄ້ານຳເຄື່ອງເຂົ້າ" },
-                { value: "PS", label: "ໄປຮັບເຄື່ອງທີ່ບ້ານລູກຄ້າມາສ້ອມຢູ່ສູນ" },
-                { value: "IH", label: "ສ້ອມບ້ານລູກຄ້າ" },
-                { value: "ST", label: "ສ້ອມເຄື່ອງໃນສາງ" },
+                { value: "CI", label: t.serviceTypeCI },
+                { value: "PS", label: t.serviceTypePS },
+                { value: "IH", label: t.serviceTypeIH },
+                { value: "ST", label: t.serviceTypeST },
               ]}
             />
           </div>
@@ -271,52 +273,52 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
           {onsite && (
             <>
               <div className="md:col-span-2">
-                <label className={label}>ສະຖານທີ່ໜ້າງານ *</label>
+                <label className={label}>{t.siteLocation} *</label>
                 <input
                   name="location_repair"
                   required
                   defaultValue={head.location_repair || head.address}
-                  placeholder="ບ້ານ / ເມືອງ / ຈຸດສັງເກດ"
+                  placeholder={t.siteLocationPlaceholder}
                   className={field}
                 />
                 <p className="mt-1 text-xs text-slate-400">
-                  ໃບເກົ່າຍັງບໍ່ມີຄ່ານີ້ — ຕື່ມມາຈາກທີ່ຢູ່ລູກຄ້າໃຫ້ກ່ອນ ແກ້ໄດ້
+                  {t.siteLocationNote}
                 </p>
                 <LocationPicker value={point} onChange={setPoint} />
                 <input type="hidden" name="location_lat" value={point ? String(point.lat) : ""} />
                 <input type="hidden" name="location_lng" value={point ? String(point.lng) : ""} />
               </div>
               <div>
-                <label className={label}>ວັນນັດເຂົ້າສ້ອມ</label>
+                <label className={label}>{t.appointDate}</label>
                 <input type="date" name="appoint_date" defaultValue={head.appoint_date} className={field} />
               </div>
             </>
           )}
           <div>
-            <label className={label}>ຊ່າງ *</label>
+            <label className={label}>{t.tech} *</label>
             <SelectField
               name="emp"
               defaultValue={head.emp_code ?? ""}
               options={techs.map((x) => ({ value: x.username, label: x.username }))}
-              placeholder="ຄົ້ນຫາຊ່າງ..."
+              placeholder={t.searchTechPlaceholder}
             />
           </div>
           <div className="md:col-span-2">
-            <label className={label}>ອາການເບື້ອງຕົ້ນ *</label>
+            <label className={label}>{t.initialSymptom} *</label>
             <input name="pro_issue" required defaultValue={head.issue ?? ""} className={field} />
           </div>
           <div className="md:col-span-2">
-            <label className={label}>ໝາຍເຫດ</label>
+            <label className={label}>{t.remark}</label>
             <input name="pro_remark" defaultValue={head.p_abrasion ?? ""} className={field} />
           </div>
         </div>
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 border-b border-slate-100 pb-2 font-bold text-slate-700">ເພີ່ມຮູບພາບສິນຄ້າ</h2>
+        <h2 className="mb-4 border-b border-slate-100 pb-2 font-bold text-slate-700">{t.productPhotos}</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {["file1", "file2", "file3", "file4"].map((name, index) => (
-            <ImageSlot key={name} name={name} index={index} current={images[index]} />
+            <ImageSlot key={name} name={name} index={index} current={images[index]} t={t} />
           ))}
         </div>
       </section>

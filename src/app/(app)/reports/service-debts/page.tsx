@@ -3,6 +3,8 @@ import { PayButton } from "@/components/service/pay-button";
 import { SelectField } from "@/components/select-field";
 import { getSession } from "@/lib/auth";
 import { permissionFor } from "@/lib/permissions";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { CUST_KIND_LABEL, serviceDebts, summarize, thb, UNSET_KIND_LABEL, type CustKind } from "@/lib/service-money";
 import { AlertTriangle, Banknote } from "lucide-react";
 import Link from "next/link";
@@ -30,16 +32,18 @@ type Props = { searchParams: Promise<{ kind?: string; scope?: string; page?: str
  */
 const PAGE_SIZE = 50;
 
-const KIND_OPTIONS = [
-  { value: "", label: "ລູກຄ້າທຸກປະເພດ" },
+type Dict = Record<string, string>;
+
+const kindOptions = (t: Dict) => [
+  { value: "", label: t.allCustomers },
   { value: "shop", label: CUST_KIND_LABEL.shop },
   { value: "general", label: CUST_KIND_LABEL.general },
   { value: "unset", label: UNSET_KIND_LABEL },
 ];
 
-const SCOPE_OPTIONS = [
-  { value: "due", label: "ສະເພາະທີ່ຍັງຄ້າງ" },
-  { value: "all", label: "ທັງໝົດ (ລວມທີ່ຈ່າຍຄົບແລ້ວ)" },
+const scopeOptions = (t: Dict) => [
+  { value: "due", label: t.scopeDue },
+  { value: "all", label: t.scopeAll },
 ];
 
 export default async function ServiceDebtsPage({ searchParams }: Props) {
@@ -47,6 +51,8 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
   if (!session) redirect("/login");
   const permission = await permissionFor(session, "/reports/service-debts");
   if (!permission.read) redirect("/forbidden");
+
+  const t = (await getDictionary(await getLocale())).serviceDebts;
 
   const params = await searchParams;
   const kind = params.kind === "shop" || params.kind === "general" || params.kind === "unset" ? params.kind : undefined;
@@ -73,23 +79,23 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-700">ຕິດຕາມການຊຳລະ / ຄ້າງຊຳລະ</h1>
+          <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            ໜີ້ = ໃບສະເໜີລາຄາທີ່ລູກຄ້າຕົກລົງ ລົບ ເງິນທີ່ບັນທຶກຮັບແລ້ວ · ສະກຸນບາດ
+            {t.subtitle}
           </p>
         </div>
         <form className="flex flex-wrap items-end gap-2">
           <div className="w-44">
-            <SelectField name="kind" options={KIND_OPTIONS} defaultValue={kind ?? ""} placeholder="ລູກຄ້າທຸກປະເພດ" />
+            <SelectField name="kind" options={kindOptions(t)} defaultValue={kind ?? ""} placeholder={t.allCustomers} />
           </div>
           <div className="w-52">
-            <SelectField name="scope" options={SCOPE_OPTIONS} defaultValue={scope} />
+            <SelectField name="scope" options={scopeOptions(t)} defaultValue={scope} />
           </div>
           <button
             type="submit"
             className="h-10 rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800"
           >
-            ກັ່ນຕອງ
+            {t.filter}
           </button>
         </form>
       </div>
@@ -98,18 +104,16 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
       <div className="flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
         <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
         <p className="text-xs text-amber-800">
-          ລະບົບ<b>ຫາກໍ່ເລີ່ມເກັບບັນທຶກການຊຳລະ (17-07-2026)</b> — ໃບຮັບເງິນເກົ່າ 4,456 ໃບ ຍອດເປັນ 0 ທຸກໃບ
-          ຈຶ່ງໃຊ້ບໍ່ໄດ້. ງານເກົ່າທີ່ຈ່າຍສົດໄປແລ້ວຈະຍັງຂຶ້ນວ່າ &ldquo;ຄ້າງ&rdquo; ຈົນກວ່າຈະກົດ
-          &ldquo;ຮັບເງິນ&rdquo; ບັນທຶກຍ້ອນຫຼັງ. ບໍ່ໄດ້ຕື່ມໃຫ້ອັດຕະໂນມັດ — ຈະເປັນການແຕ່ງຂໍ້ມູນເງິນ.
+          {t.noticePrefix}<b>{t.noticeStarted}</b> {t.noticeBody}
         </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-4">
         {[
-          { label: "ງານ", value: total.jobs.toLocaleString(), tone: "text-slate-700" },
-          { label: "ຍອດຕົກລົງ", value: thb(total.quoted), tone: "text-slate-700" },
-          { label: "ຮັບແລ້ວ", value: thb(total.paid), tone: "text-emerald-600" },
-          { label: "ຄ້າງຊຳລະ", value: thb(total.due), tone: "text-red-600" },
+          { label: t.statJobs, value: total.jobs.toLocaleString(), tone: "text-slate-700" },
+          { label: t.statQuoted, value: thb(total.quoted), tone: "text-slate-700" },
+          { label: t.received, value: thb(total.paid), tone: "text-emerald-600" },
+          { label: t.statDue, value: thb(total.due), tone: "text-red-600" },
         ].map((item) => (
           <div key={item.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-xs text-slate-400">{item.label}</p>
@@ -120,7 +124,7 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
 
       {risky.length > 0 && (
         <p className="text-xs text-red-600">
-          ⚠️ ໃນນັ້ນ <b>{risky.length}</b> ງານ ສົ່ງເຄື່ອງຄືນລູກຄ້າໄປແລ້ວ ແຕ່ຍັງບໍ່ມີບັນທຶກການຈ່າຍ
+          {t.riskyPrefix} <b>{risky.length}</b> {t.riskySuffix}
         </p>
       )}
 
@@ -159,29 +163,29 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
                 </p>
                 <p className="text-[10px] text-slate-400">
                   <span className="font-mono text-slate-500">{row.quote_no ?? "-"}</span> · {row.quote_date}
-                  {row.age_days !== null && ` · ${row.age_days} ມື້`}
+                  {row.age_days !== null && ` · ${row.age_days} ${t.days}`}
                 </p>
                 <div className="grid grid-cols-3 gap-2 text-xs tabular-nums">
                   <div>
-                    <span className="block text-[10px] text-slate-400">ຕົກລົງ</span>
+                    <span className="block text-[10px] text-slate-400">{t.agreed}</span>
                     {row.quoted_thb}
                   </div>
                   <div>
-                    <span className="block text-[10px] text-slate-400">ຮັບແລ້ວ</span>
+                    <span className="block text-[10px] text-slate-400">{t.received}</span>
                     <span className="text-emerald-600">{row.paid_thb}</span>
                   </div>
                   <div>
-                    <span className="block text-[10px] text-slate-400">ຄ້າງ</span>
+                    <span className="block text-[10px] text-slate-400">{t.due}</span>
                     <span className={`font-bold ${due > 0 ? "text-red-600" : "text-slate-300"}`}>{row.due_thb}</span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   {row.returned_on ? (
                     <span className={`text-[10px] ${due > 0 ? "font-semibold text-red-600" : "text-slate-500"}`}>
-                      ສົ່ງຄືນ {row.returned_on}
+                      {t.returned} {row.returned_on}
                     </span>
                   ) : (
-                    <span className="text-[10px] text-slate-400">ເຄື່ອງຍັງຢູ່ຮ້ານ</span>
+                    <span className="text-[10px] text-slate-400">{t.stillInShop}</span>
                   )}
                   {permission.update && due > 0 && <PayButton job={row.job} due={due} today={today} />}
                 </div>
@@ -195,15 +199,15 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
           <table className="w-full min-w-[1100px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                <th className="px-3 py-2.5 font-semibold">ວຽກ</th>
-                <th className="px-3 py-2.5 font-semibold">ລູກຄ້າ</th>
-                <th className="px-3 py-2.5 font-semibold">ປະເພດ</th>
-                <th className="px-3 py-2.5 font-semibold">ເຄື່ອງ</th>
-                <th className="px-3 py-2.5 font-semibold">ໃບສະເໜີລາຄາ</th>
-                <th className="px-3 py-2.5 text-right font-semibold">ຕົກລົງ</th>
-                <th className="px-3 py-2.5 text-right font-semibold">ຮັບແລ້ວ</th>
-                <th className="px-3 py-2.5 text-right font-semibold">ຄ້າງ</th>
-                <th className="px-3 py-2.5 font-semibold">ສົ່ງຄືນ</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colJob}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colCustomer}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colType}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colProduct}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colQuote}</th>
+                <th className="px-3 py-2.5 text-right font-semibold">{t.agreed}</th>
+                <th className="px-3 py-2.5 text-right font-semibold">{t.received}</th>
+                <th className="px-3 py-2.5 text-right font-semibold">{t.due}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.returned}</th>
                 {permission.update && <th className="px-3 py-2.5" />}
               </tr>
             </thead>
@@ -241,7 +245,7 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
                       <span className="font-mono text-[10px] text-slate-500">{row.quote_no ?? "-"}</span>
                       <span className="block text-[10px] text-slate-400">
                         {row.quote_date}
-                        {row.age_days !== null && ` · ${row.age_days} ມື້`}
+                        {row.age_days !== null && ` · ${row.age_days} ${t.days}`}
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums">{row.quoted_thb}</td>
@@ -253,7 +257,7 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
                       {row.returned_on ? (
                         <span className={due > 0 ? "font-semibold text-red-600" : "text-slate-500"}>{row.returned_on}</span>
                       ) : (
-                        <span className="text-[10px] text-slate-400">ເຄື່ອງຍັງຢູ່ຮ້ານ</span>
+                        <span className="text-[10px] text-slate-400">{t.stillInShop}</span>
                       )}
                     </td>
                     {permission.update && (
@@ -270,21 +274,21 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
         {pages > 1 && (
           <div className="flex items-center justify-between border-t border-slate-200 px-3 py-2.5 text-xs text-slate-500">
             <span>
-              ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, rows.length)} ຈາກ{" "}
-              {rows.length.toLocaleString()} ລາຍການ
+              {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, rows.length)} {t.from}{" "}
+              {rows.length.toLocaleString()} {t.items}
             </span>
             <span className="flex items-center gap-1">
               {page > 1 && (
                 <Link href={pageHref(page - 1)} className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-50">
-                  ກ່ອນໜ້າ
+                  {t.prev}
                 </Link>
               )}
               <span className="px-2">
-                ໜ້າ {page}/{pages}
+                {t.pageLabel} {page}/{pages}
               </span>
               {page < pages && (
                 <Link href={pageHref(page + 1)} className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-50">
-                  ຖັດໄປ
+                  {t.next}
                 </Link>
               )}
             </span>
@@ -294,7 +298,7 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
         {rows.length === 0 && (
           <p className="py-12 text-center text-xs text-slate-400">
             <Banknote className="mx-auto mb-2 size-6 text-slate-300" />
-            ບໍ່ມີງານທີ່ຄ້າງຊຳລະ
+            {t.noResults}
           </p>
         )}
       </section>

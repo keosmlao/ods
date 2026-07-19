@@ -5,6 +5,8 @@ import { UndoCustomerButton } from "@/components/quotation/approve-actions";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { CheckCheck, ChevronLeft, ChevronRight, Clock, FileCheck2, Search } from "lucide-react";
 import Link from "next/link";
 
@@ -139,17 +141,19 @@ async function getCounts() {
   return { waiting: row?.waiting ?? 0, done: row?.done ?? 0 };
 }
 
-const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "doc_no", label: "ໃບສະເໜີລາຄາ", defaultDir: "desc" },
-  { key: "doc_date", label: "ວັນທີ", defaultDir: "desc" },
-  { key: "elapsed", label: "ລໍຖ້າມາແລ້ວ", defaultDir: "desc" },
-  { key: "amount", label: "ຍອດ (ບາດ)", defaultDir: "desc" },
-  { key: "product", label: "ລາຍການ / SN", defaultDir: "asc" },
-  { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
-  { key: "warranty", label: "ປະກັນ", defaultDir: "asc" },
-  { key: "technician", label: "ຊ່າງ", defaultDir: "asc" },
-  { key: "user_created", label: "ຜູ້ອອກບິນ", defaultDir: "asc" },
+type Dict = Record<string, string>;
+
+const columns = (t: Dict): { key: string; label: string; defaultDir: SortDir }[] => [
+  { key: "doc_no", label: t.quotation, defaultDir: "desc" },
+  { key: "doc_date", label: t.colDate, defaultDir: "desc" },
+  { key: "elapsed", label: t.colWaitingTime, defaultDir: "desc" },
+  { key: "amount", label: t.colAmount, defaultDir: "desc" },
+  { key: "product", label: t.colItemSn, defaultDir: "asc" },
+  { key: "brand", label: t.brand, defaultDir: "asc" },
+  { key: "customer", label: t.customer, defaultDir: "asc" },
+  { key: "warranty", label: t.colWarranty, defaultDir: "asc" },
+  { key: "technician", label: t.technician, defaultDir: "asc" },
+  { key: "user_created", label: t.issuedBy, defaultDir: "asc" },
 ];
 
 const money = (v: string | null) => {
@@ -164,6 +168,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
   const page = Math.max(1, Number(params.page) || 1);
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
   const sort = (params.sort ?? (tab === "done" ? "doc_no" : "elapsed")).trim();
+  const t = (await getDictionary(await getLocale())).customerApproval;
 
   const [counts, list] = await Promise.all([getCounts(), getRows(tab, q, page, sort, dir)]);
   const total = list.total;
@@ -178,16 +183,16 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
     `/quotations/customer-approval?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
   const TABS: { key: Tab; label: string; icon: typeof Clock; count: number }[] = [
-    { key: "waiting", label: "ລໍຖ້າລູກຄ້າອະນຸມັດ", icon: Clock, count: counts.waiting },
-    { key: "done", label: "ຕອບແລ້ວ", icon: CheckCheck, count: counts.done },
+    { key: "waiting", label: t.tabWaiting, icon: Clock, count: counts.waiting },
+    { key: "done", label: t.tabDone, icon: CheckCheck, count: counts.done },
   ];
 
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-700">ລູກຄ້າອະນຸມັດ</h1>
+        <h1 className="text-xl font-bold text-slate-700">{t.heading}</h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          {total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+          {total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
         </p>
       </div>
 
@@ -221,11 +226,11 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
             <input
               name="q"
               defaultValue={q}
-              placeholder="ຄົ້ນຫາ ໃບສະເໜີລາຄາ, SN, ລູກຄ້າ, ຫຍີ່ຫໍ້, ຊ່າງ..."
+              placeholder={t.searchPlaceholder}
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -235,7 +240,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
           <table className="w-full min-w-[1250px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                {COLUMNS.map((column) => (
+                {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
                     label={column.label}
@@ -248,7 +253,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
                   />
                 ))}
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">
-                  {tab === "done" ? "ຄຳຕອບ / ເຫດຜົນ" : "ອາການຊ່າງ / ອາການເບື້ອງຕົ້ນ"}
+                  {tab === "done" ? t.colAnswerReason : t.colTechInitialIssue}
                 </th>
                 <th className="px-3 py-2.5" />
               </tr>
@@ -277,7 +282,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
                       <span className="font-bold text-[#e75555]">{money(row.total_amount)}</span>
                       {discount > 0 && (
                         <span className="mt-0.5 block text-[10px] text-emerald-700">
-                          ສ່ວນຫຼຸດ {money(row.total_discount)}
+                          {t.discount} {money(row.total_discount)}
                         </span>
                       )}
                     </td>
@@ -313,7 +318,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
                         </span>
                         {row.aprove_status_2 === 2 && (
                           <span className="mt-0.5 block truncate text-[10px] text-slate-500" title={row.cancel_reason ?? ""}>
-                            {row.cancel_reason?.trim() || "ບໍ່ໄດ້ລະບຸເຫດຜົນ"}
+                            {row.cancel_reason?.trim() || t.noReason}
                           </span>
                         )}
                       </td>
@@ -323,7 +328,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
                           {row.issue_2 || "-"}
                         </span>
                         <span className="block truncate text-[10px] text-slate-400" title={row.issue ?? ""}>
-                          ເບື້ອງຕົ້ນ: {row.issue || "-"}
+                          {t.initialLabel}: {row.issue || "-"}
                         </span>
                       </td>
                     )}
@@ -336,7 +341,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
                           className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
                         >
                           <FileCheck2 className="size-3.5" />
-                          ລາຍລະອຽດ
+                          {t.details}
                           <LinkPending className="size-3" />
                         </Link>
                       </div>
@@ -369,7 +374,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
                   <div className="text-right">
                     <span className="font-bold text-[#e75555]">{money(row.total_amount)}</span>
                     {discount > 0 && (
-                      <span className="block text-[10px] text-emerald-700">ສ່ວນຫຼຸດ {money(row.total_discount)}</span>
+                      <span className="block text-[10px] text-emerald-700">{t.discount} {money(row.total_discount)}</span>
                     )}
                   </div>
                 </div>
@@ -398,10 +403,10 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
                 </div>
 
                 <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
-                  <span>ລູກຄ້າ: {row.customer || "-"}</span>
-                  <span>ຫຍີ່ຫໍ້: {row.brand || "-"}</span>
-                  <span>ຊ່າງ: {row.technician || "-"}</span>
-                  <span>ຜູ້ອອກບິນ: {row.user_created || "-"}</span>
+                  <span>{t.customer}: {row.customer || "-"}</span>
+                  <span>{t.brand}: {row.brand || "-"}</span>
+                  <span>{t.technician}: {row.technician || "-"}</span>
+                  <span>{t.issuedBy}: {row.user_created || "-"}</span>
                 </div>
 
                 {tab === "done" ? (
@@ -415,14 +420,14 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
                     </span>
                     {row.aprove_status_2 === 2 && (
                       <span className="mt-0.5 block text-[10px] text-slate-500">
-                        {row.cancel_reason?.trim() || "ບໍ່ໄດ້ລະບຸເຫດຜົນ"}
+                        {row.cancel_reason?.trim() || t.noReason}
                       </span>
                     )}
                   </div>
                 ) : (
                   <div className="mt-1.5 text-xs">
                     <span className="block font-semibold text-red-600">{row.issue_2 || "-"}</span>
-                    <span className="block text-[10px] text-slate-400">ເບື້ອງຕົ້ນ: {row.issue || "-"}</span>
+                    <span className="block text-[10px] text-slate-400">{t.initialLabel}: {row.issue || "-"}</span>
                   </div>
                 )}
 
@@ -433,7 +438,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
                     className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
                   >
                     <FileCheck2 className="size-3.5" />
-                    ລາຍລະອຽດ
+                    {t.details}
                     <LinkPending className="size-3" />
                   </Link>
                 </div>
@@ -443,13 +448,13 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
           </MobileCardList>
         </div>
 
-        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} ຈາກ {total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} {t.of} {total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -458,7 +463,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -468,7 +473,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>

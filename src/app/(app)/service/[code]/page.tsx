@@ -5,6 +5,8 @@ import { HoldButtons } from "@/components/repair/hold-buttons";
 import { LinkPending } from "@/components/link-pending";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { holdJsonSql, type JobHold } from "@/lib/job-hold";
 import { previousJobOf, REPEAT_DAYS } from "@/lib/repeat";
 import { AssignTechButton } from "@/components/installation/assign-tech";
@@ -73,6 +75,7 @@ export default async function ServiceDetail({ params }: Props) {
   const { code } = await params;
   const session = await getSession();
   if (!session) redirect("/login");
+  const t = (await getDictionary(await getLocale())).serviceDetail;
 
   const job = (
     await query<Job>(
@@ -106,44 +109,44 @@ export default async function ServiceDetail({ params }: Props) {
 
   const groups: { title: string; fields: [string, string | null][] }[] = [
     {
-      title: "ຂໍ້ມູນລູກຄ້າ",
+      title: t.customerInfo,
       fields: [
-        ["ລະຫັດ", job.customer_code],
-        ["ຊື່", job.customer],
-        ["ເບີໂທ", job.phone],
-        ["ທີ່ຢູ່", job.address],
+        [t.code, job.customer_code],
+        [t.name, job.customer],
+        [t.phone, job.phone],
+        [t.address, job.address],
       ],
     },
     {
-      title: "ຂໍ້ມູນສິນຄ້າ",
+      title: t.productInfo,
       fields: [
-        ["ຊື່ສິນຄ້າ", job.product],
+        [t.productName, job.product],
         ["Serial Number", job.sn],
         ["Model", job.model],
-        ["ຍີ່ຫໍ້", job.brand],
-        ["ປະເພດ", job.product_type],
-        ["ອຸປະກອນ", job.accessory],
-        ["ປະກັນ", job.warranty],
+        [t.brand, job.brand],
+        [t.type, job.product_type],
+        [t.accessory, job.accessory],
+        [t.warranty, job.warranty],
         // ຫຼັກຖານທີ່ຊ່າງໃຫ້ໄວ້ຕອນຕັດສິນວ່າໝົດປະກັນ — ສະແດງຄູ່ກັບສະຖານະປະກັນສະເໝີ
-        ["ເຫດຜົນໝົດຮັບປະກັນ", job.warranty_reason],
-        ["ປະເພດບໍລິການ", job.service_type ? SERVICE_TYPE_LABEL[job.service_type] ?? job.service_type : null],
-        ["ການສົ່ງມອບ", job.delivery],
-        ["ອາການເສຍ (ລູກຄ້າແຈ້ງ)", job.issue],
-        ["ອາການເສຍ (ຊ່າງກວດ)", job.issue_2],
-        ["ຮ່ອງຮອຍ / ໝາຍເຫດ", job.remark],
-        ["ບັນທຶກການສ້ອມ", job.note],
+        [t.warrantyVoidReason, job.warranty_reason],
+        [t.serviceType, job.service_type ? SERVICE_TYPE_LABEL[job.service_type] ?? job.service_type : null],
+        [t.delivery, job.delivery],
+        [t.issueReported, job.issue],
+        [t.issueChecked, job.issue_2],
+        [t.markRemark, job.remark],
+        [t.repairNote, job.note],
       ],
     },
     {
-      title: "ຂໍ້ມູນວຽກ",
+      title: t.jobInfo,
       fields: [
-        ["ວັນທີຮັບ", job.registered],
-        ["ຊ່າງ", job.technician],
-        ["ຜູ້ຮັບ", job.receiver],
-        ["ສະຖານະ", stageLabel(job.stage, job.service_type)],
+        [t.receivedDate, job.registered],
+        [t.technician, job.technician],
+        [t.receiver, job.receiver],
+        [t.status, stageLabel(job.stage, job.service_type)],
         // "ຮ້ານຄ້າ" (ap_code) ຖືກຖອດ — ມັນຄື**ລະຫັດລູກຄ້າ**ອັນດຽວກັນ (ສະແດງຢູ່ກຸ່ມລູກຄ້າແລ້ວ)
-        ["ເລກບິນ", job.bill_no],
-        ["ວັນທີບິນ", job.bill_date],
+        [t.billNo, job.bill_no],
+        [t.billDate, job.bill_date],
       ],
     },
   ];
@@ -199,15 +202,14 @@ export default async function ServiceDetail({ params }: Props) {
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <RotateCcw className="size-4 shrink-0" />
           <span>
-            <b>ສ້ອມຊ້ຳ</b> — ເຄື່ອງໜ່ວຍນີ້ສົ່ງຄືນໄປເມື່ອ {previous.prev_returned} ({previous.days_between} ມື້ກ່ອນຮັບເຄື່ອງຄັ້ງນີ້
-            · ພາຍໃນ {REPEAT_DAYS} ມື້)
-            {previous.prev_tech && <> · ຊ່າງຄັ້ງກ່ອນ: {previous.prev_tech}</>}
+            <b>{t.repeatRepair}</b> — {t.repeatReturnedOn} {previous.prev_returned} ({previous.days_between} {t.repeatDaysBefore} {REPEAT_DAYS} {t.repeatDaysUnit})
+            {previous.prev_tech && <> · {t.repeatPrevTech} {previous.prev_tech}</>}
           </span>
           <Link
             href={`/service/${previous.prev_code}`}
             className="ml-auto inline-flex h-8 items-center gap-1 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700"
           >
-            ເບິ່ງໃບເກົ່າ #{previous.prev_code}
+            {t.viewOldReceipt} #{previous.prev_code}
             <LinkPending className="size-3" />
           </Link>
         </div>
@@ -217,10 +219,10 @@ export default async function ServiceDetail({ params }: Props) {
         <div>
           <Link href="/service" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
             <ArrowLeft className="size-3.5" />
-            ກັບລາຍການ
+            {t.backToList}
             <LinkPending className="size-3" />
           </Link>
-          <h1 className="text-xl font-bold text-slate-700">ໃບຮັບເຄື່ອງ #{job.code}</h1>
+          <h1 className="text-xl font-bold text-slate-700">{t.receipt} #{job.code}</h1>
 
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
             <span
@@ -236,7 +238,7 @@ export default async function ServiceDetail({ params }: Props) {
             {/* ວຽກທີ່ຈົບ/ຍົກເລີກແລ້ວ ບໍ່ຕ້ອງນັບເວລາຕໍ່ */}
             {!done && !cancelled && (
               <>
-                <span className="text-slate-400">ຮັບເຄື່ອງມາແລ້ວ</span>
+                <span className="text-slate-400">{t.receivedSince}</span>
                 <Elapsed seconds={job.elapsed_seconds} className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`} />
               </>
             )}
@@ -247,7 +249,7 @@ export default async function ServiceDetail({ params }: Props) {
         <div className="flex flex-wrap items-center gap-2">
           <Link href={`/service/${code}/contacts`} className={action}>
             <Phone className="size-3.5" />
-            ຕິດຕໍ່ລູກຄ້າ
+            {t.contactCustomer}
             {job.contacts > 0 && (
               <span className="rounded bg-slate-100 px-1 text-[10px] font-bold text-slate-600">{job.contacts}</span>
             )}
@@ -255,7 +257,7 @@ export default async function ServiceDetail({ params }: Props) {
           </Link>
           <Link href={`/service/${code}/images`} className={action}>
             <ImageIcon className="size-3.5" />
-            ຮູບພາບ
+            {t.images}
             {job.images > 0 && (
               <span className="rounded bg-slate-100 px-1 text-[10px] font-bold text-slate-600">{job.images}</span>
             )}
@@ -263,18 +265,18 @@ export default async function ServiceDetail({ params }: Props) {
           </Link>
           <Link href={`/service/${code}/edit`} className={action}>
             <Pencil className="size-3.5" />
-            ແກ້ໄຂ
+            {t.edit}
             <LinkPending className="size-3" />
           </Link>
           {/* ປ້າຍບາໂຄດ 50×30mm — ຕິດໃສ່ເຄື່ອງ ໃຫ້ສະແກນຫາໃບໄດ້ໄວ */}
           <Link href={`/service/${code}/barcode`} target="_blank" className={action}>
             <Barcode className="size-3.5" />
-            ພິມປ້າຍບາໂຄດ
+            {t.printBarcode}
           </Link>
           {/* ໃບພິມແບບທີ 2 (ods: /sprint2 — reciptpd_anniv.html): ໂຄງ ແລະ ຂໍ້ມູນຄືກັນ ຕ່າງກັນພຽງຫົວຂໍ້ໃບ */}
           <Link href={`/service/${code}/print?layout=anniv`} target="_blank" className={action}>
             <Printer className="size-3.5" />
-            ພິມໃບງານລ້າງຈັກຊັກຜ້າ
+            {t.printWasherJob}
           </Link>
           <Link
             href={`/service/${code}/print`}
@@ -282,7 +284,7 @@ export default async function ServiceDetail({ params }: Props) {
             className="inline-flex h-9 items-center gap-2 rounded-lg bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800"
           >
             <Printer className="size-3.5" />
-            ພິມ
+            {t.print}
           </Link>
         </div>
       </div>
@@ -290,11 +292,11 @@ export default async function ServiceDetail({ params }: Props) {
       {/* ຈັດການວຽກຄ້າງ / ປ່ຽນຊ່າງ — ຄືຄໍລຳໃນລາຍການ /service ແຕ່ຈັດການໄດ້ໃນໜ້າລາຍລະອຽດເລີຍ */}
       {(canHold || canReassign) && (
         <section className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-          <span className="text-xs font-bold text-slate-600">ຈັດການວຽກ</span>
+          <span className="text-xs font-bold text-slate-600">{t.manageJob}</span>
           {canHold && <HoldButtons key={job.hold ? "held" : "free"} code={job.code} hold={job.hold} />}
           {canReassign && (
             <AssignTechButton
-              label={job.technician ? "ປ່ຽນຊ່າງ" : "ຈັດຊ່າງ"}
+              label={job.technician ? t.changeTech : t.assignTech}
               size="sm"
               row={{
                 code: job.code,
