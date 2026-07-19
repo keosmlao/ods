@@ -5,6 +5,8 @@ import { SortHeader, type SortDir } from "@/components/sort-header";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { ownJobsOnly } from "@/lib/scope";
 import { TRANS } from "@/lib/stock-constants";
 import { ChevronLeft, ChevronRight, PackageCheck, Search } from "lucide-react";
@@ -106,17 +108,21 @@ async function getWaiting(emp: string | null, q: string, page: number, sort: str
   return { rows: rows.rows, total: count.rows[0]?.total ?? 0 };
 }
 
-const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "doc_no", label: "ເລກທີໃບເບີກ", defaultDir: "desc" },
-  { key: "elapsed", label: "ຄ້າງມາ", defaultDir: "desc" },
-  { key: "code", label: "ເລກທີວຽກ", defaultDir: "desc" },
-  { key: "product", label: "ຊື່ເຄື່ອງ / SN", defaultDir: "asc" },
-  { key: "brand", label: "ຫຍີ່ຫໍ້", defaultDir: "asc" },
-  { key: "customer", label: "ລູກຄ້າ", defaultDir: "asc" },
-  { key: "technician", label: "ຊ່າງ", defaultDir: "asc" },
+type Dict = Record<string, string>;
+
+const columns = (t: Dict): { key: string; label: string; defaultDir: SortDir }[] => [
+  { key: "doc_no", label: t.colDocNo, defaultDir: "desc" },
+  { key: "elapsed", label: t.colWaited, defaultDir: "desc" },
+  { key: "code", label: t.colJobNo, defaultDir: "desc" },
+  { key: "product", label: t.colProduct, defaultDir: "asc" },
+  { key: "brand", label: t.colBrand, defaultDir: "asc" },
+  { key: "customer", label: t.colCustomer, defaultDir: "asc" },
+  { key: "technician", label: t.colTechnician, defaultDir: "asc" },
 ];
 
 export default async function SparePickupPage({ searchParams }: Props) {
+  const t = (await getDictionary(await getLocale())).requestsPickup;
+
   const session = await getSession();
   // ຊ່າງເຫັນສະເພາະວຽກຂອງຕົນ — ຜູ້ຈັດການ/ສາງ ເຫັນທຸກໃບ
   const emp = ownJobsOnly(session);
@@ -139,10 +145,10 @@ export default async function SparePickupPage({ searchParams }: Props) {
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-700">ຮັບອາໄຫຼ່ (ສ້ອມແປງ)</h1>
+        <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          ອາໄຫຼ່ທີ່ສາງເບີກອອກໃຫ້ແລ້ວ — ຢືນຢັນຕອນຊ່າງມາຮັບຂອງ · {emp ? "ສະແດງສະເພາະວຽກຂອງທ່ານ" : "ສະແດງທຸກວຽກ"} ·{" "}
-          {list.total.toLocaleString()} ໃບ · ໜ້າ {page}/{pages}
+          {t.subtitlePrefix} · {emp ? t.showOwnJobs : t.showAllJobs} ·{" "}
+          {list.total.toLocaleString()} {t.bills} · {t.page} {page}/{pages}
         </p>
       </div>
 
@@ -155,11 +161,11 @@ export default async function SparePickupPage({ searchParams }: Props) {
           <input
             name="q"
             defaultValue={q}
-            placeholder="ຄົ້ນຫາ ເລກທີໃບເບີກ, ເລກທີວຽກ, SN, ລູກຄ້າ, ຊ່າງ, ອາການ..."
+            placeholder={t.searchPlaceholder}
             className="w-full text-xs outline-none"
           />
         </div>
-        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
       </form>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -167,7 +173,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
           <table className="w-full min-w-[1150px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                {COLUMNS.map((column) => (
+                {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
                     label={column.label}
@@ -179,8 +185,8 @@ export default async function SparePickupPage({ searchParams }: Props) {
                     className="py-2.5"
                   />
                 ))}
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ອາການ</th>
-                <th className="whitespace-nowrap px-3 py-2.5 text-center font-semibold">ອາໄຫຼ່</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colIssue}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-center font-semibold">{t.colSpare}</th>
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -227,7 +233,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
                         className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
                       >
                         <PackageCheck className="size-3.5" />
-                        ຮັບອາໄຫຼ່
+                        {t.receiveSpare}
                         <LinkPending className="size-3" />
                       </Link>
                     </td>
@@ -239,16 +245,14 @@ export default async function SparePickupPage({ searchParams }: Props) {
         </div>
 
         {list.total === 0 && (
-          <p className="py-12 text-center text-xs text-slate-400">
-            ບໍ່ມີອາໄຫຼ່ລໍຖ້າຮັບ — ອາໄຫຼ່ທີ່ສາງຍັງບໍ່ທັນເບີກອອກ ຈະຢູ່ໜ້າ &quot;ໃບຂໍເບີກອາໄຫຼ່&quot;
-          </p>
+          <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>
         )}
       </section>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, list.total)} ຈາກ{" "}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, list.total)} {t.of}{" "}
             {list.total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
@@ -258,7 +262,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -268,7 +272,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>

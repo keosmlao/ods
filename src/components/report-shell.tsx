@@ -1,6 +1,8 @@
 import { LinkPending } from "@/components/link-pending";
 import { MobileCardList } from "@/components/mobile-card-list";
 import { SortHeader, type SortDir } from "@/components/sort-header";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { searchRows, todayIso } from "@/lib/report-sql";
 import { BarChart3, ChevronLeft, ChevronRight, Download, Filter, Printer, Search } from "lucide-react";
 import Link from "next/link";
@@ -101,7 +103,7 @@ function sortRows(rows: ReportRow[], sort: string, dir: SortDir) {
 
 /* ------------------------------------------------------------------------ ໂຄງ */
 
-export function ReportShell({
+export async function ReportShell({
   title,
   subtitle,
   basePath,
@@ -118,7 +120,7 @@ export function ReportShell({
   printHref,
   actions,
   minWidth = 1100,
-  searchPlaceholder = "ຄົ້ນຫາໃນລາຍງານ...",
+  searchPlaceholder,
   sortable = true,
   omitFromForm = [],
 }: {
@@ -154,6 +156,7 @@ export function ReportShell({
    */
   omitFromForm?: string[];
 }) {
+  const t = (await getDictionary(await getLocale())).reportShell;
   const total = rows.length;
   const keys = new Set(columns.map((column) => column.key));
   const sort = sortable && keys.has(state.sort) ? state.sort : "";
@@ -175,7 +178,7 @@ export function ReportShell({
       ...(n > 1 && { page: String(n) }),
     })}`;
 
-  const tiles: SummaryItem[] = [{ label: "ລວມທັງໝົດ", value: total.toLocaleString() }, ...summary];
+  const tiles: SummaryItem[] = [{ label: t.totalAll, value: total.toLocaleString() }, ...summary];
 
   return (
     <div className="w-full space-y-5 pb-6">
@@ -186,15 +189,15 @@ export function ReportShell({
           <div className="min-w-0">
           <Link href="/reports" className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-teal-700 transition hover:text-teal-900">
             <ChevronLeft className="size-3.5" />
-            ລາຍງານ
+            {t.reports}
             <LinkPending className="size-3" />
           </Link>
           <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">{title}</h1>
           <p className="mt-1.5 text-xs leading-5 text-slate-500">
             {subtitle}
             {subtitle && " · "}
-            {state.q ? `ພົບ ${ordered.length.toLocaleString()} ຈາກ ${total.toLocaleString()} ລາຍການ` : `${total.toLocaleString()} ລາຍການ`}
-            {" · "}ໜ້າ {page}/{pages}
+            {state.q ? `${t.found} ${ordered.length.toLocaleString()} ${t.from} ${total.toLocaleString()} ${t.items}` : `${total.toLocaleString()} ${t.items}`}
+            {" · "}{t.page} {page}/{pages}
           </p>
         </div>
 
@@ -206,7 +209,7 @@ export function ReportShell({
               className="inline-flex h-10 items-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-semibold text-white shadow-sm shadow-emerald-200 transition hover:-translate-y-0.5 hover:bg-emerald-700"
             >
               <Download className="size-3.5" />
-              ດາວໂຫຼດ Excel
+              {t.downloadExcel}
             </a>
           )}
           {printHref && (
@@ -216,7 +219,7 @@ export function ReportShell({
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
               <Printer className="size-3.5" />
-              ພິມ
+              {t.print}
               <LinkPending className="size-3" />
             </Link>
           )}
@@ -250,7 +253,7 @@ export function ReportShell({
       >
         <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-slate-700">
           <span className="grid size-7 place-items-center rounded-lg bg-slate-100 text-slate-600"><Filter className="size-3.5" /></span>
-          ຕົວກອງລາຍງານ
+          {t.reportFilter}
         </div>
         <div className="flex flex-wrap items-end gap-3">
         {/* ຮັກສາຕົວກອງ ແລະ ການຈັດຮຽງໄວ້ເມື່ອກົດຄົ້ນຫາ */}
@@ -269,7 +272,7 @@ export function ReportShell({
         {dateRange && (
           <>
             <label className="block">
-              <span className="mb-1 block text-[11px] text-slate-500">ຈາກວັນທີ</span>
+              <span className="mb-1 block text-[11px] text-slate-500">{t.fromDate}</span>
               <input
                 type="date"
                 name="from"
@@ -278,7 +281,7 @@ export function ReportShell({
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11px] text-slate-500">ຫາວັນທີ</span>
+              <span className="mb-1 block text-[11px] text-slate-500">{t.toDate}</span>
               <input
                 type="date"
                 name="to"
@@ -292,15 +295,15 @@ export function ReportShell({
         {filters}
 
         <label className="flex min-w-56 flex-1 flex-col">
-          <span className="mb-1 block text-[11px] text-slate-500">ຄົ້ນຫາ</span>
+          <span className="mb-1 block text-[11px] text-slate-500">{t.search}</span>
           <span className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 transition focus-within:border-teal-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-teal-100">
             <Search className="size-3.5 shrink-0 text-slate-400" />
-            <input name="q" defaultValue={state.q} placeholder={searchPlaceholder} className="w-full text-xs outline-none" />
+            <input name="q" defaultValue={state.q} placeholder={searchPlaceholder ?? t.searchPlaceholder} className="w-full text-xs outline-none" />
           </span>
         </label>
 
         <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-900 px-5 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700">
-          <Search className="size-3.5" /> ຄົ້ນຫາ
+          <Search className="size-3.5" /> {t.search}
         </button>
         </div>
       </form>
@@ -332,8 +335,8 @@ export function ReportShell({
           {/* ຕາຕະລາງ desktop — ເຊື່ອງໃນມືຖື, ຄົງເດີມທຸກປະການໃນຈໍໃຫຍ່ */}
           <section className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
             <div className="border-b border-slate-100 px-4 py-3">
-              <h2 className="text-sm font-bold text-slate-800">ລາຍການຂໍ້ມູນ</h2>
-              <p className="mt-0.5 text-[11px] text-slate-500">ກົດທີ່ຫົວຖັນເພື່ອຈັດຮຽງ · ເລື່ອນຊ້າຍ-ຂວາເພື່ອເບິ່ງຂໍ້ມູນທັງໝົດ</p>
+              <h2 className="text-sm font-bold text-slate-800">{t.dataList}</h2>
+              <p className="mt-0.5 text-[11px] text-slate-500">{t.tableHint}</p>
             </div>
             <div className="max-h-[calc(100vh-16rem)] overflow-auto">
               <table className="w-full border-separate border-spacing-0 text-xs" style={{ minWidth }}>
@@ -378,7 +381,7 @@ export function ReportShell({
                 </tbody>
               </table>
             </div>
-            {ordered.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+            {ordered.length === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noItems}</p>}
           </section>
 
           {/* ບັດ mobile — ໃຊ້ຖັນ/ແຖວດຽວກັນ, ຖັນທຳອິດເປັນຫົວບັດ ສ່ວນຖັນທີ່ເຫຼືອເປັນ ປ້າຍ:ຄ່າ */}
@@ -412,7 +415,7 @@ export function ReportShell({
                 );
               })}
             </MobileCardList>
-            {ordered.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+            {ordered.length === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noItems}</p>}
           </div>
         </>
       )}
@@ -420,7 +423,7 @@ export function ReportShell({
       {pages > 1 && (
         <nav className="no-print flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, ordered.length)} ຈາກ{" "}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, ordered.length)} {t.from}{" "}
             {ordered.length.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
@@ -430,7 +433,7 @@ export function ReportShell({
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -440,7 +443,7 @@ export function ReportShell({
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>

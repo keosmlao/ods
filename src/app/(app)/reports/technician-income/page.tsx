@@ -2,6 +2,8 @@ import { Card, Empty, PageTitle, Table } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABEL } from "@/lib/commission";
 import { query, queryOdg } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { roleOf } from "@/lib/roles";
 import { ownJobsOnly } from "@/lib/scope";
 import { AlertTriangle } from "lucide-react";
@@ -44,6 +46,7 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
   const session = await getSession();
   const tech = ownJobsOnly(session);
   const isManager = roleOf(session) === "manager";
+  const t = (await getDictionary(await getLocale())).technicianIncome;
 
   const params = await searchParams;
   const month = ISO_MONTH.test(params.month ?? "") ? (params.month as string) : new Date().toISOString().slice(0, 7);
@@ -146,21 +149,21 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
 
   return (
     <div className="w-full space-y-5">
-      <PageTitle sub={tech ? "ສະແດງສະເພາະລາຍຮັບຂອງທ່ານ" : "ຄ່າຄອມທີ່ແຊ່ໄວ້ຕອນປິດງານ (ບາທ)"}>
-        ລາຍຮັບຊ່າງ
+      <PageTitle sub={tech ? t.subOwn : t.subAll}>
+        {t.title}
       </PageTitle>
 
       <div className="flex flex-wrap items-center gap-2">
         <Link href={monthHref(shift(-1))} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
-          ← ເດືອນກ່ອນ
+          ← {t.prevMonth}
         </Link>
         <span className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white">{month}</span>
         <Link href={monthHref(shift(1))} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
-          ເດືອນຕໍ່ໄປ →
+          {t.nextMonth} →
         </Link>
         <span className="ml-auto text-sm">
-          ລວມ <b className="text-lg text-slate-900">{grand.toLocaleString("en-US", { minimumFractionDigits: 2 })}</b>{" "}
-          <span className="text-xs text-slate-400">ບາທ</span>
+          {t.total} <b className="text-lg text-slate-900">{grand.toLocaleString("en-US", { minimumFractionDigits: 2 })}</b>{" "}
+          <span className="text-xs text-slate-400">{t.baht}</span>
         </span>
       </div>
 
@@ -172,9 +175,8 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
         >
           <AlertTriangle className="size-4 shrink-0" />
           <span className="flex-1">
-            <b>{orphanThb.toLocaleString("en-US", { minimumFractionDigits: 2 })} ບາທ</b> ({orphanJobs} ແຖວ)
-            ຄິດແລ້ວແຕ່ <b>ຍັງບໍ່ມີເຈົ້າຂອງ</b> — ຊ່າງຍັງບໍ່ໄດ້ເຊື່ອມຕົວຕົນ ຫຼື ບົດບາດຍັງບໍ່ໄດ້ລະບຸຜູ້ຮັບ.
-            ເງິນບໍ່ຫາຍ ແຕ່ຍັງບໍ່ຂຶ້ນຕາຕະລາງລຸ່ມ. ກົດເພື່ອໄປເຊື່ອມ.
+            <b>{orphanThb.toLocaleString("en-US", { minimumFractionDigits: 2 })} {t.baht}</b> ({orphanJobs} {t.rows})
+            {" "}{t.orphanCalculated} <b>{t.orphanNoOwner}</b> — {t.orphanBody}
           </span>
         </Link>
       )}
@@ -187,17 +189,16 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
         >
           <AlertTriangle className="size-4 shrink-0" />
           <span className="flex-1">
-            <b>{missing} ງານ</b> ປິດໃນເດືອນນີ້ ແຕ່ <b>ຍັງບໍ່ໄດ້ຄິດຄ່າບໍລິການ</b> — ຈັບຄູ່ອັດຕາບໍ່ໄດ້
-            (ບໍ່ມີລະຫັດສິນຄ້າ ERP ຫຼື ຍັງບໍ່ໄດ້ຕັ້ງອັດຕາ). ກົດເພື່ອໄປຕັ້ງອັດຕາ.
+            <b>{missing} {t.jobs}</b> {t.unpricedClosed} <b>{t.unpricedNotPriced}</b> — {t.unpricedBody}
           </span>
         </Link>
       )}
 
-      <Card title="ສະຫຼຸບຕໍ່ຄົນ">
+      <Card title={t.summaryTitle}>
         {summary.rows.length === 0 ? (
-          <Empty>ບໍ່ມີລາຍຮັບໃນເດືອນນີ້</Empty>
+          <Empty>{t.noIncome}</Empty>
         ) : (
-          <Table head={["ຜູ້ຮັບ", "ບົດບາດ", "ຈຳນວນງານ", "ລວມ (ບາທ)"]} minWidth={520}>
+          <Table head={[t.colRecipient, t.colRole, t.colJobCount, t.colTotal]} minWidth={520}>
             {summary.rows.map((row) => (
               <tr key={`${row.employee_code}-${row.role}`} className="border-b border-slate-100">
                 {/* ຕາຕະລາງນີ້ມີແຕ່ຜູ້ທີ່ຖືກກຳນົດແລ້ວ (query ກອງ employee_code is not null) */}
@@ -213,11 +214,11 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
         )}
       </Card>
 
-      <Card title={`ລາຍລະອຽດ (${details.rows.length})`}>
+      <Card title={`${t.detailTitle} (${details.rows.length})`}>
         {details.rows.length === 0 ? (
-          <Empty>ບໍ່ມີລາຍການ</Empty>
+          <Empty>{t.noItems}</Empty>
         ) : (
-          <Table head={["ວັນປິດງານ", "ງານ", "ສາຍງານ", "ອັດຕາ", "ຄ່າບໍລິການ", "ຜູ້ຮັບ", "ບົດບາດ", "%", "ໄດ້ຮັບ"]} minWidth={900}>
+          <Table head={[t.colClosedDate, t.colJob, t.colWorkflow, t.colRate, t.colService, t.colRecipient, t.colRole, "%", t.colReceived]} minWidth={900}>
             {details.rows.map((row) => (
               <tr key={`${row.workflow}-${row.job_code}-${row.role}`} className="border-b border-slate-100">
                 <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-500">{row.closed_on ?? "-"}</td>
@@ -239,7 +240,7 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
                       row.workflow === "install" ? "bg-violet-50 text-violet-700" : "bg-slate-100 text-slate-600"
                     }`}
                   >
-                    {row.workflow === "install" ? "ຕິດຕັ້ງ" : "ສ້ອມແປງ"}
+                    {row.workflow === "install" ? t.workflowInstall : t.workflowRepair}
                   </span>
                 </td>
                 <td className="max-w-56 truncate px-3 py-2 text-xs text-slate-600" title={row.rate_label ?? ""}>

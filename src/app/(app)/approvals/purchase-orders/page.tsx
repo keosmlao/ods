@@ -1,6 +1,8 @@
 import { ApprovePoButton } from "@/app/(app)/purchase-orders/approve-po-button";
 import { LinkPending } from "@/components/link-pending";
 import { queryOdg } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { ERP_PURCHASE } from "@/lib/stock-constants";
 import { ArrowRight, CheckCheck, Clock } from "lucide-react";
 import Link from "next/link";
@@ -89,7 +91,7 @@ async function getRows(waiting: boolean): Promise<Row[]> {
 }
 
 /** ອາຍຸໃບ — ລໍອະນຸມັດດົນ = ຜູ້ສະໜອງລໍ = ຂອງມາຊ້າ */
-function AgeBadge({ days }: { days: number | null }) {
+function AgeBadge({ days, daysUnit }: { days: number | null; daysUnit: string }) {
   if (days === null) return <span className="text-slate-300">-</span>;
   return (
     <span
@@ -97,7 +99,7 @@ function AgeBadge({ days }: { days: number | null }) {
         days >= 14 ? "bg-red-100 text-red-700" : days >= 7 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"
       }`}
     >
-      {days} ມື້
+      {days} {daysUnit}
     </span>
   );
 }
@@ -105,6 +107,7 @@ function AgeBadge({ days }: { days: number | null }) {
 export default async function ApprovePurchaseOrdersPage({ searchParams }: Props) {
   const params = await searchParams;
   const tab = params.tab === "approved" ? "approved" : "waiting";
+  const t = (await getDictionary(await getLocale())).approvalsPo;
   const [rows, waitingCount] = await Promise.all([
     getRows(tab === "waiting"),
     tab === "waiting" ? Promise.resolve(0) : getRows(true).then((list) => list.length),
@@ -112,16 +115,16 @@ export default async function ApprovePurchaseOrdersPage({ searchParams }: Props)
   const counts = { waiting: tab === "waiting" ? rows.length : waitingCount, approved: tab === "approved" ? rows.length : 0 };
 
   const TABS = [
-    { key: "waiting", label: "ລໍຖ້າອະນຸມັດໃບສັ່ງຊື້", icon: Clock, count: counts.waiting },
+    { key: "waiting", label: t.tabWaiting, icon: Clock, count: counts.waiting },
     { key: "approved", label: "ອະນຸມັດແລ້ວ", icon: CheckCheck, count: null as number | null },
   ] as const;
 
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-700">ອະນຸມັດໃບສັ່ງຊື້ (PO)</h1>
+        <h1 className="text-xl font-bold text-slate-700">{t.heading}</h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          ດ່ານສຸດທ້າຍກ່ອນຜູ້ສະໜອງສົ່ງຂອງ — ອະນຸມັດ = ອອກ WPOA ລົງ ERP · {rows.length} ໃບ
+          {t.subtitle} · {rows.length} {t.itemsUnit}
         </p>
       </div>
 
@@ -151,15 +154,15 @@ export default async function ApprovePurchaseOrdersPage({ searchParams }: Props)
           <table className="w-full min-w-[1050px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                <th className="px-3 py-2.5 font-semibold">ເລກໃບສັ່ງຊື້</th>
-                <th className="px-3 py-2.5 font-semibold">ວັນທີ</th>
-                <th className="px-3 py-2.5 font-semibold">{tab === "waiting" ? "ລໍມາແລ້ວ" : "ອາຍຸໃບ"}</th>
-                <th className="px-3 py-2.5 font-semibold">ແຫຼ່ງທີ່ມາ</th>
-                <th className="px-3 py-2.5 font-semibold">ຜູ້ສະໜອງ</th>
-                <th className="px-3 py-2.5 font-semibold">ສາຂາ</th>
-                <th className="px-3 py-2.5 text-right font-semibold">ລາຍການ</th>
-                <th className="px-3 py-2.5 text-right font-semibold">ຍອດ</th>
-                {tab === "approved" && <th className="px-3 py-2.5 font-semibold">ໃບອະນຸມັດ</th>}
+                <th className="px-3 py-2.5 font-semibold">{t.colDocNo}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colDate}</th>
+                <th className="px-3 py-2.5 font-semibold">{tab === "waiting" ? t.colWaited : t.colAge}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colSource}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colSupplier}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colBranch}</th>
+                <th className="px-3 py-2.5 text-right font-semibold">{t.colItems}</th>
+                <th className="px-3 py-2.5 text-right font-semibold">{t.colTotal}</th>
+                {tab === "approved" && <th className="px-3 py-2.5 font-semibold">{t.colApprovalDoc}</th>}
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -174,14 +177,14 @@ export default async function ApprovePurchaseOrdersPage({ searchParams }: Props)
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5">{row.doc_date ?? "-"}</td>
                   <td className="px-3 py-2.5">
-                    <AgeBadge days={row.age} />
+                    <AgeBadge days={row.age} daysUnit={t.daysUnit} />
                   </td>
                   <td className="px-3 py-2.5">
                     {row.spr ? (
                       <span className="inline-flex flex-col items-start">
                         {isJobCode(row.job) ? (
                           <Link href={`/service/${row.job}`} className="font-medium text-[#0536a9] hover:underline">
-                            ວຽກ {row.job}
+                            {t.jobPrefix} {row.job}
                           </Link>
                         ) : (
                           <span className="font-medium text-slate-600">ໃບຂໍຊື້</span>
@@ -213,7 +216,7 @@ export default async function ApprovePurchaseOrdersPage({ searchParams }: Props)
                         href={`/purchase-orders/${encodeURIComponent(row.doc_no)}`}
                         className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                       >
-                        ເບິ່ງໃບ
+                        {t.viewDoc}
                         <ArrowRight className="size-3.5" />
                         <LinkPending className="size-3" />
                       </Link>
@@ -226,7 +229,7 @@ export default async function ApprovePurchaseOrdersPage({ searchParams }: Props)
         </div>
         {rows.length === 0 && (
           <p className="py-12 text-center text-xs text-slate-400">
-            {tab === "waiting" ? "ບໍ່ມີໃບສັ່ງຊື້ລໍອະນຸມັດ" : "ຍັງບໍ່ມີໃບທີ່ອະນຸມັດແລ້ວ"}
+            {tab === "waiting" ? t.emptyWaiting : t.emptyApproved}
           </p>
         )}
       </section>

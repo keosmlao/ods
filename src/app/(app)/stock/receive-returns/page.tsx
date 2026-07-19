@@ -5,6 +5,8 @@ import { SortHeader, type SortDir } from "@/components/sort-header";
 import { Todo } from "@/components/ui";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import { ChevronLeft, ChevronRight, Eye, FileBarChart, PackageCheck, Undo2 } from "lucide-react";
 import Link from "next/link";
@@ -109,16 +111,18 @@ async function getCounts() {
   return { pending: row?.pending ?? 0, received: row?.received ?? 0 };
 }
 
-const COLUMNS: { key: string; label: string; defaultDir: SortDir }[] = [
-  { key: "doc_no", label: "ເລກທີ", defaultDir: "desc" },
-  { key: "elapsed", label: "ຄ້າງມາ", defaultDir: "asc" },
-  { key: "doc_ref", label: "ເລກທີໃບອ້າງອີງ", defaultDir: "desc" },
-  { key: "product", label: "ລະຫັດເຄື່ອງ", defaultDir: "desc" },
-  { key: "remark", label: "ໝາຍເຫດ", defaultDir: "asc" },
+type Dict = Record<string, string>;
+
+const columns = (t: Dict): { key: string; label: string; defaultDir: SortDir }[] => [
+  { key: "doc_no", label: t.colDocNo, defaultDir: "desc" },
+  { key: "elapsed", label: t.colWaited, defaultDir: "asc" },
+  { key: "doc_ref", label: t.colRefNo, defaultDir: "desc" },
+  { key: "product", label: t.colProductCode, defaultDir: "desc" },
+  { key: "remark", label: t.colRemark, defaultDir: "asc" },
 ];
 
 /** ປ້າຍປະເພດວຽກ */
-function JobBadge({ jobType }: { jobType: string | null }) {
+function JobBadge({ jobType, t }: { jobType: string | null; t: Dict }) {
   const install = jobType === "install";
   return (
     <span
@@ -126,7 +130,7 @@ function JobBadge({ jobType }: { jobType: string | null }) {
         install ? "bg-violet-50 text-violet-700" : "bg-slate-100 text-slate-600"
       }`}
     >
-      {install ? "ຕິດຕັ້ງ" : "ສ້ອມແປງ"}
+      {install ? t.badgeInstall : t.badgeRepair}
     </span>
   );
 }
@@ -134,6 +138,8 @@ function JobBadge({ jobType }: { jobType: string | null }) {
 export default async function ReceiveReturnsPage({ searchParams }: Props) {
   // ດຶງໃບຮັບຄືນທີ່ສາງຮັບໃນ ERP ກັບມາ ⇒ ໃບທີ່ຮັບແລ້ວຫຼຸດອອກຈາກຄິວເອງ (lib/erp-dispatch)
   await syncErpReturns();
+
+  const t = (await getDictionary(await getLocale())).receiveReturns;
 
   const params = await searchParams;
   const tab: Tab = params.tab === "received" ? "received" : "pending";
@@ -155,22 +161,22 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
     `/stock/receive-returns?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
   const TABS: { key: Tab; label: string; icon: typeof Undo2; count: number }[] = [
-    { key: "pending", label: "ລາຍການລໍຖ້າສົ່ງ​ຄືນອາໄຫຼ່", icon: Undo2, count: counts.pending },
-    { key: "received", label: "ລາຍການ​ຮັບຄືນອາໄຫຼ່", icon: PackageCheck, count: counts.received },
+    { key: "pending", label: t.tabPending, icon: Undo2, count: counts.pending },
+    { key: "received", label: t.tabReceived, icon: PackageCheck, count: counts.received },
   ];
 
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-700">ຮັບຄືນອາໄຫຼ່</h1>
+          <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            ລາຍການຮັບ​ຄືນອາໄຫຼ່ · {docs.total.toLocaleString()} ລາຍການ · ໜ້າ {page}/{pages}
+            {t.subtitle} · {docs.total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
           </p>
         </div>
         <Todo className="h-9 px-3 text-xs">
           <FileBarChart className="size-4" />
-          ລາຍງານ
+          {t.report}
         </Todo>
       </div>
 
@@ -204,10 +210,10 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
           <table className="w-full min-w-[1100px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                {COLUMNS.map((column) => (
+                {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
-                    label={column.key === "doc_no" && tab === "pending" ? "ເລກທີໃບຂໍສົ່ງຄືນ" : column.label}
+                    label={column.key === "doc_no" && tab === "pending" ? t.colReturnRequestNo : column.label}
                     sortKey={column.key}
                     current={sort}
                     dir={dir}
@@ -216,7 +222,7 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
                     className="py-2.5"
                   />
                 ))}
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສະຖານະ</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colStatus}</th>
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -230,7 +236,7 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
                       <span className={`absolute inset-y-0 left-0 w-1 ${tab === "pending" ? tone.bar : ""}`} aria-hidden />
                       {doc.doc_no}
                       <span className="mt-0.5 block">
-                        <JobBadge jobType={doc.job_type} />
+                        <JobBadge jobType={doc.job_type} t={t} />
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">
@@ -256,7 +262,7 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
                           tab === "pending" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
                         }`}
                       >
-                        {tab === "pending" ? "ຂໍສົ່ງຄືນອາໄຫຼ່" : "ຮັບຄືນອາໄຫຼ່ສຳເລັດ"}
+                        {tab === "pending" ? t.statusReturnRequest : t.statusReceived}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-center">
@@ -271,7 +277,7 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
                           className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
                         >
                           <PackageCheck className="size-3.5" />
-                          ຮັບ​ຄືນ
+                          {t.receive}
                           <LinkPending className="size-3" />
                         </Link>
                       ) : (
@@ -280,7 +286,7 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
                           className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-sky-500 px-3 text-xs font-semibold text-white hover:bg-sky-600"
                         >
                           <Eye className="size-3.5" />
-                          ເບີ່ງ
+                          {t.view}
                           <LinkPending className="size-3" />
                         </Link>
                       )}
@@ -292,13 +298,13 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
           </table>
         </div>
 
-        {docs.total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>}
+        {docs.total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-500">
-            ສະແດງ {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, docs.total)} ຈາກ {docs.total.toLocaleString()}
+            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, docs.total)} {t.of} {docs.total.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Link
@@ -307,7 +313,7 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               <ChevronLeft className="size-3.5" />
-              ກ່ອນໜ້າ
+              {t.prev}
             </Link>
             <span className="px-3 font-medium text-slate-700">
               {page} / {pages}
@@ -317,7 +323,7 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
               aria-disabled={page >= pages}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
-              ຕໍ່ໄປ
+              {t.next}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>
