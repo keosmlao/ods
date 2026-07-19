@@ -6,6 +6,7 @@ import {
   repairKpi,
   repairSlaCompliance,
   technicianKpi,
+  technicianServiceMix,
   technicianSla,
   weeklyThroughput,
   type FlowKpi,
@@ -45,7 +46,7 @@ export default async function KpiPage({ searchParams }: Props) {
   const params = await searchParams;
   const days = (PERIODS.includes(Number(params.d) as Period) ? Number(params.d) : 90) as Period;
 
-  const [install, repair, techs, quality, weeks, repairSla, techSla] = await Promise.all([
+  const [install, repair, techs, quality, weeks, repairSla, techSla, serviceMix] = await Promise.all([
     installKpi(days),
     repairKpi(days),
     technicianKpi(days),
@@ -53,6 +54,7 @@ export default async function KpiPage({ searchParams }: Props) {
     weeklyThroughput(days),
     repairSlaCompliance(days),
     technicianSla(days),
+    technicianServiceMix(days),
   ]);
   const repairSlaMap = new Map(repairSla.map((item) => [`${item.stage}:${item.service_type}`, item]));
   const techSlaMap = new Map(techSla.map((item) => [item.tech, item]));
@@ -255,6 +257,37 @@ export default async function KpiPage({ searchParams }: Props) {
               </tr>
               );
             })}
+          </Table>
+        )}
+      </Card>
+
+      {/* ④ ແຍກປະເພດບໍລິການ ຕໍ່ຊ່າງ — ໃຜເຮັດ IH/PS (ໄປໜ້າງານ) vs CI/ST (ຢູ່ສູນ) */}
+      <Card
+        title={
+          <span className="inline-flex items-center gap-2">
+            <Wrench className="size-4 text-teal-600" />
+            ງານສ້ອມຕໍ່ຊ່າງ ແຍກປະເພດບໍລິການ ({days} ມື້)
+          </span>
+        }
+      >
+        {serviceMix.length === 0 ? (
+          <Empty>ບໍ່ມີງານສ້ອມທີ່ຈົບໃນໄລຍະນີ້</Empty>
+        ) : (
+          <Table head={["ຊ່າງ", "CI ນຳເຂົ້າ", "ST ໃນສາງ", "IH ໄປບ້ານ", "PS ໄປຮັບ", "ລວມ"]} minWidth={720}>
+            {serviceMix.map((row) => (
+              <tr key={row.tech} className="border-b border-slate-100 hover:bg-slate-50">
+                <td className="whitespace-nowrap px-3 py-2.5 font-semibold text-slate-800">{row.tech}</td>
+                <td className="px-3 py-2.5 text-center tabular-nums text-slate-600">{row.ci || "–"}</td>
+                <td className="px-3 py-2.5 text-center tabular-nums text-slate-600">{row.st || "–"}</td>
+                <td className="px-3 py-2.5 text-center tabular-nums">
+                  <span className={row.ih > 0 ? "font-semibold text-emerald-700" : "text-slate-300"}>{row.ih || "–"}</span>
+                </td>
+                <td className="px-3 py-2.5 text-center tabular-nums">
+                  <span className={row.ps > 0 ? "font-semibold text-amber-700" : "text-slate-300"}>{row.ps || "–"}</span>
+                </td>
+                <td className="px-3 py-2.5 text-center font-bold tabular-nums text-slate-800">{row.total}</td>
+              </tr>
+            ))}
           </Table>
         )}
       </Card>

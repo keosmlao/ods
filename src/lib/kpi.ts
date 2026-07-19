@@ -343,6 +343,38 @@ export async function technicianSla(days: Period): Promise<TechSla[]> {
   }));
 }
 
+export type TechServiceMix = { tech: string; ci: number; st: number; ih: number; ps: number; total: number };
+
+/**
+ * **ງານສ້ອມຕໍ່ຊ່າງ ແຍກປະເພດບໍລິການ** — ຮັບຮູ້ໃຜເຮັດງານໄປສ້ອມບ້ານ (IH) / ໄປຮັບ (PS) ຫຼາຍ
+ * ທຽບກັບງານຢູ່ສູນ (CI/ST). ນັບໃບທີ່ **ສ້ອມສຳເລັດ** ໃນໄລຍະ (time_finish_repair) ຕໍ່ emp_code.
+ */
+export async function technicianServiceMix(days: Period): Promise<TechServiceMix[]> {
+  return (
+    await query<TechServiceMix>(
+      `select nullif(emp_code,'') as tech,
+          count(*) filter (where service_type='CI')::int as ci,
+          count(*) filter (where service_type='ST')::int as st,
+          count(*) filter (where service_type='IH')::int as ih,
+          count(*) filter (where service_type='PS')::int as ps,
+          count(*)::int as total
+        from tb_product
+       where time_finish_repair >= current_date - ($1::int) and cancel_start is null and nullif(emp_code,'') is not null
+       group by nullif(emp_code,'')
+       having count(*) > 0
+       order by count(*) desc`,
+      [days],
+    )
+  ).rows.map((row) => ({
+    tech: row.tech,
+    ci: Number(row.ci),
+    st: Number(row.st),
+    ih: Number(row.ih),
+    ps: Number(row.ps),
+    total: Number(row.total),
+  }));
+}
+
 /**
  * **ຄຸນນະພາບ** — ໄວຢ່າງດຽວບໍ່ພຽງພໍ. ງານທີ່ໄວແຕ່ຕ້ອງກັບມາສ້ອມຊ້ຳ = ຂາດທຶນສອງເທື່ອ.
  */
