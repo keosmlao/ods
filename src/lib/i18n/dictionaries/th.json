@@ -1048,7 +1048,11 @@
         ],
         "refs": "—"
       }
-    ]
+    ],
+    "printSet": "พิมพ์ทั้งชุด",
+    "printOne": "พิมพ์ใบนี้",
+    "printAllTitle": "เอกสาร SOP / WI",
+    "printBtn": "พิมพ์ / บันทึก PDF"
   },
   "statusList": {
     "backToOverview": "กลับหน้ารวม",

@@ -1,6 +1,9 @@
+import { DocCard } from "@/components/manual/doc-card";
 import { PageTitle } from "@/components/ui";
 import { type Dictionary, getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
+import { Printer } from "lucide-react";
+import Link from "next/link";
 
 /**
  * ຄູ່ມືການໃຊ້ງານ — ຂະບວນການງານສ້ອມ. ໜ້າອ້າງອີງ static ສຳລັບພະນັກງານ (CS/ຊ່າງ/ຫົວໜ້າ/ສາງ).
@@ -124,53 +127,6 @@ function Section({ n, title, children }: { n: string; title: string; children: R
   );
 }
 
-/** ວັນທີ່ມີຜົນ / revision — ຄ່າດຽວກັນທຸກເອກະສານ (ບໍ່ຂຶ້ນກັບພາສາ) */
-const DOC_REV = "01";
-const DOC_EFF = "20-07-2026";
-
-type DocMeta = Dict["docMeta"];
-type Doc = Dict["sopDocs"][number];
-
-/** ໃບເອກະສານ SOP/WI ແບບ QMS — ຫົວມີ ລະຫັດ · revision · ວັນທີມີຜົນ · ຜູ້ຮັບຜິດຊອບ */
-function DocCard({ doc, meta }: { doc: Doc; meta: DocMeta }) {
-  return (
-    <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
-        <div className="flex items-center gap-2">
-          <span className="rounded bg-teal-600 px-2 py-0.5 font-mono text-xs font-bold text-white">{doc.code}</span>
-          <h3 className="text-[15px] font-bold text-slate-800">{doc.title}</h3>
-        </div>
-        <dl className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-slate-500">
-          <div className="flex gap-1"><dt className="font-semibold">{meta.revision}:</dt><dd className="font-mono">{DOC_REV}</dd></div>
-          <div className="flex gap-1"><dt className="font-semibold">{meta.effectiveDate}:</dt><dd className="font-mono">{DOC_EFF}</dd></div>
-          <div className="flex gap-1"><dt className="font-semibold">{meta.owner}:</dt><dd>{doc.owner}</dd></div>
-        </dl>
-      </header>
-      <div className="grid gap-3 border-b border-slate-100 p-4 md:grid-cols-2">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wide text-teal-700">{meta.purpose}</p>
-          <p className="mt-0.5 text-[13px] text-slate-600">{doc.purpose}</p>
-        </div>
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wide text-teal-700">{meta.scope}</p>
-          <p className="mt-0.5 text-[13px] text-slate-600">{doc.scope}</p>
-        </div>
-      </div>
-      <div className="p-4">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-teal-700">{meta.procedure}</p>
-        <ol className="mt-2 space-y-1.5">
-          {doc.steps.map((step, i) => (
-            <li key={i} className="flex gap-2.5 text-[13px] text-slate-700">
-              <span className="mt-0.5 grid size-[20px] shrink-0 place-items-center rounded-md bg-slate-700 font-mono text-[11px] font-bold text-white">{i + 1}</span>
-              <span>{step}</span>
-            </li>
-          ))}
-        </ol>
-        {doc.refs && <p className="mt-3 text-[11px] text-slate-400">{meta.references}: {doc.refs}</p>}
-      </div>
-    </article>
-  );
-}
 
 export default async function ManualPage() {
   const t = (await getDictionary(await getLocale())).manualPage;
@@ -293,17 +249,35 @@ export default async function ManualPage() {
       ))}
 
       <Section n={String(5 + t.extraSections.length).padStart(2, "0")} title={t.sopTitle}>
+        <div className="mb-4 flex flex-wrap gap-2">
+          <Link
+            href="/manual/documents/print?set=sop"
+            target="_blank"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-100"
+          >
+            <Printer className="size-4" /> {t.printSet}
+          </Link>
+        </div>
         <div className="space-y-4">
           {t.sopDocs.map((doc) => (
-            <DocCard key={doc.code} doc={doc} meta={t.docMeta} />
+            <DocCard key={doc.code} doc={doc} meta={t.docMeta} printHref={`/manual/documents/print?doc=${doc.code}`} printLabel={t.printOne} />
           ))}
         </div>
       </Section>
 
       <Section n={String(6 + t.extraSections.length).padStart(2, "0")} title={t.wiTitle}>
+        <div className="mb-4 flex flex-wrap gap-2">
+          <Link
+            href="/manual/documents/print?set=wi"
+            target="_blank"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-100"
+          >
+            <Printer className="size-4" /> {t.printSet}
+          </Link>
+        </div>
         <div className="space-y-4">
           {t.wiDocs.map((doc) => (
-            <DocCard key={doc.code} doc={doc} meta={t.docMeta} />
+            <DocCard key={doc.code} doc={doc} meta={t.docMeta} printHref={`/manual/documents/print?doc=${doc.code}`} printLabel={t.printOne} />
           ))}
         </div>
       </Section>

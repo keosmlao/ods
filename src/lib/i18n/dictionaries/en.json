@@ -1048,7 +1048,11 @@
         ],
         "refs": "—"
       }
-    ]
+    ],
+    "printSet": "Print set",
+    "printOne": "Print this",
+    "printAllTitle": "SOP / WI documents",
+    "printBtn": "Print / Save PDF"
   },
   "statusList": {
     "backToOverview": "Back to overview",

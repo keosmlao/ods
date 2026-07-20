@@ -1048,7 +1048,11 @@
         ],
         "refs": "—"
       }
-    ]
+    ],
+    "printSet": "ພິມທັງຊຸດ",
+    "printOne": "ພິມໃບນີ້",
+    "printAllTitle": "ເອກະສານ SOP / WI",
+    "printBtn": "ພິມ / ບັນທຶກ PDF"
   },
   "statusList": {
     "backToOverview": "ກັບໜ້າລວມ",
