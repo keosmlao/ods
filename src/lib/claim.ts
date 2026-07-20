@@ -1,81 +1,17 @@
+import {
+  type ClaimCandidate,
+  type ClaimDailySummary,
+  type ClaimItem,
+  type ClaimLog,
+  type ClaimRow,
+  claimStatusLabel,
+  type ClaimType,
+  type CobInfo,
+} from "@/lib/claim-shared";
 import { query, queryOdg } from "@/lib/db";
 
-/**
- * ລະບົບເຄມ (Claim) — Phase 1.
- *   A = ເຄມອາໄຫຼ່ກັບ supplier (ສູນຊື້ມາເສຍ)
- *   B = ຮ້ານຄ້າສົ່ງມາເຄມ — **ຈົບຢູ່ສູນ** (ບໍ່ຮອດ supplier)
- *   C = ເກັບເງິນຄ່າສ້ອມ ນຳ supplier/ຫຍີ່ຫໍ້ ແທນລູກຄ້າ (ຜູກ ERP — phase ຕໍ່)
- * ຕາຕະລາງ ods_claim / ods_claim_item / ods_claim_log (main DB). supplier←ap_supplier, brand←ic_brand (ERP).
- */
-export type ClaimType = "A" | "B" | "C";
-
-export const CLAIM_TYPE_LABEL: Record<ClaimType, string> = {
-  A: "ເຄມອາໄຫຼ່ກັບ supplier",
-  B: "ຮ້ານສົ່ງມາເຄມ (ຈົບຢູ່ສູນ)",
-  C: "ເກັບເງິນຄ່າສ້ອມ ນຳ supplier",
-};
-
-/** pipeline ຕໍ່ type — ລຳດັບ status + ป้าย. status ສຸດທ້າຍ = closed (ປິດ) */
-export const CLAIM_FLOW: Record<ClaimType, { status: string; label: string }[]> = {
-  A: [
-    { status: "draft", label: "ຮ່າງ" },
-    { status: "sent", label: "ສົ່ງ supplier" },
-    { status: "review", label: "supplier ກວດ" },
-    { status: "approved", label: "ອະນຸມັດ" },
-    { status: "received", label: "ຮັບຂອງໃໝ່ / ເครดิต" },
-    { status: "closed", label: "ປິດ" },
-  ],
-  B: [
-    { status: "received", label: "ຮັບຈາກຮ້ານ" },
-    { status: "checking", label: "ກວດ / ຕັດສິນ" },
-    { status: "done", label: "ປ່ຽນ / ສ້ອມ" },
-    { status: "returned", label: "ຄືນຮ້ານ" },
-    { status: "closed", label: "ປິດ" },
-  ],
-  C: [
-    { status: "pending", label: "ລໍເຄມ" },
-    { status: "submitted", label: "ຍື່ນເບີກ" },
-    { status: "approved", label: "supplier ອະນຸມັດ" },
-    { status: "paid", label: "ຮັບເງິນ" },
-    { status: "closed", label: "ປິດ" },
-  ],
-};
-/** ສະຖານະ "ຍົກເລີກ/ปฏิเสธ" ນອກ flow — ໃຫ້ A ໃຊ້ໄດ້ */
-export const CLAIM_REJECTED = { status: "rejected", label: "ปฏิเสธ" };
-
-export const claimStatusLabel = (type: ClaimType, status: string): string => {
-  if (status === CLAIM_REJECTED.status) return CLAIM_REJECTED.label;
-  return CLAIM_FLOW[type]?.find((s) => s.status === status)?.label ?? status;
-};
-
-/** status ຖັດໄປ (linear) — null ຖ້າຢູ່ closed/rejected ແລ້ວ */
-export const claimNextStatus = (type: ClaimType, status: string): { status: string; label: string } | null => {
-  const flow = CLAIM_FLOW[type] ?? [];
-  const i = flow.findIndex((s) => s.status === status);
-  if (i < 0 || i >= flow.length - 1) return null;
-  return flow[i + 1];
-};
-
-export const isClaimOpen = (status: string) => status !== "closed" && status !== "rejected";
-
-export type ClaimRow = {
-  id: number;
-  claim_no: string;
-  claim_type: ClaimType;
-  supplier_code: string | null;
-  brand_code: string | null;
-  customer_code: string | null;
-  customer_name: string | null;
-  ref_job: string | null;
-  erp_doc_no: string | null;
-  status: string;
-  status_label: string;
-  amount: number;
-  reason: string | null;
-  created_by: string | null;
-  created_at: string | null;
-  remark: string | null;
-};
+// ⚠️ ຄ່າຄົງ + types + pure fn ຢູ່ claim-shared (client import ໄດ້). ບ່ອນນີ້ = query functions (server).
+export * from "@/lib/claim-shared";
 
 type RawClaim = Omit<ClaimRow, "status_label" | "amount"> & { amount: string | null };
 
@@ -109,7 +45,6 @@ export async function claimByNo(claimNo: string): Promise<ClaimRow | null> {
   return r ? mapRow(r) : null;
 }
 
-export type ClaimItem = { id: number; item_code: string | null; item_name: string | null; qty: number; unit: string | null; amount: number; note: string | null };
 export async function claimItems(claimNo: string): Promise<ClaimItem[]> {
   const rows = (await query<Omit<ClaimItem, "qty" | "amount"> & { qty: string; amount: string }>(
     `select id, item_code, item_name, qty, unit, amount, note from ods_claim_item where claim_no = $1 order by id`,
@@ -118,7 +53,6 @@ export async function claimItems(claimNo: string): Promise<ClaimItem[]> {
   return rows.map((r) => ({ ...r, qty: Number(r.qty), amount: Number(r.amount) }));
 }
 
-export type ClaimLog = { at: string | null; by_user: string | null; event: string | null; detail: string | null };
 export async function claimLogs(claimNo: string): Promise<ClaimLog[]> {
   return (await query<ClaimLog>(
     `select to_char(at,'DD-MM-YYYY HH24:MI') at, by_user, event, detail from ods_claim_log where claim_no = $1 order by id desc`,
@@ -130,7 +64,6 @@ export async function claimLogs(claimNo: string): Promise<ClaimLog[]> {
  * ອ່ານເອກະສານ COB (ic_trans trans_flag=87) ຈາກ ERP — **read-only** (ໃຫ້ CLM-C ຜູກ doc_no
  * ຂອງໃບ COB ທີ່ບັນຊີສ້າງໄວ້ແລ້ວ, ບໍ່ສ້າງ/ບໍ່ແກ້ ໃນ ERP). status 0 = ຍັງ, 1+ = ດຳເນີນການ.
  */
-export type CobInfo = { doc_no: string; doc_date: string | null; supplier_code: string | null; total_amount: number; status: number };
 export async function cobInfo(docNo: string): Promise<CobInfo | null> {
   const r = (
     await queryOdg<{ doc_no: string; doc_date: string | null; cust_code: string | null; total_amount: string | null; status: number }>(
@@ -148,7 +81,6 @@ export async function isJobClaimMarked(jobCode: string): Promise<boolean> {
 }
 
 /** งานที่ **ໝາຍ ເຄມ supplier + ສ່ງคืนแล้ว + ຍັງບໍ່ມີ CLM-C** — candidate สร้าง CLM-C */
-export type ClaimCandidate = { code: string; product: string | null; brand: string | null; customer: string | null; returned_at: string | null };
 export async function claimCandidatesC(): Promise<ClaimCandidate[]> {
   return (
     await query<ClaimCandidate>(
@@ -164,13 +96,7 @@ export async function claimCandidatesC(): Promise<ClaimCandidate[]> {
   ).rows;
 }
 
-/**
- * ສະຫຼຸບເຄມປະຈຳວັນ (ສຳລັບ cron → email/Line OA). read-only aggregates.
- *   openA/B/C = ໃບເຄມທີ່ຍັງເປີດຢູ່ (ບໍ່ closed/rejected) ຕໍ່ประเภท
- *   pendingMoney = ຍอด CLM-C ที่ยังไม่รับเงิน (ยังไม่ paid/closed) — เงินรอรับจาก supplier
- *   candidates = งานໝາຍ+ສ่งคืน ยังไม่เปิด CLM-C (ต้องเปิดเคลม)
- */
-export type ClaimDailySummary = { openA: number; openB: number; openC: number; pendingMoney: number; candidates: number };
+/** ສະຫຼຸບເຄມປະຈຳວັນ (ສຳລັບ cron → email/Line OA). read-only aggregates. */
 export async function claimDailySummary(): Promise<ClaimDailySummary> {
   const [open, money, cand] = await Promise.all([
     query<{ claim_type: string; n: number }>(`select claim_type, count(*)::int n from ods_claim where status not in ('closed','rejected') group by claim_type`),
@@ -184,18 +110,6 @@ export async function claimDailySummary(): Promise<ClaimDailySummary> {
     pendingMoney: Number(money.rows[0]?.s ?? 0),
     candidates: cand.rows[0]?.n ?? 0,
   };
-}
-
-/** ຂໍ້ຄວາມສະຫຼຸບ (ໃຫ້ email/Line) */
-export function claimDailyText(s: ClaimDailySummary, date: string): string {
-  return [
-    `📋 ສະຫຼຸບເຄມ ${date}`,
-    `• CLM-A (supplier) ເປີດຢູ່: ${s.openA}`,
-    `• CLM-B (ຮ້ານ) ເປີດຢູ່: ${s.openB}`,
-    `• CLM-C (ເກັບເງิน) ເປີດຢູ່: ${s.openC}`,
-    `• ເງินรอรับจาก supplier: ${s.pendingMoney.toLocaleString()}`,
-    `• ງານรอเปิด CLM-C (ໝາຍ+ສ่งคืน): ${s.candidates}`,
-  ].join("\n");
 }
 
 /** ໂຕເລກຕໍ່ status (badge ໃນ pipeline) ຂອງ type ໜຶ່ງ */

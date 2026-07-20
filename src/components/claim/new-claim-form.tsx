@@ -1,6 +1,6 @@
 "use client";
 import { createClaim } from "@/app/actions/claim";
-import { CLAIM_TYPE_LABEL, type ClaimType } from "@/lib/claim";
+import { CLAIM_TYPE_LABEL, type ClaimType } from "@/lib/claim-shared";
 import { LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";

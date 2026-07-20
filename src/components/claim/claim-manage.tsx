@@ -1,6 +1,6 @@
 "use client";
 import { addClaimItem, advanceClaim, deleteClaimItem, linkCob, updateClaimRemark } from "@/app/actions/claim";
-import type { ClaimItem, ClaimType, CobInfo } from "@/lib/claim";
+import type { ClaimItem, ClaimType, CobInfo } from "@/lib/claim-shared";
 import { ArrowRight, Link2, LoaderCircle, Plus, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
