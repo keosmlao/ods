@@ -142,6 +142,28 @@ export async function cobInfo(docNo: string): Promise<CobInfo | null> {
   return r ? { doc_no: r.doc_no, doc_date: r.doc_date, supplier_code: r.cust_code, total_amount: Number(r.total_amount ?? 0), status: r.status } : null;
 }
 
+/** ໝາຍໄວ້ວ່າ "ເຄມເງິນ supplier" ບໍ (ods_claim_mark) */
+export async function isJobClaimMarked(jobCode: string): Promise<boolean> {
+  return ((await query(`select 1 from ods_claim_mark where job_code = $1`, [jobCode])).rowCount ?? 0) > 0;
+}
+
+/** งานที่ **ໝາຍ ເຄມ supplier + ສ່ງคืนแล้ว + ຍັງບໍ່ມີ CLM-C** — candidate สร้าง CLM-C */
+export type ClaimCandidate = { code: string; product: string | null; brand: string | null; customer: string | null; returned_at: string | null };
+export async function claimCandidatesC(): Promise<ClaimCandidate[]> {
+  return (
+    await query<ClaimCandidate>(
+      `select a.code, a.name_1 product, a.p_brand brand, c.name_1 customer,
+          to_char(a.return_complete,'DD-MM-YYYY') returned_at
+        from tb_product a
+        join ods_claim_mark m on m.job_code = a.code
+        left join ar_customer c on c.code = a.cust_code
+       where a.return_complete is not null
+         and a.code not in (select ref_job from ods_claim where claim_type = 'C' and ref_job is not null)
+       order by a.return_complete desc limit 200`,
+    )
+  ).rows;
+}
+
 /** ໂຕເລກຕໍ່ status (badge ໃນ pipeline) ຂອງ type ໜຶ່ງ */
 export async function claimCounts(type: ClaimType): Promise<Record<string, number>> {
   const rows = (await query<{ status: string; n: number }>(

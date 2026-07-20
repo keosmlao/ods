@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 const isType = (v: string): v is ClaimType => ["A", "B", "C"].includes(v);
 
-type Props = { searchParams: Promise<{ type?: string }> };
+type Props = { searchParams: Promise<{ type?: string; ref_job?: string; brand?: string; supplier?: string }> };
 
 export default async function NewClaimPage({ searchParams }: Props) {
   const session = await getSession();
@@ -32,7 +32,14 @@ export default async function NewClaimPage({ searchParams }: Props) {
         <ChevronLeft className="size-4" /> ກັບລາຍการเคลม
       </Link>
       <h1 className="text-lg font-bold text-slate-700">ເປີດໃບເຄມໃໝ່</h1>
-      <NewClaimForm suppliers={suppliers.map((s) => ({ code: s.code, name: s.name }))} brands={brands} defaultType={defaultType} />
+      <NewClaimForm
+        suppliers={suppliers.map((s) => ({ code: s.code, name: s.name }))}
+        brands={brands}
+        defaultType={defaultType}
+        initialRefJob={sp.ref_job ?? ""}
+        initialBrand={sp.brand ?? ""}
+        initialSupplier={sp.supplier ?? ""}
+      />
     </div>
   );
 }

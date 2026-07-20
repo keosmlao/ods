@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth";
-import { CLAIM_FLOW, CLAIM_TYPE_LABEL, claimCounts, isClaimOpen, listClaims, type ClaimType } from "@/lib/claim";
+import { CLAIM_FLOW, CLAIM_TYPE_LABEL, claimCandidatesC, claimCounts, isClaimOpen, listClaims, type ClaimType } from "@/lib/claim";
 import { CLAIM_SIDE, roleOf } from "@/lib/roles";
 import { Download, FilePlus2, ReceiptText, Search } from "lucide-react";
 import Link from "next/link";
@@ -25,9 +25,10 @@ export default async function ClaimsPage({ searchParams }: Props) {
   const status = sp.status?.trim() || "";
   const q = sp.q?.trim() || "";
 
-  const [rows, counts] = await Promise.all([
+  const [rows, counts, candidates] = await Promise.all([
     listClaims({ type, status: status || undefined, q: q || undefined }),
     claimCounts(type),
+    type === "C" ? claimCandidatesC() : Promise.resolve([]),
   ]);
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const closedN = (counts.closed ?? 0) + (counts.rejected ?? 0);
@@ -85,6 +86,29 @@ export default async function ClaimsPage({ searchParams }: Props) {
           </Link>
         ))}
       </div>
+
+      {type === "C" && candidates.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+          <p className="mb-2 text-xs font-bold text-amber-800">
+            ງານສ່ງຄືนแล้ว · ໝາຍ ເຄມ supplier · ຍັງບໍ່ມີໃບເຄມ ({candidates.length})
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {candidates.map((c) => (
+              <Link
+                key={c.code}
+                href={`/claims/new?type=C&ref_job=${c.code}${c.brand ? `&brand=${encodeURIComponent(c.brand)}` : ""}`}
+                className="flex items-center gap-2 rounded-xl border border-amber-200 bg-white p-2.5 text-[12px] shadow-sm hover:border-teal-300 hover:bg-teal-50/40"
+              >
+                <FilePlus2 className="size-4 shrink-0 text-teal-600" />
+                <span className="min-w-0 flex-1">
+                  <b className="text-[#0536a9]">{c.code}</b> · {c.brand || "-"}
+                  <span className="block truncate text-slate-500">{[c.product, c.customer].filter(Boolean).join(" · ") || "-"} · ຄืน {c.returned_at || "-"}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <form action="/claims" method="get" className="flex gap-2">
         <input type="hidden" name="type" value={type} />

@@ -117,6 +117,22 @@ export async function linkCob(claimNo: string, docNo: string): Promise<ClaimStat
   return { claimNo };
 }
 
+/** ໝາຍ / ຖອດໝາຍ งาน "ເຄມເງิน supplier" (ໃຫ້ຂຶ້ນ candidate CLM-C ຫຼັງສ່ງคืน) */
+export async function markJobClaim(jobCode: string, on: boolean): Promise<ClaimState> {
+  const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
+  if (!guard.ok) return { error: guard.error };
+  const c = jobCode.trim();
+  if (!c) return { error: "ບໍ່ພົບ job" };
+  if (on) {
+    await query(`insert into ods_claim_mark(job_code, marked_by) values ($1,$2) on conflict (job_code) do nothing`, [c, guard.session.username]);
+  } else {
+    await query(`delete from ods_claim_mark where job_code = $1`, [c]);
+  }
+  revalidatePath(`/service/${c}`);
+  revalidatePath("/claims");
+  return { claimNo: c };
+}
+
 export async function updateClaimRemark(claimNo: string, remark: string): Promise<ClaimState> {
   const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
   if (!guard.ok) return { error: guard.error };

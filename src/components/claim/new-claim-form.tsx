@@ -11,17 +11,23 @@ export function NewClaimForm({
   suppliers,
   brands,
   defaultType,
+  initialRefJob = "",
+  initialBrand = "",
+  initialSupplier = "",
 }: {
   suppliers: { code: string; name: string }[];
   brands: { code: string; name_1: string }[];
   defaultType: ClaimType;
+  initialRefJob?: string;
+  initialBrand?: string;
+  initialSupplier?: string;
 }) {
   const router = useRouter();
   const [type, setType] = useState<ClaimType>(defaultType);
-  const [supplier, setSupplier] = useState("");
-  const [brand, setBrand] = useState("");
+  const [supplier, setSupplier] = useState(initialSupplier);
+  const [brand, setBrand] = useState(initialBrand);
   const [customer, setCustomer] = useState("");
-  const [refJob, setRefJob] = useState("");
+  const [refJob, setRefJob] = useState(initialRefJob);
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const [pending, start] = useTransition();

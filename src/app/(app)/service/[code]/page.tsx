@@ -10,6 +10,8 @@ import { getLocale } from "@/lib/i18n/locale";
 import { holdJsonSql, type JobHold } from "@/lib/job-hold";
 import { previousJobOf, REPEAT_DAYS } from "@/lib/repeat";
 import { AssignTechButton } from "@/components/installation/assign-tech";
+import { ClaimMarkToggle } from "@/components/claim/claim-mark-toggle";
+import { isJobClaimMarked } from "@/lib/claim";
 import { RepairSpareEditor, type UsedSpareLine } from "@/components/repair/repair-spare-editor";
 import { ScheduleRepairVisitButton } from "@/components/repair/schedule-repair-visit-button";
 import { listTechnicians } from "@/lib/technicians";
@@ -201,6 +203,7 @@ export default async function ServiceDetail({ params }: Props) {
       : [];
   // "ຄ້າງເບີກ" = ຍັງບໍ່ຢູ່ໃບຂໍເບີກ/ໃບເບີກໃດ (locked=false) ⇒ ອັນທີ່ createSpareRequest ຈະດຶງ
   const pendingSpares = spareLines.filter((line) => !line.locked).length;
+  const claimMarked = await isJobClaimMarked(code);
 
   return (
     <div className="w-full space-y-4">
@@ -253,6 +256,7 @@ export default async function ServiceDetail({ params }: Props) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <ClaimMarkToggle jobCode={code} marked={claimMarked} />
           <Link href={`/service/${code}/contacts`} className={action}>
             <Phone className="size-3.5" />
             {t.contactCustomer}
