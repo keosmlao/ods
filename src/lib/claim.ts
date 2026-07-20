@@ -91,14 +91,23 @@ export async function jobDelivery(code: string): Promise<JobDelivery | null> {
   return r ?? null;
 }
 
-/** ລາຍการอะไหล่ที่ใช้ซ่อม (tb_used_spare) ຂອງ job — ໃຫ້ CLM-C ດຶງມາเป็น items */
-export type JobSpare = { item_code: string | null; item_name: string | null; qty: number; unit: string | null };
-export async function jobSpares(code: string): Promise<JobSpare[]> {
-  const rows = (await query<{ item_code: string | null; item_name: string | null; qty: string; unit: string | null }>(
-    `select item_code, item_name, coalesce(qty,0)::float8 qty, unit_code unit from tb_used_spare where product_code = $1 order by roworder`,
+/**
+ * ລາຍການ "ເອກະສານ pending" ຂອງ job = ໃບສະເໜີລາຄາ/ໃບເກັບເງິນ (ic_trans_detail trans_flag=17)
+ * — ຄ່າແຮງ + ອາໄຫຼ່ + **ລາຄາຈິງ** (sum_amount). ໃຫ້ CLM-C ດຶງມາອອກໃບເຄມ.
+ */
+export type JobQuoteItem = { item_code: string | null; item_name: string | null; qty: number; unit: string | null; amount: number };
+export async function jobQuoteItems(code: string): Promise<{ docNo: string | null; items: JobQuoteItem[] }> {
+  const doc = (await query<{ doc_no: string }>(
+    `select doc_no from ic_trans where trans_flag = 17 and product_code = $1 order by coalesce(aprove_status,0) desc, doc_date desc limit 1`,
     [code],
+  )).rows[0]?.doc_no ?? null;
+  if (!doc) return { docNo: null, items: [] };
+  const rows = (await query<{ item_code: string | null; item_name: string | null; qty: string; unit: string | null; amount: string }>(
+    `select item_code, item_name, coalesce(qty,0)::float8 qty, unit_code unit, coalesce(sum_amount,0)::float8 amount
+       from ic_trans_detail where doc_no = $1 and trans_flag = 17 and item_code is not null order by roworder`,
+    [doc],
   )).rows;
-  return rows.map((r) => ({ ...r, qty: Number(r.qty) }));
+  return { docNo: doc, items: rows.map((r) => ({ ...r, qty: Number(r.qty), amount: Number(r.amount) })) };
 }
 
 /** ໝາຍໄວ້ວ່າ "ເຄມເງິນ supplier" ບໍ (ods_claim_mark) */

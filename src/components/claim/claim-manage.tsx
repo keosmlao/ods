@@ -1,5 +1,5 @@
 "use client";
-import { addClaimItem, advanceClaim, deleteClaimItem, linkCob, pullJobSpares, sendClaimEmail, setClaimJob, setClaimPaid, updateClaimRemark } from "@/app/actions/claim";
+import { addClaimItem, advanceClaim, deleteClaimItem, linkCob, pullJobItems, sendClaimEmail, setClaimJob, setClaimPaid, updateClaimRemark } from "@/app/actions/claim";
 import { type ClaimItem, type ClaimType, type CobInfo, type JobDelivery, PAY_METHOD_LABEL } from "@/lib/claim-shared";
 import { ArrowRight, BadgeCheck, DownloadCloud, Link2, LoaderCircle, Mail, Plus, Trash2, Truck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -132,7 +132,7 @@ export function ClaimManage({
             <input value={jobInput} onChange={(e) => setJobInput(e.target.value)} placeholder="ເລກงาน (ສ້ອม)" className="h-9 w-36 rounded-lg border border-slate-300 px-2.5 text-sm outline-none focus:border-teal-500" />
             <button type="button" disabled={pending} onClick={() => act(() => setClaimJob(claimNo, jobInput))} className="inline-flex h-9 items-center gap-1 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"><Link2 className="size-4" /> ຜູກงาน</button>
             {refJob && (
-              <button type="button" disabled={pending} onClick={() => act(() => pullJobSpares(claimNo))} className="inline-flex h-9 items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-3 text-sm font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"><DownloadCloud className="size-4" /> ດຶງ ລາຍการซ่อม</button>
+              <button type="button" disabled={pending} onClick={() => act(() => pullJobItems(claimNo))} className="inline-flex h-9 items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-3 text-sm font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"><DownloadCloud className="size-4" /> ດຶງ ໃບເກັບເງิน</button>
             )}
           </div>
           {delivery ? (
