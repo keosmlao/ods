@@ -2,7 +2,7 @@ import { Elapsed } from "@/components/elapsed";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import type { JobHold } from "@/lib/job-hold";
 import { STAGE_LABEL } from "@/lib/stage";
-import { Pencil, Printer } from "lucide-react";
+import { Pencil, Printer, Tag } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -105,6 +105,9 @@ function Card({ card }: { card: BoardCard }) {
           <div className="flex items-center gap-2.5 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
             <Link href={`/service/${card.code}/print`} target="_blank" title="ພິມ" className="text-[#D35400] hover:opacity-70">
               <Printer className="size-3.5" />
+            </Link>
+            <Link href={`/service/${card.code}/label`} target="_blank" title="ພິມສະຕິກເກີ" className="text-teal-600 hover:opacity-70">
+              <Tag className="size-3.5" />
             </Link>
             <Link href={`/service/${card.code}/edit`} title="ແກ້ໄຂ" className="text-slate-500 hover:opacity-70">
               <Pencil className="size-3.5" />
