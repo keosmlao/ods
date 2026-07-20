@@ -22,7 +22,7 @@ import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { stageLabel, STAGE_SQL } from "@/lib/stage";
 import { DONE_STAGE } from "@/lib/track";
-import { ArrowLeft, Barcode, CalendarDays, ImageIcon, Pencil, Phone, Printer, RotateCcw } from "lucide-react";
+import { ArrowLeft, Barcode, CalendarDays, ImageIcon, MapPin, MessageCircle, Pencil, Phone, Printer, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -63,6 +63,8 @@ type Job = {
   /** IH: ວັນນັດໄປສ້ອມ ຮອບ 2 (ຫຼັງອະນຸມັດລາຄາ) — ແຍກຈາກ appoint_date (ຮອບ 1 ໄປກວດ) */
   repair_appoint_date: string | null;
   location_inst: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
   /** ໃຊ້ເປັນ key ຂອງໜ້າ /stock/requests/[roworder] (ຂໍເບີກອາໄຫຼ່) */
   roworder: number;
   receiver: string | null;
@@ -93,7 +95,7 @@ export default async function ServiceDetail({ params }: Props) {
          a.p_delivery delivery, a.doc_def bill_no, a.doc_date_ref bill_date,
          a.emp_code technician, to_char(a.appoint_date,'YYYY-MM-DD') appoint_date,
          to_char(a.repair_appoint_date,'YYYY-MM-DD') repair_appoint_date,
-         a.location_repair location_inst, a.roworder, a.user_regis receiver,
+         a.location_repair location_inst, a.location_lat, a.location_lng, a.roworder, a.user_regis receiver,
          (select count(*) from product_image i
            where i.iteme_code = a.code and coalesce(i.product_url,'') <> '')::int images,
          (select count(*) from cust_contactor t where t.product_code = a.code)::int contacts,
@@ -205,6 +207,18 @@ export default async function ServiceDetail({ params }: Props) {
   const pendingSpares = spareLines.filter((line) => !line.locked).length;
   const claimMarked = await isJobClaimMarked(code);
 
+  // ── ສະຖານທີ່ (ກົດເປີດ maps) + WhatsApp ຫາລູກຄ້າ ──
+  const mapsUrl =
+    job.location_lat != null && job.location_lng != null
+      ? `https://www.google.com/maps?q=${job.location_lat},${job.location_lng}`
+      : job.location_inst?.trim()
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.location_inst.trim())}`
+        : null;
+  // wa.me ຕ້ອງ international ບໍ່ມີ + / 0 ນຳໜ້າ — ລາວ: 0xxxxxxxx → 856xxxxxxxx
+  const waDigits = (job.phone ?? "").replace(/\D/g, "");
+  const waPhone = waDigits.startsWith("856") ? waDigits : waDigits.startsWith("0") ? `856${waDigits.slice(1)}` : waDigits ? `856${waDigits}` : "";
+  const waUrl = waPhone ? `https://wa.me/${waPhone}` : null;
+
   return (
     <div className="w-full space-y-4">
       {previous && (
@@ -257,6 +271,18 @@ export default async function ServiceDetail({ params }: Props) {
 
         <div className="flex flex-wrap items-center gap-2">
           <ClaimMarkToggle jobCode={code} marked={claimMarked} />
+          {mapsUrl && (
+            <a href={mapsUrl} target="_blank" rel="noreferrer" className={action} title="ເປີດ Google Maps">
+              <MapPin className="size-3.5 text-rose-600" />
+              {job.location_inst?.trim() || "ສະຖານທີ່"}
+            </a>
+          )}
+          {waUrl && (
+            <a href={waUrl} target="_blank" rel="noreferrer" className={`${action} !text-green-700 hover:!bg-green-50`} title={`WhatsApp ${job.phone}`}>
+              <MessageCircle className="size-3.5 text-green-600" />
+              WhatsApp
+            </a>
+          )}
           <Link href={`/service/${code}/contacts`} className={action}>
             <Phone className="size-3.5" />
             {t.contactCustomer}
