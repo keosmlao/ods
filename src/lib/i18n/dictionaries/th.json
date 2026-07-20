@@ -2448,7 +2448,13 @@
     "resetTitle": "ล้างการตรวจนับ?",
     "resetMessage": "จะลบเครื่องหมาย ‘นับแล้ว’ ทั้งหมด กลับไป 0. ข้อมูลที่ finalize ไปแล้วไม่กระทบ.",
     "resetConfirm": "ล้าง",
-    "allCounted": "นับครบทุกรายการแล้ว 🎉"
+    "allCounted": "นับครบทุกรายการแล้ว 🎉",
+    "notFoundInSystem": "ไม่พบในระบบ",
+    "foundCount": "นับพบ",
+    "remove": "เอาออก",
+    "returnedWarn": "ส่งคืนแล้ว?",
+    "scanning": "กำลังตรวจ...",
+    "emptyScanHint": "ยิงหรือพิมพ์ เลขงาน / SN เพื่อเริ่มนับ"
   },
   "assistantChat": {
     "title": "AI ผู้ช่วยงาน",

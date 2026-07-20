@@ -55,6 +55,66 @@ export async function countedCodes(): Promise<string[]> {
   return rows.map((row) => row.job_code);
 }
 
+/** ເຄື່ອງທີ່ **ນັບພົບແລ້ວ** ພ້ອມລາຍລະອຽດ — join FROM ods_stock_count (ນັບໄດ້ທຸກ job, ບໍ່ຈຳກັດ pending) */
+export type CountedItem = {
+  code: string;
+  product: string | null;
+  sn: string | null;
+  brand: string | null;
+  customer: string | null;
+  /** ຂັ້ນປັດຈຸບັນ (ສົດ) */
+  stage_label: string;
+  service_type: string | null;
+  service_type_label: string;
+  counted_at: string | null;
+  counted_by: string | null;
+  /** ຂັ້ນຕອນນັບພົບ (snapshot) */
+  counted_stage_label: string | null;
+  /** ບໍ່ pending ອີກແລ້ວ (ສົ່ງຄືນລູກຄ້າແລ້ວ) ແຕ່ຖືກນັບໄວ້ — ໃຫ້ລະວັງໃນລາຍງານ */
+  returned: boolean;
+};
+
+export async function countedItems(): Promise<CountedItem[]> {
+  const rows = (
+    await query<{
+      code: string;
+      product: string | null;
+      sn: string | null;
+      brand: string | null;
+      customer: string | null;
+      stage: number;
+      service_type: string | null;
+      counted_at: string | null;
+      counted_by: string | null;
+      stage_at: number | null;
+      returned: boolean;
+    }>(
+      `select a.code, a.name_1 product, a.sn, a.p_brand brand, c.name_1 customer,
+          (${STAGE_SQL}) stage, a.service_type,
+          to_char(sc.counted_at,'DD-MM-YYYY HH24:MI') counted_at, sc.counted_by, sc.stage_at,
+          (a.return_complete is not null) returned
+        from ods_stock_count sc
+        join tb_product a on a.code = sc.job_code
+        left join ar_customer c on c.code = a.cust_code
+       order by sc.counted_at desc`,
+    )
+  ).rows;
+  return rows.map((row) => ({
+    code: row.code,
+    product: row.product,
+    sn: row.sn,
+    brand: row.brand,
+    customer: row.customer,
+    stage_label: stageLabel(row.stage, row.service_type),
+    service_type: row.service_type,
+    service_type_label: SERVICE_TYPE_LABEL[row.service_type ?? ""] ?? (row.service_type ?? "-"),
+    counted_at: row.counted_at,
+    counted_by: row.counted_by,
+    counted_stage_label: row.stage_at != null ? stageLabel(row.stage_at, row.service_type) : null,
+    returned: row.returned,
+  }));
+}
+
 export type StockCountReportRow = StockCountJob & {
   /** ນັບເມື່ອໃດ (null = ຍັງບໍ່ນັບ = ບໍ່ພົບຕົວ) */
   counted_at: string | null;

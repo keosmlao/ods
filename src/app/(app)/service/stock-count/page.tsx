@@ -1,14 +1,14 @@
 import { StockCountClient } from "@/components/stock-count/stock-count-client";
 import { getSession } from "@/lib/auth";
 import { APPROVER_SIDE, roleOf } from "@/lib/roles";
-import { countedCodes, inScopeRepairJobs } from "@/lib/stock-count";
+import { countedItems } from "@/lib/stock-count";
 import { FileBarChart, ScanLine } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 /**
- * **ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມແປງ** — ສະແກນ/ກົດ ໝາຍ "ນັບແລ້ວ" ຂອງເຄື່ອງ pending ທຸກອັນ.
- * ບັນທຶກລົງ DB (ods_stock_count) ⇒ ແບ່ງກັນຫຼາຍຄົນ + ເອົາໄປເຮັດລາຍງານໄດ້.
+ * **ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມແປງ** — scan-driven: ຍິງ/ພິມ code ຫຼື SN (job ໃດກໍ່ໄດ້) →
+ * ໝາຍ "ນັບແລ້ວ" ບັນທຶກລົງ DB (ods_stock_count) → ຂຶ້ນລາຍການພົບ + ເອົາໄປເຮັດລາຍງານ.
  * ເຫັນສະເພາະ ຫົວໜ້າ/ຜູ້ອະນຸມັດ (APPROVER_SIDE).
  */
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ export default async function StockCountPage() {
   if (!session) redirect("/login");
   if (!APPROVER_SIDE.includes(roleOf(session))) redirect("/forbidden");
 
-  const [jobs, counted] = await Promise.all([inScopeRepairJobs(), countedCodes()]);
+  const items = await countedItems();
 
   return (
     <div className="w-full space-y-4">
@@ -36,7 +36,7 @@ export default async function StockCountPage() {
         </Link>
       </div>
 
-      <StockCountClient jobs={jobs} initialCounted={counted} />
+      <StockCountClient initialItems={items} />
     </div>
   );
 }

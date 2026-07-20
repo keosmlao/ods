@@ -2448,7 +2448,13 @@
     "resetTitle": "ລ້າງການກວດນັບ?",
     "resetMessage": "ຈະລຶບເຄື່ອງໝາຍ ‘ນັບແລ້ວ’ ທັງໝົດ ກັບໄປ 0. ຂໍ້ມູນທີ່ finalize ໄປແລ້ວບໍ່ກະທົບ.",
     "resetConfirm": "ລ້າງ",
-    "allCounted": "ນັບຄົບທຸກລາຍການແລ້ວ 🎉"
+    "allCounted": "ນັບຄົບທຸກລາຍການແລ້ວ 🎉",
+    "notFoundInSystem": "ບໍ່ພົບໃນລະບົບ",
+    "foundCount": "ນັບພົບ",
+    "remove": "ເອົາອອກ",
+    "returnedWarn": "ສົ່ງຄືນແລ້ວ?",
+    "scanning": "ກຳລັງກວດ...",
+    "emptyScanHint": "ຍິງ ຫຼື ພິມ ເລກງານ / SN ເພື່ອເລີ່ມນັບ"
   },
   "assistantChat": {
     "title": "AI ຜູ້ຊ່ວຍວຽກ",

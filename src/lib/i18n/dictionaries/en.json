@@ -2448,7 +2448,13 @@
     "resetTitle": "Reset the count?",
     "resetMessage": "This clears all ‘counted’ marks back to 0. Already-finalized data is unaffected.",
     "resetConfirm": "Reset",
-    "allCounted": "All items counted 🎉"
+    "allCounted": "All items counted 🎉",
+    "notFoundInSystem": "Not found in system",
+    "foundCount": "Found",
+    "remove": "Remove",
+    "returnedWarn": "Returned?",
+    "scanning": "Checking...",
+    "emptyScanHint": "Scan or type a job no / SN to start counting"
   },
   "assistantChat": {
     "title": "AI Work Assistant",
