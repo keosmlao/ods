@@ -218,17 +218,17 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
         <>
           {/* ── Desktop = ຕາຕະລາງ ── */}
           <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
-            <table className="w-full min-w-[860px] border-collapse text-sm">
+            <table className="w-full min-w-[760px] border-collapse text-[11px] leading-tight">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                  <th className="w-20 px-3 py-3 text-center font-semibold">{t.count}</th>
-                  <th className="px-3 py-3 font-semibold">{t.colNo}</th>
-                  <th className="px-3 py-3 font-semibold">{t.colProductSn}</th>
-                  <th className="px-3 py-3 font-semibold">{t.colBrand}</th>
-                  <th className="px-3 py-3 font-semibold">{t.colCustomer}</th>
-                  <th className="px-3 py-3 font-semibold">{t.colStage}</th>
-                  <th className="px-3 py-3 font-semibold">{t.colServiceType}</th>
-                  <th className="px-3 py-3 font-semibold">{t.colElapsed}</th>
+                <tr className="border-b border-slate-200 bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
+                  <th className="w-12 px-2 py-1.5 text-center font-semibold">{t.count}</th>
+                  <th className="px-2 py-1.5 font-semibold">{t.colNo}</th>
+                  <th className="px-2 py-1.5 font-semibold">{t.colProductSn}</th>
+                  <th className="px-2 py-1.5 font-semibold">{t.colBrand}</th>
+                  <th className="px-2 py-1.5 font-semibold">{t.colCustomer}</th>
+                  <th className="px-2 py-1.5 font-semibold">{t.colStage}</th>
+                  <th className="px-2 py-1.5 font-semibold">{t.colServiceType}</th>
+                  <th className="px-2 py-1.5 font-semibold">{t.colElapsed}</th>
                 </tr>
               </thead>
               <tbody>
@@ -237,24 +237,24 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
                   const tone = elapsedTone(job.elapsed_seconds);
                   return (
                     <tr key={job.code} className={`border-b border-slate-100 ${isFound ? "bg-emerald-50" : "hover:bg-slate-50"}`}>
-                      <td className="px-3 py-2.5 text-center">
+                      <td className="px-2 py-1 text-center">
                         {isFound ? (
-                          <Check className="mx-auto size-4 text-emerald-600" />
+                          <Check className="mx-auto size-3.5 text-emerald-600" />
                         ) : (
                           <span className="text-slate-300">–</span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">{job.code}</td>
-                      <td className="max-w-72 px-3 py-2.5">
+                      <td className="whitespace-nowrap px-2 py-1 font-bold text-[#0536a9]">{job.code}</td>
+                      <td className="max-w-72 px-2 py-1">
                         <span className="block truncate font-medium text-slate-800" title={job.product ?? ""}>{job.product || "-"}</span>
                         <span className="block truncate text-[10px] text-slate-400">{job.sn || "-"}</span>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5">{job.brand || "-"}</td>
-                      <td className="max-w-48 truncate px-3 py-2.5" title={job.customer ?? ""}>{job.customer || "-"}</td>
-                      <td className="whitespace-nowrap px-3 py-2.5">
+                      <td className="whitespace-nowrap px-2 py-1">{job.brand || "-"}</td>
+                      <td className="max-w-48 truncate px-2 py-1" title={job.customer ?? ""}>{job.customer || "-"}</td>
+                      <td className="whitespace-nowrap px-2 py-1">
                         <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">{job.stage_label}</span>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5">
+                      <td className="whitespace-nowrap px-2 py-1">
                         {job.service_type ? (
                           <span className="inline-flex items-center gap-1 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
                             <b>{job.service_type}</b>
@@ -264,7 +264,7 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
                           <span className="text-slate-300">-</span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5">
+                      <td className="whitespace-nowrap px-2 py-1">
                         <Elapsed seconds={job.elapsed_seconds} className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${tone.chip}`} />
                       </td>
                     </tr>
@@ -283,10 +283,10 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
                 return (
                   <div
                     key={job.code}
-                    className={`rounded-2xl border p-3.5 shadow-sm transition ${isFound ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-white"}`}
+                    className={`rounded-xl border p-2.5 shadow-sm transition ${isFound ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-white"}`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-lg font-bold text-[#0536a9]">{job.code}</span>
+                      <span className="text-sm font-bold text-[#0536a9]">{job.code}</span>
                       {isFound ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">
                           <Check className="size-3" />
@@ -296,15 +296,15 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">{job.stage_label}</span>
                       )}
                     </div>
-                    <p className="mt-1.5 truncate text-sm font-medium text-slate-800" title={job.product ?? ""}>{job.product || "-"}</p>
-                    <p className="truncate text-xs text-slate-400">{[job.brand, job.sn].filter(Boolean).join(" · ") || "-"}</p>
+                    <p className="mt-1 truncate text-xs font-medium text-slate-800" title={job.product ?? ""}>{job.product || "-"}</p>
+                    <p className="truncate text-[11px] text-slate-400">{[job.brand, job.sn].filter(Boolean).join(" · ") || "-"}</p>
                     {job.service_type && (
-                      <span className="mt-1.5 inline-flex items-center gap-1 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+                      <span className="mt-1 inline-flex items-center gap-1 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
                         <b>{job.service_type}</b> {job.service_type_label}
                       </span>
                     )}
-                    <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
-                      <span className="truncate text-xs text-slate-500" title={job.customer ?? ""}>{job.customer || "-"}</span>
+                    <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-slate-100 pt-1.5">
+                      <span className="truncate text-[11px] text-slate-500" title={job.customer ?? ""}>{job.customer || "-"}</span>
                       <Elapsed seconds={job.elapsed_seconds} className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${tone.chip}`} />
                     </div>
                   </div>
