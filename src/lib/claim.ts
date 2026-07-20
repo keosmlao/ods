@@ -25,7 +25,7 @@ const mapRow = (r: RawClaim): ClaimRow => ({
 const SELECT = `select c.id, c.claim_no, c.claim_type, c.supplier_code, c.brand_code, c.customer_code,
     cust.name_1 customer_name, c.ref_job, c.erp_doc_no, c.status, c.amount, c.reason, c.created_by,
     to_char(c.created_at,'DD-MM-YYYY HH24:MI') created_at,
-    to_char(c.email_sent_at,'DD-MM-YYYY HH24:MI') email_sent_at, c.remark
+    to_char(c.email_sent_at,'DD-MM-YYYY HH24:MI') email_sent_at, c.pay_method, c.remark
   from ods_claim c
   left join ar_customer cust on cust.code = c.customer_code`;
 
@@ -81,7 +81,8 @@ export async function cobInfo(docNo: string): Promise<CobInfo | null> {
 export async function jobDelivery(code: string): Promise<JobDelivery | null> {
   const r = (
     await query<JobDelivery>(
-      `select a.code, a.name_1 product, a.p_brand brand, c.name_1 customer,
+      `select a.code, a.name_1 product, a.p_brand brand, a.p_model model, a.sn,
+          nullif(trim(coalesce(a.issue,'')),'') fault, c.name_1 customer,
           to_char(a.return_complete,'DD-MM-YYYY') returned_at
         from tb_product a left join ar_customer c on c.code = a.cust_code where a.code = $1 limit 1`,
       [code],

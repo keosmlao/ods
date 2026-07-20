@@ -1,6 +1,7 @@
+import { Chatter } from "@/components/chatter/chatter";
 import { ClaimManage } from "@/components/claim/claim-manage";
 import { getSession } from "@/lib/auth";
-import { CLAIM_FLOW, CLAIM_REJECTED, CLAIM_TYPE_LABEL, claimByNo, claimItems, claimLogs, claimNextStatus, cobInfo, isClaimOpen, jobDelivery } from "@/lib/claim";
+import { CLAIM_FLOW, CLAIM_REJECTED, CLAIM_TYPE_LABEL, claimByNo, claimItems, claimNextStatus, cobInfo, isClaimOpen, jobDelivery, PAY_METHOD_LABEL } from "@/lib/claim";
 import { CLAIM_SIDE, roleOf } from "@/lib/roles";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
@@ -18,7 +19,7 @@ export default async function ClaimDetailPage({ params }: Props) {
   const { claimNo } = await params;
   const claim = await claimByNo(claimNo);
   if (!claim) notFound();
-  const [items, logs] = await Promise.all([claimItems(claimNo), claimLogs(claimNo)]);
+  const items = await claimItems(claimNo);
   const next = claimNextStatus(claim.claim_type, claim.status);
   const cob = claim.claim_type === "C" && claim.erp_doc_no ? await cobInfo(claim.erp_doc_no).catch(() => null) : null;
   const delivery = claim.claim_type === "C" && claim.ref_job ? await jobDelivery(claim.ref_job).catch(() => null) : null;
@@ -59,29 +60,23 @@ export default async function ClaimDetailPage({ params }: Props) {
       <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
         <div className="space-y-4">
           <div className="space-y-1.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            {info("ເລກທີ", claim.claim_no)}
+            {info("ວັນທີ", claim.created_at)}
             {info("Supplier", claim.supplier_code)}
             {info("ຮ້ານ/ລູກຄ້າ", claim.customer_name || claim.customer_code)}
             {info("ຫຍີ່ຫໍ້", claim.brand_code)}
-            {info("ເລກງານ", claim.ref_job)}
-            {info("ຍອດ", claim.amount ? claim.amount.toLocaleString() : null)}
-            {info("ເຫດຜົນ", claim.reason)}
+            {info("ເລກສ້ອມ", claim.ref_job)}
+            {delivery && info("ສິນຄ້າ", delivery.product)}
+            {delivery && info("SN", delivery.sn)}
+            {delivery && info("Model", delivery.model)}
+            {delivery && info("ອາການສ້ອມ", delivery.fault)}
+            {info("ຄ່າແຮງງານ", claim.amount ? claim.amount.toLocaleString() : null)}
+            {claim.pay_method && info("ວິທີຊຳລະ", PAY_METHOD_LABEL[claim.pay_method] ?? claim.pay_method)}
             {info("ເປີດໂດຍ", claim.created_by)}
-            {info("ວັນເປີດ", claim.created_at)}
           </div>
 
-          {logs.length > 0 && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="mb-2 text-xs font-semibold text-slate-500">ປະຫວັດ</p>
-              <ul className="space-y-1.5">
-                {logs.map((l, i) => (
-                  <li key={i} className="flex gap-2 text-[12px] text-slate-600">
-                    <span className="w-28 shrink-0 text-slate-400">{l.at}</span>
-                    <span className="flex-1">{l.detail}{l.by_user ? ` · ${l.by_user}` : ""}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {/* chatter + activities ຄືເອກະສານอื่น */}
+          <Chatter model="ods_claim" resId={claim.claim_no} />
         </div>
 
         <ClaimManage
@@ -96,6 +91,7 @@ export default async function ClaimDetailPage({ params }: Props) {
           cob={cob}
           emailSentAt={claim.email_sent_at}
           delivery={delivery}
+          payMethod={claim.pay_method}
         />
       </div>
     </div>

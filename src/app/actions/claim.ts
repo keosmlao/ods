@@ -1,18 +1,20 @@
 "use server";
-import { CLAIM_FLOW, CLAIM_REJECTED, claimByNo, cobInfo, jobDelivery, type ClaimType } from "@/lib/claim";
-import { query } from "@/lib/db";
+import { CLAIM_FLOW, CLAIM_REJECTED, claimByNo, cobInfo, jobDelivery, PAY_METHOD_LABEL, type ClaimType } from "@/lib/claim";
+import { logChange } from "@/lib/chatter-log";
 import { requireRole } from "@/lib/guard";
 import { sendMail } from "@/lib/mail";
+import { query } from "@/lib/db";
 import { recipientTargets } from "@/lib/report-recipient";
 import { CLAIM_SIDE } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 
 export type ClaimState = { error?: string; claimNo?: string };
 
-const START: Record<ClaimType, string> = { A: "draft", B: "received", C: "pending" };
+const START: Record<ClaimType, string> = { A: "draft", B: "received", C: "notify" };
 
-async function log(claimNo: string, by: string, event: string, detail: string) {
-  await query(`insert into ods_claim_log(claim_no, by_user, event, detail) values ($1,$2,$3,$4)`, [claimNo, by, event, detail]);
+// ບັນທຶກ → chatter + activities (ods_chatter_message) ຄືเอกสารอื่น (author=session)
+async function log(claimNo: string, _by: string, _event: string, detail: string) {
+  await logChange("ods_claim", claimNo, detail, { roles: ["manager", "stock"] });
 }
 
 /** ເປີດໃບເຄມໃໝ່ — ຄືນ claim_no */
@@ -52,8 +54,21 @@ export async function createClaim(input: {
 
 const stampFor = (status: string): string | null =>
   status === "sent" || status === "submitted" ? "sent_at"
-    : status === "approved" || status === "rejected" || status === "done" || status === "paid" ? "result_at"
-      : status === "closed" ? "closed_at" : null;
+    : status === "notified" ? "notified_at"
+      : status === "approved" || status === "rejected" || status === "done" || status === "paid" ? "result_at"
+        : status === "closed" ? "closed_at" : null;
+
+/** ໝາຍ CLM-C ວ່າ ຊຳລະແລ້ວ + ວິທີชำระ (cash/transfer/replace/discount) */
+export async function setClaimPaid(claimNo: string, method: string): Promise<ClaimState> {
+  const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
+  if (!guard.ok) return { error: guard.error };
+  if (!PAY_METHOD_LABEL[method]) return { error: "ເລືອກ ວິທີຊຳລະ" };
+  await query(`update ods_claim set status = 'paid', pay_method = $1, result_at = coalesce(result_at, now()) where claim_no = $2`, [method, claimNo]);
+  await log(claimNo, guard.session.username, "paid", `ຊຳລະແລ້ວ · ${PAY_METHOD_LABEL[method]}`);
+  revalidatePath("/claims");
+  revalidatePath(`/claims/${claimNo}`);
+  return { claimNo };
+}
 
 /** ຍ້າຍ status (ຕໍ່ pipeline ຫຼື rejected) */
 export async function advanceClaim(claimNo: string, toStatus: string): Promise<ClaimState> {

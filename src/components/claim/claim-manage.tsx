@@ -1,7 +1,7 @@
 "use client";
-import { addClaimItem, advanceClaim, deleteClaimItem, linkCob, sendClaimEmail, updateClaimRemark } from "@/app/actions/claim";
-import type { ClaimItem, ClaimType, CobInfo, JobDelivery } from "@/lib/claim-shared";
-import { ArrowRight, Link2, LoaderCircle, Mail, Plus, Trash2, Truck, X } from "lucide-react";
+import { addClaimItem, advanceClaim, deleteClaimItem, linkCob, sendClaimEmail, setClaimPaid, updateClaimRemark } from "@/app/actions/claim";
+import { type ClaimItem, type ClaimType, type CobInfo, type JobDelivery, PAY_METHOD_LABEL } from "@/lib/claim-shared";
+import { ArrowRight, BadgeCheck, Link2, LoaderCircle, Mail, Plus, Trash2, Truck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -17,6 +17,7 @@ export function ClaimManage({
   cob,
   emailSentAt,
   delivery,
+  payMethod,
 }: {
   claimNo: string;
   type: ClaimType;
@@ -29,6 +30,7 @@ export function ClaimManage({
   cob: CobInfo | null;
   emailSentAt: string | null;
   delivery: JobDelivery | null;
+  payMethod: string | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -36,7 +38,9 @@ export function ClaimManage({
   const [form, setForm] = useState({ item_code: "", item_name: "", qty: "1", unit: "", amount: "0" });
   const [note, setNote] = useState(remark ?? "");
   const [cobDoc, setCobDoc] = useState(erpDocNo ?? "");
+  const [payM, setPayM] = useState(payMethod ?? "");
   const [err, setErr] = useState("");
+  const payNext = type === "C" && nextStatus?.status === "paid";
 
   const act = (fn: () => Promise<{ error?: string }>) =>
     start(async () => {
@@ -68,10 +72,22 @@ export function ClaimManage({
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <p className="mb-2 text-xs font-semibold text-slate-500">ຈັດການສະຖານະ</p>
         <div className="flex flex-wrap items-center gap-2">
-          {nextStatus ? (
+          {payNext ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <select value={payM} onChange={(e) => setPayM(e.target.value)} className="h-9 rounded-lg border border-slate-300 px-2.5 text-sm outline-none focus:border-teal-500">
+                <option value="">— ວິທີຊຳລະ —</option>
+                {Object.entries(PAY_METHOD_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+              <button type="button" disabled={pending || !payM} onClick={() => act(() => setClaimPaid(claimNo, payM))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
+                {pending ? <LoaderCircle className="size-4 animate-spin" /> : <BadgeCheck className="size-4" />} ໝາຍ ຊຳລະແລ້ວ
+              </button>
+            </div>
+          ) : nextStatus ? (
             <button type="button" disabled={pending} onClick={() => act(() => advanceClaim(claimNo, nextStatus.status))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
               {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ໄປ: {nextStatus.label}
             </button>
+          ) : payMethod ? (
+            <span className="text-sm font-semibold text-emerald-600">✓ ຊຳລະແລ້ວ · {PAY_METHOD_LABEL[payMethod] ?? payMethod}</span>
           ) : (
             <span className="text-sm text-slate-400">— ຈົບ pipeline —</span>
           )}

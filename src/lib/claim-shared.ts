@@ -28,12 +28,18 @@ export const CLAIM_FLOW: Record<ClaimType, { status: string; label: string }[]> 
     { status: "closed", label: "ປິດ" },
   ],
   C: [
-    { status: "pending", label: "ລໍເຄມ" },
-    { status: "submitted", label: "ຍື່ນເບີກ" },
-    { status: "approved", label: "supplier ອະນຸມັດ" },
-    { status: "paid", label: "ຮັບເງິນ" },
-    { status: "closed", label: "ປິດ" },
+    { status: "notify", label: "ລໍຖ້າສົ່ງແຈ້ງ" },
+    { status: "notified", label: "ແຈ້ງແລ້ວ ລໍຖ້າຊຳລະ" },
+    { status: "paid", label: "ຊຳລະແລ້ວ" },
   ],
+};
+
+/** ວິທີຊຳລະຂອງ supplier (CLM-C) */
+export const PAY_METHOD_LABEL: Record<string, string> = {
+  cash: "ເງິນສົດ",
+  transfer: "ໂອນ",
+  replace: "ສົ່ງສິນຄ້າມາແທນ (ERP)",
+  discount: "ສ່ວນຫຼຸດການຊື້ (ERP)",
 };
 /** ສະຖານະ "ຍົກເລີກ/ปฏิเสธ" ນອກ flow — ໃຫ້ A ໃຊ້ໄດ້ */
 export const CLAIM_REJECTED = { status: "rejected", label: "ปฏิเสธ" };
@@ -51,7 +57,7 @@ export const claimNextStatus = (type: ClaimType, status: string): { status: stri
   return flow[i + 1];
 };
 
-export const isClaimOpen = (status: string) => status !== "closed" && status !== "rejected";
+export const isClaimOpen = (status: string) => status !== "closed" && status !== "rejected" && status !== "paid";
 
 export type ClaimRow = {
   id: number;
@@ -70,11 +76,21 @@ export type ClaimRow = {
   created_by: string | null;
   created_at: string | null;
   email_sent_at: string | null;
+  pay_method: string | null;
   remark: string | null;
 };
 
-/** ຂໍ້ມູນ "ເອກະສານສົ່ງເຄື່ອງ" (delivery) ຂອງ job — ໃຊ້ກຳນົດການເຄມ + email */
-export type JobDelivery = { code: string; product: string | null; brand: string | null; customer: string | null; returned_at: string | null };
+/** ຂໍ້ມູນ job (ເລກສ້ອມ/ສິນຄ້າ/SN/Model/ອາການ) — CLM-C ດຶງມາກຳນົດການເຄມ + email */
+export type JobDelivery = {
+  code: string;
+  product: string | null;
+  brand: string | null;
+  model: string | null;
+  sn: string | null;
+  fault: string | null;
+  customer: string | null;
+  returned_at: string | null;
+};
 
 export type ClaimItem = { id: number; item_code: string | null; item_name: string | null; qty: number; unit: string | null; amount: number; note: string | null };
 export type ClaimLog = { at: string | null; by_user: string | null; event: string | null; detail: string | null };
