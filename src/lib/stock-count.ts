@@ -49,13 +49,40 @@ export async function inScopeRepairJobs(): Promise<StockCountJob[]> {
   }));
 }
 
-/** code ຂອງເຄື່ອງທີ່ **ຄວນຢູ່** — server ໃຊ້ຕອນ finalize ເພື່ອຮູ້ວ່າອັນໃດ "ບໍ່ພົບ" */
-export async function inScopeCodes(): Promise<string[]> {
+/** job_code ທີ່ **ນັບແລ້ວ** (ຈາກ ods_stock_count) — ໃຫ້ໜ້າກວດນັບໂຫຼດສະຖານະຄືນ */
+export async function countedCodes(): Promise<string[]> {
+  const rows = (await query<{ job_code: string }>(`select job_code from ods_stock_count`)).rows;
+  return rows.map((row) => row.job_code);
+}
+
+export type StockCountReportRow = StockCountJob & {
+  /** ນັບເມື່ອໃດ (null = ຍັງບໍ່ນັບ = ບໍ່ພົບຕົວ) */
+  counted_at: string | null;
+  counted_by: string | null;
+};
+
+/**
+ * ລາຍງານຜົນກວດນັບ — pending ທັງໝົດ LEFT JOIN ods_stock_count.
+ * ຍັງບໍ່ນັບ (counted_at null) = ຂຶ້ນກ່ອນ (ຕ້ອງຕິດຕາມ), ຕໍ່ດ້ວຍ ນັບແລ້ວ ຮຽງຕາມເວລາ.
+ */
+export async function stockCountReport(): Promise<StockCountReportRow[]> {
   const rows = (
-    await query<{ code: string }>(
-      `select a.code from tb_product a
-        where a.return_complete is null`,
+    await query<Omit<StockCountReportRow, "stage_label" | "service_type_label">>(
+      `select a.code, a.name_1 product, a.sn, a.p_brand brand, c.name_1 customer,
+          (${STAGE_SQL}) stage, a.service_type,
+          to_char(a.time_register,'DD-MM-YYYY') registered,
+          greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int elapsed_seconds,
+          to_char(sc.counted_at,'DD-MM-YYYY HH24:MI') counted_at, sc.counted_by
+        from tb_product a
+        left join ar_customer c on c.code = a.cust_code
+        left join ods_stock_count sc on sc.job_code = a.code
+       where a.return_complete is null
+       order by (sc.counted_at is null) desc, sc.counted_at desc nulls last, a.time_register desc`,
     )
   ).rows;
-  return rows.map((row) => row.code);
+  return rows.map((row) => ({
+    ...row,
+    stage_label: stageLabel(row.stage, row.service_type),
+    service_type_label: SERVICE_TYPE_LABEL[row.service_type ?? ""] ?? (row.service_type ?? "-"),
+  }));
 }

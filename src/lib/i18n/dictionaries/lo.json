@@ -122,7 +122,8 @@
     "pipe:repair:wait-repair": "ລໍຖ້າສ້ອມ",
     "pipe:repair:repairing": "ກຳລັງສ້ອມ",
     "pipe:repair:wait-qc": "ລໍກວດຮັບຄຸນນະພາບ",
-    "pipe:repair:wait-return": "ລໍຖ້າສົ່ງຄືນ / ປິດງານ (IH)"
+    "pipe:repair:wait-return": "ລໍຖ້າສົ່ງຄືນ / ປິດງານ (IH)",
+    "/reports/stock-count": "ຜົນການກວດນັບສະຕັອກ"
   },
   "dashboard": {
     "controlCenter": "ສູນຄວບຄຸມວຽກ",

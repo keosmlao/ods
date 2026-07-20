@@ -122,7 +122,8 @@
     "pipe:repair:wait-repair": "รอซ่อม",
     "pipe:repair:repairing": "กำลังซ่อม",
     "pipe:repair:wait-qc": "รอตรวจรับคุณภาพ",
-    "pipe:repair:wait-return": "รอส่งคืน / ปิดงาน (IH)"
+    "pipe:repair:wait-return": "รอส่งคืน / ปิดงาน (IH)",
+    "/reports/stock-count": "ผลการตรวจนับสต๊อก"
   },
   "dashboard": {
     "controlCenter": "ศูนย์ควบคุมงาน",

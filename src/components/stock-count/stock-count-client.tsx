@@ -1,4 +1,5 @@
 "use client";
+import { markCounted, resetStockCount, unmarkCounted } from "@/app/actions/stock-count";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Elapsed } from "@/components/elapsed";
 import { MobileCardList } from "@/components/mobile-card-list";
@@ -6,34 +7,18 @@ import { elapsedTone } from "@/lib/elapsed-tone";
 import { useDict } from "@/lib/i18n/context";
 import type { StockCountJob } from "@/lib/stock-count";
 import { Check, CircleAlert, RotateCcw, ScanLine } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
-/** ເກັບ "ນັບແລ້ວ" ໄວ້ໃນ browser ⇒ refresh ບໍ່ຫາຍ (ບໍ່ແຕະ server ຈົນກວ່າຈະຕັດສິນໃຈເອງ) */
-const STORAGE_KEY = "ods:stock-count:scanned";
-
-export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
+export function StockCountClient({
+  jobs,
+  initialCounted,
+}: {
+  jobs: StockCountJob[];
+  initialCounted: string[];
+}) {
   const t = useDict().stockCount;
-  const [scanned, setScanned] = useState<Set<string>>(new Set());
-
-  // ໂຫຼດ "ນັບແລ້ວ" ຈາກ localStorage ຫຼັງ mount (ກັນ hydration mismatch — server render ຫວ່າງ)
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const arr = raw ? JSON.parse(raw) : [];
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (Array.isArray(arr) && arr.length) setScanned(new Set(arr as string[]));
-    } catch {
-      /* ຄ່າເສຍ = ເລີ່ມໃໝ່ */
-    }
-  }, []);
-
-  const persist = (set: Set<string>) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
-    } catch {
-      /* localStorage ເຕັມ/ປິດ = ຂ້າມ */
-    }
-  };
+  // "ນັບແລ້ວ" ໂຫຼດຈາກ DB (server → prop) ⇒ SSR ກົງກັນ · refresh/ຫຼາຍເຄື່ອງບໍ່ຫາຍ. update = optimistic.
+  const [scanned, setScanned] = useState<Set<string>>(() => new Set(initialCounted));
   const [flash, setFlash] = useState<{ code: string; ok: boolean; dupe?: boolean } | null>(null);
   const { ask, dialog } = useConfirm();
 
@@ -66,9 +51,8 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
       // ຍິງຊ້ຳຕົວທີ່ນັບແລ້ວ ⇒ ບອກວ່າ "ນັບໄປແລ້ວ" (ບໍ່ນັບຊ້ຳ)
       const dupe = scanned.has(code);
       if (!dupe) {
-        const next = new Set(scanned).add(code);
-        setScanned(next);
-        persist(next);
+        setScanned(new Set(scanned).add(code));
+        void markCounted(code).catch(() => {});
       }
       setFlash({ code, ok: true, dupe });
     } else {
@@ -83,10 +67,14 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
   // ── ກົດ (tap) ແຖວ/card ເພື່ອ ໝາຍ/ຍົກເລີກ "ນັບແລ້ວ" — ສຳລັບອັນທີ່ສະແກນບໍ່ໄດ້ (ເຊັ່ນ IH) ──
   const toggleCounted = (code: string) => {
     const next = new Set(scanned);
-    if (next.has(code)) next.delete(code);
-    else next.add(code);
+    if (next.has(code)) {
+      next.delete(code);
+      void unmarkCounted(code).catch(() => {});
+    } else {
+      next.add(code);
+      void markCounted(code).catch(() => {});
+    }
     setScanned(next);
-    persist(next);
   };
 
   // ── ຍົກເລີກ/ລ້າງການກວດນັບ — ກັບໄປ 0 ທັງໝົດ (ຢືນຢັນກ່ອນ) ──
@@ -100,7 +88,7 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
     });
     if (ok) {
       setScanned(new Set());
-      persist(new Set());
+      void resetStockCount().catch(() => {});
     }
   };
 

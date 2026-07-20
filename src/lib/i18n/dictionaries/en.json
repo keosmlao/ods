@@ -122,7 +122,8 @@
     "pipe:repair:wait-repair": "Awaiting repair",
     "pipe:repair:repairing": "Repairing",
     "pipe:repair:wait-qc": "Awaiting QC",
-    "pipe:repair:wait-return": "Awaiting return / close (IH)"
+    "pipe:repair:wait-return": "Awaiting return / close (IH)",
+    "/reports/stock-count": "Stock count results"
   },
   "dashboard": {
     "controlCenter": "Operations Control Center",
