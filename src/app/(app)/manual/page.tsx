@@ -132,7 +132,7 @@ export default async function ManualPage() {
   const ROLES = roles(t);
 
   return (
-    <div className="mx-auto max-w-4xl pb-16">
+    <div className="w-full pb-16">
       <PageTitle sub={t.pageSub}>
         {t.pageTitle}
       </PageTitle>
@@ -178,7 +178,7 @@ export default async function ManualPage() {
       </Section>
 
       <Section n="03" title={t.section3Title}>
-        <div className="space-y-4">
+        <div className="grid gap-4 xl:grid-cols-2">
           {SITUATIONS.map((c) => (
             <div key={c.n} className={`rounded-xl border border-slate-200 border-l-4 bg-white p-5 shadow-sm ${ACCENT[c.accent]}`}>
               <div className="flex flex-wrap items-center gap-2">
@@ -226,6 +226,23 @@ export default async function ManualPage() {
           </table>
         </div>
       </Section>
+
+      {t.extraSections.map((s, i) => (
+        <Section key={i} n={String(5 + i).padStart(2, "0")} title={s.title}>
+          {s.intro && <p className="mb-4 max-w-[90ch] text-sm text-slate-500">{s.intro}</p>}
+          <ul className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+            {s.items.map((item, j) => (
+              <li
+                key={j}
+                className="flex gap-2.5 rounded-xl border border-slate-200 bg-white p-3.5 text-[13px] leading-relaxed text-slate-700 shadow-sm"
+              >
+                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-teal-500" aria-hidden />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ))}
     </div>
   );
 }

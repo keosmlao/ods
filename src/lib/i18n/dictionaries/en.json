@@ -761,7 +761,44 @@
     "role5Where": "—",
     "colDept": "Department",
     "colDuty": "Main duties",
-    "colMenu": "Menu/page used"
+    "colMenu": "Menu/page used",
+    "extraSections": [
+      {
+        "title": "Stock count & not-found devices",
+        "intro": "The “Repair stock count” page (Warehouse & Spares menu) — managers/approvers scan a barcode or type a job no./SN to count devices physically present in the center.",
+        "items": [
+          "Scan a barcode or type job no./SN → instantly marked “found”, with a beep (found = high, duplicate = double, not-found = low).",
+          "Any job can be counted, not just pending — if you see it, count it. Scanning again says “already counted”.",
+          "Cancel one count: click 🗑 on the row → confirm → the count record is removed (you can re-scan).",
+          "Genuinely missing devices: go to the count report → “Not counted” tab → click “Close · not found” → confirm → the job moves to “Not found / missing”.",
+          "Once closed, the job leaves the pending queue everywhere (/service, dashboard, pipeline, pending report) — no data deleted, ERP untouched.",
+          "Undo: the “Not-found devices (missing)” menu (or the same tab) → click “Restore” → the job returns to the pending queue.",
+          "Report: “Stock count results” — summary of to-count / found / not-counted / missing, split by tab and by service (CI/ST/IH/PS), Excel export."
+        ]
+      },
+      {
+        "title": "Tracking label & barcode",
+        "intro": "Print a 75 × 100 mm sticker to attach to the customer's device for tracking.",
+        "items": [
+          "Open the label: on /service (table or board) click the 🏷 icon, or on the count page click 🖶 — opens /service/[job]/label.",
+          "The label has: service-center info, device details (product/brand/model/SN/customer/symptom/accessories/stage), a Code128 barcode of the job number, and a tracking QR.",
+          "QR → /track/<job> (public, no login) — the customer can scan to check status themselves.",
+          "Print: click “Print tracking label” → choose 75×100 paper size or use a thermal label printer.",
+          "The A4 receipt (orange 🖨) is unchanged — the sticker (75×100) is the new device tag."
+        ]
+      },
+      {
+        "title": "Reports & settings",
+        "intro": "",
+        "items": [
+          "Key reports (Reports menu): performance KPI, backlog, daily intake, receipts, repeat repairs, stock-count results, and more.",
+          "Excel: many pages have a “Export / Excel” button — output matches the on-screen filters.",
+          "System settings (manager): Users → System settings — toggle features like “Manage backlog” (needs-check/cancel/repaired) and “Notify all activity”.",
+          "Access rights: Users → Permissions — set which menus each employee can see/use.",
+          "Language: switch Lao/Thai/English at the top corner (flags) — remembered per browser."
+        ]
+      }
+    ]
   },
   "statusList": {
     "backToOverview": "Back to overview",
