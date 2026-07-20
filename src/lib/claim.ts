@@ -164,6 +164,40 @@ export async function claimCandidatesC(): Promise<ClaimCandidate[]> {
   ).rows;
 }
 
+/**
+ * ສະຫຼຸບເຄມປະຈຳວັນ (ສຳລັບ cron → email/Line OA). read-only aggregates.
+ *   openA/B/C = ໃບເຄມທີ່ຍັງເປີດຢູ່ (ບໍ່ closed/rejected) ຕໍ່ประเภท
+ *   pendingMoney = ຍอด CLM-C ที่ยังไม่รับเงิน (ยังไม่ paid/closed) — เงินรอรับจาก supplier
+ *   candidates = งานໝາຍ+ສ่งคืน ยังไม่เปิด CLM-C (ต้องเปิดเคลม)
+ */
+export type ClaimDailySummary = { openA: number; openB: number; openC: number; pendingMoney: number; candidates: number };
+export async function claimDailySummary(): Promise<ClaimDailySummary> {
+  const [open, money, cand] = await Promise.all([
+    query<{ claim_type: string; n: number }>(`select claim_type, count(*)::int n from ods_claim where status not in ('closed','rejected') group by claim_type`),
+    query<{ s: string | null }>(`select coalesce(sum(amount),0) s from ods_claim where claim_type='C' and status not in ('paid','closed','rejected')`),
+    query<{ n: number }>(`select count(*)::int n from tb_product a join ods_claim_mark m on m.job_code=a.code
+       where a.return_complete is not null and a.code not in (select ref_job from ods_claim where claim_type='C' and ref_job is not null)`),
+  ]);
+  const byType = Object.fromEntries(open.rows.map((r) => [r.claim_type, r.n]));
+  return {
+    openA: byType.A ?? 0, openB: byType.B ?? 0, openC: byType.C ?? 0,
+    pendingMoney: Number(money.rows[0]?.s ?? 0),
+    candidates: cand.rows[0]?.n ?? 0,
+  };
+}
+
+/** ຂໍ້ຄວາມສະຫຼຸບ (ໃຫ້ email/Line) */
+export function claimDailyText(s: ClaimDailySummary, date: string): string {
+  return [
+    `📋 ສະຫຼຸບເຄມ ${date}`,
+    `• CLM-A (supplier) ເປີດຢູ່: ${s.openA}`,
+    `• CLM-B (ຮ້ານ) ເປີດຢູ່: ${s.openB}`,
+    `• CLM-C (ເກັບເງิน) ເປີດຢູ່: ${s.openC}`,
+    `• ເງินรอรับจาก supplier: ${s.pendingMoney.toLocaleString()}`,
+    `• ງານรอเปิด CLM-C (ໝາຍ+ສ่งคืน): ${s.candidates}`,
+  ].join("\n");
+}
+
 /** ໂຕເລກຕໍ່ status (badge ໃນ pipeline) ຂອງ type ໜຶ່ງ */
 export async function claimCounts(type: ClaimType): Promise<Record<string, number>> {
   const rows = (await query<{ status: string; n: number }>(
