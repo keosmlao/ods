@@ -92,6 +92,7 @@ export default async function ClaimDetailPage({ params }: Props) {
           emailSentAt={claim.email_sent_at}
           delivery={delivery}
           payMethod={claim.pay_method}
+          refJob={claim.ref_job}
         />
       </div>
     </div>

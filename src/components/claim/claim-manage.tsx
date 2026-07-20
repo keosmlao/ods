@@ -1,7 +1,7 @@
 "use client";
-import { addClaimItem, advanceClaim, deleteClaimItem, linkCob, sendClaimEmail, setClaimPaid, updateClaimRemark } from "@/app/actions/claim";
+import { addClaimItem, advanceClaim, deleteClaimItem, linkCob, pullJobSpares, sendClaimEmail, setClaimJob, setClaimPaid, updateClaimRemark } from "@/app/actions/claim";
 import { type ClaimItem, type ClaimType, type CobInfo, type JobDelivery, PAY_METHOD_LABEL } from "@/lib/claim-shared";
-import { ArrowRight, BadgeCheck, Link2, LoaderCircle, Mail, Plus, Trash2, Truck, X } from "lucide-react";
+import { ArrowRight, BadgeCheck, DownloadCloud, Link2, LoaderCircle, Mail, Plus, Trash2, Truck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -18,6 +18,7 @@ export function ClaimManage({
   emailSentAt,
   delivery,
   payMethod,
+  refJob,
 }: {
   claimNo: string;
   type: ClaimType;
@@ -31,6 +32,7 @@ export function ClaimManage({
   emailSentAt: string | null;
   delivery: JobDelivery | null;
   payMethod: string | null;
+  refJob: string | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -39,6 +41,7 @@ export function ClaimManage({
   const [note, setNote] = useState(remark ?? "");
   const [cobDoc, setCobDoc] = useState(erpDocNo ?? "");
   const [payM, setPayM] = useState(payMethod ?? "");
+  const [jobInput, setJobInput] = useState(refJob ?? "");
   const [err, setErr] = useState("");
   const payNext = type === "C" && nextStatus?.status === "paid";
 
@@ -123,7 +126,15 @@ export function ClaimManage({
       {/* ── ເອກະສານສົ່ງເຄື່ອງ + email (CLM-C) ── */}
       {type === "C" && (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Truck className="size-4 text-teal-600" /> ເອກະສານສົ່ງເຄື່ອງ + ສ່ງ email</p>
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Truck className="size-4 text-teal-600" /> ຂໍ້ມູນงาน + ສ່ງ email</p>
+          {/* ຜูก/ปรับ เลขงาน + ดึงรายการซ่อม (อะไหล่) จาก job */}
+          <div className="mb-3 flex flex-wrap items-end gap-2">
+            <input value={jobInput} onChange={(e) => setJobInput(e.target.value)} placeholder="ເລກงาน (ສ້ອม)" className="h-9 w-36 rounded-lg border border-slate-300 px-2.5 text-sm outline-none focus:border-teal-500" />
+            <button type="button" disabled={pending} onClick={() => act(() => setClaimJob(claimNo, jobInput))} className="inline-flex h-9 items-center gap-1 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"><Link2 className="size-4" /> ຜູກงาน</button>
+            {refJob && (
+              <button type="button" disabled={pending} onClick={() => act(() => pullJobSpares(claimNo))} className="inline-flex h-9 items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-3 text-sm font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"><DownloadCloud className="size-4" /> ດຶງ ລາຍการซ่อม</button>
+            )}
+          </div>
           {delivery ? (
             <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-[12px] text-slate-700">
               ງານ <b>{delivery.code}</b> · {delivery.product || "-"} · {delivery.brand || ""} · ລູກຄ້າ {delivery.customer || "-"} · ສ່ງคืน <b>{delivery.returned_at || "-"}</b>

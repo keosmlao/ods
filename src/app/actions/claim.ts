@@ -1,5 +1,5 @@
 "use server";
-import { CLAIM_FLOW, CLAIM_REJECTED, claimByNo, cobInfo, jobDelivery, PAY_METHOD_LABEL, type ClaimType } from "@/lib/claim";
+import { CLAIM_FLOW, CLAIM_REJECTED, claimByNo, cobInfo, jobDelivery, jobSpares, PAY_METHOD_LABEL, type ClaimType } from "@/lib/claim";
 import { logChange } from "@/lib/chatter-log";
 import { requireRole } from "@/lib/guard";
 import { sendMail } from "@/lib/mail";
@@ -130,6 +130,39 @@ export async function linkCob(claimNo: string, docNo: string): Promise<ClaimStat
   if (!info) return { error: `ບໍ່ພົບເອກະສານ COB ${d} ໃນ ERP` };
   await query(`update ods_claim set erp_doc_no = $1 where claim_no = $2`, [info.doc_no, claimNo]);
   await log(claimNo, guard.session.username, "cob", `ຜູກ COB ${info.doc_no} (${info.total_amount.toLocaleString()})`);
+  revalidatePath(`/claims/${claimNo}`);
+  return { claimNo };
+}
+
+/** ຜູກ/ປ່ຽນ ເລກงาน (ref_job) ຂອງໃບເຄມ — ກວດວ່າ job ມีจริง → ດຶງข้อมูล job มาโชว์ */
+export async function setClaimJob(claimNo: string, jobCode: string): Promise<ClaimState> {
+  const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
+  if (!guard.ok) return { error: guard.error };
+  const j = jobCode.trim();
+  if (!j) return { error: "ໃສ່ ເລກງານ" };
+  if (((await query(`select 1 from tb_product where code = $1`, [j])).rowCount ?? 0) === 0) return { error: `ບໍ່ພົບงาน ${j}` };
+  await query(`update ods_claim set ref_job = $1 where claim_no = $2`, [j, claimNo]);
+  await log(claimNo, guard.session.username, "job", `ຜູກງານ ${j}`);
+  revalidatePath(`/claims/${claimNo}`);
+  return { claimNo };
+}
+
+/** ດຶງ ລາຍการอะไหล่ที่ใช้ซ่อม (tb_used_spare) ຂອງ ref_job → ໃສ່ເປັນ items ຂອງໃບເຄມ */
+export async function pullJobSpares(claimNo: string): Promise<ClaimState> {
+  const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
+  if (!guard.ok) return { error: guard.error };
+  const claim = await claimByNo(claimNo);
+  if (!claim?.ref_job) return { error: "ຍັງບໍ່ມີ ເລກງານ (ຜູກກ່ອນ)" };
+  const spares = await jobSpares(claim.ref_job);
+  if (spares.length === 0) return { error: "ງານນີ້ບໍ່ມີ ລາຍການອາໄຫຼ່" };
+  for (const s of spares) {
+    await query(
+      `insert into ods_claim_item(claim_no, item_code, item_name, qty, unit, amount) values ($1, nullif($2,''), $3, $4, nullif($5,''), 0)`,
+      [claimNo, s.item_code ?? "", s.item_name ?? "ອາໄຫຼ່", s.qty || 1, s.unit ?? ""],
+    );
+  }
+  await query(`update ods_claim set amount = coalesce((select sum(amount) from ods_claim_item where claim_no=$1),0) where claim_no=$1`, [claimNo]);
+  await log(claimNo, guard.session.username, "spares", `ດຶງ ລາຍການสอมจากงาน ${claim.ref_job} — ${spares.length} ລາຍการ`);
   revalidatePath(`/claims/${claimNo}`);
   return { claimNo };
 }

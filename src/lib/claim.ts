@@ -91,6 +91,16 @@ export async function jobDelivery(code: string): Promise<JobDelivery | null> {
   return r ?? null;
 }
 
+/** ລາຍการอะไหล่ที่ใช้ซ่อม (tb_used_spare) ຂອງ job — ໃຫ້ CLM-C ດຶງມາเป็น items */
+export type JobSpare = { item_code: string | null; item_name: string | null; qty: number; unit: string | null };
+export async function jobSpares(code: string): Promise<JobSpare[]> {
+  const rows = (await query<{ item_code: string | null; item_name: string | null; qty: string; unit: string | null }>(
+    `select item_code, item_name, coalesce(qty,0)::float8 qty, unit_code unit from tb_used_spare where product_code = $1 order by roworder`,
+    [code],
+  )).rows;
+  return rows.map((r) => ({ ...r, qty: Number(r.qty) }));
+}
+
 /** ໝາຍໄວ້ວ່າ "ເຄມເງິນ supplier" ບໍ (ods_claim_mark) */
 export async function isJobClaimMarked(jobCode: string): Promise<boolean> {
   return ((await query(`select 1 from ods_claim_mark where job_code = $1`, [jobCode])).rowCount ?? 0) > 0;
