@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth";
-import { CLAIM_FLOW, CLAIM_TYPE_LABEL, claimCandidatesC, claimCounts, isClaimOpen, listClaims, type ClaimType } from "@/lib/claim";
+import { CLAIM_FLOW, CLAIM_TYPE_LABEL, claimCandidatesC, claimCounts, claimDailySummary, isClaimOpen, listClaims, type ClaimType } from "@/lib/claim";
 import { CLAIM_SIDE, roleOf } from "@/lib/roles";
 import { Download, FilePlus2, ReceiptText, Search } from "lucide-react";
 import Link from "next/link";
@@ -25,10 +25,11 @@ export default async function ClaimsPage({ searchParams }: Props) {
   const status = sp.status?.trim() || "";
   const q = sp.q?.trim() || "";
 
-  const [rows, counts, candidates] = await Promise.all([
+  const [rows, counts, candidates, daily] = await Promise.all([
     listClaims({ type, status: status || undefined, q: q || undefined }),
     claimCounts(type),
     type === "C" ? claimCandidatesC() : Promise.resolve([]),
+    claimDailySummary(),
   ]);
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const closedN = (counts.closed ?? 0) + (counts.rejected ?? 0);
@@ -60,6 +61,22 @@ export default async function ClaimsPage({ searchParams }: Props) {
         <span className="rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">ທັງໝົດ <b className="tabular-nums">{total}</b></span>
         <span className="rounded-lg bg-teal-50 px-2.5 py-1 font-semibold text-teal-700">ເປີດຢູ່ <b className="tabular-nums">{openN}</b></span>
         <span className="rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-slate-500">ປິດ/ปฏิเสธ <b className="tabular-nums">{closedN}</b></span>
+      </div>
+
+      {/* ── ສະຫຼຸບລວມ (ຄື daily summary) ── */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        {[
+          { label: "CLM-A ເປີດຢູ່", value: daily.openA.toLocaleString(), tone: "text-violet-600" },
+          { label: "CLM-B ເປີດຢູ່", value: daily.openB.toLocaleString(), tone: "text-amber-600" },
+          { label: "CLM-C ເປີດຢູ່", value: daily.openC.toLocaleString(), tone: "text-sky-600" },
+          { label: "ເງินรอรับ supplier", value: daily.pendingMoney.toLocaleString(), tone: "text-emerald-600" },
+          { label: "ລໍເປີດ CLM-C", value: daily.candidates.toLocaleString(), tone: "text-rose-600" },
+        ].map((s) => (
+          <div key={s.label} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+            <p className={`text-xl font-black tabular-nums ${s.tone}`}>{s.value}</p>
+            <p className="mt-0.5 text-[10px] font-semibold text-slate-500">{s.label}</p>
+          </div>
+        ))}
       </div>
 
       {/* ── tab ປະເພດ ── */}
