@@ -40,23 +40,6 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
 
   const uncountedRows = useMemo(() => rows.filter((r) => stateOf(r) === "uncounted"), [rows]);
 
-  // ── ຕາຕะລาง ບໍລິການ × ສະຖານະ (dashboard) ──
-  const matrix = useMemo(() => {
-    const services = [...new Set(rows.map((r) => r.service_type ?? "?"))].sort(
-      (a, b) => (SERVICE_ORDER.indexOf(a) + 1 || 99) - (SERVICE_ORDER.indexOf(b) + 1 || 99),
-    );
-    return services.map((svc) => {
-      const rs = rows.filter((r) => (r.service_type ?? "?") === svc);
-      return {
-        svc,
-        found: rs.filter((r) => r.counted).length,
-        notCounted: rs.filter((r) => !r.counted && !r.missing).length,
-        missing: rs.filter((r) => r.missing).length,
-        total: rs.length,
-      };
-    });
-  }, [rows]);
-
   // service ທີ່ມີໃນ "ຍັງບໍ່ນັບ" — ຮຽງ CI/ST/IH/PS ກ່ອນ
   const svcTabs = useMemo(() => {
     const count = new Map<string, number>();
@@ -75,6 +58,21 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
     if (tab === "uncounted") return svc === "all" ? uncountedRows : uncountedRows.filter((r) => (r.service_type ?? "?") === svc);
     return rows;
   }, [rows, uncountedRows, tab, svc]);
+
+  // ── dashboard: ບໍລິການ × ຂັ້ນ ຂອງ tab ປັດຈຸບັນ (ນັບแล้ว→ขั้นตอนนับ · ยังไม่นับ→ขั้นปัจจุบัน) ──
+  const stageMatrix = useMemo(() => {
+    const rowStage = (r: StockCountReportRow) => (r.counted ? r.counted_stage_label ?? r.stage_label : r.stage_label) || "-";
+    const svcs = [...new Set(filtered.map((r) => r.service_type ?? "?"))].sort(
+      (a, b) => (SERVICE_ORDER.indexOf(a) + 1 || 99) - (SERVICE_ORDER.indexOf(b) + 1 || 99),
+    );
+    const stages = [...new Set(filtered.map(rowStage))];
+    const grid = stages.map((st) => {
+      const cells = svcs.map((sv) => filtered.filter((r) => rowStage(r) === st && (r.service_type ?? "?") === sv).length);
+      return { stage: st, cells, total: cells.reduce((a, b) => a + b, 0) };
+    });
+    const totals = svcs.map((sv) => filtered.filter((r) => (r.service_type ?? "?") === sv).length);
+    return { svcs, grid, totals, grand: filtered.length };
+  }, [filtered]);
 
   const closeAsMissing = (code: string) =>
     void (async () => {
@@ -102,41 +100,6 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
   return (
     <div className="space-y-3">
       {dialog}
-
-      {/* ── ຕາຕะລาง ບໍລິການ × ສະຖານະ ── */}
-      {matrix.length > 0 && (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full min-w-[440px] border-collapse text-center text-[12px]">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
-                <th className="px-3 py-2 text-left font-semibold">ບໍລິການ</th>
-                <th className="px-3 py-2 font-semibold text-emerald-700">ນັບພົບ</th>
-                <th className="px-3 py-2 font-semibold text-rose-600">ຍັງບໍ່ນັບ</th>
-                <th className="px-3 py-2 font-semibold text-amber-600">ນັບບໍ່ພົບ</th>
-                <th className="px-3 py-2 font-semibold">ລວມ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {matrix.map((m) => (
-                <tr key={m.svc} className="border-b border-slate-100">
-                  <td className="px-3 py-1.5 text-left font-bold text-sky-700">{m.svc === "?" ? t.svcNone : m.svc}</td>
-                  <td className="px-3 py-1.5 tabular-nums text-emerald-700">{m.found}</td>
-                  <td className="px-3 py-1.5 tabular-nums text-rose-600">{m.notCounted}</td>
-                  <td className="px-3 py-1.5 tabular-nums text-amber-600">{m.missing}</td>
-                  <td className="px-3 py-1.5 font-bold tabular-nums">{m.total}</td>
-                </tr>
-              ))}
-              <tr className="bg-slate-50 font-bold">
-                <td className="px-3 py-1.5 text-left">ລວມ</td>
-                <td className="px-3 py-1.5 tabular-nums text-emerald-700">{matrix.reduce((s, m) => s + m.found, 0)}</td>
-                <td className="px-3 py-1.5 tabular-nums text-rose-600">{matrix.reduce((s, m) => s + m.notCounted, 0)}</td>
-                <td className="px-3 py-1.5 tabular-nums text-amber-600">{matrix.reduce((s, m) => s + m.missing, 0)}</td>
-                <td className="px-3 py-1.5 tabular-nums">{matrix.reduce((s, m) => s + m.total, 0)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
 
       {/* ── tab ສະຖານະ ── */}
       <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1">
@@ -167,6 +130,41 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
               {key === "?" ? t.svcNone : key} <span className="tabular-nums opacity-80">{count}</span>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* ── dashboard ບໍລິການ × ຂັ້ນ (ຕາມ tab) ── */}
+      {stageMatrix.grid.length > 0 && (
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full min-w-[480px] border-collapse text-center text-[12px]">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+                <th className="px-3 py-2 text-left font-semibold">ຂັ້ນ / ສະຖານະ</th>
+                {stageMatrix.svcs.map((sv) => (
+                  <th key={sv} className="px-3 py-2 font-semibold text-sky-700">{sv === "?" ? t.svcNone : sv}</th>
+                ))}
+                <th className="px-3 py-2 font-semibold">ລວມ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stageMatrix.grid.map((row) => (
+                <tr key={row.stage} className="border-b border-slate-100">
+                  <td className="px-3 py-1.5 text-left text-slate-700">{row.stage}</td>
+                  {row.cells.map((n, i) => (
+                    <td key={i} className="px-3 py-1.5 tabular-nums text-slate-600">{n || "·"}</td>
+                  ))}
+                  <td className="px-3 py-1.5 font-bold tabular-nums">{row.total}</td>
+                </tr>
+              ))}
+              <tr className="bg-slate-50 font-bold">
+                <td className="px-3 py-1.5 text-left">ລວມ</td>
+                {stageMatrix.totals.map((n, i) => (
+                  <td key={i} className="px-3 py-1.5 tabular-nums text-sky-700">{n}</td>
+                ))}
+                <td className="px-3 py-1.5 tabular-nums">{stageMatrix.grand}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       )}
 
