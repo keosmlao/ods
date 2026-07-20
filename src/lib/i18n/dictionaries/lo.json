@@ -2418,7 +2418,7 @@
     "willBeMarked": "ຈະຖືກໝາຍ",
     "autoStopClock": "ອັດຕະໂນມັດ (ນາລິກາຂັ້ນຢຸດ).",
     "markWord": "ໝາຍ",
-    "scanPlaceholder": "ສະແກນ barcode ຫຼື ພິມເລກງານ ແລ້ວ Enter...",
+    "scanPlaceholder": "ສະແກນ / ພິມ barcode · ເລກງານ · SN ແລ້ວ Enter...",
     "count": "ນັບ",
     "foundWord": "ພົບ",
     "countedWord": "ນັບແລ້ວ",
@@ -2440,7 +2440,13 @@
     "colElapsed": "ຄ້າງມາ",
     "foundBadge": "ພົບແລ້ວ",
     "filterPlaceholder": "ຄົ້ນຫາໃນລາຍການ (ເລກງານ / SN / ສິນຄ້າ / ລູກຄ້າ)",
-    "noMatch": "ບໍ່ພົບລາຍການທີ່ຄົ້ນຫາ"
+    "noMatch": "ບໍ່ພົບລາຍການທີ່ຄົ້ນຫາ",
+    "tapToCount": "ກົດເພື່ອໝາຍ/ຍົກເລີກ ນັບແລ້ວ",
+    "alreadyCounted": "ນັບໄປແລ້ວ",
+    "resetCount": "ລ້າງການນັບ",
+    "resetTitle": "ລ້າງການກວດນັບ?",
+    "resetMessage": "ຈະລຶບເຄື່ອງໝາຍ ‘ນັບແລ້ວ’ ທັງໝົດ ກັບໄປ 0. ຂໍ້ມູນທີ່ finalize ໄປແລ້ວບໍ່ກະທົບ.",
+    "resetConfirm": "ລ້າງ"
   },
   "assistantChat": {
     "title": "AI ຜູ້ຊ່ວຍວຽກ",

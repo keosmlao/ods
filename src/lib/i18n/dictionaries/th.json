@@ -2418,7 +2418,7 @@
     "willBeMarked": "จะถูกหมายเป็น",
     "autoStopClock": "อัตโนมัติ (นาฬิกาขั้นหยุด).",
     "markWord": "หมาย",
-    "scanPlaceholder": "สแกน barcode หรือ พิมพ์เลขงาน แล้ว Enter...",
+    "scanPlaceholder": "สแกน / พิมพ์ barcode · เลขงาน · SN แล้ว Enter...",
     "count": "นับ",
     "foundWord": "พบ",
     "countedWord": "นับแล้ว",
@@ -2440,7 +2440,13 @@
     "colElapsed": "ค้างมา",
     "foundBadge": "พบแล้ว",
     "filterPlaceholder": "ค้นหาในรายการ (เลขงาน / SN / สินค้า / ลูกค้า)",
-    "noMatch": "ไม่พบรายการที่ค้นหา"
+    "noMatch": "ไม่พบรายการที่ค้นหา",
+    "tapToCount": "แตะเพื่อทำเครื่องหมาย/ยกเลิก นับแล้ว",
+    "alreadyCounted": "นับไปแล้ว",
+    "resetCount": "ล้างการนับ",
+    "resetTitle": "ล้างการตรวจนับ?",
+    "resetMessage": "จะลบเครื่องหมาย ‘นับแล้ว’ ทั้งหมด กลับไป 0. ข้อมูลที่ finalize ไปแล้วไม่กระทบ.",
+    "resetConfirm": "ล้าง"
   },
   "assistantChat": {
     "title": "AI ผู้ช่วยงาน",

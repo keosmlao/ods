@@ -6,13 +6,13 @@ import { MobileCardList } from "@/components/mobile-card-list";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import { useDict } from "@/lib/i18n/context";
 import type { StockCountJob } from "@/lib/stock-count";
-import { Check, CircleAlert, ScanLine } from "lucide-react";
+import { Check, CircleAlert, RotateCcw, ScanLine } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 
 export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
   const t = useDict().stockCount;
   const [scanned, setScanned] = useState<Set<string>>(new Set());
-  const [flash, setFlash] = useState<{ code: string; ok: boolean } | null>(null);
+  const [flash, setFlash] = useState<{ code: string; ok: boolean; dupe?: boolean } | null>(null);
   const [result, setResult] = useState<{ held: number; missing: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, startBusy] = useTransition();
@@ -44,8 +44,10 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
     if (!value) return;
     const code = lookup.current.get(value.toUpperCase()); // ຈັບໄດ້ທັງເລກງານ ຫຼື SN (ບໍ່ສົນຂະໜາດຕົວ)
     if (code) {
-      setScanned((prev) => (prev.has(code) ? prev : new Set(prev).add(code)));
-      setFlash({ code, ok: true });
+      // ຍິງຊ້ຳຕົວທີ່ນັບແລ້ວ ⇒ ບອກວ່າ "ນັບໄປແລ້ວ" (ບໍ່ນັບຊ້ຳ)
+      const dupe = scanned.has(code);
+      if (!dupe) setScanned((prev) => new Set(prev).add(code));
+      setFlash({ code, ok: true, dupe });
     } else {
       setFlash({ code: value, ok: false });
     }
@@ -53,6 +55,28 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
       inputRef.current.value = "";
       inputRef.current.focus();
     }
+  };
+
+  // ── ກົດ (tap) ແຖວ/card ເພື່ອ ໝາຍ/ຍົກເລີກ "ນັບແລ້ວ" — ສຳລັບອັນທີ່ສະແກນບໍ່ໄດ້ (ເຊັ່ນ IH) ──
+  const toggleCounted = (code: string) => {
+    setScanned((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  };
+
+  // ── ຍົກເລີກ/ລ້າງການກວດນັບ — ກັບໄປ 0 ທັງໝົດ (ຢືນຢັນກ່ອນ) ──
+  const resetCount = async () => {
+    if (scanned.size === 0) return;
+    const ok = await ask({
+      title: t.resetTitle,
+      message: t.resetMessage,
+      confirmLabel: t.resetConfirm,
+      tone: "danger",
+    });
+    if (ok) setScanned(new Set());
   };
 
   const finalize = async () => {
@@ -102,9 +126,17 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
         </form>
 
         {flash && (
-          <p className={`flex items-center gap-1.5 text-xs font-semibold ${flash.ok ? "text-emerald-700" : "text-rose-700"}`}>
+          <p
+            className={`flex items-center gap-1.5 text-xs font-semibold ${
+              !flash.ok ? "text-rose-700" : flash.dupe ? "text-amber-700" : "text-emerald-700"
+            }`}
+          >
             {flash.ok ? <Check className="size-4" /> : <CircleAlert className="size-4" />}
-            {flash.ok ? `${t.foundWord} ${flash.code} — ${t.countedWord}` : `${flash.code} ${t.notInCountList}`}
+            {!flash.ok
+              ? `${flash.code} ${t.notInCountList}`
+              : flash.dupe
+                ? `${flash.code} — ${t.alreadyCounted}`
+                : `${t.foundWord} ${flash.code} — ${t.countedWord}`}
           </p>
         )}
 
@@ -120,14 +152,28 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
           </div>
         </div>
 
-        <button
-          type="button"
-          disabled={busy}
-          onClick={finalize}
-          className="h-11 w-full rounded-xl bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-        >
-          {busy ? t.marking : `${t.finishCountMark} ${(total - found).toLocaleString()} ${t.itemsNotFoundAs} ‘ຕ້ອງກວດ’`}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={finalize}
+            className="h-11 flex-1 rounded-xl bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+          >
+            {busy ? t.marking : `${t.finishCountMark} ${(total - found).toLocaleString()} ${t.itemsNotFoundAs} ‘ຕ້ອງກວດ’`}
+          </button>
+          {found > 0 && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={resetCount}
+              title={t.resetCount}
+              className="inline-flex h-11 shrink-0 items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:opacity-50"
+            >
+              <RotateCcw className="size-4" />
+              {t.resetCount}
+            </button>
+          )}
+        </div>
         {error && <p className="text-xs font-semibold text-rose-600">{error}</p>}
         {result && (
           <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
@@ -160,7 +206,12 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
                   const isFound = scanned.has(job.code);
                   const tone = elapsedTone(job.elapsed_seconds);
                   return (
-                    <tr key={job.code} className={`border-b border-slate-100 ${isFound ? "bg-emerald-50" : "hover:bg-slate-50"}`}>
+                    <tr
+                      key={job.code}
+                      onClick={() => toggleCounted(job.code)}
+                      title={t.tapToCount}
+                      className={`cursor-pointer select-none border-b border-slate-100 ${isFound ? "bg-emerald-50" : "hover:bg-slate-50"}`}
+                    >
                       <td className="px-2 py-1 text-center">
                         {isFound ? (
                           <Check className="mx-auto size-3.5 text-emerald-600" />
@@ -207,7 +258,8 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
                 return (
                   <div
                     key={job.code}
-                    className={`rounded-xl border p-2.5 shadow-sm transition ${isFound ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-white"}`}
+                    onClick={() => toggleCounted(job.code)}
+                    className={`cursor-pointer select-none rounded-xl border p-2.5 shadow-sm transition ${isFound ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-white"}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-sm font-bold text-[#0536a9]">{job.code}</span>

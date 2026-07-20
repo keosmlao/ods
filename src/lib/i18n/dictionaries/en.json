@@ -2418,7 +2418,7 @@
     "willBeMarked": "will be marked",
     "autoStopClock": "automatically (stage clock stops).",
     "markWord": "Mark",
-    "scanPlaceholder": "Scan barcode or type job number then Enter...",
+    "scanPlaceholder": "Scan / type barcode · job no · SN then Enter...",
     "count": "Count",
     "foundWord": "Found",
     "countedWord": "counted",
@@ -2440,7 +2440,13 @@
     "colElapsed": "Elapsed",
     "foundBadge": "Found",
     "filterPlaceholder": "Search list (job no / SN / product / customer)",
-    "noMatch": "No matching items"
+    "noMatch": "No matching items",
+    "tapToCount": "Tap to toggle counted",
+    "alreadyCounted": "Already counted",
+    "resetCount": "Reset count",
+    "resetTitle": "Reset the count?",
+    "resetMessage": "This clears all ‘counted’ marks back to 0. Already-finalized data is unaffected.",
+    "resetConfirm": "Reset"
   },
   "assistantChat": {
     "title": "AI Work Assistant",
