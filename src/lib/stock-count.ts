@@ -95,7 +95,7 @@ export async function countedItems(): Promise<CountedItem[]> {
       `select a.code, a.name_1 product, a.sn, a.p_brand brand, c.name_1 customer,
           nullif(trim(coalesce(a.issue,'')),'') issue,
           (${STAGE_SQL}) stage, a.service_type,
-          to_char(sc.counted_at,'DD-MM-YYYY HH24:MI') counted_at, sc.counted_by, sc.stage_at,
+          to_char(sc.counted_at,'DD-MM-YYYY HH24:MI:SS') counted_at, sc.counted_by, sc.stage_at,
           (a.return_complete is not null) returned
         from ods_stock_count sc
         join tb_product a on a.code = sc.job_code
@@ -155,7 +155,7 @@ export async function stockCountReport(): Promise<StockCountReportRow[]> {
           (${STAGE_SQL}) stage, a.service_type,
           to_char(a.time_register,'DD-MM-YYYY') registered,
           greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int elapsed_seconds,
-          to_char(sc.counted_at,'DD-MM-YYYY HH24:MI') counted_at, sc.counted_by, sc.stage_at, sc.found,
+          to_char(sc.counted_at,'DD-MM-YYYY HH24:MI:SS') counted_at, sc.counted_by, sc.stage_at, sc.found,
           (a.return_complete is not null) returned
         from tb_product a
         left join ar_customer c on c.code = a.cust_code

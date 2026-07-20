@@ -214,6 +214,30 @@ export async function sendClaimEmail(claimNo: string): Promise<ClaimState> {
   return { claimNo };
 }
 
+/** ແກ້ໄຂ ຫົວໃບເຄມ (supplier / ຫຍີ່ຫໍ້ / ເຫດຜົນ) */
+export async function updateClaim(claimNo: string, f: { supplier_code?: string; brand_code?: string; reason?: string }): Promise<ClaimState> {
+  const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
+  if (!guard.ok) return { error: guard.error };
+  await query(
+    `update ods_claim set supplier_code = nullif($1,''), brand_code = nullif($2,''), reason = nullif($3,'') where claim_no = $4`,
+    [f.supplier_code ?? "", f.brand_code ?? "", f.reason ?? "", claimNo],
+  );
+  await log(claimNo, guard.session.username, "edit", "ແກ້ໄຂ ຫົວໃບເຄມ");
+  revalidatePath(`/claims/${claimNo}`);
+  return { claimNo };
+}
+
+/** ລບ ໃບເຄມ (+ ລາຍການ) — ຍ້ອນຄືນบໍ่ได้ */
+export async function deleteClaim(claimNo: string): Promise<ClaimState> {
+  const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
+  if (!guard.ok) return { error: guard.error };
+  await query(`delete from ods_claim_item where claim_no = $1`, [claimNo]);
+  await query(`delete from ods_claim where claim_no = $1`, [claimNo]);
+  await log(claimNo, guard.session.username, "delete", `ລບ ໃບເຄມ ${claimNo}`);
+  revalidatePath("/claims");
+  return { claimNo };
+}
+
 export async function updateClaimRemark(claimNo: string, remark: string): Promise<ClaimState> {
   const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
   if (!guard.ok) return { error: guard.error };
