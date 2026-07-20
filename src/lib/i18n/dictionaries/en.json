@@ -870,6 +870,19 @@
           "Recurring failures: check the 'repeat repairs' report — same tech/same fault?",
           "Frequent QC fails: review the checklist before submitting."
         ]
+      },
+      {
+        "title": "Install tech knowledge",
+        "intro": "Tips for installation technicians.",
+        "wf": "install",
+        "items": [
+          "AC: pipe/wire length to spec, vacuum before releasing refrigerant, leak-check.",
+          "Install level — washer/fridge/AC — to prevent vibration/standing water.",
+          "Electrical: correct breaker/ground size, don't overload.",
+          "Working at height: rope/scaffold, never alone up high.",
+          "Test after install: run it + measure + show the customer.",
+          "Clean up the site + photograph the finished work."
+        ]
       }
     ],
     "docMeta": {
@@ -1238,7 +1251,53 @@
     "printRepairTitle": "SOP/WI documents — Repair",
     "printInstallTitle": "SOP/WI documents — Installation",
     "tabRepair": "Repair manual",
-    "tabInstall": "Install manual"
+    "tabInstall": "Install manual",
+    "applianceKnowledge": [
+      {
+        "type": "Fridge / Freezer",
+        "items": [
+          "Not cooling → compressor running? refrigerant leak? thermostat.",
+          "Weak cooling → door gasket, iced coil (defrost), coil fan.",
+          "Noise/vibration → rubber feet, fan, compressor.",
+          "Water leak inside → blocked drain hole."
+        ]
+      },
+      {
+        "type": "Air conditioner",
+        "items": [
+          "Not cooling → refrigerant (pressure), compressor, dirty coil.",
+          "Water dripping indoors → blocked/tilted drain, iced evaporator.",
+          "Won't power → remote/mainboard, capacitor, sensor.",
+          "Bad smell → clean coil + drain tray."
+        ]
+      },
+      {
+        "type": "Washing machine",
+        "items": [
+          "Won't spin → motor, belt, board, lid switch.",
+          "No fill/drain → inlet valve, drain pump, clogged hose.",
+          "Vibration/noise → tub bearing, not level.",
+          "No spin-dry → lid switch, board, motor."
+        ]
+      },
+      {
+        "type": "Microwave",
+        "items": [
+          "No heat → magnetron, diode, fuse, transformer (HIGH VOLTAGE!).",
+          "Won't power → fuse, door interlock switch.",
+          "Plate won't turn → turntable motor."
+        ]
+      },
+      {
+        "type": "Fan / small appliances",
+        "items": [
+          "Fan won't spin → capacitor, motor, switch.",
+          "Rice cooker no heat → heating element, thermostat, fuse.",
+          "Iron no heat → thermostat, element, broken cord."
+        ]
+      }
+    ],
+    "applianceTitle": "Tech knowledge by appliance"
   },
   "statusList": {
     "backToOverview": "Back to overview",

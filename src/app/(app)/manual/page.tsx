@@ -270,8 +270,25 @@ export default async function ManualPage() {
       </Section>
 
       {repairExtra.map((s, i) => extraSection(s, pad(5 + i)))}
-      {docSection(pad(5 + repairExtra.length), t.sopTitle, repairSop, "/manual/documents/print?set=repair", t.printRepairSet)}
-      {docSection(pad(6 + repairExtra.length), t.wiTitle, repairWi)}
+      <Section n={pad(5 + repairExtra.length)} title={t.applianceTitle}>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {t.applianceKnowledge.map((a) => (
+            <div key={a.type} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="mb-2 border-b border-slate-100 pb-1.5 text-[14px] font-bold text-slate-800">{a.type}</h3>
+              <ul className="space-y-1.5">
+                {a.items.map((it, k) => (
+                  <li key={k} className="flex gap-2 text-[12.5px] leading-relaxed text-slate-600">
+                    <span className="mt-[7px] size-1 shrink-0 rounded-full bg-slate-400" aria-hidden />
+                    <span>{it}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </Section>
+      {docSection(pad(6 + repairExtra.length), t.sopTitle, repairSop, "/manual/documents/print?set=repair", t.printRepairSet)}
+      {docSection(pad(7 + repairExtra.length), t.wiTitle, repairWi)}
     </>
   );
 
