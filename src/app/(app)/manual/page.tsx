@@ -250,12 +250,14 @@ export default async function ManualPage() {
 
       <Section n={String(5 + t.extraSections.length).padStart(2, "0")} title={t.sopTitle}>
         <div className="mb-4 flex flex-wrap gap-2">
-          <Link
-            href="/manual/documents/print?set=sop"
-            target="_blank"
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-100"
-          >
+          <Link href="/manual/documents/print?set=sop" target="_blank" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-100">
             <Printer className="size-4" /> {t.printSet}
+          </Link>
+          <Link href="/manual/documents/print?set=repair" target="_blank" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+            <Printer className="size-4" /> {t.printRepairSet}
+          </Link>
+          <Link href="/manual/documents/print?set=install" target="_blank" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+            <Printer className="size-4" /> {t.printInstallSet}
           </Link>
         </div>
         <div className="space-y-4">

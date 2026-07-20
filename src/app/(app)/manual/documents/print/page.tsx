@@ -18,15 +18,30 @@ export default async function ManualDocumentsPrintPage({ searchParams }: Props) 
   const [company] = await Promise.all([getCompany()]);
 
   const all = [...t.sopDocs, ...t.wiDocs];
+  const isInstall = (code: string) => code.startsWith("SOP-I") || code.startsWith("WI-I");
   const docs = doc
     ? all.filter((d) => d.code === doc)
     : set === "wi"
       ? t.wiDocs
       : set === "sop"
         ? t.sopDocs
-        : all;
+        : set === "install"
+          ? all.filter((d) => isInstall(d.code))
+          : set === "repair"
+            ? all.filter((d) => !isInstall(d.code))
+            : all;
 
-  const heading = doc ? `${docs[0]?.code ?? ""} — ${docs[0]?.title ?? ""}` : set === "wi" ? t.wiTitle : set === "sop" ? t.sopTitle : t.printAllTitle;
+  const heading = doc
+    ? `${docs[0]?.code ?? ""} — ${docs[0]?.title ?? ""}`
+    : set === "wi"
+      ? t.wiTitle
+      : set === "sop"
+        ? t.sopTitle
+        : set === "install"
+          ? t.printInstallTitle
+          : set === "repair"
+            ? t.printRepairTitle
+            : t.printAllTitle;
 
   return (
     <div className="mx-auto max-w-[210mm] bg-white p-8 text-black print:p-0">
