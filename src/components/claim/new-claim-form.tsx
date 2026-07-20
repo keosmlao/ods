@@ -1,9 +1,10 @@
 "use client";
 import { createClaim } from "@/app/actions/claim";
+import { SelectField } from "@/components/select-field";
 import { CLAIM_TYPE_LABEL, type ClaimType } from "@/lib/claim-shared";
 import { LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 
 const TYPES: ClaimType[] = ["A", "B", "C"];
 
@@ -34,6 +35,8 @@ export function NewClaimForm({
 
   const needsSupplier = type === "A" || type === "C";
   const needsCustomer = type === "B";
+  const supplierOpts = useMemo(() => suppliers.map((s) => ({ value: s.code, label: `${s.code} · ${s.name}` })), [suppliers]);
+  const brandOpts = useMemo(() => brands.map((b) => ({ value: b.code, label: b.name_1 })), [brands]);
 
   const submit = () =>
     start(async () => {
@@ -62,12 +65,7 @@ export function NewClaimForm({
       {needsSupplier && (
         <div>
           <label className={label}>Supplier (ຈາກ ERP) *</label>
-          <select value={supplier} onChange={(e) => setSupplier(e.target.value)} className={field}>
-            <option value="">— ເລືອກ supplier —</option>
-            {suppliers.map((s) => (
-              <option key={s.code} value={s.code}>{s.code} · {s.name}</option>
-            ))}
-          </select>
+          <SelectField name="claim_supplier" options={supplierOpts} value={supplier} onChange={setSupplier} placeholder="— ເລືອກ supplier —" />
         </div>
       )}
 
@@ -81,12 +79,7 @@ export function NewClaimForm({
       {type === "A" && (
         <div>
           <label className={label}>ຫຍີ່ຫໍ້ (ຈາກ ERP)</label>
-          <select value={brand} onChange={(e) => setBrand(e.target.value)} className={field}>
-            <option value="">— ບໍ່ລະບຸ —</option>
-            {brands.map((b) => (
-              <option key={b.code} value={b.code}>{b.name_1}</option>
-            ))}
-          </select>
+          <SelectField name="claim_brand" options={brandOpts} value={brand} onChange={setBrand} placeholder="— ບໍ່ລະບຸ —" />
         </div>
       )}
 

@@ -1,7 +1,7 @@
 "use client";
-import { addRecipient, removeRecipient, toggleRecipient } from "@/app/actions/report-recipient";
+import { addRecipient, removeRecipient, sendTestMail, toggleRecipient } from "@/app/actions/report-recipient";
 import type { Recipient } from "@/lib/report-recipient";
-import { LoaderCircle, Mail, MessageCircle, Plus, Trash2 } from "lucide-react";
+import { LoaderCircle, Mail, MessageCircle, Plus, Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -12,6 +12,16 @@ export function RecipientManager({ initial }: { initial: Recipient[] }) {
   const [target, setTarget] = useState("");
   const [name, setName] = useState("");
   const [err, setErr] = useState("");
+  const [testTo, setTestTo] = useState("");
+  const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [testing, startTest] = useTransition();
+
+  const test = (to: string) =>
+    startTest(async () => {
+      setTestMsg(null);
+      const r = await sendTestMail(to);
+      setTestMsg(r.ok ? { ok: true, text: `ສ່ງ email ທົດສອບໄປ ${to} ສຳເລັດ` } : { ok: false, text: r.error ?? "ສ່ງບໍ່ສຳເລັດ" });
+    });
 
   const act = (fn: () => Promise<{ error?: string }>) =>
     start(async () => {
@@ -31,7 +41,7 @@ export function RecipientManager({ initial }: { initial: Recipient[] }) {
   const emails = initial.filter((r) => r.channel === "email");
   const lines = initial.filter((r) => r.channel === "line");
 
-  const group = (title: string, Icon: typeof Mail, list: Recipient[]) => (
+  const group = (title: string, Icon: typeof Mail, list: Recipient[], testable = false) => (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-slate-600"><Icon className="size-4 text-teal-600" /> {title} ({list.length})</p>
       {list.length === 0 ? (
@@ -46,6 +56,9 @@ export function RecipientManager({ initial }: { initial: Recipient[] }) {
               <span className={`min-w-0 flex-1 truncate ${r.active ? "text-slate-800" : "text-slate-400 line-through"}`}>
                 {r.target}{r.name ? <span className="text-slate-400"> · {r.name}</span> : null}
               </span>
+              {testable && (
+                <button type="button" disabled={testing} onClick={() => test(r.target)} title="ສ່ງ email ທົດສອບ" className="text-slate-400 hover:text-teal-600 disabled:opacity-40"><Send className="size-4" /></button>
+              )}
               <button type="button" onClick={() => act(() => removeRecipient(r.id))} className="text-slate-400 hover:text-rose-600"><Trash2 className="size-4" /></button>
             </li>
           ))}
@@ -71,7 +84,20 @@ export function RecipientManager({ initial }: { initial: Recipient[] }) {
         </div>
         {err && <p className="mt-2 text-xs font-semibold text-rose-600">{err}</p>}
       </div>
-      {group("Email", Mail, emails)}
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Send className="size-4 text-teal-600" /> ທົດສອບການສ່ງ email (SMTP)</p>
+        <div className="flex flex-wrap items-end gap-2">
+          <input value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="name@odienmall.com" className={`${inp} min-w-48 flex-1`} />
+          <button type="button" disabled={testing || !testTo.trim()} onClick={() => test(testTo)} className="inline-flex h-9 items-center gap-1 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
+            {testing ? <LoaderCircle className="size-4 animate-spin" /> : <Send className="size-4" />} ສ່ງທົດສອບ
+          </button>
+        </div>
+        {testMsg && <p className={`mt-2 text-xs font-semibold ${testMsg.ok ? "text-teal-600" : "text-rose-600"}`}>{testMsg.text}</p>}
+        <p className="mt-1.5 text-[11px] text-slate-400">ຫຼື ກົດ <Send className="inline size-3" /> ຂ້າງ email ໃນລາຍການລຸ່ມນີ້ ເພື່ອສ່ງທົດສອບໄປ address ນັ້ນ.</p>
+      </div>
+
+      {group("Email", Mail, emails, true)}
       {group("Line OA", MessageCircle, lines)}
       <p className="text-[11px] text-slate-400">ຕິກ = active (ໄດ້ຮັບ) · ຖ້າວ່າງທັງໝົດ ระบบ fallback ໄປ env (MAIL_TO / LINE_NOTIFY_TO).</p>
     </div>
