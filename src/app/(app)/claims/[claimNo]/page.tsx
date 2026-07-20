@@ -1,4 +1,5 @@
 import { Chatter } from "@/components/chatter/chatter";
+import { ClaimEditDelete } from "@/components/claim/claim-edit-delete";
 import { ClaimManage } from "@/components/claim/claim-manage";
 import { getSession } from "@/lib/auth";
 import { CLAIM_FLOW, CLAIM_REJECTED, CLAIM_TYPE_LABEL, claimByNo, claimItems, claimNextStatus, cobInfo, isClaimOpen, jobDelivery, PAY_METHOD_LABEL } from "@/lib/claim";
@@ -74,6 +75,8 @@ export default async function ClaimDetailPage({ params }: Props) {
             {claim.pay_method && info("ວິທີຊຳລະ", PAY_METHOD_LABEL[claim.pay_method] ?? claim.pay_method)}
             {info("ເປີດໂດຍ", claim.created_by)}
           </div>
+
+          <ClaimEditDelete claimNo={claim.claim_no} supplierCode={claim.supplier_code} brandCode={claim.brand_code} reason={claim.reason} />
 
           {/* chatter + activities ຄືເອກະສານอื่น */}
           <Chatter model="ods_claim" resId={claim.claim_no} />
