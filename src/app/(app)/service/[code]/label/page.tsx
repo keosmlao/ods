@@ -1,4 +1,5 @@
 import { PrintButton } from "@/components/print-button";
+import { getCompany } from "@/components/report/print-layout";
 import { code128Svg } from "@/lib/barcode";
 import { query } from "@/lib/db";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
@@ -24,6 +25,7 @@ type Job = {
   customer: string | null;
   phone: string | null;
   issue: string | null;
+  accessory: string | null;
   reg_date: string | null;
   service_type: string | null;
   stage: number;
@@ -32,17 +34,19 @@ type Job = {
 export default async function JobLabelPage({ params }: Props) {
   const { code } = await params;
 
-  const job = (
-    await query<Job>(
+  const [job, company] = await Promise.all([
+    query<Job>(
       `select a.code, a.name_1 product, a.sn, a.p_brand brand, a.p_model model,
           c.name_1 customer, c.tel phone, nullif(trim(coalesce(a.issue,'')),'') issue,
+          nullif(trim(coalesce(a.p_access,'')),'') accessory,
           to_char(a.time_register,'DD-MM-YYYY') reg_date,
           a.service_type, (${STAGE_SQL})::int stage
         from tb_product a left join ar_customer c on c.code = a.cust_code
        where a.code = $1 limit 1`,
       [code],
-    )
-  ).rows[0];
+    ).then((r) => r.rows[0]),
+    getCompany(),
+  ]);
   if (!job) notFound();
 
   const barcode = code128Svg(job.code, { height: 60, fit: true });
@@ -75,11 +79,16 @@ export default async function JobLabelPage({ params }: Props) {
         className="label mx-auto flex flex-col border border-slate-300 print:border-0"
         style={{ width: "100mm", height: "150mm", padding: "4mm" }}
       >
-        {/* ── ຫົວ: ປະເພດບໍລິການ + ຂັ້ນ ── */}
-        <div className="flex items-center justify-between border-b-2 border-black pb-1.5">
-          <span className="text-[11pt] font-black tracking-wide">ODIEN SERVICE</span>
+        {/* ── ຫົວ: ຂໍ້ມູນສູນບໍລິການ + ປະເພດບໍລິການ ── */}
+        <div className="flex items-start justify-between gap-2 border-b-2 border-black pb-1.5">
+          <div className="min-w-0">
+            <div className="truncate text-[11pt] font-black tracking-wide">{company.name_1 || "ODIEN SERVICE"}</div>
+            {company.name_2 && <div className="truncate text-[7.5pt] leading-tight text-slate-700">{company.name_2}</div>}
+            {company.address && <div className="truncate text-[7pt] leading-tight text-slate-600">{company.address}</div>}
+            {company.tel && <div className="text-[7pt] leading-tight text-slate-600">ໂທ {company.tel}</div>}
+          </div>
           {serviceType && (
-            <span className="rounded border border-black px-1.5 py-0.5 text-[8pt] font-bold">
+            <span className="shrink-0 rounded border border-black px-1.5 py-0.5 text-[8pt] font-bold">
               {job.service_type} · {serviceType}
             </span>
           )}
@@ -93,6 +102,7 @@ export default async function JobLabelPage({ params }: Props) {
           {info("ລູກຄ້າ", job.customer)}
           {info("ໂທ", job.phone)}
           {info("ອາການ", job.issue)}
+          {info("ອຸປະກອນມາກັບເຄື່ອງ", job.accessory)}
           {info("ຂັ້ນ", stageLabel(job.stage, job.service_type))}
           {info("ຮັບວັນທີ", job.reg_date)}
         </div>
