@@ -78,12 +78,13 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
           total: g.rows.length,
           services: svcs.map((sv) => {
             const srows = g.rows.filter((r) => (r.service_type ?? "?") === sv);
+            const svLabel = sv === "?" ? t.svcNone : srows[0]?.service_type_label ?? sv;
             const stages = [...new Set(srows.map(rowStage))];
-            return { sv, total: srows.length, stages: stages.map((st) => ({ st, n: srows.filter((r) => rowStage(r) === st).length })) };
+            return { sv, svLabel, total: srows.length, stages: stages.map((st) => ({ st, n: srows.filter((r) => rowStage(r) === st).length })) };
           }),
         };
       });
-  }, [rows, t.tabCounted, t.tabUncounted, t.tabMissing]);
+  }, [rows, t.tabCounted, t.tabUncounted, t.tabMissing, t.svcNone]);
 
   const closeAsMissing = (code: string) =>
     void (async () => {
@@ -123,9 +124,9 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
             <div className="space-y-2.5">
               {g.services.map((s) => (
                 <div key={s.sv}>
-                  <div className="flex items-center justify-between text-[12px] font-bold text-sky-700">
-                    <span>{s.sv === "?" ? t.svcNone : s.sv}</span>
-                    <span className="tabular-nums text-slate-500">{s.total}</span>
+                  <div className="flex items-center justify-between gap-2 text-[12px] font-bold text-sky-700">
+                    <span className="min-w-0 truncate">{s.sv === "?" ? "" : `${s.sv} · `}{s.svLabel}</span>
+                    <span className="shrink-0 tabular-nums text-slate-500">{s.total}</span>
                   </div>
                   <ul className="mt-0.5 space-y-0.5 border-l border-slate-100 pl-2.5">
                     {s.stages.map((st) => (

@@ -44,31 +44,36 @@ export async function GET() {
     (a, b) => (SERVICE_ORDER.indexOf(a) + 1 || 99) - (SERVICE_ORDER.indexOf(b) + 1 || 99),
   );
 
-  // ── ສະຫຼຸບ: ບໍລິການ × ສະຖານະ ──
-  const summaryRows: XlsxRow[] = services.map((svc) => {
-    const rs = rows.filter((r) => (r.service_type ?? "?") === svc);
-    const found = rs.filter((r) => r.counted).length;
-    const notCounted = rs.filter((r) => !r.counted && !r.missing).length;
-    const missing = rs.filter((r) => r.missing).length;
-    return { "ບໍລິການ": svc, "ນັບພົບ": found, "ຍັງບໍ່ນັບ": notCounted, "ນັບບໍ່ພົບ": missing, "ລວມ": rs.length };
-  });
-  summaryRows.push({
-    "ບໍລິການ": "ລວມ",
-    "ນັບພົບ": rows.filter((r) => r.counted).length,
-    "ຍັງບໍ່ນັບ": rows.filter((r) => !r.counted && !r.missing).length,
-    "ນັບບໍ່ພົບ": rows.filter((r) => r.missing).length,
-    "ລວມ": rows.length,
-  });
+  // ── ສະຫຼຸບ: (ນັບ/ບໍ່ນັບ) → ບໍລິການ → ຂັ້ນ (long format, pivot ໄດ້) ──
+  const rowStage = (r: StockCountReportRow) => (r.counted ? r.counted_stage_label ?? r.stage_label : r.stage_label) || "-";
+  const groups: { label: string; rows: StockCountReportRow[] }[] = [
+    { label: "ນັບພົບ", rows: rows.filter((r) => r.counted) },
+    { label: "ຍັງບໍ່ນັບ", rows: rows.filter((r) => !r.counted && !r.missing) },
+    { label: "ນັບບໍ່ພົບ", rows: rows.filter((r) => r.missing) },
+  ];
+  const summaryRows: XlsxRow[] = [];
+  for (const g of groups) {
+    const svcs = [...new Set(g.rows.map((r) => r.service_type ?? "?"))].sort(
+      (a, b) => (SERVICE_ORDER.indexOf(a) + 1 || 99) - (SERVICE_ORDER.indexOf(b) + 1 || 99),
+    );
+    for (const sv of svcs) {
+      const srows = g.rows.filter((r) => (r.service_type ?? "?") === sv);
+      const svName = sv === "?" ? "ບໍ່ລະບຸ" : srows[0]?.service_type_label ?? sv;
+      for (const st of [...new Set(srows.map(rowStage))]) {
+        summaryRows.push({ "ສະຖານະການນັບ": g.label, "ບໍລິການ": svName, "ຂັ້ນ": st, "ຈຳນວນ": srows.filter((r) => rowStage(r) === st).length });
+      }
+      summaryRows.push({ "ສະຖານະການນັບ": g.label, "ບໍລິການ": svName, "ຂັ້ນ": "— ລວມ —", "ຈຳນວນ": srows.length });
+    }
+  }
 
   const sheets: XlsxSheet[] = [
     {
       name: "ສະຫຼຸບ",
       columns: [
+        { header: "ສະຖານະການນັບ", key: "ສະຖານະການນັບ", width: 16 },
         { header: "ບໍລິການ", key: "ບໍລິການ", width: 12 },
-        { header: "ນັບພົບ", key: "ນັບພົບ", width: 10 },
-        { header: "ຍັງບໍ່ນັບ", key: "ຍັງບໍ່ນັບ", width: 12 },
-        { header: "ນັບບໍ່ພົບ", key: "ນັບບໍ່ພົບ", width: 12 },
-        { header: "ລວມ", key: "ລວມ", width: 10 },
+        { header: "ຂັ້ນ", key: "ຂັ້ນ", width: 26 },
+        { header: "ຈຳນວນ", key: "ຈຳນວນ", width: 10 },
       ],
       rows: summaryRows,
     },
