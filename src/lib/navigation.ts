@@ -102,6 +102,7 @@ const HOME: NavGroup = {
      * (components/chat/floating-chat) ເຫັນທຸກໜ້າ. ການລົມກັນເກີດຂຶ້ນ**ໃນຂະນະທີ່**
      * ກຳລັງເຮັດວຽກຢູ່ໜ້າອື່ນ — ບັງຄັບໃຫ້ອອກຈາກໜ້າວຽກໄປໜ້າແຊັດ ຄືເຮັດວຽກຂາດຕອນ.
      */
+    { label: "ແຜนที่ຕິດຕາມงาน (map)", href: "/map" },
     { label: "ກິດຈະກຳຂອງຂ້ອຍ", href: "/activities" },
     { label: "ການແຈ້ງເຕືອນ", href: "/notifications" },
     { label: "ຄູ່ມືການໃຊ້ງານ", href: "/manual" },

@@ -233,6 +233,7 @@ const RULES: Rule[] = [
   { path: "/reports/stock-count/missing", roles: APPROVER_SIDE },
   { path: "/claims", roles: CLAIM_SIDE },
   { path: "/manage/report-recipients", roles: APPROVER_SIDE },
+  { path: "/map", roles: CLAIM_SIDE },
   { path: "/reports/install-spares-monthly", roles: [M, HT, A, S] },
   { path: "/reports/purchase-requests", roles: [M, A, S] },
   { path: "/reports/purchase-orders", roles: [M, A, S] },
