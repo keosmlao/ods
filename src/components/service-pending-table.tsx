@@ -4,7 +4,6 @@ import type { BoardCard } from "@/components/service-board";
 import { STAGES } from "@/components/service-board";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { HoldButtons } from "@/components/repair/hold-buttons";
-import { RemarkCell } from "@/components/service/remark-cell";
 import { ServiceDeleteButton } from "@/components/service/service-delete-button";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
@@ -80,8 +79,6 @@ export async function ServicePendingTable({
                 />
               ))}
               <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colWarranty}</th>
-              {/* ໝາຍເຫດ — ຂຽນໄດ້ຢູ່ນີ້ເລີຍ (ບໍ່ຕ້ອງເປີດເຂົ້າໃບ) */}
-              <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colRemark}</th>
               {canHold && <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colHoldActions}</th>}
               <th className="px-3 py-3" />
             </tr>
@@ -128,10 +125,6 @@ export async function ServicePendingTable({
                     >
                       {card.warranty || "-"}
                     </span>
-                  </td>
-                  {/* ໝາຍເຫດ — ກົດພິມໄດ້ເລີຍ (ສິດດຽວກັບການແກ້ໃບ · server ກວດຊ້ຳ) */}
-                  <td className="w-56 min-w-44 px-3 py-3">
-                    <RemarkCell code={card.code} value={card.remark ?? null} canEdit={canUpdate} />
                   </td>
                   {/* ໝາຍວ່າມີບັນຫາ — ວຽກຄາຢູ່ຂັ້ນດຽວດ້ວຍເຫດຜົນທີ່ຄິວແກ້ບໍ່ໄດ້ */}
                   {canHold && (

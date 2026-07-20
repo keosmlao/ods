@@ -66,67 +66,60 @@ export default async function JobLabelPage({ params }: Props) {
   return (
     <div className="mx-auto bg-white text-black">
       <style>{`
-        @page { size: 100mm 150mm; margin: 0 }
+        @page { size: 75mm 100mm; margin: 0 }
         @media print {
           .no-print { display: none !important }
-          html, body { margin: 0; padding: 0; width: 100mm; height: 150mm; overflow: hidden }
-          .label { position: absolute; inset: 0; width: 100mm !important; height: 150mm !important; border: 0 !important }
+          html, body { margin: 0; padding: 0; width: 75mm; height: 100mm; overflow: hidden }
+          .label { position: absolute; inset: 0; width: 75mm !important; height: 100mm !important; border: 0 !important }
         }
       `}</style>
 
       <div className="no-print flex items-center justify-between gap-3 p-4">
-        <p className="text-sm text-slate-500">ປ້າຍ 100 × 150 mm — ເລືອກຂະໜາດເຈ້ຍ 100×150 ຕອນພິມ (ຫຼື ເຄື່ອງພິມປ້າຍ thermal)</p>
+        <p className="text-sm text-slate-500">ປ້າຍ 75 × 100 mm — ເລືອກຂະໜາດເຈ້ຍ 75×100 ຕອນພິມ (ຫຼື ເຄື່ອງພິມປ້າຍ thermal)</p>
         <PrintButton label="ພິມປ້າຍ tracking" />
       </div>
 
       <div
         className="label mx-auto flex flex-col border border-slate-300 print:border-0"
-        style={{ width: "100mm", height: "150mm", padding: "4mm" }}
+        style={{ width: "75mm", height: "100mm", padding: "2.5mm" }}
       >
         {/* ── ຫົວ: ຂໍ້ມູນສູນບໍລິການ + ປະເພດບໍລິການ ── */}
-        <div className="flex items-start justify-between gap-2 border-b-2 border-black pb-1.5">
+        <div className="flex items-start justify-between gap-1.5 border-b border-black pb-1">
           <div className="min-w-0">
-            <div className="truncate text-[11pt] font-black tracking-wide">{company.name_1 || "ODIEN SERVICE"}</div>
-            {company.name_2 && <div className="truncate text-[7.5pt] leading-tight text-slate-700">{company.name_2}</div>}
-            {company.address && <div className="truncate text-[7pt] leading-tight text-slate-600">{company.address}</div>}
-            {company.tel && <div className="text-[7pt] leading-tight text-slate-600">ໂທ {company.tel}</div>}
+            <div className="truncate text-[8.5pt] font-black leading-tight tracking-wide">{company.name_1 || "ODIEN SERVICE"}</div>
+            {company.tel && <div className="text-[5.5pt] leading-tight text-slate-600">ໂທ {company.tel}</div>}
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            {serviceType && (
-              <span className="rounded border border-black px-1.5 py-0.5 text-[8pt] font-bold">
-                {job.service_type} · {serviceType}
-              </span>
-            )}
+          <div className="flex shrink-0 items-start gap-1">
             <div className="flex flex-col items-center">
+              {serviceType && (
+                <span className="rounded border border-black px-1 py-px text-[6pt] font-bold leading-none">{job.service_type}</span>
+              )}
               {/* QR SVG ຈາກ lib qrcode — URL ຈາກ trackUrl (ບໍ່ມີ user input ດິບໃນ markup) */}
-              <div className="[&>svg]:h-[16mm] [&>svg]:w-[16mm]" dangerouslySetInnerHTML={{ __html: qr }} />
-              <span className="text-[6.5pt] leading-tight text-slate-600">ສະແກນຕິດຕາມ</span>
+              <div className="mt-0.5 [&>svg]:h-[10mm] [&>svg]:w-[10mm]" dangerouslySetInnerHTML={{ __html: qr }} />
             </div>
           </div>
         </div>
 
         {/* ── ຂໍ້ມູນເຄື່ອງ ── */}
-        <div className="mt-2 space-y-1">
+        <div className="mt-1 space-y-0.5">
           {info("ສິນຄ້າ", job.product)}
           {info("ຍີ່ຫໍ້/ລຸ້ນ", [job.brand, job.model].filter(Boolean).join(" / ") || null)}
           {info("SN", job.sn)}
           {info("ລູກຄ້າ", job.customer)}
-          {info("ໂທ", job.phone)}
           {info("ອາການ", job.issue)}
-          {info("ອຸປະກອນມາກັບເຄື່ອງ", job.accessory)}
+          {info("ອຸປະກອນ", job.accessory)}
           {info("ຂັ້ນ", stageLabel(job.stage, job.service_type))}
-          {info("ຮັບວັນທີ", job.reg_date)}
         </div>
 
         {/* ── ບາໂຄດ ── ໃຫຍ່ກາງປ້າຍ */}
         <div className="mt-auto flex flex-col items-center">
           <div
             className="w-full"
-            style={{ height: "22mm" }}
+            style={{ height: "13mm" }}
             // SVG vector ຈາກ code128Svg — ບໍ່ມີ user input ໃນ markup (ເລກງານ Code128 ເຂົ້າລະຫັດ)
             dangerouslySetInnerHTML={{ __html: barcode }}
           />
-          <p className="text-center text-[26pt] font-black leading-none tracking-widest">{job.code}</p>
+          <p className="text-center text-[17pt] font-black leading-none tracking-widest">{job.code}</p>
         </div>
       </div>
     </div>
