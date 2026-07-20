@@ -834,6 +834,33 @@
           "QC + feedback: pass QC → customer feedback → close the job.",
           "Reports: installation report, monthly install-spares summary, customer survey (Install/Reports menu)."
         ]
+      },
+      {
+        "title": "SOP — Standard Operating Procedures",
+        "intro": "SOP reference codes — standard steps everyone follows (R=repair, S=stock, I=install).",
+        "items": [
+          "SOP-R01 Intake — CS opens a job with customer/device/SN/symptom/photos → print receipt + sticker.",
+          "SOP-R02 Check — technician diagnoses the fault, records the result within SLA.",
+          "SOP-R03 Quote — issue a quotation → approve → customer agrees.",
+          "SOP-R04 Spares — check stock → request or purchase.",
+          "SOP-R05 Repair — technician repairs → records spares used.",
+          "SOP-R06 QC — must pass standard before return.",
+          "SOP-R07 Return / close — hand over the device + collect payment.",
+          "SOP-S01 Stock count — scan-count what's physically there → close·not-found for missing → export report.",
+          "SOP-I01 Install — assign → request spares → install → QC → feedback → close."
+        ]
+      },
+      {
+        "title": "WI — Work Instructions",
+        "intro": "WI = detailed step-by-step for each small task.",
+        "items": [
+          "WI-01 Print 75×100 sticker — /service click 🏷 → print → choose 75×100 paper, margin = 0.",
+          "WI-02 Scan-count — count page → scan barcode/SN → listen for the confirm beep (found/dup/not-found).",
+          "WI-03 Close·not-found — count report, Not-counted tab → Close·not-found → confirm.",
+          "WI-04 Restore — Not-found devices menu → Restore.",
+          "WI-05 Export Excel — click the Export/Excel button on each report (matches filters).",
+          "WI-06 Toggle a feature — Users → System settings → toggle (e.g. Manage backlog)."
+        ]
       }
     ]
   },
