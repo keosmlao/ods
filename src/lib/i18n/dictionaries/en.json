@@ -967,6 +967,20 @@
           "QC → customer feedback → close."
         ],
         "refs": "—"
+      },
+      {
+        "code": "SOP-R08",
+        "title": "Cannot repair / return unrepaired",
+        "owner": "Tech → CS / Supervisor",
+        "purpose": "Handle a device found unrepairable so it is returned to the customer properly.",
+        "scope": "After the check, found unrepairable (no parts / not worth it / badly damaged).",
+        "steps": [
+          "Technician records the check result = “cannot repair” + reason (SOP-R02).",
+          "Service goes to /service/cancel → click “Request cancel” with reason “cannot repair”.",
+          "Supervisor/approver approves at /approvals/cancellations.",
+          "Return the device to the customer (unrepaired) → close the job."
+        ],
+        "refs": "SOP-R02, SOP-R07, WI-07"
       }
     ],
     "wiDocs": [
@@ -1047,6 +1061,19 @@
           "Effect is immediate (system-wide)."
         ],
         "refs": "—"
+      },
+      {
+        "code": "WI-07",
+        "title": "Request cancel (unrepairable / declined)",
+        "owner": "Service",
+        "purpose": "Send an unrepairable or declined job to the cancellation queue.",
+        "scope": "/service/cancel.",
+        "steps": [
+          "Go to the intake list → find the job no. → /service/cancel.",
+          "Click “Request cancel” → enter a reason → confirm.",
+          "Wait for approval at /approvals/cancellations → return the device."
+        ],
+        "refs": "SOP-R08"
       }
     ],
     "printSet": "Print set",
