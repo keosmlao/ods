@@ -1,6 +1,7 @@
 "use client";
 import { deleteClaim, updateClaim } from "@/app/actions/claim";
 import { useConfirm } from "@/components/confirm-dialog";
+import { type Option, SelectField } from "@/components/select-field";
 import { LoaderCircle, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -10,11 +11,15 @@ export function ClaimEditDelete({
   supplierCode,
   brandCode,
   reason,
+  supplierOptions,
+  brandOptions,
 }: {
   claimNo: string;
   supplierCode: string | null;
   brandCode: string | null;
   reason: string | null;
+  supplierOptions: Option[];
+  brandOptions: Option[];
 }) {
   const router = useRouter();
   const { ask, dialog } = useConfirm();
@@ -38,15 +43,19 @@ export function ClaimEditDelete({
       if (ok) start(async () => { const r = await deleteClaim(claimNo); if (!r.error) router.push("/claims"); });
     })();
 
-  const inp = "h-9 w-full rounded-lg border border-slate-300 px-2.5 text-sm outline-none focus:border-teal-500";
-
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       {dialog}
       <p className="mb-2 text-xs font-semibold text-slate-500">ແກ້ໄຂ / ລບ</p>
       <div className="space-y-2">
-        <input value={sup} onChange={(e) => setSup(e.target.value)} placeholder="Supplier code" className={inp} />
-        <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="ຫຍີ່ຫໍ້" className={inp} />
+        <div>
+          <label className="mb-1 block text-[11px] font-semibold text-slate-500">Supplier</label>
+          <SelectField name="claim_supplier" options={supplierOptions} value={sup} onChange={setSup} placeholder="ເລືອກ supplier..." />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] font-semibold text-slate-500">ຫຍີ່ຫໍ້</label>
+          <SelectField name="claim_brand" options={brandOptions} value={brand} onChange={setBrand} placeholder="ເລືອກ ຫຍີ່ຫໍ້..." />
+        </div>
         <textarea value={rsn} onChange={(e) => setRsn(e.target.value)} rows={2} placeholder="ເຫດຜົນ" className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm outline-none focus:border-teal-500" />
       </div>
       {err && <p className="mt-2 text-xs font-semibold text-rose-600">{err}</p>}

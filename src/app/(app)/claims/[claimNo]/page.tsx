@@ -3,6 +3,8 @@ import { ClaimEditDelete } from "@/components/claim/claim-edit-delete";
 import { ClaimManage } from "@/components/claim/claim-manage";
 import { getSession } from "@/lib/auth";
 import { CLAIM_FLOW, CLAIM_REJECTED, CLAIM_TYPE_LABEL, claimByNo, claimItems, claimNextStatus, cobInfo, isClaimOpen, jobDelivery, PAY_METHOD_LABEL } from "@/lib/claim";
+import { getErpBrands } from "@/lib/erp-master";
+import { searchSuppliers } from "@/lib/erp-supplier";
 import { CLAIM_SIDE, roleOf } from "@/lib/roles";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
@@ -24,6 +26,9 @@ export default async function ClaimDetailPage({ params }: Props) {
   const next = claimNextStatus(claim.claim_type, claim.status);
   const cob = claim.claim_type === "C" && claim.erp_doc_no ? await cobInfo(claim.erp_doc_no).catch(() => null) : null;
   const delivery = claim.claim_type === "C" && claim.ref_job ? await jobDelivery(claim.ref_job).catch(() => null) : null;
+  const [suppliers, brands] = await Promise.all([searchSuppliers("", 1000).catch(() => []), getErpBrands().catch(() => [])]);
+  const supplierOptions = suppliers.map((s) => ({ value: s.code, label: `${s.code} · ${s.name}` }));
+  const brandOptions = brands.map((b) => ({ value: b.code, label: b.name_1 }));
 
   const info = (k: string, v: string | null) =>
     v ? (
@@ -76,7 +81,7 @@ export default async function ClaimDetailPage({ params }: Props) {
             {info("ເປີດໂດຍ", claim.created_by)}
           </div>
 
-          <ClaimEditDelete claimNo={claim.claim_no} supplierCode={claim.supplier_code} brandCode={claim.brand_code} reason={claim.reason} />
+          <ClaimEditDelete claimNo={claim.claim_no} supplierCode={claim.supplier_code} brandCode={claim.brand_code} reason={claim.reason} supplierOptions={supplierOptions} brandOptions={brandOptions} />
 
           {/* chatter + activities ຄືເອກະສານอื่น */}
           <Chatter model="ods_claim" resId={claim.claim_no} />
