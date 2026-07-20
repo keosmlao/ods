@@ -3670,7 +3670,13 @@
     "stateCounted": "นับแล้ว",
     "stateNotCounted": "ยังไม่นับ",
     "countedStageTooltip": "ขั้นตอนตอนนับพบ (snapshot)",
-    "printSticker": "พิมพ์สติกเกอร์"
+    "printSticker": "พิมพ์สติกเกอร์",
+    "tabAll": "ทั้งหมด",
+    "tabCounted": "นับแล้ว",
+    "tabUncounted": "ยังไม่นับ",
+    "byService": "แยกตาม service",
+    "svcAll": "ทั้งหมด",
+    "svcNone": "ไม่ระบุ"
   },
   "sparePicker": {
     "title": "เลือกอะไหล่ (จาก ERP)",

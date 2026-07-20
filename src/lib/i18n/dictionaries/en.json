@@ -3670,7 +3670,13 @@
     "stateCounted": "Counted",
     "stateNotCounted": "Not counted",
     "countedStageTooltip": "Stage at count time (snapshot)",
-    "printSticker": "Print sticker"
+    "printSticker": "Print sticker",
+    "tabAll": "All",
+    "tabCounted": "Counted",
+    "tabUncounted": "Not counted",
+    "byService": "By service",
+    "svcAll": "All",
+    "svcNone": "N/A"
   },
   "sparePicker": {
     "title": "Select Spare Part (from ERP)",

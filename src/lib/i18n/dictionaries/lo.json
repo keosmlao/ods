@@ -3670,7 +3670,13 @@
     "stateCounted": "ນັບແລ້ວ",
     "stateNotCounted": "ຍັງບໍ່ນັບ",
     "countedStageTooltip": "ຂັ້ນຕອນຕອນນັບພົບ (snapshot)",
-    "printSticker": "ພິມສະຕິກເກີ"
+    "printSticker": "ພິມສະຕິກເກີ",
+    "tabAll": "ທັງໝົດ",
+    "tabCounted": "ນັບແລ້ວ",
+    "tabUncounted": "ຍັງບໍ່ນັບ",
+    "byService": "ແຍກຕາມ service",
+    "svcAll": "ທັງໝົດ",
+    "svcNone": "ບໍ່ລະບຸ"
   },
   "sparePicker": {
     "title": "ເລືອກອາໄຫຼ່ (ຈາກ ERP)",
