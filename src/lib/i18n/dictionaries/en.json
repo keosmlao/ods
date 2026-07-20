@@ -956,19 +956,6 @@
         "refs": "WI-02, WI-03, WI-04"
       },
       {
-        "code": "SOP-I01",
-        "title": "Installation",
-        "owner": "Install tech / Supervisor",
-        "purpose": "Complete the install + satisfy the customer.",
-        "scope": "Installation jobs.",
-        "steps": [
-          "Assign → technician accepts.",
-          "Request + pick up spares → install.",
-          "QC → customer feedback → close."
-        ],
-        "refs": "—"
-      },
-      {
         "code": "SOP-R08",
         "title": "Cannot repair / return unrepaired",
         "owner": "Tech → CS / Supervisor",
@@ -981,6 +968,71 @@
           "Return the device to the customer (unrepaired) → close the job."
         ],
         "refs": "SOP-R02, SOP-R07, WI-07"
+      },
+      {
+        "code": "SOP-I01",
+        "title": "Open install job & assign",
+        "owner": "CS / Supervisor",
+        "purpose": "Open an installation job and assign a technician.",
+        "scope": "New install jobs.",
+        "steps": [
+          "Open the install job (from a sales bill/request).",
+          "/installations/assign → assign a tech (tech_code) + appointment.",
+          "Job enters “await-accept”."
+        ],
+        "refs": "WI-I01"
+      },
+      {
+        "code": "SOP-I02",
+        "title": "Accept & request spares",
+        "owner": "Install technician",
+        "purpose": "Technician accepts the job and prepares spares before installing.",
+        "scope": "Stages 1–3.",
+        "steps": [
+          "Tech checks the daily queue (/installations/schedule) → accept (/installations/accept).",
+          "Request spares (/installations/spare-requests).",
+          "Pick up spares (/installations/spare-pickup)."
+        ],
+        "refs": "WI-I02, WI-I03, WI-I04"
+      },
+      {
+        "code": "SOP-I03",
+        "title": "Install",
+        "owner": "Install technician",
+        "purpose": "Complete the installation to standard.",
+        "scope": "Stages 4–5.",
+        "steps": [
+          "Start install (/installations/work → work/doing).",
+          "Install + photograph the work.",
+          "Done → send to QC."
+        ],
+        "refs": "—"
+      },
+      {
+        "code": "SOP-I04",
+        "title": "QC & customer feedback",
+        "owner": "QC / Tech",
+        "purpose": "Check quality and collect customer feedback.",
+        "scope": "Stages 6–7.",
+        "steps": [
+          "QC checks (/qc?workflow=install).",
+          "Pass → customer feedback (/installations/feedback).",
+          "Fail → fix."
+        ],
+        "refs": "—"
+      },
+      {
+        "code": "SOP-I05",
+        "title": "Close & return spares",
+        "owner": "Supervisor / Warehouse",
+        "purpose": "Close the job and return leftover spares.",
+        "scope": "Stage 8.",
+        "steps": [
+          "Close the job (/installations/close).",
+          "Return leftover spares (/stock/returns?job=install).",
+          "Issue the work order/bill (if pending)."
+        ],
+        "refs": "WI-I05"
       }
     ],
     "wiDocs": [
@@ -1074,6 +1126,71 @@
           "Wait for approval at /approvals/cancellations → return the device."
         ],
         "refs": "SOP-R08"
+      },
+      {
+        "code": "WI-I01",
+        "title": "Assign install technician",
+        "owner": "Supervisor",
+        "purpose": "Assign an install job to a technician.",
+        "scope": "/installations/assign.",
+        "steps": [
+          "Go to Open / await-assign.",
+          "Pick a technician (tech_code) + appointment.",
+          "Save → job moves to “await-accept”."
+        ],
+        "refs": "SOP-I01"
+      },
+      {
+        "code": "WI-I02",
+        "title": "Accept install job",
+        "owner": "Install technician",
+        "purpose": "Technician confirms acceptance.",
+        "scope": "/installations/accept.",
+        "steps": [
+          "Go to await-accept (/installations/accept).",
+          "Click Accept.",
+          "Job moves to “await spares/install”."
+        ],
+        "refs": "SOP-I02"
+      },
+      {
+        "code": "WI-I03",
+        "title": "View daily queue",
+        "owner": "Install technician",
+        "purpose": "See today's appointments.",
+        "scope": "/installations/schedule.",
+        "steps": [
+          "My → Daily job queue.",
+          "See jobs by appointment date.",
+          "Open a job to proceed."
+        ],
+        "refs": "SOP-I02"
+      },
+      {
+        "code": "WI-I04",
+        "title": "Request/pick up install spares",
+        "owner": "Tech / Warehouse",
+        "purpose": "Request and receive spares before installing.",
+        "scope": "spare-requests → spare-pickup.",
+        "steps": [
+          "Request (/installations/spare-requests).",
+          "Warehouse issues → pick up (/installations/spare-pickup).",
+          "Complete → go install."
+        ],
+        "refs": "SOP-I02"
+      },
+      {
+        "code": "WI-I05",
+        "title": "Return install spares",
+        "owner": "Tech / Warehouse",
+        "purpose": "Return spares left over from installation.",
+        "scope": "/stock/returns?job=install.",
+        "steps": [
+          "Go to Return install spares.",
+          "Select leftover spares + quantity.",
+          "Save → returned to warehouse."
+        ],
+        "refs": "SOP-I05"
       }
     ],
     "printSet": "Print set",
