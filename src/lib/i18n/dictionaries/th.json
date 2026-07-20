@@ -2455,7 +2455,10 @@
     "returnedWarn": "ส่งคืนแล้ว?",
     "scanning": "กำลังตรวจ...",
     "emptyScanHint": "ยิงหรือพิมพ์ เลขงาน / SN เพื่อเริ่มนับ",
-    "printLabel": "พิมพ์ label tracking"
+    "printLabel": "พิมพ์ label tracking",
+    "cancelCountTitle": "ยกเลิกการนับ?",
+    "cancelCountMessage": "เอา {code} ออกจากผลกวดนับ (ลบ record นับใน DB) — นับใหม่ได้โดยยิงอีก.",
+    "cancelCountConfirm": "ยกเลิกการนับ"
   },
   "assistantChat": {
     "title": "AI ผู้ช่วยงาน",

@@ -2455,7 +2455,10 @@
     "returnedWarn": "ສົ່ງຄືນແລ້ວ?",
     "scanning": "ກຳລັງກວດ...",
     "emptyScanHint": "ຍິງ ຫຼື ພິມ ເລກງານ / SN ເພື່ອເລີ່ມນັບ",
-    "printLabel": "ພິມ label tracking"
+    "printLabel": "ພິມ label tracking",
+    "cancelCountTitle": "ຍົກເລີກການນັບ?",
+    "cancelCountMessage": "ເອົາ {code} ອອກຈາກຜົນກວດນັບ (ລຶບ record ນັບໃນ DB) — ຈະນັບຄືນໃໝ່ໄດ້ໂດຍຍິງອີກ.",
+    "cancelCountConfirm": "ຍົກເລີກການນັບ"
   },
   "assistantChat": {
     "title": "AI ຜູ້ຊ່ວຍວຽກ",

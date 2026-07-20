@@ -2455,7 +2455,10 @@
     "returnedWarn": "Returned?",
     "scanning": "Checking...",
     "emptyScanHint": "Scan or type a job no / SN to start counting",
-    "printLabel": "Print tracking label"
+    "printLabel": "Print tracking label",
+    "cancelCountTitle": "Cancel this count?",
+    "cancelCountMessage": "Remove {code} from the count (deletes its DB record) — you can re-count by scanning again.",
+    "cancelCountConfirm": "Cancel count"
   },
   "assistantChat": {
     "title": "AI Work Assistant",

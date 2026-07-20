@@ -18,11 +18,37 @@ export function StockCountClient({ initialItems }: { initialItems: CountedItem[]
   const [pending, startScan] = useTransition();
   const { ask, dialog } = useConfirm();
   const inputRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<AudioContext | null>(null);
 
   const focusInput = () => {
     if (inputRef.current) {
       inputRef.current.value = "";
       inputRef.current.focus();
+    }
+  };
+
+  /** ສຽງແຈ້ງເຕືອນຕອນນັບ — ພົບ=ຕິບສູງ, ນັບຊ້ຳ=ຕິບຄູ່, ບໍ່ພົບ=ຕິບຕ່ຳ (scan station ຕ້ອງໄດ້ຍິນ) */
+  const beep = (kind: "ok" | "warn" | "error") => {
+    try {
+      const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctor) return;
+      const ctx = audioRef.current ?? (audioRef.current = new Ctor());
+      void ctx.resume();
+      const tones = kind === "ok" ? [{ f: 1040, t: 0 }] : kind === "warn" ? [{ f: 720, t: 0 }, { f: 720, t: 0.14 }] : [{ f: 200, t: 0 }, { f: 160, t: 0.16 }];
+      for (const { f, t: at } of tones) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = kind === "error" ? "sawtooth" : "square";
+        osc.frequency.value = f;
+        const start = ctx.currentTime + at;
+        gain.gain.setValueAtTime(0.18, start);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.13);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.14);
+      }
+    } catch {
+      /* ບາງ browser ບໍ່ຮອງຮັບ — ຂ້າມສຽງໄປ, flash ຍັງມີ */
     }
   };
 
@@ -33,12 +59,15 @@ export function StockCountClient({ initialItems }: { initialItems: CountedItem[]
       const res = await countByScan(value);
       if (res.error || !res.item) {
         setFlash({ text: `${value} — ${res.error === "notfound" ? t.notFoundInSystem : t.notInCountList}`, ok: false });
+        beep("error");
       } else if (res.dupe) {
         setFlash({ text: `${res.item.code} — ${t.alreadyCounted}`, ok: true, warn: true });
+        beep("warn");
         // ຍ້າຍຂຶ້ນເທິງ (ບໍ່ເພີ່ມຊ້ຳ)
         setItems((prev) => [res.item!, ...prev.filter((it) => it.code !== res.item!.code)]);
       } else {
         setFlash({ text: `${t.foundWord} ${res.item.code} — ${t.countedWord}`, ok: true });
+        beep("ok");
         setItems((prev) => [res.item!, ...prev.filter((it) => it.code !== res.item!.code)]);
       }
       focusInput();
@@ -46,8 +75,12 @@ export function StockCountClient({ initialItems }: { initialItems: CountedItem[]
   };
 
   const remove = (code: string) => {
-    setItems((prev) => prev.filter((it) => it.code !== code));
-    void unmarkCounted(code).catch(() => {});
+    void (async () => {
+      const ok = await ask({ title: t.cancelCountTitle, message: t.cancelCountMessage.replace("{code}", code), confirmLabel: t.cancelCountConfirm, tone: "danger" });
+      if (!ok) return;
+      setItems((prev) => prev.filter((it) => it.code !== code));
+      void unmarkCounted(code).catch(() => {});
+    })();
   };
 
   const resetAll = async () => {
@@ -90,8 +123,18 @@ export function StockCountClient({ initialItems }: { initialItems: CountedItem[]
         </form>
 
         {flash && (
-          <p className={`flex items-center gap-1.5 text-xs font-semibold ${!flash.ok ? "text-rose-700" : flash.warn ? "text-amber-700" : "text-emerald-700"}`}>
-            {flash.ok ? <Check className="size-4" /> : <CircleAlert className="size-4" />}
+          <p
+            className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold ${
+              !flash.ok
+                ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+                : flash.warn
+                  ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                  : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+            }`}
+            role="status"
+            aria-live="assertive"
+          >
+            {flash.ok ? <Check className="size-5 shrink-0" /> : <CircleAlert className="size-5 shrink-0" />}
             {flash.text}
           </p>
         )}
