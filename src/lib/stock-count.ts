@@ -21,7 +21,7 @@ export type StockCountJob = {
   customer: string | null;
   stage: number;
   stage_label: string;
-  /** ປະເພດບໍລິການ — CI/ST/PS (IH ຖືກຂ້າມ) */
+  /** ປະເພດບໍລິການ — CI/ST/IH/PS (Pending ທັງໝົດ, ບໍ່ແຍກ service) */
   service_type: string | null;
   service_type_label: string;
   registered: string | null;
@@ -37,9 +37,8 @@ export async function inScopeRepairJobs(): Promise<StockCountJob[]> {
           greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int elapsed_seconds
         from tb_product a
         left join ar_customer c on c.code = a.cust_code
-       where a.return_complete is null and (${STAGE_SQL}) between 1 and 11
-         -- IH ຢູ່ບ້ານລູກຄ້າ ⇒ ຂ້າມ · PS ທີ່ຍັງບໍ່ໄປຮັບຢູ່ຂັ້ນ 0 ⇒ ຂ້າມເອງ (ນອກ 1-11)
-         and coalesce(a.service_type,'') <> 'IH'
+       -- Pending ທັງໝົດ = ຍັງບໍ່ສົ່ງຄືນ (ບໍ່ແຍກ service type — ລວມ IH/PS ນຳ)
+       where a.return_complete is null
        order by a.time_register desc`,
     )
   ).rows;
@@ -55,9 +54,7 @@ export async function inScopeCodes(): Promise<string[]> {
   const rows = (
     await query<{ code: string }>(
       `select a.code from tb_product a
-        where a.return_complete is null and (${STAGE_SQL}) between 1 and 11
-         -- IH ຢູ່ບ້ານລູກຄ້າ ⇒ ຂ້າມ · PS ທີ່ຍັງບໍ່ໄປຮັບຢູ່ຂັ້ນ 0 ⇒ ຂ້າມເອງ (ນອກ 1-11)
-         and coalesce(a.service_type,'') <> 'IH'`,
+        where a.return_complete is null`,
     )
   ).rows;
   return rows.map((row) => row.code);

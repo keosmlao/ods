@@ -35,20 +35,8 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
   const found = scanned.size;
   const pct = total > 0 ? Math.round((found / total) * 100) : 0;
 
-  // ── ກອງຕາມປະເພດບໍລິການ (CI/ST/PS — IH ຖືກຂ້າມແລ້ວ) ──
-  const [type, setType] = useState<string>("all");
-  const typeCounts = new Map<string, { total: number; found: number }>();
-  for (const j of jobs) {
-    const key = j.service_type || "-";
-    const cur = typeCounts.get(key) ?? { total: 0, found: 0 };
-    cur.total += 1;
-    if (scanned.has(j.code)) cur.found += 1;
-    typeCounts.set(key, cur);
-  }
-  const typeList = ["CI", "ST", "IH", "PS"].filter((code) => typeCounts.has(code));
-  const typeLabel = (code: string) =>
-    jobs.find((j) => j.service_type === code)?.service_type_label ?? code;
-  const shownJobs = type === "all" ? jobs : jobs.filter((j) => (j.service_type || "-") === type);
+  // Pending ທັງໝົດ — ບໍ່ແຍກ service type (ສະແດງທຸກອັນ)
+  const shownJobs = jobs;
 
   // ── ສະແກນ (keyboard-wedge: ພິມ code/SN + Enter) ──
   const onScan = (raw: string) => {
@@ -147,37 +135,6 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
           </p>
         )}
       </div>
-
-      {/* ── ຕົວກອງປະເພດບໍລິການ (ພົບ/ທັງໝົດ ຕໍ່ປະເພດ) ── */}
-      {typeList.length > 1 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {[
-            { code: "all", label: t.all, t: total, f: found },
-            ...typeList.map((code) => ({
-              code,
-              label: `${code} · ${typeLabel(code)}`,
-              t: typeCounts.get(code)?.total ?? 0,
-              f: typeCounts.get(code)?.found ?? 0,
-            })),
-          ].map((chip) => (
-            <button
-              key={chip.code}
-              type="button"
-              onClick={() => setType(chip.code)}
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold ${
-                type === chip.code
-                  ? "border-slate-800 bg-slate-900 text-white"
-                  : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              {chip.label}
-              <span className={`tabular-nums ${type === chip.code ? "opacity-80" : "text-slate-400"}`}>
-                {chip.f}/{chip.t}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
 
       {total === 0 ? (
         <p className="py-16 text-center text-sm text-slate-400">{t.emptyMsg}</p>
