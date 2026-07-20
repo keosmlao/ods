@@ -57,9 +57,9 @@ export default async function JobLabelPage({ params }: Props) {
   const serviceType = job.service_type ? SERVICE_TYPE_LABEL[job.service_type] ?? job.service_type : null;
   const info = (label: string, value: string | null) =>
     value ? (
-      <div className="flex gap-1.5">
-        <span className="shrink-0 text-[8pt] text-slate-500">{label}</span>
-        <span className="min-w-0 flex-1 break-words text-[9pt] font-semibold text-black">{value}</span>
+      <div className="grid grid-cols-[15mm_1fr] items-baseline gap-1.5 border-b border-dotted border-slate-300 py-[1.5px] last:border-0">
+        <span className="text-[6.5pt] font-bold uppercase leading-tight tracking-wide text-slate-500">{label}</span>
+        <span className="min-w-0 break-words text-[9pt] font-bold leading-tight text-black">{value}</span>
       </div>
     ) : null;
 
@@ -83,25 +83,24 @@ export default async function JobLabelPage({ params }: Props) {
         className="label mx-auto flex flex-col border border-slate-300 print:border-0"
         style={{ width: "75mm", height: "100mm", padding: "2.5mm" }}
       >
-        {/* ── ຫົວ: ຂໍ້ມູນສູນບໍລິການ + ປະເພດບໍລິການ ── */}
-        <div className="flex items-start justify-between gap-1.5 border-b border-black pb-1">
-          <div className="min-w-0">
-            <div className="truncate text-[8.5pt] font-black leading-tight tracking-wide">{company.name_1 || "ODIEN SERVICE"}</div>
-            {company.tel && <div className="text-[5.5pt] leading-tight text-slate-600">ໂທ {company.tel}</div>}
+        {/* ── ຫົວ: ສູນບໍລິການ · ປະເພດ · QR ── */}
+        <div className="flex items-start justify-between gap-2 border-b-[2.5px] border-black pb-1.5">
+          <div className="min-w-0 pt-0.5">
+            <div className="truncate text-[10pt] font-black leading-none tracking-tight">{company.name_1 || "ODIEN SERVICE"}</div>
+            {company.tel && <div className="mt-1 text-[6pt] font-medium leading-none text-slate-600">ໂທ {company.tel}</div>}
           </div>
-          <div className="flex shrink-0 items-start gap-1">
-            <div className="flex flex-col items-center">
-              {serviceType && (
-                <span className="rounded border border-black px-1 py-px text-[6pt] font-bold leading-none">{job.service_type}</span>
-              )}
-              {/* QR SVG ຈາກ lib qrcode — URL ຈາກ trackUrl (ບໍ່ມີ user input ດິບໃນ markup) */}
-              <div className="mt-0.5 [&>svg]:h-[10mm] [&>svg]:w-[10mm]" dangerouslySetInnerHTML={{ __html: qr }} />
-            </div>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            {serviceType && (
+              <span className="bg-black px-1.5 py-0.5 text-[8pt] font-black leading-none tracking-wide text-white">{job.service_type}</span>
+            )}
+            {/* QR SVG ຈາກ lib qrcode — URL ຈາກ trackUrl (ບໍ່ມີ user input ດິບໃນ markup) */}
+            <div className="[&>svg]:h-[13mm] [&>svg]:w-[13mm]" dangerouslySetInnerHTML={{ __html: qr }} />
+            <span className="text-[5pt] font-semibold uppercase tracking-widest text-slate-500">Scan · ຕິດຕາມ</span>
           </div>
         </div>
 
         {/* ── ຂໍ້ມູນເຄື່ອງ ── */}
-        <div className="mt-1 space-y-0.5">
+        <div className="mt-1.5 flex-1">
           {info("ສິນຄ້າ", job.product)}
           {info("ຍີ່ຫໍ້/ລຸ້ນ", [job.brand, job.model].filter(Boolean).join(" / ") || null)}
           {info("SN", job.sn)}
@@ -111,15 +110,18 @@ export default async function JobLabelPage({ params }: Props) {
           {info("ຂັ້ນ", stageLabel(job.stage, job.service_type))}
         </div>
 
-        {/* ── ບາໂຄດ ── ໃຫຍ່ກາງປ້າຍ */}
-        <div className="mt-auto flex flex-col items-center">
+        {/* ── ບາໂຄດ + ເລກງານ (hero, inverted band) ── */}
+        <div className="mt-auto">
           <div
             className="w-full"
-            style={{ height: "13mm" }}
+            style={{ height: "12mm" }}
             // SVG vector ຈາກ code128Svg — ບໍ່ມີ user input ໃນ markup (ເລກງານ Code128 ເຂົ້າລະຫັດ)
             dangerouslySetInnerHTML={{ __html: barcode }}
           />
-          <p className="text-center text-[17pt] font-black leading-none tracking-widest">{job.code}</p>
+          <div className="mt-1 flex items-stretch overflow-hidden rounded-sm border-[2.5px] border-black">
+            <span className="flex items-center bg-black px-1.5 text-[7pt] font-black tracking-widest text-white">JOB</span>
+            <span className="flex-1 py-0.5 text-center text-[22pt] font-black leading-none tracking-wider">{job.code}</span>
+          </div>
         </div>
       </div>
     </div>
