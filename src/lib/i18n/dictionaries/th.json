@@ -2992,7 +2992,8 @@
     "noResults": "ไม่พบรายการ",
     "clockStopped": "นาฬิกาหยุด",
     "printTitle": "พิมพ์",
-    "editTitle": "แก้ไข"
+    "editTitle": "แก้ไข",
+    "printStickerTitle": "พิมพ์สติกเกอร์ (ป้าย 100×150)"
   },
   "sparePartsPage": {
     "title": "รายการอะไหล่",
@@ -3658,7 +3659,15 @@
     "returnedTooltip": "ในระบบส่งคืนลูกค้าแล้ว แต่ถูกนับพบ",
     "returnedBadge": "ส่งคืนแล้ว",
     "exportXlsx": "ดึง Excel",
-    "colIssue": "อาการ"
+    "colIssue": "อาการ",
+    "statPending": "ต้องนับ (pending)",
+    "statNotCounted": "ยังไม่นับ",
+    "colCountState": "สถานะ",
+    "colLabel": "ป้าย",
+    "stateCounted": "นับแล้ว",
+    "stateNotCounted": "ยังไม่นับ",
+    "countedStageTooltip": "ขั้นตอนตอนนับพบ (snapshot)",
+    "printSticker": "พิมพ์สติกเกอร์"
   },
   "sparePicker": {
     "title": "เลือกอะไหล่ (จาก ERP)",

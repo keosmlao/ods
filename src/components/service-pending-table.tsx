@@ -8,7 +8,7 @@ import { RemarkCell } from "@/components/service/remark-cell";
 import { ServiceDeleteButton } from "@/components/service/service-delete-button";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
-import { Pencil, Printer } from "lucide-react";
+import { Pencil, Printer, Tag } from "lucide-react";
 import Link from "next/link";
 
 const stageLabel = new Map(STAGES.map((stage) => [stage.id as number, stage.label]));
@@ -148,6 +148,15 @@ export async function ServicePendingTable({
                         className="text-[#D35400] hover:opacity-70"
                       >
                         <Printer className="size-4" />
+                      </Link>
+                      {/* ພິມສະຕິກເກີ 100×150mm (ປ້າຍ tracking + barcode) — ຕິດໃສ່ເຄື່ອງ */}
+                      <Link
+                        href={`/service/${card.code}/label`}
+                        target="_blank"
+                        title={t.printStickerTitle}
+                        className="text-teal-600 hover:opacity-70"
+                      >
+                        <Tag className="size-4" />
                       </Link>
                       {canUpdate && (
                         <Link href={`/service/${card.code}/edit`} title={t.editTitle} className="text-slate-500 hover:opacity-70">

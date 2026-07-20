@@ -2992,7 +2992,8 @@
     "noResults": "No records found",
     "clockStopped": "Clock stopped",
     "printTitle": "Print",
-    "editTitle": "Edit"
+    "editTitle": "Edit",
+    "printStickerTitle": "Print sticker (100×150 label)"
   },
   "sparePartsPage": {
     "title": "Spare Parts",
@@ -3658,7 +3659,15 @@
     "returnedTooltip": "Already returned to customer in system but was counted",
     "returnedBadge": "Returned",
     "exportXlsx": "Export Excel",
-    "colIssue": "Symptom"
+    "colIssue": "Symptom",
+    "statPending": "To count (pending)",
+    "statNotCounted": "Not counted",
+    "colCountState": "Status",
+    "colLabel": "Label",
+    "stateCounted": "Counted",
+    "stateNotCounted": "Not counted",
+    "countedStageTooltip": "Stage at count time (snapshot)",
+    "printSticker": "Print sticker"
   },
   "sparePicker": {
     "title": "Select Spare Part (from ERP)",

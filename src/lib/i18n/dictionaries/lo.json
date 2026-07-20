@@ -2992,7 +2992,8 @@
     "noResults": "ບໍ່ພົບລາຍການ",
     "clockStopped": "ນາລິກາຢຸດ",
     "printTitle": "ພິມ",
-    "editTitle": "ແກ້ໄຂ"
+    "editTitle": "ແກ້ໄຂ",
+    "printStickerTitle": "ພິມສະຕິກເກີ (ປ້າຍ 100×150)"
   },
   "sparePartsPage": {
     "title": "ລາຍການອາໄຫຼ່",
@@ -3658,7 +3659,15 @@
     "returnedTooltip": "ໃນລະບົບສົ່ງຄືນລູກຄ້າແລ້ວ ແຕ່ຖືກນັບພົບ",
     "returnedBadge": "ສົ່ງຄືນແລ້ວ",
     "exportXlsx": "ດຶງ Excel",
-    "colIssue": "ອາການ"
+    "colIssue": "ອາການ",
+    "statPending": "ຕ້ອງນັບ (pending)",
+    "statNotCounted": "ຍັງບໍ່ນັບ",
+    "colCountState": "ສະຖານະ",
+    "colLabel": "ປ້າຍ",
+    "stateCounted": "ນັບແລ້ວ",
+    "stateNotCounted": "ຍັງບໍ່ນັບ",
+    "countedStageTooltip": "ຂັ້ນຕອນຕອນນັບພົບ (snapshot)",
+    "printSticker": "ພິມສະຕິກເກີ"
   },
   "sparePicker": {
     "title": "ເລືອກອາໄຫຼ່ (ຈາກ ERP)",
