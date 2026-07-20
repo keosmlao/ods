@@ -40,6 +40,23 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
 
   const uncountedRows = useMemo(() => rows.filter((r) => stateOf(r) === "uncounted"), [rows]);
 
+  // ── ຕາຕะລาง ບໍລິການ × ສະຖານະ (dashboard) ──
+  const matrix = useMemo(() => {
+    const services = [...new Set(rows.map((r) => r.service_type ?? "?"))].sort(
+      (a, b) => (SERVICE_ORDER.indexOf(a) + 1 || 99) - (SERVICE_ORDER.indexOf(b) + 1 || 99),
+    );
+    return services.map((svc) => {
+      const rs = rows.filter((r) => (r.service_type ?? "?") === svc);
+      return {
+        svc,
+        found: rs.filter((r) => r.counted).length,
+        notCounted: rs.filter((r) => !r.counted && !r.missing).length,
+        missing: rs.filter((r) => r.missing).length,
+        total: rs.length,
+      };
+    });
+  }, [rows]);
+
   // service ທີ່ມີໃນ "ຍັງບໍ່ນັບ" — ຮຽງ CI/ST/IH/PS ກ່ອນ
   const svcTabs = useMemo(() => {
     const count = new Map<string, number>();
@@ -85,6 +102,41 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
   return (
     <div className="space-y-3">
       {dialog}
+
+      {/* ── ຕາຕะລาง ບໍລິການ × ສະຖານະ ── */}
+      {matrix.length > 0 && (
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full min-w-[440px] border-collapse text-center text-[12px]">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+                <th className="px-3 py-2 text-left font-semibold">ບໍລິການ</th>
+                <th className="px-3 py-2 font-semibold text-emerald-700">ນັບພົບ</th>
+                <th className="px-3 py-2 font-semibold text-rose-600">ຍັງບໍ່ນັບ</th>
+                <th className="px-3 py-2 font-semibold text-amber-600">ນັບບໍ່ພົບ</th>
+                <th className="px-3 py-2 font-semibold">ລວມ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {matrix.map((m) => (
+                <tr key={m.svc} className="border-b border-slate-100">
+                  <td className="px-3 py-1.5 text-left font-bold text-sky-700">{m.svc === "?" ? t.svcNone : m.svc}</td>
+                  <td className="px-3 py-1.5 tabular-nums text-emerald-700">{m.found}</td>
+                  <td className="px-3 py-1.5 tabular-nums text-rose-600">{m.notCounted}</td>
+                  <td className="px-3 py-1.5 tabular-nums text-amber-600">{m.missing}</td>
+                  <td className="px-3 py-1.5 font-bold tabular-nums">{m.total}</td>
+                </tr>
+              ))}
+              <tr className="bg-slate-50 font-bold">
+                <td className="px-3 py-1.5 text-left">ລວມ</td>
+                <td className="px-3 py-1.5 tabular-nums text-emerald-700">{matrix.reduce((s, m) => s + m.found, 0)}</td>
+                <td className="px-3 py-1.5 tabular-nums text-rose-600">{matrix.reduce((s, m) => s + m.notCounted, 0)}</td>
+                <td className="px-3 py-1.5 tabular-nums text-amber-600">{matrix.reduce((s, m) => s + m.missing, 0)}</td>
+                <td className="px-3 py-1.5 tabular-nums">{matrix.reduce((s, m) => s + m.total, 0)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* ── tab ສະຖານະ ── */}
       <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1">

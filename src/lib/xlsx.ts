@@ -8,11 +8,12 @@ export type XlsxColumn = { header: string; key: string; width?: number };
 export type CellValue = string | number | Date | null;
 export type XlsxRow = Record<string, CellValue>;
 
-export async function buildXlsx(sheetName: string, columns: XlsxColumn[], rows: XlsxRow[]): Promise<Buffer> {
-  const workbook = new ExcelJS.Workbook();
-  workbook.created = new Date();
+/** ໜຶ່ງ sheet = ຊື່ + columns + rows */
+export type XlsxSheet = { name: string; columns: XlsxColumn[]; rows: XlsxRow[] };
+
+function addSheet(workbook: ExcelJS.Workbook, { name, columns, rows }: XlsxSheet) {
   // ຊື່ sheet ຂອງ Excel ຫ້າມເກີນ 31 ຕົວ ແລະ ຫ້າມມີ : \ / ? * [ ]
-  const sheet = workbook.addWorksheet(sheetName.replace(/[:\\/?*[\]]/g, " ").slice(0, 31) || "Report");
+  const sheet = workbook.addWorksheet(name.replace(/[:\\/?*[\]]/g, " ").slice(0, 31) || "Report");
   sheet.columns = columns.map((column) => ({ header: column.header, key: column.key, width: column.width ?? 18 }));
 
   const header = sheet.getRow(1);
@@ -33,10 +34,20 @@ export async function buildXlsx(sheetName: string, columns: XlsxColumn[], rows: 
     });
   }
   sheet.views = [{ state: "frozen", ySplit: 1 }];
-  sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } };
+  sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: Math.max(1, columns.length) } };
+}
 
-  const buffer = await workbook.xlsx.writeBuffer();
-  return Buffer.from(buffer);
+export async function buildXlsx(sheetName: string, columns: XlsxColumn[], rows: XlsxRow[]): Promise<Buffer> {
+  return buildXlsxMulti([{ name: sheetName, columns, rows }]);
+}
+
+/** ຫຼາຍ sheet ໃນໄຟລ໌ດຽວ */
+export async function buildXlsxMulti(sheets: XlsxSheet[]): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
+  workbook.created = new Date();
+  if (sheets.length === 0) workbook.addWorksheet("Report");
+  for (const s of sheets) addSheet(workbook, s);
+  return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
 export function xlsxHeaders(filename: string) {
@@ -50,5 +61,11 @@ export function xlsxHeaders(filename: string) {
 /** ສ້າງ Response ຂອງໄຟລ໌ Excel — ໃຊ້ໃນ route handler ຂອງ /api/reports/export/* */
 export async function respondXlsx(sheetName: string, columns: XlsxColumn[], rows: XlsxRow[], filename: string) {
   const body = await buildXlsx(sheetName, columns, rows);
+  return new Response(new Uint8Array(body), { headers: xlsxHeaders(filename) });
+}
+
+/** Response Excel ຫຼາຍ sheet */
+export async function respondXlsxMulti(sheets: XlsxSheet[], filename: string) {
+  const body = await buildXlsxMulti(sheets);
   return new Response(new Uint8Array(body), { headers: xlsxHeaders(filename) });
 }
