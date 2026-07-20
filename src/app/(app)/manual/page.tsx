@@ -1,4 +1,5 @@
 import { DocCard } from "@/components/manual/doc-card";
+import { ManualTabs } from "@/components/manual/manual-tabs";
 import { PageTitle } from "@/components/ui";
 import { type Dictionary, getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
@@ -128,6 +129,9 @@ function Section({ n, title, children }: { n: string; title: string; children: R
 }
 
 
+const pad = (n: number) => String(n).padStart(2, "0");
+const isInstallDoc = (code: string) => code.startsWith("SOP-I") || code.startsWith("WI-I");
+
 export default async function ManualPage() {
   const t = (await getDictionary(await getLocale())).manualPage;
   const SERVICE_TYPES = serviceTypes(t);
@@ -135,12 +139,46 @@ export default async function ManualPage() {
   const SITUATIONS = situations(t);
   const ROLES = roles(t);
 
-  return (
-    <div className="w-full pb-16">
-      <PageTitle sub={t.pageSub}>
-        {t.pageTitle}
-      </PageTitle>
+  const repairExtra = t.extraSections.filter((s) => s.wf !== "install");
+  const installExtra = t.extraSections.filter((s) => s.wf === "install");
+  const repairSop = t.sopDocs.filter((d) => !isInstallDoc(d.code));
+  const installSop = t.sopDocs.filter((d) => isInstallDoc(d.code));
+  const repairWi = t.wiDocs.filter((d) => !isInstallDoc(d.code));
+  const installWi = t.wiDocs.filter((d) => isInstallDoc(d.code));
 
+  const extraSection = (s: (typeof t.extraSections)[number], n: string) => (
+    <Section key={s.title} n={n} title={s.title}>
+      {s.intro && <p className="mb-4 max-w-[90ch] text-sm text-slate-500">{s.intro}</p>}
+      <ul className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+        {s.items.map((item, j) => (
+          <li key={j} className="flex gap-2.5 rounded-xl border border-slate-200 bg-white p-3.5 text-[13px] leading-relaxed text-slate-700 shadow-sm">
+            <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-teal-500" aria-hidden />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+
+  const docSection = (n: string, title: string, docs: typeof t.sopDocs, setHref?: string, setLabel?: string) => (
+    <Section n={n} title={title}>
+      {setHref && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          <Link href={setHref} target="_blank" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-100">
+            <Printer className="size-4" /> {setLabel}
+          </Link>
+        </div>
+      )}
+      <div className="space-y-4">
+        {docs.map((doc) => (
+          <DocCard key={doc.code} doc={doc} meta={t.docMeta} printHref={`/manual/documents/print?doc=${doc.code}`} printLabel={t.printOne} />
+        ))}
+      </div>
+    </Section>
+  );
+
+  const repair = (
+    <>
       <Section n="01" title={t.section1Title}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {SERVICE_TYPES.map((s) => (
@@ -231,58 +269,24 @@ export default async function ManualPage() {
         </div>
       </Section>
 
-      {t.extraSections.map((s, i) => (
-        <Section key={i} n={String(5 + i).padStart(2, "0")} title={s.title}>
-          {s.intro && <p className="mb-4 max-w-[90ch] text-sm text-slate-500">{s.intro}</p>}
-          <ul className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
-            {s.items.map((item, j) => (
-              <li
-                key={j}
-                className="flex gap-2.5 rounded-xl border border-slate-200 bg-white p-3.5 text-[13px] leading-relaxed text-slate-700 shadow-sm"
-              >
-                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-teal-500" aria-hidden />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ))}
+      {repairExtra.map((s, i) => extraSection(s, pad(5 + i)))}
+      {docSection(pad(5 + repairExtra.length), t.sopTitle, repairSop, "/manual/documents/print?set=repair", t.printRepairSet)}
+      {docSection(pad(6 + repairExtra.length), t.wiTitle, repairWi)}
+    </>
+  );
 
-      <Section n={String(5 + t.extraSections.length).padStart(2, "0")} title={t.sopTitle}>
-        <div className="mb-4 flex flex-wrap gap-2">
-          <Link href="/manual/documents/print?set=sop" target="_blank" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-100">
-            <Printer className="size-4" /> {t.printSet}
-          </Link>
-          <Link href="/manual/documents/print?set=repair" target="_blank" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">
-            <Printer className="size-4" /> {t.printRepairSet}
-          </Link>
-          <Link href="/manual/documents/print?set=install" target="_blank" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">
-            <Printer className="size-4" /> {t.printInstallSet}
-          </Link>
-        </div>
-        <div className="space-y-4">
-          {t.sopDocs.map((doc) => (
-            <DocCard key={doc.code} doc={doc} meta={t.docMeta} printHref={`/manual/documents/print?doc=${doc.code}`} printLabel={t.printOne} />
-          ))}
-        </div>
-      </Section>
+  const install = (
+    <>
+      {installExtra.map((s, i) => extraSection(s, pad(1 + i)))}
+      {docSection(pad(1 + installExtra.length), t.sopTitle, installSop, "/manual/documents/print?set=install", t.printInstallSet)}
+      {docSection(pad(2 + installExtra.length), t.wiTitle, installWi)}
+    </>
+  );
 
-      <Section n={String(6 + t.extraSections.length).padStart(2, "0")} title={t.wiTitle}>
-        <div className="mb-4 flex flex-wrap gap-2">
-          <Link
-            href="/manual/documents/print?set=wi"
-            target="_blank"
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-100"
-          >
-            <Printer className="size-4" /> {t.printSet}
-          </Link>
-        </div>
-        <div className="space-y-4">
-          {t.wiDocs.map((doc) => (
-            <DocCard key={doc.code} doc={doc} meta={t.docMeta} printHref={`/manual/documents/print?doc=${doc.code}`} printLabel={t.printOne} />
-          ))}
-        </div>
-      </Section>
+  return (
+    <div className="w-full pb-16">
+      <PageTitle sub={t.pageSub}>{t.pageTitle}</PageTitle>
+      <ManualTabs repair={repair} install={install} repairLabel={t.tabRepair} installLabel={t.tabInstall} />
     </div>
   );
 }

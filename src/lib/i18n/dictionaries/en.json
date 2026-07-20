@@ -774,7 +774,8 @@
           "Once closed, the job leaves the pending queue everywhere (/service, dashboard, pipeline, pending report) — no data deleted, ERP untouched.",
           "Undo: the “Not-found devices (missing)” menu (or the same tab) → click “Restore” → the job returns to the pending queue.",
           "Report: “Stock count results” — summary of to-count / found / not-counted / missing, split by tab and by service (CI/ST/IH/PS), Excel export."
-        ]
+        ],
+        "wf": "repair"
       },
       {
         "title": "Tracking label & barcode",
@@ -785,7 +786,8 @@
           "QR → /track/<job> (public, no login) — the customer can scan to check status themselves.",
           "Print: click “Print tracking label” → choose 75×100 paper size or use a thermal label printer.",
           "The A4 receipt (orange 🖨) is unchanged — the sticker (75×100) is the new device tag."
-        ]
+        ],
+        "wf": "repair"
       },
       {
         "title": "Reports & settings",
@@ -796,7 +798,8 @@
           "System settings (manager): Users → System settings — toggle features like “Manage backlog” (needs-check/cancel/repaired) and “Notify all activity”.",
           "Access rights: Users → Permissions — set which menus each employee can see/use.",
           "Language: switch Lao/Thai/English at the top corner (flags) — remembered per browser."
-        ]
+        ],
+        "wf": "repair"
       },
       {
         "title": "Receiving a device (CS steps)",
@@ -809,7 +812,8 @@
           "5) Type the symptom (as reported) + attach photos (if any).",
           "6) Pick a technician (if known) and the return method.",
           "7) Save → get a job number → print the A4 receipt for the customer + print the 75×100 sticker for the device."
-        ]
+        ],
+        "wf": "repair"
       },
       {
         "title": "FAQ",
@@ -821,7 +825,8 @@
           "Want to hide “Manage backlog”? → Users → System settings → turn off “Manage backlog”.",
           "Label doesn't fill 75×100? → When printing, choose 75×100 paper and margin = none/0.",
           "Can I delete a receipt? → Managers only and it's irreversible — use “Cancel job” instead if you need to keep history."
-        ]
+        ],
+        "wf": "repair"
       },
       {
         "title": "Installation system",
@@ -833,7 +838,8 @@
           "Spares: request → pick up spares before installing; leftover spares are returned at “Return install spares”.",
           "QC + feedback: pass QC → customer feedback → close the job.",
           "Reports: installation report, monthly install-spares summary, customer survey (Install/Reports menu)."
-        ]
+        ],
+        "wf": "install"
       },
       {
         "title": "Common installation situations",
@@ -845,6 +851,24 @@
           "Spares left after install → return to warehouse (WI-I05), don't leave them with the tech.",
           "Customer reschedules → supervisor re-queues at Open / await-assign.",
           "QC failed → tech fixes, then resubmits to QC."
+        ],
+        "wf": "install"
+      },
+      {
+        "title": "Tech knowledge & FAQ",
+        "intro": "Tips and common questions for repair technicians.",
+        "wf": "repair",
+        "items": [
+          "Before swapping a part: reproduce the fault + measure real values (voltage/current/resistance), don't guess.",
+          "Record the diagnosed fault (issue_2) clearly — it's evidence and helps with repeat jobs.",
+          "Photograph before/after and attach to the job — confirms condition.",
+          "Warranty: if the customer voided it, state the reason (warranty_reason) before charging.",
+          "Spares: draw only what you use; return leftovers to the warehouse — don't hold them.",
+          "Fridge/AC: check refrigerant leak + compressor before declaring unrepairable.",
+          "Washer 'won't spin': check motor/belt/board before replacing the (expensive) board.",
+          "Safety: unplug + discharge before touching the board/capacitors.",
+          "Recurring failures: check the 'repeat repairs' report — same tech/same fault?",
+          "Frequent QC fails: review the checklist before submitting."
         ]
       }
     ],
@@ -1212,7 +1236,9 @@
     "printRepairSet": "Print repair set",
     "printInstallSet": "Print install set",
     "printRepairTitle": "SOP/WI documents — Repair",
-    "printInstallTitle": "SOP/WI documents — Installation"
+    "printInstallTitle": "SOP/WI documents — Installation",
+    "tabRepair": "Repair manual",
+    "tabInstall": "Install manual"
   },
   "statusList": {
     "backToOverview": "Back to overview",
