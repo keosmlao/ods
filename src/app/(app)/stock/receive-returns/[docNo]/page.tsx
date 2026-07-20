@@ -3,6 +3,8 @@ import { SpareLineTable, type SpareLine } from "@/components/stock/spare-lines";
 import { ErrorBox, PageTitle } from "@/components/ui";
 import { query } from "@/lib/db";
 import { docPrefix } from "@/lib/doc-no";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { notFound } from "next/navigation";
 
 /** ods: stock.py /show_return/<doc_no> + templates/stock/show_return.html */
@@ -33,6 +35,7 @@ async function previewDocNo() {
 export default async function ShowReceiveReturnPage({ params }: Props) {
   const { docNo } = await params;
   const code = decodeURIComponent(docNo);
+  const t = (await getDictionary(await getLocale())).receiveReturnsDetail;
 
   const head = await query<Head>(
     `select a.doc_no, to_char(a.doc_date,'DD-MM-YYYY') doc_date,
@@ -58,7 +61,7 @@ export default async function ShowReceiveReturnPage({ params }: Props) {
 
   return (
     <div className="w-full space-y-6">
-      <PageTitle sub="ລາຍການຮັບ​ຄືນອາໄຫຼ່">ຮັບຄືນອາໄຫຼ່ເຂົ້າສາງ</PageTitle>
+      <PageTitle sub={t.subtitle}>{t.title}</PageTitle>
 
       <DocForm
         kind="receiveReturn"
@@ -70,20 +73,20 @@ export default async function ShowReceiveReturnPage({ params }: Props) {
         defaultRemark={bill.remark ?? ""}
         disabled={lines.rows.length === 0}
         fields={[
-          { label: "ເລກທິໃບກວດເຊັກ:", value: bill.doc_no },
-          { label: "ວັນທີ:", value: bill.doc_date },
-          { label: "ລູກຄ້າ:", value: bill.customer },
-          { label: "ຊື່ສິນຄ້າ:", value: bill.product },
-          { label: "ລູ້ນ/Model:", value: bill.p_model },
-          { label: "ເລກເຄື່ອງ/sn:", value: bill.sn },
-          { label: "ອາການເສຍ:", value: bill.issue, accent: true },
-          { label: "ປະກັນ:", value: bill.warranty },
+          { label: t.checkBillNo, value: bill.doc_no },
+          { label: t.date, value: bill.doc_date },
+          { label: t.customer, value: bill.customer },
+          { label: t.productName, value: bill.product },
+          { label: t.model, value: bill.p_model },
+          { label: t.serialNo, value: bill.sn },
+          { label: t.issue, value: bill.issue, accent: true },
+          { label: t.warranty, value: bill.warranty },
         ]}
       />
 
       <SpareLineTable lines={lines.rows} />
 
-      {lines.rows.length === 0 && <ErrorBox>ບໍ່ມີອາໄຫຼ່ໃນໃບນີ້</ErrorBox>}
+      {lines.rows.length === 0 && <ErrorBox>{t.noSpares}</ErrorBox>}
     </div>
   );
 }

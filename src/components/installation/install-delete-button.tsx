@@ -1,6 +1,7 @@
 "use client";
 import { deleteInstall } from "@/app/actions/install-delete";
 import { Button, inputClass } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { LoaderCircle, Trash2, TriangleAlert, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -17,12 +18,13 @@ export function InstallDeleteButton({ code }: { code: string }) {
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
+  const t = useDict().installDeleteButton;
 
   return (
     <>
       <button
         type="button"
-        title="ລຶບງານຕິດຕັ້ງ (ຜູ້ຈັດການ)"
+        title={t.deleteInstallTitle}
         onClick={() => setOpen(true)}
         className="text-slate-400 hover:text-red-600"
       >
@@ -37,8 +39,8 @@ export function InstallDeleteButton({ code }: { code: string }) {
                 <TriangleAlert className="size-5" />
               </span>
               <div>
-                <h2 className="font-bold text-slate-800">ລຶບງານຕິດຕັ້ງ {code}?</h2>
-                <p className="mt-1 text-xs text-slate-500">ຍ້ອນຄືນບໍ່ໄດ້</p>
+                <h2 className="font-bold text-slate-800">{t.deleteInstallHeading} {code}?</h2>
+                <p className="mt-1 text-xs text-slate-500">{t.irreversible}</p>
               </div>
               <button
                 type="button"
@@ -50,24 +52,24 @@ export function InstallDeleteButton({ code }: { code: string }) {
             </div>
 
             <ul className="mb-3 space-y-1 rounded-lg bg-red-50 p-3 text-xs text-red-800">
-              <li>· ໃບຂໍເບີກ · ໃບເບີກ · ໃບຮັບອາໄຫຼ່ ຂອງງານນີ້ <b>ຖືກລຶບຕາມ</b></li>
-              <li>· <b>ສະຕັອກ ERP ທີ່ຕັດໄປແລ້ວ ບໍ່ຄືນມາ</b> — ອາໄຫຼ່ຈະຫາຍຈາກສາງໂດຍບໍ່ມີເອກະສານ</li>
-              <li>· ຢາກໃຫ້ງານອອກຈາກຄິວແຕ່ຮັກສາປະຫວັດ ⇒ ໃຊ້ &quot;ຍົກເລີກງານ&quot; ແທນ</li>
+              <li>{t.docsDeletedText}<b>{t.docsDeletedBold}</b></li>
+              <li>· <b>{t.stockBold}</b> {t.stockText}</li>
+              <li>{t.keepHistoryHint}</li>
             </ul>
 
-            <label className="mb-1 block text-xs font-semibold text-slate-600">ເຫດຜົນທີ່ລຶບ (ເກັບເປັນຫຼັກຖານ)</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-600">{t.reasonLabel}</label>
             <input
               autoFocus
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              placeholder="ເຊັ່ນ: ງານທົດລອງ, ລົງຊ້ຳ..."
+              placeholder={t.reasonPlaceholder}
               className={inputClass}
             />
             {error && <p className="mt-2 text-xs font-semibold text-red-600">{error}</p>}
 
             <div className="mt-4 flex justify-end gap-2">
               <Button tone="neutral" onClick={() => setOpen(false)} className="h-9 text-xs">
-                ຍົກເລີກ
+                {t.cancel}
               </Button>
               <Button
                 tone="danger"
@@ -86,7 +88,7 @@ export function InstallDeleteButton({ code }: { code: string }) {
                 }
               >
                 {pending && <LoaderCircle className="size-3.5 animate-spin" />}
-                ລຶບຖາວອນ
+                {t.deletePermanent}
               </Button>
             </div>
           </div>

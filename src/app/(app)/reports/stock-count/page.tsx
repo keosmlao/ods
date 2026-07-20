@@ -1,4 +1,6 @@
 import { getSession } from "@/lib/auth";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { APPROVER_SIDE, roleOf } from "@/lib/roles";
 import { countedItems } from "@/lib/stock-count";
 import { Check, FileBarChart, ScanLine, TriangleAlert } from "lucide-react";
@@ -16,6 +18,8 @@ export default async function StockCountReportPage() {
   if (!session) redirect("/login");
   if (!APPROVER_SIDE.includes(roleOf(session))) redirect("/forbidden");
 
+  const t = (await getDictionary(await getLocale())).stockCountReport;
+
   const rows = await countedItems();
   const total = rows.length;
   const returned = rows.filter((r) => r.returned).length;
@@ -32,37 +36,37 @@ export default async function StockCountReportPage() {
       <div className="flex items-center justify-between gap-2">
         <h1 className="flex items-center gap-2 text-lg font-bold text-slate-700">
           <FileBarChart className="size-5 text-teal-600" />
-          ລາຍງານຜົນການກວດນັບສະຕັອກ
+          {t.title}
         </h1>
         <Link
           href="/service/stock-count"
           className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"
         >
           <ScanLine className="size-4 text-teal-600" />
-          ໄປໜ້າກວດນັບ
+          {t.goToCount}
         </Link>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:max-w-sm">
-        {stat("ນັບພົບແລ້ວ (ອັນ)", total, "text-emerald-600")}
-        {stat("ໃນນັ້ນ ສົ່ງຄືນແລ້ວ ⚠", returned, "text-amber-600")}
+        {stat(t.statFound, total, "text-emerald-600")}
+        {stat(t.statReturned, returned, "text-amber-600")}
       </div>
 
       {total === 0 ? (
-        <p className="py-16 text-center text-sm text-slate-400">ຍັງບໍ່ມີການກວດນັບ</p>
+        <p className="py-16 text-center text-sm text-slate-400">{t.emptyState}</p>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full min-w-[820px] border-collapse text-[11px] leading-tight">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
-                <th className="px-2 py-1.5 font-semibold">ເລກງານ</th>
-                <th className="px-2 py-1.5 font-semibold">ສິນຄ້າ / SN</th>
-                <th className="px-2 py-1.5 font-semibold">ຍີ່ຫໍ້</th>
-                <th className="px-2 py-1.5 font-semibold">ລູກຄ້າ</th>
-                <th className="px-2 py-1.5 font-semibold">ບໍລິການ</th>
-                <th className="px-2 py-1.5 font-semibold">ສະຖານະຕອນນັບ</th>
-                <th className="px-2 py-1.5 font-semibold">ຂັ້ນ (ປັດຈຸບັນ)</th>
-                <th className="px-2 py-1.5 font-semibold">ນັບເມື່ອ / ໂດຍ</th>
+                <th className="px-2 py-1.5 font-semibold">{t.colJob}</th>
+                <th className="px-2 py-1.5 font-semibold">{t.colProduct}</th>
+                <th className="px-2 py-1.5 font-semibold">{t.colBrand}</th>
+                <th className="px-2 py-1.5 font-semibold">{t.colCustomer}</th>
+                <th className="px-2 py-1.5 font-semibold">{t.colService}</th>
+                <th className="px-2 py-1.5 font-semibold">{t.colCountStatus}</th>
+                <th className="px-2 py-1.5 font-semibold">{t.colStage}</th>
+                <th className="px-2 py-1.5 font-semibold">{t.colCountedAtBy}</th>
               </tr>
             </thead>
             <tbody>
@@ -82,8 +86,8 @@ export default async function StockCountReportPage() {
                     <span className="inline-flex items-center gap-1">
                       <span className="rounded bg-teal-50 px-1.5 py-0.5 text-[10px] font-semibold text-teal-700">{row.counted_stage_label || "-"}</span>
                       {row.returned && (
-                        <span className="inline-flex items-center gap-0.5 rounded bg-amber-50 px-1 py-0.5 text-[9px] font-semibold text-amber-700" title="ໃນລະບົບສົ່ງຄືນລູກຄ້າແລ້ວ ແຕ່ຖືກນັບພົບ">
-                          <TriangleAlert className="size-2.5" /> ສົ່ງຄືນແລ້ວ
+                        <span className="inline-flex items-center gap-0.5 rounded bg-amber-50 px-1 py-0.5 text-[9px] font-semibold text-amber-700" title={t.returnedTooltip}>
+                          <TriangleAlert className="size-2.5" /> {t.returnedBadge}
                         </span>
                       )}
                     </span>

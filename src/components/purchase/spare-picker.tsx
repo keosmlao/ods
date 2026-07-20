@@ -1,6 +1,7 @@
 "use client";
 import { searchSpare } from "@/app/actions/checking";
 import type { SpareItem } from "@/lib/tech-flow";
+import { useDict } from "@/lib/i18n/context";
 import { Check, LoaderCircle, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -26,6 +27,7 @@ export function SparePicker({
   onPick: (items: SpareItem[]) => void;
   existing: string[];
 }) {
+  const t = useDict().sparePicker;
   const ref = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
@@ -48,7 +50,7 @@ export function SparePicker({
   // ຄົ້ນຫາ ERP — debounce 300ms · ບໍ່ພິມຫຍັງກໍ່ຄືນລາຍການທີ່ມີຄົງເຫຼືອຫຼາຍສຸດ
   useEffect(() => {
     if (!open) return;
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       setSearching(true);
       try {
         setResults(await searchSpare(text));
@@ -56,7 +58,7 @@ export function SparePicker({
         setSearching(false);
       }
     }, 300);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [text, open]);
 
   const inDoc = new Set(existing);
@@ -84,7 +86,7 @@ export function SparePicker({
         {/* ຫົວ + ຊ່ອງຄົ້ນຫາ */}
         <div className="border-b border-slate-200 p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-sm font-bold text-slate-700">ເລືອກອາໄຫຼ່ (ຈາກ ERP)</h2>
+            <h2 className="text-sm font-bold text-slate-700">{t.title}</h2>
             <button
               type="button"
               onClick={onClose}
@@ -103,7 +105,7 @@ export function SparePicker({
               ref={inputRef}
               value={text}
               onChange={(event) => setText(event.target.value)}
-              placeholder="ພິມລະຫັດ / ຊື່ / ຍີ່ຫໍ້ ອາໄຫຼ່..."
+              placeholder={t.searchPlaceholder}
               className="h-10 w-full text-sm focus:outline-none"
             />
           </div>
@@ -115,9 +117,9 @@ export function SparePicker({
             <thead className="sticky top-0 bg-slate-50">
               <tr className="border-b border-slate-200 text-left text-slate-600">
                 <th className="w-10 px-3 py-2" />
-                <th className="px-3 py-2 font-semibold">ອາໄຫຼ່</th>
-                <th className="px-3 py-2 font-semibold">ຍີ່ຫໍ້</th>
-                <th className="px-3 py-2 text-right font-semibold">ຄົງເຫຼືອ</th>
+                <th className="px-3 py-2 font-semibold">{t.colSpare}</th>
+                <th className="px-3 py-2 font-semibold">{t.colBrand}</th>
+                <th className="px-3 py-2 text-right font-semibold">{t.colBalance}</th>
               </tr>
             </thead>
             <tbody>
@@ -148,7 +150,7 @@ export function SparePicker({
                     <td className="px-3 py-2 text-slate-500">{item.brand ?? "-"}</td>
                     <td className="px-3 py-2 text-right">
                       {already ? (
-                        <span className="text-[10px] font-semibold text-slate-400">ຢູ່ໃນໃບແລ້ວ</span>
+                        <span className="text-[10px] font-semibold text-slate-400">{t.inDoc}</span>
                       ) : (
                         <span
                           className={`font-semibold tabular-nums ${
@@ -166,7 +168,7 @@ export function SparePicker({
           </table>
           {!searching && results.length === 0 && (
             <p className="py-16 text-center text-xs text-slate-400">
-              {text.trim() ? `ບໍ່ພົບອາໄຫຼ່ "${text}" ໃນ ERP` : "ພິມເພື່ອຄົ້ນຫາອາໄຫຼ່"}
+              {text.trim() ? `${t.notFoundPrefix} "${text}" ${t.notFoundSuffix}` : t.searchHint}
             </p>
           )}
         </div>
@@ -174,7 +176,7 @@ export function SparePicker({
         {/* ທ້າຍ: ຈຳນວນທີ່ເລືອກ + ປຸ່ມເພີ່ມ */}
         <div className="flex items-center justify-between gap-3 border-t border-slate-200 p-3">
           <span className="text-xs text-slate-400">
-            {picked.size > 0 ? `ເລືອກແລ້ວ ${picked.size} ລາຍການ` : "ກົດແຖວເພື່ອເລືອກ (ເລືອກໄດ້ຫຼາຍລາຍການ)"}
+            {picked.size > 0 ? `${t.selectedPrefix} ${picked.size} ${t.itemsUnit}` : t.pickHint}
           </span>
           <div className="flex gap-2">
             <button
@@ -182,7 +184,7 @@ export function SparePicker({
               onClick={onClose}
               className="h-9 rounded-lg border border-slate-300 px-4 text-xs font-semibold text-slate-600 hover:bg-slate-50"
             >
-              ຍົກເລີກ
+              {t.cancel}
             </button>
             <button
               type="button"
@@ -191,7 +193,7 @@ export function SparePicker({
               className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-4 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-40"
             >
               <Check className="size-3.5" />
-              ເພີ່ມ {picked.size > 0 && `(${picked.size})`}
+              {t.add} {picked.size > 0 && `(${picked.size})`}
             </button>
           </div>
         </div>
