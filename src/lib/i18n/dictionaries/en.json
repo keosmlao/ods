@@ -797,6 +797,43 @@
           "Access rights: Users → Permissions — set which menus each employee can see/use.",
           "Language: switch Lao/Thai/English at the top corner (flags) — remembered per browser."
         ]
+      },
+      {
+        "title": "Receiving a device (CS steps)",
+        "intro": "How CS receives a customer's device and opens a job.",
+        "items": [
+          "1) On the intake list (/service) → click “Receipt” (green button).",
+          "2) Select or add the customer: name · phone · address.",
+          "3) Choose the service type — CI (walk-in) / ST (in-warehouse) / IH (on-site) / PS (pickup then repair).",
+          "4) Enter device details: product · brand/model · SN · accessories brought.",
+          "5) Type the symptom (as reported) + attach photos (if any).",
+          "6) Pick a technician (if known) and the return method.",
+          "7) Save → get a job number → print the A4 receipt for the customer + print the 75×100 sticker for the device."
+        ]
+      },
+      {
+        "title": "FAQ",
+        "intro": "",
+        "items": [
+          "Scan shows “not in system”? → SN/number mismatch — try typing the job number instead of SN.",
+          "Device already returned but you want to count it? → You can; the system flags “returned” (amber).",
+          "Clicked Close·not-found by mistake? → Go to “Not-found devices (missing)” → click “Restore” → back in the queue instantly.",
+          "Want to hide “Manage backlog”? → Users → System settings → turn off “Manage backlog”.",
+          "Label doesn't fill 75×100? → When printing, choose 75×100 paper and margin = none/0.",
+          "Can I delete a receipt? → Managers only and it's irreversible — use “Cancel job” instead if you need to keep history."
+        ]
+      },
+      {
+        "title": "Installation system",
+        "intro": "Installation jobs are separate from repairs — use the “Install” menu. Technicians are assigned by tech_code and have a daily appointment queue.",
+        "items": [
+          "Stages: ① Open/await-assign → ② await-accept → ③ await spare request → ④ await spare pickup → ⑤ await-install → ⑥ installing → ⑦ await-QC → ⑧ await customer feedback → ⑨ await-close.",
+          "Daily queue: My → Daily job queue — technicians see today's appointments.",
+          "Assigning: the supervisor assigns a technician (tech_code) at “Open / await-assign”.",
+          "Spares: request → pick up spares before installing; leftover spares are returned at “Return install spares”.",
+          "QC + feedback: pass QC → customer feedback → close the job.",
+          "Reports: installation report, monthly install-spares summary, customer survey (Install/Reports menu)."
+        ]
       }
     ]
   },
