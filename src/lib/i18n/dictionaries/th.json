@@ -2454,7 +2454,8 @@
     "remove": "เอาออก",
     "returnedWarn": "ส่งคืนแล้ว?",
     "scanning": "กำลังตรวจ...",
-    "emptyScanHint": "ยิงหรือพิมพ์ เลขงาน / SN เพื่อเริ่มนับ"
+    "emptyScanHint": "ยิงหรือพิมพ์ เลขงาน / SN เพื่อเริ่มนับ",
+    "printLabel": "พิมพ์ label tracking"
   },
   "assistantChat": {
     "title": "AI ผู้ช่วยงาน",

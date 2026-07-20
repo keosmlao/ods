@@ -2454,7 +2454,8 @@
     "remove": "Remove",
     "returnedWarn": "Returned?",
     "scanning": "Checking...",
-    "emptyScanHint": "Scan or type a job no / SN to start counting"
+    "emptyScanHint": "Scan or type a job no / SN to start counting",
+    "printLabel": "Print tracking label"
   },
   "assistantChat": {
     "title": "AI Work Assistant",

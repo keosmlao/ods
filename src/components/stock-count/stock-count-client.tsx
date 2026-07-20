@@ -1,9 +1,10 @@
 "use client";
 import { countByScan, resetStockCount, unmarkCounted } from "@/app/actions/stock-count";
 import { useConfirm } from "@/components/confirm-dialog";
+import { code128Svg } from "@/lib/barcode";
 import { useDict } from "@/lib/i18n/context";
 import type { CountedItem } from "@/lib/stock-count";
-import { Check, CircleAlert, LoaderCircle, RotateCcw, ScanLine, Trash2, TriangleAlert } from "lucide-react";
+import { Check, CircleAlert, LoaderCircle, Printer, RotateCcw, ScanLine, Trash2, TriangleAlert } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 
 /**
@@ -144,6 +145,21 @@ export function StockCountClient({ initialItems }: { initialItems: CountedItem[]
                     {[it.product, it.brand, it.sn, it.customer].filter(Boolean).join(" · ") || "-"}
                   </p>
                 </div>
+                {/* barcode ເລກ job — ສະແກນ/ຢືນຢັນໄດ້ໄວ (SVG ຈາກ code128Svg, ບໍ່ມີ user input) */}
+                <div
+                  className="hidden h-7 w-28 shrink-0 md:block"
+                  aria-label={`barcode ${it.code}`}
+                  dangerouslySetInnerHTML={{ __html: code128Svg(it.code, { height: 28, fit: true }) }}
+                />
+                <a
+                  href={`/service/${it.code}/label`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={t.printLabel}
+                  className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-teal-50 hover:text-teal-600"
+                >
+                  <Printer className="size-4" />
+                </a>
                 <button
                   type="button"
                   onClick={() => remove(it.code)}
