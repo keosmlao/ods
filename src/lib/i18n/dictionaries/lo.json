@@ -2909,7 +2909,8 @@
     "printLabel": "ພິມ label tracking",
     "cancelCountTitle": "ຍົກເລີກການນັບ?",
     "cancelCountMessage": "ເອົາ {code} ອອກຈາກຜົນກວດນັບ (ລຶບ record ນັບໃນ DB) — ຈະນັບຄືນໃໝ່ໄດ້ໂດຍຍິງອີກ.",
-    "cancelCountConfirm": "ຍົກເລີກການນັບ"
+    "cancelCountConfirm": "ຍົກເລີກການນັບ",
+    "manageJob": "ຈັດການ / ແກ້ໄຂ job"
   },
   "assistantChat": {
     "title": "AI ຜູ້ຊ່ວຍວຽກ",
@@ -4141,7 +4142,8 @@
     "confirmRestoreTitle": "ນຳ job ກັບຄືນ?",
     "confirmRestoreMsg": "ນຳ {code} ກັບໄປເປັນ ຍັງບໍ່ນັບ — ກວດນັບ ຫຼື ໝາຍໃໝ່ໄດ້.",
     "confirmRestoreBtn": "ນຳກັບຄືນ",
-    "missingMenuTitle": "ເຄື່ອງນັບບໍ່ພົບ (ຫາຍ)"
+    "missingMenuTitle": "ເຄື່ອງນັບບໍ່ພົບ (ຫາຍ)",
+    "manageJob": "ຈັດການ"
   },
   "sparePicker": {
     "title": "ເລືອກອາໄຫຼ່ (ຈາກ ERP)",

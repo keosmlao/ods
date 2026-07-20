@@ -2909,7 +2909,8 @@
     "printLabel": "Print tracking label",
     "cancelCountTitle": "Cancel this count?",
     "cancelCountMessage": "Remove {code} from the count (deletes its DB record) — you can re-count by scanning again.",
-    "cancelCountConfirm": "Cancel count"
+    "cancelCountConfirm": "Cancel count",
+    "manageJob": "Manage / edit job"
   },
   "assistantChat": {
     "title": "AI Work Assistant",
@@ -4141,7 +4142,8 @@
     "confirmRestoreTitle": "Restore this job?",
     "confirmRestoreMsg": "Return {code} to not-counted — you can count or re-mark it.",
     "confirmRestoreBtn": "Restore",
-    "missingMenuTitle": "Not-found devices (missing)"
+    "missingMenuTitle": "Not-found devices (missing)",
+    "manageJob": "Manage"
   },
   "sparePicker": {
     "title": "Select Spare Part (from ERP)",

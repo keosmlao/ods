@@ -4,7 +4,7 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { code128Svg } from "@/lib/barcode";
 import { useDict } from "@/lib/i18n/context";
 import type { CountedItem } from "@/lib/stock-count";
-import { Check, CircleAlert, LoaderCircle, Printer, RotateCcw, ScanLine, Trash2, TriangleAlert } from "lucide-react";
+import { Check, CircleAlert, LoaderCircle, Printer, RotateCcw, ScanLine, SlidersHorizontal, Trash2, TriangleAlert } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 
 /**
@@ -194,6 +194,15 @@ export function StockCountClient({ initialItems }: { initialItems: CountedItem[]
                   aria-label={`barcode ${it.code}`}
                   dangerouslySetInnerHTML={{ __html: code128Svg(it.code, { height: 28, fit: true }) }}
                 />
+                <a
+                  href={`/service/${it.code}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={t.manageJob}
+                  className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-indigo-50 hover:text-indigo-600"
+                >
+                  <SlidersHorizontal className="size-4" />
+                </a>
                 <a
                   href={`/service/${it.code}/label`}
                   target="_blank"

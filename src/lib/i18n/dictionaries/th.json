@@ -2909,7 +2909,8 @@
     "printLabel": "พิมพ์ label tracking",
     "cancelCountTitle": "ยกเลิกการนับ?",
     "cancelCountMessage": "เอา {code} ออกจากผลกวดนับ (ลบ record นับใน DB) — นับใหม่ได้โดยยิงอีก.",
-    "cancelCountConfirm": "ยกเลิกการนับ"
+    "cancelCountConfirm": "ยกเลิกการนับ",
+    "manageJob": "จัดการ / แก้ไข job"
   },
   "assistantChat": {
     "title": "AI ผู้ช่วยงาน",
@@ -4141,7 +4142,8 @@
     "confirmRestoreTitle": "นำ job กลับคืน?",
     "confirmRestoreMsg": "นำ {code} กลับไปเป็น ยังไม่นับ — กวดนับ หรือ หมายใหม่ได้.",
     "confirmRestoreBtn": "นำกลับคืน",
-    "missingMenuTitle": "เครื่องนับไม่พบ (หาย)"
+    "missingMenuTitle": "เครื่องนับไม่พบ (หาย)",
+    "manageJob": "จัดการ"
   },
   "sparePicker": {
     "title": "เลือกอะไหล่ (จาก ERP)",

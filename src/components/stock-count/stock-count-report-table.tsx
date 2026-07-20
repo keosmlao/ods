@@ -218,6 +218,14 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                           </button>
                         )}
                         <a
+                          href={`/service/${row.code}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+                        >
+                          {t.manageJob}
+                        </a>
+                        <a
                           href={`/service/${row.code}/label`}
                           target="_blank"
                           rel="noreferrer"
