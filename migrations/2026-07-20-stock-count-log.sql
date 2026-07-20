@@ -6,3 +6,5 @@ create table if not exists ods_stock_count (
   counted_at  timestamp not null default now(),
   counted_by  varchar(50)
 );
+-- ຂັ້ນ (stage) ຕອນນັບພົບ — ບອກສະຖານະເຄື່ອງເວລາກວດນັບ (snapshot, ບໍ່ປ່ຽນຕາມ tb_product ພາຍຫຼັງ)
+alter table ods_stock_count add column if not exists stage_at int;

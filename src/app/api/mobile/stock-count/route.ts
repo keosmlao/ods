@@ -1,6 +1,7 @@
 import { query } from "@/lib/db";
 import { requireMobile } from "@/lib/mobile-auth";
 import { EVERYONE } from "@/lib/roles";
+import { STAGE_SQL } from "@/lib/stage";
 import { countedCodes, inScopeRepairJobs } from "@/lib/stock-count";
 import { NextResponse } from "next/server";
 
@@ -46,9 +47,11 @@ export async function POST(request: Request) {
   try {
     for (const code of codes) {
       await query(
-        `insert into ods_stock_count (job_code, counted_at, counted_by)
-           values ($1, now(), $2)
-         on conflict (job_code) do update set counted_at = now(), counted_by = excluded.counted_by`,
+        `insert into ods_stock_count (job_code, counted_at, counted_by, stage_at)
+           select a.code, now(), $2, (${STAGE_SQL})::int
+             from tb_product a where a.code = $1
+         on conflict (job_code) do update
+           set counted_at = now(), counted_by = excluded.counted_by, stage_at = excluded.stage_at`,
         [code, guard.user.username],
       );
     }

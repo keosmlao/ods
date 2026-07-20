@@ -65,8 +65,8 @@ export default async function StockCountReportPage() {
                 <th className="px-2 py-1.5 font-semibold">ຍີ່ຫໍ້</th>
                 <th className="px-2 py-1.5 font-semibold">ລູກຄ້າ</th>
                 <th className="px-2 py-1.5 font-semibold">ບໍລິການ</th>
-                <th className="px-2 py-1.5 font-semibold">ຂັ້ນ</th>
-                <th className="px-2 py-1.5 font-semibold">ນັບເມື່ອ / ໂດຍ</th>
+                <th className="px-2 py-1.5 font-semibold">ຂັ້ນ (ປັດຈຸບັນ)</th>
+                <th className="px-2 py-1.5 font-semibold">ນັບເມື່ອ / ໂດຍ · ສະຖານະຕອນນັບ</th>
                 <th className="px-2 py-1.5 font-semibold">ຄ້າງ</th>
               </tr>
             </thead>
@@ -109,8 +109,22 @@ export default async function StockCountReportPage() {
                     <td className="whitespace-nowrap px-2 py-1 text-slate-600">
                       {done ? (
                         <>
-                          {row.counted_at}
-                          {row.counted_by && <span className="ml-1 text-slate-400">· {row.counted_by}</span>}
+                          <div>
+                            {row.counted_at}
+                            {row.counted_by && <span className="ml-1 text-slate-400">· {row.counted_by}</span>}
+                          </div>
+                          {row.counted_stage_label && (
+                            <div className="mt-0.5 inline-flex items-center gap-1">
+                              <span className="rounded bg-teal-50 px-1.5 py-0.5 text-[10px] font-semibold text-teal-700">
+                                {row.counted_stage_label}
+                              </span>
+                              {row.counted_stage_label !== row.stage_label && (
+                                <span className="text-[9px] text-amber-600" title="ເຄື່ອງຂະຫຍັບຂັ້ນຫຼັງນັບ">
+                                  ↗ ຂະຫຍັບແລ້ວ
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </>
                       ) : (
                         <span className="text-slate-300">-</span>

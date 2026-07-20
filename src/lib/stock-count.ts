@@ -59,6 +59,9 @@ export type StockCountReportRow = StockCountJob & {
   /** ນັບເມື່ອໃດ (null = ຍັງບໍ່ນັບ = ບໍ່ພົບຕົວ) */
   counted_at: string | null;
   counted_by: string | null;
+  /** ຂັ້ນຕອນນັບ (snapshot) — ເລກ + ປ້າຍ. null = ຍັງບໍ່ນັບ */
+  stage_at: number | null;
+  counted_stage_label: string | null;
 };
 
 /**
@@ -67,12 +70,12 @@ export type StockCountReportRow = StockCountJob & {
  */
 export async function stockCountReport(): Promise<StockCountReportRow[]> {
   const rows = (
-    await query<Omit<StockCountReportRow, "stage_label" | "service_type_label">>(
+    await query<Omit<StockCountReportRow, "stage_label" | "service_type_label" | "counted_stage_label">>(
       `select a.code, a.name_1 product, a.sn, a.p_brand brand, c.name_1 customer,
           (${STAGE_SQL}) stage, a.service_type,
           to_char(a.time_register,'DD-MM-YYYY') registered,
           greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int elapsed_seconds,
-          to_char(sc.counted_at,'DD-MM-YYYY HH24:MI') counted_at, sc.counted_by
+          to_char(sc.counted_at,'DD-MM-YYYY HH24:MI') counted_at, sc.counted_by, sc.stage_at
         from tb_product a
         left join ar_customer c on c.code = a.cust_code
         left join ods_stock_count sc on sc.job_code = a.code
@@ -84,5 +87,7 @@ export async function stockCountReport(): Promise<StockCountReportRow[]> {
     ...row,
     stage_label: stageLabel(row.stage, row.service_type),
     service_type_label: SERVICE_TYPE_LABEL[row.service_type ?? ""] ?? (row.service_type ?? "-"),
+    // ສະຖານະຕອນນັບພົບ (snapshot) — ຖ້າຂັ້ນປັດຈຸບັນຕ່າງ = ເຄື່ອງຂະຫຍັບຫຼັງນັບ
+    counted_stage_label: row.stage_at != null ? stageLabel(row.stage_at, row.service_type) : null,
   }));
 }
