@@ -834,33 +834,219 @@
           "QC + feedback: pass QC → customer feedback → close the job.",
           "Reports: installation report, monthly install-spares summary, customer survey (Install/Reports menu)."
         ]
+      }
+    ],
+    "docMeta": {
+      "revision": "Rev",
+      "effectiveDate": "Effective",
+      "owner": "Owner",
+      "purpose": "Purpose",
+      "scope": "Scope",
+      "procedure": "Procedure",
+      "references": "References"
+    },
+    "sopTitle": "SOP — Standard Operating Procedures",
+    "wiTitle": "WI — Work Instructions",
+    "sopDocs": [
+      {
+        "code": "SOP-R01",
+        "title": "Receive device for repair",
+        "owner": "CS",
+        "purpose": "Open a complete job so it can be tracked end-to-end.",
+        "scope": "All customer devices (CI/ST/IH/PS).",
+        "steps": [
+          "Click “Receipt” on /service.",
+          "Select/add customer + choose service type.",
+          "Enter product/brand/model/SN/accessories + symptom + photos.",
+          "Save → get a job number.",
+          "Print the A4 receipt + 75×100 sticker on the device."
+        ],
+        "refs": "WI-01"
       },
       {
-        "title": "SOP — Standard Operating Procedures",
-        "intro": "SOP reference codes — standard steps everyone follows (R=repair, S=stock, I=install).",
-        "items": [
-          "SOP-R01 Intake — CS opens a job with customer/device/SN/symptom/photos → print receipt + sticker.",
-          "SOP-R02 Check — technician diagnoses the fault, records the result within SLA.",
-          "SOP-R03 Quote — issue a quotation → approve → customer agrees.",
-          "SOP-R04 Spares — check stock → request or purchase.",
-          "SOP-R05 Repair — technician repairs → records spares used.",
-          "SOP-R06 QC — must pass standard before return.",
-          "SOP-R07 Return / close — hand over the device + collect payment.",
-          "SOP-S01 Stock count — scan-count what's physically there → close·not-found for missing → export report.",
-          "SOP-I01 Install — assign → request spares → install → QC → feedback → close."
-        ]
+        "code": "SOP-R02",
+        "title": "Check / diagnose fault",
+        "owner": "Technician",
+        "purpose": "Find the real cause before quoting.",
+        "scope": "Accepted jobs, stages 1–2.",
+        "steps": [
+          "Accept the job (repair_confirm).",
+          "Inspect + record the diagnosed fault.",
+          "If spares needed → go to SOP-R04."
+        ],
+        "refs": "—"
       },
       {
-        "title": "WI — Work Instructions",
-        "intro": "WI = detailed step-by-step for each small task.",
-        "items": [
-          "WI-01 Print 75×100 sticker — /service click 🏷 → print → choose 75×100 paper, margin = 0.",
-          "WI-02 Scan-count — count page → scan barcode/SN → listen for the confirm beep (found/dup/not-found).",
-          "WI-03 Close·not-found — count report, Not-counted tab → Close·not-found → confirm.",
-          "WI-04 Restore — Not-found devices menu → Restore.",
-          "WI-05 Export Excel — click the Export/Excel button on each report (matches filters).",
-          "WI-06 Toggle a feature — Users → System settings → toggle (e.g. Manage backlog)."
-        ]
+        "code": "SOP-R03",
+        "title": "Quote & approve",
+        "owner": "Supervisor / CS",
+        "purpose": "Get customer agreement on price before repair.",
+        "scope": "Chargeable jobs.",
+        "steps": [
+          "Issue a quotation.",
+          "Get it approved (supervisor).",
+          "Inform customer → agree/decline.",
+          "Decline → cancellation queue."
+        ],
+        "refs": "—"
+      },
+      {
+        "code": "SOP-R04",
+        "title": "Handle spares (request / buy)",
+        "owner": "Warehouse / Supervisor",
+        "purpose": "Ensure spares are ready for repair.",
+        "scope": "Jobs using spares.",
+        "steps": [
+          "Check stock (repair warehouse balance).",
+          "In stock → request → pick up.",
+          "Not in stock → purchase request → PO → receive."
+        ],
+        "refs": "—"
+      },
+      {
+        "code": "SOP-R05",
+        "title": "Repair",
+        "owner": "Technician",
+        "purpose": "Repair to standard.",
+        "scope": "Stages 8–9.",
+        "steps": [
+          "Start repair (time_repair).",
+          "Fit spares + record used_spare.",
+          "Finish repair → go to QC."
+        ],
+        "refs": "—"
+      },
+      {
+        "code": "SOP-R06",
+        "title": "QC quality check",
+        "owner": "QC",
+        "purpose": "Confirm the job meets standard before return.",
+        "scope": "Every job before return.",
+        "steps": [
+          "Check against the checklist.",
+          "Pass → proceed to return.",
+          "Fail → send back to technician."
+        ],
+        "refs": "—"
+      },
+      {
+        "code": "SOP-R07",
+        "title": "Return & close",
+        "owner": "CS",
+        "purpose": "Return the device + collect payment + close.",
+        "scope": "Jobs that passed QC.",
+        "steps": [
+          "Issue the receipt.",
+          "Return (return_complete).",
+          "Close the job."
+        ],
+        "refs": "—"
+      },
+      {
+        "code": "SOP-S01",
+        "title": "Repair stock count",
+        "owner": "Supervisor / Approver",
+        "purpose": "Confirm devices in the center match the system.",
+        "scope": "All repair devices.",
+        "steps": [
+          "Count page → scan barcode/SN of what's there.",
+          "Not found → Close·not-found (confirm).",
+          "Export report → reset the round (if needed)."
+        ],
+        "refs": "WI-02, WI-03, WI-04"
+      },
+      {
+        "code": "SOP-I01",
+        "title": "Installation",
+        "owner": "Install tech / Supervisor",
+        "purpose": "Complete the install + satisfy the customer.",
+        "scope": "Installation jobs.",
+        "steps": [
+          "Assign → technician accepts.",
+          "Request + pick up spares → install.",
+          "QC → customer feedback → close."
+        ],
+        "refs": "—"
+      }
+    ],
+    "wiDocs": [
+      {
+        "code": "WI-01",
+        "title": "Print 75×100 sticker",
+        "owner": "CS / Supervisor",
+        "purpose": "Attach a tracking label to the device.",
+        "scope": "Every received device.",
+        "steps": [
+          "On /service click 🏷 (or 🖶 on the count page).",
+          "Click “Print tracking label”.",
+          "Choose 75×100 paper, margin = 0 (or thermal printer)."
+        ],
+        "refs": "SOP-R01"
+      },
+      {
+        "code": "WI-02",
+        "title": "Scan-count",
+        "owner": "Supervisor / Approver",
+        "purpose": "Mark devices physically present.",
+        "scope": "Count page.",
+        "steps": [
+          "Focus the scan box → scan barcode or type SN/job no.",
+          "Listen for the beep (found=high, dup=double, not-found=low).",
+          "Duplicate → says “already counted”."
+        ],
+        "refs": "SOP-S01"
+      },
+      {
+        "code": "WI-03",
+        "title": "Close · not-found",
+        "owner": "Supervisor / Approver",
+        "purpose": "Close a missing device out of the queue.",
+        "scope": "Count report.",
+        "steps": [
+          "Go to /reports/stock-count → “Not counted” tab.",
+          "Click “Close · not-found” on the row.",
+          "Confirm → job moves to “Not found / missing”."
+        ],
+        "refs": "SOP-S01"
+      },
+      {
+        "code": "WI-04",
+        "title": "Restore",
+        "owner": "Supervisor / Approver",
+        "purpose": "Return a job to the pending queue.",
+        "scope": "Closed devices.",
+        "steps": [
+          "Open the “Not-found devices (missing)” menu.",
+          "Click “Restore” on the row.",
+          "Confirm → job returns to the queue."
+        ],
+        "refs": "SOP-S01"
+      },
+      {
+        "code": "WI-05",
+        "title": "Export Excel",
+        "owner": "Anyone (per rights)",
+        "purpose": "Export data to Excel.",
+        "scope": "Report pages with an Export button.",
+        "steps": [
+          "Set filters (tab/search) as needed.",
+          "Click “Export / Excel”.",
+          "The .xlsx matches the filters."
+        ],
+        "refs": "—"
+      },
+      {
+        "code": "WI-06",
+        "title": "Toggle a feature (settings)",
+        "owner": "Manager",
+        "purpose": "Enable/disable a system feature.",
+        "scope": "/manage/settings.",
+        "steps": [
+          "Users → System settings.",
+          "Toggle (e.g. “Manage backlog”).",
+          "Effect is immediate (system-wide)."
+        ],
+        "refs": "—"
       }
     ]
   },
