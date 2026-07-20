@@ -144,7 +144,7 @@ export async function sendClaimEmail(claimNo: string): Promise<ClaimState> {
   if (!guard.ok) return { error: guard.error };
   const claim = await claimByNo(claimNo);
   if (!claim) return { error: "ບໍ່ພົບໃບເຄມ" };
-  const { emails } = await recipientTargets("claim");
+  const { emails } = await recipientTargets();
   const to = emails.length ? emails.join(",") : (process.env.MAIL_TO ?? "");
   if (!to.trim()) return { error: "ຍັງບໍ່ມີຜູ້ຮັບ email (ຕັ້ງທີ່ /manage/report-recipients)" };
   const delivery = claim.ref_job ? await jobDelivery(claim.ref_job) : null;

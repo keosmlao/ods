@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     const summary = await claimDailySummary();
     const text = claimDailyText(summary, date);
     // ຜູ້ຮັບ: ຈาก UI (/manage/report-recipients) ກ່ອນ, ວ່າງ ⇒ fallback env
-    const { emails, lineIds } = await recipientTargets("claim");
+    const { emails, lineIds } = await recipientTargets();
     const mailTo = emails.length ? emails.join(",") : (process.env.MAIL_TO ?? "");
     const lineTo = lineIds.length ? lineIds : (process.env.LINE_NOTIFY_TO?.split(",").map((t) => t.trim()).filter(Boolean) ?? []);
     const [line, email] = await Promise.all([
