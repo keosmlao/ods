@@ -1295,6 +1295,32 @@
           "Rice cooker no heat → heating element, thermostat, fuse.",
           "Iron no heat → thermostat, element, broken cord."
         ]
+      },
+      {
+        "type": "Television (TV)",
+        "items": [
+          "Won't power → power supply, fuse, power button.",
+          "Sound but no picture → panel/backlight, ribbon cable.",
+          "Lines/rolling image → panel, T-CON board.",
+          "No signal → input port/signal board, settings."
+        ]
+      },
+      {
+        "type": "Audio / amplifier",
+        "items": [
+          "No sound → speaker/cable, amp, jack.",
+          "Distorted/hum → amp stage, ground, capacitors.",
+          "Won't power → power, fuse, transformer."
+        ]
+      },
+      {
+        "type": "Water pump",
+        "items": [
+          "Won't run → capacitor, motor, pressure switch.",
+          "Runs but no suction → impeller, seal, air ingress (prime it).",
+          "Cycles on/off → pressure tank, pressure switch.",
+          "Leaking → mechanical seal, gasket."
+        ]
       }
     ],
     "applianceTitle": "Tech knowledge by appliance"
