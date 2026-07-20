@@ -2446,7 +2446,8 @@
     "resetCount": "ລ້າງການນັບ",
     "resetTitle": "ລ້າງການກວດນັບ?",
     "resetMessage": "ຈະລຶບເຄື່ອງໝາຍ ‘ນັບແລ້ວ’ ທັງໝົດ ກັບໄປ 0. ຂໍ້ມູນທີ່ finalize ໄປແລ້ວບໍ່ກະທົບ.",
-    "resetConfirm": "ລ້າງ"
+    "resetConfirm": "ລ້າງ",
+    "allCounted": "ນັບຄົບທຸກລາຍການແລ້ວ 🎉"
   },
   "assistantChat": {
     "title": "AI ຜູ້ຊ່ວຍວຽກ",

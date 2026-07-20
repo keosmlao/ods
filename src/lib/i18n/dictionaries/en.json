@@ -2446,7 +2446,8 @@
     "resetCount": "Reset count",
     "resetTitle": "Reset the count?",
     "resetMessage": "This clears all ‘counted’ marks back to 0. Already-finalized data is unaffected.",
-    "resetConfirm": "Reset"
+    "resetConfirm": "Reset",
+    "allCounted": "All items counted 🎉"
   },
   "assistantChat": {
     "title": "AI Work Assistant",

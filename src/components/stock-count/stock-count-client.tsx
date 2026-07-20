@@ -1,5 +1,4 @@
 "use client";
-import { finalizeStockCount } from "@/app/actions/stock-count";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Elapsed } from "@/components/elapsed";
 import { MobileCardList } from "@/components/mobile-card-list";
@@ -7,15 +6,35 @@ import { elapsedTone } from "@/lib/elapsed-tone";
 import { useDict } from "@/lib/i18n/context";
 import type { StockCountJob } from "@/lib/stock-count";
 import { Check, CircleAlert, RotateCcw, ScanLine } from "lucide-react";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
+
+/** ເກັບ "ນັບແລ້ວ" ໄວ້ໃນ browser ⇒ refresh ບໍ່ຫາຍ (ບໍ່ແຕະ server ຈົນກວ່າຈະຕັດສິນໃຈເອງ) */
+const STORAGE_KEY = "ods:stock-count:scanned";
 
 export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
   const t = useDict().stockCount;
   const [scanned, setScanned] = useState<Set<string>>(new Set());
+
+  // ໂຫຼດ "ນັບແລ້ວ" ຈາກ localStorage ຫຼັງ mount (ກັນ hydration mismatch — server render ຫວ່າງ)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (Array.isArray(arr) && arr.length) setScanned(new Set(arr as string[]));
+    } catch {
+      /* ຄ່າເສຍ = ເລີ່ມໃໝ່ */
+    }
+  }, []);
+
+  const persist = (set: Set<string>) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
+    } catch {
+      /* localStorage ເຕັມ/ປິດ = ຂ້າມ */
+    }
+  };
   const [flash, setFlash] = useState<{ code: string; ok: boolean; dupe?: boolean } | null>(null);
-  const [result, setResult] = useState<{ held: number; missing: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, startBusy] = useTransition();
   const { ask, dialog } = useConfirm();
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -35,8 +54,8 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
   const found = scanned.size;
   const pct = total > 0 ? Math.round((found / total) * 100) : 0;
 
-  // Pending ທັງໝົດ — ບໍ່ແຍກ service type (ສະແດງທຸກອັນ)
-  const shownJobs = jobs;
+  // ສະແດງສະເພາະ **ຍັງບໍ່ທັນນັບ** — ນັບແລ້ວ (ຍິງ/ກົດ) ຈະຫຼຸດອອກຈາກລາຍການ
+  const shownJobs = jobs.filter((job) => !scanned.has(job.code));
 
   // ── ສະແກນ (keyboard-wedge: ພິມ code/SN + Enter) ──
   const onScan = (raw: string) => {
@@ -46,7 +65,11 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
     if (code) {
       // ຍິງຊ້ຳຕົວທີ່ນັບແລ້ວ ⇒ ບອກວ່າ "ນັບໄປແລ້ວ" (ບໍ່ນັບຊ້ຳ)
       const dupe = scanned.has(code);
-      if (!dupe) setScanned((prev) => new Set(prev).add(code));
+      if (!dupe) {
+        const next = new Set(scanned).add(code);
+        setScanned(next);
+        persist(next);
+      }
       setFlash({ code, ok: true, dupe });
     } else {
       setFlash({ code: value, ok: false });
@@ -59,12 +82,11 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
 
   // ── ກົດ (tap) ແຖວ/card ເພື່ອ ໝາຍ/ຍົກເລີກ "ນັບແລ້ວ" — ສຳລັບອັນທີ່ສະແກນບໍ່ໄດ້ (ເຊັ່ນ IH) ──
   const toggleCounted = (code: string) => {
-    setScanned((prev) => {
-      const next = new Set(prev);
-      if (next.has(code)) next.delete(code);
-      else next.add(code);
-      return next;
-    });
+    const next = new Set(scanned);
+    if (next.has(code)) next.delete(code);
+    else next.add(code);
+    setScanned(next);
+    persist(next);
   };
 
   // ── ຍົກເລີກ/ລ້າງການກວດນັບ — ກັບໄປ 0 ທັງໝົດ (ຢືນຢັນກ່ອນ) ──
@@ -76,28 +98,12 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
       confirmLabel: t.resetConfirm,
       tone: "danger",
     });
-    if (ok) setScanned(new Set());
+    if (ok) {
+      setScanned(new Set());
+      persist(new Set());
+    }
   };
 
-  const finalize = async () => {
-    const notScanned = total - found;
-    const ok = await ask({
-      title: t.finalizeTitle,
-      message: `${t.scanFound} ${found}/${total} ${t.itemsUnit}. ${t.itemsNotFound} ${notScanned} ${t.itemsUnit} ${t.willBeMarked} “ຕ້ອງກວດວ່າຍັງຢູ່” ${t.autoStopClock}`,
-      confirmLabel: `${t.markWord} ຕ້ອງກວດ`,
-      tone: notScanned > 0 ? "danger" : undefined,
-    });
-    if (!ok) return;
-    setError(null);
-    startBusy(async () => {
-      const res = await finalizeStockCount(Array.from(scanned));
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      setResult({ held: res.held ?? 0, missing: res.missing ?? 0 });
-    });
-  };
 
   return (
     <div className="w-full space-y-4">
@@ -152,38 +158,26 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {found > 0 && (
           <button
             type="button"
-            disabled={busy}
-            onClick={finalize}
-            className="h-11 flex-1 rounded-xl bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+            onClick={resetCount}
+            title={t.resetCount}
+            className="inline-flex h-9 items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-600 hover:bg-rose-100"
           >
-            {busy ? t.marking : `${t.finishCountMark} ${(total - found).toLocaleString()} ${t.itemsNotFoundAs} ‘ຕ້ອງກວດ’`}
+            <RotateCcw className="size-4" />
+            {t.resetCount}
           </button>
-          {found > 0 && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={resetCount}
-              title={t.resetCount}
-              className="inline-flex h-11 shrink-0 items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:opacity-50"
-            >
-              <RotateCcw className="size-4" />
-              {t.resetCount}
-            </button>
-          )}
-        </div>
-        {error && <p className="text-xs font-semibold text-rose-600">{error}</p>}
-        {result && (
-          <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
-            {t.doneMark} “ຕ້ອງກວດ” {result.held.toLocaleString()} {t.itemsUnit} ({t.notFoundWord} {result.missing.toLocaleString()}). {t.jobsMovedTo} ‘ຕ້ອງກວດ’.
-          </p>
         )}
       </div>
 
       {total === 0 ? (
         <p className="py-16 text-center text-sm text-slate-400">{t.emptyMsg}</p>
+      ) : shownJobs.length === 0 ? (
+        <p className="flex items-center justify-center gap-2 py-16 text-center text-sm font-semibold text-emerald-700">
+          <Check className="size-5" />
+          {t.allCounted}
+        </p>
       ) : (
         <>
           {/* ── Desktop = ຕາຕະລາງ ── */}
