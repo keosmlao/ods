@@ -883,6 +883,19 @@
           "Test after install: run it + measure + show the customer.",
           "Clean up the site + photograph the finished work."
         ]
+      },
+      {
+        "title": "Claim system",
+        "intro": "The /claims page — three claim types (Warehouse & Spares → Claim system).",
+        "wf": "repair",
+        "items": [
+          "CLM-A claim spare from supplier: a bought spare is faulty → return to supplier for a replacement/credit.",
+          "CLM-B shop sends to claim: a shop (customer) sends in → <b>resolved at the center</b> (replace/repair/decide) → return to shop. Never reaches the supplier.",
+          "CLM-C bill repair fee to supplier: in-brand-warranty items → don't charge the customer → bill labour+parts to the supplier.",
+          "Open a claim: /claims → “Open claim” → pick type + supplier/brand (from ERP) + items.",
+          "Track: per-type pipeline (draft→sent→…→closed), advance on the claim, add items/notes.",
+          "Supplier & brand come from ERP (ap_supplier / ic_brand) — no manual typing."
+        ]
       }
     ],
     "docMeta": {
@@ -1082,6 +1095,48 @@
           "Issue the work order/bill (if pending)."
         ],
         "refs": "WI-I05"
+      },
+      {
+        "code": "SOP-CLM-A",
+        "title": "Claim spare from supplier",
+        "owner": "Warehouse / Claims",
+        "purpose": "Return a faulty bought spare to the supplier.",
+        "scope": "CLM-A.",
+        "steps": [
+          "Open claim A + supplier + spare + reason.",
+          "Send to supplier (record send date).",
+          "Track → approve/reject.",
+          "Receive replacement/credit → close."
+        ],
+        "refs": "WI-CLM01"
+      },
+      {
+        "code": "SOP-CLM-B",
+        "title": "Shop sends to claim (at center)",
+        "owner": "CS / Tech",
+        "purpose": "Receive a shop claim + resolve at the center.",
+        "scope": "CLM-B.",
+        "steps": [
+          "Receive from shop — open claim B + customer + symptom.",
+          "Inspect + decide if it qualifies.",
+          "Replace/repair at the center.",
+          "Return to shop → close."
+        ],
+        "refs": "WI-CLM01"
+      },
+      {
+        "code": "SOP-CLM-C",
+        "title": "Bill repair fee to supplier",
+        "owner": "Supervisor / Accounts",
+        "purpose": "Bill the repair to the supplier instead of the customer (brand warranty).",
+        "scope": "CLM-C.",
+        "steps": [
+          "In-brand-warranty job → create claim C + job no + labour/parts.",
+          "Batch → submit to supplier.",
+          "Supplier approves.",
+          "Receive payment → close."
+        ],
+        "refs": "—"
       }
     ],
     "wiDocs": [
@@ -1240,6 +1295,19 @@
           "Save → returned to warehouse."
         ],
         "refs": "SOP-I05"
+      },
+      {
+        "code": "WI-CLM01",
+        "title": "Open a claim",
+        "owner": "Claims",
+        "purpose": "Create a new claim.",
+        "scope": "/claims/new.",
+        "steps": [
+          "/claims → click “Open claim”.",
+          "Pick type (A/B/C) + supplier/brand (from ERP) / shop.",
+          "Save → get a claim no → add items."
+        ],
+        "refs": "SOP-CLM-A, SOP-CLM-B, SOP-CLM-C"
       }
     ],
     "printSet": "Print set",
