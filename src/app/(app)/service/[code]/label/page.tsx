@@ -4,7 +4,9 @@ import { code128Svg } from "@/lib/barcode";
 import { query } from "@/lib/db";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { stageLabel, STAGE_SQL } from "@/lib/stage";
+import { trackUrl } from "@/lib/track";
 import { notFound } from "next/navigation";
+import QRCode from "qrcode";
 
 /**
  * **ປ້າຍ tracking ເຄື່ອງສ້ອມ — ຂະໜາດ 100 × 150 mm** (ປ້າຍ thermal ມ້ວນ) — ຕິດໃສ່ເຄື່ອງລູກຄ້າ.
@@ -50,6 +52,8 @@ export default async function JobLabelPage({ params }: Props) {
   if (!job) notFound();
 
   const barcode = code128Svg(job.code, { height: 60, fit: true });
+  // QR ໃຫ້ລູກຄ້າສະແກນຕິດຕາມສະຖານະເອງ → ໜ້າສາທາລະນະ /track/<ເລກງານ> (ຄືໃບຮັບເຄື່ອງ)
+  const qr = await QRCode.toString(await trackUrl(job.code), { type: "svg", margin: 0, errorCorrectionLevel: "M" });
   const serviceType = job.service_type ? SERVICE_TYPE_LABEL[job.service_type] ?? job.service_type : null;
   const info = (label: string, value: string | null) =>
     value ? (
@@ -87,11 +91,18 @@ export default async function JobLabelPage({ params }: Props) {
             {company.address && <div className="truncate text-[7pt] leading-tight text-slate-600">{company.address}</div>}
             {company.tel && <div className="text-[7pt] leading-tight text-slate-600">ໂທ {company.tel}</div>}
           </div>
-          {serviceType && (
-            <span className="shrink-0 rounded border border-black px-1.5 py-0.5 text-[8pt] font-bold">
-              {job.service_type} · {serviceType}
-            </span>
-          )}
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            {serviceType && (
+              <span className="rounded border border-black px-1.5 py-0.5 text-[8pt] font-bold">
+                {job.service_type} · {serviceType}
+              </span>
+            )}
+            <div className="flex flex-col items-center">
+              {/* QR SVG ຈາກ lib qrcode — URL ຈາກ trackUrl (ບໍ່ມີ user input ດິບໃນ markup) */}
+              <div className="[&>svg]:h-[16mm] [&>svg]:w-[16mm]" dangerouslySetInnerHTML={{ __html: qr }} />
+              <span className="text-[6.5pt] leading-tight text-slate-600">ສະແກນຕິດຕາມ</span>
+            </div>
+          </div>
         </div>
 
         {/* ── ຂໍ້ມູນເຄື່ອງ ── */}
