@@ -1,4 +1,5 @@
 import { claimDailySummary, claimDailyText } from "@/lib/claim";
+import { sendMail } from "@/lib/mail";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
@@ -43,9 +44,11 @@ export async function GET(request: NextRequest) {
     const date = new Date().toLocaleDateString("en-GB");
     const summary = await claimDailySummary();
     const text = claimDailyText(summary, date);
-    const line = await pushLine(text);
-    // email: ລໍຕິດຕັ້ງ nodemailer + SMTP odienmall.com (Phase 3b)
-    return NextResponse.json({ ok: true, summary, text, line, email: { sent: false, reason: "ລໍ SMTP setup (odienmall.com)" } });
+    const [line, email] = await Promise.all([
+      pushLine(text),
+      sendMail({ to: process.env.MAIL_TO ?? "", subject: `ສະຫຼຸບເຄມ ${date}`, text }),
+    ]);
+    return NextResponse.json({ ok: true, summary, text, line, email });
   } catch (error) {
     console.error("claim-daily cron failed", error);
     return NextResponse.json({ error: "ສ້າງສະຫຼຸບລົ້ມເຫຼວ" }, { status: 500 });
