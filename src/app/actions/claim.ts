@@ -1,5 +1,5 @@
 "use server";
-import { CLAIM_FLOW, CLAIM_REJECTED, claimByNo, type ClaimType } from "@/lib/claim";
+import { CLAIM_FLOW, CLAIM_REJECTED, claimByNo, cobInfo, type ClaimType } from "@/lib/claim";
 import { query } from "@/lib/db";
 import { requireRole } from "@/lib/guard";
 import { CLAIM_SIDE } from "@/lib/roles";
@@ -91,6 +91,28 @@ export async function deleteClaimItem(claimNo: string, id: number): Promise<Clai
   if (!guard.ok) return { error: guard.error };
   await query(`delete from ods_claim_item where id = $1 and claim_no = $2`, [id, claimNo]);
   await query(`update ods_claim set amount = coalesce((select sum(amount) from ods_claim_item where claim_no=$1),0) where claim_no=$1`, [claimNo]);
+  revalidatePath(`/claims/${claimNo}`);
+  return { claimNo };
+}
+
+/**
+ * ຜູກ CLM-C ກັບເອກະສານ COB (ic_trans trans_flag=87) ໃນ ERP — **ກວດວ່າມີຈິງ (read-only)**
+ * ແລ້ວເກັບ doc_no ໃສ່ ods_claim.erp_doc_no. ບໍ່ສ້າງ/ບໍ່ແກ້ ERP. ວ່າງ = ຖອດການຜູກ.
+ */
+export async function linkCob(claimNo: string, docNo: string): Promise<ClaimState> {
+  const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
+  if (!guard.ok) return { error: guard.error };
+  const d = docNo.trim();
+  if (!d) {
+    await query(`update ods_claim set erp_doc_no = null where claim_no = $1`, [claimNo]);
+    await log(claimNo, guard.session.username, "cob", "ຖອດການຜູກ COB");
+    revalidatePath(`/claims/${claimNo}`);
+    return { claimNo };
+  }
+  const info = await cobInfo(d);
+  if (!info) return { error: `ບໍ່ພົບເອກະສານ COB ${d} ໃນ ERP` };
+  await query(`update ods_claim set erp_doc_no = $1 where claim_no = $2`, [info.doc_no, claimNo]);
+  await log(claimNo, guard.session.username, "cob", `ຜູກ COB ${info.doc_no} (${info.total_amount.toLocaleString()})`);
   revalidatePath(`/claims/${claimNo}`);
   return { claimNo };
 }

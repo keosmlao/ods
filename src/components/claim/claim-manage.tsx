@@ -1,17 +1,20 @@
 "use client";
-import { addClaimItem, advanceClaim, deleteClaimItem, updateClaimRemark } from "@/app/actions/claim";
-import type { ClaimItem, ClaimType } from "@/lib/claim";
-import { ArrowRight, LoaderCircle, Plus, Trash2, X } from "lucide-react";
+import { addClaimItem, advanceClaim, deleteClaimItem, linkCob, updateClaimRemark } from "@/app/actions/claim";
+import type { ClaimItem, ClaimType, CobInfo } from "@/lib/claim";
+import { ArrowRight, Link2, LoaderCircle, Plus, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 export function ClaimManage({
   claimNo,
+  type,
   status,
   nextStatus,
   canReject,
   initialItems,
   remark,
+  erpDocNo,
+  cob,
 }: {
   claimNo: string;
   type: ClaimType;
@@ -20,12 +23,15 @@ export function ClaimManage({
   canReject: boolean;
   initialItems: ClaimItem[];
   remark: string | null;
+  erpDocNo: string | null;
+  cob: CobInfo | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [items, setItems] = useState(initialItems);
   const [form, setForm] = useState({ item_code: "", item_name: "", qty: "1", unit: "", amount: "0" });
   const [note, setNote] = useState(remark ?? "");
+  const [cobDoc, setCobDoc] = useState(erpDocNo ?? "");
   const [err, setErr] = useState("");
 
   const act = (fn: () => Promise<{ error?: string }>) =>
@@ -73,6 +79,26 @@ export function ClaimManage({
         </div>
         {err && <p className="mt-2 text-xs font-semibold text-rose-600">{err}</p>}
       </div>
+
+      {/* ── COB (ຜูกเอกสาร ERP — ສະເພาะ CLM-C) ── */}
+      {type === "C" && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="mb-2 text-xs font-semibold text-slate-500">ເອກະສານ COB (ERP · trans_flag 87)</p>
+          <div className="flex flex-wrap items-end gap-2">
+            <input value={cobDoc} onChange={(e) => setCobDoc(e.target.value)} placeholder="ເລກ COB (ເຊັ່ນ COB26060003)" className={`${inp} min-w-48 flex-1`} />
+            <button type="button" disabled={pending} onClick={() => act(() => linkCob(claimNo, cobDoc))} className="inline-flex h-9 items-center gap-1 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"><Link2 className="size-4" /> ຜູກ COB</button>
+          </div>
+          {cob ? (
+            <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-[12px] text-emerald-800">
+              <b>{cob.doc_no}</b> · ຍอด <b className="tabular-nums">{cob.total_amount.toLocaleString()}</b> · supplier {cob.supplier_code ?? "-"} · {cob.doc_date ?? "-"} · status {cob.status === 0 ? "ยังไม่ดำเนินการ" : cob.status}
+            </div>
+          ) : erpDocNo ? (
+            <p className="mt-2 text-[11px] text-amber-600">ຜูกไว้ {erpDocNo} ແຕ່ອ່ານจาก ERP ບໍ່ໄດ້ (ตรวจเลข).</p>
+          ) : (
+            <p className="mt-2 text-[11px] text-slate-400">ບັນຊີສ້າງ COB ໃນ ERP ແລ້ວ ⇒ ໃສ່ເລກ COB ຢູ່ນີ້ (read-only, ບໍ່ສ້າง/ບໍ່ແก้ ERP).</p>
+          )}
+        </div>
+      )}
 
       {/* ── ລາຍการ ── */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

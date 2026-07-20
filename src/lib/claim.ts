@@ -1,4 +1,4 @@
-import { query } from "@/lib/db";
+import { query, queryOdg } from "@/lib/db";
 
 /**
  * ລະບົບເຄມ (Claim) — Phase 1.
@@ -67,6 +67,7 @@ export type ClaimRow = {
   customer_code: string | null;
   customer_name: string | null;
   ref_job: string | null;
+  erp_doc_no: string | null;
   status: string;
   status_label: string;
   amount: number;
@@ -85,7 +86,7 @@ const mapRow = (r: RawClaim): ClaimRow => ({
 });
 
 const SELECT = `select c.id, c.claim_no, c.claim_type, c.supplier_code, c.brand_code, c.customer_code,
-    cust.name_1 customer_name, c.ref_job, c.status, c.amount, c.reason, c.created_by,
+    cust.name_1 customer_name, c.ref_job, c.erp_doc_no, c.status, c.amount, c.reason, c.created_by,
     to_char(c.created_at,'DD-MM-YYYY HH24:MI') created_at, c.remark
   from ods_claim c
   left join ar_customer cust on cust.code = c.customer_code`;
@@ -123,6 +124,22 @@ export async function claimLogs(claimNo: string): Promise<ClaimLog[]> {
     `select to_char(at,'DD-MM-YYYY HH24:MI') at, by_user, event, detail from ods_claim_log where claim_no = $1 order by id desc`,
     [claimNo],
   )).rows;
+}
+
+/**
+ * ອ່ານເອກະສານ COB (ic_trans trans_flag=87) ຈາກ ERP — **read-only** (ໃຫ້ CLM-C ຜູກ doc_no
+ * ຂອງໃບ COB ທີ່ບັນຊີສ້າງໄວ້ແລ້ວ, ບໍ່ສ້າງ/ບໍ່ແກ້ ໃນ ERP). status 0 = ຍັງ, 1+ = ດຳເນີນການ.
+ */
+export type CobInfo = { doc_no: string; doc_date: string | null; supplier_code: string | null; total_amount: number; status: number };
+export async function cobInfo(docNo: string): Promise<CobInfo | null> {
+  const r = (
+    await queryOdg<{ doc_no: string; doc_date: string | null; cust_code: string | null; total_amount: string | null; status: number }>(
+      `select doc_no, to_char(doc_date,'DD-MM-YYYY') doc_date, cust_code, total_amount, status
+         from ic_trans where trans_flag = 87 and doc_no = $1 limit 1`,
+      [docNo],
+    )
+  ).rows[0];
+  return r ? { doc_no: r.doc_no, doc_date: r.doc_date, supplier_code: r.cust_code, total_amount: Number(r.total_amount ?? 0), status: r.status } : null;
 }
 
 /** ໂຕເລກຕໍ່ status (badge ໃນ pipeline) ຂອງ type ໜຶ່ງ */

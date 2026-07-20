@@ -1,6 +1,6 @@
 import { ClaimManage } from "@/components/claim/claim-manage";
 import { getSession } from "@/lib/auth";
-import { CLAIM_FLOW, CLAIM_REJECTED, CLAIM_TYPE_LABEL, claimByNo, claimItems, claimLogs, claimNextStatus, isClaimOpen } from "@/lib/claim";
+import { CLAIM_FLOW, CLAIM_REJECTED, CLAIM_TYPE_LABEL, claimByNo, claimItems, claimLogs, claimNextStatus, cobInfo, isClaimOpen } from "@/lib/claim";
 import { CLAIM_SIDE, roleOf } from "@/lib/roles";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
@@ -20,6 +20,7 @@ export default async function ClaimDetailPage({ params }: Props) {
   if (!claim) notFound();
   const [items, logs] = await Promise.all([claimItems(claimNo), claimLogs(claimNo)]);
   const next = claimNextStatus(claim.claim_type, claim.status);
+  const cob = claim.claim_type === "C" && claim.erp_doc_no ? await cobInfo(claim.erp_doc_no).catch(() => null) : null;
 
   const info = (k: string, v: string | null) =>
     v ? (
@@ -90,6 +91,8 @@ export default async function ClaimDetailPage({ params }: Props) {
           canReject={claim.claim_type === "A"}
           initialItems={items}
           remark={claim.remark}
+          erpDocNo={claim.erp_doc_no}
+          cob={cob}
         />
       </div>
     </div>
