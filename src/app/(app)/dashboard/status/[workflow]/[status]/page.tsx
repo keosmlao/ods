@@ -27,7 +27,7 @@ import {
   repairSlaTone,
   repairStageTargetHours,
 } from "@/lib/repair-sla";
-import { STAGE_ELAPSED_SQL, STAGE_TIME_COL } from "@/lib/stage";
+import { NOT_MISSING, STAGE_ELAPSED_SQL, STAGE_TIME_COL } from "@/lib/stage";
 import { heldSql, holdJsonSql, notHeldSql, type JobHold } from "@/lib/job-hold";
 import { HoldButtons } from "@/components/repair/hold-buttons";
 import { MobileCardList } from "@/components/mobile-card-list";
@@ -258,6 +258,8 @@ export default async function StatusPage({ params, searchParams }: Props) {
   const where = [
     isRepair ? config.condition : `a.cancel_date is null and a.job_finish is null and ${config.condition}`,
   ];
+  // ເຄື່ອງ "ນັບບໍ່ພົບ (ຫາຍ)" — ຕັດອອກຈາກ pipeline ງານສ້ອມ (ຍ້ອນຄືນໄດ້). ຝັ່ງຕິດຕັ້ງບໍ່ກ່ຽວ.
+  if (isRepair) where.push(NOT_MISSING);
   const args: (string | number)[] = [];
   if (q) {
     args.push(`%${q}%`);

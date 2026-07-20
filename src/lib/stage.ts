@@ -154,6 +154,12 @@ export const DONE_JOBS = "a.return_complete is not null";
 export const CANCELLED_JOBS = "a.status = 6";
 
 /**
+ * ຕັດເຄື່ອງທີ່ໝາຍ "ນັບບໍ່ພົບ (ຫາຍ)" ຕອນກວດນັບ (ods_stock_count.found=false) ອອກຈາກຄິວ pending
+ * — pending ເຫຼືອສະເພາະ job ທີ່ຍັງນັບໄດ້. ຍ້ອນຄືນໄດ້ (ລຶບ mark → ກັບເຂົ້າຄິວ). ໃຊ້ alias `a`.
+ */
+export const NOT_MISSING = "a.code not in (select job_code from ods_stock_count where found = false)";
+
+/**
  * ເວລາທີ່ **ເຂົ້າຂັ້ນປັດຈຸບັນ** — ຄູ່ກັບ INSTALL_STAGE_TIME_COL ຂອງຝັ່ງຕິດຕັ້ງ.
  *
  * ຝັ່ງຕິດຕັ້ງມີອັນນີ້ມາແຕ່ຕົ້ນ ແຕ່ຝັ່ງສ້ອມບໍ່ມີ ⇒ ວັດ "ຄ້າງຢູ່ຂັ້ນນີ້ດົນປານໃດ" ບໍ່ໄດ້

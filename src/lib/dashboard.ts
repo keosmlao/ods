@@ -3,7 +3,7 @@ import { installStatuses, repairStatuses, type StatusDef } from "@/lib/dashboard
 import { INSTALL_ELAPSED_SQL, INSTALL_OPEN, INSTALL_STAGE_LABEL_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { SLA_SQL } from "@/lib/sla";
 import { openRepeatJobs, type RepeatJob } from "@/lib/repeat";
-import { OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
+import { NOT_MISSING, OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import type { QueryResultRow } from "pg";
 
@@ -171,7 +171,7 @@ const FEEDBACK_TREND_SQL = `select to_char(i.complain_finish, 'MM/YY') as month,
 /** ວຽກຄ້າງດົນສຸດ (ວັນ) — ໃຫ້ຮູ້ວ່າ "ດົນສຸດ" ຮ້າຍແຮງປານໃດ */
 const OLDEST_SQL = `select
     (select coalesce(max(extract(epoch from (localtimestamp - a.time_register))), 0)::int
-       from tb_product a where ${OPEN_JOBS}) repair_seconds,
+       from tb_product a where ${OPEN_JOBS} and ${NOT_MISSING}) repair_seconds,
     (select coalesce(max(extract(epoch from (localtimestamp - a.time_register))), 0)::int
        from ods_tb_install a where ${INSTALL_OPEN}) install_seconds`;
 
@@ -239,13 +239,13 @@ const OVERDUE_APPOINTMENT_SQL = (techArg: boolean) => `select count(*)::int n fr
 const TODAY_SQL = (techArg: boolean) => `select
     (select count(*)::int from ods_tb_install a where ${INSTALL_OPEN}
       and a.appoint_date::date = current_date ${techArg ? "and a.tech_code = $1" : ""}) appointments,
-    (select count(*)::int from tb_product a where ${OPEN_JOBS}
+    (select count(*)::int from tb_product a where ${OPEN_JOBS} and ${NOT_MISSING}
       and a.time_check is not null and a.time_finish_check is null ${techArg ? "and a.emp_code = $1" : ""}) checking,
-    (select count(*)::int from tb_product a where ${OPEN_JOBS}
+    (select count(*)::int from tb_product a where ${OPEN_JOBS} and ${NOT_MISSING}
       and a.time_repair is not null and a.time_finish_repair is null ${techArg ? "and a.emp_code = $1" : ""}) repairing`;
 
 const UNASSIGNED_SQL = `select
-    (select count(*)::int from tb_product a where ${OPEN_JOBS} and nullif(trim(a.emp_code),'') is null) repair,
+    (select count(*)::int from tb_product a where ${OPEN_JOBS} and ${NOT_MISSING} and nullif(trim(a.emp_code),'') is null) repair,
     (select count(*)::int from ods_tb_install a where ${INSTALL_OPEN} and nullif(trim(a.tech_code),'') is null) install`;
 
 export type UpcomingAppointment = {
@@ -274,7 +274,7 @@ const UPCOMING_APPOINTMENTS_SQL = (techArg: boolean) => `select a.code,
 const ON_ORDER_SQL = `select count(*)::int n,
     coalesce(max(round(extract(epoch from (localtimestamp - a.spare_order)))), 0)::int max_seconds
   from tb_product a
-  where ${OPEN_JOBS} and coalesce(a.used_spare,0) = 1 and a.spare_finish is null
+  where ${OPEN_JOBS} and ${NOT_MISSING} and coalesce(a.used_spare,0) = 1 and a.spare_finish is null
     and a.spare_order is not null and a.spare_order_finish is null and a.spare_arrive is null`;
 
 /**
@@ -336,7 +336,7 @@ export type TechLoad = { tech: string; jobs: number; oldest_seconds: number };
 const TECH_LOAD_SQL = `select coalesce(nullif(a.emp_code,''), '(ບໍ່ມີຊ່າງ)') tech,
     count(*)::int jobs,
     max(round(extract(epoch from (localtimestamp - a.time_register))))::int oldest_seconds
-  from tb_product a where ${OPEN_JOBS}
+  from tb_product a where ${OPEN_JOBS} and ${NOT_MISSING}
   group by 1 order by jobs desc limit 8`;
 
 /**
@@ -393,7 +393,7 @@ export type DashboardData = {
  */
 export async function getDashboard(tech: string | null, days = 30): Promise<{ data: DashboardData | null; error: boolean }> {
   // ຊ່າງ: ຝັ່ງສ້ອມກອງດ້ວຍ emp_code · ຝັ່ງຕິດຕັ້ງກອງດ້ວຍ tech_code (ຄືກັບທຸກໜ້າອື່ນ)
-  const repairWhere = tech ? `${OPEN_JOBS} and a.emp_code = $1` : OPEN_JOBS;
+  const repairWhere = tech ? `${OPEN_JOBS} and ${NOT_MISSING} and a.emp_code = $1` : `${OPEN_JOBS} and ${NOT_MISSING}`;
   const installWhere = tech ? `${INSTALL_OPEN} and a.tech_code = $1` : INSTALL_OPEN;
   const args = tech ? [tech] : [];
 

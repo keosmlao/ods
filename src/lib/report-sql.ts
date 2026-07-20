@@ -1,6 +1,6 @@
 import { query, queryOdg } from "@/lib/db";
 import { INSTALL_STAGE_LABEL_SQL } from "@/lib/install-stage";
-import { CANCELLED_JOBS, STAGE_LABEL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
+import { CANCELLED_JOBS, NOT_MISSING, STAGE_LABEL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 import type { XlsxColumn } from "@/lib/xlsx";
 
 /*
@@ -327,7 +327,7 @@ const productBase = `row_number() over (order by a.time_register) rnum,
  * FIX: GET branch ຂອງ ods ອ້າງອີງຕົວແປ `today` ທີ່ບໍ່ໄດ້ປະກາດ → NameError → ໜ້າວ່າງສະເໝີ.
  */
 export async function fetchPending(from: string, to: string, all: boolean) {
-  const where = `where a.return_complete isnull and a.status <> 6`;
+  const where = `where a.return_complete isnull and a.status <> 6 and ${NOT_MISSING}`;
   const sql = all
     ? `select ${productBase} ${where} order by a.time_register`
     : `select ${productBase} ${where} and a.time_register::date between $1 and $2 order by a.time_register`;

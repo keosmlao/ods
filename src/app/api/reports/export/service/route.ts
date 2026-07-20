@@ -1,6 +1,6 @@
 import { guardApi } from "@/lib/api-guard";
 import { query } from "@/lib/db";
-import { CANCELLED_JOBS, DONE_JOBS, OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
+import { CANCELLED_JOBS, DONE_JOBS, NOT_MISSING, OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 import { respondXlsx, type XlsxRow } from "@/lib/xlsx";
 import type { NextRequest } from "next/server";
 
@@ -20,7 +20,7 @@ const SEARCH = `(a.code ilike $1 or a.sn ilike $1 or a.name_1 ilike $1 or a.p_br
 
 const TAB_WHERE: Record<string, string> = {
   // pending ຕັດ "ນັບບໍ່ພົບ (ຫາຍ)" ອອກ ໃຫ້ຕົງກັບໜ້າຄິວ /service (ຍ້ອນຄືນໄດ້)
-  pending: `${OPEN_JOBS} and a.code not in (select job_code from ods_stock_count where found = false)`,
+  pending: `${OPEN_JOBS} and ${NOT_MISSING}`,
   done: DONE_JOBS,
   cancelled: CANCELLED_JOBS,
 };
