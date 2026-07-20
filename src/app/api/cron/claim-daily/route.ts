@@ -1,5 +1,6 @@
 import { claimDailySummary, claimDailyText } from "@/lib/claim";
 import { sendMail } from "@/lib/mail";
+import { recipientTargets } from "@/lib/report-recipient";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
@@ -13,11 +14,10 @@ import { NextResponse, type NextRequest } from "next/server";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-async function pushLine(text: string): Promise<{ sent: boolean; reason?: string }> {
+async function pushLine(text: string, targets: string[]): Promise<{ sent: boolean; reason?: string }> {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-  const to = process.env.LINE_NOTIFY_TO;
-  if (!token || !to) return { sent: false, reason: "LINE env ບໍ່ໄດ້ຕັ້ງ" };
-  const targets = to.split(",").map((t) => t.trim()).filter(Boolean);
+  if (!token) return { sent: false, reason: "LINE_CHANNEL_ACCESS_TOKEN ບໍ່ໄດ້ຕັ້ງ" };
+  if (targets.length === 0) return { sent: false, reason: "ບໍ່ມີຜູ້ຮັບ Line" };
   const results = await Promise.all(
     targets.map(async (id) => {
       try {
@@ -44,9 +44,13 @@ export async function GET(request: NextRequest) {
     const date = new Date().toLocaleDateString("en-GB");
     const summary = await claimDailySummary();
     const text = claimDailyText(summary, date);
+    // ຜູ້ຮັບ: ຈาก UI (/manage/report-recipients) ກ່ອນ, ວ່າງ ⇒ fallback env
+    const { emails, lineIds } = await recipientTargets("claim");
+    const mailTo = emails.length ? emails.join(",") : (process.env.MAIL_TO ?? "");
+    const lineTo = lineIds.length ? lineIds : (process.env.LINE_NOTIFY_TO?.split(",").map((t) => t.trim()).filter(Boolean) ?? []);
     const [line, email] = await Promise.all([
-      pushLine(text),
-      sendMail({ to: process.env.MAIL_TO ?? "", subject: `ສະຫຼຸບເຄມ ${date}`, text }),
+      pushLine(text, lineTo),
+      sendMail({ to: mailTo, subject: `ສະຫຼຸບເຄມ ${date}`, text }),
     ]);
     return NextResponse.json({ ok: true, summary, text, line, email });
   } catch (error) {
