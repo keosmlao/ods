@@ -1,6 +1,8 @@
 import { techFilter } from "@/app/actions/installation";
 import { LinkPending } from "@/components/link-pending";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { installStageIs } from "@/lib/install-stage";
 import { PackagePlus } from "lucide-react";
 import Link from "next/link";
@@ -66,6 +68,7 @@ async function getBlockedCounts(tech: string | null) {
 }
 
 export default async function SpareRequestsPage({ searchParams }: Props) {
+  const t = (await getDictionary(await getLocale())).installSpareRequests;
   const tech = await techFilter();
   const raw = await searchParams;
   const { q, page, sort, dir } = readParams(raw);
@@ -102,14 +105,14 @@ export default async function SpareRequestsPage({ searchParams }: Props) {
   return (
     <div className="w-full space-y-4">
       <ListHeader
-        title="ລໍຖ້າເບີກອາໄຫຼ່"
-        scope={tech ? "ສະແດງສະເພາະງານຂອງທ່ານ" : "ສະແດງທຸກງານ"}
+        title={t.title}
+        scope={tech ? t.scopeMine : t.scopeAll}
         total={list.total}
         page={page}
         pages={pages}
       />
 
-      <SearchBar q={q} sort={sort} dir={dir} placeholder="ຄົ້ນຫາ ເລກທີ, ເລກບິນ, ລູກຄ້າ, ຊ່າງ, ລາຍການ..." />
+      <SearchBar q={q} sort={sort} dir={dir} placeholder={t.searchPlaceholder} />
 
       {/*
         ── ບອກວ່າງານທີ່ "ຫາຍໄປ" ຄ້າງຢູ່ໃສ ──
@@ -118,18 +121,18 @@ export default async function SpareRequestsPage({ searchParams }: Props) {
       */}
       {counts.unassigned + counts.unaccepted > 0 && (
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
-          ຍັງມີງານທີ່ໃຊ້ອາໄຫຼ່ ແຕ່ຍັງບໍ່ຂຶ້ນຄິວນີ້:
+          {t.blockedNotice}
           {counts.unassigned > 0 && (
             <Link href="/installations/assign" className="underline">
-              {counts.unassigned} ງານ ຍັງບໍ່ໄດ້ຈັດຊ່າງ
+              {counts.unassigned} {t.jobsNotAssigned}
             </Link>
           )}
           {counts.unaccepted > 0 && (
             <Link href="/installations/accept" className="underline">
-              {counts.unaccepted} ງານ ຊ່າງຍັງບໍ່ກົດຮັບງານ
+              {counts.unaccepted} {t.jobsNotAccepted}
             </Link>
           )}
-          <span className="font-normal">— ຊ່າງຕ້ອງຮັບງານກ່ອນ ຈຶ່ງຂໍເບີກອາໄຫຼ່ໄດ້</span>
+          <span className="font-normal">— {t.mustAcceptFirst}</span>
         </p>
       )}
 
@@ -144,14 +147,14 @@ export default async function SpareRequestsPage({ searchParams }: Props) {
         <tbody>
           {list.rows.map((row) => (
             <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
-              <InstallCells row={row} timeLabel="ວັນ/ເວລາເປີດງານ" />
+              <InstallCells row={row} timeLabel={t.timeOpenJob} />
               <td className="whitespace-nowrap px-3 py-2.5 text-center">
                 <Link
                   href={`/installations/spare-requests/${encodeURIComponent(row.code)}`}
                   className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
                 >
                   <PackagePlus className="size-3.5" />
-                  ຂໍເບີກ
+                  {t.request}
                   <LinkPending className="size-3" />
                 </Link>
               </td>

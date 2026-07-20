@@ -3445,5 +3445,54 @@
     "mustAttachPhoto": "Photo required:",
     "failSendBack": "Failed — send back to technician",
     "qcPassNext": "QC passed — proceed to next step"
+  },
+  "quoteRowActions": {
+    "sureTitle": "Are you sure?",
+    "removePrefix": "Delete quotation",
+    "removeMessageTail": "— the item will return to awaiting a new quotation, and you cannot restore the old one!",
+    "delete": "Delete",
+    "no": "No",
+    "editAndResubmit": "Edit and resubmit for approval",
+    "deleteAndCreateNewTitle": "Delete quotation and create a new one",
+    "cancelQuotation": "Cancel quotation",
+    "deleteQuotationTitle": "Delete quotation",
+    "editTitle": "Edit"
+  },
+  "notificationBell": {
+    "activity": "Activity",
+    "newItems": "new",
+    "allRead": "All read",
+    "markAllRead": "Mark all read",
+    "empty": "No notifications yet",
+    "viewAll": "View all",
+    "justNow": "just now",
+    "minutes": "min",
+    "hours": "hr",
+    "days": "days"
+  },
+  "installSpareRequests": {
+    "title": "Awaiting Spare Parts Request",
+    "scopeMine": "Showing only your jobs",
+    "scopeAll": "Showing all jobs",
+    "searchPlaceholder": "Search by no., bill no., customer, technician, item...",
+    "blockedNotice": "There are still jobs using spare parts not yet in this queue:",
+    "jobsNotAssigned": "jobs not yet assigned to a technician",
+    "jobsNotAccepted": "jobs the technician has not yet accepted",
+    "mustAcceptFirst": "The technician must accept the job before requesting spare parts",
+    "timeOpenJob": "Job Open Date/Time",
+    "request": "Request"
+  },
+  "checkActions": {
+    "startCheck": "Start check",
+    "startCheckTitle": "Start check?",
+    "receiptWord": "Receipt",
+    "startCheckMsgTail": "will be moved to \"Checking\" and the timer will start",
+    "undoStartLabel": "Cancel start check",
+    "undoStartTitle": "Cancel start check?",
+    "undoStartMsgTail": "will return to \"Awaiting check\" and the timer will stop",
+    "cancelCheckLabel": "Cancel completed check",
+    "cancelCheckTitle": "Cancel completed check?",
+    "cancelCheckMsgHead": "The check results of receipt",
+    "cancelCheckMsgTail": "(the symptoms the technician diagnosed and the selected parts) will be cleared and the job will return to \"Checking\" to be recorded again. The selected parts will be returned to the cart automatically."
   }
 }

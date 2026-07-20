@@ -2,6 +2,7 @@
 import { markAllNotificationsRead, type NotificationBrief } from "@/app/actions/notification";
 import { LinkPending } from "@/components/link-pending";
 import { NOTIFICATION_KIND_LABEL, recordHref, type NotificationKind } from "@/lib/chatter";
+import { useDict } from "@/lib/i18n/context";
 import { BellRing, CheckCheck, LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -20,6 +21,8 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
  * ຂອງແອັບບໍ່ຕ້ອງແບກ query ນີ້ ແລະ ສິ່ງທີ່ເຫັນຄືສິ່ງທີ່ຈິງ **ຕອນເປີດ** ບໍ່ແມ່ນຕອນໂຫຼດໜ້າ.
  */
 
+type Dict = ReturnType<typeof useDict>["notificationBell"];
+
 const KIND_DOT: Record<NotificationKind, string> = {
   log: "bg-slate-300",
   comment: "bg-sky-500",
@@ -30,11 +33,11 @@ const KIND_DOT: Record<NotificationKind, string> = {
  * ອາຍຸເປັນຄຳເວົ້າ — "ຫາກໍ່" · "18 ນາທີ" · "3 ຊົ່ວໂມງ" · "2 ມື້".
  * ຄິດຈາກວິນາທີທີ່ server ສົ່ງມາ (ບໍ່ແຕະໂມງຂອງເຄື່ອງ ⇒ ບໍ່ມີບັນຫາເຂດເວລາ/hydration).
  */
-function ageLabel(seconds: number) {
-  if (seconds < 60) return "ຫາກໍ່";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} ນາທີ`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} ຊົ່ວໂມງ`;
-  return `${Math.floor(seconds / 86400)} ມື້`;
+function ageLabel(seconds: number, t: Dict) {
+  if (seconds < 60) return t.justNow;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} ${t.minutes}`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} ${t.hours}`;
+  return `${Math.floor(seconds / 86400)} ${t.days}`;
 }
 
 export function NotificationBell({ count, label }: { count: number; label: string }) {
@@ -45,6 +48,7 @@ export function NotificationBell({ count, label }: { count: number; label: strin
   const [marking, startMarking] = useTransition();
   const boxRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const t = useDict().notificationBell;
 
   // ປິດເມື່ອກົດນອກກ່ອງ ຫຼື ກົດ Esc — ຄືກ່ອງເລື່ອນລົງທົ່ວໄປ
   useEffect(() => {
@@ -149,9 +153,9 @@ export function NotificationBell({ count, label }: { count: number; label: strin
         >
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
             <div>
-              <p className="text-sm font-bold text-slate-700">ການເຄື່ອນໄຫວ</p>
+              <p className="text-sm font-bold text-slate-700">{t.activity}</p>
               <p className="text-[11px] text-slate-400">
-                {unread > 0 ? `${unread} ລາຍການໃໝ່` : "ອ່ານໝົດແລ້ວ"}
+                {unread > 0 ? `${unread} ${t.newItems}` : t.allRead}
               </p>
             </div>
             {unread > 0 && (
@@ -162,7 +166,7 @@ export function NotificationBell({ count, label }: { count: number; label: strin
                 className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-teal-700 hover:bg-teal-50 disabled:opacity-50"
               >
                 {marking ? <LoaderCircle className="size-3.5 animate-spin" /> : <CheckCheck className="size-3.5" />}
-                ອ່ານທັງໝົດ
+                {t.markAllRead}
               </button>
             )}
           </div>
@@ -184,7 +188,7 @@ export function NotificationBell({ count, label }: { count: number; label: strin
                         {row.res_id} · {NOTIFICATION_KIND_LABEL[row.kind] ?? row.kind} · {row.actor}
                       </span>
                       <span className="block text-[10px] text-slate-400">
-                        {ageLabel(row.age_seconds)} · {row.created_at}
+                        {ageLabel(row.age_seconds, t)} · {row.created_at}
                       </span>
                     </span>
                   </>
@@ -199,7 +203,7 @@ export function NotificationBell({ count, label }: { count: number; label: strin
                 );
               })
             ) : (
-              <p className="py-10 text-center text-xs text-slate-400">ຍັງບໍ່ມີການແຈ້ງເຕືອນ</p>
+              <p className="py-10 text-center text-xs text-slate-400">{t.empty}</p>
             )}
           </div>
 
@@ -208,7 +212,7 @@ export function NotificationBell({ count, label }: { count: number; label: strin
             onClick={() => setOpen(false)}
             className="flex items-center justify-center gap-1.5 border-t border-slate-100 bg-slate-50 py-2.5 text-xs font-semibold text-[#0536a9] hover:bg-slate-100"
           >
-            ເບິ່ງທັງໝົດ
+            {t.viewAll}
             <LinkPending className="size-3" />
           </Link>
         </div>

@@ -3445,5 +3445,54 @@
     "mustAttachPhoto": "ຕ້ອງແນບຮູບ:",
     "failSendBack": "ບໍ່ຜ່ານ — ສົ່ງກັບໃຫ້ຊ່າງ",
     "qcPassNext": "QC ຜ່ານ — ໄປຂັ້ນຕໍ່ໄປ"
+  },
+  "quoteRowActions": {
+    "sureTitle": "ທ່ານແນ່ໃຈບໍ?",
+    "removePrefix": "ລຶບໃບສະເໜີລາຄາ",
+    "removeMessageTail": "— ເຄື່ອງຈະກັບໄປລໍຖ້າສະເໜີລາຄາໃໝ່ ແລະ ທ່ານບໍ່ສາມາດເອີ້ນໃບເກົ່າກັບຄືນໄດ້!",
+    "delete": "ລຶບ",
+    "no": "ບໍ່",
+    "editAndResubmit": "ແກ້ໄຂ ແລະ ສົ່ງອະນຸມັດຄືນ",
+    "deleteAndCreateNewTitle": "ລຶບໃບສະເໜີລາຄາ ແລ້ວອອກໃບໃໝ່",
+    "cancelQuotation": "ຍົກເລີກການສະເໜີລາຄາ",
+    "deleteQuotationTitle": "ລຶບໃບສະເໜີລາຄາ",
+    "editTitle": "ແກ້ໄຂ"
+  },
+  "notificationBell": {
+    "activity": "ການເຄື່ອນໄຫວ",
+    "newItems": "ລາຍການໃໝ່",
+    "allRead": "ອ່ານໝົດແລ້ວ",
+    "markAllRead": "ອ່ານທັງໝົດ",
+    "empty": "ຍັງບໍ່ມີການແຈ້ງເຕືອນ",
+    "viewAll": "ເບິ່ງທັງໝົດ",
+    "justNow": "ຫາກໍ່",
+    "minutes": "ນາທີ",
+    "hours": "ຊົ່ວໂມງ",
+    "days": "ມື້"
+  },
+  "installSpareRequests": {
+    "title": "ລໍຖ້າເບີກອາໄຫຼ່",
+    "scopeMine": "ສະແດງສະເພາະງານຂອງທ່ານ",
+    "scopeAll": "ສະແດງທຸກງານ",
+    "searchPlaceholder": "ຄົ້ນຫາ ເລກທີ, ເລກບິນ, ລູກຄ້າ, ຊ່າງ, ລາຍການ...",
+    "blockedNotice": "ຍັງມີງານທີ່ໃຊ້ອາໄຫຼ່ ແຕ່ຍັງບໍ່ຂຶ້ນຄິວນີ້:",
+    "jobsNotAssigned": "ງານ ຍັງບໍ່ໄດ້ຈັດຊ່າງ",
+    "jobsNotAccepted": "ງານ ຊ່າງຍັງບໍ່ກົດຮັບງານ",
+    "mustAcceptFirst": "ຊ່າງຕ້ອງຮັບງານກ່ອນ ຈຶ່ງຂໍເບີກອາໄຫຼ່ໄດ້",
+    "timeOpenJob": "ວັນ/ເວລາເປີດງານ",
+    "request": "ຂໍເບີກ"
+  },
+  "checkActions": {
+    "startCheck": "ເລີ່ມກວດເຊັກ",
+    "startCheckTitle": "ເລີ່ມກວດເຊັກ?",
+    "receiptWord": "ໃບຮັບເຄື່ອງ",
+    "startCheckMsgTail": "ຈະຖືກຍ້າຍໄປ \"ກຳລັງກວດເຊັກ\" ແລະ ເລີ່ມຈັບເວລາ",
+    "undoStartLabel": "ຍົກເລີກເລີ່ມກວດເຊັກ",
+    "undoStartTitle": "ຍົກເລີກ ເລີ່ມກວດເຊັກ?",
+    "undoStartMsgTail": "ຈະກັບໄປ \"ລໍຖ້າກວດເຊັກ\" ແລະ ຢຸດຈັບເວລາ",
+    "cancelCheckLabel": "ຍົກເລີກສຳເລັດການກວດເຊັກ",
+    "cancelCheckTitle": "ຍົກເລີກສຳເລັດການກວດເຊັກ?",
+    "cancelCheckMsgHead": "ຜົນກວດເຊັກຂອງໃບ",
+    "cancelCheckMsgTail": "(ອາການທີ່ຊ່າງວິເຄາະ ແລະ ອາໄຫຼ່ທີ່ເລືອກ) ຈະຖືກລ້າງ ແລະ ວຽກກັບໄປ \"ກຳລັງກວດເຊັກ\" ເພື່ອບັນທຶກຄືນໃໝ່. ອາໄຫຼ່ທີ່ເລືອກໄວ້ຈະກັບເຂົ້າກະຕ່າໃຫ້ອັດຕະໂນມັດ."
   }
 }

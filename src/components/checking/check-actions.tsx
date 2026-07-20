@@ -3,6 +3,7 @@ import { cancelChecking, startCheck, undoStartCheck } from "@/app/actions/checki
 import { UndoButton } from "@/components/checking/undo-button";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { AlertTriangle, CheckCircle2, LoaderCircle } from "lucide-react";
 import { useState, useTransition } from "react";
 
@@ -11,6 +12,7 @@ export function StartCheckButton({ code }: { code: string }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const { ask, dialog } = useConfirm();
+  const t = useDict().checkActions;
 
   return (
     <>
@@ -22,13 +24,13 @@ export function StartCheckButton({ code }: { code: string }) {
           disabled={pending}
           onClick={async () => {
             const ok = await ask({
-              title: "ເລີ່ມກວດເຊັກ?",
+              title: t.startCheckTitle,
               message: (
                 <>
-                  ໃບຮັບເຄື່ອງ <b className="text-slate-700">#{code}</b> ຈະຖືກຍ້າຍໄປ &quot;ກຳລັງກວດເຊັກ&quot; ແລະ ເລີ່ມຈັບເວລາ
+                  {t.receiptWord} <b className="text-slate-700">#{code}</b> {t.startCheckMsgTail}
                 </>
               ),
-              confirmLabel: "ເລີ່ມກວດເຊັກ",
+              confirmLabel: t.startCheck,
             });
             if (!ok) return;
             setError(null);
@@ -40,7 +42,7 @@ export function StartCheckButton({ code }: { code: string }) {
           }}
         >
           {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
-          ເລີ່ມກວດເຊັກ
+          {t.startCheck}
         </Button>
         {error && (
           <p className="flex items-center gap-1 text-[11px] font-medium text-red-600">
@@ -66,15 +68,16 @@ export function UndoStartCheckButton({
   variant?: "button" | "icon";
   buttonLabel?: string;
 }) {
+  const t = useDict().checkActions;
   return (
     <UndoButton
       variant={variant}
       buttonLabel={buttonLabel}
-      label="ຍົກເລີກເລີ່ມກວດເຊັກ"
-      title="ຍົກເລີກ ເລີ່ມກວດເຊັກ?"
+      label={t.undoStartLabel}
+      title={t.undoStartTitle}
       message={
         <>
-          ໃບຮັບເຄື່ອງ <b className="text-slate-700">#{code}</b> ຈະກັບໄປ &quot;ລໍຖ້າກວດເຊັກ&quot; ແລະ ຢຸດຈັບເວລາ
+          {t.receiptWord} <b className="text-slate-700">#{code}</b> {t.undoStartMsgTail}
         </>
       }
       action={() => undoStartCheck(code)}

@@ -3445,5 +3445,54 @@
     "mustAttachPhoto": "ต้องแนบรูป:",
     "failSendBack": "ไม่ผ่าน — ส่งกลับให้ช่าง",
     "qcPassNext": "QC ผ่าน — ไปขั้นต่อไป"
+  },
+  "quoteRowActions": {
+    "sureTitle": "คุณแน่ใจหรือไม่?",
+    "removePrefix": "ลบใบเสนอราคา",
+    "removeMessageTail": "— เครื่องจะกลับไปรอเสนอราคาใหม่ และคุณไม่สามารถเรียกใบเก่ากลับคืนได้!",
+    "delete": "ลบ",
+    "no": "ไม่",
+    "editAndResubmit": "แก้ไข และส่งอนุมัติอีกครั้ง",
+    "deleteAndCreateNewTitle": "ลบใบเสนอราคา แล้วออกใบใหม่",
+    "cancelQuotation": "ยกเลิกการเสนอราคา",
+    "deleteQuotationTitle": "ลบใบเสนอราคา",
+    "editTitle": "แก้ไข"
+  },
+  "notificationBell": {
+    "activity": "ความเคลื่อนไหว",
+    "newItems": "รายการใหม่",
+    "allRead": "อ่านหมดแล้ว",
+    "markAllRead": "อ่านทั้งหมด",
+    "empty": "ยังไม่มีการแจ้งเตือน",
+    "viewAll": "ดูทั้งหมด",
+    "justNow": "เมื่อสักครู่",
+    "minutes": "นาที",
+    "hours": "ชั่วโมง",
+    "days": "วัน"
+  },
+  "installSpareRequests": {
+    "title": "รอเบิกอะไหล่",
+    "scopeMine": "แสดงเฉพาะงานของท่าน",
+    "scopeAll": "แสดงทุกงาน",
+    "searchPlaceholder": "ค้นหา เลขที่, เลขบิล, ลูกค้า, ช่าง, รายการ...",
+    "blockedNotice": "ยังมีงานที่ใช้อะไหล่ แต่ยังไม่ขึ้นคิวนี้:",
+    "jobsNotAssigned": "งาน ยังไม่ได้จัดช่าง",
+    "jobsNotAccepted": "งาน ช่างยังไม่กดรับงาน",
+    "mustAcceptFirst": "ช่างต้องรับงานก่อน จึงจะเบิกอะไหล่ได้",
+    "timeOpenJob": "วัน/เวลาเปิดงาน",
+    "request": "ขอเบิก"
+  },
+  "checkActions": {
+    "startCheck": "เริ่มตรวจเช็ก",
+    "startCheckTitle": "เริ่มตรวจเช็ก?",
+    "receiptWord": "ใบรับเครื่อง",
+    "startCheckMsgTail": "จะถูกย้ายไป \"กำลังตรวจเช็ก\" และเริ่มจับเวลา",
+    "undoStartLabel": "ยกเลิกเริ่มตรวจเช็ก",
+    "undoStartTitle": "ยกเลิกเริ่มตรวจเช็ก?",
+    "undoStartMsgTail": "จะกลับไป \"รอตรวจเช็ก\" และหยุดจับเวลา",
+    "cancelCheckLabel": "ยกเลิกการตรวจเช็กที่เสร็จแล้ว",
+    "cancelCheckTitle": "ยกเลิกการตรวจเช็กที่เสร็จแล้ว?",
+    "cancelCheckMsgHead": "ผลตรวจเช็กของใบ",
+    "cancelCheckMsgTail": "(อาการที่ช่างวิเคราะห์และอะไหล่ที่เลือก) จะถูกล้าง และงานจะกลับไป \"กำลังตรวจเช็ก\" เพื่อบันทึกใหม่ อะไหล่ที่เลือกไว้จะกลับเข้าตะกร้าโดยอัตโนมัติ"
   }
 }
