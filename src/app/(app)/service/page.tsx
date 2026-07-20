@@ -36,7 +36,8 @@ const SEARCH = `(a.code ilike $1 or a.sn ilike $1 or a.name_1 ilike $1 or a.p_br
 
 /** ວຽກທີ່ຍັງຄ້າງ (ຂັ້ນ 1..10) — ສຳລັບກະດານ */
 async function getBoard(q: string, status: number | null, service: string | null) {
-  const where = [OPEN_JOBS];
+  // ເຄື່ອງ "ນັບບໍ່ພົບ (ຫາຍ)" ຈາກໜ້າກວດນັບ — ປິດອອກຈາກຄິວ pending (ຍ້ອນຄືນໄດ້ ໂດຍ "ນຳກັບຄືນ")
+  const where = [OPEN_JOBS, "a.code not in (select job_code from ods_stock_count where found = false)"];
   const params: (string | number)[] = [];
   if (q) { params.push(`%${q}%`); where.push(SEARCH.replaceAll("$1", `$${params.length}`)); }
   if (status) { params.push(status); where.push(`(${STAGE_SQL}) = $${params.length}`); }

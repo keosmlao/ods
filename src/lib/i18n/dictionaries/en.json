@@ -3689,7 +3689,8 @@
     "confirmCloseBtn": "Close (not found)",
     "confirmRestoreTitle": "Restore this job?",
     "confirmRestoreMsg": "Return {code} to not-counted — you can count or re-mark it.",
-    "confirmRestoreBtn": "Restore"
+    "confirmRestoreBtn": "Restore",
+    "missingMenuTitle": "Not-found devices (missing)"
   },
   "sparePicker": {
     "title": "Select Spare Part (from ERP)",

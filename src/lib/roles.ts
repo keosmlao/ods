@@ -228,6 +228,7 @@ const RULES: Rule[] = [
   { path: "/reports", exact: true, roles: [M, A, S] },
   { path: "/reports/stock", roles: [M, A, S] },
   { path: "/reports/stock-count", roles: APPROVER_SIDE },
+  { path: "/reports/stock-count/missing", roles: APPROVER_SIDE },
   { path: "/reports/install-spares-monthly", roles: [M, HT, A, S] },
   { path: "/reports/purchase-requests", roles: [M, A, S] },
   { path: "/reports/purchase-orders", roles: [M, A, S] },

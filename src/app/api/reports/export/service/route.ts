@@ -19,7 +19,8 @@ const SEARCH = `(a.code ilike $1 or a.sn ilike $1 or a.name_1 ilike $1 or a.p_br
   or a.issue ilike $1 or b.name_1 ilike $1 or b.tel ilike $1)`;
 
 const TAB_WHERE: Record<string, string> = {
-  pending: OPEN_JOBS,
+  // pending ຕັດ "ນັບບໍ່ພົບ (ຫາຍ)" ອອກ ໃຫ້ຕົງກັບໜ້າຄິວ /service (ຍ້ອນຄືນໄດ້)
+  pending: `${OPEN_JOBS} and a.code not in (select job_code from ods_stock_count where found = false)`,
   done: DONE_JOBS,
   cancelled: CANCELLED_JOBS,
 };

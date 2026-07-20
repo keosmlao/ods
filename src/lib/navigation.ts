@@ -237,6 +237,7 @@ const REPORT: NavGroup = {
     { label: "ລາຍງານງານຄ້າງ", href: "/reports/pending" },
     { label: "ລາຍງານສາງ", href: "/reports/stock", divider: true },
     { label: "ຜົນການກວດນັບສະຕັອກ", href: "/reports/stock-count" },
+    { label: "ເຄື່ອງນັບບໍ່ພົບ (ຫາຍ)", href: "/reports/stock-count/missing" },
     { label: "ລາຍງານການສັ່ງຊື້", href: "/reports/purchase-requests" },
     { label: "ລາຍງານໃບສັ່ງຊື້", href: "/reports/purchase-orders" },
     { label: "ລາຍງານມອບໝາຍງານ", href: "/reports/job-dispatch" },

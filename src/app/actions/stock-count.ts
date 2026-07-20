@@ -124,6 +124,8 @@ export async function markMissing(code: string): Promise<CountState> {
   );
   await logChange("tb_product", c, `ໝາຍ "ນັບບໍ່ພົບ (ຫາຍ)" ຕອນກວດນັບ ໂດຍ ${guard.session.username}`, { roles: ["manager"] });
   revalidatePath("/reports/stock-count");
+  revalidatePath("/reports/stock-count/missing");
+  revalidatePath("/service");
   return {};
 }
 
@@ -135,6 +137,8 @@ export async function restoreMissing(code: string): Promise<CountState> {
   await query(`delete from ods_stock_count where job_code = $1 and found = false`, [c]);
   await logChange("tb_product", c, `ນຳ job ກັບຄືນ ຈາກ "ນັບບໍ່ພົບ" ໂດຍ ${guard.session.username}`, { roles: ["manager"] });
   revalidatePath("/reports/stock-count");
+  revalidatePath("/reports/stock-count/missing");
+  revalidatePath("/service");
   return {};
 }
 
@@ -145,5 +149,7 @@ export async function resetStockCount(): Promise<CountState> {
   await query(`delete from ods_stock_count`);
   revalidatePath("/service/stock-count");
   revalidatePath("/reports/stock-count");
+  revalidatePath("/reports/stock-count/missing");
+  revalidatePath("/service");
   return {};
 }

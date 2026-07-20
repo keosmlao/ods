@@ -92,6 +92,7 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ລາຍງານ", label: "ລາຍງານງານຄ້າງ", resource: "/reports/pending", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ລາຍງານສາງ", resource: "/reports/stock", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ຜົນການກວດນັບສະຕັອກ", resource: "/reports/stock-count", actions: READ_ONLY },
+  { group: "ລາຍງານ", label: "ເຄື່ອງນັບບໍ່ພົບ (ຫາຍ)", resource: "/reports/stock-count/missing", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ລາຍງານການສັ່ງຊື້", resource: "/reports/purchase-requests", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ລາຍງານໃບສັ່ງຊື້", resource: "/reports/purchase-orders", actions: READ_ONLY },
   /** ບັນທຶກການຮັບເງິນໄດ້ = update (ຄົນຮັບເງິນໜ້າຮ້ານ ອາດບໍ່ແມ່ນຜູ້ຈັດການ) */

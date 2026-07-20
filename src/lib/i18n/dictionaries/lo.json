@@ -3689,7 +3689,8 @@
     "confirmCloseBtn": "ປິດ (ນັບບໍ່ພົບ)",
     "confirmRestoreTitle": "ນຳ job ກັບຄືນ?",
     "confirmRestoreMsg": "ນຳ {code} ກັບໄປເປັນ ຍັງບໍ່ນັບ — ກວດນັບ ຫຼື ໝາຍໃໝ່ໄດ້.",
-    "confirmRestoreBtn": "ນຳກັບຄືນ"
+    "confirmRestoreBtn": "ນຳກັບຄືນ",
+    "missingMenuTitle": "ເຄື່ອງນັບບໍ່ພົບ (ຫາຍ)"
   },
   "sparePicker": {
     "title": "ເລືອກອາໄຫຼ່ (ຈາກ ERP)",

@@ -3689,7 +3689,8 @@
     "confirmCloseBtn": "ปิด (นับไม่พบ)",
     "confirmRestoreTitle": "นำ job กลับคืน?",
     "confirmRestoreMsg": "นำ {code} กลับไปเป็น ยังไม่นับ — กวดนับ หรือ หมายใหม่ได้.",
-    "confirmRestoreBtn": "นำกลับคืน"
+    "confirmRestoreBtn": "นำกลับคืน",
+    "missingMenuTitle": "เครื่องนับไม่พบ (หาย)"
   },
   "sparePicker": {
     "title": "เลือกอะไหล่ (จาก ERP)",

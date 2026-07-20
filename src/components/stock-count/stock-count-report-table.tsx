@@ -20,8 +20,8 @@ const stateOf = (r: StockCountReportRow): "counted" | "missing" | "uncounted" =>
  * ② ຢູ່ tab "ຍັງບໍ່ນັບ" — sub-tab ຕາມ service (CI/ST/IH/PS)
  * ③ ຍັງບໍ່ນັບ → ປຸ່ມ "ປິດ · ນັບບໍ່ພົບ" (confirm) · ນັບບໍ່ພົບ → "ນຳກັບຄືນ" (reversible)
  */
-export function StockCountReportTable({ rows, t }: { rows: StockCountReportRow[]; t: T }) {
-  const [tab, setTab] = useState<Tab>("uncounted");
+export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { rows: StockCountReportRow[]; t: T; initialTab?: Tab }) {
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [svc, setSvc] = useState<string>("all");
   const { ask, dialog } = useConfirm();
   const [pending, start] = useTransition();
