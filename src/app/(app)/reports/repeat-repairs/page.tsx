@@ -1,4 +1,6 @@
 import { Empty, PageTitle, Table } from "@/components/ui";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { repeatRepairs, REPEAT_DAYS } from "@/lib/repeat-repairs";
 import { RotateCcw, TriangleAlert } from "lucide-react";
 import Link from "next/link";
@@ -17,6 +19,8 @@ type Props = { searchParams: Promise<{ d?: string }> };
 const PERIODS = [90, 180, 365];
 
 export default async function RepeatRepairsPage({ searchParams }: Props) {
+  const t = (await getDictionary(await getLocale())).repeatRepairs;
+
   const params = await searchParams;
   const days = PERIODS.includes(Number(params.d)) ? Number(params.d) : 180;
 
@@ -25,8 +29,8 @@ export default async function RepeatRepairsPage({ searchParams }: Props) {
 
   return (
     <div className="w-full space-y-4">
-      <PageTitle sub={`ເຄື່ອງໜ່ວຍດຽວກັນ (S/N + ລູກຄ້າ) ກັບມາພາຍໃນ ${REPEAT_DAYS} ມື້ — ສ້ອມບໍ່ຫາຍແຕ່ເທື່ອທຳອິດ`}>
-        ເຄື່ອງທີ່ກັບມາສ້ອມຊ້ຳ
+      <PageTitle sub={`${t.subPrefix} ${REPEAT_DAYS} ${t.subSuffix}`}>
+        {t.title}
       </PageTitle>
 
       <div className="flex flex-wrap items-center gap-1">
@@ -38,7 +42,7 @@ export default async function RepeatRepairsPage({ searchParams }: Props) {
               days === period ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
             }`}
           >
-            {period} ມື້
+            {period} {t.days}
           </Link>
         ))}
       </div>
@@ -46,15 +50,15 @@ export default async function RepeatRepairsPage({ searchParams }: Props) {
       {rows.length > 0 && (
         <p className="flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
           <TriangleAlert className="size-4" />
-          {rows.length} ໃບ — ໃນນັ້ນ <b>{sameTech} ໃບເປັນຊ່າງຄົນເກົ່າ</b> (ສ້ອມແລ້ວກັບມາອີກ ⇒ ຄວນຖາມສາເຫດ)
+          {rows.length} {t.summaryCount} <b>{sameTech} {t.summaryTechCount}</b> {t.summaryHint}
         </p>
       )}
 
       {rows.length === 0 ? (
-        <Empty>ບໍ່ມີເຄື່ອງທີ່ກັບມາສ້ອມຊ້ຳໃນໄລຍະນີ້</Empty>
+        <Empty>{t.empty}</Empty>
       ) : (
         <Table
-          head={["ໃບໃໝ່", "ລູກຄ້າ / ເຄື່ອງ", "ອາການເທື່ອນີ້", "ໃບກ່ອນໜ້າ", "ອາການເທື່ອກ່ອນ", "ກັບມາຫຼັງ", "ຊ່າງ"]}
+          head={[t.colNew, t.colCustomerProduct, t.colIssueNow, t.colPrev, t.colIssuePrev, t.colReturnAfter, t.colTech]}
           minWidth={1200}
         >
           {rows.map((row) => {
@@ -79,7 +83,7 @@ export default async function RepeatRepairsPage({ searchParams }: Props) {
                   {row.issue ?? "-"}
                   {sameIssue && (
                     <span className="ml-1 rounded bg-red-100 px-1 py-0.5 text-[10px] font-bold text-red-700">
-                      ອາການຊ້ຳ
+                      {t.sameIssueBadge}
                     </span>
                   )}
                 </td>
@@ -87,7 +91,7 @@ export default async function RepeatRepairsPage({ searchParams }: Props) {
                   <Link href={`/service/${row.prev_code}`} className="font-semibold text-slate-600 hover:underline">
                     {row.prev_code}
                   </Link>
-                  <span className="block text-[11px] text-slate-400">ຈົບ {row.prev_done}</span>
+                  <span className="block text-[11px] text-slate-400">{t.prevDone} {row.prev_done}</span>
                 </td>
                 <td className="px-3 py-2.5 text-xs text-slate-500">{row.prev_issue ?? "-"}</td>
                 <td className="whitespace-nowrap px-3 py-2.5 text-center">
@@ -97,17 +101,17 @@ export default async function RepeatRepairsPage({ searchParams }: Props) {
                     }`}
                   >
                     <RotateCcw className="size-3" />
-                    {row.days_after} ມື້
+                    {row.days_after} {t.days}
                   </span>
                 </td>
                 <td className="whitespace-nowrap px-3 py-2.5 text-center text-xs">
                   <span className="block font-semibold text-slate-700">{row.tech ?? "-"}</span>
                   {row.same_tech ? (
                     <span className="rounded bg-amber-100 px-1 py-0.5 text-[10px] font-bold text-amber-800">
-                      ຊ່າງຄົນເກົ່າ
+                      {t.sameTechBadge}
                     </span>
                   ) : (
-                    <span className="text-[11px] text-slate-400">ເທື່ອກ່ອນ: {row.prev_tech ?? "-"}</span>
+                    <span className="text-[11px] text-slate-400">{t.prevTechLabel} {row.prev_tech ?? "-"}</span>
                   )}
                 </td>
               </tr>

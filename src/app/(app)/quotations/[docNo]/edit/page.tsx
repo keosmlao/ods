@@ -2,6 +2,8 @@ import { QuoteBuilder } from "@/components/quotation/quote-builder";
 import { getDraftLinesByDoc, getKipRate, getServiceItems } from "@/components/quotation/queries";
 import { getSession } from "@/lib/auth";
 import { db, query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -61,6 +63,7 @@ async function seedDraft(docNo: string, username: string) {
 export default async function EditQuotationPage({ params }: Props) {
   const { docNo } = await params;
   const session = await getSession();
+  const t = (await getDictionary(await getLocale())).quotationEdit;
 
   const head = (
     await query<HeadRow>(
@@ -90,16 +93,18 @@ export default async function EditQuotationPage({ params }: Props) {
     return (
       <div className="w-full space-y-4">
         <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          <p className="font-semibold">ແກ້ໄຂໃບສະເໜີລາຄາ {head.doc_no} ບໍ່ໄດ້</p>
+          <p className="font-semibold">{t.cannotEdit} {head.doc_no} {t.cannotEditSuffix}</p>
           <p className="mt-1">
-            ລູກຄ້າ{head.aprove_status_2 === 1 ? "ຕົກລົງ" : "ບໍ່ຕົກລົງ"}ໃບນີ້ແລ້ວ — ລາຄາທີ່ຕົກລົງກັນແລ້ວແກ້ລັບຫຼັງບໍ່ໄດ້
+            {t.customer}
+            {head.aprove_status_2 === 1 ? t.agreed : t.disagreed}
+            {t.agreedPriceLocked}
           </p>
           <p className="mt-2 text-xs">
-            ຖ້າຕ້ອງແກ້ແທ້ ໃຫ້ໄປໜ້າ{" "}
+            {t.reallyNeedEdit}{" "}
             <Link href="/quotations/customer-approval?tab=done" className="font-semibold underline">
-              ລູກຄ້າອະນຸມັດ → ແທັບ “ຕອບແລ້ວ”
+              {t.customerApprovalTab}
             </Link>{" "}
-            ແລ້ວກົດ “ຖອນຄຳຕອບ” ກ່ອນ (ຖອນບໍ່ໄດ້ຖ້າອອກໃບຮັບເງິນແລ້ວ)
+            {t.thenWithdraw}
           </p>
         </div>
       </div>
@@ -116,18 +121,18 @@ export default async function EditQuotationPage({ params }: Props) {
       {/* ຖືກ "ບໍ່ອະນຸມັດ" ມາ (2) ຫຼື ອະນຸມັດແລ້ວແຕ່ກຳລັງຖືກແກ້ (1) — ບອກໃຫ້ຮູ້ວ່າຈະເກີດຫຍັງຕອນບັນທຶກ */}
       {head.aprove_status === 2 && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <p className="font-semibold">ໃບສະເໜີລາຄານີ້ບໍ່ໄດ້ຮັບການອະນຸມັດ</p>
+          <p className="font-semibold">{t.notApprovedTitle}</p>
           <p className="mt-1">
-            ເຫດຜົນ: {head.remark_2?.trim() || "ບໍ່ໄດ້ລະບຸ"}
-            {head.approver1 ? ` · ໂດຍ ${head.approver1}` : ""}
+            {t.reason}: {head.remark_2?.trim() || t.notSpecified}
+            {head.approver1 ? ` · ${t.by} ${head.approver1}` : ""}
           </p>
-          <p className="mt-1 text-xs">ແກ້ໄຂລາຄາ/ລາຍການ ແລ້ວກົດບັນທຶກ — ໃບຈະຖືກສົ່ງໄປຂໍອະນຸມັດຄືນອັດຕະໂນມັດ</p>
+          <p className="mt-1 text-xs">{t.editThenSave}</p>
         </div>
       )}
       {head.aprove_status === 1 && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          <p className="font-semibold">ໃບສະເໜີລາຄານີ້ອະນຸມັດພາຍໃນແລ້ວ</p>
-          <p className="mt-1 text-xs">ຖ້າບັນທຶກການແກ້ໄຂ ການອະນຸມັດເກົ່າຈະຖືກຍົກເລີກ ແລະ ຕ້ອງຂໍອະນຸມັດຄືນໃໝ່</p>
+          <p className="font-semibold">{t.approvedInternallyTitle}</p>
+          <p className="mt-1 text-xs">{t.approvedInternallyNote}</p>
         </div>
       )}
 

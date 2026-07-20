@@ -1,6 +1,7 @@
 "use client";
 import { METHOD_LABEL, recordServicePayment, type PayState } from "@/app/actions/service-payment";
 import { ErrorBox } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { Banknote, LoaderCircle } from "lucide-react";
 import { useActionState, useRef, useState } from "react";
 
@@ -13,6 +14,7 @@ import { useActionState, useRef, useState } from "react";
 export function PayButton({ job, due, today }: { job: string; due: number; today: string }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [amount, setAmount] = useState(String(due));
+  const t = useDict().serviceButtons;
 
   /** ຫຸ້ມ action ⇒ ປິດກ່ອງຫຼັງ server ຕອບວ່າສຳເລັດ (ບໍ່ໃຊ້ effect ທີ່ setState) */
   const [state, submit, pending] = useActionState<PayState, FormData>(async (prev, formData) => {
@@ -33,20 +35,20 @@ export function PayButton({ job, due, today }: { job: string; due: number; today
         className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700"
       >
         <Banknote className="size-3.5" />
-        ຮັບເງິນ
+        {t.receiveMoney}
       </button>
 
       <dialog ref={ref} className="w-[min(92vw,26rem)] rounded-xl p-0 shadow-2xl backdrop:bg-slate-900/40">
         <form action={submit} className="space-y-3 p-5">
           <input type="hidden" name="job" value={job} />
-          <h2 className="text-sm font-bold text-slate-700">ຮັບຊຳລະ — ວຽກ {job}</h2>
+          <h2 className="text-sm font-bold text-slate-700">{t.payTitle} {job}</h2>
           <p className="text-xs text-slate-500">
-            ຄ້າງທັງໝົດ <b className="text-slate-700">{due.toLocaleString()}</b> ບາດ · ຮັບບາງສ່ວນກໍ່ໄດ້ (ພິມຍອດຈິງ)
+            {t.outstandingPrefix} <b className="text-slate-700">{due.toLocaleString()}</b> {t.outstandingSuffix}
           </p>
           {state.error && <ErrorBox>{state.error}</ErrorBox>}
 
           <label className="block text-xs">
-            <span className="mb-1 block font-semibold text-slate-600">ຍອດທີ່ຮັບ (ບາດ)</span>
+            <span className="mb-1 block font-semibold text-slate-600">{t.amountLabel}</span>
             <input
               name="amount"
               type="number"
@@ -61,7 +63,7 @@ export function PayButton({ job, due, today }: { job: string; due: number; today
 
           <div className="grid grid-cols-2 gap-2">
             <label className="block text-xs">
-              <span className="mb-1 block font-semibold text-slate-600">ວັນທີຮັບ</span>
+              <span className="mb-1 block font-semibold text-slate-600">{t.dateLabel}</span>
               <input
                 name="paid_on"
                 type="date"
@@ -71,7 +73,7 @@ export function PayButton({ job, due, today }: { job: string; due: number; today
               />
             </label>
             <label className="block text-xs">
-              <span className="mb-1 block font-semibold text-slate-600">ຮັບເປັນ</span>
+              <span className="mb-1 block font-semibold text-slate-600">{t.methodLabel}</span>
               <select
                 name="method"
                 defaultValue="cash"
@@ -87,11 +89,11 @@ export function PayButton({ job, due, today }: { job: string; due: number; today
           </div>
 
           <label className="block text-xs">
-            <span className="mb-1 block font-semibold text-slate-600">ເລກອ້າງອີງ (ສະລິບ / ໃບຮັບເງິນ)</span>
+            <span className="mb-1 block font-semibold text-slate-600">{t.referenceLabel}</span>
             <input
               name="reference"
               maxLength={100}
-              placeholder="ບໍ່ມີກໍ່ໄດ້"
+              placeholder={t.referencePlaceholder}
               className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-emerald-500 focus:outline-none"
             />
           </label>
@@ -103,7 +105,7 @@ export function PayButton({ job, due, today }: { job: string; due: number; today
               onClick={() => ref.current?.close()}
               className="h-9 rounded-lg border border-slate-300 px-4 text-xs font-semibold text-slate-600 hover:bg-slate-50"
             >
-              ປິດ
+              {t.close}
             </button>
             <button
               type="submit"
@@ -111,7 +113,7 @@ export function PayButton({ job, due, today }: { job: string; due: number; today
               className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-4 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
             >
               {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Banknote className="size-3.5" />}
-              ບັນທຶກການຮັບເງິນ
+              {t.savePayment}
             </button>
           </div>
         </form>

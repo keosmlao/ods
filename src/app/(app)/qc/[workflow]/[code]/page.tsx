@@ -2,6 +2,8 @@ import { canQc, qcChecklist } from "@/app/actions/qc";
 import { jobPhotos } from "@/lib/job-flow";
 import { Card, Empty, ErrorBox, PageTitle } from "@/components/ui";
 import type { Workflow } from "@/lib/commission";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { qcJob, WORKFLOW_LABEL } from "@/lib/qc";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -25,6 +27,8 @@ export default async function QcJobPage({ params }: Props) {
   if (raw !== "install" && raw !== "repair") notFound();
   const workflow = raw as Workflow;
 
+  const t = (await getDictionary(await getLocale())).qcDetail;
+
   const job = await qcJob(workflow, code);
   if (!job) notFound();
 
@@ -34,24 +38,24 @@ export default async function QcJobPage({ params }: Props) {
 
   return (
     <div className="space-y-5">
-      <PageTitle sub={`${WORKFLOW_LABEL[workflow]} · ${code}`}>ກວດຮັບຄຸນນະພາບ</PageTitle>
+      <PageTitle sub={`${WORKFLOW_LABEL[workflow]} · ${code}`}>{t.title}</PageTitle>
 
       <Link href="/qc" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
-        <ArrowLeft className="size-4" /> ກັບຄິວ QC
+        <ArrowLeft className="size-4" /> {t.backToQueue}
       </Link>
 
-      <Card title="ຂໍ້ມູນງານ">
+      <Card title={t.jobInfo}>
         <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-          <Field label="ລູກຄ້າ" value={job.customer} />
-          <Field label="ສິນຄ້າ" value={[job.item, job.detail].filter(Boolean).join(" · ")} />
-          <Field label="ຊ່າງຜູ້ເຮັດ" value={job.worker} />
-          <Field label="ສຳເລັດເມື່ອ" value={job.finished_at} />
+          <Field label={t.customer} value={job.customer} />
+          <Field label={t.product} value={[job.item, job.detail].filter(Boolean).join(" · ")} />
+          <Field label={t.worker} value={job.worker} />
+          <Field label={t.finishedAt} value={job.finished_at} />
         </dl>
       </Card>
 
       {/* ຮູບຜົນງານທີ່ຊ່າງຖ່າຍໄວ້ຕອນຈົບງານ — ຜູ້ກວດຕ້ອງເຫັນ ບໍ່ດັ່ງນັ້ນກວດຈາກຄວາມຊົງຈຳ */}
       {photos.length > 0 && (
-        <Card title={`ຮູບຜົນງານຈາກຊ່າງ (${photos.length})`}>
+        <Card title={`${t.photosFromTech} (${photos.length})`}>
           <div className="flex flex-wrap gap-2">
             {photos.map((photo) => (
               <figure key={photo.id} className="w-40">
@@ -66,15 +70,15 @@ export default async function QcJobPage({ params }: Props) {
         </Card>
       )}
 
-      <Card title={`ລາຍການທີ່ຕ້ອງກວດ (${items.length})`}>
+      <Card title={`${t.checklistTitle} (${items.length})`}>
         {items.length === 0 ? (
           <div className="space-y-3">
             <ErrorBox>
-              ຍັງບໍ່ໄດ້ຕັ້ງລາຍການກວດຮັບຂອງສາຍງານນີ້ — ຜ່ານ QC ບໍ່ໄດ້ຈົນກວ່າຜູ້ຈັດການຈະຕັ້ງລາຍການໃຫ້ກ່ອນ.
+              {t.noChecklist}
             </ErrorBox>
             <Empty>
               <Link href="/manage/qc-checklist" className="font-semibold text-teal-700 hover:underline">
-                ໄປໜ້າຕັ້ງລາຍການກວດຮັບ
+                {t.goToChecklistSetup}
               </Link>
             </Empty>
           </div>

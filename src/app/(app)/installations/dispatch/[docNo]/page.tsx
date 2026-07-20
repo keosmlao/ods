@@ -1,6 +1,8 @@
 import { JOB_HEAD_COLUMNS, JobHeader, type JobHead } from "@/components/installation/job-header";
 import { Card, Empty, ErrorBox, PageTitle, Table } from "@/components/ui";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { PackageMinus } from "lucide-react";
 import { notFound } from "next/navigation";
 
@@ -20,6 +22,7 @@ type Line = {
 
 export default async function DispatchDetail({ params }: Props) {
   const docNo = decodeURIComponent((await params).docNo);
+  const t = (await getDictionary(await getLocale())).installDispatch;
 
   const doc = await query<{ product_code: string }>(
     "select product_code from ic_trans where doc_no=$1 and trans_flag=122 limit 1",
@@ -55,16 +58,16 @@ export default async function DispatchDetail({ params }: Props) {
 
   return (
     <div className="w-full space-y-5">
-      <PageTitle sub={`ເລກຂໍເບີກ ${docNo}`}>ເບີກອາໄຫຼ່ອອກຈາກສາງ</PageTitle>
+      <PageTitle sub={`${t.pageSubPrefix} ${docNo}`}>{t.pageTitle}</PageTitle>
       <JobHeader head={head.rows[0]} />
 
-      <Card title="ລາຍການອາໄຫຼ່">
+      <Card title={t.spareListTitle}>
         {lines.rows.length === 0 ? (
-          <Empty>ບໍ່ມີລາຍການສຳລັບເບີກ!</Empty>
+          <Empty>{t.noSpareToDispatch}</Empty>
         ) : (
           <>
-            {short.length > 0 && <ErrorBox>ຈຳນວນບໍ່ພຽງພໍສຳລັບເບີກອະໄຫຼ່!</ErrorBox>}
-            <Table head={["ລຳດັບ", "ລະຫັດ", "ຊື່ອຸປະກອນ", "ຈຳນວນ", "ຫົວໜ່ວຍ", "ຄົງເຫຼືອໃນສາງ"]} minWidth={800}>
+            {short.length > 0 && <ErrorBox>{t.notEnoughStock}</ErrorBox>}
+            <Table head={[t.colOrder, t.colCode, t.colDeviceName, t.colQty, t.colUnit, t.colStockBalance]} minWidth={800}>
               {lines.rows.map((line) => {
                 const enough = Number(line.qty) <= Number(line.stock);
                 return (
@@ -93,10 +96,9 @@ export default async function DispatchDetail({ params }: Props) {
       <div className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
         <PackageMinus className="mt-0.5 size-5 shrink-0 text-sky-600" />
         <div className="text-sm text-sky-900">
-          <p className="font-bold">ເບີກອາໄຫຼ່ຢູ່ ERP</p>
+          <p className="font-bold">{t.erpDispatchTitle}</p>
           <p className="mt-1 text-xs">
-            ໃບຂໍເບີກ <b>{docNo}</b> ຖືກສົ່ງເຂົ້າ ERP ແລ້ວ — ສາງເບີກໃນ ERP ໂດຍອ້າງອີງເລກໃບນີ້.
-            ເບີກແລ້ວ ລະບົບຈະ <b>ດຶງໃບເບີກກັບມາເອງ</b> ແລະ ງານຈະເລື່ອນໄປຂັ້ນ &quot;ຮັບອາໄຫຼ່&quot;.
+            {t.erpNoticeBefore} <b>{docNo}</b> {t.erpNoticeAfter} <b>{t.erpNoticePull}</b> {t.erpNoticeEnd}
           </p>
         </div>
       </div>

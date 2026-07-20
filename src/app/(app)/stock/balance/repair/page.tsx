@@ -1,6 +1,8 @@
 import { RefreshRepairStock } from "@/components/repair/refresh-repair-stock";
 import { PageTitle } from "@/components/ui";
 import { requireRoleOrRedirect } from "@/lib/guard";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { repairStockCache } from "@/lib/repair-stock-cache";
 import { STOCK_SIDE } from "@/lib/roles";
 import { Download, Search } from "lucide-react";
@@ -18,13 +20,14 @@ function fmt(value: number) {
 
 export default async function RepairBalancePage({ searchParams }: Props) {
   await requireRoleOrRedirect(STOCK_SIDE);
+  const t = (await getDictionary(await getLocale())).stockBalanceRepair;
   const q = ((await searchParams).q ?? "").trim();
   const { items, refreshedAt } = await repairStockCache(q);
 
   return (
     <div className="mx-auto max-w-4xl pb-16">
-      <PageTitle sub="ອາໄຫຼ່ຄົງເຫຼືອໃນສາງສ້ອມ 1104 (ຂົວຫຼວງ) · 1206 (ດອນຕີ້ວ)">
-        ຄົງເຫຼືອ ສາງສ້ອມ (ສູນບໍລິການ)
+      <PageTitle sub={t.subtitle}>
+        {t.title}
       </PageTitle>
 
       <div className="mb-4">
@@ -37,28 +40,28 @@ export default async function RepairBalancePage({ searchParams }: Props) {
           <input
             name="q"
             defaultValue={q}
-            placeholder="ກອງ: ຊື່ ຫຼື ລະຫັດອາໄຫຼ່..."
+            placeholder={t.filterPlaceholder}
             className="h-11 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
           />
         </div>
         <button type="submit" className="h-11 rounded-lg bg-slate-900 px-5 text-sm font-bold text-white hover:bg-slate-800">
-          ກອງ
+          {t.filter}
         </button>
       </form>
 
       {refreshedAt === null ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-800">
-          ຍັງບໍ່ມີຂໍ້ມູນ — ກົດ &quot;ດຶງໃໝ່ຈາກ ERP&quot; ຂ້າງເທິງກ່ອນ (ໃຊ້ເວລາ ~25 ວິນາທີ)
+          {t.noDataYet}
         </p>
       ) : items.length === 0 ? (
         <p className="py-12 text-center text-sm text-slate-400">
-          {q ? `ບໍ່ພົບ "${q}" ໃນສາງສ້ອມ` : "ບໍ່ມີອາໄຫຼ່ໃນສາງສ້ອມ"}
+          {q ? `${t.notFound} "${q}" ${t.inRepairWarehouse}` : t.noSparesInWarehouse}
         </p>
       ) : (
         <>
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="text-xs text-slate-500">
-              {q ? "ຜົນການກອງ" : "ທັງໝົດ"}: <b className="tabular-nums">{items.length.toLocaleString()}</b> ລາຍການ
+              {q ? t.filterResult : t.all}: <b className="tabular-nums">{items.length.toLocaleString()}</b> {t.items}
             </p>
             <Link
               href={`/api/reports/export/repair-stock${q ? `?q=${encodeURIComponent(q)}` : ""}`}
@@ -71,10 +74,10 @@ export default async function RepairBalancePage({ searchParams }: Props) {
             <table className="w-full min-w-[560px] border-collapse bg-white text-sm">
               <thead>
                 <tr className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                  <th className="px-4 py-3 font-bold">ອາໄຫຼ່</th>
+                  <th className="px-4 py-3 font-bold">{t.colSpare}</th>
                   <th className="px-3 py-3 text-right font-bold">ຂົວຫຼວງ</th>
                   <th className="px-3 py-3 text-right font-bold">ດອນຕີ້ວ</th>
-                  <th className="px-3 py-3 text-right font-bold">ລວມ</th>
+                  <th className="px-3 py-3 text-right font-bold">{t.colTotal}</th>
                 </tr>
               </thead>
               <tbody>
