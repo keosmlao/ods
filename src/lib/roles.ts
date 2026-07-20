@@ -69,6 +69,8 @@ export const SERVICE_SIDE: Role[] = [M, A];
 export const STOCK_SIDE: Role[] = [M, S];
 /** ຜູ້ອະນຸມັດ — ຕົງກັບ ROLE_APPROVER ໃນ lib/chatter */
 export const APPROVER_SIDE: Role[] = [M, HT];
+/** ເຄມ — ທຸກຝ່າຍພາຍໃນເຫັນ/ຈັດການໄດ້ (ສາງ · ຫົວໜ້າ · ບໍລິການ) */
+export const CLAIM_SIDE: Role[] = [M, HT, A, S];
 /** ພະນັກງານຂາຍ — ແຈ້ງສ້ອມ · ຕິດຕາມງານຕາມເຂດ (`/sales/*`) */
 export const SALES_SIDE: Role[] = [M, SL];
 /**
@@ -229,6 +231,7 @@ const RULES: Rule[] = [
   { path: "/reports/stock", roles: [M, A, S] },
   { path: "/reports/stock-count", roles: APPROVER_SIDE },
   { path: "/reports/stock-count/missing", roles: APPROVER_SIDE },
+  { path: "/claims", roles: CLAIM_SIDE },
   { path: "/reports/install-spares-monthly", roles: [M, HT, A, S] },
   { path: "/reports/purchase-requests", roles: [M, A, S] },
   { path: "/reports/purchase-orders", roles: [M, A, S] },

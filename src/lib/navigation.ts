@@ -181,6 +181,7 @@ const STOCK: NavGroup = {
     { label: "ສ້າງອາໄຫຼ່", href: "/spare-parts/new" },
     // ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ — ຍ້າຍມາຈາກເມນູສ້ອມ (ຫົວໜ້າ/ຜູ້ອະນຸມັດເຫັນ — RULES: /service/stock-count)
     { label: "ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ", href: "/service/stock-count", divider: true },
+    { label: "ລະບົບເຄມ (Claim)", href: "/claims" },
   ],
 };
 

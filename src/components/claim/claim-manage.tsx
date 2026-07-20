@@ -1,0 +1,119 @@
+"use client";
+import { addClaimItem, advanceClaim, deleteClaimItem, updateClaimRemark } from "@/app/actions/claim";
+import type { ClaimItem, ClaimType } from "@/lib/claim";
+import { ArrowRight, LoaderCircle, Plus, Trash2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+
+export function ClaimManage({
+  claimNo,
+  status,
+  nextStatus,
+  canReject,
+  initialItems,
+  remark,
+}: {
+  claimNo: string;
+  type: ClaimType;
+  status: string;
+  nextStatus: { status: string; label: string } | null;
+  canReject: boolean;
+  initialItems: ClaimItem[];
+  remark: string | null;
+}) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [items, setItems] = useState(initialItems);
+  const [form, setForm] = useState({ item_code: "", item_name: "", qty: "1", unit: "", amount: "0" });
+  const [note, setNote] = useState(remark ?? "");
+  const [err, setErr] = useState("");
+
+  const act = (fn: () => Promise<{ error?: string }>) =>
+    start(async () => {
+      setErr("");
+      const r = await fn();
+      if (r.error) { setErr(r.error); return; }
+      router.refresh();
+    });
+
+  const add = () => {
+    if (!form.item_name.trim()) { setErr("ໃສ່ຊື່ລາຍການ"); return; }
+    act(async () => {
+      const r = await addClaimItem(claimNo, { item_code: form.item_code, item_name: form.item_name, qty: Number(form.qty) || 1, unit: form.unit, amount: Number(form.amount) || 0 });
+      if (!r.error) { setItems((p) => [...p, { id: Date.now(), item_code: form.item_code || null, item_name: form.item_name, qty: Number(form.qty) || 1, unit: form.unit || null, amount: Number(form.amount) || 0, note: null }]); setForm({ item_code: "", item_name: "", qty: "1", unit: "", amount: "0" }); }
+      return r;
+    });
+  };
+
+  const del = (id: number) => {
+    setItems((p) => p.filter((i) => i.id !== id));
+    act(() => deleteClaimItem(claimNo, id));
+  };
+
+  const inp = "h-9 rounded-lg border border-slate-300 px-2.5 text-sm outline-none focus:border-teal-500";
+
+  return (
+    <div className="space-y-5">
+      {/* ── ຈັດການ status ── */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="mb-2 text-xs font-semibold text-slate-500">ຈັດການສະຖານະ</p>
+        <div className="flex flex-wrap items-center gap-2">
+          {nextStatus ? (
+            <button type="button" disabled={pending} onClick={() => act(() => advanceClaim(claimNo, nextStatus.status))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+              {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ໄປ: {nextStatus.label}
+            </button>
+          ) : (
+            <span className="text-sm text-slate-400">— ຈົບ pipeline —</span>
+          )}
+          {canReject && status !== "rejected" && (
+            <button type="button" disabled={pending} onClick={() => act(() => advanceClaim(claimNo, "rejected"))} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 text-sm font-semibold text-rose-600 hover:bg-rose-100 disabled:opacity-60">
+              <X className="size-4" /> supplier ปฏิเสธ
+            </button>
+          )}
+        </div>
+        {err && <p className="mt-2 text-xs font-semibold text-rose-600">{err}</p>}
+      </div>
+
+      {/* ── ລາຍการ ── */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="mb-2 text-xs font-semibold text-slate-500">ອາໄຫຼ່ / ລາຍการ</p>
+        {items.length > 0 && (
+          <div className="mb-3 overflow-x-auto">
+            <table className="w-full min-w-[520px] border-collapse text-[12px]">
+              <thead><tr className="border-b border-slate-200 text-left text-[10px] uppercase text-slate-400">
+                <th className="px-2 py-1">ລະຫັດ</th><th className="px-2 py-1">ຊື່</th><th className="px-2 py-1 text-right">ຈຳນວນ</th><th className="px-2 py-1 text-right">ຍอด</th><th /></tr></thead>
+              <tbody>
+                {items.map((it) => (
+                  <tr key={it.id} className="border-b border-slate-100">
+                    <td className="px-2 py-1 font-mono text-slate-500">{it.item_code || "-"}</td>
+                    <td className="px-2 py-1">{it.item_name}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{it.qty}{it.unit ? ` ${it.unit}` : ""}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{it.amount ? it.amount.toLocaleString() : "-"}</td>
+                    <td className="px-2 py-1 text-right"><button type="button" onClick={() => del(it.id)} className="text-slate-400 hover:text-rose-600"><Trash2 className="size-3.5" /></button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="flex flex-wrap items-end gap-2">
+          <input value={form.item_code} onChange={(e) => setForm({ ...form, item_code: e.target.value })} placeholder="ລະຫັດ" className={`${inp} w-24`} />
+          <input value={form.item_name} onChange={(e) => setForm({ ...form, item_name: e.target.value })} placeholder="ຊື່ອາໄຫຼ່/ລາຍการ" className={`${inp} min-w-40 flex-1`} />
+          <input value={form.qty} onChange={(e) => setForm({ ...form, qty: e.target.value })} inputMode="decimal" className={`${inp} w-16`} />
+          <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="ໜ່ວຍ" className={`${inp} w-20`} />
+          <input value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} inputMode="decimal" placeholder="ຍอด" className={`${inp} w-24`} />
+          <button type="button" disabled={pending} onClick={add} className="inline-flex h-9 items-center gap-1 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"><Plus className="size-4" /> ເພີ່ม</button>
+        </div>
+      </div>
+
+      {/* ── ໝາຍເຫตุ ── */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="mb-2 text-xs font-semibold text-slate-500">ໝາຍເຫตุ</p>
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500" />
+        <div className="mt-2 flex justify-end">
+          <button type="button" disabled={pending} onClick={() => act(() => updateClaimRemark(claimNo, note))} className="h-8 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60">ບັນທຶກໝາຍເຫตุ</button>
+        </div>
+      </div>
+    </div>
+  );
+}
