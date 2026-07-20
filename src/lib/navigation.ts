@@ -263,6 +263,7 @@ const USERS: NavGroup = {
     { label: "ເຊື່ອມຕົວຕົນຊ່າງ", href: "/manage/technicians" },
     { label: "ການຕັ້ງຄ່າລະບົບ", href: "/manage/settings" },
     { label: "ລາຍງານອັດຕະໂນມັດ (email/Line)", href: "/manage/report-recipients" },
+    { label: "ຫຍີ່ຫໍ້ເກັບເງินกับ supplier", href: "/manage/claim-brands" },
     { label: "ຕິດຕາມການເຂົ້າລະບົບ", href: "/manage/login-log" },
   ],
 };

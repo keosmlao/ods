@@ -95,6 +95,7 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ລາຍງານ", label: "ເຄື່ອງນັບບໍ່ພົບ (ຫາຍ)", resource: "/reports/stock-count/missing", actions: READ_ONLY },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ລະບົບເຄມ (Claim)", resource: "/claims", actions: ["read", "create", "update", "delete"] },
   { group: "ຜູ້ໃຊ້", label: "ຜູ້ຮັບລາຍງານອັດຕະໂນມັດ", resource: "/manage/report-recipients", actions: ["read", "create", "update", "delete"] },
+  { group: "ຜູ້ໃຊ້", label: "ຫຍີ່ຫໍ້ເກັບເງินกับ supplier", resource: "/manage/claim-brands", actions: ["read", "create", "update", "delete"] },
   { group: "ຂອງຂ້ອຍ", label: "ແຜนที่ຕິດຕາມงาน", resource: "/map", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ລາຍງານການສັ່ງຊື້", resource: "/reports/purchase-requests", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ລາຍງານໃບສັ່ງຊື້", resource: "/reports/purchase-orders", actions: READ_ONLY },

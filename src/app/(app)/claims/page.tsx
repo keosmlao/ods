@@ -113,7 +113,7 @@ export default async function ClaimsPage({ searchParams }: Props) {
             {candidates.map((c) => (
               <Link
                 key={c.code}
-                href={`/claims/new?type=C&ref_job=${c.code}${c.brand ? `&brand=${encodeURIComponent(c.brand)}` : ""}`}
+                href={`/claims/new?type=C&ref_job=${c.code}${c.brand ? `&brand=${encodeURIComponent(c.brand)}` : ""}${c.supplier ? `&supplier=${encodeURIComponent(c.supplier)}` : ""}`}
                 className="flex items-center gap-2 rounded-xl border border-amber-200 bg-white p-2.5 text-[12px] shadow-sm hover:border-teal-300 hover:bg-teal-50/40"
               >
                 <FilePlus2 className="size-4 shrink-0 text-teal-600" />

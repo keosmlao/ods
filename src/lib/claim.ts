@@ -95,16 +95,20 @@ export async function isJobClaimMarked(jobCode: string): Promise<boolean> {
   return ((await query(`select 1 from ods_claim_mark where job_code = $1`, [jobCode])).rowCount ?? 0) > 0;
 }
 
-/** งานที่ **ໝາຍ ເຄມ supplier + ສ່ງคืนแล้ว + ຍັງບໍ່ມີ CLM-C** — candidate สร้าง CLM-C */
+/**
+ * candidate CLM-C = งานส่งคืนแล้ว + ยังไม่มี CLM-C + (ຫຍີ່ຫໍ້ຢູ່ໃນ config ods_claim_brand
+ * **ຫຼື** ໝາຍເອງ ods_claim_mark). supplier ດຶງจาก brand config (prefill ตอนเปิดใบ).
+ */
 export async function claimCandidatesC(): Promise<ClaimCandidate[]> {
   return (
     await query<ClaimCandidate>(
       `select a.code, a.name_1 product, a.p_brand brand, c.name_1 customer,
-          to_char(a.return_complete,'DD-MM-YYYY') returned_at
+          to_char(a.return_complete,'DD-MM-YYYY') returned_at, bc.supplier_code supplier
         from tb_product a
-        join ods_claim_mark m on m.job_code = a.code
         left join ar_customer c on c.code = a.cust_code
+        left join ods_claim_brand bc on bc.brand_code = a.p_brand and bc.active
        where a.return_complete is not null
+         and (bc.brand_code is not null or a.code in (select job_code from ods_claim_mark))
          and a.code not in (select ref_job from ods_claim where claim_type = 'C' and ref_job is not null)
        order by a.return_complete desc limit 200`,
     )
