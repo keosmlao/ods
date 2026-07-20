@@ -8,6 +8,7 @@ import {
   HardHat,
   LayoutDashboard,
   type LucideIcon,
+  ReceiptText,
   ShieldCheck,
   ShoppingCart,
   Wrench,
@@ -53,6 +54,7 @@ export const NAV_GROUP_KEY: Record<string, string> = {
   repair_menu: "repair",
   install_menu: "install",
   stock_menu: "stock",
+  claim_menu: "claim",
   purchase_menu: "purchase",
   approve_menu: "approve",
   report_menu: "reports",
@@ -182,8 +184,15 @@ const STOCK: NavGroup = {
     { label: "ສ້າງອາໄຫຼ່", href: "/spare-parts/new" },
     // ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ — ຍ້າຍມາຈາກເມນູສ້ອມ (ຫົວໜ້າ/ຜູ້ອະນຸມັດເຫັນ — RULES: /service/stock-count)
     { label: "ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ", href: "/service/stock-count", divider: true },
-    { label: "ລະບົບເຄມ (Claim)", href: "/claims" },
   ],
+};
+
+/* ── ເຄມ (Claim) — ແຍກອອກຈາກສາງ, ເປັນສາຍວຽກຂອງຕົນເອງ ──────────── */
+const CLAIM: NavGroup = {
+  id: "claim_menu",
+  label: "ເຄມ (Claim)",
+  icon: ReceiptText,
+  items: [{ label: "ລະບົບເຄມ", href: "/claims" }],
 };
 
 /**
@@ -277,7 +286,7 @@ const USERS: NavGroup = {
  *   ຄິວແຈ້ງລູກຄ້າ  → ຢູ່ກຸ່ມ **ຂອງຂ້ອຍ** (ຄິວວຽກຂອງມື້ນີ້ ຂ້າມສາຍງານ — ເບິ່ງເຫດຜົນຢູ່ນັ້ນ)
  *   ຕັ້ງລາຍການກວດຮັບ → ຢູ່ກຸ່ມ **ຜູ້ໃຊ້/ຕັ້ງຄ່າ** (ເປັນການຕັ້ງຄ່າ ບໍ່ແມ່ນຄິວງານ)
  */
-export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, STOCK, PURCHASE, APPROVE, REPORT, USERS];
+export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, STOCK, CLAIM, PURCHASE, APPROVE, REPORT, USERS];
 
 /**
  * Sidebar ສະເພາະຊ່າງ — ມີແຕ່ຄິວທີ່ຊ່າງລົງມືໄດ້ຈິງ.
