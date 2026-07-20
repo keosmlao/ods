@@ -1,7 +1,7 @@
 "use client";
-import { addClaimItem, advanceClaim, deleteClaimItem, linkCob, updateClaimRemark } from "@/app/actions/claim";
-import type { ClaimItem, ClaimType, CobInfo } from "@/lib/claim-shared";
-import { ArrowRight, Link2, LoaderCircle, Plus, Trash2, X } from "lucide-react";
+import { addClaimItem, advanceClaim, deleteClaimItem, linkCob, sendClaimEmail, updateClaimRemark } from "@/app/actions/claim";
+import type { ClaimItem, ClaimType, CobInfo, JobDelivery } from "@/lib/claim-shared";
+import { ArrowRight, Link2, LoaderCircle, Mail, Plus, Trash2, Truck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -15,6 +15,8 @@ export function ClaimManage({
   remark,
   erpDocNo,
   cob,
+  emailSentAt,
+  delivery,
 }: {
   claimNo: string;
   type: ClaimType;
@@ -25,6 +27,8 @@ export function ClaimManage({
   remark: string | null;
   erpDocNo: string | null;
   cob: CobInfo | null;
+  emailSentAt: string | null;
+  delivery: JobDelivery | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -97,6 +101,27 @@ export function ClaimManage({
           ) : (
             <p className="mt-2 text-[11px] text-slate-400">ບັນຊີສ້າງ COB ໃນ ERP ແລ້ວ ⇒ ໃສ່ເລກ COB ຢູ່ນີ້ (read-only, ບໍ່ສ້າง/ບໍ່ແก้ ERP).</p>
           )}
+        </div>
+      )}
+
+      {/* ── ເອກະສານສົ່ງເຄື່ອງ + email (CLM-C) ── */}
+      {type === "C" && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Truck className="size-4 text-teal-600" /> ເອກະສານສົ່ງເຄື່ອງ + ສ່ງ email</p>
+          {delivery ? (
+            <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-[12px] text-slate-700">
+              ງານ <b>{delivery.code}</b> · {delivery.product || "-"} · {delivery.brand || ""} · ລູກຄ້າ {delivery.customer || "-"} · ສ່ງคืน <b>{delivery.returned_at || "-"}</b>
+            </div>
+          ) : (
+            <p className="mb-3 text-[11px] text-amber-600">ບໍ່ພົບ ເອກະສານສົ່ງເຄື່ອງ (ໃສ່ ເລກງານ ທີ່ສ່ງຄືນແລ້ວ).</p>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" disabled={pending} onClick={() => act(() => sendClaimEmail(claimNo))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+              {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Mail className="size-4" />} ສ່ງ email ຫາຜູ້ຮັບ
+            </button>
+            {emailSentAt && <span className="text-[12px] font-semibold text-emerald-600">✓ ສ່ງແລ້ວ {emailSentAt}</span>}
+          </div>
+          <p className="mt-2 text-[11px] text-slate-400">ຜູ້ຮັບ ຕັ້ງທີ່ ຜູ້ໃຊ້ → ຜູ້ຮັບລາຍງານອັດຕະໂນມັດ.</p>
         </div>
       )}
 

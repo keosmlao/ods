@@ -1,7 +1,9 @@
 "use server";
-import { CLAIM_FLOW, CLAIM_REJECTED, claimByNo, cobInfo, type ClaimType } from "@/lib/claim";
+import { CLAIM_FLOW, CLAIM_REJECTED, claimByNo, cobInfo, jobDelivery, type ClaimType } from "@/lib/claim";
 import { query } from "@/lib/db";
 import { requireRole } from "@/lib/guard";
+import { sendMail } from "@/lib/mail";
+import { recipientTargets } from "@/lib/report-recipient";
 import { CLAIM_SIDE } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 
@@ -131,6 +133,37 @@ export async function markJobClaim(jobCode: string, on: boolean): Promise<ClaimS
   revalidatePath(`/service/${c}`);
   revalidatePath("/claims");
   return { claimNo: c };
+}
+
+/**
+ * ສ່ງ email ໃບເຄມ ຫາຜູ້ຮັບ (config /manage/report-recipients, fallback env) — ດຶງ "ເອກະສານ
+ * ສົ່ງເຄື່ອງ" (delivery ຂອງ ref_job) ໃສ່ນຳ → ໝາຍ email_sent_at.
+ */
+export async function sendClaimEmail(claimNo: string): Promise<ClaimState> {
+  const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
+  if (!guard.ok) return { error: guard.error };
+  const claim = await claimByNo(claimNo);
+  if (!claim) return { error: "ບໍ່ພົບໃບເຄມ" };
+  const { emails } = await recipientTargets("claim");
+  const to = emails.length ? emails.join(",") : (process.env.MAIL_TO ?? "");
+  if (!to.trim()) return { error: "ຍັງບໍ່ມີຜູ້ຮັບ email (ຕັ້ງທີ່ /manage/report-recipients)" };
+  const delivery = claim.ref_job ? await jobDelivery(claim.ref_job) : null;
+  const text = [
+    `ໃບເຄມ ${claim.claim_no} (CLM-${claim.claim_type})`,
+    `Supplier: ${claim.supplier_code ?? "-"}`,
+    claim.brand_code ? `ຫຍີ່ຫໍ້: ${claim.brand_code}` : null,
+    delivery
+      ? `ເອກະສານສົ່ງເຄື່ອງ: ງານ ${delivery.code} · ${delivery.product ?? ""} · ລູກຄ້າ ${delivery.customer ?? "-"} · ສ່ງคืน ${delivery.returned_at ?? "-"}`
+      : claim.ref_job ? `ເລກງານ: ${claim.ref_job}` : null,
+    `ຍอด: ${claim.amount.toLocaleString()}`,
+    claim.reason ? `ເຫດ: ${claim.reason}` : null,
+  ].filter(Boolean).join("\n");
+  const res = await sendMail({ to, subject: `ເຄມ ${claim.claim_no} — ${claim.supplier_code ?? ""}`.trim(), text });
+  if (!res.sent) return { error: `ສ່ງ email ບໍ່ໄດ້: ${res.reason ?? ""}` };
+  await query(`update ods_claim set email_sent_at = now() where claim_no = $1`, [claimNo]);
+  await log(claimNo, guard.session.username, "email", `ສ່ງ email ຫາ ${to}`);
+  revalidatePath(`/claims/${claimNo}`);
+  return { claimNo };
 }
 
 export async function updateClaimRemark(claimNo: string, remark: string): Promise<ClaimState> {

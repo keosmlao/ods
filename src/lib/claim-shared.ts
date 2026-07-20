@@ -69,8 +69,12 @@ export type ClaimRow = {
   reason: string | null;
   created_by: string | null;
   created_at: string | null;
+  email_sent_at: string | null;
   remark: string | null;
 };
+
+/** ຂໍ້ມູນ "ເອກະສານສົ່ງເຄື່ອງ" (delivery) ຂອງ job — ໃຊ້ກຳນົດການເຄມ + email */
+export type JobDelivery = { code: string; product: string | null; brand: string | null; customer: string | null; returned_at: string | null };
 
 export type ClaimItem = { id: number; item_code: string | null; item_name: string | null; qty: number; unit: string | null; amount: number; note: string | null };
 export type ClaimLog = { at: string | null; by_user: string | null; event: string | null; detail: string | null };
