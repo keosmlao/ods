@@ -6,7 +6,7 @@ import { MobileCardList } from "@/components/mobile-card-list";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import { useDict } from "@/lib/i18n/context";
 import type { StockCountJob } from "@/lib/stock-count";
-import { Check, CircleAlert, ScanLine, Search } from "lucide-react";
+import { Check, CircleAlert, ScanLine } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 
 export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
@@ -45,23 +45,10 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
     if (scanned.has(j.code)) cur.found += 1;
     typeCounts.set(key, cur);
   }
-  const typeList = ["CI", "ST", "PS"].filter((code) => typeCounts.has(code));
+  const typeList = ["CI", "ST", "IH", "PS"].filter((code) => typeCounts.has(code));
   const typeLabel = (code: string) =>
     jobs.find((j) => j.service_type === code)?.service_type_label ?? code;
-
-  // ── ຄົ້ນຫາໃນລາຍການ (ເລກງານ / SN / ສິນຄ້າ / ລູກຄ້າ) — ບໍ່ສົນຂະໜາດຕົວອັກສອນ ──
-  const [filter, setFilter] = useState("");
-  const q = filter.trim().toUpperCase();
-  const shownJobs = jobs.filter((job) => {
-    if (type !== "all" && (job.service_type || "-") !== type) return false;
-    if (!q) return true;
-    return (
-      job.code.toUpperCase().includes(q) ||
-      (job.sn ?? "").toUpperCase().includes(q) ||
-      (job.product ?? "").toUpperCase().includes(q) ||
-      (job.customer ?? "").toUpperCase().includes(q)
-    );
-  });
+  const shownJobs = type === "all" ? jobs : jobs.filter((j) => (j.service_type || "-") === type);
 
   // ── ສະແກນ (keyboard-wedge: ພິມ code/SN + Enter) ──
   const onScan = (raw: string) => {
@@ -192,28 +179,8 @@ export function StockCountClient({ jobs }: { jobs: StockCountJob[] }) {
         </div>
       )}
 
-      {/* ── ຄົ້ນຫາໃນລາຍການ (ເລກງານ / SN / ສິນຄ້າ / ລູກຄ້າ) — ບໍ່ສົນຂະໜາດຕົວ ── */}
-      {total > 0 && (
-        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-sm">
-          <Search className="size-4 shrink-0 text-slate-400" />
-          <input
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-            placeholder={t.filterPlaceholder}
-            className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
-          />
-          {q && (
-            <span className="shrink-0 tabular-nums text-xs text-slate-400">
-              {shownJobs.length}/{total}
-            </span>
-          )}
-        </div>
-      )}
-
       {total === 0 ? (
         <p className="py-16 text-center text-sm text-slate-400">{t.emptyMsg}</p>
-      ) : shownJobs.length === 0 ? (
-        <p className="py-16 text-center text-sm text-slate-400">{t.noMatch}</p>
       ) : (
         <>
           {/* ── Desktop = ຕາຕະລາງ ── */}
