@@ -1,6 +1,9 @@
 "use client";
-import { useId, useState } from "react";
+import { useId, useState, useSyncExternalStore } from "react";
 import Select, { type StylesConfig } from "react-select";
+
+/** subscribe ວ່າງ — ໃຫ້ useSyncExternalStore ຄືນ false ຕອນ SSR, true ຕອນ client (ບໍ່ໃຊ້ effect) */
+const noopSubscribe = () => () => {};
 
 export type Option = { value: string; label: string };
 
@@ -51,26 +54,40 @@ export function SelectField({
   isDisabled?: boolean;
 }) {
   const [internal, setInternal] = useState(defaultValue);
+  const instanceId = useId();
+  // react-select ຝັງ CSS (emotion) ຕອນ render — SSR ກັບ client ບໍ່ກົງກັນ ⇒ hydration error.
+  // render Select ຫຼັງ mount ເທົ່ານັ້ນ; ກ່ອນນັ້ນສະແດງກ່ອງເປົ່າຮູບຊົງດຽວກັນ (server=client-first = ກົງກັນ).
+  const mounted = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
   const current = value ?? internal;
   const selected = options.find((option) => option.value === current) ?? null;
 
   return (
     <>
-      <Select
-        instanceId={useId()}
-        options={options}
-        value={selected}
-        onChange={(option) => {
-          const next = option?.value ?? "";
-          if (onChange) onChange(next);
-          else setInternal(next);
-        }}
-        placeholder={placeholder}
-        isClearable
-        isDisabled={isDisabled}
-        noOptionsMessage={() => "ບໍ່ພົບ"}
-        styles={styles}
-      />
+      {mounted ? (
+        <Select
+          instanceId={instanceId}
+          options={options}
+          value={selected}
+          onChange={(option) => {
+            const next = option?.value ?? "";
+            if (onChange) onChange(next);
+            else setInternal(next);
+          }}
+          placeholder={placeholder}
+          isClearable
+          isDisabled={isDisabled}
+          noOptionsMessage={() => "ບໍ່ພົບ"}
+          styles={styles}
+        />
+      ) : (
+        <div className="flex h-10 items-center truncate rounded-lg border border-slate-300 px-3 text-sm text-slate-400">
+          {selected?.label ?? placeholder}
+        </div>
+      )}
       {/* ຄ່າທີ່ຖືກ submit ຈິງ — ບໍ່ໃສ່ required ເພາະ browser ຟ້ອງ "not focusable" ກັບ hidden input;
           server (zod) ກວດຄ່າຈຳເປັນຢູ່ແລ້ວ */}
       <input type="hidden" name={name} value={current} />

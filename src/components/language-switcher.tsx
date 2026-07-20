@@ -10,6 +10,9 @@ import { useTransition } from "react";
  * ໂດຍບໍ່ຕ້ອງໂຫຼດ browser ຄືນ ແລະ URL ບໍ່ປ່ຽນ. useTransition ກັນ double-click
  * ຕອນກຳລັງສະຫຼັບ ແລະ ໃຫ້ UI ຮູ້ວ່າ pending.
  */
+/** ທຸງຊາດ ຕໍ່ພາສາ (endonym + ທຸງ ⇒ ຫາງ່າຍ). Windows ບາງເຄື່ອງສະແດງເປັນ 2 ຕົວອັກສອນ ແທນທຸງ */
+const LOCALE_FLAG: Record<Locale, string> = { lo: "🇱🇦", th: "🇹🇭", en: "🇬🇧" };
+
 export function LanguageSwitcher({ locale }: { locale: Locale }) {
   const [pending, startTransition] = useTransition();
 
@@ -24,12 +27,15 @@ export function LanguageSwitcher({ locale }: { locale: Locale }) {
             disabled={pending || active}
             aria-pressed={active}
             onClick={() => startTransition(() => setLocaleAction(code))}
-            className={`rounded-md px-2 py-1 text-xs font-semibold transition disabled:cursor-default ${
+            className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition disabled:cursor-default ${
               active
                 ? "bg-white text-teal-700 shadow-sm"
                 : "text-slate-500 hover:text-slate-800 disabled:opacity-50"
             }`}
           >
+            <span aria-hidden className="text-sm leading-none">
+              {LOCALE_FLAG[code]}
+            </span>
             {LOCALE_LABEL[code]}
           </button>
         );
