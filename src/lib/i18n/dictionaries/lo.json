@@ -363,7 +363,15 @@
     "nextDay": "ມື້ຕໍ່ໄປ",
     "prevMonth": "ເດືອນກ່ອນ",
     "nextMonth": "ເດືອນຕໍ່ໄປ",
-    "weekdays": ["ຈ", "ອ", "ພ", "ພຫ", "ສຸ", "ສ", "ອາ"]
+    "weekdays": [
+      "ຈ",
+      "ອ",
+      "ພ",
+      "ພຫ",
+      "ສຸ",
+      "ສ",
+      "ອາ"
+    ]
   },
   "customerContact": {
     "title": "ຄິວແຈ້ງລູກຄ້າ",
@@ -2430,7 +2438,9 @@
     "colStage": "ຂັ້ນ",
     "colServiceType": "ປະເພດບໍລິການ",
     "colElapsed": "ຄ້າງມາ",
-    "foundBadge": "ພົບແລ້ວ"
+    "foundBadge": "ພົບແລ້ວ",
+    "filterPlaceholder": "ຄົ້ນຫາໃນລາຍການ (ເລກງານ / SN / ສິນຄ້າ / ລູກຄ້າ)",
+    "noMatch": "ບໍ່ພົບລາຍການທີ່ຄົ້ນຫາ"
   },
   "assistantChat": {
     "title": "AI ຜູ້ຊ່ວຍວຽກ",

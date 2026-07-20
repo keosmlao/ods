@@ -363,7 +363,15 @@
     "nextDay": "Next day",
     "prevMonth": "Prev month",
     "nextMonth": "Next month",
-    "weekdays": ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+    "weekdays": [
+      "Mo",
+      "Tu",
+      "We",
+      "Th",
+      "Fr",
+      "Sa",
+      "Su"
+    ]
   },
   "customerContact": {
     "title": "Customer contact queue",
@@ -2430,7 +2438,9 @@
     "colStage": "Stage",
     "colServiceType": "Service type",
     "colElapsed": "Elapsed",
-    "foundBadge": "Found"
+    "foundBadge": "Found",
+    "filterPlaceholder": "Search list (job no / SN / product / customer)",
+    "noMatch": "No matching items"
   },
   "assistantChat": {
     "title": "AI Work Assistant",

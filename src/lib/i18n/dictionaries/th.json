@@ -363,7 +363,15 @@
     "nextDay": "วันถัดไป",
     "prevMonth": "เดือนก่อน",
     "nextMonth": "เดือนถัดไป",
-    "weekdays": ["จ", "อ", "พ", "พฤ", "ศ", "ส", "อา"]
+    "weekdays": [
+      "จ",
+      "อ",
+      "พ",
+      "พฤ",
+      "ศ",
+      "ส",
+      "อา"
+    ]
   },
   "customerContact": {
     "title": "คิวแจ้งลูกค้า",
@@ -2430,7 +2438,9 @@
     "colStage": "ขั้น",
     "colServiceType": "ประเภทบริการ",
     "colElapsed": "ค้างมา",
-    "foundBadge": "พบแล้ว"
+    "foundBadge": "พบแล้ว",
+    "filterPlaceholder": "ค้นหาในรายการ (เลขงาน / SN / สินค้า / ลูกค้า)",
+    "noMatch": "ไม่พบรายการที่ค้นหา"
   },
   "assistantChat": {
     "title": "AI ผู้ช่วยงาน",
