@@ -1,4 +1,5 @@
 "use server";
+import { logChange } from "@/lib/chatter-log";
 import { query } from "@/lib/db";
 import { requireRole } from "@/lib/guard";
 import { APPROVER_SIDE } from "@/lib/roles";
@@ -72,12 +73,13 @@ export async function countByScan(input: string): Promise<{ item?: CountedItem; 
   ).rows[0];
   if (!job) return { error: "notfound" };
 
-  const dupe = ((await query(`select 1 from ods_stock_count where job_code = $1`, [job.code])).rowCount ?? 0) > 0;
+  const dupe = ((await query(`select 1 from ods_stock_count where job_code = $1 and found`, [job.code])).rowCount ?? 0) > 0;
+  // ຍິງພົບ ⇒ found=true (ຖ້າເຄີຍໝາຍ "ຫາຍ" ໄວ້ ກໍ່ພິກກັບເປັນພົບ)
   await query(
-    `insert into ods_stock_count (job_code, counted_at, counted_by, stage_at)
-       values ($1, now(), $2, $3)
+    `insert into ods_stock_count (job_code, counted_at, counted_by, stage_at, found)
+       values ($1, now(), $2, $3, true)
      on conflict (job_code) do update
-       set counted_at = now(), counted_by = excluded.counted_by, stage_at = excluded.stage_at`,
+       set counted_at = now(), counted_by = excluded.counted_by, stage_at = excluded.stage_at, found = true`,
     [job.code, guard.session.username, job.stage],
   );
 
@@ -100,6 +102,40 @@ export async function countByScan(input: string): Promise<{ item?: CountedItem; 
       returned: job.returned,
     },
   };
+}
+
+/**
+ * ໝາຍ job ວ່າ **ນັບບໍ່ພົບ (ຫາຍ)** ຕອນກວດນັບ — ປິດອອກຈາກຄິວກວດນັບ ແຕ່ **ຍ້ອນຄືນໄດ້**
+ * (ບໍ່ລຶບຂໍ້ມູນ · ບໍ່ແຕະ ERP · ພຽງແຕ່ບັນທຶກ found=false ໃນ ods_stock_count).
+ */
+export async function markMissing(code: string): Promise<CountState> {
+  const guard = await requireRole(APPROVER_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
+  if (!guard.ok) return { error: guard.error };
+  const c = code.trim();
+  if (!c) return { error: "ບໍ່ພົບ code" };
+  const stage = (await query<{ stage: number }>(`select (${STAGE_SQL})::int stage from tb_product a where a.code = $1`, [c])).rows[0];
+  if (!stage) return { error: "ບໍ່ພົບ job ນີ້" };
+  await query(
+    `insert into ods_stock_count (job_code, counted_at, counted_by, stage_at, found)
+       values ($1, now(), $2, $3, false)
+     on conflict (job_code) do update
+       set counted_at = now(), counted_by = excluded.counted_by, stage_at = excluded.stage_at, found = false`,
+    [c, guard.session.username, stage.stage],
+  );
+  await logChange("tb_product", c, `ໝາຍ "ນັບບໍ່ພົບ (ຫາຍ)" ຕອນກວດນັບ ໂດຍ ${guard.session.username}`, { roles: ["manager"] });
+  revalidatePath("/reports/stock-count");
+  return {};
+}
+
+/** ນຳ job ກັບຄືນ ຈາກ "ນັບບໍ່ພົບ" → ກັບໄປເປັນ "ຍັງບໍ່ນັບ" (ລຶບ record ໝາຍ) */
+export async function restoreMissing(code: string): Promise<CountState> {
+  const guard = await requireRole(APPROVER_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
+  if (!guard.ok) return { error: guard.error };
+  const c = code.trim();
+  await query(`delete from ods_stock_count where job_code = $1 and found = false`, [c]);
+  await logChange("tb_product", c, `ນຳ job ກັບຄືນ ຈາກ "ນັບບໍ່ພົບ" ໂດຍ ${guard.session.username}`, { roles: ["manager"] });
+  revalidatePath("/reports/stock-count");
+  return {};
 }
 
 /** ລ້າງການນັບທັງໝົດ — ເລີ່ມກວດນັບຮອບໃໝ່ (ອອກລາຍງານກ່ອນລ້າງ) */

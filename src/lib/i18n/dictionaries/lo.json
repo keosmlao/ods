@@ -3676,7 +3676,19 @@
     "tabUncounted": "ຍັງບໍ່ນັບ",
     "byService": "ແຍກຕາມ service",
     "svcAll": "ທັງໝົດ",
-    "svcNone": "ບໍ່ລະບຸ"
+    "svcNone": "ບໍ່ລະບຸ",
+    "tabMissing": "ນັບບໍ່ພົບ / ຫາຍ",
+    "stateMissing": "ຫາຍ",
+    "closeMissing": "ປິດ · ນັບບໍ່ພົບ",
+    "restoreBack": "ນຳກັບຄືນ",
+    "colActions": "ຈັດການ",
+    "statMissing": "ນັບບໍ່ພົບ (ຫາຍ)",
+    "confirmCloseTitle": "ປິດ job — ນັບບໍ່ພົບ?",
+    "confirmCloseMsg": "ໝາຍ {code} ວ່າ ນັບບໍ່ພົບ (ຫາຍ) — ຈະປິດອອກຈາກຄິວກວດນັບ. ນຳກັບຄືນໄດ້ພາຍຫຼັງ (ບໍ່ລຶບຂໍ້ມູນ).",
+    "confirmCloseBtn": "ປິດ (ນັບບໍ່ພົບ)",
+    "confirmRestoreTitle": "ນຳ job ກັບຄືນ?",
+    "confirmRestoreMsg": "ນຳ {code} ກັບໄປເປັນ ຍັງບໍ່ນັບ — ກວດນັບ ຫຼື ໝາຍໃໝ່ໄດ້.",
+    "confirmRestoreBtn": "ນຳກັບຄືນ"
   },
   "sparePicker": {
     "title": "ເລືອກອາໄຫຼ່ (ຈາກ ERP)",

@@ -100,6 +100,7 @@ export async function countedItems(): Promise<CountedItem[]> {
         from ods_stock_count sc
         join tb_product a on a.code = sc.job_code
         left join ar_customer c on c.code = a.cust_code
+       where sc.found
        order by sc.counted_at desc`,
     )
   ).rows;
@@ -123,9 +124,11 @@ export async function countedItems(): Promise<CountedItem[]> {
 export type StockCountReportRow = StockCountJob & {
   /** ອາການ (ລູກຄ້າແຈ້ງ) */
   issue: string | null;
-  /** ນັບແລ້ວ ຫຼື ຍັງ */
+  /** ນັບພົບ (ມີເຄື່ອງຈິງ, found=true) */
   counted: boolean;
-  /** ນັບເມື່ອໃດ (null = ຍັງບໍ່ນັບ = ບໍ່ພົບຕົວ) */
+  /** ນັບບໍ່ພົບ / ຫາຍ (found=false) — ປິດຈາກຄິວ ແຕ່ຍ້ອນຄືນໄດ້ */
+  missing: boolean;
+  /** ນັບເມື່ອໃດ (null = ຍັງບໍ່ນັບ) */
   counted_at: string | null;
   counted_by: string | null;
   /** ຂັ້ນຕອນນັບ (snapshot) — ເລກ + ປ້າຍ. null = ຍັງບໍ່ນັບ */
@@ -137,32 +140,34 @@ export type StockCountReportRow = StockCountJob & {
 
 /**
  * ລາຍງານຜົນກວດນັບ — **pending ທັງໝົດ** (return_complete is null) LEFT JOIN ods_stock_count
- * ບວກ **ເຄື່ອງທີ່ນັບໄວ້ ເຖິງຈະສົ່ງຄືນແລ້ວ** (sc.job_code is not null) ⇒ ເຫັນທັງ
- * "ຜົນກວດນັບ" ແລະ "pending ທີ່ຍັງບໍ່ນັບ" ໃນລາຍການດຽວ.
- * ຍັງບໍ່ນັບ (counted_at null) = ຂຶ້ນກ່ອນ (ຕ້ອງຕິດຕາມ), ຕໍ່ດ້ວຍ ນັບແລ້ວ ຮຽງຕາມເວລາ.
+ * ບວກ **ເຄື່ອງທີ່ມີ record ນັບ** (sc.job_code is not null) ⇒ ເຫັນທັງ ນັບພົບ / ນັບບໍ່ພົບ(ຫາຍ) /
+ * ຍັງບໍ່ນັບ ໃນລາຍການດຽວ. ຍັງບໍ່ນັບຂຶ້ນກ່ອນ (ຕ້ອງຕິດຕາມ), ຕໍ່ດ້ວຍ ນັບແລ້ວ ຮຽງຕາມເວລາ.
  */
 export async function stockCountReport(): Promise<StockCountReportRow[]> {
   const rows = (
     await query<
-      Omit<StockCountReportRow, "stage_label" | "service_type_label" | "counted_stage_label" | "counted">
+      Omit<StockCountReportRow, "stage_label" | "service_type_label" | "counted_stage_label" | "counted" | "missing"> & {
+        found: boolean | null;
+      }
     >(
       `select a.code, a.name_1 product, a.sn, a.p_brand brand, c.name_1 customer,
           nullif(trim(coalesce(a.issue,'')),'') issue,
           (${STAGE_SQL}) stage, a.service_type,
           to_char(a.time_register,'DD-MM-YYYY') registered,
           greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int elapsed_seconds,
-          to_char(sc.counted_at,'DD-MM-YYYY HH24:MI') counted_at, sc.counted_by, sc.stage_at,
+          to_char(sc.counted_at,'DD-MM-YYYY HH24:MI') counted_at, sc.counted_by, sc.stage_at, sc.found,
           (a.return_complete is not null) returned
         from tb_product a
         left join ar_customer c on c.code = a.cust_code
         left join ods_stock_count sc on sc.job_code = a.code
        where a.return_complete is null or sc.job_code is not null
-       order by (sc.counted_at is null) desc, sc.counted_at desc nulls last, a.time_register desc`,
+       order by (sc.job_code is null) desc, sc.found asc nulls first, sc.counted_at desc nulls last, a.time_register desc`,
     )
   ).rows;
-  return rows.map((row) => ({
+  return rows.map(({ found, ...row }) => ({
     ...row,
-    counted: row.counted_at != null,
+    counted: found === true,
+    missing: found === false,
     stage_label: stageLabel(row.stage, row.service_type),
     service_type_label: SERVICE_TYPE_LABEL[row.service_type ?? ""] ?? (row.service_type ?? "-"),
     // ສະຖານະຕອນນັບພົບ (snapshot) — ຖ້າຂັ້ນປັດຈຸບັນຕ່າງ = ເຄື່ອງຂະຫຍັບຫຼັງນັບ

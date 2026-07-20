@@ -3676,7 +3676,19 @@
     "tabUncounted": "ยังไม่นับ",
     "byService": "แยกตาม service",
     "svcAll": "ทั้งหมด",
-    "svcNone": "ไม่ระบุ"
+    "svcNone": "ไม่ระบุ",
+    "tabMissing": "นับไม่พบ / หาย",
+    "stateMissing": "หาย",
+    "closeMissing": "ปิด · นับไม่พบ",
+    "restoreBack": "นำกลับคืน",
+    "colActions": "จัดการ",
+    "statMissing": "นับไม่พบ (หาย)",
+    "confirmCloseTitle": "ปิด job — นับไม่พบ?",
+    "confirmCloseMsg": "หมาย {code} ว่า นับไม่พบ (หาย) — จะปิดออกจากคิวกวดนับ. นำกลับคืนได้ภายหลัง (ไม่ลบข้อมูล).",
+    "confirmCloseBtn": "ปิด (นับไม่พบ)",
+    "confirmRestoreTitle": "นำ job กลับคืน?",
+    "confirmRestoreMsg": "นำ {code} กลับไปเป็น ยังไม่นับ — กวดนับ หรือ หมายใหม่ได้.",
+    "confirmRestoreBtn": "นำกลับคืน"
   },
   "sparePicker": {
     "title": "เลือกอะไหล่ (จาก ERP)",

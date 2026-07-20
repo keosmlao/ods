@@ -23,10 +23,10 @@ export default async function StockCountReportPage() {
   const t = (await getDictionary(await getLocale())).stockCountReport;
 
   const rows = await stockCountReport();
-  const counted = rows.filter((r) => r.counted).length;
+  const found = rows.filter((r) => r.counted).length;
+  const missing = rows.filter((r) => r.missing).length;
   const pending = rows.filter((r) => !r.returned).length;
-  const notCounted = rows.filter((r) => !r.counted).length;
-  const returned = rows.filter((r) => r.returned).length;
+  const notCounted = rows.filter((r) => !r.counted && !r.missing).length;
 
   const stat = (label: string, value: number, tone: string) => (
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
@@ -64,9 +64,9 @@ export default async function StockCountReportPage() {
 
       <div className="grid grid-cols-2 gap-2 sm:max-w-2xl sm:grid-cols-4">
         {stat(t.statPending, pending, "text-slate-700")}
-        {stat(t.statFound, counted, "text-emerald-600")}
+        {stat(t.statFound, found, "text-emerald-600")}
         {stat(t.statNotCounted, notCounted, "text-rose-600")}
-        {stat(t.statReturned, returned, "text-amber-600")}
+        {stat(t.statMissing, missing, "text-amber-600")}
       </div>
 
       {rows.length === 0 ? (

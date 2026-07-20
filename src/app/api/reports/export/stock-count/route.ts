@@ -14,7 +14,7 @@ export async function GET() {
 
   const items = await stockCountReport();
   const rows: XlsxRow[] = items.map((it) => ({
-    "ສະຖານະນັບ": it.counted ? "ນັບແລ້ວ" : "ຍັງບໍ່ນັບ",
+    "ສະຖານະນັບ": it.counted ? "ນັບພົບ" : it.missing ? "ນັບບໍ່ພົບ (ຫາຍ)" : "ຍັງບໍ່ນັບ",
     "ເລກງານ": it.code,
     "ສິນຄ້າ": it.product ?? "-",
     "ຍີ່ຫໍ້": it.brand ?? "-",

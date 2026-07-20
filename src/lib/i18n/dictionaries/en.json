@@ -3676,7 +3676,19 @@
     "tabUncounted": "Not counted",
     "byService": "By service",
     "svcAll": "All",
-    "svcNone": "N/A"
+    "svcNone": "N/A",
+    "tabMissing": "Not found / missing",
+    "stateMissing": "Missing",
+    "closeMissing": "Close · not found",
+    "restoreBack": "Restore",
+    "colActions": "Actions",
+    "statMissing": "Not found (missing)",
+    "confirmCloseTitle": "Close job — not found?",
+    "confirmCloseMsg": "Mark {code} as not-found (missing) — removes it from the count queue. Reversible later (no data deleted).",
+    "confirmCloseBtn": "Close (not found)",
+    "confirmRestoreTitle": "Restore this job?",
+    "confirmRestoreMsg": "Return {code} to not-counted — you can count or re-mark it.",
+    "confirmRestoreBtn": "Restore"
   },
   "sparePicker": {
     "title": "Select Spare Part (from ERP)",
