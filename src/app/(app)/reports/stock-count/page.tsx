@@ -3,7 +3,7 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { APPROVER_SIDE, roleOf } from "@/lib/roles";
 import { countedItems } from "@/lib/stock-count";
-import { Check, FileBarChart, ScanLine, TriangleAlert } from "lucide-react";
+import { Check, Download, FileBarChart, ScanLine, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -38,13 +38,24 @@ export default async function StockCountReportPage() {
           <FileBarChart className="size-5 text-teal-600" />
           {t.title}
         </h1>
-        <Link
-          href="/service/stock-count"
-          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-        >
-          <ScanLine className="size-4 text-teal-600" />
-          {t.goToCount}
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          {total > 0 && (
+            <a
+              href="/api/reports/export/stock-count"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+            >
+              <Download className="size-4" />
+              {t.exportXlsx}
+            </a>
+          )}
+          <Link
+            href="/service/stock-count"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            <ScanLine className="size-4 text-teal-600" />
+            {t.goToCount}
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:max-w-sm">
@@ -56,13 +67,14 @@ export default async function StockCountReportPage() {
         <p className="py-16 text-center text-sm text-slate-400">{t.emptyState}</p>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full min-w-[820px] border-collapse text-[11px] leading-tight">
+          <table className="w-full min-w-[940px] border-collapse text-[11px] leading-tight">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
                 <th className="px-2 py-1.5 font-semibold">{t.colJob}</th>
                 <th className="px-2 py-1.5 font-semibold">{t.colProduct}</th>
                 <th className="px-2 py-1.5 font-semibold">{t.colBrand}</th>
                 <th className="px-2 py-1.5 font-semibold">{t.colCustomer}</th>
+                <th className="px-2 py-1.5 font-semibold">{t.colIssue}</th>
                 <th className="px-2 py-1.5 font-semibold">{t.colService}</th>
                 <th className="px-2 py-1.5 font-semibold">{t.colCountStatus}</th>
                 <th className="px-2 py-1.5 font-semibold">{t.colStage}</th>
@@ -79,6 +91,7 @@ export default async function StockCountReportPage() {
                   </td>
                   <td className="whitespace-nowrap px-2 py-1">{row.brand || "-"}</td>
                   <td className="max-w-48 truncate px-2 py-1" title={row.customer ?? ""}>{row.customer || "-"}</td>
+                  <td className="max-w-56 truncate px-2 py-1 text-slate-600" title={row.issue ?? ""}>{row.issue || "-"}</td>
                   <td className="whitespace-nowrap px-2 py-1">
                     {row.service_type ? <b className="text-sky-700">{row.service_type}</b> : <span className="text-slate-300">-</span>}
                   </td>

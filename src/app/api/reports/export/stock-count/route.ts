@@ -1,0 +1,48 @@
+import { guardApi } from "@/lib/api-guard";
+import { countedItems } from "@/lib/stock-count";
+import { respondXlsx, type XlsxRow } from "@/lib/xlsx";
+
+export const runtime = "nodejs";
+
+/**
+ * Excel ຂອງ "ລາຍງານຜົນການກວດນັບສະຕັອກ" (/reports/stock-count) — ສະເພາະເຄື່ອງທີ່
+ * **ນັບພົບແລ້ວ** (ຈາກ ods_stock_count, ຜ່ານ countedItems ບ່ອນດຽວກັບໜ້າຈໍ ⇒ ບໍ່ຕ່າງກັນ).
+ */
+export async function GET() {
+  const denied = await guardApi("/reports/stock-count");
+  if (denied) return denied;
+
+  const items = await countedItems();
+  const rows: XlsxRow[] = items.map((it) => ({
+    "ເລກງານ": it.code,
+    "ສິນຄ້າ": it.product ?? "-",
+    "ຍີ່ຫໍ້": it.brand ?? "-",
+    "Serial": it.sn ?? "-",
+    "ລູກຄ້າ": it.customer ?? "-",
+    "ອາການ": it.issue ?? "-",
+    "ປະເພດບໍລິການ": it.service_type_label,
+    "ສະຖານະຕອນນັບ": it.counted_stage_label ?? "-",
+    "ຂັ້ນປັດຈຸບັນ": it.stage_label,
+    "ສົ່ງຄືນແລ້ວ": it.returned ? "ແມ່ນ" : "",
+    "ນັບເມື່ອ": it.counted_at ?? "-",
+    "ຜູ້ນັບ": it.counted_by ?? "-",
+  }));
+
+  const columns = [
+    { header: "ເລກງານ", key: "ເລກງານ", width: 10 },
+    { header: "ສິນຄ້າ", key: "ສິນຄ້າ", width: 22 },
+    { header: "ຍີ່ຫໍ້", key: "ຍີ່ຫໍ້", width: 14 },
+    { header: "Serial", key: "Serial", width: 20 },
+    { header: "ລູກຄ້າ", key: "ລູກຄ້າ", width: 26 },
+    { header: "ອາການ", key: "ອາການ", width: 30 },
+    { header: "ປະເພດບໍລິການ", key: "ປະເພດບໍລິການ", width: 24 },
+    { header: "ສະຖານະຕອນນັບ", key: "ສະຖານະຕອນນັບ", width: 20 },
+    { header: "ຂັ້ນປັດຈຸບັນ", key: "ຂັ້ນປັດຈຸບັນ", width: 20 },
+    { header: "ສົ່ງຄືນແລ້ວ", key: "ສົ່ງຄືນແລ້ວ", width: 12 },
+    { header: "ນັບເມື່ອ", key: "ນັບເມື່ອ", width: 18 },
+    { header: "ຜູ້ນັບ", key: "ຜູ້ນັບ", width: 14 },
+  ];
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  return respondXlsx("ຜົນກວດນັບສະຕັອກ", columns, rows, `stock-count-${stamp}.xlsx`);
+}

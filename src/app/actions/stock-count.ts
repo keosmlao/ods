@@ -54,11 +54,13 @@ export async function countByScan(input: string): Promise<{ item?: CountedItem; 
       sn: string | null;
       brand: string | null;
       customer: string | null;
+      issue: string | null;
       stage: number;
       service_type: string | null;
       returned: boolean;
     }>(
       `select a.code, a.name_1 product, a.sn, a.p_brand brand, c.name_1 customer,
+          nullif(trim(coalesce(a.issue,'')),'') issue,
           (${STAGE_SQL})::int stage, a.service_type, (a.return_complete is not null) returned
         from tb_product a
         left join ar_customer c on c.code = a.cust_code
@@ -88,6 +90,7 @@ export async function countByScan(input: string): Promise<{ item?: CountedItem; 
       sn: job.sn,
       brand: job.brand,
       customer: job.customer,
+      issue: job.issue,
       stage_label: label,
       service_type: job.service_type,
       service_type_label: SERVICE_TYPE_LABEL[job.service_type ?? ""] ?? (job.service_type ?? "-"),

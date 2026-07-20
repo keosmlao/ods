@@ -62,6 +62,8 @@ export type CountedItem = {
   sn: string | null;
   brand: string | null;
   customer: string | null;
+  /** ອາການ (ລູກຄ້າແຈ້ງ) */
+  issue: string | null;
   /** ຂັ້ນປັດຈຸບັນ (ສົດ) */
   stage_label: string;
   service_type: string | null;
@@ -82,6 +84,7 @@ export async function countedItems(): Promise<CountedItem[]> {
       sn: string | null;
       brand: string | null;
       customer: string | null;
+      issue: string | null;
       stage: number;
       service_type: string | null;
       counted_at: string | null;
@@ -90,6 +93,7 @@ export async function countedItems(): Promise<CountedItem[]> {
       returned: boolean;
     }>(
       `select a.code, a.name_1 product, a.sn, a.p_brand brand, c.name_1 customer,
+          nullif(trim(coalesce(a.issue,'')),'') issue,
           (${STAGE_SQL}) stage, a.service_type,
           to_char(sc.counted_at,'DD-MM-YYYY HH24:MI') counted_at, sc.counted_by, sc.stage_at,
           (a.return_complete is not null) returned
@@ -105,6 +109,7 @@ export async function countedItems(): Promise<CountedItem[]> {
     sn: row.sn,
     brand: row.brand,
     customer: row.customer,
+    issue: row.issue,
     stage_label: stageLabel(row.stage, row.service_type),
     service_type: row.service_type,
     service_type_label: SERVICE_TYPE_LABEL[row.service_type ?? ""] ?? (row.service_type ?? "-"),

@@ -3656,7 +3656,9 @@
     "colStage": "ขั้น (ปัจจุบัน)",
     "colCountedAtBy": "นับเมื่อ / โดย",
     "returnedTooltip": "ในระบบส่งคืนลูกค้าแล้ว แต่ถูกนับพบ",
-    "returnedBadge": "ส่งคืนแล้ว"
+    "returnedBadge": "ส่งคืนแล้ว",
+    "exportXlsx": "ดึง Excel",
+    "colIssue": "อาการ"
   },
   "sparePicker": {
     "title": "เลือกอะไหล่ (จาก ERP)",

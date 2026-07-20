@@ -23,6 +23,7 @@ type Job = {
   model: string | null;
   customer: string | null;
   phone: string | null;
+  issue: string | null;
   reg_date: string | null;
   service_type: string | null;
   stage: number;
@@ -34,7 +35,8 @@ export default async function JobLabelPage({ params }: Props) {
   const job = (
     await query<Job>(
       `select a.code, a.name_1 product, a.sn, a.p_brand brand, a.p_model model,
-          c.name_1 customer, c.tel phone, to_char(a.time_register,'DD-MM-YYYY') reg_date,
+          c.name_1 customer, c.tel phone, nullif(trim(coalesce(a.issue,'')),'') issue,
+          to_char(a.time_register,'DD-MM-YYYY') reg_date,
           a.service_type, (${STAGE_SQL})::int stage
         from tb_product a left join ar_customer c on c.code = a.cust_code
        where a.code = $1 limit 1`,
@@ -90,6 +92,7 @@ export default async function JobLabelPage({ params }: Props) {
           {info("SN", job.sn)}
           {info("ລູກຄ້າ", job.customer)}
           {info("ໂທ", job.phone)}
+          {info("ອາການ", job.issue)}
           {info("ຂັ້ນ", stageLabel(job.stage, job.service_type))}
           {info("ຮັບວັນທີ", job.reg_date)}
         </div>

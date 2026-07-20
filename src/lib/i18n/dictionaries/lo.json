@@ -3656,7 +3656,9 @@
     "colStage": "ຂັ້ນ (ປັດຈຸບັນ)",
     "colCountedAtBy": "ນັບເມື່ອ / ໂດຍ",
     "returnedTooltip": "ໃນລະບົບສົ່ງຄືນລູກຄ້າແລ້ວ ແຕ່ຖືກນັບພົບ",
-    "returnedBadge": "ສົ່ງຄືນແລ້ວ"
+    "returnedBadge": "ສົ່ງຄືນແລ້ວ",
+    "exportXlsx": "ດຶງ Excel",
+    "colIssue": "ອາການ"
   },
   "sparePicker": {
     "title": "ເລືອກອາໄຫຼ່ (ຈາກ ERP)",

@@ -3656,7 +3656,9 @@
     "colStage": "Stage (Current)",
     "colCountedAtBy": "Counted At / By",
     "returnedTooltip": "Already returned to customer in system but was counted",
-    "returnedBadge": "Returned"
+    "returnedBadge": "Returned",
+    "exportXlsx": "Export Excel",
+    "colIssue": "Symptom"
   },
   "sparePicker": {
     "title": "Select Spare Part (from ERP)",
