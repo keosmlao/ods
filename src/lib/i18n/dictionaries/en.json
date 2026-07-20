@@ -3587,7 +3587,8 @@
     "all": "All",
     "items": "items",
     "colSpare": "Spare",
-    "colTotal": "Total"
+    "colTotal": "Total",
+    "allCenters": "All centers"
   },
   "qcDetail": {
     "title": "Quality Control",

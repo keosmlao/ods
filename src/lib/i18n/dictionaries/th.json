@@ -3587,7 +3587,8 @@
     "all": "ทั้งหมด",
     "items": "รายการ",
     "colSpare": "อะไหล่",
-    "colTotal": "รวม"
+    "colTotal": "รวม",
+    "allCenters": "ทุกศูนย์"
   },
   "qcDetail": {
     "title": "ตรวจรับคุณภาพ",

@@ -3587,7 +3587,8 @@
     "all": "ທັງໝົດ",
     "items": "ລາຍການ",
     "colSpare": "ອາໄຫຼ່",
-    "colTotal": "ລວມ"
+    "colTotal": "ລວມ",
+    "allCenters": "ທຸກສູນ"
   },
   "qcDetail": {
     "title": "ກວດຮັບຄຸນນະພາບ",
