@@ -11,6 +11,7 @@ import { holdJsonSql, type JobHold } from "@/lib/job-hold";
 import { previousJobOf, REPEAT_DAYS } from "@/lib/repeat";
 import { AssignTechButton } from "@/components/installation/assign-tech";
 import { RepairSpareEditor, type UsedSpareLine } from "@/components/repair/repair-spare-editor";
+import { ScheduleRepairVisitButton } from "@/components/repair/schedule-repair-visit-button";
 import { listTechnicians } from "@/lib/technicians";
 import { TRANS } from "@/lib/stock-constants";
 import { APPROVER_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
@@ -19,7 +20,7 @@ import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { stageLabel, STAGE_SQL } from "@/lib/stage";
 import { DONE_STAGE } from "@/lib/track";
-import { ArrowLeft, Barcode, ImageIcon, Pencil, Phone, Printer, RotateCcw } from "lucide-react";
+import { ArrowLeft, Barcode, CalendarDays, ImageIcon, Pencil, Phone, Printer, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -57,6 +58,8 @@ type Job = {
   technician: string | null;
   /** ວັນນັດ + ສະຖານທີ່ສ້ອມ — ໃຫ້ AssignTechButton (ປ່ຽນຊ່າງ) pre-fill ໄດ້ */
   appoint_date: string | null;
+  /** IH: ວັນນັດໄປສ້ອມ ຮອບ 2 (ຫຼັງອະນຸມັດລາຄາ) — ແຍກຈາກ appoint_date (ຮອບ 1 ໄປກວດ) */
+  repair_appoint_date: string | null;
   location_inst: string | null;
   /** ໃຊ້ເປັນ key ຂອງໜ້າ /stock/requests/[roworder] (ຂໍເບີກອາໄຫຼ່) */
   roworder: number;
@@ -87,6 +90,7 @@ export default async function ServiceDetail({ params }: Props) {
          a.warrunty warranty, a.warranty_reason, a.service_type, a.issue, a.issue_2, a.p_abrasion remark, a.repair_note note,
          a.p_delivery delivery, a.doc_def bill_no, a.doc_date_ref bill_date,
          a.emp_code technician, to_char(a.appoint_date,'YYYY-MM-DD') appoint_date,
+         to_char(a.repair_appoint_date,'YYYY-MM-DD') repair_appoint_date,
          a.location_repair location_inst, a.roworder, a.user_regis receiver,
          (select count(*) from product_image i
            where i.iteme_code = a.code and coalesce(i.product_url,'') <> '')::int images,
@@ -172,6 +176,8 @@ export default async function ServiceDetail({ params }: Props) {
    * CS/ຫົວໜ້າ ປ່ຽນເປັນ B ໃຫ້ໄປສ້ອມ. assignRepairTech ກັນ (ປ່ຽນຫຼັງຂໍເບີກບໍ່ໄດ້) ຢູ່ແລ້ວ.
    */
   const canReassign = !done && !cancelled && SERVICE_SIDE.includes(roleOf(session));
+  // IH ໄປສ້ອມບ້ານລູກຄ້າ: ຫຼັງລູກຄ້າຕົກລົງລາຄາ (ຂັ້ນ 5–9) → ນັດ "ໄປສ້ອມ ຮອບ 2"
+  const canScheduleVisit = canReassign && job.service_type === "IH" && job.stage >= 5 && job.stage <= 9;
   const techs = canReassign ? await listTechnicians() : [];
 
   /**
@@ -290,10 +296,23 @@ export default async function ServiceDetail({ params }: Props) {
       </div>
 
       {/* ຈັດການວຽກຄ້າງ / ປ່ຽນຊ່າງ — ຄືຄໍລຳໃນລາຍການ /service ແຕ່ຈັດການໄດ້ໃນໜ້າລາຍລະອຽດເລີຍ */}
-      {(canHold || canReassign) && (
+      {(canHold || canReassign || canScheduleVisit) && (
         <section className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
           <span className="text-xs font-bold text-slate-600">{t.manageJob}</span>
           {canHold && <HoldButtons key={job.hold ? "held" : "free"} code={job.code} hold={job.hold} />}
+          {canScheduleVisit && (
+            <ScheduleRepairVisitButton
+              code={job.code}
+              currentDate={job.repair_appoint_date}
+              location={job.location_inst}
+            />
+          )}
+          {job.service_type === "IH" && job.repair_appoint_date && (
+            <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
+              <CalendarDays className="size-3.5" />
+              {job.repair_appoint_date}
+            </span>
+          )}
           {canReassign && (
             <AssignTechButton
               label={job.technician ? t.changeTech : t.assignTech}

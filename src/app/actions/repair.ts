@@ -579,3 +579,76 @@ export async function assignRepairTech(_: RepairState, formData: FormData): Prom
   revalidatePath("/dashboard");
   return { ok: "ຈັດຊ່າງສຳເລັດ" };
 }
+
+/**
+ * IH ໄປສ້ອມບ້ານລູກຄ້າ — ນັດ **"ໄປສ້ອມ ຮອບ 2"** ຫຼັງລູກຄ້າຕົກລົງລາຄາ (ອະນຸມັດ).
+ *
+ * ຮอบ 1 (appoint_date) = ໄປກວດເຊັກ; ຫຼັງກວດ ຊ່າງກັບສູນ → ສະເໜີລາຄາ → ລູກຄ້າອະນຸມັດ →
+ * ຕ້ອງກັບໄປบ້ານลูกค้າອີກຄັ້ງເພື່ອສ້ອມ. ບ່ອນນີ້ຕັ້ງ repair_appoint_date (ແຍກ, ບໍ່ທັບຮອບ 1)
+ * ⇒ ຄິວฝ่ายบริการ + ຊ່າງ ຮູ້ວັນໄປສ້ອມ. ໃຊ້ໄດ້ຫຼັງອະນຸມັດລາຄາ (ຂັ້ນ 5) ຈົນເຖິງກຳລັງສ້ອມ (9).
+ */
+export async function scheduleRepairVisit(_: RepairState, formData: FormData): Promise<RepairState> {
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດນັດໄປສ້ອມ");
+  if (!guard.ok) return { error: guard.error };
+
+  const code = String(formData.get("code") ?? "");
+  const appoint = String(formData.get("appoint_date") ?? "").trim();
+  const location = String(formData.get("location_inst") ?? "").trim();
+  if (!code) return { error: "ບໍ່ພົບໃບຮັບເຄື່ອງ" };
+  if (!appoint) return { error: "ກະລຸນາໃສ່ວັນນັດໄປສ້ອມ" };
+
+  const job = (
+    await query<{
+      stage: number;
+      service_type: string | null;
+      emp_code: string | null;
+      done: boolean;
+      cancelled: boolean;
+    }>(
+      `select (${STAGE_SQL})::int as stage, nullif(a.service_type,'') as service_type,
+          nullif(a.emp_code,'') as emp_code,
+          (a.return_complete is not null) as done, (a.cancel_start is not null) as cancelled
+        from tb_product a where a.code = $1 limit 1`,
+      [code],
+    )
+  ).rows[0];
+  if (!job) return { error: "ບໍ່ພົບໃບຮັບເຄື່ອງນີ້" };
+  if (job.cancelled) return { error: "ໃບນີ້ຖືກຍົກເລີກແລ້ວ" };
+  if (job.done) return { error: "ໃບນີ້ສົ່ງຄືນລູກຄ້າແລ້ວ" };
+  if (job.service_type !== "IH") return { error: "ນັດໄປສ້ອມ ໃຊ້ໄດ້ສະເພາະງານ IH (ໄປສ້ອມບ້ານລູກຄ້າ)" };
+  // ຮอບ 2 = ຫຼັງລູກຄ້າຕົກລົງລາຄາ (ຂັ້ນ 5+) ຈົນເຖິງກຳລັງສ້ອມ (9) — ກ່ອນໜ້ານັ້ນຍັງບໍ່ອະນຸມັດລາຄາ
+  if (job.stage < 5 || job.stage > 9) {
+    return { error: "ນັດໄປສ້ອມໄດ້ຫຼັງລູກຄ້າຕົກລົງລາຄາ (ຂັ້ນ ຂໍເບີກ → ກຳລັງສ້ອມ) ເທົ່ານັ້ນ" };
+  }
+
+  try {
+    await query(
+      `update tb_product set repair_appoint_date = nullif($1,'')::date,
+          location_repair = coalesce(nullif($2,''), location_repair),
+          user_edit = $3
+        where code = $4`,
+      [appoint, location, guard.session.username, code],
+    );
+  } catch (error) {
+    console.error("scheduleRepairVisit failed", error);
+    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
+  }
+
+  await logChange(
+    "tb_product",
+    code,
+    `ນັດໄປສ້ອມ (ຮອບ 2): ${appoint}${location ? ` · ${location}` : ""}`,
+    job.emp_code ? { users: [job.emp_code] } : undefined,
+  );
+  // ຊ່າງຢູ່ໜ້າງານ — ແຈ້ງຜ່ານມືຖືໃຫ້ຮູ້ວັນໄປສ້ອມ
+  if (job.emp_code) {
+    await pushToUser(job.emp_code, "ນັດໄປສ້ອມ (ຮອບ 2)", `${code} · ${appoint}`, { workflow: "repair", code });
+  }
+
+  revalidatePath(`/service/${code}`);
+  revalidatePath("/dashboard/status/repair/wait-repair");
+  revalidatePath("/repair");
+  revalidatePath("/installations/schedule");
+  revalidatePath("/dashboard");
+  return { ok: "ນັດໄປສ້ອມສຳເລັດ" };
+}

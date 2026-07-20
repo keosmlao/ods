@@ -3494,5 +3494,16 @@
     "cancelCheckTitle": "Cancel completed check?",
     "cancelCheckMsgHead": "The check results of receipt",
     "cancelCheckMsgTail": "(the symptoms the technician diagnosed and the selected parts) will be cleared and the job will return to \"Checking\" to be recorded again. The selected parts will be returned to the cart automatically."
+  },
+  "scheduleRepairVisit": {
+    "scheduleLabel": "Schedule repair visit",
+    "rescheduleLabel": "Reschedule repair visit",
+    "dialogTitle": "Schedule repair visit (2nd trip)",
+    "dialogHint": "After the customer approves the price — set the date the technician will visit to repair",
+    "dateLabel": "Repair visit date",
+    "locationLabel": "Repair location",
+    "locationPlaceholder": "Customer address (if changed)",
+    "save": "Save",
+    "exit": "Exit"
   }
 }
