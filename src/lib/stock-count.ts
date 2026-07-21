@@ -138,6 +138,9 @@ export type StockCountReportRow = StockCountJob & {
   returned: boolean;
   /** ໄລຍະເວລາທີ່ຄ້າງຢູ່**ຂັ້ນປັດຈຸບັນ** (ວິນາທີ) — ບໍ່ແມ່ນ "ຕັ້ງແຕ່ເປີດງານ" */
   stage_elapsed_seconds: number | null;
+  /** ເຊັກຢືນຢັນ (ຂັ້ນ 2 ຫຼັງນັບພົບ) — null = ຍັງບໍ່ໄດ້ເຊັກ */
+  checked_at: string | null;
+  checked_by: string | null;
 };
 
 /**
@@ -158,6 +161,7 @@ export async function stockCountReport(): Promise<StockCountReportRow[]> {
           to_char(a.time_register,'DD-MM-YYYY') registered,
           greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int elapsed_seconds,
           (${STAGE_ELAPSED_SQL}) stage_elapsed_seconds,
+          to_char(sc.checked_at,'DD-MM-YYYY HH24:MI') checked_at, sc.checked_by,
           to_char(sc.counted_at,'DD-MM-YYYY HH24:MI:SS') counted_at, sc.counted_by, sc.stage_at, sc.found,
           (a.return_complete is not null) returned
         from tb_product a

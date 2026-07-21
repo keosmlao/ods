@@ -39,6 +39,30 @@ export async function unmarkCounted(code: string): Promise<CountState> {
   return {};
 }
 
+/** ເຊັກແລ້ວ = ຢືນຢັນຊ້ຳ (ຂັ້ນ 2 ຫຼັງນັບພົບ). ໝາຍໄດ້ສະເພາະ record ທີ່ນັບພົບ (found). */
+export async function markChecked(code: string): Promise<CountState> {
+  const guard = await requireRole(STOCK_COUNT_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
+  if (!guard.ok) return { error: guard.error };
+  const c = code.trim();
+  if (!c) return { error: "ບໍ່ພົບ code" };
+  const r = await query(
+    `update ods_stock_count set checked_at = now(), checked_by = $2 where job_code = $1 and found`,
+    [c, guard.session.username],
+  );
+  if (!r.rowCount) return { error: "ຕ້ອງນັບພົບກ່ອນຈຶ່ງເຊັກໄດ້" };
+  revalidatePath("/reports/stock-count");
+  return {};
+}
+
+/** ຍົກເລີກ ເຊັກແລ້ວ → ກັບເປັນ ນັບພົບ (ຍັງບໍ່ໄດ້ເຊັກ) */
+export async function unmarkChecked(code: string): Promise<CountState> {
+  const guard = await requireRole(STOCK_COUNT_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
+  if (!guard.ok) return { error: guard.error };
+  await query(`update ods_stock_count set checked_at = null, checked_by = null where job_code = $1`, [code.trim()]);
+  revalidatePath("/reports/stock-count");
+  return {};
+}
+
 /**
  * ຍິງ/ພິມ code ຫຼື SN → ຄົ້ນຫາ job **ໃນ tb_product ທັງໝົດ** (ບໍ່ຈຳກັດ pending),
  * ໝາຍ "ນັບແລ້ວ" ພ້ອມ stage_at, ແລ້ວຄືນລາຍລະອຽດໃຫ້ຝັ່ງ client ສະແດງໃນລາຍການພົບ.

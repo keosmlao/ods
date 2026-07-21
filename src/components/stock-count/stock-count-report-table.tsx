@@ -1,5 +1,5 @@
 "use client";
-import { markCounted, markMissing, restoreMissing } from "@/app/actions/stock-count";
+import { markChecked, markCounted, markMissing, restoreMissing, unmarkChecked } from "@/app/actions/stock-count";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Elapsed } from "@/components/elapsed";
 import { JobStageModal } from "@/components/stock-count/job-stage-modal";
@@ -111,6 +111,8 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
 
   // ✓ ຖືກຕ້ອງ = ຢືນຢັນວ່າມີເຄື່ອງຈິງ + ຂໍ້ມູນຖືກ ⇒ ໝາຍ "ນັບພົບ" ໂດຍກົງ (ບໍ່ຕ້ອງສະແກນ)
   const markCorrect = (code: string) => start(async () => { await markCounted(code); router.refresh(); });
+  // ເຊັກແລ້ວ = ຢືນຢັນຊ້ຳ (ຂັ້ນ 2) ໃສ່ລາຍການທີ່ນັບພົບ · ກົດຄືນ = ຍົກເລີກເຊັກ
+  const toggleChecked = (code: string, on: boolean) => start(async () => { await (on ? markChecked(code) : unmarkChecked(code)); router.refresh(); });
 
   const tabBtn = (key: Tab, label: string, n: number, tone: string) => (
     <button
@@ -314,6 +316,29 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                               <PackageX className="size-3" /> {t.closeMissing}
                             </button>
                           </>
+                        )}
+                        {state === "counted" && (
+                          row.checked_at ? (
+                            <button
+                              type="button"
+                              disabled={pending}
+                              onClick={() => toggleChecked(row.code, false)}
+                              title={`ເຊັກແລ້ວ${row.checked_by ? ` · ${row.checked_by}` : ""}${row.checked_at ? ` · ${row.checked_at}` : ""} — ກົດເພື່ອຍົກເລີກ`}
+                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-200 disabled:opacity-50"
+                            >
+                              <CheckCheck className="size-3" /> ເຊັກແລ້ວ
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={pending}
+                              onClick={() => toggleChecked(row.code, true)}
+                              title="ຢືນຢັນຊ້ຳວ່າເຊັກແລ້ວ"
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-50"
+                            >
+                              <Check className="size-3" /> ເຊັກແລ້ວ
+                            </button>
+                          )
                         )}
                         {state === "missing" && (
                           <button

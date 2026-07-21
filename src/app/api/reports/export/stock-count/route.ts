@@ -33,6 +33,7 @@ const DETAIL_COLS: XlsxColumn[] = [
   { header: "ຂັ້ນຕອນນັບ", key: "ຂັ້ນຕອນນັບ", width: 18 },
   { header: "ນັບເມື່ອ", key: "ນັບເມື່ອ", width: 18 },
   { header: "ຜູ້ນັບ", key: "ຜູ້ນັບ", width: 14 },
+  { header: "ເຊັກແລ້ວ", key: "ເຊັກແລ້ວ", width: 18 },
 ];
 const detailRow = (r: StockCountReportRow): XlsxRow => ({
   "ສະຖານະນັບ": stateOf(r),
@@ -49,6 +50,7 @@ const detailRow = (r: StockCountReportRow): XlsxRow => ({
   "ຂັ້ນຕອນນັບ": r.counted_stage_label ?? "-",
   "ນັບເມື່ອ": r.counted_at ?? "-",
   "ຜູ້ນັບ": r.counted_by ?? "-",
+  "ເຊັກແລ້ວ": r.checked_at ? `${r.checked_at}${r.checked_by ? ` · ${r.checked_by}` : ""}` : "-",
 });
 
 /** Excel: sheet "ສະຫຼຸບ" (ບໍລິການ × ສະຖານະ) + 1 sheet ຕໍ່ບໍລິການ (ລາຍລະອຽດ). */
