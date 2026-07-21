@@ -7,6 +7,17 @@ export const runtime = "nodejs";
 const SERVICE_ORDER = ["CI", "ST", "IH", "PS"];
 const stateOf = (r: StockCountReportRow) => (r.counted ? "ນັບພົບ" : r.missing ? "ນັບບໍ່ພົບ (ຫາຍ)" : "ຍັງບໍ່ນັບ");
 
+/** ວິນາທີ → "N ມື້ HH:MM" (ຄືກັບ components/elapsed) */
+const fmtElapsed = (s: number | null): string => {
+  if (s == null) return "-";
+  const sec = Math.max(0, s);
+  const days = Math.floor(sec / 86400);
+  const h = Math.floor((sec % 86400) / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const clock = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  return days > 0 ? `${days} ມື້ ${clock}` : clock;
+};
+
 const DETAIL_COLS: XlsxColumn[] = [
   { header: "ສະຖານະນັບ", key: "ສະຖານະນັບ", width: 14 },
   { header: "ເລກງານ", key: "ເລກງານ", width: 10 },
@@ -17,6 +28,7 @@ const DETAIL_COLS: XlsxColumn[] = [
   { header: "ອາການ", key: "ອາການ", width: 28 },
   { header: "ວັນເປີດງານ", key: "ວັນເປີດງານ", width: 14 },
   { header: "ຂັ້ນປັດຈຸບັນ", key: "ຂັ້ນປັດຈຸບັນ", width: 18 },
+  { header: "ໄລຍະສະຖານະ", key: "ໄລຍະສະຖານະ", width: 14 },
   { header: "ຂັ້ນຕອນນັບ", key: "ຂັ້ນຕອນນັບ", width: 18 },
   { header: "ນັບເມື່ອ", key: "ນັບເມື່ອ", width: 18 },
   { header: "ຜູ້ນັບ", key: "ຜູ້ນັບ", width: 14 },
@@ -31,6 +43,7 @@ const detailRow = (r: StockCountReportRow): XlsxRow => ({
   "ອາການ": r.issue ?? "-",
   "ວັນເປີດງານ": r.registered ?? "-",
   "ຂັ້ນປັດຈຸບັນ": r.stage_label,
+  "ໄລຍະສະຖານະ": fmtElapsed(r.stage_elapsed_seconds),
   "ຂັ້ນຕອນນັບ": r.counted_stage_label ?? "-",
   "ນັບເມື່ອ": r.counted_at ?? "-",
   "ຜູ້ນັບ": r.counted_by ?? "-",

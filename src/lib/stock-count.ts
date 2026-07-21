@@ -1,6 +1,6 @@
 import { query } from "@/lib/db";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
-import { stageLabel, STAGE_SQL } from "@/lib/stage";
+import { STAGE_ELAPSED_SQL, stageLabel, STAGE_SQL } from "@/lib/stage";
 
 /**
  * **ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມແປງ** — ນິຍາມ "ເຄື່ອງທີ່ຄວນຢູ່ໃນສູນຈິງ" ບ່ອນດຽວ.
@@ -136,6 +136,8 @@ export type StockCountReportRow = StockCountJob & {
   counted_stage_label: string | null;
   /** ນັບໄວ້ ແຕ່ສົ່ງຄືນລູກຄ້າແລ້ວ (ບໍ່ pending) — ໃຫ້ລະວັງ */
   returned: boolean;
+  /** ໄລຍະເວລາທີ່ຄ້າງຢູ່**ຂັ້ນປັດຈຸບັນ** (ວິນາທີ) — ບໍ່ແມ່ນ "ຕັ້ງແຕ່ເປີດງານ" */
+  stage_elapsed_seconds: number | null;
 };
 
 /**
@@ -155,6 +157,7 @@ export async function stockCountReport(): Promise<StockCountReportRow[]> {
           (${STAGE_SQL}) stage, a.service_type,
           to_char(a.time_register,'DD-MM-YYYY') registered,
           greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int elapsed_seconds,
+          (${STAGE_ELAPSED_SQL}) stage_elapsed_seconds,
           to_char(sc.counted_at,'DD-MM-YYYY HH24:MI:SS') counted_at, sc.counted_by, sc.stage_at, sc.found,
           (a.return_complete is not null) returned
         from tb_product a

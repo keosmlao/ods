@@ -1,7 +1,9 @@
 "use client";
 import { markMissing, restoreMissing } from "@/app/actions/stock-count";
 import { useConfirm } from "@/components/confirm-dialog";
+import { Elapsed } from "@/components/elapsed";
 import { JobStageModal } from "@/components/stock-count/job-stage-modal";
+import { elapsedTone } from "@/lib/elapsed-tone";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import type { StockCountReportRow } from "@/lib/stock-count";
 import { Check, Clock, PackageX, RotateCcw, SlidersHorizontal, TriangleAlert } from "lucide-react";
@@ -197,7 +199,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
         <p className="py-16 text-center text-sm text-slate-400">{t.emptyState}</p>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full min-w-[1140px] border-collapse text-[11px] leading-tight">
+          <table className="w-full min-w-[1240px] border-collapse text-[11px] leading-tight">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
                 <th className="px-2 py-1.5 font-semibold">{t.colCountState}</th>
@@ -209,6 +211,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                 <th className="px-2 py-1.5 font-semibold">{t.colService}</th>
                 <th className="px-2 py-1.5 font-semibold">{t.colStage}</th>
                 <th className="px-2 py-1.5 font-semibold">ວັນເປີດງານ</th>
+                <th className="px-2 py-1.5 font-semibold">ໄລຍະສະຖານະ</th>
                 <th className="px-2 py-1.5 font-semibold">{t.colCountedAtBy}</th>
                 <th className="px-2 py-1.5 font-semibold">{t.colActions}</th>
               </tr>
@@ -261,6 +264,9 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-2 py-1 text-slate-500">{row.registered || "-"}</td>
+                    <td className="whitespace-nowrap px-2 py-1">
+                      <Elapsed seconds={row.stage_elapsed_seconds} className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${elapsedTone(row.stage_elapsed_seconds).chip}`} />
+                    </td>
                     <td className="whitespace-nowrap px-2 py-1 text-slate-600">
                       {state === "uncounted" ? (
                         <span className="text-slate-300">-</span>
