@@ -1,9 +1,10 @@
 "use client";
 import { markMissing, restoreMissing } from "@/app/actions/stock-count";
 import { useConfirm } from "@/components/confirm-dialog";
+import { JobStageModal } from "@/components/stock-count/job-stage-modal";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import type { StockCountReportRow } from "@/lib/stock-count";
-import { Check, Clock, PackageX, RotateCcw, TriangleAlert } from "lucide-react";
+import { Check, Clock, PackageX, RotateCcw, SlidersHorizontal, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
@@ -23,6 +24,7 @@ const stateOf = (r: StockCountReportRow): "counted" | "missing" | "uncounted" =>
 export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { rows: StockCountReportRow[]; t: T; initialTab?: Tab }) {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [svc, setSvc] = useState<string>("all");
+  const [editRow, setEditRow] = useState<StockCountReportRow | null>(null);
   const { ask, dialog } = useConfirm();
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -119,6 +121,15 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
   return (
     <div className="space-y-3">
       {dialog}
+      {editRow && (
+        <JobStageModal
+          code={editRow.code}
+          product={editRow.product}
+          serviceType={editRow.service_type}
+          currentStage={editRow.stage}
+          onClose={() => setEditRow(null)}
+        />
+      )}
 
       {/* ── dashboard: (ນັບແລ້ວ / ຍັງບໍ່ນັບ / ນັບບໍ່ພົບ) → ບໍລິການ → ຂັ້ນ (ໜ້າດຽວ) ── */}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -261,6 +272,13 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                     </td>
                     <td className="whitespace-nowrap px-2 py-1">
                       <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setEditRow(row)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                        >
+                          <SlidersHorizontal className="size-3" /> ປັບປຸງ
+                        </button>
                         {state === "uncounted" && (
                           <button
                             type="button"
