@@ -300,30 +300,27 @@ export default async function SchedulePage({ searchParams }: Props) {
                 <h3 className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.loadByTech}</h3>
                 <span className="text-[10px] font-semibold text-slate-400">{byTech.size} {t.teamTech}</span>
               </div>
-              <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-3">
+              <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 {[...byTech.entries()].map(([who, techJobs]) => {
                   const installs = techJobs.filter((job) => job.workflow === "install").length;
                   const repairs = techJobs.length - installs;
                   const isNoTech = who === NO_TECH;
                   const displayName = isNoTech ? t.noTechParen : technicianName(who);
+                  const high = techJobs.length >= 4;
                   return (
-                    <div key={who} className={`rounded-2xl border bg-white p-3.5 shadow-sm ${techJobs.length >= 4 ? "border-rose-200" : "border-slate-200"}`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex min-w-0 items-center gap-2.5">
-                          <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${techJobs.length >= 4 ? "bg-rose-50 text-rose-600" : "bg-teal-50 text-teal-700"}`}><UserRound className="size-4" /></span>
-                          <div className="min-w-0"><p className="truncate text-sm font-black text-slate-800">{displayName}</p>
-                          {!isNoTech && displayName !== who && <p className="truncate text-[10px] text-slate-400">{t.codeLabel} {who}</p>}
-                          </div>
-                        </div>
-                        <span className={`shrink-0 rounded-xl px-2.5 py-1 text-xs font-black ${techJobs.length >= 4 ? "bg-rose-600 text-white" : "bg-[#0b1f33] text-white"}`}>
-                          {techJobs.length} {t.jobsWord}
-                        </span>
+                    <div key={who} className={`flex items-center gap-3 px-3.5 py-2.5 ${high ? "bg-rose-50/40" : ""}`}>
+                      <span className={`grid size-8 shrink-0 place-items-center rounded-xl ${high ? "bg-rose-50 text-rose-600" : "bg-teal-50 text-teal-700"}`}><UserRound className="size-4" /></span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-black text-slate-800">{displayName}
+                          {!isNoTech && displayName !== who && <span className="ml-1.5 text-[10px] font-medium text-slate-400">{t.codeLabel} {who}</span>}
+                        </p>
+                        {high && canSeeAll && <p className="text-[10px] font-bold text-rose-600">{t.highLoadWarn}</p>}
                       </div>
-                      <div className="mt-3 grid grid-cols-2 gap-1.5 text-[10px] font-bold">
-                        <span className="rounded-lg bg-teal-50 px-2 py-1 text-center text-teal-700">{t.installWord} {installs}</span>
-                        <span className="rounded-lg bg-amber-50 px-2 py-1 text-center text-amber-700">{t.repairWord} {repairs}</span>
-                      </div>
-                      {techJobs.length >= 4 && canSeeAll && <p className="mt-2 text-[10px] font-bold text-rose-600">{t.highLoadWarn}</p>}
+                      <span className="shrink-0 rounded-lg bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-teal-700">{t.installWord} {installs}</span>
+                      <span className="shrink-0 rounded-lg bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">{t.repairWord} {repairs}</span>
+                      <span className={`shrink-0 rounded-xl px-2.5 py-1 text-xs font-black tabular-nums ${high ? "bg-rose-600 text-white" : "bg-[#0b1f33] text-white"}`}>
+                        {techJobs.length} {t.jobsWord}
+                      </span>
                     </div>
                   );
                 })}
