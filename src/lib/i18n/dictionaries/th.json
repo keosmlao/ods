@@ -4321,6 +4321,10 @@
     "confirmRestoreTitle": "นำ job กลับคืน?",
     "confirmRestoreMsg": "นำ {code} กลับไปเป็น ยังไม่นับ — กวดนับ หรือ หมายใหม่ได้.",
     "confirmRestoreBtn": "นำกลับคืน",
+    "uncountBack": "ยกเลิกนับ",
+    "confirmUncountTitle": "นำ job กลับเป็น ยังไม่นับ?",
+    "confirmUncountMsg": "นำ {code} ออกจาก นับแล้ว → กลับเป็น ยังไม่นับ (ยังอยู่ pending เหมือนเดิม) — นับใหม่ได้. ไม่ลบข้อมูลงาน.",
+    "confirmUncountBtn": "นำกลับคืน",
     "missingMenuTitle": "เครื่องนับไม่พบ (หาย)",
     "manageJob": "จัดการ"
   },

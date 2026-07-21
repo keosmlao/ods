@@ -4321,6 +4321,10 @@
     "confirmRestoreTitle": "ນຳ job ກັບຄືນ?",
     "confirmRestoreMsg": "ນຳ {code} ກັບໄປເປັນ ຍັງບໍ່ນັບ — ກວດນັບ ຫຼື ໝາຍໃໝ່ໄດ້.",
     "confirmRestoreBtn": "ນຳກັບຄືນ",
+    "uncountBack": "ຍົກເລີກນັບ",
+    "confirmUncountTitle": "ນຳ job ກັບຄືນ ຍັງບໍ່ນັບ?",
+    "confirmUncountMsg": "ນຳ {code} ອອກຈາກ ນັບແລ້ວ → ກັບໄປເປັນ ຍັງບໍ່ນັບ (ຢູ່ pending ຄືເກົ່າ) — ກວດນັບໃໝ່ໄດ້. ບໍ່ລຶບຂໍ້ມູນວຽກ.",
+    "confirmUncountBtn": "ນຳກັບຄືນ",
     "missingMenuTitle": "ເຄື່ອງນັບບໍ່ພົບ (ຫາຍ)",
     "manageJob": "ຈັດການ"
   },

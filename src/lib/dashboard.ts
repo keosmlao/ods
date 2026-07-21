@@ -3,7 +3,7 @@ import { installStatuses, repairStatuses, type StatusDef } from "@/lib/dashboard
 import { INSTALL_ELAPSED_SQL, INSTALL_OPEN, INSTALL_STAGE_LABEL_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { SLA_SQL } from "@/lib/sla";
 import { openRepeatJobs, type RepeatJob } from "@/lib/repeat";
-import { NOT_MISSING, OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
+import { NOT_MISSING, NOT_PENDING_CANCEL, OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import type { QueryResultRow } from "pg";
 
@@ -393,7 +393,11 @@ export type DashboardData = {
  */
 export async function getDashboard(tech: string | null, days = 30): Promise<{ data: DashboardData | null; error: boolean }> {
   // ຊ່າງ: ຝັ່ງສ້ອມກອງດ້ວຍ emp_code · ຝັ່ງຕິດຕັ້ງກອງດ້ວຍ tech_code (ຄືກັບທຸກໜ້າອື່ນ)
-  const repairWhere = tech ? `${OPEN_JOBS} and ${NOT_MISSING} and a.emp_code = $1` : `${OPEN_JOBS} and ${NOT_MISSING}`;
+  // ${NOT_PENDING_CANCEL}: ຕັດໃບຮ້ອງຂໍຍົກເລີກ-ຍັງບໍ່ອະນຸມັດ (stage -1) ⇒ KPI "ວຽກສ້ອມຄ້າງ"
+  // = ຜົນບວກຂັ້ນ pipeline (0–11) ພໍດີ. ບໍ່ດັ່ງນັ້ນ total ນັບ stage -1 ທີ່ບໍ່ມີ bucket ⇒ ຫຼົ້ນກັນ.
+  const repairWhere = tech
+    ? `${OPEN_JOBS} and ${NOT_MISSING} and ${NOT_PENDING_CANCEL} and a.emp_code = $1`
+    : `${OPEN_JOBS} and ${NOT_MISSING} and ${NOT_PENDING_CANCEL}`;
   const installWhere = tech ? `${INSTALL_OPEN} and a.tech_code = $1` : INSTALL_OPEN;
   const args = tech ? [tech] : [];
 

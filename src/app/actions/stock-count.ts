@@ -32,10 +32,12 @@ export async function markCounted(code: string): Promise<CountState> {
   return {};
 }
 
+/** ນຳ job "ນັບແລ້ວ" ກັບຄືນ → ຍັງບໍ່ນັບ (ລຶບ record ໝາຍ). job ຍັງຢູ່ pending ຄືເກົ່າ. */
 export async function unmarkCounted(code: string): Promise<CountState> {
   const guard = await requireRole(STOCK_COUNT_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
   if (!guard.ok) return { error: guard.error };
   await query(`delete from ods_stock_count where job_code = $1`, [code.trim()]);
+  revalidatePath("/reports/stock-count");
   return {};
 }
 

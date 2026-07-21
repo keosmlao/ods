@@ -4321,6 +4321,10 @@
     "confirmRestoreTitle": "Restore this job?",
     "confirmRestoreMsg": "Return {code} to not-counted — you can count or re-mark it.",
     "confirmRestoreBtn": "Restore",
+    "uncountBack": "Uncount",
+    "confirmUncountTitle": "Return job to not-counted?",
+    "confirmUncountMsg": "Move {code} out of counted → back to not-counted (still pending as before) — you can re-count it. No job data deleted.",
+    "confirmUncountBtn": "Return",
     "missingMenuTitle": "Not-found devices (missing)",
     "manageJob": "Manage"
   },

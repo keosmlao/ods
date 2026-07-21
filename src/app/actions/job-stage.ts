@@ -79,6 +79,9 @@ export async function setJobServiceStage(code: string, serviceType: string, stag
       `update ods_job_hold set resolved_at = now(), resolved_by = $2 where workflow = 'repair' and job_code = $1 and resolved_at is null`,
       [code, g.session.username],
     );
+    // ຖ້າໃບນີ້ຢູ່ໃນຮອບກວດນັບ — sync ຂັ້ນ snapshot (stage_at) ໃຫ້ຕົງກັບການແກ້ ⇒ ລາຍງານ
+    // ບໍ່ໂຊ້ chip "ຂັ້ນຕອນນັບຕ່າງ" ຄ້າງຄ່າເກົ່າ (ການແກ້ນີ້ = ແກ້ຂໍ້ມູນຜິດ ບໍ່ແມ່ນເຄື່ອງຂະຫຍັບ).
+    await db.query(`update ods_stock_count set stage_at = $2 where job_code = $1`, [code, stage]);
   } catch (error) {
     console.error("setJobServiceStage failed", error);
     return { error: "ປັບປຸງບໍ່ສຳເລັດ" };

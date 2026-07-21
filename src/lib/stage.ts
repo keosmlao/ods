@@ -160,6 +160,15 @@ export const CANCELLED_JOBS = "a.status = 6";
 export const NOT_MISSING = "a.code not in (select job_code from ods_stock_count where found = false)";
 
 /**
+ * ຕັດ **ໃບຮ້ອງຂໍຍົກເລີກ ທີ່ຍັງບໍ່ອະນຸມັດ** (STAGE_SQL = -1: status=6 ແຕ່ cancel_finish ຫວ່າງ)
+ * ອອກຈາກ "ວຽກສ້ອມຄ້າງ". ໃບກຸ່ມນີ້ຢູ່ຄິວ /approvals/cancellations ລໍຕົກລົງວ່າຈະຍົກເລີກ
+ * ຫຼືບໍ່ — ຍັງບໍ່ແມ່ນວຽກສ້ອມ. ມັນຕົກເປັນ stage -1 ເຊິ່ງ **ບໍ່ມີ bucket ໃນ pipeline** ⇒ ຖ້າ
+ * ນັບເຂົ້າ total ຈະໄດ້ total > ຜົນບວກຂັ້ນ (0–11). ຕັດອອກ ⇒ total = ຜົນບວກຂັ້ນ ພໍດີ.
+ * (ໃບຍົກເລີກ-ອະນຸມັດ-ເຄື່ອງຍັງຢູ່ = cancel_finish ບໍ່ຫວ່າງ → stage 11 ຍັງຄ້າງຢູ່ ຄືເກົ່າ.)
+ */
+export const NOT_PENDING_CANCEL = "not (a.status = 6 and a.cancel_finish is null)";
+
+/**
  * ເວລາທີ່ **ເຂົ້າຂັ້ນປັດຈຸບັນ** — ຄູ່ກັບ INSTALL_STAGE_TIME_COL ຂອງຝັ່ງຕິດຕັ້ງ.
  *
  * ຝັ່ງຕິດຕັ້ງມີອັນນີ້ມາແຕ່ຕົ້ນ ແຕ່ຝັ່ງສ້ອມບໍ່ມີ ⇒ ວັດ "ຄ້າງຢູ່ຂັ້ນນີ້ດົນປານໃດ" ບໍ່ໄດ້

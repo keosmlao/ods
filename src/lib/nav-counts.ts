@@ -8,18 +8,24 @@ import { canAccess, roleOf } from "@/lib/roles";
 import { ownJobsOnly } from "@/lib/scope";
 import { HAS_OUTSTANDING_SPARES } from "@/lib/outstanding-spares";
 import { pendingInstallBills } from "@/lib/pending-bills";
-import { CANCELLED_JOBS, STAGE_SQL } from "@/lib/stage";
+import { CANCELLED_JOBS, NOT_MISSING, STAGE_SQL } from "@/lib/stage";
 
 /**
  * ຕົວເລກຄິວຂອງແຕ່ລະຂັ້ນສ້ອມ — ຄູ່ກັບກຸ່ມເມນູ "ສະຖານະງານສ້ອມ" (lib/navigation).
  *
- * ນັບຈາກ CTE `rst` (ຂັ້ນ + ຈຳນວນ, ສະແກນ tb_product ເທື່ອດຽວ) ⇒ ບໍ່ຕ້ອງຍິງ 11 subquery.
- * **ບໍ່ກອງຕາມຊ່າງ** ໂດຍເຈດຕະນາ: ໜ້າ /dashboard/status/repair/<slug> ສະແດງທຸກວຽກ
- * (ບໍ່ໃຊ້ ownJobsOnly) ⇒ ຕົວເລກຕ້ອງນັບທຸກວຽກຄືກັນ ຈຶ່ງບໍ່ຫຼົ້ນກັບແຖວທີ່ເຫັນ (ກົດເກນ ①).
- * key = href ຂອງລາຍການເມນູ; slug + ຂັ້ນ ມາຈາກ repairStatuses ບ່ອນດຽວ.
+ * ⚠️ ນັບຕໍ່ **condition ຂອງແຕ່ລະ slug** ບໍ່ແມ່ນຕໍ່ `def.stage` — ຂັ້ນ 0 ມີ 3 slug
+ * (wait-pickup · picking-up · wait-schedule) ໃຊ້ stage ດຽວກັນ ⇒ ຖ້າ group ຕາມ stage
+ * ທັງ 3 ຈະໄດ້ຍອດຂັ້ນ 0 ອັນດຽວກັນ (badge ຊ້ຳ 6,6,6) ແຕ່ໜ້າປາຍທາງກອງດ້ວຍ sub-condition
+ * (PS/pickup_start vs IH) ⇒ ເຫັນ 0,0,6 — ຫຼົ້ນກັບ badge (ຜິດກົດເກນ ①). ໃສ່ ${NOT_MISSING}
+ * ໃຫ້ຕົງກັບໜ້າປາຍທາງ (page.tsx push NOT_MISSING). **ບໍ່ກອງຕາມຊ່າງ** ໂດຍເຈດຕະນາ:
+ * ໜ້າ /dashboard/status/repair/<slug> ສະແດງທຸກວຽກ (ບໍ່ໃຊ້ ownJobsOnly).
+ * key = href ຂອງລາຍການເມນູ; slug + condition ມາຈາກ repairStatuses ບ່ອນດຽວ.
  */
 const REPAIR_STAGE_COUNTS = pipelineOf(repairStatuses)
-  .map(([slug, def]) => `coalesce((select n from rst where st = ${def.stage}), 0)::int as "/dashboard/status/repair/${slug}"`)
+  .map(
+    ([slug, def]) =>
+      `(select count(*) from tb_product a where (${def.condition}) and ${NOT_MISSING})::int as "/dashboard/status/repair/${slug}"`,
+  )
   .join(",\n          ");
 
 /**
@@ -120,16 +126,7 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
   try {
     const row = (
       await query<NavCounts>(
-        `with rst as (
-          -- ⚠️ **ບໍ່ກອງ status<>6**: STAGE_SQL ຈັດງານຍົກເລີກ-ອະນຸມັດ-ເຄື່ອງຍັງຢູ່ ໄປຂັ້ນ 11
-          -- (ຕັ້ງໃຈ — ຍັງຕ້ອງອອກໃບຄືນເຄື່ອງ). ກອງ status<>6 ⇒ badge ຂັ້ນ 11 ຫຼຸດ ແຕ່ໜ້າ
-          -- ປາຍທາງ (stageIs(11) ບໍ່ກອງ) ຍັງນັບ ⇒ ຜິດກົດ ① "ຕົວເລກ=ແຖວ". ງານ status=6 ຕົກ
-          -- ໄດ້ແຕ່ຂັ້ນ 11 ຫຼື -1 ເທົ່ານັ້ນ (STAGE_SQL ກວດກ່ອນຂັ້ນອື່ນ) ⇒ ຂັ້ນ 1-10/12 ບໍ່ກະທົບ.
-          select (${STAGE_SQL}) st, count(*)::int n
-          from tb_product a
-          group by 1
-        ),
-        ist as (
+        `with ist as (
           -- ຂັ້ນຕິດຕັ້ງ: ສະແກນ ods_tb_install ເທື່ອດຽວ ⇒ ຄູ່ກັບກຸ່ມເມນູ "ຂັ້ນຕອນຕິດຕັ້ງ".
           -- ຂັ້ນ 0-8 ແມ່ນຄິວເປີດ; INSTALL_STAGE_SQL ຈັດ -1/9 ເປັນຍົກເລີກ/ປິດແລ້ວ.
           -- ⇒ count ຕໍ່ຂັ້ນ = ຈຳນວນແຖວໜ້າ /dashboard/status/install/<slug> ພໍດີ (ກົດເກນ ①).
