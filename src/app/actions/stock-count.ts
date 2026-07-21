@@ -2,7 +2,7 @@
 import { logChange } from "@/lib/chatter-log";
 import { query } from "@/lib/db";
 import { requireRole } from "@/lib/guard";
-import { APPROVER_SIDE } from "@/lib/roles";
+import { STOCK_COUNT_SIDE } from "@/lib/roles";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { stageLabel, STAGE_SQL } from "@/lib/stage";
 import type { CountedItem } from "@/lib/stock-count";
@@ -15,7 +15,7 @@ import { revalidatePath } from "next/cache";
 export type CountState = { error?: string };
 
 export async function markCounted(code: string): Promise<CountState> {
-  const guard = await requireRole(APPROVER_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
+  const guard = await requireRole(STOCK_COUNT_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
   if (!guard.ok) return { error: guard.error };
   const c = code.trim();
   if (!c) return { error: "ບໍ່ພົບ code" };
@@ -32,7 +32,7 @@ export async function markCounted(code: string): Promise<CountState> {
 }
 
 export async function unmarkCounted(code: string): Promise<CountState> {
-  const guard = await requireRole(APPROVER_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
+  const guard = await requireRole(STOCK_COUNT_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
   if (!guard.ok) return { error: guard.error };
   await query(`delete from ods_stock_count where job_code = $1`, [code.trim()]);
   return {};
@@ -43,7 +43,7 @@ export async function unmarkCounted(code: string): Promise<CountState> {
  * ໝາຍ "ນັບແລ້ວ" ພ້ອມ stage_at, ແລ້ວຄືນລາຍລະອຽດໃຫ້ຝັ່ງ client ສະແດງໃນລາຍການພົບ.
  */
 export async function countByScan(input: string): Promise<{ item?: CountedItem; dupe?: boolean; error?: string }> {
-  const guard = await requireRole(APPROVER_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
+  const guard = await requireRole(STOCK_COUNT_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
   if (!guard.ok) return { error: guard.error };
   const q = input.trim();
   if (!q) return { error: "empty" };
@@ -109,7 +109,7 @@ export async function countByScan(input: string): Promise<{ item?: CountedItem; 
  * (ບໍ່ລຶບຂໍ້ມູນ · ບໍ່ແຕະ ERP · ພຽງແຕ່ບັນທຶກ found=false ໃນ ods_stock_count).
  */
 export async function markMissing(code: string): Promise<CountState> {
-  const guard = await requireRole(APPROVER_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
+  const guard = await requireRole(STOCK_COUNT_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
   if (!guard.ok) return { error: guard.error };
   const c = code.trim();
   if (!c) return { error: "ບໍ່ພົບ code" };
@@ -131,7 +131,7 @@ export async function markMissing(code: string): Promise<CountState> {
 
 /** ນຳ job ກັບຄືນ ຈາກ "ນັບບໍ່ພົບ" → ກັບໄປເປັນ "ຍັງບໍ່ນັບ" (ລຶບ record ໝາຍ) */
 export async function restoreMissing(code: string): Promise<CountState> {
-  const guard = await requireRole(APPROVER_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
+  const guard = await requireRole(STOCK_COUNT_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
   if (!guard.ok) return { error: guard.error };
   const c = code.trim();
   await query(`delete from ods_stock_count where job_code = $1 and found = false`, [c]);
@@ -144,7 +144,7 @@ export async function restoreMissing(code: string): Promise<CountState> {
 
 /** ລ້າງການນັບທັງໝົດ — ເລີ່ມກວດນັບຮອບໃໝ່ (ອອກລາຍງານກ່ອນລ້າງ) */
 export async function resetStockCount(): Promise<CountState> {
-  const guard = await requireRole(APPROVER_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
+  const guard = await requireRole(STOCK_COUNT_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
   if (!guard.ok) return { error: guard.error };
   await query(`delete from ods_stock_count`);
   revalidatePath("/service/stock-count");

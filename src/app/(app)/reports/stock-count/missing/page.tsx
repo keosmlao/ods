@@ -1,6 +1,6 @@
 import { StockCountReportView } from "@/components/stock-count/stock-count-report-view";
 import { getSession } from "@/lib/auth";
-import { APPROVER_SIDE, roleOf } from "@/lib/roles";
+import { STOCK_COUNT_SIDE, roleOf } from "@/lib/roles";
 import { redirect } from "next/navigation";
 
 /**
@@ -12,6 +12,6 @@ export const dynamic = "force-dynamic";
 export default async function StockCountMissingPage() {
   const session = await getSession();
   if (!session) redirect("/login");
-  if (!APPROVER_SIDE.includes(roleOf(session))) redirect("/forbidden");
+  if (!STOCK_COUNT_SIDE.includes(roleOf(session))) redirect("/forbidden");
   return <StockCountReportView defaultTab="missing" />;
 }

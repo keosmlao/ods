@@ -1,6 +1,6 @@
 import { StockCountClient } from "@/components/stock-count/stock-count-client";
 import { getSession } from "@/lib/auth";
-import { APPROVER_SIDE, roleOf } from "@/lib/roles";
+import { STOCK_COUNT_SIDE, roleOf } from "@/lib/roles";
 import { countedItems } from "@/lib/stock-count";
 import { FileBarChart, ScanLine } from "lucide-react";
 import Link from "next/link";
@@ -9,14 +9,14 @@ import { redirect } from "next/navigation";
 /**
  * **ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມແປງ** — scan-driven: ຍິງ/ພິມ code ຫຼື SN (job ໃດກໍ່ໄດ້) →
  * ໝາຍ "ນັບແລ້ວ" ບັນທຶກລົງ DB (ods_stock_count) → ຂຶ້ນລາຍການພົບ + ເອົາໄປເຮັດລາຍງານ.
- * ເຫັນສະເພາະ ຫົວໜ້າ/ຜູ້ອະນຸມັດ (APPROVER_SIDE).
+ * ເຫັນສະເພາະ ຫົວໜ້າ/ຜູ້ຈັດການ + ສາງ (STOCK_COUNT_SIDE).
  */
 export const dynamic = "force-dynamic";
 
 export default async function StockCountPage() {
   const session = await getSession();
   if (!session) redirect("/login");
-  if (!APPROVER_SIDE.includes(roleOf(session))) redirect("/forbidden");
+  if (!STOCK_COUNT_SIDE.includes(roleOf(session))) redirect("/forbidden");
 
   const items = await countedItems();
 
