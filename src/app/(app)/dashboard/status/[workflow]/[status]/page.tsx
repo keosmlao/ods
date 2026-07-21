@@ -179,9 +179,9 @@ export default async function StatusPage({ params, searchParams }: Props) {
     redirect("/dashboard/status/repair/wait-check");
   }
   const isRepair = workflow === "repair";
-  // ສະຖານະ "ພັກຊົ່ວຄາວ" = ລາຍການທຸງເປີດເອງ (condition = heldSql) ⇒ ຫ້າມເອົາ notHeldSql
-  // ໄປ and ຊ້ຳ (ຈະໄດ້ held and not-held = ວ່າງ). ບໍ່ມີແທັບ ປົກກະຕິ/ມີບັນຫາ ໃນສະຖານະນີ້.
-  const isPaused = isRepair && status === "paused";
+  // ສະຖານະ overlay (ພັກຊົ່ວຄາວ / ໂອນໄປສູນ) ມີ condition ຂອງມັນເອງ ⇒ ຫ້າມເອົາ notHeldSql
+  // ໄປ and ຊ້ຳ (heldSql and notHeldSql = ວ່າງ). ບໍ່ມີແທັບ ປົກກະຕິ/ມີບັນຫາ ໃນສະຖານະນີ້.
+  const isPaused = isRepair && (status === "paused" || status === "transferring");
   const config = isRepair ? repairStatuses[status] : workflow === "install" ? installStatuses[status] : null;
   /**
    * ຄິວ "ລໍຖ້າສົ່ງຄືນ" ຮັບງານມາຈາກ **ສອງທາງ**: ສ້ອມສຳເລັດ (ຜ່ານ QC) ແລະ ຍົກເລີກ

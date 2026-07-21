@@ -1,6 +1,8 @@
 "use client";
 import { setJobPaused, setJobServiceStage } from "@/app/actions/job-stage";
+import { receiveJobTransfer, transferJob } from "@/app/actions/job-transfer";
 import { HOLD_KIND_LABEL, HOLD_KINDS } from "@/lib/job-hold";
+import { REPAIR_CENTER_LABEL, REPAIR_CENTERS } from "@/lib/repair-center";
 import { STAGE_LABEL } from "@/lib/stage";
 import { LoaderCircle, TriangleAlert, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -15,6 +17,8 @@ const SERVICE_TYPES: { value: string; label: string }[] = [
 // ຂັ້ນ 1-12 (ຕັດ -1 ຍົກເລີກ ແລະ 0 ທີ່ຂຶ້ນກັບ service) — ຄູ່ກັບ action stagePlan
 const STAGES = Array.from({ length: 12 }, (_, i) => i + 1);
 const PAUSED = "paused";
+const TRANSFER = "transfer";
+const RECEIVE = "receive";
 
 /**
  * Modal "ປັບປຸງ" — ແກ້ ປະເພດບໍລິການ + ຂັ້ນ ຂອງງານຈາກໜ້າກວດນັບ.
@@ -38,15 +42,24 @@ export function JobStageModal({
   const [status, setStatus] = useState<string>(currentStage && currentStage >= 1 && currentStage <= 12 ? String(currentStage) : "1");
   const [kind, setKind] = useState("other");
   const [reason, setReason] = useState("");
+  const [toCenter, setToCenter] = useState(REPAIR_CENTERS[0]);
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
 
   const isPaused = status === PAUSED;
+  const isTransfer = status === TRANSFER;
+  const isReceive = status === RECEIVE;
 
   const save = () =>
     start(async () => {
       setErr("");
-      const r = isPaused ? await setJobPaused(code, kind, reason) : await setJobServiceStage(code, svc, Number(status));
+      const r = isPaused
+        ? await setJobPaused(code, kind, reason)
+        : isTransfer
+          ? await transferJob(code, toCenter, reason)
+          : isReceive
+            ? await receiveJobTransfer(code)
+            : await setJobServiceStage(code, svc, Number(status));
       if (r.error) { setErr(r.error); return; }
       onClose();
       router.refresh();
@@ -66,7 +79,7 @@ export function JobStageModal({
         </div>
 
         <div className="space-y-3">
-          {!isPaused && (
+          {!isPaused && !isTransfer && !isReceive && (
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-600">ປະເພດບໍລິການ</label>
               <select value={svc} onChange={(e) => setSvc(e.target.value)} className={field}>
@@ -79,6 +92,8 @@ export function JobStageModal({
             <select value={status} onChange={(e) => setStatus(e.target.value)} className={field}>
               {STAGES.map((s) => <option key={s} value={String(s)}>{s} · {STAGE_LABEL[s]}</option>)}
               <option value={PAUSED}>⏸ ພັກຊົ່ວຄາວ</option>
+              <option value={TRANSFER}>📦 ໂອນໄປສ້ອມສູນອື່ນ</option>
+              <option value={RECEIVE}>📥 ຮັບເຂົ້າສູນ (ເຄື່ອງມາຮອດ)</option>
             </select>
           </div>
 
@@ -96,11 +111,34 @@ export function JobStageModal({
               </div>
             </>
           )}
+
+          {isTransfer && (
+            <>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">ສູນປາຍທາງ</label>
+                <select value={toCenter} onChange={(e) => setToCenter(e.target.value)} className={field}>
+                  {REPAIR_CENTERS.map((c) => <option key={c} value={c}>{c} · {REPAIR_CENTER_LABEL[c]}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">ເຫດຜົນ *</label>
+                <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="ຍ້ອນຫຍັງຈຶ່ງໂອນ (ຢ່າງໜ້ອຍ 3 ຕົວອັກສອນ)" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500" />
+              </div>
+            </>
+          )}
         </div>
 
         <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 p-2.5 text-[11px] text-amber-800">
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-          <span>{isPaused ? "ພັກຊົ່ວຄາວ = ຄາຢູ່ຂັ້ນເດີມ ນາລິກາຂັ້ນຢຸດ. ບັນທຶກເຫດຜົນໃສ່ chatter." : "ຕັ້ງຂັ້ນໂດຍກົງ = ຂ້າມຂັ້ນຕອນປົກກະຕິ (ຖ້າພັກຢູ່ຈະສືບຕໍ່). ບັນທຶກໃສ່ chatter."}</span>
+          <span>
+            {isPaused
+              ? "ພັກຊົ່ວຄາວ = ຄາຢູ່ຂັ້ນເດີມ ນາລິກາຂັ້ນຢຸດ. ບັນທຶກເຫດຜົນໃສ່ chatter."
+              : isTransfer
+                ? "ໂອນໄປສູນອື່ນ = ເຄື່ອງສົ່ງໄປສ້ອມສູນອື່ນ (ລໍສູນປາຍທາງກົດ 'ຮັບເຂົ້າ'). ຄາຢູ່ຂັ້ນເດີມ."
+                : isReceive
+                  ? "ຮັບເຂົ້າສູນ = ຢືນຢັນວ່າເຄື່ອງໂອນມາຮອດສູນນີ້ແລ້ວ — ປິດການໂອນ."
+                  : "ຕັ້ງຂັ້ນໂດຍກົງ = ຂ້າມຂັ້ນຕອນປົກກະຕິ (ຖ້າພັກຢູ່ຈະສືບຕໍ່). ບັນທຶກໃສ່ chatter."}
+          </span>
         </div>
 
         {err && <p className="mt-2 text-xs font-semibold text-rose-600">{err}</p>}

@@ -1,5 +1,6 @@
 import { installStageIs } from "@/lib/install-stage";
 import { heldSql } from "@/lib/job-hold";
+import { inTransferSql } from "@/lib/repair-center";
 import { STAGE_SQL } from "@/lib/stage";
 
 /**
@@ -78,6 +79,11 @@ export const repairStatuses: Record<string, StatusDef> = {
    * ຫ້າມລວມຍອດ pipeline. ເປີດ/ປິດຄວາມສາມາດທີ່ ການຕັ້ງຄ່າ (SETTING.JOB_HOLD).
    */
   paused: { label: "ພັກຊົ່ວຄາວ", condition: heldSql("repair") },
+  /**
+   * ໂອນໄປສ້ອມສູນອື່ນ — ເຄື່ອງກຳລັງສົ່ງໄປ/ຢູ່ສູນອື່ນ (ods_job_transfer received_at null).
+   * ຕັດຂວາງຂັ້ນ (ບໍ່ມີ stage) ⇒ ບໍ່ລວມຍອດ pipeline. ສູນປາຍທາງກົດ "ຮັບເຂົ້າ" ຈຶ່ງປິດ.
+   */
+  transferring: { label: "ໂອນໄປສ້ອມສູນອື່ນ (ລໍຮັບ)", condition: inTransferSql },
   // ບໍ່ມີ "ຂໍ້ມູນຜິດປົກກະຕິ" ອີກຕໍ່ໄປ — STAGE_SQL ໃຫ້ຂັ້ນທຸກໃບສະເໝີ ຈຶ່ງຕົກຫຼົ່ນບໍ່ໄດ້
 };
 
