@@ -160,9 +160,7 @@ export async function stockCountReport(): Promise<StockCountReportRow[]> {
         from tb_product a
         left join ar_customer c on c.code = a.cust_code
         left join ods_stock_count sc on sc.job_code = a.code
-       -- ຂອບເຂດ = **pending ຈິງ** (return_complete is null) ⇔ ຄືກັບ dashboard "ວຽກສ້ອມຄ້າງ".
-       -- ບໍ່ລວມ job ທີ່ນັບແລ້ວ ແຕ່ສົ່ງຄືນລູກຄ້າໄປແລ້ວ (ບໍ່ຢູ່ສາງ ⇒ ບໍ່ຄວນຢູ່ຍອດ)
-       where a.return_complete is null
+       where a.return_complete is null or sc.job_code is not null
        order by (sc.job_code is null) desc, sc.found asc nulls first, sc.counted_at desc nulls last, a.time_register desc`,
     )
   ).rows;

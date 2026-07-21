@@ -61,12 +61,6 @@ export const repairStatuses: Record<string, StatusDef> = {
   // ດ່ານກວດຮັບຄຸນນະພາບ — ຂັ້ນໃໝ່ (ສ້ອມສຳເລັດແລ້ວ ແຕ່ຍັງບໍ່ຜ່ານ QC)
   "wait-qc": { label: "ລໍກວດຮັບຄຸນນະພາບ", condition: stageIs(10), stage: 10 },
   "wait-return": { label: "ລໍຖ້າສົ່ງຄືນ / ປິດງານ (IH)", condition: stageIs(11), stage: 11 },
-  /**
-   * ຍົກເລີກ ແຕ່**ເຄື່ອງຍັງຢູ່ຮ້ານ** (status=6, ຍັງບໍ່ອະນຸມັດຄືນ cancel_finish ຫວ່າງ) = ຂັ້ນ -1.
-   * ຍັງເປັນ pending (return_complete null) ⇒ ນັບໃນຍອດ "ວຽກສ້ອມຄ້າງ" ແລະ ຢູ່ໃນສາງຈິງ
-   * (ກວດນັບພົບ). ກ່ອນນີ້ບໍ່ມີ bucket ⇒ ຍອດ pipeline ຂາດ 4 ໃບ ບໍ່ຕົງກັບຫົວບັດ.
-   */
-  cancelled: { label: "ຍົກເລີກ · ລໍອະນຸມັດ / ຄືນເຄື່ອງ", condition: stageIs(-1), stage: -1 },
 
   /**
    * ⚠️ ຄິວ **ຕັດຂວາງຂັ້ນ** — ຊ່າງຖືກຈັດແລ້ວ ແຕ່ຍັງບໍ່ກົດຮັບງານ (repair_confirm ຫວ່າງ).
