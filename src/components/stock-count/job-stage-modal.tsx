@@ -1,5 +1,6 @@
 "use client";
-import { setJobServiceStage } from "@/app/actions/job-stage";
+import { setJobPaused, setJobServiceStage } from "@/app/actions/job-stage";
+import { HOLD_KIND_LABEL, HOLD_KINDS } from "@/lib/job-hold";
 import { STAGE_LABEL } from "@/lib/stage";
 import { LoaderCircle, TriangleAlert, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -13,6 +14,7 @@ const SERVICE_TYPES: { value: string; label: string }[] = [
 ];
 // ຂັ້ນ 1-12 (ຕັດ -1 ຍົກເລີກ ແລະ 0 ທີ່ຂຶ້ນກັບ service) — ຄູ່ກັບ action stagePlan
 const STAGES = Array.from({ length: 12 }, (_, i) => i + 1);
+const PAUSED = "paused";
 
 /**
  * Modal "ປັບປຸງ" — ແກ້ ປະເພດບໍລິການ + ຂັ້ນ ຂອງງານຈາກໜ້າກວດນັບ.
@@ -33,14 +35,18 @@ export function JobStageModal({
 }) {
   const router = useRouter();
   const [svc, setSvc] = useState(serviceType ?? "CI");
-  const [stage, setStage] = useState<number>(currentStage && currentStage >= 1 && currentStage <= 12 ? currentStage : 1);
+  const [status, setStatus] = useState<string>(currentStage && currentStage >= 1 && currentStage <= 12 ? String(currentStage) : "1");
+  const [kind, setKind] = useState("other");
+  const [reason, setReason] = useState("");
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
+
+  const isPaused = status === PAUSED;
 
   const save = () =>
     start(async () => {
       setErr("");
-      const r = await setJobServiceStage(code, svc, stage);
+      const r = isPaused ? await setJobPaused(code, kind, reason) : await setJobServiceStage(code, svc, Number(status));
       if (r.error) { setErr(r.error); return; }
       onClose();
       router.refresh();
@@ -60,23 +66,41 @@ export function JobStageModal({
         </div>
 
         <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">ປະເພດບໍລິການ</label>
-            <select value={svc} onChange={(e) => setSvc(e.target.value)} className={field}>
-              {SERVICE_TYPES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
-          </div>
+          {!isPaused && (
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-600">ປະເພດບໍລິການ</label>
+              <select value={svc} onChange={(e) => setSvc(e.target.value)} className={field}>
+                {SERVICE_TYPES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-xs font-semibold text-slate-600">ຂັ້ນ (ສະຖານະ)</label>
-            <select value={stage} onChange={(e) => setStage(Number(e.target.value))} className={field}>
-              {STAGES.map((s) => <option key={s} value={s}>{s} · {STAGE_LABEL[s]}</option>)}
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className={field}>
+              {STAGES.map((s) => <option key={s} value={String(s)}>{s} · {STAGE_LABEL[s]}</option>)}
+              <option value={PAUSED}>⏸ ພັກຊົ່ວຄາວ</option>
             </select>
           </div>
+
+          {isPaused && (
+            <>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">ປະເພດເຫດຜົນ</label>
+                <select value={kind} onChange={(e) => setKind(e.target.value)} className={field}>
+                  {HOLD_KINDS.map((k) => <option key={k} value={k}>{HOLD_KIND_LABEL[k]}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">ເຫດຜົນ *</label>
+                <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="ບອກເຫດຜົນທີ່ພັກ (ຢ່າງໜ້ອຍ 3 ຕົວອັກສອນ)" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500" />
+              </div>
+            </>
+          )}
         </div>
 
         <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 p-2.5 text-[11px] text-amber-800">
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-          <span>ຕັ້ງຂັ້ນໂດຍກົງ = ຂ້າມຂັ້ນຕອນປົກກະຕິ. ໃຊ້ແກ້ຂໍ້ມູນທີ່ຜິດ. ບັນທຶກໃສ່ chatter ຂອງງານ.</span>
+          <span>{isPaused ? "ພັກຊົ່ວຄາວ = ຄາຢູ່ຂັ້ນເດີມ ນາລິກາຂັ້ນຢຸດ. ບັນທຶກເຫດຜົນໃສ່ chatter." : "ຕັ້ງຂັ້ນໂດຍກົງ = ຂ້າມຂັ້ນຕອນປົກກະຕິ (ຖ້າພັກຢູ່ຈະສືບຕໍ່). ບັນທຶກໃສ່ chatter."}</span>
         </div>
 
         {err && <p className="mt-2 text-xs font-semibold text-rose-600">{err}</p>}

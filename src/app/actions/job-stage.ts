@@ -2,9 +2,10 @@
 import { logChange } from "@/lib/chatter-log";
 import { db, query } from "@/lib/db";
 import { requireRole } from "@/lib/guard";
+import { HOLD_KINDS, HOLD_KIND_LABEL } from "@/lib/job-hold";
 import { STOCK_COUNT_SIDE } from "@/lib/roles";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
-import { stageLabel } from "@/lib/stage";
+import { stageLabel, STAGE_SQL } from "@/lib/stage";
 import { revalidatePath } from "next/cache";
 
 export type JobStageState = { error?: string; ok?: boolean };
@@ -73,6 +74,11 @@ export async function setJobServiceStage(code: string, serviceType: string, stag
       `update tb_product set ${setClause}, service_type = $2, user_edit = $3 where code = $1`,
       [code, svc, g.session.username],
     );
+    // ຕັ້ງຂັ້ນຈິງ = ສືບຕໍ່ງານ ⇒ ປົດທຸງ "ພັກຊົ່ວຄາວ" ທີ່ເປີດຢູ່ (ຖ້າມີ)
+    await db.query(
+      `update ods_job_hold set resolved_at = now(), resolved_by = $2 where workflow = 'repair' and job_code = $1 and resolved_at is null`,
+      [code, g.session.username],
+    );
   } catch (error) {
     console.error("setJobServiceStage failed", error);
     return { error: "ປັບປຸງບໍ່ສຳເລັດ" };
@@ -84,6 +90,35 @@ export async function setJobServiceStage(code: string, serviceType: string, stag
     `ບໍລິການ ${svcLabel(before.service_type)} → ${svcLabel(svc)} · ຂັ້ນ → ${stage} ${stageLabel(stage, svc)}`;
   await logChange("tb_product", code, detail, { roles: ["manager", "stock"] });
 
+  revalidatePath("/reports/stock-count");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+/** ພັກຊົ່ວຄາວ = ໝາຍທຸງ ods_job_hold (ຕ້ອງມີເຫດຜົນ) — ຄາຢູ່ຂັ້ນເດີມ, ຢຸດນາລິກາ. */
+export async function setJobPaused(code: string, kind: string, reason: string): Promise<JobStageState> {
+  const g = await requireRole(STOCK_COUNT_SIDE, "ບໍ່ມີສິດປັບປຸງງານ");
+  if (!g.ok) return { error: g.error };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+  const k = HOLD_KINDS.includes(kind) ? kind : "other";
+  const r = reason.trim();
+  if (r.length < 3) return { error: "ກະລຸນາບອກເຫດຜົນ (ຢ່າງໜ້ອຍ 3 ຕົວອັກສອນ)" };
+
+  const job = (await query<{ product: string | null; stage: number }>(
+    `select a.name_1 product, (${STAGE_SQL})::int stage from tb_product a where a.code = $1 and a.return_complete is null`,
+    [code],
+  )).rows[0];
+  if (!job) return { error: "ບໍ່ພົບໃບຮັບເຄື່ອງນີ້ ຫຼື ງານຈົບໄປແລ້ວ" };
+
+  // 1 ງານ = 1 ທຸງເປີດ (index ບາງສ່ວນ) — ຖ້າມີແລ້ວ ໃຫ້ອັບເດດເຫດຜົນ
+  await db.query(
+    `insert into ods_job_hold(workflow, job_code, kind, reason, stage_at, created_by)
+       values('repair', $1, $2, $3, $4, $5)
+     on conflict (workflow, job_code) where resolved_at is null
+       do update set kind = excluded.kind, reason = excluded.reason`,
+    [code, k, r, job.stage, g.session.username],
+  );
+  await logChange("tb_product", code, `ພັກຊົ່ວຄາວ — ${HOLD_KIND_LABEL[k] ?? k}: ${r} (ໂດຍ ${g.session.username})`, { roles: ["manager", "stock"] });
   revalidatePath("/reports/stock-count");
   revalidatePath("/dashboard");
   return { ok: true };
