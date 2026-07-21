@@ -69,6 +69,8 @@ export const SERVICE_SIDE: Role[] = [M, A];
 export const STOCK_SIDE: Role[] = [M, S];
 /** ຜູ້ອະນຸມັດ — ຕົງກັບ ROLE_APPROVER ໃນ lib/chatter */
 export const APPROVER_SIDE: Role[] = [M, HT];
+/** ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ — ຫົວໜ້າ/ຜູ້ຈັດການ ໝາຍ "ຕ້ອງກວດ" + **ສາງ** ລົງມືນັບຈິງ */
+export const STOCK_COUNT_SIDE: Role[] = [M, HT, S];
 /** ເຄມ — ທຸກຝ່າຍພາຍໃນເຫັນ/ຈັດການໄດ້ (ສາງ · ຫົວໜ້າ · ບໍລິການ) */
 export const CLAIM_SIDE: Role[] = [M, HT, A, S];
 /** ພະນັກງານຂາຍ — ແຈ້ງສ້ອມ · ຕິດຕາມງານຕາມເຂດ (`/sales/*`) */
@@ -115,8 +117,8 @@ const RULES: Rule[] = [
   { path: "/service/cancel", roles: SERVICE_SIDE },
   { path: "/service/notices", roles: SERVICE_SIDE },
   { path: "/service/*/edit", roles: SERVICE_SIDE },
-  // ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ — ຫົວໜ້າ/ຜູ້ອະນຸມັດເທົ່ານັ້ນ (ໝາຍ ‘ຕ້ອງກວດ’ ໄດ້). ຕ້ອງຢູ່ກ່ອນ /service/* (ຄະແນນ segment ຫຼາຍກວ່າ ⇒ ຊະນະ)
-  { path: "/service/stock-count", roles: APPROVER_SIDE },
+  // ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ — ຫົວໜ້າ/ຜູ້ຈັດການ + ສາງ (ລົງມືນັບ). ຕ້ອງຢູ່ກ່ອນ /service/* (ຄະແນນ segment ຫຼາຍກວ່າ ⇒ ຊະນະ)
+  { path: "/service/stock-count", roles: STOCK_COUNT_SIDE },
   // ໃບຮັບເຄື່ອງ (ອ່ານ/ພິມ/ຮູບ/ຜູ້ຕິດຕໍ່) — ຊ່າງຕ້ອງເປີດເບິ່ງໄດ້ ເພາະການແຈ້ງເຕືອນ
   // ຂອງ tb_product ຊີ້ມາທີ່ /service/{code} (lib/chatter recordHref)
   { path: "/service/*", roles: EVERYONE },
@@ -229,8 +231,8 @@ const RULES: Rule[] = [
   { path: "/reports", roles: SERVICE_SIDE },
   { path: "/reports", exact: true, roles: [M, A, S] },
   { path: "/reports/stock", roles: [M, A, S] },
-  { path: "/reports/stock-count", roles: APPROVER_SIDE },
-  { path: "/reports/stock-count/missing", roles: APPROVER_SIDE },
+  { path: "/reports/stock-count", roles: STOCK_COUNT_SIDE },
+  { path: "/reports/stock-count/missing", roles: STOCK_COUNT_SIDE },
   { path: "/claims", roles: CLAIM_SIDE },
   { path: "/manage/report-recipients", roles: APPROVER_SIDE },
   { path: "/manage/claim-brands", roles: APPROVER_SIDE },
