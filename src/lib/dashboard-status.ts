@@ -1,4 +1,5 @@
 import { installStageIs } from "@/lib/install-stage";
+import { heldSql } from "@/lib/job-hold";
 import { STAGE_SQL } from "@/lib/stage";
 
 /**
@@ -71,6 +72,12 @@ export const repairStatuses: Record<string, StatusDef> = {
     label: "ລໍຖ້າຊ່າງຮັບ",
     condition: `${stageIs(1)} and coalesce(a.emp_code,'') <> '' and a.repair_confirm is null`,
   },
+  /**
+   * ພັກຊົ່ວຄາວ — ງານທີ່ຖືກໝາຍ "ວຽກມີບັນຫາ" (ods_job_hold, ມີເຫດຜົນ+ປະເພດ) ⇒ ຄາຢູ່
+   * ຂັ້ນຈິງແຕ່ຢຸດນາລິກາ. **ຕັດຂວາງຂັ້ນ (ບໍ່ມີ stage)** ⇒ ນັບຊ້ຳກັບຂັ້ນຂອງມັນ ຈຶ່ງ
+   * ຫ້າມລວມຍອດ pipeline. ເປີດ/ປິດຄວາມສາມາດທີ່ ການຕັ້ງຄ່າ (SETTING.JOB_HOLD).
+   */
+  paused: { label: "ພັກຊົ່ວຄາວ", condition: heldSql("repair") },
   // ບໍ່ມີ "ຂໍ້ມູນຜິດປົກກະຕິ" ອີກຕໍ່ໄປ — STAGE_SQL ໃຫ້ຂັ້ນທຸກໃບສະເໝີ ຈຶ່ງຕົກຫຼົ່ນບໍ່ໄດ້
 };
 

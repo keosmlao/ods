@@ -179,6 +179,9 @@ export default async function StatusPage({ params, searchParams }: Props) {
     redirect("/dashboard/status/repair/wait-check");
   }
   const isRepair = workflow === "repair";
+  // ສະຖານະ "ພັກຊົ່ວຄາວ" = ລາຍການທຸງເປີດເອງ (condition = heldSql) ⇒ ຫ້າມເອົາ notHeldSql
+  // ໄປ and ຊ້ຳ (ຈະໄດ້ held and not-held = ວ່າງ). ບໍ່ມີແທັບ ປົກກະຕິ/ມີບັນຫາ ໃນສະຖານະນີ້.
+  const isPaused = isRepair && status === "paused";
   const config = isRepair ? repairStatuses[status] : workflow === "install" ? installStatuses[status] : null;
   /**
    * ຄິວ "ລໍຖ້າສົ່ງຄືນ" ຮັບງານມາຈາກ **ສອງທາງ**: ສ້ອມສຳເລັດ (ຜ່ານ QC) ແລະ ຍົກເລີກ
@@ -274,7 +277,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
    * ໃສ່**ກ່ອນ** serviceCountFilter ເພື່ອໃຫ້ຕົວເລກເທິງຊິບປະເພດບໍລິການ ນັບສະເພາະ
    * ແທັບທີ່ເປີດຢູ່ — ບໍ່ດັ່ງນັ້ນຢູ່ແທັບ "ມີບັນຫາ" ຊິບຈະຍັງບອກຕົວເລກຂອງແທັບປົກກະຕິ.
    */
-  const holdTab = isRepair && holdOn && search.hold === "1";
+  const holdTab = isRepair && holdOn && !isPaused && search.hold === "1";
   /**
    * ເງື່ອນໄຂຂອງແທັບ — ປະກອບ**ຈາກຊິ້ນສ່ວນ** ບໍ່ແມ່ນ replace ຄຳໃນ string ທີ່ປະກອບແລ້ວ
    * (heldSql ເປັນ substring ຂອງ notHeldSql ⇒ replace ຈະຕັດຜິດບ່ອນຢ່າງງຽບໆ).
@@ -284,7 +287,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
    */
   const holdClause = (held: boolean) => (held ? heldSql("repair") : notHeldSql("repair"));
   const withHold = (parts: string[], held: boolean) =>
-    (isRepair && holdOn ? [...parts, holdClause(held)] : parts).join(" and ");
+    (isRepair && holdOn && !isPaused ? [...parts, holdClause(held)] : parts).join(" and ");
 
   const serviceCountFilter = withHold(where, holdTab);
   const serviceCountArgs = [...args];
@@ -541,7 +544,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
       )}
 
       {/* ── ແທັບ ປົກກະຕິ / ມີບັນຫາ — ວຽກທັງສອງແທັບຍັງຢູ່ຂັ້ນນີ້ (ທຸງ ບໍ່ແມ່ນ ຂັ້ນ) ── */}
-      {isRepair && holdOn && (
+      {isRepair && holdOn && !isPaused && (
         <div className="flex w-fit overflow-hidden rounded-lg border border-slate-300 bg-white">
           {[
             { held: false, label: t.tabNormal, count: holdTab ? otherTabTotal : total },
