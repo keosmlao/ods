@@ -21,13 +21,14 @@ export async function markCounted(code: string): Promise<CountState> {
   if (!c) return { error: "ບໍ່ພົບ code" };
   // ບັນທຶກ ຂັ້ນ (stage) ຕອນນັບພົບ — snapshot ຈາກ tb_product ຂະນະນັ້ນ
   await query(
-    `insert into ods_stock_count (job_code, counted_at, counted_by, stage_at)
-       select a.code, now(), $2, (${STAGE_SQL})::int
+    `insert into ods_stock_count (job_code, counted_at, counted_by, stage_at, found)
+       select a.code, now(), $2, (${STAGE_SQL})::int, true
          from tb_product a where a.code = $1
      on conflict (job_code) do update
-       set counted_at = now(), counted_by = excluded.counted_by, stage_at = excluded.stage_at`,
+       set counted_at = now(), counted_by = excluded.counted_by, stage_at = excluded.stage_at, found = true`,
     [c, guard.session.username],
   );
+  revalidatePath("/reports/stock-count");
   return {};
 }
 

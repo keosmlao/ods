@@ -1,12 +1,12 @@
 "use client";
-import { markMissing, restoreMissing } from "@/app/actions/stock-count";
+import { markCounted, markMissing, restoreMissing } from "@/app/actions/stock-count";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Elapsed } from "@/components/elapsed";
 import { JobStageModal } from "@/components/stock-count/job-stage-modal";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import type { StockCountReportRow } from "@/lib/stock-count";
-import { Check, Clock, PackageX, RotateCcw, SlidersHorizontal, TriangleAlert } from "lucide-react";
+import { Check, CheckCheck, Clock, PackageX, RotateCcw, SlidersHorizontal, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
@@ -108,6 +108,9 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
       const ok = await ask({ title: t.confirmRestoreTitle, message: t.confirmRestoreMsg.replace("{code}", code), confirmLabel: t.confirmRestoreBtn });
       if (ok) start(async () => { await restoreMissing(code); router.refresh(); });
     })();
+
+  // ✓ ຖືກຕ້ອງ = ຢືນຢັນວ່າມີເຄື່ອງຈິງ + ຂໍ້ມູນຖືກ ⇒ ໝາຍ "ນັບພົບ" ໂດຍກົງ (ບໍ່ຕ້ອງສະແກນ)
+  const markCorrect = (code: string) => start(async () => { await markCounted(code); router.refresh(); });
 
   const tabBtn = (key: Tab, label: string, n: number, tone: string) => (
     <button
@@ -288,14 +291,25 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                           <SlidersHorizontal className="size-3" /> ປັບປຸງ
                         </button>
                         {state === "uncounted" && (
-                          <button
-                            type="button"
-                            disabled={pending}
-                            onClick={() => closeAsMissing(row.code)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
-                          >
-                            <PackageX className="size-3" /> {t.closeMissing}
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              disabled={pending}
+                              onClick={() => markCorrect(row.code)}
+                              title="ຢືນຢັນວ່າມີເຄື່ອງ + ຂໍ້ມູນຖືກ = ນັບພົບ"
+                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                            >
+                              <CheckCheck className="size-3" /> ຖືກຕ້ອງ
+                            </button>
+                            <button
+                              type="button"
+                              disabled={pending}
+                              onClick={() => closeAsMissing(row.code)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                            >
+                              <PackageX className="size-3" /> {t.closeMissing}
+                            </button>
+                          </>
                         )}
                         {state === "missing" && (
                           <button
