@@ -72,6 +72,8 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ລາຍການອາໄຫຼ່", resource: "/stock/spare-parts", actions: READ_ONLY },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ສິນຄ້າສ້ອມແປງ", resource: "/stock/products", actions: READ_ONLY },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ສ້າງອາໄຫຼ່", resource: "/spare-parts/new", actions: ["read", "create"] },
+  // ໃບກວດນັບເຄື່ອງສ້ອມ — ຕ້ອງຢູ່ໃນ catalog ບໍ່ດັ່ງນັ້ນ resourceForPath ຈະ collapse ໄປ /service (ສາງອ່ານບໍ່ໄດ້ ⇒ ເມນູຫາຍ)
+  { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ໃບກວດນັບເຄື່ອງສ້ອມ", resource: "/service/stock-count", actions: ["read", "update"] },
   { group: "ສັ່ງຊື້ອາໄຫຼ່", label: "ຂໍສັ່ງຊື້", resource: "/purchase-requests" },
   { group: "ສັ່ງຊື້ອາໄຫຼ່", label: "ໃບສັ່ງຊື້ (PO)", resource: "/purchase-orders", actions: ["read", "update"] },
 
