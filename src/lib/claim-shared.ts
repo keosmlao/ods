@@ -96,6 +96,8 @@ export type ClaimItem = { id: number; item_code: string | null; item_name: strin
 export type ClaimLog = { at: string | null; by_user: string | null; event: string | null; detail: string | null };
 export type CobInfo = { doc_no: string; doc_date: string | null; supplier_code: string | null; total_amount: number; status: number };
 export type ClaimCandidate = { code: string; product: string | null; brand: string | null; customer: string | null; returned_at: string | null; supplier: string | null };
+/** งานสอมที่ "สำเร็จ · ส่งคืนลูกค้าแล้ว · ยังไม่มีใบเคลม" — ใช้ modal เลือกตอนเปิดใบเคลม */
+export type ClaimJobCandidate = { code: string; product: string | null; brand: string | null; model: string | null; sn: string | null; fault: string | null; customer: string | null; returned_at: string | null };
 export type ClaimDailySummary = { openA: number; openB: number; openC: number; pendingMoney: number; candidates: number };
 
 /** ຂໍ້ຄວາມສະຫຼຸບ (ໃຫ້ email/Line) — pure */

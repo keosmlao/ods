@@ -1,5 +1,5 @@
 "use server";
-import { CLAIM_FLOW, CLAIM_REJECTED, claimByNo, cobInfo, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, type ClaimType } from "@/lib/claim";
+import { CLAIM_FLOW, CLAIM_REJECTED, claimByNo, type ClaimJobCandidate, cobInfo, jobClaimCandidates, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, type ClaimType } from "@/lib/claim";
 import { logChange } from "@/lib/chatter-log";
 import { requireRole } from "@/lib/guard";
 import { sendMail } from "@/lib/mail";
@@ -15,6 +15,13 @@ const START: Record<ClaimType, string> = { A: "draft", B: "received", C: "notify
 // ບັນທຶກ → chatter + activities (ods_chatter_message) ຄືเอกสารอื่น (author=session)
 async function log(claimNo: string, _by: string, _event: string, detail: string) {
   await logChange("ods_claim", claimNo, detail, { roles: ["manager", "stock"] });
+}
+
+/** ຄົ້ນຫາງານສ້ອມ candidate ສຳລັບ modal (ສຳເລັດ · ສົ່ງຄືນ · ຍັງບໍ່ມີໃບເຄມ) */
+export async function searchClaimJobs(q: string): Promise<{ error?: string; jobs?: ClaimJobCandidate[] }> {
+  const g = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
+  if (!g.ok) return { error: g.error };
+  return { jobs: await jobClaimCandidates(q) };
 }
 
 /** ເປີດໃບເຄມໃໝ່ — ຄືນ claim_no */

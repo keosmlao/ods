@@ -2,6 +2,7 @@ import {
   type ClaimCandidate,
   type ClaimDailySummary,
   type ClaimItem,
+  type ClaimJobCandidate,
   type ClaimLog,
   type ClaimRow,
   claimStatusLabel,
@@ -108,6 +109,30 @@ export async function jobQuoteItems(code: string): Promise<{ docNo: string | nul
     [doc],
   )).rows;
   return { docNo: doc, items: rows.map((r) => ({ ...r, qty: Number(r.qty), amount: Number(r.amount) })) };
+}
+
+/**
+ * งานสอมที่ "**สำเร็จ · ส่งคืนลูกค้าแล้ว · ยังไม่มีใบเคลม**" — สำหรับ modal เลือก
+ * เลขงานตอนเปิดใบเคลม. return_complete is not null (ส่งคืนแล้ว) + ยังไม่ถูกอ้างอิง
+ * ในใบเคลมใดๆ (ทุกประเภท). ค้นด้วย code/สินค้า/SN/ยี่ห้อ/ลูกค้า.
+ */
+export async function jobClaimCandidates(q = ""): Promise<ClaimJobCandidate[]> {
+  const term = `%${q.trim()}%`;
+  return (
+    await query<ClaimJobCandidate>(
+      `select a.code, a.name_1 product, a.p_brand brand, a.p_model model, a.sn,
+          nullif(trim(coalesce(a.issue,'')),'') fault, c.name_1 customer,
+          to_char(a.return_complete,'DD-MM-YYYY') returned_at
+        from tb_product a
+        left join ar_customer c on c.code = a.cust_code
+       where a.return_complete is not null
+         and a.code not in (select ref_job from ods_claim where ref_job is not null)
+         and ($1 = '' or a.code ilike $2 or a.name_1 ilike $2 or a.sn ilike $2
+              or a.p_brand ilike $2 or c.name_1 ilike $2)
+       order by a.return_complete desc limit 100`,
+      [q.trim(), term],
+    )
+  ).rows;
 }
 
 /** ໝາຍໄວ້ວ່າ "ເຄມເງິນ supplier" ບໍ (ods_claim_mark) */

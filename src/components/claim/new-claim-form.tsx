@@ -1,8 +1,9 @@
 "use client";
 import { createClaim } from "@/app/actions/claim";
+import { JobPickerModal } from "@/components/claim/job-picker-modal";
 import { SelectField } from "@/components/select-field";
-import { CLAIM_TYPE_LABEL, type ClaimType } from "@/lib/claim-shared";
-import { LoaderCircle } from "lucide-react";
+import { CLAIM_TYPE_LABEL, type ClaimJobCandidate, type ClaimType } from "@/lib/claim-shared";
+import { LoaderCircle, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
@@ -29,9 +30,18 @@ export function NewClaimForm({
   const [brand, setBrand] = useState(initialBrand);
   const [customer, setCustomer] = useState("");
   const [refJob, setRefJob] = useState(initialRefJob);
+  const [jobInfo, setJobInfo] = useState<ClaimJobCandidate | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
+
+  const pickJob = (job: ClaimJobCandidate) => {
+    setRefJob(job.code);
+    setJobInfo(job);
+    if (job.brand && !brand) setBrand(job.brand);
+    setPickerOpen(false);
+  };
 
   const needsSupplier = type === "A" || type === "C";
   const needsCustomer = type === "B";
@@ -85,8 +95,27 @@ export function NewClaimForm({
 
       {(type === "C" || type === "A") && (
         <div>
-          <label className={label}>ເລກงานสอม (ອ້າງອີງ){type === "C" ? " *" : ""}</label>
-          <input value={refJob} onChange={(e) => setRefJob(e.target.value)} placeholder="ເລກงาน (ຖ້າມີ)" className={field} />
+          <label className={label}>ເລກງານສ້ອມ (ອ້າງອີງ){type === "C" ? " *" : ""}</label>
+          {refJob ? (
+            <div className="flex items-start gap-2 rounded-lg border border-teal-200 bg-teal-50/60 px-3 py-2">
+              <span className="mt-0.5 shrink-0 rounded bg-white px-1.5 py-0.5 font-mono text-xs font-bold text-[#0536a9]">{refJob}</span>
+              <span className="min-w-0 flex-1 text-xs text-slate-600">
+                {jobInfo ? (
+                  <>
+                    <span className="block truncate font-medium text-slate-800">{jobInfo.product || "-"}{jobInfo.brand ? ` · ${jobInfo.brand}` : ""}</span>
+                    <span className="block truncate text-[11px] text-slate-500">{jobInfo.sn ? `SN ${jobInfo.sn} · ` : ""}{jobInfo.customer || "-"}</span>
+                  </>
+                ) : (
+                  <span className="text-slate-500">ງານທີ່ເລືອກ</span>
+                )}
+              </span>
+              <button type="button" onClick={() => { setRefJob(""); setJobInfo(null); }} title="ລ້າງ" className="shrink-0 text-slate-400 hover:text-rose-600"><X className="size-4" /></button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setPickerOpen(true)} className={`${field} flex items-center gap-2 text-left text-slate-400 hover:border-teal-500`}>
+              <Search className="size-4" /> ເລືອກເລກງານສ້ອມ (ສຳເລັດ · ສົ່ງຄືນ)
+            </button>
+          )}
         </div>
       )}
 
@@ -103,6 +132,8 @@ export function NewClaimForm({
           {pending && <LoaderCircle className="size-4 animate-spin" />} ເປີດໃບເຄມ
         </button>
       </div>
+
+      <JobPickerModal open={pickerOpen} onClose={() => setPickerOpen(false)} onPick={pickJob} />
     </div>
   );
 }
