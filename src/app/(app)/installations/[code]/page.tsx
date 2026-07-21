@@ -1,10 +1,12 @@
 import { Chatter } from "@/components/chatter/chatter";
 import { getSession } from "@/lib/auth";
 import { Elapsed } from "@/components/elapsed";
+import { InstallDeleteButton } from "@/components/installation/install-delete-button";
 import { JOB_HEAD_COLUMNS, type JobHead, JobHeader } from "@/components/installation/job-header";
 import { ReopenJobButton } from "@/components/installation/undo-buttons";
 import { Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
 import { query } from "@/lib/db";
+import { permissionFor } from "@/lib/permissions";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { INSTALL_ELAPSED_SQL, INSTALL_STAGE_SQL, installStageChip, installStageLabel } from "@/lib/install-stage";
@@ -66,6 +68,7 @@ export default async function InstallationDetail({ params }: Props) {
   const session = await getSession();
   if (!session) redirect("/login");
   const t = (await getDictionary(await getLocale())).installDetail;
+  const canDelete = (await permissionFor(session, "/installations")).delete;
 
   const [job, spares, docs] = await Promise.all([
     query<Row>(
@@ -123,6 +126,7 @@ export default async function InstallationDetail({ params }: Props) {
           <LinkButton tone="neutral" href={`/installations/${encodeURIComponent(row.code)}/print`}>
             {t.print}
           </LinkButton>
+          {canDelete && <InstallDeleteButton code={row.code} />}
         </div>
       </div>
 
