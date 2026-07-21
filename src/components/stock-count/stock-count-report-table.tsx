@@ -38,26 +38,33 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
     return { counted, missing, uncounted };
   }, [rows]);
 
-  const uncountedRows = useMemo(() => rows.filter((r) => stateOf(r) === "uncounted"), [rows]);
+  // ແຖວຂອງ tab ສະຖານະປັດຈຸບັນ (ກ່ອນຕອງ service)
+  const statusRows = useMemo(() => {
+    if (tab === "counted") return rows.filter((r) => stateOf(r) === "counted");
+    if (tab === "missing") return rows.filter((r) => stateOf(r) === "missing");
+    if (tab === "uncounted") return rows.filter((r) => stateOf(r) === "uncounted");
+    return rows;
+  }, [rows, tab]);
 
-  // service ທີ່ມີໃນ "ຍັງບໍ່ນັບ" — ຮຽງ CI/ST/IH/PS ກ່ອນ
+  // service ທີ່ມີໃນ tab ປັດຈຸບັນ — ຮຽງ CI/ST/IH/PS ກ່ອນ (ໃຊ້ໄດ້ທຸກ tab ບໍ່ພຽງ ຍັງບໍ່ນັບ)
   const svcTabs = useMemo(() => {
     const count = new Map<string, number>();
-    for (const r of uncountedRows) {
+    for (const r of statusRows) {
       const key = r.service_type ?? "?";
       count.set(key, (count.get(key) ?? 0) + 1);
     }
     return [...count.keys()]
       .sort((a, b) => (SERVICE_ORDER.indexOf(a) + 1 || 99) - (SERVICE_ORDER.indexOf(b) + 1 || 99))
       .map((key) => ({ key, count: count.get(key) ?? 0 }));
-  }, [uncountedRows]);
+  }, [statusRows]);
 
-  const filtered = useMemo(() => {
-    if (tab === "counted") return rows.filter((r) => stateOf(r) === "counted");
-    if (tab === "missing") return rows.filter((r) => stateOf(r) === "missing");
-    if (tab === "uncounted") return svc === "all" ? uncountedRows : uncountedRows.filter((r) => (r.service_type ?? "?") === svc);
-    return rows;
-  }, [rows, uncountedRows, tab, svc]);
+  const filtered = useMemo(
+    () => (svc === "all" ? statusRows : statusRows.filter((r) => (r.service_type ?? "?") === svc)),
+    [statusRows, svc],
+  );
+
+  // ປ່ຽນ tab ສະຖານະ = ຣີເຊັດຕົວຕອງ service (ບໍ່ດັ່ງນັ້ນ svc ອາດຫາຍ)
+  const selectTab = (key: Tab) => { setTab(key); setSvc("all"); };
 
   // ── dashboard: (ນັບແລ້ວ / ຍັງບໍ່ນັບ / ນັບບໍ່ພົບ) → ບໍລິການ → ຂັ້ນ ──
   const breakdown = useMemo(() => {
@@ -101,7 +108,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
   const tabBtn = (key: Tab, label: string, n: number, tone: string) => (
     <button
       type="button"
-      onClick={() => setTab(key)}
+      onClick={() => selectTab(key)}
       className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${tab === key ? `${tone} shadow-sm` : "bg-white text-slate-500 hover:bg-slate-50"}`}
     >
       {label}
@@ -151,8 +158,8 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
         {tabBtn("uncounted", t.tabUncounted, counts.uncounted, "bg-rose-600 text-white")}
       </div>
 
-      {/* ── sub-tab service (ສະເພາະ tab ຍັງບໍ່ນັບ) ── */}
-      {tab === "uncounted" && svcTabs.length > 1 && (
+      {/* ── sub-tab service (ທຸກ tab ສະຖານະ) ── */}
+      {svcTabs.length > 1 && (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] font-semibold text-slate-400">{t.byService}:</span>
           <button
@@ -160,7 +167,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
             onClick={() => setSvc("all")}
             className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${svc === "all" ? "bg-sky-600 text-white" : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50"}`}
           >
-            {t.svcAll} <span className="tabular-nums opacity-80">{uncountedRows.length}</span>
+            {t.svcAll} <span className="tabular-nums opacity-80">{statusRows.length}</span>
           </button>
           {svcTabs.map(({ key, count }) => (
             <button
