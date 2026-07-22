@@ -61,6 +61,9 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ຕິດຕັ້ງ", label: "ປິດງານ", resource: "/installations/close", actions: ["read", "update"] },
   { group: "ຕິດຕັ້ງ", label: "ລາຍງານງານຕິດຕັ້ງ", resource: "/reports/installations", actions: READ_ONLY },
   { group: "ຕິດຕັ້ງ", label: "ສະຫຼຸບອາໄຫຼ່ປະຈຳເດືອນ", resource: "/reports/install-spares-monthly", actions: READ_ONLY },
+
+  // ── ສ້ອມບໍລຸງ (ລ້າງແອ/ລ້າງເຄື່ອງ) ──
+  { group: "ສ້ອມບໍລຸງ", label: "ງານສ້ອມບໍລຸງ", resource: "/maintenance", actions: ["read", "create", "update", "delete"] },
   { group: "ລາຍງານ", label: "KPI ປະສິດທິພາບ", resource: "/reports/kpi", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ເຄື່ອງກັບມາສ້ອມຊ້ຳ", resource: "/reports/repeat-repairs", actions: READ_ONLY },
   { group: "ຕິດຕັ້ງ", label: "ລາຍງານແບບສອບຖາມ", resource: "/reports/customer-feedback", actions: READ_ONLY },

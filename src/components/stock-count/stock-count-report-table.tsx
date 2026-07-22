@@ -1,5 +1,5 @@
 "use client";
-import { markChecked, markCounted, markMissing, restoreMissing, unmarkChecked, unmarkCounted } from "@/app/actions/stock-count";
+import { markChecked, markCounted, markMissing, resetCounted, restoreMissing, unmarkChecked, unmarkCounted } from "@/app/actions/stock-count";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Elapsed } from "@/components/elapsed";
 import { JobStageModal } from "@/components/stock-count/job-stage-modal";
@@ -109,6 +109,18 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
       if (ok) start(async () => { await restoreMissing(code); router.refresh(); });
     })();
 
+  // ນຳ "ນັບແລ້ວ" ທັງໝົດ ກັບເປັນ ຍັງບໍ່ນັບ (pending) — ຮັກສາ "ນັບບໍ່ພົບ" ໄວ້
+  const resetAllCounted = () =>
+    void (async () => {
+      const ok = await ask({
+        title: "ນຳ ນັບແລ້ວ ທັງໝົດ ກັບເປັນ ຍັງບໍ່ນັບ?",
+        message: `ນຳ ${counts.counted.toLocaleString()} ລາຍການ "ນັບແລ້ວ" (ລວມ ເຊັກແລ້ວ) ກັບເປັນ ຍັງບໍ່ນັບ — "ນັບບໍ່ພົບ" ຍັງຄົງໄວ້. ບໍ່ລຶບຂໍ້ມູນວຽກ.`,
+        confirmLabel: "ນຳກັບຄືນທັງໝົດ",
+        tone: "danger",
+      });
+      if (ok) start(async () => { await resetCounted(); router.refresh(); });
+    })();
+
   // ນັບແລ້ວ → ນຳກັບຄືນ ຍັງບໍ່ນັບ (ລຶບ record ໝາຍ) — job ຍັງຢູ່ pending ຄືເກົ່າ, ກວດນັບໃໝ່ໄດ້
   const uncount = (code: string) =>
     void (async () => {
@@ -175,12 +187,26 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
         ))}
       </div>
 
-      {/* ── tab ສະຖານະ ── */}
-      <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1">
-        {tabBtn("all", t.tabAll, rows.length, "bg-slate-700 text-white")}
-        {tabBtn("counted", t.tabCounted, counts.counted, "bg-emerald-600 text-white")}
-        {tabBtn("missing", t.tabMissing, counts.missing, "bg-amber-500 text-white")}
-        {tabBtn("uncounted", t.tabUncounted, counts.uncounted, "bg-rose-600 text-white")}
+      {/* ── tab ສະຖານະ + ປຸ່ມນຳ ນັບແລ້ວ ທັງໝົດ ກັບເປັນ ຍັງບໍ່ນັບ ── */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1">
+          {tabBtn("all", t.tabAll, rows.length, "bg-slate-700 text-white")}
+          {tabBtn("counted", t.tabCounted, counts.counted, "bg-emerald-600 text-white")}
+          {tabBtn("missing", t.tabMissing, counts.missing, "bg-amber-500 text-white")}
+          {tabBtn("uncounted", t.tabUncounted, counts.uncounted, "bg-rose-600 text-white")}
+        </div>
+        {counts.counted > 0 && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={resetAllCounted}
+            title="ນຳ ນັບແລ້ວ ທັງໝົດ ກັບເປັນ ຍັງບໍ່ນັບ (pending)"
+            className="ml-auto inline-flex h-8 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:opacity-50"
+          >
+            <RotateCcw className="size-3.5" />
+            ນຳ ນັບແລ້ວ ທັງໝົດ → ຍັງບໍ່ນັບ
+          </button>
+        )}
       </div>
 
       {/* ── sub-tab service (ທຸກ tab ສະຖານະ) ── */}

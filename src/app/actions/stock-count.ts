@@ -169,6 +169,21 @@ export async function restoreMissing(code: string): Promise<CountState> {
   return {};
 }
 
+/**
+ * ນຳ **"ນັບແລ້ວ" ທັງໝົດ** (found=true, ລວມທີ່ເຊັກແລ້ວ) ກັບເປັນ "ຍັງບໍ່ນັບ" (pending) —
+ * ລຶບສະເພາະ record ນັບພົບ, **ຮັກສາ "ນັບບໍ່ພົບ" (found=false) ໄວ້**. ໃຊ້ເລີ່ມນັບຮອບໃໝ່.
+ */
+export async function resetCounted(): Promise<CountState> {
+  const guard = await requireRole(STOCK_COUNT_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");
+  if (!guard.ok) return { error: guard.error };
+  await query(`delete from ods_stock_count where found = true`);
+  await logChange("tb_product", "-", `ນຳ "ນັບແລ້ວ" ທັງໝົດ ກັບເປັນ ຍັງບໍ່ນັບ ໂດຍ ${guard.session.username}`, { roles: ["manager"] });
+  revalidatePath("/service/stock-count");
+  revalidatePath("/reports/stock-count");
+  revalidatePath("/service");
+  return {};
+}
+
 /** ລ້າງການນັບທັງໝົດ — ເລີ່ມກວດນັບຮອບໃໝ່ (ອອກລາຍງານກ່ອນລ້າງ) */
 export async function resetStockCount(): Promise<CountState> {
   const guard = await requireRole(STOCK_COUNT_SIDE, "ບໍ່ມີສິດກວດນັບສະຕັອກ");

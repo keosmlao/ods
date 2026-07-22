@@ -8,6 +8,7 @@ import { canAccess, roleOf } from "@/lib/roles";
 import { ownJobsOnly } from "@/lib/scope";
 import { HAS_OUTSTANDING_SPARES } from "@/lib/outstanding-spares";
 import { pendingInstallBills } from "@/lib/pending-bills";
+import { MAINTENANCE_OPEN, MAINTENANCE_STAGE_SQL, MAINTENANCE_STATUSES } from "@/lib/maintenance-stage";
 import { CANCELLED_JOBS, NOT_MISSING, STAGE_SQL } from "@/lib/stage";
 
 /**
@@ -37,6 +38,15 @@ const REPAIR_STAGE_COUNTS = pipelineOf(repairStatuses)
  */
 const INSTALL_STAGE_COUNTS = pipelineOf(installStatuses)
   .map(([slug, def]) => `coalesce((select n from ist where st = ${def.stage}), 0)::int as "/dashboard/status/install/${slug}"`)
+  .join(",\n          ");
+
+/**
+ * ຕົວເລກຄິວຂອງແຕ່ລະຂັ້ນສ້ອມບໍລຸງ — ຄູ່ກັບກຸ່ມເມນູ "ສ້ອມບໍລຸງ". ນັບຈາກ CTE `mst`.
+ * ⚠️ **ກອງຕາມຊ່າງ** (mst ມີ emp_code = $1 ຖ້າເປັນຊ່າງ) ເພາະ ໜ້າ /maintenance/status/<slug>
+ * ໃຊ້ ownJobsOnly ⇒ badge = ຈຳນວນແຖວທີ່ຊ່າງເຫັນ (ກົດເກນ ①). slug 1:1 ກັບຂັ້ນ ⇒ ບໍ່ຊ້ຳ.
+ */
+const MAINTENANCE_STAGE_COUNTS = MAINTENANCE_STATUSES
+  .map((s) => `coalesce((select n from mst where st = ${s.stage}), 0)::int as "/maintenance/status/${s.slug}"`)
   .join(",\n          ");
 
 /**
@@ -133,6 +143,13 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
           select (${INSTALL_STAGE_SQL}) st, count(*)::int n
           from ods_tb_install a
           group by 1
+        ),
+        mst as (
+          -- ຂັ້ນສ້ອມບໍລຸງ: ສະແກນ ods_tb_maintenance ເທື່ອດຽວ. ກອງຕາມຊ່າງ (emp_code) ຄືໜ້າ.
+          select (${MAINTENANCE_STAGE_SQL}) st, count(*)::int n
+          from ods_tb_maintenance a
+          where true ${mineRepair}
+          group by 1
         )
         select
           -- ── ສ້ອມແປງ (ຂັ້ນ 1,2,8,9 ບໍ່ເຄີຍມີ status=6 ⇒ ບໍ່ຕ້ອງກອງ) ──
@@ -143,6 +160,10 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
           -- ຂັ້ນ 11 ລວມງານຍົກເລີກ-ເຄື່ອງຍັງຢູ່ ⇒ **ບໍ່ກອງ status** ໃຫ້ຕົງກັບໜ້າປາຍທາງ
           (select count(*) from tb_product a
             where (${STAGE_SQL}) = 11)::int as "/returns",
+
+          -- ── ສ້ອມບໍລຸງ: ງານຄ້າງທັງໝົດ + ຄິວຕໍ່ຂັ້ນ (badge ຂ້າງເມນູ, ກອງຕາມຊ່າງ) ──
+          (select count(*) from ods_tb_maintenance a where ${MAINTENANCE_OPEN} ${mineRepair})::int as "/maintenance",
+          ${MAINTENANCE_STAGE_COUNTS},
           (select count(*) from ic_trans t
             where t.trans_flag = 17 and t.aprove_status = 1 and t.aprove_status_2 = 0)::int as "/quotations/customer-approval",
 

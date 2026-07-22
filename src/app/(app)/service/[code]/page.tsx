@@ -21,6 +21,8 @@ import { canViewAssignedJob } from "@/lib/scope";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { stageLabel, STAGE_SQL } from "@/lib/stage";
+import { repairTimeline } from "@/lib/repair-timeline";
+import { JobTimeline } from "@/components/repair/job-timeline";
 import { DONE_STAGE } from "@/lib/track";
 import { ArrowLeft, Barcode, CalendarDays, ImageIcon, MapPin, MessageCircle, Pencil, Phone, Printer, RotateCcw } from "lucide-react";
 import Link from "next/link";
@@ -108,6 +110,8 @@ export default async function ServiceDetail({ params }: Props) {
   ).rows[0];
   if (!job) notFound();
   if (!canViewAssignedJob(session, job.technician)) redirect("/forbidden");
+
+  const timeline = await repairTimeline(code);
 
   const tone = elapsedTone(job.elapsed_seconds);
   const inWarranty = job.warranty === "ຮັບປະກັນ";
@@ -370,6 +374,8 @@ export default async function ServiceDetail({ params }: Props) {
           pending={pendingSpares}
         />
       )}
+
+      <JobTimeline steps={timeline.steps} cancelledAt={timeline.cancelledAt} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         {groups.map((group, index) => (

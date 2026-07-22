@@ -73,6 +73,8 @@ export const APPROVER_SIDE: Role[] = [M, HT];
 export const STOCK_COUNT_SIDE: Role[] = [M, HT, S];
 /** ເຄມ — ທຸກຝ່າຍພາຍໃນເຫັນ/ຈັດການໄດ້ (ສາງ · ຫົວໜ້າ · ບໍລິການ) */
 export const CLAIM_SIDE: Role[] = [M, HT, A, S];
+/** ສ້ອມບໍລຸງ (ລ້າງແອ/ລ້າງເຄື່ອງ) — CS ເປີດ/ຈັດຊ່າງ · ຊ່າງລົງມື · ຫົວໜ້າຄຸມ */
+export const MAINTENANCE_SIDE: Role[] = [M, A, HT, T];
 /** ພະນັກງານຂາຍ — ແຈ້ງສ້ອມ · ຕິດຕາມງານຕາມເຂດ (`/sales/*`) */
 export const SALES_SIDE: Role[] = [M, SL];
 /**
@@ -170,6 +172,9 @@ const RULES: Rule[] = [
   { path: "/pr-view", roles: [M, A, S, HT] },
 
   /* ຕິດຕັ້ງ — ods ແຍກເປັນ 2 ຝັ່ງ: ຝ່າຍບໍລິການເປີດ/ປິດງານ · ຊ່າງລົງມື */
+  // ── ສ້ອມບໍລຸງ (ລ້າງແອ/ລ້າງເຄື່ອງ) — ລະບົບແຍກ. prefix ດຽວຄຸມ /maintenance/* ໝົດ ──
+  { path: "/maintenance", roles: MAINTENANCE_SIDE },
+
   { path: "/installations", exact: true, roles: SERVICE_SIDE },
   { path: "/installations/new", roles: SERVICE_SIDE },
   { path: "/installations/assign", roles: SERVICE_SIDE },

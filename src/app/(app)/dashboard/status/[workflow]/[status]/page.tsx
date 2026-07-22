@@ -1,6 +1,7 @@
 import { CancelCheckButton, StartCheckButton, UndoStartCheckButton } from "@/components/checking/check-actions";
 import { CancelRequestButton } from "@/app/(app)/stock/requests/cancel-request-button";
 import { Elapsed } from "@/components/elapsed";
+import { TimelineDrawerButton } from "@/components/repair/timeline-drawer";
 import { AssignTechButton } from "@/components/installation/assign-tech";
 import { LinkPending } from "@/components/link-pending";
 import { RowLink } from "@/components/row-link";
@@ -721,6 +722,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                           <Barcode className="size-3.5" />
                         </Link>
                       )}
+                      {isRepair && <TimelineDrawerButton code={row.code} />}
                       {/* ຄິວສົ່ງຄືນມາຈາກ 2 ກໍລະນີ — ບອກໃຫ້ຄົນສົ່ງເຄື່ອງຮູ້ທຸກແຖວ (ບໍ່ແມ່ນສະເພາະຍົກເລີກ) */}
                       {showCase && (
                         <span
@@ -874,6 +876,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                           <Barcode className="size-3.5" />
                         </Link>
                       )}
+                      {isRepair && <TimelineDrawerButton code={row.code} />}
                       {showCase && (
                         <span
                           className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${

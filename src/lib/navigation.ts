@@ -1,6 +1,7 @@
 import { canAccess, type Role } from "@/lib/roles";
 import { resourceForPath } from "@/lib/permission-catalog";
 import { pipelineOf, repairStatuses } from "@/lib/dashboard-status";
+import { MAINTENANCE_STATUSES } from "@/lib/maintenance-stage";
 import {
   Boxes,
   ClipboardCheck,
@@ -11,6 +12,7 @@ import {
   ReceiptText,
   ShieldCheck,
   ShoppingCart,
+  SprayCan,
   Wrench,
 } from "lucide-react";
 
@@ -53,6 +55,7 @@ export const NAV_GROUP_KEY: Record<string, string> = {
   home_menu: "myStuff",
   repair_menu: "repair",
   install_menu: "install",
+  maintenance_menu: "maintenance",
   stock_menu: "stock",
   claim_menu: "claim",
   purchase_menu: "purchase",
@@ -163,6 +166,23 @@ const INSTALL: NavGroup = {
   items: [
     ...INSTALL_FLOW.map((item, index) => ({ ...item, label: `${index + 1}. ${item.label}` })),
     ...INSTALL_REPORTS,
+  ],
+};
+
+/* ── ສ້ອມບໍລຸງ (ລ້າງແອ/ລ້າງເຄື່ອງ) — ລະບົບແຍກ, ໄປລ້າງໜ້າງານເປັນຫຼັກ ── */
+const MAINTENANCE: NavGroup = {
+  id: "maintenance_menu",
+  label: "ສ້ອມບໍລຸງ",
+  icon: SprayCan,
+  items: [
+    { label: "ງານທັງໝົດ", href: "/maintenance", count: "/maintenance" },
+    { label: "ເປີດງານໃໝ່", href: "/maintenance/new" },
+    // ຄິວຕໍ່ຂັ້ນ — ໃສ່ເລກລຽງຄືເມນູສ້ອມ/ຕິດຕັ້ງ (ຮູ້ທັນທີວ່າງານໄຫຼຈາກໃສໄປໃສ)
+    ...MAINTENANCE_STATUSES.map((s, index) => ({
+      label: `${index + 1}. ${s.label}`,
+      href: `/maintenance/status/${s.slug}`,
+      count: `/maintenance/status/${s.slug}`,
+    })),
   ],
 };
 
@@ -286,7 +306,7 @@ const USERS: NavGroup = {
  *   ຄິວແຈ້ງລູກຄ້າ  → ຢູ່ກຸ່ມ **ຂອງຂ້ອຍ** (ຄິວວຽກຂອງມື້ນີ້ ຂ້າມສາຍງານ — ເບິ່ງເຫດຜົນຢູ່ນັ້ນ)
  *   ຕັ້ງລາຍການກວດຮັບ → ຢູ່ກຸ່ມ **ຜູ້ໃຊ້/ຕັ້ງຄ່າ** (ເປັນການຕັ້ງຄ່າ ບໍ່ແມ່ນຄິວງານ)
  */
-export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, STOCK, CLAIM, PURCHASE, APPROVE, REPORT, USERS];
+export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, MAINTENANCE, STOCK, CLAIM, PURCHASE, APPROVE, REPORT, USERS];
 
 /**
  * Sidebar ສະເພາະຊ່າງ — ມີແຕ່ຄິວທີ່ຊ່າງລົງມືໄດ້ຈິງ.
