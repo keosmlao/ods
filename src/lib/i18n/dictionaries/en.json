@@ -915,14 +915,14 @@
       },
       {
         "title": "Spare-parts procurement chain — SPR → WPRA → PO → WPOA",
-        "intro": "Procurement is one Odoo-style document, created and tracked entirely in ERP (odg). The chain: Purchase Request (SPR) → PR approval (WPRA) → Purchase Order (PO) → PO approval (WPOA) → warehouse receipt (PUI). ODS only keeps the job's own stage (spare_order/spare_arrive); the real documents all live in ERP.",
+        "intro": "Procurement is one single document, created and tracked entirely in ERP (odg). The chain: Purchase Request (SPR) → PR approval (WPRA) → Purchase Order (PO) → PO approval (WPOA) → warehouse receipt (PUI). ODS only keeps the job's own stage (spare_order/spare_arrive); the real documents all live in ERP.",
         "items": [
           "The Purchase Request (SPR · trans_flag 2 · doc_format 'SPR') is raised at /purchase-requests and written to ERP only — linked to the repair job via doc_ref = job code. The legacy ODS RQ (trans_flag 78) is no longer created.",
           "An approver clicks 'Approve' at /approvals/purchase-requests to emit WPRA (trans_flag 4). No supplier is chosen yet; the job moves to stage 7 'purchasing spare parts'.",
           "Purchasing clicks 'Issue PO' from a WPRA (/purchase-orders?tab=issue → /purchase-orders/new?from=WPRA) — this step requires supplier + negotiated price + ETA + transport + receiving warehouse + currency/VAT. PO = POT (Thai 05) / POH (Lao 00), trans_flag 6.",
           "An approver clicks 'Approve PO' at /approvals/purchase-orders to emit WPOA (trans_flag 8) — the final gate before the supplier ships.",
           "Warehouse receipt (PUIT/PUIH · trans_flag 12) happens in ERP; syncErpPurchase reads it, advances the job stage and notifies technician/warehouse automatically — there is no manual 'received' button.",
-          "The document page /purchase-orders/[docNo] is Odoo-like: statusbar top-right, an action bar whose buttons change by state + role, and linked chain documents on the side. Any SPR/WPRA/PO number redirects to the same page.",
+          "The document page /purchase-orders/[docNo] has a statusbar top-right, an action bar whose buttons change by state + role, and linked chain documents on the side. Any SPR/WPRA/PO number redirects to the same page.",
           "A PO can be issued directly (stock-up / rush buy) via /purchase-orders/new without an SPR (60% of real POs are this) — but it still needs WPOA approval.",
           "Permissions: raise/withdraw SPR and issue/cancel PO = purchasing/warehouse/manager (manager · admin · stock); approve SPR (WPRA) and approve PO (WPOA) = approvers (APPROVER_SIDE)."
         ],
@@ -1260,7 +1260,7 @@
         "scope": "Repair jobs (tb_product) and installation jobs (INST-) at stage 5 where ERP stock is short. Excludes direct stock-up POs (see /purchase-orders/new).",
         "steps": [
           "Warehouse/Purchasing: open /purchase-requests → 'jobs to purchase' section (stage-5 jobs short on ERP stock, not yet requested) → open one, enter a price per line, pick the branch (00 head office / 05 Odien Thai), then submit to emit the SPR.",
-          "The system redirects straight to /purchase-orders/[SPR] (Odoo-style) — statusbar on 'Purchase request', awaiting an approver.",
+          "The system redirects straight to /purchase-orders/[SPR] — statusbar on 'Purchase request', awaiting an approver.",
           "Approver: /approvals/purchase-requests, 'Waiting' tab → click 'Approve' → confirm → WPRA is emitted. Job enters stage 7 'purchasing spare parts'.",
           "Purchasing: /purchase-orders shows a 'WPRA waiting to issue PO' banner → click → /purchase-orders/new?from=WPRA → choose supplier, enter negotiated prices, ETA, transport, receiving warehouse, currency/VAT and cash/credit terms → issue the PO (POT/POH).",
           "Approver: /approvals/purchase-orders, 'Waiting' tab → click 'Approve PO' on the row → confirm → WPOA is emitted (final gate, binds the supplier).",
