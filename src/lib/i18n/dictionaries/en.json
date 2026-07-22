@@ -888,7 +888,7 @@
       {
         "title": "Claim system",
         "intro": "The /claims page — three claim types (Warehouse & Spares → Claim system).",
-        "wf": "repair",
+        "wf": "claim",
         "items": [
           "CLM-A claim spare from supplier: a bought spare is faulty → return to supplier for a replacement/credit.",
           "CLM-B shop sends to claim: a shop (customer) sends in → <b>resolved at the center</b> (replace/repair/decide) → return to shop. Never reaches the supplier.",
@@ -897,6 +897,36 @@
           "Track: per-type pipeline (draft→sent→…→closed), advance on the claim, add items/notes.",
           "Supplier & brand come from ERP (ap_supplier / ic_brand) — no manual typing."
         ]
+      },
+      {
+        "title": "Maintenance / AC-Cleaning module",
+        "intro": "The Maintenance module handles scheduled service jobs — AC cleaning, washer-drum cleaning, fridge check-ups — not fault repairs. It is a standalone menu (it does not share the repair dashboard/pipeline) with its own stage machine derived from timestamps in ods_tb_maintenance.",
+        "items": [
+          "The /maintenance home page lists all open maintenance jobs — search by code/customer/phone/technician, sortable, paginated, with an open-count badge beside the menu.",
+          "Job codes use the MC-xxx format (distinct from ordinary repair jobs). Walk-in customer name/phone/site address are stored directly on the job.",
+          "Six real stages + cancel, per maintenance-stage.ts: 0 Received / awaiting schedule+assign → 1 Awaiting technician accept → 2 Awaiting on-site cleaning → 3 Cleaning → 4 Awaiting QC → 5 Awaiting payment / close → 6 Done. (−1 = Cancelled).",
+          "The service catalog is pulled straight from the ERP (ic_inventory, code 9702%, item_type=1) — cleaning services with latest price in kip, not a seed table.",
+          "The /maintenance/status/<slug> pages are per-stage queues (receive · wait-accept · wait-clean · cleaning · wait-qc · wait-payment) — like the repair dashboard but standalone.",
+          "The /maintenance/[code] page shows details + a Timeline (time spent per stage) + a single advance button that changes with the current stage.",
+          "How it differs from repair: no goods-in to the warehouse (the technician cleans on-site — stage 2 “Awaiting on-site cleaning”), fewer stages (6 vs repair's 12), and no parts/warranty/claim involvement.",
+          "Access: every action checks MAINTENANCE_SIDE (CS/technician/supervisor). Technicians see only their own jobs (ownJobsOnly); supervisors/CS see all."
+        ],
+        "wf": "maintenance"
+      },
+      {
+        "title": "Spare-parts procurement chain — SPR → WPRA → PO → WPOA",
+        "intro": "Procurement is one Odoo-style document, created and tracked entirely in ERP (odg). The chain: Purchase Request (SPR) → PR approval (WPRA) → Purchase Order (PO) → PO approval (WPOA) → warehouse receipt (PUI). ODS only keeps the job's own stage (spare_order/spare_arrive); the real documents all live in ERP.",
+        "items": [
+          "The Purchase Request (SPR · trans_flag 2 · doc_format 'SPR') is raised at /purchase-requests and written to ERP only — linked to the repair job via doc_ref = job code. The legacy ODS RQ (trans_flag 78) is no longer created.",
+          "An approver clicks 'Approve' at /approvals/purchase-requests to emit WPRA (trans_flag 4). No supplier is chosen yet; the job moves to stage 7 'purchasing spare parts'.",
+          "Purchasing clicks 'Issue PO' from a WPRA (/purchase-orders?tab=issue → /purchase-orders/new?from=WPRA) — this step requires supplier + negotiated price + ETA + transport + receiving warehouse + currency/VAT. PO = POT (Thai 05) / POH (Lao 00), trans_flag 6.",
+          "An approver clicks 'Approve PO' at /approvals/purchase-orders to emit WPOA (trans_flag 8) — the final gate before the supplier ships.",
+          "Warehouse receipt (PUIT/PUIH · trans_flag 12) happens in ERP; syncErpPurchase reads it, advances the job stage and notifies technician/warehouse automatically — there is no manual 'received' button.",
+          "The document page /purchase-orders/[docNo] is Odoo-like: statusbar top-right, an action bar whose buttons change by state + role, and linked chain documents on the side. Any SPR/WPRA/PO number redirects to the same page.",
+          "A PO can be issued directly (stock-up / rush buy) via /purchase-orders/new without an SPR (60% of real POs are this) — but it still needs WPOA approval.",
+          "Permissions: raise/withdraw SPR and issue/cancel PO = purchasing/warehouse/manager (manager · admin · stock); approve SPR (WPRA) and approve PO (WPOA) = approvers (APPROVER_SIDE)."
+        ],
+        "wf": "purchase"
       }
     ],
     "docMeta": {
@@ -1138,6 +1168,106 @@
           "Receive payment → close."
         ],
         "refs": "—"
+      },
+      {
+        "code": "SOP-R09",
+        "title": "Transfer a repair job to another service center (destination confirms receipt · job keeps its stage)",
+        "owner": "Manager / Head technician / Stock staff (manager · headtechnical · stock)",
+        "purpose": "Open a job at one center, then send the unit to be repaired at another center. The destination center confirms receipt itself, which moves service_center to the new center. The job does not change stage (it stays at its current stage) and the stage timer keeps running as before.",
+        "scope": "Applies to repair intake jobs that are not yet finished (return_complete empty) on the /service/stock-count page. Supported centers: 1104 ຂົວຫຼວງ, 1206 ດອນຕີ້ວ. You cannot transfer to the center it is already at. A job can have only one pending transfer at a time.",
+        "steps": [
+          "Sending side: open /service/stock-count → find the job row to transfer → click 'ປັບປຸງ' (Edit).",
+          "In the 'ປັບປຸງ' modal, in the 'ຂັ້ນ (ສະຖານະ)' (Stage) field select '📦 ໂອນໄປສ້ອມສູນອື່ນ' (Transfer to another center).",
+          "Choose 'ສູນປາຍທາງ' (Destination center) — 1104 ຂົວຫຼວງ or 1206 ດອນຕີ້ວ — and type 'ເຫດຜົນ' (Reason), at least 3 characters.",
+          "Click 'ບັນທຶກ' (Save) → the system opens the transfer (received_at empty = in transit), logs to chatter, and the job stays at its current stage.",
+          "Receiving side (destination center): when the unit arrives, open /service/stock-count → find the same job → click 'ປັບປຸງ' (Edit).",
+          "In the 'ຂັ້ນ (ສະຖານະ)' field select '📥 ຮັບເຂົ້າສູນ (ເຄື່ອງມາຮອດ)' (Receive into center) → click 'ບັນທຶກ' (Save).",
+          "The system closes the transfer (sets received_at), moves service_center to the new center, and logs to chatter. From here the job continues its repair at the destination center at the same stage.",
+          "If you get the error 'ບໍ່ມີການໂອນທີ່ລໍຮັບຢູ່' (no pending transfer to receive), there is no job awaiting receipt (not yet sent, or already received) — have the sending side transfer it first."
+        ],
+        "refs": "WI-08"
+      },
+      {
+        "code": "SOP-R10",
+        "title": "Salesperson reports a repair on the customer's behalf",
+        "owner": "Salesperson (sales)",
+        "purpose": "Let sales staff open a repair notice for customers in their area, which the service team (CS) then intakes for repair, while sales can track job status themselves.",
+        "scope": "role SALES_SIDE (manager + sales) only. Sales 'notify', they do not 'receive the device' — converting a notice into an intake receipt is still a CS task.",
+        "steps": [
+          "Go to /sales — the home page has two cards: 'Report repair' and 'Track repairs' (the 'jobs in progress' count comes from OPEN_JOBS).",
+          "Click 'Report repair' → /sales/report-repair. This is the same NoticeForm as the customer side but with mode=sales (the log records the sales username).",
+          "Fill in: customer name* (custname), phone* (tel), province/city/address, product name* (proname), SN, brand, model, service type, initial symptom* (pro_issue), remark, photos. Asterisk = required.",
+          "Submit → createNotice checks SALES_SIDE. If the phone matches an existing customer, the system links ref_code ⇒ when CS converts it to an intake receipt, name/address are pulled in automatically.",
+          "The notice appears at /service/notices for CS. Sales do NOT receive the device — once CS intakes it, the notice leaves the queue and becomes an intake receipt at /service/{code}.",
+          "Tracking: /sales/jobs (read-only) — tabs 'In progress / Done', search by code/product/SN/customer, click 'View' to /service/{code}.",
+          "No access to /service, /quotations, or recording money — sales only see /sales/*."
+        ],
+        "refs": "WI-11"
+      },
+      {
+        "code": "SOP-M01",
+        "title": "Open a maintenance job & assign a technician",
+        "owner": "CS / Supervisor",
+        "purpose": "Open a complete AC/appliance-cleaning job then assign a technician + appointment so it enters the queue.",
+        "scope": "Scheduled service jobs (AC cleaning, washer-drum cleaning, fridge check-ups...).",
+        "steps": [
+          "On /maintenance, click “Open new job” (goes to /maintenance/new).",
+          "Enter customer name (required) + phone + on-site address.",
+          "Pick at least 1 service from the catalog (AC cleaning 9702…) + quantity → total (kip) is computed automatically.",
+          "If the technician/date is known: choose technician + appointment at open time (it jumps straight to “Awaiting technician accept”).",
+          "Save → you get code MC-xxx, job sits at “Received / awaiting schedule+assign”.",
+          "If not yet assigned: open /maintenance/[code] (stage 0) → choose technician + date → click “Assign + schedule” → moves to “Awaiting technician accept”."
+        ],
+        "refs": "SOP-M02"
+      },
+      {
+        "code": "SOP-M02",
+        "title": "Carry out the maintenance (stages)",
+        "owner": "Technician",
+        "purpose": "Advance the job through accept → go clean → clean → QC in the correct stage order.",
+        "scope": "Assigned technician (sees only their own jobs).",
+        "steps": [
+          "Open /maintenance/status/wait-accept (or /maintenance) → pick your job code → go to /maintenance/[code].",
+          "At “Awaiting technician accept” → click “Technician accept” → moves to “Awaiting on-site cleaning”.",
+          "On arrival at the site → click “Start cleaning” → moves to “Cleaning”.",
+          "When cleaning/service is done → click “Cleaning done” → moves to “Awaiting QC”.",
+          "Once QC passes → click “Pass QC” → moves to “Awaiting payment / close” (hand off to the supervisor).",
+          "Check the Timeline on the job page to watch time-in-stage — don't let a stage sit too long (the “waited” badge colour deepens)."
+        ],
+        "refs": "SOP-M01, SOP-M03"
+      },
+      {
+        "code": "SOP-M03",
+        "title": "Close / cancel a job",
+        "owner": "Supervisor",
+        "purpose": "Collect payment + close the job fully, or cancel with a reason.",
+        "scope": "Jobs that reach the payment stage or must be cancelled.",
+        "steps": [
+          "Close: at “Awaiting payment / close” → /maintenance/[code] → click “Collect payment + close” → moves to “Done” (stamps paid_at + job_finish).",
+          "Once confirmed the closed job leaves the open queue (open-count badge drops) and shows “✓ Job done and closed”.",
+          "Cancel: at any non-closed stage → click “Cancel job” (red button).",
+          "Enter a reason (at least 3 characters) → confirm in the dialog.",
+          "The job moves to “Cancelled” (stamps cancel_date), leaves the open queue, and shows “This job was cancelled”. The record is not deleted.",
+          "Note: close/cancel are supervisor actions — verify customer name/total before clicking, there is no undo."
+        ],
+        "refs": "SOP-M02"
+      },
+      {
+        "code": "SOP-P01",
+        "title": "Request → Approve → PO → WPOA (end-to-end)",
+        "owner": "Warehouse / Supervisor / Approver",
+        "purpose": "Run spare-parts procurement through the full chain SPR → WPRA → PO → WPOA → receipt, with the real documents in ERP only and traceable back to the job at every stage.",
+        "scope": "Repair jobs (tb_product) and installation jobs (INST-) at stage 5 where ERP stock is short. Excludes direct stock-up POs (see /purchase-orders/new).",
+        "steps": [
+          "Warehouse/Purchasing: open /purchase-requests → 'jobs to purchase' section (stage-5 jobs short on ERP stock, not yet requested) → open one, enter a price per line, pick the branch (00 head office / 05 Odien Thai), then submit to emit the SPR.",
+          "The system redirects straight to /purchase-orders/[SPR] (Odoo-style) — statusbar on 'Purchase request', awaiting an approver.",
+          "Approver: /approvals/purchase-requests, 'Waiting' tab → click 'Approve' → confirm → WPRA is emitted. Job enters stage 7 'purchasing spare parts'.",
+          "Purchasing: /purchase-orders shows a 'WPRA waiting to issue PO' banner → click → /purchase-orders/new?from=WPRA → choose supplier, enter negotiated prices, ETA, transport, receiving warehouse, currency/VAT and cash/credit terms → issue the PO (POT/POH).",
+          "Approver: /approvals/purchase-orders, 'Waiting' tab → click 'Approve PO' on the row → confirm → WPOA is emitted (final gate, binds the supplier).",
+          "Supplier ships → ERP records the receipt (PUI); sync advances the job automatically (stage 7 → 5), stamps the real receipt date, and notifies the owning technician + warehouse + manager — no manual 'parts arrived' click.",
+          "Tracking: /purchase-orders (status filters waiting / approved / received + document-age column, long waits in red) or open any document page for the full statusbar."
+        ],
+        "refs": "WI-P01"
       }
     ],
     "wiDocs": [
@@ -1309,6 +1439,110 @@
           "Save → get a claim no → add items."
         ],
         "refs": "SOP-CLM-A, SOP-CLM-B, SOP-CLM-C"
+      },
+      {
+        "code": "WI-08",
+        "title": "How to use the 'ໂອນໄປສ້ອມສູນອື່ນ' (transfer out) and 'ຮັບເຂົ້າສູນ' (receive in) buttons on the stock-count page",
+        "owner": "Manager / Head technician / Stock staff (manager · headtechnical · stock)",
+        "purpose": "Gives the exact button steps in the 'ປັບປຸງ' modal on /service/stock-count for the two options: transfer out '📦 ໂອນໄປສ້ອມສູນອື່ນ' and receive in '📥 ຮັບເຂົ້າສູນ'.",
+        "scope": "The /service/stock-count page · JobStageModal component (transferJob / receiveJobTransfer actions · ods_job_transfer table). Only for jobs that are not yet finished.",
+        "steps": [
+          "Transfer out — click 'ປັບປຸງ' (Edit) on the job row.",
+          "In the 'ຂັ້ນ (ສະຖານະ)' (Stage) field select '📦 ໂອນໄປສ້ອມສູນອື່ນ' → the 'ສູນປາຍທາງ' (Destination) and 'ເຫດຜົນ *' (Reason) fields appear.",
+          "Set 'ສູນປາຍທາງ' = 1104 · ຂົວຫຼວງ or 1206 · ດອນຕີ້ວ (pick a center different from the current one).",
+          "Type 'ເຫດຜົນ *' (at least 3 characters, e.g. the reason for transferring) → click 'ບັນທຶກ' (Save). If empty or too short it shows an error.",
+          "Receive in — at the destination center, click 'ປັບປຸງ' on the same job.",
+          "In the 'ຂັ້ນ (ສະຖານະ)' field select '📥 ຮັບເຂົ້າສູນ (ເຄື່ອງມາຮອດ)' → nothing more to type → click 'ບັນທຶກ' (Save).",
+          "Click 'ຍົກເລີກ' (Cancel) or click outside the box to exit without saving. After saving the page refreshes itself."
+        ],
+        "refs": "SOP-R09"
+      },
+      {
+        "code": "WI-09",
+        "title": "Record payment & track outstanding debt",
+        "owner": "CS / manager",
+        "purpose": "Record incoming repair payments and track outstanding debt. The ods_service_payment table is the single source where incoming money is recorded (the old SIN receipts are all 0.00 and unusable).",
+        "scope": "The /reports/service-debts page is visible only to [M, A]. For front-desk CS collecting cash, the manager grants access per person.",
+        "steps": [
+          "Go to /reports/service-debts. Debt = quotes the customer has accepted (trans_flag=17, aprove_status=1, aprove_status_2=1) minus what has been paid.",
+          "Use the filters: customer type (all/shop/general/unset) and scope (due / all), then click 'Filter'. The summary tiles at top (jobs/quoted/received/due) are computed across all rows, not just this page.",
+          "ⓘ Note: jobs before 2026-07-17 have no payment records ⇒ they all show as 'due' even if paid in cash. Do NOT auto-backfill — record each one manually. Red rows 'returned but unpaid' are the highest risk.",
+          "Take payment: click 'Receive money' on a row (shown only when due>0 and you have update rights). The dialog opens with the amount preset to the full due.",
+          "Enter: amount (overwrite for partial payment), date (not after today), method (cash/transfer/other), reference, note → Save. recordServicePayment computes 'due' on the server and cannot accept more than the outstanding amount (one typo = wrong ledger).",
+          "On save it logs to the job timeline (received X THB · Y still due / fully paid) and /reports/service-debts totals refresh.",
+          "Wrong entry: it can be reversed (undoServicePayment) — not deleted silently but logged on the timeline with the reversed amount. Same rights as recording.",
+          "Set customer type (setCustomerKind) from the /customers table (shop/general) — used to split /reports/service-by-kind.",
+          "Related reports: /reports/service-revenue (by month, counted by quote date), /reports/service-by-kind (split by customer type, counted by intake date)."
+        ],
+        "refs": "SOP-R07"
+      },
+      {
+        "code": "WI-10",
+        "title": "Hold / reject a job (hold & reject)",
+        "owner": "Technician / supervisor",
+        "purpose": "Flag jobs the queue can't move (hold) so the stage clock stops and they split off to a 'problem' tab; and let a technician reject a not-yet-accepted job with a reason.",
+        "scope": "hold/release = supervisor/approver (APPROVER_SIDE M, HT). reject = technician (TECH_SIDE M, HT, T). The server always re-checks.",
+        "steps": [
+          "Hold a job: open /service/{code}. If permitted you'll see HoldButtons with 3 outcomes — ① 'Needs check' ② 'Cancel' ③ 'Repaired'. All require a reason ≥ 3 chars.",
+          "① 'Needs check' → holdJob: raises a 'problem' flag (kind=other), stops the stage clock, moves the job to the 'problem' tab. The flag does not change the stage and does not remove it from 'open jobs'. 1 job = 1 open flag (can't flag twice).",
+          "⚠️ The 'flag problem job' capability must be enabled at /manage/settings (SETTING.JOB_HOLD) first — if off, holdJob returns an error.",
+          "Release the flag: on /service/{code} a flagged job shows a 'Needs check · X days' badge + an Undo button → releaseJobHold. The clock resumes from where it stopped (not restarted).",
+          "③ 'Repaired' → markJobRepaired: supervisor override for stuck jobs (stage 6 waiting for parts can't use finishRepairFlow). Sets time_finish_repair + status=5 ⇒ the job goes to the QC/return stage (not skipped) and its hold is auto-released.",
+          "② 'Cancel' → requestCancel: enters the cancellation approval queue /approvals/cancellations (does not delete the job).",
+          "Reject a job: a technician who hasn't accepted clicks 'Decline' (at /installations/accept for installs; on the repair side technicians mainly use the mobile app). A reason ≥ 3 chars is required in the modal, then 'Confirm decline'.",
+          "rejectJobAction → rejectJob: allowed only while not yet accepted / not started (repair: repair_confirm null + stage 1; install: stage 1). Once accepted or parts requested, it can't be rejected (contact CS to reassign).",
+          "After rejection: the job returns to the assignment queue (technician cleared), the reason is stored in ods_job_reject, and CS (admin/manager) is notified immediately."
+        ],
+        "refs": "SOP-R08"
+      },
+      {
+        "code": "WI-11",
+        "title": "Service notices",
+        "owner": "CS",
+        "purpose": "Handle customer 'repair notices' (phone/online reports of a broken device) so CS can intake them as receipts, or delete test/duplicate/wrong notices.",
+        "scope": "A notice ≠ a job: no documents/stock/money attached yet. /service/notices is SERVICE_SIDE (M, A).",
+        "steps": [
+          "Go to /service/notices — the list of notices not yet intaken (no tb_product.ref_notice points to them yet). Search/sort/paginate 20 rows/page.",
+          "Read columns: code, notify date-time, notifier, phone, product, SN, customer, initial symptom, remark, image ('View image' loads on click).",
+          "Intake: click 'Open job' → /service/notices/{code}. The ServiceNoticeForm pulls category/brand/technician from ERP, and if ref_code+doc_ref/SN exist it matches the source invoice (item_code, category, invoice date).",
+          "Fill/confirm the data and save = convert into an intake receipt for repair. If the notice was already intaken, the page auto-redirects to /service/{code}.",
+          "Delete a notice: click the delete button (NoticeDeleteButton) → deleteNotice. A notice that has already opened a job cannot be deleted (server blocks it: intake receipt #… references ref_notice). Deletion is logged with who did it.",
+          "ⓘ You can delete a notice only — deleting a job (tb_product) is still strictly forbidden.",
+          "Notices come from 2 paths: the public form /report-repair (customer, no login) and /sales/report-repair (sales, see SOP-R10)."
+        ],
+        "refs": "SOP-R01"
+      },
+      {
+        "code": "WI-12",
+        "title": "Manage customer data",
+        "owner": "CS",
+        "purpose": "Add/edit/delete customer records (ar_customer) and set the type (shop/general) correctly for intake receipts and reports.",
+        "scope": "All of /customers = SERVICE_SIDE (M, A). Table ar_customer columns address/city/provine ('provine' is misspelled but is the real column — do not change).",
+        "steps": [
+          "Go to /customers — the customer list (search code/name/phone/address, sort, paginate 20/page). The 'intake receipts' column counts only the 20 people on this page.",
+          "Set type from the row: the 'Type' cell (KindCell) select shop/general → saves immediately (setCustomerKind, no confirm button, reversible). Used by /reports/service-by-kind.",
+          "Add: /customers/new → CustomerForm (next code auto-filled). Name* (name_1) required; name_2, address, province, city, phone. Save → createCustomer (pg_advisory lock prevents duplicate codes) → back to /customers?ok=saved.",
+          "Edit: click the edit icon → /customers/{code}/edit. Change name/address/province/city/phone → updateCustomer → /customers?ok=edited. This page has a Chatter (change history).",
+          "Delete: click DeleteButton → deleteCustomer. Cannot delete if an intake receipt (tb_product) or install job (ods_tb_install) references it → shows 'in use'.",
+          "ⓘ The old ods edit_cust wrote to the wrong table ⇒ never saved; here it correctly uses ar_customer."
+        ],
+        "refs": "SOP-R01"
+      },
+      {
+        "code": "WI-P01",
+        "title": "Approve PR / PO (approver buttons)",
+        "owner": "Approver",
+        "purpose": "Describe the steps and buttons an approver uses to approve purchase requests (SPR to WPRA) and purchase orders (PO to WPOA), plus how to undo a wrong approval.",
+        "scope": "Pages /approvals/purchase-requests, /approvals/purchase-orders and the document page /purchase-orders/[docNo]. Available only to APPROVER_SIDE roles.",
+        "steps": [
+          "Approve PR: go to /approvals/purchase-requests, 'Waiting' tab → click 'Approve' on the row (opens the document page) or click the SPR number to open /purchase-orders/[SPR] directly.",
+          "On the document page (statusbar 'Purchase request'): click 'Approve' → confirm 'Approve request?' → WPRA is emitted (no supplier needed yet). To reject, click 'Reject' → the SPR is deleted from ERP and the job returns to spare-parts handling.",
+          "Wrong approval (approved but PO not yet issued): on the document page in the 'Approved' state, click 'Undo approval' (deletes WPRA, doc returns to 'Waiting') or 'Delete whole request' (deletes SPR+WPRA). Once a PO exists this is blocked — the server names the blocking PO.",
+          "Approve PO: go to /approvals/purchase-orders, 'Waiting' tab → click 'Approve PO' on the row → confirm 'Approve purchase order?' → WPOA is emitted. (An 'Approve PO' button also exists on the /purchase-orders list.)",
+          "Before approving a PO, check the 'Document info' block on the page: supplier, total, ETA, currency/VAT (exclusive/inclusive) and payment (cash / credit N days + due date).",
+          "Cancel an approved PO (not yet received): approvers only — click 'Cancel', give a reason → PO + WPOA are deleted from ERP. If it has been received (a PUI exists) it cannot be cancelled — return the goods in ERP instead."
+        ],
+        "refs": "SOP-P01"
       }
     ],
     "printSet": "Print set",
@@ -1317,10 +1551,19 @@
     "printBtn": "Print / Save PDF",
     "printRepairSet": "Print repair set",
     "printInstallSet": "Print install set",
+    "printClaimSet": "Print claim set",
+    "printMaintSet": "Print maintenance set",
+    "printPurchaseSet": "Print purchase set",
     "printRepairTitle": "SOP/WI documents — Repair",
     "printInstallTitle": "SOP/WI documents — Installation",
+    "printClaimTitle": "SOP/WI documents — Claim",
+    "printMaintTitle": "SOP/WI documents — Maintenance",
+    "printPurchaseTitle": "SOP/WI documents — Purchase",
     "tabRepair": "Repair manual",
     "tabInstall": "Install manual",
+    "tabClaim": "Claim manual",
+    "tabMaint": "Maintenance manual",
+    "tabPurchase": "Purchase manual",
     "applianceKnowledge": [
       {
         "type": "Fridge / Freezer",

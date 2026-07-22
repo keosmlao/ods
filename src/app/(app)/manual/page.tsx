@@ -130,7 +130,19 @@ function Section({ n, title, children }: { n: string; title: string; children: R
 
 
 const pad = (n: number) => String(n).padStart(2, "0");
-const isInstallDoc = (code: string) => code.startsWith("SOP-I") || code.startsWith("WI-I");
+
+/** ຈັດ SOP/WI ເຂົ້າ tab ຕາມ prefix ລະຫັດ — ຄ່າ default = repair. */
+type ManualTab = "repair" | "install" | "claim" | "maintenance" | "purchase";
+const tabOfDoc = (code: string): ManualTab =>
+  code.includes("CLM")
+    ? "claim"
+    : code.startsWith("SOP-M") || code.startsWith("WI-M")
+      ? "maintenance"
+      : code.startsWith("SOP-P") || code.startsWith("WI-P")
+        ? "purchase"
+        : code.startsWith("SOP-I") || code.startsWith("WI-I")
+          ? "install"
+          : "repair";
 
 export default async function ManualPage() {
   const t = (await getDictionary(await getLocale())).manualPage;
@@ -139,12 +151,25 @@ export default async function ManualPage() {
   const SITUATIONS = situations(t);
   const ROLES = roles(t);
 
-  const repairExtra = t.extraSections.filter((s) => s.wf !== "install");
-  const installExtra = t.extraSections.filter((s) => s.wf === "install");
-  const repairSop = t.sopDocs.filter((d) => !isInstallDoc(d.code));
-  const installSop = t.sopDocs.filter((d) => isInstallDoc(d.code));
-  const repairWi = t.wiDocs.filter((d) => !isInstallDoc(d.code));
-  const installWi = t.wiDocs.filter((d) => isInstallDoc(d.code));
+  const extraFor = (tab: ManualTab) => t.extraSections.filter((s) => (s.wf ?? "repair") === tab);
+  const sopFor = (tab: ManualTab) => t.sopDocs.filter((d) => tabOfDoc(d.code) === tab);
+  const wiFor = (tab: ManualTab) => t.wiDocs.filter((d) => tabOfDoc(d.code) === tab);
+
+  const repairExtra = extraFor("repair");
+  const installExtra = extraFor("install");
+  const claimExtra = extraFor("claim");
+  const maintExtra = extraFor("maintenance");
+  const purchaseExtra = extraFor("purchase");
+  const repairSop = sopFor("repair");
+  const installSop = sopFor("install");
+  const claimSop = sopFor("claim");
+  const maintSop = sopFor("maintenance");
+  const purchaseSop = sopFor("purchase");
+  const repairWi = wiFor("repair");
+  const installWi = wiFor("install");
+  const claimWi = wiFor("claim");
+  const maintWi = wiFor("maintenance");
+  const purchaseWi = wiFor("purchase");
 
   const extraSection = (s: (typeof t.extraSections)[number], n: string) => (
     <Section key={s.title} n={n} title={s.title}>
@@ -300,10 +325,45 @@ export default async function ManualPage() {
     </>
   );
 
+  const claim = (
+    <>
+      {claimExtra.map((s, i) => extraSection(s, pad(1 + i)))}
+      {docSection(pad(1 + claimExtra.length), t.sopTitle, claimSop, "/manual/documents/print?set=claim", t.printClaimSet)}
+      {docSection(pad(2 + claimExtra.length), t.wiTitle, claimWi)}
+    </>
+  );
+
+  const maintenance = (
+    <>
+      {maintExtra.map((s, i) => extraSection(s, pad(1 + i)))}
+      {docSection(pad(1 + maintExtra.length), t.sopTitle, maintSop, "/manual/documents/print?set=maintenance", t.printMaintSet)}
+      {docSection(pad(2 + maintExtra.length), t.wiTitle, maintWi)}
+    </>
+  );
+
+  const purchase = (
+    <>
+      {purchaseExtra.map((s, i) => extraSection(s, pad(1 + i)))}
+      {docSection(pad(1 + purchaseExtra.length), t.sopTitle, purchaseSop, "/manual/documents/print?set=purchase", t.printPurchaseSet)}
+      {docSection(pad(2 + purchaseExtra.length), t.wiTitle, purchaseWi)}
+    </>
+  );
+
   return (
     <div className="w-full pb-16">
       <PageTitle sub={t.pageSub}>{t.pageTitle}</PageTitle>
-      <ManualTabs repair={repair} install={install} repairLabel={t.tabRepair} installLabel={t.tabInstall} />
+      <ManualTabs
+        repair={repair}
+        install={install}
+        claim={claim}
+        maintenance={maintenance}
+        purchase={purchase}
+        repairLabel={t.tabRepair}
+        installLabel={t.tabInstall}
+        claimLabel={t.tabClaim}
+        maintLabel={t.tabMaint}
+        purchaseLabel={t.tabPurchase}
+      />
     </div>
   );
 }

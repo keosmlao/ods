@@ -19,33 +19,37 @@ export default async function ManualDocumentsPrintPage({ searchParams }: Props) 
 
   const all = [...t.sopDocs, ...t.wiDocs];
   const isInstall = (code: string) => code.startsWith("SOP-I") || code.startsWith("WI-I");
-  const docs = doc
-    ? all.filter((d) => d.code === doc)
-    : set === "wi"
-      ? t.wiDocs
-      : set === "sop"
-        ? t.sopDocs
-        : set === "install"
-          ? all.filter((d) => isInstall(d.code))
-          : set === "repair"
-            ? all.filter((d) => !isInstall(d.code))
-            : all;
+  const isClaim = (code: string) => code.includes("CLM");
+  const isMaint = (code: string) => code.startsWith("SOP-M") || code.startsWith("WI-M");
+  const isPurchase = (code: string) => code.startsWith("SOP-P") || code.startsWith("WI-P");
+  const isRepair = (code: string) => !isInstall(code) && !isClaim(code) && !isMaint(code) && !isPurchase(code);
+  const bySet: Record<string, () => typeof all> = {
+    wi: () => t.wiDocs,
+    sop: () => t.sopDocs,
+    install: () => all.filter((d) => isInstall(d.code)),
+    claim: () => all.filter((d) => isClaim(d.code)),
+    maintenance: () => all.filter((d) => isMaint(d.code)),
+    purchase: () => all.filter((d) => isPurchase(d.code)),
+    repair: () => all.filter((d) => isRepair(d.code)),
+  };
+  const docs = doc ? all.filter((d) => d.code === doc) : (bySet[set ?? ""]?.() ?? all);
 
+  const setHeading: Record<string, string> = {
+    wi: t.wiTitle,
+    sop: t.sopTitle,
+    install: t.printInstallTitle,
+    claim: t.printClaimTitle,
+    maintenance: t.printMaintTitle,
+    purchase: t.printPurchaseTitle,
+    repair: t.printRepairTitle,
+  };
   const heading = doc
     ? `${docs[0]?.code ?? ""} — ${docs[0]?.title ?? ""}`
-    : set === "wi"
-      ? t.wiTitle
-      : set === "sop"
-        ? t.sopTitle
-        : set === "install"
-          ? t.printInstallTitle
-          : set === "repair"
-            ? t.printRepairTitle
-            : t.printAllTitle;
+    : (setHeading[set ?? ""] ?? t.printAllTitle);
 
   return (
     <div className="mx-auto max-w-[210mm] bg-white p-8 text-black print:p-0">
-      <style>{`@media print { @page { size: A4; margin: 14mm } .no-print { display: none !important } .doc-card { page-break-inside: avoid } }`}</style>
+      <style>{`@media print { @page { size: A4; margin: 14mm } .no-print { display: none !important } .doc-card { break-after: page; page-break-after: always } .doc-card:last-child { break-after: auto; page-break-after: auto } }`}</style>
 
       <div className="no-print mb-5 flex items-center justify-between gap-3 rounded-lg bg-slate-100 px-4 py-2">
         <span className="text-xs text-slate-600">{heading}</span>
