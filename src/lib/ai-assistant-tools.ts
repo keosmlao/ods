@@ -3,11 +3,12 @@
  * **ຄີພ້ອມໃຊ້ບໍ — ນິຍາມບ່ອນດຽວ** (ໜ້າ /assistant ແລະ route ໃຊ້ຮ່ວມກັນ).
  * ບໍ່ພຽງແຕ່ກວດວ່າ "ມີຄ່າ": ຄ່າຫຼອກແບບ `...` ຜ່ານດ່ານ `if (!key)` ໄດ້ ⇒ ໜ້າຈະບອກວ່າ
  * "ພ້ອມ" ແຕ່ພໍຖາມຈິງກັບລົ້ມ 401 (ເກີດຂຶ້ນຈິງມາແລ້ວ).
- * ຄີຂອງ Google AI Studio ຂຶ້ນຕົ້ນດ້ວຍ 'AIza' ແລະ ຍາວປະມານ 39 ຕົວ.
+ * ໃຊ້ endpoint OpenAI-compatible (Groq…) ⇒ ຕ້ອງມີທັງ base URL (http…) ແລະ ຄີ (>20 ຕົວ).
  */
 export function assistantReady() {
-  const key = (process.env.GEMINI_API_KEY ?? "").trim();
-  return key.length > 20 && key.startsWith("AIza");
+  const base = (process.env.LOCAL_AI_BASE_URL ?? "").trim();
+  const key = (process.env.LOCAL_AI_API_KEY ?? "").trim();
+  return base.startsWith("http") && key.length > 20;
 }
 import type { Session } from "@/lib/auth";
 import { query, queryOdg } from "@/lib/db";

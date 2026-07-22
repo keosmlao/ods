@@ -148,7 +148,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
                 <b className="block">{t.notReadyTitle}</b>
                 {t.notReadyBefore}{" "}
                 <code className="rounded bg-white px-1">
-                  GEMINI_API_KEY
+                  LOCAL_AI_API_KEY
                 </code>{" "}
                 {t.notReadyAfter}
               </span>

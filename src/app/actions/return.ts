@@ -4,8 +4,10 @@ import { recordPayout } from "@/lib/commission-record";
 import { getSession } from "@/lib/auth";
 import { requireRole, requireRoleOrRedirect } from "@/lib/guard";
 import { SERVICE_SIDE } from "@/lib/roles";
-import { db, queryOdg } from "@/lib/db";
+import { db, odgDb, queryOdg } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
+import { writeErpReceipt } from "@/lib/erp-receipt";
+import { linkErpDoc } from "@/lib/erp-doc-link";
 import { HAS_OUTSTANDING_SPARES } from "@/lib/outstanding-spares";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
@@ -391,9 +393,17 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
     upload = { filename, bytes: Buffer.from(await image.arrayBuffer()) };
   }
 
+  // ໃບຮັບເງິນຕ້ອງໄປລົງ SML ນຳ (cb_trans) — SML ບໍ່ຕັ້ງຄ່າ = ອອກໃບບໍ່ໄດ້ (ບໍ່ໃຫ້ເກີດໃບ ODS-ຢ່າງດຽວ ອີກ)
+  if (!odgDb) return { error: "ບໍ່ພົບ ODG_DATABASE_URL — ອອກໃບຮັບເງິນບໍ່ໄດ້" };
+
   // ເຊື່ອມຕໍ່ຖານຂໍ້ມູນ — ລົ້ມເຫຼວກໍ່ຄືນເປັນ error ທຳມະດາ ບໍ່ໃຫ້ throw ຫຼຸດອອກໄປພັງໜ້າ
   const client = await db.connect().catch(() => null);
   if (!client) return { error: "ເຊື່ອມຕໍ່ຖານຂໍ້ມູນບໍ່ໄດ້ ກະລຸນາລອງໃໝ່" };
+  const odg = await odgDb.connect().catch(() => null);
+  if (!odg) {
+    client.release();
+    return { error: "ເຊື່ອມຕໍ່ SML ບໍ່ໄດ້ ກະລຸນາລອງໃໝ່" };
+  }
   const written: string[] = [];
   let docNo = "";
   let billTotal = 0;
@@ -402,6 +412,7 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
 
   try {
     await client.query("begin");
+    await odg.query("begin"); // SML — ຄຸມຄູ່ກັບ ODS: SML ຜ່ານ = ສຳເລັດ (ບໍ່ໃຫ້ໃບຄ້າງເຄິ່ງທາງ)
     await client.query("select pg_advisory_xact_lock(734244)"); // ກັນເລກບິນຊ້ຳ
 
     // ອັດຕາແລກປ່ຽນຢູ່ຖານ ERP — ດຶງໃນ try ⇒ ຖ້າ ERP ຂັດຂ້ອງ (timeout) ຄືນເປັນ error ທຳມະດາ
@@ -507,6 +518,7 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
     );
     if (!returned.rowCount) {
       await client.query("rollback");
+      await odg.query("rollback").catch(() => {});
       return { error: "ສົ່ງຄືນບໍ່ໄດ້ — ງານນີ້ຍັງບໍ່ຜ່ານການກວດຮັບຄຸນນະພາບ ຫຼື ສົ່ງຄືນໄປແລ້ວ" };
     }
 
@@ -515,14 +527,44 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
       [CART_FLAG, d.pro_code, session.username],
     );
 
+    /**
+     * ── ສົ່ງໃບຮັບເງິນເຂົ້າ SML (cb_trans) — "SML ຜ່ານ = ສຳເລັດ" ──
+     * ລູກຄ້າ**ດຶງຈາກ job** (ar_customer ຂອງ cust_code) ໄປໃສ່ຊື່/ເບີໃນ SML.
+     * ຍອດເປັນບາດແລ້ວ (amountCash / bankAmount). ຍອດ 0 (ຮັບປະກັນ) ⇒ ບໍ່ຂຽນ SML.
+     */
+    const cust = await client.query<{ name: string | null; tel: string | null }>(
+      `select name_1 as name, tel from ar_customer where code=$1 limit 1`,
+      [d.cust_code],
+    );
+    const now = new Date();
+    const pushed = await writeErpReceipt(odg, {
+      doc_no: docNo,
+      doc_date: d.doc_date,
+      doc_time: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
+      job_code: d.pro_code,
+      cust_name: cust.rows[0]?.name ?? "",
+      cust_phone: cust.rows[0]?.tel ?? "",
+      cash_amount: amountCash,
+      transfer_amount: bankAmount,
+      cashier: session.username,
+    });
+    // ຜູກໃບ↔ວຽກຢູ່ ODS (ໃນ transaction ດຽວກັນ — SML ລົ້ມ ⇒ ຜູກກໍ່ຫາຍນຳ)
+    if (pushed) {
+      await linkErpDoc(client, { docNo, transFlag: 44, jobCode: d.pro_code, by: session.username });
+    }
+
+    // ຄຸມສອງຖານພ້ອມ: SML ກ່ອນ (ຖ້າ trigger SML ລົ້ມ ⇒ throw ⇒ catch rollback ODS ນຳ), ແລ້ວ ODS
+    await odg.query("commit");
     await client.query("commit");
   } catch (error) {
     await client.query("rollback").catch(() => {});
+    await odg.query("rollback").catch(() => {});
     await Promise.all(written.map((path) => unlink(path).catch(() => {})));
     console.error("save_invoicedata failed", error);
     return { error: "ບັນທຶກບໍ່ສຳເລັດ ກະລຸນາກວດຂໍ້ມູນ" };
   } finally {
     client.release();
+    odg.release();
   }
 
   await logChange(
