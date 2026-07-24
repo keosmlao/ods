@@ -219,6 +219,14 @@ class Api {
     return JobPhotos.fromJson(result['photos'] as Map<String, dynamic>);
   }
 
+  /// ຄິວອະນຸມັດ (ຜູ້ຈັດການ) — ອ່ານຢ່າງດຽວ, ໄປຕັດສິນຢູ່ເວັບ
+  static Future<List<ApprovalItem>> approvals() async {
+    final result = await _send('GET', '/api/mobile/approvals');
+    return (result['items'] as List)
+        .map((row) => ApprovalItem.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
   /* ── Chatter ແລະ ກິດຈະກຳ ────────────────────────────────────── */
 
   /// ການເຄື່ອນໄຫວຂອງງານ — ຂໍ້ຄວາມ/log ແລະ ກິດຈະກຳທີ່ຍັງຄ້າງ (ຊຸດດຽວກັບເວັບ)
@@ -728,6 +736,52 @@ int _asInt(dynamic value) {
   if (value is num) return value.toInt();
   if (value is String) return int.tryParse(value) ?? 0;
   return 0;
+}
+
+/// ລາຍການທີ່ລໍຜູ້ຈັດການອະນຸມັດ
+class ApprovalItem {
+  final String kind;
+  final String kindLabel;
+  final String ref;
+  final String? title;
+  final String? customer;
+  final String? amount;
+  final String? requestedAt;
+  final int waitingSeconds;
+  final String href;
+
+  const ApprovalItem({
+    required this.kind,
+    required this.kindLabel,
+    required this.ref,
+    this.title,
+    this.customer,
+    this.amount,
+    this.requestedAt,
+    required this.waitingSeconds,
+    required this.href,
+  });
+
+  int get days => waitingSeconds ~/ 86400;
+
+  /// "ຄ້າງ 5 ມື້" · "ຄ້າງ 3 ຊມ"
+  String get waitingLabel {
+    if (days > 0) return 'ຄ້າງ $days ມື້';
+    final hours = waitingSeconds ~/ 3600;
+    return hours > 0 ? 'ຄ້າງ $hours ຊມ' : 'ຫາກໍ່ຂໍ';
+  }
+
+  factory ApprovalItem.fromJson(Map<String, dynamic> json) => ApprovalItem(
+    kind: json['kind'] as String? ?? '',
+    kindLabel: json['kind_label'] as String? ?? '',
+    ref: json['ref'] as String? ?? '',
+    title: json['title'] as String?,
+    customer: json['customer'] as String?,
+    amount: json['amount'] as String?,
+    requestedAt: json['requested_at'] as String?,
+    waitingSeconds: _asInt(json['waiting_seconds']),
+    href: json['href'] as String? ?? '',
+  );
 }
 
 /// ຂໍ້ຄວາມໃນ chatter — `kind` = 'comment' (ຄົນພິມ) ຫຼື 'log' (ລະບົບບັນທຶກເອງ)

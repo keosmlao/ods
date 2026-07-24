@@ -9,9 +9,17 @@ import type { Role } from "@/lib/roles";
  *   • stock-count            → ທຸກຄົນ ຍົກເວັ້ນ ຊ່າງ (technical · headtechnical)
  *   • qc                     → lib/qc-flow ຕັດສິນ (ods_qc_role) — ວ່າງ = ໜ້າຈໍແຈ້ງ "ບໍ່ມີສິດ"
  *   • notifications          → ທຸກຄົນ
- *   • overview               → APPROVER_SIDE (manager · headtechnical) — ພາບລວມບໍລິຫານ
+ *   • overview · approvals   → APPROVER_SIDE (manager · headtechnical)
  */
-export type MobileTabKey = "overview" | "jobs" | "pickup" | "income" | "qc" | "stock-count" | "notifications";
+export type MobileTabKey =
+  | "overview"
+  | "jobs"
+  | "pickup"
+  | "income"
+  | "qc"
+  | "approvals"
+  | "stock-count"
+  | "notifications";
 
 export type MobileTab = { key: MobileTabKey; label: string };
 
@@ -22,6 +30,7 @@ const TAB: Record<MobileTabKey, MobileTab> = {
   pickup: { key: "pickup", label: "ອາໄຫຼ່" },
   income: { key: "income", label: "ລາຍຮັບ" },
   qc: { key: "qc", label: "QC" },
+  approvals: { key: "approvals", label: "ອະນຸມັດ" },
   "stock-count": { key: "stock-count", label: "ກວດນັບ" },
   notifications: { key: "notifications", label: "ແຈ້ງເຕືອນ" },
 };
@@ -33,9 +42,8 @@ const TAB: Record<MobileTabKey, MobileTab> = {
 const TABS_BY_ROLE: Record<Role, MobileTabKey[]> = {
   technical: ["jobs", "pickup", "income"], // ຊ່າງພາກສະໜາມ
   headtechnical: ["jobs", "qc", "income"], // ຫົວໜ້າຊ່າງ — ກວດ QC ໜ້າງານ
-  // ຜູ້ຈັດການ — ພາບລວມບໍລິຫານ. **ບໍ່ມີກວດນັບ** (ເປັນວຽກສາງ ບໍ່ແມ່ນວຽກຜູ້ຈັດການ).
-  // TODO: ເພີ່ມແຖບ "ອະນຸມັດ" ເມື່ອສ້າງ /api/mobile/approvals + ໜ້າຈໍແລ້ວ
-  manager: ["overview", "qc", "notifications"],
+  // ຜູ້ຈັດການ — ພາບລວມ · ອະນຸມັດ · QC. **ບໍ່ມີກວດນັບ** (ເປັນວຽກສາງ)
+  manager: ["overview", "approvals", "qc"],
   stock: ["stock-count", "notifications"], // ຝ່າຍສາງ
   admin: ["stock-count", "notifications", "qc"], // CS
   sales: ["stock-count", "notifications"], // ຝ່າຍຂາຍ

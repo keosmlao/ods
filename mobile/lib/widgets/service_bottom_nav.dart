@@ -28,6 +28,7 @@ class ServiceBottomNav extends StatelessWidget {
     'pickup' => (Icons.inventory_2_outlined, Icons.inventory_2_rounded),
     'income' => (Icons.payments_outlined, Icons.payments_rounded),
     'qc' => (Icons.fact_check_outlined, Icons.fact_check_rounded),
+    'approvals' => (Icons.verified_outlined, Icons.verified_rounded),
     'stock-count' => (
       Icons.qr_code_scanner_rounded,
       Icons.qr_code_scanner_rounded,

@@ -7,6 +7,7 @@ import 'jobs_screen.dart';
 import 'manager_screen.dart';
 import 'notifications_screen.dart';
 import 'pickup_screen.dart';
+import 'approvals_screen.dart';
 import 'qc_screen.dart';
 import 'stock_count_screen.dart';
 
@@ -33,6 +34,7 @@ class _NavHostState extends State<NavHost> {
     'pickup' => const PickupScreen(),
     'income' => const IncomeScreen(),
     'qc' => const QcScreen(),
+    'approvals' => const ApprovalsScreen(),
     'stock-count' => const StockCountScreen(),
     'notifications' => const NotificationsScreen(),
     _ => const _Unsupported(),
