@@ -1,4 +1,3 @@
-import { LinkPending } from "@/components/link-pending";
 import { MobileCardList } from "@/components/mobile-card-list";
 import { RowLink } from "@/components/row-link";
 import { query } from "@/lib/db";
