@@ -111,6 +111,8 @@ const HOME: NavGroup = {
     { label: "ກິດຈະກຳຂອງຂ້ອຍ", href: "/activities" },
     { label: "ການແຈ້ງເຕືອນ", href: "/notifications" },
     { label: "ຄູ່ມືການໃຊ້ງານ", href: "/manual" },
+    // ຊ່າງຕິດຕັ້ງແອັບເອງໄດ້ ບໍ່ຕ້ອງສົ່ງ APK ຜ່ານແຊັດ
+    { label: "ດາວໂຫຼດແອັບຊ່າງ", href: "/download" },
   ],
 };
 
@@ -265,6 +267,8 @@ const REPORT: NavGroup = {
     { label: "ລາຍງານກວດເຊັກ", href: "/reports/checking" },
     { label: "ລາຍງານຮັບເຄື່ອງປະຈຳວັນ", href: "/reports/daily-receipts" },
     { label: "ລາຍງານໃບຮັບເງິນ", href: "/reports/receipts" },
+    // ເງິນ: ສະຫຼຸບຍອດໃບຮັບເງິນ (SIN) ຕາມວັນ/ເດືອນ — ຕ່າງຈາກ 2 ອັນເທິງທີ່ເປັນ "ຮັບເຄື່ອງ"
+    { label: "ສະຫຼຸບໃບຮັບເງິນ (ວັນ/ເດືອນ)", href: "/reports/service-receipts" },
     // ── ເງິນຂອງງານສ້ອມ (17-07-2026) — ໜີ້ຄ້າງ · ລາຍຮັບ · ແຍກປະເພດລູກຄ້າ ──
     { label: "ຕິດຕາມການຊຳລະ", href: "/reports/service-debts" },
     { label: "ສະຫຼຸບລາຍຮັບງານສ້ອມ", href: "/reports/service-revenue" },

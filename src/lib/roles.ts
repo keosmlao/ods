@@ -112,6 +112,9 @@ const RULES: Rule[] = [
   { path: "/chat", roles: EVERYONE },
   { path: "/notifications", roles: EVERYONE },
   { path: "/manual", roles: EVERYONE },
+  // ດາວໂຫຼດແອັບຊ່າງ — ຕ້ອງເປັນ EVERYONE ໂດຍສະເພາະ **ຊ່າງ** (canAccess ເປັນ default-deny
+  // ⇒ ບໍ່ມີກົດ = ຊ່າງເປີດໜ້າດາວໂຫຼດແອັບຂອງຕົນເອງບໍ່ໄດ້)
+  { path: "/download", roles: EVERYONE },
 
   /* ບໍລິການ / ຮັບເຄື່ອງສ້ອມ — ods: ເມນູ "ບໍລິການ" (manager, admin) */
   { path: "/service", exact: true, roles: SERVICE_SIDE },

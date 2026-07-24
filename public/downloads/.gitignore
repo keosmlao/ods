@@ -1,0 +1,4 @@
+# APK ໃຫຍ່ (100MB+) — ຫ້າມເຂົ້າ git. ວາງໄຟລ໌ທີ່ build ແລ້ວໄວ້ບ່ອນນີ້ຕອນ deploy:
+#   flutter build apk --release
+#   cp mobile/build/app/outputs/flutter-apk/app-release.apk public/downloads/odss-tech.apk
+*.apk
