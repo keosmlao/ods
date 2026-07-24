@@ -1706,7 +1706,8 @@
     "actionManageCancelPurchase": "ຈັດການ / ຍົກເລີກການສັ່ງຊື້",
     "actionGoRepairList": "ໄປລາຍການສ້ອມ",
     "actionQc": "ກວດ QC",
-    "actionReturn": "ສົ່ງຄືນ"
+    "actionReturn": "ສົ່ງຄືນ",
+    "assignTech": "ຈັດຊ່າງ"
   },
   "serviceNoticeForm": {
     "saving": "ກຳລັງບັນທຶກ...",

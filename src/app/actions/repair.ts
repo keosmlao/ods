@@ -1,5 +1,6 @@
 "use server";
 import { logChange } from "@/lib/chatter-log";
+import { notifyTechStage } from "@/lib/notify-tech";
 import { getSession, type Session } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { acceptRepair, finishRepairFlow, startRepairFlow } from "@/lib/job-flow";
@@ -83,6 +84,8 @@ export async function receivePickup(code: string): Promise<{ ok?: string; error?
   if (!res.rowCount) return { error: "ບໍ່ພົບວຽກ PS ທີ່ລໍໄປຮັບ (ອາດຮັບເຂົ້າສູນແລ້ວ)" };
 
   await logChange("tb_product", code, "ຮັບເຄື່ອງເຂົ້າສູນ (PS) — ໄປຮັບບ້ານລູກຄ້າມາຮອດສູນ");
+  // ເຄື່ອງຮອດສູນແລ້ວ ⇒ ຂັ້ນ "ລໍຖ້າກວດເຊັກ" = ວຽກຢູ່ມືຊ່າງ
+  await notifyTechStage("repair", code);
   revalidatePath("/dashboard/status/repair/wait-pickup");
   revalidatePath("/dashboard/status/repair/picking-up");
   revalidatePath("/dashboard/status/repair/wait-check");

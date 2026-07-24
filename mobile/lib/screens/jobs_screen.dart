@@ -106,6 +106,48 @@ class _Group {
   const _Group(this.phase, this.jobs);
 }
 
+/* ── ພາກໃຫຍ່: ກວດເຊັກ · ສ້ອມແປງ · ຕິດຕັ້ງ ────────────────────────
+   ວຽກ "ກວດເຊັກ" ກັບ "ສ້ອມແປງ" ເປັນຄົນລະຫົວວຽກ ⇒ ແຍກເປັນພາກ ບໍ່ໃຫ້ປົນກັນ.
+   ງານຕິດຕັ້ງເປັນອີກສາຍງານໜຶ່ງ (ບໍ່ມີຂັ້ນກວດເຊັກ) ຈຶ່ງແຍກພາກຂອງມັນເອງ. */
+enum _Band { check, repair, install }
+
+class _BandMeta {
+  final String label;
+  final IconData icon;
+  final List<Color> gradient;
+  const _BandMeta(this.label, this.icon, this.gradient);
+}
+
+const _bandMeta = {
+  _Band.check: _BandMeta('ກວດເຊັກ', Icons.fact_check_outlined, [
+    Color(0xFFF59E0B),
+    Color(0xFFEA580C),
+  ]),
+  _Band.repair: _BandMeta('ສ້ອມແປງ', Icons.handyman_outlined, [
+    Color(0xFF059669),
+    Color(0xFF0E7490),
+  ]),
+  _Band.install: _BandMeta('ຕິດຕັ້ງ', Icons.construction_outlined, [
+    Color(0xFF6D4AFF),
+    Color(0xFF9333EA),
+  ]),
+};
+
+/// ຂັ້ນ 0-2 (ໄປຮັບເຄື່ອງ · ລໍຖ້າກວດ · ກຳລັງກວດ) = ກວດເຊັກ · ທີ່ເຫຼືອ = ສ້ອມແປງ
+_Band _bandOf(Job job) {
+  if (job.workflow == 'install') return _Band.install;
+  final s = job.stage;
+  return (s >= 0 && s <= 2) ? _Band.check : _Band.repair;
+}
+
+class _BandGroup {
+  final _Band band;
+  final List<_Group> groups;
+  final int total;
+  final int actionCount;
+  const _BandGroup(this.band, this.groups, this.total, this.actionCount);
+}
+
 class JobsScreen extends StatefulWidget {
   const JobsScreen({super.key});
   @override
@@ -165,11 +207,11 @@ class _JobsScreenState extends State<JobsScreen> {
     ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 
-  /// ຈັດກຸ່ມงานตามไลยะ (phase) — ในกลุ่มเรียง action เร่งด่วนก่อน · กลุ่มเรียงตามลำดับ flow
-  List<_Group> get grouped {
+  /// ຈັດກຸ່ມຕາມໄລຍະ (phase) — ໃນກຸ່ມຮຽງ action ດ່ວນກ່ອນ · ກຸ່ມຮຽງຕາມລຳດັບ flow
+  List<_Group> _groupPhases(List<Job> list) {
     final byLabel = <String, List<Job>>{};
     final phaseOf = <String, _Phase>{};
-    for (final j in jobs) {
+    for (final j in list) {
       final p = _phaseOf(j);
       (byLabel[p.label] ??= []).add(j);
       phaseOf[p.label] = p;
@@ -186,6 +228,28 @@ class _JobsScreenState extends State<JobsScreen> {
       return c != 0 ? c : a.phase.label.compareTo(b.phase.label);
     });
     return groups;
+  }
+
+  /// ແບ່ງເປັນພາກໃຫຍ່ກ່ອນ (ກວດເຊັກ / ສ້ອມແປງ / ຕິດຕັ້ງ) ແລ້ວຈຶ່ງແບ່ງໄລຍະພາຍໃນ.
+  /// ພາກທີ່ບໍ່ມີວຽກ ບໍ່ສະແດງ (ບໍ່ໃຫ້ຫົວຫວ່າງລອຍ)
+  List<_BandGroup> get bands {
+    final byBand = <_Band, List<Job>>{};
+    for (final j in jobs) {
+      (byBand[_bandOf(j)] ??= []).add(j);
+    }
+    const urgent = {'accept', 'start', 'finish'};
+    final out = <_BandGroup>[];
+    for (final band in [_Band.check, _Band.repair, _Band.install]) {
+      final list = byBand[band];
+      if (list == null || list.isEmpty) continue;
+      out.add(_BandGroup(
+        band,
+        _groupPhases(list),
+        list.length,
+        list.where((j) => urgent.contains(j.action)).length,
+      ));
+    }
+    return out;
   }
 
   @override
@@ -300,27 +364,36 @@ class _JobsScreenState extends State<JobsScreen> {
                             ),
                           ),
                         if (error.isEmpty && jobs.isNotEmpty)
-                          for (final group in grouped) ...[
-                            SliverPersistentHeader(
-                              pinned: true,
-                              delegate: _PhaseHeader(
-                                phase: group.phase,
-                                count: group.jobs.length,
+                          for (final band in bands) ...[
+                            SliverToBoxAdapter(
+                              child: _BandBanner(
+                                meta: _bandMeta[band.band]!,
+                                total: band.total,
+                                actionCount: band.actionCount,
                               ),
                             ),
-                            SliverPadding(
-                              padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
-                              sliver: SliverList.separated(
-                                itemCount: group.jobs.length,
-                                separatorBuilder: (_, _) =>
-                                    const SizedBox(height: 10),
-                                itemBuilder: (_, i) => _JobCard(
-                                  job: group.jobs[i],
-                                  accent: group.phase.color,
-                                  onDone: load,
+                            for (final group in band.groups) ...[
+                              SliverPersistentHeader(
+                                pinned: true,
+                                delegate: _PhaseHeader(
+                                  phase: group.phase,
+                                  count: group.jobs.length,
                                 ),
                               ),
-                            ),
+                              SliverPadding(
+                                padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
+                                sliver: SliverList.separated(
+                                  itemCount: group.jobs.length,
+                                  separatorBuilder: (_, _) =>
+                                      const SizedBox(height: 10),
+                                  itemBuilder: (_, i) => _JobCard(
+                                    job: group.jobs[i],
+                                    accent: group.phase.color,
+                                    onDone: load,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         const SliverToBoxAdapter(child: SizedBox(height: 14)),
                       ],
@@ -331,6 +404,95 @@ class _JobsScreenState extends State<JobsScreen> {
       ),
     );
   }
+}
+
+/// ຫົວ **ພາກໃຫຍ່** (ກວດເຊັກ / ສ້ອມແປງ / ຕິດຕັ້ງ) — ແຖບສີໄລ່ ເຫັນແຕ່ໄກວ່າປ່ຽນຫົວວຽກແລ້ວ
+class _BandBanner extends StatelessWidget {
+  const _BandBanner({
+    required this.meta,
+    required this.total,
+    required this.actionCount,
+  });
+  final _BandMeta meta;
+  final int total;
+  final int actionCount;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(14, 16, 14, 2),
+    child: Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: meta.gradient,
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: meta.gradient.first.withValues(alpha: .28),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .20),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(meta.icon, size: 20, color: Colors.white),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  meta.label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -.2,
+                  ),
+                ),
+                if (actionCount > 0)
+                  Text(
+                    'ຕ້ອງລົງມື $actionCount ໃບ',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: .85),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .22),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '$total',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// ຫົວກຸ່ມໄລຍະ **ຕິດຄ້າງ** (pinned) — ຮູບໄອຄອນສີ + ຊື່ໄລຍະ + ຈຳນວນ.
@@ -399,6 +561,92 @@ class _PhaseHeader extends SliverPersistentHeaderDelegate {
       old.count != count || old.phase.label != phase.label;
 }
 
+/// ມີເນື້ອຫາແທ້ບໍ — ຂໍ້ມູນຈິງມີຄ່າ "." / "-" ທີ່ບໍ່ໄດ້ບອກຫຍັງ ຢ່າເອົາມາກິນເນື້ອທີ່
+bool _hasText(String? value) {
+  final text = (value ?? '').trim();
+  return text.isNotEmpty && text != '.' && text != '-';
+}
+
+/// ເສັ້ນປະ + ຮອຍບຸ້ມສອງຂ້າງ — ໃຫ້ບັດເບິ່ງຄື "ໃບງານ" ຈິງ (ຮອຍສີກໃບ)
+class _Perforation extends StatelessWidget {
+  const _Perforation();
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      // Transform ບໍ່ກິນເນື້ອທີ່ layout ⇒ ວົງມົນເຄິ່ງໜຶ່ງລົ້ນອອກນອກບັດແລ້ວຖືກ clip = ຮອຍບຸ້ມ
+      Transform.translate(offset: const Offset(-7, 0), child: const _Notch()),
+      const Expanded(child: _DashedLine()),
+      Transform.translate(offset: const Offset(7, 0), child: const _Notch()),
+    ],
+  );
+}
+
+class _Notch extends StatelessWidget {
+  const _Notch();
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 14,
+    height: 14,
+    decoration: const BoxDecoration(color: ground, shape: BoxShape.circle),
+  );
+}
+
+class _DashedLine extends StatelessWidget {
+  const _DashedLine();
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (_, size) {
+      const dash = 5.0, gap = 4.0;
+      final count = (size.maxWidth / (dash + gap)).floor().clamp(1, 200);
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(
+          count,
+          (_) => Container(width: dash, height: 1.1, color: const Color(0xFFDCE5E2)),
+        ),
+      );
+    },
+  );
+}
+
+/// ແຖວ ປ້າຍ/ຄ່າ ແບບໃບບິນ — ປ້າຍຊ້າຍຈາງ ຄ່າຂວາເນັ້ນ
+class _TicketLine extends StatelessWidget {
+  const _TicketLine({required this.label, required this.value, this.strong = false});
+  final String label;
+  final String value;
+  final bool strong;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 62,
+          child: Text(label, style: const TextStyle(fontSize: 10.5, color: faint)),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 1.3,
+              color: strong ? ink : muted,
+              fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// ບັດງານ **ແບບໃບງານ (ticket)** — ແຖບສີໄລຍະເທິງສຸດ · ເລກໃບເດັ່ນ · ເສັ້ນປະແບ່ງສ່ວນ
 class _JobCard extends StatelessWidget {
   const _JobCard({required this.job, required this.accent, required this.onDone});
   final Job job;
@@ -408,8 +656,11 @@ class _JobCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final install = job.workflow == 'install';
-    final typeColor = install ? const Color(0xFF6D4AFF) : teal;
     final statusColor = actionColor[job.action] ?? muted;
+    final who = [
+      if (_hasText(job.customer)) job.customer!.trim(),
+      if (_hasText(job.address)) job.address!.trim(),
+    ].join(' · ');
 
     void open() => Navigator.push(
       context,
@@ -420,236 +671,151 @@ class _JobCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFDDE6E3)),
         boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D0F172A),
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
+          BoxShadow(color: Color(0x0D0F172A), blurRadius: 14, offset: Offset(0, 5)),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: open,
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // ── ແຖບສີໄລຍະ (ຜູກກາດກັບຫົວກຸ່ມ ⇒ ກວາດຕາອ່ານໄວ) ──
-                Container(width: 5, color: accent),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 14, 15, 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 9,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: typeColor.withValues(alpha: .10),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    install
-                                        ? Icons.handyman_outlined
-                                        : Icons.build_outlined,
-                                    size: 14,
-                                    color: typeColor,
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    install ? 'ຕິດຕັ້ງ' : 'ສ້ອມແປງ',
-                                    style: TextStyle(
-                                      color: typeColor,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                job.code,
-                                style: const TextStyle(
-                                  color: ink,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 9,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: .10),
-                                borderRadius: BorderRadius.circular(99),
-                              ),
-                              child: Text(
-                                actionLabel[job.action] ?? '-',
-                                style: TextStyle(
-                                  color: statusColor,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 13),
-                        Text(
-                          job.product ?? '-',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: ink,
-                            fontSize: 16,
-                            height: 1.25,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          job.stageLabel,
-                          style: const TextStyle(color: muted, fontSize: 11),
-                        ),
-                        // ຮັບເຄື່ອງເມື່ອໃດ + ໃຊ້ເວລາລວມມາເທົ່າໃດ (ອາຍຸງານທັງໝົດ)
-                        if (job.receivedAt != null) ...[
-                          const SizedBox(height: 3),
-                          Text(
-                            'ຮັບເຄື່ອງ ${job.receivedAt}'
-                            '${job.totalLabel != null ? ' · ໃຊ້ເວລາ ${job.totalLabel}' : ''}',
-                            style: const TextStyle(color: faint, fontSize: 10.5),
-                          ),
-                        ],
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(11),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF6F8F7),
-                            borderRadius: BorderRadius.circular(13),
-                          ),
-                          child: Column(
-                            children: [
-                              _InfoLine(
-                                icon: Icons.person_outline_rounded,
-                                text: job.customer ?? '-',
-                              ),
-                              if ((job.address ?? '').isNotEmpty) ...[
-                                const SizedBox(height: 6),
-                                _InfoLine(
-                                  icon: Icons.location_on_outlined,
-                                  text: job.address!,
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            if (job.checkedIn)
-                              const _Mini(
-                                icon: Icons.location_on,
-                                text: 'ຢູ່ໜ້າງານ',
-                                color: ok,
-                              ),
-                            if (job.appointment != null)
-                              _Mini(
-                                icon: Icons.event_outlined,
-                                text: job.appointment!,
-                                color: teal,
-                              ),
-                            if (!job.checkedIn && job.appointment == null)
-                              Text(
-                                'ຄ້າງ ${job.days} ມື້',
-                                style: TextStyle(
-                                  color: job.days > 7 ? danger : muted,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            const Spacer(),
-                            InkWell(
-                              onTap: open,
-                              borderRadius: BorderRadius.circular(10),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 11,
-                                  vertical: 7,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFDDF4EE),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Row(
-                                  children: [
-                                    Text(
-                                      'ເບິ່ງວຽກ',
-                                      style: TextStyle(
-                                        color: teal,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                                    SizedBox(width: 3),
-                                    Icon(
-                                      Icons.arrow_forward_rounded,
-                                      color: teal,
-                                      size: 14,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ແຖບສີໄລຍະ — ຜູກບັດກັບຫົວກຸ່ມ
+              Container(height: 4, color: accent),
+
+              // ── ຫົວໃບ: ເລກໃບ + ສະຖານະ ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 11, 14, 10),
+                child: Row(
+                  children: [
+                    Text(
+                      '#${job.code}',
+                      style: const TextStyle(
+                        color: ink,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -.3,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
                     ),
+                    const SizedBox(width: 8),
+                    Text(
+                      install ? 'ຕິດຕັ້ງ' : 'ສ້ອມແປງ',
+                      style: const TextStyle(
+                        color: faint,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: .11),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Text(
+                        actionLabel[job.action] ?? '-',
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const _Perforation(),
+
+              // ── ຕົວສິນຄ້າ ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+                child: Text(
+                  job.product ?? '-',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: ink,
+                    fontSize: 14.5,
+                    height: 1.3,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-              ],
-            ),
+              ),
+
+              const _Perforation(),
+
+              // ── ລາຍລະອຽດແບບໃບບິນ ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 11, 14, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (job.receivedAt != null)
+                      _TicketLine(label: 'ຮັບເຄື່ອງ', value: job.receivedAt!),
+                    if (job.totalLabel != null)
+                      _TicketLine(
+                        label: 'ໃຊ້ເວລາ',
+                        value: job.totalLabel!,
+                        strong: job.days > 7,
+                      ),
+                    if (job.receivedAt == null)
+                      _TicketLine(label: 'ຄ້າງມາ', value: '${job.days} ມື້'),
+                    if (who.isNotEmpty) _TicketLine(label: 'ລູກຄ້າ', value: who),
+                    if (job.appointment != null)
+                      _TicketLine(label: 'ວັນນັດ', value: job.appointment!),
+                  ],
+                ),
+              ),
+
+              // ── ທ້າຍໃບ ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 12, 11),
+                child: Row(
+                  children: [
+                    if (job.checkedIn)
+                      const _Mini(
+                        icon: Icons.location_on,
+                        text: 'ຢູ່ໜ້າງານ',
+                        color: ok,
+                      ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: .10),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            'ເບິ່ງວຽກ',
+                            style: TextStyle(
+                              color: accent,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          Icon(Icons.arrow_forward_rounded, color: accent, size: 14),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-}
-
-class _InfoLine extends StatelessWidget {
-  const _InfoLine({required this.icon, required this.text});
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Icon(icon, size: 16, color: muted),
-      const SizedBox(width: 7),
-      Expanded(
-        child: Text(
-          text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: Color(0xFF475569), fontSize: 11),
-        ),
-      ),
-    ],
-  );
 }
 
 class _Mini extends StatelessWidget {

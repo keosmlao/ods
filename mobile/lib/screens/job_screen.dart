@@ -41,6 +41,12 @@ class _JobScreenState extends State<JobScreen> {
   /// ຮູບເກົ່າຂອງງານ (ຮັບເຄື່ອງ · ກວດເຊັກ · ສ້ອມສຳເລັດ) — ໂຫຼດຈາກ server
   JobPhotos? gallery;
 
+  /// ການເຄື່ອນໄຫວ (ຂໍ້ຄວາມ/log + ກິດຈະກຳ) — ຊຸດດຽວກັບ chatter ຢູ່ເວັບ
+  JobChatter? chatter;
+  String chatterError = '';
+  final chatInput = TextEditingController();
+  bool sending = false;
+
   final picker = ImagePicker();
 
   @override
@@ -48,6 +54,7 @@ class _JobScreenState extends State<JobScreen> {
     super.initState();
     loadOutstanding();
     loadGallery();
+    loadChatter();
   }
 
   /// ໂຫຼດຮູບເກົ່າຂອງງານ — ລົ້ມກໍ່ບໍ່ເປັນຫຍັງ (ພຽງບໍ່ສະແດງ)
@@ -57,6 +64,60 @@ class _JobScreenState extends State<JobScreen> {
       if (mounted) setState(() => gallery = sets);
     } catch (_) {
       // ບໍ່ໃຫ້ລົ້ມໜ້າງານ
+    }
+  }
+
+  /// ໂຫຼດການເຄື່ອນໄຫວ (ຂໍ້ຄວາມ + ກິດຈະກຳ) — ລົ້ມກໍ່ບໍ່ກະທົບການເຮັດວຽກ
+  ///
+  /// ⚠️ ຕ້ອງເກັບ error ໄວ້ **ບອກຜູ້ໃຊ້** ບໍ່ແມ່ນກືນງຽບໆ: ຖ້າກືນແລ້ວປ່ອຍ chatter = null
+  /// ໜ້າຈໍຈະ **ໝູນຄ້າງຕະຫຼອດ** ໂດຍທີ່ຊ່າງບໍ່ຮູ້ວ່າມັນລົ້ມ (ເຊັ່ນ server ຍັງບໍ່ທັນ deploy).
+  Future<void> loadChatter() async {
+    if (mounted) setState(() => chatterError = '');
+    try {
+      final data = await Api.chatter(job.workflow, job.code);
+      if (mounted) setState(() => chatter = data);
+    } on ApiError catch (failure) {
+      if (mounted) setState(() => chatterError = failure.message);
+    } catch (caught) {
+      if (mounted) setState(() => chatterError = '$caught');
+    }
+  }
+
+  /// ສົ່ງຂໍ້ຄວາມຫາ CS/ຫົວໜ້າ (ເຂົ້າ chatter ອັນດຽວກັບເວັບ)
+  Future<void> sendMessage() async {
+    final text = chatInput.text.trim();
+    if (text.isEmpty) return;
+    setState(() => sending = true);
+    try {
+      await Api.postChatter(job.workflow, job.code, text);
+      chatInput.clear();
+      await loadChatter();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('ສົ່ງຂໍ້ຄວາມແລ້ວ')));
+      }
+    } on ApiError catch (failure) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(failure.message), backgroundColor: danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => sending = false);
+    }
+  }
+
+  Future<void> finishActivity(JobActivity activity) async {
+    try {
+      await Api.completeActivity(job.workflow, job.code, activity.id);
+      await loadChatter();
+    } on ApiError catch (failure) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(failure.message), backgroundColor: danger),
+        );
+      }
     }
   }
 
@@ -74,6 +135,7 @@ class _JobScreenState extends State<JobScreen> {
   void dispose() {
     note.dispose();
     reason.dispose();
+    chatInput.dispose();
     super.dispose();
   }
 
@@ -90,6 +152,7 @@ class _JobScreenState extends State<JobScreen> {
     setState(() => job = fresh.first);
     loadOutstanding();
     loadGallery();
+    loadChatter();
   }
 
   Future<void> run(Map<String, dynamic> body, {bool pop = false}) async {
@@ -444,16 +507,198 @@ class _JobScreenState extends State<JobScreen> {
             const SizedBox(height: 12),
           ],
 
+          // ── ກິດຈະກຳທີ່ນັດໄວ້ (ຍັງບໍ່ເຮັດ) ──
+          if ((chatter?.activities.isNotEmpty ?? false)) ...[
+            _Card(
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.event_available_outlined, size: 18, color: warn),
+                    SizedBox(width: 8),
+                    Text(
+                      'ກິດຈະກຳທີ່ຕ້ອງເຮັດ',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: ink,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                for (final activity in chatter!.activities)
+                  _ActivityRow(activity: activity, onDone: () => finishActivity(activity)),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // ── ການເຄື່ອນໄຫວ (chatter) — ຊຸດດຽວກັບເວັບ ──
+          _Card(
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.forum_outlined, size: 18, color: teal),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'ການເຄື່ອນໄຫວ',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: ink,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (chatter != null)
+                    Text(
+                      '${chatter!.messages.length}',
+                      style: const TextStyle(color: faint, fontSize: 12),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // ພິມສົ່ງຫາ CS/ຫົວໜ້າ
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: chatInput,
+                      minLines: 1,
+                      maxLines: 3,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => sendMessage(),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: 'ພິມຂໍ້ຄວາມເຖິງ CS / ຫົວໜ້າ...',
+                        hintStyle: const TextStyle(fontSize: 13, color: faint),
+                        filled: true,
+                        fillColor: surfaceAlt,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: teal,
+                      minimumSize: const Size(48, 44),
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: sending ? null : sendMessage,
+                    child: sending
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.send_rounded, size: 18),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              if (chatterError.isNotEmpty)
+                Row(
+                  children: [
+                    const Icon(Icons.cloud_off_rounded, size: 16, color: faint),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        'ໂຫຼດການເຄື່ອນໄຫວບໍ່ໄດ້ — $chatterError',
+                        style: const TextStyle(fontSize: 11.5, color: muted),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: loadChatter,
+                      style: TextButton.styleFrom(
+                        foregroundColor: teal,
+                        minimumSize: const Size(0, 32),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      child: const Text('ລອງໃໝ່', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                )
+              else if (chatter == null)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: Center(
+                    child: SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              else if (chatter!.messages.isEmpty)
+                const Text(
+                  'ຍັງບໍ່ມີການເຄື່ອນໄຫວ',
+                  style: TextStyle(color: faint, fontSize: 12.5),
+                )
+              else
+                for (final msg in chatter!.messages.take(30))
+                  _MessageRow(message: msg),
+            ],
+          ),
+          const SizedBox(height: 12),
+
           /* ── ຂັ້ນຕອນ — ປຸ່ມມາຈາກ server ── */
           _Card(
             children: [
+              /*
+                ── ລຳດັບຄວາມສຳຄັນ ──
+                "ຮັບງານ" = ສິ່ງທີ່ຄວນເຮັດ ⇒ ປຸ່ມຖົມສີເຕັມ ເນັ້ນສຸດ.
+                "ປະຕິເສດ" = ທາງເລືອກທີ່ນານໆເຮັດເທື່ອ ⇒ ເສັ້ນຂອບບາງໆ ບໍ່ຖົມສີ
+                ບໍ່ດັ່ງນັ້ນສອງປຸ່ມແຍ້ງກັນ ແລະ ກົດຜິດງ່າຍ.
+              */
               if (job.action == 'accept' && !rejecting) ...[
-                _button('ຮັບງານ', teal, () => run({'action': 'accept'})),
-                const SizedBox(height: 8),
-                _button(
-                  'ປະຕິເສດງານ',
-                  danger,
-                  () => setState(() => rejecting = true),
+                Row(
+                  children: [
+                    const Icon(Icons.assignment_ind_outlined, size: 17, color: teal),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        job.accepted ? 'ວຽກນີ້ຮັບແລ້ວ' : 'ວຽກໃໝ່ — ຕ້ອງຮັບງານກ່ອນຈຶ່ງເລີ່ມໄດ້',
+                        style: const TextStyle(fontSize: 12.5, color: muted),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // 2 ຖັນ: ຊ້າຍ = ຮັບງານ (ຫຼັກ) · ຂວາ = ປະຕິເສດ (ຮອງ) — ສູງເທົ່າກັນ
+                Row(
+                  children: [
+                    Expanded(
+                      child: _primaryAction(
+                        'ຮັບງານ',
+                        Icons.check_circle_outline_rounded,
+                        teal,
+                        () => run({'action': 'accept'}),
+                        height: 52,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _ghostAction(
+                        'ປະຕິເສດ',
+                        Icons.close_rounded,
+                        danger,
+                        () => setState(() => rejecting = true),
+                        height: 52,
+                      ),
+                    ),
+                  ],
                 ),
               ],
 
@@ -471,18 +716,21 @@ class _JobScreenState extends State<JobScreen> {
                     hintText: 'ຕິດງານອື່ນ, ຢູ່ໄກ, ບໍ່ຖະນັດງານນີ້...',
                   ),
                 ),
-                const SizedBox(height: 8),
-                _button(
+                const SizedBox(height: 10),
+                // ຢູ່ຂັ້ນນີ້ "ຢືນຢັນປະຕິເສດ" ກາຍເປັນປຸ່ມຫຼັກ ⇒ ຖົມສີແດງ · "ຍົກເລີກ" ຖອຍລົງເປັນຮອງ
+                _primaryAction(
                   'ຢືນຢັນການປະຕິເສດ',
+                  Icons.block_rounded,
                   danger,
                   () => run({
                     'action': 'reject',
                     'reason': reason.text,
                   }, pop: true),
                 ),
-                const SizedBox(height: 8),
-                _button(
+                const SizedBox(height: 10),
+                _ghostAction(
                   'ຍົກເລີກ',
+                  Icons.arrow_back_rounded,
                   muted,
                   () => setState(() => rejecting = false),
                 ),
@@ -556,10 +804,12 @@ class _JobScreenState extends State<JobScreen> {
                 ),
 
               // ຂັ້ນ 9 ກຳລັງສ້ອມ (ສະເພາະສ້ອມ): ພົບຕ້ອງໃຊ້ອາໄຫຼ່ເພີ່ມ/ປ່ຽນ ⇒ ຂໍເບີກເພີ່ມ
+              // ── ຂັ້ນ 9 ກຳລັງສ້ອມ: ພົບຕ້ອງໃຊ້ອາໄຫຼ່ເພີ່ມ/ປ່ຽນ ⇒ ຂໍເບີກເພີ່ມ ──
               if (job.workflow == 'repair' && job.stage == 9) ...[
-                _button(
-                  'ຂໍເບີກ / ປ່ຽນ ອາໄຫຼ່ (ຕອນສ້ອມ)',
-                  const Color(0xFF334155),
+                _ghostAction(
+                  'ຂໍເບີກ / ປ່ຽນ ອາໄຫຼ່',
+                  Icons.inventory_2_outlined,
+                  const Color(0xFF7C3AED),
                   () async {
                     await Navigator.push(
                       context,
@@ -568,48 +818,73 @@ class _JobScreenState extends State<JobScreen> {
                     if (mounted) await reload();
                   },
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 14),
               ],
 
+              /*
+                ── ຈົບງານ: ຈັດເປັນ "ໃບງານ" ມີລຳດັບຂັ້ນ ──
+                ແຕ່ກ່ອນເປັນປຸ່ມເຂັ້ມ 3 ປຸ່ມຊ້ອນກັນ ບໍ່ຮູ້ວ່າອັນໃດເປັນອັນຫຼັກ ແລະ ສີບໍ່ເຂົ້າກັບແບຣນ.
+                ດຽວນີ້: ເລກຂັ້ນ ①② ນຳທາງ · ເສັ້ນປະແບ່ງ · ປຸ່ມຫຼັກອັນດຽວຢູ່ທ້າຍ.
+              */
               if (job.action == 'finish') ...[
+                Row(
+                  children: [
+                    const Icon(Icons.assignment_turned_in_outlined, size: 18, color: ok),
+                    const SizedBox(width: 8),
+                    Text(
+                      job.workflow == 'install' ? 'ຈົບງານຕິດຕັ້ງ' : 'ຈົບງານສ້ອມ',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: ink,
+                        fontSize: 14.5,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
                 if (job.workflow == 'repair') ...[
-                  const Text(
-                    'ບັນທຶກການສ້ອມ (ວິທີແກ້ໄຂ)',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 6),
+                  const _StepLabel(step: '1', text: 'ບັນທຶກວິທີແກ້ໄຂ'),
+                  const SizedBox(height: 7),
                   TextField(
                     controller: note,
                     maxLines: 3,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: 'ປ່ຽນອາໄຫຼ່ຫຍັງ · ແກ້ແນວໃດ...',
+                      hintStyle: const TextStyle(fontSize: 12.5, color: faint),
+                      filled: true,
+                      fillColor: surfaceAlt,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 14),
+                  const _JobDashed(),
+                  const SizedBox(height: 14),
                 ],
-                Text(
-                  'ຮູບຜົນງານ ${photos.isNotEmpty
-                      ? '(${photos.length} ຮູບ)'
-                      : job.workflow == 'install' || job.onsite
-                      ? '— ບັງຄັບຢ່າງໜ້ອຍ 1 ຮູບ'
-                      : '(ບໍ່ບັງຄັບ)'}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+
+                _StepLabel(
+                  step: job.workflow == 'repair' ? '2' : '1',
+                  text: 'ຮູບຜົນງານ',
+                  hint: photos.isNotEmpty
+                      ? '${photos.length} ຮູບ'
+                      : (job.workflow == 'install' || job.onsite)
+                            ? 'ບັງຄັບຢ່າງໜ້ອຍ 1 ຮູບ'
+                            : 'ບໍ່ບັງຄັບ',
+                  hintColor: evidenceRequired ? danger : faint,
                 ),
-                const SizedBox(height: 6),
-                _button('ຖ່າຍຮູບຜົນງານ', const Color(0xFF334155), () async {
-                  final photo = await shoot();
-                  if (photo != null) setState(() => photos.add(photo));
-                }),
-                if (photos.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: photos
-                        .asMap()
-                        .entries
-                        .map(
-                          (entry) => GestureDetector(
+                const SizedBox(height: 9),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (var i = 0; i < photos.length; i++)
+                      Stack(
+                        children: [
+                          GestureDetector(
                             onTap: () => showDialog<void>(
                               context: context,
                               builder: (_) => Dialog(
@@ -617,9 +892,7 @@ class _JobScreenState extends State<JobScreen> {
                                   children: [
                                     InteractiveViewer(
                                       child: Image.memory(
-                                        base64Decode(
-                                          entry.value.split(',').last,
-                                        ),
+                                        base64Decode(photos[i].split(',').last),
                                       ),
                                     ),
                                     Positioned(
@@ -635,47 +908,72 @@ class _JobScreenState extends State<JobScreen> {
                                 ),
                               ),
                             ),
-                            child: Stack(
-                              children: [
-                                Image.memory(
-                                  base64Decode(entry.value.split(',').last),
-                                  width: 72,
-                                  height: 72,
-                                  fit: BoxFit.cover,
-                                ),
-                                Positioned(
-                                  right: 2,
-                                  top: 2,
-                                  child: InkWell(
-                                    onTap: busy
-                                        ? null
-                                        : () => setState(
-                                            () => photos.removeAt(entry.key),
-                                          ),
-                                    child: const CircleAvatar(
-                                      radius: 11,
-                                      backgroundColor: danger,
-                                      child: Icon(
-                                        Icons.close,
-                                        size: 14,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.memory(
+                                base64Decode(photos[i].split(',').last),
+                                width: 78,
+                                height: 78,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
-                        )
-                        .toList(),
+                          Positioned(
+                            right: -6,
+                            top: -6,
+                            child: IconButton(
+                              icon: const Icon(Icons.cancel, size: 20, color: danger),
+                              onPressed: busy
+                                  ? null
+                                  : () => setState(() => photos.removeAt(i)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    InkWell(
+                      onTap: busy
+                          ? null
+                          : () async {
+                              final photo = await shoot();
+                              if (photo != null) setState(() => photos.add(photo));
+                            },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        width: 78,
+                        height: 78,
+                        decoration: BoxDecoration(
+                          color: tealTint,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: line),
+                        ),
+                        child: const Icon(Icons.add_a_photo_outlined, color: teal),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 14),
+                const _JobDashed(),
+                const SizedBox(height: 14),
+
+                if (evidenceRequired)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline, size: 15, color: faint),
+                        SizedBox(width: 6),
+                        Text(
+                          'ຕ້ອງແນບຮູບຜົນງານກ່ອນຈຶ່ງບັນທຶກໄດ້',
+                          style: TextStyle(fontSize: 12, color: faint),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-                const SizedBox(height: 8),
-                _button(
-                  evidenceRequired
-                      ? 'ຕ້ອງແນບຮູບກ່ອນ'
-                      : 'ບັນທຶກສຳເລັດ — ສົ່ງກວດ QC',
-                  evidenceRequired ? muted : ok,
+                _primaryAction(
+                  'ບັນທຶກສຳເລັດ — ສົ່ງກວດ QC',
+                  Icons.check_circle_outline_rounded,
+                  ok,
                   evidenceRequired
                       ? null
                       : () => run({
@@ -891,6 +1189,65 @@ class _JobScreenState extends State<JobScreen> {
     ),
   );
 
+  /// ປຸ່ມ **ຫຼັກ** — ຖົມສີເຕັມ + ເງົາອ່ອນ ⇒ ຕາໄປຫາກ່ອນ
+  Widget _primaryAction(
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback? onPressed, {
+    double height = 54,
+  }) => FilledButton.icon(
+    onPressed: busy ? null : onPressed,
+    style: FilledButton.styleFrom(
+      backgroundColor: color,
+      foregroundColor: Colors.white,
+      minimumSize: Size.fromHeight(height),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      elevation: 2,
+      shadowColor: color.withValues(alpha: .45),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+    icon: busy
+        ? const SizedBox(
+            height: 18,
+            width: 18,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+          )
+        : Icon(icon, size: 20),
+    label: Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+    ),
+  );
+
+  /// ປຸ່ມ **ຮອງ/ອັນຕະລາຍ** — ເສັ້ນຂອບບາງ ບໍ່ຖົມສີ ⇒ ບໍ່ແຍ້ງກັບປຸ່ມຫຼັກ ແລະ ກົດຜິດຍາກຂຶ້ນ
+  Widget _ghostAction(
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback? onPressed, {
+    double height = 48,
+  }) => OutlinedButton.icon(
+    onPressed: busy ? null : onPressed,
+    style: OutlinedButton.styleFrom(
+      foregroundColor: color,
+      backgroundColor: Colors.white,
+      minimumSize: Size.fromHeight(height),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      side: BorderSide(color: color.withValues(alpha: .35)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    ),
+    icon: Icon(icon, size: 18),
+    label: Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+    ),
+  );
+
   Widget _button(String label, Color color, VoidCallback? onPressed) {
     return FilledButton(
       style: FilledButton.styleFrom(
@@ -1004,6 +1361,183 @@ class _WorkflowProgress extends StatelessWidget {
                 ),
               );
             }),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ເສັ້ນປະແບ່ງສ່ວນ — ຄືເສັ້ນສີກຂອງໃບງານ (ສະຕາຍດຽວກັບບັດຢູ່ໜ້າລາຍການ)
+class _JobDashed extends StatelessWidget {
+  const _JobDashed();
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (_, size) {
+      const dash = 5.0, gap = 4.0;
+      final count = (size.maxWidth / (dash + gap)).floor().clamp(1, 200);
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(
+          count,
+          (_) => Container(width: dash, height: 1.1, color: line),
+        ),
+      );
+    },
+  );
+}
+
+/// ຫົວຂັ້ນຕອນ ①② — ບອກລຳດັບວ່າຕ້ອງເຮັດຫຍັງກ່ອນ-ຫຼັງ
+class _StepLabel extends StatelessWidget {
+  const _StepLabel({
+    required this.step,
+    required this.text,
+    this.hint,
+    this.hintColor = faint,
+  });
+  final String step;
+  final String text;
+  final String? hint;
+  final Color hintColor;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Container(
+        width: 19,
+        height: 19,
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(color: tealTint, shape: BoxShape.circle),
+        child: Text(
+          step,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            color: teal,
+          ),
+        ),
+      ),
+      const SizedBox(width: 8),
+      Text(
+        text,
+        style: const TextStyle(
+          fontWeight: FontWeight.w800,
+          fontSize: 13,
+          color: ink,
+        ),
+      ),
+      if (hint != null) ...[
+        const Spacer(),
+        Text(
+          hint!,
+          style: TextStyle(fontSize: 11, color: hintColor, fontWeight: FontWeight.w600),
+        ),
+      ],
+    ],
+  );
+}
+
+/// ແຖວຂໍ້ຄວາມໃນ chatter — log ຂອງລະບົບຈາງກວ່າ, ຂໍ້ຄວາມຄົນພິມເນັ້ນກວ່າ
+class _MessageRow extends StatelessWidget {
+  const _MessageRow({required this.message});
+  final ChatterMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    final log = message.isLog;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              color: log ? const Color(0xFFCBD5E1) : teal,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message.body,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.35,
+                    color: log ? muted : ink,
+                    fontWeight: log ? FontWeight.w400 : FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${message.author} · ${message.createdAt}',
+                  style: const TextStyle(fontSize: 10.5, color: faint),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ກິດຈະກຳທີ່ນັດໄວ້ — ສີບອກກຳນົດ (ແດງ=ເລີຍ, ເຫຼືອງ=ມື້ນີ້, ຂຽວ=ຍັງມີເວລາ) ຄືເວັບ
+class _ActivityRow extends StatelessWidget {
+  const _ActivityRow({required this.activity, required this.onDone});
+  final JobActivity activity;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = activity.late ? danger : activity.today ? warn : ok;
+    final due = activity.late
+        ? 'ເລີຍກຳນົດ ${-activity.daysLeft} ມື້'
+        : activity.today
+        ? 'ຮອດກຳນົດມື້ນີ້'
+        : 'ອີກ ${activity.daysLeft} ມື້';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  activity.summary,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: ink,
+                  ),
+                ),
+                Text(
+                  '$due · ${activity.dueDate}',
+                  style: TextStyle(fontSize: 10.5, color: color),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onDone,
+            style: TextButton.styleFrom(
+              foregroundColor: teal,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              minimumSize: const Size(0, 34),
+            ),
+            child: const Text('ເຮັດແລ້ວ', style: TextStyle(fontSize: 12)),
           ),
         ],
       ),

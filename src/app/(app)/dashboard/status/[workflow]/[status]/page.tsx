@@ -422,11 +422,33 @@ export default async function StatusPage({ params, searchParams }: Props) {
       {cancelAccepted && row.repair_confirm && (
         <UndoRepairAssignmentButton code={row.code} accepted variant="icon" />
       )}
-      {accept && !row.repair_confirm && <AcceptRepairButton code={row.code} />}
-      {cancelAssignment && !row.repair_confirm && (
+      {/*
+        ── ໃບທີ່ **ຍັງບໍ່ມີຊ່າງ** ຕ້ອງຈັດຊ່າງກ່ອນ ──
+        ຕັ້ງແຕ່ໃບຮັບເຄື່ອງບໍ່ບັງຄັບຊ່າງ (24-07-2026) ຈຶ່ງມີໃບທີ່ຊ່າງເປັນ "-" ຢູ່ຄິວນີ້.
+        ປຸ່ມນີ້ຢູ່**ໜ້າສຸດ** ແລະ ຂຽນວ່າ "ຈັດຊ່າງ" (ບໍ່ແມ່ນ "ປ່ຽນຊ່າງ" ເຊິ່ງບໍ່ມີຄວາມໝາຍ
+        ເມື່ອຍັງບໍ່ມີໃຜ ແລະ ເຮັດໃຫ້ CS ຫາບ່ອນຈັດຊ່າງບໍ່ພົບ).
+      */}
+      {canReassign && !row.repair_confirm && !row.technician && (
+        <AssignTechButton
+          label={t.assignTech}
+          size="sm"
+          row={{
+            code: row.code,
+            customer: row.customer,
+            location_inst: row.location_inst,
+            appoint_date: row.appoint_date,
+            remark: row.remark,
+            technician: row.technician,
+          }}
+          techs={techs}
+          workflow="repair"
+        />
+      )}
+      {accept && !row.repair_confirm && row.technician && <AcceptRepairButton code={row.code} />}
+      {cancelAssignment && !row.repair_confirm && row.technician && (
         <UndoRepairAssignmentButton code={row.code} variant="icon" />
       )}
-      {canReassign && !row.repair_confirm && (
+      {canReassign && !row.repair_confirm && row.technician && (
         <AssignTechButton
           label={t.reassignTech}
           size="sm"

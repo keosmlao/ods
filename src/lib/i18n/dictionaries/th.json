@@ -1706,7 +1706,8 @@
     "actionManageCancelPurchase": "จัดการ / ยกเลิกการสั่งซื้อ",
     "actionGoRepairList": "ไปรายการซ่อม",
     "actionQc": "ตรวจ QC",
-    "actionReturn": "ส่งคืน"
+    "actionReturn": "ส่งคืน",
+    "assignTech": "จัดช่าง"
   },
   "serviceNoticeForm": {
     "saving": "กำลังบันทึก...",

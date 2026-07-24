@@ -234,6 +234,7 @@ export async function saveQcFlow(session: Session, input: SaveQcInput): Promise<
     failed.length > 0
       ? `QC ບໍ່ຜ່ານ ${failed.length}/${input.answers.length} ຂໍ້ — ສົ່ງກັບໃຫ້ຊ່າງແກ້: ${reasons}`
       : `QC ຜ່ານຄົບ ${input.answers.length} ຂໍ້`,
+    { author: session.username },
   );
 
   return failed.length > 0

@@ -41,8 +41,13 @@ export async function logChange(model: string, resId: string, body: string, opti
        values($1,$2,'log',$3,$4,${NOW})`,
       [model, resId, body, who],
     );
-    // ຄົນທີ່ລົງມືເຮັດ ກາຍເປັນຜູ້ຕິດຕາມເອກະສານນັ້ນເອງ (ຄື Odoo)
-    if (session?.username) await addFollowerSilently(model, resId, session.username);
+    /**
+     * ຄົນທີ່ລົງມືເຮັດ ກາຍເປັນຜູ້ຕິດຕາມເອກະສານນັ້ນເອງ (ຄື Odoo).
+     * ⚠️ ໃຊ້ `who` **ບໍ່ແມ່ນ session** — ຄຳສັ່ງຈາກ**ແອັບມືຖື** ມາດ້ວຍ Bearer token
+     * ຈຶ່ງບໍ່ມີ cookie session (getSession() = null) ⇒ ຖ້າອີງ session ຢ່າງດຽວ
+     * ຊ່າງຈະບໍ່ຖືກເພີ່ມເປັນຜູ້ຕິດຕາມ ແລະ ຄວາມເຄື່ອນໄຫວຈາກແອັບຈະຂຶ້ນວ່າ "ລະບົບ" ເຮັດ.
+     */
+    if (who && who !== "ລະບົບ") await addFollowerSilently(model, resId, who);
     // ຄົນທີ່ຖືກມອບໝາຍກໍ່ຕິດຕາມນຳ ຈຶ່ງໄດ້ຮັບຄວາມເຄື່ອນໄຫວຄັ້ງຕໍ່ໆໄປ
     for (const user of assignees) await addFollowerSilently(model, resId, user);
   } catch (error) {

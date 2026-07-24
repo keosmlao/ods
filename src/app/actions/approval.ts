@@ -1,5 +1,6 @@
 "use server";
 import { logChange } from "@/lib/chatter-log";
+import { notifyTechStage } from "@/lib/notify-tech";
 import { clearCancelRequest } from "@/app/actions/service";
 import { ROLE_APPROVER, ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, query } from "@/lib/db";
@@ -332,6 +333,8 @@ export async function customerApproveQuote(_: ApprovalState, formData: FormData)
       productCode,
       `ລູກຄ້າຕົກລົງໃບສະເໜີລາຄາ ${docNo}${moneyLine(amounts)}${note ? ` · ${note}` : ""} — ຍອດນີ້ຄືຍອດທີ່ຕ້ອງເກັບຕອນອອກໃບຮັບເງິນ`,
     );
+    // ຕົກລົງລາຄາແລ້ວ ວຽກອາດເລື່ອນມາ "ລໍຖ້າສ້ອມແປງ" ⇒ ບອກຊ່າງ (ຕັດສິນຈາກຂັ້ນຈິງ)
+    await notifyTechStage("repair", productCode);
   }
 
   revalidateAll();

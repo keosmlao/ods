@@ -1,4 +1,5 @@
 import { db, queryOdg } from "@/lib/db";
+import { notifyTechStage } from "@/lib/notify-tech";
 import { CALC_IN, CALC_OUT, LINE_STATUS, TRANS } from "@/lib/stock-constants";
 
 /**
@@ -163,7 +164,8 @@ export async function syncErpDispatch(): Promise<SyncResult> {
           "select count(*)::int count from ic_trans_detail where product_code=$1 and trans_flag=$2 and status=0",
           [job.product_code, TRANS.REQUEST],
         );
-        if ((pending.rows[0]?.count ?? 0) === 0) {
+        const spareComplete = (pending.rows[0]?.count ?? 0) === 0;
+        if (spareComplete) {
           if (install) {
             await client.query("update ods_tb_install set reg_finish=localtimestamp(0) where code=$1 and reg_finish is null", [
               job.product_code,
@@ -179,6 +181,12 @@ export async function syncErpDispatch(): Promise<SyncResult> {
         await client.query("commit");
         imported += 1;
         jobs.push(job.product_code);
+
+        // ອາໄຫຼ່ຄົບ ⇒ ວຽກກັບມາຢູ່ມືຊ່າງ ("ລໍຖ້າສ້ອມແປງ" / "ລໍຖ້າຕິດຕັ້ງ") — ບອກຊ່າງທັນທີ.
+        // ຢູ່ຫຼັງ commit ເພື່ອບໍ່ໃຫ້ການແຈ້ງເຕືອນຄ້າງ transaction ຂອງສາງ
+        if (spareComplete) {
+          await notifyTechStage(install ? "install" : "repair", job.product_code);
+        }
       } catch (error) {
         await client.query("rollback").catch(() => {});
         console.error("syncErpDispatch failed", head.doc_no, error);

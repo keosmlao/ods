@@ -174,6 +174,16 @@ class _GateState extends State<_Gate> {
 
   Future<void> _decide() async {
     final token = await Api.token();
+    if (token != null) {
+      /*
+        ລົງທະບຽນ token FCM **ທຸກເທື່ອທີ່ເປີດແອັບ** ບໍ່ແມ່ນສະເພາະຕອນ login.
+        ເປັນຫຍັງ: ຊ່າງ login ຄ້າງໄວ້ເປັນເດືອນ ⇒ ຖ້າລົງທະບຽນແຕ່ຕອນ login
+        ຄົນທີ່ login ໄວ້ກ່ອນໜ້າ (ຫຼື ຕອນຕິດຕັ້ງ Firebase ໃໝ່) ຈະບໍ່ມີ token ຈັກເທື່ອ
+        ແລະ ບໍ່ໄດ້ຮັບແຈ້ງເຕືອນເລີຍ. FCM token ຍັງປ່ຽນເອງໄດ້ (ລ້າງ app data / ຕິດຕັ້ງໃໝ່).
+        ບໍ່ລໍຜົນ (ບໍ່ await) ⇒ ບໍ່ຖ່ວງການເປີດແອັບ; ລົ້ມກໍ່ບໍ່ກະທົບ (Push ຈັບ error ໄວ້).
+      */
+      Push.register();
+    }
     // ມີ token → ປະກອບແອັບຕາມ manifest ຂອງ role (server ບອກໄວ້ຕອນ login)
     final next = token == null
         ? const LoginScreen()

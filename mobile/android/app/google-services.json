@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "1015040784670",
+    "project_id": "saleproject-36fc8",
+    "storage_bucket": "saleproject-36fc8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1015040784670:android:42db5f16497606de9af10f",
+        "android_client_info": {
+          "package_name": "com.odien.saang_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC8mP2UvQ2ZFD4p9bOZZxuc8IPMi5uEQ64"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1015040784670:android:5c1e4161c2979f039af10f",
+        "android_client_info": {
+          "package_name": "net.odien.service.odss_tech"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC8mP2UvQ2ZFD4p9bOZZxuc8IPMi5uEQ64"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

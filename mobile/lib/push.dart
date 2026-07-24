@@ -3,8 +3,15 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'api.dart';
+
+/// ຮັບຂໍ້ຄວາມຕອນແອັບຖືກຂ້າ/ພື້ນຫຼັງ — ຕ້ອງເປັນ **top-level function**
+/// (Flutter ເອີ້ນມັນຢູ່ isolate ຕ່າງຫາກ ຈຶ່ງໃຊ້ closure ຫຼື method ຂອງ class ບໍ່ໄດ້).
+/// ບໍ່ຕ້ອງສະແດງເອງ: payload ມີ `notification` ⇒ Android ຂຶ້ນໃຫ້ໃນ tray ອັດຕະໂນມັດ.
+@pragma('vm:entry-point')
+Future<void> _onBackgroundMessage(RemoteMessage message) async {}
 
 /// ແຈ້ງເຕືອນຫາມືຖືຊ່າງ — **FCM** (Firebase Cloud Messaging).
 ///
@@ -19,6 +26,17 @@ import 'api.dart';
 class Push {
   static bool ready = false;
 
+  static final _local = FlutterLocalNotificationsPlugin();
+
+  /// ຊ່ອງແຈ້ງເຕືອນ — **ຕ້ອງຕົງກັບ `channel_id` ທີ່ server ສົ່ງມາ** (lib/push.ts = 'jobs')
+  /// ບໍ່ດັ່ງນັ້ນ Android ຈະຕົກໄປໃຊ້ channel ຕັ້ງຕົ້ນ ແລະ ຄວາມສຳຄັນ/ສຽງບໍ່ຕາມທີ່ຕັ້ງ.
+  static const _channel = AndroidNotificationChannel(
+    'jobs',
+    'ງານທີ່ມອບໝາຍ',
+    description: 'ແຈ້ງເຕືອນເມື່ອມີງານໃໝ່ ຫຼື ງານມີການເຄື່ອນໄຫວ',
+    importance: Importance.high,
+  );
+
   static Future<void> init() async {
     try {
       await Firebase.initializeApp();
@@ -27,6 +45,67 @@ class Push {
       debugPrint(
         'Firebase ຍັງບໍ່ໄດ້ຕັ້ງຄ່າ — ແອັບແລ່ນຕໍ່ ແຕ່ບໍ່ມີແຈ້ງເຕືອນ ($error)',
       );
+      return;
+    }
+
+    try {
+      // ① ຕັ້ງ channel + ຕົວສະແດງແຈ້ງເຕືອນພາຍໃນເຄື່ອງ
+      await _local.initialize(
+        settings: const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          iOS: DarwinInitializationSettings(),
+        ),
+      );
+      await _local
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
+          ?.createNotificationChannel(_channel);
+
+      // ② ແອັບຖືກຂ້າ / ຢູ່ພື້ນຫຼັງ — ລະບົບຂຶ້ນເອງ
+      FirebaseMessaging.onBackgroundMessage(_onBackgroundMessage);
+
+      /*
+        ③ **ເປີດແອັບຢູ່ (foreground)** — Android ບໍ່ຂຶ້ນໃຫ້ອັດຕະໂນມັດ
+        ⇒ ຕ້ອງສະແດງເອງ ບໍ່ດັ່ງນັ້ນຊ່າງທີ່ກຳລັງເປີດແອັບຢູ່ຈະ **ບໍ່ຮູ້ວ່າມີງານໃໝ່ເຂົ້າ**.
+      */
+      FirebaseMessaging.onMessage.listen(_showForeground);
+
+      // iOS ຕ້ອງບອກແຍກຕ່າງຫາກ ຈຶ່ງຈະຂຶ້ນ banner ຕອນເປີດແອັບຢູ່
+      await FirebaseMessaging.instance
+          .setForegroundNotificationPresentationOptions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+    } catch (error) {
+      debugPrint('ຕັ້ງຄ່າການສະແດງແຈ້ງເຕືອນບໍ່ສຳເລັດ: $error');
+    }
+  }
+
+  /// ສະແດງແຈ້ງເຕືອນຕອນແອັບເປີດຢູ່
+  static Future<void> _showForeground(RemoteMessage message) async {
+    final info = message.notification;
+    if (info == null) return;
+    try {
+      await _local.show(
+        id: message.hashCode,
+        title: info.title,
+        body: info.body,
+        notificationDetails: NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channel.id,
+            _channel.name,
+            channelDescription: _channel.description,
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+          ),
+          iOS: const DarwinNotificationDetails(),
+        ),
+      );
+    } catch (error) {
+      debugPrint('ສະແດງແຈ້ງເຕືອນບໍ່ສຳເລັດ: $error');
     }
   }
 

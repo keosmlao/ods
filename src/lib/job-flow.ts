@@ -118,7 +118,7 @@ export async function acceptInstall(session: Session, code: string): Promise<Flo
     return { ok: false, error: "ຮັບງານບໍ່ໄດ້ — ງານນີ້ຍັງບໍ່ມີຊ່າງ ຫຼື ປິດໄປແລ້ວ" };
   }
 
-  await logChange("ods_tb_install", code, "ຊ່າງຮັບງານແລ້ວ");
+  await logChange("ods_tb_install", code, "ຊ່າງຮັບງານແລ້ວ", { author: session.username, roles: ["admin", "manager"] });
   return { ok: true, message: `ຮັບງານຕິດຕັ້ງ ${code} ສຳເລັດ` };
 }
 
@@ -140,7 +140,7 @@ export async function acceptRepair(session: Session, code: string): Promise<Flow
     return { ok: false, error: "ຮັບງານບໍ່ໄດ້ — ງານບໍ່ໄດ້ຢູ່ຂັ້ນລໍກວດເຊັກ" };
   }
 
-  await logChange("tb_product", code, "ຊ່າງຮັບງານສ້ອມແລ້ວ");
+  await logChange("tb_product", code, "ຊ່າງຮັບງານສ້ອມແລ້ວ", { author: session.username, roles: ["admin", "manager"] });
   return { ok: true, message: `ຮັບງານສ້ອມ ${code} ສຳເລັດ` };
 }
 
@@ -171,7 +171,7 @@ export async function bringRepairToCenter(session: Session, code: string, reason
     return { ok: false, error: "ນຳເຂົ້າສູນບໍ່ໄດ້ — ວຽກບໍ່ແມ່ນ IH ທີ່ກຳລັງກວດໜ້າງານ ຫຼື ຖືກປ່ຽນໄປແລ້ວ" };
   }
 
-  await logChange("tb_product", code, `ສ້ອມໜ້າງານບໍ່ໄດ້ → ນຳເຂົ້າສູນ (IH→PS): ${why}`);
+  await logChange("tb_product", code, `ສ້ອມໜ້າງານບໍ່ໄດ້ → ນຳເຂົ້າສູນ (IH→PS): ${why}`, { author: session.username, roles: ["admin", "manager"] });
   return { ok: true, message: `ນຳ ${code} ເຂົ້າສູນແລ້ວ — ລໍ CS ຮັບເຂົ້າສູນ` };
 }
 
@@ -228,7 +228,7 @@ export async function rejectJob(
     workflow === "install" ? "ods_tb_install" : "tb_product",
     code,
     `ຊ່າງ ${session.username} ປະຕິເສດງານ — ${clean} (ງານກັບເຂົ້າຄິວຈັດຊ່າງ)`,
-    { roles: ["admin", "manager"] },
+    { author: session.username, roles: ["admin", "manager"] },
   );
   return { ok: true, message: "ປະຕິເສດງານແລ້ວ — ງານກັບໄປຄິວຈັດຊ່າງ" };
 }
@@ -268,7 +268,7 @@ export async function startInstallFlow(
   );
   if (!done.rowCount) return { ok: false, error: "ເລີ່ມຕິດຕັ້ງບໍ່ໄດ້ — ຕ້ອງຮັບງານ ແລະ ຮັບອາໄຫຼ່ໃຫ້ຄົບກ່ອນ" };
 
-  await logChange("ods_tb_install", code, "ເລີ່ມຕິດຕັ້ງ");
+  await logChange("ods_tb_install", code, "ເລີ່ມຕິດຕັ້ງ", { author: session.username, roles: ["admin", "manager"] });
   return { ok: true, message: `ເລີ່ມຕິດຕັ້ງ ${code}` };
 }
 
@@ -348,7 +348,7 @@ export async function finishInstallFlow(
   } finally {
     client.release();
   }
-  await logChange("ods_tb_install", code, `ຕິດຕັ້ງສຳເລັດ · ຮູບຜົນງານ ${saved} ຮູບ — ລໍຖ້າກວດຮັບຄຸນນະພາບ`);
+  await logChange("ods_tb_install", code, `ຕິດຕັ້ງສຳເລັດ · ຮູບຜົນງານ ${saved} ຮູບ — ລໍຖ້າກວດຮັບຄຸນນະພາບ`, { author: session.username, roles: ["admin", "manager"] });
   return { ok: true, message: `ຕິດຕັ້ງ ${code} ສຳເລັດ — ລໍຖ້າ QC` };
 }
 
@@ -449,7 +449,7 @@ export async function startRepairFlow(
   const done = await query(`update tb_product a set time_repair=${NOW} where a.code=$1 and (${STAGE_SQL}) = 8`, [code]);
   if (!done.rowCount) return { ok: false, error: 'ເລີ່ມສ້ອມບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ "ລໍຖ້າສ້ອມແປງ"' };
 
-  await logChange("tb_product", code, "ເລີ່ມສ້ອມແປງ");
+  await logChange("tb_product", code, "ເລີ່ມສ້ອມແປງ", { author: session.username, roles: ["admin", "manager"] });
   return { ok: true, message: `ເລີ່ມສ້ອມແປງ ${code}` };
 }
 
@@ -525,6 +525,7 @@ export async function finishRepairFlow(
     "tb_product",
     code,
     `${note.trim() ? `ສ້ອມແປງສຳເລັດ: ${note.trim()}` : "ສ້ອມແປງສຳເລັດ"}${saved ? ` · ຮູບ ${saved} ຮູບ` : ""} — ລໍຖ້າກວດຮັບຄຸນນະພາບ`,
+    { author: session.username, roles: ["admin", "manager"] },
   );
   return { ok: true, message: `ສ້ອມແປງ ${code} ສຳເລັດ — ລໍຖ້າ QC` };
 }
@@ -569,6 +570,7 @@ export async function checkIn(
     workflow === "install" ? "ods_tb_install" : "tb_product",
     code,
     `ຊ່າງ check-in ໜ້າງານ${input.lat != null && input.lng != null ? ` (${input.lat.toFixed(5)}, ${input.lng.toFixed(5)})` : ""}`,
+    { author: session.username, roles: ["admin", "manager"] },
   );
   return { ok: true, message: "check-in ສຳເລັດ" };
 }
@@ -592,6 +594,7 @@ export async function checkOut(
     workflow === "install" ? "ods_tb_install" : "tb_product",
     code,
     "ຊ່າງ check-out ຈາກໜ້າງານ",
+    { author: session.username, roles: ["admin", "manager"] },
   );
   return { ok: true, message: "check-out ສຳເລັດ" };
 }

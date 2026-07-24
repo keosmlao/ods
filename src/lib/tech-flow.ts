@@ -148,7 +148,7 @@ export async function startCheckFlow(session: Session, code: string): Promise<Fl
   );
   if (!done.rowCount) return { ok: false, error: 'ເລີ່ມກວດເຊັກບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ "ລໍຖ້າກວດເຊັກ"' };
 
-  await logChange("tb_product", code, "ເລີ່ມກວດເຊັກ");
+  await logChange("tb_product", code, "ເລີ່ມກວດເຊັກ", { author: session.username });
   return { ok: true, message: `ເລີ່ມກວດເຊັກ ${code}` };
 }
 
@@ -192,7 +192,7 @@ export async function addDraftSpare(
       [product.cust_code, code, item.code, item.name_1, qty, item.unit_code, session.username],
     );
   }
-  await logChange("tb_product", code, `ເພີ່ມອາໄຫຼ່ທີ່ຄາດວ່າຈະໃຊ້: ${item.name_1} × ${qty}`);
+  await logChange("tb_product", code, `ເພີ່ມອາໄຫຼ່ທີ່ຄາດວ່າຈະໃຊ້: ${item.name_1} × ${qty}`, { author: session.username });
   return { ok: true, message: "ເພີ່ມແລ້ວ" };
 }
 
@@ -203,7 +203,7 @@ export async function removeDraftSpare(session: Session, code: string, roworder:
   );
   if (!removed.rowCount) return { ok: false, error: "ບໍ່ພົບລາຍການ" };
   if (removed.rows[0]?.item_name) {
-    await logChange("tb_product", code, `ຖອດອາໄຫຼ່ອອກຈາກລາຍການ: ${removed.rows[0].item_name}`);
+    await logChange("tb_product", code, `ຖອດອາໄຫຼ່ອອກຈາກລາຍການ: ${removed.rows[0].item_name}`, { author: session.username });
   }
   return { ok: true, message: "ຖອດອອກແລ້ວ" };
 }
@@ -305,7 +305,7 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
 
   const spareNote = input.use_spare ? `ໃຊ້ອາໄຫຼ່ ${spareCount} ລາຍການ` : "ບໍ່ໃຊ້ອາໄຫຼ່";
   const warrantyNote = input.warranty_void ? ` · ຊ່າງແຈ້ງວ່າໝົດຮັບປະກັນ ເຫດຜົນ: ${reason}` : "";
-  await logChange("tb_product", input.code, `ບັນທຶກຜົນກວດເຊັກ: ${input.diagnosis.trim()} · ${spareNote}${warrantyNote}`);
+  await logChange("tb_product", input.code, `ບັນທຶກຜົນກວດເຊັກ: ${input.diagnosis.trim()} · ${spareNote}${warrantyNote}`, { author: session.username });
 
   return { ok: true, message: `ບັນທຶກຜົນກວດເຊັກ ${input.code} ສຳເລັດ` };
 }
@@ -468,7 +468,7 @@ export async function createSpareRequest(
     jobModel(input.code),
     input.code,
     `ສ້າງໃບຂໍເບີກ ${docNo} · ອາໄຫຼ່ ${lineCount} ລາຍການ${input.remark ? ` · ${input.remark}` : ""}`,
-    { roles: ROLE_WAREHOUSE },
+    { author: session.username, roles: ROLE_WAREHOUSE },
   );
   return { ok: true, message: `ສ້າງໃບຂໍເບີກ ${docNo} (${lineCount} ລາຍການ)`, doc_no: docNo };
 }
@@ -726,6 +726,7 @@ export async function pickupSpares(session: Session, docRef: string, remark: str
     jobModel(productCode),
     productCode,
     `ຊ່າງຮັບອາໄຫຼ່ ${pickNo} · ${pickLines} ລາຍການ (ອ້າງອີງໃບເບີກ ${docRef})`,
+    { author: session.username },
   );
   return { ok: true, message: `ຮັບອາໄຫຼ່ແລ້ວ (ໃບ ${pickNo} · ${pickLines} ລາຍການ)` };
 }
@@ -844,6 +845,6 @@ export async function createSpareReturn(
   }
 
   // ສາງຕ້ອງຮັບຄືນ (ຢູ່ ERP) — ບອກໃຫ້ຮູ້
-  await logChange(jobModel(input.code), input.code, `ຊ່າງຂໍສົ່ງຄືນອາໄຫຼ່ ${docNo}`, { roles: ROLE_WAREHOUSE });
+  await logChange(jobModel(input.code), input.code, `ຊ່າງຂໍສົ່ງຄືນອາໄຫຼ່ ${docNo}`, { author: session.username, roles: ROLE_WAREHOUSE });
   return { ok: true, message: `ສ້າງໃບຂໍສົ່ງຄືນ ${docNo}`, doc_no: docNo };
 }

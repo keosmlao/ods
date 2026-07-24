@@ -33,7 +33,9 @@ const TAB: Record<MobileTabKey, MobileTab> = {
 const TABS_BY_ROLE: Record<Role, MobileTabKey[]> = {
   technical: ["jobs", "pickup", "income"], // ຊ່າງພາກສະໜາມ
   headtechnical: ["jobs", "qc", "income"], // ຫົວໜ້າຊ່າງ — ກວດ QC ໜ້າງານ
-  manager: ["overview", "qc", "stock-count"], // ຜູ້ຈັດການ/Admin — ພາບລວມບໍລິຫານ
+  // ຜູ້ຈັດການ — ພາບລວມບໍລິຫານ. **ບໍ່ມີກວດນັບ** (ເປັນວຽກສາງ ບໍ່ແມ່ນວຽກຜູ້ຈັດການ).
+  // TODO: ເພີ່ມແຖບ "ອະນຸມັດ" ເມື່ອສ້າງ /api/mobile/approvals + ໜ້າຈໍແລ້ວ
+  manager: ["overview", "qc", "notifications"],
   stock: ["stock-count", "notifications"], // ຝ່າຍສາງ
   admin: ["stock-count", "notifications", "qc"], // CS
   sales: ["stock-count", "notifications"], // ຝ່າຍຂາຍ

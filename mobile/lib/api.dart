@@ -219,6 +219,33 @@ class Api {
     return JobPhotos.fromJson(result['photos'] as Map<String, dynamic>);
   }
 
+  /* ── Chatter ແລະ ກິດຈະກຳ ────────────────────────────────────── */
+
+  /// ການເຄື່ອນໄຫວຂອງງານ — ຂໍ້ຄວາມ/log ແລະ ກິດຈະກຳທີ່ຍັງຄ້າງ (ຊຸດດຽວກັບເວັບ)
+  static Future<JobChatter> chatter(String workflow, String code) async {
+    final result = await _send('GET', '/api/mobile/chatter/$workflow/$code');
+    return JobChatter.fromJson(result);
+  }
+
+  /// ພິມຂໍ້ຄວາມໃສ່ໃບງານ — CS/ຫົວໜ້າ ເຫັນຢູ່ເວັບທັນທີ
+  static Future<void> postChatter(String workflow, String code, String body) =>
+      _send('POST', '/api/mobile/chatter/$workflow/$code', body: {
+        'action': 'post',
+        'body': body,
+      });
+
+  /// ກົດວ່າກິດຈະກຳເຮັດແລ້ວ
+  static Future<void> completeActivity(
+    String workflow,
+    String code,
+    int id, {
+    String note = '',
+  }) => _send('POST', '/api/mobile/chatter/$workflow/$code', body: {
+    'action': 'complete_activity',
+    'id': id,
+    'note': note,
+  });
+
   static Future<List<SpareItem>> searchSpares(
     String query, {
     bool inStock = true,
@@ -689,6 +716,91 @@ class StockItem {
     stageLabel: json['stage_label'] as String? ?? '-',
     serviceType: json['service_type'] as String?,
     serviceTypeLabel: json['service_type_label'] as String? ?? '-',
+  );
+}
+
+/// ແປງເປັນ int ໃຫ້ໄດ້ທັງ number ແລະ string.
+///
+/// ⚠️ ຖັນ `bigint` (int8) ຂອງ Postgres ຖືກ node-pg ສົ່ງອອກມາເປັນ **string**
+/// (ກັນຄ່າເກີນຂອບເຂດ number ຂອງ JS) ⇒ `as num` ຈະ throw
+/// "type 'String' is not a subtype of type 'num'".
+int _asInt(dynamic value) {
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value) ?? 0;
+  return 0;
+}
+
+/// ຂໍ້ຄວາມໃນ chatter — `kind` = 'comment' (ຄົນພິມ) ຫຼື 'log' (ລະບົບບັນທຶກເອງ)
+class ChatterMessage {
+  final int id;
+  final String kind;
+  final String body;
+  final String author;
+  final String createdAt;
+  const ChatterMessage({
+    required this.id,
+    required this.kind,
+    required this.body,
+    required this.author,
+    required this.createdAt,
+  });
+
+  bool get isLog => kind == 'log';
+
+  factory ChatterMessage.fromJson(Map<String, dynamic> json) => ChatterMessage(
+    id: _asInt(json['id']),
+    kind: json['kind'] as String? ?? 'log',
+    body: json['body'] as String? ?? '',
+    author: json['author'] as String? ?? '-',
+    createdAt: json['created_at'] as String? ?? '',
+  );
+}
+
+/// ກິດຈະກຳທີ່ນັດໄວ້ (todo/call/visit/meeting) — `daysLeft` ຕິດລົບ = ເລີຍກຳນົດ
+class JobActivity {
+  final int id;
+  final String kind;
+  final String summary;
+  final String? note;
+  final String assignedTo;
+  final String dueDate;
+  final int daysLeft;
+  const JobActivity({
+    required this.id,
+    required this.kind,
+    required this.summary,
+    this.note,
+    required this.assignedTo,
+    required this.dueDate,
+    required this.daysLeft,
+  });
+
+  bool get late => daysLeft < 0;
+  bool get today => daysLeft == 0;
+
+  factory JobActivity.fromJson(Map<String, dynamic> json) => JobActivity(
+    id: _asInt(json['id']),
+    kind: json['kind'] as String? ?? 'todo',
+    summary: json['summary'] as String? ?? '',
+    note: json['note'] as String?,
+    assignedTo: json['assigned_to'] as String? ?? '',
+    dueDate: json['due_date'] as String? ?? '',
+    daysLeft: _asInt(json['days_left']),
+  );
+}
+
+class JobChatter {
+  final List<ChatterMessage> messages;
+  final List<JobActivity> activities;
+  const JobChatter({required this.messages, required this.activities});
+
+  factory JobChatter.fromJson(Map<String, dynamic> json) => JobChatter(
+    messages: ((json['messages'] as List?) ?? [])
+        .map((row) => ChatterMessage.fromJson(row as Map<String, dynamic>))
+        .toList(),
+    activities: ((json['activities'] as List?) ?? [])
+        .map((row) => JobActivity.fromJson(row as Map<String, dynamic>))
+        .toList(),
   );
 }
 
