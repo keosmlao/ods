@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../main.dart';
+import '../widgets/ui_kit.dart';
 
 /// **ຕັ້ງຄ່າ Server** — ໜ້າເຕັມ (ແທນ modal ເກົ່າ) ໃຫ້ພໍດີຈໍ 4 ນິ້ວ.
 ///
@@ -81,16 +82,9 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Row(
-          children: [
-            Icon(Icons.dns_outlined, size: 20),
-            SizedBox(width: 8),
-            Text('ຕັ້ງຄ່າ Server'),
-          ],
-        ),
-      ),
+    return HeroScaffold(
+      title: 'ຕັ້ງຄ່າ Server',
+      onBack: () => Navigator.pop(context),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(18),

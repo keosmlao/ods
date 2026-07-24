@@ -6,6 +6,7 @@ import type { Workflow } from "@/lib/commission";
 import { canQcJob, qcChecklistFor, qcWorkflowsFor, saveQcFlow, type QcAnswer, type QcItem } from "@/lib/qc-flow";
 import { roleOf } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 
 /**
@@ -80,10 +81,11 @@ export async function saveQc(_: QcState, formData: FormData): Promise<QcState> {
   });
   if (!result.ok) return { error: result.error };
 
-  revalidatePath(`/qc/${parsed.data.workflow}/${parsed.data.job_code}`);
+  // ຫຼັງ QC ຜ່ານ/ຕີກັບ ງານ**ອອກຈາກຂັ້ນ QC ແລ້ວ** ⇒ ໜ້າ /qc/<wf>/<code> ຈະ notFound (404).
+  // ຈຶ່ງ **ບໍ່** revalidate ໜ້າລາຍລະອຽດ (ຈະ render ເປັນ 404) ແຕ່ພາກັບไปคิว /qc ເລີຍ.
   revalidatePath("/qc");
   revalidatePath("/dashboard");
-  return { ok: result.message };
+  redirect("/qc");
 }
 
 /** ຍົກເລີກ "QC ຜ່ານ" -> ກັບໄປລໍກວດ QC ແລະສາມາດແກ້ຄຳຕອບເກົ່າໄດ້. */

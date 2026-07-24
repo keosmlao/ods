@@ -63,12 +63,37 @@ export async function repairTimeline(code: string): Promise<{ steps: TimelineSte
     rows.forEach((x) => { if (x.epoch != null) current = x.stage; });
   }
 
+  // ຂັ້ນ 12 (ສົ່ງຄືນສຳເລັດ / ຈົບງານ) = ປາຍທາງ — ງານຈົບແລ້ວ ບໍ່ມີຂັ້ນທີ່ "ກຳລັງ" ອີກ
+  const TERMINAL = 12;
+
+  /**
+   * ເວລາຈົບຂອງຂັ້ນທີ່ຜ່ານແລ້ວ = ເວລາເລີ່ມຂອງ **ຂັ້ນຖັດໄປທີ່ໄປຮອດຈິງ**
+   * (ຂັ້ນທີ່ຖືກຂ້າມບໍ່ມີເວລາ ⇒ ຕ້ອງຂ້າມມັນໄປ). ບໍ່ໃຊ້ `now` —
+   * ບໍ່ດັ່ງນັ້ນຂັ້ນທີ່ຈົບໄປແລ້ວຈະນັບເວລາເພີ່ມຂຶ້ນເລື້ອຍໆ ຄືກັບຍັງຄ້າງຢູ່.
+   */
+  const nextReachedEpoch = (from: number): number | null => {
+    for (let j = from + 1; j < rows.length; j += 1) {
+      if (rows[j].epoch != null) return rows[j].epoch;
+    }
+    return null;
+  };
+
   const steps: TimelineStep[] = rows.map((x, idx) => {
-    const state: TimelineStep["state"] = x.stage < current ? "done" : x.stage === current ? (cancelled ? "done" : "current") : "pending";
+    const atCurrent = x.stage === current;
+    const state: TimelineStep["state"] = x.stage < current
+      ? "done"
+      : atCurrent
+        ? (cancelled || x.stage === TERMINAL ? "done" : "current")
+        : "pending";
+
     let durationSeconds: number | null = null;
-    if (state !== "pending" && x.epoch != null) {
-      const end = state === "current" ? now : (rows[idx + 1]?.epoch ?? now);
-      durationSeconds = Math.max(0, Math.round(end - x.epoch));
+    if (x.epoch != null) {
+      if (state === "current") {
+        durationSeconds = Math.max(0, Math.round(now - x.epoch)); // ຍັງຄ້າງຢູ່ຈິງ ⇒ ເດີນໄດ້
+      } else if (state === "done") {
+        const end = nextReachedEpoch(idx);
+        durationSeconds = end == null ? null : Math.max(0, Math.round(end - x.epoch));
+      }
     }
     return { stage: x.stage, label: x.label, at: state === "pending" ? null : x.at, durationSeconds, state };
   });

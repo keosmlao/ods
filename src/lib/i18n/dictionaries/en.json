@@ -44,7 +44,8 @@
     "/activities": "My activity",
     "/notifications": "Notifications",
     "/manual": "User manual",
-    "/service": "Repair intake",
+    "/service": "Daily repair intake",
+    "/returns/completed": "Completed returns",
     "/repair": "Repair",
     "/checking": "Checking",
     "/dashboard/status/repair/wait-withdraw": "Request parts",
@@ -256,7 +257,7 @@
     "prev": "Previous",
     "next": "Next",
     "last": "Last",
-    "title": "Service intake list",
+    "title": "Daily repair intake",
     "pendingJobs": "Pending jobs",
     "unit": "items",
     "page": "Page",
@@ -268,7 +269,11 @@
     "allServiceTypes": "All service types",
     "search": "Search",
     "table": "Table",
-    "board": "Board"
+    "board": "Board",
+    "dateFrom": "From",
+    "dateTo": "To",
+    "receivedOn": "Received",
+    "receivedTo": "to"
   },
   "repair": {
     "colCode": "No.",

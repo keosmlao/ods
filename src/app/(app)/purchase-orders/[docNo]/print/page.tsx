@@ -40,7 +40,7 @@ type Head = {
   credit_day: number | null;
   /** ວັນຄົບກຳນົດຈ່າຍ — ERP ຄິດເປັນ doc_date + credit_day */
   credit_date: string | null;
-  /** ລະຫັດພະນັກງານ — ຊື່ຢູ່ ODS (odg_erp_user) ຄົນລະຖານ ⇒ ດຶງແຍກ */
+  /** ລະຫັດພະນັກງານ — ຊື່ຢູ່ ERP (public.erp_user) ⇒ qualify ຊື່ schema */
   creator_code: string | null;
 };
 
@@ -87,9 +87,9 @@ export default async function PrintPoPage({ params }: Props) {
       [poNo, ERP_PURCHASE.ORDER],
     ).then((r) => r.rows),
     query<Company>(`select name_1, name_2, address, tel from company_profile limit 1`).then((r) => r.rows[0] ?? null),
-    // ຊື່ພະນັກງານຢູ່ **ODS** (odg_erp_user) — ຂ້າມຖານ join ບໍ່ໄດ້ ຈຶ່ງດຶງແຍກ
+    // ຊື່ພະນັກງານຢູ່ ERP (public.erp_user) — ຂ້າມ schema ໄດ້ຖ້າ qualify ຊື່
     head.creator_code
-      ? query<{ name_1: string }>(`select name_1 from odg_erp_user where code=$1 limit 1`, [head.creator_code]).then(
+      ? query<{ name_1: string }>(`select name_1 from public.erp_user where code=$1 limit 1`, [head.creator_code]).then(
           (r) => r.rows[0]?.name_1 ?? null,
         )
       : Promise.resolve(null),

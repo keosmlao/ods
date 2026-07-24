@@ -44,7 +44,8 @@
     "/activities": "กิจกรรมของฉัน",
     "/notifications": "การแจ้งเตือน",
     "/manual": "คู่มือการใช้งาน",
-    "/service": "รายการรับสินค้าเข้าซ่อม",
+    "/service": "รับสินค้าซ่อมประจำวัน",
+    "/returns/completed": "รายการส่งคืนสำเร็จ",
     "/repair": "ซ่อมแซม",
     "/checking": "ตรวจเช็ก",
     "/dashboard/status/repair/wait-withdraw": "ขอเบิกอะไหล่",
@@ -256,7 +257,7 @@
     "prev": "ก่อนหน้า",
     "next": "ถัดไป",
     "last": "หน้าสุดท้าย",
-    "title": "รายการรับสินค้าเข้าซ่อม",
+    "title": "รับสินค้าซ่อมประจำวัน",
     "pendingJobs": "งานที่ยังค้าง",
     "unit": "ใบ",
     "page": "หน้า",
@@ -268,7 +269,11 @@
     "allServiceTypes": "ทุกประเภทบริการ",
     "search": "ค้นหา",
     "table": "ตาราง",
-    "board": "กระดาน"
+    "board": "กระดาน",
+    "dateFrom": "จากวันที่",
+    "dateTo": "ถึงวันที่",
+    "receivedOn": "รับเข้า",
+    "receivedTo": "ถึง"
   },
   "repair": {
     "colCode": "เลขที่",

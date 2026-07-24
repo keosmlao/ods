@@ -120,7 +120,7 @@ const REPAIR: NavGroup = {
   label: "ສ້ອມແປງ",
   icon: Wrench,
   items: [
-    { label: "ລາຍການຮັບສິນຄ້າເຂົ້າສ້ອມ", href: "/service", match: ["/quotations", "/returns", "/qc/repair"] },
+    { label: "ຮັບສິນຄ້າສ້ອມປະຈຳວັນ", href: "/service", match: ["/quotations", "/returns", "/qc/repair"] },
     ...pipelineOf(repairStatuses).map(([slug, def]) => ({
       label: def.label,
       href: `/dashboard/status/repair/${slug}`,
@@ -128,6 +128,9 @@ const REPAIR: NavGroup = {
       // labelKey ແຍກ (ບໍ່ໃຊ້ href) — ຂັ້ນ pipeline ໃຊ້ href ດຽວກັບເມນູຝັ່ງຊ່າງ ແຕ່ປ້າຍຕ່າງກັນ
       labelKey: `pipe:repair:${slug}`,
     })),
+    // ຂັ້ນ 12 (ສົ່ງຄືນສຳເລັດ) = ປາຍທາງຂອງສາຍງານ ⇒ **ທ້າຍສຸດ**.
+    // pipelineOf ຢຸດທີ່ຂັ້ນ 11 (ລໍຖ້າສົ່ງຄືນ) ຈຶ່ງບໍ່ຊ້ຳກັນ.
+    { label: "ລາຍການສົ່ງຄືນສຳເລັດ", href: "/returns/completed" },
   ].map((item, index) => ({ ...item, label: `${index + 1}. ${item.label}` })),
 };
 
@@ -367,6 +370,33 @@ const TECHNICIAN_NAVIGATION: NavGroup[] = [
 ];
 
 /**
+ * ພະນັກງານຂາຍ — ແຈ້ງສ້ອມແທນລູກຄ້າ + ຕິດຕາມງານສ້ອມຕາມເຂດ (`/sales/*`).
+ * ຕ້ອງແຍກເມນູຄືຊ່າງ: default nav ບໍ່ມີ item ໃດທີ່ sales ເຂົ້າໄດ້ ⇒ sidebar ຫວ່າງ/ຜິດ.
+ */
+const SALES_NAVIGATION: NavGroup[] = [
+  {
+    id: "sales_menu",
+    label: "ຂາຍ & ບໍລິການ",
+    icon: ShoppingCart,
+    items: [
+      { label: "ໜ້າຫຼັກ", href: "/sales" },
+      { label: "ແຈ້ງສ້ອມແທນລູກຄ້າ", href: "/sales/report-repair" },
+      { label: "ຕິດຕາມງານສ້ອມ", href: "/sales/jobs" },
+    ],
+  },
+  {
+    id: "sales_home_menu",
+    label: "ຂອງຂ້ອຍ",
+    icon: LayoutDashboard,
+    items: [
+      { label: "AI ຜູ້ຊ່ວຍວຽກ", href: "/assistant" },
+      { label: "ກິດຈະກຳ", href: "/activities" },
+      { label: "ການແຈ້ງເຕືອນ", href: "/notifications" },
+    ],
+  },
+];
+
+/**
  * ເມນູຂອງ role ນີ້ — ກັ່ນຕອງດ້ວຍ canAccess() ຂອງ lib/roles ໂດຍກົງ
  * ຈຶ່ງບໍ່ມີວັນຫຼົ້ນກັນລະຫວ່າງ "ເມນູທີ່ເຫັນ" ກັບ "ໜ້າທີ່ເຂົ້າໄດ້"
  * (ຖ້າແຍກ 2 ຕາຕະລາງ ມື້ໜຶ່ງມັນຈະບໍ່ຕົງກັນແນ່ນອນ).
@@ -377,7 +407,11 @@ export type NavFlags = { qc?: boolean };
 
 export function navigationFor(role: Role, flags: NavFlags = {}, readable?: readonly string[]): NavGroup[] {
   const allowed = readable ? new Set(readable) : null;
-  const source = role === "technical" ? TECHNICIAN_NAVIGATION : navigation;
+  const source = role === "technical"
+    ? TECHNICIAN_NAVIGATION
+    : role === "sales"
+    ? SALES_NAVIGATION
+    : navigation;
   return source
     .map((group) => ({
       ...group,

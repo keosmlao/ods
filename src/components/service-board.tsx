@@ -12,6 +12,10 @@ import Link from "next/link";
  * ງານທີ່ລໍກວດ QC ຂຶ້ນວ່າ "ລໍຖ້າສົ່ງຄືນ" ແລະ ຂັ້ນ 11 ຫຼົ່ນອອກຈາກທັງກະດານ ແລະ ຕົວກອງ.
  */
 const ACCENT: Record<number, string> = {
+  // ໜ້າ /service ເປັນ **ທະບຽນຮັບເຄື່ອງປະຈຳວັນ (ທຸກສະຖານະ)** ⇒ ຕ້ອງມີຖັນ 0/12/-1 ນຳ,
+  // ບໍ່ດັ່ງນັ້ນໃບທີ່ຢູ່ຂັ້ນເຫຼົ່ານັ້ນຈະ **ຫາຍງຽບ** ຈາກກະດານ (ຕາຕະລາງເຫັນ ແຕ່ກະດານບໍ່ເຫັນ)
+  [-1]: "bg-rose-500",
+  0: "bg-slate-400",
   1: "bg-slate-400",
   2: "bg-sky-500",
   3: "bg-slate-400",
@@ -23,6 +27,7 @@ const ACCENT: Record<number, string> = {
   9: "bg-amber-500",
   10: "bg-teal-500",
   11: "bg-emerald-500",
+  12: "bg-emerald-600",
 };
 
 export const STAGES = Object.entries(ACCENT).map(([stage, accent]) => ({

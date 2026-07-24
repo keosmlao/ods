@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../api.dart';
 import '../main.dart';
+import '../widgets/ui_kit.dart';
 
 /// ກວດຮັບຄຸນນະພາບ (QC) — **ຫົວໜ້າຊ່າງ ແລະ CS** (ໃຜກວດໄດ້ ຜູ້ຈັດການກຳນົດຢູ່ ods_qc_role).
 ///
@@ -50,8 +51,12 @@ class _QcScreenState extends State<QcScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('ກວດຮັບຄຸນນະພາບ (${jobs.length})')),
-      body: loading
+      backgroundColor: ground,
+      body: Column(
+        children: [
+          HeroHeader(title: 'ກວດຮັບຄຸນນະພາບ (${jobs.length})'),
+          Expanded(
+            child: loading
           ? const Center(child: CircularProgressIndicator())
           : error.isNotEmpty
           ? Center(
@@ -103,6 +108,9 @@ class _QcScreenState extends State<QcScreen> {
                 );
               },
             ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -199,15 +207,19 @@ class _QcJobScreenState extends State<QcJobScreen> {
   Widget build(BuildContext context) {
     final answered = items.where((item) => item.passed != null).length;
     final failed = items.where((item) => item.passed == false).length;
-    final missingPhoto = items.where(
-      (item) => item.requirePhoto && item.passed == true && item.photo.isEmpty,
-    );
-    final ready =
-        answered == items.length && items.isNotEmpty && missingPhoto.isEmpty;
+    // ຮູບ QC = ທາງເລືອກ (ບໍ່ບັງຄັບ) — ບໍ່ block ການບັນທຶກ
+    final ready = answered == items.length && items.isNotEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: Text('QC · ${widget.job.code}')),
-      body: loading
+      backgroundColor: ground,
+      body: Column(
+        children: [
+          HeroHeader(
+            title: 'QC · ${widget.job.code}',
+            onBack: () => Navigator.pop(context),
+          ),
+          Expanded(
+            child: loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               padding: const EdgeInsets.all(12),
@@ -261,7 +273,7 @@ class _QcJobScreenState extends State<QcJobScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${item.name}${item.requirePhoto ? ' (ຕ້ອງມີຮູບ)' : ''}',
+                          item.name,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: ink,
@@ -357,6 +369,9 @@ class _QcJobScreenState extends State<QcJobScreen> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
     );
   }
 }

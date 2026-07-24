@@ -134,7 +134,8 @@ export type RevenueRow = {
 export async function serviceRevenueByMonth(from: string, to: string): Promise<RevenueRow[]> {
   return (
     await query<RevenueRow>(
-      `select to_char(x.m,'MM-YYYY') month, count(*)::int jobs,
+      // ⚠️ PG11: ຊື່ຫຍໍ້ແບບບໍ່ມີ `as` ຕ້ອງເປັນ IDENT ລ້ວນ — "month" ເປັນ keyword ⇒ ຕ້ອງໃສ່ `as`
+      `select to_char(x.m,'MM-YYYY') as month, count(*)::int jobs,
           to_char(sum(x.quoted),'FM999,999,999,990') quoted,
           to_char(sum(x.paid),'FM999,999,999,990') paid,
           to_char(sum(x.quoted - x.paid),'FM999,999,999,990') due

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../main.dart';
+import '../widgets/ui_kit.dart';
 
 /// ຕິດຕາມສິນຄ້າຄົງເຫຼືອ — ຊ່າງຄົ້ນອາໄຫຼ່ ແລ້ວເຫັນຍອດຄົງເຫຼືອ **ແຍກຕາມສາງ** (ຈາກ ERP).
 /// ໃຊ້ກ່ອນຂໍເບີກ ເພື່ອຮູ້ວ່າມີຂອງບໍ ແລະ ຢູ່ສາງໃດ.
@@ -45,8 +46,9 @@ class _StockBalanceScreenState extends State<StockBalanceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('ສິນຄ້າຄົງເຫຼືອ')),
+    return HeroScaffold(
+      title: 'ສິນຄ້າຄົງເຫຼືອ',
+      onBack: () => Navigator.pop(context),
       body: Column(
         children: [
           Padding(

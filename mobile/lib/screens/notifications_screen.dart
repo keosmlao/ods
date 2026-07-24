@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../main.dart';
+import '../widgets/ui_kit.dart';
 
 /// **ກ່ອງແຈ້ງເຕືອນ** — ອ່ານຈາກຕາຕະລາງດຽວກັບເວັບ (ods_notification).
 ///
@@ -49,20 +51,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ແຈ້ງເຕືອນ'),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await Api.markNotificationRead(all: true);
-              await _load();
-            },
-            child: const Text('ອ່ານທັງໝົດ'),
-          ),
-        ],
-      ),
+      backgroundColor: ground,
       body: Column(
         children: [
+          HeroHeader(
+            title: 'ແຈ້ງເຕືອນ',
+            trailing: [
+              TextButton(
+                onPressed: () async {
+                  await Api.markNotificationRead(all: true);
+                  await _load();
+                },
+                style: TextButton.styleFrom(foregroundColor: onHero),
+                child: const Text('ອ່ານທັງໝົດ'),
+              ),
+            ],
+          ),
+          Expanded(
+            child: Column(
+              children: [
           Padding(
             padding: const EdgeInsets.all(12),
             child: SegmentedButton<bool>(
@@ -124,6 +131,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       },
                     ),
                   ),
+          ),
+        ],
+      ),
           ),
         ],
       ),

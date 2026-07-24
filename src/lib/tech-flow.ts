@@ -4,7 +4,7 @@ import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb, query, queryOdg } from "@/lib/db";
 import { writeErpRequest } from "@/lib/erp-request";
 import { nextDocNo } from "@/lib/doc-no";
-import type { FlowResult } from "@/lib/job-flow";
+import { saveCheckPhotos, type FlowResult } from "@/lib/job-flow";
 import { roleOf } from "@/lib/roles";
 import { canViewAssignedJob } from "@/lib/scope";
 import { STAGE_SQL } from "@/lib/stage";
@@ -216,6 +216,8 @@ export type SaveCheckInput = {
   warranty_void: boolean;
   warranty_reason: string;
   use_spare: boolean;
+  /** ຮູບຕອນກວດເຊັກ (base64) — ບໍ່ບັງຄັບ */
+  photos?: string[];
 };
 
 /**
@@ -286,6 +288,10 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
         reason,
         input.code,
       ]);
+    }
+
+    if (input.photos?.length) {
+      await saveCheckPhotos(client, session, input.code, input.photos);
     }
 
     await client.query("commit");

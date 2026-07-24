@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../main.dart';
 import '../push.dart';
-import 'jobs_screen.dart';
-import 'stock_count_screen.dart';
+import 'nav_host.dart';
 import 'server_settings_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -56,13 +55,9 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       await Push.register();
       if (!mounted) return;
-      // ຊ່າງ → ຄິວວຽກ · ບໍ່ແມ່ນຊ່າງ → ກວດນັບສະຕ໋ອກ
+      // ເຂົ້າສ່ວນງານຂອງ role — ແຖບລຸ່ມ (tabs) ທີ່ server ສົ່ງມາ
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => user.home == 'stock-count'
-              ? const StockCountScreen()
-              : const JobsScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => NavHost(tabs: user.tabs)),
       );
     } on ApiError catch (failure) {
       if (mounted) setState(() => error = failure.message);

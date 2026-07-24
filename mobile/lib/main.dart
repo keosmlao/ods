@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'api.dart';
 import 'push.dart';
-import 'screens/income_screen.dart';
-import 'screens/jobs_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/pickup_screen.dart';
-import 'screens/stock_count_screen.dart';
+import 'screens/nav_host.dart';
 
 /// ODIEN Service — ແອັບຊ່າງ.
 ///
@@ -22,11 +19,26 @@ void main() async {
   runApp(const OdssApp());
 }
 
-const teal = Color(0xFF0D9488);
-const ink = Color(0xFF0F172A);
-const danger = Color(0xFFDC2626);
-const ok = Color(0xFF059669);
-const muted = Color(0xFF64748B);
+// ── Design tokens v2 (ທັນສະໄໝ) — ແບຣນ emerald + hero ໄລ່ສີເຂັ້ມ ──
+// ໝາຍເຫດ: ຮັກສາຊື່ `teal` ໄວ້ (ໜ້າຕ່າງໆ import ຢູ່) ແຕ່ຄ່າ = emerald.
+const teal = Color(0xFF059669); // brand deep — ປຸ່ມ/ຕົວອັກສອນເນັ້ນ
+const tealBright = Color(0xFF10B981); // emerald ສົດ — ໄລ່ສີ/active
+const tealTint = Color(0xFFD6F5E9); // brand soft — ພື້ນອ່ອນ (ຊິບ/ໄອຄອນ)
+const ink = Color(0xFF0A1A16); // ຫົວຂໍ້ / ຕົວອັກສອນເຂັ້ມ
+const danger = Color(0xFFF43F5E); // rose
+const ok = Color(0xFF059669); // emerald (= brand)
+const warn = Color(0xFFE08A0B); // amber
+const muted = Color(0xFF5A6C67);
+const faint = Color(0xFF93A29D);
+const ground = Color(0xFFEDF3F1); // ພື້ນຫຼັງໜ້າ
+const surfaceAlt = Color(0xFFF5F9F7); // ພື້ນຮອງ (input/seg)
+const line = Color(0xFFE4ECE9);
+
+// ── Hero header (ໄລ່ສີ emerald→ink) ──
+const hero1 = Color(0xFF0A2A24); // ເຂັ້ມສຸດ (ລຸ່ມ)
+const hero2 = Color(0xFF114A3C); // ອ່ອນກວ່າ (ເທິງ)
+const onHero = Color(0xFFEAFBF3); // ຕົວອັກສອນເທິງ hero
+const onHeroDim = Color(0xFF9FD9C6); // ຕົວອັກສອນຈາງເທິງ hero
 
 class OdssApp extends StatelessWidget {
   const OdssApp({super.key});
@@ -37,48 +49,73 @@ class OdssApp extends StatelessWidget {
       title: 'ODIEN Service',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: teal,
-          brightness: Brightness.light,
-        ),
-        scaffoldBackgroundColor: const Color(0xFFF4F7F9),
+        colorScheme:
+            ColorScheme.fromSeed(
+              seedColor: teal,
+              brightness: Brightness.light,
+            ).copyWith(
+              surface: Colors.white,
+              onSurface: ink,
+              error: danger,
+            ),
+        scaffoldBackgroundColor: ground,
+        fontFamily: 'Noto Sans Lao',
         fontFamilyFallback: const ['Noto Sans Lao', 'sans-serif'],
+        // AppBar ຂາວສະອາດ (ບໍ່ແມ່ນ bar ດຳໜັກແບບเก่า) — ຫົວຂໍ້ ink, ບໍ່ມີເງົາ
         appBarTheme: const AppBarTheme(
-          backgroundColor: ink,
-          foregroundColor: Colors.white,
+          backgroundColor: Colors.white,
+          foregroundColor: ink,
           elevation: 0,
+          scrolledUnderElevation: 0,
           centerTitle: false,
           surfaceTintColor: Colors.transparent,
           titleTextStyle: TextStyle(
             fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            color: ink,
+            letterSpacing: -.2,
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Colors.white,
+          fillColor: surfaceAlt,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 15,
           ),
+          hintStyle: const TextStyle(color: faint),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFFDCE4E8)),
+            borderSide: const BorderSide(color: line),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFFDCE4E8)),
+            borderSide: const BorderSide(color: line),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: teal, width: 1.5),
+            borderSide: const BorderSide(color: teal, width: 1.6),
           ),
         ),
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
+            backgroundColor: teal,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(52),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: teal,
+            minimumSize: const Size.fromHeight(48),
+            backgroundColor: surfaceAlt,
+            side: const BorderSide(color: line),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(13),
             ),
             textStyle: const TextStyle(fontWeight: FontWeight.w700),
           ),
@@ -87,33 +124,33 @@ class OdssApp extends StatelessWidget {
           color: Colors.white,
           elevation: 0,
           margin: EdgeInsets.zero,
+          shadowColor: const Color(0x140C1B18),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
-            side: const BorderSide(color: Color(0xFFE2E8F0)),
+            side: const BorderSide(color: line),
           ),
         ),
-        navigationBarTheme: NavigationBarThemeData(
-          height: 68,
-          backgroundColor: Colors.white,
-          indicatorColor: const Color(0xFFCCFBF1),
-          labelTextStyle: WidgetStateProperty.resolveWith(
-            (states) => TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: states.contains(WidgetState.selected) ? teal : muted,
-            ),
+        dividerTheme: const DividerThemeData(color: line, thickness: 1, space: 1),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: ink,
+          contentTextStyle: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
         useMaterial3: true,
       ),
+      // ຫຍໍ້ font ທັງແອັບ ~10% (ບໍ່ໃຫ້ໃຫຍ່ເກີນ 0.9 ເຖິງ system ຕັ້ງໃຫຍ່)
+      builder: (context, child) => MediaQuery.withClampedTextScaling(
+        maxScaleFactor: 0.9,
+        child: child!,
+      ),
       home: const _Gate(),
-      routes: {
-        '/jobs': (_) => const JobsScreen(),
-        '/income': (_) => const IncomeScreen(),
-        '/pickup': (_) => const PickupScreen(),
-        '/login': (_) => const LoginScreen(),
-        '/stock-count': (_) => const StockCountScreen(),
-      },
+      routes: {'/login': (_) => const LoginScreen()},
     );
   }
 }
@@ -137,15 +174,10 @@ class _GateState extends State<_Gate> {
 
   Future<void> _decide() async {
     final token = await Api.token();
-    Widget next;
-    if (token == null) {
-      next = const LoginScreen();
-    } else {
-      // ຊ່າງ → ຄິວວຽກ · ບໍ່ແມ່ນຊ່າງ → ກວດນັບສະຕ໋ອກ (server ບອກ home ຕອນ login)
-      next = (await Api.savedHome()) == 'stock-count'
-          ? const StockCountScreen()
-          : const JobsScreen();
-    }
+    // ມີ token → ປະກອບແອັບຕາມ manifest ຂອງ role (server ບອກໄວ້ຕອນ login)
+    final next = token == null
+        ? const LoginScreen()
+        : NavHost(tabs: await Api.savedTabs());
     if (mounted) setState(() => _screen = next);
   }
 

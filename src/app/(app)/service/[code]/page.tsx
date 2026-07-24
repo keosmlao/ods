@@ -18,6 +18,8 @@ import { listTechnicians } from "@/lib/technicians";
 import { TRANS } from "@/lib/stock-constants";
 import { APPROVER_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { canViewAssignedJob } from "@/lib/scope";
+import { permissionFor } from "@/lib/permissions";
+import { ServiceDeleteButton } from "@/components/service/service-delete-button";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { stageLabel, STAGE_SQL } from "@/lib/stage";
@@ -186,6 +188,8 @@ export default async function ServiceDetail({ params }: Props) {
   const canReassign = !done && !cancelled && SERVICE_SIDE.includes(roleOf(session));
   // IH ໄປສ້ອມບ້ານລູກຄ້າ: ຫຼັງລູກຄ້າຕົກລົງລາຄາ (ຂັ້ນ 5–9) → ນັດ "ໄປສ້ອມ ຮອບ 2"
   const canScheduleVisit = canReassign && job.service_type === "IH" && job.stage >= 5 && job.stage <= 9;
+  // ລຶບໃບຮັບເຄື່ອງ — **ທຸກສະຖານະ** (ຄ້າງ/ຈົບ/ຍົກເລີກ). ສິດ manager ເທົ່ານັ້ນ (ດ່ານຈິງຢູ່ deleteService).
+  const canDelete = (await permissionFor(session, "/service")).delete;
   const techs = canReassign ? await listTechnicians() : [];
 
   /**
@@ -326,6 +330,12 @@ export default async function ServiceDetail({ params }: Props) {
             <Printer className="size-3.5" />
             {t.print}
           </Link>
+          {/* ລຶບໄດ້ **ທຸກສະຖານະ** — ຢູ່ໜ້າລາຍລະອຽດ ⇒ ເປີດຈາກ ຄົ້ນຫາ/ລາຍการ ໄດ້ทุกงาน */}
+          {canDelete && (
+            <span className="ml-1 border-l border-slate-200 pl-2">
+              <ServiceDeleteButton code={job.code} afterHref="/service" />
+            </span>
+          )}
         </div>
       </div>
 

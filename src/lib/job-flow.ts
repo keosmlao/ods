@@ -286,18 +286,29 @@ async function savePhotos(
   code: string,
   photos: string[],
   note: string,
+  kind: "finish" | "check" = "finish",
 ): Promise<number> {
   let saved = 0;
   for (const photo of photos) {
     if (!photo) continue;
     await client.query(
       `insert into ods_job_photo(workflow, job_code, kind, photo, note, created_by)
-       values($1,$2,'finish',$3,nullif($4,''),$5)`,
-      [workflow, code, photo, note, session.username],
+       values($1,$2,$3,$4,nullif($5,''),$6)`,
+      [workflow, code, kind, photo, note, session.username],
     );
     saved += 1;
   }
   return saved;
+}
+
+/** ບັນທຶກຮູບຕອນກວດເຊັກ (kind='check') — ໃຊ້ໃນ transaction ຂອງ saveCheckFlow */
+export async function saveCheckPhotos(
+  client: PoolClient,
+  session: Session,
+  code: string,
+  photos: string[],
+): Promise<number> {
+  return savePhotos(client, session, "repair", code, photos.filter(Boolean), "", "check");
 }
 
 export async function finishInstallFlow(
@@ -352,6 +363,68 @@ export async function jobPhotos(workflow: Workflow, code: string) {
       [workflow, code],
     )
   ).rows;
+}
+
+/** ຮູບຕາມຊະນິດ (finish/check) — base64 ຈາກ ods_job_photo */
+async function jobPhotosByKind(workflow: Workflow, code: string, kind: "finish" | "check") {
+  return (
+    await query<{ photo: string }>(
+      `select photo from ods_job_photo
+        where workflow=$1 and job_code=$2 and kind=$3 order by id`,
+      [workflow, code, kind],
+    )
+  ).rows.map((r) => r.photo);
+}
+
+/**
+ * ຮູບຕອນຮັບເຄື່ອງ (ໃບຮັບເຄື່ອງ) — ເກັບເປັນ **ໄຟລ໌** ຢູ່ product_image (iteme_code = ລະຫັດງານ),
+ * ບໍ່ແມ່ນ base64. route /api/uploads ໃຊ້ cookie session ⇒ ແອັບ (Bearer) ດຶງ URL ກົງບໍ່ໄດ້
+ * ⇒ ອ່ານໄຟລ໌ແປງເປັນ data-URI base64 ໃຫ້ແອັບເລີຍ (ຄືກັບຮູບ QC). ຂ້າມວິດີໂອ (ໃຫຍ່ເກີນ).
+ */
+async function receivePhotos(code: string): Promise<string[]> {
+  const dir = process.env.ODS_UPLOADS_DIR;
+  if (!dir) return [];
+  const rows = (
+    await query<{ product_url: string }>(
+      `select product_url from product_image
+        where iteme_code=$1 and coalesce(product_url,'') <> ''
+          and lower(product_url) ~ '\\.(jpe?g|png|gif|webp)$'
+        order by line_number`,
+      [code],
+    )
+  ).rows;
+  const { readFile } = await import("node:fs/promises");
+  const { basename, extname, join } = await import("node:path");
+  const mime: Record<string, string> = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+  };
+  const out: string[] = [];
+  for (const { product_url } of rows.slice(0, 12)) {
+    const file = basename(product_url);
+    const type = mime[extname(file).toLowerCase()];
+    if (!type) continue;
+    try {
+      const buf = await readFile(join(/*turbopackIgnore: true*/ dir, file));
+      out.push(`data:${type};base64,${buf.toString("base64")}`);
+    } catch {
+      // ໄຟລ໌ຫາຍ — ຂ້າມໄປ
+    }
+  }
+  return out;
+}
+
+/** ຊຸດຮູບຂອງງານສຳລັບແອັບ: ຕອນຮັບເຄື່ອງ · ຕອນກວດເຊັກ · ຕອນສ້ອມ/ຕິດຕັ້ງສຳເລັດ */
+export async function jobPhotoSets(workflow: Workflow, code: string) {
+  const [receive, check, finish] = await Promise.all([
+    receivePhotos(code),
+    jobPhotosByKind(workflow, code, "check"),
+    jobPhotosByKind(workflow, code, "finish"),
+  ]);
+  return { receive, check, finish };
 }
 
 /* ── ຂັ້ນຕອນສ້ອມແປງ ─────────────────────────────────────────────── */

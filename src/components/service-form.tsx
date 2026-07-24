@@ -159,7 +159,7 @@ export function ServiceForm({
   return (
     <form action={action} className="space-y-5">
       {/* ແຖບປຸ່ມ ຄ້າງຢູ່ເທິງ */}
-      <div className="sticky top-20 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <button
           disabled={pending}
           className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
@@ -370,7 +370,8 @@ export function ServiceForm({
               </div>
 
               <div>
-                <label className={label}>{t.tech} *</label>
+                {/* ຊ່າງບໍ່ບັງຄັບ — ຮັບເຄື່ອງກ່ອນ ຈັດຊ່າງພາຍຫຼັງໄດ້ (ເບິ່ງ actions/service.ts) */}
+                <label className={label}>{t.tech}</label>
                 <SelectField
                   name="emp"
                   options={techs.map((tech) => ({ value: tech.code, label: tech.name_1 }))}
@@ -440,7 +441,7 @@ export function ServiceForm({
         </div>
 
         {/* ຂວາ — ຮູບ (ຄ້າງໄວ້ ເລື່ອນຕາມ) */}
-        <aside className="lg:sticky lg:top-40 lg:self-start">
+        <aside className="lg:self-start">
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 border-b border-slate-100 pb-2 font-bold text-slate-700">{t.productPhotos}</h2>
             <ServicePhotos />

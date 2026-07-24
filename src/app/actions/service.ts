@@ -39,7 +39,11 @@ const schema = z.object({
   pro_remark: z.string(),
   billon: z.string(),
   billdate: z.string(),
-  emp: z.string().min(1),
+  /**
+   * ຊ່າງ — **ບໍ່ບັງຄັບ** (24-07-2026): ຮັບເຄື່ອງເຂົ້າໄດ້ກ່ອນ ແລ້ວຄ່ອຍຈັດຊ່າງພາຍຫຼັງ
+   * (ຕອນຮັບເຄື່ອງໜ້າເຄົາເຕີ ຍັງບໍ່ຮູ້ວ່າໃຜຈະຮັບງານ). ຫວ່າງ = ຍັງບໍ່ຈັດຊ່າງ.
+   */
+  emp: z.string().optional().default(""),
   /**
    * ── ງານນອກສະຖານທີ່ (IH ສ້ອມບ້ານລູກຄ້າ · PS ໄປຮັບເຄື່ອງຈາກບ້ານມາສ້ອມຢູ່ສູນ = 75% ຂອງໃບ) ──
    * ແຕ່ກ່ອນ tb_product ບໍ່ມີຖັນສະຖານທີ່ເລີຍ ⇒ ຊ່າງອາໄສທີ່ຢູ່ຂອງ **ລູກຄ້າ** ເຊິ່ງ
@@ -202,8 +206,8 @@ export async function createService(_: ServiceState, formData: FormData): Promis
 
   const item = [d.proname, d.pro_brand, d.pro_model].filter(Boolean).join(" ");
   // ແຈ້ງຊ່າງທີ່ຖືກມອບງານ (ods ຍິງ LINE Notify ຢູ່ຈຸດນີ້)
-  await logChange("tb_product", code, `ເປີດໃບຮັບເຄື່ອງ: ${item} · ອາການ: ${d.pro_issue} · ຊ່າງ ${d.emp}`, {
-    users: [d.emp],
+  await logChange("tb_product", code, `ເປີດໃບຮັບເຄື່ອງ: ${item} · ອາການ: ${d.pro_issue}${d.emp ? ` · ຊ່າງ ${d.emp}` : " · ຍັງບໍ່ຈັດຊ່າງ"}`, {
+    users: d.emp ? [d.emp] : [],
   });
   // ຄຽງກັນ ໃຫ້ເຫັນຢູ່ໜ້າລູກຄ້ານຳ ວ່າລູກຄ້າຄົນນີ້ເອົາເຄື່ອງມາສ້ອມເມື່ອໃດ
   await logChange("ar_customer", customer, `ເປີດໃບຮັບເຄື່ອງ #${code}: ${item}`);
@@ -333,8 +337,8 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
   }
 
   // ຊ່າງອາດຖືກປ່ຽນຕອນແກ້ໄຂ → ແຈ້ງຊ່າງຄົນປັດຈຸບັນນຳ
-  await logChange("tb_product", d.code, `ແກ້ໄຂໃບຮັບເຄື່ອງ · ອາການ: ${d.pro_issue} · ຊ່າງ ${d.emp}`, {
-    users: [d.emp],
+  await logChange("tb_product", d.code, `ແກ້ໄຂໃບຮັບເຄື່ອງ · ອາການ: ${d.pro_issue}${d.emp ? ` · ຊ່າງ ${d.emp}` : " · ຍັງບໍ່ຈັດຊ່າງ"}`, {
+    users: d.emp ? [d.emp] : [],
   });
   // ແຈ້ງອອກມືຖືຂອງຊ່າງນຳ (ລົ້ມເຫຼວກໍ່ບໍ່ກະທົບການບັນທຶກ — ເບິ່ງ lib/push)
   if (d.emp) await pushToUser(d.emp, "ມີງານສ້ອມແປງ", `${d.code} · ${d.proname} — ${d.pro_issue}`, {

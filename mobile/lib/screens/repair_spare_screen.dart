@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../main.dart';
+import '../widgets/ui_kit.dart';
 import 'spare_request_screen.dart';
 
 /// ອາໄຫຼ່ຕອນສ້ອມ (ຂັ້ນ 9) — ພົບຕ້ອງໃຊ້ອາໄຫຼ່ເພີ່ມ/ປ່ຽນ: ຄົ້ນ+ເພີ່ມ, ຖອດ, ແລ້ວ
@@ -80,8 +81,9 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('ອາໄຫຼ່ຕອນສ້ອມ · ${widget.code}')),
+    return HeroScaffold(
+      title: 'ອາໄຫຼ່ຕອນສ້ອມ · ${widget.code}',
+      onBack: () => Navigator.pop(context),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(

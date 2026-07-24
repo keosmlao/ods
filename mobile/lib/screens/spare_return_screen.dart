@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../widgets/ui_kit.dart';
 
 /// **ຂໍສົ່ງຄືນອາໄຫຼ່ທີ່ບໍ່ໄດ້ໃຊ້** (ໃບ SRI).
 ///
@@ -93,8 +94,9 @@ class _SpareReturnScreenState extends State<SpareReturnScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('ສົ່ງຄືນອາໄຫຼ່ · ${widget.code}')),
+    return HeroScaffold(
+      title: 'ສົ່ງຄືນອາໄຫຼ່ · ${widget.code}',
+      onBack: () => Navigator.pop(context),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : rows.isEmpty

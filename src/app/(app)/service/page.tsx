@@ -12,13 +12,14 @@ import { permissionFor } from "@/lib/permissions";
 import { holdJsonSql } from "@/lib/job-hold";
 import { APPROVER_SIDE, roleOf } from "@/lib/roles";
 import { SETTING, settingEnabled } from "@/lib/settings";
-import { NOT_MISSING, OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_SQL } from "@/lib/stage";
+import { safeDate, todayIso } from "@/lib/report-sql";
+import { NOT_MISSING, STAGE_ELAPSED_SQL, STAGE_SQL } from "@/lib/stage";
 import { Bell, ChevronLeft, ChevronRight, FileBarChart, FilePlus2, FileSpreadsheet, LayoutGrid, Search, Table2 } from "lucide-react";
 import Link from "next/link";
 
 /** 3 ແທັບ: ວຽກຄ້າງ · ຈົບແລ້ວ · ຍົກເລີກ */
 type Tab = "pending" | "done" | "cancelled";
-type Props = { searchParams: Promise<{ q?: string; tab?: string; page?: string; view?: string; status?: string; service?: string; sort?: string; dir?: string }> };
+type Props = { searchParams: Promise<{ q?: string; tab?: string; page?: string; view?: string; status?: string; service?: string; sort?: string; dir?: string; from?: string; to?: string }> };
 
 /** ປະເພດບໍລິການທີ່ກອງໄດ້ — CI/ST/IH/PS (lib/sla) */
 const SERVICE_CODES = ["CI", "ST", "IH", "PS"];
@@ -34,13 +35,23 @@ const SERVICE_CODES = ["CI", "ST", "IH", "PS"];
 const SEARCH = `(a.code ilike $1 or a.sn ilike $1 or a.name_1 ilike $1 or a.p_brand ilike $1
   or a.issue ilike $1 or b.name_1 ilike $1 or b.tel ilike $1)`;
 
-/** ວຽກທີ່ຍັງຄ້າງ (ຂັ້ນ 1..10) — ສຳລັບກະດານ */
-async function getBoard(q: string, status: number | null, service: string | null) {
-  // ເຄື່ອງ "ນັບບໍ່ພົບ (ຫາຍ)" ຈາກໜ້າກວດນັບ — ປິດອອກຈາກຄິວ pending (ຍ້ອນຄືນໄດ້ ໂດຍ "ນຳກັບຄືນ")
-  const where = [OPEN_JOBS, NOT_MISSING];
+/**
+ * ໃບຮັບເຄື່ອງ **ທີ່ເປີດໃນຊ່ວງວັນທີ່ເລືອກ** (ຄ່າຕັ້ງຕົ້ນ = ວັນນີ້) — **ທຸກສະຖານະ**.
+ *
+ * ── ເປັນຫຍັງບໍ່ກອງ OPEN_JOBS ອີກຕໍ່ໄປ (24-07-2026) ──
+ * ໜ້ານີ້ຄື **ທະບຽນຮັບເຄື່ອງປະຈຳວັນ** ບໍ່ແມ່ນຄິວວຽກຄ້າງ: ຕ້ອງນັບຍອດຮັບເຂົ້າຂອງມື້ນັ້ນໃຫ້ຄົບ
+ * ⇒ ໃບທີ່ຮັບເຂົ້າມື້ນີ້ແລ້ວສ້ອມຈົບ/ສົ່ງຄືນ/ຍົກເລີກໄປແລ້ວ ຕ້ອງຍັງຢູ່ໃນລາຍການ.
+ * ຄິວວຽກຄ້າງເບິ່ງໄດ້ຢູ່ເມນູຂັ້ນຕອນ (/dashboard/status/repair/*) ທີ່ມີຢູ່ແລ້ວ.
+ */
+async function getBoard(q: string, status: number | null, service: string | null, from: string, to: string) {
+  // ເຄື່ອງ "ນັບບໍ່ພົບ (ຫາຍ)" ຈາກໜ້າກວດນັບ — ປິດອອກ (ຍ້ອນຄືນໄດ້ ໂດຍ "ນຳກັບຄືນ")
+  const where = [NOT_MISSING];
   const params: (string | number)[] = [];
+  // ວັນທີ່ເປີດໃບ = time_register (ນິຍາມດຽວກັບ STAGE_TIME_COL ຂອງ lib/stage)
+  params.push(from, to);
+  where.push(`a.time_register::date between $${params.length - 1} and $${params.length}`);
   if (q) { params.push(`%${q}%`); where.push(SEARCH.replaceAll("$1", `$${params.length}`)); }
-  if (status) { params.push(status); where.push(`(${STAGE_SQL}) = $${params.length}`); }
+  if (status !== null) { params.push(status); where.push(`(${STAGE_SQL}) = $${params.length}`); }
   if (service) { params.push(service); where.push(`a.service_type = $${params.length}`); }
 
   // ບໍ່ດຶງຮູບ: ບັດ 98 ໃບ = 98 request ໄປ /api/uploads ພ້ອມກັນ → ໜ້າຊ້າ.
@@ -116,11 +127,25 @@ export default async function ServicePage({ searchParams }: Props) {
   const board_view = isPending && params.view === "board";
   const page = Math.max(1, Number(params.page) || 1);
 
-  // ຕົວກອງສະຖານະ (ສະເພາະແທັບວຽກຄ້າງ) — ຂັ້ນ 1..11 (11 = ລໍຖ້າສົ່ງຄືນ, ຫຼັງເພີ່ມດ່ານ QC)
-  const statusRaw = Number(params.status);
-  const status = isPending && statusRaw >= 1 && statusRaw <= 11 ? statusRaw : null;
+  /**
+   * ຕົວກອງສະຖານະ — ຂັ້ນ -1..12 (ທະບຽນປະຈຳວັນສະແດງທຸກສະຖານະ ຈຶ່ງກອງໄດ້ທຸກຂັ້ນ).
+   * ⚠️ ຂັ້ນ **0 ແລະ -1 ເປັນ falsy** ⇒ ຕ້ອງກວດ `=== ""` ແລະ ໃຊ້ `!== null` ທຸກບ່ອນ
+   * ບໍ່ດັ່ງນັ້ນ "ບໍ່ໄດ້ເລືອກ" (ຫວ່າງ → Number("") = 0) ຈະກາຍເປັນກອງຂັ້ນ 0 ງຽບໆ.
+   */
+  const statusText = (params.status ?? "").trim();
+  const statusNum = Number(statusText);
+  const status =
+    isPending && statusText !== "" && Number.isInteger(statusNum) && statusNum >= -1 && statusNum <= 12
+      ? statusNum
+      : null;
   // ຕົວກອງປະເພດບໍລິການ (CI/ST/IH/PS) — ໃຊ້ໄດ້ທຸກແທັບ ແລະ ໄປນຳ export
   const service = SERVICE_CODES.includes(params.service ?? "") ? params.service! : null;
+
+  // ── ຊ່ວງວັນທີ່ຮັບເຄື່ອງ — ຄ່າຕັ້ງຕົ້ນ = **ວັນນີ້** (ໜ້ານີ້ = ທະບຽນຮັບເຄື່ອງປະຈຳວັນ) ──
+  // ຢາກເບິ່ງມື້ອື່ນ ຫຼື ຫຼາຍມື້ ໃຫ້ປ່ຽນວັນທີ່ໃນຕົວກອງ
+  const today = todayIso();
+  const from = safeDate(params.from, today);
+  const to = safeDate(params.to, today);
 
   // ຈັດຮຽງ
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
@@ -134,7 +159,7 @@ export default async function ServicePage({ searchParams }: Props) {
   /** ໝາຍ/ປົດ ທຸງ "ມີບັນຫາ" — ຕ້ອງເປີດສະວິດ + ເປັນຫົວໜ້າ/ຜູ້ມີສິດອະນຸມັດ (ຄືກັນກັບໜ້າຄິວ) */
   const canHold = (await settingEnabled(SETTING.JOB_HOLD)) && APPROVER_SIDE.includes(roleOf(session));
 
-  const [board, noticeCount] = await Promise.all([getBoard(q, status, service), getNoticeCount()]);
+  const [board, noticeCount] = await Promise.all([getBoard(q, status, service, from, to), getNoticeCount()]);
 
   const total = board.length;
 
@@ -147,8 +172,11 @@ export default async function ServicePage({ searchParams }: Props) {
   const base = () => ({
     ...(board_view && { view: "board" }),
     ...(q && { q }),
-    ...(status && { status: String(status) }),
+    ...(status !== null && { status: String(status) }),
     ...(service && { service }),
+    // ຊ່ວງວັນທີ່ຕ້ອງຕິດໄປນຳທຸກລິ້ງ ບໍ່ດັ່ງນັ້ນກົດແບ່ງໜ້າ/ຈັດຮຽງແລ້ວເດັ້ງກັບເປັນ "ວັນນີ້"
+    from,
+    to,
   });
 
   const pageHref = (n: number) =>
@@ -160,7 +188,7 @@ export default async function ServicePage({ searchParams }: Props) {
 
   /** ລິ້ງໄປແທັບອື່ນ (ຮັກສາຄຳຄົ້ນຫາໄວ້, ລ້າງຕົວກອງ/ໜ້າ) */
   const tabHref = (target: Tab) =>
-    `/service?${new URLSearchParams({ ...(target !== "pending" && { tab: target }), ...(q && { q }) })}`;
+    `/service?${new URLSearchParams({ ...(target !== "pending" && { tab: target }), ...(q && { q }), from, to })}`;
 
   const pagination = pages > 1 ? (
         <nav className="flex items-center justify-between gap-3 text-sm">
@@ -216,9 +244,9 @@ export default async function ServicePage({ searchParams }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            {board_view
-              ? `${t.pendingJobs} ${total} ${t.unit}`
-              : `${t.pendingJobs} ${total} ${t.unit} · ${t.page} ${page}/${pages}`}
+            {/* ບອກໃຫ້ຊັດວ່າກຳລັງເບິ່ງ "ຮັບເຂົ້າວັນໃດ" — ບໍ່ດັ່ງນັ້ນຄົນຈະເຂົ້າໃຈວ່າເປັນວຽກຄ້າງທັງໝົດ */}
+            {from === to ? `${t.receivedOn} ${from}` : `${t.receivedOn} ${from} ${t.receivedTo} ${to}`} · {total} {t.unit}
+            {!board_view && ` · ${t.page} ${page}/${pages}`}
           </p>
         </div>
 
@@ -244,8 +272,10 @@ export default async function ServicePage({ searchParams }: Props) {
             href={`/api/reports/export/service?${new URLSearchParams({
               tab,
               ...(q && { q }),
-              ...(status && { status: String(status) }),
+              ...(status !== null && { status: String(status) }),
               ...(service && { service }),
+              from,
+              to,
             })}`}
             className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
@@ -275,6 +305,25 @@ export default async function ServicePage({ searchParams }: Props) {
         <div className="flex h-10 min-w-64 flex-1 items-center gap-2 rounded-lg border border-slate-300 px-3">
           <Search className="size-4 shrink-0 text-slate-400" />
           <input name="q" defaultValue={q} placeholder={t.searchPlaceholder} className="w-full text-sm outline-none" />
+        </div>
+
+        {/* ວັນທີ່ຮັບເຄື່ອງ — ຄ່າຕັ້ງຕົ້ນ "ວັນນີ້"; ຂະຫຍາຍຊ່ວງເພື່ອເບິ່ງຫຼາຍມື້ */}
+        <div className="flex items-center gap-1.5">
+          <input
+            type="date"
+            name="from"
+            defaultValue={from}
+            aria-label={t.dateFrom}
+            className="h-10 rounded-lg border border-slate-300 px-2 text-sm text-slate-700"
+          />
+          <span className="text-slate-400">–</span>
+          <input
+            type="date"
+            name="to"
+            defaultValue={to}
+            aria-label={t.dateTo}
+            className="h-10 rounded-lg border border-slate-300 px-2 text-sm text-slate-700"
+          />
         </div>
 
         {/* ກອງຕາມສະຖານະ — ສະເພາະແທັບວຽກຄ້າງ */}
@@ -314,7 +363,7 @@ export default async function ServicePage({ searchParams }: Props) {
               <LinkPending />
             </Link>
             <Link
-              href={`/service?${new URLSearchParams({ view: "board", ...(q && { q }) })}`}
+              href={`/service?${new URLSearchParams({ view: "board", ...(q && { q }), from, to })}`}
               title={t.board}
               className={`inline-flex h-10 items-center gap-2 px-3 text-sm font-medium ${board_view ? "bg-slate-900 text-white" : "bg-white text-slate-600"}`}
             >

@@ -1,6 +1,6 @@
 import { guardApi } from "@/lib/api-guard";
 import { query } from "@/lib/db";
-import { CANCELLED_JOBS, DONE_JOBS, NOT_MISSING, OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
+import { CANCELLED_JOBS, DONE_JOBS, NOT_MISSING, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 import { respondXlsx, type XlsxRow } from "@/lib/xlsx";
 import type { NextRequest } from "next/server";
 
@@ -19,8 +19,9 @@ const SEARCH = `(a.code ilike $1 or a.sn ilike $1 or a.name_1 ilike $1 or a.p_br
   or a.issue ilike $1 or b.name_1 ilike $1 or b.tel ilike $1)`;
 
 const TAB_WHERE: Record<string, string> = {
-  // pending ຕັດ "ນັບບໍ່ພົບ (ຫາຍ)" ອອກ ໃຫ້ຕົງກັບໜ້າຄິວ /service (ຍ້ອນຄືນໄດ້)
-  pending: `${OPEN_JOBS} and ${NOT_MISSING}`,
+  // pending = ທະບຽນຮັບເຄື່ອງປະຈຳວັນ (ທຸກສະຖານະ, ກອງດ້ວຍວັນທີ່ຂ້າງລຸ່ມ) — ຕົງກັບໜ້າ /service.
+  // ຕັດແຕ່ "ນັບບໍ່ພົບ (ຫາຍ)" ອອກ (ຍ້ອນຄືນໄດ້)
+  pending: NOT_MISSING,
   done: DONE_JOBS,
   cancelled: CANCELLED_JOBS,
 };
@@ -41,19 +42,31 @@ export async function GET(request: NextRequest) {
     ? (params.get("tab") as string)
     : "pending";
   const q = (params.get("q") ?? "").trim();
-  const statusRaw = Number(params.get("status"));
-  const status = tab === "pending" && statusRaw >= 1 && statusRaw <= 11 ? statusRaw : null;
+  // ຂັ້ນ 0/-1 ເປັນ falsy ⇒ ກວດ "" ແຍກ ແລະ ໃຊ້ !== null (ຄືໜ້າ /service)
+  const statusText = (params.get("status") ?? "").trim();
+  const statusNum = Number(statusText);
+  const status =
+    tab === "pending" && statusText !== "" && Number.isInteger(statusNum) && statusNum >= -1 && statusNum <= 12
+      ? statusNum
+      : null;
   const service = ["CI", "ST", "IH", "PS"].includes(params.get("service") ?? "")
     ? (params.get("service") as string)
     : null;
 
   const where = [TAB_WHERE[tab]];
   const args: (string | number)[] = [];
+  // ຊ່ວງວັນທີ່ຮັບເຄື່ອງ — ຕົງກັບໜ້າຈໍ (ບໍ່ສົ່ງມາ = ບໍ່ກອງ ⇒ ລິ້ງເກົ່າຍັງໃຊ້ໄດ້)
+  const from = /^\d{4}-\d{2}-\d{2}$/.test(params.get("from") ?? "") ? params.get("from")! : null;
+  const to = /^\d{4}-\d{2}-\d{2}$/.test(params.get("to") ?? "") ? params.get("to")! : null;
+  if (tab === "pending" && from && to) {
+    args.push(from, to);
+    where.push(`a.time_register::date between $${args.length - 1} and $${args.length}`);
+  }
   if (q) {
     args.push(`%${q}%`);
     where.push(SEARCH.replaceAll("$1", `$${args.length}`));
   }
-  if (status) {
+  if (status !== null) {
     args.push(status);
     where.push(`(${STAGE_SQL}) = $${args.length}`);
   }

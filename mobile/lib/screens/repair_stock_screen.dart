@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../main.dart';
+import '../widgets/ui_kit.dart';
 
 /// browse ຄົງເຫຼືອ ສາງສ້ອມ (ສູນບໍລິການ 1104/1206) — scroll ເບິ່ງທຸກລາຍການ + ກອງ.
 /// ອ່ານຈາກ cache (ໄວ) · ຍອດເປັນ snapshot (refresh ຢູ່ເວັບ/cron).
@@ -52,8 +53,9 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('ຄົງເຫຼືອ ສາງສ້ອມ')),
+    return HeroScaffold(
+      title: 'ຄົງເຫຼືອ ສາງສ້ອມ',
+      onBack: () => Navigator.pop(context),
       body: Column(
         children: [
           Padding(

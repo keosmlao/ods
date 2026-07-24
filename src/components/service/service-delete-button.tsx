@@ -13,7 +13,7 @@ import { useState, useTransition } from "react";
  * ແລະ **ສະຕັອກ ERP ທີ່ຕັດໄປແລ້ວ ບໍ່ຄືນມາ** (ເບິ່ງ actions/service-delete.ts).
  * ບັງຄັບໃສ່ເຫດຜົນ — ມັນຖືກເກັບເປັນຫຼັກຖານໃສ່ chatter ຂອງລູກຄ້າ.
  */
-export function ServiceDeleteButton({ code }: { code: string }) {
+export function ServiceDeleteButton({ code, afterHref }: { code: string; afterHref?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
@@ -84,7 +84,10 @@ export function ServiceDeleteButton({ code }: { code: string }) {
                       return;
                     }
                     setOpen(false);
-                    router.refresh();
+                    // ຈາກໜ້າລາຍລະອຽດ (ໃບຫາຍໄປແລ້ວ) ຕ້ອງພາออกไป /service ບໍ່ດັ່ງນັ້ນ 404;
+                    // ຈາກຕາຕະລາງ refresh ພໍ (ແຖວທີ່ລຶບຫາຍໄປ).
+                    if (afterHref) router.push(afterHref);
+                    else router.refresh();
                   })
                 }
               >

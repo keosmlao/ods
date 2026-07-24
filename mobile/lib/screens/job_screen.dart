@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../main.dart';
+import '../widgets/ui_kit.dart';
 import 'check_screen.dart';
 import 'pickup_screen.dart';
 import 'repair_spare_screen.dart';
@@ -34,7 +35,40 @@ class _JobScreenState extends State<JobScreen> {
   bool busy = false;
   bool rejecting = false;
 
+  /// ຈຳນວນອາໄຫຼ່ທີ່ **ເບີກມາແລ້ວ ຍັງບໍ່ໄດ້ສົ່ງຄືນ** — ປຸ່ມ "ສົ່ງຄືນ" ຂຶ້ນສະເພາະເມື່ອ > 0
+  int outstandingSpares = 0;
+
+  /// ຮູບເກົ່າຂອງງານ (ຮັບເຄື່ອງ · ກວດເຊັກ · ສ້ອມສຳເລັດ) — ໂຫຼດຈາກ server
+  JobPhotos? gallery;
+
   final picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    loadOutstanding();
+    loadGallery();
+  }
+
+  /// ໂຫຼດຮູບເກົ່າຂອງງານ — ລົ້ມກໍ່ບໍ່ເປັນຫຍັງ (ພຽງບໍ່ສະແດງ)
+  Future<void> loadGallery() async {
+    try {
+      final sets = await Api.jobPhotos(job.workflow, job.code);
+      if (mounted) setState(() => gallery = sets);
+    } catch (_) {
+      // ບໍ່ໃຫ້ລົ້ມໜ້າງານ
+    }
+  }
+
+  /// ໂຫຼດຈຳນວນອາໄຫຼ່ຄ້າງນຳຊ່າງ — ລົ້ມກໍ່ບໍ່ເປັນຫຍັງ (ພຽງເຊື່ອງປຸ່ມ)
+  Future<void> loadOutstanding() async {
+    try {
+      final rows = await Api.outstandingSpares(job.workflow, job.code);
+      if (mounted) setState(() => outstandingSpares = rows.length);
+    } catch (_) {
+      // ບໍ່ໃຫ້ລົ້ມໜ້າງານ
+    }
+  }
 
   @override
   void dispose() {
@@ -54,6 +88,8 @@ class _JobScreenState extends State<JobScreen> {
       return;
     }
     setState(() => job = fresh.first);
+    loadOutstanding();
+    loadGallery();
   }
 
   Future<void> run(Map<String, dynamic> body, {bool pop = false}) async {
@@ -229,12 +265,15 @@ class _JobScreenState extends State<JobScreen> {
         (job.workflow == 'install' || job.onsite) && photos.isEmpty;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          '${job.workflow == 'install' ? 'ຕິດຕັ້ງ' : 'ສ້ອມແປງ'} · ${job.code}',
-        ),
-      ),
-      body: ListView(
+      backgroundColor: ground,
+      body: Column(
+        children: [
+          HeroHeader(
+            title: '${job.workflow == 'install' ? 'ຕິດຕັ້ງ' : 'ສ້ອມແປງ'} · ${job.code}',
+            onBack: () => Navigator.pop(context),
+          ),
+          Expanded(
+            child: ListView(
         padding: const EdgeInsets.all(12),
         children: [
           _WorkflowProgress(job: job),
@@ -284,18 +323,24 @@ class _JobScreenState extends State<JobScreen> {
               ),
               const SizedBox(height: 8),
               _row('ລູກຄ້າ', job.customer),
-              _row(
-                'ສິນຄ້າ',
-                [
-                  job.product,
-                  job.detail,
-                ].where((x) => (x ?? '').isNotEmpty).join(' · '),
-              ),
+              _row('ສິນຄ້າ', job.product),
+              if ((job.detail ?? '').trim().isNotEmpty)
+                _row('ຍີ່ຫໍ້/ລຸ້ນ', job.detail),
+              if ((job.sn ?? '').trim().isNotEmpty) _row('SN', job.sn),
+              if (job.workflow == 'repair' && (job.serviceType ?? '').isNotEmpty)
+                _row('ປະເພດ', _serviceLabel(job.serviceType)),
+              if ((job.warranty ?? '').trim().isNotEmpty)
+                _row('ຮັບປະກັນ', job.warranty),
               _row('ບ່ອນຢູ່', job.address),
               _row('ວັນນັດ', job.appointment),
-              // ມີພິກັດ ⇒ ນຳທາງໄປຈຸດທີ່ CS ປັກໝຸດໄວ້ (ບໍ່ຕ້ອງໂທຖາມທາງ)
-              if ((job.lat != null && job.lng != null) ||
-                  (job.address ?? '').trim().isNotEmpty) ...[
+              // ຮັບເຄື່ອງເມື່ອໃດ · ໃຊ້ເວລາລວມມາເທົ່າໃດ · ໃຜເປັນຄົນຮັບ
+              _row('ຮັບເຄື່ອງ', job.receivedAt),
+              _row('ເວລາທີ່ໃຊ້', job.totalLabel),
+              _row('ຜູ້ຮັບ', job.receiver),
+              // ນຳທາງ — ສະເພາະ **ສ້ອມນອກສະຖານທີ່** (onsite); ງານນຳເຄື່ອງເຂົ້າສູນບໍ່ຕ້ອງ
+              if (job.onsite &&
+                  ((job.lat != null && job.lng != null) ||
+                      (job.address ?? '').trim().isNotEmpty)) ...[
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.navigation_outlined, color: teal),
@@ -322,30 +367,82 @@ class _JobScreenState extends State<JobScreen> {
                 ── ສົ່ງຄືນອາໄຫຼ່ທີ່ບໍ່ໄດ້ໃຊ້ ──
                 ເມື່ອກ່ອນເຮັດໄດ້ແຕ່ຢູ່ເວັບ ⇒ ອາໄຫຼ່ຄ້າງຢູ່ນຳຊ່າງໂດຍບໍ່ມີເອກະສານ
                 (ງານທີ່ຍົກເລີກແລ້ວມີອາໄຫຼ່ 36 ແຖວ ທີ່ບໍ່ເຄີຍມີໃບສົ່ງຄືນຈັກໃບ).
+                ⚠️ ຂຶ້ນສະເພາະເມື່ອ **ມີອາໄຫຼ່ທີ່ເບີກມາແລ້ວ** ຄ້າງນຳຊ່າງ (outstandingSpares > 0).
               */
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.assignment_return, color: muted),
-                label: const Text(
-                  'ສົ່ງຄືນອາໄຫຼ່ທີ່ບໍ່ໄດ້ໃຊ້',
-                  style: TextStyle(color: muted),
-                ),
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => SpareReturnScreen(
-                        workflow: job.workflow,
-                        code: job.code,
+              if (outstandingSpares > 0) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.assignment_return, color: muted),
+                  label: Text(
+                    'ສົ່ງຄືນອາໄຫຼ່ທີ່ບໍ່ໄດ້ໃຊ້ ($outstandingSpares)',
+                    style: const TextStyle(color: muted),
+                  ),
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SpareReturnScreen(
+                          workflow: job.workflow,
+                          code: job.code,
+                        ),
                       ),
-                    ),
-                  );
-                  if (mounted) await reload();
-                },
-              ),
+                    );
+                    if (mounted) await reload();
+                  },
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 12),
+
+          // ── ຜົນກວດເຊັກ (ສະເພາະສ້ອມ · ຂຶ້ນຫຼັງຊ່າງວິເຄາະ) ──
+          if (job.workflow == 'repair' &&
+              (job.diagnosis ?? '').trim().isNotEmpty) ...[
+            _Card(
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.fact_check_outlined, size: 18, color: teal),
+                    SizedBox(width: 8),
+                    Text(
+                      'ຜົນກວດເຊັກ',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: ink,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if ((job.symptom ?? '').trim().isNotEmpty)
+                  _row('ອາການແຈ້ງ', job.symptom),
+                _row('ຜົນວິເຄາະ', job.diagnosis),
+                if ((job.warrantyReason ?? '').trim().isNotEmpty)
+                  _row('ໝົດປະກັນ', job.warrantyReason),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // ── ຮູບຂອງງານ (ຮັບເຄື່ອງ · ກວດເຊັກ · ສ້ອມສຳເລັດ) ──
+          if (gallery != null && !gallery!.isEmpty) ...[
+            _Card(
+              children: [
+                if (gallery!.receive.isNotEmpty)
+                  _photoRow('ຮູບຕອນຮັບເຄື່ອງ', Icons.inventory_2_outlined, gallery!.receive),
+                if (gallery!.check.isNotEmpty)
+                  _photoRow('ຮູບຕອນກວດເຊັກ', Icons.fact_check_outlined, gallery!.check),
+                if (gallery!.finish.isNotEmpty)
+                  _photoRow(
+                    job.workflow == 'install' ? 'ຮູບຕິດຕັ້ງສຳເລັດ' : 'ຮູບສ້ອມສຳເລັດ',
+                    Icons.verified_outlined,
+                    gallery!.finish,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
 
           /* ── ຂັ້ນຕອນ — ປຸ່ມມາຈາກ server ── */
           _Card(
@@ -392,7 +489,9 @@ class _JobScreenState extends State<JobScreen> {
               ],
 
               // ງານສ້ອມຂັ້ນ 1-2 = ກວດເຊັກ (ບໍ່ແມ່ນ "ເລີ່ມສ້ອມ" ຂອງຂັ້ນ 8)
+              // ⚠️ ຕ້ອງ **ຮັບງານກ່ອນ** ຈຶ່ງກວດເຊັກໄດ້ (job.accepted) — ບໍ່ໃຫ້ຂ້າມ "ຮັບງານ"
               if (job.workflow == 'repair' &&
+                  job.accepted &&
                   (job.stage == 1 || job.stage == 2))
                 _button(
                   job.stage == 1 && job.onsite && !job.hasCheckedIn
@@ -432,6 +531,7 @@ class _JobScreenState extends State<JobScreen> {
 
               // IH ໜ້າງານ ສ້ອມບໍ່ໄດ້ ⇒ ນຳເຂົ້າສູນ (ແປງເປັນ PS) — ມີແຕ່ຕອນກຳລັງກວດ (ຂັ້ນ 1/2)
               if (job.workflow == 'repair' &&
+                  job.accepted &&
                   job.serviceType == 'IH' &&
                   (job.stage == 1 || job.stage == 2)) ...[
                 const SizedBox(height: 8),
@@ -677,8 +777,20 @@ class _JobScreenState extends State<JobScreen> {
           ],
         ],
       ),
+          ),
+        ],
+      ),
     );
   }
+
+  /// ປ້າຍປະເພດບໍລິການ (CI/ST/IH/PS)
+  String _serviceLabel(String? t) => switch (t) {
+    'CI' => 'ນຳເຂົ້າສູນ (CI)',
+    'ST' => 'ສ້ອມໜ້າງານ (ST)',
+    'IH' => 'ສ້ອມເຖິງບ້ານ (IH)',
+    'PS' => 'ບຳລຸງຮັກສາ (PS)',
+    _ => t ?? '-',
+  };
 
   Widget _row(String label, String? value) {
     if (value == null || value.isEmpty) return const SizedBox.shrink();
@@ -708,6 +820,76 @@ class _JobScreenState extends State<JobScreen> {
       ),
     );
   }
+
+  /// ແຖວຮູບໜຶ່ງໝວດ (ຮັບເຄື່ອງ / ກວດເຊັກ / ສ້ອມສຳເລັດ) — ແຕະເພື່ອຂະຫຍາຍ
+  Widget _photoRow(String label, IconData icon, List<String> items) => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 17, color: teal),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: ink,
+                fontSize: 13.5,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '(${items.length})',
+              style: const TextStyle(color: faint, fontSize: 12),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final img in items)
+              GestureDetector(
+                onTap: () => showDialog<void>(
+                  context: context,
+                  builder: (_) => Dialog(
+                    child: Stack(
+                      children: [
+                        InteractiveViewer(
+                          child: Image.memory(base64Decode(img.split(',').last)),
+                        ),
+                        Positioned(
+                          right: 4,
+                          top: 4,
+                          child: IconButton.filled(
+                            tooltip: 'ປິດ',
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.memory(
+                    base64Decode(img.split(',').last),
+                    width: 76,
+                    height: 76,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+      ],
+    ),
+  );
 
   Widget _button(String label, Color color, VoidCallback? onPressed) {
     return FilledButton(

@@ -34,8 +34,21 @@ function Ticker({ from, className }: { from: number; className: string }) {
   );
 }
 
-export function Elapsed({ seconds, className = "" }: { seconds: number | null; className?: string }) {
+/**
+ * `live=false` = **ຄ່າຄົງທີ່** (ຂັ້ນທີ່ຜ່ານໄປແລ້ວ) ⇒ ບໍ່ເດີນ.
+ * ຂັ້ນທີ່ຈົບໄປແລ້ວແຕ່ຕົວເລກຍັງແລ່ນ ເຮັດໃຫ້ອ່ານຜິດວ່າມັນຍັງຄ້າງຢູ່.
+ */
+export function Elapsed({
+  seconds,
+  className = "",
+  live = true,
+}: {
+  seconds: number | null;
+  className?: string;
+  live?: boolean;
+}) {
   if (seconds == null) return <span className={className}>-</span>;
+  if (!live) return <span className={`tabular-nums ${className}`}>{format(seconds)}</span>;
   // key = ຄ່າຈາກ server → ໂຫຼດຂໍ້ມູນໃໝ່ແລ້ວຕົວນັບເລີ່ມຈາກຄ່າໃໝ່
   return <Ticker key={seconds} from={seconds} className={className} />;
 }

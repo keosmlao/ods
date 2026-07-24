@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../main.dart';
+import '../widgets/ui_kit.dart';
 import 'login_screen.dart';
 
 /// **ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ** — ໜ້າຫຼັກຂອງຄົນທີ່ບໍ່ແມ່ນຊ່າງ.
@@ -203,17 +204,15 @@ class _StockCountScreenState extends State<StockCountScreen> {
         : items.where((j) => (j.serviceType ?? '-') == _type).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ກວດນັບສະຕ໋ອກ'),
-        actions: [
-          IconButton(
-            onPressed: _logout,
-            icon: const Icon(Icons.logout),
-            tooltip: 'ອອກ',
+      backgroundColor: ground,
+      body: Column(
+        children: [
+          HeroHeader(
+            title: 'ກວດນັບສະຕ໋ອກ',
+            trailing: [HeroIconButton(icon: Icons.logout, onTap: _logout)],
           ),
-        ],
-      ),
-      body: _error != null
+          Expanded(
+            child: _error != null
           ? _ErrorView(message: _error!, onRetry: _load)
           : _items == null
           ? const Center(child: CircularProgressIndicator())
@@ -356,6 +355,9 @@ class _StockCountScreenState extends State<StockCountScreen> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
     );
   }
 }

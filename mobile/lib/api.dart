@@ -15,7 +15,7 @@ import 'package:http/http.dart' as http;
 class Api {
   static const defaultBaseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'https://service.odien.net',
+    defaultValue: 'https://ods.odienmall.com',
   );
 
   static const _storage = FlutterSecureStorage();
@@ -38,6 +38,7 @@ class Api {
     _sessionToken = null;
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _homeKey);
+    await _storage.delete(key: _navKey);
   }
 
   // ໜ້າຕັ້ງຕົ້ນ (jobs/stock-count) — ເກັບໄວ້ໃຫ້ _Gate route ຖືກຕອນເປີດແອັບຄືນ
@@ -46,6 +47,28 @@ class Api {
       (await _storage.read(key: _homeKey)) ?? 'jobs';
   static Future<void> saveHome(String value) =>
       _storage.write(key: _homeKey, value: value);
+
+  // ແຖບລຸ່ມ (ສ່ວນງານ) ຕາມ role — server ສົ່ງມາຕອນ login, ເກັບໄວ້ໃຫ້ _Gate
+  // ປະກອບແອັບຄືນຕອນເປີດໃໝ່ໂດຍບໍ່ຕ້ອງ login ຄືນ (token ອາຍຸ 30 ມື້).
+  static const _navKey = 'odss_nav';
+  static Future<List<NavTab>> savedTabs() async {
+    final raw = await _storage.read(key: _navKey);
+    if (raw == null || raw.isEmpty) {
+      // ແອັບອັບເດດ ແຕ່ token ເກົ່າຍັງຄ້າງ (ບໍ່ມີ manifest) — ອະນຸມານຈາກ home ເກົ່າ
+      final home = await savedHome();
+      return [
+        NavTab(key: home, label: home == 'stock-count' ? 'ກວດນັບ' : 'ວຽກ'),
+      ];
+    }
+    return (jsonDecode(raw) as List)
+        .map((row) => NavTab.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<void> saveTabs(List<NavTab> tabs) => _storage.write(
+    key: _navKey,
+    value: jsonEncode(tabs.map((t) => t.toJson()).toList()),
+  );
 
   static Future<String> serverUrl() async =>
       (await _storage.read(key: _serverKey)) ?? defaultBaseUrl;
@@ -151,6 +174,7 @@ class Api {
     await saveToken(result['token'] as String, remember: remember);
     final user = MobileUser.fromJson(result['user'] as Map<String, dynamic>);
     await saveHome(user.home);
+    await saveTabs(user.tabs);
     return user;
   }
 
@@ -189,6 +213,12 @@ class Api {
     return result['message'] as String;
   }
 
+  /// ຮູບຂອງງານ: ຕອນຮັບເຄື່ອງ · ຕອນກວດເຊັກ · ຕອນສ້ອມ/ຕິດຕັ້ງສຳເລັດ (data-URI base64 ທັງໝົດ)
+  static Future<JobPhotos> jobPhotos(String workflow, String code) async {
+    final result = await _send('GET', '/api/mobile/jobs/$workflow/$code');
+    return JobPhotos.fromJson(result['photos'] as Map<String, dynamic>);
+  }
+
   static Future<List<SpareItem>> searchSpares(
     String query, {
     bool inStock = true,
@@ -199,6 +229,17 @@ class Api {
     );
     return (result['items'] as List)
         .map((row) => SpareItem.fromJson(row))
+        .toList();
+  }
+
+  /// ຜູ້ຊ່ວຍ AI — ແນະນຳອາໄຫຼ່ຕາມຮຸ່ນເຄື່ອງ (ຈາກປະຫວັດການເບີກ)
+  static Future<List<SpareSuggestion>> suggestSpares(String code) async {
+    final result = await _send(
+      'GET',
+      '/api/mobile/suggest?code=${Uri.encodeQueryComponent(code)}',
+    );
+    return (result['spares'] as List)
+        .map((row) => SpareSuggestion.fromJson(row))
         .toList();
   }
 
@@ -413,6 +454,11 @@ class Api {
     '/api/mobile/push-token?token=${Uri.encodeQueryComponent(token)}',
   );
 
+  /* ── ພາບລວມຜູ້ຈັດການ (ໜ້າຫຼັກ manager) ───────────────────────── */
+
+  static Future<Overview> overview() async =>
+      Overview.fromJson(await _send('GET', '/api/mobile/overview'));
+
   /* ── ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ (ບໍ່ແມ່ນຊ່າງ) ────────────────────── */
 
   static Future<StockCount> stockCount() async {
@@ -446,18 +492,35 @@ class ApiError implements Exception {
 
 /* ── ຊະນິດຂໍ້ມູນ ─────────────────────────────────────────────────── */
 
+/// 1 tab ຂອງແຖບລຸ່ມ — key ກົງກັບໜ້າຈໍ (ເບິ່ງ NavHost) · label ສະແດງໃຕ້ icon.
+/// server ຕັດສິນ (src/lib/mobile-nav.ts) ⇒ ແອັບບໍ່ຄິດ tab ເອງ.
+class NavTab {
+  final String key;
+  final String label;
+  NavTab({required this.key, required this.label});
+
+  factory NavTab.fromJson(Map<String, dynamic> json) =>
+      NavTab(key: json['key'] as String, label: json['label'] as String? ?? '');
+
+  Map<String, dynamic> toJson() => {'key': key, 'label': label};
+}
+
 class MobileUser {
   final String username;
   final String role;
   final String roleLabel;
 
-  /// ໜ້າຕັ້ງຕົ້ນທີ່ server ບອກ: 'jobs' (ຊ່າງ) ຫຼື 'stock-count' (ບໍ່ແມ່ນຊ່າງ)
+  /// ໜ້າຕັ້ງຕົ້ນທີ່ server ບອກ = key ຂອງ tab ທຳອິດ (ເຊັ່ນ 'jobs' / 'stock-count')
   final String home;
+
+  /// ແຖບລຸ່ມຕາມ role — ສ່ວນງານທີ່ຄົນນີ້ໃຊ້ໄດ້ (ຢ່າງໜ້ອຍ 1 tab)
+  final List<NavTab> tabs;
   MobileUser({
     required this.username,
     required this.role,
     required this.roleLabel,
     required this.home,
+    required this.tabs,
   });
 
   factory MobileUser.fromJson(Map<String, dynamic> json) => MobileUser(
@@ -465,7 +528,126 @@ class MobileUser {
     role: json['role'] as String,
     roleLabel: json['role_label'] as String? ?? '',
     home: json['home'] as String? ?? 'jobs',
+    tabs: ((json['tabs'] as List?) ?? [])
+        .map((row) => NavTab.fromJson(row as Map<String, dynamic>))
+        .toList(),
   );
+}
+
+/// ຂັ້ນໜຶ່ງໃນ funnel ງານສ້ອມ (ພາບລວມ)
+class OverviewStage {
+  final String key;
+  final String label;
+  final int count;
+  OverviewStage({required this.key, required this.label, required this.count});
+  factory OverviewStage.fromJson(Map<String, dynamic> json) => OverviewStage(
+    key: json['key'] as String,
+    label: json['label'] as String? ?? '',
+    count: (json['count'] as num?)?.toInt() ?? 0,
+  );
+}
+
+/// ພາລະງານຂອງຊ່າງ 1 ຄົນ (ພາບລວມ)
+class OverviewTech {
+  final String tech;
+  final int jobs;
+  final int oldestSeconds;
+  OverviewTech({
+    required this.tech,
+    required this.jobs,
+    required this.oldestSeconds,
+  });
+  factory OverviewTech.fromJson(Map<String, dynamic> json) => OverviewTech(
+    tech: json['tech'] as String? ?? '-',
+    jobs: (json['jobs'] as num?)?.toInt() ?? 0,
+    oldestSeconds: (json['oldest_seconds'] as num?)?.toInt() ?? 0,
+  );
+}
+
+/// ພາບລວມບໍລິຫານ (ໜ້າຫຼັກຜູ້ຈັດການ) — ຫຍໍ້ຈາກ dashboard ຝັ່ງເວັບ
+class Overview {
+  final int repairOpen;
+  final int installOpen;
+  final int overSla;
+  final int approvalsTotal;
+  final int aQuotes;
+  final int aCustomer;
+  final int aPurchases;
+  final int aCancels;
+  final int slaWarning;
+  final int slaLate;
+  final int slaCritical;
+  final int todayAppointments;
+  final int todayChecking;
+  final int todayRepairing;
+  final int unassignedRepair;
+  final int unassignedInstall;
+  final List<OverviewStage> pipeline;
+  final List<OverviewTech> techLoad;
+  final double? feedbackAvg;
+  final int feedbackJobs;
+  final int feedbackUnhappy;
+
+  Overview({
+    required this.repairOpen,
+    required this.installOpen,
+    required this.overSla,
+    required this.approvalsTotal,
+    required this.aQuotes,
+    required this.aCustomer,
+    required this.aPurchases,
+    required this.aCancels,
+    required this.slaWarning,
+    required this.slaLate,
+    required this.slaCritical,
+    required this.todayAppointments,
+    required this.todayChecking,
+    required this.todayRepairing,
+    required this.unassignedRepair,
+    required this.unassignedInstall,
+    required this.pipeline,
+    required this.techLoad,
+    required this.feedbackAvg,
+    required this.feedbackJobs,
+    required this.feedbackUnhappy,
+  });
+
+  factory Overview.fromJson(Map<String, dynamic> json) {
+    final kpi = (json['kpi'] as Map?)?.cast<String, dynamic>() ?? {};
+    final ap = (json['approvals'] as Map?)?.cast<String, dynamic>() ?? {};
+    final sla = (json['sla'] as Map?)?.cast<String, dynamic>() ?? {};
+    final today = (json['today'] as Map?)?.cast<String, dynamic>() ?? {};
+    final un = (json['unassigned'] as Map?)?.cast<String, dynamic>() ?? {};
+    final fb = (json['feedback'] as Map?)?.cast<String, dynamic>() ?? {};
+    int n(Map<String, dynamic> m, String k) => (m[k] as num?)?.toInt() ?? 0;
+    return Overview(
+      repairOpen: n(kpi, 'repair_open'),
+      installOpen: n(kpi, 'install_open'),
+      overSla: n(kpi, 'over_sla'),
+      approvalsTotal: n(kpi, 'approvals'),
+      aQuotes: n(ap, 'quotes'),
+      aCustomer: n(ap, 'customer'),
+      aPurchases: n(ap, 'purchases'),
+      aCancels: n(ap, 'cancels'),
+      slaWarning: n(sla, 'warning'),
+      slaLate: n(sla, 'late'),
+      slaCritical: n(sla, 'critical'),
+      todayAppointments: n(today, 'appointments'),
+      todayChecking: n(today, 'checking'),
+      todayRepairing: n(today, 'repairing'),
+      unassignedRepair: n(un, 'repair'),
+      unassignedInstall: n(un, 'install'),
+      pipeline: ((json['pipeline'] as List?) ?? [])
+          .map((row) => OverviewStage.fromJson(row as Map<String, dynamic>))
+          .toList(),
+      techLoad: ((json['tech_load'] as List?) ?? [])
+          .map((row) => OverviewTech.fromJson(row as Map<String, dynamic>))
+          .toList(),
+      feedbackAvg: (fb['avg'] as num?)?.toDouble(),
+      feedbackJobs: n(fb, 'jobs'),
+      feedbackUnhappy: n(fb, 'unhappy'),
+    );
+  }
 }
 
 /// ລາຍການກວດນັບ + ສະຖານະ setting
@@ -510,6 +692,29 @@ class StockItem {
   );
 }
 
+/// ຊຸດຮູບຂອງງານ — ທຸກຮູບເປັນ data-URI base64 (render ດ້ວຍ Image.memory)
+class JobPhotos {
+  final List<String> receive; // ຕອນຮັບເຄື່ອງ
+  final List<String> check; // ຕອນກວດເຊັກ
+  final List<String> finish; // ຕອນສ້ອມ/ຕິດຕັ້ງສຳເລັດ
+  const JobPhotos({
+    required this.receive,
+    required this.check,
+    required this.finish,
+  });
+
+  bool get isEmpty => receive.isEmpty && check.isEmpty && finish.isEmpty;
+
+  static List<String> _list(dynamic v) =>
+      (v as List?)?.map((e) => e as String).toList() ?? const [];
+
+  factory JobPhotos.fromJson(Map<String, dynamic> json) => JobPhotos(
+    receive: _list(json['receive']),
+    check: _list(json['check']),
+    finish: _list(json['finish']),
+  );
+}
+
 class Job {
   final String workflow;
   final String code;
@@ -518,12 +723,24 @@ class Job {
   final String? address;
   final String? product;
   final String? detail;
+  // ── ລາຍລະອຽດສິນຄ້າ (ສະເພາະສ້ອມ) ──
+  final String? sn; // serial number
+  final String? warranty; // ສະຖານະຮັບປະກັນ (ຮັບປະກັນ / ໝົດຮັບປະກັນ)
+  // ── ຜົນກວດເຊັກ (ສະເພາະສ້ອມ) ──
+  final String? symptom; // ອາການທີ່ລູກຄ້າແຈ້ງ
+  final String? diagnosis; // ຜົນວິເຄາະຂອງຊ່າງ
+  final String? warrantyReason; // ເຫດຜົນເມື່ອໝົດຮັບປະກັນ
   final bool onsite;
   /// ປະເພດບໍລິການສ້ອມ (CI/ST/IH/PS) — null ຝັ່ງຕິດຕັ້ງ. IH = ໄປສ້ອມບ້ານ ⇒ ນຳເຂົ້າສູນໄດ້
   final String? serviceType;
   final int stage;
   final String stageLabel;
   final int elapsedSeconds;
+
+  /// ວັນ-ເວລາຮັບເຄື່ອງເຂົ້າ · ວິນາທີລວມນັບແຕ່ຮັບເຄື່ອງ · ຜູ້ຮັບເຄື່ອງ
+  final String? receivedAt;
+  final int? totalSeconds;
+  final String? receiver;
   final String? appointment;
 
   /// ປຸ່ມທີ່ຊ່າງກົດໄດ້ດຽວນີ້ — **server ຄິດໃຫ້** (accept/start/finish/wait_spare/wait_other)
@@ -551,11 +768,19 @@ class Job {
     required this.address,
     required this.product,
     required this.detail,
+    this.sn,
+    this.warranty,
+    this.symptom,
+    this.diagnosis,
+    this.warrantyReason,
     required this.onsite,
     this.serviceType,
     required this.stage,
     required this.stageLabel,
     required this.elapsedSeconds,
+    this.receivedAt,
+    this.totalSeconds,
+    this.receiver,
     required this.appointment,
     required this.action,
     required this.checkedIn,
@@ -577,11 +802,19 @@ class Job {
     address: json['address'] as String?,
     product: json['product'] as String?,
     detail: json['detail'] as String?,
+    sn: json['sn'] as String?,
+    warranty: json['warranty'] as String?,
+    symptom: json['symptom'] as String?,
+    diagnosis: json['diagnosis'] as String?,
+    warrantyReason: json['warranty_reason'] as String?,
     onsite: json['onsite'] as bool? ?? false,
     serviceType: json['service_type'] as String?,
     stage: (json['stage'] as num).toInt(),
     stageLabel: json['stage_label'] as String? ?? '-',
     elapsedSeconds: (json['elapsed_seconds'] as num?)?.toInt() ?? 0,
+    receivedAt: json['received_at'] as String?,
+    totalSeconds: (json['total_seconds'] as num?)?.toInt(),
+    receiver: json['receiver'] as String?,
     appointment: json['appointment'] as String?,
     action: json['action'] as String? ?? 'wait_other',
     checkedIn: json['checked_in'] as bool? ?? false,
@@ -611,6 +844,18 @@ class Job {
   bool get slaSoon => slaLeft != null && slaLeft! >= 0 && slaLeft! < 6 * 3600;
 
   int get days => elapsedSeconds ~/ 86400;
+
+  /// ເວລາທີ່ໃຊ້ **ລວມ** ນັບແຕ່ຮັບເຄື່ອງເຂົ້າ — "3 ມື້ 5 ຊມ" · "5 ຊມ 20 ນທ"
+  String? get totalLabel {
+    final total = totalSeconds;
+    if (total == null) return null;
+    final days = total ~/ 86400;
+    final hours = (total % 86400) ~/ 3600;
+    final minutes = (total % 3600) ~/ 60;
+    if (days > 0) return '$days ມື້ $hours ຊມ';
+    if (hours > 0) return '$hours ຊມ $minutes ນທ';
+    return '$minutes ນທ';
+  }
 }
 
 class DraftLine {
@@ -700,6 +945,42 @@ class StockBalanceItem {
     warehouses: ((json['warehouses'] as List?) ?? [])
         .map((row) => WhBalance.fromJson(row))
         .toList(),
+  );
+}
+
+/// ອາໄຫຼ່ທີ່ AI ແນະນຳ (ຈາກປະຫວັດການເບີກ ຮຸ່ນເຄື່ອງດຽວກັນ)
+class SpareSuggestion {
+  final String code;
+  final String name;
+  final String? unitCode;
+  final int balance;
+  final int uses;
+  final int confidence; // 0–100
+
+  SpareSuggestion({
+    required this.code,
+    required this.name,
+    required this.unitCode,
+    required this.balance,
+    required this.uses,
+    required this.confidence,
+  });
+
+  factory SpareSuggestion.fromJson(Map<String, dynamic> json) => SpareSuggestion(
+    code: json['code'] as String,
+    name: json['name'] as String? ?? json['code'] as String,
+    unitCode: json['unit_code'] as String?,
+    balance: (json['balance'] as num?)?.toInt() ?? 0,
+    uses: (json['uses'] as num?)?.toInt() ?? 0,
+    confidence: (json['confidence'] as num?)?.toInt() ?? 0,
+  );
+
+  /// ແປງເປັນ SpareItem ເພື່ອສົ່ງ add_spare (check screen ໃຊ້ໂຄງดียวกัน)
+  SpareItem toItem() => SpareItem(
+    code: code,
+    name: name,
+    unitCode: unitCode,
+    balance: balance,
   );
 }
 

@@ -36,13 +36,27 @@ export type MobileJob = {
   address: string | null;
   product: string | null;
   detail: string | null;
+  /** ລາຍລະອຽດສິນຄ້າ (ສະເພາະສ້ອມ): serial no · ສະຖານະຮັບປະກັນ */
+  sn: string | null;
+  warranty: string | null;
+  /** ຜົນກວດເຊັກ (ສະເພາະສ້ອມ): ອາການລູກຄ້າແຈ້ງ · ຜົນວິເຄາະຊ່າງ · ເຫດຜົນໝົດປະກັນ */
+  symptom: string | null;
+  diagnosis: string | null;
+  warranty_reason: string | null;
   /** ງານນອກສະຖານທີ່ບໍ — ຕິດຕັ້ງແມ່ນສະເໝີ · ສ້ອມແມ່ນຕາມ service_type */
   onsite: boolean;
   /** ປະເພດບໍລິການສ້ອມ (CI/ST/IH/PS) — null ຝັ່ງຕິດຕັ້ງ. ໃຊ້ໃຫ້ແອັບຮູ້ IH (ນຳເຂົ້າສູນໄດ້) */
   service_type: string | null;
   stage: number;
   stage_label: string;
+  /** ວິນາທີທີ່ຄ້າງຢູ່ **ຂັ້ນປັດຈຸບັນ** */
   elapsed_seconds: number;
+  /** ວັນ-ເວລາທີ່ຮັບເຄື່ອງເຂົ້າ (ເປີດໃບ) */
+  received_at: string | null;
+  /** ວິນາທີ **ລວມ** ນັບແຕ່ຮັບເຄື່ອງເຂົ້າ — ບອກອາຍຸງານທັງໝົດ ບໍ່ແມ່ນແຕ່ຂັ້ນປັດຈຸບັນ */
+  total_seconds: number | null;
+  /** ຜູ້ຮັບເຄື່ອງ (ຄົນທີ່ເປີດໃບ) */
+  receiver: string | null;
   appointment: string | null;
   action: MobileAction;
   accepted: boolean;
@@ -114,11 +128,16 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         c.name_1 as customer, c.tel, coalesce(nullif(a.location_inst,''), c.address) as address,
         a.item_name as product,
         concat_ws(' ', a.pro_brand, a.pro_model) as detail,
+        null as sn, null as warranty,
+        null as symptom, null as diagnosis, null as warranty_reason,
         true as onsite,
         null as service_type,
         (${INSTALL_STAGE_SQL}) as stage,
         (${INSTALL_STAGE_LABEL_SQL}) as stage_label,
         ${INSTALL_ELAPSED_SQL} as elapsed_seconds,
+        to_char(a.time_register,'DD-MM-YYYY HH24:MI') as received_at,
+        extract(epoch from localtimestamp - a.time_register)::double precision as total_seconds,
+        nullif(a.user_created,'') as receiver,
         to_char(a.appoint_date,'DD-MM-YYYY') as appointment,
         (${INSTALL_ACTION}) as action,
         a.tech_confirm is not null as accepted,
@@ -145,11 +164,16 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         b.name_1 as customer, b.tel, coalesce(nullif(a.location_repair,''), b.address) as address,
         a.name_1 as product,
         concat_ws(' ', a.p_brand, a.p_model) as detail,
+        a.sn as sn, a.warrunty as warranty,
+        a.issue as symptom, a.issue_2 as diagnosis, a.warranty_reason as warranty_reason,
         (${REPAIR_ONSITE}) as onsite,
         a.service_type as service_type,
         (${STAGE_SQL}) as stage,
         (${STAGE_LABEL_SQL}) as stage_label,
         ${STAGE_ELAPSED_SQL} as elapsed_seconds,
+        to_char(a.time_register,'DD-MM-YYYY HH24:MI') as received_at,
+        extract(epoch from localtimestamp - a.time_register)::double precision as total_seconds,
+        nullif(a.user_regis,'') as receiver,
         to_char(a.appoint_date,'DD-MM-YYYY') as appointment,
         (${REPAIR_ACTION}) as action,
         a.repair_confirm is not null as accepted,

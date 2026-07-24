@@ -124,9 +124,7 @@ export async function saveQcFlow(session: Session, input: SaveQcInput): Promise<
     if (answer.photo && answer.photo.length > MAX_PHOTO_CHARS) {
       return { ok: false, error: `ຮູບຂອງ "${item.name}" ໃຫຍ່ເກີນໄປ — ກະລຸນາຖ່າຍໃໝ່` };
     }
-    if (item.require_photo && answer.passed && !answer.photo) {
-      return { ok: false, error: `"${item.name}" ຕ້ອງແນບຮູບ` };
-    }
+    // ຮູບ QC = ທາງເລືອກ (ບໍ່ບັງຄັບ) — ຖ່າຍໄດ້ ຫຼື ບໍ່ຖ່າຍກໍ່ຜ່ານໄດ້
   }
   if (input.answers.length !== items.length) return { ok: false, error: "ຕ້ອງກວດໃຫ້ຄົບທຸກຂໍ້" };
 

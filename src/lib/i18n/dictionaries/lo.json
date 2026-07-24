@@ -44,7 +44,8 @@
     "/activities": "ກິດຈະກຳຂອງຂ້ອຍ",
     "/notifications": "ການແຈ້ງເຕືອນ",
     "/manual": "ຄູ່ມືການໃຊ້ງານ",
-    "/service": "ລາຍການຮັບສິນຄ້າເຂົ້າສ້ອມ",
+    "/service": "ຮັບສິນຄ້າສ້ອມປະຈຳວັນ",
+    "/returns/completed": "ລາຍການສົ່ງຄືນສຳເລັດ",
     "/repair": "ສ້ອມແປງ",
     "/checking": "ກວດເຊັກ",
     "/dashboard/status/repair/wait-withdraw": "ຂໍເບີກອາໄຫຼ່",
@@ -256,7 +257,7 @@
     "prev": "ກ່ອນໜ້າ",
     "next": "ຕໍ່ໄປ",
     "last": "ສຸດທ້າຍ",
-    "title": "ລາຍການຮັບສິນຄ້າເຂົ້າສ້ອມ",
+    "title": "ຮັບສິນຄ້າສ້ອມປະຈຳວັນ",
     "pendingJobs": "ວຽກທີ່ຍັງຄ້າງ",
     "unit": "ໃບ",
     "page": "ໜ້າ",
@@ -268,7 +269,11 @@
     "allServiceTypes": "ທຸກປະເພດບໍລິການ",
     "search": "ຄົ້ນຫາ",
     "table": "ຕາຕະລາງ",
-    "board": "ກະດານ"
+    "board": "ກະດານ",
+    "dateFrom": "ຈາກວັນທີ່",
+    "dateTo": "ຫາວັນທີ່",
+    "receivedOn": "ຮັບເຂົ້າ",
+    "receivedTo": "ຫາ"
   },
   "repair": {
     "colCode": "ເລກທີ",

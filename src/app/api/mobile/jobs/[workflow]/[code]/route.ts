@@ -7,6 +7,7 @@ import {
   checkOut,
   finishInstallFlow,
   finishRepairFlow,
+  jobPhotoSets,
   ownMobileJob,
   rejectJob,
   startInstallFlow,
@@ -34,6 +35,31 @@ type Body = {
   /** ຮູບຜົນງານຕອນຈົບງານ — ບັງຄັບຝັ່ງຕິດຕັ້ງ (ເບິ່ງ lib/job-flow) */
   photos?: string[];
 };
+
+/**
+ * ຮູບຂອງງານ (ຕອນຮັບເຄື່ອງ · ຕອນກວດເຊັກ · ຕອນສ້ອມ/ຕິດຕັ້ງສຳເລັດ) — ໃຫ້ໜ້າລາຍລະອຽດແອັບສະແດງ.
+ * ຮູບເປັນ data-URI base64 ທັງໝົດ (ຮັບເຄື່ອງອ່ານຈາກໄຟລ໌ແປງໃຫ້) ⇒ ແອັບ render ດ້ວຍ Image.memory ທາງດຽວ.
+ */
+export async function GET(request: Request, context: { params: Promise<{ workflow: string; code: string }> }) {
+  const guard = await requireMobile(request, TECH_SIDE);
+  if (!guard.ok) return guard.response;
+
+  const { workflow: raw, code } = await context.params;
+  if (raw !== "install" && raw !== "repair") {
+    return NextResponse.json({ error: "ສາຍງານບໍ່ຖືກຕ້ອງ" }, { status: 400 });
+  }
+  const workflow = raw as Workflow;
+
+  const ownership = await ownMobileJob(guard.user, workflow, code);
+  if (!ownership.ok) return NextResponse.json({ error: ownership.error }, { status: 403 });
+
+  try {
+    return NextResponse.json({ photos: await jobPhotoSets(workflow, code) });
+  } catch (error) {
+    console.error("Mobile job photos failed", error);
+    return NextResponse.json({ error: "ໂຫຼດຮູບບໍ່ສຳເລັດ" }, { status: 500 });
+  }
+}
 
 export async function POST(request: Request, context: { params: Promise<{ workflow: string; code: string }> }) {
   const guard = await requireMobile(request, TECH_SIDE);

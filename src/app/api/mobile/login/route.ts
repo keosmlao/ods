@@ -1,15 +1,9 @@
 import { verifyCredentials } from "@/lib/credentials";
 import { recordLogin } from "@/lib/login-log";
 import { createMobileToken } from "@/lib/mobile-auth";
+import { mobileTabsFor } from "@/lib/mobile-nav";
 import { ROLE_LABEL, roleOf } from "@/lib/roles";
 import { NextResponse } from "next/server";
-
-/**
- * "ຊ່າງ" ຂອງແອັບ = ຊ່າງພາກສະໜາມທີ່ມີຄິວວຽກຕົນ (technical · headtechnical).
- * ⚠️ manager ຢູ່ໃນ TECH_SIDE ຝັ່ງເວັບ (ເຫັນວຽກຊ່າງໄດ້) ແຕ່ **ບໍ່ແມ່ນຊ່າງ** ⇒ ບໍ່ໃຊ້ TECH_SIDE ທີ່ນີ້.
- * ຊ່າງ → ຄິວວຽກ · ບໍ່ແມ່ນຊ່າງ (manager/CS/ສາງ/ຂາຍ/ທົ່ວໄປ) → ກວດນັບສະຕ໋ອກ.
- */
-const FIELD_TECH = new Set(["technical", "headtechnical"]);
 
 /**
  * ເຂົ້າສູ່ລະບົບຈາກແອັບມືຖື — ລະຫັດພະນັກງານ (ຫຼື ຊື່ຫຼິ້ນ/ຊື່ເຕັມ) + ລະຫັດຜ່ານ.
@@ -32,11 +26,12 @@ export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || null;
     await recordLogin(result.session.username, "mobile", ip, request.headers.get("user-agent"));
     // ພະນັກງານ ACTIVE ທຸກຄົນໃຊ້ແອັບໄດ້ (verifyCredentials ກັນຄົນປິດບັນຊີແລ້ວ) —
-    // ຊ່າງ → ຄິວວຽກ · ບໍ່ແມ່ນຊ່າງ → ໜ້າກວດນັບສະຕ໋ອກ
-    const home = FIELD_TECH.has(role) ? "jobs" : "stock-count";
+    // ແຖບລຸ່ມ (ສ່ວນງານ) ຕາມ role · tab ທຳອິດ = ໜ້າຕັ້ງຕົ້ນ (home)
+    const tabs = mobileTabsFor(role);
+    const home = tabs[0].key;
     return NextResponse.json({
       token: await createMobileToken(result.session),
-      user: { username: result.session.username, role, role_label: ROLE_LABEL[role], home },
+      user: { username: result.session.username, role, role_label: ROLE_LABEL[role], home, tabs },
     });
   } catch (error) {
     console.error("Mobile login failed", error);

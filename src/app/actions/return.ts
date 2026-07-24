@@ -177,14 +177,14 @@ export async function seedCart(productCode: string, warranty: string | null, use
     // ກໍ່ບໍ່ຖືກຕື່ມຊ້ຳ.
     await db.query(
       `insert into ic_trans_detail_draft(trans_flag, product_code, item_code, item_name, qty, unit_code, price, sum_amount, row_ref, user_created)
-       select $1, $2, t.item_code, t.item_name, coalesce(t.qty,0), t.unit_code,
+       select $1, $2::varchar, t.item_code, t.item_name, coalesce(t.qty,0), t.unit_code,
               coalesce(t.price,0), coalesce(t.sum_amount, coalesce(t.price,0)*coalesce(t.qty,0)),
               t.roworder, $4::varchar
        from ic_trans_detail t
        where t.doc_no = $3 and t.trans_flag = 17 and t.item_code is not null
          and not exists (
            select 1 from ic_trans_detail_draft d
-           where d.trans_flag = $1 and d.product_code = $2 and d.user_created = $4::varchar
+           where d.trans_flag = $1 and d.product_code = $2::varchar and d.user_created = $4::varchar
              and (d.row_ref = t.roworder or (d.row_ref is null and d.item_code = t.item_code)))
        order by t.roworder`,
       [CART_FLAG, productCode, quote.doc_no, session.username],
@@ -316,7 +316,7 @@ export async function updateInvoiceLine(_: CartState, formData: FormData): Promi
 
   await db.query(
     `update ic_trans_detail_draft
-     set qty=$1, price=$2, sum_amount=$1*$2
+     set qty=$1, price=$2, sum_amount=$1::numeric*$2::numeric
      where roworder=$3 and trans_flag=$4 and product_code=$5 and user_created=$6`,
     [qty, price, parsed.data.roworder, CART_FLAG, parsed.data.product_code, session.username],
   );

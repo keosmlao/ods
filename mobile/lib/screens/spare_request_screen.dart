@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../main.dart';
+import '../widgets/ui_kit.dart';
 
 /// ອອກໃບຂໍເບີກອາໄຫຼ່ — **ຊ່າງເປັນຄົນອອກເອງ** (ບໍ່ຜ່ານ CS).
 ///
@@ -85,8 +86,9 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
         ? <Map<String, String>>[]
         : data.shelves.where((row) => row['wh_code'] == wh).toList();
 
-    return Scaffold(
-      appBar: AppBar(title: Text('ໃບຂໍເບີກອາໄຫຼ່ · ${widget.code}')),
+    return HeroScaffold(
+      title: 'ໃບຂໍເບີກອາໄຫຼ່ · ${widget.code}',
+      onBack: () => Navigator.pop(context),
       body: data == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(

@@ -58,10 +58,7 @@ export function QcForm({
   const answered = items.filter((item) => answers[item.id]?.passed != null).length;
   const failed = items.filter((item) => answers[item.id]?.passed === false).length;
   const complete = answered === items.length;
-  // ຂໍ້ທີ່ບັງຄັບຮູບ ແລະ ຜ່ານ ຕ້ອງມີຮູບ
-  const missingPhoto = items.filter(
-    (item) => item.require_photo && answers[item.id]?.passed === true && !answers[item.id]?.photo,
-  );
+  // ຮູບ QC = ທາງເລືອກ (ບໍ່ບັງຄັບ) — ບໍ່ block ການບັນທຶກ
 
   async function pickPhoto(id: number, file: File | undefined) {
     if (!file) return;
@@ -111,7 +108,6 @@ export function QcForm({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="min-w-48 flex-1 text-sm font-semibold text-slate-800">
                   {item.name}
-                  {item.require_photo && <span className="ml-1 text-[11px] text-slate-400">{t.requirePhotoTag}</span>}
                 </span>
 
                 <button
@@ -206,14 +202,9 @@ export function QcForm({
           {t.checked} <b className="text-slate-800">{answered}/{items.length}</b>
           {failed > 0 && <b className="ml-2 text-red-600">{t.fail} {failed}</b>}
         </span>
-        {missingPhoto.length > 0 && (
-          <span className="text-xs font-semibold text-amber-700">
-            {t.mustAttachPhoto} {missingPhoto.map((item) => item.name).join(", ")}
-          </span>
-        )}
         <Button
           tone={failed > 0 ? "danger" : "success"}
-          disabled={pending || !complete || missingPhoto.length > 0}
+          disabled={pending || !complete}
           className="ml-auto h-9 px-4 text-xs"
         >
           {pending && <LoaderCircle className="size-3.5 animate-spin" />}

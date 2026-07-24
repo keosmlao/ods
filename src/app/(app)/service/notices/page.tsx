@@ -80,7 +80,7 @@ export default async function ServiceNotices({ searchParams }: Props) {
     query<Row>(
       `select a.code, to_char(a.time_notice,'dd-mm-yyyy HH24:MI:SS') noticed, a.name_1, a.issue, a.sn, a.remark,
          a.telephone,
-         case when a.creator_code is not null then (select name_1 from odg_erp_user where code = a.creator_code)
+         case when a.creator_code is not null then (select name_1 from public.erp_user where code = a.creator_code)
               else a.creator_name end creator_name,
          (select name_1 from ar_customer where ref_code = a.ref_code limit 1) custname,
          -- ແກ້ບັກ: ເກົ່າ join product_image ໂດຍກົງ — ຖ້າໃບແຈ້ງນຶ່ງມີຫຼາຍຮູບທີ່ line_number = 0

@@ -1,4 +1,4 @@
-import { requireMobile } from "@/lib/mobile-auth";
+import { MAX_PHOTO_CHARS, requireMobile } from "@/lib/mobile-auth";
 import { TECH_SIDE } from "@/lib/roles";
 import { ownMobileJob } from "@/lib/job-flow";
 import {
@@ -27,6 +27,8 @@ type Body =
       warranty_void: boolean;
       warranty_reason: string;
       use_spare: boolean;
+      /** ຮູບຕອນກວດເຊັກ (base64) — ບໍ່ບັງຄັບ */
+      photos?: string[];
     };
 
 /** ກະຕ່າອາໄຫຼ່ຂອງໃບນີ້ (ຂອງຊ່າງຄົນນີ້) */
@@ -66,13 +68,23 @@ export async function POST(request: Request, context: { params: Promise<{ code: 
           : body.action === "remove_spare"
             ? await removeDraftSpare(guard.user, code, Number(body.roworder))
             : body.action === "save"
-              ? await saveCheckFlow(guard.user, {
-                  code,
-                  diagnosis: String(body.diagnosis ?? ""),
-                  warranty_void: Boolean(body.warranty_void),
-                  warranty_reason: String(body.warranty_reason ?? ""),
-                  use_spare: Boolean(body.use_spare),
-                })
+              ? await (async () => {
+                  const photos = (body.photos ?? []).filter(Boolean);
+                  if (photos.some((p) => p.length > MAX_PHOTO_CHARS)) {
+                    return { ok: false as const, error: "ຮູບໃຫຍ່ເກີນໄປ — ກະລຸນາຖ່າຍໃໝ່" };
+                  }
+                  if (photos.length > 6) {
+                    return { ok: false as const, error: "ແນບຮູບໄດ້ສູງສຸດ 6 ຮູບ" };
+                  }
+                  return saveCheckFlow(guard.user, {
+                    code,
+                    diagnosis: String(body.diagnosis ?? ""),
+                    warranty_void: Boolean(body.warranty_void),
+                    warranty_reason: String(body.warranty_reason ?? ""),
+                    use_spare: Boolean(body.use_spare),
+                    photos,
+                  });
+                })()
               : { ok: false as const, error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" };
 
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });

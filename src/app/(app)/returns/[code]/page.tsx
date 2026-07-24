@@ -1,13 +1,12 @@
 import { getOutstandingSpares, groupByDoc } from "@/lib/outstanding-spares";
 import { OutstandingSpares } from "@/app/(app)/approvals/cancellations/outstanding-spares";
-import { getApprovedQuote, getCart, getQuoteLines, getRates, seedCart } from "@/app/actions/return";
+import { getCart, getRates, seedCart } from "@/app/actions/return";
 import { Chatter } from "@/components/chatter/chatter";
 import { InvoiceEditor, type Bank, type BillHead, type Service } from "@/components/return/invoice-editor";
 import { PageTitle } from "@/components/ui";
 import { db, queryOdg } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
 import { notFound } from "next/navigation";
-import { QuotationPrices } from "./quotation-prices";
 import { ReturnWithoutInvoice } from "./return-without-invoice";
 
 /** ຖອດແບບຈາກ ods: returnproduct.py showreturn() + templates/returnProduct/showDetail.html */
@@ -83,18 +82,14 @@ export default async function ReturnDetailPage({ params }: { params: Promise<{ c
 
   // ຄ່າຈາກ ERP (ອັດຕາ/ບັນຊີ/ຄ່າບໍລິການ) ຂັດຂ້ອງຊົ່ວຄາວ → ໃຫ້ໜ້າໂຫຼດຕໍ່ໄດ້ດ້ວຍຄ່າວ່າງ
     // ແທນທີ່ຈະພັງທັງໜ້າ ("This page couldn't load"). ຕອນບັນທຶກ server ດຶງອັດຕາຄືນເອງ.
-  const [cart, rates, banks, services, docNo, spares, quote] = await Promise.all([
+  const [cart, rates, banks, services, docNo, spares] = await Promise.all([
     getCart(head.code),
     getRates().catch(() => ({ "01": 1, "02": 0, "03": 0 })),
     getBanks().catch(() => []),
     getServices().catch(() => []),
     previewDocNo().catch(() => ""),
     cancelled ? getOutstandingSpares(head.code) : Promise.resolve([]),
-    // ວຽກຍົກເລີກ: ບໍ່ຄິດຄ່າອາໄຫຼ່ → ບໍ່ຕ້ອງດຶງໃບສະເໜີລາຄາ (ຄິດແຕ່ຄ່າກວດເຊັກ)
-    cancelled ? Promise.resolve(null) : getApprovedQuote(head.code),
   ]);
-  // ລາຄາໃນຕະກ້າມາຈາກໃບສະເໜີລາຄາໃບນີ້ — ສະແດງໃຫ້ເຫັນ ແລະ ປຽບທຽບແຖວຕໍ່ແຖວ
-  const quoteLines = quote ? await getQuoteLines(quote.doc_no) : [];
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -117,9 +112,8 @@ export default async function ReturnDetailPage({ params }: { params: Promise<{ c
         </p>
       ) : (
         <>
-          {quote && quoteLines.length > 0 && (
-            <QuotationPrices quote={quote} lines={quoteLines} cart={cart} />
-          )}
+          {/* QuotationPrices ຖອດອອກ — ລາຍການໃບສະເໜີລາຄາຢູ່ໃນບິນແລ້ວ (cart seed ຈາກ quote),
+              ບໍ່ຕ້ອງສະແດງກາดซ้ำตอนออกใบรับเงิน */}
           <InvoiceEditor
             head={head}
             cart={cart}
