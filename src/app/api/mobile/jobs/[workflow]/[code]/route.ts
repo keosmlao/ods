@@ -14,6 +14,12 @@ import {
   startRepairFlow,
   type FlowResult,
 } from "@/lib/job-flow";
+import {
+  acceptMaintenance,
+  finishMaintenance,
+  ownMaintenanceJob,
+  startMaintenance,
+} from "@/lib/maintenance-flow";
 import { MAX_PHOTO_CHARS, requireMobile } from "@/lib/mobile-auth";
 import { TECH_SIDE } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
@@ -66,6 +72,36 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
   if (!guard.ok) return guard.response;
 
   const { workflow: raw, code } = await context.params;
+
+  /**
+   * ── ບຳລຸງຮັກສາ (ລ້າງແອ) ──
+   * ຂັ້ນຕອນຕ່າງຈາກ ສ້ອມ/ຕິດຕັ້ງ (ບໍ່ມີອາໄຫຼ່ · ບໍ່ມີ check-in) ⇒ ແຍກ flow ຂອງມັນເອງ
+   * (lib/maintenance-flow) ແທນການຍັດເງື່ອນໄຂເພີ່ມເຂົ້າ lib/job-flow.
+   */
+  if (raw === "maintenance") {
+    let action = "";
+    try {
+      action = String(((await request.json()) as { action?: string }).action ?? "");
+    } catch {
+      return NextResponse.json({ error: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ" }, { status: 400 });
+    }
+    const own = await ownMaintenanceJob(guard.user, code);
+    if (!own.ok) return NextResponse.json({ error: own.error }, { status: 403 });
+
+    const result =
+      action === "accept"
+        ? await acceptMaintenance(guard.user, code)
+        : action === "start"
+          ? await startMaintenance(guard.user, code)
+          : action === "finish"
+            ? await finishMaintenance(guard.user, code)
+            : ({ ok: false, error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" } as const);
+
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+    for (const path of ["/maintenance", "/dashboard"]) revalidatePath(path);
+    return NextResponse.json({ ok: true, message: result.message });
+  }
+
   if (raw !== "install" && raw !== "repair") {
     return NextResponse.json({ error: "ສາຍງານບໍ່ຖືກຕ້ອງ" }, { status: 400 });
   }

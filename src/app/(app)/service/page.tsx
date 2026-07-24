@@ -65,6 +65,7 @@ async function getBoard(q: string, status: number | null, service: string | null
   const sql = `select a.code, (${STAGE_SQL}) stage, b.name_1 customer,
       concat_ws(' ', a.name_1, a.p_model) product, a.sn, a.p_brand brand,
       a.warrunty warranty, a.emp_code technician, a.user_regis creator,
+      a.service_type,
       nullif(trim(coalesce(a.remark,'')),'') remark,
       ${STAGE_ELAPSED_SQL} stage_seconds,
       ${holdJsonSql("repair")}

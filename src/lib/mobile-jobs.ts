@@ -9,6 +9,11 @@ import {
 } from "@/lib/install-stage";
 import { INSTALL_LEFT_SQL } from "@/lib/install-sla";
 import { REPAIR_STAGE_SLA_HOURS_SQL } from "@/lib/repair-sla";
+import {
+  MAINTENANCE_OPEN,
+  MAINTENANCE_STAGE_LABEL_SQL,
+  MAINTENANCE_STAGE_SQL,
+} from "@/lib/maintenance-stage";
 import { OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 
 /**
@@ -29,7 +34,8 @@ export type MobileAction =
   | "wait_other"; // ລໍຄົນອື່ນ (CS/QC/ສາງ)
 
 export type MobileJob = {
-  workflow: "install" | "repair";
+  /** ສາຍງານ — ສ້ອມ · ຕິດຕັ້ງ · ບຳລຸງຮັກສາ (ລ້າງແອ) */
+  workflow: "install" | "repair" | "maintenance";
   code: string;
   customer: string | null;
   tel: string | null;
@@ -116,6 +122,13 @@ const REPAIR_ACTION = `case
   when (${STAGE_SQL}) = 9        then 'finish'
   else 'wait_other' end`;
 
+/** ບຳລຸງຮັກສາ: 1 ລໍຊ່າງຮັບ · 2 ລໍໄປລ້າງ · 3 ກຳລັງລ້າງ · ອື່ນ = ລໍຄົນອື່ນ */
+const MAINTENANCE_ACTION = `case
+  when (${MAINTENANCE_STAGE_SQL}) = 1 then 'accept'
+  when (${MAINTENANCE_STAGE_SQL}) = 2 then 'start'
+  when (${MAINTENANCE_STAGE_SQL}) = 3 then 'finish'
+  else 'wait_other' end`;
+
 export async function myJobs(session: Session): Promise<MobileJob[]> {
   const tech = session.username;
   // Mobile ແມ່ນໜ້າ "ວຽກຂອງຂ້ອຍ": ທຸກ role ຕ້ອງເຫັນສະເພາະງານທີ່
@@ -197,7 +210,45 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
     [tech],
   );
 
-  return [...install.rows, ...repair.rows];
+  /**
+   * ── ສາຍງານທີ 3: ບຳລຸງຮັກສາ (ລ້າງແອ) ──
+   * ແຕ່ກ່ອນແອັບເຫັນແຕ່ ຕິດຕັ້ງ+ສ້ອມ ⇒ ຊ່າງທີ່ຖືກຈັດໄປລ້າງແອ **ບໍ່ເຫັນວຽກໃນແອັບເລີຍ**
+   * ຕ້ອງເປີດເວັບເບິ່ງເອົາ. ຂັ້ນ/ປ້າຍ ມາຈາກ lib/maintenance-stage ບ່ອນດຽວກັບເວັບ.
+   */
+  const maintenance = await query<MobileJob>(
+    `select 'maintenance' as workflow, a.code,
+        coalesce(nullif(a.cust_name,''), c.name_1) as customer,
+        coalesce(nullif(a.cust_tel,''), c.tel) as tel,
+        coalesce(nullif(a.location,''), c.address) as address,
+        'ບຳລຸງຮັກສາ / ລ້າງແອ' as product,
+        nullif(a.remark,'') as detail,
+        null as sn, null as warranty,
+        null as symptom, null as diagnosis, null as warranty_reason,
+        true as onsite,
+        null as service_type,
+        (${MAINTENANCE_STAGE_SQL}) as stage,
+        (${MAINTENANCE_STAGE_LABEL_SQL}) as stage_label,
+        extract(epoch from localtimestamp - a.time_register)::double precision as elapsed_seconds,
+        to_char(a.time_register,'DD-MM-YYYY HH24:MI') as received_at,
+        extract(epoch from localtimestamp - a.time_register)::double precision as total_seconds,
+        nullif(a.created_by,'') as receiver,
+        to_char(a.appoint_date,'DD-MM-YYYY') as appointment,
+        (${MAINTENANCE_ACTION}) as action,
+        a.tech_confirm is not null as accepted,
+        false as has_checked_in, false as has_checked_out,
+        false as can_check_in, false as can_check_out, false as checked_in,
+        null::double precision as lat, null::double precision as lng,
+        null::double precision as sla_left
+      from ods_tb_maintenance a
+      left join ar_customer c on c.code = a.cust_code
+     where ${MAINTENANCE_OPEN}
+       and coalesce(a.emp_code,'') <> ''
+       and a.emp_code = $1
+     order by a.appoint_date asc nulls last, a.time_register asc`,
+    [tech],
+  );
+
+  return [...install.rows, ...repair.rows, ...maintenance.rows];
 }
 
 /**

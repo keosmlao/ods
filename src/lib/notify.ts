@@ -199,6 +199,27 @@ export async function notify(
     if ((inserted.rowCount ?? 0) > 0) {
       await query("select pg_notify('ods_notification_events', $1)", [JSON.stringify({ model, resId })]);
     }
+
+    /**
+     * ── ສົ່ງເຂົ້າມືຖືນຳ (24-07-2026) ──
+     * ແຕ່ກ່ອນ notify() ຂຽນລົງ `ods_notification` ຢ່າງດຽວ = **ກະດິ່ງຢູ່ເວັບເທົ່ານັ້ນ**;
+     * FCM ຍິງສະເພາະບ່ອນທີ່ເອີ້ນ pushToUser() ເອງ (ມີພຽງບາງຈຸດ) ⇒ ການເຄື່ອນໄຫວສ່ວນໃຫຍ່
+     * (ລວມ **ການລຶບເອກະສານ**) ບໍ່ເຂົ້າແອັບຈັກເທື່ອ.
+     * ດຽວນີ້ຍິງໃຫ້ຜູ້ຮັບທຸກຄົນຈາກຈຸດກາງນີ້ ⇒ ບ່ອນໃດທີ່ແຈ້ງເຕືອນເວັບໄດ້ ແອັບກໍ່ໄດ້ນຳ.
+     *
+     * ຄົນທີ່ລົງມືເອງບໍ່ຕ້ອງເຕືອນຕົນເອງ · ຄົນທີ່ບໍ່ມີ token ⇒ pushToUser ອອກເອງ (ບໍ່ເສຍຫຍັງ).
+     * ຫໍ່ດ້ວຍ try ຕ່າງຫາກ: push ລົ້ມ **ຫ້າມ** ເຮັດໃຫ້ການແຈ້ງເຕືອນເວັບລົ້ມຕາມ.
+     */
+    try {
+      const { pushToUser } = await import("@/lib/push");
+      const me = actor.trim().toLowerCase();
+      const targets = users.filter((name) => name.trim().toLowerCase() !== me);
+      await Promise.all(
+        targets.map((name) => pushToUser(name, body.slice(0, 80), `${model === "ods_tb_install" ? "ງານຕິດຕັ້ງ" : model === "ods_tb_maintenance" ? "ງານບຳລຸງຮັກສາ" : "ໃບງານ"} ${resId}`, { model, resId })),
+      );
+    } catch (error) {
+      console.error("notify push failed", error);
+    }
   } catch (error) {
     console.error("notify failed", error);
   }

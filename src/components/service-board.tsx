@@ -38,8 +38,13 @@ export const STAGES = Object.entries(ACCENT).map(([stage, accent]) => ({
 
 export type BoardCard = {
   code: string;
-  /** ຂັ້ນຂອງວຽກ 1..11 (ຈາກ STAGE_SQL) */
+  /** ຂັ້ນຂອງວຽກ (ຈາກ STAGE_SQL) */
   stage: number;
+  /**
+   * ປະເພດບໍລິການ (CI/ST/IH/PS) — **ຈຳເປັນສຳລັບປ້າຍຂັ້ນ**: ຂັ້ນ 0 ຂອງ IH ແມ່ນ
+   * "ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ" ບໍ່ແມ່ນ "ລໍໄປຮັບເຄື່ອງ" ຂອງ PS (ເບິ່ງ lib/stage.stageLabel)
+   */
+  service_type: string | null;
   customer: string | null;
   product: string | null;
   sn: string | null;

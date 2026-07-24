@@ -324,15 +324,22 @@ class _JobScreenState extends State<JobScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final evidenceRequired =
-        (job.workflow == 'install' || job.onsite) && photos.isEmpty;
+    // ບຳລຸງຮັກສາບໍ່ໄດ້ເກັບຮູບຜົນງານ (server ບໍ່ຮັບ) ⇒ ຢ່າບັງຄັບ ບໍ່ດັ່ງນັ້ນຊ່າງກົດຈົບບໍ່ໄດ້
+    final evidenceRequired = job.workflow != 'maintenance' &&
+        (job.workflow == 'install' || job.onsite) &&
+        photos.isEmpty;
 
     return Scaffold(
       backgroundColor: ground,
       body: Column(
         children: [
           HeroHeader(
-            title: '${job.workflow == 'install' ? 'ຕິດຕັ້ງ' : 'ສ້ອມແປງ'} · ${job.code}',
+            title:
+                '${job.workflow == 'install'
+                    ? 'ຕິດຕັ້ງ'
+                    : job.workflow == 'maintenance'
+                    ? 'ລ້າງແອ'
+                    : 'ສ້ອມແປງ'} · ${job.code}',
             onBack: () => Navigator.pop(context),
           ),
           Expanded(

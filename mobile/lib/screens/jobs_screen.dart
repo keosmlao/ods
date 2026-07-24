@@ -46,6 +46,26 @@ const _cCyan = Color(0xFF0891B2);
 
 _Phase _phaseOf(Job job) {
   final s = job.stage;
+  if (job.workflow == 'maintenance') {
+    switch (s) {
+      case 0:
+        return const _Phase(1, 'ລໍນັດ+ຈັດຊ່າງ', Icons.event_outlined, _cAmber);
+      case 1:
+        return const _Phase(2, 'ລໍຖ້າຮັບງານລ້າງ', Icons.assignment_ind_outlined, _cOrange);
+      case 2:
+        return const _Phase(5, 'ລໍໄປລ້າງ', Icons.local_shipping_outlined, _cIndigo);
+      case 3:
+        return const _Phase(6, 'ກຳລັງລ້າງ', Icons.cleaning_services_outlined, teal);
+      case 4:
+        return const _Phase(7, 'ລໍຖ້າກວດ QC', Icons.verified_outlined, _cPurple);
+      case 5:
+        return const _Phase(8, 'ລໍເກັບເງິນ / ປິດງານ', Icons.payments_outlined, _cCyan);
+      case -1:
+        return const _Phase(98, 'ຍົກເລີກແລ້ວ', Icons.cancel_outlined, danger);
+      default:
+        return const _Phase(99, 'ສຳເລັດ', Icons.check_circle_outline, muted);
+    }
+  }
   if (job.workflow == 'install') {
     switch (s) {
       case 0:
@@ -109,7 +129,7 @@ class _Group {
 /* ── ພາກໃຫຍ່: ກວດເຊັກ · ສ້ອມແປງ · ຕິດຕັ້ງ ────────────────────────
    ວຽກ "ກວດເຊັກ" ກັບ "ສ້ອມແປງ" ເປັນຄົນລະຫົວວຽກ ⇒ ແຍກເປັນພາກ ບໍ່ໃຫ້ປົນກັນ.
    ງານຕິດຕັ້ງເປັນອີກສາຍງານໜຶ່ງ (ບໍ່ມີຂັ້ນກວດເຊັກ) ຈຶ່ງແຍກພາກຂອງມັນເອງ. */
-enum _Band { check, repair, install }
+enum _Band { check, repair, install, maintenance }
 
 class _BandMeta {
   final String label;
@@ -131,10 +151,15 @@ const _bandMeta = {
     Color(0xFF6D4AFF),
     Color(0xFF9333EA),
   ]),
+  _Band.maintenance: _BandMeta('ບຳລຸງຮັກສາ / ລ້າງແອ', Icons.cleaning_services_outlined, [
+    Color(0xFF0284C7),
+    Color(0xFF0891B2),
+  ]),
 };
 
 /// ຂັ້ນ 0-2 (ໄປຮັບເຄື່ອງ · ລໍຖ້າກວດ · ກຳລັງກວດ) = ກວດເຊັກ · ທີ່ເຫຼືອ = ສ້ອມແປງ
 _Band _bandOf(Job job) {
+  if (job.workflow == 'maintenance') return _Band.maintenance;
   if (job.workflow == 'install') return _Band.install;
   final s = job.stage;
   return (s >= 0 && s <= 2) ? _Band.check : _Band.repair;
@@ -239,7 +264,12 @@ class _JobsScreenState extends State<JobsScreen> {
     }
     const urgent = {'accept', 'start', 'finish'};
     final out = <_BandGroup>[];
-    for (final band in [_Band.check, _Band.repair, _Band.install]) {
+    for (final band in [
+      _Band.check,
+      _Band.repair,
+      _Band.install,
+      _Band.maintenance,
+    ]) {
       final list = byBand[band];
       if (list == null || list.isEmpty) continue;
       out.add(_BandGroup(
@@ -704,7 +734,11 @@ class _JobCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      install ? 'ຕິດຕັ້ງ' : 'ສ້ອມແປງ',
+                      job.workflow == 'maintenance'
+                          ? 'ລ້າງແອ'
+                          : install
+                          ? 'ຕິດຕັ້ງ'
+                          : 'ສ້ອມແປງ',
                       style: const TextStyle(
                         color: faint,
                         fontSize: 10.5,

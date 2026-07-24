@@ -1,7 +1,7 @@
 import { Elapsed } from "@/components/elapsed";
 import { elapsedTone } from "@/lib/elapsed-tone";
+import { stageLabel } from "@/lib/stage";
 import type { BoardCard } from "@/components/service-board";
-import { STAGES } from "@/components/service-board";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { HoldButtons } from "@/components/repair/hold-buttons";
 import { ServiceDeleteButton } from "@/components/service/service-delete-button";
@@ -10,7 +10,6 @@ import { getLocale } from "@/lib/i18n/locale";
 import { Pencil, Printer, Tag } from "lucide-react";
 import Link from "next/link";
 
-const stageLabel = new Map(STAGES.map((stage) => [stage.id as number, stage.label]));
 
 /** ຖັນທີ່ຈັດຮຽງໄດ້ — ຄ້າງດົນສຸດຂຶ້ນກ່ອນເປັນຄ່າຕັ້ງຕົ້ນ */
 export const PENDING_SORTS = ["code", "status", "elapsed", "product", "brand", "customer", "technician", "creator"] as const;
@@ -96,7 +95,7 @@ export async function ServicePendingTable({
                       {card.code}
                     </Link>
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-slate-700">{stageLabel.get(card.stage) ?? "-"}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-slate-700">{stageLabel(card.stage, card.service_type)}</td>
                   <td className="whitespace-nowrap px-3 py-3">
                     <Elapsed
                       seconds={card.stage_seconds}
