@@ -19,6 +19,7 @@ const POST_CHECK_STATUS = `case
 end`;
 
 type Row = {
+  repair_confirm: Date | null;
   time_check: Date | null;
   time_finish_check: Date | null;
   time_repair: Date | null;
@@ -39,7 +40,7 @@ export async function undoLastStep(session: Session, code: string): Promise<Flow
 
   const job = (
     await query<Row>(
-      `select a.time_check, a.time_finish_check, a.time_repair, a.time_finish_repair,
+      `select a.repair_confirm, a.time_check, a.time_finish_check, a.time_repair, a.time_finish_repair,
           a.qc_finish, a.qt_start, a.spare_reg, a.status, a.return_complete
         from tb_product a where a.code=$1`,
       [code],
@@ -126,13 +127,28 @@ export async function undoLastStep(session: Session, code: string): Promise<Flow
     return { ok: true, message: "ຖອຍຄືນ → ລໍຖ້າກວດເຊັກ" };
   }
 
+  // ⑤ ຮັບງານ → ຍັງບໍ່ຮັບງານ (ຂັ້ນ 1 ຮັບແລ້ວ ຍັງບໍ່ເລີ່ມກວດ) — ລ້າງ repair_confirm ຢ່າງດຽວ
+  if (job.repair_confirm && !job.time_check) {
+    const done = await query(
+      `update tb_product set repair_confirm=null
+        where code=$1 and repair_confirm is not null and time_check is null and status<>6`,
+      [code],
+    );
+    if (!done.rowCount) return CHANGED;
+    await logChange("tb_product", code, 'ຖອຍ 1 ຂັ້ນ: ຮັບງານ → ຍັງບໍ່ຮັບງານ', { author });
+    return { ok: true, message: "ຖອຍຄືນ → ຍັງບໍ່ຮັບງານ" };
+  }
+
   return { ok: false, error: "ບໍ່ມີຂັ້ນໃຫ້ຖອຍຄືນ" };
 }
 
-/** ປ້າຍ "ຖອຍໄປຫາ" ຕາມຂັ້ນ — ໃຫ້ແອັບສະແດງປຸ່ມ (ຂັ້ນ 2/8/9/10 ເທົ່ານັ້ນ) */
-export const UNDO_TO_SQL = `case (${STAGE_SQL})
-  when 2 then 'ລໍຖ້າກວດເຊັກ'
-  when 8 then 'ກຳລັງກວດເຊັກ'
-  when 9 then 'ລໍຖ້າສ້ອມແປງ'
-  when 10 then 'ກຳລັງສ້ອມແປງ'
+/** ປ້າຍ "ຖອຍໄປຫາ" ຕາມຂັ້ນ — ໃຫ້ແອັບສະແດງປຸ່ມ (ຮັບງານ 1 · ກວດ 2 · ຜົນກວດ 8 · ສ້ອມ 9 · ຈົບ 10) */
+export const UNDO_TO_SQL = `case
+  when (${STAGE_SQL})=1 and a.repair_confirm is not null then 'ຍັງບໍ່ຮັບງານ'
+  when (${STAGE_SQL})=2 then 'ລໍຖ້າກວດເຊັກ'
+  -- ຂັ້ນ 3 (ນອກປະກັນ ລໍສະເໜີລາຄາ ຍັງບໍ່ເລີ່ມ qt) ຖອຍຄືນຜົນກວດໄດ້; 4–7 ມີ qt/ໃບເບີກ ⇒ ຕິດຕໍ່ CS
+  when (${STAGE_SQL})=3 then 'ກຳລັງກວດເຊັກ'
+  when (${STAGE_SQL})=8 then 'ກຳລັງກວດເຊັກ'
+  when (${STAGE_SQL})=9 then 'ລໍຖ້າສ້ອມແປງ'
+  when (${STAGE_SQL})=10 then 'ກຳລັງສ້ອມແປງ'
   else null end`;
