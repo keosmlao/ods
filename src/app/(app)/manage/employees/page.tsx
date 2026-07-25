@@ -19,8 +19,9 @@ import Link from "next/link";
  * (ods_employee_role) ⇒ ຢູ່ຄົນລະຖານ join ໃນ SQL ບໍ່ໄດ້ ຈຶ່ງດຶງມາປະສານກັນຢູ່ JS.
  * ພະນັກງານທັງບໍລິສັດມີ 242 ຄົນ (ໃນຂອບເຂດ 82 ຄົນ) ⇒ ດຶງມາໝົດແລ້ວແບ່ງໜ້າເອງ ບໍ່ໜັກ.
  *
- * ຂອບເຂດຕັ້ງຕົ້ນ = ຝ່າຍບໍລິການ (division 400: 401 ສ້ອມແປງ · 402 ຕິດຕັ້ງ ·
- * 403 ຕິດຕັ້ງໂຄງການ · 405 CS) + ພະແນກສາງ (501) — ກົດ "ພະນັກງານທັງໝົດ" ເພື່ອເບິ່ງຄົນອື່ນ.
+ * ຂອບເຂດຕັ້ງຕົ້ນ = **ສູນບໍລິການ**: ຝ່າຍບໍລິການ (400: 401 ສ້ອມແປງ · 402 ຕິດຕັ້ງ · 405 CS)
+ * + ພະແນກສາງ (501). **ຕັດ 403 ຕິດຕັ້ງໂຄງການ (ຊ່າງໂຄງການ) ອອກ** — ກົດ "ພະນັກງານທັງໝົດ"
+ * ເພື່ອເບິ່ງຄົນອື່ນ (ຊ່າງໂຄງການຈະມີປ້າຍ "ໂຄງການ" ກຳກັບ).
  */
 
 const PAGE_SIZE = 20;
@@ -81,7 +82,12 @@ const ERP_SQL = `
     left join odg_position p on p.position_code = e.position_code
    where e.employment_status = 'ACTIVE'`;
 
-const SCOPE_SQL = ` and (e.division_code = '400' or e.department_code = '501')`;
+/**
+ * ຂອບເຂດ "ສູນບໍລິການ" — ຝ່າຍບໍລິການ (400) + ສາງ (501) **ຍົກເວັ້ນ ຕິດຕັ້ງໂຄງການ (403)**.
+ * 403 ຄື **ຊ່າງໂຄງການ** (ບໍ່ແມ່ນສູນບໍລິການ) ⇒ ບໍ່ຄວນປົນຢູ່ໜ້ານີ້. ຢາກເຫັນ ກົດ "ພະນັກງານທັງໝົດ".
+ */
+const PROJECT_DEPT = "403";
+const SCOPE_SQL = ` and ((e.division_code = '400' and e.department_code <> '${PROJECT_DEPT}') or e.department_code = '501')`;
 
 async function getRows(scope: Scope): Promise<Row[]> {
   const [erp, overrides, legacy] = await Promise.all([
@@ -356,7 +362,13 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
                   <td className="max-w-52 truncate px-3 py-2.5 text-slate-600" title={row.fullname}>
                     {row.fullname}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{row.department}</td>
+                  <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
+                    {row.department}
+                    {/* ຊ່າງໂຄງການ (403) — ບໍ່ແມ່ນສູນບໍລິການ ⇒ ໝາຍໄວ້ (ເຫັນຕອນເບິ່ງ "ທັງໝົດ") */}
+                    {row.department_code === PROJECT_DEPT && (
+                      <span className="ml-1.5 rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700">ໂຄງການ</span>
+                    )}
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{row.position}</td>
                   <td className="whitespace-nowrap px-3 py-2.5">
                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${ROLE_TONE[row.derived]}`}>
