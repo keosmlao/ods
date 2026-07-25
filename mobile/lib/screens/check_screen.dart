@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../api.dart';
 import '../main.dart';
 import '../widgets/ui_kit.dart';
+import 'check_spare_screen.dart';
 
 /// ກວດເຊັກ (ຝັ່ງສ້ອມ) — ຄືໜ້າ /checking/[code] ຂອງເວັບ.
 ///
@@ -171,6 +172,15 @@ class _CheckScreenState extends State<CheckScreen> {
     }, pop: true, popResult: result);
   }
 
+  /// ໄປໜ້າ **ເລືອກອາໄຫຼ່** (ແຍກ) ແລ້ວກັບມາ ⇒ ໂຫຼດ draft ຄືນ.
+  Future<void> _openSpares() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => CheckSpareScreen(code: widget.code)),
+    );
+    if (mounted) await load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final blocker = _blocker;
@@ -282,8 +292,9 @@ class _CheckScreenState extends State<CheckScreen> {
             outcome: CheckOutcome.spare,
             icon: Icons.inventory_2_outlined,
             color: const Color(0xFF7C3AED),
-            title: 'ຕ້ອງໃຊ້ / ສັ່ງ ອາໄຫຼ່',
-            subtitle: 'ເລືອກອາໄຫຼ່ຈາກສະຕັອກ ⇒ ຂໍເບີກ/ສັ່ງຊື້',
+            title: 'ຕ້ອງໃຊ້ອາໄຫຼ່',
+            subtitle: 'ລະບຸອາໄຫຼ່ທີ່ຕ້ອງໃຊ້ ⇒ admin ຂໍເບີກ/ສັ່ງໃຫ້',
+            onSelected: _openSpares, // ⇒ ໄປໜ້າເລືອກອາໄຫຼ່ ແລ້ວກັບມາ
           ),
           if (widget.serviceType == 'IH') ...[
             const SizedBox(height: 8),
@@ -296,108 +307,54 @@ class _CheckScreenState extends State<CheckScreen> {
             ),
           ],
 
+          // ── ສະຫຼຸບອາໄຫຼ່ທີ່ເລືອກ (ເລືອກ/ແກ້ໄຂ ຢູ່ໜ້າແຍກ) ──
           if (outcome == CheckOutcome.spare) ...[
-            const SizedBox(height: 12),
-            // ── ຜູ້ຊ່ວຍ AI: ອາໄຫຼ່ທີ່ແນະນຳ (ຈາກวຽກຮຸ່ນເดียวกัน) ──
-            if (suggestions.any((s) => !draft.any((d) => d.itemCode == s.code)))
-              AiAssistCard(
-                title: 'AI ແນະນຳອາໄຫຼ່',
-                body: const Text('ອີງຈາກวຽກຮຸ່ນเดียวกัน — ແຕະเพื่อเพิ่ม'),
-                chips: [
-                  for (final s in suggestions.where(
-                    (s) => !draft.any((d) => d.itemCode == s.code),
-                  ))
-                    AiChip(
-                      label: s.name.length > 20 ? '${s.name.substring(0, 20)}…' : s.name,
-                      confidence: s.confidence,
-                      onTap: busy
-                          ? null
-                          : () => send({
-                              'action': 'add_spare',
-                              'item': {
-                                'code': s.code,
-                                'name_1': s.name,
-                                'unit_code': s.unitCode,
-                              },
-                              'qty': 1,
-                            }),
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: busy ? null : _openSpares,
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: cardDecoration(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.inventory_2_outlined, size: 20, color: Color(0xFF7C3AED)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            draft.isEmpty ? 'ຍັງບໍ່ໄດ້ເລືອກອາໄຫຼ່' : 'ເລືອກແລ້ວ ${draft.length} ລາຍການ',
+                            style: const TextStyle(fontWeight: FontWeight.w800, color: ink, fontSize: 14),
+                          ),
+                        ),
+                        const Text('ເລືອກ/ແກ້ໄຂ', style: TextStyle(color: teal, fontWeight: FontWeight.w800, fontSize: 12.5)),
+                        const Icon(Icons.chevron_right_rounded, color: teal, size: 20),
+                      ],
                     ),
-                ],
-              ),
-            _card([
-              SectionLabel('ອາໄຫຼ່ທີ່ຄາດວ່າຈະໃຊ້ (${draft.length})'),
-              if (draft.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    'ຄົ້ນຫາ ແລ້ວແຕະ + ເພື່ອເພີ່ມ',
-                    style: TextStyle(fontSize: 12, color: faint),
-                  ),
-                ),
-              ...draft.map(
-                (line) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: Text(
-                    '${line.itemName} × ${line.qty.toStringAsFixed(0)}',
-                  ),
-                  trailing: TextButton(
-                    onPressed: busy
-                        ? null
-                        : () => send({
-                            'action': 'remove_spare',
-                            'roworder': line.roworder,
-                          }),
-                    child: const Text('ຖອດ', style: TextStyle(color: danger)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: term,
-                      onSubmitted: (_) => search(),
-                      decoration: const InputDecoration(
-                        hintText: 'ຄົ້ນຫາອາໄຫຼ່...',
-                        isDense: true,
+                    if (draft.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final line in draft)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(color: surfaceAlt, borderRadius: BorderRadius.circular(999)),
+                              child: Text(
+                                '${line.itemName} × ${line.qty.toStringAsFixed(0)}',
+                                style: const TextStyle(fontSize: 11.5, color: ink),
+                              ),
+                            ),
+                        ],
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(64, 48),
-                    ),
-                    onPressed: busy ? null : search,
-                    child: const Text('ຄົ້ນ'),
-                  ),
-                ],
-              ),
-              ...results.map(
-                (item) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(item.name, style: const TextStyle(fontSize: 14)),
-                  subtitle: Text(
-                    '${item.code} · ຄົງເຫຼືອ ${item.balance}',
-                    style: const TextStyle(fontSize: 12, color: muted),
-                  ),
-                  trailing: const Icon(Icons.add_circle, color: teal),
-                  onTap: busy
-                      ? null
-                      : () => send({
-                          'action': 'add_spare',
-                          'item': {
-                            'code': item.code,
-                            'name_1': item.name,
-                            'unit_code': item.unitCode,
-                          },
-                          'qty': 1,
-                        }),
+                    ],
+                  ],
                 ),
               ),
-            ]),
+            ),
           ],
 
           const SizedBox(height: 18),
@@ -439,7 +396,7 @@ class _CheckScreenState extends State<CheckScreen> {
             label: Text(switch (outcome) {
               CheckOutcome.repair => warrantyVoid ? 'ບັນທຶກ & ໄປສະເໜີລາຄາ' : 'ບັນທຶກ & ເລີ່ມສ້ອມ',
               CheckOutcome.checkOnly => 'ບັນທຶກ ສຳເລັດການກວດເຊັກ',
-              CheckOutcome.spare => 'ບັນທຶກ & ຂໍເບີກອາໄຫຼ່',
+              CheckOutcome.spare => 'ບັນທຶກ — ສົ່ງໃຫ້ admin ຂໍເບີກ',
               CheckOutcome.bringIn => 'ບັນທຶກ & ນຳເຂົ້າສູນ',
               null => 'ບັນທຶກຜົນກວດເຊັກ',
             }),
@@ -537,10 +494,16 @@ class _CheckScreenState extends State<CheckScreen> {
     required Color color,
     required String title,
     required String subtitle,
+    VoidCallback? onSelected,
   }) {
     final selected = this.outcome == outcome;
     return InkWell(
-      onTap: busy ? null : () => setState(() => this.outcome = outcome),
+      onTap: busy
+          ? null
+          : () {
+              setState(() => this.outcome = outcome);
+              onSelected?.call();
+            },
       borderRadius: BorderRadius.circular(14),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
