@@ -335,7 +335,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
 
                     <td className="whitespace-nowrap px-3 py-2.5 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        {tab === "done" && <UndoCustomerButton docNo={row.doc_no} />}
+                        {tab === "done" && <UndoCustomerButton docNo={row.doc_no} variant="icon" />}
                         <Link
                           href={`/quotations/customer-approval/${encodeURIComponent(row.doc_no)}`}
                           className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"

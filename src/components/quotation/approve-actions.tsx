@@ -187,6 +187,7 @@ function UndoButton({
   title,
   message,
   size = "sm",
+  variant = "full",
 }: {
   docNo: string;
   action: (docNo: string) => Promise<ApprovalState>;
@@ -194,6 +195,8 @@ function UndoButton({
   title: string;
   message: React.ReactNode;
   size?: "sm" | "md";
+  /** icon = ໄອຄອນນ້ອຍລ້ວນ (ຄືປຸ່ມ →) · full = ມີຄຳ */
+  variant?: "full" | "icon";
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -209,6 +212,7 @@ function UndoButton({
     });
   };
 
+  const icon = variant === "icon";
   return (
     <div className="flex flex-col items-center gap-1">
       {dialog}
@@ -216,12 +220,14 @@ function UndoButton({
         type="button"
         disabled={pending}
         onClick={click}
-        className={`inline-flex items-center gap-1.5 rounded-lg border border-amber-300 font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-40 ${
-          size === "sm" ? "h-8 px-2.5 text-xs" : "h-10 px-4 text-sm"
+        title={icon ? title : undefined}
+        aria-label={icon ? label : undefined}
+        className={`inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-300 font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-40 ${
+          icon ? "size-8" : size === "sm" ? "h-8 px-2.5 text-xs" : "h-10 px-4 text-sm"
         }`}
       >
         {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Undo2 className="size-3.5" />}
-        {label}
+        {!icon && label}
       </button>
       {error && <span className="max-w-56 text-[10px] font-medium text-red-600">{error}</span>}
     </div>
@@ -248,7 +254,7 @@ export function UndoApprovalButton({ docNo, size }: { docNo: string; size?: "sm"
 }
 
 /** ຝ່າຍບໍລິການ: ຖອນຄຳຕອບຂອງລູກຄ້າ → ກັບເປັນ ລໍຖ້າລູກຄ້າອະນຸມັດ */
-export function UndoCustomerButton({ docNo, size }: { docNo: string; size?: "sm" | "md" }) {
+export function UndoCustomerButton({ docNo, size, variant }: { docNo: string; size?: "sm" | "md"; variant?: "full" | "icon" }) {
   const t = useDict().approveActions;
   return (
     <UndoButton
@@ -257,6 +263,7 @@ export function UndoCustomerButton({ docNo, size }: { docNo: string; size?: "sm"
       label={t.undoCustomerLabel}
       title={t.undoCustomerTitle}
       size={size}
+      variant={variant}
       message={
         <>
           {t.quotationWord} <b className="text-slate-700">#{docNo}</b> {t.undoCustomerMsgTail}
