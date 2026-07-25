@@ -1,9 +1,10 @@
 import { getSession } from "@/lib/auth";
+import { maintenanceCatalog } from "@/lib/maintenance";
 import { MAINTENANCE_OPEN } from "@/lib/maintenance-stage";
 import { MAINTENANCE_SIDE, roleOf } from "@/lib/roles";
 import { ownJobsOnly } from "@/lib/scope";
-import { LinkButton } from "@/components/ui";
-import { FilePlus2 } from "lucide-react";
+import { listTechnicians } from "@/lib/technicians";
+import { NewMaintenanceModal } from "@/components/maintenance/new-maintenance-modal";
 import { redirect } from "next/navigation";
 import {
   fetchMaintenanceRows,
@@ -44,7 +45,11 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
     where.push(MAINTENANCE_SEARCH.replaceAll("$Q", `$${params.length}`));
   }
 
-  const jobs = await fetchMaintenanceRows({ where: where.join(" and "), params, orderBy: maintenanceOrderBy(sort, dir), page, pageSize: PAGE_SIZE });
+  const [jobs, catalog, techs] = await Promise.all([
+    fetchMaintenanceRows({ where: where.join(" and "), params, orderBy: maintenanceOrderBy(sort, dir), page, pageSize: PAGE_SIZE }),
+    maintenanceCatalog(),
+    listTechnicians(),
+  ]);
   const pages = Math.max(1, Math.ceil(jobs.total / PAGE_SIZE));
   const qp = (o: Record<string, string>) => new URLSearchParams(o).toString();
   const sortHref = (key: string, nextDir: "asc" | "desc") => `/maintenance?${qp({ ...(q ? { q } : {}), sort: key, dir: nextDir })}`;
@@ -53,10 +58,7 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
   return (
     <div className="w-full space-y-4">
       <ListHeader title="ງານສ້ອມບໍລຸງ" scope={tech ? "ສະແດງສະເພາະງານຂອງທ່ານ" : "ສະແດງທຸກງານ"} total={jobs.total} page={page} pages={pages}>
-        <LinkButton href="/maintenance/new" tone="success" className="h-9 text-xs">
-          <FilePlus2 className="size-4" />
-          ເປີດງານໃໝ່
-        </LinkButton>
+        <NewMaintenanceModal catalog={catalog} technicians={techs.map((t) => ({ code: t.code, name: t.name }))} />
       </ListHeader>
 
       <SearchBar q={q} sort={sort} dir={dir} placeholder="ຄົ້ນຫາ ເລກທີ / ລູກຄ້າ / ເບີໂທ / ຊ່າງ..." />

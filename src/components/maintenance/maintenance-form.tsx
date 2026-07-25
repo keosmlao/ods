@@ -11,8 +11,24 @@ type Tech = { code: string; name: string };
 const field = "h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100";
 const labelCls = "mb-1 block text-xs font-semibold text-slate-600";
 
-/** ຟອມເປີດງານສ້ອມບໍລຸງ — ລູກຄ້າ + ລາຍການບໍລິການ (ຈາກ catalog, ແກ້ລາຄາໄດ້). */
-export function MaintenanceForm({ catalog, technicians }: { catalog: MaintenanceCatalogItem[]; technicians: Tech[] }) {
+/**
+ * ຟອມເປີດງານສ້ອມບໍລຸງ — ລູກຄ້າ + ລາຍການບໍລິການ (ຈາກ catalog, ແກ້ລາຄາໄດ້).
+ *
+ * `onSuccess` ໃສ່ເມື່ອຢູ່ໃນ **modal** — ບັນທຶກສຳເລັດແລ້ວປິດ modal (ບໍ່ນຳທາງ).
+ * ບໍ່ໃສ່ = ໂໝດໜ້າເຕັມ (ນຳທາງໄປໜ້າລາຍລະອຽດງານ).
+ * `onCancel` ຄ້າຍກັນ: modal ໃຫ້ປິດ · ໜ້າເຕັມໃຫ້ກັບລາຍການ.
+ */
+export function MaintenanceForm({
+  catalog,
+  technicians,
+  onSuccess,
+  onCancel,
+}: {
+  catalog: MaintenanceCatalogItem[];
+  technicians: Tech[];
+  onSuccess?: () => void;
+  onCancel?: () => void;
+}) {
   const router = useRouter();
   const [lines, setLines] = useState<Line[]>([]);
   const [err, setErr] = useState("");
@@ -37,7 +53,12 @@ export function MaintenanceForm({ catalog, technicians }: { catalog: Maintenance
     start(async () => {
       const r = await createMaintenance(fd);
       if (r.error) { setErr(r.error); return; }
-      router.push(r.code ? `/maintenance/${r.code}` : "/maintenance");
+      if (onSuccess) {
+        // ໃນ modal: ປິດ + ໃຫ້ລາຍການໂຫຼດຄືນ (ຜູ້ເອີ້ນ router.refresh)
+        onSuccess();
+      } else {
+        router.push(r.code ? `/maintenance/${r.code}` : "/maintenance");
+      }
     });
   };
 
@@ -148,7 +169,7 @@ export function MaintenanceForm({ catalog, technicians }: { catalog: Maintenance
 
       {/* ແຖບປຸ່ມ — ຕິດລຸ່ມ ເຕັມກ້ວາງ */}
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={() => router.push("/maintenance")} className="h-11 rounded-lg border border-slate-200 px-6 text-sm font-semibold text-slate-600 hover:bg-slate-50">ຍົກເລີກ</button>
+        <button type="button" onClick={() => (onCancel ? onCancel() : router.push("/maintenance"))} className="h-11 rounded-lg border border-slate-200 px-6 text-sm font-semibold text-slate-600 hover:bg-slate-50">ຍົກເລີກ</button>
         <button type="submit" disabled={pending} className="inline-flex h-11 items-center gap-2 rounded-lg bg-cyan-600 px-8 text-sm font-semibold text-white hover:bg-cyan-700 disabled:opacity-60">
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Plus className="size-4" />} ເປີດງານ
         </button>
