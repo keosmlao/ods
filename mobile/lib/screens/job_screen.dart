@@ -443,6 +443,7 @@ class _JobScreenState extends State<JobScreen> {
       body: Column(
         children: [
           HeroHeader(
+            inlineBack: true,
             title:
                 '${job.workflow == 'install'
                     ? 'ຕິດຕັ້ງ'
@@ -455,8 +456,6 @@ class _JobScreenState extends State<JobScreen> {
             child: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          _WorkflowProgress(job: job),
-          const SizedBox(height: 12),
           _Card(
             children: [
               Row(
@@ -1413,110 +1412,6 @@ class _JobScreenState extends State<JobScreen> {
               ),
             )
           : Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-    );
-  }
-}
-
-class _WorkflowProgress extends StatelessWidget {
-  const _WorkflowProgress({required this.job});
-  final Job job;
-
-  @override
-  Widget build(BuildContext context) {
-    final started = job.workflow == 'install' ? job.stage >= 5 : job.stage >= 2;
-    final finished = job.workflow == 'install'
-        ? job.stage >= 6
-        : job.stage >= 10;
-    final doneLabel = job.workflow == 'install'
-        ? 'ຕິດຕັ້ງສຳເລັດ'
-        : job.workflow == 'maintenance'
-        ? 'ລ້າງສຳເລັດ'
-        : 'ສ້ອມສຳເລັດ';
-    final steps = job.onsite
-        ? [
-            ('ຮັບງານ', job.accepted),
-            ('ເຖິງໜ້າງານ', job.hasCheckedIn),
-            ('ລົງມື', started),
-            (doneLabel, finished),
-            ('ອອກໜ້າງານ', job.hasCheckedOut),
-          ]
-        : [('ຮັບງານ', job.accepted), ('ລົງມື', started), (doneLabel, finished)];
-
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F2F2B),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'ຄວາມຄືບໜ້າວຽກ',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 13),
-          Row(
-            children: List.generate(steps.length, (index) {
-              final step = steps[index];
-              final done = step.$2;
-              return Expanded(
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        if (index > 0)
-                          Expanded(
-                            child: Container(
-                              height: 2,
-                              color: done ? teal : const Color(0xFF36534F),
-                            ),
-                          ),
-                        Container(
-                          width: 23,
-                          height: 23,
-                          decoration: BoxDecoration(
-                            color: done ? teal : const Color(0xFF36534F),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            done ? Icons.check_rounded : Icons.circle,
-                            size: done ? 15 : 7,
-                            color: done
-                                ? Colors.white
-                                : const Color(0xFF89A7A2),
-                          ),
-                        ),
-                        if (index < steps.length - 1)
-                          Expanded(
-                            child: Container(
-                              height: 2,
-                              color: steps[index + 1].$2
-                                  ? teal
-                                  : const Color(0xFF36534F),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      step.$1,
-                      maxLines: 2,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: done ? Colors.white : const Color(0xFF9BB4B0),
-                        fontSize: 8,
-                        height: 1.2,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ),
-        ],
-      ),
     );
   }
 }

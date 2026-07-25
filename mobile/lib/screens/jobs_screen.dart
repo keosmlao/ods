@@ -657,6 +657,24 @@ class _TicketLine extends StatelessWidget {
 }
 
 /// ບັດງານ **ແບບໃບງານ (ticket)** — ແຖບສີໄລຍະເທິງສຸດ · ເລກໃບເດັ່ນ · ເສັ້ນປະແບ່ງສ່ວນ
+/// ປະເພດບໍລິການສ້ອມ (CI/ST/IH/PS) — ປ້າຍເດັ່ນໆໃນบัตร (ໃຫ້ຮູ້ທັນທີວ່າໄປໜ້າງານ/ຢູ່ສູນ).
+({String label, IconData icon, Color color})? _serviceKind(Job job) {
+  if (job.workflow == 'install') return (label: 'ຕິດຕັ້ງ', icon: Icons.construction_outlined, color: Color(0xFF7C3AED));
+  if (job.workflow == 'maintenance') return (label: 'ລ້າງແອ', icon: Icons.cleaning_services_outlined, color: Color(0xFF0284C7));
+  switch (job.serviceType) {
+    case 'IH':
+      return (label: 'ໄປສ້ອມບ້ານ', icon: Icons.home_outlined, color: Color(0xFFB45309));
+    case 'PS':
+      return (label: 'ໄປຮັບ-ສ້ອມສູນ', icon: Icons.local_shipping_outlined, color: Color(0xFF4F46E5));
+    case 'CI':
+      return (label: 'ນຳເຂົ້າສູນ', icon: Icons.store_mall_directory_outlined, color: Color(0xFF0891B2));
+    case 'ST':
+      return (label: 'ສ້ອມໜ້າງານ', icon: Icons.build_outlined, color: Color(0xFF0D9488));
+    default:
+      return (label: 'ສ້ອມແປງ', icon: Icons.handyman_outlined, color: Color(0xFF0D9488));
+  }
+}
+
 class _JobCard extends StatelessWidget {
   const _JobCard({required this.job, required this.accent, required this.onDone});
   final Job job;
@@ -665,7 +683,7 @@ class _JobCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final install = job.workflow == 'install';
+    final kind = _serviceKind(job);
     final statusColor = actionColor[job.action] ?? muted;
     final who = [
       if (_hasText(job.customer)) job.customer!.trim(),
@@ -713,18 +731,31 @@ class _JobCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      job.workflow == 'maintenance'
-                          ? 'ລ້າງແອ'
-                          : install
-                          ? 'ຕິດຕັ້ງ'
-                          : 'ສ້ອມແປງ',
-                      style: const TextStyle(
-                        color: faint,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
+                    // ── ປະເພດບໍລິການ ເດັ່ນໆ (ໄປສ້ອມບ້ານ/ນຳເຂົ້າສູນ/...) ──
+                    if (kind != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: kind.color.withValues(alpha: .12),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: kind.color.withValues(alpha: .30)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(kind.icon, size: 13, color: kind.color),
+                            const SizedBox(width: 4),
+                            Text(
+                              kind.label,
+                              style: TextStyle(
+                                color: kind.color,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),

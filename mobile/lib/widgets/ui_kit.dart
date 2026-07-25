@@ -389,6 +389,7 @@ class HeroHeader extends StatelessWidget {
     this.above,
     this.stats,
     this.onBack,
+    this.inlineBack = false,
   });
   final String title;
   final String eyebrow;
@@ -396,6 +397,7 @@ class HeroHeader extends StatelessWidget {
   final Widget? above; // ແຖວเหนือ title (ເຊັ່ນ ปุ่ม back)
   final List<HeroStat>? stats;
   final VoidCallback? onBack; // ໜ້າ detail — ປຸ່ມກັບຄືນເທິງ hero
+  final bool inlineBack; // ໜ້າ detail ແບບກະທັດຮັດ: ປຸ່ມກັບຊ້າຍ · ຫົວຂໍ້ຂວາ (ແຖວດຽວ)
 
   @override
   Widget build(BuildContext context) => Container(
@@ -410,8 +412,36 @@ class HeroHeader extends StatelessWidget {
     child: SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
-        child: Column(
+        padding: EdgeInsets.fromLTRB(18, 10, 18, inlineBack ? 14 : 18),
+        child: inlineBack
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (onBack != null)
+                    InkWell(
+                      onTap: onBack,
+                      borderRadius: BorderRadius.circular(8),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.arrow_back_rounded, size: 22, color: onHero),
+                          SizedBox(width: 5),
+                          Text('ກັບຄືນ', style: TextStyle(color: onHeroDim, fontSize: 13, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                  const Spacer(),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(eyebrow, style: const TextStyle(fontSize: 10, letterSpacing: 1.8, color: onHeroDim, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 3),
+                      Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: onHero, letterSpacing: -.3)),
+                    ],
+                  ),
+                ],
+              )
+            : Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
