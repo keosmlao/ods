@@ -272,7 +272,7 @@ class _CheckScreenState extends State<CheckScreen> {
             outcome: CheckOutcome.repair,
             icon: warrantyVoid ? Icons.request_quote_outlined : Icons.build_circle_outlined,
             color: warrantyVoid ? const Color(0xFFB45309) : ok,
-            title: warrantyVoid ? 'ສ້ອມໄດ້ — ໄປສະເໜີລາຄາ' : 'ສ້ອມໄດ້ — ເລີ່ມສ້ອມເລີຍ',
+            title: warrantyVoid ? 'ໄປສະເໜີລາຄາ' : 'ສ້ອມໄດ້ — ເລີ່ມສ້ອມເລີຍ',
             subtitle: warrantyVoid
                 ? 'ນອກປະກັນ ⇒ ບັນທຶກແລ້ວໄປສະເໜີລາຄາ (ລໍລູກຄ້າຕົກລົງກ່ອນສ້ອມ)'
                 : 'ບັນທຶກແລ້ວເລີ່ມສ້ອມທັນທີ',
