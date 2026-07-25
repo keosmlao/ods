@@ -281,7 +281,11 @@ class _JobScreenState extends State<JobScreen> {
   Future<void> _openCheck() async {
     final result = await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => CheckScreen(code: job.code, serviceType: job.serviceType),
+        builder: (_) => CheckScreen(
+          code: job.code,
+          serviceType: job.serviceType,
+          outOfWarranty: job.warranty == 'ໝົດຮັບປະກັນ',
+        ),
       ),
     );
     if (!mounted) return;

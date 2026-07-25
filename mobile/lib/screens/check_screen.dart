@@ -21,10 +21,12 @@ import 'check_spare_screen.dart';
 enum CheckOutcome { repair, checkOnly, spare, bringIn }
 
 class CheckScreen extends StatefulWidget {
-  const CheckScreen({super.key, required this.code, this.serviceType});
+  const CheckScreen({super.key, required this.code, this.serviceType, this.outOfWarranty = false});
   final String code;
   /// ປະເພດບໍລິການ (IH/PS/CI/ST) — ໃຫ້ຮູ້ວ່າ IH (ໄປສ້ອມບ້ານ) ⇒ ສະແດງ "ນຳເຂົ້າສູນ"
   final String? serviceType;
+  /// ໃບໝົດຮັບປະກັນ **ຢູ່ DB ແລ້ວ** — ໝົດປະກັນ ⇒ ຕ້ອງໃບລາຄາ (ບໍ່ມີ "ເລີ່ມສ້ອມເລີຍ")
+  final bool outOfWarranty;
 
   @override
   State<CheckScreen> createState() => _CheckScreenState();
@@ -43,6 +45,9 @@ class _CheckScreenState extends State<CheckScreen> {
   CheckOutcome? outcome; // ຜົນຕັດສິນທີ່ຊ່າງເລືອກ (null = ຍັງບໍ່ເລືອກ)
   bool get useSpare => outcome == CheckOutcome.spare;
   bool warrantyVoid = false;
+  /// ຕ້ອງໃບລາຄາບໍ = ໝົດປະກັນຢູ່ DB ແລ້ວ **ຫຼື** ຊ່າງຕັດສິນໝົດປະກັນ (checkbox)
+  /// ⇒ ບໍ່ມີ "ເລີ່ມສ້ອມເລີຍ" ໃນ 2 ກໍລະນີນີ້.
+  bool get quoteNeeded => widget.outOfWarranty || warrantyVoid;
   bool busy = false;
 
   @override
@@ -159,7 +164,7 @@ class _CheckScreenState extends State<CheckScreen> {
     if (chosen == null) return;
     final Object? result = chosen == CheckOutcome.bringIn
         ? CheckOutcome.bringIn
-        : (chosen == CheckOutcome.repair && !warrantyVoid)
+        : (chosen == CheckOutcome.repair && !quoteNeeded)
             ? CheckOutcome.repair
             : null;
     await send({
@@ -270,10 +275,10 @@ class _CheckScreenState extends State<CheckScreen> {
           // ໝົດປະກັນ ⇒ ຕ້ອງໃບລາຄາກ່ອນ ⇒ ບໍ່ມີ "ເລີ່ມສ້ອມເລີຍ", ປ່ຽນເປັນ "ໄປສະເໜີລາຄາ"
           _outcomeCard(
             outcome: CheckOutcome.repair,
-            icon: warrantyVoid ? Icons.request_quote_outlined : Icons.build_circle_outlined,
-            color: warrantyVoid ? const Color(0xFFB45309) : ok,
-            title: warrantyVoid ? 'ໄປສະເໜີລາຄາ' : 'ສ້ອມໄດ້ — ເລີ່ມສ້ອມເລີຍ',
-            subtitle: warrantyVoid
+            icon: quoteNeeded ? Icons.request_quote_outlined : Icons.build_circle_outlined,
+            color: quoteNeeded ? const Color(0xFFB45309) : ok,
+            title: quoteNeeded ? 'ໄປສະເໜີລາຄາ' : 'ສ້ອມໄດ້ — ເລີ່ມສ້ອມເລີຍ',
+            subtitle: quoteNeeded
                 ? 'ນອກປະກັນ ⇒ ບັນທຶກແລ້ວໄປສະເໜີລາຄາ (ລໍລູກຄ້າຕົກລົງກ່ອນສ້ອມ)'
                 : 'ບັນທຶກແລ້ວເລີ່ມສ້ອມທັນທີ',
           ),
@@ -395,7 +400,7 @@ class _CheckScreenState extends State<CheckScreen> {
                   )
                 : const Icon(Icons.check_circle_outline, size: 20),
             label: Text(switch (outcome) {
-              CheckOutcome.repair => warrantyVoid ? 'ບັນທຶກ & ໄປສະເໜີລາຄາ' : 'ບັນທຶກ & ເລີ່ມສ້ອມ',
+              CheckOutcome.repair => quoteNeeded ? 'ບັນທຶກ & ໄປສະເໜີລາຄາ' : 'ບັນທຶກ & ເລີ່ມສ້ອມ',
               CheckOutcome.checkOnly => 'ບັນທຶກ ສຳເລັດການກວດເຊັກ',
               CheckOutcome.spare => 'ບັນທຶກ — ສົ່ງໃຫ້ admin ຂໍເບີກ',
               CheckOutcome.bringIn => 'ບັນທຶກ & ນຳເຂົ້າສູນ',
