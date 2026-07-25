@@ -15,7 +15,9 @@ import '../widgets/ui_kit.dart';
 ///   repair  = ສ້ອມໄດ້ ⇒ (ໃນປະກັນ) ເລີ່ມສ້ອມເລີຍ · (ນອກປະກັນ) ໄປສະເໜີລາຄາ
 ///   spare   = ຕ້ອງສັ່ງ/ເບີກ ອາໄຫຼ່ ⇒ ເຂົ້າຂະບວນການອາໄຫຼ່
 ///   bringIn = ສ້ອມໜ້າງານບໍ່ໄດ້ ⇒ ນຳເຂົ້າສູນ (IH — job_screen ເປີດ dialog ເລືອກວິທີ)
-enum CheckOutcome { repair, spare, bringIn }
+/// repair = ສ້ອມໄດ້ ⇒ ເລີ່ມສ້ອມເລີຍ · checkOnly = ສຳເລັດການກວດ (ສ້ອມພາຍຫຼັງ, ຢູ່ສູນ) ·
+/// spare = ຕ້ອງອາໄຫຼ່ · bringIn = ນຳເຂົ້າສູນ (IH)
+enum CheckOutcome { repair, checkOnly, spare, bringIn }
 
 class CheckScreen extends StatefulWidget {
   const CheckScreen({super.key, required this.code, this.serviceType});
@@ -264,6 +266,17 @@ class _CheckScreenState extends State<CheckScreen> {
                 ? 'ນອກປະກັນ ⇒ ບັນທຶກແລ້ວໄປສະເໜີລາຄາ'
                 : 'ບັນທຶກແລ້ວເລີ່ມສ້ອມທັນທີ',
           ),
+          // ── ຢູ່ສູນ (ບໍ່ແມ່ນ IH): ເລືອກ "ສຳເລັດການກວດເຊັກ" ໄວ້ກ່ອນ ສ້ອມพายຫຼັງໄດ້ ──
+          if (widget.serviceType != 'IH') ...[
+            const SizedBox(height: 8),
+            _outcomeCard(
+              outcome: CheckOutcome.checkOnly,
+              icon: Icons.fact_check_outlined,
+              color: teal,
+              title: 'ສຳເລັດການກວດເຊັກ (ສ້ອມພາຍຫຼັງ)',
+              subtitle: 'ບັນທຶກຜົນກວດໄວ້ກ່ອນ — ກົດ "ເລີ່ມສ້ອມ" ຕ່າງຫາກເມື່ອพร้อม',
+            ),
+          ],
           const SizedBox(height: 8),
           _outcomeCard(
             outcome: CheckOutcome.spare,
@@ -425,6 +438,7 @@ class _CheckScreenState extends State<CheckScreen> {
                 : const Icon(Icons.check_circle_outline, size: 20),
             label: Text(switch (outcome) {
               CheckOutcome.repair => warrantyVoid ? 'ບັນທຶກ & ໄປສະເໜີລາຄາ' : 'ບັນທຶກ & ເລີ່ມສ້ອມ',
+              CheckOutcome.checkOnly => 'ບັນທຶກ ສຳເລັດການກວດເຊັກ',
               CheckOutcome.spare => 'ບັນທຶກ & ຂໍເບີກອາໄຫຼ່',
               CheckOutcome.bringIn => 'ບັນທຶກ & ນຳເຂົ້າສູນ',
               null => 'ບັນທຶກຜົນກວດເຊັກ',

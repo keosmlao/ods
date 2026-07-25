@@ -286,14 +286,14 @@ class _JobScreenState extends State<JobScreen> {
     );
     if (!mounted) return;
     if (result == CheckOutcome.repair) {
-      // ພະຍາຍາມເລີ່ມສ້ອມທັນທີ (ໃນປະກັນ). ຖ້າໃບ **ນອກປະກັນ** (ຕ້ອງໃບລາຄາກ່ອນ)
-      // start ຈະຕົກຂັ້ນ ⇒ ຢ່າໂຊ້ toast ແດງ (ໃບກວດບັນທຶກແລ້ວ) ພຽງ reload ໄປຂັ້ນລາຄາ.
+      // ຊ່າງເລືອກ "ເລີ່ມສ້ອມເລີຍ" ⇒ ພະຍາຍາມ start (ໃນປະກັນ). ນອກປະກັນ/ຕ້ອງລາຄາ ⇒
+      // start ຕົກຂັ້ນ ⇒ catch ໄວ້ ບໍ່ toast ແດງ. (checkOnly ຄືນ null ⇒ ບໍ່ start.)
       final messenger = ScaffoldMessenger.of(context);
       try {
         final message = await Api.command(job.workflow, job.code, {'action': 'start'});
         messenger.showSnackBar(SnackBar(content: Text(message)));
       } on ApiError catch (_) {
-        // ເລີ່ມສ້ອມບໍ່ໄດ້ (ນອກປະກັນ/ຕ້ອງອາໄຫຼ່) — ບໍ່ແມ່ນຄວາມຜິດພາດ, ໄປຕໍ່ຕາມຂັ້ນ
+        // ນອກປະກັນ/ຕ້ອງອາໄຫຼ່ — ບໍ່ແມ່ນ error, ໄປຕໍ່ຕາມຂັ້ນ
       }
       if (mounted) await reload();
     } else if (result == CheckOutcome.bringIn) {
