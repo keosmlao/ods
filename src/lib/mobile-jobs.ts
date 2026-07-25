@@ -95,8 +95,13 @@ export type MobileJob = {
  *
  * ຄ່າແປກທີ່ບໍ່ຮູ້ຈັກ ⇒ ຖືວ່າ **ຢູ່ສູນ** (ບໍ່ບັງຄັບ check-in) — ບັງຄັບຜິດ = ຊ່າງກົດຕໍ່ບໍ່ໄດ້
  * ຢູ່ໜ້າງານ ເຊິ່ງຮ້າຍແຮງກວ່າການຂາດຫຼັກຖານຂອງງານທີ່ເຮັດຢູ່ສູນ.
+ *
+ * ⚠️ **PS ນອກສະຖານທີ່ສະເພາະ "ໄປຮັບເຄື່ອງ" (ຍັງບໍ່ pickup_at)**. ພໍຮັບເຄື່ອງເຂົ້າສູນແລ້ວ
+ * (pickup_at set — ລວມ IH→PS "ເອົາກັບພ້ອມ") ວຽກກວດ/ສ້ອມ **ຢູ່ສູນ** ⇒ ບໍ່ຕ້ອງ check-in GPS.
+ * IH ສ້ອມບ້ານ = ນອກສະຖານທີ່ຕະຫຼອດ.
  */
-const REPAIR_ONSITE = "coalesce(a.service_type,'') in ('IH','PS')";
+const REPAIR_ONSITE =
+  "(coalesce(a.service_type,'')='IH' or (coalesce(a.service_type,'')='PS' and a.pickup_at is null))";
 
 const CHECKED_IN = (workflow: string) => `exists (
   select 1 from ods_job_checkin ck

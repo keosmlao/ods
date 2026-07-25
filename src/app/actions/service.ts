@@ -303,6 +303,11 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
     return { error: "ງານນອກສະຖານທີ່ (ສ້ອມບ້ານລູກຄ້າ / ໄປຮັບເຄື່ອງຈາກບ້ານມາສ້ອມຢູ່ສູນ) ຕ້ອງລະບຸສະຖານທີ່ໜ້າງານ" };
   }
 
+  // IH + ຈັດຊ່າງ ⇒ ຕ້ອງມີວັນນັດ (ຄືກັບໜ້າອອກໃໝ່ + assignRepairTech) ບໍ່ດັ່ງນັ້ນຄ້າງຂັ້ນ 0 ຮັບງານບໍ່ໄດ້
+  if (parsed.data.service_type === "IH" && parsed.data.emp.trim() && !parsed.data.appoint_date.trim()) {
+    return { error: "ໄປສ້ອມບ້ານລູກຄ້າ (IH) ທີ່ຈັດຊ່າງແລ້ວ ຕ້ອງໃສ່ວັນນັດໝາຍໄປສ້ອມ" };
+  }
+
   const files = await collectUploads(formData);
   if (!files.ok) return { error: files.error };
 
@@ -511,6 +516,11 @@ export async function createServiceFromNotice(_: ServiceState, formData: FormDat
   // ງານນອກສະຖານທີ່ຕ້ອງຮູ້ວ່າ "ໄປໃສ" (ຄືກັບຕອນສ້າງ — ຟອມກວດແລ້ວ ແຕ່ action ຖືກຍິງໂດຍກົງໄດ້)
   if (NEEDS_LOCATION(parsed.data.service_type) && !parsed.data.location_repair.trim()) {
     return { error: "ງານນອກສະຖານທີ່ (ສ້ອມບ້ານລູກຄ້າ / ໄປຮັບເຄື່ອງຈາກບ້ານມາສ້ອມຢູ່ສູນ) ຕ້ອງລະບຸສະຖານທີ່ໜ້າງານ" };
+  }
+
+  // IH + ຈັດຊ່າງ ⇒ ຕ້ອງມີວັນນັດ (ຄືກັບໜ້າອອກໃໝ່ + assignRepairTech) ບໍ່ດັ່ງນັ້ນຄ້າງຂັ້ນ 0 ຮັບງານບໍ່ໄດ້
+  if (parsed.data.service_type === "IH" && parsed.data.emp.trim() && !parsed.data.appoint_date.trim()) {
+    return { error: "ໄປສ້ອມບ້ານລູກຄ້າ (IH) ທີ່ຈັດຊ່າງແລ້ວ ຕ້ອງໃສ່ວັນນັດໝາຍໄປສ້ອມ" };
   }
 
   const files = await collectUploads(formData);

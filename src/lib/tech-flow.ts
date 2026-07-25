@@ -124,8 +124,10 @@ export async function startCheckFlow(session: Session, code: string): Promise<Fl
   // ວຽກ **ນຳເຄື່ອງເຂົ້າ** (in-shop) ບໍ່ຕ້ອງ check-in. ຜູ້ຈັດການ/CS (ໜ້າ dashboard) ຂ້າມເງື່ອນໄຂນີ້ໄດ້.
   if (roleOf(session) === "technical") {
     const check = await query<{ accepted: boolean; onsite: boolean; checkedin: boolean }>(
+      // PS ນອກສະຖານທີ່ສະເພາະຕອນໄປຮັບ (ຍັງບໍ່ pickup_at); ຮັບເຂົ້າສູນແລ້ວ = ຢູ່ສູນ ບໍ່ຕ້ອງ check-in.
+      // IH = ນອກສະຖານທີ່ຕະຫຼອດ. (ຕົງກັບ REPAIR_ONSITE ໃນ lib/mobile-jobs)
       `select a.repair_confirm is not null as accepted,
-              coalesce(a.service_type,'') in ('IH','PS') as onsite,
+              (coalesce(a.service_type,'')='IH' or (coalesce(a.service_type,'')='PS' and a.pickup_at is null)) as onsite,
               exists (select 1 from ods_job_checkin c
                        where c.workflow='repair' and c.job_code=a.code and c.tech_code=$2) as checkedin
          from tb_product a where a.code=$1 and a.emp_code=$2`,
