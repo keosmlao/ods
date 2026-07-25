@@ -245,21 +245,24 @@ class _JobScreenState extends State<JobScreen> {
     });
   }
 
-  /// IH ສ້ອມໜ້າງານບໍ່ໄດ້ ⇒ ນຳເຄື່ອງເຂົ້າສູນ (ແປງເປັນ PS). ຕ້ອງໃສ່ເຫດຜົນ.
+  /// IH ສ້ອມໜ້າງານບໍ່ໄດ້ ⇒ ນຳເຄື່ອງເຂົ້າສູນ (ແປງເປັນ PS). ຕ້ອງໃສ່ເຫດຜົນ +
+  /// ເລືອກວິທີເອົາເຂົ້າ: **ເອົາກັບພ້ອມ** (ຊ່າງຫອບກັບເອງ) ຫຼື **ຂົນສົ່ງມາຮັບ** (ໃຫ້ຂົນສົ່ງໄປຮັບ).
   Future<void> bringIn() async {
     reason.clear();
-    final confirmed = await showDialog<bool>(
+    // ຄືນຄ່າ mode ທີ່ຊ່າງກົດ ('carry' | 'pickup') ຫຼື null ຖ້າຍົກເລີກ.
+    final mode = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('ສ້ອມໜ້າງານບໍ່ໄດ້ — ນຳເຂົ້າສູນ?'),
+        title: const Text('ສ້ອມໜ້າງານບໍ່ໄດ້ — ນຳເຂົ້າສູນ'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'ເຄື່ອງຈະຖືກນຳເຂົ້າສູນ (ແປງເປັນ PS) ແລ້ວ CS ຮັບເຂົ້າສູນ. ໃສ່ເຫດຜົນໃຫ້ຊ່າງສູນ/CS ເຫັນ:',
+              'ໃສ່ເຫດຜົນທີ່ສ້ອມໜ້າງານບໍ່ໄດ້ ໃຫ້ຊ່າງສູນ/CS ເຫັນ ແລ້ວເລືອກວິທີເອົາເຄື່ອງເຂົ້າສູນ:',
               style: TextStyle(fontSize: 13),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             TextField(
               controller: reason,
               maxLines: 2,
@@ -270,19 +273,28 @@ class _JobScreenState extends State<JobScreen> {
             ),
           ],
         ),
+        actionsOverflowDirection: VerticalDirection.down,
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
+            onPressed: () => Navigator.pop(dialogContext, null),
             child: const Text('ຍົກເລີກ'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('ນຳເຂົ້າສູນ'),
+          // ໃຫ້ຂົນສົ່ງໄປຮັບ — ເຄື່ອງຍັງຢູ່ບ້ານລູກຄ້າ, ເຂົ້າຄິວ "ລໍໄປຮັບເຄື່ອງ"
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, 'pickup'),
+            icon: const Icon(Icons.local_shipping_outlined, size: 18),
+            label: const Text('ຂົນສົ່ງມາຮັບ'),
+          ),
+          // ຊ່າງເອົາກັບພ້ອມ — ຫອບເຄື່ອງເຂົ້າສູນເອງ, ຂ້າມຄິວໄປຮັບ
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, 'carry'),
+            icon: const Icon(Icons.directions_car_outlined, size: 18),
+            label: const Text('ເອົາກັບພ້ອມ'),
           ),
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (mode == null) return;
     if (reason.text.trim().isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -291,7 +303,7 @@ class _JobScreenState extends State<JobScreen> {
       }
       return;
     }
-    await run({'action': 'bring-in', 'reason': reason.text.trim()});
+    await run({'action': 'bring-in', 'mode': mode, 'reason': reason.text.trim()});
   }
 
   Future<void> openMap() async {
@@ -805,6 +817,18 @@ class _JobScreenState extends State<JobScreen> {
                 ),
               ],
 
+              // ── ໜ້າງານ (IH/PS): ຮັບງານແລ້ວ ⇒ ສະແດງ check-in **ພ້ອມກັບ** ເລີ່ມກວດເຊັກ ──
+              // (ບໍ່ຕ້ອງເລື່ອນລົງໄປຫາກາດ "ໜ້າງານ" ດ້ານລຸ່ມ) — ຂັ້ນ 1 ຍັງບໍ່ check-in
+              if (job.workflow == 'repair' &&
+                  job.accepted &&
+                  job.onsite &&
+                  job.canCheckIn &&
+                  !job.hasCheckedIn &&
+                  job.stage == 1) ...[
+                _button('check-in ໜ້າງານ (ພິກັດ + ຮູບ)', ink, checkIn),
+                const SizedBox(height: 8),
+              ],
+
               // ງານສ້ອມຂັ້ນ 1-2 = ກວດເຊັກ (ບໍ່ແມ່ນ "ເລີ່ມສ້ອມ" ຂອງຂັ້ນ 8)
               // ⚠️ ຕ້ອງ **ຮັບງານກ່ອນ** ຈຶ່ງກວດເຊັກໄດ້ (job.accepted) — ບໍ່ໃຫ້ຂ້າມ "ຮັບງານ"
               if (job.workflow == 'repair' &&
@@ -846,19 +870,6 @@ class _JobScreenState extends State<JobScreen> {
                         },
                 ),
 
-              // IH ໜ້າງານ ສ້ອມບໍ່ໄດ້ ⇒ ນຳເຂົ້າສູນ (ແປງເປັນ PS) — ມີແຕ່ຕອນກຳລັງກວດ (ຂັ້ນ 1/2)
-              if (job.workflow == 'repair' &&
-                  job.accepted &&
-                  job.serviceType == 'IH' &&
-                  (job.stage == 1 || job.stage == 2)) ...[
-                const SizedBox(height: 8),
-                _button(
-                  'ສ້ອມໜ້າງານບໍ່ໄດ້ — ນຳເຂົ້າສູນ',
-                  const Color(0xFFB45309),
-                  bringIn,
-                ),
-              ],
-
               if (job.action == 'start')
                 _button(
                   job.onsite && !job.hasCheckedIn
@@ -871,6 +882,23 @@ class _JobScreenState extends State<JobScreen> {
                       ? null
                       : () => run({'action': 'start'}),
                 ),
+
+              // IH ໜ້າງານ ສ້ອມບໍ່ໄດ້ ⇒ ນຳເຂົ້າສູນ (ແປງເປັນ PS).
+              // ປິດກາດກວດເຊັກແລ້ວ (ຂັ້ນ ≥3 = ບັນທຶກຜົນກວດແລ້ວ) ຈຶ່ງໃຫ້ເລືອກ
+              // **ເລີ່ມສ້ອມ ຫຼື ນຳເຂົ້າສູນ** — ໃຫ້ໄດ້ຈົນກ່ອນລົງມືສ້ອມ (ຂັ້ນ 3–8).
+              // bringIn() ໃຫ້ເລືອກ ເອົາກັບພ້ອມ / ຂົນສົ່ງມາຮັບ.
+              if (job.workflow == 'repair' &&
+                  job.accepted &&
+                  job.serviceType == 'IH' &&
+                  job.stage >= 3 &&
+                  job.stage <= 8) ...[
+                const SizedBox(height: 8),
+                _button(
+                  'ສ້ອມໜ້າງານບໍ່ໄດ້ — ນຳເຂົ້າສູນ',
+                  const Color(0xFFB45309),
+                  bringIn,
+                ),
+              ],
 
               // ຂັ້ນ 9 ກຳລັງສ້ອມ (ສະເພາະສ້ອມ): ພົບຕ້ອງໃຊ້ອາໄຫຼ່ເພີ່ມ/ປ່ຽນ ⇒ ຂໍເບີກເພີ່ມ
               // ── ຂັ້ນ 9 ກຳລັງສ້ອມ: ພົບຕ້ອງໃຊ້ອາໄຫຼ່ເພີ່ມ/ປ່ຽນ ⇒ ຂໍເບີກເພີ່ມ ──
@@ -1131,6 +1159,14 @@ class _JobScreenState extends State<JobScreen> {
                           const SizedBox(height: 8),
                           _button('ຍັງ check-in ບໍ່ໄດ້', muted, null),
                         ],
+                      )
+                    : (job.canCheckIn && !job.hasCheckedIn && job.stage == 1)
+                    // ຂັ້ນ 1: ປຸ່ມ check-in ຖືກຍົກຂຶ້ນໄປຢູ່ແຖບການເຮັດວຽກດ້ານເທິງແລ້ວ —
+                    // ບໍ່ຊ້ຳປຸ່ມ, ຊີ້ຂຶ້ນເທົ່ານັ້ນ.
+                    ? const Text(
+                        '↑ ໃຊ້ປຸ່ມ check-in ດ້ານເທິງ',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: muted, fontSize: 12),
                       )
                     : job.canCheckIn
                     ? _button('check-in ໜ້າງານ (ພິກັດ + ຮູບ)', ink, checkIn)

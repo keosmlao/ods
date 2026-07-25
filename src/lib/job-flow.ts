@@ -148,31 +148,47 @@ export async function acceptRepair(session: Session, code: string): Promise<Flow
  * ຊ່າງໜ້າງານ (IH) **ສ້ອມບໍ່ໄດ້ ⇒ ນຳເຄື່ອງເຂົ້າສູນ**. ແປງ IH→PS (ໄປຮັບມາສ້ອມຢູ່ສູນ)
  * ເພາະຜົນລັບຄືກັນ: ເຄື່ອງເດີນທາງເຂົ້າສູນ → ສ້ອມ → **ຕ້ອງສົ່ງຄືນ** (ຕ່າງຈາກ IH ທີ່ຈົບໜ້າງານ).
  *
- * - pickup_start=now, pickup_at=null ⇒ ເຂົ້າຄິວ "ກຳລັງໄປຮັບ" (ຊ່າງກຳລັງເອົາເຄື່ອງເຂົ້າ);
- *   CS ກົດ "ຮັບເຂົ້າສູນ" (receivePickup) ຕອນມາຮອດ ⇒ ຂັ້ນ 1 ກວດຄືນຢູ່ສູນ.
- * - ລ້າງ time_check/time_finish_check ⇒ ຕົກຄືນຂັ້ນ 0 (PS ຄິວໄປຮັບ) ແລ້ວກວດຄືນດ້ວຍເຄື່ອງມືສູນ.
- * - ອະນຸຍາດແຕ່ຕອນຍັງກວດ (ຂັ້ນ 1/2) — ຫຼັງມີໃບສະເໜີ/ເບີກ ຫ້າມ (ຈະ orphan ເອກະສານ).
+ * ຊ່າງເລືອກ **ວິທີເອົາເຄື່ອງເຂົ້າ** — ຄວບຄຸມດ້ວຍ `mode`:
+ * - "pickup" (ຂົນສົ່ງມາຮັບ): pickup_at=null ⇒ ເຂົ້າຄິວ "ລໍໄປຮັບເຄື່ອງ" (ຂັ້ນ 0);
+ *   ຂົນສົ່ງໄປຮັບ ແລ້ວ CS ກົດ "ຮັບເຂົ້າສູນ" (receivePickup) ⇒ ຂັ້ນ 1 ກວດຄືນຢູ່ສູນ.
+ * - "carry" (ເອົາກັບພ້ອມ): ຊ່າງຫອບເຄື່ອງກັບເອງທັນທີ ⇒ pickup_at=now ຄືມາຮອດສູນແລ້ວ
+ *   ⇒ ຂ້າມຄິວໄປຮັບ ຕົກເຂົ້າຂັ້ນ 1 "ລໍຖ້າກວດເຊັກ" ຢູ່ສູນເລີຍ.
+ * - ລ້າງ time_check/time_finish_check ⇒ ກວດຄືນຢູ່ສູນດ້ວຍເຄື່ອງມືສູນ.
+ * - ອະນຸຍາດຕັ້ງແຕ່ຫຼັງເລີ່ມກວດຈົນກ່ອນລົງມືສ້ອມ (ຂັ້ນ 1–8) — ຫຼັງເລີ່ມສ້ອມ/ອອກໃບແລ້ວ ຫ້າມ.
  */
-export async function bringRepairToCenter(session: Session, code: string, reason: string): Promise<FlowResult> {
+export async function bringRepairToCenter(
+  session: Session,
+  code: string,
+  reason: string,
+  mode: "pickup" | "carry" = "pickup",
+): Promise<FlowResult> {
   const own = await ownJob(session, "repair", code);
   if (!own.ok) return own;
 
   const why = reason.trim();
   if (!why) return { ok: false, error: "ກະລຸນາໃສ່ເຫດຜົນທີ່ສ້ອມໜ້າງານບໍ່ໄດ້" };
 
+  // ເອົາກັບພ້ອມ = ຊ່າງຫອບເຄື່ອງເຂົ້າສູນເອງ ⇒ ໝາຍ pickup_at ທັນທີ (ຂ້າມຄິວໄປຮັບ).
+  const carry = mode === "carry";
   const done = await query(
     `update tb_product a set
-        service_type='PS', pickup_start=${NOW}, pickup_at=null,
+        service_type='PS', pickup_start=${NOW}, pickup_at=${carry ? NOW : "null"},
         time_check=null, time_finish_check=null
-      where a.code=$1 and coalesce(service_type,'')='IH' and (${STAGE_SQL}) in (1,2)`,
+      where a.code=$1 and coalesce(service_type,'')='IH' and (${STAGE_SQL}) between 1 and 8`,
     [code],
   );
   if (!done.rowCount) {
-    return { ok: false, error: "ນຳເຂົ້າສູນບໍ່ໄດ້ — ວຽກບໍ່ແມ່ນ IH ທີ່ກຳລັງກວດໜ້າງານ ຫຼື ຖືກປ່ຽນໄປແລ້ວ" };
+    return { ok: false, error: "ນຳເຂົ້າສູນບໍ່ໄດ້ — ວຽກບໍ່ແມ່ນ IH ໜ້າງານ ຫຼື ລົງມືສ້ອມ/ອອກໃບໄປແລ້ວ" };
   }
 
-  await logChange("tb_product", code, `ສ້ອມໜ້າງານບໍ່ໄດ້ → ນຳເຂົ້າສູນ (IH→PS): ${why}`, { author: session.username, roles: ["admin", "manager"] });
-  return { ok: true, message: `ນຳ ${code} ເຂົ້າສູນແລ້ວ — ລໍ CS ຮັບເຂົ້າສູນ` };
+  const how = carry ? "ຊ່າງເອົາກັບພ້ອມ" : "ໃຫ້ຂົນສົ່ງໄປຮັບ";
+  await logChange("tb_product", code, `ສ້ອມໜ້າງານບໍ່ໄດ້ → ນຳເຂົ້າສູນ (IH→PS · ${how}): ${why}`, { author: session.username, roles: ["admin", "manager"] });
+  return {
+    ok: true,
+    message: carry
+      ? `ນຳ ${code} ເຂົ້າສູນແລ້ວ (ເອົາກັບພ້ອມ) — ຢູ່ຄິວ ລໍຖ້າກວດເຊັກ`
+      : `ນຳ ${code} ເຂົ້າສູນແລ້ວ — ລໍຂົນສົ່ງໄປຮັບ`,
+  };
 }
 
 /**

@@ -33,6 +33,8 @@ import { NextResponse } from "next/server";
  */
 type Body = {
   action: "accept" | "reject" | "start" | "finish" | "checkin" | "checkout" | "bring-in";
+  /** bring-in: ວິທີເອົາເຄື່ອງເຂົ້າສູນ — carry=ຊ່າງເອົາກັບພ້ອມ · pickup=ຂົນສົ່ງມາຮັບ (ຄ່າເລີ່ມ) */
+  mode?: "carry" | "pickup";
   reason?: string;
   note?: string;
   lat?: number;
@@ -175,7 +177,12 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
         if (workflow !== "repair") {
           return NextResponse.json({ error: "ຄຳສັ່ງນີ້ໃຊ້ໄດ້ແຕ່ງານສ້ອມ" }, { status: 400 });
         }
-        result = await bringRepairToCenter(user, code, String(body.reason ?? ""));
+        result = await bringRepairToCenter(
+          user,
+          code,
+          String(body.reason ?? ""),
+          body.mode === "carry" ? "carry" : "pickup",
+        );
         break;
       default:
         return NextResponse.json({ error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" }, { status: 400 });
