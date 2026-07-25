@@ -1171,8 +1171,11 @@ class _JobScreenState extends State<JobScreen> {
             ],
           ),
 
-          /* ── check-in ໜ້າງານ (ສະເພາະວຽກນອກສະຖານທີ່) ── */
-          if (job.onsite) ...[
+          /* ── ໜ້າງານ (ນອກສະຖານທີ່): check-out / ສະຖານະ ──
+             check-in ຢູ່ແຖບການເຮັດວຽກດ້ານເທິງແລ້ວ (ຂັ້ນ 1). ຈົບງານ = checkout ອັດຕະໂນມັດ.
+             ໂຊ້ບັດນີ້ສະເພາະ: ຍັງ check-in ຄ້າງ (ໃຫ້ອອກກ່ອນໄດ້) ຫຼື ຂັ້ນ 1 (ຮັບງານກ່ອນ/ຊີ້ຂຶ້ນ).
+             ຂັ້ນສ້ອມ (8,9) ຫຼັງ checkout ໄປແລ້ວ = ບໍ່ໂຊ້ບັດ (ບໍ່ໃຫ້ປຸ່ມ check-in ໂຜ່ຄືນຜິດໆ). */
+          if (job.onsite && (job.canCheckOut || job.stage == 1)) ...[
             const SizedBox(height: 12),
             _Card(
               children: [
@@ -1182,10 +1185,21 @@ class _JobScreenState extends State<JobScreen> {
                 ),
                 const SizedBox(height: 8),
                 job.canCheckOut
-                    ? _button(
-                        'check-out (ອອກຈາກໜ້າງານ)',
-                        const Color(0xFF334155),
-                        checkOut,
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _button(
+                            'check-out (ອອກຈາກໜ້າງານ)',
+                            const Color(0xFF334155),
+                            checkOut,
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'ຈົບງານແລ້ວ ລະບົບ checkout ໃຫ້ອັດຕະໂນມັດ',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: muted, fontSize: 11),
+                          ),
+                        ],
                       )
                     : !job.accepted
                     ? Column(
@@ -1204,20 +1218,10 @@ class _JobScreenState extends State<JobScreen> {
                           _button('ຍັງ check-in ບໍ່ໄດ້', muted, null),
                         ],
                       )
-                    : (job.canCheckIn && !job.hasCheckedIn && job.stage == 1)
-                    // ຂັ້ນ 1: ປຸ່ມ check-in ຖືກຍົກຂຶ້ນໄປຢູ່ແຖບການເຮັດວຽກດ້ານເທິງແລ້ວ —
-                    // ບໍ່ຊ້ຳປຸ່ມ, ຊີ້ຂຶ້ນເທົ່ານັ້ນ.
-                    ? const Text(
+                    : const Text(
                         '↑ ໃຊ້ປຸ່ມ check-in ດ້ານເທິງ',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: muted, fontSize: 12),
-                      )
-                    : job.canCheckIn
-                    ? _button('check-in ໜ້າງານ (ພິກັດ + ຮູບ)', ink, checkIn)
-                    : const Text(
-                        'ຂັ້ນປັດຈຸບັນບໍ່ສາມາດ check-in ໄດ້',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: muted),
                       ),
               ],
             ),

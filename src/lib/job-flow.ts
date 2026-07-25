@@ -356,6 +356,12 @@ export async function finishInstallFlow(
       return { ok: false, error: "ບັນທຶກບໍ່ໄດ້ — ຍັງບໍ່ໄດ້ເລີ່ມຕິດຕັ້ງ ຫຼື ຈົບໄປແລ້ວ" };
     }
     saved = await savePhotos(client, session, "install", code, clean, "");
+    // ຈົບງານຕິດຕັ້ງ ⇒ checkout ອັດຕະໂນມັດ (ວຽກໜ້າງານ) — ຄືກັບຝັ່ງສ້ອມ
+    await client.query(
+      `update ods_job_checkin set checkout_at=${NOW}
+        where workflow='install' and job_code=$1 and tech_code=$2 and checkout_at is null`,
+      [code, session.username],
+    );
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");
@@ -529,6 +535,13 @@ export async function finishRepairFlow(
       return { ok: false, error: 'ບັນທຶກບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ "ກຳລັງສ້ອມແປງ"' };
     }
     saved = await savePhotos(client, session, "repair", code, photos.filter(Boolean), note.trim());
+    // ຈົບງານ ⇒ **checkout ອັດຕະໂນມັດ** (ວຽກໜ້າງານ) — ຊ່າງບໍ່ຕ້ອງກົດ checkout ເອງ;
+    // ປິດ check-in ທີ່ຍັງເປີດຄ້າງຂອງຊ່າງຄົນນີ້. ຢູ່ໃນ transaction ດຽວກັບການຈົບງານ.
+    await client.query(
+      `update ods_job_checkin set checkout_at=${NOW}
+        where workflow='repair' and job_code=$1 and tech_code=$2 and checkout_at is null`,
+      [code, session.username],
+    );
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");
