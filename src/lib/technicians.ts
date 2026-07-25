@@ -40,12 +40,19 @@ type ErpRow = {
   role: string;
 };
 
+/**
+ * ພະແນກ **ຕິດຕັ້ງໂຄງການ (ຊ່າງໂຄງການ)** — ບໍ່ແມ່ນສູນບໍລິການ ⇒ ຕັດອອກຈາກ dropdown ຈັດຊ່າງ
+ * (ຄືກັບໜ້າຈັດການພະນັກງານ). ຊ່າງໂຄງການບໍ່ຮັບງານສ້ອມ/ຕິດຕັ້ງ/ບຳລຸງຂອງສູນບໍລິການ.
+ */
+const PROJECT_DEPT = "403";
+
 export async function listTechnicians(): Promise<Technician[]> {
   const [erp, overrides, legacy, links] = await Promise.all([
     queryOdg<ErpRow>(
       `select e.employee_code, ${ERP_IDENTITY_SQL} as identity, e.fullname_lo, ${ERP_ROLE_CASE} as role
          from odg_employee e
         where e.employment_status = 'ACTIVE'
+          and coalesce(e.department_code,'') <> '${PROJECT_DEPT}'
         order by e.fullname_lo`,
     ),
     query<{ employee_code: string; app_role: string; active: boolean }>(
