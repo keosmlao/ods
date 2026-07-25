@@ -9,12 +9,19 @@ import type { TimelineStep } from "@/lib/repair-timeline";
  * (`live={current}`) — ບໍ່ດັ່ງນັ້ນງານທີ່ຈົບແລ້ວຈະເບິ່ງຄືຍັງຄ້າງຢູ່. ງານທີ່ຈົບ (ຂັ້ນສຸດທ້າຍ)
  * ໝາຍເປັນສີຂຽວຄົງທີ່ ບໍ່ແມ່ນ "ຂັ້ນປັດຈຸບັນ".
  */
-export function JobTimeline({ steps, cancelledAt }: { steps: TimelineStep[]; cancelledAt: string | null }) {
+export function JobTimeline({
+  steps,
+  cancelledAt,
+  bare = false,
+}: {
+  steps: TimelineStep[];
+  cancelledAt: string | null;
+  /** bare = ໃສ່ໃນ container ອື່ນ (details) ⇒ ບໍ່ຫຸ້ມ section/ຫົວຂໍ້ຂອງໂຕເອງ */
+  bare?: boolean;
+}) {
   if (steps.length === 0) return null;
-  return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="mb-3 border-b border-slate-100 pb-2 text-sm font-bold text-slate-700">ເສັ້ນເວລາ (Timeline)</h2>
-      <ol className="relative ml-1">
+  const list = (
+    <ol className="relative ml-1">
         {steps.map((s, i) => {
           const done = s.state === "done";
           const current = s.state === "current";
@@ -60,6 +67,12 @@ export function JobTimeline({ steps, cancelledAt }: { steps: TimelineStep[]; can
           </li>
         )}
       </ol>
+  );
+  if (bare) return list;
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 className="mb-3 border-b border-slate-100 pb-2 text-sm font-bold text-slate-700">ເສັ້ນເວລາ (Timeline)</h2>
+      {list}
     </section>
   );
 }

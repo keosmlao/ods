@@ -27,7 +27,7 @@ import { stageLabel, STAGE_SQL } from "@/lib/stage";
 import { repairTimeline } from "@/lib/repair-timeline";
 import { JobTimeline } from "@/components/repair/job-timeline";
 import { DONE_STAGE } from "@/lib/track";
-import { ArrowLeft, Barcode, CalendarDays, ImageIcon, MapPin, MessageCircle, Pencil, Phone, Printer, RotateCcw } from "lucide-react";
+import { ArrowLeft, Barcode, CalendarDays, ChevronDown, Clock, ImageIcon, MapPin, MessageCircle, Pencil, Phone, Printer, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -425,7 +425,22 @@ export default async function ServiceDetail({ params }: Props) {
         />
       )}
 
-      <JobTimeline steps={timeline.steps} cancelledAt={timeline.cancelledAt} />
+      {/* ເສັ້ນເວລາລະອຽດ — ຫຍໍ້ໄວ້ (ພາບລວມຢູ່ stepper ດ້ານເທິງແລ້ວ) ⇒ ບໍ່ໃຫ້ໜ້າຍາວ */}
+      <details className="group rounded-xl border border-slate-200 bg-white shadow-sm">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">
+          <span className="flex items-center gap-2">
+            <Clock className="size-4 text-slate-400" />
+            ເສັ້ນເວລາລະອຽດ
+            <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+              {stageLabel(job.stage, job.service_type)}
+            </span>
+          </span>
+          <ChevronDown className="size-4 text-slate-400 transition group-open:rotate-180" />
+        </summary>
+        <div className="border-t border-slate-100 p-4">
+          <JobTimeline steps={timeline.steps} cancelledAt={timeline.cancelledAt} bare />
+        </div>
+      </details>
 
       <JobEvidence
         checkins={checkins.rows}

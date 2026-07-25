@@ -115,17 +115,24 @@ export async function ServicePendingTable({
                         </span>
                         <span className="flex items-center gap-1.5">
                           <span className="truncate text-xs text-slate-400">{card.sn || "-"}</span>
-                          {/* ໄອຄອນ check-in ໜ້າງານ — ກົດເຂົ້າໃບເບິ່ງຮູບ/ພິກັດເຕັມ */}
+                          {/* thumbnail ຮູບ check-in ໜ້າງານຈິງ (ຜ່ານ endpoint ເບົາ) — ກົດເຂົ້າໃບເບິ່ງເຕັມ */}
                           {card.checked_in && (
-                            <span
-                              title={card.checked_out ? "check-in + ອອກໜ້າງານແລ້ວ" : "check-in ໜ້າງານແລ້ວ"}
-                              className={`inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-bold ${
-                                card.checked_out ? "bg-slate-100 text-slate-500" : "bg-teal-50 text-teal-700"
-                              }`}
+                            <Link
+                              href={`/service/${card.code}`}
+                              title={card.checked_out ? "check-in + ອອກໜ້າງານແລ້ວ — ກົດເບິ່ງ" : "check-in ໜ້າງານແລ້ວ — ກົດເບິ່ງ"}
+                              className="relative shrink-0"
                             >
-                              <MapPin className="size-2.5" />
-                              {card.checked_out ? "ອອກແລ້ວ" : "ໜ້າງານ"}
-                            </span>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={`/api/checkin-photo/${card.code}`}
+                                alt="check-in"
+                                loading="lazy"
+                                className={`size-7 rounded-md object-cover ring-2 ${card.checked_out ? "ring-slate-300" : "ring-teal-400"}`}
+                              />
+                              <MapPin
+                                className={`absolute -bottom-1 -right-1 size-3 rounded-full bg-white p-px ${card.checked_out ? "text-slate-500" : "text-teal-600"}`}
+                              />
+                            </Link>
                           )}
                         </span>
                       </div>

@@ -530,6 +530,10 @@ export async function createServiceFromNotice(_: ServiceState, formData: FormDat
 
   const files = await collectUploads(formData);
   if (!files.ok) return { error: files.error };
+  // ບັງຄັບຮູບຮັບເຄື່ອງ ≥1 (ຄືກັບໜ້າຮັບໃໝ່) — ທຸກໃບມີຫຼັກຖານສະພາບເຄື່ອງ
+  if (files.uploads.length === 0) {
+    return { error: "ຕ້ອງແນບຮູບຮັບເຄື່ອງຢ່າງໜ້ອຍ 1 ຮູບ (ຫຼັກຖານສະພາບເຄື່ອງຕອນຮັບ)" };
+  }
 
   const d = parsed.data;
   const client = await db.connect();
