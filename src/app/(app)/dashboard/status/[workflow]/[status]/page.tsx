@@ -39,6 +39,7 @@ import { APPROVER_SIDE, canAccess, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { listTechnicians } from "@/lib/technicians";
+import { PhotoThumb } from "@/components/service/photo-thumb";
 import { ArrowLeft, ArrowRight, Barcode, ChevronLeft, ChevronRight, CircleAlert, Download, House, PackageOpen, Search, Truck, Warehouse } from "lucide-react";
 import { type Dictionary, getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
@@ -71,6 +72,8 @@ type RepairRow = {
   cancelled: boolean;
   quote_doc: string | null; quote_apr: number | null; quote_customer_status: number | null; request_doc: string | null;
   repair_confirm: string | null;
+  /** ຮູບໜ້າປົກ + ຈຳນວນຮູບ — ໃຫ້ຄິວທຸກຂັ້ນຕອນໂຊ້ thumbnail ຄືໜ້າຮັບສິນຄ້າ */
+  thumb: string | null; photo_count: number;
   /** ທຸງ "ມີບັນຫາ" ທີ່ເປີດຢູ່ — null = ປົກກະຕິ (ເບິ່ງ src/lib/job-hold.ts) */
   hold: JobHold | null;
 };
@@ -325,6 +328,15 @@ export default async function StatusPage({ params, searchParams }: Props) {
             order by roworder desc limit 1) request_doc,
          to_char(a.time_register,'DD-MM-YYYY HH24:MI') registered,
          to_char((${STAGE_TIME_COL}),'DD-MM-YYYY HH24:MI') stage_started, ${elapsed},
+         (select product_url from product_image i
+           where i.iteme_code = a.code and coalesce(i.product_url,'') <> ''
+           order by line_number limit 1) as thumb,
+         (
+           (select count(*) from product_image i
+             where i.iteme_code = a.code and coalesce(i.product_url,'') <> '')
+           + (select count(*) from ods_job_photo p
+               where p.workflow='repair' and p.job_code = a.code and p.kind in ('check','finish'))
+         )::int as photo_count,
          ${holdJsonSql("repair")}
        ${from} where ${filter} order by ${orderBy} limit $${args.length + 1} offset $${args.length + 2}`
     : `select a.code, c.name_1 customer, a.item_name product, a.pro_brand brand, a.pro_model model,
@@ -780,14 +792,22 @@ export default async function StatusPage({ params, searchParams }: Props) {
                       )}
                     </td>
                     <td className="max-w-64 px-3 py-2.5">
-                      <span className="block truncate font-medium text-slate-800" title={row.product ?? ""}>
-                        {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
-                      </span>
-                      <span className="block truncate text-[10px] text-slate-400">
-                        {isRepair
-                          ? row.sn || "-"
-                          : [row.product_type, row.product_size].filter(Boolean).join(" · ") || "-"}
-                      </span>
+                      <div className="flex items-center gap-2.5">
+                        {/* ຮູບ — ສະເພາະສາຍງານສ້ອມ (ຄິວທຸກຂັ້ນຕອນ) */}
+                        {isRepair && (
+                          <PhotoThumb code={row.code} thumb={(row as RepairRow).thumb} count={(row as RepairRow).photo_count} />
+                        )}
+                        <div className="min-w-0">
+                          <span className="block truncate font-medium text-slate-800" title={row.product ?? ""}>
+                            {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
+                          </span>
+                          <span className="block truncate text-[10px] text-slate-400">
+                            {isRepair
+                              ? row.sn || "-"
+                              : [row.product_type, row.product_size].filter(Boolean).join(" · ") || "-"}
+                          </span>
+                        </div>
+                      </div>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.brand || "-"}</td>
                     <td className="max-w-44 px-3 py-2.5">
@@ -926,15 +946,20 @@ export default async function StatusPage({ params, searchParams }: Props) {
                 </div>
 
                 {/* ສິນຄ້າ / SN */}
-                <div className="mt-2">
-                  <p className="truncate text-xs font-medium text-slate-800" title={row.product ?? ""}>
-                    {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
-                  </p>
-                  <p className="truncate text-[10px] text-slate-400">
-                    {isRepair
-                      ? row.sn || "-"
-                      : [row.product_type, row.product_size].filter(Boolean).join(" · ") || "-"}
-                  </p>
+                <div className="mt-2 flex items-center gap-2.5">
+                  {isRepair && (
+                    <PhotoThumb code={row.code} thumb={(row as RepairRow).thumb} count={(row as RepairRow).photo_count} />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium text-slate-800" title={row.product ?? ""}>
+                      {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
+                    </p>
+                    <p className="truncate text-[10px] text-slate-400">
+                      {isRepair
+                        ? row.sn || "-"
+                        : [row.product_type, row.product_size].filter(Boolean).join(" · ") || "-"}
+                    </p>
+                  </div>
                 </div>
 
                 {/* ຊິບ: ຍີ່ຫໍ້ · ປະກັນ/ວັນນັດ · ປະເພດບໍລິການ */}

@@ -7,42 +7,9 @@ import { HoldButtons } from "@/components/repair/hold-buttons";
 import { ServiceDeleteButton } from "@/components/service/service-delete-button";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
-import { ImageOff, Images, Pencil, Printer, Tag } from "lucide-react";
+import { PhotoThumb } from "@/components/service/photo-thumb";
+import { Pencil, Printer, Tag } from "lucide-react";
 import Link from "next/link";
-
-/**
- * ຮູບໜ້າປົກໃນຕາຕະລາງ — ກົດເປີດຮູບທັງໝົດຂອງໃບ (ຕອນຮັບເຄື່ອງ · ກວດເຊັກ · ສ້ອມສຳເລັດ).
- * thumb = ຮູບຮັບເຄື່ອງຮູບທຳອິດ (ໄຟລ໌); count = ຮູບທັງໝົດ. ບໍ່ມີ thumb ແຕ່ມີ count
- * = ມີແຕ່ຮູບກວດເຊັກ/ສ້ອມ (base64) ⇒ ໂຊ້ໄອຄອນ. ບໍ່ມີເລີຍ = ຮູບຈາງ (ບໍ່ກົດໄດ້).
- */
-function PhotoThumb({ code, thumb, count }: { code: string; thumb?: string | null; count: number }) {
-  if (!thumb && count === 0) {
-    return (
-      <span className="grid size-11 shrink-0 place-items-center rounded-lg border border-dashed border-slate-200 text-slate-300" title="ບໍ່ມີຮູບ">
-        <ImageOff className="size-4" />
-      </span>
-    );
-  }
-  return (
-    <Link
-      href={`/service/${code}/images`}
-      className="relative block size-11 shrink-0 overflow-hidden rounded-lg border border-slate-200 transition hover:border-teal-400"
-      title={`ເບິ່ງຮູບ (${count})`}
-    >
-      {thumb ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={`/api/uploads/${encodeURIComponent(thumb)}`} alt="" className="size-full bg-slate-50 object-cover" />
-      ) : (
-        <span className="grid size-full place-items-center bg-teal-50 text-teal-500">
-          <Images className="size-4" />
-        </span>
-      )}
-      {count > 1 && (
-        <span className="absolute bottom-0 right-0 rounded-tl bg-slate-900/70 px-1 text-[9px] font-bold text-white">{count}</span>
-      )}
-    </Link>
-  );
-}
 
 
 /** ຖັນທີ່ຈັດຮຽງໄດ້ — ຄ້າງດົນສຸດຂຶ້ນກ່ອນເປັນຄ່າຕັ້ງຕົ້ນ */
