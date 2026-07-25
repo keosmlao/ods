@@ -875,51 +875,43 @@ class _JobScreenState extends State<JobScreen> {
                 ),
               ],
 
-              // ── ໜ້າງານ (IH/PS): ຮັບງານແລ້ວ ⇒ ສະແດງ check-in **ພ້ອມກັບ** ເລີ່ມກວດເຊັກ ──
-              // (ບໍ່ຕ້ອງເລື່ອນລົງໄປຫາກາດ "ໜ້າງານ" ດ້ານລຸ່ມ) — ຂັ້ນ 1 ຍັງບໍ່ check-in
+              // ── ໜ້າງານ (IH/PS): ຮັບງານແລ້ວ ⇒ ປຸ່ມ check-in ດຽວ ──
+              // ກົດ check-in ແລ້ວ **ເລີ່ມກວດເຊັກເອງ** ⇒ ບໍ່ຕ້ອງໂຊ້ປຸ່ມ "ເລີ່ມກວດ" ຊ້ຳ
+              // (ແຕ່ກ່ອນມີ 2 ປຸ່ມ: check-in + "ຕ້ອງ check-in ກ່ອນ" ຈາງໆ ⇒ ຊ້ຳຊ້ອນ).
               if (job.workflow == 'repair' &&
                   job.accepted &&
+                  job.stage == 1 &&
                   job.onsite &&
-                  job.canCheckIn &&
                   !job.hasCheckedIn &&
-                  job.stage == 1) ...[
+                  job.canCheckIn)
                 _button('check-in ໜ້າງານ (ພິກັດ + ຮູບ)', ink, checkIn),
-                const SizedBox(height: 8),
-              ],
 
-              // ງານສ້ອມຂັ້ນ 1-2 = ກວດເຊັກ (ບໍ່ແມ່ນ "ເລີ່ມສ້ອມ" ຂອງຂັ້ນ 8)
-              // ⚠️ ຕ້ອງ **ຮັບງານກ່ອນ** ຈຶ່ງກວດເຊັກໄດ້ (job.accepted) — ບໍ່ໃຫ້ຂ້າມ "ຮັບງານ"
+              // ງານສ້ອມຂັ້ນ 1-2 = ກວດເຊັກ (ບໍ່ແມ່ນ "ເລີ່ມສ້ອມ" ຂອງຂັ້ນ 8).
+              // ໜ້າງານທີ່ຍັງບໍ່ check-in ໃຊ້ປຸ່ມ check-in ດ້ານເທິງແທນ.
               if (job.workflow == 'repair' &&
                   job.accepted &&
-                  (job.stage == 1 || job.stage == 2))
+                  (job.stage == 1 || job.stage == 2) &&
+                  !(job.stage == 1 && job.onsite && !job.hasCheckedIn))
                 _button(
-                  job.stage == 1 && job.onsite && !job.hasCheckedIn
-                      ? 'ຕ້ອງ check-in ກ່ອນກວດເຊັກ'
-                      : job.stage == 1
-                      ? 'ເລີ່ມກວດເຊັກ'
-                      : 'ບັນທຶກຜົນກວດເຊັກ',
-                  job.stage == 1 && job.onsite && !job.hasCheckedIn
-                      ? muted
-                      : teal,
-                  job.stage == 1 && job.onsite && !job.hasCheckedIn
-                      ? null
-                      : () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          if (job.stage == 1) {
-                            try {
-                              await Api.check(job.code, {'action': 'start'});
-                            } on ApiError catch (failure) {
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text(failure.message),
-                                  backgroundColor: danger,
-                                ),
-                              );
-                              return;
-                            }
-                          }
-                          await _openCheck();
-                        },
+                  job.stage == 1 ? 'ເລີ່ມກວດເຊັກ' : 'ບັນທຶກຜົນກວດເຊັກ',
+                  teal,
+                  () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    if (job.stage == 1) {
+                      try {
+                        await Api.check(job.code, {'action': 'start'});
+                      } on ApiError catch (failure) {
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(failure.message),
+                            backgroundColor: danger,
+                          ),
+                        );
+                        return;
+                      }
+                    }
+                    await _openCheck();
+                  },
                 ),
 
               if (job.action == 'start')
