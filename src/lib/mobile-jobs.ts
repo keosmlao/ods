@@ -15,6 +15,7 @@ import {
   MAINTENANCE_STAGE_SQL,
 } from "@/lib/maintenance-stage";
 import { OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
+import { UNDO_TO_SQL } from "@/lib/mobile-undo";
 
 /**
  * "ວຽກຂອງຂ້ອຍ" ສຳລັບແອັບມືຖື — ລວມ ຕິດຕັ້ງ ແລະ ສ້ອມແປງ ໄວ້ໃນລາຍການດຽວ.
@@ -81,6 +82,8 @@ export type MobileJob = {
    * ຊ່າງຕ້ອງເຫັນນາລິກາອັນດຽວກັບທີ່ຜູ້ຈັດການເຫັນ ບໍ່ດັ່ງນັ້ນ "ດ່ວນ" ຂອງສອງຝ່າຍບໍ່ຕົງກັນ.
    */
   sla_left: number | null;
+  /** ປ້າຍ "ຖອຍໄປຫາ" (ຂັ້ນກ່ອນໜ້າ) — null = ຂັ້ນນີ້ຖອຍບໍ່ໄດ້ (ໃຫ້ແອັບເຊື່ອງປຸ່ມ) */
+  undo_to: string | null;
 };
 
 /**
@@ -170,7 +173,8 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         ${CHECKED_IN("install")} as can_check_out,
         ${CHECKED_IN("install")} as checked_in,
         a.location_lat as lat, a.location_lng as lng,
-        (${INSTALL_LEFT_SQL}) as sla_left
+        (${INSTALL_LEFT_SQL}) as sla_left,
+        null as undo_to
       from ods_tb_install a
       left join ar_customer c on c.code = a.cust_code
      where ${INSTALL_OPEN}
@@ -208,7 +212,8 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         a.location_lat as lat, a.location_lng as lng,
         case when (${REPAIR_STAGE_SLA_HOURS_SQL}) is not null
           then (${REPAIR_STAGE_SLA_HOURS_SQL}) * 3600 - (${STAGE_ELAPSED_SQL})
-          else null end::double precision as sla_left
+          else null end::double precision as sla_left,
+        (${UNDO_TO_SQL}) as undo_to
       from tb_product a
       left join ar_customer b on b.code = a.cust_code
      where ${OPEN_JOBS}
@@ -246,7 +251,8 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         false as has_checked_in, false as has_checked_out,
         false as can_check_in, false as can_check_out, false as checked_in,
         null::double precision as lat, null::double precision as lng,
-        null::double precision as sla_left
+        null::double precision as sla_left,
+        null as undo_to
       from ods_tb_maintenance a
       left join ar_customer c on c.code = a.cust_code
      where ${MAINTENANCE_OPEN}

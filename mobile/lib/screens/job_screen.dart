@@ -309,6 +309,28 @@ class _JobScreenState extends State<JobScreen> {
 
   // checkout ອັດຕະໂນມັດຕອນຈົບງານ (job-flow) — ບໍ່ມີປຸ່ມ checkout ເອງອີກຕໍ່ໄປ.
 
+  /// ຖອຍຫຼັງ 1 ຂັ້ນ — ຢືนยัน ແລ້ວຍິງ action 'undo' (server ຍົກເລີກ action ຫຼ້າສຸດ)
+  Future<void> _undo() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('ຖອຍຫຼັງ 1 ຂັ້ນ?'),
+        content: Text('ຈະຍົກເລີກຂັ້ນຫຼ້າສຸດ ໃຫ້ວຽກກັບໄປ "${job.undoTo}".'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('ຍົກເລີກ'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('ຖອຍຄືນ'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) await run({'action': 'undo'});
+  }
+
   /// IH ສ້ອມໜ້າງານບໍ່ໄດ້ ⇒ ນຳເຄື່ອງເຂົ້າສູນ (ແປງເປັນ PS). ຕ້ອງໃສ່ເຫດຜົນ +
   /// ເລືອກວິທີເອົາເຂົ້າ: **ເອົາກັບພ້ອມ** (ຊ່າງຫອບກັບເອງ) ຫຼື **ຂົນສົ່ງມາຮັບ** (ໃຫ້ຂົນສົ່ງໄປຮັບ).
   Future<void> bringIn() async {
@@ -795,6 +817,17 @@ class _JobScreenState extends State<JobScreen> {
           /* ── ຂັ້ນຕອນ — ປຸ່ມມາຈາກ server ── */
           _Card(
             children: [
+              // ── ຖອຍຫຼັງ 1 ຂັ້ນ (ຍົກເລີກ action ຫຼ້າສຸດ) — server ຄິດປ້າຍ undoTo ໃຫ້ ──
+              if (job.undoTo != null) ...[
+                _ghostAction(
+                  'ຖອຍຄືນ: ${job.undoTo}',
+                  Icons.undo_rounded,
+                  const Color(0xFF64748B),
+                  _undo,
+                  height: 42,
+                ),
+                const SizedBox(height: 10),
+              ],
               /*
                 ── ລຳດັບຄວາມສຳຄັນ ──
                 "ຮັບງານ" = ສິ່ງທີ່ຄວນເຮັດ ⇒ ປຸ່ມຖົມສີເຕັມ ເນັ້ນສຸດ.
@@ -927,22 +960,8 @@ class _JobScreenState extends State<JobScreen> {
                       : () => run({'action': 'start'}),
                 ),
 
-              // IH ໜ້າງານ ສ້ອມບໍ່ໄດ້ ⇒ ນຳເຂົ້າສູນ (ແປງເປັນ PS).
-              // ປິດກາດກວດເຊັກແລ້ວ (ຂັ້ນ ≥3 = ບັນທຶກຜົນກວດແລ້ວ) ຈຶ່ງໃຫ້ເລືອກ
-              // **ເລີ່ມສ້ອມ ຫຼື ນຳເຂົ້າສູນ** — ໃຫ້ໄດ້ຈົນກ່ອນລົງມືສ້ອມ (ຂັ້ນ 3–8).
-              // bringIn() ໃຫ້ເລືອກ ເອົາກັບພ້ອມ / ຂົນສົ່ງມາຮັບ.
-              if (job.workflow == 'repair' &&
-                  job.accepted &&
-                  job.serviceType == 'IH' &&
-                  job.stage >= 3 &&
-                  job.stage <= 8) ...[
-                const SizedBox(height: 8),
-                _button(
-                  'ສ້ອມໜ້າງານບໍ່ໄດ້ — ນຳເຂົ້າສູນ',
-                  const Color(0xFFB45309),
-                  bringIn,
-                ),
-              ],
+              // "ສ້ອມໜ້າງານບໍ່ໄດ້ → ນຳເຂົ້າສູນ" = **ຕັດສິນຕອນກວດເຊັກ** (CheckScreen outcome)
+              // ບ່ອນດຽວ. ຫຼັງກວດເຊັກແລ້ວ (ເລືອກ ສ້ອມ/ສຳເລັດການກວດ) = ຕົກລົງສ້ອມແລ້ວ ⇒ ບໍ່ໂຊ້ຢູ່ນີ້.
 
               // ຂັ້ນ 9 ກຳລັງສ້ອມ (ສະເພາະສ້ອມ): ພົບຕ້ອງໃຊ້ອາໄຫຼ່ເພີ່ມ/ປ່ຽນ ⇒ ຂໍເບີກເພີ່ມ
               // ── ຂັ້ນ 9 ກຳລັງສ້ອມ: ພົບຕ້ອງໃຊ້ອາໄຫຼ່ເພີ່ມ/ປ່ຽນ ⇒ ຂໍເບີກເພີ່ມ ──

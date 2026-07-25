@@ -1042,6 +1042,7 @@ class Job {
   /// ວິນາທີທີ່ຍັງເຫຼືອຈົນຄົບ **24 ຊມ ນັບແຕ່ອອກບິນ** (ຕິດລົບ = ເລີຍກຳນົດ) — ສະເພາະຕິດຕັ້ງ.
   /// ຊ່າງຕ້ອງເຫັນນາລິກາອັນດຽວກັບຜູ້ຈັດການ ບໍ່ດັ່ງນັ້ນ "ດ່ວນ" ຂອງສອງຝ່າຍບໍ່ຕົງກັນ.
   final double? slaLeft;
+  final String? undoTo; // ປ້າຍ "ຖອຍໄປຫາ" (null = ຖອຍບໍ່ໄດ້)
 
   Job({
     required this.workflow,
@@ -1075,6 +1076,7 @@ class Job {
     this.lat,
     this.lng,
     this.slaLeft,
+    this.undoTo,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) => Job(
@@ -1109,6 +1111,7 @@ class Job {
     lat: (json['lat'] as num?)?.toDouble(),
     lng: (json['lng'] as num?)?.toDouble(),
     slaLeft: (json['sla_left'] as num?)?.toDouble(),
+    undoTo: json['undo_to'] as String?,
   );
 
   /// "ເຫຼືອ 5 ຊມ" · "ເລີຍ 2 ມື້" · null = ບໍ່ມີນາລິກາ (ບິນເກົ່າບໍ່ມີວັນທີ / ງານສ້ອມ)

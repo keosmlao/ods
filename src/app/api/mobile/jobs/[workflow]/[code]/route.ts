@@ -14,6 +14,7 @@ import {
   startRepairFlow,
   type FlowResult,
 } from "@/lib/job-flow";
+import { undoLastStep } from "@/lib/mobile-undo";
 import {
   acceptMaintenance,
   finishMaintenance,
@@ -32,7 +33,7 @@ import { NextResponse } from "next/server";
  * ຢ່າຂຽນ SQL ປ່ຽນຂັ້ນຢູ່ນີ້ ບໍ່ດັ່ງນັ້ນແອັບຈະຂ້າມເງື່ອນໄຂຂັ້ນທີ່ເວັບກວດໄວ້.
  */
 type Body = {
-  action: "accept" | "reject" | "start" | "finish" | "checkin" | "checkout" | "bring-in";
+  action: "accept" | "reject" | "start" | "finish" | "checkin" | "checkout" | "bring-in" | "undo";
   /** bring-in: ວິທີເອົາເຄື່ອງເຂົ້າສູນ — carry=ຊ່າງເອົາກັບພ້ອມ · pickup=ຂົນສົ່ງມາຮັບ (ຄ່າເລີ່ມ) */
   mode?: "carry" | "pickup";
   reason?: string;
@@ -183,6 +184,13 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
           String(body.reason ?? ""),
           body.mode === "carry" ? "carry" : "pickup",
         );
+        break;
+      case "undo":
+        // ຖອຍຫຼັງ 1 ຂັ້ນ — ສະເພາະສາຍງານສ້ອມ (ຝັ່ງຕິດຕັ້ງ/ບຳລຸງ ຍັງບໍ່ຮອງຮັບ)
+        if (workflow !== "repair") {
+          return NextResponse.json({ error: "ຄຳສັ່ງນີ້ໃຊ້ໄດ້ແຕ່ງານສ້ອມ" }, { status: 400 });
+        }
+        result = await undoLastStep(user, code);
         break;
       default:
         return NextResponse.json({ error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" }, { status: 400 });
