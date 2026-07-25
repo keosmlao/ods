@@ -130,8 +130,10 @@ export default async function ServiceDetail({ params }: Props) {
       [code],
     ),
     query<ReceivePhoto>(
+      // ຮູບເທົ່ານັ້ນ (ຕັດວິດີໂອ) — product_image ເກັບວິດີໂອນຳ ⇒ ບໍ່ໃຫ້ <img> ຂຶ້ນຮູບແຕກ
       `select roworder, product_url, coalesce(line_number,0) line_number
          from product_image where iteme_code=$1 and coalesce(product_url,'')<>''
+           and lower(product_url) ~ '\\.(jpe?g|png|gif|webp)$'
         order by line_number, roworder desc`,
       [code],
     ),

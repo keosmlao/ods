@@ -46,9 +46,12 @@ async function ownerOf(workflow: Workflow, code: string): Promise<JobOwner | nul
           [code],
         )
       : await query<JobOwner>(
+          // PS ນອກສະຖານທີ່ສະເພາະຕອນໄປຮັບ (ຍັງບໍ່ pickup_at); ຮັບເຂົ້າສູນແລ້ວ = ຢູ່ສູນ.
+          // ⚠️ ຕ້ອງຕົງກັບ REPAIR_ONSITE (mobile-jobs) + tech-flow — ບໍ່ດັ່ງນັ້ນ PS ຢູ່ສູນ
+          // ຈະຖືກ startRepair/finish ບັງຄັບ check-in ທີ່ເຮັດບໍ່ໄດ້ ⇒ ວຽກຄ້າງ.
           `select code, nullif(emp_code,'') as tech, status = 6 as cancelled,
                   repair_confirm is not null as accepted,
-                  coalesce(service_type,'') in ('IH','PS') as onsite,
+                  (coalesce(service_type,'')='IH' or (coalesce(service_type,'')='PS' and pickup_at is null)) as onsite,
                   (${STAGE_SQL})::int as stage
              from tb_product a where a.code=$1`,
           [code],
