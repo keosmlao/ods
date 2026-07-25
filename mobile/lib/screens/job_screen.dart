@@ -322,6 +322,52 @@ class _JobScreenState extends State<JobScreen> {
     }
   }
 
+  /// ເບີສາກົນ (ບໍ່ມີ +) ສຳລັບ wa.me — ລາວ = 856. ຕັດ 0 ນຳ · ຖ້າມີ 856 ແລ້ວຄົງໄວ້
+  String _waNumber(String tel) {
+    var n = tel.replaceAll(RegExp(r'[^0-9]'), '');
+    if (n.startsWith('856')) return n;
+    if (n.startsWith('0')) n = n.substring(1);
+    return '856$n';
+  }
+
+  Future<void> whatsapp() async {
+    final tel = (job.tel ?? '').trim();
+    if (tel.isEmpty) return;
+    final uri = Uri.parse('https://wa.me/${_waNumber(tel)}');
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ເປີດ WhatsApp ບໍ່ໄດ້')),
+      );
+    }
+  }
+
+  /// ປຸ່ມຕິດຕໍ່ຫຍໍ້ (ໄອຄອນເທິງ · ຄຳລຸ່ມ) — ໃຊ້ໃນແຖວ 3 ຖັນ
+  Widget _contactBtn(IconData icon, String label, Color color, VoidCallback onTap) =>
+      OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: color,
+          minimumSize: const Size.fromHeight(58),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          side: BorderSide(color: color.withValues(alpha: .35)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     // ບຳລຸງຮັກສາບໍ່ໄດ້ເກັບຮູບຜົນງານ (server ບໍ່ຮັບ) ⇒ ຢ່າບັງຄັບ ບໍ່ດັ່ງນັ້ນຊ່າງກົດຈົບບໍ່ໄດ້
@@ -407,30 +453,46 @@ class _JobScreenState extends State<JobScreen> {
               _row('ຮັບເຄື່ອງ', job.receivedAt),
               _row('ເວລາທີ່ໃຊ້', job.totalLabel),
               _row('ຜູ້ຮັບ', job.receiver),
-              // ນຳທາງ — ສະເພາະ **ສ້ອມນອກສະຖານທີ່** (onsite); ງານນຳເຄື່ອງເຂົ້າສູນບໍ່ຕ້ອງ
-              if (job.onsite &&
-                  ((job.lat != null && job.lng != null) ||
-                      (job.address ?? '').trim().isNotEmpty)) ...[
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.navigation_outlined, color: teal),
-                  label: const Text(
-                    'ນຳທາງໄປສະຖານທີ່ໜ້າງານ',
-                    style: TextStyle(color: teal),
-                  ),
-                  onPressed: openMap,
-                ),
-              ],
-
-              if ((job.tel ?? '').isNotEmpty) ...[
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.phone, color: ok),
-                  label: Text(
-                    'ໂທຫາລູກຄ້າ ${job.tel}',
-                    style: const TextStyle(color: ok),
-                  ),
-                  onPressed: callCustomer,
+              // ── ຕິດຕໍ່ · ນຳທາງ — 3 ຖັນ (ນຳທາງ · ໂທ · WhatsApp) ──
+              // ນຳທາງສະເພາະສ້ອມນອກສະຖານທີ່; ໂທ/WhatsApp ສະເພາະມີເບີ
+              if (() {
+                final canMap = job.onsite &&
+                    ((job.lat != null && job.lng != null) ||
+                        (job.address ?? '').trim().isNotEmpty);
+                final hasTel = (job.tel ?? '').trim().isNotEmpty;
+                return canMap || hasTel;
+              }()) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    if (job.onsite &&
+                        ((job.lat != null && job.lng != null) ||
+                            (job.address ?? '').trim().isNotEmpty)) ...[
+                      Expanded(
+                        child: _contactBtn(
+                          Icons.navigation_outlined,
+                          'ນຳທາງ',
+                          teal,
+                          openMap,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    if ((job.tel ?? '').trim().isNotEmpty) ...[
+                      Expanded(
+                        child: _contactBtn(Icons.phone, 'ໂທ', ok, callCustomer),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _contactBtn(
+                          Icons.chat,
+                          'WhatsApp',
+                          const Color(0xFF25D366),
+                          whatsapp,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
               /*
