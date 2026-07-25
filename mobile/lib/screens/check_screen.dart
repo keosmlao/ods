@@ -267,13 +267,14 @@ class _CheckScreenState extends State<CheckScreen> {
           // ── ຜົນຕັດສິນຫຼັງກວດເຊັກ (ເລືອກ 1) ──
           const SectionLabel('ຕັດສິນໃຈຫຼັງກວດເຊັກ'),
           const SizedBox(height: 8),
+          // ໝົດປະກັນ ⇒ ຕ້ອງໃບລາຄາກ່ອນ ⇒ ບໍ່ມີ "ເລີ່ມສ້ອມເລີຍ", ປ່ຽນເປັນ "ໄປສະເໜີລາຄາ"
           _outcomeCard(
             outcome: CheckOutcome.repair,
-            icon: Icons.build_circle_outlined,
-            color: ok,
-            title: 'ສ້ອມໄດ້ — ເລີ່ມສ້ອມເລີຍ',
+            icon: warrantyVoid ? Icons.request_quote_outlined : Icons.build_circle_outlined,
+            color: warrantyVoid ? const Color(0xFFB45309) : ok,
+            title: warrantyVoid ? 'ສ້ອມໄດ້ — ໄປສະເໜີລາຄາ' : 'ສ້ອມໄດ້ — ເລີ່ມສ້ອມເລີຍ',
             subtitle: warrantyVoid
-                ? 'ນອກປະກັນ ⇒ ບັນທຶກແລ້ວໄປສະເໜີລາຄາ'
+                ? 'ນອກປະກັນ ⇒ ບັນທຶກແລ້ວໄປສະເໜີລາຄາ (ລໍລູກຄ້າຕົກລົງກ່ອນສ້ອມ)'
                 : 'ບັນທຶກແລ້ວເລີ່ມສ້ອມທັນທີ',
           ),
           // ── ຢູ່ສູນ (ບໍ່ແມ່ນ IH): ເລືອກ "ສຳເລັດການກວດເຊັກ" ໄວ້ກ່ອນ ສ້ອມพายຫຼັງໄດ້ ──
