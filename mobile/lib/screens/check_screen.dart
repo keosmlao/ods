@@ -272,25 +272,27 @@ class _CheckScreenState extends State<CheckScreen> {
           // ── ຜົນຕັດສິນຫຼັງກວດເຊັກ (ເລືອກ 1) ──
           const SectionLabel('ຕັດສິນໃຈຫຼັງກວດເຊັກ'),
           const SizedBox(height: 8),
-          // ໝົດປະກັນ ⇒ ຕ້ອງໃບລາຄາກ່ອນ ⇒ ບໍ່ມີ "ເລີ່ມສ້ອມເລີຍ", ປ່ຽນເປັນ "ໄປສະເໜີລາຄາ"
-          _outcomeCard(
-            outcome: CheckOutcome.repair,
-            icon: quoteNeeded ? Icons.request_quote_outlined : Icons.build_circle_outlined,
-            color: quoteNeeded ? const Color(0xFFB45309) : ok,
-            title: quoteNeeded ? 'ໄປສະເໜີລາຄາ' : 'ສ້ອມໄດ້ — ເລີ່ມສ້ອມເລີຍ',
-            subtitle: quoteNeeded
-                ? 'ນອກປະກັນ ⇒ ບັນທຶກແລ້ວໄປສະເໜີລາຄາ (ລໍລູກຄ້າຕົກລົງກ່ອນສ້ອມ)'
-                : 'ບັນທຶກແລ້ວເລີ່ມສ້ອມທັນທີ',
-          ),
-          // ── ຢູ່ສູນ (ບໍ່ແມ່ນ IH): ເລືອກ "ສຳເລັດການກວດເຊັກ" ໄວ້ກ່ອນ ສ້ອມพายຫຼັງໄດ້ ──
-          if (widget.serviceType != 'IH') ...[
-            const SizedBox(height: 8),
+          // ── ໃນປະກັນ: ສ້ອມໄດ້ ⇒ ເລີ່ມສ້ອມເລີຍ. ໝົດປະກັນ = **ບໍ່ສະແດງ** (ໃຫ້ໃຊ້ "ສຳເລັດ
+          //    ການກວດເຊັກ" ⇒ CS ສະເໜີລາຄາຕໍ່ ຄືກັບ admin ຂໍເບີກ) ──
+          if (!quoteNeeded)
+            _outcomeCard(
+              outcome: CheckOutcome.repair,
+              icon: Icons.build_circle_outlined,
+              color: ok,
+              title: 'ສ້ອມໄດ້ — ເລີ່ມສ້ອມເລີຍ',
+              subtitle: 'ບັນທຶກແລ້ວເລີ່ມສ້ອມທັນທີ',
+            ),
+          // ── ສຳເລັດການກວດເຊັກ: ໝົດປະກັນ (ທຸກປະເພດ) ⇒ CS ສະເໜີລາຄາ · ໃນປະກັນ+ຢູ່ສູນ ⇒ ສ້ອມພາຍຫຼັງ ──
+          if (quoteNeeded || widget.serviceType != 'IH') ...[
+            if (!quoteNeeded) const SizedBox(height: 8),
             _outcomeCard(
               outcome: CheckOutcome.checkOnly,
               icon: Icons.fact_check_outlined,
               color: teal,
-              title: 'ສຳເລັດການກວດເຊັກ (ສ້ອມພາຍຫຼັງ)',
-              subtitle: 'ບັນທຶກຜົນກວດໄວ້ກ່ອນ — ກົດ "ເລີ່ມສ້ອມ" ຕ່າງຫາກເມື່ອพร้อม',
+              title: quoteNeeded ? 'ສຳເລັດການກວດເຊັກ' : 'ສຳເລັດການກວດເຊັກ (ສ້ອມພາຍຫຼັງ)',
+              subtitle: quoteNeeded
+                  ? 'ໝົດປະກັນ — ບັນທຶກຜົນກວດ, ຝ່າຍ CS ດຳເນີນສະເໜີລາຄາຕໍ່'
+                  : 'ບັນທຶກຜົນກວດໄວ້ກ່ອນ — ກົດ "ເລີ່ມສ້ອມ" ຕ່າງຫາກເມື່ອพร้อม',
             ),
           ],
           const SizedBox(height: 8),
@@ -400,7 +402,7 @@ class _CheckScreenState extends State<CheckScreen> {
                   )
                 : const Icon(Icons.check_circle_outline, size: 20),
             label: Text(switch (outcome) {
-              CheckOutcome.repair => quoteNeeded ? 'ບັນທຶກ & ໄປສະເໜີລາຄາ' : 'ບັນທຶກ & ເລີ່ມສ້ອມ',
+              CheckOutcome.repair => 'ບັນທຶກ & ເລີ່ມສ້ອມ',
               CheckOutcome.checkOnly => 'ບັນທຶກ ສຳເລັດການກວດເຊັກ',
               CheckOutcome.spare => 'ບັນທຶກ — ສົ່ງໃຫ້ admin ຂໍເບີກ',
               CheckOutcome.bringIn => 'ບັນທຶກ & ນຳເຂົ້າສູນ',
