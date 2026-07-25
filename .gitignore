@@ -45,3 +45,7 @@ mobile/build/
 mobile/.dart_tool/
 mobile/android/.gradle/
 mobile/ios/Pods/
+
+# Claude Code local artifacts (worktrees, local settings)
+.claude/worktrees/
+.claude/settings.local.json
