@@ -91,3 +91,23 @@ export async function listTechnicians(): Promise<Technician[]> {
 
   return rows.sort((a, b) => a.name.localeCompare(b.name, "lo"));
 }
+
+/**
+ * ຕົວເລືອກຊ່າງ ສຳລັບຟອມ **ຮັບເຄື່ອງ/ແກ້ໄຂ** (ຮູບແບບ {code, name_1, department}).
+ *
+ * ⚠️ ແຕ່ກ່ອນຟອມນີ້ໃຊ້ erp-master.getErpTechnicians ເຊິ່ງ:
+ *   · code = ຊື່ຫຼິ້ນ **ສະເໝີ** (ບໍ່ເບິ່ງການເຊື່ອມຕົວຕົນ) ⇒ ຄົນທີ່ເຊື່ອມແລ້ວ
+ *     ຖືກຂຽນ emp_code=ຊື່ຫຼິ້ນ ແຕ່ login ເປັນ employee_code ⇒ **ເປີດແອັບບໍ່ເຫັນວຽກ**
+ *   · ດຶງ division 400 ໝົດ (ລວມ CS 405 + ໂຄງການ 403) ແລະ ເນັ້ນຊື່ຫຼິ້ນໃນປ້າຍ
+ *     ⇒ ຄົນຊື່ຫຼິ້ນຄ້າຍກັນ (ຫຼາຍ "ເລມ້ອນ") ຖືກຈັດຜິດຄົນ.
+ * ດຽວນີ້ໃຊ້ listTechnicians ບ່ອນດຽວ ⇒ code ຕົງ login ແນ່ນອນ ແລະ ເຫັນແຕ່ຊ່າງສູນບໍລິການ.
+ * ປ້າຍນຳໜ້າດ້ວຍ **ຊື່ເຕັມ + ລະຫັດ ພະນັກງານ** ⇒ ບໍ່ຫຼົງຄົນຊື່ຄ້າຍກັນ.
+ */
+export async function technicianOptions(): Promise<{ code: string; name_1: string; department: string }[]> {
+  const techs = await listTechnicians();
+  return techs.map((tech) => ({
+    code: tech.code,
+    name_1: `${tech.name} · ${tech.employee_code}${tech.head ? " · ຫົວໜ້າ" : ""}`,
+    department: "",
+  }));
+}

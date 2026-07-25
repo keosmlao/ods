@@ -1,5 +1,5 @@
 import type { Workflow } from "@/lib/commission";
-import { addFollowerSilently, logChange } from "@/lib/chatter-log";
+import { addFollowerSilently, chatterSince, logChange } from "@/lib/chatter-log";
 import type { Activity, ChatterMessage } from "@/lib/chatter";
 import { query } from "@/lib/db";
 import { notify } from "@/lib/notify";
@@ -26,11 +26,17 @@ export type JobChatter = {
 
 export async function jobChatter(workflow: Workflow, code: string): Promise<JobChatter> {
   const model = chatterModelOf(workflow);
+  // ຕັດ log ຂອງໃບເກົ່າທີ່ໃຊ້ເລກ code ຊ້ຳ (ເບິ່ງ chatterSince) ⇒ ເຫັນສະເພາະໃບປັດຈຸບັນ
+  const since = await chatterSince(model, code);
+
   const [messages, activities] = await Promise.all([
     query<ChatterMessage>(
       `select id, kind, body, author, to_char(created_at,'DD-MM-YYYY HH24:MI') created_at
-         from ods_chatter_message where model=$1 and res_id=$2 order by id desc limit 100`,
-      [model, code],
+         from ods_chatter_message
+        where model=$1 and res_id=$2
+          and ($3::timestamp is null or created_at >= $3::timestamp)
+        order by id desc limit 100`,
+      [model, code, since],
     ),
     query<Activity>(
       `select id, model, res_id, kind, summary, note, assigned_to,
@@ -38,8 +44,9 @@ export async function jobChatter(workflow: Workflow, code: string): Promise<JobC
           (due_date - current_date)::int days_left
          from ods_activity
         where model=$1 and res_id=$2 and state='planned'
+          and ($3::timestamp is null or created_at >= $3::timestamp)
         order by due_date`,
-      [model, code],
+      [model, code, since],
     ),
   ]);
   return { messages: messages.rows, activities: activities.rows };

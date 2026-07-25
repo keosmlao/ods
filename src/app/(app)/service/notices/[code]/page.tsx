@@ -2,7 +2,8 @@ import { LinkPending } from "@/components/link-pending";
 import type { Product } from "@/components/product-picker";
 import { ServiceNoticeForm, type Notice } from "@/components/service-notice-form";
 import { query, queryOdg } from "@/lib/db";
-import { getErpBrands, getErpCategories, getErpTechnicians } from "@/lib/erp-master";
+import { getErpBrands, getErpCategories } from "@/lib/erp-master";
+import { technicianOptions } from "@/lib/technicians";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -90,7 +91,7 @@ export default async function NoticeIntake({ params }: Props) {
   const [types, brands, techs, imageRows] = await Promise.all([
     getErpCategories(),
     getErpBrands(),
-    getErpTechnicians(),
+    technicianOptions(),
     // ຕັດແຖວທີ່ product_url ເປັນ null ອອກ — ບໍ່ດັ່ງນັ້ນຊ່ອງຮູບຈະຊີ້ໄປ /api/uploads/null
     query<{ product_url: string; line_number: number }>(
       `select product_url, coalesce(line_number,0) line_number from product_image

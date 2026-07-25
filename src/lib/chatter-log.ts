@@ -14,6 +14,27 @@ import { notify } from "@/lib/notify";
 const NOW = "localtimestamp(0)";
 
 /**
+ * ── ຂອບເຂດເວລາຂອງ chatter/log ຕໍ່ໃບປັດຈຸບັນ ──
+ * ໃບຮັບເຄື່ອງ (tb_product) ແລະ ງານຕິດຕັ້ງ (ods_tb_install) ໃຊ້ code = max(code)+1.
+ * ຖ້າໃບເກົ່າຖືກລຶບ (ຕອນທົດສອບ) ເລກ code ຈະຖືກ **ນຳກັບມາໃຊ້ຄືນ** ແຕ່ log ຂອງໃບເກົ່າ
+ * (res_id ດຽວກັນ) ຍັງຄ້າງໃນ ods_chatter_message ⇒ ປະຫວັດຮົ່ວມາປົນ.
+ * ຄືນຄ່າ **ເວລາເປີດໃບປັດຈຸບັນ (ລົບ 30 ວິ)** ໃຫ້ query ຕັດ log ກ່ອນໜ້ານັ້ນອອກ.
+ * ໃບປະເພດອື່ນ (ic_trans, ar_customer) ບໍ່ recycle code ⇒ ຄືນ null (ບໍ່ຕັດ).
+ */
+export async function chatterSince(model: string, resId: string): Promise<string | null> {
+  if (model !== "tb_product" && model !== "ods_tb_install") return null;
+  const table = model === "ods_tb_install" ? "ods_tb_install" : "tb_product";
+  const row = (
+    await query<{ since: string | null }>(
+      `select to_char(time_register - interval '30 seconds','YYYY-MM-DD HH24:MI:SS') since
+         from ${table} where code=$1`,
+      [resId],
+    )
+  ).rows[0];
+  return row?.since ?? null;
+}
+
+/**
  * ຕົວເລືອກຂອງ logChange — ຄວບຄຸມວ່າໃຜໄດ້ຮັບການແຈ້ງເຕືອນນອກຈາກຜູ້ຕິດຕາມ.
  *   author → ຜູ້ຂຽນ log ຖ້າບໍ່ແມ່ນຄົນທີ່ login (ເຊັ່ນ "ລູກຄ້າ")
  *   users  → ຄົນທີ່ຖືກມອບໝາຍໂດຍກົງ (ຊ່າງ, ຜູ້ຮັບຜິດຊອບກິດຈະກຳ)

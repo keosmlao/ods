@@ -1,5 +1,5 @@
 "use server";
-import { addFollowerSilently, logChange } from "@/lib/chatter-log";
+import { addFollowerSilently, chatterSince, logChange } from "@/lib/chatter-log";
 import { notify } from "@/lib/notify";
 import { getSession, type Session } from "@/lib/auth";
 import type { Activity, ChatterMessage } from "@/lib/chatter";
@@ -23,10 +23,15 @@ const NOW = "localtimestamp(0)";
 export async function getMessages(model: string, resId: string): Promise<ChatterMessage[]> {
   const session = await getSession();
   if (!session) return [];
+  // ຕັດ log ຂອງໃບເກົ່າທີ່ໃຊ້ເລກ code ຊ້ຳ (ເບິ່ງ chatterSince) ⇒ ເຫັນສະເພາະໃບປັດຈຸບັນ
+  const since = await chatterSince(model, resId);
   const result = await query<ChatterMessage>(
     `select id, kind, body, author, to_char(created_at,'DD-MM-YYYY HH24:MI') created_at
-       from ods_chatter_message where model=$1 and res_id=$2 order by id desc limit 100`,
-    [model, resId],
+       from ods_chatter_message
+      where model=$1 and res_id=$2
+        and ($3::timestamp is null or created_at >= $3::timestamp)
+      order by id desc limit 100`,
+    [model, resId, since],
   );
   return result.rows;
 }
@@ -34,14 +39,16 @@ export async function getMessages(model: string, resId: string): Promise<Chatter
 export async function getActivities(model: string, resId: string): Promise<Activity[]> {
   const session = await getSession();
   if (!session) return [];
+  const since = await chatterSince(model, resId);
   const result = await query<Activity>(
     `select id, model, res_id, kind, summary, note, assigned_to,
         to_char(due_date,'DD-MM-YYYY') due_date, state, created_by,
         (due_date - current_date)::int days_left
        from ods_activity
       where model=$1 and res_id=$2 and state='planned'
+        and ($3::timestamp is null or created_at >= $3::timestamp)
       order by due_date`,
-    [model, resId],
+    [model, resId, since],
   );
   return result.rows;
 }

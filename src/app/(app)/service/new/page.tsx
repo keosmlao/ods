@@ -1,7 +1,8 @@
 import { LinkPending } from "@/components/link-pending";
 import type { ServicePrefill } from "@/components/service-form";
 import { ServiceIntake } from "@/components/service-intake";
-import { getErpBrands, getErpCategories, getErpTechnicians } from "@/lib/erp-master";
+import { getErpBrands, getErpCategories } from "@/lib/erp-master";
+import { technicianOptions } from "@/lib/technicians";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -15,7 +16,7 @@ export default async function NewService({ searchParams }: Props) {
   const [types, brands, techs] = await Promise.all([
     getErpCategories(),
     getErpBrands(),
-    getErpTechnicians(),
+    technicianOptions(),
   ]);
 
   return (

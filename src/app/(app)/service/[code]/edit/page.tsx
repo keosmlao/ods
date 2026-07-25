@@ -1,7 +1,8 @@
 import { LinkPending } from "@/components/link-pending";
 import { ServiceEditForm, type ServiceHead } from "@/components/service-edit-form";
 import { query } from "@/lib/db";
-import { getErpBrands, getErpCategories, getErpTechnicians } from "@/lib/erp-master";
+import { getErpBrands, getErpCategories } from "@/lib/erp-master";
+import { technicianOptions } from "@/lib/technicians";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -45,7 +46,7 @@ export default async function EditService({ params }: Props) {
   const [types, brands, techs, imageRows] = await Promise.all([
     getErpCategories(),
     getErpBrands(),
-    getErpTechnicians(),
+    technicianOptions(),
     // ຕັດແຖວທີ່ product_url ເປັນ null ອອກ — ບໍ່ດັ່ງນັ້ນຊ່ອງຮູບຈະຊີ້ໄປ /api/uploads/null
     query<{ product_url: string; line_number: number }>(
       `select product_url, coalesce(line_number,0) line_number from product_image
