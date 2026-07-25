@@ -116,6 +116,9 @@ const INSTALL_ACTION = `case
 
 /** ສ້ອມ: 1-2 ກວດເຊັກ · 3-4 ລາຄາ · 5-7 ອາໄຫຼ່ · 8 ລໍສ້ອມ · 9 ກຳລັງສ້ອມ · 10+ ລໍ QC */
 const REPAIR_ACTION = `case
+  -- IH (ໄປສ້ອມບ້ານ) ຍັງບໍ່ນັດ (ຂັ້ນ 0) ⇒ ຮັບງານບໍ່ໄດ້ (acceptRepair ຕ້ອງຂັ້ນ 1);
+  -- ລໍ CS ໃສ່ວັນນັດໝາຍກ່ອນ ຈຶ່ງຕົກຂັ້ນ 1. ບໍ່ໃຫ້ສະແດງ 'accept' ທີ່ກົດແລ້ວ error.
+  when coalesce(a.service_type,'')='IH' and a.appoint_date is null then 'wait_other'
   when a.repair_confirm is null      then 'accept'
   when (${STAGE_SQL}) in (5,6,7) then 'wait_spare'
   when (${STAGE_SQL}) = 8        then 'start'

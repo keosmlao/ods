@@ -231,7 +231,6 @@ class _JobScreenState extends State<JobScreen> {
 
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
     setState(() => busy = true);
     try {
       final message = await Api.command(job.workflow, job.code, {
@@ -266,13 +265,31 @@ class _JobScreenState extends State<JobScreen> {
         }
         return;
       }
-      await navigator.push(
-        MaterialPageRoute(builder: (_) => CheckScreen(code: job.code)),
-      );
+      if (mounted) setState(() => busy = false);
+      await _openCheck();
+      return;
     }
 
     if (mounted) {
       setState(() => busy = false);
+      await reload();
+    }
+  }
+
+  /// ເປີດໜ້າກວດເຊັກ ແລ້ວຈັດການ **ຜົນຕັດສິນ** ທີ່ຊ່າງເລືອກ (CheckOutcome ທີ່ pop ຄືນ):
+  ///   repair  → ເລີ່ມສ້ອມເລີຍ (ໃນປະກັນ) · bringIn → ເປີດ dialog ນຳເຂົ້າສູນ · ອື່ນ → reload
+  Future<void> _openCheck() async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CheckScreen(code: job.code, serviceType: job.serviceType),
+      ),
+    );
+    if (!mounted) return;
+    if (result == CheckOutcome.repair) {
+      await run({'action': 'start'});
+    } else if (result == CheckOutcome.bringIn) {
+      await bringIn();
+    } else {
       await reload();
     }
   }
@@ -888,7 +905,6 @@ class _JobScreenState extends State<JobScreen> {
                       ? null
                       : () async {
                           final messenger = ScaffoldMessenger.of(context);
-                          final navigator = Navigator.of(context);
                           if (job.stage == 1) {
                             try {
                               await Api.check(job.code, {'action': 'start'});
@@ -902,12 +918,7 @@ class _JobScreenState extends State<JobScreen> {
                               return;
                             }
                           }
-                          await navigator.push(
-                            MaterialPageRoute(
-                              builder: (_) => CheckScreen(code: job.code),
-                            ),
-                          );
-                          if (mounted) await reload();
+                          await _openCheck();
                         },
                 ),
 

@@ -135,6 +135,12 @@ export async function createService(_: ServiceState, formData: FormData): Promis
     return { error: "ງານນອກສະຖານທີ່ (ສ້ອມບ້ານລູກຄ້າ / ໄປຮັບເຄື່ອງຈາກບ້ານມາສ້ອມຢູ່ສູນ) ຕ້ອງລະບຸສະຖານທີ່ໜ້າງານ" };
   }
 
+  // IH (ໄປສ້ອມບ້ານ) + ຈັດຊ່າງແລ້ວ ⇒ ຕ້ອງມີວັນນັດ (ຄືກັບ assignRepairTech) ບໍ່ດັ່ງນັ້ນວຽກ
+  // ຄ້າງຢູ່ຂັ້ນ 0 "ລໍນັດ/ຈັດຊ່າງ" ⇒ ຊ່າງເປີດແອັບກົດ "ຮັບງານ" ບໍ່ໄດ້ (ຕ້ອງຂັ້ນ 1).
+  if (parsed.data.service_type === "IH" && parsed.data.emp.trim() && !parsed.data.appoint_date.trim()) {
+    return { error: "ໄປສ້ອມບ້ານລູກຄ້າ (IH) ທີ່ຈັດຊ່າງແລ້ວ ຕ້ອງໃສ່ວັນນັດໝາຍໄປສ້ອມ" };
+  }
+
   const files = await collectUploads(formData);
   if (!files.ok) return { error: files.error };
   const uploads = files.uploads;

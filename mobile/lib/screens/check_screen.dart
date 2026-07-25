@@ -11,9 +11,17 @@ import '../widgets/ui_kit.dart';
 ///
 /// ອາການທີ່ວິເຄາະ → (ຖ້າໃຊ້ອາໄຫຼ່) ເລືອກອາໄຫຼ່ຈາກສະຕັອກ → ຕັດສິນປະກັນ → ບັນທຶກ.
 /// ຕັດສິນວ່າ **ໝົດຮັບປະກັນ ຕ້ອງມີເຫດຜົນ** (ຫຼັກຖານເມື່ອລູກຄ້າຄ້ານ — server ບັງຄັບ).
+/// ຜົນຕັດສິນຫຼັງກວດເຊັກ — ຄືນຄ່າຕອນ pop ໃຫ້ job_screen ໄປຕໍ່:
+///   repair  = ສ້ອມໄດ້ ⇒ (ໃນປະກັນ) ເລີ່ມສ້ອມເລີຍ · (ນອກປະກັນ) ໄປສະເໜີລາຄາ
+///   spare   = ຕ້ອງສັ່ງ/ເບີກ ອາໄຫຼ່ ⇒ ເຂົ້າຂະບວນການອາໄຫຼ່
+///   bringIn = ສ້ອມໜ້າງານບໍ່ໄດ້ ⇒ ນຳເຂົ້າສູນ (IH — job_screen ເປີດ dialog ເລືອກວິທີ)
+enum CheckOutcome { repair, spare, bringIn }
+
 class CheckScreen extends StatefulWidget {
-  const CheckScreen({super.key, required this.code});
+  const CheckScreen({super.key, required this.code, this.serviceType});
   final String code;
+  /// ປະເພດບໍລິການ (IH/PS/CI/ST) — ໃຫ້ຮູ້ວ່າ IH (ໄປສ້ອມບ້ານ) ⇒ ສະແດງ "ນຳເຂົ້າສູນ"
+  final String? serviceType;
 
   @override
   State<CheckScreen> createState() => _CheckScreenState();
@@ -29,7 +37,8 @@ class _CheckScreenState extends State<CheckScreen> {
   List<SpareSuggestion> suggestions = []; // ຜູ້ຊ່ວຍ AI
   final List<String> photos = []; // ຮູບຕອນກວດເຊັກ (data-URI base64)
   final picker = ImagePicker();
-  bool useSpare = false;
+  CheckOutcome? outcome; // ຜົນຕັດສິນທີ່ຊ່າງເລືອກ (null = ຍັງບໍ່ເລືອກ)
+  bool get useSpare => outcome == CheckOutcome.spare;
   bool warrantyVoid = false;
   bool busy = false;
 
@@ -81,14 +90,14 @@ class _CheckScreenState extends State<CheckScreen> {
     ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
-  Future<void> send(Map<String, dynamic> body, {bool pop = false}) async {
+  Future<void> send(Map<String, dynamic> body, {bool pop = false, Object? popResult}) async {
     setState(() => busy = true);
     try {
       final message = await Api.check(widget.code, body);
       if (!mounted) return;
       if (pop) {
         _toast(message, ok);
-        Navigator.pop(context);
+        Navigator.pop(context, popResult);
         return;
       }
       await load();
@@ -133,8 +142,31 @@ class _CheckScreenState extends State<CheckScreen> {
     if (warrantyVoid && reason.text.trim().isEmpty) {
       return 'ຕ້ອງໃສ່ເຫດຜົນໝົດຮັບປະກັນ';
     }
-    if (useSpare && draft.isEmpty) return 'ຕ້ອງເລືອກອາໄຫຼ່ຢ່າງໜ້ອຍ 1 ລາຍການ';
+    if (outcome == null) return 'ເລືອກຜົນຕັດສິນຫຼັງກວດເຊັກ';
+    if (outcome == CheckOutcome.spare && draft.isEmpty) {
+      return 'ຕ້ອງເລືອກອາໄຫຼ່ຢ່າງໜ້ອຍ 1 ລາຍການ';
+    }
     return null;
+  }
+
+  /// ບັນທຶກຜົນກວດ ແລ້ວ pop ຄືນຄ່າ **ຜົນຕັດສິນ** ໃຫ້ job_screen ໄປຕໍ່:
+  ///   repair ໃນປະກັນ → 'start' (ເລີ່ມສ້ອມເລີຍ) · bringIn → 'bring-in' · ອື່ນ → null (reload)
+  Future<void> _submit() async {
+    final chosen = outcome;
+    if (chosen == null) return;
+    final Object? result = chosen == CheckOutcome.bringIn
+        ? CheckOutcome.bringIn
+        : (chosen == CheckOutcome.repair && !warrantyVoid)
+            ? CheckOutcome.repair
+            : null;
+    await send({
+      'action': 'save',
+      'diagnosis': diagnosis.text,
+      'warranty_void': warrantyVoid,
+      'warranty_reason': reason.text,
+      'use_spare': chosen == CheckOutcome.spare,
+      'photos': photos,
+    }, pop: true, popResult: result);
   }
 
   @override
@@ -172,14 +204,6 @@ class _CheckScreenState extends State<CheckScreen> {
           ]),
           const SizedBox(height: 10),
 
-          _optionCard(
-            icon: Icons.build_outlined,
-            title: 'ຕ້ອງໃຊ້ອາໄຫຼ່',
-            subtitle: 'ເລືອກອາໄຫຼ່ຈາກສະຕັອກ',
-            value: useSpare,
-            onChanged: (value) => setState(() => useSpare = value),
-          ),
-          const SizedBox(height: 10),
           _optionCard(
             icon: Icons.verified_user_outlined,
             title: 'ໝົດຮັບປະກັນ (ຊ່າງຕັດສິນ)',
@@ -227,7 +251,39 @@ class _CheckScreenState extends State<CheckScreen> {
             ),
           ],
 
-          if (useSpare) ...[
+          const SizedBox(height: 14),
+          // ── ຜົນຕັດສິນຫຼັງກວດເຊັກ (ເລືອກ 1) ──
+          const SectionLabel('ຕັດສິນໃຈຫຼັງກວດເຊັກ'),
+          const SizedBox(height: 8),
+          _outcomeCard(
+            outcome: CheckOutcome.repair,
+            icon: Icons.build_circle_outlined,
+            color: ok,
+            title: 'ສ້ອມໄດ້ — ເລີ່ມສ້ອມເລີຍ',
+            subtitle: warrantyVoid
+                ? 'ນອກປະກັນ ⇒ ບັນທຶກແລ້ວໄປສະເໜີລາຄາ'
+                : 'ບັນທຶກແລ້ວເລີ່ມສ້ອມທັນທີ',
+          ),
+          const SizedBox(height: 8),
+          _outcomeCard(
+            outcome: CheckOutcome.spare,
+            icon: Icons.inventory_2_outlined,
+            color: const Color(0xFF7C3AED),
+            title: 'ຕ້ອງໃຊ້ / ສັ່ງ ອາໄຫຼ່',
+            subtitle: 'ເລືອກອາໄຫຼ່ຈາກສະຕັອກ ⇒ ຂໍເບີກ/ສັ່ງຊື້',
+          ),
+          if (widget.serviceType == 'IH') ...[
+            const SizedBox(height: 8),
+            _outcomeCard(
+              outcome: CheckOutcome.bringIn,
+              icon: Icons.warehouse_outlined,
+              color: const Color(0xFFB45309),
+              title: 'ສ້ອມໜ້າງານບໍ່ໄດ້ — ນຳເຂົ້າສູນ',
+              subtitle: 'ບັນທຶກຜົນກວດແລ້ວ ນຳເຄື່ອງເຂົ້າສູນ',
+            ),
+          ],
+
+          if (outcome == CheckOutcome.spare) ...[
             const SizedBox(height: 12),
             // ── ຜູ້ຊ່ວຍ AI: ອາໄຫຼ່ທີ່ແນະນຳ (ຈາກวຽກຮຸ່ນເดียวกัน) ──
             if (suggestions.any((s) => !draft.any((d) => d.itemCode == s.code)))
@@ -356,16 +412,7 @@ class _CheckScreenState extends State<CheckScreen> {
               backgroundColor: ok,
               minimumSize: const Size.fromHeight(54),
             ),
-            onPressed: busy || blocker != null
-                ? null
-                : () => send({
-                    'action': 'save',
-                    'diagnosis': diagnosis.text,
-                    'warranty_void': warrantyVoid,
-                    'warranty_reason': reason.text,
-                    'use_spare': useSpare,
-                    'photos': photos,
-                  }, pop: true),
+            onPressed: busy || blocker != null ? null : _submit,
             icon: busy
                 ? const SizedBox(
                     height: 18,
@@ -376,7 +423,12 @@ class _CheckScreenState extends State<CheckScreen> {
                     ),
                   )
                 : const Icon(Icons.check_circle_outline, size: 20),
-            label: const Text('ບັນທຶກຜົນກວດເຊັກ'),
+            label: Text(switch (outcome) {
+              CheckOutcome.repair => warrantyVoid ? 'ບັນທຶກ & ໄປສະເໜີລາຄາ' : 'ບັນທຶກ & ເລີ່ມສ້ອມ',
+              CheckOutcome.spare => 'ບັນທຶກ & ຂໍເບີກອາໄຫຼ່',
+              CheckOutcome.bringIn => 'ບັນທຶກ & ນຳເຂົ້າສູນ',
+              null => 'ບັນທຶກຜົນກວດເຊັກ',
+            }),
           ),
         ],
       ),
@@ -464,6 +516,58 @@ class _CheckScreenState extends State<CheckScreen> {
   );
 
   /// ກາດຕົວເລືອກແບບແຕະ (toggle) — ເລືອກແລ້ວเน้น teal
+  /// ກາດເລືອກ **ຜົນຕັດສິນ** (radio) — ເລືອກໄດ້ອັນດຽວ, ເລືອກແລ້ວເນັ້ນສີຂອງໂຕເອງ
+  Widget _outcomeCard({
+    required CheckOutcome outcome,
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+  }) {
+    final selected = this.outcome == outcome;
+    return InkWell(
+      onTap: busy ? null : () => setState(() => this.outcome = outcome),
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: .08) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: selected ? color : line, width: selected ? 1.5 : 1),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: selected ? color : muted, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: selected ? color : ink,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: const TextStyle(fontSize: 11.5, color: muted)),
+                ],
+              ),
+            ),
+            Icon(
+              selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              color: selected ? color : const Color(0xFFCBD5E1),
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _optionCard({
     required IconData icon,
     required String title,
