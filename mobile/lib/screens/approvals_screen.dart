@@ -55,7 +55,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
     }
   }
 
-  /// ເປີດໜ້າຕັດສິນຢູ່ເວັບ (ໃຊ້ server ອັນດຽວກັບທີ່ແອັບຕໍ່ຢູ່)
+  /// ເປີດໜ້າລາຍລະອຽດຢູ່ເວັບ (ເບິ່ງລາຍການ/ໃບເຕັມ ກ່ອນຕັດສິນ)
   Future<void> open(ApprovalItem item) async {
     final base = await Api.serverUrl();
     final uri = Uri.parse('$base${item.href}');
@@ -63,6 +63,94 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('ເປີດເວັບບໍ່ໄດ້'), backgroundColor: danger),
+        );
+      }
+    }
+  }
+
+  /// ອະນຸມັດ — ຢືນຢັນກ່ອນ (ແຕະເອກະສານທີ່ເປັນເງິນ ⇒ ຢ່າໃຫ້ກົດພາດ)
+  Future<void> approve(ApprovalItem item) async {
+    final quote = item.kind == 'quotation';
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: Text(quote ? 'ອະນຸມັດໃບສະເໜີລາຄາ?' : 'ອະນຸມັດການຍົກເລີກ?'),
+        content: Text(
+          '${item.ref}${item.title != null ? ' · ${item.title}' : ''}'
+          '${item.amount != null ? '\nຍອດ ${item.amount} ฿' : ''}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('ຍົກເລີກ'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: ok),
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('ຢືນຢັນອະນຸມັດ'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true) return;
+    await _run(
+      quote ? 'approve_quote' : 'approve_cancellation',
+      item.ref,
+    );
+  }
+
+  /// ບໍ່ອະນຸມັດ — ຕ້ອງໃສ່ເຫດຜົນ (server ບັງຄັບ)
+  Future<void> reject(ApprovalItem item) async {
+    final quote = item.kind == 'quotation';
+    final ctrl = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('ບໍ່ອະນຸມັດ'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'ເຫດຜົນ (ຜູ້ຂໍຕ້ອງຮູ້ວ່າຍ້ອນຫຍັງ)...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog),
+            child: const Text('ຍົກເລີກ'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: danger),
+            onPressed: () => Navigator.pop(dialog, ctrl.text.trim()),
+            child: const Text('ຢືນຢັນບໍ່ອະນຸມັດ'),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (reason == null || reason.isEmpty) return;
+    await _run(
+      quote ? 'reject_quote' : 'reject_cancellation',
+      item.ref,
+      reason: reason,
+    );
+  }
+
+  Future<void> _run(String action, String ref, {String reason = ''}) async {
+    try {
+      await Api.decideApproval(action, ref, reason: reason);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('ບັນທຶກແລ້ວ')));
+      }
+      await load();
+    } on ApiError catch (failure) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(failure.message), backgroundColor: danger),
         );
       }
     }
@@ -107,8 +195,12 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                             padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
                             itemCount: items.length,
                             separatorBuilder: (_, _) => const SizedBox(height: 10),
-                            itemBuilder: (_, i) =>
-                                _ApprovalCard(item: items[i], onOpen: () => open(items[i])),
+                            itemBuilder: (_, i) => _ApprovalCard(
+                              item: items[i],
+                              onOpen: () => open(items[i]),
+                              onApprove: () => approve(items[i]),
+                              onReject: () => reject(items[i]),
+                            ),
                           ),
                   ),
           ),
@@ -133,9 +225,16 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
 }
 
 class _ApprovalCard extends StatelessWidget {
-  const _ApprovalCard({required this.item, required this.onOpen});
+  const _ApprovalCard({
+    required this.item,
+    required this.onOpen,
+    required this.onApprove,
+    required this.onReject,
+  });
   final ApprovalItem item;
   final VoidCallback onOpen;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
 
   @override
   Widget build(BuildContext context) {
@@ -156,13 +255,13 @@ class _ApprovalCard extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          onTap: onOpen,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(height: 4, color: accent),
-              Padding(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(height: 4, color: accent),
+            InkWell(
+              onTap: onOpen,
+              child: Padding(
                 padding: const EdgeInsets.fromLTRB(14, 11, 14, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,41 +325,76 @@ class _ApprovalCard extends StatelessWidget {
                         style: const TextStyle(color: muted, fontSize: 11.5),
                       ),
                     ],
-                    const SizedBox(height: 11),
-                    Row(
-                      children: [
-                        if ((item.amount ?? '').isNotEmpty)
-                          Text(
-                            '${item.amount} ฿',
-                            style: const TextStyle(
-                              color: ink,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: accent.withValues(alpha: .10),
-                            borderRadius: BorderRadius.circular(9),
-                          ),
-                          child: Row(
-                            children: [
-                              Text(
-                                'ໄປຕັດສິນຢູ່ເວັບ',
-                                style: TextStyle(
-                                  color: accent,
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w900,
-                                ),
+                      if ((item.amount ?? '').isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Text(
+                              '${item.amount} ฿',
+                              style: const TextStyle(
+                                color: ink,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w900,
                               ),
-                              const SizedBox(width: 3),
-                              Icon(Icons.open_in_new_rounded, color: accent, size: 13),
-                            ],
-                          ),
+                            ),
+                            const Spacer(),
+                            // ແຕະບ່ອນນີ້ = ເປີດເວັບເບິ່ງລາຍການເຕັມກ່ອນຕັດສິນ
+                            Row(
+                              children: [
+                                Text(
+                                  'ເບິ່ງລາຍລະອຽດ',
+                                  style: TextStyle(
+                                    color: faint,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(width: 3),
+                                const Icon(Icons.open_in_new_rounded, color: faint, size: 12),
+                              ],
+                            ),
+                          ],
                         ),
                       ],
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── ປຸ່ມຕັດສິນ: ບໍ່ອະນຸມັດ (ຮອງ) · ອະນຸມັດ (ຫຼັກ) ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: onReject,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: danger,
+                          minimumSize: const Size.fromHeight(42),
+                          side: BorderSide(color: danger.withValues(alpha: .35)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                        ),
+                        icon: const Icon(Icons.close_rounded, size: 17),
+                        label: const Text('ບໍ່ອະນຸມັດ', style: TextStyle(fontSize: 12.5)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: onApprove,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: ok,
+                          minimumSize: const Size.fromHeight(42),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                        ),
+                        icon: const Icon(Icons.check_rounded, size: 18),
+                        label: const Text('ອະນຸມັດ', style: TextStyle(fontSize: 12.5)),
+                      ),
                     ),
                   ],
                 ),
@@ -268,7 +402,6 @@ class _ApprovalCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 }

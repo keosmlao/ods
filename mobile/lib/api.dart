@@ -219,13 +219,25 @@ class Api {
     return JobPhotos.fromJson(result['photos'] as Map<String, dynamic>);
   }
 
-  /// ຄິວອະນຸມັດ (ຜູ້ຈັດການ) — ອ່ານຢ່າງດຽວ, ໄປຕັດສິນຢູ່ເວັບ
+  /// ຄິວອະນຸມັດ (ຜູ້ຈັດການ)
   static Future<List<ApprovalItem>> approvals() async {
     final result = await _send('GET', '/api/mobile/approvals');
     return (result['items'] as List)
         .map((row) => ApprovalItem.fromJson(row as Map<String, dynamic>))
         .toList();
   }
+
+  /// ອະນຸມັດ / ບໍ່ອະນຸມັດ — action ຄື approve_quote · reject_quote ·
+  /// approve_cancellation · reject_cancellation. reason ບັງຄັບສະເພາະ reject.
+  static Future<void> decideApproval(
+    String action,
+    String ref, {
+    String reason = '',
+  }) => _send('POST', '/api/mobile/approvals', body: {
+    'action': action,
+    'ref': ref,
+    'reason': reason,
+  });
 
   /* ── Chatter ແລະ ກິດຈະກຳ ────────────────────────────────────── */
 

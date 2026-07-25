@@ -17,13 +17,13 @@ export default async function NewMaintenancePage() {
   const [catalog, techs] = await Promise.all([maintenanceCatalog(), listTechnicians()]);
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-4">
+    <div className="w-full space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="flex items-center gap-2 text-lg font-bold text-slate-700">
-          <SprayCan className="size-5 text-cyan-600" />
+        <h1 className="flex items-center gap-2 text-xl font-bold text-slate-700">
+          <SprayCan className="size-6 text-cyan-600" />
           ເປີດງານສ້ອມບໍລຸງ
         </h1>
-        <Link href="/maintenance" className="text-xs font-semibold text-slate-500 hover:text-slate-700">
+        <Link href="/maintenance" className="text-sm font-semibold text-slate-500 hover:text-slate-700">
           ← ກັບລາຍການ
         </Link>
       </div>

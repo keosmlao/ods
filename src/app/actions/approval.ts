@@ -2,11 +2,19 @@
 import { logChange } from "@/lib/chatter-log";
 import { notifyTechStage } from "@/lib/notify-tech";
 import { clearCancelRequest } from "@/app/actions/service";
-import { ROLE_APPROVER, ROLE_WAREHOUSE } from "@/lib/chatter";
+import {
+  approveCancellationCore,
+  approveQuoteCore,
+  MONEY_SQL,
+  moneyLine,
+  type QuoteMoney,
+  rejectCancellationCore,
+  rejectQuoteCore,
+} from "@/lib/approval-core";
+import { ROLE_APPROVER } from "@/lib/chatter";
 import { db, query } from "@/lib/db";
 import { requireRole } from "@/lib/guard";
 import { APPROVER_SIDE, SERVICE_SIDE } from "@/lib/roles";
-import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -34,39 +42,9 @@ function revalidateAll() {
 const requireApprover = () => requireRole(APPROVER_SIDE, "ບໍ່ມີສິດອະນຸມັດໃບສະເໜີລາຄາ");
 const requireService = () => requireRole(SERVICE_SIDE, "ບໍ່ມີສິດບັນທຶກຄຳຕອບຂອງລູກຄ້າ");
 
-/* ───────── ເງິນ ແລະ ເອກະສານທີ່ຂວາງການຖອນຄືນ ───────── */
-
-const fmt = (value: string | number | null) => {
-  const n = Number(value ?? 0);
-  return (Number.isFinite(n) ? n : 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
-};
-
-type QuoteMoney = {
-  product_code: string | null;
-  user_created: string | null;
-  total_value: string;
-  total_discount: string;
-  total_amount: string;
-  exchange_rate: string | null;
-  total_amount_2: string | null;
-};
-
-const MONEY_SQL = `select product_code, user_created,
-    coalesce(total_value,0)::text total_value, coalesce(total_discount,0)::text total_discount,
-    coalesce(total_amount,0)::text total_amount, exchange_rate::text, total_amount_2::text
-  from ic_trans where doc_no=$1 and trans_flag=17 limit 1`;
-
-/** ຂໍ້ຄວາມເງິນມາດຕະຖານ — ຍອດສຸດທ້າຍ (ຫຼັງສ່ວນຫຼຸດ) + ຍອດກີບ ⇒ ຕົວເລກດຽວກັນທຸກບ່ອນ */
-function moneyLine(m: QuoteMoney | undefined) {
-  if (!m) return "";
-  const discount = Number(m.total_discount);
-  const kip = Number(m.total_amount_2 ?? 0);
-  return (
-    ` · ຍອດ ${fmt(m.total_amount)} ບາດ` +
-    (discount > 0 ? ` (ລວມ ${fmt(m.total_value)} − ສ່ວນຫຼຸດ ${fmt(discount)})` : "") +
-    (kip > 0 ? ` ≈ ${fmt(kip)} ກີບ` : "")
-  );
-}
+/* ───────── ເອກະສານທີ່ຂວາງການຖອນຄືນ ─────────
+ * ໝາຍເຫດ: SQL ເງິນ (MONEY_SQL · moneyLine · QuoteMoney) ຍ້າຍໄປ lib/approval-core
+ * ເພື່ອໃຫ້ /api/mobile/approvals ໃຊ້ຮ່ວມ. blockingDoc ຍັງຢູ່ນີ້ (ໃຊ້ແຕ່ undoQuoteApproval). */
 
 /**
  * ເອກະສານທີ່ອອກໄປແລ້ວ ແລະ ຂວາງການຖອນຄືນ (ຖອນຄືນຂ້າມເອກະສານທີ່ອອກແລ້ວບໍ່ໄດ້).
@@ -99,37 +77,10 @@ export async function approveQuote(_: ApprovalState, formData: FormData): Promis
   if (!guard.ok) return { error: guard.error };
   const docNo = String(formData.get("doc_no") ?? "");
   const remark = String(formData.get("remark") ?? "");
-  if (!docNo) return { error: "ບໍ່ພົບເລກທີໃບສະເໜີລາຄາ" };
 
-  let productCode = "";
-  let owner = "";
-  let amounts: QuoteMoney | undefined;
-  try {
-    // returning → ໄດ້ລະຫັດເຄື່ອງມາຂຽນ log ໂດຍບໍ່ຕ້ອງ query ຊ້ຳ (ຟອມບໍ່ໄດ້ສົ່ງມາ)
-    const approved = await query<{ product_code: string | null; user_created: string | null }>(
-      `update ic_trans set remark_2=$1, approver1=$2, aprove_date1=localtime(0), approve_at=localtimestamp(0), aprove_status=1
-       where doc_no=$3 and trans_flag=17 and coalesce(aprove_status,0)=0 and coalesce(aprove_status_2,0)=0
-       returning product_code, user_created`,
-      [remark, guard.session.username, docNo],
-    );
-    if (!approved.rowCount) return { error: "ໃບສະເໜີລາຄານີ້ຖືກດຳເນີນການໄປແລ້ວ" };
-    productCode = approved.rows[0]?.product_code ?? "";
-    owner = (approved.rows[0]?.user_created ?? "").trim();
-    amounts = (await query<QuoteMoney>(MONEY_SQL, [docNo])).rows[0];
-  } catch (error) {
-    console.error("approveQuote failed", error);
-    return { error: "ອະນຸມັດບໍ່ສຳເລັດ" };
-  }
-
-  if (productCode) {
-    // ແຈ້ງຜູ້ອອກບິນໂດຍກົງ — ລາວແມ່ນຄົນທີ່ຕ້ອງໄປສະເໜີລາຄາໃຫ້ລູກຄ້າຕໍ່
-    await logChange(
-      "tb_product",
-      productCode,
-      `ອະນຸມັດໃບສະເໜີລາຄາ ${docNo} (ພາຍໃນ)${moneyLine(amounts)}${remark.trim() ? ` · ${remark.trim()}` : ""} — ລໍຖ້າລູກຄ້າຕອບ`,
-      { users: owner ? [owner] : [] },
-    );
-  }
+  // SQL ເງິນ + log ຢູ່ approval-core (ໃຊ້ຮ່ວມກັບ /api/mobile/approvals) — ບ່ອນນີ້ຄຸມ redirect ເທົ່ານັ້ນ
+  const result = await approveQuoteCore(guard.session.username, docNo, remark);
+  if (!result.ok) return { error: result.error };
 
   revalidateAll();
   redirect("/approvals/quotations");
@@ -232,52 +183,11 @@ export async function undoQuoteApproval(docNo: string): Promise<ApprovalState> {
 export async function rejectQuote(_: ApprovalState, formData: FormData): Promise<ApprovalState> {
   const guard = await requireApprover();
   if (!guard.ok) return { error: guard.error };
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
   const docNo = String(formData.get("doc_no") ?? "");
-  const remark = String(formData.get("remark") ?? "").trim();
-  if (!docNo) return { error: "ບໍ່ພົບເລກທີໃບສະເໜີລາຄາ" };
-  if (!remark) return { error: "ກະລຸນາລະບຸເຫດຜົນທີ່ບໍ່ອະນຸມັດຢູ່ຊ່ອງ ໝາຍເຫດ ກ່ອນ" };
+  const remark = String(formData.get("remark") ?? "");
 
-  const client = await db.connect();
-  let productCode = "";
-  let owner = "";
-  try {
-    await client.query("begin");
-    // ລະຫັດເຄື່ອງ + ຜູ້ອອກບິນ ເອົາຈາກຖານຂໍ້ມູນ ບໍ່ແມ່ນຈາກຟອມ (ຟອມເຊື່ອບໍ່ໄດ້)
-    const rejected = await client.query<{ product_code: string | null; user_created: string | null }>(
-      `update ic_trans set remark_2=$1, approver1=$2, aprove_date1=localtime(0), approve_at=localtimestamp(0), aprove_status=2
-       where doc_no=$3 and trans_flag=17 and coalesce(aprove_status,0)=0 and coalesce(aprove_status_2,0)=0
-       returning product_code, user_created`,
-      [remark, guard.session.username, docNo],
-    );
-    if (!rejected.rowCount) {
-      await client.query("rollback");
-      return { error: "ໃບສະເໜີລາຄານີ້ຖືກດຳເນີນການໄປແລ້ວ" };
-    }
-    productCode = rejected.rows[0].product_code ?? "";
-    owner = (rejected.rows[0].user_created ?? "").trim();
-
-    if (productCode) {
-      await client.query("update tb_product set qt_start=null, qt_finish=null where code=$1", [productCode]);
-    }
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    console.error("rejectQuote failed", error);
-    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
-  } finally {
-    client.release();
-  }
-
-  if (productCode) {
-    // ແຈ້ງຜູ້ອອກບິນໂດຍກົງ — ລາວແມ່ນຄົນທີ່ຕ້ອງລົງມືແກ້ໄຂ ຫຼື ອອກໃບໃໝ່
-    await logChange(
-      "tb_product",
-      productCode,
-      `ບໍ່ອະນຸມັດໃບສະເໜີລາຄາ ${docNo} (ພາຍໃນ) · ເຫດຜົນ: ${remark} — ໃຫ້ແກ້ໄຂແລ້ວສົ່ງອະນຸມັດຄືນ ຫຼື ລຶບແລ້ວອອກໃບໃໝ່`,
-      { users: owner ? [owner] : [] },
-    );
-  }
+  const result = await rejectQuoteCore(guard.session.username, docNo, remark);
+  if (!result.ok) return { error: result.error };
 
   revalidateAll();
   redirect("/approvals/quotations");
@@ -516,46 +426,14 @@ export async function approveCancellation(_: ApprovalState, formData: FormData):
   if (!parsed.success) return { error: "ບໍ່ພົບລະຫັດເຄື່ອງ" };
   const productCode = parsed.data.pro_code;
 
-  let approved = false;
-  let outstanding = { lines: 0, units: 0 };
-  try {
-    const done = await query(
-      `update tb_product set cancel_finish=localtimestamp(0), approve_cancel=$1
-       where code=$2 and status=6 and cancel_start is not null and cancel_finish is null`,
-      [session.username, productCode],
-    );
-    approved = Boolean(done.rowCount);
-
-    const spares = await query<{ lines: number; units: number }>(
-      `select count(*)::int lines, coalesce(sum(d.qty),0)::float units
-       from ic_trans t
-       join ic_trans_detail d on d.doc_no = t.doc_no
-       where t.trans_flag=$1 and t.product_code=$2 and d.status=$3`,
-      [TRANS.DISPATCH, productCode, LINE_STATUS.PENDING],
-    );
-    outstanding = spares.rows[0] ?? outstanding;
-  } catch (error) {
-    console.error("approveCancellation failed", error);
-    return { error: "ອະນຸມັດບໍ່ສຳເລັດ" };
-  }
-
-  if (approved) {
-    await logChange("tb_product", productCode, "ອະນຸມັດການຍົກເລີກໃບຮັບເຄື່ອງ");
-    if (outstanding.lines > 0) {
-      await logChange(
-        "tb_product",
-        productCode,
-        `ເຕືອນ: ຍັງມີອາໄຫຼ່ທີ່ເບີກອອກຈາກສາງແລ້ວ ${outstanding.lines} ລາຍການ (${outstanding.units} ໜ່ວຍ) ຍັງບໍ່ໄດ້ສົ່ງຄືນສາງ — ຕ້ອງສ້າງໃບຂໍສົ່ງອາໄຫຼ່ຄືນ`,
-        { roles: ROLE_WAREHOUSE },
-      );
-    }
-  }
+  const result = await approveCancellationCore(session.username, productCode);
+  if (!result.ok) return { error: result.error };
 
   revalidateAll();
   revalidatePath("/returns", "layout");
   revalidatePath("/service/cancel");
   // ມີອາໄຫຼ່ຄ້າງ → ຢູ່ໜ້າລາຍລະອຽດ ເພື່ອໃຫ້ເຫັນຄຳເຕືອນ ແລະ ກົດຂໍສົ່ງຄືນໄດ້ທັນທີ
-  redirect(outstanding.lines > 0 ? `/approvals/cancellations/${encodeURIComponent(productCode)}` : "/approvals/cancellations");
+  redirect(result.outstanding > 0 ? `/approvals/cancellations/${encodeURIComponent(productCode)}` : "/approvals/cancellations");
 }
 
 /**
@@ -582,17 +460,8 @@ export async function rejectCancellation(_: ApprovalState, formData: FormData): 
   }
   const { pro_code: productCode, reason } = parsed.data;
 
-  const cleared = await clearCancelRequest(productCode);
-  if (!cleared.ok) return { error: cleared.error ?? "ບໍ່ອະນຸມັດການຍົກເລີກບໍ່ສຳເລັດ" };
-
-  // ແຈ້ງຜູ້ຂໍໂດຍກົງ — ລາວແມ່ນຄົນທີ່ຕ້ອງຮູ້ວ່າວຽກກັບເຂົ້າສາຍງານຄືນແລ້ວ
-  const previous = cleared.reason ? ` · ຄຳຂໍເດີມ: ${cleared.reason}` : "";
-  await logChange(
-    "tb_product",
-    productCode,
-    `ບໍ່ອະນຸມັດການຍົກເລີກ · ເຫດຜົນ: ${reason}${previous} — ວຽກກັບຄືນສູ່ຂັ້ນຕອນປົກກະຕິ`,
-    { users: cleared.requester ? [cleared.requester] : [] },
-  );
+  const result = await rejectCancellationCore(guard.session.username, productCode, reason);
+  if (!result.ok) return { error: result.error };
 
   revalidateAll();
   revalidatePath("/service/cancel");
