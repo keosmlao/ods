@@ -249,7 +249,8 @@
     "alertReturnDetail": "ສ້ອມແລ້ວ ລໍອອກໃບຮັບເງິນ/ສົ່ງຄືນ",
     "alertCloseInstallLabel": "ລໍຖ້າປິດງານຕິດຕັ້ງ",
     "alertCloseInstallDetail": "ລູກຄ້າຕອບແບບສອບຖາມແລ້ວ",
-    "greeting": "ສະບາຍດີ"
+    "greeting": "ສະບາຍດີ",
+    "downloadApp": "ດາວໂຫຼດແອັບ"
   },
   "service": {
     "showing": "ສະແດງ",

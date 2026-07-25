@@ -33,6 +33,7 @@ import {
   PackageX,
   Plus,
   Radar,
+  Smartphone,
   RefreshCw,
   RotateCcw,
   ShieldCheck,
@@ -778,6 +779,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 text-xs font-semibold text-white backdrop-blur transition hover:bg-white/20"
           >
             <Radar className="size-4" /> {t.trackJobs} <LinkPending className="size-3.5" />
+          </Link>
+          {/* ດາວໂຫຼດແອັບຊ່າງ — ເນັ້ນ (ຂຽວ) ໃຫ້ຫາງ່າຍ ບໍ່ຕ້ອງເຂົ້າເມນູ */}
+          <Link
+            href="/download"
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-emerald-500 px-4 text-xs font-semibold text-white transition hover:bg-emerald-400"
+          >
+            <Smartphone className="size-4" /> {t.downloadApp} <LinkPending className="size-3.5" />
           </Link>
         </div>
         </div>

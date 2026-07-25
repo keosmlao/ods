@@ -249,7 +249,8 @@
     "alertReturnDetail": "Repaired, awaiting receipt/return",
     "alertCloseInstallLabel": "Awaiting install closure",
     "alertCloseInstallDetail": "Customer has completed the survey",
-    "greeting": "Hello"
+    "greeting": "Hello",
+    "downloadApp": "Download app"
   },
   "service": {
     "showing": "Showing",

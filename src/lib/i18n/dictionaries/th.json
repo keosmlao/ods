@@ -249,7 +249,8 @@
     "alertReturnDetail": "ซ่อมแล้ว รอออกใบรับเงิน/ส่งคืน",
     "alertCloseInstallLabel": "รอปิดงานติดตั้ง",
     "alertCloseInstallDetail": "ลูกค้าตอบแบบสอบถามแล้ว",
-    "greeting": "สวัสดี"
+    "greeting": "สวัสดี",
+    "downloadApp": "ดาวน์โหลดแอป"
   },
   "service": {
     "showing": "แสดง",
