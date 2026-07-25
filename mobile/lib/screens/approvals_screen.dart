@@ -156,6 +156,16 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
     }
   }
 
+  /// ຈັດເປັນຫົວຂໍ້ຕາມ kind — ຮຽງ ໃບສະເໜີລາຄາ ກ່ອນ ຂໍຍົກເລີກ (ສະແດງແຕ່ຫົວຂໍ້ທີ່ມີ)
+  List<_ApprovalGroup> get _grouped {
+    final out = <_ApprovalGroup>[];
+    for (final meta in _kindOrder) {
+      final list = items.where((i) => i.kind == meta.kind).toList();
+      if (list.isNotEmpty) out.add(_ApprovalGroup(meta, list));
+    }
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     final quotes = items.where((i) => i.kind == 'quotation').length;
@@ -191,16 +201,24 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                         ? _message(Icons.cloud_off_rounded, error)
                         : items.isEmpty
                         ? _message(Icons.task_alt_rounded, 'ບໍ່ມີລາຍການລໍອະນຸມັດ')
-                        : ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
-                            itemCount: items.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 10),
-                            itemBuilder: (_, i) => _ApprovalCard(
-                              item: items[i],
-                              onOpen: () => open(items[i]),
-                              onApprove: () => approve(items[i]),
-                              onReject: () => reject(items[i]),
-                            ),
+                        : ListView(
+                            padding: const EdgeInsets.fromLTRB(14, 6, 14, 20),
+                            children: [
+                              // ແຍກເປັນຫົວຂໍ້ — ໃບສະເໜີລາຄາ · ຂໍຍົກເລີກ (ຄິວຄົນລະຊະນິດ)
+                              for (final group in _grouped) ...[
+                                _SectionHeader(meta: group.meta, count: group.items.length),
+                                for (final item in group.items) ...[
+                                  _ApprovalCard(
+                                    item: item,
+                                    onOpen: () => open(item),
+                                    onApprove: () => approve(item),
+                                    onReject: () => reject(item),
+                                  ),
+                                  const SizedBox(height: 10),
+                                ],
+                                const SizedBox(height: 6),
+                              ],
+                            ],
                           ),
                   ),
           ),
@@ -221,6 +239,78 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
         style: const TextStyle(color: muted, fontWeight: FontWeight.w700),
       ),
     ],
+  );
+}
+
+/// ຫົວຂໍ້ຄິວອະນຸມັດ — ໃບສະເໜີລາຄາ · ຂໍຍົກເລີກ
+class _KindMeta {
+  final String kind;
+  final String label;
+  final IconData icon;
+  final Color color;
+  const _KindMeta(this.kind, this.label, this.icon, this.color);
+}
+
+const _kindOrder = [
+  _KindMeta('quotation', 'ໃບສະເໜີລາຄາ', Icons.request_quote_outlined, Color(0xFF7C3AED)),
+  _KindMeta('cancellation', 'ຂໍຍົກເລີກໃບຮັບເຄື່ອງ', Icons.cancel_outlined, danger),
+];
+
+class _ApprovalGroup {
+  final _KindMeta meta;
+  final List<ApprovalItem> items;
+  const _ApprovalGroup(this.meta, this.items);
+}
+
+/// ຫົວກຸ່ມ — ໄອຄອນສີ + ຊື່ຫົວຂໍ້ + ຈຳນວນ
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.meta, required this.count});
+  final _KindMeta meta;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(2, 10, 2, 8),
+    child: Row(
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: meta.color.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Icon(meta.icon, size: 17, color: meta.color),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(
+            meta.label,
+            style: const TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w800,
+              color: ink,
+              letterSpacing: -.2,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+          decoration: BoxDecoration(
+            color: meta.color.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            '$count',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              color: meta.color,
+            ),
+          ),
+        ),
+      ],
+    ),
   );
 }
 
@@ -247,153 +337,132 @@ class _ApprovalCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFDDE6E3)),
-        boxShadow: const [
-          BoxShadow(color: Color(0x0D0F172A), blurRadius: 14, offset: Offset(0, 5)),
-        ],
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0xFFE2E9E6)),
       ),
       child: Material(
         color: Colors.transparent,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(height: 4, color: accent),
-            InkWell(
-              onTap: onOpen,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 11, 14, 12),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ແຖບສີຊະນິດ (ບໍ່ຕ້ອງມີ chip ຊ້ຳ — ຫົວກຸ່ມບອກແລ້ວ)
+              Container(width: 4, color: accent),
+              Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: accent.withValues(alpha: .11),
-                            borderRadius: BorderRadius.circular(7),
-                          ),
-                          child: Text(
-                            item.kindLabel,
-                            style: TextStyle(
-                              color: accent,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            item.ref,
-                            style: const TextStyle(
-                              color: ink,
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          item.waitingLabel,
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            color: late ? danger : faint,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 9),
-                    Text(
-                      item.title ?? '-',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: ink,
-                        fontSize: 14,
-                        height: 1.3,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    if ((item.customer ?? '').isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        item.customer!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: muted, fontSize: 11.5),
-                      ),
-                    ],
-                      if ((item.amount ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Row(
+                    InkWell(
+                      onTap: onOpen,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(11, 9, 10, 9),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              '${item.amount} ฿',
-                              style: const TextStyle(
-                                color: ink,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            const Spacer(),
-                            // ແຕະບ່ອນນີ້ = ເປີດເວັບເບິ່ງລາຍການເຕັມກ່ອນຕັດສິນ
+                            // ເລກອ້າງອີງ + ຄ້າງມາດົນເທົ່າໃດ
                             Row(
                               children: [
-                                Text(
-                                  'ເບິ່ງລາຍລະອຽດ',
-                                  style: TextStyle(
-                                    color: faint,
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w700,
+                                Expanded(
+                                  child: Text(
+                                    item.ref,
+                                    style: const TextStyle(
+                                      color: ink,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                    ),
                                   ),
                                 ),
+                                Icon(Icons.schedule_rounded, size: 11, color: late ? danger : faint),
                                 const SizedBox(width: 3),
-                                const Icon(Icons.open_in_new_rounded, color: faint, size: 12),
+                                Text(
+                                  item.waitingLabel,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: late ? danger : faint,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 3),
+                            // ຊື່ເຄື່ອງ — 1 ແຖວ
+                            Text(
+                              item.title ?? '-',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: ink,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            // ລາຍລະອຽດ: ລູກຄ້າ · ວັນທີ່ຂໍ · ຍອດ (ແໜ້ນເປັນເສັ້ນດຽວ)
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 2,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                if ((item.customer ?? '').isNotEmpty)
+                                  _MetaText(Icons.person_outline_rounded, item.customer!),
+                                if (item.requestedAt != null)
+                                  _MetaText(Icons.event_outlined, 'ຂໍ ${item.requestedAt}'),
+                                if ((item.amount ?? '').isNotEmpty)
+                                  Text(
+                                    '${item.amount} ฿',
+                                    style: const TextStyle(
+                                      color: ink,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('ລາຍລະອຽດ', style: TextStyle(color: accent, fontSize: 9.5, fontWeight: FontWeight.w700)),
+                                    Icon(Icons.open_in_new_rounded, color: accent, size: 10),
+                                  ],
+                                ),
                               ],
                             ),
                           ],
                         ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-
-              // ── ປຸ່ມຕັດສິນ: ບໍ່ອະນຸມັດ (ຮອງ) · ອະນຸມັດ (ຫຼັກ) ──
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: onReject,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: danger,
-                          minimumSize: const Size.fromHeight(42),
-                          side: BorderSide(color: danger.withValues(alpha: .35)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(11),
-                          ),
-                        ),
-                        icon: const Icon(Icons.close_rounded, size: 17),
-                        label: const Text('ບໍ່ອະນຸມັດ', style: TextStyle(fontSize: 12.5)),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: onApprove,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: ok,
-                          minimumSize: const Size.fromHeight(42),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(11),
+                    // ── ປຸ່ມຕັດສິນ — ຫຍໍ້ ──
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 0, 10, 9),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: onReject,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: danger,
+                                minimumSize: const Size.fromHeight(34),
+                                padding: EdgeInsets.zero,
+                                side: BorderSide(color: danger.withValues(alpha: .35)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                              ),
+                              icon: const Icon(Icons.close_rounded, size: 15),
+                              label: const Text('ບໍ່ອະນຸມັດ', style: TextStyle(fontSize: 11.5)),
+                            ),
                           ),
-                        ),
-                        icon: const Icon(Icons.check_rounded, size: 18),
-                        label: const Text('ອະນຸມັດ', style: TextStyle(fontSize: 12.5)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: onApprove,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: ok,
+                                minimumSize: const Size.fromHeight(34),
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                              ),
+                              icon: const Icon(Icons.check_rounded, size: 16),
+                              label: const Text('ອະນຸມັດ', style: TextStyle(fontSize: 11.5)),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -402,6 +471,23 @@ class _ApprovalCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
     );
   }
+}
+
+/// ໄອຄອນ + ຂໍ້ຄວາມນ້ອຍ (ລູກຄ້າ · ວັນທີ່) — ໃຊ້ໃນແຖວລາຍລະອຽດ
+class _MetaText extends StatelessWidget {
+  const _MetaText(this.icon, this.text);
+  final IconData icon;
+  final String text;
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 11, color: faint),
+      const SizedBox(width: 3),
+      Text(text, style: const TextStyle(color: muted, fontSize: 11)),
+    ],
+  );
 }
