@@ -440,6 +440,105 @@ class _JobScreenState extends State<JobScreen> {
         ),
       );
 
+  /// ກາດ "ການເຄື່ອນໄຫວ" (chatter) — ຢູ່ tab ແຍກ (ບໍ່ປົນກັບລາຍລະອຽດ/ປຸ່ມ)
+  Widget _chatterCard() {
+    return _Card(
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.forum_outlined, size: 18, color: teal),
+            const SizedBox(width: 8),
+            const Text(
+              'ການເຄື່ອນໄຫວ',
+              style: TextStyle(fontWeight: FontWeight.w800, color: ink, fontSize: 14),
+            ),
+            const Spacer(),
+            if (chatter != null)
+              Text('${chatter!.messages.length}', style: const TextStyle(color: faint, fontSize: 12)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        // ພິມສົ່ງຫາ CS/ຫົວໜ້າ
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: chatInput,
+                minLines: 1,
+                maxLines: 3,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => sendMessage(),
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: 'ພິມຂໍ້ຄວາມເຖິງ CS / ຫົວໜ້າ...',
+                  hintStyle: const TextStyle(fontSize: 13, color: faint),
+                  filled: true,
+                  fillColor: surfaceAlt,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: teal,
+                minimumSize: const Size(48, 44),
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: sending ? null : sendMessage,
+              child: sending
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.send_rounded, size: 18),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (chatterError.isNotEmpty)
+          Row(
+            children: [
+              const Icon(Icons.cloud_off_rounded, size: 16, color: faint),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  'ໂຫຼດການເຄື່ອນໄຫວບໍ່ໄດ້ — $chatterError',
+                  style: const TextStyle(fontSize: 11.5, color: muted),
+                ),
+              ),
+              TextButton(
+                onPressed: loadChatter,
+                style: TextButton.styleFrom(
+                  foregroundColor: teal,
+                  minimumSize: const Size(0, 32),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: const Text('ລອງໃໝ່', style: TextStyle(fontSize: 12)),
+              ),
+            ],
+          )
+        else if (chatter == null)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Center(
+              child: SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+          )
+        else if (chatter!.messages.isEmpty)
+          const Text('ຍັງບໍ່ມີການເຄື່ອນໄຫວ', style: TextStyle(color: faint, fontSize: 12.5))
+        else
+          for (final msg in chatter!.messages.take(30)) _MessageRow(message: msg),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // ບຳລຸງຮັກສາບໍ່ໄດ້ເກັບຮູບຜົນງານ (server ບໍ່ຮັບ) ⇒ ຢ່າບັງຄັບ ບໍ່ດັ່ງນັ້ນຊ່າງກົດຈົບບໍ່ໄດ້
@@ -449,7 +548,9 @@ class _JobScreenState extends State<JobScreen> {
 
     return Scaffold(
       backgroundColor: ground,
-      body: Column(
+      body: DefaultTabController(
+        length: 2,
+        child: Column(
         children: [
           HeroHeader(
             inlineBack: true,
@@ -461,8 +562,21 @@ class _JobScreenState extends State<JobScreen> {
                     : 'ສ້ອມແປງ'} · ${job.code}',
             onBack: () => Navigator.pop(context),
           ),
+          Material(
+            color: Colors.white,
+            child: TabBar(
+              labelColor: ink,
+              unselectedLabelColor: muted,
+              indicatorColor: teal,
+              indicatorWeight: 3,
+              labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+              tabs: const [Tab(text: 'ລາຍລະອຽດ'), Tab(text: 'ການເຄື່ອນໄຫວ')],
+            ),
+          ),
           Expanded(
-            child: ListView(
+            child: TabBarView(
+              children: [
+                ListView(
         padding: const EdgeInsets.all(12),
         children: [
           _Card(
@@ -673,125 +787,6 @@ class _JobScreenState extends State<JobScreen> {
             const SizedBox(height: 12),
           ],
 
-          // ── ການເຄື່ອນໄຫວ (chatter) — ຊຸດດຽວກັບເວັບ ──
-          _Card(
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.forum_outlined, size: 18, color: teal),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'ການເຄື່ອນໄຫວ',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: ink,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (chatter != null)
-                    Text(
-                      '${chatter!.messages.length}',
-                      style: const TextStyle(color: faint, fontSize: 12),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 10),
-
-              // ພິມສົ່ງຫາ CS/ຫົວໜ້າ
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: chatInput,
-                      minLines: 1,
-                      maxLines: 3,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => sendMessage(),
-                      decoration: InputDecoration(
-                        isDense: true,
-                        hintText: 'ພິມຂໍ້ຄວາມເຖິງ CS / ຫົວໜ້າ...',
-                        hintStyle: const TextStyle(fontSize: 13, color: faint),
-                        filled: true,
-                        fillColor: surfaceAlt,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: teal,
-                      minimumSize: const Size(48, 44),
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: sending ? null : sendMessage,
-                    child: sending
-                        ? const SizedBox(
-                            height: 16,
-                            width: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.send_rounded, size: 18),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              if (chatterError.isNotEmpty)
-                Row(
-                  children: [
-                    const Icon(Icons.cloud_off_rounded, size: 16, color: faint),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: Text(
-                        'ໂຫຼດການເຄື່ອນໄຫວບໍ່ໄດ້ — $chatterError',
-                        style: const TextStyle(fontSize: 11.5, color: muted),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: loadChatter,
-                      style: TextButton.styleFrom(
-                        foregroundColor: teal,
-                        minimumSize: const Size(0, 32),
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                      ),
-                      child: const Text('ລອງໃໝ່', style: TextStyle(fontSize: 12)),
-                    ),
-                  ],
-                )
-              else if (chatter == null)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 10),
-                  child: Center(
-                    child: SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                )
-              else if (chatter!.messages.isEmpty)
-                const Text(
-                  'ຍັງບໍ່ມີການເຄື່ອນໄຫວ',
-                  style: TextStyle(color: faint, fontSize: 12.5),
-                )
-              else
-                for (final msg in chatter!.messages.take(30))
-                  _MessageRow(message: msg),
-            ],
-          ),
-          const SizedBox(height: 12),
 
           /* ── ຂັ້ນຕອນ — ປຸ່ມມາຈາກ server ── */
           _Card(
@@ -1231,8 +1226,16 @@ class _JobScreenState extends State<JobScreen> {
           ],
         ],
       ),
+                // ── tab 2: ການເຄື່ອນໄຫວ (chatter) ──
+                ListView(
+                  padding: const EdgeInsets.all(12),
+                  children: [_chatterCard()],
+                ),
+              ],
+            ),
           ),
         ],
+      ),
       ),
     );
   }
