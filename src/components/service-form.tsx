@@ -2,6 +2,7 @@
 import { createService } from "@/app/actions/service";
 import { ServiceCustomer, type Customer } from "@/components/service-customer";
 import { ProductPicker, type Product } from "@/components/product-picker";
+import { RepairHistory } from "@/components/service/repair-history";
 import { SerialPicker, type Serial } from "@/components/serial-picker";
 import { ServicePhotos } from "@/components/service-photos";
 import { SelectField } from "@/components/select-field";
@@ -254,6 +255,11 @@ export function ServiceForm({
                   onType={(text) => { setSerialQuery(text); setSerial(null); }}
                 />
                 <input type="hidden" name="pro_sn" value={serialQuery} />
+              </div>
+
+              {/* ປະຫວັດການສ້ອມຂອງ SN ນີ້ — ຂຶ້ນເອງເມື່ອໃສ່ SN (ຊ່ວຍວິເຄາະ · ກັນສ້ອມຊ້ຳ) */}
+              <div className="sm:col-span-2">
+                <RepairHistory sn={serialQuery} />
               </div>
 
               <div>

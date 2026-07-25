@@ -100,8 +100,12 @@ export default async function ServiceDetail({ params }: Props) {
          a.emp_code technician, to_char(a.appoint_date,'YYYY-MM-DD') appoint_date,
          to_char(a.repair_appoint_date,'YYYY-MM-DD') repair_appoint_date,
          a.location_repair location_inst, a.location_lat, a.location_lng, a.roworder, a.user_regis receiver,
-         (select count(*) from product_image i
-           where i.iteme_code = a.code and coalesce(i.product_url,'') <> '')::int images,
+         (
+           (select count(*) from product_image i
+             where i.iteme_code = a.code and coalesce(i.product_url,'') <> '')
+           + (select count(*) from ods_job_photo p
+               where p.workflow='repair' and p.job_code = a.code and p.kind in ('check','finish'))
+         )::int images,
          (select count(*) from cust_contactor t where t.product_code = a.code)::int contacts,
          ${holdJsonSql("repair")}
        from tb_product a
