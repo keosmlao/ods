@@ -248,7 +248,8 @@
     "alertReturnLabel": "รอส่งเครื่องคืนลูกค้า",
     "alertReturnDetail": "ซ่อมแล้ว รอออกใบรับเงิน/ส่งคืน",
     "alertCloseInstallLabel": "รอปิดงานติดตั้ง",
-    "alertCloseInstallDetail": "ลูกค้าตอบแบบสอบถามแล้ว"
+    "alertCloseInstallDetail": "ลูกค้าตอบแบบสอบถามแล้ว",
+    "greeting": "สวัสดี"
   },
   "service": {
     "showing": "แสดง",

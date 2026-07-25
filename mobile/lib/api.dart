@@ -39,7 +39,15 @@ class Api {
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _homeKey);
     await _storage.delete(key: _navKey);
+    await _storage.delete(key: _userKey);
+    await _storage.delete(key: _roleLabelKey);
   }
+
+  // ຊື່ຜູ້ໃຊ້ + ປ້າຍ role — ເກັບໄວ້ໃຫ້ໜ້າ home ທັກທາຍ (ບໍ່ຕ້ອງ login ຄືນ)
+  static const _userKey = 'odss_user';
+  static const _roleLabelKey = 'odss_role_label';
+  static Future<String?> savedUsername() => _storage.read(key: _userKey);
+  static Future<String?> savedRoleLabel() => _storage.read(key: _roleLabelKey);
 
   // ໜ້າຕັ້ງຕົ້ນ (jobs/stock-count) — ເກັບໄວ້ໃຫ້ _Gate route ຖືກຕອນເປີດແອັບຄືນ
   static const _homeKey = 'odss_home';
@@ -175,6 +183,8 @@ class Api {
     final user = MobileUser.fromJson(result['user'] as Map<String, dynamic>);
     await saveHome(user.home);
     await saveTabs(user.tabs);
+    await _storage.write(key: _userKey, value: user.username);
+    await _storage.write(key: _roleLabelKey, value: user.roleLabel);
     return user;
   }
 

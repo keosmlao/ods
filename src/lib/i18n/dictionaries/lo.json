@@ -248,7 +248,8 @@
     "alertReturnLabel": "ລໍຖ້າສົ່ງເຄື່ອງຄືນລູກຄ້າ",
     "alertReturnDetail": "ສ້ອມແລ້ວ ລໍອອກໃບຮັບເງິນ/ສົ່ງຄືນ",
     "alertCloseInstallLabel": "ລໍຖ້າປິດງານຕິດຕັ້ງ",
-    "alertCloseInstallDetail": "ລູກຄ້າຕອບແບບສອບຖາມແລ້ວ"
+    "alertCloseInstallDetail": "ລູກຄ້າຕອບແບບສອບຖາມແລ້ວ",
+    "greeting": "ສະບາຍດີ"
   },
   "service": {
     "showing": "ສະແດງ",

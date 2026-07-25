@@ -760,7 +760,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <div className="pointer-events-none absolute bottom-0 right-1/3 size-32 rounded-full bg-sky-500/10 blur-2xl" />
         <div className="relative flex flex-wrap items-center justify-between gap-5">
         <div>
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-300">ODIEN Service Operations</p>
+          {/* ທັກທາຍຜູ້ໃຊ້ດ້ວຍຊື່ — username = ຕົວຕົນ ERP (nickname/ຊື່ເຕັມ) */}
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-300">
+            {session?.username ? `${t.greeting}, ${session.username}` : "ODIEN Service Operations"}
+          </p>
           <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{t.controlCenter}</h1>
           <p className="mt-2 text-xs text-slate-300">
             {ROLE_LABEL[role]}

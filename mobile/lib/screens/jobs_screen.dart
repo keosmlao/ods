@@ -183,6 +183,7 @@ class _JobsScreenState extends State<JobsScreen> {
   List<Job> jobs = [];
   bool loading = true;
   String error = '';
+  String username = ''; // ຊື່ຜູ້ໃຊ້ — ໃຫ້ hero ທັກທາຍ
 
   Future<void> load() async {
     try {
@@ -221,6 +222,9 @@ class _JobsScreenState extends State<JobsScreen> {
   void initState() {
     super.initState();
     load();
+    Api.savedUsername().then((name) {
+      if (mounted && name != null) setState(() => username = name);
+    });
   }
 
   Future<void> logout() async {
@@ -293,6 +297,8 @@ class _JobsScreenState extends State<JobsScreen> {
       body: Column(
         children: [
           HeroHeader(
+            // ທັກທາຍດ້ວຍຊື່ຜູ້ໃຊ້ (ຫວ່າງ = ຍັງໂຫຼດບໍ່ທັນ ⇒ ໃຊ້ eyebrow ຕັ້ງຕົ້ນ)
+            eyebrow: username.isNotEmpty ? 'ສະບາຍດີ, $username' : 'ODIEN SERVICE',
             title: 'ວຽກຂອງຂ້ອຍ',
             trailing: [
               HeroIconButton(
