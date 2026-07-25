@@ -489,7 +489,7 @@ class _JobsScreenState extends State<JobsScreen> {
               padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
               sliver: SliverList.separated(
                 itemCount: group.jobs.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                separatorBuilder: (_, _) => const SizedBox(height: 7),
                 itemBuilder: (_, i) => _JobCard(
                   job: group.jobs[i],
                   accent: group.phase.color,
@@ -641,10 +641,10 @@ class _JobCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // ແຖບສີໄລຍະ ດ້ານຊ້າຍ (ຜູກບັດກັບໄລຍະ) — ບາງ ບໍ່ກິນເນື້ອທີ່
-                Container(width: 3.5, color: accent),
+                Container(width: 3, color: accent),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 9, 10, 9),
+                    padding: const EdgeInsets.fromLTRB(11, 7, 9, 7),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -656,13 +656,13 @@ class _JobCard extends StatelessWidget {
                               '#${job.code}',
                               style: const TextStyle(
                                 color: ink,
-                                fontSize: 15.5,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -.3,
                                 fontFeatures: [FontFeature.tabularFigures()],
                               ),
                             ),
-                            const SizedBox(width: 7),
+                            const SizedBox(width: 6),
                             if (kind != null)
                               Flexible(
                                 child: Container(
@@ -704,7 +704,7 @@ class _JobCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 5),
+                        const SizedBox(height: 3),
                         // ── ຊື່ສິນຄ້າ (1 ແຖວ) ──
                         Text(
                           job.product ?? '-',
@@ -712,11 +712,11 @@ class _JobCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: ink,
-                            fontSize: 13.5,
+                            fontSize: 12.5,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         // ── ແຖວຂໍ້ມູນ + ລູກສອນ ──
                         Row(
                           children: [
@@ -729,7 +729,7 @@ class _JobCard extends StatelessWidget {
                                 meta,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 11.5, color: muted),
+                                style: const TextStyle(fontSize: 11, color: muted),
                               ),
                             ),
                             const SizedBox(width: 6),
