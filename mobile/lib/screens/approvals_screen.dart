@@ -355,11 +355,11 @@ class _ApprovalCard extends StatelessWidget {
                     InkWell(
                       onTap: onOpen,
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(11, 9, 10, 9),
+                        padding: const EdgeInsets.fromLTRB(12, 10, 11, 10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // ເລກອ້າງອີງ + ຄ້າງມາດົນເທົ່າໃດ
+                            // ຫົວ: ເລກອ້າງອີງ + ຄ້າງມາ + ລິ້ງເບິ່ງ
                             Row(
                               children: [
                                 Expanded(
@@ -367,7 +367,7 @@ class _ApprovalCard extends StatelessWidget {
                                     item.ref,
                                     style: const TextStyle(
                                       color: ink,
-                                      fontSize: 13,
+                                      fontSize: 13.5,
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
@@ -382,49 +382,19 @@ class _ApprovalCard extends StatelessWidget {
                                     color: late ? danger : faint,
                                   ),
                                 ),
+                                const SizedBox(width: 6),
+                                Icon(Icons.open_in_new_rounded, color: accent, size: 13),
                               ],
                             ),
-                            const SizedBox(height: 3),
-                            // ຊື່ເຄື່ອງ — 1 ແຖວ
-                            Text(
-                              item.title ?? '-',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: ink,
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            // ລາຍລະອຽດ: ລູກຄ້າ · ວັນທີ່ຂໍ · ຍອດ (ແໜ້ນເປັນເສັ້ນດຽວ)
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 2,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                if ((item.customer ?? '').isNotEmpty)
-                                  _MetaText(Icons.person_outline_rounded, item.customer!),
-                                if (item.requestedAt != null)
-                                  _MetaText(Icons.event_outlined, 'ຂໍ ${item.requestedAt}'),
-                                if ((item.amount ?? '').isNotEmpty)
-                                  Text(
-                                    '${item.amount} ฿',
-                                    style: const TextStyle(
-                                      color: ink,
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text('ລາຍລະອຽດ', style: TextStyle(color: accent, fontSize: 9.5, fontWeight: FontWeight.w700)),
-                                    Icon(Icons.open_in_new_rounded, color: accent, size: 10),
-                                  ],
-                                ),
-                              ],
-                            ),
+                            const SizedBox(height: 8),
+                            // ── ຂໍ້ມູນເປັນສັດສ່ວນ: ປ້າຍ (ຖັນຊ້າຍ) : ຄ່າ (ຖັນຂວາ) ຮຽງຕົງກັນ ──
+                            _Field(label: 'ສິນຄ້າ', value: item.title ?? '-', strong: true),
+                            if ((item.customer ?? '').isNotEmpty)
+                              _Field(label: 'ລູກຄ້າ', value: item.customer!),
+                            if (item.requestedAt != null)
+                              _Field(label: 'ວັນທີ່ຂໍ', value: item.requestedAt!),
+                            if ((item.amount ?? '').isNotEmpty)
+                              _Field(label: 'ຍອດ', value: '${item.amount} ฿', strong: true, accent: accent),
                           ],
                         ),
                       ),
@@ -476,18 +446,46 @@ class _ApprovalCard extends StatelessWidget {
   }
 }
 
-/// ໄອຄອນ + ຂໍ້ຄວາມນ້ອຍ (ລູກຄ້າ · ວັນທີ່) — ໃຊ້ໃນແຖວລາຍລະອຽດ
-class _MetaText extends StatelessWidget {
-  const _MetaText(this.icon, this.text);
-  final IconData icon;
-  final String text;
+/// ແຖວ ປ້າຍ : ຄ່າ ແບບເປັນສັດສ່ວນ — ປ້າຍຖັນຊ້າຍກ້ວາງຄົງທີ່ ⇒ ຄ່າຮຽງຕົງກັນທຸກແຖວ
+class _Field extends StatelessWidget {
+  const _Field({
+    required this.label,
+    required this.value,
+    this.strong = false,
+    this.accent,
+  });
+  final String label;
+  final String value;
+  final bool strong;
+  final Color? accent;
+
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Icon(icon, size: 11, color: faint),
-      const SizedBox(width: 3),
-      Text(text, style: const TextStyle(color: muted, fontSize: 11)),
-    ],
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 3),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 54,
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 10.5, color: faint, fontWeight: FontWeight.w600),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: strong ? 12.5 : 11.5,
+              height: 1.25,
+              color: accent ?? ink,
+              fontWeight: strong ? FontWeight.w800 : FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    ),
   );
 }
