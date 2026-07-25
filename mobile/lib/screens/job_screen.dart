@@ -294,14 +294,7 @@ class _JobScreenState extends State<JobScreen> {
     }
   }
 
-  Future<void> checkOut() async {
-    final point = await coordinates();
-    await run({
-      'action': 'checkout',
-      if (point != null) 'lat': point.latitude,
-      if (point != null) 'lng': point.longitude,
-    });
-  }
+  // checkout ອັດຕະໂນມັດຕອນຈົບງານ (job-flow) — ບໍ່ມີປຸ່ມ checkout ເອງອີກຕໍ່ໄປ.
 
   /// IH ສ້ອມໜ້າງານບໍ່ໄດ້ ⇒ ນຳເຄື່ອງເຂົ້າສູນ (ແປງເປັນ PS). ຕ້ອງໃສ່ເຫດຜົນ +
   /// ເລືອກວິທີເອົາເຂົ້າ: **ເອົາກັບພ້ອມ** (ຊ່າງຫອບກັບເອງ) ຫຼື **ຂົນສົ່ງມາຮັບ** (ໃຫ້ຂົນສົ່ງໄປຮັບ).
@@ -1184,20 +1177,18 @@ class _JobScreenState extends State<JobScreen> {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
+                // ຢູ່ໜ້າງານແລ້ວ = ສະຖານະລ້ວນ (ບໍ່ມີປຸ່ມ checkout ເອງ) — ຈົບງານ ລະບົບ
+                // checkout ໃຫ້ອັດຕະໂນມັດ. (ແຕ່ກ່ອນມີປຸ່ມ check-out ຄຽງກັບຄຳ "ອັດຕະໂນມັດ" ⇒ ຂັດກັນ.)
                 job.canCheckOut
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                    ? Row(
                         children: [
-                          _button(
-                            'check-out (ອອກຈາກໜ້າງານ)',
-                            const Color(0xFF334155),
-                            checkOut,
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'ຈົບງານແລ້ວ ລະບົບ checkout ໃຫ້ອັດຕະໂນມັດ',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: muted, fontSize: 11),
+                          const Icon(Icons.check_circle, size: 17, color: ok),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'ຢູ່ໜ້າງານແລ້ວ — ຈົບງານ ລະບົບ checkout ໃຫ້ອັດຕະໂນມັດ',
+                              style: TextStyle(color: muted, fontSize: 12),
+                            ),
                           ),
                         ],
                       )

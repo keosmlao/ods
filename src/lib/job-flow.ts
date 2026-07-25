@@ -181,6 +181,13 @@ export async function bringRepairToCenter(
     return { ok: false, error: "ນຳເຂົ້າສູນບໍ່ໄດ້ — ວຽກບໍ່ແມ່ນ IH ໜ້າງານ ຫຼື ລົງມືສ້ອມ/ອອກໃບໄປແລ້ວ" };
   }
 
+  // ນຳເຂົ້າສູນ = ຊ່າງອອກຈາກໜ້າງານ ⇒ ປິດ check-in ທີ່ຄ້າງ (checkout ອັດຕະໂນມັດ)
+  await query(
+    `update ods_job_checkin set checkout_at=${NOW}
+      where workflow='repair' and job_code=$1 and tech_code=$2 and checkout_at is null`,
+    [code, session.username],
+  );
+
   const how = carry ? "ຊ່າງເອົາກັບພ້ອມ" : "ໃຫ້ຂົນສົ່ງໄປຮັບ";
   await logChange("tb_product", code, `ສ້ອມໜ້າງານບໍ່ໄດ້ → ນຳເຂົ້າສູນ (IH→PS · ${how}): ${why}`, { author: session.username, roles: ["admin", "manager"] });
   return {
