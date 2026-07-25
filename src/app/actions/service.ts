@@ -144,6 +144,11 @@ export async function createService(_: ServiceState, formData: FormData): Promis
   const files = await collectUploads(formData);
   if (!files.ok) return { error: files.error };
   const uploads = files.uploads;
+  // ບັງຄັບຮູບຮັບເຄື່ອງ ≥1 — ຫຼັກຖານສະພາບເຄື່ອງຕອນຮັບ (ຄືກັບຈົບງານທີ່ບັງຄັບຮູບຜົນງານ)
+  // ⇒ ທຸກໃບມີຮູບໃຫ້ສະແດງໃນລາຍการ ແລະ ກັນຂໍ້ຂັດແຍ້ງສະພາບເຄື່ອງກັບລູກຄ້າ.
+  if (uploads.length === 0) {
+    return { error: "ຕ້ອງແນບຮູບຮັບເຄື່ອງຢ່າງໜ້ອຍ 1 ຮູບ (ຫຼັກຖານສະພາບເຄື່ອງຕອນຮັບ)" };
+  }
 
   const d = parsed.data;
   const client = await db.connect();
