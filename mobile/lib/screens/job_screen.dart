@@ -1105,7 +1105,9 @@ class _JobScreenState extends State<JobScreen> {
                     ),
                   ),
                 _primaryAction(
-                  'ບັນທຶກສຳເລັດ — ສົ່ງກວດ QC',
+                  job.workflow == 'install'
+                      ? 'ບັນທຶກຕິດຕັ້ງສຳເລັດ — ສົ່ງກວດ QC'
+                      : 'ບັນທຶກສ້ອມສຳເລັດ — ສົ່ງກວດ QC',
                   Icons.check_circle_outline_rounded,
                   ok,
                   evidenceRequired
@@ -1184,10 +1186,12 @@ class _JobScreenState extends State<JobScreen> {
                         children: [
                           const Icon(Icons.check_circle, size: 17, color: ok),
                           const SizedBox(width: 8),
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'ຢູ່ໜ້າງານແລ້ວ — ຈົບງານ ລະບົບ checkout ໃຫ້ອັດຕະໂນມັດ',
-                              style: TextStyle(color: muted, fontSize: 12),
+                              job.workflow == 'install'
+                                  ? 'ຢູ່ໜ້າງານແລ້ວ — ກົດ "ບັນທຶກຕິດຕັ້ງສຳເລັດ" ⇒ checkout ອັດຕະໂນມັດ'
+                                  : 'ຢູ່ໜ້າງານແລ້ວ — ກົດ "ບັນທຶກສ້ອມສຳເລັດ" ⇒ checkout ອັດຕະໂນມັດ',
+                              style: const TextStyle(color: muted, fontSize: 12),
                             ),
                           ),
                         ],
@@ -1423,15 +1427,20 @@ class _WorkflowProgress extends StatelessWidget {
     final finished = job.workflow == 'install'
         ? job.stage >= 6
         : job.stage >= 10;
+    final doneLabel = job.workflow == 'install'
+        ? 'ຕິດຕັ້ງສຳເລັດ'
+        : job.workflow == 'maintenance'
+        ? 'ລ້າງສຳເລັດ'
+        : 'ສ້ອມສຳເລັດ';
     final steps = job.onsite
         ? [
             ('ຮັບງານ', job.accepted),
             ('ເຖິງໜ້າງານ', job.hasCheckedIn),
             ('ລົງມື', started),
-            ('ສຳເລັດ', finished),
+            (doneLabel, finished),
             ('ອອກໜ້າງານ', job.hasCheckedOut),
           ]
-        : [('ຮັບງານ', job.accepted), ('ລົງມື', started), ('ສຳເລັດ', finished)];
+        : [('ຮັບງານ', job.accepted), ('ລົງມື', started), (doneLabel, finished)];
 
     return Container(
       padding: const EdgeInsets.all(15),

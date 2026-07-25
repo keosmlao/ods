@@ -39,18 +39,21 @@ export function JobEvidence({
   const totalPhotos = receive.length + checkPhotos.length + finishPhotos.length;
   if (checkins.length === 0 && totalPhotos === 0) return null;
 
+  // ຮູບ "ສ້ອມສຳເລັດ" ຮູບທຳອິດ — ຄູ່ກັບ check-in ໃນບັດຫຼັກฐาน (checkout = ຈົບงານ)
+  const completion = finishPhotos[0]?.photo ?? null;
+
   return (
     <div className="space-y-4">
       {checkins.length > 0 && (
         <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 text-sm font-bold text-slate-700">
             <MapPin className="size-4 text-rose-600" />
-            ຫຼັກຖານໜ້າງານ (check-in / check-out)
+            ຫຼັກຖານໜ້າງານ (check-in · ສ້ອມສຳເລັດ · check-out)
             {serviceType && <span className="text-[10px] font-medium text-slate-400">· {serviceType}</span>}
           </h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {checkins.map((c, i) => (
-              <CheckinCard key={i} c={c} />
+              <CheckinCard key={i} c={c} completion={completion} />
             ))}
           </div>
         </section>
@@ -83,32 +86,44 @@ export function JobEvidence({
   );
 }
 
-/** ບັດ check-in ໜຶ່ງຄັ້ງ — ຮູບໜ້າງານ + ເວລາເຂົ້າ/ອອກ + ພິກັດ */
-function CheckinCard({ c }: { c: Checkin }) {
-  const photo = c.checkin_photo
-    ? c.checkin_photo.startsWith("data:")
-      ? c.checkin_photo
-      : `data:image/jpeg;base64,${c.checkin_photo}`
-    : null;
+/** ບັດ check-in ໜຶ່ງຄັ້ງ — ຮູບໄປຮອດ + ຮູບສ້ອມສຳເລັດ (ຄູ່ກັນ) + ເວລາເຂົ້າ/ອອກ + ພິກັດ */
+function CheckinCard({ c, completion }: { c: Checkin; completion: string | null }) {
+  const asUri = (s: string) => (s.startsWith("data:") ? s : `data:image/jpeg;base64,${s}`);
+  const photo = c.checkin_photo ? asUri(c.checkin_photo) : null;
+  // ຮູບສ້ອມສຳເລັດ ຄູ່ກັບ check-out (ຈົບงານ) — ສະແດງເມື່ອ checkout ແລ້ວ ແລະ ມີຮູບ
+  const donePhoto = c.checkout_at && completion ? asUri(completion) : null;
   const inMap = c.checkin_lat != null && c.checkin_lng != null ? mapUrl(c.checkin_lat, c.checkin_lng) : null;
   const outMap = c.checkout_lat != null && c.checkout_lng != null ? mapUrl(c.checkout_lat, c.checkout_lng) : null;
 
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200">
-      {photo ? (
-        <a href={photo} target="_blank" rel="noreferrer" className="block">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo} alt="ຮູບໜ້າງານ" className="h-44 w-full bg-slate-50 object-cover" />
-        </a>
-      ) : (
-        <div className="flex h-44 w-full items-center justify-center bg-slate-50 text-[11px] text-slate-400">ບໍ່ມີຮູບໜ້າງານ</div>
-      )}
-      <div className="space-y-1.5 p-2.5 text-xs">
+      <div className="grid grid-cols-2">
+        <EvidencePhoto src={photo} label="ໄປຮອດ" empty="ບໍ່ມີຮູບ" />
+        <EvidencePhoto src={donePhoto} label="ສ້ອມສຳເລັດ" empty={c.checkout_at ? "—" : "ຍັງບໍ່ຈົບ"} />
+      </div>
+      <div className="space-y-1.5 border-t border-slate-100 p-2.5 text-xs">
         <div className="font-semibold text-slate-700">{c.tech_code}</div>
         <EvidenceRow icon={<LogIn className="size-3.5 text-emerald-600" />} label="ເຂົ້າ" time={c.checkin_at} map={inMap} />
         <EvidenceRow icon={<LogOut className="size-3.5 text-slate-500" />} label="ອອກ" time={c.checkout_at} map={outMap} />
         {c.note?.trim() && <div className="pt-0.5 text-[11px] text-slate-500">{c.note.trim()}</div>}
       </div>
+    </div>
+  );
+}
+
+/** ຮູບຫຼັກຖານ 1 ຮູບ ພ້ອມປ້າຍ (ໄປຮອດ / ສ້ອມສຳເລັດ) */
+function EvidencePhoto({ src, label, empty }: { src: string | null; label: string; empty: string }) {
+  return (
+    <div className="relative">
+      {src ? (
+        <a href={src} target="_blank" rel="noreferrer" className="block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt={label} className="h-40 w-full bg-slate-50 object-cover" />
+        </a>
+      ) : (
+        <div className="flex h-40 w-full items-center justify-center bg-slate-50 text-[11px] text-slate-400">{empty}</div>
+      )}
+      <span className="absolute left-1.5 top-1.5 rounded bg-black/55 px-1.5 py-0.5 text-[9px] font-semibold text-white">{label}</span>
     </div>
   );
 }

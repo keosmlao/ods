@@ -4,7 +4,6 @@ import { Elapsed } from "@/components/elapsed";
 import { HoldButtons } from "@/components/repair/hold-buttons";
 import { LinkPending } from "@/components/link-pending";
 import { query } from "@/lib/db";
-import { elapsedTone } from "@/lib/elapsed-tone";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { holdJsonSql, type JobHold } from "@/lib/job-hold";
@@ -21,6 +20,7 @@ import { canViewAssignedJob } from "@/lib/scope";
 import { permissionFor } from "@/lib/permissions";
 import { ServiceDeleteButton } from "@/components/service/service-delete-button";
 import { JobEvidence, type Checkin, type JobPhoto, type ReceivePhoto } from "@/components/service/job-evidence";
+import { JobProgress } from "@/components/repair/job-progress";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { stageLabel, STAGE_SQL } from "@/lib/stage";
@@ -144,7 +144,6 @@ export default async function ServiceDetail({ params }: Props) {
   const checkPhotos = jobPhotoRows.rows.filter((p) => p.kind === "check");
   const finishPhotos = jobPhotoRows.rows.filter((p) => p.kind === "finish");
 
-  const tone = elapsedTone(job.elapsed_seconds);
   const inWarranty = job.warranty === "ຮັບປະກັນ";
   const cancelled = job.cancelled;
   // ຂັ້ນ 12 = ສົ່ງຄືນສຳເລັດ (ຂັ້ນ 11 ດຽວນີ້ແມ່ນ "ລໍຖ້າສົ່ງຄືນ" ຫຼັງເພີ່ມດ່ານ QC)
@@ -275,38 +274,46 @@ export default async function ServiceDetail({ params }: Props) {
         </div>
       )}
 
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <Link href="/service" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
-            <ArrowLeft className="size-3.5" />
-            {t.backToList}
-            <LinkPending className="size-3" />
-          </Link>
-          <h1 className="text-xl font-bold text-slate-700">{t.receipt} #{job.code}</h1>
-
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
-            <span
-              className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                cancelled ? "bg-red-100 text-red-700" : done ? "bg-emerald-100 text-emerald-700" : "bg-sky-100 text-sky-700"
-              }`}
-            >
-              {stageLabel(job.stage, job.service_type)}
-            </span>
-            <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-              {job.warranty || "-"}
-            </span>
-            {/* ວຽກທີ່ຈົບ/ຍົກເລີກແລ້ວ ບໍ່ຕ້ອງນັບເວລາຕໍ່ */}
-            {!done && !cancelled && (
-              <>
-                <span className="text-slate-400">{t.receivedSince}</span>
-                <Elapsed seconds={job.elapsed_seconds} className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`} />
-              </>
-            )}
-            <span className="text-slate-400">· {job.registered || "-"}</span>
+      {/* ── HERO — ໂຕນຂຽວເຂັ້ມ ແບບແອັບ ODIEN SERVICE ── */}
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#0F2F2B] via-[#123f39] to-[#134E48] px-5 py-4 text-white shadow-lg shadow-teal-900/10">
+        <Link href="/service" className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-teal-200/90 transition hover:text-white">
+          <ArrowLeft className="size-3.5" />
+          {t.backToList}
+          <LinkPending className="size-3" />
+        </Link>
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-300/80">ODIEN SERVICE</p>
+            <h1 className="mt-0.5 text-2xl font-bold tracking-tight">{t.receipt} #{job.code}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                  cancelled ? "bg-rose-500/30 text-rose-50" : done ? "bg-emerald-400/25 text-emerald-50" : "bg-white/15 text-white"
+                }`}
+              >
+                {stageLabel(job.stage, job.service_type)}
+              </span>
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${inWarranty ? "bg-emerald-400/20 text-emerald-50" : "bg-white/10 text-teal-100/80"}`}>
+                {job.warranty || "-"}
+              </span>
+              {!done && !cancelled && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-teal-100/90">
+                  {t.receivedSince} <Elapsed seconds={job.elapsed_seconds} className="font-semibold text-white" />
+                </span>
+              )}
+              <span className="text-teal-200/60">· {job.registered || "-"}</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <HeroFact label={t.name} value={job.customer} />
+            <HeroFact label={t.productName} value={job.product} />
+            <HeroFact label={t.technician} value={job.technician} />
           </div>
         </div>
+      </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+      {/* ── ACTIONS ── */}
+      <div className="flex flex-wrap items-center gap-2">
           <ClaimMarkToggle jobCode={code} marked={claimMarked} />
           {mapsUrl && (
             <a href={mapsUrl} target="_blank" rel="noreferrer" className={action} title="ເປີດ Google Maps">
@@ -365,8 +372,10 @@ export default async function ServiceDetail({ params }: Props) {
               <ServiceDeleteButton code={job.code} afterHref="/service" />
             </span>
           )}
-        </div>
       </div>
+
+      {/* ── ຄວາມຄືບໜ້າ (stepper) ── */}
+      <JobProgress stage={job.stage} serviceType={job.service_type} cancelled={cancelled} />
 
       {/* ຈັດການວຽກຄ້າງ / ປ່ຽນຊ່າງ — ຄືຄໍລຳໃນລາຍການ /service ແຕ່ຈັດການໄດ້ໃນໜ້າລາຍລະອຽດເລີຍ */}
       {(canHold || canReassign || canScheduleVisit) && (
@@ -444,6 +453,17 @@ export default async function ServiceDetail({ params }: Props) {
       </div>
 
       <Chatter model="tb_product" resId={job.code} />
+    </div>
+  );
+}
+
+/** ຂໍ້ມູນຫຍໍ້ໃນ hero — ປ້າຍນ້ອຍ + ຄ່າ (truncate ຖ້າຍາວ) */
+function HeroFact({ label, value }: { label: string; value: string | null }) {
+  if (!value) return null;
+  return (
+    <div className="min-w-0 max-w-[190px]">
+      <p className="text-[10px] uppercase tracking-wide text-teal-300/70">{label}</p>
+      <p className="truncate text-sm font-semibold text-white">{value}</p>
     </div>
   );
 }
