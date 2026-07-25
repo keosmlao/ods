@@ -228,12 +228,53 @@ class _JobScreenState extends State<JobScreen> {
       }
       return;
     }
-    await run({
-      'action': 'checkin',
-      'lat': point.latitude,
-      'lng': point.longitude,
-      'photo': photo,
-    });
+
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    setState(() => busy = true);
+    try {
+      final message = await Api.command(job.workflow, job.code, {
+        'action': 'checkin',
+        'lat': point.latitude,
+        'lng': point.longitude,
+        'photo': photo,
+      });
+      messenger.showSnackBar(SnackBar(content: Text(message)));
+    } on ApiError catch (failure) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(failure.message), backgroundColor: danger),
+      );
+      if (mounted) setState(() => busy = false);
+      return;
+    }
+
+    // ── ກົດ check-in ແລ້ວ → ເລີ່ມກວດເຊັກທັນທີ ──
+    // ສະເພາະງານສ້ອມທີ່ຍັງລໍຖ້າກວດ (ຂັ້ນ 1): ໝາຍ time_check ແລ້ວເປີດໜ້າກວດເຊັກເລີຍ.
+    // ງານຕິດຕັ້ງ (ບໍ່ມີຂັ້ນກວດ) = check-in ໝາຍໄປຮອດໜ້າງານເສີຍໆ.
+    if (job.workflow == 'repair' && job.stage == 1) {
+      try {
+        await Api.check(job.code, {'action': 'start'});
+      } on ApiError catch (failure) {
+        // ເລີ່ມກວດບໍ່ໄດ້ ⇒ check-in ສຳເລັດແລ້ວ, reload ໃຫ້ເຫັນປຸ່ມ "ເລີ່ມກວດເຊັກ"
+        messenger.showSnackBar(
+          SnackBar(content: Text(failure.message), backgroundColor: danger),
+        );
+        if (mounted) {
+          setState(() => busy = false);
+          await reload();
+        }
+        return;
+      }
+      await navigator.push(
+        MaterialPageRoute(builder: (_) => CheckScreen(code: job.code)),
+      );
+    }
+
+    if (mounted) {
+      setState(() => busy = false);
+      await reload();
+    }
   }
 
   Future<void> checkOut() async {

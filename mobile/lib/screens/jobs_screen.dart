@@ -90,9 +90,14 @@ _Phase _phaseOf(Job job) {
     }
   }
   // ── ສ້ອມແປງ ──
+  // IH = ໄປສ້ອມບ້ານລູກຄ້າ (ເຄື່ອງຢູ່ບ້ານ ບໍ່ໄດ້ຢູ່ສູນ) ⇒ ຂັ້ນ 0/11/12 ຄຳຕ່າງຈາກ PS/ທົ່ວໄປ
+  // (ບ່ອນດຽວກັບ IH_STAGE_LABEL ຝັ່ງເວັບ). ຂັ້ນ 0 ບໍ່ແມ່ນ "ໄປຮັບເຄື່ອງ" ແຕ່ແມ່ນ "ລໍນັດ/ຈັດຊ່າງ".
+  final ih = job.serviceType == 'IH';
   switch (s) {
     case 0:
-      return const _Phase(0, 'ໄປຮັບເຄື່ອງ', Icons.local_shipping_outlined, _cAmber);
+      return ih
+          ? const _Phase(0, 'ລໍນັດ / ຈັດຊ່າງໄປສ້ອມ', Icons.event_outlined, _cAmber)
+          : const _Phase(0, 'ໄປຮັບເຄື່ອງ', Icons.local_shipping_outlined, _cAmber);
     case 1:
       return const _Phase(1, 'ລໍຖ້າກວດເຊັກ', Icons.pending_actions_outlined, _cOrange);
     case 2:
@@ -110,9 +115,13 @@ _Phase _phaseOf(Job job) {
     case 10:
       return const _Phase(7, 'ລໍກວດຮັບຄຸນນະພາບ', Icons.verified_outlined, _cPurple);
     case 11:
-      return const _Phase(8, 'ລໍຖ້າສົ່ງຄືນ', Icons.assignment_turned_in_outlined, _cCyan);
+      return ih
+          ? const _Phase(8, 'ລໍປິດງານ', Icons.assignment_turned_in_outlined, _cCyan)
+          : const _Phase(8, 'ລໍຖ້າສົ່ງຄືນ', Icons.assignment_turned_in_outlined, _cCyan);
     case 12:
-      return const _Phase(99, 'ສົ່ງຄືນສຳເລັດ', Icons.check_circle_outline, muted);
+      return ih
+          ? const _Phase(99, 'ຈົບງານ (ໜ້າງານ)', Icons.check_circle_outline, muted)
+          : const _Phase(99, 'ສົ່ງຄືນສຳເລັດ', Icons.check_circle_outline, muted);
     case -1:
       return const _Phase(98, 'ຍົກເລີກ', Icons.cancel_outlined, danger);
     default:
@@ -137,6 +146,14 @@ class _BandMeta {
   final List<Color> gradient;
   const _BandMeta(this.label, this.icon, this.gradient);
 }
+
+/// ປ້າຍສັ້ນສຳລັບ **tab** (ບ່ອນແຄບ) — ບຳລຸງຮັກສາ / ລ້າງແອ ຍາວເກີນ ⇒ ໃຊ້ "ລ້າງແອ"
+const _bandTabLabel = {
+  _Band.check: 'ກວດເຊັກ',
+  _Band.repair: 'ສ້ອມແປງ',
+  _Band.install: 'ຕິດຕັ້ງ',
+  _Band.maintenance: 'ລ້າງແອ',
+};
 
 const _bandMeta = {
   _Band.check: _BandMeta('ກວດເຊັກ', Icons.fact_check_outlined, [
@@ -379,60 +396,76 @@ class _JobsScreenState extends State<JobsScreen> {
           Expanded(
             child: loading
                 ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: load,
-                    child: CustomScrollView(
-                      slivers: [
-                        if (error.isNotEmpty)
-                          SliverFillRemaining(
-                            child: _Empty(
-                              icon: Icons.cloud_off_rounded,
-                              title: error,
-                              action: load,
-                            ),
-                          ),
-                        if (error.isEmpty && jobs.isEmpty)
-                          SliverFillRemaining(
-                            child: _Empty(
-                              icon: Icons.task_alt_rounded,
-                              title: 'ບໍ່ມີວຽກ',
-                              action: load,
-                            ),
-                          ),
-                        if (error.isEmpty && jobs.isNotEmpty)
-                          for (final band in bands) ...[
-                            SliverToBoxAdapter(
-                              child: _BandBanner(
-                                meta: _bandMeta[band.band]!,
-                                total: band.total,
-                                actionCount: band.actionCount,
-                              ),
-                            ),
-                            for (final group in band.groups) ...[
-                              SliverPersistentHeader(
-                                pinned: true,
-                                delegate: _PhaseHeader(
-                                  phase: group.phase,
-                                  count: group.jobs.length,
-                                ),
-                              ),
-                              SliverPadding(
-                                padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
-                                sliver: SliverList.separated(
-                                  itemCount: group.jobs.length,
-                                  separatorBuilder: (_, _) =>
-                                      const SizedBox(height: 10),
-                                  itemBuilder: (_, i) => _JobCard(
-                                    job: group.jobs[i],
-                                    accent: group.phase.color,
-                                    onDone: load,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                      ],
+                : error.isNotEmpty
+                ? _Empty(icon: Icons.cloud_off_rounded, title: error, action: load)
+                : jobs.isEmpty
+                ? _Empty(icon: Icons.task_alt_rounded, title: 'ບໍ່ມີວຽກ', action: load)
+                : _tabbedBands(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ── ແຍກ tab ຕໍ່ພາກໃຫຍ່ (ກວດເຊັກ · ສ້ອມແປງ · ຕິດຕັ້ງ · ລ້າງແອ) ──
+  /// ວຽກກວດເຊັກ ກັບ ສ້ອມແປງ ເປັນຄົນລະຫົວ ⇒ ຢູ່ຄົນລະ tab ບໍ່ໃຫ້ເລື່ອນປົນກັນ.
+  /// tab ມີສະເພາະພາກທີ່ມີວຽກ (key ຕາມຊຸດພາກ ⇒ ສ້າງ controller ໃໝ່ເມື່ອພາກປ່ຽນ).
+  Widget _tabbedBands() {
+    final bs = bands;
+    return DefaultTabController(
+      key: ValueKey(bs.map((b) => b.band.name).join(',')),
+      length: bs.length,
+      child: Column(
+        children: [
+          Material(
+            color: Colors.white,
+            child: TabBar(
+              isScrollable: bs.length > 2,
+              tabAlignment: bs.length > 2 ? TabAlignment.start : TabAlignment.fill,
+              labelColor: ink,
+              unselectedLabelColor: muted,
+              indicatorColor: teal,
+              indicatorWeight: 3,
+              indicatorSize: TabBarIndicatorSize.tab,
+              labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+              tabs: [for (final b in bs) _bandTab(b)],
+            ),
+          ),
+          Expanded(
+            child: TabBarView(children: [for (final b in bs) _bandView(b)]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ຫົວ tab — ໄອຄອນ + ຊື່ພາກ + ຈຳນວນ (ແດງ = ມີວຽກຕ້ອງລົງມື)
+  Widget _bandTab(_BandGroup band) {
+    final meta = _bandMeta[band.band]!;
+    final urgent = band.actionCount > 0;
+    return Tab(
+      height: 48,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(meta.icon, size: 17),
+          const SizedBox(width: 6),
+          Text(_bandTabLabel[band.band] ?? meta.label),
+          const SizedBox(width: 5),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+              color: urgent
+                  ? danger.withValues(alpha: .12)
+                  : const Color(0xFF64748B).withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '${urgent ? band.actionCount : band.total}',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                color: urgent ? danger : const Color(0xFF64748B),
               ),
             ),
           ),
@@ -440,95 +473,36 @@ class _JobsScreenState extends State<JobsScreen> {
       ),
     );
   }
-}
 
-/// ຫົວ **ພາກໃຫຍ່** (ກວດເຊັກ / ສ້ອມແປງ / ຕິດຕັ້ງ) — ແຖບສີໄລ່ ເຫັນແຕ່ໄກວ່າປ່ຽນຫົວວຽກແລ້ວ
-class _BandBanner extends StatelessWidget {
-  const _BandBanner({
-    required this.meta,
-    required this.total,
-    required this.actionCount,
-  });
-  final _BandMeta meta;
-  final int total;
-  final int actionCount;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(14, 16, 14, 2),
-    child: Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: meta.gradient,
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: meta.gradient.first.withValues(alpha: .28),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .20),
-              borderRadius: BorderRadius.circular(12),
+  /// ເນື້ອໃນ tab ໜຶ່ງພາກ — ຈັດໄລຍະ (phase) + ບັດງານ (ບໍ່ຕ້ອງມີ banner ຊ້ຳຊື່ພາກ)
+  Widget _bandView(_BandGroup band) {
+    return RefreshIndicator(
+      onRefresh: load,
+      child: CustomScrollView(
+        slivers: [
+          for (final group in band.groups) ...[
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _PhaseHeader(phase: group.phase, count: group.jobs.length),
             ),
-            child: Icon(meta.icon, size: 20, color: Colors.white),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  meta.label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -.2,
-                  ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
+              sliver: SliverList.separated(
+                itemCount: group.jobs.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (_, i) => _JobCard(
+                  job: group.jobs[i],
+                  accent: group.phase.color,
+                  onDone: load,
                 ),
-                if (actionCount > 0)
-                  Text(
-                    'ຕ້ອງລົງມື $actionCount ໃບ',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: .85),
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .22),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              '$total',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w900,
               ),
             ),
-          ),
+          ],
+          const SliverToBoxAdapter(child: SizedBox(height: 14)),
         ],
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// ຫົວກຸ່ມໄລຍະ **ຕິດຄ້າງ** (pinned) — ຮູບໄອຄອນສີ + ຊື່ໄລຍະ + ຈຳນວນ.
