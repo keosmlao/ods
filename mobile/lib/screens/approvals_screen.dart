@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../main.dart';
 import '../widgets/ui_kit.dart';
+import 'approval_detail_screen.dart';
 
 /// **ຄິວອະນຸມັດ** (ຜູ້ຈັດການ) — ບອກວ່າມີຫຍັງຄ້າງລໍການຕັດສິນ.
 ///
@@ -55,17 +55,14 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
     }
   }
 
-  /// ເປີດໜ້າລາຍລະອຽດຢູ່ເວັບ (ເບິ່ງລາຍການ/ໃບເຕັມ ກ່ອນຕັດສິນ)
+  /// ເປີດ **ໜ້າລາຍລະອຽດ native** (ບໍ່ເປີດ web ອີກ) — ຕັດສິນຢູ່ນັ້ນໄດ້ເລີຍ,
+  /// ກັບມາແລ້ວໂຫຼດຄິວຄືນ (pop ຄືນ true = ມີການປ່ຽນແປງ)
   Future<void> open(ApprovalItem item) async {
-    final base = await Api.serverUrl();
-    final uri = Uri.parse('$base${item.href}');
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ເປີດເວັບບໍ່ໄດ້'), backgroundColor: danger),
-        );
-      }
-    }
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => ApprovalDetailScreen(item: item)),
+    );
+    if (changed == true) await load();
   }
 
   /// ອະນຸມັດ — ຢືນຢັນກ່ອນ (ແຕະເອກະສານທີ່ເປັນເງິນ ⇒ ຢ່າໃຫ້ກົດພາດ)

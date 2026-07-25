@@ -237,6 +237,15 @@ class Api {
         .toList();
   }
 
+  /// ລາຍລະອຽດເຕັມ (native) — ໃບສະເໜີ = ລາຍການ+ລາຄາ · ຂໍຍົກເລີກ = ອາໄຫຼ່ຄ້າງ
+  static Future<ApprovalDetail> approvalDetail(String kind, String ref) async {
+    final result = await _send(
+      'GET',
+      '/api/mobile/approvals/$kind/${Uri.encodeComponent(ref)}',
+    );
+    return ApprovalDetail.fromJson(result);
+  }
+
   /// ອະນຸມັດ / ບໍ່ອະນຸມັດ — action ຄື approve_quote · reject_quote ·
   /// approve_cancellation · reject_cancellation. reason ບັງຄັບສະເພາະ reject.
   static Future<void> decideApproval(
@@ -803,6 +812,92 @@ class ApprovalItem {
     requestedAt: json['requested_at'] as String?,
     waitingSeconds: _asInt(json['waiting_seconds']),
     href: json['href'] as String? ?? '',
+  );
+}
+
+/// ແຖວລາຍການ (ໃບສະເໜີ = ສິນຄ້າ+ລາຄາ · ຂໍຍົກເລີກ = ອາໄຫຼ່ຄ້າງ)
+class ApprovalLine {
+  final String? name;
+  final String qty;
+  final String? unit;
+  final String? price;
+  final String? total;
+  const ApprovalLine({this.name, required this.qty, this.unit, this.price, this.total});
+
+  factory ApprovalLine.fromJson(Map<String, dynamic> j) => ApprovalLine(
+    name: j['name'] as String?,
+    qty: j['qty']?.toString() ?? '0',
+    unit: j['unit'] as String?,
+    price: j['price']?.toString(),
+    total: j['total']?.toString(),
+  );
+}
+
+/// ລາຍລະອຽດເຕັມຂອງລາຍການອະນຸມັດ
+class ApprovalDetail {
+  final String kind;
+  final String ref;
+  final String? product;
+  final String? brand;
+  final String? model;
+  final String? sn;
+  final String? customer;
+  final String? tel;
+  final String? warranty;
+  final String? symptom;
+  final String? diagnosis;
+  final String? requestedBy;
+  final String? requestedAt;
+  final String? amount;
+  final String? discount;
+  final String? amountKip;
+  final String? reason;
+  final List<ApprovalLine> lines;
+
+  const ApprovalDetail({
+    required this.kind,
+    required this.ref,
+    this.product,
+    this.brand,
+    this.model,
+    this.sn,
+    this.customer,
+    this.tel,
+    this.warranty,
+    this.symptom,
+    this.diagnosis,
+    this.requestedBy,
+    this.requestedAt,
+    this.amount,
+    this.discount,
+    this.amountKip,
+    this.reason,
+    required this.lines,
+  });
+
+  bool get isQuote => kind == 'quotation';
+
+  factory ApprovalDetail.fromJson(Map<String, dynamic> j) => ApprovalDetail(
+    kind: j['kind'] as String? ?? 'quotation',
+    ref: j['ref'] as String? ?? '',
+    product: j['product'] as String?,
+    brand: j['brand'] as String?,
+    model: j['model'] as String?,
+    sn: j['sn'] as String?,
+    customer: j['customer'] as String?,
+    tel: j['tel'] as String?,
+    warranty: j['warranty'] as String?,
+    symptom: j['symptom'] as String?,
+    diagnosis: j['diagnosis'] as String?,
+    requestedBy: j['requestedBy'] as String?,
+    requestedAt: j['requestedAt'] as String?,
+    amount: j['amount']?.toString(),
+    discount: j['discount']?.toString(),
+    amountKip: j['amountKip']?.toString(),
+    reason: j['reason'] as String?,
+    lines: ((j['lines'] as List?) ?? [])
+        .map((r) => ApprovalLine.fromJson(r as Map<String, dynamic>))
+        .toList(),
   );
 }
 
