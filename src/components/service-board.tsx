@@ -61,6 +61,10 @@ export type BoardCard = {
   thumb?: string | null;
   /** ຈຳນວນຮູບທັງໝົດ (ຮັບເຄື່ອງ + ກວດເຊັກ + ສ້ອມສຳເລັດ) */
   photo_count?: number;
+  /** ຊ່າງ check-in ໜ້າງານແລ້ວ (ມີຮູບ+ພິກັດ) — ໃຫ້ລາຍการ ໂຊ້ໄອຄອນ */
+  checked_in?: boolean;
+  /** check-out ແລ້ວ (ຈົບงาน/ອອກໜ້າງານ) */
+  checked_out?: boolean;
   /** ທຸງ "ມີບັນຫາ" ທີ່ເປີດຢູ່ — null = ປົກກະຕິ (ເບິ່ງ src/lib/job-hold.ts) */
   hold?: JobHold | null;
 };

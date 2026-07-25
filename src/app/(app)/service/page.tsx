@@ -79,6 +79,9 @@ async function getBoard(q: string, status: number | null, service: string | null
         + (select count(*) from ods_job_photo p
             where p.workflow='repair' and p.job_code = a.code and p.kind in ('check','finish'))
       )::int as photo_count,
+      -- check-in/out ໜ້າງານ (ໃຫ້ລາຍการ ໂຊ້ໄອຄອນ ໂດຍບໍ່ໂຫຼດຮູບ base64 ໜັກໆ)
+      exists(select 1 from ods_job_checkin k where k.workflow='repair' and k.job_code=a.code) as checked_in,
+      exists(select 1 from ods_job_checkin k where k.workflow='repair' and k.job_code=a.code and k.checkout_at is not null) as checked_out,
       ${holdJsonSql("repair")}
     from tb_product a
     left join ar_customer b on b.code = a.cust_code

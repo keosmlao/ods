@@ -8,7 +8,7 @@ import { ServiceDeleteButton } from "@/components/service/service-delete-button"
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { PhotoThumb } from "@/components/service/photo-thumb";
-import { Pencil, Printer, Tag } from "lucide-react";
+import { MapPin, Pencil, Printer, Tag } from "lucide-react";
 import Link from "next/link";
 
 
@@ -113,7 +113,21 @@ export async function ServicePendingTable({
                         <span className="block truncate font-medium text-slate-800" title={card.product ?? ""}>
                           {card.product || "-"}
                         </span>
-                        <span className="block truncate text-xs text-slate-400">{card.sn || "-"}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="truncate text-xs text-slate-400">{card.sn || "-"}</span>
+                          {/* ໄອຄອນ check-in ໜ້າງານ — ກົດເຂົ້າໃບເບິ່ງຮູບ/ພິກັດເຕັມ */}
+                          {card.checked_in && (
+                            <span
+                              title={card.checked_out ? "check-in + ອອກໜ້າງານແລ້ວ" : "check-in ໜ້າງານແລ້ວ"}
+                              className={`inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-bold ${
+                                card.checked_out ? "bg-slate-100 text-slate-500" : "bg-teal-50 text-teal-700"
+                              }`}
+                            >
+                              <MapPin className="size-2.5" />
+                              {card.checked_out ? "ອອກແລ້ວ" : "ໜ້າງານ"}
+                            </span>
+                          )}
+                        </span>
                       </div>
                     </div>
                   </td>
