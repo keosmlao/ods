@@ -20,6 +20,7 @@ import { APPROVER_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { canViewAssignedJob } from "@/lib/scope";
 import { permissionFor } from "@/lib/permissions";
 import { ServiceDeleteButton } from "@/components/service/service-delete-button";
+import { JobEvidence, type Checkin, type JobPhoto, type ReceivePhoto } from "@/components/service/job-evidence";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { stageLabel, STAGE_SQL } from "@/lib/stage";
@@ -118,6 +119,30 @@ export default async function ServiceDetail({ params }: Props) {
   if (!canViewAssignedJob(session, job.technician)) redirect("/forbidden");
 
   const timeline = await repairTimeline(code);
+
+  // ── ຫຼັກຖານໜ້າງານ + ຮູບ — ໂຫຼດມາສະແດງ **ຢູ່ໜ້ານີ້ເລີຍ** (ບໍ່ຕ້ອງກົດເຂົ້າ /images) ──
+  const [checkins, receivePhotos, jobPhotoRows] = await Promise.all([
+    query<Checkin>(
+      `select tech_code, to_char(checkin_at,'DD-MM-YYYY HH24:MI') checkin_at,
+          checkin_lat, checkin_lng, checkin_photo,
+          to_char(checkout_at,'DD-MM-YYYY HH24:MI') checkout_at, checkout_lat, checkout_lng, note
+        from ods_job_checkin where workflow='repair' and job_code=$1 order by id`,
+      [code],
+    ),
+    query<ReceivePhoto>(
+      `select roworder, product_url, coalesce(line_number,0) line_number
+         from product_image where iteme_code=$1 and coalesce(product_url,'')<>''
+        order by line_number, roworder desc`,
+      [code],
+    ),
+    query<JobPhoto & { kind: string }>(
+      `select id, kind, photo, created_by, to_char(created_at,'DD-MM-YYYY HH24:MI') created_at
+         from ods_job_photo where workflow='repair' and job_code=$1 and kind in ('check','finish') order by id`,
+      [code],
+    ),
+  ]);
+  const checkPhotos = jobPhotoRows.rows.filter((p) => p.kind === "check");
+  const finishPhotos = jobPhotoRows.rows.filter((p) => p.kind === "finish");
 
   const tone = elapsedTone(job.elapsed_seconds);
   const inWarranty = job.warranty === "ຮັບປະກັນ";
@@ -390,6 +415,14 @@ export default async function ServiceDetail({ params }: Props) {
       )}
 
       <JobTimeline steps={timeline.steps} cancelledAt={timeline.cancelledAt} />
+
+      <JobEvidence
+        checkins={checkins.rows}
+        receive={receivePhotos.rows}
+        checkPhotos={checkPhotos}
+        finishPhotos={finishPhotos}
+        serviceType={job.service_type ? SERVICE_TYPE_LABEL[job.service_type] ?? job.service_type : null}
+      />
 
       <div className="grid gap-4 lg:grid-cols-2">
         {groups.map((group, index) => (
