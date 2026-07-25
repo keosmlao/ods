@@ -6,6 +6,7 @@ import { ServicePendingTable } from "@/components/service-pending-table";
 import type { SortDir } from "@/components/sort-header";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { employeeNameMap, resolveName } from "@/lib/employee-names";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { permissionFor } from "@/lib/permissions";
@@ -68,6 +69,16 @@ async function getBoard(q: string, status: number | null, service: string | null
       a.service_type,
       nullif(trim(coalesce(a.remark,'')),'') remark,
       ${STAGE_ELAPSED_SQL} stage_seconds,
+      -- ຮູບໜ້າປົກ (ຕອນຮັບເຄື່ອງ) + ຈຳນວນຮູບທັງໝົດ — ໃຫ້ຕາຕະລາງໂຊ້ thumbnail
+      (select product_url from product_image i
+        where i.iteme_code = a.code and coalesce(i.product_url,'') <> ''
+        order by line_number limit 1) as thumb,
+      (
+        (select count(*) from product_image i
+          where i.iteme_code = a.code and coalesce(i.product_url,'') <> '')
+        + (select count(*) from ods_job_photo p
+            where p.workflow='repair' and p.job_code = a.code and p.kind in ('check','finish'))
+      )::int as photo_count,
       ${holdJsonSql("repair")}
     from tb_product a
     left join ar_customer b on b.code = a.cust_code
@@ -160,7 +171,15 @@ export default async function ServicePage({ searchParams }: Props) {
   /** ໝາຍ/ປົດ ທຸງ "ມີບັນຫາ" — ຕ້ອງເປີດສະວິດ + ເປັນຫົວໜ້າ/ຜູ້ມີສິດອະນຸມັດ (ຄືກັນກັບໜ້າຄິວ) */
   const canHold = (await settingEnabled(SETTING.JOB_HOLD)) && APPROVER_SIDE.includes(roleOf(session));
 
-  const [board, noticeCount] = await Promise.all([getBoard(q, status, service, from, to), getNoticeCount()]);
+  const [rawBoard, noticeCount] = await Promise.all([getBoard(q, status, service, from, to), getNoticeCount()]);
+
+  // ຊ່າງ / ຜູ້ສ້າງເອກະສານ ບາງໃບເກັບເປັນ **ລະຫັດ** (22020) — ແປເປັນຊື່ຈາກ odg_employee
+  const names = await employeeNameMap(rawBoard.flatMap((c) => [c.technician, c.creator]));
+  const board = rawBoard.map((c) => ({
+    ...c,
+    technician: resolveName(c.technician, names),
+    creator: resolveName(c.creator, names),
+  }));
 
   const total = board.length;
 

@@ -7,8 +7,42 @@ import { HoldButtons } from "@/components/repair/hold-buttons";
 import { ServiceDeleteButton } from "@/components/service/service-delete-button";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
-import { Pencil, Printer, Tag } from "lucide-react";
+import { ImageOff, Images, Pencil, Printer, Tag } from "lucide-react";
 import Link from "next/link";
+
+/**
+ * ຮູບໜ້າປົກໃນຕາຕະລາງ — ກົດເປີດຮູບທັງໝົດຂອງໃບ (ຕອນຮັບເຄື່ອງ · ກວດເຊັກ · ສ້ອມສຳເລັດ).
+ * thumb = ຮູບຮັບເຄື່ອງຮູບທຳອິດ (ໄຟລ໌); count = ຮູບທັງໝົດ. ບໍ່ມີ thumb ແຕ່ມີ count
+ * = ມີແຕ່ຮູບກວດເຊັກ/ສ້ອມ (base64) ⇒ ໂຊ້ໄອຄອນ. ບໍ່ມີເລີຍ = ຮູບຈາງ (ບໍ່ກົດໄດ້).
+ */
+function PhotoThumb({ code, thumb, count }: { code: string; thumb?: string | null; count: number }) {
+  if (!thumb && count === 0) {
+    return (
+      <span className="grid size-11 shrink-0 place-items-center rounded-lg border border-dashed border-slate-200 text-slate-300" title="ບໍ່ມີຮູບ">
+        <ImageOff className="size-4" />
+      </span>
+    );
+  }
+  return (
+    <Link
+      href={`/service/${code}/images`}
+      className="relative block size-11 shrink-0 overflow-hidden rounded-lg border border-slate-200 transition hover:border-teal-400"
+      title={`ເບິ່ງຮູບ (${count})`}
+    >
+      {thumb ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={`/api/uploads/${encodeURIComponent(thumb)}`} alt="" className="size-full bg-slate-50 object-cover" />
+      ) : (
+        <span className="grid size-full place-items-center bg-teal-50 text-teal-500">
+          <Images className="size-4" />
+        </span>
+      )}
+      {count > 1 && (
+        <span className="absolute bottom-0 right-0 rounded-tl bg-slate-900/70 px-1 text-[9px] font-bold text-white">{count}</span>
+      )}
+    </Link>
+  );
+}
 
 
 /** ຖັນທີ່ຈັດຮຽງໄດ້ — ຄ້າງດົນສຸດຂຶ້ນກ່ອນເປັນຄ່າຕັ້ງຕົ້ນ */
@@ -105,10 +139,16 @@ export async function ServicePendingTable({
                     {card.hold && <b className="mt-0.5 block text-[10px] text-amber-600">{t.clockStopped}</b>}
                   </td>
                   <td className="max-w-72 px-3 py-3">
-                    <span className="block truncate font-medium text-slate-800" title={card.product ?? ""}>
-                      {card.product || "-"}
-                    </span>
-                    <span className="block truncate text-xs text-slate-400">{card.sn || "-"}</span>
+                    <div className="flex items-center gap-2.5">
+                      {/* ຮູບໜ້າປົກ — ກົດເປີດຮູບທັງໝົດ (ຮັບເຄື່ອງ · ກວດເຊັກ · ສ້ອມສຳເລັດ) */}
+                      <PhotoThumb code={card.code} thumb={card.thumb} count={card.photo_count ?? 0} />
+                      <div className="min-w-0">
+                        <span className="block truncate font-medium text-slate-800" title={card.product ?? ""}>
+                          {card.product || "-"}
+                        </span>
+                        <span className="block truncate text-xs text-slate-400">{card.sn || "-"}</span>
+                      </div>
+                    </div>
                   </td>
                   <td className="whitespace-nowrap px-3 py-3">{card.brand || "-"}</td>
                   <td className="max-w-48 truncate px-3 py-3" title={card.customer ?? ""}>

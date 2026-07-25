@@ -57,6 +57,10 @@ export type BoardCard = {
   stage_seconds: number | null;
   /** ໝາຍເຫດ (tb_product.remark) — ແກ້ໄດ້ໃນຕາຕະລາງ ບໍ່ຕ້ອງເປີດໃບ */
   remark?: string | null;
+  /** ຮູບໜ້າປົກ (product_image ຮູບທຳອິດ) — ໃຫ້ຕາຕະລາງໂຊ້ thumbnail · null = ບໍ່ມີ */
+  thumb?: string | null;
+  /** ຈຳນວນຮູບທັງໝົດ (ຮັບເຄື່ອງ + ກວດເຊັກ + ສ້ອມສຳເລັດ) */
+  photo_count?: number;
   /** ທຸງ "ມີບັນຫາ" ທີ່ເປີດຢູ່ — null = ປົກກະຕິ (ເບິ່ງ src/lib/job-hold.ts) */
   hold?: JobHold | null;
 };
