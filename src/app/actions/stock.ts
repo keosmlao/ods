@@ -524,10 +524,13 @@ export async function saveReturnRequest(_: StockState, formData: FormData): Prom
       odgReturn,
     );
 
-    // ods ລຶບແຖວຮ່າງໃນ route ຕ່າງຫາກ (/back_stock_return) — ຢູ່ນີ້ລຶບໃນ transaction ດຽວກັນ
-    await client.query(`delete from ic_trans_detail_draft where trans_flag=$1 and user_created=$2`, [
+    // ods ລຶບແຖວຮ່າງໃນ route ຕ່າງຫາກ (/back_stock_return) — ຢູ່ນີ້ລຶບໃນ transaction ດຽວກັນ.
+    // ⚠️ ຕ້ອງ scope ດ້ວຍ doc_no=docRef — ບໍ່ດັ່ງນັ້ນ ລຶບຮ່າງ **ໃບອື່ນ** ຂອງ user ນຳ (ຮ່າງ
+    //    stage ໄວ້ຕໍ່ doc_no · ເບິ່ງ startReturnRequest). ບໍ່ scope = ເສຍວຽກທີ່ຄ້າງໄວ້.
+    await client.query(`delete from ic_trans_detail_draft where trans_flag=$1 and user_created=$2 and doc_no=$3`, [
       TRANS.DRAFT,
       session.username,
+      docRef,
     ]);
 
     await client.query("commit");
