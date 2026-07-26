@@ -1,6 +1,8 @@
 import { logChange } from "@/lib/chatter-log";
 import { query } from "@/lib/db";
 import { pushToUser } from "@/lib/push";
+import { REPAIR_STAGE_SLA_HOURS_SQL } from "@/lib/repair-sla";
+import { NOT_MISSING, NOT_PENDING_CANCEL, OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 
 /**
  * **ເຕືອນອັດຕະໂນມັດ ເມື່ອນາລິກາ 24 ຊມ ໃກ້ໝົດ** (ງານຕິດຕັ້ງ).
@@ -171,6 +173,68 @@ export async function escalateRepairFrontStage(): Promise<FrontStageEscalation> 
     );
     await query("insert into ods_sla_escalation(job_code, kind) values($1,'ih_schedule') on conflict do nothing", [job.code]);
     result.ih_schedule += 1;
+  }
+
+  return result;
+}
+
+export type RepairStageEscalation = { repair_stage: number };
+
+/**
+ * **ເຕືອນງານສ້ອມ ຈັດຊ່າງແລ້ວ ແຕ່ **ເລີຍ SLA ຂັ້ນກາງທາງ** — ຄໍຂວດທີ່ front-stage ບໍ່ຈັບ.
+ * ຕົງກັບກຸ່ມ "ເລີຍ SLA" ຂອງໜ້າຕິດຕາມ (monitor) ⇒ ຄົນທີ່ຕ້ອງລົງມືໄດ້ຮັບ push ບໍ່ຕ້ອງໄປເປີດເບິ່ງເອງ:
+ *   • push ເຂົ້າມືຖື **ຊ່າງເຈົ້າຂອງງານ** (ຄົນທີ່ຕ້ອງເລັ່ງ)
+ *   • chatter → ຫົວໜ້າຊ່າງ/ຜູ້ຈັດການ (ຖ້າຊ່າງຄາ ຕ້ອງຊ່ວຍ/ປ່ຽນຄົນ) — notify() ຍິງ push ໃຫ້ຄົນທີ່ມີ token
+ * ⚠️ ເຕືອນ **ເທື່ອດຽວຕໍ່ໃບຕໍ່ຂັ້ນ** (kind = repair_stage_<ຂັ້ນ>) ⇒ ຂ້າມຂັ້ນໃໝ່ຈຶ່ງເຕືອນຄືນ, ບໍ່ດັງຊ້ຳຂັ້ນເກົ່າ.
+ */
+export async function escalateRepairStageSla(): Promise<RepairStageEscalation> {
+  const result: RepairStageEscalation = { repair_stage: 0 };
+
+  const overdue = await query<{
+    code: string;
+    tech: string | null;
+    customer: string | null;
+    stage: number;
+    stage_label: string;
+    over_hours: number;
+  }>(
+    `select a.code, nullif(trim(a.emp_code),'') as tech, b.name_1 as customer,
+        (${STAGE_SQL}) as stage,
+        (${STAGE_LABEL_SQL}) as stage_label,
+        round((((${STAGE_ELAPSED_SQL}) - (${REPAIR_STAGE_SLA_HOURS_SQL}) * 3600) / 3600.0)::numeric)::int as over_hours
+      from tb_product a
+      left join ar_customer b on b.code = a.cust_code
+     where ${OPEN_JOBS} and ${NOT_MISSING} and ${NOT_PENDING_CANCEL}
+       and nullif(trim(a.emp_code),'') is not null
+       and (${STAGE_SQL}) >= 1
+       and (${REPAIR_STAGE_SLA_HOURS_SQL}) is not null
+       and (${STAGE_ELAPSED_SQL}) > (${REPAIR_STAGE_SLA_HOURS_SQL}) * 3600
+       and not exists (
+         select 1 from ods_sla_escalation e
+          where e.job_code = a.code and e.kind = 'repair_stage_' || (${STAGE_SQL})::text)
+     order by a.time_register`,
+  );
+
+  for (const job of overdue.rows) {
+    if (!job.tech) continue;
+    const headline = `⏰ ເລີຍ SLA ຂັ້ນ "${job.stage_label}" ${job.over_hours} ຊມ`;
+    // ຊ່າງເຈົ້າຂອງງານ — ຄົນທີ່ຕ້ອງເລັ່ງ (push ໂດຍກົງ)
+    await pushToUser(job.tech, headline, `${job.code} · ${job.customer ?? ""}`, {
+      workflow: "repair",
+      code: job.code,
+    });
+    // ຫົວໜ້າ/ຜູ້ຈັດການ — ຖ້າຊ່າງຄາ ຕ້ອງຊ່ວຍ/ປ່ຽນຄົນ (notify ຍິງ push ໃຫ້ຄົນທີ່ມີ token)
+    await logChange(
+      "tb_product",
+      job.code,
+      `${headline} — ຊ່າງ ${job.tech} · ລູກຄ້າ ${job.customer ?? "-"}`,
+      { roles: ["headtechnical", "manager"] },
+    );
+    await query(
+      "insert into ods_sla_escalation(job_code, kind) values($1, 'repair_stage_' || $2) on conflict do nothing",
+      [job.code, job.stage],
+    );
+    result.repair_stage += 1;
   }
 
   return result;
