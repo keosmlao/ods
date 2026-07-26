@@ -78,6 +78,29 @@ class Api {
     value: jsonEncode(tabs.map((t) => t.toJson()).toList()),
   );
 
+  /// ດຶງ manifest (role/tab/home) **ໃໝ່** ຈາກ server ຕອນເປີດແອັບ — ບໍ່ຕ້ອງ login ຄືນ.
+  /// return false = token ໝົດອາຍຸ/ຖືກຖອນ (ຄວນໄປໜ້າ login) · true = ໃຊ້ຕໍ່ໄດ້.
+  /// ⚠️ ເຄືອຂ່າຍລົ້ມ (ບໍ່ແມ່ນ 401) → true + ໃຊ້ tab cache ຕໍ່ (ຢ່າໄລ່ຊ່າງອອກຕອນສັນຍານບໍ່ດີ).
+  static Future<bool> refreshSession() async {
+    try {
+      final result = await _send('GET', '/api/mobile/me');
+      final user = MobileUser.fromJson(result['user'] as Map<String, dynamic>);
+      await saveHome(user.home);
+      await saveTabs(user.tabs);
+      await _storage.write(key: _userKey, value: user.username);
+      await _storage.write(key: _roleLabelKey, value: user.roleLabel);
+      return true;
+    } on ApiError catch (failure) {
+      if (failure.status == 401) {
+        await clearToken();
+        return false;
+      }
+      return true;
+    } catch (_) {
+      return true;
+    }
+  }
+
   static Future<String> serverUrl() async =>
       (await _storage.read(key: _serverKey)) ?? defaultBaseUrl;
   static Future<void> saveServerUrl(String value) =>

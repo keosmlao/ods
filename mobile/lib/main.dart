@@ -184,10 +184,15 @@ class _GateState extends State<_Gate> {
       */
       Push.register();
     }
-    // ມີ token → ປະກອບແອັບຕາມ manifest ຂອງ role (server ບອກໄວ້ຕອນ login)
-    final next = token == null
-        ? const LoginScreen()
-        : NavHost(tabs: await Api.savedTabs());
+    // ມີ token → ດຶງ manifest **ໃໝ່** (role/tab ອາດປ່ຽນ server-side) ⇒ ບໍ່ຕ້ອງ login ຄືນ.
+    // token ໝົດອາຍຸ (401) → refreshSession ລ້າງ token ແລ້ວ return false ⇒ ໄປໜ້າ login.
+    Widget next;
+    if (token == null) {
+      next = const LoginScreen();
+    } else {
+      final valid = await Api.refreshSession();
+      next = valid ? NavHost(tabs: await Api.savedTabs()) : const LoginScreen();
+    }
     if (mounted) setState(() => _screen = next);
   }
 
