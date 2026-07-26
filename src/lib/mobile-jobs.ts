@@ -282,18 +282,25 @@ export async function myIncome(session: Session): Promise<MobileIncome> {
   // ທັງ `users.code` ແລະ ການທຽບແບບບໍ່ສົນໂຕພິມ ⇒ ຊ່າງທີ່ມີລະຫັດຢູ່ແລ້ວເຫັນລາຍໄດ້ເປັນ 0
   const employee = await employeeCode(session.username);
 
-  // ຍັງບໍ່ໄດ້ເຊື່ອມຕົວຕົນ ⇒ ບໍ່ມີເງິນຜູກກັບຄົນນີ້ (ບອກແອັບໄປຕາມຄວາມຈິງ ບໍ່ໃຫ້ເດົາ)
-  if (!employee) return { month: "", jobs: 0, total_thb: 0, rows: [] };
+  // payout.employee_code ເກັບຄ່າ **emp_code ຂອງງານ** — ຊ່າງເຊື່ອມແລ້ວ = ລະຫັດ ERP ·
+  // ຊ່າງຍັງບໍ່ເຊື່ອມ = ຊື່ຫຼິ້ນ (ຄື username). ⇒ ຄົ້ນດ້ວຍ **ທັງສອງ** ບໍ່ດັ່ງນັ້ນຊ່າງທີ່ຍັງບໍ່
+  // ເຊື່ອມຈະເຫັນ "ບໍ່ເຊື່ອມ ERP" ທັງທີ່ມີເງິນເຂົ້າຢູ່ຊື່ຫຼິ້ນແລ້ວ (ຕົງກັບ /commission ຝັ່ງເວັບ).
+  const keys = [...new Set([employee, session.username].filter(Boolean))];
 
   const rows = await query<MobileIncome["rows"][number]>(
     `select p.job_code, p.workflow, p.role, p.pay_thb::float as pay_thb,
         to_char(p.closed_at,'DD-MM-YYYY') as closed_at
       from ods_service_payout p
-     where p.employee_code = $1
+     where p.employee_code = any($1)
        and p.closed_at >= date_trunc('month', current_date)
      order by p.closed_at desc`,
-    [employee],
+    [keys],
   );
+
+  // ເຊື່ອມ ERP ແລ້ວ **ຫຼື** ມີເງິນເຂົ້າຊື່ນີ້ແລ້ວ ⇒ ສະແດງ. ບໍ່ດັ່ງນັ້ນ (ບໍ່ເຊື່ອມ+ບໍ່ມີເງິນ) = ເຕືອນ.
+  if (!employee && rows.rows.length === 0) {
+    return { month: "", jobs: 0, total_thb: 0, rows: [] };
+  }
 
   const total = rows.rows.reduce((sum, row) => sum + row.pay_thb, 0);
   return {
