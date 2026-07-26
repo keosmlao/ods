@@ -145,9 +145,11 @@ class _TechCard extends StatelessWidget {
                 children: [
                   Text('${tech.monthJobs}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: ink)),
                   const Text('ຈົບ/ເດືອນ', style: TextStyle(fontSize: 9.5, color: muted)),
-                  const SizedBox(height: 3),
-                  Text('฿${tech.monthThb.toStringAsFixed(0)}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: teal)),
+                  if (tech.monthThb != null) ...[
+                    const SizedBox(height: 3),
+                    Text('฿${tech.monthThb!.toStringAsFixed(0)}',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: teal)),
+                  ],
                 ],
               ),
               const Icon(Icons.chevron_right_rounded, color: faint),

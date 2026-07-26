@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   if (!guard.ok) return guard.response;
 
   try {
-    return NextResponse.json(await mobileReports());
+    return NextResponse.json(await mobileReports(guard.user.role !== "admin"));
   } catch (error) {
     console.error("Mobile reports failed", error);
     return NextResponse.json({ error: "ໂຫຼດລາຍງານບໍ່ສຳເລັດ" }, { status: 500 });

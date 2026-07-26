@@ -88,22 +88,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             ],
                           ),
                         ),
-                        MCard(
-                          title: 'ຄ່າຄອມຈ່າຍ (ເດືອນນີ້ · ບໍລິສັດ)',
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text('฿${data!.commissionMonthThb.toStringAsFixed(0)}',
-                                  style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: teal)),
-                              const SizedBox(width: 8),
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 5),
-                                child: Text('ຈາກ ${data!.commissionMonthJobs} ໃບປິດ',
-                                    style: const TextStyle(fontSize: 12.5, color: muted)),
-                              ),
-                            ],
+                        if (data!.commissionMonthThb != null)
+                          MCard(
+                            title: 'ຄ່າຄອມຈ່າຍ (ເດືອນນີ້ · ບໍລິສັດ)',
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text('฿${data!.commissionMonthThb!.toStringAsFixed(0)}',
+                                    style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: teal)),
+                                const SizedBox(width: 8),
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 5),
+                                  child: Text('ຈາກ ${data!.commissionMonthJobs} ໃບປິດ',
+                                      style: const TextStyle(fontSize: 12.5, color: muted)),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),

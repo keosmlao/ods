@@ -105,22 +105,23 @@ class _TechDetailScreenState extends State<TechDetailScreen> {
                                   ],
                                 ),
                         ),
-                        MCard(
-                          title: 'ຄ່າຄອມເດືອນນີ້',
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text('฿${data!.monthThb.toStringAsFixed(0)}',
-                                  style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: teal)),
-                              const SizedBox(width: 8),
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 5),
-                                child: Text('ຈາກ ${data!.monthJobs} ໃບ',
-                                    style: const TextStyle(fontSize: 12.5, color: muted)),
-                              ),
-                            ],
+                        if (data!.monthThb != null)
+                          MCard(
+                            title: 'ຄ່າຄອມເດືອນນີ້',
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text('฿${data!.monthThb!.toStringAsFixed(0)}',
+                                    style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: teal)),
+                                const SizedBox(width: 8),
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 5),
+                                  child: Text('ຈາກ ${data!.monthJobs} ໃບ',
+                                      style: const TextStyle(fontSize: 12.5, color: muted)),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
                         MCard(
                           title: 'ວຽກຄ້າງ (${data!.jobs.length})',
                           child: data!.jobs.isEmpty

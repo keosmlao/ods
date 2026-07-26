@@ -10,7 +10,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
 
   try {
     const { code } = await params;
-    const detail = await techDetail(decodeURIComponent(code));
+    const detail = await techDetail(decodeURIComponent(code), guard.user.role !== "admin");
     if (!detail) return NextResponse.json({ error: "ບໍ່ພົບຊ່າງ" }, { status: 404 });
     return NextResponse.json(detail);
   } catch (error) {

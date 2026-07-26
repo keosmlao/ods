@@ -214,7 +214,10 @@ export async function escalateRepairStageSla(dryRun = false): Promise<RepairStag
       left join ar_customer b on b.code = a.cust_code
      where ${OPEN_JOBS} and ${NOT_MISSING} and ${NOT_PENDING_CANCEL}
        and nullif(trim(a.emp_code),'') is not null
-       and (${STAGE_SQL}) >= 1
+       -- ⚠️ push ຫາຊ່າງ **ສະເພາະຂັ້ນທີ່ຊ່າງເປັນຄົນລົງມື**: 1 ລໍກວດ · 2 ກຳລັງກວດ ·
+       -- 8 ລໍສ້ອມ · 9 ກຳລັງສ້ອມ. ຂັ້ນ 3-7 (ສະເໜີລາຄາ/ສາງ/ສັ່ງຊື້) ແລະ 10-11 (QC/ສົ່ງຄືນ)
+       -- ບໍ່ແມ່ນວຽກຊ່າງ ⇒ ຢ່າ push "ເລີຍ SLA ຮີບ" ໃສ່ຊ່າງ (noise ⇒ ຊ່າງເມີນແຈ້ງເຕືອນ).
+       and (${STAGE_SQL}) in (1, 2, 8, 9)
        and (${REPAIR_STAGE_SLA_HOURS_SQL}) is not null
        and (${STAGE_ELAPSED_SQL}) > (${REPAIR_STAGE_SLA_HOURS_SQL}) * 3600
        and not exists (

@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   if (!guard.ok) return guard.response;
 
   try {
-    return NextResponse.json({ techs: await techRoster() });
+    return NextResponse.json({ techs: await techRoster(guard.user.role !== "admin") });
   } catch (error) {
     console.error("Mobile tech roster failed", error);
     return NextResponse.json({ error: "ໂຫຼດຜົນງານລູກນ້ອງບໍ່ສຳເລັດ" }, { status: 500 });

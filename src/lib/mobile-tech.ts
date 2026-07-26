@@ -19,8 +19,9 @@ export type TechRow = {
   oldest_days: number;
   late: number;
   month_jobs: number;
-  month_thb: number;
-  /** ຄວາມພໍໃຈລູກຄ້າ (ຈາກງານຕິດຕັ້ງ) — rated=ຈຳນວນປະເມີນ · happy_pct=% ພໍໃຈ (points≤2) · unhappy=ບໍ່ພໍໃຈ(≥3) */
+  /** ຄ່າຄອມ THB ເດືອນນີ້ — **null ຖ້າຜູ້ເບິ່ງ = admin (CS)**: ຄ່າຄອມ=ເລື່ອງເງິນ, ຝ່າຍບໍລິການບໍ່ເຫັນ (ຄືເວັບ) */
+  month_thb: number | null;
+  /** ຄວາມພໍໃຈລູກຄ້າ (ຈາກງານຕິດຕັ້ງ) — rated=ຈຳນວນປະເມີນ · happy_pct=% ພໍໃຈ (avg≤2) · unhappy=ບໍ່ພໍໃຈ(avg≥3) */
   rated: number;
   happy_pct: number | null;
   unhappy: number;
@@ -100,21 +101,28 @@ function payOf(pay: Map<string, PayRow>, code: string, employeeCode: string): Pa
  * ⚠️ ຄະແນນ 1=ດີສຸດ … 4=ຮ້າຍສຸດ (points≥3 = ບໍ່ພໍໃຈ) — ບໍ່ແມ່ນ x/4 ດາວ. ງານສ້ອມບໍ່ມີ feedback ຜູກ.
  */
 async function feedbackByTech(): Promise<Map<string, FbRow>> {
+  // ⚠️ cust_complain topic 002 = **ຫຼາຍແຖວຕໍ່ໃບ** (1 ແຖວ/ຄຳຖາມ). ຕ້ອງ **ຫຍໍ້ໃຫ້ 1 ຄະແນນ/ໃບ**
+  // (avg) ກ່ອນ ຈຶ່ງແຍກ ພໍໃຈ/ບໍ່ພໍໃຈ — ບໍ່ດັ່ງນັ້ນໃບທີ່ມີທັງ 1 ແລະ 4 ຈະຖືກນັບ **ທັງສອງ** ຝ່າຍ
+  // (happy ເກືອບ 100% ສະເໝີ · unhappy ເກີນຈິງ). ພໍໃຈ=avg≤2 · ບໍ່ພໍໃຈ=avg≥3 (ແຍກກັນຂາດ).
   const rows = await query<FbRow>(
-    `select i.tech_code as code,
-        count(distinct c.product_code)::int as rated,
-        round(100.0 * count(distinct c.product_code) filter (where c.points <= 2)
-          / nullif(count(distinct c.product_code), 0))::int as happy_pct,
-        count(distinct c.product_code) filter (where c.points >= 3)::int as unhappy
-      from cust_complain c
-      join ods_tb_install i on i.code = c.product_code
-     where c.topic_code = '002' and nullif(trim(i.tech_code),'') is not null
-     group by 1`,
+    `select tech_code as code,
+        count(*)::int as rated,
+        round(100.0 * count(*) filter (where ap <= 2) / nullif(count(*), 0))::int as happy_pct,
+        count(*) filter (where ap >= 3)::int as unhappy
+      from (
+        select i.tech_code, c.product_code, avg(c.points) as ap
+          from cust_complain c
+          join ods_tb_install i on i.code = c.product_code
+         where c.topic_code = '002' and nullif(trim(i.tech_code),'') is not null
+         group by i.tech_code, c.product_code
+      ) j
+     group by tech_code`,
   );
   return new Map(rows.rows.map((r) => [r.code, r]));
 }
 
-export async function techRoster(): Promise<TechRow[]> {
+/** showMoney=false (admin/CS) ⇒ ຄ່າຄອມ THB ຖືກປິດ (null) — ຄືກັບເວັບທີ່ຈຳກັດລາຍໄດ້ຊ່າງ */
+export async function techRoster(showMoney = true): Promise<TechRow[]> {
   const [techs, load, pay, fb] = await Promise.all([listTechnicians(), loadByTech(), payByTech(), feedbackByTech()]);
   return techs
     .map((t) => {
@@ -128,7 +136,7 @@ export async function techRoster(): Promise<TechRow[]> {
         oldest_days: l.oldest_days,
         late: l.late,
         month_jobs: p.month,
-        month_thb: p.month_thb,
+        month_thb: showMoney ? p.month_thb : null,
         rated: f.rated,
         happy_pct: f.happy_pct,
         unhappy: f.unhappy,
@@ -138,7 +146,7 @@ export async function techRoster(): Promise<TechRow[]> {
     .sort((a, b) => b.late - a.late || b.open_jobs - a.open_jobs || b.month_jobs - a.month_jobs);
 }
 
-export async function techDetail(code: string): Promise<TechDetail | null> {
+export async function techDetail(code: string, showMoney = true): Promise<TechDetail | null> {
   const techs = await listTechnicians();
   const tech = techs.find((t) => t.code === code);
   if (!tech) return null;
@@ -155,7 +163,7 @@ export async function techDetail(code: string): Promise<TechDetail | null> {
     oldest_days: l.oldest_days,
     late: l.late,
     month_jobs: p.month,
-    month_thb: p.month_thb,
+    month_thb: showMoney ? p.month_thb : null,
     rated: f.rated,
     happy_pct: f.happy_pct,
     unhappy: f.unhappy,
@@ -179,7 +187,7 @@ async function techJobs(code: string): Promise<MonitorJob[]> {
           null::text as tech
         from tb_product a
         left join ar_customer b on b.code = a.cust_code
-       where ${OPEN_JOBS} and ${NOT_MISSING} and ${NOT_PENDING_CANCEL} and a.emp_code = $1`,
+       where ${OPEN_JOBS} and ${NOT_MISSING} and ${NOT_PENDING_CANCEL} and nullif(trim(a.emp_code),'') = $1`,
       [code],
     ),
     query<MonitorJob>(
@@ -191,7 +199,7 @@ async function techJobs(code: string): Promise<MonitorJob[]> {
           null::text as tech
         from ods_tb_install a
         left join ar_customer c on c.code = a.cust_code
-       where ${INSTALL_OPEN} and a.tech_code = $1`,
+       where ${INSTALL_OPEN} and nullif(trim(a.tech_code),'') = $1`,
       [code],
     ),
   ]);

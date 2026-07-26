@@ -1622,7 +1622,7 @@ class TechRow {
   final int oldestDays;
   final int late;
   final int monthJobs;
-  final double monthThb;
+  final double? monthThb;
   final int rated; // ຈຳນວນປະເມີນ (ງານຕິດຕັ້ງ)
   final int? happyPct; // % ພໍໃຈ (null = ຍັງບໍ່ມີການປະເມີນ)
   final int unhappy; // ບໍ່ພໍໃຈ (points≥3)
@@ -1647,7 +1647,7 @@ class TechRow {
     oldestDays: (json['oldest_days'] as num?)?.toInt() ?? 0,
     late: (json['late'] as num?)?.toInt() ?? 0,
     monthJobs: (json['month_jobs'] as num?)?.toInt() ?? 0,
-    monthThb: (json['month_thb'] as num?)?.toDouble() ?? 0,
+    monthThb: (json['month_thb'] as num?)?.toDouble(),
     rated: (json['rated'] as num?)?.toInt() ?? 0,
     happyPct: (json['happy_pct'] as num?)?.toInt(),
     unhappy: (json['unhappy'] as num?)?.toInt() ?? 0,
@@ -1662,7 +1662,7 @@ class TechDetail {
   final int oldestDays;
   final int late;
   final int monthJobs;
-  final double monthThb;
+  final double? monthThb;
   final int rated;
   final int? happyPct;
   final int unhappy;
@@ -1693,7 +1693,7 @@ class TechDetail {
     oldestDays: (json['oldest_days'] as num?)?.toInt() ?? 0,
     late: (json['late'] as num?)?.toInt() ?? 0,
     monthJobs: (json['month_jobs'] as num?)?.toInt() ?? 0,
-    monthThb: (json['month_thb'] as num?)?.toDouble() ?? 0,
+    monthThb: (json['month_thb'] as num?)?.toDouble(),
     rated: (json['rated'] as num?)?.toInt() ?? 0,
     happyPct: (json['happy_pct'] as num?)?.toInt(),
     unhappy: (json['unhappy'] as num?)?.toInt() ?? 0,
@@ -1723,8 +1723,8 @@ class Reports {
   final List<ReportDay> days;
   final int totalOpened;
   final int totalClosed;
-  final double commissionMonthThb;
-  final int commissionMonthJobs;
+  final double? commissionMonthThb;
+  final int? commissionMonthJobs;
 
   Reports({
     required this.days,
@@ -1740,8 +1740,8 @@ class Reports {
         .toList(),
     totalOpened: (json['total_opened'] as num?)?.toInt() ?? 0,
     totalClosed: (json['total_closed'] as num?)?.toInt() ?? 0,
-    commissionMonthThb: (json['commission_month_thb'] as num?)?.toDouble() ?? 0,
-    commissionMonthJobs: (json['commission_month_jobs'] as num?)?.toInt() ?? 0,
+    commissionMonthThb: (json['commission_month_thb'] as num?)?.toDouble(),
+    commissionMonthJobs: (json['commission_month_jobs'] as num?)?.toInt(),
   );
 }
 

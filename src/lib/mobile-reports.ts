@@ -11,16 +11,17 @@ export type MobileReports = {
   days: ReportDay[];
   total_opened: number;
   total_closed: number;
-  /** ຄ່າຄອມທີ່ຈ່າຍ (ປິດງານ) ໃນເດືອນນີ້ — ບໍລິສັດລວມ */
-  commission_month_thb: number;
-  commission_month_jobs: number;
+  /** ຄ່າຄອມທີ່ຈ່າຍ (ປິດງານ) ໃນເດືອນນີ້ — ບໍລິສັດລວມ · **null ຖ້າ admin (CS)**: ຄ່າຄອມ=ເລື່ອງເງິນ (ຄືເວັບ) */
+  commission_month_thb: number | null;
+  commission_month_jobs: number | null;
 };
 
 const WINDOW = 14;
 
 type DayCount = { d: string; n: number };
 
-export async function mobileReports(): Promise<MobileReports> {
+/** showMoney=false (admin/CS) ⇒ ຄ່າຄອມ (commission_*) ຖືກປິດ (null) */
+export async function mobileReports(showMoney = true): Promise<MobileReports> {
   const [opened, closed, commission] = await Promise.all([
     query<DayCount>(
       `select d::text, count(*)::int as n from (
@@ -66,7 +67,7 @@ export async function mobileReports(): Promise<MobileReports> {
     days,
     total_opened: days.reduce((s, d) => s + d.opened, 0),
     total_closed: days.reduce((s, d) => s + d.closed, 0),
-    commission_month_thb: commission.rows[0]?.thb ?? 0,
-    commission_month_jobs: commission.rows[0]?.jobs ?? 0,
+    commission_month_thb: showMoney ? (commission.rows[0]?.thb ?? 0) : null,
+    commission_month_jobs: showMoney ? (commission.rows[0]?.jobs ?? 0) : null,
   };
 }
