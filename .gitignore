@@ -49,3 +49,6 @@ mobile/ios/Pods/
 # Claude Code local artifacts (worktrees, local settings)
 .claude/worktrees/
 .claude/settings.local.json
+
+# APK download (ໃຫຍ່ · ວາງໃສ່ server ເອງ)
+public/download/*.apk
