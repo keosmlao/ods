@@ -1,6 +1,5 @@
 import {
   CLAIM_FLOW,
-  CLAIM_PAGES,
   CLAIM_TYPE_LABEL,
   claimCandidatesC,
   claimCounts,
@@ -54,19 +53,6 @@ export async function ClaimsView({
             <FilePlus2 className="size-4" /> ເປີດໃບເຄມ
           </Link>
         </div>
-      </div>
-
-      {/* ── ຂ້າມໄປ 3 ໜ້າເຄມ (B→A→C = ຂັ້ນຕອນມາດຕະຖານ) ── */}
-      <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1">
-        {CLAIM_PAGES.map((p) => (
-          <Link
-            key={p.type}
-            href={p.path}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${p.type === type ? "bg-slate-900 text-white shadow-sm" : "bg-white text-slate-500 hover:bg-slate-100"}`}
-          >
-            <span className="font-mono">CLM-{p.type}</span> · {p.short}
-          </Link>
-        ))}
       </div>
 
       <div className="flex flex-wrap gap-2 text-[11px]">
