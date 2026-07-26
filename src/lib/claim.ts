@@ -125,7 +125,8 @@ export async function ensureOdsCustomer(code: string): Promise<void> {
   if (has) return;
   const erp = (
     await queryOdg<{ name_1: string | null; tel: string | null; address: string | null }>(
-      `select name_1, tel, address from ar_customer where code = $1 limit 1`,
+      // ⚠️ ERP ar_customer ໃຊ້ `telephone` (ບໍ່ມີ `tel` ຄື ODS) — select tel ຈະ error
+      `select name_1, coalesce(telephone,'') tel, coalesce(address,'') address from ar_customer where code = $1 limit 1`,
       [c],
     )
   ).rows[0];
