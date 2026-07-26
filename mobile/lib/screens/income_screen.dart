@@ -121,7 +121,8 @@ class _IncomeScreenState extends State<IncomeScreen> {
                       style: const TextStyle(color: muted, fontSize: 12),
                     ),
                     trailing: Text(
-                      (row['pay_thb'] as num).toStringAsFixed(2),
+                      // null-safe: ຢູ່ build() ⇒ cast ພັງ = red-screen. coerce ໃຫ້ 0 ແທນ
+                      ((row['pay_thb'] as num?)?.toDouble() ?? 0).toStringAsFixed(2),
                       style: const TextStyle(
                         color: ok,
                         fontWeight: FontWeight.w800,

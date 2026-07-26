@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
@@ -62,7 +64,8 @@ class _ManagerScreenState extends State<ManagerScreen> {
   }
 
   Future<void> logout() async {
-    await Push.unregister();
+    // ຖອນ push token ພື້ນຫຼັງ (ບໍ່ await) — ບໍ່ໃຫ້ logout ຄ້າງ ~25s ຕອນສັນຍານອ່ອນ
+    unawaited(Push.unregister());
     await Api.clearToken();
     if (!mounted) return;
     Navigator.of(

@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../main.dart';
+import '../push.dart';
 import '../widgets/ui_kit.dart';
 import 'login_screen.dart';
 
@@ -138,6 +141,7 @@ class _StockCountScreenState extends State<StockCountScreen> {
   }
 
   Future<void> _logout() async {
+    unawaited(Push.unregister()); // ຖອນ push token (ພື້ນຫຼັງ) — ບໍ່ດັ່ງນັ້ນຍັງໄດ້ແຈ້ງເຕືອນຫຼັງອອກ
     await Api.clearToken();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(

@@ -45,6 +45,9 @@ class _QcScreenState extends State<QcScreen> {
           loading = false;
         });
       }
+    } catch (_) {
+      // parse/shape error (ເຊັ່ນ server ຕອບບໍ່ຖືກຮູບ) — ຢ່າຄ້າງໝູນ
+      if (mounted) setState(() { error = 'ໂຫຼດຄິວ QC ບໍ່ສຳເລັດ'; loading = false; });
     }
   }
 
@@ -60,23 +63,34 @@ class _QcScreenState extends State<QcScreen> {
           ? const Center(child: CircularProgressIndicator())
           : error.isNotEmpty
           ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  error,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFFB45309),
-                    fontWeight: FontWeight.bold,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.cloud_off_rounded, size: 44, color: muted),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(error, textAlign: TextAlign.center, style: const TextStyle(color: muted)),
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: () { setState(() { loading = true; error = ''; }); load(); },
+                    child: const Text('ລອງໃໝ່'),
+                  ),
+                ],
               ),
             )
           : jobs.isEmpty
-          ? const Center(
-              child: Text('ບໍ່ມີງານລໍກວດຮັບ', style: TextStyle(color: muted)),
+          ? RefreshIndicator(
+              onRefresh: load,
+              child: ListView(children: const [
+                SizedBox(height: 120),
+                Center(child: Text('ບໍ່ມີງານລໍກວດຮັບ', style: TextStyle(color: muted))),
+              ]),
             )
-          : ListView.separated(
+          : RefreshIndicator(
+              onRefresh: load,
+              child: ListView.separated(
               padding: const EdgeInsets.all(12),
               itemCount: jobs.length,
               separatorBuilder: (_, _) => const SizedBox(height: 10),
@@ -109,6 +123,7 @@ class _QcScreenState extends State<QcScreen> {
               },
             ),
           ),
+          ),
         ],
       ),
     );
@@ -129,6 +144,7 @@ class _QcJobScreenState extends State<QcJobScreen> {
   List<String> photos = [];
   final signer = TextEditingController();
   bool loading = true;
+  String error = '';
   bool busy = false;
   final picker = ImagePicker();
 
@@ -149,10 +165,8 @@ class _QcJobScreenState extends State<QcJobScreen> {
       });
     } catch (caught) {
       if (!mounted) return;
-      setState(() => loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$caught'), backgroundColor: danger),
-      );
+      // ຢ່າປ່ອຍຈໍຂາວ+ປຸ່ມ submit ຄາ — ຕັ້ງ error ໃຫ້ build ສະແດງປຸ່ມ "ລອງໃໝ່"
+      setState(() { loading = false; error = '$caught'; });
     }
   }
 
@@ -221,6 +235,25 @@ class _QcJobScreenState extends State<QcJobScreen> {
           Expanded(
             child: loading
           ? const Center(child: CircularProgressIndicator())
+          : error.isNotEmpty
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.cloud_off_rounded, size: 44, color: muted),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text('ໂຫຼດແບບຟອມ QC ບໍ່ສຳເລັດ', textAlign: TextAlign.center, style: const TextStyle(color: muted)),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: () { setState(() { loading = true; error = ''; }); load(); },
+                    child: const Text('ລອງໃໝ່'),
+                  ),
+                ],
+              ),
+            )
           : ListView(
               padding: const EdgeInsets.all(12),
               children: [

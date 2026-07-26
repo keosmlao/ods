@@ -1,8 +1,13 @@
 import 'dart:convert';
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+
+/// key ຂອງ Navigator ຫຼັກ (ໃສ່ໃນ MaterialApp) — ໃຫ້ Api ພາໄປໜ້າ login ໄດ້ຈາກທຸກບ່ອນ
+/// ເມື່ອ token ໝົດອາຍຸ/ຖືກຖອນ (401) ໂດຍບໍ່ຕ້ອງໃຫ້ແຕ່ລະໜ້າຈັດການເອງ.
+final navigatorKey = GlobalKey<NavigatorState>();
 
 /// ຕົວເຊື່ອມກັບ ODSS — ທຸກຄຳຂໍຜ່ານບ່ອນນີ້ບ່ອນດຽວ.
 ///
@@ -181,12 +186,28 @@ class Api {
     }
 
     if (response.statusCode >= 400) {
+      // ── token ໝົດອາຍຸ/ຖືກຖອນ ກາງຄັນ ⇒ ພາໄປ login **ຈາກທຸກໜ້າ** (ບໍ່ໃຫ້ຊ່າງຄາ) ──
+      // ສະເພາະຄຳຂໍທີ່ຕ້ອງ auth (login ເອງໃຊ້ auth:false ⇒ 401 = ລະຫັດຜິດ, ບໍ່ redirect).
+      if (auth && response.statusCode == 401) {
+        await _forceLogin();
+      }
       throw ApiError(
         (decoded['error'] as String?) ?? 'ເຊື່ອມຕໍ່ບໍ່ໄດ້',
         response.statusCode,
       );
     }
     return decoded;
+  }
+
+  static bool _redirectingToLogin = false;
+
+  /// ລ້າງ token ແລ້ວພາໄປໜ້າ login (ແທນທຸກ route). ກັນຍິງຊ້ຳຕອນຫຼາຍຄຳຂໍ 401 ພ້ອມກັນ.
+  static Future<void> _forceLogin() async {
+    await clearToken();
+    if (_redirectingToLogin) return;
+    _redirectingToLogin = true;
+    navigatorKey.currentState?.pushNamedAndRemoveUntil('/login', (_) => false);
+    Timer(const Duration(seconds: 2), () => _redirectingToLogin = false);
   }
 
   /* ── ຕົວຕົນ ─────────────────────────────────────────────────── */

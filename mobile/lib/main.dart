@@ -47,6 +47,7 @@ class OdssApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ODS by ODG',
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme:

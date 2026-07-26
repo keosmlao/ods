@@ -224,10 +224,14 @@ class _JobScreenState extends State<JobScreen> {
     return Geolocator.getCurrentPosition();
   }
 
+  /// ຮູບ check-in ທີ່ຖ່າຍໄວ້ແຕ່ command ລົ້ມ (offline/500) — ເກັບໄວ້ retry ໂດຍ **ບໍ່ຖ່າຍໃໝ່**
+  String? _retainedCheckinPhoto;
+
   Future<void> checkIn() async {
     final point = await coordinates();
     if (point == null) return;
-    final photo = await shoot();
+    // ມີຮູບຄ້າງຈາກຄັ້ງກ່ອນ (command ລົ້ມ) ⇒ ໃຊ້ຄືນ, ບໍ່ໃຫ້ຊ່າງຖ່າຍໜ້າງານໃໝ່
+    final photo = _retainedCheckinPhoto ?? await shoot();
     if (photo == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -247,10 +251,15 @@ class _JobScreenState extends State<JobScreen> {
         'lng': point.longitude,
         'photo': photo,
       });
+      _retainedCheckinPhoto = null; // ສຳເລັດ ⇒ ຖິ້ມຮູບຄ້າງ
       messenger.showSnackBar(SnackBar(content: Text(message)));
     } on ApiError catch (failure) {
+      _retainedCheckinPhoto = photo; // ເກັບຮູບໄວ້ ⇒ ກົດ check-in ຄືນ ບໍ່ຕ້ອງຖ່າຍໃໝ່
       messenger.showSnackBar(
-        SnackBar(content: Text(failure.message), backgroundColor: danger),
+        SnackBar(
+          content: Text('${failure.message} — ຮູບຍັງເກັບໄວ້, ກົດ check-in ຄືນໄດ້ເລີຍ'),
+          backgroundColor: danger,
+        ),
       );
       if (mounted) setState(() => busy = false);
       return;

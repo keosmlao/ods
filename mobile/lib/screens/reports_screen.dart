@@ -160,6 +160,7 @@ class _TrendChart extends StatelessWidget {
                   final i = value.toInt();
                   if (i < 0 || i >= days.length || i % step != 0) return const SizedBox.shrink();
                   final parts = days[i].date.split('-'); // YYYY-MM-DD
+                  if (parts.length < 3) return const SizedBox.shrink(); // ວັນທີວ່າງ/ຜິດຮູບ ⇒ ຢ່າ throw
                   return Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text('${parts[2]}/${parts[1]}',
