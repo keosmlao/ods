@@ -807,6 +807,8 @@ export async function withdrawRequestOrder(rawDocNo: string): Promise<PurchaseSt
  * ໃບທີ່ອອກຈະບໍ່ມີບ່ອນອ້າງອີງກັບຄືນມາຫາວຽກ ແລະ ຕິດຕາມຄວາມຄືບໜ້າບໍ່ໄດ້.
  * ⇒ ທຸກການສັ່ງຊື້ຕ້ອງຜ່ານ RQ ເພື່ອໃຫ້ມີເລກອ້າງອີງໃຫ້ ERP ຜູກກັບຄືນ.
  */
+// stub ທີ່ຖືກປິດ (ຕ້ອງຜ່ານ RQ) — param ຕ້ອງມີຕາມ signature ຂອງ action ແຕ່ບໍ່ໄດ້ໃຊ້
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function savePr(_: PurchaseState): Promise<PurchaseState> {
   return {
     error:

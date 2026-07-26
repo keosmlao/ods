@@ -54,7 +54,6 @@ export default async function DispatchDetail({ params }: Props) {
   if (!head.rows[0]) notFound();
 
   const short = lines.rows.filter((line) => Number(line.qty) > Number(line.stock));
-  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="w-full space-y-5">

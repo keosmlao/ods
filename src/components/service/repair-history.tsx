@@ -20,8 +20,10 @@ export function RepairHistory({ sn, currentCode }: { sn: string; currentCode?: s
     // ຕອນ <4) — setState ກາງ effect body ເປັນ anti-pattern (cascading render).
     if (value.length < 4) return;
     let alive = true;
-    setLoading(true);
+    // ໂຊ້ spinner **ຕອນ fetch ເລີ່ມ** (ໃນ callback, ບໍ່ແມ່ນ effect body) — ຫຼີກ setState-in-effect
+    // ແລະ ບໍ່ກະພິບຕອນພິມ (ລໍ debounce 500ms ກ່ອນ).
     const timer = setTimeout(async () => {
+      if (alive) setLoading(true);
       try {
         const rows = await repairHistoryBySn(value);
         if (alive) setItems(rows.filter((r) => r.code !== currentCode));

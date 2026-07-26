@@ -22,6 +22,23 @@ export const NO_SESSION = "Session ໝົດອາຍຸ";
 export const NO_RIGHT = "ບໍ່ມີສິດເຮັດລາຍການນີ້";
 
 /**
+ * ຫຸ້ມ body ຂອງ server action — ຖ້າ query()/DB ລົ້ມ (transient) ⇒ ຄືນ `{ error }` ໃຫ້ form
+ * ແທນທີ່ຈະ throw ໄປ error boundary ຂອງ Next (ຈໍ 500 ຂາວ, useActionState ບໍ່ໄດ້ຂໍ້ຄວາມ).
+ * guard/validation ທີ່ `return { error }` ຢູ່ແລ້ວ ຜ່ານ closure ອອກໄປປົກກະຕິ — ຈັບແຕ່ exception.
+ */
+export async function runAction<T extends { error?: string }>(
+  label: string,
+  fn: () => Promise<T>,
+): Promise<T | { error: string }> {
+  try {
+    return await fn();
+  } catch (error) {
+    console.error(`action ${label} failed`, error);
+    return { error: "ດຳເນີນການບໍ່ສຳເລັດ — ກະລຸນາລອງໃໝ່" };
+  }
+}
+
+/**
  * ── ⚠️ ເປັນຫຍັງ requireRole ຈຶ່ງ**ບໍ່**ເບິ່ງສິດລາຍຄົນ (override) ──
  * ແຕ່ກ່ອນມີ `requestOverride()` ທີ່ເອົາ resource ມາຈາກ header **`Referer`** ແລ້ວ
  * ຖ້າຄົນນັ້ນມີ override read+update ຢູ່ resource ນັ້ນ ກໍ່**ຜ່ານໂດຍບໍ່ເບິ່ງ role ເລີຍ**.

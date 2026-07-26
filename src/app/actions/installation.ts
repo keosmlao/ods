@@ -12,7 +12,7 @@ import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb, query, queryOdg } from "@/lib/db";
 import { deleteErpRequest, writeErpRequest } from "@/lib/erp-request";
 import { nextDocNo } from "@/lib/doc-no";
-import { requireRole } from "@/lib/guard";
+import { requireRole, runAction } from "@/lib/guard";
 import { type Role, roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
 import { INSTALL_STAGE_SQL } from "@/lib/install-stage";
@@ -789,6 +789,7 @@ export async function finishInstall(
 
 /** ປິດງານໄດ້ສະເພາະງານທີ່ຕິດຕັ້ງແລ້ວ ແລະ ລູກຄ້າຕອບແບບສອບຖາມແລ້ວ (ຂັ້ນ 8) */
 export async function closeJob(code: string): Promise<ActionState> {
+  return runAction("closeJob", async () => {
   const guard = await guardJob(code, SERVICE_SIDE);
   if (!guard.ok) return { error: guard.error };
   const { job } = guard;
@@ -812,6 +813,7 @@ export async function closeJob(code: string): Promise<ActionState> {
   await recordPayout("install", code);
   revalidateAll();
   return { ok: "ສຳເລັດ" };
+  });
 }
 
 /* ── ຖອນຄືນຂັ້ນຕອນຂອງງານຕິດຕັ້ງ (ບໍ່ມີໃນ ods) ─────────────────
