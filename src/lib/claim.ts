@@ -4,6 +4,7 @@ import {
   type ClaimItem,
   type ClaimJobCandidate,
   type ClaimLog,
+  type ClaimPhoto,
   type ClaimRow,
   claimStatusLabel,
   type ClaimType,
@@ -26,7 +27,8 @@ const mapRow = (r: RawClaim): ClaimRow => ({
 const SELECT = `select c.id, c.claim_no, c.claim_type, c.supplier_code, c.brand_code, c.customer_code,
     cust.name_1 customer_name, c.ref_job, c.erp_doc_no, c.status, c.amount, c.reason, c.created_by,
     to_char(c.created_at,'DD-MM-YYYY HH24:MI') created_at,
-    to_char(c.email_sent_at,'DD-MM-YYYY HH24:MI') email_sent_at, c.pay_method, c.remark
+    to_char(c.email_sent_at,'DD-MM-YYYY HH24:MI') email_sent_at, c.pay_method, c.remark,
+    c.product, c.model, c.sn, c.warranty, to_char(c.purchase_date,'DD-MM-YYYY') purchase_date, c.contact
   from ods_claim c
   left join ar_customer cust on cust.code = c.customer_code`;
 
@@ -57,6 +59,38 @@ export async function relatedClaims(refJob: string | null, excludeNo: string): P
   return (
     await query<RawClaim>(`${SELECT} where c.ref_job = $1 and c.claim_no <> $2 order by c.claim_type, c.id`, [refJob.trim(), excludeNo])
   ).rows.map(mapRow);
+}
+
+/** ຄົ້ນຮ້ານ/ລູກຄ້າ ຈາກ ar_customer — ໃຫ້ picker ຂອງໜ້າເປີດໃບເຄມ (ແທນ text ດິບ) */
+export async function searchCustomers(q = "", limit = 30): Promise<{ code: string; name: string; tel: string | null }[]> {
+  const term = q.trim();
+  const args: (string | number)[] = [];
+  let where = "";
+  if (term) {
+    args.push(`%${term}%`);
+    where = `where code ilike $1 or name_1 ilike $1 or tel ilike $1`;
+  }
+  args.push(limit);
+  return (
+    await query<{ code: string; name: string; tel: string | null }>(
+      `select code, name_1 name, tel from ar_customer ${where} order by name_1 limit $${args.length}`,
+      args,
+    )
+  ).rows;
+}
+
+/**
+ * ຮູບຫຼັກฐานของใบเคลม — ເກັບໃນ product_image (ref_code = claim_no, ໃຊ້ຮ່ວມ saveUploads/serving
+ * ຂອງ /api/uploads). ພຽງແຕ່ຮູບ (ບໍ່ເອົາວິດີໂອ) — serve ຜ່ານ /api/uploads/{path}.
+ */
+export async function claimPhotos(claimNo: string): Promise<ClaimPhoto[]> {
+  return (
+    await query<ClaimPhoto>(
+      `select line_number id, product_url path, null::text created_at from product_image
+        where ref_code=$1 and lower(product_url) !~ '\\.(mp4|webm|mov|m4v|3gp)$' order by line_number`,
+      [claimNo],
+    )
+  ).rows;
 }
 
 export async function claimItems(claimNo: string): Promise<ClaimItem[]> {

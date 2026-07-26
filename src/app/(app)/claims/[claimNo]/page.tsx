@@ -2,7 +2,7 @@ import { Chatter } from "@/components/chatter/chatter";
 import { ClaimEditDelete } from "@/components/claim/claim-edit-delete";
 import { ClaimManage } from "@/components/claim/claim-manage";
 import { getSession } from "@/lib/auth";
-import { CLAIM_FLOW, CLAIM_REJECTED, CLAIM_TYPE_LABEL, claimByNo, claimItems, claimNextStatus, claimPagePath, cobInfo, isClaimOpen, jobDelivery, PAY_METHOD_LABEL, relatedClaims } from "@/lib/claim";
+import { CLAIM_FLOW, CLAIM_REJECTED, CLAIM_TYPE_LABEL, claimByNo, claimItems, claimNextStatus, claimPagePath, claimPhotos, cobInfo, isClaimOpen, jobDelivery, PAY_METHOD_LABEL, relatedClaims, WARRANTY_LABEL } from "@/lib/claim";
 import { getErpBrands } from "@/lib/erp-master";
 import { searchSuppliers } from "@/lib/erp-supplier";
 import { CLAIM_SIDE, roleOf } from "@/lib/roles";
@@ -23,6 +23,7 @@ export default async function ClaimDetailPage({ params }: Props) {
   const claim = await claimByNo(claimNo);
   if (!claim) notFound();
   const items = await claimItems(claimNo);
+  const photos = await claimPhotos(claimNo);
   const related = await relatedClaims(claim.ref_job, claim.claim_no);
   // ປະເພດທີ່ມີແລ້ວ (ໃບນີ້ + ໃບກ່ຽວ) — ບໍ່ໃຫ້ແຕກໃບຊ້ຳ
   const haveTypes = new Set([claim.claim_type, ...related.map((r) => r.claim_type)]);
@@ -76,15 +77,34 @@ export default async function ClaimDetailPage({ params }: Props) {
             {info("Supplier", claim.supplier_code)}
             {info("ຮ້ານ/ລູກຄ້າ", claim.customer_name || claim.customer_code)}
             {info("ຫຍີ່ຫໍ້", claim.brand_code)}
+            {info("ຜູ້ຕິດຕໍ່", claim.contact)}
             {info("ເລກສ້ອມ", claim.ref_job)}
-            {delivery && info("ສິນຄ້າ", delivery.product)}
-            {delivery && info("SN", delivery.sn)}
-            {delivery && info("Model", delivery.model)}
+            {/* ຂໍ້ມູນສິນຄ້າ: ຈາກໃບເຄມເອງ (B) ຫຼື ດຶງຈາກงานสอม (C=delivery) */}
+            {info("ສິນຄ້າ", claim.product ?? delivery?.product ?? null)}
+            {info("Model", claim.model ?? delivery?.model ?? null)}
+            {info("SN", claim.sn ?? delivery?.sn ?? null)}
+            {claim.warranty && info("ຮັບປະກັນ", WARRANTY_LABEL[claim.warranty] ?? claim.warranty)}
+            {info("ວັນຊື້", claim.purchase_date)}
             {delivery && info("ອາການສ້ອມ", delivery.fault)}
             {info("ຄ່າແຮງງານ", claim.amount ? claim.amount.toLocaleString() : null)}
             {claim.pay_method && info("ວິທີຊຳລະ", PAY_METHOD_LABEL[claim.pay_method] ?? claim.pay_method)}
             {info("ເປີດໂດຍ", claim.created_by)}
           </div>
+
+          {/* ── ຮູບຫຼັກฐาน ── */}
+          {photos.length > 0 && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="mb-2 text-xs font-bold text-slate-600">ຮູບຫຼັກຖານ ({photos.length})</p>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {photos.map((p) => (
+                  <a key={p.id} href={`/api/uploads/${encodeURIComponent(p.path)}`} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-slate-200">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`/api/uploads/${encodeURIComponent(p.path)}`} alt="ຫຼັກຖານ" className="aspect-square w-full bg-slate-50 object-cover" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ── ໃບເຄມທີ່ກ່ຽວ (B/A/C ຂອງເລື່ອງດຽວກັນ · ຜູກຜ່ານເລກສ້ອມ) + ແຕກໃບ ── */}
           {claim.ref_job && (

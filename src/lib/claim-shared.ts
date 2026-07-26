@@ -90,7 +90,18 @@ export type ClaimRow = {
   email_sent_at: string | null;
   pay_method: string | null;
   remark: string | null;
+  // ── ຂໍ້ມູນສິນຄ້າ/ຮັບປະກັນ (redesign — ໃສ່ຕົງ ຫຼື ດຶງຈາກເລກສ້ອມ) ──
+  product: string | null;
+  model: string | null;
+  sn: string | null;
+  /** ໃນ/ນອກ ປະກັນ — "in" | "out" | null */
+  warranty: string | null;
+  purchase_date: string | null;
+  contact: string | null;
 };
+
+export type ClaimPhoto = { id: number; path: string; created_at: string | null };
+export const WARRANTY_LABEL: Record<string, string> = { in: "ໃນປະກັນ", out: "ນອກປະກັນ" };
 
 /** ຂໍ້ມູນ job (ເລກສ້ອມ/ສິນຄ້າ/SN/Model/ອາການ) — CLM-C ດຶງມາກຳນົດການເຄມ + email */
 export type JobDelivery = {

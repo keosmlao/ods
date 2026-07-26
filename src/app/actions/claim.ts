@@ -3,9 +3,11 @@ import { CLAIM_FLOW, CLAIM_REJECTED, claimByNo, type ClaimJobCandidate, cobInfo,
 import { logChange } from "@/lib/chatter-log";
 import { requireRole } from "@/lib/guard";
 import { sendMail } from "@/lib/mail";
-import { query } from "@/lib/db";
+import { db, query } from "@/lib/db";
+import { collectUploads, saveUploads } from "@/lib/uploads";
 import { recipientTargets } from "@/lib/report-recipient";
 import { CLAIM_SIDE } from "@/lib/roles";
+import { unlink } from "node:fs/promises";
 import { revalidatePath } from "next/cache";
 
 export type ClaimState = { error?: string; claimNo?: string };
@@ -32,6 +34,12 @@ export async function createClaim(input: {
   customer_code?: string;
   ref_job?: string;
   reason?: string;
+  product?: string;
+  model?: string;
+  sn?: string;
+  warranty?: string;
+  purchase_date?: string;
+  contact?: string;
 }): Promise<ClaimState> {
   const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດເປີດໃບເຄມ");
   if (!guard.ok) return { error: guard.error };
@@ -44,9 +52,12 @@ export async function createClaim(input: {
   // (Postgres snapshot). ໃຊ້ 2 statement: insert returning id → update claim_no.
   const id = (
     await query<{ id: number }>(
-      `insert into ods_claim(claim_type, supplier_code, brand_code, customer_code, ref_job, reason, status, created_by)
-       values ($1, nullif($2,''), nullif($3,''), nullif($4,''), nullif($5,''), nullif($6,''), $7, $8) returning id`,
-      [type, input.supplier_code ?? "", input.brand_code ?? "", input.customer_code ?? "", input.ref_job ?? "", input.reason ?? "", START[type], guard.session.username],
+      `insert into ods_claim(claim_type, supplier_code, brand_code, customer_code, ref_job, reason, status, created_by,
+         product, model, sn, warranty, purchase_date, contact)
+       values ($1, nullif($2,''), nullif($3,''), nullif($4,''), nullif($5,''), nullif($6,''), $7, $8,
+         nullif($9,''), nullif($10,''), nullif($11,''), nullif($12,''), nullif($13,'')::date, nullif($14,'')) returning id`,
+      [type, input.supplier_code ?? "", input.brand_code ?? "", input.customer_code ?? "", input.ref_job ?? "", input.reason ?? "", START[type], guard.session.username,
+        input.product ?? "", input.model ?? "", input.sn ?? "", input.warranty ?? "", input.purchase_date ?? "", input.contact ?? ""],
     )
   ).rows[0]?.id;
   if (!id) return { error: "ເປີດໃບເຄມບໍ່ສຳເລັດ" };
@@ -57,6 +68,36 @@ export async function createClaim(input: {
   await log(row.claim_no, guard.session.username, "created", `ເປີດໃບເຄມ type ${type}`);
   revalidatePath("/claims");
   return { claimNo: row.claim_no };
+}
+
+/**
+ * ແนบຮูปຫຼັກฐาน (ຫຼັງເປີດໃບ) — ເກັບໃນ product_image (ref_code=claim_no · ໃຊ້ຮ່ວມ /api/uploads).
+ * ⚠️ ຮູບ rollback = ລຶບໄຟລ໌ທີ່ຂຽນໄປ (ບໍ່ໃຫ້ຄ້າງ orphan).
+ */
+export async function addClaimPhotos(claimNo: string, formData: FormData): Promise<{ error?: string; ok?: boolean }> {
+  const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດແนบຮูป");
+  if (!guard.ok) return { error: guard.error };
+  if (!db) return { error: "ຖານຂໍ້ມູນຍັງບໍ່ພ້ອມ" };
+  const collected = await collectUploads(formData);
+  if (!collected.ok) return { error: collected.error };
+  if (!collected.uploads.length) return { ok: true };
+
+  const client = await db.connect();
+  const written: string[] = [];
+  try {
+    await client.query("begin");
+    await saveUploads(client, claimNo, collected.uploads, written, "ref_code");
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    for (const p of written) await unlink(p).catch(() => {});
+    console.error("addClaimPhotos failed", error);
+    return { error: "ແนบຮูปບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+  }
+  revalidatePath(`/claims/${claimNo}`);
+  return { ok: true };
 }
 
 const stampFor = (status: string): string | null =>
