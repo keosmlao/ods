@@ -7,6 +7,7 @@ import {
   listClaims,
   type ClaimType,
 } from "@/lib/claim";
+import { ClaimRowActions } from "@/components/claims/claim-row-actions";
 import { Download, FilePlus2, ReceiptText, Search } from "lucide-react";
 import Link from "next/link";
 
@@ -119,6 +120,7 @@ export async function ClaimsView({
                 <th className="px-3 py-2 font-semibold">ເລກງານ</th>
                 <th className="px-3 py-2 text-right font-semibold">ຍອດ</th>
                 <th className="px-3 py-2 font-semibold">ເປີດ</th>
+                <th className="px-3 py-2" />
               </tr>
             </thead>
             <tbody>
@@ -135,6 +137,7 @@ export async function ClaimsView({
                   <td className="whitespace-nowrap px-3 py-2">{r.ref_job || "-"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{r.amount ? r.amount.toLocaleString() : "-"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-slate-500">{r.created_at || "-"}{r.created_by ? ` · ${r.created_by}` : ""}</td>
+                  <td className="whitespace-nowrap px-3 py-2"><ClaimRowActions claimNo={r.claim_no} /></td>
                 </tr>
               ))}
             </tbody>
