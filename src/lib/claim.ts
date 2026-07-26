@@ -65,15 +65,17 @@ export async function relatedClaims(refJob: string | null, excludeNo: string): P
 export async function searchCustomers(q = "", limit = 30): Promise<{ code: string; name: string; tel: string | null }[]> {
   const term = q.trim();
   const args: (string | number)[] = [];
-  let where = "";
+  const conds = ["nullif(trim(name_1),'') is not null"]; // ຂ້າມ customer ບໍ່ມີຊື່ (picker ບໍ່ໃຫ້ແຖວເປົ່າ)
   if (term) {
     args.push(`%${term}%`);
-    where = `where code ilike $1 or name_1 ilike $1 or tel ilike $1`;
+    conds.push(`(code ilike $${args.length} or name_1 ilike $${args.length} or tel ilike $${args.length})`);
   }
+  const where = `where ${conds.join(" and ")}`;
   args.push(limit);
   return (
     await query<{ code: string; name: string; tel: string | null }>(
-      `select code, name_1 name, tel from ar_customer ${where} order by name_1 limit $${args.length}`,
+      // ⚠️ alias ຕ້ອງ quote — `name_1 name` ຊົນກັບ type `name` ຂອງ Postgres = syntax error
+      `select code, name_1 as "name", tel from ar_customer ${where} order by name_1 limit $${args.length}`,
       args,
     )
   ).rows;
