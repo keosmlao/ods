@@ -90,6 +90,21 @@ export function RepairBalanceTable({
                 <td className="px-4 py-2.5">
                   <span className="block font-medium text-slate-700">{item.name}</span>
                   <span className="text-[11px] text-slate-400">{item.code}{item.unit_code ? ` · ${item.unit_code}` : ""}</span>
+                  {/* ── ແຍກທີ່ຈັດເກັບ (shelf) — ກອງຕາມ tab ສາງ ── */}
+                  {(() => {
+                    const locs = (tab === "all" ? item.locations : item.locations.filter((l) => l.wh_code === tab)).filter((l) => l.qty > 0);
+                    return locs.length ? (
+                      <span className="mt-1 flex flex-wrap gap-1">
+                        {locs.map((l, i) => (
+                          <span key={`${l.wh_code}-${l.location}-${i}`} className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+                            {tab === "all" && <b className="font-semibold text-slate-600">{l.wh_name}</b>}
+                            <span className="font-mono">{l.location || "—"}</span>
+                            <span className="tabular-nums text-emerald-600">{fmt(l.qty)}</span>
+                          </span>
+                        ))}
+                      </span>
+                    ) : null;
+                  })()}
                 </td>
                 {tab === "all" ? (
                   <>

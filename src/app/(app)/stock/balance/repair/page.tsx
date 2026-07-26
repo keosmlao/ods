@@ -22,7 +22,7 @@ export default async function RepairBalancePage({ searchParams }: Props) {
   const { items, refreshedAt } = await repairStockCache(q);
 
   return (
-    <div className="mx-auto max-w-4xl pb-16">
+    <div className="w-full pb-16">
       <PageTitle sub={t.subtitle}>
         {t.title}
       </PageTitle>

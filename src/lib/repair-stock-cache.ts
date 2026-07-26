@@ -13,18 +13,18 @@ export async function refreshRepairStock(): Promise<{ count: number }> {
 
   // ຄິດຍອດສະເພາະລາຍການທີ່ເຄີຍເຄື່ອນໄຫວຜ່ານ 2 ສາງນັ້ນ (ຫຼຸດການ scan ທັງ catalog)
   const rows = (
-    await queryOdg<{ item_code: string; item_name: string | null; unit_code: string | null; wh_code: string; qty: number }>(
+    await queryOdg<{ item_code: string; item_name: string | null; unit_code: string | null; wh_code: string; location: string; qty: number }>(
       `with cand as (
          select distinct item_code from ic_trans_detail
           where wh_code = any($1::text[]) or wh_code_2 = any($1::text[])
        )
        select cand.item_code, max(i.name_1) as item_name, max(i.unit_standard) as unit_code,
-              b.warehouse as wh_code, round(sum(b.balance_qty), 2)::float8 as qty
+              b.warehouse as wh_code, coalesce(b.location,'') as "location", round(sum(b.balance_qty), 2)::float8 as qty
          from cand
          join ic_inventory i on i.code = cand.item_code
          left join lateral sml_ic_function_stock_balance_warehouse_location('2099-12-31', cand.item_code, '', '') b on true
         where b.warehouse = any($1::text[]) and coalesce(b.balance_qty, 0) > 0
-        group by cand.item_code, b.warehouse`,
+        group by cand.item_code, b.warehouse, b.location`,
       [[...REPAIR_WAREHOUSES]],
     )
   ).rows;
@@ -35,14 +35,15 @@ export async function refreshRepairStock(): Promise<{ count: number }> {
     await client.query("delete from ods_repair_stock_cache");
     if (rows.length) {
       await client.query(
-        `insert into ods_repair_stock_cache(wh_code, item_code, item_name, unit_code, qty)
-         select * from unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::numeric[])`,
+        `insert into ods_repair_stock_cache(wh_code, item_code, item_name, unit_code, qty, location)
+         select * from unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::numeric[], $6::text[])`,
         [
           rows.map((r) => r.wh_code),
           rows.map((r) => r.item_code),
           rows.map((r) => r.item_name ?? ""),
           rows.map((r) => r.unit_code ?? ""),
           rows.map((r) => r.qty),
+          rows.map((r) => r.location ?? ""),
         ],
       );
     }
@@ -62,6 +63,8 @@ export type RepairStockItem = {
   unit_code: string | null;
   total: number;
   warehouses: { code: string; name: string; qty: number }[];
+  /** ແຍກຕາມ **ທີ່ຈັດເກັບ** (shelf/location) ພາຍໃນສາງ */
+  locations: { wh_code: string; wh_name: string; location: string; qty: number }[];
 };
 
 /** ອ່ານ cache (ໄວ) — ກອງດ້ວຍ q (ຊື່/ລະຫັດ). ຄືນລາຍການ + ເວລາທີ່ດຶງລ່າສຸດ. */
@@ -73,9 +76,9 @@ export async function repairStockCache(q = ""): Promise<{ items: RepairStockItem
     where = `where item_code ilike $1 or item_name ilike $1`;
   }
   const rows = (
-    await query<{ item_code: string; item_name: string | null; unit_code: string | null; wh_code: string; qty: string }>(
-      `select item_code, item_name, unit_code, wh_code, qty from ods_repair_stock_cache
-       ${where} order by item_name nulls last, item_code`,
+    await query<{ item_code: string; item_name: string | null; unit_code: string | null; wh_code: string; location: string | null; qty: string }>(
+      `select item_code, item_name, unit_code, wh_code, coalesce(location,'') as "location", qty from ods_repair_stock_cache
+       ${where} order by item_name nulls last, item_code, wh_code, location`,
       args,
     )
   ).rows;
@@ -94,10 +97,17 @@ export async function repairStockCache(q = ""): Promise<{ items: RepairStockItem
       unit_code: row.unit_code,
       total: 0,
       warehouses: [],
+      locations: [],
     };
     const qty = Number(row.qty);
+    const whName = REPAIR_WH_LABEL[row.wh_code] ?? row.wh_code;
     item.total += qty;
-    item.warehouses.push({ code: row.wh_code, name: REPAIR_WH_LABEL[row.wh_code] ?? row.wh_code, qty });
+    // ແຍກຕາມທີ່ຈັດເກັບ (1 ແຖວ cache = 1 wh+location)
+    item.locations.push({ wh_code: row.wh_code, wh_name: whName, location: row.location ?? "", qty });
+    // ລວມຕໍ່ສາງ (ໃຫ້ tab/ຖັນສາງ)
+    const wh = item.warehouses.find((w) => w.code === row.wh_code);
+    if (wh) wh.qty += qty;
+    else item.warehouses.push({ code: row.wh_code, name: whName, qty });
     byItem.set(row.item_code, item);
   }
   const items = [...byItem.values()];
