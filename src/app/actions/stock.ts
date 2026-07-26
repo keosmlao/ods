@@ -105,7 +105,7 @@ function nowParts() {
 /** ods: /additemtoreg — ເພີ່ມອາໄຫຼ່ໃສ່ໃບຂໍເບີກ (ຍັງບໍ່ທັນບັນທຶກເປັນເອກະສານ) */
 export async function addSpareToRequest(formData: FormData): Promise<void> {
   // ໃບຂໍເບີກ: ຊ່າງເປັນຄົນສ້າງ · ສາງເປັນຄົນຈ່າຍ (ເບິ່ງ lib/roles ແຖວ /stock/requests)
-  await requireRoleOrRedirect(TECH_SIDE);
+  const session = await requireRoleOrRedirect(TECH_SIDE);
   if (!db) return;
 
   const roworder = text(formData, "roworder");
@@ -114,6 +114,15 @@ export async function addSpareToRequest(formData: FormData): Promise<void> {
   const itemName = text(formData, "name_1");
   const unitCode = text(formData, "unit_code");
   if (!roworder || !productCode || !itemCode) return;
+
+  // ownership — ຢືນຢັນວຽກນີ້ແມ່ນຂອງຊ່າງຄົນນີ້ (ຄືກັບ addSpareToRequestFromDialog):
+  // ກັນຊ່າງເພີ່ມອາໄຫຼ່ໃສ່ວຽກຂອງຄົນອື່ນ (product_code ມາຈາກ form ໂດຍກົງ)
+  const target = await db.query<{ emp_code: string | null }>(
+    `select emp_code from tb_product where roworder=$1 and code=$2`,
+    [roworder, productCode],
+  );
+  const job = target.rows[0];
+  if (!job || !canViewAssignedJob(session, job.emp_code)) return;
 
   await db.query(
     `insert into tb_used_spare(product_code, item_code, item_name, qty, unit_code) values($1,$2,$3,1,$4)`,
@@ -539,7 +548,8 @@ export async function saveReturnRequest(_: StockState, formData: FormData): Prom
     await client.query("rollback").catch(() => {});
     await odgReturn.query("rollback").catch(() => {});
     console.error("saveReturnRequest failed", error);
-    return { error: "ບັນທຶກບໍ່ສຳເລັດ — ERP ບໍ່ຮັບໃບຂໍສົ່ງຄືນນີ້ (ບໍ່ໄດ້ບັນທຶກຫຍັງເລີຍ)" };
+    // 2 DB ບໍ່ atomic — ຢ່າອ້າງ "ບໍ່ບັນທຶກຫຍັງເລີຍ"; ເຕືອນໃຫ້ກວດ ERP ກ່ອນສ້າງໃໝ່
+    return { error: "ບັນທຶກບໍ່ສຳເລັດ — ກະລຸນາກວດວ່າໃບຂໍສົ່ງຄືນຂຶ້ນ ERP ແລ້ວບໍ ກ່ອນສ້າງໃໝ່" };
   } finally {
     client.release();
     odgReturn.release();
@@ -757,7 +767,7 @@ export async function saveTransferRequest(_: StockState, formData: FormData): Pr
     await odg.query("rollback").catch(() => {});
     await ods.query("rollback").catch(() => {});
     console.error("saveTransferRequest failed", error);
-    return { error: "ຂໍໂອນບໍ່ສຳເລັດ" };
+    return { error: "ຂໍໂອນບໍ່ສຳເລັດ — ກະລຸນາກວດວ່າໃບຂໍໂອນຂຶ້ນ ERP ແລ້ວບໍ ກ່ອນສ້າງໃໝ່" };
   } finally {
     odg.release();
     ods.release();
@@ -880,7 +890,7 @@ export async function saveRepairTransfer(_: StockState, formData: FormData): Pro
     await odg.query("rollback").catch(() => {});
     await ods.query("rollback").catch(() => {});
     console.error("saveRepairTransfer failed", error);
-    return { error: "ຂໍໂອນບໍ່ສຳເລັດ" };
+    return { error: "ຂໍໂອນບໍ່ສຳເລັດ — ກະລຸນາກວດວ່າໃບຂໍໂອນຂຶ້ນ ERP ແລ້ວບໍ ກ່ອນສ້າງໃໝ່" };
   } finally {
     odg.release();
     ods.release();
@@ -962,13 +972,17 @@ export async function saveReceiveTransfer(_: StockState, formData: FormData): Pr
     }
 
     await client.query("begin");
-    // ປິດໃບຂໍໂອນ (ຫົວ + ລາຍລະອຽດ) — ບໍ່ແຕະ ic_inventory ແລະ ບໍ່ຂຽນ ERP
-    await client.query(`update ic_trans set status=$1, remark_2=$2 where doc_no=$3 and trans_flag=$4`, [
-      LINE_STATUS.ISSUED,
-      remark || null,
-      docNo,
-      TRANS.TRANSFER,
-    ]);
+    // ປິດໃບຂໍໂອນ (ຫົວ + ລາຍລະອຽດ) — ບໍ່ແຕະ ic_inventory ແລະ ບໍ່ຂຽນ ERP.
+    // ⚠️ guard status ໃນ WHERE (ບໍ່ພຽງເຊັກກ່ອນ begin) — 2 ຄົນກົດຮັບພ້ອມກັນ ຄົນທີ 2
+    //    rowCount=0 ⇒ ຢຸດ (ບໍ່ດັ່ງນັ້ນ ຍິງ logChange/notify ຊ້ຳ).
+    const received = await client.query(
+      `update ic_trans set status=$1, remark_2=$2 where doc_no=$3 and trans_flag=$4 and coalesce(status,0)<>$1`,
+      [LINE_STATUS.ISSUED, remark || null, docNo, TRANS.TRANSFER],
+    );
+    if (!received.rowCount) {
+      await client.query("rollback");
+      return { error: "ໃບນີ້ຮັບຂອງໄປແລ້ວ" };
+    }
     await client.query(`update ic_trans_detail set status=$1 where doc_no=$2 and trans_flag=$3`, [
       LINE_STATUS.ISSUED,
       docNo,
