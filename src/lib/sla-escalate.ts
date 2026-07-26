@@ -38,7 +38,7 @@ type Job = {
 
 const LEFT = `extract(epoch from (a.doc_ref_date + interval '24 hours' - localtimestamp))/3600`;
 
-export async function escalateInstallSla(): Promise<EscalationResult> {
+export async function escalateInstallSla(dryRun = false): Promise<EscalationResult> {
   const result: EscalationResult = { unassigned: 0, unaccepted: 0 };
 
   // ── ① ຍັງບໍ່ຈັດຊ່າງ ⇒ ເຕືອນ CS/ຜູ້ຈັດການ ──
@@ -59,16 +59,18 @@ export async function escalateInstallSla(): Promise<EscalationResult> {
 
   for (const job of unassigned.rows) {
     const late = job.hours_left < 0;
-    await logChange(
-      "ods_tb_install",
-      job.code,
-      `${late ? "⏰ ເລີຍກຳນົດ 24 ຊມ ແລ້ວ" : `⏰ ເຫຼືອ ${job.hours_left} ຊມ ຈະຄົບ 24 ຊມ`} — ງານນີ້ **ຍັງບໍ່ໄດ້ຈັດຊ່າງ**` +
-        ` · ລູກຄ້າ ${job.customer ?? "-"}${job.location ? ` · ${job.location}` : ""}`,
-      { roles: ["admin", "manager"] },
-    );
-    await query("insert into ods_sla_escalation(job_code, kind) values($1,'unassigned') on conflict do nothing", [
-      job.code,
-    ]);
+    if (!dryRun) {
+      await logChange(
+        "ods_tb_install",
+        job.code,
+        `${late ? "⏰ ເລີຍກຳນົດ 24 ຊມ ແລ້ວ" : `⏰ ເຫຼືອ ${job.hours_left} ຊມ ຈະຄົບ 24 ຊມ`} — ງານນີ້ **ຍັງບໍ່ໄດ້ຈັດຊ່າງ**` +
+          ` · ລູກຄ້າ ${job.customer ?? "-"}${job.location ? ` · ${job.location}` : ""}`,
+        { roles: ["admin", "manager"] },
+      );
+      await query("insert into ods_sla_escalation(job_code, kind) values($1,'unassigned') on conflict do nothing", [
+        job.code,
+      ]);
+    }
     result.unassigned += 1;
   }
 
@@ -93,21 +95,23 @@ export async function escalateInstallSla(): Promise<EscalationResult> {
     const late = job.hours_left < 0;
     const headline = late ? "⏰ ເລີຍກຳນົດ 24 ຊມ ແລ້ວ" : `⏰ ເຫຼືອ ${job.hours_left} ຊມ`;
 
-    // ຊ່າງຢູ່ໜ້າງານ ບໍ່ໄດ້ເປີດເວັບຄ້າງໄວ້ ⇒ ຕ້ອງເຂົ້າມືຖື
-    await pushToUser(job.tech, `${headline} — ຍັງບໍ່ໄດ້ກົດຮັບງານ`, `${job.code} · ${job.location ?? ""}`, {
-      workflow: "install",
-      code: job.code,
-    });
-    // ຫົວໜ້າຊ່າງ/ຜູ້ຈັດການ ຕ້ອງຮູ້ນຳ — ຖ້າຊ່າງເງີຍ ຕ້ອງປ່ຽນຄົນ
-    await logChange(
-      "ods_tb_install",
-      job.code,
-      `${headline} — ຊ່າງ ${job.tech} **ຍັງບໍ່ກົດຮັບງານ** · ລູກຄ້າ ${job.customer ?? "-"}`,
-      { roles: ["headtechnical", "manager"], users: [job.tech] },
-    );
-    await query("insert into ods_sla_escalation(job_code, kind) values($1,'unaccepted') on conflict do nothing", [
-      job.code,
-    ]);
+    if (!dryRun) {
+      // ຊ່າງຢູ່ໜ້າງານ ບໍ່ໄດ້ເປີດເວັບຄ້າງໄວ້ ⇒ ຕ້ອງເຂົ້າມືຖື
+      await pushToUser(job.tech, `${headline} — ຍັງບໍ່ໄດ້ກົດຮັບງານ`, `${job.code} · ${job.location ?? ""}`, {
+        workflow: "install",
+        code: job.code,
+      });
+      // ຫົວໜ້າຊ່າງ/ຜູ້ຈັດການ ຕ້ອງຮູ້ນຳ — ຖ້າຊ່າງເງີຍ ຕ້ອງປ່ຽນຄົນ
+      await logChange(
+        "ods_tb_install",
+        job.code,
+        `${headline} — ຊ່າງ ${job.tech} **ຍັງບໍ່ກົດຮັບງານ** · ລູກຄ້າ ${job.customer ?? "-"}`,
+        { roles: ["headtechnical", "manager"], users: [job.tech] },
+      );
+      await query("insert into ods_sla_escalation(job_code, kind) values($1,'unaccepted') on conflict do nothing", [
+        job.code,
+      ]);
+    }
     result.unaccepted += 1;
   }
 
@@ -125,14 +129,14 @@ export type FrontStageEscalation = { ps_pickup: number; ih_schedule: number };
  *   PS ຄ້າງໄປຮັບ > 48ຊມ (ຍັງບໍ່ຮັບເຂົ້າສູນ) · IH ຄ້າງນັດ > 24ຊມ (ຍັງບໍ່ຈັດຊ່າງ)
  * ⇒ ເຕືອນ CS/ຜູ້ຈັດການ (chatter). ເຕືອນເທື່ອດຽວຕໍ່ໃບຕໍ່ປະເພດ (ods_sla_escalation).
  */
-export async function escalateRepairFrontStage(): Promise<FrontStageEscalation> {
+export async function escalateRepairFrontStage(dryRun = false): Promise<FrontStageEscalation> {
   const result: FrontStageEscalation = { ps_pickup: 0, ih_schedule: 0 };
 
   const overdue = async (kind: "ps_pickup" | "ih_schedule", where: string) =>
     (
       await query<{ code: string; customer: string | null; hours: number }>(
         `select a.code, c.name_1 as customer,
-            round(extract(epoch from (localtimestamp - a.time_register))/3600::numeric, 1)::float as hours
+            round((extract(epoch from (localtimestamp - a.time_register))/3600)::numeric, 1)::float as hours
           from tb_product a
           left join ar_customer c on c.code = a.cust_code
          where a.status <> 6 and a.return_complete is null and ${where}
@@ -148,13 +152,15 @@ export async function escalateRepairFrontStage(): Promise<FrontStageEscalation> 
       and a.time_register < localtimestamp - interval '${PS_PICKUP_HOURS} hours'`,
   );
   for (const job of ps) {
-    await logChange(
-      "tb_product",
-      job.code,
-      `⏰ PS ຄ້າງໄປຮັບເຄື່ອງ ${Math.round(job.hours)} ຊມ ແລ້ວ — **ຍັງບໍ່ຮັບເຂົ້າສູນ** · ລູກຄ້າ ${job.customer ?? "-"}`,
-      { roles: ["admin", "manager"] },
-    );
-    await query("insert into ods_sla_escalation(job_code, kind) values($1,'ps_pickup') on conflict do nothing", [job.code]);
+    if (!dryRun) {
+      await logChange(
+        "tb_product",
+        job.code,
+        `⏰ PS ຄ້າງໄປຮັບເຄື່ອງ ${Math.round(job.hours)} ຊມ ແລ້ວ — **ຍັງບໍ່ຮັບເຂົ້າສູນ** · ລູກຄ້າ ${job.customer ?? "-"}`,
+        { roles: ["admin", "manager"] },
+      );
+      await query("insert into ods_sla_escalation(job_code, kind) values($1,'ps_pickup') on conflict do nothing", [job.code]);
+    }
     result.ps_pickup += 1;
   }
 
@@ -165,13 +171,15 @@ export async function escalateRepairFrontStage(): Promise<FrontStageEscalation> 
       and a.time_register < localtimestamp - interval '${IH_SCHEDULE_HOURS} hours'`,
   );
   for (const job of ih) {
-    await logChange(
-      "tb_product",
-      job.code,
-      `⏰ IH ຄ້າງນັດ/ຈັດຊ່າງ ${Math.round(job.hours)} ຊມ ແລ້ວ — **ຍັງບໍ່ຈັດຊ່າງໄປສ້ອມ** · ລູກຄ້າ ${job.customer ?? "-"}`,
-      { roles: ["admin", "manager"] },
-    );
-    await query("insert into ods_sla_escalation(job_code, kind) values($1,'ih_schedule') on conflict do nothing", [job.code]);
+    if (!dryRun) {
+      await logChange(
+        "tb_product",
+        job.code,
+        `⏰ IH ຄ້າງນັດ/ຈັດຊ່າງ ${Math.round(job.hours)} ຊມ ແລ້ວ — **ຍັງບໍ່ຈັດຊ່າງໄປສ້ອມ** · ລູກຄ້າ ${job.customer ?? "-"}`,
+        { roles: ["admin", "manager"] },
+      );
+      await query("insert into ods_sla_escalation(job_code, kind) values($1,'ih_schedule') on conflict do nothing", [job.code]);
+    }
     result.ih_schedule += 1;
   }
 
@@ -187,7 +195,7 @@ export type RepairStageEscalation = { repair_stage: number };
  *   • chatter → ຫົວໜ້າຊ່າງ/ຜູ້ຈັດການ (ຖ້າຊ່າງຄາ ຕ້ອງຊ່ວຍ/ປ່ຽນຄົນ) — notify() ຍິງ push ໃຫ້ຄົນທີ່ມີ token
  * ⚠️ ເຕືອນ **ເທື່ອດຽວຕໍ່ໃບຕໍ່ຂັ້ນ** (kind = repair_stage_<ຂັ້ນ>) ⇒ ຂ້າມຂັ້ນໃໝ່ຈຶ່ງເຕືອນຄືນ, ບໍ່ດັງຊ້ຳຂັ້ນເກົ່າ.
  */
-export async function escalateRepairStageSla(): Promise<RepairStageEscalation> {
+export async function escalateRepairStageSla(dryRun = false): Promise<RepairStageEscalation> {
   const result: RepairStageEscalation = { repair_stage: 0 };
 
   const overdue = await query<{
@@ -218,22 +226,24 @@ export async function escalateRepairStageSla(): Promise<RepairStageEscalation> {
   for (const job of overdue.rows) {
     if (!job.tech) continue;
     const headline = `⏰ ເລີຍ SLA ຂັ້ນ "${job.stage_label}" ${job.over_hours} ຊມ`;
-    // ຊ່າງເຈົ້າຂອງງານ — ຄົນທີ່ຕ້ອງເລັ່ງ (push ໂດຍກົງ)
-    await pushToUser(job.tech, headline, `${job.code} · ${job.customer ?? ""}`, {
-      workflow: "repair",
-      code: job.code,
-    });
-    // ຫົວໜ້າ/ຜູ້ຈັດການ — ຖ້າຊ່າງຄາ ຕ້ອງຊ່ວຍ/ປ່ຽນຄົນ (notify ຍິງ push ໃຫ້ຄົນທີ່ມີ token)
-    await logChange(
-      "tb_product",
-      job.code,
-      `${headline} — ຊ່າງ ${job.tech} · ລູກຄ້າ ${job.customer ?? "-"}`,
-      { roles: ["headtechnical", "manager"] },
-    );
-    await query(
-      "insert into ods_sla_escalation(job_code, kind) values($1, 'repair_stage_' || $2) on conflict do nothing",
-      [job.code, job.stage],
-    );
+    if (!dryRun) {
+      // ຊ່າງເຈົ້າຂອງງານ — ຄົນທີ່ຕ້ອງເລັ່ງ (push ໂດຍກົງ)
+      await pushToUser(job.tech, headline, `${job.code} · ${job.customer ?? ""}`, {
+        workflow: "repair",
+        code: job.code,
+      });
+      // ຫົວໜ້າ/ຜູ້ຈັດການ — ຖ້າຊ່າງຄາ ຕ້ອງຊ່ວຍ/ປ່ຽນຄົນ (notify ຍິງ push ໃຫ້ຄົນທີ່ມີ token)
+      await logChange(
+        "tb_product",
+        job.code,
+        `${headline} — ຊ່າງ ${job.tech} · ລູກຄ້າ ${job.customer ?? "-"}`,
+        { roles: ["headtechnical", "manager"] },
+      );
+      await query(
+        "insert into ods_sla_escalation(job_code, kind) values($1, 'repair_stage_' || $2) on conflict do nothing",
+        [job.code, job.stage],
+      );
+    }
     result.repair_stage += 1;
   }
 

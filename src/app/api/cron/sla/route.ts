@@ -21,13 +21,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  // ?dry=1 = **ທົດສອບ** — ນັບວ່າຈະເຕືອນຈັກໃບ ໂດຍ **ບໍ່** push/chatter/insert (ບໍ່ລົບກວນຄົນ)
+  const dry = new URL(request.url).searchParams.get("dry") === "1";
+
   try {
     const [install, repair, repairStage] = await Promise.all([
-      escalateInstallSla(),
-      escalateRepairFrontStage(),
-      escalateRepairStageSla(),
+      escalateInstallSla(dry),
+      escalateRepairFrontStage(dry),
+      escalateRepairStageSla(dry),
     ]);
-    return NextResponse.json({ ok: true, ...install, ...repair, ...repairStage });
+    return NextResponse.json({ ok: true, dry, ...install, ...repair, ...repairStage });
   } catch (error) {
     console.error("sla cron failed", error);
     return NextResponse.json({ error: "ຕົວກວດລົ້ມເຫຼວ" }, { status: 500 });
