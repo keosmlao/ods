@@ -2,12 +2,10 @@
 import { createClaim } from "@/app/actions/claim";
 import { JobPickerModal } from "@/components/claim/job-picker-modal";
 import { SelectField } from "@/components/select-field";
-import { CLAIM_TYPE_LABEL, type ClaimJobCandidate, type ClaimType } from "@/lib/claim-shared";
+import { CLAIM_TYPE_LABEL, claimPagePath, type ClaimJobCandidate, type ClaimType } from "@/lib/claim-shared";
 import { LoaderCircle, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-
-const TYPES: ClaimType[] = ["A", "B", "C"];
 
 export function NewClaimForm({
   suppliers,
@@ -25,7 +23,8 @@ export function NewClaimForm({
   initialSupplier?: string;
 }) {
   const router = useRouter();
-  const [type, setType] = useState<ClaimType>(defaultType);
+  // type fixed ຕາມໜ້າທີ່ມາ (shop=B · supplier=A · reimburse=C) — ບໍ່ໃຫ້ເລືອກ pill ອີກ
+  const type = defaultType;
   const [supplier, setSupplier] = useState(initialSupplier);
   const [brand, setBrand] = useState(initialBrand);
   const [customer, setCustomer] = useState("");
@@ -63,12 +62,8 @@ export function NewClaimForm({
     <div className="max-w-xl space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div>
         <span className={label}>ປະເພດເຄມ</span>
-        <div className="flex flex-wrap gap-1.5">
-          {TYPES.map((t) => (
-            <button key={t} type="button" onClick={() => setType(t)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${t === type ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
-              <span className="font-mono">CLM-{t}</span> · {CLAIM_TYPE_LABEL[t]}
-            </button>
-          ))}
+        <div className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white">
+          <span className="font-mono">CLM-{type}</span> · {CLAIM_TYPE_LABEL[type]}
         </div>
       </div>
 
@@ -127,7 +122,7 @@ export function NewClaimForm({
       {error && <p className="text-xs font-semibold text-rose-600">{error}</p>}
 
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={() => router.push("/claims")} className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50">ຍົກເລີກ</button>
+        <button type="button" onClick={() => router.push(claimPagePath(type))} className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50">ຍົກເລີກ</button>
         <button type="button" disabled={pending} onClick={submit} className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-teal-600 px-5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
           {pending && <LoaderCircle className="size-4 animate-spin" />} ເປີດໃບເຄມ
         </button>
