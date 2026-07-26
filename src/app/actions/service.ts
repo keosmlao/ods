@@ -204,6 +204,11 @@ export async function createService(_: ServiceState, formData: FormData): Promis
 
     await saveUploads(client, code, uploads, written);
 
+    // ── ຜູກ 2 ທາງ ກັບໃບເຄມ ── ຖ້າໃບງານນີ້ເປີດຈາກປຸ່ມ "ສ້ອມ" ຂອງໃບເຄມ (?claim=CLMxxxxx):
+    // ໃບເຄມ.ref_job = ເລກງານໃໝ່ ⇒ ໃບເຄມຮູ້ເລກສ້ອມ · ໃບສ້ອມ→ໃບເຄມ ຄົ້ນຜ່ານ ref_job (relatedClaims).
+    const linkClaim = String(formData.get("claim") ?? "").trim();
+    if (linkClaim) await client.query("update ods_claim set ref_job=$1 where claim_no=$2", [code, linkClaim]);
+
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");

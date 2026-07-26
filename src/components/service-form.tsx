@@ -15,7 +15,7 @@ import { useDict } from "@/lib/i18n/context";
 import { useActionState, useEffect, useState } from "react";
 
 type Option = { code: string; name_1: string };
-export type ServicePrefill = { proname?: string; sn?: string; billon?: string; billdate?: string };
+export type ServicePrefill = { proname?: string; sn?: string; billon?: string; billdate?: string; claim?: string };
 
 const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100";
 const label = "mb-1 block text-sm text-slate-600";
@@ -225,6 +225,8 @@ export function ServiceForm({
                   isLoading={loadingProducts}
                 />
                 <input type="hidden" name="proname" value={productQuery} />
+                {/* ຜູກກັບໃບເຄມ — ຖ້າໃບງານນີ້ເປີດຈາກ "ສ້ອມ" ຂອງ CLM (createService ຈະ set claim.ref_job) */}
+                <input type="hidden" name="claim" value={prefill.claim ?? ""} />
                 {/**
                  * ລະຫັດສິນຄ້າ ERP — ຟອມນີ້ຄົ້ນ ERP ຢູ່ແລ້ວ ແຕ່ແຕ່ກ່ອນ **ຖິ້ມລະຫັດຖິ້ມ**
                  * ເກັບແຕ່ຊື່/ຮຸ່ນ/ຫຍີ່ຫໍ້. ຜົນຄື ໃບຮັບເຄື່ອງໄປຫາ ic_size / ic_design

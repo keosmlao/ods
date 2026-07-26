@@ -10,7 +10,7 @@ import { holdJsonSql, type JobHold } from "@/lib/job-hold";
 import { previousJobOf, REPEAT_DAYS } from "@/lib/repeat";
 import { AssignTechButton } from "@/components/installation/assign-tech";
 import { ClaimMarkToggle } from "@/components/claim/claim-mark-toggle";
-import { isJobClaimMarked } from "@/lib/claim";
+import { isJobClaimMarked, relatedClaims } from "@/lib/claim";
 import { RepairSpareEditor, type UsedSpareLine } from "@/components/repair/repair-spare-editor";
 import { ScheduleRepairVisitButton } from "@/components/repair/schedule-repair-visit-button";
 import { listTechnicians } from "@/lib/technicians";
@@ -27,7 +27,7 @@ import { stageLabel, STAGE_SQL } from "@/lib/stage";
 import { repairTimeline } from "@/lib/repair-timeline";
 import { JobTimeline } from "@/components/repair/job-timeline";
 import { DONE_STAGE } from "@/lib/track";
-import { ArrowLeft, Barcode, CalendarDays, ChevronDown, Clock, ImageIcon, MapPin, MessageCircle, Pencil, Phone, Printer, RotateCcw } from "lucide-react";
+import { ArrowLeft, Barcode, CalendarDays, ChevronDown, Clock, ImageIcon, MapPin, MessageCircle, Pencil, Phone, Printer, ReceiptText, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -244,6 +244,8 @@ export default async function ServiceDetail({ params }: Props) {
   // "ຄ້າງເບີກ" = ຍັງບໍ່ຢູ່ໃບຂໍເບີກ/ໃບເບີກໃດ (locked=false) ⇒ ອັນທີ່ createSpareRequest ຈະດຶງ
   const pendingSpares = spareLines.filter((line) => !line.locked).length;
   const claimMarked = await isJobClaimMarked(code);
+  // ໃບເຄມທີ່ຜູກກັບງານນີ້ (ເປີດຈາກປຸ່ມ "ສ້ອມ" ຂອງ CLM ⇒ ref_job = ເລກງານນີ້)
+  const linkedClaims = await relatedClaims(code, "");
 
   // ── ສະຖານທີ່ (ກົດເປີດ maps) + WhatsApp ຫາລູກຄ້າ ──
   const mapsUrl =
@@ -317,6 +319,11 @@ export default async function ServiceDetail({ params }: Props) {
       {/* ── ACTIONS ── */}
       <div className="flex flex-wrap items-center gap-2">
           <ClaimMarkToggle jobCode={code} marked={claimMarked} />
+          {linkedClaims.map((cl) => (
+            <Link key={cl.claim_no} href={`/claims/${cl.claim_no}`} className={action} title="ໃບເຄມທີ່ຜູກ">
+              <ReceiptText className="size-3.5 text-teal-600" /> ເຄມ {cl.claim_no}
+            </Link>
+          ))}
           {mapsUrl && (
             <a href={mapsUrl} target="_blank" rel="noreferrer" className={action} title="ເປີດ Google Maps">
               <MapPin className="size-3.5 text-rose-600" />

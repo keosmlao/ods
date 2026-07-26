@@ -88,8 +88,9 @@ export function ClaimManage({
               <button type="button" disabled={pending} onClick={() => act(async () => {
                 // ສ້ອມ ⇒ ບັນທຶກ resolution ແລ້ວ **ເຊື່ອມໄປເປີດໃບງານສ້ອມ** (ຕື່ມ ສິນຄ້າ/SN/ບິນ ໃຫ້)
                 const r = await resolveClaim(claimNo, "repair");
-                if (!r.error && repairPrefill) {
-                  const qs = new URLSearchParams(Object.entries(repairPrefill).filter(([, v]) => v) as [string, string][]);
+                if (!r.error) {
+                  const qs = new URLSearchParams(Object.entries(repairPrefill ?? {}).filter(([, v]) => v) as [string, string][]);
+                  qs.set("claim", claimNo); // ผูก 2 ทาง: createService ຈະ set claim.ref_job = ເລກງານໃໝ່
                   router.push(`/service/new?${qs.toString()}`);
                 }
                 return r;
