@@ -75,6 +75,8 @@ type Job = {
   receiver: string | null;
   /** ຍົກເລີກ = **ທຸງ** (status=6) ບໍ່ແມ່ນຂັ້ນ — ງານທີ່ຍົກເລີກແຕ່ເຄື່ອງຍັງຢູ່ ຢູ່ຂັ້ນ 11 */
   cancelled: boolean;
+  /** ສົ່ງເຄື່ອງຄືນລູກຄ້າສຳເລັດແລ້ວ (return_complete) — ຈຸດທີ່ ເຄມເງິນຄືນ supplier (C) ໄດ້ */
+  returned: boolean;
   images: number;
   contacts: number;
   /** ທຸງ "ຕ້ອງກວດ" ທີ່ຍັງເປີດຢູ່ (null = ບໍ່ມີ) — ໃຫ້ HoldButtons ສະແດງສະຖານະ/ປົດ */
@@ -93,7 +95,7 @@ export default async function ServiceDetail({ params }: Props) {
     await query<Job>(
       `select a.code, to_char(a.time_register,'DD-MM-YYYY HH24:MI') registered,
          greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int elapsed_seconds,
-         (${STAGE_SQL}) stage, (a.status = 6) cancelled,
+         (${STAGE_SQL}) stage, (a.status = 6) cancelled, (a.return_complete is not null) returned,
          c.code customer_code, c.name_1 customer, c.tel phone, c.address,
          a.name_1 product, a.sn, a.p_model model, a.p_brand brand, a.p_type product_type, a.p_access accessory,
          a.warrunty warranty, a.warranty_reason, a.service_type, a.issue, a.issue_2, a.p_abrasion remark, a.repair_note note,
@@ -246,8 +248,10 @@ export default async function ServiceDetail({ params }: Props) {
   const claimMarked = await isJobClaimMarked(code);
   // ໃບເຄມທີ່ຜູກກັບງານນີ້ (ເປີດຈາກປຸ່ມ "ສ້ອມ" ຂອງ CLM ⇒ ref_job = ເລກງານນີ້)
   const linkedClaims = await relatedClaims(code, "");
-  // ── ແຕກໃບເຄມ ຈາກໃບงານ (repair-first): A=ຂໍອາໄຫຼ່ supplier (ໃນປະກັນ) · C=ເກັບຄ່າ (ນອກປະກັນ) ──
-  const canClaim = !cancelled && CLAIM_SIDE.includes(roleOf(session));
+  // ── ແຕກໃບເຄມ ຈາກໃບงານ (repair-first, ສະເພາະ ໃນປະກັນ) ──
+  //   A = ຂໍອາໄຫຼ່/ປ່ຽນ ຈາກ supplier → ຕອນ **ກຳລັງສ້ອມ** (ຍັງບໍ່ສົ່ງຄືນ, ຕ້ອງการอะไหล่)
+  //   C = ເຄມເງິນຄືນ supplier → ຕອນ **ສົ່ງເຄື່ອງສຳເລັດ** (ສ້ອມໃນປະກັນໃຫ້ລູກຄ້າຟຣີ ແລ້ວໄປເກັບເງິນ supplier)
+  const canClaim = !cancelled && inWarranty && CLAIM_SIDE.includes(roleOf(session));
   const haveClaimTypes = new Set(linkedClaims.map((cl) => cl.claim_type));
   const claimSpawnQs = (ty: string) =>
     `/claims/new?${new URLSearchParams({ type: ty, ref_job: code, ...(job.brand ? { brand: job.brand } : {}), ...(job.product ? { product: job.product } : {}), ...(job.model ? { model: job.model } : {}), ...(job.sn ? { sn: job.sn } : {}) })}`;
@@ -329,15 +333,16 @@ export default async function ServiceDetail({ params }: Props) {
               <ReceiptText className="size-3.5 text-teal-600" /> ເຄມ {cl.claim_no}
             </Link>
           ))}
-          {/* ແຕກໃບເຄມ ຈາກໃບงານ (ຕາມຫຼັກ: ໃນປະກັນ→ຂໍອາໄຫຼ່ A · ນອກປະກັນ→ເກັບຄ່າ C) */}
-          {canClaim && !haveClaimTypes.has("A") && (
-            <Link href={claimSpawnQs("A")} className={action} title="ຂໍອາໄຫຼ່ຈາກ supplier (ໃນປະກັນ ຕ້ອງປ່ຽນອາໄຫຼ່)">
+          {/* A = ຂໍອາໄຫຼ່/ປ່ຽນ supplier — ຕອນກຳລັງສ້ອມ (ຍັງບໍ່ສົ່ງເຄື່ອງຄືນ) */}
+          {canClaim && !job.returned && !haveClaimTypes.has("A") && (
+            <Link href={claimSpawnQs("A")} className={action} title="ຂໍອາໄຫຼ່ / ປ່ຽນຕົວໃໝ່ ຈາກ supplier (ໃນປະກັນ)">
               <FilePlus2 className="size-3.5 text-violet-600" /> ແຕກເຄມ · ຂໍອາໄຫຼ່ (A)
             </Link>
           )}
-          {canClaim && !haveClaimTypes.has("C") && (
-            <Link href={claimSpawnQs("C")} className={action} title="ເກັບຄ່າສ້ອມ ຈາກ supplier (ນອກປະກັນ)">
-              <FilePlus2 className="size-3.5 text-sky-600" /> ແຕກເຄມ · ເກັບຄ່າ (C)
+          {/* C = ເຄມເງິນຄືນ supplier — ໄດ້ຕໍ່ເມື່ອ ສົ່ງເຄື່ອງສຳເລັດ (ສ້ອມຟຣີໃຫ້ລູກຄ້າແລ້ວ) */}
+          {canClaim && job.returned && !haveClaimTypes.has("C") && (
+            <Link href={claimSpawnQs("C")} className={action} title="ເຄມເງິນຄືນ supplier — ສ້ອມໃນປະກັນໃຫ້ລູກຄ້າຟຣີ ໄປເກັບເງິນນຳ supplier">
+              <FilePlus2 className="size-3.5 text-sky-600" /> ເຄມເງິນຄືນ supplier (C)
             </Link>
           )}
           {mapsUrl && (
