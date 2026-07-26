@@ -1,5 +1,6 @@
 import { getDashboard } from "@/lib/dashboard";
 import { listTechnicians } from "@/lib/technicians";
+import { query } from "@/lib/db";
 
 /**
  * ພາບລວມສຳລັບຜູ້ຈັດການ ຢູ່ມືຖື — **ຫຍໍ້ຈາກ** getDashboard (ໜ້າ dashboard ຂອງເວັບ)
