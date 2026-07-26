@@ -2,11 +2,11 @@ import { Chatter } from "@/components/chatter/chatter";
 import { ClaimEditDelete } from "@/components/claim/claim-edit-delete";
 import { ClaimManage } from "@/components/claim/claim-manage";
 import { getSession } from "@/lib/auth";
-import { CLAIM_FLOW, CLAIM_REJECTED, CLAIM_TYPE_LABEL, claimByNo, claimItems, claimNextStatus, cobInfo, isClaimOpen, jobDelivery, PAY_METHOD_LABEL } from "@/lib/claim";
+import { CLAIM_FLOW, CLAIM_REJECTED, CLAIM_TYPE_LABEL, claimByNo, claimItems, claimNextStatus, claimPagePath, cobInfo, isClaimOpen, jobDelivery, PAY_METHOD_LABEL, relatedClaims } from "@/lib/claim";
 import { getErpBrands } from "@/lib/erp-master";
 import { searchSuppliers } from "@/lib/erp-supplier";
 import { CLAIM_SIDE, roleOf } from "@/lib/roles";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Plus } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -23,6 +23,11 @@ export default async function ClaimDetailPage({ params }: Props) {
   const claim = await claimByNo(claimNo);
   if (!claim) notFound();
   const items = await claimItems(claimNo);
+  const related = await relatedClaims(claim.ref_job, claim.claim_no);
+  // ປະເພດທີ່ມີແລ້ວ (ໃບນີ້ + ໃບກ່ຽວ) — ບໍ່ໃຫ້ແຕກໃບຊ້ຳ
+  const haveTypes = new Set([claim.claim_type, ...related.map((r) => r.claim_type)]);
+  const spawnQs = (t: string) =>
+    `/claims/new?${new URLSearchParams({ type: t, ref_job: claim.ref_job ?? "", ...(claim.brand_code ? { brand: claim.brand_code } : {}), ...(claim.supplier_code ? { supplier: claim.supplier_code } : {}) })}`;
   const next = claimNextStatus(claim.claim_type, claim.status);
   const cob = claim.claim_type === "C" && claim.erp_doc_no ? await cobInfo(claim.erp_doc_no).catch(() => null) : null;
   const delivery = claim.claim_type === "C" && claim.ref_job ? await jobDelivery(claim.ref_job).catch(() => null) : null;
@@ -40,7 +45,7 @@ export default async function ClaimDetailPage({ params }: Props) {
 
   return (
     <div className="w-full space-y-4">
-      <Link href={`/claims?type=${claim.claim_type}`} className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-700">
+      <Link href={claimPagePath(claim.claim_type)} className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-700">
         <ChevronLeft className="size-4" /> ກັບລາຍการเคลม
       </Link>
 
@@ -80,6 +85,39 @@ export default async function ClaimDetailPage({ params }: Props) {
             {claim.pay_method && info("ວິທີຊຳລະ", PAY_METHOD_LABEL[claim.pay_method] ?? claim.pay_method)}
             {info("ເປີດໂດຍ", claim.created_by)}
           </div>
+
+          {/* ── ໃບເຄມທີ່ກ່ຽວ (B/A/C ຂອງເລື່ອງດຽວກັນ · ຜູກຜ່ານເລກສ້ອມ) + ແຕກໃບ ── */}
+          {claim.ref_job && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="mb-2 text-xs font-bold text-slate-600">ໃບເຄມທີ່ກ່ຽວ · ເລກສ້ອມ {claim.ref_job}</p>
+              {related.length === 0 ? (
+                <p className="text-xs text-slate-400">ຍັງບໍ່ມີໃບອື່ນຂອງເລື່ອງນີ້</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {related.map((r) => (
+                    <Link key={r.claim_no} href={`/claims/${r.claim_no}`} className="flex items-center gap-2 rounded-lg border border-slate-100 px-2.5 py-1.5 text-[12px] hover:bg-slate-50">
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-600">CLM-{r.claim_type}</span>
+                      <b className="text-[#0536a9]">{r.claim_no}</b>
+                      <span className="truncate text-slate-500">{CLAIM_TYPE_LABEL[r.claim_type]}</span>
+                      <span className={`ml-auto shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${isClaimOpen(r.status) ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-500"}`}>{r.status_label}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {!haveTypes.has("A") && (
+                  <Link href={spawnQs("A")} className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[11px] font-semibold text-violet-700 hover:bg-violet-100">
+                    <Plus className="size-3.5" /> ຂໍອາໄຫຼ່ supplier (CLM-A)
+                  </Link>
+                )}
+                {!haveTypes.has("C") && (
+                  <Link href={spawnQs("C")} className="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-[11px] font-semibold text-sky-700 hover:bg-sky-100">
+                    <Plus className="size-3.5" /> ເກັບຄ່າສ້ອມ supplier (CLM-C)
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
 
           <ClaimEditDelete claimNo={claim.claim_no} supplierCode={claim.supplier_code} brandCode={claim.brand_code} reason={claim.reason} supplierOptions={supplierOptions} brandOptions={brandOptions} />
 

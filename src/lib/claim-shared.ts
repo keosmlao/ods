@@ -10,6 +10,18 @@ export const CLAIM_TYPE_LABEL: Record<ClaimType, string> = {
   C: "ເກັບເງິນຄ່າສ້ອມ ນຳ supplier",
 };
 
+/**
+ * 3 ໜ້າຂອງລະບົບເຄມ (menu ແຍກ) — B ເປັນ "ໃບແມ່" (ຮ້ານ→ສູນ), A/C ເປັນໃບລູກ (ສູນ→supplier).
+ * ໃບທີ່ກ່ຽວກັນ ຜູກຜ່ານ `ref_job` (ເລກງານສ້ອມ) ຮ່ວມກັນ — ບໍ່ຕ້ອງ column link ໃໝ່.
+ * ລຳດັບ = ຂັ້ນຕອນມາດຕະຖານ: ① ຮັບຈາກຮ້ານ → ② ຂໍອາໄຫຼ່ supplier → ③ ເກັບຄ່າສ້ອມ.
+ */
+export const CLAIM_PAGES: { type: ClaimType; path: string; short: string }[] = [
+  { type: "B", path: "/claims/shop", short: "ຮັບເຄມຈາກຮ້ານ" },
+  { type: "A", path: "/claims/supplier", short: "ເຄມອາໄຫຼ່ supplier" },
+  { type: "C", path: "/claims/reimburse", short: "ເກັບຄ່າສ້ອມ supplier" },
+];
+export const claimPagePath = (type: ClaimType) => CLAIM_PAGES.find((p) => p.type === type)?.path ?? "/claims/shop";
+
 /** pipeline ຕໍ່ type — ລຳດັບ status + ป้าย. status ສຸດທ້າຍ = closed (ປິດ) */
 export const CLAIM_FLOW: Record<ClaimType, { status: string; label: string }[]> = {
   A: [

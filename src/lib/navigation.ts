@@ -217,7 +217,12 @@ const CLAIM: NavGroup = {
   id: "claim_menu",
   label: "ເຄມ (Claim)",
   icon: ReceiptText,
-  items: [{ label: "ລະບົບເຄມ", href: "/claims" }],
+  // ແຍກ 3 ໜ້າ ຕາມຂັ້ນຕອນ: ① ຮ້ານ→ສູນ (ໃບແມ່) → ② ຂໍອາໄຫຼ່ supplier → ③ ເກັບຄ່າສ້ອມ
+  items: [
+    { label: "ຮັບເຄມຈາກຮ້ານ", href: "/claims/shop" },
+    { label: "ເຄມອາໄຫຼ່ supplier", href: "/claims/supplier" },
+    { label: "ເກັບຄ່າສ້ອມ supplier", href: "/claims/reimburse" },
+  ],
 };
 
 /**

@@ -48,6 +48,17 @@ export async function claimByNo(claimNo: string): Promise<ClaimRow | null> {
   return r ? mapRow(r) : null;
 }
 
+/**
+ * ໃບເຄມ **ທີ່ກ່ຽວ** — ໃບອື່ນທີ່ອ້າງ `ref_job` ດຽວກັນ (B/A/C ຂອງເລື່ອງດຽວກັນ). ຍົກເວັ້ນໃບປັດຈຸບັນ.
+ * ບໍ່ມີ ref_job = ບໍ່ມີໃບກ່ຽວ (ຄืน []).
+ */
+export async function relatedClaims(refJob: string | null, excludeNo: string): Promise<ClaimRow[]> {
+  if (!refJob?.trim()) return [];
+  return (
+    await query<RawClaim>(`${SELECT} where c.ref_job = $1 and c.claim_no <> $2 order by c.claim_type, c.id`, [refJob.trim(), excludeNo])
+  ).rows.map(mapRow);
+}
+
 export async function claimItems(claimNo: string): Promise<ClaimItem[]> {
   const rows = (await query<Omit<ClaimItem, "qty" | "amount"> & { qty: string; amount: string }>(
     `select id, item_code, item_name, qty, unit, amount, note from ods_claim_item where claim_no = $1 order by id`,
