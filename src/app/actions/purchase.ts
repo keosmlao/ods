@@ -1000,13 +1000,19 @@ export async function issuePoOrder(_: PurchaseState, formData: FormData): Promis
         await odg.query("rollback");
         return { error: `ອາໄຫຼ່ບໍ່ຢູ່ໃນໃບອະນຸມັດ: ${stray.map((l) => l.item_code).join(", ")}` };
       }
-      lines = editedLines.map((line) => ({
-        item_code: line.item_code,
-        item_name: allowed.get(line.item_code)?.item_name ?? "",
-        unit_code: allowed.get(line.item_code)?.unit_code ?? "",
-        qty: String(line.qty),
-        price: String(line.price),
-      }));
+      lines = editedLines.map((line) => {
+        const approved = allowed.get(line.item_code);
+        // clamp qty ≤ ທີ່ APPROVER ອະນຸມັດ (WPRA) — ບໍ່ໃຫ້ອອກ PO ເກີນຈຳນວນທີ່ອະນຸມັດ
+        // ໂດຍຂ້າມການອະນຸມັດ (browser ສົ່ງ qty ຫຍັງມາກໍ່ຖືກຕັດລົງ ≤ approved).
+        const qty = Math.min(Number(line.qty), Number(approved?.qty ?? 0));
+        return {
+          item_code: line.item_code,
+          item_name: approved?.item_name ?? "",
+          unit_code: approved?.unit_code ?? "",
+          qty: String(qty),
+          price: String(line.price),
+        };
+      });
     }
 
     po = await issuePo(odg, {

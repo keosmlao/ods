@@ -3,7 +3,7 @@
 import { logChange } from "@/lib/chatter-log";
 import { notify } from "@/lib/notify";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
-import { db, odgDb } from "@/lib/db";
+import { db, odgDb, queryOdg } from "@/lib/db";
 import { docPrefix, nextDocNo } from "@/lib/doc-no";
 import { deleteErpRequest, writeErpRequest } from "@/lib/erp-request";
 import { requirePermissionOrRedirect, requireRole, requireRoleOrRedirect } from "@/lib/guard";
@@ -339,33 +339,71 @@ export async function savePickSpare(_: StockState, formData: FormData): Promise<
   redirect("/stock/requests/pickup");
 }
 
-/** ods: /update_stock_new — ດຶງຍອດຄົງເຫຼືອຈາກ view ມາອັບເດດ ic_inventory */
+/**
+ * ods: /update_stock_new — sync ຍອດ shadow `ic_inventory` ຂອງອາໄຫຼ່ໃນຄິວຂໍເບີກ/ຂໍຊື້.
+ *
+ * ⚠️ ຮຸ່ນເກົ່າດຶງຈາກ view `show_qty_dispatch` / `show_oqty_dispatch` ທີ່ **ບໍ່ມີໃນ DB ອີກແລ້ວ**
+ * ⇒ throw ທຸກເທື່ອ, ຖືກກືນ, ic_inventory ບໍ່ເຄີຍ refresh (ປຸ່ມຕາຍງຽບໆ). ປ່ຽນໄປໃຊ້ **ແຫຼ່ງຈິງ**:
+ *   • wh_qty  = ຍອດໃນສາງ ຈາກ ERP (sml_ic_function_stock_balance — ແຫຼ່ງດຽວກັບໜ້າຂໍເບີກ)
+ *   • owh_qty = ອາໄຫຼ່ເບີກອອກ ຍັງຄ້າງນອກສາງ (ic_trans DISPATCH status=PENDING · ຄື outstanding)
+ *   • balance_qty = wh + owh
+ * ERP ລົ້ມ ⇒ queryOdg throw ⇒ ic_inventory ບໍ່ຖືກ clobber (ບໍ່ zero ຖິ້ມ).
+ */
 export async function refreshInventory(): Promise<void> {
   await requireRoleOrRedirect(STOCK_SIDE);
   if (!db) return;
 
-  const scope = `(select a.item_code from ic_trans_detail a
-      where a.trans_flag = ${TRANS.REQUEST} and a.status = ${LINE_STATUS.PENDING} or a.status = ${LINE_STATUS.ON_PURCHASE_ORDER})`;
-
   const client = await db.connect();
   try {
+    // ຂອບເຂດ — ອາໄຫຼ່ໃນຄິວຂໍເບີກ/ຂໍຊື້. (ແກ້ precedence bug ເກົ່າ: in(...) ບໍ່ແມ່ນ and…or)
+    const scope = (
+      await client.query<{ item_code: string }>(
+        `select distinct item_code from ic_trans_detail
+          where trans_flag=$1 and status in ($2,$3) and nullif(trim(item_code),'') is not null`,
+        [TRANS.REQUEST, LINE_STATUS.PENDING, LINE_STATUS.ON_PURCHASE_ORDER],
+      )
+    ).rows.map((r) => r.item_code);
+    if (!scope.length) return;
+
+    // owh (ODS) — ຄ້າງນອກສາງ
+    const owhOf = new Map(
+      (
+        await client.query<{ item_code: string; owh: string }>(
+          `select d.item_code, sum(d.qty)::text owh from ic_trans t
+             join ic_trans_detail d on d.doc_no=t.doc_no
+            where t.trans_flag=$1 and d.status=$2 and d.item_code = any($3)
+            group by d.item_code`,
+          [TRANS.DISPATCH, LINE_STATUS.PENDING, scope],
+        )
+      ).rows.map((r): [string, number] => [r.item_code, Number(r.owh)]),
+    );
+
+    // wh (ERP) — ຍອດຈິງໃນສາງ. ລົ້ມ ⇒ throw ⇒ catch ⇒ ບໍ່ອັບເດດ (ຢ່າ zero shadow)
+    const whOf = new Map(
+      (
+        await queryOdg<{ code: string; total: string }>(
+          `select i.code, coalesce(sum(b.balance_qty),0)::text total
+             from unnest($1::text[]) i(code)
+             left join lateral sml_ic_function_stock_balance_warehouse_location('2099-12-31', i.code, '', '') b on true
+            group by i.code`,
+          [scope],
+        )
+      ).rows.map((r): [string, number] => [r.code, Math.max(0, Number(r.total))]),
+    );
+
+    const whs = scope.map((c) => whOf.get(c) ?? 0);
+    const owhs = scope.map((c) => owhOf.get(c) ?? 0);
+
     await client.query("begin");
     await client.query(
-      `update ic_inventory a set owh_qty=coalesce(owh.balance_qty,0)
-       from (select odm2022_code code, round(sum(balance_qty),2) balance_qty from show_oqty_dispatch group by odm2022_code) owh
-       where owh.code=a.code and a.code in ${scope}`,
-    );
-    await client.query(
-      `update ic_inventory a set wh_qty=coalesce(wh.balance_qty,0)
-       from (select odm2022_code code, case when balance_qty<0 then 0 else round(balance_qty,2) end balance_qty from show_qty_dispatch) wh
-       where wh.code=a.code and a.code in ${scope}`,
-    );
-    await client.query(
-      `update ic_inventory a set balance_qty=coalesce(wh_qty,0)+coalesce(owh_qty,0) where a.code in ${scope}`,
+      `update ic_inventory a set wh_qty=v.wh, owh_qty=v.owh, balance_qty=v.wh + v.owh
+         from (select unnest($1::text[]) code, unnest($2::numeric[]) wh, unnest($3::numeric[]) owh) v
+        where v.code = a.code`,
+      [scope, whs, owhs],
     );
     await client.query("commit");
   } catch (error) {
-    await client.query("rollback");
+    await client.query("rollback").catch(() => {});
     console.error("refreshInventory failed", error);
   } finally {
     client.release();

@@ -811,12 +811,22 @@ export async function createSpareReturn(
         [TRANS.RETURN_REQUEST, docDate, docNo, line.doc_no, input.code, line.item_code, line.item_name, qty,
           line.unit_code, session.username, LINE_STATUS.RETURN_REQUESTED],
       );
-      // ແຖວຂອງໃບເບີກ = ຂໍຄືນແລ້ວ ⇒ ບໍ່ໃຫ້ຂໍຊ້ຳ
-      await client.query(
-        `update ic_trans_detail set status=$1
-          where doc_no=$2 and trans_flag=${TRANS.DISPATCH} and item_code=$3 and status=${LINE_STATUS.PENDING}`,
-        [LINE_STATUS.RETURN_REQUESTED, line.doc_no, line.item_code],
-      );
+      // ຄືນຄົບ (qty ≥ ທີ່ຄ້າງ) ⇒ ປິດແຖວໃບເບີກ (ບໍ່ຂໍຊ້ຳ). ຄືນ **ບາງສ່ວນ** ⇒ ຫຼຸດ qty ຂອງ
+      // ແຖວໃບເບີກ ໃຫ້ຍັງ PENDING (ເຫຼືອຍັງ outstanding ຕ້ອງເກັບຄືນ) — ບໍ່ດັ່ງນັ້ນ ອາໄຫຼ່
+      // ທີ່ຍັງຢູ່ນຳຊ່າງຫາຍໄປ ແລະ ງານປິດໄດ້ທັງທີ່ຂອງຍັງບໍ່ຄືນ (ຕັດສິນໃຈ: ເຫຼືອຍັງ outstanding).
+      if (qty >= Number(line.qty)) {
+        await client.query(
+          `update ic_trans_detail set status=$1
+            where doc_no=$2 and trans_flag=${TRANS.DISPATCH} and item_code=$3 and status=${LINE_STATUS.PENDING}`,
+          [LINE_STATUS.RETURN_REQUESTED, line.doc_no, line.item_code],
+        );
+      } else {
+        await client.query(
+          `update ic_trans_detail set qty = qty - $1
+            where doc_no=$2 and trans_flag=${TRANS.DISPATCH} and item_code=$3 and status=${LINE_STATUS.PENDING}`,
+          [qty, line.doc_no, line.item_code],
+        );
+      }
     }
 
     await writeErpRequest(
