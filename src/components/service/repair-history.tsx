@@ -16,10 +16,9 @@ export function RepairHistory({ sn, currentCode }: { sn: string; currentCode?: s
 
   useEffect(() => {
     const value = sn.trim();
-    if (value.length < 4) {
-      setItems([]);
-      return;
-    }
+    // SN ສັ້ນເກີນ ⇒ ບໍ່ຕ້ອງ fetch. ບໍ່ຕ້ອງ setItems([]) ຢູ່ນີ້ (render ຄືນ null ຢູ່ແລ້ວ
+    // ຕອນ <4) — setState ກາງ effect body ເປັນ anti-pattern (cascading render).
+    if (value.length < 4) return;
     let alive = true;
     setLoading(true);
     const timer = setTimeout(async () => {

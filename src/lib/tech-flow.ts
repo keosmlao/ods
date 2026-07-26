@@ -614,7 +614,7 @@ export async function pickupSpares(session: Session, docRef: string, remark: str
   if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };
   if (!docRef) return { ok: false, error: "ບໍ່ພົບເລກທີໃບເບີກ" };
 
-  const { date: docDate, at, time: docTime } = nowParts();
+  const { date: docDate, at } = nowParts();
   const client = await db.connect();
   let pickNo = "";
   let productCode = "";
