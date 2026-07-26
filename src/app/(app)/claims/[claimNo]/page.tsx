@@ -24,8 +24,12 @@ export default async function ClaimDetailPage({ params }: Props) {
   const related = await relatedClaims(claim.ref_job, claim.claim_no);
   // ປະເພດທີ່ມີແລ້ວ (ໃບນີ້ + ໃບກ່ຽວ) — ບໍ່ໃຫ້ແຕກໃບຊ້ຳ
   const haveTypes = new Set([claim.claim_type, ...related.map((r) => r.claim_type)]);
+  // ຄາຣີ context ສິນຄ້າ/SN ໄປໃບ A/C ນຳ (ຈາກໃບເຄມເອງ ຫຼື ດຶງຈາກงานสอม) — A ຕ້ອງຮູ້ສິນຄ້າ/SN ຂໍ supplier
+  const spawnProduct = claim.product ?? "";
+  const spawnModel = claim.model ?? "";
+  const spawnSn = claim.sn ?? "";
   const spawnQs = (t: string) =>
-    `/claims/new?${new URLSearchParams({ type: t, ref_job: claim.ref_job ?? "", ...(claim.brand_code ? { brand: claim.brand_code } : {}), ...(claim.supplier_code ? { supplier: claim.supplier_code } : {}) })}`;
+    `/claims/new?${new URLSearchParams({ type: t, ref_job: claim.ref_job ?? "", ...(claim.brand_code ? { brand: claim.brand_code } : {}), ...(claim.supplier_code ? { supplier: claim.supplier_code } : {}), ...(spawnProduct ? { product: spawnProduct } : {}), ...(spawnModel ? { model: spawnModel } : {}), ...(spawnSn ? { sn: spawnSn } : {}) })}`;
   const next = claimNextStatus(claim.claim_type, claim.status);
   const cob = claim.claim_type === "C" && claim.erp_doc_no ? await cobInfo(claim.erp_doc_no).catch(() => null) : null;
   const delivery = claim.claim_type === "C" && claim.ref_job ? await jobDelivery(claim.ref_job).catch(() => null) : null;
@@ -44,23 +48,32 @@ export default async function ClaimDetailPage({ params }: Props) {
         <ChevronLeft className="size-4" /> ກັບລາຍการเคลม
       </Link>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-lg font-bold text-[#0536a9]">{claim.claim_no}</h1>
-        <span className="rounded bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-600">CLM-{claim.claim_type}</span>
-        <span className="text-xs text-slate-500">{CLAIM_TYPE_LABEL[claim.claim_type]}</span>
-        <span className={`ml-auto rounded-full px-2.5 py-1 text-[11px] font-bold ${isClaimOpen(claim.status) ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-500"}`}>{claim.status_label}</span>
-      </div>
-
-      {/* ── pipeline ── */}
-      <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-        {CLAIM_FLOW[claim.claim_type].map((s, i) => {
-          const active = s.status === claim.status;
-          const done = CLAIM_FLOW[claim.claim_type].findIndex((x) => x.status === claim.status) > i;
-          return (
-            <span key={s.status} className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${active ? "bg-teal-600 text-white" : done ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-400"}`}>{s.label}</span>
-          );
-        })}
-        {claim.status === CLAIM_REJECTED.status && <span className="rounded-lg bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-600">{CLAIM_REJECTED.label}</span>}
+      {/* ── Odoo-style sheet header: ຊື່ເອກະສານ + statusbar chevron ── */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold text-[#0536a9]">{claim.claim_no}</h1>
+            <span className="rounded bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-600">CLM-{claim.claim_type}</span>
+            <span className="text-xs text-slate-500">{CLAIM_TYPE_LABEL[claim.claim_type]}</span>
+          </div>
+          {/* statusbar — chevron ຕໍ່ກັນ ຄື Odoo (ຂັ້ນຜ່ານ=ຂຽວ · ຂັ້ນປັດຈຸບັນ=ເຂັ້ມ · ຂ້າງໜ້າ=ຈາງ) */}
+          <div className="flex flex-wrap items-center gap-0.5">
+            {CLAIM_FLOW[claim.claim_type].map((s, i) => {
+              const idx = CLAIM_FLOW[claim.claim_type].findIndex((x) => x.status === claim.status);
+              const active = s.status === claim.status;
+              const done = idx > i;
+              return (
+                <span
+                  key={s.status}
+                  className={`relative px-3 py-1 text-[11px] font-semibold ${i === 0 ? "rounded-l-lg" : ""} ${i === CLAIM_FLOW[claim.claim_type].length - 1 ? "rounded-r-lg" : ""} ${active ? "bg-teal-600 text-white" : done ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-400"}`}
+                >
+                  {s.label}
+                </span>
+              );
+            })}
+            {claim.status === CLAIM_REJECTED.status && <span className="ml-1 rounded-lg bg-rose-50 px-3 py-1 text-[11px] font-semibold text-rose-600">{CLAIM_REJECTED.label}</span>}
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">

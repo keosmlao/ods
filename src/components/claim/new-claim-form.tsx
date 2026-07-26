@@ -19,6 +19,9 @@ export function NewClaimForm({
   initialRefJob = "",
   initialBrand = "",
   initialSupplier = "",
+  initialProduct = "",
+  initialModel = "",
+  initialSn = "",
 }: {
   suppliers: { code: string; name: string }[];
   customers: { code: string; name: string }[];
@@ -27,6 +30,9 @@ export function NewClaimForm({
   initialRefJob?: string;
   initialBrand?: string;
   initialSupplier?: string;
+  initialProduct?: string;
+  initialModel?: string;
+  initialSn?: string;
 }) {
   const router = useRouter();
   const type = defaultType; // fixed ຕາມໜ້າ (shop=B · supplier=A · reimburse=C)
@@ -41,9 +47,9 @@ export function NewClaimForm({
   const [billLines, setBillLines] = useState<BillItem[]>([]);
   const [replacement, setReplacement] = useState<InvItem | null>(null);
   // ── ສິນຄ້າ & ຮັບປະກັນ ──
-  const [product, setProduct] = useState("");
-  const [model, setModel] = useState("");
-  const [sn, setSn] = useState("");
+  const [product, setProduct] = useState(initialProduct);
+  const [model, setModel] = useState(initialModel);
+  const [sn, setSn] = useState(initialSn);
   const [purchaseDate, setPurchaseDate] = useState("");
   const [warranty, setWarranty] = useState("");
   const [reason, setReason] = useState("");
@@ -232,28 +238,30 @@ export function NewClaimForm({
             </div>
           </div>
 
-          {isB && (
+          {(isB || type === "A") && (
             <div className={card}>
-              <p className="text-[11px] font-bold text-slate-500">ສິນຄ້າ & ຮັບປະກັນ</p>
+              <p className="text-[11px] font-bold text-slate-500">ສິນຄ້າ{isB ? " & ຮັບປະກັນ" : " (ອ້າງອີງ)"}</p>
               <div>
-                <label className={label}>ສິນຄ້າ (ຈາກບິນ ຫຼື ພິມ)</label>
+                <label className={label}>ສິນຄ້າ{isB ? " (ຈາກບິນ ຫຼື ພິມ)" : ""}</label>
                 <input value={product} onChange={(e) => setProduct(e.target.value)} placeholder="ຊື່ສິນຄ້າ" className={field} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className={label}>Model</label><input value={model} onChange={(e) => setModel(e.target.value)} className={field} /></div>
                 <div><label className={label}>SN (serial)</label><input value={sn} onChange={(e) => setSn(e.target.value)} className={field} /></div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className={label}>ວັນຊື້</label><input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className={field} /></div>
-                <div>
-                  <label className={label}>ຮັບປະກັນ{warrantyInfo ? " (ຄິດຈາກບິນ)" : ""}</label>
-                  <div className="flex gap-1.5">
-                    {[["in", "ໃນປະກັນ"], ["out", "ນອກປະກັນ"]].map(([v, l]) => (
-                      <button key={v} type="button" onClick={() => setWarranty(warranty === v ? "" : v)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${warranty === v ? "bg-teal-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>{l}</button>
-                    ))}
+              {isB && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className={label}>ວັນຊື້</label><input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className={field} /></div>
+                  <div>
+                    <label className={label}>ຮັບປະກັນ{warrantyInfo ? " (ຄິດຈາກບິນ)" : ""}</label>
+                    <div className="flex gap-1.5">
+                      {[["in", "ໃນປະກັນ"], ["out", "ນອກປະກັນ"]].map(([v, l]) => (
+                        <button key={v} type="button" onClick={() => setWarranty(warranty === v ? "" : v)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${warranty === v ? "bg-teal-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>{l}</button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 

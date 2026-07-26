@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 const isType = (v: string): v is ClaimType => ["A", "B", "C"].includes(v);
 
-type Props = { searchParams: Promise<{ type?: string; ref_job?: string; brand?: string; supplier?: string }> };
+type Props = { searchParams: Promise<{ type?: string; ref_job?: string; brand?: string; supplier?: string; product?: string; model?: string; sn?: string }> };
 
 export default async function NewClaimPage({ searchParams }: Props) {
   const session = await getSession();
@@ -41,6 +41,9 @@ export default async function NewClaimPage({ searchParams }: Props) {
         initialRefJob={sp.ref_job ?? ""}
         initialBrand={sp.brand ?? ""}
         initialSupplier={sp.supplier ?? ""}
+        initialProduct={sp.product ?? ""}
+        initialModel={sp.model ?? ""}
+        initialSn={sp.sn ?? ""}
       />
     </div>
   );
