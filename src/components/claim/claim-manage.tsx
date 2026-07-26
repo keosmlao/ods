@@ -1,7 +1,7 @@
 "use client";
-import { addClaimItem, advanceClaim, deleteClaimItem, linkCob, pullJobItems, sendClaimEmail, setClaimJob, setClaimPaid, updateClaimRemark } from "@/app/actions/claim";
+import { advanceClaim, deleteClaimItem, linkCob, pullJobItems, sendClaimEmail, setClaimJob, setClaimPaid, updateClaimRemark } from "@/app/actions/claim";
 import { type ClaimItem, type ClaimType, type CobInfo, type JobDelivery, PAY_METHOD_LABEL } from "@/lib/claim-shared";
-import { ArrowRight, BadgeCheck, DownloadCloud, Link2, LoaderCircle, Mail, Plus, Trash2, Truck, X } from "lucide-react";
+import { ArrowRight, BadgeCheck, DownloadCloud, Link2, LoaderCircle, Mail, Trash2, Truck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -37,7 +37,6 @@ export function ClaimManage({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [items, setItems] = useState(initialItems);
-  const [form, setForm] = useState({ item_code: "", item_name: "", qty: "1", unit: "", amount: "0" });
   const [note, setNote] = useState(remark ?? "");
   const [cobDoc, setCobDoc] = useState(erpDocNo ?? "");
   const [payM, setPayM] = useState(payMethod ?? "");
@@ -52,15 +51,6 @@ export function ClaimManage({
       if (r.error) { setErr(r.error); return; }
       router.refresh();
     });
-
-  const add = () => {
-    if (!form.item_name.trim()) { setErr("ໃສ່ຊື່ລາຍການ"); return; }
-    act(async () => {
-      const r = await addClaimItem(claimNo, { item_code: form.item_code, item_name: form.item_name, qty: Number(form.qty) || 1, unit: form.unit, amount: Number(form.amount) || 0 });
-      if (!r.error) { setItems((p) => [...p, { id: Date.now(), item_code: form.item_code || null, item_name: form.item_name, qty: Number(form.qty) || 1, unit: form.unit || null, amount: Number(form.amount) || 0, note: null }]); setForm({ item_code: "", item_name: "", qty: "1", unit: "", amount: "0" }); }
-      return r;
-    });
-  };
 
   const del = (id: number) => {
     setItems((p) => p.filter((i) => i.id !== id));
@@ -174,14 +164,6 @@ export function ClaimManage({
             </table>
           </div>
         )}
-        <div className="flex flex-wrap items-end gap-2">
-          <input value={form.item_code} onChange={(e) => setForm({ ...form, item_code: e.target.value })} placeholder="ລະຫັດ" className={`${inp} w-24`} />
-          <input value={form.item_name} onChange={(e) => setForm({ ...form, item_name: e.target.value })} placeholder="ຊື່ອາໄຫຼ່/ລາຍการ" className={`${inp} min-w-40 flex-1`} />
-          <input value={form.qty} onChange={(e) => setForm({ ...form, qty: e.target.value })} inputMode="decimal" className={`${inp} w-16`} />
-          <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="ໜ່ວຍ" className={`${inp} w-20`} />
-          <input value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} inputMode="decimal" placeholder="ຍอด" className={`${inp} w-24`} />
-          <button type="button" disabled={pending} onClick={add} className="inline-flex h-9 items-center gap-1 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"><Plus className="size-4" /> ເພີ່ม</button>
-        </div>
       </div>
 
       {/* ── ໝາຍເຫตุ ── */}
