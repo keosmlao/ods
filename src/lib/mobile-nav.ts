@@ -52,7 +52,8 @@ const TABS_BY_ROLE: Record<Role, MobileTabKey[]> = {
   // (QC ຢູ່ຝ່າຍຫົວໜ້າຊ່າງ · ກວດນັບ ຢູ່ຝ່າຍສາງ)
   manager: ["overview", "monitor", "techs", "approvals", "reports"],
   stock: ["stock-count", "notifications"], // ຝ່າຍສາງ
-  admin: ["stock-count", "notifications", "qc"], // CS
+  // CS (ບໍລິການ) — ຕິດຕາມສະຖານະງານ/ຊ່າງ ຄືກັບ dashboard ເວັບ (MONITOR_SIDE, ບໍ່ມີ approvals)
+  admin: ["overview", "monitor", "techs", "reports", "notifications"],
   sales: ["stock-count", "notifications"], // ຝ່າຍຂາຍ
   user: ["notifications"], // ທົ່ວໄປ
 };

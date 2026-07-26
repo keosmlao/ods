@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../main.dart';
@@ -19,7 +21,7 @@ BoxDecoration cardDecoration({Color? color, Color? border}) => BoxDecoration(
 
 /// ຫົວແອັບບາ: eyebrow ນ້ອຍ + ຫົວຂໍ້ໃຫຍ່ (ໃຊ້ໃນ AppBar.title)
 class AppTitle extends StatelessWidget {
-  const AppTitle({super.key, required this.title, this.eyebrow = 'ODIEN SERVICE'});
+  const AppTitle({super.key, required this.title, this.eyebrow = 'ODS by ODG'});
   final String title;
   final String eyebrow;
 
@@ -384,7 +386,7 @@ class HeroHeader extends StatelessWidget {
   const HeroHeader({
     super.key,
     required this.title,
-    this.eyebrow = 'ODIEN SERVICE',
+    this.eyebrow = 'ODS by ODG',
     this.trailing,
     this.above,
     this.stats,
@@ -761,4 +763,74 @@ class SectionLabel extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// ຮູບແບບເວລາ ຄືກັບເວັບ: `N ມື້ HH:MM:SS` (ບໍ່ມີວັນ = `HH:MM:SS`)
+String formatElapsed(int totalSeconds) {
+  final s = totalSeconds < 0 ? 0 : totalSeconds;
+  final days = s ~/ 86400;
+  final rest = s % 86400;
+  final clock = [rest ~/ 3600, (rest % 3600) ~/ 60, rest % 60]
+      .map((p) => p.toString().padLeft(2, '0'))
+      .join(':');
+  return days > 0 ? '$days ມື້ $clock' : clock;
+}
+
+/// ເວລາທີ່ **ເດີນທຸກວິນາທີ** — ຮັບຈຳນວນວິນາທີຈາກ server ແລ້ວນັບຕໍ່ຢູ່ເຄື່ອງ
+/// (ຄືກັບ `<Elapsed>` ຂອງເວັບ). `live=false` = ຄ່າຄົງທີ່ (ຂັ້ນທີ່ຜ່ານແລ້ວ — ບໍ່ເດີນ).
+class LiveElapsed extends StatefulWidget {
+  const LiveElapsed({super.key, required this.seconds, this.live = true, this.style});
+  final int? seconds;
+  final bool live;
+  final TextStyle? style;
+
+  @override
+  State<LiveElapsed> createState() => _LiveElapsedState();
+}
+
+class _LiveElapsedState extends State<LiveElapsed> {
+  late int _value;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.seconds ?? 0;
+    _restart();
+  }
+
+  @override
+  void didUpdateWidget(LiveElapsed old) {
+    super.didUpdateWidget(old);
+    if (old.seconds != widget.seconds || old.live != widget.live) {
+      _value = widget.seconds ?? 0;
+      _restart();
+    }
+  }
+
+  void _restart() {
+    _timer?.cancel();
+    if (widget.live && widget.seconds != null) {
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() => _value += 1);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.seconds == null) return Text('-', style: widget.style);
+    return Text(
+      formatElapsed(_value),
+      style: (widget.style ?? const TextStyle()).copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+  }
 }

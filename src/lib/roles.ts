@@ -69,6 +69,12 @@ export const SERVICE_SIDE: Role[] = [M, A];
 export const STOCK_SIDE: Role[] = [M, S];
 /** ຜູ້ອະນຸມັດ — ຕົງກັບ ROLE_APPROVER ໃນ lib/chatter */
 export const APPROVER_SIDE: Role[] = [M, HT];
+/**
+ * ຜູ້ **ຕິດຕາມ/ບໍລິຫານ** — ພາບລວມ · ຕິດຕາມງານ · ຜົນງານລູກນ້ອງ · ລາຍງານ (ອ່ານຢ່າງດຽວ).
+ * ລວມ admin (CS) ນຳ ເພາະ CS ຕິດຕາມສະຖານະງານຄືກັບຢູ່ dashboard ເວັບ — ແຕ່ **ບໍ່ລວມ approvals**
+ * (admin ບໍ່ມີສິດອະນຸມັດ ຕາມ role — ເບິ່ງ SERVICE_SIDE vs APPROVER_SIDE).
+ */
+export const MONITOR_SIDE: Role[] = [M, HT, A];
 /** ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ — ຫົວໜ້າ/ຜູ້ຈັດການ ໝາຍ "ຕ້ອງກວດ" + **ສາງ** ລົງມືນັບຈິງ */
 export const STOCK_COUNT_SIDE: Role[] = [M, HT, S];
 /** ເຄມ — ທຸກຝ່າຍພາຍໃນເຫັນ/ຈັດການໄດ້ (ສາງ · ຫົວໜ້າ · ບໍລິການ) */

@@ -46,7 +46,7 @@ class OdssApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ODIEN Service',
+      title: 'ODS by ODG',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme:

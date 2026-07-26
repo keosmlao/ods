@@ -1,11 +1,11 @@
 import { requireMobile } from "@/lib/mobile-auth";
 import { mobileReports } from "@/lib/mobile-reports";
-import { APPROVER_SIDE } from "@/lib/roles";
+import { MONITOR_SIDE } from "@/lib/roles";
 import { NextResponse } from "next/server";
 
-/** ລາຍງານ — ແນວໂນ້ມ 14 ມື້ (ເປີດ/ປິດ) + ຄ່າຄອມເດືອນນີ້. ຈຳກັດ APPROVER_SIDE. */
+/** ລາຍງານ — ແນວໂນ້ມ 14 ມື້ (ເປີດ/ປິດ) + ຄ່າຄອມເດືອນນີ້. ຈຳກັດ MONITOR_SIDE. */
 export async function GET(request: Request) {
-  const guard = await requireMobile(request, APPROVER_SIDE);
+  const guard = await requireMobile(request, MONITOR_SIDE);
   if (!guard.ok) return guard.response;
 
   try {

@@ -1,11 +1,11 @@
 import { requireMobile } from "@/lib/mobile-auth";
 import { techRoster } from "@/lib/mobile-tech";
-import { APPROVER_SIDE } from "@/lib/roles";
+import { MONITOR_SIDE } from "@/lib/roles";
 import { NextResponse } from "next/server";
 
-/** ຜົນງານລູກນ້ອງ — ລາຍชื่อຊ່າງ + ພາລະ/ຄວາມຊ້າ/ຄ່າຄອມ. ຈຳກັດ APPROVER_SIDE. */
+/** ຜົນງານລູກນ້ອງ — ລາຍชื่อຊ່າງ + ພາລະ/ຄວາມຊ້າ/ຄ່າຄອມ. ຈຳກັດ MONITOR_SIDE. */
 export async function GET(request: Request) {
-  const guard = await requireMobile(request, APPROVER_SIDE);
+  const guard = await requireMobile(request, MONITOR_SIDE);
   if (!guard.ok) return guard.response;
 
   try {

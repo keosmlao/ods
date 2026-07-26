@@ -22,6 +22,7 @@ import {
   startMaintenance,
 } from "@/lib/maintenance-flow";
 import { MAX_PHOTO_CHARS, requireMobile } from "@/lib/mobile-auth";
+import { repairTimeline } from "@/lib/repair-timeline";
 import { TECH_SIDE } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
@@ -63,10 +64,29 @@ export async function GET(request: Request, context: { params: Promise<{ workflo
   if (!ownership.ok) return NextResponse.json({ error: ownership.error }, { status: 403 });
 
   try {
-    return NextResponse.json({ photos: await jobPhotoSets(workflow, code) });
+    // ເສັ້ນເວລາ (ໄລຍະແຕ່ລະຂັ້ນ) — ສະເພາະສາຍງານສ້ອມ (ຄືກັບ web /service/[code])
+    const [photos, timeline] = await Promise.all([
+      jobPhotoSets(workflow, code),
+      workflow === "repair" ? repairTimeline(code) : Promise.resolve(null),
+    ]);
+    return NextResponse.json({
+      photos,
+      timeline: timeline
+        ? {
+            cancelled_at: timeline.cancelledAt,
+            steps: timeline.steps.map((s) => ({
+              stage: s.stage,
+              label: s.label,
+              at: s.at,
+              duration_seconds: s.durationSeconds,
+              state: s.state,
+            })),
+          }
+        : null,
+    });
   } catch (error) {
-    console.error("Mobile job photos failed", error);
-    return NextResponse.json({ error: "ໂຫຼດຮູບບໍ່ສຳເລັດ" }, { status: 500 });
+    console.error("Mobile job detail failed", error);
+    return NextResponse.json({ error: "ໂຫຼດລາຍລະອຽດບໍ່ສຳເລັດ" }, { status: 500 });
   }
 }
 

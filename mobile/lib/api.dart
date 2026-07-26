@@ -229,6 +229,19 @@ class Api {
     return JobPhotos.fromJson(result['photos'] as Map<String, dynamic>);
   }
 
+  /// ລາຍລະອຽດງານ: ຮູບ + **ເສັ້ນເວລາ** (ໄລຍະແຕ່ລະຂັ້ນ — ສະເພາະສ້ອມ). GET ດຽວ ໄດ້ທັງສອງ.
+  static Future<({JobPhotos photos, JobTimelineData? timeline})> jobDetail(
+    String workflow,
+    String code,
+  ) async {
+    final result = await _send('GET', '/api/mobile/jobs/$workflow/$code');
+    final tl = result['timeline'];
+    return (
+      photos: JobPhotos.fromJson(result['photos'] as Map<String, dynamic>),
+      timeline: tl == null ? null : JobTimelineData.fromJson(tl as Map<String, dynamic>),
+    );
+  }
+
   /// ຄິວອະນຸມັດ (ຜູ້ຈັດການ)
   static Future<List<ApprovalItem>> approvals() async {
     final result = await _send('GET', '/api/mobile/approvals');
@@ -1706,5 +1719,47 @@ class Reports {
     totalClosed: (json['total_closed'] as num?)?.toInt() ?? 0,
     commissionMonthThb: (json['commission_month_thb'] as num?)?.toDouble() ?? 0,
     commissionMonthJobs: (json['commission_month_jobs'] as num?)?.toInt() ?? 0,
+  );
+}
+
+/* ── ເສັ້ນເວລາງານສ້ອມ (timeline — ຄືກັບ web /service/[code]) ─────────── */
+
+/// 1 ຂັ້ນໃນເສັ້ນເວລາ — state: done | current | pending
+class TimelineStep {
+  final int stage;
+  final String label;
+  final String? at; // ວັນ-ເວລາທີ່ເຂົ້າຂັ້ນ (null = ຍັງບໍ່ຮອດ)
+  final int? durationSeconds; // ໄລຍະຢູ່ຂັ້ນນີ້ (current = live · done = ຄົງທີ່)
+  final String state;
+
+  TimelineStep({
+    required this.stage,
+    required this.label,
+    required this.at,
+    required this.durationSeconds,
+    required this.state,
+  });
+
+  factory TimelineStep.fromJson(Map<String, dynamic> json) => TimelineStep(
+    stage: (json['stage'] as num?)?.toInt() ?? 0,
+    label: json['label'] as String? ?? '',
+    at: json['at'] as String?,
+    durationSeconds: (json['duration_seconds'] as num?)?.toInt(),
+    state: json['state'] as String? ?? 'pending',
+  );
+
+  bool get isCurrent => state == 'current';
+  bool get isDone => state == 'done';
+}
+
+class JobTimelineData {
+  final List<TimelineStep> steps;
+  final String? cancelledAt;
+  JobTimelineData({required this.steps, required this.cancelledAt});
+  factory JobTimelineData.fromJson(Map<String, dynamic> json) => JobTimelineData(
+    steps: ((json['steps'] as List?) ?? [])
+        .map((row) => TimelineStep.fromJson(row as Map<String, dynamic>))
+        .toList(),
+    cancelledAt: json['cancelled_at'] as String?,
   );
 }

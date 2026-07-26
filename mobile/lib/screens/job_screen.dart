@@ -41,6 +41,9 @@ class _JobScreenState extends State<JobScreen> {
   /// ຮູບເກົ່າຂອງງານ (ຮັບເຄື່ອງ · ກວດເຊັກ · ສ້ອມສຳເລັດ) — ໂຫຼດຈາກ server
   JobPhotos? gallery;
 
+  /// ເສັ້ນເວລາ (ໄລຍະແຕ່ລະຂັ້ນ — ສະເພາະສ້ອມ) ຄືກັບ web
+  JobTimelineData? timeline;
+
   /// ການເຄື່ອນໄຫວ (ຂໍ້ຄວາມ/log + ກິດຈະກຳ) — ຊຸດດຽວກັບ chatter ຢູ່ເວັບ
   JobChatter? chatter;
   String chatterError = '';
@@ -57,11 +60,16 @@ class _JobScreenState extends State<JobScreen> {
     loadChatter();
   }
 
-  /// ໂຫຼດຮູບເກົ່າຂອງງານ — ລົ້ມກໍ່ບໍ່ເປັນຫຍັງ (ພຽງບໍ່ສະແດງ)
+  /// ໂຫຼດຮູບເກົ່າ + ເສັ້ນເວລາ — ລົ້ມກໍ່ບໍ່ເປັນຫຍັງ (ພຽງບໍ່ສະແດງ)
   Future<void> loadGallery() async {
     try {
-      final sets = await Api.jobPhotos(job.workflow, job.code);
-      if (mounted) setState(() => gallery = sets);
+      final detail = await Api.jobDetail(job.workflow, job.code);
+      if (mounted) {
+        setState(() {
+          gallery = detail.photos;
+          timeline = detail.timeline;
+        });
+      }
     } catch (_) {
       // ບໍ່ໃຫ້ລົ້ມໜ້າງານ
     }
@@ -660,9 +668,26 @@ class _JobScreenState extends State<JobScreen> {
                 _row('ຮັບປະກັນ', job.warranty),
               _row('ບ່ອນຢູ່', job.address),
               _row('ວັນນັດ', job.appointment),
-              // ຮັບເຄື່ອງເມື່ອໃດ · ໃຊ້ເວລາລວມມາເທົ່າໃດ · ໃຜເປັນຄົນຮັບ
+              // ຮັບເຄື່ອງເມື່ອໃດ · ໃຊ້ເວລາລວມມາເທົ່າໃດ (ເດີນທຸກວິນາທີ) · ໃຜເປັນຄົນຮັບ
               _row('ຮັບເຄື່ອງ', job.receivedAt),
-              _row('ເວລາທີ່ໃຊ້', job.totalLabel),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(
+                      width: 78,
+                      child: Text('ເວລາທີ່ໃຊ້', style: TextStyle(fontSize: 13, color: muted)),
+                    ),
+                    Expanded(
+                      child: LiveElapsed(
+                        seconds: job.totalSeconds,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ink),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               _row('ຜູ້ຮັບ', job.receiver),
               // ── ຕິດຕໍ່ · ນຳທາງ — 3 ຖັນ (ນຳທາງ · ໂທ · WhatsApp) ──
               // ນຳທາງສະເພາະສ້ອມນອກສະຖານທີ່; ໂທ/WhatsApp ສະເພາະມີເບີ
@@ -737,6 +762,12 @@ class _JobScreenState extends State<JobScreen> {
             ],
           ),
           const SizedBox(height: 12),
+
+          // ── ເສັ້ນເວລາ (ໄລຍະແຕ່ລະຂັ້ນ) — ຄືກັບ web · ຂັ້ນປັດຈຸບັນເດີນທຸກວິນາທີ ──
+          if (timeline != null && timeline!.steps.isNotEmpty) ...[
+            _timelineCard(),
+            const SizedBox(height: 12),
+          ],
 
           // ── ຜົນກວດເຊັກ (ສະເພາະສ້ອມ · ຂຶ້ນຫຼັງຊ່າງວິເຄາະ) ──
           if (job.workflow == 'repair' &&
@@ -1271,6 +1302,103 @@ class _JobScreenState extends State<JobScreen> {
     'PS' => 'ບຳລຸງຮັກສາ (PS)',
     _ => t ?? '-',
   };
+
+  /// ເສັ້ນເວລາ (ຄືກັບ JobTimeline ຂອງເວັບ): ● ຜ່ານແລ້ວ · ● ກະພິບ ປັດຈຸບັນ · ○ ຍັງບໍ່ຮອດ.
+  /// ຂັ້ນປັດຈຸບັນ "ຄ້າງມາ" ເດີນທຸກວິນາທີ · ຂັ້ນຜ່ານແລ້ວ "ໃຊ້ເວລາ" ຄົງທີ່.
+  Widget _timelineCard() {
+    final tl = timeline!;
+    final steps = tl.steps;
+    return _Card(
+      children: [
+        const Text('ເສັ້ນເວລາ', style: TextStyle(fontWeight: FontWeight.w800, color: ink, fontSize: 14)),
+        const SizedBox(height: 12),
+        for (var i = 0; i < steps.length; i++) _timelineStep(steps[i], last: i == steps.length - 1 && tl.cancelledAt == null),
+        if (tl.cancelledAt != null)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(width: 14, height: 14, margin: const EdgeInsets.only(top: 1, right: 12),
+                decoration: const BoxDecoration(color: danger, shape: BoxShape.circle)),
+              Expanded(
+                child: Row(children: [
+                  const Text('ຂໍຍົກເລີກ', style: TextStyle(fontWeight: FontWeight.w700, color: danger, fontSize: 13)),
+                  const SizedBox(width: 8),
+                  Text(tl.cancelledAt!, style: const TextStyle(fontSize: 11, color: faint)),
+                ]),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _timelineStep(TimelineStep s, {required bool last}) {
+    final current = s.isCurrent;
+    final done = s.isDone;
+    final finished = done && last;
+    final dotColor = current ? const Color(0xFF6366F1) : finished ? ok : done ? const Color(0xFF6366F1) : const Color(0xFFCBD5E1);
+    final filled = current || finished;
+    final labelColor = current ? const Color(0xFF4338CA) : finished ? ok : done ? ink : faint;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            children: [
+              Container(
+                width: 14, height: 14, margin: const EdgeInsets.only(top: 1),
+                decoration: BoxDecoration(
+                  color: filled ? dotColor : Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: dotColor, width: 2),
+                ),
+              ),
+              if (!last)
+                Expanded(child: Container(width: 2, color: done ? const Color(0xFFC7D2FE) : const Color(0xFFE2E8F0))),
+            ],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: last ? 0 : 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Expanded(child: Text(s.label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: labelColor))),
+                      if (s.at != null) Text(s.at!, style: const TextStyle(fontSize: 10.5, color: faint)),
+                    ],
+                  ),
+                  if (s.durationSeconds != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Row(
+                        children: [
+                          Text(current ? 'ຄ້າງມາ ' : 'ໃຊ້ເວລາ ', style: const TextStyle(fontSize: 11, color: muted)),
+                          LiveElapsed(
+                            seconds: s.durationSeconds,
+                            live: current,
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: current ? const Color(0xFF4338CA) : muted),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (s.state == 'pending')
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Text('ຍັງບໍ່ຮອດ', style: TextStyle(fontSize: 11, color: Color(0xFFCBD5E1))),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _row(String label, String? value) {
     if (value == null || value.isEmpty) return const SizedBox.shrink();
