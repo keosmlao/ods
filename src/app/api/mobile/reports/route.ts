@@ -1,0 +1,17 @@
+import { requireMobile } from "@/lib/mobile-auth";
+import { mobileReports } from "@/lib/mobile-reports";
+import { APPROVER_SIDE } from "@/lib/roles";
+import { NextResponse } from "next/server";
+
+/** ລາຍງານ — ແນວໂນ້ມ 14 ມື້ (ເປີດ/ປິດ) + ຄ່າຄອມເດືອນນີ້. ຈຳກັດ APPROVER_SIDE. */
+export async function GET(request: Request) {
+  const guard = await requireMobile(request, APPROVER_SIDE);
+  if (!guard.ok) return guard.response;
+
+  try {
+    return NextResponse.json(await mobileReports());
+  } catch (error) {
+    console.error("Mobile reports failed", error);
+    return NextResponse.json({ error: "ໂຫຼດລາຍງານບໍ່ສຳເລັດ" }, { status: 500 });
+  }
+}

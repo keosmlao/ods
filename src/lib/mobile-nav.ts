@@ -13,6 +13,9 @@ import type { Role } from "@/lib/roles";
  */
 export type MobileTabKey =
   | "overview"
+  | "monitor"
+  | "techs"
+  | "reports"
   | "jobs"
   | "pickup"
   | "income"
@@ -26,6 +29,9 @@ export type MobileTab = { key: MobileTabKey; label: string };
 /** label ກາງ — ໃຫ້ຄຳຢູ່ໃຕ້ icon ຄົງທີ່ ບໍ່ວ່າ role ໃດ */
 const TAB: Record<MobileTabKey, MobileTab> = {
   overview: { key: "overview", label: "ພາບລວມ" },
+  monitor: { key: "monitor", label: "ຕິດຕາມ" },
+  techs: { key: "techs", label: "ລູກນ້ອງ" },
+  reports: { key: "reports", label: "ລາຍງານ" },
   jobs: { key: "jobs", label: "ວຽກ" },
   pickup: { key: "pickup", label: "ອາໄຫຼ່" },
   income: { key: "income", label: "ລາຍຮັບ" },
@@ -42,8 +48,9 @@ const TAB: Record<MobileTabKey, MobileTab> = {
 const TABS_BY_ROLE: Record<Role, MobileTabKey[]> = {
   technical: ["jobs", "pickup", "income"], // ຊ່າງພາກສະໜາມ
   headtechnical: ["jobs", "qc", "income"], // ຫົວໜ້າຊ່າງ — ກວດ QC ໜ້າງານ
-  // ຜູ້ຈັດການ — ພາບລວມ · ອະນຸມັດ · QC. **ບໍ່ມີກວດນັບ** (ເປັນວຽກສາງ)
-  manager: ["overview", "approvals", "qc"],
+  // ຜູ້ຈັດການ — ເຄື່ອງມື monitor: ພາບລວມ · ຕິດຕາມງານ · ລູກນ້ອງ · ອະນຸມັດ · ລາຍງານ.
+  // (QC ຢູ່ຝ່າຍຫົວໜ້າຊ່າງ · ກວດນັບ ຢູ່ຝ່າຍສາງ)
+  manager: ["overview", "monitor", "techs", "approvals", "reports"],
   stock: ["stock-count", "notifications"], // ຝ່າຍສາງ
   admin: ["stock-count", "notifications", "qc"], // CS
   sales: ["stock-count", "notifications"], // ຝ່າຍຂາຍ

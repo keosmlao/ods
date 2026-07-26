@@ -5,11 +5,14 @@ import '../widgets/service_bottom_nav.dart';
 import 'income_screen.dart';
 import 'jobs_screen.dart';
 import 'manager_screen.dart';
+import 'monitor_screen.dart';
 import 'notifications_screen.dart';
 import 'pickup_screen.dart';
 import 'approvals_screen.dart';
 import 'qc_screen.dart';
+import 'reports_screen.dart';
 import 'stock_count_screen.dart';
+import 'techs_screen.dart';
 
 /// ໂຄງແອັບຫຼັກ — ແຖບລຸ່ມຕາມ role (server ສົ່ງ `tabs` ມາຕອນ login).
 ///
@@ -30,6 +33,9 @@ class _NavHostState extends State<NavHost> {
 
   static Widget _screen(String key) => switch (key) {
     'overview' => const ManagerScreen(),
+    'monitor' => const MonitorScreen(),
+    'techs' => const TechsScreen(),
+    'reports' => const ReportsScreen(),
     'jobs' => const JobsScreen(),
     'pickup' => const PickupScreen(),
     'income' => const IncomeScreen(),

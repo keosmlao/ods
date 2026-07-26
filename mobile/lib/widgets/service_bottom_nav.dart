@@ -24,6 +24,9 @@ class ServiceBottomNav extends StatelessWidget {
   /// (icon ຕອນບໍ່ເລືອກ, icon ຕອນເລືອກ) ຕາມ key
   static (IconData, IconData) iconFor(String key) => switch (key) {
     'overview' => (Icons.dashboard_outlined, Icons.dashboard_rounded),
+    'monitor' => (Icons.radar_outlined, Icons.radar),
+    'techs' => (Icons.groups_outlined, Icons.groups_rounded),
+    'reports' => (Icons.insights_outlined, Icons.insights_rounded),
     'jobs' => (Icons.work_outline_rounded, Icons.work_rounded),
     'pickup' => (Icons.inventory_2_outlined, Icons.inventory_2_rounded),
     'income' => (Icons.payments_outlined, Icons.payments_rounded),

@@ -525,6 +525,32 @@ class Api {
   static Future<Overview> overview() async =>
       Overview.fromJson(await _send('GET', '/api/mobile/overview'));
 
+  /* ── ຕິດຕາມງານ / ຜົນງານລູກນ້ອງ / ລາຍງານ (manager monitor) ─────── */
+
+  /// ຕິດຕາມງານ — ກຸ່ມທີ່ຕ້ອງລົງມື (ເລີຍ SLA · ຍັງບໍ່ຈັດຊ່າງ · ຄ້າງດົນ)
+  static Future<List<MonitorGroup>> monitor() async {
+    final result = await _send('GET', '/api/mobile/monitor');
+    return ((result['groups'] as List?) ?? [])
+        .map((row) => MonitorGroup.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// ຜົນງານລູກນ້ອງ — ລາຍชื่อຊ່າງ + ພາລະ/ຄວາມຊ້າ/ຄ່າຄອມ
+  static Future<List<TechRow>> techs() async {
+    final result = await _send('GET', '/api/mobile/techs');
+    return ((result['techs'] as List?) ?? [])
+        .map((row) => TechRow.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// ຜົນງານຊ່າງ 1 ຄົນ — ພາລະ · ຜົນຜະລິດ · ຄ່າຄອມ · ງານເປີດ
+  static Future<TechDetail> techDetail(String code) async =>
+      TechDetail.fromJson(await _send('GET', '/api/mobile/techs/${Uri.encodeComponent(code)}'));
+
+  /// ລາຍງານ — ແນວໂນ້ມ 14 ມື້ (ເປີດ/ປິດ) + ຄ່າຄອມເດືອນນີ້
+  static Future<Reports> reports() async =>
+      Reports.fromJson(await _send('GET', '/api/mobile/reports'));
+
   /* ── ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມ (ບໍ່ແມ່ນຊ່າງ) ────────────────────── */
 
   static Future<StockCount> stockCount() async {
@@ -1489,5 +1515,178 @@ class OutstandingSpare {
     itemName: json['item_name'] as String? ?? '',
     qty: double.tryParse('${json['qty']}') ?? 0,
     unitCode: json['unit_code'] as String?,
+  );
+}
+
+/* ── ຕິດຕາມງານ / ຜົນງານລູກນ້ອງ / ລາຍງານ (manager monitor) ───────────── */
+
+/// 1 ໃບໃນ monitor / ລາຍการงานຂອງຊ່າງ — ພຽງພໍໃຫ້ຜູ້ຈັດການ scan (ບໍ່ແມ່ນໜ້າ operate)
+class MonitorJob {
+  final String workflow; // repair | install
+  final String code;
+  final String? product;
+  final String? customer;
+  final String? tech;
+  final String? serviceType;
+  final String stageLabel;
+  final int ageDays;
+  final double? slaLeft; // ວິນາທີ; ຕິດລົບ = ເລີຍ SLA
+
+  MonitorJob({
+    required this.workflow,
+    required this.code,
+    required this.product,
+    required this.customer,
+    required this.tech,
+    required this.serviceType,
+    required this.stageLabel,
+    required this.ageDays,
+    required this.slaLeft,
+  });
+
+  factory MonitorJob.fromJson(Map<String, dynamic> json) => MonitorJob(
+    workflow: json['workflow'] as String? ?? 'repair',
+    code: '${json['code']}',
+    product: json['product'] as String?,
+    customer: json['customer'] as String?,
+    tech: json['tech'] as String?,
+    serviceType: json['service_type'] as String?,
+    stageLabel: json['stage_label'] as String? ?? '',
+    ageDays: (json['age_days'] as num?)?.toInt() ?? 0,
+    slaLeft: (json['sla_left'] as num?)?.toDouble(),
+  );
+
+  bool get overdue => slaLeft != null && slaLeft! < 0;
+}
+
+/// ກຸ່ມໃນ monitor (key: late|unassigned|aging · tone: danger|warn|muted)
+class MonitorGroup {
+  final String key;
+  final String label;
+  final String tone;
+  final List<MonitorJob> jobs;
+
+  MonitorGroup({required this.key, required this.label, required this.tone, required this.jobs});
+
+  factory MonitorGroup.fromJson(Map<String, dynamic> json) => MonitorGroup(
+    key: json['key'] as String? ?? '',
+    label: json['label'] as String? ?? '',
+    tone: json['tone'] as String? ?? 'muted',
+    jobs: ((json['jobs'] as List?) ?? [])
+        .map((row) => MonitorJob.fromJson(row as Map<String, dynamic>))
+        .toList(),
+  );
+}
+
+/// 1 ແຖວໃນ roster ຜົນງານລູກນ້ອງ
+class TechRow {
+  final String code;
+  final String name;
+  final int openJobs;
+  final int oldestDays;
+  final int late;
+  final int monthJobs;
+  final double monthThb;
+
+  TechRow({
+    required this.code,
+    required this.name,
+    required this.openJobs,
+    required this.oldestDays,
+    required this.late,
+    required this.monthJobs,
+    required this.monthThb,
+  });
+
+  factory TechRow.fromJson(Map<String, dynamic> json) => TechRow(
+    code: '${json['code']}',
+    name: json['name'] as String? ?? '-',
+    openJobs: (json['open_jobs'] as num?)?.toInt() ?? 0,
+    oldestDays: (json['oldest_days'] as num?)?.toInt() ?? 0,
+    late: (json['late'] as num?)?.toInt() ?? 0,
+    monthJobs: (json['month_jobs'] as num?)?.toInt() ?? 0,
+    monthThb: (json['month_thb'] as num?)?.toDouble() ?? 0,
+  );
+}
+
+/// ຜົນງານຊ່າງ 1 ຄົນ (detail)
+class TechDetail {
+  final String code;
+  final String name;
+  final int openJobs;
+  final int oldestDays;
+  final int late;
+  final int monthJobs;
+  final double monthThb;
+  final int todayClosed;
+  final int weekClosed;
+  final List<MonitorJob> jobs;
+
+  TechDetail({
+    required this.code,
+    required this.name,
+    required this.openJobs,
+    required this.oldestDays,
+    required this.late,
+    required this.monthJobs,
+    required this.monthThb,
+    required this.todayClosed,
+    required this.weekClosed,
+    required this.jobs,
+  });
+
+  factory TechDetail.fromJson(Map<String, dynamic> json) => TechDetail(
+    code: '${json['code']}',
+    name: json['name'] as String? ?? '-',
+    openJobs: (json['open_jobs'] as num?)?.toInt() ?? 0,
+    oldestDays: (json['oldest_days'] as num?)?.toInt() ?? 0,
+    late: (json['late'] as num?)?.toInt() ?? 0,
+    monthJobs: (json['month_jobs'] as num?)?.toInt() ?? 0,
+    monthThb: (json['month_thb'] as num?)?.toDouble() ?? 0,
+    todayClosed: (json['today_closed'] as num?)?.toInt() ?? 0,
+    weekClosed: (json['week_closed'] as num?)?.toInt() ?? 0,
+    jobs: ((json['jobs'] as List?) ?? [])
+        .map((row) => MonitorJob.fromJson(row as Map<String, dynamic>))
+        .toList(),
+  );
+}
+
+/// 1 ມື້ໃນ trend ລາຍງານ
+class ReportDay {
+  final String date; // YYYY-MM-DD
+  final int opened;
+  final int closed;
+  ReportDay({required this.date, required this.opened, required this.closed});
+  factory ReportDay.fromJson(Map<String, dynamic> json) => ReportDay(
+    date: json['date'] as String? ?? '',
+    opened: (json['opened'] as num?)?.toInt() ?? 0,
+    closed: (json['closed'] as num?)?.toInt() ?? 0,
+  );
+}
+
+/// ລາຍງານ (14 ມື້ + ຄ່າຄອມເດືອນນີ້)
+class Reports {
+  final List<ReportDay> days;
+  final int totalOpened;
+  final int totalClosed;
+  final double commissionMonthThb;
+  final int commissionMonthJobs;
+
+  Reports({
+    required this.days,
+    required this.totalOpened,
+    required this.totalClosed,
+    required this.commissionMonthThb,
+    required this.commissionMonthJobs,
+  });
+
+  factory Reports.fromJson(Map<String, dynamic> json) => Reports(
+    days: ((json['days'] as List?) ?? [])
+        .map((row) => ReportDay.fromJson(row as Map<String, dynamic>))
+        .toList(),
+    totalOpened: (json['total_opened'] as num?)?.toInt() ?? 0,
+    totalClosed: (json['total_closed'] as num?)?.toInt() ?? 0,
+    commissionMonthThb: (json['commission_month_thb'] as num?)?.toDouble() ?? 0,
+    commissionMonthJobs: (json['commission_month_jobs'] as num?)?.toInt() ?? 0,
   );
 }
