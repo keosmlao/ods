@@ -116,6 +116,24 @@ export function ClaimManage({
         {err && <p className="mt-2 text-xs font-semibold text-rose-600">{err}</p>}
       </div>
 
+      {/* ── ສ່ງຄຳຂໍ ຫາ supplier (CLM-A) — flow ມີຂັ້ນ "ສົ່ງ supplier" ── */}
+      {type === "A" && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Mail className="size-4 text-teal-600" /> ສ່ງຄຳຂໍອາໄຫຼ່ ຫາ supplier</p>
+          <p className="mb-3 text-[12px] text-slate-600">
+            ອາໄຫຼ່ທີ່ຂໍ: <b className="tabular-nums">{items.length}</b> ລາຍการ
+            {items.length > 0 && <span className="text-slate-400"> · {items.map((i) => i.item_name).slice(0, 3).join(", ")}{items.length > 3 ? " …" : ""}</span>}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" disabled={pending} onClick={() => act(() => sendClaimEmail(claimNo))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+              {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Mail className="size-4" />} ສ່ງ email ຫາ supplier
+            </button>
+            {emailSentAt && <span className="text-[12px] font-semibold text-emerald-600">✓ ສ່ງແລ້ວ {emailSentAt}</span>}
+          </div>
+          <p className="mt-2 text-[11px] text-slate-400">ຜູ້ຮັບ ຕັ້ງທີ່ ຜູ້ໃຊ້ → ຜູ້ຮັບລາຍງານ. ສ່ງແລ້ວ ຢ່າລືມ ຍ້າຍສະຖານະ ໄປ “ສົ່ງ supplier”.</p>
+        </div>
+      )}
+
       {/* ── COB (ຜูกเอกสาร ERP — ສະເພาะ CLM-C) ── */}
       {type === "C" && (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

@@ -1,5 +1,5 @@
 "use server";
-import { billItems, CLAIM_FLOW, CLAIM_REJECTED, claimByNo, type ClaimJobCandidate, cobInfo, ensureOdsCustomer, jobClaimCandidates, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, searchBills, searchInventory, type ClaimType } from "@/lib/claim";
+import { billItems, CLAIM_FLOW, CLAIM_REJECTED, claimByNo, claimItems, type ClaimJobCandidate, cobInfo, ensureOdsCustomer, jobClaimCandidates, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, searchBills, searchInventory, type ClaimType } from "@/lib/claim";
 import { logChange } from "@/lib/chatter-log";
 import { requireRole } from "@/lib/guard";
 import { sendMail } from "@/lib/mail";
@@ -296,14 +296,17 @@ export async function sendClaimEmail(claimNo: string): Promise<ClaimState> {
   const to = emails.length ? emails.join(",") : (process.env.MAIL_TO ?? "");
   if (!to.trim()) return { error: "ຍັງບໍ່ມີຜູ້ຮັບ email (ຕັ້ງທີ່ /manage/report-recipients)" };
   const delivery = claim.ref_job ? await jobDelivery(claim.ref_job) : null;
+  const lines = await claimItems(claimNo);
   const text = [
     `ໃບເຄມ ${claim.claim_no} (CLM-${claim.claim_type})`,
     `Supplier: ${claim.supplier_code ?? "-"}`,
     claim.brand_code ? `ຫຍີ່ຫໍ້: ${claim.brand_code}` : null,
+    claim.product ? `ສິນຄ້າ: ${claim.product}${claim.sn ? ` · SN ${claim.sn}` : ""}` : null,
     delivery
       ? `ເອກະສານສົ່ງເຄື່ອງ: ງານ ${delivery.code} · ${delivery.product ?? ""} · ລູກຄ້າ ${delivery.customer ?? "-"} · ສ່ງคืน ${delivery.returned_at ?? "-"}`
       : claim.ref_job ? `ເລກງານ: ${claim.ref_job}` : null,
-    `ຍอด: ${claim.amount.toLocaleString()}`,
+    lines.length ? `ອາໄຫຼ່/ລາຍการ:\n${lines.map((l) => `  - ${l.item_name}${l.item_code ? ` (${l.item_code})` : ""} × ${l.qty}${l.unit ? ` ${l.unit}` : ""}`).join("\n")}` : null,
+    claim.amount ? `ຍอด: ${claim.amount.toLocaleString()}` : null,
     claim.reason ? `ເຫດ: ${claim.reason}` : null,
   ].filter(Boolean).join("\n");
   const res = await sendMail({ to, subject: `ເຄມ ${claim.claim_no} — ${claim.supplier_code ?? ""}`.trim(), text });
