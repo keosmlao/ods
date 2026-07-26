@@ -2,7 +2,7 @@
 import { deleteClaim, updateClaim } from "@/app/actions/claim";
 import { useConfirm } from "@/components/confirm-dialog";
 import { type Option, SelectField } from "@/components/select-field";
-import { LoaderCircle, Save, Trash2 } from "lucide-react";
+import { ChevronDown, LoaderCircle, Pencil, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -24,6 +24,7 @@ export function ClaimEditDelete({
   const router = useRouter();
   const { ask, dialog } = useConfirm();
   const [pending, start] = useTransition();
+  const [open, setOpen] = useState(false); // ພັບໄວ້ (ບໍ່ໃຫ້ card ໃຫຍ່ຄາໜ້າ) — ກົດ "ແກ້ໄຂ" ຈຶ່ງເປີດ
   const [sup, setSup] = useState(supplierCode ?? "");
   const [brand, setBrand] = useState(brandCode ?? "");
   const [rsn, setRsn] = useState(reason ?? "");
@@ -46,8 +47,13 @@ export function ClaimEditDelete({
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       {dialog}
-      <p className="mb-2 text-xs font-semibold text-slate-500">ແກ້ໄຂ / ລບ</p>
-      <div className="space-y-2">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700">
+        <Pencil className="size-3.5" /> ແກ້ໄຂ / ລບ
+        <ChevronDown className={`ml-auto size-4 transition ${open ? "rotate-180" : ""}`} />
+      </button>
+      {!open ? null : (
+        <>
+      <div className="mt-3 space-y-2">
         <div>
           <label className="mb-1 block text-[11px] font-semibold text-slate-500">Supplier</label>
           <SelectField name="claim_supplier" options={supplierOptions} value={sup} onChange={setSup} placeholder="ເລືອກ supplier..." />
@@ -67,6 +73,8 @@ export function ClaimEditDelete({
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />} ບັນທຶກ
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 }
