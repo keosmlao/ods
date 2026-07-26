@@ -28,16 +28,31 @@ export function RepairBalanceTable({
   }, [items]);
 
   const [tab, setTab] = useState<string>("all");
+  const [loc, setLoc] = useState<string>(""); // ທີ່ຈັດເກັບ (shelf) ທີ່ເລືອກ — "" = ທຸກທີ່
 
   const qtyIn = (it: RepairStockItem, code: string) => it.warehouses.find((w) => w.code === code)?.qty ?? 0;
+  const qtyAtLoc = (it: RepairStockItem, wh: string, location: string) =>
+    it.locations.filter((l) => l.wh_code === wh && l.location === location).reduce((s, l) => s + l.qty, 0);
   const centerCount = (code: string) => items.filter((it) => qtyIn(it, code) > 0).length;
 
-  const rows = useMemo(() => (tab === "all" ? items : items.filter((it) => qtyIn(it, tab) > 0)), [items, tab]);
+  // ທີ່ຈັດເກັບ (shelf) ໃນສາງທີ່ເລືອກ — ຮຽງ + ນັບ item ຕໍ່ shelf
+  const shelves = useMemo(() => {
+    if (tab === "all") return [];
+    const m = new Map<string, number>();
+    for (const it of items) for (const l of it.locations) if (l.wh_code === tab && l.qty > 0) m.set(l.location, (m.get(l.location) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [items, tab]);
+
+  const rows = useMemo(() => {
+    if (tab === "all") return items;
+    const inWh = items.filter((it) => qtyIn(it, tab) > 0);
+    return loc ? inWh.filter((it) => qtyAtLoc(it, tab, loc) > 0) : inWh;
+  }, [items, tab, loc]);
 
   const tabBtn = (key: string, label: string, n: number) => (
     <button
       type="button"
-      onClick={() => setTab(key)}
+      onClick={() => { setTab(key); setLoc(""); }}
       className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
         tab === key ? "bg-slate-900 text-white shadow-sm" : "bg-white text-slate-500 hover:bg-slate-50"
       }`}
@@ -54,6 +69,21 @@ export function RepairBalanceTable({
         {tabBtn("all", t.allCenters, items.length)}
         {centers.map((c) => tabBtn(c.code, c.name, centerCount(c.code)))}
       </div>
+
+      {/* ── tab ທີ່ຈັດເກັບ (shelf) ຂອງສາງທີ່ເລືອກ ── */}
+      {shelves.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-semibold text-slate-400">ທີ່ຈັດເກັບ:</span>
+          <button type="button" onClick={() => setLoc("")} className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${loc === "" ? "bg-teal-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
+            ທຸກທີ່ <span className="tabular-nums opacity-70">{rows.length.toLocaleString()}</span>
+          </button>
+          {shelves.map(([code, n]) => (
+            <button key={code} type="button" onClick={() => setLoc(code)} className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${loc === code ? "bg-teal-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
+              <span className="font-mono">{code || "—"}</span> <span className="tabular-nums opacity-70">{n}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-slate-500">
@@ -117,7 +147,7 @@ export function RepairBalanceTable({
                     <td className="px-3 py-2.5 text-right font-bold tabular-nums text-emerald-600">{fmt(item.total)}</td>
                   </>
                 ) : (
-                  <td className="px-3 py-2.5 text-right font-bold tabular-nums text-emerald-600">{fmt(qtyIn(item, tab))}</td>
+                  <td className="px-3 py-2.5 text-right font-bold tabular-nums text-emerald-600">{fmt(loc ? qtyAtLoc(item, tab, loc) : qtyIn(item, tab))}</td>
                 )}
               </tr>
             ))}

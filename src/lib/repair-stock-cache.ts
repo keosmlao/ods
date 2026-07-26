@@ -11,21 +11,16 @@ export const REPAIR_WH_LABEL: Record<string, string> = { "1104": "ຂົວຫ�
 export async function refreshRepairStock(): Promise<{ count: number }> {
   if (!db) throw new Error("ບໍ່ພົບ DATABASE_URL");
 
-  // ຄິດຍອດສະເພາະລາຍການທີ່ເຄີຍເຄື່ອນໄຫວຜ່ານ 2 ສາງນັ້ນ (ຫຼຸດການ scan ທັງ catalog)
+  // ⚡ ເອີ້ນ function ຄັ້ງດຽວ ດ້ວຍ warehouse_code_list — ຄືນທຸກ item+ທີ່ຈັດເກັບ ໃນ 2 ສາງ (~0.7ວິ,
+  // ໄວກວ່າ per-item lateral join ~25ວິ ຫຼາຍ). ຊື່/ໜ່ວຍ ມາຈາກ function (ບໍ່ຕ້ອງ join ic_inventory).
   const rows = (
     await queryOdg<{ item_code: string; item_name: string | null; unit_code: string | null; wh_code: string; location: string; qty: number }>(
-      `with cand as (
-         select distinct item_code from ic_trans_detail
-          where wh_code = any($1::text[]) or wh_code_2 = any($1::text[])
-       )
-       select cand.item_code, max(i.name_1) as item_name, max(i.unit_standard) as unit_code,
-              b.warehouse as wh_code, coalesce(b.location,'') as "location", round(sum(b.balance_qty), 2)::float8 as qty
-         from cand
-         join ic_inventory i on i.code = cand.item_code
-         left join lateral sml_ic_function_stock_balance_warehouse_location('2099-12-31', cand.item_code, '', '') b on true
-        where b.warehouse = any($1::text[]) and coalesce(b.balance_qty, 0) > 0
-        group by cand.item_code, b.warehouse, b.location`,
-      [[...REPAIR_WAREHOUSES]],
+      `select ic_code as item_code, max(ic_name) as item_name, max(ic_unit_code) as unit_code,
+          warehouse as wh_code, coalesce(location,'') as "location", round(sum(balance_qty), 2)::float8 as qty
+        from public.sml_ic_function_stock_balance_warehouse_location('2099-12-31', '', $1, '')
+       where coalesce(balance_qty, 0) > 0
+       group by ic_code, warehouse, location`,
+      [[...REPAIR_WAREHOUSES].join(",")],
     )
   ).rows;
 
