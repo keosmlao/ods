@@ -78,6 +78,7 @@ export default async function ClaimDetailPage({ params }: Props) {
             {info("ຮ້ານ/ລູກຄ້າ", claim.customer_name || claim.customer_code)}
             {info("ຫຍີ່ຫໍ້", claim.brand_code)}
             {info("ຜູ້ຕິດຕໍ່", claim.contact)}
+            {info("ເລກບິນຂາຍ", claim.bill_no)}
             {info("ເລກສ້ອມ", claim.ref_job)}
             {/* ຂໍ້ມູນສິນຄ້າ: ຈາກໃບເຄມເອງ (B) ຫຼື ດຶງຈາກงานสอม (C=delivery) */}
             {info("ສິນຄ້າ", claim.product ?? delivery?.product ?? null)}

@@ -1,7 +1,10 @@
 import {
+  type BillItem,
+  type ClaimBill,
   type ClaimCandidate,
   type ClaimDailySummary,
   type ClaimItem,
+  type InvItem,
   type ClaimJobCandidate,
   type ClaimLog,
   type ClaimPhoto,
@@ -28,7 +31,7 @@ const SELECT = `select c.id, c.claim_no, c.claim_type, c.supplier_code, c.brand_
     cust.name_1 customer_name, c.ref_job, c.erp_doc_no, c.status, c.amount, c.reason, c.created_by,
     to_char(c.created_at,'DD-MM-YYYY HH24:MI') created_at,
     to_char(c.email_sent_at,'DD-MM-YYYY HH24:MI') email_sent_at, c.pay_method, c.remark,
-    c.product, c.model, c.sn, c.warranty, to_char(c.purchase_date,'DD-MM-YYYY') purchase_date, c.contact
+    c.product, c.model, c.sn, c.warranty, to_char(c.purchase_date,'DD-MM-YYYY') purchase_date, c.contact, c.bill_no
   from ods_claim c
   left join ar_customer cust on cust.code = c.customer_code`;
 
@@ -77,6 +80,48 @@ export async function searchCustomers(q = "", limit = 30): Promise<{ code: strin
       // ⚠️ alias ຕ້ອງ quote — `name_1 name` ຊົນກັບ type `name` ຂອງ Postgres = syntax error
       `select code, name_1 as "name", tel from ar_customer ${where} order by name_1 limit $${args.length}`,
       args,
+    )
+  ).rows;
+}
+
+/** ຄົ້ນບິນຂາຍ ERP (ic_trans trans_flag 44) — ໂດຍເລກບິນ ຫຼື ລະຫัส/ຊື່ລູກຄ້າ. iso_date ໃຫ້ client ຄິດປะກັນ */
+export async function searchBills(q = "", limit = 20): Promise<ClaimBill[]> {
+  const term = q.trim();
+  if (!term) return [];
+  return (
+    await queryOdg<ClaimBill>(
+      `select t.doc_no, to_char(t.doc_date,'DD-MM-YYYY') doc_date, to_char(t.doc_date,'YYYY-MM-DD') iso_date,
+          t.cust_code, c.name_1 cust_name, coalesce(t.total_amount,0)::float total
+        from ic_trans t
+        left join ar_customer c on c.code = t.cust_code
+       where t.trans_flag = 44 and (t.doc_no ilike $1 or t.cust_code ilike $1 or c.name_1 ilike $1)
+       order by t.doc_date desc limit $2`,
+      [`%${term}%`, limit],
+    )
+  ).rows;
+}
+
+/** ລາຍการສินค้าໃນບິນ (ic_trans_detail) — ໃຫ້ເລືອກສິນຄ້າທີ່ມີບັນຫາ */
+export async function billItems(docNo: string): Promise<BillItem[]> {
+  if (!docNo?.trim()) return [];
+  return (
+    await queryOdg<BillItem>(
+      `select item_code, item_name, coalesce(qty,0)::float qty, unit_code unit
+        from ic_trans_detail where doc_no = $1 and trans_flag = 44 order by line_number`,
+      [docNo.trim()],
+    )
+  ).rows;
+}
+
+/** ຄົ້ນສິນຄ້າ/ອາໄຫຼ່ ຈາກ ic_inventory (master) — ໃຫ້ເລືອກອາໄຫຼ່ທີ່ຕ້ອງการปเปลี่ยน */
+export async function searchInventory(q = "", limit = 20): Promise<InvItem[]> {
+  const term = q.trim();
+  if (!term) return [];
+  return (
+    await queryOdg<InvItem>(
+      `select code, name_1 as "name", unit_standard unit from ic_inventory
+        where code ilike $1 or name_1 ilike $1 order by name_1 limit $2`,
+      [`%${term}%`, limit],
     )
   ).rows;
 }

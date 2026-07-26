@@ -98,10 +98,35 @@ export type ClaimRow = {
   warranty: string | null;
   purchase_date: string | null;
   contact: string | null;
+  /** ເລກບິນຂາຍ ERP (ic_trans trans_flag 44) — ອ້າງອີງການຊື້ຂອງລູກຄ້າ */
+  bill_no: string | null;
 };
 
 export type ClaimPhoto = { id: number; path: string; created_at: string | null };
 export const WARRANTY_LABEL: Record<string, string> = { in: "ໃນປະກັນ", out: "ນອກປະກັນ" };
+
+/** ບິນຂາຍ ERP (ic_trans 44) · ລາຍการສินค้า · ລາຍการ inventory master */
+export type ClaimBill = { doc_no: string; doc_date: string; iso_date: string; cust_code: string; cust_name: string | null; total: number };
+export type BillItem = { item_code: string; item_name: string; qty: number; unit: string | null };
+export type InvItem = { code: string; name: string; unit: string | null };
+
+/** ໄລຍະຮັບປະກັນ ມາດຕะฐาน (ເດືອນ) — ปรับได้ */
+export const WARRANTY_MONTHS = 12;
+
+/**
+ * ກວດປະກັນ **ຈາກວັນອອກບິນ** (iso YYYY-MM-DD) — ໃນປະກັນ ຖ້າຍັງບໍ່ເກີນ WARRANTY_MONTHS.
+ * pure ⇒ client ໃຊ້ໄດ້. null ຖ້າວັນທີບໍ່ຖືກ.
+ */
+export function warrantyFromBillDate(iso: string): { status: "in" | "out"; days: number; label: string } | null {
+  if (!iso) return null;
+  const bill = new Date(iso);
+  if (Number.isNaN(bill.getTime())) return null;
+  const expiry = new Date(bill);
+  expiry.setMonth(expiry.getMonth() + WARRANTY_MONTHS);
+  const days = Math.max(0, Math.floor((Date.now() - bill.getTime()) / 86400000));
+  const inW = new Date() <= expiry;
+  return { status: inW ? "in" : "out", days, label: `${inW ? "ໃນປະກັນ" : "ນອກປະກັນ"} · ຊື້ມາ ${days} ວັນ` };
+}
 
 /** ຂໍ້ມູນ job (ເລກສ້ອມ/ສິນຄ້າ/SN/Model/ອາການ) — CLM-C ດຶງມາກຳນົດການເຄມ + email */
 export type JobDelivery = {

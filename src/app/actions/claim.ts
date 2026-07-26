@@ -1,5 +1,5 @@
 "use server";
-import { CLAIM_FLOW, CLAIM_REJECTED, claimByNo, type ClaimJobCandidate, cobInfo, jobClaimCandidates, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, type ClaimType } from "@/lib/claim";
+import { billItems, CLAIM_FLOW, CLAIM_REJECTED, claimByNo, type ClaimJobCandidate, cobInfo, jobClaimCandidates, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, searchBills, searchInventory, type ClaimType } from "@/lib/claim";
 import { logChange } from "@/lib/chatter-log";
 import { requireRole } from "@/lib/guard";
 import { sendMail } from "@/lib/mail";
@@ -27,6 +27,23 @@ export async function searchClaimJobs(q: string): Promise<{ error?: string; jobs
 }
 
 /** ເປີດໃບເຄມໃໝ່ — ຄືນ claim_no */
+/** ── ERP pull (ໃຫ້ form client ເອີ້ນ) — ຄົ້ນບິນ · ລາຍการສินค้าใນບິນ · ຄົ້ນ inventory ── */
+export async function findBills(q: string) {
+  const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
+  if (!guard.ok) return { error: guard.error };
+  try { return { bills: await searchBills(q) }; } catch { return { error: "ຄົ້ນບິນບໍ່ໄດ້ (ERP)" }; }
+}
+export async function loadBillItems(docNo: string) {
+  const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
+  if (!guard.ok) return { error: guard.error };
+  try { return { items: await billItems(docNo) }; } catch { return { error: "ໂຫຼດລາຍการບິນບໍ່ໄດ້ (ERP)" }; }
+}
+export async function findInventory(q: string) {
+  const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
+  if (!guard.ok) return { error: guard.error };
+  try { return { items: await searchInventory(q) }; } catch { return { error: "ຄົ້ນສິນຄ້າບໍ່ໄດ້ (ERP)" }; }
+}
+
 export async function createClaim(input: {
   claim_type: ClaimType;
   supplier_code?: string;
@@ -40,6 +57,7 @@ export async function createClaim(input: {
   warranty?: string;
   purchase_date?: string;
   contact?: string;
+  bill_no?: string;
 }): Promise<ClaimState> {
   const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດເປີດໃບເຄມ");
   if (!guard.ok) return { error: guard.error };
@@ -53,11 +71,11 @@ export async function createClaim(input: {
   const id = (
     await query<{ id: number }>(
       `insert into ods_claim(claim_type, supplier_code, brand_code, customer_code, ref_job, reason, status, created_by,
-         product, model, sn, warranty, purchase_date, contact)
+         product, model, sn, warranty, purchase_date, contact, bill_no)
        values ($1, nullif($2,''), nullif($3,''), nullif($4,''), nullif($5,''), nullif($6,''), $7, $8,
-         nullif($9,''), nullif($10,''), nullif($11,''), nullif($12,''), nullif($13,'')::date, nullif($14,'')) returning id`,
+         nullif($9,''), nullif($10,''), nullif($11,''), nullif($12,''), nullif($13,'')::date, nullif($14,''), nullif($15,'')) returning id`,
       [type, input.supplier_code ?? "", input.brand_code ?? "", input.customer_code ?? "", input.ref_job ?? "", input.reason ?? "", START[type], guard.session.username,
-        input.product ?? "", input.model ?? "", input.sn ?? "", input.warranty ?? "", input.purchase_date ?? "", input.contact ?? ""],
+        input.product ?? "", input.model ?? "", input.sn ?? "", input.warranty ?? "", input.purchase_date ?? "", input.contact ?? "", input.bill_no ?? ""],
     )
   ).rows[0]?.id;
   if (!id) return { error: "ເປີດໃບເຄມບໍ່ສຳເລັດ" };
