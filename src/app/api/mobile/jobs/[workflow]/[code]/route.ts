@@ -21,6 +21,7 @@ import {
   ownMaintenanceJob,
   startMaintenance,
 } from "@/lib/maintenance-flow";
+import { installTimeline } from "@/lib/install-timeline";
 import { MAX_PHOTO_CHARS, requireMobile } from "@/lib/mobile-auth";
 import { repairTimeline } from "@/lib/repair-timeline";
 import { TECH_SIDE } from "@/lib/roles";
@@ -64,10 +65,10 @@ export async function GET(request: Request, context: { params: Promise<{ workflo
   if (!ownership.ok) return NextResponse.json({ error: ownership.error }, { status: 403 });
 
   try {
-    // ເສັ້ນເວລາ (ໄລຍະແຕ່ລະຂັ້ນ) — ສະເພາະສາຍງານສ້ອມ (ຄືກັບ web /service/[code])
+    // ເສັ້ນເວລາ (ໄລຍະແຕ່ລະຂັ້ນ) — ສ້ອມ ແລະ ຕິດຕັ້ງ (ຄິດຈາກຖັນຂອງແຕ່ລະຕາຕະລາງ)
     const [photos, timeline] = await Promise.all([
       jobPhotoSets(workflow, code),
-      workflow === "repair" ? repairTimeline(code) : Promise.resolve(null),
+      workflow === "repair" ? repairTimeline(code) : installTimeline(code),
     ]);
     return NextResponse.json({
       photos,
