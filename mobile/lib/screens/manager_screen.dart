@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../api.dart';
@@ -166,14 +167,10 @@ class _ManagerScreenState extends State<ManagerScreen> {
         ),
       ),
 
-    // ── ຂັ້ນຕອນງານສ້ອມ (funnel) ──
+    // ── ຂັ້ນຕອນງານສ້ອມ (chart) ──
     _Card(
       title: 'ຂັ້ນຕອນງານສ້ອມ',
-      child: Column(
-        children: [
-          for (final s in d.pipeline) _Bar(label: s.label, value: s.count),
-        ],
-      ),
+      child: _PipelineChart(pipeline: d.pipeline),
     ),
 
     // ── ລໍອະນຸມັດ ──
@@ -205,10 +202,10 @@ class _ManagerScreenState extends State<ManagerScreen> {
       ),
     ),
 
-    // ── ພາລະງານຊ່າງ ──
+    // ── ຊ່າງບໍ່ຫວ່າງ (ມີວຽກຄ້າງ) ──
     if (d.techLoad.isNotEmpty)
       _Card(
-        title: 'ພາລະງານຊ່າງ',
+        title: 'ຊ່າງບໍ່ຫວ່າງ (ມີວຽກຄ້າງ)',
         child: Column(
           children: [
             for (final t in d.techLoad)
@@ -218,6 +215,35 @@ class _ManagerScreenState extends State<ManagerScreen> {
                 hint: t.oldestSeconds > 0
                     ? 'ເກົ່າສຸດ ${t.oldestSeconds ~/ 86400} ມື້'
                     : null,
+              ),
+          ],
+        ),
+      ),
+
+    // ── ຊ່າງວ່າງ (ບໍ່ມີວຽກຄ້າງ) ──
+    if (d.techFree.isNotEmpty)
+      _Card(
+        title: 'ຊ່າງວ່າງ (${d.techFree.length})',
+        child: Wrap(
+          spacing: 7,
+          runSpacing: 7,
+          children: [
+            for (final name in d.techFree)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                decoration: BoxDecoration(
+                  color: ok.withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: ok.withValues(alpha: .30)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle, size: 14, color: ok),
+                    const SizedBox(width: 5),
+                    Text(name, style: const TextStyle(fontSize: 12.5, color: ink, fontWeight: FontWeight.w700)),
+                  ],
+                ),
               ),
           ],
         ),
@@ -248,6 +274,89 @@ class _ManagerScreenState extends State<ManagerScreen> {
 }
 
 /* ── ຊິ້ນສ່ວນ UI ─────────────────────────────────────────────────── */
+
+/// chart ຂັ້ນຕອນງານສ້ອມ — bar ຕໍ່ຂັ້ນ (ຕົວເລກຢູ່ເທິງແທ່ງ · ຊື່ຂັ້ນຢູ່ລຸ່ມ)
+class _PipelineChart extends StatelessWidget {
+  const _PipelineChart({required this.pipeline});
+  final List<OverviewStage> pipeline;
+
+  @override
+  Widget build(BuildContext context) {
+    if (pipeline.isEmpty) return const SizedBox.shrink();
+    final maxV = pipeline.map((s) => s.count).fold<int>(0, (a, b) => a > b ? a : b);
+    final maxY = (maxV <= 0 ? 1 : maxV).toDouble();
+    return SizedBox(
+      height: 180,
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY: maxY * 1.25,
+          barTouchData: BarTouchData(
+            enabled: false,
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipColor: (_) => Colors.transparent,
+              tooltipPadding: EdgeInsets.zero,
+              tooltipMargin: 2,
+              getTooltipItem: (group, gi, rod, ri) => BarTooltipItem(
+                '${rod.toY.toInt()}',
+                const TextStyle(color: ink, fontSize: 10.5, fontWeight: FontWeight.w900),
+              ),
+            ),
+          ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            getDrawingHorizontalLine: (v) => const FlLine(color: Color(0xFFECF1EF), strokeWidth: 1),
+          ),
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(
+            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 40,
+                getTitlesWidget: (value, meta) {
+                  final i = value.toInt();
+                  if (i < 0 || i >= pipeline.length) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: SizedBox(
+                      width: 46,
+                      child: Text(
+                        pipeline[i].label,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 8.5, color: muted, height: 1.1),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          barGroups: [
+            for (var i = 0; i < pipeline.length; i++)
+              BarChartGroupData(
+                x: i,
+                showingTooltipIndicators: pipeline[i].count > 0 ? [0] : [],
+                barRods: [
+                  BarChartRodData(
+                    toY: pipeline[i].count.toDouble(),
+                    color: teal,
+                    width: 15,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _Card extends StatelessWidget {
   const _Card({required this.title, required this.child});
@@ -355,57 +464,6 @@ class _Line extends StatelessWidget {
       ],
     ),
   );
-}
-
-/// ແຖບແນວນອນ — ຄວາມຍາວທຽບກັບຄ່າສູງສຸດໃນ funnel
-class _Bar extends StatelessWidget {
-  const _Bar({required this.label, required this.value});
-  final String label;
-  final int value;
-
-  @override
-  Widget build(BuildContext context) {
-    // ຄ່າສູງສຸດ 20 = ເຕັມແຖບ (ພຽງເພື່ອສາຍຕາ — ບໍ່ແມ່ນສະເກນແທ້)
-    final ratio = (value / 20).clamp(0.04, 1.0);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 96,
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 12, color: ink),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: ratio,
-                minHeight: 10,
-                backgroundColor: const Color(0xFFEEF2F1),
-                valueColor: const AlwaysStoppedAnimation(teal),
-              ),
-            ),
-          ),
-          SizedBox(
-            width: 34,
-            child: Text(
-              '$value',
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-                color: ink,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _ErrorView extends StatelessWidget {

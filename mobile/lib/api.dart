@@ -650,6 +650,7 @@ class Overview {
   final int unassignedInstall;
   final List<OverviewStage> pipeline;
   final List<OverviewTech> techLoad;
+  final List<String> techFree; // ຊ່າງທີ່ວ່າງ (ບໍ່ມີວຽກຄ້າງ)
   final double? feedbackAvg;
   final int feedbackJobs;
   final int feedbackUnhappy;
@@ -673,6 +674,7 @@ class Overview {
     required this.unassignedInstall,
     required this.pipeline,
     required this.techLoad,
+    required this.techFree,
     required this.feedbackAvg,
     required this.feedbackJobs,
     required this.feedbackUnhappy,
@@ -709,6 +711,7 @@ class Overview {
       techLoad: ((json['tech_load'] as List?) ?? [])
           .map((row) => OverviewTech.fromJson(row as Map<String, dynamic>))
           .toList(),
+      techFree: ((json['tech_free'] as List?) ?? []).map((e) => e.toString()).toList(),
       feedbackAvg: (fb['avg'] as num?)?.toDouble(),
       feedbackJobs: n(fb, 'jobs'),
       feedbackUnhappy: n(fb, 'unhappy'),

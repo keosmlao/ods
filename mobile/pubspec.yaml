@@ -28,6 +28,8 @@ dependencies:
   firebase_messaging: ^15.1.5
   animated_bottom_navigation_bar: ^1.4.0
   flutter_local_notifications: ^20.1.0
+  # ── Dashboard ຫົວໜ້າ: chart (ວຽກຕໍ່ຂັ້ນ) ──
+  fl_chart: ^0.69.0
 
 dev_dependencies:
   flutter_test:
