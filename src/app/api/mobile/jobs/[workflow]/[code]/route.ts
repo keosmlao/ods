@@ -22,8 +22,9 @@ import {
   startMaintenance,
 } from "@/lib/maintenance-flow";
 import { installTimeline } from "@/lib/install-timeline";
+import { maintenanceTimeline } from "@/lib/maintenance-timeline";
 import { MAX_PHOTO_CHARS, requireMobile } from "@/lib/mobile-auth";
-import { repairTimeline } from "@/lib/repair-timeline";
+import { repairTimeline, type TimelineStep } from "@/lib/repair-timeline";
 import { TECH_SIDE } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
@@ -51,40 +52,51 @@ type Body = {
  * ຮູບຂອງງານ (ຕອນຮັບເຄື່ອງ · ຕອນກວດເຊັກ · ຕອນສ້ອມ/ຕິດຕັ້ງສຳເລັດ) — ໃຫ້ໜ້າລາຍລະອຽດແອັບສະແດງ.
  * ຮູບເປັນ data-URI base64 ທັງໝົດ (ຮັບເຄື່ອງອ່ານຈາກໄຟລ໌ແປງໃຫ້) ⇒ ແອັບ render ດ້ວຍ Image.memory ທາງດຽວ.
  */
+/** ແປງເສັ້ນເວລາ → payload snake_case ໃຫ້ແອັບ (ຮູບແບບດຽວກັນທຸກສາຍງານ) */
+function timelinePayload(timeline: { steps: TimelineStep[]; cancelledAt: string | null }) {
+  return {
+    cancelled_at: timeline.cancelledAt,
+    steps: timeline.steps.map((s) => ({
+      stage: s.stage,
+      label: s.label,
+      at: s.at,
+      duration_seconds: s.durationSeconds,
+      state: s.state,
+    })),
+  };
+}
+
 export async function GET(request: Request, context: { params: Promise<{ workflow: string; code: string }> }) {
   const guard = await requireMobile(request, TECH_SIDE);
   if (!guard.ok) return guard.response;
 
   const { workflow: raw, code } = await context.params;
-  if (raw !== "install" && raw !== "repair") {
-    return NextResponse.json({ error: "ສາຍງານບໍ່ຖືກຕ້ອງ" }, { status: 400 });
-  }
-  const workflow = raw as Workflow;
-
-  const ownership = await ownMobileJob(guard.user, workflow, code);
-  if (!ownership.ok) return NextResponse.json({ error: ownership.error }, { status: 403 });
 
   try {
+    // ── ບຳລຸງຮັກສາ (ລ້າງແອ): ownership + timeline ຂອງມັນເອງ · ຮູບໃຊ້ຄ່າວ່າງ (ບໍ່ຜູກ Workflow) ──
+    if (raw === "maintenance") {
+      const own = await ownMaintenanceJob(guard.user, code);
+      if (!own.ok) return NextResponse.json({ error: own.error }, { status: 403 });
+      return NextResponse.json({
+        photos: { receive: [], check: [], finish: [] },
+        timeline: timelinePayload(await maintenanceTimeline(code)),
+      });
+    }
+
+    if (raw !== "install" && raw !== "repair") {
+      return NextResponse.json({ error: "ສາຍງານບໍ່ຖືກຕ້ອງ" }, { status: 400 });
+    }
+    const workflow = raw as Workflow;
+
+    const ownership = await ownMobileJob(guard.user, workflow, code);
+    if (!ownership.ok) return NextResponse.json({ error: ownership.error }, { status: 403 });
+
     // ເສັ້ນເວລາ (ໄລຍະແຕ່ລະຂັ້ນ) — ສ້ອມ ແລະ ຕິດຕັ້ງ (ຄິດຈາກຖັນຂອງແຕ່ລະຕາຕະລາງ)
     const [photos, timeline] = await Promise.all([
       jobPhotoSets(workflow, code),
       workflow === "repair" ? repairTimeline(code) : installTimeline(code),
     ]);
-    return NextResponse.json({
-      photos,
-      timeline: timeline
-        ? {
-            cancelled_at: timeline.cancelledAt,
-            steps: timeline.steps.map((s) => ({
-              stage: s.stage,
-              label: s.label,
-              at: s.at,
-              duration_seconds: s.durationSeconds,
-              state: s.state,
-            })),
-          }
-        : null,
-    });
+    return NextResponse.json({ photos, timeline: timelinePayload(timeline) });
   } catch (error) {
     console.error("Mobile job detail failed", error);
     return NextResponse.json({ error: "ໂຫຼດລາຍລະອຽດບໍ່ສຳເລັດ" }, { status: 500 });
