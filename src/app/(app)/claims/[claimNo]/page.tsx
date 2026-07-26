@@ -153,6 +153,7 @@ export default async function ClaimDetailPage({ params }: Props) {
           delivery={delivery}
           payMethod={claim.pay_method}
           refJob={claim.ref_job}
+          repairPrefill={{ proname: claim.product ?? undefined, sn: claim.sn ?? undefined, billon: claim.bill_no ?? undefined, billdate: claim.purchase_date ?? undefined }}
         />
       </div>
     </div>

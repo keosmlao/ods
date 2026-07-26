@@ -19,6 +19,7 @@ export function ClaimManage({
   delivery,
   payMethod,
   refJob,
+  repairPrefill,
 }: {
   claimNo: string;
   type: ClaimType;
@@ -33,6 +34,8 @@ export function ClaimManage({
   delivery: JobDelivery | null;
   payMethod: string | null;
   refJob: string | null;
+  /** ຂໍ້ມູນ prefill ໃບງານສ້ອມ — ຖ້າເລືອກ "ສ້ອມ" ຈະພາໄປ /service/new ຕື່ມໃຫ້ */
+  repairPrefill?: { proname?: string; sn?: string; billon?: string; billdate?: string } | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -82,8 +85,16 @@ export function ClaimManage({
               <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claimNo, "replace"))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
                 {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ປ່ຽນ
               </button>
-              <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claimNo, "repair"))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
-                {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ສ້ອມ
+              <button type="button" disabled={pending} onClick={() => act(async () => {
+                // ສ້ອມ ⇒ ບັນທຶກ resolution ແລ້ວ **ເຊື່ອມໄປເປີດໃບງານສ້ອມ** (ຕື່ມ ສິນຄ້າ/SN/ບິນ ໃຫ້)
+                const r = await resolveClaim(claimNo, "repair");
+                if (!r.error && repairPrefill) {
+                  const qs = new URLSearchParams(Object.entries(repairPrefill).filter(([, v]) => v) as [string, string][]);
+                  router.push(`/service/new?${qs.toString()}`);
+                }
+                return r;
+              })} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+                {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ສ້ອມ → ເປີດໃບງານ
               </button>
             </div>
           ) : nextStatus ? (
