@@ -184,16 +184,29 @@ class _GateState extends State<_Gate> {
       */
       Push.register();
     }
-    // ມີ token → ດຶງ manifest **ໃໝ່** (role/tab ອາດປ່ຽນ server-side) ⇒ ບໍ່ຕ້ອງ login ຄືນ.
-    // token ໝົດອາຍຸ (401) → refreshSession ລ້າງ token ແລ້ວ return false ⇒ ໄປໜ້າ login.
-    Widget next;
     if (token == null) {
-      next = const LoginScreen();
-    } else {
-      final valid = await Api.refreshSession();
-      next = valid ? NavHost(tabs: await Api.savedTabs()) : const LoginScreen();
+      if (mounted) setState(() => _screen = const LoginScreen());
+      return;
     }
-    if (mounted) setState(() => _screen = next);
+
+    // ── cache-first: ສະແດງແອັບ **ທັນທີ** ຈາກ tab cache (ບໍ່ຖ່ວງດ້ວຍເຄືອຂ່າຍ) ──
+    // ຊ່າງພາກສະໜາມສັນຍານບໍ່ດີ ⇒ ຢ່າໃຫ້ໝູນຄ້າງລໍ /me. ດຶງ manifest ໃໝ່ພື້ນຫຼັງ,
+    // ປ່ຽນແທ້ (role/tab ຕ່າງ) ຈຶ່ງ rebuild · token ໝົດອາຍຸ (401) → refreshSession ລ້າງ → login.
+    final cached = await Api.savedTabs();
+    final cachedSig = cached.map((t) => t.key).join(',');
+    if (mounted) setState(() => _screen = NavHost(key: ValueKey(cachedSig), tabs: cached));
+
+    final valid = await Api.refreshSession();
+    if (!mounted) return;
+    if (!valid) {
+      setState(() => _screen = const LoginScreen());
+      return;
+    }
+    final fresh = await Api.savedTabs();
+    final freshSig = fresh.map((t) => t.key).join(',');
+    if (freshSig != cachedSig) {
+      setState(() => _screen = NavHost(key: ValueKey(freshSig), tabs: fresh));
+    }
   }
 
   @override
