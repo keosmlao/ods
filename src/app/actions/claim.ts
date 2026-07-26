@@ -83,7 +83,9 @@ export async function createClaim(input: {
   const type = input.claim_type;
   if (!["A", "B", "C"].includes(type)) return { error: "ประเภทเคลมไม่ถูกต้อง" };
   if (type === "B" && !input.customer_code?.trim()) return { error: "CLM-B ຕ້ອງເລືອກຮ້ານ (ລູກຄ້າ)" };
+  if (type === "B" && !input.reason?.trim()) return { error: "CLM-B ຕ້ອງລະບຸ ອາການ / ບັນຫາ" };
   if ((type === "A" || type === "C") && !input.supplier_code?.trim()) return { error: "ຕ້ອງເລືອກ supplier" };
+  if (type === "C" && !input.ref_job?.trim()) return { error: "CLM-C ຕ້ອງອ້າງອີງ ເລກງານສ້ອມ" };
 
   // ລູກຄ້າ ERP (ຈາກບິນ) ອາດຍັງບໍ່ມີໃນ ODS → copy ໃຫ້ join ຊື່ໃນລາຍການໄດ້ (ບໍ່ block ຖ້າ fail)
   if (input.customer_code?.trim()) await ensureOdsCustomer(input.customer_code.trim()).catch(() => {});
@@ -151,7 +153,13 @@ export async function setClaimPaid(claimNo: string, method: string): Promise<Cla
   const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
   if (!guard.ok) return { error: guard.error };
   if (!PAY_METHOD_LABEL[method]) return { error: "ເລືອກ ວິທີຊຳລະ" };
-  await query(`update ods_claim set status = 'paid', pay_method = $1, result_at = coalesce(result_at, now()) where claim_no = $2`, [method, claimNo]);
+  // ສະເພາະ CLM-C ທີ່ຍັງບໍ່ປິດ (ກັນ mark paid ໃບ A/B ຫຼື ໃບທີ່ປິດແລ້ວ)
+  const paid = await query(
+    `update ods_claim set status = 'paid', pay_method = $1, result_at = coalesce(result_at, now())
+      where claim_no = $2 and claim_type = 'C' and status not in ('paid','closed','rejected')`,
+    [method, claimNo],
+  );
+  if (!paid.rowCount) return { error: "ບັນທຶກຊຳລະບໍ່ໄດ້ — ໃບนี้ບໍ່ແມ່ນ CLM-C ຫຼື ປິດແລ້ວ" };
   await log(claimNo, guard.session.username, "paid", `ຊຳລະແລ້ວ · ${PAY_METHOD_LABEL[method]}`);
   revalidatePath("/claims");
   revalidatePath(`/claims/${claimNo}`);
@@ -166,12 +174,16 @@ export async function advanceClaim(claimNo: string, toStatus: string): Promise<C
   if (!claim) return { error: "ບໍ່ພົບໃບເຄມ" };
   const valid = new Set([...CLAIM_FLOW[claim.claim_type].map((s) => s.status), ...(claim.claim_type === "A" ? [CLAIM_REJECTED.status] : [])]);
   if (!valid.has(toStatus)) return { error: "ສະຖານະບໍ່ຖືກຕ້ອງ" };
+  // ໃບທີ່ປິດແລ້ວ (closed/rejected/paid) ຍ້າຍບໍ່ໄດ້ອີກ
+  if (["closed", "rejected", "paid"].includes(claim.status)) return { error: "ໃບນີ້ປິດແລ້ວ — ຍ້າຍສະຖານະບໍ່ໄດ້" };
 
   const stamp = stampFor(toStatus);
-  await query(
-    `update ods_claim set status = $1${stamp ? `, ${stamp} = coalesce(${stamp}, now())` : ""} where claim_no = $2`,
-    [toStatus, claimNo],
+  // WHERE ຜູກ status ປັດຈຸບັນ ⇒ ກັນ 2 ຄົນກົດພ້ອມກັນ (ຄົນທີ 2 ບໍ່ຜ່ານ)
+  const moved = await query(
+    `update ods_claim set status = $1${stamp ? `, ${stamp} = coalesce(${stamp}, now())` : ""} where claim_no = $2 and status = $3`,
+    [toStatus, claimNo, claim.status],
   );
+  if (!moved.rowCount) return { error: "ຍ້າຍສະຖານະບໍ່ໄດ້ — ສະຖານະຖືກປ່ຽນໄປແລ້ວ" };
   await log(claimNo, guard.session.username, "status", `→ ${toStatus}`);
   revalidatePath("/claims");
   revalidatePath(`/claims/${claimNo}`);

@@ -32,7 +32,8 @@ export async function ClaimsView({
     type === "C" ? claimCandidatesC() : Promise.resolve([]),
   ]);
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
-  const closedN = (counts.closed ?? 0) + (counts.rejected ?? 0);
+  // 'paid' (C) = ປິດແລ້ວ ຄືກັນ — flow C ຈົບທີ່ paid, ບໍ່ມີ closed
+  const closedN = (counts.closed ?? 0) + (counts.rejected ?? 0) + (counts.paid ?? 0);
   const openN = total - closedN;
   const exportHref = `/api/reports/export/claims?${new URLSearchParams({ type, ...(status ? { status } : {}), ...(q ? { q } : {}) })}`;
   const link = (s?: string) => `${basePath}?${new URLSearchParams({ ...(s ? { status: s } : {}), ...(q ? { q } : {}) })}`;

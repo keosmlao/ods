@@ -280,7 +280,8 @@ export async function claimCandidatesC(): Promise<ClaimCandidate[]> {
 /** ສະຫຼຸບເຄມປະຈຳວັນ (ສຳລັບ cron → email/Line OA). read-only aggregates. */
 export async function claimDailySummary(): Promise<ClaimDailySummary> {
   const [open, money, cand] = await Promise.all([
-    query<{ claim_type: string; n: number }>(`select claim_type, count(*)::int n from ods_claim where status not in ('closed','rejected') group by claim_type`),
+    // ⚠️ 'paid' = ປິດແລ້ວ ສຳລັບ C (flow C ຈົບທີ່ paid, ບໍ່ມີ closed) — ຕ້ອງນັບເປັນ ບໍ່ເປີດ
+    query<{ claim_type: string; n: number }>(`select claim_type, count(*)::int n from ods_claim where status not in ('closed','rejected','paid') group by claim_type`),
     query<{ s: string | null }>(`select coalesce(sum(amount),0) s from ods_claim where claim_type='C' and status not in ('paid','closed','rejected')`),
     query<{ n: number }>(`select count(*)::int n from tb_product a join ods_claim_mark m on m.job_code=a.code
        where a.return_complete is not null and a.code not in (select ref_job from ods_claim where claim_type='C' and ref_job is not null)`),

@@ -107,7 +107,7 @@ export function ClaimManage({
           ) : (
             <span className="text-sm text-slate-400">— ຈົບ pipeline —</span>
           )}
-          {canReject && status !== "rejected" && (
+          {canReject && !["rejected", "closed", "paid"].includes(status) && (
             <button type="button" disabled={pending} onClick={() => act(() => advanceClaim(claimNo, "rejected"))} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 text-sm font-semibold text-rose-600 hover:bg-rose-100 disabled:opacity-60">
               <X className="size-4" /> supplier ปฏิเสธ
             </button>
