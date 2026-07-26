@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api.dart';
@@ -245,7 +247,9 @@ class _JobsScreenState extends State<JobsScreen> {
   }
 
   Future<void> logout() async {
-    await Push.unregister();
+    // ຖອນ push token = ຍິງ FCM/server (ຊ້າ/ອາດ timeout) ⇒ ຢ່າ block logout ດ້ວຍມັນ.
+    // ລ້າງ token ໃນເຄື່ອງ (ໄວ) ແລ້ວໄປໜ້າ login ທັນທີ; unregister ແລ່ນพื้นหลัง.
+    unawaited(Push.unregister());
     await Api.clearToken();
     if (!mounted) return;
     Navigator.of(
