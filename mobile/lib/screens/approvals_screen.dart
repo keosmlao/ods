@@ -153,15 +153,6 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
     }
   }
 
-  /// ຈັດເປັນຫົວຂໍ້ຕາມ kind — ຮຽງ ໃບສະເໜີລາຄາ ກ່ອນ ຂໍຍົກເລີກ (ສະແດງແຕ່ຫົວຂໍ້ທີ່ມີ)
-  List<_ApprovalGroup> get _grouped {
-    final out = <_ApprovalGroup>[];
-    for (final meta in _kindOrder) {
-      final list = items.where((i) => i.kind == meta.kind).toList();
-      if (list.isNotEmpty) out.add(_ApprovalGroup(meta, list));
-    }
-    return out;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -170,57 +161,92 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
 
     return Scaffold(
       backgroundColor: ground,
-      body: Column(
-        children: [
-          HeroHeader(
-            title: 'ຄິວອະນຸມັດ',
-            trailing: [HeroIconButton(icon: Icons.refresh_rounded, onTap: load)],
-            stats: [
-              HeroStat(value: '${items.length}', label: 'ລໍອະນຸມັດ'),
-              HeroStat(
-                value: '$quotes',
-                label: 'ໃບສະເໜີລາຄາ',
-                color: const Color(0xFFFDBA74),
-              ),
-              HeroStat(
-                value: '$cancels',
-                label: 'ຂໍຍົກເລີກ',
-                color: const Color(0xFF6EE7B7),
-              ),
-            ],
-          ),
-          Expanded(
-            child: loading
-                ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: load,
-                    child: error.isNotEmpty
-                        ? _message(Icons.cloud_off_rounded, error)
-                        : items.isEmpty
-                        ? _message(Icons.task_alt_rounded, 'ບໍ່ມີລາຍການລໍອະນຸມັດ')
-                        : ListView(
-                            padding: const EdgeInsets.fromLTRB(14, 6, 14, 20),
-                            children: [
-                              // ແຍກເປັນຫົວຂໍ້ — ໃບສະເໜີລາຄາ · ຂໍຍົກເລີກ (ຄິວຄົນລະຊະນິດ)
-                              for (final group in _grouped) ...[
-                                _SectionHeader(meta: group.meta, count: group.items.length),
-                                for (final item in group.items) ...[
-                                  _ApprovalCard(
-                                    item: item,
-                                    onOpen: () => open(item),
-                                    onApprove: () => approve(item),
-                                    onReject: () => reject(item),
-                                  ),
-                                  const SizedBox(height: 10),
-                                ],
-                                const SizedBox(height: 6),
-                              ],
-                            ],
+      body: DefaultTabController(
+        length: _kindOrder.length,
+        child: Column(
+          children: [
+            HeroHeader(
+              title: 'ຄິວອະນຸມັດ',
+              trailing: [HeroIconButton(icon: Icons.refresh_rounded, onTap: load)],
+              stats: [
+                HeroStat(value: '${items.length}', label: 'ລໍອະນຸມັດ'),
+                HeroStat(value: '$quotes', label: 'ໃບສະເໜີລາຄາ', color: const Color(0xFFFDBA74)),
+                HeroStat(value: '$cancels', label: 'ຂໍຍົກເລີກ', color: const Color(0xFF6EE7B7)),
+              ],
+            ),
+            // ── ປຸ່ມແຍກ menu ແຕ່ລະຫົວຂໍ້ອະນຸມັດ (tab): ໃບສະເໜີລາຄາ · ຂໍຍົກເລີກ ──
+            Material(
+              color: Colors.white,
+              child: TabBar(
+                labelColor: ink,
+                unselectedLabelColor: muted,
+                indicatorColor: teal,
+                indicatorWeight: 3,
+                labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                tabs: [
+                  for (final meta in _kindOrder)
+                    Tab(
+                      height: 46,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(meta.icon, size: 16),
+                          const SizedBox(width: 5),
+                          Text(meta.short),
+                          const SizedBox(width: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: meta.color.withValues(alpha: .12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              '${items.where((i) => i.kind == meta.kind).length}',
+                              style: TextStyle(color: meta.color, fontSize: 10.5, fontWeight: FontWeight.w900),
+                            ),
                           ),
-                  ),
-          ),
-        ],
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : error.isNotEmpty
+                  ? _message(Icons.cloud_off_rounded, error)
+                  : TabBarView(
+                      children: [for (final meta in _kindOrder) _kindList(meta)],
+                    ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  /// ລາຍການອະນຸມັດ 1 ຫົວຂໍ້ (tab) — ຫວ່າງ = ຂໍ້ຄວາມ
+  Widget _kindList(_KindMeta meta) {
+    final list = items.where((i) => i.kind == meta.kind).toList();
+    return RefreshIndicator(
+      onRefresh: load,
+      child: list.isEmpty
+          ? _message(meta.icon, 'ບໍ່ມີ ${meta.label} ລໍອະນຸມັດ')
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),
+              children: [
+                for (final item in list) ...[
+                  _ApprovalCard(
+                    item: item,
+                    onOpen: () => open(item),
+                    onApprove: () => approve(item),
+                    onReject: () => reject(item),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ],
+            ),
     );
   }
 
@@ -243,73 +269,16 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
 class _KindMeta {
   final String kind;
   final String label;
+  final String short; // ປ້າຍສັ້ນສຳລັບ tab
   final IconData icon;
   final Color color;
-  const _KindMeta(this.kind, this.label, this.icon, this.color);
+  const _KindMeta(this.kind, this.label, this.short, this.icon, this.color);
 }
 
 const _kindOrder = [
-  _KindMeta('quotation', 'ໃບສະເໜີລາຄາ', Icons.request_quote_outlined, Color(0xFF7C3AED)),
-  _KindMeta('cancellation', 'ຂໍຍົກເລີກໃບຮັບເຄື່ອງ', Icons.cancel_outlined, danger),
+  _KindMeta('quotation', 'ໃບສະເໜີລາຄາ', 'ໃບສະເໜີລາຄາ', Icons.request_quote_outlined, Color(0xFF7C3AED)),
+  _KindMeta('cancellation', 'ຂໍຍົກເລີກໃບຮັບເຄື່ອງ', 'ຂໍຍົກເລີກ', Icons.cancel_outlined, danger),
 ];
-
-class _ApprovalGroup {
-  final _KindMeta meta;
-  final List<ApprovalItem> items;
-  const _ApprovalGroup(this.meta, this.items);
-}
-
-/// ຫົວກຸ່ມ — ໄອຄອນສີ + ຊື່ຫົວຂໍ້ + ຈຳນວນ
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.meta, required this.count});
-  final _KindMeta meta;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(2, 10, 2, 8),
-    child: Row(
-      children: [
-        Container(
-          width: 30,
-          height: 30,
-          decoration: BoxDecoration(
-            color: meta.color.withValues(alpha: .12),
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Icon(meta.icon, size: 17, color: meta.color),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Text(
-            meta.label,
-            style: const TextStyle(
-              fontSize: 14.5,
-              fontWeight: FontWeight.w800,
-              color: ink,
-              letterSpacing: -.2,
-            ),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-          decoration: BoxDecoration(
-            color: meta.color.withValues(alpha: .12),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            '$count',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              color: meta.color,
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
 
 class _ApprovalCard extends StatelessWidget {
   const _ApprovalCard({
