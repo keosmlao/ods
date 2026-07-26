@@ -1,5 +1,5 @@
 "use client";
-import { advanceClaim, deleteClaimItem, linkCob, pullJobItems, sendClaimEmail, setClaimJob, setClaimPaid, updateClaimRemark } from "@/app/actions/claim";
+import { advanceClaim, deleteClaimItem, linkCob, pullJobItems, resolveClaim, sendClaimEmail, setClaimJob, setClaimPaid, updateClaimRemark } from "@/app/actions/claim";
 import { type ClaimItem, type ClaimType, type CobInfo, type JobDelivery, PAY_METHOD_LABEL } from "@/lib/claim-shared";
 import { ArrowRight, BadgeCheck, DownloadCloud, Link2, LoaderCircle, Mail, Trash2, Truck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -73,6 +73,17 @@ export function ClaimManage({
               </select>
               <button type="button" disabled={pending || !payM} onClick={() => act(() => setClaimPaid(claimNo, payM))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
                 {pending ? <LoaderCircle className="size-4 animate-spin" /> : <BadgeCheck className="size-4" />} ໝາຍ ຊຳລະແລ້ວ
+              </button>
+            </div>
+          ) : type === "B" && nextStatus?.status === "done" ? (
+            // ຂັ້ນ "ກວດ/ຕັດສິນ" ⇒ ເລືອກໄດ້ 2 ຢ່າງ: ປ່ຽນ ຫຼື ສ້ອມ (ບັນທຶກ resolution)
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500">ຕັດສິນ:</span>
+              <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claimNo, "replace"))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
+                {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ປ່ຽນ
+              </button>
+              <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claimNo, "repair"))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+                {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ສ້ອມ
               </button>
             </div>
           ) : nextStatus ? (

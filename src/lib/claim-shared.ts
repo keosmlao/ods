@@ -100,7 +100,12 @@ export type ClaimRow = {
   contact: string | null;
   /** ເລກບິນຂາຍ ERP (ic_trans trans_flag 44) — ອ້າງອີງການຊື້ຂອງລູກຄ້າ */
   bill_no: string | null;
+  /** ຜົນຕັດສິນ CLM-B — replace(ປ່ຽນ) | repair(ສ້ອມ) | null */
+  resolution: string | null;
 };
+
+/** ຜົນຕັດສິນ CLM-B — ເລືອກຕອນ "ກວດ/ຕັດສິນ" */
+export const RESOLUTION_LABEL: Record<string, string> = { replace: "ປ່ຽນ", repair: "ສ້ອມ" };
 
 export type ClaimPhoto = { id: number; path: string; created_at: string | null };
 export const WARRANTY_LABEL: Record<string, string> = { in: "ໃນປະກັນ", out: "ນອກປະກັນ" };

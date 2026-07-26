@@ -31,7 +31,7 @@ const SELECT = `select c.id, c.claim_no, c.claim_type, c.supplier_code, c.brand_
     cust.name_1 customer_name, c.ref_job, c.erp_doc_no, c.status, c.amount, c.reason, c.created_by,
     to_char(c.created_at,'DD-MM-YYYY HH24:MI') created_at,
     to_char(c.email_sent_at,'DD-MM-YYYY HH24:MI') email_sent_at, c.pay_method, c.remark,
-    c.product, c.model, c.sn, c.warranty, to_char(c.purchase_date,'DD-MM-YYYY') purchase_date, c.contact, c.bill_no
+    c.product, c.model, c.sn, c.warranty, to_char(c.purchase_date,'DD-MM-YYYY') purchase_date, c.contact, c.bill_no, c.resolution
   from ods_claim c
   left join ar_customer cust on cust.code = c.customer_code`;
 

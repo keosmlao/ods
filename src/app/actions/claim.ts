@@ -27,6 +27,25 @@ export async function searchClaimJobs(q: string): Promise<{ error?: string; jobs
 }
 
 /** ເປີດໃບເຄມໃໝ່ — ຄືນ claim_no */
+/**
+ * ຕັດສິນ CLM-B ຢູ່ຂັ້ນ "ກວດ/ຕັດສິນ" — ເລືອກ **ປ່ຽນ (replace)** ຫຼື **ສ້ອມ (repair)**.
+ * ທັງສອງ → status=done ແຕ່ບັນທຶກ resolution. ໄປໄດ້ສະເພາະຈາກ status=checking (WHERE guard).
+ */
+export async function resolveClaim(claimNo: string, resolution: "replace" | "repair"): Promise<ClaimState> {
+  const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດຕັດສິນ");
+  if (!guard.ok) return { error: guard.error };
+  if (resolution !== "replace" && resolution !== "repair") return { error: "ຕ້ອງເລືອກ ປ່ຽນ ຫຼື ສ້ອມ" };
+  const done = await query(
+    `update ods_claim set status='done', resolution=$2, result_at=localtimestamp
+      where claim_no=$1 and claim_type='B' and status='checking'`,
+    [claimNo, resolution],
+  );
+  if (!done.rowCount) return { error: "ຕັດສິນບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ ‘ກວດ/ຕັດສິນ’" };
+  await log(claimNo, guard.session.username, "resolved", `ຕັດສິນ: ${resolution === "replace" ? "ປ່ຽນ" : "ສ້ອມ"}`);
+  revalidatePath(`/claims/${claimNo}`);
+  return { claimNo };
+}
+
 /** ── ERP pull (ໃຫ້ form client ເອີ້ນ) — ຄົ້ນບິນ · ລາຍการສินค้าใນບິນ · ຄົ້ນ inventory ── */
 export async function findBills(q: string) {
   const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
