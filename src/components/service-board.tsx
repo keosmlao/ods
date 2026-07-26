@@ -2,7 +2,7 @@ import { Elapsed } from "@/components/elapsed";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import type { JobHold } from "@/lib/job-hold";
 import { STAGE_LABEL } from "@/lib/stage";
-import { Pencil, Printer, Tag } from "lucide-react";
+import { Pencil, Printer, ReceiptText, Tag } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -67,6 +67,8 @@ export type BoardCard = {
   checked_out?: boolean;
   /** ທຸງ "ມີບັນຫາ" ທີ່ເປີດຢູ່ — null = ປົກກະຕິ (ເບິ່ງ src/lib/job-hold.ts) */
   hold?: JobHold | null;
+  /** job claim — ໝາຍ ເຄມ supplier ຫຼື ມີໃບເຄມຜູກ (ໃຫ້ list ໂຊ້ badge "ເຄມ") */
+  is_claim?: boolean;
 };
 
 function Card({ card }: { card: BoardCard }) {
@@ -80,9 +82,16 @@ function Card({ card }: { card: BoardCard }) {
 
       <div className="space-y-2 py-3 pl-4 pr-3">
         <div className="flex items-start justify-between gap-2">
-          <Link href={`/service/${card.code}`} className="font-bold text-[#0536a9] hover:underline">
-            #{card.code}
-          </Link>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <Link href={`/service/${card.code}`} className="font-bold text-[#0536a9] hover:underline">
+              #{card.code}
+            </Link>
+            {card.is_claim && (
+              <span className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 ring-1 ring-amber-300" title="job claim — ໝາຍ/ມີໃບເຄມ">
+                <ReceiptText className="size-3" /> ເຄມ
+              </span>
+            )}
+          </span>
           <Elapsed seconds={card.stage_seconds} className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold ${stage.chip}`} />
         </div>
 

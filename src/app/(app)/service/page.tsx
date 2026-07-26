@@ -82,6 +82,9 @@ async function getBoard(q: string, status: number | null, service: string | null
       -- check-in/out ໜ້າງານ (ໃຫ້ລາຍการ ໂຊ້ໄອຄອນ ໂດຍບໍ່ໂຫຼດຮູບ base64 ໜັກໆ)
       exists(select 1 from ods_job_checkin k where k.workflow='repair' and k.job_code=a.code) as checked_in,
       exists(select 1 from ods_job_checkin k where k.workflow='repair' and k.job_code=a.code and k.checkout_at is not null) as checked_out,
+      -- job claim: ໝາຍ ເຄມ supplier (ods_claim_mark) ຫຼື ມີໃບເຄມຜູກ (ods_claim.ref_job)
+      (exists(select 1 from ods_claim_mark m where m.job_code=a.code)
+        or exists(select 1 from ods_claim cl where cl.ref_job=a.code)) as is_claim,
       ${holdJsonSql("repair")}
     from tb_product a
     left join ar_customer b on b.code = a.cust_code

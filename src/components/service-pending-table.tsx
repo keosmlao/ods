@@ -8,7 +8,7 @@ import { ServiceDeleteButton } from "@/components/service/service-delete-button"
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { PhotoThumb } from "@/components/service/photo-thumb";
-import { MapPin, Pencil, Printer, Tag } from "lucide-react";
+import { MapPin, Pencil, Printer, ReceiptText, Tag } from "lucide-react";
 import Link from "next/link";
 
 
@@ -95,6 +95,11 @@ export async function ServicePendingTable({
                     <Link href={`/service/${card.code}`} className="hover:underline">
                       {card.code}
                     </Link>
+                    {card.is_claim && (
+                      <span className="mt-0.5 inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800 ring-1 ring-amber-300" title="job claim — ໝາຍ/ມີໃບເຄມ">
+                        <ReceiptText className="size-2.5" /> ເຄມ
+                      </span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3 text-slate-700">{stageLabel(card.stage, card.service_type)}</td>
                   <td className="whitespace-nowrap px-3 py-3">
