@@ -3,6 +3,7 @@ import { buildReport } from "@/lib/report-build";
 import { recipientTargets } from "@/lib/report-recipient";
 import { dueReports, markSent } from "@/lib/report-schedule";
 import { NextResponse, type NextRequest } from "next/server";
+import { cronKeyMatches } from "@/lib/cron-auth";
 
 /**
  * ລາຍງານອັດຕະໂນມັດ. External cron ຍິງ **ຮາຍໂມງ**:
@@ -36,7 +37,7 @@ async function pushLine(text: string, targets: string[]): Promise<{ sent: boolea
 export async function GET(request: NextRequest) {
   const key = process.env.CRON_KEY;
   if (!key) return NextResponse.json({ error: "CRON_KEY ບໍ່ໄດ້ຕັ້ງ" }, { status: 401 });
-  if (request.headers.get("x-cron-key") !== key) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!cronKeyMatches(request, key)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   try {
     const due = await dueReports();

@@ -1,5 +1,6 @@
 import { escalateInstallSla, escalateRepairFrontStage, escalateRepairStageSla } from "@/lib/sla-escalate";
 import { NextResponse, type NextRequest } from "next/server";
+import { cronKeyMatches } from "@/lib/cron-auth";
 
 /**
  * **ຕົວກວດນາລິກາ 24 ຊມ** — ຍິງຈາກ cron ພາຍນອກ (ເຊັ່ນ ທຸກ 30 ນາທີ):
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const key = process.env.CRON_KEY;
   if (!key) return NextResponse.json({ error: "CRON_KEY ບໍ່ໄດ້ຕັ້ງ" }, { status: 401 });
-  if (request.headers.get("x-cron-key") !== key) {
+  if (!cronKeyMatches(request, key)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

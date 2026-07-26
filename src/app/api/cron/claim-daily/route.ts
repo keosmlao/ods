@@ -2,6 +2,7 @@ import { claimDailySummary, claimDailyText } from "@/lib/claim";
 import { sendMail } from "@/lib/mail";
 import { recipientTargets } from "@/lib/report-recipient";
 import { NextResponse, type NextRequest } from "next/server";
+import { cronKeyMatches } from "@/lib/cron-auth";
 
 /**
  * ແຈ້ງເຕືອນເຄມປະຈຳວັນ (Phase 3). External cron ຍິງ:
@@ -38,7 +39,7 @@ async function pushLine(text: string, targets: string[]): Promise<{ sent: boolea
 export async function GET(request: NextRequest) {
   const key = process.env.CRON_KEY;
   if (!key) return NextResponse.json({ error: "CRON_KEY ບໍ່ໄດ້ຕັ້ງ" }, { status: 401 });
-  if (request.headers.get("x-cron-key") !== key) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!cronKeyMatches(request, key)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   try {
     const date = new Date().toLocaleDateString("en-GB");

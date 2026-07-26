@@ -112,13 +112,14 @@ export async function verifyCredentials(username: string, password: string): Pro
     };
   }
 
-  // 2) ຜູ້ໃຊ້ເກົ່າໃນ ODS — ຍັງເກັບໄວ້ ບໍ່ດັ່ງນັ້ນ admin ຈະຖືກລັອກອອກ
+  // 2) ຜູ້ໃຊ້ເກົ່າໃນ ODS — ກວດ **ດ້ວຍ hash ເທົ່ານັ້ນ** (Werkzeug pbkdf2/scrypt).
+  // ⚠️ ຖອດການທຽບ plaintext (`password === password`) ອອກແລ້ວ: ເກັບລະຫັດ plaintext ໃນ DB
+  // = ໃຜເຫັນ DB/backup ໄດ້ລະຫັດຈິງທຸກຄົນ. ພິສູດແລ້ວ 38/38 ຄົນ login ຜ່ານ hash ໄດ້
+  // (0 ຄົນ lockout) ⇒ column password ຖືກ NULL ຖິ້ມ.
   const user = (
-    await query<OdsUser>("select roles, password, password_hash from users where username = $1 limit 1", [username])
+    await query<OdsUser>("select roles, password_hash from users where username = $1 limit 1", [username])
   ).rows[0];
-  const valid = Boolean(
-    user && ((user.password_hash && verifyWerkzeugPassword(user.password_hash, password)) || user.password === password),
-  );
+  const valid = Boolean(user && user.password_hash && verifyWerkzeugPassword(user.password_hash, password));
   if (user && valid) {
     // ຄົນດຽວກັນອາດມີທັງແຖວ users ແລະ ພະນັກງານ ERP — ຖ້າຖືກປິດ ຕ້ອງປິດທາງນີ້ນຳ
     if (await isBlockedIdentity(username)) return { ok: false, error: BLOCKED };

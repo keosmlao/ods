@@ -17,7 +17,9 @@ export function rateLimit(key: string, limit: number, windowMs: number) {
   const now = Date.now();
   const bucket = buckets.get(key);
   if (!bucket || bucket.resetAt <= now) {
-    if (buckets.size > 5000) buckets.clear(); // ກັນໜ່ວຍຄວາມຈຳບວມ
+    // ກັນໜ່ວຍຄວາມຈຳບວມ — ລົບ **ສະເພາະ bucket ທີ່ໝົດອາຍຸ** (ຢ່າ clear ໝົດ:
+    // ຄົນຮ້າຍ flood 5000 key ຂີ້ຮ້າຍ ຈະ reset limiter ຂອງທຸກຄົນ ⇒ ຂ້າມ limit ໄດ້).
+    if (buckets.size > 5000) for (const [k, v] of buckets) if (v.resetAt <= now) buckets.delete(k);
     buckets.set(key, { count: 1, resetAt: now + windowMs });
     return true;
   }

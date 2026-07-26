@@ -453,13 +453,20 @@ export async function createSpareRequest(
       odg,
     );
 
+    // ⚠️ 2 DB (ODS + ERP) — commit ບໍ່ atomic ຂ້າມ cluster ໄດ້. ຖ້າ commit ທຳອິດຜ່ານ
+    // ແຕ່ອັນທີ 2 ລົ້ມ (ຫາຍາກ: ຫຼຸດ connection ຕອນ commit) ⇒ ຂ້າງໜຶ່ງ save ອີກຂ້າງບໍ່.
     await client.query("commit");
     await odg.query("commit");
   } catch (error) {
     await client.query("rollback").catch(() => {});
     await odg.query("rollback").catch(() => {});
     console.error("createSpareRequest failed", error);
-    return { ok: false, error: "ບັນທຶກບໍ່ສຳເລັດ — ERP ບໍ່ຮັບໃບຂໍເບີກນີ້ (ບໍ່ໄດ້ບັນທຶກຫຍັງເລີຍ)" };
+    // ຢ່າອ້າງ "ບໍ່ໄດ້ບັນທຶກຫຍັງເລີຍ" — ຖ້າລົ້ມຕອນ commit ຂ້າງໃດຂ້າງໜຶ່ງ ອາດ save ໄປແລ້ວ.
+    // ເຕືອນ operator **ຢ່າສ້າງຊ້ຳ** ໂດຍບໍ່ກວດ (ບໍ່ດັ່ງນັ້ນ ອາດເບີກ stock ຊ້ຳ).
+    return {
+      ok: false,
+      error: "ບັນທຶກບໍ່ສຳເລັດ — ກະລຸນາກວດວ່າໃບຂໍເບີກຂຶ້ນ ERP ແລ້ວບໍ ກ່ອນສ້າງໃໝ່ (ຫຼີກລ້ຽງເບີກຊ້ຳ)",
+    };
   } finally {
     client.release();
     odg.release();
