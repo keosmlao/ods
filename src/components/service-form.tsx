@@ -15,7 +15,11 @@ import { useDict } from "@/lib/i18n/context";
 import { useActionState, useEffect, useState } from "react";
 
 type Option = { code: string; name_1: string };
-export type ServicePrefill = { proname?: string; sn?: string; billon?: string; billdate?: string; claim?: string };
+export type ServicePrefill = {
+  proname?: string; sn?: string; billon?: string; billdate?: string; claim?: string;
+  /** ລູກຄ້າ prefill (ຈາກໃບເຄມ → ເປີດໃບສ້ອມ) — cust=ລະຫັດ ODS */
+  cust?: string; custname?: string; custtel?: string; custaddr?: string;
+};
 
 const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100";
 const label = "mb-1 block text-sm text-slate-600";
@@ -49,7 +53,11 @@ export function ServiceForm({
 }) {
   const t = useDict().serviceForm;
   const [state, action, pending] = useActionState(createService, {});
-  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [customer, setCustomer] = useState<Customer | null>(
+    prefill.cust
+      ? { code: prefill.cust, name_1: prefill.custname ?? prefill.cust, tel: prefill.custtel ?? "", address: prefill.custaddr ?? "", ref_code: prefill.cust, source: "ods" }
+      : null,
+  );
 
   const [productQuery, setProductQuery] = useState(scanned?.product ?? prefill.proname ?? "");
   const [products, setProducts] = useState<Product[]>([]);

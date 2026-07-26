@@ -527,6 +527,13 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
       [CART_FLAG, d.pro_code, session.username],
     );
 
+    // ໃບເຄມ (ເສັ້ນທາງ "ສ້ອມ") ທີ່ຜູກ ref_job ນີ້ → ປິດ job = ປິດເຄມ ນຳ
+    await client.query(
+      `update ods_claim set status='closed', closed_at=coalesce(closed_at,now())
+        where ref_job=$1 and resolution='repair' and status not in ('closed','rejected')`,
+      [d.pro_code],
+    );
+
     /**
      * ── ສົ່ງໃບຮັບເງິນເຂົ້າ SML (cb_trans) — "SML ຜ່ານ = ສຳເລັດ" ──
      * ລູກຄ້າ**ດຶງຈາກ job** (ar_customer ຂອງ cust_code) ໄປໃສ່ຊື່/ເບີໃນ SML.
@@ -643,6 +650,13 @@ export async function returnWithoutInvoice(_: ReturnState, formData: FormData): 
     await db.query(
       `delete from ic_trans_detail_draft where trans_flag=$1 and product_code=$2 and user_created=$3`,
       [CART_FLAG, productCode, session.username],
+    );
+
+    // ໃບເຄມ (ເສັ້ນທາງ "ສ້ອມ") ທີ່ຜູກ ref_job ນີ້ → ປິດ job = ປິດເຄມ ນຳ
+    await db.query(
+      `update ods_claim set status='closed', closed_at=coalesce(closed_at,now())
+        where ref_job=$1 and resolution='repair' and status not in ('closed','rejected')`,
+      [productCode],
     );
   } catch (error) {
     console.error("returnWithoutInvoice failed", error);

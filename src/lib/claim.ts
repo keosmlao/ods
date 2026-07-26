@@ -106,11 +106,35 @@ export async function billItems(docNo: string): Promise<BillItem[]> {
   if (!docNo?.trim()) return [];
   return (
     await queryOdg<BillItem>(
-      `select item_code, item_name, coalesce(qty,0)::float qty, unit_code unit
-        from ic_trans_detail where doc_no = $1 and trans_flag = 44 order by line_number`,
+      `select d.item_code, d.item_name, coalesce(d.qty,0)::float qty, d.unit_code unit, i.item_brand brand
+        from ic_trans_detail d left join ic_inventory i on i.code = d.item_code
+       where d.doc_no = $1 and d.trans_flag = 44 order by d.line_number`,
       [docNo.trim()],
     )
   ).rows;
+}
+
+/**
+ * ຮັບປະກັນວ່າ customer_code ມີໃນ ODS ar_customer — ຖ້າບໍ່ມີ (ລູກຄ້າ ERP ຈາກບິນ) → copy ຈາກ ERP.
+ * ໃຫ້ join `cust.name_1` ໃນລາຍການເຄມ ໂຊ້ຊື່ໄດ້ (ບໍ່ໃຫ້ຂຶ້ນ "-").
+ */
+export async function ensureOdsCustomer(code: string): Promise<void> {
+  const c = code.trim();
+  if (!c) return;
+  const has = ((await query(`select 1 from ar_customer where code = $1 limit 1`, [c])).rowCount ?? 0) > 0;
+  if (has) return;
+  const erp = (
+    await queryOdg<{ name_1: string | null; tel: string | null; address: string | null }>(
+      `select name_1, tel, address from ar_customer where code = $1 limit 1`,
+      [c],
+    )
+  ).rows[0];
+  if (!erp) return; // ບໍ່ພົບໃນ ERP — ຂ້າມ (ບໍ່ block ການເປີດໃບ)
+  await query(
+    `insert into ar_customer(code, name_1, tel, address, ref_code, ar_type)
+     values ($1, $2, $3, $4, $1, 'erp') on conflict (code) do nothing`,
+    [c, erp.name_1 ?? "", erp.tel ?? "", erp.address ?? ""],
+  );
 }
 
 /** ຄົ້ນສິນຄ້າ/ອາໄຫຼ່ ຈາກ ic_inventory (master) — ໃຫ້ເລືອກອາໄຫຼ່ທີ່ຕ້ອງการปเปลี่ยน */
@@ -119,7 +143,7 @@ export async function searchInventory(q = "", limit = 20): Promise<InvItem[]> {
   if (!term) return [];
   return (
     await queryOdg<InvItem>(
-      `select code, name_1 as "name", unit_standard unit from ic_inventory
+      `select code, name_1 as "name", unit_standard unit, item_brand brand from ic_inventory
         where code ilike $1 or name_1 ilike $1 order by name_1 limit $2`,
       [`%${term}%`, limit],
     )

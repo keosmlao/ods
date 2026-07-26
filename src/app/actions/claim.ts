@@ -1,5 +1,5 @@
 "use server";
-import { billItems, CLAIM_FLOW, CLAIM_REJECTED, claimByNo, type ClaimJobCandidate, cobInfo, jobClaimCandidates, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, searchBills, searchInventory, type ClaimType } from "@/lib/claim";
+import { billItems, CLAIM_FLOW, CLAIM_REJECTED, claimByNo, type ClaimJobCandidate, cobInfo, ensureOdsCustomer, jobClaimCandidates, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, searchBills, searchInventory, type ClaimType } from "@/lib/claim";
 import { logChange } from "@/lib/chatter-log";
 import { requireRole } from "@/lib/guard";
 import { sendMail } from "@/lib/mail";
@@ -84,6 +84,9 @@ export async function createClaim(input: {
   if (!["A", "B", "C"].includes(type)) return { error: "ประเภทเคลมไม่ถูกต้อง" };
   if (type === "B" && !input.customer_code?.trim()) return { error: "CLM-B ຕ້ອງເລືອກຮ້ານ (ລູກຄ້າ)" };
   if ((type === "A" || type === "C") && !input.supplier_code?.trim()) return { error: "ຕ້ອງເລືອກ supplier" };
+
+  // ລູກຄ້າ ERP (ຈາກບິນ) ອາດຍັງບໍ່ມີໃນ ODS → copy ໃຫ້ join ຊື່ໃນລາຍການໄດ້ (ບໍ່ block ຖ້າ fail)
+  if (input.customer_code?.trim()) await ensureOdsCustomer(input.customer_code.trim()).catch(() => {});
 
   // ⚠️ ບໍ່ໃຊ້ CTE insert+update ໃນ statement ດຽວ — UPDATE ບໍ່ເຫັນແຖວທີ່ INSERT ຫາກໍ່ໃສ່
   // (Postgres snapshot). ໃຊ້ 2 statement: insert returning id → update claim_no.

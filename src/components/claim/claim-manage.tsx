@@ -35,7 +35,7 @@ export function ClaimManage({
   payMethod: string | null;
   refJob: string | null;
   /** ຂໍ້ມູນ prefill ໃບງານສ້ອມ — ຖ້າເລືອກ "ສ້ອມ" ຈະພາໄປ /service/new ຕື່ມໃຫ້ */
-  repairPrefill?: { proname?: string; sn?: string; billon?: string; billdate?: string } | null;
+  repairPrefill?: { proname?: string; sn?: string; billon?: string; billdate?: string; cust?: string; custname?: string } | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();

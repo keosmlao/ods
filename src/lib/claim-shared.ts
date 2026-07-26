@@ -112,8 +112,8 @@ export const WARRANTY_LABEL: Record<string, string> = { in: "ໃນປະກັ�
 
 /** ບິນຂາຍ ERP (ic_trans 44) · ລາຍการສินค้า · ລາຍการ inventory master */
 export type ClaimBill = { doc_no: string; doc_date: string; iso_date: string; cust_code: string; cust_name: string | null; total: number };
-export type BillItem = { item_code: string; item_name: string; qty: number; unit: string | null };
-export type InvItem = { code: string; name: string; unit: string | null };
+export type BillItem = { item_code: string; item_name: string; qty: number; unit: string | null; brand?: string | null };
+export type InvItem = { code: string; name: string; unit: string | null; brand?: string | null };
 
 /** ໄລຍະຮັບປະກັນ ມາດຕะฐาน (ເດືອນ) — ปรับได้ */
 export const WARRANTY_MONTHS = 12;

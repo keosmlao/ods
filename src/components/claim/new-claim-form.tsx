@@ -70,7 +70,7 @@ export function NewClaimForm({
     setBillLines(r.items ?? []);
     setLoadingLines(false);
   };
-  const pickLine = (line: BillItem) => { setProduct(line.item_name); };
+  const pickLine = (line: BillItem) => { setProduct(line.item_name); if (line.brand) setBrand(line.brand); };
   const pickJob = (job: ClaimJobCandidate) => {
     setRefJob(job.code); setJobInfo(job); setBillOpen(false);
     if (job.brand) setBrand((b) => b || job.brand!);
@@ -211,10 +211,13 @@ export function NewClaimForm({
                 <SelectField name="claim_supplier" options={supplierOpts} value={supplier} onChange={setSupplier} placeholder="— ເລືອກ supplier —" />
               </div>
             )}
-            {isB && !bill && (
+            {isB && (
               <div>
-                <label className={label}>ຮ້ານ / ຕົວແທນ (ຖ້າບໍ່ມີບິນ) *</label>
+                <label className={label}>ຮ້ານ / ລູກຄ້າ *{bill ? " (ດຶງຈາກບິນ)" : ""}</label>
                 <SelectField name="claim_customer" options={customerOpts} value={customer} onChange={setCustomer} placeholder="— ຄົ້ນ ຮ້ານ/ລູກຄ້າ —" />
+                {bill && customer && !customerOpts.some((o) => o.value === customer) && (
+                  <p className="mt-1 text-[11px] text-slate-500">{bill.cust_name || bill.cust_code}</p>
+                )}
               </div>
             )}
             {isB && (
@@ -301,7 +304,7 @@ export function NewClaimForm({
         )}
       />
       <SearchPickerModal<InvItem>
-        open={invOpen} onClose={() => setInvOpen(false)} onPick={(it) => { setReplacement(it); setInvOpen(false); }}
+        open={invOpen} onClose={() => setInvOpen(false)} onPick={(it) => { setReplacement(it); if (it.brand) setBrand((b) => b || it.brand!); setInvOpen(false); }}
         title="ຄົ້ນ ອາໄຫຼ່/ສິນຄ້າ (ic_inventory)" placeholder="ຄົ້ນ ລະຫັດ / ຊື່ສິນຄ້າ"
         search={async (q) => (await findInventory(q)).items ?? []} keyOf={(it) => it.code}
         renderItem={(it) => (
