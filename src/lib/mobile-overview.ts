@@ -14,7 +14,8 @@ export type MobileOverview = {
   kpi: { repair_open: number; install_open: number; over_sla: number; approvals: number };
   approvals: { quotes: number; customer: number; purchases: number; cancels: number };
   sla: { warning: number; late: number; critical: number };
-  today: { appointments: number; checking: number; repairing: number };
+  /** received = ເບີດງານ (ຮັບເຄື່ອງ) ມື້ນີ້ · returned = ສົ່ງຄືນລູກຄ້າ ມື້ນີ້ */
+  today: { appointments: number; checking: number; repairing: number; received: number; returned: number };
   unassigned: { repair: number; install: number };
   pipeline: OverviewStage[];
   tech_load: OverviewTech[];
@@ -45,6 +46,15 @@ export async function mobileOverview(days = 30): Promise<MobileOverview> {
   const busy = new Set(data.techLoad.map((t) => t.tech));
   const techFree = techs.filter((t) => !busy.has(t.code)).map((t) => t.name);
 
+  // ── ເບີດງານ (ຮັບເຄື່ອງ) ມື້ນີ້ · ສົ່ງຄືນລູກຄ້າ ມື້ນີ້ (ຝັ່ງສ້ອມ) ──
+  const daily = (
+    await query<{ received: number; returned: number }>(
+      `select
+         (select count(*) from tb_product where time_register::date = current_date)::int received,
+         (select count(*) from tb_product where return_complete::date = current_date)::int returned`,
+    )
+  ).rows[0] ?? { received: 0, returned: 0 };
+
   return {
     kpi: {
       repair_open: data.repair.total ?? 0,
@@ -60,7 +70,7 @@ export async function mobileOverview(days = 30): Promise<MobileOverview> {
       cancels: data.cancelRequests,
     },
     sla: { warning: data.sla.warning, late: data.sla.late, critical: data.sla.critical },
-    today: data.today,
+    today: { ...data.today, received: daily.received, returned: daily.returned },
     unassigned: data.unassigned,
     pipeline: REPAIR_FUNNEL.map((s) => ({ ...s, count: data.repair[s.key] ?? 0 })),
     // ຊື່ຊ່າງ: ແປງ emp_code → ຊື່ເຕັມ (ຄົນທີ່ຍັງບໍ່ເຊື່ອມ = ຊື່ຫຼິ້ນ, ບໍ່ຢູ່ map ⇒ ໃຊ້ຄ່າເດີມ)

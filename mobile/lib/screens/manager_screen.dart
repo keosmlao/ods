@@ -146,11 +146,23 @@ class _ManagerScreenState extends State<ManagerScreen> {
     // ── ຄິວງານມື້ນີ້ ──
     _Card(
       title: 'ມື້ນີ້',
-      child: Row(
+      child: Column(
         children: [
-          _Mini(label: 'ນັດໝາຍ', value: d.todayAppointments),
-          _Mini(label: 'ກຳລັງກວດ', value: d.todayChecking),
-          _Mini(label: 'ກຳລັງສ້ອມ', value: d.todayRepairing),
+          Row(
+            children: [
+              _Mini(label: 'ເບີດງານ', value: d.todayReceived, tone: teal),
+              _Mini(label: 'ສົ່ງຄືນ', value: d.todayReturned, tone: ok),
+              _Mini(label: 'ນັດໝາຍ', value: d.todayAppointments),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _Mini(label: 'ກຳລັງກວດ', value: d.todayChecking),
+              _Mini(label: 'ກຳລັງສ້ອມ', value: d.todayRepairing),
+              const Spacer(),
+            ],
+          ),
         ],
       ),
     ),

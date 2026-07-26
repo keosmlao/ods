@@ -646,6 +646,8 @@ class Overview {
   final int todayAppointments;
   final int todayChecking;
   final int todayRepairing;
+  final int todayReceived; // ເບີດງານ (ຮັບເຄື່ອງ) ມື້ນີ້
+  final int todayReturned; // ສົ່ງຄືນລູກຄ້າ ມື້ນີ້
   final int unassignedRepair;
   final int unassignedInstall;
   final List<OverviewStage> pipeline;
@@ -670,6 +672,8 @@ class Overview {
     required this.todayAppointments,
     required this.todayChecking,
     required this.todayRepairing,
+    required this.todayReceived,
+    required this.todayReturned,
     required this.unassignedRepair,
     required this.unassignedInstall,
     required this.pipeline,
@@ -703,6 +707,8 @@ class Overview {
       todayAppointments: n(today, 'appointments'),
       todayChecking: n(today, 'checking'),
       todayRepairing: n(today, 'repairing'),
+      todayReceived: n(today, 'received'),
+      todayReturned: n(today, 'returned'),
       unassignedRepair: n(un, 'repair'),
       unassignedInstall: n(un, 'install'),
       pipeline: ((json['pipeline'] as List?) ?? [])
