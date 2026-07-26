@@ -15,7 +15,7 @@ import { RepairSpareEditor, type UsedSpareLine } from "@/components/repair/repai
 import { ScheduleRepairVisitButton } from "@/components/repair/schedule-repair-visit-button";
 import { listTechnicians } from "@/lib/technicians";
 import { TRANS } from "@/lib/stock-constants";
-import { APPROVER_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
+import { APPROVER_SIDE, CLAIM_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { canViewAssignedJob } from "@/lib/scope";
 import { permissionFor } from "@/lib/permissions";
 import { ServiceDeleteButton } from "@/components/service/service-delete-button";
@@ -27,7 +27,7 @@ import { stageLabel, STAGE_SQL } from "@/lib/stage";
 import { repairTimeline } from "@/lib/repair-timeline";
 import { JobTimeline } from "@/components/repair/job-timeline";
 import { DONE_STAGE } from "@/lib/track";
-import { ArrowLeft, Barcode, CalendarDays, ChevronDown, Clock, ImageIcon, MapPin, MessageCircle, Pencil, Phone, Printer, ReceiptText, RotateCcw } from "lucide-react";
+import { ArrowLeft, Barcode, CalendarDays, ChevronDown, Clock, FilePlus2, ImageIcon, MapPin, MessageCircle, Pencil, Phone, Printer, ReceiptText, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -246,6 +246,11 @@ export default async function ServiceDetail({ params }: Props) {
   const claimMarked = await isJobClaimMarked(code);
   // ໃບເຄມທີ່ຜູກກັບງານນີ້ (ເປີດຈາກປຸ່ມ "ສ້ອມ" ຂອງ CLM ⇒ ref_job = ເລກງານນີ້)
   const linkedClaims = await relatedClaims(code, "");
+  // ── ແຕກໃບເຄມ ຈາກໃບงານ (repair-first): A=ຂໍອາໄຫຼ່ supplier (ໃນປະກັນ) · C=ເກັບຄ່າ (ນອກປະກັນ) ──
+  const canClaim = !cancelled && CLAIM_SIDE.includes(roleOf(session));
+  const haveClaimTypes = new Set(linkedClaims.map((cl) => cl.claim_type));
+  const claimSpawnQs = (ty: string) =>
+    `/claims/new?${new URLSearchParams({ type: ty, ref_job: code, ...(job.brand ? { brand: job.brand } : {}), ...(job.product ? { product: job.product } : {}), ...(job.model ? { model: job.model } : {}), ...(job.sn ? { sn: job.sn } : {}) })}`;
 
   // ── ສະຖານທີ່ (ກົດເປີດ maps) + WhatsApp ຫາລູກຄ້າ ──
   const mapsUrl =
@@ -324,6 +329,17 @@ export default async function ServiceDetail({ params }: Props) {
               <ReceiptText className="size-3.5 text-teal-600" /> ເຄມ {cl.claim_no}
             </Link>
           ))}
+          {/* ແຕກໃບເຄມ ຈາກໃບงານ (ຕາມຫຼັກ: ໃນປະກັນ→ຂໍອາໄຫຼ່ A · ນອກປະກັນ→ເກັບຄ່າ C) */}
+          {canClaim && !haveClaimTypes.has("A") && (
+            <Link href={claimSpawnQs("A")} className={action} title="ຂໍອາໄຫຼ່ຈາກ supplier (ໃນປະກັນ ຕ້ອງປ່ຽນອາໄຫຼ່)">
+              <FilePlus2 className="size-3.5 text-violet-600" /> ແຕກເຄມ · ຂໍອາໄຫຼ່ (A)
+            </Link>
+          )}
+          {canClaim && !haveClaimTypes.has("C") && (
+            <Link href={claimSpawnQs("C")} className={action} title="ເກັບຄ່າສ້ອມ ຈາກ supplier (ນອກປະກັນ)">
+              <FilePlus2 className="size-3.5 text-sky-600" /> ແຕກເຄມ · ເກັບຄ່າ (C)
+            </Link>
+          )}
           {mapsUrl && (
             <a href={mapsUrl} target="_blank" rel="noreferrer" className={action} title="ເປີດ Google Maps">
               <MapPin className="size-3.5 text-rose-600" />
