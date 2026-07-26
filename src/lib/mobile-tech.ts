@@ -20,6 +20,10 @@ export type TechRow = {
   late: number;
   month_jobs: number;
   month_thb: number;
+  /** ຄວາມພໍໃຈລູກຄ້າ (ຈາກງານຕິດຕັ້ງ) — rated=ຈຳນວນປະເມີນ · happy_pct=% ພໍໃຈ (points≤2) · unhappy=ບໍ່ພໍໃຈ(≥3) */
+  rated: number;
+  happy_pct: number | null;
+  unhappy: number;
 };
 
 export type TechDetail = TechRow & {
@@ -30,6 +34,7 @@ export type TechDetail = TechRow & {
 
 type LoadRow = { code: string; jobs: number; oldest_days: number; late: number };
 type PayRow = { code: string; today: number; week: number; month: number; month_thb: number };
+type FbRow = { code: string; rated: number; happy_pct: number | null; unhappy: number };
 
 /** ພາລະງານ (repair+install) ຈັດກຸ່ມຕາມຊ່າງ — ໃຊ້ຮ່ວມ roster & detail */
 async function loadByTech(): Promise<Map<string, LoadRow>> {
@@ -90,12 +95,32 @@ function payOf(pay: Map<string, PayRow>, code: string, employeeCode: string): Pa
   );
 }
 
+/**
+ * ຄວາມພໍໃຈລູກຄ້າ ຕໍ່ຊ່າງ — ຈາກ cust_complain (topic 002) ຜູກຜ່ານ **ງານຕິດຕັ້ງ** (tech_code).
+ * ⚠️ ຄະແນນ 1=ດີສຸດ … 4=ຮ້າຍສຸດ (points≥3 = ບໍ່ພໍໃຈ) — ບໍ່ແມ່ນ x/4 ດາວ. ງານສ້ອມບໍ່ມີ feedback ຜູກ.
+ */
+async function feedbackByTech(): Promise<Map<string, FbRow>> {
+  const rows = await query<FbRow>(
+    `select i.tech_code as code,
+        count(distinct c.product_code)::int as rated,
+        round(100.0 * count(distinct c.product_code) filter (where c.points <= 2)
+          / nullif(count(distinct c.product_code), 0))::int as happy_pct,
+        count(distinct c.product_code) filter (where c.points >= 3)::int as unhappy
+      from cust_complain c
+      join ods_tb_install i on i.code = c.product_code
+     where c.topic_code = '002' and nullif(trim(i.tech_code),'') is not null
+     group by 1`,
+  );
+  return new Map(rows.rows.map((r) => [r.code, r]));
+}
+
 export async function techRoster(): Promise<TechRow[]> {
-  const [techs, load, pay] = await Promise.all([listTechnicians(), loadByTech(), payByTech()]);
+  const [techs, load, pay, fb] = await Promise.all([listTechnicians(), loadByTech(), payByTech(), feedbackByTech()]);
   return techs
     .map((t) => {
       const l = load.get(t.code) ?? { jobs: 0, oldest_days: 0, late: 0 };
       const p = payOf(pay, t.code, t.employee_code);
+      const f = fb.get(t.code) ?? { rated: 0, happy_pct: null, unhappy: 0 };
       return {
         code: t.code,
         name: t.name,
@@ -104,6 +129,9 @@ export async function techRoster(): Promise<TechRow[]> {
         late: l.late,
         month_jobs: p.month,
         month_thb: p.month_thb,
+        rated: f.rated,
+        happy_pct: f.happy_pct,
+        unhappy: f.unhappy,
       };
     })
     // ຄົນມີວຽກຄ້າງ/ຊ້າ ຂຶ້ນກ່ອນ — ຜູ້ຈັດການເຫັນຄົນຕ້ອງເບິ່ງແຍງກ່ອນ
@@ -115,9 +143,10 @@ export async function techDetail(code: string): Promise<TechDetail | null> {
   const tech = techs.find((t) => t.code === code);
   if (!tech) return null;
 
-  const [load, pay, jobs] = await Promise.all([loadByTech(), payByTech(), techJobs(code)]);
+  const [load, pay, fb, jobs] = await Promise.all([loadByTech(), payByTech(), feedbackByTech(), techJobs(code)]);
   const l = load.get(code) ?? { jobs: 0, oldest_days: 0, late: 0 };
   const p = payOf(pay, code, tech.employee_code);
+  const f = fb.get(code) ?? { rated: 0, happy_pct: null, unhappy: 0 };
 
   return {
     code,
@@ -127,6 +156,9 @@ export async function techDetail(code: string): Promise<TechDetail | null> {
     late: l.late,
     month_jobs: p.month,
     month_thb: p.month_thb,
+    rated: f.rated,
+    happy_pct: f.happy_pct,
+    unhappy: f.unhappy,
     today_closed: p.today,
     week_closed: p.week,
     jobs,

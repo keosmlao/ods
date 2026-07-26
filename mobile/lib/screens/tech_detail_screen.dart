@@ -80,6 +80,32 @@ class _TechDetailScreenState extends State<TechDetailScreen> {
                           ),
                         ),
                         MCard(
+                          title: 'ຄວາມພໍໃຈລູກຄ້າ (ງານຕິດຕັ້ງ)',
+                          child: data!.rated == 0
+                              ? const EmptyHint(icon: Icons.reviews_outlined, text: 'ຍັງບໍ່ມີການປະເມີນ')
+                              : Row(
+                                  children: [
+                                    Text('${data!.happyPct}%',
+                                        style: TextStyle(
+                                            fontSize: 34, fontWeight: FontWeight.w900,
+                                            color: _sat(data!.happyPct))),
+                                    const SizedBox(width: 4),
+                                    const Text('😊', style: TextStyle(fontSize: 20)),
+                                    const Spacer(),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text('${data!.rated} ປະເມີນ',
+                                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ink)),
+                                        if (data!.unhappy > 0)
+                                          Text('${data!.unhappy} ບໍ່ພໍໃຈ',
+                                              style: const TextStyle(fontSize: 12, color: danger, fontWeight: FontWeight.w700)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                        ),
+                        MCard(
                           title: 'ຄ່າຄອມເດືອນນີ້',
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.end,
@@ -116,6 +142,8 @@ class _TechDetailScreenState extends State<TechDetailScreen> {
       ),
     );
   }
+
+  Color _sat(int? pct) => pct == null ? muted : pct >= 90 ? ok : pct >= 70 ? warn : danger;
 
   Widget _mini(String label, String value) => Expanded(
     child: Column(

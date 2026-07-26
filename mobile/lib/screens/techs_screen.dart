@@ -124,18 +124,16 @@ class _TechCard extends StatelessWidget {
                   children: [
                     Text(tech.name, maxLines: 1, overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: ink)),
-                    const SizedBox(height: 3),
-                    Row(
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 5,
                       children: [
                         _chip('${tech.openJobs} ຄ້າງ', tech.openJobs > 0 ? teal : faint),
-                        if (tech.late > 0) ...[
-                          const SizedBox(width: 6),
-                          _chip('${tech.late} ເລີຍ SLA', danger),
-                        ],
-                        if (tech.oldestDays > 0) ...[
-                          const SizedBox(width: 6),
-                          _chip('ເກົ່າ ${tech.oldestDays}ມື້', muted),
-                        ],
+                        if (tech.late > 0) _chip('${tech.late} ເລີຍ SLA', danger),
+                        if (tech.oldestDays > 0) _chip('ເກົ່າ ${tech.oldestDays}ມື້', muted),
+                        if (tech.rated > 0)
+                          _chip('😊 ${tech.happyPct}%', _satColor(tech.happyPct)),
                       ],
                     ),
                   ],
@@ -159,6 +157,14 @@ class _TechCard extends StatelessWidget {
       ),
     );
   }
+
+  static Color _satColor(int? pct) => pct == null
+      ? muted
+      : pct >= 90
+      ? ok
+      : pct >= 70
+      ? warn
+      : danger;
 
   static Widget _chip(String text, Color c) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),

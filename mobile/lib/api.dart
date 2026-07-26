@@ -1587,6 +1587,9 @@ class TechRow {
   final int late;
   final int monthJobs;
   final double monthThb;
+  final int rated; // ຈຳນວນປະເມີນ (ງານຕິດຕັ້ງ)
+  final int? happyPct; // % ພໍໃຈ (null = ຍັງບໍ່ມີການປະເມີນ)
+  final int unhappy; // ບໍ່ພໍໃຈ (points≥3)
 
   TechRow({
     required this.code,
@@ -1596,6 +1599,9 @@ class TechRow {
     required this.late,
     required this.monthJobs,
     required this.monthThb,
+    required this.rated,
+    required this.happyPct,
+    required this.unhappy,
   });
 
   factory TechRow.fromJson(Map<String, dynamic> json) => TechRow(
@@ -1606,6 +1612,9 @@ class TechRow {
     late: (json['late'] as num?)?.toInt() ?? 0,
     monthJobs: (json['month_jobs'] as num?)?.toInt() ?? 0,
     monthThb: (json['month_thb'] as num?)?.toDouble() ?? 0,
+    rated: (json['rated'] as num?)?.toInt() ?? 0,
+    happyPct: (json['happy_pct'] as num?)?.toInt(),
+    unhappy: (json['unhappy'] as num?)?.toInt() ?? 0,
   );
 }
 
@@ -1618,6 +1627,9 @@ class TechDetail {
   final int late;
   final int monthJobs;
   final double monthThb;
+  final int rated;
+  final int? happyPct;
+  final int unhappy;
   final int todayClosed;
   final int weekClosed;
   final List<MonitorJob> jobs;
@@ -1630,6 +1642,9 @@ class TechDetail {
     required this.late,
     required this.monthJobs,
     required this.monthThb,
+    required this.rated,
+    required this.happyPct,
+    required this.unhappy,
     required this.todayClosed,
     required this.weekClosed,
     required this.jobs,
@@ -1643,6 +1658,9 @@ class TechDetail {
     late: (json['late'] as num?)?.toInt() ?? 0,
     monthJobs: (json['month_jobs'] as num?)?.toInt() ?? 0,
     monthThb: (json['month_thb'] as num?)?.toDouble() ?? 0,
+    rated: (json['rated'] as num?)?.toInt() ?? 0,
+    happyPct: (json['happy_pct'] as num?)?.toInt(),
+    unhappy: (json['unhappy'] as num?)?.toInt() ?? 0,
     todayClosed: (json['today_closed'] as num?)?.toInt() ?? 0,
     weekClosed: (json['week_closed'] as num?)?.toInt() ?? 0,
     jobs: ((json['jobs'] as List?) ?? [])
