@@ -2,7 +2,7 @@
 
 ເອກະສານຊຸດນີ້ແມ່ນ **ຄູ່ມືການໃຊ້ງານ, ມາດຕະຖານການປະຕິບັດງານ (SOP), ບັດຂັ້ນຕອນ (WI) ແລະ ແບບຟອມ (Forms) ຂອງລະບົບບໍລິຫານງານສ້ອມ, ຕິດຕັ້ງ, ເຄລມ, ບຳລຸງຮັກສາ (PM) ແລະ ສັ່ງຊື້ອາໄຫຼ່ ODSS** (Odien Service System) ຄົບທັງລະບົບ — ສຳລັບ **CS (ຮັບແຈ້ງ), ຊ່າງສ້ອມ (Tech), ຝ່າຍສາງ (Stock), ຫົວໜ້າ (Supervisor), ແລະ Admin**.
 
-> 💡 **Interactive Web Documentation Portal:** ສາມາດເປີດ [odss-guide.html](file:///Users/mac/Desktop/ODIENGROUP/ODSS/odss-next/docs/guide/odss-guide.html) ໃນ Web Browser ເພື່ອໃຊ້ງານຄຸນສົມບັດ **Real-time Search, Role Filters, 5 Module Tabs, 12 Stepper Stages ແລະ Dark/Light Mode**.
+> 💡 **ຄູ່ມືໃນແອັບ:** ເປີດ **`/manual`** ໃນລະບົບ (ໜ້າຄູ່ມືການໃຊ້ງານ) — 5 Module Tabs (ສ້ອມ · ຕິດຕັ້ງ · ເຄມ · PM · ຈັດຊື້), 12 Stepper Stages, ພິມ SOP/WI ໄດ້. ເອກະສານ markdown ຊຸດນີ້ (`docs/guide/`) ຄື source of truth ລະອຽດ.
 
 ---
 
@@ -52,7 +52,9 @@
 | **QC Checksheet** | ໃບກວດສອບຄຸນນະພາບ ຫຼັງສ້ອມ/ຕິດຕັ້ງສຳເລັດ |
 | **PR (Purchase Request)** | ໃບຂໍຊື້ອາໄຫຼ່/ອຸປະກອນ |
 | **PO (Purchase Order)** | ໃບສັ່ງຊື້ອາໄຫຼ່/ອຸປະກອນ ຫາ Vendor |
-| **Claim / ງານເຄລມ** | ງານເຄລມປະກັນສິນຄ້າ/ອາໄຫຼ່ ຈາກ Vendor ຫຼື ໂຮງງານ |
+| **Claim / ໃບເຄມ** | ເອກະສານການຄ້າທີ່ຫ້ອຍຢູ່ກັບໃບงານສ້ອມ (ຜູກ `ref_job`) — 3 ປະເພດ: **B** ຮ້ານສົ່ງມາເຄມ (ຈົບຢູ່ສູນ) · **A** ຂໍອາໄຫຼ່ກັບ supplier · **C** ເກັບເງິນຄ່າສ້ອມ ນຳ supplier |
+| **claim_scope** | ຂອບເຂດ CLM-B: `whole` ທັງໜ່ວຍ · `part` ສະເພາະອາໄຫຼ່ |
+| **fulfillment_source** | ວິທີປ່ຽນ CLM-B: `stock` ຈາກສາງສູນ · `purchase` ສັ່ງຊື້ · `supplier` ເຄມຕໍ່ supplier |
 
 ---
 _ຮັກສາເອກະສານນີ້ໃຫ້ທັນສະໄໝຢູ່ສະເໝີ. ເມື່ອມີການປ່ຽນແປງຂະບວນການ ໃຫ້ອັບເດດເອກະສານທີ່ກ່ຽວຂ້ອງທັນທີ._
