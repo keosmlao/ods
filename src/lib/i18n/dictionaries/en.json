@@ -897,16 +897,16 @@
         ]
       },
       {
-        "title": "Claim system",
-        "intro": "The /claims page — three claim types (Warehouse & Spares → Claim system).",
+        "title": "Claim system — Repair-first",
+        "intro": "The device enters Repair first → tech checks/diagnoses → CLAIM_SIDE opens a claim. A claim hangs off the repair job (ref_job). 3 pages: /claims/shop · supplier · reimburse.",
         "wf": "claim",
         "items": [
-          "CLM-A claim spare from supplier: a bought spare is faulty → return to supplier for a replacement/credit.",
-          "CLM-B shop sends to claim: a shop (customer) sends in → <b>resolved at the center</b> (replace/repair/decide) → return to shop. Never reaches the supplier.",
-          "CLM-C bill repair fee to supplier: in-brand-warranty items → don't charge the customer → bill labour+parts to the supplier.",
-          "Open a claim: /claims → “Open claim” → pick type + supplier/brand (from ERP) + items.",
-          "Track: per-type pipeline (draft→sent→…→closed), advance on the claim, add items/notes.",
-          "Supplier & brand come from ERP (ap_supplier / ic_brand) — no manual typing."
+          "CLM-B shop sends to claim (/claims/shop): the master doc — created via intake ‘Receive claim item’ (/service/new?kind=claim). received→check/decide (replace/repair)→return to shop→close. <b>Resolved at the center</b>. Has scope (whole/part) + fulfillment (stock/purchase/supplier).",
+          "CLM-A claim spare from supplier (/claims/supplier): request a spare/replacement from the supplier <b>while repairing</b>. draft→send supplier(email)→review→approve→receive new→close.",
+          "CLM-C bill fee to supplier (/claims/reimburse): repair <b>in-warranty</b> free for the customer → collect from the supplier. Available after <b>the device is returned</b>. notify→notified→paid (link COB · send email · mark paid).",
+          "Open a claim from the repair job: buttons A (while repairing) / C (after return) — carries product/SN/brand/ref_job. The job list shows a ‘claim’ badge.",
+          "Guards: B received→checking only via tech QC · C paid via ‘mark paid’ · edit only at the first stage. Technicians don't create claims.",
+          "Supplier & brand come from ERP (ap_supplier / ic_brand) — brand auto from ic_inventory.item_brand."
         ]
       },
       {
@@ -1440,14 +1440,14 @@
       },
       {
         "code": "WI-CLM01",
-        "title": "Open a claim",
-        "owner": "Claims",
-        "purpose": "Create a new claim.",
-        "scope": "/claims/new.",
+        "title": "Open a claim (repair-first)",
+        "owner": "Claims (CLAIM_SIDE)",
+        "purpose": "Open a claim from the repair job — the device enters Repair first.",
+        "scope": "/claims/shop (B intake) · repair job page (A/C).",
         "steps": [
-          "/claims → click “Open claim”.",
-          "Pick type (A/B/C) + supplier/brand (from ERP) / shop.",
-          "Save → get a claim no → add items."
+          "B (shop sends to claim): /claims/shop → ‘Receive claim item’ → intake (pull bill + warranty check + scope whole/part).",
+          "A (claim spare from supplier): job page (in-warranty, while repairing) → ‘Open claim · request spare (A)’ → pick supplier + spare.",
+          "C (bill supplier): job page after the device is returned → ‘Bill supplier (C)’. Supplier/brand pulled from ERP."
         ],
         "refs": "SOP-CLM-A, SOP-CLM-B, SOP-CLM-C"
       },
