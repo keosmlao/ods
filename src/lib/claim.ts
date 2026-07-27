@@ -303,3 +303,18 @@ export async function claimCounts(type: ClaimType): Promise<Record<string, numbe
   )).rows;
   return Object.fromEntries(rows.map((r) => [r.status, r.n]));
 }
+
+/**
+ * ນັບ CLM-B ຕໍ່ claim_scope + fulfillment_source — **ບໍ່ຂຶ້ນກັບ filter status/ຄົ້ນ** (ຍອດລວມຕໍ່ type).
+ * ໃຫ້ card ສະຫຼຸບ ບໍ່ຫົດເມື່ອກົດ chip (ບໍ່ໃຊ້ rows ທີ່ filter ແລ້ວ).
+ */
+export async function claimScopeSummary(type: ClaimType): Promise<{ scope: Record<string, number>; fulfillment: Record<string, number> }> {
+  const [scope, ful] = await Promise.all([
+    query<{ k: string | null; n: number }>(`select claim_scope k, count(*)::int n from ods_claim where claim_type=$1 group by claim_scope`, [type]),
+    query<{ k: string | null; n: number }>(`select fulfillment_source k, count(*)::int n from ods_claim where claim_type=$1 group by fulfillment_source`, [type]),
+  ]);
+  return {
+    scope: Object.fromEntries(scope.rows.filter((r) => r.k).map((r) => [r.k as string, r.n])),
+    fulfillment: Object.fromEntries(ful.rows.filter((r) => r.k).map((r) => [r.k as string, r.n])),
+  };
+}

@@ -20,6 +20,11 @@ export default async function NewClaimPage({ searchParams }: Props) {
   if (!CLAIM_SIDE.includes(roleOf(session))) redirect("/forbidden");
 
   const sp = await searchParams;
+  // CLM-B ຕ້ອງເກີດຜ່ານ intake (ຮັບເຄື່ອງເຂົ້າ) ເທົ່ານັ້ນ — ບໍ່ໃຫ້ສ້າງທາງນີ້ (scope/fulfillment ຈະ NULL).
+  if (sp.type === "B") {
+    const qs = new URLSearchParams({ kind: "claim", ...(sp.sn ? { sn: sp.sn } : {}), ...(sp.product ? { proname: sp.product } : {}) });
+    redirect(`/service/new?${qs.toString()}`);
+  }
   const defaultType: ClaimType = isType(sp.type ?? "") ? (sp.type as ClaimType) : "A";
   const [suppliers, brands, customers] = await Promise.all([
     searchSuppliers("", 1000).catch(() => []),

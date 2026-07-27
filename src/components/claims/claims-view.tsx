@@ -5,6 +5,7 @@ import {
   FULFILLMENT_LABEL,
   claimCandidatesC,
   claimCounts,
+  claimScopeSummary,
   isClaimOpen,
   listClaims,
   type ClaimType,
@@ -28,10 +29,11 @@ export async function ClaimsView({
   status: string;
   q: string;
 }) {
-  const [rows, counts, candidates] = await Promise.all([
+  const [rows, counts, candidates, scopeSummary] = await Promise.all([
     listClaims({ type, status: status || undefined, q: q || undefined }),
     claimCounts(type),
     type === "C" ? claimCandidatesC() : Promise.resolve([]),
+    type === "B" ? claimScopeSummary(type) : Promise.resolve<{ scope: Record<string, number>; fulfillment: Record<string, number> }>({ scope: {}, fulfillment: {} }),
   ]);
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   // 'paid' (C) = ປິດແລ້ວ ຄືກັນ — flow C ຈົບທີ່ paid, ບໍ່ມີ closed
@@ -71,7 +73,7 @@ export async function ClaimsView({
             {(["whole", "part"] as const).map((scope) => (
               <div key={scope} className="rounded-xl border border-violet-200 bg-violet-50/50 px-3 py-2">
                 <p className="text-[11px] text-violet-700">{CLAIM_SCOPE_LABEL[scope]}</p>
-                <p className="mt-1 text-xl font-bold tabular-nums text-violet-900">{rows.filter((row) => row.claim_scope === scope).length}</p>
+                <p className="mt-1 text-xl font-bold tabular-nums text-violet-900">{scopeSummary.scope[scope] ?? 0}</p>
               </div>
             ))}
           </div>
@@ -80,7 +82,7 @@ export async function ClaimsView({
               <div key={source} className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
                 <p className="text-[11px] text-slate-500">{FULFILLMENT_LABEL[source]}</p>
                 <p className="mt-1 text-xl font-bold tabular-nums text-slate-800">
-                  {rows.filter((row) => row.fulfillment_source === source).length}
+                  {scopeSummary.fulfillment[source] ?? 0}
                 </p>
               </div>
             ))}
