@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../app_links.dart';
 import '../main.dart';
+import '../push.dart';
 import '../widgets/ui_kit.dart';
+import 'login_screen.dart';
 
 /// **ກ່ອງແຈ້ງເຕືອນ** — ອ່ານຈາກຕາຕະລາງດຽວກັບເວັບ (ods_notification).
 ///
@@ -22,6 +27,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool unreadOnly = true;
   bool loading = true;
   String? error;
+
+  Future<void> _logout() async {
+    unawaited(Push.unregister());
+    await Api.clearToken();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
 
   @override
   void initState() {
@@ -57,6 +72,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           HeroHeader(
             title: 'ແຈ້ງເຕືອນ',
             trailing: [
+              HeroIconButton(icon: Icons.logout_rounded, onTap: _logout),
               TextButton(
                 onPressed: () async {
                   await Api.markNotificationRead(all: true);
@@ -121,12 +137,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             '${row.actor != null ? ' · ${row.actor}' : ''}',
                           ),
                           // ກົດເບິ່ງ = ຖືວ່າອ່ານແລ້ວ (ອ່ານຢູ່ແອັບ ⇒ ເວັບກໍ່ເຫັນວ່າອ່ານແລ້ວ)
-                          onTap: row.read
-                              ? null
-                              : () async {
-                                  await Api.markNotificationRead(id: row.id);
-                                  await _load();
-                                },
+                          onTap: () async {
+                            if (!row.read) await Api.markNotificationRead(id: row.id);
+                            await AppLinks.openRecord(row.model, row.resId);
+                            await _load();
+                          },
                         );
                       },
                     ),

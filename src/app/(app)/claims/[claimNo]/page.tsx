@@ -4,7 +4,7 @@ import { ClaimManage } from "@/components/claim/claim-manage";
 import { getErpBrands } from "@/lib/erp-master";
 import { searchSuppliers } from "@/lib/erp-supplier";
 import { getSession } from "@/lib/auth";
-import { CLAIM_FLOW, CLAIM_REJECTED, CLAIM_TYPE_LABEL, claimByNo, claimItems, claimNextStatus, claimPagePath, claimPhotos, cobInfo, isClaimOpen, jobDelivery, PAY_METHOD_LABEL, relatedClaims, RESOLUTION_LABEL, WARRANTY_LABEL } from "@/lib/claim";
+import { CLAIM_FLOW, CLAIM_REJECTED, CLAIM_SCOPE_LABEL, CLAIM_TYPE_LABEL, claimByNo, claimItems, claimNextStatus, claimPagePath, claimPhotos, cobInfo, FULFILLMENT_LABEL, isClaimEditable, isClaimOpen, jobDelivery, PAY_METHOD_LABEL, relatedClaims, RESOLUTION_LABEL, WARRANTY_LABEL } from "@/lib/claim";
 import { CLAIM_SIDE, roleOf } from "@/lib/roles";
 import { ChevronLeft, Plus } from "lucide-react";
 import Link from "next/link";
@@ -102,6 +102,8 @@ export default async function ClaimDetailPage({ params }: Props) {
             {info("SN", claim.sn ?? delivery?.sn ?? null)}
             {claim.warranty && info("ຮັບປະກັນ", WARRANTY_LABEL[claim.warranty] ?? claim.warranty)}
             {claim.resolution && info("ຜົນຕັດສິນ", RESOLUTION_LABEL[claim.resolution] ?? claim.resolution)}
+            {claim.claim_scope && info("ຂອບເຂດເຄມ", CLAIM_SCOPE_LABEL[claim.claim_scope] ?? claim.claim_scope)}
+            {claim.fulfillment_source && info("ວິທີດຳເນີນການ", FULFILLMENT_LABEL[claim.fulfillment_source] ?? claim.fulfillment_source)}
             {info("ວັນຊື້", claim.purchase_date)}
             {delivery && info("ອາການສ້ອມ", delivery.fault)}
             {info("ຄ່າແຮງງານ", claim.amount ? claim.amount.toLocaleString() : null)}
@@ -158,7 +160,7 @@ export default async function ClaimDetailPage({ params }: Props) {
           )}
 
           {/* ແກ້ໄຂ / ລບ (ພັບໄວ້) — ສະເພາະໃບທີ່ຍັງເປີດ */}
-          {isClaimOpen(claim.status) && (
+          {isClaimEditable(claim.claim_type, claim.status) && (
             <ClaimEditDelete
               claimNo={claim.claim_no}
               supplierCode={claim.supplier_code}
@@ -188,6 +190,7 @@ export default async function ClaimDetailPage({ params }: Props) {
           payMethod={claim.pay_method}
           refJob={claim.ref_job}
           repairPrefill={{ proname: claim.product ?? undefined, sn: claim.sn ?? undefined, billon: claim.bill_no ?? undefined, billdate: claim.purchase_date ?? undefined, cust: claim.customer_code ?? undefined, custname: claim.customer_name ?? undefined }}
+          editable={isClaimEditable(claim.claim_type, claim.status)}
         />
       </div>
     </div>

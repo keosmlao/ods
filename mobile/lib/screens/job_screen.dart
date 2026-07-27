@@ -129,6 +129,95 @@ class _JobScreenState extends State<JobScreen> {
     }
   }
 
+  Future<void> scheduleActivity() async {
+    final summary = TextEditingController();
+    final noteInput = TextEditingController();
+    var kind = 'todo';
+    var due = DateTime.now().add(const Duration(days: 1));
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('ນັດກິດຈະກຳ'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: kind,
+                  items: const [
+                    DropdownMenuItem(value: 'todo', child: Text('ວຽກທີ່ຕ້ອງເຮັດ')),
+                    DropdownMenuItem(value: 'call', child: Text('ໂທຫາ')),
+                    DropdownMenuItem(value: 'visit', child: Text('ເຂົ້າພົບ')),
+                    DropdownMenuItem(value: 'meeting', child: Text('ປະຊຸມ')),
+                  ],
+                  onChanged: (value) => kind = value ?? 'todo',
+                ),
+                const SizedBox(height: 10),
+                TextField(controller: summary, decoration: const InputDecoration(labelText: 'ຫົວຂໍ້ *')),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: noteInput,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'ໝາຍເຫດ'),
+                ),
+                const SizedBox(height: 10),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.event_outlined),
+                  title: Text('${due.day.toString().padLeft(2, '0')}-${due.month.toString().padLeft(2, '0')}-${due.year}'),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: dialog,
+                      initialDate: due,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) setDialogState(() => due = picked);
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('ຍົກເລີກ')),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialog, summary.text.trim().isNotEmpty),
+              child: const Text('ບັນທຶກ'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved != true) {
+      summary.dispose();
+      noteInput.dispose();
+      return;
+    }
+    final dueDate =
+        '${due.year}-${due.month.toString().padLeft(2, '0')}-${due.day.toString().padLeft(2, '0')}';
+    try {
+      await Api.scheduleActivity(
+        job.workflow,
+        job.code,
+        kind: kind,
+        summary: summary.text,
+        note: noteInput.text,
+        dueDate: dueDate,
+      );
+      await loadChatter();
+    } on ApiError catch (failure) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(failure.message), backgroundColor: danger),
+        );
+      }
+    } finally {
+      summary.dispose();
+      noteInput.dispose();
+    }
+  }
+
   /// ໂຫຼດຈຳນວນອາໄຫຼ່ຄ້າງນຳຊ່າງ — ລົ້ມກໍ່ບໍ່ເປັນຫຍັງ (ພຽງເຊື່ອງປຸ່ມ)
   Future<void> loadOutstanding() async {
     try {
@@ -170,7 +259,11 @@ class _JobScreenState extends State<JobScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ).showSnackBar(SnackBar(content: Text(message.replaceFirst('OFFLINE_QUEUED: ', ''))));
+      if (message.startsWith('OFFLINE_QUEUED:')) {
+        if (pop) Navigator.pop(context);
+        return;
+      }
       if (pop) {
         Navigator.pop(context);
       } else {
@@ -496,6 +589,11 @@ class _JobScreenState extends State<JobScreen> {
               style: TextStyle(fontWeight: FontWeight.w800, color: ink, fontSize: 14),
             ),
             const Spacer(),
+            IconButton(
+              tooltip: 'ນັດກິດຈະກຳ',
+              onPressed: scheduleActivity,
+              icon: const Icon(Icons.event_available_outlined, size: 19, color: teal),
+            ),
             if (chatter != null)
               Text('${chatter!.messages.length}', style: const TextStyle(color: faint, fontSize: 12)),
           ],

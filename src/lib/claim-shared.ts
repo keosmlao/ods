@@ -69,6 +69,22 @@ export const claimNextStatus = (type: ClaimType, status: string): { status: stri
   return flow[i + 1];
 };
 
+/** ກົດ transition ກາງ — server ແລະ UI ໃຊ້ກົດດຽວກັນ. */
+export const claimCanTransition = (type: ClaimType, from: string, to: string): boolean => {
+  if (type === "A" && to === CLAIM_REJECTED.status) return from === "sent" || from === "review";
+  // CLM-B checking → done ຕ້ອງຜ່ານ resolveClaim ເພື່ອບັນທຶກ replace/repair.
+  if (type === "B" && from === "checking" && to === "done") return false;
+  // CLM-B received → checking ຕ້ອງຜ່ານ saveCheck (ຊ່າງ QC) ເທົ່ານັ້ນ — ຂ້າມ = time_finish_check
+  // ຍັງ NULL ⇒ resolveClaim ຂຽນ tb_product ບໍ່ໄດ້ ⇒ job ຄ້າງ stage "ລໍຕັດສິນ" ຖາວອນ.
+  if (type === "B" && from === "received" && to === "checking") return false;
+  // CLM-C → paid ຕ້ອງຜ່ານ setClaimPaid (ຕ້ອງມີວິທີຊຳລະ) — ບໍ່ໃຫ້ advance ກົງ ໃຫ້ pay_method NULL.
+  if (type === "C" && to === "paid") return false;
+  return claimNextStatus(type, from)?.status === to;
+};
+
+export const isClaimEditable = (type: ClaimType, status: string): boolean =>
+  status === ({ A: "draft", B: "received", C: "notify" } satisfies Record<ClaimType, string>)[type];
+
 export const isClaimOpen = (status: string) => status !== "closed" && status !== "rejected" && status !== "paid";
 
 export type ClaimRow = {
@@ -102,10 +118,23 @@ export type ClaimRow = {
   bill_no: string | null;
   /** ຜົນຕັດສິນ CLM-B — replace(ປ່ຽນ) | repair(ສ້ອມ) | null */
   resolution: string | null;
+  fulfillment_source: string | null;
+  claim_scope: string | null;
 };
 
 /** ຜົນຕັດສິນ CLM-B — ເລືອກຕອນ "ກວດ/ຕັດສິນ" */
 export const RESOLUTION_LABEL: Record<string, string> = { replace: "ປ່ຽນ", repair: "ສ້ອມ" };
+export const FULFILLMENT_LABEL: Record<string, string> = {
+  stock: "ປ່ຽນຈາກ stock ຂອງສູນ",
+  purchase: "ສັ່ງຊື້ມາປ່ຽນ",
+  supplier: "ເຄມຕໍ່ກັບ supplier",
+};
+export const CLAIM_SCOPE_LABEL: Record<string, string> = {
+  whole: "ເຄມທັງເຄື່ອງ",
+  part: "ເຄມສະເພາະອາໄຫຼ່",
+};
+export const isClaimFulfillmentSource = (value: string | undefined): value is "stock" | "purchase" | "supplier" =>
+  value === "stock" || value === "purchase" || value === "supplier";
 
 export type ClaimPhoto = { id: number; path: string; created_at: string | null };
 export const WARRANTY_LABEL: Record<string, string> = { in: "ໃນປະກັນ", out: "ນອກປະກັນ" };

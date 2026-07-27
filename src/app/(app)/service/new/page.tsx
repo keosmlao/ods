@@ -27,8 +27,8 @@ export default async function NewService({ searchParams }: Props) {
           ກັບລາຍການຮັບສິນຄ້າເຂົ້າສ້ອມ
           <LinkPending className="size-3" />
         </Link>
-        <h1 className="text-xl font-bold text-slate-700">ໃບຮັບເຄື່ອງເຂົ້າສ້ອມ</h1>
-        <p className="mt-0.5 text-xs text-slate-500">ຮັບສິນຄ້າຂອງລູກຄ້າເຂົ້າສ້ອມ — ຍິງບາໂຄດ ຫຼື ປ້ອນຂໍ້ມູນເອງ</p>
+        <h1 className="text-xl font-bold text-slate-700">{prefill.kind === "claim" ? "ຮັບເຄື່ອງເຂົ້າງານເຄມ" : "ໃບຮັບເຄື່ອງເຂົ້າສ້ອມ"}</h1>
+        <p className="mt-0.5 text-xs text-slate-500">{prefill.kind === "claim" ? "ຮັບເຄື່ອງ → ອອກເລກງານກວດເຊັກ → ສ້າງ CLM-B ອັດຕະໂນມັດ" : "ຮັບສິນຄ້າຂອງລູກຄ້າເຂົ້າສ້ອມ — ຍິງບາໂຄດ ຫຼື ປ້ອນຂໍ້ມູນເອງ"}</p>
       </div>
 
       <ServiceIntake types={types} brands={brands} techs={techs} prefill={prefill} />

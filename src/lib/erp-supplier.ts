@@ -22,6 +22,8 @@ export type Supplier = {
   name_2: string | null;
 };
 
+export type SupplierContact = Supplier & { email: string | null; telephone: string | null };
+
 /**
  * ຄົ້ນຫາຜູ້ສະໜອງ — ໃຊ້ຢູ່ຟອມອອກໃບສັ່ງຊື້.
  * `q` ຫວ່າງ = ຄືນລາຍການທຳອິດ (ໃຫ້ dropdown ມີຂໍ້ມູນເລີຍ ບໍ່ຕ້ອງພິມກ່ອນ).
@@ -60,6 +62,23 @@ export async function supplierByCode(code: string): Promise<Supplier | null> {
     return rows.rows[0] ?? null;
   } catch (error) {
     console.error("supplierByCode failed", error);
+    return null;
+  }
+}
+
+export async function supplierContactByCode(code: string): Promise<SupplierContact | null> {
+  const clean = code.trim();
+  if (!clean) return null;
+  try {
+    const rows = await queryOdg<SupplierContact>(
+      `select code, coalesce(nullif(name_1,''), code) as name, nullif(name_2,'') as name_2,
+              nullif(trim(email),'') as email, nullif(trim(telephone),'') as telephone
+         from ap_supplier where code = $1 limit 1`,
+      [clean],
+    );
+    return rows.rows[0] ?? null;
+  } catch (error) {
+    console.error("supplierContactByCode failed", error);
     return null;
   }
 }

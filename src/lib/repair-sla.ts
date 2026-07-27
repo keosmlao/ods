@@ -36,6 +36,10 @@ export const REPAIR_STAGE_POLICIES: RepairStagePolicy[] = [
   { stage: 9, label: "ກຳລັງສ້ອມ", owner: "ຊ່າງ", kpi: "ສ້ອມສຳເລັດພາຍໃນ SLA ແລະບໍ່ກັບມາສ້ອມຊ້ຳ", hours: { CI: 4, ST: 8, IH: 4, PS: 8 }, targetPct: 90 },
   { stage: 10, label: "ລໍກວດ QC", owner: "ຜູ້ກວດ QC", kpi: "ກວດ QC ຄົບ checklist ພາຍໃນ SLA", hours: { CI: 2, ST: 2, IH: 2, PS: 2 }, targetPct: 95 },
   { stage: 11, label: "ລໍສົ່ງມອບ / ຮັບເງິນ", owner: "ຝ່າຍບໍລິການ", kpi: "ແຈ້ງລູກຄ້າ ແລະສົ່ງມອບພາຍໃນ SLA", hours: { CI: 4, ST: 24, IH: 8, PS: 24 }, targetPct: 90 },
+  { stage: 13, label: "ລໍຕັດສິນຜົນເຄມ", owner: "ຫົວໜ້າສູນ + ຝ່າຍເຄມ", kpi: "ຕັດສິນ ສ້ອມ / Stock / ສັ່ງຊື້ / Supplier ພາຍໃນ SLA", hours: { CI: 4, ST: 4, IH: 4, PS: 4 }, targetPct: 95 },
+  { stage: 14, label: "ລໍປ່ຽນຈາກ Stock", owner: "ສາງ + ຝ່າຍເຄມ", kpi: "ຈັດສິນຄ້າ ຫຼືອາໄຫຼ່ຈາກ Stock ໃຫ້ພ້ອມປ່ຽນ", hours: { CI: 4, ST: 4, IH: 8, PS: 8 }, targetPct: 95 },
+  { stage: 15, label: "ລໍຂອງຈາກການສັ່ງຊື້", owner: "ຈັດຊື້ + ຝ່າຍເຄມ", kpi: "ຕິດຕາມສິນຄ້າຕາມ lead time", hours: { CI: 168, ST: 168, IH: 168, PS: 168 }, external: true, targetPct: 80 },
+  { stage: 16, label: "ລໍຜົນ/ຂອງຈາກ Supplier", owner: "Supplier + ຝ່າຍເຄມ", kpi: "ຕິດຕາມຜົນອະນຸມັດ ແລະຂອງທົດແທນ", hours: { CI: 168, ST: 168, IH: 168, PS: 168 }, external: true, targetPct: 80 },
 ];
 
 export const REPAIR_STAGE_POLICY = new Map(REPAIR_STAGE_POLICIES.map((item) => [item.stage, item]));

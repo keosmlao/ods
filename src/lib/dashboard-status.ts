@@ -22,6 +22,8 @@ export type StatusDef = {
    * — ນັບຊ້ຳກັບຂັ້ນອື່ນ ຈຶ່ງຫ້າມເອົາໄປລວມຍອດ.
    */
   stage?: number;
+  /** ລຳດັບສະແດງ; ໃຊ້ໃຫ້ສາຂາເຄມຢູ່ຕໍ່ຈາກຂັ້ນກວດເຊັກ. */
+  order?: number;
 };
 
 export const repairStatuses: Record<string, StatusDef> = {
@@ -53,6 +55,10 @@ export const repairStatuses: Record<string, StatusDef> = {
   },
   "wait-check": { label: "ຮັບງານ / ລໍຖ້າກວດເຊັກ", condition: stageIs(1), stage: 1 },
   checking: { label: "ກຳລັງກວດເຊັກ", condition: stageIs(2), stage: 2 },
+  "claim-decision": { label: "ລໍຕັດສິນຜົນເຄມ", condition: stageIs(13), stage: 13, order: 2.1 },
+  "claim-stock": { label: "ລໍປ່ຽນຈາກ Stock", condition: stageIs(14), stage: 14, order: 2.2 },
+  "claim-purchase": { label: "ລໍຂອງຈາກການສັ່ງຊື້", condition: stageIs(15), stage: 15, order: 2.3 },
+  "claim-supplier": { label: "ລໍຜົນ/ຂອງຈາກ Supplier", condition: stageIs(16), stage: 16, order: 2.4 },
   "wait-quote": { label: "ລໍຖ້າສະເໜີລາຄາ", condition: stageIs(3), stage: 3 },
   quoting: { label: "ກຳລັງສະເໜີລາຄາ", condition: stageIs(4), stage: 4 },
   "wait-withdraw": { label: "ກວດ Stock / ຊື້ ຫຼື ຂໍເບີກ", condition: stageIs(5), stage: 5 },
@@ -115,4 +121,4 @@ export const installStatuses: Record<string, StatusDef> = {
 export const pipelineOf = (statuses: Record<string, StatusDef>) =>
   Object.entries(statuses)
     .filter(([, def]) => def.stage != null)
-    .sort((a, b) => (a[1].stage ?? 0) - (b[1].stage ?? 0));
+    .sort((a, b) => (a[1].order ?? a[1].stage ?? 0) - (b[1].order ?? b[1].stage ?? 0));

@@ -18,10 +18,14 @@ class IncomeScreen extends StatefulWidget {
 class _IncomeScreenState extends State<IncomeScreen> {
   Income? income;
   String error = '';
+  String username = '';
 
   @override
   void initState() {
     super.initState();
+    Api.savedUsername().then((value) {
+      if (mounted) setState(() => username = value ?? '');
+    });
     load();
   }
 
@@ -50,7 +54,7 @@ class _IncomeScreenState extends State<IncomeScreen> {
           : data == null
           ? const Center(child: CircularProgressIndicator())
           : !data.linked
-          ? const Padding(
+          ? Padding(
               padding: EdgeInsets.all(24),
               child: Center(
                 child: Column(
@@ -64,11 +68,23 @@ class _IncomeScreenState extends State<IncomeScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: 6),
-                    Text(
+                    const SizedBox(height: 6),
+                    const Text(
                       'ຄ່າຄອມຈະຍັງບໍ່ເຂົ້າບັນຊີທ່ານ — ກະລຸນາແຈ້ງຜູ້ຈັດການ',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: muted),
+                    ),
+                    const SizedBox(height: 12),
+                    SelectableText(
+                      'ລະຫັດບັນຊີ ODS: ${username.isEmpty ? '-' : username}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w800, color: ink),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'ໃຫ້ຜູ້ຈັດການເຂົ້າ ຈັດການ → ພະນັກງານ ແລ້ວເຊື່ອມລະຫັດນີ້ກັບ ERP employee',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: muted, fontSize: 12),
                     ),
                   ],
                 ),

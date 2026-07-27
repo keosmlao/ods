@@ -102,3 +102,25 @@ export async function completeJobActivity(
   await logChange(row.model, row.res_id, `ກິດຈະກຳສຳເລັດ: ${row.summary}${suffix}`, { author });
   return { ok: true };
 }
+
+export async function scheduleOwnJobActivity(
+  workflow: Workflow,
+  code: string,
+  author: string,
+  input: { kind: string; summary: string; note?: string; dueDate: string },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const kind = ["todo", "call", "visit", "meeting"].includes(input.kind) ? input.kind : "todo";
+  const summary = input.summary.trim();
+  const dueDate = input.dueDate.trim();
+  if (!summary || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
+    return { ok: false, error: "ກະລຸນາໃສ່ຫົວຂໍ້ ແລະວັນກຳນົດໃຫ້ຄົບ" };
+  }
+  const model = chatterModelOf(workflow);
+  await query(
+    `insert into ods_activity(model,res_id,kind,summary,note,assigned_to,due_date,state,created_by,created_at)
+     values($1,$2,$3,$4,nullif($5,''),$6,$7::date,'planned',$6,localtimestamp(0))`,
+    [model, code, kind, summary, input.note?.trim() ?? "", author, dueDate],
+  );
+  await logChange(model, code, `ນັດກິດຈະກຳ: ${summary} · ກຳນົດ ${dueDate}`, { author });
+  return { ok: true };
+}

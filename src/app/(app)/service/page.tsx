@@ -20,7 +20,7 @@ import Link from "next/link";
 
 /** 3 ແທັບ: ວຽກຄ້າງ · ຈົບແລ້ວ · ຍົກເລີກ */
 type Tab = "pending" | "done" | "cancelled";
-type Props = { searchParams: Promise<{ q?: string; tab?: string; page?: string; view?: string; status?: string; service?: string; sort?: string; dir?: string; from?: string; to?: string }> };
+type Props = { searchParams: Promise<{ q?: string; tab?: string; page?: string; view?: string; status?: string; service?: string; kind?: string; sort?: string; dir?: string; from?: string; to?: string }> };
 
 /** ປະເພດບໍລິການທີ່ກອງໄດ້ — CI/ST/IH/PS (lib/sla) */
 const SERVICE_CODES = ["CI", "ST", "IH", "PS"];
@@ -66,7 +66,7 @@ async function getBoard(q: string, status: number | null, service: string | null
   const sql = `select a.code, (${STAGE_SQL}) stage, b.name_1 customer,
       concat_ws(' ', a.name_1, a.p_model) product, a.sn, a.p_brand brand,
       a.warrunty warranty, a.emp_code technician, a.user_regis creator,
-      a.service_type,
+      a.service_type, coalesce(a.job_kind,'repair') job_kind,
       nullif(trim(coalesce(a.remark,'')),'') remark,
       ${STAGE_ELAPSED_SQL} stage_seconds,
       -- ຮູບໜ້າປົກ (ຕອນຮັບເຄື່ອງ) + ຈຳນວນຮູບທັງໝົດ — ໃຫ້ຕາຕະລາງໂຊ້ thumbnail
@@ -131,6 +131,7 @@ function sortPending(cards: BoardCard[], sort: string, dir: SortDir): BoardCard[
 
 export default async function ServicePage({ searchParams }: Props) {
   const params = await searchParams;
+  const jobKind = params.kind === "claim" || params.kind === "repair" ? params.kind : "";
   const q = (params.q ?? "").trim();
   /**
    * ── ຖອດແທັບ "ຈົບແລ້ວ / ຍົກເລີກ" ອອກ (13-07-2026) ──
@@ -153,7 +154,7 @@ export default async function ServicePage({ searchParams }: Props) {
   const statusText = (params.status ?? "").trim();
   const statusNum = Number(statusText);
   const status =
-    isPending && statusText !== "" && Number.isInteger(statusNum) && statusNum >= -1 && statusNum <= 12
+    isPending && statusText !== "" && Number.isInteger(statusNum) && statusNum >= -1 && statusNum <= 16
       ? statusNum
       : null;
   // ຕົວກອງປະເພດບໍລິການ (CI/ST/IH/PS) — ໃຊ້ໄດ້ທຸກແທັບ ແລະ ໄປນຳ export
@@ -177,7 +178,12 @@ export default async function ServicePage({ searchParams }: Props) {
   /** ໝາຍ/ປົດ ທຸງ "ມີບັນຫາ" — ຕ້ອງເປີດສະວິດ + ເປັນຫົວໜ້າ/ຜູ້ມີສິດອະນຸມັດ (ຄືກັນກັບໜ້າຄິວ) */
   const canHold = (await settingEnabled(SETTING.JOB_HOLD)) && APPROVER_SIDE.includes(roleOf(session));
 
-  const [rawBoard, noticeCount] = await Promise.all([getBoard(q, status, service, from, to), getNoticeCount()]);
+  const [allBoard, noticeCount] = await Promise.all([getBoard(q, status, service, from, to), getNoticeCount()]);
+  const kindCounts = {
+    repair: allBoard.filter((row) => row.job_kind !== "claim").length,
+    claim: allBoard.filter((row) => row.job_kind === "claim").length,
+  };
+  const rawBoard = jobKind ? allBoard.filter((row) => row.job_kind === jobKind) : allBoard;
 
   // ຊ່າງ / ຜູ້ສ້າງເອກະສານ ບາງໃບເກັບເປັນ **ລະຫັດ** (22020) — ແປເປັນຊື່ຈາກ odg_employee
   const names = await employeeNameMap(rawBoard.flatMap((c) => [c.technician, c.creator]));
@@ -200,6 +206,7 @@ export default async function ServicePage({ searchParams }: Props) {
     ...(q && { q }),
     ...(status !== null && { status: String(status) }),
     ...(service && { service }),
+    ...(jobKind && { kind: jobKind }),
     // ຊ່ວງວັນທີ່ຕ້ອງຕິດໄປນຳທຸກລິ້ງ ບໍ່ດັ່ງນັ້ນກົດແບ່ງໜ້າ/ຈັດຮຽງແລ້ວເດັ້ງກັບເປັນ "ວັນນີ້"
     from,
     to,
@@ -300,6 +307,7 @@ export default async function ServicePage({ searchParams }: Props) {
               ...(q && { q }),
               ...(status !== null && { status: String(status) }),
               ...(service && { service }),
+              ...(jobKind && { kind: jobKind }),
               from,
               to,
             })}`}
@@ -321,6 +329,26 @@ export default async function ServicePage({ searchParams }: Props) {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        {[
+          { value: "", label: "ທັງໝົດ", count: kindCounts.repair + kindCounts.claim, tone: "slate" },
+          { value: "repair", label: "🔧 ງານສ້ອມ", count: kindCounts.repair, tone: "teal" },
+          { value: "claim", label: "🛡️ ງານເຄມ", count: kindCounts.claim, tone: "violet" },
+        ].map((item) => (
+          <Link
+            key={item.value || "all"}
+            href={`/service?${new URLSearchParams({ ...(q && { q }), ...(status !== null && { status: String(status) }), ...(service && { service }), ...(item.value && { kind: item.value }), from, to })}`}
+            className={`rounded-xl border px-3 py-2 text-sm font-semibold ${
+              jobKind === item.value
+                ? item.tone === "violet" ? "border-violet-500 bg-violet-600 text-white" : item.tone === "teal" ? "border-teal-500 bg-teal-600 text-white" : "border-slate-700 bg-slate-800 text-white"
+                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {item.label} <b className="ml-1 tabular-nums">{item.count}</b>
+          </Link>
+        ))}
+      </div>
+
       {/* ຄົ້ນຫາ + ຕົວກອງ + ສະຫຼັບມຸມມອງ */}
       <form className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         {/* ຄົ້ນຫາແລ້ວຢູ່ມຸມມອງເດີມ ແລະ ກັບໄປໜ້າ 1 ສະເໝີ */}
@@ -328,6 +356,7 @@ export default async function ServicePage({ searchParams }: Props) {
         {board_view && <input type="hidden" name="view" value="board" />}
         <input type="hidden" name="sort" value={sort} />
         <input type="hidden" name="dir" value={dir} />
+        {jobKind && <input type="hidden" name="kind" value={jobKind} />}
         <div className="flex h-10 min-w-64 flex-1 items-center gap-2 rounded-lg border border-slate-300 px-3">
           <Search className="size-4 shrink-0 text-slate-400" />
           <input name="q" defaultValue={q} placeholder={t.searchPlaceholder} className="w-full text-sm outline-none" />

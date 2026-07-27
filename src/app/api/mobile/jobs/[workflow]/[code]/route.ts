@@ -28,6 +28,7 @@ import { repairTimeline, type TimelineStep } from "@/lib/repair-timeline";
 import { TECH_SIDE } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
+import { query } from "@/lib/db";
 
 /**
  * ຄຳສັ່ງທັງໝົດຂອງຊ່າງຈາກແອັບ — ຜ່ານ route ດຽວ ດ້ວຍ `action` ໃນ body.
@@ -46,6 +47,7 @@ type Body = {
   photo?: string;
   /** ຮູບຜົນງານຕອນຈົບງານ — ບັງຄັບຝັ່ງຕິດຕັ້ງ (ເບິ່ງ lib/job-flow) */
   photos?: string[];
+  client_action_id?: string;
 };
 
 /**
@@ -150,12 +152,15 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
     return NextResponse.json({ error: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ" }, { status: 400 });
   }
 
+  const requestId = String(body.client_action_id ?? "").trim().slice(0, 100);
   const photos = (body.photos ?? []).filter(Boolean);
   const tooBig = [body.photo ?? "", ...photos].some((photo) => photo.length > MAX_PHOTO_CHARS);
   if (tooBig) {
+    if (requestId) await query("delete from ods_mobile_action_request where request_id=$1", [requestId]);
     return NextResponse.json({ error: "ຮູບໃຫຍ່ເກີນໄປ — ກະລຸນາຖ່າຍໃໝ່" }, { status: 413 });
   }
   if (photos.length > 6) {
+    if (requestId) await query("delete from ods_mobile_action_request where request_id=$1", [requestId]);
     return NextResponse.json({ error: "ແນບຮູບໄດ້ສູງສຸດ 6 ຮູບ" }, { status: 413 });
   }
 
@@ -166,6 +171,23 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
     const ownership = await ownMobileJob(user, workflow, code);
     if (!ownership.ok) {
       return NextResponse.json({ error: ownership.error }, { status: 403 });
+    }
+    if (requestId) {
+      const previous = await query<{ response: { message?: string } | null }>(
+        `select response from ods_mobile_action_request where request_id=$1 and username=$2`,
+        [requestId, guard.user.username],
+      );
+      if (previous.rows[0]?.response) {
+        return NextResponse.json({ ok: true, ...previous.rows[0].response });
+      }
+      const claimed = await query(
+        `insert into ods_mobile_action_request(request_id,username,workflow,job_code)
+         values($1,$2,$3,$4) on conflict do nothing returning request_id`,
+        [requestId, guard.user.username, raw, code],
+      );
+      if (!claimed.rowCount) {
+        return NextResponse.json({ error: "ຄຳສັ່ງນີ້ກຳລັງດຳເນີນ — ກະລຸນາລອງໃໝ່" }, { status: 409 });
+      }
     }
 
     switch (body.action) {
@@ -229,11 +251,15 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
         return NextResponse.json({ error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" }, { status: 400 });
     }
   } catch (error) {
+    if (requestId) await query("delete from ods_mobile_action_request where request_id=$1", [requestId]);
     console.error("Mobile job action failed", error);
     return NextResponse.json({ error: "ດຳເນີນການບໍ່ສຳເລັດ" }, { status: 500 });
   }
 
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+  if (!result.ok) {
+    if (requestId) await query("delete from ods_mobile_action_request where request_id=$1", [requestId]);
+    return NextResponse.json({ error: result.error }, { status: 400 });
+  }
 
   // ໜ້າເວັບຕ້ອງເຫັນຜົນຂອງແອັບທັນທີ (ຄິວຂອງ CS · ສາງ · QC ອ່ານຈາກຖັນດຽວກັນ)
   for (const path of [
@@ -249,5 +275,17 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
     revalidatePath(path);
   }
 
+  if (requestId) {
+    await query(
+      `update ods_mobile_action_request
+          set response=jsonb_build_object('message',$2::text), completed_at=localtimestamp(0)
+        where request_id=$1`,
+      [requestId, result.message],
+    );
+    await query(
+      `delete from ods_mobile_action_request
+        where completed_at < localtimestamp - interval '30 days'`,
+    );
+  }
   return NextResponse.json({ ok: true, message: result.message });
 }

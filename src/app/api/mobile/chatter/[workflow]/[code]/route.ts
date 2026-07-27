@@ -1,7 +1,7 @@
 import type { Workflow } from "@/lib/commission";
 import { ownMobileJob } from "@/lib/job-flow";
 import { requireMobile } from "@/lib/mobile-auth";
-import { completeJobActivity, jobChatter, postJobMessage } from "@/lib/mobile-chatter";
+import { completeJobActivity, jobChatter, postJobMessage, scheduleOwnJobActivity } from "@/lib/mobile-chatter";
 import { TECH_SIDE } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
@@ -41,7 +41,8 @@ export async function GET(request: Request, context: { params: Promise<{ workflo
 
 type Body =
   | { action: "post"; body: string }
-  | { action: "complete_activity"; id: number; note?: string };
+  | { action: "complete_activity"; id: number; note?: string }
+  | { action: "schedule_activity"; kind: string; summary: string; note?: string; due_date: string };
 
 export async function POST(request: Request, context: { params: Promise<{ workflow: string; code: string }> }) {
   const guard = await requireMobile(request, TECH_SIDE);
@@ -67,6 +68,13 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
         ? await postJobMessage(workflow, code, guard.user.username, String(body.body ?? ""))
         : body.action === "complete_activity"
           ? await completeJobActivity(Number(body.id), guard.user.username, String(body.note ?? ""))
+          : body.action === "schedule_activity"
+            ? await scheduleOwnJobActivity(workflow, code, guard.user.username, {
+                kind: String(body.kind ?? "todo"),
+                summary: String(body.summary ?? ""),
+                note: String(body.note ?? ""),
+                dueDate: String(body.due_date ?? ""),
+              })
           : ({ ok: false, error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" } as const);
 
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });

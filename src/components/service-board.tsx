@@ -28,6 +28,10 @@ const ACCENT: Record<number, string> = {
   10: "bg-teal-500",
   11: "bg-emerald-500",
   12: "bg-emerald-600",
+  13: "bg-violet-500",
+  14: "bg-emerald-500",
+  15: "bg-amber-500",
+  16: "bg-indigo-500",
 };
 
 export const STAGES = Object.entries(ACCENT).map(([stage, accent]) => ({
@@ -45,6 +49,7 @@ export type BoardCard = {
    * "ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ" ບໍ່ແມ່ນ "ລໍໄປຮັບເຄື່ອງ" ຂອງ PS (ເບິ່ງ lib/stage.stageLabel)
    */
   service_type: string | null;
+  job_kind?: "repair" | "claim";
   customer: string | null;
   product: string | null;
   sn: string | null;

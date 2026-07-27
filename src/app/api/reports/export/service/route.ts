@@ -46,12 +46,13 @@ export async function GET(request: NextRequest) {
   const statusText = (params.get("status") ?? "").trim();
   const statusNum = Number(statusText);
   const status =
-    tab === "pending" && statusText !== "" && Number.isInteger(statusNum) && statusNum >= -1 && statusNum <= 12
+    tab === "pending" && statusText !== "" && Number.isInteger(statusNum) && statusNum >= -1 && statusNum <= 16
       ? statusNum
       : null;
   const service = ["CI", "ST", "IH", "PS"].includes(params.get("service") ?? "")
     ? (params.get("service") as string)
     : null;
+  const kind = ["repair", "claim"].includes(params.get("kind") ?? "") ? params.get("kind")! : null;
 
   const where = [TAB_WHERE[tab]];
   const args: (string | number)[] = [];
@@ -74,6 +75,10 @@ export async function GET(request: NextRequest) {
     args.push(service);
     where.push(`a.service_type = $${args.length}`);
   }
+  if (kind) {
+    args.push(kind);
+    where.push(`coalesce(a.job_kind,'repair') = $${args.length}`);
+  }
 
   const rows = await query<XlsxRow>(
     `select a.code as "ເລກທີ",
@@ -81,6 +86,7 @@ export async function GET(request: NextRequest) {
         b.name_1 as "ລູກຄ້າ", b.tel as "ເບີໂທ",
         a.name_1 as "ສິນຄ້າ", a.p_brand as "ຍີ່ຫໍ້", a.p_model as "ຮຸ່ນ", a.sn as "Serial",
         a.warrunty as "ປະກັນ",
+        case when coalesce(a.job_kind,'repair')='claim' then 'ງານເຄມ' else 'ງານສ້ອມ' end as "ປະເພດງານ",
         case a.service_type
           when 'CI' then 'CI · ລູກຄ້ານຳເຄື່ອງເຂົ້າ'
           when 'ST' then 'ST · ສ້ອມເຄື່ອງໃນສາງ'
@@ -111,6 +117,7 @@ export async function GET(request: NextRequest) {
     { header: "ຮຸ່ນ", key: "ຮຸ່ນ", width: 18 },
     { header: "Serial", key: "Serial", width: 20 },
     { header: "ປະກັນ", key: "ປະກັນ", width: 12 },
+    { header: "ປະເພດງານ", key: "ປະເພດງານ", width: 14 },
     { header: "ອາການ (ລູກຄ້າ)", key: "ອາການ (ລູກຄ້າ)", width: 30 },
     { header: "ອາການ (ຊ່າງ)", key: "ອາການ (ຊ່າງ)", width: 30 },
     { header: "ຊ່າງ", key: "ຊ່າງ", width: 12 },

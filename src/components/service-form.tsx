@@ -17,6 +17,7 @@ import { useActionState, useEffect, useState } from "react";
 type Option = { code: string; name_1: string };
 export type ServicePrefill = {
   proname?: string; sn?: string; billon?: string; billdate?: string; claim?: string;
+  kind?: "repair" | "claim";
   /** ລູກຄ້າ prefill (ຈາກໃບເຄມ → ເປີດໃບສ້ອມ) — cust=ລະຫັດ ODS */
   cust?: string; custname?: string; custtel?: string; custaddr?: string;
 };
@@ -84,6 +85,8 @@ export function ServiceForm({
    * ທີ່ຢູ່ຮ້ານ ບໍ່ແມ່ນບ່ອນທີ່ເຄື່ອງຕິດຢູ່.
    */
   const [serviceType, setServiceType] = useState("");
+  const [jobKind, setJobKind] = useState<"repair" | "claim">(prefill.kind === "claim" ? "claim" : "repair");
+  const [claimScope, setClaimScope] = useState<"whole" | "part">("whole");
   /** ພິກັດໜ້າງານ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງໄດ້ຈາກແອັບ */
   const [point, setPoint] = useState<Point | null>(null);
 
@@ -163,6 +166,8 @@ export function ServiceForm({
     setSerialQuery(""); setSerials([]); setSerial(null);
     setModel(""); setBrand(""); setProductType(""); setBillNo(""); setBillDate("");
     setWarrantyChoice(null);
+    setJobKind("repair");
+    setClaimScope("whole");
   }
 
   return (
@@ -192,6 +197,39 @@ export function ServiceForm({
           {state.error}
         </p>
       )}
+
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="mb-2 text-sm font-bold text-slate-700">ປະເພດງານ *</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <button type="button" onClick={() => setJobKind("repair")} className={`rounded-xl border p-3 text-left ${jobKind === "repair" ? "border-teal-500 bg-teal-50 ring-2 ring-teal-100" : "border-slate-200"}`}>
+            <b className="block text-sm">🔧 ງານສ້ອມ</b>
+            <span className="text-xs text-slate-500">ຮັບເຄື່ອງເຂົ້າກວດ ແລະສ້ອມຕາມປົກກະຕິ</span>
+          </button>
+          <button type="button" onClick={() => setJobKind("claim")} className={`rounded-xl border p-3 text-left ${jobKind === "claim" ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100" : "border-slate-200"}`}>
+            <b className="block text-sm">🛡️ ງານເຄມ</b>
+            <span className="text-xs text-slate-500">ລູກຄ້າຂໍປ່ຽນສິນຄ້າ/ອາໄຫຼ່; ສ້າງ CLM-B ອັດຕະໂນມັດ</span>
+          </button>
+        </div>
+        <input type="hidden" name="job_kind" value={jobKind} />
+        {jobKind === "claim" && (
+          <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50/50 p-3">
+            <p className="mb-2 text-xs font-bold text-violet-800">ລູກຄ້າສົ່ງມາເຄມຫຍັງ?</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => setClaimScope("whole")} className={`rounded-lg px-3 py-2 text-xs font-semibold ${claimScope === "whole" ? "bg-violet-600 text-white" : "border border-violet-200 bg-white text-violet-700"}`}>ເຄມທັງເຄື່ອງ</button>
+              <button type="button" onClick={() => setClaimScope("part")} className={`rounded-lg px-3 py-2 text-xs font-semibold ${claimScope === "part" ? "bg-violet-600 text-white" : "border border-violet-200 bg-white text-violet-700"}`}>ເຄມສະເພາະອາໄຫຼ່</button>
+            </div>
+            <input type="hidden" name="claim_scope" value={claimScope} />
+            {claimScope === "part" && (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <input name="claim_part_code" placeholder="ລະຫັດອາໄຫຼ່ (ຖ້າມີ)" className={field} />
+                <input name="claim_part_name" required placeholder="ຊື່ອາໄຫຼ່ *" className={field} />
+                <input name="claim_part_sn" placeholder="Serial ອາໄຫຼ່ (ຖ້າມີ)" className={field} />
+                <input name="claim_part_qty" type="number" min="0.01" step="0.01" defaultValue="1" required placeholder="ຈຳນວນ" className={field} />
+              </div>
+            )}
+          </div>
+        )}
+      </section>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
         {/* ຊ້າຍ — ຂໍ້ມູນ */}

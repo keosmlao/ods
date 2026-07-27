@@ -1,5 +1,5 @@
 import { guardApi } from "@/lib/api-guard";
-import { CLAIM_TYPE_LABEL, listClaims, type ClaimType } from "@/lib/claim";
+import { CLAIM_SCOPE_LABEL, CLAIM_TYPE_LABEL, FULFILLMENT_LABEL, listClaims, type ClaimType } from "@/lib/claim";
 import { respondXlsx, type XlsxRow } from "@/lib/xlsx";
 import type { NextRequest } from "next/server";
 
@@ -24,6 +24,8 @@ export async function GET(request: NextRequest) {
     "ຮ້ານ / ລູກຄ້າ": r.customer_name ?? r.customer_code ?? "-",
     "ຫຍີ່ຫໍ້": r.brand_code ?? "-",
     "ເລກງານ": r.ref_job ?? "-",
+    "ຂອບເຂດເຄມ": r.claim_scope ? CLAIM_SCOPE_LABEL[r.claim_scope] ?? r.claim_scope : "-",
+    "ວິທີດຳເນີນ": r.fulfillment_source ? FULFILLMENT_LABEL[r.fulfillment_source] ?? r.fulfillment_source : "-",
     "ຍອດ": r.amount || 0,
     "ເຫດຜົນ": r.reason ?? "-",
     "ເປີດເມື່ອ": r.created_at ?? "-",
@@ -38,6 +40,8 @@ export async function GET(request: NextRequest) {
     { header: "ຮ້ານ / ລູກຄ້າ", key: "ຮ້ານ / ລູກຄ້າ", width: 26 },
     { header: "ຫຍີ່ຫໍ້", key: "ຫຍີ່ຫໍ້", width: 14 },
     { header: "ເລກງານ", key: "ເລກງານ", width: 12 },
+    { header: "ຂອບເຂດເຄມ", key: "ຂອບເຂດເຄມ", width: 22 },
+    { header: "ວິທີດຳເນີນ", key: "ວິທີດຳເນີນ", width: 26 },
     { header: "ຍອດ", key: "ຍອດ", width: 14 },
     { header: "ເຫດຜົນ", key: "ເຫດຜົນ", width: 30 },
     { header: "ເປີດເມື່ອ", key: "ເປີດເມື່ອ", width: 18 },

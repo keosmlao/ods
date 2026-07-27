@@ -69,6 +69,11 @@ export const STAGE_SQL = `case
    and a.time_check is null and a.time_finish_check is null    then 0
   when a.time_check is null and a.time_finish_check is null    then 1
   when a.time_finish_check is null                             then 2
+  -- ງານເຄມຕ້ອງຢຸດລໍຕັດສິນຫຼັງກວດ; ບໍ່ໄຫຼເຂົ້າ "ລໍສ້ອມ" ເອງ.
+  when coalesce(a.job_kind,'repair')='claim' and a.claim_decision is null then 13
+  when coalesce(a.job_kind,'repair')='claim' and a.claim_decision='stock' then 14
+  when coalesce(a.job_kind,'repair')='claim' and a.claim_decision='purchase' then 15
+  when coalesce(a.job_kind,'repair')='claim' and a.claim_decision='supplier' then 16
   when a.warrunty = 'ໝົດຮັບປະກັນ' and a.qt_start is null
        and a.qt_finish is null                                 then 3
   when a.warrunty = 'ໝົດຮັບປະກັນ' and a.qt_finish is null      then 4
@@ -97,6 +102,10 @@ export const STAGE_LABEL: Record<number, string> = {
   10: "ລໍກວດຮັບຄຸນນະພາບ",
   11: "ລໍຖ້າສົ່ງຄືນ",  // ລວມງານທີ່ຍົກເລີກແຕ່ເຄື່ອງຍັງຢູ່ຮ້ານ — ເບິ່ງໝາຍເຫດຢູ່ STAGE_SQL
   12: "ສົ່ງຄືນສຳເລັດ",
+  13: "ລໍຕັດສິນຜົນເຄມ",
+  14: "ລໍປ່ຽນຈາກ Stock",
+  15: "ລໍສິນຄ້າ/ອາໄຫຼ່ຈາກການສັ່ງຊື້",
+  16: "ລໍຜົນ/ສິນຄ້າຈາກ Supplier",
 };
 
 /**
@@ -179,6 +188,10 @@ export const NOT_PENDING_CANCEL = "not (a.status = 6 and a.cancel_finish is null
  * ໃຫ້ຖອຍໄປໃຊ້ຖັນກ່ອນໜ້າ ດ້ວຍ coalesce — ບໍ່ດັ່ງນັ້ນຈະໄດ້ null ແລ້ວແຖວນັ້ນຫາຍຈາກການນັບ.
  */
 export const STAGE_TIME_COL = `case (${STAGE_SQL})
+  when 16 then coalesce(a.claim_decided_at, a.time_finish_check)
+  when 15 then coalesce(a.claim_decided_at, a.time_finish_check)
+  when 14 then coalesce(a.claim_decided_at, a.time_finish_check)
+  when 13 then a.time_finish_check
   when 12 then a.return_complete
   -- ຂັ້ນ 11 ມີ 2 ທາງເຂົ້າ: ສ້ອມສຳເລັດຜ່ານ QC (qc_finish) · ຫຼື ຍົກເລີກແລ້ວເຄື່ອງຍັງຢູ່
   -- (qc_finish = null, ໃຫ້ນັບແຕ່ວັນອະນຸມັດຍົກເລີກ) — ບໍ່ດັ່ງນັ້ນ elapsed = NULL ອາຍຸ blank

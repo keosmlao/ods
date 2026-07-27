@@ -28,6 +28,10 @@ export type MobileOverview = {
 const REPAIR_FUNNEL: { key: string; label: string }[] = [
   { key: "wait-check", label: "ລໍກວດ" },
   { key: "checking", label: "ກຳລັງກວດ" },
+  { key: "claim-decision", label: "ລໍຕັດສິນເຄມ" },
+  { key: "claim-stock", label: "ລໍປ່ຽນຈາກ Stock" },
+  { key: "claim-purchase", label: "ລໍຂອງສັ່ງຊື້" },
+  { key: "claim-supplier", label: "ລໍ Supplier" },
   { key: "wait-quote", label: "ລໍ Quotation" },
   { key: "wait-repair", label: "ລໍສ້ອມ" },
   { key: "repairing", label: "ກຳລັງສ້ອມ" },

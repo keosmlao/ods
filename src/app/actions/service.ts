@@ -35,6 +35,12 @@ const schema = z.object({
   pro_wa: z.string().min(1),
   pro_deli: z.string().min(1),
   service_type: z.string().min(1),
+  job_kind: z.enum(["repair", "claim"]).optional().default("repair"),
+  claim_scope: z.enum(["whole", "part"]).optional(),
+  claim_part_code: z.string().optional().default(""),
+  claim_part_name: z.string().optional().default(""),
+  claim_part_sn: z.string().optional().default(""),
+  claim_part_qty: z.coerce.number().positive().optional(),
   pro_issue: z.string().min(1),
   pro_remark: z.string(),
   billon: z.string(),
@@ -71,6 +77,7 @@ const FIELD_LABELS: Record<string, string> = {
   pro_wa: "ການຮັບປະກັນ",
   pro_deli: "ການຈັດສົ່ງຄືນ",
   service_type: "ປະເພດບໍລິການ",
+  job_kind: "ປະເພດງານ",
   pro_issue: "ອາການເບື້ອງຕົ້ນ",
   emp: "ຊ່າງ",
   location_repair: "ສະຖານທີ່ໜ້າງານ",
@@ -134,6 +141,12 @@ export async function createService(_: ServiceState, formData: FormData): Promis
   if (NEEDS_LOCATION(parsed.data.service_type) && !parsed.data.location_repair.trim()) {
     return { error: "ງານນອກສະຖານທີ່ (ສ້ອມບ້ານລູກຄ້າ / ໄປຮັບເຄື່ອງຈາກບ້ານມາສ້ອມຢູ່ສູນ) ຕ້ອງລະບຸສະຖານທີ່ໜ້າງານ" };
   }
+  if (parsed.data.job_kind === "claim" && !parsed.data.claim_scope) {
+    return { error: "ຕ້ອງເລືອກ ເຄມທັງເຄື່ອງ ຫຼື ເຄມສະເພາະອາໄຫຼ່" };
+  }
+  if (parsed.data.job_kind === "claim" && parsed.data.claim_scope === "part" && !parsed.data.claim_part_name.trim()) {
+    return { error: "ເຄມອາໄຫຼ່ຕ້ອງລະບຸຊື່ອາໄຫຼ່" };
+  }
 
   // IH (ໄປສ້ອມບ້ານ) + ຈັດຊ່າງແລ້ວ ⇒ ຕ້ອງມີວັນນັດ (ຄືກັບ assignRepairTech) ບໍ່ດັ່ງນັ້ນວຽກ
   // ຄ້າງຢູ່ຂັ້ນ 0 "ລໍນັດ/ຈັດຊ່າງ" ⇒ ຊ່າງເປີດແອັບກົດ "ຮັບງານ" ບໍ່ໄດ້ (ຕ້ອງຂັ້ນ 1).
@@ -155,6 +168,7 @@ export async function createService(_: ServiceState, formData: FormData): Promis
   const written: string[] = [];
   let code = "";
   let customer = "";
+  let claimDocNo = ""; // ເລກໃບເຄມ CLM-B ທີ່ເກີດຈາກ intake (kind=claim) — log ຫຼັງ commit
 
   try {
     await client.query("begin");
@@ -192,14 +206,18 @@ export async function createService(_: ServiceState, formData: FormData): Promis
     await client.query(
       `insert into tb_product(code,name_1,sn,p_model,p_brand,p_access,issue,p_type,p_abrasion,p_delivery,
          warrunty,service_type,cust_code,ap_code,doc_def,doc_date_ref,status,emp_code,time_register,user_regis,item_code,
-         location_repair,appoint_date,location_lat,location_lng)
+         location_repair,appoint_date,location_lat,location_lng,job_kind,
+         claim_scope,claim_part_code,claim_part_name,claim_part_sn,claim_part_qty)
        values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,localtimestamp,$18,nullif($19,''),
-         nullif($20,''), nullif($21,'')::date, nullif($22,'')::double precision, nullif($23,'')::double precision)`,
+         nullif($20,''), nullif($21,'')::date, nullif($22,'')::double precision, nullif($23,'')::double precision,$24,
+         nullif($25,''),nullif($26,''),nullif($27,''),nullif($28,''),$29)`,
       [code, d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
         // ap_code (ຮ້ານຄ້າ) = **ລະຫັດລູກຄ້າ** ອັນດຽວກັນ (ນະໂຍບາຍ 13-07-2026)
         // ⇒ ບໍ່ຮັບຈາກຟອມອີກ (ຊ່ອງນັ້ນຖືກຖອດອອກ) ຈຶ່ງບໍ່ມີທາງພິມຜິດ/ຫຼົ້ນກັນ
         d.pro_deli, d.pro_wa, d.service_type, custCode, custCode, d.billon, d.billdate, d.emp, session.username,
-        d.item_code ?? "", d.location_repair, d.appoint_date, d.location_lat, d.location_lng],
+        d.item_code ?? "", d.location_repair, d.appoint_date, d.location_lat, d.location_lng, d.job_kind,
+        d.job_kind === "claim" ? d.claim_scope ?? "" : "", d.claim_part_code, d.claim_part_name,
+        d.claim_part_sn, d.claim_scope === "part" ? d.claim_part_qty ?? 1 : null],
     );
 
     await saveUploads(client, code, uploads, written);
@@ -208,6 +226,29 @@ export async function createService(_: ServiceState, formData: FormData): Promis
     // ໃບເຄມ.ref_job = ເລກງານໃໝ່ ⇒ ໃບເຄມຮູ້ເລກສ້ອມ · ໃບສ້ອມ→ໃບເຄມ ຄົ້ນຜ່ານ ref_job (relatedClaims).
     const linkClaim = String(formData.get("claim") ?? "").trim();
     if (linkClaim) await client.query("update ods_claim set ref_job=$1 where claim_no=$2", [code, linkClaim]);
+
+    if (d.job_kind === "claim" && !linkClaim) {
+      const claimId = (
+        await client.query<{ id: number }>(
+          `insert into ods_claim(claim_type,customer_code,brand_code,ref_job,reason,status,created_by,
+             product,model,sn,warranty,purchase_date,contact,bill_no,claim_scope)
+           values('B',$1,nullif($2,''),$3,$4,'received',$5,$6,$7,nullif($8,''),
+             $9,nullif($10,'')::date,nullif($11,''),nullif($12,''),$13) returning id`,
+          [custCode, d.pro_brand, code, d.pro_issue, session.username, d.proname, d.pro_model, d.pro_sn,
+            d.pro_wa === "ຮັບປະກັນ" ? "in" : "out", d.billdate, d.cust_tel, d.billon, d.claim_scope],
+        )
+      ).rows[0].id;
+      const claimNo = `CLM${String(claimId).padStart(5, "0")}`;
+      await client.query(`update ods_claim set claim_no=$2 where id=$1`, [claimId, claimNo]);
+      claimDocNo = claimNo;
+      if (d.claim_scope === "part") {
+        await client.query(
+          `insert into ods_claim_item(claim_no,item_code,item_name,qty,unit,amount,note)
+           values($1,nullif($2,''),$3,$4,'ອັນ',0,nullif($5,''))`,
+          [claimNo, d.claim_part_code, d.claim_part_name.trim(), d.claim_part_qty ?? 1, d.claim_part_sn ? `SN: ${d.claim_part_sn}` : ""],
+        );
+      }
+    }
 
     await client.query("commit");
   } catch (error) {
@@ -222,11 +263,15 @@ export async function createService(_: ServiceState, formData: FormData): Promis
 
   const item = [d.proname, d.pro_brand, d.pro_model].filter(Boolean).join(" ");
   // ແຈ້ງຊ່າງທີ່ຖືກມອບງານ (ods ຍິງ LINE Notify ຢູ່ຈຸດນີ້)
-  await logChange("tb_product", code, `ເປີດໃບຮັບເຄື່ອງ: ${item} · ອາການ: ${d.pro_issue}${d.emp ? ` · ຊ່າງ ${d.emp}` : " · ຍັງບໍ່ຈັດຊ່າງ"}`, {
+  await logChange("tb_product", code, `ເປີດ${d.job_kind === "claim" ? "ງານເຄມ" : "ໃບຮັບເຄື່ອງສ້ອມ"}: ${item} · ອາການ: ${d.pro_issue}${d.emp ? ` · ຊ່າງ ${d.emp}` : " · ຍັງບໍ່ຈັດຊ່າງ"}`, {
     users: d.emp ? [d.emp] : [],
   });
   // ຄຽງກັນ ໃຫ້ເຫັນຢູ່ໜ້າລູກຄ້ານຳ ວ່າລູກຄ້າຄົນນີ້ເອົາເຄື່ອງມາສ້ອມເມື່ອໃດ
   await logChange("ar_customer", customer, `ເປີດໃບຮັບເຄື່ອງ #${code}: ${item}`);
+  // CLM-B ຈາກ intake — ບັນທຶກ "ເປີດ" ໃສ່ chatter ຂອງໃບເຄມ (ໃຫ້ timeline ບໍ່ຫວ່າງ ຄື createClaim)
+  if (claimDocNo) {
+    await logChange("ods_claim", claimDocNo, `ເປີດໃບເຄມ (ຮັບເຄື່ອງເຄມຈາກຮ້ານ) · ${item}${d.claim_scope === "part" ? " · ເຄມສະເພາະອາໄຫຼ່" : " · ເຄມທັງໜ່ວຍ"}`, { roles: ["manager", "stock"] });
+  }
   // ແຈ້ງອອກມືຖືຂອງຊ່າງ — ຊ່າງບໍ່ໄດ້ນັ່ງເຝົ້າເວັບ (lib/push ຈັບ error ໄວ້ໝົດ)
   if (d.emp) await pushToUser(d.emp, "ມີງານສ້ອມແປງໃໝ່", `${code} · ${item} — ${d.pro_issue}`, {
     workflow: "repair",

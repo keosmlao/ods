@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -26,7 +27,9 @@ class Api {
   static const _storage = FlutterSecureStorage();
   static const _tokenKey = 'odss_token';
   static const _serverKey = 'odss_server_url';
+  static const _pendingActionKey = 'odss_pending_actions';
   static String? _sessionToken;
+  static bool _syncingActions = false;
 
   static Future<String?> token() async =>
       _sessionToken ?? await _storage.read(key: _tokenKey);
@@ -46,6 +49,7 @@ class Api {
     await _storage.delete(key: _navKey);
     await _storage.delete(key: _userKey);
     await _storage.delete(key: _roleLabelKey);
+    await _storage.delete(key: _pendingActionKey);
   }
 
   // ຊື່ຜູ້ໃຊ້ + ປ້າຍ role — ເກັບໄວ້ໃຫ້ໜ້າ home ທັກທາຍ (ບໍ່ຕ້ອງ login ຄືນ)
@@ -235,6 +239,7 @@ class Api {
   /* ── ວຽກ ────────────────────────────────────────────────────── */
 
   static Future<List<Job>> jobs() async {
+    await syncPendingActions();
     final result = await _send('GET', '/api/mobile/jobs');
     return (result['jobs'] as List).map((row) => Job.fromJson(row)).toList();
   }
@@ -245,12 +250,72 @@ class Api {
     String code,
     Map<String, dynamic> body,
   ) async {
-    final result = await _send(
-      'POST',
-      '/api/mobile/jobs/$workflow/$code',
-      body: body,
-    );
-    return result['message'] as String;
+    final request = <String, dynamic>{
+      ...body,
+      'client_action_id':
+          '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}',
+    };
+    try {
+      final result = await _send('POST', '/api/mobile/jobs/$workflow/$code', body: request);
+      return result['message'] as String;
+    } on ApiError catch (error) {
+      final hasLargeEvidence = request.containsKey('photo') || request.containsKey('photos');
+      if ((error.status == 0 || error.status == 408) &&
+          workflow != 'maintenance' &&
+          !hasLargeEvidence) {
+        await _queueAction(workflow, code, request);
+        return 'OFFLINE_QUEUED: ເກັບຄຳສັ່ງໄວ້ແລ້ວ — ຈະສົ່ງເມື່ອມີ internet';
+      }
+      rethrow;
+    }
+  }
+
+  static Future<void> _queueAction(
+    String workflow,
+    String code,
+    Map<String, dynamic> body,
+  ) async {
+    final raw = await _storage.read(key: _pendingActionKey);
+    final rows = raw == null || raw.isEmpty
+        ? <dynamic>[]
+        : (jsonDecode(raw) as List<dynamic>);
+    rows.add({'workflow': workflow, 'code': code, 'body': body});
+    await _storage.write(key: _pendingActionKey, value: jsonEncode(rows));
+  }
+
+  static Future<int> syncPendingActions() async {
+    if (_syncingActions) return 0;
+    _syncingActions = true;
+    try {
+      final raw = await _storage.read(key: _pendingActionKey);
+      if (raw == null || raw.isEmpty) return 0;
+      final rows = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+      final remaining = <Map<String, dynamic>>[];
+      var sent = 0;
+      for (final row in rows) {
+        try {
+          await _send(
+            'POST',
+            '/api/mobile/jobs/${row['workflow']}/${row['code']}',
+            body: row['body'],
+          );
+          sent++;
+        } on ApiError catch (error) {
+          if (error.status == 0 || error.status == 408 || error.status == 409) {
+            remaining.add(row);
+          }
+          // 4xx ອື່ນ = workflow ປ່ຽນໄປແລ້ວ; ຖິ້ມຄຳສັ່ງເກົ່າ.
+        }
+      }
+      if (remaining.isEmpty) {
+        await _storage.delete(key: _pendingActionKey);
+      } else {
+        await _storage.write(key: _pendingActionKey, value: jsonEncode(remaining));
+      }
+      return sent;
+    } finally {
+      _syncingActions = false;
+    }
   }
 
   /* ── ກວດເຊັກ (ຝັ່ງສ້ອມ) ──────────────────────────────────────── */
@@ -340,6 +405,21 @@ class Api {
     'action': 'complete_activity',
     'id': id,
     'note': note,
+  });
+
+  static Future<void> scheduleActivity(
+    String workflow,
+    String code, {
+    required String kind,
+    required String summary,
+    String note = '',
+    required String dueDate,
+  }) => _send('POST', '/api/mobile/chatter/$workflow/$code', body: {
+    'action': 'schedule_activity',
+    'kind': kind,
+    'summary': summary,
+    'note': note,
+    'due_date': dueDate,
   });
 
   static Future<List<SpareItem>> searchSpares(

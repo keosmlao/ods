@@ -174,6 +174,12 @@ const REPAIR_STAGE_ACTION = (t: Dict): Record<string, { label: string; base: str
   },
   "wait-qc": { label: t.actionQc, base: "/qc", href: (r) => `/qc/repair/${encodeURIComponent(r.code)}` },
   "wait-return": { label: t.actionReturn, base: "/returns", href: (r) => `/returns/${encodeURIComponent(r.code)}` },
+  // ຄິວເຄມທັງ 4 ຕ້ອງມີທາງໄປລົງມືຕໍ່. ໜ້າໃບງານສະແດງ CLM-B
+  // ທີ່ຜູກກັບວຽກ ແລະປຸ່ມຈັດການຕາມສິດໂດຍບໍ່ຕ້ອງປ່ຽນໂຄງໜ້າເກົ່າ.
+  "claim-decision": { label: "ໄປຕັດສິນຜົນເຄມ", base: "/service", href: (r) => `/service/${encodeURIComponent(r.code)}` },
+  "claim-stock": { label: "ໄປຈັດການປ່ຽນຈາກ Stock", base: "/service", href: (r) => `/service/${encodeURIComponent(r.code)}` },
+  "claim-purchase": { label: "ໄປຕິດຕາມຂອງສັ່ງຊື້", base: "/service", href: (r) => `/service/${encodeURIComponent(r.code)}` },
+  "claim-supplier": { label: "ໄປຕິດຕາມເຄມ Supplier", base: "/service", href: (r) => `/service/${encodeURIComponent(r.code)}` },
 });
 
 export default async function StatusPage({ params, searchParams }: Props) {
@@ -232,7 +238,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
   const cancelAccepted = mergedCheckQueue && canAccess(role, "/repair");
   const cancelStartCheck = isRepair && status === "checking" && canAccess(role, "/checking");
   const cancelFinishedCheck =
-    isRepair && (status === "wait-quote" || status === "wait-repair") && canAccess(role, "/checking");
+    isRepair && (status === "wait-quote" || status === "wait-repair" || status === "claim-decision") && canAccess(role, "/checking");
   const cancelStartRepair = isRepair && status === "repairing" && canAccess(role, "/repair");
   const cancelFinishedRepair = isRepair && status === "wait-qc" && canAccess(role, "/repair");
   const cancelQc = isRepair && status === "wait-return" && canAccess(role, "/qc");

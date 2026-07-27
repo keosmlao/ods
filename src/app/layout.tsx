@@ -1,9 +1,13 @@
 import { getLocale } from "@/lib/i18n/locale";
 import type { Metadata } from "next";
-import { Noto_Sans_Lao } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const font = Noto_Sans_Lao({ variable: "--font-lao", subsets: ["lao", "latin"] });
+const font = localFont({
+  src: "../../mobile/assets/fonts/NotoSansLao.ttf",
+  variable: "--font-lao",
+  display: "swap",
+});
 export const metadata: Metadata = { title: "ODIEN Service", description: "ລະບົບບໍລິການ ODS" };
 
 /**

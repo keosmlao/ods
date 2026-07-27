@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:odss_tech/api.dart';
+import 'package:odss_tech/link_target.dart';
 
 void main() {
   test('Job parses server-driven workflow fields', () {
@@ -42,5 +43,19 @@ void main() {
     final error = ApiError('network failed', 408);
     expect(error.toString(), 'network failed');
     expect(error.status, 408);
+  });
+
+  test('notification and FCM payloads resolve to the same job target', () {
+    final inbox = linkTargetFrom({'model': 'tb_product', 'res_id': 'SV-001'});
+    final push = linkTargetFrom({'workflow': 'repair', 'code': 'SV-001'});
+    final camel = linkTargetFrom({'model': 'ods_tb_install', 'resId': 'IN-002'});
+
+    expect(inbox?.workflow, 'repair');
+    expect(inbox?.code, 'SV-001');
+    expect(push?.workflow, 'repair');
+    expect(push?.code, 'SV-001');
+    expect(camel?.workflow, 'install');
+    expect(camel?.code, 'IN-002');
+    expect(linkTargetFrom({'model': 'ic_trans', 'res_id': 'PO-1'}), isNull);
   });
 }

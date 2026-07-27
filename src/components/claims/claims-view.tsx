@@ -1,6 +1,8 @@
 import {
   CLAIM_FLOW,
+  CLAIM_SCOPE_LABEL,
   CLAIM_TYPE_LABEL,
+  FULFILLMENT_LABEL,
   claimCandidatesC,
   claimCounts,
   isClaimOpen,
@@ -51,8 +53,8 @@ export async function ClaimsView({
               <Download className="size-4" /> ດຶງ Excel
             </a>
           )}
-          <Link href={`/claims/new?type=${type}`} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700">
-            <FilePlus2 className="size-4" /> ເປີດໃບເຄມ
+          <Link href={type === "B" ? "/service/new?kind=claim" : `/claims/new?type=${type}`} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700">
+            <FilePlus2 className="size-4" /> {type === "B" ? "ຮັບເຄື່ອງເຄມ" : "ເປີດໃບເຄມ"}
           </Link>
         </div>
       </div>
@@ -62,6 +64,29 @@ export async function ClaimsView({
         <span className="rounded-lg bg-teal-50 px-2.5 py-1 font-semibold text-teal-700">ເປີດຢູ່ <b className="tabular-nums">{openN}</b></span>
         <span className="rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-slate-500">ປິດ/ปฏิเสธ <b className="tabular-nums">{closedN}</b></span>
       </div>
+
+      {type === "B" && (
+        <div className="space-y-2">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(["whole", "part"] as const).map((scope) => (
+              <div key={scope} className="rounded-xl border border-violet-200 bg-violet-50/50 px-3 py-2">
+                <p className="text-[11px] text-violet-700">{CLAIM_SCOPE_LABEL[scope]}</p>
+                <p className="mt-1 text-xl font-bold tabular-nums text-violet-900">{rows.filter((row) => row.claim_scope === scope).length}</p>
+              </div>
+            ))}
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {(["stock", "purchase", "supplier"] as const).map((source) => (
+              <div key={source} className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                <p className="text-[11px] text-slate-500">{FULFILLMENT_LABEL[source]}</p>
+                <p className="mt-1 text-xl font-bold tabular-nums text-slate-800">
+                  {rows.filter((row) => row.fulfillment_source === source).length}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── status chips ── */}
       <div className="flex flex-wrap items-center gap-1.5">
@@ -119,6 +144,7 @@ export async function ClaimsView({
                 <th className="px-3 py-2 font-semibold">Supplier / ຮ້ານ</th>
                 <th className="px-3 py-2 font-semibold">ຫຍີ່ຫໍ້</th>
                 <th className="px-3 py-2 font-semibold">ເລກງານ</th>
+                <th className="px-3 py-2 font-semibold">ຂອບເຂດເຄມ</th>
                 <th className="px-3 py-2 text-right font-semibold">ຍອດ</th>
                 <th className="px-3 py-2 font-semibold">ເປີດ</th>
                 <th className="px-3 py-2" />
@@ -136,6 +162,7 @@ export async function ClaimsView({
                   <td className="px-3 py-2">{r.customer_name || r.supplier_code || "-"}</td>
                   <td className="whitespace-nowrap px-3 py-2">{r.brand_code || "-"}</td>
                   <td className="whitespace-nowrap px-3 py-2">{r.ref_job || "-"}</td>
+                  <td className="whitespace-nowrap px-3 py-2">{r.claim_scope ? CLAIM_SCOPE_LABEL[r.claim_scope] ?? r.claim_scope : "-"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{r.amount ? r.amount.toLocaleString() : "-"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-slate-500">{r.created_at || "-"}{r.created_by ? ` · ${r.created_by}` : ""}</td>
                   <td className="whitespace-nowrap px-3 py-2"><ClaimRowActions claimNo={r.claim_no} /></td>

@@ -8,6 +8,7 @@ const PHASES = ["ຮັບເຄື່ອງ", "ກວດເຊັກ", "ລາ�
 const PHASES_IH = ["ນັດ/ໄປສ້ອມ", "ກວດເຊັກ", "ລາຄາ/ອາໄຫຼ່", "ສ້ອມແປງ", "QC", "ປິດງານ"];
 
 function phaseOf(stage: number): number {
+  if (stage >= 13 && stage <= 16) return 2;
   if (stage <= 1) return 0;
   if (stage <= 2) return 1;
   if (stage <= 7) return 2;
@@ -27,13 +28,14 @@ export function JobProgress({
 }) {
   const labels = serviceType === "IH" ? PHASES_IH : PHASES;
   const current = phaseOf(stage);
+  const completed = stage === 12;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex items-stretch">
         {labels.map((label, i) => {
-          const done = i < current || (stage >= 12 && i === current);
-          const active = i === current && stage < 12 && !cancelled;
+          const done = i < current || (completed && i === current);
+          const active = i === current && !completed && !cancelled;
           const dotClass = cancelled
             ? "border-slate-200 bg-white text-slate-300"
             : done

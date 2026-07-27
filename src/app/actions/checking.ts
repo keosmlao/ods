@@ -264,8 +264,17 @@ export async function saveCheck(_: CheckState, formData: FormData): Promise<Chec
   });
   if (!result.ok) return { error: result.error };
 
+  // ງານເຄມ: ຈົບກວດເຊັກແລ້ວ → CLM-B ເຂົ້າ "ກວດ/ຕັດສິນ" ທັນທີ.
+  // ບໍ່ປ່ອຍໃຫ້ໄຫຼໄປລໍສ້ອມ ແລະບໍ່ໃຫ້ພະນັກງານຕ້ອງກົດ status ຊ້ຳ.
+  await query(
+    `update ods_claim set status='checking'
+      where claim_type='B' and ref_job=$1 and status='received'`,
+    [parsed.data.code],
+  );
+
   revalidatePath("/checking");
   revalidatePath("/repair");
+  revalidatePath("/claims/shop");
   redirect("/checking");
 }
 
@@ -323,9 +332,10 @@ export async function cancelChecking(code: string): Promise<UndoState> {
 
     // ເງື່ອນໄຂຊ້ຳຢູ່ SQL — ກັນສອງຄົນກົດພ້ອມກັນ (ຂໍເບີກ ແລະ ຖອນຄືນພ້ອມກັນ)
     const undone = await client.query(
-      `update tb_product set time_finish_check=null, issue_2=null, used_spare=0, status=2
+      `update tb_product set time_finish_check=null, issue_2=null, used_spare=0, status=2,
+         claim_decision=null, claim_decided_at=null
         where code=$1 and time_finish_check is not null and time_repair is null
-          and qt_start is null and spare_reg is null and status<>6`,
+          and qt_start is null and spare_reg is null and status<>6 and claim_decision is null`,
       [code],
     );
     if (!undone.rowCount) {
@@ -343,6 +353,11 @@ export async function cancelChecking(code: string): Promise<UndoState> {
     );
     spareCount = moved.rowCount ?? 0;
     await client.query("delete from tb_used_spare where product_code=$1", [code]);
+    await client.query(
+      `update ods_claim set status='received'
+        where claim_type='B' and ref_job=$1 and status='checking' and resolution is null`,
+      [code],
+    );
 
     await client.query("commit");
   } catch (error) {

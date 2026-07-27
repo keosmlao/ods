@@ -1,5 +1,5 @@
 "use server";
-import { billItems, CLAIM_FLOW, CLAIM_REJECTED, claimByNo, claimItems, type ClaimJobCandidate, cobInfo, ensureOdsCustomer, jobClaimCandidates, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, searchBills, searchInventory, type ClaimType } from "@/lib/claim";
+import { billItems, claimByNo, claimCanTransition, claimItems, type ClaimJobCandidate, cobInfo, ensureOdsCustomer, isClaimEditable, isClaimFulfillmentSource, jobClaimCandidates, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, searchBills, searchInventory, type ClaimType } from "@/lib/claim";
 import { logChange } from "@/lib/chatter-log";
 import { requireRole } from "@/lib/guard";
 import { sendMail } from "@/lib/mail";
@@ -7,6 +7,7 @@ import { db, query } from "@/lib/db";
 import { collectUploads, saveUploads } from "@/lib/uploads";
 import { recipientTargets } from "@/lib/report-recipient";
 import { CLAIM_SIDE } from "@/lib/roles";
+import { supplierContactByCode } from "@/lib/erp-supplier";
 import { unlink } from "node:fs/promises";
 import { revalidatePath } from "next/cache";
 
@@ -31,17 +32,38 @@ export async function searchClaimJobs(q: string): Promise<{ error?: string; jobs
  * ຕັດສິນ CLM-B ຢູ່ຂັ້ນ "ກວດ/ຕັດສິນ" — ເລືອກ **ປ່ຽນ (replace)** ຫຼື **ສ້ອມ (repair)**.
  * ທັງສອງ → status=done ແຕ່ບັນທຶກ resolution. ໄປໄດ້ສະເພາະຈາກ status=checking (WHERE guard).
  */
-export async function resolveClaim(claimNo: string, resolution: "replace" | "repair"): Promise<ClaimState> {
+export async function resolveClaim(
+  claimNo: string,
+  resolution: "replace" | "repair",
+  fulfillmentSource?: "stock" | "purchase" | "supplier",
+): Promise<ClaimState> {
   const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດຕັດສິນ");
   if (!guard.ok) return { error: guard.error };
+  const current = await claimByNo(claimNo);
+  if (!current || current.claim_type !== "B" || current.status !== "checking") {
+    return { error: "ຕັດສິນບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ ‘ກວດ/ຕັດສິນ’" };
+  }
   if (resolution !== "replace" && resolution !== "repair") return { error: "ຕ້ອງເລືອກ ປ່ຽນ ຫຼື ສ້ອມ" };
+  if (resolution === "replace" && !isClaimFulfillmentSource(fulfillmentSource)) {
+    return { error: "ຕ້ອງເລືອກວ່າຈະປ່ຽນຈາກ stock, ສັ່ງຊື້ ຫຼືເຄມ supplier" };
+  }
   const done = await query(
-    `update ods_claim set status='done', resolution=$2, result_at=localtimestamp
+    `update ods_claim set status='done', resolution=$2, fulfillment_source=$3, result_at=localtimestamp
       where claim_no=$1 and claim_type='B' and status='checking'`,
-    [claimNo, resolution],
+    [claimNo, resolution, resolution === "replace" ? fulfillmentSource : null],
   );
   if (!done.rowCount) return { error: "ຕັດສິນບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ ‘ກວດ/ຕັດສິນ’" };
-  await log(claimNo, guard.session.username, "resolved", `ຕັດສິນ: ${resolution === "replace" ? "ປ່ຽນ" : "ສ້ອມ"}`);
+  if (current.ref_job) {
+    await query(
+      `update tb_product set claim_decision=$2, claim_decided_at=localtimestamp
+        where code=$1 and coalesce(job_kind,'repair')='claim' and time_finish_check is not null`,
+      [current.ref_job, resolution === "repair" ? "repair" : fulfillmentSource],
+    );
+  }
+  const sourceLabel = fulfillmentSource === "stock" ? "ຈາກ stock ສູນ"
+    : fulfillmentSource === "purchase" ? "ສັ່ງຊື້ມາປ່ຽນ"
+      : fulfillmentSource === "supplier" ? "ເຄມຕໍ່ supplier" : "";
+  await log(claimNo, guard.session.username, "resolved", `ຕັດສິນ: ${resolution === "replace" ? `ປ່ຽນ · ${sourceLabel}` : "ສ້ອມ"}`);
   revalidatePath(`/claims/${claimNo}`);
   return { claimNo };
 }
@@ -84,8 +106,16 @@ export async function createClaim(input: {
   if (!["A", "B", "C"].includes(type)) return { error: "ประเภทเคลมไม่ถูกต้อง" };
   if (type === "B" && !input.customer_code?.trim()) return { error: "CLM-B ຕ້ອງເລືອກຮ້ານ (ລູກຄ້າ)" };
   if (type === "B" && !input.reason?.trim()) return { error: "CLM-B ຕ້ອງລະບຸ ອາການ / ບັນຫາ" };
+  if (type === "B" && !input.ref_job?.trim()) return { error: "CLM-B ຕ້ອງສ້າງຈາກໃບງານກວດເຊັກ" };
   if ((type === "A" || type === "C") && !input.supplier_code?.trim()) return { error: "ຕ້ອງເລືອກ supplier" };
   if (type === "C" && !input.ref_job?.trim()) return { error: "CLM-C ຕ້ອງອ້າງອີງ ເລກງານສ້ອມ" };
+  const refJob = input.ref_job?.trim() ?? "";
+  if (refJob && ((await query(`select 1 from tb_product where code=$1`, [refJob])).rowCount ?? 0) === 0) {
+    return { error: `ບໍ່ພົບງານສ້ອມ ${refJob}` };
+  }
+  if (refJob && (await query(`select 1 from ods_claim where claim_type=$1 and ref_job=$2`, [type, refJob])).rowCount) {
+    return { error: `ງານ ${refJob} ມີໃບ CLM-${type} ແລ້ວ` };
+  }
 
   // ລູກຄ້າ ERP (ຈາກບິນ) ອາດຍັງບໍ່ມີໃນ ODS → copy ໃຫ້ join ຊື່ໃນລາຍການໄດ້ (ບໍ່ block ຖ້າ fail)
   if (input.customer_code?.trim()) await ensureOdsCustomer(input.customer_code.trim()).catch(() => {});
@@ -156,7 +186,7 @@ export async function setClaimPaid(claimNo: string, method: string): Promise<Cla
   // ສະເພາະ CLM-C ທີ່ຍັງບໍ່ປິດ (ກັນ mark paid ໃບ A/B ຫຼື ໃບທີ່ປິດແລ້ວ)
   const paid = await query(
     `update ods_claim set status = 'paid', pay_method = $1, result_at = coalesce(result_at, now())
-      where claim_no = $2 and claim_type = 'C' and status not in ('paid','closed','rejected')`,
+      where claim_no = $2 and claim_type = 'C' and status = 'notified'`,
     [method, claimNo],
   );
   if (!paid.rowCount) return { error: "ບັນທຶກຊຳລະບໍ່ໄດ້ — ໃບนี้ບໍ່ແມ່ນ CLM-C ຫຼື ປິດແລ້ວ" };
@@ -172,10 +202,9 @@ export async function advanceClaim(claimNo: string, toStatus: string): Promise<C
   if (!guard.ok) return { error: guard.error };
   const claim = await claimByNo(claimNo);
   if (!claim) return { error: "ບໍ່ພົບໃບເຄມ" };
-  const valid = new Set([...CLAIM_FLOW[claim.claim_type].map((s) => s.status), ...(claim.claim_type === "A" ? [CLAIM_REJECTED.status] : [])]);
-  if (!valid.has(toStatus)) return { error: "ສະຖານະບໍ່ຖືກຕ້ອງ" };
-  // ໃບທີ່ປິດແລ້ວ (closed/rejected/paid) ຍ້າຍບໍ່ໄດ້ອີກ
-  if (["closed", "rejected", "paid"].includes(claim.status)) return { error: "ໃບນີ້ປິດແລ້ວ — ຍ້າຍສະຖານະບໍ່ໄດ້" };
+  if (!claimCanTransition(claim.claim_type, claim.status, toStatus)) return { error: "ຕ້ອງດຳເນີນຕາມລຳດັບຂັ້ນຕອນ" };
+  if (claim.claim_type === "A" && claim.status === "draft" && !claim.email_sent_at) return { error: "ຕ້ອງສົ່ງ email ຫາ supplier ກ່ອນ" };
+  if (claim.claim_type === "C" && claim.status === "notify" && !claim.email_sent_at) return { error: "ຕ້ອງສົ່ງ email ແຈ້ງ supplier ກ່ອນ" };
 
   const stamp = stampFor(toStatus);
   // WHERE ຜູກ status ປັດຈຸບັນ ⇒ ກັນ 2 ຄົນກົດພ້ອມກັນ (ຄົນທີ 2 ບໍ່ຜ່ານ)
@@ -184,6 +213,17 @@ export async function advanceClaim(claimNo: string, toStatus: string): Promise<C
     [toStatus, claimNo, claim.status],
   );
   if (!moved.rowCount) return { error: "ຍ້າຍສະຖານະບໍ່ໄດ້ — ສະຖານະຖືກປ່ຽນໄປແລ້ວ" };
+  // CLM-B returned/closed ຕ້ອງສະທ້ອນກັບໃບງານຫຼັກ ບໍ່ໃຫ້ຄ້າງຢູ່ຄິວດຳເນີນເຄມ.
+  if (claim.claim_type === "B" && claim.ref_job && toStatus === "returned") {
+    await query(
+      `update tb_product set time_finish_repair=coalesce(time_finish_repair,localtimestamp),
+         qc_finish=coalesce(qc_finish,localtimestamp), return_complete=coalesce(return_complete,localtimestamp)
+       where code=$1 and coalesce(job_kind,'repair')='claim'`,
+      [claim.ref_job],
+    );
+    revalidatePath(`/service/${claim.ref_job}`);
+    revalidatePath("/service");
+  }
   await log(claimNo, guard.session.username, "status", `→ ${toStatus}`);
   revalidatePath("/claims");
   revalidatePath(`/claims/${claimNo}`);
@@ -194,6 +234,10 @@ export async function addClaimItem(claimNo: string, item: { item_code?: string; 
   const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
   if (!guard.ok) return { error: guard.error };
   if (!item.item_name?.trim()) return { error: "ຕ້ອງໃສ່ຊື່ອາໄຫຼ່/ລາຍການ" };
+  const claim = await claimByNo(claimNo);
+  if (!claim || !isClaimEditable(claim.claim_type, claim.status)) return { error: "ໃບເຄມສົ່ງແລ້ວ — ແກ້ລາຍການບໍ່ໄດ້" };
+  if (!Number.isFinite(item.qty ?? 1) || (item.qty ?? 1) <= 0) return { error: "ຈຳນວນຕ້ອງຫຼາຍກວ່າ 0" };
+  if (!Number.isFinite(item.amount ?? 0) || (item.amount ?? 0) < 0) return { error: "ຈຳນວນເງິນບໍ່ຖືກຕ້ອງ" };
   await query(
     `insert into ods_claim_item(claim_no, item_code, item_name, qty, unit, amount) values ($1, nullif($2,''), $3, $4, nullif($5,''), $6)`,
     [claimNo, item.item_code ?? "", item.item_name.trim(), item.qty ?? 1, item.unit ?? "", item.amount ?? 0],
@@ -206,6 +250,8 @@ export async function addClaimItem(claimNo: string, item: { item_code?: string; 
 export async function deleteClaimItem(claimNo: string, id: number): Promise<ClaimState> {
   const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
   if (!guard.ok) return { error: guard.error };
+  const claim = await claimByNo(claimNo);
+  if (!claim || !isClaimEditable(claim.claim_type, claim.status)) return { error: "ໃບເຄມສົ່ງແລ້ວ — ລຶບລາຍການບໍ່ໄດ້" };
   await query(`delete from ods_claim_item where id = $1 and claim_no = $2`, [id, claimNo]);
   await query(`update ods_claim set amount = coalesce((select sum(amount) from ods_claim_item where claim_no=$1),0) where claim_no=$1`, [claimNo]);
   revalidatePath(`/claims/${claimNo}`);
@@ -219,6 +265,9 @@ export async function deleteClaimItem(claimNo: string, id: number): Promise<Clai
 export async function linkCob(claimNo: string, docNo: string): Promise<ClaimState> {
   const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
   if (!guard.ok) return { error: guard.error };
+  const claim = await claimByNo(claimNo);
+  if (!claim || claim.claim_type !== "C") return { error: "COB ຜູກໄດ້ສະເພາະ CLM-C" };
+  if (!isClaimEditable(claim.claim_type, claim.status)) return { error: "ໃບເຄມແຈ້ງແລ້ວ — ປ່ຽນ COB ບໍ່ໄດ້" };
   const d = docNo.trim();
   if (!d) {
     await query(`update ods_claim set erp_doc_no = null where claim_no = $1`, [claimNo]);
@@ -228,6 +277,9 @@ export async function linkCob(claimNo: string, docNo: string): Promise<ClaimStat
   }
   const info = await cobInfo(d);
   if (!info) return { error: `ບໍ່ພົບເອກະສານ COB ${d} ໃນ ERP` };
+  if (claim.supplier_code && info.supplier_code && claim.supplier_code !== info.supplier_code) {
+    return { error: `Supplier ໃນ COB (${info.supplier_code}) ບໍ່ກົງກັບໃບເຄມ (${claim.supplier_code})` };
+  }
   await query(`update ods_claim set erp_doc_no = $1 where claim_no = $2`, [info.doc_no, claimNo]);
   await log(claimNo, guard.session.username, "cob", `ຜູກ COB ${info.doc_no} (${info.total_amount.toLocaleString()})`);
   revalidatePath(`/claims/${claimNo}`);
@@ -238,9 +290,16 @@ export async function linkCob(claimNo: string, docNo: string): Promise<ClaimStat
 export async function setClaimJob(claimNo: string, jobCode: string): Promise<ClaimState> {
   const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
   if (!guard.ok) return { error: guard.error };
+  const claim = await claimByNo(claimNo);
+  if (!claim || claim.claim_type !== "C" || !isClaimEditable(claim.claim_type, claim.status)) {
+    return { error: "ປ່ຽນເລກງານໄດ້ສະເພາະ CLM-C ກ່ອນແຈ້ງ supplier" };
+  }
   const j = jobCode.trim();
   if (!j) return { error: "ໃສ່ ເລກງານ" };
   if (((await query(`select 1 from tb_product where code = $1`, [j])).rowCount ?? 0) === 0) return { error: `ບໍ່ພົບงาน ${j}` };
+  if ((await query(`select 1 from ods_claim where claim_type='C' and ref_job=$1 and claim_no<>$2`, [j, claimNo])).rowCount) {
+    return { error: `ງານ ${j} ມີໃບ CLM-C ແລ້ວ` };
+  }
   await query(`update ods_claim set ref_job = $1 where claim_no = $2`, [j, claimNo]);
   await log(claimNo, guard.session.username, "job", `ຜູກງານ ${j}`);
   revalidatePath(`/claims/${claimNo}`);
@@ -253,15 +312,29 @@ export async function pullJobItems(claimNo: string): Promise<ClaimState> {
   if (!guard.ok) return { error: guard.error };
   const claim = await claimByNo(claimNo);
   if (!claim?.ref_job) return { error: "ຍັງບໍ່ມີ ເລກງານ (ຜູກກ່ອນ)" };
+  if (claim.claim_type !== "C" || !isClaimEditable(claim.claim_type, claim.status)) return { error: "ດຶງລາຍການໄດ້ກ່ອນແຈ້ງ supplier ເທົ່ານັ້ນ" };
   const { docNo, items } = await jobQuoteItems(claim.ref_job);
   if (items.length === 0) return { error: "ບໍ່ພົບ ໃບສະເໜີລາຄາ/ເກັບເງິນ ຂອງງານນີ້" };
-  for (const it of items) {
-    await query(
-      `insert into ods_claim_item(claim_no, item_code, item_name, qty, unit, amount) values ($1, nullif($2,''), $3, $4, nullif($5,''), $6)`,
-      [claimNo, it.item_code ?? "", it.item_name ?? "ລາຍການ", it.qty || 1, it.unit ?? "", it.amount],
-    );
+  if (!db) return { error: "ຖານຂໍ້ມູນຍັງບໍ່ພ້ອມ" };
+  const client = await db.connect();
+  try {
+    await client.query("begin");
+    // ດຶງຊ້ຳ = refresh ລາຍການ, ບໍ່ແມ່ນ append ໃຫ້ຍອດຊ້ຳ.
+    await client.query(`delete from ods_claim_item where claim_no=$1`, [claimNo]);
+    for (const it of items) {
+      await client.query(
+        `insert into ods_claim_item(claim_no, item_code, item_name, qty, unit, amount) values ($1, nullif($2,''), $3, $4, nullif($5,''), $6)`,
+        [claimNo, it.item_code ?? "", it.item_name ?? "ລາຍການ", it.qty || 1, it.unit ?? "", it.amount],
+      );
+    }
+    await client.query(`update ods_claim set amount = coalesce((select sum(amount) from ods_claim_item where claim_no=$1),0) where claim_no=$1`, [claimNo]);
+    await client.query("commit");
+  } catch {
+    await client.query("rollback").catch(() => {});
+    return { error: "ດຶງລາຍການບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
   }
-  await query(`update ods_claim set amount = coalesce((select sum(amount) from ods_claim_item where claim_no=$1),0) where claim_no=$1`, [claimNo]);
   await log(claimNo, guard.session.username, "items", `ດຶງ ໃບ ${docNo} — ${items.length} ລາຍການ`);
   revalidatePath(`/claims/${claimNo}`);
   return { claimNo };
@@ -292,11 +365,17 @@ export async function sendClaimEmail(claimNo: string): Promise<ClaimState> {
   if (!guard.ok) return { error: guard.error };
   const claim = await claimByNo(claimNo);
   if (!claim) return { error: "ບໍ່ພົບໃບເຄມ" };
+  if (!["A", "C"].includes(claim.claim_type) || !claim.supplier_code) return { error: "ໃບເຄມນີ້ສົ່ງຫາ supplier ບໍ່ໄດ້" };
+  if (!isClaimEditable(claim.claim_type, claim.status) && !claim.email_sent_at) return { error: "ສະຖານະໃບເຄມບໍ່ອະນຸຍາດໃຫ້ສົ່ງ" };
+  const supplier = await supplierContactByCode(claim.supplier_code);
+  if (!supplier) return { error: `ບໍ່ພົບ supplier ${claim.supplier_code} ໃນ ERP` };
+  if (!supplier.email) return { error: `Supplier ${supplier.name} ຍັງບໍ່ມີ email ໃນ ERP` };
   const { emails } = await recipientTargets();
-  const to = emails.length ? emails.join(",") : (process.env.MAIL_TO ?? "");
-  if (!to.trim()) return { error: "ຍັງບໍ່ມີຜູ້ຮັບ email (ຕັ້ງທີ່ /manage/report-recipients)" };
+  const cc = emails.length ? emails.join(",") : (process.env.MAIL_TO ?? "");
   const delivery = claim.ref_job ? await jobDelivery(claim.ref_job) : null;
   const lines = await claimItems(claimNo);
+  if (claim.claim_type === "A" && lines.length === 0) return { error: "ຕ້ອງມີອາໄຫຼ່ຢ່າງໜ້ອຍ 1 ລາຍການ" };
+  if (claim.claim_type === "C" && !delivery) return { error: "ຕ້ອງຜູກເລກງານທີ່ສົ່ງຄືນແລ້ວ" };
   const text = [
     `ໃບເຄມ ${claim.claim_no} (CLM-${claim.claim_type})`,
     `Supplier: ${claim.supplier_code ?? "-"}`,
@@ -309,10 +388,16 @@ export async function sendClaimEmail(claimNo: string): Promise<ClaimState> {
     claim.amount ? `ຍอด: ${claim.amount.toLocaleString()}` : null,
     claim.reason ? `ເຫດ: ${claim.reason}` : null,
   ].filter(Boolean).join("\n");
-  const res = await sendMail({ to, subject: `ເຄມ ${claim.claim_no} — ${claim.supplier_code ?? ""}`.trim(), text });
+  const res = await sendMail({ to: supplier.email, cc, subject: `ເຄມ ${claim.claim_no} — ${claim.supplier_code ?? ""}`.trim(), text });
   if (!res.sent) return { error: `ສ່ງ email ບໍ່ໄດ້: ${res.reason ?? ""}` };
-  await query(`update ods_claim set email_sent_at = now() where claim_no = $1`, [claimNo]);
-  await log(claimNo, guard.session.username, "email", `ສ່ງ email ຫາ ${to}`);
+  const next = claim.claim_type === "A" ? "sent" : "notified";
+  await query(
+    `update ods_claim set email_sent_at=now(), status=case when status=$2 then $3 else status end,
+       ${claim.claim_type === "A" ? "sent_at" : "notified_at"}=coalesce(${claim.claim_type === "A" ? "sent_at" : "notified_at"},now())
+     where claim_no=$1`,
+    [claimNo, START[claim.claim_type], next],
+  );
+  await log(claimNo, guard.session.username, "email", `ສົ່ງ email ຫາ ${supplier.email}${cc ? ` · CC ${cc}` : ""} · → ${next}`);
   revalidatePath(`/claims/${claimNo}`);
   return { claimNo };
 }
@@ -321,6 +406,8 @@ export async function sendClaimEmail(claimNo: string): Promise<ClaimState> {
 export async function updateClaim(claimNo: string, f: { supplier_code?: string; brand_code?: string; reason?: string }): Promise<ClaimState> {
   const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
   if (!guard.ok) return { error: guard.error };
+  const claim = await claimByNo(claimNo);
+  if (!claim || !isClaimEditable(claim.claim_type, claim.status)) return { error: "ໃບເຄມສົ່ງແລ້ວ — ແກ້ຫົວໃບບໍ່ໄດ້" };
   await query(
     `update ods_claim set supplier_code = nullif($1,''), brand_code = nullif($2,''), reason = nullif($3,'') where claim_no = $4`,
     [f.supplier_code ?? "", f.brand_code ?? "", f.reason ?? "", claimNo],
@@ -334,6 +421,8 @@ export async function updateClaim(claimNo: string, f: { supplier_code?: string; 
 export async function deleteClaim(claimNo: string): Promise<ClaimState> {
   const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
   if (!guard.ok) return { error: guard.error };
+  const claim = await claimByNo(claimNo);
+  if (!claim || !isClaimEditable(claim.claim_type, claim.status)) return { error: "ລຶບໄດ້ສະເພາະໃບທີ່ຍັງບໍ່ສົ່ງ" };
   await query(`delete from ods_claim_item where claim_no = $1`, [claimNo]);
   await query(`delete from ods_claim where claim_no = $1`, [claimNo]);
   await log(claimNo, guard.session.username, "delete", `ລບ ໃບເຄມ ${claimNo}`);

@@ -7,7 +7,7 @@ export type MailResult = { sent: boolean; reason?: string };
  *   SMTP_HOST · SMTP_PORT (ຄ່າຕັ້ງຕົ້ນ 587) · SMTP_USER · SMTP_PASS · MAIL_FROM
  * ບໍ່ຕັ້ງ = ຄືນ { sent:false } (ບໍ່ throw) — ໃຫ້ cron ດຳເນີນຕໍ່ໄດ້.
  */
-export async function sendMail(opts: { to: string; subject: string; text: string; html?: string }): Promise<MailResult> {
+export async function sendMail(opts: { to: string; cc?: string; subject: string; text: string; html?: string }): Promise<MailResult> {
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
@@ -17,7 +17,7 @@ export async function sendMail(opts: { to: string; subject: string; text: string
   const port = Number(process.env.SMTP_PORT ?? 587);
   try {
     const transport = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
-    await transport.sendMail({ from, to: opts.to, subject: opts.subject, text: opts.text, html: opts.html });
+    await transport.sendMail({ from, to: opts.to, cc: opts.cc || undefined, subject: opts.subject, text: opts.text, html: opts.html });
     return { sent: true };
   } catch (error) {
     console.error("sendMail failed", error);

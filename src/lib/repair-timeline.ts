@@ -21,6 +21,10 @@ const ENTRY: Record<number, string> = {
   10: "a.time_finish_repair",
   11: "coalesce(a.qc_finish, a.cancel_finish, a.cancel_start)",
   12: "a.return_complete",
+  13: "a.time_finish_check",
+  14: "coalesce(a.claim_decided_at, a.time_finish_check)",
+  15: "coalesce(a.claim_decided_at, a.time_finish_check)",
+  16: "coalesce(a.claim_decided_at, a.time_finish_check)",
 };
 
 export type TimelineStep = {
@@ -51,7 +55,9 @@ export async function repairTimeline(code: string): Promise<{ steps: TimelineSte
   const rawStage = r.stage as number;
   const now = r.now_epoch as number;
   const onsite = svc === "PS" || svc === "IH";
-  const list = onsite ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  const list = rawStage >= 13 && rawStage <= 16
+    ? [...(onsite ? [0] : []), 1, 2, rawStage]
+    : onsite ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
   const rows = list.map((n) => ({ stage: n, label: stageLabel(n, svc), at: (r[`s${n}`] as string | null) ?? null, epoch: (r[`e${n}`] as number | null) ?? null }));
 

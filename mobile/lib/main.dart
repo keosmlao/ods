@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api.dart';
+import 'app_links.dart';
 import 'push.dart';
 import 'screens/login_screen.dart';
 import 'screens/nav_host.dart';
@@ -17,6 +18,7 @@ void main() async {
   await Push.init();
 
   runApp(const OdssApp());
+  WidgetsBinding.instance.addPostFrameCallback((_) => AppLinks.flush());
 }
 
 // ── Design tokens v2 (ທັນສະໄໝ) — ແບຣນ emerald + hero ໄລ່ສີເຂັ້ມ ──

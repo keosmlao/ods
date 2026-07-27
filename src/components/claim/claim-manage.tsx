@@ -1,6 +1,6 @@
 "use client";
 import { advanceClaim, deleteClaimItem, linkCob, pullJobItems, resolveClaim, sendClaimEmail, setClaimJob, setClaimPaid, updateClaimRemark } from "@/app/actions/claim";
-import { type ClaimItem, type ClaimType, type CobInfo, type JobDelivery, PAY_METHOD_LABEL } from "@/lib/claim-shared";
+import { claimCanTransition, type ClaimItem, type ClaimType, type CobInfo, type JobDelivery, PAY_METHOD_LABEL } from "@/lib/claim-shared";
 import { ArrowRight, BadgeCheck, DownloadCloud, Link2, LoaderCircle, Mail, Trash2, Truck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -20,6 +20,7 @@ export function ClaimManage({
   payMethod,
   refJob,
   repairPrefill,
+  editable,
 }: {
   claimNo: string;
   type: ClaimType;
@@ -34,6 +35,7 @@ export function ClaimManage({
   delivery: JobDelivery | null;
   payMethod: string | null;
   refJob: string | null;
+  editable: boolean;
   /** ຂໍ້ມູນ prefill ໃບງານສ້ອມ — ຖ້າເລືອກ "ສ້ອມ" ຈະພາໄປ /service/new ຕື່ມໃຫ້ */
   repairPrefill?: { proname?: string; sn?: string; billon?: string; billdate?: string; cust?: string; custname?: string } | null;
 }) {
@@ -82,23 +84,36 @@ export function ClaimManage({
             // ຂັ້ນ "ກວດ/ຕັດສິນ" ⇒ ເລືອກໄດ້ 2 ຢ່າງ: ປ່ຽນ ຫຼື ສ້ອມ (ບັນທຶກ resolution)
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold text-slate-500">ຕັດສິນ:</span>
-              <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claimNo, "replace"))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
-                {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ປ່ຽນ
+              <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claimNo, "replace", "stock"))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
+                {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ປ່ຽນຈາກ stock
+              </button>
+              <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claimNo, "replace", "purchase"))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-amber-500 px-3 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60">
+                <ArrowRight className="size-4" /> ສັ່ງຊື້ມາປ່ຽນ
+              </button>
+              <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claimNo, "replace", "supplier"))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-violet-600 px-3 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60">
+                <ArrowRight className="size-4" /> ເຄມ supplier
               </button>
               <button type="button" disabled={pending} onClick={() => act(async () => {
                 // ສ້ອມ ⇒ ບັນທຶກ resolution ແລ້ວ **ເຊື່ອມໄປເປີດໃບງານສ້ອມ** (ຕື່ມ ສິນຄ້າ/SN/ບິນ ໃຫ້)
                 const r = await resolveClaim(claimNo, "repair");
                 if (!r.error) {
-                  const qs = new URLSearchParams(Object.entries(repairPrefill ?? {}).filter(([, v]) => v) as [string, string][]);
-                  qs.set("claim", claimNo); // ผูก 2 ทาง: createService ຈະ set claim.ref_job = ເລກງານໃໝ່
-                  router.push(`/service/new?${qs.toString()}`);
+                  if (refJob) {
+                    router.push(`/service/${refJob}`);
+                  } else {
+                    const qs = new URLSearchParams(Object.entries(repairPrefill ?? {}).filter(([, v]) => v) as [string, string][]);
+                    qs.set("claim", claimNo);
+                    router.push(`/service/new?${qs.toString()}`);
+                  }
                 }
                 return r;
               })} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
                 {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ສ້ອມ → ເປີດໃບງານ
               </button>
             </div>
-          ) : nextStatus ? (
+          ) : type === "B" && status === "received" ? (
+            // received → checking ຕ້ອງຜ່ານ ຊ່າງ QC (saveCheck) ບໍ່ແມ່ນປຸ່ມນີ້
+            <span className="text-sm text-slate-500">⏳ ລໍຊ່າງ ກວດເຊັກ (QC) ກ່ອນ ຈຶ່ງຕັດສິນໄດ້</span>
+          ) : nextStatus && claimCanTransition(type, status, nextStatus.status) && !(editable && (type === "A" || type === "C")) ? (
             <button type="button" disabled={pending} onClick={() => act(() => advanceClaim(claimNo, nextStatus.status))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
               {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ໄປ: {nextStatus.label}
             </button>
@@ -107,7 +122,7 @@ export function ClaimManage({
           ) : (
             <span className="text-sm text-slate-400">— ຈົບ pipeline —</span>
           )}
-          {canReject && !["rejected", "closed", "paid"].includes(status) && (
+          {canReject && ["sent", "review"].includes(status) && (
             <button type="button" disabled={pending} onClick={() => act(() => advanceClaim(claimNo, "rejected"))} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 text-sm font-semibold text-rose-600 hover:bg-rose-100 disabled:opacity-60">
               <X className="size-4" /> supplier ปฏิเสธ
             </button>
@@ -130,7 +145,7 @@ export function ClaimManage({
             </button>
             {emailSentAt && <span className="text-[12px] font-semibold text-emerald-600">✓ ສ່ງແລ້ວ {emailSentAt}</span>}
           </div>
-          <p className="mt-2 text-[11px] text-slate-400">ຜູ້ຮັບ ຕັ້ງທີ່ ຜູ້ໃຊ້ → ຜູ້ຮັບລາຍງານ. ສ່ງແລ້ວ ຢ່າລືມ ຍ້າຍສະຖານະ ໄປ “ສົ່ງ supplier”.</p>
+          <p className="mt-2 text-[11px] text-slate-400">ສົ່ງໄປ email ຂອງ supplier ໃນ ERP, CC ຜູ້ຮັບລາຍງານ ແລະປ່ຽນສະຖານະອັດຕະໂນມັດ.</p>
         </div>
       )}
 
@@ -179,7 +194,7 @@ export function ClaimManage({
             </button>
             {emailSentAt && <span className="text-[12px] font-semibold text-emerald-600">✓ ສ່ງແລ້ວ {emailSentAt}</span>}
           </div>
-          <p className="mt-2 text-[11px] text-slate-400">ຜູ້ຮັບ ຕັ້ງທີ່ ຜູ້ໃຊ້ → ຜູ້ຮັບລາຍງານອັດຕະໂນມັດ.</p>
+          <p className="mt-2 text-[11px] text-slate-400">ສົ່ງໄປ email ຂອງ supplier ໃນ ERP, CC ຜູ້ຮັບລາຍງານ ແລະປ່ຽນເປັນ “ແຈ້ງແລ້ວ” ອັດຕະໂນມັດ.</p>
         </div>
       )}
 
@@ -198,7 +213,7 @@ export function ClaimManage({
                     <td className="px-2 py-1">{it.item_name}</td>
                     <td className="px-2 py-1 text-right tabular-nums">{it.qty}{it.unit ? ` ${it.unit}` : ""}</td>
                     <td className="px-2 py-1 text-right tabular-nums">{it.amount ? it.amount.toLocaleString() : "-"}</td>
-                    <td className="px-2 py-1 text-right"><button type="button" onClick={() => del(it.id)} className="text-slate-400 hover:text-rose-600"><Trash2 className="size-3.5" /></button></td>
+                    <td className="px-2 py-1 text-right">{editable && <button type="button" onClick={() => del(it.id)} className="text-slate-400 hover:text-rose-600"><Trash2 className="size-3.5" /></button>}</td>
                   </tr>
                 ))}
               </tbody>

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'api.dart';
+import 'app_links.dart';
 
 /// ຮັບຂໍ້ຄວາມຕອນແອັບຖືກຂ້າ/ພື້ນຫຼັງ — ຕ້ອງເປັນ **top-level function**
 /// (Flutter ເອີ້ນມັນຢູ່ isolate ຕ່າງຫາກ ຈຶ່ງໃຊ້ closure ຫຼື method ຂອງ class ບໍ່ໄດ້).
@@ -55,6 +57,13 @@ class Push {
           android: AndroidInitializationSettings('@mipmap/ic_launcher'),
           iOS: DarwinInitializationSettings(),
         ),
+        onDidReceiveNotificationResponse: (response) {
+          final raw = response.payload;
+          if (raw == null || raw.isEmpty) return;
+          try {
+            AppLinks.openPushData(jsonDecode(raw) as Map<String, dynamic>);
+          } catch (_) {}
+        },
       );
       await _local
           .resolvePlatformSpecificImplementation<
@@ -70,6 +79,11 @@ class Push {
         ⇒ ຕ້ອງສະແດງເອງ ບໍ່ດັ່ງນັ້ນຊ່າງທີ່ກຳລັງເປີດແອັບຢູ່ຈະ **ບໍ່ຮູ້ວ່າມີງານໃໝ່ເຂົ້າ**.
       */
       FirebaseMessaging.onMessage.listen(_showForeground);
+      FirebaseMessaging.onMessageOpenedApp.listen(
+        (message) => AppLinks.openPushData(message.data),
+      );
+      final initial = await FirebaseMessaging.instance.getInitialMessage();
+      if (initial != null) await AppLinks.openPushData(initial.data);
 
       // iOS ຕ້ອງບອກແຍກຕ່າງຫາກ ຈຶ່ງຈະຂຶ້ນ banner ຕອນເປີດແອັບຢູ່
       await FirebaseMessaging.instance
@@ -103,6 +117,7 @@ class Push {
           ),
           iOS: const DarwinNotificationDetails(),
         ),
+        payload: jsonEncode(message.data),
       );
     } catch (error) {
       debugPrint('ສະແດງແຈ້ງເຕືອນບໍ່ສຳເລັດ: $error');

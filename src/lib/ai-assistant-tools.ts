@@ -56,7 +56,7 @@ export const ASSISTANT_TOOLS: AssistantTool[] = [
     input_schema: {
       type: "object",
       properties: {
-        stage: { type: ["integer", "null"], minimum: 1, maximum: 12 },
+        stage: { type: ["integer", "null"], minimum: 1, maximum: 16 },
         technician: { type: ["string", "null"] },
         service_type: { type: ["string", "null"], enum: ["CI", "ST", "IH", "PS", null] },
         overdue: { type: ["boolean", "null"] },
