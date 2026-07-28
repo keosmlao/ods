@@ -485,7 +485,8 @@
     "showBillsWithSuffix": "in the bill · AC shows as [SET], indoor/outdoor not split",
     "installFeePrefix": "Install fee",
     "noBillsFound": "No sales bill with install service found",
-    "hasLocation": "Has location"
+    "hasLocation": "Has location",
+    "locationFromDelivery": "Delivery point"
   },
   "quotationsList": {
     "quotation": "Quotation",

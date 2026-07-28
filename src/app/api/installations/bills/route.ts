@@ -71,9 +71,15 @@ export type BillRow = {
    */
   ship_status: string | null;
   ship_date: string | null;
-  /** ພິກັດລູກຄ້າທີ່ ERP ມີຢູ່ແລ້ວ (ar_customer_detail) — ໃຫ້ຟອມຕື່ມແຜນທີ່ໃຫ້ເລີຍ */
+  /**
+   * ພິກັດລູກຄ້າ — **ບ່ອນທີ່ຂົນສົ່ງໄປສົ່ງເຄື່ອງຈິງ** (odg_tms_detail) ຖ້າມີ,
+   * ບໍ່ດັ່ງນັ້ນຕົກໄປໃຊ້ພິກັດໃນທະບຽນລູກຄ້າ (ar_customer_detail).
+   * ບ່ອນສົ່ງເຄື່ອງ = ບ່ອນທີ່ຊ່າງຕ້ອງໄປຕິດຕັ້ງ ⇒ ໜ້າເຊື່ອຖືກວ່າທະບຽນ.
+   */
   cust_lat: number | null;
   cust_lng: number | null;
+  /** ພິກັດນີ້ມາຈາກໃສ — ໃຫ້ໜ້າຈໍບອກຜູ້ໃຊ້ໄດ້ວ່າເຊື່ອໄດ້ຫຼາຍປານໃດ */
+  loc_source: "delivery" | "customer" | null;
 };
 
 /**
@@ -299,20 +305,53 @@ export async function GET(request: NextRequest) {
      * ໄປແກວ່ງແຜນຂອງທັງ query. ດຶງແຍກດ້ວຍລາຍການ doc_no ທີ່ຄັດແລ້ວ = ~40ms.
      */
     if (rows.length > 0) {
+      const docs = rows.map((row) => row.doc_no);
       const ship = (
         await queryOdg<{ doc_no: string; status_ship: string | null; ship_date: string | null }>(
           `select distinct on (doc_no) doc_no, status_ship, to_char(ship_date,'dd/mm/yyyy') as ship_date
              from bill_tracking_tms
             where doc_no = any($1::text[])
             order by doc_no, ship_date desc nulls last`,
-          [rows.map((row) => row.doc_no)],
+          [docs],
         )
       ).rows;
       const byDoc = new Map(ship.map((row) => [row.doc_no, row]));
+
+      /**
+       * ພິກັດ**ຈຸດສົ່ງຈິງ**ຈາກລະບົບຂົນສົ່ງ — ນີ້ຄືບ່ອນທີ່ຄົນສົ່ງເຄື່ອງໄປຮອດຈິງ
+       * ⇒ ຊ່າງຕິດຕັ້ງກໍ່ຕ້ອງໄປບ່ອນນັ້ນ. ດີກວ່າພິກັດໃນທະບຽນລູກຄ້າ (ມີພຽງ 251/20,788).
+       *
+       * · `lat`/`lng` ເປັນ **varchar** — ຫວ່າງ ຫຼື '0' = ຍັງບໍ່ໄດ້ປັກ
+       * · 1 ບິນ ມີໄດ້ຫຼາຍແຖວ (2,627 ບິນ) ⇒ distinct on ເອົາແຖວ status=1 (ສົ່ງສຳເລັດ) ກ່ອນ
+       * · ມີ index ຢູ່ bill_no ⇒ ~10ms
+       */
+      const delivered = (
+        await queryOdg<{ bill_no: string; lat: string; lng: string }>(
+          `select distinct on (bill_no) bill_no, lat, lng
+             from odg_tms_detail
+            where bill_no = any($1::text[])
+              and coalesce(lat,'') not in ('','0') and coalesce(lng,'') not in ('','0')
+            order by bill_no, (status = 1) desc, sent_end desc nulls last`,
+          [docs],
+        )
+      ).rows;
+      const geoByDoc = new Map(delivered.map((row) => [row.bill_no, row]));
+
       for (const row of rows) {
         const found = byDoc.get(row.doc_no);
         row.ship_status = found?.status_ship ?? null;
         row.ship_date = found?.ship_date ?? null;
+
+        const drop = geoByDoc.get(row.doc_no);
+        const lat = Number(drop?.lat);
+        const lng = Number(drop?.lng);
+        if (drop && Number.isFinite(lat) && Number.isFinite(lng)) {
+          row.cust_lat = lat;
+          row.cust_lng = lng;
+          row.loc_source = "delivery";
+        } else {
+          row.loc_source = row.cust_lat != null && row.cust_lng != null ? "customer" : null;
+        }
       }
     }
 

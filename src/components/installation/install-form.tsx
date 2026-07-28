@@ -55,9 +55,10 @@ type Bill = {
   /** ສະຖານະການສົ່ງເຄື່ອງ (ສົ່ງແລ້ວ/ຄ້າງສົ່ງ) — ຄ່າດິບຈາກ ERP, ເບິ່ງ api/installations/bills */
   ship_status: string | null;
   ship_date: string | null;
-  /** ພິກັດລູກຄ້າທີ່ ERP ມີແລ້ວ — ໃຊ້ຕື່ມແຜນທີ່ໃຫ້ອັດຕະໂນມັດ */
+  /** ພິກັດລູກຄ້າ — ຈຸດສົ່ງຈິງຂອງຂົນສົ່ງ ຫຼື ຈາກທະບຽນລູກຄ້າ (ເບິ່ງ loc_source) */
   cust_lat: number | null;
   cust_lng: number | null;
+  loc_source: "delivery" | "customer" | null;
 };
 
 /**
@@ -870,11 +871,11 @@ function BillPicker({
                   </span>
                 )}
 
-                {/* ລູກຄ້າມີພິກັດຢູ່ ERP ແລ້ວ — ຟອມຈະຕື່ມແຜນທີ່ໃຫ້ເລີຍ */}
+                {/* ມີພິກັດແລ້ວ — ຟອມຈະຕື່ມແຜນທີ່ໃຫ້ເລີຍ. ຈຸດສົ່ງຈິງ ໜ້າເຊື່ອກວ່າທະບຽນລູກຄ້າ */}
                 {bill.cust_lat != null && bill.cust_lng != null && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-bold text-sky-800">
                     <MapPin className="size-3" />
-                    {t.hasLocation}
+                    {bill.loc_source === "delivery" ? t.locationFromDelivery : t.hasLocation}
                   </span>
                 )}
               </div>

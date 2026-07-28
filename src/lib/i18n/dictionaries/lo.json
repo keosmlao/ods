@@ -485,7 +485,8 @@
     "showBillsWithSuffix": "ຢູ່ໃນບິນ · ແອຂຶ້ນເປັນ [SET] ບໍ່ແຍກໜ່ວຍໃນ/ນອກ",
     "installFeePrefix": "ຄ່າຕິດຕັ້ງ",
     "noBillsFound": "ບໍ່ພົບບິນຂາຍທີ່ມີບໍລິການຕິດຕັ້ງ",
-    "hasLocation": "ມີພິກັດ"
+    "hasLocation": "ມີພິກັດ",
+    "locationFromDelivery": "ພິກັດຈຸດສົ່ງ"
   },
   "quotationsList": {
     "quotation": "ໃບສະເໜີລາຄາ",
