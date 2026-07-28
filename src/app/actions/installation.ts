@@ -19,6 +19,7 @@ import { INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { feedbackUrl, validFeedbackToken } from "@/lib/track";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import type { PoolClient } from "pg";
 import QRCode from "qrcode";
 import { z } from "zod";
 
@@ -1093,6 +1094,28 @@ const OUTSTANDING_INSTALL_SPARES = `
   order by n.rn`;
 
 /**
+ * ຂໍ connection ຂອງ **ສອງຖານ** ພ້ອມກັນ — ລົ້ມ = ໄດ້ຂໍ້ຄວາມ ບໍ່ແມ່ນ exception.
+ * ຖ້າອັນທີສອງລົ້ມ ຕ້ອງຄືນອັນທຳອິດເຂົ້າ pool ນຳ ບໍ່ດັ່ງນັ້ນ connection ຮົ່ວຈົນ pool ໝົດ.
+ */
+async function connectPair(): Promise<
+  { client: PoolClient; odg: PoolClient } | { error: string }
+> {
+  if (!db || !odgDb) return { error: "ບໍ່ພົບ DATABASE_URL ຫຼື ODG_DATABASE_URL" };
+  let client: PoolClient | null = null;
+  try {
+    client = await db.connect();
+    const odg = await odgDb.connect();
+    return { client, odg };
+  } catch (error) {
+    client?.release();
+    console.error("connectPair failed", error);
+    return {
+      error: `ຕິດຕໍ່ຖານຂໍ້ມູນບໍ່ໄດ້ — ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+/**
  * ບັນທຶກໃບຂໍເບີກ SION (save_in_req) — trans_flag 122.
  *
  * ກົດເກນ (B2): **ຊ່າງຕ້ອງຮັບງານກ່ອນ ຈຶ່ງຂໍເບີກອາໄຫຼ່ໄດ້.**
@@ -1129,13 +1152,26 @@ export async function saveSpareRequest(
 
   if (!odgDb) return { error: "ບໍ່ພົບ ODG_DATABASE_URL" };
 
+  /**
+   * ── ຢ່າປ່ອຍໃຫ້ error ຫຼຸດອອກຈາກ action ນີ້ ──
+   * ກ່ອນນີ້ການກວດສາງ ແລະ `connect()` ຢູ່ **ນອກ try** ⇒ ຖາມຖານບໍ່ໄດ້ (ລະຫັດຜ່ານປ່ຽນ ·
+   * ຖານລົ້ມ · pool ເຕັມ) = exception ຫຼຸດອອກໄປເປັນຈໍຂາວ **"A server error occurred"**
+   * ໂດຍບໍ່ບອກເຫດຜົນ ແລະ ບໍ່ມີຫຍັງລົງ ic_trans ເລີຍ. ດຽວນີ້ຈັບໄວ້ ແລ້ວສົ່ງຂໍ້ຄວາມຈິງຄືນຟອມ.
+   */
+  const reason = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
   // ຢ່າເຊື່ອ wh_code/shelf_code ຈາກ browser: ທີ່ເກັບຕ້ອງເປັນຂອງສາງທີ່ເລືອກຈິງ.
-  const location = await queryOdg<{ valid: number }>(
-    `select 1::int valid from ic_shelf where whcode=$1 and code=$2 limit 1`,
-    [whCode, shelfCode],
-  );
-  if (!location.rows[0])
-    return { error: "ສາງ ແລະ ທີ່ເກັບບໍ່ກົງກັນ ກະລຸນາເລືອກໃໝ່" };
+  try {
+    const location = await queryOdg<{ valid: number }>(
+      `select 1::int valid from ic_shelf where whcode=$1 and code=$2 limit 1`,
+      [whCode, shelfCode],
+    );
+    if (!location.rows[0])
+      return { error: "ສາງ ແລະ ທີ່ເກັບບໍ່ກົງກັນ ກະລຸນາເລືອກໃໝ່" };
+  } catch (error) {
+    console.error("saveSpareRequest: ກວດສາງ/ທີ່ເກັບ (ERP) ລົ້ມ", error);
+    return { error: `ຖາມ ERP ບໍ່ໄດ້ — ${reason(error)}` };
+  }
 
   /**
    * ── ໃບຂໍເບີກຕ້ອງລົງ **ທັງ ODS ແລະ ERP** (ນະໂຍບາຍ 13-07-2026) ──
@@ -1144,8 +1180,9 @@ export async function saveSpareRequest(
    * ລຳດັບ: insert ERP (ຍັງບໍ່ commit) → commit ODS → commit ERP
    * (insert ຜ່ານ trigger ໝົດແລ້ວ ⇒ commit ຂອງ ERP ຈະລົ້ມໄດ້ຍາກທີ່ສຸດ).
    */
-  const client = await db.connect();
-  const odg = await odgDb.connect();
+  const pair = await connectPair();
+  if ("error" in pair) return pair;
+  const { client, odg } = pair;
   let requestNo = "";
   let requestLines = 0;
   try {
@@ -1256,8 +1293,13 @@ export async function saveSpareRequest(
     await client.query("rollback").catch(() => {});
     await odg.query("rollback").catch(() => {});
     console.error("saveSpareRequest failed", error);
+    /**
+     * ⚠️ ຢ່າໂທດ ERP ລ້າໆ — ໃບນີ້ຂຽນ **ສອງຖານ** ⇒ ຄວາມລົ້ມມາຈາກ ODS ກໍ່ໄດ້ (ຕາຕະລາງ/ຖັນ
+     * ບໍ່ຕົງ · lock · schema search_path ຜິດ). ບອກຂໍ້ຄວາມຈິງໄປເລີຍ ບໍ່ດັ່ງນັ້ນຄົນໜ້າງານ
+     * ບອກໄດ້ແຕ່ "ບັນທຶກບໍ່ໄດ້" ແລ້ວບໍ່ມີໃຜຮູ້ວ່າຕ້ອງແກ້ຫຍັງ (ຕ້ອງໄປໄລ່ log ເອງ).
+     */
     return {
-      error: "ບັນທຶກບໍ່ສຳເລັດ — ERP ບໍ່ຮັບໃບຂໍເບີກນີ້ (ບໍ່ໄດ້ບັນທຶກຫຍັງເລີຍ)",
+      error: `ບັນທຶກບໍ່ສຳເລັດ (ບໍ່ໄດ້ບັນທຶກຫຍັງເລີຍ) — ${reason(error)}`,
     };
   } finally {
     client.release();
