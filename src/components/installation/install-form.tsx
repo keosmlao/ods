@@ -233,10 +233,12 @@ export function InstallForm({
   const lines = (bill?.items ?? [])
     .map((item) => ({ item, draft: drafts[item.item_code] }))
     .filter(({ draft }) => draft?.on)
-    .filter(
-      ({ draft }) =>
-        draft.model.trim() && draft.type && draft.size.trim() && draft.serials.every((serial) => serial.trim()),
-    )
+    /**
+     * S/N **ບໍ່ບັງຄັບ** — ບິນຫຼາຍໃບບໍ່ໄດ້ລົງ ISN ແລະ CS ຢູ່ໜ້າເຄົາເຕີບໍ່ໄດ້ຖືເຄື່ອງຢູ່ນຳ
+     * ⇒ ບັງຄັບໄວ້ = ເປີດງານບໍ່ໄດ້ເລີຍ. ຊ່າງອ່ານປ້າຍຕົວເຄື່ອງຕອນໄປຕິດຕັ້ງແລ້ວຕື່ມພາຍຫຼັງໄດ້.
+     * ຊ່ອງທີ່ຍັງບັງຄັບ: Model · ປະເພດ · ຂະໜາດ.
+     */
+    .filter(({ draft }) => draft.model.trim() && draft.type && draft.size.trim())
     .map(({ item, draft }) => ({
       item_code: item.item_code,
       item_name: item.item_name,
@@ -527,7 +529,6 @@ export function InstallForm({
                   {missing && (
                     <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
                       {t.stillMissing}
-                      {!draft.serials.every((serial) => serial.trim()) && t.missingSomeSn}
                       {!draft.model.trim() && t.missingModel}
                       {!draft.type && t.missingType}
                       {!draft.size.trim() && t.missingSize}

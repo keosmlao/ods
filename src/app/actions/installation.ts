@@ -165,8 +165,12 @@ const lineSchema = z.object({
   pro_size: z.string().min(1),
   /** ຈະຕິດຕັ້ງຈັກໜ່ວຍ = ຈະສ້າງຈັກງານ (1 ໜ່ວຍ = 1 ງານ = 1 ຊ່າງໄປ 1 ບ່ອນ) */
   units: z.number().int().min(1).max(20),
-  /** S/N (ໜ່ວຍໃນ [C] ຖ້າເປັນແອ) ຂອງແຕ່ລະໜ່ວຍ — ຕ້ອງຄົບຕາມ units */
-  serials: z.array(z.string().trim().min(1)),
+  /**
+   * S/N (ໜ່ວຍໃນ [C] ຖ້າເປັນແອ) ຂອງແຕ່ລະໜ່ວຍ — **ບໍ່ບັງຄັບ ປະຫວ່າງໄດ້**.
+   * ບິນຫຼາຍໃບບໍ່ໄດ້ລົງ ISN ແລະ CS ບໍ່ໄດ້ຖືເຄື່ອງຢູ່ນຳ ⇒ ບັງຄັບໄວ້ = ເປີດງານບໍ່ໄດ້.
+   * ຍາວຕ້ອງເທົ່າ units ຢູ່ (1 ໜ່ວຍ = 1 ຊ່ອງ) ແຕ່ຄ່າໃນຊ່ອງເປັນຫວ່າງໄດ້.
+   */
+  serials: z.array(z.string().trim()),
   /**
    * S/N **ໜ່ວຍນອກ [H]** ຂອງແຕ່ລະໜ່ວຍ — ບໍ່ບັງຄັບ (ເຄື່ອງທີ່ບໍ່ແມ່ນແອບໍ່ມີໜ່ວຍນອກ).
    * ແອປະກອບດ້ວຍ ໜ່ວຍໃນ + ໜ່ວຍນອກ ແລະ ERP ລົງ ISN **ຄົນລະເລກ** ⇒ ເກັບໜ່ວຍດຽວ =
@@ -237,11 +241,14 @@ export async function createInstall(
   if (!parsed.success) return { error: "ກະລຸນາປ້ອນຊ່ອງທີ່ຈຳເປັນໃຫ້ຄົບ" };
   const d = parsed.data;
 
-  // S/N ຕ້ອງຄົບຕໍ່ໜ່ວຍ — ກວດຢູ່ server ອີກຊັ້ນ (ຟອມກວດແລ້ວ ແຕ່ action ຖືກຍິງໂດຍກົງໄດ້)
+  /**
+   * ຈຳນວນຊ່ອງ S/N ຕ້ອງເທົ່າ units (1 ໜ່ວຍ = 1 ງານ = 1 ຊ່ອງ) — ຄ່າຫວ່າງໄດ້
+   * ເພາະ S/N ບໍ່ບັງຄັບ (ເບິ່ງ lineSchema). ກວດຢູ່ server ອີກຊັ້ນ ເພາະ action ຖືກຍິງໂດຍກົງໄດ້.
+   */
   for (const line of d.lines) {
     if (line.serials.length !== line.units) {
       return {
-        error: `${line.item_name}: ຕ້ອງລະບຸ S/N ໃຫ້ຄົບ ${line.units} ໜ່ວຍ`,
+        error: `${line.item_name}: ຈຳນວນຊ່ອງ S/N (${line.serials.length}) ບໍ່ຕົງກັບຈຳນວນໜ່ວຍ (${line.units})`,
       };
     }
   }
