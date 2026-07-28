@@ -338,17 +338,28 @@ class Api {
     return JobPhotos.fromJson(result['photos'] as Map<String, dynamic>);
   }
 
-  /// ລາຍລະອຽດງານ: ຮູບ + **ເສັ້ນເວລາ** (ໄລຍະແຕ່ລະຂັ້ນ — ສະເພາະສ້ອມ). GET ດຽວ ໄດ້ທັງສອງ.
-  static Future<({JobPhotos photos, JobTimelineData? timeline})> jobDetail(
+  /// ລາຍລະອຽດງານ: ຮູບ + **ເສັ້ນເວລາ** + **ຂໍ້ມູນການສົ່ງເຄື່ອງ** (ຕິດຕັ້ງ). GET ດຽວ ໄດ້ໝົດ.
+  static Future<({JobPhotos photos, JobTimelineData? timeline, DeliveryInfo? delivery})> jobDetail(
     String workflow,
     String code,
   ) async {
     final result = await _send('GET', '/api/mobile/jobs/$workflow/$code');
     final tl = result['timeline'];
+    final dv = result['delivery'];
     return (
       photos: JobPhotos.fromJson(result['photos'] as Map<String, dynamic>),
       timeline: tl == null ? null : JobTimelineData.fromJson(tl as Map<String, dynamic>),
+      delivery: dv == null ? null : DeliveryInfo.fromJson(dv as Map<String, dynamic>),
     );
+  }
+
+  /// ຮູບຕອນຂົນສົ່ງໄປສົ່ງເຄື່ອງ — ດຶງຕອນຊ່າງກົດເບິ່ງເທົ່ານັ້ນ (ຮູບໜັກ 100-200KB ຕໍ່ໃບ)
+  static Future<List<String>> deliveryPhotos(String billNo) async {
+    final result = await _send(
+      'GET',
+      '/api/mobile/delivery?bill=${Uri.encodeComponent(billNo)}',
+    );
+    return (result['data'] as List?)?.map((e) => e as String).toList() ?? const [];
   }
 
   /// ຄິວອະນຸມັດ (ຜູ້ຈັດການ)
@@ -1885,5 +1896,51 @@ class JobTimelineData {
         .map((row) => TimelineStep.fromJson(row as Map<String, dynamic>))
         .toList(),
     cancelledAt: json['cancelled_at'] as String?,
+  );
+}
+
+/// ຂໍ້ມູນການສົ່ງເຄື່ອງຈາກລະບົບຂົນສົ່ງ (odg_tms_detail) — ສະເພາະງານຕິດຕັ້ງ.
+///
+/// ບ່ອນທີ່ຂົນສົ່ງເອົາເຄື່ອງໄປວາງ = ບ່ອນທີ່ຊ່າງຕ້ອງໄປຕິດຕັ້ງ ⇒ ນຳທາງໄປໄດ້ເລີຍ.
+/// `photos` ເປັນ **ຈຳນວນ** ບໍ່ແມ່ນຮູບ — ຮູບໜັກ 100-200KB ຕໍ່ໃບ ຈຶ່ງດຶງຕອນກົດເບິ່ງ
+/// ຜ່ານ Api.deliveryPhotos() (ຊ່າງຢູ່ໜ້າງານເນັດຊ້າ ຢ່າໃຫ້ໂຫຼດທຸກຄັ້ງທີ່ເປີດງານ).
+class DeliveryInfo {
+  final String billNo;
+  final double? lat;
+  final double? lng;
+  final String? sentEnd;
+  final String? checkinAt;
+
+  /// ເບີຂອງຄົນທີ່ຮັບເຄື່ອງຈິງ — ບາງເທື່ອບໍ່ແມ່ນຄົນໃນບິນ (ຍາມ · ລູກ · ເພື່ອນບ້ານ)
+  final String? telephone;
+
+  /// ໝາຍເຫດຂອງຄົນສົ່ງ (ເຊັ່ນ "ວາງໄວ້ໜ້າບ້ານ")
+  final String? remark;
+  final int photos;
+
+  const DeliveryInfo({
+    required this.billNo,
+    required this.lat,
+    required this.lng,
+    required this.sentEnd,
+    required this.checkinAt,
+    required this.telephone,
+    required this.remark,
+    required this.photos,
+  });
+
+  bool get hasGeo => lat != null && lng != null;
+
+  static double? _num(dynamic v) => v == null ? null : (v as num).toDouble();
+
+  factory DeliveryInfo.fromJson(Map<String, dynamic> json) => DeliveryInfo(
+    billNo: json['bill_no'] as String? ?? '',
+    lat: _num(json['lat']),
+    lng: _num(json['lng']),
+    sentEnd: json['sent_end'] as String?,
+    checkinAt: json['checkin_at'] as String?,
+    telephone: json['telephone'] as String?,
+    remark: json['remark'] as String?,
+    photos: (json['photos'] as num?)?.toInt() ?? 0,
   );
 }

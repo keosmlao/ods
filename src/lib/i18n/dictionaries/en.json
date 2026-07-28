@@ -3305,6 +3305,8 @@
       "sentAt": "Delivered at",
       "checkinAt": "Checked in at",
       "dropPoint": "Drop point",
+      "receiverPhone": "Receiver phone",
+      "driverNote": "Driver note",
       "noDropPoint": "No coordinates",
       "noDropPointHint": "The driver did not drop a pin — use the address on the job instead",
       "openMap": "Open in Maps",

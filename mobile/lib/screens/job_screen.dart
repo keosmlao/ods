@@ -44,6 +44,13 @@ class _JobScreenState extends State<JobScreen> {
   /// ເສັ້ນເວລາ (ໄລຍະແຕ່ລະຂັ້ນ — ສະເພາະສ້ອມ) ຄືກັບ web
   JobTimelineData? timeline;
 
+  /// ຂໍ້ມູນການສົ່ງເຄື່ອງ (ສະເພາະຕິດຕັ້ງ) — ພິກັດຈຸດສົ່ງ · ເບີຄົນຮັບ · ຮູບ
+  DeliveryInfo? delivery;
+
+  /// ຮູບຕອນສົ່ງ — null = ຍັງບໍ່ໄດ້ກົດເບິ່ງ (ບໍ່ໂຫຼດມາພ້ອມໜ້າ ເພາະໜັກ)
+  List<String>? deliveryPhotos;
+  bool loadingDeliveryPhotos = false;
+
   /// ການເຄື່ອນໄຫວ (ຂໍ້ຄວາມ/log + ກິດຈະກຳ) — ຊຸດດຽວກັບ chatter ຢູ່ເວັບ
   JobChatter? chatter;
   String chatterError = '';
@@ -68,6 +75,7 @@ class _JobScreenState extends State<JobScreen> {
         setState(() {
           gallery = detail.photos;
           timeline = detail.timeline;
+          delivery = detail.delivery;
         });
       }
     } catch (_) {
@@ -519,6 +527,50 @@ class _JobScreenState extends State<JobScreen> {
     }
   }
 
+  /// ນຳທາງໄປ **ຈຸດທີ່ຂົນສົ່ງເອົາເຄື່ອງໄປວາງ** — ບໍ່ແມ່ນທີ່ຢູ່ໃນໃບງານ
+  /// (ທີ່ຢູ່ພິມມືມັກບໍ່ຊັດ ແຕ່ຈຸດສົ່ງແມ່ນພິກັດຈິງທີ່ຄົນສົ່ງໄປຮອດ).
+  Future<void> openDeliveryMap() async {
+    final info = delivery;
+    if (info == null || !info.hasGeo) return;
+    final uri = Uri.https('www.google.com', '/maps/dir/', {
+      'api': '1',
+      'destination': '${info.lat},${info.lng}',
+    });
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('ບໍ່ສາມາດເປີດແຜນທີ່ໄດ້')));
+    }
+  }
+
+  /// ໂທຫາ **ຄົນທີ່ຮັບເຄື່ອງຈິງ** — ບາງເທື່ອບໍ່ແມ່ນຄົນໃນໃບງານ
+  Future<void> callReceiver() async {
+    final phone = (delivery?.telephone ?? '').replaceAll(RegExp(r'[^0-9+]'), '');
+    if (phone.isEmpty) return;
+    final opened = await launchUrl(Uri(scheme: 'tel', path: phone));
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ອຸປະກອນນີ້ບໍ່ສາມາດໂທອອກໄດ້')),
+      );
+    }
+  }
+
+  /// ດຶງຮູບຕອນສົ່ງ — ກົດເທື່ອດຽວ ແລ້ວເກັບໄວ້ (ຮູບໜັກ ຢູ່ໜ້າງານເນັດຊ້າ)
+  Future<void> loadDeliveryPhotos() async {
+    final info = delivery;
+    if (info == null || loadingDeliveryPhotos) return;
+    setState(() => loadingDeliveryPhotos = true);
+    try {
+      final list = await Api.deliveryPhotos(info.billNo);
+      if (mounted) setState(() => deliveryPhotos = list);
+    } catch (_) {
+      if (mounted) setState(() => deliveryPhotos = const []);
+    } finally {
+      if (mounted) setState(() => loadingDeliveryPhotos = false);
+    }
+  }
+
   Future<void> callCustomer() async {
     final phone = (job.tel ?? '').replaceAll(RegExp(r'[^0-9+]'), '');
     if (phone.isEmpty) return;
@@ -869,6 +921,9 @@ class _JobScreenState extends State<JobScreen> {
             ],
           ),
           const SizedBox(height: 12),
+
+          // ── ການສົ່ງເຄື່ອງ (ຕິດຕັ້ງ) — ຈຸດທີ່ເຄື່ອງຖືກສົ່ງໄປແທ້ + ເບີຄົນຮັບ + ຮູບ ──
+          if (delivery != null) ...[_deliveryCard(), const SizedBox(height: 12)],
 
           // ── ເສັ້ນເວລາ (ໄລຍະແຕ່ລະຂັ້ນ) — ຄືກັບ web · ຂັ້ນປັດຈຸບັນເດີນທຸກວິນາທີ ──
           if (timeline != null && timeline!.steps.isNotEmpty) ...[
@@ -1409,6 +1464,113 @@ class _JobScreenState extends State<JobScreen> {
     'PS' => 'ບຳລຸງຮັກສາ (PS)',
     _ => t ?? '-',
   };
+
+  /// ການສົ່ງເຄື່ອງ — ຄູ່ກັບກ່ອງດຽວກັນຢູ່ເວັບ (components/installation/delivery-card).
+  ///
+  /// ສຳລັບຊ່າງ ອັນທີ່ມີຄ່າທີ່ສຸດຄື **ປຸ່ມນຳທາງໄປຈຸດສົ່ງ**: ທີ່ຢູ່ພິມມືໃນໃບງານ
+  /// ມັກຫາບໍ່ພົບ ແຕ່ພິກັດນີ້ແມ່ນບ່ອນທີ່ຄົນສົ່ງໄປຮອດຈິງ.
+  Widget _deliveryCard() {
+    final info = delivery!;
+    final list = deliveryPhotos;
+    return _Card(
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.local_shipping_outlined, size: 18, color: Color(0xFF059669)),
+            const SizedBox(width: 6),
+            const Text('ການສົ່ງເຄື່ອງ', style: TextStyle(fontWeight: FontWeight.w800, color: ink, fontSize: 14)),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                info.billNo,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        if (info.sentEnd != null) _deliveryRow('ສົ່ງສຳເລັດ', info.sentEnd!),
+        if (info.checkinAt != null) _deliveryRow('ເຊັກອິນໜ້າບ້ານ', info.checkinAt!),
+        if (info.remark != null) _deliveryRow('ໝາຍເຫດຄົນສົ່ງ', info.remark!),
+
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            if (info.hasGeo)
+              FilledButton.icon(
+                onPressed: openDeliveryMap,
+                icon: const Icon(Icons.navigation_outlined, size: 16),
+                label: const Text('ນຳທາງໄປຈຸດສົ່ງ'),
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFF059669)),
+              ),
+            if ((info.telephone ?? '').isNotEmpty)
+              OutlinedButton.icon(
+                onPressed: callReceiver,
+                icon: const Icon(Icons.phone_outlined, size: 16),
+                label: Text('ໂທຫາຄົນຮັບ ${info.telephone}'),
+              ),
+            if (info.photos > 0 && list == null)
+              OutlinedButton.icon(
+                onPressed: loadingDeliveryPhotos ? null : loadDeliveryPhotos,
+                icon: loadingDeliveryPhotos
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.photo_library_outlined, size: 16),
+                label: Text('ເບິ່ງຮູບຕອນສົ່ງ (${info.photos})'),
+              ),
+          ],
+        ),
+
+        if (list != null && list.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 110,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: list.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (_, i) => ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.memory(
+                  base64Decode(list[i].split(',').last),
+                  width: 140,
+                  height: 110,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
+        ],
+
+        if (!info.hasGeo) ...[
+          const SizedBox(height: 6),
+          const Text(
+            'ຄົນສົ່ງບໍ່ໄດ້ປັກພິກັດໄວ້ — ໃຊ້ທີ່ຢູ່ໃນໃບງານແທນ',
+            style: TextStyle(fontSize: 11, color: Color(0xFFB45309)),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _deliveryRow(String label, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 110,
+          child: Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+        ),
+        Expanded(
+          child: Text(value, style: const TextStyle(fontSize: 12, color: ink, fontWeight: FontWeight.w600)),
+        ),
+      ],
+    ),
+  );
 
   /// ເສັ້ນເວລາ (ຄືກັບ JobTimeline ຂອງເວັບ): ● ຜ່ານແລ້ວ · ● ກະພິບ ປັດຈຸບັນ · ○ ຍັງບໍ່ຮອດ.
   /// ຂັ້ນປັດຈຸບັນ "ຄ້າງມາ" ເດີນທຸກວິນາທີ · ຂັ້ນຜ່ານແລ້ວ "ໃຊ້ເວລາ" ຄົງທີ່.

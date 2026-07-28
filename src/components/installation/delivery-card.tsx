@@ -57,6 +57,25 @@ export function DeliveryCard({ info, labels }: { info: DeliveryInfo; labels: Del
               {hasGeo ? `${info.lat?.toFixed(6)}, ${info.lng?.toFixed(6)}` : labels.noDropPoint}
             </dd>
           </div>
+
+          {/* ຄົນຮັບເຄື່ອງອາດບໍ່ແມ່ນຄົນໃນບິນ ⇒ ເບີນີ້ຄືເບີທີ່ຕິດຕໍ່ໄດ້ຈິງ */}
+          {info.telephone && (
+            <div>
+              <dt className="text-xs text-slate-400">{labels.receiverPhone}</dt>
+              <dd className="mt-1 text-sm font-medium">
+                <a href={`tel:${info.telephone}`} className="text-[#0536a9] hover:underline">
+                  {info.telephone}
+                </a>
+              </dd>
+            </div>
+          )}
+
+          {info.remark && (
+            <div className="sm:col-span-2">
+              <dt className="text-xs text-slate-400">{labels.driverNote}</dt>
+              <dd className="mt-1 text-sm font-medium text-slate-800">{info.remark}</dd>
+            </div>
+          )}
         </dl>
 
         <div className="flex flex-wrap gap-2">
@@ -118,6 +137,8 @@ export type DeliveryLabels = {
   sentAt: string;
   checkinAt: string;
   dropPoint: string;
+  receiverPhone: string;
+  driverNote: string;
   noDropPoint: string;
   noDropPointHint: string;
   openMap: string;

@@ -21,6 +21,13 @@ export type DeliveryInfo = {
   lng: number | null;
   sent_end: string | null;
   checkin_at: string | null;
+  /**
+   * ເບີຂອງ**ຄົນທີ່ຮັບເຄື່ອງຈິງ** — ບາງເທື່ອບໍ່ແມ່ນຄົນໃນບິນ (ຍາມ · ລູກ · ເພື່ອນບ້ານ)
+   * ⇒ ຊ່າງໂທຫາຄົນນີ້ໄດ້ຖ້າໂທຫາເບີໃນໃບງານບໍ່ຕິດ.
+   */
+  telephone: string | null;
+  /** ໝາຍເຫດຂອງຄົນສົ່ງ (ເຊັ່ນ "ວາງໄວ້ໜ້າບ້ານ", "ຝາກຍາມ") */
+  remark: string | null;
   /** ມີຮູບໃຫ້ເບິ່ງບໍ (ນັບຢ່າງດຽວ ບໍ່ດຶງຮູບ) */
   photos: number;
 };
@@ -51,11 +58,15 @@ export async function deliveryFor(billNo: string | null | undefined): Promise<De
         lng: string | null;
         sent_end: string | null;
         checkin_at: string | null;
+        telephone: string | null;
+        remark: string | null;
         photos: number;
       }>(
         `select distinct on (d.bill_no) d.bill_no, d.lat, d.lng,
             to_char(d.sent_end,'DD-MM-YYYY HH24:MI') as sent_end,
             to_char(d.checkin_at,'DD-MM-YYYY HH24:MI') as checkin_at,
+            nullif(trim(coalesce(d.telephone,'')),'') as telephone,
+            nullif(trim(coalesce(d.remark,'')),'') as remark,
             (case when coalesce(d.url_img,'') <> '' then 1 else 0 end
              + (select count(*)::int from odg_tms_delivery_images i where i.bill_no = d.bill_no)) as photos
            from odg_tms_detail d
@@ -72,6 +83,8 @@ export async function deliveryFor(billNo: string | null | undefined): Promise<De
       lng: toNumber(row.lng),
       sent_end: row.sent_end,
       checkin_at: row.checkin_at,
+      telephone: row.telephone,
+      remark: row.remark,
       photos: Number(row.photos) || 0,
     };
   } catch (error) {

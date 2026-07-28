@@ -14,6 +14,7 @@ import {
   startRepairFlow,
   type FlowResult,
 } from "@/lib/job-flow";
+import { deliveryFor } from "@/lib/delivery";
 import { undoLastStep } from "@/lib/mobile-undo";
 import {
   acceptMaintenance,
@@ -98,7 +99,25 @@ export async function GET(request: Request, context: { params: Promise<{ workflo
       jobPhotoSets(workflow, code),
       workflow === "repair" ? repairTimeline(code) : installTimeline(code),
     ]);
-    return NextResponse.json({ photos, timeline: timelinePayload(timeline) });
+
+    /**
+     * **ຂໍ້ມູນການສົ່ງເຄື່ອງ** (ສະເພາະງານຕິດຕັ້ງ) — ຊ່າງຢູ່ໜ້າງານຕ້ອງການທີ່ສຸດ:
+     * ພິກັດຈຸດທີ່ຂົນສົ່ງເອົາເຄື່ອງໄປວາງ (ນຳທາງໄປໄດ້ເລີຍ) ແລະ ເບີຄົນຮັບເຄື່ອງຈິງ.
+     * ຄືນ **ຈຳນວນຮູບ** ບໍ່ແມ່ນຮູບ — ຮູບເປັນ base64 100-200KB ⇒ ໂຫຼດຜ່ານ
+     * /api/installations/delivery ຕອນຊ່າງກົດເບິ່ງເທົ່ານັ້ນ (ຢູ່ໜ້າງານເນັດຊ້າ).
+     */
+    let delivery = null;
+    if (workflow === "install") {
+      const bill = (
+        await query<{ doc_ref_1: string | null }>(
+          "select doc_ref_1 from ods_tb_install where code=$1 limit 1",
+          [code],
+        )
+      ).rows[0]?.doc_ref_1;
+      delivery = await deliveryFor(bill);
+    }
+
+    return NextResponse.json({ photos, timeline: timelinePayload(timeline), delivery });
   } catch (error) {
     console.error("Mobile job detail failed", error);
     return NextResponse.json({ error: "ໂຫຼດລາຍລະອຽດບໍ່ສຳເລັດ" }, { status: 500 });
