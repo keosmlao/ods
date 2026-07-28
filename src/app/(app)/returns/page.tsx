@@ -2,6 +2,7 @@ import { OUTSTANDING_SUMMARY_SQL, type OutstandingSummary } from "@/lib/outstand
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
 import { MobileCardList } from "@/components/mobile-card-list";
+import { ReturnNoChargeButton } from "@/components/return-no-charge-button";
 import { RowLink } from "@/components/row-link";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
@@ -425,14 +426,33 @@ export default async function ReturnsPage({ searchParams }: Props) {
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                        <Link
-                          href={`/returns/${encodeURIComponent(row.code)}`}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
-                        >
-                          <CheckCircle2 className="size-3.5" />
-                          {tab === "cancelled" ? t.returnAction : t.withdrawAction}
-                          <LinkPending className="size-3" />
-                        </Link>
+                        <span className="inline-flex items-center gap-1.5">
+                          <Link
+                            href={`/returns/${encodeURIComponent(row.code)}`}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                          >
+                            <CheckCircle2 className="size-3.5" />
+                            {tab === "cancelled" ? t.returnAction : t.withdrawAction}
+                            <LinkPending className="size-3" />
+                          </Link>
+                          {/**
+                            * ລູກຄ້າບໍ່ແປງ/ບໍ່ເອົາ ⇒ ປິດໄດ້ໄວ ບໍ່ຕ້ອງອອກໃບຮັບເງິນທີ່ບໍ່ກົງຄວາມຈິງ.
+                            * ແທັບ "ຍົກເລີກ" ມີທາງຂອງມັນເອງຢູ່ແລ້ວ (returnWithoutInvoice) ⇒ ບໍ່ໃສ່ຊ້ຳ.
+                            */}
+                          {tab === "waiting" && (
+                            <ReturnNoChargeButton
+                              code={row.code}
+                              labels={{
+                                action: t.noChargeAction,
+                                title: t.noChargeTitle,
+                                hint: t.noChargeHint,
+                                reason: t.noChargeReason,
+                                confirm: t.noChargeConfirm,
+                                cancel: t.noChargeCancel,
+                              }}
+                            />
+                          )}
+                        </span>
                       </td>
                     </RowLink>
                   );

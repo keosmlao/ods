@@ -671,3 +671,68 @@ export async function returnWithoutInvoice(_: ReturnState, formData: FormData): 
   revalidatePath("/service/cancel");
   redirect("/returns?tab=cancelled");
 }
+
+/**
+ * **ສົ່ງຄືນບໍ່ເກັບເງິນ — ວຽກທີ່ສ້ອມຈົບແລ້ວ ແຕ່ລູກຄ້າບໍ່ເອົາ/ບໍ່ແປງ.**
+ *
+ * ── ເປັນຫຍັງຕ້ອງມີ ──
+ * `returnWithoutInvoice` ຂ້າງເທິງໃຊ້ໄດ້ສະເພາະວຽກ **ຍົກເລີກ** (status=6 + ອະນຸມັດແລ້ວ).
+ * ວຽກທີ່ຜ່ານ QC ແລ້ວ (ຂັ້ນ 11) ແຕ່ລູກຄ້າປະຕິເສດ ບໍ່ມີທາງປິດນອກຈາກອອກໃບຮັບເງິນ
+ * ⇒ ຄົນເລີ່ຍບໍ່ປິດ ແລ້ວມັນຄ້າງຢູ່ຄິວຕະຫຼອດ (ໃບ 5682 "ລູກຄ້າບໍ່ແປງ" ຄ້າງ 304 ມື້ ·
+ * 6590 "ບໍ່ແປງ" 136 ມື້) ດຶງຕົວເລກ "ຄ້າງດົນສຸດ" ໃຫ້ເບິ່ງແຍ່ກວ່າຄວາມຈິງ.
+ *
+ * ── ກັນການໃຊ້ຜິດ ──
+ * ນີ້ຄືທາງປິດງານ **ໂດຍບໍ່ເກັບເງິນ** ⇒ ບັງຄັບ 3 ຢ່າງ:
+ *   ① ຕ້ອງໃສ່ເຫດຜົນ (ບັນທຶກລົງ chatter — ຮູ້ວ່າໃຜປິດ ແລະ ຍ້ອນຫຍັງ)
+ *   ② ອາໄຫຼ່ທີ່ເບີກອອກຕ້ອງຄືນໝົດກ່ອນ (ດ່ານດຽວກັບ returnWithoutInvoice)
+ *   ③ ສະເພາະວຽກທີ່ **ຜ່ານ QC ແລ້ວ ແລະ ຍັງບໍ່ສົ່ງຄືນ** — ບໍ່ແມ່ນປິດວຽກກາງທາງ
+ */
+export async function returnWithoutCharge(_: ReturnState, formData: FormData): Promise<ReturnState> {
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດສົ່ງເຄື່ອງຄືນ");
+  if (!guard.ok) return { error: guard.error };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const parsed = z
+    .object({ pro_code: z.string().trim().min(1), reason: z.string().trim().min(3) })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "ຕ້ອງລະບຸເຫດຜົນ (ຢ່າງໜ້ອຍ 3 ຕົວອັກສອນ)" };
+  const { pro_code: productCode, reason } = parsed.data;
+
+  const outstanding = await db.query<{ n: number }>(
+    `select count(*)::int n from tb_product a where a.code=$1 and ${HAS_OUTSTANDING_SPARES}`,
+    [productCode],
+  );
+  if (outstanding.rows[0]?.n) {
+    return {
+      error:
+        "ຍັງມີອາໄຫຼ່ທີ່ເບີກອອກຈາກສາງ ຍັງບໍ່ໄດ້ຄືນ — ຕ້ອງສົ່ງຄືນອາໄຫຼ່ ຫຼື ອອກໃບຮັບເງິນເກັບຄ່າອາໄຫຼ່ ກ່ອນປິດງານ",
+    };
+  }
+
+  let custCode = "";
+  try {
+    /**
+     * ເງື່ອນໄຂດຽວກັບແທັບ "ລໍຖ້າສົ່ງຄືນ" ຂອງ /returns (time_finish_repair + qc_finish
+     * + ຍັງບໍ່ສົ່ງຄືນ + ບໍ່ແມ່ນວຽກຍົກເລີກ) ⇒ ປຸ່ມກັບ action ເຫັນວຽກຊຸດດຽວກັນ.
+     */
+    const done = await db.query<{ cust_code: string | null }>(
+      `update tb_product set return_complete=localtimestamp(0)
+       where code=$1 and time_finish_repair is not null and qc_finish is not null
+         and return_complete is null and status <> 6
+       returning cust_code`,
+      [productCode],
+    );
+    if (!done.rowCount) return { error: "ວຽກນີ້ສົ່ງຄືນແລ້ວ ຫຼື ຍັງບໍ່ຜ່ານການກວດ QC" };
+    custCode = done.rows[0]?.cust_code ?? "";
+  } catch (error) {
+    console.error("returnWithoutCharge failed", error);
+    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
+  }
+
+  await logChange("tb_product", productCode, `ສົ່ງຄືນລູກຄ້າ ບໍ່ເກັບເງິນ · ເຫດຜົນ: ${reason}`);
+  if (custCode) await logChange("ar_customer", custCode, `ຮັບເຄື່ອງຄືນ #${productCode} · ບໍ່ເກັບເງິນ (${reason})`);
+
+  revalidatePath("/returns", "layout");
+  revalidatePath("/dashboard");
+  return {};
+}

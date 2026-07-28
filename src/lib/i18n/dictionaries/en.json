@@ -1984,7 +1984,13 @@
     "showing": "Showing",
     "of": "of",
     "prev": "Previous",
-    "next": "Next"
+    "next": "Next",
+    "noChargeAction": "No charge",
+    "noChargeTitle": "Return to customer without charging",
+    "noChargeHint": "Use when the customer declines the repair. Closes the job without issuing a receipt; who closed it and why is recorded.",
+    "noChargeReason": "Reason *",
+    "noChargeConfirm": "Confirm return without charge",
+    "noChargeCancel": "Cancel"
   },
   "poList": {
     "poTitle": "Purchase Orders (PO)",
