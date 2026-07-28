@@ -19,12 +19,37 @@ import { useState, useTransition } from "react";
  * ແຖວກິດຈະກຳໃນໜ້າ "ກິດຈະກຳຂອງຂ້ອຍ".
  * ຄືກັບແຖວໃນ Chatter ແຕ່ເພີ່ມລິ້ງກັບໄປຫາເອກະສານຕົ້ນທາງ (recordHref).
  */
-export function ActivityRow({ activity, showOwner }: { activity: Activity; showOwner?: boolean }) {
+export function ActivityRow({
+  activity,
+  showOwner,
+  canAct = true,
+}: {
+  activity: Activity;
+  showOwner?: boolean;
+  /**
+   * ຜູ້ເບິ່ງແຕະກິດຈະກຳນີ້ໄດ້ບໍ — ຄິດຢູ່ຝັ່ງ server (ເບິ່ງ activityScope ໃນ actions/chatter).
+   * ແທັບ "ທຸກຄົນ" ສະແດງກິດຈະກຳຂອງຄົນອື່ນນຳ ⇒ ຖ້າບໍ່ກອງ ປຸ່ມຈະກົດແລ້ວບໍ່ເກີດຫຍັງ.
+   */
+  canAct?: boolean;
+}) {
   const t = useDict().activityRow;
   const [pending, start] = useTransition();
   const [noting, setNoting] = useState(false);
   const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const { ask, dialog } = useConfirm();
+
+  /**
+   * ແຕ່ກ່ອນຂຽນ `void completeActivity(...)` ⇒ ຄຳຕອບ `{error}` ຂອງ server ຖືກຖິ້ມງຽບໆ
+   * ຄົນກົດແລ້ວແຖວຄາຢູ່ ບໍ່ຮູ້ວ່າຜິດຫຍັງ. ດຽວນີ້ເອົາຂໍ້ຄວາມມາສະແດງ.
+   */
+  const run = (action: () => Promise<{ error?: string }>) =>
+    start(async () => {
+      setError(null);
+      const result = await action();
+      if (result?.error) setError(result.error);
+      else setNoting(false);
+    });
 
   const tone = activityTone(activity.days_left);
   const href = recordHref(activity.model, activity.res_id);
@@ -43,6 +68,7 @@ export function ActivityRow({ activity, showOwner }: { activity: Activity; showO
           <span>· {t.due} {activity.due_date}</span>
           {activity.note && <span className="truncate">· {activity.note}</span>}
         </p>
+        {error && <p className="mt-0.5 text-[10px] font-semibold text-red-600">{error}</p>}
       </div>
 
       {href === "#" ? (
@@ -63,7 +89,7 @@ export function ActivityRow({ activity, showOwner }: { activity: Activity; showO
         {activity.days_left < 0 ? `${t.overdue} ${-activity.days_left} ${t.days}` : tone.label}
       </span>
 
-      {noting ? (
+      {!canAct ? null : noting ? (
         <span className="flex w-full items-center gap-1.5 sm:w-auto">
           <input
             autoFocus
@@ -75,7 +101,7 @@ export function ActivityRow({ activity, showOwner }: { activity: Activity; showO
           <button
             type="button"
             disabled={pending}
-            onClick={() => start(() => void completeActivity(activity.id, note))}
+            onClick={() => run(() => completeActivity(activity.id, note))}
             className="inline-flex h-7 items-center gap-1 rounded bg-emerald-600 px-2 text-[11px] font-semibold text-white disabled:opacity-60"
           >
             {pending ? <LoaderCircle className="size-3 animate-spin" /> : <Check className="size-3" />}
@@ -106,7 +132,7 @@ export function ActivityRow({ activity, showOwner }: { activity: Activity; showO
                 tone: "danger",
               });
               if (!ok) return;
-              start(() => void cancelActivity(activity.id));
+              run(() => cancelActivity(activity.id));
             }}
             className="grid size-7 place-items-center rounded text-[#DE3163] transition hover:bg-red-50"
           >

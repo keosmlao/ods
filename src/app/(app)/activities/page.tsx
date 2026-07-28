@@ -3,6 +3,7 @@ import { ActivityRow } from "@/components/chatter/activity-row";
 import { LinkPending } from "@/components/link-pending";
 import { getSession } from "@/lib/auth";
 import type { Activity } from "@/lib/chatter";
+import { roleOf } from "@/lib/roles";
 import { AlertTriangle, CalendarClock, CalendarDays, Users } from "lucide-react";
 import Link from "next/link";
 
@@ -35,6 +36,15 @@ export default async function ActivitiesPage({ searchParams }: Props) {
 
   const activities = tab === "all" ? await allActivities() : await myActivities();
   const groups = group(activities);
+
+  /**
+   * ໃຜກົດ ✓/✗ ໄດ້ — **ຕ້ອງຕົງກັບ activityScope ຢູ່ actions/chatter**:
+   * ຜູ້ຈັດການແຕະໄດ້ໝົດ · ຄົນອື່ນແຕະໄດ້ສະເພາະຂອງຕົນ (ຮັບຜິດຊອບ ຫຼື ເປັນຄົນນັດ).
+   * ຖ້າບໍ່ກອງບ່ອນນີ້ ແທັບ "ທຸກຄົນ" ຈະມີປຸ່ມທີ່ກົດແລ້ວ server ປະຕິເສດ.
+   */
+  const isManager = roleOf(session) === "manager";
+  const canAct = (activity: Activity) =>
+    isManager || activity.assigned_to === session?.username || activity.created_by === session?.username;
 
   const SECTIONS: { key: keyof ReturnType<typeof group>; label: string; icon: typeof CalendarDays; tone: string }[] = [
     { key: "late", label: "ເລີຍກຳນົດ", icon: AlertTriangle, tone: "text-red-600" },
@@ -94,7 +104,12 @@ export default async function ActivitiesPage({ searchParams }: Props) {
             </h2>
             <ul>
               {groups[key].map((activity) => (
-                <ActivityRow key={activity.id} activity={activity} showOwner={tab === "all"} />
+                <ActivityRow
+                  key={activity.id}
+                  activity={activity}
+                  showOwner={tab === "all"}
+                  canAct={canAct(activity)}
+                />
               ))}
             </ul>
           </section>
