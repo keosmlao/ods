@@ -1,4 +1,6 @@
 import { holdSinceSql } from "@/lib/job-hold";
+// ຄ່າຄົງທີ່ລ້ວນ (ບໍ່ມີ import ຈັກອັນ) ⇒ ບໍ່ດຶງ pg ເຂົ້າ client bundle — ເບິ່ງໝາຍເຫດຂ້າງລຸ່ມ
+import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 
 /**
  * ສະວິດ "ໝາຍວຽກມີບັນຫາ" ເປີດຢູ່ບໍ່ — **ຖາມໃນ SQL** ບໍ່ແມ່ນ await ຢູ່ TypeScript.
@@ -77,6 +79,21 @@ export const STAGE_SQL = `case
   when a.warrunty = 'ໝົດຮັບປະກັນ' and a.qt_start is null
        and a.qt_finish is null                                 then 3
   when a.warrunty = 'ໝົດຮັບປະກັນ' and a.qt_finish is null      then 4
+  -- ── ຄວາມຈິງຢູ່ **ແຖວເອກະສານ** ບໍ່ແມ່ນຢູ່ທຸງຂອງ tb_product (28-07-2026) ──
+  -- ໃບ 5477 (ຄ້າງ 343 ມື້ — ດົນສຸດຂອງທັງລະບົບ) ສະແດງເປັນ "ກຳລັງເບີກອາໄຫຼ່" (6)
+  -- ທັງທີ່ 2 ແຖວຂອງໃບຂໍເບີກຍັງເປັນ status=5 (ກຳລັງສັ່ງຊື້) ແລະ ໃບຂໍຊື້ RQ2026060619
+  -- ຍັງບໍ່ມີ PO ຈັກໃບ. ເຫດຜົນ: ສາຂາຂັ້ນ 7 ຂ້າງລຸ່ມບັງຄັບ spare_arrive is null ແຕ່ໃບນີ້
+  -- ມີ spare_arrive ແລ້ວ ⇒ ຫຼົ່ນລົງມາເປັນ 6. ສາງເປີດຄິວມາກໍ່ເບີກໃຫ້ບໍ່ໄດ້ (ຂອງຍັງບໍ່ມາ)
+  -- ⇒ ງານຄ້າງງຽບໆ ໂດຍບໍ່ມີໃຜຮູ້ວ່າແທ້ຈິງແລ້ວມັນລໍການສັ່ງຊື້ຢູ່.
+  --
+  -- ⇒ ຖ້າ **ຍັງມີແຖວໃດຄ້າງຢູ່ໃບສັ່ງຊື້** ⇒ ຍັງເປັນ "ກຳລັງສັ່ງຊື້ອາໄຫຼ່" ບໍ່ວ່າທຸງຈະເປັນແນວໃດ.
+  -- ວາງໄວ້ໃນສ່ວນອາໄຫຼ່ (ຫຼັງ 9/10/11/12) ⇒ ງານທີ່ລົງມືສ້ອມ/ຜ່ານ QC ແລ້ວ **ບໍ່ຖືກດຶງກັບ**
+  -- ເຖິງຈະມີແຖວຄ້າງຫຼົງເຫຼືອ. ວັດແລ້ວ: ຍ້າຍ 11 ໃບ (6→7 ຫົກ · 5→7 ສີ່ · 8→7 ນຶ່ງ) ໃຊ້ 42ms.
+  when coalesce(a.used_spare,0) = 1
+   and exists (select 1 from ic_trans_detail d
+                where d.product_code = a.code
+                  and d.trans_flag = ${TRANS.REQUEST}
+                  and d.status = ${LINE_STATUS.ON_PURCHASE_ORDER})       then 7
   -- ຖ້າ stock ບໍ່ພໍ: ສັ່ງຊື້/ຮັບເຂົ້າກ່ອນ SIO. ກວດ stage 7 ກ່ອນ stage 5
   -- ເພາະໃນ workflow ໃໝ່ spare_reg ຍັງເປັນ null ຕະຫຼອດຊ່ວງສັ່ງຊື້.
   when coalesce(a.used_spare,0) = 1 and a.spare_order is not null
