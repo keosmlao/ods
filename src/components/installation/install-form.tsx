@@ -4,7 +4,7 @@ import { LocationPicker, type Point } from "@/components/installation/location-p
 import { SelectField } from "@/components/select-field";
 import { Button, Card, ErrorBox, LinkButton, inputClass, labelClass } from "@/components/ui";
 import { useDict } from "@/lib/i18n/context";
-import { CheckCircle2, LoaderCircle, MapPin, Package, Plus, Receipt, Save, Search, X } from "lucide-react";
+import { CheckCircle2, LoaderCircle, MapPin, Package, Plus, Receipt, Save, Search, Truck, X } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
 
 type InstallFormDict = ReturnType<typeof useDict>["installForm"];
@@ -52,6 +52,12 @@ type Bill = {
   items: BillItem[];
   /** ບໍລິການຕິດຕັ້ງທີ່ພະນັກງານຂາຍເພີ່ມເຂົ້າບິນ — ຈຳນວນທີ່ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ */
   services: BillService[];
+  /** ສະຖານະການສົ່ງເຄື່ອງ (ສົ່ງແລ້ວ/ຄ້າງສົ່ງ) — ຄ່າດິບຈາກ ERP, ເບິ່ງ api/installations/bills */
+  ship_status: string | null;
+  ship_date: string | null;
+  /** ພິກັດລູກຄ້າທີ່ ERP ມີແລ້ວ — ໃຊ້ຕື່ມແຜນທີ່ໃຫ້ອັດຕະໂນມັດ */
+  cust_lat: number | null;
+  cust_lng: number | null;
 };
 
 /**
@@ -189,7 +195,15 @@ export function InstallForm({
     }
     setBill(chosen);
     setDrafts(next);
-    setPoint(null);
+    /**
+     * ລູກຄ້າມີພິກັດຢູ່ ERP ແລ້ວ ⇒ ປັກໃຫ້ເລີຍ (CS ຍັງລາກຍ້າຍໄດ້).
+     * ບໍ່ມີ ⇒ ຫວ່າງໄວ້ ໃຫ້ CS ປັກເອງຕອນອອກໃບງານ ຄືເກົ່າ.
+     */
+    setPoint(
+      chosen.cust_lat != null && chosen.cust_lng != null
+        ? { lat: chosen.cust_lat, lng: chosen.cust_lng }
+        : null,
+    );
     setPicking(!single);
 
     // ບິນບໍ່ໄດ້ລົງ ISN ⇒ ດຶງຈາກຄັງ (api/installations/serials)
@@ -838,6 +852,30 @@ function BillPicker({
                 <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-bold text-teal-800">
                   {t.installFeePrefix} {bill.services.reduce((sum, row) => sum + Math.round(row.qty || 0), 0)} {t.unitsWord}
                 </span>
+
+                {/**
+                  * ສະຖານະການສົ່ງເຄື່ອງ — ຄ່າດິບຈາກລະບົບຂົນສົ່ງ (ສົ່ງແລ້ວ/ຄ້າງສົ່ງ).
+                  * ຂຽນສີຕາມ **ວັນທີສົ່ງ** ບໍ່ແມ່ນຕາມຂໍ້ຄວາມ ⇒ ຂໍ້ຄວາມຢູ່ ERP ປ່ຽນກໍ່ຍັງຖືກ.
+                  */}
+                {bill.ship_status && (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                      bill.ship_date ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                    }`}
+                  >
+                    <Truck className="size-3" />
+                    {bill.ship_status}
+                    {bill.ship_date && <span className="font-normal">· {bill.ship_date}</span>}
+                  </span>
+                )}
+
+                {/* ລູກຄ້າມີພິກັດຢູ່ ERP ແລ້ວ — ຟອມຈະຕື່ມແຜນທີ່ໃຫ້ເລີຍ */}
+                {bill.cust_lat != null && bill.cust_lng != null && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-bold text-sky-800">
+                    <MapPin className="size-3" />
+                    {t.hasLocation}
+                  </span>
+                )}
               </div>
 
               {/* ① ບໍລິການຕິດຕັ້ງທີ່ພະນັກງານຂາຍໃສ່ໄວ້ — ນີ້ຄືຈຳນວນງານທີ່ຈ່າຍເງິນແລ້ວ */}

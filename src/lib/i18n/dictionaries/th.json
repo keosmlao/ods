@@ -484,7 +484,8 @@
     "installServiceBold": "บริการติดตั้ง",
     "showBillsWithSuffix": "อยู่ในบิล · แอร์ขึ้นเป็น [SET] ไม่แยกหน่วยใน/นอก",
     "installFeePrefix": "ค่าติดตั้ง",
-    "noBillsFound": "ไม่พบบิลขายที่มีบริการติดตั้ง"
+    "noBillsFound": "ไม่พบบิลขายที่มีบริการติดตั้ง",
+    "hasLocation": "มีพิกัด"
   },
   "quotationsList": {
     "quotation": "ใบเสนอราคา",

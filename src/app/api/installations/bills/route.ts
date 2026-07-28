@@ -64,6 +64,16 @@ export type BillRow = {
   items: BillItem[];
   /** ບໍລິການຕິດຕັ້ງທີ່ຢູ່ໃນບິນ (ອັນທີ່ເຮັດໃຫ້ບິນນີ້ຖືກເອົາມາສະແດງ) */
   services: BillService[];
+  /**
+   * ສະຖານະການສົ່ງເຄື່ອງຈາກລະບົບຂົນສົ່ງ (bill_tracking_tms) — ຄ່າຈິງຈາກ ERP:
+   * `ສົ່ງແລ້ວ` ຫຼື `ຄ້າງສົ່ງ` · null = ບິນນີ້ບໍ່ຢູ່ໃນລະບົບຂົນສົ່ງ (ລູກຄ້າຫອບເອງ).
+   * CS ຕ້ອງເຫັນກ່ອນເປີດງານ — ສົ່ງເຄື່ອງບໍ່ທັນ ຊ່າງໄປຮອດກໍ່ຕິດຕັ້ງບໍ່ໄດ້.
+   */
+  ship_status: string | null;
+  ship_date: string | null;
+  /** ພິກັດລູກຄ້າທີ່ ERP ມີຢູ່ແລ້ວ (ar_customer_detail) — ໃຫ້ຟອມຕື່ມແຜນທີ່ໃຫ້ເລີຍ */
+  cust_lat: number | null;
+  cust_lng: number | null;
 };
 
 /**
@@ -250,6 +260,9 @@ export async function GET(request: NextRequest) {
             case when ar.telephone is not null then ar.mobile else ar2.telephone end as telephone,
             case when ar.telephone is not null then ar.address else ar2.address end as address,
             case when ar.telephone is not null then ar.name else ar2.code end as cust_code,
+            -- ພິກັດ 0,0 ໃນ ERP = "ຍັງບໍ່ໄດ້ປັກ" ບໍ່ແມ່ນກາງມະຫາສະໝຸດ ⇒ ຖືເປັນ null
+            nullif(acd.latitude, 0) as cust_lat,
+            nullif(acd.longitude, 0) as cust_lng,
             /**
              * ບໍລິການຕິດຕັ້ງທີ່ **ພະນັກງານຂາຍເພີ່ມເຂົ້າບິນ** — ຈຳນວນນີ້ຄືຈຳນວນງານທີ່
              * ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ (ຂໍ້ມູນຈິງ: ຕົງກັບຈຳນວນເຄື່ອງພໍດີ —
@@ -271,11 +284,37 @@ export async function GET(request: NextRequest) {
           join ic_trans a on a.doc_no = l.doc_no and a.trans_flag = 44
           left join ar_contactor ar on ar.ar_code = a.cust_code and ar.name = a.contactor
           left join ar_customer ar2 on ar2.code = a.cust_code
-         group by l.doc_no, l.doc_date, ar.telephone, ar.mobile, ar.address, ar.name, ar2.name_1, ar2.telephone, ar2.address, ar2.code
+          left join ar_customer_detail acd on acd.ar_code = a.cust_code
+         group by l.doc_no, l.doc_date, ar.telephone, ar.mobile, ar.address, ar.name, ar2.name_1, ar2.telephone, ar2.address, ar2.code,
+                  acd.latitude, acd.longitude
          order by l.doc_date desc, l.doc_no desc`,
         !q ? [] : custCodes.length > 0 ? [q, custCodes] : [q],
       )
     ).rows;
+
+    /**
+     * ສະຖານະການສົ່ງ — **query ນ້ອຍແຍກຕ່າງຫາກ ຢ່າຍັດເຂົ້າ query ຫຼັກ**.
+     * bill_tracking_tms (54k ແຖວ) ບໍ່ມີ index ຢູ່ doc_no. ຕອນເອົາໄປໃສ່ເປັນ CTE
+     * ໃນ query ຫຼັກ ວັດໄດ້ **221ms → 1168ms** (ຊ້າລົງ 5 ເທົ່າ) ເພາະ planner
+     * ໄປແກວ່ງແຜນຂອງທັງ query. ດຶງແຍກດ້ວຍລາຍການ doc_no ທີ່ຄັດແລ້ວ = ~40ms.
+     */
+    if (rows.length > 0) {
+      const ship = (
+        await queryOdg<{ doc_no: string; status_ship: string | null; ship_date: string | null }>(
+          `select distinct on (doc_no) doc_no, status_ship, to_char(ship_date,'dd/mm/yyyy') as ship_date
+             from bill_tracking_tms
+            where doc_no = any($1::text[])
+            order by doc_no, ship_date desc nulls last`,
+          [rows.map((row) => row.doc_no)],
+        )
+      ).rows;
+      const byDoc = new Map(ship.map((row) => [row.doc_no, row]));
+      for (const row of rows) {
+        const found = byDoc.get(row.doc_no);
+        row.ship_status = found?.status_ship ?? null;
+        row.ship_date = found?.ship_date ?? null;
+      }
+    }
 
     return NextResponse.json({ data: rows });
   } catch (error) {
