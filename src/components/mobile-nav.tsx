@@ -2,8 +2,8 @@
 import { NavTree } from "@/components/sidebar";
 import type { NavFlags } from "@/lib/navigation";
 import type { NavCounts } from "@/lib/nav-counts";
-import { homeForRole, type Role } from "@/lib/roles";
-import { Menu, Wrench, X } from "lucide-react";
+import { homeForRole, ROLE_LABEL, type Role } from "@/lib/roles";
+import { LogOut, Menu, UserRound, Wrench, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -13,12 +13,19 @@ export function MobileNav({
   readableResources,
   counts,
   navLabels,
+  username,
+  logout,
+  logoutLabel,
 }: {
   role: Role;
   navFlags: NavFlags;
   readableResources: string[];
   counts: NavCounts;
   navLabels?: Record<string, string>;
+  /** ຊື່ຜູ້ໃຊ້ — ສະແດງທ້າຍເມນູ ຄູ່ກັບປຸ່ມອອກ (topbar ຂອງ desktop ບໍ່ຂຶ້ນເທິງມືຖື) */
+  username: string;
+  logout: () => Promise<void>;
+  logoutLabel: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -44,6 +51,29 @@ export function MobileNav({
             navLabels={navLabels}
             onNavigate={() => setOpen(false)}
           />
+
+          {/**
+            * ຜູ້ໃຊ້ + ປຸ່ມອອກຈາກລະບົບ — **ຢູ່ນີ້ບ່ອນດຽວສຳລັບຈໍນ້ອຍ**.
+            * topbar ຂອງ desktop (app-shell) ເປັນ `hidden lg:flex` ⇒ ຄົນເປີດດ້ວຍມືຖື
+            * ບໍ່ເຫັນປຸ່ມອອກເລີຍ ຈົນກວ່າຈະມີບ່ອນນີ້.
+            */}
+          <div className="mt-auto border-t border-slate-800 px-4 pt-4">
+            <div className="flex items-center gap-2 px-2 py-1">
+              <span className="grid size-8 shrink-0 place-items-center rounded-md bg-teal-600 text-white">
+                <UserRound className="size-4" />
+              </span>
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate text-sm font-semibold text-white">{username}</span>
+                <span className="block text-[11px] tracking-wide text-slate-500">{ROLE_LABEL[role]}</span>
+              </span>
+            </div>
+            <form action={logout}>
+              <button className="mt-2 flex h-11 w-full items-center gap-3 rounded-lg px-2 text-sm font-medium text-red-400 transition hover:bg-red-500/10 hover:text-red-300">
+                <LogOut className="size-5" />
+                {logoutLabel}
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </>

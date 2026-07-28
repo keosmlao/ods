@@ -88,7 +88,16 @@ export function AppShell({
         collapsed={collapsed}
         onToggle={() => setCollapsed(!collapsed)}
       />
-      <MobileNav role={role} navFlags={navFlags} readableResources={readableResources} counts={counts} navLabels={navLabels} />
+      <MobileNav
+        role={role}
+        navFlags={navFlags}
+        readableResources={readableResources}
+        counts={counts}
+        navLabels={navLabels}
+        username={username}
+        logout={logout}
+        logoutLabel={shellLabels.logout}
+      />
 
       <div className={`transition-[padding] duration-200 ${collapsed ? "lg:pl-16" : "lg:pl-64"}`}>
         {/* Topbar — ເຕ້ຍ (56px), ຄ້າງໄວ້ */}
