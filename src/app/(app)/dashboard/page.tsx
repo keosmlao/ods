@@ -428,44 +428,69 @@ function RepeatPanel({ rows, t }: { rows: RepeatJob[]; t: Dict }) {
   );
 }
 
-function StaleTable({
-  title,
-  rows,
-  whoLabel,
-  hrefOf,
+function PriorityBacklog({
+  repairs,
+  installs,
   t,
 }: {
-  title: string;
-  rows: StaleJob[];
-  whoLabel: string;
-  hrefOf: (code: string) => string;
+  repairs: StaleJob[];
+  installs: StaleJob[];
   t: Dict;
 }) {
+  const rows = [
+    ...repairs.map((row) => ({ ...row, workflow: "repair" as const })),
+    ...installs.map((row) => ({ ...row, workflow: "install" as const })),
+  ]
+    .sort((a, b) => b.elapsed_seconds - a.elapsed_seconds)
+    .slice(0, 10);
+
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <h2 className="border-b border-slate-100 px-5 py-4 text-sm font-bold text-slate-800">{title}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+        <div>
+          <h2 className="text-sm font-bold text-slate-900">{t.priorityBacklog}</h2>
+          <p className="mt-0.5 text-[11px] text-slate-500">{t.priorityBacklogSubtitle}</p>
+        </div>
+        <span className="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-700">
+          TOP {rows.length}
+        </span>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[620px] border-collapse text-xs">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
               <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colNumber}</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.jobType}</th>
               <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colPending}</th>
               <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.customer}</th>
               <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colProduct}</th>
-              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{whoLabel}</th>
+              <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.tech}</th>
               <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colStage}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
               const tone = elapsedTone(row.elapsed_seconds);
+              const href =
+                row.workflow === "repair"
+                  ? `/service/${encodeURIComponent(row.code)}`
+                  : `/installations/${encodeURIComponent(row.code)}`;
               return (
-                <RowLink key={row.code} href={hrefOf(row.code)} className="border-b border-slate-100 transition last:border-0 hover:bg-teal-50/40">
+                <RowLink key={`${row.workflow}:${row.code}`} href={href} className="border-b border-slate-100 transition last:border-0 hover:bg-teal-50/40">
                   <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
                     <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
-                    <Link href={hrefOf(row.code)} className="hover:underline">
+                    <Link href={href} className="hover:underline">
                       {row.code}
                     </Link>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2.5">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      row.workflow === "repair"
+                        ? "bg-sky-50 text-sky-700"
+                        : "bg-violet-50 text-violet-700"
+                    }`}>
+                      {row.workflow === "repair" ? t.repairJob : t.installJob}
+                    </span>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5">
                     <Elapsed
@@ -723,7 +748,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const [{ data, error }, qc] = await Promise.all([getDashboard(tech, days), qcWorkflows()]);
   const repair: Counts = data?.repair ?? {};
   const install: Counts = data?.install ?? {};
-  const alerts = data ? alertsFor(role, data, qc.length > 0, t) : [];
+  const alerts = data
+    ? alertsFor(role, data, qc.length > 0, t).sort((a, b) => {
+        if (a.tone !== b.tone) return a.tone === "red" ? -1 : 1;
+        return b.value - a.value;
+      })
+    : [];
 
   const score = data?.feedback.avg_points ?? null;
   const oldestRepair = data?.oldest.repair_seconds ?? 0;
@@ -801,6 +831,53 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         ))}
       </section>
 
+      {/* ຄິວຫຼັກຢູ່ເທິງ: ເປີດໜ້າມາແລ້ວຮູ້ທັນທີວ່າຕ້ອງເຄຍຫຍັງກ່ອນ */}
+      {alerts.length > 0 && (
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">{t.actionNeeded}</h2>
+              <p className="mt-0.5 text-[11px] text-slate-500">{t.actionNeededSubtitle}</p>
+            </div>
+            <span className="rounded-full bg-slate-900 px-3 py-1 text-[10px] font-bold text-white">
+              {actionTotal.toLocaleString()} {t.kpiActionItems}
+            </span>
+          </div>
+          <div className="grid gap-px bg-slate-100 sm:grid-cols-2 xl:grid-cols-3">
+            {alerts.map(({ label, value, detail, href, icon: Icon, tone }, index) => {
+              const colors = TONE[tone];
+              return (
+                <Link
+                  key={label}
+                  href={href}
+                  className="group relative flex min-h-28 items-center gap-3 bg-white p-4 transition hover:z-10 hover:bg-slate-50"
+                >
+                  <span className={`absolute inset-y-0 left-0 w-1 ${colors.bar}`} />
+                  <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${colors.icon}`}>
+                    <Icon className="size-4.5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-slate-400">#{index + 1}</span>
+                      <p className="truncate text-xs font-semibold text-slate-700">{label}</p>
+                    </div>
+                    {detail && <p className="mt-1 truncate text-[11px] text-slate-500">{detail}</p>}
+                  </div>
+                  <p className={`shrink-0 text-3xl font-bold tracking-tight ${colors.value}`}>{value.toLocaleString()}</p>
+                  <ArrowRight className="size-3.5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-600" />
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {!error && alerts.length === 0 && (
+        <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800">
+          {t.noPendingWork}
+        </p>
+      )}
+
       <section className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
         <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="pointer-events-none absolute -bottom-16 -right-12 size-40 rounded-full bg-teal-100/70 blur-3xl" />
@@ -861,50 +938,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <p className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
           <AlertCircle className="size-4 shrink-0" />
           {t.loadError}
-        </p>
-      )}
-
-      {/* ① ຕ້ອງລົງມື — ສະເພາະສິ່ງທີ່ຜູ້ນີ້ເຮັດໄດ້ ແລະ ມີຄ້າງຢູ່ຈິງ */}
-      {alerts.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-end justify-between gap-3">
-            <div><h2 className="text-base font-bold text-slate-900">{t.actionNeeded}</h2><p className="mt-0.5 text-[11px] text-slate-500">{t.actionNeededSubtitle}</p></div>
-            <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-bold text-white">{alerts.length} {t.queue}</span>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {alerts.map(({ label, value, detail, href, icon: Icon, tone }) => {
-              const t = TONE[tone];
-              return (
-                <Link
-                  /**
-                   * key = label ບໍ່ແມ່ນ href — **href ຊ້ຳກັນໄດ້ໂດຍເຈດຕະນາ**: ບັດ
-                   * "ລໍກວດ QC (ສ້ອມ)" ກັບ "(ຕິດຕັ້ງ)" ເປັນຄົນລະຄິວ ແຕ່ໄປ /qc ບ່ອນດຽວກັນ
-                   * ⇒ key={href} ເຮັດໃຫ້ React ຖືວ່າເປັນບັດດຽວກັນ ແລ້ວບັດນຶ່ງຫາຍ.
-                   * label ບໍ່ຊ້ຳ (20/20) ແລະ ເປັນສິ່ງທີ່ບອກຄວາມເປັນບັດນັ້ນແທ້.
-                   */
-                  key={label}
-                  href={href}
-                  className={`group relative flex min-h-28 items-center justify-between gap-3 overflow-hidden rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${t.card}`}
-                >
-                  <span className={`absolute inset-y-0 left-0 w-1 ${t.bar}`} />
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-semibold text-slate-700">{label}</p>
-                    <p className={`mt-1 text-3xl font-bold tracking-tight ${t.value}`}>{value.toLocaleString()}</p>
-                    {detail && <p className="mt-0.5 truncate text-[11px] text-slate-500">{detail}</p>}
-                  </div>
-                  <span className={`grid size-11 shrink-0 place-items-center rounded-xl transition group-hover:scale-105 ${t.icon}`}>
-                    <Icon className="size-5" />
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {!error && alerts.length === 0 && (
-        <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800">
-          {t.noPendingWork}
         </p>
       )}
 
@@ -1023,23 +1056,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {/* ③ ແບບປະເມີນລູກຄ້າ — ມາດຕາສ່ວນກັບຫົວ (1 ດີສຸດ) ຈຶ່ງຕ້ອງບອກໃຫ້ຊັດທຸກບ່ອນ */}
       {data && score != null && <FeedbackPanel data={data} score={score} t={t} />}
 
-      {/* ④ ວຽກທີ່ຖືກລືມ — ຄ້າງດົນສຸດ (ບໍ່ແມ່ນ "ລ່າສຸດ" ເຊິ່ງແມ່ນວຽກທີ່ດ່ວນນ້ອຍທີ່ສຸດ) */}
-      <section className="grid gap-4 xl:grid-cols-2">
-        <StaleTable
-          title={t.staleRepairTitle}
-          rows={data?.staleRepairs ?? []}
-          whoLabel={t.tech}
-          hrefOf={(code) => `/service/${encodeURIComponent(code)}`}
-          t={t}
-        />
-        <StaleTable
-          title={t.staleInstallTitle}
-          rows={data?.staleInstalls ?? []}
-          whoLabel={t.tech}
-          hrefOf={(code) => `/installations/${encodeURIComponent(code)}`}
-          t={t}
-        />
-      </section>
+      {/* ④ ຄິວດຽວ: ວຽກສ້ອມ + ຕິດຕັ້ງ ທີ່ຄ້າງດົນສຸດ */}
+      <PriorityBacklog repairs={data?.staleRepairs ?? []} installs={data?.staleInstalls ?? []} t={t} />
 
       {/* ⑤ ສ້ອມຊ້ຳ — ເຄື່ອງໜ່ວຍດຽວກັນກັບມາພາຍໃນ 30 ມື້ = ຄັ້ງກ່ອນສ້ອມບໍ່ຈົບ */}
       {(data?.repeats.length ?? 0) > 0 && <RepeatPanel rows={data!.repeats} t={t} />}
