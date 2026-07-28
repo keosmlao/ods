@@ -9,6 +9,7 @@ import { roleOf } from "@/lib/roles";
 import { canViewAssignedJob } from "@/lib/scope";
 import { STAGE_SQL } from "@/lib/stage";
 import { ERP, LINE_STATUS, RETURN_SHELF, RETURN_WH, TRANS } from "@/lib/stock-constants";
+import { installSpareOutstanding, TRANS_PICK } from "@/lib/install-spare-gate";
 
 /**
  * ຂັ້ນຕອນຂອງຊ່າງ ພາກ **ກວດເຊັກ ແລະ ອາໄຫຼ່** — ໃຊ້ຮ່ວມກັນລະຫວ່າງເວັບ ແລະ ແອັບມືຖື
@@ -21,8 +22,6 @@ import { ERP, LINE_STATUS, RETURN_SHELF, RETURN_WH, TRANS } from "@/lib/stock-co
 const NOW = "localtimestamp(0)";
 /** ລັອກຕອນອອກເລກເອກະສານ — ຄ່າດຽວກັບ actions/stock.ts (ຢ່າປ່ຽນ) */
 const DOC_LOCK = 734211;
-/** ໃບຮັບອາໄຫຼ່ຂອງຊ່າງ (PISP) */
-const TRANS_PICK = 166;
 
 const jobModel = (code: string) => (code.startsWith("INST-") ? "ods_tb_install" : "tb_product");
 
@@ -764,13 +763,15 @@ export async function pickupSpares(session: Session, docRef: string, remark: str
     }
 
     if (workflow === "install") {
-      const unpicked = await client.query<{ count: number }>(
-        `select count(*)::int count from ic_trans t
-          where t.trans_flag=$1 and t.product_code=$2 and t.job_type='install'
-            and not exists (select 1 from ic_trans p where p.trans_flag=$3 and p.doc_ref=t.doc_no)`,
-        [TRANS.DISPATCH, productCode, TRANS_PICK],
+      /**
+       * ຄົບທັງ "ເບີກຄົບທຸກໃບຂໍ" ແລະ "ຮັບຄົບທຸກໃບເບີກ" ຈຶ່ງໄປ "ລໍຖ້າຕິດຕັ້ງ" —
+       * ກົດເກນຢູ່ lib/install-spare-gate ບ່ອນດຽວ (ຝັ່ງເວັບໃຊ້ອັນດຽວກັນ).
+       */
+      const outstanding = await installSpareOutstanding(
+        (sql, params) => client.query(sql, params),
+        productCode,
       );
-      if (!unpicked.rows[0]?.count) {
+      if (outstanding.done) {
         await client.query(`update ods_tb_install set pick_finish=${NOW} where code=$1`, [productCode]);
         await client.query(`update ods_tb_install_detail set pick_finish=${NOW} where code=$1`, [productCode]);
       }

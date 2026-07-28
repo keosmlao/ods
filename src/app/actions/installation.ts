@@ -17,6 +17,7 @@ import { takeFromForm } from "@/lib/spare-take";
 import { type Role, roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
 import { INSTALL_STAGE_SQL } from "@/lib/install-stage";
+import { installSpareOutstanding } from "@/lib/install-spare-gate";
 import { feedbackUrl, validFeedbackToken } from "@/lib/track";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -1592,14 +1593,15 @@ export async function savePickSpare(
       );
     }
 
-    // ບໍ່ເຫຼືອໃບເບີກທີ່ຍັງບໍ່ໄດ້ຮັບແລ້ວ ⇒ ຂັ້ນ 3 ຈົບ (ນິຍາມດຽວກັບໜ້າ /installations/spare-pickup)
-    const unpicked = await client.query<{ count: number }>(
-      `select count(*)::int count from ic_trans t
-       where t.trans_flag=56 and t.product_code=$1
-         and not exists (select 1 from ic_trans p where p.trans_flag=166 and p.doc_ref=t.doc_no)`,
-      [productCode],
+    /**
+     * ຂັ້ນ 3 ຈົບເມື່ອ **ເບີກຄົບທຸກໃບຂໍ ແລະ ຮັບຄົບທຸກໃບເບີກ** — ກົດເກນຢູ່
+     * lib/install-spare-gate ບ່ອນດຽວ (ແອັບມືຖືໃຊ້ອັນດຽວກັນ).
+     */
+    const outstanding = await installSpareOutstanding(
+      (sql, params) => client.query(sql, params),
+      productCode,
     );
-    if (!unpicked.rows[0]?.count) {
+    if (outstanding.done) {
       await client.query(
         "update ods_tb_install set pick_finish=localtimestamp(0) where code=$1",
         [productCode],
