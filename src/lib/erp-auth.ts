@@ -101,6 +101,30 @@ export const ERP_ROLE_CASE = `case
   when e.department_code = '405' then 'admin'
   else 'user' end`;
 
+/**
+ * ── ໃຜມີສິດ **ເຂົ້າລະບົບນີ້** (ນະໂຍບາຍຂອງຜູ້ຈັດການ 28-07-2026) ──
+ *
+ *   ໄດ້: ຝ່າຍບໍລິການ (400) **ຍົກເວັ້ນ ຕິດຕັ້ງໂຄງການ (403)** · ສາງ (501) · ໄອທີ (801)
+ *   ບໍ່ໄດ້: ພະແນກອື່ນທັງໝົດ (ຂາຍ · ບັນຊີ · ຂົນສົ່ງ · ບຸກຄະລາກອນ …)
+ *
+ * ເປັນຫຍັງຕັດ 403: ຊ່າງໂຄງການບໍ່ຮັບງານສ້ອມ/ຕິດຕັ້ງຂອງສູນບໍລິການ — ຕົງກັບຂອບເຂດ
+ * "ສູນບໍລິການ" ທີ່ໃຊ້ຢູ່ /manage/employees ແລະ dropdown ຈັດຊ່າງ (lib/technicians).
+ * ໄອທີໃສ່ເຂົ້າມາເພື່ອແກ້ບັນຫາລະບົບໄດ້.
+ *
+ * ⚠️ ນີ້ຄື **ຕຳແໜ່ງບໍ່ກ່ຽວ** — ຜູ້ຈັດການພະແນກອື່ນ (ຕຳແໜ່ງ 11) ກໍ່ເຂົ້າບໍ່ໄດ້ ເຖິງແມ່ນ
+ * roleFromErp() ຈະໃຫ້ role `manager` ກໍ່ຕາມ. ຖ້າຕ້ອງໃຫ້ໃຜຄົນນຶ່ງເຂົ້າໄດ້ເປັນກໍລະນີ
+ * ຜູ້ຈັດການກຳນົດສິດໃຫ້ທີ່ /manage/employees — ສິດທີ່ກຳນົດເອງຊະນະດ່ານນີ້.
+ */
+const PROJECT_INSTALL_DEPT = "403";
+const EXTRA_DEPTS = ["501", "801"]; // ສາງ · ໄອທີ
+
+export function canEnterApp(divisionCode: string | null, departmentCode: string | null): boolean {
+  const division = (divisionCode ?? "").trim();
+  const department = (departmentCode ?? "").trim();
+  if (division === "400") return department !== PROJECT_INSTALL_DEPT;
+  return EXTRA_DEPTS.includes(department);
+}
+
 export function roleFromErp(
   appRole: string | null,
   positionCode: string | null,

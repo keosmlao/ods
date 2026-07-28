@@ -1,7 +1,7 @@
 import { type Session, verifyWerkzeugPassword } from "@/lib/auth";
 import { query, queryOdg } from "@/lib/db";
 import { getEmployeeOverride, isBlockedIdentity } from "@/lib/employee-role";
-import { ERP_IDENTITY_SQL, roleFromErp, verifyErpPassword } from "@/lib/erp-auth";
+import { canEnterApp, ERP_IDENTITY_SQL, roleFromErp, verifyErpPassword } from "@/lib/erp-auth";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 /**
@@ -13,6 +13,9 @@ import { clientIp, rateLimit } from "@/lib/rate-limit";
  */
 
 export const BLOCKED = "ບັນຊີນີ້ຖືກປິດການໃຊ້ງານ ກະລຸນາຕິດຕໍ່ຜູ້ຈັດການ";
+/** ຢູ່ນອກຂອບເຂດຜູ້ໃຊ້ລະບົບ (ເບິ່ງ canEnterApp ໃນ lib/erp-auth) */
+export const OUT_OF_SCOPE =
+  "ພະແນກຂອງທ່ານບໍ່ໄດ້ໃຊ້ລະບົບນີ້ (ສະເພາະ ສູນບໍລິການ · ສາງ · ໄອທີ). ຖ້າຕ້ອງການສິດ ກະລຸນາຕິດຕໍ່ຜູ້ຈັດການ";
 export const BAD_CREDENTIALS = "ລະຫັດພະນັກງານ ຫຼື ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ";
 export const TOO_MANY = "ລອງເຂົ້າຫຼາຍເທື່ອເກີນໄປ — ກະລຸນາລໍ 5 ນາທີແລ້ວລອງໃໝ່";
 
@@ -30,6 +33,7 @@ type ErpEmployee = {
   /** ຊື່ທີ່ຈະເກັບເປັນຕົວຕົນໃນລະບົບ — ຕົງກັບຄ່າທີ່ເກັບໃນ tb_product.emp_code */
   identity: string;
   fullname_lo: string;
+  division_code: string | null;
   department_code: string | null;
   position_code: string | null;
   app_role: string | null;
@@ -42,7 +46,7 @@ type OdsUser = { roles: string; password: string | null; password_hash: string |
 const ERP_SQL = `
   select e.employee_code,
          ${ERP_IDENTITY_SQL} as identity,
-         e.fullname_lo, e.department_code, e.position_code, e.app_role, e.password
+         e.fullname_lo, e.division_code, e.department_code, e.position_code, e.app_role, e.password
   from odg_employee e
   where e.employment_status = 'ACTIVE'
     and ( e.employee_code = $1
@@ -67,6 +71,14 @@ export async function verifyCredentials(username: string, password: string): Pro
     // ສິດທີ່ຜູ້ຈັດການກຳນົດເອງ (/manage/employees) ຢູ່ເທິງສຸດ — ປິດແລ້ວ ເຂົ້າບໍ່ໄດ້ເລີຍ
     const assigned = await getEmployeeOverride(employee.employee_code);
     if (assigned && !assigned.active) return { ok: false, error: BLOCKED };
+
+    /**
+     * ດ່ານຂອບເຂດພະແນກ — ວາງ **ຫຼັງ** ການກຳນົດສິດເອງ ເພື່ອໃຫ້ຜູ້ຈັດການເປີດໃຫ້
+     * ຄົນນອກຂອບເຂດເປັນລາຍຄົນໄດ້ (/manage/employees) ໂດຍບໍ່ຕ້ອງແກ້ໂຄ້ດ.
+     */
+    if (!assigned?.app_role && !canEnterApp(employee.division_code, employee.department_code)) {
+      return { ok: false, error: OUT_OF_SCOPE };
+    }
 
     // users ຂອງ ODS ຊະນະພະແນກ ERP (ERP ບໍ່ມີສັນຍານ "ຜູ້ຈັດການ"/"ຫົວໜ້າຊ່າງ")
     const override = (
@@ -123,6 +135,17 @@ export async function verifyCredentials(username: string, password: string): Pro
   if (user && valid) {
     // ຄົນດຽວກັນອາດມີທັງແຖວ users ແລະ ພະນັກງານ ERP — ຖ້າຖືກປິດ ຕ້ອງປິດທາງນີ້ນຳ
     if (await isBlockedIdentity(username)) return { ok: false, error: BLOCKED };
+    /**
+     * ດ່ານຂອບເຂດພະແນກ ຕ້ອງກັນທາງນີ້ນຳ — ຄົນທີ່ມີທັງແຖວ users ເກົ່າ ແລະ ພະນັກງານ ERP
+     * ນອກຂອບເຂດ ຈະຫຼົບເຂົ້າທາງນີ້ໄດ້ (ລະຫັດ ERP ບໍ່ຜ່ານ ກໍ່ຕົກມາລອງ hash ເກົ່າ).
+     * ຜູ້ໃຊ້ເກົ່າທີ່ **ບໍ່ມີ**ແຖວ ERP (ບັນຊີລະບົບ) ບໍ່ຖືກກະທົບ.
+     */
+    if (employee) {
+      const assigned = await getEmployeeOverride(employee.employee_code);
+      if (!assigned?.app_role && !canEnterApp(employee.division_code, employee.department_code)) {
+        return { ok: false, error: OUT_OF_SCOPE };
+      }
+    }
     return { ok: true, session: { username, role: user.roles } };
   }
 
