@@ -3,7 +3,8 @@ import { BillDismissButton } from "@/components/installation/bill-dismiss-button
 import { pendingInstallBills } from "@/lib/pending-bills";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
-import { CalendarClock, FilePlus2, Phone, Search, TriangleAlert } from "lucide-react";
+import { DeliveryProof } from "@/components/installation/delivery-proof";
+import { CalendarClock, FilePlus2, Phone, Search, TriangleAlert, Truck } from "lucide-react";
 
 /**
  * **ບິນທີ່ຄ້າງອອກໃບງານ** — ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ ແຕ່ຍັງບໍ່ມີໃບງານ (ຫຼື ມີບໍ່ຄົບ).
@@ -82,6 +83,7 @@ export default async function PendingBillsPage({ searchParams }: Props) {
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colDocNo}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colItems}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colCustomer}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colDelivery}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colPaidInstall}</th>
                 <th className="px-3 py-2.5" />
               </tr>
@@ -148,6 +150,44 @@ export default async function PendingBillsPage({ searchParams }: Props) {
                       <Phone className="size-3" />
                       {bill.telephone}
                     </a>
+                  )}
+                </td>
+
+                {/**
+                  * ── ຂົນສົ່ງເອົາເຄື່ອງໄປສົ່ງແລ້ວບໍ ──
+                  * ບິນທີ່ຍັງ "ຄ້າງສົ່ງ" ຍັງບໍ່ຄວນຈັດຊ່າງ (ໄປຮອດແລ້ວບໍ່ມີເຄື່ອງ)
+                  * ⇒ ຖັນນີ້ບອກ CS ວ່າໃບໃດເປີດງານໄດ້ເລີຍ ໃບໃດຕ້ອງລໍ.
+                  * ສີຄິດຈາກ **ວັນທີສົ່ງ** ບໍ່ແມ່ນຂໍ້ຄວາມ (ERP ປ່ຽນຄຳສັບກໍ່ຍັງຖືກ).
+                  */}
+                <td className="whitespace-nowrap px-3 py-2.5">
+                  {bill.ship_status ? (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                        bill.ship_date ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                      }`}
+                    >
+                      <Truck className="size-3" />
+                      {bill.ship_status}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-400">{t.notInTms}</span>
+                  )}
+                  {bill.ship_date && (
+                    <span className="mt-0.5 block text-[11px] text-slate-400">{bill.ship_date}</span>
+                  )}
+                  {bill.proof > 0 && (
+                    <span className="mt-1 block">
+                      <DeliveryProof
+                        billNo={bill.doc_no}
+                        count={bill.proof}
+                        labels={{
+                          proof: t.proof,
+                          loading: t.proofLoading,
+                          none: t.proofNone,
+                          close: t.close,
+                        }}
+                      />
+                    </span>
                   )}
                 </td>
 

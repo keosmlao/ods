@@ -40,6 +40,16 @@ export type PendingBill = {
   items: BillLine[];
   /** ແຖວຄ່າບໍລິການຕິດຕັ້ງທີ່ພະນັກງານຂາຍໃສ່ໄວ້ (9701xx · 970102xx) */
   services: BillLine[];
+  /**
+   * ── ຂົນສົ່ງເອົາເຄື່ອງໄປສົ່ງແລ້ວບໍ ──
+   * ສຳຄັນຕໍ່ຄິວນີ້: ບິນທີ່ **ຍັງບໍ່ໄດ້ສົ່ງເຄື່ອງ** ຍັງບໍ່ຄວນຈັດຊ່າງໄປຕິດ
+   * (ໄປຮອດແລ້ວບໍ່ມີເຄື່ອງ) ⇒ CS ຈັດລຳດັບໄດ້ຖືກວ່າໃບໃດຮີບໄດ້.
+   * ຄ່າດິບຈາກ ERP: `ສົ່ງແລ້ວ` / `ຄ້າງສົ່ງ` · null = ບໍ່ຢູ່ໃນລະບົບຂົນສົ່ງ (ຫອບເອງ)
+   */
+  ship_status: string | null;
+  ship_date: string | null;
+  /** ຮູບຫຼັກຖານການສົ່ງທີ່ຄົນສົ່ງຖ່າຍໄວ້ — 0 = ບໍ່ມີຫຼັກຖານ */
+  proof: number;
 };
 
 /** ບໍ່ໄລ່ຍ້ອນຫຼັງເກີນນີ້ — ບິນເກົ່າກວ່ານີ້ຖືວ່າຈົບໄປແລ້ວ (ຫຼື ຕິດເອງ) */
@@ -94,6 +104,9 @@ export async function pendingInstallBills(withDismissed = false): Promise<Pendin
         dismissed: mark ? { reason: mark.reason, by: mark.by, at: mark.at } : undefined,
         items: [] as BillLine[],
         services: [] as BillLine[],
+        ship_status: null as string | null,
+        ship_date: null as string | null,
+        proof: 0,
       };
     })
     /**
@@ -140,6 +153,40 @@ export async function pendingInstallBills(withDismissed = false): Promise<Pendin
     const own = lines.rows.filter((row) => row.doc_no === bill.doc_no);
     bill.items = own.filter((row) => row.kind === "item");
     bill.services = own.filter((row) => row.kind === "service");
+  }
+
+  /**
+   * ── ສະຖານະການສົ່ງ + ຫຼັກຖານ ──
+   * ສອງ query ນ້ອຍ ດ້ວຍລາຍການເລກບິນທີ່ຄັດແລ້ວ (ບໍ່ແມ່ນ join ເຂົ້າ query ຫຼັກ —
+   * bill_tracking_tms ບໍ່ມີ index ຢູ່ doc_no, ເບິ່ງເຫດຜົນທີ່ api/installations/bills).
+   */
+  const docs = pending.map((bill) => bill.doc_no);
+  const [ship, proof] = await Promise.all([
+    queryOdg<{ doc_no: string; status_ship: string | null; ship_date: string | null }>(
+      `select distinct on (doc_no) doc_no, status_ship, to_char(ship_date,'DD-MM-YYYY') as ship_date
+         from bill_tracking_tms
+        where doc_no = any($1::text[])
+        order by doc_no, ship_date desc nulls last`,
+      [docs],
+    ),
+    queryOdg<{ bill_no: string; photos: number }>(
+      `select d.bill_no,
+          (max(case when coalesce(d.url_img,'') <> '' then 1 else 0 end)
+           + (select count(*)::int from odg_tms_delivery_images i where i.bill_no = d.bill_no)) as photos
+         from odg_tms_detail d
+        where d.bill_no = any($1::text[])
+        group by d.bill_no`,
+      [docs],
+    ),
+  ]);
+
+  const shipBy = new Map(ship.rows.map((row) => [row.doc_no, row]));
+  const proofBy = new Map(proof.rows.map((row) => [row.bill_no, Number(row.photos) || 0]));
+  for (const bill of pending) {
+    const found = shipBy.get(bill.doc_no);
+    bill.ship_status = found?.status_ship ?? null;
+    bill.ship_date = found?.ship_date ?? null;
+    bill.proof = proofBy.get(bill.doc_no) ?? 0;
   }
 
   return pending;

@@ -3634,7 +3634,13 @@
     "units": "units",
     "openJob": "Open job sheet",
     "emptySearch": "No bills match your search",
-    "emptyAll": "No pending bills — every paid-installation bill has its job sheet"
+    "emptyAll": "No pending bills — every paid-installation bill has its job sheet",
+    "colDelivery": "Delivery",
+    "notInTms": "Not in transport system",
+    "proof": "Proof",
+    "proofLoading": "Loading photos…",
+    "proofNone": "No proof photos",
+    "close": "Close"
   },
   "requestForm": {
     "docNoLabel": "No.",
