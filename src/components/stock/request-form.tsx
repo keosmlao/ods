@@ -21,6 +21,13 @@ export type RequestHead = {
 };
 
 /** ods: templates/stock/req_page.html + /save_req */
+/**
+ * id ຂອງຟອມບັນທຶກ — ຊ່ອງ "ເບີກຮອບນີ້" ຢູ່**ນອກ**ຟອມນີ້ (ຢູ່ຕາຕະລາງອາໄຫຼ່ ເຊິ່ງມີ
+ * ຟອມນ້ອຍຂອງມັນເອງສຳລັບແກ້ຈຳນວນ/ລຶບ) ⇒ ຜູກເຂົ້າຟອມນີ້ດ້ວຍ attribute `form=`
+ * (ຟອມຊ້ອນຟອມເປັນ HTML ທີ່ບໍ່ຖືກຕ້ອງ).
+ */
+export const REQUEST_FORM_ID = "spare-request-form";
+
 export function RequestForm({
   head,
   docNo,
@@ -28,6 +35,7 @@ export function RequestForm({
   warehouses,
   shelves,
   hasSpares,
+  roworder,
   warehouseValue,
   shelfValue,
   onWarehouseChange,
@@ -39,6 +47,8 @@ export function RequestForm({
   warehouses: Warehouse[];
   shelves: Shelf[];
   hasSpares: boolean;
+  /** ໃຊ້ພາກັບມາໜ້ານີ້ ຖ້າຍັງມີລາຍການຄ້າງ (ເບີກຕໍ່ຈາກສາງອື່ນ) */
+  roworder: string;
   warehouseValue: string;
   shelfValue: string;
   onWarehouseChange: (value: string) => void;
@@ -48,8 +58,9 @@ export function RequestForm({
   const [state, action] = useActionState<StockState, FormData>(saveRequest, {});
 
   return (
-    <form action={action} className="space-y-3">
+    <form id={REQUEST_FORM_ID} action={action} className="space-y-3">
       <input type="hidden" name="Product_code" value={head.product_code} />
+      <input type="hidden" name="roworder" value={roworder} />
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/70 px-4 py-3">

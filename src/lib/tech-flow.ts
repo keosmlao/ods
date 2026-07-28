@@ -317,11 +317,25 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
 /**
  * ສ້າງໃບຂໍເບີກຈາກກະຕ່າ tb_used_spare — ຄັດລອກຈາກ actions/stock.saveRequest.
  * ຂໍ **ສະເພາະຈຳນວນທີ່ຍັງຄ້າງ** (OUTSTANDING_SPARES) ⇒ ບໍ່ຂໍຊ້ຳຂອງທີ່ເບີກອອກໄປແລ້ວ.
+ *
+ * ── ແບ່ງເບີກຫຼາຍສາງ: **1 ສາງ ຕໍ່ 1 ໃບ** (28-07-2026) ──
+ * ແຕ່ກ່ອນໃບນຶ່ງກິນ "ຈຳນວນຄ້າງທັງໝົດ" ແລະ ຖ້າສາງທີ່ເລືອກບໍ່ພໍ **ປະຕິເສດທັງໃບ**
+ * ("ຕ້ອງສັ່ງຊື້ ແລະຮັບເຂົ້າສາງກ່ອນ") ⇒ ຂອງທີ່ກະຈາຍຢູ່ 2-3 ສາງ ເບີກບໍ່ໄດ້ຈັກໜ່ວຍ
+ * ທັງທີ່ລວມກັນມີພໍ. ດຽວນີ້ `take` ບອກວ່າ **ໃບນີ້ເອົາຈັກໜ່ວຍຕໍ່ລາຍການ** (ຕັ້ງຕົ້ນ =
+ * ເທົ່າທີ່ສາງນີ້ມີ) ສ່ວນທີ່ເຫຼືອຍັງ "ຄ້າງ" ⇒ ອອກໃບໃໝ່ຈາກສາງອື່ນໄດ້ທັນທີ.
+ * ບໍ່ສົ່ງ `take` ມາ = ພຶດຕິກຳເກົ່າ (ເອົາຄ້າງທັງໝົດ) ⇒ ແອັບມືຖືບໍ່ຕ້ອງແກ້.
  */
 export async function createSpareRequest(
   session: Session,
-  input: { code: string; remark: string; wh_code: string; shelf_code: string },
-): Promise<FlowResult & { doc_no?: string }> {
+  input: {
+    code: string;
+    remark: string;
+    wh_code: string;
+    shelf_code: string;
+    /** item_code → ຈຳນວນທີ່ຈະເອົາໃສ່ **ໃບນີ້** (ຕັດໃຫ້ບໍ່ເກີນຈຳນວນຄ້າງຢູ່ server) */
+    take?: Record<string, number>;
+  },
+): Promise<FlowResult & { doc_no?: string; remaining?: number }> {
   if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };
   if (!input.wh_code || !input.shelf_code) return { ok: false, error: "ກະລຸນາເລືອກສາງ ແລະ ທີ່ເກັບ" };
 
@@ -333,6 +347,8 @@ export async function createSpareRequest(
   const odg = await odgDb.connect();
   let docNo = "";
   let lineCount = 0;
+  /** ລາຍການທີ່ຍັງຄ້າງຫຼັງໃບນີ້ (ເອົາບໍ່ຄົບ ຫຼື ຍັງບໍ່ໄດ້ເອົາ) — ໃຫ້ອອກໃບຈາກສາງອື່ນຕໍ່ */
+  let remaining = 0;
 
   try {
     await client.query("begin");
@@ -398,7 +414,25 @@ export async function createSpareRequest(
       await odg.query("rollback");
       return { ok: false, error: "ບໍ່ມີອາໄຫຼ່ທີ່ຄ້າງຂໍເບີກ (ຂໍໄປແລ້ວ ຫຼື ເບີກອອກແລ້ວ)" };
     }
-    lineCount = lines.rows.length;
+
+    /**
+     * ຈຳນວນທີ່ **ໃບນີ້** ຈະເອົາ — ຕັດໃຫ້ບໍ່ເກີນຈຳນວນຄ້າງທີ່ຄິດຈາກ server ສະເໝີ
+     * (ຢ່າເຊື່ອຕົວເລກຈາກ browser — ບໍ່ດັ່ງນັ້ນຂໍເກີນແລ້ວສາງເບີກອອກເກີນ).
+     */
+    const picked = lines.rows
+      .map((line) => {
+        const outstanding = Number(line.qty);
+        const want = input.take?.[line.item_code];
+        const qty = want == null ? outstanding : Math.min(outstanding, Math.max(0, want));
+        return { ...line, qty: String(qty), outstanding };
+      })
+      .filter((line) => Number(line.qty) > 0);
+    if (picked.length === 0) {
+      await client.query("rollback");
+      await odg.query("rollback");
+      return { ok: false, error: "ຍັງບໍ່ໄດ້ລະບຸຈຳນວນທີ່ຈະເບີກໃນໃບນີ້" };
+    }
+    lineCount = picked.length;
 
     // ຫ້າມອອກ SIO ກ່ອນຂອງເຂົ້າສາງຈິງ: ກວດ ERP ສາງ+ບ່ອນເກັບທີ່ເລືອກ ຢູ່ server ອີກຄັ້ງ.
     const stock = await odg.query<{ code: string; balance_qty: string }>(
@@ -406,18 +440,23 @@ export async function createSpareRequest(
          from unnest($1::text[]) i(code)
          left join lateral sml_ic_function_stock_balance_warehouse_location('2099-12-31',i.code,$2,$3) b on true
         group by i.code`,
-      [lines.rows.map((line) => line.item_code), input.wh_code, input.shelf_code],
+      [picked.map((line) => line.item_code), input.wh_code, input.shelf_code],
     );
     const available = new Map(stock.rows.map((row) => [row.code, Number(row.balance_qty)]));
-    const shortage = lines.rows.filter((line) => (available.get(line.item_code) ?? 0) < Number(line.qty));
+    /**
+     * ⚠️ ກວດກັບ **ຈຳນວນທີ່ໃບນີ້ຂໍ** ບໍ່ແມ່ນຈຳນວນຄ້າງທັງໝົດອີກ — ນີ້ຄືສິ່ງທີ່ເຮັດໃຫ້
+     * "ແບ່ງເບີກຫຼາຍສາງ" ເປັນໄປໄດ້: ສາງນີ້ມີ 2 ຈາກ 5 ⇒ ຂໍ 2 ຜ່ານ, ອີກ 3 ໄປໃບຂອງສາງອື່ນ.
+     * ຍັງກັນການຂໍເກີນຂອງທີ່ມີຈິງຢູ່ (ຂໍ 3 ແຕ່ສາງມີ 2 = ບໍ່ຜ່ານ).
+     */
+    const shortage = picked.filter((line) => (available.get(line.item_code) ?? 0) < Number(line.qty));
     if (shortage.length > 0) {
       await client.query("rollback");
       await odg.query("rollback");
       return {
         ok: false,
-        error: `ຍັງຂໍເບີກບໍ່ໄດ້ — ERP ສາງ ${input.wh_code}/${input.shelf_code} ບໍ່ພໍ: ${shortage
-          .map((line) => `${line.item_code} ຕ້ອງການ ${Number(line.qty)} ມີ ${available.get(line.item_code) ?? 0}`)
-          .join(", ")} · ຕ້ອງສັ່ງຊື້ ແລະຮັບເຂົ້າສາງກ່ອນ`,
+        error: `ຂໍເກີນຂອງທີ່ມີ — ERP ສາງ ${input.wh_code}/${input.shelf_code}: ${shortage
+          .map((line) => `${line.item_code} ຂໍ ${Number(line.qty)} ມີ ${available.get(line.item_code) ?? 0}`)
+          .join(", ")} · ຫຼຸດຈຳນວນລົງ ແລ້ວເອົາສ່ວນທີ່ເຫຼືອຈາກສາງອື່ນ (ຫຼື ສັ່ງຊື້)`,
       };
     }
 
@@ -427,7 +466,7 @@ export async function createSpareRequest(
        values($1,$2,$3,$4,$5,$6,$7,$8)`,
       [TRANS.REQUEST, docDate, docNo, input.code, input.remark, session.username, input.wh_code, input.shelf_code],
     );
-    for (const line of lines.rows) {
+    for (const line of picked) {
       await client.query(
         `insert into ic_trans_detail(trans_flag, doc_date, doc_no, product_code, item_code, item_name, qty, unit_code, calc_flag, user_created, status)
          values($1,$2,$3,$4,$5,$6,$7,$8,1,$9,$10)`,
@@ -437,21 +476,31 @@ export async function createSpareRequest(
         ],
       );
     }
-    await client.query(
-      `update tb_used_spare set reg_start=${NOW}
-        where product_code=$1 and reg_start is null and item_code = any($2::varchar[])`,
-      [input.code, lines.rows.map((line) => line.item_code)],
-    );
+    /**
+     * ໝາຍ "ຂໍເບີກແລ້ວ" ສະເພາະລາຍການທີ່ **ຂໍຄົບຈຳນວນ** ໃນໃບນີ້ — ລາຍການທີ່ຍັງເອົາບໍ່ຄົບ
+     * ຕ້ອງເຫຼືອ reg_start ຫວ່າງ ບໍ່ດັ່ງນັ້ນໜ້າຈໍຈະຂຶ້ນວ່າ "ຂໍໄປແລ້ວ" ທັງທີ່ຍັງຄ້າງເຄິ່ງ.
+     * (ຈຳນວນຄ້າງຈິງຄິດຈາກບັນຊີເອກະສານ OUTSTANDING_SPARES ຢູ່ແລ້ວ — ທຸງນີ້ແມ່ນສະແດງຜົນ)
+     */
+    const fully = picked.filter((line) => Number(line.qty) >= line.outstanding).map((line) => line.item_code);
+    if (fully.length > 0) {
+      await client.query(
+        `update tb_used_spare set reg_start=${NOW}
+          where product_code=$1 and reg_start is null and item_code = any($2::varchar[])`,
+        [input.code, fully],
+      );
+    }
     await client.query(`update tb_product set spare_reg=${NOW} where code=$1`, [input.code]);
 
     await writeErpRequest(
       {
         doc_no: docNo, doc_date: docDate, doc_time: docTime,
         job_code: input.code, wh_code: input.wh_code, shelf_code: input.shelf_code,
-        remark: input.remark, requester: session.username, lines: lines.rows,
+        remark: input.remark, requester: session.username, lines: picked,
       },
       odg,
     );
+    // ຍັງເຫຼືອຈັກລາຍການໃຫ້ອອກໃບຈາກ**ສາງອື່ນ** — ຜູ້ເອີ້ນໃຊ້ພາຄົນກັບມາໜ້າເກົ່າ
+    remaining = lines.rows.length - fully.length;
 
     // ⚠️ 2 DB (ODS + ERP) — commit ບໍ່ atomic ຂ້າມ cluster ໄດ້. ຖ້າ commit ທຳອິດຜ່ານ
     // ແຕ່ອັນທີ 2 ລົ້ມ (ຫາຍາກ: ຫຼຸດ connection ຕອນ commit) ⇒ ຂ້າງໜຶ່ງ save ອີກຂ້າງບໍ່.
@@ -479,7 +528,12 @@ export async function createSpareRequest(
     `ສ້າງໃບຂໍເບີກ ${docNo} · ອາໄຫຼ່ ${lineCount} ລາຍການ${input.remark ? ` · ${input.remark}` : ""}`,
     { author: session.username, roles: ROLE_WAREHOUSE },
   );
-  return { ok: true, message: `ສ້າງໃບຂໍເບີກ ${docNo} (${lineCount} ລາຍການ)`, doc_no: docNo };
+  return {
+    ok: true,
+    message: `ສ້າງໃບຂໍເບີກ ${docNo} (${lineCount} ລາຍການ)${remaining > 0 ? ` · ຍັງຄ້າງ ${remaining} ລາຍການ` : ""}`,
+    doc_no: docNo,
+    remaining,
+  };
 }
 
 /** ໃບຂໍເບີກອາໄຫຼ່ຂອງງານຕິດຕັ້ງ — ໃຊ້ກົດ outstanding ດຽວກັນ. */

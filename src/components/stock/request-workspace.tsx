@@ -42,6 +42,7 @@ export function RequestWorkspace({
         warehouses={warehouses}
         shelves={shelves}
         hasSpares={lines.length > 0 && canRequest}
+        roworder={roworder}
         warehouseValue={warehouse}
         shelfValue={shelf}
         onWarehouseChange={(value) => {

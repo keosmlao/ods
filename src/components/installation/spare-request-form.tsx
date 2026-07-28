@@ -19,6 +19,7 @@ import {
   labelClass,
 } from "@/components/ui";
 import { useDict } from "@/lib/i18n/context";
+import { takeField } from "@/lib/spare-take";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -244,14 +245,16 @@ export function SpareRequestForm({
                 t.colItemCode,
                 t.colItemNameStock,
                 t.colQty,
+                t.takeNow,
                 t.colUnit,
                 "",
               ]}
-              minWidth={900}
+              minWidth={1000}
             >
               {lines.map((line, index) => (
                 <LineRow
-                  key={line.roworder}
+                  // ປ່ຽນສາງ ⇒ remount ເພື່ອໃຫ້ຊ່ອງ "ເບີກຮອບນີ້" ຕັ້ງຄ່າໃໝ່ຕາມສາງນັ້ນ
+                  key={`${line.roworder}-${wh}`}
                   t={t}
                   code={code}
                   line={line}
@@ -352,6 +355,24 @@ function LineRow({
         <span className="font-bold tabular-nums text-slate-700">
           {Number(line.qty).toLocaleString()}
         </span>
+      </td>
+      {/*
+        ── ເບີກຮອບນີ້ (1 ສາງ / 1 ໃບ) ──
+        ຕັ້ງຕົ້ນ = **ເທົ່າທີ່ສາງທີ່ເລືອກມີ** (ບໍ່ເກີນຈຳນວນຄ້າງ) ⇒ ກົດບັນທຶກເລີຍກໍ່ຖືກ.
+        ສ່ວນທີ່ເຫຼືອຍັງຄ້າງໄວ້ ⇒ ຫຼັງບັນທຶກ ລະບົບພາກັບມາໜ້ານີ້ ໃຫ້ອອກໃບຈາກສາງອື່ນຕໍ່.
+      */}
+      <td className="px-3 py-3 text-center">
+        <input
+          type="number"
+          name={takeField(line.item_code)}
+          min={0}
+          max={Number(line.qty)}
+          step="any"
+          disabled={!selectedWarehouse}
+          defaultValue={Math.min(Number(line.qty), selectedBalance ?? 0)}
+          aria-label={`${t.takeNow} ${line.item_name}`}
+          className={`${inputClass} h-9 w-24 text-center font-semibold`}
+        />
       </td>
       <td className="px-3 py-3 text-center">{line.unit_code ?? "-"}</td>
       <td className="px-3 py-2 text-center">

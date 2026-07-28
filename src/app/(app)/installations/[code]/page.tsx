@@ -70,7 +70,7 @@ export default async function InstallationDetail({ params }: Props) {
   const t = (await getDictionary(await getLocale())).installDetail;
   const canDelete = (await permissionFor(session, "/installations")).delete;
 
-  const [job, spares, docs] = await Promise.all([
+  const [job, spares, docs, outstanding] = await Promise.all([
     query<Row>(
       `select ${JOB_HEAD_COLUMNS},
           (${INSTALL_STAGE_SQL})::int as stage,
@@ -98,6 +98,25 @@ export default async function InstallationDetail({ params }: Props) {
         order by t.doc_no`,
       [code],
     ),
+    /**
+     * ── ອາໄຫຼ່ທີ່ **ຍັງຄ້າງຂໍເບີກ** (28-07-2026) ──
+     * ກົດເກນ 1 ສາງ/1 ໃບ ⇒ ງານນຶ່ງອາດຕ້ອງອອກຫຼາຍໃບ. ພໍໃບທຳອິດອອກ reg_start ຖືກຕັ້ງ
+     * ⇒ ງານຫຼຸດຈາກຄິວ /installations/spare-requests ແລ້ວ **ບໍ່ມີລິ້ງໃດພາເຂົ້າໜ້າຂໍເບີກອີກ**.
+     * ນັບແບບດຽວກັນກັບ OUTSTANDING_INSTALL_SPARES (ບັນຊີເອກະສານ 122 ລົບ 59).
+     */
+    query<{ items: number }>(
+      `select count(*)::int items from (
+         select n.item_code
+           from (select item_code, sum(qty) qty from tb_used_spare
+                  where product_code = $1 group by item_code) n
+           left join (select item_code, sum(case when trans_flag = 122 then qty else -qty end) qty
+                        from ic_trans_detail
+                       where product_code = $1 and trans_flag in (122,59) group by item_code) c
+             on c.item_code = n.item_code
+          where n.qty - coalesce(c.qty,0) > 0
+       ) t`,
+      [code],
+    ),
   ]);
 
   const row = job.rows[0];
@@ -123,6 +142,18 @@ export default async function InstallationDetail({ params }: Props) {
             ຈະຫາຍໄປນຳ. ຂັ້ນ 9 = ປິດງານແລ້ວ.
           */}
           {row.stage === 9 && <ReopenJobButton code={row.code} />}
+          {/*
+            ຍັງມີອາໄຫຼ່ຄ້າງ ແລະ ງານຍັງບໍ່ເລີ່ມຕິດຕັ້ງ ⇒ ໃຫ້ທາງເຂົ້າໄປອອກ**ໃບຕໍ່ໄປ**
+            (ເບີກຈາກສາງອື່ນ) — ຄິວ /installations/spare-requests ສະແດງແຕ່ໃບທຳອິດ.
+          */}
+          {(outstanding.rows[0]?.items ?? 0) > 0 && row.stage >= 2 && row.stage <= 3 && (
+            <LinkButton
+              tone="success"
+              href={`/installations/spare-requests/${encodeURIComponent(row.code)}`}
+            >
+              {t.requestMoreSpares}
+            </LinkButton>
+          )}
           <LinkButton tone="neutral" href={`/installations/${encodeURIComponent(row.code)}/print`}>
             {t.print}
           </LinkButton>

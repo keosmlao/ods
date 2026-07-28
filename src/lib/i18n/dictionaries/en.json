@@ -2106,7 +2106,8 @@
     "noItemsFound": "No items found",
     "loading": "Loading...",
     "has": "Has",
-    "enough": "Enough"
+    "enough": "Enough",
+    "takeNow": "Take now"
   },
   "serviceEditForm": {
     "saving": "Saving...",
@@ -3295,7 +3296,8 @@
     "docType": "Type",
     "docNo": "Number",
     "date": "Date",
-    "lines": "Items"
+    "lines": "Items",
+    "requestMoreSpares": "Request more spares"
   },
   "stockCount": {
     "finalizeTitle": "Finish stock count?",
@@ -3543,7 +3545,8 @@
     "enough": "Enough",
     "short": "Short",
     "delete": "Delete",
-    "footerHint": "Change the quantity and press Enter to save · If this warehouse is insufficient, you can still send a request for the warehouse to place a purchase order"
+    "footerHint": "Change the quantity and press Enter to save · If this warehouse is insufficient, you can still send a request for the warehouse to place a purchase order",
+    "takeNow": "Take now"
   },
   "salesJobs": {
     "title": "Repair Tracking",

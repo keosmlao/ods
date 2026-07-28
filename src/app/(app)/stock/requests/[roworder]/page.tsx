@@ -172,7 +172,13 @@ export default async function StockRequestFormPage({ params }: Props) {
         lines={pending}
         roworder={roworder}
         balances={balances}
-        canRequest={purchaseNeeded.length === 0}
+        /**
+         * ── ບໍ່ພໍ **ບໍ່ແມ່ນ** ເຫດຫ້າມເບີກອີກ (28-07-2026) ──
+         * ແຕ່ກ່ອນ `purchaseNeeded.length === 0` ປິດປຸ່ມບັນທຶກທັງໃບ ⇒ ຂາດອາໄຫຼ່ 1 ຕົວ
+         * ກໍ່ເບີກຫຍັງບໍ່ໄດ້ເລີຍ ທັງທີ່ຕົວອື່ນມີພ້ອມ ແລະ ຕົວທີ່ຂາດກໍ່ອາດມີຢູ່ສາງອື່ນ.
+         * ດຽວນີ້ເບີກ "ເທົ່າທີ່ສາງນີ້ມີ" ໄດ້ ສ່ວນທີ່ຍັງຄ້າງອອກໃບຈາກສາງອື່ນ (ຫຼື ສັ່ງຊື້).
+         */
+        canRequest={pending.length > 0}
       />
 
       {/* ຂໍໄປແລ້ວ — ສະແດງໄວ້ໃຫ້ຮູ້ ແຕ່ຈະບໍ່ເຂົ້າໃບໃໝ່ (ກັນສາງເບີກອາໄຫຼ່ຕົວດຽວກັນສອງເທື່ອ) */}

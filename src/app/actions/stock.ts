@@ -10,6 +10,7 @@ import { requirePermissionOrRedirect, requireRole, requireRoleOrRedirect } from 
 import { RETURN_SIDE, SERVICE_SIDE, STOCK_SIDE, TECH_SIDE } from "@/lib/roles";
 import { canViewAssignedJob } from "@/lib/scope";
 import { getBalances } from "@/lib/stock-balance";
+import { takeFromForm } from "@/lib/spare-take";
 import { createSpareRequest, pickupSpares } from "@/lib/tech-flow";
 import { ppDb, PP_NOT_CONFIGURED } from "@/lib/stock-db";
 import {
@@ -231,9 +232,16 @@ export async function saveRequest(_: StockState, formData: FormData): Promise<St
     remark: text(formData, "remark"),
     wh_code: text(formData, "wh_code"),
     shelf_code: text(formData, "shelf_code"),
+    take: takeFromForm(formData),
   });
   if (!result.ok) return { error: result.error };
 
+  /**
+   * ຍັງເຫຼືອລາຍການຄ້າງ ⇒ **ກັບມາໜ້າເກົ່າ** ໃຫ້ອອກໃບຕໍ່ຈາກສາງອື່ນທັນທີ (1 ສາງ/1 ໃບ).
+   * ພາໄປຄິວເລີຍຄືເກົ່າ = ຄົນຕ້ອງຫາທາງກັບເຂົ້າມາເອງ ເຊິ່ງບໍ່ມີລິ້ງໃດພາມາ.
+   */
+  const roworder = text(formData, "roworder");
+  if ((result.remaining ?? 0) > 0 && roworder) redirect(`/stock/requests/${roworder}`);
   // ໜ້າລາຍການຖືກລົບ (17-07-2026) ⇒ ກັບໄປ**ຄິວຂອງຂັ້ນ** ບ່ອນທີ່ວຽກຍ້າຍໄປຢູ່
   redirect("/dashboard/status/repair/withdrawing");
 }

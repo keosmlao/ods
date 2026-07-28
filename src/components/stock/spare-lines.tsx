@@ -1,8 +1,10 @@
 "use client";
 
 import { deleteSpareFromRequest, updateSpareQty } from "@/app/actions/stock";
+import { REQUEST_FORM_ID } from "@/components/stock/request-form";
 import { Button, Card, Empty, Table, inputClass } from "@/components/ui";
 import { useDict } from "@/lib/i18n/context";
+import { takeField } from "@/lib/spare-take";
 import { AlertTriangle, Boxes, CheckCircle2, Plus, Trash2, Warehouse } from "lucide-react";
 
 export type SpareLine = {
@@ -111,6 +113,7 @@ export function EditableSpareLines({
                 <th className="w-14 px-4 py-3 text-center font-semibold">#</th>
                 <th className="px-4 py-3 font-semibold">{t.spare}</th>
                 <th className="w-32 px-4 py-3 text-center font-semibold">{t.requestedQty}</th>
+                <th className="w-32 px-4 py-3 text-center font-semibold">{t.takeNow}</th>
                 <th className="w-36 px-4 py-3 text-right font-semibold">{t.balanceThisWarehouse}</th>
                 <th className="w-32 px-4 py-3 text-right font-semibold">{t.totalBalance}</th>
                 <th className="w-36 px-4 py-3 text-center font-semibold">{t.check}</th>
@@ -148,6 +151,30 @@ export function EditableSpareLines({
                           className={`${inputClass} h-9 w-24 text-center font-semibold`}
                         />
                       </form>
+                    </td>
+                    {/*
+                      ── ເບີກຮອບນີ້ (1 ສາງ / 1 ໃບ) ──
+                      ຕັ້ງຕົ້ນ = ເທົ່າທີ່ສາງ/ບ່ອນເກັບທີ່ເລືອກມີ (ບໍ່ເກີນຈຳນວນທີ່ຂໍ) ⇒ ສາງນີ້ບໍ່ພໍ
+                      ກໍ່ຍັງເບີກເທົ່າທີ່ມີໄດ້ ແລ້ວອອກໃບໃໝ່ຈາກສາງອື່ນສຳລັບສ່ວນທີ່ເຫຼືອ.
+                      ຢູ່ນອກ <form> ບັນທຶກ ⇒ ຜູກດ້ວຍ form={REQUEST_FORM_ID}.
+                    */}
+                    <td className="px-4 py-2">
+                      <div className="flex justify-center">
+                        <input
+                          // ປ່ຽນສາງ/ບ່ອນເກັບ ⇒ remount ເພື່ອຕັ້ງຄ່າໃໝ່ຕາມບ່ອນນັ້ນ
+                          key={`${selectedWarehouse}-${selectedShelf}`}
+                          form={REQUEST_FORM_ID}
+                          type="number"
+                          name={takeField(line.item_code)}
+                          min={0}
+                          max={requestedQty}
+                          step="any"
+                          disabled={selectedBalance === null}
+                          defaultValue={Math.min(requestedQty, selectedBalance ?? 0)}
+                          aria-label={`${t.takeNow} ${line.item_name ?? line.item_code}`}
+                          className={`${inputClass} h-9 w-24 text-center font-semibold`}
+                        />
+                      </div>
                     </td>
                     <td className={`px-4 py-3 text-right text-sm font-bold tabular-nums ${selectedBalance === null ? "text-slate-300" : enough ? "text-emerald-600" : "text-red-600"}`}>
                       {selectedBalance === null ? "—" : selectedBalance.toLocaleString()}

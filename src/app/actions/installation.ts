@@ -13,6 +13,7 @@ import { db, odgDb, query, queryOdg } from "@/lib/db";
 import { deleteErpRequest, writeErpRequest } from "@/lib/erp-request";
 import { nextDocNo } from "@/lib/doc-no";
 import { requireRole, runAction } from "@/lib/guard";
+import { takeFromForm } from "@/lib/spare-take";
 import { type Role, roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
 import { INSTALL_STAGE_SQL } from "@/lib/install-stage";
@@ -1183,8 +1184,12 @@ export async function saveSpareRequest(
   const pair = await connectPair();
   if ("error" in pair) return pair;
   const { client, odg } = pair;
+  /** ຈຳນວນທີ່ໃບນີ້ຈະເອົາ ຕໍ່ລາຍການ (ບໍ່ມີ = ເອົາຄ້າງທັງໝົດ ຄືເກົ່າ) — lib/spare-take */
+  const take = takeFromForm(formData);
   let requestNo = "";
   let requestLines = 0;
+  /** ລາຍການທີ່ຍັງຄ້າງຫຼັງໃບນີ້ ⇒ ພາກັບມາໜ້າເກົ່າ ໃຫ້ອອກໃບຈາກສາງອື່ນຕໍ່ */
+  let remaining = 0;
   try {
     await client.query("begin");
     await odg.query("begin");
@@ -1214,10 +1219,28 @@ export async function saveSpareRequest(
       return { error: "ອາໄຫຼ່ທຸກລາຍການຂອງງານນີ້ ຖືກຂໍເບີກ ຫຼື ເບີກອອກໄປແລ້ວ" };
     }
 
+    /**
+     * ── 1 ສາງ ຕໍ່ 1 ໃບ ⇒ ໃບນີ້ເອົາ "ເທົ່າທີ່ສາງນີ້ມີ" (28-07-2026) ──
+     * ຟອມສົ່ງ take_<item_code> ມາ (ເບິ່ງ lib/spare-take) — ຢູ່ນີ້ຕັດໃຫ້ບໍ່ເກີນຈຳນວນຄ້າງ
+     * ທີ່ຄິດຈາກບັນຊີເອກະສານສະເໝີ. ບໍ່ສົ່ງມາ = ເອົາຄ້າງທັງໝົດຄືເກົ່າ (ແອັບມືຖືບໍ່ຕ້ອງແກ້).
+     */
+    const picked = lines.rows
+      .map((line) => {
+        const outstanding = Number(line.qty);
+        const want = take?.[line.item_code];
+        const qty = want == null ? outstanding : Math.min(outstanding, Math.max(0, want));
+        return { ...line, qty: String(qty), outstanding };
+      })
+      .filter((line) => Number(line.qty) > 0);
+    if (picked.length === 0) {
+      await Promise.all([client.query("rollback"), odg.query("rollback")]);
+      return { error: "ຍັງບໍ່ໄດ້ລະບຸຈຳນວນທີ່ຈະເບີກໃນໃບນີ້" };
+    }
+
     // ອອກເລກ SION ພາຍໃນ lock — ods ອອກນອກ lock ຈຶ່ງຊ້ຳໄດ້
     const docNo = await nextDocNo(client, "SION");
     requestNo = docNo;
-    requestLines = lines.rows.length;
+    requestLines = picked.length;
 
     await client.query(
       `insert into ic_trans(trans_flag,doc_date,doc_no,product_code,remark,status,used_status,user_created,job_type,wh_code,shelf_code)
@@ -1233,7 +1256,7 @@ export async function saveSpareRequest(
       ],
     );
 
-    for (const line of lines.rows) {
+    for (const line of picked) {
       await client.query(
         `insert into ic_trans_detail(trans_flag,doc_date,doc_no,product_code,item_code,item_name,qty,unit_code,calc_flag,status,user_created,job_type)
          values(122,$1,$2,$3,$4,$5,$6,$7,1,0,$8,'install')`,
@@ -1249,12 +1272,21 @@ export async function saveSpareRequest(
         ],
       );
     }
-    // ໝາຍແຖວກະຕ່າຂອງອາໄຫຼ່ທີ່ຢູ່ໃນໃບນີ້ວ່າ "ຂໍເບີກແລ້ວ" (ຄືກັບ actions/stock.ts saveRequest)
-    await client.query(
-      `update tb_used_spare set reg_start=localtimestamp(0)
-       where product_code=$1 and reg_start is null and item_code = any($2::varchar[])`,
-      [productCode, lines.rows.map((line) => line.item_code)],
-    );
+    /**
+     * ໝາຍ "ຂໍເບີກແລ້ວ" **ສະເພາະລາຍການທີ່ເອົາຄົບ** — ລາຍການທີ່ຍັງເອົາບໍ່ຄົບຕ້ອງເຫຼືອ
+     * reg_start ຫວ່າງ ບໍ່ດັ່ງນັ້ນຈໍຈະຂຶ້ນ "ຂໍໄປແລ້ວ" ທັງທີ່ຍັງຄ້າງເຄິ່ງ (ຄືກັບ tech-flow).
+     */
+    const fully = picked
+      .filter((line) => Number(line.qty) >= line.outstanding)
+      .map((line) => line.item_code);
+    if (fully.length > 0) {
+      await client.query(
+        `update tb_used_spare set reg_start=localtimestamp(0)
+         where product_code=$1 and reg_start is null and item_code = any($2::varchar[])`,
+        [productCode, fully],
+      );
+    }
+    remaining = lines.rows.length - fully.length;
 
     await client.query(
       "update ods_tb_install set reg_start=coalesce(reg_start,localtimestamp(0)) where code=$1",
@@ -1282,7 +1314,7 @@ export async function saveSpareRequest(
         shelf_code: shelfCode,
         remark,
         requester: session.username,
-        lines: lines.rows,
+        lines: picked,
       },
       odg,
     );
@@ -1310,11 +1342,19 @@ export async function saveSpareRequest(
   await logChange(
     "ods_tb_install",
     productCode,
-    `ສ້າງໃບຂໍເບີກ ${requestNo} · ສາງ ${whCode}/${shelfCode} · ອາໄຫຼ່ ${requestLines} ລາຍການ${remark ? ` · ${remark}` : ""}`,
+    `ສ້າງໃບຂໍເບີກ ${requestNo} · ສາງ ${whCode}/${shelfCode} · ອາໄຫຼ່ ${requestLines} ລາຍການ${
+      remaining > 0 ? ` · ຍັງຄ້າງ ${remaining} ລາຍການ (ຈະເບີກຈາກສາງອື່ນຕໍ່)` : ""
+    }${remark ? ` · ${remark}` : ""}`,
     { roles: ROLE_WAREHOUSE },
   );
 
   revalidateAll();
+  /**
+   * ຍັງເຫຼືອລາຍການຄ້າງ ⇒ ກັບມາໜ້າເກົ່າ ໃຫ້ອອກໃບຕໍ່ຈາກສາງອື່ນທັນທີ (1 ສາງ/1 ໃບ).
+   * ⚠️ ນີ້ຄື**ທາງດຽວ**ທີ່ຈະເຂົ້າມາໃບທີສອງໄດ້: ພໍ reg_start ຖືກຕັ້ງ ງານອອກຈາກຂັ້ນ 2
+   * ⇒ ຫຼຸດຈາກຄິວ /installations/spare-requests ແລະ ບໍ່ມີລິ້ງອື່ນພາມາໜ້ານີ້ອີກ.
+   */
+  if (remaining > 0) redirect(`/installations/spare-requests/${encodeURIComponent(productCode)}`);
   redirect("/installations/spare-requests");
 }
 
