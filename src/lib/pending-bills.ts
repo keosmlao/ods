@@ -36,7 +36,7 @@ export type PendingBill = {
   missing: number;
   /** ຄ້າງມາຈັກມື້ */
   days: number;
-  /** **ສິນຄ້າທີ່ຈະຕິດຕັ້ງ** (ກຸ່ມ 11 ເຄື່ອງໃຊ້ໄຟຟ້າ · 12 ແອ) — ບອກວ່າບິນນີ້ຈະໄປຕິດຫຍັງ */
+  /** **ສິນຄ້າທີ່ຈະຕິດຕັ້ງ** (ກຸ່ມ 11 ເຄື່ອງໃຊ້ໄຟຟ້າ · 12 ແອ · 13 ຈັກຊັກ) — ບອກວ່າບິນນີ້ຈະໄປຕິດຫຍັງ */
   items: BillLine[];
   /** ແຖວຄ່າບໍລິການຕິດຕັ້ງທີ່ພະນັກງານຂາຍໃສ່ໄວ້ (9701xx · 970102xx) */
   services: BillLine[];
@@ -115,7 +115,10 @@ export async function pendingInstallBills(withDismissed = false): Promise<Pendin
    * ── ລາຍລະອຽດ: ບິນນີ້ຈະໄປຕິດ **ຫຍັງ** ──
    * ບອກແຕ່ "ຄ້າງ 1 ໜ່ວຍ" ບໍ່ພຽງພໍ — ຄົນຕ້ອງຮູ້ວ່າແມ່ນແອ ຫຼື ຈັກຊັກ ຈຶ່ງຈັດຊ່າງ/ອາໄຫຼ່ຖືກ.
    * ນິຍາມ "ສິນຄ້າທີ່ຕິດຕັ້ງໄດ້" ອັນດຽວກັບ api/installations/bills:
-   * ກຸ່ມ 11 (ເຄື່ອງໃຊ້ໄຟຟ້າ) · 12 (ແອ) · ຕັດໜ່ວຍນອກ [H] ຂອງແອອອກ (ນັບເປັນຊຸດ).
+   * ກຸ່ມ 11 (ເຄື່ອງໃຊ້ໄຟຟ້າ) · 12 (ແອ) · 13 (ຈັກຊັກ ແລະ ອື່ນໆ) ·
+   * ຕັດໜ່ວຍນອກ [H] ຂອງແອອອກ (ນັບເປັນຊຸດ).
+   * ⚠️ 2 ບ່ອນນີ້ຕ້ອງກົງກັນສະເໝີ — ຖ້າກຸ່ມໃດຂາດຢູ່ນີ້ ຄິວຈະຂຶ້ນ "ບໍ່ມີລາຍການ",
+   * ຖ້າຂາດຢູ່ bills API ບິນຈະ **ຫາຍທັງໃບ** (ເຫດ CAK26009268 · 28-07-2026).
    */
   const lines = await queryOdg<BillLine & { doc_no: string; kind: "item" | "service" }>(
     `select d.doc_no, d.item_code, d.item_name, sum(d.qty)::float as qty,
@@ -125,7 +128,7 @@ export async function pendingInstallBills(withDismissed = false): Promise<Pendin
         and d.doc_no = any($1::text[])
         and (
           d.item_code like '9701%' or d.item_code like '970102%'
-          or ((d.item_code like '11%' or d.item_code like '12%')
+          or ((d.item_code like '11%' or d.item_code like '12%' or d.item_code like '13%')
               and d.item_type in (0,1,3) and d.item_name not ilike '%[H]%')
         )
       group by d.doc_no, d.item_code, d.item_name
