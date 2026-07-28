@@ -144,6 +144,12 @@ const REPAIR: NavGroup = {
  * ⚠️ ໃສ່ເລກສະເພາະ**ຂັ້ນເຮັດວຽກ** — ລາຍງານຢູ່ທ້າຍບໍ່ແມ່ນຂັ້ນຕອນ ຈຶ່ງບໍ່ມີເລກ.
  */
 const INSTALL_FLOW: NavItem[] = [
+  /**
+   * **ກ່ອນ**ເປີດງານ — ບິນທີ່ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ ແຕ່ຍັງບໍ່ມີໃບງານ.
+   * ນີ້ຄືຂັ້ນທຳອິດຂອງສາຍງານຈິງ (ຢູ່ໃນກຸ່ມ "ລາຍງານ" ທ້າຍເມນູມາກ່ອນ ⇒ CS ບໍ່ທັນເຫັນ
+   * ຈົນກວ່າຈະເລື່ອນລົງສຸດ ທັງທີ່ມັນຄືວຽກທີ່ຕ້ອງເຮັດກ່ອນທຸກຢ່າງ).
+   */
+  { label: "ບິນຄ້າງອອກໃບງານ", href: "/installations/pending-bills", count: "/installations/pending-bills" },
   { label: "ເປີດງານ / ລໍຖ້າຈັດຊ່າງ", href: "/installations", count: "/installations/assign" },
   { label: "ລໍຖ້າຊ່າງຮັບ", href: "/installations/accept", count: "/installations/accept" },
   { label: "ລໍຖ້າເບີກອາໄຫຼ່", href: "/installations/spare-requests", count: "/installations/spare-requests" },
@@ -157,8 +163,7 @@ const INSTALL_FLOW: NavItem[] = [
 
 /** ລາຍງານຂອງສາຍງານຕິດຕັ້ງ — ບໍ່ແມ່ນຂັ້ນຕອນ ຈຶ່ງບໍ່ໃສ່ເລກ */
 const INSTALL_REPORTS: NavItem[] = [
-  { label: "ບິນຄ້າງອອກໃບງານ", href: "/installations/pending-bills", count: "/installations/pending-bills", divider: true },
-  { label: "ສົ່ງຄືນອາໄຫຼ່ງານຕິດຕັ້ງ", href: "/stock/returns?job=install" },
+  { label: "ສົ່ງຄືນອາໄຫຼ່ງານຕິດຕັ້ງ", href: "/stock/returns?job=install", divider: true },
   { label: "ລາຍງານງານຕິດຕັ້ງ", href: "/reports/installations" },
   { label: "ສະຫຼຸບອາໄຫຼ່ຕິດຕັ້ງປະຈຳເດືອນ", href: "/reports/install-spares-monthly" },
   { label: "ລາຍງານແບບສອບຖາມລູກຄ້າ", href: "/reports/customer-feedback" },
