@@ -3,23 +3,32 @@ import { PageTitle } from "@/components/ui";
 import { odgDb, query, queryOdg } from "@/lib/db";
 import { nextSprNo } from "@/lib/erp-spr";
 import { getBalances, withdrawableQty } from "@/lib/stock-balance";
-import { STAGE_SQL } from "@/lib/stage";
+import { STAGE_LABEL, STAGE_SQL, stageLabel } from "@/lib/stage";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 /** ຖອດແບບຈາກ ods: order.py add_request_order() + templates/request_order/add_request_order.html */
 
 type Props = { params: Promise<{ product: string; doc: string }> };
 
+/**
+ * ⚠️ **ຢ່າເອົາເງື່ອນໄຂຂັ້ນ 5 ກັບເຂົ້າ where** — ເມື່ອກ່ອນຂຽນ `and (STAGE_SQL)=5` ⇒ ວຽກທີ່ມີຈິງ
+ * ແຕ່ຢູ່ຂັ້ນອື່ນ (3/4 ໝົດປະກັນລໍລາຄາ · 6 ຂໍເບີກແລ້ວ · 7 ກຳລັງສັ່ງຊື້) ຈະຕົກ notFound()
+ * ⇒ ຄົນກົດ "ຂໍສັ່ງຊື້" ຈາກ /stock/requests/<roworder> ແລ້ວໄດ້ໜ້າ **404 ລ້າໆ** ບໍ່ຮູ້ເຫດຜົນ.
+ * ດຽວນີ້ດຶງຂັ້ນອອກມານຳ ແລ້ວອະທິບາຍຢູ່ໜ້າ (ຄືກັບຂໍ້ຄວາມຂອງ action ໃນ actions/purchase.ts).
+ */
+type DirectHead = RqHead & { stage: number; service_type: string | null };
+
 async function getHead(productCode: string, docNo: string) {
   if (docNo === "direct") {
     const sql = `select concat('CHECK:',a.code) doc_no, to_char(a.time_finish_check,'DD-MM-YYYY') doc_date,
         concat_ws('-', d.name_1, d.tel) customer, d.code cust_code,
         a.name_1 product, a.p_model model, a.sn, a.issue, a.warrunty warranty, a.code product_code,
-        'check'::text source_type
+        'check'::text source_type, (${STAGE_SQL})::int stage, a.service_type
       from tb_product a
       left join ar_customer d on d.code = a.cust_code
-      where a.code=$1 and (${STAGE_SQL})=5`;
-    return (await query<RqHead>(sql, [productCode])).rows[0] ?? null;
+      where a.code=$1`;
+    return (await query<DirectHead>(sql, [productCode])).rows[0] ?? null;
   }
   const sql = `select a.doc_no, to_char(a.doc_date,'DD-MM-YYYY') doc_date,
       concat_ws('-', d.name_1, d.tel) customer, d.code cust_code,
@@ -104,6 +113,31 @@ export default async function NewPurchaseRequestPage({ params }: Props) {
 
   const head = await getHead(productCode, docNo);
   if (!head) notFound();
+
+  /**
+   * ວຽກມີຢູ່ ແຕ່ຢູ່ຄົນລະຂັ້ນ ⇒ **ບອກເຫດຜົນ ບໍ່ແມ່ນ 404**. ຂໍຊື້ໂດຍກົງໄດ້ສະເພາະຂັ້ນ 5
+   * (ກວດ Stock / ດຳເນີນອາໄຫຼ່) — ດ່ານດຽວກັນກັບ action (actions/purchase.ts).
+   */
+  const direct = docNo === "direct" ? (head as DirectHead) : null;
+  if (direct && direct.stage !== 5) {
+    return (
+      <div className="w-full max-w-2xl space-y-5">
+        <PageTitle sub="ຂໍສັ່ງຊື່">ຂໍອະນຸມັດສະເໜີຊື້ອາໄຫຼ່</PageTitle>
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          ວຽກ #{productCode} ຢູ່ຂັ້ນ <b>{stageLabel(direct.stage, direct.service_type)}</b> —
+          ຂໍສັ່ງຊື້ອາໄຫຼ່ໂດຍກົງໄດ້ສະເພາະວຽກທີ່ຢູ່ຂັ້ນ <b>{STAGE_LABEL[5]}</b> ເທົ່ານັ້ນ.
+          {direct.stage === 3 || direct.stage === 4
+            ? " ວຽກໝົດຮັບປະກັນຕ້ອງໃຫ້ລູກຄ້າຕົກລົງລາຄາກ່ອນ."
+            : direct.stage === 7
+              ? " ວຽກນີ້ມີໃບຂໍຊື້ຢູ່ແລ້ວ — ຕິດຕາມໄດ້ຢູ່ຄິວ ອະນຸມັດຂໍສັ່ງຊື້."
+              : ""}
+        </p>
+        <Link href={`/service/${encodeURIComponent(productCode)}`} className="text-sm font-semibold text-[#0536a9] hover:underline">
+          ← ກັບໄປໜ້າໃບງານ
+        </Link>
+      </div>
+    );
+  }
 
   const [lines, newDocNo] = await Promise.all([getLines(productCode, docNo), previewDocNo()]);
   const today = new Date().toISOString().slice(0, 10);

@@ -1158,7 +1158,10 @@ export async function saveSpareRequest(
       [productCode],
     );
     if (!cart.rows[0]?.count) {
-      await client.query("rollback");
+      // ⚠️ ຕ້ອງ rollback **ທັງສອງ** — release() ຂອງ pg ບໍ່ປິດ transaction ໃຫ້ ⇒ ຖ້າລືມ odg
+      // connection ນັ້ນຈະຄືນເຂົ້າ pool ໃນສະພາບ "idle in transaction" ແລ້ວຄຳຂໍຕໍ່ໄປທີ່ຈັບ
+      // ໄດ້ connection ນີ້ຈະທຳງານໃນ transaction ເກົ່າ (ຖືລັອກ ERP ໄວ້ · commit ຜິດຈັງຫວະ).
+      await Promise.all([client.query("rollback"), odg.query("rollback")]);
       return { error: "ບໍ່ມີລາຍການສຳລັບເບີກ!" };
     }
 
@@ -1170,7 +1173,7 @@ export async function saveSpareRequest(
       qty: string;
     }>(OUTSTANDING_INSTALL_SPARES, [productCode]);
     if (lines.rows.length === 0) {
-      await client.query("rollback");
+      await Promise.all([client.query("rollback"), odg.query("rollback")]);
       return { error: "ອາໄຫຼ່ທຸກລາຍການຂອງງານນີ້ ຖືກຂໍເບີກ ຫຼື ເບີກອອກໄປແລ້ວ" };
     }
 
