@@ -1163,8 +1163,13 @@ export async function saveSpareRequest(
 
   // ຢ່າເຊື່ອ wh_code/shelf_code ຈາກ browser: ທີ່ເກັບຕ້ອງເປັນຂອງສາງທີ່ເລືອກຈິງ.
   try {
+    /**
+     * ⚠️ ຕ້ອງມີ `as` — ERP ເປັນ **PostgreSQL 11** ບ່ອນທີ່ `valid` ເປັນຄຳສະຫງວນ
+     * ⇒ `select 1::int valid` = syntax error (ນີ້ຄືເຫດຂອງຈໍ 500 ຕອນບັນທຶກໃບຂໍເບີກ
+     * ຕິດຕັ້ງ ທີ່ບໍ່ມີຫຍັງລົງ ic_trans ເລີຍ — ມັນລົ້ມກ່ອນ begin ຊ້ຳ).
+     */
     const location = await queryOdg<{ valid: number }>(
-      `select 1::int valid from ic_shelf where whcode=$1 and code=$2 limit 1`,
+      `select 1::int as valid from ic_shelf where whcode=$1 and code=$2 limit 1`,
       [whCode, shelfCode],
     );
     if (!location.rows[0])
