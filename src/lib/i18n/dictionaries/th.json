@@ -3299,7 +3299,18 @@
     "docNo": "เลขที่",
     "date": "วันที่",
     "lines": "รายการ",
-    "requestMoreSpares": "เบิกอะไหล่เพิ่ม"
+    "requestMoreSpares": "เบิกอะไหล่เพิ่ม",
+    "delivery": {
+      "title": "การส่งสินค้า",
+      "sentAt": "ส่งสำเร็จ",
+      "checkinAt": "เช็คอินหน้าบ้าน",
+      "dropPoint": "พิกัดจุดส่ง",
+      "noDropPoint": "ไม่ได้ปักพิกัด",
+      "noDropPointHint": "คนส่งไม่ได้ปักพิกัดไว้ — ใช้ที่อยู่ในใบงานแทน",
+      "openMap": "เปิดแผนที่นำทาง",
+      "viewPhotos": "ดูรูปตอนส่ง",
+      "noPhotos": "ไม่มีรูป"
+    }
   },
   "stockCount": {
     "finalizeTitle": "เสร็จสิ้นการตรวจนับ?",

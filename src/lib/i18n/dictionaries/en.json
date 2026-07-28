@@ -3299,7 +3299,18 @@
     "docNo": "Number",
     "date": "Date",
     "lines": "Items",
-    "requestMoreSpares": "Request more spares"
+    "requestMoreSpares": "Request more spares",
+    "delivery": {
+      "title": "Delivery",
+      "sentAt": "Delivered at",
+      "checkinAt": "Checked in at",
+      "dropPoint": "Drop point",
+      "noDropPoint": "No coordinates",
+      "noDropPointHint": "The driver did not drop a pin — use the address on the job instead",
+      "openMap": "Open in Maps",
+      "viewPhotos": "View delivery photos",
+      "noPhotos": "No photos"
+    }
   },
   "stockCount": {
     "finalizeTitle": "Finish stock count?",

@@ -3299,7 +3299,18 @@
     "docNo": "ເລກທີ",
     "date": "ວັນທີ",
     "lines": "ລາຍການ",
-    "requestMoreSpares": "ຂໍເບີກອາໄຫຼ່ເພີ່ມ"
+    "requestMoreSpares": "ຂໍເບີກອາໄຫຼ່ເພີ່ມ",
+    "delivery": {
+      "title": "ການສົ່ງເຄື່ອງ",
+      "sentAt": "ສົ່ງສຳເລັດ",
+      "checkinAt": "ເຊັກອິນໜ້າບ້ານ",
+      "dropPoint": "ພິກັດຈຸດສົ່ງ",
+      "noDropPoint": "ບໍ່ໄດ້ປັກພິກັດ",
+      "noDropPointHint": "ຄົນສົ່ງບໍ່ໄດ້ປັກພິກັດໄວ້ — ໃຊ້ທີ່ຢູ່ໃນໃບງານແທນ",
+      "openMap": "ເປີດແຜນທີ່ໄປຫາ",
+      "viewPhotos": "ເບິ່ງຮູບຕອນສົ່ງ",
+      "noPhotos": "ບໍ່ມີຮູບ"
+    }
   },
   "stockCount": {
     "finalizeTitle": "ສຳເລັດການກວດນັບ?",

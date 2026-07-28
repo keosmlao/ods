@@ -4,6 +4,8 @@ import { Elapsed } from "@/components/elapsed";
 import { InstallDeleteButton } from "@/components/installation/install-delete-button";
 import { JOB_HEAD_COLUMNS, type JobHead, JobHeader } from "@/components/installation/job-header";
 import { ReopenJobButton } from "@/components/installation/undo-buttons";
+import { DeliveryCard } from "@/components/installation/delivery-card";
+import { deliveryFor } from "@/lib/delivery";
 import { Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
 import { query } from "@/lib/db";
 import { permissionFor } from "@/lib/permissions";
@@ -123,6 +125,12 @@ export default async function InstallationDetail({ params }: Props) {
   if (!row) notFound();
   if (!canViewAssignedJob(session, row.tech_code)) redirect("/forbidden");
 
+  /**
+   * ດຶງ **ຫຼັງ**ກວດສິດ — ບໍ່ດັ່ງນັ້ນຄົນທີ່ເປີດງານຂອງຄົນອື່ນບໍ່ໄດ້ ຍັງເຮັດໃຫ້ລະບົບ
+   * ຂົນສົ່ງຖືກ query ຢູ່. metadata ຢ່າງດຽວ (ບໍ່ມີຮູບ) ⇒ ເບົາ.
+   */
+  const delivery = await deliveryFor(row.doc_ref_1);
+
   return (
     <div className="w-full space-y-5">
       <PageTitle sub={`${t.installJob} ${row.code}`}>{t.pageTitle}</PageTitle>
@@ -169,6 +177,12 @@ export default async function InstallationDetail({ params }: Props) {
       )}
 
       <JobHeader head={row} />
+
+      {/**
+        * ການສົ່ງເຄື່ອງ — ບ່ອນທີ່ຂົນສົ່ງເອົາເຄື່ອງໄປວາງ ຄືບ່ອນທີ່ຊ່າງຕ້ອງໄປຕິດຕັ້ງ
+        * ⇒ ວາງໄວ້ເທິງສຸດຮອງຈາກຫົວງານ. ບໍ່ມີຂໍ້ມູນ (ລູກຄ້າຫອບເອງ) = ບໍ່ສະແດງ.
+        */}
+      {delivery && <DeliveryCard info={delivery} labels={t.delivery} />}
 
       <Card title={t.moreInfo}>
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
