@@ -1049,9 +1049,10 @@ export async function addSpareLines(
     for (const item of inventory) {
       await client.query(
         `insert into tb_used_spare(product_code,item_code,item_name,qty,unit_code)
-         select $1,$2,$3,1,$4
+         select $1::varchar,$2::varchar,$3::varchar,1::numeric,$4::varchar
          where not exists (
-           select 1 from tb_used_spare where product_code=$1 and item_code=$2
+           select 1 from tb_used_spare
+           where product_code=$1::varchar and item_code=$2::varchar
          )`,
         [code, item.code, item.name_1, item.unit_code ?? ""],
       );

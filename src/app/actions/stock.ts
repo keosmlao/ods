@@ -7,7 +7,13 @@ import { db, odgDb, queryOdg } from "@/lib/db";
 import { docPrefix, nextDocNo } from "@/lib/doc-no";
 import { deleteErpRequest, writeErpRequest } from "@/lib/erp-request";
 import { requirePermissionOrRedirect, requireRole, requireRoleOrRedirect } from "@/lib/guard";
-import { RETURN_SIDE, SERVICE_SIDE, STOCK_SIDE, TECH_SIDE } from "@/lib/roles";
+import {
+  REPAIR_REQUEST_SIDE,
+  RETURN_SIDE,
+  SERVICE_SIDE,
+  STOCK_SIDE,
+  TECH_SIDE,
+} from "@/lib/roles";
 import { canViewAssignedJob } from "@/lib/scope";
 import { getBalances } from "@/lib/stock-balance";
 import { takeFromForm } from "@/lib/spare-take";
@@ -106,7 +112,7 @@ function nowParts() {
 /** ods: /additemtoreg — ເພີ່ມອາໄຫຼ່ໃສ່ໃບຂໍເບີກ (ຍັງບໍ່ທັນບັນທຶກເປັນເອກະສານ) */
 export async function addSpareToRequest(formData: FormData): Promise<void> {
   // ໃບຂໍເບີກ: ຊ່າງເປັນຄົນສ້າງ · ສາງເປັນຄົນຈ່າຍ (ເບິ່ງ lib/roles ແຖວ /stock/requests)
-  const session = await requireRoleOrRedirect(TECH_SIDE);
+  const session = await requireRoleOrRedirect(REPAIR_REQUEST_SIDE);
   if (!db) return;
 
   const roworder = text(formData, "roworder");
@@ -139,7 +145,7 @@ export async function addSpareToRequestFromDialog(
   itemCode: string,
   qty = 1,
 ): Promise<StockState> {
-  const guard = await requireRole(TECH_SIDE, "ບໍ່ມີສິດເພີ່ມອາໄຫຼ່");
+  const guard = await requireRole(REPAIR_REQUEST_SIDE, "ບໍ່ມີສິດເພີ່ມອາໄຫຼ່");
   if (!guard.ok) return { error: guard.error };
   if (!db) return { error: "ຖານຂໍ້ມູນຍັງບໍ່ພ້ອມ" };
 
@@ -184,7 +190,7 @@ const CART_NOT_ON_DOC = `not exists (
 
 /** ods: /updateqtytoreg — ແກ້ຈຳນວນອາໄຫຼ່ (ສະເພາະແຖວທີ່ຍັງບໍ່ເຂົ້າໃບເບີກ) */
 export async function updateSpareQty(formData: FormData): Promise<void> {
-  await requireRoleOrRedirect(TECH_SIDE);
+  await requireRoleOrRedirect(REPAIR_REQUEST_SIDE);
   if (!db) return;
 
   const roworder = text(formData, "roworder");
@@ -199,7 +205,7 @@ export async function updateSpareQty(formData: FormData): Promise<void> {
 
 /** ods: /delete_itemfromreg — ລຶບອາໄຫຼ່ອອກຈາກໃບຂໍເບີກ (ສະເພາະແຖວທີ່ຍັງບໍ່ເຂົ້າໃບເບີກ) */
 export async function deleteSpareFromRequest(formData: FormData): Promise<void> {
-  await requireRoleOrRedirect(TECH_SIDE);
+  await requireRoleOrRedirect(REPAIR_REQUEST_SIDE);
   if (!db) return;
 
   const roworder = text(formData, "roworder");
@@ -219,7 +225,10 @@ export async function deleteSpareFromRequest(formData: FormData): Promise<void> 
  * ອາໄຫຼ່ຕົວດຽວກັນສອງເທື່ອ. ດຽວນີ້ຂໍສະເພາະ "ຈຳນວນທີ່ຍັງຄ້າງ" ເທົ່ານັ້ນ (OUTSTANDING_SPARES).
  */
 export async function saveRequest(_: StockState, formData: FormData): Promise<StockState> {
-  const guard = await requireRole(TECH_SIDE, "ບໍ່ມີສິດສ້າງໃບຂໍເບີກອາໄຫຼ່");
+  const guard = await requireRole(
+    REPAIR_REQUEST_SIDE,
+    "ບໍ່ມີສິດສ້າງໃບຂໍເບີກອາໄຫຼ່",
+  );
   if (!guard.ok) return { error: guard.error };
 
   /**
@@ -248,7 +257,11 @@ export async function saveRequest(_: StockState, formData: FormData): Promise<St
 
 /** ods: /del_request/<product_code>/<doc_no> — ຍົກເລີກໃບຂໍເບີກ */
 export async function deleteRequest(formData: FormData): Promise<void> {
-  await requirePermissionOrRedirect("/stock/requests", "delete", TECH_SIDE);
+  await requirePermissionOrRedirect(
+    "/stock/requests",
+    "delete",
+    REPAIR_REQUEST_SIDE,
+  );
   if (!db || !odgDb) return;
 
   const productCode = text(formData, "product_code");

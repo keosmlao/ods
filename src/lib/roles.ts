@@ -65,6 +65,10 @@ const SL: Role = "sales";
 export const TECH_SIDE: Role[] = [M, HT, T];
 /** ກຸ່ມ "ບໍລິການ" ຂອງ ods */
 export const SERVICE_SIDE: Role[] = [M, A];
+/** ຜູ້ສ້າງໃບຂໍເບີກອາໄຫຼ່ສ້ອມ: ຊ່າງ + CS/ບໍລິການ. */
+export const REPAIR_REQUEST_SIDE: Role[] = [
+  ...new Set([...TECH_SIDE, ...SERVICE_SIDE]),
+];
 /** ກຸ່ມ "ສາງ" ຂອງ ods */
 export const STOCK_SIDE: Role[] = [M, S];
 /** ຜູ້ອະນຸມັດ — ຕົງກັບ ROLE_APPROVER ໃນ lib/chatter */
@@ -152,8 +156,8 @@ const RULES: Rule[] = [
   /* ຊ່າງ — ods: ເມນູ "ຊ່າງ" ({% else %} + manager) */
   { path: "/checking", roles: TECH_SIDE },
   { path: "/repair", roles: TECH_SIDE },
-  // ໃບຂໍເບີກ / ໃບຂໍສົ່ງຄືນ: ຊ່າງເປັນຄົນສ້າງ, ສາງເປັນຄົນຈ່າຍ/ຮັບ ⇒ ເຫັນທັງສອງຝ່າຍ
-  { path: "/stock/requests", roles: [...TECH_SIDE, S] },
+  // ໃບຂໍເບີກສ້ອມ: ຊ່າງ ແລະ CS ສ້າງໄດ້; ສາງເຂົ້າເບິ່ງເພື່ອດຳເນີນການ.
+  { path: "/stock/requests", roles: [...REPAIR_REQUEST_SIDE, S] },
   // ໃບຂໍສົ່ງຄືນ: ຊ່າງ+ສາງ ຄືເກົ່າ ບວກ **CS** — saveInstallReturnRequest / cancelInstallReturnRequest
   // redirect ມາທີ່ນີ້ ແລະ CS ເປັນຄົນສ້າງໃບຂໍສົ່ງຄືນຂອງງານຕິດຕັ້ງທີ່ຍົກເລີກ (ເບິ່ງ RETURN_SIDE)
   { path: "/stock/returns", roles: RETURN_SIDE },
