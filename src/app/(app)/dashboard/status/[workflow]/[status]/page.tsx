@@ -4,7 +4,6 @@ import { Elapsed } from "@/components/elapsed";
 import { TimelineDrawerButton } from "@/components/repair/timeline-drawer";
 import { AssignTechButton } from "@/components/installation/assign-tech";
 import { LinkPending } from "@/components/link-pending";
-import { RowLink } from "@/components/row-link";
 import { AcceptRepairButton } from "@/components/repair/accept-repair-button";
 import {
   DispatchPickupButton,
@@ -34,7 +33,7 @@ import { HoldButtons } from "@/components/repair/hold-buttons";
 import { MobileCardList } from "@/components/mobile-card-list";
 import { PurchaseState } from "@/components/stock/purchase-state";
 import { ReleaseGhostButton } from "@/components/stock/release-ghost-button";
-import { syncErpPurchase, type PurchaseTrack } from "@/lib/erp-purchase";
+import { purchaseTracking, type PurchaseTrack } from "@/lib/erp-purchase";
 import { APPROVER_SIDE, canAccess, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
@@ -204,12 +203,6 @@ export default async function StatusPage({ params, searchParams }: Props) {
   const showCase = isRepair && status === "wait-return";
   if (!config) notFound();
   const stagePolicy = isRepair && config.stage != null ? REPAIR_STAGE_POLICY.get(config.stage) : undefined;
-
-  /**
-   * ຂັ້ນ "ກຳລັງສັ່ງຊື້" — ດຶງຄວາມຈິງຈາກ ERP ກ່ອນນັບແຖວ: ວຽກທີ່ຮັບເຂົ້າສາງໄປແລ້ວ
-   * ຈະຫຼຸດອອກຈາກຄິວນີ້ເອງ ⇒ ຈຳນວນທີ່ເຫັນເປັນວຽກທີ່ຄ້າງຈິງ (lib/erp-purchase).
-   */
-  const purchaseSync = isRepair && status === "purchasing" ? await syncErpPurchase() : null;
 
   /** wait-check ລວມທັງວຽກທີ່ຍັງລໍຊ່າງຮັບ ແລະວຽກທີ່ຮັບແລ້ວລໍເລີ່ມກວດ. */
   // ສະແດງປຸ່ມສະເພາະ role ທີ່ເຂົ້າໜ້າລົງມືນັ້ນໄດ້ (ກັນກົດແລ້ວ 403)
@@ -383,17 +376,13 @@ export default async function StatusPage({ params, searchParams }: Props) {
   ]);
 
   /**
-   * ຂັ້ນ "ກຳລັງສັ່ງຊື້ອາໄຫຼ່" — ODS ຮູ້ພຽງວ່າ "ອະນຸມັດສັ່ງຊື້ແລ້ວ" ແຕ່ບໍ່ຮູ້ວ່າໄປຮອດໃສ
-   * ⇒ ດຶງຄວາມຄືບໜ້າຈິງຈາກ ERP (ອະນຸມັດ → ອອກ PO → ຮັບເຂົ້າສາງ) ມາສະແດງ.
+   * ODS/ERP ຢູ່ DB ດຽວກັນ: ບໍ່ sync ແລະບໍ່ຂຽນຖານຂໍ້ມູນຕອນ render.
+   * ອ່ານ progress ໂດຍກົງສະເພາະລາຍການໃນໜ້າປັດຈຸບັນ (ສູງສຸດ PAGE_SIZE)
+   * ແທນການ scan/sync ວຽກ purchasing ທັງໝົດກ່ອນເປີດໜ້າ.
    */
   const tracking =
     isRepair && status === "purchasing"
-      ? new Map(
-          list.rows.flatMap((row) => {
-            const track = purchaseSync?.tracking.get(row.code);
-            return track ? [[row.code, track] as const] : [];
-          }),
-        )
+      ? await purchaseTracking(list.rows.map((row) => row.code))
       : new Map<string, PurchaseTrack>();
 
   // emp_code → ຊື່ ERP (ຊື່ຢູ່ຖານ ERP ຄົນລະບົບ ⇒ ຕ້ອງ resolve ຢູ່ນີ້ ບໍ່ join ໃນ SQL ໄດ້)
@@ -764,15 +753,17 @@ export default async function StatusPage({ params, searchParams }: Props) {
                   : elapsedTone(row.elapsed_seconds);
                 const inWarranty = row.warranty === "ຮັບປະກັນ";
                 return (
-                  <RowLink key={row.code} href={detailHref(row.code)} className="border-b border-slate-100 hover:bg-slate-50">
+                  <tr key={row.code} className="cursor-default border-b border-slate-100 hover:bg-slate-50">
                     <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
-                      {isRepair ? (
-                        <Link href={detailHref(row.code)} className="hover:underline">{row.code}</Link>
-                      ) : (
-                        row.code
-                      )}
-                      {/* ພິມ barcode ຕິດເຄື່ອງ — ເປີດແທັບໃໝ່ (RowLink ຂ້າມ <a> ⇒ ບໍ່ໄປໜ້າ detail) */}
+                      <span>{row.code}</span>
+                      <Link
+                        href={detailHref(row.code)}
+                        className="ml-2 inline-flex h-7 items-center rounded-lg bg-blue-50 px-2 text-[10px] font-semibold text-blue-700 hover:bg-blue-100"
+                      >
+                        ລາຍລະອຽດ
+                      </Link>
+                      {/* ພິມ barcode ຕິດເຄື່ອງ — ເປີດແທັບໃໝ່ */}
                       {isRepair && (
                         <Link
                           href={`/service/${encodeURIComponent(row.code)}/barcode`}
@@ -906,7 +897,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                         {row.sale_bill || "-"}
                       </td>
                     )}
-                  </RowLink>
+                  </tr>
                 );
               })}
             </tbody>
@@ -937,9 +928,9 @@ export default async function StatusPage({ params, searchParams }: Props) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <Link href={detailHref(row.code)} className="text-sm font-bold text-[#0536a9] hover:underline">
+                      <span className="text-sm font-bold text-[#0536a9]">
                         {row.code}
-                      </Link>
+                      </span>
                       {isRepair && (
                         <Link
                           href={`/service/${encodeURIComponent(row.code)}/barcode`}
@@ -1057,7 +1048,15 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     />
                   </div>
                 )}
-                {hasAction && <div className="mt-2 flex flex-wrap items-center gap-1.5">{rowActions(row)}</div>}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <Link
+                    href={detailHref(row.code)}
+                    className="inline-flex h-8 items-center rounded-lg bg-blue-50 px-3 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                  >
+                    ລາຍລະອຽດ
+                  </Link>
+                  {hasAction && rowActions(row)}
+                </div>
               </div>
             );
           })}

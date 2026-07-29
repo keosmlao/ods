@@ -2,6 +2,23 @@ import nodemailer from "nodemailer";
 
 export type MailResult = { sent: boolean; reason?: string };
 
+function mailErrorReason(error: unknown) {
+  const value = error as {
+    code?: string;
+    responseCode?: number;
+    message?: string;
+  };
+  if (value.code === "EAUTH" || value.responseCode === 535)
+    return "SMTP ປະຕິເສດ username ຫຼື password";
+  if (value.code === "ESOCKET" && value.message?.includes("certificate"))
+    return "ຊື່ SMTP host ບໍ່ກົງກັບ TLS certificate";
+  if (value.code === "ETIMEDOUT" || value.code === "ECONNECTION")
+    return "ເຊື່ອມຕໍ່ SMTP server ບໍ່ໄດ້";
+  if (value.responseCode)
+    return `SMTP ປະຕິເສດການສົ່ງ (code ${value.responseCode})`;
+  return "SMTP ສົ່ງລົ້ມເຫຼວ";
+}
+
 /**
  * ສ່ງ email ຜ່ານ SMTP (hosting odienmall.com). ເຮັດວຽກເມື່ອຕັ້ງ env ຄົບ:
  *   SMTP_HOST · SMTP_PORT (ຄ່າຕັ້ງຕົ້ນ 587) · SMTP_USER · SMTP_PASS · MAIL_FROM
@@ -21,6 +38,6 @@ export async function sendMail(opts: { to: string; cc?: string; subject: string;
     return { sent: true };
   } catch (error) {
     console.error("sendMail failed", error);
-    return { sent: false, reason: "SMTP ສ່ງລົ້ມເຫຼວ" };
+    return { sent: false, reason: mailErrorReason(error) };
   }
 }
