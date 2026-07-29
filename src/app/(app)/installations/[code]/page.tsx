@@ -1,5 +1,6 @@
 import { Chatter } from "@/components/chatter/chatter";
 import { getSession } from "@/lib/auth";
+import { CancelInstallSpareRequestButton } from "@/components/installation/cancel-spare-request-button";
 import { Elapsed } from "@/components/elapsed";
 import { InstallDeleteButton } from "@/components/installation/install-delete-button";
 import { JOB_HEAD_COLUMNS, type JobHead, JobHeader } from "@/components/installation/job-header";
@@ -13,6 +14,8 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { INSTALL_ELAPSED_SQL, INSTALL_STAGE_SQL, installStageChip, installStageLabel } from "@/lib/install-stage";
 import { canViewAssignedJob } from "@/lib/scope";
+import { TECH_SIDE, roleOf } from "@/lib/roles";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 /**
@@ -54,7 +57,13 @@ type Spare = {
   pick_finish: string | null;
 };
 
-type Doc = { doc_no: string; doc_date: string | null; trans_flag: number; lines: number };
+type Doc = {
+  doc_no: string;
+  doc_date: string | null;
+  trans_flag: number;
+  lines: number;
+  dispatched: boolean;
+};
 
 /** ຊື່ເອກະສານຂອງສາຍງານຕິດຕັ້ງ — ຄືກັບ lib/stock-constants */
 const DOC_LABEL: Record<number, string> = {
@@ -94,7 +103,11 @@ export default async function InstallationDetail({ params }: Props) {
     ),
     query<Doc>(
       `select t.doc_no, to_char(t.doc_date,'DD-MM-YYYY') doc_date, t.trans_flag,
-          (select count(*)::int from ic_trans_detail d where d.doc_no = t.doc_no) lines
+          (select count(*)::int from ic_trans_detail d where d.doc_no = t.doc_no) lines,
+          exists (
+            select 1 from ic_trans issued
+             where issued.trans_flag = 56 and issued.doc_ref = t.doc_no
+          ) dispatched
         from ic_trans t
         where t.product_code = $1 and t.trans_flag in (122,56,166,59,58)
         order by t.doc_no`,
@@ -124,6 +137,7 @@ export default async function InstallationDetail({ params }: Props) {
   const row = job.rows[0];
   if (!row) notFound();
   if (!canViewAssignedJob(session, row.tech_code)) redirect("/forbidden");
+  const canCancelRequest = TECH_SIDE.includes(roleOf(session));
 
   /**
    * ດຶງ **ຫຼັງ**ກວດສິດ — ບໍ່ດັ່ງນັ້ນຄົນທີ່ເປີດງານຂອງຄົນອື່ນບໍ່ໄດ້ ຍັງເຮັດໃຫ້ລະບົບ
@@ -227,13 +241,29 @@ export default async function InstallationDetail({ params }: Props) {
         {docs.rows.length === 0 ? (
           <Empty>{t.noDocs}</Empty>
         ) : (
-          <Table head={[t.docType, t.docNo, t.date, t.lines]} minWidth={600}>
+          <Table head={[t.docType, t.docNo, t.date, t.lines, ""]} minWidth={650}>
             {docs.rows.map((doc) => (
               <tr key={doc.doc_no} className="border-b border-slate-100">
                 <td className="px-3 py-2 text-xs">{DOC_LABEL[doc.trans_flag] ?? doc.trans_flag}</td>
-                <td className="px-3 py-2 text-xs font-semibold">{doc.doc_no}</td>
+                <td className="px-3 py-2 text-xs font-semibold">
+                  {doc.trans_flag === 122 ? (
+                    <Link
+                      href={`/installations/spare-requests/view/${encodeURIComponent(doc.doc_no)}`}
+                      className="text-teal-700 underline decoration-teal-300 underline-offset-2 hover:text-teal-900"
+                    >
+                      {doc.doc_no}
+                    </Link>
+                  ) : (
+                    doc.doc_no
+                  )}
+                </td>
                 <td className="px-3 py-2 text-xs text-slate-500">{doc.doc_date ?? "-"}</td>
                 <td className="px-3 py-2 text-xs text-slate-500">{doc.lines}</td>
+                <td className="px-3 py-2 text-right">
+                  {canCancelRequest && doc.trans_flag === 122 && !doc.dispatched && (
+                    <CancelInstallSpareRequestButton docNo={doc.doc_no} code={row.code} />
+                  )}
+                </td>
               </tr>
             ))}
           </Table>

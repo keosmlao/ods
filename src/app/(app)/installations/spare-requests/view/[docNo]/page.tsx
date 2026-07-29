@@ -40,12 +40,12 @@ export default async function ViewSpareRequest({ params }: Props) {
        from ic_trans ic
        left join ods_tb_install a on a.code = ic.product_code
        left join ar_customer c on c.code = a.cust_code
-       where ic.doc_no = $1 limit 1`,
+       where ic.doc_no = $1 and ic.trans_flag = 122 limit 1`,
       [docNo],
     ),
     query<{ rnum: string; item_code: string; item_name: string; qty: string; unit_code: string | null }>(
       `select row_number() over (order by roworder asc) as rnum, item_code, item_name, round(qty,2) as qty, unit_code
-       from ic_trans_detail where doc_no = $1 order by roworder asc`,
+       from ic_trans_detail where doc_no = $1 and trans_flag = 122 order by roworder asc`,
       [docNo],
     ),
   ]);
@@ -53,6 +53,9 @@ export default async function ViewSpareRequest({ params }: Props) {
   const x = head.rows[0];
   if (!x) notFound();
   if (!canViewAssignedJob(session, x.tech_code)) redirect("/forbidden");
+  const backHref = session.role === "stock"
+    ? "/installations/dispatch"
+    : `/installations/${encodeURIComponent(x.code ?? "")}`;
 
   const fields: [string, string | null][] = [
     [t.reqNo, x.doc_no],
@@ -72,7 +75,7 @@ export default async function ViewSpareRequest({ params }: Props) {
     <div className="w-full space-y-5">
       <PageTitle>{t.title}</PageTitle>
 
-      <Card title={t.cardInfo} actions={<LinkButton href="/installations/spare-requests" tone="neutral">{t.back}</LinkButton>}>
+      <Card title={t.cardInfo} actions={<LinkButton href={backHref} tone="neutral">{t.back}</LinkButton>}>
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {fields.map(([label, value]) => (
             <div key={label} className="border-b border-slate-100 pb-2">

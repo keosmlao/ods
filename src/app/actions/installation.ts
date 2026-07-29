@@ -1399,7 +1399,7 @@ export async function deleteSpareRequest(
     );
     if (Number(used.rows[0].count) !== 0) {
       await Promise.all([client.query("rollback"), odg.query("rollback")]);
-      return { error: `ບໍ່ສາມາດລົບເລກທີຂໍເບີກ ${docNo} ນີ້ໂດ້` };
+      return { error: `ລົບໃບຂໍເບີກ ${docNo} ບໍ່ໄດ້ — ສາງເບີກອາໄຫຼ່ໃຫ້ແລ້ວ` };
     }
     /**
      * ── ລຶບຢູ່ **ERP** ນຳ (13-07-2026) ──

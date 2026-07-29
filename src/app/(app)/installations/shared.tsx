@@ -284,10 +284,19 @@ export function InstallTableHead({
 }
 
 /** ຊ່ອງ "ເລກທີໃບ" — ເລກທີ + ວັນ/ເວລາຂອງໃບ */
-export function DocCell({ row }: { row: InstallDocRow }) {
+export function DocCell({ row, href }: { row: InstallDocRow; href?: string }) {
   return (
     <td className="whitespace-nowrap px-3 py-2.5">
-      <span className="font-semibold text-slate-700">{row.doc_no}</span>
+      {href ? (
+        <Link
+          href={href}
+          className="font-semibold text-teal-700 underline decoration-teal-300 underline-offset-2 hover:text-teal-900"
+        >
+          {row.doc_no}
+        </Link>
+      ) : (
+        <span className="font-semibold text-slate-700">{row.doc_no}</span>
+      )}
       <span className="mt-0.5 block text-[10px] text-slate-400">{row.doc_time ?? "-"}</span>
     </td>
   );

@@ -1,5 +1,6 @@
 import { syncErpDispatch } from "@/lib/erp-dispatch";
 import { techFilter } from "@/app/actions/installation";
+import { CancelInstallSpareRequestButton } from "@/components/installation/cancel-spare-request-button";
 import { LinkPending } from "@/components/link-pending";
 import { PackageCheck } from "lucide-react";
 import Link from "next/link";
@@ -174,11 +175,21 @@ export default async function SparePickupPage({ searchParams }: Props) {
                         ↳ ໃບຂໍເບີກເພີ່ມຂອງ <span className="font-semibold">{row.code}</span>
                       </td>
                     )}
-                    <DocCell row={row} />
+                    <DocCell
+                      row={row}
+                      href={`/installations/spare-requests/view/${encodeURIComponent(row.doc_no)}`}
+                    />
                     <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                      <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
-                        ລໍສາງເບີກ
-                      </span>
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
+                          ລໍສາງເບີກ
+                        </span>
+                        <CancelInstallSpareRequestButton
+                          docNo={row.doc_no}
+                          code={row.code}
+                          variant="button"
+                        />
+                      </div>
                     </td>
                   </tr>
                 )),

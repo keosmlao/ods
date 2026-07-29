@@ -98,7 +98,10 @@ export default async function DispatchPage({ searchParams }: Props) {
           {list.rows.map((row) => (
             <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
               <InstallCells row={row} timeLabel="ວັນ/ເວລາຂໍເບີກ" />
-              <DocCell row={row} />
+              <DocCell
+                row={row}
+                href={`/installations/spare-requests/view/${encodeURIComponent(row.doc_no)}`}
+              />
               <td className="whitespace-nowrap px-3 py-2.5 text-center">
                 <Link
                   href={`/installations/dispatch/${encodeURIComponent(row.doc_no)}`}
