@@ -9,12 +9,14 @@ import { installStageIs } from "@/lib/install-stage";
 import { feedbackUrl } from "@/lib/track";
 import { ClipboardList } from "lucide-react";
 import Link from "next/link";
+import { Fragment } from "react";
 import { FeedbackEditButton, type FeedbackAnswer } from "../feedback-edit";
 import {
   INSTALL_PLAIN_COLUMNS,
   INSTALL_SEARCH,
   INSTALL_SORTABLE_COLUMNS,
   InstallCells,
+  InstallTimelineTreeRow,
   InstallTableHead,
   ListHeader,
   PAGE_SIZE,
@@ -170,7 +172,8 @@ export async function InstallationCloseQueue({ searchParams, queue }: CloseQueue
         />
         <tbody>
           {rows.map((row) => (
-            <RowLink key={row.code} href={`/installations/${encodeURIComponent(row.code)}`} className="border-b border-slate-100 hover:bg-slate-50">
+            <Fragment key={row.code}>
+            <RowLink href={`/installations/${encodeURIComponent(row.code)}`} className="border-b border-slate-100 hover:bg-slate-50">
               <InstallCells row={row} timeLabel={timeLabels(t)[queue]} />
               <td className="max-w-64 px-3 py-2.5">
                 <span className="block truncate" title={row.complain_cust ?? ""}>
@@ -215,6 +218,8 @@ export async function InstallationCloseQueue({ searchParams, queue }: CloseQueue
                 </div>
               </td>
             </RowLink>
+            <InstallTimelineTreeRow code={row.code} />
+            </Fragment>
           ))}
         </tbody>
       </TableShell>

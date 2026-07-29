@@ -1,4 +1,5 @@
 import { Elapsed } from "@/components/elapsed";
+import { CancelRequestButton } from "@/app/(app)/stock/requests/cancel-request-button";
 import { LinkPending } from "@/components/link-pending";
 import { RowLink } from "@/components/row-link";
 import { SortHeader, type SortDir } from "@/components/sort-header";
@@ -42,6 +43,22 @@ type Row = {
   lines: number;
 };
 
+/** ຮວບໃບເບີກຫຼາຍໃບຂອງວຽກສ້ອມດຽວກັນໃຫ້ຢູ່ຕິດກັນ. */
+function groupByJob(rows: Row[]): Row[][] {
+  const groups: Row[][] = [];
+  const positions = new Map<string, number>();
+  for (const row of rows) {
+    const position = positions.get(row.code);
+    if (position === undefined) {
+      positions.set(row.code, groups.length);
+      groups.push([row]);
+    } else {
+      groups[position].push(row);
+    }
+  }
+  return groups;
+}
+
 const AT = "coalesce(ic.create_date_time_now, ic.doc_date)";
 
 /**
@@ -52,6 +69,12 @@ const WHERE = `ic.trans_flag = $1 and (ic.job_type is null or ic.job_type <> 'in
   and p.status <> 6 and p.return_complete is null
   and not exists (select 1 from ic_trans t where t.trans_flag = $2 and t.doc_ref = ic.doc_no)
   and exists (select 1 from tb_used_spare s where s.product_code = ic.product_code and s.pick_finish is null)`;
+const REQUESTING_WHERE = `ic.trans_flag = $1 and (ic.job_type is null or ic.job_type <> 'install')
+  and p.status <> 6 and p.return_complete is null
+  and exists (
+    select 1 from ic_trans_detail d
+    where d.doc_no = ic.doc_no and d.trans_flag = $1 and d.status <> 1
+  )`;
 
 const SEARCH = `(ic.doc_no ilike $Q or p.code ilike $Q or p.name_1 ilike $Q or p.sn ilike $Q
   or p.p_brand ilike $Q or p.emp_code ilike $Q or c.name_1 ilike $Q or c.tel ilike $Q
@@ -108,6 +131,40 @@ async function getWaiting(emp: string | null, q: string, page: number, sort: str
   return { rows: rows.rows, total: count.rows[0]?.total ?? 0 };
 }
 
+/** ໃບຂໍເບີກທີ່ຍັງລໍສາງ ERP ເບີກ — ສະແດງແຍກເໝືອນຝັ່ງຕິດຕັ້ງ. */
+async function getRequesting(emp: string | null, q: string) {
+  const params: unknown[] = [TRANS.REQUEST];
+  let where = REQUESTING_WHERE;
+  if (emp) {
+    params.push(emp);
+    where += ` and p.emp_code = $${params.length}`;
+  }
+  if (q) {
+    params.push(`%${q}%`);
+    where += ` and ${SEARCH.replaceAll("$Q", `$${params.length}`)}`;
+  }
+  const from = `from ic_trans ic
+    join tb_product p on p.code = ic.product_code
+    left join ar_customer c on c.code = p.cust_code
+    where ${where}`;
+  const rows = await query<Row>(
+    `select ic.doc_no,
+       to_char(${AT},'DD-MM-YYYY HH24:MI') at_time,
+       greatest(0, round(extract(epoch from (localtimestamp - ${AT}))))::int elapsed_seconds,
+       p.code, concat_ws('-', c.name_1, c.tel) customer,
+       concat_ws(' · ', p.name_1, p.sn) product, p.p_brand brand,
+       coalesce(p.issue_2, p.issue) issue, p.emp_code technician,
+       (select count(*) from ic_trans_detail d
+         where d.doc_no=ic.doc_no and d.trans_flag=ic.trans_flag and d.status <> 1)::int lines
+     ${from}
+     order by ${AT} asc nulls last
+     limit ${PAGE_SIZE}`,
+    params,
+  );
+  const count = await query<{ total: number }>(`select count(*)::int total ${from}`, params);
+  return { rows: rows.rows, total: count.rows[0]?.total ?? 0 };
+}
+
 type Dict = Record<string, string>;
 
 const columns = (t: Dict): { key: string; label: string; defaultDir: SortDir }[] => [
@@ -133,7 +190,10 @@ export default async function SparePickupPage({ searchParams }: Props) {
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
   const sort = (params.sort ?? "elapsed").trim();
 
-  const list = await getWaiting(emp, q, page, sort, dir);
+  const [list, requesting] = await Promise.all([
+    getWaiting(emp, q, page, sort, dir),
+    getRequesting(emp, q),
+  ]);
   const pages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
 
   const base = (): Record<string, string> => (q ? { q } : {});
@@ -168,6 +228,98 @@ export default async function SparePickupPage({ searchParams }: Props) {
         <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
       </form>
 
+      {requesting.total > 0 && (
+        <section className="space-y-2">
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p className="font-semibold">
+              ລໍສາງ ERP ເບີກອາໄຫຼ່
+              <span className="ml-2 rounded-full bg-amber-200 px-2 py-0.5 text-xs">{requesting.total}</span>
+            </p>
+            <span className="text-xs">ຍັງບໍ່ສາມາດກົດຮັບໄດ້</span>
+          </div>
+          <div className="overflow-hidden rounded-xl border border-amber-200 bg-white shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1200px] border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                    <th className="px-3 py-2.5 font-semibold">ເລກທີ / ເລກບິນ</th>
+                    <th className="px-3 py-2.5 font-semibold">ຄ້າງມາ</th>
+                    <th className="px-3 py-2.5 font-semibold">ລາຍການສ້ອມ</th>
+                    <th className="px-3 py-2.5 font-semibold">ລູກຄ້າ</th>
+                    <th className="px-3 py-2.5 font-semibold">ຍີ່ຫໍ້</th>
+                    <th className="px-3 py-2.5 font-semibold">ຊ່າງ</th>
+                    <th className="px-3 py-2.5 font-semibold">ເລກທີຂໍເບີກ</th>
+                    <th className="px-3 py-2.5 text-center font-semibold">ຈັດການ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupByJob(requesting.rows).map((docs) =>
+                    docs.map((row, index) => {
+                      const tone = elapsedTone(row.elapsed_seconds);
+                      if (index > 0) {
+                        return (
+                          <tr key={row.doc_no} className="border-t border-dashed border-amber-100 bg-slate-50/60">
+                            <td colSpan={6} className="py-3 pl-10 text-xs text-slate-400">
+                              ↳ ໃບຂໍເບີກ{" "}
+                              <Link
+                                href={`/stock/requests/view/${encodeURIComponent(row.doc_no)}`}
+                                className="font-mono font-semibold text-teal-700 hover:underline"
+                              >
+                                {row.doc_no}
+                              </Link>
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2.5">
+                              <Link
+                                href={`/stock/requests/view/${encodeURIComponent(row.doc_no)}`}
+                                className="font-mono font-bold text-teal-700 hover:underline"
+                              >
+                                {row.doc_no}
+                              </Link>
+                              <span className="block text-[10px] text-slate-400">ຄ້າງ {row.lines} ລາຍການ</span>
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                              <CancelRequestButton docNo={row.doc_no} productCode={row.code} variant="button" />
+                            </td>
+                          </tr>
+                        );
+                      }
+                      return (
+                      <tr key={row.doc_no} className="border-t-2 border-amber-200 bg-amber-50/30">
+                        <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                          <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                          {row.code}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5">
+                          <Elapsed seconds={row.elapsed_seconds} className={`rounded px-1.5 py-0.5 font-semibold ${tone.chip}`} />
+                          <span className="mt-0.5 block text-[10px] text-slate-400">{row.at_time ?? "-"}</span>
+                        </td>
+                        <td className="max-w-72 truncate px-3 py-2.5 font-medium text-slate-800">{row.product ?? "-"}</td>
+                        <td className="max-w-52 truncate px-3 py-2.5">{row.customer ?? "-"}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5">{row.brand ?? "-"}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5">{row.technician ?? "-"}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5">
+                          <Link
+                            href={`/stock/requests/view/${encodeURIComponent(row.doc_no)}`}
+                            className="font-mono font-bold text-teal-700 hover:underline"
+                          >
+                            {row.doc_no}
+                          </Link>
+                          <span className="block text-[10px] text-slate-400">ຄ້າງ {row.lines} ລາຍການ</span>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                          <CancelRequestButton docNo={row.doc_no} productCode={row.code} variant="button" />
+                        </td>
+                      </tr>
+                      );
+                    }),
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      )}
+
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1150px] border-collapse text-xs">
@@ -191,10 +343,36 @@ export default async function SparePickupPage({ searchParams }: Props) {
               </tr>
             </thead>
             <tbody>
-              {list.rows.map((row) => {
-                const tone = elapsedTone(row.elapsed_seconds);
-                return (
-                  <RowLink key={row.doc_no} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
+              {groupByJob(list.rows).map((docs) =>
+                docs.map((row, index) => {
+                  const tone = elapsedTone(row.elapsed_seconds);
+                  if (index > 0) {
+                    return (
+                      <tr key={row.doc_no} className="border-t border-dashed border-slate-100 bg-slate-50/60">
+                        <td colSpan={8} className="py-2 pl-10 text-xs text-slate-400">
+                          ↳ ໃບເບີກ{" "}
+                          <span className="font-mono font-semibold text-slate-600">{row.doc_no}</span>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                            {row.lines}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                          <Link
+                            href={`/stock/requests/pickup/${encodeURIComponent(row.doc_no)}`}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                          >
+                            <PackageCheck className="size-3.5" />
+                            {t.receiveSpare}
+                            <LinkPending className="size-3" />
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return (
+                  <RowLink key={row.doc_no} href={`/service/${row.code}`} className="border-t-2 border-slate-200 hover:bg-slate-50">
                     <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                       {row.doc_no}
@@ -238,8 +416,9 @@ export default async function SparePickupPage({ searchParams }: Props) {
                       </Link>
                     </td>
                   </RowLink>
-                );
-              })}
+                  );
+                }),
+              )}
             </tbody>
           </table>
         </div>

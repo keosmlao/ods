@@ -60,12 +60,26 @@ async function getLines(productCode: string, docNo: string) {
       ).rows.map((row) => row.item_code),
     );
     const required = (
-      await query<{ roworder: number; item_code: string; item_name: string | null; qty: string; unit_code: string | null }>(
+      await query<{
+        roworder: number; item_code: string; item_name: string | null; qty: string;
+        pending_qty: string; unit_code: string | null;
+      }>(
         `select min(s.roworder)::int roworder, s.item_code, max(s.item_name) item_name,
-            sum(coalesce(s.qty,0))::text qty, max(s.unit_code) unit_code
+            greatest(sum(coalesce(s.qty,0)) - coalesce(r.requested_qty,0), 0)::text qty,
+            coalesce(r.pending_qty,0)::text pending_qty, max(s.unit_code) unit_code
            from tb_used_spare s
+           left join (
+             select item_code,
+               sum(case when trans_flag=122 then qty else -qty end) requested_qty,
+               sum(qty) filter (where trans_flag=122 and coalesce(status,0)=0) pending_qty
+             from ic_trans_detail
+             where product_code=$1 and trans_flag in (122,59)
+             group by item_code
+           ) r on r.item_code=s.item_code
           where s.product_code=$1
-          group by s.item_code order by min(s.roworder)`,
+          group by s.item_code, r.requested_qty, r.pending_qty
+          having sum(coalesce(s.qty,0)) - coalesce(r.requested_qty,0) > 0
+          order by min(s.roworder)`,
         [productCode],
       )
     ).rows.filter((line) => !onSpr.has(line.item_code));
@@ -73,7 +87,10 @@ async function getLines(productCode: string, docNo: string) {
     return required.flatMap((line): RqLine[] => {
       // ຂອບເຂດດຽວກັບຕອນຂໍເບີກ+ຂໍຊື້ — ນັບສະເພາະສາງທີ່ເບີກໄດ້ (ບໍ່ແມ່ນ total ທຸກສາງ)
       const balance = withdrawableQty(balances.get(line.item_code));
-      const shortage = Math.max(0, Number(line.qty) - balance);
+      // status=0 ຂອງ SIO ແມ່ນ stock ທີ່ຂໍໄວ້ແລ້ວແຕ່ ERP ຍັງບໍ່ທັນຕັດ:
+      // ຕ້ອງຫັກອອກຈາກ balance ກ່ອນ ຈຶ່ງບໍ່ນັບ stock ກ້ອນດຽວກັນຊ້ຳ.
+      const freeBalance = Math.max(0, balance - Number(line.pending_qty));
+      const shortage = Math.max(0, Number(line.qty) - freeBalance);
       if (shortage <= 0) return [];
       return [{ ...line, qty: String(shortage), balance_qty: String(balance), price: "0", sum_amount: "0" }];
     });
@@ -119,13 +136,14 @@ export default async function NewPurchaseRequestPage({ params }: Props) {
    * (ກວດ Stock / ດຳເນີນອາໄຫຼ່) — ດ່ານດຽວກັນກັບ action (actions/purchase.ts).
    */
   const direct = docNo === "direct" ? (head as DirectHead) : null;
-  if (direct && direct.stage !== 5) {
+  if (direct && direct.stage !== 5 && direct.stage !== 6) {
     return (
       <div className="w-full max-w-2xl space-y-5">
         <PageTitle sub="ຂໍສັ່ງຊື່">ຂໍອະນຸມັດສະເໜີຊື້ອາໄຫຼ່</PageTitle>
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           ວຽກ #{productCode} ຢູ່ຂັ້ນ <b>{stageLabel(direct.stage, direct.service_type)}</b> —
-          ຂໍສັ່ງຊື້ອາໄຫຼ່ໂດຍກົງໄດ້ສະເພາະວຽກທີ່ຢູ່ຂັ້ນ <b>{STAGE_LABEL[5]}</b> ເທົ່ານັ້ນ.
+          ຂໍສັ່ງຊື້ອາໄຫຼ່ໂດຍກົງໄດ້ສະເພາະວຽກທີ່ຢູ່ຂັ້ນ <b>{STAGE_LABEL[5]}</b>
+          {" "}ຫຼື <b>{STAGE_LABEL[6]}</b> ເທົ່ານັ້ນ.
           {direct.stage === 3 || direct.stage === 4
             ? " ວຽກໝົດຮັບປະກັນຕ້ອງໃຫ້ລູກຄ້າຕົກລົງລາຄາກ່ອນ."
             : direct.stage === 7

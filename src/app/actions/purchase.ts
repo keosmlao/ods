@@ -8,7 +8,7 @@ import { approvePo, approvePr, createPo, issuePo, linesOf, peekPoNo, type PoShip
 import { nextSprNo, writeErpSpr } from "@/lib/erp-spr";
 import { supplierByCode } from "@/lib/erp-supplier";
 import { getBalances, withdrawableQty, withdrawableWhere } from "@/lib/stock-balance";
-import { ERP_PURCHASE } from "@/lib/stock-constants";
+import { ERP_PURCHASE, LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import { requireRole } from "@/lib/guard";
 import { APPROVER_SIDE, roleOf, type Role } from "@/lib/roles";
 import { STAGE_SQL } from "@/lib/stage";
@@ -256,13 +256,13 @@ export async function saveRequestOrder(_: PurchaseState, formData: FormData): Pr
     if (d.source_type === "check") {
       // ລຳດັບທີ່ຖືກ: ອອກໃບຂໍຊື້ຈາກຜົນກວດໂດຍກົງ — ບໍ່ສ້າງ SIO ປອມກ່ອນຊື້.
       const job = await client.query<{ cust_code: string | null }>(
-        `select a.cust_code from tb_product a where a.code=$1 and (${STAGE_SQL})=5 for update`,
+        `select a.cust_code from tb_product a where a.code=$1 and (${STAGE_SQL}) in (5,6) for update`,
         [d.product_code],
       );
       if (!job.rows[0]) {
         await client.query("rollback");
         await odg.query("rollback");
-        return { error: "ວຽກນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນກວດ Stock / ດຳເນີນອາໄຫຼ່" };
+        return { error: "ວຽກນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນດຳເນີນອາໄຫຼ່ ຫຼື ກຳລັງເບີກອາໄຫຼ່" };
       }
       /**
        * ກັນຂໍຊື້ຊ້ຳ — ໃບຂໍຊື້ຢູ່ **ERP** ແລ້ວ (ບໍ່ແມ່ນ RQ ຂອງ ODS ອີກ) ⇒ ຖາມ ERP:
@@ -278,13 +278,27 @@ export async function saveRequestOrder(_: PurchaseState, formData: FormData): Pr
       );
       const required = (
         await client.query<{
-          roworder: number; item_code: string; item_name: string | null; qty: string; unit_code: string | null;
+          roworder: number; item_code: string; item_name: string | null; qty: string;
+          pending_qty: string; unit_code: string | null;
         }>(
           `select min(s.roworder)::int roworder, s.item_code, max(s.item_name) item_name,
-              sum(coalesce(s.qty,0))::text qty, max(s.unit_code) unit_code
+              greatest(sum(coalesce(s.qty,0)) - coalesce(r.requested_qty,0), 0)::text qty,
+              coalesce(r.pending_qty,0)::text pending_qty, max(s.unit_code) unit_code
              from tb_used_spare s
+             left join (
+               select item_code,
+                 sum(case when trans_flag=${TRANS.REQUEST} then qty else -qty end) requested_qty,
+                 sum(qty) filter (
+                   where trans_flag=${TRANS.REQUEST} and coalesce(status,0)=${LINE_STATUS.PENDING}
+                 ) pending_qty
+               from ic_trans_detail
+               where product_code=$1 and trans_flag in (${TRANS.REQUEST},${TRANS.RETURN_REQUEST})
+               group by item_code
+             ) r on r.item_code=s.item_code
             where s.product_code=$1
-            group by s.item_code order by min(s.roworder)`,
+            group by s.item_code, r.requested_qty, r.pending_qty
+            having sum(coalesce(s.qty,0)) - coalesce(r.requested_qty,0) > 0
+            order by min(s.roworder)`,
           [d.product_code],
         )
       ).rows.filter((line) => !onSpr.has(line.item_code));
@@ -321,7 +335,9 @@ export async function saveRequestOrder(_: PurchaseState, formData: FormData): Pr
         return { error: "ກວດ stock ERP ບໍ່ສຳເລັດ — ກະລຸນາລອງໃໝ່, ຍັງບໍ່ໄດ້ສ້າງໃບສັ່ງຊື້" };
       }
       const shortage = required.flatMap((line) => {
-        const qty = Math.max(0, Number(line.qty) - withdrawableQty(balances.get(line.item_code)));
+        const stock = withdrawableQty(balances.get(line.item_code));
+        const freeStock = Math.max(0, stock - Number(line.pending_qty));
+        const qty = Math.max(0, Number(line.qty) - freeStock);
         if (qty <= 0) return [];
         const rawPrice = Number(String(formData.get(`price_${line.roworder}`) ?? "0").replace(/,/g, ""));
         return [{ ...line, qty, price: Number.isFinite(rawPrice) && rawPrice >= 0 ? rawPrice : 0 }];
@@ -366,6 +382,12 @@ export async function saveRequestOrder(_: PurchaseState, formData: FormData): Pr
         docNo: erpDocNo, transFlag: ERP_PURCHASE.PR_REQUEST,
         jobCode: d.product_code, by: session.username,
       });
+      // ກໍລະນີປະສົມ: ບາງລາຍການມີ SIO ຢູ່ຂັ້ນ 6 ແລ້ວ,
+      // ສ່ວນທີ່ຂາດຫາກໍ່ອອກ SPR. ໝາຍວຽກເປັນຂັ້ນ 7 ໃຫ້ຄິວຕິດຕາມການຊື້ເຫັນທັນທີ.
+      await client.query(
+        `update tb_product set spare_order=coalesce(spare_order,localtimestamp(0)) where code=$1`,
+        [d.product_code],
+      );
     } else {
       /**
        * ເສັ້ນທາງໃບຂໍເບີກ (SIO) ທີ່ອອກໄປແລ້ວ ແຕ່ stock ບໍ່ພໍ — ອອກ SPR ລົງ **ERP ບ່ອນດຽວ**

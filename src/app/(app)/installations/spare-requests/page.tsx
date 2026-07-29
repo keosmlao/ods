@@ -6,11 +6,13 @@ import { getLocale } from "@/lib/i18n/locale";
 import { INSTALL_SPARE_REQUEST_QUEUE } from "@/lib/install-spare-request";
 import { PackagePlus } from "lucide-react";
 import Link from "next/link";
+import { Fragment } from "react";
 import {
   INSTALL_PLAIN_COLUMNS,
   INSTALL_SEARCH,
   INSTALL_SORTABLE_COLUMNS,
   InstallCells,
+  InstallTimelineTreeRow,
   InstallTableHead,
   ListHeader,
   PAGE_SIZE,
@@ -146,7 +148,8 @@ export default async function SpareRequestsPage({ searchParams }: Props) {
         />
         <tbody>
           {list.rows.map((row) => (
-            <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
+            <Fragment key={row.code}>
+            <tr className="border-b border-slate-100 hover:bg-slate-50">
               <InstallCells row={row} timeLabel={t.timeOpenJob} />
               <td className="whitespace-nowrap px-3 py-2.5 text-center">
                 <Link
@@ -159,6 +162,8 @@ export default async function SpareRequestsPage({ searchParams }: Props) {
                 </Link>
               </td>
             </tr>
+            <InstallTimelineTreeRow code={row.code} />
+            </Fragment>
           ))}
         </tbody>
       </TableShell>

@@ -2,6 +2,7 @@ import { syncErpDispatch } from "@/lib/erp-dispatch";
 import { LinkPending } from "@/components/link-pending";
 import { PackageMinus } from "lucide-react";
 import Link from "next/link";
+import { Fragment } from "react";
 import {
   DocCell,
   INSTALL_DOC_COLUMN,
@@ -10,6 +11,7 @@ import {
   INSTALL_PLAIN_COLUMNS,
   INSTALL_SORTABLE_COLUMNS,
   InstallCells,
+  InstallTimelineTreeRow,
   InstallTableHead,
   ListHeader,
   PAGE_SIZE,
@@ -96,7 +98,8 @@ export default async function DispatchPage({ searchParams }: Props) {
         />
         <tbody>
           {list.rows.map((row) => (
-            <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
+            <Fragment key={row.doc_no}>
+            <tr className="border-b border-slate-100 hover:bg-slate-50">
               <InstallCells row={row} timeLabel="ວັນ/ເວລາຂໍເບີກ" />
               <DocCell
                 row={row}
@@ -113,6 +116,8 @@ export default async function DispatchPage({ searchParams }: Props) {
                 </Link>
               </td>
             </tr>
+            <InstallTimelineTreeRow code={row.code} />
+            </Fragment>
           ))}
         </tbody>
       </TableShell>

@@ -11,6 +11,7 @@ import {
   INSTALL_SEARCH,
   INSTALL_SORTABLE_COLUMNS,
   InstallCells,
+  InstallTimelineTreeRow,
   InstallTableHead,
   ListHeader,
   PAGE_SIZE,
@@ -22,6 +23,7 @@ import {
   readParams,
   type ListSearchParams,
 } from "./shared";
+import { Fragment } from "react";
 
 /**
  * ຖອດແບບຈາກ ods: /Home_install + /api/install_list (install_admin.py) — ອອກແບບໃໝ່.
@@ -135,7 +137,8 @@ export default async function InstallationsPage({ searchParams }: Props) {
         />
         <tbody>
           {jobs.rows.map((row) => (
-            <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
+            <Fragment key={row.code}>
+            <tr className="border-b border-slate-100 hover:bg-slate-50">
               <InstallCells row={row} />
               <td className="whitespace-nowrap px-3 py-2.5">
                 <div className="flex items-center justify-center gap-2">
@@ -163,6 +166,8 @@ export default async function InstallationsPage({ searchParams }: Props) {
                 </div>
               </td>
             </tr>
+            <InstallTimelineTreeRow code={row.code} />
+            </Fragment>
           ))}
         </tbody>
       </TableShell>

@@ -5,6 +5,8 @@ import { elapsedTone } from "@/lib/elapsed-tone";
 import { INSTALL_LEFT_SQL } from "@/lib/install-sla";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
+import { installTimeline } from "@/lib/install-timeline";
+import { JobTimeline } from "@/components/repair/job-timeline";
 import {
   INSTALL_ELAPSED_SQL,
   INSTALL_STAGE_SQL,
@@ -22,6 +24,29 @@ import type { ReactNode } from "react";
  */
 
 export const PAGE_SIZE = 20;
+
+/** Timeline Tree ມາດຕະຖານສຳລັບຕາຕະລາງຄິວຕິດຕັ້ງທຸກຂັ້ນ. */
+export async function InstallTimelineTreeRow({ code, colSpan = 20 }: { code: string; colSpan?: number }) {
+  const timeline = await installTimeline(code);
+  if (timeline.steps.length === 0) return null;
+  const current = timeline.steps.find((step) => step.state === "current")
+    ?? [...timeline.steps].reverse().find((step) => step.state === "done");
+  return (
+    <tr className="border-b border-dashed border-indigo-100 bg-indigo-50/20">
+      <td colSpan={colSpan} className="px-10 py-2">
+        <details open>
+          <summary className="cursor-pointer select-none text-[11px] font-semibold text-indigo-700">
+            ↳ Timeline
+            {current && <span className="ml-2 font-normal text-slate-500">ຂັ້ນປັດຈຸບັນ: {current.label}</span>}
+          </summary>
+          <div className="mt-3 w-full rounded-xl border border-indigo-100 bg-white p-4">
+            <JobTimeline steps={timeline.steps} cancelledAt={timeline.cancelledAt} bare horizontal />
+          </div>
+        </details>
+      </td>
+    </tr>
+  );
+}
 
 /** ຊ່ອງທີ່ <InstallCells/> ຕ້ອງການ — ໜ້າທີ່ດຶງຈາກ ic_trans ກໍໃຫ້ຊ່ອງຊຸດນີ້ຄືກັນ */
 export type InstallCellRow = {
@@ -55,6 +80,8 @@ export type InstallRow = InstallCellRow & {
 /** ແຖວທີ່ມາຈາກໃບເອກະສານ (ic_trans) — ໃບຂໍເບີກ / ໃບເບີກ / ໃບຮັບອາໄຫຼ່ */
 export type InstallDocRow = InstallCellRow & {
   doc_no: string;
+  /** ໃບຂໍເບີກ SION ທີ່ໃບເບີກ SWC ອ້າງອີງ */
+  request_doc: string | null;
   /** ວັນ/ເວລາຂອງໃບ */
   doc_time: string | null;
 };
@@ -117,7 +144,7 @@ export function installOrderBy(
  * ຊ່ອງມາດຕະຖານຂອງແຖວໃບເບີກ — ic = ic_trans, a = ods_tb_install (left join), c = ar_customer.
  * ໃຊ້ left join ຈຶ່ງມີແຖວໃບເບີກທີ່ຫາງານຄູ່ບໍ່ພົບ (ຂໍ້ມູນເກົ່າ) ນຳ — ຈຳນວນແຖວຄືເກົ່າທຸກປະການ.
  */
-export const INSTALL_DOC_COLUMNS = `ic.doc_no,
+export const INSTALL_DOC_COLUMNS = `ic.doc_no, ic.doc_ref request_doc,
   coalesce(a.code, ic.product_code) code,
   concat_ws('-', c.name_1, c.tel) customer,
   a.item_name, a.pro_brand, a.pro_model, a.pro_type, a.pro_size,
@@ -284,9 +311,14 @@ export function InstallTableHead({
 }
 
 /** ຊ່ອງ "ເລກທີໃບ" — ເລກທີ + ວັນ/ເວລາຂອງໃບ */
-export function DocCell({ row, href }: { row: InstallDocRow; href?: string }) {
+export function DocCell({ row, href, showRequest = false }: { row: InstallDocRow; href?: string; showRequest?: boolean }) {
   return (
     <td className="whitespace-nowrap px-3 py-2.5">
+      {showRequest && row.request_doc && (
+        <span className="mb-0.5 block text-[10px] font-medium text-slate-400">
+          ໃບຂໍ <b className="font-mono text-teal-700">{row.request_doc}</b>
+        </span>
+      )}
       {href ? (
         <Link
           href={href}

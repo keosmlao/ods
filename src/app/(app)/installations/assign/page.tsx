@@ -3,11 +3,13 @@ import { SlaChip } from "@/components/installation/sla-chip";
 import { INSTALL_LEFT_SQL } from "@/lib/install-sla";
 import { listTechnicians } from "@/lib/technicians";
 import { installStageIs } from "@/lib/install-stage";
+import { Fragment } from "react";
 import {
   INSTALL_PLAIN_COLUMNS,
   INSTALL_SEARCH,
   INSTALL_SORTABLE_COLUMNS,
   InstallCells,
+  InstallTimelineTreeRow,
   InstallTableHead,
   ListHeader,
   PAGE_SIZE,
@@ -112,7 +114,8 @@ export default async function AssignPage({ searchParams }: Props) {
         />
         <tbody>
           {jobs.rows.map((row) => (
-            <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
+            <Fragment key={row.code}>
+            <tr className="border-b border-slate-100 hover:bg-slate-50">
               <InstallCells row={row} timeLabel="ວັນ/ເວລາເປີດງານ" />
               {/* ນາລິກາ 24 ຊມ ນັບແຕ່ອອກບິນ — ຄໍຂວດອັນດັບ 1 ຢູ່ຂັ້ນນີ້ (44 ຊມ) */}
               <td className="whitespace-nowrap px-3 py-2.5 text-center">
@@ -134,6 +137,8 @@ export default async function AssignPage({ searchParams }: Props) {
                 />
               </td>
             </tr>
+            <InstallTimelineTreeRow code={row.code} />
+            </Fragment>
           ))}
         </tbody>
       </TableShell>

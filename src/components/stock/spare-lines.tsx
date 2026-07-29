@@ -1,6 +1,6 @@
 "use client";
 
-import { deleteSpareFromRequest, updateSpareQty } from "@/app/actions/stock";
+import { deleteSpareFromRequest } from "@/app/actions/stock";
 import { REQUEST_FORM_ID } from "@/components/stock/request-form";
 import { Button, Card, Empty, Table, inputClass } from "@/components/ui";
 import { useDict } from "@/lib/i18n/context";
@@ -14,6 +14,11 @@ export type SpareLine = {
   qty: string;
   unit_code: string | null;
   roworder: number;
+  standard_qty?: string;
+  requested_qty?: string;
+  remaining_qty?: string;
+  /** ຈຳນວນ SIO status=0 — ຈອງ stock ແລ້ວ ແຕ່ ERP ຍັງບໍ່ທັນຕັດ */
+  pending_qty?: string;
 };
 
 export type SpareBalance = {
@@ -112,7 +117,9 @@ export function EditableSpareLines({
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-500">
                 <th className="w-14 px-4 py-3 text-center font-semibold">#</th>
                 <th className="px-4 py-3 font-semibold">{t.spare}</th>
-                <th className="w-32 px-4 py-3 text-center font-semibold">{t.requestedQty}</th>
+                <th className="w-28 px-4 py-3 text-center font-semibold">ຈຳນວນມາດຕະຖານ</th>
+                <th className="w-28 px-4 py-3 text-center font-semibold">ຈຳນວນຂໍແລ້ວ</th>
+                <th className="w-28 px-4 py-3 text-center font-semibold">ຈຳນວນຄົງເຫຼືອ</th>
                 <th className="w-32 px-4 py-3 text-center font-semibold">{t.takeNow}</th>
                 <th className="w-36 px-4 py-3 text-right font-semibold">{t.balanceThisWarehouse}</th>
                 <th className="w-32 px-4 py-3 text-right font-semibold">{t.totalBalance}</th>
@@ -128,8 +135,10 @@ export function EditableSpareLines({
                   : selectedShelf
                     ? balance.byLocation[`${selectedWarehouse}:${selectedShelf}`] ?? 0
                     : balance.byWarehouse[selectedWarehouse] ?? 0;
-                const requestedQty = Number(line.qty);
-                const enough = selectedBalance !== null && selectedBalance >= requestedQty;
+                const standardQty = Number(line.standard_qty ?? line.qty);
+                const alreadyRequested = Number(line.requested_qty ?? 0);
+                const remainingQty = Number(line.remaining_qty ?? line.qty);
+                const enough = selectedBalance !== null && selectedBalance >= remainingQty;
                 return (
                   <tr key={line.roworder} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60">
                     <td className="px-4 py-3 text-center text-slate-400">{line.rnum}</td>
@@ -137,20 +146,14 @@ export function EditableSpareLines({
                       <span className="block font-semibold text-slate-800">{line.item_name ?? "-"}</span>
                       <span className="mt-0.5 block font-mono text-[10px] text-slate-400">{line.item_code} · {line.unit_code ?? "-"}</span>
                     </td>
-                    <td className="px-4 py-2">
-                      <form action={updateSpareQty} className="flex justify-center">
-                        <input type="hidden" name="roworder" value={roworder} />
-                        <input type="hidden" name="row_id" value={line.roworder} />
-                        <input
-                          type="number"
-                          name="reg_qty"
-                          min="1"
-                          step="any"
-                          defaultValue={requestedQty}
-                          aria-label={`${t.qty} ${line.item_name ?? line.item_code}`}
-                          className={`${inputClass} h-9 w-24 text-center font-semibold`}
-                        />
-                      </form>
+                    <td className="px-4 py-3 text-center">
+                      <b className="tabular-nums">{standardQty.toLocaleString()}</b>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <b className="tabular-nums text-teal-700">{alreadyRequested.toLocaleString()}</b>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <b className="tabular-nums text-amber-700">{remainingQty.toLocaleString()}</b>
                     </td>
                     {/*
                       ── ເບີກຮອບນີ້ (1 ສາງ / 1 ໃບ) ──
@@ -167,10 +170,10 @@ export function EditableSpareLines({
                           type="number"
                           name={takeField(line.item_code)}
                           min={0}
-                          max={requestedQty}
+                          max={remainingQty}
                           step="any"
                           disabled={selectedBalance === null}
-                          defaultValue={Math.min(requestedQty, selectedBalance ?? 0)}
+                          defaultValue={Math.min(remainingQty, selectedBalance ?? 0)}
                           aria-label={`${t.takeNow} ${line.item_name ?? line.item_code}`}
                           className={`${inputClass} h-9 w-24 text-center font-semibold`}
                         />
@@ -191,7 +194,7 @@ export function EditableSpareLines({
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700">
-                          <AlertTriangle className="size-3" /> {t.short} {Math.max(0, requestedQty - selectedBalance).toLocaleString()}
+                          <AlertTriangle className="size-3" /> {t.short} {Math.max(0, remainingQty - selectedBalance).toLocaleString()}
                         </span>
                       )}
                     </td>

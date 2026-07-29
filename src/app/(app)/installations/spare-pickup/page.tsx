@@ -5,6 +5,7 @@ import { LinkPending } from "@/components/link-pending";
 import { query } from "@/lib/db";
 import { PackageCheck } from "lucide-react";
 import Link from "next/link";
+import { Fragment } from "react";
 import {
   DocCell,
   INSTALL_DOC_COLUMN,
@@ -13,6 +14,7 @@ import {
   INSTALL_PLAIN_COLUMNS_NO_STATUS,
   INSTALL_SORTABLE_COLUMNS,
   InstallCells,
+  InstallTimelineTreeRow,
   InstallTableHead,
   ListHeader,
   PAGE_SIZE,
@@ -189,41 +191,64 @@ export default async function SparePickupPage({ searchParams }: Props) {
             <InstallTableHead
               columns={INSTALL_SORTABLE_COLUMNS}
               plain={INSTALL_PLAIN_COLUMNS_NO_STATUS}
-              trailing={[{ ...INSTALL_DOC_COLUMN, label: "ເລກທີຂໍເບີກ" }]}
+              trailing={[{ ...INSTALL_DOC_COLUMN, label: "ເລກທີເບີກ" }]}
               sort={sort}
               dir={dir}
               sortHref={sortHref}
             />
             <tbody>
-              {groupByJob(pendingWarehouse.rows).map((docs) =>
-                docs.map((row, index) => (
-                  <tr key={row.doc_no} className="border-b border-amber-100 bg-amber-50/30">
-                    {index === 0 ? (
-                      <InstallCells row={row} timeLabel="ວັນ/ເວລາຂໍເບີກ" showStatus={false} />
-                    ) : (
-                      <td colSpan={7} className="py-2 pl-10 text-xs text-slate-400">
-                        ↳ ໃບຂໍເບີກເພີ່ມຂອງ <span className="font-semibold">{row.code}</span>
-                      </td>
-                    )}
-                    <DocCell
-                      row={row}
-                      href={`/installations/spare-requests/view/${encodeURIComponent(row.doc_no)}`}
-                    />
-                    <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
-                          ຄ້າງ {pendingByDoc.get(row.doc_no) ?? 0} ລາຍການ
-                        </span>
-                        <CancelInstallSpareRequestButton
-                          docNo={row.doc_no}
-                          code={row.code}
-                          variant="button"
+              {groupByJob(pendingWarehouse.rows).map((docs) => {
+                const job = docs[0];
+                return (
+                  <Fragment key={job.code}>
+                    <tr className="border-t-2 border-slate-200 hover:bg-slate-50">
+                      <InstallCells row={job} timeLabel="ວັນ/ເວລາຂໍເບີກ" showStatus={false} />
+                      <td className="px-3 py-2.5 text-center text-slate-300">—</td>
+                      <td className="px-3 py-2.5" />
+                    </tr>
+                    {docs.map((row) => (
+                      <tr key={row.doc_no} className="border-t border-dashed border-slate-100 bg-slate-50/60 hover:bg-slate-50">
+                        <td colSpan={7} className="bg-slate-50/60 py-2.5 pl-10 text-xs text-slate-400">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <span>
+                              ↳ ໃບຂໍເບີກ{" "}
+                              <Link
+                                href={`/installations/spare-requests/view/${encodeURIComponent(row.doc_no)}`}
+                                className="font-mono font-semibold text-blue-700 hover:underline"
+                              >
+                                {row.doc_no}
+                              </Link>
+                            </span>
+                            <span>
+                              ວັນເວລາ: <b className="font-semibold text-slate-600">{row.doc_time ?? "-"}</b>
+                            </span>
+                            <span>
+                              ຜູ້ຂໍເບີກ: <b className="font-semibold text-slate-600">{row.user_created || "-"}</b>
+                            </span>
+                          </div>
+                        </td>
+                        <DocCell
+                          row={row}
+                          href={`/installations/spare-requests/view/${encodeURIComponent(row.doc_no)}`}
                         />
-                      </div>
-                    </td>
-                  </tr>
-                )),
-              )}
+                        <td className="whitespace-nowrap bg-slate-50/60 px-3 py-2.5 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
+                              ຄ້າງ {pendingByDoc.get(row.doc_no) ?? 0} ລາຍການ
+                            </span>
+                            <CancelInstallSpareRequestButton
+                              docNo={row.doc_no}
+                              code={row.code}
+                              variant="button"
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    <InstallTimelineTreeRow code={job.code} />
+                  </Fragment>
+                );
+              })}
             </tbody>
           </TableShell>
           {pendingWarehouse.total > PAGE_SIZE && (
@@ -250,8 +275,11 @@ export default async function SparePickupPage({ searchParams }: Props) {
           ໃບເບີກທີ່ເຫຼືອຫຍໍ້ລົງ (↳) ຕິດຢູ່ໃຕ້ — ແຕ່ລະໃບຍັງກົດຮັບໄດ້ຄືເກົ່າ (ບໍ່ປ່ຽນ flow ຮັບ).
         */}
         <tbody>
-          {groupByJob(list.rows).map((docs) =>
-            docs.map((row, i) => {
+          {groupByJob(list.rows).map((docs) => {
+            const job = docs[0];
+            return (
+              <Fragment key={job.code}>
+              {docs.map((row, i) => {
               const first = i === 0;
               const cellBg = first ? "" : "bg-slate-50/60";
               return (
@@ -263,10 +291,14 @@ export default async function SparePickupPage({ searchParams }: Props) {
                     <InstallCells row={row} timeLabel="ວັນ/ເວລາເບີກ" showStatus={false} />
                   ) : (
                     <td colSpan={7} className={`py-2 pl-10 text-xs text-slate-400 ${cellBg}`}>
-                      ↳ ໃບເບີກເພີ່ມຂອງ <span className="font-semibold text-slate-500">{row.code}</span>
+                      ↳ ໃບຂໍ{" "}
+                      <span className="font-mono font-semibold text-teal-700">{row.request_doc || "-"}</span>
+                      <span className="mx-2 text-slate-300">→</span>
+                      ໃບເບີກ{" "}
+                      <span className="font-mono font-semibold text-slate-600">{row.doc_no}</span>
                     </td>
                   )}
-                  <DocCell row={row} />
+                  <DocCell row={row} showRequest />
                   <td className={`whitespace-nowrap px-3 py-2.5 text-center ${cellBg}`}>
                     <Link
                       href={`/installations/spare-pickup/${encodeURIComponent(row.doc_no)}`}
@@ -279,8 +311,11 @@ export default async function SparePickupPage({ searchParams }: Props) {
                   </td>
                 </tr>
               );
-            }),
-          )}
+              })}
+              <InstallTimelineTreeRow code={job.code} />
+              </Fragment>
+            );
+          })}
         </tbody>
       </TableShell>
 

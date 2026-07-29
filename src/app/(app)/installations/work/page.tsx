@@ -3,11 +3,13 @@ import { FinishInstallButton } from "@/components/installation/finish-install-bu
 import { UndoStartInstallButton } from "@/components/installation/undo-buttons";
 import { JobButton } from "@/components/installation/job-buttons";
 import { installStageIs } from "@/lib/install-stage";
+import { Fragment } from "react";
 import {
   INSTALL_PLAIN_COLUMNS,
   INSTALL_SEARCH,
   INSTALL_SORTABLE_COLUMNS,
   InstallCells,
+  InstallTimelineTreeRow,
   InstallTableHead,
   ListHeader,
   PAGE_SIZE,
@@ -105,7 +107,8 @@ export async function InstallationWorkQueue({ searchParams, queue }: WorkQueuePr
         />
         <tbody>
           {jobs.rows.map((row) => (
-            <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
+            <Fragment key={row.code}>
+            <tr className="border-b border-slate-100 hover:bg-slate-50">
               <InstallCells row={row} timeLabel={TIME_LABEL[queue]} />
               <td className="whitespace-nowrap px-3 py-2.5 text-center">
                 {queue === "waiting" && (
@@ -123,6 +126,8 @@ export async function InstallationWorkQueue({ searchParams, queue }: WorkQueuePr
                 )}
               </td>
             </tr>
+            <InstallTimelineTreeRow code={row.code} />
+            </Fragment>
           ))}
         </tbody>
       </TableShell>

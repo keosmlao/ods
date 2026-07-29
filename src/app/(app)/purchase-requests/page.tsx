@@ -30,19 +30,32 @@ type DirectCandidate = {
   product: string | null;
   item_code: string;
   qty: string;
+  pending_qty: string;
   checked_at: string | null;
 };
 
-/** ວຽກຂັ້ນ 5 ທີ່ມີອາໄຫຼ່ ERP ບໍ່ພໍ — stock ແລະ dedup ຈາກ ERP ບ່ອນດຽວ */
+/** ວຽກຂັ້ນ 5/6 ທີ່ມີອາໄຫຼ່ ERP ບໍ່ພໍ — ລວມກໍລະນີເບີກໄດ້ບາງສ່ວນແລ້ວ */
 async function getDirectPurchaseJobs() {
   const candidates = (
     await query<DirectCandidate>(
       `select a.code product_code, concat_ws(' · ',a.name_1,a.sn) product,
-          s.item_code, sum(coalesce(s.qty,0))::text qty,
+          s.item_code,
+          greatest(sum(coalesce(s.qty,0))-coalesce(r.requested_qty,0),0)::text qty,
+          coalesce(r.pending_qty,0)::text pending_qty,
           to_char(a.time_finish_check,'DD-MM-YYYY HH24:MI') checked_at
-        from tb_product a join tb_used_spare s on s.product_code=a.code
-       where (${STAGE_SQL})=5
-       group by a.code,a.name_1,a.sn,a.time_finish_check,s.item_code
+        from tb_product a
+        join tb_used_spare s on s.product_code=a.code
+        left join (
+          select product_code,item_code,
+            sum(case when trans_flag=122 then qty else -qty end) requested_qty,
+            sum(qty) filter (where trans_flag=122 and coalesce(status,0)=0) pending_qty
+          from ic_trans_detail
+          where trans_flag in (122,59)
+          group by product_code,item_code
+        ) r on r.product_code=a.code and r.item_code=s.item_code
+       where (${STAGE_SQL}) in (5,6)
+       group by a.code,a.name_1,a.sn,a.time_finish_check,s.item_code,r.requested_qty,r.pending_qty
+      having sum(coalesce(s.qty,0))-coalesce(r.requested_qty,0)>0
        order by a.time_finish_check asc nulls last limit 200`,
     )
   ).rows;
@@ -64,7 +77,9 @@ async function getDirectPurchaseJobs() {
   const jobs = new Map<string, { product_code: string; product: string | null; checked_at: string | null; shortages: number }>();
   for (const line of candidates) {
     if (onSpr.has(`${line.product_code}|${line.item_code}`)) continue; // ຂໍຊື້ໄປແລ້ວ ຂໍຊ້ຳບໍ່ໄດ້
-    if (withdrawableQty(balances.get(line.item_code)) >= Number(line.qty)) continue; // ສາງມີ → ໄປເບີກ
+    const stock = withdrawableQty(balances.get(line.item_code));
+    const freeStock = Math.max(0, stock - Number(line.pending_qty));
+    if (freeStock >= Number(line.qty)) continue; // ສາງມີສ່ວນທີ່ຍັງບໍ່ຖືກຈອງ → ໄປເບີກ
     const item = jobs.get(line.product_code) ?? { ...line, shortages: 0 };
     item.shortages += 1;
     jobs.set(line.product_code, item);

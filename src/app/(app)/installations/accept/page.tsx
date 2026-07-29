@@ -10,6 +10,7 @@ import {
   INSTALL_SEARCH,
   INSTALL_SORTABLE_COLUMNS,
   InstallCells,
+  InstallTimelineTreeRow,
   InstallTableHead,
   ListHeader,
   PAGE_SIZE,
@@ -22,6 +23,7 @@ import {
   readParams,
   type ListSearchParams,
 } from "../shared";
+import { Fragment } from "react";
 
 /**
  * ຄິວນີ້ມີແຕ່ງານທີ່ລໍຊ່າງກົດຮັບ. ຫຼັງຮັບແລ້ວຈະບໍ່ມີແທັບພັກກາງ:
@@ -97,7 +99,8 @@ export default async function AcceptPage({ searchParams }: Props) {
         />
         <tbody>
           {jobs.rows.map((row) => (
-            <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
+            <Fragment key={row.code}>
+            <tr className="border-b border-slate-100 hover:bg-slate-50">
               <InstallCells row={row} timeLabel="ວັນ/ເວລາຈັດຊ່າງ" />
               <td className="whitespace-nowrap px-3 py-2.5 text-center">
                 <SlaChip left={row.sla_left} />
@@ -114,6 +117,8 @@ export default async function AcceptPage({ searchParams }: Props) {
                 </div>
               </td>
             </tr>
+            <InstallTimelineTreeRow code={row.code} />
+            </Fragment>
           ))}
         </tbody>
       </TableShell>

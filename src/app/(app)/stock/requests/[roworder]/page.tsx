@@ -42,16 +42,29 @@ async function getHead(roworder: string) {
 async function getLines(productCode: string) {
   // ຈຳນວນສະສົມຂອງອາໄຫຼ່ຕົວດຽວກັນ (cum) ທຽບກັບຈຳນວນທີ່ຂໍໄປແລ້ວ (covered)
   // ⇒ ແຖວທີ່ຢູ່ພາຍໃນຈຳນວນທີ່ຂໍໄປແລ້ວ = "ຂໍໄປແລ້ວ" (ໃຊ້ໄດ້ເຖິງມີແຖວອາໄຫຼ່ຕົວດຽວກັນຫຼາຍແຖວ)
-  const sql = `select rnum, item_code, item_name, qty, unit_code, roworder, (cum <= covered) requested
+  const sql = `select rnum, item_code, item_name,
+      greatest(0, standard_qty - requested_qty) qty,
+      standard_qty, requested_qty,
+      greatest(0, standard_qty - requested_qty) remaining_qty,
+      pending_qty, unit_code, roworder,
+      (standard_qty - requested_qty <= 0) requested
     from (
       select row_number() over (order by s.roworder)::int rnum, s.item_code, s.item_name, s.qty,
-        s.unit_code, s.roworder,
+        s.qty standard_qty, s.unit_code, s.roworder,
         sum(s.qty) over (partition by s.item_code order by s.roworder
                          rows between unbounded preceding and current row) cum,
-        coalesce((select sum(case when d.trans_flag = $2 then d.qty else -d.qty end)
+        greatest(0, least(s.qty,
+          coalesce((select sum(case when d.trans_flag = $2 then d.qty else -d.qty end)
                   from ic_trans_detail d
                   where d.product_code = s.product_code and d.item_code = s.item_code
-                    and d.trans_flag in ($2,$3)), 0) covered
+                    and d.trans_flag in ($2,$3)), 0)
+          - (sum(s.qty) over (partition by s.item_code order by s.roworder
+                              rows between unbounded preceding and current row) - s.qty)
+        )) requested_qty
+        ,coalesce((select sum(d.qty)
+                   from ic_trans_detail d
+                   where d.product_code=s.product_code and d.item_code=s.item_code
+                     and d.trans_flag=$2 and coalesce(d.status,0)=0),0) pending_qty
       from tb_used_spare s where s.product_code = $1
     ) t order by rnum`;
   return (await query<Row>(sql, [productCode, TRANS.REQUEST, TRANS.RETURN_REQUEST])).rows;
@@ -112,7 +125,15 @@ export default async function StockRequestFormPage({ params }: Props) {
       byLocation: Object.fromEntries(balance?.byLocation ?? []),
     };
   }
-  const purchaseNeeded = pending.filter((line) => (balances[line.item_code]?.total ?? 0) < Number(line.qty));
+  const purchaseNeeded = pending.filter((line) => {
+    const stock = balances[line.item_code]?.total ?? 0;
+    const freeStock = Math.max(0, stock - Number(line.pending_qty ?? 0));
+    return freeStock < Number(line.qty);
+  });
+  const availableNow = pending.filter((line) => {
+    const stock = balances[line.item_code]?.total ?? 0;
+    return Math.max(0, stock - Number(line.pending_qty ?? 0)) > 0;
+  });
 
   return (
     <div className="mx-auto w-full max-w-[1480px] space-y-4 pb-8">
@@ -146,11 +167,20 @@ export default async function StockRequestFormPage({ params }: Props) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="flex items-center gap-2 text-sm font-bold text-amber-900">
-                <TriangleAlert className="size-4" /> {t.purchaseTitle}
+                <TriangleAlert className="size-4" />
+                {availableNow.length > 0
+                  ? "ມີທັງລາຍການເບີກຈາກສາງ ແລະ ລາຍການຕ້ອງສັ່ງຊື້"
+                  : t.purchaseTitle}
               </h2>
               <p className="mt-1 text-xs text-amber-800">
                 {t.purchaseNeedPrefix} {purchaseNeeded.length} {t.purchaseNeedSuffix}
               </p>
+              {availableNow.length > 0 && (
+                <ol className="mt-2 space-y-1 text-xs text-amber-900">
+                  <li><b>1.</b> ເລືອກສາງ ແລະບັນທຶກໃບຂໍເບີກສຳລັບຈຳນວນທີ່ມີກ່ອນ</li>
+                  <li><b>2.</b> ກົດ “ຂໍສັ່ງຊື້” ເພື່ອອອກ SPR ສຳລັບສ່ວນທີ່ຂາດ</li>
+                </ol>
+              )}
             </div>
             {canPurchase ? (
               <Link href={`/purchase-requests/new/${encodeURIComponent(head.product_code)}/direct`} className="inline-flex h-9 items-center gap-2 rounded-lg bg-amber-600 px-4 text-xs font-bold text-white hover:bg-amber-700">
@@ -189,7 +219,7 @@ export default async function StockRequestFormPage({ params }: Props) {
               <tr key={line.roworder} className="border-b border-slate-100 text-slate-500">
                 <td className="px-3 py-3">{line.item_code}</td>
                 <td className="px-3 py-3">{line.item_name ?? "-"}</td>
-                <td className="px-3 py-3 text-center">{Number(line.qty)}</td>
+                <td className="px-3 py-3 text-center">{Number(line.standard_qty ?? line.qty)}</td>
                 <td className="px-3 py-3 text-center">{line.unit_code ?? "-"}</td>
               </tr>
             ))}

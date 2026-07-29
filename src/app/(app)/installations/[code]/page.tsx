@@ -6,7 +6,9 @@ import { InstallDeleteButton } from "@/components/installation/install-delete-bu
 import { JOB_HEAD_COLUMNS, type JobHead, JobHeader } from "@/components/installation/job-header";
 import { ReopenJobButton } from "@/components/installation/undo-buttons";
 import { DeliveryCard } from "@/components/installation/delivery-card";
+import { JobTimeline } from "@/components/repair/job-timeline";
 import { deliveryFor } from "@/lib/delivery";
+import { installTimeline } from "@/lib/install-timeline";
 import { Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
 import { query } from "@/lib/db";
 import { permissionFor } from "@/lib/permissions";
@@ -143,7 +145,10 @@ export default async function InstallationDetail({ params }: Props) {
    * ດຶງ **ຫຼັງ**ກວດສິດ — ບໍ່ດັ່ງນັ້ນຄົນທີ່ເປີດງານຂອງຄົນອື່ນບໍ່ໄດ້ ຍັງເຮັດໃຫ້ລະບົບ
    * ຂົນສົ່ງຖືກ query ຢູ່. metadata ຢ່າງດຽວ (ບໍ່ມີຮູບ) ⇒ ເບົາ.
    */
-  const delivery = await deliveryFor(row.doc_ref_1);
+  const [delivery, timeline] = await Promise.all([
+    deliveryFor(row.doc_ref_1),
+    installTimeline(row.code),
+  ]);
 
   return (
     <div className="w-full space-y-5">
@@ -191,6 +196,15 @@ export default async function InstallationDetail({ params }: Props) {
       )}
 
       <JobHeader head={row} />
+
+      <Card title="Timeline ງານຕິດຕັ້ງ">
+        <JobTimeline
+          steps={timeline.steps}
+          cancelledAt={timeline.cancelledAt}
+          bare
+          horizontal
+        />
+      </Card>
 
       {/**
         * ການສົ່ງເຄື່ອງ — ບ່ອນທີ່ຂົນສົ່ງເອົາເຄື່ອງໄປວາງ ຄືບ່ອນທີ່ຊ່າງຕ້ອງໄປຕິດຕັ້ງ

@@ -1,7 +1,7 @@
 import { CancelCheckButton, StartCheckButton, UndoStartCheckButton } from "@/components/checking/check-actions";
 import { CancelRequestButton } from "@/app/(app)/stock/requests/cancel-request-button";
 import { Elapsed } from "@/components/elapsed";
-import { TimelineDrawerButton } from "@/components/repair/timeline-drawer";
+import { JobTimeline } from "@/components/repair/job-timeline";
 import { AssignTechButton } from "@/components/installation/assign-tech";
 import { LinkPending } from "@/components/link-pending";
 import { AcceptRepairButton } from "@/components/repair/accept-repair-button";
@@ -38,12 +38,15 @@ import { APPROVER_SIDE, canAccess, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { listTechnicians } from "@/lib/technicians";
+import { repairTimeline } from "@/lib/repair-timeline";
+import { installTimeline } from "@/lib/install-timeline";
 import { PhotoThumb } from "@/components/service/photo-thumb";
-import { ArrowLeft, ArrowRight, Barcode, ChevronLeft, ChevronRight, CircleAlert, Download, House, PackageOpen, Search, Truck, Warehouse } from "lucide-react";
+import { ArrowLeft, ArrowRight, Barcode, ChevronLeft, ChevronRight, CircleAlert, Download, FileText, House, PackageOpen, Search, Truck, Warehouse } from "lucide-react";
 import { type Dictionary, getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Fragment } from "react";
 
 type Dict = Dictionary["statusList"];
 
@@ -72,6 +75,14 @@ type RepairRow = {
   /** ຍົກເລີກ = ທຸງ (status=6) — ງານແບບນີ້ຢູ່ຄິວ "ລໍຖ້າສົ່ງຄືນ" ຄືກັນ (ເຄື່ອງຍັງຕ້ອງຄືນລູກຄ້າ) */
   cancelled: boolean;
   quote_doc: string | null; quote_apr: number | null; quote_customer_status: number | null; request_doc: string | null;
+  quote_docs: Array<{
+    doc_no: string;
+    doc_time: string | null;
+    creator: string | null;
+    approved: number;
+    customer_status: number;
+  }>;
+  request_status: "waiting" | "partial" | "purchasing" | "issued" | null;
   repair_confirm: string | null;
   /** ຮູບໜ້າປົກ + ຈຳນວນຮູບ — ໃຫ້ຄິວທຸກຂັ້ນຕອນໂຊ້ thumbnail ຄືໜ້າຮັບສິນຄ້າ */
   thumb: string | null; photo_count: number;
@@ -84,6 +95,14 @@ type InstallRow = {
   code: string; customer: string | null; product: string | null; brand: string | null; model: string | null;
   product_type: string | null; product_size: string | null; appointment: string | null; sale_bill: string | null;
   technician: string | null; creator: string | null; registered: string | null; elapsed_seconds: number | null; opened_seconds: number | null;
+};
+
+type RequestDocRow = {
+  product_code: string;
+  doc_no: string;
+  doc_date: string | null;
+  lines: number;
+  status: "waiting" | "partial" | "purchasing" | "issued";
 };
 
 const REPAIR_SEARCH = `(a.code ilike $Q or a.sn ilike $Q or a.name_1 ilike $Q or a.p_brand ilike $Q
@@ -137,6 +156,20 @@ const SERVICE_TONE = {
   emerald: { active: "border-emerald-500 bg-emerald-50 text-emerald-800 ring-emerald-100", icon: "bg-emerald-100 text-emerald-700", badge: "bg-emerald-50 text-emerald-700" },
   amber: { active: "border-amber-500 bg-amber-50 text-amber-800 ring-amber-100", icon: "bg-amber-100 text-amber-700", badge: "bg-amber-50 text-amber-700" },
 } as const;
+
+const REQUEST_STATUS = {
+  waiting: { label: "ລໍຖ້າສາງເບີກ", className: "bg-amber-50 text-amber-700" },
+  partial: { label: "ເບີກບາງສ່ວນ", className: "bg-sky-50 text-sky-700" },
+  purchasing: { label: "ກຳລັງສັ່ງຊື້", className: "bg-violet-50 text-violet-700" },
+  issued: { label: "ເບີກຄົບແລ້ວ", className: "bg-emerald-50 text-emerald-700" },
+} as const;
+
+function quoteStatus(approved: number, customerStatus: number) {
+  if (customerStatus === 2) return { label: "ລູກຄ້າບໍ່ຕົກລົງ", className: "bg-red-50 text-red-700" };
+  if (customerStatus === 1) return { label: "ລູກຄ້າຕົກລົງ", className: "bg-emerald-50 text-emerald-700" };
+  if (approved === 1) return { label: "ລໍລູກຄ້າຢືນຢັນ", className: "bg-sky-50 text-sky-700" };
+  return { label: "ລໍອະນຸມັດ", className: "bg-amber-50 text-amber-700" };
+}
 
 /**
  * ປຸ່ມລົງມື **ຕໍ່ຂັ້ນ** ຂອງສາຍງານສ້ອມ — ພາໄປໜ້າທີ່ເຮັດວຽກຂັ້ນນັ້ນຂອງໃບນັ້ນໂດຍກົງ.
@@ -327,8 +360,37 @@ export default async function StatusPage({ params, searchParams }: Props) {
             order by doc_date desc nulls last limit 1) quote_apr,
          (select coalesce(aprove_status_2,0) from ic_trans where product_code = a.code and trans_flag = 17
             order by doc_date desc nulls last limit 1) quote_customer_status,
+         coalesce((
+           select jsonb_agg(
+             jsonb_build_object(
+               'doc_no', q.doc_no,
+               'doc_time', to_char(coalesce(q.create_date_time_now,q.doc_date),'DD-MM-YYYY HH24:MI'),
+               'creator', q.user_created,
+               'approved', coalesce(q.aprove_status,0),
+               'customer_status', coalesce(q.aprove_status_2,0)
+             )
+             order by coalesce(q.create_date_time_now,q.doc_date), q.doc_no
+           )
+           from ic_trans q
+           where q.product_code = a.code and q.trans_flag = 17
+         ), '[]'::jsonb) quote_docs,
          (select doc_no from ic_trans_detail where product_code = a.code and trans_flag = 122
             order by roworder desc limit 1) request_doc,
+         (
+           select case
+             when count(*) = 0 then null
+             when count(*) filter (where coalesce(d.status,0) = 5) > 0 then 'purchasing'
+             when count(*) filter (where coalesce(d.status,0) = 1) = count(*) then 'issued'
+             when count(*) filter (where coalesce(d.status,0) = 1) > 0 then 'partial'
+             else 'waiting'
+           end
+           from ic_trans_detail d
+           where d.doc_no = (
+             select r.doc_no from ic_trans_detail r
+             where r.product_code = a.code and r.trans_flag = 122
+             order by r.roworder desc limit 1
+           ) and d.trans_flag = 122
+         ) request_status,
          to_char(a.time_register,'DD-MM-YYYY HH24:MI') registered,
          greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int opened_seconds,
          to_char((${STAGE_TIME_COL}),'DD-MM-YYYY HH24:MI') stage_started, ${elapsed},
@@ -384,6 +446,75 @@ export default async function StatusPage({ params, searchParams }: Props) {
     isRepair && status === "purchasing"
       ? await purchaseTracking(list.rows.map((row) => row.code))
       : new Map<string, PurchaseTrack>();
+  const timelineByJob = new Map(
+    await Promise.all(
+      list.rows.map(async (row) => [
+        row.code,
+        await (isRepair ? repairTimeline(row.code) : installTimeline(row.code)),
+      ] as const),
+    ),
+  );
+  const readyToProceedRows =
+    isRepair && status === "purchasing"
+      ? list.rows.filter((row) => tracking.get(row.code)?.stage === "received")
+      : [];
+  const regularRows =
+    isRepair && status === "purchasing"
+      ? list.rows.filter((row) => tracking.get(row.code)?.stage !== "received")
+      : list.rows;
+
+  const repairCodes =
+    isRepair && status === "withdrawing"
+      ? list.rows.map((row) => row.code)
+      : [];
+  const [requestDocsResult, requestOutstandingResult] =
+    repairCodes.length > 0
+      ? await Promise.all([
+          query<RequestDocRow>(
+            `select d.product_code, d.doc_no, to_char(max(d.doc_date),'DD-MM-YYYY') doc_date,
+                count(*)::int lines,
+                case
+                  when count(*) filter (where coalesce(d.status,0)=5)>0 then 'purchasing'
+                  when count(*) filter (where coalesce(d.status,0)=1)=count(*) then 'issued'
+                  when count(*) filter (where coalesce(d.status,0)=1)>0 then 'partial'
+                  else 'waiting'
+                end status
+               from ic_trans_detail d
+              where d.trans_flag=122 and d.product_code=any($1::text[])
+              group by d.product_code,d.doc_no
+              order by d.product_code,max(d.roworder) desc`,
+            [repairCodes],
+          ),
+          query<{ product_code: string; remaining: number }>(
+            `select s.product_code,
+                count(*) filter (where s.required_qty>coalesce(r.requested_qty,0))::int remaining
+               from (
+                 select product_code,item_code,sum(coalesce(qty,0)) required_qty
+                   from tb_used_spare
+                  where product_code=any($1::text[])
+                  group by product_code,item_code
+               ) s
+               left join (
+                 select product_code,item_code,
+                   sum(case when trans_flag=122 then qty else -qty end) requested_qty
+                   from ic_trans_detail
+                  where product_code=any($1::text[]) and trans_flag in (122,59)
+                  group by product_code,item_code
+               ) r on r.product_code=s.product_code and r.item_code=s.item_code
+              group by s.product_code`,
+            [repairCodes],
+          ),
+        ])
+      : [{ rows: [] as RequestDocRow[] }, { rows: [] as { product_code: string; remaining: number }[] }];
+  const requestDocsByJob = new Map<string, RequestDocRow[]>();
+  for (const doc of requestDocsResult.rows) {
+    const docs = requestDocsByJob.get(doc.product_code) ?? [];
+    docs.push(doc);
+    requestDocsByJob.set(doc.product_code, docs);
+  }
+  const requestOutstanding = new Map(
+    requestOutstandingResult.rows.map((row) => [row.product_code, row.remaining]),
+  );
 
   // emp_code → ຊື່ ERP (ຊື່ຢູ່ຖານ ERP ຄົນລະບົບ ⇒ ຕ້ອງ resolve ຢູ່ນີ້ ບໍ່ join ໃນ SQL ໄດ້)
   const techName = new Map(techs.map((item) => [item.code, item.name]));
@@ -420,6 +551,25 @@ export default async function StatusPage({ params, searchParams }: Props) {
    */
   const detailHref = (code: string) =>
     `${isRepair ? `/service/${code}` : `/installations/${code}`}?from=/dashboard/status/${workflow}/${status}`;
+  const canCreateRequest = isRepair && canAccess(role, "/stock/requests");
+  const requestDocBadge = (doc: RequestDocRow) => (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <Link
+        href={`/stock/requests/view/${encodeURIComponent(doc.doc_no)}`}
+        className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700 hover:bg-blue-100"
+        title="ເບິ່ງ ແລະ ພິມໃບຂໍເບີກ"
+      >
+        <FileText className="size-3.5" />
+        {doc.doc_no}
+      </Link>
+      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${REQUEST_STATUS[doc.status].className}`}>
+        {REQUEST_STATUS[doc.status].label}
+      </span>
+      <span className="text-[10px] text-slate-400">
+        {doc.lines} ລາຍການ{doc.doc_date ? ` · ${doc.doc_date}` : ""}
+      </span>
+    </div>
+  );
 
   /**
    * ປຸ່ມລົງມືຕໍ່ຂັ້ນຂອງແຕ່ລະແຖວ — ດຶງອອກມາເປັນ fragment ດຽວ ເພື່ອໃຫ້ **ຕາຕະລາງ desktop**
@@ -709,6 +859,71 @@ export default async function StatusPage({ params, searchParams }: Props) {
         <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
       </form>
 
+      {readyToProceedRows.length > 0 && (
+        <section className="hidden overflow-hidden rounded-xl border-2 border-emerald-300 bg-white shadow-sm md:block">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-200 bg-emerald-50 px-4 py-3">
+            <div>
+              <h2 className="text-sm font-bold text-emerald-900">ວຽກຄວນໄປຕໍ່ໄດ້ແລ້ວ</h2>
+              <p className="mt-0.5 text-[11px] font-medium text-emerald-700">
+                ERP ຢືນຢັນວ່າອາໄຫຼ່ເຂົ້າສາງຄົບແລ້ວ — ກະລຸນາດຳເນີນງານຕໍ່
+              </p>
+            </div>
+            <span className="rounded-full bg-emerald-700 px-3 py-1 text-xs font-bold text-white">
+              {readyToProceedRows.length} ວຽກ
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1050px] border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-emerald-100 bg-emerald-50/50 text-left text-slate-600">
+                  <th className="px-4 py-2.5 font-semibold">ເລກວຽກ</th>
+                  <th className="px-4 py-2.5 font-semibold">ສິນຄ້າ / ລູກຄ້າ</th>
+                  <th className="px-4 py-2.5 font-semibold">ໃບຮັບເຂົ້າ ERP</th>
+                  <th className="px-4 py-2.5 font-semibold">ວັນຮັບເຂົ້າ</th>
+                  <th className="px-4 py-2.5 text-center font-semibold">ຄ້າງຫຼັງຂອງມາ</th>
+                  <th className="px-4 py-2.5 font-semibold">ຄວາມຄືບໜ້າ ERP</th>
+                  <th className="px-4 py-2.5 text-center font-semibold">ຈັດການ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {readyToProceedRows.map((row) => {
+                  const track = tracking.get(row.code)!;
+                  return (
+                    <tr key={`ready-${row.code}`} className="border-b border-emerald-100 hover:bg-emerald-50/40">
+                      <td className="px-4 py-3">
+                        <Link href={detailHref(row.code)} className="font-bold text-blue-700 hover:underline">
+                          {row.code}
+                        </Link>
+                      </td>
+                      <td className="max-w-80 px-4 py-3">
+                        <span className="block truncate font-semibold text-slate-800">{row.product || "-"}</span>
+                        <span className="block truncate text-[10px] text-slate-400">{row.customer || "-"}</span>
+                      </td>
+                      <td className="px-4 py-3 font-mono font-bold text-emerald-700">{track.receipt_no || "-"}</td>
+                      <td className="whitespace-nowrap px-4 py-3">{track.receipt_date || "-"}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="rounded-lg bg-red-100 px-2 py-1 font-bold text-red-700">
+                          {track.days_since_receipt ?? 0} ມື້
+                        </span>
+                      </td>
+                      <td className="min-w-80 px-4 py-3"><PurchaseState track={track} compact /></td>
+                      <td className="px-4 py-3 text-center">
+                        <Link
+                          href={`/purchase-requests?q=${encodeURIComponent(row.code)}`}
+                          className="inline-flex h-8 items-center rounded-lg bg-emerald-700 px-3 font-bold text-white hover:bg-emerald-800"
+                        >
+                          ດຳເນີນງານຕໍ່
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       {/* ── ຕາຕະລາງ desktop (ເຊື່ອງໃນມືຖື) ── */}
       <section className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block">
         <div className="overflow-x-auto">
@@ -727,12 +942,11 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     className="py-2.5"
                   />
                 ))}
+                {isRepair && status === "withdrawing" && (
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໃບຂໍເບີກ / ສະຖານະ</th>
+                )}
                 {isRepair ? (
                   <>
-                    {/* ຂັ້ນສັ່ງຊື້: ຄວາມຄືບໜ້າຈິງຢູ່ ERP ສຳຄັນກວ່າ "ອຸປະກອນ/ອ້າງອີງ" */}
-                    {tracking.size > 0 && (
-                      <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.progressErp}</th>
-                    )}
                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.accessory}</th>
                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.reference}</th>
                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.faultCol}</th>
@@ -744,7 +958,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
               </tr>
             </thead>
             <tbody>
-              {list.rows.map((row) => {
+              {regularRows.map((row) => {
                 const targetHours = isRepair
                   ? repairStageTargetHours(config.stage ?? 0, row.service_type)
                   : null;
@@ -752,8 +966,15 @@ export default async function StatusPage({ params, searchParams }: Props) {
                   ? repairSlaTone(repairSlaState(row.elapsed_seconds, targetHours))
                   : elapsedTone(row.elapsed_seconds);
                 const inWarranty = row.warranty === "ຮັບປະກັນ";
+                const requestDocs = isRepair ? requestDocsByJob.get(row.code) ?? [] : [];
+                const requestTreeDocs = status === "withdrawing"
+                  ? requestDocs
+                  : requestDocs.filter((doc) => doc.doc_no !== row.request_doc);
+                const desktopColumnCount =
+                  columns.length + 1 + 3 + (hasAction ? 1 : 0);
                 return (
-                  <tr key={row.code} className="cursor-default border-b border-slate-100 hover:bg-slate-50">
+                  <Fragment key={row.code}>
+                  <tr className="cursor-default border-b border-slate-100 hover:bg-slate-50">
                     <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                       <span>{row.code}</span>
@@ -774,7 +995,6 @@ export default async function StatusPage({ params, searchParams }: Props) {
                           <Barcode className="size-3.5" />
                         </Link>
                       )}
-                      {isRepair && <TimelineDrawerButton code={row.code} />}
                       {/* ຄິວສົ່ງຄືນມາຈາກ 2 ກໍລະນີ — ບອກໃຫ້ຄົນສົ່ງເຄື່ອງຮູ້ທຸກແຖວ (ບໍ່ແມ່ນສະເພາະຍົກເລີກ) */}
                       {showCase && (
                         <span
@@ -862,19 +1082,36 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     )}
                     <td className="whitespace-nowrap px-3 py-2.5">{showTech(row.technician)}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">{isRepair ? row.receiver || "-" : row.creator || "-"}</td>
-                    {isRepair ? (
-                      <>
-                        {tracking.size > 0 && (
-                          <td className="max-w-56 px-3 py-2.5">
-                            <PurchaseState track={tracking.get(row.code)} compact />
-                            {/* ODS ວ່າສັ່ງແລ້ວ ແຕ່ ERP ບໍ່ມີໃບ = ໃບຜີ ⇒ ວຽກຄ້າງຕະຫຼອດ ຖ້າບໍ່ປົດ */}
-                            {!tracking.get(row.code) && (
-                              <span className="mt-1 block">
-                                <ReleaseGhostButton job={row.code} />
+                    {isRepair && status === "withdrawing" && (
+                      <td className="whitespace-nowrap px-3 py-2.5">
+                        {requestDocs.length > 0 ? (
+                          <div className="flex flex-col items-start gap-1">
+                            <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">
+                              <FileText className="size-3.5" />
+                              {requestDocs.length} ໃບ · ເບິ່ງ Tree ດ້ານລຸ່ມ
+                            </span>
+                            {row.request_status && (
+                              <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${REQUEST_STATUS[row.request_status].className}`}>
+                                {REQUEST_STATUS[row.request_status].label}
                               </span>
                             )}
-                          </td>
+                            {(requestOutstanding.get(row.code) ?? 0) > 0 && canCreateRequest && (
+                              <Link
+                                href={`/stock/requests/${row.roworder}`}
+                                className="inline-flex h-7 items-center gap-1 rounded-lg bg-teal-600 px-2 text-[10px] font-bold text-white hover:bg-teal-700"
+                              >
+                                ອອກໃບໃໝ່
+                                <ArrowRight className="size-3" />
+                              </Link>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">ຍັງບໍ່ມີໃບຂໍເບີກ</span>
                         )}
+                      </td>
+                    )}
+                    {isRepair ? (
+                      <>
                         <td className="max-w-40 truncate px-3 py-2.5 text-slate-600" title={row.accessory ?? ""}>
                           {row.accessory || "-"}
                         </td>
@@ -898,6 +1135,83 @@ export default async function StatusPage({ params, searchParams }: Props) {
                       </td>
                     )}
                   </tr>
+                  {requestTreeDocs.map((doc) => (
+                    <tr key={`${row.code}-${doc.doc_no}`} className="border-b border-dashed border-slate-100 bg-slate-50/60">
+                      <td colSpan={desktopColumnCount} className="px-10 py-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-[11px] text-slate-400">
+                            ↳ ໃບຂໍເບີກຂອງ <b className="text-slate-600">{row.code}</b>
+                          </span>
+                          {requestDocBadge(doc)}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {isRepair && row.quote_docs.map((doc) => {
+                    const state = quoteStatus(doc.approved, doc.customer_status);
+                    return (
+                      <tr key={`${row.code}-quote-${doc.doc_no}`} className="border-b border-dashed border-violet-100 bg-violet-50/30">
+                        <td colSpan={desktopColumnCount} className="px-10 py-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400">
+                              <span>
+                                ↳ ໃບສະເໜີລາຄາ{" "}
+                                <Link
+                                  href={`/quotations/${encodeURIComponent(doc.doc_no)}/print`}
+                                  target="_blank"
+                                  className="font-mono font-bold text-violet-700 hover:underline"
+                                >
+                                  {doc.doc_no}
+                                </Link>
+                              </span>
+                              <span>ວັນເວລາ: <b className="text-slate-600">{doc.doc_time || "-"}</b></span>
+                              <span>ຜູ້ສ້າງ: <b className="text-slate-600">{doc.creator || "-"}</b></span>
+                            </div>
+                            <span className={`rounded px-2 py-1 text-[10px] font-semibold ${state.className}`}>
+                              {state.label}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {isRepair && tracking.size > 0 && (
+                    <tr className="border-b border-dashed border-emerald-100 bg-emerald-50/30">
+                      <td colSpan={desktopColumnCount} className="px-10 py-2.5">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="shrink-0 text-[11px] font-semibold text-slate-500">
+                            ↳ ຄວາມຄືບໜ້າ (ERP)
+                          </span>
+                          <div className="min-w-64 flex-1">
+                            <PurchaseState track={tracking.get(row.code)} />
+                          </div>
+                          {!tracking.get(row.code) && <ReleaseGhostButton job={row.code} />}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {(() => {
+                    const timeline = timelineByJob.get(row.code);
+                    if (!timeline || timeline.steps.length === 0) return null;
+                    const current = timeline.steps.find((step) => step.state === "current")
+                      ?? [...timeline.steps].reverse().find((step) => step.state === "done");
+                    return (
+                      <tr className="border-b border-dashed border-indigo-100 bg-indigo-50/20">
+                        <td colSpan={desktopColumnCount} className="px-10 py-2">
+                          <details>
+                            <summary className="cursor-pointer select-none text-[11px] font-semibold text-indigo-700">
+                              ↳ Timeline
+                              {current && <span className="ml-2 font-normal text-slate-500">ຂັ້ນປັດຈຸບັນ: {current.label}</span>}
+                            </summary>
+                            <div className="mt-3 w-full rounded-xl border border-indigo-100 bg-white p-4">
+                              <JobTimeline steps={timeline.steps} cancelledAt={timeline.cancelledAt} bare horizontal />
+                            </div>
+                          </details>
+                        </td>
+                      </tr>
+                    );
+                  })()}
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -921,6 +1235,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
             const inWarranty = row.warranty === "ຮັບປະກັນ";
             const type = isRepair ? SERVICE_TYPES.find((item) => item.code === row.service_type) : undefined;
             const track = tracking.get(row.code);
+            const requestDocs = isRepair ? requestDocsByJob.get(row.code) ?? [] : [];
             return (
               <div key={row.code} className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
                 <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
@@ -941,7 +1256,6 @@ export default async function StatusPage({ params, searchParams }: Props) {
                           <Barcode className="size-3.5" />
                         </Link>
                       )}
-                      {isRepair && <TimelineDrawerButton code={row.code} />}
                       {showCase && (
                         <span
                           className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
@@ -1026,6 +1340,33 @@ export default async function StatusPage({ params, searchParams }: Props) {
                   )}
                 </div>
 
+                {isRepair && status === "withdrawing" && (
+                  <div className="mt-2 rounded-lg border border-slate-100 bg-slate-50 p-2">
+                    <span className="block text-[10px] text-slate-400">ໃບຂໍເບີກ / ສະຖານະ</span>
+                    {requestDocs.length > 0 ? (
+                      <div className="mt-1 space-y-1.5">
+                        {requestDocs.map((doc, index) => (
+                          <div key={doc.doc_no} className="flex flex-wrap items-center gap-1.5">
+                            {index > 0 && <span className="text-[10px] text-slate-400">↳</span>}
+                            {requestDocBadge(doc)}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="mt-1 block text-[10px] text-slate-400">ຍັງບໍ່ມີໃບຂໍເບີກ</span>
+                    )}
+                    {(requestOutstanding.get(row.code) ?? 0) > 0 && canCreateRequest && (
+                      <Link
+                        href={`/stock/requests/${row.roworder}`}
+                        className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-bold text-white"
+                      >
+                        ອອກໃບໃໝ່
+                        <ArrowRight className="size-3.5" />
+                      </Link>
+                    )}
+                  </div>
+                )}
+
                 {/* ຄວາມຄືບໜ້າ ERP (ຂັ້ນສັ່ງຊື້) */}
                 {isRepair && tracking.size > 0 && (
                   <div className="mt-2">
@@ -1037,6 +1378,24 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     )}
                   </div>
                 )}
+
+                {(() => {
+                  const timeline = timelineByJob.get(row.code);
+                  if (!timeline || timeline.steps.length === 0) return null;
+                  const current = timeline.steps.find((step) => step.state === "current")
+                    ?? [...timeline.steps].reverse().find((step) => step.state === "done");
+                  return (
+                    <details className="mt-2 rounded-lg border border-indigo-100 bg-indigo-50/30 p-2">
+                      <summary className="cursor-pointer select-none text-[11px] font-semibold text-indigo-700">
+                        ↳ Timeline
+                        {current && <span className="ml-1 font-normal text-slate-500">· {current.label}</span>}
+                      </summary>
+                      <div className="mt-3 rounded-lg bg-white p-3">
+                        <JobTimeline steps={timeline.steps} cancelledAt={timeline.cancelledAt} bare horizontal />
+                      </div>
+                    </details>
+                  );
+                })()}
 
                 {/* ໝາຍ/ປົດ ທຸງ ແລະ ປຸ່ມລົງມືຕໍ່ຂັ້ນ — ຄືກັນກັບ desktop */}
                 {isRepair && canHold && (

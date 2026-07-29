@@ -99,6 +99,29 @@ export async function PurchaseState({ track, compact }: { track: PurchaseTrack |
         })}
       </div>
 
+      {/* ໃນ Tree ຂະໜາດເຕັມ: ສະແດງເລກເອກະສານຂອງທຸກ step ໂດຍບໍ່ຕ້ອງ hover */}
+      {!compact && (
+        <div className="grid grid-cols-5 gap-2">
+          {steps.map((step) => (
+            <div key={step.at} className="min-w-0 text-center">
+              <span className="block truncate text-[9px] font-semibold text-slate-500" title={step.label}>
+                {step.label}
+              </span>
+              {step.no ? (
+                <>
+                  <span className="mt-0.5 block break-words font-mono text-[10px] font-bold text-slate-700">
+                    {step.no}
+                  </span>
+                  <span className="block text-[9px] text-slate-400">{step.date || "-"}</span>
+                </>
+              ) : (
+                <span className="mt-0.5 block text-[10px] font-medium text-slate-300">{t.waiting}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ແຖວຄວາມໝາຍ — ຂັ້ນທີ່ກຳລັງລໍ + ໃບຫຼ້າສຸດ + ອາຍຸ */}
       <div className={`flex flex-wrap items-center gap-x-1.5 gap-y-0.5 ${compact ? "text-[10px]" : "text-xs"}`}>
         {stuck ? (

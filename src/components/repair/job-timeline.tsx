@@ -1,5 +1,6 @@
 import { Elapsed } from "@/components/elapsed";
 import type { TimelineStep } from "@/lib/repair-timeline";
+import { Check } from "lucide-react";
 
 /**
  * ເສັ້ນເວລາຂອງງານສ້ອມ — ທຸກຂັ້ນ (ໄປຕາມ service_type) ພ້ອມ **ໄລຍະເວລາທີ່ຢູ່ແຕ່ລະຂັ້ນ**.
@@ -13,13 +14,77 @@ export function JobTimeline({
   steps,
   cancelledAt,
   bare = false,
+  horizontal = false,
 }: {
   steps: TimelineStep[];
   cancelledAt: string | null;
   /** bare = ໃສ່ໃນ container ອື່ນ (details) ⇒ ບໍ່ຫຸ້ມ section/ຫົວຂໍ້ຂອງໂຕເອງ */
   bare?: boolean;
+  /** horizontal = stepper ແນວນອນ ສຳລັບ Tree ໃນໜ້າລາຍການ */
+  horizontal?: boolean;
 }) {
   if (steps.length === 0) return null;
+  if (horizontal) {
+    return (
+      <div className="overflow-x-auto pb-1">
+        <ol
+          className="grid min-w-max"
+          style={{ gridTemplateColumns: `repeat(${steps.length + (cancelledAt ? 1 : 0)}, minmax(130px, 1fr))` }}
+        >
+          {steps.map((step, index) => {
+            const done = step.state === "done";
+            const current = step.state === "current";
+            const reached = done || current;
+            return (
+              <li key={step.stage} className="relative min-w-32 px-2 text-center">
+                {index > 0 && (
+                  <span
+                    className={`absolute left-0 right-1/2 top-[7px] h-0.5 ${reached ? "bg-emerald-500" : "bg-slate-200"}`}
+                    aria-hidden
+                  />
+                )}
+                {index < steps.length - 1 && (
+                  <span
+                    className={`absolute left-1/2 right-0 top-[7px] h-0.5 ${done ? "bg-emerald-500" : "bg-slate-200"}`}
+                    aria-hidden
+                  />
+                )}
+                <span
+                  className={`relative z-[1] mx-auto grid size-4 place-items-center rounded-full border-2 ${
+                    done
+                      ? "border-emerald-600 bg-emerald-600 text-white"
+                      : current
+                        ? "border-blue-600 bg-blue-600 text-white ring-4 ring-blue-100"
+                        : "border-slate-300 bg-white text-transparent"
+                  }`}
+                >
+                  {reached && <Check className="size-2.5" strokeWidth={4} />}
+                </span>
+                <span className={`mt-2 block text-[10px] font-semibold ${current ? "text-blue-700" : done ? "text-slate-700" : "text-slate-400"}`}>
+                  {step.label}
+                </span>
+                <span className="mt-0.5 block text-[9px] tabular-nums text-slate-400">{step.at || "ລໍຖ້າ"}</span>
+                {step.durationSeconds != null && (
+                  <span className="mt-0.5 block text-[9px] text-slate-500">
+                    {current ? "ຄ້າງ " : "ໃຊ້ເວລາ "}
+                    <Elapsed seconds={step.durationSeconds} live={current} className="font-semibold" />
+                  </span>
+                )}
+              </li>
+            );
+          })}
+          {cancelledAt && (
+            <li className="relative min-w-32 px-2 text-center">
+              <span className="absolute left-0 right-1/2 top-[7px] h-0.5 bg-rose-400" aria-hidden />
+              <span className="relative z-[1] mx-auto block size-4 rounded-full border-2 border-rose-600 bg-rose-600" />
+              <span className="mt-2 block text-[10px] font-semibold text-rose-700">ຂໍຍົກເລີກ</span>
+              <span className="mt-0.5 block text-[9px] text-slate-400">{cancelledAt}</span>
+            </li>
+          )}
+        </ol>
+      </div>
+    );
+  }
   const list = (
     <ol className="relative ml-1">
         {steps.map((s, i) => {

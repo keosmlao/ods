@@ -160,11 +160,35 @@ export async function syncErpDispatch(): Promise<SyncResult> {
          * ງານມີໄດ້ຫຼາຍໃບ SIO (ອາໄຫຼ່ພົບເພີ່ມຕອນສ້ອມ — 674 ງານມີ >1 ໃບ). ແຕ່ກ່ອນນັບແຕ່
          * ໃບດຽວ ⇒ ໃບທຳອິດເບີກຄົບ ພາທັງງານໄປຂັ້ນ 8 ທັງທີ່ໃບທີສອງຍັງເປີດ (ຂັ້ນສະແດງຜິດ).
          */
-        const pending = await client.query<{ count: number }>(
-          "select count(*)::int count from ic_trans_detail where product_code=$1 and trans_flag=$2 and status=0",
-          [job.product_code, TRANS.REQUEST],
+        /**
+         * "ຄົບ" ບໍ່ແມ່ນແຕ່ SIO ທີ່ສ້າງແລ້ວຖືກເບີກຄົບ:
+         * ກໍລະນີປະສົມອາດມີ 2/5 ຢູ່ສາງ ແລະອີກ 3/5 ກຳລັງສັ່ງຊື້.
+         * ຖ້ານັບແຕ່ແຖວ SIO status=0, ພໍເບີກ 2 ອັນທຳອິດລະບົບຈະ stamp
+         * spare_finish ແລ້ວພາວຽກໄປລໍສ້ອມຜິດ. ຈຶ່ງຕ້ອງກວດທຽບກັບ
+         * ຈຳນວນມາດຕະຖານໃນ tb_used_spare ນຳ.
+         */
+        const incomplete = await client.query<{ count: number }>(
+          `select (
+             (select count(*) from ic_trans_detail
+               where product_code=$1 and trans_flag=$2 and coalesce(status,0)=0)
+             +
+             (select count(*) from (
+                select s.item_code
+                  from tb_used_spare s
+                  left join (
+                    select item_code, sum(case when trans_flag=$2 then qty else -qty end) requested_qty
+                      from ic_trans_detail
+                     where product_code=$1 and trans_flag in ($2,$3)
+                     group by item_code
+                  ) r on r.item_code=s.item_code
+                 where s.product_code=$1
+                 group by s.item_code, r.requested_qty
+                having sum(coalesce(s.qty,0)) > coalesce(r.requested_qty,0)
+             ) outstanding)
+           )::int count`,
+          [job.product_code, TRANS.REQUEST, TRANS.RETURN_REQUEST],
         );
-        const spareComplete = (pending.rows[0]?.count ?? 0) === 0;
+        const spareComplete = (incomplete.rows[0]?.count ?? 0) === 0;
         if (spareComplete) {
           if (install) {
             await client.query("update ods_tb_install set reg_finish=localtimestamp(0) where code=$1 and reg_finish is null", [
