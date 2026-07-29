@@ -1,4 +1,5 @@
 import { Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
+import { PrintButton } from "@/components/print-button";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -93,10 +94,22 @@ export default async function ViewSpareRequest({ params }: Props) {
   ];
 
   return (
-    <div className="w-full space-y-5">
-      <PageTitle>{t.title}</PageTitle>
+    <div className="mx-auto w-full max-w-5xl space-y-5 bg-white print:max-w-none">
+      <style>{`@media print { @page { size: A4; margin: 12mm } .no-print { display:none !important } }`}</style>
+      <div className="no-print"><PageTitle>{t.title}</PageTitle></div>
+      <h1 className="hidden border-b-2 border-slate-900 pb-3 text-center text-xl font-bold print:block">
+        {t.title}
+      </h1>
 
-      <Card title={t.cardInfo} actions={<LinkButton href={backHref} tone="neutral">{t.back}</LinkButton>}>
+      <Card
+        title={t.cardInfo}
+        actions={
+          <div className="no-print flex gap-2">
+            <LinkButton href={backHref} tone="neutral">{t.back}</LinkButton>
+            <PrintButton />
+          </div>
+        }
+      >
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {fields.map(([label, value]) => (
             <div key={label} className="border-b border-slate-100 pb-2">

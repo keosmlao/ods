@@ -3,10 +3,11 @@ import { OutstandingSpares } from "@/app/(app)/approvals/cancellations/outstandi
 import { getCart, getRates, seedCart } from "@/app/actions/return";
 import { Chatter } from "@/components/chatter/chatter";
 import { InvoiceEditor, type Bank, type BillHead, type Service } from "@/components/return/invoice-editor";
-import { PageTitle } from "@/components/ui";
+import { LinkButton, PageTitle } from "@/components/ui";
 import { db, queryOdg } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
 import { notFound } from "next/navigation";
+import { Printer } from "lucide-react";
 import { ReturnWithoutInvoice } from "./return-without-invoice";
 
 /** ຖອດແບບຈາກ ods: returnproduct.py showreturn() + templates/returnProduct/showDetail.html */
@@ -95,6 +96,15 @@ export default async function ReturnDetailPage({ params }: { params: Promise<{ c
 
   return (
     <div className="w-full space-y-5">
+      <div className="flex justify-end">
+        <LinkButton
+          href={`/returns/${encodeURIComponent(head.code)}/handover-print`}
+          tone="neutral"
+        >
+          <Printer className="size-4" />
+          ພິມໃບຄືນເຄື່ອງ
+        </LinkButton>
+      </div>
       {waitingApproval && (
         <PageTitle sub="ສົ່ງຄືນໂດຍບໍ່ສ້ອມ · ໃບຮັບເງິນ">ລາຍລະອຽດໃບເບີກ</PageTitle>
       )}

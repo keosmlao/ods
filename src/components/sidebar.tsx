@@ -136,7 +136,7 @@ export function NavTree({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="ຄົ້ນຫາເມນູ..."
-              className="w-full bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-500"
+              className="w-full bg-transparent text-[15px] text-slate-200 outline-none placeholder:text-slate-500"
             />
             {searching && (
               <button type="button" onClick={() => setQuery("")} aria-label="ລ້າງ" className="text-slate-500 hover:text-white">
@@ -148,7 +148,7 @@ export function NavTree({
       )}
 
       <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 pb-4">
-        {groups.length === 0 && <p className="px-3 py-6 text-center text-xs text-slate-500">ບໍ່ພົບເມນູ</p>}
+        {groups.length === 0 && <p className="px-3 py-6 text-center text-sm text-slate-500">ບໍ່ພົບເມນູ</p>}
 
         {groups.map((group: NavGroup) => {
           const Icon = group.icon;
@@ -188,14 +188,14 @@ export function NavTree({
                 type="button"
                 onClick={() => setOpenId(open ? "" : group.id)}
                 aria-expanded={open}
-                className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+                className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-base font-semibold transition ${
                   hasActive ? "text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
                 }`}
               >
                 <Icon className={`size-4 shrink-0 ${hasActive ? "text-teal-400" : ""}`} />
                 <span className="flex-1 text-left">{groupLabel}</span>
                 {!open && groupTotal > 0 && (
-                  <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-slate-300">
+                  <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-xs font-bold text-slate-300">
                     {groupTotal > 99 ? "99+" : groupTotal}
                   </span>
                 )}
@@ -235,7 +235,7 @@ export function NavTree({
                             {/* ຕົວເລກຄິວ — ນັບດ້ວຍເງື່ອນໄຂອັນດຽວກັບໜ້າປາຍທາງ (lib/nav-counts) */}
                             {item.count && (counts[item.count] ?? 0) > 0 && (
                               <span
-                                className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                                className={`shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
                                   active ? "bg-teal-400 text-slate-900" : "bg-white/10 text-slate-300"
                                 }`}
                               >
@@ -291,8 +291,8 @@ export function Sidebar({
           </span>
           {!collapsed && (
             <span className="whitespace-nowrap">
-              <span className="block text-[13px] font-bold leading-tight text-white">ODIEN SERVICE</span>
-              <span className="block text-[10px] leading-tight text-slate-500">ລະບົບບໍລິການ</span>
+              <span className="block text-sm font-bold leading-tight text-white">ODIEN SERVICE</span>
+              <span className="block text-[11px] leading-tight text-slate-500">ລະບົບບໍລິການ</span>
             </span>
           )}
         </Link>
