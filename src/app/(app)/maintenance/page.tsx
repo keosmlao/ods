@@ -69,7 +69,6 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
           {jobs.rows.map((row) => (
             <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
               <MaintenanceCells row={row} />
-              <td className="px-3 py-2.5" />
             </tr>
           ))}
         </tbody>

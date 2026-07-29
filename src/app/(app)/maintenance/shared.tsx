@@ -1,9 +1,9 @@
 import { Elapsed } from "@/components/elapsed";
+import { MaintenanceRowActions } from "@/components/maintenance/maintenance-row-actions";
 import type { SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import {
-  MAINTENANCE_ELAPSED_SQL,
   MAINTENANCE_STAGE_SQL,
   MAINTENANCE_STAGE_TIME_COL,
   maintenanceStageChip,
@@ -42,7 +42,7 @@ export const MAINTENANCE_COLUMNS = `a.code,
   to_char(a.time_register,'DD-MM-YYYY HH24:MI') time_register,
   to_char(a.appoint_date,'DD-MM-YYYY') appoint_date,
   (${MAINTENANCE_STAGE_SQL}) stage,
-  ${MAINTENANCE_ELAPSED_SQL} elapsed_seconds,
+  greatest(0, extract(epoch from (localtimestamp - a.time_register)))::float elapsed_seconds,
   to_char((${MAINTENANCE_STAGE_TIME_COL}),'DD-MM-YYYY HH24:MI') stage_time,
   (select string_agg(d.name, ', ') from ods_tb_maintenance_detail d where d.job_code = a.code) services`;
 
@@ -52,7 +52,7 @@ export const MAINTENANCE_SEARCH = `(a.code ilike $Q or a.cust_name ilike $Q or a
 /** whitelist ຈັດຮຽງ — ກັນ SQL injection. at_col = ຖັນເວລາຂອງຂັ້ນປັດຈຸບັນ */
 export const MAINTENANCE_SORT_SQL: Record<string, string> = {
   code: "a.code",
-  elapsed: "at_col",
+  elapsed: "open_time",
   services: "(select string_agg(d.name, ',') from ods_tb_maintenance_detail d where d.job_code = a.code)",
   customer: "a.cust_name",
   appoint: "a.appoint_date",
@@ -62,6 +62,7 @@ export const MAINTENANCE_SORT_SQL: Record<string, string> = {
 
 export function maintenanceOrderBy(sort: string, dir: SortDir, timeCol = MAINTENANCE_STAGE_TIME_COL) {
   const column = MAINTENANCE_SORT_SQL[sort] ?? "at_col";
+  if (column === "open_time") return `a.time_register ${dir === "desc" ? "asc" : "desc"} nulls last`;
   if (column === "at_col") return `(${timeCol}) ${dir === "desc" ? "asc" : "desc"} nulls last`;
   return `${column} ${dir === "asc" ? "asc" : "desc"} nulls last`;
 }
@@ -106,7 +107,7 @@ export const MAINT_SORTABLE_COLUMNS: { key: string; label: string; defaultDir: S
   { key: "tech", label: "ຊ່າງ", defaultDir: "asc" },
 ];
 /** ຖັນຄົງທີ່ 2 ຖັນສຸດທ້າຍ */
-export const MAINT_PLAIN_COLUMNS = ["ລວມ (ກີບ)", "ສະຖານະ"];
+export const MAINT_PLAIN_COLUMNS = ["ລວມ (ກີບ)", "ສະຖານະ", "ຈັດການ"];
 
 /** ຊ່ອງມາດຕະຖານຂອງແຖວງານສ້ອມບໍລຸງ — ຕ້ອງກົງລຳດັບກັບ MAINT_SORTABLE_COLUMNS + MAINT_PLAIN_COLUMNS */
 export function MaintenanceCells({ row }: { row: MaintenanceRow }) {
@@ -118,7 +119,7 @@ export function MaintenanceCells({ row }: { row: MaintenanceRow }) {
         <Link href={`/maintenance/${encodeURIComponent(row.code)}`} className="hover:underline">{row.code}</Link>
       </td>
       <td className="whitespace-nowrap px-3 py-2.5">
-        <Elapsed seconds={row.elapsed_seconds} className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`} />
+        <Elapsed seconds={row.elapsed_seconds} className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-bold ${tone.chip} !text-red-600`} />
         <span className="mt-0.5 block text-[10px] text-slate-400">{row.stage_time ?? "-"}</span>
       </td>
       <td className="max-w-64 px-3 py-2.5">
@@ -130,11 +131,14 @@ export function MaintenanceCells({ row }: { row: MaintenanceRow }) {
       </td>
       <td className="whitespace-nowrap px-3 py-2.5 text-center">
         <span className="block">{row.appoint_date ?? "-"}</span>
-        <span className="mt-0.5 block text-[10px] text-slate-400">{row.time_register ?? "-"}</span>
+        <span className="mt-0.5 block text-[10px] font-bold text-red-600">{row.time_register ?? "-"}</span>
       </td>
       <td className="whitespace-nowrap px-3 py-2.5">{row.tech || "-"}</td>
       <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-slate-600">{row.total ? row.total.toLocaleString() : "-"}</td>
       <td className="whitespace-nowrap px-3 py-2.5"><MaintStageChip stage={row.stage} /></td>
+      <td className="whitespace-nowrap px-3 py-2.5 text-right">
+        <MaintenanceRowActions code={row.code} editable={row.stage <= 1} />
+      </td>
     </>
   );
 }

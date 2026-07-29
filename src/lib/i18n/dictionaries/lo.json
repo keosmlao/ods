@@ -1702,6 +1702,8 @@
     "warranty": "ປະກັນ",
     "colCode": "ເລກທີ",
     "colPending": "ຄ້າງມາ",
+    "inCurrentStage": "ຢູ່ຂັ້ນນີ້",
+    "sinceOpened": "ເປີດ Job ມາ",
     "colProductSn": "ສິນຄ້າ / SN",
     "apptDate": "ວັນນັດ",
     "showing": "ສະແດງ",

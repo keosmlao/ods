@@ -344,7 +344,12 @@ export async function syncErpPurchase(): Promise<PurchaseSync> {
   if (!db) return empty;
 
   try {
-    const open = await query<{ code: string }>(`select a.code from tb_product a where ${STAGE_7}`);
+    // ກວດສະເພາະວຽກທີ່ຍັງບໍ່ເຄີຍ sync ວັນຮັບຈາກ ERP.
+    // guard ນີ້ຕ້ອງຢູ່ທັງ SELECT ແລະ UPDATE: ປ້ອງກັນການຂຽນ log/
+    // notification ຊ້ຳທຸກເທື່ອທີ່ຄົນເປີດໜ້າ purchasing.
+    const open = await query<{ code: string }>(
+      `select a.code from tb_product a where a.spare_arrive is null and ${STAGE_7}`,
+    );
     if (open.rows.length === 0) return empty;
 
     const tracking = await purchaseTracking(open.rows.map((row) => row.code));
@@ -356,7 +361,7 @@ export async function syncErpPurchase(): Promise<PurchaseSync> {
       // ເງື່ອນໄຂຂັ້ນຢູ່ໃນ WHERE ເອງ ⇒ ວຽກທີ່ຖືກປ່ຽນໄປແລ້ວລະຫວ່າງນີ້ ຈະບໍ່ຖືກແຕະ
       const done = await query<{ emp_code: string | null; product: string | null; sn: string | null }>(
         `update tb_product a set spare_arrive = $2::timestamp, spare_arrive_by = $3
-          where a.code = $1 and ${STAGE_7}
+          where a.code = $1 and a.spare_arrive is null and ${STAGE_7}
         returning a.emp_code, a.name_1 product, a.sn`,
         [track.job, track.receipt_iso, ERP_ACTOR],
       );

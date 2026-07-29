@@ -16,7 +16,7 @@ import { requireRole, runAction } from "@/lib/guard";
 import { takeFromForm } from "@/lib/spare-take";
 import { type Role, roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
-import { INSTALL_STAGE_SQL } from "@/lib/install-stage";
+import { INSTALL_FEEDBACK_DONE_SQL, INSTALL_FEEDBACK_TIME_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { installSpareOutstanding } from "@/lib/install-spare-gate";
 import { feedbackUrl, validFeedbackToken } from "@/lib/track";
 import { revalidatePath } from "next/cache";
@@ -41,7 +41,10 @@ const INSTALL_PATHS = [
   "/installations/assign",
   "/installations/accept",
   "/installations/work",
+  "/installations/feedback",
   "/installations/close",
+  "/dashboard/status/install/wait-feedback",
+  "/dashboard/status/install/wait-close",
   "/installations/spare-requests",
   "/installations/spare-pickup",
   "/installations/dispatch",
@@ -96,8 +99,8 @@ const JOB_STATE_SQL = `select code, nullif(tech_code,'') as tech_code,
     reg_start is not null as requested,
     start_install is not null as started,
     finish_install is not null as finished,
-    complain_finish is not null as complained
-  from ods_tb_install where code = $1 limit 1`;
+    ${INSTALL_FEEDBACK_DONE_SQL} as complained
+  from ods_tb_install a where code = $1 limit 1`;
 
 async function jobState(code: string): Promise<JobState | null> {
   const result = await query<JobState>(JOB_STATE_SQL, [code]);
@@ -811,9 +814,13 @@ export async function closeJob(code: string): Promise<ActionState> {
     return { error: "ປິດງານບໍ່ໄດ້ ລູກຄ້າຍັງບໍ່ທັນຕອບແບບສອບຖາມ" };
 
   const closed = await query(
-    `update ods_tb_install set job_finish=localtimestamp(0)
-      where code=$1 and cancel_date is null and job_finish is null
-        and finish_install is not null and qc_finish is not null and complain_finish is not null`,
+    `update ods_tb_install a
+        set job_finish=localtimestamp(0),
+            complain_status=1,
+            complain_finish=coalesce(${INSTALL_FEEDBACK_TIME_SQL}, localtimestamp(0))
+      where a.code=$1 and a.cancel_date is null and a.job_finish is null
+        and a.finish_install is not null and a.qc_finish is not null
+        and ${INSTALL_FEEDBACK_DONE_SQL}`,
     [code],
   );
   if (!closed.rowCount)

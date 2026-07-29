@@ -7,12 +7,26 @@
  * ຂັ້ນ 9 ເປັນປະຫວັດປິດແລ້ວ ແລະ -1 ເປັນງານຍົກເລີກ; ບໍ່ແມ່ນຄິວເປີດ.
  * ງານບໍ່ໃຊ້ອາໄຫຼ່ຂ້າມ 2-3 ໄປ 4 ຫຼັງຊ່າງຮັບ.
  */
+/** ມີຫຼັກຖານວ່າລູກຄ້າປະເມີນແລ້ວ — ຮອງຮັບຂໍ້ມູນເກົ່າທີ່ມີຄະແນນແຕ່ຂາດ complain_finish. */
+export const INSTALL_FEEDBACK_DONE_SQL = `(a.complain_finish is not null
+  or exists (
+    select 1 from cust_complain feedback
+    where feedback.product_code = a.code and feedback.topic_code = '002'
+  ))`;
+
+/** timestamp ປະເມີນ; fallback ຫາເວລາຄຳຕອບລ່າສຸດຂອງຂໍ້ມູນເກົ່າ. */
+export const INSTALL_FEEDBACK_TIME_SQL = `coalesce(
+  a.complain_finish,
+  (select max(feedback.create_date_time_now) from cust_complain feedback
+   where feedback.product_code = a.code and feedback.topic_code = '002')
+)`;
+
 export const INSTALL_STAGE_SQL = `case
   when a.cancel_date is not null                     then -1
   when a.job_finish is not null                      then 9
   when a.finish_install is not null
    and a.qc_finish is not null
-   and a.complain_finish is not null                 then 8
+   and ${INSTALL_FEEDBACK_DONE_SQL}                  then 8
   when a.finish_install is not null
    and a.qc_finish is not null                       then 7
   when a.finish_install is not null                  then 6
@@ -85,7 +99,7 @@ export const installStageIs = (stage: number) => `(${INSTALL_STAGE_SQL}) = ${Num
  */
 export const INSTALL_STAGE_TIME_COL = `case (${INSTALL_STAGE_SQL})
   when 9 then a.job_finish
-  when 8 then a.complain_finish
+  when 8 then ${INSTALL_FEEDBACK_TIME_SQL}
   when 7 then a.qc_finish
   when 6 then a.finish_install
   when 5 then a.start_install

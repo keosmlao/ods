@@ -1,12 +1,22 @@
 "use client";
-import { createMaintenance } from "@/app/actions/maintenance";
+import { createMaintenance, updateMaintenance } from "@/app/actions/maintenance";
 import type { MaintenanceCatalogItem } from "@/lib/maintenance";
-import { LoaderCircle, Plus, Trash2 } from "lucide-react";
+import { LoaderCircle, Plus, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 type Line = { service_code: string | null; name: string; qty: number; price: number };
 type Tech = { code: string; name: string };
+type InitialMaintenance = {
+  code: string;
+  cust_name: string;
+  cust_tel: string;
+  location: string;
+  emp_code: string;
+  appoint_date: string;
+  remark: string;
+  lines: Line[];
+};
 
 const field = "h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100";
 const labelCls = "mb-1 block text-xs font-semibold text-slate-600";
@@ -23,14 +33,16 @@ export function MaintenanceForm({
   technicians,
   onSuccess,
   onCancel,
+  initial,
 }: {
   catalog: MaintenanceCatalogItem[];
   technicians: Tech[];
   onSuccess?: () => void;
   onCancel?: () => void;
+  initial?: InitialMaintenance;
 }) {
   const router = useRouter();
-  const [lines, setLines] = useState<Line[]>([]);
+  const [lines, setLines] = useState<Line[]>(initial?.lines ?? []);
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
 
@@ -51,7 +63,7 @@ export function MaintenanceForm({
     const fd = new FormData(e.currentTarget);
     fd.set("services", JSON.stringify(lines));
     start(async () => {
-      const r = await createMaintenance(fd);
+      const r = initial ? await updateMaintenance(initial.code, fd) : await createMaintenance(fd);
       if (r.error) { setErr(r.error); return; }
       if (onSuccess) {
         // ໃນ modal: ປິດ + ໃຫ້ລາຍການໂຫຼດຄືນ (ຜູ້ເອີ້ນ router.refresh)
@@ -72,30 +84,30 @@ export function MaintenanceForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label className={labelCls}>ຊື່ລູກຄ້າ *</label>
-              <input name="cust_name" required className={field} />
+              <input name="cust_name" required defaultValue={initial?.cust_name} className={field} />
             </div>
             <div>
               <label className={labelCls}>ເບີໂທ</label>
-              <input name="cust_tel" inputMode="tel" className={field} />
+              <input name="cust_tel" inputMode="tel" defaultValue={initial?.cust_tel} className={field} />
             </div>
             <div>
               <label className={labelCls}>ວັນນັດ</label>
-              <input name="appoint_date" type="date" className={field} />
+              <input name="appoint_date" type="date" defaultValue={initial?.appoint_date} className={field} />
             </div>
             <div className="sm:col-span-2">
               <label className={labelCls}>ທີ່ຢູ່ໜ້າງານ</label>
-              <input name="location" className={field} />
+              <input name="location" defaultValue={initial?.location} className={field} />
             </div>
             <div className="sm:col-span-2">
               <label className={labelCls}>ຊ່າງ (ຈັດຕອນນີ້ ຫຼື ພາຍຫຼັງ)</label>
-              <select name="emp_code" defaultValue="" className={field}>
+              <select name="emp_code" defaultValue={initial?.emp_code ?? ""} className={field}>
                 <option value="">— ຍັງບໍ່ຈັດ —</option>
                 {technicians.map((t) => <option key={t.code} value={t.code}>{t.name}</option>)}
               </select>
             </div>
             <div className="sm:col-span-2">
               <label className={labelCls}>ໝາຍເຫດ</label>
-              <textarea name="remark" rows={3} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100" />
+              <textarea name="remark" rows={3} defaultValue={initial?.remark} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100" />
             </div>
           </div>
         </section>
@@ -171,7 +183,8 @@ export function MaintenanceForm({
       <div className="flex justify-end gap-2">
         <button type="button" onClick={() => (onCancel ? onCancel() : router.push("/maintenance"))} className="h-11 rounded-lg border border-slate-200 px-6 text-sm font-semibold text-slate-600 hover:bg-slate-50">ຍົກເລີກ</button>
         <button type="submit" disabled={pending} className="inline-flex h-11 items-center gap-2 rounded-lg bg-cyan-600 px-8 text-sm font-semibold text-white hover:bg-cyan-700 disabled:opacity-60">
-          {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Plus className="size-4" />} ເປີດງານ
+          {pending ? <LoaderCircle className="size-4 animate-spin" /> : initial ? <Save className="size-4" /> : <Plus className="size-4" />}
+          {initial ? "ບັນທຶກການແກ້ໄຂ" : "ເປີດງານ"}
         </button>
       </div>
     </form>

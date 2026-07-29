@@ -1,7 +1,7 @@
 "use server";
 import { logChange } from "@/lib/chatter-log";
 import { db, query } from "@/lib/db";
-import { requireRole } from "@/lib/guard";
+import { requirePermission, requireRole } from "@/lib/guard";
 import { MAINTENANCE_SIDE } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 
@@ -78,6 +78,109 @@ export async function createMaintenance(formData: FormData): Promise<Maintenance
   await logChange("ods_tb_maintenance", code, `ເປີດງານສ້ອມບໍລຸງ ${code} (${custName}) ໂດຍ ${g.session.username}`, { roles: ["manager"] });
   revalidate(code);
   return { code };
+}
+
+/** ແກ້ໄຂຂໍ້ມູນກ່ອນຊ່າງຮັບງານ. */
+export async function updateMaintenance(code: string, formData: FormData): Promise<MaintenanceState> {
+  const g = await requirePermission("/maintenance", "update", ["manager"], "ບໍ່ມີສິດແກ້ໄຂງານ");
+  if (!g.ok) return { error: g.error };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const cleanCode = code.trim();
+  const custName = String(formData.get("cust_name") ?? "").trim();
+  const custTel = String(formData.get("cust_tel") ?? "").trim();
+  const location = String(formData.get("location") ?? "").trim();
+  const empCode = String(formData.get("emp_code") ?? "").trim();
+  const appoint = String(formData.get("appoint_date") ?? "").trim();
+  const remark = String(formData.get("remark") ?? "").trim();
+  if (!custName) return { error: "ກະລຸນາໃສ່ຊື່ລູກຄ້າ" };
+
+  let lines: ServiceLine[] = [];
+  try {
+    lines = JSON.parse(String(formData.get("services") ?? "[]")) as ServiceLine[];
+  } catch {
+    return { error: "ຂໍ້ມູນລາຍການບໍລິການບໍ່ຖືກຕ້ອງ" };
+  }
+  lines = lines.filter((line) => line && line.name?.trim());
+  if (lines.length === 0) return { error: "ກະລຸນາເລືອກຢ່າງໜ້ອຍ 1 ບໍລິການ" };
+  const total = lines.reduce((sum, line) => sum + (Number(line.price) || 0) * (Number(line.qty) || 1), 0);
+
+  const client = await db.connect();
+  try {
+    await client.query("begin");
+    const current = await client.query<{ tech_confirm: string | null; cancel_date: string | null }>(
+      "select tech_confirm, cancel_date from ods_tb_maintenance where code = $1 for update",
+      [cleanCode],
+    );
+    if (!current.rows[0]) {
+      await client.query("rollback");
+      return { error: "ບໍ່ພົບງານນີ້" };
+    }
+    if (current.rows[0].tech_confirm || current.rows[0].cancel_date) {
+      await client.query("rollback");
+      return { error: "ງານນີ້ເລີ່ມດຳເນີນແລ້ວ ຈຶ່ງແກ້ໄຂບໍ່ໄດ້" };
+    }
+    await client.query(
+      `update ods_tb_maintenance
+          set cust_name=$2, cust_tel=nullif($3,''), location=nullif($4,''),
+              emp_code=nullif($5,''), appoint_date=nullif($6,'')::timestamp,
+              remark=nullif($7,''), total=$8,
+              assign_time=case when nullif($5,'') is null then null else coalesce(assign_time, localtimestamp(0)) end
+        where code=$1`,
+      [cleanCode, custName, custTel, location, empCode, appoint, remark, total],
+    );
+    await client.query("delete from ods_tb_maintenance_detail where job_code = $1", [cleanCode]);
+    for (const line of lines) {
+      await client.query(
+        `insert into ods_tb_maintenance_detail (job_code, service_code, name, qty, price)
+         values ($1,$2,$3,$4,$5)`,
+        [cleanCode, line.service_code ?? null, line.name.trim(), Number(line.qty) || 1, Number(line.price) || 0],
+      );
+    }
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("updateMaintenance failed", error);
+    return { error: "ແກ້ໄຂງານບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+  }
+  await logChange("ods_tb_maintenance", cleanCode, `ແກ້ໄຂງານ ${cleanCode} ໂດຍ ${g.session.username}`, { roles: ["manager"] });
+  revalidate(cleanCode);
+  return { code: cleanCode };
+}
+
+/** ລົບໄດ້ສະເພາະກ່ອນຊ່າງຮັບງານ; detail ຖືກ cascade ຕາມ FK. */
+export async function deleteMaintenance(code: string): Promise<MaintenanceState> {
+  const g = await requirePermission("/maintenance", "delete", ["manager"], "ບໍ່ມີສິດລົບງານ");
+  if (!g.ok) return { error: g.error };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const cleanCode = code.trim();
+  const client = await db.connect();
+  try {
+    await client.query("begin");
+    const removed = await client.query(
+      `delete from ods_tb_maintenance
+        where code=$1 and tech_confirm is null and cancel_date is null
+        returning code`,
+      [cleanCode],
+    );
+    if (!removed.rowCount) {
+      await client.query("rollback");
+      const exists = await query<{ exists: boolean }>("select exists(select 1 from ods_tb_maintenance where code=$1) exists", [cleanCode]);
+      return { error: exists.rows[0]?.exists ? "ງານເລີ່ມດຳເນີນແລ້ວ ຈຶ່ງລົບບໍ່ໄດ້" : "ບໍ່ພົບງານນີ້" };
+    }
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("deleteMaintenance failed", error);
+    return { error: "ລົບງານບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+  }
+  revalidatePath("/maintenance");
+  return { code: cleanCode };
 }
 
 /** ຈັດຊ່າງ + ນັດ (→ ຂັ້ນ 1 ລໍຊ່າງຮັບ). ວ່າງ emp = ຖອນການຈັດ. */

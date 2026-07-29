@@ -1702,6 +1702,8 @@
     "warranty": "Warranty",
     "colCode": "No.",
     "colPending": "Pending",
+    "inCurrentStage": "At this stage",
+    "sinceOpened": "Job open for",
     "colProductSn": "Product / SN",
     "apptDate": "Appt date",
     "showing": "Showing",

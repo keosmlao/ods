@@ -67,7 +67,7 @@ type RepairRow = {
   code: string; roworder: number; customer: string | null; phone: string | null; product: string | null; sn: string | null;
   model: string | null; brand: string | null; warranty: string | null; service_type: string | null;
   issue: string | null; accessory: string | null; reference: string | null; receiver: string | null;
-  technician: string | null; registered: string | null; elapsed_seconds: number | null;
+  technician: string | null; registered: string | null; elapsed_seconds: number | null; opened_seconds: number | null;
   stage_started: string | null;
   location_inst: string | null; appoint_date: string | null; remark: string | null;
   /** ຍົກເລີກ = ທຸງ (status=6) — ງານແບບນີ້ຢູ່ຄິວ "ລໍຖ້າສົ່ງຄືນ" ຄືກັນ (ເຄື່ອງຍັງຕ້ອງຄືນລູກຄ້າ) */
@@ -84,7 +84,7 @@ type InstallRow = {
   total_count: number;
   code: string; customer: string | null; product: string | null; brand: string | null; model: string | null;
   product_type: string | null; product_size: string | null; appointment: string | null; sale_bill: string | null;
-  technician: string | null; creator: string | null; registered: string | null; elapsed_seconds: number | null;
+  technician: string | null; creator: string | null; registered: string | null; elapsed_seconds: number | null; opened_seconds: number | null;
 };
 
 const REPAIR_SEARCH = `(a.code ilike $Q or a.sn ilike $Q or a.name_1 ilike $Q or a.p_brand ilike $Q
@@ -337,6 +337,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
          (select doc_no from ic_trans_detail where product_code = a.code and trans_flag = 122
             order by roworder desc limit 1) request_doc,
          to_char(a.time_register,'DD-MM-YYYY HH24:MI') registered,
+         greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int opened_seconds,
          to_char((${STAGE_TIME_COL}),'DD-MM-YYYY HH24:MI') stage_started, ${elapsed},
          (select product_url from product_image i
            where i.iteme_code = a.code and coalesce(i.product_url,'') <> ''
@@ -353,7 +354,9 @@ export default async function StatusPage({ params, searchParams }: Props) {
          a.code, c.name_1 customer, a.item_name product, a.pro_brand brand, a.pro_model model,
          a.pro_type product_type, a.pro_size product_size, to_char(a.appoint_date,'DD-MM-YYYY') appointment,
          a.doc_ref_1 sale_bill, a.tech_code technician, a.user_created creator,
-         to_char(a.time_register,'DD-MM-YYYY HH24:MI') registered, ${elapsed}
+         to_char(a.time_register,'DD-MM-YYYY HH24:MI') registered,
+         greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int opened_seconds,
+         ${elapsed}
        ${from} where ${filter} order by ${orderBy} limit $${args.length + 1} offset $${args.length + 2}`;
 
   /**
@@ -804,6 +807,11 @@ export default async function StatusPage({ params, searchParams }: Props) {
                           <b className="ml-1 text-amber-600">· {t.clockStopped}</b>
                         )}
                       </span>
+                      <span className="mt-1 block text-[10px] font-medium text-slate-500">
+                        {t.sinceOpened}:{" "}
+                        <Elapsed seconds={row.opened_seconds} className="font-bold text-red-600" />
+                        <span className="ml-1 text-slate-400">· {row.registered || "-"}</span>
+                      </span>
                       {/* ໝາຍ/ປົດທຸງ — ຢູ່ຄຽງນາລິກາ ເພາະທຸງນີ້ຄືສິ່ງທີ່ຢຸດນາລິກາ */}
                       {isRepair && canHold && (
                         <span className="mt-1 block">
@@ -959,6 +967,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
+                    <span className="mb-1 block text-[9px] font-medium text-slate-400">{t.inCurrentStage}</span>
                     <Elapsed
                       seconds={row.elapsed_seconds}
                       className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`}
@@ -966,6 +975,10 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     {isRepair && targetHours != null && (
                       <span className="mt-0.5 block text-[9px] font-semibold text-slate-400">SLA {targetHours} {t.hoursUnit}</span>
                     )}
+                    <span className="mt-1 block text-[9px] text-slate-400">
+                      {t.sinceOpened}{" "}
+                      <Elapsed seconds={row.opened_seconds} className="font-bold text-red-600" />
+                    </span>
                   </div>
                 </div>
 

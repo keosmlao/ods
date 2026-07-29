@@ -1,5 +1,5 @@
 import { query } from "@/lib/db";
-import { INSTALL_STAGE_SQL, installStageLabel } from "@/lib/install-stage";
+import { INSTALL_FEEDBACK_TIME_SQL, INSTALL_STAGE_SQL, installStageLabel } from "@/lib/install-stage";
 import type { TimelineStep } from "@/lib/repair-timeline";
 
 /**
@@ -16,7 +16,7 @@ const ENTRY: Record<number, string> = {
   5: "a.start_install",
   6: "a.finish_install",
   7: "a.qc_finish",
-  8: "a.complain_finish",
+  8: INSTALL_FEEDBACK_TIME_SQL,
   9: "a.job_finish",
 };
 

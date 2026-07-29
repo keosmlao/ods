@@ -1702,6 +1702,8 @@
     "warranty": "ประกัน",
     "colCode": "เลขที่",
     "colPending": "ค้างมา",
+    "inCurrentStage": "อยู่ในขั้นตอนนี้",
+    "sinceOpened": "เปิด Job มา",
     "colProductSn": "สินค้า / SN",
     "apptDate": "วันนัด",
     "showing": "แสดง",
