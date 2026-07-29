@@ -987,8 +987,14 @@ export async function addSpareLine(
       [code, itemCode, itemName, unitCode],
     );
     // ມີອາໄຫຼ່ໃນກະຕ່າແລ້ວ ⇒ ງານນີ້ໃຊ້ອາໄຫຼ່ ຕາມຄວາມຈິງ
+    // ເພີ່ມມາດຕະຖານອາໄຫຼ່ໃໝ່ = ຍອດຮັບເກົ່າບໍ່ຄົບອີກແລ້ວ.
+    // ລ້າງ pick_finish ເພື່ອດຶງງານອອກຈາກ "ລໍຕິດຕັ້ງ" ກັບມາຂໍ/ຮັບໃຫ້ຄົບ.
     await client.query(
-      "update ods_tb_install set used_spare=1 where code=$1 and coalesce(used_spare,0)<>1",
+      "update ods_tb_install set used_spare=1, pick_finish=null where code=$1",
+      [code],
+    );
+    await client.query(
+      "update ods_tb_install_detail set pick_finish=null where code=$1",
       [code],
     );
     await client.query("commit");

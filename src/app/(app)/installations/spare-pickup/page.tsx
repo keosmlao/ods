@@ -2,6 +2,7 @@ import { syncErpDispatch } from "@/lib/erp-dispatch";
 import { techFilter } from "@/app/actions/installation";
 import { CancelInstallSpareRequestButton } from "@/components/installation/cancel-spare-request-button";
 import { LinkPending } from "@/components/link-pending";
+import { query } from "@/lib/db";
 import { PackageCheck } from "lucide-react";
 import Link from "next/link";
 import {
@@ -36,6 +37,10 @@ import {
 export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<ListSearchParams> };
+type PendingCount = {
+  doc_no: string;
+  pending_items: number;
+};
 
 /**
  * ຈັດແຖວໃບເບີກໃຫ້ໃບຂອງ**ງານດຽວກັນຢູ່ຕິດກັນ** ໂດຍຮັກສາລຳດັບເດີມ (ອີງງານທີ່ໂຜ່ກ່ອນ).
@@ -126,6 +131,31 @@ export default async function SparePickupPage({ searchParams }: Props) {
       page: 1,
     }),
   ]);
+  const pendingCounts = pendingWarehouse.rows.length
+    ? (
+        await query<PendingCount>(
+          `select pending.doc_no, count(*)::int pending_items
+             from (
+               select r.doc_no, r.item_code
+                 from ic_trans_detail r
+                 left join (
+                   select doc_ref, item_code, sum(qty) qty
+                     from ic_trans_detail
+                    where trans_flag = 56 and doc_ref = any($1::text[])
+                    group by doc_ref, item_code
+                 ) issued on issued.doc_ref = r.doc_no and issued.item_code = r.item_code
+                where r.trans_flag = 122 and r.doc_no = any($1::text[])
+                group by r.doc_no, r.item_code, issued.qty
+               having greatest(sum(r.qty) - coalesce(issued.qty,0), 0) > 0
+             ) pending
+            group by pending.doc_no`,
+          [pendingWarehouse.rows.map((row) => row.doc_no)],
+        )
+      ).rows
+    : [];
+  const pendingByDoc = new Map(
+    pendingCounts.map((row) => [row.doc_no, row.pending_items]),
+  );
 
   const pages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
   const base = (): Record<string, string> => (q ? { q } : {});
@@ -182,7 +212,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
-                          ລໍສາງເບີກ
+                          ຄ້າງ {pendingByDoc.get(row.doc_no) ?? 0} ລາຍການ
                         </span>
                         <CancelInstallSpareRequestButton
                           docNo={row.doc_no}

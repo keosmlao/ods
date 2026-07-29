@@ -1,12 +1,8 @@
 "use client";
 import {
-  addSpareLine,
-  deleteSpareLine,
   saveSpareRequest,
   type ActionState,
-  updateSpareQty,
 } from "@/app/actions/installation";
-import type { SpareRow } from "@/app/api/installations/spares/route";
 import type { JobHead } from "@/components/installation/job-header";
 import { SelectField } from "@/components/select-field";
 import {
@@ -26,13 +22,14 @@ import {
   CheckCircle2,
   LoaderCircle,
   LogOut,
+  PackageOpen,
   Plus,
   Save,
   Search,
   Trash2,
+  X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useMemo, useState } from "react";
 
 /** ຖອດແບບຈາກ ods: req_page.html + /in_add_req + /additemtoreg_inst + /delete_item_sion
  *  + /update_qty_reg_spare + /save_in_req (tech_reg_install.py) */
@@ -41,6 +38,9 @@ export type SpareLine = {
   roworder: number;
   item_code: string;
   item_name: string;
+  standard_qty: string;
+  requested_qty: string;
+  remaining_qty: string;
   qty: string;
   unit_code: string | null;
 };
@@ -81,6 +81,12 @@ export function SpareRequestForm({
     {},
   );
   const [open, setOpen] = useState(false);
+  const [selectedCodes, setSelectedCodes] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const selectedLines = lines.filter((line) =>
+    selectedCodes.has(line.item_code),
+  );
 
   /**
    * ── ສາງ ແລະ ທີ່ເກັບ ຕ້ອງລະບຸ **ຕັ້ງແຕ່ຕອນຂໍເບີກ** ──
@@ -93,18 +99,18 @@ export function SpareRequestForm({
   const [shelf, setShelf] = useState("");
   const shelfOptions = shelves.filter((row) => row.whcode === wh);
   const warehouseOptions = warehouses.map((warehouse) => {
-    const available = lines.filter(
+    const available = selectedLines.filter(
       (line) =>
         (balances[line.item_code]?.byWarehouse[warehouse.code] ?? 0) > 0,
     ).length;
-    const enough = lines.filter(
+    const enough = selectedLines.filter(
       (line) =>
         (balances[line.item_code]?.byWarehouse[warehouse.code] ?? 0) >=
         Number(line.qty),
     ).length;
     return {
       value: warehouse.code,
-      label: `${warehouse.code} ~ ${warehouse.name_1} · ${t.has} ${available}/${lines.length} · ${t.enough} ${enough}/${lines.length}`,
+      label: `${warehouse.code} ~ ${warehouse.name_1} · ${t.has} ${available}/${selectedLines.length} · ${t.enough} ${enough}/${selectedLines.length}`,
     };
   });
 
@@ -122,7 +128,7 @@ export function SpareRequestForm({
               <Button
                 type="submit"
                 tone="success"
-                disabled={pending || lines.length === 0 || !wh || !shelf}
+                disabled={pending || selectedLines.length === 0 || !wh || !shelf}
               >
                 {pending ? (
                   <LoaderCircle className="size-4 animate-spin" />
@@ -217,7 +223,7 @@ export function SpareRequestForm({
               <input name="remark" className={inputClass} />
             </div>
           </div>
-          {warehouses.length === 0 && (
+          {selectedLines.length > 0 && warehouses.length === 0 && (
             <p className="mt-4 flex items-center gap-2 rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-700">
               <AlertTriangle className="size-4" /> {t.noSparesInErp}
             </p>
@@ -230,14 +236,13 @@ export function SpareRequestForm({
             <Button
               type="button"
               tone="info"
-              disabled={!wh}
               onClick={() => setOpen(true)}
             >
               <Plus className="size-4" /> {t.addSpare}
             </Button>
           }
         >
-          {lines.length === 0 ? (
+          {selectedLines.length === 0 ? (
             <Empty>{t.noSpareLines}</Empty>
           ) : (
             <Table
@@ -245,24 +250,32 @@ export function SpareRequestForm({
                 "#",
                 t.colItemCode,
                 t.colItemNameStock,
-                t.colQty,
+                "ຈຳນວນມາດຕະຖານ",
+                "ຈຳນວນຂໍເບີກແລ້ວ",
+                "ຈຳນວນຄົງເຫຼືອ",
                 t.takeNow,
                 t.colUnit,
                 "",
               ]}
               minWidth={1000}
             >
-              {lines.map((line, index) => (
+              {selectedLines.map((line, index) => (
                 <LineRow
                   // ປ່ຽນສາງ ⇒ remount ເພື່ອໃຫ້ຊ່ອງ "ເບີກຮອບນີ້" ຕັ້ງຄ່າໃໝ່ຕາມສາງນັ້ນ
                   key={`${line.roworder}-${line.qty}-${wh}`}
                   t={t}
-                  code={code}
                   line={line}
                   index={index + 1}
                   selectedWarehouse={wh}
                   balance={balances[line.item_code]}
                   warehouses={warehouses}
+                  onRemove={() =>
+                    setSelectedCodes((current) => {
+                      const next = new Set(current);
+                      next.delete(line.item_code);
+                      return next;
+                    })
+                  }
                 />
               ))}
             </Table>
@@ -270,31 +283,37 @@ export function SpareRequestForm({
         </Card>
       </form>
 
-      {open && <SparePicker t={t} code={code} onClose={() => setOpen(false)} />}
+      {open && (
+        <SparePicker
+          t={t}
+          lines={lines}
+          balances={balances}
+          selectedCodes={selectedCodes}
+          onAdd={setSelectedCodes}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </div>
   );
 }
 
 function LineRow({
   t,
-  code,
   line,
   index,
   selectedWarehouse,
   balance = { total: 0, byWarehouse: {}, byLocation: {} },
   warehouses,
+  onRemove,
 }: {
   t: SpareRequestFormDict;
-  code: string;
   line: SpareLine;
   index: number;
   selectedWarehouse: string;
   balance?: SpareBalance;
   warehouses: Warehouse[];
+  onRemove: () => void;
 }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  const [qty, setQty] = useState(String(Number(line.qty)));
   const selectedBalance = selectedWarehouse
     ? (balance.byWarehouse[selectedWarehouse] ?? 0)
     : null;
@@ -303,22 +322,6 @@ function LineRow({
   const availableWarehouses = Object.entries(balance.byWarehouse)
     .filter(([, available]) => available > 0)
     .sort((a, b) => b[1] - a[1]);
-
-  const saveQty = () => {
-    const value = Number(qty);
-    if (!Number.isFinite(value) || value <= 0) {
-      window.alert("ກະລຸນາໃສ່ຈຳນວນຫຼາຍກວ່າ 0");
-      return;
-    }
-    start(async () => {
-      const result = await updateSpareQty(code, line.roworder, value);
-      if (result.error) {
-        window.alert(result.error);
-        return;
-      }
-      router.refresh();
-    });
-  };
 
   return (
     <tr className="border-b border-slate-100">
@@ -370,33 +373,13 @@ function LineRow({
         </div>
       </td>
       <td className="px-3 py-3 text-center">
-        <div className="flex items-center justify-center gap-1.5">
-          <input
-            type="number"
-            min={0.01}
-            step="any"
-            value={qty}
-            disabled={pending}
-            onChange={(event) => setQty(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                saveQty();
-              }
-            }}
-            aria-label={`${t.colQty} ${line.item_name}`}
-            className={`${inputClass} h-9 w-24 text-center font-bold tabular-nums`}
-          />
-          <button
-            type="button"
-            onClick={saveQty}
-            disabled={pending || Number(qty) === Number(line.qty)}
-            title={t.save}
-            className="inline-grid size-9 place-items-center rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
-          </button>
-        </div>
+        <b className="tabular-nums">{Number(line.standard_qty).toLocaleString()}</b>
+      </td>
+      <td className="px-3 py-3 text-center">
+        <b className="tabular-nums text-teal-700">{Number(line.requested_qty).toLocaleString()}</b>
+      </td>
+      <td className="px-3 py-3 text-center">
+        <b className="tabular-nums text-amber-700">{Number(line.remaining_qty).toLocaleString()}</b>
       </td>
       {/*
         ── ເບີກຮອບນີ້ (1 ສາງ / 1 ໃບ) ──
@@ -410,8 +393,11 @@ function LineRow({
           min={0}
           max={Number(line.qty)}
           step="any"
-          disabled={!selectedWarehouse}
-          defaultValue={Math.min(Number(line.qty), selectedBalance ?? 0)}
+          defaultValue={
+            selectedBalance === null
+              ? Number(line.qty)
+              : Math.min(Number(line.qty), selectedBalance)
+          }
           aria-label={`${t.takeNow} ${line.item_name}`}
           className={`${inputClass} h-9 w-24 text-center font-semibold`}
         />
@@ -421,14 +407,8 @@ function LineRow({
         <button
           type="button"
           title={t.delete}
-          disabled={pending}
           className="text-slate-500 hover:text-red-600 disabled:opacity-50"
-          onClick={() =>
-            start(async () => {
-              await deleteSpareLine(code, line.roworder);
-              router.refresh();
-            })
-          }
+          onClick={onRemove}
         >
           <Trash2 className="size-4" />
         </button>
@@ -448,107 +428,158 @@ function Field({ label, value }: { label: string; value: string | null }) {
 
 function SparePicker({
   t,
-  code,
+  lines,
+  balances,
+  selectedCodes,
+  onAdd,
   onClose,
 }: {
   t: SpareRequestFormDict;
-  code: string;
+  lines: SpareLine[];
+  balances: Record<string, SpareBalance>;
+  selectedCodes: Set<string>;
+  onAdd: (codes: Set<string>) => void;
   onClose: () => void;
 }) {
-  const router = useRouter();
   const [q, setQ] = useState("");
-  const [rows, setRows] = useState<SpareRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [pending, start] = useTransition();
+  const [checked, setChecked] = useState<Set<string>>(
+    () => new Set(selectedCodes),
+  );
+  const rows = useMemo(() => {
+    const keyword = q.trim().toLocaleLowerCase();
+    if (!keyword) return lines;
+    return lines.filter(
+      (line) =>
+        line.item_code.toLocaleLowerCase().includes(keyword) ||
+        line.item_name.toLocaleLowerCase().includes(keyword),
+    );
+  }, [lines, q]);
+  const allVisibleChecked =
+    rows.length > 0 && rows.every((row) => checked.has(row.item_code));
 
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(
-          `/api/installations/spares?q=${encodeURIComponent(q)}`,
-        );
-        const json = await response.json();
-        setRows(json.data ?? []);
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [q]);
+  const toggle = (itemCode: string) => {
+    setChecked((current) => {
+      const next = new Set(current);
+      if (next.has(itemCode)) next.delete(itemCode);
+      else next.add(itemCode);
+      return next;
+    });
+  };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
-      <div className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-xl bg-white shadow-xl">
-        <div className="flex items-center gap-3 border-b border-slate-100 p-4">
-          <Search className="size-4 shrink-0 text-slate-400" />
-          <input
-            autoFocus
-            value={q}
-            onChange={(event) => setQ(event.target.value)}
-            placeholder={t.searchSparePlaceholder}
-            className="w-full text-sm outline-none"
-          />
-          <Button type="button" tone="neutral" onClick={onClose}>
-            {t.exit}
-          </Button>
-        </div>
-        <div className="overflow-auto p-4">
-          <Table
-            head={[
-              "#",
-              t.colCode,
-              t.colItemPartNumber,
-              t.colUnit,
-              t.colBalance,
-              "",
-            ]}
-            minWidth={700}
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4 backdrop-blur-[1px]">
+      <div className="flex max-h-[82vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50/80 px-5 py-4">
+          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-teal-100 text-teal-700">
+            <PackageOpen className="size-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-bold text-slate-800">ເລືອກອາໄຫຼ່ຕາມມາດຕະຖານ</h2>
+            <p className="text-xs text-slate-500">ໝາຍ check ທີລະລາຍການ ຫຼືເລືອກທັງໝົດ</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t.exit}
+            className="grid size-9 place-items-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700"
           >
-            {rows.map((row, index) => (
-              <tr
-                key={row.code}
-                className="border-b border-slate-100 hover:bg-slate-50"
-              >
-                <td className="px-3 py-2 text-center">{index + 1}</td>
-                <td className="whitespace-nowrap px-3 py-2">{row.code}</td>
-                <td className="px-3 py-2">{row.name_1}</td>
-                <td className="px-3 py-2 text-center">{row.unit_code}</td>
-                <td className="px-3 py-2 text-right">{row.balance_qty}</td>
-                <td className="px-3 py-2 text-center">
-                  <Button
-                    type="button"
-                    tone="success"
-                    disabled={pending}
-                    onClick={() =>
-                      start(async () => {
-                        await addSpareLine(
-                          code,
-                          row.code,
-                          row.name_1,
-                          row.unit_code ?? "",
-                        );
-                        router.refresh();
-                        onClose();
-                      })
-                    }
-                  >
-                    {t.select}
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </Table>
-          {!loading && rows.length === 0 && (
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <div className="border-b border-slate-200 p-4">
+          <label className="flex h-12 items-center gap-3 rounded-full border-2 border-teal-500 bg-white px-4 shadow-[0_0_0_5px_rgba(20,184,166,0.10)]">
+            <Search className="size-5 shrink-0 text-slate-400" />
+            <input
+              autoFocus
+              value={q}
+              onChange={(event) => setQ(event.target.value)}
+              placeholder={t.searchSparePlaceholder}
+              className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+            />
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-2.5">
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              checked={allVisibleChecked}
+              onChange={() =>
+                setChecked((current) => {
+                  const next = new Set(current);
+                  rows.forEach((row) =>
+                    allVisibleChecked
+                      ? next.delete(row.item_code)
+                      : next.add(row.item_code),
+                  );
+                  return next;
+                })
+              }
+              className="size-4 accent-teal-600"
+            />
+            ເລືອກທັງໝົດ
+          </label>
+          <span className="text-xs text-slate-500">
+            ເລືອກແລ້ວ {checked.size} ລາຍການ
+          </span>
+        </div>
+
+        <div className="overflow-auto">
+          {rows.map((row) => (
+            <label
+              key={row.item_code}
+              className="flex w-full cursor-pointer items-center gap-3 border-b border-slate-100 px-5 py-3 text-left transition hover:bg-teal-50/60"
+            >
+              <input
+                type="checkbox"
+                checked={checked.has(row.item_code)}
+                onChange={() => toggle(row.item_code)}
+                className="size-5 shrink-0 accent-teal-600"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold text-slate-800">{row.item_name}</span>
+                <span className="mt-0.5 block text-xs text-slate-400">
+                  {row.item_code} · {row.unit_code || "-"}
+                </span>
+              </span>
+              <span className="shrink-0 text-right text-xs leading-5">
+                <span className="block text-slate-500">
+                  ມາດຕະຖານ: <b>{Number(row.standard_qty).toLocaleString()}</b>
+                  {" · "}ຂໍແລ້ວ: <b className="text-teal-700">{Number(row.requested_qty).toLocaleString()}</b>
+                </span>
+                <span className="block text-slate-500">
+                  ຄົງເຫຼືອ: <b className="text-amber-700">{Number(row.remaining_qty).toLocaleString()}</b>
+                  {" · "}Stock: <b className={(balances[row.item_code]?.total ?? 0) > 0 ? "text-emerald-700" : "text-red-600"}>
+                    {(balances[row.item_code]?.total ?? 0).toLocaleString()}
+                  </b>
+                </span>
+              </span>
+            </label>
+          ))}
+          {rows.length === 0 && (
             <p className="py-10 text-center text-sm text-slate-400">
               {t.noItemsFound}
             </p>
           )}
-          {loading && (
-            <p className="py-10 text-center text-sm text-slate-400">
-              {t.loading}
-            </p>
-          )}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-slate-200 bg-white px-5 py-4">
+          <Button type="button" tone="neutral" onClick={onClose}>
+            {t.exit}
+          </Button>
+          <Button
+            type="button"
+            tone="success"
+            disabled={checked.size === 0}
+            onClick={() => {
+              onAdd(new Set(checked));
+              onClose();
+            }}
+          >
+            <Plus className="size-4" />
+            ເພີ່ມ {checked.size} ລາຍການ
+          </Button>
         </div>
       </div>
     </div>

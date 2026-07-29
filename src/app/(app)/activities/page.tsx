@@ -34,7 +34,16 @@ export default async function ActivitiesPage({ searchParams }: Props) {
   // ຊ່າງບໍ່ມີແທັບ "ທຸກຄົນ" — ຖ້າພິມ URL ເອງກໍ່ຕົກກັບມາຫາຂອງຕົນ
   const tab: Tab = params.tab === "all" && manager ? "all" : "me";
 
-  const activities = tab === "all" ? await allActivities() : await myActivities();
+  let activities: Activity[] = [];
+  let loadError = false;
+  try {
+    activities = tab === "all" ? await allActivities() : await myActivities();
+  } catch (error) {
+    // ກິດຈະກຳເປັນ inbox ເສີມ — query ລົ້ມຊົ່ວຄາວບໍ່ຄວນເຮັດໃຫ້
+    // ທັງ route ກາຍເປັນໜ້າຂາວ "This page couldn't load".
+    console.error("ActivitiesPage load failed", error);
+    loadError = true;
+  }
   const groups = group(activities);
 
   /**
@@ -66,6 +75,20 @@ export default async function ActivitiesPage({ searchParams }: Props) {
           {groups.late.length > 0 && <span className="font-semibold text-red-600"> · ເລີຍກຳນົດ {groups.late.length}</span>}
         </p>
       </div>
+
+      {loadError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+          <p className="text-xs font-semibold text-red-700">
+            ໂຫຼດກິດຈະກຳບໍ່ສຳເລັດຊົ່ວຄາວ — ກະລຸນາລອງໃໝ່
+          </p>
+          <Link
+            href={tab === "all" ? "/activities?tab=all" : "/activities"}
+            className="inline-flex h-8 items-center rounded-lg bg-red-600 px-3 text-xs font-semibold text-white hover:bg-red-700"
+          >
+            ລອງໃໝ່
+          </Link>
+        </div>
+      )}
 
       {/* ແທັບ — ຊ່າງເຫັນສະເພາະຂອງຕົນ ຈຶ່ງບໍ່ສະແດງແທັບໃຫ້ */}
       {manager && (

@@ -159,7 +159,12 @@ export async function scheduleActivity(_: ChatterState, formData: FormData): Pro
  * ພຽງແຕ່ຮູ້ເລກ id (ເປັນເລກລຽງລຳດັບ ⇒ ເດົາງ່າຍ).
  */
 const activityScope = (session: Session, placeholder: string) =>
-  roleOf(session) === "manager" ? "true" : `(assigned_to=${placeholder} or created_by=${placeholder})`;
+  roleOf(session) === "manager"
+    // ຍັງອ້າງ placeholder ໄວ້ໃຫ້ຈຳນວນ bind parameters ກົງກັບ params
+    // ທີ່ completeActivity/cancelActivity ສົ່ງເຂົ້າ. ແຕ່ກ່ອນຄືນ "true"
+    // ເຮັດໃຫ້ manager ສົ່ງ 3 params ໃສ່ SQL ທີ່ມີພຽງ $1/$2 → PostgreSQL 08P01.
+    ? `${placeholder}::text is not null`
+    : `(assigned_to=${placeholder} or created_by=${placeholder})`;
 
 export async function completeActivity(id: number, doneNote?: string) {
   const session = await getSession();

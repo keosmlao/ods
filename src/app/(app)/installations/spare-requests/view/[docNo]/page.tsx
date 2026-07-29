@@ -43,9 +43,30 @@ export default async function ViewSpareRequest({ params }: Props) {
        where ic.doc_no = $1 and ic.trans_flag = 122 limit 1`,
       [docNo],
     ),
-    query<{ rnum: string; item_code: string; item_name: string; qty: string; unit_code: string | null }>(
-      `select row_number() over (order by roworder asc) as rnum, item_code, item_name, round(qty,2) as qty, unit_code
-       from ic_trans_detail where doc_no = $1 and trans_flag = 122 order by roworder asc`,
+    query<{
+      rnum: string;
+      item_code: string;
+      item_name: string;
+      qty: string;
+      issued_qty: string;
+      pending_qty: string;
+      unit_code: string | null;
+    }>(
+      `select row_number() over (order by min(r.roworder)) as rnum,
+          r.item_code, max(r.item_name) item_name, sum(r.qty)::text qty,
+          coalesce(max(issued.qty),0)::text issued_qty,
+          greatest(sum(r.qty) - coalesce(max(issued.qty),0),0)::text pending_qty,
+          max(r.unit_code) unit_code
+         from ic_trans_detail r
+         left join (
+           select item_code, sum(qty) qty
+             from ic_trans_detail
+            where trans_flag = 56 and doc_ref = $1
+            group by item_code
+         ) issued on issued.item_code = r.item_code
+        where r.doc_no = $1 and r.trans_flag = 122
+        group by r.item_code
+        order by min(r.roworder)`,
       [docNo],
     ),
   ]);
@@ -86,17 +107,28 @@ export default async function ViewSpareRequest({ params }: Props) {
         </dl>
       </Card>
 
-      <Card title={t.cardEquipment}>
+      <Card
+        title={`${t.cardEquipment} · ຄ້າງ ${lines.rows.filter((row) => Number(row.pending_qty) > 0).length} ລາຍການ`}
+      >
         {lines.rows.length === 0 ? (
           <Empty />
         ) : (
-          <Table head={[t.colNo, t.colCode, t.colName, t.colQty, t.colUnit]} minWidth={700}>
+          <Table
+            head={[t.colNo, t.colCode, t.colName, "ຈຳນວນຂໍ", "ເບີກແລ້ວ", "ຄ້າງເບີກ", t.colUnit]}
+            minWidth={850}
+          >
             {lines.rows.map((row) => (
               <tr key={`${row.item_code}-${row.rnum}`} className="border-b border-slate-100">
                 <td className="px-3 py-2 text-center">{row.rnum}</td>
                 <td className="whitespace-nowrap px-3 py-2">{row.item_code}</td>
                 <td className="px-3 py-2">{row.item_name}</td>
                 <td className="px-3 py-2 text-center">{Number(row.qty)}</td>
+                <td className="px-3 py-2 text-center text-emerald-700">{Number(row.issued_qty)}</td>
+                <td className={`px-3 py-2 text-center font-bold ${
+                  Number(row.pending_qty) > 0 ? "text-amber-700" : "text-slate-400"
+                }`}>
+                  {Number(row.pending_qty)}
+                </td>
                 <td className="px-3 py-2 text-center">{row.unit_code}</td>
               </tr>
             ))}

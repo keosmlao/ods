@@ -34,6 +34,9 @@ type Props = { params: Promise<{ code: string }> };
 /** ຈຳນວນທີ່ຍັງບໍ່ທັນຂໍເບີກ = ກະຕ່າ − (ຂໍໄປແລ້ວ 122 − ສົ່ງຄືນ 59) — ຄືກັບ OUTSTANDING_INSTALL_SPARES */
 const OUTSTANDING = `
   select n.roworder, n.item_code, n.item_name, n.unit_code,
+      round(n.qty, 0) as standard_qty,
+      round(coalesce(c.qty, 0), 0) as requested_qty,
+      round(n.qty - coalesce(c.qty, 0), 0) as remaining_qty,
       round(n.qty - coalesce(c.qty, 0), 0) as qty
   from (
     select min(roworder) roworder, item_code, max(item_name) item_name, max(unit_code) unit_code, sum(qty) qty
