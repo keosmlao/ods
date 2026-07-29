@@ -1009,6 +1009,74 @@ export async function addSpareLine(
   return { ok: "ສຳເລັດ" } satisfies ActionState;
 }
 
+/** ເພີ່ມຫຼາຍລາຍການຈາກ ERP ພ້ອມກັນ; ກວດຊື່/ໜ່ວຍຈາກ ERP ຝັ່ງ server ກ່ອນບັນທຶກ. */
+export async function addSpareLines(
+  code: string,
+  itemCodes: string[],
+): Promise<ActionState> {
+  const uniqueCodes = [...new Set(itemCodes.map((value) => value.trim()).filter(Boolean))];
+  if (uniqueCodes.length === 0) return { ok: "ບໍ່ມີລາຍການໃໝ່" };
+
+  const guard = await guardJob(code, TECH_SIDE);
+  if (!guard.ok) return { error: guard.error };
+  const { job } = guard;
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+  if (job.cancelled) return { error: IS_CANCELLED };
+  if (job.closed) return { error: IS_CLOSED };
+  if (!job.accepted) return { error: "ຕ້ອງຮັບງານກ່ອນເພີ່ມອາໄຫຼ່" };
+  if (job.started)
+    return { error: "ເພີ່ມອາໄຫຼ່ບໍ່ໄດ້ — ເລີ່ມຕິດຕັ້ງແລ້ວ" };
+
+  let inventory: { code: string; name_1: string; unit_code: string | null }[];
+  try {
+    inventory = (
+      await queryOdg<{ code: string; name_1: string; unit_code: string | null }>(
+        `select code, name_1, unit_standard as unit_code
+         from ic_inventory where code = any($1::text[])`,
+        [uniqueCodes],
+      )
+    ).rows;
+  } catch (error) {
+    console.error("addSpareLines ERP lookup failed", error);
+    return { error: "ຄົ້ນຫາລາຍການໃນ ERP ບໍ່ສຳເລັດ" };
+  }
+  if (inventory.length !== uniqueCodes.length)
+    return { error: "ມີບາງລາຍການບໍ່ພົບໃນ ERP" };
+
+  const client = await db.connect();
+  try {
+    await client.query("begin");
+    for (const item of inventory) {
+      await client.query(
+        `insert into tb_used_spare(product_code,item_code,item_name,qty,unit_code)
+         select $1,$2,$3,1,$4
+         where not exists (
+           select 1 from tb_used_spare where product_code=$1 and item_code=$2
+         )`,
+        [code, item.code, item.name_1, item.unit_code ?? ""],
+      );
+    }
+    await client.query(
+      "update ods_tb_install set used_spare=1, pick_finish=null where code=$1",
+      [code],
+    );
+    await client.query(
+      "update ods_tb_install_detail set pick_finish=null where code=$1",
+      [code],
+    );
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    console.error("addSpareLines failed", error);
+    return { error: "ບັນທຶກລາຍການອາໄຫຼ່ບໍ່ສຳເລັດ" };
+  } finally {
+    client.release();
+  }
+
+  revalidatePath(`/installations/spare-requests/${code}`);
+  return { ok: "ເພີ່ມລາຍການສຳເລັດ" };
+}
+
 /**
  * ລົບແຖວອາໄຫຼ່ (delete_item_sion).
  * ລົບບໍ່ໄດ້ ຖ້າແຖວນັ້ນຖືກຂໍເບີກ/ເບີກອອກໄປແລ້ວ — ບໍ່ດັ່ງນັ້ນເອກະສານກັບກະຕ່າຈະຂັດກັນ

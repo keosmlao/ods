@@ -1,8 +1,10 @@
 "use client";
 import {
+  addSpareLines,
   saveSpareRequest,
   type ActionState,
 } from "@/app/actions/installation";
+import type { SpareRow } from "@/app/api/installations/spares/route";
 import type { JobHead } from "@/components/installation/job-header";
 import { SelectField } from "@/components/select-field";
 import {
@@ -29,7 +31,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useActionState, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 
 /** ຖອດແບບຈາກ ods: req_page.html + /in_add_req + /additemtoreg_inst + /delete_item_sion
  *  + /update_qty_reg_spare + /save_in_req (tech_reg_install.py) */
@@ -81,6 +84,8 @@ export function SpareRequestForm({
     {},
   );
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const [adding, startAdding] = useTransition();
   const [selectedCodes, setSelectedCodes] = useState<Set<string>>(
     () => new Set(),
   );
@@ -289,7 +294,25 @@ export function SpareRequestForm({
           lines={lines}
           balances={balances}
           selectedCodes={selectedCodes}
-          onAdd={setSelectedCodes}
+          adding={adding}
+          onAdd={(codes) =>
+            startAdding(async () => {
+              const standardCodes = new Set(lines.map((line) => line.item_code));
+              const extraCodes = [...codes].filter(
+                (itemCode) => !standardCodes.has(itemCode),
+              );
+              if (extraCodes.length > 0) {
+                const result = await addSpareLines(code, extraCodes);
+                if (result.error) {
+                  window.alert(result.error);
+                  return;
+                }
+              }
+              setSelectedCodes(new Set(codes));
+              setOpen(false);
+              if (extraCodes.length > 0) router.refresh();
+            })
+          }
           onClose={() => setOpen(false)}
         />
       )}
@@ -431,6 +454,7 @@ function SparePicker({
   lines,
   balances,
   selectedCodes,
+  adding,
   onAdd,
   onClose,
 }: {
@@ -438,6 +462,7 @@ function SparePicker({
   lines: SpareLine[];
   balances: Record<string, SpareBalance>;
   selectedCodes: Set<string>;
+  adding: boolean;
   onAdd: (codes: Set<string>) => void;
   onClose: () => void;
 }) {
@@ -445,15 +470,71 @@ function SparePicker({
   const [checked, setChecked] = useState<Set<string>>(
     () => new Set(selectedCodes),
   );
+  const [searchRows, setSearchRows] = useState<SpareRow[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const keyword = q.trim();
+    if (keyword.length < 2) {
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(
+          `/api/installations/spares?q=${encodeURIComponent(keyword)}`,
+          { signal: controller.signal },
+        );
+        const json = await response.json();
+        setSearchRows(json.data ?? []);
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError"))
+          setSearchRows([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [q]);
+
   const rows = useMemo(() => {
     const keyword = q.trim().toLocaleLowerCase();
-    if (!keyword) return lines;
-    return lines.filter(
-      (line) =>
+    const standards = lines
+      .filter(
+        (line) =>
+          !keyword ||
         line.item_code.toLocaleLowerCase().includes(keyword) ||
         line.item_name.toLocaleLowerCase().includes(keyword),
-    );
-  }, [lines, q]);
+      )
+      .map((line) => ({
+        item_code: line.item_code,
+        item_name: line.item_name,
+        unit_code: line.unit_code,
+        standard_qty: Number(line.standard_qty),
+        requested_qty: Number(line.requested_qty),
+        remaining_qty: Number(line.remaining_qty),
+        stock_qty: balances[line.item_code]?.total ?? 0,
+        isStandard: true,
+      }));
+    const standardCodes = new Set(lines.map((line) => line.item_code));
+    const extras = keyword.length < 2 ? [] : searchRows
+      .filter((row) => !standardCodes.has(row.code))
+      .map((row) => ({
+        item_code: row.code,
+        item_name: row.name_1,
+        unit_code: row.unit_code,
+        standard_qty: 0,
+        requested_qty: row.requested_qty,
+        remaining_qty: Math.max(0, 1 - row.requested_qty),
+        stock_qty: row.balance_qty,
+        isStandard: false,
+      }));
+    return [...standards, ...extras];
+  }, [balances, lines, q, searchRows]);
   const allVisibleChecked =
     rows.length > 0 && rows.every((row) => checked.has(row.item_code));
 
@@ -494,7 +575,7 @@ function SparePicker({
               autoFocus
               value={q}
               onChange={(event) => setQ(event.target.value)}
-              placeholder={t.searchSparePlaceholder}
+              placeholder="ຄົ້ນຫາລະຫັດ ຫຼື ຊື່ອາໄຫຼ່ຈາກ ERP..."
               className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
             />
           </label>
@@ -550,16 +631,26 @@ function SparePicker({
                 </span>
                 <span className="block text-slate-500">
                   ຄົງເຫຼືອ: <b className="text-amber-700">{Number(row.remaining_qty).toLocaleString()}</b>
-                  {" · "}Stock: <b className={(balances[row.item_code]?.total ?? 0) > 0 ? "text-emerald-700" : "text-red-600"}>
-                    {(balances[row.item_code]?.total ?? 0).toLocaleString()}
+                  {" · "}Stock: <b className={row.stock_qty > 0 ? "text-emerald-700" : "text-red-600"}>
+                    {row.stock_qty.toLocaleString()}
                   </b>
                 </span>
+                {!row.isStandard && (
+                  <span className="block font-semibold text-blue-600">
+                    ລາຍການເພີ່ມຈາກ ERP
+                  </span>
+                )}
               </span>
             </label>
           ))}
-          {rows.length === 0 && (
+          {!loading && rows.length === 0 && (
             <p className="py-10 text-center text-sm text-slate-400">
               {t.noItemsFound}
+            </p>
+          )}
+          {loading && (
+            <p className="py-10 text-center text-sm text-slate-400">
+              {t.loading}
             </p>
           )}
         </div>
@@ -571,13 +662,16 @@ function SparePicker({
           <Button
             type="button"
             tone="success"
-            disabled={checked.size === 0}
+            disabled={checked.size === 0 || adding}
             onClick={() => {
               onAdd(new Set(checked));
-              onClose();
             }}
           >
-            <Plus className="size-4" />
+            {adding ? (
+              <LoaderCircle className="size-4 animate-spin" />
+            ) : (
+              <Plus className="size-4" />
+            )}
             ເພີ່ມ {checked.size} ລາຍການ
           </Button>
         </div>

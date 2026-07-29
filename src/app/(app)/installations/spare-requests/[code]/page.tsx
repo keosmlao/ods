@@ -114,31 +114,15 @@ export default async function SpareRequestPage({ params }: Props) {
   const balanceMap = await getBalances(
     lines.rows.map((line) => line.item_code),
   );
-  const warehouseCodes = [
-    ...new Set(
-      [...balanceMap.values()].flatMap((balance) => [
-        ...balance.byWarehouse.keys(),
-      ]),
+  // ສາມາດຂໍເບີກໄດ້ຈາກທຸກສາງ — ສາງທີ່ stock 0 ກໍຕ້ອງສະແດງໃຫ້ເລືອກ.
+  const [warehouses, shelves] = await Promise.all([
+    queryOdg<{ code: string; name_1: string }>(
+      `select code, name_1 from ic_warehouse order by code`,
     ),
-  ]
-    .filter((warehouse) =>
-      [...balanceMap.values()].some(
-        (balance) => (balance.byWarehouse.get(warehouse) ?? 0) > 0,
-      ),
-    )
-    .sort();
-  const [warehouses, shelves] = warehouseCodes.length
-    ? await Promise.all([
-        queryOdg<{ code: string; name_1: string }>(
-          `select code, name_1 from ic_warehouse where code = any($1::text[]) order by code`,
-          [warehouseCodes],
-        ),
-        queryOdg<Shelf>(
-          `select whcode, code, name_1 from ic_shelf where whcode = any($1::text[]) order by whcode, code`,
-          [warehouseCodes],
-        ),
-      ])
-    : [{ rows: [] }, { rows: [] }];
+    queryOdg<Shelf>(
+      `select whcode, code, name_1 from ic_shelf order by whcode, code`,
+    ),
+  ]);
   const balances = Object.fromEntries(
     [...balanceMap.entries()].map(([itemCode, balance]) => [
       itemCode,
