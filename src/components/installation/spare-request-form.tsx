@@ -4,6 +4,7 @@ import {
   deleteSpareLine,
   saveSpareRequest,
   type ActionState,
+  updateSpareQty,
 } from "@/app/actions/installation";
 import type { SpareRow } from "@/app/api/installations/spares/route";
 import type { JobHead } from "@/components/installation/job-header";
@@ -254,7 +255,7 @@ export function SpareRequestForm({
               {lines.map((line, index) => (
                 <LineRow
                   // ປ່ຽນສາງ ⇒ remount ເພື່ອໃຫ້ຊ່ອງ "ເບີກຮອບນີ້" ຕັ້ງຄ່າໃໝ່ຕາມສາງນັ້ນ
-                  key={`${line.roworder}-${wh}`}
+                  key={`${line.roworder}-${line.qty}-${wh}`}
                   t={t}
                   code={code}
                   line={line}
@@ -293,6 +294,7 @@ function LineRow({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [qty, setQty] = useState(String(Number(line.qty)));
   const selectedBalance = selectedWarehouse
     ? (balance.byWarehouse[selectedWarehouse] ?? 0)
     : null;
@@ -301,6 +303,22 @@ function LineRow({
   const availableWarehouses = Object.entries(balance.byWarehouse)
     .filter(([, available]) => available > 0)
     .sort((a, b) => b[1] - a[1]);
+
+  const saveQty = () => {
+    const value = Number(qty);
+    if (!Number.isFinite(value) || value <= 0) {
+      window.alert("ກະລຸນາໃສ່ຈຳນວນຫຼາຍກວ່າ 0");
+      return;
+    }
+    start(async () => {
+      const result = await updateSpareQty(code, line.roworder, value);
+      if (result.error) {
+        window.alert(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  };
 
   return (
     <tr className="border-b border-slate-100">
@@ -352,9 +370,33 @@ function LineRow({
         </div>
       </td>
       <td className="px-3 py-3 text-center">
-        <span className="font-bold tabular-nums text-slate-700">
-          {Number(line.qty).toLocaleString()}
-        </span>
+        <div className="flex items-center justify-center gap-1.5">
+          <input
+            type="number"
+            min={0.01}
+            step="any"
+            value={qty}
+            disabled={pending}
+            onChange={(event) => setQty(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                saveQty();
+              }
+            }}
+            aria-label={`${t.colQty} ${line.item_name}`}
+            className={`${inputClass} h-9 w-24 text-center font-bold tabular-nums`}
+          />
+          <button
+            type="button"
+            onClick={saveQty}
+            disabled={pending || Number(qty) === Number(line.qty)}
+            title={t.save}
+            className="inline-grid size-9 place-items-center rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
+          </button>
+        </div>
       </td>
       {/*
         ── ເບີກຮອບນີ້ (1 ສາງ / 1 ໃບ) ──
