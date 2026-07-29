@@ -161,20 +161,25 @@ export async function purchaseTracking(jobs: string[]): Promise<Map<string, Purc
   if (jobs.length === 0) return result;
 
   try {
-    // ວຽກ → ໃບຂໍຊື້ຂອງມັນ (ODS ຮູ້ product_code · ERP ບໍ່ຮູ້) ພ້ອມເລກ RQ ສຳລັບໃບທີ່ອອກໃນ ERP
-    const docs = await query<JobDoc>(
-      `select t.product_code job, t.doc_no pr_no, nullif(split_part(trim(coalesce(t.doc_ref,'')),' ',1),'') rq_no
-         from ic_trans t
-        where t.trans_flag = $1 and t.product_code = any($2::varchar[])`,
-      [ERP_PURCHASE.PR_REQUEST, jobs],
-    );
-    // ໃບຂໍອະນຸມັດ (RQ 78) ຂອງວຽກ — ໃຊ້ຫາໃບ ERP ທີ່ອອກໃນ ERP ໂດຍກົງ (ບໍ່ມີໃນ ODS)
-    const rqs = await query<{ job: string; rq_no: string }>(
-      `select t.product_code job, t.doc_no rq_no
-         from ic_trans t
-        where t.trans_flag = $1 and t.product_code = any($2::varchar[])`,
-      [RQ_TRANS, jobs],
-    );
+    // 3 ຊຸດນີ້ເປັນ metadata ຈາກ ODS ທີ່ບໍ່ຂຶ້ນຕໍ່ກັນ — ດຶງພ້ອມກັນ.
+    // ກ່ອນນີ້ລໍຖ້າຕາມລຳດັບ 3 round trips ກ່ອນຈະເລີ່ມ query ERP.
+    const [docs, rqs, linkedDocs] = await Promise.all([
+      // ວຽກ → ໃບຂໍຊື້ຂອງມັນ (ODS ຮູ້ product_code · ERP ບໍ່ຮູ້)
+      query<JobDoc>(
+        `select t.product_code job, t.doc_no pr_no, nullif(split_part(trim(coalesce(t.doc_ref,'')),' ',1),'') rq_no
+           from ic_trans t
+          where t.trans_flag = $1 and t.product_code = any($2::varchar[])`,
+        [ERP_PURCHASE.PR_REQUEST, jobs],
+      ),
+      // ໃບ RQ 78 ຂອງວຽກ — ໃຊ້ຫາໃບ ERP ທີ່ອອກໃນ ERP ໂດຍກົງ
+      query<{ job: string; rq_no: string }>(
+        `select t.product_code job, t.doc_no rq_no
+           from ic_trans t
+          where t.trans_flag = $1 and t.product_code = any($2::varchar[])`,
+        [RQ_TRANS, jobs],
+      ),
+      docsForJobs(jobs),
+    ]);
     /**
      * ກຸນແຈຫາຝັ່ງ ERP — 4 ທາງ, ຂາດທາງໃດທາງໜຶ່ງກໍ່ຍັງຫາພົບ:
      *   ① ເລກ SPR ທີ່ ODS ຍັງມີສຳເນົາ (ໃບເກົ່າ)
@@ -184,7 +189,6 @@ export async function purchaseTracking(jobs: string[]): Promise<Map<string, Purc
      *      ③ ອາໄສ doc_ref ຂອງ ERP ເຊິ່ງຖືກລ້າງໄດ້ (ເກີດຈິງ: SPR26070008 ຂອງວຽກ 7521)
      *      ⇒ ວຽກກັບໃບຂາດຈາກກັນ ແລ້ວໜ້າຈໍຍື່ນປຸ່ມ "ຍົກເລີກສັ່ງຊື້" ໃຫ້ກົດຢ່າງອັນຕະລາຍ.
      */
-    const linkedDocs = await docsForJobs(jobs);
     const keys = [...new Set([
       ...docs.rows.map((row) => row.pr_no),
       ...rqs.rows.map((row) => row.rq_no),
@@ -306,7 +310,15 @@ export async function erpPurchaseForRq(keys: string[]): Promise<{ stage: Purchas
   }
 }
 
-export type PurchaseSync = { advanced: number; jobs: string[] };
+export type PurchaseSync = {
+  advanced: number;
+  jobs: string[];
+  /**
+   * ຜົນ ERP ທີ່ sync ຫາໄດ້ແລ້ວ — ໜ້າ purchasing ນຳໄປ render ຕໍ່ໄດ້ທັນທີ.
+   * ບໍ່ດັ່ງນັ້ນໜ້າດຽວກັນຈະຮັນ CHAIN_SQL ຊ້ຳສອງຮອບ.
+   */
+  tracking: Map<string, PurchaseTrack>;
+};
 
 /**
  * **ຂອງມາຮອດແລ້ວຢູ່ ERP ⇒ ເລື່ອນຂັ້ນໃຫ້ເອງ** (ຂັ້ນ 7 → 5).
@@ -328,7 +340,7 @@ export type PurchaseSync = { advanced: number; jobs: string[] };
  * idempotent: `spare_arrive is null` ຢູ່ໃນ WHERE ⇒ ເອີ້ນຊ້ຳໄດ້ທຸກເທື່ອທີ່ເປີດໜ້າ.
  */
 export async function syncErpPurchase(): Promise<PurchaseSync> {
-  const empty: PurchaseSync = { advanced: 0, jobs: [] };
+  const empty: PurchaseSync = { advanced: 0, jobs: [], tracking: new Map() };
   if (!db) return empty;
 
   try {
@@ -337,7 +349,7 @@ export async function syncErpPurchase(): Promise<PurchaseSync> {
 
     const tracking = await purchaseTracking(open.rows.map((row) => row.code));
     const arrived = [...tracking.values()].filter((track) => track.stage === "received" && track.receipt_iso);
-    if (arrived.length === 0) return empty;
+    if (arrived.length === 0) return { ...empty, tracking };
 
     const jobs: string[] = [];
     for (const track of arrived) {
@@ -381,7 +393,7 @@ export async function syncErpPurchase(): Promise<PurchaseSync> {
       }
       jobs.push(track.job);
     }
-    return { advanced: jobs.length, jobs };
+    return { advanced: jobs.length, jobs, tracking };
   } catch (error) {
     // ERP ລົ້ມ ⇒ ໜ້າຄິວຍັງເປີດໄດ້ ພຽງແຕ່ຮອບນີ້ບໍ່ໄດ້ເລື່ອນຂັ້ນໃຫ້ໃຜ
     console.error("syncErpPurchase failed", error);

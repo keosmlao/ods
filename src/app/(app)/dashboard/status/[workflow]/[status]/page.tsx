@@ -34,7 +34,7 @@ import { HoldButtons } from "@/components/repair/hold-buttons";
 import { MobileCardList } from "@/components/mobile-card-list";
 import { PurchaseState } from "@/components/stock/purchase-state";
 import { ReleaseGhostButton } from "@/components/stock/release-ghost-button";
-import { purchaseTracking, syncErpPurchase, type PurchaseTrack } from "@/lib/erp-purchase";
+import { syncErpPurchase, type PurchaseTrack } from "@/lib/erp-purchase";
 import { APPROVER_SIDE, canAccess, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
@@ -62,6 +62,8 @@ type Props = {
 };
 
 type RepairRow = {
+  /** total ຫຼັງ filter — ຄຳນວນໃນ query ລາຍການຮອບດຽວກັນ */
+  total_count: number;
   code: string; roworder: number; customer: string | null; phone: string | null; product: string | null; sn: string | null;
   model: string | null; brand: string | null; warranty: string | null; service_type: string | null;
   issue: string | null; accessory: string | null; reference: string | null; receiver: string | null;
@@ -79,6 +81,7 @@ type RepairRow = {
 };
 
 type InstallRow = {
+  total_count: number;
   code: string; customer: string | null; product: string | null; brand: string | null; model: string | null;
   product_type: string | null; product_size: string | null; appointment: string | null; sale_bill: string | null;
   technician: string | null; creator: string | null; registered: string | null; elapsed_seconds: number | null;
@@ -206,7 +209,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
    * ຂັ້ນ "ກຳລັງສັ່ງຊື້" — ດຶງຄວາມຈິງຈາກ ERP ກ່ອນນັບແຖວ: ວຽກທີ່ຮັບເຂົ້າສາງໄປແລ້ວ
    * ຈະຫຼຸດອອກຈາກຄິວນີ້ເອງ ⇒ ຈຳນວນທີ່ເຫັນເປັນວຽກທີ່ຄ້າງຈິງ (lib/erp-purchase).
    */
-  if (isRepair && status === "purchasing") await syncErpPurchase();
+  const purchaseSync = isRepair && status === "purchasing" ? await syncErpPurchase() : null;
 
   /** wait-check ລວມທັງວຽກທີ່ຍັງລໍຊ່າງຮັບ ແລະວຽກທີ່ຮັບແລ້ວລໍເລີ່ມກວດ. */
   // ສະແດງປຸ່ມສະເພາະ role ທີ່ເຂົ້າໜ້າລົງມືນັ້ນໄດ້ (ກັນກົດແລ້ວ 403)
@@ -318,7 +321,8 @@ export default async function StatusPage({ params, searchParams }: Props) {
     : "greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int elapsed_seconds";
 
   const rowsSql = isRepair
-    ? `select a.code, a.roworder, c.name_1 customer, c.tel phone, a.name_1 product, a.sn, a.p_model model, a.p_brand brand,
+    ? `select count(*) over()::int total_count,
+         a.code, a.roworder, c.name_1 customer, c.tel phone, a.name_1 product, a.sn, a.p_model model, a.p_brand brand,
          a.warrunty warranty, a.service_type, a.issue, a.p_access accessory, a.doc_def reference,
          a.user_regis receiver, a.emp_code technician, a.repair_confirm,
          coalesce(nullif(a.location_repair,''), c.address) location_inst,
@@ -345,15 +349,20 @@ export default async function StatusPage({ params, searchParams }: Props) {
          )::int as photo_count,
          ${holdJsonSql("repair")}
        ${from} where ${filter} order by ${orderBy} limit $${args.length + 1} offset $${args.length + 2}`
-    : `select a.code, c.name_1 customer, a.item_name product, a.pro_brand brand, a.pro_model model,
+    : `select count(*) over()::int total_count,
+         a.code, c.name_1 customer, a.item_name product, a.pro_brand brand, a.pro_model model,
          a.pro_type product_type, a.pro_size product_size, to_char(a.appoint_date,'DD-MM-YYYY') appointment,
          a.doc_ref_1 sale_bill, a.tech_code technician, a.user_created creator,
          to_char(a.time_register,'DD-MM-YYYY HH24:MI') registered, ${elapsed}
        ${from} where ${filter} order by ${orderBy} limit $${args.length + 1} offset $${args.length + 2}`;
 
-  const [list, count, techs, serviceCountRows, otherTab] = await Promise.all([
+  /**
+   * count(*) over() ລວມການນັບທັງໝົດເຂົ້າໃນ query ລາຍການ.
+   * ກ່ອນນີ້ທຸກສະຖານະຮັນ STAGE_SQL ເຕັມຕາຕະລາງຊ້ຳອີກ 1 ຮອບ
+   * ພຽງເພື່ອ count — ຊ້າເປັນພິເສດເພາະ STAGE_SQL ກວດຮອຍເອກະສານອາໄຫຼ່.
+   */
+  const [list, techs, serviceCountRows, otherTab] = await Promise.all([
     query<RepairRow & InstallRow>(rowsSql, [...args, PAGE_SIZE, (page - 1) * PAGE_SIZE]),
-    query<{ total: number }>(`select count(*)::int total ${from} where ${filter}`, args),
     listTechnicians(),
     isRepair
       ? query<{ service_type: string; count: number; overdue: number }>(
@@ -376,14 +385,23 @@ export default async function StatusPage({ params, searchParams }: Props) {
    */
   const tracking =
     isRepair && status === "purchasing"
-      ? await purchaseTracking(list.rows.map((row) => row.code))
+      ? new Map(
+          list.rows.flatMap((row) => {
+            const track = purchaseSync?.tracking.get(row.code);
+            return track ? [[row.code, track] as const] : [];
+          }),
+        )
       : new Map<string, PurchaseTrack>();
 
   // emp_code → ຊື່ ERP (ຊື່ຢູ່ຖານ ERP ຄົນລະບົບ ⇒ ຕ້ອງ resolve ຢູ່ນີ້ ບໍ່ join ໃນ SQL ໄດ້)
   const techName = new Map(techs.map((item) => [item.code, item.name]));
   const showTech = (code: string | null) => (code ? techName.get(code) ?? code : "-");
 
-  const total = count.rows[0]?.total ?? 0;
+  // ໜ້າທີ່ເກີນຈຳນວນໜ້າ (ເຊັ່ນ bookmark page=9 ຫຼັງຄິວຫຼຸດລົງ)
+  // ຈຶ່ງຈະບໍ່ມີແຖວໃຫ້ອ່ານ window total — fallback count ສະເພາະກໍລະນີຫາຍາກນີ້.
+  const total =
+    list.rows[0]?.total_count ??
+    (page > 1 ? (await query<{ total: number }>(`select count(*)::int total ${from} where ${filter}`, args)).rows[0]?.total ?? 0 : 0);
   const otherTabTotal = otherTab.rows[0]?.total ?? 0;
   const serviceCounts = new Map(serviceCountRows.rows.map((item) => [item.service_type, item.count]));
   const serviceOverdue = new Map(serviceCountRows.rows.map((item) => [item.service_type, item.overdue]));
