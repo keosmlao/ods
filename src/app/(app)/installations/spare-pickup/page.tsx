@@ -1,8 +1,6 @@
 import { syncErpDispatch } from "@/lib/erp-dispatch";
 import { techFilter } from "@/app/actions/installation";
 import { LinkPending } from "@/components/link-pending";
-import { query } from "@/lib/db";
-import { installStageIs } from "@/lib/install-stage";
 import { PackageCheck } from "lucide-react";
 import Link from "next/link";
 import {
@@ -81,33 +79,52 @@ export default async function SparePickupPage({ searchParams }: Props) {
   await syncErpDispatch();
 
   const tech = await techFilter();
-  const waitingWarehouse = await query<{ total: number }>(
-    `select count(*)::int total from ods_tb_install a
-      where ${installStageIs(3)} and a.reg_finish is null ${tech ? "and a.tech_code=$1" : ""}`,
-    tech ? [tech] : [],
-  );
   const raw = await searchParams;
   const { q, page, sort, dir } = readParams(raw);
 
   const params: (string | number)[] = [];
+  const pendingParams: (string | number)[] = [];
   const where = [WHERE];
+  const pendingWhere = [
+    `ic.trans_flag = 122 and ic.job_type = 'install'
+     and a.cancel_date is null and a.job_finish is null
+     and exists (
+       select 1 from ic_trans_detail pending_line
+       where pending_line.doc_no = ic.doc_no
+         and pending_line.trans_flag = 122
+         and pending_line.status = 0
+     )`,
+  ];
   if (tech) {
     params.push(tech);
     where.push(`a.tech_code = $${params.length}`);
+    pendingParams.push(tech);
+    pendingWhere.push(`a.tech_code = $${pendingParams.length}`);
   }
   if (q) {
     params.push(`%${q}%`);
     where.push(INSTALL_DOC_SEARCH.replaceAll("$Q", `$${params.length}`));
+    pendingParams.push(`%${q}%`);
+    pendingWhere.push(INSTALL_DOC_SEARCH.replaceAll("$Q", `$${pendingParams.length}`));
   }
 
-  const list = await fetchInstallDocRows<InstallDocRow>({
-    from: FROM,
-    where: where.join(" and "),
-    params,
-    // ຄ້າງນັບຈາກເວລາທີ່ສາງເບີກອອກ (reg_finish)
-    orderBy: installOrderBy(sort, dir, "a.reg_finish", INSTALL_DOC_SORT_SQL),
-    page,
-  });
+  const [list, pendingWarehouse] = await Promise.all([
+    fetchInstallDocRows<InstallDocRow>({
+      from: FROM,
+      where: where.join(" and "),
+      params,
+      // ຄ້າງນັບຈາກເວລາທີ່ສາງເບີກອອກ (reg_finish)
+      orderBy: installOrderBy(sort, dir, "a.reg_finish", INSTALL_DOC_SORT_SQL),
+      page,
+    }),
+    fetchInstallDocRows<InstallDocRow>({
+      from: FROM,
+      where: pendingWhere.join(" and "),
+      params: pendingParams,
+      orderBy: "coalesce(ic.create_date_time_now, ic.doc_date) asc nulls last",
+      page: 1,
+    }),
+  ]);
 
   const pages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
   const base = (): Record<string, string> => (q ? { q } : {});
@@ -126,13 +143,55 @@ export default async function SparePickupPage({ searchParams }: Props) {
         pages={pages}
       />
 
-      {(waitingWarehouse.rows[0]?.total ?? 0) > 0 && (
-        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-          ມີ {waitingWarehouse.rows[0]?.total ?? 0} ງານທີ່ສົ່ງຄຳຂໍເບີກແລ້ວ ແລະກຳລັງລໍສາງ ERP ເບີກອາໄຫຼ່. ເມື່ອສາງເບີກແລ້ວຈະຂຶ້ນລາຍການໃຫ້ຊ່າງກົດຮັບດ້ານລຸ່ມ.
-        </p>
-      )}
-
       <SearchBar q={q} sort={sort} dir={dir} placeholder="ຄົ້ນຫາ ເລກທີເບີກ, ລະຫັດຕິດຕັ້ງ, ລູກຄ້າ, ຊ່າງ, ລາຍການ..." />
+
+      {pendingWarehouse.total > 0 && (
+        <section className="space-y-2">
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p className="font-semibold">
+              ລໍສາງ ERP ເບີກອາໄຫຼ່
+              <span className="ml-2 rounded-full bg-amber-200 px-2 py-0.5 text-xs">{pendingWarehouse.total}</span>
+            </p>
+            <span className="text-xs">ຍັງບໍ່ສາມາດກົດຮັບໄດ້</span>
+          </div>
+          <TableShell total={pendingWarehouse.total} minWidth={1450}>
+            <InstallTableHead
+              columns={INSTALL_SORTABLE_COLUMNS}
+              plain={INSTALL_PLAIN_COLUMNS_NO_STATUS}
+              trailing={[{ ...INSTALL_DOC_COLUMN, label: "ເລກທີຂໍເບີກ" }]}
+              sort={sort}
+              dir={dir}
+              sortHref={sortHref}
+            />
+            <tbody>
+              {groupByJob(pendingWarehouse.rows).map((docs) =>
+                docs.map((row, index) => (
+                  <tr key={row.doc_no} className="border-b border-amber-100 bg-amber-50/30">
+                    {index === 0 ? (
+                      <InstallCells row={row} timeLabel="ວັນ/ເວລາຂໍເບີກ" showStatus={false} />
+                    ) : (
+                      <td colSpan={7} className="py-2 pl-10 text-xs text-slate-400">
+                        ↳ ໃບຂໍເບີກເພີ່ມຂອງ <span className="font-semibold">{row.code}</span>
+                      </td>
+                    )}
+                    <DocCell row={row} />
+                    <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                      <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
+                        ລໍສາງເບີກ
+                      </span>
+                    </td>
+                  </tr>
+                )),
+              )}
+            </tbody>
+          </TableShell>
+          {pendingWarehouse.total > PAGE_SIZE && (
+            <p className="text-right text-xs text-slate-400">
+              ສະແດງ {PAGE_SIZE} ລາຍການທຳອິດ — ໃຊ້ຊ່ອງຄົ້ນຫາເພື່ອຫາ Job
+            </p>
+          )}
+        </section>
+      )}
 
       <TableShell total={list.total} minWidth={1450}>
         <InstallTableHead

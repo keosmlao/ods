@@ -3,7 +3,7 @@ import { LinkPending } from "@/components/link-pending";
 import { query } from "@/lib/db";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
-import { installStageIs } from "@/lib/install-stage";
+import { INSTALL_SPARE_REQUEST_QUEUE } from "@/lib/install-spare-request";
 import { PackagePlus } from "lucide-react";
 import Link from "next/link";
 import {
@@ -43,7 +43,7 @@ type Props = { searchParams: Promise<ListSearchParams> };
  * (ຫຼັງສາງເບີກແລ້ວ ລຶບໃບຂໍເບີກກໍ່ບໍ່ໄດ້). saveSpareRequest ບັງຄັບກົດເກນນີ້ຢູ່ຝັ່ງ server ນຳ.
  * ຈຳນວນແຖວມື້ນີ້ບໍ່ປ່ຽນ (0 → 0).
  */
-const WAIT_WHERE = installStageIs(2);
+const WAIT_WHERE = INSTALL_SPARE_REQUEST_QUEUE;
 
 /**
  * ງານທີ່ **ໃຊ້ອາໄຫຼ່ ແລະ ຍັງບໍ່ຂໍເບີກ ແຕ່ຍັງບໍ່ພ້ອມ** — ຄ້າງຢູ່ຂັ້ນກ່ອນໜ້າ.

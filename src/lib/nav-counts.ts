@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 import { installStatuses, pipelineOf, repairStatuses } from "@/lib/dashboard-status";
 import { query, queryOdg } from "@/lib/db";
 import { INSTALL_STAGE_SQL, installStageIs } from "@/lib/install-stage";
+import { INSTALL_SPARE_REQUEST_QUEUE } from "@/lib/install-spare-request";
 import { canAccess, roleOf } from "@/lib/roles";
 import { ownJobsOnly } from "@/lib/scope";
 import { HAS_OUTSTANDING_SPARES } from "@/lib/outstanding-spares";
@@ -175,7 +176,7 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
             where ${installStageIs(1)} ${mineInstall})::int as "/installations/accept",
           -- ໃບຂໍເບີກ: ແທັບ "ລໍຖ້າຂໍເບີກ" (WAIT_WHERE ຂອງ /installations/spare-requests) — ໃຊ້ອາໄຫຼ່ ຮັບງານແລ້ວ ແຕ່ຍັງບໍ່ຂໍເບີກ
           (select count(*) from ods_tb_install a
-            where ${installStageIs(2)} ${mineInstall})::int as "/installations/spare-requests",
+            where ${INSTALL_SPARE_REQUEST_QUEUE} ${mineInstall})::int as "/installations/spare-requests",
           -- ກຳລັງຂໍເບີກ (REQ_WHERE: ໃບ SION 122 ຂອງງານທີ່ຍັງບໍ່ປິດ) — key ສັງເຄາະ resolve → rule /installations/spare-requests
           (select count(*) from ic_trans ic
             left join ods_tb_install a on a.code = ic.product_code
