@@ -12,6 +12,7 @@ import { PageTitle } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query, queryOdg } from "@/lib/db";
 import { docPrefix } from "@/lib/doc-no";
+import { getStandardSpares } from "@/lib/install-standard";
 import { canViewAssignedJob } from "@/lib/scope";
 import { getBalances } from "@/lib/stock-balance";
 import { AlertTriangle } from "lucide-react";
@@ -80,8 +81,8 @@ export default async function SpareRequestPage({ params }: Props) {
   const requestPrefix = docPrefix("SION", now);
 
   const [head, guard, lines, nextRequest] = await Promise.all([
-    query<JobHead>(
-      `select ${JOB_HEAD_COLUMNS}
+    query<JobHead & { item_code: string | null }>(
+      `select ${JOB_HEAD_COLUMNS}, a.item_code
        from ods_tb_install a
        left join ar_customer c on c.code = a.cust_code
        where a.code = $1 limit 1`,
@@ -109,11 +110,16 @@ export default async function SpareRequestPage({ params }: Props) {
   const requestNo = `${requestPrefix}${String(nextRequest.rows[0]?.seq ?? 1).padStart(4, "0")}`;
   const blocked = blockedReason(guard.rows[0]);
 
+  // ອາໄຫຼ່ "ຕາມມາດຕະຖານ" = ອົງປະກອບຊຸດຂອງສິນຄ້າໃນ ERP (ic_inventory_set_detail)
+  // — ບໍ່ແມ່ນກະຕ່າ tb_used_spare ອີກ (ກະຕ່າຄືສິ່ງທີ່ຊ່າງເລືອກໃສ່ໃບ, ບໍ່ແມ່ນນິຍາມມາດຕະຖານ).
+  const standards = await getStandardSpares(code, head.rows[0].item_code);
+
   // ດຶງ stock ERP ຄັ້ງດຽວສຳລັບທຸກແຖວ ແລ້ວເອົາສະເພາະສາງທີ່ມີຂອງຈິງ.
   // ບໍ່ hard-code 5 ສາງອີກ: INST-7082 ມີ stock ກະຈາຍຢູ່ 10 ສາງ.
-  const balanceMap = await getBalances(
-    lines.rows.map((line) => line.item_code),
-  );
+  const balanceMap = await getBalances([
+    ...lines.rows.map((line) => line.item_code),
+    ...standards.map((row) => row.item_code),
+  ]);
   // ສາມາດຂໍເບີກໄດ້ຈາກທຸກສາງ — ສາງທີ່ stock 0 ກໍຕ້ອງສະແດງໃຫ້ເລືອກ.
   const [warehouses, shelves] = await Promise.all([
     queryOdg<{ code: string; name_1: string }>(
@@ -169,6 +175,7 @@ export default async function SpareRequestPage({ params }: Props) {
         requestNo={requestNo}
         today={today}
         lines={lines.rows}
+        standards={standards}
         warehouses={warehouses.rows}
         shelves={shelves.rows}
         balances={balances}

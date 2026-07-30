@@ -106,6 +106,15 @@ export default async function ViewSpareRequest({ params }: Props) {
         actions={
           <div className="no-print flex gap-2">
             <LinkButton href={backHref} tone="neutral">{t.back}</LinkButton>
+            {/* ແກ້ໄດ້ຕາບໃດທີ່ສາງຍັງບໍ່ທັນເບີກ — ໜ້າແກ້ກວດເງື່ອນໄຂຈິງເອງອີກຊັ້ນ */}
+            {session.role !== "stock" && (
+              <LinkButton
+                href={`/installations/spare-requests/edit/${encodeURIComponent(x.doc_no)}`}
+                tone="info"
+              >
+                ແກ້ໄຂ
+              </LinkButton>
+            )}
             <PrintButton />
           </div>
         }

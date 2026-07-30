@@ -18,6 +18,8 @@ import { type Role, roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
 import { INSTALL_FEEDBACK_DONE_SQL, INSTALL_FEEDBACK_TIME_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { installSpareOutstanding } from "@/lib/install-spare-gate";
+import { getStandardQty } from "@/lib/install-standard";
+import { EDITABLE_SPARE_LINES } from "@/lib/install-spare-edit";
 import { feedbackUrl, validFeedbackToken } from "@/lib/track";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -1043,18 +1045,34 @@ export async function addSpareLines(
   if (inventory.length !== uniqueCodes.length)
     return { error: "ມີບາງລາຍການບໍ່ພົບໃນ ERP" };
 
+  /**
+   * ຈຳນວນຕັ້ງຕົ້ນ = **ຈຳນວນຕາມຊຸດມາດຕະຖານ** (ic_inventory_set_detail ຂອງສິນຄ້າງານນີ້),
+   * ລາຍການນອກຊຸດ = 1 ຄືເກົ່າ. ອ່ານຢູ່ຝັ່ງ server ເພື່ອບໍ່ຕ້ອງເຊື່ອຈຳນວນຈາກ browser.
+   */
+  const product = await query<{ item_code: string | null }>(
+    "select item_code from ods_tb_install where code=$1 limit 1",
+    [code],
+  );
+  const standardQty = await getStandardQty(product.rows[0]?.item_code);
+
   const client = await db.connect();
   try {
     await client.query("begin");
     for (const item of inventory) {
       await client.query(
         `insert into tb_used_spare(product_code,item_code,item_name,qty,unit_code)
-         select $1::varchar,$2::varchar,$3::varchar,1::numeric,$4::varchar
+         select $1::varchar,$2::varchar,$3::varchar,$5::numeric,$4::varchar
          where not exists (
            select 1 from tb_used_spare
            where product_code=$1::varchar and item_code=$2::varchar
          )`,
-        [code, item.code, item.name_1, item.unit_code ?? ""],
+        [
+          code,
+          item.code,
+          item.name_1,
+          item.unit_code ?? "",
+          Math.max(1, Math.round((standardQty.get(item.code) ?? 1) * 100) / 100),
+        ],
       );
     }
     await client.query(
@@ -1451,6 +1469,198 @@ export async function saveSpareRequest(
    */
   if (remaining > 0) redirect(`/installations/spare-requests/${encodeURIComponent(productCode)}`);
   redirect("/installations/spare-requests");
+}
+
+/**
+ * ── ແກ້ໃບຂໍເບີກທີ່ບັນທຶກແລ້ວ (SION 122) ──────────────────────
+ *
+ * ກ່ອນນີ້ມີແຕ່ "ລຶບໃບແລ້ວອອກໃໝ່" ⇒ ເລກໃບປ່ຽນ, ສາງທີ່ຖືໃບເກົ່າຢູ່ໃນມືສັບສົນ.
+ * ດຽວນີ້ແກ້ໄດ້ **ຄາເລກເກົ່າ**: ຈຳນວນຕໍ່ລາຍການ · ຖອດລາຍການ (ຈຳນວນ 0) ·
+ * ເພີ່ມລາຍການທີ່ຍັງຄ້າງໃນກະຕ່າ · ວັນທີ · ສາງ/ທີ່ເກັບ · ໝາຍເຫດ.
+ *
+ * ── ດ່ານກັນ ──
+ *   ① ສາງເບີກແລ້ວ (ໃບ 56 ອ້າງໃບນີ້) — ທັງ ODS ແລະ ERP (deleteErpRequest ກວດເອງ) ⇒ ແກ້ບໍ່ໄດ້
+ *   ② ງານຍົກເລີກ/ປິດ/ເລີ່ມຕິດຕັ້ງແລ້ວ ⇒ ແກ້ບໍ່ໄດ້ (ຄືກັບຕອນສ້າງ)
+ *   ③ ຈຳນວນຂອງແຕ່ລະລາຍການ **ຕັດຢູ່ຝັ່ງ server** ບໍ່ໃຫ້ເກີນ "ກະຕ່າ − ທີ່ຂໍໄວ້ໃນໃບອື່ນ"
+ *      (ນິຍາມດຽວກັບ OUTSTANDING_INSTALL_SPARES ພຽງແຕ່ບໍ່ນັບໃບນີ້)
+ *
+ * ວິທີຂຽນ: ລຶບແຖວລາຍລະອຽດເກົ່າຂອງໃບນີ້ ແລ້ວໃສ່ຊຸດໃໝ່ (ທັງ ODS ແລະ ERP) ໃນ
+ * transaction ດຽວກັນຂອງສອງຖານ — ຮູບແບບດຽວກັບ saveSpareRequest ("ERP ຜ່ານ = ສຳເລັດ").
+ */
+export async function updateSpareRequest(
+  _: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const docNo = String(formData.get("doc_no") ?? "").trim();
+  const productCode = String(formData.get("product_code") ?? "").trim();
+  const docDate = String(formData.get("doc_date") ?? "");
+  const whCode = String(formData.get("wh_code") ?? "");
+  const shelfCode = String(formData.get("shelf_code") ?? "");
+  const remark = String(formData.get("remark") ?? "");
+  if (!docNo || !productCode || !docDate || !whCode || !shelfCode)
+    return { error: "ກະລຸນາລະບຸ ວັນທີ ສາງ ແລະ ທີ່ເກັບ" };
+
+  const guarded = await guardJob(productCode, TECH_SIDE);
+  if (!guarded.ok) return { error: guarded.error };
+  const { session, job } = guarded;
+  if (!db || !odgDb) return { error: "ບໍ່ພົບ DATABASE_URL ຫຼື ODG_DATABASE_URL" };
+  if (job.cancelled) return { error: IS_CANCELLED };
+  if (job.closed) return { error: IS_CLOSED };
+  if (job.started || job.finished)
+    return { error: "ແກ້ໃບຂໍເບີກບໍ່ໄດ້ — ງານເລີ່ມຕິດຕັ້ງແລ້ວ" };
+
+  const take = takeFromForm(formData);
+  if (!take) return { error: "ບໍ່ມີຈຳນວນສົ່ງມາ" };
+  const reason = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+  // ຢ່າເຊື່ອ wh_code/shelf_code ຈາກ browser — ຄືກັບຕອນສ້າງໃບ
+  try {
+    const location = await queryOdg<{ valid: number }>(
+      `select 1::int as valid from ic_shelf where whcode=$1 and code=$2 limit 1`,
+      [whCode, shelfCode],
+    );
+    if (!location.rows[0]) return { error: "ສາງ ແລະ ທີ່ເກັບບໍ່ກົງກັນ ກະລຸນາເລືອກໃໝ່" };
+  } catch (error) {
+    console.error("updateSpareRequest: ກວດສາງ/ທີ່ເກັບ (ERP) ລົ້ມ", error);
+    return { error: `ຖາມ ERP ບໍ່ໄດ້ — ${reason(error)}` };
+  }
+
+  const pair = await connectPair();
+  if ("error" in pair) return pair;
+  const { client, odg } = pair;
+  let savedLines = 0;
+  try {
+    await client.query("begin");
+    await odg.query("begin");
+    await client.query("select pg_advisory_xact_lock(734212)");
+
+    const head = await client.query<{ product_code: string }>(
+      "select product_code from ic_trans where doc_no=$1 and trans_flag=122 for update",
+      [docNo],
+    );
+    if (!head.rows[0] || head.rows[0].product_code !== productCode) {
+      await Promise.all([client.query("rollback"), odg.query("rollback")]);
+      return { error: `ບໍ່ພົບໃບຂໍເບີກ ${docNo} ຂອງງານນີ້` };
+    }
+
+    // ① ສາງເບີກຕາມໃບນີ້ແລ້ວ ⇒ ແກ້ບໍ່ໄດ້ (ຝັ່ງ ERP ກວດຊ້ຳໃນ deleteErpRequest)
+    const dispatched = await client.query<{ count: string }>(
+      "select count(doc_no) as count from ic_trans where doc_ref=$1",
+      [docNo],
+    );
+    if (Number(dispatched.rows[0].count) !== 0) {
+      await Promise.all([client.query("rollback"), odg.query("rollback")]);
+      return { error: `ແກ້ໃບຂໍເບີກ ${docNo} ບໍ່ໄດ້ — ສາງເບີກອາໄຫຼ່ໃຫ້ແລ້ວ` };
+    }
+
+    // ③ ຈຳນວນສູງສຸດຕໍ່ລາຍການ — ຄິດຈາກກະຕ່າ ລົບໃບອື່ນ (ບໍ່ນັບໃບນີ້)
+    const allowed = await client.query<{
+      item_code: string;
+      item_name: string;
+      unit_code: string | null;
+      cart_qty: number;
+      other_qty: number;
+    }>(EDITABLE_SPARE_LINES, [productCode, docNo]);
+
+    const picked = allowed.rows
+      .map((row) => {
+        const max = Math.max(0, row.cart_qty - row.other_qty);
+        const want = take[row.item_code] ?? 0;
+        return { ...row, qty: Math.min(max, Math.max(0, want)) };
+      })
+      .filter((row) => row.qty > 0);
+    if (picked.length === 0) {
+      await Promise.all([client.query("rollback"), odg.query("rollback")]);
+      return { error: "ຕ້ອງເຫຼືອຢ່າງໜ້ອຍ 1 ລາຍການ — ຢາກເອົາອອກໝົດ ໃຫ້ກົດ “ລົບໃບຂໍເບີກ”" };
+    }
+    savedLines = picked.length;
+
+    await client.query(
+      `update ic_trans set doc_date=$2, remark=$3, wh_code=$4, shelf_code=$5
+        where doc_no=$1 and trans_flag=122`,
+      [docNo, docDate, remark, whCode, shelfCode],
+    );
+    await client.query("delete from ic_trans_detail where doc_no=$1 and trans_flag=122", [docNo]);
+    for (const line of picked) {
+      await client.query(
+        `insert into ic_trans_detail(trans_flag,doc_date,doc_no,product_code,item_code,item_name,qty,unit_code,calc_flag,status,user_created,job_type)
+         values(122,$1,$2,$3,$4,$5,$6,$7,1,0,$8,'install')`,
+        [
+          docDate,
+          docNo,
+          productCode,
+          line.item_code,
+          line.item_name,
+          line.qty,
+          line.unit_code,
+          session.username,
+        ],
+      );
+    }
+
+    /**
+     * reg_start ຂອງກະຕ່າຕ້ອງ **ຄິດໃໝ່ໝົດ** ຫຼັງແກ້ — ລາຍການທີ່ຖືກຖອດອອກຈາກໃບ
+     * ຕ້ອງກັບໄປ "ຍັງບໍ່ຂໍເບີກ" ບໍ່ດັ່ງນັ້ນມັນຈະຄ້າງເປັນ "ຂໍໄປແລ້ວ" ຕະຫຼອດໄປ.
+     */
+    /** ຈຳນວນທີ່ຖືກຂໍໄປແລ້ວຂອງລາຍການນຶ່ງ (ທຸກໃບ ລວມໃບນີ້ຫຼັງແກ້) */
+    const REQUESTED_OF_ROW = `coalesce((
+        select sum(case when d.trans_flag = 122 then d.qty else -d.qty end)
+          from ic_trans_detail d
+         where d.product_code = s.product_code and d.item_code = s.item_code
+           and d.trans_flag in (122, 59)), 0)`;
+    await client.query(
+      `update tb_used_spare s set reg_start = null
+        where s.product_code = $1 and s.reg_finish is null and s.qty > ${REQUESTED_OF_ROW}`,
+      [productCode],
+    );
+    await client.query(
+      `update tb_used_spare s set reg_start = coalesce(s.reg_start, localtimestamp(0))
+        where s.product_code = $1 and s.reg_finish is null and s.qty <= ${REQUESTED_OF_ROW}`,
+      [productCode],
+    );
+
+    // ── ຂຽນທັບຝັ່ງ ERP ດ້ວຍເລກໃບເກົ່າ (ລຶບ + ໃສ່ຄືນ ໃນ transaction ດຽວ) ──
+    await deleteErpRequest(docNo, TRANS.REQUEST, odg);
+    await writeErpRequest(
+      {
+        doc_no: docNo,
+        doc_date: docDate,
+        doc_time: new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Asia/Bangkok",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }).format(new Date()),
+        job_code: productCode,
+        wh_code: whCode,
+        shelf_code: shelfCode,
+        remark,
+        requester: session.username,
+        lines: picked,
+      },
+      odg,
+    );
+
+    await client.query("commit");
+    await odg.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    await odg.query("rollback").catch(() => {});
+    console.error("updateSpareRequest failed", error);
+    return { error: `ແກ້ບໍ່ສຳເລັດ (ບໍ່ໄດ້ບັນທຶກຫຍັງເລີຍ) — ${reason(error)}` };
+  } finally {
+    client.release();
+    odg.release();
+  }
+
+  await logChange(
+    "ods_tb_install",
+    productCode,
+    `ແກ້ໃບຂໍເບີກ ${docNo} · ສາງ ${whCode}/${shelfCode} · ອາໄຫຼ່ ${savedLines} ລາຍການ${remark ? ` · ${remark}` : ""}`,
+    { roles: ROLE_WAREHOUSE },
+  );
+  revalidateAll();
+  redirect(`/installations/spare-requests/view/${encodeURIComponent(docNo)}`);
 }
 
 /** ລົບໃບຂໍເບີກ (delete_in_req) */

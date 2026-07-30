@@ -275,7 +275,17 @@ export default async function InstallationDetail({ params }: Props) {
                 <td className="px-3 py-2 text-xs text-slate-500">{doc.lines}</td>
                 <td className="px-3 py-2 text-right">
                   {canCancelRequest && doc.trans_flag === 122 && !doc.dispatched && (
-                    <CancelInstallSpareRequestButton docNo={doc.doc_no} code={row.code} />
+                    <div className="flex items-center justify-end gap-2">
+                      {/* ແກ້ໄດ້ພາຍໃຕ້ເງື່ອນໄຂດຽວກັບການລົບ — ສາງຍັງບໍ່ທັນເບີກຕາມໃບນີ້ */}
+                      <LinkButton
+                        href={`/installations/spare-requests/edit/${encodeURIComponent(doc.doc_no)}`}
+                        tone="info"
+                        size="sm"
+                      >
+                        ແກ້ໄຂ
+                      </LinkButton>
+                      <CancelInstallSpareRequestButton docNo={doc.doc_no} code={row.code} />
+                    </div>
                   )}
                 </td>
               </tr>

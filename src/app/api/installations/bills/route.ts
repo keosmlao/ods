@@ -65,6 +65,11 @@ export type BillRow = {
   /** ບໍລິການຕິດຕັ້ງທີ່ຢູ່ໃນບິນ (ອັນທີ່ເຮັດໃຫ້ບິນນີ້ຖືກເອົາມາສະແດງ) */
   services: BillService[];
   /**
+   * ເລກ **ໃບຄ່າຕິດຕັ້ງທີ່ອອກແຍກ** ຊຶ່ງ remark ອ້າງເຖິງບິນນີ້ (ເຊັ່ນ CAK26009338 →
+   * "ຕິດຕັ່ງຂອງບິນ CAK26009256"). null/undefined = ຄ່າຕິດຕັ້ງຢູ່ໃນບິນດຽວກັນ ຄືປົກກະຕິ.
+   */
+  service_doc_no?: string | null;
+  /**
    * ສະຖານະການສົ່ງເຄື່ອງຈາກລະບົບຂົນສົ່ງ (bill_tracking_tms) — ຄ່າຈິງຈາກ ERP:
    * `ສົ່ງແລ້ວ` ຫຼື `ຄ້າງສົ່ງ` · null = ບິນນີ້ບໍ່ຢູ່ໃນລະບົບຂົນສົ່ງ (ລູກຄ້າຫອບເອງ).
    * CS ຕ້ອງເຫັນກ່ອນເປີດງານ — ສົ່ງເຄື່ອງບໍ່ທັນ ຊ່າງໄປຮອດກໍ່ຕິດຕັ້ງບໍ່ໄດ້.
@@ -165,17 +170,13 @@ export async function GET(request: NextRequest) {
         ? "and (i.doc_no like upper($1) || '%' or a0.cust_code = any($2::text[]))"
         : "and i.doc_no like upper($1) || '%'";
 
-    const rows = (
-      await queryOdg<BillRow>(
+    /**
+     * SQL ອັນດຽວ ໃຊ້ **2 ຮອບ**: ຮອບປົກກະຕິ (ບິນທີ່ມີບໍລິການຕິດຕັ້ງໃນໃບດຽວກັນ)
+     * ແລະ ຮອບ fallback (ບິນເຄື່ອງທີ່ຖືກໃບຄ່າຕິດຕັ້ງອ້າງເຖິງ — ເບິ່ງ linkedBills ລຸ່ມນີ້).
+     */
+    const billsSql = (svcCte: string, custJoin: string, whereClause: string) =>
         `with svc as (
-           /**
-            * ບິນທີ່ **ມີບໍລິການຕິດຕັ້ງ** — ຄິດເປັນຊຸດກ່ອນ ແລ້ວຄ່ອຍ join.
-            * ໃສ່ເປັນ exists ຕໍ່ແຖວ = 1.6-5.0 ວິນາທີ · ເປັນ CTE ແບບນີ້ = 0.3-0.5 ວິນາທີ.
-            */
-           select distinct sv.doc_no
-             from ic_trans_detail sv
-            where sv.trans_flag = 44 and ${INSTALL_SERVICE_ITEM}
-              ${svcWhere}
+           ${svcCte}
          ),
          candidate as (
            -- ② ຄັດຜູ້ສະໝັກກ່ອນ ດ້ວຍ ic_trans_detail (ມີ index ຢູ່ doc_date)
@@ -183,12 +184,12 @@ export async function GET(request: NextRequest) {
              from ic_trans_detail i
              join svc on svc.doc_no = i.doc_no
              join ic_inventory inv on inv.code = i.item_code
-             ${custCodes.length > 0 ? "join ic_trans a0 on a0.doc_no = i.doc_no and a0.trans_flag = 44" : ""}
+             ${custJoin}
             where i.trans_flag = 44
               and ${INSTALLABLE_GROUPS}
               and i.item_type in (0,1,3)
               and i.item_name not ilike '%[H]%'   -- ແອ: ຕັດໜ່ວຍນອກສະເໝີ
-              ${where}
+              ${whereClause}
             order by i.doc_date desc, i.doc_no desc
             limit 60
          ),
@@ -293,10 +294,92 @@ export async function GET(request: NextRequest) {
           left join ar_customer_detail acd on acd.ar_code = a.cust_code
          group by l.doc_no, l.doc_date, ar.telephone, ar.mobile, ar.address, ar.name, ar2.name_1, ar2.telephone, ar2.address, ar2.code,
                   acd.latitude, acd.longitude
-         order by l.doc_date desc, l.doc_no desc`,
+         order by l.doc_date desc, l.doc_no desc`;
+
+    const rows = (
+      await queryOdg<BillRow>(
+        billsSql(
+          /**
+           * ບິນທີ່ **ມີບໍລິການຕິດຕັ້ງ** — ຄິດເປັນຊຸດກ່ອນ ແລ້ວຄ່ອຍ join.
+           * ໃສ່ເປັນ exists ຕໍ່ແຖວ = 1.6-5.0 ວິນາທີ · ເປັນ CTE ແບບນີ້ = 0.3-0.5 ວິນາທີ.
+           */
+          `select distinct sv.doc_no
+             from ic_trans_detail sv
+            where sv.trans_flag = 44 and ${INSTALL_SERVICE_ITEM}
+              ${svcWhere}`,
+          custCodes.length > 0
+            ? "join ic_trans a0 on a0.doc_no = i.doc_no and a0.trans_flag = 44"
+            : "",
+          where,
+        ),
         !q ? [] : custCodes.length > 0 ? [q, custCodes] : [q],
       )
     ).rows;
+
+    /**
+     * ── ບິນຄ່າຕິດຕັ້ງທີ່ອອກ **ແຍກໃບ** ──
+     * ຮ້ານອອກໃບຄ່າຕິດຕັ້ງເປັນອີກໃບ (ຍອດ 0 ຫຼື ເກັບເງິນຕ່າງຫາກ) ແລ້ວອ້າງບິນເຄື່ອງໄວ້ໃນ
+     * `remark` — ເຊັ່ນ CAK26009338 remark = "ຕິດຕັ່ງຂອງບິນ CAK26009256" (ຕູ້ແຊ່ຢູ່ບິນນັ້ນ).
+     * ⇒ ທັງສອງໃບຕົກເກນຫຼັກ: ໃບຄ່າຕິດຕັ້ງບໍ່ມີເຄື່ອງ · ໃບເຄື່ອງບໍ່ມີບໍລິການຕິດຕັ້ງ
+     * ⇒ CS ເປີດງານບໍ່ໄດ້ເລີຍ (90 ມື້: 3 ບິນຂາຍປົກກະຕິ + ໃບບໍລິການ CAKSV/INKSV ອີກ 27).
+     *
+     * ວິທີແກ້: ຖ້າຄົ້ນເລກບິນແລ້ວບໍ່ພົບ → ອ່ານເລກບິນທີ່ຢູ່ໃນ remark ແລ້ວດຶງ **ບິນເຄື່ອງ**
+     * ນັ້ນມາສະແດງແທນ ພ້ອມຕິດປ້າຍວ່າຄ່າຕິດຕັ້ງມາຈາກໃບໃດ (`service_doc_no`).
+     * ບໍ່ບັງຄັບວ່າຕ້ອງເປັນລູກຄ້າຄົນດຽວກັນ — ຂໍ້ມູນຈິງ 2/6 ໃບ ບິນເຄື່ອງເປັນລະຫັດ walk-in.
+     */
+    if (q && rows.length === 0) {
+      const linked = (
+        await queryOdg<{ doc_no: string; ref_doc: string }>(
+          `select t.doc_no, (regexp_matches(upper(t.remark), '([A-Z]{2,6}[0-9]{6,})'))[1] as ref_doc
+             from ic_trans t
+            where t.trans_flag = 44
+              and t.doc_no like upper($1) || '%'
+              and upper(t.remark) ~ '[A-Z]{2,6}[0-9]{6,}'
+              and exists (select 1 from ic_trans_detail sv
+                           where sv.doc_no = t.doc_no and sv.trans_flag = 44 and ${INSTALL_SERVICE_ITEM})
+            limit 5`,
+          [q],
+        )
+      ).rows.filter((row) => row.ref_doc && row.ref_doc !== row.doc_no);
+
+      if (linked.length > 0) {
+        const serviceOf = new Map(linked.map((row) => [row.ref_doc, row.doc_no]));
+        const refDocs = [...serviceOf.keys()];
+        const refRows = (
+          await queryOdg<BillRow>(
+            // svc CTE ຮອບນີ້ = "ບິນທີ່ຖືກອ້າງ" (ບໍ່ຮຽກຮ້ອງໃຫ້ມີແຖວບໍລິການໃນໃບ)
+            billsSql(
+              `select distinct sv.doc_no from ic_trans_detail sv
+                where sv.trans_flag = 44 and sv.doc_no = any($1::text[])`,
+              "",
+              "and i.doc_no = any($1::text[])",
+            ),
+            [refDocs],
+          )
+        ).rows;
+
+        // ຄ່າຕິດຕັ້ງຢູ່ໃບອື່ນ ⇒ ດຶງແຖວບໍລິການຈາກໃບນັ້ນມາໃສ່ ບໍ່ດັ່ງນັ້ນບັດຈະຂຶ້ນ "ຄ່າຕິດຕັ້ງ 0"
+        const services = (
+          await queryOdg<{ doc_no: string; item_code: string; item_name: string; qty: number }>(
+            `select sv.doc_no, sv.item_code, sv.item_name, sv.qty::float8 as qty
+               from ic_trans_detail sv
+              where sv.trans_flag = 44 and ${INSTALL_SERVICE_ITEM}
+                and sv.doc_no = any($1::text[])
+              order by sv.item_code`,
+            [linked.map((row) => row.doc_no)],
+          )
+        ).rows;
+
+        for (const row of refRows) {
+          const serviceDoc = serviceOf.get(row.doc_no) ?? null;
+          row.service_doc_no = serviceDoc;
+          row.services = services
+            .filter((service) => service.doc_no === serviceDoc)
+            .map(({ item_code, item_name, qty }) => ({ item_code, item_name, qty }));
+        }
+        rows.push(...refRows);
+      }
+    }
 
     /**
      * ສະຖານະການສົ່ງ — **query ນ້ອຍແຍກຕ່າງຫາກ ຢ່າຍັດເຂົ້າ query ຫຼັກ**.

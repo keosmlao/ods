@@ -6,6 +6,7 @@ import {
 } from "@/app/actions/installation";
 import type { SpareRow } from "@/app/api/installations/spares/route";
 import type { JobHead } from "@/components/installation/job-header";
+import type { StandardSpare } from "@/lib/install-standard";
 import { SelectField } from "@/components/select-field";
 import {
   Button,
@@ -64,6 +65,7 @@ export function SpareRequestForm({
   requestNo,
   today,
   lines,
+  standards,
   warehouses,
   shelves,
   balances,
@@ -73,6 +75,8 @@ export function SpareRequestForm({
   requestNo: string;
   today: string;
   lines: SpareLine[];
+  /** ອາໄຫຼ່ຕາມມາດຕະຖານ = ອົງປະກອບຊຸດຂອງສິນຄ້າ (ic_inventory_set_detail ຂອງ ERP) */
+  standards: StandardSpare[];
   warehouses: Warehouse[];
   /** ທີ່ເກັບຂອງແຕ່ລະສາງ (ic_shelf ຂອງ ERP) — ກອງຕາມສາງທີ່ເລືອກ */
   shelves: Shelf[];
@@ -292,17 +296,20 @@ export function SpareRequestForm({
         <SparePicker
           t={t}
           lines={lines}
+          standards={standards}
           balances={balances}
           selectedCodes={selectedCodes}
           adding={adding}
           onAdd={(codes) =>
             startAdding(async () => {
-              const standardCodes = new Set(lines.map((line) => line.item_code));
-              const extraCodes = [...codes].filter(
-                (itemCode) => !standardCodes.has(itemCode),
+              // ແຖວທີ່ຍັງບໍ່ມີໃນກະຕ່າ (ທັງມາດຕະຖານ ແລະ ລາຍການເພີ່ມ) ຕ້ອງໃສ່ກະຕ່າກ່ອນ
+              // ຈຶ່ງຈະຂຶ້ນຕາຕະລາງໃບຂໍເບີກ — ຈຳນວນມາດຕະຖານຄິດຈາກຊຸດຢູ່ຝັ່ງ server.
+              const cartCodes = new Set(lines.map((line) => line.item_code));
+              const newCodes = [...codes].filter(
+                (itemCode) => !cartCodes.has(itemCode),
               );
-              if (extraCodes.length > 0) {
-                const result = await addSpareLines(code, extraCodes);
+              if (newCodes.length > 0) {
+                const result = await addSpareLines(code, newCodes);
                 if (result.error) {
                   window.alert(result.error);
                   return;
@@ -310,7 +317,7 @@ export function SpareRequestForm({
               }
               setSelectedCodes(new Set(codes));
               setOpen(false);
-              if (extraCodes.length > 0) router.refresh();
+              if (newCodes.length > 0) router.refresh();
             })
           }
           onClose={() => setOpen(false)}
@@ -452,6 +459,7 @@ function Field({ label, value }: { label: string; value: string | null }) {
 function SparePicker({
   t,
   lines,
+  standards,
   balances,
   selectedCodes,
   adding,
@@ -460,6 +468,7 @@ function SparePicker({
 }: {
   t: SpareRequestFormDict;
   lines: SpareLine[];
+  standards: StandardSpare[];
   balances: Record<string, SpareBalance>;
   selectedCodes: Set<string>;
   adding: boolean;
@@ -501,28 +510,54 @@ function SparePicker({
     };
   }, [q]);
 
+  /**
+   * 3 ກຸ່ມ ຕາມແຫຼ່ງທີ່ມາ:
+   *   ① ມາດຕະຖານ — ອົງປະກອບຊຸດຂອງສິນຄ້າໃນ ERP (ic_inventory_set_detail)
+   *   ② ຢູ່ໃນກະຕ່າແລ້ວ — ແຖວ tb_used_spare ທີ່ບໍ່ຢູ່ໃນຊຸດ (ຊ່າງ/ລະບົບເກົ່າເພີ່ມໄວ້)
+   *      ⇒ ຍັງໃຫ້ເຫັນ/ຕິກໄດ້ ແຕ່ **ບໍ່ນັບເປັນມາດຕະຖານ** (ຄໍລຳມາດຕະຖານ = 0)
+   *   ③ ຄົ້ນຫາຈາກ ERP — ພິມຄົ້ນເອົາເອງ
+   */
   const rows = useMemo(() => {
     const keyword = q.trim().toLocaleLowerCase();
-    const standards = lines
+    const match = (itemCode: string, itemName: string) =>
+      !keyword ||
+      itemCode.toLocaleLowerCase().includes(keyword) ||
+      itemName.toLocaleLowerCase().includes(keyword);
+
+    const standardRows = standards
+      .filter((row) => match(row.item_code, row.item_name))
+      .map((row) => ({
+        item_code: row.item_code,
+        item_name: row.item_name,
+        unit_code: row.unit_code,
+        standard_qty: row.standard_qty,
+        requested_qty: row.requested_qty,
+        remaining_qty: row.remaining_qty,
+        stock_qty: balances[row.item_code]?.total ?? 0,
+        source: "standard" as const,
+      }));
+
+    const standardCodes = new Set(standards.map((row) => row.item_code));
+    const cartRows = lines
       .filter(
         (line) =>
-          !keyword ||
-        line.item_code.toLocaleLowerCase().includes(keyword) ||
-        line.item_name.toLocaleLowerCase().includes(keyword),
+          !standardCodes.has(line.item_code) &&
+          match(line.item_code, line.item_name),
       )
       .map((line) => ({
         item_code: line.item_code,
         item_name: line.item_name,
         unit_code: line.unit_code,
-        standard_qty: Number(line.standard_qty),
+        standard_qty: 0,
         requested_qty: Number(line.requested_qty),
         remaining_qty: Number(line.remaining_qty),
         stock_qty: balances[line.item_code]?.total ?? 0,
-        isStandard: true,
+        source: "cart" as const,
       }));
-    const standardCodes = new Set(lines.map((line) => line.item_code));
+
+    const known = new Set([...standardCodes, ...lines.map((line) => line.item_code)]);
     const extras = keyword.length < 2 ? [] : searchRows
-      .filter((row) => !standardCodes.has(row.code))
+      .filter((row) => !known.has(row.code))
       .map((row) => ({
         item_code: row.code,
         item_name: row.name_1,
@@ -531,10 +566,10 @@ function SparePicker({
         requested_qty: row.requested_qty,
         remaining_qty: Math.max(0, 1 - row.requested_qty),
         stock_qty: row.balance_qty,
-        isStandard: false,
+        source: "erp" as const,
       }));
-    return [...standards, ...extras];
-  }, [balances, lines, q, searchRows]);
+    return [...standardRows, ...cartRows, ...extras];
+  }, [balances, lines, standards, q, searchRows]);
   const allVisibleChecked =
     rows.length > 0 && rows.every((row) => checked.has(row.item_code));
 
@@ -635,7 +670,12 @@ function SparePicker({
                     {row.stock_qty.toLocaleString()}
                   </b>
                 </span>
-                {!row.isStandard && (
+                {row.source === "cart" && (
+                  <span className="block font-semibold text-amber-600">
+                    ນອກຊຸດມາດຕະຖານ · ຢູ່ໃນກະຕ່າແລ້ວ
+                  </span>
+                )}
+                {row.source === "erp" && (
                   <span className="block font-semibold text-blue-600">
                     ລາຍການເພີ່ມຈາກ ERP
                   </span>

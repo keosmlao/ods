@@ -2,6 +2,7 @@ import { syncErpDispatch } from "@/lib/erp-dispatch";
 import { techFilter } from "@/app/actions/installation";
 import { CancelInstallSpareRequestButton } from "@/components/installation/cancel-spare-request-button";
 import { LinkPending } from "@/components/link-pending";
+import { LinkButton } from "@/components/ui";
 import { query } from "@/lib/db";
 import { PackageCheck } from "lucide-react";
 import Link from "next/link";
@@ -236,6 +237,14 @@ export default async function SparePickupPage({ searchParams }: Props) {
                             <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
                               ຄ້າງ {pendingByDoc.get(row.doc_no) ?? 0} ລາຍການ
                             </span>
+                            {/* ສາງຍັງບໍ່ທັນເບີກ ⇒ ຊ່າງແກ້ຈຳນວນ/ລາຍການຄາເລກໃບເກົ່າໄດ້ */}
+                            <LinkButton
+                              href={`/installations/spare-requests/edit/${encodeURIComponent(row.doc_no)}`}
+                              tone="info"
+                              size="sm"
+                            >
+                              ແກ້ໄຂ
+                            </LinkButton>
                             <CancelInstallSpareRequestButton
                               docNo={row.doc_no}
                               code={row.code}

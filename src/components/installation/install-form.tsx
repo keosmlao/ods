@@ -4,7 +4,7 @@ import { LocationPicker, type Point } from "@/components/installation/location-p
 import { SelectField } from "@/components/select-field";
 import { Button, Card, ErrorBox, LinkButton, inputClass, labelClass } from "@/components/ui";
 import { useDict } from "@/lib/i18n/context";
-import { CheckCircle2, LoaderCircle, MapPin, Package, Plus, Receipt, Save, Search, Truck, X } from "lucide-react";
+import { CheckCircle2, LoaderCircle, MapPin, Package, Plus, Receipt, ReceiptText, Save, Search, Truck, X } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
 
 type InstallFormDict = ReturnType<typeof useDict>["installForm"];
@@ -52,6 +52,8 @@ type Bill = {
   items: BillItem[];
   /** ບໍລິການຕິດຕັ້ງທີ່ພະນັກງານຂາຍເພີ່ມເຂົ້າບິນ — ຈຳນວນທີ່ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ */
   services: BillService[];
+  /** ຄ່າຕິດຕັ້ງອອກເປັນອີກໃບ ແລະ ໃບນັ້ນອ້າງບິນນີ້ໄວ້ໃນ remark (ເບິ່ງ api/installations/bills) */
+  service_doc_no?: string | null;
   /** ສະຖານະການສົ່ງເຄື່ອງ (ສົ່ງແລ້ວ/ຄ້າງສົ່ງ) — ຄ່າດິບຈາກ ERP, ເບິ່ງ api/installations/bills */
   ship_status: string | null;
   ship_date: string | null;
@@ -854,6 +856,14 @@ function BillPicker({
                 <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-bold text-teal-800">
                   {t.installFeePrefix} {bill.services.reduce((sum, row) => sum + Math.round(row.qty || 0), 0)} {t.unitsWord}
                 </span>
+
+                {/* ຄ່າຕິດຕັ້ງອອກເປັນອີກໃບ — ບອກ CS ໃຫ້ຮູ້ວ່າເຄື່ອງຢູ່ບິນນີ້ ແຕ່ຄ່າຕິດຕັ້ງຢູ່ໃບນັ້ນ */}
+                {bill.service_doc_no && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-bold text-violet-800">
+                    <ReceiptText className="size-3" />
+                    ຄ່າຕິດຕັ້ງຈາກບິນ {bill.service_doc_no}
+                  </span>
+                )}
 
                 {/**
                   * ສະຖານະການສົ່ງເຄື່ອງ — ຄ່າດິບຈາກລະບົບຂົນສົ່ງ (ສົ່ງແລ້ວ/ຄ້າງສົ່ງ).
