@@ -20,10 +20,17 @@ export type StandardSpare = {
   remaining_qty: number;
 };
 
+/**
+ * ⚠️ **ຫົວໜ່ວຍເອົາຈາກ `sd.unit_code` (ຂອງຊຸດ) ເທົ່ານັ້ນ** — ບໍ່ຕົກໄປໃຊ້
+ * `ic_inventory.unit_standard`. ເຫດຜົນ: ຫົວໜ່ວຍມາດຕະຖານຂອງສິນຄ້າມັກເປັນ
+ * ຫົວໜ່ວຍຊື້/ຊັ່ງ (ເຊັ່ນ 140507-0336 = **ກິໂລ** ເພາະຂາຍເປັນເປົາ 50KG) ແຕ່
+ * ຕອນຕິດຕັ້ງເບີກເປັນ **ຕົວ/ອັນ** ຕາມທີ່ຊຸດກຳນົດ ⇒ ໃຊ້ຫົວໜ່ວຍສິນຄ້າ = ຈຳນວນຜິດຄວາມໝາຍ
+ * ທັງໃນໃບຂໍເບີກ ແລະ ໃນ ERP.
+ */
 const SET_LINES = `
   select sd.ic_code as item_code,
       coalesce(nullif(i.name_1, ''), sd.ic_code) as item_name,
-      nullif(coalesce(nullif(sd.unit_code, ''), i.unit_standard, ''), '') as unit_code,
+      nullif(sd.unit_code, '') as unit_code,
       sum(sd.qty)::float8 as standard_qty,
       min(sd.line_number) as line_number
     from ic_inventory_set_detail sd
@@ -39,18 +46,26 @@ const REQUESTED = `
    where product_code = $1 and trans_flag in (122, 59)
    group by item_code`;
 
-/** ຈຳນວນມາດຕະຖານຕໍ່ລາຍການ (ໃຊ້ຕອນເພີ່ມເຂົ້າກະຕ່າ — ບໍ່ເຊື່ອຈຳນວນທີ່ສົ່ງມາຈາກ browser) */
-export async function getStandardQty(
+/**
+ * **ຈຳນວນ ແລະ ຫົວໜ່ວຍ ຕາມຊຸດ** — ໃຊ້ຕອນເພີ່ມລາຍການເຂົ້າກະຕ່າ ເພື່ອບໍ່ຕ້ອງເຊື່ອຄ່າ
+ * ທີ່ browser ສົ່ງມາ ແລະ ບໍ່ຕ້ອງໄປຢືມຫົວໜ່ວຍຂອງ ic_inventory (ເບິ່ງເຫດຜົນຢູ່ SET_LINES).
+ */
+export async function getStandardSetLines(
   productCode: string | null | undefined,
-): Promise<Map<string, number>> {
+): Promise<Map<string, { qty: number; unit_code: string | null }>> {
   if (!productCode) return new Map();
   try {
     const rows = (
-      await queryOdg<{ item_code: string; standard_qty: number }>(SET_LINES, [productCode])
+      await queryOdg<{ item_code: string; unit_code: string | null; standard_qty: number }>(
+        SET_LINES,
+        [productCode],
+      )
     ).rows;
-    return new Map(rows.map((row) => [row.item_code, row.standard_qty]));
+    return new Map(
+      rows.map((row) => [row.item_code, { qty: row.standard_qty, unit_code: row.unit_code }]),
+    );
   } catch (error) {
-    console.error("getStandardQty failed", error);
+    console.error("getStandardSetLines failed", error);
     return new Map();
   }
 }

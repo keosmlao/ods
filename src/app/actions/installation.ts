@@ -18,7 +18,7 @@ import { type Role, roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
 import { INSTALL_FEEDBACK_DONE_SQL, INSTALL_FEEDBACK_TIME_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { installSpareOutstanding } from "@/lib/install-spare-gate";
-import { getStandardQty } from "@/lib/install-standard";
+import { getStandardSetLines } from "@/lib/install-standard";
 import { EDITABLE_SPARE_LINES } from "@/lib/install-spare-edit";
 import { feedbackUrl, validFeedbackToken } from "@/lib/track";
 import { revalidatePath } from "next/cache";
@@ -1046,19 +1046,21 @@ export async function addSpareLines(
     return { error: "ມີບາງລາຍການບໍ່ພົບໃນ ERP" };
 
   /**
-   * ຈຳນວນຕັ້ງຕົ້ນ = **ຈຳນວນຕາມຊຸດມາດຕະຖານ** (ic_inventory_set_detail ຂອງສິນຄ້າງານນີ້),
-   * ລາຍການນອກຊຸດ = 1 ຄືເກົ່າ. ອ່ານຢູ່ຝັ່ງ server ເພື່ອບໍ່ຕ້ອງເຊື່ອຈຳນວນຈາກ browser.
+   * ຈຳນວນ **ແລະ ຫົວໜ່ວຍ** ຕັ້ງຕົ້ນ = **ຕາມຊຸດມາດຕະຖານ** (ic_inventory_set_detail ຂອງ
+   * ສິນຄ້າງານນີ້). ລາຍການນອກຊຸດ = 1 ພ້ອມຫົວໜ່ວຍມາດຕະຖານຂອງສິນຄ້າ ຄືເກົ່າ.
+   * ອ່ານຢູ່ຝັ່ງ server ເພື່ອບໍ່ຕ້ອງເຊື່ອຄ່າຈາກ browser.
    */
   const product = await query<{ item_code: string | null }>(
     "select item_code from ods_tb_install where code=$1 limit 1",
     [code],
   );
-  const standardQty = await getStandardQty(product.rows[0]?.item_code);
+  const setLines = await getStandardSetLines(product.rows[0]?.item_code);
 
   const client = await db.connect();
   try {
     await client.query("begin");
     for (const item of inventory) {
+      const standard = setLines.get(item.code);
       await client.query(
         `insert into tb_used_spare(product_code,item_code,item_name,qty,unit_code)
          select $1::varchar,$2::varchar,$3::varchar,$5::numeric,$4::varchar
@@ -1070,8 +1072,8 @@ export async function addSpareLines(
           code,
           item.code,
           item.name_1,
-          item.unit_code ?? "",
-          Math.max(1, Math.round((standardQty.get(item.code) ?? 1) * 100) / 100),
+          standard?.unit_code ?? item.unit_code ?? "",
+          Math.max(1, Math.round((standard?.qty ?? 1) * 100) / 100),
         ],
       );
     }
