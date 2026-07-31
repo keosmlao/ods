@@ -278,6 +278,8 @@ const APPROVE: NavGroup = {
   items: [
     { label: "ອະນຸມັດໃບສະເໜີລາຄາ", href: "/approvals/quotations", count: "/approvals/quotations" },
     { label: "ອະນຸມັດຍົກເລີກເຄື່ອງສ້ອມ", href: "/approvals/cancellations", count: "/approvals/cancellations" },
+    // ຊ່າງຂໍ "ໝົດຮັບປະກັນ" = ລູກຄ້າຕ້ອງຈ່າຍ ⇒ ງານຢຸດລໍຈົນກວ່າຈະຕັດສິນ
+    { label: "ອະນຸມັດປ່ຽນປະກັນ", href: "/approvals/warranty", count: "/approvals/warranty" },
     { label: "ອະນຸມັດຂໍສັ່ງຊື່", href: "/approvals/purchase-requests", count: "/approvals/purchase-requests" },
     // ດ່ານສຸດທ້າຍກ່ອນຜູ້ສະໜອງສົ່ງຂອງ (WPOA) — ຄິວຂອງຜູ້ອະນຸມັດ (ປຸ່ມຢູ່ໜ້າ PO ຍັງມີຄືເກົ່າ)
     { label: "ອະນຸມັດໃບສັ່ງຊື້ (PO)", href: "/approvals/purchase-orders", count: "/approvals/purchase-orders" },

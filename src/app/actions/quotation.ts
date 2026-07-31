@@ -6,6 +6,7 @@ import { db, query } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
 import { requirePermission, requireRole } from "@/lib/guard";
 import { SERVICE_SIDE } from "@/lib/roles";
+import { warrantyBlock } from "@/lib/warranty-request";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -213,6 +214,12 @@ export async function saveQuote(_: QuoteState, formData: FormData): Promise<Quot
   if (discount < 0) return { error: "ສ່ວນຫຼຸດບໍ່ຖືກຕ້ອງ" };
   // ອັດຕາ 0 = ຍອດກີບ (total_amount_2) ຖືກເກັບເປັນ 0 ⇒ ເງິນຄິດໄລ່ແລ້ວແຕ່ບໍ່ໄດ້ເກັບ. ບໍ່ຮັບ.
   if (rate <= 0) return { error: "ອັດຕາເເລກປ່ຽນຕ້ອງຫຼາຍກວ່າ 0" };
+  /**
+   * ຍັງລໍອະນຸມັດປ່ຽນປະກັນ ⇒ ອອກໃບສະເໜີລາຄາບໍ່ໄດ້ — ໃບສະເໜີລາຄາ **ຄືການບອກລູກຄ້າ
+   * ວ່າຕ້ອງຈ່າຍ** ເຊິ່ງເປັນສິ່ງທີ່ຍັງບໍ່ທັນຕັດສິນ (lib/warranty-request).
+   */
+  const warrantyHold = await warrantyBlock(productCode);
+  if (warrantyHold) return { error: warrantyHold };
 
   const client = await db.connect();
   let docNo = "";
@@ -412,6 +419,13 @@ export async function saveQuoteEdit(_: QuoteState, formData: FormData): Promise<
     }
     productCode = head.rows[0].product_code ?? "";
     wasStatus = head.rows[0].aprove_status;
+
+    // ຍັງລໍອະນຸມັດປ່ຽນປະກັນ ⇒ ແກ້ໃບສະເໜີລາຄາບໍ່ໄດ້ (ເຫດຜົນດຽວກັບ saveQuote)
+    const warrantyHold = await warrantyBlock(productCode);
+    if (warrantyHold) {
+      await client.query("rollback");
+      return { error: warrantyHold };
+    }
 
     const lines = await client.query<{ total: string; count: string }>(
       `select coalesce(sum(sum_amount),0) total, count(*) count

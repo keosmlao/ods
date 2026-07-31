@@ -204,6 +204,9 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
             where a.status = 6 and a.cancel_start is not null and a.cancel_finish is null)::int as "/approvals/cancellations",
           (select count(*) from ic_trans t
             where t.trans_flag = 78 and t.aprove_status = 0)::int as "/approvals/purchase-requests",
+          -- ຄຳຂໍປ່ຽນສະຖານະການຮັບປະກັນ — ງານຢຸດລໍຢູ່ (lib/warranty-request)
+          (select count(*) from ods_warranty_request w
+            where w.state = 'pending')::int as "/approvals/warranty",
 
           -- ── ເຄື່ອງສຳຮອງທີ່ຢູ່ນຳລູກຄ້າ (ຍັງບໍ່ຮັບຄືນ) — ບໍ່ຕັດສະຕັອກ ⇒ ບໍ່ມີບ່ອນອື່ນເຕືອນ ──
           (select count(*) from ods_loaner l where l.return_time is null)::int as "/service/loaners",

@@ -8,6 +8,7 @@ import { saveCheckPhotos, type FlowResult } from "@/lib/job-flow";
 import { roleOf } from "@/lib/roles";
 import { takeQty } from "@/lib/spare-take";
 import { canViewAssignedJob } from "@/lib/scope";
+import { createWarrantyRequest } from "@/lib/warranty-request";
 import { STAGE_SQL } from "@/lib/stage";
 import { ERP, LINE_STATUS, RETURN_SHELF, RETURN_WH, TRANS } from "@/lib/stock-constants";
 import { installSpareOutstanding, TRANS_PICK } from "@/lib/install-spare-gate";
@@ -250,8 +251,11 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
       return { ok: false, error: 'ບັນທຶກບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ "ກຳລັງກວດເຊັກ"' };
     }
 
-    // ປະກັນຫຼັງການຕັດສິນຂອງຊ່າງ — ໃຊ້ຄິດ status ຂອງຂັ້ນຕໍ່ໄປ
-    const underWarranty = input.warranty_void ? false : current.rows[0]?.warrunty === "ຮັບປະກັນ";
+    /**
+     * ປະກັນທີ່ໃຊ້ຄິດ status ຂອງຂັ້ນຕໍ່ໄປ — **ຍັງອີງຄ່າປັດຈຸບັນ** ເຖິງຊ່າງຈະຂໍໃຫ້ໝົດປະກັນ
+     * ເພາະຄຳຂໍຍັງບໍ່ທັນອະນຸມັດ. ປ່ຽນ status ຕອນອະນຸມັດແທນ (actions/warranty).
+     */
+    const underWarranty = current.rows[0]?.warrunty === "ຮັບປະກັນ";
     const status = input.use_spare ? (underWarranty ? 3 : 2) : underWarranty ? 4 : 2;
 
     if (input.use_spare) {
@@ -285,11 +289,21 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
       [status, input.diagnosis.trim(), input.code],
     );
 
+    /**
+     * ── "ໝົດຮັບປະກັນ" ເປັນ **ຄຳຂໍ** ບໍ່ແມ່ນການປ່ຽນທັນທີ (01-08-2026) ──
+     * ມັນຄືການຕັດສິນວ່າ **ລູກຄ້າຕ້ອງຈ່າຍ** ⇒ ຜູ້ຈັດການຕ້ອງອະນຸມັດກ່ອນ.
+     * ⚠️ ຫ້າມຂຽນ `warrunty` ຢູ່ນີ້: STAGE_SQL ອ່ານ warrunty ⇒ ຂຽນເລີຍ ໃບຈະຕົກເຂົ້າ
+     * "ລໍຖ້າສະເໜີລາຄາ" ທັນທີ ແລ້ວການອະນຸມັດກໍ່ບໍ່ມີຄວາມໝາຍ. ໃບຍັງເປັນ "ຮັບປະກັນ"
+     * ຈົນກວ່າຈະອະນຸມັດ (actions/warranty.approveWarranty).
+     */
     if (input.warranty_void) {
-      await client.query("update tb_product set warrunty='ໝົດຮັບປະກັນ', warranty_reason=$1 where code=$2", [
+      await createWarrantyRequest(client, {
+        code: input.code,
+        from: current.rows[0]?.warrunty ?? "ຮັບປະກັນ",
+        to: "ໝົດຮັບປະກັນ",
         reason,
-        input.code,
-      ]);
+        by: session.username,
+      });
     }
 
     if (input.photos?.length) {

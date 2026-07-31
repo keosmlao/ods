@@ -87,6 +87,7 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ຄຸນນະພາບ", label: "ຕັ້ງລາຍການກວດຮັບ", resource: "/manage/qc-checklist" },
 
   { group: "ອະນຸມັດ", label: "ອະນຸມັດໃບສະເໜີລາຄາ", resource: "/approvals/quotations", actions: ["read", "update"] },
+  { group: "ອະນຸມັດ", label: "ອະນຸມັດປ່ຽນປະກັນ", resource: "/approvals/warranty", actions: ["read", "update"] },
   { group: "ອະນຸມັດ", label: "ອະນຸມັດຍົກເລີກ", resource: "/approvals/cancellations", actions: ["read", "update"] },
   { group: "ອະນຸມັດ", label: "ອະນຸມັດຂໍສັ່ງຊື້", resource: "/approvals/purchase-requests", actions: ["read", "update"] },
   { group: "ອະນຸມັດ", label: "ອະນຸມັດໃບສັ່ງຊື້ (PO)", resource: "/approvals/purchase-orders", actions: ["read", "update"] },

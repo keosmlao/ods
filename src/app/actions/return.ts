@@ -10,6 +10,7 @@ import { writeErpReceipt } from "@/lib/erp-receipt";
 import { linkErpDoc } from "@/lib/erp-doc-link";
 import { loanerBlock } from "@/lib/loaner";
 import { centerBlock } from "@/lib/job-center";
+import { warrantyBlock } from "@/lib/warranty-request";
 import { HAS_OUTSTANDING_SPARES } from "@/lib/outstanding-spares";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
@@ -405,8 +406,11 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
   const loanerHold = await loanerBlock(d.pro_code);
   // ເຄື່ອງຍັງຢູ່ອີກສູນ / ກຳລັງໂອນ ⇒ ສົ່ງຄືນລູກຄ້າບໍ່ໄດ້ (lib/job-center)
   const centerHold = await centerBlock(d.pro_code);
+  // ຍັງລໍອະນຸມັດປ່ຽນປະກັນ ⇒ ຍັງບໍ່ຮູ້ວ່າລູກຄ້າຕ້ອງຈ່າຍ ຫຼື ບໍ່ (lib/warranty-request)
+  const warrantyHold = await warrantyBlock(d.pro_code);
   if (loanerHold) return { error: loanerHold };
   if (centerHold) return { error: centerHold };
+  if (warrantyHold) return { error: warrantyHold };
 
   // ເຊື່ອມຕໍ່ຖານຂໍ້ມູນ — ລົ້ມເຫຼວກໍ່ຄືນເປັນ error ທຳມະດາ ບໍ່ໃຫ້ throw ຫຼຸດອອກໄປພັງໜ້າ
   const client = await db.connect().catch(() => null);
@@ -649,8 +653,11 @@ export async function returnWithoutInvoice(_: ReturnState, formData: FormData): 
   const loanerHold = await loanerBlock(productCode);
   // ເຄື່ອງຍັງຢູ່ອີກສູນ / ກຳລັງໂອນ ⇒ ສົ່ງຄືນລູກຄ້າບໍ່ໄດ້ (lib/job-center)
   const centerHold = await centerBlock(productCode);
+  // ຍັງລໍອະນຸມັດປ່ຽນປະກັນ ⇒ ຍັງບໍ່ຮູ້ວ່າລູກຄ້າຕ້ອງຈ່າຍ ຫຼື ບໍ່ (lib/warranty-request)
+  const warrantyHold = await warrantyBlock(productCode);
   if (loanerHold) return { error: loanerHold };
   if (centerHold) return { error: centerHold };
+  if (warrantyHold) return { error: warrantyHold };
 
   let custCode = "";
   try {
@@ -729,8 +736,11 @@ export async function returnWithoutCharge(_: ReturnState, formData: FormData): P
   const loanerHold = await loanerBlock(productCode);
   // ເຄື່ອງຍັງຢູ່ອີກສູນ / ກຳລັງໂອນ ⇒ ສົ່ງຄືນລູກຄ້າບໍ່ໄດ້ (lib/job-center)
   const centerHold = await centerBlock(productCode);
+  // ຍັງລໍອະນຸມັດປ່ຽນປະກັນ ⇒ ຍັງບໍ່ຮູ້ວ່າລູກຄ້າຕ້ອງຈ່າຍ ຫຼື ບໍ່ (lib/warranty-request)
+  const warrantyHold = await warrantyBlock(productCode);
   if (loanerHold) return { error: loanerHold };
   if (centerHold) return { error: centerHold };
+  if (warrantyHold) return { error: warrantyHold };
 
   let custCode = "";
   try {
