@@ -115,6 +115,7 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ຜູ້ໃຊ້", label: "ຄ່າບໍລິການ / ຄ່າຄອມ", resource: "/manage/service-rates" },
   { group: "ຜູ້ໃຊ້", label: "ເຊື່ອມຕົວຕົນຊ່າງ", resource: "/manage/technicians" },
   { group: "ຜູ້ໃຊ້", label: "ການຕັ້ງຄ່າລະບົບ", resource: "/manage/settings", protected: true },
+  { group: "ຜູ້ໃຊ້", label: "ອາໄຫຼ່ມາດຕະຖານ (ຕິດຕັ້ງ)", resource: "/manage/install-standard", protected: true },
   { group: "ຜູ້ໃຊ້", label: "ຕິດຕາມການເຂົ້າລະບົບ", resource: "/manage/login-log", actions: READ_ONLY },
 ] as const;
 

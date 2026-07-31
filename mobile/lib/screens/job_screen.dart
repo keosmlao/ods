@@ -47,6 +47,9 @@ class _JobScreenState extends State<JobScreen> {
   /// ຂໍ້ມູນການສົ່ງເຄື່ອງ (ສະເພາະຕິດຕັ້ງ) — ພິກັດຈຸດສົ່ງ · ເບີຄົນຮັບ · ຮູບ
   DeliveryInfo? delivery;
 
+  /// ເຄື່ອງສຳຮອງທີ່ລູກຄ້າຍັງຖືຢູ່ (ສະເພາະສ້ອມ) — ຕ້ອງເອົາຄືນຕອນສົ່ງເຄື່ອງ
+  List<LoanerOut> loaners = const [];
+
   /// ຮູບຕອນສົ່ງ — null = ຍັງບໍ່ໄດ້ກົດເບິ່ງ (ບໍ່ໂຫຼດມາພ້ອມໜ້າ ເພາະໜັກ)
   List<String>? deliveryPhotos;
   bool loadingDeliveryPhotos = false;
@@ -76,6 +79,7 @@ class _JobScreenState extends State<JobScreen> {
           gallery = detail.photos;
           timeline = detail.timeline;
           delivery = detail.delivery;
+          loaners = detail.loaners;
         });
       }
     } catch (_) {
@@ -922,6 +926,9 @@ class _JobScreenState extends State<JobScreen> {
           ),
           const SizedBox(height: 12),
 
+          // ── ເຄື່ອງສຳຮອງທີ່ຕ້ອງເອົາຄືນ (ສ້ອມ) — ບອກກ່ອນອອກໜ້າງານ ບໍ່ແມ່ນຕອນປິດງານ ──
+          if (loaners.isNotEmpty) ...[_loanerCard(), const SizedBox(height: 12)],
+
           // ── ການສົ່ງເຄື່ອງ (ຕິດຕັ້ງ) — ຈຸດທີ່ເຄື່ອງຖືກສົ່ງໄປແທ້ + ເບີຄົນຮັບ + ຮູບ ──
           if (delivery != null) ...[_deliveryCard(), const SizedBox(height: 12)],
 
@@ -1469,6 +1476,68 @@ class _JobScreenState extends State<JobScreen> {
   ///
   /// ສຳລັບຊ່າງ ອັນທີ່ມີຄ່າທີ່ສຸດຄື **ປຸ່ມນຳທາງໄປຈຸດສົ່ງ**: ທີ່ຢູ່ພິມມືໃນໃບງານ
   /// ມັກຫາບໍ່ພົບ ແຕ່ພິກັດນີ້ແມ່ນບ່ອນທີ່ຄົນສົ່ງໄປຮອດຈິງ.
+  /// ເຄື່ອງສຳຮອງທີ່ຍັງບໍ່ຄືນ — ເຕືອນຊ່າງໃຫ້ເອົາກັບມາພ້ອມ (ຮັບຄືນຈິງເຮັດຢູ່ເວັບ).
+  Widget _loanerCard() {
+    return _Card(
+      children: [
+        Row(
+          children: const [
+            Icon(Icons.inventory_2_outlined, size: 18, color: Color(0xFFB45309)),
+            SizedBox(width: 6),
+            Text(
+              'ຕ້ອງເອົາເຄື່ອງສຳຮອງຄືນ',
+              style: TextStyle(fontWeight: FontWeight.w800, color: ink, fontSize: 14),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        for (final row in loaners)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        row.itemName,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ink),
+                      ),
+                      Text(
+                        'ISN ${row.isn}',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '${row.days} ມື້',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF92400E),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const Text(
+          'ຮັບຄືນແລ້ວ ໃຫ້ຝ່າຍບໍລິການບັນທຶກຢູ່ລະບົບ — ຍັງບໍ່ຄືນ ປິດງານບໍ່ໄດ້',
+          style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+        ),
+      ],
+    );
+  }
+
   Widget _deliveryCard() {
     final info = delivery!;
     final list = deliveryPhotos;

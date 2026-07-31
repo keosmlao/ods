@@ -2,8 +2,10 @@ import { LinkPending } from "@/components/link-pending";
 import { PageTitle } from "@/components/ui";
 import { outstandingLoaners } from "@/lib/loaner";
 import { requireRoleOrRedirect } from "@/lib/guard";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { SERVICE_SIDE } from "@/lib/roles";
-import { PackageCheck } from "lucide-react";
+import { PackageCheck, Printer } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -16,31 +18,31 @@ export const dynamic = "force-dynamic";
 
 export default async function LoanersPage() {
   await requireRoleOrRedirect(SERVICE_SIDE);
+  const t = (await getDictionary(await getLocale())).loaner;
   const rows = await outstandingLoaners();
 
   return (
     <div className="w-full space-y-4">
-      <PageTitle sub="ໜ່ວຍທີ່ໃຫ້ລູກຄ້າໃຊ້ກ່ອນ ແລະ ຍັງບໍ່ໄດ້ຮັບຄືນ — ຮັບຄືນຢູ່ໜ້າໃບງານ">
-        ເຄື່ອງສຳຮອງຄ້າງຄືນ
-      </PageTitle>
+      <PageTitle sub={t.pageSub}>{t.pageTitle}</PageTitle>
 
       {rows.length === 0 ? (
         <div className="grid place-items-center gap-2 rounded-xl border border-slate-200 bg-white p-10 text-sm text-slate-400 shadow-sm">
           <PackageCheck className="size-6 text-emerald-500" />
-          ບໍ່ມີເຄື່ອງສຳຮອງຄ້າງຄືນ
+          {t.pageEmpty}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-slate-50 text-left text-xs text-slate-500">
               <tr>
-                <th className="px-3 py-2">ໃບງານ</th>
-                <th className="px-3 py-2">ລູກຄ້າ</th>
-                <th className="px-3 py-2">ເຄື່ອງທີ່ສ້ອມ</th>
-                <th className="px-3 py-2">ເຄື່ອງສຳຮອງ</th>
+                <th className="px-3 py-2">{t.colJob}</th>
+                <th className="px-3 py-2">{t.colCustomer}</th>
+                <th className="px-3 py-2">{t.colProduct}</th>
+                <th className="px-3 py-2">{t.colLoaner}</th>
                 <th className="px-3 py-2">ISN</th>
-                <th className="px-3 py-2">ໃຫ້ຢືມ</th>
-                <th className="px-3 py-2">ຄ້າງ</th>
+                <th className="px-3 py-2">{t.colLent}</th>
+                <th className="px-3 py-2">{t.colAge}</th>
+                <th className="px-3 py-2"></th>
               </tr>
             </thead>
             <tbody>
@@ -64,12 +66,23 @@ export default async function LoanersPage() {
                   </td>
                   <td className="px-3 py-2 text-xs text-slate-500">
                     {row.lend_time}
-                    <span className="block text-slate-400">ໂດຍ {row.lend_by}</span>
+                    <span className="block text-slate-400">{t.by} {row.lend_by}</span>
                   </td>
                   <td className="px-3 py-2">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${row.days >= 30 ? "bg-red-100 text-red-700" : row.days >= 7 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
-                      {row.days} ມື້
+                      {row.days} {t.days}
                     </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    <a
+                      href={`/service/loaners/${row.id}/print`}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={t.printSlip}
+                      className="text-[#D35400] hover:opacity-70"
+                    >
+                      <Printer className="size-4" />
+                    </a>
                   </td>
                 </tr>
               ))}

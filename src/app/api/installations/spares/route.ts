@@ -34,8 +34,13 @@ export async function GET(request: NextRequest) {
   /**
    * ຄົ້ນ ERP ເພື່ອ**ເພີ່ມລາຍການນອກມາດຕະຖານ** ⇒ ຢູ່ໃຕ້ສະວິດອັນດຽວກັບ addSpareLines.
    * ປິດແລ້ວຄືນລາຍການຫວ່າງ (ບໍ່ແມ່ນ 403) — ຟອມກອງລາຍການທີ່ມີຢູ່ຕໍ່ໄປໄດ້ຕາມປົກກະຕິ.
+   *
+   * ຍົກເວັ້ນ `scope=standard`: ນັ້ນຄືໜ້າ**ນິຍາມມາດຕະຖານເອງ** (/manage/install-standard,
+   * ຜູ້ຈັດການ) — ຖ້າສະວິດປິດແລ້ວຄົ້ນບໍ່ໄດ້ ຈະກາຍເປັນ "ປິດແລ້ວແກ້ໃຫ້ດີຂຶ້ນບໍ່ໄດ້ອີກ".
    */
-  if (!(await settingEnabled(SETTING.INSTALL_SPARE_FREE_SEARCH))) {
+  const scope = request.nextUrl.searchParams.get("scope");
+  const forStandard = scope === "standard" && roleOf(session) === "manager";
+  if (!forStandard && !(await settingEnabled(SETTING.INSTALL_SPARE_FREE_SEARCH))) {
     return NextResponse.json({ data: [], disabled: true });
   }
 

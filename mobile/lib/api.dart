@@ -338,18 +338,28 @@ class Api {
     return JobPhotos.fromJson(result['photos'] as Map<String, dynamic>);
   }
 
-  /// ລາຍລະອຽດງານ: ຮູບ + **ເສັ້ນເວລາ** + **ຂໍ້ມູນການສົ່ງເຄື່ອງ** (ຕິດຕັ້ງ). GET ດຽວ ໄດ້ໝົດ.
-  static Future<({JobPhotos photos, JobTimelineData? timeline, DeliveryInfo? delivery})> jobDetail(
-    String workflow,
-    String code,
-  ) async {
+  /// ລາຍລະອຽດງານ: ຮູບ + **ເສັ້ນເວລາ** + **ຂໍ້ມູນການສົ່ງເຄື່ອງ** (ຕິດຕັ້ງ)
+  /// + **ເຄື່ອງສຳຮອງທີ່ຍັງບໍ່ຄືນ** (ສ້ອມ). GET ດຽວ ໄດ້ໝົດ.
+  static Future<
+    ({
+      JobPhotos photos,
+      JobTimelineData? timeline,
+      DeliveryInfo? delivery,
+      List<LoanerOut> loaners,
+    })
+  >
+  jobDetail(String workflow, String code) async {
     final result = await _send('GET', '/api/mobile/jobs/$workflow/$code');
     final tl = result['timeline'];
     final dv = result['delivery'];
+    final ln = result['loaners'] as List<dynamic>? ?? const [];
     return (
       photos: JobPhotos.fromJson(result['photos'] as Map<String, dynamic>),
       timeline: tl == null ? null : JobTimelineData.fromJson(tl as Map<String, dynamic>),
       delivery: dv == null ? null : DeliveryInfo.fromJson(dv as Map<String, dynamic>),
+      loaners: ln
+          .map((row) => LoanerOut.fromJson(row as Map<String, dynamic>))
+          .toList(growable: false),
     );
   }
 
@@ -1942,5 +1952,23 @@ class DeliveryInfo {
     telephone: json['telephone'] as String?,
     remark: json['remark'] as String?,
     photos: (json['photos'] as num?)?.toInt() ?? 0,
+  );
+}
+
+/// **ເຄື່ອງສຳຮອງທີ່ຍັງບໍ່ຄືນ** ຂອງໃບງານສ້ອມ (ods_loaner) — ອ່ານຢ່າງດຽວຢູ່ແອັບ.
+///
+/// ຊ່າງທີ່ໄປສົ່ງເຄື່ອງຄືນເຖິງບ້ານ ຄືຄົນທີ່ຕ້ອງເອົາໜ່ວຍສຳຮອງກັບມາ ⇒ ຕ້ອງເຫັນກ່ອນອອກເດີນທາງ.
+/// ການ "ໃຫ້ຢືມ/ຮັບຄືນ" ຍັງເຮັດຢູ່ເວັບຝ່າຍບໍລິການ (ດ່ານປິດງານກວດຢູ່ນັ້ນ).
+class LoanerOut {
+  final String itemName;
+  final String isn;
+  final int days;
+
+  const LoanerOut({required this.itemName, required this.isn, required this.days});
+
+  factory LoanerOut.fromJson(Map<String, dynamic> json) => LoanerOut(
+    itemName: json['item_name'] as String? ?? '',
+    isn: json['isn'] as String? ?? '',
+    days: (json['days'] as num?)?.toInt() ?? 0,
   );
 }

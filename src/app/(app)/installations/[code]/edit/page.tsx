@@ -23,7 +23,8 @@ export default async function EditInstallation({ params }: Props) {
          c.name_1 as cust_name, c.tel,
          coalesce(c.address,'') || '-' || coalesce(d.name_1,'') || '-' || coalesce(p.name_1,'') as address,
          a.doc_ref_1, to_char(a.doc_ref_date,'YYYY-MM-DD') as doc_ref_date, a.user_created, a.tech_code, a.remark,
-         a.item_code, a.item_name, a.pro_brand, a.pro_model, a.pro_type_code, a.pro_size,
+         a.item_code, a.item_name, a.pro_brand, a.pro_model, a.pro_type_code, a.pro_type, a.pro_size,
+         coalesce(a.pro_sn_out,'') pro_sn_out,
          to_char(a.appoint_date,'YYYY-MM-DD') as appoint_date, a.location_inst, a.pro_sn,
          left(a.item_code,2) as item_prefix,
          -- ງານປິດແລ້ວ ⇒ ຟອມເປີດໃຫ້ແກ້ສະເພາະ ISN (ເບິ່ງ install-edit-form)

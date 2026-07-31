@@ -39,6 +39,10 @@ export type InstallRow = {
   appoint_date: string | null;
   location_inst: string | null;
   pro_sn: string | null;
+  /** ISN ໜ່ວຍນອກ (ແອ) — ຂຽນຕອນເປີດງານ ແຕ່ແຕ່ກ່ອນບໍ່ມີໜ້າໃດສະແດງ/ແກ້ */
+  pro_sn_out: string | null;
+  /** ຊື່ໝວດສິນຄ້າ (ods_tb_install.pro_type) — ໃຊ້ຮູ້ວ່າແມ່ນແອບໍ */
+  pro_type: string | null;
   item_prefix: string | null;
   /** ງານປິດແລ້ວ (job_finish) — ໜ້າແກ້ໄຂເປີດໃຫ້ແຕ່ ISN */
   closed?: boolean;
@@ -68,6 +72,8 @@ export function InstallEditForm({
   const nameOf = (options: Option[], code: string | null) =>
     options.find((option) => option.code === code)?.name_1 ?? code ?? "";
   const techName = techs.find((tech) => tech.code === row.tech_code);
+  /** ແອ ⇒ ມີ 2 ISN (ໜ່ວຍໃນ/ໜ່ວຍນອກ) — ນິຍາມດຽວກັບຟອມເປີດງານ (install-form) */
+  const isAc = `${row.pro_type ?? ""} ${row.item_name ?? ""}`.includes("ແອ") || (row.item_name ?? "").includes("AIR");
 
   return (
     <form action={formAction} className="space-y-5">
@@ -179,8 +185,8 @@ export function InstallEditForm({
             )}
           </div>
           {/* ISN/SN — ເລືອກຈາກໜ່ວຍທີ່ຂາຍໃນບິນ ຫຼື ຄັງ (ພິມເອງກໍ່ຍັງໄດ້) */}
-          <div className="md:col-span-2">
-            <label className={labelClass}>ISN / S/N</label>
+          <div className={isAc ? "" : "md:col-span-2"}>
+            <label className={labelClass}>ISN / S/N {isAc && <span className="text-slate-400">(ໜ່ວຍໃນ)</span>}</label>
             <IsnField
               name="pro_sn"
               defaultValue={row.pro_sn ?? ""}
@@ -188,6 +194,22 @@ export function InstallEditForm({
               docRef={row.doc_ref_1}
             />
           </div>
+          {/*
+            ແອມີຄອມເພຣສເຊີຢູ່ນອກ ⇒ **ຄົນລະ ISN** (ຟອມເປີດງານເກັບຢູ່ pro_sn_out ມາແຕ່ຕົ້ນ
+            ແຕ່ບໍ່ມີໜ້າໃດສະແດງ/ແກ້ໄດ້ເລີຍ). ບໍ່ແມ່ນແອ = ບໍ່ຂຶ້ນ.
+          */}
+          {isAc && (
+            <div>
+              <label className={labelClass}>ISN / S/N <span className="text-slate-400">(ໜ່ວຍນອກ)</span></label>
+              <IsnField
+                name="pro_sn_out"
+                defaultValue={row.pro_sn_out ?? ""}
+                itemCode={row.item_code}
+                docRef={row.doc_ref_1}
+                outdoor
+              />
+            </div>
+          )}
         </div>
       </Card>
 

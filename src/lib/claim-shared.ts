@@ -82,6 +82,27 @@ export const claimCanTransition = (type: ClaimType, from: string, to: string): b
   return claimNextStatus(type, from)?.status === to;
 };
 
+/**
+ * ── ໝາຍ "ຂໍເຄມ" ໃສ່ໃບງານສ້ອມ (ຕອນເປີດ ຫຼື ຕອນແກ້ໄຂ) ──
+ * ຜົນທີ່ຕ້ອງເກີດຈາກການປ່ຽນ job_kind — ຄິດບ່ອນດຽວ ໃຊ້ທັງ createService ແລະ updateService.
+ *
+ *   none         ບໍ່ແມ່ນງານເຄມ ⇒ ບໍ່ຕ້ອງເຮັດຫຍັງກັບໃບເຄມ
+ *   create-claim ສ້ອມ → ເຄມ ແລະ ຍັງບໍ່ມີໃບເຄມ ⇒ ສ້າງ CLM-B
+ *   sync-claim   ເປັນເຄມຢູ່ແລ້ວ ແລະ ມີໃບເຄມ ⇒ ອັບເດດຂອບເຂດ/ແຖວອາໄຫຼ່ ບໍ່ສ້າງໃບຊ້ຳ
+ *   blocked      ເຄມ → ສ້ອມ ທັງທີ່ມີໃບເຄມແລ້ວ ⇒ ຫ້າມ (ຈັດການທີ່ໃບເຄມ)
+ */
+export type ClaimMarkChange = "none" | "create-claim" | "sync-claim" | "blocked";
+
+export function claimMarkChange(
+  before: { kind: string; claimNo: string | null },
+  nextKind: string,
+): ClaimMarkChange {
+  if (nextKind !== "claim") {
+    return before.kind === "claim" && before.claimNo ? "blocked" : "none";
+  }
+  return before.claimNo ? "sync-claim" : "create-claim";
+}
+
 export const isClaimEditable = (type: ClaimType, status: string): boolean =>
   status === ({ A: "draft", B: "received", C: "notify" } satisfies Record<ClaimType, string>)[type];
 

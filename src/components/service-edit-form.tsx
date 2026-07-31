@@ -161,7 +161,7 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
 
       {/* ປະເພດງານ — ໂຄງດຽວກັນກັບຟອມເປີດງານ (service-form.tsx) */}
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <p className="mb-2 text-sm font-bold text-slate-700">ປະເພດງານ *</p>
+        <p className="mb-2 text-sm font-bold text-slate-700">{t.jobKindLabel}</p>
         <div className="grid gap-2 sm:grid-cols-2">
           <button
             type="button"
@@ -169,55 +169,55 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
             onClick={() => setJobKind("repair")}
             className={`rounded-xl border p-3 text-left disabled:cursor-not-allowed disabled:opacity-60 ${jobKind === "repair" ? "border-teal-500 bg-teal-50 ring-2 ring-teal-100" : "border-slate-200"}`}
           >
-            <b className="block text-sm">🔧 ງານສ້ອມ</b>
-            <span className="text-xs text-slate-500">ຮັບເຄື່ອງເຂົ້າກວດ ແລະສ້ອມຕາມປົກກະຕິ</span>
+            <b className="block text-sm">{t.kindRepair}</b>
+            <span className="text-xs text-slate-500">{t.kindRepairHint}</span>
           </button>
           <button
             type="button"
             onClick={() => setJobKind("claim")}
             className={`rounded-xl border p-3 text-left ${jobKind === "claim" ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100" : "border-slate-200"}`}
           >
-            <b className="block text-sm">🛡️ ງານເຄມ (ຮ້ານຄ້າ/ລູກຄ້າຂໍເຄມ)</b>
-            <span className="text-xs text-slate-500">ຂໍປ່ຽນສິນຄ້າ/ອາໄຫຼ່; ບັນທຶກແລ້ວສ້າງໃບເຄມ CLM-B ໃຫ້ອັດຕະໂນມັດ</span>
+            <b className="block text-sm">{t.kindClaim}</b>
+            <span className="text-xs text-slate-500">{t.kindClaimHint}</span>
           </button>
         </div>
         <input type="hidden" name="job_kind" value={jobKind} />
 
         {claimLocked && (
           <p className="mt-2 rounded-lg bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800">
-            ໃບງານນີ້ຜູກກັບໃບເຄມ{" "}
+            {t.claimLockedPrefix}{" "}
             <Link href={`/claims/${encodeURIComponent(head.claim_no ?? "")}`} className="underline">
               {head.claim_no}
             </Link>{" "}
-            ແລ້ວ — ປ່ຽນກັບເປັນງານສ້ອມບໍ່ໄດ້ (ຈັດການທີ່ໃບເຄມ)
+            {t.claimLockedSuffix}
           </p>
         )}
 
         {jobKind === "claim" && (
           <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50/50 p-3">
-            <p className="mb-2 text-xs font-bold text-violet-800">ຂໍເຄມຫຍັງ?</p>
+            <p className="mb-2 text-xs font-bold text-violet-800">{t.claimScopeQuestion}</p>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => setClaimScope("whole")}
                 className={`rounded-lg px-3 py-2 text-xs font-semibold ${claimScope === "whole" ? "bg-violet-600 text-white" : "border border-violet-200 bg-white text-violet-700"}`}
               >
-                ເຄມທັງເຄື່ອງ
+                {t.claimWhole}
               </button>
               <button
                 type="button"
                 onClick={() => setClaimScope("part")}
                 className={`rounded-lg px-3 py-2 text-xs font-semibold ${claimScope === "part" ? "bg-violet-600 text-white" : "border border-violet-200 bg-white text-violet-700"}`}
               >
-                ເຄມສະເພາະອາໄຫຼ່
+                {t.claimPart}
               </button>
             </div>
             <input type="hidden" name="claim_scope" value={claimScope} />
             {claimScope === "part" && (
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <input name="claim_part_code" defaultValue={head.claim_part_code} placeholder="ລະຫັດອາໄຫຼ່ (ຖ້າມີ)" className={field} />
-                <input name="claim_part_name" defaultValue={head.claim_part_name} required placeholder="ຊື່ອາໄຫຼ່ *" className={field} />
-                <input name="claim_part_sn" defaultValue={head.claim_part_sn} placeholder="Serial ອາໄຫຼ່ (ຖ້າມີ)" className={field} />
+                <input name="claim_part_code" defaultValue={head.claim_part_code} placeholder={t.claimPartCode} className={field} />
+                <input name="claim_part_name" defaultValue={head.claim_part_name} required placeholder={t.claimPartName} className={field} />
+                <input name="claim_part_sn" defaultValue={head.claim_part_sn} placeholder={t.claimPartSn} className={field} />
                 <input
                   name="claim_part_qty"
                   type="number"
@@ -225,7 +225,7 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
                   step="0.01"
                   defaultValue={head.claim_part_qty ?? 1}
                   required
-                  placeholder="ຈຳນວນ"
+                  placeholder={t.claimPartQty}
                   className={field}
                 />
               </div>

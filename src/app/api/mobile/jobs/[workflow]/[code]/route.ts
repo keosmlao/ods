@@ -23,6 +23,7 @@ import {
   startMaintenance,
 } from "@/lib/maintenance-flow";
 import { installTimeline } from "@/lib/install-timeline";
+import { openLoaners } from "@/lib/loaner";
 import { maintenanceTimeline } from "@/lib/maintenance-timeline";
 import { MAX_PHOTO_CHARS, requireMobile } from "@/lib/mobile-auth";
 import { repairTimeline, type TimelineStep } from "@/lib/repair-timeline";
@@ -117,7 +118,22 @@ export async function GET(request: Request, context: { params: Promise<{ workflo
       delivery = await deliveryFor(bill);
     }
 
-    return NextResponse.json({ photos, timeline: timelinePayload(timeline), delivery });
+    /**
+     * **ເຄື່ອງສຳຮອງທີ່ຍັງບໍ່ຄືນ** (ສະເພາະງານສ້ອມ) — ຊ່າງທີ່ໄປສົ່ງເຄື່ອງຄືນເຖິງບ້ານ
+     * ຄືຄົນທີ່ຕ້ອງເອົາໜ່ວຍສຳຮອງກັບມາ. ບໍ່ບອກຢູ່ແອັບ = ໄປຮອດແລ້ວຈຶ່ງຮູ້ ຫຼື ລືມເລີຍ
+     * (ດ່ານປິດງານຢູ່ເວັບຈະຫ້າມພາຍຫຼັງ — ຊ້າໄປແລ້ວ). ອ່ານຢ່າງດຽວ: ໃຫ້ຢືມ/ຮັບຄືນ
+     * ຍັງເປັນວຽກຝັ່ງບໍລິການ (lib/loaner · actions/loaner).
+     */
+    const loaners =
+      workflow === "repair"
+        ? (await openLoaners(code)).map((row) => ({
+            item_name: row.item_name,
+            isn: row.isn,
+            days: row.days,
+          }))
+        : [];
+
+    return NextResponse.json({ photos, timeline: timelinePayload(timeline), delivery, loaners });
   } catch (error) {
     console.error("Mobile job detail failed", error);
     return NextResponse.json({ error: "ໂຫຼດລາຍລະອຽດບໍ່ສຳເລັດ" }, { status: 500 });

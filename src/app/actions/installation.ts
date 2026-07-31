@@ -18,7 +18,7 @@ import { type Role, roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
 import { INSTALL_FEEDBACK_DONE_SQL, INSTALL_FEEDBACK_TIME_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { installSpareOutstanding } from "@/lib/install-spare-gate";
-import { getStandardSetLines } from "@/lib/install-standard";
+import { outsideStandardCodes, standardLinesForJob } from "@/lib/install-standard";
 import { EDITABLE_SPARE_LINES } from "@/lib/install-spare-edit";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { feedbackUrl, validFeedbackToken } from "@/lib/track";
@@ -457,14 +457,20 @@ const editSchema = z.object({
   appoint_date: z.string(),
   location_inst: z.string(),
   pro_sn: z.string(),
+  /** ISN ໜ່ວຍນອກ (ແອ) — ຟອມສົ່ງມາສະເພາະງານແອ ⇒ ບໍ່ບັງຄັບ */
+  pro_sn_out: z.string().optional().default(""),
   pro_type: z.string(),
   pro_model: z.string(),
   pro_brand: z.string(),
   remark: z.string(),
 });
 
-/** ງານປິດແລ້ວ — ຟອມສົ່ງມາແຕ່ 2 ຊ່ອງນີ້ (ເບິ່ງ install-edit-form ໂໝດ isnOnly) */
-const isnSchema = z.object({ code: z.string().min(1), pro_sn: z.string() });
+/** ງານປິດແລ້ວ — ຟອມສົ່ງມາແຕ່ຊ່ອງ ISN (ເບິ່ງ install-edit-form ໂໝດ isnOnly) */
+const isnSchema = z.object({
+  code: z.string().min(1),
+  pro_sn: z.string(),
+  pro_sn_out: z.string().optional().default(""),
+});
 
 export async function updateInstall(
   _: ActionState,
@@ -504,7 +510,7 @@ export async function updateInstall(
     // ຖ້າຖອນຊ່າງອອກ (ຄ່າຫວ່າງ) ໂມງຈັດຊ່າງກໍ່ຖືກລ້າງ — ງານກັບໄປຄິວ "ລໍຖ້າຈັດຊ່າງ".
     await query(
       `update ods_tb_install set remark=$1, user_edit=$2, tech_code=$3, appoint_date=$4, location_inst=$5,
-         pro_sn=$6, pro_type=$7, pro_type_code=$8, pro_model=$9, pro_brand=$10,
+         pro_sn=$6, pro_type=$7, pro_type_code=$8, pro_model=$9, pro_brand=$10, pro_sn_out=$12,
          assigt_time = case
            when $3::varchar is null then null
            when tech_code is distinct from $3::varchar then localtimestamp(0)
@@ -526,6 +532,7 @@ export async function updateInstall(
         d.pro_model,
         d.pro_brand,
         d.code,
+        d.pro_sn_out,
       ],
     );
   } catch (error) {
@@ -566,29 +573,35 @@ async function isnOnlyUpdate(
   if (job.cancelled) return { error: IS_CANCELLED };
   const parsed = isnSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ" };
-  const { code, pro_sn: serial } = parsed.data;
+  const { code, pro_sn: serial, pro_sn_out: outdoor } = parsed.data;
 
   let before = "";
+  let beforeOut = "";
   try {
-    const current = await query<{ pro_sn: string | null }>(
-      "select pro_sn from ods_tb_install where code=$1",
+    const current = await query<{ pro_sn: string | null; pro_sn_out: string | null }>(
+      "select pro_sn, pro_sn_out from ods_tb_install where code=$1",
       [code],
     );
     before = current.rows[0]?.pro_sn ?? "";
-    if (before === serial) return { error: "ISN ບໍ່ໄດ້ປ່ຽນ" };
+    beforeOut = current.rows[0]?.pro_sn_out ?? "";
+    if (before === serial && beforeOut === outdoor) return { error: "ISN ບໍ່ໄດ້ປ່ຽນ" };
     await query(
-      "update ods_tb_install set pro_sn=$1, user_edit=$2 where code=$3 and cancel_date is null",
-      [serial, username, code],
+      "update ods_tb_install set pro_sn=$1, pro_sn_out=$4, user_edit=$2 where code=$3 and cancel_date is null",
+      [serial, username, code, outdoor],
     );
   } catch (error) {
     console.error("isnOnlyUpdate failed", error);
     return { error: "ເເກ້ໄຂບໍ່ສຳເລັດ" };
   }
 
+  const changes = [
+    before !== serial && `ໜ່ວຍໃນ: ${before || "(ຫວ່າງ)"} → ${serial || "(ຫວ່າງ)"}`,
+    beforeOut !== outdoor && `ໜ່ວຍນອກ: ${beforeOut || "(ຫວ່າງ)"} → ${outdoor || "(ຫວ່າງ)"}`,
+  ].filter(Boolean);
   await logChange(
     "ods_tb_install",
     code,
-    `ອັບເດດ ISN ຂອງງານທີ່ປິດແລ້ວ: ${before || "(ຫວ່າງ)"} → ${serial || "(ຫວ່າງ)"}`,
+    `ອັບເດດ ISN ຂອງງານທີ່ປິດແລ້ວ · ${changes.join(" · ")}`,
     { users: job.tech_code ? [job.tech_code] : [] },
   );
 
@@ -1042,14 +1055,16 @@ async function blockNonStandard(
     [code],
   );
   const [setLines, cart] = await Promise.all([
-    getStandardSetLines(product.rows[0]?.item_code),
+    standardLinesForJob(code, product.rows[0]?.item_code),
     query<{ item_code: string }>(
       "select distinct item_code from tb_used_spare where product_code=$1",
       [code],
     ),
   ]);
-  const known = new Set([...setLines.keys(), ...cart.rows.map((row) => row.item_code)]);
-  const outside = itemCodes.filter((itemCode) => !known.has(itemCode));
+  const outside = outsideStandardCodes(
+    [...setLines.keys(), ...cart.rows.map((row) => row.item_code)],
+    itemCodes,
+  );
   if (!outside.length) return null;
   return `ປິດການເບີກອາໄຫຼ່ນອກມາດຕະຖານໄວ້ — ເພີ່ມ ${outside.join(", ")} ບໍ່ໄດ້ (ເປີດຄືນທີ່ ການຕັ້ງຄ່າລະບົບ)`;
 }
@@ -1151,7 +1166,7 @@ export async function addSpareLines(
     "select item_code from ods_tb_install where code=$1 limit 1",
     [code],
   );
-  const setLines = await getStandardSetLines(product.rows[0]?.item_code);
+  const setLines = await standardLinesForJob(code, product.rows[0]?.item_code);
 
   const client = await db.connect();
   try {

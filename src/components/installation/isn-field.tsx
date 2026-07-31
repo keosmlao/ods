@@ -33,6 +33,7 @@ export function IsnField({
   itemCode,
   docRef,
   disabled,
+  outdoor = false,
 }: {
   name: string;
   defaultValue: string;
@@ -40,6 +41,8 @@ export function IsnField({
   /** ບິນຂອງງານ (ods_tb_install.doc_ref_1) — ເອົາໜ່ວຍທີ່ຂາຍຈິງຂຶ້ນກ່ອນ */
   docRef: string | null;
   disabled?: boolean;
+  /** ຊ່ອງນີ້ແມ່ນ **ໜ່ວຍນອກ** ຂອງແອ ⇒ ເອົາ ISN ຂອງ [H] ຂຶ້ນກ່ອນ (ບິນລົງແຍກໜ່ວຍ) */
+  outdoor?: boolean;
 }) {
   const t = useDict().installEditForm;
   const [value, setValue] = useState(defaultValue);
@@ -57,7 +60,14 @@ export function IsnField({
       .then((response) => response.json())
       .then((body: { data?: SerialRow[] }) => {
         if (!alive) return;
-        setRows(body.data ?? []);
+        /**
+         * ແອ: ບິນລົງ ISN ແຍກ [C] ໜ່ວຍໃນ / [H] ໜ່ວຍນອກ ⇒ ຊ່ອງໃດຊ່ອງນັ້ນເອົາຂອງຕົນຂຶ້ນກ່ອນ
+         * (ບໍ່ຕັດອອກ — ບາງບິນລົງ part ບໍ່ຄົບ ຄົນຍັງຕ້ອງເລືອກເອງໄດ້).
+         */
+        const rank = (row: SerialRow) =>
+          row.source !== "bill" ? 2 : (row.part === "ໜ່ວຍນອກ") === outdoor ? 0 : 1;
+        const data = [...(body.data ?? [])].sort((a, b) => rank(a) - rank(b));
+        setRows(data);
         setLoading(false);
       })
       .catch(() => {
@@ -68,7 +78,7 @@ export function IsnField({
     return () => {
       alive = false;
     };
-  }, [itemCode, docRef]);
+  }, [itemCode, docRef, outdoor]);
 
   const valueOf = (row: SerialRow) => row.sn || row.isn;
   const labelOf = (row: SerialRow) =>

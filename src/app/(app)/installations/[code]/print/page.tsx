@@ -26,7 +26,7 @@ export default async function InstallPrint({ params }: Props) {
          a.code, a.cust_code || '-' || coalesce(c.name_1,'') as customer,
          coalesce(c.address,'-') as address, coalesce(c.tel,'-') as tel,
          coalesce(a.tech_code,'-') as tech_code, a.doc_ref_1,
-         a.pro_brand, a.pro_model, a.pro_sn, a.pro_type, a.pro_size, a.remark, a.user_created,
+         a.pro_brand, a.pro_model, a.pro_sn, a.pro_sn_out, a.pro_type, a.pro_size, a.remark, a.user_created,
          a.location_inst, to_char(a.appoint_date,'dd-MM-yyyy') as appoint_date
        from ods_tb_install a
        left join ar_customer c on c.code = a.cust_code
@@ -86,7 +86,7 @@ export default async function InstallPrint({ params }: Props) {
           <p>Model: {x.pro_model || "-"}</p>
           <p>{t.type}: {x.pro_type || "-"}</p>
           <p>{t.size}: {x.pro_size || "-"}</p>
-          <p>S/N: {x.pro_sn || "-"}</p>
+          <p>S/N: {x.pro_sn || "-"}{x.pro_sn_out ? ` · ໜ່ວຍນອກ ${x.pro_sn_out}` : ""}</p>
           <p>{t.technician}: {x.tech_code}</p>
           <p className="col-span-2">{t.remark}: {x.remark || "-"}</p>
         </div>

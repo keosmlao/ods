@@ -198,6 +198,9 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
           (select count(*) from ic_trans t
             where t.trans_flag = 78 and t.aprove_status = 0)::int as "/approvals/purchase-requests",
 
+          -- ── ເຄື່ອງສຳຮອງທີ່ຢູ່ນຳລູກຄ້າ (ຍັງບໍ່ຮັບຄືນ) — ບໍ່ຕັດສະຕັອກ ⇒ ບໍ່ມີບ່ອນອື່ນເຕືອນ ──
+          (select count(*) from ods_loaner l where l.return_time is null)::int as "/service/loaners",
+
           -- ── ອາໄຫຼ່ຄ້າງນອກສາງ: ວຽກຍົກເລີກທີ່ຍັງມີແຖວໃບເບີກ status=0 (lib/outstanding-spares) ──
           (select count(*) from tb_product a
             where ${CANCELLED_JOBS} and ${HAS_OUTSTANDING_SPARES})::int as "/stock/spare-recovery",

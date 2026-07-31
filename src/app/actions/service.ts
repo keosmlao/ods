@@ -1,5 +1,6 @@
 "use server";
 import { logChange } from "@/lib/chatter-log";
+import { claimMarkChange } from "@/lib/claim-shared";
 import { pushToUser } from "@/lib/push";
 import { db } from "@/lib/db";
 import { requirePermission, requireRole } from "@/lib/guard";
@@ -401,7 +402,11 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
       await client.query("rollback");
       return { error: "ບໍ່ພົບລາຍການ" };
     }
-    if (before.job_kind === "claim" && d.job_kind !== "claim" && before.claim_no) {
+    const claimChange = claimMarkChange(
+      { kind: before.job_kind, claimNo: before.claim_no },
+      d.job_kind,
+    );
+    if (claimChange === "blocked") {
       await client.query("rollback");
       return { error: `ໃບງານນີ້ຜູກກັບໃບເຄມ ${before.claim_no} ແລ້ວ — ປ່ຽນກັບເປັນງານສ້ອມບໍ່ໄດ້ (ຈັດການທີ່ໃບເຄມ)` };
     }
@@ -433,7 +438,7 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
       return { error: "ບໍ່ພົບລາຍການ" };
     }
 
-    if (d.job_kind === "claim" && !before.claim_no) {
+    if (claimChange === "create-claim") {
       // ຍັງບໍ່ມີໃບເຄມ ⇒ ສ້າງ CLM-B ໃຫ້ ຄືກັນທຸກຊ່ອງກັບຕອນເປີດງານແບບ "ງານເຄມ"
       const claimId = (
         await client.query<{ id: number }>(
@@ -455,9 +460,49 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
           [claimNo, d.claim_part_code, d.claim_part_name.trim(), d.claim_part_qty ?? 1, d.claim_part_sn ? `SN: ${d.claim_part_sn}` : ""],
         );
       }
-    } else if (d.job_kind === "claim" && before.claim_no) {
-      // ມີໃບເຄມຢູ່ແລ້ວ ⇒ ຢ່າສ້າງໃບຊ້ຳ ພຽງແຕ່ໃຫ້ຂອບເຂດຢູ່ສອງບ່ອນຕົງກັນ
+    } else if (claimChange === "sync-claim") {
+      /**
+       * ມີໃບເຄມຢູ່ແລ້ວ ⇒ ຢ່າສ້າງໃບຊ້ຳ ແຕ່ຕ້ອງໃຫ້ **ສອງບ່ອນເວົ້າຄືກັນ**:
+       * ຂອບເຂດ (ທັງເຄື່ອງ/ອາໄຫຼ່) ແລະ ແຖວອາໄຫຼ່ຂອງໃບເຄມ. ບໍ່ດັ່ງນັ້ນແກ້ຊື່ອາໄຫຼ່ຢູ່ໃບງານ
+       * ແລ້ວໃບເຄມທີ່ສົ່ງໃຫ້ supplier ຍັງເປັນຊື່ເກົ່າ.
+       *
+       * ⚠️ ແຕະໄດ້ພຽງໃບທີ່ **ຍັງແກ້ໄດ້** (ຍັງບໍ່ສົ່ງ — isClaimEditable ຝັ່ງໃບເຄມໃຊ້ນິຍາມນີ້)
+       * ແລະ ພຽງແຖວດຽວ (ໃບທີ່ເກີດຈາກ intake ມີແຖວດຽວສະເໝີ) — ໃບທີ່ຄົນເຄມເພີ່ມລາຍການເອງ
+       * ຫຼາຍແຖວແລ້ວ ປະໄວ້ ບໍ່ໄປຂຽນທັບວຽກຂອງເຂົາ.
+       */
       await client.query("update ods_claim set claim_scope=$2 where claim_no=$1", [before.claim_no, d.claim_scope]);
+      if (d.claim_scope === "part" && d.claim_part_name.trim()) {
+        const editable = await client.query<{ id: number; items: number }>(
+          `select c.id, (select count(*)::int from ods_claim_item i where i.claim_no = c.claim_no) items
+             from ods_claim c where c.claim_no = $1 and c.status = 'received'`,
+          [before.claim_no],
+        );
+        if (editable.rows[0]?.items === 1) {
+          await client.query(
+            `update ods_claim_item set item_code=nullif($2,''), item_name=$3, qty=$4, note=nullif($5,'')
+              where claim_no=$1`,
+            [
+              before.claim_no,
+              d.claim_part_code,
+              d.claim_part_name.trim(),
+              d.claim_part_qty ?? 1,
+              d.claim_part_sn ? `SN: ${d.claim_part_sn}` : "",
+            ],
+          );
+        } else if (editable.rows[0]?.items === 0) {
+          await client.query(
+            `insert into ods_claim_item(claim_no,item_code,item_name,qty,unit,amount,note)
+             values($1,nullif($2,''),$3,$4,'ອັນ',0,nullif($5,''))`,
+            [
+              before.claim_no,
+              d.claim_part_code,
+              d.claim_part_name.trim(),
+              d.claim_part_qty ?? 1,
+              d.claim_part_sn ? `SN: ${d.claim_part_sn}` : "",
+            ],
+          );
+        }
+      }
     }
 
     // ຮູບໃໝ່ຈະຖືກ "ເພີ່ມ" ເຂົ້າໄປ ຄື update_rcpro() ຂອງ ods (ຮູບເກົ່າຍັງຢູ່)

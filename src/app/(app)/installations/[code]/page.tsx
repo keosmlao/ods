@@ -44,6 +44,8 @@ type Row = JobHead & {
   remark: string | null;
   location_inst: string | null;
   pro_sn: string | null;
+  /** ISN ໜ່ວຍນອກ (ແອ) — ຂຶ້ນສະເພາະງານທີ່ມີຄ່າ */
+  pro_sn_out: string | null;
   user_created: string | null;
   cancel_remark: string | null;
   cancel_date: string | null;
@@ -89,7 +91,7 @@ export default async function InstallationDetail({ params }: Props) {
       `select ${JOB_HEAD_COLUMNS},
           (${INSTALL_STAGE_SQL})::int as stage,
           (${INSTALL_ELAPSED_SQL}) as elapsed_seconds,
-          a.remark, a.location_inst, a.pro_sn, a.user_created, a.cancel_remark,
+          a.remark, a.location_inst, a.pro_sn, a.pro_sn_out, a.user_created, a.cancel_remark,
           to_char(a.cancel_date,'DD-MM-YYYY HH24:MI') as cancel_date
         from ods_tb_install a
         left join ar_customer c on c.code = a.cust_code
@@ -228,7 +230,8 @@ export default async function InstallationDetail({ params }: Props) {
           {(
             [
               [t.installLocation, row.location_inst],
-              ["Serial number", row.pro_sn],
+              [row.pro_sn_out ? "Serial number (ໜ່ວຍໃນ)" : "Serial number", row.pro_sn],
+              ...(row.pro_sn_out ? [["Serial number (ໜ່ວຍນອກ)", row.pro_sn_out] as [string, string | null]] : []),
               [t.openedBy, row.user_created],
               [t.remark, row.remark],
             ] as [string, string | null][]

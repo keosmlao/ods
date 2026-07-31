@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { loanerHoldMessage } from "@/lib/loaner-shared";
 
 /**
  * ── ເຄື່ອງສຳຮອງ (loaner) ຂອງງານສ້ອມ ──
@@ -55,13 +56,11 @@ export async function openLoaners(jobCode: string): Promise<LoanerRow[]> {
 
 /**
  * ຂໍ້ຄວາມຫ້າມ ຖ້າຍັງມີເຄື່ອງສຳຮອງຄ້າງ — null ຄື ຜ່ານ.
- * ເອີ້ນຢູ່ **ທຸກທາງອອກ** ທີ່ປະທັບ return_complete (ມີໃບເກັບເງິນ · ບໍ່ເກັບເງິນ · ຍົກເລີກ).
+ * ເອີ້ນຢູ່ **ທຸກທາງອອກ** ທີ່ປະທັບ return_complete: 3 ທາງຂອງ actions/return.ts
+ * (ໃບຮັບເງິນ · ບໍ່ເກັບເງິນ · ວຽກຍົກເລີກ) ແລະ CLM-B "returned" ຂອງ actions/claim.ts.
  */
 export async function loanerBlock(jobCode: string): Promise<string | null> {
-  const open = await openLoaners(jobCode);
-  if (!open.length) return null;
-  const list = open.map((row) => `${row.item_name} (ISN ${row.isn})`).join(", ");
-  return `ຍັງບໍ່ໄດ້ຮັບເຄື່ອງສຳຮອງຄືນ: ${list} — ຮັບຄືນຢູ່ໜ້າໃບງານກ່ອນ ຈຶ່ງສົ່ງເຄື່ອງຄືນລູກຄ້າໄດ້`;
+  return loanerHoldMessage(await openLoaners(jobCode));
 }
 
 /** ຄິວ "ເຄື່ອງສຳຮອງຄ້າງຄືນ" — ທຸກໃບງານ (ໜ້າ /service/loaners ແລະ ຕົວເລກຂ້າງເມນູ) */

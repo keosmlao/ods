@@ -1,7 +1,8 @@
 "use client";
 import { lendLoaner, returnLoaner, type LoanerState } from "@/app/actions/loaner";
 import type { LoanerRow } from "@/lib/loaner";
-import { Check, LoaderCircle, PackageCheck, Plus, X } from "lucide-react";
+import { useDict } from "@/lib/i18n/context";
+import { Check, LoaderCircle, PackageCheck, Plus, Printer, X } from "lucide-react";
 import { useActionState, useState } from "react";
 
 /**
@@ -23,6 +24,7 @@ export function LoanerCard({
   /** ຝ່າຍບໍລິການເທົ່ານັ້ນທີ່ໃຫ້ຢືມ/ຮັບຄືນໄດ້ — ຄົນອື່ນເຫັນຢ່າງດຽວ */
   canEdit: boolean;
 }) {
+  const t = useDict().loaner;
   const [open, setOpen] = useState(false);
   const [lendState, lendAction, lending] = useActionState<LoanerState, FormData>(lendLoaner, {});
   const [returnState, returnAction, returning] = useActionState<LoanerState, FormData>(returnLoaner, {});
@@ -56,10 +58,10 @@ export function LoanerCard({
       <div className="mb-3 flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
         <h2 className="flex items-center gap-2 text-sm font-bold text-slate-700">
           <PackageCheck className="size-4 text-teal-600" />
-          ເຄື່ອງສຳຮອງໃຫ້ລູກຄ້າໃຊ້ກ່ອນ
+          {t.cardTitle}
           {outstanding.length > 0 && (
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-              ຄ້າງຄືນ {outstanding.length}
+              {t.outstanding} {outstanding.length}
             </span>
           )}
         </h2>
@@ -70,7 +72,7 @@ export function LoanerCard({
             className="inline-flex h-8 items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-100"
           >
             {open ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
-            {open ? "ຍົກເລີກ" : "ໃຫ້ເຄື່ອງສຳຮອງ"}
+            {open ? t.cancel : t.lend}
           </button>
         )}
       </div>
@@ -81,7 +83,7 @@ export function LoanerCard({
           <input type="hidden" name="item_code" value={itemCode} />
           <div className="grid gap-2 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs text-slate-500">ISN ຂອງເຄື່ອງສຳຮອງ *</label>
+              <label className="mb-1 block text-xs text-slate-500">{t.isnLabel}</label>
               <div className="flex gap-2">
                 <input
                   name="isn"
@@ -89,7 +91,7 @@ export function LoanerCard({
                   value={isn}
                   onChange={(event) => setIsn(event.target.value)}
                   onBlur={lookup}
-                  placeholder="ອ່ານເລກຈາກປ້າຍຕົວເຄື່ອງ"
+                  placeholder={t.isnPlaceholder}
                   className={field}
                 />
                 <button
@@ -97,23 +99,23 @@ export function LoanerCard({
                   onClick={lookup}
                   className="h-9 shrink-0 rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-600 hover:bg-white"
                 >
-                  {looking ? <LoaderCircle className="size-3.5 animate-spin" /> : "ຫາຈາກ ERP"}
+                  {looking ? <LoaderCircle className="size-3.5 animate-spin" /> : t.lookup}
                 </button>
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-500">ຊື່ເຄື່ອງ *</label>
+              <label className="mb-1 block text-xs text-slate-500">{t.itemLabel}</label>
               <input
                 name="item_name"
                 required
                 value={itemName}
                 onChange={(event) => setItemName(event.target.value)}
-                placeholder="ເຊັ່ນ ຈໍ LED 32 ນິ້ວ (ເຄື່ອງສູນ)"
+                placeholder={t.itemPlaceholder}
                 className={field}
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-xs text-slate-500">ໝາຍເຫດ (ສະພາບເຄື່ອງ, ອຸປະກອນທີ່ໃຫ້ໄປນຳ)</label>
+              <label className="mb-1 block text-xs text-slate-500">{t.lendNoteLabel}</label>
               <input name="note" className={field} />
             </div>
           </div>
@@ -123,13 +125,13 @@ export function LoanerCard({
             className="inline-flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
           >
             {lending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
-            ບັນທຶກການໃຫ້ຢືມ
+            {t.saveLend}
           </button>
         </form>
       )}
 
       {rows.length === 0 ? (
-        <p className="py-3 text-center text-xs text-slate-400">ບໍ່ມີເຄື່ອງສຳຮອງໃນໃບງານນີ້</p>
+        <p className="py-3 text-center text-xs text-slate-400">{t.empty}</p>
       ) : (
         <ul className="space-y-2">
           {rows.map((row) => (
@@ -142,36 +144,46 @@ export function LoanerCard({
                   <p className="text-xs font-bold text-slate-800">{row.item_name}</p>
                   <p className="text-[11px] text-slate-500">
                     ISN {row.isn}
-                    {row.sn ? ` · S/N ${row.sn}` : ""} · ໃຫ້ຢືມ {row.lend_time} ໂດຍ {row.lend_by}
+                    {row.sn ? ` · S/N ${row.sn}` : ""} · {t.lentAt} {row.lend_time} {t.by} {row.lend_by}
                   </p>
-                  {row.lend_note && <p className="text-[11px] text-slate-500">ໝາຍເຫດ: {row.lend_note}</p>}
+                  {row.lend_note && <p className="text-[11px] text-slate-500">{t.note}: {row.lend_note}</p>}
+                  {/* ໃບເຊັນຮັບ — ເຄື່ອງສຳຮອງບໍ່ຜ່ານເອກະສານສາງ ⇒ ໃບນີ້ຄືຫຼັກຖານດຽວ */}
+                  <a
+                    href={`/service/loaners/${row.id}/print`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-teal-700 hover:underline"
+                  >
+                    <Printer className="size-3" />
+                    {t.printSlip}
+                  </a>
                   {row.return_time && (
                     <p className="text-[11px] font-semibold text-emerald-700">
-                      ຮັບຄືນ {row.return_time} ໂດຍ {row.return_by}
+                      {t.returnedAt} {row.return_time} {t.by} {row.return_by}
                       {row.return_note ? ` · ${row.return_note}` : ""}
                     </p>
                   )}
                 </div>
                 {row.return_time ? (
                   <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
-                    ຄືນແລ້ວ · {row.days} ມື້
+                    {t.returnedDays} · {row.days} {t.days}
                   </span>
                 ) : (
                   <div className="flex items-center gap-2">
                     <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[11px] font-bold text-amber-900">
-                      ຢູ່ນຳລູກຄ້າ {row.days} ມື້
+                      {t.withCustomer} {row.days} {t.days}
                     </span>
                     {canEdit && (
                       <form action={returnAction} className="flex items-center gap-1">
                         <input type="hidden" name="id" value={row.id} />
                         <input type="hidden" name="job" value={code} />
-                        <input name="note" placeholder="ສະພາບຕອນຮັບຄືນ" className="h-8 w-36 rounded-lg border border-slate-300 px-2 text-xs outline-none focus:border-teal-500" />
+                        <input name="note" placeholder={t.returnNotePlaceholder} className="h-8 w-36 rounded-lg border border-slate-300 px-2 text-xs outline-none focus:border-teal-500" />
                         <button
                           disabled={returning}
                           className="inline-flex h-8 items-center gap-1 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-60"
                         >
                           {returning ? <LoaderCircle className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
-                          ຮັບຄືນ
+                          {t.returnAction}
                         </button>
                       </form>
                     )}
@@ -185,7 +197,7 @@ export function LoanerCard({
       {returnState.error && <p className="mt-2 text-xs font-semibold text-red-600">{returnState.error}</p>}
       {outstanding.length > 0 && (
         <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">
-          ຍັງມີເຄື່ອງສຳຮອງຄ້າງ ⇒ ສົ່ງເຄື່ອງຄືນລູກຄ້າ / ປິດງານບໍ່ໄດ້ຈົນກວ່າຈະຮັບຄືນ
+          {t.blockNote}
         </p>
       )}
     </section>

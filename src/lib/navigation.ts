@@ -134,7 +134,7 @@ const REPAIR: NavGroup = {
     // pipelineOf ຢຸດທີ່ຂັ້ນ 11 (ລໍຖ້າສົ່ງຄືນ) ຈຶ່ງບໍ່ຊ້ຳກັນ.
     { label: "ລາຍການສົ່ງຄືນສຳເລັດ", href: "/returns/completed" },
     // ເຄື່ອງສູນທີ່ຢູ່ນຳລູກຄ້າ — ບໍ່ຕັດສະຕັອກ ⇒ ບໍ່ມີໜ້ານີ້ = ບໍ່ມີບ່ອນຮູ້ວ່າໜ່ວຍໃດຢູ່ໃສ
-    { label: "ເຄື່ອງສຳຮອງຄ້າງຄືນ", href: "/service/loaners" },
+    { label: "ເຄື່ອງສຳຮອງຄ້າງຄືນ", href: "/service/loaners", count: "/service/loaners" },
   ].map((item, index) => ({ ...item, label: `${index + 1}. ${item.label}` })),
 };
 
@@ -312,6 +312,8 @@ const USERS: NavGroup = {
     { label: "ຄ່າບໍລິການ / ຄ່າຄອມຊ່າງ", href: "/manage/service-rates" },
     { label: "ເຊື່ອມຕົວຕົນຊ່າງ", href: "/manage/technicians" },
     { label: "ການຕັ້ງຄ່າລະບົບ", href: "/manage/settings" },
+    // ຄູ່ກັບສະວິດ "ເບີກນອກມາດຕະຖານ" — ບໍ່ນິຍາມບ່ອນນີ້ ປິດສະວິດນັ້ນບໍ່ໄດ້
+    { label: "ອາໄຫຼ່ມາດຕະຖານ (ຕິດຕັ້ງ)", href: "/manage/install-standard" },
     { label: "ລາຍງານອັດຕະໂນມັດ (email/Line)", href: "/manage/report-recipients" },
     { label: "ຫຍີ່ຫໍ້ເກັບເງินกับ supplier", href: "/manage/claim-brands" },
     { label: "ຕິດຕາມການເຂົ້າລະບົບ", href: "/manage/login-log" },
