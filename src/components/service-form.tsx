@@ -85,7 +85,13 @@ export function ServiceForm({
    * (75% ຂອງໃບ). ແຕ່ກ່ອນ tb_product ບໍ່ມີຖັນນີ້ ⇒ ຊ່າງອາໄສທີ່ຢູ່ລູກຄ້າ ເຊິ່ງອາດເປັນ
    * ທີ່ຢູ່ຮ້ານ ບໍ່ແມ່ນບ່ອນທີ່ເຄື່ອງຕິດຢູ່.
    */
-  const [serviceType, setServiceType] = useState("");
+  /**
+   * ── ງານເຄມ ⇒ ຄ່າຕັ້ງຕົ້ນປະເພດບໍລິການ = **CI (ລູກຄ້ານຳເຄື່ອງເຂົ້າ)** ──
+   * ເຄມເກືອບທັງໝົດຮ້ານຄ້າ/ລູກຄ້າຫອບມາເອງ ⇒ ບໍ່ມີພິກັດໜ້າງານ/ວັນນັດ. ຫວ່າງໄວ້ແລ້ວ
+   * ຄົນເລືອກ IH/PS ຕິດມື ⇒ ຟອມບັງຄັບສະຖານທີ່ໜ້າງານ ທັງທີ່ບໍ່ມີ ⇒ ບັນທຶກບໍ່ໄດ້.
+   * ປ່ຽນເປັນ PS ໄດ້ຢູ່ ຖ້າໄປຮັບເຄື່ອງເຖິງຮ້ານ.
+   */
+  const [serviceType, setServiceType] = useState(prefill.kind === "claim" ? "CI" : "");
   /** ບ່ອນຮັບເຄື່ອງ — ຄ່າຕັ້ງຕົ້ນຈາກສູນທີ່ຜູ້ໃຊ້ຮັບເຄື່ອງຫຼ້າສຸດ (ຈື່ໄວ້ໃນ browser) */
   const [intakeCenter, setIntakeCenter] = useState("");
   const [jobKind, setJobKind] = useState<"repair" | "claim">(prefill.kind === "claim" ? "claim" : "repair");
@@ -96,17 +102,6 @@ export function ServiceForm({
   /** IH ສ້ອມບ້ານລູກຄ້າ · PS ໄປຮັບເຄື່ອງຈາກບ້ານມາສ້ອມຢູ່ສູນ ⇒ ຊ່າງອອກໜ້າງານ (ນິຍາມດຽວກັບ lib/sla) */
   const onsite = ONSITE_SERVICE_TYPES.includes(serviceType as "IH" | "PS");
 
-  /**
-   * ── ງານເຄມ ⇒ ຕັ້ງປະເພດບໍລິການເປັນ **CI (ລູກຄ້ານຳເຄື່ອງເຂົ້າ)** ໃຫ້ ──
-   * ເຄມເກືອບທັງໝົດຄືຮ້ານຄ້າ/ລູກຄ້າຫອບເຄື່ອງມາເອງ ⇒ ບໍ່ມີພິກັດໜ້າງານ ບໍ່ມີວັນນັດ ບໍ່ຕ້ອງ
-   * check-in. ຖ້າປະໄວ້ຫວ່າງ ຄົນຮັບເຄື່ອງມັກເລືອກ IH/PS ຕິດມືມາຈາກໃບກ່ອນ ແລ້ວຟອມຈະ
-   * **ບັງຄັບສະຖານທີ່ໜ້າງານ** ທັງທີ່ບໍ່ມີ ⇒ ບັນທຶກບໍ່ໄດ້.
-   * ຍັງປ່ຽນເປັນ PS ໄດ້ ຖ້າໄປຮັບເຄື່ອງເຄມເຖິງບ້ານ/ຮ້ານ (ບໍ່ໄດ້ລັອກ).
-   */
-  const pickClaim = () => {
-    setJobKind("claim");
-    if (!serviceType || ONSITE_SERVICE_TYPES.includes(serviceType as "IH" | "PS")) setServiceType("CI");
-  };
 
 
   const suggestion = warrantyFromBill(billDate);
@@ -214,18 +209,21 @@ export function ServiceForm({
         </p>
       )}
 
+      {/*
+        ── ປະເພດງານ **ຕັດສິນຈາກເມນູ** ບໍ່ແມ່ນຈາກປຸ່ມໃນຟອມ (31-07-2026) ──
+        ສ້ອມ ແລະ ເຄມ ແຍກຄົນລະເມນູແລ້ວ (ສ້ອມແປງ → ຮັບສິນຄ້າສ້ອມ · ເຄມ → ຮັບເຄື່ອງເຄມ)
+        ⇒ ປຸ່ມ 2 ອັນນີ້ເປັນທາງໃຫ້ຄົນຫຼົງໄປອີກຝັ່ງໂດຍບໍ່ຕັ້ງໃຈ. ດຽວນີ້ຟອມ **ບອກ**ວ່າກຳລັງ
+        ຮັບຝັ່ງໃດ ແລະ ປ່ຽນຢູ່ນີ້ບໍ່ໄດ້ (ຮັບຜິດຝັ່ງ ⇒ ແກ້ຢູ່ໜ້າແກ້ໄຂໃບງານ).
+      */}
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <p className="mb-2 text-sm font-bold text-slate-700">ປະເພດງານ *</p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <button type="button" onClick={() => setJobKind("repair")} className={`rounded-xl border p-3 text-left ${jobKind === "repair" ? "border-teal-500 bg-teal-50 ring-2 ring-teal-100" : "border-slate-200"}`}>
-            <b className="block text-sm">🔧 ງານສ້ອມ</b>
-            <span className="text-xs text-slate-500">ຮັບເຄື່ອງເຂົ້າກວດ ແລະສ້ອມຕາມປົກກະຕິ</span>
-          </button>
-          <button type="button" onClick={() => pickClaim()} className={`rounded-xl border p-3 text-left ${jobKind === "claim" ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100" : "border-slate-200"}`}>
-            <b className="block text-sm">🛡️ ງານເຄມ</b>
-            <span className="text-xs text-slate-500">ລູກຄ້າຂໍປ່ຽນສິນຄ້າ/ອາໄຫຼ່; ສ້າງ CLM-B ອັດຕະໂນມັດ</span>
-          </button>
-        </div>
+        <p className="text-sm font-bold text-slate-700">
+          {jobKind === "claim" ? "🛡️ ງານເຄມ" : "🔧 ງານສ້ອມ"}
+        </p>
+        <p className="mt-0.5 text-xs text-slate-500">
+          {jobKind === "claim"
+            ? "ຮ້ານຄ້າ/ລູກຄ້າຂໍປ່ຽນສິນຄ້າ ຫຼື ອາໄຫຼ່ — ບັນທຶກແລ້ວສ້າງໃບເຄມ CLM-B ໃຫ້ອັດຕະໂນມັດ"
+            : "ຮັບເຄື່ອງເຂົ້າກວດ ແລະ ສ້ອມຕາມປົກກະຕິ"}
+        </p>
         <input type="hidden" name="job_kind" value={jobKind} />
         {jobKind === "claim" && (
           <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50/50 p-3">
