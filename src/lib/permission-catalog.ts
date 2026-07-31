@@ -23,6 +23,8 @@ export type PermissionResource = {
 const READ_ONLY = ["read"] as const;
 
 export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
+  // ໜ້າແລກຂອງຜູ້ຈັດການ — ຕ້ອງຢູ່ໃນ catalog ບໍ່ດັ່ງນັ້ນ resourceForPath ຫາບໍ່ພົບ ⇒ ເມນູຫາຍ
+  { group: "ຂອງຂ້ອຍ", label: "ພາບລວມຜູ້ຈັດການ", resource: "/overview", actions: READ_ONLY },
   { group: "ຂອງຂ້ອຍ", label: "ໜ້າລວມ", resource: "/dashboard", actions: READ_ONLY },
   { group: "ຂອງຂ້ອຍ", label: "AI ຜູ້ຊ່ວຍວຽກ", resource: "/assistant", actions: READ_ONLY },
   { group: "ຂອງຂ້ອຍ", label: "ຄິວງານປະຈຳວັນ", resource: "/installations/schedule", actions: READ_ONLY },

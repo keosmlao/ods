@@ -87,6 +87,8 @@ const HOME: NavGroup = {
   label: "ຂອງຂ້ອຍ",
   icon: LayoutDashboard,
   items: [
+    // ຜູ້ຈັດການເທົ່ານັ້ນທີ່ເຫັນ (RULES ຈຳກັດ [M]) — navigationFor ກອງດ້ວຍສິດຢູ່ແລ້ວ
+    { label: "ພາບລວມຜູ້ຈັດການ", href: "/overview" },
     { label: "ໜ້າລວມ", href: "/dashboard" },
     { label: "AI ຜູ້ຊ່ວຍວຽກ", href: "/assistant" },
     /**

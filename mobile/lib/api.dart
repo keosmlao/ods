@@ -814,6 +814,71 @@ class OverviewTech {
   );
 }
 
+/// ຖັງອາຍຸຂອງກອງວຽກ (d7 · d14 · d30 · over30) — ລວມກັນ = ງານເປີດທັງໝົດ
+class OverviewAge {
+  final String key;
+  final int count;
+  OverviewAge({required this.key, required this.count});
+  factory OverviewAge.fromJson(Map<String, dynamic> json) => OverviewAge(
+    key: json['key'] as String? ?? '',
+    count: (json['n'] as num?)?.toInt() ?? 0,
+  );
+
+  /// ປ້າຍພາສາລາວ — ຄີມາຈາກ server ຈຶ່ງບໍ່ປ່ຽນຕາມພາສາຂອງເຄື່ອງ
+  String get label => switch (key) {
+    'd7' => 'ບໍ່ເກີນ 7 ມື້',
+    'd14' => '8-14 ມື້',
+    'd30' => '15-30 ມື້',
+    _ => 'ເກີນ 30 ມື້',
+  };
+}
+
+/// ໃບງານທີ່ຄ້າງດົນສຸດ — ບອກເປັນ "ໃບໃດ ຂອງໃຜ ຄ້າງຂັ້ນໃດ" ບໍ່ແມ່ນຕົວເລກລວມ
+class OverviewOldJob {
+  final String code;
+  final String product;
+  final String? custName;
+  final String? tech;
+  final String stageLabel;
+  final int days;
+  OverviewOldJob({
+    required this.code,
+    required this.product,
+    required this.custName,
+    required this.tech,
+    required this.stageLabel,
+    required this.days,
+  });
+  factory OverviewOldJob.fromJson(Map<String, dynamic> json) => OverviewOldJob(
+    code: json['code'] as String? ?? '',
+    product: json['product'] as String? ?? '',
+    custName: json['cust_name'] as String?,
+    tech: json['tech'] as String?,
+    stageLabel: json['stage_label'] as String? ?? '',
+    days: (json['days'] as num?)?.toInt() ?? 0,
+  );
+}
+
+/// ກອງວຽກຂອງຊ່າງ 1 ຄົນ — `stale` = ຄ້າງເກີນ 30 ມື້ (ຕົວທີ່ບອກບັນຫາຈິງ)
+class OverviewBacklog {
+  final String tech;
+  final int open;
+  final int oldestDays;
+  final int stale;
+  OverviewBacklog({
+    required this.tech,
+    required this.open,
+    required this.oldestDays,
+    required this.stale,
+  });
+  factory OverviewBacklog.fromJson(Map<String, dynamic> json) => OverviewBacklog(
+    tech: json['tech'] as String? ?? '-',
+    open: (json['open'] as num?)?.toInt() ?? 0,
+    oldestDays: (json['oldest_days'] as num?)?.toInt() ?? 0,
+    stale: (json['stale'] as num?)?.toInt() ?? 0,
+  );
+}
+
 /// ພາບລວມບໍລິຫານ (ໜ້າຫຼັກຜູ້ຈັດການ) — ຫຍໍ້ຈາກ dashboard ຝັ່ງເວັບ
 class Overview {
   final int repairOpen;
@@ -840,6 +905,25 @@ class Overview {
   final double? feedbackAvg;
   final int feedbackJobs;
   final int feedbackUnhappy;
+  // ── ພາກຜູ້ຈັດການ (ອອກແບບໃໝ່ 31-07-2026): ວຽກຄ້າງເທິງ · KPI ລຸ່ມ ──
+  final List<OverviewAge> aging;
+  final int openTotal;
+  final List<OverviewOldJob> oldest;
+  final List<OverviewBacklog> techBacklog;
+  final int claimsWaitDecision;
+  final int loaners;
+  final int flowOpened;
+  final int flowClosed;
+  final double moneyQuoted;
+  final double moneyPaid;
+  final double moneyDue;
+
+  /// ຄ້າງເກີນ 30 ມື້ຈັກໃບ — ຕົວເລກດຽວທີ່ບອກສຸຂະພາບຂອງສູນໄດ້ດີສຸດ
+  int get staleJobs =>
+      aging.where((b) => b.key == 'over30').fold(0, (sum, b) => sum + b.count);
+
+  /// ງານຈົບ ລົບ ງານເຂົ້າ — ຕິດລົບ = ກອງວຽກເພີ່ມຂຶ້ນ
+  int get flowDelta => flowClosed - flowOpened;
 
   Overview({
     required this.repairOpen,
@@ -866,6 +950,17 @@ class Overview {
     required this.feedbackAvg,
     required this.feedbackJobs,
     required this.feedbackUnhappy,
+    required this.aging,
+    required this.openTotal,
+    required this.oldest,
+    required this.techBacklog,
+    required this.claimsWaitDecision,
+    required this.loaners,
+    required this.flowOpened,
+    required this.flowClosed,
+    required this.moneyQuoted,
+    required this.moneyPaid,
+    required this.moneyDue,
   });
 
   factory Overview.fromJson(Map<String, dynamic> json) {
@@ -875,7 +970,11 @@ class Overview {
     final today = (json['today'] as Map?)?.cast<String, dynamic>() ?? {};
     final un = (json['unassigned'] as Map?)?.cast<String, dynamic>() ?? {};
     final fb = (json['feedback'] as Map?)?.cast<String, dynamic>() ?? {};
+    final claims = (json['claims'] as Map?)?.cast<String, dynamic>() ?? {};
+    final flow = (json['flow'] as Map?)?.cast<String, dynamic>() ?? {};
+    final money = (json['money'] as Map?)?.cast<String, dynamic>() ?? {};
     int n(Map<String, dynamic> m, String k) => (m[k] as num?)?.toInt() ?? 0;
+    double d(Map<String, dynamic> m, String k) => (m[k] as num?)?.toDouble() ?? 0;
     return Overview(
       repairOpen: n(kpi, 'repair_open'),
       installOpen: n(kpi, 'install_open'),
@@ -905,6 +1004,23 @@ class Overview {
       feedbackAvg: (fb['avg'] as num?)?.toDouble(),
       feedbackJobs: n(fb, 'jobs'),
       feedbackUnhappy: n(fb, 'unhappy'),
+      aging: ((json['aging'] as List?) ?? [])
+          .map((row) => OverviewAge.fromJson(row as Map<String, dynamic>))
+          .toList(),
+      openTotal: (json['open_total'] as num?)?.toInt() ?? 0,
+      oldest: ((json['oldest'] as List?) ?? [])
+          .map((row) => OverviewOldJob.fromJson(row as Map<String, dynamic>))
+          .toList(),
+      techBacklog: ((json['tech_backlog'] as List?) ?? [])
+          .map((row) => OverviewBacklog.fromJson(row as Map<String, dynamic>))
+          .toList(),
+      claimsWaitDecision: n(claims, 'wait_decision'),
+      loaners: (json['loaners'] as num?)?.toInt() ?? 0,
+      flowOpened: n(flow, 'opened'),
+      flowClosed: n(flow, 'closed'),
+      moneyQuoted: d(money, 'quoted'),
+      moneyPaid: d(money, 'paid'),
+      moneyDue: d(money, 'due'),
     );
   }
 }

@@ -43,6 +43,11 @@ export function roleOf(session: Session | null | undefined): Role {
 
 /** ໜ້າທຳອິດຫຼັງ login — ຊ່າງເຂົ້າຄິວຂອງຕົນ, ບໍ່ເຂົ້າ dashboard ລວມ. */
 export function homeForRole(role: Role): string {
+  /**
+   * ຜູ້ຈັດການມີໜ້າແລກຂອງຕົນ (/overview) — "ມີຫຍັງຄ້າງທີ່ຕ້ອງຕັດສິນ" ເທິງ ແລະ KPI ລຸ່ມ.
+   * /dashboard ເປັນໜ້າລວມຂອງ**ຄົນທີ່ລົງມືເຮັດຄິວ** ຈຶ່ງບໍ່ຕອບຄຳຖາມຂອງຜູ້ຈັດການ.
+   */
+  if (role === "manager") return "/overview";
   return role === "technical" ? "/installations/schedule" : "/dashboard";
 }
 
@@ -114,6 +119,8 @@ type Rule = { path: string; exact?: boolean; roles: Role[] };
 const RULES: Rule[] = [
   /* ໜ້າກາງ — ທຸກຄົນເຫັນໄດ້ */
   { path: "/forbidden", roles: EVERYONE },
+  // ໜ້າແລກຂອງຜູ້ຈັດການ — ໜ້ານີ້ເອງກໍ່ redirect ຄົນອື່ນໄປ /dashboard ອີກຊັ້ນ
+  { path: "/overview", roles: [M] },
   // dashboard/status ເປັນພາບລວມທັງລະບົບ; ຊ່າງເຂົ້າຄິວຂອງຕົນແທນ.
   { path: "/dashboard", roles: EVERYONE.filter((role) => role !== T) },
   { path: "/assistant", roles: EVERYONE },

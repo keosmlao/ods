@@ -1,6 +1,8 @@
 import { getDashboard } from "@/lib/dashboard";
+import { getManagerOverview, monthRevenue, type AgeBucket, type OldJob } from "@/lib/manager-overview";
 import { listTechnicians } from "@/lib/technicians";
 import { query } from "@/lib/db";
+import { STAGE_LABEL } from "@/lib/stage";
 
 /**
  * ພາບລວມສຳລັບຜູ້ຈັດການ ຢູ່ມືຖື — **ຫຍໍ້ຈາກ** getDashboard (ໜ້າ dashboard ຂອງເວັບ)
@@ -22,6 +24,21 @@ export type MobileOverview = {
   /** ຊ່າງສູນບໍລິການ **ທີ່ວ່າງ** (ບໍ່ມີວຽກຄ້າງ) — ຊື່ເຕັມ */
   tech_free: string[];
   feedback: { avg: number | null; jobs: number; unhappy: number };
+
+  /**
+   * ── ພາກ "ຜູ້ຈັດການ" (ເພີ່ມ 31-07-2026) — ຄືກັບໜ້າ /overview ຂອງເວັບ ──
+   * ອ່ານຈາກ lib/manager-overview ບ່ອນດຽວກັບເວັບ ⇒ ຕົວເລກໃນແອັບກັບໃນເວັບບໍ່ຫຼົ້ນກັນ.
+   */
+  aging: AgeBucket[];
+  open_total: number;
+  /** ໃບເກົ່າສຸດ + ຊື່ຂັ້ນທີ່ແປແລ້ວ (ແອັບບໍ່ຮູ້ຈັກ STAGE_LABEL) */
+  oldest: (OldJob & { stage_label: string })[];
+  tech_backlog: { tech: string; open: number; oldest_days: number; stale: number }[];
+  claims: { open: number; wait_decision: number };
+  loaners: number;
+  flow: { opened: number; closed: number };
+  /** ລາຍຮັບງານສ້ອມເດືອນນີ້ — ບາດ (ຕົວເລກດິບ, ແອັບຈັດຮູບເອງ) */
+  money: { quoted: number; paid: number; due: number };
 };
 
 /** ຂັ້ນຫຼັກຂອງງານສ້ອມ ທີ່ຄວນເຫັນເປັນ funnel (slug ຕ້ອງກົງກັບ dashboard-status) */
@@ -43,6 +60,8 @@ export async function mobileOverview(days = 30): Promise<MobileOverview> {
   // tech = null ⇒ ຕົວເລກທັງບໍລິສັດ (ຜູ້ຈັດການເຫັນໝົດ)
   const { data, error } = await getDashboard(null, days);
   if (error || !data) throw new Error("dashboard unavailable");
+
+  const [mgr, money] = await Promise.all([getManagerOverview(days), monthRevenue()]);
 
   // ── ຊ່າງວ່າງ/ບໍ່ຫວ່າງ: ຊ່າງສູນບໍລິການທັງໝົດ vs ຄົນທີ່ມີວຽກຄ້າງ (techLoad) ──
   const techs = await listTechnicians();
@@ -85,5 +104,22 @@ export async function mobileOverview(days = 30): Promise<MobileOverview> {
       jobs: data.feedback.jobs,
       unhappy: data.feedback.unhappy_jobs,
     },
+
+    aging: mgr.aging,
+    open_total: mgr.openTotal,
+    oldest: mgr.oldest.map((job) => ({
+      ...job,
+      // ຊື່ຊ່າງເຕັມຄືກັບ tech_load — ບໍ່ດັ່ງນັ້ນລາຍການດຽວກັນສະກົດຄົນລະແບບໃນ 2 ບັດ
+      tech: job.tech ? (nameOf.get(job.tech) ?? job.tech) : null,
+      stage_label: STAGE_LABEL[job.stage] ?? String(job.stage),
+    })),
+    tech_backlog: mgr.techBacklog.map((row) => ({
+      ...row,
+      tech: nameOf.get(row.tech) ?? row.tech,
+    })),
+    claims: { open: mgr.claims.open, wait_decision: mgr.claims.waitDecision },
+    loaners: mgr.loaners,
+    flow: mgr.flow,
+    money,
   };
 }
