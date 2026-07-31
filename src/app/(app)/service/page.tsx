@@ -131,7 +131,12 @@ function sortPending(cards: BoardCard[], sort: string, dir: SortDir): BoardCard[
 
 export default async function ServicePage({ searchParams }: Props) {
   const params = await searchParams;
-  const jobKind = params.kind === "claim" || params.kind === "repair" ? params.kind : "";
+  /**
+   * ── ໜ້ານີ້ແຍກເປັນ **ຄົນລະເມນູ** ກັບເຄມ (31-07-2026) ──
+   * ບໍ່ມີ ?kind ⇒ **ງານສ້ອມ** (ບໍ່ແມ່ນ "ທັງໝົດ" ຄືເກົ່າ) ⇒ ຄົນສ້ອມບໍ່ເຫັນງານເຄມປົນ.
+   * ເມນູ "ເຄມ → ລາຍການເຄມປະຈຳວັນ" ຊີ້ມາ ?kind=claim ໃຊ້ໜ້າດຽວກັນ (ໂຄງ/ຕົວກອງຄືກັນ).
+   */
+  const jobKind = params.kind === "claim" ? "claim" : "repair";
   const q = (params.q ?? "").trim();
   /**
    * ── ຖອດແທັບ "ຈົບແລ້ວ / ຍົກເລີກ" ອອກ (13-07-2026) ──
@@ -179,11 +184,10 @@ export default async function ServicePage({ searchParams }: Props) {
   const canHold = (await settingEnabled(SETTING.JOB_HOLD)) && APPROVER_SIDE.includes(roleOf(session));
 
   const [allBoard, noticeCount] = await Promise.all([getBoard(q, status, service, from, to), getNoticeCount()]);
-  const kindCounts = {
-    repair: allBoard.filter((row) => row.job_kind !== "claim").length,
-    claim: allBoard.filter((row) => row.job_kind === "claim").length,
-  };
-  const rawBoard = jobKind ? allBoard.filter((row) => row.job_kind === jobKind) : allBoard;
+  // ກອງຕາມຝັ່ງ (ສ້ອມ = ທຸກແຖວທີ່ບໍ່ແມ່ນເຄມ ລວມໃບເກົ່າທີ່ job_kind ຫວ່າງ)
+  const rawBoard = allBoard.filter((row) =>
+    jobKind === "claim" ? row.job_kind === "claim" : row.job_kind !== "claim",
+  );
 
   // ຊ່າງ / ຜູ້ສ້າງເອກະສານ ບາງໃບເກັບເປັນ **ລະຫັດ** (22020) — ແປເປັນຊື່ຈາກ odg_employee
   const names = await employeeNameMap(rawBoard.flatMap((c) => [c.technician, c.creator]));
@@ -275,7 +279,9 @@ export default async function ServicePage({ searchParams }: Props) {
     <div className="w-full space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-700">{t.title}</h1>
+          <h1 className="text-2xl font-bold text-slate-700">
+            {jobKind === "claim" ? "ຮັບເຄື່ອງເຄມປະຈຳວັນ" : t.title}
+          </h1>
           <p className="mt-1 text-sm text-slate-500">
             {/* ບອກໃຫ້ຊັດວ່າກຳລັງເບິ່ງ "ຮັບເຂົ້າວັນໃດ" — ບໍ່ດັ່ງນັ້ນຄົນຈະເຂົ້າໃຈວ່າເປັນວຽກຄ້າງທັງໝົດ */}
             {from === to ? `${t.receivedOn} ${from}` : `${t.receivedOn} ${from} ${t.receivedTo} ${to}`} · {total} {t.unit}
@@ -329,25 +335,6 @@ export default async function ServicePage({ searchParams }: Props) {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {[
-          { value: "", label: "ທັງໝົດ", count: kindCounts.repair + kindCounts.claim, tone: "slate" },
-          { value: "repair", label: "🔧 ງານສ້ອມ", count: kindCounts.repair, tone: "teal" },
-          { value: "claim", label: "🛡️ ງານເຄມ", count: kindCounts.claim, tone: "violet" },
-        ].map((item) => (
-          <Link
-            key={item.value || "all"}
-            href={`/service?${new URLSearchParams({ ...(q && { q }), ...(status !== null && { status: String(status) }), ...(service && { service }), ...(item.value && { kind: item.value }), from, to })}`}
-            className={`rounded-xl border px-3 py-2 text-sm font-semibold ${
-              jobKind === item.value
-                ? item.tone === "violet" ? "border-violet-500 bg-violet-600 text-white" : item.tone === "teal" ? "border-teal-500 bg-teal-600 text-white" : "border-slate-700 bg-slate-800 text-white"
-                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            {item.label} <b className="ml-1 tabular-nums">{item.count}</b>
-          </Link>
-        ))}
-      </div>
 
       {/* ຄົ້ນຫາ + ຕົວກອງ + ສະຫຼັບມຸມມອງ */}
       <form className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">

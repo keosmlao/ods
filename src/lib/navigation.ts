@@ -228,9 +228,17 @@ const CLAIM: NavGroup = {
   icon: ReceiptText,
   // ແຍກ 3 ໜ້າ ຕາມຂັ້ນຕອນ: ① ຮ້ານ→ສູນ (ໃບແມ່) → ② ຂໍອາໄຫຼ່ supplier → ③ ເກັບຄ່າສ້ອມ
   items: [
-    { label: "ຮັບເຄມຈາກຮ້ານ", href: "/claims/shop" },
-    { label: "ເຄມອາໄຫຼ່ supplier", href: "/claims/supplier" },
-    { label: "ເກັບຄ່າສ້ອມ supplier", href: "/claims/reimburse" },
+    /**
+     * ── ວຽກປະຈຳວັນຂອງເຄມ (ແຍກຄົນລະເມນູກັບສ້ອມ 31-07-2026) ──
+     * ແຕ່ກ່ອນຕ້ອງໄປ "ຮັບສິນຄ້າສ້ອມປະຈຳວັນ" ແລ້ວສະຫຼັບແທັບ ⇒ ປົນກັນ.
+     * ດຽວນີ້ 2 ລາຍການທຳອິດຄື **ຮັບເຄື່ອງ** ແລະ **ລາຍການປະຈຳວັນ** ຂອງເຄມເອງ.
+     */
+    // labelKey ແຍກ — href ຂອງ 2 ອັນນີ້ຊ້ຳກັບເມນູຝັ່ງສ້ອມ (ຕ່າງກັນແຕ່ ?kind) ⇒ ຢ່າໃຫ້ dict ແປທັບກັນ
+    { label: "ຮັບເຄື່ອງເຄມ (ຈາກຮ້ານ)", href: "/service/new?kind=claim", labelKey: "claim:intake" },
+    { label: "ລາຍການເຄມປະຈຳວັນ", href: "/service?kind=claim", labelKey: "claim:daily" },
+    { label: "ໃບເຄມ: ຮັບເຄມຈາກຮ້ານ", href: "/claims/shop", divider: true },
+    { label: "ໃບເຄມ: ເຄມອາໄຫຼ່ supplier", href: "/claims/supplier" },
+    { label: "ໃບເຄມ: ເກັບຄ່າສ້ອມ supplier", href: "/claims/reimburse" },
     /**
      * ── ຄິວງານເຄມ (ແຍກອອກຈາກກຸ່ມ "ສະຖານະງານສ້ອມ" 31-07-2026) ──
      * ແຕ່ກ່ອນ 4 ຄິວນີ້ປົນຢູ່ໃນ 12 ຂັ້ນຂອງສ້ອມ ⇒ ຄົນສ້ອມເຫັນວຽກທີ່ບໍ່ແມ່ນຂອງຕົນ
