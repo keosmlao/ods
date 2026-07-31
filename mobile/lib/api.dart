@@ -941,6 +941,29 @@ class OverviewBacklog {
   );
 }
 
+/// ສະຫຼຸບ 1 ສາຍງານ — ເປີດຢູ່ຈັກໃບ ໃນນັ້ນຄ້າງເກີນ 30 ມື້ຈັກໃບ
+class WorkflowSummary {
+  final String key;
+  final String label;
+  final int open;
+  final int stale;
+  final int oldestDays;
+  WorkflowSummary({
+    required this.key,
+    required this.label,
+    required this.open,
+    required this.stale,
+    required this.oldestDays,
+  });
+  factory WorkflowSummary.fromJson(Map<String, dynamic> json) => WorkflowSummary(
+    key: json['key'] as String? ?? '',
+    label: json['label'] as String? ?? '',
+    open: (json['open'] as num?)?.toInt() ?? 0,
+    stale: (json['stale'] as num?)?.toInt() ?? 0,
+    oldestDays: (json['oldest_days'] as num?)?.toInt() ?? 0,
+  );
+}
+
 /// ພາບລວມບໍລິຫານ (ໜ້າຫຼັກຜູ້ຈັດການ) — ຫຍໍ້ຈາກ dashboard ຝັ່ງເວັບ
 class Overview {
   final int repairOpen;
@@ -979,6 +1002,7 @@ class Overview {
   final double moneyQuoted;
   final double moneyPaid;
   final double moneyDue;
+  final List<WorkflowSummary> workflows;
 
   /// ຄ້າງເກີນ 30 ມື້ຈັກໃບ — ຕົວເລກດຽວທີ່ບອກສຸຂະພາບຂອງສູນໄດ້ດີສຸດ
   int get staleJobs =>
@@ -1023,6 +1047,7 @@ class Overview {
     required this.moneyQuoted,
     required this.moneyPaid,
     required this.moneyDue,
+    required this.workflows,
   });
 
   factory Overview.fromJson(Map<String, dynamic> json) {
@@ -1083,6 +1108,9 @@ class Overview {
       moneyQuoted: d(money, 'quoted'),
       moneyPaid: d(money, 'paid'),
       moneyDue: d(money, 'due'),
+      workflows: ((json['workflows'] as List?) ?? [])
+          .map((row) => WorkflowSummary.fromJson(row as Map<String, dynamic>))
+          .toList(),
     );
   }
 }

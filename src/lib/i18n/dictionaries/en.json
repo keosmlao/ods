@@ -4854,6 +4854,10 @@
     "techEmpty": "No backlog",
     "techStale": "stale",
     "moreReport": "Open report",
-    "feedbackScale": "(lower is better)"
+    "feedbackScale": "(lower is better)",
+    "workflowsTitle": "By workflow",
+    "workflowStale": "older than 30 days",
+    "workflowClean": "nothing over 30 days",
+    "workflowOldest": "oldest"
   }
 }

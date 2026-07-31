@@ -227,6 +227,15 @@ class _ManagerScreenState extends State<ManagerScreen> {
         ),
       ),
 
+      // ── ແຍກຕາມສາຍງານ — ຕົວເລກລວມເຊື່ອງໄວ້ວ່າສາຍໃດເປັນຕົ້ນເຫດ ──
+      if (d.workflows.isNotEmpty)
+        _Card(
+          title: 'ແຍກຕາມສາຍງານ',
+          child: Column(
+            children: [for (final w in d.workflows) _WorkflowRow(row: w)],
+          ),
+        ),
+
       // ── ② ຕ້ອງລົງມື ──
       _Card(
         title: 'ຕ້ອງລົງມື',
@@ -455,6 +464,62 @@ String _money(double value) {
   if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
   if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
   return value.toStringAsFixed(0);
+}
+
+/// 1 ແຖວສະຫຼຸບສາຍງານ — ແດງ = ຄ້າງເກີນ 30 ມື້
+class _WorkflowRow extends StatelessWidget {
+  const _WorkflowRow({required this.row});
+  final WorkflowSummary row;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 7),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 74,
+          child: Text(
+            row.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: ink),
+          ),
+        ),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: SizedBox(
+              height: 8,
+              child: Row(
+                children: [
+                  if (row.stale > 0)
+                    Expanded(flex: row.stale, child: const ColoredBox(color: danger)),
+                  if (row.open - row.stale > 0)
+                    Expanded(flex: row.open - row.stale, child: const ColoredBox(color: teal)),
+                  if (row.open == 0) const Expanded(child: ColoredBox(color: Color(0xFFEFF3F1))),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 104,
+          child: Text(
+            row.stale > 0
+                ? '${row.open} ໃບ · ຄ້າງ ${row.stale}'
+                : '${row.open} ໃບ${row.oldestDays > 0 ? ' · ${row.oldestDays} ມື້' : ''}',
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 11,
+              color: row.stale > 0 ? danger : muted,
+              fontWeight: row.stale > 0 ? FontWeight.w700 : FontWeight.w400,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 /// ປຸ່ມທາງລັດໄປໜ້າອື່ນ (ແຜນທີ່ · ຄ່າຄອມ)

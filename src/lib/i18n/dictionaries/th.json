@@ -4854,6 +4854,10 @@
     "techEmpty": "ไม่มีงานค้าง",
     "techStale": "ค้าง",
     "moreReport": "เปิดรายงาน",
-    "feedbackScale": "(ต่ำ = ดี)"
+    "feedbackScale": "(ต่ำ = ดี)",
+    "workflowsTitle": "แยกตามสายงาน",
+    "workflowStale": "ค้างเกิน 30 วัน",
+    "workflowClean": "ไม่มีใบค้างเกิน 30 วัน",
+    "workflowOldest": "เก่าสุด"
   }
 }

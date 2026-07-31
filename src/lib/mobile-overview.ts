@@ -1,5 +1,11 @@
 import { getDashboard } from "@/lib/dashboard";
-import { getManagerOverview, monthRevenue, type AgeBucket, type OldJob } from "@/lib/manager-overview";
+import {
+  getManagerOverview,
+  monthRevenue,
+  type AgeBucket,
+  type OldJob,
+  type WorkflowSummary,
+} from "@/lib/manager-overview";
 import { listTechnicians } from "@/lib/technicians";
 import { query } from "@/lib/db";
 import { STAGE_LABEL } from "@/lib/stage";
@@ -39,6 +45,8 @@ export type MobileOverview = {
   flow: { opened: number; closed: number };
   /** ລາຍຮັບງານສ້ອມເດືອນນີ້ — ບາດ (ຕົວເລກດິບ, ແອັບຈັດຮູບເອງ) */
   money: { quoted: number; paid: number; due: number };
+  /** ສະຫຼຸບແຍກຕາມສາຍງານ (ສ້ອມ · ຕິດຕັ້ງ · ເຄມ · ສ້ອມບຳລຸງ) */
+  workflows: WorkflowSummary[];
 };
 
 /**
@@ -127,5 +135,6 @@ export async function mobileOverview(days = 30): Promise<MobileOverview> {
     loaners: mgr.loaners,
     flow: mgr.flow,
     money,
+    workflows: mgr.workflows,
   };
 }

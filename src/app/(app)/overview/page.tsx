@@ -158,6 +158,47 @@ export default async function ManagerOverview() {
         </div>
       </section>
 
+      {/* ── ສະຫຼຸບແຍກຕາມສາຍງານ — ຕົວເລກລວມເຊື່ອງໄວ້ວ່າສາຍໃດເປັນຕົ້ນເຫດ ── */}
+      <section>
+        <h2 className="mb-2 text-sm font-bold text-slate-700">{t.workflowsTitle}</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {mgr.workflows.map((flow) => (
+            <Link
+              key={flow.key}
+              href={flow.href}
+              className={`rounded-xl border bg-white p-4 shadow-sm transition ${
+                flow.stale > 0 ? "border-red-200 hover:border-red-400" : "border-slate-200 hover:border-teal-300"
+              }`}
+            >
+              <p className="text-xs font-bold text-slate-500">{flow.label}</p>
+              <p className="mt-1">
+                <span className="text-2xl font-black text-slate-800">{flow.open}</span>
+                <span className="ml-1 text-[11px] text-slate-400">{t.jobsUnit}</span>
+              </p>
+              {/* ແຖບ: ແດງ = ຄ້າງເກີນ 30 ມື້ · ຂຽວ = ຍັງຢູ່ໃນເກນ */}
+              <span className="mt-2 flex h-1.5 overflow-hidden rounded-full bg-slate-100">
+                <span style={{ width: `${flow.open ? (flow.stale / flow.open) * 100 : 0}%` }} className="bg-red-500" />
+                <span style={{ width: `${flow.open ? ((flow.open - flow.stale) / flow.open) * 100 : 0}%` }} className="bg-teal-400" />
+              </span>
+              <p className="mt-1.5 text-[11px] text-slate-500">
+                {flow.stale > 0 ? (
+                  <span className="font-semibold text-red-600">
+                    {flow.stale} {t.workflowStale}
+                  </span>
+                ) : (
+                  <span className="text-emerald-600">{t.workflowClean}</span>
+                )}
+                {flow.oldest_days > 0 && (
+                  <span className="ml-2 text-slate-400">
+                    · {t.workflowOldest} {flow.oldest_days}{t.daysUnit}
+                  </span>
+                )}
+              </p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* ── ① ບັດຕ້ອງລົງມື ── */}
       <section>
         <h2 className="mb-2 text-sm font-bold text-slate-700">{t.actionsTitle}</h2>

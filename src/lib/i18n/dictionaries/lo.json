@@ -4854,6 +4854,10 @@
     "techEmpty": "ບໍ່ມີວຽກຄ້າງ",
     "techStale": "ຄ້າງ",
     "moreReport": "ເປີດລາຍງານ",
-    "feedbackScale": "(ຕໍ່າ = ດີ)"
+    "feedbackScale": "(ຕໍ່າ = ດີ)",
+    "workflowsTitle": "ແຍກຕາມສາຍງານ",
+    "workflowStale": "ຄ້າງເກີນ 30 ມື້",
+    "workflowClean": "ບໍ່ມີໃບຄ້າງເກີນ 30 ມື້",
+    "workflowOldest": "ເກົ່າສຸດ"
   }
 }

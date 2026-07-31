@@ -1,4 +1,6 @@
 import { query } from "@/lib/db";
+import { INSTALL_OPEN } from "@/lib/install-stage";
+import { MAINTENANCE_OPEN } from "@/lib/maintenance-stage";
 import { ACCEPTED_QUOTE } from "@/lib/service-money";
 import { IS_CLAIM, NOT_CLAIM, STAGE_SQL } from "@/lib/stage";
 
@@ -44,6 +46,25 @@ export type TechBacklog = {
   stale: number;
 };
 
+/**
+ * ສະຫຼຸບ **ຕໍ່ສາຍງານ** — ຜູ້ຈັດການຄຸມ 4 ສາຍ ແລະ ແຕ່ລະສາຍມີສຸຂະພາບຂອງຕົນ.
+ * ຕົວເລກລວມອັນດຽວເຊື່ອງໄວ້ວ່າ **ສາຍໃດເປັນຕົ້ນເຫດ** (ເຊັ່ນ ສ້ອມຄ້າງ 46 ໃບ
+ * ແຕ່ຕິດຕັ້ງບໍ່ຄ້າງຈັກໃບ — ຄົນລະບັນຫາກັນ, ຄົນລະຄົນຮັບຜິດຊອບ).
+ *
+ * ⚠️ ນິຍາມ "ເປີດຢູ່" ຂອງແຕ່ລະສາຍໃຊ້ຄ່າຄົງທີ່ຂອງສາຍນັ້ນເອງ (INSTALL_OPEN ·
+ * MAINTENANCE_OPEN …) ບໍ່ແມ່ນຂຽນເງື່ອນໄຂໃໝ່ຢູ່ນີ້ ⇒ ຕົວເລກຕົງກັບໜ້າຄິວຂອງສາຍນັ້ນ.
+ */
+export type WorkflowSummary = {
+  key: "repair" | "install" | "claim" | "maintenance";
+  label: string;
+  open: number;
+  /** ຄ້າງເກີນ 30 ມື້ — ຕົວທີ່ບອກວ່າສາຍນີ້ມີບັນຫາຈິງ ບໍ່ແມ່ນພຽງແຕ່ຫຍຸ້ງ */
+  stale: number;
+  oldest_days: number;
+  /** ເສັ້ນທາງເວັບຂອງຄິວສາຍນັ້ນ */
+  href: string;
+};
+
 export type ManagerOverview = {
   /** ງານສ້ອມທີ່ຍັງເປີດຢູ່ ແບ່ງຕາມອາຍຸ — ລວມກັນ = ງານເປີດທັງໝົດ (ບໍ່ຫຼົ້ນກັນ) */
   aging: AgeBucket[];
@@ -55,6 +76,8 @@ export type ManagerOverview = {
   loaners: number;
   /** ງານທີ່ຈົບແລ້ວ ທຽບກັບ ງານທີ່ເປີດ ໃນ N ມື້ — ຕິດລົບ = ກອງວຽກສູງຂຶ້ນ */
   flow: { opened: number; closed: number };
+  /** ສະຫຼຸບແຍກຕາມສາຍງານ (ສ້ອມ · ຕິດຕັ້ງ · ເຄມ · ສ້ອມບຳລຸງ) */
+  workflows: WorkflowSummary[];
 };
 
 /**
@@ -95,7 +118,16 @@ export async function monthRevenue(): Promise<MonthMoney> {
 const AGE_DAYS = `extract(day from localtimestamp - coalesce(a.time_register, a.create_date_time_now))::int`;
 
 export async function getManagerOverview(days = 30): Promise<ManagerOverview> {
-  const [aging, oldest, techBacklog, claims, loaners, flow] = await Promise.all([
+  /** ນັບ "ເປີດ · ຄ້າງເກີນ 30 ມື້ · ເກົ່າສຸດ" ຂອງ 1 ສາຍງານ ດ້ວຍຮູບແບບດຽວກັນ */
+  const summarize = (table: string, open: string, age: string) =>
+    query<{ open: number; stale: number; oldest_days: number }>(
+      `select count(*)::int open,
+              count(*) filter (where ${age} > 30)::int stale,
+              coalesce(max(${age}), 0)::int oldest_days
+         from ${table} a where ${open}`,
+    );
+
+  const [aging, oldest, techBacklog, claims, loaners, flow, repairSum, installSum, claimSum, maintSum] = await Promise.all([
     query<{ key: AgeBucket["key"]; n: number }>(
       `select case when ${AGE_DAYS} > 30 then 'over30'
                    when ${AGE_DAYS} > 14 then 'd30'
@@ -145,7 +177,34 @@ export async function getManagerOverview(days = 30): Promise<ManagerOverview> {
         where ${NOT_CLAIM}`,
       [days],
     ),
+
+    summarize("tb_product", `${OPEN_JOB} and ${NOT_CLAIM}`, AGE_DAYS),
+    summarize(
+      "ods_tb_install",
+      INSTALL_OPEN,
+      "extract(day from localtimestamp - a.time_register)::int",
+    ),
+    summarize("tb_product", `${OPEN_JOB} and ${IS_CLAIM}`, AGE_DAYS),
+    summarize(
+      "ods_tb_maintenance",
+      MAINTENANCE_OPEN,
+      "extract(day from localtimestamp - a.time_register)::int",
+    ),
   ]);
+
+  const workflow = (
+    key: WorkflowSummary["key"],
+    label: string,
+    href: string,
+    rows: { rows: { open: number; stale: number; oldest_days: number }[] },
+  ): WorkflowSummary => ({
+    key,
+    label,
+    href,
+    open: rows.rows[0]?.open ?? 0,
+    stale: rows.rows[0]?.stale ?? 0,
+    oldest_days: rows.rows[0]?.oldest_days ?? 0,
+  });
 
   const byKey = new Map(aging.rows.map((row) => [row.key, row.n]));
   const buckets: AgeBucket[] = (["d7", "d14", "d30", "over30"] as const).map((key) => ({
@@ -161,5 +220,11 @@ export async function getManagerOverview(days = 30): Promise<ManagerOverview> {
     claims: { open: claims.rows[0]?.open ?? 0, waitDecision: claims.rows[0]?.wait_decision ?? 0 },
     loaners: loaners.rows[0]?.n ?? 0,
     flow: { opened: flow.rows[0]?.opened ?? 0, closed: flow.rows[0]?.closed ?? 0 },
+    workflows: [
+      workflow("repair", "ສ້ອມແປງ", "/reports/pending", repairSum),
+      workflow("install", "ຕິດຕັ້ງ", "/installations", installSum),
+      workflow("claim", "ເຄມ", "/claims/jobs", claimSum),
+      workflow("maintenance", "ສ້ອມບຳລຸງ", "/maintenance", maintSum),
+    ],
   };
 }
