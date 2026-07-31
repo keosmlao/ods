@@ -1,7 +1,7 @@
 import type { Session } from "@/lib/auth";
 import { unreadTotal } from "@/lib/chat";
 import { unstable_cache } from "next/cache";
-import { installStatuses, pipelineOf, repairStatuses } from "@/lib/dashboard-status";
+import { claimStatuses, installStatuses, pipelineOf, repairStatuses } from "@/lib/dashboard-status";
 import { query, queryOdg } from "@/lib/db";
 import { INSTALL_STAGE_SQL, installStageIs } from "@/lib/install-stage";
 import { INSTALL_SPARE_REQUEST_QUEUE } from "@/lib/install-spare-request";
@@ -23,6 +23,13 @@ import { CANCELLED_JOBS, NOT_MISSING, STAGE_SQL } from "@/lib/stage";
  * ໜ້າ /dashboard/status/repair/<slug> ສະແດງທຸກວຽກ (ບໍ່ໃຊ້ ownJobsOnly).
  * key = href ຂອງລາຍການເມນູ; slug + condition ມາຈາກ repairStatuses ບ່ອນດຽວ.
  */
+const CLAIM_STAGE_COUNTS = pipelineOf(claimStatuses)
+  .map(
+    ([slug, def]) =>
+      `(select count(*) from tb_product a where (${def.condition}) and ${NOT_MISSING})::int as "/dashboard/status/repair/${slug}"`,
+  )
+  .join(",\n          ");
+
 const REPAIR_STAGE_COUNTS = pipelineOf(repairStatuses)
   .map(
     ([slug, def]) =>
@@ -214,6 +221,7 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
 
           -- ── ສະຖານະງານສ້ອມ: ຂັ້ນຮັບງານຖືກລວມເຂົ້າ wait-check ແລ້ວ ──
           ${REPAIR_STAGE_COUNTS},
+          ${CLAIM_STAGE_COUNTS},
 
           -- ── 9 ຄິວຫຼັກຂອງງານຕິດຕັ້ງ (0-8) ──
           ${INSTALL_STAGE_COUNTS}`,

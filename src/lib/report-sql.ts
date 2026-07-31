@@ -1,6 +1,6 @@
 import { query, queryOdg } from "@/lib/db";
 import { INSTALL_STAGE_LABEL_SQL } from "@/lib/install-stage";
-import { CANCELLED_JOBS, NOT_MISSING, STAGE_LABEL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
+import { CANCELLED_JOBS, NOT_MISSING, STAGE_LABEL, STAGE_LABEL_SQL, STAGE_SQL, NOT_CLAIM } from "@/lib/stage";
 import type { XlsxColumn } from "@/lib/xlsx";
 
 /*
@@ -317,6 +317,8 @@ const stageTimes = `to_char(a.time_register,'DD-MM-YYYY HH24:MI:SS') time_regist
 const productBase = `row_number() over (order by a.time_register) rnum,
   a.code, b.name_1 customer, b.tel, a.name_1 product, a.sn, a.p_model, a.p_brand, a.p_access,
   a.warrunty, a.service_type, a.issue, a.doc_def, a.user_regis, a.emp_code,
+  -- ປະເພດງານ: repair | claim — ລາຍງານສ້ອມກອງເຄມອອກ (ເບິ່ງ lib/stage NOT_CLAIM)
+  coalesce(a.job_kind,'repair') job_kind,
   ${stageTimes},
   ${statusName}
   from tb_product a
@@ -343,7 +345,7 @@ export async function fetchReceiptTurnaround(from: string, to: string) {
     "from tb_product a",
     `, (a.return_complete - a.time_register)::text success from tb_product a`,
   )}
-    where a.time_register::date between $1 and $2 order by a.time_register`;
+    where a.time_register::date between $1 and $2 and ${NOT_CLAIM} order by a.time_register`;
   return (await query<Row>(sql, [from, to])).rows;
 }
 

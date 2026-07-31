@@ -17,7 +17,7 @@ import { UndoCustomerButton } from "@/components/quotation/approve-actions";
 import { QuoteRowActions } from "@/components/quotation/quote-row-actions";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { getSession } from "@/lib/auth";
-import { installStatuses, repairStatuses } from "@/lib/dashboard-status";
+import { claimStatuses, installStatuses, repairStatuses } from "@/lib/dashboard-status";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import {
@@ -229,7 +229,13 @@ export default async function StatusPage({ params, searchParams }: Props) {
   // ສະຖານະ overlay (ພັກຊົ່ວຄາວ / ໂອນໄປສູນ) ມີ condition ຂອງມັນເອງ ⇒ ຫ້າມເອົາ notHeldSql
   // ໄປ and ຊ້ຳ (heldSql and notHeldSql = ວ່າງ). ບໍ່ມີແທັບ ປົກກະຕິ/ມີບັນຫາ ໃນສະຖານະນີ້.
   const isPaused = isRepair && (status === "paused" || status === "transferring");
-  const config = isRepair ? repairStatuses[status] : workflow === "install" ? installStatuses[status] : null;
+  // ຄິວເຄມ (claimStatuses) ໃຊ້ຕາຕະລາງ tb_product ອັນດຽວກັນ ⇒ ຢູ່ໃຕ້ workflow "repair"
+  // ຄືເກົ່າ ພຽງແຕ່ຄີຄົນລະຊຸດ ແລະ ເມນູຢູ່ກຸ່ມ "ເຄມ" (lib/navigation).
+  const config = isRepair
+    ? (repairStatuses[status] ?? claimStatuses[status])
+    : workflow === "install"
+      ? installStatuses[status]
+      : null;
   /**
    * ຄິວ "ລໍຖ້າສົ່ງຄືນ" ຮັບງານມາຈາກ **ສອງທາງ**: ສ້ອມສຳເລັດ (ຜ່ານ QC) ແລະ ຍົກເລີກ
    * (ເຄື່ອງຍັງຕ້ອງຄືນລູກຄ້າ + ອາດເກັບຄ່າກວດ) ⇒ ຄົນສົ່ງເຄື່ອງຕ້ອງຮູ້ວ່າແຖວນີ້ມາຈາກໃສ

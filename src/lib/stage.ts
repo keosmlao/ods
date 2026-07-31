@@ -180,6 +180,16 @@ export const DONE_JOBS = "a.return_complete is not null";
 export const CANCELLED_JOBS = "a.status = 6";
 
 /**
+ * ── ແຍກ **ງານເຄມ** ອອກຈາກ **ງານສ້ອມປົກກະຕິ** (31-07-2026) ──
+ * ເຄມນອນຢູ່ tb_product ຄືກັນ (ຕ້ອງມີບ່ອນເກັບຮູບ · ຊ່າງ · ຜົນກວດ · ອາໄຫຼ່) ແຕ່
+ * **ບໍ່ແມ່ນວຽກສ້ອມ** ⇒ ຄິວສ້ອມ · ລາຍງານສ້ອມ · KPI · ຄ່າຄອມ ຕ້ອງບໍ່ນັບມັນ
+ * ແລະ ເຄມມີຄິວ/ລາຍງານຂອງຕົນເອງ (dashboard-status.claimStatuses · ເມນູກຸ່ມ "ເຄມ").
+ * ໃຊ້ alias `a`.
+ */
+export const NOT_CLAIM = "coalesce(a.job_kind,'repair') <> 'claim'";
+export const IS_CLAIM = "coalesce(a.job_kind,'repair') = 'claim'";
+
+/**
  * ຕັດເຄື່ອງທີ່ໝາຍ "ນັບບໍ່ພົບ (ຫາຍ)" ຕອນກວດນັບ (ods_stock_count.found=false) ອອກຈາກຄິວ pending
  * — pending ເຫຼືອສະເພາະ job ທີ່ຍັງນັບໄດ້. ຍ້ອນຄືນໄດ້ (ລຶບ mark → ກັບເຂົ້າຄິວ). ໃຊ້ alias `a`.
  */

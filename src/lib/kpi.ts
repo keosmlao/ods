@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { NOT_CLAIM } from "@/lib/stage";
 import {
   REPAIR_SERVICE_TYPES,
   REPAIR_STAGE_OVERDUE_SQL,
@@ -99,7 +100,7 @@ export async function repairSlaCompliance(days: Period): Promise<RepairSlaCompli
           count(*)::int total,
           count(*) filter (where ${duration} between 0 and ${policy.hours[serviceType] * 3600})::int within_sla
         from tb_product a
-       where a.status <> 6 and a.service_type='${serviceType}'
+       where a.status <> 6 and a.service_type='${serviceType}' and ${NOT_CLAIM}
          and ${period.start} is not null and ${period.finish} is not null
          and ${period.finish} >= current_date - ($1::int)`;
     });

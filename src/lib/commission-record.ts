@@ -30,6 +30,21 @@ export async function recordPayout(workflow: Workflow, jobCode: string): Promise
   if (!db || !odgDb) return;
 
   try {
+    /**
+     * ── ງານເຄມບໍ່ຈ່າຍຄ່າຄອມສ້ອມ (31-07-2026) ──
+     * ເຄມນອນຢູ່ tb_product ຄືກັນ ແຕ່ບໍ່ແມ່ນວຽກສ້ອມທີ່ລູກຄ້າຈ່າຍຄ່າແຮງ
+     * ⇒ ຖ້າຈ່າຍຄ່າຄອມໃຫ້ ຈະເປັນລາຍຈ່າຍທີ່ບໍ່ມີລາຍຮັບຄູ່ກັນ (ເບິ່ງ lib/stage NOT_CLAIM).
+     */
+    if (workflow === "repair") {
+      const kind = (
+        await db.query<{ claim: boolean }>(
+          "select coalesce(job_kind,'repair')='claim' as claim from tb_product where code=$1",
+          [jobCode],
+        )
+      ).rows[0];
+      if (kind?.claim) return;
+    }
+
     const jobSql = workflow === "install" ? JOB_DIMS_INSTALL_SQL : JOB_DIMS_REPAIR_SQL;
     const job = (
       await db.query<JobDims & { item_code: string | null }>(jobSql, [jobCode])

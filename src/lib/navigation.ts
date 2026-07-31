@@ -1,6 +1,6 @@
 import { canAccess, type Role } from "@/lib/roles";
 import { resourceForPath } from "@/lib/permission-catalog";
-import { pipelineOf, repairStatuses } from "@/lib/dashboard-status";
+import { claimStatuses, pipelineOf, repairStatuses } from "@/lib/dashboard-status";
 import { MAINTENANCE_STATUSES } from "@/lib/maintenance-stage";
 import {
   Boxes,
@@ -231,6 +231,19 @@ const CLAIM: NavGroup = {
     { label: "ຮັບເຄມຈາກຮ້ານ", href: "/claims/shop" },
     { label: "ເຄມອາໄຫຼ່ supplier", href: "/claims/supplier" },
     { label: "ເກັບຄ່າສ້ອມ supplier", href: "/claims/reimburse" },
+    /**
+     * ── ຄິວງານເຄມ (ແຍກອອກຈາກກຸ່ມ "ສະຖານະງານສ້ອມ" 31-07-2026) ──
+     * ແຕ່ກ່ອນ 4 ຄິວນີ້ປົນຢູ່ໃນ 12 ຂັ້ນຂອງສ້ອມ ⇒ ຄົນສ້ອມເຫັນວຽກທີ່ບໍ່ແມ່ນຂອງຕົນ
+     * ແລະ ຄົນເຄມຕ້ອງໄປຫາຢູ່ເມນູສ້ອມ. ດຽວນີ້ຢູ່ກຸ່ມນີ້ຄົບ (ຮັບ → ກວດ → ຕັດສິນ → ຄືນຮ້ານ).
+     * href ຍັງເປັນ /dashboard/status/repair/<slug> ເພາະໃຊ້ຕາຕະລາງ tb_product ອັນດຽວກັນ.
+     */
+    ...pipelineOf(claimStatuses).map(([slug, def], index) => ({
+      label: `${index + 1}. ${def.label}`,
+      href: `/dashboard/status/repair/${slug}`,
+      count: `/dashboard/status/repair/${slug}`,
+      labelKey: `pipe:claim:${slug}`,
+      ...(index === 0 && { divider: true }),
+    })),
   ],
 };
 

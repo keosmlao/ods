@@ -1,7 +1,7 @@
 import { installStageIs } from "@/lib/install-stage";
 import { heldSql } from "@/lib/job-hold";
 import { inTransferSql } from "@/lib/repair-center";
-import { STAGE_SQL } from "@/lib/stage";
+import { IS_CLAIM, NOT_CLAIM, STAGE_SQL } from "@/lib/stage";
 
 /**
  * ຂັ້ນຂອງວຽກ ສຳລັບໜ້າລວມ ແລະ ໜ້າລາຍລະອຽດ /dashboard/status/<workflow>/<slug>.
@@ -10,8 +10,13 @@ import { STAGE_SQL } from "@/lib/stage";
  * ບໍ່ມີທາງບໍ່ຕົງກັນ.
  */
 
-/** ເງື່ອນໄຂ "ຢູ່ຂັ້ນນີ້" ຂອງ tb_product (alias a) */
-const stageIs = (stage: number) => `(${STAGE_SQL}) = ${stage}`;
+/**
+ * ເງື່ອນໄຂ "ຢູ່ຂັ້ນນີ້" ຂອງ tb_product (alias a).
+ * ⚠️ `stageIs` = **ງານສ້ອມປົກກະຕິ** (ຕັດເຄມອອກ) · `claimStageIs` = ງານເຄມ
+ * ⇒ ຄິວສອງຝັ່ງບໍ່ປົນກັນ ແລະ ຍອດບໍ່ນັບຊ້ຳ (ເບິ່ງ NOT_CLAIM ຢູ່ lib/stage).
+ */
+const stageIs = (stage: number) => `(${STAGE_SQL}) = ${stage} and ${NOT_CLAIM}`;
+const claimStageIs = (stage: number) => `(${STAGE_SQL}) = ${stage} and ${IS_CLAIM}`;
 
 export type StatusDef = {
   label: string;
@@ -55,10 +60,6 @@ export const repairStatuses: Record<string, StatusDef> = {
   },
   "wait-check": { label: "ຮັບງານ / ລໍຖ້າກວດເຊັກ", condition: stageIs(1), stage: 1 },
   checking: { label: "ກຳລັງກວດເຊັກ", condition: stageIs(2), stage: 2 },
-  "claim-decision": { label: "ລໍຕັດສິນຜົນເຄມ", condition: stageIs(13), stage: 13, order: 2.1 },
-  "claim-stock": { label: "ລໍປ່ຽນຈາກ Stock", condition: stageIs(14), stage: 14, order: 2.2 },
-  "claim-purchase": { label: "ລໍຂອງຈາກການສັ່ງຊື້", condition: stageIs(15), stage: 15, order: 2.3 },
-  "claim-supplier": { label: "ລໍຜົນ/ຂອງຈາກ Supplier", condition: stageIs(16), stage: 16, order: 2.4 },
   "wait-quote": { label: "ລໍຖ້າສະເໜີລາຄາ", condition: stageIs(3), stage: 3 },
   quoting: { label: "ກຳລັງສະເໜີລາຄາ", condition: stageIs(4), stage: 4 },
   "wait-withdraw": { label: "ກວດ Stock / ຊື້ ຫຼື ຂໍເບີກ", condition: stageIs(5), stage: 5 },
@@ -91,6 +92,26 @@ export const repairStatuses: Record<string, StatusDef> = {
    */
   transferring: { label: "ໂອນໄປສ້ອມສູນອື່ນ (ລໍຮັບ)", condition: inTransferSql },
   // ບໍ່ມີ "ຂໍ້ມູນຜິດປົກກະຕິ" ອີກຕໍ່ໄປ — STAGE_SQL ໃຫ້ຂັ້ນທຸກໃບສະເໝີ ຈຶ່ງຕົກຫຼົ່ນບໍ່ໄດ້
+};
+
+/**
+ * ── ຄິວຂອງ **ງານເຄມ** (ແຍກອອກຈາກສ້ອມ 31-07-2026) ──
+ *
+ * ເຄມເດີນ: ຮັບຈາກຮ້ານ → ຊ່າງກວດ → **ຕັດສິນ** (ສ້ອມ ຫຼື ປ່ຽນ: stock/ສັ່ງຊື້/supplier)
+ * → ຄືນຮ້ານ. ຂັ້ນ 13-16 ຂອງ STAGE_SQL ຄືສາຂາເຄມທີ່ບໍ່ໄຫຼເຂົ້າ "ລໍສ້ອມ" ຂອງງານທົ່ວໄປ.
+ *
+ * ⚠️ ຂັ້ນ 1/2/11 ໃຊ້ເລກດຽວກັບສ້ອມ ແຕ່ **ກອງດ້ວຍ IS_CLAIM** ⇒ ໃບດຽວກັນຈະຢູ່ຝັ່ງດຽວ
+ * ບໍ່ມີທາງນັບຊ້ຳ. ໜ້າ /dashboard/status/repair/<slug> ໃຊ້ໄດ້ຄືເກົ່າ (ຄີຢູ່ຊຸດດຽວກັນ)
+ * ພຽງແຕ່ **ເມນູ** ຢູ່ຄົນລະກຸ່ມ (lib/navigation).
+ */
+export const claimStatuses: Record<string, StatusDef> = {
+  "claim-wait-check": { label: "ຮັບຈາກຮ້ານ / ລໍຖ້າກວດ", condition: claimStageIs(1), stage: 1 },
+  "claim-checking": { label: "ກຳລັງກວດເຄມ", condition: claimStageIs(2), stage: 2 },
+  "claim-decision": { label: "ລໍຕັດສິນຜົນເຄມ", condition: claimStageIs(13), stage: 13 },
+  "claim-stock": { label: "ລໍປ່ຽນຈາກ Stock", condition: claimStageIs(14), stage: 14 },
+  "claim-purchase": { label: "ລໍຂອງຈາກການສັ່ງຊື້", condition: claimStageIs(15), stage: 15 },
+  "claim-supplier": { label: "ລໍຜົນ/ຂອງຈາກ Supplier", condition: claimStageIs(16), stage: 16 },
+  "claim-return": { label: "ລໍສົ່ງຄືນຮ້ານ", condition: claimStageIs(11), stage: 11 },
 };
 
 /**
