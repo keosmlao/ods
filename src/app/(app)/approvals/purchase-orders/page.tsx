@@ -44,23 +44,40 @@ type Row = {
   wpoa_date: string | null;
 };
 
-/** PO ຂອງສາຍງານເຮົາ: ຈາກໃບຂໍຊື້ຂອງວຽກສ້ອມ (SPR) ຫຼື ອອກໂດຍກົງ (ຊື້ຕຸນ) */
-const OURS = `(
-  exists (select 1 from ic_trans_detail d where d.doc_no=t.doc_no and d.trans_flag=$1
-           and d.ref_doc_no in (select w.doc_no from ic_trans_detail w
-                                 where w.trans_flag=$2 and w.ref_doc_no like 'SPR%'))
-  or not exists (select 1 from ic_trans_detail x where x.doc_no=t.doc_no and x.trans_flag=$1
-                  and coalesce(x.ref_doc_no,'') <> '')
+/**
+ * ── CTE ແທນ subquery ຕໍ່ແຖວ (31-07-2026) ──
+ *
+ * ⚠️ WPOA ຜູກທາງຫົວໃບ — ແຖວຂອງມັນ ref_doc_no ຫວ່າງ 100% (15,240 ແຖວ) ⇒ ຕ້ອງຈັບຄູ່
+ * ດ້ວຍ `split_part(w.doc_ref,' ',1) = t.doc_no`. ຖ້າຂຽນເປັນ subquery ທີ່ຜູກກັບແຕ່ລະແຖວ
+ * ຈະໃຊ້ index ບໍ່ໄດ້ ແລະ ວັດແທ້ **25.8 ວິນາທີ** (ຄົນເປີດໜ້າຄິວແລ້ວນັ່ງລໍ).
+ * ກວາດ WPOA ຮອບດຽວໄວ້ໃນ CTE ແລ້ວຄົ້ນ ⇒ **0.4 ວິນາທີ** ຜົນລັບ 48 ໃບຄືກັນເປັນຕົວຕໍ່ຕົວ.
+ */
+const CTES = `with wpoa as (
+  select distinct split_part(trim(coalesce(doc_ref,'')),' ',1) as po
+    from ic_trans where trans_flag=$3 and doc_date >= current_date - 400
+),
+from_spr as (
+  select distinct d.doc_no from ic_trans_detail d
+    join ic_trans_detail w on w.doc_no = d.ref_doc_no and w.trans_flag=$2 and w.ref_doc_no like 'SPR%'
+   where d.trans_flag=$1
+),
+linked as (
+  select distinct doc_no from ic_trans_detail where trans_flag=$1 and coalesce(ref_doc_no,'') <> ''
 )`;
-/** ⚠️ WPOA ຜູກທາງຫົວໃບ — ແຖວຂອງມັນ ref_doc_no ຫວ່າງ 100% (15,240 ແຖວ) */
-const WPOA_OF = `(select min(w.doc_no) from ic_trans w
-  where w.trans_flag=$3 and split_part(trim(coalesce(w.doc_ref,'')),' ',1)=t.doc_no)`;
+
+/** PO ຂອງສາຍງານເຮົາ: ຈາກໃບຂໍຊື້ຂອງວຽກສ້ອມ (SPR) ຫຼື ອອກໂດຍກົງ (ຊື້ຕຸນ) */
+const OURS = `(t.doc_no in (select doc_no from from_spr) or t.doc_no not in (select doc_no from linked))`;
+const WPOA_OF = `(select min(w2.doc_no) from ic_trans w2
+  where w2.trans_flag=$3 and split_part(trim(coalesce(w2.doc_ref,'')),' ',1)=t.doc_no)`;
+/** ອະນຸມັດແລ້ວບໍ — ອ່ານຈາກ CTE (ໄວ); WPOA_OF ໃຊ້ສະເພາະຕອນຢາກໄດ້**ເລກໃບ**ຂອງແຖວທີ່ຄັດມາແລ້ວ */
+const APPROVED = `exists (select 1 from wpoa where wpoa.po = t.doc_no)`;
 
 async function getRows(waiting: boolean): Promise<Row[]> {
   try {
     return (
       await queryOdg<Row>(
-        `select t.doc_no, to_char(t.doc_date,'DD-MM-YYYY') doc_date,
+        `${CTES}
+         select t.doc_no, to_char(t.doc_date,'DD-MM-YYYY') doc_date,
             (current_date - t.doc_date)::int age,
             (select split_part(trim(coalesce(w.doc_ref,'')),' ',1) from ic_trans w
               where w.trans_flag=$2 and w.doc_no in (
@@ -78,7 +95,7 @@ async function getRows(waiting: boolean): Promise<Row[]> {
               where w.trans_flag=$3 and split_part(trim(coalesce(w.doc_ref,'')),' ',1)=t.doc_no) wpoa_date
           from ic_trans t
          where t.trans_flag=$1 and t.doc_date >= current_date - 365 and ${OURS}
-           and ${WPOA_OF} is ${waiting ? "null" : "not null"}
+           and ${waiting ? "not" : ""} ${APPROVED}
          order by t.doc_date ${waiting ? "asc" : "desc"}, t.doc_no
          limit 200`,
         [ERP_PURCHASE.ORDER, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER_APPROVE],

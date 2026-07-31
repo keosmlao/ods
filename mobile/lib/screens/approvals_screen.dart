@@ -265,7 +265,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
   );
 }
 
-/// ຫົວຂໍ້ຄິວອະນຸມັດ — ໃບສະເໜີລາຄາ · ຂໍຍົກເລີກ
+/// ຫົວຂໍ້ຄິວອະນຸມັດ — ໃບສະເໜີລາຄາ · ຂໍຍົກເລີກ · ໃບຂໍຊື້ · ໃບສັ່ງຊື້
 class _KindMeta {
   final String kind;
   final String label;
@@ -278,7 +278,16 @@ class _KindMeta {
 const _kindOrder = [
   _KindMeta('quotation', 'ໃບສະເໜີລາຄາ', 'ໃບສະເໜີລາຄາ', Icons.request_quote_outlined, Color(0xFF7C3AED)),
   _KindMeta('cancellation', 'ຂໍຍົກເລີກໃບຮັບເຄື່ອງ', 'ຂໍຍົກເລີກ', Icons.cancel_outlined, danger),
+  // ເພີ່ມ 31-07-2026 — ແຕ່ກ່ອນ 2 ອັນນີ້ບໍ່ມີໃນແອັບເລີຍ ⇒ ຜູ້ຈັດການບໍ່ເຫັນໃບສັ່ງຊື້
+  _KindMeta('purchase-request', 'ໃບຂໍຊື້ (SPR)', 'ໃບຂໍຊື້', Icons.playlist_add_check_rounded, Color(0xFF0891B2)),
+  _KindMeta('purchase-order', 'ໃບສັ່ງຊື້ (PO)', 'ໃບສັ່ງຊື້', Icons.local_shipping_outlined, Color(0xFFD97706)),
 ];
+
+/// ອະນຸມັດຢູ່ໃນແອັບໄດ້ບໍ — ໄດ້ສະເພາະ 2 ຊະນິດທີ່ `lib/approval-core` ຮອງຮັບ.
+///
+/// ໃບຂໍຊື້/ໃບສັ່ງຊື້ ອະນຸມັດແລ້ວຕ້ອງຂຽນເອກະສານ WPRA/WPOA ໃສ່ ERP ເຊິ່ງຍັງເຮັດຢູ່ເວັບ
+/// ⇒ ແອັບສະແດງໃຫ້ຮູ້ວ່າ **ມີຫຍັງຄ້າງ** ແລ້ວກົດເປີດໄປຕັດສິນຢູ່ເວັບ (ຢ່າໃສ່ປຸ່ມຫຼອກ).
+bool _canDecideInApp(String kind) => kind == 'quotation' || kind == 'cancellation';
 
 class _ApprovalCard extends StatelessWidget {
   const _ApprovalCard({
@@ -294,8 +303,9 @@ class _ApprovalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final quote = item.kind == 'quotation';
-    final accent = quote ? const Color(0xFF7C3AED) : danger;
+    final accent = _kindOrder
+        .firstWhere((m) => m.kind == item.kind, orElse: () => _kindOrder.first)
+        .color;
     // ຄ້າງເກີນ 3 ມື້ = ຖ່ວງງານແທ້ ⇒ ເນັ້ນສີແດງ
     final late = item.days >= 3;
 
@@ -368,7 +378,20 @@ class _ApprovalCard extends StatelessWidget {
                     // ── ປຸ່ມຕັດສິນ — ຫຍໍ້ ──
                     Padding(
                       padding: const EdgeInsets.fromLTRB(10, 0, 10, 9),
-                      child: Row(
+                      child: !_canDecideInApp(item.kind)
+                          ? OutlinedButton.icon(
+                              onPressed: onOpen,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: accent,
+                                minimumSize: const Size.fromHeight(34),
+                                padding: EdgeInsets.zero,
+                                side: BorderSide(color: accent.withValues(alpha: .35)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                              ),
+                              icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                              label: const Text('ເປີດຕັດສິນຢູ່ເວັບ', style: TextStyle(fontSize: 11.5)),
+                            )
+                          : Row(
                         children: [
                           Expanded(
                             child: OutlinedButton.icon(
