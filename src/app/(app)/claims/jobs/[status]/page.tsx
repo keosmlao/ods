@@ -39,12 +39,12 @@ type Row = {
 
 /** ປຸ່ມໄປຕໍ່ຂອງແຕ່ລະຂັ້ນ — ພາໄປໜ້າທີ່ເຮັດວຽກຂັ້ນນັ້ນຂອງໃບນັ້ນ */
 const NEXT_STEP: Record<string, { label: string; href: (code: string) => string }> = {
-  "claim-checking": { label: "ບັນທຶກຜົນກວດ", href: (code) => `/checking/${encodeURIComponent(code)}` },
+  "claim-checking": { label: "ບັນທຶກຜົນກວດ", href: (code) => `/claims/jobs/check/${encodeURIComponent(code)}` },
   "claim-decision": { label: "ໄປຕັດສິນຜົນເຄມ", href: (code) => `/claims/jobs/detail/${encodeURIComponent(code)}` },
   "claim-stock": { label: "ຈັດການປ່ຽນຈາກ Stock", href: (code) => `/claims/jobs/detail/${encodeURIComponent(code)}` },
   "claim-purchase": { label: "ຕິດຕາມຂອງສັ່ງຊື້", href: (code) => `/claims/jobs/detail/${encodeURIComponent(code)}` },
   "claim-supplier": { label: "ຕິດຕາມເຄມ Supplier", href: (code) => `/claims/jobs/detail/${encodeURIComponent(code)}` },
-  "claim-return": { label: "ສົ່ງຄືນຮ້ານ", href: (code) => `/returns/${encodeURIComponent(code)}` },
+  "claim-return": { label: "ສົ່ງຄືນຮ້ານ", href: (code) => `/claims/jobs/return/${encodeURIComponent(code)}` },
 };
 
 export default async function ClaimStagePage({ params }: { params: Promise<{ status: string }> }) {
