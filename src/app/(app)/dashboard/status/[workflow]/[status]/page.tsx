@@ -86,6 +86,8 @@ type RepairRow = {
   repair_confirm: string | null;
   /** ຮູບໜ້າປົກ + ຈຳນວນຮູບ — ໃຫ້ຄິວທຸກຂັ້ນຕອນໂຊ້ thumbnail ຄືໜ້າຮັບສິນຄ້າ */
   thumb: string | null; photo_count: number;
+  /** ງານເຄມ — ໝາຍໄວ້ (ods_claim_mark) ຫຼື ມີໃບເຄມຜູກ (ods_claim.ref_job) · ນິຍາມດຽວກັບ /service */
+  is_claim: boolean;
   /** ທຸງ "ມີບັນຫາ" ທີ່ເປີດຢູ່ — null = ປົກກະຕິ (ເບິ່ງ src/lib/job-hold.ts) */
   hold: JobHold | null;
 };
@@ -403,6 +405,9 @@ export default async function StatusPage({ params, searchParams }: Props) {
            + (select count(*) from ods_job_photo p
                where p.workflow='repair' and p.job_code = a.code and p.kind in ('check','finish'))
          )::int as photo_count,
+         -- ງານເຄມ ⇒ ຕິດປ້າຍໃນຄິວ (ນິຍາມດຽວກັບໜ້າ /service)
+         (exists(select 1 from ods_claim_mark m where m.job_code=a.code)
+           or exists(select 1 from ods_claim cl where cl.ref_job=a.code)) as is_claim,
          ${holdJsonSql("repair")}
        ${from} where ${filter} order by ${orderBy} limit $${args.length + 1} offset $${args.length + 2}`
     : `select count(*) over()::int total_count,
@@ -1042,6 +1047,12 @@ export default async function StatusPage({ params, searchParams }: Props) {
                         )}
                         <div className="min-w-0">
                           <span className="block truncate font-medium text-slate-800" title={row.product ?? ""}>
+                            {/* ງານເຄມ — ເຫັນຕັ້ງແຕ່ໃນຄິວ ບໍ່ຕ້ອງເປີດເຂົ້າໄປໃນໃບຈຶ່ງຮູ້ */}
+                            {isRepair && (row as RepairRow).is_claim && (
+                              <span className="mr-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 ring-1 ring-amber-300">
+                                ເຄມ
+                              </span>
+                            )}
                             {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
                           </span>
                           <span className="block truncate text-[10px] text-slate-400">
@@ -1294,6 +1305,12 @@ export default async function StatusPage({ params, searchParams }: Props) {
                   )}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-medium text-slate-800" title={row.product ?? ""}>
+                      {/* ງານເຄມ — ຄືກັນກັບຕາຕະລາງ desktop */}
+                      {isRepair && (row as RepairRow).is_claim && (
+                        <span className="mr-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 ring-1 ring-amber-300">
+                          ເຄມ
+                        </span>
+                      )}
                       {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
                     </p>
                     <p className="truncate text-[10px] text-slate-400">
