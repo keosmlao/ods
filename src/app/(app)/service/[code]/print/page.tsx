@@ -14,19 +14,11 @@ type PrintDict = (typeof import("@/lib/i18n/dictionaries/lo.json"))["servicePrin
 /**
  * ພິມໃບຮັບເຄື່ອງສ້ອມແປງ — ຖອດແບບຈາກ ods/templates/billprint/reciptpd.html (ໂຄງ 2 ພາສາ ລາວ/ອັງກິດ).
  *
- * ໃບພິມແບບທີ 2 — ?layout=anniv (ໃບງານລ້າງຈັກຊັກຜ້າ) ຄື ods /sprint2 (reciptpd_anniv.html):
- * ຕ່າງກັນພຽງຫົວຂໍ້ຂອງໃບ — SQL/ຄໍລຳ/ໂຄງ ຄືກັນໝົດ ຈຶ່ງໃຊ້ໜ້າດຽວກັນ.
+ * ⚠️ ເຄີຍມີໃບພິມແບບທີ 2 `?layout=anniv` ("ໃບງານລ້າງຈັກຊັກຜ້າ" ຄື ods /sprint2) —
+ * **ຖອດອອກແລ້ວ 31-07-2026** ຕາມຄຳສັ່ງ: ຕ່າງກັນພຽງຫົວຂໍ້ໃບ ແລະ ບໍ່ໄດ້ໃຊ້.
  *
  * "ແປງເປັນ PDF" = ໃຊ້ browser print (ປຸ່ມ "ພິມ / ບັນທຶກ PDF") → ເລືອກ Save as PDF.
  */
-const layoutTitle = (t: PrintDict) =>
-  ({
-    default: t.receiptTitleDefault,
-    anniv: t.receiptTitleAnniv,
-  }) as const;
-type Layout = keyof ReturnType<typeof layoutTitle>;
-const safeLayout = (value: string | string[] | undefined): Layout => (value === "anniv" ? "anniv" : "default");
-
 /** ການຈັດສົ່ງ — ເກັບເປັນລະຫັດ '1'/'2' (ຄືຟອມຮັບເຄື່ອງ) */
 const deliveryLabelMap = (t: PrintDict): Record<string, string> => ({ "1": t.deliveryByOdien, "2": t.deliveryPickup });
 
@@ -55,7 +47,6 @@ type Receipt = {
 
 type Props = {
   params: Promise<{ code: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 /** ຫ້ອງປ້າຍ 2 ພາສາ (ລາວ / ອັງກິດ) */
@@ -76,10 +67,9 @@ function ValueCell({ value, colSpan }: { value: string | null; colSpan?: number 
   );
 }
 
-export default async function PrintReceipt({ params, searchParams }: Props) {
+export default async function PrintReceipt({ params }: Props) {
   const { code } = await params;
   const t = (await getDictionary(await getLocale())).servicePrint;
-  const layout = safeLayout((await searchParams).layout);
 
   const [receipt, company, categories] = await Promise.all([
     query<Receipt>(
@@ -151,7 +141,7 @@ export default async function PrintReceipt({ params, searchParams }: Props) {
         </div>
       </div>
 
-      <h1 className="my-3 text-center text-xl font-bold">{layoutTitle(t)[layout]}</h1>
+      <h1 className="my-3 text-center text-xl font-bold">{t.receiptTitleDefault}</h1>
 
       {/* ຂໍ້ມູນລູກຄ້າ */}
       <p className="mb-1 font-bold underline">{t.customerInfo} / Customer Information</p>

@@ -392,11 +392,6 @@ export default async function ServiceDetail({ params }: Props) {
             <Barcode className="size-3.5" />
             {t.printBarcode}
           </Link>
-          {/* ໃບພິມແບບທີ 2 (ods: /sprint2 — reciptpd_anniv.html): ໂຄງ ແລະ ຂໍ້ມູນຄືກັນ ຕ່າງກັນພຽງຫົວຂໍ້ໃບ */}
-          <Link href={`/service/${code}/print?layout=anniv`} target="_blank" className={action}>
-            <Printer className="size-3.5" />
-            {t.printWasherJob}
-          </Link>
           <Link
             href={`/service/${code}/print`}
             target="_blank"

@@ -2220,7 +2220,6 @@
     "images": "ຮູບພາບ",
     "edit": "ແກ້ໄຂ",
     "printBarcode": "ພິມປ້າຍບາໂຄດ",
-    "printWasherJob": "ພິມໃບງານລ້າງຈັກຊັກຜ້າ",
     "print": "ພິມ",
     "manageJob": "ຈັດການວຽກ",
     "changeTech": "ປ່ຽນຊ່າງ",
@@ -2394,7 +2393,6 @@
   },
   "servicePrint": {
     "receiptTitleDefault": "ໃບຮັບເຄື່ອງສ້ອມແປງ",
-    "receiptTitleAnniv": "ໃບຮັບເຄື່ອງສ້ອມ",
     "deliveryByOdien": "ໂອດ້ຽນຈັດສົ່ງ",
     "deliveryPickup": "ລູກຄ້າຮັບເອງ",
     "receiptBadge": "ໃບຮັບເຄື່ອງ",

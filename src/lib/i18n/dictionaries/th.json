@@ -2220,7 +2220,6 @@
     "images": "รูปภาพ",
     "edit": "แก้ไข",
     "printBarcode": "พิมพ์ป้ายบาร์โค้ด",
-    "printWasherJob": "พิมพ์ใบงานล้างเครื่องซักผ้า",
     "print": "พิมพ์",
     "manageJob": "จัดการงาน",
     "changeTech": "เปลี่ยนช่าง",
@@ -2394,7 +2393,6 @@
   },
   "servicePrint": {
     "receiptTitleDefault": "ใบรับเครื่องซ่อมแซม",
-    "receiptTitleAnniv": "ใบรับเครื่องซ่อม",
     "deliveryByOdien": "โอเดียนจัดส่ง",
     "deliveryPickup": "ลูกค้ารับเอง",
     "receiptBadge": "ใบรับเครื่อง",

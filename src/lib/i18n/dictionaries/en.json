@@ -2220,7 +2220,6 @@
     "images": "Images",
     "edit": "Edit",
     "printBarcode": "Print barcode label",
-    "printWasherJob": "Print washer service sheet",
     "print": "Print",
     "manageJob": "Manage job",
     "changeTech": "Change technician",
@@ -2394,7 +2393,6 @@
   },
   "servicePrint": {
     "receiptTitleDefault": "Repair Receipt",
-    "receiptTitleAnniv": "Service Receipt",
     "deliveryByOdien": "Delivered by Odien",
     "deliveryPickup": "Customer pickup",
     "receiptBadge": "Receipt",
