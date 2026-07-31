@@ -2183,7 +2183,9 @@
     "claimPartName": "Part name *",
     "claimPartSn": "Part serial (if any)",
     "claimPartQty": "Qty",
-    "claimServiceHint": "Service type set to “customer brings it in (CI)” — claims are almost always carried in by the shop or customer. Switch to PS yourself if you collect the unit."
+    "claimServiceHint": "Service type set to “customer brings it in (CI)” — claims are almost always carried in by the shop or customer. Switch to PS yourself if you collect the unit.",
+    "intakeCenterLabel": "Intake centre",
+    "intakeCenterPlaceholder": "Where the unit was taken in..."
   },
   "serviceDetail": {
     "customerInfo": "Customer Info",

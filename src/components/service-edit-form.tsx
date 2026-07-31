@@ -5,6 +5,7 @@ import { SelectField } from "@/components/select-field";
 import { ONSITE_SERVICE_TYPES } from "@/lib/sla";
 import { BrandField } from "@/components/service-brand-field";
 import { useDict } from "@/lib/i18n/context";
+import { REPAIR_CENTER_LABEL, REPAIR_CENTERS } from "@/lib/repair-center";
 import { LoaderCircle, LogOut, Save, Search } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -36,6 +37,8 @@ export type ServiceHead = {
   address: string;
   /** ງານນອກສະຖານທີ່ (IH/PS) — ໃບເກົ່າຍັງຫວ່າງ (migration ບໍ່ໄດ້ເດົາຄ່າໃຫ້) */
   location_repair: string;
+  /** ບ່ອນຮັບເຄື່ອງ (CI ເທົ່ານັ້ນ) — ແກ້ໄດ້ ເພາະດ່ານກ່ອນສົ່ງຄືນອີງຄ່ານີ້ */
+  intake_center: string;
   appoint_date: string;
   location_lat: number | null;
   location_lng: number | null;
@@ -126,6 +129,7 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
   const claimLocked = Boolean(head.claim_no);
 
   const [serviceType, setServiceType] = useState(head.service_type ?? "");
+  const [intakeCenter, setIntakeCenter] = useState(head.intake_center ?? "");
   const onsite = ONSITE_SERVICE_TYPES.includes(serviceType as "IH" | "PS");
 
   /**
@@ -365,7 +369,10 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
             <SelectField
               name="service_type"
               value={serviceType}
-              onChange={setServiceType}
+              onChange={(value) => {
+                setServiceType(value);
+                if (value !== "CI") setIntakeCenter("");
+              }}
               options={[
                 { value: "CI", label: t.serviceTypeCI },
                 { value: "PS", label: t.serviceTypePS },
@@ -374,6 +381,20 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
               ]}
             />
           </div>
+
+          {/* ບ່ອນຮັບເຄື່ອງ — ສະເພາະ CI (ເບິ່ງເຫດຜົນຢູ່ service-form) · ແກ້ໄດ້ຖ້າເລືອກຜິດຕອນຮັບ */}
+          {serviceType === "CI" && (
+            <div>
+              <label className={label}>{t.intakeCenterLabel}</label>
+              <SelectField
+                name="intake_center"
+                value={intakeCenter}
+                onChange={setIntakeCenter}
+                placeholder={t.intakeCenterPlaceholder}
+                options={REPAIR_CENTERS.map((code) => ({ value: code, label: REPAIR_CENTER_LABEL[code] }))}
+              />
+            </div>
+          )}
 
           {/* ນອກສະຖານທີ່ ⇒ ຕ້ອງຮູ້ວ່າໄປໃສ ແລະ ໄປມື້ໃດ (CI/ST ເຮັດຢູ່ສູນ ບໍ່ຂຶ້ນ) */}
           {onsite && (

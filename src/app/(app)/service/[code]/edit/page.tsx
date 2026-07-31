@@ -28,7 +28,7 @@ export default async function EditService({ params }: Props) {
          coalesce(a.p_delivery,'') p_delivery, coalesce(a.service_type,'') service_type, coalesce(a.issue,'') issue,
          coalesce(a.p_abrasion,'') p_abrasion, coalesce(a.cust_code,'') cust_code, coalesce(a.emp_code,'') emp_code,
          coalesce(a.ap_code,'') ap_code, coalesce(a.doc_def,'') doc_def, coalesce(a.doc_date_ref,'') doc_date_ref,
-         coalesce(a.location_repair,'') location_repair,
+         coalesce(a.location_repair,'') location_repair, coalesce(a.intake_center,'') intake_center,
          coalesce(to_char(a.appoint_date,'YYYY-MM-DD'),'') appoint_date,
          a.location_lat, a.location_lng,
          -- ປະເພດງານ (ສ້ອມ/ເຄມ) — ໝາຍພາຍຫຼັງໄດ້ຢູ່ໜ້ານີ້ (ເບິ່ງ updateService)

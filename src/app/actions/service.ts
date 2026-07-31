@@ -429,7 +429,12 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
          location_repair=nullif($19,''), appoint_date=nullif($20,'')::date,
          location_lat=nullif($21,'')::double precision, location_lng=nullif($22,'')::double precision,
          job_kind=$23, claim_scope=nullif($24,''), claim_part_code=nullif($25,''),
-         claim_part_name=nullif($26,''), claim_part_sn=nullif($27,''), claim_part_qty=$28
+         claim_part_name=nullif($26,''), claim_part_sn=nullif($27,''), claim_part_qty=$28,
+         -- ບ່ອນຮັບເຄື່ອງ — ແກ້ໄດ້ (ເລືອກຜິດຕອນຮັບ ⇒ ດ່ານກ່ອນສົ່ງຄືນຈະຫ້າມຜິດໆ).
+         -- ບ່ອນທີ່ເຄື່ອງຢູ່ (service_center) ຕັ້ງໃຫ້ພ້ອມກັນ **ສະເພາະຕອນທີ່ຍັງບໍ່ເຄີຍມີຄ່າ**
+         -- — ຖ້າມີແລ້ວ ໝາຍວ່າມີການໂອນເກີດຂຶ້ນ ⇒ ຢ່າໄປຂຽນທັບຄວາມຈິງນັ້ນ.
+         intake_center=nullif($29,''),
+         service_center=case when coalesce(service_center,'')='' then nullif($29,'') else service_center end
        where code=$18`,
       [d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
         // ap_code = ລະຫັດລູກຄ້າ (ອັນດຽວກັນ — ເບິ່ງ createService)
@@ -440,7 +445,8 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
         d.job_kind === "claim" ? d.claim_part_code : "",
         d.job_kind === "claim" ? d.claim_part_name : "",
         d.job_kind === "claim" ? d.claim_part_sn : "",
-        d.job_kind === "claim" && d.claim_scope === "part" ? d.claim_part_qty ?? 1 : null],
+        d.job_kind === "claim" && d.claim_scope === "part" ? d.claim_part_qty ?? 1 : null,
+        d.intake_center],
     );
     if (!updated.rowCount) {
       await client.query("rollback");

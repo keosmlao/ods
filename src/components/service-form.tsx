@@ -456,7 +456,11 @@ export function ServiceForm({
                 <SelectField
                   name="service_type"
                   value={serviceType}
-                  onChange={setServiceType}
+                  onChange={(value) => {
+                    setServiceType(value);
+                    // ບໍ່ແມ່ນ CI ⇒ ລ້າງບ່ອນຮັບເຄື່ອງ ບໍ່ດັ່ງນັ້ນຄ່າທີ່ເລືອກໄວ້ຈະຄ້າງໄປບັນທຶກ
+                    if (value !== "CI") setIntakeCenter("");
+                  }}
                   options={[
                     { value: "CI", label: t.serviceTypeCI },
                     { value: "PS", label: t.serviceTypePS },
@@ -467,10 +471,13 @@ export function ServiceForm({
               </div>
 
               {/*
-                ── ບ່ອນຮັບເຄື່ອງ (ສູນມີ 2 ບ່ອນ: ຂົວຫຼວງ · ດອນຕີ້ວ) ──
-                ເຄື່ອງໂອນຂ້າມສູນໄປສ້ອມໄດ້ ແຕ່ **ລູກຄ້າມາຮັບຄືນບ່ອນທີ່ຝາກໄວ້** ⇒ ຕ້ອງຈື່ໄວ້
-                ຕັ້ງແຕ່ຕອນຮັບ ບໍ່ດັ່ງນັ້ນສ້ອມແລ້ວບໍ່ຮູ້ວ່າຈະສົ່ງກັບບ່ອນໃດ (ເບິ່ງ lib/job-center).
+                ── ບ່ອນຮັບເຄື່ອງ — ສະເພາະ **CI (ລູກຄ້ານຳເຄື່ອງເຂົ້າ)** ──
+                ສູນມີ 2 ບ່ອນ (ຂົວຫຼວງ · ດອນຕີ້ວ) ແລະ ເຄື່ອງໂອນຂ້າມສູນໄປສ້ອມໄດ້ ແຕ່
+                **ລູກຄ້າມາຮັບຄືນບ່ອນທີ່ຕົນຝາກໄວ້** ⇒ ຕ້ອງຈື່ຕັ້ງແຕ່ຕອນຮັບ (lib/job-center).
+                ປະເພດອື່ນບໍ່ມີຄວາມໝາຍ: IH ສ້ອມຢູ່ບ້ານລູກຄ້າ · PS ຊ່າງໄປຮັບ-ໄປສົ່ງເອງ ·
+                ST ເຄື່ອງຂອງສາງ ⇒ ບໍ່ມີ "ບ່ອນລູກຄ້າມາຮັບຄືນ" ⇒ ເຊື່ອງຊ່ອງນີ້ໄປເລີຍ.
               */}
+              {serviceType === "CI" && (
               <div>
                 <label className={label}>{t.intakeCenterLabel}</label>
                 <SelectField
@@ -481,6 +488,7 @@ export function ServiceForm({
                   options={REPAIR_CENTERS.map((code) => ({ value: code, label: REPAIR_CENTER_LABEL[code] }))}
                 />
               </div>
+              )}
 
               {/* ── ນອກສະຖານທີ່ ⇒ ຕ້ອງຮູ້ວ່າ "ໄປໃສ" ແລະ "ໄປມື້ໃດ" (CI/ST ເຮັດຢູ່ສູນ ບໍ່ຕ້ອງ) ── */}
               {onsite && (
