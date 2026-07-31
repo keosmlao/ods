@@ -9,6 +9,7 @@ import { nextDocNo } from "@/lib/doc-no";
 import { writeErpReceipt } from "@/lib/erp-receipt";
 import { linkErpDoc } from "@/lib/erp-doc-link";
 import { loanerBlock } from "@/lib/loaner";
+import { centerBlock } from "@/lib/job-center";
 import { HAS_OUTSTANDING_SPARES } from "@/lib/outstanding-spares";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
@@ -402,7 +403,10 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
    * ⇒ ຕ້ອງໄດ້ເຄື່ອງສຳຮອງຄືນຢູ່ຈຸດນີ້ຄືກັນ ບໍ່ດັ່ງນັ້ນເຄື່ອງສູນຈະຄ້າງຢູ່ບ້ານລູກຄ້າຕະຫຼອດ.
    */
   const loanerHold = await loanerBlock(d.pro_code);
+  // ເຄື່ອງຍັງຢູ່ອີກສູນ / ກຳລັງໂອນ ⇒ ສົ່ງຄືນລູກຄ້າບໍ່ໄດ້ (lib/job-center)
+  const centerHold = await centerBlock(d.pro_code);
   if (loanerHold) return { error: loanerHold };
+  if (centerHold) return { error: centerHold };
 
   // ເຊື່ອມຕໍ່ຖານຂໍ້ມູນ — ລົ້ມເຫຼວກໍ່ຄືນເປັນ error ທຳມະດາ ບໍ່ໃຫ້ throw ຫຼຸດອອກໄປພັງໜ້າ
   const client = await db.connect().catch(() => null);
@@ -643,7 +647,10 @@ export async function returnWithoutInvoice(_: ReturnState, formData: FormData): 
   }
   // ເຄື່ອງສຳຮອງທີ່ໃຫ້ລູກຄ້າໃຊ້ກ່ອນ ຕ້ອງໄດ້ຄືນມາພ້ອມກັນ (lib/loaner)
   const loanerHold = await loanerBlock(productCode);
+  // ເຄື່ອງຍັງຢູ່ອີກສູນ / ກຳລັງໂອນ ⇒ ສົ່ງຄືນລູກຄ້າບໍ່ໄດ້ (lib/job-center)
+  const centerHold = await centerBlock(productCode);
   if (loanerHold) return { error: loanerHold };
+  if (centerHold) return { error: centerHold };
 
   let custCode = "";
   try {
@@ -720,7 +727,10 @@ export async function returnWithoutCharge(_: ReturnState, formData: FormData): P
     };
   }
   const loanerHold = await loanerBlock(productCode);
+  // ເຄື່ອງຍັງຢູ່ອີກສູນ / ກຳລັງໂອນ ⇒ ສົ່ງຄືນລູກຄ້າບໍ່ໄດ້ (lib/job-center)
+  const centerHold = await centerBlock(productCode);
   if (loanerHold) return { error: loanerHold };
+  if (centerHold) return { error: centerHold };
 
   let custCode = "";
   try {

@@ -58,6 +58,11 @@ const schema = z.object({
    * ບັງຄັບສະເພາະ IH/PS (ກວດລຸ່ມນີ້) — CI/ST ເຮັດຢູ່ສູນ ບໍ່ຕ້ອງມີ.
    */
   location_repair: z.string().optional().default(""),
+  /**
+   * ບ່ອນ**ຮັບເຄື່ອງເຂົ້າ** (1104 ຂົວຫຼວງ · 1206 ດອນຕີ້ວ) — ລູກຄ້າມາຮັບຄືນບ່ອນນີ້.
+   * ເຄື່ອງໂອນໄປສ້ອມສູນອື່ນໄດ້ ແຕ່ຕ້ອງໂອນກັບມາກ່ອນສົ່ງຄືນ (ເບິ່ງ lib/job-center).
+   */
+  intake_center: z.string().optional().default(""),
   /** ວັນນັດເຂົ້າສ້ອມ — ຝັ່ງຕິດຕັ້ງມີມາແຕ່ຕົ້ນ ຝັ່ງສ້ອມຫາກໍ່ມີ ⇒ ຈັດຄິວເປັນມື້ໄດ້ */
   appoint_date: z.string().optional().default(""),
   /** ພິກັດໜ້າງານ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງ ແລະ ທຽບກັບ check-in ໄດ້ */
@@ -208,17 +213,21 @@ export async function createService(_: ServiceState, formData: FormData): Promis
       `insert into tb_product(code,name_1,sn,p_model,p_brand,p_access,issue,p_type,p_abrasion,p_delivery,
          warrunty,service_type,cust_code,ap_code,doc_def,doc_date_ref,status,emp_code,time_register,user_regis,item_code,
          location_repair,appoint_date,location_lat,location_lng,job_kind,
-         claim_scope,claim_part_code,claim_part_name,claim_part_sn,claim_part_qty)
+         claim_scope,claim_part_code,claim_part_name,claim_part_sn,claim_part_qty,
+         intake_center,service_center)
        values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,localtimestamp,$18,nullif($19,''),
          nullif($20,''), nullif($21,'')::date, nullif($22,'')::double precision, nullif($23,'')::double precision,$24,
-         nullif($25,''),nullif($26,''),nullif($27,''),nullif($28,''),$29)`,
+         nullif($25,''),nullif($26,''),nullif($27,''),nullif($28,''),$29,
+         nullif($30,''),nullif($30,''))`,
       [code, d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
         // ap_code (ຮ້ານຄ້າ) = **ລະຫັດລູກຄ້າ** ອັນດຽວກັນ (ນະໂຍບາຍ 13-07-2026)
         // ⇒ ບໍ່ຮັບຈາກຟອມອີກ (ຊ່ອງນັ້ນຖືກຖອດອອກ) ຈຶ່ງບໍ່ມີທາງພິມຜິດ/ຫຼົ້ນກັນ
         d.pro_deli, d.pro_wa, d.service_type, custCode, custCode, d.billon, d.billdate, d.emp, session.username,
         d.item_code ?? "", d.location_repair, d.appoint_date, d.location_lat, d.location_lng, d.job_kind,
         d.job_kind === "claim" ? d.claim_scope ?? "" : "", d.claim_part_code, d.claim_part_name,
-        d.claim_part_sn, d.claim_scope === "part" ? d.claim_part_qty ?? 1 : null],
+        d.claim_part_sn, d.claim_scope === "part" ? d.claim_part_qty ?? 1 : null,
+        // ບ່ອນຮັບເຄື່ອງ = ບ່ອນທີ່ເຄື່ອງຢູ່ຕອນນີ້ຄືກັນ ($30 ໃຊ້ 2 ບ່ອນ)
+        d.intake_center],
     );
 
     await saveUploads(client, code, uploads, written);

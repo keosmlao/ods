@@ -12,6 +12,7 @@ import Link from "next/link";
 import { LocationPicker, type Point } from "@/components/installation/location-picker";
 import { ONSITE_SERVICE_TYPES } from "@/lib/sla";
 import { useDict } from "@/lib/i18n/context";
+import { REPAIR_CENTER_LABEL, REPAIR_CENTERS } from "@/lib/repair-center";
 import { useActionState, useEffect, useState } from "react";
 
 type Option = { code: string; name_1: string };
@@ -85,6 +86,8 @@ export function ServiceForm({
    * ທີ່ຢູ່ຮ້ານ ບໍ່ແມ່ນບ່ອນທີ່ເຄື່ອງຕິດຢູ່.
    */
   const [serviceType, setServiceType] = useState("");
+  /** ບ່ອນຮັບເຄື່ອງ — ຄ່າຕັ້ງຕົ້ນຈາກສູນທີ່ຜູ້ໃຊ້ຮັບເຄື່ອງຫຼ້າສຸດ (ຈື່ໄວ້ໃນ browser) */
+  const [intakeCenter, setIntakeCenter] = useState("");
   const [jobKind, setJobKind] = useState<"repair" | "claim">(prefill.kind === "claim" ? "claim" : "repair");
   const [claimScope, setClaimScope] = useState<"whole" | "part">("whole");
   /** ພິກັດໜ້າງານ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງໄດ້ຈາກແອັບ */
@@ -460,6 +463,22 @@ export function ServiceForm({
                     { value: "IH", label: t.serviceTypeIH },
                     { value: "ST", label: t.serviceTypeST },
                   ]}
+                />
+              </div>
+
+              {/*
+                ── ບ່ອນຮັບເຄື່ອງ (ສູນມີ 2 ບ່ອນ: ຂົວຫຼວງ · ດອນຕີ້ວ) ──
+                ເຄື່ອງໂອນຂ້າມສູນໄປສ້ອມໄດ້ ແຕ່ **ລູກຄ້າມາຮັບຄືນບ່ອນທີ່ຝາກໄວ້** ⇒ ຕ້ອງຈື່ໄວ້
+                ຕັ້ງແຕ່ຕອນຮັບ ບໍ່ດັ່ງນັ້ນສ້ອມແລ້ວບໍ່ຮູ້ວ່າຈະສົ່ງກັບບ່ອນໃດ (ເບິ່ງ lib/job-center).
+              */}
+              <div>
+                <label className={label}>{t.intakeCenterLabel}</label>
+                <SelectField
+                  name="intake_center"
+                  value={intakeCenter}
+                  onChange={setIntakeCenter}
+                  placeholder={t.intakeCenterPlaceholder}
+                  options={REPAIR_CENTERS.map((code) => ({ value: code, label: REPAIR_CENTER_LABEL[code] }))}
                 />
               </div>
 

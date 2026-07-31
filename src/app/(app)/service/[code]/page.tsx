@@ -21,6 +21,8 @@ import { permissionFor } from "@/lib/permissions";
 import { ServiceDeleteButton } from "@/components/service/service-delete-button";
 import { JobEvidence, type Checkin, type JobPhoto, type ReceivePhoto } from "@/components/service/job-evidence";
 import { LoanerCard } from "@/components/service/loaner-card";
+import { TransferJobButton } from "@/components/service/transfer-job-button";
+import { jobCenterState } from "@/lib/job-center";
 import { loanersFor } from "@/lib/loaner";
 import { JobProgress } from "@/components/repair/job-progress";
 import { SETTING, settingEnabled } from "@/lib/settings";
@@ -226,6 +228,8 @@ export default async function ServiceDetail({ params }: Props) {
   const canDelete = (await permissionFor(session, "/service")).delete;
   // ເຄື່ອງສຳຮອງ — ຝ່າຍບໍລິການໃຫ້ຢືມ/ຮັບຄືນໄດ້, ຄົນອື່ນເຫັນຢ່າງດຽວ (action ກວດຊ້ຳເອງ)
   const loaners = await loanersFor(job.code);
+  // ບ່ອນຮັບເຄື່ອງ ↔ ບ່ອນທີ່ເຄື່ອງຢູ່ (2 ສູນ) — ໂອນຂ້າມສູນ ແລະ ດ່ານກ່ອນສົ່ງຄືນ (lib/job-center)
+  const centers = await jobCenterState(job.code);
   const canLendLoaner = SERVICE_SIDE.includes(roleOf(session));
   const techs = canReassign ? await listTechnicians() : [];
 
@@ -476,6 +480,14 @@ export default async function ServiceDetail({ params }: Props) {
       </details>
 
       {/* ເຄື່ອງສຳຮອງທີ່ໃຫ້ລູກຄ້າໃຊ້ກ່ອນ — ຄ້າງຄືນ ⇒ ສົ່ງເຄື່ອງຄືນບໍ່ໄດ້ (lib/loaner) */}
+      <TransferJobButton
+        code={job.code}
+        intake={centers?.intake ?? null}
+        current={centers?.current ?? null}
+        transferTo={centers?.transferPending ? centers.transferTo ?? null : null}
+        canEdit={canLendLoaner}
+      />
+
       <LoanerCard code={job.code} rows={loaners} canEdit={canLendLoaner} />
 
       <JobEvidence

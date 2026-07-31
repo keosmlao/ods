@@ -3,6 +3,7 @@ import test from "node:test";
 import { claimMarkChange } from "../src/lib/claim-shared.ts";
 import { loanerHoldMessage, outsideStandardCodes } from "../src/lib/loaner-shared.ts";
 import { takeQty } from "../src/lib/spare-take.ts";
+import { centerHoldMessage } from "../src/lib/job-center-shared.ts";
 
 /* ── ເຄື່ອງສຳຮອງ (loaner) ─────────────────────────────────────── */
 
@@ -82,4 +83,29 @@ test("ຕັດບໍ່ໃຫ້ເກີນຈຳນວນຄ້າງ ແລ�
   assert.equal(takeQty({ a: 99 }, "a", 4), 4);   // ຂໍເກີນ ⇒ ຕັດເປັນ 4
   assert.equal(takeQty({ a: -5 }, "a", 4), 0);   // ຄ່າຕິດລົບ ⇒ 0
   assert.equal(takeQty({ a: 2 }, "a", 4), 2);
+});
+
+/* ── ບ່ອນຮັບເຄື່ອງ ↔ ບ່ອນສ້ອມ (2 ສູນ) ─────────────────────────── */
+
+test("ເຄື່ອງຢູ່ສູນດຽວກັບບ່ອນຮັບ = ສົ່ງຄືນລູກຄ້າໄດ້", () => {
+  assert.equal(centerHoldMessage({ intake: "1104", current: "1104", transferPending: false }), null);
+});
+
+test("ເຄື່ອງຍັງຢູ່ອີກສູນ = ຫ້າມ ແລະ ບອກວ່າຕ້ອງໂອນກັບບ່ອນໃດ", () => {
+  const message = centerHoldMessage({ intake: "1104", current: "1206", transferPending: false });
+  assert.ok(message);
+  assert.ok(message.includes("ດອນຕີ້ວ")); // ຢູ່ໃສ
+  assert.ok(message.includes("ຂົວຫຼວງ")); // ຕ້ອງກັບໄປໃສ
+});
+
+test("ກຳລັງໂອນ ແລະ ປາຍທາງຍັງບໍ່ຮັບ = ຫ້າມ (ບໍ່ຮູ້ວ່າເຄື່ອງຢູ່ໃສແທ້)", () => {
+  const message = centerHoldMessage({ intake: "1104", current: "1104", transferPending: true, transferTo: "1206" });
+  assert.ok(message);
+  assert.ok(message.includes("ດອນຕີ້ວ"));
+});
+
+test("ໃບເກົ່າທີ່ບໍ່ມີບ່ອນຮັບເຄື່ອງ = ບໍ່ຖືກກວດ", () => {
+  // 5,167 ໃບກ່ອນ 31-07-2026 ບໍ່ມີ intake_center ⇒ ດ່ານນີ້ຕ້ອງບໍ່ຂວາງວຽກທີ່ເຮັດຢູ່
+  assert.equal(centerHoldMessage({ intake: null, current: "1206", transferPending: false }), null);
+  assert.equal(centerHoldMessage({ intake: "1104", current: null, transferPending: false }), null);
 });

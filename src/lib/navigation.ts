@@ -134,6 +134,8 @@ const REPAIR: NavGroup = {
     // pipelineOf ຢຸດທີ່ຂັ້ນ 11 (ລໍຖ້າສົ່ງຄືນ) ຈຶ່ງບໍ່ຊ້ຳກັນ.
     { label: "ລາຍການສົ່ງຄືນສຳເລັດ", href: "/returns/completed" },
     // ເຄື່ອງສູນທີ່ຢູ່ນຳລູກຄ້າ — ບໍ່ຕັດສະຕັອກ ⇒ ບໍ່ມີໜ້ານີ້ = ບໍ່ມີບ່ອນຮູ້ວ່າໜ່ວຍໃດຢູ່ໃສ
+    // ໂອນຂ້າມສູນ (ຂົວຫຼວງ ↔ ດອນຕີ້ວ) — ປາຍທາງຕ້ອງກົດຮັບ ບໍ່ດັ່ງນັ້ນເຄື່ອງລອຍລະຫວ່າງທາງ
+    { label: "ລໍຮັບໂອນເຄື່ອງ", href: "/service/transfers", count: "/service/transfers" },
     { label: "ເຄື່ອງສຳຮອງຄ້າງຄືນ", href: "/service/loaners", count: "/service/loaners" },
   ].map((item, index) => ({ ...item, label: `${index + 1}. ${item.label}` })),
 };

@@ -595,7 +595,9 @@
     "deliveryPickup": "Customer picks up",
     "productPhotos": "Product photos",
     "photoHint": "Should photograph: device condition at intake, SN label, damaged spot, accessories brought in",
-    "claimServiceHint": "Service type set to “customer brings it in (CI)” — claims are almost always carried in by the shop or customer. Switch to PS yourself if you collect the unit."
+    "claimServiceHint": "Service type set to “customer brings it in (CI)” — claims are almost always carried in by the shop or customer. Switch to PS yourself if you collect the unit.",
+    "intakeCenterLabel": "Intake centre",
+    "intakeCenterPlaceholder": "Where the unit was taken in..."
   },
   "poEditor": {
     "missingSupplier": "Select a supplier",
@@ -4778,5 +4780,29 @@
         "help": "Lets technicians search the ERP and add spares that are **not in the installation kit** (used_spare_install, keyed by BTU size) and not already in the job's cart. Real data over 2 years: 69% of requested lines are in the kit, so turning this off blocks the other 31% (~2,000 lines / 2 years) — mostly pipe and brackets added on site."
       }
     }
+  },
+  "jobTransfer": {
+    "pageTitle": "Transfers awaiting receipt",
+    "pageSub": "Units transferred between centres that the destination has not received yet",
+    "empty": "No transfer is awaiting receipt",
+    "colJob": "Job",
+    "colCustomer": "Customer",
+    "colProduct": "Unit",
+    "colFrom": "From",
+    "colTo": "To",
+    "colReason": "Reason",
+    "colSent": "Sent",
+    "colAge": "Waiting",
+    "days": "days",
+    "by": "by",
+    "receive": "Receive",
+    "receiving": "Saving...",
+    "transferTitle": "Transfer to another centre",
+    "transferTo": "To centre",
+    "reason": "Reason (required)",
+    "transfer": "Transfer",
+    "cancel": "Cancel",
+    "intakeAt": "Taken in at",
+    "nowAt": "Currently at"
   }
 }

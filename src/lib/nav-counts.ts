@@ -200,6 +200,8 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
 
           -- ── ເຄື່ອງສຳຮອງທີ່ຢູ່ນຳລູກຄ້າ (ຍັງບໍ່ຮັບຄືນ) — ບໍ່ຕັດສະຕັອກ ⇒ ບໍ່ມີບ່ອນອື່ນເຕືອນ ──
           (select count(*) from ods_loaner l where l.return_time is null)::int as "/service/loaners",
+          -- ໂອນຂ້າມສູນທີ່ປາຍທາງຍັງບໍ່ກົດຮັບ (lib/job-center)
+          (select count(*) from ods_job_transfer jt where jt.received_at is null)::int as "/service/transfers",
 
           -- ── ອາໄຫຼ່ຄ້າງນອກສາງ: ວຽກຍົກເລີກທີ່ຍັງມີແຖວໃບເບີກ status=0 (lib/outstanding-spares) ──
           (select count(*) from tb_product a

@@ -2,6 +2,7 @@
 import { billItems, claimByNo, claimCanTransition, claimItems, type ClaimJobCandidate, cobInfo, ensureOdsCustomer, isClaimEditable, isClaimFulfillmentSource, jobClaimCandidates, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, searchBills, searchInventory, type ClaimType } from "@/lib/claim";
 import { logChange } from "@/lib/chatter-log";
 import { loanerBlock } from "@/lib/loaner";
+import { centerBlock } from "@/lib/job-center";
 import { requireRole } from "@/lib/guard";
 import { sendMail } from "@/lib/mail";
 import { db, query } from "@/lib/db";
@@ -215,6 +216,9 @@ export async function advanceClaim(claimNo: string, toStatus: string): Promise<C
   if (claim.claim_type === "B" && claim.ref_job && toStatus === "returned") {
     const loanerHold = await loanerBlock(claim.ref_job);
     if (loanerHold) return { error: loanerHold };
+    // ເຄື່ອງຍັງຢູ່ອີກສູນ / ກຳລັງໂອນ ⇒ ຄືນຮ້ານບໍ່ໄດ້ (ດ່ານດຽວກັບ actions/return)
+    const centerHold = await centerBlock(claim.ref_job);
+    if (centerHold) return { error: centerHold };
   }
 
   const stamp = stampFor(toStatus);
