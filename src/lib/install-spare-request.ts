@@ -5,6 +5,9 @@
  * (ແບ່ງຂໍຈາກຫຼາຍສາງ). ຈຶ່ງຕ້ອງຮັກສາ Job ໄວ້ໃນຄິວຂໍເບີກ
  * ຈົນກວ່າ wanted − (122 − 59) ຈະເຫຼືອ 0.
  *
+ * ບໍ່ນັບແຖວທີ່ **ສາງຈ່າຍໄປແລ້ວ** (reg_finish) — ນິຍາມດຽວກັບ OUTSTANDING_INSTALL_SPARES
+ * ບໍ່ດັ່ງນັ້ນງານຈະຄາຢູ່ຄິວ "ລໍຖ້າຂໍເບີກ" ຕະຫຼອດ ໂດຍທີ່ບໍ່ມີຫຍັງໃຫ້ຂໍແທ້.
+ *
  * SQL ນີ້ຕ້ອງໃຊ້ ods_tb_install alias `a`.
  */
 export const INSTALL_HAS_UNREQUESTED_SPARES = `exists (
@@ -19,7 +22,7 @@ export const INSTALL_HAS_UNREQUESTED_SPARES = `exists (
           and d.trans_flag in (122,59)
       ),0) requested
     from tb_used_spare s
-    where s.product_code = a.code
+    where s.product_code = a.code and s.reg_finish is null
     group by s.item_code
   ) outstanding
   where outstanding.wanted > outstanding.requested

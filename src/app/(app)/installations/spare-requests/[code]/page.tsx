@@ -33,7 +33,10 @@ export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ code: string }> };
 
-/** ຈຳນວນທີ່ຍັງບໍ່ທັນຂໍເບີກ = ກະຕ່າ − (ຂໍໄປແລ້ວ 122 − ສົ່ງຄືນ 59) — ຄືກັບ OUTSTANDING_INSTALL_SPARES */
+/**
+ * ຈຳນວນທີ່ຍັງບໍ່ທັນຂໍເບີກ = ກະຕ່າ − (ຂໍໄປແລ້ວ 122 − ສົ່ງຄືນ 59) — ຄືກັບ OUTSTANDING_INSTALL_SPARES
+ * ລວມທັງກົດ "ບໍ່ນັບແຖວທີ່ສາງຈ່າຍໄປແລ້ວ (reg_finish)" ⇒ ຟອມ ແລະ server ຄິດຄືກັນ.
+ */
 const OUTSTANDING = `
   select n.roworder, n.item_code, n.item_name, n.unit_code,
       round(n.qty, 0) as standard_qty,
@@ -42,7 +45,7 @@ const OUTSTANDING = `
       round(n.qty - coalesce(c.qty, 0), 0) as qty
   from (
     select min(roworder) roworder, item_code, max(item_name) item_name, max(unit_code) unit_code, sum(qty) qty
-    from tb_used_spare where product_code = $1 group by item_code
+    from tb_used_spare where product_code = $1 and reg_finish is null group by item_code
   ) n
   left join (
     select item_code, sum(case when trans_flag = 122 then qty else -qty end) qty
