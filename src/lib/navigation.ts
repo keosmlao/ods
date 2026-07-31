@@ -233,9 +233,8 @@ const CLAIM: NavGroup = {
      * ແຕ່ກ່ອນຕ້ອງໄປ "ຮັບສິນຄ້າສ້ອມປະຈຳວັນ" ແລ້ວສະຫຼັບແທັບ ⇒ ປົນກັນ.
      * ດຽວນີ້ 2 ລາຍການທຳອິດຄື **ຮັບເຄື່ອງ** ແລະ **ລາຍການປະຈຳວັນ** ຂອງເຄມເອງ.
      */
-    // labelKey ແຍກ — href ຂອງ 2 ອັນນີ້ຊ້ຳກັບເມນູຝັ່ງສ້ອມ (ຕ່າງກັນແຕ່ ?kind) ⇒ ຢ່າໃຫ້ dict ແປທັບກັນ
-    { label: "ຮັບເຄື່ອງເຄມ (ຈາກຮ້ານ)", href: "/service/new?kind=claim", labelKey: "claim:intake" },
-    { label: "ລາຍການເຄມປະຈຳວັນ", href: "/service?kind=claim", labelKey: "claim:daily" },
+    { label: "ຮັບເຄື່ອງເຄມ (ຈາກຮ້ານ)", href: "/claims/new" },
+    { label: "ຄິວງານເຄມ", href: "/claims/jobs", count: "/claims/jobs" },
     { label: "ໃບເຄມ: ຮັບເຄມຈາກຮ້ານ", href: "/claims/shop", divider: true },
     { label: "ໃບເຄມ: ເຄມອາໄຫຼ່ supplier", href: "/claims/supplier" },
     { label: "ໃບເຄມ: ເກັບຄ່າສ້ອມ supplier", href: "/claims/reimburse" },
@@ -247,7 +246,7 @@ const CLAIM: NavGroup = {
      */
     ...pipelineOf(claimStatuses).map(([slug, def], index) => ({
       label: `${index + 1}. ${def.label}`,
-      href: `/dashboard/status/repair/${slug}`,
+      href: `/claims/jobs/${slug}`,
       count: `/dashboard/status/repair/${slug}`,
       labelKey: `pipe:claim:${slug}`,
       ...(index === 0 && { divider: true }),

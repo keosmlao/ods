@@ -1,55 +1,46 @@
-import { NewClaimForm } from "@/components/claim/new-claim-form";
-import { getSession } from "@/lib/auth";
-import { claimPagePath, searchCustomers, type ClaimType } from "@/lib/claim";
-import { getErpBrands } from "@/lib/erp-master";
-import { searchSuppliers } from "@/lib/erp-supplier";
-import { CLAIM_SIDE, roleOf } from "@/lib/roles";
-import { ChevronLeft } from "lucide-react";
+import { LinkPending } from "@/components/link-pending";
+import type { ServicePrefill } from "@/components/service-form";
+import { ServiceIntake } from "@/components/service-intake";
+import { getErpBrands, getErpCategories } from "@/lib/erp-master";
+import { technicianOptions } from "@/lib/technicians";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
+/**
+ * **ຮັບເຄື່ອງເຂົ້າງານເຄມ** — route ຂອງເຄມເອງ (ບໍ່ຜູກກັບ /service/new ອີກ 31-07-2026).
+ *
+ * ຟອມຮັບເຄື່ອງ (ServiceIntake) ໃຊ້ຮ່ວມກັນ **ໂດຍເຈດຕະນາ**: ຂໍ້ມູນທີ່ຮັບຄືກັນທຸກຊ່ອງ
+ * (ລູກຄ້າ · ສິນຄ້າ · S/N · ຮູບ · ອາການ) ⇒ ຄັດລອກອີກສະບັບ = ຕ້ອງແກ້ສອງບ່ອນຕະຫຼອດໄປ.
+ * ສິ່ງທີ່ **ແຍກ** ຄື route · ເມນູ · ຫົວຂໍ້ · ຄິວ · ລາຍງານ (ເບິ່ງ lib/dashboard-status).
+ */
 export const dynamic = "force-dynamic";
 
-const isType = (v: string): v is ClaimType => ["A", "B", "C"].includes(v);
+type Props = { searchParams: Promise<ServicePrefill> };
 
-type Props = { searchParams: Promise<{ type?: string; ref_job?: string; brand?: string; supplier?: string; product?: string; model?: string; sn?: string }> };
-
-export default async function NewClaimPage({ searchParams }: Props) {
-  const session = await getSession();
-  if (!session) redirect("/login");
-  if (!CLAIM_SIDE.includes(roleOf(session))) redirect("/forbidden");
-
-  const sp = await searchParams;
-  // CLM-B ຕ້ອງເກີດຜ່ານ intake (ຮັບເຄື່ອງເຂົ້າ) ເທົ່ານັ້ນ — ບໍ່ໃຫ້ສ້າງທາງນີ້ (scope/fulfillment ຈະ NULL).
-  if (sp.type === "B") {
-    const qs = new URLSearchParams({ kind: "claim", ...(sp.sn ? { sn: sp.sn } : {}), ...(sp.product ? { proname: sp.product } : {}) });
-    redirect(`/service/new?${qs.toString()}`);
-  }
-  const defaultType: ClaimType = isType(sp.type ?? "") ? (sp.type as ClaimType) : "A";
-  const [suppliers, brands, customers] = await Promise.all([
-    searchSuppliers("", 1000).catch(() => []),
-    getErpBrands().catch(() => []),
-    searchCustomers("", 2000).catch(() => []),
+export default async function NewClaimJob({ searchParams }: Props) {
+  const prefill = await searchParams;
+  const [types, brands, techs] = await Promise.all([
+    getErpCategories(),
+    getErpBrands(),
+    technicianOptions(),
   ]);
 
   return (
     <div className="w-full space-y-4">
-      <Link href={claimPagePath(defaultType)} className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-700">
-        <ChevronLeft className="size-4" /> ກັບລາຍການເຄມ
-      </Link>
-      <h1 className="text-lg font-bold text-slate-700">ເປີດໃບເຄມໃໝ່</h1>
-      <NewClaimForm
-        suppliers={suppliers.map((s) => ({ code: s.code, name: s.name }))}
-        customers={customers.map((c) => ({ code: c.code, name: c.name }))}
-        brands={brands}
-        defaultType={defaultType}
-        initialRefJob={sp.ref_job ?? ""}
-        initialBrand={sp.brand ?? ""}
-        initialSupplier={sp.supplier ?? ""}
-        initialProduct={sp.product ?? ""}
-        initialModel={sp.model ?? ""}
-        initialSn={sp.sn ?? ""}
-      />
+      <div>
+        <Link href="/claims/jobs" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-violet-600 hover:underline">
+          <ArrowLeft className="size-3.5" />
+          ກັບຄິວງານເຄມ
+          <LinkPending className="size-3" />
+        </Link>
+        <h1 className="text-xl font-bold text-slate-700">🛡️ ຮັບເຄື່ອງເຂົ້າງານເຄມ</h1>
+        <p className="mt-0.5 text-xs text-slate-500">
+          ຮ້ານຄ້າ/ລູກຄ້າສົ່ງມາເຄມ → ອອກເລກງານໃຫ້ຮ້ານ → ສ້າງໃບເຄມ CLM-B ອັດຕະໂນມັດ
+        </p>
+      </div>
+
+      {/* kind=claim ບັງຄັບຈາກ route ນີ້ — ຟອມບໍ່ມີປຸ່ມສະຫຼັບໄປງານສ້ອມແລ້ວ */}
+      <ServiceIntake types={types} brands={brands} techs={techs} prefill={{ ...prefill, kind: "claim" }} />
     </div>
   );
 }

@@ -222,6 +222,10 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
           -- ── ສະຖານະງານສ້ອມ: ຂັ້ນຮັບງານຖືກລວມເຂົ້າ wait-check ແລ້ວ ──
           ${REPAIR_STAGE_COUNTS},
           ${CLAIM_STAGE_COUNTS},
+          -- ລວມທຸກຂັ້ນຂອງເຄມ — badge ຂອງລາຍການ "ຄິວງານເຄມ" (ໜ້າລວມ /claims/jobs)
+          (select count(*) from tb_product a
+            where coalesce(a.job_kind,'repair')='claim' and a.return_complete is null
+              and a.cancel_start is null)::int as "/claims/jobs",
 
           -- ── 9 ຄິວຫຼັກຂອງງານຕິດຕັ້ງ (0-8) ──
           ${INSTALL_STAGE_COUNTS}`,
