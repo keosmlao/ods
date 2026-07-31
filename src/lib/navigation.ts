@@ -247,7 +247,7 @@ const CLAIM: NavGroup = {
     ...pipelineOf(claimStatuses).map(([slug, def], index) => ({
       label: `${index + 1}. ${def.label}`,
       href: `/claims/jobs/${slug}`,
-      count: `/dashboard/status/repair/${slug}`,
+      count: `/claims/jobs/${slug}`,
       labelKey: `pipe:claim:${slug}`,
       ...(index === 0 && { divider: true }),
     })),

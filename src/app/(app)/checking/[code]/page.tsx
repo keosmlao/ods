@@ -5,6 +5,7 @@ import { query } from "@/lib/db";
 import { canViewAssignedJob } from "@/lib/scope";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { claimRedirectTarget } from "@/lib/claim-route";
 import { notFound, redirect } from "next/navigation";
 
 /** ຖອດແບບຈາກ ods: check.py pro_ch_detail() + templates/checking/checking_page.html */
@@ -13,6 +14,9 @@ type Props = { params: Promise<{ code: string }> };
 
 export default async function CheckingDetail({ params }: Props) {
   const { code } = await params;
+  /* ໃບເຄມມີໜ້າຂອງຕົນ ⇒ ພາໄປ route ຝັ່ງເຄມ (lib/claim-route) — ຫ້າມມີ 2 ທາງເຂົ້າ */
+  const claimPath = await claimRedirectTarget(decodeURIComponent(code), "check");
+  if (claimPath) redirect(claimPath);
   const session = await getSession();
   if (!session) redirect("/login");
 

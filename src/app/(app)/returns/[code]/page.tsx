@@ -5,7 +5,8 @@ import { getCart, getRates, seedCart } from "@/app/actions/return";
 import { Chatter } from "@/components/chatter/chatter";
 import { InvoiceEditor } from "@/components/return/invoice-editor";
 import { LinkButton, PageTitle } from "@/components/ui";
-import { notFound } from "next/navigation";
+import { claimRedirectTarget } from "@/lib/claim-route";
+import { notFound, redirect } from "next/navigation";
 import { Printer } from "lucide-react";
 import { ReturnWithoutInvoice } from "./return-without-invoice";
 
@@ -13,6 +14,9 @@ import { ReturnWithoutInvoice } from "./return-without-invoice";
 
 export default async function ReturnDetailPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
+  /* ໃບເຄມມີໜ້າຂອງຕົນ ⇒ ພາໄປ route ຝັ່ງເຄມ (lib/claim-route) — ຫ້າມມີ 2 ທາງເຂົ້າ */
+  const claimPath = await claimRedirectTarget(decodeURIComponent(code), "return");
+  if (claimPath) redirect(claimPath);
   const head = await getHead(decodeURIComponent(code));
   if (!head) notFound();
 

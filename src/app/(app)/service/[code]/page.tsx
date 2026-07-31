@@ -33,6 +33,7 @@ import { JobTimeline } from "@/components/repair/job-timeline";
 import { DONE_STAGE } from "@/lib/track";
 import { ArrowLeft, Barcode, CalendarDays, ChevronDown, Clock, FilePlus2, ImageIcon, MapPin, MessageCircle, Pencil, Phone, Printer, ReceiptText, RotateCcw } from "lucide-react";
 import Link from "next/link";
+import { claimRedirectTarget } from "@/lib/claim-route";
 import { notFound, redirect } from "next/navigation";
 
 /**
@@ -91,6 +92,9 @@ type Props = { params: Promise<{ code: string }> };
 
 export default async function ServiceDetail({ params }: Props) {
   const { code } = await params;
+  /* ໃບເຄມມີໜ້າຂອງຕົນ ⇒ ພາໄປ route ຝັ່ງເຄມ (lib/claim-route) — ຫ້າມມີ 2 ທາງເຂົ້າ */
+  const claimPath = await claimRedirectTarget(decodeURIComponent(code), "detail");
+  if (claimPath) redirect(claimPath);
   const session = await getSession();
   if (!session) redirect("/login");
   const t = (await getDictionary(await getLocale())).serviceDetail;

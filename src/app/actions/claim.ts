@@ -61,6 +61,19 @@ export async function resolveClaim(
         where code=$1 and coalesce(job_kind,'repair')='claim' and time_finish_check is not null`,
       [current.ref_job, resolution === "repair" ? "repair" : fulfillmentSource],
     );
+    /**
+     * ── ຕັດສິນ "ສ້ອມ" ⇒ ໃບງານ **ກາຍເປັນງານສ້ອມ** (31-07-2026 ຕາມຄຳສັ່ງ) ──
+     * ຕັດສິນວ່າຈະສ້ອມໃຫ້ = ວຽກທີ່ເຫຼືອຄືວຽກສ້ອມທຸກປະການ (ເບີກອາໄຫຼ່ · ສ້ອມ · QC)
+     * ⇒ ຍ້າຍໄປສາຍສ້ອມເລີຍ ຈຶ່ງໄດ້ໃຊ້ຄິວ/ເຄື່ອງມືຂອງສ້ອມຕາມປົກກະຕິ.
+     * ຮ່ອງຮອຍວ່າມາຈາກເຄມຍັງຢູ່ຄົບ: claim_decision='repair' + ໃບເຄມ ref_job ຊີ້ມາຫາ.
+     * ຕັດສິນ "ປ່ຽນ" ⇒ ຍັງເປັນງານເຄມ (ລໍປ່ຽນຈາກ stock/ສັ່ງຊື້/supplier).
+     */
+    if (resolution === "repair") {
+      await query(`update tb_product set job_kind='repair' where code=$1`, [current.ref_job]);
+      await logChange("tb_product", current.ref_job, `ຕັດສິນເຄມ: ສ້ອມໃຫ້ ⇒ ຍ້າຍເຂົ້າສາຍງານສ້ອມ (ໃບເຄມ ${claimNo})`, {
+        roles: ["manager", "stock"],
+      });
+    }
   }
   const sourceLabel = fulfillmentSource === "stock" ? "ຈາກ stock ສູນ"
     : fulfillmentSource === "purchase" ? "ສັ່ງຊື້ມາປ່ຽນ"
@@ -437,10 +450,21 @@ export async function deleteClaim(claimNo: string): Promise<ClaimState> {
   const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
   if (!guard.ok) return { error: guard.error };
   const claim = await claimByNo(claimNo);
-  if (!claim || !isClaimEditable(claim.claim_type, claim.status)) return { error: "ລຶບໄດ້ສະເພາະໃບທີ່ຍັງບໍ່ສົ່ງ" };
+  if (!claim) return { error: "ບໍ່ພົບໃບເຄມ" };
+  /**
+   * ── ລົບໄດ້ **ທຸກຂັ້ນ** (31-07-2026 ຕາມຄຳສັ່ງ) ──
+   * ແຕ່ກ່ອນລົບໄດ້ສະເພາະໃບທີ່ຍັງບໍ່ສົ່ງ ⇒ ໃບທີ່ເປີດຜິດ/ຊ້ຳ ຄ້າງຢູ່ຄິວຕະຫຼອດໄປ
+   * ໂດຍບໍ່ມີທາງເອົາອອກ. ດຽວນີ້ລົບໄດ້ ແຕ່ **ຕັດການຜູກກັບໃບງານ**ໃຫ້ຮຽບຮ້ອຍກ່ອນ
+   * ແລະ ບັນທຶກໄວ້ໃນປະຫວັດຂອງໃບງານນຳ ⇒ ຮູ້ວ່າໃຜລົບ ແລະ ໃບງານບໍ່ຄ້າງອ້າງອີງທີ່ຫາຍໄປ.
+   */
   await query(`delete from ods_claim_item where claim_no = $1`, [claimNo]);
   await query(`delete from ods_claim where claim_no = $1`, [claimNo]);
-  await log(claimNo, guard.session.username, "delete", `ລບ ໃບເຄມ ${claimNo}`);
+  if (claim.ref_job) {
+    await logChange("tb_product", claim.ref_job, `ລຶບໃບເຄມ ${claimNo} (ຂັ້ນ ${claim.status})`, {
+      roles: ["manager", "stock"],
+    });
+  }
+  await log(claimNo, guard.session.username, "delete", `ລບ ໃບເຄມ ${claimNo} (ຂັ້ນ ${claim.status})`);
   revalidatePath("/claims");
   return { claimNo };
 }

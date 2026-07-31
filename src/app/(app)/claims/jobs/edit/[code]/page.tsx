@@ -3,13 +3,14 @@ import { ServiceEditForm, type ServiceHead } from "@/components/service-edit-for
 import { query } from "@/lib/db";
 import { getErpBrands, getErpCategories } from "@/lib/erp-master";
 import { technicianOptions } from "@/lib/technicians";
+import { getSession } from "@/lib/auth";
+import { CLAIM_SIDE, roleOf } from "@/lib/roles";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { claimRedirectTarget } from "@/lib/claim-route";
 import { notFound, redirect } from "next/navigation";
 
 /**
- * ຄື /rcpdedit/<roworder> ຂອງ ods (ໃຊ້ code ແທນ roworder)
+ * **ແກ້ໄຂໃບງານເຄມ** — route ຂອງເຄມເອງ (/service/<code>/edit ຈະ redirect ມາທີ່ນີ້).
  *
  * ແກ້ບັກ: ໜ້ານີ້ເຄີຍດຶງ ປະເພດສິນຄ້າ/ຫຍີ່ຫໍ້/ຊ່າງ ຈາກ tb_type, tb_brand ແລະ users ຂອງ ODS
  * ເຊິ່ງເປັນຕາຕະລາງທີ່ເລີກໃຊ້ແລ້ວ (tb_type ເຫຼືອພຽງ 3 ແຖວ) → ລາຍການ dropdown ເກືອບຫວ່າງ
@@ -18,11 +19,13 @@ import { notFound, redirect } from "next/navigation";
  */
 type Props = { params: Promise<{ code: string }> };
 
-export default async function EditService({ params }: Props) {
+export const dynamic = "force-dynamic";
+
+export default async function EditClaimJob({ params }: Props) {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  if (!CLAIM_SIDE.includes(roleOf(session))) redirect("/forbidden");
   const { code } = await params;
-  /* ໃບເຄມມີໜ້າຂອງຕົນ ⇒ ພາໄປ route ຝັ່ງເຄມ (lib/claim-route) — ຫ້າມມີ 2 ທາງເຂົ້າ */
-  const claimPath = await claimRedirectTarget(decodeURIComponent(code), "edit");
-  if (claimPath) redirect(claimPath);
 
   // doc_date_ref ເປັນ varchar — ຫ້າມເອົາໄປໃສ່ to_char()
   const head = (
@@ -47,7 +50,7 @@ export default async function EditService({ params }: Props) {
        left join ar_customer b on b.code = a.cust_code
        left join province c on c.code = b.provine
        left join city d on d.code = b.city and d.province = b.provine
-       where a.code = $1 limit 1`,
+       where a.code = $1 and coalesce(a.job_kind,'repair') = 'claim' limit 1`,
       [code],
     )
   ).rows[0];
@@ -74,14 +77,14 @@ export default async function EditService({ params }: Props) {
     <div className="w-full space-y-4">
       <div>
         <Link
-          href={`/service/${code}`}
-          className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline"
+          href={`/claims/jobs/detail/${code}`}
+          className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-violet-600 hover:underline"
         >
           <ArrowLeft className="size-3.5" />
-          ກັບໜ້າໃບຮັບເຄື່ອງ
+          ກັບໜ້າໃບງານເຄມ
           <LinkPending className="size-3" />
         </Link>
-        <h1 className="text-xl font-bold text-slate-700">ແກ້ໄຂໃບຮັບເຄື່ອງ #{head.code}</h1>
+        <h1 className="text-xl font-bold text-slate-700">🛡️ ແກ້ໄຂໃບງານເຄມ #{head.code}</h1>
         <p className="mt-0.5 text-xs text-slate-500">{head.name_1} {head.sn && <span className="text-slate-400">· {head.sn}</span>}</p>
       </div>
 

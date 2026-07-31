@@ -26,7 +26,7 @@ import { CANCELLED_JOBS, NOT_MISSING, STAGE_SQL } from "@/lib/stage";
 const CLAIM_STAGE_COUNTS = pipelineOf(claimStatuses)
   .map(
     ([slug, def]) =>
-      `(select count(*) from tb_product a where (${def.condition}) and ${NOT_MISSING})::int as "/dashboard/status/repair/${slug}"`,
+      `(select count(*) from tb_product a where (${def.condition}) and ${NOT_MISSING})::int as "/claims/jobs/${slug}"`,
   )
   .join(",\n          ");
 

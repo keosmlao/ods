@@ -1,5 +1,6 @@
 "use client";
 import { createService } from "@/app/actions/service";
+import { ClaimPartPicker } from "@/components/claim/claim-part-picker";
 import { ServiceCustomer, type Customer } from "@/components/service-customer";
 import { ProductPicker, type Product } from "@/components/product-picker";
 import { RepairHistory } from "@/components/service/repair-history";
@@ -237,8 +238,8 @@ export function ServiceForm({
             <input type="hidden" name="claim_scope" value={claimScope} />
             {claimScope === "part" && (
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <input name="claim_part_code" placeholder="ລະຫັດອາໄຫຼ່ (ຖ້າມີ)" className={field} />
-                <input name="claim_part_name" required placeholder="ຊື່ອາໄຫຼ່ *" className={field} />
+                {/* ອາໄຫຼ່ **ຕ້ອງມາຈາກ ERP** — ພິມເອງ ⇒ ຊື່/ລະຫັດບໍ່ຕົງ ic_inventory */}
+                <ClaimPartPicker field={field} />
                 <input name="claim_part_sn" placeholder="Serial ອາໄຫຼ່ (ຖ້າມີ)" className={field} />
                 <input name="claim_part_qty" type="number" min="0.01" step="0.01" defaultValue="1" required placeholder="ຈຳນວນ" className={field} />
               </div>

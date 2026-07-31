@@ -236,17 +236,20 @@ export default async function StatusPage({ params, searchParams }: Props) {
   if (workflow === "repair" && status === "wait-accept") {
     redirect("/dashboard/status/repair/wait-check");
   }
+  /**
+   * ຄິວເຄມຍ້າຍໄປ /claims/jobs/<ຂັ້ນ> ແລ້ວ (31-07-2026) — ລິ້ງເກົ່າ/bookmark ຍັງໃຊ້ໄດ້
+   * ແຕ່ພາໄປໂມດູນເຄມ ⇒ ບໍ່ເຫຼືອ **2 ທາງເຂົ້າ** ຫາຄິວດຽວກັນ.
+   */
+  if (workflow === "repair" && claimStatuses[status]) {
+    redirect(`/claims/jobs/${status}`);
+  }
   const isRepair = workflow === "repair";
   // ສະຖານະ overlay (ພັກຊົ່ວຄາວ / ໂອນໄປສູນ) ມີ condition ຂອງມັນເອງ ⇒ ຫ້າມເອົາ notHeldSql
   // ໄປ and ຊ້ຳ (heldSql and notHeldSql = ວ່າງ). ບໍ່ມີແທັບ ປົກກະຕິ/ມີບັນຫາ ໃນສະຖານະນີ້.
   const isPaused = isRepair && (status === "paused" || status === "transferring");
   // ຄິວເຄມ (claimStatuses) ໃຊ້ຕາຕະລາງ tb_product ອັນດຽວກັນ ⇒ ຢູ່ໃຕ້ workflow "repair"
   // ຄືເກົ່າ ພຽງແຕ່ຄີຄົນລະຊຸດ ແລະ ເມນູຢູ່ກຸ່ມ "ເຄມ" (lib/navigation).
-  const config = isRepair
-    ? (repairStatuses[status] ?? claimStatuses[status])
-    : workflow === "install"
-      ? installStatuses[status]
-      : null;
+  const config = isRepair ? repairStatuses[status] : workflow === "install" ? installStatuses[status] : null;
   /**
    * ຄິວ "ລໍຖ້າສົ່ງຄືນ" ຮັບງານມາຈາກ **ສອງທາງ**: ສ້ອມສຳເລັດ (ຜ່ານ QC) ແລະ ຍົກເລີກ
    * (ເຄື່ອງຍັງຕ້ອງຄືນລູກຄ້າ + ອາດເກັບຄ່າກວດ) ⇒ ຄົນສົ່ງເຄື່ອງຕ້ອງຮູ້ວ່າແຖວນີ້ມາຈາກໃສ

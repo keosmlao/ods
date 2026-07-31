@@ -1,5 +1,6 @@
 "use client";
 import { updateService } from "@/app/actions/service";
+import { ClaimPartPicker } from "@/components/claim/claim-part-picker";
 import { LocationPicker, type Point } from "@/components/installation/location-picker";
 import { SelectField } from "@/components/select-field";
 import { ONSITE_SERVICE_TYPES } from "@/lib/sla";
@@ -230,8 +231,8 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
             <input type="hidden" name="claim_scope" value={claimScope} />
             {claimScope === "part" && (
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <input name="claim_part_code" defaultValue={head.claim_part_code} placeholder={t.claimPartCode} className={field} />
-                <input name="claim_part_name" defaultValue={head.claim_part_name} required placeholder={t.claimPartName} className={field} />
+                {/* ອາໄຫຼ່ **ຕ້ອງມາຈາກ ERP** — ຄ່າເກົ່າທີ່ພິມເອງຍັງສະແດງ ແລະ ປ່ຽນໃໝ່ໄດ້ */}
+                <ClaimPartPicker field={field} defaultCode={head.claim_part_code} defaultName={head.claim_part_name} />
                 <input name="claim_part_sn" defaultValue={head.claim_part_sn} placeholder={t.claimPartSn} className={field} />
                 <input
                   name="claim_part_qty"

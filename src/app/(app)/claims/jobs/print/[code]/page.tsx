@@ -6,14 +6,14 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { trackUrl } from "@/lib/track";
 import Image from "next/image";
-import { claimRedirectTarget } from "@/lib/claim-route";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 
 type PrintDict = (typeof import("@/lib/i18n/dictionaries/lo.json"))["servicePrint"];
 
 /**
- * ພິມໃບຮັບເຄື່ອງສ້ອມແປງ — ຖອດແບບຈາກ ods/templates/billprint/reciptpd.html (ໂຄງ 2 ພາສາ ລາວ/ອັງກິດ).
+ * **ພິມໃບຮັບເຄື່ອງເຄມ** — route ຂອງເຄມເອງ (/service/<code>/print redirect ມາທີ່ນີ້).
+ * ໂຄງໃບຄືກັນກັບໃບສ້ອມ — ຖອດແບບຈາກ ods/templates/billprint/reciptpd.html (ໂຄງ 2 ພາສາ ລາວ/ອັງກິດ).
  *
  * ⚠️ ເຄີຍມີໃບພິມແບບທີ 2 `?layout=anniv` ("ໃບງານລ້າງຈັກຊັກຜ້າ" ຄື ods /sprint2) —
  * **ຖອດອອກແລ້ວ 31-07-2026** ຕາມຄຳສັ່ງ: ຕ່າງກັນພຽງຫົວຂໍ້ໃບ ແລະ ບໍ່ໄດ້ໃຊ້.
@@ -70,9 +70,6 @@ function ValueCell({ value, colSpan }: { value: string | null; colSpan?: number 
 
 export default async function PrintReceipt({ params }: Props) {
   const { code } = await params;
-  /* ໃບເຄມມີໜ້າຂອງຕົນ ⇒ ພາໄປ route ຝັ່ງເຄມ (lib/claim-route) — ຫ້າມມີ 2 ທາງເຂົ້າ */
-  const claimPath = await claimRedirectTarget(decodeURIComponent(code), "print");
-  if (claimPath) redirect(claimPath);
   const t = (await getDictionary(await getLocale())).servicePrint;
 
   const [receipt, company, categories] = await Promise.all([
@@ -145,7 +142,7 @@ export default async function PrintReceipt({ params }: Props) {
         </div>
       </div>
 
-      <h1 className="my-3 text-center text-xl font-bold">{t.receiptTitleDefault}</h1>
+      <h1 className="my-3 text-center text-xl font-bold">{"ໃບຮັບເຄື່ອງເຄມ (ຈາກຮ້ານ)"}</h1>
 
       {/* ຂໍ້ມູນລູກຄ້າ */}
       <p className="mb-1 font-bold underline">{t.customerInfo} / Customer Information</p>
