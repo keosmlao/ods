@@ -11,6 +11,7 @@ import 'approvals_screen.dart';
 import 'commission_screen.dart';
 import 'login_screen.dart';
 import 'pending_map_screen.dart';
+import 'repair_stock_screen.dart';
 import 'notifications_screen.dart';
 import 'manager_kit.dart';
 import 'overview_jobs_screen.dart';
@@ -273,6 +274,19 @@ class _ManagerScreenState extends State<ManagerScreen> {
               ),
             ),
           ],
+        ),
+      ),
+
+      _Card(
+        title: 'ສາງສູນບໍລິການ',
+        child: _ShortcutButton(
+          icon: Icons.inventory_2_outlined,
+          label: 'ຄົງເຫຼືອ ແລະ ລາຍການອາໄຫຼ່',
+          tone: const Color(0xFF0891B2),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const RepairStockScreen()),
+          ),
         ),
       ),
 

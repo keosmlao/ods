@@ -480,18 +480,6 @@ class Api {
         .toList();
   }
 
-  /// browse ຄົງເຫຼືອ ສາງສ້ອມ (1104/1206) ຈາກ cache — ໄວ. q = ກອງ.
-  static Future<({List<StockBalanceItem> items, String? refreshedAt})> repairStock(String query) async {
-    final result = await _send(
-      'GET',
-      '/api/mobile/repair-stock?q=${Uri.encodeQueryComponent(query)}',
-    );
-    final items = (result['items'] as List)
-        .map((row) => StockBalanceItem.fromJson(row))
-        .toList();
-    return (items: items, refreshedAt: result['refreshed_at'] as String?);
-  }
-
   static Future<List<PickupDoc>> pickups() async {
     final result = await _send('GET', '/api/mobile/spares?queue=pickup');
     return (result['docs'] as List)
@@ -730,6 +718,30 @@ class Api {
       await _send('GET', '/api/mobile/commission${query.isEmpty ? '' : '?${query.join('&')}'}'),
     );
   }
+
+  /// ຄົງເຫຼືອ ສາງສູນບໍລິການ — ຄົ້ນ/ກອງ/ຕັດໜ້າ ຢູ່ server (ຢ່າດຶງ 1,141 ລາຍການລົງມືຖື)
+  static Future<RepairStock> repairStock({
+    String q = '',
+    String wh = '',
+    String loc = '',
+    int page = 1,
+  }) async {
+    final query = <String>[
+      if (q.isNotEmpty) 'q=${Uri.encodeQueryComponent(q)}',
+      if (wh.isNotEmpty) 'wh=${Uri.encodeQueryComponent(wh)}',
+      if (loc.isNotEmpty) 'loc=${Uri.encodeQueryComponent(loc)}',
+      'page=$page',
+    ];
+    return RepairStock.fromJson(
+      await _send('GET', '/api/mobile/repair-stock?${query.join('&')}'),
+    );
+  }
+
+  /// ລາຍລະອຽດອາໄຫຼ່ 1 ຕົວ — ຢູ່ສາງ/ທີ່ຈັດເກັບໃດ ຈັກອັນ + ຄວາມເຄື່ອນໄຫວ
+  static Future<RepairStockDetail> repairStockItem(String code) async =>
+      RepairStockDetail.fromJson(
+        await _send('GET', '/api/mobile/repair-stock/${Uri.encodeComponent(code)}'),
+      );
 
   /// ຜົນງານລູກນ້ອງ — ລາຍชื่อຊ່າງ + ພາລະ/ຄວາມຊ້າ/ຄ່າຄອມ
   static Future<List<TechRow>> techs() async {
@@ -2267,6 +2279,169 @@ class Commission {
         .toList(),
     lines: ((json['lines'] as List?) ?? [])
         .map((row) => CommissionLine.fromJson(row as Map<String, dynamic>))
+        .toList(),
+  );
+}
+
+
+/// ຍອດຂອງ 1 ອາໄຫຼ່ ໃນ 1 ສູນ
+class StockCenterQty {
+  final String code;
+  final String name;
+  final double qty;
+  StockCenterQty({required this.code, required this.name, required this.qty});
+  factory StockCenterQty.fromJson(Map<String, dynamic> json) => StockCenterQty(
+    code: json['code'] as String? ?? '',
+    name: json['name'] as String? ?? '',
+    qty: (json['qty'] as num?)?.toDouble() ?? 0,
+  );
+}
+
+/// ຕົວກອງ (ສູນ ຫຼື ທີ່ຈັດເກັບ) + ຈຳນວນອາໄຫຼ່ໃນນັ້ນ
+class StockFilter {
+  final String code;
+  final String name;
+  final int items;
+  StockFilter({required this.code, required this.name, required this.items});
+  factory StockFilter.fromJson(Map<String, dynamic> json) => StockFilter(
+    code: json['code'] as String? ?? '',
+    name: json['name'] as String? ?? '',
+    items: (json['items'] as num?)?.toInt() ?? 0,
+  );
+}
+
+/// 1 ແຖວໃນລາຍການອາໄຫຼ່
+class RepairStockRow {
+  final String code;
+  final String name;
+  final String? unitCode;
+  final double total;
+  final List<StockCenterQty> centers;
+  RepairStockRow({
+    required this.code,
+    required this.name,
+    required this.unitCode,
+    required this.total,
+    required this.centers,
+  });
+  factory RepairStockRow.fromJson(Map<String, dynamic> json) => RepairStockRow(
+    code: json['code'] as String? ?? '',
+    name: json['name'] as String? ?? '',
+    unitCode: json['unit_code'] as String?,
+    total: (json['total'] as num?)?.toDouble() ?? 0,
+    centers: ((json['centers'] as List?) ?? [])
+        .map((row) => StockCenterQty.fromJson(row as Map<String, dynamic>))
+        .toList(),
+  );
+}
+
+/// ໜ້າໜຶ່ງຂອງລາຍການອາໄຫຼ່ ສາງສູນບໍລິການ
+class RepairStock {
+  final List<RepairStockRow> items;
+  final int total;
+  final int page;
+  final int pages;
+  final String? refreshedAt;
+  final List<StockFilter> centers;
+  final List<StockFilter> shelves;
+  RepairStock({
+    required this.items,
+    required this.total,
+    required this.page,
+    required this.pages,
+    required this.refreshedAt,
+    required this.centers,
+    required this.shelves,
+  });
+  factory RepairStock.fromJson(Map<String, dynamic> json) => RepairStock(
+    items: ((json['items'] as List?) ?? [])
+        .map((row) => RepairStockRow.fromJson(row as Map<String, dynamic>))
+        .toList(),
+    total: (json['total'] as num?)?.toInt() ?? 0,
+    page: (json['page'] as num?)?.toInt() ?? 1,
+    pages: (json['pages'] as num?)?.toInt() ?? 1,
+    refreshedAt: json['refreshed_at'] as String?,
+    centers: ((json['centers'] as List?) ?? [])
+        .map((row) => StockFilter.fromJson(row as Map<String, dynamic>))
+        .toList(),
+    shelves: ((json['shelves'] as List?) ?? [])
+        .map((row) => StockFilter.fromJson(row as Map<String, dynamic>))
+        .toList(),
+  );
+}
+
+/// ບ່ອນທີ່ອາໄຫຼ່ຢູ່ (ສາງ + ທີ່ຈັດເກັບ)
+class StockPlace {
+  final String whCode;
+  final String whName;
+  final String location;
+  final String locationName;
+  final double qty;
+  StockPlace({
+    required this.whCode,
+    required this.whName,
+    required this.location,
+    required this.locationName,
+    required this.qty,
+  });
+  factory StockPlace.fromJson(Map<String, dynamic> json) => StockPlace(
+    whCode: json['wh_code'] as String? ?? '',
+    whName: json['wh_name'] as String? ?? '',
+    location: json['location'] as String? ?? '',
+    locationName: json['location_name'] as String? ?? '',
+    qty: (json['qty'] as num?)?.toDouble() ?? 0,
+  );
+}
+
+/// ຄວາມເຄື່ອນໄຫວ 1 ແຖວ
+class StockMove {
+  final String docNo;
+  final String? docDate;
+  final String kind;
+  final double qty;
+  final String whCode;
+  StockMove({
+    required this.docNo,
+    required this.docDate,
+    required this.kind,
+    required this.qty,
+    required this.whCode,
+  });
+  factory StockMove.fromJson(Map<String, dynamic> json) => StockMove(
+    docNo: json['doc_no'] as String? ?? '',
+    docDate: json['doc_date'] as String?,
+    kind: json['kind'] as String? ?? '',
+    qty: (json['qty'] as num?)?.toDouble() ?? 0,
+    whCode: json['wh_code'] as String? ?? '',
+  );
+}
+
+/// ລາຍລະອຽດອາໄຫຼ່ 1 ຕົວ
+class RepairStockDetail {
+  final String code;
+  final String name;
+  final String? unitCode;
+  final double total;
+  final List<StockPlace> places;
+  final List<StockMove> moves;
+  RepairStockDetail({
+    required this.code,
+    required this.name,
+    required this.unitCode,
+    required this.total,
+    required this.places,
+    required this.moves,
+  });
+  factory RepairStockDetail.fromJson(Map<String, dynamic> json) => RepairStockDetail(
+    code: json['code'] as String? ?? '',
+    name: json['name'] as String? ?? '',
+    unitCode: json['unit_code'] as String?,
+    total: (json['total'] as num?)?.toDouble() ?? 0,
+    places: ((json['places'] as List?) ?? [])
+        .map((row) => StockPlace.fromJson(row as Map<String, dynamic>))
+        .toList(),
+    moves: ((json['moves'] as List?) ?? [])
+        .map((row) => StockMove.fromJson(row as Map<String, dynamic>))
         .toList(),
   );
 }
