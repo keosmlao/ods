@@ -127,6 +127,16 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
 
   const [serviceType, setServiceType] = useState(head.service_type ?? "");
   const onsite = ONSITE_SERVICE_TYPES.includes(serviceType as "IH" | "PS");
+
+  /**
+   * ໝາຍເປັນງານເຄມ ⇒ ຕັ້ງປະເພດບໍລິການເປັນ CI ໃຫ້ (ຄືກັບຟອມເປີດງານ — ເບິ່ງເຫດຜົນຢູ່ນັ້ນ).
+   * ແຕະສະເພາະເມື່ອຊ່ອງຫວ່າງ ຫຼື ເປັນປະເພດອອກໜ້າງານ (IH/PS) ທີ່ບັງຄັບສະຖານທີ່.
+   */
+  const pickClaim = () => {
+    setJobKind("claim");
+    if (!serviceType || ONSITE_SERVICE_TYPES.includes(serviceType as "IH" | "PS")) setServiceType("CI");
+  };
+
   const [point, setPoint] = useState<Point | null>(
     head.location_lat != null && head.location_lng != null
       ? { lat: head.location_lat, lng: head.location_lng }
@@ -174,7 +184,7 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
           </button>
           <button
             type="button"
-            onClick={() => setJobKind("claim")}
+            onClick={() => pickClaim()}
             className={`rounded-xl border p-3 text-left ${jobKind === "claim" ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100" : "border-slate-200"}`}
           >
             <b className="block text-sm">{t.kindClaim}</b>
@@ -196,6 +206,7 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
         {jobKind === "claim" && (
           <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50/50 p-3">
             <p className="mb-2 text-xs font-bold text-violet-800">{t.claimScopeQuestion}</p>
+            {!claimLocked && <p className="mb-2 text-[11px] text-violet-700">{t.claimServiceHint}</p>}
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"

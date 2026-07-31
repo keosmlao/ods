@@ -93,6 +93,19 @@ export function ServiceForm({
   /** IH ສ້ອມບ້ານລູກຄ້າ · PS ໄປຮັບເຄື່ອງຈາກບ້ານມາສ້ອມຢູ່ສູນ ⇒ ຊ່າງອອກໜ້າງານ (ນິຍາມດຽວກັບ lib/sla) */
   const onsite = ONSITE_SERVICE_TYPES.includes(serviceType as "IH" | "PS");
 
+  /**
+   * ── ງານເຄມ ⇒ ຕັ້ງປະເພດບໍລິການເປັນ **CI (ລູກຄ້ານຳເຄື່ອງເຂົ້າ)** ໃຫ້ ──
+   * ເຄມເກືອບທັງໝົດຄືຮ້ານຄ້າ/ລູກຄ້າຫອບເຄື່ອງມາເອງ ⇒ ບໍ່ມີພິກັດໜ້າງານ ບໍ່ມີວັນນັດ ບໍ່ຕ້ອງ
+   * check-in. ຖ້າປະໄວ້ຫວ່າງ ຄົນຮັບເຄື່ອງມັກເລືອກ IH/PS ຕິດມືມາຈາກໃບກ່ອນ ແລ້ວຟອມຈະ
+   * **ບັງຄັບສະຖານທີ່ໜ້າງານ** ທັງທີ່ບໍ່ມີ ⇒ ບັນທຶກບໍ່ໄດ້.
+   * ຍັງປ່ຽນເປັນ PS ໄດ້ ຖ້າໄປຮັບເຄື່ອງເຄມເຖິງບ້ານ/ຮ້ານ (ບໍ່ໄດ້ລັອກ).
+   */
+  const pickClaim = () => {
+    setJobKind("claim");
+    if (!serviceType || ONSITE_SERVICE_TYPES.includes(serviceType as "IH" | "PS")) setServiceType("CI");
+  };
+
+
   const suggestion = warrantyFromBill(billDate);
   // ຄຳນວນຕອນ render — ບໍ່ຕ້ອງ setState ໃນ effect
   // ບໍ່ມີວັນທີບິນ = ຢືນຢັນສິດປະກັນອັດຕະໂນມັດບໍ່ໄດ້.
@@ -205,7 +218,7 @@ export function ServiceForm({
             <b className="block text-sm">🔧 ງານສ້ອມ</b>
             <span className="text-xs text-slate-500">ຮັບເຄື່ອງເຂົ້າກວດ ແລະສ້ອມຕາມປົກກະຕິ</span>
           </button>
-          <button type="button" onClick={() => setJobKind("claim")} className={`rounded-xl border p-3 text-left ${jobKind === "claim" ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100" : "border-slate-200"}`}>
+          <button type="button" onClick={() => pickClaim()} className={`rounded-xl border p-3 text-left ${jobKind === "claim" ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100" : "border-slate-200"}`}>
             <b className="block text-sm">🛡️ ງານເຄມ</b>
             <span className="text-xs text-slate-500">ລູກຄ້າຂໍປ່ຽນສິນຄ້າ/ອາໄຫຼ່; ສ້າງ CLM-B ອັດຕະໂນມັດ</span>
           </button>
@@ -214,6 +227,8 @@ export function ServiceForm({
         {jobKind === "claim" && (
           <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50/50 p-3">
             <p className="mb-2 text-xs font-bold text-violet-800">ລູກຄ້າສົ່ງມາເຄມຫຍັງ?</p>
+            {/* ບອກວ່າຟອມຕັ້ງປະເພດບໍລິການໃຫ້ແລ້ວ — ບໍ່ດັ່ງນັ້ນຄົນຮັບເຄື່ອງບໍ່ຮູ້ວ່າມັນປ່ຽນ */}
+            <p className="mb-2 text-[11px] text-violet-700">{t.claimServiceHint}</p>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => setClaimScope("whole")} className={`rounded-lg px-3 py-2 text-xs font-semibold ${claimScope === "whole" ? "bg-violet-600 text-white" : "border border-violet-200 bg-white text-violet-700"}`}>ເຄມທັງເຄື່ອງ</button>
               <button type="button" onClick={() => setClaimScope("part")} className={`rounded-lg px-3 py-2 text-xs font-semibold ${claimScope === "part" ? "bg-violet-600 text-white" : "border border-violet-200 bg-white text-violet-700"}`}>ເຄມສະເພາະອາໄຫຼ່</button>
