@@ -128,7 +128,7 @@ export default async function InstallationDetail({ params }: Props) {
       `select count(*)::int items from (
          select n.item_code
            from (select item_code, sum(qty) qty from tb_used_spare
-                  where product_code = $1 and reg_finish is null group by item_code) n
+                  where product_code = $1 group by item_code) n
            left join (select item_code, sum(case when trans_flag = 122 then qty else -qty end) qty
                         from ic_trans_detail
                        where product_code = $1 and trans_flag in (122,59) group by item_code) c

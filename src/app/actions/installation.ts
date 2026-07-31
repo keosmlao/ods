@@ -1292,17 +1292,12 @@ export async function updateSpareQty(
  * ຂໍອາໄຫຼ່ຊຸດເກົ່າຄືນອີກ ແລ້ວສາງເບີກ (ຕັດສະຕັອກ ODS+ERP) ອາໄຫຼ່ຕົວດຽວກັນສອງເທື່ອ.
  * ຂໍ້ມູນຈິງຝັ່ງຕິດຕັ້ງ: 289 ງານມີໃບ SION ຫຼາຍກວ່າ 1 ໃບ · ອາໄຫຼ່ຕົວດຽວກັນຖືກຂໍໃນ 2+ ໃບ
  * = 128 ຄູ່ (32 ງານ) · ຖືກສາງເບີກອອກໃນ 2+ ໃບເບີກ = 61 ຄູ່ (29 ງານ, 145 ໃບເບີກ).
- *
- * ⚠️ **ບໍ່ນັບແຖວທີ່ສາງຈ່າຍໄປແລ້ວ** (`reg_finish is not null`) — ຂໍ້ມູນຈິງ INST-7082:
- * 12 ໃນ 14 ແຖວມີ reg_finish ຕັ້ງແຕ່ 20-07 (ຈ່າຍແລ້ວ ຜ່ານທາງລະບົບເກົ່າ ຈຶ່ງບໍ່ມີເອກະສານ
- * 122/56 ຮອງຮັບ) ⇒ ສູດ "ກະຕ່າ − ເອກະສານ" ຍັງນັບເປັນຄ້າງ ແລ້ວເອົາຂຶ້ນມາໃຫ້ຂໍເບີກຊ້ຳ.
- * ຢາກຂໍຊ້ຳຈິງ ຍັງກົດ "ເພີ່ມອາໄຫຼ່" ເອົາຈາກກະຕ່າໄດ້ຄືເກົ່າ.
  */
 const OUTSTANDING_INSTALL_SPARES = `
   select n.item_code, n.item_name, n.unit_code, (n.qty - coalesce(c.qty, 0))::numeric qty
   from (
     select item_code, min(roworder) rn, max(item_name) item_name, max(unit_code) unit_code, sum(qty) qty
-    from tb_used_spare where product_code = $1 and reg_finish is null group by item_code
+    from tb_used_spare where product_code = $1 group by item_code
   ) n
   left join (
     select item_code, sum(case when trans_flag = 122 then qty else -qty end) qty
