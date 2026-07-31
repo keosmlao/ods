@@ -1,4 +1,3 @@
-import { RefreshRepairStock } from "@/components/repair/refresh-repair-stock";
 import { RepairBalanceTable } from "@/components/repair/repair-balance-table";
 import { PageTitle } from "@/components/ui";
 import { requireRoleOrRedirect } from "@/lib/guard";
@@ -9,9 +8,13 @@ import { STOCK_SIDE } from "@/lib/roles";
 import { Search } from "lucide-react";
 
 /**
- * ຄົງເຫຼືອ ສາງສ້ອມ (ສູນບໍລິການ 1104/1206) — browse ທັງໝົດ ຈາກ cache (ໄວ) + ກອງ + ດຶງໃໝ່.
- * ແຍກ tab ຕາມສູນບໍລິການ (RepairBalanceTable, client). ຍອດເປັນ snapshot (ບໍ່ real-time) —
- * ກົດ "ດຶງໃໝ່" ເພື່ອອັບເດດ (~25ວິ, ERP).
+ * ຄົງເຫຼືອ ສາງສ້ອມ (ສູນບໍລິການ 1104/1206) — browse ທັງໝົດ ຈາກ cache (ໄວ) + ກອງ.
+ * ແຍກ tab ຕາມສູນບໍລິການ ແລະ **ທີ່ຈັດເກັບ** (RepairBalanceTable, client).
+ *
+ * ── ບໍ່ມີປຸ່ມ "ດຶງໃໝ່ຈາກ ERP" ແລ້ວ (31-07-2026 ຕາມຄຳສັ່ງ) ──
+ * ມັນໃຊ້ເວລາ ~25ວິ ແລະ ບລັອກຄົນກົດ ໃນຂະນະທີ່ **cron ດຶງໃຫ້ຢູ່ແລ້ວ**
+ * (/api/cron/repair-stock). ຍອດຍັງເປັນ snapshot ຄືເກົ່າ ⇒ ຍັງບອກ "ອັບເດດຂໍ້ມູນ: …"
+ * ໄວ້ໃຫ້ຮູ້ວ່າຂໍ້ມູນເກົ່າປານໃດ. ຕ້ອງການດຶງດ່ວນ ⇒ ຍິງ cron route ດ້ວຍ CRON_KEY.
  */
 type Props = { searchParams: Promise<{ q?: string }> };
 
@@ -27,9 +30,9 @@ export default async function RepairBalancePage({ searchParams }: Props) {
         {t.title}
       </PageTitle>
 
-      <div className="mb-4">
-        <RefreshRepairStock refreshedAt={refreshedAt} />
-      </div>
+      <p className="mb-4 text-xs text-slate-500">
+        ອັບເດດຂໍ້ມູນ: <b className="tabular-nums text-slate-700">{refreshedAt ?? "ຍັງບໍ່ໄດ້ດຶງ"}</b>
+      </p>
 
       <form className="mb-4 flex gap-2" action="/stock/balance/repair" method="get">
         <div className="relative flex-1">

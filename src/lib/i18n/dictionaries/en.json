@@ -4538,7 +4538,7 @@
     "subtitle": "Spare parts in stock at repair warehouse 1104 (Khoua Luang) · 1206 (Don Tiw)",
     "filterPlaceholder": "Filter: name or spare code...",
     "filter": "Filter",
-    "noDataYet": "No data yet — click \"Refresh from ERP\" above first (takes ~25 seconds)",
+    "noDataYet": "No data yet — waiting for the ERP cron to run",
     "notFound": "Not found",
     "inRepairWarehouse": "in repair warehouse",
     "noSparesInWarehouse": "No spares in repair warehouse",
