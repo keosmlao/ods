@@ -4757,7 +4757,11 @@
     "colLoaner": "เครื่องสำรอง",
     "colIsn": "ISN",
     "colLent": "ให้ยืม",
-    "colAge": "ค้าง"
+    "colAge": "ค้าง",
+    "searchLabel": "ค้นหาเครื่องจาก SML *",
+    "searchPlaceholder": "ยิงบาร์โค้ด หรือพิมพ์ ISN · รหัส · ชื่อสินค้า",
+    "searchEmpty": "ไม่พบเครื่องใน SML — ลองพิมพ์ชื่อสินค้าหรือรหัสสินค้า",
+    "alreadyLent": "ยืมค้างอยู่ใบงาน"
   },
   "manageSettings": {
     "title": "การตั้งค่าระบบ",

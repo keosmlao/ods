@@ -4757,7 +4757,11 @@
     "colLoaner": "ເຄື່ອງສຳຮອງ",
     "colIsn": "ISN",
     "colLent": "ໃຫ້ຢືມ",
-    "colAge": "ຄ້າງ"
+    "colAge": "ຄ້າງ",
+    "searchLabel": "ຄົ້ນໜ່ວຍເຄື່ອງຈາກ SML *",
+    "searchPlaceholder": "ຍິງບາໂຄດ ຫຼື ພິມ ISN · ລະຫັດ · ຊື່ເຄື່ອງ",
+    "searchEmpty": "ບໍ່ພົບໜ່ວຍທີ່ຄົ້ນໃນ SML — ລອງພິມຊື່ເຄື່ອງ ຫຼື ລະຫັດສິນຄ້າ",
+    "alreadyLent": "ຢືມຄ້າງຢູ່ໃບງານ"
   },
   "manageSettings": {
     "title": "ການຕັ້ງຄ່າລະບົບ",

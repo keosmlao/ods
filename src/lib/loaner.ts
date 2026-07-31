@@ -1,4 +1,4 @@
-import { query } from "@/lib/db";
+import { query, queryOdg } from "@/lib/db";
 import { loanerHoldMessage } from "@/lib/loaner-shared";
 
 /**
@@ -69,6 +69,64 @@ export type OutstandingLoaner = LoanerRow & {
   tel: string | null;
   product: string | null;
 };
+
+/**
+ * ── ຄົ້ນໜ່ວຍເຄື່ອງຈາກ SML (sn_inventory ຂອງ odg) ເພື່ອເອົາໄປໃຫ້ຢືມ ──
+ *
+ * ແຕ່ກ່ອນຟອມໃຫ້ຢືມມີແຕ່ຊ່ອງ ISN + ປຸ່ມ "ຫາຈາກ ERP" ທີ່ຈັບຄູ່ແບບ **ຕົງເປັນຕົວ**
+ * ⇒ ຖ້າອ່ານປ້າຍບໍ່ຄົບ ຫຼື ບໍ່ຮູ້ ISN ເລີຍ (ຮູ້ແຕ່ວ່າ "ຈໍ 32 ນິ້ວ") ຈະ **ບໍ່ຂຶ້ນຫຍັງເລີຍ**
+ * ແລ້ວຄົນກໍ່ພິມຊື່ເອົາເອງ ⇒ ໜ່ວຍທີ່ບັນທຶກໄວ້ບໍ່ຕົງກັບໜ່ວຍຈິງໃນ SML ແລະ ຕາມເອົາຄືນບໍ່ໄດ້.
+ *
+ * ດຽວນີ້ຄົ້ນໄດ້ດ້ວຍ **ISN · SN · ລະຫັດສິນຄ້າ · ຊື່ສິນຄ້າ** (ບາງສ່ວນກໍ່ໄດ້).
+ *
+ * ⚠️ **ບໍ່ຈຳກັດສາງ** ໂດຍເຈດຕະນາ: ສາງສູນບໍລິການ (1104) ມີພຽງ 69 ໜ່ວຍ ແລະ ເກືອບທັງໝົດ
+ * ເປັນເຄື່ອງມືຊ່າງ — ເຄື່ອງທີ່ເອົາໄປໃຫ້ລູກຄ້າໃຊ້ກ່ອນ ຕົວຈິງຢືມມາຈາກສາງຂາຍ.
+ * ຈຳກັດສາງ = ລາຍການຫວ່າງ = ບັນຫາເກົ່າຄືນມາ. ສະແດງ **ຊື່ສາງ** ໃຫ້ເຫັນແທນ
+ * ⇒ ຄົນເລືອກຮູ້ວ່າຕ້ອງໄປເອົາໜ່ວຍນັ້ນຢູ່ໃສ.
+ */
+export type LoanerUnit = {
+  isn: string;
+  sn: string | null;
+  item_code: string;
+  item_name: string;
+  wh_code: string | null;
+  wh_name: string | null;
+  /** ຢືມຢູ່ໃບງານອື່ນທີ່ຍັງບໍ່ຄືນ — ບອກໄວ້ກ່ອນກົດ (ດ່ານຈິງແມ່ນ unique index) */
+  lent_job?: string | null;
+};
+
+export async function searchLoanerUnits(q: string, limit = 15): Promise<LoanerUnit[]> {
+  const keyword = q.trim();
+  if (keyword.length < 3) return [];
+  const like = `%${keyword.replace(/\s+/g, "")}%`;
+
+  const units = (
+    await queryOdg<LoanerUnit>(
+      `select coalesce(s.isn,'') isn, s.sn, s.item_code, coalesce(s.item_name,'') item_name,
+              s.wh_code, w.name_1 wh_name
+         from sn_inventory s
+         left join ic_warehouse w on w.code = s.wh_code
+        where coalesce(s.isn,'') <> ''
+          and (replace(coalesce(s.isn,''),' ','') ilike $1
+            or replace(coalesce(s.sn,''),' ','')  ilike $1
+            or s.item_code ilike $2
+            or s.item_name ilike $2)
+        -- ຢູ່ສາງ (status 0) ຂຶ້ນກ່ອນ ໜ່ວຍທີ່ອອກໄປແລ້ວ
+        order by s.status, s.updated_at desc nulls last
+        limit $3`,
+      [like, `%${keyword}%`, limit],
+    )
+  ).rows;
+  if (!units.length) return units;
+
+  // ໜ່ວຍໃດຢືມຄ້າງຢູ່ແລ້ວ — ຖາມ ODS ຮອບດຽວ (ບໍ່ join ຂ້າມຖານ)
+  const open = await query<{ isn: string; job_code: string }>(
+    `select isn, job_code from ods_loaner where return_time is null and isn = any($1)`,
+    [units.map((unit) => unit.isn)],
+  );
+  const lent = new Map(open.rows.map((row) => [row.isn, row.job_code]));
+  return units.map((unit) => ({ ...unit, lent_job: lent.get(unit.isn) ?? null }));
+}
 
 export async function outstandingLoaners(): Promise<OutstandingLoaner[]> {
   const rows = await query<OutstandingLoaner>(

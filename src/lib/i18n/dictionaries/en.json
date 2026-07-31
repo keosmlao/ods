@@ -4757,7 +4757,11 @@
     "colLoaner": "Loaner",
     "colIsn": "ISN",
     "colLent": "Lent",
-    "colAge": "Out for"
+    "colAge": "Out for",
+    "searchLabel": "Find a unit in SML *",
+    "searchPlaceholder": "Scan barcode or type ISN / code / item name",
+    "searchEmpty": "No unit found in SML — try the item name or item code",
+    "alreadyLent": "Already lent on job"
   },
   "manageSettings": {
     "title": "System settings",

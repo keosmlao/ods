@@ -1,8 +1,8 @@
 "use client";
-import { lendLoaner, returnLoaner, type LoanerState } from "@/app/actions/loaner";
-import type { LoanerRow } from "@/lib/loaner";
+import { findLoanerUnit, lendLoaner, returnLoaner, type LoanerState } from "@/app/actions/loaner";
+import type { LoanerRow, LoanerUnit } from "@/lib/loaner";
 import { useDict } from "@/lib/i18n/context";
-import { Check, LoaderCircle, PackageCheck, Plus, Printer, X } from "lucide-react";
+import { Check, LoaderCircle, PackageCheck, Plus, Printer, Search, X } from "lucide-react";
 import { useActionState, useState } from "react";
 
 /**
@@ -32,25 +32,42 @@ export function LoanerCard({
   const [isn, setIsn] = useState("");
   const [itemName, setItemName] = useState("");
   const [itemCode, setItemCode] = useState("");
+  const [picked, setPicked] = useState<LoanerUnit | null>(null);
+  const [q, setQ] = useState("");
+  const [units, setUnits] = useState<LoanerUnit[]>([]);
   const [looking, setLooking] = useState(false);
+  const [searched, setSearched] = useState(false);
 
   const outstanding = rows.filter((row) => !row.return_time);
 
-  /** ຫາຊື່ເຄື່ອງຈາກ ISN — ບໍ່ພົບກໍ່ພິມເອງໄດ້ (ເຄື່ອງເກົ່າບາງໜ່ວຍບໍ່ມີໃນ ERP ແລ້ວ) */
+  /**
+   * ຄົ້ນໜ່ວຍຈາກ **SML** ດ້ວຍ ISN · SN · ລະຫັດ · ຊື່ (ບາງສ່ວນກໍ່ໄດ້).
+   * ແຕ່ກ່ອນຍິງ /api/scan ທີ່ຈັບຄູ່ ISN ຕົງເປັນຕົວ ⇒ ບໍ່ຮູ້ ISN ແມ່ນ **ບໍ່ຂຶ້ນຫຍັງເລີຍ**.
+   */
   async function lookup() {
-    if (isn.trim().length < 3) return;
+    if (q.trim().length < 3) return;
     setLooking(true);
-    try {
-      const body = await (await fetch(`/api/scan?code=${encodeURIComponent(isn.trim())}`)).json();
-      if (body.found) {
-        setItemName(body.product ?? "");
-        setItemCode(body.itemCode ?? "");
-      }
-    } catch {
-      // ຫາບໍ່ໄດ້ = ພິມເອງ — ບໍ່ຕ້ອງລົບກວນຜູ້ໃຊ້
-    } finally {
-      setLooking(false);
-    }
+    setSearched(true);
+    const result = await findLoanerUnit(q.trim());
+    setUnits(result.units ?? []);
+    setLooking(false);
+  }
+
+  function pick(unit: LoanerUnit) {
+    setPicked(unit);
+    setIsn(unit.isn);
+    setItemName(unit.item_name);
+    setItemCode(unit.item_code);
+    setUnits([]);
+    setSearched(false);
+  }
+
+  function clearPick() {
+    setPicked(null);
+    setIsn("");
+    setItemName("");
+    setItemCode("");
+    setQ("");
   }
 
   return (
@@ -81,47 +98,89 @@ export function LoanerCard({
         <form action={lendAction} className="mb-3 space-y-2 rounded-lg bg-slate-50 p-3">
           <input type="hidden" name="job" value={code} />
           <input type="hidden" name="item_code" value={itemCode} />
-          <div className="grid gap-2 sm:grid-cols-2">
+          {/* ຄ່າທີ່ສົ່ງໄປ server — ຕື່ມຈາກໜ່ວຍທີ່ເລືອກ ບໍ່ແມ່ນຈາກທີ່ພິມ */}
+          <input type="hidden" name="isn" value={isn} />
+          <input type="hidden" name="item_name" value={itemName} />
+
+          {picked ? (
+            <div className="flex items-start justify-between gap-2 rounded-lg border border-emerald-200 bg-white p-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-slate-800">{picked.item_name}</p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  ISN <b className="text-slate-700">{picked.isn}</b>
+                  <span className="ml-2 text-slate-400">{picked.item_code}</span>
+                  {picked.wh_name && <span className="ml-2 text-slate-400">· {picked.wh_name}</span>}
+                </p>
+              </div>
+              <button type="button" onClick={clearPick} className="shrink-0 text-slate-400 hover:text-red-600">
+                <X className="size-4" />
+              </button>
+            </div>
+          ) : (
             <div>
-              <label className="mb-1 block text-xs text-slate-500">{t.isnLabel}</label>
+              <label className="mb-1 block text-xs text-slate-500">{t.searchLabel}</label>
               <div className="flex gap-2">
                 <input
-                  name="isn"
-                  required
-                  value={isn}
-                  onChange={(event) => setIsn(event.target.value)}
-                  onBlur={lookup}
-                  placeholder={t.isnPlaceholder}
+                  value={q}
+                  onChange={(event) => setQ(event.target.value)}
+                  onKeyDown={(event) => {
+                    // ຍິງບາໂຄດຈົບດ້ວຍ Enter — ຫ້າມໃຫ້ມັນ submit ຟອມທັງທີ່ຍັງບໍ່ເລືອກໜ່ວຍ
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      lookup();
+                    }
+                  }}
+                  placeholder={t.searchPlaceholder}
                   className={field}
                 />
                 <button
                   type="button"
                   onClick={lookup}
-                  className="h-9 shrink-0 rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-600 hover:bg-white"
+                  className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-600 hover:bg-white"
                 >
-                  {looking ? <LoaderCircle className="size-3.5 animate-spin" /> : t.lookup}
+                  {looking ? <LoaderCircle className="size-3.5 animate-spin" /> : <Search className="size-3.5" />}
+                  {t.lookup}
                 </button>
               </div>
+
+              {units.length > 0 && (
+                <ul className="mt-2 max-h-64 space-y-1 overflow-auto rounded-lg border border-slate-200 bg-white p-1">
+                  {units.map((unit) => (
+                    <li key={`${unit.isn}-${unit.item_code}`}>
+                      <button
+                        type="button"
+                        disabled={!!unit.lent_job}
+                        onClick={() => pick(unit)}
+                        className="block w-full rounded px-3 py-2 text-left text-xs hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+                      >
+                        <span className="font-semibold text-slate-800">{unit.item_name}</span>
+                        <span className="mt-0.5 block text-slate-400">
+                          ISN {unit.isn} · {unit.item_code}
+                          {unit.wh_name ? ` · ${unit.wh_name}` : ""}
+                        </span>
+                        {unit.lent_job && (
+                          <span className="mt-0.5 block font-semibold text-amber-600">
+                            {t.alreadyLent} {unit.lent_job}
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {searched && !looking && units.length === 0 && (
+                <p className="mt-2 rounded-lg bg-white p-3 text-center text-xs text-slate-400">{t.searchEmpty}</p>
+              )}
             </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-500">{t.itemLabel}</label>
-              <input
-                name="item_name"
-                required
-                value={itemName}
-                onChange={(event) => setItemName(event.target.value)}
-                placeholder={t.itemPlaceholder}
-                className={field}
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-xs text-slate-500">{t.lendNoteLabel}</label>
-              <input name="note" className={field} />
-            </div>
+          )}
+
+          <div>
+            <label className="mb-1 block text-xs text-slate-500">{t.lendNoteLabel}</label>
+            <input name="note" className={field} />
           </div>
           {lendState.error && <p className="text-xs font-semibold text-red-600">{lendState.error}</p>}
           <button
-            disabled={lending}
+            disabled={lending || !picked}
             className="inline-flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
           >
             {lending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}

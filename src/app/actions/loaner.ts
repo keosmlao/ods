@@ -2,6 +2,7 @@
 import { logChange } from "@/lib/chatter-log";
 import { query, queryOdg } from "@/lib/db";
 import { requirePermission } from "@/lib/guard";
+import { searchLoanerUnits, type LoanerUnit } from "@/lib/loaner";
 import { SERVICE_SIDE } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -19,6 +20,22 @@ import { z } from "zod";
  */
 
 export type LoanerState = { error?: string; ok?: string };
+
+/**
+ * ຄົ້ນໜ່ວຍເຄື່ອງຈາກ SML ໃຫ້ຟອມໃຫ້ຢືມ — ອ່ານຢ່າງດຽວ, ບໍ່ແຕະສະຕັອກ.
+ * ໃຊ້ server action ແທນ /api/scan ເພາະ route ນັ້ນຈັບຄູ່ ISN **ຕົງເປັນຕົວ** ເທົ່ານັ້ນ
+ * ⇒ ບໍ່ຮູ້ ISN ກໍ່ຫາບໍ່ພົບ (ເບິ່ງໝາຍເຫດຢູ່ lib/loaner.searchLoanerUnits).
+ */
+export async function findLoanerUnit(q: string): Promise<{ units?: LoanerUnit[]; error?: string }> {
+  const guard = await requirePermission("/service", "update", SERVICE_SIDE);
+  if (!guard.ok) return { error: guard.error };
+  try {
+    return { units: await searchLoanerUnits(q) };
+  } catch (error) {
+    console.error("findLoanerUnit failed", error);
+    return { error: "ຄົ້ນເຄື່ອງຈາກ SML ບໍ່ໄດ້" };
+  }
+}
 
 const lendSchema = z.object({
   job: z.string().trim().min(1),
