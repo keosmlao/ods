@@ -707,6 +707,30 @@ class Api {
     );
   }
 
+  /// ແຜນທີ່ງານທີ່ຍັງຄ້າງ (ສ້ອມ + ຕິດຕັ້ງ) — ພ້ອມຈຳນວນໃບທີ່ **ຍັງບໍ່ໄດ້ໝາຍພິກັດ**
+  static Future<({List<MapPin> pins, int noGpsRepair, int noGpsInstall})> mapPending() async {
+    final result = await _send('GET', '/api/mobile/map');
+    final missing = (result['without_gps'] as Map?)?.cast<String, dynamic>() ?? {};
+    return (
+      pins: ((result['pins'] as List?) ?? [])
+          .map((row) => MapPin.fromJson(row as Map<String, dynamic>))
+          .toList(),
+      noGpsRepair: (missing['repair'] as num?)?.toInt() ?? 0,
+      noGpsInstall: (missing['install'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  /// ສະຫຼຸບຄ່າຄອມ — [month] `YYYY-MM` (ວ່າງ = ເດືອນນີ້) · [employee] ກອງຄົນດຽວ
+  static Future<Commission> commission({String month = '', String employee = ''}) async {
+    final query = <String>[
+      if (month.isNotEmpty) 'month=${Uri.encodeQueryComponent(month)}',
+      if (employee.isNotEmpty) 'employee=${Uri.encodeQueryComponent(employee)}',
+    ];
+    return Commission.fromJson(
+      await _send('GET', '/api/mobile/commission${query.isEmpty ? '' : '?${query.join('&')}'}'),
+    );
+  }
+
   /// ຜົນງານລູກນ້ອງ — ລາຍชื่อຊ່າງ + ພາລະ/ຄວາມຊ້າ/ຄ່າຄອມ
   static Future<List<TechRow>> techs() async {
     final result = await _send('GET', '/api/mobile/techs');
@@ -2112,5 +2136,137 @@ class LoanerOut {
     itemName: json['item_name'] as String? ?? '',
     isn: json['isn'] as String? ?? '',
     days: (json['days'] as num?)?.toInt() ?? 0,
+  );
+}
+
+/// ໝຸດ 1 ອັນເທິງແຜນທີ່ງານຄ້າງ
+class MapPin {
+  final String workflow; // repair | install
+  final String code;
+  final double lat;
+  final double lng;
+  final String title;
+  final String? customer;
+  final String? tech;
+  final String stageLabel;
+  final int ageDays;
+  final String? serviceType;
+  /// job = ພິກັດທີ່ໝາຍຕອນເປີດງານ · checkin = ຈຸດທີ່ຊ່າງໄປຮອດ
+  final String source;
+
+  MapPin({
+    required this.workflow,
+    required this.code,
+    required this.lat,
+    required this.lng,
+    required this.title,
+    required this.customer,
+    required this.tech,
+    required this.stageLabel,
+    required this.ageDays,
+    required this.serviceType,
+    required this.source,
+  });
+
+  factory MapPin.fromJson(Map<String, dynamic> json) => MapPin(
+    workflow: json['workflow'] as String? ?? 'repair',
+    code: '${json['code']}',
+    lat: (json['lat'] as num?)?.toDouble() ?? 0,
+    lng: (json['lng'] as num?)?.toDouble() ?? 0,
+    title: json['title'] as String? ?? '',
+    customer: json['customer'] as String?,
+    tech: json['tech'] as String?,
+    stageLabel: json['stage_label'] as String? ?? '',
+    ageDays: (json['age_days'] as num?)?.toInt() ?? 0,
+    serviceType: json['service_type'] as String?,
+    source: json['source'] as String? ?? 'job',
+  );
+}
+
+/// ຄ່າຄອມຂອງ 1 ຄົນ (ສະຫຼຸບ)
+class CommissionPerson {
+  final String employeeCode;
+  final String name;
+  final int jobs;
+  final int lines;
+  final double totalThb;
+  CommissionPerson({
+    required this.employeeCode,
+    required this.name,
+    required this.jobs,
+    required this.lines,
+    required this.totalThb,
+  });
+  factory CommissionPerson.fromJson(Map<String, dynamic> json) => CommissionPerson(
+    employeeCode: json['employee_code'] as String? ?? '',
+    name: json['name'] as String? ?? '-',
+    jobs: (json['jobs'] as num?)?.toInt() ?? 0,
+    lines: (json['lines'] as num?)?.toInt() ?? 0,
+    totalThb: (json['total_thb'] as num?)?.toDouble() ?? 0,
+  );
+}
+
+/// 1 ແຖວຄ່າຄອມ — ບອກວ່າ **ເງິນນີ້ມາຈາກໃສ** (ໃບງານ · ອັດຕາ · ຍອດເຕັມ × ເປີເຊັນ)
+class CommissionLine {
+  final String employeeCode;
+  final String name;
+  final String jobCode;
+  final String workflow;
+  final String roleLabel;
+  final String? rateLabel;
+  final double amountThb;
+  final double pct;
+  final double payThb;
+  final String? closedAt;
+  CommissionLine({
+    required this.employeeCode,
+    required this.name,
+    required this.jobCode,
+    required this.workflow,
+    required this.roleLabel,
+    required this.rateLabel,
+    required this.amountThb,
+    required this.pct,
+    required this.payThb,
+    required this.closedAt,
+  });
+  factory CommissionLine.fromJson(Map<String, dynamic> json) => CommissionLine(
+    employeeCode: json['employee_code'] as String? ?? '',
+    name: json['name'] as String? ?? '-',
+    jobCode: '${json['job_code']}',
+    workflow: json['workflow'] as String? ?? '',
+    roleLabel: json['role_label'] as String? ?? '',
+    rateLabel: json['rate_label'] as String?,
+    amountThb: (json['amount_thb'] as num?)?.toDouble() ?? 0,
+    pct: (json['pct'] as num?)?.toDouble() ?? 0,
+    payThb: (json['pay_thb'] as num?)?.toDouble() ?? 0,
+    closedAt: json['closed_at'] as String?,
+  );
+}
+
+/// ສະຫຼຸບຄ່າຄອມ 1 ເດືອນ
+class Commission {
+  final String month;
+  final double totalThb;
+  final int jobs;
+  final List<CommissionPerson> people;
+  final List<CommissionLine> lines;
+  Commission({
+    required this.month,
+    required this.totalThb,
+    required this.jobs,
+    required this.people,
+    required this.lines,
+  });
+  factory Commission.fromJson(Map<String, dynamic> json) => Commission(
+    month: json['month'] as String? ?? '',
+    totalThb: (json['total_thb'] as num?)?.toDouble() ?? 0,
+    jobs: (json['jobs'] as num?)?.toInt() ?? 0,
+    people: ((json['people'] as List?) ?? [])
+        .map((row) => CommissionPerson.fromJson(row as Map<String, dynamic>))
+        .toList(),
+    lines: ((json['lines'] as List?) ?? [])
+        .map((row) => CommissionLine.fromJson(row as Map<String, dynamic>))
+        .toList(),
   );
 }

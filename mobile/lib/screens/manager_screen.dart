@@ -8,7 +8,9 @@ import '../main.dart';
 import '../push.dart';
 import '../widgets/ui_kit.dart';
 import 'approvals_screen.dart';
+import 'commission_screen.dart';
 import 'login_screen.dart';
+import 'pending_map_screen.dart';
 import 'notifications_screen.dart';
 import 'manager_kit.dart';
 import 'overview_jobs_screen.dart';
@@ -242,6 +244,38 @@ class _ManagerScreenState extends State<ManagerScreen> {
               ),
       ),
 
+      // ── ທາງລັດໄປໜ້າໃໝ່ (ແຜນທີ່ · ຄ່າຄອມ) ──
+      _Card(
+        title: 'ເບິ່ງເພີ່ມ',
+        child: Row(
+          children: [
+            Expanded(
+              child: _ShortcutButton(
+                icon: Icons.map_outlined,
+                label: 'ແຜນທີ່ງານຄ້າງ',
+                tone: teal,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PendingMapScreen()),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _ShortcutButton(
+                icon: Icons.payments_outlined,
+                label: 'ສະຫຼຸບຄ່າຄອມ',
+                tone: ok,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CommissionScreen()),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+
       // ── ③ ໃບເກົ່າສຸດ — ບອກເປັນ "ໃບໃດ ຂອງໃຜ" ⇒ ຕາມໄດ້ທັນທີ ──
       if (d.oldest.isNotEmpty)
         _Card(
@@ -407,6 +441,47 @@ String _money(double value) {
   if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
   if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
   return value.toStringAsFixed(0);
+}
+
+/// ປຸ່ມທາງລັດໄປໜ້າອື່ນ (ແຜນທີ່ · ຄ່າຄອມ)
+class _ShortcutButton extends StatelessWidget {
+  const _ShortcutButton({
+    required this.icon,
+    required this.label,
+    required this.tone,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final Color tone;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(14),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+      decoration: BoxDecoration(
+        color: tone.withValues(alpha: .08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: tone.withValues(alpha: .28)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 19, color: tone),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: ink),
+            ),
+          ),
+          Icon(Icons.chevron_right, size: 16, color: tone.withValues(alpha: .7)),
+        ],
+      ),
+    ),
+  );
 }
 
 class _ActionItem {

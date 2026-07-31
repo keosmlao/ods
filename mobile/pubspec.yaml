@@ -1,7 +1,7 @@
 name: odss_tech
 description: "ODIEN Service — ແອັບຊ່າງ (ຮັບງານ · ຂັ້ນຕອນ · check-in · ລາຍຮັບ)"
 publish_to: "none"
-version: 1.0.4+5
+version: 1.0.5+6
 
 environment:
   sdk: ^3.8.0
@@ -30,6 +30,9 @@ dependencies:
   flutter_local_notifications: ^20.1.0
   # ── Dashboard ຫົວໜ້າ: chart (ວຽກຕໍ່ຂັ້ນ) ──
   fl_chart: ^0.69.0
+  # ແຜນທີ່ງານຄ້າງ (ຜູ້ຈັດການ) — OSM tiles, ບໍ່ຕ້ອງມີ API key ຄື Google Maps
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
 
 dev_dependencies:
   flutter_test:
