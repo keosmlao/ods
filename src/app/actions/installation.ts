@@ -1118,10 +1118,15 @@ export async function addSpareLine(
 }
 
 /** ເພີ່ມຫຼາຍລາຍການຈາກ ERP ພ້ອມກັນ; ກວດຊື່/ໜ່ວຍຈາກ ERP ຝັ່ງ server ກ່ອນບັນທຶກ. */
+/**
+ * ຄືນ `skipped` = ລາຍການທີ່ **ມີໃນກະຕ່າແລ້ວ** ຈຶ່ງບໍ່ໄດ້ insert ຊ້ຳ.
+ * ຟອມຕ້ອງເອົາໄປບອກຜູ້ໃຊ້ — ບໍ່ດັ່ງນັ້ນ "ຕິກແລ້ວບໍ່ເຂົ້າ draft" ໂດຍບໍ່ມີເຫດຜົນ
+ * (ເກີດເມື່ອລາຍການນັ້ນຖືກຂໍເບີກ/ຈ່າຍໄປຄົບແລ້ວ ⇒ ບໍ່ມີຈຳນວນຄ້າງ ຈຶ່ງບໍ່ຂຶ້ນຕາຕະລາງ).
+ */
 export async function addSpareLines(
   code: string,
   itemCodes: string[],
-): Promise<ActionState> {
+): Promise<ActionState & { skipped?: string[] }> {
   const uniqueCodes = [...new Set(itemCodes.map((value) => value.trim()).filter(Boolean))];
   if (uniqueCodes.length === 0) return { ok: "ບໍ່ມີລາຍການໃໝ່" };
 
@@ -1160,12 +1165,14 @@ export async function addSpareLines(
    */
   const setLines = await getStandardKitLines(code);
 
+  /** ລາຍການທີ່ມີໃນກະຕ່າຢູ່ແລ້ວ ⇒ insert ບໍ່ເຂົ້າ (ບອກຟອມ ບໍ່ໃຫ້ງຽບ) */
+  const skipped: string[] = [];
   const client = await db.connect();
   try {
     await client.query("begin");
     for (const item of inventory) {
       const standard = setLines.get(item.code);
-      await client.query(
+      const inserted = await client.query(
         `insert into tb_used_spare(product_code,item_code,item_name,qty,unit_code)
          select $1::varchar,$2::varchar,$3::varchar,$5::numeric,$4::varchar
          where not exists (
@@ -1180,6 +1187,7 @@ export async function addSpareLines(
           Math.max(1, Math.round((standard?.qty ?? 1) * 100) / 100),
         ],
       );
+      if (!inserted.rowCount) skipped.push(item.code);
     }
     await client.query(
       "update ods_tb_install set used_spare=1, pick_finish=null where code=$1",
@@ -1199,7 +1207,7 @@ export async function addSpareLines(
   }
 
   revalidatePath(`/installations/spare-requests/${code}`);
-  return { ok: "ເພີ່ມລາຍການສຳເລັດ" };
+  return { ok: "ເພີ່ມລາຍການສຳເລັດ", skipped };
 }
 
 /**

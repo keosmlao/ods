@@ -2123,7 +2123,8 @@
     "loading": "Loading...",
     "has": "Has",
     "enough": "Enough",
-    "takeNow": "Take now"
+    "takeNow": "Take now",
+    "alreadyRequested": "These items are already in the cart and fully requested/issued — nothing outstanding, so they do not appear in the table:"
   },
   "serviceEditForm": {
     "saving": "Saving...",

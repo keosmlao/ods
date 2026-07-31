@@ -321,6 +321,16 @@ export function SpareRequestForm({
                   window.alert(result.error);
                   return;
                 }
+                /**
+                 * ── ບອກເມື່ອຕິກແລ້ວ "ບໍ່ເຂົ້າ draft" ──
+                 * ລາຍການທີ່ **ມີໃນກະຕ່າແລ້ວ ແຕ່ບໍ່ມີຈຳນວນຄ້າງ** (ຂໍເບີກ/ຈ່າຍໄປຄົບແລ້ວ)
+                 * ຈະບໍ່ຂຶ້ນຕາຕະລາງ ເພາະຕາຕະລາງສະແດງສະເພາະຈຳນວນທີ່ຍັງຄ້າງ.
+                 * ແຕ່ກ່ອນມັນງຽບ ⇒ ຄົນເຂົ້າໃຈວ່າລະບົບເພ.
+                 */
+                const stuck = (result.skipped ?? []).filter(
+                  (itemCode) => !cartCodes.has(itemCode),
+                );
+                if (stuck.length > 0) window.alert(`${t.alreadyRequested}\n${stuck.join(", ")}`);
               }
               setSelectedCodes(new Set(codes));
               setOpen(false);
