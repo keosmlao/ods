@@ -31,6 +31,12 @@ export default async function EditService({ params }: Props) {
          coalesce(a.location_repair,'') location_repair,
          coalesce(to_char(a.appoint_date,'YYYY-MM-DD'),'') appoint_date,
          a.location_lat, a.location_lng,
+         -- ປະເພດງານ (ສ້ອມ/ເຄມ) — ໝາຍພາຍຫຼັງໄດ້ຢູ່ໜ້ານີ້ (ເບິ່ງ updateService)
+         coalesce(a.job_kind,'repair') job_kind, coalesce(a.claim_scope,'') claim_scope,
+         coalesce(a.claim_part_code,'') claim_part_code, coalesce(a.claim_part_name,'') claim_part_name,
+         coalesce(a.claim_part_sn,'') claim_part_sn, a.claim_part_qty::float8 claim_part_qty,
+         (select cl.claim_no from ods_claim cl where cl.ref_job = a.code
+           order by cl.id limit 1) claim_no,
          coalesce(b.name_1,'') cust_name, coalesce(b.tel,'') tel,
          coalesce(concat_ws('-', nullif(b.address,''), d.name_1, c.name_1),'') address
        from tb_product a

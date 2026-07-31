@@ -1,12 +1,22 @@
 "use client";
 import { updateInstall, type ActionState } from "@/app/actions/installation";
+import { IsnField } from "@/components/installation/isn-field";
 import { SelectField } from "@/components/select-field";
 import { Button, Card, ErrorBox, LinkButton, inputClass, labelClass } from "@/components/ui";
 import { useDict } from "@/lib/i18n/context";
 import { Save } from "lucide-react";
 import { useActionState } from "react";
 
-/** ຖອດແບບຈາກ ods: edit_install.html + /edit_save_install (install_admin.py) */
+/**
+ * ຖອດແບບຈາກ ods: edit_install.html + /edit_save_install (install_admin.py)
+ *
+ * ── ໂໝດ "ISN ຢ່າງດຽວ" (isnOnly) ──
+ * ງານທີ່**ປິດແລ້ວ** ແກ້ຫຍັງບໍ່ໄດ້ເລີຍມາແຕ່ກ່ອນ ⇒ ງານທີ່ຖືກປິດໂດຍທີ່ຍັງບໍ່ໄດ້ລົງ ISN
+ * (S/N ບໍ່ບັງຄັບຕອນເປີດງານ — ເບິ່ງ install-form) ຈະບໍ່ມີວັນມີ ISN ອີກຈັກເທື່ອ ແລະ
+ * ການຮັບປະກັນ/ສ້ອມພາຍຫຼັງອ້າງອີງໜ່ວຍນັ້ນບໍ່ໄດ້. ດຽວນີ້ເປີດໃຫ້**ຕື່ມ ISN ຄືນຫຼັງ**ໄດ້
+ * ສ່ວນຊ່ອງອື່ນ (ຊ່າງ · ວັນນັດ · ສະຖານທີ່ …) ຍັງລັອກຄືເກົ່າ ເພາະງານຈົບໄປແລ້ວ
+ * ແລະ ຄ່າຄອມຂອງຊ່າງຄິດຈາກຂໍ້ມູນນັ້ນແລ້ວ. ດ່ານຈິງຢູ່ຝັ່ງ server (actions/installation).
+ */
 
 export type InstallRow = {
   code: string;
@@ -30,6 +40,8 @@ export type InstallRow = {
   location_inst: string | null;
   pro_sn: string | null;
   item_prefix: string | null;
+  /** ງານປິດແລ້ວ (job_finish) — ໜ້າແກ້ໄຂເປີດໃຫ້ແຕ່ ISN */
+  closed?: boolean;
 };
 
 type Option = { code: string; name_1: string };
@@ -40,21 +52,33 @@ export function InstallEditForm({
   categories,
   brands,
   techs,
+  isnOnly = false,
 }: {
   row: InstallRow;
   categories: Option[];
   brands: Option[];
   techs: Tech[];
+  /** ງານປິດແລ້ວ ⇒ ແກ້ໄດ້ສະເພາະ ISN/SN */
+  isnOnly?: boolean;
 }) {
   const t = useDict().installEditForm;
   const [state, formAction, pending] = useActionState<ActionState, FormData>(updateInstall, {});
   // ods: ສິນຄ້າລະຫັດຂຶ້ນຕົ້ນ '97' ໃຫ້ເລືອກຍີ່ຫໍ້ໄດ້, ນອກນັ້ນອ່ານຢ່າງດຽວ
-  const brandEditable = row.item_prefix === "97";
+  const brandEditable = row.item_prefix === "97" && !isnOnly;
+  const nameOf = (options: Option[], code: string | null) =>
+    options.find((option) => option.code === code)?.name_1 ?? code ?? "";
+  const techName = techs.find((tech) => tech.code === row.tech_code);
 
   return (
     <form action={formAction} className="space-y-5">
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
       <input type="hidden" name="code" value={row.code} />
+
+      {isnOnly && (
+        <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
+          {t.isnOnlyNotice}
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2">
@@ -62,7 +86,13 @@ export function InstallEditForm({
             <Save className="size-4" />
             {pending ? t.saving : t.save}
           </Button>
-          <LinkButton href="/installations" tone="danger">{t.exit}</LinkButton>
+          {/* ງານປິດແລ້ວບໍ່ຢູ່ໃນຄິວ /installations ⇒ ອອກແລ້ວກັບໄປໜ້າງານ ບໍ່ແມ່ນຄິວ */}
+          <LinkButton
+            href={isnOnly ? `/installations/${encodeURIComponent(row.code)}` : "/installations"}
+            tone="danger"
+          >
+            {t.exit}
+          </LinkButton>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
@@ -130,19 +160,33 @@ export function InstallEditForm({
           </div>
           <div>
             <label className={labelClass}>{t.modelLabel} *</label>
-            <input name="pro_model" required defaultValue={row.pro_model ?? ""} className={inputClass} />
+            {isnOnly ? (
+              <input readOnly value={row.pro_model ?? ""} className={inputClass} />
+            ) : (
+              <input name="pro_model" required defaultValue={row.pro_model ?? ""} className={inputClass} />
+            )}
           </div>
           <div>
             <label className={labelClass}>{t.typeLabel} *</label>
-            <SelectField
-              name="pro_type"
-              defaultValue={row.pro_type_code ?? ""}
-              options={categories.map((category) => ({ value: category.code, label: category.name_1 }))}
-            />
+            {isnOnly ? (
+              <input readOnly value={nameOf(categories, row.pro_type_code)} className={inputClass} />
+            ) : (
+              <SelectField
+                name="pro_type"
+                defaultValue={row.pro_type_code ?? ""}
+                options={categories.map((category) => ({ value: category.code, label: category.name_1 }))}
+              />
+            )}
           </div>
-          <div>
-            <label className={labelClass}>S/N *</label>
-            <input name="pro_sn" defaultValue={row.pro_sn ?? ""} className={inputClass} />
+          {/* ISN/SN — ເລືອກຈາກໜ່ວຍທີ່ຂາຍໃນບິນ ຫຼື ຄັງ (ພິມເອງກໍ່ຍັງໄດ້) */}
+          <div className="md:col-span-2">
+            <label className={labelClass}>ISN / S/N</label>
+            <IsnField
+              name="pro_sn"
+              defaultValue={row.pro_sn ?? ""}
+              itemCode={row.item_code}
+              docRef={row.doc_ref_1}
+            />
           </div>
         </div>
       </Card>
@@ -151,24 +195,42 @@ export function InstallEditForm({
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className={labelClass}>{t.tech}</label>
-            <SelectField
-              name="tech_code"
-              defaultValue={row.tech_code ?? ""}
-              options={techs.map((tech) => ({ value: tech.code, label: `${tech.name} (${tech.code})` }))}
-              placeholder={t.selectTechPlaceholder}
-            />
+            {isnOnly ? (
+              <input
+                readOnly
+                value={techName ? `${techName.name} (${techName.code})` : (row.tech_code ?? "")}
+                className={inputClass}
+              />
+            ) : (
+              <SelectField
+                name="tech_code"
+                defaultValue={row.tech_code ?? ""}
+                options={techs.map((tech) => ({ value: tech.code, label: `${tech.name} (${tech.code})` }))}
+                placeholder={t.selectTechPlaceholder}
+              />
+            )}
           </div>
           <div>
             <label className={labelClass}>{t.appointDateLabel}</label>
-            <input type="date" name="appoint_date" defaultValue={row.appoint_date ?? ""} className={inputClass} />
+            <input
+              type="date"
+              {...(isnOnly ? { readOnly: true, value: row.appoint_date ?? "" } : { name: "appoint_date", defaultValue: row.appoint_date ?? "" })}
+              className={inputClass}
+            />
           </div>
           <div>
             <label className={labelClass}>{t.installLocation}</label>
-            <input name="location_inst" defaultValue={row.location_inst ?? ""} className={inputClass} />
+            <input
+              {...(isnOnly ? { readOnly: true, value: row.location_inst ?? "" } : { name: "location_inst", defaultValue: row.location_inst ?? "" })}
+              className={inputClass}
+            />
           </div>
           <div>
             <label className={labelClass}>{t.remark}</label>
-            <input name="remark" defaultValue={row.remark ?? ""} className={inputClass} />
+            <input
+              {...(isnOnly ? { readOnly: true, value: row.remark ?? "" } : { name: "remark", defaultValue: row.remark ?? "" })}
+              className={inputClass}
+            />
           </div>
         </div>
       </Card>

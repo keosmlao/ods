@@ -3129,7 +3129,20 @@
     "selectTechPlaceholder": "เลือกช่าง...",
     "appointDateLabel": "วันที่นัดติดตั้ง",
     "installLocation": "สถานที่ติดตั้ง",
-    "remark": "หมายเหตุ"
+    "remark": "หมายเหตุ",
+    "isnOnlyNotice": "งานนี้ปิดแล้ว — แก้ไขได้เฉพาะ ISN / S/N เท่านั้น ช่องอื่นถูกล็อก",
+    "isnSelect": "— เลือก ISN —",
+    "isnLoading": "กำลังดึง ISN...",
+    "isnCurrent": "ค่าปัจจุบัน",
+    "isnInStock": "ยังอยู่ในคลัง",
+    "isnFromBill": "ขายในบิลนี้",
+    "isnFromStock": "คลัง ISN",
+    "isnFromBillHint": "ISN ของเครื่องที่ขายในบิลของงานนี้",
+    "isnFromStockHint": "บิลไม่ได้ลง ISN ไว้ ⇒ รายการนี้มาจากคลัง ISN — อ่านเลขจากป้ายตัวเครื่องแล้วเลือก",
+    "isnNotFound": "ไม่พบ ISN ของสินค้านี้ใน ERP — พิมพ์เองได้",
+    "isnTypeManually": "ไม่มีในรายการ? พิมพ์เอง",
+    "isnBackToList": "กลับไปเลือกจากรายการ",
+    "isnTypePlaceholder": "อ่านเลขจากป้ายตัวเครื่อง (ไม่บังคับ)"
   },
   "poPrint": {
     "printHint": "กดปุ่ม หรือ Ctrl/Cmd + P เพื่อพิมพ์",
@@ -3325,7 +3338,9 @@
       "openMap": "เปิดแผนที่นำทาง",
       "viewPhotos": "ดูรูปตอนส่ง",
       "noPhotos": "ไม่มีรูป"
-    }
+    },
+    "edit": "แก้ไข",
+    "editIsn": "อัปเดต ISN"
   },
   "stockCount": {
     "finalizeTitle": "เสร็จสิ้นการตรวจนับ?",

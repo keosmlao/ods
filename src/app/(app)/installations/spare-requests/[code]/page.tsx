@@ -14,6 +14,7 @@ import { query, queryOdg } from "@/lib/db";
 import { docPrefix } from "@/lib/doc-no";
 import { getStandardSpares } from "@/lib/install-standard";
 import { canViewAssignedJob } from "@/lib/scope";
+import { SETTING, settingEnabled } from "@/lib/settings";
 import { getBalances } from "@/lib/stock-balance";
 import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
@@ -179,6 +180,7 @@ export default async function SpareRequestPage({ params }: Props) {
         warehouses={warehouses.rows}
         shelves={shelves.rows}
         balances={balances}
+        allowFreeSearch={await settingEnabled(SETTING.INSTALL_SPARE_FREE_SEARCH)}
       />
     </div>
   );

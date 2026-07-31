@@ -25,7 +25,9 @@ export default async function EditInstallation({ params }: Props) {
          a.doc_ref_1, to_char(a.doc_ref_date,'YYYY-MM-DD') as doc_ref_date, a.user_created, a.tech_code, a.remark,
          a.item_code, a.item_name, a.pro_brand, a.pro_model, a.pro_type_code, a.pro_size,
          to_char(a.appoint_date,'YYYY-MM-DD') as appoint_date, a.location_inst, a.pro_sn,
-         left(a.item_code,2) as item_prefix
+         left(a.item_code,2) as item_prefix,
+         -- ງານປິດແລ້ວ ⇒ ຟອມເປີດໃຫ້ແກ້ສະເພາະ ISN (ເບິ່ງ install-edit-form)
+         a.job_finish is not null as closed
        from ods_tb_install a
        left join ar_customer c on c.code = a.cust_code
        left join province p on c.provine = p.code
@@ -45,7 +47,13 @@ export default async function EditInstallation({ params }: Props) {
   return (
     <div className="w-full space-y-5">
       <PageTitle>ເເກ້ໄຂງານຕິດຕັ້ງ</PageTitle>
-      <InstallEditForm row={install} categories={categories.rows} brands={brands.rows} techs={techs} />
+      <InstallEditForm
+        row={install}
+        categories={categories.rows}
+        brands={brands.rows}
+        techs={techs}
+        isnOnly={install.closed}
+      />
       <Chatter model="ods_tb_install" resId={install.code} />
     </div>
   );

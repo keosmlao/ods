@@ -20,6 +20,8 @@ import { canViewAssignedJob } from "@/lib/scope";
 import { permissionFor } from "@/lib/permissions";
 import { ServiceDeleteButton } from "@/components/service/service-delete-button";
 import { JobEvidence, type Checkin, type JobPhoto, type ReceivePhoto } from "@/components/service/job-evidence";
+import { LoanerCard } from "@/components/service/loaner-card";
+import { loanersFor } from "@/lib/loaner";
 import { JobProgress } from "@/components/repair/job-progress";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
@@ -222,6 +224,9 @@ export default async function ServiceDetail({ params }: Props) {
   const canScheduleVisit = canReassign && job.service_type === "IH" && job.stage >= 5 && job.stage <= 9;
   // ລຶບໃບຮັບເຄື່ອງ — **ທຸກສະຖານະ** (ຄ້າງ/ຈົບ/ຍົກເລີກ). ສິດ manager ເທົ່ານັ້ນ (ດ່ານຈິງຢູ່ deleteService).
   const canDelete = (await permissionFor(session, "/service")).delete;
+  // ເຄື່ອງສຳຮອງ — ຝ່າຍບໍລິການໃຫ້ຢືມ/ຮັບຄືນໄດ້, ຄົນອື່ນເຫັນຢ່າງດຽວ (action ກວດຊ້ຳເອງ)
+  const loaners = await loanersFor(job.code);
+  const canLendLoaner = SERVICE_SIDE.includes(roleOf(session));
   const techs = canReassign ? await listTechnicians() : [];
 
   /**
@@ -469,6 +474,9 @@ export default async function ServiceDetail({ params }: Props) {
           <JobTimeline steps={timeline.steps} cancelledAt={timeline.cancelledAt} bare />
         </div>
       </details>
+
+      {/* ເຄື່ອງສຳຮອງທີ່ໃຫ້ລູກຄ້າໃຊ້ກ່ອນ — ຄ້າງຄືນ ⇒ ສົ່ງເຄື່ອງຄືນບໍ່ໄດ້ (lib/loaner) */}
+      <LoanerCard code={job.code} rows={loaners} canEdit={canLendLoaner} />
 
       <JobEvidence
         checkins={checkins.rows}

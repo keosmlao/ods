@@ -1,6 +1,7 @@
 "use server";
 import { billItems, claimByNo, claimCanTransition, claimItems, type ClaimJobCandidate, cobInfo, ensureOdsCustomer, isClaimEditable, isClaimFulfillmentSource, jobClaimCandidates, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, searchBills, searchInventory, type ClaimType } from "@/lib/claim";
 import { logChange } from "@/lib/chatter-log";
+import { loanerBlock } from "@/lib/loaner";
 import { requireRole } from "@/lib/guard";
 import { sendMail } from "@/lib/mail";
 import { db, query } from "@/lib/db";
@@ -205,6 +206,16 @@ export async function advanceClaim(claimNo: string, toStatus: string): Promise<C
   if (!claimCanTransition(claim.claim_type, claim.status, toStatus)) return { error: "ຕ້ອງດຳເນີນຕາມລຳດັບຂັ້ນຕອນ" };
   if (claim.claim_type === "A" && claim.status === "draft" && !claim.email_sent_at) return { error: "ຕ້ອງສົ່ງ email ຫາ supplier ກ່ອນ" };
   if (claim.claim_type === "C" && claim.status === "notify" && !claim.email_sent_at) return { error: "ຕ້ອງສົ່ງ email ແຈ້ງ supplier ກ່ອນ" };
+
+  /**
+   * CLM-B ຂັ້ນ "returned" ປິດໃບງານສ້ອມໃຫ້ນຳ (ລຸ່ມນີ້) ⇒ ເປັນ**ທາງອອກທີ 4** ທີ່ປະທັບ
+   * return_complete ນອກຈາກ 3 ທາງຂອງ actions/return.ts ⇒ ດ່ານເຄື່ອງສຳຮອງຕ້ອງມີຢູ່ນີ້ຄືກັນ
+   * ບໍ່ດັ່ງນັ້ນປິດງານຜ່ານໃບເຄມແລ້ວເຄື່ອງສູນຄ້າງຢູ່ບ້ານລູກຄ້າໂດຍບໍ່ມີໃຜຮູ້.
+   */
+  if (claim.claim_type === "B" && claim.ref_job && toStatus === "returned") {
+    const loanerHold = await loanerBlock(claim.ref_job);
+    if (loanerHold) return { error: loanerHold };
+  }
 
   const stamp = stampFor(toStatus);
   // WHERE ຜູກ status ປັດຈຸບັນ ⇒ ກັນ 2 ຄົນກົດພ້ອມກັນ (ຄົນທີ 2 ບໍ່ຜ່ານ)

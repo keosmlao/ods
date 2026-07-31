@@ -69,6 +69,7 @@ export function SpareRequestForm({
   warehouses,
   shelves,
   balances,
+  allowFreeSearch = true,
 }: {
   code: string;
   head: JobHead;
@@ -81,6 +82,11 @@ export function SpareRequestForm({
   /** ທີ່ເກັບຂອງແຕ່ລະສາງ (ic_shelf ຂອງ ERP) — ກອງຕາມສາງທີ່ເລືອກ */
   shelves: Shelf[];
   balances: Record<string, SpareBalance>;
+  /**
+   * ເບີກນອກມາດຕະຖານໄດ້ບໍ (SETTING.INSTALL_SPARE_FREE_SEARCH) — ປິດແລ້ວຊ່ອງຄົ້ນ ERP ຫາຍ.
+   * ນີ້ແມ່ນ**ໜ້າຕາ**ເທົ່ານັ້ນ; ດ່ານຈິງຢູ່ addSpareLines ແລະ /api/installations/spares.
+   */
+  allowFreeSearch?: boolean;
 }) {
   const t = useDict().spareRequestForm;
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
@@ -298,6 +304,7 @@ export function SpareRequestForm({
           lines={lines}
           standards={standards}
           balances={balances}
+          allowFreeSearch={allowFreeSearch}
           selectedCodes={selectedCodes}
           adding={adding}
           onAdd={(codes) =>
@@ -461,6 +468,7 @@ function SparePicker({
   lines,
   standards,
   balances,
+  allowFreeSearch,
   selectedCodes,
   adding,
   onAdd,
@@ -470,6 +478,7 @@ function SparePicker({
   lines: SpareLine[];
   standards: StandardSpare[];
   balances: Record<string, SpareBalance>;
+  allowFreeSearch: boolean;
   selectedCodes: Set<string>;
   adding: boolean;
   onAdd: (codes: Set<string>) => void;
@@ -484,7 +493,8 @@ function SparePicker({
 
   useEffect(() => {
     const keyword = q.trim();
-    if (keyword.length < 2) {
+    // ປິດການເບີກນອກມາດຕະຖານ ⇒ ບໍ່ຕ້ອງຖາມ ERP ເລີຍ (route ກໍ່ປະຕິເສດຢູ່ແລ້ວ)
+    if (!allowFreeSearch || keyword.length < 2) {
       return;
     }
     const controller = new AbortController();
@@ -508,7 +518,7 @@ function SparePicker({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [q]);
+  }, [allowFreeSearch, q]);
 
   /**
    * 3 ກຸ່ມ ຕາມແຫຼ່ງທີ່ມາ:
@@ -556,7 +566,7 @@ function SparePicker({
       }));
 
     const known = new Set([...standardCodes, ...lines.map((line) => line.item_code)]);
-    const extras = keyword.length < 2 ? [] : searchRows
+    const extras = !allowFreeSearch || keyword.length < 2 ? [] : searchRows
       .filter((row) => !known.has(row.code))
       .map((row) => ({
         item_code: row.code,
@@ -569,7 +579,7 @@ function SparePicker({
         source: "erp" as const,
       }));
     return [...standardRows, ...cartRows, ...extras];
-  }, [balances, lines, standards, q, searchRows]);
+  }, [allowFreeSearch, balances, lines, standards, q, searchRows]);
   const allVisibleChecked =
     rows.length > 0 && rows.every((row) => checked.has(row.item_code));
 
@@ -610,10 +620,23 @@ function SparePicker({
               autoFocus
               value={q}
               onChange={(event) => setQ(event.target.value)}
-              placeholder="ຄົ້ນຫາລະຫັດ ຫຼື ຊື່ອາໄຫຼ່ຈາກ ERP..."
+              placeholder={
+                allowFreeSearch
+                  ? "ຄົ້ນຫາລະຫັດ ຫຼື ຊື່ອາໄຫຼ່ຈາກ ERP..."
+                  : "ກອງລາຍການລຸ່ມນີ້ (ລະຫັດ ຫຼື ຊື່)..."
+              }
               className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
             />
           </label>
+          {/*
+            ປິດ "ເບີກນອກມາດຕະຖານ" ⇒ ຊ່ອງນີ້ກອງແຕ່ລາຍການທີ່ມີຢູ່ແລ້ວ ບໍ່ໄປຄົ້ນ ERP
+            (ເປີດ/ປິດຢູ່ /manage/settings — ດ່ານຈິງຢູ່ຝັ່ງ server).
+          */}
+          {!allowFreeSearch && (
+            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">
+              ປິດການເບີກອາໄຫຼ່ນອກມາດຕະຖານໄວ້ — ເລືອກໄດ້ແຕ່ລາຍການມາດຕະຖານ ແລະ ລາຍການທີ່ຢູ່ໃນກະຕ່າແລ້ວ
+            </p>
+          )}
         </div>
 
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-2.5">

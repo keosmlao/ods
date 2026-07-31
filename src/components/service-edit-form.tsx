@@ -39,6 +39,15 @@ export type ServiceHead = {
   appoint_date: string;
   location_lat: number | null;
   location_lng: number | null;
+  /** ປະເພດງານ — 'repair' ຫຼື 'claim' (ຮ້ານຄ້າ/ລູກຄ້າຂໍເຄມ) */
+  job_kind: "repair" | "claim";
+  claim_scope: string;
+  claim_part_code: string;
+  claim_part_name: string;
+  claim_part_sn: string;
+  claim_part_qty: number | null;
+  /** ໃບເຄມ CLM ທີ່ຜູກຢູ່ກັບໃບງານນີ້ແລ້ວ (ຖ້າມີ) — ມີແລ້ວປ່ຽນກັບເປັນງານສ້ອມບໍ່ໄດ້ */
+  claim_no: string | null;
 };
 
 const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 disabled:bg-slate-50 read-only:bg-slate-50";
@@ -105,6 +114,17 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
    * ໃບ **ເກົ່າ** 3,792 ໃບຍັງຫວ່າງ (migration ບໍ່ backfill ເພາະຈະເປັນການເດົາ)
    * ⇒ ໜ້ານີ້ຄືບ່ອນທີ່ຄ່ອຍໆເຕີມໃສ່ໃບທີ່ຍັງເປີດຢູ່.
    */
+  /**
+   * ── ປະເພດງານ: ສ້ອມ / ເຄມ ── (ຄືກັບຟອມເປີດງານ src/components/service-form.tsx)
+   * ແຕ່ກ່ອນໝາຍໄດ້ແຕ່**ຕອນເປີດງານ** ⇒ ຮ້ານຄ້າມາບອກພາຍຫຼັງວ່າ "ອັນນີ້ຂໍເຄມອາໄຫຼ່"
+   * ຕ້ອງຍົກເລີກໃບແລ້ວເປີດໃໝ່. ດຽວນີ້ໝາຍຢູ່ໜ້າແກ້ໄຂໄດ້ ແລະ server ຈະສ້າງໃບເຄມ
+   * CLM-B ໃຫ້ຄືກັນກັບຕອນເປີດງານ (ເບິ່ງ updateService).
+   * ມີໃບເຄມຜູກແລ້ວ ⇒ ປ່ຽນກັບເປັນ "ງານສ້ອມ" ບໍ່ໄດ້ (ຕ້ອງຈັດການທີ່ໃບເຄມ).
+   */
+  const [jobKind, setJobKind] = useState<"repair" | "claim">(head.job_kind === "claim" ? "claim" : "repair");
+  const [claimScope, setClaimScope] = useState<"whole" | "part">(head.claim_scope === "part" ? "part" : "whole");
+  const claimLocked = Boolean(head.claim_no);
+
   const [serviceType, setServiceType] = useState(head.service_type ?? "");
   const onsite = ONSITE_SERVICE_TYPES.includes(serviceType as "IH" | "PS");
   const [point, setPoint] = useState<Point | null>(
@@ -138,6 +158,81 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
       </div>
 
       {state.error && <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{state.error}</p>}
+
+      {/* ປະເພດງານ — ໂຄງດຽວກັນກັບຟອມເປີດງານ (service-form.tsx) */}
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="mb-2 text-sm font-bold text-slate-700">ປະເພດງານ *</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            disabled={claimLocked}
+            onClick={() => setJobKind("repair")}
+            className={`rounded-xl border p-3 text-left disabled:cursor-not-allowed disabled:opacity-60 ${jobKind === "repair" ? "border-teal-500 bg-teal-50 ring-2 ring-teal-100" : "border-slate-200"}`}
+          >
+            <b className="block text-sm">🔧 ງານສ້ອມ</b>
+            <span className="text-xs text-slate-500">ຮັບເຄື່ອງເຂົ້າກວດ ແລະສ້ອມຕາມປົກກະຕິ</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setJobKind("claim")}
+            className={`rounded-xl border p-3 text-left ${jobKind === "claim" ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100" : "border-slate-200"}`}
+          >
+            <b className="block text-sm">🛡️ ງານເຄມ (ຮ້ານຄ້າ/ລູກຄ້າຂໍເຄມ)</b>
+            <span className="text-xs text-slate-500">ຂໍປ່ຽນສິນຄ້າ/ອາໄຫຼ່; ບັນທຶກແລ້ວສ້າງໃບເຄມ CLM-B ໃຫ້ອັດຕະໂນມັດ</span>
+          </button>
+        </div>
+        <input type="hidden" name="job_kind" value={jobKind} />
+
+        {claimLocked && (
+          <p className="mt-2 rounded-lg bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800">
+            ໃບງານນີ້ຜູກກັບໃບເຄມ{" "}
+            <Link href={`/claims/${encodeURIComponent(head.claim_no ?? "")}`} className="underline">
+              {head.claim_no}
+            </Link>{" "}
+            ແລ້ວ — ປ່ຽນກັບເປັນງານສ້ອມບໍ່ໄດ້ (ຈັດການທີ່ໃບເຄມ)
+          </p>
+        )}
+
+        {jobKind === "claim" && (
+          <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50/50 p-3">
+            <p className="mb-2 text-xs font-bold text-violet-800">ຂໍເຄມຫຍັງ?</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setClaimScope("whole")}
+                className={`rounded-lg px-3 py-2 text-xs font-semibold ${claimScope === "whole" ? "bg-violet-600 text-white" : "border border-violet-200 bg-white text-violet-700"}`}
+              >
+                ເຄມທັງເຄື່ອງ
+              </button>
+              <button
+                type="button"
+                onClick={() => setClaimScope("part")}
+                className={`rounded-lg px-3 py-2 text-xs font-semibold ${claimScope === "part" ? "bg-violet-600 text-white" : "border border-violet-200 bg-white text-violet-700"}`}
+              >
+                ເຄມສະເພາະອາໄຫຼ່
+              </button>
+            </div>
+            <input type="hidden" name="claim_scope" value={claimScope} />
+            {claimScope === "part" && (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <input name="claim_part_code" defaultValue={head.claim_part_code} placeholder="ລະຫັດອາໄຫຼ່ (ຖ້າມີ)" className={field} />
+                <input name="claim_part_name" defaultValue={head.claim_part_name} required placeholder="ຊື່ອາໄຫຼ່ *" className={field} />
+                <input name="claim_part_sn" defaultValue={head.claim_part_sn} placeholder="Serial ອາໄຫຼ່ (ຖ້າມີ)" className={field} />
+                <input
+                  name="claim_part_qty"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  defaultValue={head.claim_part_qty ?? 1}
+                  required
+                  placeholder="ຈຳນວນ"
+                  className={field}
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="mb-4 border-b border-slate-100 pb-2 font-bold text-slate-700">{t.customerInfo}</h2>

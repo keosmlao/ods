@@ -20,6 +20,7 @@ import { INSTALL_FEEDBACK_DONE_SQL, INSTALL_FEEDBACK_TIME_SQL, INSTALL_STAGE_SQL
 import { installSpareOutstanding } from "@/lib/install-spare-gate";
 import { getStandardSetLines } from "@/lib/install-standard";
 import { EDITABLE_SPARE_LINES } from "@/lib/install-spare-edit";
+import { SETTING, settingEnabled } from "@/lib/settings";
 import { feedbackUrl, validFeedbackToken } from "@/lib/track";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -462,6 +463,9 @@ const editSchema = z.object({
   remark: z.string(),
 });
 
+/** ງານປິດແລ້ວ — ຟອມສົ່ງມາແຕ່ 2 ຊ່ອງນີ້ (ເບິ່ງ install-edit-form ໂໝດ isnOnly) */
+const isnSchema = z.object({ code: z.string().min(1), pro_sn: z.string() });
+
 export async function updateInstall(
   _: ActionState,
   formData: FormData,
@@ -469,6 +473,17 @@ export async function updateInstall(
   const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດແກ້ໄຂງານຕິດຕັ້ງ");
   if (!guard.ok) return { error: guard.error };
   const session = guard.session;
+
+  /**
+   * ── ງານປິດແລ້ວ: ອັບເດດ **ISN ຢ່າງດຽວ** ────────────────────
+   * S/N ບໍ່ບັງຄັບຕອນເປີດງານ (CS ບໍ່ໄດ້ຖືເຄື່ອງຢູ່ນຳ) ແລະ ຊ່າງມັກຈະໄດ້ເລກປ້າຍມາທ້າຍສຸດ
+   * ⇒ ຫ້າມແກ້ທັງໃບຫຼັງປິດງານ = ງານນັ້ນຈະບໍ່ມີ ISN ຕະຫຼອດໄປ ແລະ ຮັບປະກັນ/ສ້ອມພາຍຫຼັງ
+   * ອ້າງອີງໜ່ວຍບໍ່ໄດ້. ຊ່ອງອື່ນຍັງລັອກ — ຄ່າຄອມຂອງຊ່າງຄິດຈາກຂໍ້ມູນນັ້ນໄປແລ້ວ.
+   * ໂໝດຕັດສິນຈາກ **ສະຖານະໃນຖານ** ບໍ່ແມ່ນຈາກຟອມ ⇒ ຍິງ action ໂດຍກົງກໍ່ຂ້າມບໍ່ໄດ້.
+   */
+  const closedNow = await jobState(String(formData.get("code") ?? ""));
+  if (closedNow?.closed) return isnOnlyUpdate(closedNow, formData, session.username);
+
   const parsed = editSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ" };
   const d = parsed.data;
@@ -537,6 +552,48 @@ export async function updateInstall(
 
   revalidateAll();
   redirect("/installations");
+}
+
+/**
+ * ອັບເດດ ISN/SN ຂອງງານທີ່**ປິດແລ້ວ** — ຊ່ອງດຽວທີ່ຍັງແກ້ໄດ້ຫຼັງປິດງານ.
+ * ງານທີ່ຍົກເລີກແລ້ວຍັງແກ້ບໍ່ໄດ້ຄືເກົ່າ (ບໍ່ມີໜ່ວຍໃດຖືກຕິດຕັ້ງ ⇒ ບໍ່ມີ ISN ໃຫ້ລົງ).
+ */
+async function isnOnlyUpdate(
+  job: JobState,
+  formData: FormData,
+  username: string,
+): Promise<ActionState> {
+  if (job.cancelled) return { error: IS_CANCELLED };
+  const parsed = isnSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ" };
+  const { code, pro_sn: serial } = parsed.data;
+
+  let before = "";
+  try {
+    const current = await query<{ pro_sn: string | null }>(
+      "select pro_sn from ods_tb_install where code=$1",
+      [code],
+    );
+    before = current.rows[0]?.pro_sn ?? "";
+    if (before === serial) return { error: "ISN ບໍ່ໄດ້ປ່ຽນ" };
+    await query(
+      "update ods_tb_install set pro_sn=$1, user_edit=$2 where code=$3 and cancel_date is null",
+      [serial, username, code],
+    );
+  } catch (error) {
+    console.error("isnOnlyUpdate failed", error);
+    return { error: "ເເກ້ໄຂບໍ່ສຳເລັດ" };
+  }
+
+  await logChange(
+    "ods_tb_install",
+    code,
+    `ອັບເດດ ISN ຂອງງານທີ່ປິດແລ້ວ: ${before || "(ຫວ່າງ)"} → ${serial || "(ຫວ່າງ)"}`,
+    { users: job.tech_code ? [job.tech_code] : [] },
+  );
+
+  revalidateAll();
+  redirect(`/installations/${encodeURIComponent(code)}`);
 }
 
 /* ── ລົບງານ — **ຖອດອອກແລ້ວ** ─────────────────────────────────
@@ -961,6 +1018,42 @@ export async function reopenJob(code: string): Promise<ActionState> {
  * ຂັ້ນໄດ (lib/install-stage) ບໍ່ເຊື່ອທຸງ=0 ອີກຕໍ່ໄປ ຖ້າແຖວມີ reg_start/reg_finish/pick_finish.
  */
 
+/**
+ * ── ດ່ານ "ເບີກອາໄຫຼ່ນອກມາດຕະຖານ" (SETTING.INSTALL_SPARE_FREE_SEARCH) ──
+ *
+ * ປິດແລ້ວ = ເພີ່ມໄດ້ແຕ່ລາຍການທີ່ **ຢູ່ໃນຊຸດມາດຕະຖານຂອງສິນຄ້າ** (ic_inventory_set_detail)
+ * ຫຼື **ຢູ່ໃນກະຕ່າຂອງງານແລ້ວ**. ກວດຢູ່ຝັ່ງ server ບໍ່ແມ່ນເຊື່ອງແຕ່ຊ່ອງຄົ້ນຫາ — action
+ * ຖືກຍິງໂດຍກົງໄດ້ (lib/guard).
+ *
+ * ⚠️ ດຽວນີ້ "ຊຸດ" ຂອງ ERP ຄືອົງປະກອບຂອງຕົວເຄື່ອງ (ໜ່ວຍໃນ/ໜ່ວຍນອກ/ກ່ອງທໍ່) ບໍ່ແມ່ນ
+ * ອາໄຫຼ່ຕິດຕັ້ງ ⇒ ປິດສະວິດນີ້ກ່ອນນິຍາມລາຍການມາດຕະຖານແທ້ = ເພີ່ມອາໄຫຼ່ບໍ່ໄດ້ເລີຍ
+ * (ເບິ່ງຄຳເຕືອນຢູ່ SETTING_META).
+ *
+ * @returns ຂໍ້ຄວາມຜິດພາດ ຖ້າມີລາຍການທີ່ຫ້າມ · null ຖ້າຜ່ານ
+ */
+async function blockNonStandard(
+  code: string,
+  itemCodes: string[],
+): Promise<string | null> {
+  if (await settingEnabled(SETTING.INSTALL_SPARE_FREE_SEARCH)) return null;
+
+  const product = await query<{ item_code: string | null }>(
+    "select item_code from ods_tb_install where code=$1 limit 1",
+    [code],
+  );
+  const [setLines, cart] = await Promise.all([
+    getStandardSetLines(product.rows[0]?.item_code),
+    query<{ item_code: string }>(
+      "select distinct item_code from tb_used_spare where product_code=$1",
+      [code],
+    ),
+  ]);
+  const known = new Set([...setLines.keys(), ...cart.rows.map((row) => row.item_code)]);
+  const outside = itemCodes.filter((itemCode) => !known.has(itemCode));
+  if (!outside.length) return null;
+  return `ປິດການເບີກອາໄຫຼ່ນອກມາດຕະຖານໄວ້ — ເພີ່ມ ${outside.join(", ")} ບໍ່ໄດ້ (ເປີດຄືນທີ່ ການຕັ້ງຄ່າລະບົບ)`;
+}
+
 /** ເພີ່ມອາໄຫຼ່ເຂົ້າໃບຂໍເບີກ (additemtoreg_inst) — ຍົກທຸງ used_spare ຂຶ້ນນຳ */
 export async function addSpareLine(
   code: string,
@@ -980,6 +1073,8 @@ export async function addSpareLine(
     return {
       error: "ເພີ່ມອາໄຫຼ່ບໍ່ໄດ້ — ເລີ່ມຕິດຕັ້ງແລ້ວ",
     } satisfies ActionState;
+  const blocked = await blockNonStandard(code, [itemCode]);
+  if (blocked) return { error: blocked } satisfies ActionState;
 
   const client = await db.connect();
   try {
@@ -1028,6 +1123,8 @@ export async function addSpareLines(
   if (!job.accepted) return { error: "ຕ້ອງຮັບງານກ່ອນເພີ່ມອາໄຫຼ່" };
   if (job.started)
     return { error: "ເພີ່ມອາໄຫຼ່ບໍ່ໄດ້ — ເລີ່ມຕິດຕັ້ງແລ້ວ" };
+  const blocked = await blockNonStandard(code, uniqueCodes);
+  if (blocked) return { error: blocked };
 
   let inventory: { code: string; name_1: string; unit_code: string | null }[];
   try {

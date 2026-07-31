@@ -81,7 +81,8 @@ export default async function InstallationDetail({ params }: Props) {
   const session = await getSession();
   if (!session) redirect("/login");
   const t = (await getDictionary(await getLocale())).installDetail;
-  const canDelete = (await permissionFor(session, "/installations")).delete;
+  const installPermission = await permissionFor(session, "/installations");
+  const canDelete = installPermission.delete;
 
   const [job, spares, docs, outstanding] = await Promise.all([
     query<Row>(
@@ -179,6 +180,16 @@ export default async function InstallationDetail({ params }: Props) {
               href={`/installations/spare-requests/${encodeURIComponent(row.code)}`}
             >
               {t.requestMoreSpares}
+            </LinkButton>
+          )}
+          {/*
+            ທາງເຂົ້າໜ້າແກ້ໄຂ — ຄິວ /installations ມີແຕ່ **ງານດຳເນີນຢູ່** (INSTALL_OPEN)
+            ⇒ ງານປິດແລ້ວມາຮອດໄດ້ທາງໜ້ານີ້ບ່ອນດຽວ. ປິດແລ້ວແກ້ໄດ້ສະເພາະ ISN
+            (ເບິ່ງ updateInstall) ⇒ ປຸ່ມບອກໄວ້ໃຫ້ຮູ້ກ່ອນກົດເຂົ້າ.
+          */}
+          {installPermission.update && !row.cancel_date && (
+            <LinkButton tone="neutral" href={`/installations/${encodeURIComponent(row.code)}/edit`}>
+              {row.stage === 9 ? t.editIsn : t.edit}
             </LinkButton>
           )}
           <LinkButton tone="neutral" href={`/installations/${encodeURIComponent(row.code)}/print`}>

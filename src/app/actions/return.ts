@@ -8,6 +8,7 @@ import { db, odgDb, queryOdg } from "@/lib/db";
 import { nextDocNo } from "@/lib/doc-no";
 import { writeErpReceipt } from "@/lib/erp-receipt";
 import { linkErpDoc } from "@/lib/erp-doc-link";
+import { loanerBlock } from "@/lib/loaner";
 import { HAS_OUTSTANDING_SPARES } from "@/lib/outstanding-spares";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
@@ -396,6 +397,13 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
   // ໃບຮັບເງິນຕ້ອງໄປລົງ SML ນຳ (cb_trans) — SML ບໍ່ຕັ້ງຄ່າ = ອອກໃບບໍ່ໄດ້ (ບໍ່ໃຫ້ເກີດໃບ ODS-ຢ່າງດຽວ ອີກ)
   if (!odgDb) return { error: "ບໍ່ພົບ ODG_DATABASE_URL — ອອກໃບຮັບເງິນບໍ່ໄດ້" };
 
+  /**
+   * ໃບຮັບເງິນນີ້ປະທັບ return_complete ນຳ (ລູກຄ້າມາຮັບເຄື່ອງ ແລະ ຈ່າຍເງິນເທື່ອດຽວ)
+   * ⇒ ຕ້ອງໄດ້ເຄື່ອງສຳຮອງຄືນຢູ່ຈຸດນີ້ຄືກັນ ບໍ່ດັ່ງນັ້ນເຄື່ອງສູນຈະຄ້າງຢູ່ບ້ານລູກຄ້າຕະຫຼອດ.
+   */
+  const loanerHold = await loanerBlock(d.pro_code);
+  if (loanerHold) return { error: loanerHold };
+
   // ເຊື່ອມຕໍ່ຖານຂໍ້ມູນ — ລົ້ມເຫຼວກໍ່ຄືນເປັນ error ທຳມະດາ ບໍ່ໃຫ້ throw ຫຼຸດອອກໄປພັງໜ້າ
   const client = await db.connect().catch(() => null);
   if (!client) return { error: "ເຊື່ອມຕໍ່ຖານຂໍ້ມູນບໍ່ໄດ້ ກະລຸນາລອງໃໝ່" };
@@ -633,6 +641,9 @@ export async function returnWithoutInvoice(_: ReturnState, formData: FormData): 
         "ຍັງມີອາໄຫຼ່ທີ່ເບີກອອກຈາກສາງ ຍັງບໍ່ໄດ້ຄືນ — ຕ້ອງສົ່ງຄືນອາໄຫຼ່ (ໜ້າກູ້ອາໄຫຼ່) ຫຼື ອອກໃບຮັບເງິນເກັບຄ່າອາໄຫຼ່ ກ່ອນປິດງານ",
     };
   }
+  // ເຄື່ອງສຳຮອງທີ່ໃຫ້ລູກຄ້າໃຊ້ກ່ອນ ຕ້ອງໄດ້ຄືນມາພ້ອມກັນ (lib/loaner)
+  const loanerHold = await loanerBlock(productCode);
+  if (loanerHold) return { error: loanerHold };
 
   let custCode = "";
   try {
@@ -708,6 +719,8 @@ export async function returnWithoutCharge(_: ReturnState, formData: FormData): P
         "ຍັງມີອາໄຫຼ່ທີ່ເບີກອອກຈາກສາງ ຍັງບໍ່ໄດ້ຄືນ — ຕ້ອງສົ່ງຄືນອາໄຫຼ່ ຫຼື ອອກໃບຮັບເງິນເກັບຄ່າອາໄຫຼ່ ກ່ອນປິດງານ",
     };
   }
+  const loanerHold = await loanerBlock(productCode);
+  if (loanerHold) return { error: loanerHold };
 
   let custCode = "";
   try {

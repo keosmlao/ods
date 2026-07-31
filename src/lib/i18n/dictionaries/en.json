@@ -3129,7 +3129,20 @@
     "selectTechPlaceholder": "Select technician...",
     "appointDateLabel": "Appointment Date",
     "installLocation": "Installation Location",
-    "remark": "Remark"
+    "remark": "Remark",
+    "isnOnlyNotice": "This job is closed — only the ISN / S/N can be changed; other fields are locked",
+    "isnSelect": "— Select ISN —",
+    "isnLoading": "Loading ISN...",
+    "isnCurrent": "current value",
+    "isnInStock": "still in stock",
+    "isnFromBill": "sold on this bill",
+    "isnFromStock": "ISN pool",
+    "isnFromBillHint": "ISN of the units sold on this job’s bill",
+    "isnFromStockHint": "The bill has no ISN recorded ⇒ this list comes from the ISN pool — read the number off the unit label and pick it",
+    "isnNotFound": "No ISN found for this item in the ERP — you can type it in",
+    "isnTypeManually": "Not in the list? Type it in",
+    "isnBackToList": "Back to the list",
+    "isnTypePlaceholder": "Read the number off the unit label (optional)"
   },
   "poPrint": {
     "printHint": "Press the button or Ctrl/Cmd + P to print",
@@ -3325,7 +3338,9 @@
       "openMap": "Open in Maps",
       "viewPhotos": "View delivery photos",
       "noPhotos": "No photos"
-    }
+    },
+    "edit": "Edit",
+    "editIsn": "Update ISN"
   },
   "stockCount": {
     "finalizeTitle": "Finish stock count?",

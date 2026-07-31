@@ -3129,7 +3129,20 @@
     "selectTechPlaceholder": "ເລືອກຊ່າງ...",
     "appointDateLabel": "ວັນທີນັດຕິດຕັ້ງ",
     "installLocation": "ສະຖານທີ່ຕິດຕັ້ງ",
-    "remark": "ໝາຍເຫດ"
+    "remark": "ໝາຍເຫດ",
+    "isnOnlyNotice": "ງານນີ້ປິດແລ້ວ — ແກ້ໄດ້ສະເພາະ ISN / S/N ເທົ່ານັ້ນ ຊ່ອງອື່ນລັອກໄວ້",
+    "isnSelect": "— ເລືອກ ISN —",
+    "isnLoading": "ກຳລັງດຶງ ISN...",
+    "isnCurrent": "ຄ່າປັດຈຸບັນ",
+    "isnInStock": "ຍັງຢູ່ໃນສາງ",
+    "isnFromBill": "ຂາຍໃນບິນນີ້",
+    "isnFromStock": "ຄັງ ISN",
+    "isnFromBillHint": "ISN ຂອງໜ່ວຍທີ່ຂາຍໃນບິນຂອງງານນີ້",
+    "isnFromStockHint": "ບິນບໍ່ໄດ້ລົງ ISN ໄວ້ ⇒ ລາຍການນີ້ມາຈາກຄັງ ISN — ອ່ານເລກຈາກປ້າຍຕົວເຄື່ອງແລ້ວເລືອກ",
+    "isnNotFound": "ບໍ່ພົບ ISN ຂອງລາຍການນີ້ໃນ ERP — ພິມເອງໄດ້",
+    "isnTypeManually": "ບໍ່ມີໃນລາຍການ? ພິມເອງ",
+    "isnBackToList": "ກັບໄປເລືອກຈາກລາຍການ",
+    "isnTypePlaceholder": "ອ່ານເລກຈາກປ້າຍຕົວເຄື່ອງ (ບໍ່ບັງຄັບ)"
   },
   "poPrint": {
     "printHint": "ກົດປຸ່ມ ຫຼື Ctrl/Cmd + P ເພື່ອພິມ",
@@ -3325,7 +3338,9 @@
       "openMap": "ເປີດແຜນທີ່ໄປຫາ",
       "viewPhotos": "ເບິ່ງຮູບຕອນສົ່ງ",
       "noPhotos": "ບໍ່ມີຮູບ"
-    }
+    },
+    "edit": "ແກ້ໄຂ",
+    "editIsn": "ອັບເດດ ISN"
   },
   "stockCount": {
     "finalizeTitle": "ສຳເລັດການກວດນັບ?",

@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { query, queryOdg } from "@/lib/db";
 import { roleOf, STOCK_SIDE, TECH_SIDE } from "@/lib/roles";
+import { SETTING, settingEnabled } from "@/lib/settings";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
@@ -28,6 +29,14 @@ export async function GET(request: NextRequest) {
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (!ALLOWED.includes(roleOf(session))) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  /**
+   * ຄົ້ນ ERP ເພື່ອ**ເພີ່ມລາຍການນອກມາດຕະຖານ** ⇒ ຢູ່ໃຕ້ສະວິດອັນດຽວກັບ addSpareLines.
+   * ປິດແລ້ວຄືນລາຍການຫວ່າງ (ບໍ່ແມ່ນ 403) — ຟອມກອງລາຍການທີ່ມີຢູ່ຕໍ່ໄປໄດ້ຕາມປົກກະຕິ.
+   */
+  if (!(await settingEnabled(SETTING.INSTALL_SPARE_FREE_SEARCH))) {
+    return NextResponse.json({ data: [], disabled: true });
   }
 
   const q = (request.nextUrl.searchParams.get("q") ?? "").trim();
