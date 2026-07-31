@@ -18,7 +18,7 @@ import { type Role, roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
 import { INSTALL_FEEDBACK_DONE_SQL, INSTALL_FEEDBACK_TIME_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { installSpareOutstanding } from "@/lib/install-spare-gate";
-import { outsideStandardCodes, standardLinesForJob } from "@/lib/install-standard";
+import { getStandardSetLines, outsideStandardCodes } from "@/lib/install-standard";
 import { EDITABLE_SPARE_LINES } from "@/lib/install-spare-edit";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { feedbackUrl, validFeedbackToken } from "@/lib/track";
@@ -1055,7 +1055,7 @@ async function blockNonStandard(
     [code],
   );
   const [setLines, cart] = await Promise.all([
-    standardLinesForJob(code, product.rows[0]?.item_code),
+    getStandardSetLines(product.rows[0]?.item_code),
     query<{ item_code: string }>(
       "select distinct item_code from tb_used_spare where product_code=$1",
       [code],
@@ -1166,7 +1166,7 @@ export async function addSpareLines(
     "select item_code from ods_tb_install where code=$1 limit 1",
     [code],
   );
-  const setLines = await standardLinesForJob(code, product.rows[0]?.item_code);
+  const setLines = await getStandardSetLines(product.rows[0]?.item_code);
 
   const client = await db.connect();
   try {

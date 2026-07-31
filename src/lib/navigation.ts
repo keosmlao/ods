@@ -312,8 +312,6 @@ const USERS: NavGroup = {
     { label: "ຄ່າບໍລິການ / ຄ່າຄອມຊ່າງ", href: "/manage/service-rates" },
     { label: "ເຊື່ອມຕົວຕົນຊ່າງ", href: "/manage/technicians" },
     { label: "ການຕັ້ງຄ່າລະບົບ", href: "/manage/settings" },
-    // ຄູ່ກັບສະວິດ "ເບີກນອກມາດຕະຖານ" — ບໍ່ນິຍາມບ່ອນນີ້ ປິດສະວິດນັ້ນບໍ່ໄດ້
-    { label: "ອາໄຫຼ່ມາດຕະຖານ (ຕິດຕັ້ງ)", href: "/manage/install-standard" },
     { label: "ລາຍງານອັດຕະໂນມັດ (email/Line)", href: "/manage/report-recipients" },
     { label: "ຫຍີ່ຫໍ້ເກັບເງินกับ supplier", href: "/manage/claim-brands" },
     { label: "ຕິດຕາມການເຂົ້າລະບົບ", href: "/manage/login-log" },
