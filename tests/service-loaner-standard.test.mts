@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { claimMarkChange } from "../src/lib/claim-shared.ts";
 import { loanerHoldMessage, outsideStandardCodes } from "../src/lib/loaner-shared.ts";
+import { takeQty } from "../src/lib/spare-take.ts";
 
 /* ── ເຄື່ອງສຳຮອງ (loaner) ─────────────────────────────────────── */
 
@@ -60,4 +61,25 @@ test("ເຄມ → ສ້ອມ ແຕ່ຍັງບໍ່ມີໃບເຄ�
 
 test("ງານສ້ອມທຳມະດາ = ບໍ່ແຕະໃບເຄມ", () => {
   assert.equal(claimMarkChange({ kind: "repair", claimNo: null }, "repair"), "none");
+});
+
+/* ── ຈຳນວນທີ່ໃບຂໍເບີກເອົາ (lib/spare-take) ────────────────────── */
+
+test("ຟອມສົ່ງ take_ ມາ ⇒ ລາຍການທີ່ບໍ່ຢູ່ໃນຟອມ = ບໍ່ເອົາ", () => {
+  // ບັກຈິງ: ຟອມສະແດງ 2 ແຖວ ແຕ່ໃບອອກມາ 14 ແຖວ (INST-7082 / SION2026072406)
+  const take = { "140507-0334": 4, "140507-0335": 4 };
+  assert.equal(takeQty(take, "140507-0334", 4), 4);
+  assert.equal(takeQty(take, "140404-0209", 1), 0); // ຄົນເອົາອອກຈາກຟອມແລ້ວ
+  assert.equal(takeQty(take, "140507-0200", 1), 0);
+});
+
+test("ບໍ່ມີຊ່ອງ take_ ຈັກອັນ (ແອັບມືຖື/API ເກົ່າ) ⇒ ເອົາຄ້າງທັງໝົດ", () => {
+  assert.equal(takeQty(undefined, "140404-0209", 3), 3);
+  assert.equal(takeQty(undefined, "140507-0200", 1), 1);
+});
+
+test("ຕັດບໍ່ໃຫ້ເກີນຈຳນວນຄ້າງ ແລະ ບໍ່ຮັບຄ່າຕິດລົບ", () => {
+  assert.equal(takeQty({ a: 99 }, "a", 4), 4);   // ຂໍເກີນ ⇒ ຕັດເປັນ 4
+  assert.equal(takeQty({ a: -5 }, "a", 4), 0);   // ຄ່າຕິດລົບ ⇒ 0
+  assert.equal(takeQty({ a: 2 }, "a", 4), 2);
 });

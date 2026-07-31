@@ -6,6 +6,7 @@ import { writeErpRequest } from "@/lib/erp-request";
 import { nextDocNo } from "@/lib/doc-no";
 import { saveCheckPhotos, type FlowResult } from "@/lib/job-flow";
 import { roleOf } from "@/lib/roles";
+import { takeQty } from "@/lib/spare-take";
 import { canViewAssignedJob } from "@/lib/scope";
 import { STAGE_SQL } from "@/lib/stage";
 import { ERP, LINE_STATUS, RETURN_SHELF, RETURN_WH, TRANS } from "@/lib/stock-constants";
@@ -421,8 +422,8 @@ export async function createSpareRequest(
     const picked = lines.rows
       .map((line) => {
         const outstanding = Number(line.qty);
-        const want = input.take?.[line.item_code];
-        const qty = want == null ? outstanding : Math.min(outstanding, Math.max(0, want));
+        // ລາຍການທີ່ຄົນເອົາອອກຈາກຟອມ = ບໍ່ເອົາ (ເບິ່ງ lib/spare-take.takeQty)
+        const qty = takeQty(input.take, line.item_code, outstanding);
         return { ...line, qty: String(qty), outstanding };
       })
       .filter((line) => Number(line.qty) > 0);

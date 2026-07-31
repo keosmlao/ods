@@ -32,3 +32,24 @@ export function takeFromForm(formData: FormData): Record<string, number> | undef
   }
   return found ? take : undefined;
 }
+
+/**
+ * **ຈຳນວນທີ່ໃບນີ້ຈະເອົາ ຂອງລາຍການນຶ່ງ** — ກົດເກນຢູ່ບ່ອນດຽວ ໃຊ້ທັງສ້ອມ ແລະ ຕິດຕັ້ງ.
+ *
+ * ⚠️ ບັກເກົ່າ (ພົບ 31-07-2026): ຜູ້ເອີ້ນຂຽນ `take?.[code]` ແລ້ວ "undefined ⇒ ເອົາຄ້າງທັງໝົດ"
+ * ⇒ ລາຍການທີ່ **ຄົນເອົາອອກຈາກຟອມແລ້ວ** (ບໍ່ມີຊ່ອງ take_ ສົ່ງມາ) ຍັງຖືກໃສ່ໃນໃບເຕັມຈຳນວນ
+ * ⇒ ຟອມສະແດງ 2 ແຖວ ແຕ່ໃບທີ່ບັນທຶກອອກມາ 14 ແຖວ (ງານ INST-7082 / SION2026072406).
+ *
+ * ກົດທີ່ຖືກ:
+ *   ຟອມສົ່ງ take_ ມາ (ເວັບ) ⇒ ລາຍການທີ່ **ບໍ່ຢູ່ໃນຟອມ = ບໍ່ເອົາ** (0)
+ *   ບໍ່ສົ່ງມາຈັກອັນ (ແອັບມືຖື/API ເກົ່າ) ⇒ ເອົາຄ້າງທັງໝົດ ຄືເກົ່າ
+ * ຕັດບໍ່ໃຫ້ເກີນ `outstanding` ທີ່ server ຄິດເອງສະເໝີ.
+ */
+export function takeQty(
+  take: Record<string, number> | undefined,
+  itemCode: string,
+  outstanding: number,
+): number {
+  if (!take) return outstanding;
+  return Math.min(outstanding, Math.max(0, take[itemCode] ?? 0));
+}

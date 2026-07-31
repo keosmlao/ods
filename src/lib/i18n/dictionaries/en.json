@@ -4773,7 +4773,7 @@
       },
       "install_spare_free_search": {
         "label": "Install spares outside the standard (free ERP search)",
-        "help": "Lets technicians search the ERP and add spares that are not in the product's ERP set and not already in the cart. ⚠️ “Standard” means the ERP product set only — over the last 2 years none of the 6,498 spare lines were in a set, so turning this off right now blocks every spare request."
+        "help": "Lets technicians search the ERP and add spares that are **not in the installation kit** (used_spare_install, keyed by BTU size) and not already in the job's cart. Real data over 2 years: 69% of requested lines are in the kit, so turning this off blocks the other 31% (~2,000 lines / 2 years) — mostly pipe and brackets added on site."
       }
     }
   }

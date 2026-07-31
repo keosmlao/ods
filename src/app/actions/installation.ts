@@ -13,12 +13,12 @@ import { db, odgDb, query, queryOdg } from "@/lib/db";
 import { deleteErpRequest, writeErpRequest } from "@/lib/erp-request";
 import { nextDocNo } from "@/lib/doc-no";
 import { requireRole, runAction } from "@/lib/guard";
-import { takeFromForm } from "@/lib/spare-take";
+import { takeFromForm, takeQty } from "@/lib/spare-take";
 import { type Role, roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
 import { INSTALL_FEEDBACK_DONE_SQL, INSTALL_FEEDBACK_TIME_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { installSpareOutstanding } from "@/lib/install-spare-gate";
-import { getStandardSetLines, outsideStandardCodes } from "@/lib/install-standard";
+import { getStandardKitLines, outsideStandardCodes } from "@/lib/install-standard";
 import { EDITABLE_SPARE_LINES } from "@/lib/install-spare-edit";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { feedbackUrl, validFeedbackToken } from "@/lib/track";
@@ -1050,12 +1050,8 @@ async function blockNonStandard(
 ): Promise<string | null> {
   if (await settingEnabled(SETTING.INSTALL_SPARE_FREE_SEARCH)) return null;
 
-  const product = await query<{ item_code: string | null }>(
-    "select item_code from ods_tb_install where code=$1 limit 1",
-    [code],
-  );
   const [setLines, cart] = await Promise.all([
-    getStandardSetLines(product.rows[0]?.item_code),
+    getStandardKitLines(code),
     query<{ item_code: string }>(
       "select distinct item_code from tb_used_spare where product_code=$1",
       [code],
@@ -1158,15 +1154,11 @@ export async function addSpareLines(
     return { error: "ມີບາງລາຍການບໍ່ພົບໃນ ERP" };
 
   /**
-   * ຈຳນວນ **ແລະ ຫົວໜ່ວຍ** ຕັ້ງຕົ້ນ = **ຕາມຊຸດມາດຕະຖານ** (ic_inventory_set_detail ຂອງ
-   * ສິນຄ້າງານນີ້). ລາຍການນອກຊຸດ = 1 ພ້ອມຫົວໜ່ວຍມາດຕະຖານຂອງສິນຄ້າ ຄືເກົ່າ.
+   * ຈຳນວນ **ແລະ ຫົວໜ່ວຍ** ຕັ້ງຕົ້ນ = **ຕາມຊຸດຕິດຕັ້ງ** (used_spare_install ຕາມ install_type
+   * ຂອງໃບງານ). ລາຍການນອກຊຸດ = 1 ພ້ອມຫົວໜ່ວຍມາດຕະຖານຂອງສິນຄ້າ ຄືເກົ່າ.
    * ອ່ານຢູ່ຝັ່ງ server ເພື່ອບໍ່ຕ້ອງເຊື່ອຄ່າຈາກ browser.
    */
-  const product = await query<{ item_code: string | null }>(
-    "select item_code from ods_tb_install where code=$1 limit 1",
-    [code],
-  );
-  const setLines = await getStandardSetLines(product.rows[0]?.item_code);
+  const setLines = await getStandardKitLines(code);
 
   const client = await db.connect();
   try {
@@ -1454,8 +1446,8 @@ export async function saveSpareRequest(
     const picked = lines.rows
       .map((line) => {
         const outstanding = Number(line.qty);
-        const want = take?.[line.item_code];
-        const qty = want == null ? outstanding : Math.min(outstanding, Math.max(0, want));
+        // ລາຍການທີ່ຄົນເອົາອອກຈາກຟອມ = ບໍ່ເອົາ (ເບິ່ງ lib/spare-take.takeQty)
+        const qty = takeQty(take, line.item_code, outstanding);
         return { ...line, qty: String(qty), outstanding };
       })
       .filter((line) => Number(line.qty) > 0);

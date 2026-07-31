@@ -113,7 +113,7 @@ export default async function SpareRequestPage({ params }: Props) {
 
   // ອາໄຫຼ່ "ຕາມມາດຕະຖານ" = ອົງປະກອບຊຸດຂອງສິນຄ້າໃນ ERP (ic_inventory_set_detail)
   // — ບໍ່ແມ່ນກະຕ່າ tb_used_spare ອີກ (ກະຕ່າຄືສິ່ງທີ່ຊ່າງເລືອກໃສ່ໃບ, ບໍ່ແມ່ນນິຍາມມາດຕະຖານ).
-  const standards = await getStandardSpares(code, head.rows[0].item_code);
+  const standards = await getStandardSpares(code);
 
   // ດຶງ stock ERP ຄັ້ງດຽວສຳລັບທຸກແຖວ ແລ້ວເອົາສະເພາະສາງທີ່ມີຂອງຈິງ.
   // ບໍ່ hard-code 5 ສາງອີກ: INST-7082 ມີ stock ກະຈາຍຢູ່ 10 ສາງ.
