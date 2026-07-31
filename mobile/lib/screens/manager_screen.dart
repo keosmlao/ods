@@ -7,8 +7,11 @@ import '../api.dart';
 import '../main.dart';
 import '../push.dart';
 import '../widgets/ui_kit.dart';
+import 'approvals_screen.dart';
 import 'login_screen.dart';
 import 'notifications_screen.dart';
+import 'manager_kit.dart';
+import 'overview_jobs_screen.dart';
 
 /// ໜ້າຫຼັກຜູ້ຈັດການ — ພາບລວມບໍລິຫານ (ຕົວເລກລວມທັງບໍລິສັດ ຈາກ /api/mobile/overview).
 /// ຂໍ້ມູນມາຈາກ dashboard ຝັ່ງເວັບ ⇒ ຕົວເລກກົງກັນ.
@@ -145,22 +148,41 @@ class _ManagerScreenState extends State<ManagerScreen> {
     );
   }
 
+  /// ເປີດລາຍການໃບງານທີ່ຢູ່ເບື້ອງຫຼັງຕົວເລກນັ້ນ (bucket ນິຍາມຢູ່ lib/manager-drill)
+  void _open(String bucket, String title) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => OverviewJobsScreen(bucket: bucket, title: title)),
+    );
+  }
+
   /// ── ລຳດັບໜ້າ: **ວຽກຄ້າງກ່ອນ ຜົນງານທີຫຼັງ** (ຕົກລົງກັບຜູ້ໃຊ້ 31-07-2026) ──
   ///
   /// ລຳດັບເກົ່າຂຶ້ນຕົ້ນດ້ວຍ "ມື້ນີ້" ເຊິ່ງເປັນຕົວເລກທີ່ **ບໍ່ຕ້ອງການການຕັດສິນ** ⇒ ຜູ້ຈັດການ
   /// ຕ້ອງເລື່ອນຜ່ານ 3 ບັດກ່ອນຈຶ່ງເຫັນສິ່ງທີ່ຄ້າງ. ດຽວນີ້ສິ່ງທີ່ຄ້າງມາກ່ອນສະເໝີ ແລະ
   /// ບັດທີ່ເປັນ 0 **ບໍ່ສະແດງ** — ໜ້າສັ້ນລົງ = ບໍ່ມີຫຍັງຄ້າງ ເຊິ່ງເປັນຄຳຕອບທີ່ຖືກຕ້ອງ.
   List<Widget> _sections(Overview d) {
+    // ບັດອະນຸມັດພາໄປໜ້າອະນຸມັດ (ກົດອະນຸມັດໄດ້ເລີຍ) · ບັດງານພາໄປລາຍການໃບງານ
+    void toApprovals() => Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ApprovalsScreen()),
+    );
+
     final actions = <_ActionItem>[
-      _ActionItem('ໃບສະເໜີລາຄາລໍອະນຸມັດ', d.aQuotes, danger),
-      _ActionItem('ຮ້ອງຂໍຍົກເລີກງານ', d.aCancels, danger),
-      _ActionItem('ໃບຂໍຊື້ລໍອະນຸມັດ', d.aPurchases, const Color(0xFFD97706)),
-      _ActionItem('ລໍລູກຄ້າຕົກລົງລາຄາ', d.aCustomer, const Color(0xFFD97706)),
-      _ActionItem('ງານຍັງບໍ່ຈັດຊ່າງ', d.unassignedRepair + d.unassignedInstall, danger),
-      _ActionItem('ເກີນເວລາທີ່ສັນຍາໄວ້ (SLA)', d.slaLate, danger),
-      _ActionItem('ງານເຄມລໍຕັດສິນ', d.claimsWaitDecision, const Color(0xFF7C3AED)),
-      _ActionItem('ເຄື່ອງສຳຮອງຄ້າງຄືນ', d.loaners, const Color(0xFFD97706)),
-      _ActionItem('ລູກຄ້າໃຫ້ຄະແນນຕໍ່າ', d.feedbackUnhappy, const Color(0xFFD97706)),
+      _ActionItem('ໃບສະເໜີລາຄາລໍອະນຸມັດ', d.aQuotes, danger, toApprovals),
+      _ActionItem('ຮ້ອງຂໍຍົກເລີກງານ', d.aCancels, danger, toApprovals),
+      _ActionItem('ໃບຂໍຊື້ລໍອະນຸມັດ', d.aPurchases, const Color(0xFFD97706), toApprovals),
+      _ActionItem('ລໍລູກຄ້າຕົກລົງລາຄາ', d.aCustomer, const Color(0xFFD97706), toApprovals),
+      _ActionItem('ງານຍັງບໍ່ຈັດຊ່າງ', d.unassignedRepair + d.unassignedInstall, danger,
+          () => _open('unassigned', 'ຍັງບໍ່ຈັດຊ່າງ')),
+      _ActionItem('ເກີນເວລາທີ່ສັນຍາໄວ້ (SLA)', d.slaLate, danger,
+          () => _open('sla-late', 'ເກີນເວລາທີ່ສັນຍາໄວ້ (SLA)')),
+      _ActionItem('ງານເຄມລໍຕັດສິນ', d.claimsWaitDecision, const Color(0xFF7C3AED),
+          () => _open('claim-decision', 'ງານເຄມລໍຕັດສິນ')),
+      _ActionItem('ເຄື່ອງສຳຮອງຄ້າງຄືນ', d.loaners, const Color(0xFFD97706),
+          () => _open('loaners', 'ໃບງານທີ່ມີເຄື່ອງສຳຮອງຄ້າງຄືນ')),
+      _ActionItem('ລູກຄ້າໃຫ້ຄະແນນຕໍ່າ', d.feedbackUnhappy, const Color(0xFFD97706),
+          () => _open('unhappy', 'ລູກຄ້າໃຫ້ຄະແນນຕໍ່າ')),
     ].where((a) => a.value > 0).toList();
 
     return [
@@ -170,27 +192,34 @@ class _ManagerScreenState extends State<ManagerScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  '${d.staleJobs}',
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.w900,
-                    color: d.staleJobs > 0 ? danger : ok,
+            InkWell(
+              onTap: () => _open('age:over30', 'ຄ້າງເກີນ 30 ມື້'),
+              borderRadius: BorderRadius.circular(10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    '${d.staleJobs}',
+                    style: TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.w900,
+                      color: d.staleJobs > 0 ? danger : ok,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'ຈາກງານທີ່ຍັງເປີດຢູ່ ${d.openTotal} ໃບ',
-                  style: const TextStyle(fontSize: 12.5, color: muted),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Text(
+                    'ຈາກງານທີ່ຍັງເປີດຢູ່ ${d.openTotal} ໃບ',
+                    style: const TextStyle(fontSize: 12.5, color: muted),
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.chevron_right, size: 20, color: muted),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
-            _AgeBar(aging: d.aging, total: d.openTotal),
+            // ແຕະປ້າຍຖັງໃດ = ເປີດລາຍການຂອງຖັງນັ້ນ
+            _AgeBar(aging: d.aging, total: d.openTotal, onTap: (b) => _open('age:${b.key}', b.label)),
           ],
         ),
       ),
@@ -217,6 +246,13 @@ class _ManagerScreenState extends State<ManagerScreen> {
       if (d.oldest.isNotEmpty)
         _Card(
           title: 'ໃບທີ່ຄ້າງດົນສຸດ',
+          trailing: InkWell(
+            onTap: () => _open('age:over30', 'ຄ້າງເກີນ 30 ມື້'),
+            child: const Text(
+              'ເບິ່ງທັງໝົດ',
+              style: TextStyle(fontSize: 11.5, color: teal, fontWeight: FontWeight.w800),
+            ),
+          ),
           child: Column(children: [for (final job in d.oldest) _OldJobRow(job: job)]),
         ),
 
@@ -253,7 +289,7 @@ class _ManagerScreenState extends State<ManagerScreen> {
 
       // ⚠️ ຄະແນນ **ຕໍ່າ = ດີ** (cust_complain.points 1=ດີຫຼາຍ … 4=ບໍ່ພໍໃຈ) — ຫ້າມສະແດງຄືດາວ
       _Card(
-        title: 'ຄວາມພໍໃຈລູກຄ້າ (30 ມື້) · ຕໍ່າ = ດີ',
+        title: 'ຄວາມພໍໃຈລູກຄ້າ (ທັງໝົດ) · ຕໍ່າ = ດີ',
         child: Row(
           children: [
             _Mini(
@@ -275,7 +311,10 @@ class _ManagerScreenState extends State<ManagerScreen> {
       if (d.techBacklog.isNotEmpty)
         _Card(
           title: 'ກອງວຽກຂອງແຕ່ລະຊ່າງ (ແດງ = ຄ້າງເກີນ 30 ມື້)',
-          child: Column(children: [for (final t in d.techBacklog) _BacklogRow(row: t)]),
+          child: Column(children: [
+            for (final t in d.techBacklog)
+              _BacklogRow(row: t, onTap: () => _open('tech:${t.techCode}', '${t.tech} · ວຽກຄ້າງ')),
+          ]),
         ),
 
       if (d.techFree.isNotEmpty)
@@ -313,8 +352,10 @@ class _ManagerScreenState extends State<ManagerScreen> {
           children: [
             Row(
               children: [
-                _Mini(label: 'ເບີດງານ', value: d.todayReceived, tone: teal),
-                _Mini(label: 'ສົ່ງຄືນ', value: d.todayReturned, tone: ok),
+                _Mini(label: 'ເບີດງານ', value: d.todayReceived, tone: teal,
+                    onTap: () => _open('today:received', 'ຮັບເຄື່ອງເຂົ້າມື້ນີ້')),
+                _Mini(label: 'ສົ່ງຄືນ', value: d.todayReturned, tone: ok,
+                    onTap: () => _open('today:returned', 'ສົ່ງຄືນລູກຄ້າມື້ນີ້')),
                 _Mini(label: 'ນັດໝາຍ', value: d.todayAppointments),
               ],
             ),
@@ -335,13 +376,20 @@ class _ManagerScreenState extends State<ManagerScreen> {
         child: Row(
           children: [
             _Mini(label: 'ໃກ້ເກີນ', value: d.slaWarning, tone: const Color(0xFFD97706)),
-            _Mini(label: 'ເລີຍ', value: d.slaLate, tone: danger),
+            _Mini(label: 'ເລີຍ', value: d.slaLate, tone: danger,
+                onTap: () => _open('sla-late', 'ເກີນເວລາທີ່ສັນຍາໄວ້ (SLA)')),
             _Mini(label: 'ວິກິດ', value: d.slaCritical, tone: danger),
           ],
         ),
       ),
 
-      _Card(title: 'ຂັ້ນຕອນງານສ້ອມ', child: _PipelineChart(pipeline: d.pipeline)),
+      _Card(
+        title: 'ຂັ້ນຕອນງານສ້ອມ (ແຕະຊື່ຂັ້ນເພື່ອເບິ່ງລາຍການ)',
+        child: _PipelineChart(
+          pipeline: d.pipeline,
+          onTap: (stage) => _open('stage:${stage.stage}', stage.label),
+        ),
+      ),
     ];
   }
 }
@@ -362,10 +410,11 @@ String _money(double value) {
 }
 
 class _ActionItem {
-  const _ActionItem(this.label, this.value, this.tone);
+  const _ActionItem(this.label, this.value, this.tone, this.onTap);
   final String label;
   final int value;
   final Color tone;
+  final VoidCallback onTap;
 }
 
 /// ບັດ "ຕ້ອງລົງມື" 1 ອັນ — ຕົວເລກເດັ່ນ ປ້າຍນ້ອຍ
@@ -374,38 +423,45 @@ class _ActionChip extends StatelessWidget {
   final _ActionItem item;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-    decoration: BoxDecoration(
-      color: item.tone.withValues(alpha: .08),
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: item.tone.withValues(alpha: .28)),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '${item.value}',
-          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: item.tone),
-        ),
-        const SizedBox(width: 7),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 170),
-          child: Text(
-            item.label,
-            style: const TextStyle(fontSize: 12, color: ink, fontWeight: FontWeight.w600),
+  Widget build(BuildContext context) => InkWell(
+    onTap: item.onTap,
+    borderRadius: BorderRadius.circular(14),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: item.tone.withValues(alpha: .08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: item.tone.withValues(alpha: .28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${item.value}',
+            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: item.tone),
           ),
-        ),
-      ],
+          const SizedBox(width: 7),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 150),
+            child: Text(
+              item.label,
+              style: const TextStyle(fontSize: 12, color: ink, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(width: 2),
+          Icon(Icons.chevron_right, size: 15, color: item.tone.withValues(alpha: .7)),
+        ],
+      ),
     ),
   );
 }
 
 /// ແຖບອາຍຸ 4 ຖັງ — ບໍ່ຫຼົ້ນກັນ ລວມ = ງານເປີດທັງໝົດ
 class _AgeBar extends StatelessWidget {
-  const _AgeBar({required this.aging, required this.total});
+  const _AgeBar({required this.aging, required this.total, required this.onTap});
   final List<OverviewAge> aging;
   final int total;
+  final void Function(OverviewAge) onTap;
 
   static const _colors = {
     'd7': ok,
@@ -442,23 +498,35 @@ class _AgeBar extends StatelessWidget {
           runSpacing: 4,
           children: [
             for (final bucket in aging)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 9,
-                    height: 9,
-                    decoration: BoxDecoration(
-                      color: _colors[bucket.key] ?? muted,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
+              InkWell(
+                onTap: () => onTap(bucket),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 9,
+                        height: 9,
+                        decoration: BoxDecoration(
+                          color: _colors[bucket.key] ?? muted,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '${bucket.count} · ${bucket.label}',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: ink,
+                          decoration: TextDecoration.underline,
+                          decorationColor: faint,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 5),
-                  Text(
-                    '${bucket.count} · ${bucket.label}',
-                    style: const TextStyle(fontSize: 11.5, color: muted),
-                  ),
-                ],
+                ),
               ),
           ],
         ),
@@ -473,7 +541,27 @@ class _OldJobRow extends StatelessWidget {
   final OverviewOldJob job;
 
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context) => InkWell(
+    /**
+     * ແປງເປັນ MonitorJob ແລ້ວເປີດ sheet ອັນດຽວກັບໜ້າຕິດຕາມງານ ⇒ ຜູ້ຈັດການເຫັນ
+     * ລາຍລະອຽດແບບດຽວກັນທຸກບ່ອນ. ບໍ່ມີ SLA ຢູ່ບັດນີ້ ⇒ sla_left = null (ຈະສະແດງອາຍຸແທນ).
+     */
+    onTap: () => showJobSheet(
+      context,
+      MonitorJob(
+        workflow: 'repair',
+        code: job.code,
+        product: job.product,
+        customer: job.custName,
+        tech: job.tech,
+        serviceType: null,
+        stageLabel: job.stageLabel,
+        ageDays: job.days,
+        slaLeft: null,
+      ),
+    ),
+    borderRadius: BorderRadius.circular(10),
+    child: Padding(
     padding: const EdgeInsets.symmetric(vertical: 6),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -515,18 +603,24 @@ class _OldJobRow extends StatelessWidget {
             ],
           ),
         ),
+        const Icon(Icons.chevron_right, size: 17, color: faint),
       ],
+    ),
     ),
   );
 }
 
 /// 1 ແຖວຂອງ "ກອງວຽກຂອງແຕ່ລະຊ່າງ" — ແດງ = ຄ້າງເກີນ 30 ມື້
 class _BacklogRow extends StatelessWidget {
-  const _BacklogRow({required this.row});
+  const _BacklogRow({required this.row, required this.onTap});
   final OverviewBacklog row;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(10),
+    child: Padding(
     padding: const EdgeInsets.symmetric(vertical: 6),
     child: Row(
       children: [
@@ -569,7 +663,9 @@ class _BacklogRow extends StatelessWidget {
             ),
           ),
         ),
+        const Icon(Icons.chevron_right, size: 17, color: faint),
       ],
+    ),
     ),
   );
 }
@@ -578,8 +674,9 @@ class _BacklogRow extends StatelessWidget {
 
 /// chart ຂັ້ນຕອນງານສ້ອມ — bar ຕໍ່ຂັ້ນ (ຕົວເລກຢູ່ເທິງແທ່ງ · ຊື່ຂັ້ນຢູ່ລຸ່ມ)
 class _PipelineChart extends StatelessWidget {
-  const _PipelineChart({required this.pipeline});
+  const _PipelineChart({required this.pipeline, required this.onTap});
   final List<OverviewStage> pipeline;
+  final void Function(OverviewStage) onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -625,12 +722,21 @@ class _PipelineChart extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 6),
                     child: SizedBox(
                       width: 46,
-                      child: Text(
-                        pipeline[i].label,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 8.5, color: muted, height: 1.1),
+                      child: InkWell(
+                        onTap: () => onTap(pipeline[i]),
+                        child: Text(
+                          pipeline[i].label,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 8.5,
+                            color: ink,
+                            height: 1.1,
+                            decoration: TextDecoration.underline,
+                            decorationColor: faint,
+                          ),
+                        ),
                       ),
                     ),
                   );
@@ -660,9 +766,11 @@ class _PipelineChart extends StatelessWidget {
 }
 
 class _Card extends StatelessWidget {
-  const _Card({required this.title, required this.child});
+  const _Card({required this.title, required this.child, this.trailing});
   final String title;
   final Widget child;
+  /// ປຸ່ມນ້ອຍມູມຂວາຂອງຫົວກາດ (ເຊັ່ນ "ເບິ່ງທັງໝົດ")
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -676,13 +784,16 @@ class _Card extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w900,
-            color: ink,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: ink),
+              ),
+            ),
+            if (trailing != null) trailing!,
+          ],
         ),
         const SizedBox(height: 12),
         child,
@@ -697,31 +808,39 @@ class _Mini extends StatelessWidget {
     this.value,
     this.valueText,
     this.tone = ink,
+    this.onTap,
   });
   final String label;
   final int? value;
   final String? valueText;
   final Color tone;
+  /// ມີ = ແຕະເປີດລາຍການໄດ້ (ຂີດກ້ອງປ້າຍໃຫ້ຮູ້ວ່າກົດໄດ້)
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => Expanded(
-    child: Column(
-      children: [
-        Text(
-          valueText ?? '${value ?? 0}',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
-            color: tone,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Column(
+        children: [
+          Text(
+            valueText ?? '${value ?? 0}',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: tone),
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 11, color: muted),
-        ),
-      ],
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
+              color: muted,
+              decoration: onTap == null ? null : TextDecoration.underline,
+              decorationColor: faint,
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }

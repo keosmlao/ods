@@ -9,7 +9,7 @@ import { STAGE_LABEL } from "@/lib/stage";
  * ໃຫ້ເຫຼືອສະເພາະຕົວເລກທີ່ຈໍມືຖືສະແດງ ⇒ ຕົວເລກກົງກັບເວັບແນ່ນອນ (ແຫຼ່ງດຽວກັນ).
  */
 
-export type OverviewStage = { key: string; label: string; count: number };
+export type OverviewStage = { key: string; label: string; count: number; stage: number };
 export type OverviewTech = { tech: string; jobs: number; oldest_seconds: number };
 
 export type MobileOverview = {
@@ -33,7 +33,7 @@ export type MobileOverview = {
   open_total: number;
   /** ໃບເກົ່າສຸດ + ຊື່ຂັ້ນທີ່ແປແລ້ວ (ແອັບບໍ່ຮູ້ຈັກ STAGE_LABEL) */
   oldest: (OldJob & { stage_label: string })[];
-  tech_backlog: { tech: string; open: number; oldest_days: number; stale: number }[];
+  tech_backlog: { tech: string; tech_code: string; open: number; oldest_days: number; stale: number }[];
   claims: { open: number; wait_decision: number };
   loaners: number;
   flow: { opened: number; closed: number };
@@ -41,19 +41,23 @@ export type MobileOverview = {
   money: { quoted: number; paid: number; due: number };
 };
 
-/** ຂັ້ນຫຼັກຂອງງານສ້ອມ ທີ່ຄວນເຫັນເປັນ funnel (slug ຕ້ອງກົງກັບ dashboard-status) */
-const REPAIR_FUNNEL: { key: string; label: string }[] = [
-  { key: "wait-check", label: "ລໍກວດ" },
-  { key: "checking", label: "ກຳລັງກວດ" },
-  { key: "claim-decision", label: "ລໍຕັດສິນເຄມ" },
-  { key: "claim-stock", label: "ລໍປ່ຽນຈາກ Stock" },
-  { key: "claim-purchase", label: "ລໍຂອງສັ່ງຊື້" },
-  { key: "claim-supplier", label: "ລໍ Supplier" },
-  { key: "wait-quote", label: "ລໍ Quotation" },
-  { key: "wait-repair", label: "ລໍສ້ອມ" },
-  { key: "repairing", label: "ກຳລັງສ້ອມ" },
-  { key: "wait-qc", label: "ລໍ QC" },
-  { key: "wait-return", label: "ພ້ອມສົ່ງ" },
+/**
+ * ຂັ້ນຫຼັກຂອງງານສ້ອມ ທີ່ຄວນເຫັນເປັນ funnel (slug ຕ້ອງກົງກັບ dashboard-status).
+ * `stage` = ເລກຂັ້ນຂອງ STAGE_SQL — ສົ່ງລົງໄປໃຫ້ແອັບກົດເປີດລາຍການຂອງຂັ້ນນັ້ນໄດ້
+ * ⇒ ແອັບບໍ່ຕ້ອງເກັບຕາຕະລາງ slug→ຂັ້ນ ຊ້ຳອີກບ່ອນໜຶ່ງ (ບ່ອນທີ່ຈະລືມແກ້ແນ່ນອນ).
+ */
+const REPAIR_FUNNEL: { key: string; label: string; stage: number }[] = [
+  { key: "wait-check", label: "ລໍກວດ", stage: 1 },
+  { key: "checking", label: "ກຳລັງກວດ", stage: 2 },
+  { key: "claim-decision", label: "ລໍຕັດສິນເຄມ", stage: 13 },
+  { key: "claim-stock", label: "ລໍປ່ຽນຈາກ Stock", stage: 14 },
+  { key: "claim-purchase", label: "ລໍຂອງສັ່ງຊື້", stage: 15 },
+  { key: "claim-supplier", label: "ລໍ Supplier", stage: 16 },
+  { key: "wait-quote", label: "ລໍ Quotation", stage: 3 },
+  { key: "wait-repair", label: "ລໍສ້ອມ", stage: 8 },
+  { key: "repairing", label: "ກຳລັງສ້ອມ", stage: 9 },
+  { key: "wait-qc", label: "ລໍ QC", stage: 10 },
+  { key: "wait-return", label: "ພ້ອມສົ່ງ", stage: 11 },
 ];
 
 export async function mobileOverview(days = 30): Promise<MobileOverview> {
@@ -115,6 +119,8 @@ export async function mobileOverview(days = 30): Promise<MobileOverview> {
     })),
     tech_backlog: mgr.techBacklog.map((row) => ({
       ...row,
+      // ສົ່ງທັງລະຫັດ (ໃຊ້ຄົ້ນ) ແລະ ຊື່ເຕັມ (ໃຊ້ສະແດງ) — ແອັບແປງເອງບໍ່ໄດ້
+      tech_code: row.tech,
       tech: nameOf.get(row.tech) ?? row.tech,
     })),
     claims: { open: mgr.claims.open, wait_decision: mgr.claims.waitDecision },

@@ -693,6 +693,20 @@ class Api {
         .toList();
   }
 
+  /// ກົດຕົວເລກຢູ່ໜ້າພາບລວມ → ລາຍການໃບງານທີ່ຢູ່ໃນຕົວເລກນັ້ນ (ເບິ່ງ lib/manager-drill)
+  static Future<({String label, List<MonitorJob> jobs})> overviewJobs(String bucket) async {
+    final result = await _send(
+      'GET',
+      '/api/mobile/overview/jobs?bucket=${Uri.encodeQueryComponent(bucket)}',
+    );
+    return (
+      label: result['label'] as String? ?? '',
+      jobs: ((result['jobs'] as List?) ?? [])
+          .map((row) => MonitorJob.fromJson(row as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
   /// ຜົນງານລູກນ້ອງ — ລາຍชื่อຊ່າງ + ພາລະ/ຄວາມຊ້າ/ຄ່າຄອມ
   static Future<List<TechRow>> techs() async {
     final result = await _send('GET', '/api/mobile/techs');
@@ -789,11 +803,19 @@ class OverviewStage {
   final String key;
   final String label;
   final int count;
-  OverviewStage({required this.key, required this.label, required this.count});
+  /// ເລກຂັ້ນຂອງ STAGE_SQL — ໃຊ້ເປີດລາຍການ `stage:<n>` (server ສົ່ງມາ ບໍ່ໄດ້ຄິດເອງ)
+  final int stage;
+  OverviewStage({
+    required this.key,
+    required this.label,
+    required this.count,
+    required this.stage,
+  });
   factory OverviewStage.fromJson(Map<String, dynamic> json) => OverviewStage(
     key: json['key'] as String,
     label: json['label'] as String? ?? '',
     count: (json['count'] as num?)?.toInt() ?? 0,
+    stage: (json['stage'] as num?)?.toInt() ?? -1,
   );
 }
 
@@ -862,17 +884,21 @@ class OverviewOldJob {
 /// ກອງວຽກຂອງຊ່າງ 1 ຄົນ — `stale` = ຄ້າງເກີນ 30 ມື້ (ຕົວທີ່ບອກບັນຫາຈິງ)
 class OverviewBacklog {
   final String tech;
+  /// ລະຫັດຊ່າງ — ໃຊ້ຄົ້ນ (`tech:<code>`); `tech` ເປັນຊື່ເຕັມສຳລັບສະແດງ
+  final String techCode;
   final int open;
   final int oldestDays;
   final int stale;
   OverviewBacklog({
     required this.tech,
+    required this.techCode,
     required this.open,
     required this.oldestDays,
     required this.stale,
   });
   factory OverviewBacklog.fromJson(Map<String, dynamic> json) => OverviewBacklog(
     tech: json['tech'] as String? ?? '-',
+    techCode: json['tech_code'] as String? ?? '',
     open: (json['open'] as num?)?.toInt() ?? 0,
     oldestDays: (json['oldest_days'] as num?)?.toInt() ?? 0,
     stale: (json['stale'] as num?)?.toInt() ?? 0,

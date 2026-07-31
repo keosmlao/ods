@@ -4847,7 +4847,7 @@
     "flowBad": "backlog growing",
     "flowOpened": "Received",
     "flowClosed": "Returned to customer",
-    "feedbackTitle": "Customer satisfaction (30 days)",
+    "feedbackTitle": "Customer satisfaction (all time)",
     "feedbackJobs": "rated jobs",
     "feedbackUnhappy": "unhappy",
     "techTitle": "Backlog by technician (red = older than 30 days)",
