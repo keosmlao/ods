@@ -2124,7 +2124,8 @@
     "has": "Has",
     "enough": "Enough",
     "takeNow": "Take now",
-    "alreadyRequested": "These items are already in the cart and fully requested/issued — nothing outstanding, so they do not appear in the table:"
+    "alreadyRequested": "These items are already in the cart and fully requested/issued — nothing outstanding, so they do not appear in the table:",
+    "dispatchedOn": "issued"
   },
   "serviceEditForm": {
     "saving": "Saving...",

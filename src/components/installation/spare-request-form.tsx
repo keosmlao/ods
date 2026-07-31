@@ -47,6 +47,8 @@ export type SpareLine = {
   remaining_qty: string;
   qty: string;
   unit_code: string | null;
+  /** ວັນທີ່ສາງຈ່າຍແລ້ວ (reg_finish) — ມີຄ່າ = ເຄີຍຈ່າຍໄປແລ້ວ ⇒ ຕິດປ້າຍເຕືອນ */
+  dispatched_at?: string | null;
 };
 
 type SpareRequestFormDict = ReturnType<typeof useDict>["spareRequestForm"];
@@ -379,6 +381,15 @@ function LineRow({
       <td className="min-w-96 px-3 py-3">
         <span className="block font-semibold text-slate-800">
           {line.item_name}
+          {/*
+            ຈ່າຍໄປແລ້ວ ⇒ **ເຕືອນ ບໍ່ແມ່ນເຊື່ອງ** — ເຄີຍລອງເຊື່ອງແລ້ວ (657a750) ຜົນຄື
+            ຕິກເພີ່ມເຂົ້າ draft ບໍ່ໄດ້ອີກ ແລະ ງຽບ. ບາງເທື່ອຕ້ອງຂໍຊ້ຳຈິງ (ເສຍ/ຫາຍໜ້າງານ).
+          */}
+          {line.dispatched_at && (
+            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+              {t.dispatchedOn} {line.dispatched_at}
+            </span>
+          )}
         </span>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {selectedBalance === null ? (
@@ -574,6 +585,7 @@ function SparePicker({
         item_code: line.item_code,
         item_name: line.item_name,
         unit_code: line.unit_code,
+        dispatched_at: line.dispatched_at ?? null,
         standard_qty: 0,
         requested_qty: Number(line.requested_qty),
         remaining_qty: Number(line.remaining_qty),

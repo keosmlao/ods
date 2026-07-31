@@ -33,15 +33,23 @@ export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ code: string }> };
 
-/** ຈຳນວນທີ່ຍັງບໍ່ທັນຂໍເບີກ = ກະຕ່າ − (ຂໍໄປແລ້ວ 122 − ສົ່ງຄືນ 59) — ຄືກັບ OUTSTANDING_INSTALL_SPARES */
+/**
+ * ຈຳນວນທີ່ຍັງບໍ່ທັນຂໍເບີກ = ກະຕ່າ − (ຂໍໄປແລ້ວ 122 − ສົ່ງຄືນ 59) — ຄືກັບ OUTSTANDING_INSTALL_SPARES
+ *
+ * `dispatched_at` = ວັນທີ່ **ສາງຈ່າຍແລ້ວ** (tb_used_spare.reg_finish). ບໍ່ໄດ້ເອົາມາ**ກອງ**
+ * ແຖວອອກ (ເຄີຍລອງແລ້ວ ⇒ ຕິກເພີ່ມເຂົ້າ draft ບໍ່ໄດ້ອີກ) — ເອົາມາ**ຕິດປ້າຍ**ບອກຄົນຂໍເບີກ
+ * ວ່າອາໄຫຼ່ຕົວນີ້ຈ່າຍໄປແລ້ວ ຢ່າຂໍຊ້ຳ ຖ້າບໍ່ຈຳເປັນ.
+ */
 const OUTSTANDING = `
   select n.roworder, n.item_code, n.item_name, n.unit_code,
       round(n.qty, 0) as standard_qty,
       round(coalesce(c.qty, 0), 0) as requested_qty,
       round(n.qty - coalesce(c.qty, 0), 0) as remaining_qty,
-      round(n.qty - coalesce(c.qty, 0), 0) as qty
+      round(n.qty - coalesce(c.qty, 0), 0) as qty,
+      n.dispatched_at
   from (
-    select min(roworder) roworder, item_code, max(item_name) item_name, max(unit_code) unit_code, sum(qty) qty
+    select min(roworder) roworder, item_code, max(item_name) item_name, max(unit_code) unit_code, sum(qty) qty,
+        to_char(max(reg_finish),'DD-MM-YYYY') dispatched_at
     from tb_used_spare where product_code = $1 group by item_code
   ) n
   left join (
