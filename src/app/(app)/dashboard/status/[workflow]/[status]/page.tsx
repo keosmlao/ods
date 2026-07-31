@@ -219,6 +219,17 @@ const REPAIR_STAGE_ACTION = (t: Dict): Record<string, { label: string; base: str
   "claim-supplier": { label: "ໄປຕິດຕາມເຄມ Supplier", base: "/service", href: (r) => `/service/${encodeURIComponent(r.code)}` },
 });
 
+/**
+ * ຄິວເຄມໃຊ້ **ປຸ່ມລົງມືອັນດຽວກັນ**ກັບຂັ້ນສ້ອມທີ່ຄູ່ກັນ — ວຽກໜ້າງານຄືກັນທຸກປະການ
+ * (ຮັບງານ · ເລີ່ມກວດ · ບັນທຶກຜົນກວດ · ສົ່ງຄືນ) ຕ່າງກັນແຕ່ວ່າໃບນັ້ນເປັນເຄມ.
+ * ບໍ່ມີແຖວນີ້ = ຄິວເຄມບໍ່ມີປຸ່ມໃຫ້ໄປຕໍ່ (ພົບຈິງ 31-07-2026).
+ */
+const CLAIM_BASE_STATUS: Record<string, string> = {
+  "claim-wait-check": "wait-check",
+  "claim-checking": "checking",
+  "claim-return": "wait-return",
+};
+
 export default async function StatusPage({ params, searchParams }: Props) {
   const { workflow, status } = await params;
   const t = (await getDictionary(await getLocale())).statusList;
@@ -265,24 +276,26 @@ export default async function StatusPage({ params, searchParams }: Props) {
   const soloService =
     status === "wait-pickup" || status === "picking-up" ? "PS" : status === "wait-schedule" ? "IH" : null;
   const serviceTypes = isRepair && soloService ? SERVICE_TYPES.filter((item) => item.code === soloService) : SERVICE_TYPES;
-  const mergedCheckQueue = isRepair && status === "wait-check";
+  /** ຊື່ຂັ້ນທີ່ໃຊ້**ເລືອກປຸ່ມ** — ຄິວເຄມຖືກແປເປັນຂັ້ນສ້ອມທີ່ຄູ່ກັນ (ເບິ່ງ CLAIM_BASE_STATUS) */
+  const actionStatus = CLAIM_BASE_STATUS[status] ?? status;
+  const mergedCheckQueue = isRepair && actionStatus === "wait-check";
   const startCheck = mergedCheckQueue && canAccess(role, "/checking");
   const accept = mergedCheckQueue && canAccess(role, "/repair");
   const canReassign = mergedCheckQueue && canAccess(role, "/repair/assign");
-  const startRepair = isRepair && status === "wait-repair" && canAccess(role, "/repair");
+  const startRepair = isRepair && actionStatus === "wait-repair" && canAccess(role, "/repair");
   // ຍົກເລີກ action ທີ່ເຮັດໃຫ້ເຂົ້າຂັ້ນນີ້ — ປຸ່ມຊັດເຈນຢູ່ໃນທຸກຄິວທີ່ຖອນຄືນໂດຍຕົງໄດ້.
   const cancelAssignment = mergedCheckQueue && canAccess(role, "/repair/assign");
   const cancelAccepted = mergedCheckQueue && canAccess(role, "/repair");
-  const cancelStartCheck = isRepair && status === "checking" && canAccess(role, "/checking");
+  const cancelStartCheck = isRepair && actionStatus === "checking" && canAccess(role, "/checking");
   const cancelFinishedCheck =
-    isRepair && (status === "wait-quote" || status === "wait-repair" || status === "claim-decision") && canAccess(role, "/checking");
-  const cancelStartRepair = isRepair && status === "repairing" && canAccess(role, "/repair");
-  const cancelFinishedRepair = isRepair && status === "wait-qc" && canAccess(role, "/repair");
-  const cancelQc = isRepair && status === "wait-return" && canAccess(role, "/qc");
+    isRepair && (actionStatus === "wait-quote" || actionStatus === "wait-repair" || status === "claim-decision") && canAccess(role, "/checking");
+  const cancelStartRepair = isRepair && actionStatus === "repairing" && canAccess(role, "/repair");
+  const cancelFinishedRepair = isRepair && actionStatus === "wait-qc" && canAccess(role, "/repair");
+  const cancelQc = isRepair && actionStatus === "wait-return" && canAccess(role, "/qc");
   // ຂັ້ນສະເໜີລາຄາ: ຍັງບໍ່ອະນຸມັດ → ອະນຸມັດລາຄາ (ຜູ້ອະນຸມັດ) · ອະນຸມັດແລ້ວ → ຕັດສິນລາຄາ (ລູກຄ້າ/CS)
   const quotingStage =
     isRepair && status === "quoting" && (canAccess(role, "/quotations") || canAccess(role, "/approvals/quotations"));
-  const stageAction = isRepair ? REPAIR_STAGE_ACTION(t)[status] : undefined;
+  const stageAction = isRepair ? REPAIR_STAGE_ACTION(t)[actionStatus] : undefined;
   const linkAction = stageAction && canAccess(role, stageAction.base) ? stageAction : undefined;
   const hasAction =
     dispatchPickupQueue || receivePickupQueue || scheduleIhQueue || startCheck || accept || canReassign || startRepair || quotingStage || Boolean(linkAction) || cancelAssignment ||
