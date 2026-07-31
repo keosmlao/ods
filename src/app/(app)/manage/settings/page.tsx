@@ -1,6 +1,8 @@
 import { SettingSwitch } from "@/components/settings/setting-switch";
 import { requireRoleOrRedirect } from "@/lib/guard";
 import { allSettings, SETTING_META } from "@/lib/settings";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { Settings2 } from "lucide-react";
 
 /**
@@ -14,6 +16,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   await requireRoleOrRedirect(["manager"]);
+  const t = (await getDictionary(await getLocale())).manageSettings;
   const settings = await allSettings();
 
   return (
@@ -21,28 +24,30 @@ export default async function SettingsPage() {
       <div>
         <h1 className="flex items-center gap-2 text-xl font-bold text-slate-700">
           <Settings2 className="size-5" />
-          ການຕັ້ງຄ່າລະບົບ
+          {t.title}
         </h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          ເປີດ/ປິດ ຄວາມສາມາດຂອງລະບົບ — ມີຜົນກັບ<b>ທຸກຄົນ</b>ທັນທີ
+          {t.sub}
         </p>
       </div>
 
       <section className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         {settings.map(({ key, enabled, configured, updated_by, updated_at }) => {
           const meta = SETTING_META[key];
+          // ຂໍ້ຄວາມແປ (i18n) ມາກ່ອນ — SETTING_META ເປັນທາງສຳຮອງ ຖ້າ key ໃໝ່ຍັງບໍ່ທັນແປ
+          const text = t.items[key] ?? { label: meta.label, help: meta.help };
           return (
             <div key={key} className="flex items-start justify-between gap-6 p-4">
               <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-700">{meta.label}</p>
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">{meta.help}</p>
+                <p className="text-sm font-bold text-slate-700">{text.label}</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">{text.help}</p>
                 <p className="mt-1.5 text-[10px] text-slate-400">
                   {configured
-                    ? `ແກ້ລ່າສຸດໂດຍ ${updated_by ?? "-"} · ${updated_at ?? "-"}`
-                    : `ຍັງບໍ່ເຄີຍຕັ້ງ — ໃຊ້ຄ່າຕັ້ງຕົ້ນ (${meta.fallback ? "ເປີດ" : "ປິດ"})`}
+                    ? `${t.editedBy} ${updated_by ?? "-"} · ${updated_at ?? "-"}`
+                    : `${t.notConfigured} (${meta.fallback ? t.on : t.off})`}
                 </p>
               </div>
-              <SettingSwitch settingKey={key} label={meta.label} enabled={enabled} />
+              <SettingSwitch settingKey={key} label={text.label} enabled={enabled} />
             </div>
           );
         })}

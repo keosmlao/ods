@@ -83,6 +83,63 @@ async function odsStandardFor(
   return rows.rows.map((row, index) => ({ ...row, requested_qty: 0, remaining_qty: 0, line_number: index }));
 }
 
+/* ── ແນະນຳມາດຕະຖານ **ຈາກປະຫວັດຈິງ** ──────────────────────── */
+
+export type StandardSuggestion = {
+  item_code: string;
+  item_name: string;
+  unit_code: string | null;
+  /** ຈຳນວນງານທີ່ເຄີຍເບີກລາຍການນີ້ */
+  jobs: number;
+  /** ຄິດເປັນ % ຂອງງານໝວດນີ້ທັງໝົດ */
+  pct: number;
+  /** ຈຳນວນກາງ (median) ທີ່ເບີກຕໍ່ງານ — ໃຊ້ເປັນຈຳນວນມາດຕະຖານ */
+  median_qty: number;
+};
+
+/**
+ * ລາຍການທີ່ຊ່າງ **ເບີກຈິງ** ຫຼາຍທີ່ສຸດ ຂອງໝວດ (+ຂະໜາດ) ໃນ 2 ປີຫຼັງສຸດ.
+ *
+ * ⚠️ ບໍ່ມີລາຍການໃດຢູ່ 100% — ຂໍ້ມູນຈິງຂອງແອ (1,086 ງານ) ສູງສຸດ 47% ທົ່ວທຸກຂະໜາດ
+ * ແລະ 58% ເມື່ອແຍກຂະໜາດ. ນັ້ນຄືເຫດຜົນທີ່ໜ້ານີ້ໃຫ້ **ຄົນເລືອກ** ບໍ່ແມ່ນຕັ້ງໃຫ້ອັດຕະໂນມັດ:
+ * % ບອກວ່າ "ເບີກເລື້ອຍປານໃດ" ບໍ່ໄດ້ບອກວ່າ "ຄວນເປັນມາດຕະຖານ".
+ */
+export async function suggestStandardFromHistory(
+  proTypeCode: string,
+  proSize: string,
+): Promise<StandardSuggestion[]> {
+  if (!proTypeCode) return [];
+  const sizeFilter = proSize ? "and coalesce(a.pro_size,'') = $2" : "";
+  try {
+    const rows = await query<StandardSuggestion>(
+      `with jobs as (
+         select a.code from ods_tb_install a
+          where a.pro_type_code = $1 ${sizeFilter}
+            and a.time_register > localtimestamp - interval '2 years'
+            and exists (select 1 from tb_used_spare s where s.product_code = a.code)
+       ), per as (
+         select s.item_code, max(s.item_name) item_name, max(s.unit_code) unit_code,
+             count(distinct s.product_code)::int jobs,
+             (percentile_cont(0.5) within group (order by s.qty))::float8 median_qty
+           from tb_used_spare s join jobs j on j.code = s.product_code
+          group by s.item_code
+       )
+       select p.item_code, p.item_name, nullif(p.unit_code,'') unit_code, p.jobs,
+           round(100.0 * p.jobs / nullif((select count(*) from jobs), 0))::int pct,
+           p.median_qty
+         from per p
+        where p.jobs >= 3
+        order by p.jobs desc
+        limit 30`,
+      proSize ? [proTypeCode, proSize] : [proTypeCode],
+    );
+    return rows.rows;
+  } catch (error) {
+    console.error("suggestStandardFromHistory failed", error);
+    return [];
+  }
+}
+
 /**
  * **ຈຳນວນ ແລະ ຫົວໜ່ວຍ ຕາມມາດຕະຖານ** — ໃຊ້ຕອນເພີ່ມລາຍການເຂົ້າກະຕ່າ ເພື່ອບໍ່ຕ້ອງເຊື່ອຄ່າ
  * ທີ່ browser ສົ່ງມາ ແລະ ບໍ່ຕ້ອງໄປຢືມຫົວໜ່ວຍຂອງ ic_inventory (ເບິ່ງເຫດຜົນຢູ່ SET_LINES).

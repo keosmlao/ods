@@ -2,6 +2,7 @@
 import { logChange } from "@/lib/chatter-log";
 import { query, queryOdg } from "@/lib/db";
 import { requireRole } from "@/lib/guard";
+import { suggestStandardFromHistory } from "@/lib/install-standard";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -70,6 +71,59 @@ export async function addStandardLine(_: StandardState, formData: FormData): Pro
   );
   revalidatePath("/manage/install-standard");
   return { ok: "ບັນທຶກແລ້ວ" };
+}
+
+/**
+ * ເພີ່ມຫຼາຍລາຍການພ້ອມກັນ — ໃຊ້ກັບ "ແນະນຳຈາກປະຫວັດ" (ຕິກແລ້ວເພີ່ມທັງຊຸດ).
+ * ຊື່/ຫົວໜ່ວຍ/ຈຳນວນ ຄິດຢູ່ຝັ່ງ server ຄືນຈາກປະຫວັດ ⇒ ບໍ່ເຊື່ອຄ່າຈາກ browser.
+ */
+export async function addSuggestedLines(_: StandardState, formData: FormData): Promise<StandardState> {
+  const guard = await requireRole([...MANAGER], "ບໍ່ມີສິດຕັ້ງອາໄຫຼ່ມາດຕະຖານ");
+  if (!guard.ok) return { error: guard.error };
+
+  const proTypeCode = String(formData.get("pro_type_code") ?? "").trim();
+  const proSize = String(formData.get("pro_size") ?? "").trim();
+  const picked = new Set(formData.getAll("item").map((value) => String(value)));
+  if (!proTypeCode) return { error: "ເລືອກໝວດສິນຄ້າ" };
+  if (!picked.size) return { error: "ຍັງບໍ່ໄດ້ຕິກລາຍການໃດ" };
+
+  const suggestions = (await suggestStandardFromHistory(proTypeCode, proSize)).filter((row) =>
+    picked.has(row.item_code),
+  );
+  if (!suggestions.length) return { error: "ບໍ່ພົບລາຍການທີ່ຕິກໃນປະຫວັດ" };
+
+  try {
+    for (const row of suggestions) {
+      await query(
+        `insert into ods_install_spare_standard(pro_type_code,pro_size,item_code,item_name,unit_code,qty,updated_by)
+         values($1,$2,$3,$4,$5,$6,$7)
+         on conflict (pro_type_code,pro_size,item_code)
+         do update set qty=excluded.qty, item_name=excluded.item_name, unit_code=excluded.unit_code,
+                       updated_by=excluded.updated_by, updated_at=localtimestamp(0)`,
+        [
+          proTypeCode,
+          proSize,
+          row.item_code,
+          row.item_name,
+          row.unit_code,
+          Math.max(0.01, row.median_qty || 1),
+          guard.session.username,
+        ],
+      );
+    }
+  } catch (error) {
+    console.error("addSuggestedLines failed", error);
+    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
+  }
+
+  await logChange(
+    "ods_install_spare_standard",
+    `${proTypeCode}${proSize ? `/${proSize}` : ""}`,
+    `ຕັ້ງອາໄຫຼ່ມາດຕະຖານຈາກປະຫວັດ ${suggestions.length} ລາຍການ`,
+    { roles: ["manager"] },
+  );
+  revalidatePath("/manage/install-standard");
+  return { ok: `ເພີ່ມ ${suggestions.length} ລາຍການແລ້ວ` };
 }
 
 export async function removeStandardLine(id: number): Promise<StandardState> {

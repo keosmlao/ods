@@ -1,6 +1,7 @@
 "use client";
 import { addStandardLine, removeStandardLine, type StandardState } from "@/app/actions/install-standard";
 import type { SpareRow } from "@/app/api/installations/spares/route";
+import { useDict } from "@/lib/i18n/context";
 import { LoaderCircle, Plus, Search, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState, useTransition } from "react";
@@ -36,6 +37,7 @@ export function InstallStandardManager({
   sizes: string[];
   lines: StandardLine[];
 }) {
+  const t = useDict().manageInstallStandard;
   const router = useRouter();
   const [state, action, saving] = useActionState<StandardState, FormData>(addStandardLine, {});
   const [removing, startRemove] = useTransition();
@@ -83,7 +85,7 @@ export function InstallStandardManager({
   return (
     <div className="space-y-4">
       <form action={action} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <p className="mb-2 text-xs font-semibold text-slate-500">ເພີ່ມອາໄຫຼ່ເຂົ້າມາດຕະຖານ</p>
+        <p className="mb-2 text-xs font-semibold text-slate-500">{t.addTitle}</p>
         <div className="grid gap-2 md:grid-cols-4">
           <select name="pro_type_code" value={type} onChange={(event) => setType(event.target.value)} className={inp}>
             {categories.map((category) => (
@@ -97,7 +99,7 @@ export function InstallStandardManager({
             list="install-standard-sizes"
             value={size}
             onChange={(event) => setSize(event.target.value)}
-            placeholder="ຂະໜາດ (ຫວ່າງ = ທຸກຂະໜາດ)"
+            placeholder={t.sizePlaceholder}
             className={inp}
           />
           <datalist id="install-standard-sizes">
@@ -105,13 +107,13 @@ export function InstallStandardManager({
               <option key={value} value={value} />
             ))}
           </datalist>
-          <input name="qty" type="number" min="0.01" step="0.01" defaultValue="1" className={inp} placeholder="ຈຳນວນ" />
+          <input name="qty" type="number" min="0.01" step="0.01" defaultValue="1" className={inp} placeholder={t.qtyPlaceholder} />
           <button
             disabled={saving || !picked}
             className="inline-flex h-9 items-center justify-center gap-1 rounded-lg bg-teal-600 px-3 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60"
           >
             {saving ? <LoaderCircle className="size-4 animate-spin" /> : <Plus className="size-4" />}
-            ເພີ່ມ
+            {t.add}
           </button>
         </div>
 
@@ -125,7 +127,7 @@ export function InstallStandardManager({
                 setPicked(null);
                 setQ(event.target.value);
               }}
-              placeholder="ຄົ້ນຫາອາໄຫຼ່ຈາກ ERP (ລະຫັດ ຫຼື ຊື່)..."
+              placeholder={t.searchPlaceholder}
               className="w-full bg-transparent text-sm outline-none"
             />
             {searching && <LoaderCircle className="size-4 animate-spin text-slate-400" />}
@@ -144,7 +146,7 @@ export function InstallStandardManager({
                 >
                   <b>{row.name_1}</b>
                   <span className="ml-2 text-xs text-slate-400">
-                    {row.code} · {row.unit_code || "-"} · stock {row.balance_qty}
+                    {row.code} · {row.unit_code || "-"} · {t.stock} {row.balance_qty}
                   </span>
                 </button>
               ))}
@@ -157,7 +159,7 @@ export function InstallStandardManager({
 
       {groups.size === 0 ? (
         <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400 shadow-sm">
-          ຍັງບໍ່ໄດ້ນິຍາມມາດຕະຖານ — ລະບົບຈະຕົກໄປໃຊ້ຊຸດສິນຄ້າຂອງ ERP ຄືເກົ່າ
+          {t.empty}
         </p>
       ) : (
         [...groups.entries()].map(([key, group]) => (
@@ -166,12 +168,12 @@ export function InstallStandardManager({
               {group[0].pro_type_name ?? group[0].pro_type_code}
               {group[0].pro_size ? (
                 <span className="ml-2 rounded-full bg-teal-50 px-2 py-0.5 text-xs text-teal-700">
-                  ຂະໜາດ {group[0].pro_size}
+                  {t.size} {group[0].pro_size}
                 </span>
               ) : (
-                <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">ທຸກຂະໜາດ</span>
+                <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">{t.allSizes}</span>
               )}
-              <span className="ml-2 text-xs font-normal text-slate-400">{group.length} ລາຍການ</span>
+              <span className="ml-2 text-xs font-normal text-slate-400">{group.length} {t.items}</span>
             </p>
             <ul className="divide-y divide-slate-100">
               {group.map((line) => (

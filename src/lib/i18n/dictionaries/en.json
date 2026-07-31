@@ -4752,5 +4752,53 @@
     "colIsn": "ISN",
     "colLent": "Lent",
     "colAge": "Out for"
+  },
+  "manageSettings": {
+    "title": "System settings",
+    "sub": "Turn features on/off — takes effect for everyone immediately",
+    "editedBy": "last changed by",
+    "notConfigured": "never configured — using the default",
+    "on": "on",
+    "off": "off",
+    "items": {
+      "job_hold_enabled": {
+        "label": "Stalled-job handling (needs check / cancel / already fixed)",
+        "help": "Lets supervisors deal with jobs stuck at one stage: “verify it still exists”, “cancel”, “already fixed”. Off: the buttons and tab disappear and the clock runs normally."
+      },
+      "notify_all_activity": {
+        "label": "Notify everyone of every activity",
+        "help": "Every employee receives notifications for “all” activity (audit feed). Off: each person only gets what they follow or are assigned."
+      },
+      "install_spare_free_search": {
+        "label": "Install spares outside the standard (free ERP search)",
+        "help": "Lets technicians search the ERP and add spares that are neither in the standard list nor already in the cart. Turning this off before the standard list is defined blocks all spare requests."
+      }
+    }
+  },
+  "manageInstallStandard": {
+    "title": "Standard spares for installation jobs",
+    "sub": "Defined per product category (add a size to be more specific). Spare requests show these as the “standard” with a default quantity — undefined means the ERP product set is used as before.",
+    "freeSearchOn": "Spares outside the standard are currently allowed — turn that off in system settings once the list below is complete.",
+    "freeSearchOff": "Spares outside the standard are currently blocked — for categories with no rows below, technicians cannot request anything.",
+    "settingsLink": "system settings",
+    "historyFilterLabel": "Show what was actually requested for",
+    "pickCategory": "— pick a category —",
+    "sizeFilterLabel": "Size (blank = all sizes)",
+    "showSuggestions": "Show suggestions",
+    "addTitle": "Add a spare to the standard",
+    "sizePlaceholder": "Size (blank = all sizes)",
+    "qtyPlaceholder": "Qty",
+    "add": "Add",
+    "searchPlaceholder": "Search spares in the ERP (code or name)...",
+    "stock": "stock",
+    "empty": "No standard defined yet — the ERP product set is used as before",
+    "allSizes": "all sizes",
+    "size": "size",
+    "items": "items",
+    "suggestTitle": "Suggestions from the last 2 years",
+    "suggestSub": "% = share of jobs that requested this item · Qty = median requested per job. Tick the ones that should be standard and add them — quantities stay editable.",
+    "suggestEmpty": "Not enough history for this category (at least 3 jobs per item are needed)",
+    "suggestJobs": "jobs",
+    "suggestAdd": "Add as standard"
   }
 }
