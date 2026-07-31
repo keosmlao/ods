@@ -67,3 +67,33 @@ export async function receiveJobTransfer(code: string): Promise<JobTransferState
   revalidate();
   return { ok: true };
 }
+
+/**
+ * ຕັ້ງ **ສູນຂອງຊ່າງ** (ods_tech_center) — ໃຊ້ຕອນຈັດຊ່າງເພື່ອສ້າງໃບໂອນອັດຕະໂນມັດ.
+ * ຄີ = ຄ່າທີ່ຢູ່ໃນງານຈິງ (tb_product.emp_code) ບໍ່ແມ່ນ employee_code ຂອງ ERP
+ * ⇒ ຊ່າງທີ່ຍັງບໍ່ໄດ້ເຊື່ອມຕົວຕົນກໍ່ຕັ້ງໄດ້. ຫວ່າງ = ລຶບອອກ (ກັບໄປບໍ່ໂອນອັດຕະໂນມັດ).
+ */
+export async function setTechCenter(techCode: string, center: string): Promise<JobTransferState> {
+  const g = await requireRole(["manager"], "ບໍ່ມີສິດຕັ້ງສູນຂອງຊ່າງ");
+  if (!g.ok) return { error: g.error };
+  const code = techCode.trim();
+  if (!code) return { error: "ບໍ່ຮູ້ວ່າຊ່າງຄົນໃດ" };
+  if (center && !REPAIR_CENTERS.includes(center)) return { error: "ສູນບໍ່ຖືກຕ້ອງ" };
+
+  if (!center) {
+    await query("delete from ods_tech_center where tech_code=$1", [code]);
+  } else {
+    await query(
+      `insert into ods_tech_center(tech_code, center, updated_by)
+       values($1,$2,$3)
+       on conflict (tech_code) do update set center=excluded.center, updated_by=excluded.updated_by,
+         updated_at=localtimestamp(0)`,
+      [code, center, g.session.username],
+    );
+  }
+  await logChange("ods_tech_center", code, center ? `ຕັ້ງສູນຂອງຊ່າງ: ${centerLabel(center)}` : "ຖອດສູນຂອງຊ່າງ", {
+    roles: ["manager"],
+  });
+  revalidatePath("/manage/technicians");
+  return { ok: true };
+}

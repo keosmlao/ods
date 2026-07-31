@@ -2,8 +2,11 @@
 import { type Employee, linkTechnician, type TechRow } from "@/app/actions/user-link";
 import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui";
+import { setTechCenter } from "@/app/actions/job-transfer";
+import { REPAIR_CENTER_LABEL, REPAIR_CENTERS } from "@/lib/repair-center";
 import { Check, LoaderCircle, Sparkles } from "lucide-react";
-import { useActionState, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useState, useTransition } from "react";
 
 /**
  * ຈັບຄູ່ຜູ້ໃຊ້ ODS ↔ ພະນັກງານ ERP.
@@ -19,6 +22,10 @@ export function LinkRow({ row, employees }: { row: TechRow; employees: Employee[
   const [state, action, pending] = useActionState(linkTechnician, {});
   const [selected, setSelected] = useState(row.employee_code ?? "");
   const [confirming, setConfirming] = useState(false);
+  /** ສູນຂອງຊ່າງ — ບັນທຶກທັນທີທີ່ເລືອກ (ຄ່າດຽວ ບໍ່ຕ້ອງມີປຸ່ມຢືນຢັນ) */
+  const router = useRouter();
+  const [center, setCenter] = useState(row.center ?? "");
+  const [savingCenter, startCenter] = useTransition();
 
   const suggested = row.suggestion ? employees.find((employee) => employee.code === row.suggestion) : null;
   const options = employees.map((employee) => ({
@@ -98,6 +105,33 @@ export function LinkRow({ row, employees }: { row: TechRow; employees: Employee[
             </p>
           )}
         </form>
+      </td>
+      {/*
+        ── ສູນຂອງຊ່າງ ──
+        ຕັ້ງແລ້ວ: ຈັດຊ່າງຄົນລະສູນກັບເຄື່ອງ ⇒ ລະບົບ**ສ້າງໃບໂອນໃຫ້ອັດຕະໂນມັດ** (actions/repair)
+        ຫວ່າງ: ບໍ່ໂອນໃຫ້ (ພຶດຕິກຳເກົ່າ) — ຕ້ອງກົດ "ໂອນ" ເອງຢູ່ໜ້າໃບງານ.
+      */}
+      <td className="whitespace-nowrap px-3 py-2">
+        <select
+          value={center}
+          disabled={savingCenter}
+          onChange={(event) => {
+            const value = event.target.value;
+            setCenter(value);
+            startCenter(async () => {
+              await setTechCenter(row.user_code, value);
+              router.refresh();
+            });
+          }}
+          className="h-8 rounded-lg border border-slate-300 px-2 text-xs outline-none focus:border-teal-500 disabled:opacity-60"
+        >
+          <option value="">— ບໍ່ລະບຸ —</option>
+          {REPAIR_CENTERS.map((code) => (
+            <option key={code} value={code}>
+              {REPAIR_CENTER_LABEL[code]}
+            </option>
+          ))}
+        </select>
       </td>
     </tr>
   );

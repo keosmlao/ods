@@ -1,5 +1,8 @@
 "use server";
 import { logChange } from "@/lib/chatter-log";
+import { jobCenterState } from "@/lib/job-center";
+import { transferJob } from "@/app/actions/job-transfer";
+import { centerLabel } from "@/lib/repair-center";
 import { notifyTechStage } from "@/lib/notify-tech";
 import { getSession, type Session } from "@/lib/auth";
 import { query } from "@/lib/db";
@@ -568,6 +571,24 @@ export async function assignRepairTech(_: RepairState, formData: FormData): Prom
     `${action}${appoint ? ` · ນັດວັນທີ ${appoint}` : ""}${location ? ` · ${location}` : ""}`,
     { users: [tech] },
   );
+  /**
+   * ── ຈັດຊ່າງຄົນລະສູນ ⇒ **ສ້າງໃບໂອນໃຫ້ອັດຕະໂນມັດ** ──
+   * ຮັບເຄື່ອງທີ່ຂົວຫຼວງ ແລ້ວຈັດໃຫ້ຊ່າງດອນຕີ້ວ = ເຄື່ອງຕ້ອງຍ້າຍ. ແຕ່ກ່ອນຕ້ອງກົດ "ໂອນ"
+   * ເປັນຂັ້ນແຍກ ⇒ ລືມໄດ້ງ່າຍ ແລ້ວເຄື່ອງກັບຢູ່ສູນເກົ່າໂດຍທີ່ລະບົບຄິດວ່າຊ່າງອີກສູນກຳລັງສ້ອມ.
+   *
+   * ເງື່ອນໄຂ: ຮູ້ສູນຂອງຊ່າງ · ຮູ້ສູນຂອງເຄື່ອງ · ຄົນລະສູນ · ຍັງບໍ່ມີໃບໂອນຄ້າງ.
+   * ຂາດຂໍ້ໃດຂໍ້ນຶ່ງ = ບໍ່ເຮັດຫຍັງ (ພຶດຕິກຳເກົ່າ). ປາຍທາງຍັງຕ້ອງກົດ "ຮັບເຂົ້າ" ຄືເກົ່າ —
+   * ໃບໂອນນີ້ພຽງແຕ່ບອກວ່າ "ເຄື່ອງກຳລັງໄປ" ບໍ່ໄດ້ຍ້າຍໃຫ້ເອງ.
+   */
+  const techCenter = techs.find((item) => item.code === tech)?.center ?? null;
+  if (techCenter) {
+    const centers = await jobCenterState(code);
+    if (centers && centers.current && centers.current !== techCenter && !centers.transferPending) {
+      const moved = await transferJob(code, techCenter, `ຈັດຊ່າງ ${nameOf(tech)} ຢູ່ສູນ ${centerLabel(techCenter)}`);
+      if (moved.error) console.error("assignRepairTech: ສ້າງໃບໂອນອັດຕະໂນມັດບໍ່ສຳເລັດ", moved.error);
+    }
+  }
+
   // ຊ່າງຢູ່ໜ້າງານ ບໍ່ໄດ້ເປີດເວັບຄ້າງໄວ້ ⇒ ຕ້ອງເຂົ້າມືຖື
   await pushToUser(tech, "ມີງານສ້ອມໃໝ່", `${code}${appoint ? ` · ນັດ ${appoint}` : ""}`, {
     workflow: "repair",

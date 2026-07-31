@@ -31,6 +31,8 @@ export type Technician = {
   name: string;
   employee_code: string;
   head: boolean;
+  /** ສູນບໍລິການຂອງຊ່າງ (ods_tech_center) — ຫວ່າງ = ຍັງບໍ່ໄດ້ຕັ້ງ ⇒ ບໍ່ໂອນອັດຕະໂນມັດ */
+  center?: string | null;
 };
 
 type ErpRow = {
@@ -87,6 +89,21 @@ export async function listTechnicians(): Promise<Technician[]> {
       employee_code: employee.employee_code,
       head: role === "headtechnical",
     });
+  }
+
+  /**
+   * ສູນຂອງແຕ່ລະຊ່າງ (ods_tech_center) — ຄີຄື `code` ດຽວກັບທີ່ຢູ່ໃນງານ.
+   * ອ່ານບໍ່ໄດ້ ⇒ ປະຫວ່າງ (ບໍ່ໂອນອັດຕະໂນມັດ) ບໍ່ໃຫ້ລາຍຊື່ຊ່າງພັງຕາມ.
+   */
+  try {
+    const centers = new Map(
+      (await query<{ tech_code: string; center: string }>("select tech_code, center from ods_tech_center")).rows.map(
+        (row) => [row.tech_code, row.center],
+      ),
+    );
+    for (const row of rows) row.center = centers.get(row.code) ?? null;
+  } catch (error) {
+    console.error("listTechnicians: ອ່ານສູນຂອງຊ່າງບໍ່ໄດ້", error);
   }
 
   return rows.sort((a, b) => a.name.localeCompare(b.name, "lo"));

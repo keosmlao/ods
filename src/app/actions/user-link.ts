@@ -29,6 +29,8 @@ export type TechRow = {
   employee_code: string | null;
   /** ຄູ່ທີ່ລະບົບເດົາໃຫ້ — ຜູ້ຈັດການຢືນຢັນເອງ */
   suggestion: string | null;
+  /** ສູນຂອງຊ່າງ (ods_tech_center) — ໃຊ້ໂອນງານອັດຕະໂນມັດຕອນຈັດຊ່າງ */
+  center: string | null;
 };
 
 export type Employee = { code: string; name: string; nickname: string | null };
@@ -114,6 +116,13 @@ export async function technicianLinks(): Promise<{ rows: TechRow[]; employees: E
    */
   const byCode = new Map(staff.rows.map((employee) => [employee.code, employee]));
 
+  // ສູນຂອງແຕ່ລະຊ່າງ (ods_tech_center) — ຄີດຽວກັບຄ່າໃນງານ (ບໍ່ແມ່ນ employee_code)
+  const centers = new Map(
+    (await query<{ tech_code: string; center: string }>("select tech_code, center from ods_tech_center")).rows.map(
+      (row) => [row.tech_code, row.center],
+    ),
+  );
+
   const rows: TechRow[] = [...totals.entries()]
     .map(([user_code, info]) => {
       const employee_code = linked.get(user_code) ?? null;
@@ -140,7 +149,8 @@ export async function technicianLinks(): Promise<{ rows: TechRow[]; employees: E
           suggestion = found?.code ?? null;
         }
       }
-      return { user_code, ods_name: info.ods_name, jobs: info.jobs, employee_code, suggestion };
+      return { user_code, ods_name: info.ods_name, jobs: info.jobs, employee_code, suggestion,
+        center: centers.get(user_code) ?? null };
     })
     // ຍັງບໍ່ເຊື່ອມ → ຂຶ້ນກ່ອນ (ຄົນທີ່ເງິນຈະຕົກຫຼົ່ນ) · ແລ້ວຮຽງຕາມຈຳນວນງານ
     .sort((a, b) => Number(Boolean(a.employee_code)) - Number(Boolean(b.employee_code)) || b.jobs - a.jobs);

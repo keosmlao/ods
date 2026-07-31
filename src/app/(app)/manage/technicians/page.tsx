@@ -46,6 +46,8 @@ export default async function TechnicianLinkPage() {
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຊື່ໃນງານ</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຈຳນວນງານ</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ພະນັກງານ ERP</th>
+                {/* ສູນ — ຈັດຊ່າງຄົນລະສູນກັບເຄື່ອງ ⇒ ລະບົບສ້າງໃບໂອນໃຫ້ (actions/repair) */}
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ສູນ</th>
               </tr>
             </thead>
             <tbody>
