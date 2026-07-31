@@ -7,11 +7,15 @@ import { centerHoldMessage, type JobCenterState } from "@/lib/job-center-shared"
  */
 export async function jobCenterState(jobCode: string): Promise<JobCenterState | null> {
   const rows = await query<{
-    intake: string | null;
-    current: string | null;
+    intake_at: string | null;
+    now_at: string | null;
     transfer_to: string | null;
   }>(
-    `select nullif(a.intake_center,'') intake, nullif(a.service_center,'') current,
+    /**
+     * ⚠️ ຢ່າໃຊ້ຊື່ alias `current` — ເປັນ **ຄຳສະຫງວນ** ຂອງ Postgres
+     * ⇒ `... service_center,'') current` = syntax error (ພົບຈິງ 31-07-2026 ໜ້າໃບງານລົ້ມ).
+     */
+    `select nullif(a.intake_center,'') intake_at, nullif(a.service_center,'') now_at,
         (select jt.to_center from ods_job_transfer jt
           where jt.job_code = a.code and jt.received_at is null
           order by jt.id desc limit 1) transfer_to
@@ -21,8 +25,8 @@ export async function jobCenterState(jobCode: string): Promise<JobCenterState | 
   const row = rows.rows[0];
   if (!row) return null;
   return {
-    intake: row.intake,
-    current: row.current,
+    intake: row.intake_at,
+    current: row.now_at,
     transferPending: Boolean(row.transfer_to),
     transferTo: row.transfer_to,
   };
