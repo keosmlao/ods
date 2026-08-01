@@ -27,6 +27,9 @@ type Body =
       warranty_void: boolean;
       warranty_reason: string;
       use_spare: boolean;
+      /** ສ້ອມບໍ່ໄດ້ ⇒ ຄືນເຄື່ອງ (ຍື່ນຄຳຂໍຍົກເລີກໃຫ້ — ເບິ່ງ lib/tech-flow) */
+      cannot_repair?: boolean;
+      cannot_repair_reason?: string;
       /** ຮູບຕອນກວດເຊັກ (base64) — ບໍ່ບັງຄັບ */
       photos?: string[];
     };
@@ -82,6 +85,9 @@ export async function POST(request: Request, context: { params: Promise<{ code: 
                     warranty_void: Boolean(body.warranty_void),
                     warranty_reason: String(body.warranty_reason ?? ""),
                     use_spare: Boolean(body.use_spare),
+                    // ສ້ອມບໍ່ໄດ້ ⇒ ຄືນເຄື່ອງ (ຍື່ນຄຳຂໍຍົກເລີກໃຫ້ — ເບິ່ງ lib/tech-flow)
+                    cannot_repair: Boolean(body.cannot_repair),
+                    cannot_repair_reason: String(body.cannot_repair_reason ?? ""),
                     photos,
                   });
                 })()

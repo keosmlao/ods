@@ -1,4 +1,5 @@
-import { query } from "@/lib/db";
+import { query, queryOdg } from "@/lib/db";
+import { ERP_PURCHASE } from "@/lib/stock-constants";
 import { getOutstandingSpares } from "@/lib/outstanding-spares";
 
 /**
@@ -17,7 +18,7 @@ export type ApprovalLine = {
 };
 
 export type ApprovalDetail = {
-  kind: "quotation" | "cancellation";
+  kind: "quotation" | "cancellation" | "purchase-request" | "purchase-order";
   ref: string;
   product: string | null;
   brand: string | null;
@@ -36,11 +37,46 @@ export type ApprovalDetail = {
   amountKip: string | null;
   /** ຂໍຍົກເລີກ: ເຫດຜົນ */
   reason: string | null;
+  branch: string | null;
+  supplier: string | null;
+  jobCode: string | null;
+  remark: string | null;
   /** ລາຍການ (ໃບສະເໜີ = ສິນຄ້າ/ອາໄຫຼ່ · ຂໍຍົກເລີກ = ອາໄຫຼ່ຄ້າງ) */
   lines: ApprovalLine[];
 };
 
 export async function approvalDetail(kind: string, ref: string): Promise<ApprovalDetail | null> {
+  if (kind === "purchase-request" || kind === "purchase-order") {
+    const flag = kind === "purchase-request" ? ERP_PURCHASE.PR_REQUEST : ERP_PURCHASE.ORDER;
+    const head = (await queryOdg<{
+      job_code: string | null; branch: string | null; supplier: string | null;
+      requested_by: string | null; requested_at: string | null; amount: string; remark: string | null;
+    }>(
+      `select case when $2::int=$3 then split_part(trim(coalesce(a.doc_ref,'')),' ',1)
+                   else split_part(trim(coalesce(a.remark,'')),' ',1) end job_code,
+          a.branch_code branch, coalesce(s.name_1, nullif(a.cust_code,'')) supplier,
+          coalesce(nullif(a.user_request,''), nullif(a.creator_code,'')) requested_by,
+          to_char(a.doc_date,'DD-MM-YYYY') requested_at,
+          coalesce(a.total_amount,0)::text amount, nullif(a.remark,'') remark
+        from ic_trans a left join ap_supplier s on s.code=a.cust_code
+        where a.doc_no=$1 and a.trans_flag=$2 limit 1`,
+      [ref, flag, ERP_PURCHASE.PR_REQUEST],
+    )).rows[0];
+    if (!head) return null;
+    const lines = (await queryOdg<ApprovalLine>(
+      `select item_name as "name", coalesce(qty,0)::text as qty, unit_code as unit,
+          coalesce(price,0)::text price, coalesce(sum_amount,0)::text total
+        from ic_trans_detail where doc_no=$1 and trans_flag=$2 order by roworder`,
+      [ref, flag],
+    )).rows;
+    return {
+      kind, ref, product: head.job_code, brand: null, model: null, sn: null,
+      customer: null, tel: null, warranty: null, symptom: null, diagnosis: null,
+      requestedBy: head.requested_by, requestedAt: head.requested_at,
+      amount: head.amount, discount: null, amountKip: null, reason: null,
+      branch: head.branch, supplier: head.supplier, jobCode: head.job_code, remark: head.remark, lines,
+    };
+  }
   if (kind === "quotation") {
     const head = (
       await query<{
@@ -66,7 +102,7 @@ export async function approvalDetail(kind: string, ref: string): Promise<Approva
 
     const lines = (
       await query<ApprovalLine>(
-        `select item_name name, coalesce(qty,0)::text qty, unit_code unit,
+        `select item_name as "name", coalesce(qty,0)::text as qty, unit_code as unit,
             coalesce(price,0)::text price, coalesce(sum_amount,0)::text total
           from ic_trans_detail where doc_no=$1 and trans_flag=17 order by roworder`,
         [ref],
@@ -81,7 +117,7 @@ export async function approvalDetail(kind: string, ref: string): Promise<Approva
       symptom: head.symptom, diagnosis: head.diagnosis,
       requestedBy: head.requested_by, requestedAt: head.requested_at,
       amount: head.amount, discount: head.discount, amountKip: head.amount_kip,
-      reason: null, lines,
+      reason: null, branch: null, supplier: null, jobCode: null, remark: null, lines,
     };
   }
 
@@ -114,7 +150,7 @@ export async function approvalDetail(kind: string, ref: string): Promise<Approva
     symptom: head.symptom, diagnosis: head.diagnosis,
     requestedBy: null, requestedAt: head.requested_at,
     amount: null, discount: null, amountKip: null,
-    reason: head.reason,
+    reason: head.reason, branch: null, supplier: null, jobCode: null, remark: null,
     lines: spares.map((s) => ({ name: s.item_name, qty: s.qty, unit: s.unit_code, price: null, total: null })),
   };
 }

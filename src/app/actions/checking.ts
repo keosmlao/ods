@@ -241,6 +241,9 @@ const saveSchema = z.object({
   t_reason: z.string(),
   use_spare: z.enum(["0", "1"]),
   warrunty: z.string(),
+  /** ສ້ອມບໍ່ໄດ້ ⇒ ຄືນເຄື່ອງໂດຍບໍ່ສ້ອມ (ຍື່ນຄຳຂໍຍົກເລີກໃຫ້ອັດຕະໂນມັດ) */
+  cannot_repair: z.enum(["0", "1"]).optional().default("0"),
+  cannot_reason: z.string().optional().default(""),
 });
 
 export async function saveCheck(_: CheckState, formData: FormData): Promise<CheckState> {
@@ -261,6 +264,8 @@ export async function saveCheck(_: CheckState, formData: FormData): Promise<Chec
     warranty_void: parsed.data.war_by_t === "1",
     warranty_reason: parsed.data.t_reason,
     use_spare: parsed.data.use_spare === "1",
+    cannot_repair: parsed.data.cannot_repair === "1",
+    cannot_repair_reason: parsed.data.cannot_reason,
   });
   if (!result.ok) return { error: result.error };
 

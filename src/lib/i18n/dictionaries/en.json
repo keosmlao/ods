@@ -2392,7 +2392,10 @@
     "noSpareSelected": "No spare parts selected yet",
     "itemCode": "Item code",
     "qty": "Quantity",
-    "unit": "Unit"
+    "unit": "Unit",
+    "cannotRepair": "Cannot repair — return to customer",
+    "cannotRepairNote": "Selecting this files a cancellation request automatically — the job waits for manager approval before the unit goes back",
+    "cannotRepairPlaceholder": "Reason * (e.g. part discontinued, damage not worth repairing)"
   },
   "servicePrint": {
     "receiptTitleDefault": "Repair Receipt",

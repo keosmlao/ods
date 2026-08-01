@@ -99,6 +99,19 @@ export async function managerDrill(bucket: string): Promise<DrillResult> {
     );
 
   switch (kind) {
+    case "workflow": {
+      if (argument === "install") {
+        return { label: "ງານຕິດຕັ້ງ", jobs: sortByAge(await install(INSTALL_OPEN)) };
+      }
+      if (argument === "claim") {
+        return { label: "ງານເຄມ", jobs: sortByAge(await repair(`${OPEN_JOB} and ${IS_CLAIM}`)) };
+      }
+      if (argument === "repair") {
+        return { label: "ງານສ້ອມແປງ", jobs: sortByAge(await repair(`${OPEN_JOB} and ${NOT_CLAIM}`)) };
+      }
+      return { label: "ສາຍງານ", jobs: [] };
+    }
+
     case "age": {
       const range = AGE_WHERE[argument];
       if (!range) return { label: "", jobs: [] };

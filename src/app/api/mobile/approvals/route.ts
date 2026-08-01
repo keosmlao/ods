@@ -7,6 +7,7 @@ import {
 import { requireMobile } from "@/lib/mobile-auth";
 import { pendingApprovals } from "@/lib/mobile-approvals";
 import { APPROVER_SIDE } from "@/lib/roles";
+import { approvePoCore, approveSprCore, rejectSprCore } from "@/lib/purchase-approval-core";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
@@ -31,7 +32,8 @@ export async function GET(request: Request) {
 }
 
 type Body = {
-  action: "approve_quote" | "reject_quote" | "approve_cancellation" | "reject_cancellation";
+  action: "approve_quote" | "reject_quote" | "approve_cancellation" | "reject_cancellation" |
+    "approve_purchase_request" | "reject_purchase_request" | "approve_purchase_order";
   /** ເລກໃບສະເໜີ (quote) ຫຼື ລະຫັດເຄື່ອງ (cancellation) */
   ref: string;
   /** ເຫດຜົນ — ບັງຄັບສະເພາະ reject (core ກວດເອງ) */
@@ -64,12 +66,18 @@ export async function POST(request: Request) {
             ? await approveCancellationCore(me, ref)
             : body.action === "reject_cancellation"
               ? await rejectCancellationCore(me, ref, reason)
+              : body.action === "approve_purchase_request"
+                ? await approveSprCore(me, ref)
+                : body.action === "reject_purchase_request"
+                  ? await rejectSprCore(me, ref, reason)
+                  : body.action === "approve_purchase_order"
+                    ? await approvePoCore(me, ref)
               : ({ ok: false, error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" } as const);
 
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
     // ໜ້າເວັບ (ຄິວອະນຸມັດ · ໃບງານ) ຕ້ອງເຫັນຜົນທັນທີ
-    for (const path of ["/approvals", "/quotations", "/service", "/dashboard"]) revalidatePath(path, "layout");
+    for (const path of ["/approvals", "/quotations", "/service", "/dashboard", "/purchase-requests", "/purchase-orders"]) revalidatePath(path, "layout");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Mobile approval action failed", error);

@@ -16,6 +16,15 @@ export type MonitorJob = {
   code: string;
   product: string | null;
   customer: string | null;
+  tel?: string | null;
+  address?: string | null;
+  detail?: string | null;
+  sn?: string | null;
+  warranty?: string | null;
+  symptom?: string | null;
+  diagnosis?: string | null;
+  received_at?: string | null;
+  appointment?: string | null;
   tech: string | null;
   service_type: string | null;
   stage_label: string;
@@ -40,6 +49,15 @@ type Row = {
   code: string;
   product: string | null;
   customer: string | null;
+  tel: string | null;
+  address: string | null;
+  detail: string | null;
+  sn: string | null;
+  warranty: string | null;
+  symptom: string | null;
+  diagnosis: string | null;
+  received_at: string | null;
+  appointment: string | null;
   tech_code: string | null;
   service_type: string | null;
   stage_label: string;
@@ -56,6 +74,15 @@ export async function mobileMonitor(): Promise<MobileMonitor> {
       `select a.code,
           a.name_1 as product,
           b.name_1 as customer,
+          b.tel,
+          coalesce(nullif(a.location_repair,''), b.address) as address,
+          concat_ws(' ', a.p_brand, a.p_model) as detail,
+          a.sn,
+          a.warrunty as warranty,
+          a.issue as symptom,
+          a.issue_2 as diagnosis,
+          to_char(a.time_register,'DD-MM-YYYY HH24:MI') as received_at,
+          to_char(a.appoint_date,'DD-MM-YYYY') as appointment,
           nullif(trim(a.emp_code),'') as tech_code,
           a.service_type,
           (${STAGE_LABEL_SQL}) as stage_label,
@@ -71,6 +98,15 @@ export async function mobileMonitor(): Promise<MobileMonitor> {
       `select a.code,
           a.item_name as product,
           c.name_1 as customer,
+          c.tel,
+          coalesce(nullif(a.location_inst,''), c.address) as address,
+          concat_ws(' ', a.pro_brand, a.pro_model) as detail,
+          null as sn,
+          null as warranty,
+          null as symptom,
+          null as diagnosis,
+          to_char(a.time_register,'DD-MM-YYYY HH24:MI') as received_at,
+          to_char(a.appoint_date,'DD-MM-YYYY') as appointment,
           nullif(trim(a.tech_code),'') as tech_code,
           null as service_type,
           (${INSTALL_STAGE_LABEL_SQL}) as stage_label,
@@ -127,6 +163,15 @@ function toJob(
     code: r.code,
     product: r.product,
     customer: r.customer,
+    tel: r.tel,
+    address: r.address,
+    detail: r.detail,
+    sn: r.sn,
+    warranty: r.warranty,
+    symptom: r.symptom,
+    diagnosis: r.diagnosis,
+    received_at: r.received_at,
+    appointment: r.appointment,
     tech: r.tech_code ? nameOf.get(r.tech_code) ?? r.tech_code : null,
     service_type: r.service_type,
     stage_label: r.stage_label,

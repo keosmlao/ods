@@ -139,6 +139,9 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
   const [state, action, pending] = useActionState(saveCheck, {});
   // ມີອາໄຫຼ່ຄ້າງໃນກະຕ່າຢູ່ແລ້ວ → ເປີດຕາຕະລາງໃຫ້ເລີຍ
   const [useSpare, setUseSpare] = useState(lines.length > 0 ? "1" : "0");
+  /** ສ້ອມບໍ່ໄດ້ ⇒ ຄືນເຄື່ອງໂດຍບໍ່ສ້ອມ (ລະບົບຍື່ນຄຳຂໍຍົກເລີກໃຫ້) */
+  const [cannotRepair, setCannotRepair] = useState("0");
+  const [cannotReason, setCannotReason] = useState("");
   const [warByT, setWarByT] = useState("0");
   // ເຫດຜົນເກົ່າ (ຖ້າເຄີຍຕັດສິນວ່າໝົດປະກັນ) ຄ້າງໄວ້ໃຫ້ ບໍ່ໃຫ້ພິມຄືນໃໝ່ຕອນແກ້ໄຂຜົນກວດ
   const [reason, setReason] = useState(head.warranty_reason ?? "");
@@ -281,14 +284,48 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
                   { value: "0", label: t.noSpare },
                   { value: "1", label: t.useSpare },
                 ]}
+                isDisabled={cannotRepair === "1"}
               />
             </div>
+          </div>
+
+          {/*
+            ── ສ້ອມບໍ່ໄດ້ ⇒ ຄືນເຄື່ອງ (01-08-2026) ──
+            ຄູ່ມືມີຂັ້ນຕອນນີ້ຢູ່ແລ້ວ (ຊ່າງແຈ້ງ "ສ້ອມບໍ່ໄດ້" → ຝ່າຍບໍລິການຂໍຍົກເລີກ)
+            ແຕ່ຟອມບໍ່ເຄີຍມີຕົວເລືອກ ⇒ ຊ່າງພິມໃສ່ຊ່ອງອາການ ແລ້ວກໍ່ບໍ່ມີໃຜຮູ້ວ່າຕ້ອງໄປຕໍ່.
+            ດຽວນີ້ເລືອກຢູ່ນີ້ໄດ້ ແລະ ລະບົບຍື່ນຄຳຂໍຍົກເລີກໃຫ້ເລີຍ.
+          */}
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/50 p-3">
+            <label className="flex items-center gap-2 text-sm font-bold text-amber-800">
+              <input
+                type="checkbox"
+                checked={cannotRepair === "1"}
+                onChange={(event) => {
+                  setCannotRepair(event.target.checked ? "1" : "0");
+                  if (event.target.checked) setUseSpare("0"); // ສ້ອມບໍ່ໄດ້ = ບໍ່ໃຊ້ອາໄຫຼ່
+                }}
+                className="size-4 accent-amber-600"
+              />
+              {t.cannotRepair}
+            </label>
+            <input type="hidden" name="cannot_repair" value={cannotRepair} />
+            <p className="mt-1 text-[11px] text-amber-700">{t.cannotRepairNote}</p>
+            {cannotRepair === "1" && (
+              <input
+                name="cannot_reason"
+                required
+                value={cannotReason}
+                onChange={(event) => setCannotReason(event.target.value)}
+                placeholder={t.cannotRepairPlaceholder}
+                className={`${inputClass} mt-2`}
+              />
+            )}
           </div>
         </Card>
       </form>
 
       {/* ຕາຕະລາງອາໄຫຼ່ຢູ່ນອກ form — ປຸ່ມເພີ່ມ/ລຶບ ບໍ່ໃຫ້ submit ໃບກວດເຊັກ */}
-      {useSpare === "1" && (
+      {useSpare === "1" && cannotRepair !== "1" && (
         <Card
           title={t.sparesUsed}
           actions={

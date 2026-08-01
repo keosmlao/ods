@@ -18,7 +18,9 @@ import 'check_spare_screen.dart';
 ///   bringIn = ສ້ອມໜ້າງານບໍ່ໄດ້ ⇒ ນຳເຂົ້າສູນ (IH — job_screen ເປີດ dialog ເລືອກວິທີ)
 /// repair = ສ້ອມໄດ້ ⇒ ເລີ່ມສ້ອມເລີຍ · checkOnly = ສຳເລັດການກວດ (ສ້ອມພາຍຫຼັງ, ຢູ່ສູນ) ·
 /// spare = ຕ້ອງອາໄຫຼ່ · bringIn = ນຳເຂົ້າສູນ (IH)
-enum CheckOutcome { repair, checkOnly, spare, bringIn }
+/// ຜົນຕັດສິນຫຼັງກວດເຊັກ.
+/// `cannotRepair` = ສ້ອມບໍ່ໄດ້ ⇒ ຄືນເຄື່ອງ (ລະບົບຍື່ນຄຳຂໍຍົກເລີກໃຫ້ — lib/tech-flow)
+enum CheckOutcome { repair, checkOnly, spare, bringIn, cannotRepair }
 
 class CheckScreen extends StatefulWidget {
   const CheckScreen({super.key, required this.code, this.serviceType, this.outOfWarranty = false});
@@ -44,6 +46,7 @@ class _CheckScreenState extends State<CheckScreen> {
   final picker = ImagePicker();
   CheckOutcome? outcome; // ຜົນຕັດສິນທີ່ຊ່າງເລືອກ (null = ຍັງບໍ່ເລືອກ)
   bool get useSpare => outcome == CheckOutcome.spare;
+  bool get cannotRepair => outcome == CheckOutcome.cannotRepair;
   bool warrantyVoid = false;
   /// ຕ້ອງໃບລາຄາບໍ = ໝົດປະກັນຢູ່ DB ແລ້ວ **ຫຼື** ຊ່າງຕັດສິນໝົດປະກັນ (checkbox)
   /// ⇒ ບໍ່ມີ "ເລີ່ມສ້ອມເລີຍ" ໃນ 2 ກໍລະນີນີ້.
@@ -154,6 +157,10 @@ class _CheckScreenState extends State<CheckScreen> {
     if (outcome == CheckOutcome.spare && draft.isEmpty) {
       return 'ຕ້ອງເລືອກອາໄຫຼ່ຢ່າງໜ້ອຍ 1 ລາຍການ';
     }
+    // ເຫດຜົນຄືສິ່ງທີ່ຕ້ອງບອກລູກຄ້າຕອນຄືນເຄື່ອງ ⇒ ບັງຄັບ (ດ່ານຈິງຢູ່ server ນຳ)
+    if (cannotRepair && reason.text.trim().isEmpty) {
+      return 'ຕ້ອງໃສ່ເຫດຜົນ ທີ່ສ້ອມບໍ່ໄດ້';
+    }
     return null;
   }
 
@@ -173,6 +180,9 @@ class _CheckScreenState extends State<CheckScreen> {
       'warranty_void': warrantyVoid,
       'warranty_reason': reason.text,
       'use_spare': chosen == CheckOutcome.spare,
+      'cannot_repair': chosen == CheckOutcome.cannotRepair,
+      // ໃຊ້ຊ່ອງ "ເຫດຜົນ" ອັນດຽວກັນ — ຟອມສະແດງປ້າຍຕາມຜົນທີ່ເລືອກ
+      'cannot_repair_reason': reason.text,
       'photos': photos,
     }, pop: true, popResult: result);
   }
@@ -228,27 +238,31 @@ class _CheckScreenState extends State<CheckScreen> {
             value: warrantyVoid,
             onChanged: (value) => setState(() => warrantyVoid = value),
           ),
-          if (warrantyVoid) ...[
+          // ຊ່ອງ "ເຫດຜົນ" ໃຊ້ຮ່ວມກັນ 2 ກໍລະນີ — ໝົດປະກັນ ຫຼື ສ້ອມບໍ່ໄດ້
+          // (ເລືອກພ້ອມກັນໄດ້ ⇒ ເຫດຜົນອັນດຽວກັນຖືກສົ່ງໄປທັງສອງຊ່ອງ)
+          if (warrantyVoid || cannotRepair) ...[
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.all(13),
               decoration: BoxDecoration(
-                color: const Color(0xFFFBEED5),
+                color: cannotRepair ? const Color(0xFFFEE2E2) : const Color(0xFFFBEED5),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFEBD7A6)),
+                border: Border.all(
+                  color: cannotRepair ? const Color(0xFFFCA5A5) : const Color(0xFFEBD7A6),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.info_outline, size: 16, color: warn),
-                      SizedBox(width: 6),
+                      Icon(Icons.info_outline, size: 16, color: cannotRepair ? danger : warn),
+                      const SizedBox(width: 6),
                       Text(
-                        'ເຫດຜົນທີ່ໝົດຮັບປະກັນ',
+                        cannotRepair ? 'ເຫດຜົນທີ່ສ້ອມບໍ່ໄດ້ *' : 'ເຫດຜົນທີ່ໝົດຮັບປະກັນ',
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
-                          color: warn,
+                          color: cannotRepair ? danger : warn,
                           fontSize: 12.5,
                         ),
                       ),
@@ -258,8 +272,10 @@ class _CheckScreenState extends State<CheckScreen> {
                   TextField(
                     controller: reason,
                     maxLines: 2,
-                    decoration: const InputDecoration(
-                      hintText: 'ເຊັ່ນ: ຮ່ອງຮอຍແຕກ, ໂດນນ້ຳ, ໝົດອາຍຸປະກັນ...',
+                    decoration: InputDecoration(
+                      hintText: cannotRepair
+                          ? 'ເຊັ່ນ: ອາໄຫຼ່ເລີກຜະລິດ, ເສຍໜັກ ບໍ່ຄຸ້ມສ້ອມ...'
+                          : 'ເຊັ່ນ: ຮ່ອງຮອຍແຕກ, ໂດນນ້ຳ, ໝົດອາຍຸປະກັນ...',
                       fillColor: Colors.white,
                     ),
                   ),
@@ -314,6 +330,16 @@ class _CheckScreenState extends State<CheckScreen> {
               subtitle: 'ບັນທຶກຜົນກວດແລ້ວ ນຳເຄື່ອງເຂົ້າສູນ',
             ),
           ],
+          const SizedBox(height: 8),
+          // ⚠️ ທາງອອກສຸດທ້າຍ — ຄືນເຄື່ອງໂດຍບໍ່ສ້ອມ. ບໍ່ຂ້າມການອະນຸມັດ:
+          // ລະບົບຍື່ນຄຳຂໍຍົກເລີກໃຫ້ ແລ້ວຜູ້ຈັດການຕັດສິນ (lib/tech-flow)
+          _outcomeCard(
+            outcome: CheckOutcome.cannotRepair,
+            icon: Icons.do_not_disturb_on_outlined,
+            color: danger,
+            title: 'ສ້ອມບໍ່ໄດ້ — ຄືນເຄື່ອງ',
+            subtitle: 'ອາໄຫຼ່ເລີກຜະລິດ · ເສຍໜັກ ບໍ່ຄຸ້ມສ້ອມ ⇒ ຂໍຍົກເລີກ ລໍຜູ້ຈັດການອະນຸມັດ',
+          ),
 
           // ── ສະຫຼຸບອາໄຫຼ່ທີ່ເລືອກ (ເລືອກ/ແກ້ໄຂ ຢູ່ໜ້າແຍກ) ──
           if (outcome == CheckOutcome.spare) ...[
@@ -406,6 +432,7 @@ class _CheckScreenState extends State<CheckScreen> {
               CheckOutcome.checkOnly => 'ບັນທຶກ ສຳເລັດການກວດເຊັກ',
               CheckOutcome.spare => 'ບັນທຶກ — ສົ່ງໃຫ້ admin ຂໍເບີກ',
               CheckOutcome.bringIn => 'ບັນທຶກ & ນຳເຂົ້າສູນ',
+              CheckOutcome.cannotRepair => 'ບັນທຶກ & ຂໍຍົກເລີກ (ຄືນເຄື່ອງ)',
               null => 'ບັນທຶກຜົນກວດເຊັກ',
             }),
           ),

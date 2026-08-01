@@ -219,6 +219,12 @@ export type SaveCheckInput = {
   warranty_void: boolean;
   warranty_reason: string;
   use_spare: boolean;
+  /**
+   * **ສ້ອມບໍ່ໄດ້** (ອາໄຫຼ່ໝົດ · ບໍ່ຄຸ້ມ · ເສຍໜັກ) ⇒ ຄືນເຄື່ອງໂດຍບໍ່ສ້ອມ.
+   * ຕ້ອງມີເຫດຜົນ (`cannot_repair_reason`) — ເປັນສິ່ງທີ່ບອກລູກຄ້າ ແລະ ເປັນຫຼັກຖານ.
+   */
+  cannot_repair?: boolean;
+  cannot_repair_reason?: string;
   /** ຮູບຕອນກວດເຊັກ (base64) — ບໍ່ບັງຄັບ */
   photos?: string[];
 };
@@ -235,6 +241,15 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
   const reason = input.warranty_reason.trim();
   if (input.warranty_void && !reason) {
     return { ok: false, error: "ກະລຸນາປ້ອນເຫດຜົນ ທີ່ຕັດສິນວ່າ ໝົດຮັບປະກັນ — ເປັນຫຼັກຖານເມື່ອລູກຄ້າຄ້ານ" };
+  }
+
+  const cannotReason = (input.cannot_repair_reason ?? "").trim();
+  if (input.cannot_repair && !cannotReason) {
+    return { ok: false, error: "ກະລຸນາປ້ອນເຫດຜົນ ທີ່ສ້ອມບໍ່ໄດ້ — ເປັນສິ່ງທີ່ຕ້ອງບອກລູກຄ້າຕອນຄືນເຄື່ອງ" };
+  }
+  // ສ້ອມບໍ່ໄດ້ ແຕ່ຍັງເລືອກໃຊ້ອາໄຫຼ່ = ຂັດກັນເອງ ⇒ ຢຸດໄວ້ກ່ອນຈະບັນທຶກຜິດ
+  if (input.cannot_repair && input.use_spare) {
+    return { ok: false, error: "ເລືອກ “ສ້ອມບໍ່ໄດ້” ແລ້ວ ຈະໃຊ້ອາໄຫຼ່ບໍ່ໄດ້ — ເອົາອາໄຫຼ່ອອກກ່ອນ" };
   }
 
   const client = await db.connect();
@@ -290,6 +305,28 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
     );
 
     /**
+     * ── ສ້ອມບໍ່ໄດ້ ⇒ **ຍື່ນຄຳຂໍຍົກເລີກໃຫ້ເລີຍ** (01-08-2026) ──
+     *
+     * ຄູ່ມືບອກໄວ້ແລ້ວວ່າ: ຊ່າງບັນທຶກ "ສ້ອມບໍ່ໄດ້" → ຝ່າຍບໍລິການໄປ /service/cancel
+     * ກົດ "ຂໍຍົກເລີກ" ໃສ່ເຫດຜົນ "ສ້ອມບໍ່ໄດ້" — ແຕ່ຟອມກວດເຊັກ **ບໍ່ເຄີຍມີຕົວເລືອກນີ້**
+     * ⇒ ຊ່າງໄດ້ແຕ່ພິມໃສ່ຊ່ອງອາການ ແລ້ວກໍ່ບໍ່ມີໃຜຮູ້ວ່າຕ້ອງໄປຂໍຍົກເລີກຕໍ່.
+     * ດຽວນີ້ຍື່ນຄຳຂໍໃຫ້ອັດຕະໂນມັດ ⇒ ໃບເຂົ້າຄິວ /approvals/cancellations ທັນທີ.
+     *
+     * ⚠️ **ບໍ່ຂ້າມການອະນຸມັດ** — ຄືນເຄື່ອງໂດຍບໍ່ສ້ອມກະທົບຄ່າກວດ/ຄວາມສຳພັນກັບລູກຄ້າ
+     * ຈຶ່ງໃຫ້ຜູ້ຈັດການຕັດສິນຄືເກົ່າ. ອະນຸມັດແລ້ວ STAGE_SQL ພາໄປ "ລໍຖ້າສົ່ງຄືນ" ເອງ
+     * (status=6 + cancel_finish + return_complete ຫວ່າງ ⇒ ຂັ້ນ 11).
+     */
+    if (input.cannot_repair) {
+      await client.query(
+        `update tb_product
+            set status = 6, cancel_start = ${NOW}, request_cancel = $1,
+                remark = $2
+          where code = $3 and status <> 6`,
+        [session.username, `ສ້ອມບໍ່ໄດ້: ${cannotReason}`, input.code],
+      );
+    }
+
+    /**
      * ── "ໝົດຮັບປະກັນ" ເປັນ **ຄຳຂໍ** ບໍ່ແມ່ນການປ່ຽນທັນທີ (01-08-2026) ──
      * ມັນຄືການຕັດສິນວ່າ **ລູກຄ້າຕ້ອງຈ່າຍ** ⇒ ຜູ້ຈັດການຕ້ອງອະນຸມັດກ່ອນ.
      * ⚠️ ຫ້າມຂຽນ `warrunty` ຢູ່ນີ້: STAGE_SQL ອ່ານ warrunty ⇒ ຂຽນເລີຍ ໃບຈະຕົກເຂົ້າ
@@ -322,6 +359,20 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
   const spareNote = input.use_spare ? `ໃຊ້ອາໄຫຼ່ ${spareCount} ລາຍການ` : "ບໍ່ໃຊ້ອາໄຫຼ່";
   const warrantyNote = input.warranty_void ? ` · ຊ່າງແຈ້ງວ່າໝົດຮັບປະກັນ ເຫດຜົນ: ${reason}` : "";
   await logChange("tb_product", input.code, `ບັນທຶກຜົນກວດເຊັກ: ${input.diagnosis.trim()} · ${spareNote}${warrantyNote}`, { author: session.username });
+
+  if (input.cannot_repair) {
+    // ແຈ້ງຜູ້ອະນຸມັດ — ໃບນີ້ຢຸດຢູ່ຄິວຍົກເລີກ ຈົນກວ່າຈະຕັດສິນ
+    await logChange(
+      "tb_product",
+      input.code,
+      `ຊ່າງແຈ້ງວ່າ **ສ້ອມບໍ່ໄດ້** — ${cannotReason} ⇒ ຍື່ນຄຳຂໍຍົກເລີກ ເພື່ອຄືນເຄື່ອງໃຫ້ລູກຄ້າ`,
+      { author: session.username, roles: ["manager", "headtechnical", "admin"] },
+    );
+    return {
+      ok: true,
+      message: `ບັນທຶກແລ້ວ — ໃບ ${input.code} ເຂົ້າຄິວ "ຂໍຍົກເລີກ" ລໍຜູ້ຈັດການອະນຸມັດ ກ່ອນຄືນເຄື່ອງ`,
+    };
+  }
 
   return { ok: true, message: `ບັນທຶກຜົນກວດເຊັກ ${input.code} ສຳເລັດ` };
 }

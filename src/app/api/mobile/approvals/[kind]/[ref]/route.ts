@@ -11,7 +11,7 @@ export async function GET(request: Request, context: { params: Promise<{ kind: s
   const params = await context.params;
   const kind = params.kind;
   const ref = decodeURIComponent(params.ref ?? "");
-  if ((kind !== "quotation" && kind !== "cancellation") || !ref) {
+  if (!(["quotation", "cancellation", "purchase-request", "purchase-order"].includes(kind)) || !ref) {
     return NextResponse.json({ error: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ" }, { status: 400 });
   }
 

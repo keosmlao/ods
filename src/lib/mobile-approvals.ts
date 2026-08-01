@@ -15,9 +15,8 @@ import { ERP_PURCHASE } from "@/lib/stock-constants";
  * ທັງທີ່ຄິວຢູ່ເວັບມີ 48 ໃບຄ້າງ (ເກົ່າສຸດ 361 ມື້). ຂໍ້ມູນຢູ່ **ERP (odg)**
  * ບໍ່ແມ່ນ ODS ຈຶ່ງໃຊ້ queryOdg ແລະ ຫໍ່ try/catch ແຍກ — ERP ລົ້ມ ⇒ ຄິວອື່ນຍັງມາຄືເກົ່າ.
  *
- * ⚠️ **ບໍ່ມີການອະນຸມັດຈາກແອັບ** — ການອະນຸມັດແຕະເອກະສານທີ່ເປັນເງິນ (ລາຄາ · ສາງ · ERP)
- * ແລະ ຂັ້ນຕອນຢູ່ໃນ actions/approval.ts ທີ່ຜູກກັບ form/redirect ຂອງເວັບ.
- * ແອັບຈຶ່ງເປັນ "ກະດິ່ງເຕືອນ + ລາຍການ" ໃຫ້ຜູ້ຈັດການຮູ້ວ່າມີຫຍັງຄ້າງ ແລ້ວກົດໄປຕັດສິນຢູ່ເວັບ.
+ * ທັງ 4 ປະເພດມີໜ້າລາຍລະອຽດ ແລະ ຕັດສິນແບບ native ໃນແອັບ;
+ * SPR/PO ຂຽນ WPRA/WPOA ໄປ ERP ຜ່ານ purchase-approval-core.
  */
 
 export type ApprovalItem = {
@@ -67,7 +66,7 @@ export async function pendingApprovals(): Promise<ApprovalItem[]> {
        where a.status = 6 and a.cancel_start is not null and a.cancel_finish is null
        order by a.cancel_start`,
     ),
-    withBudget(erpPurchaseApprovals(), [], "ຄິວອະນຸມັດຝັ່ງ ERP"),
+    erpPurchaseApprovals(),
   ]);
 
   // ຄ້າງດົນສຸດຂຶ້ນກ່ອນ — ອັນທີ່ຖ່ວງງານຢູ່ຄືອັນທີ່ຕ້ອງຕັດສິນກ່ອນ
@@ -110,7 +109,7 @@ function withBudget<T>(work: Promise<T>, fallback: T, label: string): Promise<T>
 async function erpPurchaseApprovals(): Promise<ApprovalItem[]> {
   try {
     const [pr, po] = await Promise.all([
-      queryOdg<ApprovalItem>(
+      withBudget(queryOdg<ApprovalItem>(
         `select 'purchase-request' as kind, 'ໃບຂໍຊື້ (SPR)' as kind_label,
             t.doc_no as ref,
             split_part(trim(coalesce(t.doc_ref,'')),' ',1) as title,
@@ -128,8 +127,8 @@ async function erpPurchaseApprovals(): Promise<ApprovalItem[]> {
          order by t.doc_date
          limit 100`,
         [ERP_PURCHASE.PR_REQUEST, ERP_PURCHASE.PR_APPROVE],
-      ),
-      queryOdg<ApprovalItem>(
+      ).then((result) => result.rows), [], "ຄິວ SPR ຝັ່ງ ERP"),
+      withBudget(queryOdg<ApprovalItem>(
         `with wpoa as (
            select distinct split_part(trim(coalesce(doc_ref,'')),' ',1) as po
              from ic_trans where trans_flag = $3 and doc_date >= current_date - 400
@@ -161,9 +160,10 @@ async function erpPurchaseApprovals(): Promise<ApprovalItem[]> {
           order by t.doc_date
           limit 100`,
         [ERP_PURCHASE.ORDER, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER_APPROVE],
-      ),
+      ).then((result) => result.rows), [], "ຄິວ PO ຝັ່ງ ERP"),
     ]);
-    return [...pr.rows, ...po.rows];
+    // ຖ້າ query ໃດໜຶ່ງຊ້າ ຍັງສົ່ງຄິວອີກປະເພດທີ່ໂຫຼດສຳເລັດກັບໄປໄດ້.
+    return [...pr, ...po];
   } catch (error) {
     // ERP ລົ້ມ ⇒ ຄິວອື່ນຍັງມາຄືເກົ່າ (ຫຼັກການດຽວກັບ lib/erp-purchase)
     console.error("erpPurchaseApprovals failed", error);

@@ -264,10 +264,15 @@ class Api {
           '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}',
     };
     try {
-      final result = await _send('POST', '/api/mobile/jobs/$workflow/$code', body: request);
+      final result = await _send(
+        'POST',
+        '/api/mobile/jobs/$workflow/$code',
+        body: request,
+      );
       return result['message'] as String;
     } on ApiError catch (error) {
-      final hasLargeEvidence = request.containsKey('photo') || request.containsKey('photos');
+      final hasLargeEvidence =
+          request.containsKey('photo') || request.containsKey('photos');
       if ((error.status == 0 || error.status == 408) &&
           workflow != 'maintenance' &&
           !hasLargeEvidence) {
@@ -318,7 +323,10 @@ class Api {
       if (remaining.isEmpty) {
         await _storage.delete(key: _pendingActionKey);
       } else {
-        await _storage.write(key: _pendingActionKey, value: jsonEncode(remaining));
+        await _storage.write(
+          key: _pendingActionKey,
+          value: jsonEncode(remaining),
+        );
       }
       return sent;
     } finally {
@@ -363,8 +371,12 @@ class Api {
     final ln = result['loaners'] as List<dynamic>? ?? const [];
     return (
       photos: JobPhotos.fromJson(result['photos'] as Map<String, dynamic>),
-      timeline: tl == null ? null : JobTimelineData.fromJson(tl as Map<String, dynamic>),
-      delivery: dv == null ? null : DeliveryInfo.fromJson(dv as Map<String, dynamic>),
+      timeline: tl == null
+          ? null
+          : JobTimelineData.fromJson(tl as Map<String, dynamic>),
+      delivery: dv == null
+          ? null
+          : DeliveryInfo.fromJson(dv as Map<String, dynamic>),
       loaners: ln
           .map((row) => LoanerOut.fromJson(row as Map<String, dynamic>))
           .toList(growable: false),
@@ -377,7 +389,8 @@ class Api {
       'GET',
       '/api/mobile/delivery?bill=${Uri.encodeComponent(billNo)}',
     );
-    return (result['data'] as List?)?.map((e) => e as String).toList() ?? const [];
+    return (result['data'] as List?)?.map((e) => e as String).toList() ??
+        const [];
   }
 
   /// ຄິວອະນຸມັດ (ຜູ້ຈັດການ)
@@ -403,11 +416,27 @@ class Api {
     String action,
     String ref, {
     String reason = '',
-  }) => _send('POST', '/api/mobile/approvals', body: {
-    'action': action,
-    'ref': ref,
-    'reason': reason,
-  });
+  }) => _send(
+    'POST',
+    '/api/mobile/approvals',
+    body: {'action': action, 'ref': ref, 'reason': reason},
+  );
+
+  /// ຂໍ URL ອາຍຸສັ້ນເພື່ອເປີດໜ້າ Web ດ້ວຍ session ຂອງແອັບ.
+  /// Mobile Bearer token ບໍ່ຖືກສົ່ງໃນ URL; server ອອກ ticket 60 ວິນາທີແທນ.
+  static Future<Uri> webSessionUrl(String href) async {
+    final result = await _send(
+      'POST',
+      '/api/mobile/web-session',
+      body: {'href': href},
+    );
+    final value = result['launch_url'] as String?;
+    final uri = value == null ? null : Uri.tryParse(value);
+    if (uri == null || !uri.hasScheme) {
+      throw ApiError('server ບໍ່ສົ່ງ Web URL ທີ່ຖືກຕ້ອງ', 500);
+    }
+    return uri;
+  }
 
   /* ── Chatter ແລະ ກິດຈະກຳ ────────────────────────────────────── */
 
@@ -419,10 +448,11 @@ class Api {
 
   /// ພິມຂໍ້ຄວາມໃສ່ໃບງານ — CS/ຫົວໜ້າ ເຫັນຢູ່ເວັບທັນທີ
   static Future<void> postChatter(String workflow, String code, String body) =>
-      _send('POST', '/api/mobile/chatter/$workflow/$code', body: {
-        'action': 'post',
-        'body': body,
-      });
+      _send(
+        'POST',
+        '/api/mobile/chatter/$workflow/$code',
+        body: {'action': 'post', 'body': body},
+      );
 
   /// ກົດວ່າກິດຈະກຳເຮັດແລ້ວ
   static Future<void> completeActivity(
@@ -430,11 +460,11 @@ class Api {
     String code,
     int id, {
     String note = '',
-  }) => _send('POST', '/api/mobile/chatter/$workflow/$code', body: {
-    'action': 'complete_activity',
-    'id': id,
-    'note': note,
-  });
+  }) => _send(
+    'POST',
+    '/api/mobile/chatter/$workflow/$code',
+    body: {'action': 'complete_activity', 'id': id, 'note': note},
+  );
 
   static Future<void> scheduleActivity(
     String workflow,
@@ -443,13 +473,17 @@ class Api {
     required String summary,
     String note = '',
     required String dueDate,
-  }) => _send('POST', '/api/mobile/chatter/$workflow/$code', body: {
-    'action': 'schedule_activity',
-    'kind': kind,
-    'summary': summary,
-    'note': note,
-    'due_date': dueDate,
-  });
+  }) => _send(
+    'POST',
+    '/api/mobile/chatter/$workflow/$code',
+    body: {
+      'action': 'schedule_activity',
+      'kind': kind,
+      'summary': summary,
+      'note': note,
+      'due_date': dueDate,
+    },
+  );
 
   static Future<List<SpareItem>> searchSpares(
     String query, {
@@ -513,14 +547,22 @@ class Api {
         .toList();
   }
 
-  static Future<String> addUsedSpare(String code, SpareItem item, int qty) async {
+  static Future<String> addUsedSpare(
+    String code,
+    SpareItem item,
+    int qty,
+  ) async {
     final result = await _send(
       'POST',
       '/api/mobile/spare-request',
       body: {
         'action': 'add-used',
         'code': code,
-        'item': {'code': item.code, 'name_1': item.name, 'unit_code': item.unitCode},
+        'item': {
+          'code': item.code,
+          'name_1': item.name,
+          'unit_code': item.unitCode,
+        },
         'qty': qty,
       },
     );
@@ -609,11 +651,12 @@ class Api {
     return (rows, (result['unread'] as num?)?.toInt() ?? 0);
   }
 
-  static Future<void> markNotificationRead({int? id, bool all = false}) => _send(
-    'POST',
-    '/api/mobile/notifications',
-    body: all ? {'all': true} : {'id': id},
-  ).then((_) {});
+  static Future<void> markNotificationRead({int? id, bool all = false}) =>
+      _send(
+        'POST',
+        '/api/mobile/notifications',
+        body: all ? {'all': true} : {'id': id},
+      ).then((_) {});
 
   static Future<String> pickupSpares(String docRef) async {
     final result = await _send(
@@ -690,7 +733,9 @@ class Api {
   }
 
   /// ກົດຕົວເລກຢູ່ໜ້າພາບລວມ → ລາຍການໃບງານທີ່ຢູ່ໃນຕົວເລກນັ້ນ (ເບິ່ງ lib/manager-drill)
-  static Future<({String label, List<MonitorJob> jobs})> overviewJobs(String bucket) async {
+  static Future<({String label, List<MonitorJob> jobs})> overviewJobs(
+    String bucket,
+  ) async {
     final result = await _send(
       'GET',
       '/api/mobile/overview/jobs?bucket=${Uri.encodeQueryComponent(bucket)}',
@@ -704,9 +749,11 @@ class Api {
   }
 
   /// ແຜນທີ່ງານທີ່ຍັງຄ້າງ (ສ້ອມ + ຕິດຕັ້ງ) — ພ້ອມຈຳນວນໃບທີ່ **ຍັງບໍ່ໄດ້ໝາຍພິກັດ**
-  static Future<({List<MapPin> pins, int noGpsRepair, int noGpsInstall})> mapPending() async {
+  static Future<({List<MapPin> pins, int noGpsRepair, int noGpsInstall})>
+  mapPending() async {
     final result = await _send('GET', '/api/mobile/map');
-    final missing = (result['without_gps'] as Map?)?.cast<String, dynamic>() ?? {};
+    final missing =
+        (result['without_gps'] as Map?)?.cast<String, dynamic>() ?? {};
     return (
       pins: ((result['pins'] as List?) ?? [])
           .map((row) => MapPin.fromJson(row as Map<String, dynamic>))
@@ -717,13 +764,19 @@ class Api {
   }
 
   /// ສະຫຼຸບຄ່າຄອມ — [month] `YYYY-MM` (ວ່າງ = ເດືອນນີ້) · [employee] ກອງຄົນດຽວ
-  static Future<Commission> commission({String month = '', String employee = ''}) async {
+  static Future<Commission> commission({
+    String month = '',
+    String employee = '',
+  }) async {
     final query = <String>[
       if (month.isNotEmpty) 'month=${Uri.encodeQueryComponent(month)}',
       if (employee.isNotEmpty) 'employee=${Uri.encodeQueryComponent(employee)}',
     ];
     return Commission.fromJson(
-      await _send('GET', '/api/mobile/commission${query.isEmpty ? '' : '?${query.join('&')}'}'),
+      await _send(
+        'GET',
+        '/api/mobile/commission${query.isEmpty ? '' : '?${query.join('&')}'}',
+      ),
     );
   }
 
@@ -748,7 +801,10 @@ class Api {
   /// ລາຍລະອຽດອາໄຫຼ່ 1 ຕົວ — ຢູ່ສາງ/ທີ່ຈັດເກັບໃດ ຈັກອັນ + ຄວາມເຄື່ອນໄຫວ
   static Future<RepairStockDetail> repairStockItem(String code) async =>
       RepairStockDetail.fromJson(
-        await _send('GET', '/api/mobile/repair-stock/${Uri.encodeComponent(code)}'),
+        await _send(
+          'GET',
+          '/api/mobile/repair-stock/${Uri.encodeComponent(code)}',
+        ),
       );
 
   /// ກິດຈະກຳທີ່ຍັງບໍ່ປິດ ທັງໝົດ (ຜູ້ຈັດການຕິດຕາມສິ່ງທີ່ CS ນັດໄວ້)
@@ -772,7 +828,9 @@ class Api {
 
   /// ຜົນງານຊ່າງ 1 ຄົນ — ພາລະ · ຜົນຜະລິດ · ຄ່າຄອມ · ງານເປີດ
   static Future<TechDetail> techDetail(String code) async =>
-      TechDetail.fromJson(await _send('GET', '/api/mobile/techs/${Uri.encodeComponent(code)}'));
+      TechDetail.fromJson(
+        await _send('GET', '/api/mobile/techs/${Uri.encodeComponent(code)}'),
+      );
 
   /// ລາຍງານ — ແນວໂນ້ມ 14 ມື້ (ເປີດ/ປິດ) + ຄ່າຄອມເດືອນນີ້
   static Future<Reports> reports() async =>
@@ -858,6 +916,7 @@ class OverviewStage {
   final String key;
   final String label;
   final int count;
+
   /// ເລກຂັ້ນຂອງ STAGE_SQL — ໃຊ້ເປີດລາຍການ `stage:<n>` (server ສົ່ງມາ ບໍ່ໄດ້ຄິດເອງ)
   final int stage;
   OverviewStage({
@@ -939,6 +998,7 @@ class OverviewOldJob {
 /// ກອງວຽກຂອງຊ່າງ 1 ຄົນ — `stale` = ຄ້າງເກີນ 30 ມື້ (ຕົວທີ່ບອກບັນຫາຈິງ)
 class OverviewBacklog {
   final String tech;
+
   /// ລະຫັດຊ່າງ — ໃຊ້ຄົ້ນ (`tech:<code>`); `tech` ເປັນຊື່ເຕັມສຳລັບສະແດງ
   final String techCode;
   final int open;
@@ -951,13 +1011,14 @@ class OverviewBacklog {
     required this.oldestDays,
     required this.stale,
   });
-  factory OverviewBacklog.fromJson(Map<String, dynamic> json) => OverviewBacklog(
-    tech: json['tech'] as String? ?? '-',
-    techCode: json['tech_code'] as String? ?? '',
-    open: (json['open'] as num?)?.toInt() ?? 0,
-    oldestDays: (json['oldest_days'] as num?)?.toInt() ?? 0,
-    stale: (json['stale'] as num?)?.toInt() ?? 0,
-  );
+  factory OverviewBacklog.fromJson(Map<String, dynamic> json) =>
+      OverviewBacklog(
+        tech: json['tech'] as String? ?? '-',
+        techCode: json['tech_code'] as String? ?? '',
+        open: (json['open'] as num?)?.toInt() ?? 0,
+        oldestDays: (json['oldest_days'] as num?)?.toInt() ?? 0,
+        stale: (json['stale'] as num?)?.toInt() ?? 0,
+      );
 }
 
 /// ສະຫຼຸບ 1 ສາຍງານ — ເປີດຢູ່ຈັກໃບ ໃນນັ້ນຄ້າງເກີນ 30 ມື້ຈັກໃບ
@@ -974,13 +1035,14 @@ class WorkflowSummary {
     required this.stale,
     required this.oldestDays,
   });
-  factory WorkflowSummary.fromJson(Map<String, dynamic> json) => WorkflowSummary(
-    key: json['key'] as String? ?? '',
-    label: json['label'] as String? ?? '',
-    open: (json['open'] as num?)?.toInt() ?? 0,
-    stale: (json['stale'] as num?)?.toInt() ?? 0,
-    oldestDays: (json['oldest_days'] as num?)?.toInt() ?? 0,
-  );
+  factory WorkflowSummary.fromJson(Map<String, dynamic> json) =>
+      WorkflowSummary(
+        key: json['key'] as String? ?? '',
+        label: json['label'] as String? ?? '',
+        open: (json['open'] as num?)?.toInt() ?? 0,
+        stale: (json['stale'] as num?)?.toInt() ?? 0,
+        oldestDays: (json['oldest_days'] as num?)?.toInt() ?? 0,
+      );
 }
 
 /// ພາບລວມບໍລິຫານ (ໜ້າຫຼັກຜູ້ຈັດການ) — ຫຍໍ້ຈາກ dashboard ຝັ່ງເວັບ
@@ -1014,6 +1076,7 @@ class Overview {
   final int openTotal;
   final List<OverviewOldJob> oldest;
   final List<OverviewBacklog> techBacklog;
+  final int claimsOpen;
   final int claimsWaitDecision;
   final int loaners;
   final int flowOpened;
@@ -1059,6 +1122,7 @@ class Overview {
     required this.openTotal,
     required this.oldest,
     required this.techBacklog,
+    required this.claimsOpen,
     required this.claimsWaitDecision,
     required this.loaners,
     required this.flowOpened,
@@ -1080,7 +1144,8 @@ class Overview {
     final flow = (json['flow'] as Map?)?.cast<String, dynamic>() ?? {};
     final money = (json['money'] as Map?)?.cast<String, dynamic>() ?? {};
     int n(Map<String, dynamic> m, String k) => (m[k] as num?)?.toInt() ?? 0;
-    double d(Map<String, dynamic> m, String k) => (m[k] as num?)?.toDouble() ?? 0;
+    double d(Map<String, dynamic> m, String k) =>
+        (m[k] as num?)?.toDouble() ?? 0;
     return Overview(
       repairOpen: n(kpi, 'repair_open'),
       installOpen: n(kpi, 'install_open'),
@@ -1106,7 +1171,9 @@ class Overview {
       techLoad: ((json['tech_load'] as List?) ?? [])
           .map((row) => OverviewTech.fromJson(row as Map<String, dynamic>))
           .toList(),
-      techFree: ((json['tech_free'] as List?) ?? []).map((e) => e.toString()).toList(),
+      techFree: ((json['tech_free'] as List?) ?? [])
+          .map((e) => e.toString())
+          .toList(),
       feedbackAvg: (fb['avg'] as num?)?.toDouble(),
       feedbackJobs: n(fb, 'jobs'),
       feedbackUnhappy: n(fb, 'unhappy'),
@@ -1120,6 +1187,7 @@ class Overview {
       techBacklog: ((json['tech_backlog'] as List?) ?? [])
           .map((row) => OverviewBacklog.fromJson(row as Map<String, dynamic>))
           .toList(),
+      claimsOpen: n(claims, 'open'),
       claimsWaitDecision: n(claims, 'wait_decision'),
       loaners: (json['loaners'] as num?)?.toInt() ?? 0,
       flowOpened: n(flow, 'opened'),
@@ -1240,7 +1308,13 @@ class ApprovalLine {
   final String? unit;
   final String? price;
   final String? total;
-  const ApprovalLine({this.name, required this.qty, this.unit, this.price, this.total});
+  const ApprovalLine({
+    this.name,
+    required this.qty,
+    this.unit,
+    this.price,
+    this.total,
+  });
 
   factory ApprovalLine.fromJson(Map<String, dynamic> j) => ApprovalLine(
     name: j['name'] as String?,
@@ -1270,6 +1344,10 @@ class ApprovalDetail {
   final String? discount;
   final String? amountKip;
   final String? reason;
+  final String? branch;
+  final String? supplier;
+  final String? jobCode;
+  final String? remark;
   final List<ApprovalLine> lines;
 
   const ApprovalDetail({
@@ -1290,6 +1368,10 @@ class ApprovalDetail {
     this.discount,
     this.amountKip,
     this.reason,
+    this.branch,
+    this.supplier,
+    this.jobCode,
+    this.remark,
     required this.lines,
   });
 
@@ -1313,6 +1395,10 @@ class ApprovalDetail {
     discount: j['discount']?.toString(),
     amountKip: j['amountKip']?.toString(),
     reason: j['reason'] as String?,
+    branch: j['branch'] as String?,
+    supplier: j['supplier'] as String?,
+    jobCode: j['jobCode'] as String?,
+    remark: j['remark'] as String?,
     lines: ((j['lines'] as List?) ?? [])
         .map((r) => ApprovalLine.fromJson(r as Map<String, dynamic>))
         .toList(),
@@ -1432,6 +1518,7 @@ class Job {
   final String? diagnosis; // ຜົນວິເຄາະຂອງຊ່າງ
   final String? warrantyReason; // ເຫດຜົນເມື່ອໝົດຮັບປະກັນ
   final bool onsite;
+
   /// ປະເພດບໍລິການສ້ອມ (CI/ST/IH/PS) — null ຝັ່ງຕິດຕັ້ງ. IH = ໄປສ້ອມບ້ານ ⇒ ນຳເຂົ້າສູນໄດ້
   final String? serviceType;
   final int stage;
@@ -1601,15 +1688,16 @@ class RepairSpareLine {
     required this.locked,
   });
 
-  factory RepairSpareLine.fromJson(Map<String, dynamic> json) => RepairSpareLine(
-    roworder: (json['roworder'] as num).toInt(),
-    itemCode: json['item_code'] as String,
-    itemName: json['item_name'] as String? ?? '',
-    qty: (json['qty'] as num).toDouble(),
-    unitCode: json['unit_code'] as String?,
-    requested: json['requested'] as bool? ?? false,
-    locked: json['locked'] as bool? ?? false,
-  );
+  factory RepairSpareLine.fromJson(Map<String, dynamic> json) =>
+      RepairSpareLine(
+        roworder: (json['roworder'] as num).toInt(),
+        itemCode: json['item_code'] as String,
+        itemName: json['item_name'] as String? ?? '',
+        qty: (json['qty'] as num).toDouble(),
+        unitCode: json['unit_code'] as String?,
+        requested: json['requested'] as bool? ?? false,
+        locked: json['locked'] as bool? ?? false,
+      );
 }
 
 /// ຍອດຄົງເຫຼືອຂອງອາໄຫຼ່ ໃນສາງໜຶ່ງ (ຕິດຕາມສິນຄ້າຄົງເຫຼືອ)
@@ -1640,16 +1728,17 @@ class StockBalanceItem {
     required this.total,
     required this.warehouses,
   });
-  factory StockBalanceItem.fromJson(Map<String, dynamic> json) => StockBalanceItem(
-    code: json['code'] as String,
-    name: json['name'] as String? ?? '',
-    brand: json['brand'] as String?,
-    unitCode: json['unit_code'] as String?,
-    total: (json['total'] as num?)?.toDouble() ?? 0,
-    warehouses: ((json['warehouses'] as List?) ?? [])
-        .map((row) => WhBalance.fromJson(row))
-        .toList(),
-  );
+  factory StockBalanceItem.fromJson(Map<String, dynamic> json) =>
+      StockBalanceItem(
+        code: json['code'] as String,
+        name: json['name'] as String? ?? '',
+        brand: json['brand'] as String?,
+        unitCode: json['unit_code'] as String?,
+        total: (json['total'] as num?)?.toDouble() ?? 0,
+        warehouses: ((json['warehouses'] as List?) ?? [])
+            .map((row) => WhBalance.fromJson(row))
+            .toList(),
+      );
 }
 
 /// ອາໄຫຼ່ທີ່ AI ແນະນຳ (ຈາກປະຫວັດການເບີກ ຮຸ່ນເຄື່ອງດຽວກັນ)
@@ -1670,22 +1759,19 @@ class SpareSuggestion {
     required this.confidence,
   });
 
-  factory SpareSuggestion.fromJson(Map<String, dynamic> json) => SpareSuggestion(
-    code: json['code'] as String,
-    name: json['name'] as String? ?? json['code'] as String,
-    unitCode: json['unit_code'] as String?,
-    balance: (json['balance'] as num?)?.toInt() ?? 0,
-    uses: (json['uses'] as num?)?.toInt() ?? 0,
-    confidence: (json['confidence'] as num?)?.toInt() ?? 0,
-  );
+  factory SpareSuggestion.fromJson(Map<String, dynamic> json) =>
+      SpareSuggestion(
+        code: json['code'] as String,
+        name: json['name'] as String? ?? json['code'] as String,
+        unitCode: json['unit_code'] as String?,
+        balance: (json['balance'] as num?)?.toInt() ?? 0,
+        uses: (json['uses'] as num?)?.toInt() ?? 0,
+        confidence: (json['confidence'] as num?)?.toInt() ?? 0,
+      );
 
   /// ແປງເປັນ SpareItem ເພື່ອສົ່ງ add_spare (check screen ໃຊ້ໂຄງดียวกัน)
-  SpareItem toItem() => SpareItem(
-    code: code,
-    name: name,
-    unitCode: unitCode,
-    balance: balance,
-  );
+  SpareItem toItem() =>
+      SpareItem(code: code, name: name, unitCode: unitCode, balance: balance);
 }
 
 class SpareItem {
@@ -1865,15 +1951,16 @@ class AppNotification {
     required this.resId,
   });
 
-  factory AppNotification.fromJson(Map<String, dynamic> json) => AppNotification(
-    id: (json['id'] as num).toInt(),
-    body: json['body'] as String? ?? '',
-    actor: json['actor'] as String?,
-    createdAt: json['created_at'] as String? ?? '',
-    read: json['read'] as bool? ?? false,
-    model: json['model'] as String? ?? '',
-    resId: json['res_id'] as String? ?? '',
-  );
+  factory AppNotification.fromJson(Map<String, dynamic> json) =>
+      AppNotification(
+        id: (json['id'] as num).toInt(),
+        body: json['body'] as String? ?? '',
+        actor: json['actor'] as String?,
+        createdAt: json['created_at'] as String? ?? '',
+        read: json['read'] as bool? ?? false,
+        model: json['model'] as String? ?? '',
+        resId: json['res_id'] as String? ?? '',
+      );
 }
 
 /// ອາໄຫຼ່ທີ່ **ຢູ່ນຳຊ່າງ** (ເບີກອອກແລ້ວ ຍັງບໍ່ໄດ້ຂໍສົ່ງຄືນ)
@@ -1892,13 +1979,14 @@ class OutstandingSpare {
     required this.unitCode,
   });
 
-  factory OutstandingSpare.fromJson(Map<String, dynamic> json) => OutstandingSpare(
-    docNo: json['doc_no'] as String,
-    itemCode: json['item_code'] as String,
-    itemName: json['item_name'] as String? ?? '',
-    qty: double.tryParse('${json['qty']}') ?? 0,
-    unitCode: json['unit_code'] as String?,
-  );
+  factory OutstandingSpare.fromJson(Map<String, dynamic> json) =>
+      OutstandingSpare(
+        docNo: json['doc_no'] as String,
+        itemCode: json['item_code'] as String,
+        itemName: json['item_name'] as String? ?? '',
+        qty: double.tryParse('${json['qty']}') ?? 0,
+        unitCode: json['unit_code'] as String?,
+      );
 }
 
 /* ── ຕິດຕາມງານ / ຜົນງານລູກນ້ອງ / ລາຍງານ (manager monitor) ───────────── */
@@ -1909,6 +1997,15 @@ class MonitorJob {
   final String code;
   final String? product;
   final String? customer;
+  final String? tel;
+  final String? address;
+  final String? detail;
+  final String? sn;
+  final String? warranty;
+  final String? symptom;
+  final String? diagnosis;
+  final String? receivedAt;
+  final String? appointment;
   final String? tech;
   final String? serviceType;
   final String stageLabel;
@@ -1920,6 +2017,15 @@ class MonitorJob {
     required this.code,
     required this.product,
     required this.customer,
+    this.tel,
+    this.address,
+    this.detail,
+    this.sn,
+    this.warranty,
+    this.symptom,
+    this.diagnosis,
+    this.receivedAt,
+    this.appointment,
     required this.tech,
     required this.serviceType,
     required this.stageLabel,
@@ -1932,6 +2038,15 @@ class MonitorJob {
     code: '${json['code']}',
     product: json['product'] as String?,
     customer: json['customer'] as String?,
+    tel: json['tel'] as String?,
+    address: json['address'] as String?,
+    detail: json['detail'] as String?,
+    sn: json['sn'] as String?,
+    warranty: json['warranty'] as String?,
+    symptom: json['symptom'] as String?,
+    diagnosis: json['diagnosis'] as String?,
+    receivedAt: json['received_at'] as String?,
+    appointment: json['appointment'] as String?,
     tech: json['tech'] as String?,
     serviceType: json['service_type'] as String?,
     stageLabel: json['stage_label'] as String? ?? '',
@@ -1949,7 +2064,12 @@ class MonitorGroup {
   final String tone;
   final List<MonitorJob> jobs;
 
-  MonitorGroup({required this.key, required this.label, required this.tone, required this.jobs});
+  MonitorGroup({
+    required this.key,
+    required this.label,
+    required this.tone,
+    required this.jobs,
+  });
 
   factory MonitorGroup.fromJson(Map<String, dynamic> json) => MonitorGroup(
     key: json['key'] as String? ?? '',
@@ -2126,12 +2246,13 @@ class JobTimelineData {
   final List<TimelineStep> steps;
   final String? cancelledAt;
   JobTimelineData({required this.steps, required this.cancelledAt});
-  factory JobTimelineData.fromJson(Map<String, dynamic> json) => JobTimelineData(
-    steps: ((json['steps'] as List?) ?? [])
-        .map((row) => TimelineStep.fromJson(row as Map<String, dynamic>))
-        .toList(),
-    cancelledAt: json['cancelled_at'] as String?,
-  );
+  factory JobTimelineData.fromJson(Map<String, dynamic> json) =>
+      JobTimelineData(
+        steps: ((json['steps'] as List?) ?? [])
+            .map((row) => TimelineStep.fromJson(row as Map<String, dynamic>))
+            .toList(),
+        cancelledAt: json['cancelled_at'] as String?,
+      );
 }
 
 /// ຂໍ້ມູນການສົ່ງເຄື່ອງຈາກລະບົບຂົນສົ່ງ (odg_tms_detail) — ສະເພາະງານຕິດຕັ້ງ.
@@ -2189,7 +2310,11 @@ class LoanerOut {
   final String isn;
   final int days;
 
-  const LoanerOut({required this.itemName, required this.isn, required this.days});
+  const LoanerOut({
+    required this.itemName,
+    required this.isn,
+    required this.days,
+  });
 
   factory LoanerOut.fromJson(Map<String, dynamic> json) => LoanerOut(
     itemName: json['item_name'] as String? ?? '',
@@ -2210,6 +2335,7 @@ class MapPin {
   final String stageLabel;
   final int ageDays;
   final String? serviceType;
+
   /// job = ພິກັດທີ່ໝາຍຕອນເປີດງານ · checkin = ຈຸດທີ່ຊ່າງໄປຮອດ
   final String source;
 
@@ -2256,13 +2382,14 @@ class CommissionPerson {
     required this.lines,
     required this.totalThb,
   });
-  factory CommissionPerson.fromJson(Map<String, dynamic> json) => CommissionPerson(
-    employeeCode: json['employee_code'] as String? ?? '',
-    name: json['name'] as String? ?? '-',
-    jobs: (json['jobs'] as num?)?.toInt() ?? 0,
-    lines: (json['lines'] as num?)?.toInt() ?? 0,
-    totalThb: (json['total_thb'] as num?)?.toDouble() ?? 0,
-  );
+  factory CommissionPerson.fromJson(Map<String, dynamic> json) =>
+      CommissionPerson(
+        employeeCode: json['employee_code'] as String? ?? '',
+        name: json['name'] as String? ?? '-',
+        jobs: (json['jobs'] as num?)?.toInt() ?? 0,
+        lines: (json['lines'] as num?)?.toInt() ?? 0,
+        totalThb: (json['total_thb'] as num?)?.toDouble() ?? 0,
+      );
 }
 
 /// 1 ແຖວຄ່າຄອມ — ບອກວ່າ **ເງິນນີ້ມາຈາກໃສ** (ໃບງານ · ອັດຕາ · ຍອດເຕັມ × ເປີເຊັນ)
@@ -2329,7 +2456,6 @@ class Commission {
         .toList(),
   );
 }
-
 
 /// ຍອດຂອງ 1 ອາໄຫຼ່ ໃນ 1 ສູນ
 class StockCenterQty {
@@ -2479,20 +2605,20 @@ class RepairStockDetail {
     required this.places,
     required this.moves,
   });
-  factory RepairStockDetail.fromJson(Map<String, dynamic> json) => RepairStockDetail(
-    code: json['code'] as String? ?? '',
-    name: json['name'] as String? ?? '',
-    unitCode: json['unit_code'] as String?,
-    total: (json['total'] as num?)?.toDouble() ?? 0,
-    places: ((json['places'] as List?) ?? [])
-        .map((row) => StockPlace.fromJson(row as Map<String, dynamic>))
-        .toList(),
-    moves: ((json['moves'] as List?) ?? [])
-        .map((row) => StockMove.fromJson(row as Map<String, dynamic>))
-        .toList(),
-  );
+  factory RepairStockDetail.fromJson(Map<String, dynamic> json) =>
+      RepairStockDetail(
+        code: json['code'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        unitCode: json['unit_code'] as String?,
+        total: (json['total'] as num?)?.toDouble() ?? 0,
+        places: ((json['places'] as List?) ?? [])
+            .map((row) => StockPlace.fromJson(row as Map<String, dynamic>))
+            .toList(),
+        moves: ((json['moves'] as List?) ?? [])
+            .map((row) => StockMove.fromJson(row as Map<String, dynamic>))
+            .toList(),
+      );
 }
-
 
 /// 1 ກິດຈະກຳທີ່ນັດໄວ້ໃສ່ໃບງານ (todo · ໂທ · ໄປພົບ · ປະຊຸມ)
 ///
@@ -2503,10 +2629,12 @@ class PlannedActivity {
   final String kind;
   final String summary;
   final String? note;
+
   /// ຜູ້ຮັບຜິດຊອບ **ທຸກຄົນ** ຄັ່ນດ້ວຍ ", "
   final String assignedTo;
   final String? dueDate;
   final String createdBy;
+
   /// ຕິດລົບ = ເລີຍກຳນົດແລ້ວ
   final int daysLeft;
   final String? jobTitle;
@@ -2528,20 +2656,21 @@ class PlannedActivity {
     required this.workflow,
   });
 
-  factory PlannedActivity.fromJson(Map<String, dynamic> json) => PlannedActivity(
-    id: (json['id'] as num?)?.toInt() ?? 0,
-    resId: '${json['res_id']}',
-    kind: json['kind'] as String? ?? 'todo',
-    summary: json['summary'] as String? ?? '',
-    note: json['note'] as String?,
-    assignedTo: json['assigned_to'] as String? ?? '-',
-    dueDate: json['due_date'] as String?,
-    createdBy: json['created_by'] as String? ?? '',
-    daysLeft: (json['days_left'] as num?)?.toInt() ?? 0,
-    jobTitle: json['job_title'] as String?,
-    customer: json['customer'] as String?,
-    workflow: json['workflow'] as String? ?? 'repair',
-  );
+  factory PlannedActivity.fromJson(Map<String, dynamic> json) =>
+      PlannedActivity(
+        id: (json['id'] as num?)?.toInt() ?? 0,
+        resId: '${json['res_id']}',
+        kind: json['kind'] as String? ?? 'todo',
+        summary: json['summary'] as String? ?? '',
+        note: json['note'] as String?,
+        assignedTo: json['assigned_to'] as String? ?? '-',
+        dueDate: json['due_date'] as String?,
+        createdBy: json['created_by'] as String? ?? '',
+        daysLeft: (json['days_left'] as num?)?.toInt() ?? 0,
+        jobTitle: json['job_title'] as String?,
+        customer: json['customer'] as String?,
+        workflow: json['workflow'] as String? ?? 'repair',
+      );
 
   String get kindLabel => switch (kind) {
     'call' => 'ໂທຫາ',

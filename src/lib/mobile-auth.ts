@@ -20,6 +20,7 @@ import { authSecretBytes } from "@/lib/auth-secret";
 const secret = authSecretBytes();
 const AUDIENCE = "mobile";
 const EXPIRY = "30d";
+const WEB_TICKET_AUDIENCE = "mobile-web-bridge";
 
 export async function createMobileToken(session: Session): Promise<string> {
   return new SignJWT({ username: session.username, role: session.role })
@@ -28,6 +29,38 @@ export async function createMobileToken(session: Session): Promise<string> {
     .setAudience(AUDIENCE)
     .setExpirationTime(EXPIRY)
     .sign(secret);
+}
+
+/**
+ * Ticket ອາຍຸສັ້ນສຳລັບປ່ຽນ mobile Bearer session ເປັນ web cookie.
+ * ຜູກປາຍທາງໄວ້ໃນ signed payload ເພື່ອບໍ່ໃຫ້ປ່ຽນ redirect URL ຫຼັງອອກ ticket.
+ */
+export async function createMobileWebTicket(session: Session, href: string): Promise<string> {
+  return new SignJWT({ username: session.username, role: session.role, href })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setAudience(WEB_TICKET_AUDIENCE)
+    .setExpirationTime("60s")
+    .sign(secret);
+}
+
+export async function verifyMobileWebTicket(
+  ticket: string,
+): Promise<{ session: Session; href: string } | null> {
+  try {
+    const { payload } = await jwtVerify(ticket, secret, { audience: WEB_TICKET_AUDIENCE });
+    if (
+      typeof payload.username !== "string" ||
+      typeof payload.role !== "string" ||
+      typeof payload.href !== "string"
+    ) return null;
+    return {
+      session: { username: payload.username, role: payload.role },
+      href: payload.href,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export type MobileUser = Session & { role: Role };
