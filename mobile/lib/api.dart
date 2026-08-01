@@ -195,8 +195,16 @@ class Api {
       if (auth && response.statusCode == 401) {
         await _forceLogin();
       }
+      /**
+       * 404 ຈາກ route ຂອງແອັບ = **server ຍັງເປັນຮຸ່ນເກົ່າ** (ຍັງບໍ່ໄດ້ deploy)
+       * ບໍ່ແມ່ນ "ເຊື່ອມຕໍ່ບໍ່ໄດ້". ບອກໃຫ້ຊັດ ບໍ່ດັ່ງນັ້ນຄົນຈະໄລ່ກວດສັນຍານ/ອິນເຕີເນັດ
+       * ຢູ່ຫຼາຍຊົ່ວໂມງ ທັງທີ່ບັນຫາຢູ່ຝັ່ງ server.
+       */
       throw ApiError(
-        (decoded['error'] as String?) ?? 'ເຊື່ອມຕໍ່ບໍ່ໄດ້',
+        (decoded['error'] as String?) ??
+            (response.statusCode == 404
+                ? 'server ຍັງບໍ່ມີໜ້າທີ່ນີ້ — ຮຸ່ນຂອງ server ເກົ່າກວ່າແອັບ (ຕ້ອງ deploy ກ່ອນ)'
+                : 'ເຊື່ອມຕໍ່ບໍ່ໄດ້'),
         response.statusCode,
       );
     }

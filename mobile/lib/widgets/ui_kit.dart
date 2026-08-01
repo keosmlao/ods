@@ -7,15 +7,16 @@ import '../main.dart';
 /// ── ຊຸດ UI ກາງ (ອອກແບບໃໝ່) ──
 /// ຊິ້ນສ່ວນທີ່ໃຊ້ຊ້ຳທຸກໜ້າ ⇒ ໜ້າຕາເປັນລະບົບດຽວກັນ ແລະ ແກ້ບ່ອນດຽວ.
 
-/// ເງົານຸ້ມມາດຕະຖານຂອງກາດ
+/// ເງົານຸ້ມມາດຕະຖານຂອງກາດ (v2 modern dual shadow)
 const kSoftShadow = [
-  BoxShadow(color: Color(0x120C1B18), blurRadius: 18, offset: Offset(0, 8)),
+  BoxShadow(color: Color(0x0C0C1B18), blurRadius: 20, offset: Offset(0, 6)),
+  BoxShadow(color: Color(0x05000000), blurRadius: 4, offset: Offset(0, 2)),
 ];
 
-BoxDecoration cardDecoration({Color? color, Color? border}) => BoxDecoration(
+BoxDecoration cardDecoration({Color? color, Color? border, double borderRadius = 20}) => BoxDecoration(
   color: color ?? Colors.white,
-  borderRadius: BorderRadius.circular(18),
-  border: Border.all(color: border ?? line),
+  borderRadius: BorderRadius.circular(borderRadius),
+  border: Border.all(color: border ?? const Color(0xFFE5ECE9)),
   boxShadow: kSoftShadow,
 );
 
@@ -319,12 +320,20 @@ class HeroScaffold extends StatelessWidget {
   );
 }
 
-/// 1 ຕົວເລກໃນແຖບ stat ຂອງ hero
+/// 1 ຕົວເລກໃນແຖບ stat ຂອງ hero ( glass design )
 class HeroStat {
-  const HeroStat({required this.value, required this.label, this.color});
+  const HeroStat({
+    required this.value,
+    required this.label,
+    this.color,
+    this.icon,
+    this.badgeColor,
+  });
   final String value;
   final String label;
   final Color? color;
+  final IconData? icon;
+  final Color? badgeColor;
 }
 
 /// ປຸ່ມໄອຄອນແກ້ວ (glass) ເທິງ hero
@@ -340,12 +349,12 @@ class HeroIconButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        width: 40,
-        height: 40,
+        width: 42,
+        height: 42,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: .12),
+          color: Colors.white.withValues(alpha: .14),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: .14)),
+          border: Border.all(color: Colors.white.withValues(alpha: .18)),
         ),
         child: Icon(icon, size: 20, color: onHero),
       ),
@@ -409,12 +418,15 @@ class HeroHeader extends StatelessWidget {
         end: Alignment.bottomLeft,
         colors: [hero2, hero1],
       ),
-      borderRadius: BorderRadius.vertical(bottom: Radius.circular(26)),
+      borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+      boxShadow: [
+        BoxShadow(color: Color(0x1804241D), blurRadius: 20, offset: Offset(0, 10)),
+      ],
     ),
     child: SafeArea(
       bottom: false,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(18, 10, 18, inlineBack ? 14 : 18),
+        padding: EdgeInsets.fromLTRB(18, 10, 18, inlineBack ? 14 : 20),
         child: inlineBack
             ? Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -492,8 +504,8 @@ class HeroHeader extends StatelessWidget {
                       Text(
                         title,
                         style: const TextStyle(
-                          fontSize: 21,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
                           color: onHero,
                           letterSpacing: -.3,
                         ),
@@ -529,32 +541,63 @@ class _HeroStatTile extends StatelessWidget {
   final HeroStat stat;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(12, 11, 12, 12),
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: .08),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.white.withValues(alpha: .10)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          stat.value,
-          style: TextStyle(
-            fontSize: 25,
-            height: 1,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -.5,
-            color: stat.color ?? onHero,
-            fontFeatures: const [FontFeature.tabularFigures()],
+  Widget build(BuildContext context) {
+    final valueColor = stat.color ?? onHero;
+    final badgeBg = stat.badgeColor ?? valueColor.withValues(alpha: .18);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .10),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: .15)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
           ),
-        ),
-        const SizedBox(height: 5),
-        Text(stat.label, style: const TextStyle(fontSize: 10, color: onHeroDim)),
-      ],
-    ),
-  );
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                stat.value,
+                style: TextStyle(
+                  fontSize: 25,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -.5,
+                  color: valueColor,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              if (stat.icon != null)
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: badgeBg,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(stat.icon, size: 13, color: valueColor),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            stat.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: onHeroDim),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// ── Flow ຊ່າງ: ແຖບຄວາມຄືບໜ້າ 6 ຂັ້ນ ──

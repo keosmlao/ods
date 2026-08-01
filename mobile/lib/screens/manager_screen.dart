@@ -115,12 +115,12 @@ class _ManagerScreenState extends State<ManagerScreen> {
                   ),
                 ],
                 child: Container(
-                  width: 40,
-                  height: 40,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .12),
+                    color: Colors.white.withValues(alpha: .14),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withValues(alpha: .14)),
+                    border: Border.all(color: Colors.white.withValues(alpha: .18)),
                   ),
                   child: const Icon(Icons.more_vert, size: 20, color: onHero),
                 ),
@@ -129,9 +129,26 @@ class _ManagerScreenState extends State<ManagerScreen> {
             stats: data == null
                 ? null
                 : [
-                    HeroStat(value: '${data!.repairOpen}', label: 'ວຽກສ້ອມຄ້າງ'),
-                    HeroStat(value: '${data!.overSla}', label: 'ເລີຍ SLA', color: const Color(0xFFFDA4AF)),
-                    HeroStat(value: '${data!.approvalsTotal}', label: 'ລໍອະນຸມັດ', color: const Color(0xFFFDBA74)),
+                    HeroStat(
+                      value: '${data!.repairOpen}',
+                      label: 'ວຽກສ້ອມຄ້າງ',
+                      icon: Icons.build_circle_outlined,
+                      color: onHero,
+                    ),
+                    HeroStat(
+                      value: '${data!.overSla}',
+                      label: 'ເລີຍ SLA',
+                      icon: Icons.timer_off_outlined,
+                      color: const Color(0xFFFDA4AF),
+                      badgeColor: const Color(0x33F43F5E),
+                    ),
+                    HeroStat(
+                      value: '${data!.approvalsTotal}',
+                      label: 'ລໍອະນຸມັດ',
+                      icon: Icons.pending_actions_outlined,
+                      color: const Color(0xFFFDBA74),
+                      badgeColor: const Color(0x33F59E0B),
+                    ),
                   ],
           ),
           Expanded(
@@ -186,6 +203,78 @@ class _ManagerScreenState extends State<ManagerScreen> {
       _ActionItem('ເຄື່ອງສຳຮອງຄ້າງຄືນ', d.loaners, const Color(0xFFD97706),
           () => _open('loaners', 'ໃບງານທີ່ມີເຄື່ອງສຳຮອງຄ້າງຄືນ')),
       _ActionItem('ລູກຄ້າໃຫ້ຄະແນນຕໍ່າ', d.feedbackUnhappy, const Color(0xFFD97706),
+          () => _open('unhappy', 'ລູກຄ້າໃຫ້ຄະແນນຕໍ່າ')),
+    ].where((a) => a.value > 0).toList();
+
+    return [
+      // ── ① ອາຍຸຂອງກອງວຽກ — ຕົວເລກດຽວທີ່ບອກສຸຂະພາບຂອງສູນໄດ້ດີສຸດ ──
+      _Card(
+        title: 'ງານຄ້າງເກີນ 30 ມື້',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: () => _open('age:over30', 'ຄ້າງເກີນ 30 ມື້'),
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: (d.staleJobs > 0 ? danger : ok).withValues(alpha: .06),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: (d.staleJobs > 0 ? danger : ok).withValues(alpha: .22),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: (d.staleJobs > 0 ? danger : ok).withValues(alpha: .14),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        d.staleJobs > 0 ? Icons.warning_amber_rounded : Icons.check_circle_outline,
+                        color: d.staleJobs > 0 ? danger : ok,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${d.staleJobs}',
+                          style: TextStyle(
+                            fontSize: 32,
+                            height: 1,
+                            fontWeight: FontWeight.w900,
+                            color: d.staleJobs > 0 ? danger : ok,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'ຈາກງານທີ່ຍັງເປີດຢູ່ທັງໝົດ ${d.openTotal} ໃບ',
+                          style: const TextStyle(fontSize: 12, color: muted, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 14,
+                      color: d.staleJobs > 0 ? danger : ok,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            // ແຕະປ້າຍຖັງໃດ = ເປີດລາຍການຂອງຖັງນັ້ນ
+            _AgeBar(aging: d.aging, total: d.openTotal, onTap: (b) => _open('age:${b.key}', b.label)),
+          ],
+        ),
+      ),kUnhappy, const Color(0xFFD97706),
           () => _open('unhappy', 'ລູກຄ້າໃຫ້ຄະແນນຕໍ່າ')),
     ].where((a) => a.value > 0).toList();
 
@@ -487,47 +576,50 @@ class _WorkflowRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 7),
+    padding: const EdgeInsets.symmetric(vertical: 8),
     child: Row(
       children: [
         SizedBox(
-          width: 74,
+          width: 78,
           child: Text(
             row.label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: ink),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: ink),
           ),
         ),
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(999),
-            child: SizedBox(
-              height: 8,
+            child: Container(
+              height: 9,
+              color: const Color(0xFFEFF4F2),
               child: Row(
                 children: [
                   if (row.stale > 0)
                     Expanded(flex: row.stale, child: const ColoredBox(color: danger)),
                   if (row.open - row.stale > 0)
                     Expanded(flex: row.open - row.stale, child: const ColoredBox(color: teal)),
-                  if (row.open == 0) const Expanded(child: ColoredBox(color: Color(0xFFEFF3F1))),
                 ],
               ),
             ),
           ),
         ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 104,
+        const SizedBox(width: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: row.stale > 0 ? danger.withValues(alpha: .10) : surfaceAlt,
+            borderRadius: BorderRadius.circular(6),
+          ),
           child: Text(
             row.stale > 0
                 ? '${row.open} ໃບ · ຄ້າງ ${row.stale}'
                 : '${row.open} ໃບ${row.oldestDays > 0 ? ' · ${row.oldestDays} ມື້' : ''}',
-            textAlign: TextAlign.right,
             style: TextStyle(
               fontSize: 11,
               color: row.stale > 0 ? danger : muted,
-              fontWeight: row.stale > 0 ? FontWeight.w700 : FontWeight.w400,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ),
@@ -552,25 +644,32 @@ class _ShortcutButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap,
-    borderRadius: BorderRadius.circular(14),
+    borderRadius: BorderRadius.circular(16),
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       decoration: BoxDecoration(
-        color: tone.withValues(alpha: .08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: tone.withValues(alpha: .28)),
+        color: tone.withValues(alpha: .06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: tone.withValues(alpha: .22)),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 19, color: tone),
-          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: tone.withValues(alpha: .14),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: tone),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: ink),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: ink),
             ),
           ),
-          Icon(Icons.chevron_right, size: 16, color: tone.withValues(alpha: .7)),
+          Icon(Icons.arrow_forward_ios_rounded, size: 13, color: tone),
         ],
       ),
     ),
@@ -597,27 +696,34 @@ class _ActionChip extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: item.tone.withValues(alpha: .08),
+        color: item.tone.withValues(alpha: .07),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: item.tone.withValues(alpha: .28)),
+        border: Border.all(color: item.tone.withValues(alpha: .24)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            '${item.value}',
-            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: item.tone),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: item.tone,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '${item.value}',
+              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900, color: Colors.white),
+            ),
           ),
-          const SizedBox(width: 7),
+          const SizedBox(width: 8),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 150),
             child: Text(
               item.label,
-              style: const TextStyle(fontSize: 12, color: ink, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 12, color: ink, fontWeight: FontWeight.w700),
             ),
           ),
-          const SizedBox(width: 2),
-          Icon(Icons.chevron_right, size: 15, color: item.tone.withValues(alpha: .7)),
+          const SizedBox(width: 4),
+          Icon(Icons.arrow_forward_ios_rounded, size: 12, color: item.tone),
         ],
       ),
     ),
@@ -633,8 +739,8 @@ class _AgeBar extends StatelessWidget {
 
   static const _colors = {
     'd7': ok,
-    'd14': Color(0xFFFDE047),
-    'd30': Color(0xFFFBBF24),
+    'd14': Color(0xFFEAB308),
+    'd30': Color(0xFFF59E0B),
     'over30': danger,
   };
 
@@ -646,8 +752,9 @@ class _AgeBar extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
-          child: SizedBox(
+          child: Container(
             height: 10,
+            color: const Color(0xFFEFF4F2),
             child: Row(
               children: [
                 for (final bucket in aging)
@@ -660,36 +767,40 @@ class _AgeBar extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Wrap(
-          spacing: 14,
-          runSpacing: 4,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             for (final bucket in aging)
               InkWell(
                 onTap: () => onTap(bucket),
                 borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: (_colors[bucket.key] ?? muted).withValues(alpha: .10),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: (_colors[bucket.key] ?? muted).withValues(alpha: .22)),
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 9,
-                        height: 9,
+                        width: 7,
+                        height: 7,
                         decoration: BoxDecoration(
                           color: _colors[bucket.key] ?? muted,
-                          borderRadius: BorderRadius.circular(3),
+                          shape: BoxShape.circle,
                         ),
                       ),
-                      const SizedBox(width: 5),
+                      const SizedBox(width: 6),
                       Text(
                         '${bucket.count} · ${bucket.label}',
                         style: const TextStyle(
-                          fontSize: 11.5,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
                           color: ink,
-                          decoration: TextDecoration.underline,
-                          decorationColor: faint,
                         ),
                       ),
                     ],
@@ -710,10 +821,6 @@ class _OldJobRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => InkWell(
-    /**
-     * ແປງເປັນ MonitorJob ແລ້ວເປີດ sheet ອັນດຽວກັບໜ້າຕິດຕາມງານ ⇒ ຜູ້ຈັດການເຫັນ
-     * ລາຍລະອຽດແບບດຽວກັນທຸກບ່ອນ. ບໍ່ມີ SLA ຢູ່ບັດນີ້ ⇒ sla_left = null (ຈະສະແດງອາຍຸແທນ).
-     */
     onTap: () => showJobSheet(
       context,
       MonitorJob(
@@ -728,52 +835,64 @@ class _OldJobRow extends StatelessWidget {
         slaLeft: null,
       ),
     ),
-    borderRadius: BorderRadius.circular(10),
-    child: Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 44,
-          child: Text(
-            '${job.days}',
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: job.days > 30 ? danger : ink,
+    borderRadius: BorderRadius.circular(12),
+    child: Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: surfaceAlt,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: line),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            decoration: BoxDecoration(
+              color: (job.days > 30 ? danger : teal).withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  '${job.days}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                    color: job.days > 30 ? danger : teal,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text('ມື້', style: TextStyle(fontSize: 9.5, color: muted, fontWeight: FontWeight.w700)),
+              ],
             ),
           ),
-        ),
-        const SizedBox(width: 4),
-        const Padding(
-          padding: EdgeInsets.only(top: 4),
-          child: Text('ມື້', style: TextStyle(fontSize: 10, color: muted)),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '#${job.code} · ${job.product}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ink),
-              ),
-              Text(
-                '${job.custName ?? '-'} · ${job.stageLabel} · ${job.tech ?? 'ຍັງບໍ່ມີຊ່າງ'}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, color: muted),
-              ),
-            ],
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '#${job.code} · ${job.product}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: ink),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${job.custName ?? '-'} · ${job.stageLabel} · ${job.tech ?? 'ຍັງບໍ່ມີຊ່າງ'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11, color: muted),
+                ),
+              ],
+            ),
           ),
-        ),
-        const Icon(Icons.chevron_right, size: 17, color: faint),
-      ],
-    ),
+          const Icon(Icons.chevron_right, size: 18, color: faint),
+        ],
+      ),
     ),
   );
 }
@@ -942,28 +1061,38 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(top: 12),
-    padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFFE2E8F0)),
-    ),
+    margin: const EdgeInsets.only(top: 13),
+    padding: const EdgeInsets.fromLTRB(16, 15, 16, 16),
+    decoration: cardDecoration(borderRadius: 20),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
+            Container(
+              width: 3.5,
+              height: 15,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: teal,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: ink),
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w900,
+                  color: ink,
+                  letterSpacing: -.2,
+                ),
               ),
             ),
             if (trailing != null) trailing!,
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         child,
       ],
     ),
@@ -989,25 +1118,39 @@ class _Mini extends StatelessWidget {
   Widget build(BuildContext context) => Expanded(
     child: InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Column(
-        children: [
-          Text(
-            valueText ?? '${value ?? 0}',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: tone),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11,
-              color: muted,
-              decoration: onTap == null ? null : TextDecoration.underline,
-              decorationColor: faint,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        decoration: BoxDecoration(
+          color: tone.withValues(alpha: .06),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: tone.withValues(alpha: .14)),
+        ),
+        child: Column(
+          children: [
+            Text(
+              valueText ?? '${value ?? 0}',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: tone,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 3),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                color: muted,
+                decoration: onTap == null ? null : TextDecoration.underline,
+                decorationColor: tone.withValues(alpha: .4),
+              ),
+            ),
+          ],
+        ),
       ),
     ),
   );

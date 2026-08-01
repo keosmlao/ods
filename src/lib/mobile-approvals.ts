@@ -67,7 +67,7 @@ export async function pendingApprovals(): Promise<ApprovalItem[]> {
        where a.status = 6 and a.cancel_start is not null and a.cancel_finish is null
        order by a.cancel_start`,
     ),
-    erpPurchaseApprovals(),
+    withBudget(erpPurchaseApprovals(), [], "ຄິວອະນຸມັດຝັ່ງ ERP"),
   ]);
 
   // ຄ້າງດົນສຸດຂຶ້ນກ່ອນ — ອັນທີ່ຖ່ວງງານຢູ່ຄືອັນທີ່ຕ້ອງຕັດສິນກ່ອນ
@@ -86,6 +86,27 @@ export async function pendingApprovals(): Promise<ApprovalItem[]> {
  *
  * ນິຍາມ "PO ຂອງສາຍເຮົາ" ຄືກັບ /approvals/purchase-orders: ມາຈາກ SPR ຫຼື ອອກໂດຍກົງ.
  */
+/**
+ * ⏱️ ຈຳກັດເວລາຂອງສ່ວນທີ່ຖາມ **ERP** — ERP ຢູ່ຄົນລະເຄື່ອງ ແລະ ບາງເວລາຊ້າ/ລົ້ມ.
+ *
+ * ⚠️ ຖ້າປະໃຫ້ມັນຄ້າງ ທັງ endpoint ຈະຄ້າງນຳ ⇒ ຜູ້ຈັດການເປີດຄິວອະນຸມັດແລ້ວ
+ * **ບໍ່ເຫັນຫຍັງເລີຍ** ເຖິງແມ່ນໃບສະເໜີລາຄາ/ຄຳຂໍຍົກເລີກ (ຢູ່ ODS) ຈະດຶງໄດ້ປົກກະຕິ.
+ * ໝົດເວລາ ⇒ ຄືນລາຍການຫວ່າງ ແລ້ວປ່ອຍໃຫ້ສ່ວນອື່ນສະແດງໄດ້ຄືເກົ່າ.
+ */
+const ERP_BUDGET_MS = 8000;
+
+function withBudget<T>(work: Promise<T>, fallback: T, label: string): Promise<T> {
+  return Promise.race([
+    work,
+    new Promise<T>((resolve) =>
+      setTimeout(() => {
+        console.error(`${label} ໝົດເວລາ ${ERP_BUDGET_MS}ms — ຂ້າມໄປກ່ອນ`);
+        resolve(fallback);
+      }, ERP_BUDGET_MS),
+    ),
+  ]);
+}
+
 async function erpPurchaseApprovals(): Promise<ApprovalItem[]> {
   try {
     const [pr, po] = await Promise.all([

@@ -64,21 +64,29 @@ class ServiceBottomNav extends StatelessWidget {
     tabBuilder: (index, isActive) {
       final item = items[index];
       final icons = iconFor(item.key);
-      final color = isActive ? tealBright : Colors.white.withValues(alpha: .45);
+      final color = isActive ? tealBright : Colors.white.withValues(alpha: .50);
       return Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(isActive ? icons.$2 : icons.$1, size: 24, color: color),
-          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+            decoration: BoxDecoration(
+              color: isActive ? tealBright.withValues(alpha: .16) : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(isActive ? icons.$2 : icons.$1, size: 22, color: color),
+          ),
+          const SizedBox(height: 2),
           Text(
             item.label,
             overflow: TextOverflow.fade,
             softWrap: false,
             style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
+              fontSize: 10.5,
+              fontWeight: isActive ? FontWeight.w900 : FontWeight.w600,
               color: color,
+              letterSpacing: isActive ? -.1 : 0,
             ),
           ),
         ],
