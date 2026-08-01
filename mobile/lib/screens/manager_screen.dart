@@ -1,12 +1,9 @@
 import 'dart:async';
-
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-
 import '../api.dart';
 import '../main.dart';
 import '../push.dart';
-import '../widgets/ui_kit.dart';
 import 'activities_screen.dart';
 import 'approvals_screen.dart';
 import 'commission_screen.dart';
@@ -17,8 +14,7 @@ import 'notifications_screen.dart';
 import 'manager_kit.dart';
 import 'overview_jobs_screen.dart';
 
-/// ໜ້າຫຼັກຜູ້ຈັດການ — ພາບລວມບໍລິຫານ (ຕົວເລກລວມທັງບໍລິສັດ ຈາກ /api/mobile/overview).
-/// ຂໍ້ມູນມາຈາກ dashboard ຝັ່ງເວັບ ⇒ ຕົວເລກກົງກັນ.
+/// ໜ້າຫຼັກຜູ້ຈັດການ — ອອກແບບໃໝ່ແບບທັນສະໄໝ ດ້ວຍການໃຊ້ສີ ແລະ ການຈັດວາງທີ່ດີຂຶ້ນ
 class ManagerScreen extends StatefulWidget {
   const ManagerScreen({super.key});
 
@@ -26,15 +22,32 @@ class ManagerScreen extends StatefulWidget {
   State<ManagerScreen> createState() => _ManagerScreenState();
 }
 
-class _ManagerScreenState extends State<ManagerScreen> {
+class _ManagerScreenState extends State<ManagerScreen>
+    with SingleTickerProviderStateMixin {
   Overview? data;
   bool loading = true;
   String error = '';
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
+    );
     load();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> load() async {
@@ -46,6 +59,7 @@ class _ManagerScreenState extends State<ManagerScreen> {
         error = '';
         loading = false;
       });
+      _animationController.forward(from: 0.0);
     } on ApiError catch (failure) {
       if (!mounted) return;
       if (failure.status == 401) {
@@ -71,7 +85,6 @@ class _ManagerScreenState extends State<ManagerScreen> {
   }
 
   Future<void> logout() async {
-    // ຖອນ push token ພື້ນຫຼັງ (ບໍ່ await) — ບໍ່ໃຫ້ logout ຄ້າງ ~25s ຕອນສັນຍານອ່ອນ
     unawaited(Push.unregister());
     await Api.clearToken();
     if (!mounted) return;
@@ -86,81 +99,43 @@ class _ManagerScreenState extends State<ManagerScreen> {
       backgroundColor: ground,
       body: Column(
         children: [
-          HeroHeader(
-            title: 'ພາບລວມຜູ້ຈັດການ',
-            trailing: [
-              HeroIconButton(
-                icon: Icons.notifications_none,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                ),
-              ),
-              HeroIconButton(icon: Icons.refresh_rounded, onTap: load),
-              PopupMenuButton<String>(
-                tooltip: 'ເມນູ',
-                onSelected: (value) {
-                  if (value == 'logout') logout();
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(
-                    value: 'logout',
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout_rounded, size: 19),
-                        SizedBox(width: 10),
-                        Text('ອອກຈາກລະບົບ'),
-                      ],
-                    ),
-                  ),
-                ],
-                child: Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .14),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withValues(alpha: .18)),
-                  ),
-                  child: const Icon(Icons.more_vert, size: 20, color: onHero),
-                ),
-              ),
-            ],
-            stats: data == null
-                ? null
-                : [
-                    HeroStat(
-                      value: '${data!.repairOpen}',
-                      label: 'ວຽກສ້ອມຄ້າງ',
-                      icon: Icons.build_circle_outlined,
-                      color: onHero,
-                    ),
-                    HeroStat(
-                      value: '${data!.overSla}',
-                      label: 'ເລີຍ SLA',
-                      icon: Icons.timer_off_outlined,
-                      color: const Color(0xFFFDA4AF),
-                      badgeColor: const Color(0x33F43F5E),
-                    ),
-                    HeroStat(
-                      value: '${data!.approvalsTotal}',
-                      label: 'ລໍອະນຸມັດ',
-                      icon: Icons.pending_actions_outlined,
-                      color: const Color(0xFFFDBA74),
-                      badgeColor: const Color(0x33F59E0B),
-                    ),
-                  ],
+          _ModernHeader(
+            title: 'ສະບາຍດີ, ຜູ້ຈັດການ',
+            subtitle: 'ພາບລວມສະຖານະການບໍລິຫານ',
+            onRefresh: load,
+            onLogout: logout,
+            onNotifications: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            ),
           ),
           Expanded(
             child: loading
-                ? const Center(child: CircularProgressIndicator())
+                ? _LoadingShimmer()
                 : error.isNotEmpty
                 ? _ErrorView(message: error, onRetry: load)
-                : RefreshIndicator(
-                    onRefresh: load,
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 28),
-                      children: _sections(data!),
+                : LayoutBuilder(
+                    builder: (context, constraints) => RefreshIndicator(
+                      color: teal,
+                      onRefresh: load,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(
+                          constraints.maxWidth >= 720 ? 24 : 14,
+                          16,
+                          constraints.maxWidth >= 720 ? 24 : 14,
+                          32,
+                        ),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 760),
+                            child: FadeTransition(
+                              opacity: _fadeAnimation,
+                              child: Column(children: _sections(data!)),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
           ),
@@ -169,457 +144,692 @@ class _ManagerScreenState extends State<ManagerScreen> {
     );
   }
 
-  /// ເປີດລາຍການໃບງານທີ່ຢູ່ເບື້ອງຫຼັງຕົວເລກນັ້ນ (bucket ນິຍາມຢູ່ lib/manager-drill)
   void _open(String bucket, String title) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => OverviewJobsScreen(bucket: bucket, title: title)),
+      MaterialPageRoute(
+        builder: (_) => OverviewJobsScreen(bucket: bucket, title: title),
+      ),
     );
   }
 
-  /// ── ລຳດັບໜ້າ: **ວຽກຄ້າງກ່ອນ ຜົນງານທີຫຼັງ** (ຕົກລົງກັບຜູ້ໃຊ້ 31-07-2026) ──
-  ///
-  /// ລຳດັບເກົ່າຂຶ້ນຕົ້ນດ້ວຍ "ມື້ນີ້" ເຊິ່ງເປັນຕົວເລກທີ່ **ບໍ່ຕ້ອງການການຕັດສິນ** ⇒ ຜູ້ຈັດການ
-  /// ຕ້ອງເລື່ອນຜ່ານ 3 ບັດກ່ອນຈຶ່ງເຫັນສິ່ງທີ່ຄ້າງ. ດຽວນີ້ສິ່ງທີ່ຄ້າງມາກ່ອນສະເໝີ ແລະ
-  /// ບັດທີ່ເປັນ 0 **ບໍ່ສະແດງ** — ໜ້າສັ້ນລົງ = ບໍ່ມີຫຍັງຄ້າງ ເຊິ່ງເປັນຄຳຕອບທີ່ຖືກຕ້ອງ.
+  /// ສ້າງລາຍການສ່ວນຕ່າງໆ ດ້ວຍການຈັດກຸ່ມທີ່ດີຂຶ້ນ
   List<Widget> _sections(Overview d) {
-    // ບັດອະນຸມັດພາໄປໜ້າອະນຸມັດ (ກົດອະນຸມັດໄດ້ເລີຍ) · ບັດງານພາໄປລາຍການໃບງານ
     void toApprovals() => Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const ApprovalsScreen()),
     );
 
-    final actions = <_ActionItem>[
-      _ActionItem('ໃບສະເໜີລາຄາລໍອະນຸມັດ', d.aQuotes, danger, toApprovals),
-      _ActionItem('ຮ້ອງຂໍຍົກເລີກງານ', d.aCancels, danger, toApprovals),
-      _ActionItem('ໃບຂໍຊື້ລໍອະນຸມັດ', d.aPurchases, const Color(0xFFD97706), toApprovals),
-      _ActionItem('ລໍລູກຄ້າຕົກລົງລາຄາ', d.aCustomer, const Color(0xFFD97706), toApprovals),
-      _ActionItem('ງານຍັງບໍ່ຈັດຊ່າງ', d.unassignedRepair + d.unassignedInstall, danger,
-          () => _open('unassigned', 'ຍັງບໍ່ຈັດຊ່າງ')),
-      _ActionItem('ເກີນເວລາທີ່ສັນຍາໄວ້ (SLA)', d.slaLate, danger,
-          () => _open('sla-late', 'ເກີນເວລາທີ່ສັນຍາໄວ້ (SLA)')),
-      _ActionItem('ງານເຄມລໍຕັດສິນ', d.claimsWaitDecision, const Color(0xFF7C3AED),
-          () => _open('claim-decision', 'ງານເຄມລໍຕັດສິນ')),
-      _ActionItem('ເຄື່ອງສຳຮອງຄ້າງຄືນ', d.loaners, const Color(0xFFD97706),
-          () => _open('loaners', 'ໃບງານທີ່ມີເຄື່ອງສຳຮອງຄ້າງຄືນ')),
-      _ActionItem('ລູກຄ້າໃຫ້ຄະແນນຕໍ່າ', d.feedbackUnhappy, const Color(0xFFD97706),
-          () => _open('unhappy', 'ລູກຄ້າໃຫ້ຄະແນນຕໍ່າ')),
-    ].where((a) => a.value > 0).toList();
+    /// 🚨 ສ່ວນທີ່ຕ້ອງການການຕັດສິນ (Alerts & Actions)
+    final alerts = [
+      _AlertItem(
+        icon: Icons.pending_actions_rounded,
+        label: 'ໃບສະເໜີລາຄາລໍອະນຸມັດ',
+        count: d.aQuotes,
+        color: danger,
+        onTap: toApprovals,
+      ),
+      _AlertItem(
+        icon: Icons.cancel_outlined,
+        label: 'ຮ້ອງຂໍຍົກເລີກງານ',
+        count: d.aCancels,
+        color: danger,
+        onTap: toApprovals,
+      ),
+      _AlertItem(
+        icon: Icons.shopping_cart_outlined,
+        label: 'ໃບຂໍຊື້ລໍອະນຸມັດ',
+        count: d.aPurchases,
+        color: const Color(0xFFD97706),
+        onTap: toApprovals,
+      ),
+      _AlertItem(
+        icon: Icons.people_outline,
+        label: 'ລໍລູກຄ້າຕົກລົງລາຄາ',
+        count: d.aCustomer,
+        color: const Color(0xFFD97706),
+        onTap: toApprovals,
+      ),
+      _AlertItem(
+        icon: Icons.person_off_outlined,
+        label: 'ຍັງບໍ່ຈັດຊ່າງ',
+        count: d.unassignedRepair + d.unassignedInstall,
+        color: danger,
+        onTap: () => _open('unassigned', 'ຍັງບໍ່ຈັດຊ່າງ'),
+      ),
+      _AlertItem(
+        icon: Icons.timer_off_outlined,
+        label: 'ເກີນ SLA',
+        count: d.slaLate,
+        color: danger,
+        onTap: () => _open('sla-late', 'ເກີນເວລາທີ່ສັນຍາໄວ້'),
+      ),
+      _AlertItem(
+        icon: Icons.gavel_rounded,
+        label: 'ງານເຄມລໍຕັດສິນ',
+        count: d.claimsWaitDecision,
+        color: const Color(0xFF7C3AED),
+        onTap: () => _open('claim-decision', 'ງານເຄມລໍຕັດສິນ'),
+      ),
+      _AlertItem(
+        icon: Icons.devices_other_rounded,
+        label: 'ເຄື່ອງສຳຮອງຄ້າງຄືນ',
+        count: d.loaners,
+        color: warn,
+        onTap: () => _open('loaners', 'ເຄື່ອງສຳຮອງຄ້າງຄືນ'),
+      ),
+      _AlertItem(
+        icon: Icons.sentiment_dissatisfied_rounded,
+        label: 'ລູກຄ້າໃຫ້ຄະແນນຕໍ່າ',
+        count: d.feedbackUnhappy,
+        color: const Color(0xFFDB2777),
+        onTap: () => _open('unhappy', 'ລູກຄ້າໃຫ້ຄະແນນຕໍ່າ'),
+      ),
+    ].where((a) => a.count > 0).toList();
 
     return [
-      // ── ① ອາຍຸຂອງກອງວຽກ — ຕົວເລກດຽວທີ່ບອກສຸຂະພາບຂອງສູນໄດ້ດີສຸດ ──
-      _Card(
-        title: 'ງານຄ້າງເກີນ 30 ມື້',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            InkWell(
-              onTap: () => _open('age:over30', 'ຄ້າງເກີນ 30 ມື້'),
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: (d.staleJobs > 0 ? danger : ok).withValues(alpha: .06),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: (d.staleJobs > 0 ? danger : ok).withValues(alpha: .22),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: (d.staleJobs > 0 ? danger : ok).withValues(alpha: .14),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        d.staleJobs > 0 ? Icons.warning_amber_rounded : Icons.check_circle_outline,
-                        color: d.staleJobs > 0 ? danger : ok,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${d.staleJobs}',
-                          style: TextStyle(
-                            fontSize: 32,
-                            height: 1,
-                            fontWeight: FontWeight.w900,
-                            color: d.staleJobs > 0 ? danger : ok,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'ຈາກງານທີ່ຍັງເປີດຢູ່ທັງໝົດ ${d.openTotal} ໃບ',
-                          style: const TextStyle(fontSize: 12, color: muted, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 14,
-                      color: d.staleJobs > 0 ? danger : ok,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            // ແຕະປ້າຍຖັງໃດ = ເປີດລາຍການຂອງຖັງນັ້ນ
-            _AgeBar(aging: d.aging, total: d.openTotal, onTap: (b) => _open('age:${b.key}', b.label)),
-          ],
-        ),
-      ),kUnhappy, const Color(0xFFD97706),
-          () => _open('unhappy', 'ລູກຄ້າໃຫ້ຄະແນນຕໍ່າ')),
-    ].where((a) => a.value > 0).toList();
-
-    return [
-      // ── ① ອາຍຸຂອງກອງວຽກ — ຕົວເລກດຽວທີ່ບອກສຸຂະພາບຂອງສູນໄດ້ດີສຸດ ──
-      _Card(
-        title: 'ງານຄ້າງເກີນ 30 ມື້',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            InkWell(
-              onTap: () => _open('age:over30', 'ຄ້າງເກີນ 30 ມື້'),
-              borderRadius: BorderRadius.circular(10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    '${d.staleJobs}',
-                    style: TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.w900,
-                      color: d.staleJobs > 0 ? danger : ok,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'ຈາກງານທີ່ຍັງເປີດຢູ່ ${d.openTotal} ໃບ',
-                    style: const TextStyle(fontSize: 12.5, color: muted),
-                  ),
-                  const Spacer(),
-                  const Icon(Icons.chevron_right, size: 20, color: muted),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            // ແຕະປ້າຍຖັງໃດ = ເປີດລາຍການຂອງຖັງນັ້ນ
-            _AgeBar(aging: d.aging, total: d.openTotal, onTap: (b) => _open('age:${b.key}', b.label)),
-          ],
-        ),
+      _ExecutiveOverview(
+        data: d,
+        onOpenJobs: () => _open('workflow:all', 'ງານທີ່ກຳລັງເປີດ'),
+        onApprovals: toApprovals,
+        onOverdue: () => _open('sla-late', 'ງານເກີນ SLA'),
       ),
-
-      // ── ແຍກຕາມສາຍງານ — ຕົວເລກລວມເຊື່ອງໄວ້ວ່າສາຍໃດເປັນຕົ້ນເຫດ ──
-      if (d.workflows.isNotEmpty)
-        _Card(
-          title: 'ແຍກຕາມສາຍງານ',
-          child: Column(
-            children: [for (final w in d.workflows) _WorkflowRow(row: w)],
-          ),
-        ),
-
-      // ── ② ຕ້ອງລົງມື ──
-      _Card(
-        title: 'ຕ້ອງລົງມື',
-        child: actions.isEmpty
-            ? const Padding(
-                padding: EdgeInsets.symmetric(vertical: 6),
-                child: Text(
-                  'ບໍ່ມີຫຍັງຄ້າງລໍການຕັດສິນ ✓',
-                  style: TextStyle(fontSize: 13, color: ok, fontWeight: FontWeight.w700),
-                ),
-              )
-            : Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [for (final a in actions) _ActionChip(item: a)],
-              ),
+      const SizedBox(height: 16),
+      _DashboardTitle(
+        title: 'ສະຫຼຸບແຕ່ລະສາຍງານ',
+        subtitle: 'ເຫັນປະລິມານ, ວຽກເກົ່າ ແລະ ຈຸດສ່ຽງໃນບ່ອນດຽວ',
       ),
-
-      // ── ທາງລັດໄປໜ້າໃໝ່ (ແຜນທີ່ · ຄ່າຄອມ) ──
-      _Card(
-        title: 'ເບິ່ງເພີ່ມ',
-        child: Row(
-          children: [
-            Expanded(
-              child: _ShortcutButton(
-                icon: Icons.map_outlined,
-                label: 'ແຜນທີ່ງານຄ້າງ',
-                tone: teal,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const PendingMapScreen()),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _ShortcutButton(
-                icon: Icons.payments_outlined,
-                label: 'ສະຫຼຸບຄ່າຄອມ',
-                tone: ok,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CommissionScreen()),
-                ),
-              ),
-            ),
-          ],
-        ),
+      const SizedBox(height: 10),
+      _WorkSummaryGrid(
+        data: d,
+        onOpen: (bucket, title) => _open(bucket, title),
+        onApprovals: toApprovals,
       ),
-
-      _Card(
-        title: 'ຕິດຕາມສິ່ງທີ່ CS ນັດໄວ້',
-        child: _ShortcutButton(
-          icon: Icons.event_note_outlined,
-          label: 'ກິດຈະກຳທີ່ນັດໄວ້',
-          tone: const Color(0xFF7C3AED),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ActivitiesScreen()),
-          ),
-        ),
+      const SizedBox(height: 18),
+      _DashboardTitle(
+        title: 'ຕ້ອງຈັດການກ່ອນ',
+        subtitle: alerts.isEmpty
+            ? 'ບໍ່ມີລາຍການດ່ວນໃນຕອນນີ້'
+            : '${alerts.fold<int>(0, (sum, item) => sum + item.count)} ລາຍການລໍການຕັດສິນ',
       ),
-
-      _Card(
-        title: 'ສາງສູນບໍລິການ',
-        child: _ShortcutButton(
-          icon: Icons.inventory_2_outlined,
-          label: 'ຄົງເຫຼືອ ແລະ ລາຍການອາໄຫຼ່',
-          tone: const Color(0xFF0891B2),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const RepairStockScreen()),
-          ),
-        ),
+      const SizedBox(height: 10),
+      if (alerts.isEmpty)
+        const _AllClearCard()
+      else
+        _PriorityActions(items: alerts.take(5).toList()),
+      const SizedBox(height: 18),
+      _DashboardTitle(
+        title: 'ຜົນງານມື້ນີ້',
+        subtitle: 'ງານເຂົ້າ, ງານຈົບ ແລະ ກິດຈະກຳຫຼັກ',
       ),
-
-      // ── ③ ໃບເກົ່າສຸດ — ບອກເປັນ "ໃບໃດ ຂອງໃຜ" ⇒ ຕາມໄດ້ທັນທີ ──
-      if (d.oldest.isNotEmpty)
-        _Card(
-          title: 'ໃບທີ່ຄ້າງດົນສຸດ',
-          trailing: InkWell(
-            onTap: () => _open('age:over30', 'ຄ້າງເກີນ 30 ມື້'),
-            child: const Text(
-              'ເບິ່ງທັງໝົດ',
-              style: TextStyle(fontSize: 11.5, color: teal, fontWeight: FontWeight.w800),
-            ),
-          ),
-          child: Column(children: [for (final job in d.oldest) _OldJobRow(job: job)]),
-        ),
-
-      // ── ④ ຜົນງານ ──
-      _Card(
-        title: 'ລາຍຮັບງານສ້ອມ ເດືອນນີ້ (ບາດ)',
-        child: Row(
-          children: [
-            _Mini(label: 'ຕົກລົງລາຄາ', valueText: _money(d.moneyQuoted), tone: ink),
-            _Mini(label: 'ຮັບແລ້ວ', valueText: _money(d.moneyPaid), tone: ok),
-            _Mini(label: 'ຍັງຄ້າງ', valueText: _money(d.moneyDue), tone: const Color(0xFFD97706)),
-          ],
-        ),
+      const SizedBox(height: 10),
+      _TodayBrief(data: d),
+      const SizedBox(height: 14),
+      _AgeDistributionCard(
+        staleJobs: d.staleJobs,
+        openTotal: d.openTotal,
+        aging: d.aging,
+        onTap: (bucket) => _open('age:${bucket.key}', bucket.label),
+        onTapAll: () => _open('age:over30', 'ຄ້າງເກີນ 30 ມື້'),
       ),
-
-      _Card(
-        title: 'ງານເຂົ້າ ທຽບ ງານຈົບ (30 ມື້)',
-        child: Column(
-          children: [
-            Row(
-              children: [
-                _Mini(label: 'ຮັບເຂົ້າ', value: d.flowOpened),
-                _Mini(label: 'ສົ່ງຄືນສຳເລັດ', value: d.flowClosed, tone: ok),
-                _Mini(
-                  label: d.flowDelta >= 0 ? 'ກອງວຽກຫຼຸດລົງ' : 'ກອງວຽກເພີ່ມຂຶ້ນ',
-                  valueText: '${d.flowDelta > 0 ? '+' : ''}${d.flowDelta}',
-                  tone: d.flowDelta >= 0 ? ok : danger,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-
-      // ⚠️ ຄະແນນ **ຕໍ່າ = ດີ** (cust_complain.points 1=ດີຫຼາຍ … 4=ບໍ່ພໍໃຈ) — ຫ້າມສະແດງຄືດາວ
-      _Card(
-        title: 'ຄວາມພໍໃຈລູກຄ້າ (ທັງໝົດ) · ຕໍ່າ = ດີ',
-        child: Row(
-          children: [
-            _Mini(
-              label: 'ຄະແນນສະເລ່ຍ',
-              valueText: d.feedbackAvg == null ? '-' : d.feedbackAvg!.toStringAsFixed(2),
-              tone: _scoreTone(d.feedbackAvg),
-            ),
-            _Mini(label: 'ໃບທີ່ປະເມີນ', value: d.feedbackJobs),
-            _Mini(
-              label: 'ບໍ່ພໍໃຈ',
-              value: d.feedbackUnhappy,
-              tone: d.feedbackUnhappy > 0 ? danger : muted,
-            ),
-          ],
-        ),
-      ),
-
-      // ── ⑤ ຊ່າງ — ລຽງດ້ວຍ "ຄ້າງເກີນ 30 ມື້" ບໍ່ແມ່ນ "ຈຳນວນວຽກ" ──
+      const SizedBox(height: 14),
       if (d.techBacklog.isNotEmpty)
-        _Card(
-          title: 'ກອງວຽກຂອງແຕ່ລະຊ່າງ (ແດງ = ຄ້າງເກີນ 30 ມື້)',
-          child: Column(children: [
-            for (final t in d.techBacklog)
-              _BacklogRow(row: t, onTap: () => _open('tech:${t.techCode}', '${t.tech} · ວຽກຄ້າງ')),
-          ]),
+        _TechBacklogSection(
+          techs: d.techBacklog.take(5).toList(),
+          freeTechs: d.techFree,
+          onTap: (tech) =>
+              _open('tech:${tech.techCode}', '${tech.tech} · ວຽກຄ້າງ'),
         ),
-
-      if (d.techFree.isNotEmpty)
-        _Card(
-          title: 'ຊ່າງວ່າງ (${d.techFree.length})',
-          child: Wrap(
-            spacing: 7,
-            runSpacing: 7,
-            children: [
-              for (final name in d.techFree)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: ok.withValues(alpha: .10),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: ok.withValues(alpha: .30)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.check_circle, size: 14, color: ok),
-                      const SizedBox(width: 5),
-                      Text(name, style: const TextStyle(fontSize: 12.5, color: ink, fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ),
-
-      // ── ⑥ ຄິວມື້ນີ້ + ຂັ້ນຕອນ — ຂໍ້ມູນປະກອບ ບໍ່ຕ້ອງການການຕັດສິນ ⇒ ຢູ່ທ້າຍ ──
-      _Card(
-        title: 'ມື້ນີ້',
-        child: Column(
-          children: [
-            Row(
-              children: [
-                _Mini(label: 'ເບີດງານ', value: d.todayReceived, tone: teal,
-                    onTap: () => _open('today:received', 'ຮັບເຄື່ອງເຂົ້າມື້ນີ້')),
-                _Mini(label: 'ສົ່ງຄືນ', value: d.todayReturned, tone: ok,
-                    onTap: () => _open('today:returned', 'ສົ່ງຄືນລູກຄ້າມື້ນີ້')),
-                _Mini(label: 'ນັດໝາຍ', value: d.todayAppointments),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                _Mini(label: 'ກຳລັງກວດ', value: d.todayChecking),
-                _Mini(label: 'ກຳລັງສ້ອມ', value: d.todayRepairing),
-                const Spacer(),
-              ],
-            ),
-          ],
-        ),
+      const SizedBox(height: 14),
+      _ManagementSnapshot(data: d),
+      const SizedBox(height: 18),
+      const _DashboardTitle(
+        title: 'ເຄື່ອງມືຈັດການ',
+        subtitle: 'ເຂົ້າເຖິງວຽກທີ່ໃຊ້ປະຈຳໄດ້ໄວ',
       ),
-
-      _Card(
-        title: 'SLA ງານກວດ',
-        child: Row(
-          children: [
-            _Mini(label: 'ໃກ້ເກີນ', value: d.slaWarning, tone: const Color(0xFFD97706)),
-            _Mini(label: 'ເລີຍ', value: d.slaLate, tone: danger,
-                onTap: () => _open('sla-late', 'ເກີນເວລາທີ່ສັນຍາໄວ້ (SLA)')),
-            _Mini(label: 'ວິກິດ', value: d.slaCritical, tone: danger),
-          ],
+      const SizedBox(height: 10),
+      _QuickActionsSection(
+        onMap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PendingMapScreen()),
         ),
-      ),
-
-      _Card(
-        title: 'ຂັ້ນຕອນງານສ້ອມ (ແຕະຊື່ຂັ້ນເພື່ອເບິ່ງລາຍການ)',
-        child: _PipelineChart(
-          pipeline: d.pipeline,
-          onTap: (stage) => _open('stage:${stage.stage}', stage.label),
+        onCommission: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CommissionScreen()),
+        ),
+        onActivities: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ActivitiesScreen()),
+        ),
+        onStock: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const RepairStockScreen()),
         ),
       ),
     ];
   }
 }
 
-/// ຄະແນນຄວາມພໍໃຈ **ຕໍ່າ = ດີ** — ກົດດຽວກັບ scoreTone ຂອງ /dashboard ຝັ່ງເວັບ
-Color _scoreTone(double? score) {
-  if (score == null) return muted;
-  if (score >= 2.5) return danger;
-  if (score >= 1.5) return const Color(0xFFD97706);
-  return ok;
+// ═══════════════════════════════════════════════════════════════
+// 🎨 ຊິ້ນສ່ວນ UI ແບບໃໝ່
+// ═══════════════════════════════════════════════════════════════
+
+class _DashboardTitle extends StatelessWidget {
+  const _DashboardTitle({required this.title, required this.subtitle});
+  final String title;
+  final String subtitle;
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        title,
+        style: const TextStyle(
+          fontSize: 17,
+          fontWeight: FontWeight.w900,
+          color: ink,
+        ),
+      ),
+      const SizedBox(height: 3),
+      Text(
+        subtitle,
+        style: const TextStyle(fontSize: 11.5, height: 1.35, color: muted),
+      ),
+    ],
+  );
 }
 
-/// ຫຍໍ້ຈຳນວນເງິນໃຫ້ພໍດີຈໍມືຖື (62,009 → 62.0K · 1,250,000 → 1.3M)
-String _money(double value) {
-  if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
-  if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
-  return value.toStringAsFixed(0);
-}
-
-/// 1 ແຖວສະຫຼຸບສາຍງານ — ແດງ = ຄ້າງເກີນ 30 ມື້
-class _WorkflowRow extends StatelessWidget {
-  const _WorkflowRow({required this.row});
-  final WorkflowSummary row;
+class _ExecutiveOverview extends StatelessWidget {
+  const _ExecutiveOverview({
+    required this.data,
+    required this.onOpenJobs,
+    required this.onApprovals,
+    required this.onOverdue,
+  });
+  final Overview data;
+  final VoidCallback onOpenJobs;
+  final VoidCallback onApprovals;
+  final VoidCallback onOverdue;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Row(
-      children: [
-        SizedBox(
-          width: 78,
-          child: Text(
-            row.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: ink),
-          ),
+  Widget build(BuildContext context) {
+    final healthy = data.slaLate == 0 && data.staleJobs == 0;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F172A), Color(0xFF164E63)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: Container(
-              height: 9,
-              color: const Color(0xFFEFF4F2),
-              child: Row(
-                children: [
-                  if (row.stale > 0)
-                    Expanded(flex: row.stale, child: const ColoredBox(color: danger)),
-                  if (row.open - row.stale > 0)
-                    Expanded(flex: row.open - row.stale, child: const ColoredBox(color: teal)),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: .18),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      healthy
+                          ? Icons.check_circle_rounded
+                          : Icons.monitor_heart_rounded,
+                      size: 14,
+                      color: healthy
+                          ? const Color(0xFF5EEAD4)
+                          : const Color(0xFFFCD34D),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      healthy ? 'ການດຳເນີນງານປົກກະຕິ' : 'ມີຈຸດທີ່ຕ້ອງຕິດຕາມ',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'ອັບເດດຫຼ້າສຸດ',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: .55),
+                  fontSize: 10.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'ພາບລວມສູນບໍລິການ',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -.4,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            'ຕົວເລກສຳຄັນທີ່ຕ້ອງຮູ້ກ່ອນເລີ່ມຈັດການວຽກ',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: .65),
+              fontSize: 11.5,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              _ExecutiveMetric(
+                label: 'ງານເປີດ',
+                value: data.openTotal,
+                tone: const Color(0xFF67E8F9),
+                onTap: onOpenJobs,
+              ),
+              _ExecutiveMetric(
+                label: 'ລໍອະນຸມັດ',
+                value: data.approvalsTotal,
+                tone: const Color(0xFFFCD34D),
+                onTap: onApprovals,
+              ),
+              _ExecutiveMetric(
+                label: 'ເກີນ SLA',
+                value: data.slaLate,
+                tone: const Color(0xFFFDA4AF),
+                onTap: onOverdue,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.swap_vert_circle_outlined,
+                  color: Colors.white70,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'ເດືອນນີ້ ຮັບເຂົ້າ ${data.flowOpened} · ປິດງານ ${data.flowClosed}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Text(
+                  data.flowDelta >= 0
+                      ? '+${data.flowDelta}'
+                      : '${data.flowDelta}',
+                  style: TextStyle(
+                    color: data.flowDelta >= 0
+                        ? const Color(0xFF5EEAD4)
+                        : const Color(0xFFFDA4AF),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExecutiveMetric extends StatelessWidget {
+  const _ExecutiveMetric({
+    required this.label,
+    required this.value,
+    required this.tone,
+    required this.onTap,
+  });
+  final String label;
+  final int value;
+  final Color tone;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$value',
+              style: TextStyle(
+                color: tone,
+                fontSize: 28,
+                height: 1,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: .7),
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _WorkSummaryGrid extends StatelessWidget {
+  const _WorkSummaryGrid({
+    required this.data,
+    required this.onOpen,
+    required this.onApprovals,
+  });
+  final Overview data;
+  final void Function(String, String) onOpen;
+  final VoidCallback onApprovals;
+  @override
+  Widget build(BuildContext context) {
+    final cards = <Widget>[
+      _WorkCard(
+        title: 'ງານສ້ອມ',
+        value: data.repairOpen,
+        note: '${data.unassignedRepair} ຍັງບໍ່ຈັດຊ່າງ',
+        icon: Icons.handyman_outlined,
+        color: const Color(0xFF0F766E),
+        onTap: () => onOpen('workflow:repair', 'ງານສ້ອມ'),
+      ),
+      _WorkCard(
+        title: 'ງານຕິດຕັ້ງ',
+        value: data.installOpen,
+        note: '${data.unassignedInstall} ຍັງບໍ່ຈັດຊ່າງ',
+        icon: Icons.home_repair_service_outlined,
+        color: const Color(0xFF2563EB),
+        onTap: () => onOpen('workflow:install', 'ງານຕິດຕັ້ງ'),
+      ),
+      _WorkCard(
+        title: 'ງານເຄມ',
+        value: data.claimsOpen,
+        note: '${data.claimsWaitDecision} ລໍຕັດສິນ',
+        icon: Icons.verified_user_outlined,
+        color: const Color(0xFF7C3AED),
+        onTap: () => onOpen('claim-open', 'ງານເຄມ'),
+      ),
+      _WorkCard(
+        title: 'ອະນຸມັດ',
+        value: data.approvalsTotal,
+        note: '${data.aQuotes} ສະເໜີລາຄາ · ${data.aPurchases} ຈັດຊື້',
+        icon: Icons.fact_check_outlined,
+        color: const Color(0xFFD97706),
+        onTap: onApprovals,
+      ),
+    ];
+    return Column(
+      children: [
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 1.55,
+          children: cards,
+        ),
+        if (data.workflows.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: line),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < data.workflows.length; i++) ...[
+                  _WorkflowBrief(
+                    item: data.workflows[i],
+                    onTap: () => onOpen(
+                      'workflow:${data.workflows[i].key}',
+                      data.workflows[i].label,
+                    ),
+                  ),
+                  if (i < data.workflows.length - 1)
+                    const Divider(height: 1, indent: 14, endIndent: 14),
                 ],
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _WorkCard extends StatelessWidget {
+  const _WorkCard({
+    required this.title,
+    required this.value,
+    required this.note,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+  final String title;
+  final int value;
+  final String note;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(18),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: line),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: .1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: color, size: 18),
+                ),
+                const Spacer(),
+                const Icon(Icons.arrow_forward_rounded, size: 15, color: faint),
+              ],
+            ),
+            const Spacer(),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '$value',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                    color: ink,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: ink,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Text(
+              note,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9.5,
+                color: note.startsWith('0 ') ? muted : color,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _WorkflowBrief extends StatelessWidget {
+  const _WorkflowBrief({required this.item, required this.onTap});
+  final WorkflowSummary item;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => ListTile(
+    onTap: onTap,
+    dense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+    leading: Container(
+      width: 9,
+      height: 9,
+      decoration: const BoxDecoration(color: teal, shape: BoxShape.circle),
+    ),
+    title: Text(
+      item.label,
+      style: const TextStyle(
+        fontSize: 12.5,
+        fontWeight: FontWeight.w800,
+        color: ink,
+      ),
+    ),
+    subtitle: Text(
+      'ເກົ່າສຸດ ${item.oldestDays} ມື້',
+      style: const TextStyle(fontSize: 10.5, color: faint),
+    ),
+    trailing: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (item.stale > 0)
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: danger.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '${item.stale} ເກີນ 30ມື້',
+              style: const TextStyle(
+                fontSize: 9,
+                color: danger,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: row.stale > 0 ? danger.withValues(alpha: .10) : surfaceAlt,
-            borderRadius: BorderRadius.circular(6),
+        Text(
+          '${item.open}',
+          style: const TextStyle(
+            fontSize: 16,
+            color: ink,
+            fontWeight: FontWeight.w900,
           ),
+        ),
+        const SizedBox(width: 3),
+        const Icon(Icons.chevron_right_rounded, size: 17, color: faint),
+      ],
+    ),
+  );
+}
+
+class _PriorityActions extends StatelessWidget {
+  const _PriorityActions({required this.items});
+  final List<_AlertItem> items;
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: line),
+    ),
+    child: Column(
+      children: [
+        for (var i = 0; i < items.length; i++) ...[
+          _AlertTile(item: items[i]),
+          if (i < items.length - 1) const Divider(height: 1, indent: 54),
+        ],
+      ],
+    ),
+  );
+}
+
+class _AllClearCard extends StatelessWidget {
+  const _AllClearCard();
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: ok.withValues(alpha: .06),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: ok.withValues(alpha: .2)),
+    ),
+    child: const Row(
+      children: [
+        Icon(Icons.task_alt_rounded, color: ok),
+        SizedBox(width: 10),
+        Expanded(
           child: Text(
-            row.stale > 0
-                ? '${row.open} ໃບ · ຄ້າງ ${row.stale}'
-                : '${row.open} ໃບ${row.oldestDays > 0 ? ' · ${row.oldestDays} ມື້' : ''}',
+            'ທຸກລາຍການສຳຄັນຖືກຈັດການແລ້ວ',
             style: TextStyle(
-              fontSize: 11,
-              color: row.stale > 0 ? danger : muted,
+              color: ink,
               fontWeight: FontWeight.w800,
+              fontSize: 12.5,
             ),
           ),
         ),
@@ -628,387 +838,1535 @@ class _WorkflowRow extends StatelessWidget {
   );
 }
 
-/// ປຸ່ມທາງລັດໄປໜ້າອື່ນ (ແຜນທີ່ · ຄ່າຄອມ)
-class _ShortcutButton extends StatelessWidget {
-  const _ShortcutButton({
-    required this.icon,
-    required this.label,
-    required this.tone,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String label;
-  final Color tone;
-  final VoidCallback onTap;
-
+class _TodayBrief extends StatelessWidget {
+  const _TodayBrief({required this.data});
+  final Overview data;
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(16),
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      decoration: BoxDecoration(
-        color: tone.withValues(alpha: .06),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: tone.withValues(alpha: .22)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: tone.withValues(alpha: .14),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 18, color: tone),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: ink),
-            ),
-          ),
-          Icon(Icons.arrow_forward_ios_rounded, size: 13, color: tone),
-        ],
-      ),
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 15),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: line),
+    ),
+    child: Row(
+      children: [
+        _TodayMetric(
+          label: 'ຮັບເຂົ້າ',
+          value: data.todayReceived,
+          icon: Icons.call_received_rounded,
+          color: const Color(0xFF2563EB),
+        ),
+        _TodayMetric(
+          label: 'ນັດໝາຍ',
+          value: data.todayAppointments,
+          icon: Icons.event_available_outlined,
+          color: const Color(0xFF7C3AED),
+        ),
+        _TodayMetric(
+          label: 'ກຳລັງສ້ອມ',
+          value: data.todayRepairing,
+          icon: Icons.build_circle_outlined,
+          color: const Color(0xFFD97706),
+        ),
+        _TodayMetric(
+          label: 'ສົ່ງຄືນ',
+          value: data.todayReturned,
+          icon: Icons.task_alt_rounded,
+          color: ok,
+        ),
+      ],
     ),
   );
 }
 
-class _ActionItem {
-  const _ActionItem(this.label, this.value, this.tone, this.onTap);
+class _TodayMetric extends StatelessWidget {
+  const _TodayMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
   final String label;
   final int value;
-  final Color tone;
-  final VoidCallback onTap;
-}
-
-/// ບັດ "ຕ້ອງລົງມື" 1 ອັນ — ຕົວເລກເດັ່ນ ປ້າຍນ້ອຍ
-class _ActionChip extends StatelessWidget {
-  const _ActionChip({required this.item});
-  final _ActionItem item;
-
+  final IconData icon;
+  final Color color;
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: item.onTap,
-    borderRadius: BorderRadius.circular(14),
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        color: item.tone.withValues(alpha: .07),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: item.tone.withValues(alpha: .24)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: item.tone,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              '${item.value}',
-              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900, color: Colors.white),
-            ),
+  Widget build(BuildContext context) => Expanded(
+    child: Column(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(height: 7),
+        Text(
+          '$value',
+          style: const TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w900,
+            color: ink,
           ),
-          const SizedBox(width: 8),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 150),
-            child: Text(
-              item.label,
-              style: const TextStyle(fontSize: 12, color: ink, fontWeight: FontWeight.w700),
-            ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 9.5,
+            color: muted,
+            fontWeight: FontWeight.w700,
           ),
-          const SizedBox(width: 4),
-          Icon(Icons.arrow_forward_ios_rounded, size: 12, color: item.tone),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 }
 
-/// ແຖບອາຍຸ 4 ຖັງ — ບໍ່ຫຼົ້ນກັນ ລວມ = ງານເປີດທັງໝົດ
-class _AgeBar extends StatelessWidget {
-  const _AgeBar({required this.aging, required this.total, required this.onTap});
-  final List<OverviewAge> aging;
-  final int total;
-  final void Function(OverviewAge) onTap;
-
-  static const _colors = {
-    'd7': ok,
-    'd14': Color(0xFFEAB308),
-    'd30': Color(0xFFF59E0B),
-    'over30': danger,
-  };
-
+class _ManagementSnapshot extends StatelessWidget {
+  const _ManagementSnapshot({required this.data});
+  final Overview data;
   @override
-  Widget build(BuildContext context) {
-    if (total <= 0) return const SizedBox.shrink();
-    return Column(
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: line),
+    ),
+    child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: Container(
-            height: 10,
-            color: const Color(0xFFEFF4F2),
-            child: Row(
-              children: [
-                for (final bucket in aging)
-                  if (bucket.count > 0)
-                    Expanded(
-                      flex: bucket.count,
-                      child: ColoredBox(color: _colors[bucket.key] ?? muted),
-                    ),
-              ],
+        const Text(
+          'ພາບລວມທາງບໍລິຫານ',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w900,
+            color: ink,
+          ),
+        ),
+        const SizedBox(height: 14),
+        _SnapshotRow(
+          label: 'ລາຍຮັບທີ່ຊຳລະແລ້ວ',
+          value: _money(data.moneyPaid),
+          color: ok,
+        ),
+        _SnapshotRow(
+          label: 'ຍອດຄ້າງຊຳລະ',
+          value: _money(data.moneyDue),
+          color: data.moneyDue > 0 ? danger : muted,
+        ),
+        _SnapshotRow(
+          label: 'ຄວາມພໍໃຈລູກຄ້າ',
+          value: data.feedbackAvg == null
+              ? '-'
+              : '${data.feedbackAvg!.toStringAsFixed(1)} / 5',
+          color: _scoreTone(data.feedbackAvg),
+        ),
+        _SnapshotRow(
+          label: 'ຊ່າງວ່າງພ້ອມຮັບງານ',
+          value: '${data.techFree.length} ຄົນ',
+          color: teal,
+          last: true,
+        ),
+      ],
+    ),
+  );
+}
+
+class _SnapshotRow extends StatelessWidget {
+  const _SnapshotRow({
+    required this.label,
+    required this.value,
+    required this.color,
+    this.last = false,
+  });
+  final String label;
+  final String value;
+  final Color color;
+  final bool last;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 10),
+    decoration: BoxDecoration(
+      border: last ? null : const Border(bottom: BorderSide(color: line)),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: muted,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            color: color,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// ── Header ແບບທັນສະໄໝ ──
+class _ModernHeader extends StatelessWidget {
+  const _ModernHeader({
+    required this.title,
+    required this.subtitle,
+    required this.onRefresh,
+    required this.onLogout,
+    required this.onNotifications,
+  });
+
+  final String title;
+  final String subtitle;
+  final VoidCallback onRefresh;
+  final VoidCallback onLogout;
+  final VoidCallback onNotifications;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: line)),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 10, 12, 10),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: ink,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.grid_view_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: ink,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: ok,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: muted,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              _HeaderIconButton(
+                icon: Icons.notifications_none_rounded,
+                onTap: onNotifications,
+                showBadge: true,
+              ),
+              const SizedBox(width: 5),
+              _HeaderIconButton(icon: Icons.refresh_rounded, onTap: onRefresh),
+              const SizedBox(width: 5),
+              _HeaderIconButton(
+                icon: Icons.more_horiz_rounded,
+                onTap: () => _showMenu(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            for (final bucket in aging)
-              InkWell(
-                onTap: () => onTap(bucket),
-                borderRadius: BorderRadius.circular(8),
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.logout_rounded, color: danger),
+              title: const Text(
+                'ອອກຈາກລະບົບ',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                onLogout();
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({
+    required this.icon,
+    required this.onTap,
+    this.showBadge = false,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool showBadge;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: surfaceAlt,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: line),
+        ),
+        child: Stack(
+          children: [
+            Center(child: Icon(icon, size: 20, color: ink)),
+            if (showBadge)
+              Positioned(
+                top: 8,
+                right: 8,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: (_colors[bucket.key] ?? muted).withValues(alpha: .10),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: (_colors[bucket.key] ?? muted).withValues(alpha: .22)),
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF43F5E),
+                    shape: BoxShape.circle,
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// ພາບລວມສັ້ນໆທີ່ຜູ້ຈັດການເຫັນທັນທີເມື່ອເປີດໜ້າ.
+// ignore: unused_element
+class _CommandHero extends StatelessWidget {
+  const _CommandHero({
+    required this.openJobs,
+    required this.overdue,
+    required this.approvals,
+  });
+
+  final int openJobs;
+  final int overdue;
+  final int approvals;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: ink,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: ink.withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -38,
+            top: -52,
+            child: Container(
+              width: 150,
+              height: 150,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: tealBright.withValues(alpha: 0.24),
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text(
+                      'LIVE OVERVIEW',
+                      style: TextStyle(
+                        color: Color(0xFF99F6E4),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  const Icon(
+                    Icons.insights_rounded,
+                    color: Color(0xFF5EEAD4),
+                    size: 24,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              const Text(
+                'ງານທີ່ກຳລັງດຳເນີນ',
+                style: TextStyle(
+                  color: onHeroDim,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '$openJobs',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 42,
+                  height: 1.1,
+                  fontWeight: FontWeight.w900,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  _HeroFact(
+                    icon: Icons.timer_off_outlined,
+                    label: 'ເກີນ SLA',
+                    value: '$overdue',
+                    tone: const Color(0xFFFDA4AF),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 32,
+                    margin: const EdgeInsets.symmetric(horizontal: 18),
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
+                  _HeroFact(
+                    icon: Icons.fact_check_outlined,
+                    label: 'ລໍອະນຸມັດ',
+                    value: '$approvals',
+                    tone: const Color(0xFFFDE68A),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroFact extends StatelessWidget {
+  const _HeroFact({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.tone,
+  });
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color tone;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Row(
+      children: [
+        Icon(icon, size: 18, color: tone),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                color: tone,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            Text(
+              label,
+              style: const TextStyle(
+                color: onHeroDim,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+/// ── KPI Grid ──
+class _KPIMetric {
+  const _KPIMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    // ignore: unused_element_parameter
+    this.detail,
+    // ignore: unused_element_parameter
+    this.isDecimal = false,
+    // ignore: unused_element_parameter
+    this.isMoney = false,
+  });
+
+  final String label;
+  final double value;
+  final IconData icon;
+  final Color color;
+  final String? detail;
+  final bool isDecimal;
+  final bool isMoney;
+}
+
+// ignore: unused_element
+class _KPIGrid extends StatelessWidget {
+  const _KPIGrid({required this.metrics});
+
+  final List<_KPIMetric> metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'ຕົວຊີ້ວັດສຳຄັນ',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+            color: ink,
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 142,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: metrics.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final m = metrics[index];
+              return SizedBox(
+                width: 170,
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: line),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: _colors[bucket.key] ?? muted,
-                          shape: BoxShape.circle,
+                      Row(
+                        children: [
+                          Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: m.color.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(9),
+                            ),
+                            child: Icon(m.icon, size: 17, color: m.color),
+                          ),
+                          const Spacer(),
+                          if (m.detail != null)
+                            Text(
+                              m.detail!,
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: Colors.grey.shade400,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        m.isMoney
+                            ? _money(m.value)
+                            : m.isDecimal
+                            ? m.value.toStringAsFixed(1)
+                            : m.value.toInt().toString(),
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          color: m.color,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                          height: 1,
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(height: 2),
                       Text(
-                        '${bucket.count} · ${bucket.label}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: ink,
+                        m.label,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
-          ],
+              );
+            },
+          ),
         ),
       ],
     );
   }
 }
 
-/// 1 ແຖວຂອງ "ໃບທີ່ຄ້າງດົນສຸດ"
+// ignore: unused_element
+class _OperationsHealth extends StatelessWidget {
+  const _OperationsHealth({
+    required this.repairOpen,
+    required this.installOpen,
+    required this.claimsOpen,
+    required this.loaners,
+    required this.onClaims,
+    required this.onLoaners,
+  });
+
+  final int repairOpen;
+  final int installOpen;
+  final int claimsOpen;
+  final int loaners;
+  final VoidCallback onClaims;
+  final VoidCallback onLoaners;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: line),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.monitor_heart_outlined, color: teal, size: 20),
+            SizedBox(width: 8),
+            Text(
+              'ສຸຂະພາບການດຳເນີນງານ',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                color: ink,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 13),
+        Row(
+          children: [
+            Expanded(
+              child: _HealthTile(
+                label: 'ງານສ້ອມ',
+                value: repairOpen,
+                icon: Icons.build_circle_outlined,
+                color: teal,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _HealthTile(
+                label: 'ງານຕິດຕັ້ງ',
+                value: installOpen,
+                icon: Icons.home_repair_service_outlined,
+                color: const Color(0xFF0284C7),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _HealthTile(
+                label: 'ເຄມເປີດ',
+                value: claimsOpen,
+                icon: Icons.policy_outlined,
+                color: const Color(0xFF7C3AED),
+                onTap: onClaims,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _HealthTile(
+                label: 'ເຄື່ອງສຳຮອງ',
+                value: loaners,
+                icon: Icons.devices_other_outlined,
+                color: warn,
+                onTap: onLoaners,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+class _HealthTile extends StatelessWidget {
+  const _HealthTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    this.onTap,
+  });
+
+  final String label;
+  final int value;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: color.withValues(alpha: .065),
+    borderRadius: BorderRadius.circular(14),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 18, color: color),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$value',
+                    style: TextStyle(
+                      fontSize: 18,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      color: muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (onTap != null)
+              const Icon(Icons.chevron_right_rounded, size: 17, color: faint),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+String _money(double value) {
+  if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+  if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
+  return value.toStringAsFixed(0);
+}
+
+/// ── Alert Section ──
+class _AlertItem {
+  const _AlertItem({
+    required this.icon,
+    required this.label,
+    required this.count,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final int count;
+  final Color color;
+  final VoidCallback onTap;
+}
+
+// ignore: unused_element
+class _AlertSection extends StatelessWidget {
+  const _AlertSection({
+    required this.title,
+    required this.alerts,
+    required this.totalAlerts,
+  });
+
+  final String title;
+  final List<_AlertItem> alerts;
+  final int totalAlerts;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 15, 16, 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7F8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: danger.withValues(alpha: 0.16)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: danger.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.bolt_rounded, color: danger, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: ink,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: danger,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '$totalAlerts',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...alerts.map((alert) => _AlertTile(item: alert)),
+        ],
+      ),
+    );
+  }
+}
+
+class _AlertTile extends StatelessWidget {
+  const _AlertTile({required this.item});
+  final _AlertItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: item.onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: line),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: item.color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(item.icon, size: 18, color: item.color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                item.label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: ink,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: item.color,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${item.count}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: Colors.grey.shade400,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// ── Age Distribution Card ──
+class _AgeDistributionCard extends StatelessWidget {
+  const _AgeDistributionCard({
+    required this.staleJobs,
+    required this.openTotal,
+    required this.aging,
+    required this.onTap,
+    required this.onTapAll,
+  });
+
+  final int staleJobs;
+  final int openTotal;
+  final List<OverviewAge> aging;
+  final void Function(OverviewAge) onTap;
+  final VoidCallback onTapAll;
+
+  static const _colors = {
+    'd7': Color(0xFF10B981),
+    'd14': Color(0xFFEAB308),
+    'd30': Color(0xFFF97316),
+    'over30': Color(0xFFF43F5E),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      title: 'ອາຍຸກອງວຽກ',
+      badge: openTotal > 0
+          ? '${staleJobs > 0 ? '⚠️ ' : ''}$openTotal ໃບ'
+          : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (openTotal > 0) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                height: 8,
+                color: Colors.grey.shade100,
+                child: Row(
+                  children: aging.where((a) => a.count > 0).map((bucket) {
+                    return Expanded(
+                      flex: bucket.count,
+                      child: ColoredBox(
+                        color: _colors[bucket.key] ?? Colors.grey,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 14,
+              runSpacing: 6,
+              children: aging.where((a) => a.count > 0).map((bucket) {
+                return InkWell(
+                  onTap: () => onTap(bucket),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          _colors[bucket.key]?.withValues(alpha: 0.1) ??
+                          Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: _colors[bucket.key] ?? Colors.grey,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${bucket.count} · ${bucket.label}',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: _colors[bucket.key] ?? Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ] else ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                '✨ ບໍ່ມີງານຄ້າງ',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: ok,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// ── Workflow Section ──
+// ignore: unused_element
+class _WorkflowSection extends StatelessWidget {
+  const _WorkflowSection({required this.workflows});
+  final List<WorkflowSummary> workflows;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      title: 'ແຍກຕາມສາຍງານ',
+      child: Column(
+        children: workflows.map((w) => _WorkflowRow(row: w)).toList(),
+      ),
+    );
+  }
+}
+
+class _WorkflowRow extends StatelessWidget {
+  const _WorkflowRow({required this.row});
+  final WorkflowSummary row;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = row.open;
+    if (total == 0) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 76,
+            child: Text(
+              row.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: ink,
+              ),
+            ),
+          ),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                height: 6,
+                color: Colors.grey.shade100,
+                child: Row(
+                  children: [
+                    if (row.stale > 0)
+                      Expanded(
+                        flex: row.stale,
+                        child: const ColoredBox(color: danger),
+                      ),
+                    if (row.open - row.stale > 0)
+                      Expanded(
+                        flex: row.open - row.stale,
+                        child: const ColoredBox(color: teal),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            row.stale > 0
+                ? '${row.open} ໃບ · ຄ້າງ ${row.stale}'
+                : '${row.open} ໃບ${row.oldestDays > 0 ? ' · ${row.oldestDays}ມື້' : ''}',
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 11,
+              color: row.stale > 0 ? danger : Colors.grey.shade500,
+              fontWeight: row.stale > 0 ? FontWeight.w700 : FontWeight.w500,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ── Tech Backlog Section ──
+class _TechBacklogSection extends StatelessWidget {
+  const _TechBacklogSection({
+    required this.techs,
+    required this.freeTechs,
+    required this.onTap,
+  });
+
+  final List<OverviewBacklog> techs;
+  final List<String> freeTechs;
+  final void Function(OverviewBacklog) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      title: 'ກອງວຽກຊ່າງ',
+      badge: '${techs.length} ຄົນ',
+      child: Column(
+        children: [
+          for (final t in techs) _TechBacklogRow(row: t, onTap: () => onTap(t)),
+          if (freeTechs.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: freeTechs.map((name) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: ok.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: ok.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle, size: 12, color: ok),
+                      const SizedBox(width: 4),
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: ink,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TechBacklogRow extends StatelessWidget {
+  const _TechBacklogRow({required this.row, required this.onTap});
+  final OverviewBacklog row;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 80,
+              child: Text(
+                row.tech,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: ink,
+                ),
+              ),
+            ),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  height: 6,
+                  color: Colors.grey.shade100,
+                  child: Row(
+                    children: [
+                      if (row.stale > 0)
+                        Expanded(
+                          flex: row.stale,
+                          child: const ColoredBox(color: danger),
+                        ),
+                      if (row.open - row.stale > 0)
+                        Expanded(
+                          flex: row.open - row.stale,
+                          child: const ColoredBox(color: teal),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 72,
+              child: Text(
+                row.stale > 0
+                    ? '${row.open} · 🔴${row.stale}'
+                    : '${row.open} · ${row.oldestDays}d',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: row.stale > 0 ? danger : Colors.grey.shade500,
+                  fontWeight: row.stale > 0 ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// ── Old Jobs Section ──
+// ignore: unused_element
+class _OldJobsSection extends StatelessWidget {
+  const _OldJobsSection({required this.jobs, required this.onTapAll});
+
+  final List<OverviewOldJob> jobs;
+  final VoidCallback onTapAll;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      title: 'ຄ້າງດົນສຸດ',
+      trailing: TextButton(
+        onPressed: onTapAll,
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          minimumSize: const Size(0, 0),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: const Text(
+          'ເບິ່ງທັງໝົດ →',
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w800,
+            color: teal,
+          ),
+        ),
+      ),
+      child: Column(
+        children: jobs.take(3).map((job) => _OldJobRow(job: job)).toList(),
+      ),
+    );
+  }
+}
+
 class _OldJobRow extends StatelessWidget {
   const _OldJobRow({required this.job});
   final OverviewOldJob job;
 
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: () => showJobSheet(
-      context,
-      MonitorJob(
-        workflow: 'repair',
-        code: job.code,
-        product: job.product,
-        customer: job.custName,
-        tech: job.tech,
-        serviceType: null,
-        stageLabel: job.stageLabel,
-        ageDays: job.days,
-        slaLeft: null,
+  Widget build(BuildContext context) {
+    final isOver30 = job.days > 30;
+    return InkWell(
+      onTap: () => showJobSheet(
+        context,
+        MonitorJob(
+          workflow: 'repair',
+          code: job.code,
+          product: job.product,
+          customer: job.custName,
+          tech: job.tech,
+          serviceType: null,
+          stageLabel: job.stageLabel,
+          ageDays: job.days,
+          slaLeft: null,
+        ),
       ),
-    ),
-    borderRadius: BorderRadius.circular(12),
-    child: Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(
-        color: surfaceAlt,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: line),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            decoration: BoxDecoration(
-              color: (job.days > 30 ? danger : teal).withValues(alpha: .12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  '${job.days}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    height: 1,
-                    fontWeight: FontWeight.w900,
-                    color: job.days > 30 ? danger : teal,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                const Text('ມື້', style: TextStyle(fontSize: 9.5, color: muted, fontWeight: FontWeight.w700)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '#${job.code} · ${job.product}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: ink),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${job.custName ?? '-'} · ${job.stageLabel} · ${job.tech ?? 'ຍັງບໍ່ມີຊ່າງ'}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11, color: muted),
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right, size: 18, color: faint),
-        ],
-      ),
-    ),
-  );
-}
-
-/// 1 ແຖວຂອງ "ກອງວຽກຂອງແຕ່ລະຊ່າງ" — ແດງ = ຄ້າງເກີນ 30 ມື້
-class _BacklogRow extends StatelessWidget {
-  const _BacklogRow({required this.row, required this.onTap});
-  final OverviewBacklog row;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(10),
-    child: Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Row(
-      children: [
-        SizedBox(
-          width: 84,
-          child: Text(
-            row.tech,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: ink),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isOver30
+              ? danger.withValues(alpha: 0.05)
+              : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isOver30
+                ? danger.withValues(alpha: 0.2)
+                : Colors.grey.shade200,
           ),
         ),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: SizedBox(
-              height: 8,
-              child: Row(
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              decoration: BoxDecoration(
+                color: (isOver30 ? danger : teal).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
                 children: [
-                  if (row.stale > 0) Expanded(flex: row.stale, child: const ColoredBox(color: danger)),
-                  if (row.open - row.stale > 0)
-                    Expanded(flex: row.open - row.stale, child: const ColoredBox(color: teal)),
+                  Text(
+                    '${job.days}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                      color: isOver30 ? danger : teal,
+                    ),
+                  ),
+                  const Text(
+                    'ມື້',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
             ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 96,
-          child: Text(
-            row.stale > 0
-                ? '${row.open} ໃບ · ຄ້າງ ${row.stale}'
-                : '${row.open} ໃບ · ${row.oldestDays} ມື້',
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontSize: 11,
-              color: row.stale > 0 ? danger : muted,
-              fontWeight: row.stale > 0 ? FontWeight.w700 : FontWeight.w400,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '#${job.code} · ${job.product}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: ink,
+                    ),
+                  ),
+                  Text(
+                    '${job.custName ?? '-'} · ${job.stageLabel}${job.tech != null ? ' · ${job.tech}' : ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
-          ),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: Colors.grey.shade300,
+            ),
+          ],
         ),
-        const Icon(Icons.chevron_right, size: 17, color: faint),
-      ],
-    ),
-    ),
-  );
+      ),
+    );
+  }
 }
 
-/* ── ຊິ້ນສ່ວນ UI ─────────────────────────────────────────────────── */
+/// ── Pipeline Section ──
+// ignore: unused_element
+class _PipelineSection extends StatelessWidget {
+  const _PipelineSection({required this.pipeline, required this.onTap});
 
-/// chart ຂັ້ນຕອນງານສ້ອມ — bar ຕໍ່ຂັ້ນ (ຕົວເລກຢູ່ເທິງແທ່ງ · ຊື່ຂັ້ນຢູ່ລຸ່ມ)
-class _PipelineChart extends StatelessWidget {
-  const _PipelineChart({required this.pipeline, required this.onTap});
   final List<OverviewStage> pipeline;
   final void Function(OverviewStage) onTap;
 
   @override
   Widget build(BuildContext context) {
     if (pipeline.isEmpty) return const SizedBox.shrink();
-    final maxV = pipeline.map((s) => s.count).fold<int>(0, (a, b) => a > b ? a : b);
+
+    final maxV = pipeline
+        .map((s) => s.count)
+        .fold<int>(0, (a, b) => a > b ? a : b);
     final maxY = (maxV <= 0 ? 1 : maxV).toDouble();
-    return SizedBox(
-      height: 180,
-      child: BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
-          maxY: maxY * 1.25,
-          barTouchData: BarTouchData(
-            enabled: false,
-            touchTooltipData: BarTouchTooltipData(
-              getTooltipColor: (_) => Colors.transparent,
-              tooltipPadding: EdgeInsets.zero,
-              tooltipMargin: 2,
-              getTooltipItem: (group, gi, rod, ri) => BarTooltipItem(
-                '${rod.toY.toInt()}',
-                const TextStyle(color: ink, fontSize: 10.5, fontWeight: FontWeight.w900),
+
+    return _Card(
+      title: 'ຂັ້ນຕອນງານ',
+      child: SizedBox(
+        height: 160,
+        child: BarChart(
+          BarChartData(
+            alignment: BarChartAlignment.spaceAround,
+            maxY: maxY * 1.25,
+            barTouchData: BarTouchData(
+              enabled: false,
+              touchTooltipData: BarTouchTooltipData(
+                getTooltipColor: (_) => Colors.transparent,
+                tooltipPadding: EdgeInsets.zero,
+                tooltipMargin: 2,
+                getTooltipItem: (group, gi, rod, ri) => BarTooltipItem(
+                  '${rod.toY.toInt()}',
+                  const TextStyle(
+                    color: ink,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
             ),
-          ),
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            getDrawingHorizontalLine: (v) => const FlLine(color: Color(0xFFECF1EF), strokeWidth: 1),
-          ),
-          borderData: FlBorderData(show: false),
-          titlesData: FlTitlesData(
-            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 40,
-                getTitlesWidget: (value, meta) {
-                  final i = value.toInt();
-                  if (i < 0 || i >= pipeline.length) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: SizedBox(
-                      width: 46,
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              getDrawingHorizontalLine: (v) =>
+                  const FlLine(color: Color(0xFFECF1EF), strokeWidth: 1),
+            ),
+            borderData: FlBorderData(show: false),
+            titlesData: FlTitlesData(
+              leftTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 36,
+                  getTitlesWidget: (value, meta) {
+                    final i = value.toInt();
+                    if (i < 0 || i >= pipeline.length) {
+                      return const SizedBox.shrink();
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 4),
                       child: InkWell(
                         onTap: () => onTap(pipeline[i]),
                         child: Text(
@@ -1016,162 +2374,607 @@ class _PipelineChart extends StatelessWidget {
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 8.5,
                             color: ink,
                             height: 1.1,
                             decoration: TextDecoration.underline,
-                            decorationColor: faint,
+                            decorationColor: Colors.grey.shade300,
                           ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
+            barGroups: [
+              for (var i = 0; i < pipeline.length; i++)
+                BarChartGroupData(
+                  x: i,
+                  showingTooltipIndicators: pipeline[i].count > 0 ? [0] : [],
+                  barRods: [
+                    BarChartRodData(
+                      toY: pipeline[i].count.toDouble(),
+                      color: pipeline[i].count > 0
+                          ? teal
+                          : Colors.grey.shade200,
+                      width: 18,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
           ),
-          barGroups: [
-            for (var i = 0; i < pipeline.length; i++)
-              BarChartGroupData(
-                x: i,
-                showingTooltipIndicators: pipeline[i].count > 0 ? [0] : [],
-                barRods: [
-                  BarChartRodData(
-                    toY: pipeline[i].count.toDouble(),
-                    color: teal,
-                    width: 15,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                  ),
-                ],
-              ),
-          ],
         ),
       ),
     );
   }
 }
 
-class _Card extends StatelessWidget {
-  const _Card({required this.title, required this.child, this.trailing});
-  final String title;
-  final Widget child;
-  /// ປຸ່ມນ້ອຍມູມຂວາຂອງຫົວກາດ (ເຊັ່ນ "ເບິ່ງທັງໝົດ")
-  final Widget? trailing;
+/// ── Revenue Section ──
+// ignore: unused_element
+class _RevenueSection extends StatelessWidget {
+  const _RevenueSection({
+    required this.quoted,
+    required this.paid,
+    required this.due,
+  });
+
+  final double quoted;
+  final double paid;
+  final double due;
 
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(top: 13),
-    padding: const EdgeInsets.fromLTRB(16, 15, 16, 16),
-    decoration: cardDecoration(borderRadius: 20),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 3.5,
-              height: 15,
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                color: teal,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w900,
-                  color: ink,
-                  letterSpacing: -.2,
-                ),
-              ),
-            ),
-            if (trailing != null) trailing!,
-          ],
-        ),
-        const SizedBox(height: 14),
-        child,
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    return _Card(
+      title: 'ລາຍຮັບເດືອນ',
+      child: Row(
+        children: [
+          _MiniStat(label: 'ຕົກລົງ', value: _money(quoted), color: ink),
+          _MiniStat(label: 'ຮັບແລ້ວ', value: _money(paid), color: ok),
+          _MiniStat(
+            label: 'ຄ້າງຮັບ',
+            value: _money(due),
+            color: due > 0 ? const Color(0xFFD97706) : Colors.grey,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _Mini extends StatelessWidget {
-  const _Mini({
+/// ── Flow Section ──
+// ignore: unused_element
+class _FlowSection extends StatelessWidget {
+  const _FlowSection({
+    required this.opened,
+    required this.closed,
+    required this.delta,
+  });
+
+  final int opened;
+  final int closed;
+  final int delta;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      title: 'ງານເຂົ້າ-ຈົບ (30 ມື້)',
+      child: Row(
+        children: [
+          _MiniStat(label: 'ເຂົ້າ', value: '$opened', color: teal),
+          _MiniStat(label: 'ຈົບ', value: '$closed', color: ok),
+          _MiniStat(
+            label: delta >= 0 ? 'ກອງວຽກຫຼຸດ' : 'ກອງວຽກເພີ່ມ',
+            value: '${delta > 0 ? '+' : ''}$delta',
+            color: delta >= 0 ? ok : danger,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ── Quick Actions ──
+class _QuickActionsSection extends StatelessWidget {
+  const _QuickActionsSection({
+    required this.onMap,
+    required this.onCommission,
+    required this.onActivities,
+    required this.onStock,
+  });
+
+  final VoidCallback onMap;
+  final VoidCallback onCommission;
+  final VoidCallback onActivities;
+  final VoidCallback onStock;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      title: 'ເຄື່ອງມືຊ່ວຍເຫຼືອ',
+      child: Row(
+        children: [
+          _QuickActionTile(
+            action: _QuickAction(
+              icon: Icons.map_rounded,
+              label: 'ແຜນທີ່',
+              color: teal,
+              onTap: onMap,
+            ),
+          ),
+          _QuickActionTile(
+            action: _QuickAction(
+              icon: Icons.payments_rounded,
+              label: 'ຄ່າຄອມ',
+              color: ok,
+              onTap: onCommission,
+            ),
+          ),
+          _QuickActionTile(
+            action: _QuickAction(
+              icon: Icons.event_rounded,
+              label: 'ກິດຈະກຳ',
+              color: const Color(0xFF7C3AED),
+              onTap: onActivities,
+            ),
+          ),
+          _QuickActionTile(
+            action: _QuickAction(
+              icon: Icons.inventory_rounded,
+              label: 'ສາງ',
+              color: const Color(0xFF0891B2),
+              onTap: onStock,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickAction {
+  const _QuickAction({
+    required this.icon,
     required this.label,
-    this.value,
-    this.valueText,
-    this.tone = ink,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+}
+
+class _QuickActionTile extends StatelessWidget {
+  const _QuickActionTile({required this.action});
+  final _QuickAction action;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: action.onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
+          child: Column(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: action.color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(action.icon, size: 21, color: action.color),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                action.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ── Today Section ──
+// ignore: unused_element
+class _TodaySection extends StatelessWidget {
+  const _TodaySection({
+    required this.received,
+    required this.returned,
+    required this.appointments,
+    required this.checking,
+    required this.repairing,
+    required this.onReceived,
+    required this.onReturned,
+  });
+
+  final int received;
+  final int returned;
+  final int appointments;
+  final int checking;
+  final int repairing;
+  final VoidCallback onReceived;
+  final VoidCallback onReturned;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      title: 'ມື້ນີ້',
+      child: Column(
+        children: [
+          Row(
+            children: [
+              _MiniStat(
+                label: 'ເຂົ້າ',
+                value: '$received',
+                color: teal,
+                onTap: onReceived,
+              ),
+              _MiniStat(
+                label: 'ຈົບ',
+                value: '$returned',
+                color: ok,
+                onTap: onReturned,
+              ),
+              _MiniStat(
+                label: 'ນັດໝາຍ',
+                value: '$appointments',
+                color: const Color(0xFF7C3AED),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _MiniStat(
+                label: 'ກວດ',
+                value: '$checking',
+                color: const Color(0xFFEAB308),
+              ),
+              _MiniStat(
+                label: 'ສ້ອມ',
+                value: '$repairing',
+                color: const Color(0xFFF97316),
+              ),
+              const Expanded(child: SizedBox()),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ── SLA Section ──
+// ignore: unused_element
+class _SLASection extends StatelessWidget {
+  const _SLASection({
+    required this.warning,
+    required this.late,
+    required this.critical,
+    required this.onTapLate,
+  });
+
+  final int warning;
+  final int late;
+  final int critical;
+  final VoidCallback onTapLate;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      title: 'SLA',
+      child: Row(
+        children: [
+          _MiniStat(
+            label: 'ໃກ້ເກີນ',
+            value: '$warning',
+            color: const Color(0xFFD97706),
+          ),
+          _MiniStat(
+            label: 'ເກີນ',
+            value: '$late',
+            color: danger,
+            onTap: late > 0 ? onTapLate : null,
+          ),
+          _MiniStat(label: 'ວິກິດ', value: '$critical', color: danger),
+        ],
+      ),
+    );
+  }
+}
+
+/// ── Satisfaction Section ──
+// ignore: unused_element
+class _SatisfactionSection extends StatelessWidget {
+  const _SatisfactionSection({
+    required this.avg,
+    required this.total,
+    required this.unhappy,
+  });
+
+  final double? avg;
+  final int total;
+  final int unhappy;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      title: 'ຄວາມພໍໃຈລູກຄ້າ',
+      subtitle: 'ຄະແນນຕໍ່າ = ດີ',
+      child: Row(
+        children: [
+          _MiniStat(
+            label: 'ຄ່າສະເລ່ຍ',
+            value: avg == null ? '-' : avg!.toStringAsFixed(2),
+            color: _scoreTone(avg),
+          ),
+          _MiniStat(label: 'ທັງໝົດ', value: '$total', color: Colors.grey),
+          _MiniStat(
+            label: 'ບໍ່ພໍໃຈ',
+            value: '$unhappy',
+            color: unhappy > 0 ? danger : Colors.grey,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ── Mini Stat Component ──
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({
+    required this.label,
+    required this.value,
+    required this.color,
     this.onTap,
   });
+
   final String label;
-  final int? value;
-  final String? valueText;
-  final Color tone;
-  /// ມີ = ແຕະເປີດລາຍການໄດ້ (ຂີດກ້ອງປ້າຍໃຫ້ຮູ້ວ່າກົດໄດ້)
+  final String value;
+  final Color color;
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => Expanded(
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        decoration: BoxDecoration(
-          color: tone.withValues(alpha: .06),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: tone.withValues(alpha: .14)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              valueText ?? '${value ?? 0}',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-                color: tone,
-                fontFeatures: const [FontFeature.tabularFigures()],
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.12)),
+          ),
+          child: Column(
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: color,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w700,
-                color: muted,
-                decoration: onTap == null ? null : TextDecoration.underline,
-                decorationColor: tone.withValues(alpha: .4),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade500,
+                  decoration: onTap != null ? TextDecoration.underline : null,
+                  decorationColor: color.withValues(alpha: 0.4),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
+/// ── Card Component ──
+class _Card extends StatelessWidget {
+  const _Card({
+    required this.title,
+    required this.child,
+    this.subtitle,
+    this.badge,
+    this.trailing,
+  });
+
+  final String title;
+  final Widget child;
+  final String? subtitle;
+  final String? badge;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: line),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.035),
+            blurRadius: 18,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 3.5,
+                height: 16,
+                margin: const EdgeInsets.only(right: 10),
+                decoration: BoxDecoration(
+                  color: teal,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: ink,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle!,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: Colors.grey.shade500,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (badge != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: teal.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    badge!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: teal,
+                    ),
+                  ),
+                ),
+              if (trailing != null) trailing!,
+            ],
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+/// ── Loading Shimmer ──
+class _LoadingShimmer extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          Text(
+            'ກຳລັງໂຫຼດຂໍ້ມູນ...',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ── Error View ──
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message, required this.onRetry});
   final String message;
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.cloud_off_rounded, size: 44, color: muted),
-        const SizedBox(height: 12),
-        Text(message, style: const TextStyle(color: muted)),
-        const SizedBox(height: 12),
-        FilledButton(onPressed: onRetry, child: const Text('ລອງໃໝ່')),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: danger.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.cloud_off_rounded, size: 36, color: danger),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: onRetry,
+            style: FilledButton.styleFrom(
+              backgroundColor: teal,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: const Text('ລອງໃໝ່'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ── Helper Functions ──
+Color _scoreTone(double? score) {
+  if (score == null) return Colors.grey;
+  if (score >= 2.5) return danger;
+  if (score >= 1.5) return const Color(0xFFD97706);
+  return ok;
 }

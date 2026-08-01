@@ -7,16 +7,15 @@ import '../main.dart';
 /// ── ຊຸດ UI ກາງ (ອອກແບບໃໝ່) ──
 /// ຊິ້ນສ່ວນທີ່ໃຊ້ຊ້ຳທຸກໜ້າ ⇒ ໜ້າຕາເປັນລະບົບດຽວກັນ ແລະ ແກ້ບ່ອນດຽວ.
 
-/// ເງົານຸ້ມມາດຕະຖານຂອງກາດ (v2 modern dual shadow)
+/// ເງົານຸ້ມມາດຕະຖານຂອງກາດ (Minimalist micro shadow)
 const kSoftShadow = [
-  BoxShadow(color: Color(0x0C0C1B18), blurRadius: 20, offset: Offset(0, 6)),
-  BoxShadow(color: Color(0x05000000), blurRadius: 4, offset: Offset(0, 2)),
+  BoxShadow(color: Color(0x060F172A), blurRadius: 16, offset: Offset(0, 4)),
 ];
 
-BoxDecoration cardDecoration({Color? color, Color? border, double borderRadius = 20}) => BoxDecoration(
+BoxDecoration cardDecoration({Color? color, Color? border, double borderRadius = 18}) => BoxDecoration(
   color: color ?? Colors.white,
   borderRadius: BorderRadius.circular(borderRadius),
-  border: Border.all(color: border ?? const Color(0xFFE5ECE9)),
+  border: Border.all(color: border ?? const Color(0xFFF1F5F9)),
   boxShadow: kSoftShadow,
 );
 
@@ -543,21 +542,13 @@ class _HeroStatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final valueColor = stat.color ?? onHero;
-    final badgeBg = stat.badgeColor ?? valueColor.withValues(alpha: .18);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .10),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: .15)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0F000000),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
+        color: Colors.white.withValues(alpha: .06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: .10)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -568,7 +559,7 @@ class _HeroStatTile extends StatelessWidget {
               Text(
                 stat.value,
                 style: TextStyle(
-                  fontSize: 25,
+                  fontSize: 24,
                   height: 1,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -.5,
@@ -577,14 +568,7 @@ class _HeroStatTile extends StatelessWidget {
                 ),
               ),
               if (stat.icon != null)
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: badgeBg,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(stat.icon, size: 13, color: valueColor),
-                ),
+                Icon(stat.icon, size: 15, color: valueColor.withValues(alpha: .7)),
             ],
           ),
           const SizedBox(height: 6),
@@ -592,7 +576,7 @@ class _HeroStatTile extends StatelessWidget {
             stat.label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: onHeroDim),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: onHeroDim),
           ),
         ],
       ),

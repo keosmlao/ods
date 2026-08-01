@@ -100,6 +100,13 @@ export async function managerDrill(bucket: string): Promise<DrillResult> {
 
   switch (kind) {
     case "workflow": {
+      if (argument === "all") {
+        const [repairs, installs] = await Promise.all([
+          repair(OPEN_JOB),
+          install(INSTALL_OPEN),
+        ]);
+        return { label: "ງານທີ່ກຳລັງເປີດ", jobs: sortByAge([...repairs, ...installs]) };
+      }
       if (argument === "install") {
         return { label: "ງານຕິດຕັ້ງ", jobs: sortByAge(await install(INSTALL_OPEN)) };
       }

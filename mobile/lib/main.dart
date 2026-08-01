@@ -21,26 +21,25 @@ void main() async {
   WidgetsBinding.instance.addPostFrameCallback((_) => AppLinks.flush());
 }
 
-// ── Design tokens v2 (ທັນສະໄໝ) — ແບຣນ emerald + hero ໄລ່ສີເຂັ້ມ ──
-// ໝາຍເຫດ: ຮັກສາຊື່ `teal` ໄວ້ (ໜ້າຕ່າງໆ import ຢູ່) ແຕ່ຄ່າ = emerald.
-const teal = Color(0xFF059669); // brand deep — ປຸ່ມ/ຕົວອັກສອນເນັ້ນ
-const tealBright = Color(0xFF10B981); // emerald ສົດ — ໄລ່ສີ/active
-const tealTint = Color(0xFFD6F5E9); // brand soft — ພື້ນອ່ອນ (ຊິບ/ໄອຄອນ)
-const ink = Color(0xFF0A1A16); // ຫົວຂໍ້ / ຕົວອັກສອນເຂັ້ມ
-const danger = Color(0xFFF43F5E); // rose
-const ok = Color(0xFF059669); // emerald (= brand)
-const warn = Color(0xFFE08A0B); // amber
-const muted = Color(0xFF5A6C67);
-const faint = Color(0xFF93A29D);
-const ground = Color(0xFFEDF3F1); // ພື້ນຫຼັງໜ້າ
-const surfaceAlt = Color(0xFFF5F9F7); // ພື້ນຮອງ (input/seg)
-const line = Color(0xFFE4ECE9);
+// ── Design tokens v3 (Minimalist Executive Slate) ──
+const teal = Color(0xFF0F766E); // brand teal-slate
+const tealBright = Color(0xFF0D9488); // active highlight
+const tealTint = Color(0xFFCCFBF1); // soft badge tint
+const ink = Color(0xFF0F172A); // slate 900 — crisp title text
+const danger = Color(0xFFE11D48); // rose 600
+const ok = Color(0xFF059669); // emerald 600
+const warn = Color(0xFFD97706); // amber 600
+const muted = Color(0xFF64748B); // slate 500
+const faint = Color(0xFF94A3B8); // slate 400
+const ground = Color(0xFFF8FAFC); // slate 50 clean background
+const surfaceAlt = Color(0xFFF1F5F9); // slate 100
+const line = Color(0xFFE2E8F0); // slate 200
 
-// ── Hero header (ໄລ່ສີ emerald→ink) ──
-const hero1 = Color(0xFF0A2A24); // ເຂັ້ມສຸດ (ລຸ່ມ)
-const hero2 = Color(0xFF114A3C); // ອ່ອນກວ່າ (ເທິງ)
-const onHero = Color(0xFFEAFBF3); // ຕົວອັກສອນເທິງ hero
-const onHeroDim = Color(0xFF9FD9C6); // ຕົວອັກສອນຈາງເທິງ hero
+// ── Hero header (Obsidian Slate Theme) ──
+const hero1 = Color(0xFF0F172A); // slate 900
+const hero2 = Color(0xFF1E293B); // slate 800
+const onHero = Color(0xFFF8FAFC);
+const onHeroDim = Color(0xFF94A3B8);
 
 class OdssApp extends StatelessWidget {
   const OdssApp({super.key});

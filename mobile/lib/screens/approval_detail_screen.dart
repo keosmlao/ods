@@ -21,7 +21,24 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
   bool busy = false;
 
   bool get quote => widget.item.kind == 'quotation';
-  Color get accent => quote ? const Color(0xFF7C3AED) : danger;
+  bool get purchaseRequest => widget.item.kind == 'purchase-request';
+  bool get purchaseOrder => widget.item.kind == 'purchase-order';
+  bool get purchase => purchaseRequest || purchaseOrder;
+  bool get canReject => !purchaseOrder;
+  Color get accent => quote
+      ? const Color(0xFF7C3AED)
+      : purchaseRequest
+      ? const Color(0xFF0891B2)
+      : purchaseOrder
+      ? const Color(0xFFD97706)
+      : danger;
+  String get kindLabel => quote
+      ? 'ໃບສະເໜີລາຄາ'
+      : purchaseRequest
+      ? 'ໃບຂໍຊື້ (SPR)'
+      : purchaseOrder
+      ? 'ໃບສັ່ງຊື້ (PO)'
+      : 'ຂໍຍົກເລີກໃບຮັບເຄື່ອງ';
 
   @override
   void initState() {
@@ -64,10 +81,15 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
     final yes = await showDialog<bool>(
       context: context,
       builder: (d) => AlertDialog(
-        title: Text(quote ? 'ອະນຸມັດໃບສະເໜີລາຄາ?' : 'ອະນຸມັດການຍົກເລີກ?'),
-        content: Text('${widget.item.ref}${detail?.amount != null ? '\nຍອດ ${detail!.amount} ฿' : ''}'),
+        title: Text('ອະນຸມັດ $kindLabel?'),
+        content: Text(
+          '${widget.item.ref}${detail?.amount != null ? '\nຍອດ ${_thousands(detail!.amount)} ฿' : ''}',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('ຍົກເລີກ')),
+          TextButton(
+            onPressed: () => Navigator.pop(d, false),
+            child: const Text('ຍົກເລີກ'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: ok),
             onPressed: () => Navigator.pop(d, true),
@@ -77,7 +99,15 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
       ),
     );
     if (yes == true) {
-      await _decide(quote ? 'approve_quote' : 'approve_cancellation');
+      await _decide(
+        quote
+            ? 'approve_quote'
+            : purchaseRequest
+            ? 'approve_purchase_request'
+            : purchaseOrder
+            ? 'approve_purchase_order'
+            : 'approve_cancellation',
+      );
     }
   }
 
@@ -97,7 +127,10 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(d), child: const Text('ຍົກເລີກ')),
+          TextButton(
+            onPressed: () => Navigator.pop(d),
+            child: const Text('ຍົກເລີກ'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: danger),
             onPressed: () => Navigator.pop(d, ctrl.text.trim()),
@@ -108,7 +141,14 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
     );
     ctrl.dispose();
     if (reason != null && reason.isNotEmpty) {
-      await _decide(quote ? 'reject_quote' : 'reject_cancellation', reason: reason);
+      await _decide(
+        quote
+            ? 'reject_quote'
+            : purchaseRequest
+            ? 'reject_purchase_request'
+            : 'reject_cancellation',
+        reason: reason,
+      );
     }
   }
 
@@ -120,7 +160,7 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
       body: Column(
         children: [
           HeroHeader(
-            eyebrow: quote ? 'ໃບສະເໜີລາຄາ' : 'ຂໍຍົກເລີກໃບຮັບເຄື່ອງ',
+            eyebrow: kindLabel,
             title: widget.item.ref,
             onBack: () => Navigator.pop(context),
           ),
@@ -135,7 +175,18 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                       // ── ຂໍ້ມູນເຄື່ອງ / ລູກຄ້າ ──
                       _Card(
                         children: [
-                          _row('ສິນຄ້າ', [d.product, d.brand, d.model].where((x) => (x ?? '').isNotEmpty).join(' · ')),
+                          _row(
+                            'ສິນຄ້າ',
+                            [
+                              d.product,
+                              d.brand,
+                              d.model,
+                            ].where((x) => (x ?? '').isNotEmpty).join(' · '),
+                          ),
+                          _row('ລະຫັດວຽກ', d.jobCode),
+                          _row('ສາຂາ', d.branch),
+                          _row('ຜູ້ສະໜອງ', d.supplier),
+                          _row('ໝາຍເຫດ', d.remark),
                           _row('SN', d.sn),
                           _row('ຮັບປະກັນ', d.warranty),
                           _row('ລູກຄ້າ', d.customer),
@@ -154,37 +205,77 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                         children: [
                           Row(
                             children: [
-                              Icon(quote ? Icons.receipt_long_outlined : Icons.inventory_2_outlined, size: 18, color: accent),
+                              Icon(
+                                (quote || purchase)
+                                    ? Icons.receipt_long_outlined
+                                    : Icons.inventory_2_outlined,
+                                size: 18,
+                                color: accent,
+                              ),
                               const SizedBox(width: 8),
                               Text(
-                                quote ? 'ລາຍການທີ່ສະເໜີ' : 'ອາໄຫຼ່ຄ້າງນອກສາງ',
-                                style: const TextStyle(fontWeight: FontWeight.w800, color: ink, fontSize: 14),
+                                purchase
+                                    ? 'ລາຍການອາໄຫຼ່'
+                                    : quote
+                                    ? 'ລາຍການທີ່ສະເໜີ'
+                                    : 'ອາໄຫຼ່ຄ້າງນອກສາງ',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: ink,
+                                  fontSize: 14,
+                                ),
                               ),
                               const Spacer(),
-                              Text('${d.lines.length}', style: const TextStyle(color: faint, fontSize: 12)),
+                              Text(
+                                '${d.lines.length}',
+                                style: const TextStyle(
+                                  color: faint,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
                           if (d.lines.isEmpty)
                             const Padding(
                               padding: EdgeInsets.symmetric(vertical: 6),
-                              child: Text('ບໍ່ມີລາຍການ', style: TextStyle(color: faint, fontSize: 12.5)),
+                              child: Text(
+                                'ບໍ່ມີລາຍການ',
+                                style: TextStyle(color: faint, fontSize: 12.5),
+                              ),
                             )
                           else
-                            for (final l in d.lines) _LineRow(line: l, showPrice: quote),
+                            for (final l in d.lines)
+                              _LineRow(line: l, showPrice: quote || purchase),
                         ],
                       ),
 
                       // ── ຍອດ (ໃບສະເໜີ) ──
-                      if (quote && (d.amount ?? '').isNotEmpty) ...[
+                      if ((quote || purchase) &&
+                          (d.amount ?? '').isNotEmpty) ...[
                         const SizedBox(height: 12),
                         _Card(
                           children: [
-                            if ((d.discount ?? '0') != '0' && d.discount != null)
-                              _money('ສ່ວນຫຼຸດ', '${d.discount} ฿', muted),
-                            _money('ຍອດລວມ', '${d.amount} ฿', ink, big: true),
-                            if ((d.amountKip ?? '').isNotEmpty && d.amountKip != '0')
-                              _money('≈ ກີບ', '${d.amountKip} ₭', faint),
+                            if ((d.discount ?? '0') != '0' &&
+                                d.discount != null)
+                              _money(
+                                'ສ່ວນຫຼຸດ',
+                                '${_thousands(d.discount)} ฿',
+                                muted,
+                              ),
+                            _money(
+                              'ຍອດລວມ',
+                              '${_thousands(d.amount)} ฿',
+                              ink,
+                              big: true,
+                            ),
+                            if ((d.amountKip ?? '').isNotEmpty &&
+                                d.amountKip != '0')
+                              _money(
+                                '≈ ກີບ',
+                                '${_thousands(d.amountKip)} ₭',
+                                faint,
+                              ),
                           ],
                         ),
                       ],
@@ -204,32 +295,52 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                 ),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: busy ? null : reject,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: danger,
-                          minimumSize: const Size.fromHeight(50),
-                          side: BorderSide(color: danger.withValues(alpha: .4)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+                    if (canReject)
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: busy ? null : reject,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: danger,
+                            minimumSize: const Size.fromHeight(50),
+                            side: BorderSide(
+                              color: danger.withValues(alpha: .4),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                          ),
+                          icon: const Icon(Icons.close_rounded, size: 19),
+                          label: const Text(
+                            'ບໍ່ອະນຸມັດ',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
                         ),
-                        icon: const Icon(Icons.close_rounded, size: 19),
-                        label: const Text('ບໍ່ອະນຸມັດ', style: TextStyle(fontWeight: FontWeight.w800)),
                       ),
-                    ),
-                    const SizedBox(width: 12),
+                    if (canReject) const SizedBox(width: 12),
                     Expanded(
                       child: FilledButton.icon(
                         onPressed: busy ? null : approve,
                         style: FilledButton.styleFrom(
                           backgroundColor: ok,
                           minimumSize: const Size.fromHeight(50),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(13),
+                          ),
                         ),
                         icon: busy
-                            ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
                             : const Icon(Icons.check_rounded, size: 20),
-                        label: const Text('ອະນຸມັດ', style: TextStyle(fontWeight: FontWeight.w800)),
+                        label: const Text(
+                          'ອະນຸມັດ',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
                       ),
                     ),
                   ],
@@ -249,9 +360,17 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
         children: [
           Icon(icon, size: 48, color: const Color(0xFFCBD5E1)),
           const SizedBox(height: 10),
-          Text(text, textAlign: TextAlign.center, style: const TextStyle(color: muted)),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: muted),
+          ),
           const SizedBox(height: 12),
-          OutlinedButton.icon(onPressed: load, icon: const Icon(Icons.refresh), label: const Text('ລອງໃໝ່')),
+          OutlinedButton.icon(
+            onPressed: load,
+            icon: const Icon(Icons.refresh),
+            label: const Text('ລອງໃໝ່'),
+          ),
         ],
       ),
     ),
@@ -265,24 +384,55 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 84, child: Text(label, style: const TextStyle(fontSize: 11.5, color: faint))),
+          SizedBox(
+            width: 84,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 11.5, color: faint),
+            ),
+          ),
           Expanded(
-            child: Text(text, style: const TextStyle(fontSize: 12.5, height: 1.3, color: ink, fontWeight: FontWeight.w600)),
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 12.5,
+                height: 1.3,
+                color: ink,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _money(String label, String value, Color color, {bool big = false}) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3),
-    child: Row(
-      children: [
-        Expanded(child: Text(label, style: TextStyle(fontSize: big ? 13 : 12, color: big ? ink : muted, fontWeight: big ? FontWeight.w800 : FontWeight.w500))),
-        Text(value, style: TextStyle(fontSize: big ? 17 : 12.5, color: color, fontWeight: FontWeight.w900)),
-      ],
-    ),
-  );
+  Widget _money(String label, String value, Color color, {bool big = false}) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: big ? 13 : 12,
+                  color: big ? ink : muted,
+                  fontWeight: big ? FontWeight.w800 : FontWeight.w500,
+                ),
+              ),
+            ),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: big ? 17 : 12.5,
+                color: color,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 class _LineRow extends StatelessWidget {
@@ -300,20 +450,56 @@ class _LineRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(line.name ?? '-', style: const TextStyle(fontSize: 12.5, color: ink, fontWeight: FontWeight.w600)),
+              Text(
+                line.name ?? '-',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: ink,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               Text(
                 'x${line.qty}${line.unit != null ? ' ${line.unit}' : ''}'
-                '${showPrice && line.price != null ? ' · ${line.price} ฿/ໜ່ວຍ' : ''}',
+                '${showPrice && line.price != null ? ' · ${_thousands(line.price)} ฿/ໜ່ວຍ' : ''}',
                 style: const TextStyle(fontSize: 10.5, color: faint),
               ),
             ],
           ),
         ),
         if (showPrice && line.total != null)
-          Text('${line.total} ฿', style: const TextStyle(fontSize: 12.5, color: ink, fontWeight: FontWeight.w800)),
+          Text(
+            '${_thousands(line.total)} ฿',
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: ink,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
       ],
     ),
   );
+}
+
+/// ປ່ຽນຄ່າຈາກ API ເປັນ 1,234,567.89.
+String _thousands(String? value) {
+  final raw = (value ?? '').replaceAll(',', '').trim();
+  if (raw.isEmpty) return '0';
+  final number = num.tryParse(raw);
+  if (number == null) return value ?? '0';
+  final normalized = number == number.roundToDouble()
+      ? number.toInt().toString()
+      : number
+            .toStringAsFixed(2)
+            .replaceFirst(RegExp(r'0+$'), '')
+            .replaceFirst(RegExp(r'\.$'), '');
+  final parts = normalized.split('.');
+  final sign = parts.first.startsWith('-') ? '-' : '';
+  final digits = parts.first.replaceFirst('-', '');
+  final grouped = digits.replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+    (_) => ',',
+  );
+  return '$sign$grouped${parts.length > 1 ? '.${parts[1]}' : ''}';
 }
 
 /// ກາດຂາວມົນ — ຄືກັບໜ້າອື່ນ
@@ -324,6 +510,9 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(14),
     decoration: cardDecoration(),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
+    ),
   );
 }

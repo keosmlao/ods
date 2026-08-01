@@ -8,7 +8,12 @@ import '../main.dart';
 
 /// ກາດຫົວຂໍ້ + ເນື້ອໃນ (ຄືກັບ _Card ຂອງ dashboard)
 class MCard extends StatelessWidget {
-  const MCard({super.key, required this.title, required this.child, this.trailing});
+  const MCard({
+    super.key,
+    required this.title,
+    required this.child,
+    this.trailing,
+  });
   final String title;
   final Widget child;
   final Widget? trailing;
@@ -28,7 +33,14 @@ class MCard extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: ink)),
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: ink,
+                ),
+              ),
             ),
             if (trailing != null) trailing!,
           ],
@@ -115,7 +127,9 @@ class MonitorTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = job.overdue ? danger : (job.workflow == 'install' ? warn : teal);
+    final accent = job.overdue
+        ? danger
+        : (job.workflow == 'install' ? warn : teal);
     return InkWell(
       onTap: () => showJobSheet(context, job),
       borderRadius: BorderRadius.circular(12),
@@ -124,26 +138,49 @@ class MonitorTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(width: 3.5, height: 38, margin: const EdgeInsets.only(right: 10, top: 1),
-              decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(3))),
+            Container(
+              width: 3.5,
+              height: 38,
+              margin: const EdgeInsets.only(right: 10, top: 1),
+              decoration: BoxDecoration(
+                color: accent,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Text('#${job.code}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: ink)),
+                      Text(
+                        '#${job.code}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
+                          color: ink,
+                        ),
+                      ),
                       const SizedBox(width: 6),
                       _pill(workflowBadge(job), accent),
                       const Spacer(),
-                      Text(slaText(job),
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800,
-                              color: job.overdue ? danger : muted)),
+                      Text(
+                        slaText(job),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: job.overdue ? danger : muted,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 2),
-                  Text(job.product ?? '-', maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12.5, color: ink)),
+                  Text(
+                    job.product ?? '-',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12.5, color: ink),
+                  ),
                   const SizedBox(height: 1),
                   Text(
                     [
@@ -151,7 +188,8 @@ class MonitorTile extends StatelessWidget {
                       job.stageLabel,
                       if (showTech && job.tech != null) '· ${job.tech}',
                     ].join('  ·  '),
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 11, color: muted),
                   ),
                 ],
@@ -165,49 +203,275 @@ class MonitorTile extends StatelessWidget {
 
   static Widget _pill(String text, Color c) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-    decoration: BoxDecoration(color: c.withValues(alpha: .12), borderRadius: BorderRadius.circular(6)),
-    child: Text(text, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: c)),
+    decoration: BoxDecoration(
+      color: c.withValues(alpha: .12),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: c),
+    ),
   );
 }
 
 void showJobSheet(BuildContext context, MonitorJob job) {
   showModalBottomSheet<void>(
     context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Colors.white,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
-    builder: (_) => Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+    ),
+    builder: (_) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: .82,
+      minChildSize: .55,
+      maxChildSize: .96,
+      builder: (context, controller) => Column(
         children: [
-          Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: line, borderRadius: BorderRadius.circular(2)))),
-          const SizedBox(height: 16),
-          Row(children: [
-            Text('#${job.code}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: ink)),
-            const SizedBox(width: 8),
-            MonitorTile._pill(workflowBadge(job), job.workflow == 'install' ? warn : teal),
-          ]),
-          const SizedBox(height: 12),
-          _row('ສິນຄ້າ', job.product ?? '-'),
-          _row('ລູກຄ້າ', job.customer ?? '-'),
-          _row('ຊ່າງ', job.tech ?? 'ຍັງບໍ່ຈັດ'),
-          _row('ຂັ້ນ', job.stageLabel),
-          _row('ອາຍຸ', '${job.ageDays} ມື້'),
-          _row('SLA', slaText(job), tone: job.overdue ? danger : null),
+          const SizedBox(height: 10),
+          Container(
+            width: 42,
+            height: 4,
+            decoration: BoxDecoration(
+              color: line,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 10, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: (job.workflow == 'install' ? warn : teal).withValues(
+                      alpha: .1,
+                    ),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Icon(
+                    job.workflow == 'install'
+                        ? Icons.home_repair_service_rounded
+                        : Icons.build_circle_outlined,
+                    color: job.workflow == 'install' ? warn : teal,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '#${job.code}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: ink,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        job.stageLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: muted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded, color: muted),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView(
+              controller: controller,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+              children: [
+                _statusPanel(job),
+                const SizedBox(height: 14),
+                _detailSection(
+                  icon: Icons.inventory_2_outlined,
+                  title: 'ຂໍ້ມູນງານ',
+                  children: [
+                    _detailRow('ສິນຄ້າ', job.product),
+                    _detailRow('ຍີ່ຫໍ້ / ຮຸ່ນ', job.detail),
+                    _detailRow('Serial No.', job.sn),
+                    _detailRow('ຮັບປະກັນ', job.warranty),
+                    _detailRow('ປະເພດບໍລິການ', workflowBadge(job)),
+                    _detailRow('ວັນຮັບເຂົ້າ', job.receivedAt),
+                    _detailRow(
+                      'ວັນນັດໝາຍ',
+                      job.appointment,
+                      tone: job.appointment == null ? null : warn,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _detailSection(
+                  icon: Icons.person_outline_rounded,
+                  title: 'ລູກຄ້າ ແລະ ຜູ້ຮັບຜິດຊອບ',
+                  children: [
+                    _detailRow('ລູກຄ້າ', job.customer),
+                    _detailRow('ເບີໂທ', job.tel),
+                    _detailRow('ທີ່ຢູ່', job.address),
+                    _detailRow(
+                      'ຊ່າງ',
+                      job.tech ?? 'ຍັງບໍ່ຈັດ',
+                      tone: job.tech == null ? danger : null,
+                    ),
+                  ],
+                ),
+                if ((job.symptom ?? '').trim().isNotEmpty ||
+                    (job.diagnosis ?? '').trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _detailSection(
+                    icon: Icons.fact_check_outlined,
+                    title: 'ອາການ ແລະ ຜົນກວດ',
+                    children: [
+                      _detailRow('ອາການແຈ້ງ', job.symptom),
+                      _detailRow('ຜົນວິເຄາະ', job.diagnosis),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     ),
   );
 }
 
-Widget _row(String k, String v, {Color? tone}) => Padding(
-  padding: const EdgeInsets.symmetric(vertical: 5),
+Widget _statusPanel(MonitorJob job) => Container(
+  padding: const EdgeInsets.all(14),
+  decoration: BoxDecoration(
+    color: surfaceAlt,
+    borderRadius: BorderRadius.circular(16),
+  ),
   child: Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      SizedBox(width: 66, child: Text(k, style: const TextStyle(fontSize: 12.5, color: muted))),
-      Expanded(child: Text(v, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: tone ?? ink))),
+      Expanded(
+        child: _statusValue(
+          'ອາຍຸວຽກ',
+          '${job.ageDays} ມື້',
+          job.ageDays >= 30 ? danger : ink,
+        ),
+      ),
+      Container(width: 1, height: 36, color: line),
+      Expanded(
+        child: _statusValue('SLA', slaText(job), job.overdue ? danger : teal),
+      ),
+      Container(width: 1, height: 36, color: line),
+      Expanded(child: _statusValue('ສະຖານະ', job.stageLabel, ink)),
     ],
   ),
 );
+
+Widget _statusValue(String label, String value, Color color) => Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 5),
+  child: Column(
+    children: [
+      Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w900,
+          color: color,
+        ),
+      ),
+      const SizedBox(height: 3),
+      Text(
+        label,
+        style: const TextStyle(
+          fontSize: 9.5,
+          color: muted,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ],
+  ),
+);
+
+Widget _detailSection({
+  required IconData icon,
+  required String title,
+  required List<Widget> children,
+}) => Container(
+  padding: const EdgeInsets.all(14),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    border: Border.all(color: line),
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          Icon(icon, size: 18, color: teal),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              color: ink,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 11),
+      ...children,
+    ],
+  ),
+);
+
+Widget _detailRow(String k, String? value, {Color? tone}) {
+  final text = (value ?? '').trim();
+  if (text.isEmpty) return const SizedBox.shrink();
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 94,
+          child: Text(
+            k,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: muted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12.5,
+              height: 1.35,
+              fontWeight: FontWeight.w700,
+              color: tone ?? ink,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}

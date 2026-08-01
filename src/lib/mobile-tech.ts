@@ -1,8 +1,8 @@
 import { query } from "@/lib/db";
 import { INSTALL_LEFT_SQL } from "@/lib/install-sla";
-import { INSTALL_OPEN, INSTALL_STAGE_LABEL_SQL } from "@/lib/install-stage";
+import { INSTALL_OPEN, INSTALL_STAGE_LABEL_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { REPAIR_STAGE_SLA_HOURS_SQL } from "@/lib/repair-sla";
-import { NOT_MISSING, NOT_PENDING_CANCEL, OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL } from "@/lib/stage";
+import { NOT_MISSING, NOT_PENDING_CANCEL, OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 import { listTechnicians } from "@/lib/technicians";
 import type { MonitorJob } from "@/lib/mobile-monitor";
 
@@ -151,17 +151,19 @@ export async function techDetail(code: string, showMoney = true): Promise<TechDe
   const tech = techs.find((t) => t.code === code);
   if (!tech) return null;
 
-  const [load, pay, fb, jobs] = await Promise.all([loadByTech(), payByTech(), feedbackByTech(), techJobs(code)]);
-  const l = load.get(code) ?? { jobs: 0, oldest_days: 0, late: 0 };
+  const [pay, fb, jobs] = await Promise.all([payByTech(), feedbackByTech(), techJobs(code)]);
   const p = payOf(pay, code, tech.employee_code);
   const f = fb.get(code) ?? { rated: 0, happy_pct: null, unhappy: 0 };
+  const techLate = jobs.filter((job) => (job.sla_left ?? 1) < 0).length;
+  const oldestTechJob = jobs.reduce((max, job) => Math.max(max, job.age_days), 0);
 
   return {
     code,
     name: tech.name,
-    open_jobs: l.jobs,
-    oldest_days: l.oldest_days,
-    late: l.late,
+    // Detail ຂອງຊ່າງສະແດງສະເພາະຂັ້ນທີ່ຊ່າງຕ້ອງລົງມື.
+    open_jobs: jobs.length,
+    oldest_days: oldestTechJob,
+    late: techLate,
     month_jobs: p.month,
     month_thb: showMoney ? p.month_thb : null,
     rated: f.rated,
@@ -187,7 +189,9 @@ async function techJobs(code: string): Promise<MonitorJob[]> {
           null::text as tech
         from tb_product a
         left join ar_customer b on b.code = a.cust_code
-       where ${OPEN_JOBS} and ${NOT_MISSING} and ${NOT_PENDING_CANCEL} and nullif(trim(a.emp_code),'') = $1`,
+       where ${OPEN_JOBS} and ${NOT_MISSING} and ${NOT_PENDING_CANCEL}
+         and (${STAGE_SQL}) in (1,2,8,9)
+         and nullif(trim(a.emp_code),'') = $1`,
       [code],
     ),
     query<MonitorJob>(
@@ -199,7 +203,8 @@ async function techJobs(code: string): Promise<MonitorJob[]> {
           null::text as tech
         from ods_tb_install a
         left join ar_customer c on c.code = a.cust_code
-       where ${INSTALL_OPEN} and nullif(trim(a.tech_code),'') = $1`,
+       where ${INSTALL_OPEN} and (${INSTALL_STAGE_SQL}) in (4,5)
+         and nullif(trim(a.tech_code),'') = $1`,
       [code],
     ),
   ]);
