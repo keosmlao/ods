@@ -267,9 +267,17 @@ export async function GET(request: NextRequest) {
             case when ar.telephone is not null then ar.mobile else ar2.telephone end as telephone,
             case when ar.telephone is not null then ar.address else ar2.address end as address,
             case when ar.telephone is not null then ar.name else ar2.code end as cust_code,
-            -- ພິກັດ 0,0 ໃນ ERP = "ຍັງບໍ່ໄດ້ປັກ" ບໍ່ແມ່ນກາງມະຫາສະໝຸດ ⇒ ຖືເປັນ null
-            nullif(acd.latitude, 0) as cust_lat,
-            nullif(acd.longitude, 0) as cust_lng,
+            /**
+             * ພິກັດ 0,0 ໃນ ERP = "ຍັງບໍ່ໄດ້ປັກ" ບໍ່ແມ່ນກາງມະຫາສະໝຸດ ⇒ ຖືເປັນ null
+             *
+             * ⚠️ **ຕ້ອງ ::float8** — ຖັນນີ້ເປັນ numeric ແລະ node-postgres ຄືນ numeric
+             * ເປັນ **string** (ກັນຄວາມແມ່ນຍຳຫຼຸດ). ບໍ່ cast ⇒ cust_lat ເປັນ string
+             * ທັງທີ່ TS ບອກວ່າ number ⇒ ໜ້າຟອມພັງຕອນ value.lat.toFixed(5).
+             * (ເສັ້ນທາງ "delivery" ຂ້າງລຸ່ມບໍ່ພັງ ເພາະມັນ Number() ໃຫ້ຢູ່ແລ້ວ —
+             * ຈຶ່ງພັງສະເພາະບິນທີ່ໃຊ້ພິກັດ**ຂອງລູກຄ້າ**.)
+             */
+            nullif(acd.latitude, 0)::float8 as cust_lat,
+            nullif(acd.longitude, 0)::float8 as cust_lng,
             /**
              * ບໍລິການຕິດຕັ້ງທີ່ **ພະນັກງານຂາຍເພີ່ມເຂົ້າບິນ** — ຈຳນວນນີ້ຄືຈຳນວນງານທີ່
              * ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ (ຂໍ້ມູນຈິງ: ຕົງກັບຈຳນວນເຄື່ອງພໍດີ —
