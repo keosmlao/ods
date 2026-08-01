@@ -16,6 +16,9 @@ export type Customer = {
   address: string;
   ref_code: string;
   source?: "erp" | "ods";
+  /** ພິກັດຂອງລູກຄ້າຈາກ ERP (ar_customer_detail) — null ຖ້າ ERP ບໍ່ຮູ້ */
+  lat?: number | null;
+  lng?: number | null;
 };
 
 const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100";

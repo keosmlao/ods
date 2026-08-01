@@ -56,6 +56,18 @@ export function ServiceForm({
 }) {
   const t = useDict().serviceForm;
   const [state, action, pending] = useActionState(createService, {});
+  /**
+   * ເລືອກລູກຄ້າ ⇒ ຖ້າ ERP ຮູ້ພິກັດຂອງລູກຄ້າແລ້ວ **ຕື່ມໝຸດໃຫ້ເລີຍ** (ar_customer_detail).
+   * ບໍ່ຂຽນທັບໝຸດທີ່ຄົນປັກເອງແລ້ວ — ຄົນຮູ້ໜ້າງານດີກວ່າຂໍ້ມູນເກົ່າ.
+   */
+  function pickCustomer(next: Customer | null) {
+    setCustomer(next);
+    if (next?.lat != null && next?.lng != null && !point) {
+      setPoint({ lat: next.lat, lng: next.lng });
+      setPointFromErp(true);
+    }
+  }
+
   const [customer, setCustomer] = useState<Customer | null>(
     prefill.cust
       ? { code: prefill.cust, name_1: prefill.custname ?? prefill.cust, tel: prefill.custtel ?? "", address: prefill.custaddr ?? "", ref_code: prefill.cust, source: "ods" }
@@ -97,8 +109,13 @@ export function ServiceForm({
   const [intakeCenter, setIntakeCenter] = useState("");
   const [jobKind, setJobKind] = useState<"repair" | "claim">(prefill.kind === "claim" ? "claim" : "repair");
   const [claimScope, setClaimScope] = useState<"whole" | "part">("whole");
-  /** ພິກັດໜ້າງານ (ບໍ່ບັງຄັບ) — ຊ່າງກົດນຳທາງໄດ້ຈາກແອັບ */
+  /** ພິກັດໜ້າງານ — ບັງຄັບສຳລັບ IH/PS (ຊ່າງກົດນຳທາງໄດ້ຈາກແອັບ) */
   const [point, setPoint] = useState<Point | null>(null);
+  /**
+   * ໝຸດມາຈາກ ERP ບໍ — ໃຊ້ບອກຄົນຮັບເຄື່ອງວ່າ **ບໍ່ຕ້ອງປັກເອງ ແຕ່ໃຫ້ກວດວ່າຖືກບ່ອນ**
+   * (ພິກັດຂອງລູກຄ້າອາດເປັນທີ່ຢູ່ຮ້ານ ບໍ່ແມ່ນບ່ອນທີ່ເຄື່ອງຕິດຢູ່).
+   */
+  const [pointFromErp, setPointFromErp] = useState(false);
 
   /** IH ສ້ອມບ້ານລູກຄ້າ · PS ໄປຮັບເຄື່ອງຈາກບ້ານມາສ້ອມຢູ່ສູນ ⇒ ຊ່າງອອກໜ້າງານ (ນິຍາມດຽວກັບ lib/sla) */
   const onsite = ONSITE_SERVICE_TYPES.includes(serviceType as "IH" | "PS");
@@ -256,7 +273,7 @@ export function ServiceForm({
               <span className="grid size-6 place-items-center rounded-full bg-slate-800 text-xs text-white">1</span>
               {t.customer}
             </h2>
-            <ServiceCustomer selected={customer} onSelect={setCustomer} buyer={scanned?.buyer ?? null} />
+            <ServiceCustomer selected={customer} onSelect={pickCustomer} buyer={scanned?.buyer ?? null} />
           </section>
 
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -511,10 +528,19 @@ export function ServiceForm({
                       ແລະ ມັນຄືສິ່ງທີ່ເຮັດໃຫ້ແຜນທີ່ຕິດຕາມງານມີໝຸດ. ດ່ານຈິງຢູ່ actions/service.
                     */}
                     <p className="mt-2 text-xs font-semibold text-slate-600">{t.sitePin} *</p>
-                    <LocationPicker value={point} onChange={setPoint} />
+                    <LocationPicker
+                      value={point}
+                      onChange={(next) => {
+                        setPoint(next);
+                        setPointFromErp(false); // ຄົນແກ້ເອງ ⇒ ບໍ່ແມ່ນຂອງ ERP ອີກ
+                      }}
+                    />
                     <input type="hidden" name="location_lat" value={point ? String(point.lat) : ""} />
                     <input type="hidden" name="location_lng" value={point ? String(point.lng) : ""} />
                     {!point && <p className="mt-1 text-xs font-semibold text-amber-600">{t.sitePinRequired}</p>}
+                    {point && pointFromErp && (
+                      <p className="mt-1 text-xs font-semibold text-teal-600">{t.sitePinFromErp}</p>
+                    )}
                   </div>
 
                   <div>

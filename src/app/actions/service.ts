@@ -12,6 +12,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { PoolClient } from "pg";
 import { z } from "zod";
+import { customerPoint } from "@/lib/customer-location";
 
 const schema = z.object({
   /** ລະຫັດ ODS — ຫວ່າງໄດ້ ຖ້າລູກຄ້າມາຈາກ ERP ແລະ ຍັງບໍ່ມີບັນຊີ ODS */
@@ -161,9 +162,20 @@ export async function createService(_: ServiceState, formData: FormData): Promis
     NEEDS_LOCATION(parsed.data.service_type) &&
     (!parsed.data.location_lat.trim() || !parsed.data.location_lng.trim())
   ) {
-    return {
-      error: "ງານນອກສະຖານທີ່ ຕ້ອງປັກໝຸດພິກັດນຳ — ວາງລິງ Google Maps ຫຼື ກົດ “ໃຊ້ຕຳແໜ່ງປັດຈຸບັນ” (ຊ່າງໃຊ້ຫາບ້ານລູກຄ້າ ແລະ ຂຶ້ນແຜນທີ່ຕິດຕາມງານ)",
-    };
+    /**
+     * ຍັງບໍ່ມີໝຸດ ⇒ ລອງເອົາຈາກ **ຂໍ້ມູນລູກຄ້າໃນ ERP** ກ່ອນຈະຟ້ອງ (lib/customer-location).
+     * ຟອມຕື່ມໃຫ້ຢູ່ແລ້ວຕອນເລືອກລູກຄ້າ ແຕ່ action ຖືກຍິງໂດຍກົງໄດ້ ແລະ ຄົນອາດເລືອກ
+     * ລູກຄ້າກ່ອນທີ່ຈະປ່ຽນເປັນ IH/PS ⇒ ກວດຊ້ຳຢູ່ນີ້ໃຫ້ແນ່ໃຈ.
+     */
+    const known = await customerPoint(parsed.data.cust_ref || parsed.data.cust_code);
+    if (known) {
+      parsed.data.location_lat = String(known.lat);
+      parsed.data.location_lng = String(known.lng);
+    } else {
+      return {
+        error: "ງານນອກສະຖານທີ່ ຕ້ອງປັກໝຸດພິກັດນຳ — ວາງລິງ Google Maps ຫຼື ກົດ “ໃຊ້ຕຳແໜ່ງປັດຈຸບັນ” (ຊ່າງໃຊ້ຫາບ້ານລູກຄ້າ ແລະ ຂຶ້ນແຜນທີ່ຕິດຕາມງານ)",
+      };
+    }
   }
   if (parsed.data.job_kind === "claim" && !parsed.data.claim_scope) {
     return { error: "ຕ້ອງເລືອກ ເຄມທັງເຄື່ອງ ຫຼື ເຄມສະເພາະອາໄຫຼ່" };
@@ -745,9 +757,20 @@ export async function createServiceFromNotice(_: ServiceState, formData: FormDat
     NEEDS_LOCATION(parsed.data.service_type) &&
     (!parsed.data.location_lat.trim() || !parsed.data.location_lng.trim())
   ) {
-    return {
-      error: "ງານນອກສະຖານທີ່ ຕ້ອງປັກໝຸດພິກັດນຳ — ວາງລິງ Google Maps ຫຼື ກົດ “ໃຊ້ຕຳແໜ່ງປັດຈຸບັນ” (ຊ່າງໃຊ້ຫາບ້ານລູກຄ້າ ແລະ ຂຶ້ນແຜນທີ່ຕິດຕາມງານ)",
-    };
+    /**
+     * ຍັງບໍ່ມີໝຸດ ⇒ ລອງເອົາຈາກ **ຂໍ້ມູນລູກຄ້າໃນ ERP** ກ່ອນຈະຟ້ອງ (lib/customer-location).
+     * ຟອມຕື່ມໃຫ້ຢູ່ແລ້ວຕອນເລືອກລູກຄ້າ ແຕ່ action ຖືກຍິງໂດຍກົງໄດ້ ແລະ ຄົນອາດເລືອກ
+     * ລູກຄ້າກ່ອນທີ່ຈະປ່ຽນເປັນ IH/PS ⇒ ກວດຊ້ຳຢູ່ນີ້ໃຫ້ແນ່ໃຈ.
+     */
+    const known = await customerPoint(parsed.data.cust_ref || parsed.data.cust_code);
+    if (known) {
+      parsed.data.location_lat = String(known.lat);
+      parsed.data.location_lng = String(known.lng);
+    } else {
+      return {
+        error: "ງານນອກສະຖານທີ່ ຕ້ອງປັກໝຸດພິກັດນຳ — ວາງລິງ Google Maps ຫຼື ກົດ “ໃຊ້ຕຳແໜ່ງປັດຈຸບັນ” (ຊ່າງໃຊ້ຫາບ້ານລູກຄ້າ ແລະ ຂຶ້ນແຜນທີ່ຕິດຕາມງານ)",
+      };
+    }
   }
 
   // IH + ຈັດຊ່າງ ⇒ ຕ້ອງມີວັນນັດ (ຄືກັບໜ້າອອກໃໝ່ + assignRepairTech) ບໍ່ດັ່ງນັ້ນຄ້າງຂັ້ນ 0 ຮັບງານບໍ່ໄດ້

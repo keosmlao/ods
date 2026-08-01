@@ -599,7 +599,8 @@
     "intakeCenterLabel": "Intake centre",
     "intakeCenterPlaceholder": "Where the unit was taken in...",
     "sitePin": "Site location pin",
-    "sitePinRequired": "No pin yet — on-site jobs cannot be saved until you drop one"
+    "sitePinRequired": "No pin yet — on-site jobs cannot be saved until you drop one",
+    "sitePinFromErp": "Pin taken from the customer record in ERP — check it, re-pin if wrong"
   },
   "poEditor": {
     "missingSupplier": "Select a supplier",
