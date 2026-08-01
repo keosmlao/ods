@@ -14,6 +14,7 @@ import type { MonitorJob } from "@/lib/mobile-monitor";
 
 export type TechRow = {
   code: string;
+  employee_code: string;
   name: string;
   open_jobs: number;
   oldest_days: number;
@@ -131,6 +132,7 @@ export async function techRoster(showMoney = true): Promise<TechRow[]> {
       const f = fb.get(t.code) ?? { rated: 0, happy_pct: null, unhappy: 0 };
       return {
         code: t.code,
+        employee_code: t.employee_code || t.code,
         name: t.name,
         open_jobs: l.jobs,
         oldest_days: l.oldest_days,
@@ -159,6 +161,7 @@ export async function techDetail(code: string, showMoney = true): Promise<TechDe
 
   return {
     code,
+    employee_code: tech.employee_code || code,
     name: tech.name,
     // Detail ຂອງຊ່າງສະແດງສະເພາະຂັ້ນທີ່ຊ່າງຕ້ອງລົງມື.
     open_jobs: jobs.length,

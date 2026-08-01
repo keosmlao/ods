@@ -20,6 +20,7 @@ import { canViewAssignedJob } from "@/lib/scope";
 import { permissionFor } from "@/lib/permissions";
 import { ServiceDeleteButton } from "@/components/service/service-delete-button";
 import { JobEvidence, type Checkin, type JobPhoto, type ReceivePhoto } from "@/components/service/job-evidence";
+import { FixStageCard } from "@/components/service/fix-stage-card";
 import { LoanerCard } from "@/components/service/loaner-card";
 import { TransferJobButton } from "@/components/service/transfer-job-button";
 import { jobCenterState } from "@/lib/job-center";
@@ -488,6 +489,13 @@ export default async function ServiceDetail({ params }: Props) {
       />
 
       <LoanerCard code={job.code} rows={loaners} canEdit={canLendLoaner} />
+
+      {/*
+        ແກ້ຂັ້ນໃຫ້ຕົງກັບຄວາມຈິງ — **ຜູ້ຈັດການເທົ່ານັ້ນ**. ມີໃບເກົ່າຄ້າງຢູ່ຂັ້ນຜິດ
+        ຫຼາຍໃບ (ເກົ່າສຸດ 346 ມື້) ເພາະລືມກົດຂັ້ນຕໍ່ໄປ ຫຼື ຂໍ້ມູນຍ້າຍມາຈາກລະບົບເກົ່າ
+        ⇒ ຄິວ ແລະ ລາຍງານຜິດຕາມ. ດ່ານຈິງ (ສິດ · ໃບຮັບເງິນ · ຄິວຍົກເລີກ) ຢູ່ actions.
+      */}
+      {roleOf(session) === "manager" && <FixStageCard code={job.code} currentStage={job.stage} />}
 
       <JobEvidence
         checkins={checkins.rows}
