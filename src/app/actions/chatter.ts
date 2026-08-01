@@ -7,6 +7,7 @@ import { query } from "@/lib/db";
 import { roleOf } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { assignedToMe, ASSIGNEES_SQL } from "@/lib/activity-assignee";
 
 /**
  * Chatter ແລະ ກິດຈະກຳ — ແບບ Odoo.
@@ -41,13 +42,15 @@ export async function getActivities(model: string, resId: string): Promise<Activ
   if (!session) return [];
   const since = await chatterSince(model, resId);
   const result = await query<Activity>(
-    `select id, model, res_id, kind, summary, note, assigned_to,
-        to_char(due_date,'DD-MM-YYYY') due_date, state, created_by,
-        (due_date - current_date)::int days_left
-       from ods_activity
-      where model=$1 and res_id=$2 and state='planned'
-        and ($3::timestamp is null or created_at >= $3::timestamp)
-      order by due_date`,
+    `select a.id, a.model, a.res_id, a.kind, a.summary, a.note,
+        -- ສະແດງ **ທຸກຄົນ** ທີ່ຮັບຜິດຊອບ ບໍ່ແມ່ນຄົນຫຼັກຄົນດຽວ (lib/activity-assignee)
+        ${ASSIGNEES_SQL("a")} assigned_to,
+        to_char(a.due_date,'DD-MM-YYYY') due_date, a.state, a.created_by,
+        (a.due_date - current_date)::int days_left
+       from ods_activity a
+      where a.model=$1 and a.res_id=$2 and a.state='planned'
+        and ($3::timestamp is null or a.created_at >= $3::timestamp)
+      order by a.due_date`,
     [model, resId, since],
   );
   return result.rows;
@@ -121,6 +124,7 @@ const activitySchema = z.object({
   kind: z.enum(["todo", "call", "visit", "meeting"]),
   summary: z.string().trim().min(1),
   note: z.string().optional(),
+  /** ຜູ້ຮັບຜິດຊອບ **ຫຼາຍຄົນ** — ຄັ່ນດ້ວຍ `,` (ຟອມສົ່ງມາເປັນ string ອັນດຽວ) */
   assigned_to: z.string().trim().min(1),
   due_date: z.string().min(1),
 });
@@ -133,20 +137,33 @@ export async function scheduleActivity(_: ChatterState, formData: FormData): Pro
   if (!parsed.success) return { error: "ຂໍ້ມູນບໍ່ຄົບ — ຕ້ອງມີ ຫົວຂໍ້, ຜູ້ຮັບຜິດຊອບ ແລະ ວັນກຳນົດ" };
   const { model, res_id, kind, summary, note, assigned_to, due_date } = parsed.data;
 
+  // ຫຼາຍຄົນ — ຕັດຊື່ຊ້ຳ/ຫວ່າງອອກ; ຄົນທຳອິດເປັນ **ຜູ້ຮັບຜິດຊອບຫຼັກ** (assigned_to)
+  const people = [...new Set(assigned_to.split(",").map((name) => name.trim()).filter(Boolean))];
+  if (people.length === 0) return { error: "ຕ້ອງເລືອກຜູ້ຮັບຜິດຊອບຢ່າງໜ້ອຍ 1 ຄົນ" };
+
   try {
-    await query(
+    const created = await query<{ id: number }>(
       `insert into ods_activity(model, res_id, kind, summary, note, assigned_to, due_date, state, created_by, created_at)
-       values($1,$2,$3,$4,nullif($5,''),$6,$7::date,'planned',$8,${NOW})`,
-      [model, res_id, kind, summary, note ?? "", assigned_to, due_date, session.username],
+       values($1,$2,$3,$4,nullif($5,''),$6,$7::date,'planned',$8,${NOW})
+       returning id`,
+      [model, res_id, kind, summary, note ?? "", people[0], due_date, session.username],
     );
+    const id = created.rows[0]?.id;
+    if (id) {
+      await query(
+        `insert into ods_activity_person(activity_id, username)
+         select $1, unnest($2::text[]) on conflict do nothing`,
+        [id, people],
+      );
+    }
   } catch (error) {
     console.error("scheduleActivity failed", error);
     return { error: "ບັນທຶກກິດຈະກຳບໍ່ສຳເລັດ" };
   }
 
-  // ຜູ້ຮັບຜິດຊອບກິດຈະກຳໄດ້ຮັບການແຈ້ງເຕືອນ ແລະ ກາຍເປັນຜູ້ຕິດຕາມເອກະສານນຳ
-  await logChange(model, res_id, `ນັດກິດຈະກຳ: ${summary} · ມອບໃຫ້ ${assigned_to} · ກຳນົດ ${due_date}`, {
-    users: [assigned_to],
+  // ຜູ້ຮັບຜິດຊອບ **ທຸກຄົນ** ໄດ້ຮັບການແຈ້ງເຕືອນ ແລະ ກາຍເປັນຜູ້ຕິດຕາມເອກະສານນຳ
+  await logChange(model, res_id, `ນັດກິດຈະກຳ: ${summary} · ມອບໃຫ້ ${people.join(", ")} · ກຳນົດ ${due_date}`, {
+    users: people,
   });
 
   revalidatePath("/", "layout");
@@ -164,7 +181,7 @@ const activityScope = (session: Session, placeholder: string) =>
     // ທີ່ completeActivity/cancelActivity ສົ່ງເຂົ້າ. ແຕ່ກ່ອນຄືນ "true"
     // ເຮັດໃຫ້ manager ສົ່ງ 3 params ໃສ່ SQL ທີ່ມີພຽງ $1/$2 → PostgreSQL 08P01.
     ? `${placeholder}::text is not null`
-    : `(assigned_to=${placeholder} or created_by=${placeholder})`;
+    : `(${assignedToMe(placeholder)} or created_by=${placeholder})`;
 
 export async function completeActivity(id: number, doneNote?: string) {
   const session = await getSession();
@@ -218,7 +235,7 @@ export async function myActivityCount(): Promise<{ total: number; late: number }
     await query<{ total: number; late: number }>(
       `select count(*)::int total,
           count(*) filter (where due_date < current_date)::int late
-        from ods_activity where assigned_to=$1 and state='planned'`,
+        from ods_activity a where ${assignedToMe("$1", "a")} and a.state='planned'`,
       [session.username],
     )
   ).rows[0];
@@ -229,12 +246,14 @@ export async function myActivities(): Promise<Activity[]> {
   const session = await getSession();
   if (!session) return [];
   const result = await query<Activity>(
-    `select id, model, res_id, kind, summary, note, assigned_to,
-        to_char(due_date,'DD-MM-YYYY') due_date, state, created_by,
-        (due_date - current_date)::int days_left
-       from ods_activity
-      where assigned_to=$1 and state='planned'
-      order by due_date`,
+    `select a.id, a.model, a.res_id, a.kind, a.summary, a.note,
+        -- ສະແດງ **ທຸກຄົນ** ທີ່ຮັບຜິດຊອບ ບໍ່ແມ່ນຄົນຫຼັກຄົນດຽວ (lib/activity-assignee)
+        ${ASSIGNEES_SQL("a")} assigned_to,
+        to_char(a.due_date,'DD-MM-YYYY') due_date, a.state, a.created_by,
+        (a.due_date - current_date)::int days_left
+       from ods_activity a
+      where ${assignedToMe("$1", "a")} and a.state='planned'
+      order by a.due_date`,
     [session.username],
   );
   return result.rows;
@@ -248,12 +267,14 @@ export async function allActivities(): Promise<Activity[]> {
   const session = await getSession();
   if (!session || session.role === "technical") return [];
   const result = await query<Activity>(
-    `select id, model, res_id, kind, summary, note, assigned_to,
-        to_char(due_date,'DD-MM-YYYY') due_date, state, created_by,
-        (due_date - current_date)::int days_left
-       from ods_activity
-      where state='planned'
-      order by due_date, assigned_to`,
+    `select a.id, a.model, a.res_id, a.kind, a.summary, a.note,
+        -- ສະແດງ **ທຸກຄົນ** ທີ່ຮັບຜິດຊອບ ບໍ່ແມ່ນຄົນຫຼັກຄົນດຽວ (lib/activity-assignee)
+        ${ASSIGNEES_SQL("a")} assigned_to,
+        to_char(a.due_date,'DD-MM-YYYY') due_date, a.state, a.created_by,
+        (a.due_date - current_date)::int days_left
+       from ods_activity a
+      where a.state='planned'
+      order by a.due_date, a.assigned_to`,
   );
   return result.rows;
 }

@@ -128,7 +128,15 @@ function ScheduleForm({
 }) {
   const [state, action, pending] = useActionState(scheduleActivity, {});
   const [kind, setKind] = useState("todo");
-  const [assignee, setAssignee] = useState(me);
+  /**
+   * ຜູ້ຮັບຜິດຊອບ **ຫຼາຍຄົນ** (01-08-2026) — ເກັບເປັນ array ແລ້ວສົ່ງເປັນ string
+   * ຄັ່ນດ້ວຍ `,` ໃນ hidden input. ຄົນທຳອິດເປັນຜູ້ຮັບຜິດຊອບຫຼັກ (actions/chatter).
+   */
+  const [assignees, setAssignees] = useState<string[]>([me]);
+  const toggleAssignee = (name: string) =>
+    setAssignees((current) =>
+      current.includes(name) ? current.filter((item) => item !== name) : [...current, name],
+    );
   // ຄ່າເລີ່ມຕົ້ນ = ມື້ນີ້ (ຮູບແບບ YYYY-MM-DD ຂອງ input[type=date])
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
 
@@ -144,10 +152,13 @@ function ScheduleForm({
           onChange={(value) => setKind(value || "todo")}
           options={Object.entries(ACTIVITY_KIND_LABEL).map(([value, label]) => ({ value, label }))}
         />
+        {/* ເລືອກຄົນທຳອິດຢູ່ນີ້ — ຄົນເພີ່ມເຕີມກົດຈາກລາຍຊື່ຂ້າງລຸ່ມ */}
         <SelectField
-          name="assigned_to"
-          value={assignee}
-          onChange={(value) => setAssignee(value || me)}
+          name="assignee_main"
+          value={assignees[0] ?? ""}
+          onChange={(value) =>
+            setAssignees((current) => [value || me, ...current.slice(1).filter((n) => n !== (value || me))])
+          }
           options={people}
           placeholder={t.responsible}
         />
@@ -157,6 +168,26 @@ function ScheduleForm({
           defaultValue={today}
           className="h-9 rounded-lg border border-slate-300 px-2 text-xs outline-none focus:border-teal-500"
         />
+      </div>
+
+      {/* ── ຜູ້ຮັບຜິດຊອບເພີ່ມເຕີມ — ກົດຊື່ເພື່ອເພີ່ມ/ຖອດ ── */}
+      <input type="hidden" name="assigned_to" value={assignees.join(",")} />
+      <div className="flex flex-wrap gap-1.5">
+        {people.map((person) => {
+          const on = assignees.includes(person.value);
+          return (
+            <button
+              key={person.value}
+              type="button"
+              onClick={() => toggleAssignee(person.value)}
+              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
+                on ? "bg-teal-600 text-white" : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              {person.label}
+            </button>
+          );
+        })}
       </div>
 
       <input

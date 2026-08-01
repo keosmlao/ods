@@ -743,6 +743,17 @@ class Api {
         await _send('GET', '/api/mobile/repair-stock/${Uri.encodeComponent(code)}'),
       );
 
+  /// ກິດຈະກຳທີ່ຍັງບໍ່ປິດ ທັງໝົດ (ຜູ້ຈັດການຕິດຕາມສິ່ງທີ່ CS ນັດໄວ້)
+  static Future<({List<PlannedActivity> items, int late})> activities() async {
+    final result = await _send('GET', '/api/mobile/activities');
+    return (
+      items: ((result['items'] as List?) ?? [])
+          .map((row) => PlannedActivity.fromJson(row as Map<String, dynamic>))
+          .toList(),
+      late: (result['late'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   /// ຜົນງານລູກນ້ອງ — ລາຍชื่อຊ່າງ + ພາລະ/ຄວາມຊ້າ/ຄ່າຄອມ
   static Future<List<TechRow>> techs() async {
     final result = await _send('GET', '/api/mobile/techs');
@@ -2472,4 +2483,62 @@ class RepairStockDetail {
         .map((row) => StockMove.fromJson(row as Map<String, dynamic>))
         .toList(),
   );
+}
+
+
+/// 1 ກິດຈະກຳທີ່ນັດໄວ້ໃສ່ໃບງານ (todo · ໂທ · ໄປພົບ · ປະຊຸມ)
+///
+/// ⚠️ ຊື່ `JobActivity` ຖືກໃຊ້ແລ້ວ (ກິດຈະກຳໃນໜ້າໃບງານຂອງຊ່າງ) ຈຶ່ງໃຊ້ຊື່ນີ້ແທນ.
+class PlannedActivity {
+  final int id;
+  final String resId;
+  final String kind;
+  final String summary;
+  final String? note;
+  /// ຜູ້ຮັບຜິດຊອບ **ທຸກຄົນ** ຄັ່ນດ້ວຍ ", "
+  final String assignedTo;
+  final String? dueDate;
+  final String createdBy;
+  /// ຕິດລົບ = ເລີຍກຳນົດແລ້ວ
+  final int daysLeft;
+  final String? jobTitle;
+  final String? customer;
+  final String workflow;
+
+  PlannedActivity({
+    required this.id,
+    required this.resId,
+    required this.kind,
+    required this.summary,
+    required this.note,
+    required this.assignedTo,
+    required this.dueDate,
+    required this.createdBy,
+    required this.daysLeft,
+    required this.jobTitle,
+    required this.customer,
+    required this.workflow,
+  });
+
+  factory PlannedActivity.fromJson(Map<String, dynamic> json) => PlannedActivity(
+    id: (json['id'] as num?)?.toInt() ?? 0,
+    resId: '${json['res_id']}',
+    kind: json['kind'] as String? ?? 'todo',
+    summary: json['summary'] as String? ?? '',
+    note: json['note'] as String?,
+    assignedTo: json['assigned_to'] as String? ?? '-',
+    dueDate: json['due_date'] as String?,
+    createdBy: json['created_by'] as String? ?? '',
+    daysLeft: (json['days_left'] as num?)?.toInt() ?? 0,
+    jobTitle: json['job_title'] as String?,
+    customer: json['customer'] as String?,
+    workflow: json['workflow'] as String? ?? 'repair',
+  );
+
+  String get kindLabel => switch (kind) {
+    'call' => 'ໂທຫາ',
+    'visit' => 'ໄປພົບ',
+    'meeting' => 'ປະຊຸມ',
+    _ => 'ວຽກຕ້ອງເຮັດ',
+  };
 }

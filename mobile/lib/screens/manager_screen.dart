@@ -7,6 +7,7 @@ import '../api.dart';
 import '../main.dart';
 import '../push.dart';
 import '../widgets/ui_kit.dart';
+import 'activities_screen.dart';
 import 'approvals_screen.dart';
 import 'commission_screen.dart';
 import 'login_screen.dart';
@@ -283,6 +284,19 @@ class _ManagerScreenState extends State<ManagerScreen> {
               ),
             ),
           ],
+        ),
+      ),
+
+      _Card(
+        title: 'ຕິດຕາມສິ່ງທີ່ CS ນັດໄວ້',
+        child: _ShortcutButton(
+          icon: Icons.event_note_outlined,
+          label: 'ກິດຈະກຳທີ່ນັດໄວ້',
+          tone: const Color(0xFF7C3AED),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ActivitiesScreen()),
+          ),
         ),
       ),
 

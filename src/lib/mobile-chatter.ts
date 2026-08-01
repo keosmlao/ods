@@ -1,6 +1,7 @@
 import type { Workflow } from "@/lib/commission";
 import { addFollowerSilently, chatterSince, logChange } from "@/lib/chatter-log";
 import type { Activity, ChatterMessage } from "@/lib/chatter";
+import { ASSIGNEES_SQL } from "@/lib/activity-assignee";
 import { query } from "@/lib/db";
 import { notify } from "@/lib/notify";
 
@@ -39,13 +40,15 @@ export async function jobChatter(workflow: Workflow, code: string): Promise<JobC
       [model, code, since],
     ),
     query<Activity>(
-      `select id, model, res_id, kind, summary, note, assigned_to,
-          to_char(due_date,'DD-MM-YYYY') due_date, state, created_by,
-          (due_date - current_date)::int days_left
-         from ods_activity
-        where model=$1 and res_id=$2 and state='planned'
-          and ($3::timestamp is null or created_at >= $3::timestamp)
-        order by due_date`,
+      // ສະແດງ **ທຸກຄົນ** ທີ່ຮັບຜິດຊອບ ຄືກັບຝັ່ງເວັບ (lib/activity-assignee)
+      `select a.id, a.model, a.res_id, a.kind, a.summary, a.note,
+          ${ASSIGNEES_SQL("a")} assigned_to,
+          to_char(a.due_date,'DD-MM-YYYY') due_date, a.state, a.created_by,
+          (a.due_date - current_date)::int days_left
+         from ods_activity a
+        where a.model=$1 and a.res_id=$2 and a.state='planned'
+          and ($3::timestamp is null or a.created_at >= $3::timestamp)
+        order by a.due_date`,
       [model, code, since],
     ),
   ]);

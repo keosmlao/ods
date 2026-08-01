@@ -182,6 +182,14 @@ export async function managerDrill(bucket: string): Promise<DrillResult> {
       return { label: jobs[0]?.stage_label ?? "ຂັ້ນນີ້", jobs: sortByAge(jobs) };
     }
 
+    case "job": {
+      // ໃບດຽວ — ໃຊ້ຕອນແຕະກິດຈະກຳ ເພື່ອເປີດເບິ່ງໃບງານທີ່ມັນຜູກຢູ່
+      if (!argument) return { label: "", jobs: [] };
+      const repairRows = await repair("a.code = $1", [argument]);
+      if (repairRows.length) return { label: `#${argument}`, jobs: repairRows };
+      return { label: `#${argument}`, jobs: await install("a.code = $1", [argument]) };
+    }
+
     case "today": {
       const where =
         argument === "received" ? "a.time_register::date = current_date"
