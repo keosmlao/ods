@@ -400,7 +400,26 @@ class _TechCard extends StatelessWidget {
                         color: ink,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.badge_outlined,
+                          size: 12,
+                          color: faint,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'ລະຫັດ ${tech.employeeCode}',
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            color: muted,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
                     Wrap(
                       spacing: 6,
                       runSpacing: 5,

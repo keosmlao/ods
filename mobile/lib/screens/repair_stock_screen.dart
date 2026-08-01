@@ -22,26 +22,38 @@ class RepairStockScreen extends StatefulWidget {
 
 class _RepairStockScreenState extends State<RepairStockScreen> {
   final term = TextEditingController();
+  final scroll = ScrollController();
   RepairStock? data;
+  final List<RepairStockRow> items = [];
   bool loading = true;
+  bool loadingMore = false;
   String wh = ''; // ສູນທີ່ເລືອກ — ວ່າງ = ທຸກສູນ
   String loc = ''; // ທີ່ຈັດເກັບທີ່ເລືອກ
   int page = 1;
+  int visibleCount = 10;
 
   @override
   void initState() {
     super.initState();
+    scroll.addListener(_onScroll);
     load();
   }
 
   @override
   void dispose() {
     term.dispose();
+    scroll.dispose();
     super.dispose();
   }
 
-  Future<void> load() async {
-    setState(() => loading = true);
+  Future<void> load({bool append = false}) async {
+    setState(() {
+      if (append) {
+        loadingMore = true;
+      } else {
+        loading = true;
+      }
+    });
     try {
       final result = await Api.repairStock(
         q: term.text.trim(),
@@ -49,7 +61,20 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
         loc: loc,
         page: page,
       );
-      if (mounted) setState(() => data = result);
+      if (mounted) {
+        setState(() {
+          data = result;
+          if (append) {
+            items.addAll(result.items);
+            visibleCount = (visibleCount + 5).clamp(0, items.length);
+          } else {
+            items
+              ..clear()
+              ..addAll(result.items);
+            visibleCount = items.length < 10 ? items.length : 10;
+          }
+        });
+      }
     } on ApiError catch (failure) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -57,7 +82,30 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted) {
+        setState(() {
+          loading = false;
+          loadingMore = false;
+        });
+      }
+    }
+  }
+
+  void _onScroll() {
+    if (!scroll.hasClients ||
+        scroll.position.extentAfter > 180 ||
+        loading ||
+        loadingMore) {
+      return;
+    }
+    if (visibleCount < items.length) {
+      setState(() => visibleCount = (visibleCount + 5).clamp(0, items.length));
+      return;
+    }
+    final d = data;
+    if (d != null && page < d.pages) {
+      page += 1;
+      load(append: true);
     }
   }
 
@@ -66,7 +114,10 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
     setState(() {
       change();
       page = 1;
+      visibleCount = 10;
+      items.clear();
     });
+    if (scroll.hasClients) scroll.jumpTo(0);
     load();
   }
 
@@ -74,24 +125,50 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
 
   Widget _chip(String label, int n, bool active, VoidCallback onTap) => Padding(
-    padding: const EdgeInsets.only(right: 7),
+    padding: const EdgeInsets.only(right: 8),
     child: InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        padding: const EdgeInsets.fromLTRB(11, 7, 8, 7),
         decoration: BoxDecoration(
-          color: active ? ink : Colors.white,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: active ? ink : line),
+          color: active ? teal : const Color(0xFFF7FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: active ? teal : const Color(0xFFE2E8F0)),
         ),
-        child: Text(
-          '$label $n',
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w800,
-            color: active ? Colors.white : muted,
-          ),
+        child: Row(
+          children: [
+            if (active) ...[
+              const Icon(Icons.check_rounded, size: 14, color: Colors.white),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                color: active ? Colors.white : ink,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: active
+                    ? Colors.white.withValues(alpha: .18)
+                    : Colors.white,
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Text(
+                '$n',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: active ? Colors.white : muted,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     ),
@@ -105,71 +182,138 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
       onBack: () => Navigator.pop(context),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: term,
-                    textInputAction: TextInputAction.search,
-                    onSubmitted: (_) => _refilter(() {}),
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                      prefixIcon: Icon(Icons.search),
-                      hintText: 'ຄົ້ນ: ຊື່ ຫຼື ລະຫັດ...',
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: teal,
-                    minimumSize: const Size(60, 48),
-                  ),
-                  onPressed: loading ? null : () => _refilter(() {}),
-                  child: const Text('ຄົ້ນ'),
+          Container(
+            margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE6ECEF)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x080F172A),
+                  blurRadius: 14,
+                  offset: Offset(0, 4),
                 ),
               ],
             ),
-          ),
-
-          // ── ກອງຕາມສູນ ──
-          if (d != null)
-            SizedBox(
-              height: 36,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                children: [
-                  _chip('ທຸກສູນ', d.total, wh.isEmpty, () => _refilter(() { wh = ''; loc = ''; })),
-                  for (final center in d.centers)
-                    _chip(center.name, center.items, wh == center.code,
-                        () => _refilter(() { wh = center.code; loc = ''; })),
-                ],
-              ),
-            ),
-
-          // ── ກອງຕາມທີ່ຈັດເກັບ (ສະເພາະເມື່ອເລືອກສູນແລ້ວ) ──
-          if (d != null && wh.isNotEmpty && d.shelves.isNotEmpty)
-            SizedBox(
-              height: 34,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                children: [
-                  _chip('ທຸກທີ່', d.total, loc.isEmpty, () => _refilter(() => loc = '')),
-                  for (final shelf in d.shelves)
-                    _chip(
-                      shelf.name.isEmpty ? shelf.code : shelf.name,
-                      shelf.items,
-                      loc == shelf.code,
-                      () => _refilter(() => loc = shelf.code),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: term,
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: (_) => _refilter(() {}),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: const Color(0xFFF7FAFC),
+                          isDense: true,
+                          prefixIcon: const Icon(
+                            Icons.search_rounded,
+                            size: 20,
+                          ),
+                          hintText: 'ຄົ້ນຊື່ ຫຼື ລະຫັດສິນຄ້າ',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
                     ),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      tooltip: 'ຄົ້ນຫາ',
+                      style: IconButton.styleFrom(
+                        backgroundColor: teal,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(48, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed: loading ? null : () => _refilter(() {}),
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                    ),
+                  ],
+                ),
+                if (d != null) ...[
+                  const SizedBox(height: 13),
+                  const Text(
+                    'ສູນບໍລິການ',
+                    style: TextStyle(
+                      color: muted,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  SizedBox(
+                    height: 38,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        _chip(
+                          'ທຸກສູນ',
+                          d.total,
+                          wh.isEmpty,
+                          () => _refilter(() {
+                            wh = '';
+                            loc = '';
+                          }),
+                        ),
+                        for (final center in d.centers)
+                          _chip(
+                            center.name,
+                            center.items,
+                            wh == center.code,
+                            () => _refilter(() {
+                              wh = center.code;
+                              loc = '';
+                            }),
+                          ),
+                      ],
+                    ),
+                  ),
                 ],
-              ),
+                if (d != null && wh.isNotEmpty && d.shelves.isNotEmpty) ...[
+                  const SizedBox(height: 11),
+                  const Text(
+                    'ບ່ອນຈັດເກັບ',
+                    style: TextStyle(
+                      color: muted,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  SizedBox(
+                    height: 38,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        _chip(
+                          'ທຸກທີ່',
+                          d.total,
+                          loc.isEmpty,
+                          () => _refilter(() => loc = ''),
+                        ),
+                        for (final shelf in d.shelves)
+                          _chip(
+                            shelf.name.isEmpty ? shelf.code : shelf.name,
+                            shelf.items,
+                            loc == shelf.code,
+                            () => _refilter(() => loc = shelf.code),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
+          ),
 
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 6, 14, 2),
@@ -177,7 +321,7 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
               alignment: Alignment.centerLeft,
               child: Text(
                 'ອັບເດດ: ${d?.refreshedAt ?? "—"}   ·   ${d?.total ?? 0} ລາຍການ'
-                '${(d?.pages ?? 1) > 1 ? "   ·   ໜ້າ ${d!.page}/${d.pages}" : ""}',
+                '   ·   ສະແດງ ${visibleCount.clamp(0, items.length)}',
                 style: const TextStyle(fontSize: 11.5, color: muted),
               ),
             ),
@@ -186,16 +330,35 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
           Expanded(
             child: loading
                 ? const Center(child: CircularProgressIndicator())
-                : d == null || d.items.isEmpty
+                : d == null || items.isEmpty
                 ? const Center(
-                    child: Text('ບໍ່ພົບອາໄຫຼ່ໃນສາງສູນບໍລິການ', style: TextStyle(color: muted)),
+                    child: Text(
+                      'ບໍ່ພົບອາໄຫຼ່ໃນສາງສູນບໍລິການ',
+                      style: TextStyle(color: muted),
+                    ),
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                    itemCount: d.items.length,
+                    controller: scroll,
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                    itemCount:
+                        visibleCount.clamp(0, items.length) +
+                        (loadingMore ? 1 : 0),
                     separatorBuilder: (_, __) => const SizedBox(height: 6),
                     itemBuilder: (_, i) {
-                      final item = d.items[i];
+                      final shown = visibleCount.clamp(0, items.length);
+                      if (i == shown) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 14),
+                          child: Center(
+                            child: SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        );
+                      }
+                      final item = items[i];
                       return InkWell(
                         onTap: () => Navigator.push(
                           context,
@@ -206,14 +369,21 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
                             ),
                           ),
                         ),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(16),
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE6ECEF)),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x080F172A),
+                                blurRadius: 10,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
                           ),
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(14),
                           child: Row(
                             children: [
                               Expanded(
@@ -233,7 +403,10 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
                                       children: [
                                         Text(
                                           item.code,
-                                          style: const TextStyle(fontSize: 11, color: muted),
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: muted,
+                                          ),
                                         ),
                                         for (final center in item.centers)
                                           if (center.qty > 0)
@@ -263,11 +436,18 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
                                   ),
                                   Text(
                                     item.unitCode ?? '',
-                                    style: const TextStyle(fontSize: 10, color: muted),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: muted,
+                                    ),
                                   ),
                                 ],
                               ),
-                              const Icon(Icons.chevron_right, size: 18, color: faint),
+                              const Icon(
+                                Icons.chevron_right,
+                                size: 18,
+                                color: faint,
+                              ),
                             ],
                           ),
                         ),
@@ -275,39 +455,6 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
                     },
                   ),
           ),
-
-          // ── ປ່ຽນໜ້າ ──
-          if (d != null && d.pages > 1)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    onPressed: d.page <= 1
-                        ? null
-                        : () {
-                            setState(() => page = d.page - 1);
-                            load();
-                          },
-                    icon: const Icon(Icons.chevron_left),
-                  ),
-                  Text(
-                    '${d.page} / ${d.pages}',
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: ink),
-                  ),
-                  IconButton(
-                    onPressed: d.page >= d.pages
-                        ? null
-                        : () {
-                            setState(() => page = d.page + 1);
-                            load();
-                          },
-                    icon: const Icon(Icons.chevron_right),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );

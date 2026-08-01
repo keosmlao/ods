@@ -83,6 +83,9 @@ class _TechDetailScreenState extends State<TechDetailScreen> {
         children: [
           HeroHeader(
             title: widget.name,
+            eyebrow: data == null
+                ? 'ຂໍ້ມູນພະນັກງານ'
+                : 'ລະຫັດພະນັກງານ · ${data!.employeeCode}',
             inlineBack: true,
             onBack: () => Navigator.pop(context),
             trailing: [

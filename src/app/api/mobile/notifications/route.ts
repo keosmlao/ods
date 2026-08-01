@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   try {
     const [rows, stats] = await Promise.all([
       query<Row>(
-        `select id, model, res_id, kind, body, actor,
+        `select id::float8 as id, model, res_id::text as res_id, kind, body, actor,
             to_char(created_at,'DD-MM-YYYY HH24:MI') as created_at,
             (read_at is not null) as "read"
            from ods_notification

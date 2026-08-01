@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../main.dart';
+import 'chatter_screen.dart';
 
 /// ວິດເຈັດຮ່ວມ ຂອງໜ້າ monitor ຜູ້ຈັດການ (ຕິດຕາມ · ລູກນ້ອງ · ລາຍງານ).
 /// ຮັກສາໜ້າຕາໃຫ້ຄືກັບ dashboard (MCard · ErrorRetry) ໂດຍບໍ່ຊ້ຳ code ຫຼາຍໄຟລ໌.
@@ -346,6 +347,30 @@ void showJobSheet(BuildContext context, MonitorJob job) {
                     ],
                   ),
                 ],
+                const SizedBox(height: 14),
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChatterScreen(
+                          workflow: job.workflow,
+                          code: job.code,
+                        ),
+                      ),
+                    );
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: ink,
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                  ),
+                  icon: const Icon(Icons.forum_outlined),
+                  label: const Text('Chatter & Activities'),
+                ),
               ],
             ),
           ),

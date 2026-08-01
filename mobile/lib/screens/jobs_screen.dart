@@ -53,15 +53,40 @@ _Phase _phaseOf(Job job) {
       case 0:
         return const _Phase(1, 'ລໍນັດ+ຈັດຊ່າງ', Icons.event_outlined, _cAmber);
       case 1:
-        return const _Phase(2, 'ລໍຖ້າຮັບງານລ້າງ', Icons.assignment_ind_outlined, _cOrange);
+        return const _Phase(
+          2,
+          'ລໍຖ້າຮັບງານລ້າງ',
+          Icons.assignment_ind_outlined,
+          _cOrange,
+        );
       case 2:
-        return const _Phase(5, 'ລໍໄປລ້າງ', Icons.local_shipping_outlined, _cIndigo);
+        return const _Phase(
+          5,
+          'ລໍໄປລ້າງ',
+          Icons.local_shipping_outlined,
+          _cIndigo,
+        );
       case 3:
-        return const _Phase(6, 'ກຳລັງລ້າງ', Icons.cleaning_services_outlined, teal);
+        return const _Phase(
+          6,
+          'ກຳລັງລ້າງ',
+          Icons.cleaning_services_outlined,
+          teal,
+        );
       case 4:
-        return const _Phase(7, 'ລໍຖ້າກວດ QC', Icons.verified_outlined, _cPurple);
+        return const _Phase(
+          7,
+          'ລໍຖ້າກວດ QC',
+          Icons.verified_outlined,
+          _cPurple,
+        );
       case 5:
-        return const _Phase(8, 'ລໍເກັບເງິນ / ປິດງານ', Icons.payments_outlined, _cCyan);
+        return const _Phase(
+          8,
+          'ລໍເກັບເງິນ / ປິດງານ',
+          Icons.payments_outlined,
+          _cCyan,
+        );
       case -1:
         return const _Phase(98, 'ຍົກເລີກແລ້ວ', Icons.cancel_outlined, danger);
       default:
@@ -72,23 +97,53 @@ _Phase _phaseOf(Job job) {
     switch (s) {
       case 0:
       case 1:
-        return const _Phase(1, 'ລໍຖ້າຮັບງານຕິດຕັ້ງ', Icons.assignment_ind_outlined, _cAmber);
+        return const _Phase(
+          1,
+          'ລໍຖ້າຮັບງານຕິດຕັ້ງ',
+          Icons.assignment_ind_outlined,
+          _cAmber,
+        );
       case 2:
       case 3:
-        return const _Phase(4, 'ຂະບວນການເບີກອາໄຫຼ່', Icons.inventory_2_outlined, _cViolet);
+        return const _Phase(
+          4,
+          'ຂະບວນການເບີກອາໄຫຼ່',
+          Icons.inventory_2_outlined,
+          _cViolet,
+        );
       case 4:
-        return const _Phase(5, 'ລໍຖ້າຕິດຕັ້ງ', Icons.build_circle_outlined, _cIndigo);
+        return const _Phase(
+          5,
+          'ລໍຖ້າຕິດຕັ້ງ',
+          Icons.build_circle_outlined,
+          _cIndigo,
+        );
       case 5:
         return const _Phase(6, 'ກຳລັງຕິດຕັ້ງ', Icons.handyman_outlined, teal);
       case 6:
       case 7:
-        return const _Phase(7, 'ລໍກວດ QC ຕິດຕັ້ງ', Icons.verified_outlined, _cPurple);
+        return const _Phase(
+          7,
+          'ລໍກວດ QC ຕິດຕັ້ງ',
+          Icons.verified_outlined,
+          _cPurple,
+        );
       case 8:
-        return const _Phase(8, 'ລໍຖ້າປິດງານ', Icons.assignment_turned_in_outlined, _cCyan);
+        return const _Phase(
+          8,
+          'ລໍຖ້າປິດງານ',
+          Icons.assignment_turned_in_outlined,
+          _cCyan,
+        );
       case -1:
         return const _Phase(98, 'ຍົກເລີກແລ້ວ', Icons.cancel_outlined, danger);
       default:
-        return const _Phase(99, 'ປິດງານແລ້ວ', Icons.check_circle_outline, muted);
+        return const _Phase(
+          99,
+          'ປິດງານແລ້ວ',
+          Icons.check_circle_outline,
+          muted,
+        );
     }
   }
   // ── ສ້ອມແປງ ──
@@ -98,10 +153,25 @@ _Phase _phaseOf(Job job) {
   switch (s) {
     case 0:
       return ih
-          ? const _Phase(0, 'ລໍນັດ / ຈັດຊ່າງໄປສ້ອມ', Icons.event_outlined, _cAmber)
-          : const _Phase(0, 'ໄປຮັບເຄື່ອງ', Icons.local_shipping_outlined, _cAmber);
+          ? const _Phase(
+              0,
+              'ລໍນັດ / ຈັດຊ່າງໄປສ້ອມ',
+              Icons.event_outlined,
+              _cAmber,
+            )
+          : const _Phase(
+              0,
+              'ໄປຮັບເຄື່ອງ',
+              Icons.local_shipping_outlined,
+              _cAmber,
+            );
     case 1:
-      return const _Phase(1, 'ລໍຖ້າກວດເຊັກ', Icons.pending_actions_outlined, _cOrange);
+      return const _Phase(
+        1,
+        'ລໍຖ້າກວດເຊັກ',
+        Icons.pending_actions_outlined,
+        _cOrange,
+      );
     case 2:
       return const _Phase(2, 'ກຳລັງກວດເຊັກ', Icons.fact_check_outlined, _cBlue);
     case 3:
@@ -109,21 +179,56 @@ _Phase _phaseOf(Job job) {
     case 5:
     case 6:
     case 7:
-      return const _Phase(4, 'ຂະບວນການເບີກອາໄຫຼ່', Icons.inventory_2_outlined, _cViolet);
+      return const _Phase(
+        4,
+        'ຂະບວນການເບີກອາໄຫຼ່',
+        Icons.inventory_2_outlined,
+        _cViolet,
+      );
     case 8:
-      return const _Phase(5, 'ລໍຖ້າສ້ອມແປງ', Icons.build_circle_outlined, _cIndigo);
+      return const _Phase(
+        5,
+        'ລໍຖ້າສ້ອມແປງ',
+        Icons.build_circle_outlined,
+        _cIndigo,
+      );
     case 9:
       return const _Phase(6, 'ກຳລັງສ້ອມແປງ', Icons.handyman_outlined, teal);
     case 10:
-      return const _Phase(7, 'ລໍກວດຮັບຄຸນນະພາບ', Icons.verified_outlined, _cPurple);
+      return const _Phase(
+        7,
+        'ລໍກວດຮັບຄຸນນະພາບ',
+        Icons.verified_outlined,
+        _cPurple,
+      );
     case 11:
       return ih
-          ? const _Phase(8, 'ລໍປິດງານ', Icons.assignment_turned_in_outlined, _cCyan)
-          : const _Phase(8, 'ລໍຖ້າສົ່ງຄືນ', Icons.assignment_turned_in_outlined, _cCyan);
+          ? const _Phase(
+              8,
+              'ລໍປິດງານ',
+              Icons.assignment_turned_in_outlined,
+              _cCyan,
+            )
+          : const _Phase(
+              8,
+              'ລໍຖ້າສົ່ງຄືນ',
+              Icons.assignment_turned_in_outlined,
+              _cCyan,
+            );
     case 12:
       return ih
-          ? const _Phase(99, 'ຈົບງານ (ໜ້າງານ)', Icons.check_circle_outline, muted)
-          : const _Phase(99, 'ສົ່ງຄືນສຳເລັດ', Icons.check_circle_outline, muted);
+          ? const _Phase(
+              99,
+              'ຈົບງານ (ໜ້າງານ)',
+              Icons.check_circle_outline,
+              muted,
+            )
+          : const _Phase(
+              99,
+              'ສົ່ງຄືນສຳເລັດ',
+              Icons.check_circle_outline,
+              muted,
+            );
     case -1:
       return const _Phase(98, 'ຍົກເລີກ', Icons.cancel_outlined, danger);
     default:
@@ -170,10 +275,11 @@ const _bandMeta = {
     Color(0xFF6D4AFF),
     Color(0xFF9333EA),
   ]),
-  _Band.maintenance: _BandMeta('ບຳລຸງຮັກສາ / ລ້າງແອ', Icons.cleaning_services_outlined, [
-    Color(0xFF0284C7),
-    Color(0xFF0891B2),
-  ]),
+  _Band.maintenance: _BandMeta(
+    'ບຳລຸງຮັກສາ / ລ້າງແອ',
+    Icons.cleaning_services_outlined,
+    [Color(0xFF0284C7), Color(0xFF0891B2)],
+  ),
 };
 
 /// ຂັ້ນ 0-2 (ໄປຮັບເຄື່ອງ · ລໍຖ້າກວດ · ກຳລັງກວດ) = ກວດເຊັກ · ທີ່ເຫຼືອ = ສ້ອມແປງ
@@ -297,12 +403,14 @@ class _JobsScreenState extends State<JobsScreen> {
     ]) {
       final list = byBand[band];
       if (list == null || list.isEmpty) continue;
-      out.add(_BandGroup(
-        band,
-        _groupPhases(list),
-        list.length,
-        list.where((j) => urgent.contains(j.action)).length,
-      ));
+      out.add(
+        _BandGroup(
+          band,
+          _groupPhases(list),
+          list.length,
+          list.where((j) => urgent.contains(j.action)).length,
+        ),
+      );
     }
     return out;
   }
@@ -319,14 +427,18 @@ class _JobsScreenState extends State<JobsScreen> {
         children: [
           HeroHeader(
             // ທັກທາຍດ້ວຍຊື່ຜູ້ໃຊ້ (ຫວ່າງ = ຍັງໂຫຼດບໍ່ທັນ ⇒ ໃຊ້ eyebrow ຕັ້ງຕົ້ນ)
-            eyebrow: username.isNotEmpty ? 'ສະບາຍດີ, $username' : 'ODIEN SERVICE',
+            eyebrow: username.isNotEmpty
+                ? 'ສະບາຍດີ, $username'
+                : 'ODIEN SERVICE',
             title: 'ວຽກຂອງຂ້ອຍ',
             trailing: [
               HeroIconButton(
                 icon: Icons.notifications_none,
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const NotificationsScreen(),
+                  ),
                 ),
               ),
               HeroIconButton(icon: Icons.refresh_rounded, onTap: load),
@@ -337,13 +449,17 @@ class _JobsScreenState extends State<JobsScreen> {
                   if (value == 'stock-balance') {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const StockBalanceScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const StockBalanceScreen(),
+                      ),
                     );
                   }
                   if (value == 'repair-stock') {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const RepairStockScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const RepairStockScreen(),
+                      ),
                     );
                   }
                 },
@@ -385,7 +501,9 @@ class _JobsScreenState extends State<JobsScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: .12),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withValues(alpha: .14)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: .14),
+                    ),
                   ),
                   child: const Icon(Icons.more_vert, size: 20, color: onHero),
                 ),
@@ -393,17 +511,33 @@ class _JobsScreenState extends State<JobsScreen> {
             ],
             stats: [
               HeroStat(value: '${jobs.length}', label: 'ວຽກທັງໝົດ'),
-              HeroStat(value: '$actionCount', label: 'ຕ້ອງລົງມື', color: const Color(0xFFFDBA74)),
-              HeroStat(value: '$onsiteCount', label: 'ວຽກໜ້າງານ', color: const Color(0xFF6EE7B7)),
+              HeroStat(
+                value: '$actionCount',
+                label: 'ຕ້ອງລົງມື',
+                color: const Color(0xFFFDBA74),
+              ),
+              HeroStat(
+                value: '$onsiteCount',
+                label: 'ວຽກໜ້າງານ',
+                color: const Color(0xFF6EE7B7),
+              ),
             ],
           ),
           Expanded(
             child: loading
                 ? const Center(child: CircularProgressIndicator())
                 : error.isNotEmpty
-                ? _Empty(icon: Icons.cloud_off_rounded, title: error, action: load)
+                ? _Empty(
+                    icon: Icons.cloud_off_rounded,
+                    title: error,
+                    action: load,
+                  )
                 : jobs.isEmpty
-                ? _Empty(icon: Icons.task_alt_rounded, title: 'ບໍ່ມີວຽກ', action: load)
+                ? _Empty(
+                    icon: Icons.task_alt_rounded,
+                    title: 'ບໍ່ມີວຽກ',
+                    action: load,
+                  )
                 : _tabbedBands(),
           ),
         ],
@@ -421,17 +555,33 @@ class _JobsScreenState extends State<JobsScreen> {
       length: bs.length,
       child: Column(
         children: [
-          Material(
-            color: Colors.white,
+          Container(
+            margin: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8EFED),
+              borderRadius: BorderRadius.circular(15),
+            ),
             child: TabBar(
               isScrollable: bs.length > 2,
-              tabAlignment: bs.length > 2 ? TabAlignment.start : TabAlignment.fill,
+              tabAlignment: bs.length > 2
+                  ? TabAlignment.start
+                  : TabAlignment.fill,
               labelColor: ink,
               unselectedLabelColor: muted,
-              indicatorColor: teal,
-              indicatorWeight: 3,
               indicatorSize: TabBarIndicatorSize.tab,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+              dividerColor: Colors.transparent,
+              indicator: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(color: ink.withValues(alpha: .07), blurRadius: 8),
+                ],
+              ),
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 11.5,
+              ),
               tabs: [for (final b in bs) _bandTab(b)],
             ),
           ),
@@ -448,12 +598,12 @@ class _JobsScreenState extends State<JobsScreen> {
     final meta = _bandMeta[band.band]!;
     final urgent = band.actionCount > 0;
     return Tab(
-      height: 48,
+      height: 43,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(meta.icon, size: 17),
-          const SizedBox(width: 6),
+          Icon(meta.icon, size: 15),
+          const SizedBox(width: 5),
           Text(_bandTabLabel[band.band] ?? meta.label),
           const SizedBox(width: 5),
           Container(
@@ -465,7 +615,7 @@ class _JobsScreenState extends State<JobsScreen> {
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
-              '${urgent ? band.actionCount : band.total}',
+              '${band.total}',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w900,
@@ -487,13 +637,16 @@ class _JobsScreenState extends State<JobsScreen> {
           for (final group in band.groups) ...[
             SliverPersistentHeader(
               pinned: true,
-              delegate: _PhaseHeader(phase: group.phase, count: group.jobs.length),
+              delegate: _PhaseHeader(
+                phase: group.phase,
+                count: group.jobs.length,
+              ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
+              padding: const EdgeInsets.fromLTRB(14, 5, 14, 10),
               sliver: SliverList.separated(
                 itemCount: group.jobs.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 7),
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (_, i) => _JobCard(
                   job: group.jobs[i],
                   accent: group.phase.color,
@@ -517,26 +670,30 @@ class _PhaseHeader extends SliverPersistentHeaderDelegate {
   final int count;
 
   @override
-  double get minExtent => 54;
+  double get minExtent => 58;
   @override
-  double get maxExtent => 54;
+  double get maxExtent => 58;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return Container(
       color: ground,
-      padding: const EdgeInsets.fromLTRB(14, 9, 14, 7),
+      padding: const EdgeInsets.fromLTRB(14, 11, 14, 7),
       alignment: Alignment.centerLeft,
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 35,
+            height: 35,
             decoration: BoxDecoration(
               color: phase.color.withValues(alpha: .12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(phase.icon, size: 18, color: phase.color),
+            child: Icon(phase.icon, size: 19, color: phase.color),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -584,24 +741,60 @@ bool _hasText(String? value) {
 /// ບັດງານ **ແບບໃບງານ (ticket)** — ແຖບສີໄລຍະເທິງສຸດ · ເລກໃບເດັ່ນ · ເສັ້ນປະແບ່ງສ່ວນ
 /// ປະເພດບໍລິການສ້ອມ (CI/ST/IH/PS) — ປ້າຍເດັ່ນໆໃນบัตร (ໃຫ້ຮູ້ທັນທີວ່າໄປໜ້າງານ/ຢູ່ສູນ).
 ({String label, IconData icon, Color color})? _serviceKind(Job job) {
-  if (job.workflow == 'install') return (label: 'ຕິດຕັ້ງ', icon: Icons.construction_outlined, color: Color(0xFF7C3AED));
-  if (job.workflow == 'maintenance') return (label: 'ລ້າງແອ', icon: Icons.cleaning_services_outlined, color: Color(0xFF0284C7));
+  if (job.workflow == 'install') {
+    return (
+      label: 'ຕິດຕັ້ງ',
+      icon: Icons.construction_outlined,
+      color: Color(0xFF7C3AED),
+    );
+  }
+  if (job.workflow == 'maintenance') {
+    return (
+      label: 'ລ້າງແອ',
+      icon: Icons.cleaning_services_outlined,
+      color: Color(0xFF0284C7),
+    );
+  }
   switch (job.serviceType) {
     case 'IH':
-      return (label: 'ໄປສ້ອມບ້ານ', icon: Icons.home_outlined, color: Color(0xFFB45309));
+      return (
+        label: 'ໄປສ້ອມບ້ານ',
+        icon: Icons.home_outlined,
+        color: Color(0xFFB45309),
+      );
     case 'PS':
-      return (label: 'ໄປຮັບ-ສ້ອມສູນ', icon: Icons.local_shipping_outlined, color: Color(0xFF4F46E5));
+      return (
+        label: 'ໄປຮັບ-ສ້ອມສູນ',
+        icon: Icons.local_shipping_outlined,
+        color: Color(0xFF4F46E5),
+      );
     case 'CI':
-      return (label: 'ນຳເຂົ້າສູນ', icon: Icons.store_mall_directory_outlined, color: Color(0xFF0891B2));
+      return (
+        label: 'ນຳເຂົ້າສູນ',
+        icon: Icons.store_mall_directory_outlined,
+        color: Color(0xFF0891B2),
+      );
     case 'ST':
-      return (label: 'ສ້ອມໜ້າງານ', icon: Icons.build_outlined, color: Color(0xFF0D9488));
+      return (
+        label: 'ສ້ອມໜ້າງານ',
+        icon: Icons.build_outlined,
+        color: Color(0xFF0D9488),
+      );
     default:
-      return (label: 'ສ້ອມແປງ', icon: Icons.handyman_outlined, color: Color(0xFF0D9488));
+      return (
+        label: 'ສ້ອມແປງ',
+        icon: Icons.handyman_outlined,
+        color: Color(0xFF0D9488),
+      );
   }
 }
 
 class _JobCard extends StatelessWidget {
-  const _JobCard({required this.job, required this.accent, required this.onDone});
+  const _JobCard({
+    required this.job,
+    required this.accent,
+    required this.onDone,
+  });
   final Job job;
   final Color accent;
   final Future<void> Function() onDone;
@@ -614,13 +807,6 @@ class _JobCard extends StatelessWidget {
       if (_hasText(job.customer)) job.customer!.trim(),
       if (_hasText(job.address)) job.address!.trim(),
     ].join(' · ');
-    // ── ແຖວຂໍ້ມູນ 1 ແຖວ (ກະທັດຮັດ): ລູກຄ້າ · ເວລາ · ວັນນັດ ──
-    final meta = [
-      if (who.isNotEmpty) who,
-      job.totalLabel != null ? 'ໃຊ້ເວລາ ${job.totalLabel}' : 'ຄ້າງ ${job.days} ມື້',
-      if (job.appointment != null) 'ນັດ ${job.appointment}',
-    ].join('  ·  ');
-
     void open() => Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => JobScreen(job: job)),
@@ -630,10 +816,14 @@ class _JobCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: const Color(0xFFDDE6E3)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
-          BoxShadow(color: Color(0x0A0F172A), blurRadius: 8, offset: Offset(0, 3)),
+          BoxShadow(
+            color: Color(0x0C0F172A),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
         ],
       ),
       child: Material(
@@ -645,10 +835,10 @@ class _JobCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // ແຖບສີໄລຍະ ດ້ານຊ້າຍ (ຜູກບັດກັບໄລຍະ) — ບາງ ບໍ່ກິນເນື້ອທີ່
-                Container(width: 3, color: accent),
+                Container(width: 5, color: accent),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(11, 7, 9, 7),
+                    padding: const EdgeInsets.fromLTRB(13, 12, 11, 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -666,11 +856,14 @@ class _JobCard extends StatelessWidget {
                                 fontFeatures: [FontFeature.tabularFigures()],
                               ),
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 8),
                             if (kind != null)
                               Flexible(
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: kind.color.withValues(alpha: .12),
                                     borderRadius: BorderRadius.circular(999),
@@ -678,7 +871,11 @@ class _JobCard extends StatelessWidget {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(kind.icon, size: 12, color: kind.color),
+                                      Icon(
+                                        kind.icon,
+                                        size: 12,
+                                        color: kind.color,
+                                      ),
                                       const SizedBox(width: 3),
                                       Flexible(
                                         child: Text(
@@ -698,17 +895,27 @@ class _JobCard extends StatelessWidget {
                               ),
                             const SizedBox(width: 6),
                             const Spacer(),
-                            Text(
-                              actionLabel[job.action] ?? '-',
-                              style: TextStyle(
-                                color: statusColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: .1),
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: Text(
+                                actionLabel[job.action] ?? '-',
+                                style: TextStyle(
+                                  color: statusColor,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 9),
                         // ── ຊື່ສິນຄ້າ (1 ແຖວ) ──
                         Text(
                           job.product ?? '-',
@@ -716,28 +923,80 @@ class _JobCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: ink,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        // ── ແຖວຂໍ້ມູນ + ລູກສອນ ──
+                        if (who.isNotEmpty) ...[
+                          const SizedBox(height: 5),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.person_outline_rounded,
+                                size: 14,
+                                color: faint,
+                              ),
+                              const SizedBox(width: 5),
+                              Expanded(
+                                child: Text(
+                                  who,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: muted,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                        const Divider(height: 1),
+                        const SizedBox(height: 8),
                         Row(
                           children: [
                             if (job.checkedIn) ...[
-                              const Icon(Icons.location_on, size: 12, color: ok),
+                              const Icon(
+                                Icons.location_on,
+                                size: 12,
+                                color: ok,
+                              ),
                               const SizedBox(width: 3),
                             ],
                             Expanded(
                               child: Text(
-                                meta,
+                                [
+                                  job.totalLabel != null
+                                      ? 'ໃຊ້ເວລາ ${job.totalLabel}'
+                                      : 'ຄ້າງ ${job.days} ມື້',
+                                  if (job.appointment != null)
+                                    'ນັດ ${job.appointment}',
+                                ].join('  ·  '),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 11, color: muted),
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  color: muted,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 6),
-                            Icon(Icons.arrow_forward_ios_rounded, color: accent, size: 13),
+                            Container(
+                              width: 27,
+                              height: 27,
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: .09),
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: Icon(
+                                Icons.arrow_forward_rounded,
+                                color: accent,
+                                size: 15,
+                              ),
+                            ),
                           ],
                         ),
                       ],

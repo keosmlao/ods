@@ -645,10 +645,10 @@ class Api {
       'GET',
       '/api/mobile/notifications?tab=${unreadOnly ? 'unread' : 'all'}',
     );
-    final rows = (result['data'] as List)
-        .map((row) => AppNotification.fromJson(row))
+    final rows = ((result['data'] as List?) ?? const [])
+        .map((row) => AppNotification.fromJson(row as Map<String, dynamic>))
         .toList();
-    return (rows, (result['unread'] as num?)?.toInt() ?? 0);
+    return (rows, _asInt(result['unread']));
   }
 
   static Future<void> markNotificationRead({int? id, bool all = false}) =>
@@ -1953,13 +1953,14 @@ class AppNotification {
 
   factory AppNotification.fromJson(Map<String, dynamic> json) =>
       AppNotification(
-        id: (json['id'] as num).toInt(),
-        body: json['body'] as String? ?? '',
-        actor: json['actor'] as String?,
-        createdAt: json['created_at'] as String? ?? '',
-        read: json['read'] as bool? ?? false,
-        model: json['model'] as String? ?? '',
-        resId: json['res_id'] as String? ?? '',
+        // PostgreSQL bigint/int8 ອາດຖືກ serialize ເປັນ String.
+        id: _asInt(json['id']),
+        body: json['body']?.toString() ?? '',
+        actor: json['actor']?.toString(),
+        createdAt: json['created_at']?.toString() ?? '',
+        read: json['read'] == true || json['read']?.toString() == 'true',
+        model: json['model']?.toString() ?? '',
+        resId: json['res_id']?.toString() ?? '',
       );
 }
 
@@ -2084,6 +2085,7 @@ class MonitorGroup {
 /// 1 ແຖວໃນ roster ຜົນງານລູກນ້ອງ
 class TechRow {
   final String code;
+  final String employeeCode;
   final String name;
   final int openJobs;
   final int oldestDays;
@@ -2096,6 +2098,7 @@ class TechRow {
 
   TechRow({
     required this.code,
+    required this.employeeCode,
     required this.name,
     required this.openJobs,
     required this.oldestDays,
@@ -2109,6 +2112,7 @@ class TechRow {
 
   factory TechRow.fromJson(Map<String, dynamic> json) => TechRow(
     code: '${json['code']}',
+    employeeCode: '${json['employee_code'] ?? json['code']}',
     name: json['name'] as String? ?? '-',
     openJobs: (json['open_jobs'] as num?)?.toInt() ?? 0,
     oldestDays: (json['oldest_days'] as num?)?.toInt() ?? 0,
@@ -2124,6 +2128,7 @@ class TechRow {
 /// ຜົນງານຊ່າງ 1 ຄົນ (detail)
 class TechDetail {
   final String code;
+  final String employeeCode;
   final String name;
   final int openJobs;
   final int oldestDays;
@@ -2139,6 +2144,7 @@ class TechDetail {
 
   TechDetail({
     required this.code,
+    required this.employeeCode,
     required this.name,
     required this.openJobs,
     required this.oldestDays,
@@ -2155,6 +2161,7 @@ class TechDetail {
 
   factory TechDetail.fromJson(Map<String, dynamic> json) => TechDetail(
     code: '${json['code']}',
+    employeeCode: '${json['employee_code'] ?? json['code']}',
     name: json['name'] as String? ?? '-',
     openJobs: (json['open_jobs'] as num?)?.toInt() ?? 0,
     oldestDays: (json['oldest_days'] as num?)?.toInt() ?? 0,
