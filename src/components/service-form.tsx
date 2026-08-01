@@ -506,10 +506,15 @@ export function ServiceForm({
                       {t.siteLocationNote}
                     </p>
 
-                    {/* ພິກັດ (ບໍ່ບັງຄັບ) — ວາງລິງ Google Maps ໄດ້ ຫຼື ປັກໝຸດເອງ */}
+                    {/*
+                      ພິກັດ **ບັງຄັບ** ສຳລັບ IH/PS (01-08-2026) — ຊ່າງໃຊ້ຫາບ້ານລູກຄ້າ
+                      ແລະ ມັນຄືສິ່ງທີ່ເຮັດໃຫ້ແຜນທີ່ຕິດຕາມງານມີໝຸດ. ດ່ານຈິງຢູ່ actions/service.
+                    */}
+                    <p className="mt-2 text-xs font-semibold text-slate-600">{t.sitePin} *</p>
                     <LocationPicker value={point} onChange={setPoint} />
                     <input type="hidden" name="location_lat" value={point ? String(point.lat) : ""} />
                     <input type="hidden" name="location_lng" value={point ? String(point.lng) : ""} />
+                    {!point && <p className="mt-1 text-xs font-semibold text-amber-600">{t.sitePinRequired}</p>}
                   </div>
 
                   <div>
