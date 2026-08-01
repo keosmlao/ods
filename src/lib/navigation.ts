@@ -90,6 +90,11 @@ const HOME: NavGroup = {
     // ຜູ້ຈັດການເທົ່ານັ້ນທີ່ເຫັນ (RULES ຈຳກັດ [M]) — navigationFor ກອງດ້ວຍສິດຢູ່ແລ້ວ
     { label: "ພາບລວມຜູ້ຈັດການ", href: "/overview" },
     { label: "ໜ້າລວມ", href: "/dashboard" },
+    /**
+     * ວຽກຊ່າງ ຕາມຂັ້ນ — ໜ້າດຽວກັບຝັ່ງຊ່າງ ແຕ່ **ເລືອກຊ່າງໄດ້** (ຫວ່າງ = ທຸກຊ່າງ).
+     * ຢູ່ນີ້ ບໍ່ແມ່ນກຸ່ມ "ສ້ອມແປງ" ເພາະມັນລວມທັງ ສ້ອມ · ຕິດຕັ້ງ · ສ້ອມບຳລຸງ ຂອງຄົນດຽວ.
+     */
+    { label: "ວຽກຊ່າງ ຕາມຂັ້ນ", href: "/my-jobs", labelKey: "mgr:my-jobs" },
     { label: "AI ຜູ້ຊ່ວຍວຽກ", href: "/assistant" },
     /**
      * ຄິວງານປະຈຳວັນ = "ມື້ນີ້ຂ້ອຍ/ຊ່າງຂ້ອຍຕ້ອງໄປໃສແດ່" — ເປັນເລື່ອງ **ຂອງມື້ນີ້**
@@ -365,6 +370,11 @@ const TECHNICIAN_NAVIGATION: NavGroup[] = [
     label: "ຂອງຂ້ອຍ",
     icon: LayoutDashboard,
     items: [
+      /**
+       * ວຽກຂອງຂ້ອຍ ຕາມຂັ້ນ — **ໜ້າດຽວທີ່ເຫັນວຽກຕົນເອງຄົບທຸກຂັ້ນ** (ສ້ອມ · ຕິດຕັ້ງ · ສ້ອມບຳລຸງ).
+       * ຄິວລຸ່ມນີ້ແຍກເປັນຂັ້ນລະໜ້າ ⇒ ຢາກຮູ້ "ຂ້ອຍມີວຽກຄ້າງຢູ່ໃສແດ່" ຕ້ອງເປີດ 5-6 ໜ້າ.
+       */
+      { label: "ວຽກຂອງຂ້ອຍ ຕາມຂັ້ນ", href: "/my-jobs" },
       { label: "ຄິວງານຂອງຂ້ອຍ", href: "/installations/schedule" },
       { label: "AI ຜູ້ຊ່ວຍວຽກ", href: "/assistant" },
     // ສົນທະນາ = ປຸ່ມລອຍ (ເບິ່ງໝາຍເຫດຢູ່ກຸ່ມ HOME) — ຊ່າງກໍ່ເຫັນປຸ່ມດຽວກັນ
@@ -377,18 +387,14 @@ const TECHNICIAN_NAVIGATION: NavGroup[] = [
     label: "ງານສ້ອມຂອງຂ້ອຍ",
     icon: Wrench,
     items: [
-      { label: "ກວດເຊັກ", href: "/checking", count: "/checking" },
-      /**
-       * ໜ້າ /stock/requests (ລາຍການ) ຖືກລົບ 17-07-2026 — ຊ້ຳກັບຄິວ pipeline
-       * (ແທັບ "ຕ້ອງການອາໄຫຼ່" = ຂັ້ນ 5 ແຕ່ຂາດເງື່ອນໄຂ ⇒ ສະແດງແຖວຄ້າງ · `?job=repair`
-       * ບໍ່ເຄີຍຖືກອ່ານເລີຍ). ຊ່າງຂໍເບີກຜ່ານ **ແອັບມືຖື** (/api/mobile/spare-request)
-       * ຫຼື ຜ່ານປຸ່ມ "ກວດ Stock / ດຳເນີນອາໄຫຼ່" ຢູ່ຄິວນີ້ (ພາໄປ /stock/requests/<roworder>).
-       */
-      { label: "ຂໍເບີກອາໄຫຼ່", href: "/dashboard/status/repair/wait-withdraw", count: "/dashboard/status/repair/wait-withdraw" },
-      { label: "ຮັບອາໄຫຼ່", href: "/stock/requests/pickup" },
-      { label: "ສ້ອມແປງ", href: "/repair", count: "/repair" },
-      { label: "ສົ່ງຄືນອາໄຫຼ່", href: "/stock/returns?job=repair" },
-      { label: "ກວດຮັບຄຸນນະພາບ", href: "/qc?workflow=repair", flag: "qc", count: "/qc" },
+      // ສະເພາະຂັ້ນທີ່ຊ່າງລົງມືເອງ: ຮັບ/ກວດ · ກວດ stock/ຂໍເບີກ · ສ້ອມ.
+      // ຂັ້ນ CS, ສາງ, ຈັດຊື້, ອະນຸມັດ, QC ແລະສົ່ງຄືນ ບໍ່ຂຶ້ນໃນ sidebar ຊ່າງ.
+      ...(["wait-check", "checking", "wait-withdraw", "wait-repair", "repairing"] as const).map((slug, index) => ({
+        label: `${index + 1}. ${repairStatuses[slug].label}`,
+        href: `/dashboard/status/repair/${slug}`,
+        count: `/dashboard/status/repair/${slug}`,
+        labelKey: `pipe:repair:${slug}`,
+      })),
     ],
   },
   {

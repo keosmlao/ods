@@ -129,7 +129,9 @@
     "pipe:repair:repairing": "ກຳລັງສ້ອມ",
     "pipe:repair:wait-qc": "ລໍກວດຮັບຄຸນນະພາບ",
     "pipe:repair:wait-return": "ລໍຖ້າສົ່ງຄືນ / ປິດງານ (IH)",
-    "/reports/stock-count": "ຜົນການກວດນັບສະຕັອກ"
+    "/reports/stock-count": "ຜົນການກວດນັບສະຕັອກ",
+    "/my-jobs": "ວຽກຂອງຂ້ອຍ ຕາມຂັ້ນ",
+    "mgr:my-jobs": "ວຽກຊ່າງ ຕາມຂັ້ນ"
   },
   "dashboard": {
     "controlCenter": "ສູນຄວບຄຸມວຽກ",
@@ -356,7 +358,11 @@
     "showing": "ສະແດງ",
     "of": "ຈາກ",
     "prev": "ກ່ອນໜ້າ",
-    "next": "ຕໍ່ໄປ"
+    "next": "ຕໍ່ໄປ",
+    "first": "ທຳອິດ",
+    "last": "ສຸດທ້າຍ",
+    "allServiceTypes": "ທຸກປະເພດບໍລິການ",
+    "allSla": "ທຸກສະຖານະເວລາ"
   },
   "installSchedule": {
     "title": "ຄິວງານປະຈຳວັນ",
@@ -4865,5 +4871,31 @@
     "workflowStale": "ຄ້າງເກີນ 30 ມື້",
     "workflowClean": "ບໍ່ມີໃບຄ້າງເກີນ 30 ມື້",
     "workflowOldest": "ເກົ່າສຸດ"
+  },
+  "myJobs": {
+    "title": "ວຽກຂອງຂ້ອຍ ຕາມຂັ້ນ",
+    "titleManager": "ວຽກຊ່າງ ຕາມຂັ້ນ",
+    "repair": "ສ້ອມແປງ",
+    "install": "ຕິດຕັ້ງ",
+    "maintenance": "ສ້ອມບຳລຸງ",
+    "allTechnicians": "ທຸກຊ່າງ",
+    "show": "ສະແດງ",
+    "openJobs": "ວຽກຄ້າງ",
+    "allStages": "ທຸກຂັ້ນ",
+    "stage": "ຂັ້ນ",
+    "noOpenJobs": "ບໍ່ມີວຽກຄ້າງໃນສາຍງານນີ້",
+    "colCode": "ເລກທີ",
+    "colStage": "ຂັ້ນ",
+    "colElapsed": "ຄ້າງມາ",
+    "colProduct": "ຊື່ເຄື່ອງ / SN",
+    "colCustomer": "ລູກຄ້າ",
+    "colAppoint": "ນັດໝາຍ",
+    "open": "ເປີດ",
+    "noResults": "ບໍ່ພົບລາຍການ",
+    "showing": "ສະແດງ",
+    "of": "ຈາກ",
+    "prev": "ກ່ອນໜ້າ",
+    "next": "ຕໍ່ໄປ",
+    "yourJobs": "ວຽກຂອງທ່ານ"
   }
 }

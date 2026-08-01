@@ -30,10 +30,10 @@ const CLAIM_STAGE_COUNTS = pipelineOf(claimStatuses)
   )
   .join(",\n          ");
 
-const REPAIR_STAGE_COUNTS = pipelineOf(repairStatuses)
+const repairStageCounts = (mine: string) => pipelineOf(repairStatuses)
   .map(
     ([slug, def]) =>
-      `(select count(*) from tb_product a where (${def.condition}) and ${NOT_MISSING})::int as "/dashboard/status/repair/${slug}"`,
+      `(select count(*) from tb_product a where (${def.condition}) and ${NOT_MISSING} ${mine})::int as "/dashboard/status/repair/${slug}"`,
   )
   .join(",\n          ");
 
@@ -223,7 +223,7 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
           (select count(*) from ods_tb_install a where ${installStageIs(6)})::int as "/qc/install",
 
           -- ── ສະຖານະງານສ້ອມ: ຂັ້ນຮັບງານຖືກລວມເຂົ້າ wait-check ແລ້ວ ──
-          ${REPAIR_STAGE_COUNTS},
+          ${repairStageCounts(mineRepair)},
           ${CLAIM_STAGE_COUNTS},
           -- ລວມທຸກຂັ້ນຂອງເຄມ — badge ຂອງລາຍການ "ຄິວງານເຄມ" (ໜ້າລວມ /claims/jobs)
           (select count(*) from tb_product a

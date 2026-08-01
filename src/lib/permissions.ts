@@ -94,8 +94,9 @@ export function permissionFromOverrides(
   }
 
   /**
-   * ຊ່າງມີ hard ceiling ຕາມ TECH_SIDE: permission override ເກົ່າຫ້າມເປີດ dashboard/
-   * ໜ້າຈັດການລວມກັບຄືນ. ສິດລາຍ user ຍັງປິດເມນູຊ່າງໄດ້ຕາມປົກກະຕິ.
+   * ຊ່າງມີ hard ceiling ຕາມ TECH_SIDE: permission override ເກົ່າຫ້າມເປີດ
+   * ໜ້າຈັດການທີ່ role ບໍ່ອະນຸຍາດ. Dashboard ເປັນໜ້າອ່ານພາບລວມ
+   * ຈຶ່ງເປີດໄດ້; ສິດລາຍ user ຍັງປິດເມນູຊ່າງໄດ້ຕາມປົກກະຕິ.
    */
   if (roleOf(session) === "technical" && !canAccess("technical", resource)) return EMPTY;
 
@@ -117,6 +118,22 @@ export async function canUser(
 ): Promise<boolean> {
   const resource = resourceForPath(resourceOrPath) ?? resourceOrPath;
   const operation = action ?? actionForPath(resourceOrPath);
+
+  /**
+   * ບາງ route ລາຍລະອຽດມີສິດກວ້າງກວ່າໜ້າລາຍການແມ່. ຕົວຢ່າງ:
+   *   /service        = ໜ້າຮັບເຄື່ອງຂອງ CS
+   *   /service/7494   = ລາຍລະອຽດໃບງານທີ່ຊ່າງຕ້ອງເປີດອ່ານ
+   *
+   * resourceForPath() ຫຍໍ້ທັງຄູ່ເປັນ /service. ຖ້າເຊື່ອແຕ່ resource ຈະເຮັດໃຫ້
+   * ກົດ route ລາຍລະອຽດໃນ roles.ts ບໍ່ມີຜົນ. ອະນຸຍາດສະເພາະ read
+   * ເມື່ອກົດຂອງ pathname ລະອຽດອະນຸຍາດ ແຕ່ resource ແມ່ບໍ່ອະນຸຍາດ.
+   * edit/new ຍັງຕ້ອງຜ່ານ permission ປົກກະຕິ.
+   */
+  const role = roleOf(session);
+  if (operation === "read" && canAccess(role, resourceOrPath) && !canAccess(role, resource)) {
+    return true;
+  }
+
   const permission = await permissionFor(session, resource);
   return permission.read && permission[operation];
 }

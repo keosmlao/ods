@@ -17,6 +17,7 @@ import { UndoCustomerButton } from "@/components/quotation/approve-actions";
 import { QuoteRowActions } from "@/components/quotation/quote-row-actions";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { getSession } from "@/lib/auth";
+import { ownJobsOnly } from "@/lib/scope";
 import { claimStatuses, installStatuses, repairStatuses } from "@/lib/dashboard-status";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
@@ -261,7 +262,8 @@ export default async function StatusPage({ params, searchParams }: Props) {
 
   /** wait-check ລວມທັງວຽກທີ່ຍັງລໍຊ່າງຮັບ ແລະວຽກທີ່ຮັບແລ້ວລໍເລີ່ມກວດ. */
   // ສະແດງປຸ່ມສະເພາະ role ທີ່ເຂົ້າໜ້າລົງມືນັ້ນໄດ້ (ກັນກົດແລ້ວ 403)
-  const role = roleOf(await getSession());
+  const session = await getSession();
+  const role = roleOf(session);
   /**
    * ໝາຍ/ປົດ ທຸງ "ມີບັນຫາ" — ສະເພາະຫົວໜ້າ/ຜູ້ມີສິດອະນຸມັດ ເພາະທຸງນີ້**ຢຸດນາລິກາ KPI**
    * ⇒ ຖ້າໃຜກໍ່ໝາຍໄດ້ ມັນຈະກາຍເປັນບ່ອນລີ້ຄວາມຊັກຊ້າ. server ກວດຊ້ຳຢູ່ດີ (job-hold.ts).
@@ -327,6 +329,11 @@ export default async function StatusPage({ params, searchParams }: Props) {
   // ເຄື່ອງ "ນັບບໍ່ພົບ (ຫາຍ)" — ຕັດອອກຈາກ pipeline ງານສ້ອມ (ຍ້ອນຄືນໄດ້). ຝັ່ງຕິດຕັ້ງບໍ່ກ່ຽວ.
   if (isRepair) where.push(NOT_MISSING);
   const args: (string | number)[] = [];
+  const owner = ownJobsOnly(session);
+  if (owner) {
+    args.push(owner);
+    where.push(`${isRepair ? "a.emp_code" : "a.tech_code"} = $${args.length}`);
+  }
   if (q) {
     args.push(`%${q}%`);
     where.push((isRepair ? REPAIR_SEARCH : INSTALL_SEARCH).replaceAll("$Q", `$${args.length}`));

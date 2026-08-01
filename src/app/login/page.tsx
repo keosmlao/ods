@@ -3,10 +3,12 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { getSession } from "@/lib/auth";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
+import { homeForRole, roleOf } from "@/lib/roles";
 import { Wrench } from "lucide-react";
 import { redirect } from "next/navigation";
 export default async function LoginPage() {
-  if (await getSession()) redirect("/dashboard");
+  const session = await getSession();
+  if (session) redirect(homeForRole(roleOf(session)));
   const locale = await getLocale();
   const t = (await getDictionary(locale)).login;
   return <main className="grid min-h-screen lg:grid-cols-[1.1fr_.9fr]">

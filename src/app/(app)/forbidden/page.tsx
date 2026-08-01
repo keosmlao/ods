@@ -1,12 +1,19 @@
 import { getSession } from "@/lib/auth";
-import { ROLE_LABEL, roleOf } from "@/lib/roles";
+import { homeForRole, ROLE_LABEL, roleOf } from "@/lib/roles";
 import { ShieldOff } from "lucide-react";
 import Link from "next/link";
 
 /** ໜ້າ "ບໍ່ມີສິດເຂົ້າເຖິງ" — proxy ສົ່ງມາທີ່ນີ້ເມື່ອ role ບໍ່ມີສິດເປີດໜ້ານັ້ນ */
 export default async function ForbiddenPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
   const [session, params] = await Promise.all([getSession(), searchParams]);
-  const role = ROLE_LABEL[roleOf(session)];
+  const userRole = roleOf(session);
+  const role = ROLE_LABEL[userRole];
+  /**
+   * ⚠️ ປຸ່ມນີ້ເຄີຍຕັ້ງ `/dashboard` ຕາຍຕົວ — ແຕ່ **ຊ່າງບໍ່ມີສິດ /dashboard**
+   * (roles.ts: EVERYONE ຍົກເວັ້ນ T) ⇒ ກົດແລ້ວກັບມາໜ້ານີ້ອີກ = ຕິດວົງວຽນ ອອກບໍ່ໄດ້.
+   * ໃຊ້ homeForRole ຄືກັບ login/logo ⇒ ໜ້າຫຼັກຂອງແຕ່ລະ role ທີ່ເປີດໄດ້ຈິງ.
+   */
+  const home = homeForRole(userRole);
 
   return (
     <div className="mx-auto mt-10 grid max-w-md place-items-center gap-4 rounded-xl border border-slate-200 bg-white p-10 text-center">
@@ -19,7 +26,7 @@ export default async function ForbiddenPage({ searchParams }: { searchParams: Pr
       </p>
       {params.from && <p className="break-all text-xs text-slate-400">{params.from}</p>}
       <Link
-        href="/dashboard"
+        href={home}
         className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700"
       >
         ກັບໄປໜ້າຫຼັກ

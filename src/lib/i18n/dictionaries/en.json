@@ -129,7 +129,9 @@
     "pipe:repair:repairing": "Repairing",
     "pipe:repair:wait-qc": "Awaiting QC",
     "pipe:repair:wait-return": "Awaiting return / close (IH)",
-    "/reports/stock-count": "Stock count results"
+    "/reports/stock-count": "Stock count results",
+    "/my-jobs": "My jobs by stage",
+    "mgr:my-jobs": "Technician jobs by stage"
   },
   "dashboard": {
     "controlCenter": "Operations Control Center",
@@ -356,7 +358,11 @@
     "showing": "Showing",
     "of": "of",
     "prev": "Previous",
-    "next": "Next"
+    "next": "Next",
+    "first": "First",
+    "last": "Last",
+    "allServiceTypes": "All service types",
+    "allSla": "All SLA states"
   },
   "installSchedule": {
     "title": "Daily job queue",
@@ -4865,5 +4871,31 @@
     "workflowStale": "older than 30 days",
     "workflowClean": "nothing over 30 days",
     "workflowOldest": "oldest"
+  },
+  "myJobs": {
+    "title": "My jobs by stage",
+    "titleManager": "Technician jobs by stage",
+    "repair": "Repair",
+    "install": "Installation",
+    "maintenance": "Maintenance",
+    "allTechnicians": "All technicians",
+    "show": "Show",
+    "openJobs": "open jobs",
+    "allStages": "All stages",
+    "stage": "Stage",
+    "noOpenJobs": "No open jobs in this workflow",
+    "colCode": "No.",
+    "colStage": "Stage",
+    "colElapsed": "Waiting",
+    "colProduct": "Product / SN",
+    "colCustomer": "Customer",
+    "colAppoint": "Appointment",
+    "open": "Open",
+    "noResults": "No results",
+    "showing": "Showing",
+    "of": "of",
+    "prev": "Previous",
+    "next": "Next",
+    "yourJobs": "Your jobs"
   }
 }

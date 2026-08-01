@@ -121,8 +121,10 @@ const RULES: Rule[] = [
   { path: "/forbidden", roles: EVERYONE },
   // ໜ້າແລກຂອງຜູ້ຈັດການ — ໜ້ານີ້ເອງກໍ່ redirect ຄົນອື່ນໄປ /dashboard ອີກຊັ້ນ
   { path: "/overview", roles: [M] },
-  // dashboard/status ເປັນພາບລວມທັງລະບົບ; ຊ່າງເຂົ້າຄິວຂອງຕົນແທນ.
-  { path: "/dashboard", roles: EVERYONE.filter((role) => role !== T) },
+  // ຊ່າງເຂົ້າຄິວຕາມສະຖານະໄດ້; ໜ້າປາຍທາງກອງ emp_code
+  // ເຫຼືອແຕ່ໃບງານຂອງຜູ້ທີ່ login. Dashboard ເປີດໃຫ້ອ່ານພາບລວມໄດ້ນຳ.
+  { path: "/dashboard/status", roles: EVERYONE },
+  { path: "/dashboard", roles: EVERYONE },
   { path: "/assistant", roles: EVERYONE },
   { path: "/activities", roles: EVERYONE },
   /** ສົນທະນາ — ທຸກຄົນທີ່ login ໄດ້ (ດ່ານຫ້ອງຢູ່ lib/chat.canJoin ບໍ່ແມ່ນທີ່ນີ້) */
@@ -161,6 +163,12 @@ const RULES: Rule[] = [
   { path: "/customers", roles: SERVICE_SIDE },
 
   /* ຊ່າງ — ods: ເມນູ "ຊ່າງ" ({% else %} + manager) */
+  /**
+   * ວຽກຂອງຂ້ອຍ ຕາມຂັ້ນ — ຄິວທຸກຂັ້ນຂອງຊ່າງຄົນດຽວ ຢູ່ໜ້າດຽວ.
+   * ຊ່າງເປີດໄດ້ (ເຫັນສະເພາະຂອງຕົນ ຜ່ານ lib/scope) ເພາະ /dashboard/status/* ຊ່າງບໍ່ມີສິດ
+   * ⇒ ຖ້າບໍ່ມີໜ້ານີ້ ຊ່າງບໍ່ມີບ່ອນເຫັນວຽກຕົນເອງຄົບທຸກຂັ້ນເລີຍ.
+   */
+  { path: "/my-jobs", roles: TECH_SIDE },
   { path: "/checking", roles: TECH_SIDE },
   { path: "/repair", roles: TECH_SIDE },
   // ໃບຂໍເບີກສ້ອມ: ຊ່າງ ແລະ CS ສ້າງໄດ້; ສາງເຂົ້າເບິ່ງເພື່ອດຳເນີນການ.

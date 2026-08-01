@@ -129,7 +129,9 @@
     "pipe:repair:repairing": "กำลังซ่อม",
     "pipe:repair:wait-qc": "รอตรวจรับคุณภาพ",
     "pipe:repair:wait-return": "รอส่งคืน / ปิดงาน (IH)",
-    "/reports/stock-count": "ผลการตรวจนับสต๊อก"
+    "/reports/stock-count": "ผลการตรวจนับสต๊อก",
+    "/my-jobs": "งานของฉัน ตามขั้น",
+    "mgr:my-jobs": "งานช่าง ตามขั้น"
   },
   "dashboard": {
     "controlCenter": "ศูนย์ควบคุมงาน",
@@ -356,7 +358,11 @@
     "showing": "แสดง",
     "of": "จาก",
     "prev": "ก่อนหน้า",
-    "next": "ถัดไป"
+    "next": "ถัดไป",
+    "first": "หน้าแรก",
+    "last": "หน้าสุดท้าย",
+    "allServiceTypes": "ทุกประเภทบริการ",
+    "allSla": "ทุกสถานะเวลา"
   },
   "installSchedule": {
     "title": "คิวงานประจำวัน",
@@ -4865,5 +4871,31 @@
     "workflowStale": "ค้างเกิน 30 วัน",
     "workflowClean": "ไม่มีใบค้างเกิน 30 วัน",
     "workflowOldest": "เก่าสุด"
+  },
+  "myJobs": {
+    "title": "งานของฉัน ตามขั้น",
+    "titleManager": "งานช่าง ตามขั้น",
+    "repair": "ซ่อมแซม",
+    "install": "ติดตั้ง",
+    "maintenance": "บำรุงรักษา",
+    "allTechnicians": "ทุกช่าง",
+    "show": "แสดง",
+    "openJobs": "งานค้าง",
+    "allStages": "ทุกขั้น",
+    "stage": "ขั้น",
+    "noOpenJobs": "ไม่มีงานค้างในสายงานนี้",
+    "colCode": "เลขที่",
+    "colStage": "ขั้น",
+    "colElapsed": "ค้างมา",
+    "colProduct": "ชื่อเครื่อง / SN",
+    "colCustomer": "ลูกค้า",
+    "colAppoint": "นัดหมาย",
+    "open": "เปิด",
+    "noResults": "ไม่พบรายการ",
+    "showing": "แสดง",
+    "of": "จาก",
+    "prev": "ก่อนหน้า",
+    "next": "ถัดไป",
+    "yourJobs": "งานของท่าน"
   }
 }
