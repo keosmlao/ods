@@ -34,3 +34,42 @@ export async function customerPoint(erpCode: string): Promise<CustomerPoint | nu
     return null;
   }
 }
+
+/**
+ * ── ຈື່ພິກັດໃສ່ **ຂໍ້ມູນລູກຄ້າ** ເມື່ອ ERP ຍັງບໍ່ຮູ້ (01-08-2026 ຕາມຄຳສັ່ງ) ──
+ *
+ * ຄົນຮັບເຄື່ອງປັກໝຸດຢູ່ໃບງານເທື່ອດຽວ ⇒ ໃບຕໍ່ໄປຂອງລູກຄ້າຄົນນັ້ນໄດ້ໝຸດເອງ.
+ * ນີ້ຄືວິທີທີ່ຂໍ້ມູນ 247/20,845 ຈະຄ່ອຍໆເຕັມຂຶ້ນ ໂດຍບໍ່ຕ້ອງໄລ່ປ້ອນຍ້ອນຫຼັງ.
+ *
+ * ── ດ່ານ 3 ຢ່າງ (ອັນນີ້ຂຽນລົງ **ຖານ ERP** ຈຶ່ງຕ້ອງລະວັງ) ──
+ * ① **ບໍ່ຂຽນທັບພິກັດທີ່ມີຢູ່ແລ້ວ** — ຂຽນສະເພາະແຖວທີ່ຫວ່າງ/ເປັນ 0/ນອກປະເທດລາວ.
+ *    ພິກັດທີ່ ERP ມີຢູ່ອາດເປັນທີ່ຢູ່ຈົດທະບຽນທີ່ຖືກຕ້ອງກວ່າໜ້າງານຂອງໃບໜຶ່ງ.
+ * ② **ຂຽນສະເພາະໝຸດທີ່ຢູ່ໃນປະເທດລາວ** — ກັນຄ່າຂີ້ເຫຍື້ອຈາກການວາງລິງຜິດ.
+ * ③ **ບໍ່ insert ແຖວໃໝ່** — ມີລູກຄ້າ 36 ຄົນທີ່ບໍ່ມີແຖວ detail; ການສ້າງແຖວ master
+ *    ຂອງ ERP ເປັນເລື່ອງຂອງ ERP ບໍ່ແມ່ນຂອງລະບົບສ້ອມ.
+ *
+ * ⚠️ ໜ້າງານຂອງໃບໜຶ່ງ **ບໍ່ຈຳເປັນຕ້ອງແມ່ນ**ທີ່ຢູ່ຂອງລູກຄ້າສະເໝີ (ລູກຄ້າອາດມີຫຼາຍສາຂາ)
+ * ⇒ ຈຶ່ງຂຽນສະເພາະຕອນ**ຍັງບໍ່ມີຫຍັງ** ເຊິ່ງມີຂໍ້ມູນດີກວ່າບໍ່ມີ ແລະ ຄົນແກ້ຄືນໄດ້ຢູ່ ERP.
+ *
+ * ລົ້ມເຫຼວ ⇒ ງຽບ (ການເປີດງານຕ້ອງບໍ່ພັງຍ້ອນເລື່ອງນີ້).
+ * @returns true ຖ້າຂຽນຈິງ
+ */
+export async function rememberCustomerPoint(erpCode: string, point: CustomerPoint): Promise<boolean> {
+  if (!erpCode.trim()) return false;
+  // ② ນອກຂອບເຂດປະເທດລາວ = ຂໍ້ມູນເສຍ ⇒ ຢ່າເອົາໄປໃສ່ຂໍ້ມູນລູກຄ້າ
+  if (!(point.lat >= 13 && point.lat <= 23 && point.lng >= 100 && point.lng <= 108)) return false;
+  try {
+    const result = await queryOdg(
+      `update ar_customer_detail
+          set latitude = $2, longitude = $3
+        where ar_code = $1
+          -- ① ສະເພາະແຖວທີ່ຍັງບໍ່ມີພິກັດໃຊ້ໄດ້
+          and not (latitude between 13 and 23 and longitude between 100 and 108)`,
+      [erpCode.trim(), point.lat, point.lng],
+    );
+    return (result.rowCount ?? 0) > 0;
+  } catch (error) {
+    console.error("rememberCustomerPoint failed", error);
+    return false;
+  }
+}

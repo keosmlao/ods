@@ -12,7 +12,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { PoolClient } from "pg";
 import { z } from "zod";
-import { customerPoint } from "@/lib/customer-location";
+import { customerPoint, rememberCustomerPoint } from "@/lib/customer-location";
 
 const schema = z.object({
   /** ລະຫັດ ODS — ຫວ່າງໄດ້ ຖ້າລູກຄ້າມາຈາກ ERP ແລະ ຍັງບໍ່ມີບັນຊີ ODS */
@@ -308,6 +308,12 @@ export async function createService(_: ServiceState, formData: FormData): Promis
   });
   // ຄຽງກັນ ໃຫ້ເຫັນຢູ່ໜ້າລູກຄ້ານຳ ວ່າລູກຄ້າຄົນນີ້ເອົາເຄື່ອງມາສ້ອມເມື່ອໃດ
   await logChange("ar_customer", customer, `ເປີດໃບຮັບເຄື່ອງ #${code}: ${item}`);
+
+  /**
+   * ປັກໝຸດເທື່ອດຽວ ⇒ **ຈື່ໃສ່ຂໍ້ມູນລູກຄ້າ** ໃຫ້ໃບຕໍ່ໄປໄດ້ໝຸດເອງ (lib/customer-location).
+   * ຂຽນສະເພາະຕອນ ERP ຍັງບໍ່ມີພິກັດຂອງລູກຄ້າຄົນນັ້ນ — ບໍ່ຂຽນທັບຂອງເກົ່າ.
+   */
+  await rememberSitePoint(d, code);
   // CLM-B ຈາກ intake — ບັນທຶກ "ເປີດ" ໃສ່ chatter ຂອງໃບເຄມ (ໃຫ້ timeline ບໍ່ຫວ່າງ ຄື createClaim)
   if (claimDocNo) {
     await logChange("ods_claim", claimDocNo, `ເປີດໃບເຄມ (ຮັບເຄື່ອງເຄມຈາກຮ້ານ) · ${item}${d.claim_scope === "part" ? " · ເຄມສະເພາະອາໄຫຼ່" : " · ເຄມທັງໜ່ວຍ"}`, { roles: ["manager", "stock"] });
@@ -331,6 +337,27 @@ export type CustomerState = { error?: string; customer?: NewCustomer };
  * ລູກຄ້າໃໝ່ຍ່າງເຂົ້າມາ — ສ້າງໄດ້ໂດຍບໍ່ຕ້ອງອອກຈາກຟອມຮັບເຄື່ອງ.
  * ເອົາເບີໂທເປັນ ref_code ຄືກັບແຖວອື່ນໆໃນ ar_customer (ref_code ຄືລະຫັດດຽວກັນຢູ່ ERP).
  */
+/**
+ * ຈື່ພິກັດໜ້າງານໃສ່ຂໍ້ມູນລູກຄ້າ (ຖ້າ ERP ຍັງບໍ່ຮູ້) ແລ້ວບັນທຶກໄວ້ໃນປະຫວັດຂອງໃບງານ.
+ * ແຍກເປັນ function ເພາະທັງ createService ແລະ createServiceFromNotice ໃຊ້ຄືກັນ.
+ */
+async function rememberSitePoint(
+  d: { cust_ref: string; cust_code: string; location_lat: string; location_lng: string },
+  jobCode: string,
+): Promise<void> {
+  const lat = Number(d.location_lat);
+  const lng = Number(d.location_lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+  const saved = await rememberCustomerPoint(d.cust_ref || d.cust_code, { lat, lng });
+  if (saved) {
+    await logChange(
+      "tb_product",
+      jobCode,
+      `ຈື່ພິກັດໜ້າງານໃສ່ຂໍ້ມູນລູກຄ້າແລ້ວ (${lat.toFixed(5)}, ${lng.toFixed(5)}) — ໃບຕໍ່ໄປຂອງລູກຄ້ານີ້ຈະໄດ້ໝຸດເອງ`,
+    );
+  }
+}
+
 export async function createCustomer(_: CustomerState, formData: FormData): Promise<CustomerState> {
   const guard = await requirePermission("/service", "create", SERVICE_SIDE);
   if (!guard.ok) return { error: guard.error };
@@ -843,6 +870,9 @@ export async function createServiceFromNotice(_: ServiceState, formData: FormDat
     code,
     `ເປີດໃບຮັບເຄື່ອງຈາກໃບແຈ້ງສ້ອມອອນລາຍ ${d.ref_notice}: ${item} · ອາການ: ${d.pro_issue}`,
   );
+
+  // ຈື່ພິກັດໜ້າງານໃສ່ຂໍ້ມູນລູກຄ້າ ຄືກັບທາງ createService
+  await rememberSitePoint(d, code);
 
   revalidatePath("/service/notices");
   redirect(`/service/${code}`);
