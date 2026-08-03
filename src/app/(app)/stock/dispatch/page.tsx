@@ -10,14 +10,13 @@ import { elapsedTone } from "@/lib/elapsed-tone";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { fmtQty, getBalances } from "@/lib/stock-balance";
-import { DISPATCH_WAREHOUSES, LINE_STATUS, TRANS } from "@/lib/stock-constants";
+import { REPAIR_WAREHOUSES, LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import {
   ArrowLeftRight,
   ChevronLeft,
   ChevronRight,
   FileBarChart,
   FileText,
-  Hammer,
   PackageCheck,
   RotateCcw,
   Search,
@@ -34,7 +33,7 @@ const PAGE_SIZE = 20;
  * = 2 ແທັບຂອງ `/stock/transfers` ລວມກັນ ແຕ່ບໍ່ມີໂມງນັບເວລາ ແລະ ບໍ່ມີປຸ່ມຮັບຂອງ.
  * /stock/transfers ຢູ່ໃນເມນູ (ສາງ ແລະ ອາໄຫຼ່) ⇒ ໃຫ້ບ່ອນນັ້ນເປັນເຈົ້າຂອງເລື່ອງໂອນ.
  */
-type Tab = "pending" | "install" | "dispatched" | "ordered";
+type Tab = "pending" | "dispatched";
 type Props = { searchParams: Promise<{ tab?: string; q?: string; page?: string; sort?: string; dir?: string }> };
 
 /** ແຖວດິບຈາກ SQL — ຍັງບໍ່ມີຍອດສະຕັອກ (ຄິດເພີ່ມພາຍຫຼັງດ້ວຍ getBalances) */
@@ -72,19 +71,12 @@ type Doc = {
   remark: string | null;
 };
 
-type Install = {
-  doc_no: string;
-  product: string | null;
-  wh_code: string | null;
-  customer: string | null;
-  roworder: number;
-};
-
 /** ຜູ້ໃຊ້ສາງເຫັນສະເພາະສາງຂອງຕົນ (users.ic_wht) — ຄື ods */
 async function getOwnWarehouses(username: string) {
   const row = (await query<{ ic_wht: string | null }>(`select ic_wht from users where code=$1 limit 1`, [username]))
     .rows[0];
-  return row?.ic_wht ? [row.ic_wht] : [...DISPATCH_WAREHOUSES];
+  if (row?.ic_wht) return (REPAIR_WAREHOUSES as readonly string[]).includes(row.ic_wht) ? [row.ic_wht] : [];
+  return [...REPAIR_WAREHOUSES];
 }
 
 /*
@@ -121,13 +113,6 @@ const DOC_SORT: Record<string, string> = {
   doc_date: "doc_date",
   doc_ref: "doc_ref",
   remark: "remark",
-};
-
-const INSTALL_SORT: Record<string, string> = {
-  doc_no: "b.doc_no",
-  product: "c.item_name",
-  wh: "b.wh_code",
-  customer: "d.name_1",
 };
 
 function order(map: Record<string, string>, sort: string, dir: SortDir, fallback: string) {
@@ -209,34 +194,6 @@ async function getPending(warehouses: string[], q: string, page: number, sort: s
   return { rows: lines, total: count.rows[0]?.total ?? 0 };
 }
 
-/** ໃບຂໍເບີກຂອງງານຕິດຕັ້ງ — ຍັງບໍ່ທັນຍ້າຍມາ Next.js (ເປັນຂອງໂມດູນຕິດຕັ້ງ) */
-async function getInstalls(q: string, page: number, sort: string, dir: SortDir) {
-  const params: unknown[] = [TRANS.REQUEST, LINE_STATUS.ISSUED];
-  let where = `b.trans_flag = $1 and b.job_type = 'install'
-    and b.doc_no in (select distinct doc_no from ic_trans_detail where trans_flag = $1 and status != $2)`;
-  if (q) {
-    params.push(`%${q}%`);
-    const p = `$${params.length}`;
-    where += ` and (b.doc_no ilike ${p} or c.item_name ilike ${p} or d.name_1 ilike ${p} or d.tel ilike ${p})`;
-  }
-
-  const from = `from ic_trans b
-    left join ods_tb_install c on c.code = b.product_code
-    left join ar_customer d on d.code = c.cust_code`;
-
-  const [rows, count] = await Promise.all([
-    query<Install>(
-      `select b.doc_no, c.item_name product, b.wh_code, d.name_1||'-'||d.tel customer, b.roworder
-       ${from} where ${where}
-       order by ${order(INSTALL_SORT, sort, dir, "b.doc_no")}
-       limit $${params.length + 1} offset $${params.length + 2}`,
-      [...params, PAGE_SIZE, (page - 1) * PAGE_SIZE],
-    ),
-    query<{ total: number }>(`select count(*)::int total ${from} where ${where}`, params),
-  ]);
-  return { rows: rows.rows, total: count.rows[0]?.total ?? 0 };
-}
-
 /** ໃບເບີກ (56) / ໃບສັ່ງຊື້ (2) / ໃບຂໍໂອນ (124) — ເມື່ອກ່ອນດຶງແຕ່ 15 ໃບລ່າສຸດ, ດຽວນີ້ແບ່ງໜ້າໄດ້ໝົດ */
 async function getDocs(transFlag: number, q: string, page: number, sort: string, dir: SortDir) {
   const params: unknown[] = [transFlag];
@@ -263,29 +220,17 @@ async function getDocs(transFlag: number, q: string, page: number, sort: string,
 
 /** ນັບຫົວແທັບ — ບໍ່ດຶງແຖວ */
 async function getCounts(warehouses: string[]) {
-  const [pending, installs, docs] = await Promise.all([
+  const [pending, dispatched] = await Promise.all([
     query<{ total: number }>(`select count(*)::int total ${PENDING_COUNT_FROM} where ${PENDING_WHERE}`, [
       TRANS.REQUEST,
       LINE_STATUS.ISSUED,
       warehouses,
     ]),
-    query<{ total: number }>(
-      `select count(*)::int total from ic_trans b
-       where b.trans_flag = $1 and b.job_type = 'install'
-         and b.doc_no in (select distinct doc_no from ic_trans_detail where trans_flag = $1 and status != $2)`,
-      [TRANS.REQUEST, LINE_STATUS.ISSUED],
-    ),
-    query<{ trans_flag: number; total: number }>(
-      `select trans_flag, count(*)::int total from ic_trans where trans_flag = any($1::int[]) group by trans_flag`,
-      [[TRANS.DISPATCH, 2, TRANS.TRANSFER]],
-    ),
+    query<{ total: number }>(`select count(*)::int total from ic_trans where trans_flag=$1`, [TRANS.DISPATCH]),
   ]);
-  const byFlag = new Map(docs.rows.map((row) => [Number(row.trans_flag), row.total]));
   return {
     pending: pending.rows[0]?.total ?? 0,
-    install: installs.rows[0]?.total ?? 0,
-    dispatched: byFlag.get(TRANS.DISPATCH) ?? 0,
-    ordered: byFlag.get(2) ?? 0,
+    dispatched: dispatched.rows[0]?.total ?? 0,
   };
 }
 
@@ -380,13 +325,6 @@ const docColumns = (t: Dict): Column[] => [
   { key: "remark", label: t.colRemark, defaultDir: "asc" },
 ];
 
-const installColumns = (t: Dict): Column[] => [
-  { key: "doc_no", label: t.colInstallRequestNo, defaultDir: "desc" },
-  { key: "product", label: t.colInstallItem, defaultDir: "asc" },
-  { key: "wh", label: t.warehouse, defaultDir: "asc" },
-  { key: "customer", label: t.colCustomer, defaultDir: "asc" },
-];
-
 export default async function StockDispatchPage({ searchParams }: Props) {
   // ດຶງໃບເບີກທີ່ສາງອອກໃນ ERP ກັບມາກ່ອນ ⇒ ຄິວທີ່ເຫັນເປັນຄວາມຈິງລ້າສຸດ (lib/erp-dispatch)
   // ພ້ອມກັນນັ້ນ ອາໄຫຼ່ທີ່ສັ່ງຊື້ ແລະ ຮັບເຂົ້າສາງແລ້ວຢູ່ ERP ຈະຕົກລົງມາຄິວນີ້ເອງ (lib/erp-purchase)
@@ -398,21 +336,15 @@ export default async function StockDispatchPage({ searchParams }: Props) {
   const warehouses = await getOwnWarehouses(session?.username ?? "");
 
   const params = await searchParams;
-  const tab: Tab =
-    params.tab === "install" || params.tab === "dispatched" || params.tab === "ordered"
-      ? params.tab
-      : "pending";
+  const tab: Tab = params.tab === "dispatched" ? "dispatched" : "pending";
   const q = (params.q ?? "").trim();
   const page = Math.max(1, Number(params.page) || 1);
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
   const sort = (params.sort ?? (tab === "pending" ? "elapsed" : "doc_no")).trim();
 
-  const load = async (): Promise<{ rows: Line[] | Install[] | Doc[]; total: number }> => {
+  const load = async (): Promise<{ rows: Line[] | Doc[]; total: number }> => {
     if (tab === "pending") return getPending(warehouses, q, page, sort, dir);
-    if (tab === "install") return getInstalls(q, page, sort, dir);
-    // ໃບເບີກ (56) · ໃບສັ່ງຊື້ (2) · ໃບຂໍໂອນ (124)
-    const flag = tab === "dispatched" ? TRANS.DISPATCH : tab === "ordered" ? 2 : TRANS.TRANSFER;
-    return getDocs(flag, q, page, sort, dir);
+    return getDocs(TRANS.DISPATCH, q, page, sort, dir);
   };
 
   const [counts, data] = await Promise.all([getCounts(warehouses), load()]);
@@ -430,14 +362,11 @@ export default async function StockDispatchPage({ searchParams }: Props) {
 
   const TABS: { key: Tab; label: string; icon: typeof PackageCheck; count: number }[] = [
     { key: "pending", label: t.tabPending, icon: PackageCheck, count: counts.pending },
-    { key: "install", label: t.tabInstall, icon: Hammer, count: counts.install },
     { key: "dispatched", label: t.tabDispatched, icon: FileText, count: counts.dispatched },
-      { key: "ordered", label: t.tabOrdered, icon: ShoppingCart, count: counts.ordered },
   ];
 
   const lines = tab === "pending" ? (data.rows as Line[]) : [];
-  const installs = tab === "install" ? (data.rows as Install[]) : [];
-  const docs = tab === "dispatched" || tab === "ordered" ? (data.rows as Doc[]) : [];
+  const docs = tab === "dispatched" ? (data.rows as Doc[]) : [];
 
   return (
     <div className="w-full space-y-4">
@@ -598,58 +527,14 @@ export default async function StockDispatchPage({ searchParams }: Props) {
             </table>
           )}
 
-          {tab === "install" && (
-            <table className="w-full min-w-[900px] border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                  {installColumns(t).map((column) => (
-                    <SortHeader
-                      key={column.key}
-                      label={column.label}
-                      sortKey={column.key}
-                      current={sort}
-                      dir={dir}
-                      href={sortHref}
-                      defaultDir={column.defaultDir}
-                      className="py-2.5"
-                    />
-                  ))}
-                  <th className="px-3 py-2.5" />
-                </tr>
-              </thead>
-              <tbody>
-                {installs.map((row) => (
-                  <tr key={row.roworder} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">{row.doc_no}</td>
-                    <td className="max-w-72 truncate px-3 py-2.5" title={row.product ?? ""}>
-                      {row.product ?? "-"}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-center">{row.wh_code ?? "-"}</td>
-                    <td className="max-w-56 truncate px-3 py-2.5" title={row.customer ?? ""}>
-                      {row.customer ?? "-"}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5">
-                      <span
-                        title={t.notMigrated}
-                        className="inline-flex h-8 cursor-not-allowed items-center rounded-lg bg-slate-200 px-3 text-xs font-semibold text-slate-500"
-                      >
-                        {t.dispatch}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          {(tab === "dispatched" || tab === "ordered") && (
+          {tab === "dispatched" && (
             <table className="w-full min-w-[900px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
                   {docColumns(t).map((column) => (
                     <SortHeader
                       key={column.key}
-                      label={column.key === "doc_ref" && tab !== "ordered" ? t.colRequestBillNo : column.label}
+                      label={column.key === "doc_ref" ? t.colRequestBillNo : column.label}
                       sortKey={column.key}
                       current={sort}
                       dir={dir}
@@ -673,26 +558,13 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{doc.doc_ref_date ?? "-"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">
-                      {tab === "dispatched" ? (
-                        <Link
-                          href={
-                            tab === "dispatched"
-                              ? `/stock/dispatch/bill/${encodeURIComponent(doc.doc_no)}`
-                              : `/stock/transfers?q=${encodeURIComponent(doc.doc_no)}`
-                          }
-                          className={`${actionClass} bg-sky-500 hover:bg-sky-600`}
-                        >
-                          {t.view}
-                          <LinkPending className="size-3" />
-                        </Link>
-                      ) : (
-                        <span
-                          title={t.notMigrated}
-                          className="inline-flex h-8 cursor-not-allowed items-center rounded-lg bg-slate-200 px-3 text-xs font-semibold text-slate-500"
-                        >
-                          {t.view}
-                        </span>
-                      )}
+                      <Link
+                        href={`/stock/dispatch/bill/${encodeURIComponent(doc.doc_no)}`}
+                        className={`${actionClass} bg-sky-500 hover:bg-sky-600`}
+                      >
+                        {t.view}
+                        <LinkPending className="size-3" />
+                      </Link>
                     </td>
                   </tr>
                 ))}

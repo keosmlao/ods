@@ -215,7 +215,8 @@ const STOCK: NavGroup = {
   items: [
     { label: "ຂໍໂອນອາໄຫຼ່ມາຫ້ອງສ້ອມ", href: "/stock/transfer-to-repair" },
     { label: "ຕິດຕາມການໂອນອາໄຫຼ່", href: "/stock/transfers" },
-    { label: "ລາຍການສົ່ງ​ຄືນອາໄຫຼ່", href: "/stock/receive-returns" },
+    { label: "ເບີກອາໄຫຼ່", href: "/stock/dispatch" },
+    { label: "ຮັບຄືນອາໄຫຼ່ຈາກການເບີກ", href: "/stock/receive-returns" },
     // ອາໄຫຼ່ທີ່ເບີກອອກໄປແລ້ວ ແຕ່ວຽກຍົກເລີກ — ຕ້ອງເກັບຄືນ (ຍ້າຍມາຈາກໜ້າອະນຸມັດ 17-07-2026)
     { label: "ອາໄຫຼ່ຄ້າງນອກສາງ", href: "/stock/spare-recovery", count: "/stock/spare-recovery" },
     { label: "ຕິດຕາມສິນຄ້າຄົງເຫຼືອ", href: "/stock/balance" },
@@ -315,6 +316,8 @@ const REPORT: NavGroup = {
     // ── ເງິນຂອງງານສ້ອມ (17-07-2026) — ໜີ້ຄ້າງ · ລາຍຮັບ · ແຍກປະເພດລູກຄ້າ ──
     { label: "ຕິດຕາມການຊຳລະ", href: "/reports/service-debts" },
     { label: "ສະຫຼຸບລາຍຮັບງານສ້ອມ", href: "/reports/service-revenue" },
+    // ຖອດແບບ Excel ປະຈຳເດືອນຂອງຜູ້ຈັດການ — ເດືອນ/YTD ທຽບເປົ້າ ແລະ ປີກາຍ ແຍກ 5 ໝວດ
+    { label: "ລາຍງານປະຈຳເດືອນ (ຜູ້ຈັດການ)", href: "/reports/monthly-revenue" },
     { label: "ງານສ້ອມ: ທົ່ວໄປ / ຮ້ານຄ້າ", href: "/reports/service-by-kind" },
     { label: "ລາຍງານຍົກເລີກຮັບເຄື່ອງ", href: "/reports/cancelled-receipts" },
     { label: "ລາຍງານງານຄ້າງ", href: "/reports/pending" },
@@ -341,6 +344,7 @@ const USERS: NavGroup = {
     // ຕັ້ງລາຍການກວດຮັບ = **ການຕັ້ງຄ່າ** (ຜູ້ຈັດການເຮັດເທື່ອດຽວ) ບໍ່ແມ່ນຄິວງານປະຈຳວັນ
     { label: "ຕັ້ງລາຍການກວດຮັບ (QC)", href: "/manage/qc-checklist" },
     { label: "ຄ່າບໍລິການ / ຄ່າຄອມຊ່າງ", href: "/manage/service-rates" },
+    { label: "ເປົ້າລາຍຮັບລາຍເດືອນ", href: "/manage/revenue-targets" },
     { label: "ເຊື່ອມຕົວຕົນຊ່າງ", href: "/manage/technicians" },
     { label: "ການຕັ້ງຄ່າລະບົບ", href: "/manage/settings" },
     { label: "ລາຍງານອັດຕະໂນມັດ (email/Line)", href: "/manage/report-recipients" },

@@ -254,6 +254,8 @@ const RULES: Rule[] = [
   { path: "/manage/employees", roles: [M] },
   // ຄ່າບໍລິການ/ຄ່າຄອມ = ເລື່ອງເງິນ ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ (actions/service-rate ກວດຊ້ຳ)
   { path: "/manage/service-rates", roles: [M] },
+  // ເປົ້າລາຍຮັບ = ຄ່າຕັ້ງຂອງລາຍງານ (ບໍ່ແມ່ນເງິນຈ່າຍ) ⇒ ເປີດໃຫ້ admin ນຳ ຄືສິດເບິ່ງລາຍງານ
+  { path: "/manage/revenue-targets", roles: [M, A] },
   // ເຊື່ອມຕົວຕົນຊ່າງ — ຕັດສິນວ່າຄ່າຄອມເຂົ້າບັນຊີໃຜ ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ
   { path: "/manage/technicians", roles: [M] },
   // ສະວິດເປີດ/ປິດຄວາມສາມາດຂອງທັງລະບົບ (ບາງອັນຢຸດນາລິກາ KPI) ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ
@@ -276,6 +278,7 @@ const RULES: Rule[] = [
   /** ເງິນຄ່າສ້ອມ — ຜູ້ຈັດການ/ແອດມິນ (CS ຮັບເງິນໜ້າຮ້ານ ໃຫ້ຜູ້ຈັດການເປີດສິດເປັນລາຍຄົນ) */
   { path: "/reports/service-debts", roles: [M, A] },
   { path: "/reports/service-revenue", roles: [M, A] },
+  { path: "/reports/monthly-revenue", roles: [M, A] },
   { path: "/reports/service-by-kind", roles: [M, A] },
   // ລາຍຮັບຊ່າງ — ຊ່າງເບິ່ງ **ຂອງຕົນເອງ** ໄດ້ (ໜ້ານັ້ນກອງດ້ວຍ ownJobsOnly)
   // ຜູ້ຈັດການ/ຫົວໜ້າຊ່າງເບິ່ງໝົດ. CS/ສາງ ບໍ່ກ່ຽວ.

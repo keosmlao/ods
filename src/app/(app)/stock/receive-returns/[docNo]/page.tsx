@@ -5,6 +5,7 @@ import { query } from "@/lib/db";
 import { docPrefix } from "@/lib/doc-no";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
+import { REPAIR_WAREHOUSES } from "@/lib/stock-constants";
 import { notFound } from "next/navigation";
 
 /** ods: stock.py /show_return/<doc_no> + templates/stock/show_return.html */
@@ -22,6 +23,7 @@ type Head = {
   warranty: string | null;
   product_code: string | null;
   remark: string | null;
+  wh_code: string | null;
 };
 
 async function previewDocNo() {
@@ -40,7 +42,7 @@ export default async function ShowReceiveReturnPage({ params }: Props) {
   const head = await query<Head>(
     `select a.doc_no, to_char(a.doc_date,'DD-MM-YYYY') doc_date,
        coalesce(b.name_1,'')||'-'||coalesce(b.tel,'') customer,
-       c.name_1 product, c.p_model, c.sn, c.issue, c.warrunty warranty, a.product_code, a.remark
+       c.name_1 product, c.p_model, c.sn, c.issue, c.warrunty warranty, a.product_code, a.remark, a.wh_code
      from ic_trans a
      left join tb_product c on c.code = a.product_code
      left join ar_customer b on b.code = c.cust_code
@@ -49,6 +51,7 @@ export default async function ShowReceiveReturnPage({ params }: Props) {
   );
   const bill = head.rows[0];
   if (!bill) notFound();
+  if (!(REPAIR_WAREHOUSES as readonly string[]).includes(bill.wh_code ?? "")) notFound();
 
   const lines = await query<Omit<SpareLine, "roworder">>(
     `select row_number() over ()::int rnum, item_code, item_name, qty, unit_code

@@ -1455,20 +1455,32 @@ export async function createPoOrder(_: PurchaseState, formData: FormData): Promi
  * ── ດ່ານ ──
  * ຮັບເຂົ້າສາງແລ້ວ (ມີ PUI) ⇒ **ຍົກເລີກບໍ່ໄດ້** (ຂອງເຂົ້າສະຕັອກໄປແລ້ວ ຕ້ອງສົ່ງຄືນຢູ່ ERP).
  * ອະນຸມັດແລ້ວ (ມີ WPOA) ⇒ ຕ້ອງເປັນ**ຜູ້ອະນຸມັດ** ຈຶ່ງລຶບໄດ້ (ລຶບໃບອະນຸມັດນຳ).
+ *
+ * ── ສອງແບບ (mode) ──
+ * `po` (ຄ່າເດີມ)  — ລຶບແຕ່ PO: ໃບຂໍຊື້/WPRA ຍັງຢູ່ ⇒ ກັບໄປຄິວ "ລໍອອກ PO" ອອກ PO ໃໝ່ໄດ້.
+ * `chain`         — **ບໍ່ຊື້ຕໍ່ແລ້ວ**: ລຶບ PO + WPRA + SPR ອອກຈາກ ERP ນຳ, ປິດ RQ ຝັ່ງ ODS
+ *                   ແລະ ລ້າງທຸງ spare_order ⇒ **ບໍ່ມີຫຍັງກັບໄປຄ້າງຄິວ** (ໃຊ້ກ່ອນຍົກເລີກວຽກສ້ອມ).
+ *                   ສິດ = ຜູ້ອະນຸມັດ (ດຽວກັບ "ລົບທັງໃບ" ຂອງ SPR).
  */
 export async function cancelPoOrder(_: PurchaseState, formData: FormData): Promise<PurchaseState> {
   if (!odgDb) return { error: "ບໍ່ພົບ ODG_DATABASE_URL" };
   const po_no = String(formData.get("po_no") ?? "").trim();
   const reason = String(formData.get("reason") ?? "").trim();
+  const mode = String(formData.get("mode") ?? "po") === "chain" ? "chain" : "po";
   if (!po_no) return { error: "ບໍ່ພົບເລກໃບສັ່ງຊື້" };
   if (reason.length < 3) return { error: "ກະລຸນາບອກເຫດຜົນທີ່ຍົກເລີກ" };
 
   const guard = await requireRole(PURCHASE_SIDE, "ບໍ່ມີສິດຍົກເລີກໃບສັ່ງຊື້");
   if (!guard.ok) return { error: guard.error };
+  // ຍົກເລີກທັງສາຍ = ລຶບ SPR/WPRA ນຳ ⇒ ສິດດຽວກັບ "ລົບທັງໃບ" (deleteSprOrder)
+  if (mode === "chain" && !APPROVER_SIDE.includes(roleOf(guard.session))) {
+    return { error: "ຍົກເລີກທັງສາຍ (ລຶບໃບຂໍຊື້ນຳ) — ຜູ້ອະນຸມັດເທົ່ານັ້ນຈຶ່ງເຮັດໄດ້" };
+  }
 
   const odg = await odgDb.connect();
   let jobCode = "";
   let wpoaNo = "";
+  let chainDocs: string[] = [];
   try {
     await odg.query("begin");
     const head = (
@@ -1508,8 +1520,34 @@ export async function cancelPoOrder(_: PurchaseState, formData: FormData): Promi
       }
     }
 
+    // mode chain: ຈື່ WPRA ຈາກແຖວ PO **ກ່ອນ**ລຶບ — ລຶບແລ້ວ ref_doc_no ຫາຍໄປນຳ
+    let wpras: string[] = [];
+    if (mode === "chain") {
+      wpras = (
+        await odg.query<{ ref: string }>(
+          `select distinct ref_doc_no ref from ic_trans_detail
+            where doc_no=$1 and trans_flag=$2 and coalesce(ref_doc_no,'') <> ''`,
+          [po_no, ERP_PURCHASE.ORDER],
+        )
+      ).rows.map((row) => row.ref);
+    }
+
     await odg.query(`delete from ic_trans_detail where doc_no=$1 and trans_flag=$2`, [po_no, ERP_PURCHASE.ORDER]);
     await odg.query(`delete from ic_trans where doc_no=$1 and trans_flag=$2`, [po_no, ERP_PURCHASE.ORDER]);
+
+    // mode chain: ຕາມຕ່ອງໂສ້ຂຶ້ນໄປ WPRA → SPR ແລ້ວລຶບໃຫ້ໝົດ (ບໍ່ໃຫ້ໃບໃດກັບໄປຄ້າງຄິວ)
+    if (mode === "chain" && wpras.length) {
+      const sprs = (
+        await odg.query<{ spr: string }>(
+          `select distinct split_part(trim(coalesce(doc_ref,'')),' ',1) spr
+             from ic_trans where doc_no = any($1::text[]) and trans_flag=$2`,
+          [wpras, ERP_PURCHASE.PR_APPROVE],
+        )
+      ).rows.map((row) => row.spr).filter(Boolean);
+      await dropErpDocs(odg, wpras, ERP_PURCHASE.PR_APPROVE);
+      await dropErpDocs(odg, sprs, ERP_PURCHASE.PR_REQUEST);
+      chainDocs = [...wpras, ...sprs];
+    }
     await odg.query("commit");
   } catch (error) {
     await odg.query("rollback").catch(() => {});
@@ -1519,17 +1557,99 @@ export async function cancelPoOrder(_: PurchaseState, formData: FormData): Promi
     odg.release();
   }
 
+  // mode chain: ປິດຫາງຝັ່ງ ODS (RQ ຄ້າງອະນຸມັດ + ທຸງ spare_order) ຫຼັງ ERP ວ່າງແລ້ວ
+  const trail = mode === "chain" && jobCode
+    ? await closeOdsPurchaseTrail(jobCode)
+    : { closedRqs: [] as string[], released: false };
+
   if (jobCode && jobModel(jobCode) === "tb_product") {
-    await logChange("tb_product", jobCode,
-      `ຍົກເລີກໃບສັ່ງຊື້ ${po_no}${wpoaNo ? ` (ລຶບໃບອະນຸມັດ ${wpoaNo} ນຳ)` : ""} — ເຫດຜົນ: ${reason} · ໃບຖືກລຶບອອກຈາກ ERP, ອອກ PO ໃໝ່ໄດ້`,
-      { roles: ROLE_WAREHOUSE });
+    const msg = mode === "chain"
+      ? `ຍົກເລີກທັງສາຍສັ່ງຊື້ — ລຶບ ${po_no}${wpoaNo ? `, ${wpoaNo}` : ""}${chainDocs.length ? `, ${chainDocs.join(", ")}` : ""} ອອກຈາກ ERP` +
+        `${trail.closedRqs.length ? ` · ປິດໃບຂໍຊື້ ${trail.closedRqs.join(", ")}` : ""} — ເຫດຜົນ: ${reason}` +
+        (trail.released ? ` · ວຽກອອກຈາກຂັ້ນສັ່ງຊື້ແລ້ວ — ຍົກເລີກວຽກຕໍ່ໄດ້` : "")
+      : `ຍົກເລີກໃບສັ່ງຊື້ ${po_no}${wpoaNo ? ` (ລຶບໃບອະນຸມັດ ${wpoaNo} ນຳ)` : ""} — ເຫດຜົນ: ${reason} · ໃບຖືກລຶບອອກຈາກ ERP, ອອກ PO ໃໝ່ໄດ້`;
+    await logChange("tb_product", jobCode, msg, { roles: ROLE_WAREHOUSE });
   }
   revalidatePath("/purchase-orders");
   // ຕົວເລກຄິວຢູ່ເມນູ cache ໄວ້ 60 ວິ — ຄົນທີ່ຫາກໍລົງມືຕ້ອງເຫັນເລກໃໝ່ທັນທີ (read-your-own-writes)
   updateTag(PURCHASE_COUNT_TAG);
+  if (mode === "chain") {
+    revalidatePath("/purchase-requests");
+    revalidatePath("/approvals/purchase-requests");
+    revalidatePath("/dashboard/status/repair/purchasing");
+    revalidatePath("/dashboard");
+    if (jobCode) revalidatePath(`/service/${jobCode}`);
+    // ທັງ PO ແລະ SPR ຖືກລຶບ ⇒ ໜ້າເອກະສານໃດກໍ່ 404 — ພາໄປໜ້າວຽກເລີຍ ໃຫ້ກົດຍົກເລີກວຽກຕໍ່ໄດ້
+    redirect(trail.released ? `/service/${encodeURIComponent(jobCode)}` : "/purchase-orders");
+  }
   // ໃບຖືກລຶບແລ້ວ ⇒ ຢ່າກັບໄປໜ້າໃບນັ້ນ (404) — ໃບຂອງຕ່ອງໂສ້ SPR ກັບໄປໜ້າ SPR ໄດ້
   const back = purchaseBack(formData, "/purchase-orders");
   redirect(back.startsWith("/purchase-orders/PO") || back.startsWith("/purchase-orders/PU") ? "/purchase-orders" : back);
+}
+
+/**
+ * ປິດຫາງການສັ່ງຊື້ຝັ່ງ ODS ຫຼັງລຶບຕ່ອງໂສ້ອອກຈາກ ERP ແລ້ວ (mode chain ຂອງ cancelPoOrder):
+ * ປິດ RQ ທີ່ຄ້າງ "ອະນຸມັດແລ້ວ" + ປົດ status ແຖວໃບຂໍເບີກ (ຄື releaseRq) + ລ້າງທຸງ spare_order
+ * ⇒ ວຽກອອກຈາກຂັ້ນ 7 "ກຳລັງສັ່ງຊື້ອາໄຫຼ່" ທັງສອງເງື່ອນໄຂຂອງ STAGE_SQL.
+ *
+ * ກວດ ERP ຄືນກ່ອນສະເໝີ (ກຸນແຈດຽວກັບ releaseGhostPurchase) — ຖ້າຍັງມີໃບອື່ນຂອງວຽກຄ້າງຢູ່
+ * (ຕ່ອງໂສ້ອື່ນ) **ບໍ່ແຕະຫຍັງເລີຍ** ເພາະວຽກຍັງລໍຂອງຈາກໃບນັ້ນຢູ່ຈິງ.
+ * best-effort: ລົ້ມ = PO ຖືກລຶບແລ້ວແຕ່ວຽກຍັງຄ້າງຂັ້ນ 7 — ປົດພາຍຫຼັງດ້ວຍປຸ່ມ "ຍົກເລີກສັ່ງຊື້" (ໃບຜີ) ໄດ້.
+ */
+async function closeOdsPurchaseTrail(job: string): Promise<{ closedRqs: string[]; released: boolean }> {
+  const untouched = { closedRqs: [] as string[], released: false };
+  if (!db || jobModel(job) !== "tb_product") return untouched;
+
+  const client = await db.connect();
+  const closedRqs: string[] = [];
+  let released = false;
+  try {
+    await client.query("begin");
+    const rqs = (
+      await client.query<{ doc_no: string; doc_ref: string | null }>(
+        `select doc_no, doc_ref from ic_trans
+          where product_code=$1 and trans_flag=$2 and coalesce(aprove_status,0)=1 for update`,
+        [job, RQ_TRANS_FLAG],
+      )
+    ).rows;
+    // ໃບ SPR ເກົ່າທີ່ຍັງຄ້າງຝັ່ງ ODS — ກຸນແຈເສີມຄົ້ນ ERP (ເບິ່ງເຫດຜົນຢູ່ releaseGhostPurchase)
+    const legacy = (
+      await client.query<{ doc_no: string }>(
+        `select doc_no from ic_trans where product_code=$1 and trans_flag=$2`,
+        [job, ERP_PURCHASE.PR_REQUEST],
+      )
+    ).rows.map((row) => row.doc_no);
+
+    const erpDoc = await erpPurchaseForRq([job, ...legacy, ...rqs.map((row) => row.doc_no)]);
+    if (erpDoc) { await client.query("rollback"); return untouched; }
+
+    for (const rq of rqs) {
+      await client.query(`update ic_trans set aprove_status=2 where doc_no=$1 and trans_flag=$2`, [rq.doc_no, RQ_TRANS_FLAG]);
+      // ປົດສະເພາະແຖວຂອງໃບ RQ ນີ້ ທີ່ຍັງບໍ່ຖືກເບີກ (status 1) — ກົດດຽວກັບ releaseRq
+      await client.query(
+        `update ic_trans_detail set status=0
+          where doc_no=$2 and coalesce(status,0) <> 1
+            and item_code in (select item_code from ic_trans_detail where doc_no=$1)`,
+        [rq.doc_no, rq.doc_ref],
+      );
+      closedRqs.push(rq.doc_no);
+    }
+
+    const cleared = await client.query(
+      `update tb_product set spare_order = null, spare_arrive = null, spare_arrive_by = null
+        where code = $1 and spare_order is not null`,
+      [job],
+    );
+    released = (cleared.rowCount ?? 0) > 0;
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("closeOdsPurchaseTrail failed", error);
+    return untouched;
+  } finally {
+    client.release();
+  }
+  return { closedRqs, released };
 }
 
 /* ═══════════ ປົດວຽກທີ່ຄ້າງ "ກຳລັງສັ່ງຊື້" ແຕ່ ERP ບໍ່ມີໃບ ═══════════ */

@@ -14,6 +14,7 @@ export function CancelPoButton({ poNo, back }: { poNo: string; back?: string }) 
   const [state, action, pending] = useActionState<PurchaseState, FormData>(cancelPoOrder, {});
   const ref = useRef<HTMLDialogElement>(null);
   const [reason, setReason] = useState("");
+  const [mode, setMode] = useState<"po" | "chain">("po");
 
   return (
     <>
@@ -33,9 +34,43 @@ export function CancelPoButton({ poNo, back }: { poNo: string; back?: string }) 
           {back && <input type="hidden" name="back" value={back} />}
           <h2 className="text-sm font-bold text-slate-700">ຍົກເລີກໃບສັ່ງຊື້ {poNo}?</h2>
           <p className="text-xs text-slate-500">
-            ໃບຈະຖືກ**ລຶບອອກຈາກ ERP** (ພ້ອມໃບອະນຸມັດ ຖ້າມີ) ແລະ ຖອນຄືນບໍ່ໄດ້ — ອອກ PO ໃໝ່ໄດ້ພາຍຫຼັງ.
+            ໃບຈະຖືກ**ລຶບອອກຈາກ ERP** (ພ້ອມໃບອະນຸມັດ ຖ້າມີ) ແລະ ຖອນຄືນບໍ່ໄດ້.
             ຖ້າຮັບເຂົ້າສາງໄປແລ້ວ ຈະຍົກເລີກບໍ່ໄດ້.
           </p>
+
+          <fieldset className="space-y-2">
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 p-2.5 text-xs has-[:checked]:border-rose-400 has-[:checked]:bg-rose-50/50">
+              <input
+                type="radio"
+                name="mode"
+                value="po"
+                checked={mode === "po"}
+                onChange={() => setMode("po")}
+                className="mt-0.5 accent-rose-600"
+              />
+              <span>
+                <span className="block font-semibold text-slate-700">ຍົກເລີກສະເພາະໃບສັ່ງຊື້ — ຈະອອກ PO ໃໝ່</span>
+                <span className="text-slate-500">ໃບຂໍຊື້ຍັງຢູ່ ກັບໄປຄິວ &quot;ລໍອອກ PO&quot; ເລືອກຜູ້ສະໜອງ/ລາຄາໃໝ່ໄດ້</span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 p-2.5 text-xs has-[:checked]:border-rose-400 has-[:checked]:bg-rose-50/50">
+              <input
+                type="radio"
+                name="mode"
+                value="chain"
+                checked={mode === "chain"}
+                onChange={() => setMode("chain")}
+                className="mt-0.5 accent-rose-600"
+              />
+              <span>
+                <span className="block font-semibold text-slate-700">ບໍ່ຊື້ຕໍ່ແລ້ວ — ຍົກເລີກທັງສາຍ</span>
+                <span className="text-slate-500">
+                  ລຶບໃບຂໍຊື້ນຳ ບໍ່ມີຫຍັງກັບໄປຄ້າງຄິວ · ວຽກອອກຈາກຂັ້ນ &quot;ກຳລັງສັ່ງຊື້ອາໄຫຼ່&quot;
+                  ພ້ອມໃຫ້ຍົກເລີກວຽກຕໍ່ (ຜູ້ອະນຸມັດເທົ່ານັ້ນ)
+                </span>
+              </span>
+            </label>
+          </fieldset>
           <label className="block text-xs">
             <span className="mb-1 block font-semibold text-slate-600">ເຫດຜົນ</span>
             <input

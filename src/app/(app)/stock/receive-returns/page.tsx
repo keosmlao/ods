@@ -7,7 +7,7 @@ import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
-import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
+import { LINE_STATUS, REPAIR_WAREHOUSES, TRANS } from "@/lib/stock-constants";
 import { ChevronLeft, ChevronRight, Eye, FileBarChart, PackageCheck, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { ReceiveFilters } from "./filters";
@@ -43,6 +43,8 @@ type Doc = {
  * ແລະ ບໍ່ຕົກຫຼຸມ NULL ຂອງ NOT IN (ຖ້າ doc_ref ມີ NULL ແຖວດຽວ NOT IN ຄືນ 0 ແຖວທັງໝົດ).
  */
 const PENDING_SQL = `(a.trans_flag = $1 and a.status = $2
+  and a.wh_code = any(array['${REPAIR_WAREHOUSES.join("','")}']::text[])
+  and coalesce(a.job_type,'') <> 'install'
   and not exists (select 1 from ic_trans t where t.trans_flag = $3 and t.doc_ref = a.doc_no))`;
 
 /**

@@ -23,9 +23,10 @@ import {
   DEFAULT_SHELF,
   DEFAULT_WH,
   ERP,
+  CALC_IN,
+  CALC_OUT,
   LINE_STATUS,
-  RETURN_SHELF,
-  RETURN_WH,
+  REPAIR_WAREHOUSES,
   TRANS,
   branchOf,
 } from "@/lib/stock-constants";
@@ -332,9 +333,103 @@ export async function deleteRequest(formData: FormData): Promise<void> {
  * (ບ່ອນທີ່ສະຕັອກຈິງຢູ່). ODS ດຶງໃບເບີກກັບຄືນມາເອງ (lib/erp-dispatch) ແລ້ວເລື່ອນຂັ້ນງານ.
  * ເກັບຊື່ຟັງຊັນໄວ້ບອກເຫດຜົນ — action ຖືກຍິງໂດຍກົງໄດ້ ຈຶ່ງຕ້ອງປະຕິເສດຢູ່ server ບໍ່ແມ່ນເຊື່ອງປຸ່ມ.
  */
-export async function saveDispatch(previousState: StockState): Promise<StockState> {
-  void previousState;
-  return { error: "ລະບົບນີ້ອອກໃບເບີກບໍ່ໄດ້ອີກ — ສາງເບີກຢູ່ ERP ແລ້ວລະບົບຈະດຶງມາເອງ" };
+export async function saveDispatch(_: StockState, formData: FormData): Promise<StockState> {
+  const guard = await requireRole(STOCK_SIDE, "ບໍ່ມີສິດເບີກອາໄຫຼ່");
+  if (!guard.ok) return { error: guard.error };
+  if (!db || !odgDb) return { error: "ບໍ່ພົບ DATABASE_URL / ODG_DATABASE_URL" };
+  const docRef = text(formData, "doc_ref");
+  const remark = text(formData, "remark");
+  if (!docRef) return { error: "ບໍ່ພົບເລກທີໃບຂໍເບີກ" };
+
+  const { date: docDate, time: docTime, at } = nowParts();
+  const ods = await db.connect();
+  const odg = await odgDb.connect();
+  let productCode = "";
+  let dispatchNo = "";
+  let lineCount = 0;
+  try {
+    await ods.query("begin"); await odg.query("begin");
+    await ods.query("select pg_advisory_xact_lock($1)", [DOC_LOCK]);
+    const ref = (await ods.query<{doc_date: Date; user_created: string|null; wh_code:string|null; shelf_code:string|null; product_code:string|null}>(
+      `select doc_date,user_created,wh_code,shelf_code,product_code from ic_trans where doc_no=$1 and trans_flag=$2 for update`,
+      [docRef, TRANS.REQUEST],
+    )).rows[0];
+    if (!ref) throw new Error("REQUEST_NOT_FOUND");
+    const whCode = ref.wh_code || DEFAULT_WH;
+    const shelfCode = ref.shelf_code || DEFAULT_SHELF;
+    if (!(REPAIR_WAREHOUSES as readonly string[]).includes(whCode)) throw new Error("NOT_REPAIR_WAREHOUSE");
+    productCode = ref.product_code ?? "";
+    if (productCode.startsWith("INST-")) throw new Error("REPAIR_ONLY");
+    const lines = await ods.query<{roworder:number;item_code:string;item_name:string;unit_code:string;qty:string}>(
+      `select d.roworder,d.item_code,d.item_name,d.unit_code,d.qty from ic_trans_detail d
+       where d.doc_no=$1 and d.trans_flag=$2 and d.status in ($3,$4)
+       order by d.roworder for update`,
+      [docRef, TRANS.REQUEST, LINE_STATUS.PENDING, LINE_STATUS.ON_PURCHASE_ORDER],
+    );
+    if (!lines.rowCount) throw new Error("NO_STOCK");
+    const requested = new Map<string, number>();
+    for (const line of lines.rows) requested.set(line.item_code, (requested.get(line.item_code) ?? 0) + Number(line.qty));
+    const stockRows = await odg.query<{item_code:string;balance_qty:string}>(
+      `select i.item_code,coalesce(sum(b.balance_qty),0)::text balance_qty
+       from unnest($1::text[]) i(item_code)
+       left join lateral sml_ic_function_stock_balance_warehouse_location('2099-12-31',i.item_code,$2,$3) b on true
+       group by i.item_code`,
+      [[...requested.keys()], whCode, shelfCode],
+    );
+    const stock = new Map(stockRows.rows.map((row) => [row.item_code, Number(row.balance_qty)]));
+    if ([...requested].some(([itemCode, qty]) => (stock.get(itemCode) ?? 0) < qty)) throw new Error("NO_STOCK");
+    dispatchNo = await nextDocNo(ods, "SWC", at); lineCount = lines.rowCount ?? 0;
+    await ods.query(
+      `insert into ic_trans(trans_flag,doc_date,doc_no,doc_ref,doc_ref_date,cust_code,product_code,issue,remark,
+       wanrunty,isue_2,waranty_request,emp,w_reason,used_spare,wh_code,shelf_code,user_created)
+       select $1,$2,$3,doc_no,doc_date,cust_code,product_code,issue,$4,wanrunty,isue_2,waranty_request,emp,w_reason,
+       used_spare,wh_code,shelf_code,$5 from ic_trans where doc_no=$6 and trans_flag=$7`,
+      [TRANS.DISPATCH,docDate,dispatchNo,remark,guard.session.username,docRef,TRANS.REQUEST],
+    );
+    for (const line of lines.rows) {
+      const avg = Number((await odg.query<{average_cost:string}>("select coalesce(average_cost,0)::text average_cost from ic_inventory where code=$1",[line.item_code])).rows[0]?.average_cost ?? 0);
+      await odg.query(
+        `insert into ic_trans_detail(trans_type,trans_flag,doc_no,doc_date,doc_ref,item_code,item_name,unit_code,qty,
+         wh_code,shelf_code,stand_value,divide_value,doc_date_calc,doc_time_calc,calc_flag,sum_of_cost,average_cost,sum_of_cost_1,average_cost_1)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,1,1,$4,$12,$13,$14,$15,$14,$15)`,
+        [ERP.TRANS_TYPE,TRANS.DISPATCH,dispatchNo,docDate,docRef,line.item_code,line.item_name,line.unit_code,line.qty,whCode,shelfCode,docTime,CALC_OUT,avg*Number(line.qty),avg],
+      );
+      await ods.query(
+        `insert into ic_trans_detail(trans_flag,doc_date,doc_no,doc_ref,doc_ref_date,product_code,item_code,item_name,qty,unit_code,calc_flag,user_created,status)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+        [TRANS.DISPATCH,docDate,dispatchNo,docRef,ref.doc_date,productCode,line.item_code,line.item_name,line.qty,line.unit_code,CALC_OUT,guard.session.username,LINE_STATUS.PENDING],
+      );
+    }
+    await odg.query(
+      `insert into ic_trans(trans_type,trans_flag,doc_no,doc_date,doc_ref,doc_ref_date,sale_code,doc_time,doc_format_code,
+       wh_from,location_from,creator_code,branch_code,remark,side_code,department_code)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+      [ERP.TRANS_TYPE,TRANS.DISPATCH,dispatchNo,docDate,docRef,ref.doc_date,ref.user_created,docTime,ERP.FORMAT_DISPATCH,whCode,shelfCode,guard.session.username,branchOf(whCode),remark,ERP.SIDE_CODE,ERP.DEPARTMENT_CODE],
+    );
+    await ods.query("update ic_trans_detail set status=$1 where roworder=any($2::int[])",[LINE_STATUS.ISSUED,lines.rows.map(x=>x.roworder)]);
+    for (const line of lines.rows) {
+      await ods.query(
+        `update tb_used_spare set reg_finish=coalesce(reg_finish,localtimestamp(0)) where roworder=(
+         select roworder from tb_used_spare where product_code=$1 and item_code=$2 and reg_finish is null
+         order by (qty=$3::numeric) desc,roworder limit 1)`,
+        [productCode,line.item_code,line.qty],
+      );
+    }
+    const left = Number((await ods.query<{n:number}>("select count(*)::int n from ic_trans_detail where trans_flag=$1 and product_code=$2 and status in ($3,$4)",[TRANS.REQUEST,productCode,LINE_STATUS.PENDING,LINE_STATUS.ON_PURCHASE_ORDER])).rows[0]?.n ?? 0);
+    if (!left) await ods.query("update tb_product set spare_finish=coalesce(spare_finish,localtimestamp(0)),status=4 where code=$1",[productCode]);
+    else await ods.query("update tb_product set spare_finish=null where code=$1 and time_repair is null",[productCode]);
+    await odg.query("commit"); await ods.query("commit");
+  } catch (error) {
+    await Promise.all([ods.query("rollback").catch(()=>{}),odg.query("rollback").catch(()=>{})]);
+    const code = error instanceof Error ? error.message : "";
+    if (code === "NOT_REPAIR_WAREHOUSE") return { error: "ເບີກໃນ ODSS ໄດ້ສະເພາະສາງສູນບໍລິການ 1104/1206" };
+    if (code === "REPAIR_ONLY") return { error: "ໃຊ້ໄດ້ສະເພາະ job ສ້ອມ" };
+    if (code === "NO_STOCK") return { error: "ອາໄຫຼ່ໃນສາງນີ້ບໍ່ພໍ ຫຼື ເບີກໄປແລ້ວ" };
+    console.error("saveDispatch failed", error); return { error: "ເບີກບໍ່ສຳເລັດ" };
+  } finally { ods.release(); odg.release(); }
+  await logChange("tb_product",productCode,`ສາງສູນບໍລິການເບີກອາໄຫຼ່ ${dispatchNo} · ${lineCount} ລາຍການ`);
+  revalidatePath("/stock/dispatch"); revalidatePath("/stock/requests/pickup");
+  redirect("/stock/dispatch");
 }
 /* ─────────────────────── ຊ່າງຮັບອາໄຫຼ່ — ວຽກສ້ອມ (trans_flag 166) ─────────────────────── */
 
@@ -521,16 +616,24 @@ export async function saveReturnRequest(_: StockState, formData: FormData): Prom
     }
     const rowRefs = draft.rows.map((row) => row.row_ref);
 
+    // ຮັບຄືນເຂົ້າສາງດຽວກັບໃບເບີກ. ບໍ່ໃຫ້ອາໄຫຼ່ຈາກ 1206 ໄຫຼກັບໄປ 1103.
+    const dispatch = (await client.query<{ wh_code:string|null; shelf_code:string|null }>(
+      `select wh_code,shelf_code from ic_trans where doc_no=$1 and trans_flag=$2 limit 1`,
+      [docRef, TRANS.DISPATCH],
+    )).rows[0];
+    const returnWh = dispatch?.wh_code || DEFAULT_WH;
+    const returnShelf = dispatch?.shelf_code || DEFAULT_SHELF;
+
     const docNo = await nextDocNo(client, "SRI", at);
     returnNo = docNo;
     returnLines = draft.rows.length;
 
     await client.query(
-      `insert into ic_trans(trans_flag, doc_date, doc_no, doc_ref, doc_ref_date, product_code, remark, user_created, status)
-       values($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      `insert into ic_trans(trans_flag, doc_date, doc_no, doc_ref, doc_ref_date, product_code, remark, user_created, status,wh_code,shelf_code)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [
         TRANS.RETURN_REQUEST, docDate, docNo, docRef, docRefDate, productCode, remark, session.username,
-        LINE_STATUS.RETURN_REQUESTED,
+        LINE_STATUS.RETURN_REQUESTED, returnWh, returnShelf,
       ],
     );
     await client.query(
@@ -583,8 +686,8 @@ export async function saveReturnRequest(_: StockState, formData: FormData): Prom
           timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hour12: false,
         }).format(new Date()),
         job_code: productCode,
-        wh_code: RETURN_WH,
-        shelf_code: RETURN_SHELF,
+        wh_code: returnWh,
+        shelf_code: returnShelf,
         remark: remark || `ສົ່ງຄືນຕາມໃບເບີກ ${docRef}`,
         requester: session.username,
         lines: returnLinesForErp.rows,
@@ -638,9 +741,73 @@ export async function saveReturnRequest(_: StockState, formData: FormData): Prom
  * ໃບ**ຮັບຄືນ** (58) ຍ້າຍສະຕັອກຈິງ ⇒ ຕ້ອງອອກຢູ່ **ERP** ຄືກັບໃບເບີກ (56).
  * ODS ດຶງມາເອງ (lib/erp-dispatch → syncErpReturns) ແລ້ວປິດໃບຂໍສົ່ງຄືນໃຫ້.
  */
-export async function saveReceiveReturn(previousState: StockState): Promise<StockState> {
-  void previousState;
-  return { error: "ລະບົບນີ້ອອກໃບຮັບຄືນບໍ່ໄດ້ອີກ — ສາງຮັບຄືນຢູ່ ERP ແລ້ວລະບົບຈະດຶງມາເອງ" };
+export async function saveReceiveReturn(_: StockState, formData: FormData): Promise<StockState> {
+  const guard = await requireRole(STOCK_SIDE, "ບໍ່ມີສິດຮັບອາໄຫຼ່ຄືນ");
+  if (!guard.ok) return { error: guard.error };
+  if (!db || !odgDb) return { error: "ບໍ່ພົບ DATABASE_URL / ODG_DATABASE_URL" };
+  const docRef = text(formData,"doc_ref");
+  const remark = text(formData,"remark");
+  if (!docRef) return { error: "ບໍ່ພົບເລກທີໃບຂໍສົ່ງຄືນ" };
+  const {date:docDate,time:docTime,at}=nowParts();
+  const ods=await db.connect(); const odg=await odgDb.connect();
+  let productCode="",receiveNo="",lineCount=0;
+  try {
+    await ods.query("begin"); await odg.query("begin");
+    await ods.query("select pg_advisory_xact_lock($1)",[DOC_LOCK]);
+    const ref=(await ods.query<{doc_date:Date;user_created:string|null;product_code:string|null;wh_code:string|null;shelf_code:string|null;job_type:string|null}>(
+      `select doc_date,user_created,product_code,wh_code,shelf_code,job_type from ic_trans
+       where doc_no=$1 and trans_flag=$2 for update`,[docRef,TRANS.RETURN_REQUEST])).rows[0];
+    if(!ref) throw new Error("RETURN_NOT_FOUND");
+    const whCode=ref.wh_code||""; const shelfCode=ref.shelf_code||"";
+    if(!(REPAIR_WAREHOUSES as readonly string[]).includes(whCode)) throw new Error("NOT_REPAIR_WAREHOUSE");
+    productCode=ref.product_code??"";
+    if(productCode.startsWith("INST-")||ref.job_type==="install") throw new Error("REPAIR_ONLY");
+    const already=await ods.query("select 1 from ic_trans where trans_flag=$1 and doc_ref=$2 limit 1",[TRANS.RECEIVE_BACK,docRef]);
+    if(already.rowCount) throw new Error("ALREADY_RECEIVED");
+    const lines=await ods.query<{item_code:string;item_name:string;unit_code:string;qty:string}>(
+      "select item_code,item_name,unit_code,qty from ic_trans_detail where doc_no=$1 and trans_flag=$2",[docRef,TRANS.RETURN_REQUEST]);
+    if(!lines.rowCount) throw new Error("NO_LINES");
+    receiveNo=await nextDocNo(ods,"SRT",at); lineCount=lines.rowCount??0;
+    await ods.query(
+      `insert into ic_trans(trans_flag,doc_date,doc_no,doc_ref,doc_ref_date,product_code,remark,user_created,wh_code,shelf_code)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [TRANS.RECEIVE_BACK,docDate,receiveNo,docRef,ref.doc_date,productCode,remark,guard.session.username,whCode,shelfCode]);
+    await ods.query(
+      `insert into ic_trans_detail(trans_flag,doc_date,doc_no,doc_ref,doc_ref_date,product_code,item_code,item_name,qty,unit_code,calc_flag,user_created,status)
+       select $1,$2,$3,doc_no,doc_date,product_code,item_code,item_name,qty,unit_code,$4,$5,$6
+       from ic_trans_detail where doc_no=$7 and trans_flag=$8`,
+      [TRANS.RECEIVE_BACK,docDate,receiveNo,CALC_IN,guard.session.username,LINE_STATUS.ISSUED,docRef,TRANS.RETURN_REQUEST]);
+    await odg.query(
+      `insert into ic_trans(trans_type,trans_flag,doc_no,doc_date,doc_ref,doc_ref_date,sale_code,doc_time,doc_format_code,
+       wh_from,location_from,creator_code,branch_code,remark,side_code,department_code)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+      [ERP.TRANS_TYPE,TRANS.RECEIVE_BACK,receiveNo,docDate,docRef,ref.doc_date,ref.user_created,docTime,ERP.FORMAT_RECEIVE,
+       whCode,shelfCode,guard.session.username,branchOf(whCode),remark,ERP.SIDE_CODE,ERP.DEPARTMENT_CODE]);
+    for(const line of lines.rows){
+      await odg.query(
+        `insert into ic_trans_detail(trans_type,trans_flag,doc_no,doc_date,doc_ref,item_code,item_name,unit_code,qty,
+         wh_code,shelf_code,stand_value,divide_value,doc_date_calc,doc_time_calc,calc_flag)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,1,1,$4,$12,$13)`,
+        [ERP.TRANS_TYPE,TRANS.RECEIVE_BACK,receiveNo,docDate,docRef,line.item_code,line.item_name,line.unit_code,line.qty,whCode,shelfCode,docTime,CALC_IN]);
+      await ods.query(
+        `update tb_used_spare set status='2' where roworder=(select roworder from tb_used_spare
+         where product_code=$1 and item_code=$2 and coalesce(status,'')<>'2'
+         order by (qty=$3::numeric) desc,(reg_finish is not null) desc,roworder limit 1)`,
+        [productCode,line.item_code,line.qty]);
+    }
+    await ods.query("update ic_trans_detail set status=$1 where doc_no=$2 and trans_flag=$3",[LINE_STATUS.ISSUED,docRef,TRANS.RETURN_REQUEST]);
+    await odg.query("commit"); await ods.query("commit");
+  }catch(error){
+    await Promise.all([ods.query("rollback").catch(()=>{}),odg.query("rollback").catch(()=>{})]);
+    const code=error instanceof Error?error.message:"";
+    if(code==="NOT_REPAIR_WAREHOUSE") return {error:"ຮັບຄືນໃນ ODSS ໄດ້ສະເພາະສາງສູນ 1104/1206"};
+    if(code==="REPAIR_ONLY") return {error:"ໃຊ້ໄດ້ສະເພາະ job ສ້ອມ"};
+    if(code==="ALREADY_RECEIVED") return {error:"ໃບນີ້ຮັບຄືນແລ້ວ"};
+    console.error("saveReceiveReturn failed",error); return {error:"ຮັບຄືນບໍ່ສຳເລັດ"};
+  }finally{ods.release();odg.release();}
+  await logChange("tb_product",productCode,`ສາງສູນບໍລິການຮັບອາໄຫຼ່ຄືນ ${receiveNo} · ${lineCount} ລາຍການ`);
+  revalidatePath("/stock/receive-returns"); revalidatePath("/stock/returns");
+  redirect("/stock/receive-returns");
 }
 /* ─────────────────────────── ຂໍໂອນອາໄຫຼ່ຂ້າມສາງ (trans_flag 124) ─────────────────────────── */
 

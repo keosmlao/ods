@@ -74,6 +74,7 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຂໍໂອນອາໄຫຼ່ມາຫ້ອງສ້ອມ", resource: "/stock/transfer-to-repair", actions: ["read", "update"] },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຕິດຕາມສິນຄ້າຄົງເຫຼືອ", resource: "/stock/balance", actions: READ_ONLY },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຕິດຕາມການໂອນ", resource: "/stock/transfers" },
+  { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ເບີກອາໄຫຼ່", resource: "/stock/dispatch", actions: ["read", "update"] },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ຮັບຄືນອາໄຫຼ່", resource: "/stock/receive-returns", actions: ["read", "update"] },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ລາຍການອາໄຫຼ່", resource: "/stock/spare-parts", actions: READ_ONLY },
   { group: "ສາງ ແລະ ອາໄຫຼ່", label: "ສິນຄ້າສ້ອມແປງ", resource: "/stock/products", actions: READ_ONLY },
@@ -111,12 +112,14 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   /** ບັນທຶກການຮັບເງິນໄດ້ = update (ຄົນຮັບເງິນໜ້າຮ້ານ ອາດບໍ່ແມ່ນຜູ້ຈັດການ) */
   { group: "ລາຍງານ", label: "ຕິດຕາມການຊຳລະ", resource: "/reports/service-debts", actions: ["read", "update"] },
   { group: "ລາຍງານ", label: "ສະຫຼຸບລາຍຮັບງານສ້ອມ", resource: "/reports/service-revenue", actions: READ_ONLY },
+  { group: "ລາຍງານ", label: "ລາຍງານປະຈຳເດືອນ (ຜູ້ຈັດການ)", resource: "/reports/monthly-revenue", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ງານສ້ອມຕາມປະເພດລູກຄ້າ", resource: "/reports/service-by-kind", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ລາຍງານມອບໝາຍງານ", resource: "/reports/job-dispatch", actions: READ_ONLY },
   { group: "ລາຍງານ", label: "ລາຍຮັບຊ່າງ", resource: "/reports/technician-income", actions: READ_ONLY },
 
   { group: "ຜູ້ໃຊ້", label: "ກຳນົດສິດ", resource: "/manage/employees", protected: true },
   { group: "ຜູ້ໃຊ້", label: "ຄ່າບໍລິການ / ຄ່າຄອມ", resource: "/manage/service-rates" },
+  { group: "ຜູ້ໃຊ້", label: "ເປົ້າລາຍຮັບລາຍເດືອນ", resource: "/manage/revenue-targets" },
   { group: "ຜູ້ໃຊ້", label: "ເຊື່ອມຕົວຕົນຊ່າງ", resource: "/manage/technicians" },
   { group: "ຜູ້ໃຊ້", label: "ການຕັ້ງຄ່າລະບົບ", resource: "/manage/settings", protected: true },
   { group: "ຜູ້ໃຊ້", label: "ຕິດຕາມການເຂົ້າລະບົບ", resource: "/manage/login-log", actions: READ_ONLY },

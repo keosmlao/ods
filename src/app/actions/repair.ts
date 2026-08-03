@@ -420,6 +420,8 @@ export async function deleteUsedSpare(code: string, rowOrder: number) {
 const saveSchema = z.object({
   pro_code: z.string().min(1),
   repair_note: z.string(),
+  /** ຮູບຜົນງານ base64 (JSON array) — ຄືກັບແອັບມືຖື; ງານນອກສະຖານທີ່ບັງຄັບຢ່າງໜ້ອຍ 1 ຮູບ */
+  photos: z.string().optional(),
 });
 
 export async function saveRepair(_: RepairState, formData: FormData): Promise<RepairState> {
@@ -437,9 +439,23 @@ export async function saveRepair(_: RepairState, formData: FormData): Promise<Re
    */
   const { pro_code: code, repair_note: note } = parsed.data;
 
+  /**
+   * ຮູບຜົນງານ — ຟອມສົ່ງມາເປັນ JSON array ຂອງ data-URI (ບີບຢູ່ browser ແລ້ວ).
+   * ຮູບແບບບໍ່ຖືກ = ຖືວ່າບໍ່ມີຮູບ ⇒ finishRepairFlow ຈະປະຕິເສດເອງຖ້າເປັນງານນອກສະຖານທີ່.
+   */
+  let photos: string[] = [];
+  if (parsed.data.photos) {
+    try {
+      const raw: unknown = JSON.parse(parsed.data.photos);
+      if (Array.isArray(raw)) photos = raw.filter((item): item is string => typeof item === "string" && !!item);
+    } catch {
+      photos = [];
+    }
+  }
+
   // ຕົວປ່ຽນຂັ້ນຢູ່ lib/job-flow ບ່ອນດຽວ (ເງື່ອນໄຂ "ຕ້ອງຢູ່ຂັ້ນ 9" ຢູ່ໃນ WHERE ຂອງມັນ)
   // — ອັນດຽວກັບທີ່ແອັບມືຖືເອີ້ນ ຈຶ່ງບໍ່ມີວັນປ່ຽນຂັ້ນຄົນລະແບບ.
-  const result = await finishRepairFlow(loaded.session, code, note);
+  const result = await finishRepairFlow(loaded.session, code, note, photos);
   if (!result.ok) return { error: result.error };
 
   revalidatePath("/repair");
