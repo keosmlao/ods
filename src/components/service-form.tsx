@@ -94,6 +94,17 @@ export function ServiceForm({
   const [warrantyChoice, setWarrantyChoice] = useState<string | null>(null);
 
   /**
+   * ວັນເວລາຮັບເຄື່ອງ — ຕັ້ງຄ່າເລີ່ມ = ຕອນນີ້ **ຫຼັງ mount** (ບໍ່ຕັ້ງຕອນ render
+   * ເພາະ server/client ຄິດເວລາຄົນລະວິນາທີ ⇒ hydration mismatch).
+   */
+  const [receivedAt, setReceivedAt] = useState("");
+  useEffect(() => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    setReceivedAt(now.toISOString().slice(0, 16));
+  }, []);
+
+  /**
    * ປະເພດບໍລິການ — ຕ້ອງເປັນ state ເພາະ **ງານນອກສະຖານທີ່ (IH/PS) ຕ້ອງມີສະຖານທີ່ໜ້າງານ**
    * (75% ຂອງໃບ). ແຕ່ກ່ອນ tb_product ບໍ່ມີຖັນນີ້ ⇒ ຊ່າງອາໄສທີ່ຢູ່ລູກຄ້າ ເຊິ່ງອາດເປັນ
    * ທີ່ຢູ່ຮ້ານ ບໍ່ແມ່ນບ່ອນທີ່ເຄື່ອງຕິດຢູ່.
@@ -197,6 +208,10 @@ export function ServiceForm({
     setWarrantyChoice(null);
     setJobKind("repair");
     setClaimScope("whole");
+    // ວັນເວລາຮັບເຄື່ອງ ກັບໄປເປັນ "ຕອນນີ້" ຄືຕອນເປີດຟອມ
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    setReceivedAt(now.toISOString().slice(0, 16));
   }
 
   return (
@@ -218,6 +233,18 @@ export function ServiceForm({
           <RotateCcw className="size-4" />
           {t.clear}
         </button>
+        {/* ວັນເວລາຮັບເຄື່ອງ — ຢູ່ແຖວຫົວໃຫ້ເຫັນ/ແກ້ງ່າຍ · ຄີຍ້ອນຫຼັງໄດ້ */}
+        <div className="ml-auto flex items-center gap-2" title={t.receivedAtNote}>
+          <label htmlFor="time_register" className="text-sm text-slate-600">{t.receivedAt}</label>
+          <input
+            id="time_register"
+            type="datetime-local"
+            name="time_register"
+            value={receivedAt}
+            onChange={(event) => setReceivedAt(event.target.value)}
+            className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+          />
+        </div>
       </div>
 
       {state.error && (

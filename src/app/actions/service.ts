@@ -47,6 +47,8 @@ const schema = z.object({
   pro_remark: z.string(),
   billon: z.string(),
   billdate: z.string(),
+  /** ວັນເວລາຮັບເຄື່ອງ (YYYY-MM-DDTHH:MM ຈາກ datetime-local) — ໃຊ້ສະເພາະໜ້າແກ້ໄຂ, ຫວ່າງ = ບໍ່ປ່ຽນ */
+  time_register: z.string().optional().default(""),
   /**
    * ຊ່າງ — **ບໍ່ບັງຄັບ** (24-07-2026): ຮັບເຄື່ອງເຂົ້າໄດ້ກ່ອນ ແລ້ວຄ່ອຍຈັດຊ່າງພາຍຫຼັງ
    * (ຕອນຮັບເຄື່ອງໜ້າເຄົາເຕີ ຍັງບໍ່ຮູ້ວ່າໃຜຈະຮັບງານ). ຫວ່າງ = ຍັງບໍ່ຈັດຊ່າງ.
@@ -221,7 +223,8 @@ export async function createService(_: ServiceState, formData: FormData): Promis
     const duplicate = await client.query(
       `select code from tb_product where cust_code=$1 and name_1=$2
        and replace(sn,' ','')=replace($3,' ','') and p_model=$4
-       and time_register > now() - interval '2 minutes' limit 1`,
+       -- ອີງເວລາສ້າງແຖວ ບໍ່ແມ່ນ time_register — ຄີຍ້ອນຫຼັງແລ້ວ time_register ເປັນອະດີດ ດ່ານນີ້ຈະບໍ່ຈັບ
+       and create_date_time_now > now() - interval '2 minutes' limit 1`,
       [custCode, d.proname, d.pro_sn, d.pro_model],
     );
     if (duplicate.rows[0]) {
@@ -245,7 +248,7 @@ export async function createService(_: ServiceState, formData: FormData): Promis
          location_repair,appoint_date,location_lat,location_lng,job_kind,
          claim_scope,claim_part_code,claim_part_name,claim_part_sn,claim_part_qty,
          intake_center,service_center)
-       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,localtimestamp,$18,nullif($19,''),
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,$17,coalesce(nullif($31,'')::timestamp,localtimestamp),$18,nullif($19,''),
          nullif($20,''), nullif($21,'')::date, nullif($22,'')::double precision, nullif($23,'')::double precision,$24,
          nullif($25,''),nullif($26,''),nullif($27,''),nullif($28,''),$29,
          nullif($30,''),nullif($30,''))`,
@@ -257,7 +260,7 @@ export async function createService(_: ServiceState, formData: FormData): Promis
         d.job_kind === "claim" ? d.claim_scope ?? "" : "", d.claim_part_code, d.claim_part_name,
         d.claim_part_sn, d.claim_scope === "part" ? d.claim_part_qty ?? 1 : null,
         // ບ່ອນຮັບເຄື່ອງ = ບ່ອນທີ່ເຄື່ອງຢູ່ຕອນນີ້ຄືກັນ ($30 ໃຊ້ 2 ບ່ອນ)
-        d.intake_center],
+        d.intake_center, d.time_register],
     );
 
     await saveUploads(client, code, uploads, written);
@@ -496,7 +499,9 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
          -- ບ່ອນທີ່ເຄື່ອງຢູ່ (service_center) ຕັ້ງໃຫ້ພ້ອມກັນ **ສະເພາະຕອນທີ່ຍັງບໍ່ເຄີຍມີຄ່າ**
          -- — ຖ້າມີແລ້ວ ໝາຍວ່າມີການໂອນເກີດຂຶ້ນ ⇒ ຢ່າໄປຂຽນທັບຄວາມຈິງນັ້ນ.
          intake_center=nullif($29,''),
-         service_center=case when coalesce(service_center,'')='' then nullif($29,'') else service_center end
+         service_center=case when coalesce(service_center,'')='' then nullif($29,'') else service_center end,
+         -- ວັນເວລາຮັບເຄື່ອງ — ຫວ່າງ = ຄົງຄ່າເດີມ (ບໍ່ລ້າງ ເພາະທຸກໃບຕ້ອງມີເວລາຮັບ)
+         time_register=coalesce(nullif($30,'')::timestamp, time_register)
        where code=$18`,
       [d.proname, d.pro_sn, d.pro_model, d.pro_brand, d.pro_acc, d.pro_issue, d.pro_type, d.pro_remark,
         // ap_code = ລະຫັດລູກຄ້າ (ອັນດຽວກັນ — ເບິ່ງ createService)
@@ -508,7 +513,7 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
         d.job_kind === "claim" ? d.claim_part_name : "",
         d.job_kind === "claim" ? d.claim_part_sn : "",
         d.job_kind === "claim" && d.claim_scope === "part" ? d.claim_part_qty ?? 1 : null,
-        d.intake_center],
+        d.intake_center, d.time_register],
     );
     if (!updated.rowCount) {
       await client.query("rollback");

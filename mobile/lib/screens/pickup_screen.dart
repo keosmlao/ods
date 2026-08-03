@@ -91,9 +91,11 @@ class _PickupScreenState extends State<PickupScreen> {
     final y = int.tryParse(parts[2]);
     if (d == null || m == null || y == null) return null;
     final now = DateTime.now();
-    final diff = DateTime(now.year, now.month, now.day)
-        .difference(DateTime(y, m, d))
-        .inDays;
+    final diff = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).difference(DateTime(y, m, d)).inDays;
     return diff < 0 ? 0 : diff;
   }
 
@@ -176,7 +178,11 @@ class _PickupScreenState extends State<PickupScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: const Text(
           'ຢືນຢັນການຮັບອາໄຫຼ່',
-          style: TextStyle(fontWeight: FontWeight.w800, color: ink, fontSize: 17),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: ink,
+            fontSize: 17,
+          ),
         ),
         content: Text(
           'ຈະກົດຮັບ ${targets.length} ໃບ '
@@ -471,7 +477,11 @@ class _PickupScreenState extends State<PickupScreen> {
                 Text(
                   error!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12.5, color: muted, height: 1.5),
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: muted,
+                    height: 1.5,
+                  ),
                 ),
                 const SizedBox(height: 14),
                 FilledButton.icon(
@@ -493,7 +503,9 @@ class _PickupScreenState extends State<PickupScreen> {
       );
     }
 
-    if (docs.isEmpty) return _empty('ບໍ່ມີອາໄຫຼ່ລໍຮັບ', 'ສາງເບີກອອກໃຫ້ເມື່ອໃດ ຈະຂຶ້ນຢູ່ນີ້');
+    if (docs.isEmpty) {
+      return _empty('ບໍ່ມີອາໄຫຼ່ລໍຮັບ', 'ສາງເບີກອອກໃຫ້ເມື່ອໃດ ຈະຂຶ້ນຢູ່ນີ້');
+    }
     if (list.isEmpty) {
       return _empty('ບໍ່ພົບໃບທີ່ຄົ້ນ', 'ລອງລ້າງຄຳຄົ້ນ ຫຼື ປ່ຽນຕົວກອງ');
     }
@@ -520,7 +532,11 @@ class _PickupScreenState extends State<PickupScreen> {
           final row = rows[index];
           if (row is String) {
             return Padding(
-              padding: EdgeInsets.only(top: index == 0 ? 4 : 16, bottom: 8, left: 2),
+              padding: EdgeInsets.only(
+                top: index == 0 ? 4 : 16,
+                bottom: 8,
+                left: 2,
+              ),
               child: Row(
                 children: [
                   Text(
@@ -554,7 +570,10 @@ class _PickupScreenState extends State<PickupScreen> {
         Container(
           width: 64,
           height: 64,
-          decoration: const BoxDecoration(color: surfaceAlt, shape: BoxShape.circle),
+          decoration: const BoxDecoration(
+            color: surfaceAlt,
+            shape: BoxShape.circle,
+          ),
           child: const Icon(Icons.inventory_2_outlined, size: 28, color: faint),
         ),
         const SizedBox(height: 12),
@@ -687,11 +706,15 @@ class _PickupScreenState extends State<PickupScreen> {
             // ໂໝດເລືອກ = ບໍ່ມີປຸ່ມຮັບລາຍໃບ (ກັນກົດຜິດຂະນະເລືອກ)
             if (!selecting)
               SizedBox(
+                width: 58,
                 height: 36,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
                     backgroundColor: teal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    minimumSize: const Size(58, 36),
+                    maximumSize: const Size(58, 36),
+                    padding: EdgeInsets.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -733,7 +756,11 @@ class _PickupScreenState extends State<PickupScreen> {
         color: Colors.white,
         border: Border(top: BorderSide(color: line)),
         boxShadow: [
-          BoxShadow(color: Color(0x0F0F172A), blurRadius: 18, offset: Offset(0, -6)),
+          BoxShadow(
+            color: Color(0x0F0F172A),
+            blurRadius: 18,
+            offset: Offset(0, -6),
+          ),
         ],
       ),
       child: SafeArea(
@@ -746,7 +773,10 @@ class _PickupScreenState extends State<PickupScreen> {
                     children: [
                       const Text(
                         'ກຳລັງກົດຮັບ...',
-                        style: TextStyle(fontWeight: FontWeight.w800, color: ink),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: ink,
+                        ),
                       ),
                       Text(
                         '$bulkDone / $bulkTotal',

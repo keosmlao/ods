@@ -41,6 +41,8 @@ export type ServiceHead = {
   /** ບ່ອນຮັບເຄື່ອງ (CI ເທົ່ານັ້ນ) — ແກ້ໄດ້ ເພາະດ່ານກ່ອນສົ່ງຄືນອີງຄ່ານີ້ */
   intake_center: string;
   appoint_date: string;
+  /** ວັນເວລາຮັບເຄື່ອງ (time_register) — ຮູບແບບ datetime-local: YYYY-MM-DDTHH:MM */
+  time_register: string;
   location_lat: number | null;
   location_lng: number | null;
   /** ປະເພດງານ — 'repair' ຫຼື 'claim' (ຮ້ານຄ້າ/ລູກຄ້າຂໍເຄມ) */
@@ -422,6 +424,11 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
               </div>
             </>
           )}
+          {/* ວັນເວລາຮັບເຄື່ອງ — ແກ້ໄດ້ ເພາະບາງໃບຄີຍ້ອນຫຼັງ (ຮັບໜ້າເຄົາເຕີແລ້ວຄ່ອຍມາຄີ) */}
+          <div>
+            <label className={label}>{t.receivedAt}</label>
+            <input type="datetime-local" name="time_register" defaultValue={head.time_register} className={field} />
+          </div>
           <div>
             <label className={label}>{t.tech} *</label>
             <SelectField

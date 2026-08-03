@@ -37,6 +37,7 @@ export default async function EditClaimJob({ params }: Props) {
          coalesce(a.ap_code,'') ap_code, coalesce(a.doc_def,'') doc_def, coalesce(a.doc_date_ref,'') doc_date_ref,
          coalesce(a.location_repair,'') location_repair, coalesce(a.intake_center,'') intake_center,
          coalesce(to_char(a.appoint_date,'YYYY-MM-DD'),'') appoint_date,
+         coalesce(to_char(a.time_register,'YYYY-MM-DD"T"HH24:MI'),'') time_register,
          a.location_lat, a.location_lng,
          -- ປະເພດງານ (ສ້ອມ/ເຄມ) — ໝາຍພາຍຫຼັງໄດ້ຢູ່ໜ້ານີ້ (ເບິ່ງ updateService)
          coalesce(a.job_kind,'repair') job_kind, coalesce(a.claim_scope,'') claim_scope,

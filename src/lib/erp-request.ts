@@ -1,6 +1,6 @@
 import { employeeCode } from "@/lib/erp-employee";
 import { odgDb } from "@/lib/db";
-import { branchOf, CALC_NONE, ERP, TRANS } from "@/lib/stock-constants";
+import { CALC_NONE, ERP, TRANS } from "@/lib/stock-constants";
 import type { PoolClient } from "pg";
 
 /**
@@ -82,7 +82,7 @@ export async function writeErpRequest(doc: ErpRequestDoc, client?: PoolClient): 
       [
         ERP.TRANS_TYPE, transFlag, doc.doc_date, doc.doc_no,
         // ລະຫັດງານ — ທາງດຽວທີ່ຄົນ ERP ຈະຮູ້ວ່າໃບນີ້ຂອງງານໃດ (ERP ບໍ່ມີ product_code)
-        doc.job_code, doc.doc_time, branchOf(doc.wh_code),
+        doc.job_code, doc.doc_time, ERP.BRANCH_REQUEST,
         doc.remark ? `${doc.job_code} · ${doc.remark}` : doc.job_code,
         format, doc.wh_code, doc.shelf_code, creator,
         ERP.SIDE_CODE, ERP.DEPARTMENT_CODE,
@@ -100,7 +100,7 @@ export async function writeErpRequest(doc: ErpRequestDoc, client?: PoolClient): 
         [
           ERP.TRANS_TYPE, transFlag, doc.doc_date, doc.doc_no, doc.job_code,
           line.item_code, line.item_name ?? "", line.unit_code ?? "", Number(line.qty), lineNumber,
-          branchOf(doc.wh_code), doc.wh_code, doc.shelf_code,
+          ERP.BRANCH_REQUEST, doc.wh_code, doc.shelf_code,
           // ໃບ**ຂໍ**ເບີກ ບໍ່ຕັດສະຕັອກ (ໃບເບີກ 56 ຂອງສາງເປັນຄົນຕັດ) ⇒ calc_flag 0
           CALC_NONE, doc.doc_time,
         ],
