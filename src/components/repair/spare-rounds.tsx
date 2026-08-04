@@ -78,7 +78,6 @@ export function SpareRounds({
                 <th className="whitespace-nowrap py-2 pr-3 font-semibold">ຮອບ</th>
                 <th className="whitespace-nowrap py-2 pr-3 font-semibold">ໃບຂໍເບີກ</th>
                 <th className="whitespace-nowrap py-2 pr-3 font-semibold">ວັນທີ</th>
-                <th className="whitespace-nowrap py-2 pr-3 font-semibold">ສາງ</th>
                 <th className="whitespace-nowrap py-2 pr-3 font-semibold">ລາຍການ</th>
                 <th className="whitespace-nowrap py-2 pr-3 font-semibold">ສາງເບີກ (SWC)</th>
                 <th className="whitespace-nowrap py-2 pr-3 font-semibold">ຊ່າງຮັບ (PISP)</th>
@@ -100,9 +99,9 @@ export function SpareRounds({
                       >
                         {row.doc_no}
                       </Link>
+                      {row.wh_code && <span className="ml-1.5 text-[10px] text-slate-400">ສາງ {row.wh_code}</span>}
                     </td>
                     <td className="whitespace-nowrap py-2 pr-3 text-slate-500">{row.doc_date ?? "-"}</td>
-                    <td className="whitespace-nowrap py-2 pr-3 text-slate-500">{row.wh_code ?? "-"}</td>
                     <td className="max-w-72 py-2 pr-3 text-slate-700">
                       {row.items.length > 0 ? (
                         <span className="flex flex-col gap-0.5">
@@ -157,14 +156,13 @@ export function SpareRounds({
             ຮອບສັ່ງຊື້ (ສາງບໍ່ມີ ⇒ ຂໍຊື້)
           </h3>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1020px] border-collapse text-xs">
+            <table className="w-full min-w-[900px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-slate-500">
                   <th className="whitespace-nowrap py-2 pr-3 font-semibold">ຮອບ</th>
                   <th className="whitespace-nowrap py-2 pr-3 font-semibold">ໃບຂໍຊື້</th>
                   <th className="whitespace-nowrap py-2 pr-3 font-semibold">ວັນທີ</th>
                   <th className="whitespace-nowrap py-2 pr-3 font-semibold">ມາຈາກໃບຂໍເບີກ</th>
-                  <th className="whitespace-nowrap py-2 pr-3 font-semibold">ລາຍການ</th>
                   <th className="whitespace-nowrap py-2 pr-3 font-semibold">ສະຖານະ</th>
                   <th className="whitespace-nowrap py-2 pr-3 font-semibold">ໃບ ERP (SPR)</th>
                   <th className="whitespace-nowrap py-2 pr-3 font-semibold">ອະນຸມັດ</th>
@@ -186,20 +184,7 @@ export function SpareRounds({
                       <td className="whitespace-nowrap py-2 pr-3 font-mono text-[11px] text-slate-500">
                         {row.from_request ?? "—"}
                       </td>
-                      <td className="max-w-72 py-2 pr-3 text-slate-700">
-                        {row.items.length > 0 ? (
-                          <span className="flex flex-col gap-0.5">
-                            {row.items.map((item) => (
-                              <span key={item.item_code} className="block truncate" title={`${item.item_code} · ${item.item_name ?? ""}`}>
-                                {item.item_name || item.item_code}
-                                <b className="ml-1 text-slate-500">× {item.qty}</b>
-                              </span>
-                            ))}
-                          </span>
-                        ) : (
-                          <>{row.lines} ລາຍການ · {row.qty}</>
-                        )}
-                      </td>
+                      
                       <td className="whitespace-nowrap py-2 pr-3">
                         <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${state.tone}`}>
                           {state.label}
