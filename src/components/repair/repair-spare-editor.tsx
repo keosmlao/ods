@@ -35,11 +35,20 @@ export function RepairSpareEditor({
   roworder,
   lines,
   pending,
+  canAdd = true,
 }: {
   code: string;
   roworder: string;
   lines: UsedSpareLine[];
   pending: number;
+  /**
+   * ເປີດປຸ່ມ "+ ເພີ່ມອາໄຫຼ່" ບໍ່.
+   * **ໜ້າວຽກສ້ອມ /repair/[code] = false** — ບັນຊີນີ້ແມ່ນຜົນຂອງການກວດເຊັກ (70% ຂອງແຖວ
+   * ຖືກໃສ່ຕອນຈົບກວດ · ມີແຕ່ 4% ຕອນສ້ອມ) ⇒ ໃສ່ຢູ່ຂັ້ນກວດເຊັກ (/service/[code]) ບ່ອນດຽວ
+   * ບໍ່ດັ່ງນັ້ນຂໍ້ມູນຈະຖືກເພີ່ມ 2 ບ່ອນ ແລ້ວບອກບໍ່ໄດ້ວ່າມາຈາກຂັ້ນໃດ.
+   * ຢາກໄດ້ອາໄຫຼ່ເພີ່ມຕອນສ້ອມ ⇒ ໃຊ້ "+ ຂໍເບີກຮອບໃໝ່" ຢູ່ກ່ອງ **ອາໄຫຼ່ຂອງໃບງານ**.
+   */
+  canAdd?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, start] = useTransition();
@@ -59,14 +68,19 @@ export function RepairSpareEditor({
           ອາໄຫຼ່ທີ່ຕ້ອງໃຊ້
           <span className="ml-1.5 text-[11px] font-medium text-slate-400">(ຈາກການກວດເຊັກ)</span>
         </h2>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          disabled={busy}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
-        >
-          <Plus className="size-3.5" /> ເພີ່ມອາໄຫຼ່
-        </button>
+        {canAdd ? (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            disabled={busy}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+          >
+            <Plus className="size-3.5" /> ເພີ່ມອາໄຫຼ່
+          </button>
+        ) : (
+          /* ໃສ່ໄດ້ຢູ່ຂັ້ນກວດເຊັກບ່ອນດຽວ — ຢາກໄດ້ເພີ່ມຕອນສ້ອມ ໃຫ້ອອກໃບຂໍເບີກຮອບໃໝ່ */
+          <span className="text-[11px] text-slate-400">ໃສ່ໄດ້ຢູ່ຂັ້ນກວດເຊັກ · ຢາກໄດ້ເພີ່ມ ⇒ ຂໍເບີກຮອບໃໝ່</span>
+        )}
       </div>
 
       {lines.length === 0 ? (

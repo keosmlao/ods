@@ -271,6 +271,7 @@ export default async function RepairJobPage({ params }: Props) {
           roworder={String(job.roworder)}
           lines={spareLines}
           pending={pendingSpares}
+          canAdd={false}
         />
       )}
 
