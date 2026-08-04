@@ -397,7 +397,11 @@ const RECEIPT: NavGroup = {
   id: "receipt_menu",
   label: "ບິນຂາຍ / ໃບຮັບເງິນ",
   icon: ReceiptText,
-  items: [{ label: "ບິນຂາຍຂອງຝ່າຍບໍລິການ", href: "/receipts" }],
+  items: [
+    { label: "ບິນຂາຍຂອງຝ່າຍບໍລິການ", href: "/receipts" },
+    // ລາຍຮັບຕິດຕັ້ງ ນັບຈາກໃບງານ (doc_ref_1 → ບິນ ERP) — ຢູ່ໝວດດຽວກັນເພາະເປັນເລື່ອງບິນ/ເງິນ
+    { label: "ລາຍຮັບງານຕິດຕັ້ງ", href: "/install-revenue" },
+  ],
 };
 
 /** **ລາຍຮັບຊ່າງ** — ເມນູຂອງຕົນເອງ, ເບິ່ງເປັນເດືອນ (ບໍ່ແມ່ນຕາຕະລາງລາຍງານທົ່ວໄປ) */

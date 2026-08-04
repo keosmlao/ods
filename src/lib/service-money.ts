@@ -257,3 +257,36 @@ export async function installRevenueBetween(from: string, to: string): Promise<{
   );
   return rows[0] ?? { jobs: 0, baht: 0 };
 }
+
+/** ລາຍການລະອຽດ — 1 ແຖວ = 1 ໃບງານຕິດຕັ້ງ ພ້ອມບິນ ແລະ ຄ່າບໍລິການຂອງມັນ */
+export type InstallRevenueDetail = {
+  code: string;
+  finished: string | null;
+  bill_no: string | null;
+  customer: string | null;
+  tech: string | null;
+  items: string | null;
+  baht: number;
+};
+
+export async function installRevenueDetail(from: string, to: string, limit: number): Promise<InstallRevenueDetail[]> {
+  return (
+    await query<InstallRevenueDetail>(
+      `select a.code, to_char(a.job_finish,'DD-MM-YYYY') finished,
+          trim(a.doc_ref_1) bill_no,
+          coalesce(nullif(c.name_1,''), nullif(a.cust_code,'')) customer,
+          nullif(a.tech_code,'') tech,
+          string_agg(distinct d.item_name, ' · ') items,
+          coalesce(sum(d.sum_amount),0)::float8 baht
+        from ods.ods_tb_install a
+        join public.ic_trans_detail d
+          on d.doc_no = trim(a.doc_ref_1) and d.item_code like '9701%'
+        left join ods.ar_customer c on c.code = a.cust_code
+       where a.cancel_date is null and a.job_finish::date between $1 and $2
+       group by a.code, a.job_finish, a.doc_ref_1, c.name_1, a.cust_code, a.tech_code
+       order by a.job_finish desc, a.code desc
+       limit $3`,
+      [from, to, limit],
+    )
+  ).rows;
+}
