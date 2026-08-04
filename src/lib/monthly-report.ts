@@ -95,7 +95,21 @@ export async function monthlyRevenueMatrix(year: number): Promise<Map<string, Mo
   /* ── ຕິດຕັ້ງ (ERP) — ຄ່າບໍລິການ 9701xx ໃນບິນຂາຍ ── */
   const install = await queryOdg<{ month: string; item_code: string; fmt: string | null; amount: number }>(
     `select to_char(d.doc_date,'YYYY-MM') as month, d.item_code, t.doc_format_code fmt,
-            sum(d.sum_amount)::float8 amount
+            -- ແຖວທີ່ບໍ່ໄດ້ປ້ອນລາຄາ (sum_amount = 0) ⇒ ຖອຍໄປໃຊ້ລາຄາມາດຕະຖານ
+            -- ① ic_inventory_price ແຖວສຸດທ້າຍທີ່ມີລາຄາ (ບໍ່ຜູກ to_date)
+            -- ② ບໍ່ມີໃນຕາຕະລາງລາຄາເລີຍ ⇒ ລາຄາທີ່ເຄີຍອອກບິນຫຼ້າສຸດຂອງລະຫັດນັ້ນ
+            -- (ວັດ 04-08-2026: ຄ່າຕິດຕັ້ງເຄື່ອງໃຊ້ໄຟຟ້າ 970101-0013 ບໍ່ມີແຖວລາຄາເລີຍ
+            --  ແຕ່ອອກບິນຈິງ 500-1,000 ບາດ ⇒ ຖ້າບໍ່ຖອຍ ຈະນັບເປັນ 0 ທັງເດືອນ)
+            sum(coalesce(nullif(d.sum_amount, 0), d.qty * coalesce(
+              (select pr.sale_price1 from ic_inventory_price pr
+                where pr.ic_code = d.item_code and pr.currency_code = '01'
+                  and coalesce(pr.sale_price1,0) > 0
+                order by pr.from_date desc nulls last, pr.roworder desc limit 1),
+              (select p2.price from ic_trans_detail p2
+                 join ic_trans t2 on t2.doc_no = p2.doc_no
+                where p2.item_code = d.item_code and coalesce(p2.price,0) > 0
+                  and t2.doc_date <= d.doc_date
+                order by t2.doc_date desc limit 1), 0)))::float8 amount
        from ic_trans_detail d
        join ic_trans t on t.doc_no = d.doc_no and t.trans_flag = 44
       where d.trans_flag = 44 and d.item_code like '9701%'
