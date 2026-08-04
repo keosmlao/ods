@@ -34,9 +34,13 @@ export type WithdrawRound = {
   /** ໃບເບີກຂອງສາງ (SWC) — ຫວ່າງ = ສາງຍັງບໍ່ຈ່າຍ */
   dispatch_no: string | null;
   dispatch_date: string | null;
+  /** ລາຍການທີ່ **ສາງເບີກອອກຈິງ** — ບໍ່ຈຳເປັນຄືກັບທີ່ຂໍ (79 ຄູ່ແຖວບໍ່ຄືກັນ · 82 ຄູ່ຈຳນວນບໍ່ຄືກັນ) */
+  dispatch_items: DocItem[];
   /** ໃບຮັບຂອງຊ່າງ (PISP) — ຫວ່າງ = ຈ່າຍແລ້ວແຕ່ຊ່າງຍັງບໍ່ກົດຮັບ */
   pick_no: string | null;
   pick_date: string | null;
+  /** ລາຍການທີ່ **ຊ່າງກົດຮັບຈິງ** — ໃບ PISP ເກົ່າ 540/2298 ໃບບໍ່ມີລາຍການ ⇒ ອາດຫວ່າງ */
+  pick_items: DocItem[];
   state: "requested" | "dispatched" | "received";
 };
 
@@ -83,6 +87,22 @@ async function itemsByDoc(docNos: string[]): Promise<Record<string, DocItem[]>> 
   return map;
 }
 
+/** `string_agg` ລວມຫຼາຍໃບເປັນ "A, B" ⇒ ແຍກກັບຄືນເປັນລາຍການເລກໃບ */
+function splitDocs(agg: string | null): string[] {
+  return (agg ?? "").split(",").map((part) => part.trim()).filter(Boolean);
+}
+
+/** ຫຼາຍໃບອາດມີສິນຄ້າຕົວດຽວກັນ ⇒ ລວມຈຳນວນເຂົ້າກັນ ບໍ່ໃຫ້ໂຊ້ວຊ້ຳ */
+function mergeItems(lists: DocItem[][]): DocItem[] {
+  const map = new Map<string, DocItem>();
+  for (const item of lists.flat()) {
+    const found = map.get(item.item_code);
+    if (found) found.qty += item.qty;
+    else map.set(item.item_code, { ...item });
+  }
+  return [...map.values()];
+}
+
 /**
  * ຮອບຂໍເບີກທັງໝົດຂອງໃບງານ.
  *
@@ -91,7 +111,7 @@ async function itemsByDoc(docNos: string[]): Promise<Record<string, DocItem[]>> 
  */
 export async function withdrawRounds(code: string): Promise<WithdrawRound[]> {
   const rows = (
-    await query<Omit<WithdrawRound, "round" | "state">>(
+    await query<Omit<WithdrawRound, "round" | "state" | "items" | "dispatch_items" | "pick_items">>(
       `select t.doc_no,
           to_char(t.doc_date,'DD-MM-YYYY') doc_date,
           nullif(t.wh_code,'') wh_code,
@@ -114,13 +134,34 @@ export async function withdrawRounds(code: string): Promise<WithdrawRound[]> {
     )
   ).rows;
 
-  const items = await itemsByDoc(rows.map((row) => row.doc_no));
+  // ດຶງລາຍການຂອງ **ທັງ 3 ຂັ້ນ** ເທື່ອດຽວ (ຂໍ · ສາງເບີກ · ຊ່າງຮັບ) — ຄົນເຮັດວຽກຕ້ອງທຽບໄດ້ວ່າ
+  // ຂໍຫຍັງ ⇒ ສາງເບີກໃຫ້ຫຍັງແດ່ ⇒ ຊ່າງຮັບຫຍັງແດ່
+  const items = await itemsByDoc(
+    rows.flatMap((row) => [row.doc_no, ...splitDocs(row.dispatch_no), ...splitDocs(row.pick_no)]),
+  );
   return rows.map((row, index) => ({
     ...row,
     items: items[row.doc_no] ?? [],
+    dispatch_items: mergeItems(splitDocs(row.dispatch_no).map((doc) => items[doc] ?? [])),
+    pick_items: mergeItems(splitDocs(row.pick_no).map((doc) => items[doc] ?? [])),
     round: index + 1,
     state: row.pick_no ? "received" : row.dispatch_no ? "dispatched" : "requested",
   }));
+}
+
+/** ລາຍການສິນຄ້າຂອງໃບຝັ່ງ **ERP** — ຕາຕະລາງນັ້ນມີ line_number (ຝັ່ງ ODS ບໍ່ມີ) */
+async function itemsByDocOdg(docNos: string[]): Promise<Record<string, DocItem[]>> {
+  const keys = [...new Set(docNos.filter(Boolean))];
+  if (keys.length === 0) return {};
+  const { rows } = await queryOdg<DocItem & { doc_no: string }>(
+    `select d.doc_no, d.item_code, d.item_name, coalesce(d.qty,0)::float8 qty
+       from ic_trans_detail d where d.doc_no = any($1::text[])
+      order by d.doc_no, d.line_number`,
+    [keys],
+  );
+  const map: Record<string, DocItem[]> = {};
+  for (const { doc_no, ...item } of rows) (map[doc_no] ??= []).push(item);
+  return map;
 }
 
 /** ຮອບຂໍຊື້ທັງໝົດຂອງໃບງານ (RQ ຝັ່ງ ODS) */
@@ -204,6 +245,17 @@ export type ErpChain = {
   order_no: string | null; order_date: string | null;
   oa_no: string | null;
   receipt_no: string | null; receipt_date: string | null;
+  /** ລາຍການຂອງແຕ່ລະຂັ້ນຝັ່ງ ERP — ຄົນຕ້ອງເຫັນວ່າ "ສັ່ງຫຍັງ ມາຫຍັງ" ບໍ່ແມ່ນແຕ່ເລກໃບ */
+  spr_items: DocItem[];
+  approve_items: DocItem[];
+  order_items: DocItem[];
+  receipt_items: DocItem[];
+  /**
+   * ⚠️ ໃບ ERP ເລກນີ້ **ບໍ່ມີສິນຄ້າກົງກັບໃບຂໍຊື້ຂອງວຽກນີ້ເລີຍ** ⇒ ຄົນລະໃບກັນ (ເລກຊົນກັນ 2 ລະບົບ).
+   * ວັດ 04-08-2026: 88/560 ຕ່ອງໂສ້ (16%) ເປັນແບບນີ້ — ຕົວຢ່າງ SPR26060009 ຢູ່ ODS ເປັນແຜງແອ HITACHI
+   * ແຕ່ຢູ່ ERP ເປັນຂອບຢາງຕູ້ເຢັນ SAMSUNG ⇒ ຖ້າບໍ່ໝາຍ ຄົນຈະເຫັນ "ຮັບເຂົ້າສາງແລ້ວ" ຂອງວຽກຄົນອື່ນ.
+   */
+  mismatch: boolean;
 };
 
 export async function erpChainForRq(rqNos: string[]): Promise<Record<string, ErpChain>> {
@@ -261,6 +313,17 @@ export async function erpChainForRq(rqNos: string[]): Promise<Record<string, Erp
     ).rows;
     const bySpr = new Map(chains.map((chain) => [chain.spr, chain]));
 
+    // ── ລາຍການສິນຄ້າຂອງແຕ່ລະຂັ້ນ ──
+    // ຝັ່ງ ERP ອ່ານຈາກ public.ic_trans_detail (ມີ line_number); ຝັ່ງ ODS ໃຊ້ itemsByDoc ຄືເກົ່າ.
+    const erpDocs = chains.flatMap((chain) => [
+      chain.spr,
+      ...splitDocs(chain.approve_no),
+      ...splitDocs(chain.order_no),
+      ...splitDocs(chain.receipt_no),
+    ]);
+    const [erpItems, rqItems] = await Promise.all([itemsByDocOdg(erpDocs), itemsByDoc(keys)]);
+    const pick = (agg: string | null) => mergeItems(splitDocs(agg).map((doc) => erpItems[doc] ?? []));
+
     return Object.fromEntries(
       bridge.map((row) => {
         const chain = bySpr.get(row.spr);
@@ -276,6 +339,16 @@ export async function erpChainForRq(rqNos: string[]): Promise<Record<string, Erp
             oa_no: chain?.oa_no ?? null,
             receipt_no: chain?.receipt_no ?? null,
             receipt_date: chain?.receipt_date ?? null,
+            spr_items: erpItems[row.spr] ?? [],
+            approve_items: pick(chain?.approve_no ?? null),
+            order_items: pick(chain?.order_no ?? null),
+            receipt_items: pick(chain?.receipt_no ?? null),
+            // ມີໃບຢູ່ ERP ແຕ່ບໍ່ມີສິນຄ້າຮ່ວມກັບໃບຂໍຊື້ຂອງວຽກ ⇒ ຜູກຜິດໃບ
+            mismatch:
+              (erpItems[row.spr]?.length ?? 0) > 0 &&
+              !(erpItems[row.spr] ?? []).some((item) =>
+                (rqItems[row.rq] ?? []).some((want) => want.item_code === item.item_code),
+              ),
           } satisfies ErpChain,
         ];
       }),

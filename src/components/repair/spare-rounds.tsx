@@ -7,6 +7,7 @@ import {
   type WithdrawRound,
 } from "@/lib/repair-spare-rounds";
 import { CheckCircle2, ClipboardList, PackageCheck, PackageSearch, ShoppingCart, Wrench } from "lucide-react";
+import { compareItems } from "@/lib/doc-item-diff";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -158,7 +159,7 @@ function RoundTree({
           <PurchaseBranch key={buy.doc_no} buy={buy} chain={erp[buy.doc_no]} />
         ))}
 
-        {/* ສາງຈ່າຍອອກ */}
+        {/* ສາງຈ່າຍອອກ — ທຽບກັບ "ທີ່ຂໍ" */}
         {withdrawal && (
           <Node
             icon={<PackageCheck className="size-3.5" />}
@@ -167,6 +168,9 @@ function RoundTree({
             docNo={withdrawal.dispatch_no}
             docDate={withdrawal.dispatch_date}
             pending="ລໍສາງເບີກອອກ"
+            items={withdrawal.dispatch_items}
+            against={withdrawal.dispatch_no ? withdrawal.items : undefined}
+            againstLabel="ທີ່ຂໍ"
             action={
               withdrawal.state === "dispatched" && withdrawal.dispatch_no ? (
                 <Link
@@ -180,7 +184,7 @@ function RoundTree({
           />
         )}
 
-        {/* ຊ່າງກົດຮັບ */}
+        {/* ຊ່າງກົດຮັບ — ທຽບກັບ "ທີ່ສາງເບີກ" (ໃບເກົ່າບາງໃບບໍ່ມີລາຍການ ⇒ ບໍ່ທຽບ) */}
         {withdrawal && (
           <Node
             icon={<Wrench className="size-3.5" />}
@@ -189,6 +193,9 @@ function RoundTree({
             docNo={withdrawal.pick_no}
             docDate={withdrawal.pick_date}
             pending="ລໍຊ່າງກົດຮັບ"
+            items={withdrawal.pick_items}
+            against={withdrawal.pick_items.length > 0 ? withdrawal.dispatch_items : undefined}
+            againstLabel="ທີ່ສາງເບີກ"
           />
         )}
       </div>
@@ -208,11 +215,46 @@ function PurchaseBranch({ buy, chain }: { buy: PurchaseRound; chain?: ErpChain }
         {buy.doc_date && <span className="text-[11px] text-slate-500">{buy.doc_date}</span>}
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${state.tone}`}>{state.label}</span>
       </div>
-      {/* ຕ່ອງໂສ້ຝັ່ງ ERP — ຢູ່ໃຕ້ໃບຂໍຊື້ທີ່ເປັນເຈົ້າຂອງມັນ */}
+      {/* ຕ່ອງໂສ້ຝັ່ງ ERP — ຢູ່ໃຕ້ໃບຂໍຊື້ທີ່ເປັນເຈົ້າຂອງມັນ. ແຕ່ລະຂັ້ນທຽບກັບຂັ້ນກ່ອນໜ້າ ⇒ ຫຼຸດ/ເກີນ = ແດງ */}
       <div className="ml-5 border-l border-dashed border-indigo-200">
-        <Node icon={<Dot />} tone="text-indigo-500" title="ໃບ ERP (SPR)" docNo={chain?.spr_no ?? null} docDate={chain?.spr_date ?? null} pending="ລໍ ERP ຮັບໃບ" />
-        <Node icon={<Dot />} tone="text-indigo-500" title="ອະນຸມັດ (WPRA)" docNo={chain?.approve_no ?? null} docDate={chain?.approve_date ?? null} pending="ລໍອະນຸມັດ" />
-        <Node icon={<Dot />} tone="text-indigo-500" title="ໃບສັ່ງຊື້ (PO)" docNo={chain?.order_no ?? null} docDate={chain?.order_date ?? null} pending="ລໍອອກໃບສັ່ງຊື້" />
+        {chain?.mismatch && (
+          <p className="ml-5 mt-1 rounded bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700">
+            ⚠️ ໃບ ERP ເລກນີ້ບໍ່ມີສິນຄ້າກົງກັບໃບຂໍຊື້ຂອງວຽກນີ້ເລີຍ — ອາດເປັນເລກຊົນກັນ (ຄົນລະໃບ) ໃຫ້ກວດກັບຈັດຊື້ກ່ອນເຊື່ອ
+          </p>
+        )}
+        <Node
+          icon={<Dot />}
+          tone="text-indigo-500"
+          title="ໃບ ERP (SPR)"
+          docNo={chain?.spr_no ?? null}
+          docDate={chain?.spr_date ?? null}
+          pending="ລໍ ERP ຮັບໃບ"
+          items={chain?.spr_items}
+          against={chain?.spr_no ? buy.items : undefined}
+          againstLabel="ໃບຂໍຊື້"
+        />
+        <Node
+          icon={<Dot />}
+          tone="text-indigo-500"
+          title="ອະນຸມັດ (WPRA)"
+          docNo={chain?.approve_no ?? null}
+          docDate={chain?.approve_date ?? null}
+          pending="ລໍອະນຸມັດ"
+          items={chain?.approve_items}
+          against={chain?.approve_no ? chain.spr_items : undefined}
+          againstLabel="ໃບ SPR"
+        />
+        <Node
+          icon={<Dot />}
+          tone="text-indigo-500"
+          title="ໃບສັ່ງຊື້ (PO)"
+          docNo={chain?.order_no ?? null}
+          docDate={chain?.order_date ?? null}
+          pending="ລໍອອກໃບສັ່ງຊື້"
+          items={chain?.order_items}
+          against={chain?.order_no ? chain.approve_items : undefined}
+          againstLabel="ໃບອະນຸມັດ"
+        />
         <Node
           icon={<CheckCircle2 className="size-3.5" />}
           tone={chain?.receipt_no ? "text-emerald-600" : "text-slate-300"}
@@ -220,13 +262,21 @@ function PurchaseBranch({ buy, chain }: { buy: PurchaseRound; chain?: ErpChain }
           docNo={chain?.receipt_no ?? null}
           docDate={chain?.receipt_date ?? null}
           pending="ຍັງບໍ່ຮັບເຂົ້າ"
+          items={chain?.receipt_items}
+          against={chain?.receipt_no ? chain.order_items : undefined}
+          againstLabel="ໃບສັ່ງຊື້"
         />
       </div>
     </div>
   );
 }
 
-/** 1 ຂັ້ນໃນຕ່ອງໂສ້ — ມີເລກໃບ = ຜ່ານແລ້ວ, ບໍ່ມີ = ຄ້າງຢູ່ຂັ້ນນີ້ */
+/**
+ * 1 ຂັ້ນໃນຕ່ອງໂສ້ — ມີເລກໃບ = ຜ່ານແລ້ວ, ບໍ່ມີ = ຄ້າງຢູ່ຂັ້ນນີ້.
+ *
+ * ໃສ່ `against` ⇒ ທຽບລາຍການຂັ້ນນີ້ກັບຂັ້ນກ່ອນໜ້າ ແລ້ວ **ຂຶ້ນສີແດງບ່ອນທີ່ບໍ່ຄືກັນ**
+ * (ຂໍ 2 ເບີກ 1 · ເບີກຂອງທີ່ບໍ່ໄດ້ຂໍ · ຊ່າງຮັບບໍ່ຄົບ). ຂໍ້ມູນຈິງ: 79 ຄູ່ SIO↔SWC ແຖວບໍ່ຄືກັນ · 82 ຄູ່ຈຳນວນບໍ່ຄືກັນ.
+ */
 function Node({
   icon,
   tone,
@@ -235,6 +285,9 @@ function Node({
   docDate,
   pending,
   action,
+  items = [],
+  against,
+  againstLabel,
 }: {
   icon: ReactNode;
   tone: string;
@@ -243,33 +296,71 @@ function Node({
   docDate: string | null;
   pending: string;
   action?: ReactNode;
+  /** ລາຍການຂອງໃບນີ້ */
+  items?: DocItem[];
+  /** ລາຍການຂັ້ນກ່ອນໜ້າທີ່ເອົາມາທຽບ — ບໍ່ໃສ່ = ບໍ່ທຽບ */
+  against?: DocItem[];
+  againstLabel?: string;
 }) {
+  const diff = against ? compareItems(items, against) : null;
+
   return (
-    <div className="relative flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 pl-5">
-      <Elbow />
-      <span className={tone}>{icon}</span>
-      <span className="text-[11px] text-slate-500">{title}</span>
-      {docNo ? (
-        <>
-          <span className="font-mono text-[11px] font-semibold text-slate-700">{docNo}</span>
-          {docDate && <span className="text-[11px] text-slate-400">{docDate}</span>}
-        </>
-      ) : (
-        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">{pending}</span>
+    <div>
+      <div className="relative flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 pl-5">
+        <Elbow />
+        <span className={tone}>{icon}</span>
+        <span className="text-[11px] text-slate-500">{title}</span>
+        {docNo ? (
+          <>
+            <span className="font-mono text-[11px] font-semibold text-slate-700">{docNo}</span>
+            {docDate && <span className="text-[11px] text-slate-400">{docDate}</span>}
+          </>
+        ) : (
+          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">{pending}</span>
+        )}
+        {diff?.mismatch && (
+          <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
+            ບໍ່ຄືກັບ{againstLabel}
+          </span>
+        )}
+        {action && <span className="ml-auto">{action}</span>}
+      </div>
+      {(diff?.rows.length ?? 0) > 0 && (
+        <div className="ml-5 border-l border-slate-200">
+          {diff!.rows.map((row) => (
+            <ItemLine key={row.item_code} item={row} expected={row.expected} />
+          ))}
+        </div>
       )}
-      {action && <span className="ml-auto">{action}</span>}
+      {!diff && items.length > 0 && (
+        <div className="ml-5 border-l border-slate-200">
+          {items.map((item) => (
+            <ItemLine key={item.item_code} item={item} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function ItemLine({ item }: { item: DocItem }) {
+/** ລາຍການ + ຈຳນວນ; ຕ່າງຈາກຂັ້ນກ່ອນໜ້າ ⇒ ແດງ ພ້ອມບອກຈຳນວນທີ່ຄາດໄວ້ */
+function ItemLine({ item, expected }: { item: DocItem; expected?: number }) {
+  const off = expected !== undefined && expected !== item.qty;
   return (
     <div className="relative flex items-center gap-2 py-1 pl-5">
       <Elbow />
-      <span className="truncate text-[11px] text-slate-600" title={item.item_code}>
+      <span
+        className={`truncate text-[11px] ${off ? "font-semibold text-red-700" : "text-slate-600"}`}
+        title={item.item_code}
+      >
         {item.item_name || item.item_code}
       </span>
-      <b className="whitespace-nowrap text-[11px] text-slate-500">× {item.qty}</b>
+      <b className={`whitespace-nowrap text-[11px] ${off ? "text-red-700" : "text-slate-500"}`}>× {item.qty}</b>
+      {off && (
+        <span className="whitespace-nowrap rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
+          {item.qty === 0 ? `ຂາດ ${expected}` : `ຄວນເປັນ ${expected}`}
+        </span>
+      )}
     </div>
   );
 }
