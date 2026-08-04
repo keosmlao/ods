@@ -1,5 +1,6 @@
+import { monthlyRevenueMatrix } from "@/lib/monthly-report";
 import { techRevenueByMonth } from "@/lib/service-money";
-import { ChevronLeft, ChevronRight, Trophy, Wallet } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trophy, Wallet, Wrench } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -43,9 +44,19 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
   const to = `${month}-${String(new Date(year, mon, 0).getDate()).padStart(2, "0")}`;
 
   let rows: Awaited<ReturnType<typeof techRevenueByMonth>> = [];
+  /**
+   * **ລາຍຮັບຕິດຕັ້ງ** ບໍ່ໄດ້ຢູ່ຝັ່ງ ODS ເລີຍ — ວັດ 04-08-2026: ໃບງານ INST- ມີແຕ່ເອກະສານ
+   * ອາໄຫຼ່ (122/56/166) **ບໍ່ມີບິນຈັກໃບ** ⇒ ຄ່າບໍລິການຕິດຕັ້ງອອກເປັນ **ບິນຂາຍຝັ່ງ ERP**
+   * ດ້ວຍລະຫັດບໍລິການ 9701xx (ic_inventory). ໃຊ້ສູດດຽວກັບລາຍງານປະຈຳເດືອນ (lib/monthly-report)
+   * ຈຶ່ງບໍ່ຂັດກັນລະຫວ່າງ 2 ໜ້າ.
+   */
+  let install = { ac: 0, app: 0 };
   let error: string | null = null;
   try {
-    rows = await techRevenueByMonth(from, to);
+    const [techRows, matrix] = await Promise.all([techRevenueByMonth(from, to), monthlyRevenueMatrix(year)]);
+    rows = techRows;
+    const cell = matrix.get(month);
+    install = { ac: cell?.install_ac ?? 0, app: cell?.install_app ?? 0 };
   } catch (exception) {
     error = exception instanceof Error ? exception.message : "ດຶງຂໍ້ມູນບໍ່ສຳເລັດ";
   }
@@ -117,7 +128,34 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
         ))}
       </div>
 
-      {/* ── ③ ບັນຊີຊ່າງ ຮຽງຈາກຫຼາຍໄປໜ້ອຍ ── */}
+      {/* ── ③ ລາຍຮັບຕິດຕັ້ງ (ຈາກບິນຂາຍ ERP) ── */}
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="mb-3 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2 text-sm font-bold text-slate-700">
+          <Wrench className="size-4 text-indigo-600" />
+          ລາຍຮັບຈາກການຕິດຕັ້ງ
+          <span className="text-[11px] font-medium text-slate-400">
+            ຄ່າບໍລິການຕິດຕັ້ງ (ລະຫັດ 9701xx) ໃນບິນຂາຍ ERP
+          </span>
+          <span className="ml-auto text-lg font-bold tabular-nums text-slate-800">
+            {(install.ac + install.app).toLocaleString()}
+          </span>
+        </h2>
+        <dl className="grid gap-3 text-xs sm:grid-cols-2">
+          <div className="rounded-lg bg-slate-50 p-3">
+            <dt className="text-[11px] text-slate-500">ຕິດຕັ້ງແອ</dt>
+            <dd className="mt-0.5 text-lg font-bold tabular-nums text-slate-800">{install.ac.toLocaleString()}</dd>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-3">
+            <dt className="text-[11px] text-slate-500">ຕິດຕັ້ງເຄື່ອງໃຊ້ໄຟຟ້າ</dt>
+            <dd className="mt-0.5 text-lg font-bold tabular-nums text-slate-800">{install.app.toLocaleString()}</dd>
+          </div>
+        </dl>
+        <p className="mt-2 text-[11px] text-slate-400">
+          ໃບງານຕິດຕັ້ງ (INST-) ບໍ່ມີບິນຢູ່ ODS ⇒ ຄ່າບໍລິການອອກເປັນບິນຂາຍຝັ່ງ ERP. ໃຊ້ສູດດຽວກັບລາຍງານປະຈຳເດືອນ.
+        </p>
+      </section>
+
+      {/* ── ④ ບັນຊີຊ່າງ ຮຽງຈາກຫຼາຍໄປໜ້ອຍ ── */}
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-600">
           <Trophy className="size-3.5 text-amber-500" />
