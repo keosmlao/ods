@@ -27,6 +27,10 @@ const TRANS_RQ = 78;
 type DocRow = {
   job: string;
   product: string | null;
+  sn: string | null;
+  brand: string | null;
+  warranty: string | null;
+  service_type: string | null;
   customer: string | null;
   tech: string | null;
   flag: number;
@@ -45,7 +49,9 @@ const DONE: NodeState = { label: "ຮຽບຮ້ອຍ", next: null, tone: "bg-
 
 export default async function SpareTreePage() {
   const { rows } = await query<DocRow>(
-    `select t.product_code job, a.name_1 product, c.name_1 customer, nullif(a.emp_code,'') tech,
+    `select t.product_code job, a.name_1 product, nullif(a.sn,'') sn, nullif(a.p_brand,'') brand,
+        c.name_1 customer, nullif(a.emp_code,'') tech,
+        nullif(a.warrunty,'') warranty, nullif(a.service_type,'') service_type,
         t.trans_flag flag, t.doc_no, to_char(t.doc_date,'DD-MM-YYYY') doc_date,
         nullif(split_part(trim(coalesce(t.doc_ref,'')),' ',1),'') parent,
         coalesce(t.aprove_status,0)::int approve,
@@ -60,11 +66,24 @@ export default async function SpareTreePage() {
   );
 
   // ── ຮວມເປັນໃບງານ ──
-  type Job = { job: string; product: string | null; customer: string | null; tech: string | null; docs: DocRow[] };
+  type Job = Pick<DocRow, "product" | "sn" | "brand" | "customer" | "tech" | "warranty" | "service_type"> & {
+    job: string;
+    docs: DocRow[];
+  };
   const jobs = new Map<string, Job>();
   for (const row of rows) {
     const job =
-      jobs.get(row.job) ?? { job: row.job, product: row.product, customer: row.customer, tech: row.tech, docs: [] };
+      jobs.get(row.job) ?? {
+        job: row.job,
+        product: row.product,
+        sn: row.sn,
+        brand: row.brand,
+        customer: row.customer,
+        tech: row.tech,
+        warranty: row.warranty,
+        service_type: row.service_type,
+        docs: [],
+      };
     job.docs.push(row);
     jobs.set(row.job, job);
   }
@@ -118,20 +137,23 @@ export default async function SpareTreePage() {
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         {/* ຫົວຖັນ — ໃຊ້ຊຸດດຽວກັບຄິວ /work/<ຂັ້ນ> ອື່ນ (ພື້ນເທົາ · ເສັ້ນລຸ່ມ · ໜາ) */}
         <div className="overflow-x-auto">
-          <div className="min-w-[1050px]">
-            <div className="grid grid-cols-[4.5rem_5rem_minmax(0,1fr)_minmax(0,1fr)_7rem_5.5rem_11rem] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-600">
+          <div className="min-w-[1250px]">
+            <div className="grid grid-cols-[4.5rem_5rem_minmax(0,1.4fr)_7rem_minmax(0,1.2fr)_6rem_6rem_6rem_4rem_9rem] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-600">
               <span>ເລກວຽກ</span>
               <span className="text-center">ຄ້າງມາ</span>
-              <span>ສິນຄ້າ</span>
+              <span>ສິນຄ້າ / SN</span>
+              <span>ຍີ່ຫໍ້</span>
               <span>ລູກຄ້າ</span>
+              <span>ປະກັນ</span>
+              <span>ປະເພດບໍລິການ</span>
               <span>ຊ່າງ</span>
-              <span className="text-center">ຮອບອາໄຫຼ່</span>
+              <span className="text-center">ຮອບ</span>
               <span>ສະຖານະ</span>
             </div>
 
         {cards.map((card) => (
           <details key={card.job} open={card.pending > 0} className="group border-b border-slate-100 last:border-0">
-            <summary className="grid grid-cols-[4.5rem_5rem_minmax(0,1fr)_minmax(0,1fr)_7rem_5.5rem_11rem] items-center gap-3 cursor-pointer list-none px-4 py-2.5 text-xs hover:bg-slate-50">
+            <summary className="grid grid-cols-[4.5rem_5rem_minmax(0,1.4fr)_7rem_minmax(0,1.2fr)_6rem_6rem_6rem_4rem_9rem] items-center gap-3 cursor-pointer list-none px-4 py-2.5 text-xs hover:bg-slate-50">
               <span className="flex items-center gap-1.5">
                 <ChevronRight className="size-4 shrink-0 text-slate-400 transition group-open:rotate-90" />
                 <Link
@@ -150,8 +172,14 @@ export default async function SpareTreePage() {
                   <span className="text-slate-300">—</span>
                 )}
               </span>
-              <span className="truncate text-slate-800">{card.product || "-"}</span>
+              <span className="min-w-0 truncate text-slate-800">
+                {card.product || "-"}
+                {card.sn && <span className="ml-1 text-[10px] text-slate-400">{card.sn}</span>}
+              </span>
+              <span className="truncate text-slate-600">{card.brand || "-"}</span>
               <span className="truncate text-slate-600">{card.customer || "-"}</span>
+              <span className="truncate text-slate-600">{card.warranty || "-"}</span>
+              <span className="truncate text-slate-600">{card.service_type || "-"}</span>
               <span className="truncate text-slate-600">{card.tech || "-"}</span>
               <span className="text-center tabular-nums text-slate-600">{card.rounds.length}</span>
               <span>
