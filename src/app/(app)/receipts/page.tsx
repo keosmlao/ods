@@ -1,6 +1,6 @@
 import { queryOdg } from "@/lib/db";
 import { ERP } from "@/lib/stock-constants";
-import { ChevronDown, Receipt, Search } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Receipt, Search } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -13,6 +13,20 @@ import Link from "next/link";
  * (count(*) ເຕັມຕາຕະລາງຊ້າ) ⇒ ດຶງເກີນມາ 1 ແຖວ ເພື່ອຮູ້ວ່າ "ຍັງມີຕໍ່ບໍ່".
  */
 type Props = { searchParams: Promise<{ q?: string; page?: string; month?: string }> };
+
+const MONTH_RE = /^\d{4}-\d{2}$/;
+
+/** ບວກ/ລົບເດືອນຈາກ string — ໃຫ້ລິ້ງ ‹ › ຄິດໄດ້ໂດຍບໍ່ພຶ່ງ Date ຝັ່ງ SQL */
+function shiftMonth(month: string, step: number) {
+  const [year, mon] = month.split("-").map(Number);
+  const total = year * 12 + (mon - 1) + step;
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, "0")}`;
+}
+
+const LAO_MONTH = [
+  "ມັງກອນ", "ກຸມພາ", "ມີນາ", "ເມສາ", "ພຶດສະພາ", "ມິຖຸນາ",
+  "ກໍລະກົດ", "ສິງຫາ", "ກັນຍາ", "ຕຸລາ", "ພະຈິກ", "ທັນວາ",
+];
 
 type Row = {
   doc_no: string;
@@ -32,9 +46,13 @@ export default async function ReceiptsPage({ searchParams }: Props) {
   const params = await searchParams;
   const q = (params.q ?? "").trim();
   const page = Math.max(1, Number(params.page) || 1);
-  // ກັ່ນເປັນເດືອນ (YYYY-MM) — ຫວ່າງ = ທຸກເດືອນ
-  const month = /^\d{4}-\d{2}$/.test(params.month ?? "") ? params.month! : "";
+  // ກັ່ນເດືອນ (YYYY-MM) — ບໍ່ລະບຸ = ເດືອນນີ້ ຄືກັບ /install-revenue ແລະ /tech-revenue
+  const today = new Date();
+  const current = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const month = MONTH_RE.test(params.month ?? "") ? params.month! : current;
   const shown = BATCH * page;
+
+  const [year, mon] = month.split("-").map(Number);
 
   const args: (string | number)[] = [];
   /**
@@ -48,10 +66,8 @@ export default async function ReceiptsPage({ searchParams }: Props) {
     where.push(`(t.doc_no ilike $${args.length} or coalesce(t.cust_code,'') ilike $${args.length}
        or coalesce(c.name_1,'') ilike $${args.length} or coalesce(t.remark,'') ilike $${args.length})`);
   }
-  if (month) {
-    args.push(`${month}-01`);
-    where.push(`t.doc_date >= $${args.length}::date and t.doc_date < ($${args.length}::date + interval '1 month')`);
-  }
+  args.push(`${month}-01`);
+  where.push(`t.doc_date >= $${args.length}::date and t.doc_date < ($${args.length}::date + interval '1 month')`);
 
   const list = await queryOdg<Row>(
     `select t.doc_no, to_char(t.doc_date,'DD-MM-YYYY') doc_date,
@@ -82,14 +98,42 @@ export default async function ReceiptsPage({ searchParams }: Props) {
   );
   const totals = sum.rows[0] ?? { bills: 0, baht: 0 };
 
+  const monthHref = (value: string) =>
+    `/receipts?${new URLSearchParams({ ...(q && { q }), month: value })}`;
+
   return (
     <div className="w-full space-y-4 pb-10">
-      {/* ຫົວໜ້າ + ກັ່ນເດືອນ — ວາງແບບດຽວກັບ /install-revenue ໃຫ້ 2 ໜ້າອ່ານຄືກັນ */}
+      {/* ຫົວໜ້າ + ເລືອກເດືອນ ‹ › — ວາງແບບດຽວກັບ /install-revenue ແລະ /tech-revenue */}
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="flex items-center gap-2 text-xl font-bold text-slate-700">
           <Receipt className="size-5 text-teal-600" />
           ບິນຂາຍຂອງຝ່າຍບໍລິການ
         </h1>
+        <div className="flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-1 py-1">
+          <Link
+            href={monthHref(shiftMonth(month, -1))}
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+            aria-label="ເດືອນກ່ອນ"
+          >
+            <ChevronLeft className="size-4" />
+          </Link>
+          <span className="min-w-36 text-center text-sm font-bold text-slate-700">
+            {LAO_MONTH[mon - 1]} {year}
+          </span>
+          <Link
+            href={monthHref(shiftMonth(month, 1))}
+            aria-disabled={month >= current}
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 aria-disabled:pointer-events-none aria-disabled:opacity-30"
+            aria-label="ເດືອນຕໍ່ໄປ"
+          >
+            <ChevronRight className="size-4" />
+          </Link>
+        </div>
+        {month !== current && (
+          <Link href={monthHref(current)} className="text-xs font-semibold text-teal-700 hover:underline">
+            ກັບເດືອນນີ້
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -115,12 +159,8 @@ export default async function ReceiptsPage({ searchParams }: Props) {
             className="w-full bg-transparent text-sm outline-none"
           />
         </label>
-        <input
-          type="month"
-          name="month"
-          defaultValue={month}
-          className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700"
-        />
+        {/* ເດືອນຍຶດຈາກປຸ່ມ ‹ › ຂ້າງເທິງ — ສົ່ງຕໍ່ໃຫ້ຄົ້ນຫາຢູ່ໃນເດືອນດຽວກັນ */}
+        <input type="hidden" name="month" value={month} />
         <button
           type="submit"
           className="inline-flex h-10 items-center rounded-xl bg-slate-800 px-5 text-sm font-semibold text-white hover:bg-slate-900"
@@ -177,7 +217,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
       {hasMore && (
         <nav className="flex items-center justify-center gap-3 text-xs">
           <Link
-            href={`/receipts?${new URLSearchParams({ ...(q && { q }), ...(month && { month }), page: String(page + 1) })}`}
+            href={`/receipts?${new URLSearchParams({ ...(q && { q }), month, page: String(page + 1) })}`}
             scroll={false}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50"
           >

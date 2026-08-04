@@ -1,3 +1,4 @@
+import { employeeNameMap, resolveName } from "@/lib/employee-names";
 import { installRevenueBetween, payoutLines } from "@/lib/service-money";
 import { ChevronLeft, ChevronRight, Trophy, Wallet, Wrench } from "lucide-react";
 import Link from "next/link";
@@ -92,6 +93,12 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
     roles.set(line.role, role);
   }
   const ranked = [...people.values()].sort((a, b) => b.thb - a.thb);
+  // ຊື່ທີ່ SQL ຫາບໍ່ເຫັນ (ຊ່າງຍັງບໍ່ມີບັນຊີ users) ⇒ ແປຈາກ odg_employee ຕໍ່ ບໍ່ໃຫ້ໂຊ້ລະຫັດເປົ່າໆ
+  const missing = ranked.filter((person) => !person.name).map((person) => person.code);
+  if (missing.length > 0) {
+    const techNames = await employeeNameMap(missing);
+    for (const person of ranked) if (!person.name) person.name = resolveName(person.code, techNames);
+  }
   const top = ranked[0]?.thb ?? 0;
   const totals = {
     jobs: new Set(lines.map((line) => line.job_code)).size,
@@ -140,7 +147,7 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
       )}
 
       {/* ── ② ຍອດລວມ ── */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         {[
           { label: "ວຽກທີ່ຈ່າຍແລ້ວ", value: totals.jobs.toLocaleString(), tone: "text-slate-800" },
           { label: "ລາຍຮັບຊ່າງ (ບາດ)", value: Math.round(totals.thb).toLocaleString(), tone: "text-emerald-700" },

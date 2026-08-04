@@ -438,6 +438,7 @@ export type PayoutLine = {
 export async function payoutLines(from: string, to: string): Promise<PayoutLine[]> {
   return (
     await query<PayoutLine>(
+      // ⚠️ PG11: `name` ເປັນ keyword ⇒ ຊື່ຫຍໍ້ຕ້ອງໃສ່ `as "name"` (ຄືກັບ `month` ຢູ່ຂ້າງເທິງ)
       `select p.employee_code, p.role, p.workflow, p.job_code,
           p.pay_thb::float8 pay_thb, to_char(p.closed_at,'DD-MM-YYYY') closed_at,
           coalesce(
@@ -445,7 +446,7 @@ export async function payoutLines(from: string, to: string): Promise<PayoutLine[
             (select u.name_1 from ods_user_employee b join users u on u.username = b.user_code
               where b.employee_code = p.employee_code and nullif(u.name_1,'') is not null limit 1),
             (select u.name_1 from users u where u.username = p.employee_code and nullif(u.name_1,'') is not null limit 1)
-          ) name
+          ) as "name"
         from ods_service_payout p
        where p.closed_at::date between $1 and $2
        order by p.pay_thb desc`,
