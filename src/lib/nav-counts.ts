@@ -206,6 +206,13 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
             where t.trans_flag = 122 and a.return_complete is null and coalesce(a.status,0) <> 6
               and not exists (select 1 from ic_trans sw where sw.trans_flag = 56 and sw.doc_ref = t.doc_no)
           )::int as "/work/spares",
+          -- ອາໄຫຼ່ຕິດຕັ້ງ (ໜ້າ /work/install-spares) = ຈຳນວນ**ໃບງານ**ທີ່ມີໃບຂໍເບີກຍັງບໍ່ໄດ້ຈ່າຍອອກ
+          -- ນັບແບບດຽວກັບ /work/spares ⇒ badge = ແຖວທີ່ເຫັນ (ກົດເກນ ①)
+          (select count(distinct t.product_code) from ic_trans t
+             join ods_tb_install a on a.code = t.product_code
+            where t.trans_flag = 122 and a.cancel_date is null and a.job_finish is null
+              and not exists (select 1 from ic_trans sw where sw.trans_flag = 56 and sw.doc_ref = t.doc_no)
+          )::int as "/work/install-spares",
           -- ປິດງານ (ໜ້າ /close-jobs) = ສ້ອມທີ່ສົ່ງຄືນແລ້ວແຕ່ຍັງບໍ່ປິດ + ຕິດຕັ້ງຂັ້ນ 8 (ສອງແທັບລວມກັນ)
           ((select count(*) from tb_product a
              where a.return_complete is not null and a.job_close is null and coalesce(a.status,0) <> 6)

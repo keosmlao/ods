@@ -189,8 +189,9 @@ const INSTALL_FLOW: NavItem[] = [
   { label: "ບິນຄ້າງອອກໃບງານ", href: "/installations/pending-bills", count: "/installations/pending-bills" },
   { label: "ເປີດງານ / ລໍຖ້າຈັດຊ່າງ", href: "/installations", count: "/installations/assign" },
   { label: "ລໍຖ້າຊ່າງຮັບ", href: "/installations/accept", count: "/installations/accept" },
-  { label: "ລໍຖ້າເບີກອາໄຫຼ່", href: "/installations/spare-requests", count: "/installations/spare-requests" },
-  { label: "ລໍຖ້າຮັບອາໄຫຼ່ຈາກການເບີກ", href: "/installations/spare-pickup", count: "/installations/spare-pickup" },
+  // ລວມ "ຂໍເບີກ · ສາງເບີກ · ຮັບອາໄຫຼ່" ເປັນຂັ້ນດຽວ ຄືກັບຝັ່ງສ້ອມ (/work/spares)
+  // — ຫຼັງຖອດຂັ້ນ PISP ອອກ ເມນູ "ຮັບອາໄຫຼ່" ບໍ່ມີຄວາມໝາຍອີກ
+  { label: "ອາໄຫຼ່ — ວຽກຄ້າງທັງສາຍ", href: "/work/install-spares", count: "/work/install-spares" },
   { label: "ລໍຖ້າຕິດຕັ້ງ", href: "/installations/work", count: "/installations/work" },
   { label: "ກຳລັງຕິດຕັ້ງ", href: "/installations/work/doing", count: "/installations/work/doing" },
   { label: "ລໍຖ້າກວດ QC", href: "/qc?workflow=install", flag: "qc", count: "/qc/install" },
@@ -468,8 +469,7 @@ const TECHNICIAN_NAVIGATION: NavGroup[] = [
     icon: HardHat,
     items: [
       { label: "ຮັບງານ", href: "/installations/accept", count: "/installations/accept", labelKey: "tech:accept" },
-      { label: "ຂໍເບີກອາໄຫຼ່", href: "/installations/spare-requests", count: "/installations/spare-requests", labelKey: "tech:spare-requests" },
-      { label: "ຮັບອາໄຫຼ່", href: "/installations/spare-pickup", count: "/installations/spare-pickup", labelKey: "tech:spare-pickup" },
+      { label: "ອາໄຫຼ່ຕິດຕັ້ງ", href: "/work/install-spares", count: "/work/install-spares" },
       { label: "ລໍຖ້າຕິດຕັ້ງ", href: "/installations/work", count: "/installations/work" },
       { label: "ກຳລັງຕິດຕັ້ງ", href: "/installations/work/doing", count: "/installations/work/doing" },
       { label: "ສົ່ງຄືນອາໄຫຼ່", href: "/stock/returns?job=install", labelKey: "tech:returns-install" },
