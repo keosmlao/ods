@@ -133,7 +133,8 @@ export default async function RepairJobPage({ params }: Props) {
    * ປຸ່ມ "ເລີ່ມສ້ອມ/ສ້ອມສຳເລັດ" ເປັນຂອງ**ຂັ້ນສ້ອມ** ບໍ່ແມ່ນຂັ້ນອາໄຫຼ່ — ເອົາມາປົນກັນ
    * ຄົນຈະກົດຈົບງານທັງທີ່ອາໄຫຼ່ຍັງບໍ່ຮອດມື (ດ່ານຝັ່ງ server ກໍ່ຈະປະຕິເສດຢູ່ແລ້ວ).
    */
-  const sparePending = spareRounds.withdrawals.some((round) => round.state !== "received");
+  // ສາງເບີກແລ້ວ = ຜ່ານ ⇒ ກັກໄວ້ສະເພາະຮອບທີ່ **ສາງຍັງບໍ່ເບີກ** (state "requested")
+  const sparePending = spareRounds.withdrawals.some((round) => round.state === "requested");
   const spareLines = spareRows.rows;
   const pendingSpares = spareLines.filter((line) => !line.locked).length;
   const checkPhotos = jobPhotoRows.rows.filter((p) => p.kind === "check");

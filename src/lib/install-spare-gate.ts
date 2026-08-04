@@ -92,6 +92,12 @@ export async function installSpareOutstanding(
     notDispatched,
     notReceived,
     // notRequested ບໍ່ຢູ່ໃນສູດ — ເບິ່ງເຫດຜົນຢູ່ຫົວໄຟລ໌ (ປ່ຽນກົດເກນ 04-08-2026)
-    done: notDispatched === 0 && notReceived === 0,
+    /**
+     * **ສາງເບີກແລ້ວ = ຜ່ານ** (ຕັດສິນໃຈ 04-08-2026 ໂດຍເຈົ້າຂອງລະບົບ).
+     * ຫຼັກຖານ: ໃບສາງເບີກ 2,508 ໃບບໍ່ເຄີຍມີໃບຮັບ (PISP) — 97% ວຽກເລີ່ມ/ຈົບໄປແລ້ວ
+     * ⇒ ຂັ້ນ "ຊ່າງກົດຮັບ" ບໍ່ໄດ້ຖືກໃຊ້ຈິງ ແລະ ພຽງແຕ່ກັກວຽກໄວ້.
+     * `notReceived` ຍັງນັບໃຫ້ເບິ່ງ ແຕ່ບໍ່ກັ້ນ `done` ອີກແລ້ວ.
+     */
+    done: notDispatched === 0,
   };
 }
