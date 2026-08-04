@@ -49,7 +49,7 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ສ້ອມແປງ", label: "ຮັບອາໄຫຼ່", resource: "/stock/requests/pickup", actions: ["read", "update"] },
   { group: "ສ້ອມແປງ", label: "ໃບຂໍສົ່ງຄືນອາໄຫຼ່", resource: "/stock/returns" },
   { group: "ສ້ອມແປງ", label: "ໃບສົ່ງເຄື່ອງ/ໃບຮັບເງິນ", resource: "/returns" },
-  { group: "ບິນຂາຍ / ໃບຮັບເງິນ", label: "ບິນຂາຍຂອງຝ່າຍບໍລິການ (ERP)", resource: "/receipts" },
+  { group: "ບິນຂາຍ / ໃບຮັບເງິນ", label: "ບິນຂາຍງານສ້ອມແປງ (ERP)", resource: "/receipts" },
   { group: "ບິນຂາຍ / ໃບຮັບເງິນ", label: "ລາຍຮັບງານຕິດຕັ້ງ", resource: "/install-revenue" },
   { group: "ບິນຂາຍ / ໃບຮັບເງິນ", label: "ສະຫຼຸບລາຍຮັບປະຈຳເດືອນ", resource: "/revenue-summary" },
   { group: "ລາຍຮັບຊ່າງ", label: "ສະຫຼຸບລາຍຮັບຊ່າງປະຈຳເດືອນ", resource: "/tech-revenue" },

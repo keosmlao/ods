@@ -1,11 +1,13 @@
 import { queryOdg } from "@/lib/db";
-import { INSTALL_AC_ITEMS, INSTALL_OTHER_ITEMS } from "@/lib/monthly-report";
 import { ERP } from "@/lib/stock-constants";
-import { ChevronDown, ChevronLeft, ChevronRight, Receipt, Search } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Receipt, Search, Download } from "lucide-react";
 import Link from "next/link";
 
 /**
- * **ໃບຮັບເງິນ — ອ່ານຈາກ ERP (public.ic_trans / ic_trans_detail · trans_flag 44)**.
+ * **ບິນຂາຍງານສ້ອມແປງ — ອ່ານຈາກ ERP (public.ic_trans / ic_trans_detail · trans_flag 44)**.
+ *
+ * ສະເພາະບິນທີ່ມີລາຍການຄ່າບໍລິການ **ສ້ອມ 9702xx** — ບິນງານຕິດຕັ້ງ (9701xx)
+ * ຍ້າຍໄປເບິ່ງຢູ່ໜ້າ **ລາຍຮັບງານຕິດຕັ້ງ** (/install-revenue) ແທນ ບໍ່ຊ້ຳກັນ.
  *
  * ⚠️ **ບໍ່ອ່ານຝັ່ງ ODS** — ໃບ SIN ຝັ່ງ ODS ບັນທຶກລາຄາພຽງ 13/3,533 ແຖວ (ວັດ 04-08-2026)
  * ⇒ ຍອດເງິນຈິງຢູ່ ERP. ອ່ານດ້ວຍ `queryOdg` ຈາກ public.ic_trans trans_flag 44 ໂດຍກົງ.
@@ -29,13 +31,6 @@ const LAO_MONTH = [
   "ກໍລະກົດ", "ສິງຫາ", "ກັນຍາ", "ຕຸລາ", "ພະຈິກ", "ທັນວາ",
 ];
 
-/** ກົດແຍກ ແອ/ໄຟຟ້າ ດຽວກັບລາຍງານປະຈຳເດືອນ (lib/monthly-report) — ບໍ່ຊ້ຳກັນແຕ່ລະໜ້າ */
-const sqlIn = (set: Set<string>) => [...set].map((code) => `'${code}'`).join(", ");
-const AC_IN = sqlIn(INSTALL_AC_ITEMS);
-const OTH_IN = sqlIn(INSTALL_OTHER_ITEMS);
-/** ລາຍການຕິດຕັ້ງໄຟຟ້າ = 9701xx ທີ່ບໍ່ແມ່ນ ແອ ແລະ ບໍ່ແມ່ນໝວດໂຄງການ/ໄລຍະທາງ */
-const APP_CASE = `d.item_code like '9701%' and d.item_code not in (${AC_IN}) and d.item_code not in (${OTH_IN})`;
-
 type Row = {
   doc_no: string;
   doc_date: string | null;
@@ -45,8 +40,6 @@ type Row = {
   items: string | null;
   lines: number;
   amount: number;
-  ac: number;
-  app: number;
   user_created: string | null;
 };
 
@@ -71,6 +64,12 @@ export default async function ReceiptsPage({ searchParams }: Props) {
    * INHS · INKS) ສ່ວນ 200 = 23,044 ບິນຂອງຝ່າຍຂາຍ (ລວມ POS2) ⇒ ບໍ່ກັ່ນຈະປົນກັນທັງໝົດ.
    */
   const where = [`t.trans_flag = 44`, `t.side_code = '${ERP.SIDE_CODE}'`];
+  /**
+   * **ສະເພາະງານສ້ອມ** — ຕ້ອງມີລາຍການຄ່າບໍລິການສ້ອມ 9702xx ຢ່າງໜ້ອຍ 1 ແຖວ.
+   * ບິນຕິດຕັ້ງ (9701xx) ແລະ ບິນເປົ່າ ບໍ່ເຂົ້າເງື່ອນໄຂ ⇒ ໄປຢູ່ໜ້າ /install-revenue ແທນ.
+   */
+  where.push(`exists (select 1 from ic_trans_detail rx where rx.doc_no = t.doc_no
+       and rx.trans_flag = 44 and rx.item_code like '9702%')`);
   if (q) {
     args.push(`%${q}%`);
     where.push(`(t.doc_no ilike $${args.length} or coalesce(t.cust_code,'') ilike $${args.length}
@@ -86,10 +85,6 @@ export default async function ReceiptsPage({ searchParams }: Props) {
            from ic_trans_detail d where d.doc_no = t.doc_no and d.trans_flag = 44) items,
         (select count(*) from ic_trans_detail d where d.doc_no = t.doc_no and d.trans_flag = 44)::int lines,
         coalesce(t.total_amount,0)::float8 amount,
-        (select coalesce(sum(d.sum_amount),0) from ic_trans_detail d
-          where d.doc_no = t.doc_no and d.trans_flag = 44 and d.item_code in (${AC_IN}))::float8 ac,
-        (select coalesce(sum(d.sum_amount),0) from ic_trans_detail d
-          where d.doc_no = t.doc_no and d.trans_flag = 44 and ${APP_CASE})::float8 app,
         nullif(t.department_code,'') user_created
       from ic_trans t
       left join ar_customer c on c.code = t.cust_code
@@ -112,19 +107,6 @@ export default async function ReceiptsPage({ searchParams }: Props) {
   );
   const totals = sum.rows[0] ?? { bills: 0, baht: 0 };
 
-  // ແຍກ ແອ/ໄຟຟ້າ/ອື່ນໆ ຂອງເດືອນ — ນັບລະດັບ **ລາຍການໃນໃບ** ດ້ວຍກົດດຽວກັບລາຍງານປະຈຳເດືອນ
-  const splitSum = await queryOdg<{ ac: number; app: number; rest: number }>(
-    `select coalesce(sum(case when d.item_code in (${AC_IN}) then d.sum_amount else 0 end),0)::float8 ac,
-        coalesce(sum(case when ${APP_CASE} then d.sum_amount else 0 end),0)::float8 app,
-        coalesce(sum(case when d.item_code in (${OTH_IN}) or d.item_code not like '9701%' then d.sum_amount else 0 end),0)::float8 rest
-       from ic_trans t
-       join ic_trans_detail d on d.doc_no = t.doc_no and d.trans_flag = 44
-      where ${where.join(" and ")}`,
-    args,
-  );
-  const split = splitSum.rows[0] ?? { ac: 0, app: 0, rest: 0 };
-  const pct = (value: number) => (totals.baht > 0 ? Math.round((value / totals.baht) * 100) : 0);
-
   const monthHref = (value: string) =>
     `/receipts?${new URLSearchParams({ ...(q && { q }), month: value })}`;
 
@@ -134,8 +116,14 @@ export default async function ReceiptsPage({ searchParams }: Props) {
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="flex items-center gap-2 text-xl font-bold text-slate-700">
           <Receipt className="size-5 text-teal-600" />
-          ບິນຂາຍຂອງຝ່າຍບໍລິການ
+          ບິນຂາຍງານສ້ອມແປງ
         </h1>
+        <Link
+          href="/install-revenue"
+          className="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-700 hover:bg-teal-100"
+        >
+          ງານຕິດຕັ້ງ → ລາຍຮັບງານຕິດຕັ້ງ
+        </Link>
         <div className="flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-1 py-1">
           <Link
             href={monthHref(shiftMonth(month, -1))}
@@ -175,21 +163,6 @@ export default async function ReceiptsPage({ searchParams }: Props) {
         ))}
       </div>
 
-      {/* ແຍກ ແອ / ໄຟຟ້າ / ອື່ນໆ — ກົດດຽວກັບໜ້າລາຍຮັບງານຕິດຕັ້ງ */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        {[
-          { label: "ຕິດຕັ້ງແອ", value: Math.round(split.ac), tone: "text-teal-700" },
-          { label: "ຕິດຕັ້ງເຄື່ອງໃຊ້ໄຟຟ້າ", value: Math.round(split.app), tone: "text-indigo-700" },
-          { label: "ອື່ນໆ", value: Math.round(split.rest), tone: "text-slate-600" },
-        ].map((card) => (
-          <div key={card.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-[11px] text-slate-400">{card.label}</p>
-            <p className={`mt-1 text-2xl font-bold tabular-nums ${card.tone}`}>{card.value.toLocaleString()}</p>
-            <p className="text-[10px] text-slate-400">{pct(card.value)}% ຂອງຍອດລວມ</p>
-          </div>
-        ))}
-      </div>
-
       <form className="flex flex-wrap items-center gap-2" action="/receipts">
         <label className="flex min-w-64 flex-1 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2">
           <Search className="size-4 shrink-0 text-slate-400" />
@@ -209,6 +182,13 @@ export default async function ReceiptsPage({ searchParams }: Props) {
         >
           ຄົ້ນຫາ
         </button>
+        <a
+          href={`/api/export/receipts?month=${month}`}
+          className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <Download className="size-4" />
+          Export CSV
+        </a>
       </form>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -220,7 +200,6 @@ export default async function ReceiptsPage({ searchParams }: Props) {
                 <th className="px-4 py-2.5 font-semibold">ວັນທີ</th>
                 <th className="px-4 py-2.5 font-semibold">ລູກຄ້າ</th>
                 <th className="px-4 py-2.5 font-semibold">ລາຍການ</th>
-                <th className="px-4 py-2.5 font-semibold">ໝວດ</th>
                 <th className="px-4 py-2.5 text-right font-semibold">ຍອດ (ບາດ)</th>
                 <th className="px-4 py-2.5 font-semibold">ພະແນກ</th>
               </tr>
@@ -240,9 +219,6 @@ export default async function ReceiptsPage({ searchParams }: Props) {
                       /* ໃບເປົ່າ 2,222/4,564 ໃບ — ບອກຊື່ໆດີກວ່າປ່ອຍຫວ່າງໃຫ້ຄົນເດົາ */
                       <span className="text-slate-300">ບໍ່ມີລາຍການໃນໃບ</span>
                     )}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2">
-                    <KindBadge ac={row.ac} app={row.app} baht={row.amount} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
                     {row.amount > 0 ? (
@@ -276,32 +252,9 @@ export default async function ReceiptsPage({ searchParams }: Props) {
 
       <p className="text-[11px] text-slate-400">
         ອ່ານຈາກ ERP ໂດຍກົງ (public.ic_trans · trans_flag 44) — ບໍ່ແມ່ນສຳເນົາຝັ່ງ ODS ທີ່ບໍ່ມີລາຄາ.
-        ຍອດເປັນ <b>ບາດ</b> ຕາມທີ່ບັນທຶກໃນ ERP (ຍົກເວັ້ນໃບຕະກູນ HSV ທີ່ປ້ອນເປັນກີບ) ·
-        ແຍກ ແອ/ໄຟຟ້າ ຕາມລະຫັດບໍລິການໃນໃບ ກົດດຽວກັບລາຍງານປະຈຳເດືອນ
+        ຍອດເປັນ <b>ບາດ</b> ຕາມທີ່ບັນທຶກໃນ ERP · ສະເພາະບິນທີ່ມີຄ່າບໍລິການສ້ອມ 9702xx —
+        ບິນງານຕິດຕັ້ງ (9701xx) ຢູ່ໜ້າ <Link href="/install-revenue" className="text-teal-700 hover:underline">ລາຍຮັບງານຕິດຕັ້ງ</Link>
       </p>
     </div>
-  );
-}
-
-/**
- * ປ້າຍໝວດຂອງບິນ — ຕັດສິນຈາກສ່ວນ ແອ/ໄຟຟ້າ ຂອງບິນນັ້ນ:
- * ໝວດໃດມີຄ່າສູງສຸດເອົາໝວດນັ້ນ · ຫຼາຍໝວດພໍກັນ = "ປົນ" · ບໍ່ມີທັງສອງ = ອື່ນໆ
- */
-function KindBadge({ ac, app, baht }: { ac: number; app: number; baht: number }) {
-  const other = Math.max(0, baht - ac - app);
-  const entries = [
-    { label: "ແອ", value: ac, className: "bg-teal-50 text-teal-700 border-teal-200" },
-    { label: "ໄຟຟ້າ", value: app, className: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-    { label: "ອື່ນໆ", value: other, className: "bg-slate-100 text-slate-500 border-slate-200" },
-  ].filter((entry) => entry.value > 0);
-  const top = entries.reduce((best, entry) => (entry.value > best.value ? entry : best), entries[0]);
-  if (!top) return <span className="text-slate-300">-</span>;
-  const mixed = entries.filter((entry) => Math.abs(entry.value - top.value) < 0.005).length > 1;
-  return (
-    <span
-      className={`inline-flex rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${mixed ? "bg-amber-50 text-amber-700 border-amber-200" : top.className}`}
-    >
-      {mixed ? "ປົນ" : top.label}
-    </span>
   );
 }

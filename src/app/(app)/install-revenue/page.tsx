@@ -4,8 +4,9 @@ import {
   installRevenueByDay,
   installRevenueByTech,
   installRevenueDetail,
+  unlinkedInstallBills,
 } from "@/lib/service-money";
-import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, HardHat, Trophy } from "lucide-react";
+import { AlertTriangle, BarChart3, ChevronDown, ChevronLeft, ChevronRight, HardHat, Trophy } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -54,13 +55,15 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
   let rows: Awaited<ReturnType<typeof installRevenueDetail>> = [];
   let days: Awaited<ReturnType<typeof installRevenueByDay>> = [];
   let techs: Awaited<ReturnType<typeof installRevenueByTech>> = [];
+  let unlinked: Awaited<ReturnType<typeof unlinkedInstallBills>> = [];
   let error: string | null = null;
   try {
-    [total, rows, days, techs] = await Promise.all([
+    [total, rows, days, techs, unlinked] = await Promise.all([
       installRevenueBetween(from, to),
       installRevenueDetail(from, to, shown + 1),
       installRevenueByDay(from, to),
       installRevenueByTech(from, to),
+      unlinkedInstallBills(from, to),
     ]);
   } catch (exception) {
     error = exception instanceof Error ? exception.message : "ດຶງຂໍ້ມູນບໍ່ສຳເລັດ";
@@ -309,6 +312,59 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
           </Link>
           <span className="text-slate-400">ສະແດງ {list.length.toLocaleString()} ຈາກ {total.jobs.toLocaleString()}</span>
         </nav>
+      )}
+
+      {/* ── ⑤ ບິນຕິດຕັ້ງທີ່ຍັງບໍ່ຜູກໃບງານ — ມີລາຍການຕິດຕັ້ງມີລາຄາ ແຕ່ບໍ່ເຂົ້າຍອດ ເພາະ doc_ref_1 ບໍ່ກົງ ── */}
+      {unlinked.length > 0 && (
+        <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+          <h2 className="flex flex-wrap items-center gap-2 text-sm font-bold text-amber-800">
+            <AlertTriangle className="size-4" />
+            ບິນຕິດຕັ້ງຍັງບໍ່ຜູກໃບງານ · {unlinked.length.toLocaleString()} ໃບ ·{" "}
+            <span className="tabular-nums">
+              {Math.round(unlinked.reduce((sum, bill) => (bill.kip ? sum : sum + bill.baht), 0)).toLocaleString()} ບາດ
+            </span>
+          </h2>
+          <p className="mt-1 text-[11px] text-amber-700">
+            ບິນເຫຼົ່ານີ້ມີລາຍການຄ່າຕິດຕັ້ງ (9701xx) ມີລາຄາ ແຕ່ບໍ່ມີໃບງານໃດໃສ່ເລກບິນນີ້ໃນ <b>doc_ref_1</b>
+            ⇒ ຍັງບໍ່ຖືກນັບໃນຍອດຂ້າງເທິງ. ໄປໃສ່ເລກບິນໃນໃບງານຕິດຕັ້ງ ຍອດຈະເຂົ້າທັນທີ ·
+            ໃບໂຄງການ HSV ປ້ອນເປັນ <b>ກີບ</b> ບໍ່ໄດ້ລວມໃນຍອດບາດ.
+          </p>
+          <div className="mt-2 overflow-x-auto rounded-lg border border-amber-200 bg-white">
+            <table className="w-full min-w-[760px] border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-amber-100 bg-amber-50/60 text-left text-amber-700">
+                  <th className="px-3 py-2 font-semibold">ເລກບິນ</th>
+                  <th className="px-3 py-2 font-semibold">ວັນທີບິນ</th>
+                  <th className="px-3 py-2 font-semibold">ລູກຄ້າ</th>
+                  <th className="px-3 py-2 font-semibold">ລາຍການຕິດຕັ້ງ</th>
+                  <th className="px-3 py-2 text-right font-semibold">ຍອດ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {unlinked.map((bill) => (
+                  <tr key={bill.doc_no} className="border-b border-amber-50">
+                    <td className="whitespace-nowrap px-3 py-1.5 font-mono text-[11px] font-semibold text-slate-700">
+                      {bill.doc_no}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-1.5 text-slate-500">{bill.doc_date ?? "-"}</td>
+                    <td className="max-w-48 truncate px-3 py-1.5 text-slate-600">{bill.customer ?? "-"}</td>
+                    <td className="max-w-64 px-3 py-1.5 text-slate-600">
+                      <span className="block truncate" title={bill.items ?? ""}>
+                        {bill.items ?? "-"}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-1.5 text-right font-bold tabular-nums text-slate-800">
+                      {Math.round(bill.baht).toLocaleString()}
+                      <span className={`ml-1 text-[10px] font-semibold ${bill.kip ? "text-amber-600" : "text-slate-400"}`}>
+                        {bill.kip ? "ກີບ" : "ບາດ"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
 
       <p className="text-[11px] text-slate-400">

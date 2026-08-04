@@ -408,6 +408,46 @@ export async function installRevenueByTech(from: string, to: string): Promise<In
 }
 
 /**
+ * **ບິນຕິດຕັ້ງທີ່ຍັງບໍ່ຜູກໃບງານ** — ບິນຝ່າຍບໍລິການ (side_code 400) ໃນເດືອນ
+ * ທີ່ມີລາຍການຄ່າຕິດຕັ້ງ 9701xx **ມີລາຄາ** ແຕ່ບໍ່ມີໃບງານ ods_tb_install ໃດອ້າງເລກບິນນີ້
+ * (doc_ref_1 ບໍ່ກົງ). ຍອດຈຶ່ງບໍ່ເຂົ້າສູດລາຍຮັບຕາມໃບງານ ⇒ ໂຊ້ແຍກໃຫ້ເຫັນ
+ * ເພື່ອໄປຜູກເລກບິນໃສ່ໃບງານ. ນັບຕາມ **ວັນທີບິນ** · ລາຄາຖອຍ 2 ຊັ້ນຄືກັນ (installLineBaht).
+ */
+export type UnlinkedInstallBill = {
+  doc_no: string;
+  doc_date: string | null;
+  customer: string | null;
+  items: string | null;
+  baht: number;
+  /** ໃບໂຄງການ HSV (ລະຫັດ 970101-0004) ປ້ອນເປັນ **ກີບ** ⇒ ບໍ່ລວມໃນຍອດບາດ */
+  kip: boolean;
+};
+
+export async function unlinkedInstallBills(from: string, to: string): Promise<UnlinkedInstallBill[]> {
+  const unlinked = installLineBaht("t.doc_date");
+  return (
+    await query<UnlinkedInstallBill>(
+      `select t.doc_no, to_char(t.doc_date,'DD-MM-YYYY') doc_date,
+          coalesce(nullif(c.name_1,''), nullif(t.cust_code,'')) customer,
+          string_agg(distinct d.item_name, ' · ') items,
+          sum(${unlinked})::float8 baht,
+          bool_or(d.item_code = '970101-0004') kip
+        from public.ic_trans t
+        join public.ic_trans_detail d on d.doc_no = t.doc_no and d.item_code like '9701%'
+        left join public.ar_customer c on c.code = t.cust_code
+       where t.trans_flag = 44 and t.side_code = '400'
+         and t.doc_date::date between $1 and $2
+         and not exists (select 1 from ods.ods_tb_install a
+              where trim(a.doc_ref_1) = t.doc_no and a.cancel_date is null)
+       group by t.doc_no, t.doc_date, c.name_1, t.cust_code
+      having sum(${unlinked}) > 0
+       order by t.doc_date desc, t.doc_no desc`,
+      [from, to],
+    )
+  ).rows;
+}
+
+/**
  * **ລາຍຮັບຊ່າງຕໍ່ເດືອນ — ອ່ານແຫຼ່ງດຽວກັບແອັບ**.
  *
  * ແອັບ (`myIncome` ຢູ່ lib/mobile-jobs) ອ່ານ `ods_service_payout` ເຊິ່ງ **ແຊ່ໄວ້ຕອນປິດງານ**
