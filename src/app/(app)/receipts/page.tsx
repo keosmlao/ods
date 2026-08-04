@@ -64,10 +64,10 @@ export default async function ReceiptsPage({ searchParams }: Props) {
       <div>
         <h1 className="flex items-center gap-2 text-xl font-bold text-slate-700">
           <Receipt className="size-5 text-teal-600" />
-          ໃບຮັບເງິນ
+          ບິນຂາຍຂອງຝ່າຍບໍລິການ
         </h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          ສະແດງ {rows.length.toLocaleString()} ໃບຫຼ້າສຸດ — ຈາກ ERP (ic_trans · trans_flag 44)
+          ສະແດງ {rows.length.toLocaleString()} ບິນຫຼ້າສຸດ — ຈາກ ERP (ic_trans · trans_flag 44)
         </p>
       </div>
 

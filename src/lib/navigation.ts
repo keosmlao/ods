@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   SprayCan,
+  Wallet,
   Wrench,
 } from "lucide-react";
 
@@ -215,10 +216,10 @@ const INSTALL: NavGroup = {
   ],
 };
 
-/* ── ສ້ອມບໍລຸງ (ລ້າງແອ/ລ້າງເຄື່ອງ) — ລະບົບແຍກ, ໄປລ້າງໜ້າງານເປັນຫຼັກ ── */
+/* ── ບຳລຸງຮັກສາ (ລ້າງແອ/ລ້າງເຄື່ອງ) — ລະບົບແຍກ, ໄປລ້າງໜ້າງານເປັນຫຼັກ ── */
 const MAINTENANCE: NavGroup = {
   id: "maintenance_menu",
-  label: "ສ້ອມບໍລຸງ",
+  label: "ບຳລຸງຮັກສາ",
   icon: SprayCan,
   items: [
     { label: "ງານທັງໝົດ", href: "/maintenance", count: "/maintenance" },
@@ -394,16 +395,20 @@ const USERS: NavGroup = {
  */
 const RECEIPT: NavGroup = {
   id: "receipt_menu",
-  label: "ໃບຮັບເງິນ",
+  label: "ບິນຂາຍ / ໃບຮັບເງິນ",
   icon: ReceiptText,
-  items: [
-    { label: "ລາຍການໃບຮັບເງິນ", href: "/receipts" },
-    // ລາຍຮັບແຍກຕາມຊ່າງ — ຢູ່ຕິດກັບໃບຮັບເງິນ ເພາະເປັນເລື່ອງເງິນອັນດຽວກັນ
-    { label: "ສະຫຼຸບລາຍຮັບຊ່າງປະຈຳເດືອນ", href: "/reports/tech-revenue" },
-  ],
+  items: [{ label: "ບິນຂາຍຂອງຝ່າຍບໍລິການ", href: "/receipts" }],
 };
 
-export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, MAINTENANCE, CLAIM, STOCK, RECEIPT, PURCHASE, APPROVE, REPORT, USERS];
+/** **ລາຍຮັບຊ່າງ** — ເມນູຂອງຕົນເອງ, ເບິ່ງເປັນເດືອນ (ບໍ່ແມ່ນຕາຕະລາງລາຍງານທົ່ວໄປ) */
+const TECH_REVENUE: NavGroup = {
+  id: "tech_revenue_menu",
+  label: "ລາຍຮັບຊ່າງ",
+  icon: Wallet,
+  items: [{ label: "ສະຫຼຸບປະຈຳເດືອນ", href: "/tech-revenue" }],
+};
+
+export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, MAINTENANCE, CLAIM, STOCK, RECEIPT, TECH_REVENUE, PURCHASE, APPROVE, REPORT, USERS];
 
 /**
  * Sidebar ສະເພາະຊ່າງ — ມີແຕ່ຄິວທີ່ຊ່າງລົງມືໄດ້ຈິງ.
