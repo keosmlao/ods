@@ -50,7 +50,7 @@ const DONE: NodeState = { label: "ຮຽບຮ້ອຍ", next: null, tone: "bg-
 
 export default async function InstallSpareTreePage() {
   const { rows } = await query<DocRow>(
-    `select t.product_code job, a.name_1 product, nullif(a.pro_sn,'') sn, null::text brand,
+    `select t.product_code job, coalesce(nullif(a.item_name,''), nullif(a.pro_model,'')) product, nullif(a.pro_sn,'') sn, nullif(a.pro_brand,'') brand,
         c.name_1 customer, nullif(a.tech_code,'') tech,
         null::text warranty, null::text service_type,
         t.trans_flag flag, t.doc_no, to_char(t.doc_date,'DD-MM-YYYY') doc_date,
