@@ -259,9 +259,19 @@ export async function installRevenueBetween(from: string, to: string): Promise<{
          where a.cancel_date is null and a.job_finish::date between $1 and $2
            and nullif(trim(coalesce(a.doc_ref_1,'')),'') is not null
       ), bills as (
-        select d.doc_no, sum(d.sum_amount) baht
+        -- ບາງແຖວ sum_amount = 0 (ບໍ່ໄດ້ປ້ອນລາຄາ) ⇒ ຖອຍໄປໃຊ້ລາຄາຂາຍມາດຕະຖານ
+        -- ic_inventory_price (ສະກຸນ '01' = ບາດ) ທີ່ມີຜົນໃນວັນປິດງານ
+        select d.doc_no, sum(coalesce(nullif(d.sum_amount, 0),
+              d.qty * coalesce((
+                select max(pr.sale_price1) from public.ic_inventory_price pr
+                 where pr.ic_code = d.item_code and pr.currency_code = '01'
+                   and coalesce(pr.status,1) = 1
+                   and (pr.from_date is null or pr.from_date <= a.job_finish::date)
+                   and (pr.to_date is null or pr.to_date >= a.job_finish::date)), 0))) baht
           from public.ic_trans_detail d
-         where d.item_code like '9701%' and d.doc_no in (select bill from jobs)
+          join jobs j on j.bill = d.doc_no
+          join ods.ods_tb_install a on a.code = j.code
+         where d.item_code like '9701%'
          group by d.doc_no
       )
       select (select count(*)::int from jobs j join bills b on b.doc_no = j.bill) jobs,
@@ -290,7 +300,13 @@ export async function installRevenueDetail(from: string, to: string, limit: numb
           coalesce(nullif(c.name_1,''), nullif(a.cust_code,'')) customer,
           nullif(a.tech_code,'') tech,
           string_agg(distinct d.item_name, ' · ') items,
-          coalesce(sum(d.sum_amount),0)::float8 baht
+          coalesce(sum(coalesce(nullif(d.sum_amount, 0),
+              d.qty * coalesce((
+                select max(pr.sale_price1) from public.ic_inventory_price pr
+                 where pr.ic_code = d.item_code and pr.currency_code = '01'
+                   and coalesce(pr.status,1) = 1
+                   and (pr.from_date is null or pr.from_date <= a.job_finish::date)
+                   and (pr.to_date is null or pr.to_date >= a.job_finish::date)), 0))),0)::float8 baht
         from ods.ods_tb_install a
         join public.ic_trans_detail d
           on d.doc_no = trim(a.doc_ref_1) and d.item_code like '9701%'

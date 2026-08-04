@@ -84,14 +84,24 @@ export default async function ReceiptsPage({ searchParams }: Props) {
 
   return (
     <div className="w-full space-y-4 pb-10">
-      <div>
+      {/* ຫົວໜ້າ + ກັ່ນເດືອນ — ວາງແບບດຽວກັບ /install-revenue ໃຫ້ 2 ໜ້າອ່ານຄືກັນ */}
+      <div className="flex flex-wrap items-center gap-3">
         <h1 className="flex items-center gap-2 text-xl font-bold text-slate-700">
           <Receipt className="size-5 text-teal-600" />
           ບິນຂາຍຂອງຝ່າຍບໍລິການ
         </h1>
-        <p className="mt-0.5 text-xs text-slate-500">
-          {totals.bills.toLocaleString()} ບິນ · ລວມ {Math.round(totals.baht).toLocaleString()} ບາດ — ຈາກ ERP (side_code 400)
-        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {[
+          { label: "ຈຳນວນບິນ", value: totals.bills.toLocaleString(), tone: "text-slate-800" },
+          { label: "ລວມ (ບາດ)", value: Math.round(totals.baht).toLocaleString(), tone: "text-emerald-700" },
+        ].map((card) => (
+          <div key={card.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-[11px] text-slate-400">{card.label}</p>
+            <p className={`mt-1 text-2xl font-bold tabular-nums ${card.tone}`}>{card.value}</p>
+          </div>
+        ))}
       </div>
 
       <form className="flex flex-wrap items-center gap-2" action="/receipts">
