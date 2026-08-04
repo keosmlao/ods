@@ -46,6 +46,7 @@ export function SpareRounds({
   links,
   docAction,
   jobStarted = false,
+  techReceipt = true,
 }: {
   code: string;
   /** key ຂອງໜ້າ /stock/requests/[roworder] — ບ່ອນອອກໃບຂໍເບີກຮອບໃໝ່ */
@@ -66,6 +67,12 @@ export function SpareRounds({
    * ຈຶ່ງບໍ່ຄວນເອົາປຸ່ມສີເຂັ້ມມາລໍ້ວ່າ "ຍັງບໍ່ໄດ້ເຮັດ" — ຫຼຸດເປັນປຸ່ມຮອງ ພ້ອມບອກວ່າຄ້າງແຕ່ເອກະສານ.
    */
   jobStarted?: boolean;
+  /**
+   * ຝັ່ງນີ້ຍັງໃຫ້ຊ່າງກົດຮັບອາໄຫຼ່ບໍ່ (PISP).
+   * **ງານສ້ອມ = false** (ຕັດສິນໃຈ 04-08-2026: ສາງເບີກແລ້ວ = ຜ່ານ) ⇒ ບໍ່ໂຊ້ວທັງປຸ່ມ ແລະ ຂັ້ນ PISP.
+   * **ງານຕິດຕັ້ງ = true** (ຄືເກົ່າ).
+   */
+  techReceipt?: boolean;
 }) {
   const url: SpareLinks = links ?? {
     newRequest: `/stock/requests/${encodeURIComponent(roworder)}`,
@@ -126,6 +133,7 @@ export function SpareRounds({
             url={url}
             docAction={docAction}
             jobStarted={jobStarted}
+            techReceipt={techReceipt}
           />
         ))}
         {orphanPurchases.map((row) => (
@@ -149,6 +157,7 @@ function RoundTree({
   url,
   docAction,
   jobStarted,
+  techReceipt,
   label,
 }: {
   round: number;
@@ -158,9 +167,15 @@ function RoundTree({
   url: SpareLinks;
   docAction?: (docNo: string, dispatched: boolean) => ReactNode;
   jobStarted?: boolean;
+  techReceipt?: boolean;
   label?: string;
 }) {
-  const state = withdrawal ? WITHDRAW_STATE[withdrawal.state] : null;
+  const raw = withdrawal ? WITHDRAW_STATE[withdrawal.state] : null;
+  // ບໍ່ມີຂັ້ນ PISP ແລ້ວ ⇒ "ສາງເບີກແລ້ວ" ຄືຈົບ ບໍ່ແມ່ນ "ລໍຊ່າງຮັບ"
+  const state =
+    raw && !techReceipt && withdrawal?.state === "dispatched"
+      ? { ...raw, label: "ສາງເບີກແລ້ວ", next: "—", tone: "bg-emerald-50 text-emerald-700" }
+      : raw;
   const items = withdrawal?.items ?? purchases[0]?.items ?? [];
 
   return (
@@ -216,7 +231,7 @@ function RoundTree({
             against={withdrawal.dispatch_no ? withdrawal.items : undefined}
             againstLabel="ທີ່ຂໍ"
             action={
-              withdrawal.state === "dispatched" && withdrawal.dispatch_no ? (
+              techReceipt && withdrawal.state === "dispatched" && withdrawal.dispatch_no ? (
                 <Link
                   href={url.pickup(withdrawal.dispatch_no.split(",")[0].trim())}
                   className={
@@ -232,8 +247,8 @@ function RoundTree({
           />
         )}
 
-        {/* ຊ່າງກົດຮັບ — ທຽບກັບ "ທີ່ສາງເບີກ" (ໃບເກົ່າບາງໃບບໍ່ມີລາຍການ ⇒ ບໍ່ທຽບ) */}
-        {withdrawal && (
+        {/* ຊ່າງກົດຮັບ — ຝັ່ງສ້ອມຖອດຂັ້ນນີ້ອອກແລ້ວ (ສາງເບີກແລ້ວ = ຜ່ານ) */}
+        {techReceipt && withdrawal && (
           <Node
             icon={<Wrench className="size-3.5" />}
             tone={withdrawal.pick_no ? "text-emerald-600" : "text-slate-300"}

@@ -262,6 +262,7 @@ export default async function RepairJobPage({ params }: Props) {
         erp={spareRounds.erp}
         canRequest={spareWindow}
         jobStarted={job.started}
+        techReceipt={false}
       />
 
       {spareWindow && (
