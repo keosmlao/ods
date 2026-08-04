@@ -1,4 +1,5 @@
 import { LinkPending } from "@/components/link-pending";
+import { BackLink } from "@/components/back-link";
 import { ServiceEditForm, type ServiceHead } from "@/components/service-edit-form";
 import { query } from "@/lib/db";
 import { getErpBrands, getErpCategories } from "@/lib/erp-master";
@@ -74,14 +75,7 @@ export default async function EditService({ params }: Props) {
   return (
     <div className="w-full space-y-4">
       <div>
-        <Link
-          href={`/service/${code}`}
-          className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline"
-        >
-          <ArrowLeft className="size-3.5" />
-          ກັບໜ້າໃບຮັບເຄື່ອງ
-          <LinkPending className="size-3" />
-        </Link>
+        <BackLink fallback={`/service/${code}`} label="ກັບໜ້າໃບຮັບເຄື່ອງ" />
         <h1 className="text-xl font-bold text-slate-700">ແກ້ໄຂໃບຮັບເຄື່ອງ #{head.code}</h1>
         <p className="mt-0.5 text-xs text-slate-500">{head.name_1} {head.sn && <span className="text-slate-400">· {head.sn}</span>}</p>
       </div>

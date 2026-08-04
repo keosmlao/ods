@@ -1,4 +1,5 @@
 import { Card, Empty, PageTitle, Table } from "@/components/ui";
+import { BackLink } from "@/components/back-link";
 import { queryOdg } from "@/lib/db";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -70,10 +71,7 @@ export default async function SparePartDetailPage({ params }: Props) {
 
   return (
     <div className="w-full space-y-4">
-      <Link href="/stock/spare-parts" className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800">
-        <ArrowLeft className="size-3.5" />
-        ກັບຄືນລາຍການອາໄຫຼ່
-      </Link>
+      <BackLink fallback="/stock/spare-parts" label="ກັບຄືນລາຍການອາໄຫຼ່" />
 
       <PageTitle sub={spare.name_2 || undefined}>
         {spare.code} · {spare.name_1 || "-"}

@@ -1,4 +1,5 @@
 import { LinkPending } from "@/components/link-pending";
+import { BackLink } from "@/components/back-link";
 import { NoticeDeleteButton } from "@/components/service/notice-delete-button";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
@@ -110,11 +111,7 @@ export default async function ServiceNotices({ searchParams }: Props) {
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Link href="/service" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
-            <ArrowLeft className="size-3.5" />
-            {t.back}
-            <LinkPending className="size-3" />
-          </Link>
+          <BackLink fallback="/service" label="{t.back}" />
           <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
             {t.notReceived} {total.toLocaleString()} {t.items} · {t.page} {page}/{pages}

@@ -1,4 +1,5 @@
 import { PERMISSION_RESOURCES, type CrudPermission, type PermissionAction } from "@/lib/permission-catalog";
+import { BackLink } from "@/components/back-link";
 import { employeePermissionOverrides, employeePermissionProfile } from "@/lib/permissions";
 import { canAccess, ROLE_LABEL } from "@/lib/roles";
 import { ArrowLeft, ShieldCheck, UserRound } from "lucide-react";
@@ -43,9 +44,7 @@ export default async function EmployeePermissionsPage({ params }: { params: Prom
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link href="/manage/employees" className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:underline">
-            <ArrowLeft className="size-3.5" /> ກັບໄປລາຍການພະນັກງານ
-          </Link>
+          <BackLink fallback="/manage/employees" label="ກັບໄປລາຍການພະນັກງານ" />
           <h1 className="flex items-center gap-2 text-xl font-bold text-slate-800">
             <ShieldCheck className="size-5 text-teal-600" /> ກຳນົດສິດລາຍຜູ້ໃຊ້
           </h1>

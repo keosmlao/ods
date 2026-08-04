@@ -1,4 +1,5 @@
 import { LinkPending } from "@/components/link-pending";
+import { BackLink } from "@/components/back-link";
 import { query } from "@/lib/db";
 import { ArrowLeft } from "lucide-react";
 import Image from "next/image";
@@ -47,14 +48,7 @@ export default async function ServiceImages({ params }: Props) {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4">
       <div>
-        <Link
-          href={`/service/${code}`}
-          className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline"
-        >
-          <ArrowLeft className="size-3.5" />
-          ກັບໜ້າໃບຮັບເຄື່ອງ
-          <LinkPending className="size-3" />
-        </Link>
+        <BackLink fallback={`/service/${code}`} label="ກັບໜ້າໃບຮັບເຄື່ອງ" />
         <h1 className="text-xl font-bold text-slate-700">ຮູບພາບ</h1>
         <p className="mt-0.5 text-xs text-slate-500">
           {job.name_1} {job.sn && <span className="text-slate-400">· {job.sn}</span>} · ລະຫັດງານ {job.code} ·{" "}

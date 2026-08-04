@@ -1,4 +1,5 @@
 import { LinkPending } from "@/components/link-pending";
+import { BackLink } from "@/components/back-link";
 import type { ServicePrefill } from "@/components/service-form";
 import { ServiceIntake } from "@/components/service-intake";
 import { getErpBrands, getErpCategories } from "@/lib/erp-master";
@@ -22,11 +23,7 @@ export default async function NewService({ searchParams }: Props) {
   return (
     <div className="w-full space-y-4">
       <div>
-        <Link href="/service" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
-          <ArrowLeft className="size-3.5" />
-          ກັບລາຍການຮັບສິນຄ້າເຂົ້າສ້ອມ
-          <LinkPending className="size-3" />
-        </Link>
+        <BackLink fallback="/service" label="ກັບລາຍການຮັບສິນຄ້າເຂົ້າສ້ອມ" />
         <h1 className="text-xl font-bold text-slate-700">{prefill.kind === "claim" ? "ຮັບເຄື່ອງເຂົ້າງານເຄມ" : "ໃບຮັບເຄື່ອງເຂົ້າສ້ອມ"}</h1>
         <p className="mt-0.5 text-xs text-slate-500">{prefill.kind === "claim" ? "ຮັບເຄື່ອງ → ອອກເລກງານກວດເຊັກ → ສ້າງ CLM-B ອັດຕະໂນມັດ" : "ຮັບສິນຄ້າຂອງລູກຄ້າເຂົ້າສ້ອມ — ຍິງບາໂຄດ ຫຼື ປ້ອນຂໍ້ມູນເອງ"}</p>
       </div>

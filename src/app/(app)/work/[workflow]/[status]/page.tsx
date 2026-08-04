@@ -1,4 +1,5 @@
 import { CancelCheckButton, StartCheckButton, UndoStartCheckButton } from "@/components/checking/check-actions";
+import { BackLink } from "@/components/back-link";
 import { CancelRequestButton } from "@/app/(app)/stock/requests/cancel-request-button";
 import { Elapsed } from "@/components/elapsed";
 import { ErpDispatchWatcher } from "@/components/erp-dispatch-watcher";
@@ -761,11 +762,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
       {status === "withdrawing" && <ErpDispatchWatcher />}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Link href="/dashboard" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
-            <ArrowLeft className="size-3.5" />
-            {t.backToOverview}
-            <LinkPending className="size-3" />
-          </Link>
+          <BackLink fallback="/dashboard" label="{t.backToOverview}" />
           <h1 className="text-xl font-bold text-slate-700">{config.label}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
             {isRepair ? t.repairJobs : t.installJobs} · {total.toLocaleString()} {t.items} · {t.page} {page}/{pages}

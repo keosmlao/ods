@@ -1,4 +1,5 @@
 import { ApprovePoButton } from "@/app/(app)/purchase-orders/approve-po-button";
+import { BackLink } from "@/components/back-link";
 import { LinkPending } from "@/components/link-pending";
 import { getSession } from "@/lib/auth";
 import { queryOdg } from "@/lib/db";
@@ -339,14 +340,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
         </div>
         <div className="flex gap-2">
           {tab === "issue" ? (
-            <Link
-              href="/purchase-orders"
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-            >
-              <ArrowLeft className="size-3.5" />
-              {t.backToPoList}
-              <LinkPending className="size-3" />
-            </Link>
+            <BackLink fallback="/purchase-orders" label="{t.backToPoList}" />
           ) : (
             <Link
               href="/purchase-orders/new"

@@ -1,4 +1,5 @@
 import { getCart, getRates, seedCart } from "@/app/actions/return";
+import { BackLink } from "@/components/back-link";
 import { Chatter } from "@/components/chatter/chatter";
 import { InvoiceEditor } from "@/components/return/invoice-editor";
 import { LinkPending } from "@/components/link-pending";
@@ -54,11 +55,7 @@ export default async function ClaimReturnPage({ params }: { params: Promise<{ co
   return (
     <div className="w-full space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/claims/jobs/claim-return" className="inline-flex items-center gap-1.5 text-xs font-medium text-violet-600 hover:underline">
-          <ArrowLeft className="size-3.5" />
-          ກັບຄິວ “ລໍສົ່ງຄືນຮ້ານ”
-          <LinkPending className="size-3" />
-        </Link>
+        <BackLink fallback="/claims/jobs/claim-return" label="ກັບຄິວ “ລໍສົ່ງຄືນຮ້ານ”" />
         <LinkButton href={`/returns/${encodeURIComponent(head.code)}/handover-print`} tone="neutral">
           <Printer className="size-4" />
           ພິມໃບຄືນເຄື່ອງ

@@ -1,4 +1,5 @@
 import { AcceptRepairButton } from "@/components/repair/accept-repair-button";
+import { BackLink } from "@/components/back-link";
 import { AssignTechButton } from "@/components/installation/assign-tech";
 import { StartCheckButton } from "@/components/checking/check-actions";
 import { LinkPending } from "@/components/link-pending";
@@ -78,11 +79,7 @@ export default async function ClaimStagePage({ params }: { params: Promise<{ sta
 
   return (
     <div className="w-full space-y-4">
-      <Link href="/claims/jobs" className="inline-flex items-center gap-1.5 text-xs font-medium text-violet-600 hover:underline">
-        <ArrowLeft className="size-3.5" />
-        ຄິວງານເຄມ
-        <LinkPending className="size-3" />
-      </Link>
+      <BackLink fallback="/claims/jobs" label="ຄິວງານເຄມ" />
 
       <PageTitle sub={`ຂັ້ນ ${index + 1}/${stages.length} · ${rows.length} ໃບ`}>{def.label}</PageTitle>
 

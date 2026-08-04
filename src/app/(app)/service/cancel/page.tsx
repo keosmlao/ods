@@ -1,4 +1,5 @@
 import { OUTSTANDING_SUMMARY_SQL, type OutstandingSummary } from "@/lib/outstanding-spares";
+import { BackLink } from "@/components/back-link";
 import { LinkPending } from "@/components/link-pending";
 import { RowLink } from "@/components/row-link";
 import { CancelJobButton, UndoCancelButton } from "@/components/service-cancel-buttons";
@@ -137,11 +138,7 @@ export default async function CancelService({ searchParams }: Props) {
   return (
     <div className="w-full space-y-4">
       <div>
-        <Link href="/service" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
-          <ArrowLeft className="size-3.5" />
-          {t.backToService}
-          <LinkPending className="size-3" />
-        </Link>
+        <BackLink fallback="/service" label="{t.backToService}" />
         <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
         <p className="mt-0.5 text-xs text-slate-500">
           {t.cancelledList} ·{" "}

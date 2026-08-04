@@ -1,4 +1,5 @@
 import { NoticeForm } from "@/components/notice-form";
+import { BackLink } from "@/components/back-link";
 import { PageTitle } from "@/components/ui";
 import { query } from "@/lib/db";
 import { ArrowLeft } from "lucide-react";
@@ -20,10 +21,7 @@ export default async function SalesReportRepairPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4">
-      <Link href="/sales" className="inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
-        <ArrowLeft className="size-3.5" />
-        ກັບໜ້າພະນັກງານຂາຍ
-      </Link>
+      <BackLink fallback="/sales" label="ກັບໜ້າພະນັກງານຂາຍ" />
       <PageTitle sub="ຕື່ມຂໍ້ມູນລູກຄ້າ ແລ້ວທີມບໍລິການຈະຮັບເຄື່ອງເຂົ້າສ້ອມ">ແຈ້ງສ້ອມແທນລູກຄ້າ</PageTitle>
       <NoticeForm mode="sales" provinces={provinces.rows} cities={cities.rows} />
     </div>

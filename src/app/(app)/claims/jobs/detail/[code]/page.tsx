@@ -1,4 +1,5 @@
 import { Chatter } from "@/components/chatter/chatter";
+import { BackLink } from "@/components/back-link";
 import { ClaimResolveCard } from "@/components/claim/claim-resolve-card";
 import { LinkPending } from "@/components/link-pending";
 import { LoanerCard } from "@/components/service/loaner-card";
@@ -89,11 +90,7 @@ export default async function ClaimJobDetail({ params }: { params: Promise<{ cod
 
   return (
     <div className="w-full space-y-5">
-      <Link href="/claims/jobs" className="inline-flex items-center gap-1.5 text-xs font-medium text-violet-600 hover:underline">
-        <ArrowLeft className="size-3.5" />
-        ຄິວງານເຄມ
-        <LinkPending className="size-3" />
-      </Link>
+      <BackLink fallback="/claims/jobs" label="ຄິວງານເຄມ" />
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <PageTitle sub={`ໃບງານເຄມ #${row.code} · ຮັບເມື່ອ ${row.registered ?? "-"}`}>

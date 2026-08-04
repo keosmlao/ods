@@ -1,4 +1,5 @@
 import { LinkPending } from "@/components/link-pending";
+import { BackLink } from "@/components/back-link";
 import type { ServicePrefill } from "@/components/service-form";
 import { ServiceIntake } from "@/components/service-intake";
 import { getErpBrands, getErpCategories } from "@/lib/erp-master";
@@ -28,11 +29,7 @@ export default async function NewClaimJob({ searchParams }: Props) {
   return (
     <div className="w-full space-y-4">
       <div>
-        <Link href="/claims/jobs" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-violet-600 hover:underline">
-          <ArrowLeft className="size-3.5" />
-          ກັບຄິວງານເຄມ
-          <LinkPending className="size-3" />
-        </Link>
+        <BackLink fallback="/claims/jobs" label="ກັບຄິວງານເຄມ" />
         <h1 className="text-xl font-bold text-slate-700">🛡️ ຮັບເຄື່ອງເຂົ້າງານເຄມ</h1>
         <p className="mt-0.5 text-xs text-slate-500">
           ຮ້ານຄ້າ/ລູກຄ້າສົ່ງມາເຄມ → ອອກເລກງານໃຫ້ຮ້ານ → ສ້າງໃບເຄມ CLM-B ອັດຕະໂນມັດ

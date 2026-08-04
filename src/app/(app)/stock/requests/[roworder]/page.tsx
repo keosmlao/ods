@@ -1,4 +1,5 @@
 import type { RequestHead } from "@/components/stock/request-form";
+import { BackLink } from "@/components/back-link";
 import { RequestWorkspace } from "@/components/stock/request-workspace";
 import type { SpareBalance, SpareLine } from "@/components/stock/spare-lines";
 import type { Shelf, Warehouse } from "@/components/stock/wh-shelf-select";
@@ -139,13 +140,7 @@ export default async function StockRequestFormPage({ params }: Props) {
     <div className="mx-auto w-full max-w-[1480px] space-y-4 pb-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Link
-            href="/stock/requests"
-            className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700"
-          >
-            <ArrowLeft className="size-3.5" />
-            {t.backToList}
-          </Link>
+          <BackLink fallback="/stock/requests" label="{t.backToList}" />
           <div className="flex items-center gap-3">
             <span className="grid size-11 place-items-center rounded-2xl bg-teal-600 text-white shadow-sm">
               <PackageOpen className="size-5" />

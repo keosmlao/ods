@@ -1,4 +1,5 @@
 import { LinkPending } from "@/components/link-pending";
+import { BackLink } from "@/components/back-link";
 import { SelectField } from "@/components/select-field";
 import { query } from "@/lib/db";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -97,11 +98,7 @@ export default async function TrackingPage({ searchParams }: Props) {
   return (
     <div className="mx-auto w-full max-w-4xl space-y-4">
       <div>
-        <Link href="/dashboard" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
-          <ArrowLeft className="size-3.5" />
-          {t.backToOverview}
-          <LinkPending className="size-3" />
-        </Link>
+        <BackLink fallback="/dashboard" label="{t.backToOverview}" />
         <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
         <p className="mt-0.5 text-xs text-slate-500">{t.subtitle}</p>
       </div>
