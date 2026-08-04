@@ -1,19 +1,26 @@
 import {
   PURCHASE_STATE,
   WITHDRAW_STATE,
+  type DocItem,
   type ErpChain,
   type PurchaseRound,
   type WithdrawRound,
 } from "@/lib/repair-spare-rounds";
-import { PackageSearch, ShoppingCart } from "lucide-react";
+import { CheckCircle2, ClipboardList, PackageCheck, PackageSearch, ShoppingCart, Wrench } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 /**
- * **ອາໄຫຼ່ຂອງໃບງານ ແຍກເປັນ "ຮອບ"** — ຂໍເບີກຫຼາຍເທື່ອ ແລະ ສັ່ງຊື້ຫຼາຍເທື່ອ ເປັນເລື່ອງປົກກະຕິ
- * (399 ໃບງານຂໍເບີກ >1 ຮອບ · 81 ໃບສັ່ງຊື້ >1 ຮອບ) ແຕ່ແຕ່ກ່ອນເຫັນພຽງ "ອາໄຫຼ່" ກ້ອນດຽວ
- * ⇒ ບອກບໍ່ໄດ້ວ່າ **ຮອບໃດຄ້າງຢູ່ໃສ ແລະ ໃຜຕ້ອງລົງມືຕໍ່**.
+ * **ອາໄຫຼ່ຂອງໃບງານ ແຍກເປັນ "ຮອບ" — ວາງເປັນ tree ລົງ**.
  *
- * ແຕ່ລະແຖວ = 1 ໃບເອກະສານຈິງ ⇒ ກົດເປີດເບິ່ງໃບນັ້ນໄດ້ເລີຍ.
+ * ── ເປັນຫຍັງ tree ບໍ່ແມ່ນຕາຕະລາງ ──
+ * ຂັ້ນຕອນອາໄຫຼ່ແມ່ນ **ຕ່ອງໂສ້ເອກະສານ** ໃບໜຶ່ງເກີດຈາກອີກໃບ:
+ *   ຂໍເບີກ SIO → (ສາງບໍ່ມີ ⇒ ຂໍຊື້ RQ → SPR → ອະນຸມັດ → PO → ຮັບເຂົ້າສາງ) → ສາງເບີກ SWC → ຊ່າງຮັບ PISP
+ * ວາງເປັນຕາຕະລາງກວ້າງ ⇒ ຄວາມສຳພັນ "ໃບນີ້ມາຈາກໃບນັ້ນ" ຫາຍໄປ, ຊື່ສິນຄ້າຊ້ຳຫຼາຍບ່ອນ ແລະ ລົ້ນຈໍ.
+ * ວາງເປັນ tree ລົງ ⇒ ອ່ານແຖວດຽວຈາກເທິງລົງລຸ່ມ ຮູ້ທັນທີວ່າ **ຮອບນີ້ຄ້າງຢູ່ຂັ້ນໃດ ແລະ ໃຜຕ້ອງລົງມືຕໍ່**.
+ *
+ * ຮອບ = 1 ໃບຂໍເບີກ. ໃບຂໍຊື້ຜູກເຂົ້າຮອບຂອງມັນຜ່ານ `from_request`;
+ * ໃບຂໍຊື້ທີ່ບໍ່ມີໃບຂໍເບີກຕົ້ນທາງ (ຂໍຊື້ກົງ) ຢູ່ເປັນຮອບຂອງຕົນເອງທ້າຍລາຍການ.
  */
 export function SpareRounds({
   code,
@@ -36,6 +43,9 @@ export function SpareRounds({
   if (withdrawals.length === 0 && purchases.length === 0 && !canRequest) return null;
 
   const waiting = withdrawals.filter((row) => row.state !== "received").length;
+  /** ຂໍຊື້ກົງ (ບໍ່ໄດ້ເກີດຈາກໃບຂໍເບີກໃບໃດ) ⇒ ບໍ່ມີຮາກ, ຕ້ອງໂຊ້ວແຍກ */
+  const requestNos = new Set(withdrawals.map((row) => row.doc_no));
+  const orphanPurchases = purchases.filter((row) => !row.from_request || !requestNos.has(row.from_request));
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -70,169 +80,205 @@ export function SpareRounds({
         )}
       </h2>
 
-      {withdrawals.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 text-left text-slate-500">
-                <th className="whitespace-nowrap py-2 pr-3 font-semibold">ຮອບ</th>
-                <th className="whitespace-nowrap py-2 pr-3 font-semibold">ໃບຂໍເບີກ</th>
-                <th className="whitespace-nowrap py-2 pr-3 font-semibold">ວັນທີ</th>
-                <th className="whitespace-nowrap py-2 pr-3 font-semibold">ລາຍການ</th>
-                <th className="whitespace-nowrap py-2 pr-3 font-semibold">ສາງເບີກ (SWC)</th>
-                <th className="whitespace-nowrap py-2 pr-3 font-semibold">ຊ່າງຮັບ (PISP)</th>
-                <th className="whitespace-nowrap py-2 pr-3 font-semibold">ສະຖານະ</th>
-                <th className="whitespace-nowrap py-2 pr-3 font-semibold">ລໍໃຜ</th>
-                <th className="whitespace-nowrap py-2 font-semibold">ຈັດການ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {withdrawals.map((row) => {
-                const state = WITHDRAW_STATE[row.state];
-                return (
-                  <tr key={row.doc_no} className="border-b border-slate-50 last:border-0">
-                    <td className="py-2 pr-3 font-bold text-slate-500">{row.round}</td>
-                    <td className="whitespace-nowrap py-2 pr-3">
-                      <Link
-                        href={`/stock/requests/view/${encodeURIComponent(row.doc_no)}`}
-                        className="font-mono font-semibold text-teal-700 hover:underline"
-                      >
-                        {row.doc_no}
-                      </Link>
-                      {row.wh_code && <span className="ml-1.5 text-[10px] text-slate-400">ສາງ {row.wh_code}</span>}
-                    </td>
-                    <td className="whitespace-nowrap py-2 pr-3 text-slate-500">{row.doc_date ?? "-"}</td>
-                    <td className="max-w-72 py-2 pr-3 text-slate-700">
-                      {row.items.length > 0 ? (
-                        <span className="flex flex-col gap-0.5">
-                          {row.items.map((item) => (
-                            <span key={item.item_code} className="block truncate" title={`${item.item_code} · ${item.item_name ?? ""}`}>
-                              {item.item_name || item.item_code}
-                              <b className="ml-1 text-slate-500">× {item.qty}</b>
-                            </span>
-                          ))}
-                        </span>
-                      ) : (
-                        <>{row.lines} ລາຍການ · {row.qty}</>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap py-2 pr-3 font-mono text-[11px] text-slate-500">
-                      {row.dispatch_no ?? "—"}
-                      {row.dispatch_date && <span className="ml-1 text-slate-400">{row.dispatch_date}</span>}
-                    </td>
-                    <td className="whitespace-nowrap py-2 pr-3 font-mono text-[11px] text-slate-500">
-                      {row.pick_no ?? "—"}
-                      {row.pick_date && <span className="ml-1 text-slate-400">{row.pick_date}</span>}
-                    </td>
-                    <td className="whitespace-nowrap py-2 pr-3">
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${state.tone}`}>
-                        {state.label}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap py-2 pr-3 text-slate-500">{state.next}</td>
-                    <td className="whitespace-nowrap py-2">
-                      {/* ປຸ່ມລົງມື **ຢູ່ໃນແຖວຂອງມັນເອງ** — ຮັບອາໄຫຼ່ຂອງໃບເບີກໃບນີ້ໂດຍກົງ */}
-                      {row.state === "dispatched" && row.dispatch_no && (
-                        <Link
-                          href={`/stock/requests/pickup/${encodeURIComponent(row.dispatch_no.split(",")[0].trim())}`}
-                          className="inline-flex h-7 items-center rounded-lg bg-teal-600 px-2.5 text-[11px] font-semibold text-white hover:bg-teal-700"
-                        >
-                          ຮັບອາໄຫຼ່
-                        </Link>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <div className="flex flex-col gap-3">
+        {withdrawals.map((row) => (
+          <RoundTree
+            key={row.doc_no}
+            round={row.round}
+            withdrawal={row}
+            purchases={purchases.filter((p) => p.from_request === row.doc_no)}
+            erp={erp}
+          />
+        ))}
+        {orphanPurchases.map((row) => (
+          <RoundTree key={row.doc_no} round={row.round} purchases={[row]} erp={erp} label="ຂໍຊື້ກົງ" />
+        ))}
+      </div>
 
-      {purchases.length > 0 && (
-        <div className="mt-4 border-t border-slate-100 pt-3">
-          <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold text-slate-600">
-            <ShoppingCart className="size-3.5 text-indigo-600" />
-            ຮອບສັ່ງຊື້ (ສາງບໍ່ມີ ⇒ ຂໍຊື້)
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 text-left text-slate-500">
-                  <th className="whitespace-nowrap py-2 pr-3 font-semibold">ຮອບ</th>
-                  <th className="whitespace-nowrap py-2 pr-3 font-semibold">ໃບຂໍຊື້</th>
-                  <th className="whitespace-nowrap py-2 pr-3 font-semibold">ວັນທີ</th>
-                  <th className="whitespace-nowrap py-2 pr-3 font-semibold">ມາຈາກໃບຂໍເບີກ</th>
-                  <th className="whitespace-nowrap py-2 pr-3 font-semibold">ສະຖານະ</th>
-                  <th className="whitespace-nowrap py-2 pr-3 font-semibold">ໃບ ERP (SPR)</th>
-                  <th className="whitespace-nowrap py-2 pr-3 font-semibold">ອະນຸມັດ</th>
-                  <th className="whitespace-nowrap py-2 pr-3 font-semibold">ໃບສັ່ງຊື້ (PO)</th>
-                  <th className="whitespace-nowrap py-2 pr-3 font-semibold">ຮັບເຂົ້າສາງ</th>
-                  <th className="whitespace-nowrap py-2 font-semibold">ລໍໃຜ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchases.map((row) => {
-                  const state = PURCHASE_STATE[row.state];
-                  return (
-                    <tr key={row.doc_no} className="border-b border-slate-50 last:border-0">
-                      <td className="py-2 pr-3 font-bold text-slate-500">{row.round}</td>
-                      <td className="whitespace-nowrap py-2 pr-3 font-mono font-semibold text-slate-700">
-                        {row.doc_no}
-                      </td>
-                      <td className="whitespace-nowrap py-2 pr-3 text-slate-500">{row.doc_date ?? "-"}</td>
-                      <td className="whitespace-nowrap py-2 pr-3 font-mono text-[11px] text-slate-500">
-                        {row.from_request ?? "—"}
-                      </td>
-                      
-                      <td className="whitespace-nowrap py-2 pr-3">
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${state.tone}`}>
-                          {state.label}
-                        </span>
-                      </td>
-                      {/* ── ຕ່ອງໂສ້ຝັ່ງ ERP ຂອງຮອບນີ້ (SPR → ອະນຸມັດ → PO → ຮັບເຂົ້າສາງ) ── */}
-                      <td className="whitespace-nowrap py-2 pr-3 font-mono text-[11px] text-slate-600">
-                        {erp[row.doc_no]?.spr_no ?? "—"}
-                        {erp[row.doc_no]?.spr_date && (
-                          <span className="ml-1 font-sans text-slate-400">{erp[row.doc_no]?.spr_date}</span>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap py-2 pr-3 font-mono text-[11px] text-slate-600">
-                        {erp[row.doc_no]?.approve_no ?? "—"}
-                        {erp[row.doc_no]?.approve_date && (
-                          <span className="ml-1 font-sans text-slate-400">{erp[row.doc_no]?.approve_date}</span>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap py-2 pr-3 font-mono text-[11px] text-slate-600">
-                        {erp[row.doc_no]?.order_no ?? "—"}
-                        {erp[row.doc_no]?.order_date && (
-                          <span className="ml-1 font-sans text-slate-400">{erp[row.doc_no]?.order_date}</span>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap py-2 pr-3 text-[11px]">
-                        {erp[row.doc_no]?.receipt_no ? (
-                          <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700">
-                            <span className="font-mono">{erp[row.doc_no]?.receipt_no}</span>
-                            <span className="ml-1 font-normal">{erp[row.doc_no]?.receipt_date}</span>
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">ຍັງບໍ່ຮັບເຂົ້າ</span>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap py-2 text-slate-500">
-                        {erp[row.doc_no]?.receipt_no ? "ສາງ (ເບີກຕໍ່)" : state.next}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-2 text-[11px] text-slate-400">
-            ຄໍລຳຂວາ = ຕ່ອງໂສ້ຈິງຢູ່ ERP ຂອງຮອບນັ້ນ. ຮັບເຂົ້າສາງແລ້ວ ⇒ ຍັງເຫຼືອ 2 ຂັ້ນ: ສາງຈ່າຍອອກ (SWC) ແລ້ວຊ່າງກົດຮັບ (PISP)
-          </p>
-        </div>
-      )}
+      <p className="mt-3 text-[11px] text-slate-400">
+        ອ່ານຈາກເທິງລົງລຸ່ມ = ລຳດັບຈິງຂອງເອກະສານ. ຮັບເຂົ້າສາງແລ້ວ ⇒ ຍັງເຫຼືອ 2 ຂັ້ນ: ສາງຈ່າຍອອກ (SWC) ແລ້ວຊ່າງກົດຮັບ (PISP)
+      </p>
     </section>
   );
+}
+
+/** 1 ຮອບ = 1 ຕົ້ນໄມ້: ຮາກຄືໃບຂໍເບີກ, ງ່າຄືເອກະສານທີ່ເກີດຕາມມາ */
+function RoundTree({
+  round,
+  withdrawal,
+  purchases,
+  erp,
+  label,
+}: {
+  round: number;
+  withdrawal?: WithdrawRound;
+  purchases: PurchaseRound[];
+  erp: Record<string, ErpChain>;
+  label?: string;
+}) {
+  const state = withdrawal ? WITHDRAW_STATE[withdrawal.state] : null;
+  const items = withdrawal?.items ?? purchases[0]?.items ?? [];
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50/40">
+      {/* ── ຮາກ: ໃບຂໍເບີກ ── */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2">
+        <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+          {label ?? `ຮອບ ${round}`}
+        </span>
+        <ClipboardList className="size-3.5 text-teal-600" />
+        {withdrawal ? (
+          <Link
+            href={`/stock/requests/view/${encodeURIComponent(withdrawal.doc_no)}`}
+            className="font-mono text-xs font-bold text-teal-700 hover:underline"
+          >
+            {withdrawal.doc_no}
+          </Link>
+        ) : (
+          <span className="text-xs font-semibold text-slate-500">ບໍ່ຜ່ານໃບຂໍເບີກ</span>
+        )}
+        {withdrawal?.doc_date && <span className="text-[11px] text-slate-500">{withdrawal.doc_date}</span>}
+        {withdrawal?.wh_code && <span className="text-[10px] text-slate-400">ສາງ {withdrawal.wh_code}</span>}
+        {state && (
+          <span className="ml-auto flex items-center gap-2">
+            <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${state.tone}`}>{state.label}</span>
+            {state.next !== "—" && <span className="text-[10px] text-slate-400">ລໍ {state.next}</span>}
+          </span>
+        )}
+      </div>
+
+      {/* ── ງ່າ: ລາຍການສິນຄ້າ ແລ້ວຕ່ອງໂສ້ເອກະສານລົງມາ ── */}
+      <div className="ml-6 border-l border-slate-200 pb-2 pl-0">
+        {items.map((item) => (
+          <ItemLine key={item.item_code} item={item} />
+        ))}
+
+        {/* ສາງບໍ່ມີ ⇒ ຂໍຊື້ (ພ້ອມຕ່ອງໂສ້ ERP ຂອງມັນ) */}
+        {purchases.map((buy) => (
+          <PurchaseBranch key={buy.doc_no} buy={buy} chain={erp[buy.doc_no]} />
+        ))}
+
+        {/* ສາງຈ່າຍອອກ */}
+        {withdrawal && (
+          <Node
+            icon={<PackageCheck className="size-3.5" />}
+            tone={withdrawal.dispatch_no ? "text-emerald-600" : "text-slate-300"}
+            title="ສາງເບີກ (SWC)"
+            docNo={withdrawal.dispatch_no}
+            docDate={withdrawal.dispatch_date}
+            pending="ລໍສາງເບີກອອກ"
+            action={
+              withdrawal.state === "dispatched" && withdrawal.dispatch_no ? (
+                <Link
+                  href={`/stock/requests/pickup/${encodeURIComponent(withdrawal.dispatch_no.split(",")[0].trim())}`}
+                  className="inline-flex h-7 items-center rounded-lg bg-teal-600 px-2.5 text-[11px] font-semibold text-white hover:bg-teal-700"
+                >
+                  ຮັບອາໄຫຼ່
+                </Link>
+              ) : null
+            }
+          />
+        )}
+
+        {/* ຊ່າງກົດຮັບ */}
+        {withdrawal && (
+          <Node
+            icon={<Wrench className="size-3.5" />}
+            tone={withdrawal.pick_no ? "text-emerald-600" : "text-slate-300"}
+            title="ຊ່າງຮັບ (PISP)"
+            docNo={withdrawal.pick_no}
+            docDate={withdrawal.pick_date}
+            pending="ລໍຊ່າງກົດຮັບ"
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** ງ່າຂໍຊື້ + ຕ່ອງໂສ້ ERP ຂອງມັນ (ລົງອີກຊັ້ນ) */
+function PurchaseBranch({ buy, chain }: { buy: PurchaseRound; chain?: ErpChain }) {
+  const state = PURCHASE_STATE[buy.state];
+  return (
+    <div>
+      <div className="relative flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 pl-5">
+        <Elbow />
+        <ShoppingCart className="size-3.5 text-indigo-600" />
+        <span className="font-mono text-[11px] font-semibold text-slate-700">{buy.doc_no}</span>
+        {buy.doc_date && <span className="text-[11px] text-slate-500">{buy.doc_date}</span>}
+        <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${state.tone}`}>{state.label}</span>
+      </div>
+      {/* ຕ່ອງໂສ້ຝັ່ງ ERP — ຢູ່ໃຕ້ໃບຂໍຊື້ທີ່ເປັນເຈົ້າຂອງມັນ */}
+      <div className="ml-5 border-l border-dashed border-indigo-200">
+        <Node icon={<Dot />} tone="text-indigo-500" title="ໃບ ERP (SPR)" docNo={chain?.spr_no ?? null} docDate={chain?.spr_date ?? null} pending="ລໍ ERP ຮັບໃບ" />
+        <Node icon={<Dot />} tone="text-indigo-500" title="ອະນຸມັດ (WPRA)" docNo={chain?.approve_no ?? null} docDate={chain?.approve_date ?? null} pending="ລໍອະນຸມັດ" />
+        <Node icon={<Dot />} tone="text-indigo-500" title="ໃບສັ່ງຊື້ (PO)" docNo={chain?.order_no ?? null} docDate={chain?.order_date ?? null} pending="ລໍອອກໃບສັ່ງຊື້" />
+        <Node
+          icon={<CheckCircle2 className="size-3.5" />}
+          tone={chain?.receipt_no ? "text-emerald-600" : "text-slate-300"}
+          title="ຮັບເຂົ້າສາງ (PUI)"
+          docNo={chain?.receipt_no ?? null}
+          docDate={chain?.receipt_date ?? null}
+          pending="ຍັງບໍ່ຮັບເຂົ້າ"
+        />
+      </div>
+    </div>
+  );
+}
+
+/** 1 ຂັ້ນໃນຕ່ອງໂສ້ — ມີເລກໃບ = ຜ່ານແລ້ວ, ບໍ່ມີ = ຄ້າງຢູ່ຂັ້ນນີ້ */
+function Node({
+  icon,
+  tone,
+  title,
+  docNo,
+  docDate,
+  pending,
+  action,
+}: {
+  icon: ReactNode;
+  tone: string;
+  title: string;
+  docNo: string | null;
+  docDate: string | null;
+  pending: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="relative flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 pl-5">
+      <Elbow />
+      <span className={tone}>{icon}</span>
+      <span className="text-[11px] text-slate-500">{title}</span>
+      {docNo ? (
+        <>
+          <span className="font-mono text-[11px] font-semibold text-slate-700">{docNo}</span>
+          {docDate && <span className="text-[11px] text-slate-400">{docDate}</span>}
+        </>
+      ) : (
+        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">{pending}</span>
+      )}
+      {action && <span className="ml-auto">{action}</span>}
+    </div>
+  );
+}
+
+function ItemLine({ item }: { item: DocItem }) {
+  return (
+    <div className="relative flex items-center gap-2 py-1 pl-5">
+      <Elbow />
+      <span className="truncate text-[11px] text-slate-600" title={item.item_code}>
+        {item.item_name || item.item_code}
+      </span>
+      <b className="whitespace-nowrap text-[11px] text-slate-500">× {item.qty}</b>
+    </div>
+  );
+}
+
+/** ຂໍ້ຕໍ່ຈາກເສັ້ນຕັ້ງຂອງງ່າ ມາຫາແຖວນີ້ (ຮູບ ├) */
+function Elbow() {
+  return <span className="absolute left-0 top-1/2 h-px w-4 bg-slate-200" aria-hidden />;
+}
+
+function Dot() {
+  return <span className="block size-1.5 rounded-full bg-current" aria-hidden />;
 }
