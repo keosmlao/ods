@@ -16,7 +16,8 @@ import { notFound, redirect } from "next/navigation";
  *   ② **ພິມ** (`hidden print:block`) — ຟອມເອກະສານທາງການ A4: ຫົວບໍລິສັດ → ຂໍ້ມູນງານ →
  *      ຕາຕະລາງອາໄຫຼ່ (ມີຖັນສະຖານະ) → ຊ່ອງເຊັນ 3 ຝ່າຍ.
  * ສະຖານະໃບນິຍາມດຽວກັບຄິວກຳລັງເບີກອາໄຫຼ່: ແຖວ status=5 ບໍ່ຖືເປັນ "ກຳລັງສັ່ງຊື້"
- * ອີກ ຖ້າ ERP ຢືນຢັນຮັບເຂົ້າສາງແລ້ວ (spare_arrive) — ບໍ່ດັ່ງນັ້ນໃບຈະຄ້າຍປ້າຍສັ່ງຊື້.
+ * ອີກ ຖ້າແຖວນັ້ນມີ arrive_at (ERP ຢືນຢັນຮັບເຂົ້າສາງລາຍການນັ້ນແລ້ວ) — ຄວາມຈິງຢູ່
+ * ລະດັບແຖວ ບໍ່ແມ່ນທຸງວຽກ ⇒ ໃບທີ່ສັ່ງຊື້ຫຼາຍຮອບບໍ່ຄ້າຍປ້າຍສັ່ງຊື້.
  */
 
 type Props = {
@@ -42,8 +43,6 @@ type Head = {
   issue_2: string | null;
   technician: string | null;
   technician_code: string | null;
-  /** ERP ຢືນຢັນຮັບເຂົ້າສາງແລ້ວ ⇒ ແຖວ status=5 ບໍ່ແມ່ນ "ກຳລັງສັ່ງຊື້" ອີກ */
-  spare_arrive: Date | null;
 };
 
 type Line = {
@@ -53,10 +52,25 @@ type Line = {
   qty: string;
   unit_code: string | null;
   status: number;
+  /** ERP ຮັບເຂົ້າສາງລາຍການນີ້ແລ້ວ (syncErpPurchase) ⇒ ຖັນ status=5 ບໍ່ແມ່ນ "ກຳລັງສັ່ງຊື້" ອີກ */
+  arrive_at: Date | null;
 };
 
 type Company = { name_1: string | null; name_2: string | null; address: string | null; tel: string | null };
 type Dispatch = { doc_no: string; doc_date: string | null };
+
+/**
+ * ໃບຂໍເບີກ (SIO) ອື່ນຂອງວຽກດຽວກັນ — ຮອບ = ລຳດັບຕາມ doc_date (ບໍ່ renumber,
+ * ນິຍາມດຽວກັບ lib/repair-spare-rounds). ສະຖານະຄິດລະດັບແຖວ: status=5 ບໍ່ແມ່ນ
+ * "ກຳລັງສັ່ງຊື້" ຖ້າແຖວນັ້ນມີ arrive_at ແລ້ວ (ຄືກັບ request_status ໃນຄິວ).
+ */
+type SiblingDoc = {
+  doc_no: string;
+  doc_date: string | null;
+  round: number;
+  lines: number;
+  status: "waiting" | "partial" | "purchasing" | "issued" | null;
+};
 
 /** ຊື່ສາງ/ບ່ອນເກັບຈາກ ERP — ລົ້ມໄດ້ບໍ່ຕາຍ (ສະແດງລະຫັດແທນ) */
 async function whShelfName(whCode: string | null, shelfCode: string | null) {
@@ -93,8 +107,7 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
     `select a.doc_no, to_char(a.doc_date,'DD-MM-YYYY') doc_date, a.product_code, a.remark,
        a.wh_code, a.shelf_code,
        b.name_1 customer, b.tel, c.name_1 product, c.p_model, c.sn, c.issue,
-       a.wanrunty warranty, a.isue_2 issue_2, coalesce(d.name_1, c.emp_code) technician, c.emp_code technician_code,
-       c.spare_arrive
+       a.wanrunty warranty, a.isue_2 issue_2, coalesce(d.name_1, c.emp_code) technician, c.emp_code technician_code
      from ic_trans a
      left join ar_customer b on b.code = a.cust_code
      left join tb_product c on c.code = a.product_code
@@ -106,10 +119,10 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
   if (!bill) notFound();
   if (!canViewAssignedJob(session, bill.technician_code)) redirect("/forbidden");
 
-  const [lines, company, dispatches, whShelf] = await Promise.all([
+  const [lines, company, dispatches, whShelf, siblings] = await Promise.all([
     query<Line>(
       `select row_number() over (order by roworder)::int rnum, item_code, item_name,
-          qty::text qty, unit_code, coalesce(status,0)::int status
+          qty::text qty, unit_code, coalesce(status,0)::int status, arrive_at
         from ic_trans_detail where doc_no = $1 and trans_flag = $2
         order by roworder`,
       [code, TRANS.REQUEST],
@@ -126,30 +139,62 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
       [TRANS.DISPATCH, code],
     ).then((result) => result.rows),
     whShelfName(bill.wh_code, bill.shelf_code),
+    // ໃບຂໍເບີກທຸກຮອບຂອງວຽກດຽວກັນ — ໃຫ້ຮູ້ວ່າໃບນີ້ແມ່ນ "ຮອບທີ n" ແລະ ຮອບອື່ນຄ້າງຢູ່ໃສ
+    bill.product_code
+      ? query<SiblingDoc>(
+          `select t.doc_no, to_char(t.doc_date,'DD-MM-YYYY') doc_date,
+              row_number() over (order by t.doc_date, t.doc_no)::int round,
+              (select count(*)::int from ic_trans_detail d
+                where d.doc_no = t.doc_no and d.trans_flag = $2) lines,
+              (select case
+                 when count(*) = 0 then null
+                 when count(*) filter (where coalesce(d.status,0) = 5 and d.arrive_at is null) > 0 then 'purchasing'
+                 when count(*) filter (where coalesce(d.status,0) = 1) = count(*) then 'issued'
+                 when count(*) filter (where coalesce(d.status,0) = 1) > 0 then 'partial'
+                 else 'waiting'
+               end
+                from ic_trans_detail d where d.doc_no = t.doc_no and d.trans_flag = $2) status
+             from ic_trans t
+            where t.trans_flag = $2 and t.product_code = $1
+            order by t.doc_date, t.doc_no`,
+          [bill.product_code, TRANS.REQUEST],
+        ).then((result) => result.rows)
+      : Promise.resolve([] as SiblingDoc[]),
   ]);
 
   const totalQty = lines.reduce((sum, line) => sum + Number(line.qty || 0), 0);
-  const hasPurchasing = lines.some((line) => line.status === LINE_STATUS.ON_PURCHASE_ORDER);
+  const hasPurchasing = lines.some(
+    (line) => line.status === LINE_STATUS.ON_PURCHASE_ORDER && !line.arrive_at,
+  );
   const hasIssued = lines.some((line) => line.status === LINE_STATUS.ISSUED);
   const allIssued = lines.length > 0 && lines.every((line) => line.status === LINE_STATUS.ISSUED);
 
   /** ສະຖານະລວມຂອງໃບ — ນິຍາມດຽວກັບປ້າຍໃນຄິວກຳລັງເບີກອາໄຫຼ່ (request_status) */
   const docStatus = allIssued
     ? { label: t.statusIssued, chip: "bg-emerald-50 text-emerald-700", icon: CheckCircle2 }
-    : hasPurchasing && !bill.spare_arrive
+    : hasPurchasing
       ? { label: t.statusPurchasing, chip: "bg-violet-50 text-violet-700", icon: ShoppingCart }
       : hasIssued
         ? { label: `${t.statusIssued} ${totalQty}/${lines.length}`, chip: "bg-sky-50 text-sky-700", icon: Boxes }
         : { label: t.statusWaiting, chip: "bg-amber-50 text-amber-700", icon: Clock3 };
 
-  const lineStatus = (status: number) =>
-    status === LINE_STATUS.ISSUED
+  const lineStatus = (line: Line) =>
+    line.status === LINE_STATUS.ISSUED
       ? { label: t.statusIssued, chip: "bg-emerald-50 text-emerald-700", print: "text-emerald-700" }
-      : status === LINE_STATUS.ON_PURCHASE_ORDER && !bill.spare_arrive
+      : line.status === LINE_STATUS.ON_PURCHASE_ORDER && !line.arrive_at
         ? { label: t.statusPurchasing, chip: "bg-violet-50 text-violet-700", print: "text-violet-700" }
         : { label: t.statusWaiting, chip: "bg-amber-50 text-amber-700", print: "text-amber-700" };
 
   const StatusIcon = docStatus.icon;
+
+  /** ປ້າຍສະຖານະຂອງຮອບອື່ນ — ສີດຽວກັບປ້າຍໃບນີ້ ແລະ ຄິວກຳລັງເບີກ (REQUEST_STATUS) */
+  const SIBLING_STATUS: Record<Exclude<SiblingDoc["status"], null>, { label: string; chip: string }> = {
+    waiting: { label: t.statusWaiting, chip: "bg-amber-50 text-amber-700" },
+    partial: { label: "ເບີກບາງສ່ວນ", chip: "bg-sky-50 text-sky-700" },
+    purchasing: { label: t.statusPurchasing, chip: "bg-violet-50 text-violet-700" },
+    issued: { label: t.statusIssued, chip: "bg-emerald-50 text-emerald-700" },
+  };
+  const currentRound = siblings.find((doc) => doc.doc_no === bill.doc_no);
 
   return (
     <>
@@ -178,6 +223,12 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
                   <span className="rounded-lg bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-700">
                     {bill.doc_no}
                   </span>
+                  {/* ໃບນີ້ແມ່ນຮອບທີເທົ່າໃດຂອງວຽກ — ເຫັນສະເພາະເມື່ອມີຫຼາຍຮອບ */}
+                  {siblings.length > 1 && currentRound && (
+                    <span className="rounded-lg bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-700">
+                      ຮອບທີ {currentRound.round}/{siblings.length}
+                    </span>
+                  )}
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
                   {t.date} {bill.doc_date ?? "-"}
@@ -202,6 +253,52 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
             </p>
           )}
         </section>
+
+        {/* ໃບຂໍເບີກຮອບອື່ນຂອງວຽກດຽວກັນ — ບໍ່ໃຫ້ຄົນເຂົ້າໃຈຜິດວ່າມີໃບດຽວ ແລະ ໃຫ້ໂດດໄປເບິ່ງຮອບຄ້າງໄດ້ */}
+        {siblings.length > 1 && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-800">
+              <FileText className="size-4 text-indigo-600" />
+              ໃບຂໍເບີກທັງໝົດຂອງວຽກ #{bill.product_code} · {siblings.length} ຮອບ
+            </h2>
+            <div className="space-y-1.5">
+              {siblings.map((doc) => {
+                const isCurrent = doc.doc_no === bill.doc_no;
+                const state = doc.status ? SIBLING_STATUS[doc.status] : null;
+                return (
+                  <div
+                    key={doc.doc_no}
+                    className={`flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-xs ${
+                      isCurrent ? "bg-teal-50 ring-1 ring-teal-200" : "bg-slate-50"
+                    }`}
+                  >
+                    <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+                      ຮອບ {doc.round}
+                    </span>
+                    {isCurrent ? (
+                      <span className="font-mono font-bold text-teal-700">{doc.doc_no} · ໃບນີ້</span>
+                    ) : (
+                      <Link
+                        href={`/stock/requests/view/${encodeURIComponent(doc.doc_no)}`}
+                        className="font-mono font-bold text-blue-700 hover:underline"
+                      >
+                        {doc.doc_no}
+                      </Link>
+                    )}
+                    <span className="text-slate-400">
+                      {doc.doc_date ?? "-"} · {doc.lines} ລາຍການ
+                    </span>
+                    {state && (
+                      <span className={`ml-auto rounded px-2 py-0.5 text-[10px] font-bold ${state.chip}`}>
+                        {state.label}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* ຂໍ້ມູນງານ + ລູກຄ້າ/ຊ່າງ */}
         <div className="grid gap-4 md:grid-cols-2">
@@ -257,7 +354,7 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
             </span>
           </div>
           {lines.map((line) => {
-            const status = lineStatus(line.status);
+            const status = lineStatus(line);
             return (
               <div key={line.rnum} className="flex items-center gap-3 border-b border-slate-100 px-5 py-3 last:border-0">
                 <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-slate-100 text-[11px] font-bold text-slate-500">
@@ -357,7 +454,7 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
           </thead>
           <tbody>
             {lines.map((line) => {
-              const status = lineStatus(line.status);
+              const status = lineStatus(line);
               return (
                 <tr key={line.rnum}>
                   <td className="border border-slate-900 px-2 py-1.5 text-center">{line.rnum}</td>

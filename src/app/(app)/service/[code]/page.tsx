@@ -14,7 +14,7 @@ import { isJobClaimMarked, relatedClaims } from "@/lib/claim";
 import { RepairSpareEditor, type UsedSpareLine } from "@/components/repair/repair-spare-editor";
 import { ScheduleRepairVisitButton } from "@/components/repair/schedule-repair-visit-button";
 import { listTechnicians } from "@/lib/technicians";
-import { TRANS } from "@/lib/stock-constants";
+import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import { APPROVER_SIDE, CLAIM_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { canViewAssignedJob } from "@/lib/scope";
 import { permissionFor } from "@/lib/permissions";
@@ -31,8 +31,11 @@ import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { stageLabel, STAGE_SQL } from "@/lib/stage";
 import { repairTimeline } from "@/lib/repair-timeline";
 import { JobTimeline } from "@/components/repair/job-timeline";
+import { SpareRounds } from "@/components/repair/spare-rounds";
+import { repairSpareRounds } from "@/lib/repair-spare-rounds";
+import { nextActor } from "@/lib/repair-next-action";
 import { DONE_STAGE } from "@/lib/track";
-import { ArrowLeft, Barcode, CalendarDays, ChevronDown, Clock, FilePlus2, ImageIcon, MapPin, MessageCircle, Pencil, Phone, Printer, ReceiptText, RotateCcw } from "lucide-react";
+import { ArrowLeft, Barcode, CalendarDays, ChevronDown, Clock, FilePlus2, ImageIcon, MapPin, MessageCircle, Pencil, Phone, Printer, ReceiptText, RotateCcw, UserRound } from "lucide-react";
 import Link from "next/link";
 import { claimRedirectTarget } from "@/lib/claim-route";
 import { notFound, redirect } from "next/navigation";
@@ -132,7 +135,7 @@ export default async function ServiceDetail({ params }: Props) {
   const timeline = await repairTimeline(code);
 
   // ── ຫຼັກຖານໜ້າງານ + ຮູບ — ໂຫຼດມາສະແດງ **ຢູ່ໜ້ານີ້ເລີຍ** (ບໍ່ຕ້ອງກົດເຂົ້າ /images) ──
-  const [checkins, receivePhotos, jobPhotoRows] = await Promise.all([
+  const [checkins, receivePhotos, jobPhotoRows, spareRounds, spareSummary] = await Promise.all([
     query<Checkin>(
       // id + job_code — ໃຊ້ຊີ້ຮູບ check-in ຜ່ານ /api/checkin-photo/<code>?id= (ຫ້າມໃສ່ data: ໃສ່ href)
       `select id, job_code, tech_code, to_char(checkin_at,'DD-MM-YYYY HH24:MI') checkin_at,
@@ -154,6 +157,16 @@ export default async function ServiceDetail({ params }: Props) {
          from ods_job_photo where workflow='repair' and job_code=$1 and kind in ('check','finish') order by id`,
       [code],
     ),
+    // ອາໄຫຼ່ແຍກເປັນຮອບ (ຂໍເບີກ/ສັ່ງຊື້ ຫຼາຍເທື່ອ) — ອ່ານຈາກເອກະສານ ບໍ່ແມ່ນຈາກ 4 ຖັນເວລາ
+    repairSpareRounds(code),
+    // ຍອດແຖວ SIO ລະດັບງານ — ໃຫ້ nextActor() ຕັດສິນ "ຜູ້ເຮັດຕໍ່" (ນິຍາມດຽວກັບສູນວຽກ)
+    query<{ pending: number; on_order: number; arrived: number }>(
+      `select count(*) filter (where coalesce(status,0) = ${LINE_STATUS.PENDING})::int pending,
+          count(*) filter (where status = ${LINE_STATUS.ON_PURCHASE_ORDER} and arrive_at is null)::int on_order,
+          count(*) filter (where status = ${LINE_STATUS.ON_PURCHASE_ORDER} and arrive_at is not null)::int arrived
+        from ic_trans_detail where product_code = $1 and trans_flag = ${TRANS.REQUEST}`,
+      [code],
+    ).then((result) => result.rows[0] ?? { pending: 0, on_order: 0, arrived: 0 }),
   ]);
   const checkPhotos = jobPhotoRows.rows.filter((p) => p.kind === "check");
   const finishPhotos = jobPhotoRows.rows.filter((p) => p.kind === "finish");
@@ -162,6 +175,15 @@ export default async function ServiceDetail({ params }: Props) {
   const cancelled = job.cancelled;
   // ຂັ້ນ 12 = ສົ່ງຄືນສຳເລັດ (ຂັ້ນ 11 ດຽວນີ້ແມ່ນ "ລໍຖ້າສົ່ງຄືນ" ຫຼັງເພີ່ມດ່ານ QC)
   const done = job.stage === DONE_STAGE;
+  /**
+   * "ຕອນນີ້ລໍໃຜເຮັດ" — ຄຳຕອບດຽວກັບສູນວຽກງານສ້ອມ (lib/repair-next-action).
+   * ຂັ້ນ 5-9 ແຖວອາໄຫຼ່ທີ່ຍັງຄ້າງຊະນະຂັ້ນ (ເອກະສານເປັນຄວາມຈິງ). ວຽກຈົບ/ນອກຂັ້ນ = null.
+   */
+  const nextAction = nextActor(
+    job.stage,
+    { pending: spareSummary.pending, onOrder: spareSummary.on_order, arrived: spareSummary.arrived },
+    job.service_type,
+  );
 
   const groups: { title: string; fields: [string, string | null][] }[] = [
     {
@@ -243,8 +265,13 @@ export default async function ServiceDetail({ params }: Props) {
    * ອາໄຫຼ່ຕອນສ້ອມ (ຂັ້ນ 9) — ພົບຕ້ອງໃຊ້ເພີ່ມ/ປ່ຽນ ⇒ ເພີ່ມລາຍການ ແລ້ວ "ຂໍເບີກເພີ່ມ" (ຮອບ 2).
    * requested = ຢູ່ໃບຂໍເບີກແລ້ວ (reg_start) · locked = ເບີກ/ຈ່າຍອອກແລ້ວ (ແກ້/ລຶບບໍ່ໄດ້).
    */
+  /**
+   * ໜ້າຕ່າງ "ຂໍເບີກ/ປ່ຽນອາໄຫຼ່" = **ຂັ້ນ 5-9** (ຫຼັງກວດເຊັກ ຈົນກ່ອນຈົບສ້ອມ) —
+   * ຄົນຂໍເບີກເພີ່ມຕອນ "ກຳລັງເບີກອາໄຫຼ່" (ຂັ້ນ 6) ເປັນປົກກະຕິ ບໍ່ແມ່ນສະເພາະຕອນລົງມືສ້ອມ.
+   */
+  const spareWindow = job.stage >= 5 && job.stage <= 9;
   const spareLines: UsedSpareLine[] =
-    job.stage === 9
+    spareWindow
       ? (
           await query<UsedSpareLine>(
             `select s.roworder, s.item_code, s.item_name, coalesce(s.qty,0)::int qty, s.unit_code,
@@ -417,6 +444,49 @@ export default async function ServiceDetail({ params }: Props) {
       {/* ── ຄວາມຄືບໜ້າ (stepper) ── */}
       <JobProgress stage={job.stage} serviceType={job.service_type} cancelled={cancelled} />
 
+      {/*
+        ── ຕອນນີ້ລໍໃຜເຮັດ + ອາໄຫຼ່ຕາມຮອບ = ກ່ອງຫຼັກຂອງໜ້າວຽກ (03-08-2026) ──
+        ຄຳຖາມທີຄົນເປີດໜ້ານີ້ຕ້ອງການຕອບກ່ອນໝູ່: "ວຽກນີ້ລໍໃຜ ແລະ ຮອບໃດຄ້າງຢູ່ໃສ".
+        ຂຶ້ນກ່ອນ ຈັດການວຽກຄ້າງ/ປ່ຽນຊ່າງ ເພາະນັ້ນແມ່ນເຄື່ອງມື ບໍ່ແມ່ນສະຖານະ.
+      */}
+      {nextAction && (
+        <section className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-teal-200 bg-teal-50/70 px-5 py-4 shadow-sm">
+          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-teal-600 text-white">
+            <UserRound className="size-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-teal-900">
+              ຕອນນີ້ລໍ <span className="text-base font-extrabold">{nextAction.actorLabel}</span> ເຮັດຕໍ່
+            </p>
+            <p className="mt-0.5 text-xs font-medium text-teal-800">
+              {nextAction.label} · ຕ້ອງ: {nextAction.action}
+            </p>
+          </div>
+          <span className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-bold text-teal-700 ring-1 ring-teal-200">
+            {stageLabel(job.stage, job.service_type)}
+          </span>
+        </section>
+      )}
+
+      {/* ອາໄຫຼ່ຕາມຮອບ — ສະແດງທຸກຂັ້ນທີ່ມີເອກະສານແລ້ວ (ບໍ່ແມ່ນສະເພາະຂັ້ນ 9) */}
+      <SpareRounds
+        code={job.code}
+        roworder={String(job.roworder)}
+        withdrawals={spareRounds.withdrawals}
+        purchases={spareRounds.purchases}
+        erp={spareRounds.erp}
+        canRequest={spareWindow && !cancelled}
+      />
+
+      {spareWindow && (
+        <RepairSpareEditor
+          code={job.code}
+          roworder={String(job.roworder)}
+          lines={spareLines}
+          pending={pendingSpares}
+        />
+      )}
+
       {/* ຈັດການວຽກຄ້າງ / ປ່ຽນຊ່າງ — ຄືຄໍລຳໃນລາຍການ /service ແຕ່ຈັດການໄດ້ໃນໜ້າລາຍລະອຽດເລີຍ */}
       {(canHold || canReassign || canScheduleVisit) && (
         <section className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
@@ -454,16 +524,7 @@ export default async function ServiceDetail({ params }: Props) {
         </section>
       )}
 
-      {job.stage === 9 && (
-        <RepairSpareEditor
-          code={job.code}
-          roworder={String(job.roworder)}
-          lines={spareLines}
-          pending={pendingSpares}
-        />
-      )}
-
-      {/* ເສັ້ນເວລາລະອຽດ — ຫຍໍ້ໄວ້ (ພາບລວມຢູ່ stepper ດ້ານເທິງແລ້ວ) ⇒ ບໍ່ໃຫ້ໜ້າຍາວ */}
+      {/* ເສັ້ນເວລາລະອຽດ — ຫຍໍ້ໄວ້ (ພາບລວມຢູ່ stepper + ກ່ອງອາໄຫຼ່ດ້ານເທິງແລ້ວ) ⇒ ບໍ່ໃຫ້ໜ້າຍາວ */}
       <details className="group rounded-xl border border-slate-200 bg-white shadow-sm">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">
           <span className="flex items-center gap-2">

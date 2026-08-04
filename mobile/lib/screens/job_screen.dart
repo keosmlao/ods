@@ -47,6 +47,10 @@ class _JobScreenState extends State<JobScreen> {
   /// ເຄື່ອງສຳຮອງທີ່ລູກຄ້າຍັງຖືຢູ່ (ສະເພາະສ້ອມ) — ຕ້ອງເອົາຄືນຕອນສົ່ງເຄື່ອງ
   List<LoanerOut> loaners = const [];
 
+  /// "ຕອນນີ້ລໍໃຜເຮັດ" + ສະຖານະອາໄຫຼ່ (ສະເພາະສ້ອມ) — server ຄິດໃຫ້ ນິຍາມດຽວກັບເວັບ
+  NextActor? nextActor;
+  SpareSummary? spareSummary;
+
   /// ຮູບຕອນສົ່ງ — null = ຍັງບໍ່ໄດ້ກົດເບິ່ງ (ບໍ່ໂຫຼດມາພ້ອມໜ້າ ເພາະໜັກ)
   List<String>? deliveryPhotos;
   bool loadingDeliveryPhotos = false;
@@ -76,6 +80,8 @@ class _JobScreenState extends State<JobScreen> {
           gallery = detail.photos;
           delivery = detail.delivery;
           loaners = detail.loaners;
+          nextActor = detail.nextActor;
+          spareSummary = detail.spares;
         });
       }
     } catch (_) {
@@ -1133,6 +1139,12 @@ class _JobScreenState extends State<JobScreen> {
                       ),
                       const SizedBox(height: 12),
 
+                      // ── "ຕອນນີ້ລໍໃຜເຮັດ" (ສ້ອມ) — ຄຳຕອບດຽວກັບເວັບ + ສະຖານະອາໄຫຼ່ ──
+                      if (nextActor != null) ...[
+                        _nextActorCard(),
+                        const SizedBox(height: 12),
+                      ],
+
                       // ── ເຄື່ອງສຳຮອງທີ່ຕ້ອງເອົາຄືນ (ສ້ອມ) — ບອກກ່ອນອອກໜ້າງານ ບໍ່ແມ່ນຕອນປິດງານ ──
                       if (loaners.isNotEmpty) ...[
                         _loanerCard(),
@@ -1410,9 +1422,13 @@ class _JobScreenState extends State<JobScreen> {
                           // "ສ້ອມໜ້າງານບໍ່ໄດ້ → ນຳເຂົ້າສູນ" = **ຕັດສິນຕອນກວດເຊັກ** (CheckScreen outcome)
                           // ບ່ອນດຽວ. ຫຼັງກວດເຊັກແລ້ວ (ເລືອກ ສ້ອມ/ສຳເລັດການກວດ) = ຕົກລົງສ້ອມແລ້ວ ⇒ ບໍ່ໂຊ້ຢູ່ນີ້.
 
-                          // ຂັ້ນ 9 ກຳລັງສ້ອມ (ສະເພາະສ້ອມ): ພົບຕ້ອງໃຊ້ອາໄຫຼ່ເພີ່ມ/ປ່ຽນ ⇒ ຂໍເບີກເພີ່ມ
-                          // ── ຂັ້ນ 9 ກຳລັງສ້ອມ: ພົບຕ້ອງໃຊ້ອາໄຫຼ່ເພີ່ມ/ປ່ຽນ ⇒ ຂໍເບີກເພີ່ມ ──
-                          if (job.workflow == 'repair' && job.stage == 9) ...[
+                          // ── ຂໍເບີກ / ປ່ຽນ ອາໄຫຼ່ — **ຂັ້ນ 5-9** (ຫຼັງກວດເຊັກ ຈົນກ່ອນຈົບສ້ອມ) ──
+                          // ແຕ່ກ່ອນເປີດສະເພາະຂັ້ນ 9 ⇒ ຊ່າງທີ່ "ກຳລັງເບີກອາໄຫຼ່" (ຂັ້ນ 6) ຫຼື
+                          // "ລໍຖ້າສ້ອມ" (ຂັ້ນ 8) ຂໍເບີກ**ເພີ່ມ**ບໍ່ໄດ້ ທັງທີ່ນັ້ນຄືຈັງຫວະທີ່ພົບຫຼາຍສຸດ
+                          // (399 ໃບງານຂໍເບີກຫຼາຍກວ່າ 1 ຮອບ). ດ່ານຈິງຢູ່ server (lib/repair-spare).
+                          if (job.workflow == 'repair' &&
+                              job.stage >= 5 &&
+                              job.stage <= 9) ...[
                             _ghostAction(
                               'ຂໍເບີກ / ປ່ຽນ ອາໄຫຼ່',
                               Icons.inventory_2_outlined,
@@ -1786,6 +1802,84 @@ class _JobScreenState extends State<JobScreen> {
   /// ສຳລັບຊ່າງ ອັນທີ່ມີຄ່າທີ່ສຸດຄື **ປຸ່ມນຳທາງໄປຈຸດສົ່ງ**: ທີ່ຢູ່ພິມມືໃນໃບງານ
   /// ມັກຫາບໍ່ພົບ ແຕ່ພິກັດນີ້ແມ່ນບ່ອນທີ່ຄົນສົ່ງໄປຮອດຈິງ.
   /// ເຄື່ອງສຳຮອງທີ່ຍັງບໍ່ຄືນ — ເຕືອນຊ່າງໃຫ້ເອົາກັບມາພ້ອມ (ຮັບຄືນຈິງເຮັດຢູ່ເວັບ).
+  /// "ຕອນນີ້ລໍໃຜເຮັດ" — ປ້າຍໃຫຍ່ສີຄາມດຽວກັບເວັບ + ສະຖານະອາໄຫຼ່ 3 ຕົວເລກ
+  /// (ນິຍາມດຽວກັບເວັບ: ກຳລັງສັ່ງຊື້ = status=5 ແລະ arrive_at ຫວ່າງ)
+  Widget _nextActorCard() {
+    final who = nextActor!;
+    final spares = spareSummary;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+      decoration: BoxDecoration(
+        color: teal,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.person_pin_rounded, size: 20, color: Colors.white),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  'ຕອນນີ້ລໍ ${who.actorLabel} ເຮັດຕໍ່',
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            who.label,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFCCFBF1),
+            ),
+          ),
+          if (who.action.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              who.action,
+              style: const TextStyle(fontSize: 11.5, color: Color(0xB3FFFFFF)),
+            ),
+          ],
+          if (spares != null &&
+              (spares.pending > 0 ||
+                  spares.onOrder > 0 ||
+                  spares.arrived > 0)) ...[
+            const SizedBox(height: 9),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                if (spares.pending > 0)
+                  _spareChip('ຄ້າງເບີກ ${spares.pending}', const Color(0xFFFDE68A), const Color(0xFF92400E)),
+                if (spares.onOrder > 0)
+                  _spareChip('ກຳລັງສັ່ງຊື້ ${spares.onOrder}', const Color(0xFFDDD6FE), const Color(0xFF5B21B6)),
+                if (spares.arrived > 0)
+                  _spareChip('ພ້ອມເບີກ ${spares.arrived}', const Color(0xFFA7F3D0), const Color(0xFF065F46)),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _spareChip(String text, Color bg, Color fg) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+    child: Text(
+      text,
+      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: fg),
+    ),
+  );
+
   Widget _loanerCard() {
     return _Card(
       children: [

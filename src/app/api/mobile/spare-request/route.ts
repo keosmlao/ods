@@ -1,6 +1,11 @@
 import { requireMobile } from "@/lib/mobile-auth";
 import { ownMobileJob } from "@/lib/job-flow";
 import { addRepairSpare, listRepairSpares, removeRepairSpare } from "@/lib/repair-spare";
+import {
+  purchaseRounds,
+  withdrawLineStatuses,
+  withdrawRounds,
+} from "@/lib/repair-spare-rounds";
 import { TECH_SIDE } from "@/lib/roles";
 import {
   createInstallSpareRequest,
@@ -39,6 +44,42 @@ type Body =
   | { action: "used-list"; code: string }
   | { action: "add-used"; code: string; item: { code: string; name_1: string; unit_code: string | null }; qty: number }
   | { action: "remove-used"; code: string; roworder: number };
+
+/**
+ * **ບັນຊີອາໄຫຼ່ແບ່ງຕາມຮອບ** (GET ?code=…&workflow=…) — ຂໍ້ມູນຊຸດດຽວກັບເວັບ
+ * (lib/repair-spare-rounds): ຮອບໃດເບີກແລ້ວ/ຄ້າງ/ກຳລັງສັ່ງຊື້. ສະຖານະແຖວຂອງແຕ່ລະໃບ
+ * ນິຍາມດຽວກັບຄິວເວັບ (status=5 + arrive_at) ⇒ ມືຖື ແລະ ເວັບເຫັນຢ່າງດຽວກັນ.
+ */
+export async function GET(request: Request) {
+  const guard = await requireMobile(request, TECH_SIDE);
+  if (!guard.ok) return guard.response;
+
+  const params = new URL(request.url).searchParams;
+  const code = String(params.get("code") ?? "").trim();
+  const workflow = params.get("workflow") === "install" ? "install" : "repair";
+  if (!code) return NextResponse.json({ error: "ບໍ່ພົບເລກວຽກ" }, { status: 400 });
+
+  try {
+    const own = await ownMobileJob(guard.user, workflow, code);
+    if (!own.ok) return NextResponse.json({ error: own.error }, { status: 403 });
+
+    const [withdrawals, purchases, statuses] = await Promise.all([
+      withdrawRounds(code),
+      purchaseRounds(code),
+      withdrawLineStatuses(code),
+    ]);
+    return NextResponse.json({
+      withdrawals: withdrawals.map((round) => ({
+        ...round,
+        ...(statuses[round.doc_no] ?? { status: null, on_order: 0, arrived: 0 }),
+      })),
+      purchases,
+    });
+  } catch (error) {
+    console.error("Mobile spare rounds failed", error);
+    return NextResponse.json({ error: "ໂຫຼດຮອບອາໄຫຼ່ບໍ່ສຳເລັດ" }, { status: 500 });
+  }
+}
 
 export async function POST(request: Request) {
   const guard = await requireMobile(request, TECH_SIDE);

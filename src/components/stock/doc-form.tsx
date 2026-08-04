@@ -5,6 +5,7 @@ import { FormError, SaveBar } from "@/components/stock/save-bar";
 import { inputClass } from "@/components/ui";
 import { useDict } from "@/lib/i18n/context";
 import { useActionState } from "react";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 export type DocField = { label: string; value: string | null; accent?: boolean };
 
@@ -50,6 +51,7 @@ export function DocForm({
 
   return (
     <form action={action} className="space-y-4">
+      <KeepFormValues />
       <input type="hidden" name="doc_ref" value={docRef} />
       <input type="hidden" name="Product_code" value={productCode} />
       {docRefDate !== undefined && <input type="hidden" name="doc_ref_date" value={docRefDate} />}

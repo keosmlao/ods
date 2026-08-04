@@ -12,8 +12,8 @@ import { loanerBlock } from "@/lib/loaner";
 import { centerBlock } from "@/lib/job-center";
 import { warrantyBlock } from "@/lib/warranty-request";
 import { HAS_OUTSTANDING_SPARES } from "@/lib/outstanding-spares";
-import { UPLOADS_DIR } from "@/lib/uploads";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { UPLOADS_DIR, uploadsWriteDir } from "@/lib/uploads";
+import { unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -511,8 +511,9 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
       let storedName: string | null = null;
       if (upload && uploadsDir) {
         storedName = `${docNo}_pay_${upload.filename}`;
-        const path = join(/*turbopackIgnore: true*/ uploadsDir, storedName);
-        await mkdir(uploadsDir, { recursive: true });
+        // ບ່ອນຂຽນຈິງ (ຫຼົບໄປ var/uploads ຖ້າ env ຜິດ) — ຢ່າໃຫ້ຮູບໃບໂອນພາໃບຮັບເງິນລົ້ມ
+        const dir = (await uploadsWriteDir()) ?? uploadsDir;
+        const path = join(/*turbopackIgnore: true*/ dir, storedName);
         await writeFile(path, upload.bytes);
         written.push(path);
       }

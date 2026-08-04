@@ -34,6 +34,8 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ຂອງຂ້ອຍ", label: "ຄູ່ມືການໃຊ້ງານ", resource: "/manual", actions: READ_ONLY },
 
   { group: "ສ້ອມແປງ", label: "ຮັບເຄື່ອງສ້ອມ", resource: "/service" },
+  // ອາໄຫຼ່ໜ້າດຽວທັງສາຍ (ຂໍເບີກ · ສາງເບີກ · ຊ່າງຮັບ · ສັ່ງຊື້) — ອ່ານຢ່າງດຽວ, ລົງມືຢູ່ໜ້າປາຍທາງ
+  { group: "ສ້ອມແປງ", label: "ອາໄຫຼ່ (ທັງສາຍ)", resource: "/work/spares", actions: READ_ONLY },
   { group: "ສ້ອມແປງ", label: "ຄຳແຈ້ງສ້ອມ", resource: "/service/notices" },
   { group: "ສ້ອມແປງ", label: "ຄິວຍົກເລີກງານ", resource: "/service/cancel", actions: ["read", "update"] },
   { group: "ສ້ອມແປງ", label: "ຂໍ້ມູນລູກຄ້າ", resource: "/customers" },
@@ -46,7 +48,6 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ສ້ອມແປງ", label: "ໃບຂໍເບີກອາໄຫຼ່", resource: "/stock/requests" },
   { group: "ສ້ອມແປງ", label: "ຮັບອາໄຫຼ່", resource: "/stock/requests/pickup", actions: ["read", "update"] },
   { group: "ສ້ອມແປງ", label: "ໃບຂໍສົ່ງຄືນອາໄຫຼ່", resource: "/stock/returns" },
-  { group: "ສ້ອມແປງ", label: "ສ້ອມແປງ", resource: "/repair", actions: ["read", "update"] },
   { group: "ສ້ອມແປງ", label: "ໃບສົ່ງເຄື່ອງ/ໃບຮັບເງິນ", resource: "/returns" },
   { group: "ສ້ອມແປງ", label: "ຕິດຕາມສະຖານະ", resource: "/dashboard/tracking", actions: READ_ONLY },
 

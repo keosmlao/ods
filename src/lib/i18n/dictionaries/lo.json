@@ -4973,5 +4973,32 @@
     "prev": "ກ່ອນໜ້າ",
     "next": "ຕໍ່ໄປ",
     "yourJobs": "ວຽກຂອງທ່ານ"
+  },
+  "closeJobs": {
+    "title": "ປິດງານ (ສ້ອມ · ຕິດຕັ້ງ)",
+    "items": "ລາຍການ",
+    "page": "ໜ້າ",
+    "search": "ຄົ້ນຫາ",
+    "clear": "ລ້າງ",
+    "searchPlaceholder": "ຄົ້ນຫາ ເລກງານ, SN, ລູກຄ້າ, ສິນຄ້າ, ຊ່າງ...",
+    "tabRepair": "ສ້ອມ",
+    "tabInstall": "ຕິດຕັ້ງ",
+    "hintRepair": "ສົ່ງຄືນລູກຄ້າແລ້ວ ລໍກວດເອກະສານປິດງານ",
+    "hintInstall": "ລູກຄ້າປະເມີນແລ້ວ ລໍປິດງານ",
+    "colCode": "ເລກງານ",
+    "colReturnedAt": "ວັນສົ່ງຄືນ",
+    "colFeedbackAt": "ວັນລູກຄ້າປະເມີນ",
+    "colProduct": "ສິນຄ້າ / ລຸ້ນ · SN",
+    "colCustomer": "ລູກຄ້າ",
+    "colTech": "ຊ່າງ",
+    "colAction": "ຈັດການ",
+    "print": "ພິມໃບງານ",
+    "close": "ປິດງານ",
+    "confirmClose": "ຢືນຢັນປິດງານ",
+    "noResults": "ບໍ່ມີງານລໍປິດ",
+    "showing": "ສະແດງ",
+    "of": "ຈາກ",
+    "prev": "ກ່ອນໜ້າ",
+    "next": "ຕໍ່ໄປ"
   }
 }

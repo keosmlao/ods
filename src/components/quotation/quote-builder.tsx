@@ -5,6 +5,7 @@ import { useDict } from "@/lib/i18n/context";
 import { LoaderCircle, Save, Search, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import { useActionState, useMemo, useState, useTransition } from "react";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 /** ຖອດແບບຈາກ ods templates/Qutation/create_page.html + edit_page.html */
 
@@ -111,6 +112,7 @@ export function QuoteBuilder({
       </div>
 
       <form action={formAction} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <KeepFormValues />
         <input type="hidden" name="pro_code" value={head.productCode} />
         <input type="hidden" name="cust_code" value={head.custCode} />
         <input type="hidden" name="doc_no" value={docNo} />

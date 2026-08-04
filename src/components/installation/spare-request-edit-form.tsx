@@ -15,6 +15,7 @@ import type { EditableSpareRow } from "@/lib/install-spare-edit";
 import { takeField } from "@/lib/spare-take";
 import { AlertTriangle, CheckCircle2, LoaderCircle, LogOut, Save } from "lucide-react";
 import { useActionState, useState } from "react";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 /**
  * ຟອມ "ແກ້ໃບຂໍເບີກທີ່ບັນທຶກແລ້ວ" — ຄາເລກໃບເກົ່າ.
@@ -69,6 +70,7 @@ export function SpareRequestEditForm({
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
 
       <form action={formAction} className="space-y-5">
+        <KeepFormValues />
         <input type="hidden" name="doc_no" value={docNo} />
         <input type="hidden" name="product_code" value={code} />
 

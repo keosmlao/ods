@@ -110,6 +110,11 @@ const HOME: NavGroup = {
      */
     { label: "ຄິວແຈ້ງລູກຄ້າ", href: "/customer-contact" },
     /**
+     * ປິດງານ — **ຂ້າມສາຍງານ** ຄືກັບ 2 ລາຍການຂ້າງເທິງ: ວຽກຫຼັງບ້ານອັນດຽວກັນ
+     * (ກວດເອກະສານຄົບ → ປິດ) ຂອງທັງສ້ອມ ແລະ ຕິດຕັ້ງ ⇒ ຢູ່ກຸ່ມໃດກຸ່ມໜຶ່ງບໍ່ຄົບຄວາມ.
+     */
+    { label: "ປິດງານ (ສ້ອມ · ຕິດຕັ້ງ)", href: "/close-jobs", count: "/close-jobs" },
+    /**
      * ⚠️ "ສົນທະນາ" **ບໍ່ຢູ່ໃນເມນູແລ້ວ** (17-07-2026) — ເປັນ**ປຸ່ມລອຍ**ມູມຂວາລຸ່ມ
      * (components/chat/floating-chat) ເຫັນທຸກໜ້າ. ການລົມກັນເກີດຂຶ້ນ**ໃນຂະນະທີ່**
      * ກຳລັງເຮັດວຽກຢູ່ໜ້າອື່ນ — ບັງຄັບໃຫ້ອອກຈາກໜ້າວຽກໄປໜ້າແຊັດ ຄືເຮັດວຽກຂາດຕອນ.
@@ -129,22 +134,42 @@ const REPAIR: NavGroup = {
   label: "ສ້ອມແປງ",
   icon: Wrench,
   items: [
-    { label: "ຮັບສິນຄ້າສ້ອມປະຈຳວັນ", href: "/service", match: ["/quotations", "/returns", "/qc/repair"] },
-    ...pipelineOf(repairStatuses).map(([slug, def]) => ({
-      label: def.label,
-      href: `/dashboard/status/repair/${slug}`,
-      count: `/dashboard/status/repair/${slug}`,
-      // labelKey ແຍກ (ບໍ່ໃຊ້ href) — ຂັ້ນ pipeline ໃຊ້ href ດຽວກັບເມນູຝັ່ງຊ່າງ ແຕ່ປ້າຍຕ່າງກັນ
-      labelKey: `pipe:repair:${slug}`,
-    })),
-    // ຂັ້ນ 12 (ສົ່ງຄືນສຳເລັດ) = ປາຍທາງຂອງສາຍງານ ⇒ **ທ້າຍສຸດ**.
-    // pipelineOf ຢຸດທີ່ຂັ້ນ 11 (ລໍຖ້າສົ່ງຄືນ) ຈຶ່ງບໍ່ຊ້ຳກັນ.
-    { label: "ລາຍການສົ່ງຄືນສຳເລັດ", href: "/returns/completed" },
-    // ເຄື່ອງສູນທີ່ຢູ່ນຳລູກຄ້າ — ບໍ່ຕັດສະຕັອກ ⇒ ບໍ່ມີໜ້ານີ້ = ບໍ່ມີບ່ອນຮູ້ວ່າໜ່ວຍໃດຢູ່ໃສ
-    // ໂອນຂ້າມສູນ (ຂົວຫຼວງ ↔ ດອນຕີ້ວ) — ປາຍທາງຕ້ອງກົດຮັບ ບໍ່ດັ່ງນັ້ນເຄື່ອງລອຍລະຫວ່າງທາງ
-    { label: "ລໍຮັບໂອນເຄື່ອງ", href: "/service/transfers", count: "/service/transfers" },
-    { label: "ເຄື່ອງສຳຮອງຄ້າງຄືນ", href: "/service/loaners", count: "/service/loaners" },
-  ].map((item, index) => ({ ...item, label: `${index + 1}. ${item.label}` })),
+    /**
+     * ສູນວຽກງານສ້ອມ — ທາງເຂົ້າຫຼັກຂອງສາຍສ້ອມ (03-08-2026): ວຽກຄ້າງທັງໝົດຈັດກຸ່ມຕາມ
+     * "ຜູ້ເຮັດຕໍ່" (CS · ຊ່າງ · ສາງ · ຈັດຊື້ · QC) ແທນການເປີດຄິວທີລະຂັ້ນ. ບໍ່ໃສ່ເລກ —
+     * ມັນບໍ່ແມ່ນຂັ້ນນຶ່ງໃນ pipeline; ຄິວຕາມຂັ້ນ (ມີເລກລຽງ) ຍັງຄົບຢູ່ລຸ່ມມັນເປັນມຸມມອງຜູ້ຈັດການ.
+     */
+    ...[
+      { label: "ຮັບສິນຄ້າສ້ອມປະຈຳວັນ", href: "/service", match: ["/quotations", "/returns", "/qc/repair"], divider: true },
+      /**
+       * ── ຂັ້ນອາໄຫຼ່ = **ລາຍການດຽວ** (04-08-2026) ──
+       * ແຕ່ກ່ອນແຍກເປັນ 3 ຄິວຕາມຂັ້ນ (5 ກວດ Stock · 6 ກຳລັງເບີກ · 7 ກຳລັງສັ່ງຊື້) ບວກກັບ
+       * ໜ້າສາງເບີກ · ໜ້າຮັບອາໄຫຼ່ · ໜ້າໃບຂໍຊື້ ⇒ ເລື່ອງອາໄຫຼ່ຂອງໃບງານດຽວກະຈາຍ 6 ບ່ອນ
+       * ແລະ ຄົນຕ້ອງຈື່ວ່າຂັ້ນໃດຢູ່ໜ້າໃດ. ດຽວນີ້ລວມເປັນຂັ້ນດຽວ ຈັດຕາມ "ໃຜຕ້ອງລົງມືຕໍ່"
+       * (ໜ້າ /work/spares). ຄິວຕາມຂັ້ນເກົ່າຍັງເປີດໄດ້ດ້ວຍ URL ແຕ່ບໍ່ຢູ່ໃນເມນູອີກ.
+       */
+      ...pipelineOf(repairStatuses).flatMap(([slug, def]) => {
+        if (slug === "wait-withdraw") {
+          return [{ label: "ອາໄຫຼ່ — ຂໍເບີກ · ສາງເບີກ · ຮັບ · ສັ່ງຊື້", href: "/dashboard/status/repair/spares", count: "/work/spares" }];
+        }
+        if (slug === "withdrawing" || slug === "purchasing") return [];
+        return [{
+          label: def.label,
+          href: `/dashboard/status/repair/${slug}`,
+          count: `/dashboard/status/repair/${slug}`,
+          // labelKey ແຍກ (ບໍ່ໃຊ້ href) — ຂັ້ນ pipeline ໃຊ້ href ດຽວກັບເມນູຝັ່ງຊ່າງ ແຕ່ປ້າຍຕ່າງກັນ
+          labelKey: `pipe:repair:${slug}`,
+        }];
+      }),
+      // ຂັ້ນ 12 (ສົ່ງຄືນສຳເລັດ) = ປາຍທາງຂອງສາຍງານ ⇒ **ທ້າຍສຸດ**.
+      // pipelineOf ຢຸດທີ່ຂັ້ນ 11 (ລໍຖ້າສົ່ງຄືນ) ຈຶ່ງບໍ່ຊ້ຳກັນ.
+      { label: "ລາຍການສົ່ງຄືນສຳເລັດ", href: "/returns/completed" },
+      // ເຄື່ອງສູນທີ່ຢູ່ນຳລູກຄ້າ — ບໍ່ຕັດສະຕັອກ ⇒ ບໍ່ມີໜ້ານີ້ = ບໍ່ມີບ່ອນຮູ້ວ່າໜ່ວຍໃດຢູ່ໃສ
+      // ໂອນຂ້າມສູນ (ຂົວຫຼວງ ↔ ດອນຕີ້ວ) — ປາຍທາງຕ້ອງກົດຮັບ ບໍ່ດັ່ງນັ້ນເຄື່ອງລອຍລະຫວ່າງທາງ
+      { label: "ລໍຮັບໂອນເຄື່ອງ", href: "/service/transfers", count: "/service/transfers" },
+      { label: "ເຄື່ອງສຳຮອງຄ້າງຄືນ", href: "/service/loaners", count: "/service/loaners" },
+    ].map((item, index) => ({ ...item, label: `${index + 1}. ${item.label}` })),
+  ],
 };
 
 /* ── ສາຍງານຕິດຕັ້ງ ─────────────────────────────────────────────── */
@@ -273,7 +298,8 @@ const PURCHASE: NavGroup = {
   items: [
     { label: "ຂໍສັ່ງຊື້", href: "/purchase-requests" },
     { label: "ໃບສັ່ງຊື້ (PO)", href: "/purchase-orders", count: "/purchase-orders" },
-    { label: "ຕິດຕາມການສັ່ງຊື້", href: "/dashboard/status/repair/purchasing" },
+    // ຕິດຕາມການສັ່ງຊື້ອາໄຫຼ່ = ໜ້າອາໄຫຼ່ (ກຸ່ມ "ລໍອະນຸມັດ" + "ສັ່ງຊື້ແລ້ວ ລໍຂອງມາ")
+    { label: "ຕິດຕາມການສັ່ງຊື້ອາໄຫຼ່", href: "/work/spares" },
   ],
 };
 
@@ -393,12 +419,21 @@ const TECHNICIAN_NAVIGATION: NavGroup[] = [
     items: [
       // ສະເພາະຂັ້ນທີ່ຊ່າງລົງມືເອງ: ຮັບ/ກວດ · ກວດ stock/ຂໍເບີກ · ສ້ອມ.
       // ຂັ້ນ CS, ສາງ, ຈັດຊື້, ອະນຸມັດ, QC ແລະສົ່ງຄືນ ບໍ່ຂຶ້ນໃນ sidebar ຊ່າງ.
-      ...(["wait-check", "checking", "wait-withdraw", "wait-repair", "repairing"] as const).map((slug, index) => ({
-        label: `${index + 1}. ${repairStatuses[slug].label}`,
-        href: `/dashboard/status/repair/${slug}`,
-        count: `/dashboard/status/repair/${slug}`,
-        labelKey: `pipe:repair:${slug}`,
-      })),
+      // ຂັ້ນອາໄຫຼ່ຂອງຊ່າງ = ໜ້າອາໄຫຼ່ດຽວກັນກັບຝັ່ງ CS/ສາງ (ບໍ່ແຍກຄິວຕາມຂັ້ນອີກ)
+      ...(["wait-check", "checking", "spares", "wait-repair", "repairing"] as const).map((slug, index) =>
+        slug === "spares"
+          ? {
+              label: `${index + 1}. ອາໄຫຼ່ — ຂໍເບີກ · ຮັບອາໄຫຼ່`,
+              href: "/dashboard/status/repair/spares",
+              count: "/work/spares",
+            }
+          : {
+              label: `${index + 1}. ${repairStatuses[slug].label}`,
+              href: `/dashboard/status/repair/${slug}`,
+              count: `/dashboard/status/repair/${slug}`,
+              labelKey: `pipe:repair:${slug}`,
+            },
+      ),
     ],
   },
   {

@@ -30,6 +30,9 @@ class SpareRequestScreen extends StatefulWidget {
 
 class _SpareRequestScreenState extends State<SpareRequestScreen> {
   Lookups? lookups;
+
+  /// ຮອບອາໄຫຼ່ຂອງງານ — ໃບນີ້ຈະເປັນຮອບຖັດໄປ; ລົ້ມ = null (ບໍ່ສະແດງ)
+  SpareRounds? rounds;
   String? wh;
   String? shelf;
   final remark = TextEditingController();
@@ -62,6 +65,11 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
         () => error = caught is ApiError ? caught.message : '$caught',
       );
     }
+    // ຮອບເກົ່າ — ຂໍ້ມູນເສີມ ລົ້ມກໍ່ບໍ່ໃຫ້ໜ້າພັງ (ພຽງບໍ່ສະແດງ)
+    try {
+      final data = await Api.spareRounds(widget.workflow, widget.code);
+      if (mounted) setState(() => rounds = data);
+    } catch (_) {}
   }
 
   Future<void> submit() async {
@@ -113,6 +121,10 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
                     padding: const EdgeInsets.fromLTRB(14, 14, 14, 18),
                     children: [
                       _jobCard(),
+                      if (rounds != null && rounds!.withdrawals.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        _roundsCard(),
+                      ],
                       const SizedBox(height: 14),
                       _step(
                         1,
@@ -196,6 +208,47 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
       if (row['code'] == code) return row['name'] ?? code;
     }
     return code;
+  }
+
+  /// ຮອບເກົ່າຂອງງານ + ບອກວ່າໃບນີ້ຈະເປັນຮອບທີເທົ່າໃດ — ຊ່າງບໍ່ຕ້ອງເດົາວ່າຂໍໄປແລ້ວກີ່ເທື່ອ
+  /// (ນິຍາມສະຖານະດຽວກັບເວັບ: ກຳລັງສັ່ງຊື້ = status=5 ແລະ arrive_at ຫວ່າງ)
+  Widget _roundsCard() {
+    final next = rounds!.withdrawals.length + 1;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
+      decoration: cardDecoration(border: const Color(0xFFC7D2FE)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ໃບນີ້ຈະເປັນໃບຂໍເບີກ ຮອບທີ $next',
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF4338CA),
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (final round in rounds!.withdrawals)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 3),
+              child: Text(
+                'ຮອບ ${round.round} · ${round.docNo} — ${_roundLabel(round)}',
+                style: const TextStyle(fontSize: 11.5, color: muted),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static String _roundLabel(SpareWithdrawRound round) {
+    if (round.state == 'received') return 'ຮັບແລ້ວ';
+    if (round.onOrder > 0) return 'ກຳລັງສັ່ງຊື້ ${round.onOrder} ລາຍການ';
+    if (round.state == 'dispatched') return 'ສາງເບີກແລ້ວ ລໍຮັບ';
+    if (round.status == 'issued') return 'ເບີກແລ້ວ';
+    if (round.status == 'partial') return 'ເບີກບາງສ່ວນ';
+    return 'ລໍສາງເບີກ';
   }
 
   Widget _jobCard() => Container(

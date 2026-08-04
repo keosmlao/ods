@@ -1,4 +1,9 @@
-import { escalateInstallSla, escalateRepairFrontStage, escalateRepairStageSla } from "@/lib/sla-escalate";
+import {
+  escalateInstallSla,
+  escalateRepairFrontStage,
+  escalateRepairStageSla,
+  escalateStaleRepairJobs,
+} from "@/lib/sla-escalate";
 import { NextResponse, type NextRequest } from "next/server";
 import { cronKeyMatches } from "@/lib/cron-auth";
 
@@ -26,12 +31,14 @@ export async function GET(request: NextRequest) {
   const dry = new URL(request.url).searchParams.get("dry") === "1";
 
   try {
-    const [install, repair, repairStage] = await Promise.all([
+    const [install, repair, repairStage, stale] = await Promise.all([
       escalateInstallSla(dry),
       escalateRepairFrontStage(dry),
       escalateRepairStageSla(dry),
+      // ວຽກທີ່ຖືກລືມ (ເປີດເກີນ 30 ມື້) — ດ່ານສຸດທ້າຍ ຖ້າ SLA ຕໍ່ຂັ້ນເຕືອນໄປແລ້ວ ແຕ່ບໍ່ມີໃຜລົງມື
+      escalateStaleRepairJobs(dry),
     ]);
-    return NextResponse.json({ ok: true, dry, ...install, ...repair, ...repairStage });
+    return NextResponse.json({ ok: true, dry, ...install, ...repair, ...repairStage, ...stale });
   } catch (error) {
     console.error("sla cron failed", error);
     return NextResponse.json({ error: "ຕົວກວດລົ້ມເຫຼວ" }, { status: 500 });

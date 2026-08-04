@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useDict } from "@/lib/i18n/context";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { useActionState, useState, useTransition } from "react";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 type Dict = Dictionary["checkForm"];
 
@@ -158,6 +159,7 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
   return (
     <div className="space-y-5">
       <form action={action} className="space-y-5">
+        <KeepFormValues />
         <input type="hidden" name="code" value={head.code} />
         <input type="hidden" name="warrunty" value={head.warranty ?? ""} />
 

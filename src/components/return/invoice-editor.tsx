@@ -14,6 +14,7 @@ import { useDict } from "@/lib/i18n/context";
 import { LoaderCircle, Plus, Save, Search, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useActionState, useMemo, useState } from "react";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 /** ຖອດແບບຈາກ ods: templates/returnProduct/showDetail.html */
 
@@ -210,6 +211,7 @@ export function InvoiceEditor({
         {/* ຟອມຫົວບິນ/ຮັບເງິນ ແຍກຈາກຟອມແກ້ໄຂແຕ່ລະແຖວ */}
         {/* `action` ເປັນ server action ⇒ React ຕັ້ງ encType ໃຫ້ເອງ (ໃສ່ເອງຈະຖືກຂຽນທັບ + ເຕືອນ) */}
         <form action={save}>
+          <KeepFormValues />
           <input type="hidden" name="pro_code" value={head.code} />
           <input type="hidden" name="cust_code" value={head.cust_code} />
           <input type="hidden" name="cash_value" value={cashValue} />

@@ -692,3 +692,32 @@ export async function scheduleRepairVisit(_: RepairState, formData: FormData): P
   revalidatePath("/dashboard");
   return { ok: "ນັດໄປສ້ອມສຳເລັດ" };
 }
+
+/* ── ປິດງານສ້ອມ (ຂັ້ນສຸດທ້າຍ ຫຼັງສົ່ງຄືນລູກຄ້າ) ─────────────────────
+ *
+ * ຝັ່ງຕິດຕັ້ງມີ closeJob (job_finish → ຂັ້ນ 9) ມາແຕ່ຕົ້ນ ແຕ່ຝັ່ງສ້ອມຈົບຢູ່
+ * "ສົ່ງຄືນສຳເລັດ" (ຂັ້ນ 12) ແລ້ວປະໄວ້ຊື່ໆ ⇒ ບໍ່ມີບ່ອນຢືນຢັນວ່າ CS ກວດເອກະສານ
+ * ຄົບແລ້ວ ແລະ ບໍ່ມີຄິວໃຫ້ໄລ່ປິດ. `tb_product.job_close` ເປັນທຸງນັ້ນ.
+ *
+ * ⚠️ ບໍ່ແຕະ STAGE_SQL — ໃບຍັງເປັນຂັ້ນ 12 ຄືເກົ່າ ⇒ ຄິວ · ລາຍງານ · KPI ບໍ່ຂະຫຍັບ.
+ * ຄ່າຄອມແຊ່ໄວ້ຕອນ**ອອກໃບຮັບເງິນ**ແລ້ວ (actions/return recordPayout) ⇒ ບ່ອນນີ້ບໍ່ຄິດເງິນຊ້ຳ.
+ */
+export async function closeRepairJob(code: string): Promise<{ ok?: string; error?: string }> {
+  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດປິດງານ");
+  if (!guard.ok) return { error: guard.error };
+
+  // ເງື່ອນໄຂຢູ່ໃນ WHERE ເອງ ⇒ ສອງຄົນກົດພ້ອມກັນ ຜ່ານພຽງຄົນດຽວ
+  const closed = await query(
+    `update tb_product set job_close = ${NOW}, job_close_by = $2
+      where code = $1 and return_complete is not null and job_close is null and status <> 6`,
+    [code, guard.session.username],
+  );
+  if (!closed.rowCount) {
+    return { error: "ປິດງານບໍ່ໄດ້ — ໃບນີ້ຍັງບໍ່ໄດ້ສົ່ງຄືນລູກຄ້າ ຫຼື ປິດໄປແລ້ວ" };
+  }
+
+  await logChange("tb_product", code, "ປິດງານສ້ອມ");
+  revalidatePath("/close-jobs");
+  revalidatePath(`/service/${code}`);
+  return { ok: "ປິດງານແລ້ວ" };
+}

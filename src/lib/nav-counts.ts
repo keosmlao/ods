@@ -161,10 +161,9 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
         )
         select
           -- ── ສ້ອມແປງ (ຂັ້ນ 1,2,8,9 ບໍ່ເຄີຍມີ status=6 ⇒ ບໍ່ຕ້ອງກອງ) ──
+          -- ສູນວຽກງານສ້ອມ = ວຽກຄ້າງທັງໝົດຂັ້ນ 0-11 (ໜ້າບໍ່ກອງຕາມຊ່າງ ⇒ badge ກໍ່ບໍ່ກອງ)
           (select count(*) from tb_product a
             where (${STAGE_SQL}) in (1,2) ${mineRepair})::int as "/checking",
-          (select count(*) from tb_product a
-            where (${STAGE_SQL}) in (8,9) ${mineRepair})::int as "/repair",
           -- ຂັ້ນ 11 ລວມງານຍົກເລີກ-ເຄື່ອງຍັງຢູ່ ⇒ **ບໍ່ກອງ status** ໃຫ້ຕົງກັບໜ້າປາຍທາງ
           (select count(*) from tb_product a
             where (${STAGE_SQL}) = 11)::int as "/returns",
@@ -197,6 +196,33 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
             where ${installStageIs(5)} ${mineInstall})::int as "/installations/work/doing",
           (select count(*) from ods_tb_install a
             where ${installStageIs(8)})::int as "/installations/close",
+          /**
+           * ຂັ້ນອາໄຫຼ່ (ໜ້າ /work/spares) = ຈຳນວນ**ແຖວທີ່ເຫັນໃນໜ້າ** (ກົດເກນ ①):
+           * ໃບຂໍເບີກລໍສາງ + ໃບຂໍເບີກທີ່ຂອງມາຮອດແລ້ວ + ໃບເບີກລໍຊ່າງຮັບ + ໃບຂໍຊື້ລໍອະນຸມັດ + ລໍຂອງມາ
+           */
+          ((select count(*) from ic_trans t join tb_product a on a.code = t.product_code
+             where t.trans_flag = 122 and a.return_complete is null and coalesce(a.status,0) <> 6
+               and not exists (select 1 from ic_trans sw where sw.trans_flag = 56 and sw.doc_ref = t.doc_no)
+               and not exists (select 1 from ic_trans_detail d where d.doc_no = t.doc_no and coalesce(d.status,0) = 5))
+           + (select count(*) from ic_trans t join tb_product a on a.code = t.product_code
+               where t.trans_flag = 122 and a.return_complete is null and coalesce(a.status,0) <> 6
+                 and exists (select 1 from ic_trans_detail d where d.doc_no = t.doc_no
+                               and coalesce(d.status,0) = 5 and d.arrive_at is not null))
+           + (select count(*) from ic_trans t join tb_product a on a.code = t.product_code
+               where t.trans_flag = 122 and a.return_complete is null and coalesce(a.status,0) <> 6
+                 and exists (select 1 from ic_trans_detail d where d.doc_no = t.doc_no
+                               and coalesce(d.status,0) = 5 and d.arrive_at is null))
+           + (select count(*) from ic_trans t join tb_product a on a.code = t.product_code
+               where t.trans_flag = 56 and a.return_complete is null and coalesce(a.status,0) <> 6
+                 and not exists (select 1 from ic_trans pi where pi.trans_flag = 166 and pi.doc_ref = t.doc_no))
+           + (select count(*) from ic_trans t join tb_product a on a.code = t.product_code
+               where t.trans_flag = 78 and coalesce(t.aprove_status,0) = 0
+                 and a.return_complete is null and coalesce(a.status,0) <> 6))::int as "/work/spares",
+          -- ປິດງານ (ໜ້າ /close-jobs) = ສ້ອມທີ່ສົ່ງຄືນແລ້ວແຕ່ຍັງບໍ່ປິດ + ຕິດຕັ້ງຂັ້ນ 8 (ສອງແທັບລວມກັນ)
+          ((select count(*) from tb_product a
+             where a.return_complete is not null and a.job_close is null and coalesce(a.status,0) <> 6)
+           + (select count(*) from ods_tb_install a
+             where ${installStageIs(8)}))::int as "/close-jobs",
           -- ── ອະນຸມັດ (ເງື່ອນໄຂອັນດຽວກັບ APPROVALS_SQL / CANCEL_REQUESTS_SQL ຂອງ lib/dashboard) ──
           (select count(*) from ic_trans t
             where t.trans_flag = 17 and t.aprove_status = 0)::int as "/approvals/quotations",

@@ -35,6 +35,7 @@ import { HoldButtons } from "@/components/repair/hold-buttons";
 import { MobileCardList } from "@/components/mobile-card-list";
 import { PurchaseState } from "@/components/stock/purchase-state";
 import { ReleaseGhostButton } from "@/components/stock/release-ghost-button";
+import { nextActor } from "@/lib/repair-next-action";
 import { purchaseTracking, type PurchaseTrack } from "@/lib/erp-purchase";
 import { APPROVER_SIDE, canAccess, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { SETTING, settingEnabled } from "@/lib/settings";
@@ -83,6 +84,10 @@ type RepairRow = {
     customer_status: number;
   }>;
   request_status: "waiting" | "partial" | "purchasing" | "issued" | null;
+  /** ຍອດແຖວ SIO ລະດັບງານ — ໃຫ້ nextActor() ຕັດສິນ "ຜູ້ເຮັດຕໍ່" ໃນຄິວເບີກ/ສັ່ງຊື້ */
+  spare_pending: number;
+  spare_on_order: number;
+  spare_arrived: number;
   repair_confirm: string | null;
   /** ຮູບໜ້າປົກ + ຈຳນວນຮູບ — ໃຫ້ຄິວທຸກຂັ້ນຕອນໂຊ້ thumbnail ຄືໜ້າຮັບສິນຄ້າ */
   thumb: string | null; photo_count: number;
@@ -103,6 +108,8 @@ type RequestDocRow = {
   product_code: string;
   doc_no: string;
   doc_date: string | null;
+  /** ຮອບ = ລຳດັບໃບຂໍເບີກຂອງວຽກຕາມ doc_date (ນິຍາມດຽວກັບ lib/repair-spare-rounds) */
+  round: number;
   lines: number;
   status: "waiting" | "partial" | "purchasing" | "issued";
 };
@@ -204,10 +211,20 @@ const REPAIR_STAGE_ACTION = (t: Dict): Record<string, { label: string; base: str
     base: "/purchase-requests",
     href: (r) => `/purchase-requests?q=${encodeURIComponent(r.code)}`,
   },
+  /**
+   * ຂັ້ນສ້ອມ (ລໍສ້ອມ · ກຳລັງສ້ອມ) → **ໜ້າວຽກຊ່າງຂອງໃບນັ້ນ** `/repair/<ລະຫັດ>`
+   * ບໍ່ແມ່ນຄິວທີ່ກອງດ້ວຍ q ອີກ — ໜ້ານັ້ນມີທຸກຂັ້ນ ແລະ ທຸກປຸ່ມຄືກັບແອັບ
+   * (ຂໍເບີກ/ປ່ຽນອາໄຫຼ່ · ຮັບອາໄຫຼ່ · ຈົບງານ · ຮູບ · ອາໄຫຼ່ຕາມຮອບ).
+   */
+  "wait-repair": {
+    label: t.actionGoRepairList,
+    base: "/repair",
+    href: (r) => `/repair/${encodeURIComponent(r.code)}`,
+  },
   repairing: {
     label: t.actionGoRepairList,
     base: "/repair",
-    href: (r) => `/repair?tab=progress&q=${encodeURIComponent(r.code)}`,
+    href: (r) => `/repair/${encodeURIComponent(r.code)}`,
   },
   "wait-qc": { label: t.actionQc, base: "/qc", href: (r) => `/qc/repair/${encodeURIComponent(r.code)}` },
   "wait-return": { label: t.actionReturn, base: "/returns", href: (r) => `/returns/${encodeURIComponent(r.code)}` },
@@ -409,10 +426,9 @@ export default async function StatusPage({ params, searchParams }: Props) {
          (
            select case
              when count(*) = 0 then null
-             -- status=5 ບໍ່ແມ່ນ "ກຳລັງສັ່ງຊື້" ອີກ ຖ້າ ERP ຮັບເຂົ້າສາງແລ້ວ (spare_arrive)
+             -- status=5 ບໍ່ແມ່ນ "ກຳລັງສັ່ງຊື້" ອີກ ຖ້າແຖວນັ້ນມີ arrive_at (ERP ຮັບເຂົ້າສາງແລ້ວ)
              -- ⇒ ສະແດງເປັນລໍຖ້າເບີກ ໃນຄິວກຳລັງເບີກອາໄຫຼ່ ບໍ່ໃຫ້ຄ້າງປ້າຍສັ່ງຊື້.
-             when count(*) filter (where coalesce(d.status,0) = 5) > 0
-                  and a.spare_arrive is null then 'purchasing'
+             when count(*) filter (where coalesce(d.status,0) = 5 and d.arrive_at is null) > 0 then 'purchasing'
              when count(*) filter (where coalesce(d.status,0) = 1) = count(*) then 'issued'
              when count(*) filter (where coalesce(d.status,0) = 1) > 0 then 'partial'
              else 'waiting'
@@ -424,6 +440,16 @@ export default async function StatusPage({ params, searchParams }: Props) {
              order by r.roworder desc limit 1
            ) and d.trans_flag = 122
          ) request_status,
+         -- ຍອດແຖວ SIO ລະດັບງານ — ຖັນ "ຜູ້ເຮັດຕໍ່" ໃຊ້ nextActor() ຄິດ (ບໍ່ແມ່ນທຸງວຽກ)
+         (select count(*)::int from ic_trans_detail d
+           where d.product_code = a.code and d.trans_flag = 122
+             and coalesce(d.status,0) = 0) spare_pending,
+         (select count(*)::int from ic_trans_detail d
+           where d.product_code = a.code and d.trans_flag = 122
+             and d.status = 5 and d.arrive_at is null) spare_on_order,
+         (select count(*)::int from ic_trans_detail d
+           where d.product_code = a.code and d.trans_flag = 122
+             and d.status = 5 and d.arrive_at is not null) spare_arrived,
          to_char(a.time_register,'DD-MM-YYYY HH24:MI') registered,
          greatest(0, round(extract(epoch from (localtimestamp - a.time_register))))::int opened_seconds,
          to_char((${STAGE_TIME_COL}),'DD-MM-YYYY HH24:MI') stage_started, ${elapsed},
@@ -493,20 +519,20 @@ export default async function StatusPage({ params, searchParams }: Props) {
       ? list.rows.filter((row) => tracking.get(row.code)?.stage !== "received")
       : list.rows;
 
-  const repairCodes =
-    isRepair && status === "withdrawing"
-      ? list.rows.map((row) => row.code)
-      : [];
+  // ຄິວເບີກ + ຄິວສັ່ງຊື້ ຕ້ອງເຫັນ ຮອບ/ຜູ້ເຮັດຕໍ່ ຄືກັນ — ດຶງໃບຂໍເບີກທຸກຮອບຂອງແຖວໃນໜ້າ
+  const spareQueue = isRepair && (status === "withdrawing" || status === "purchasing");
+  const repairCodes = spareQueue ? list.rows.map((row) => row.code) : [];
   const [requestDocsResult, requestOutstandingResult] =
     repairCodes.length > 0
       ? await Promise.all([
           query<RequestDocRow>(
             `select d.product_code, d.doc_no, to_char(max(d.doc_date),'DD-MM-YYYY') doc_date,
+                row_number() over (partition by d.product_code order by min(d.doc_date), d.doc_no)::int round,
                 count(*)::int lines,
                 case
-                  -- status=5 ບໍ່ແມ່ນ "ກຳລັງສັ່ງຊື້" ອີກ ຖ້າ ERP ຮັບເຂົ້າສາງແລ້ວ (spare_arrive)
+                  -- status=5 ບໍ່ແມ່ນ "ກຳລັງສັ່ງຊື້" ອີກ ຖ້າແຖວນັ້ນມີ arrive_at (ERP ຮັບເຂົ້າສາງແລ້ວ)
                   -- ນິຍາມດຽວກັບ request_status ຂອງແຖວ — ບໍ່ດັ່ງນັ້ນໃບຂໍເບີກໃນ Tree ຍັງຄ້າຍປ້າຍສັ່ງຊື້
-                  when count(*) filter (where coalesce(d.status,0)=5 and a.spare_arrive is null)>0 then 'purchasing'
+                  when count(*) filter (where coalesce(d.status,0)=5 and d.arrive_at is null)>0 then 'purchasing'
                   when count(*) filter (where coalesce(d.status,0)=1)=count(*) then 'issued'
                   when count(*) filter (where coalesce(d.status,0)=1)>0 then 'partial'
                   else 'waiting'
@@ -515,7 +541,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                join tb_product a on a.code = d.product_code
               where d.trans_flag=122 and d.product_code=any($1::text[])
               group by d.product_code,d.doc_no
-              order by d.product_code,max(d.roworder) desc`,
+              order by d.product_code,min(d.doc_date),d.doc_no`,
             [repairCodes],
           ),
           query<{ product_code: string; remaining: number }>(
@@ -587,6 +613,9 @@ export default async function StatusPage({ params, searchParams }: Props) {
   const canCreateRequest = isRepair && canAccess(role, "/stock/requests");
   const requestDocBadge = (doc: RequestDocRow) => (
     <div className="flex flex-wrap items-center gap-1.5">
+      <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+        ຮອບ {doc.round}
+      </span>
       <Link
         href={`/stock/requests/view/${encodeURIComponent(doc.doc_no)}?from=${encodeURIComponent(`/dashboard/status/${workflow}/${status}`)}`}
         className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700 hover:bg-blue-100"
@@ -980,6 +1009,10 @@ export default async function StatusPage({ params, searchParams }: Props) {
                 {isRepair && status === "withdrawing" && (
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ໃບຂໍເບີກ / ສະຖານະ</th>
                 )}
+                {/* ຄິວເບີກ/ສັ່ງຊື້: ຖັນ "ຜູ້ເຮັດຕໍ່" ຄິດຈາກແຖວ SIO ດ້ວຍ nextActor() (ບໍ່ແມ່ນທຸງວຽກ) */}
+                {spareQueue && (
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ຜູ້ເຮັດຕໍ່</th>
+                )}
                 {isRepair ? (
                   <>
                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.accessory}</th>
@@ -1002,11 +1035,17 @@ export default async function StatusPage({ params, searchParams }: Props) {
                   : elapsedTone(row.elapsed_seconds);
                 const inWarranty = row.warranty === "ຮັບປະກັນ";
                 const requestDocs = isRepair ? requestDocsByJob.get(row.code) ?? [] : [];
-                const requestTreeDocs = status === "withdrawing"
-                  ? requestDocs
-                  : requestDocs.filter((doc) => doc.doc_no !== row.request_doc);
+                // ຄິວເບີກ/ສັ່ງຊື້ ສະແດງໃບຂໍເບີກ**ທຸກຮອບ**ໃນ Tree; ຄິວອື່ນບໍ່ມີແຖວນີ້ຢູ່ແລ້ວ
+                const requestTreeDocs = requestDocs;
+                const nextAction = spareQueue
+                  ? nextActor(
+                      config.stage ?? -1,
+                      { pending: row.spare_pending, onOrder: row.spare_on_order, arrived: row.spare_arrived },
+                      row.service_type,
+                    )
+                  : null;
                 const desktopColumnCount =
-                  columns.length + 1 + 3 + (hasAction ? 1 : 0);
+                  columns.length + 1 + (spareQueue ? 1 : 0) + 3 + (hasAction ? 1 : 0);
                 return (
                   <Fragment key={row.code}>
                   <tr className="cursor-default border-b border-slate-100 hover:bg-slate-50">
@@ -1151,6 +1190,20 @@ export default async function StatusPage({ params, searchParams }: Props) {
                         )}
                       </td>
                     )}
+                    {spareQueue && (
+                      <td className="whitespace-nowrap px-3 py-2.5">
+                        {nextAction ? (
+                          <span className="inline-flex flex-col items-start gap-1">
+                            <span className="rounded-lg bg-teal-600 px-2 py-1 text-[10px] font-bold text-white">
+                              {nextAction.actorLabel}
+                            </span>
+                            <span className="text-[10px] font-medium text-slate-500">{nextAction.label}</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </td>
+                    )}
                     {isRepair ? (
                       <>
                         <td className="max-w-40 truncate px-3 py-2.5 text-slate-600" title={row.accessory ?? ""}>
@@ -1261,6 +1314,14 @@ export default async function StatusPage({ params, searchParams }: Props) {
             const type = isRepair ? SERVICE_TYPES.find((item) => item.code === row.service_type) : undefined;
             const track = tracking.get(row.code);
             const requestDocs = isRepair ? requestDocsByJob.get(row.code) ?? [] : [];
+            // "ຜູ້ເຮັດຕໍ່" ຂອງແຖວ — ນິຍາມດຽວກັບຕາຕະລາງ desktop ແລະ ສູນວຽກງານສ້ອມ
+            const nextAction = spareQueue
+              ? nextActor(
+                  config.stage ?? -1,
+                  { pending: row.spare_pending, onOrder: row.spare_on_order, arrived: row.spare_arrived },
+                  row.service_type,
+                )
+              : null;
             return (
               <div key={row.code} className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
                 <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
@@ -1370,6 +1431,16 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     </p>
                   )}
                 </div>
+
+                {/* ຜູ້ເຮັດຕໍ່ (ຄິວເບີກ/ສັ່ງຊື້) — ຄິດຈາກແຖວ SIO ດ້ວຍ nextActor() */}
+                {nextAction && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-teal-50 px-2.5 py-2 ring-1 ring-teal-100">
+                    <span className="rounded bg-teal-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      {nextAction.actorLabel}
+                    </span>
+                    <span className="text-[11px] font-semibold text-teal-900">{nextAction.label}</span>
+                  </div>
+                )}
 
                 {isRepair && status === "withdrawing" && (
                   <div className="mt-2 rounded-lg border border-slate-100 bg-slate-50 p-2">

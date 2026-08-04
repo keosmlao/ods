@@ -11,6 +11,7 @@ import { LoaderCircle, LogOut, Save, Search } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 type Option = { code: string; name_1: string };
 type Customer = { code: string; name_1: string; tel: string; address: string };
@@ -158,6 +159,7 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
 
   return (
     <form action={action} className="space-y-5">
+      <KeepFormValues />
       <input type="hidden" name="code" value={head.code} />
 
       <div className="sticky top-20 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">

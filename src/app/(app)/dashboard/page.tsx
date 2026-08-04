@@ -778,7 +778,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     { label: t.quickReceiveNew, href: "/service/new", icon: Plus },
     { label: t.quickNewInstall, href: "/installations/new", icon: Plus },
     { label: t.quickChecking, href: "/checking", icon: ClipboardCheck },
-    { label: t.quickRepair, href: "/repair", icon: Wrench },
     { label: t.quickDispatch, href: "/stock/dispatch", icon: PackageCheck },
     { label: t.quickAssign, href: "/installations/assign", icon: Users },
   ].filter((item) => canAccess(role, item.href));
@@ -902,7 +901,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </div>}
       </section>
 
-      {data && ["/installations/work", "/checking", "/repair"].some((path) => canAccess(role, path)) && (
+      {data && ["/installations/work", "/checking", "/dashboard/status"].some((path) => canAccess(role, path)) && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
             <div><h2 className="text-base font-bold text-slate-900">{t.todayJobs}</h2><p className="mt-0.5 text-[11px] text-slate-500">{t.todayJobsSubtitle}</p></div>
@@ -910,7 +909,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <div className="grid gap-3 sm:grid-cols-3">
             {canAccess(role, "/installations/work") && <Link href="/installations/work" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-teal-300 hover:bg-teal-50"><p className="text-xs font-semibold text-slate-600">{t.todayAppointments}</p><p className="mt-1 text-2xl font-bold text-teal-700">{data.today.appointments.toLocaleString()}</p></Link>}
             {canAccess(role, "/checking") && <Link href="/checking" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-sky-300 hover:bg-sky-50"><p className="text-xs font-semibold text-slate-600">{t.todayChecking}</p><p className="mt-1 text-2xl font-bold text-sky-700">{data.today.checking.toLocaleString()}</p></Link>}
-            {canAccess(role, "/repair") && <Link href="/repair" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-violet-300 hover:bg-violet-50"><p className="text-xs font-semibold text-slate-600">{t.todayRepairing}</p><p className="mt-1 text-2xl font-bold text-violet-700">{data.today.repairing.toLocaleString()}</p></Link>}
+            {canAccess(role, "/dashboard/status") && <Link href="/dashboard/status/repair/repairing" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-violet-300 hover:bg-violet-50"><p className="text-xs font-semibold text-slate-600">{t.todayRepairing}</p><p className="mt-1 text-2xl font-bold text-violet-700">{data.today.repairing.toLocaleString()}</p></Link>}
           </div>
           {(data.sla.warning > 0 || data.sla.late > 0) && canAccess(role, "/checking") && <div className="mt-3 flex flex-wrap gap-2 text-[11px]"><Link href="/checking?sla=warning&sort=elapsed&dir=desc" className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-800 hover:bg-amber-200">{t.nearSla} {data.sla.warning}</Link><Link href="/checking?sla=late&sort=elapsed&dir=desc" className="rounded-full bg-red-100 px-2.5 py-1 font-semibold text-red-700 hover:bg-red-200">{t.overSla} {data.sla.late}</Link><Link href="/checking?sla=critical&sort=elapsed&dir=desc" className="rounded-full bg-red-700 px-2.5 py-1 font-semibold text-white hover:bg-red-800">{t.critical} {data.sla.critical}</Link></div>}
         </section>

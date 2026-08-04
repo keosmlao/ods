@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 /** ຖອດແບບຈາກ ods: req_page.html + /in_add_req + /additemtoreg_inst + /delete_item_sion
  *  + /update_qty_reg_spare + /save_in_req (tech_reg_install.py) */
@@ -136,6 +137,7 @@ export function SpareRequestForm({
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
 
       <form action={formAction} className="space-y-5">
+        <KeepFormValues />
         <input type="hidden" name="product_code" value={code} />
 
         {/* ໂຄງດຽວກັບໃບສະເໜີຊື້: action ຊ້າຍ, ວັນທີ/ເລກທີຂວາ */}

@@ -355,13 +355,16 @@ class Api {
   }
 
   /// ລາຍລະອຽດງານ: ຮູບ + **ເສັ້ນເວລາ** + **ຂໍ້ມູນການສົ່ງເຄື່ອງ** (ຕິດຕັ້ງ)
-  /// + **ເຄື່ອງສຳຮອງທີ່ຍັງບໍ່ຄືນ** (ສ້ອມ). GET ດຽວ ໄດ້ໝົດ.
+  /// + **ເຄື່ອງສຳຮອງທີ່ຍັງບໍ່ຄືນ** (ສ້ອມ) + **ລໍໃຜເຮັດຕໍ່/ສະຖານະອາໄຫຼ່** (ສ້ອມ).
+  /// GET ດຽວ ໄດ້ໝົດ.
   static Future<
     ({
       JobPhotos photos,
       JobTimelineData? timeline,
       DeliveryInfo? delivery,
       List<LoanerOut> loaners,
+      NextActor? nextActor,
+      SpareSummary? spares,
     })
   >
   jobDetail(String workflow, String code) async {
@@ -369,6 +372,8 @@ class Api {
     final tl = result['timeline'];
     final dv = result['delivery'];
     final ln = result['loaners'] as List<dynamic>? ?? const [];
+    final na = result['next_actor'];
+    final sp = result['spares'];
     return (
       photos: JobPhotos.fromJson(result['photos'] as Map<String, dynamic>),
       timeline: tl == null
@@ -380,7 +385,22 @@ class Api {
       loaners: ln
           .map((row) => LoanerOut.fromJson(row as Map<String, dynamic>))
           .toList(growable: false),
+      nextActor: na == null
+          ? null
+          : NextActor.fromJson(na as Map<String, dynamic>),
+      spares: sp == null
+          ? null
+          : SpareSummary.fromJson(sp as Map<String, dynamic>),
     );
+  }
+
+  /// ບັນຊີອາໄຫຼ່ແບ່ງຕາມຮອບ (ໃບຂໍເບີກ + ໃບຂໍຊື້) — ຊຸດດຽວກັບເວັບ
+  static Future<SpareRounds> spareRounds(String workflow, String code) async {
+    final result = await _send(
+      'GET',
+      '/api/mobile/spare-request?code=${Uri.encodeComponent(code)}&workflow=$workflow',
+    );
+    return SpareRounds.fromJson(result);
   }
 
   /// ຮູບຕອນຂົນສົ່ງໄປສົ່ງເຄື່ອງ — ດຶງຕອນຊ່າງກົດເບິ່ງເທົ່ານັ້ນ (ຮູບໜັກ 100-200KB ຕໍ່ໃບ)
@@ -1800,12 +1820,16 @@ class PickupDoc {
   final String jobCode;
   final String docDate;
   final int lines;
+
+  /// ຮອບຂອງໃບຂໍເບີກ (SIO) ທີ່ເປັນຕົ້ນເຫດ — ສະເພາະສ້ອມ (ຕິດຕັ້ງ = null)
+  final int? round;
   PickupDoc({
     required this.workflow,
     required this.docNo,
     required this.jobCode,
     required this.docDate,
     required this.lines,
+    this.round,
   });
 
   factory PickupDoc.fromJson(Map<String, dynamic> json) => PickupDoc(
@@ -1814,6 +1838,7 @@ class PickupDoc {
     jobCode: json['job_code'] as String? ?? '-',
     docDate: json['doc_date'] as String? ?? '-',
     lines: (json['lines'] as num?)?.toInt() ?? 0,
+    round: (json['round'] as num?)?.toInt(),
   );
 }
 
@@ -2327,6 +2352,130 @@ class LoanerOut {
     itemName: json['item_name'] as String? ?? '',
     isn: json['isn'] as String? ?? '',
     days: (json['days'] as num?)?.toInt() ?? 0,
+  );
+}
+
+/// "ຕອນນີ້ລໍໃຜເຮັດ" — server ຄິດໃຫ້ (lib/repair-next-action ຕົວດຽວກັບເວັບ)
+class NextActor {
+  final String actor; // cs | tech | stock | purchase | qc
+  final String actorLabel; // ຝ່າຍຮັບ/CS · ຊ່າງ · ສາງ · ຈັດຊື້ · QC
+  final String label;
+  final String action;
+
+  const NextActor({
+    required this.actor,
+    required this.actorLabel,
+    required this.label,
+    required this.action,
+  });
+
+  factory NextActor.fromJson(Map<String, dynamic> json) => NextActor(
+    actor: json['actor'] as String? ?? '',
+    actorLabel: json['actor_label'] as String? ?? '',
+    label: json['label'] as String? ?? '',
+    action: json['action'] as String? ?? '',
+  );
+}
+
+/// ສະຖານະອາໄຫຼ່ລະດັບແຖວ (ນິຍາມດຽວກັບເວັບ: ກຳລັງສັ່ງຊື້ = status=5 + arrive_at ຫວ່າງ)
+class SpareSummary {
+  final int pending; // ຄ້າງເບີກ (status=0)
+  final int onOrder; // ກຳລັງສັ່ງຊື້ (status=5 · arrive_at ຫວ່າງ)
+  final int arrived; // ມາຮອດແລ້ວ ພ້ອມເບີກ (status=5 · arrive_at ບໍ່ຫວ່າງ)
+
+  const SpareSummary({
+    required this.pending,
+    required this.onOrder,
+    required this.arrived,
+  });
+
+  factory SpareSummary.fromJson(Map<String, dynamic> json) => SpareSummary(
+    pending: (json['pending'] as num?)?.toInt() ?? 0,
+    onOrder: (json['on_order'] as num?)?.toInt() ?? 0,
+    arrived: (json['arrived'] as num?)?.toInt() ?? 0,
+  );
+}
+
+/// ໃບຂໍເບີກ 1 ຮອບ (SIO) + ສະຖານະແຖວຂອງມັນ
+class SpareWithdrawRound {
+  final int round;
+  final String docNo;
+  final String docDate;
+  final int lines;
+  final String? dispatchNo; // ໃບເບີກຂອງສາງ (SWC) — ຫວ່າງ = ສາງຍັງບໍ່ຈ່າຍ
+  final String? pickNo; // ໃບຮັບຂອງຊ່າງ (PISP) — ຫວ່າງ = ຍັງບໍ່ກົດຮັບ
+  final String state; // requested | dispatched | received
+  final String? status; // waiting | partial | purchasing | issued | null
+  final int onOrder;
+  final int arrived;
+
+  const SpareWithdrawRound({
+    required this.round,
+    required this.docNo,
+    required this.docDate,
+    required this.lines,
+    required this.dispatchNo,
+    required this.pickNo,
+    required this.state,
+    required this.status,
+    required this.onOrder,
+    required this.arrived,
+  });
+
+  factory SpareWithdrawRound.fromJson(Map<String, dynamic> json) =>
+      SpareWithdrawRound(
+        round: (json['round'] as num?)?.toInt() ?? 0,
+        docNo: json['doc_no'] as String? ?? '',
+        docDate: json['doc_date'] as String? ?? '-',
+        lines: (json['lines'] as num?)?.toInt() ?? 0,
+        dispatchNo: json['dispatch_no'] as String?,
+        pickNo: json['pick_no'] as String?,
+        state: json['state'] as String? ?? 'requested',
+        status: json['status'] as String?,
+        onOrder: (json['on_order'] as num?)?.toInt() ?? 0,
+        arrived: (json['arrived'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// ໃບຂໍຊື້ 1 ຮອບ (RQ)
+class SparePurchaseRound {
+  final int round;
+  final String docNo;
+  final String docDate;
+  final int lines;
+  final String state; // waiting_approve | approved | rejected
+
+  const SparePurchaseRound({
+    required this.round,
+    required this.docNo,
+    required this.docDate,
+    required this.lines,
+    required this.state,
+  });
+
+  factory SparePurchaseRound.fromJson(Map<String, dynamic> json) =>
+      SparePurchaseRound(
+        round: (json['round'] as num?)?.toInt() ?? 0,
+        docNo: json['doc_no'] as String? ?? '',
+        docDate: json['doc_date'] as String? ?? '-',
+        lines: (json['lines'] as num?)?.toInt() ?? 0,
+        state: json['state'] as String? ?? 'waiting_approve',
+      );
+}
+
+class SpareRounds {
+  final List<SpareWithdrawRound> withdrawals;
+  final List<SparePurchaseRound> purchases;
+
+  const SpareRounds({required this.withdrawals, required this.purchases});
+
+  factory SpareRounds.fromJson(Map<String, dynamic> json) => SpareRounds(
+    withdrawals: (json['withdrawals'] as List<dynamic>? ?? const [])
+        .map((row) => SpareWithdrawRound.fromJson(row as Map<String, dynamic>))
+        .toList(growable: false),
+    purchases: (json['purchases'] as List<dynamic>? ?? const [])
+        .map((row) => SparePurchaseRound.fromJson(row as Map<String, dynamic>))
+        .toList(growable: false),
   );
 }
 

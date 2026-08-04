@@ -54,9 +54,21 @@ export async function addRepairSpare(
   if (!own.ok) return own;
   if (!Number.isFinite(qty) || qty <= 0 || qty > 9999) return { ok: false, error: "ຈຳນວນບໍ່ຖືກຕ້ອງ" };
 
-  // ຢ່າເຊື່ອຊື່/ໜ່ວຍຈາກແອັບ — ອ່ານ master ຄືນ
-  const atStage9 = await query(`select 1 from tb_product a where a.code=$1 and (${STAGE_SQL})=9`, [code]);
-  if (!atStage9.rowCount) return { ok: false, error: "ວຽກບໍ່ໄດ້ຢູ່ຂັ້ນ ກຳລັງສ້ອມ — ເພີ່ມອາໄຫຼ່ບໍ່ໄດ້" };
+  /**
+   * **ຂໍເບີກເພີ່ມໄດ້ຫຼາຍຮອບ** — ເປີດຕັ້ງແຕ່ຫຼັງກວດເຊັກຈົບ (ຂັ້ນ 5) ຮອດກ່ອນຈົບສ້ອມ (ຂັ້ນ 9).
+   *
+   * ⚠️ ແຕ່ກ່ອນບັງຄັບ **ຂັ້ນ 9 ເທົ່ານັ້ນ** ⇒ ຊ່າງທີ່ຢູ່ຂັ້ນ 5-8 (ລໍອາໄຫຼ່ · ລໍສ້ອມ) ເພີ່ມອາໄຫຼ່
+   * ບໍ່ໄດ້ ທັງທີ່ນັ້ນຄືຈັງຫວະທີ່ພົບວ່າຕ້ອງໃຊ້ເພີ່ມຫຼາຍທີ່ສຸດ (ຂໍ້ມູນຈິງ: 399 ໃບງານຂໍເບີກ
+   * ຫຼາຍກວ່າ 1 ຮອບ · ຮອດ 4 ຮອບ). ດ່ານທີ່ຍັງຢູ່: ແຖວທີ່ເຂົ້າໃບແລ້ວ (NOT_ON_DOC) ຍັງແກ້ບໍ່ໄດ້.
+   * ໃຊ້ຮ່ວມກັນ **ເວັບ ແລະ ແອັບ** (api/mobile/spare-request) ⇒ ສອງທາງເປີດພ້ອມກັນ.
+   */
+  const inWindow = await query(
+    `select 1 from tb_product a where a.code=$1 and (${STAGE_SQL}) between 5 and 9`,
+    [code],
+  );
+  if (!inWindow.rowCount) {
+    return { ok: false, error: "ຂໍເບີກອາໄຫຼ່ໄດ້ຕັ້ງແຕ່ຫຼັງກວດເຊັກ ຈົນເຖິງກ່ອນຈົບການສ້ອມ" };
+  }
 
   const canonical = (
     await query<{ code: string; name_1: string; unit_code: string | null }>(
@@ -89,8 +101,12 @@ export async function removeRepairSpare(session: Session, code: string, roworder
   const own = await ownMobileJob(session, "repair", code);
   if (!own.ok) return own;
 
-  const atStage9 = await query(`select 1 from tb_product a where a.code=$1 and (${STAGE_SQL})=9`, [code]);
-  if (!atStage9.rowCount) return { ok: false, error: "ວຽກບໍ່ໄດ້ຢູ່ຂັ້ນ ກຳລັງສ້ອມ — ຖອດອາໄຫຼ່ບໍ່ໄດ້" };
+  // ໜ້າຕ່າງດຽວກັບການເພີ່ມ (ຂັ້ນ 5-9) — ເພີ່ມໄດ້ ຕ້ອງຖອດອອກໄດ້
+  const inWindow = await query(
+    `select 1 from tb_product a where a.code=$1 and (${STAGE_SQL}) between 5 and 9`,
+    [code],
+  );
+  if (!inWindow.rowCount) return { ok: false, error: "ຖອດອາໄຫຼ່ໄດ້ກ່ອນຈົບການສ້ອມເທົ່ານັ້ນ" };
 
   const removed = await query<{ item_name: string | null }>(
     `delete from tb_used_spare where roworder=$1 and product_code=$2 and ${NOT_ON_DOC}

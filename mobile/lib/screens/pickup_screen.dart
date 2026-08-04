@@ -675,6 +675,27 @@ class _PickupScreenState extends State<PickupScreen> {
                     runSpacing: 6,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
+                      // ຮອບຂອງໃບຂໍເບີກ (SIO) ທີ່ເປັນຕົ້ນເຫດ — ງານດຽວກັນເບີກຫຼາຍຮອບ
+                      // ຊ່າງໄດ້ຮູ້ວ່າໃບນີ້ແມ່ນຮອບໃດ (ສະເພາະສ້ອມ)
+                      if (doc.round != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEEF2FF),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            'ຮອບ ${doc.round}',
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF4338CA),
+                            ),
+                          ),
+                        ),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 9,

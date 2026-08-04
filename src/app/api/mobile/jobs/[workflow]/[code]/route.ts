@@ -26,8 +26,11 @@ import { installTimeline } from "@/lib/install-timeline";
 import { openLoaners } from "@/lib/loaner";
 import { maintenanceTimeline } from "@/lib/maintenance-timeline";
 import { MAX_PHOTO_CHARS, requireMobile } from "@/lib/mobile-auth";
+import { nextActor } from "@/lib/repair-next-action";
 import { repairTimeline, type TimelineStep } from "@/lib/repair-timeline";
 import { TECH_SIDE } from "@/lib/roles";
+import { STAGE_SQL } from "@/lib/stage";
+import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
@@ -133,7 +136,53 @@ export async function GET(request: Request, context: { params: Promise<{ workflo
           }))
         : [];
 
-    return NextResponse.json({ photos, timeline: timelinePayload(timeline), delivery, loaners });
+    /**
+     * **"ຕອນນີ້ລໍໃຜເຮັດ" + ສະຖານະອາໄຫຼ່** (ສະເພາະງານສ້ອມ) — ຄິດດ້ວຍ lib/repair-next-action
+     * ຕົວດຽວກັບເວັບ: ອາໄຫຼ່ນິຍາມລະດັບແຖວ (status=5 + arrive_at) ບໍ່ແມ່ນທຸງລະດັບວຽກ.
+     * ຊ່າງເຫັນວ່າວຽກຂອງຕົນຄ້າງຢູ່ໃຜ — ບໍ່ຕ້ອງໂທຖາມ CS.
+     */
+    let nextAction: ReturnType<typeof nextActor> = null;
+    let spares: { pending: number; on_order: number; arrived: number } | null = null;
+    if (workflow === "repair") {
+      const [jobRow, spareRow] = await Promise.all([
+        query<{ stage: number; service_type: string | null }>(
+          `select (${STAGE_SQL})::int stage, nullif(a.service_type,'') service_type
+             from tb_product a where a.code = $1`,
+          [code],
+        ).then((result) => result.rows[0] ?? null),
+        query<{ pending: number; on_order: number; arrived: number }>(
+          `select count(*) filter (where coalesce(status,0) = ${LINE_STATUS.PENDING})::int pending,
+              count(*) filter (where status = ${LINE_STATUS.ON_PURCHASE_ORDER} and arrive_at is null)::int on_order,
+              count(*) filter (where status = ${LINE_STATUS.ON_PURCHASE_ORDER} and arrive_at is not null)::int arrived
+            from ic_trans_detail where product_code = $1 and trans_flag = ${TRANS.REQUEST}`,
+          [code],
+        ).then((result) => result.rows[0] ?? { pending: 0, on_order: 0, arrived: 0 }),
+      ]);
+      spares = spareRow;
+      if (jobRow) {
+        nextAction = nextActor(
+          jobRow.stage,
+          { pending: spareRow.pending, onOrder: spareRow.on_order, arrived: spareRow.arrived },
+          jobRow.service_type,
+        );
+      }
+    }
+
+    return NextResponse.json({
+      photos,
+      timeline: timelinePayload(timeline),
+      delivery,
+      loaners,
+      next_actor: nextAction
+        ? {
+            actor: nextAction.actor,
+            actor_label: nextAction.actorLabel,
+            label: nextAction.label,
+            action: nextAction.action,
+          }
+        : null,
+      spares,
+    });
   } catch (error) {
     console.error("Mobile job detail failed", error);
     return NextResponse.json({ error: "ໂຫຼດລາຍລະອຽດບໍ່ສຳເລັດ" }, { status: 500 });

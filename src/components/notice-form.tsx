@@ -7,6 +7,7 @@ import { CheckCircle2, LoaderCircle, Send } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 /**
  * ຟອມແຈ້ງສ້ອມ — ໃຊ້ຮ່ວມກັນ 2 ບ່ອນ:
@@ -121,6 +122,7 @@ export function NoticeForm({
 
   return (
     <form action={action} className="space-y-5">
+      <KeepFormValues />
       <input type="hidden" name="mode" value={mode} />
 
       {state.error && <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{state.error}</p>}

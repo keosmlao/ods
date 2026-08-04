@@ -4973,5 +4973,32 @@
     "prev": "ก่อนหน้า",
     "next": "ถัดไป",
     "yourJobs": "งานของท่าน"
+  },
+  "closeJobs": {
+    "title": "ปิดงาน (ซ่อม · ติดตั้ง)",
+    "items": "รายการ",
+    "page": "หน้า",
+    "search": "ค้นหา",
+    "clear": "ล้าง",
+    "searchPlaceholder": "ค้นหา เลขงาน, SN, ลูกค้า, สินค้า, ช่าง...",
+    "tabRepair": "ซ่อม",
+    "tabInstall": "ติดตั้ง",
+    "hintRepair": "ส่งคืนลูกค้าแล้ว รอตรวจเอกสารปิดงาน",
+    "hintInstall": "ลูกค้าประเมินแล้ว รอปิดงาน",
+    "colCode": "เลขงาน",
+    "colReturnedAt": "วันที่ส่งคืน",
+    "colFeedbackAt": "วันที่ลูกค้าประเมิน",
+    "colProduct": "สินค้า / รุ่น · SN",
+    "colCustomer": "ลูกค้า",
+    "colTech": "ช่าง",
+    "colAction": "จัดการ",
+    "print": "พิมพ์ใบงาน",
+    "close": "ปิดงาน",
+    "confirmClose": "ยืนยันปิดงาน",
+    "noResults": "ไม่มีงานรอปิด",
+    "showing": "แสดง",
+    "of": "จาก",
+    "prev": "ก่อนหน้า",
+    "next": "ถัดไป"
   }
 }

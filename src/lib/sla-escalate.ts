@@ -252,3 +252,72 @@ export async function escalateRepairStageSla(dryRun = false): Promise<RepairStag
 
   return result;
 }
+
+export type StaleRepairEscalation = { stale: number };
+
+/** ວຽກສ້ອມທີ່ເປີດຄ້າງເກີນນີ້ = ຫຼົງລືມ ບໍ່ແມ່ນຊ້າ (ມື້) */
+const STALE_DAYS = 30;
+
+/**
+ * **ວຽກສ້ອມທີ່ຖືກລືມ** — ເປີດຄ້າງເກີນ 30 ມື້ ບໍ່ວ່າຢູ່ຂັ້ນໃດ.
+ *
+ * ── ເປັນຫຍັງຕ້ອງມີ ນອກເໜືອຈາກ SLA ຕໍ່ຂັ້ນ ──
+ * SLA ຕໍ່ຂັ້ນ (escalateRepairStageSla) ເຕືອນ **ເທື່ອດຽວຕໍ່ຂັ້ນ** ແລະ ຍິງສະເພາະຂັ້ນທີ່ຊ່າງລົງມື
+ * (1·2·8·9) ⇒ ໃບທີ່ຄ້າງຢູ່ຂັ້ນອື່ນ ຫຼື ຖືກເຕືອນໄປແລ້ວ **ຈະງຽບຕະຫຼອດໄປ**.
+ * ຂໍ້ມູນຈິງ 04-08-2026: ວຽກເປີດ 93 ໃບ ແຕ່ **38 ໃບເກີນ 30 ມື້** ເກົ່າສຸດ **350 ມື້** (ໃບ 5477)
+ * ແລະ ກອງຢູ່ຊ່າງ 2 ຄົນ ⇒ ບໍ່ມີໃຜເຫັນເລີຍວ່າມັນຍັງເປີດຢູ່ (ເບິ່ງ docs/repair-redesign.md §1.5).
+ *
+ * ເຕືອນ **ຫົວໜ້າຊ່າງ + ຜູ້ຈັດການ** (ຄົນທີ່ຕັດສິນໃຈໄດ້ວ່າຈະສືບຕໍ່ ຫຼື ຍົກເລີກ) ແລະ push ຫາຊ່າງ.
+ * ເຕືອນເທື່ອດຽວຕໍ່ໃບຕໍ່ຊ່ວງ 30 ມື້ (kind = repair_stale_30/60/90…) ⇒ ຄ້າງຕໍ່ ຈຶ່ງດັງຄືນ.
+ */
+export async function escalateStaleRepairJobs(dryRun = false): Promise<StaleRepairEscalation> {
+  const result: StaleRepairEscalation = { stale: 0 };
+
+  const stale = await query<{
+    code: string;
+    tech: string | null;
+    customer: string | null;
+    stage_label: string;
+    days: number;
+    bucket: number;
+  }>(
+    `select a.code, nullif(trim(a.emp_code),'') as tech, b.name_1 as customer,
+        (${STAGE_LABEL_SQL}) as stage_label,
+        floor(extract(epoch from (localtimestamp - a.time_register))/86400)::int as days,
+        (floor(extract(epoch from (localtimestamp - a.time_register))/86400/${STALE_DAYS}) * ${STALE_DAYS})::int as bucket
+      from tb_product a
+      left join ar_customer b on b.code = a.cust_code
+     where ${OPEN_JOBS} and ${NOT_MISSING}
+       and a.time_register < localtimestamp - interval '${STALE_DAYS} days'
+       and not exists (
+         select 1 from ods_sla_escalation e
+          where e.job_code = a.code
+            and e.kind = 'repair_stale_' || (floor(extract(epoch from (localtimestamp - a.time_register))/86400/${STALE_DAYS}) * ${STALE_DAYS})::int::text)
+     order by a.time_register`,
+  );
+
+  for (const job of stale.rows) {
+    const headline = `⏰ ວຽກສ້ອມຄ້າງ ${job.days} ມື້ — ຂັ້ນ "${job.stage_label}"`;
+    if (!dryRun) {
+      if (job.tech) {
+        await pushToUser(job.tech, headline, `${job.code} · ${job.customer ?? ""}`, {
+          workflow: "repair",
+          code: job.code,
+        });
+      }
+      await logChange(
+        "tb_product",
+        job.code,
+        `${headline} — ຊ່າງ ${job.tech ?? "(ຍັງບໍ່ຈັດ)"} · ລູກຄ້າ ${job.customer ?? "-"} · ຕັດສິນໃຈ: ສືບຕໍ່ ຫຼື ຍົກເລີກ`,
+        { roles: ["headtechnical", "manager"] },
+      );
+      await query(
+        "insert into ods_sla_escalation(job_code, kind) values($1, 'repair_stale_' || $2::text) on conflict do nothing",
+        [job.code, job.bucket],
+      );
+    }
+    result.stale += 1;
+  }
+
+  return result;
+}

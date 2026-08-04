@@ -43,6 +43,40 @@ const { write: uploadsDir, read: uploadsReadDirs } = resolveUploadsDirs();
 /** ບ່ອນຂຽນໄຟລ໌ upload — ໃຫ້ທຸກທີ່ໃຊ້ຄ່ານີ້ ຢ່າອ່ານ process.env ເອງ (ບໍ່ດັ່ງນັ້ນຈະຂຽນຄົນລະບ່ອນ) */
 export const UPLOADS_DIR = uploadsDir;
 
+/** ຜົນກວດ "ຂຽນໄດ້ບໍ" — ກວດເທື່ອດຽວຕໍ່ process (undefined = ຍັງບໍ່ໄດ້ກວດ) */
+let writableDir: string | null | undefined;
+
+/**
+ * ໂຟນເດີທີ່ **ຂຽນໄດ້ຈິງ** — ສ້າງໃຫ້ຖ້າຍັງບໍ່ມີ; ຖ້າ ODS_UPLOADS_DIR ໃຊ້ບໍ່ໄດ້
+ * (ຕັ້ງຄ່າຜິດ · ບໍ່ມີສິດ · ອ່ານຢ່າງດຽວ) ⇒ **ຫຼົບໄປ `<project>/var/uploads`** ພ້ອມ log ດັງໆ.
+ *
+ * ⚠️ ບົດຮຽນ (04-08-2026): server ຕັ້ງ ODS_UPLOADS_DIR ເປັນ path ຂອງເຄື່ອງ Mac
+ * (`/Users/...`) ⇒ `mkdir` ໄດ້ EACCES ⇒ **ຮັບເຄື່ອງບໍ່ໄດ້ທັງລະບົບ** (Create service failed).
+ * ການອັບໂຫລດຮູບຫ້າມພາໃຫ້ "ຮັບເຄື່ອງ" ລົ້ມ ⇒ ຂຽນລົງບ່ອນສຳຮອງໄວ້ກ່ອນ.
+ * ປອດໄພກວ່າແຕ່ກ່ອນ ເພາະ readUpload() ໄລ່ຫາທັງສອງບ່ອນແລ້ວ ⇒ ຮູບບໍ່ 404 ຄືເກົ່າ.
+ * (ແກ້ env ໃຫ້ຖືກຍັງເປັນສິ່ງທີ່ຄວນເຮັດ — log ຈະບອກທຸກຄັ້ງ)
+ */
+async function ensureWritableDir(): Promise<string | null> {
+  if (writableDir !== undefined) return writableDir;
+  if (!uploadsDir) return (writableDir = null);
+  try {
+    await mkdir(/*turbopackIgnore: true*/ uploadsDir, { recursive: true });
+    writableDir = uploadsDir;
+  } catch (error) {
+    const local = resolvePath(/*turbopackIgnore: true*/ process.cwd(), "var", "uploads");
+    console.error(
+      `⚠️ ODS_UPLOADS_DIR ຂຽນບໍ່ໄດ້ (${uploadsDir}) — ຂຽນລົງ ${local} ແທນ; ກະລຸນາແກ້ຄ່າໃນ .env.local`,
+      error,
+    );
+    await mkdir(/*turbopackIgnore: true*/ local, { recursive: true });
+    writableDir = local;
+  }
+  return writableDir;
+}
+
+/** ບ່ອນຂຽນທີ່ໃຊ້ໄດ້ຈິງ — ໃຫ້ຝັ່ງທີ່ຂຽນໄຟລ໌ເອງ (purchase · return) ເອີ້ນອັນນີ້ */
+export const uploadsWriteDir = ensureWritableDir;
+
 /**
  * ອ່ານໄຟລ໌ upload — ໄລ່ຫາທຸກໂຟນເດີທີ່ລະບົບເຄີຍຂຽນ, ບໍ່ພົບຄືນ null.
  * ຕັດ path traversal ດ້ວຍ basename() ໃນຕົວ (ຊື່ໄຟລ໌ອາດມາຈາກ URL).
@@ -138,8 +172,9 @@ export async function saveUploads(
   written: string[],
   key: ImageKey = "iteme_code",
 ) {
-  if (!uploads.length || !uploadsDir) return;
-  await mkdir(uploadsDir, { recursive: true });
+  if (!uploads.length) return;
+  const dir = await ensureWritableDir();
+  if (!dir) return;
 
   const next = await client.query<{ line: number }>(
     `select coalesce(max(line_number), -1) + 1 as line from product_image where ${key} = $1`,
@@ -150,7 +185,7 @@ export async function saveUploads(
   for (const { line, filename, bytes } of uploads) {
     const lineNumber = offset + line;
     const stored = `${code}_${lineNumber}_${filename}`;
-    const path = join(/*turbopackIgnore: true*/ uploadsDir, stored);
+    const path = join(/*turbopackIgnore: true*/ dir, stored);
     await writeFile(path, bytes);
     written.push(path);
     await client.query(`insert into product_image(${key}, product_url, line_number) values($1,$2,$3)`, [

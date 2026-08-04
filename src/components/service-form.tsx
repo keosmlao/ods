@@ -15,6 +15,7 @@ import { ONSITE_SERVICE_TYPES } from "@/lib/sla";
 import { useDict } from "@/lib/i18n/context";
 import { REPAIR_CENTER_LABEL, REPAIR_CENTERS } from "@/lib/repair-center";
 import { useActionState, useEffect, useState } from "react";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 type Option = { code: string; name_1: string };
 export type ServicePrefill = {
@@ -216,6 +217,7 @@ export function ServiceForm({
 
   return (
     <form action={action} className="space-y-5">
+      <KeepFormValues />
       {/* ແຖບປຸ່ມ ຄ້າງຢູ່ເທິງ */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <button

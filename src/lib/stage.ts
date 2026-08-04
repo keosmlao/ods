@@ -90,17 +90,19 @@ export const STAGE_SQL = `case
   -- ວາງໄວ້ໃນສ່ວນອາໄຫຼ່ (ຫຼັງ 9/10/11/12) ⇒ ງານທີ່ລົງມືສ້ອມ/ຜ່ານ QC ແລ້ວ **ບໍ່ຖືກດຶງກັບ**
   -- ເຖິງຈະມີແຖວຄ້າງຫຼົງເຫຼືອ. ວັດແລ້ວ: ຍ້າຍ 11 ໃບ (6→7 ຫົກ · 5→7 ສີ່ · 8→7 ນຶ່ງ) ໃຊ້ 42ms.
   --
-  -- ⚠️ ຂໍ້ຍົກເວັ້ນ (03-08-2026): ຖ້າ **ERP ຢືນຢັນຮັບເຂົ້າສາງຄົບແລ້ວ** (spare_arrive ສະແຕມ
-  -- ໂດຍ syncErpPurchase — ກວດໃບຮັບ PUIT ທຽບ item_code ຄົບທຸກລາຍການ, ບໍ່ມີປຸ່ມກົດມືອີກ)
-  -- ແຖວ status=5 ບໍ່ມີສິດຢ່າງວຽກໄວ້ຂັ້ນ 7 — ບໍ່ດັ່ງນັ້ນວຽກຄ້າງຢູ່ "ກຳລັງສັ່ງຊື້" ຕະຫຼອດໄປ
-  -- ທັງທີ່ຂອງນອນຢູ່ສາງແລ້ວ (ຂໍ້ມູນຈິງ 15 ໃບ, 8 ໃບມີໃບຂໍເບີກ SIO ພ້ອມ). ປ່ອຍແລ້ວວຽກໄປ:
+  -- ⚠️ ຄວາມຈິງຢູ່ **ແຖວເອກະສານ** ລະດັບແຖວ (03-08-2026): ວຽກສັ່ງຊື້/ເບີກຫຼາຍຮອບ
+  -- (ຂໍ້ມູນຈິງ: 711 ວຽກມີ SIO ຫຼາຍຮອບ · 81 ວຽກມີ RQ ຫຼາຍຮອບ) ແຕ່ tb_product ມີ
+  -- ທຸງ spare_arrive ຄືນດຽວ ⇒ ຮອບໃໝ່ຖືກທຸງຮອບເກົ່າບັງ. ດ່ານຈຶ່ງຍ້າຍມາຢູ່ແຖວ:
+  -- **ຍັງມີແຖວ SIO status=5 ທີ່ arrive_at ຫວ່າງ** (ຍັງບໍ່ຮັບເຂົ້າສາງ) ⇒ ຂັ້ນ 7.
+  -- syncErpPurchase ສະແຕມ arrive_at ໃຫ້ແຕ່ລະແຖວຈາກໃບຮັບເຂົ້າ PUIT ຂອງ ERP
+  -- (ທຽບ item_code ຄົບທຸກລາຍການ, ບໍ່ມີປຸ່ມກົດມືອີກ). ຖືກສະແຕມໝົດແລ້ວວຽກປ່ອຍມື:
   -- ມີໃບຂໍເບີກ ⇒ ຂັ້ນ 6 (ກຳລັງເບີກອາໄຫຼ່ — ສາງເບີກ ແລ້ວຊ່າງກົດຮັບ) · ບໍ່ມີ ⇒ ຂັ້ນ 5.
   when coalesce(a.used_spare,0) = 1
-   and a.spare_arrive is null
    and exists (select 1 from ic_trans_detail d
                 where d.product_code = a.code
                   and d.trans_flag = ${TRANS.REQUEST}
-                  and d.status = ${LINE_STATUS.ON_PURCHASE_ORDER})       then 7
+                  and d.status = ${LINE_STATUS.ON_PURCHASE_ORDER}
+                  and d.arrive_at is null)                         then 7
   -- ຖ້າ stock ບໍ່ພໍ: ສັ່ງຊື້/ຮັບເຂົ້າກ່ອນ SIO. ກວດ stage 7 ກ່ອນ stage 5
   -- ເພາະໃນ workflow ໃໝ່ spare_reg ຍັງເປັນ null ຕະຫຼອດຊ່ວງສັ່ງຊື້.
   when coalesce(a.used_spare,0) = 1 and a.spare_order is not null

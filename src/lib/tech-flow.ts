@@ -554,7 +554,13 @@ export async function createSpareRequest(
         [input.code, fully],
       );
     }
-    await client.query(`update tb_product set spare_reg=${NOW} where code=$1`, [input.code]);
+    // spare_reg ເກັບວັນຂໍເບີກ**ຮອບທຳອິດ** (coalesce — ຮອບໃໝ່ຫ້າມທັບ) ແລະ ລ້າງ
+    // spare_finish ຂອງຮອບກ່ອນ: ມີໃບຂໍເບີກໃໝ່ = ຍັງເບີກບໍ່ຄົບ ⇒ ວຽກຕ້ອງກັບຂັ້ນ 6
+    // (ກຳລັງເບີກອາໄຫຼ່) ບໍ່ແມ່ນຄ້າງຂັ້ນ 8 ລໍສ້ອມ ທັງທີ່ອາໄຫຼ່ຮອບໃໝ່ຍັງບໍ່ທັນເບີກ.
+    await client.query(
+      `update tb_product set spare_reg=coalesce(spare_reg,${NOW}), spare_finish=null where code=$1`,
+      [input.code],
+    );
 
     await writeErpRequest(
       {
@@ -696,6 +702,8 @@ export type PickupDoc = {
   job_code: string;
   doc_date: string;
   lines: number;
+  /** ຮອບຂອງໃບຂໍເບີກ (SIO) ທີ່ເປັນຕົ້ນເຫດ — ສະເພາະສ້ອມ (ຕິດຕັ້ງ = null) */
+  round: number | null;
 };
 
 export async function pickupQueue(session: Session): Promise<PickupDoc[]> {
@@ -703,7 +711,11 @@ export async function pickupQueue(session: Session): Promise<PickupDoc[]> {
     await query<PickupDoc>(
       `select 'repair'::varchar workflow, ic.doc_no, ic.product_code as job_code,
           to_char(ic.doc_date,'DD-MM-YYYY') as doc_date,
-          (select count(*)::int from ic_trans_detail d where d.doc_no = ic.doc_no and d.trans_flag = ${TRANS.DISPATCH}) as lines
+          (select count(*)::int from ic_trans_detail d where d.doc_no = ic.doc_no and d.trans_flag = ${TRANS.DISPATCH}) as lines,
+          (select count(*)::int + 1 from ic_trans r0
+             join ic_trans r on r.doc_no = ic.doc_ref and r.trans_flag = ${TRANS.REQUEST}
+            where r0.trans_flag = ${TRANS.REQUEST} and r0.product_code = ic.product_code
+              and (r0.doc_date, r0.doc_no) < (r.doc_date, r.doc_no)) as round
         from ic_trans ic
         join tb_product p on p.code = ic.product_code
        where ic.trans_flag = ${TRANS.DISPATCH}
@@ -713,7 +725,8 @@ export async function pickupQueue(session: Session): Promise<PickupDoc[]> {
        union all
        select 'install'::varchar workflow, ic.doc_no, ic.product_code as job_code,
           to_char(ic.doc_date,'DD-MM-YYYY') as doc_date,
-          (select count(*)::int from ic_trans_detail d where d.doc_no=ic.doc_no and d.trans_flag=${TRANS.DISPATCH}) lines
+          (select count(*)::int from ic_trans_detail d where d.doc_no=ic.doc_no and d.trans_flag=${TRANS.DISPATCH}) lines,
+          null::int as round
          from ic_trans ic
          join ods_tb_install i on i.code=ic.product_code
         where ic.trans_flag=${TRANS.DISPATCH} and ic.job_type='install'

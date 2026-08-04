@@ -4,7 +4,7 @@ import { ROLE_APPROVER, ROLE_WAREHOUSE } from "@/lib/chatter";
 import { pushToUser } from "@/lib/push";
 import { db, query, queryOdg } from "@/lib/db";
 import { STAGE_SQL } from "@/lib/stage";
-import { ERP_PURCHASE } from "@/lib/stock-constants";
+import { ERP_PURCHASE, LINE_STATUS, TRANS } from "@/lib/stock-constants";
 
 /**
  * **ຕິດຕາມການສັ່ງຊື້ອາໄຫຼ່ຈາກ ERP** — ບ່ອນດຽວຂອງລະບົບ. ອ່ານຢ່າງດຽວ ບໍ່ຂຽນຫຍັງ.
@@ -144,11 +144,24 @@ const CHAIN_SQL = `
     (select string_agg(distinct r.doc_no, ', ') from rc r where r.pr_no = p.doc_no) receipt_no,
     (select to_char(max(r.doc_date),'DD-MM-YYYY') from rc r where r.pr_no = p.doc_no) receipt_date,
     (select to_char(max(r.doc_date),'YYYY-MM-DD') from rc r where r.pr_no = p.doc_no) receipt_iso,
-    (select max(current_date - r.doc_date) from rc r where r.pr_no = p.doc_no)::int days_since_receipt
+    (select max(current_date - r.doc_date) from rc r where r.pr_no = p.doc_no)::int days_since_receipt,
+    /* ── ລາຍການສິນຄ້າຂອງໃບ ERP ແລະ ຂອງໃບຮັບ — ໃຊ້ທຽບກັບ "ຂອງທີ່ວຽກຂໍຈິງ" (ເບິ່ງ verifyItems) ── */
+    (select string_agg(distinct i.item_code, ',') from pri i where i.pr_no = p.doc_no) pr_items,
+    (select string_agg(distinct r.item_code || '|' || r.doc_no || '|' ||
+        to_char(r.doc_date,'DD-MM-YYYY') || '|' || to_char(r.doc_date,'YYYY-MM-DD') || '|' ||
+        (current_date - r.doc_date)::text, ';')
+      from rc r where r.pr_no = p.doc_no) receipt_items
   from pr p`;
 
 /** ແຖວດິບຈາກ ERP — pr_no ຄືຫົວໃບ ຈຶ່ງບໍ່ມີວັນເປັນ null (ຕ່າງຈາກ PurchaseTrack ທີ່ເປັນ null ໄດ້) */
-type ChainRow = Omit<PurchaseTrack, "job" | "stage" | "pr_no"> & { pr_no: string; rq_no: string | null };
+type ChainRow = Omit<PurchaseTrack, "job" | "stage" | "pr_no"> & {
+  pr_no: string;
+  rq_no: string | null;
+  /** item_code ທັງໝົດຂອງໃບ ERP (ຄັ່ນດ້ວຍ ,) */
+  pr_items: string | null;
+  /** ໃບຮັບແຕ່ລະລາຍການ: item|doc_no|DD-MM-YYYY|YYYY-MM-DD|ມື້ (ຄັ່ນແຖວດ້ວຍ ;) */
+  receipt_items: string | null;
+};
 
 /**
  * ສະຖານະການສັ່ງຊື້ຂອງແຕ່ລະວຽກ — ສົ່ງລະຫັດວຽກ (tb_product.code) ເຂົ້າມາ.
@@ -163,7 +176,7 @@ export async function purchaseTracking(jobs: string[]): Promise<Map<string, Purc
   try {
     // 3 ຊຸດນີ້ເປັນ metadata ຈາກ ODS ທີ່ບໍ່ຂຶ້ນຕໍ່ກັນ — ດຶງພ້ອມກັນ.
     // ກ່ອນນີ້ລໍຖ້າຕາມລຳດັບ 3 round trips ກ່ອນຈະເລີ່ມ query ERP.
-    const [docs, rqs, linkedDocs] = await Promise.all([
+    const [docs, rqs, linkedDocs, wanted] = await Promise.all([
       // ວຽກ → ໃບຂໍຊື້ຂອງມັນ (ODS ຮູ້ product_code · ERP ບໍ່ຮູ້)
       query<JobDoc>(
         `select t.product_code job, t.doc_no pr_no, nullif(split_part(trim(coalesce(t.doc_ref,'')),' ',1),'') rq_no
@@ -179,7 +192,24 @@ export async function purchaseTracking(jobs: string[]): Promise<Map<string, Purc
         [RQ_TRANS, jobs],
       ),
       docsForJobs(jobs),
+      /**
+       * **ອາໄຫຼ່ທີ່ວຽກຂໍຈິງ** (ໃບຂໍເບີກ SIO ຂອງວຽກນັ້ນ) — ໃຊ້ກັນໃບ ERP ທີ່ຜູກຜິດ.
+       *
+       * ⚠️ ບັກຈິງ (04-08-2026 · ໃບ 7195): RQ2026060646 ຂໍ **ແຜງ HITACHI 140101-2324**
+       * ແຕ່ໃບ ERP ທີ່ຜູກມາ (SPR26060027) ມີແຕ່ **ແຜງ DAIKIN** ⇒ ໃບຮັບ PUIT26070006
+       * ຂອງ DAIKIN ຖືກນັບເປັນ "ອາໄຫຼ່ຂອງວຽກນີ້ມາຮອດຄົບແລ້ວ" ⇒ ໜ້າຈໍຂຶ້ນກ່ອງຂຽວ
+       * "ວຽກຄວນໄປຕໍ່ໄດ້ແລ້ວ · ຂອງເຂົ້າສາງແລ້ວ 34 ມື້" ທັງທີ່ຂອງຈິງຫາກໍ່ມາຮອດມື້ນີ້.
+       * ⇒ ນັບສະເພາະ item ທີ່ **ຢູ່ໃນໃບຂໍເບີກຂອງວຽກ** ເທົ່ານັ້ນ.
+       */
+      query<{ job: string; items: string[] }>(
+        `select d.product_code job, array_agg(distinct d.item_code) items
+           from ic_trans_detail d
+          where d.trans_flag = $1 and d.product_code = any($2::varchar[])
+          group by d.product_code`,
+        [TRANS.REQUEST, jobs],
+      ),
     ]);
+    const wantedByJob = new Map(wanted.rows.map((row) => [row.job, new Set(row.items)]));
     /**
      * ກຸນແຈຫາຝັ່ງ ERP — 4 ທາງ, ຂາດທາງໃດທາງໜຶ່ງກໍ່ຍັງຫາພົບ:
      *   ① ເລກ SPR ທີ່ ODS ຍັງມີສຳເນົາ (ໃບເກົ່າ)
@@ -216,8 +246,35 @@ export async function purchaseTracking(jobs: string[]): Promise<Map<string, Purc
         (row.rq_no ? (byRq.get(row.rq_no) ?? (jobSet.has(row.rq_no) ? row.rq_no : undefined)) : undefined);
       if (!job) continue;
 
+      /**
+       * ນັບສະເພາະ item ທີ່ວຽກຂໍຈິງ — ໃບ ERP ທີ່ບໍ່ມີ item ຂອງວຽກເລີຍ ຄື**ຜູກຜິດ** ⇒ ຂ້າມ.
+       * ວຽກທີ່ບໍ່ມີໃບຂໍເບີກ (ຍັງບໍ່ທັນຂໍ) → ບໍ່ກັ່ນຕອງ (ຮັກສາພຶດຕິກຳເກົ່າ).
+       */
+      const want = wantedByJob.get(job);
+      const prItems = (row.pr_items ?? "").split(",").filter(Boolean);
+      const matched = want && want.size > 0 ? prItems.filter((item) => want.has(item)) : prItems;
+      if (want && want.size > 0 && prItems.length > 0 && matched.length === 0) continue;
+
+      const receipts = (row.receipt_items ?? "")
+        .split(";")
+        .filter(Boolean)
+        .map((entry) => {
+          const [item, docNo, date, iso, days] = entry.split("|");
+          return { item, docNo, date, iso, days: Number(days) || 0 };
+        })
+        .filter((receipt) => (want && want.size > 0 ? want.has(receipt.item) : true));
+
+      const items = matched.length;
+      const items_received = new Set(receipts.map((receipt) => receipt.item)).size;
+      // ໃບຮັບ/ວັນທີ ເອົາສະເພາະຂອງ item ທີ່ຕົງ (ບໍ່ດັ່ງນັ້ນຈະຂຶ້ນວັນຂອງໃບຄົນອື່ນ)
+      const receipt_no = [...new Set(receipts.map((receipt) => receipt.docNo))].join(", ") || null;
+      const latest = receipts.reduce<(typeof receipts)[number] | null>(
+        (best, receipt) => (!best || receipt.iso > best.iso ? receipt : best),
+        null,
+      );
+
       const stage: PurchaseStage =
-        row.items_received > 0 && row.items_received >= row.items
+        items_received > 0 && items_received >= items
           ? "received"
           : row.oa_no
             ? "po_approved"
@@ -231,7 +288,17 @@ export async function purchaseTracking(jobs: string[]): Promise<Map<string, Purc
       // ເພາະວຽກຈະໄປຕໍ່ໄດ້ກໍ່ຕໍ່ເມື່ອອາໄຫຼ່ມາຮອດ**ຄົບທຸກໃບ**
       const previous = result.get(job);
       if (previous && ORDER_OF[previous.stage] <= ORDER_OF[stage]) continue;
-      result.set(job, { job, stage, ...row });
+      result.set(job, {
+        ...row,
+        job,
+        stage,
+        items,
+        items_received,
+        receipt_no,
+        receipt_date: latest?.date ?? null,
+        receipt_iso: latest?.iso ?? null,
+        days_since_receipt: latest ? latest.days : null,
+      });
     }
     return result;
   } catch (error) {
@@ -334,21 +401,26 @@ export type PurchaseSync = {
  * ບວກກັບທຽບ **item_code ທຸກຂັ້ນ** ແລະ ບັງຄັບ `items_received >= items` ⇒ ມາບໍ່ຄົບ
  * ຈະບໍ່ເລື່ອນຂັ້ນ (ຫຼັກການດຽວກັນກັບ syncErpDispatch ທີ່ດຶງໃບເບີກຂອງ ERP ມາເລື່ອນຂັ້ນ).
  *
- * stamp `spare_arrive` ດ້ວຍ **ວັນທີໃນໃບຂອງ ERP** ບໍ່ແມ່ນເວລາປັດຈຸບັນ ⇒ ອາຍຸທີ່ຄ້າງລໍ
+ * stamp ດ້ວຍ **ວັນທີໃນໃບຂອງ ERP** ບໍ່ແມ່ນເວລາປັດຈຸບັນ ⇒ ອາຍຸທີ່ຄ້າງລໍ
  * ເບີກເປັນຄວາມຈິງ (ວຽກ 5863 ຈະຂຶ້ນ "ຄ້າງ 136 ມື້" ທັນທີ ບໍ່ແມ່ນ "ຫາກໍ່ມາຮອດ").
  *
- * idempotent: `spare_arrive is null` ຢູ່ໃນ WHERE ⇒ ເອີ້ນຊ້ຳໄດ້ທຸກເທື່ອທີ່ເປີດໜ້າ.
+ * ── ຄວາມຈິງຢູ່ແຖວ ບໍ່ແມ່ນທຸງວຽກ (03-08-2026) ──
+ * ວຽກສັ່ງຊື້ຫຼາຍຮອບ: ຮອບໃໝ່ມາຮອດຕ້ອງບໍ່ຖືກທຸງຮອບເກົ່າບັງ ⇒ ຂຽນ `arrive_at`
+ * ໃສ່**ແຕ່ລະແຖວ** SIO ທີ່ຍັງລໍ (status=5, arrive_at ຫວ່າງ) ແລ້ວຈຶ່ງ coalesce
+ * ທຸງວຽກ `spare_arrive` ໄວ້ໃຫ້ໂຄ້ດເກົ່າທີ່ຍັງອ່ານມັນ.
+ *
+ * idempotent: ຫຼັງສະແຕມແລ້ວ STAGE_7 ບໍ່ເປັນຈິງອີກ (ແຖວມີ arrive_at) ⇒ ວຽກ
+ * ບໍ່ເຂົ້າ open query ຊ້ຳ — ເອີ້ນໄດ້ທຸກເທື່ອທີ່ເປີດໜ້າ.
  */
 export async function syncErpPurchase(): Promise<PurchaseSync> {
   const empty: PurchaseSync = { advanced: 0, jobs: [], tracking: new Map() };
   if (!db) return empty;
 
   try {
-    // ກວດສະເພາະວຽກທີ່ຍັງບໍ່ເຄີຍ sync ວັນຮັບຈາກ ERP.
-    // guard ນີ້ຕ້ອງຢູ່ທັງ SELECT ແລະ UPDATE: ປ້ອງກັນການຂຽນ log/
-    // notification ຊ້ຳທຸກເທື່ອທີ່ຄົນເປີດໜ້າ purchasing.
+    // STAGE_7 ຕ້ອງເປັນຈິງທັງຕອນຄັດ ແລະ ຕອນຂຽນ: ກັນວຽກທີ່ປ່ຽນຂັ້ນໄປແລ້ວ
+    // ລະຫວ່າງນີ້ ແລະ ກັນຂຽນ log/notification ຊ້ຳ (ສະແຕມແຖວແລ້ວ ⇒ ບໍ່ເປັນຂັ້ນ 7 ອີກ).
     const open = await query<{ code: string }>(
-      `select a.code from tb_product a where a.spare_arrive is null and ${STAGE_7}`,
+      `select a.code from tb_product a where ${STAGE_7}`,
     );
     if (open.rows.length === 0) return empty;
 
@@ -358,16 +430,32 @@ export async function syncErpPurchase(): Promise<PurchaseSync> {
 
     const jobs: string[] = [];
     for (const track of arrived) {
-      // ເງື່ອນໄຂຂັ້ນຢູ່ໃນ WHERE ເອງ ⇒ ວຽກທີ່ຖືກປ່ຽນໄປແລ້ວລະຫວ່າງນີ້ ຈະບໍ່ຖືກແຕະ
+      /**
+       * ① ປ້າຍວຽກກ່ອນ — STAGE_7 ຢູ່ໃນ WHERE ກັນວຽກທີ່ປ່ຽນຂັ້ນລະຫວ່າງນີ້ ແລະ
+       * ຄອບ**ກິ່ງ legacy** (spare_order ຄ້າງ ແຕ່ບໍ່ມີແຖວ SIO ໃຫ້ສະແຕມ).
+       * coalesce = ວັນຮັບຂອງຮອບທຳອິດຊະນະ (ຄວາມຈິງລະດັບແຖວຢູ່ arrive_at ຂ້າງລຸ່ມ).
+       */
       const done = await query<{ emp_code: string | null; product: string | null; sn: string | null; has_sio: boolean }>(
-        `update tb_product a set spare_arrive = $2::timestamp, spare_arrive_by = $3
-          where a.code = $1 and a.spare_arrive is null and ${STAGE_7}
+        `update tb_product a set spare_arrive = coalesce(a.spare_arrive, $2::timestamp),
+                                 spare_arrive_by = coalesce(a.spare_arrive_by, $3)
+          where a.code = $1 and ${STAGE_7}
         returning a.emp_code, a.name_1 product, a.sn,
           (a.spare_reg is not null
             or exists (select 1 from ic_trans_detail d
-                        where d.product_code = a.code and d.trans_flag = 122
-                          and coalesce(d.status,0) in (0, 5))) has_sio`,
+                        where d.product_code = a.code and d.trans_flag = ${TRANS.REQUEST}
+                          and coalesce(d.status,0) in (${LINE_STATUS.PENDING}, ${LINE_STATUS.ON_PURCHASE_ORDER}))) has_sio`,
         [track.job, track.receipt_iso, ERP_ACTOR],
+      );
+      /**
+       * ② ຄວາມຈິງລະດັບແຖວ — ແຖວ SIO ທີ່ຍັງລໍຮັບເຂົ້າ (status=5, arrive_at ຫວ່າງ)
+       * ໄດ້ວັນຮັບຂອງຕົນເອງ ⇒ ຮອບຕໍ່ໄປຂອງວຽກນີ້ ບໍ່ຖືກປ້າຍດ້ວຍວັນຂອງຮອບນີ້.
+       */
+      await query(
+        `update ic_trans_detail set arrive_at = $2::timestamp
+          where product_code = $1 and trans_flag = ${TRANS.REQUEST}
+            and coalesce(status,0) = ${LINE_STATUS.ON_PURCHASE_ORDER}
+            and arrive_at is null`,
+        [track.job, track.receipt_iso],
       );
       if (!done.rowCount) continue;
       const job = done.rows[0];

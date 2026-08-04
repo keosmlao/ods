@@ -26,6 +26,9 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
   final term = TextEditingController();
   List<RepairSpareLine> lines = [];
   List<SpareItem> results = [];
+
+  /// ບັນຊີອາໄຫຼ່ແບ່ງຕາມຮອບ (ໃບຂໍເບີກ + ໃບຂໍຊື້) — ຊຸດດຽວກັບເວັບ; ລົ້ມ = null (ບໍ່ສະແດງ)
+  SpareRounds? rounds;
   bool busy = false;
   bool loading = true;
   bool searched = false;
@@ -55,6 +58,11 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
     } finally {
       if (mounted) setState(() => loading = false);
     }
+    // ຮອບອາໄຫຼ່ — ຂໍ້ມູນເສີມ ລົ້ມກໍ່ບໍ່ໃຫ້ໜ້າພັງ (ພຽງບໍ່ສະແດງ)
+    try {
+      final data = await Api.spareRounds('repair', widget.code);
+      if (mounted) setState(() => rounds = data);
+    } catch (_) {}
   }
 
   Future<void> search() async {
@@ -146,6 +154,17 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
                       )
                     else
                       for (final line in lines) _lineCard(line),
+                    if (rounds != null &&
+                        (rounds!.withdrawals.isNotEmpty ||
+                            rounds!.purchases.isNotEmpty)) ...[
+                      const SizedBox(height: 18),
+                      const SectionLabel('ບັນຊີອາໄຫຼ່ຕາມຮອບ'),
+                      const SizedBox(height: 8),
+                      for (final round in rounds!.withdrawals)
+                        _withdrawRoundCard(round),
+                      for (final round in rounds!.purchases)
+                        _purchaseRoundCard(round),
+                    ],
                     const SizedBox(height: 18),
                     const SectionLabel('ຄົ້ນຫາ ແລະ ເພີ່ມອາໄຫຼ່'),
                     _searchBar(),
@@ -284,6 +303,124 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
                     : () =>
                           run(() => Api.removeUsedSpare(widget.code, line.roworder)),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// ສະຖານະຮອບຂໍເບີກ — ນິຍາມດຽວກັບເວັບ (lib/repair-spare-rounds):
+  /// ກຳລັງສັ່ງຊື້ = ແຖວ status=5 ທີ່ arrive_at ຫວ່າງ · ຮັບແລ້ວ = ມີໃບ PISP
+  (String, Color, Color) _withdrawState(SpareWithdrawRound round) {
+    if (round.state == 'received') {
+      return ('ຮັບແລ້ວ', ok, const Color(0xFFE1F5EC));
+    }
+    if (round.onOrder > 0) {
+      return ('ກຳລັງສັ່ງຊື້ ${round.onOrder} ລາຍການ', const Color(0xFF7C3AED), const Color(0xFFF5F3FF));
+    }
+    if (round.state == 'dispatched') {
+      return ('ສາງເບີກແລ້ວ ລໍຊ່າງຮັບ', const Color(0xFF2563EB), const Color(0xFFEFF6FF));
+    }
+    if (round.status == 'issued') {
+      return ('ເບີກແລ້ວ', ok, const Color(0xFFE1F5EC));
+    }
+    if (round.status == 'partial') {
+      return ('ເບີກບາງສ່ວນ', const Color(0xFF0284C7), const Color(0xFFE0F2FE));
+    }
+    return ('ລໍສາງເບີກ', warn, const Color(0xFFFBEED5));
+  }
+
+  Widget _withdrawRoundCard(SpareWithdrawRound round) {
+    final (label, fg, bg) = _withdrawState(round);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(13, 11, 13, 11),
+        decoration: cardDecoration(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                StageTag('ຮອບ ${round.round}', color: const Color(0xFF4338CA), bg: const Color(0xFFEEF2FF)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${round.docNo} · ${round.docDate}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: ink),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 7),
+            Wrap(
+              spacing: 6,
+              runSpacing: 5,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                StageTag(label, color: fg, bg: bg),
+                Text(
+                  '${round.lines} ລາຍການ',
+                  style: const TextStyle(fontSize: 11, color: muted),
+                ),
+                if (round.dispatchNo != null) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    'ໃບເບີກ ${round.dispatchNo}',
+                    style: const TextStyle(fontSize: 11, color: faint),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _purchaseRoundCard(SparePurchaseRound round) {
+    final (label, fg, bg) = round.state == 'approved'
+        ? ('ອະນຸມັດແລ້ວ — ຕິດຕາມຢູ່ ERP', const Color(0xFF2563EB), const Color(0xFFEFF6FF))
+        : round.state == 'rejected'
+        ? ('ບໍ່ອະນຸມັດ', danger, const Color(0xFFFFE4E6))
+        : ('ລໍອະນຸມັດ', warn, const Color(0xFFFBEED5));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(13, 11, 13, 11),
+        decoration: cardDecoration(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                StageTag('ຂໍຊື້ ຮອບ ${round.round}', color: const Color(0xFF7C3AED), bg: const Color(0xFFF5F3FF)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${round.docNo} · ${round.docDate}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: ink),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 7),
+            Wrap(
+              spacing: 6,
+              runSpacing: 5,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                StageTag(label, color: fg, bg: bg),
+                Text(
+                  '${round.lines} ລາຍການ',
+                  style: const TextStyle(fontSize: 11, color: muted),
+                ),
+              ],
+            ),
           ],
         ),
       ),

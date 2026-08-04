@@ -12,8 +12,8 @@ import { ERP_PURCHASE, LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import { requireRole } from "@/lib/guard";
 import { APPROVER_SIDE, roleOf, type Role } from "@/lib/roles";
 import { STAGE_SQL } from "@/lib/stage";
-import { UPLOADS_DIR } from "@/lib/uploads";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { UPLOADS_DIR, uploadsWriteDir } from "@/lib/uploads";
+import { unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import type { PoolClient } from "pg";
 import { PURCHASE_COUNT_TAG } from "@/lib/nav-counts";
@@ -429,8 +429,9 @@ export async function saveRequestOrder(_: PurchaseState, formData: FormData): Pr
 
     if (upload && uploadsDir) {
       const stored = `${erpDocNo}_0${extname(upload.filename).toLowerCase()}`;
-      const path = join(uploadsDir, stored);
-      await mkdir(uploadsDir, { recursive: true });
+      // ບ່ອນຂຽນຈິງ (ຫຼົບໄປ var/uploads ຖ້າ env ຜິດ) — ຢ່າໃຫ້ຮູບພາໃບຂໍຊື້ລົ້ມ
+      const dir = (await uploadsWriteDir()) ?? uploadsDir;
+      const path = join(dir, stored);
       await writeFile(path, upload.bytes);
       written.push(path);
       await client.query(
@@ -684,6 +685,16 @@ async function releaseRq(client: PoolClient, docNo: string): Promise<ReleasedRq 
         and item_code in (select item_code from ic_trans_detail where doc_no=$1)`,
     [docNo, rq.doc_ref],
   );
+  // ລ້າງວັນຮັບເຂົ້າລະດັບແຖວນຳ — ຍົກເລີກສັ່ງຊື້ແລ້ວ ແຖວ SIO ທີ່ຖືກສະແຕມໄວ້ຕ້ອງ
+  // ກັບເປັນ "ຍັງລໍ" ບໍ່ດັ່ງນັ້ນ STAGE_SQL ຈະຖືວ່າຂອງມາຮອດແລ້ວ (ບໍ່ກັ້ນ status —
+  // ຖັນ status ຂ້າງເທິງອາດຖືກລ້າງເປັນ 0 ກ່ອນແລ້ວ).
+  if (rq.product_code) {
+    await client.query(
+      `update ic_trans_detail set arrive_at = null
+        where product_code = $1 and trans_flag = 122 and arrive_at is not null`,
+      [rq.product_code],
+    );
+  }
 
   const result: ReleasedRq = {
     productCode: rq.product_code ?? "",
@@ -1642,6 +1653,12 @@ async function closeOdsPurchaseTrail(job: string): Promise<{ closedRqs: string[]
         where code = $1 and spare_order is not null`,
       [job],
     );
+    // ລ້າງວັນຮັບເຂົ້າລະດັບແຖວນຳ — ບໍ່ດັ່ງນັ້ນ STAGE_SQL ຍັງເຫັນແຖວ "ມາຮອດແລ້ວ"
+    await client.query(
+      `update ic_trans_detail set arrive_at = null
+        where product_code = $1 and trans_flag = 122 and arrive_at is not null`,
+      [job],
+    );
     released = (cleared.rowCount ?? 0) > 0;
     await client.query("commit");
   } catch (error) {
@@ -1704,6 +1721,12 @@ export async function releaseGhostPurchase(_: PurchaseState, formData: FormData)
   const cleared = await db.query(
     `update tb_product set spare_order = null, spare_arrive = null, spare_arrive_by = null
       where code = $1 and spare_order is not null`,
+    [job],
+  );
+  // ລ້າງວັນຮັບເຂົ້າລະດັບແຖວນຳ — ບໍ່ດັ່ງນັ້ນ STAGE_SQL ຍັງເຫັນແຖວ "ມາຮອດແລ້ວ"
+  await db.query(
+    `update ic_trans_detail set arrive_at = null
+      where product_code = $1 and trans_flag = 122 and arrive_at is not null`,
     [job],
   );
   if (!cleared.rowCount) return { error: "ວຽກນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນກຳລັງສັ່ງຊື້ແລ້ວ" };

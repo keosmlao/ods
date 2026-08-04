@@ -524,20 +524,32 @@ export async function finishRepairFlow(
   const blocker = await pendingSpareBlocker(code);
   if (blocker) return { ok: false, error: blocker };
 
-  // ຂັ້ນ 9 = ກຳລັງສ້ອມແປງ ເທົ່ານັ້ນ
+  /**
+   * ຮັບໄດ້ **ທັງຂັ້ນ 8 (ລໍຖ້າສ້ອມ) ແລະ 9 (ກຳລັງສ້ອມ)** — ຈົບໂດຍບໍ່ຕ້ອງກົດ "ເລີ່ມສ້ອມ" ກ່ອນ.
+   *
+   * ⚠️ ບົດຮຽນຈາກຂໍ້ມູນ (04-08-2026 · ເບິ່ງ docs/repair-redesign.md):
+   * 970/1,059 ໃບ (92%) ກົດ "ເລີ່ມສ້ອມ" ແລ້ວ "ສ້ອມສຳເລັດ" ຫ່າງກັນ **ບໍ່ເຖິງ 5 ນາທີ** ⇒ ຂັ້ນ
+   * "ກຳລັງສ້ອມ" median = 0.0 ຊມ, ບໍ່ໄດ້ບອກຄວາມຈິງຫຍັງ ມີແຕ່ບັງຄັບໃຫ້ກົດເພີ່ມ 1 ເທື່ອ
+   * (ແລະ 367 ໃບລົງເອີຍວ່າ "ຈົບກ່ອນເລີ່ມ" ຍ້ອນກົດຍ້ອນຫຼັງ).
+   * ⇒ ຖ້າ time_repair ຍັງຫວ່າງ ໃຫ້ຖືວ່າ **ເລີ່ມພ້ອມກັບຈົບ** (coalesce) — ຂັ້ນ ແລະ ລາຍງານ
+   * ຍັງເຫັນ "ເລີ່ມສ້ອມ" ຄືເກົ່າ ໂດຍບໍ່ຕ້ອງໃຫ້ຄົນກົດ.
+   * ດ່ານອາໄຫຼ່ (pendingSpareBlocker ຂ້າງເທິງ) ຍັງບັງຄັບຄືເກົ່າ ⇒ ບໍ່ໄດ້ຂ້າມລະບຽບສາງ.
+   */
   if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };
   const client = await db.connect();
   let saved = 0;
   try {
     await client.query("begin");
     const done = await client.query(
-      `update tb_product a set status=5, time_finish_repair=${NOW}, repair_note=nullif($2,'')
-        where a.code=$1 and (${STAGE_SQL}) = 9`,
+      `update tb_product a set status=5,
+          time_repair = coalesce(a.time_repair, ${NOW}),
+          time_finish_repair=${NOW}, repair_note=nullif($2,'')
+        where a.code=$1 and (${STAGE_SQL}) in (8, 9)`,
       [code, note.trim()],
     );
     if (!done.rowCount) {
       await client.query("rollback");
-      return { ok: false, error: 'ບັນທຶກບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ "ກຳລັງສ້ອມແປງ"' };
+      return { ok: false, error: 'ບັນທຶກບໍ່ໄດ້ — ໃບນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນ "ລໍຖ້າສ້ອມແປງ" ຫຼື "ກຳລັງສ້ອມແປງ"' };
     }
     saved = await savePhotos(client, session, "repair", code, photos.filter(Boolean), note.trim());
     // ຈົບງານ ⇒ **checkout ອັດຕະໂນມັດ** (ວຽກໜ້າງານ) — ຊ່າງບໍ່ຕ້ອງກົດ checkout ເອງ;
@@ -599,6 +611,20 @@ export async function checkIn(
   );
   // ດັດຊະນີ unique ກັນການ check-in ຊ້ຳ (ຍັງບໍ່ check-out) ⇒ 0 ແຖວ = ເປີດຄ້າງຢູ່ແລ້ວ
   if (!done.rowCount) return { ok: false, error: "ທ່ານ check-in ງານນີ້ຢູ່ແລ້ວ" };
+
+  /**
+   * **check-in = ເລີ່ມສ້ອມ** (ງານສ້ອມນອກສູນ) — ຊ່າງໄປຮອດໜ້າງານແລ້ວ ຄືເລີ່ມລົງມືແລ້ວ
+   * ⇒ ບໍ່ຕ້ອງໃຫ້ກົດ "ເລີ່ມສ້ອມ" ອີກປຸ່ມ. ຂຽນສະເພາະໃບທີ່ຢູ່ຂັ້ນ 8 (ລໍຖ້າສ້ອມ) ແລະ ຍັງຫວ່າງ
+   * ⇒ ບໍ່ທັບເວລາເກົ່າ ແລະ ບໍ່ດຶງໃບທີ່ຍັງບໍ່ຜ່ານດ່ານອາໄຫຼ່/ກວດເຊັກໃຫ້ຂ້າມຂັ້ນ.
+   * (ເບິ່ງ docs/repair-redesign.md §3.4 — check-in ແທນປຸ່ມ "ເລີ່ມສ້ອມ")
+   */
+  if (workflow === "repair" && own.job.stage === 8) {
+    await query(
+      `update tb_product a set time_repair = ${NOW}
+        where a.code = $1 and a.time_repair is null and (${STAGE_SQL}) = 8`,
+      [code],
+    );
+  }
 
   await logChange(
     workflow === "install" ? "ods_tb_install" : "tb_product",

@@ -129,8 +129,9 @@ const REPAIR_ACTION = `case
   when coalesce(a.service_type,'')='IH' and a.appoint_date is null then 'wait_other'
   when a.repair_confirm is null      then 'accept'
   when (${STAGE_SQL}) in (5,6,7) then 'wait_spare'
-  when (${STAGE_SQL}) = 8        then 'start'
-  when (${STAGE_SQL}) = 9        then 'finish'
+  -- ຂັ້ນ 8 (ລໍຖ້າສ້ອມ) ໃຫ້ **ຈົບໄດ້ເລີຍ** ຄືກັບເວັບ — ບໍ່ຕ້ອງກົດ "ເລີ່ມສ້ອມ" ກ່ອນ
+  -- (finishRepairFlow ຮັບຂັ້ນ 8|9 ແລະ ຕື່ມ time_repair ໃຫ້ເອງ — ເບິ່ງ docs/repair-redesign.md)
+  when (${STAGE_SQL}) in (8, 9)  then 'finish'
   else 'wait_other' end`;
 
 /** ບຳລຸງຮັກສາ: 1 ລໍຊ່າງຮັບ · 2 ລໍໄປລ້າງ · 3 ກຳລັງລ້າງ · ອື່ນ = ລໍຄົນອື່ນ */

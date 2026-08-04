@@ -153,6 +153,8 @@ const RULES: Rule[] = [
   { path: "/quotations", roles: SERVICE_SIDE },
   // ຄິວແຈ້ງລູກຄ້າ (ລໍຕັດສິນລາຄາ · ມາຮັບເຄື່ອງ · ຢືນຢັນນັດ) — ຝ່າຍບໍລິການເປັນຜູ້ຕິດຕໍ່ລູກຄ້າ
   { path: "/customer-contact", roles: SERVICE_SIDE },
+  // ປິດງານ (ສ້ອມ + ຕິດຕັ້ງ) — ວຽກຫຼັງບ້ານຂອງ CS ຄືກັບ /returns ແລະ /installations/close
+  { path: "/close-jobs", roles: SERVICE_SIDE },
   /**
    * ⚠️ **ບໍ່ມີໜ້ານີ້ແລ້ວ** (ລົບ 17-07-2026 — ຊ້ຳກັບຄິວ "2. ລໍຖ້າກວດເຊັກ" ແລະ ບໍ່ມີລິ້ງໃດພາໄປ).
    * ເກັບກົດໄວ້ເພາະມັນຍັງເປັນ **ສິດ** ທີ່ຄຸມປຸ່ມ "ຈັດຊ່າງ / ຍົກເລີກການຈັດ" ຢູ່ຄິວນັ້ນ
@@ -171,6 +173,13 @@ const RULES: Rule[] = [
   { path: "/my-jobs", roles: TECH_SIDE },
   { path: "/checking", roles: TECH_SIDE },
   { path: "/repair", roles: TECH_SIDE },
+  /**
+   * ສູນວຽກງານສ້ອມ — ທາງເຂົ້າຫຼັກຂອງສາຍສ້ອມ (03-08-2026): ວຽກຈັດກຸ່ມຕາມ "ຜູ້ເຮັດຕໍ່"
+   * (CS · ຊ່າງ · ສາງ · ຈັດຊື້ · QC). ທຸກຝ່າຍໃນວົງຈອນສ້ອມເຫັນໜ້າດຽວກັນ — ແຕ່ລະຄົນ
+   * ເຮັດວຽກກຸ່ມຂອງຕົນ (ຄິວຂັ້ນເກົ່າ /dashboard/status ຍັງເປັນມຸມມອງຜູ້ຈັດການຄືເກົ່າ).
+   */
+  // ອາໄຫຼ່ໜ້າດຽວ (ຂໍເບີກ · ສາງເບີກ · ຊ່າງຮັບ · ສັ່ງຊື້) — ຄົນເຮັດແມ່ນ ຊ່າງ+ສາງ+ຈັດຊື້ ⇒ ສິດຄືກັນ
+  { path: "/work/spares", roles: [M, HT, A, S, T] },
   // ໃບຂໍເບີກສ້ອມ: ຊ່າງ ແລະ CS ສ້າງໄດ້; ສາງເຂົ້າເບິ່ງເພື່ອດຳເນີນການ.
   { path: "/stock/requests", roles: [...REPAIR_REQUEST_SIDE, S] },
   // ໃບຂໍສົ່ງຄືນ: ຊ່າງ+ສາງ ຄືເກົ່າ ບວກ **CS** — saveInstallReturnRequest / cancelInstallReturnRequest

@@ -12,6 +12,7 @@ import { AlertTriangle, LoaderCircle, LogOut, Save, ShieldCheck } from "lucide-r
 import Image from "next/image";
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 type Option = { code: string; name_1: string };
 
@@ -175,6 +176,7 @@ export function ServiceNoticeForm({ notice, types, brands, techs, images, initia
 
   return (
     <form action={action} className="space-y-5">
+      <KeepFormValues />
       <input type="hidden" name="ref_notice" value={notice.code} />
 
       <div className="sticky top-20 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">

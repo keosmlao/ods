@@ -6,6 +6,7 @@ import { Button, Card, ErrorBox, LinkButton, inputClass, labelClass } from "@/co
 import { useDict } from "@/lib/i18n/context";
 import { CheckCircle2, LoaderCircle, MapPin, Package, Plus, Receipt, ReceiptText, Save, Search, Truck, X } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 type InstallFormDict = ReturnType<typeof useDict>["installForm"];
 
@@ -265,6 +266,7 @@ export function InstallForm({
 
   return (
     <form action={formAction} className="space-y-5">
+      <KeepFormValues />
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
 
       {/* ① ບິນຂາຍ */}

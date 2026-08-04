@@ -7,6 +7,7 @@ import { Camera, Check, LoaderCircle, X } from "lucide-react";
 import { useActionState, useState } from "react";
 import { useDict } from "@/lib/i18n/context";
 import { SignaturePad } from "./signature-pad";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 /**
  * ຟອມ QC — ຊ້ອນ checklist · ຮູບ · ລາຍເຊັນລູກຄ້າ.
@@ -72,6 +73,7 @@ export function QcForm({
 
   return (
     <form action={action} className="space-y-4">
+      <KeepFormValues />
       <input type="hidden" name="workflow" value={workflow} />
       <input type="hidden" name="job_code" value={jobCode} />
       <input

@@ -4973,5 +4973,32 @@
     "prev": "Previous",
     "next": "Next",
     "yourJobs": "Your jobs"
+  },
+  "closeJobs": {
+    "title": "Close jobs (repair · installation)",
+    "items": "jobs",
+    "page": "page",
+    "search": "Search",
+    "clear": "Clear",
+    "searchPlaceholder": "Search job no, SN, customer, product, technician...",
+    "tabRepair": "Repair",
+    "tabInstall": "Installation",
+    "hintRepair": "Returned to customer — waiting for paperwork check",
+    "hintInstall": "Customer feedback received — waiting to close",
+    "colCode": "Job no",
+    "colReturnedAt": "Returned on",
+    "colFeedbackAt": "Feedback on",
+    "colProduct": "Product / model · SN",
+    "colCustomer": "Customer",
+    "colTech": "Technician",
+    "colAction": "Actions",
+    "print": "Print job sheet",
+    "close": "Close job",
+    "confirmClose": "Close job",
+    "noResults": "No jobs waiting to close",
+    "showing": "Showing",
+    "of": "of",
+    "prev": "Previous",
+    "next": "Next"
   }
 }

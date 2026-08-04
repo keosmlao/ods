@@ -6,6 +6,7 @@ import { Card, LinkButton, inputClass, labelClass } from "@/components/ui";
 import { createCustomer, updateCustomer } from "@/app/actions/customer";
 import { useDict } from "@/lib/i18n/context";
 import { Alert, SubmitButton } from "./shared";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 /**
  * ຟອມລູກຄ້າ — ຖອດແບບຈາກ customer/addcust.html ແລະ customer/editcust.html
@@ -83,6 +84,7 @@ export function CustomerForm({
       <div className="mx-auto w-full max-w-2xl">
         <Card>
           <form action={formAction} className="space-y-3">
+            <KeepFormValues />
             <div>
               <label className={labelClass} htmlFor="cust-code">{t.code}</label>
               <input

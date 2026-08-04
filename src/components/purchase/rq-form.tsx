@@ -6,6 +6,7 @@ import { useDict } from "@/lib/i18n/context";
 import { LoaderCircle, LogOut, Save } from "lucide-react";
 import Image from "next/image";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 /** ຖອດແບບຈາກ ods: templates/request_order/add_request_order.html */
 
@@ -116,6 +117,7 @@ export function RqForm({ head, lines, docNo, today }: { head: RqHead; lines: RqL
        * ໃສ່ເອງ = React ເຕືອນ "They will get overridden" ແລ້ວຂຽນທັບຢູ່ດີ.
        */}
       <form id="purchase-request-form" action={save} className="space-y-5">
+        <KeepFormValues />
         <input type="hidden" name="doc_ref" value={head.doc_no} />
         <input type="hidden" name="product_code" value={head.product_code} />
         <input type="hidden" name="cust_code" value={head.cust_code ?? ""} />

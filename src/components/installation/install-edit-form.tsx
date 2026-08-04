@@ -6,6 +6,7 @@ import { Button, Card, ErrorBox, LinkButton, inputClass, labelClass } from "@/co
 import { useDict } from "@/lib/i18n/context";
 import { Save } from "lucide-react";
 import { useActionState } from "react";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 /**
  * ຖອດແບບຈາກ ods: edit_install.html + /edit_save_install (install_admin.py)
@@ -77,6 +78,7 @@ export function InstallEditForm({
 
   return (
     <form action={formAction} className="space-y-5">
+      <KeepFormValues />
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
       <input type="hidden" name="code" value={row.code} />
 
