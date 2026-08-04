@@ -1,4 +1,5 @@
 import { Chatter } from "@/components/chatter/chatter";
+import { BackLink } from "@/components/back-link";
 import { getSession } from "@/lib/auth";
 import { Elapsed } from "@/components/elapsed";
 import { HoldButtons } from "@/components/repair/hold-buttons";
@@ -331,11 +332,7 @@ export default async function ServiceDetail({ params }: Props) {
 
       {/* ── HERO — ໂຕນຂຽວເຂັ້ມ ແບບແອັບ ODIEN SERVICE ── */}
       <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#0F2F2B] via-[#123f39] to-[#134E48] px-5 py-4 text-white shadow-lg shadow-teal-900/10">
-        <Link href="/service" className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-teal-200/90 transition hover:text-white">
-          <ArrowLeft className="size-3.5" />
-          {t.backToList}
-          <LinkPending className="size-3" />
-        </Link>
+        <BackLink fallback="/service" label="{t.backToList}" />
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-300/80">ODIEN SERVICE</p>

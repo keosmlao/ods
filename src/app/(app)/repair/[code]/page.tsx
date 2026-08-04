@@ -1,4 +1,5 @@
 import { AcceptRepairButton } from "@/components/repair/accept-repair-button";
+import { BackLink } from "@/components/back-link";
 import { CompleteRepairButton } from "@/components/repair/complete-repair-button";
 import { StartRepairButton, UndoStartRepairButton } from "@/components/repair/repair-actions";
 import { JobEvidence, type Checkin, type JobPhoto, type ReceivePhoto } from "@/components/service/job-evidence";
@@ -140,11 +141,7 @@ export default async function RepairJobPage({ params }: Props) {
     // ເຕັມຄວາມກວ້າງ ຄືກັບໜ້າໃບຮັບເຄື່ອງ/ຄິວອື່ນ — ຕາຕະລາງອາໄຫຼ່ຕາມຮອບ ແລະ ຮູບ ຕ້ອງການບ່ອນ
     <div className="w-full space-y-4">
       <div>
-        <Link href="/work/repair/repairing" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
-          <ArrowLeft className="size-3.5" />
-          ກັບຄິວກຳລັງສ້ອມ
-          <LinkPending className="size-3" />
-        </Link>
+        <BackLink fallback="/work/repair/repairing" label="ກັບຄິວກຳລັງສ້ອມ" />
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-bold text-slate-700">ວຽກສ້ອມ #{job.code}</h1>
           <span className="rounded-lg bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white">

@@ -1,4 +1,5 @@
 import { LinkPending } from "@/components/link-pending";
+import { BackLink } from "@/components/back-link";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -80,11 +81,7 @@ export default function SpareManualPage() {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-5 pb-10">
       <div>
-        <Link href="/manual" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
-          <ArrowLeft className="size-3.5" />
-          ກັບຄູ່ມືການໃຊ້ງານ
-          <LinkPending className="size-3" />
-        </Link>
+        <BackLink fallback="/manual" label="ກັບຄູ່ມືການໃຊ້ງານ" />
         <h1 className="text-xl font-bold text-slate-700">ຄູ່ມືຂັ້ນຕອນອາໄຫຼ່ — ຂໍເບີກ · ສາງເບີກ · ສັ່ງຊື້</h1>
         <p className="mt-1 max-w-3xl text-xs text-slate-500">
           ຂັ້ນນີ້ສັບສົນເພາະມີ <b>2 ເສັ້ນທາງ</b> ແລະ <b>6 ຊະນິດເອກະສານ</b> ຂ້າມ 2 ລະບົບ (ODS ກັບ ERP)

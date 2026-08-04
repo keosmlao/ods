@@ -1,4 +1,5 @@
 import { LinkPending } from "@/components/link-pending";
+import { BackLink } from "@/components/back-link";
 import type { Product } from "@/components/product-picker";
 import { ServiceNoticeForm, type Notice } from "@/components/service-notice-form";
 import { query, queryOdg } from "@/lib/db";
@@ -107,11 +108,7 @@ export default async function NoticeIntake({ params }: Props) {
   return (
     <div className="w-full space-y-4">
       <div>
-        <Link href="/service/notices" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
-          <ArrowLeft className="size-3.5" />
-          ກັບລາຍການລູກຄ້າເເຈ້ງສ້ອມ
-          <LinkPending className="size-3" />
-        </Link>
+        <BackLink fallback="/service/notices" label="ກັບລາຍການລູກຄ້າເເຈ້ງສ້ອມ" />
         <h1 className="text-xl font-bold text-slate-700">ໃບຮັບເຄື່ອງເຂົ້າສ້ອມ (ລູກຄ້າເເຈ້ງສ້ອມ)</h1>
         <p className="mt-0.5 text-xs text-slate-500">
           ລະຫັດເເຈ້ງສ້ອມ {notice.code}
