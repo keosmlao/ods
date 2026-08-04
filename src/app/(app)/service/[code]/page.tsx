@@ -249,10 +249,19 @@ export default async function ServiceDetail({ params }: Props) {
   /**
    * ປ່ຽນຊ່າງ ຢູ່ໜ້າລາຍລະອຽດ — ຮອງຮັບກໍລະນີ **ຊ່າງກວດ ≠ ຊ່າງສ້ອມ**: ຫຼັງ A ກວດເຊັກ,
    * CS/ຫົວໜ້າ ປ່ຽນເປັນ B ໃຫ້ໄປສ້ອມ. assignRepairTech ກັນ (ປ່ຽນຫຼັງຂໍເບີກບໍ່ໄດ້) ຢູ່ແລ້ວ.
+   *
+   * ⚠️ **ໄດ້ 2 ຂັ້ນເທົ່ານັ້ນ** (ກົດເກນ 04-08-2026): ຂັ້ນ 1 ລໍຖ້າຊ່າງຮັບ · ຂັ້ນ 8 ລໍຖ້າສ້ອມ.
+   * ຂັ້ນອື່ນຊ່າງກຳລັງລົງມືຢູ່ (ກວດເຊັກ · ສະເໜີລາຄາ · ອາໄຫຼ່ · ກຳລັງສ້ອມ) ⇒ ປ່ຽນແລ້ວ
+   * ວຽກທີ່ເຮັດຄ້າງໄວ້ ແລະ ເອກະສານທີ່ອອກໃນນາມຄົນເກົ່າຈະຂາດເຈົ້າຂອງ.
    */
-  const canReassign = !done && !cancelled && SERVICE_SIDE.includes(roleOf(session));
+  const REASSIGN_STAGES = [1, 8];
+  const canReassign =
+    !done && !cancelled && REASSIGN_STAGES.includes(job.stage) && SERVICE_SIDE.includes(roleOf(session));
   // IH ໄປສ້ອມບ້ານລູກຄ້າ: ຫຼັງລູກຄ້າຕົກລົງລາຄາ (ຂັ້ນ 5–9) → ນັດ "ໄປສ້ອມ ຮອບ 2"
-  const canScheduleVisit = canReassign && job.service_type === "IH" && job.stage >= 5 && job.stage <= 9;
+  // ⚠️ ບໍ່ຜູກກັບ canReassign ອີກ (ອັນນັ້ນຈຳກັດ 2 ຂັ້ນແລ້ວ) — ນັດໄປສ້ອມແມ່ນຄົນລະເລື່ອງກັບການປ່ຽນຊ່າງ
+  const canScheduleVisit =
+    !done && !cancelled && SERVICE_SIDE.includes(roleOf(session)) &&
+    job.service_type === "IH" && job.stage >= 5 && job.stage <= 9;
   // ລຶບໃບຮັບເຄື່ອງ — **ທຸກສະຖານະ** (ຄ້າງ/ຈົບ/ຍົກເລີກ). ສິດ manager ເທົ່ານັ້ນ (ດ່ານຈິງຢູ່ deleteService).
   const canDelete = (await permissionFor(session, "/service")).delete;
   // ເຄື່ອງສຳຮອງ — ຝ່າຍບໍລິການໃຫ້ຢືມ/ຮັບຄືນໄດ້, ຄົນອື່ນເຫັນຢ່າງດຽວ (action ກວດຊ້ຳເອງ)
