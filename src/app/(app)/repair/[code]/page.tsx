@@ -55,6 +55,8 @@ type Job = {
   address: string | null;
   technician: string | null;
   accepted: boolean;
+  /** ເລີ່ມສ້ອມແລ້ວ (time_repair) — ວຽກເດີນໜ້າໄປແລ້ວ ເຖິງ repair_confirm ຈະຫວ່າງ */
+  started: boolean;
   cancelled: boolean;
   registered: string | null;
   appoint_date: string | null;
@@ -74,6 +76,7 @@ export default async function RepairJobPage({ params }: Props) {
           c.name_1 customer, c.tel phone, c.address,
           nullif(a.emp_code,'') technician,
           (a.repair_confirm is not null) accepted,
+          (a.time_repair is not null) started,
           (a.status = 6) cancelled,
           to_char(a.time_register,'DD-MM-YYYY HH24:MI') registered,
           to_char(a.appoint_date,'DD-MM-YYYY') appoint_date,
@@ -171,7 +174,7 @@ export default async function RepairJobPage({ params }: Props) {
 
         <div className="flex flex-wrap items-center gap-2">
           {/* ① ຮັບງານ (ຄືປຸ່ມ accept ຢູ່ແອັບ) */}
-          {!job.accepted && !job.cancelled && <AcceptRepairButton code={job.code} />}
+          {!job.accepted && !job.started && !job.cancelled && <AcceptRepairButton code={job.code} />}
 
           {/* ② ກວດເຊັກ — ໜ້າດຽວກັບ CheckScreen ຂອງແອັບ */}
           {job.stage >= 1 && job.stage <= 2 && !job.cancelled && (
