@@ -198,7 +198,8 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
             where ${installStageIs(8)})::int as "/installations/close",
           /**
            * ຂັ້ນອາໄຫຼ່ (ໜ້າ /work/spares) = ຈຳນວນ**ແຖວທີ່ເຫັນໃນໜ້າ** (ກົດເກນ ①):
-           * ໃບຂໍເບີກລໍສາງ + ໃບຂໍເບີກທີ່ຂອງມາຮອດແລ້ວ + ໃບເບີກລໍຊ່າງຮັບ + ໃບຂໍຊື້ລໍອະນຸມັດ + ລໍຂອງມາ
+           * ໃບຂໍເບີກລໍສາງ + ໃບຂໍເບີກທີ່ຂອງມາຮອດແລ້ວ + ລໍຂອງມາ + ໃບຂໍຊື້ລໍອະນຸມັດ
+           * ⚠️ **ບໍ່ນັບ "ໃບເບີກລໍຊ່າງຮັບ" ອີກແລ້ວ** — ງານສ້ອມຖືວ່າສາງເບີກອອກ = ຈົບ (04-08-2026)
            */
           ((select count(*) from ic_trans t join tb_product a on a.code = t.product_code
              where t.trans_flag = 122 and a.return_complete is null and coalesce(a.status,0) <> 6
@@ -212,9 +213,6 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
                where t.trans_flag = 122 and a.return_complete is null and coalesce(a.status,0) <> 6
                  and exists (select 1 from ic_trans_detail d where d.doc_no = t.doc_no
                                and coalesce(d.status,0) = 5 and d.arrive_at is null))
-           + (select count(*) from ic_trans t join tb_product a on a.code = t.product_code
-               where t.trans_flag = 56 and a.return_complete is null and coalesce(a.status,0) <> 6
-                 and not exists (select 1 from ic_trans pi where pi.trans_flag = 166 and pi.doc_ref = t.doc_no))
            + (select count(*) from ic_trans t join tb_product a on a.code = t.product_code
                where t.trans_flag = 78 and coalesce(t.aprove_status,0) = 0
                  and a.return_complete is null and coalesce(a.status,0) <> 6))::int as "/work/spares",

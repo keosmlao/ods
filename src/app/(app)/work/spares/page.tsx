@@ -76,14 +76,9 @@ export default async function SpareTreePage() {
   /** ສະຖານະ + ຜູ້ເຮັດຕໍ່ຂອງ 1 ຮອບຂໍເບີກ */
   function roundState(docs: DocRow[], sio: DocRow): NodeState {
     const swcs = childrenOf(docs, sio.doc_no, TRANS.DISPATCH);
-    if (swcs.length > 0) {
-      // ໃບຂໍເບີກໃບນີ້ **ຈົບໜ້າທີ່ຂອງມັນແລ້ວ** (ສາງຈ່າຍອອກແລ້ວ) — ຂັ້ນທີ່ຄ້າງເປັນເລື່ອງຂອງ
-      // ໃບເບີກ (SWC) ⇒ ປ້າຍ "ລໍຊ່າງກົດຮັບ" ຕ້ອງຢູ່ແຖວ SWC ບໍ່ແມ່ນຢູ່ແຖວນີ້.
-      const unpicked = swcs.filter((swc) => childrenOf(docs, swc.doc_no, TRANS_PICK).length === 0);
-      return unpicked.length > 0
-        ? { label: "ສາງເບີກອອກແລ້ວ", next: null, tone: "bg-slate-100 text-slate-600", pending: true }
-        : DONE;
-    }
+    // **ສາງເບີກແລ້ວ = ຈົບ** (ຕັດສິນໃຈ 04-08-2026, ໜ້ານີ້ເປັນງານສ້ອມລ້ວນ — join tb_product).
+    // ແຕ່ກ່ອນຍັງລໍໃບຮັບ (PISP) ຈຶ່ງນັບຈົບ ⇒ ວຽກຄ້າງຄິວດົນເປັນ 76 ມື້ ທັງໆທີ່ຂອງໄປຮອດຊ່າງແລ້ວ.
+    if (swcs.length > 0) return DONE;
     const rqs = childrenOf(docs, sio.doc_no, TRANS_RQ);
     if (rqs.length > 0) {
       // ຄືກັນ: ລາຍລະອຽດຂອງການຊື້ຢູ່ແຖວ RQ ຂ້າງລຸ່ມ — ແຖວນີ້ບອກແຕ່ວ່າ "ໄປທາງຊື້"
@@ -185,18 +180,12 @@ export default async function SpareTreePage() {
                             <span className="font-mono text-slate-600">{swc.doc_no}</span>
                             <span>ສາງເບີກ {swc.doc_date}</span>
                             <span className="ml-auto flex items-center gap-2">
-                              {picks.length > 0 ? (
-                                <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700">
-                                  ຊ່າງຮັບແລ້ວ · {picks.map((pick) => pick.doc_no).join(", ")}
-                                </span>
-                              ) : (
-                                <>
-                                  <span className="rounded bg-blue-100 px-1.5 py-0.5 font-semibold text-blue-800">
-                                    ລໍຊ່າງກົດຮັບ · {days(swc.age)} ມື້
-                                  </span>
-                                  <span className="text-slate-500">→ ຊ່າງ</span>
-                                </>
-                              )}
+                              {/* ງານສ້ອມ: ສາງເບີກອອກ = ຈົບ — ບໍ່ລໍໃບຮັບ (PISP) ອີກແລ້ວ */}
+                              <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700">
+                                {picks.length > 0
+                                  ? `ຊ່າງຮັບແລ້ວ · ${picks.map((pick) => pick.doc_no).join(", ")}`
+                                  : "ສາງເບີກອອກແລ້ວ"}
+                              </span>
                             </span>
                           </li>
                         );
