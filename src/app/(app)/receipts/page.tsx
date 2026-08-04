@@ -1,20 +1,15 @@
-import { BackLink } from "@/components/back-link";
-import { query } from "@/lib/db";
+import { queryOdg } from "@/lib/db";
 import { ChevronDown, Receipt, Search } from "lucide-react";
 import Link from "next/link";
 
 /**
- * **ໃບຮັບເງິນຂອງພະແນກບໍລິການ (SIN · trans_flag 44)**.
+ * **ໃບຮັບເງິນ — ອ່ານຈາກ ERP (public.ic_trans / ic_trans_detail · trans_flag 44)**.
  *
- * ── ວັດຂໍ້ມູນຈິງ 04-08-2026 ກ່ອນອອກແບບ ──
- * ໃບຮັບເງິນ **4,564 ໃບ** (13-06-2023 → 03-08-2026) ທຸກໃບຜູກກັບໃບງານ (product_code).
- * ແຕ່ຍອດເງິນ **ເກືອບບໍ່ໄດ້ບັນທຶກໄວ້ໃນ ODS**:
- *   ແຖວລາຍການ 3,533 ແຖວ ມີລາຄາພຽງ **13 ແຖວ** (ລວມ 16,900 ກີບ)
- *   ໃບທີ່ມີແຖວລາຍການ 2,342/4,564 ໃບ — ທີ່ເຫຼືອອອກໃບເປົ່າ
- * ⇒ ໜ້ານີ້ຈຶ່ງ **ບໍ່ເອົາຍອດເງິນເປັນຫຼັກ** (ຈະໂຊ້ວ 0 ເກືອບໝົດ ແລ້ວຄົນເຂົ້າໃຈຜິດວ່າບໍ່ໄດ້ເກັບເງິນ);
- * ໂຊ້ວຍອດສະເພາະໃບທີ່ມີຈິງ. ຍອດເງິນແທ້ຢູ່ຝັ່ງ SML (ເບິ່ງ docs/sml-receipt-sync-gap).
+ * ⚠️ **ບໍ່ອ່ານຝັ່ງ ODS** — ໃບ SIN ຝັ່ງ ODS ບັນທຶກລາຄາພຽງ 13/3,533 ແຖວ (ວັດ 04-08-2026)
+ * ⇒ ຍອດເງິນຈິງຢູ່ ERP. ອ່ານດ້ວຍ `queryOdg` ຈາກ public.ic_trans trans_flag 44 ໂດຍກົງ.
  *
- * ໂຫຼດທີລະ 10 ແລ້ວ "ໂຫຼດເພີ່ມ" (ຄືໜ້າ /returns/completed) — 4,564 ແຖວ ບໍ່ຄວນດຶງໝົດ.
+ * ໂຫຼດທີລະ 10 ແລ້ວ "ໂຫຼດເພີ່ມ" — ຕາຕະລາງ ERP ໃຫຍ່ ຈຶ່ງ **ບໍ່ນັບຈຳນວນທັງໝົດ**
+ * (count(*) ເຕັມຕາຕະລາງຊ້າ) ⇒ ດຶງເກີນມາ 1 ແຖວ ເພື່ອຮູ້ວ່າ "ຍັງມີຕໍ່ບໍ່".
  */
 type Props = { searchParams: Promise<{ q?: string; page?: string }> };
 
@@ -42,55 +37,41 @@ export default async function ReceiptsPage({ searchParams }: Props) {
   const where = ["t.trans_flag = 44"];
   if (q) {
     args.push(`%${q}%`);
-    where.push(
-      `(t.doc_no ilike $${args.length} or t.product_code ilike $${args.length}
-        or coalesce(c.name_1,'') ilike $${args.length} or coalesce(a.name_1,'') ilike $${args.length})`,
-    );
+    where.push(`(t.doc_no ilike $${args.length} or coalesce(t.cust_code,'') ilike $${args.length}
+       or coalesce(t.remark,'') ilike $${args.length})`);
   }
-  const filter = where.join(" and ");
 
-  const [list, count] = await Promise.all([
-    query<Row>(
-      `select t.doc_no, to_char(t.doc_date,'DD-MM-YYYY') doc_date,
-          t.product_code job, a.name_1 product, c.name_1 customer,
-          (select string_agg(d.item_name, ' · ' order by d.roworder)
-             from ic_trans_detail d where d.doc_no = t.doc_no) items,
-          (select count(*) from ic_trans_detail d where d.doc_no = t.doc_no)::int lines,
-          (select coalesce(sum(d.sum_amount),0) from ic_trans_detail d where d.doc_no = t.doc_no)::float8 amount,
-          nullif(t.user_created,'') user_created
-        from ic_trans t
-        left join tb_product a on a.code = t.product_code
-        left join ar_customer c on c.code = t.cust_code
-       where ${filter}
-       order by t.doc_date desc, t.doc_no desc
-       limit $${args.length + 1}`,
-      [...args, shown],
-    ),
-    query<{ total: number }>(
-      `select count(*)::int total from ic_trans t
-        left join tb_product a on a.code = t.product_code
-        left join ar_customer c on c.code = t.cust_code
-       where ${filter}`,
-      args,
-    ),
-  ]);
-  const rows = list.rows;
-  const total = count.rows[0]?.total ?? 0;
+  const list = await queryOdg<Row>(
+    `select t.doc_no, to_char(t.doc_date,'DD-MM-YYYY') doc_date,
+        nullif(t.doc_ref,'') job, nullif(t.remark,'') product, nullif(t.cust_code,'') customer,
+        (select string_agg(d.item_name, ' · ' order by d.line_number)
+           from ic_trans_detail d where d.doc_no = t.doc_no and d.trans_flag = 44) items,
+        (select count(*) from ic_trans_detail d where d.doc_no = t.doc_no and d.trans_flag = 44)::int lines,
+        coalesce(t.total_amount,0)::float8 amount,
+        nullif(t.department_code,'') user_created
+      from ic_trans t
+     where ${where.join(" and ")}
+     order by t.doc_date desc, t.doc_no desc
+     limit $${args.length + 1}`,
+    [...args, shown + 1],
+  );
+  // ດຶງເກີນ 1 ແຖວ ⇒ ຮູ້ວ່າຍັງມີຕໍ່ ໂດຍບໍ່ຕ້ອງ count ທັງຕາຕະລາງ
+  const hasMore = list.rows.length > shown;
+  const rows = list.rows.slice(0, shown);
 
   return (
     <div className="w-full space-y-4 pb-10">
       <div>
-        <BackLink fallback="/returns/completed" label="ກັບລາຍການ" />
         <h1 className="flex items-center gap-2 text-xl font-bold text-slate-700">
           <Receipt className="size-5 text-teal-600" />
           ໃບຮັບເງິນ
         </h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          {total.toLocaleString()} ໃບ · ສະແດງ {rows.length.toLocaleString()} — ໃບຮັບເງິນຂອງພະແນກບໍລິການ (SIN)
+          ສະແດງ {rows.length.toLocaleString()} ໃບຫຼ້າສຸດ — ຈາກ ERP (ic_trans · trans_flag 44)
         </p>
       </div>
 
-      <form className="flex flex-wrap items-center gap-2" action="/returns/receipts">
+      <form className="flex flex-wrap items-center gap-2" action="/receipts">
         <label className="flex min-w-64 flex-1 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2">
           <Search className="size-4 shrink-0 text-slate-400" />
           <input
@@ -120,7 +101,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
                 <th className="px-4 py-2.5 font-semibold">ລູກຄ້າ</th>
                 <th className="px-4 py-2.5 font-semibold">ລາຍການ</th>
                 <th className="px-4 py-2.5 text-right font-semibold">ຍອດ (ກີບ)</th>
-                <th className="px-4 py-2.5 font-semibold">ຜູ້ອອກ</th>
+                <th className="px-4 py-2.5 font-semibold">ພະແນກ</th>
               </tr>
             </thead>
             <tbody>
@@ -129,13 +110,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
                   <td className="whitespace-nowrap px-4 py-2 font-mono font-semibold text-slate-700">{row.doc_no}</td>
                   <td className="whitespace-nowrap px-4 py-2 text-slate-500">{row.doc_date ?? "-"}</td>
                   <td className="whitespace-nowrap px-4 py-2">
-                    {row.job ? (
-                      <Link href={`/service/${encodeURIComponent(row.job)}`} className="font-bold text-blue-700 hover:underline">
-                        {row.job}
-                      </Link>
-                    ) : (
-                      "-"
-                    )}
+                    {row.job ? <span className="font-mono text-slate-600">{row.job}</span> : "-"}
                     {row.product && <span className="ml-1.5 text-[10px] text-slate-400">{row.product}</span>}
                   </td>
                   <td className="max-w-56 truncate px-4 py-2 text-slate-600">{row.customer ?? "-"}</td>
@@ -162,27 +137,25 @@ export default async function ReceiptsPage({ searchParams }: Props) {
             </tbody>
           </table>
         </div>
-        {total === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບໃບຮັບເງິນ</p>}
+        {rows.length === 0 && <p className="py-12 text-center text-xs text-slate-400">ບໍ່ພົບໃບຮັບເງິນ</p>}
       </section>
 
-      {rows.length < total && (
+      {hasMore && (
         <nav className="flex items-center justify-center gap-3 text-xs">
           <Link
-            href={`/returns/receipts?${new URLSearchParams({ ...(q && { q }), page: String(page + 1) })}`}
+            href={`/receipts?${new URLSearchParams({ ...(q && { q }), page: String(page + 1) })}`}
             scroll={false}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50"
           >
             <ChevronDown className="size-3.5" />
-            ໂຫຼດເພີ່ມ {Math.min(BATCH, total - rows.length)} ໃບ
+            ໂຫຼດເພີ່ມ {BATCH} ໃບ
           </Link>
-          <span className="text-slate-400">
-            ສະແດງ {rows.length.toLocaleString()} ຈາກ {total.toLocaleString()}
-          </span>
+          <span className="text-slate-400">ສະແດງ {rows.length.toLocaleString()} ໃບແລ້ວ</span>
         </nav>
       )}
 
       <p className="text-[11px] text-slate-400">
-        ⚠️ ຍອດເງິນໃນ ODS ບັນທຶກໄວ້ພຽງ 13 ແຖວຈາກ 3,533 ແຖວ — ຍອດແທ້ຢູ່ຝັ່ງ SML. ຖັນ “ຍອດ” ຈຶ່ງໂຊ້ວສະເພາະໃບທີ່ມີຈິງ.
+        ອ່ານຈາກ ERP ໂດຍກົງ (public.ic_trans · trans_flag 44) — ບໍ່ແມ່ນສຳເນົາຝັ່ງ ODS ທີ່ບໍ່ມີລາຄາ.
       </p>
     </div>
   );

@@ -164,8 +164,6 @@ const REPAIR: NavGroup = {
       // ຂັ້ນ 12 (ສົ່ງຄືນສຳເລັດ) = ປາຍທາງຂອງສາຍງານ ⇒ **ທ້າຍສຸດ**.
       // pipelineOf ຢຸດທີ່ຂັ້ນ 11 (ລໍຖ້າສົ່ງຄືນ) ຈຶ່ງບໍ່ຊ້ຳກັນ.
       { label: "ລາຍການສົ່ງຄືນສຳເລັດ", href: "/returns/completed" },
-      // ໃບຮັບເງິນ (SIN · trans_flag 44) — 4,564 ໃບ ຜູກກັບໃບງານທຸກໃບ. ຢູ່ສິດ /returns ອັນດຽວກັນ
-      { label: "ໃບຮັບເງິນ", href: "/returns/receipts" },
       // ເຄື່ອງສູນທີ່ຢູ່ນຳລູກຄ້າ — ບໍ່ຕັດສະຕັອກ ⇒ ບໍ່ມີໜ້ານີ້ = ບໍ່ມີບ່ອນຮູ້ວ່າໜ່ວຍໃດຢູ່ໃສ
       // ໂອນຂ້າມສູນ (ຂົວຫຼວງ ↔ ດອນຕີ້ວ) — ປາຍທາງຕ້ອງກົດຮັບ ບໍ່ດັ່ງນັ້ນເຄື່ອງລອຍລະຫວ່າງທາງ
       { label: "ລໍຮັບໂອນເຄື່ອງ", href: "/service/transfers", count: "/service/transfers" },
@@ -390,7 +388,18 @@ const USERS: NavGroup = {
  *   ຄິວແຈ້ງລູກຄ້າ  → ຢູ່ກຸ່ມ **ຂອງຂ້ອຍ** (ຄິວວຽກຂອງມື້ນີ້ ຂ້າມສາຍງານ — ເບິ່ງເຫດຜົນຢູ່ນັ້ນ)
  *   ຕັ້ງລາຍການກວດຮັບ → ຢູ່ກຸ່ມ **ຜູ້ໃຊ້/ຕັ້ງຄ່າ** (ເປັນການຕັ້ງຄ່າ ບໍ່ແມ່ນຄິວງານ)
  */
-export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, MAINTENANCE, STOCK, CLAIM, PURCHASE, APPROVE, REPORT, USERS];
+/**
+ * **ໃບຮັບເງິນ** — ແຍກເປັນໝວດຂອງຕົນເອງ (ບໍ່ຝັງໃນສາຍງານສ້ອມ) ເພາະເປັນເອກະສານການເງິນ
+ * ທີ່ອ່ານຈາກ **ERP ໂດຍກົງ** (public.ic_trans · trans_flag 44) ບໍ່ໄດ້ຂຶ້ນກັບຂັ້ນຕອນສ້ອມ.
+ */
+const RECEIPT: NavGroup = {
+  id: "receipt_menu",
+  label: "ໃບຮັບເງິນ",
+  icon: ReceiptText,
+  items: [{ label: "ລາຍການໃບຮັບເງິນ", href: "/receipts" }],
+};
+
+export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, MAINTENANCE, STOCK, RECEIPT, CLAIM, PURCHASE, APPROVE, REPORT, USERS];
 
 /**
  * Sidebar ສະເພາະຊ່າງ — ມີແຕ່ຄິວທີ່ຊ່າງລົງມືໄດ້ຈິງ.
