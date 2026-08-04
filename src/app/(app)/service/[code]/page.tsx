@@ -280,6 +280,13 @@ export default async function ServiceDetail({ params }: Props) {
    * ຄົນຂໍເບີກເພີ່ມຕອນ "ກຳລັງເບີກອາໄຫຼ່" (ຂັ້ນ 6) ເປັນປົກກະຕິ ບໍ່ແມ່ນສະເພາະຕອນລົງມືສ້ອມ.
    */
   const spareWindow = job.stage >= 5 && job.stage <= 9;
+  /**
+   * **ເພີ່ມອາໄຫຼ່ໃສ່ບັນຊີໄດ້ສະເພາະຕອນຍັງກວດເຊັກຢູ່** (ຂັ້ນ ≤ 2).
+   * ບັນຊີນີ້ແມ່ນ**ຜົນຂອງການກວດ** (70% ຂອງ 2,531 ແຖວໃສ່ຕອນຈົບກວດ · 4% ຕອນສ້ອມ)
+   * ⇒ ຈົບກວດແລ້ວຕ້ອງລັອກ ບໍ່ດັ່ງນັ້ນ "ຜົນກວດ" ປ່ຽນໄດ້ຕະຫຼອດ ແລະ ລາຄາທີ່ສະເໜີໄປແລ້ວບໍ່ຕົງ.
+   * ຢາກໄດ້ອາໄຫຼ່ເພີ່ມພາຍຫຼັງ ⇒ ໃຊ້ "+ ຂໍເບີກຮອບໃໝ່" (ຜ່ານເອກະສານ ຈຶ່ງຕິດຕາມໄດ້).
+   */
+  const canAddSpare = job.stage <= 2 && !cancelled;
   const spareLines: UsedSpareLine[] =
     spareWindow
       ? (
@@ -490,6 +497,7 @@ export default async function ServiceDetail({ params }: Props) {
           roworder={String(job.roworder)}
           lines={spareLines}
           pending={pendingSpares}
+          canAdd={canAddSpare}
         />
       )}
 
