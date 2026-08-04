@@ -396,10 +396,14 @@ const RECEIPT: NavGroup = {
   id: "receipt_menu",
   label: "ໃບຮັບເງິນ",
   icon: ReceiptText,
-  items: [{ label: "ລາຍການໃບຮັບເງິນ", href: "/receipts" }],
+  items: [
+    { label: "ລາຍການໃບຮັບເງິນ", href: "/receipts" },
+    // ລາຍຮັບແຍກຕາມຊ່າງ — ຢູ່ຕິດກັບໃບຮັບເງິນ ເພາະເປັນເລື່ອງເງິນອັນດຽວກັນ
+    { label: "ສະຫຼຸບລາຍຮັບຊ່າງປະຈຳເດືອນ", href: "/reports/tech-revenue" },
+  ],
 };
 
-export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, MAINTENANCE, STOCK, RECEIPT, CLAIM, PURCHASE, APPROVE, REPORT, USERS];
+export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, MAINTENANCE, CLAIM, STOCK, RECEIPT, PURCHASE, APPROVE, REPORT, USERS];
 
 /**
  * Sidebar ສະເພາະຊ່າງ — ມີແຕ່ຄິວທີ່ຊ່າງລົງມືໄດ້ຈິງ.

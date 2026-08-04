@@ -170,6 +170,7 @@ const RULES: Rule[] = [
   { path: "/returns", roles: SERVICE_SIDE },
   // ໃບຮັບເງິນ — ອ່ານຢ່າງດຽວ ຝ່າຍບໍລິການເຫັນໄດ້ (ຂໍ້ມູນມາຈາກ ERP)
   { path: "/receipts", roles: SERVICE_SIDE },
+  { path: "/reports/tech-revenue", roles: SERVICE_SIDE },
   { path: "/customers", roles: SERVICE_SIDE },
 
   /* ຊ່າງ — ods: ເມນູ "ຊ່າງ" ({% else %} + manager) */

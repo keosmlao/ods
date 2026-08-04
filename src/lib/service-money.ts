@@ -194,3 +194,43 @@ export async function serviceByCustomerKind(from: string, to: string): Promise<K
     )
   ).rows;
 }
+
+/** ລາຍຮັບຕໍ່ **ຊ່າງ** ຕໍ່ເດືອນ — ໃບສະເໜີລາຄາທີ່ລູກຄ້າຮັບແລ້ວ ຜູກກັບຊ່າງເຈົ້າຂອງໃບງານ */
+export type TechRevenueRow = {
+  month: string;
+  technician: string;
+  jobs: number;
+  quoted: string;
+  paid: string;
+  due: string;
+};
+
+export async function techRevenueByMonth(from: string, to: string): Promise<TechRevenueRow[]> {
+  return (
+    await query<TechRevenueRow>(
+      /**
+       * ນັບຄືກັນກັບ serviceRevenueByMonth (ໃບສະເໜີລາຄາທີ່ອະນຸມັດ 2 ຂັ້ນ) ແຕ່ **ແຍກຕາມຊ່າງ**.
+       * ⚠️ ລວມຕໍ່ **ໃບງານ** ກ່ອນ (sub-query) ບໍ່ດັ່ງນັ້ນໃບງານທີ່ມີຫຼາຍໃບສະເໜີຈະຖືກນັບຊ້ຳ.
+       * ວຽກທີ່ຍັງບໍ່ຈັດຊ່າງ ⇒ ຈັດເປັນ 'ຍັງບໍ່ຈັດຊ່າງ' ບໍ່ຖິ້ມ (ບໍ່ດັ່ງນັ້ນຍອດລວມບໍ່ຄົບ).
+       */
+      `select to_char(x.m,'MM-YYYY') as month,
+          coalesce(nullif(x.tech,''),'ຍັງບໍ່ຈັດຊ່າງ') technician,
+          count(*)::int jobs,
+          to_char(sum(x.quoted),'FM999,999,999,990') quoted,
+          to_char(sum(x.paid),'FM999,999,999,990') paid,
+          to_char(sum(x.quoted - x.paid),'FM999,999,999,990') due
+        from (
+          select date_trunc('month', max(q.doc_date))::date m,
+              a.code, a.emp_code tech, sum(q.total_amount) quoted,
+              coalesce((select sum(amount_thb) from ods_service_payment where job_code = a.code),0) paid
+            from ic_trans q
+            join tb_product a on a.code = q.product_code
+           where ${ACCEPTED_QUOTE} and q.doc_date::date between $1 and $2
+           group by a.code, a.emp_code
+        ) x
+       group by x.m, coalesce(nullif(x.tech,''),'ຍັງບໍ່ຈັດຊ່າງ')
+       order by x.m desc, sum(x.quoted) desc`,
+      [from, to],
+    )
+  ).rows;
+}
