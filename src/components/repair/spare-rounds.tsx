@@ -230,7 +230,7 @@ function PurchaseBranch({ buy, chain }: { buy: PurchaseRound; chain?: ErpChain }
           docDate={chain?.spr_date ?? null}
           pending="ລໍ ERP ຮັບໃບ"
           items={chain?.spr_items}
-          against={chain?.spr_no ? buy.items : undefined}
+          against={chain?.spr_no && !chain.mismatch ? buy.items : undefined}
           againstLabel="ໃບຂໍຊື້"
         />
         <Node
