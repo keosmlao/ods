@@ -1,4 +1,5 @@
 import { queryOdg } from "@/lib/db";
+import { ERP } from "@/lib/stock-constants";
 import { ChevronDown, Receipt, Search } from "lucide-react";
 import Link from "next/link";
 
@@ -34,7 +35,12 @@ export default async function ReceiptsPage({ searchParams }: Props) {
   const shown = BATCH * page;
 
   const args: (string | number)[] = [];
-  const where = ["t.trans_flag = 44"];
+  /**
+   * **ສະເພາະຝ່າຍບໍລິການ**: `side_code = '400'` — ຄ່າດຽວກັບ `ERP.SIDE_CODE` ທີ່ລະບົບໃຊ້
+   * ຕອນຂຽນເອກະສານເຂົ້າ ERP ຢູ່ແລ້ວ. ວັດ 120 ວັນຫຼ້າສຸດ: 400 = 207 ບິນ (CAHS · CAKS ·
+   * INHS · INKS) ສ່ວນ 200 = 23,044 ບິນຂອງຝ່າຍຂາຍ (ລວມ POS2) ⇒ ບໍ່ກັ່ນຈະປົນກັນທັງໝົດ.
+   */
+  const where = [`t.trans_flag = 44`, `t.side_code = '${ERP.SIDE_CODE}'`];
   if (q) {
     args.push(`%${q}%`);
     where.push(`(t.doc_no ilike $${args.length} or coalesce(t.cust_code,'') ilike $${args.length}
