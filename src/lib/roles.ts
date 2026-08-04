@@ -171,6 +171,7 @@ const RULES: Rule[] = [
   // ໃບຮັບເງິນ — ອ່ານຢ່າງດຽວ ຝ່າຍບໍລິການເຫັນໄດ້ (ຂໍ້ມູນມາຈາກ ERP)
   { path: "/receipts", roles: SERVICE_SIDE },
   { path: "/install-revenue", roles: SERVICE_SIDE },
+  { path: "/revenue-summary", roles: SERVICE_SIDE },
   { path: "/tech-revenue", roles: SERVICE_SIDE },
   { path: "/customers", roles: SERVICE_SIDE },
 
