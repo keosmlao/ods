@@ -95,10 +95,10 @@ export default async function SpareTreePage() {
       const oldest = pending.reduce((max, round) => Math.max(max, round.sio.age), 0);
       return { ...job, rounds, pending: pending.length, oldest };
     })
-    .filter((card) => card.rounds.length > 0)
+    // ເບີກຄົບແລ້ວ ⇒ ວຽກໄປຢູ່ຄິວ 'ລໍຖ້າສ້ອມ' ແລ້ວ ບໍ່ຄວນຄ້າງຢູ່ໜ້ານີ້ອີກ (ກົດເກນ ①: ແຖວ = badge)
+    .filter((card) => card.rounds.length > 0 && card.pending > 0)
     .sort((a, b) => b.pending - a.pending || b.oldest - a.oldest);
 
-  const waiting = cards.filter((card) => card.pending > 0);
   const days = (seconds: number) => Math.max(0, Math.floor(seconds / 86400));
   const ageTone = (d: number) =>
     d >= 30 ? "bg-red-100 text-red-700" : d >= 7 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600";
@@ -108,7 +108,7 @@ export default async function SpareTreePage() {
       <div>
         <h1 className="text-xl font-bold text-slate-700">ອາໄຫຼ່ຕາມໃບງານ</h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          {cards.length} ໃບງານ · ຄ້າງ {waiting.length} ໃບ — ກົດແຖວເພື່ອເປີດ <b>ຕົ້ນໄມ້ເອກະສານ</b> ຂອງໃບງານນັ້ນ ·{" "}
+          {cards.length} ໃບງານຄ້າງອາໄຫຼ່ — ກົດແຖວເພື່ອເປີດ <b>ຕົ້ນໄມ້ເອກະສານ</b> ຂອງໃບງານນັ້ນ ·{" "}
           <Link href="/manual/spares" className="font-semibold text-teal-700 hover:underline">
             ຄູ່ມືຂັ້ນຕອນອາໄຫຼ່
           </Link>

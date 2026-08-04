@@ -201,21 +201,11 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
            * ໃບຂໍເບີກລໍສາງ + ໃບຂໍເບີກທີ່ຂອງມາຮອດແລ້ວ + ລໍຂອງມາ + ໃບຂໍຊື້ລໍອະນຸມັດ
            * ⚠️ **ບໍ່ນັບ "ໃບເບີກລໍຊ່າງຮັບ" ອີກແລ້ວ** — ງານສ້ອມຖືວ່າສາງເບີກອອກ = ຈົບ (04-08-2026)
            */
-          ((select count(*) from ic_trans t join tb_product a on a.code = t.product_code
-             where t.trans_flag = 122 and a.return_complete is null and coalesce(a.status,0) <> 6
-               and not exists (select 1 from ic_trans sw where sw.trans_flag = 56 and sw.doc_ref = t.doc_no)
-               and not exists (select 1 from ic_trans_detail d where d.doc_no = t.doc_no and coalesce(d.status,0) = 5))
-           + (select count(*) from ic_trans t join tb_product a on a.code = t.product_code
-               where t.trans_flag = 122 and a.return_complete is null and coalesce(a.status,0) <> 6
-                 and exists (select 1 from ic_trans_detail d where d.doc_no = t.doc_no
-                               and coalesce(d.status,0) = 5 and d.arrive_at is not null))
-           + (select count(*) from ic_trans t join tb_product a on a.code = t.product_code
-               where t.trans_flag = 122 and a.return_complete is null and coalesce(a.status,0) <> 6
-                 and exists (select 1 from ic_trans_detail d where d.doc_no = t.doc_no
-                               and coalesce(d.status,0) = 5 and d.arrive_at is null))
-           + (select count(*) from ic_trans t join tb_product a on a.code = t.product_code
-               where t.trans_flag = 78 and coalesce(t.aprove_status,0) = 0
-                 and a.return_complete is null and coalesce(a.status,0) <> 6))::int as "/work/spares",
+          (select count(distinct t.product_code) from ic_trans t
+             join tb_product a on a.code = t.product_code
+            where t.trans_flag = 122 and a.return_complete is null and coalesce(a.status,0) <> 6
+              and not exists (select 1 from ic_trans sw where sw.trans_flag = 56 and sw.doc_ref = t.doc_no)
+          )::int as "/work/spares",
           -- ປິດງານ (ໜ້າ /close-jobs) = ສ້ອມທີ່ສົ່ງຄືນແລ້ວແຕ່ຍັງບໍ່ປິດ + ຕິດຕັ້ງຂັ້ນ 8 (ສອງແທັບລວມກັນ)
           ((select count(*) from tb_product a
              where a.return_complete is not null and a.job_close is null and coalesce(a.status,0) <> 6)
