@@ -70,6 +70,23 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
   }
   const hasMore = rows.length > shown;
   const list = rows.slice(0, shown);
+
+  /**
+   * ບິນຍັງບໍ່ຜູກໃບງານ — **ເອົາຍອດຈາກ ERP ມາຊື່ໆ ບໍ່ແປງອັດຕາ** (ຄຳສັ່ງ 04-08-2026).
+   * ແປງດ້ວຍ tb_bill_rate (550) ແລ້ວຕົວເລກບໍ່ຕົງກັບບິນຈິງ ⇒ ຄົນກວດຄືນກັບ ERP ບໍ່ໄດ້.
+   */
+  const unSum = {
+    baht: unlinked.reduce((sum, bill) => sum + bill.baht, 0),
+    ac: unlinked.reduce((sum, bill) => sum + bill.ac, 0),
+    app: unlinked.reduce((sum, bill) => sum + bill.app, 0),
+  };
+  total = {
+    ...total,
+    baht: total.baht + unSum.baht,
+    ac: total.ac + unSum.ac,
+    app: total.app + unSum.app,
+  };
+
   const avg = total.jobs > 0 ? total.baht / total.jobs : 0;
   const pct = (value: number) => (total.baht > 0 ? Math.round((value / total.baht) * 100) : 0);
 
@@ -129,7 +146,7 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: "ໃບງານທີ່ປິດ", value: total.jobs.toLocaleString(), tone: "text-slate-800", sub: `ສະເລ່ຍ ${Math.round(avg).toLocaleString()} ບາດ/ໃບງານ` },
-          { label: "ລາຍຮັບລວມ (ບາດ)", value: Math.round(total.baht).toLocaleString(), tone: "text-emerald-700", sub: "" },
+          { label: "ລາຍຮັບລວມ (ບາດ)", value: Math.round(total.baht).toLocaleString(), tone: "text-emerald-700", sub: unlinked.length > 0 ? `ລວມບິນຍັງບໍ່ຜູກໃບງານ ${Math.round(unSum.baht).toLocaleString()}` : "" },
           { label: "ຕິດຕັ້ງແອ", value: Math.round(total.ac).toLocaleString(), tone: "text-teal-700", sub: `${pct(total.ac)}% ຂອງລາຍຮັບ` },
           { label: "ຕິດຕັ້ງເຄື່ອງໃຊ້ໄຟຟ້າ", value: Math.round(total.app).toLocaleString(), tone: "text-indigo-700", sub: `${pct(total.app)}% ຂອງລາຍຮັບ` },
         ].map((card) => (
@@ -314,20 +331,18 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
         </nav>
       )}
 
-      {/* ── ⑤ ບິນຕິດຕັ້ງທີ່ຍັງບໍ່ຜູກໃບງານ — ມີລາຍການຕິດຕັ້ງມີລາຄາ ແຕ່ບໍ່ເຂົ້າຍອດ ເພາະ doc_ref_1 ບໍ່ກົງ ── */}
+      {/* ── ⑥ ບິນຕິດຕັ້ງທີ່ຍັງບໍ່ຜູກໃບງານ — ແປງກີບ→ບາດ ແລ້ວລວມເຂົ້າຍອດຂ້າງເທິງແລ້ວ ── */}
       {unlinked.length > 0 && (
         <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
           <h2 className="flex flex-wrap items-center gap-2 text-sm font-bold text-amber-800">
             <AlertTriangle className="size-4" />
             ບິນຕິດຕັ້ງຍັງບໍ່ຜູກໃບງານ · {unlinked.length.toLocaleString()} ໃບ ·{" "}
-            <span className="tabular-nums">
-              {Math.round(unlinked.reduce((sum, bill) => (bill.kip ? sum : sum + bill.baht), 0)).toLocaleString()} ບາດ
-            </span>
+            <span className="tabular-nums">{Math.round(unSum.baht).toLocaleString()} ບາດ</span>
           </h2>
           <p className="mt-1 text-[11px] text-amber-700">
             ບິນເຫຼົ່ານີ້ມີລາຍການຄ່າຕິດຕັ້ງ (9701xx) ມີລາຄາ ແຕ່ບໍ່ມີໃບງານໃດໃສ່ເລກບິນນີ້ໃນ <b>doc_ref_1</b>
-            ⇒ ຍັງບໍ່ຖືກນັບໃນຍອດຂ້າງເທິງ. ໄປໃສ່ເລກບິນໃນໃບງານຕິດຕັ້ງ ຍອດຈະເຂົ້າທັນທີ ·
-            ໃບໂຄງການ HSV ປ້ອນເປັນ <b>ກີບ</b> ບໍ່ໄດ້ລວມໃນຍອດບາດ.
+            ⇒ ຍອດ <b>ເອົາຈາກ ERP ມາຊື່ໆ ແລະ ລວມເຂົ້າຍອດຂ້າງເທິງແລ້ວ</b> (ບໍ່ແປງອັດຕາ) ·
+            ໃສ່ເລກບິນໃນໃບງານ ເມື່ອໄດ້ໃບງານແລ້ວ ຕົວເລກຈະຍ້າຍໄປຢູ່ໃບງານນັ້ນເອງ.
           </p>
           <div className="mt-2 overflow-x-auto rounded-lg border border-amber-200 bg-white">
             <table className="w-full min-w-[760px] border-collapse text-xs">
@@ -355,9 +370,12 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5 text-right font-bold tabular-nums text-slate-800">
                       {Math.round(bill.baht).toLocaleString()}
-                      <span className={`ml-1 text-[10px] font-semibold ${bill.kip ? "text-amber-600" : "text-slate-400"}`}>
-                        {bill.kip ? "ກີບ" : "ບາດ"}
-                      </span>
+                      <span className="ml-1 text-[10px] font-semibold text-slate-400">ບາດ</span>
+                      {bill.kip && (
+                        <p className="text-[10px] font-normal text-amber-600">
+                          ຈາກ {Math.round(bill.baht).toLocaleString()} ກີບ
+                        </p>
+                      )}
                     </td>
                   </tr>
                 ))}

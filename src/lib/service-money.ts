@@ -410,8 +410,8 @@ export async function installRevenueByTech(from: string, to: string): Promise<In
 /**
  * **ບິນຕິດຕັ້ງທີ່ຍັງບໍ່ຜູກໃບງານ** — ບິນຝ່າຍບໍລິການ (side_code 400) ໃນເດືອນ
  * ທີ່ມີລາຍການຄ່າຕິດຕັ້ງ 9701xx **ມີລາຄາ** ແຕ່ບໍ່ມີໃບງານ ods_tb_install ໃດອ້າງເລກບິນນີ້
- * (doc_ref_1 ບໍ່ກົງ). ຍອດຈຶ່ງບໍ່ເຂົ້າສູດລາຍຮັບຕາມໃບງານ ⇒ ໂຊ້ແຍກໃຫ້ເຫັນ
- * ເພື່ອໄປຜູກເລກບິນໃສ່ໃບງານ. ນັບຕາມ **ວັນທີບິນ** · ລາຄາຖອຍ 2 ຊັ້ນຄືກັນ (installLineBaht).
+ * (doc_ref_1 ບໍ່ກົງ). ໜ້າຈໍຈະ **ແປງໃບ HSV (ກີບ) ເປັນບາດ ແລ້ວລວມເຂົ້າຍອດເດືອນ**.
+ * ນັບຕາມ **ວັນທີບິນ** · ລາຄາຖອຍ 2 ຊັ້ນຄືກັນ (installLineBaht).
  */
 export type UnlinkedInstallBill = {
   doc_no: string;
@@ -419,7 +419,10 @@ export type UnlinkedInstallBill = {
   customer: string | null;
   items: string | null;
   baht: number;
-  /** ໃບໂຄງການ HSV (ລະຫັດ 970101-0004) ປ້ອນເປັນ **ກີບ** ⇒ ບໍ່ລວມໃນຍອດບາດ */
+  /** ສ່ວນແບ່ງ ແອ / ໄຟຟ້າ ຕາມລະຫັດ — ໃບ HSV ຍັງເປັນກີບດິບ ໜ້າຈໍແປງເອງ */
+  ac: number;
+  app: number;
+  /** ໃບໂຄງການ HSV (ລະຫັດ 970101-0004) ປ້ອນເປັນ **ກີບ** ⇒ ໜ້າຈໍແປງເປັນບາດກ່ອນລວມຍອດ */
   kip: boolean;
 };
 
@@ -431,6 +434,9 @@ export async function unlinkedInstallBills(from: string, to: string): Promise<Un
           coalesce(nullif(c.name_1,''), nullif(t.cust_code,'')) customer,
           string_agg(distinct d.item_name, ' · ') items,
           sum(${unlinked})::float8 baht,
+          sum(case when d.item_code in (${sqlItems(INSTALL_AC_ITEMS)}) then ${unlinked} else 0 end)::float8 ac,
+          sum(case when d.item_code like '9701%' and d.item_code not in (${sqlItems(INSTALL_AC_ITEMS)})
+            and d.item_code not in (${sqlItems(INSTALL_OTHER_ITEMS)}) then ${unlinked} else 0 end)::float8 app,
           bool_or(d.item_code = '970101-0004') kip
         from public.ic_trans t
         join public.ic_trans_detail d on d.doc_no = t.doc_no and d.item_code like '9701%'
