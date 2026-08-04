@@ -45,6 +45,7 @@ export function SpareRounds({
   canRequest = false,
   links,
   docAction,
+  jobStarted = false,
 }: {
   code: string;
   /** key ຂອງໜ້າ /stock/requests/[roworder] — ບ່ອນອອກໃບຂໍເບີກຮອບໃໝ່ */
@@ -58,6 +59,13 @@ export function SpareRounds({
   links?: SpareLinks;
   /** ປຸ່ມເພີ່ມຢູ່ແຖວໃບຂໍເບີກ (ຕິດຕັ້ງ: ແກ້ໄຂ/ຍົກເລີກ ຕອນສາງຍັງບໍ່ເບີກ) */
   docAction?: (docNo: string, dispatched: boolean) => ReactNode;
+  /**
+   * ວຽກເລີ່ມສ້ອມ/ຕິດຕັ້ງແລ້ວ ⇒ ການ "ຮັບອາໄຫຼ່" **ບໍ່ແມ່ນຂັ້ນຕອນວຽກອີກຕໍ່ໄປ** ແຕ່ເປັນການເຊັນເອກະສານຍ້ອນຫຼັງ.
+   * ຫຼັກຖານ 04-08-2026: ໃບສາງເບີກ 2,508 ໃບບໍ່ເຄີຍມີໃບຮັບ (PISP) — ໃນນັ້ນ **2,441 ໃບ (97%)
+   * ວຽກເລີ່ມສ້ອມໄປແລ້ວ** ແລະ 2,436 ໃບສ້ອມຈົບແລ້ວ ⇒ ຄົນເອົາອາໄຫຼ່ໄປໃຊ້ກ່ອນ ບໍ່ໄດ້ເຊັນ.
+   * ຈຶ່ງບໍ່ຄວນເອົາປຸ່ມສີເຂັ້ມມາລໍ້ວ່າ "ຍັງບໍ່ໄດ້ເຮັດ" — ຫຼຸດເປັນປຸ່ມຮອງ ພ້ອມບອກວ່າຄ້າງແຕ່ເອກະສານ.
+   */
+  jobStarted?: boolean;
 }) {
   const url: SpareLinks = links ?? {
     newRequest: `/stock/requests/${encodeURIComponent(roworder)}`,
@@ -117,6 +125,7 @@ export function SpareRounds({
             erp={erp}
             url={url}
             docAction={docAction}
+            jobStarted={jobStarted}
           />
         ))}
         {orphanPurchases.map((row) => (
@@ -139,6 +148,7 @@ function RoundTree({
   erp,
   url,
   docAction,
+  jobStarted,
   label,
 }: {
   round: number;
@@ -147,6 +157,7 @@ function RoundTree({
   erp: Record<string, ErpChain>;
   url: SpareLinks;
   docAction?: (docNo: string, dispatched: boolean) => ReactNode;
+  jobStarted?: boolean;
   label?: string;
 }) {
   const state = withdrawal ? WITHDRAW_STATE[withdrawal.state] : null;
@@ -208,9 +219,13 @@ function RoundTree({
               withdrawal.state === "dispatched" && withdrawal.dispatch_no ? (
                 <Link
                   href={url.pickup(withdrawal.dispatch_no.split(",")[0].trim())}
-                  className="inline-flex h-7 items-center rounded-lg bg-teal-600 px-2.5 text-[11px] font-semibold text-white hover:bg-teal-700"
+                  className={
+                    jobStarted
+                      ? "inline-flex h-7 items-center rounded-lg border border-slate-300 px-2.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                      : "inline-flex h-7 items-center rounded-lg bg-teal-600 px-2.5 text-[11px] font-semibold text-white hover:bg-teal-700"
+                  }
                 >
-                  ຮັບອາໄຫຼ່
+                  {jobStarted ? "ເຊັນຮັບຍ້ອນຫຼັງ" : "ຮັບອາໄຫຼ່"}
                 </Link>
               ) : null
             }
@@ -225,7 +240,8 @@ function RoundTree({
             title="ຊ່າງຮັບ (PISP)"
             docNo={withdrawal.pick_no}
             docDate={withdrawal.pick_date}
-            pending="ລໍຊ່າງກົດຮັບ"
+            pending={jobStarted ? "ບໍ່ໄດ້ເຊັນ (ເອົາໄປໃຊ້ແລ້ວ)" : "ລໍຊ່າງກົດຮັບ"}
+            pendingTone={jobStarted ? "bg-slate-100 text-slate-500" : undefined}
             items={withdrawal.pick_items}
             against={withdrawal.pick_items.length > 0 ? withdrawal.dispatch_items : undefined}
             againstLabel="ທີ່ສາງເບີກ"
@@ -317,6 +333,7 @@ function Node({
   docNo,
   docDate,
   pending,
+  pendingTone,
   action,
   items = [],
   against,
@@ -328,6 +345,8 @@ function Node({
   docNo: string | null;
   docDate: string | null;
   pending: string;
+  /** ສີປ້າຍ "ຄ້າງ" — ຄ່າຫວ່າງ = ເຫຼືອງ (ຕ້ອງລົງມື); ເທົາ = ຄ້າງແຕ່ເອກະສານ ບໍ່ຂວາງວຽກ */
+  pendingTone?: string;
   action?: ReactNode;
   /** ລາຍການຂອງໃບນີ້ */
   items?: DocItem[];
@@ -349,7 +368,9 @@ function Node({
             {docDate && <span className="text-[11px] text-slate-400">{docDate}</span>}
           </>
         ) : (
-          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">{pending}</span>
+          <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${pendingTone ?? "bg-amber-50 text-amber-700"}`}>
+            {pending}
+          </span>
         )}
         {diff?.mismatch && (
           <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">

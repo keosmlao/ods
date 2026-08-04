@@ -260,6 +260,7 @@ export default async function RepairJobPage({ params }: Props) {
         purchases={spareRounds.purchases}
         erp={spareRounds.erp}
         canRequest={spareWindow}
+        jobStarted={job.started}
       />
 
       {spareWindow && (
