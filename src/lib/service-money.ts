@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { INSTALL_AC_ITEMS, INSTALL_OTHER_ITEMS } from "@/lib/monthly-report";
 
 /**
  * **ເງິນຂອງງານສ້ອມ — ນິຍາມບ່ອນດຽວຂອງລະບົບ.**
@@ -251,7 +252,13 @@ export async function techRevenueByMonth(from: string, to: string): Promise<Tech
  * ② 1 ບິນຄຸມຫຼາຍໃບງານ (ເຊັ່ນ CAK26009420 = INST-7162 + INST-7163) ⇒
  *    **ຫານຍອດບິນໃຫ້ໃບງານເທົ່າກັນ** (baht/n) ⇒ ຍອດລວມ/ລາຍວັນ/ຕາມຊ່າງ/ຕາຕະລາງ ບວກກັນໄດ້ພໍດີ.
  * ③ ແຖວ sum_amount = 0 ⇒ ຖອຍໄປໃຊ້ລາຄາມາດຕະຖານ 2 ຊັ້ນ (ເບິ່ງ `installLineBaht`).
+ * ④ ແຍກ **ແອ / ເຄື່ອງໃຊ້ໄຟຟ້າ / ອື່ນໆ** ລະດັບ **ແຖວລາຍການ** ດ້ວຍກົດດຽວກັບລາຍງານ
+ *    ປະຈຳເດືອນ (INSTALL_AC_ITEMS / INSTALL_OTHER_ITEMS ຈາກ lib/monthly-report)
+ *    ⇒ ບິນດຽວປົນ 2 ໝວດ ກໍ່ແຍກຍອດຖືກ · ສ່ວນແບ່ງຕໍ່ໃບງານຫານຕາມ n ຄືກັນທຸກໝວດ.
  */
+
+/** ລາຍຊື່ລະຫັດສຳລັບ `in (...)` — ຄ່າຄົງທີ່ໃນ lib ບໍ່ມີ input ຜູ້ໃຊ້ ⇒ ບໍ່ມີຄວາມສ່ຽງ injection */
+const sqlItems = (set: Set<string>) => [...set].map((code) => `'${code}'`).join(", ");
 
 /**
  * ມູນຄ່າ (ບາດ) ຂອງແຖວລາຍການບິນ — ຖ້າບໍ່ໄດ້ປ້ອນລາຄາ (sum_amount = 0) ຖອຍ 2 ຊັ້ນ:
@@ -278,8 +285,10 @@ const installLineBaht = (anchor: string) => `coalesce(nullif(d.sum_amount, 0),
  * CTE ຮ່ວມຂອງທຸກຄຳຖາມລາຍຮັບຕິດຕັ້ງ ($1/$2 = ວັນທີ from/to):
  * - jobs: ໃບງານທີ່ປິດໃນຊ່ວງ ບໍ່ໂດນຍົກເລີກ ແລະ ມີເລກບິນ
  * - anchor: ຕໍ່ບິນ — ວັນປິດງານສຸດທ້າຍ (ຈຸດອ້າງອີງລາຄາຂັ້ນ ②) + ຈຳນວນໃບງານທີ່ບິນຄຸມ
- * - bills: ຍອດຄ່າບໍລິການ 9701xx ຕໍ່ບິນ (ເທື່ອດຽວ ບໍ່ຄູນຕາມໃບງານ)
+ * - bills: ຍອດຄ່າບໍລິການ 9701xx ຕໍ່ບິນ (ເທື່ອດຽວ ບໍ່ຄູນຕາມໃບງານ) ແຍກ ac/oth ຕາມລະຫັດ;
+ *   ເຄື່ອງໃຊ້ໄຟຟ້າ = baht − ac − oth (ບໍ່ sum ແຍກ ເພື່ອບໍ່ໃຫ້ປັດເສດເຫຼືອໄປຫາຍ)
  */
+const line = installLineBaht("anc.finished");
 const INSTALL_REVENUE_CTES = `with jobs as (
         select a.code, trim(a.doc_ref_1) bill, a.job_finish, a.tech_code, a.cust_code
           from ods.ods_tb_install a
@@ -290,21 +299,29 @@ const INSTALL_REVENUE_CTES = `with jobs as (
           from jobs j
          group by j.bill
       ), bills as (
-        select d.doc_no, sum(${installLineBaht("anc.finished")}) baht
+        select d.doc_no, sum(${line}) baht,
+            sum(case when d.item_code in (${sqlItems(INSTALL_AC_ITEMS)}) then ${line} else 0 end) ac,
+            sum(case when d.item_code in (${sqlItems(INSTALL_OTHER_ITEMS)}) then ${line} else 0 end) oth
           from public.ic_trans_detail d
           join anchor anc on anc.bill = d.doc_no
          where d.item_code like '9701%'
          group by d.doc_no
       )`;
 
-export async function installRevenueBetween(from: string, to: string): Promise<{ jobs: number; baht: number }> {
-  const { rows } = await query<{ jobs: number; baht: number }>(
+export async function installRevenueBetween(
+  from: string,
+  to: string,
+): Promise<{ jobs: number; baht: number; ac: number; app: number; other: number }> {
+  const { rows } = await query<{ jobs: number; baht: number; ac: number; app: number; other: number }>(
     `${INSTALL_REVENUE_CTES}
       select (select count(*)::int from jobs j join bills b on b.doc_no = j.bill) jobs,
-             (select coalesce(sum(b.baht),0)::float8 from bills b) baht`,
+             (select coalesce(sum(b.baht),0)::float8 from bills b) baht,
+             (select coalesce(sum(b.ac),0)::float8 from bills b) ac,
+             (select coalesce(sum(b.baht - b.ac - b.oth),0)::float8 from bills b) app,
+             (select coalesce(sum(b.oth),0)::float8 from bills b) other`,
     [from, to],
   );
-  return rows[0] ?? { jobs: 0, baht: 0 };
+  return rows[0] ?? { jobs: 0, baht: 0, ac: 0, app: 0, other: 0 };
 }
 
 /** ລາຍການລະອຽດ — 1 ແຖວ = 1 ໃບງານຕິດຕັ້ງ; ບາດ = ສ່ວນແບ່ງຂອງໃບງານນັ້ນ (ບິນດຽວຄຸມຫຼາຍໃບງານ ⇒ ຫານເທົ່າກັນ) */
@@ -316,6 +333,9 @@ export type InstallRevenueDetail = {
   tech: string | null;
   items: string | null;
   baht: number;
+  /** ສ່ວນແບ່ງຕິດຕັ້ງແອ / ເຄື່ອງໃຊ້ໄຟຟ້າ ຂອງແຖວນີ້ — ໝວດອື່ນໆ = baht − ac − app */
+  ac: number;
+  app: number;
 };
 
 export async function installRevenueDetail(from: string, to: string, limit: number): Promise<InstallRevenueDetail[]> {
@@ -333,7 +353,9 @@ export async function installRevenueDetail(from: string, to: string, limit: numb
           coalesce(nullif(c.name_1,''), nullif(j.cust_code,'')) customer,
           nullif(j.tech_code,'') tech,
           i.items,
-          (b.baht / anc.n)::float8 baht
+          (b.baht / anc.n)::float8 baht,
+          (b.ac / anc.n)::float8 ac,
+          ((b.baht - b.ac - b.oth) / anc.n)::float8 app
         from jobs j
         join bills b on b.doc_no = j.bill
         join anchor anc on anc.bill = j.bill
@@ -365,14 +387,16 @@ export async function installRevenueByDay(from: string, to: string): Promise<Ins
 }
 
 /** ລາຍຮັບຕາມຊ່າງ — ຍອດ = ສ່ວນແບ່ງຕໍ່ໃບງານ; ຍັງບໍ່ຈັດຊ່າງ ບໍ່ຖິ້ມ (ບໍ່ດັ່ງນັ້ນຍອດລວມບໍ່ຄົບ) */
-export type InstallRevenueTech = { tech: string; jobs: number; baht: number };
+export type InstallRevenueTech = { tech: string; jobs: number; baht: number; ac: number; app: number };
 
 export async function installRevenueByTech(from: string, to: string): Promise<InstallRevenueTech[]> {
   return (
     await query<InstallRevenueTech>(
       `${INSTALL_REVENUE_CTES}
       select coalesce(nullif(j.tech_code,''),'ຍັງບໍ່ຈັດຊ່າງ') tech,
-          count(*)::int jobs, sum(b.baht / anc.n)::float8 baht
+          count(*)::int jobs, sum(b.baht / anc.n)::float8 baht,
+          sum(b.ac / anc.n)::float8 ac,
+          sum((b.baht - b.ac - b.oth) / anc.n)::float8 app
         from jobs j
         join bills b on b.doc_no = j.bill
         join anchor anc on anc.bill = j.bill
@@ -393,6 +417,42 @@ export async function installRevenueByTech(from: string, to: string): Promise<In
  * ຍັງບໍ່ເຊື່ອມ = ຊື່ຫຼິ້ນ ⇒ ຈັດກຸ່ມຕາມຄ່ານີ້ໂດຍກົງ (ຄືກັບ /commission).
  */
 export type TechPayoutRow = { technician: string; jobs: number; thb: number };
+
+/** 1 ແຖວ = 1 ການຈ່າຍ (ໃບງານ × ຄົນ × ບົດບາດ) — ໃຫ້ໜ້າຈໍລວມເອງໄດ້ຕາມທີ່ຢາກເບິ່ງ */
+export type PayoutLine = {
+  employee_code: string;
+  name: string | null;
+  role: string;
+  workflow: string;
+  job_code: string;
+  pay_thb: number;
+  closed_at: string | null;
+};
+
+/**
+ * ທຸກການຈ່າຍໃນເດືອນ ພ້ອມ **ຊື່ຄົນ**.
+ *
+ * `employee_code` ອາດເປັນລະຫັດ ERP (ຊ່າງເຊື່ອມແລ້ວ) ຫຼື ຊື່ login (ຍັງບໍ່ເຊື່ອມ)
+ * ⇒ ຫາຊື່ 2 ທາງ: ① users.code = ລະຫັດ ② ຜ່ານສະພານ ods_user_employee → users.username
+ */
+export async function payoutLines(from: string, to: string): Promise<PayoutLine[]> {
+  return (
+    await query<PayoutLine>(
+      `select p.employee_code, p.role, p.workflow, p.job_code,
+          p.pay_thb::float8 pay_thb, to_char(p.closed_at,'DD-MM-YYYY') closed_at,
+          coalesce(
+            (select u.name_1 from users u where u.code = p.employee_code and nullif(u.name_1,'') is not null limit 1),
+            (select u.name_1 from ods_user_employee b join users u on u.username = b.user_code
+              where b.employee_code = p.employee_code and nullif(u.name_1,'') is not null limit 1),
+            (select u.name_1 from users u where u.username = p.employee_code and nullif(u.name_1,'') is not null limit 1)
+          ) name
+        from ods_service_payout p
+       where p.closed_at::date between $1 and $2
+       order by p.pay_thb desc`,
+      [from, to],
+    )
+  ).rows;
+}
 
 export async function techPayoutByMonth(from: string, to: string): Promise<TechPayoutRow[]> {
   return (

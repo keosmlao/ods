@@ -33,8 +33,9 @@ export type MonthRevenue = Record<RevCategory, number> & {
  * ລະຫັດບໍລິການຕິດຕັ້ງ**ແອ** — pin ຕາຍຕົວຈາກ ic_inventory ຈິງ (03-08-2026)
  * ຢ່າໃຊ້ "ທີ່ເຫຼືອ = ແອ": ລະຫັດ 970102-0012/0013 ເປັນເຄື່ອງປັບອາກາດແຕ່ຢູ່ຕະກູນ 970102
  * ແລະ ລະຫັດໃໝ່ທີ່ ERP ເພີ່ມພາຍຫຼັງຕ້ອງຖືກຈັດເປັນເຄື່ອງໃຊ້ໄຟຟ້າໂດຍປົກກະຕິ.
+ * export ໃຫ້ໜ້າອື່ນຈັດໝວດດ້ວຍກົດດຽວກັນ (ເຊັ່ນ /install-revenue).
  */
-const INSTALL_AC_ITEMS = new Set([
+export const INSTALL_AC_ITEMS = new Set([
   "970101-0001", // SERVICE CHARGE ຄ່າຕິດຕັ້ງແອ
   "970101-0015", // ແອ WT 9000-12000 BTU
   "970101-0016", // ແອ WT 18000-36000 BTU
@@ -46,7 +47,7 @@ const INSTALL_AC_ITEMS = new Set([
 ]);
 
 /** ບໍ່ແມ່ນທັງແອ/ເຄື່ອງໃຊ້ໄຟຟ້າ — ເຂົ້າໝວດ "ລາຍໄດ້ອື່ນໆ" */
-const INSTALL_OTHER_ITEMS = new Set([
+export const INSTALL_OTHER_ITEMS = new Set([
   "970101-0004", // ບໍລິການຕິດຕັ້ງໂຄງການ (ໃບ *HSV — ຄ່າເປັນກີບ)
   "970101-0020", // ຄ່າບໍລິການໄລຍະທາງ KM (ໃຊ້ໄດ້ທັງສອງໝວດ ແຍກບໍ່ອອກ)
 ]);

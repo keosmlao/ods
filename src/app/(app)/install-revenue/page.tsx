@@ -1,5 +1,4 @@
 import { employeeNameMap, resolveName } from "@/lib/employee-names";
-import { kipPerBaht } from "@/lib/monthly-report";
 import {
   installRevenueBetween,
   installRevenueByDay,
@@ -14,7 +13,7 @@ import Link from "next/link";
  *
  * ນັບຈາກ **ໃບງານຕິດຕັ້ງ** ບໍ່ແມ່ນຈາກບິນລອຍໆ — ຜູກຜ່ານ `ods_tb_install.doc_ref_1`
  * = ເລກບິນຂາຍ ERP ຂອງໃບງານນັ້ນ · ເອົາສະເພາະລາຍການຄ່າບໍລິການ 9701xx · ນັບຕາມວັນປິດງານ.
- * ຍອດເປັນ **ບາດ** ຕາມ ERP (ແຖວກີບແປງດ້ວຍອັດຕາ tb_bill_rate).
+ * ໂຊ້ສະເພາະ **ບາດ** ຕາມ ERP — ບໍ່ແປງເປັນກີບ.
  *
  * ໂຄງໜ້າ: ① ເລືອກເດືອນ ‹ › ② ຍອດລວມ 4 ກ້ອນ ③ ກຣາຟລາຍວັນ + ອັນດັບຊ່າງ
  * ④ ຕາຕະລາງລາຍໃບງານ. ທຸກສ່ວນອ່ານຈາກສູດດຽວກັນ (lib/service-money) ⇒ ຕົວເລກກົງກັນ.
@@ -51,19 +50,17 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
   const daysInMonth = new Date(year, mon, 0).getDate();
   const to = `${month}-${String(daysInMonth).padStart(2, "0")}`;
 
-  let total = { jobs: 0, baht: 0 };
+  let total = { jobs: 0, baht: 0, ac: 0, app: 0, other: 0 };
   let rows: Awaited<ReturnType<typeof installRevenueDetail>> = [];
   let days: Awaited<ReturnType<typeof installRevenueByDay>> = [];
   let techs: Awaited<ReturnType<typeof installRevenueByTech>> = [];
-  let rate = 0;
   let error: string | null = null;
   try {
-    [total, rows, days, techs, rate] = await Promise.all([
+    [total, rows, days, techs] = await Promise.all([
       installRevenueBetween(from, to),
       installRevenueDetail(from, to, shown + 1),
       installRevenueByDay(from, to),
       installRevenueByTech(from, to),
-      kipPerBaht(),
     ]);
   } catch (exception) {
     error = exception instanceof Error ? exception.message : "ດຶງຂໍ້ມູນບໍ່ສຳເລັດ";
@@ -71,6 +68,7 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
   const hasMore = rows.length > shown;
   const list = rows.slice(0, shown);
   const avg = total.jobs > 0 ? total.baht / total.jobs : 0;
+  const pct = (value: number) => (total.baht > 0 ? Math.round((value / total.baht) * 100) : 0);
 
   // ຊ່າງ: ຕ້ອງໂຊ້ **ຊື່** ບໍ່ແມ່ນລະຫັດ — tech_code ເປັນລະຫັດ ERP (23031) ຫຼືຊື່ຫຼິ້ນ
   // ⇒ ແປຈາກ odg_employee (ຄ່າທີ່ບໍ່ກົງລະຫັດ = ເປັນຊື່ຢູ່ແລ້ວ ຄົງໄວ້ຕາມເດີມ)
@@ -124,24 +122,26 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</p>
       )}
 
-      {/* ── ② ຍອດລວມຂອງເດືອນ (ທັງເດືອນ ບໍ່ແມ່ນສະເພາະແຖວທີ່ໂຫຼດ) ── */}
+      {/* ── ② ຍອດລວມຂອງເດືອນ — ແຍກ ແອ / ເຄື່ອງໃຊ້ໄຟຟ້າ ດ້ວຍກົດດຽວກັບລາຍງານປະຈຳເດືອນ ── */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: "ໃບງານທີ່ປິດ", value: total.jobs.toLocaleString(), tone: "text-slate-800" },
-          { label: "ລາຍຮັບ (ບາດ)", value: Math.round(total.baht).toLocaleString(), tone: "text-emerald-700" },
-          {
-            label: "ລາຍຮັບ (ກີບ)",
-            value: rate > 0 ? Math.round(total.baht * rate).toLocaleString() : "—",
-            tone: "text-slate-800",
-          },
-          { label: "ສະເລ່ຍຕໍ່ໃບງານ (ບາດ)", value: Math.round(avg).toLocaleString(), tone: "text-slate-800" },
+          { label: "ໃບງານທີ່ປິດ", value: total.jobs.toLocaleString(), tone: "text-slate-800", sub: `ສະເລ່ຍ ${Math.round(avg).toLocaleString()} ບາດ/ໃບງານ` },
+          { label: "ລາຍຮັບລວມ (ບາດ)", value: Math.round(total.baht).toLocaleString(), tone: "text-emerald-700", sub: "" },
+          { label: "ຕິດຕັ້ງແອ", value: Math.round(total.ac).toLocaleString(), tone: "text-teal-700", sub: `${pct(total.ac)}% ຂອງລາຍຮັບ` },
+          { label: "ຕິດຕັ້ງເຄື່ອງໃຊ້ໄຟຟ້າ", value: Math.round(total.app).toLocaleString(), tone: "text-indigo-700", sub: `${pct(total.app)}% ຂອງລາຍຮັບ` },
         ].map((card) => (
           <div key={card.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-[11px] text-slate-400">{card.label}</p>
             <p className={`mt-1 text-2xl font-bold tabular-nums ${card.tone}`}>{card.value}</p>
+            {card.sub && <p className="mt-0.5 text-[10px] tabular-nums text-slate-400">{card.sub}</p>}
           </div>
         ))}
       </div>
+      {Math.round(total.other) > 0 && (
+        <p className="-mt-2 text-[11px] text-slate-400">
+          ນອກນັ້ນມີໝວດ <b>ອື່ນໆ</b> (ຕິດຕັ້ງໂຄງການ / ຄ່າໄລຍະທາງ) ອີກ {Math.round(total.other).toLocaleString()} ບາດ — ລວມຢູ່ໃນຍອດລວມແລ້ວ
+        </p>
+      )}
 
       {/* ── ③ ແນວໂນ້ມລາຍວັນ + ອັນດັບຊ່າງ ── */}
       <div className="grid gap-3 xl:grid-cols-2">
@@ -227,6 +227,13 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
                       {row.jobs.toLocaleString()} ໃບງານ
                     </span>
                   </div>
+                  {/* ແຍກ ແອ/ໄຟຟ້າ ຂອງຊ່າງຄົນນີ້ — 0 ບໍ່ໂຊ້ ໃຫ້ເຫັນແຕ່ໝວດທີ່ມີ */}
+                  <p className="mt-0.5 text-[10px] tabular-nums text-slate-400">
+                    {[row.ac > 0 && `ແອ ${Math.round(row.ac).toLocaleString()}`,
+                      row.app > 0 && `ໄຟຟ້າ ${Math.round(row.app).toLocaleString()}`]
+                      .filter(Boolean)
+                      .join(" · ") || "ອື່ນໆ"}
+                  </p>
                 </div>
               </li>
             ))}
@@ -246,6 +253,7 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
                 <th className="px-4 py-2.5 font-semibold">ຊ່າງ</th>
                 <th className="px-4 py-2.5 font-semibold">ບິນຂາຍ ERP</th>
                 <th className="px-4 py-2.5 font-semibold">ຄ່າບໍລິການ</th>
+                <th className="px-4 py-2.5 font-semibold">ໝວດ</th>
                 <th className="px-4 py-2.5 text-right font-semibold">ບາດ</th>
               </tr>
             </thead>
@@ -272,6 +280,9 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
                     <span className="block truncate" title={row.items ?? ""}>
                       {row.items ?? "-"}
                     </span>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2">
+                    <InstallKindBadge ac={row.ac} app={row.app} baht={row.baht} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-right font-bold tabular-nums text-slate-800">
                     {Math.round(row.baht).toLocaleString()}
@@ -304,8 +315,31 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
         ຜູກຜ່ານ <b>ods_tb_install.doc_ref_1</b> = ເລກບິນຂາຍ ERP ຂອງໃບງານ ແລ້ວເອົາສະເພາະລາຍການ
         ຄ່າບໍລິການຕິດຕັ້ງ (ລະຫັດ 9701xx) · ນັບຕາມວັນປິດງານ · ຍອດເປັນບາດ ຕາມທີ່ບັນທຶກໃນ ERP ·
         1 ບິນທີ່ຄຸມຫຼາຍໃບງານ ນັບຍອດເທື່ອດຽວ ແລ້ວຫານໃຫ້ແຕ່ລະໃບງານເທົ່າກັນ ·
-        ແຖວກີບແປງດ້ວຍອັດຕາ tb_bill_rate
+        ແຍກ ແອ/ໄຟຟ້າ ຕາມລະຫັດບໍລິການ ກົດດຽວກັບລາຍງານປະຈຳເດືອນ
       </p>
     </div>
+  );
+}
+
+/**
+ * ປ້າຍໝວດຂອງແຖວ — ຕັດສິນຈາກສ່ວນແບ່ງ ແອ/ໄຟຟ້າ ຂອງແຖວນັ້ນ:
+ * ໝວດໃດມີຄ່າສູງສຸດເອົາໝວດນັ້ນ · ມີຫຼາຍໝວດພໍກັນ = "ປົນ" · ບໍ່ມີທັງສອງ = ອື່ນໆ
+ */
+function InstallKindBadge({ ac, app, baht }: { ac: number; app: number; baht: number }) {
+  const other = Math.max(0, baht - ac - app);
+  const entries = [
+    { label: "ແອ", value: ac, className: "bg-teal-50 text-teal-700 border-teal-200" },
+    { label: "ໄຟຟ້າ", value: app, className: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+    { label: "ອື່ນໆ", value: other, className: "bg-slate-100 text-slate-500 border-slate-200" },
+  ].filter((entry) => entry.value > 0);
+  const top = entries.reduce((best, entry) => (entry.value > best.value ? entry : best), entries[0]);
+  if (!top) return <span className="text-slate-300">-</span>;
+  const mixed = entries.filter((entry) => Math.abs(entry.value - top.value) < 0.005).length > 1;
+  return (
+    <span
+      className={`inline-flex rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${mixed ? "bg-amber-50 text-amber-700 border-amber-200" : top.className}`}
+    >
+      {mixed ? "ປົນ" : top.label}
+    </span>
   );
 }
