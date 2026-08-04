@@ -94,6 +94,12 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
             <ChevronRight className="size-4" />
           </Link>
         </div>
+        <Link
+          href={`/revenue-summary/print?year=${year}`}
+          className="ml-auto inline-flex h-9 items-center rounded-xl bg-slate-800 px-4 text-xs font-semibold text-white hover:bg-slate-900"
+        >
+          ລາຍງານຜູ້ບໍລິຫານ
+        </Link>
       </div>
 
       {error && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</p>}
