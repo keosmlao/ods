@@ -150,7 +150,7 @@ const REPAIR: NavGroup = {
        */
       ...pipelineOf(repairStatuses).flatMap(([slug, def]) => {
         if (slug === "wait-withdraw") {
-          return [{ label: "ອາໄຫຼ່ — ຂໍເບີກ · ສາງເບີກ · ຮັບ · ສັ່ງຊື້", href: "/dashboard/status/repair/spares", count: "/work/spares" }];
+          return [{ label: "ອາໄຫຼ່ — ຂໍເບີກ · ສາງເບີກ · ຮັບ · ສັ່ງຊື້", href: "/work/spares", count: "/work/spares" }];
         }
         if (slug === "withdrawing" || slug === "purchasing") return [];
         return [{
@@ -424,7 +424,7 @@ const TECHNICIAN_NAVIGATION: NavGroup[] = [
         slug === "spares"
           ? {
               label: `${index + 1}. ອາໄຫຼ່ — ຂໍເບີກ · ຮັບອາໄຫຼ່`,
-              href: "/dashboard/status/repair/spares",
+              href: "/work/spares",
               count: "/work/spares",
             }
           : {
