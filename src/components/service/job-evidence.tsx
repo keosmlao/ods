@@ -8,6 +8,8 @@ import { LogIn, LogOut, MapPin } from "lucide-react";
  */
 
 export type Checkin = {
+  id: number;
+  job_code: string;
   tech_code: string;
   checkin_at: string | null;
   checkin_lat: number | null;
@@ -40,7 +42,7 @@ export function JobEvidence({
   if (checkins.length === 0 && totalPhotos === 0) return null;
 
   // ຮູບ "ສ້ອມສຳເລັດ" ຮູບທຳອິດ — ຄູ່ກັບ check-in ໃນບັດຫຼັກฐาน (checkout = ຈົບงານ)
-  const completion = finishPhotos[0]?.photo ?? null;
+  const completion = finishPhotos[0] ?? null;
 
   return (
     <div className="space-y-4">
@@ -70,7 +72,7 @@ export function JobEvidence({
       {checkPhotos.length > 0 && (
         <PhotoSection title="ຮູບຕອນກວດເຊັກ" count={checkPhotos.length} accent="text-sky-700">
           {checkPhotos.map((p) => (
-            <Base64Photo key={p.id} src={p.photo} caption={`${p.created_by} · ${p.created_at}`} />
+            <Base64Photo key={p.id} id={p.id} src={p.photo} caption={`${p.created_by} · ${p.created_at}`} />
           ))}
         </PhotoSection>
       )}
@@ -78,7 +80,7 @@ export function JobEvidence({
       {finishPhotos.length > 0 && (
         <PhotoSection title="ຮູບຕອນສ້ອມສຳເລັດ" count={finishPhotos.length} accent="text-emerald-700">
           {finishPhotos.map((p) => (
-            <Base64Photo key={p.id} src={p.photo} caption={`${p.created_by} · ${p.created_at}`} />
+            <Base64Photo key={p.id} id={p.id} src={p.photo} caption={`${p.created_by} · ${p.created_at}`} />
           ))}
         </PhotoSection>
       )}
@@ -87,19 +89,28 @@ export function JobEvidence({
 }
 
 /** ບັດ check-in ໜຶ່ງຄັ້ງ — ຮູບໄປຮອດ + ຮູບສ້ອມສຳເລັດ (ຄູ່ກັນ) + ເວລາເຂົ້າ/ອອກ + ພິກັດ */
-function CheckinCard({ c, completion }: { c: Checkin; completion: string | null }) {
-  const asUri = (s: string) => (s.startsWith("data:") ? s : `data:image/jpeg;base64,${s}`);
+function CheckinCard({ c, completion }: { c: Checkin; completion: JobPhoto | null }) {
   const photo = c.checkin_photo ? asUri(c.checkin_photo) : null;
   // ຮູບສ້ອມສຳເລັດ ຄູ່ກັບ check-out (ຈົບงານ) — ສະແດງເມື່ອ checkout ແລ້ວ ແລະ ມີຮູບ
-  const donePhoto = c.checkout_at && completion ? asUri(completion) : null;
+  const done = c.checkout_at ? completion : null;
   const inMap = c.checkin_lat != null && c.checkin_lng != null ? mapUrl(c.checkin_lat, c.checkin_lng) : null;
   const outMap = c.checkout_lat != null && c.checkout_lng != null ? mapUrl(c.checkout_lat, c.checkout_lng) : null;
 
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200">
       <div className="grid grid-cols-2">
-        <EvidencePhoto src={photo} label="ໄປຮອດ" empty="ບໍ່ມີຮູບ" />
-        <EvidencePhoto src={donePhoto} label="ສ້ອມສຳເລັດ" empty={c.checkout_at ? "—" : "ຍັງບໍ່ຈົບ"} />
+        <EvidencePhoto
+          src={photo}
+          href={`/api/checkin-photo/${encodeURIComponent(c.job_code)}?id=${c.id}`}
+          label="ໄປຮອດ"
+          empty="ບໍ່ມີຮູບ"
+        />
+        <EvidencePhoto
+          src={done ? asUri(done.photo) : null}
+          href={done ? `/api/job-photo/${done.id}` : ""}
+          label="ສ້ອມສຳເລັດ"
+          empty={c.checkout_at ? "—" : "ຍັງບໍ່ຈົບ"}
+        />
       </div>
       <div className="space-y-1.5 border-t border-slate-100 p-2.5 text-xs">
         <div className="font-semibold text-slate-700">{c.tech_code}</div>
@@ -111,12 +122,15 @@ function CheckinCard({ c, completion }: { c: Checkin; completion: string | null 
   );
 }
 
-/** ຮູບຫຼັກຖານ 1 ຮູບ ພ້ອມປ້າຍ (ໄປຮອດ / ສ້ອມສຳເລັດ) */
-function EvidencePhoto({ src, label, empty }: { src: string | null; label: string; empty: string }) {
+/**
+ * ຮູບຫຼັກຖານ 1 ຮູບ ພ້ອມປ້າຍ (ໄປຮອດ / ສ້ອມສຳເລັດ)
+ * src = data-URI (ສະແດງທັນທີ) · href = route ຮູບຈິງ (ກົດເປີດເຕັມ — ເບິ່ງ lib/photo-response)
+ */
+function EvidencePhoto({ src, href, label, empty }: { src: string | null; href: string; label: string; empty: string }) {
   return (
     <div className="relative">
       {src ? (
-        <a href={src} target="_blank" rel="noreferrer" className="block">
+        <a href={href} target="_blank" rel="noreferrer" className="block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={src} alt={label} className="h-40 w-full bg-slate-50 object-cover" />
         </a>
@@ -181,11 +195,14 @@ function FilePhoto({ url, alt }: { url: string; alt: string }) {
   );
 }
 
-/** ຮູບ base64 (data-URI) */
-function Base64Photo({ src, caption }: { src: string; caption: string }) {
-  const uri = src.startsWith("data:") ? src : `data:image/jpeg;base64,${src}`;
+/** base64 ໃນຖານ → data-URI (ໃສ່ <img src> ໄດ້; ໃສ່ href **ບໍ່ໄດ້** — Chrome ຫ້າມ) */
+const asUri = (s: string) => (s.startsWith("data:") ? s : `data:image/jpeg;base64,${s}`);
+
+/** ຮູບ base64 (data-URI) — ກົດເປີດເຕັມຜ່ານ /api/job-photo/<id> */
+function Base64Photo({ id, src, caption }: { id: number; src: string; caption: string }) {
+  const uri = asUri(src);
   return (
-    <a href={uri} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-slate-200 transition hover:border-teal-300">
+    <a href={`/api/job-photo/${id}`} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-slate-200 transition hover:border-teal-300">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={uri} alt={caption} className="h-52 w-full bg-slate-50 object-contain" />
       <p className="border-t border-slate-100 px-3 py-1.5 text-[10px] text-slate-500">{caption}</p>

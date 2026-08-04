@@ -134,7 +134,8 @@ export default async function ServiceDetail({ params }: Props) {
   // ── ຫຼັກຖານໜ້າງານ + ຮູບ — ໂຫຼດມາສະແດງ **ຢູ່ໜ້ານີ້ເລີຍ** (ບໍ່ຕ້ອງກົດເຂົ້າ /images) ──
   const [checkins, receivePhotos, jobPhotoRows] = await Promise.all([
     query<Checkin>(
-      `select tech_code, to_char(checkin_at,'DD-MM-YYYY HH24:MI') checkin_at,
+      // id + job_code — ໃຊ້ຊີ້ຮູບ check-in ຜ່ານ /api/checkin-photo/<code>?id= (ຫ້າມໃສ່ data: ໃສ່ href)
+      `select id, job_code, tech_code, to_char(checkin_at,'DD-MM-YYYY HH24:MI') checkin_at,
           checkin_lat, checkin_lng, checkin_photo,
           to_char(checkout_at,'DD-MM-YYYY HH24:MI') checkout_at, checkout_lat, checkout_lng, note
         from ods_job_checkin where workflow='repair' and job_code=$1 order by id`,

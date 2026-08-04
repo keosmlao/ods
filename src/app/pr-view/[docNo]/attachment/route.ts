@@ -1,6 +1,6 @@
 import { query } from "@/lib/db";
-import { readFile } from "node:fs/promises";
-import { basename, extname, join } from "node:path";
+import { readUpload } from "@/lib/uploads";
+import { basename, extname } from "node:path";
 import { NextResponse } from "next/server";
 
 /**
@@ -11,8 +11,6 @@ import { NextResponse } from "next/server";
  * (/api/uploads ຕ້ອງ login ຈຶ່ງໃຊ້ບໍ່ໄດ້ຢູ່ໜ້ານີ້)
  */
 
-const uploadsDir = process.env.ODS_UPLOADS_DIR;
-
 const contentTypes: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
@@ -22,8 +20,6 @@ const contentTypes: Record<string, string> = {
 };
 
 export async function GET(_: Request, { params }: { params: Promise<{ docNo: string }> }) {
-  if (!uploadsDir) return new NextResponse(null, { status: 404 });
-
   const docNo = decodeURIComponent((await params).docNo);
   const result = await query<{ product_url: string | null }>(
     `select (select product_url from product_image where iteme_code = a.doc_ref limit 1) product_url
@@ -37,12 +33,10 @@ export async function GET(_: Request, { params }: { params: Promise<{ docNo: str
   const type = contentTypes[extname(file).toLowerCase()];
   if (!type) return new NextResponse(null, { status: 404 });
 
-  try {
-    const body = await readFile(join(uploadsDir, file));
-    return new NextResponse(new Uint8Array(body), {
-      headers: { "Content-Type": type, "Cache-Control": "private, max-age=3600" },
-    });
-  } catch {
-    return new NextResponse(null, { status: 404 });
-  }
+  const body = await readUpload(file);
+  if (!body) return new NextResponse(null, { status: 404 });
+
+  return new NextResponse(new Uint8Array(body), {
+    headers: { "Content-Type": type, "Cache-Control": "private, max-age=3600" },
+  });
 }

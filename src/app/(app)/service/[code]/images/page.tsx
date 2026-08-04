@@ -96,7 +96,7 @@ export default async function ServiceImages({ params }: Props) {
           {checkPhotos.length > 0 && (
             <PhotoSection title="ຮູບຕອນກວດເຊັກ" count={checkPhotos.length} accent="text-sky-700">
               {checkPhotos.map((p) => (
-                <Base64Photo key={p.id} src={p.photo} caption={`${p.created_by} · ${p.created_at}`} />
+                <Base64Photo key={p.id} id={p.id} src={p.photo} caption={`${p.created_by} · ${p.created_at}`} />
               ))}
             </PhotoSection>
           )}
@@ -105,7 +105,7 @@ export default async function ServiceImages({ params }: Props) {
           {finishPhotos.length > 0 && (
             <PhotoSection title="ຮູບຕອນສ້ອມສຳເລັດ" count={finishPhotos.length} accent="text-emerald-700">
               {finishPhotos.map((p) => (
-                <Base64Photo key={p.id} src={p.photo} caption={`${p.created_by} · ${p.created_at}`} />
+                <Base64Photo key={p.id} id={p.id} src={p.photo} caption={`${p.created_by} · ${p.created_at}`} />
               ))}
             </PhotoSection>
           )}
@@ -127,11 +127,14 @@ function PhotoSection({ title, count, accent, children }: { title: string; count
   );
 }
 
-/** ຮູບ base64 (data-URI) — ໃຊ້ <img> ທຳມະດາ (Next Image ບໍ່ຮັບ data-URI ໂດຍກົງດີ) */
-function Base64Photo({ src, caption }: { src: string; caption: string }) {
+/**
+ * ຮູບ base64 (data-URI) — ໃຊ້ <img> ທຳມະດາ (Next Image ບໍ່ຮັບ data-URI ໂດຍກົງດີ).
+ * ລິ້ງກົດເປີດເຕັມຕ້ອງເປັນ /api/job-photo/<id> — Chrome ຫ້າມເປີດ data: URL ເປັນໜ້າ (ໄດ້ແທັບເປົ່າ).
+ */
+function Base64Photo({ id, src, caption }: { id: number; src: string; caption: string }) {
   const uri = src.startsWith("data:") ? src : `data:image/jpeg;base64,${src}`;
   return (
-    <a href={uri} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-slate-200 transition hover:border-teal-300">
+    <a href={`/api/job-photo/${id}`} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-slate-200 transition hover:border-teal-300">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={uri} alt={caption} className="h-52 w-full bg-slate-50 object-contain" />
       <p className="border-t border-slate-100 px-3 py-1.5 text-[10px] text-slate-500">{caption}</p>

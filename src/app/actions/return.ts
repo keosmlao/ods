@@ -12,6 +12,7 @@ import { loanerBlock } from "@/lib/loaner";
 import { centerBlock } from "@/lib/job-center";
 import { warrantyBlock } from "@/lib/warranty-request";
 import { HAS_OUTSTANDING_SPARES } from "@/lib/outstanding-spares";
+import { UPLOADS_DIR } from "@/lib/uploads";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { revalidatePath } from "next/cache";
@@ -329,7 +330,8 @@ export async function updateInvoiceLine(_: CartState, formData: FormData): Promi
 
 /* ------------------------------------------------------------ ບັນທຶກບິນ */
 
-const uploadsDir = process.env.ODS_UPLOADS_DIR;
+// ບ່ອນຂຽນຮູບ — ເອົາຈາກ lib/uploads ບ່ອນດຽວ (ຢ່າອ່ານ env ເອງ: ຂຽນຄົນລະບ່ອນກັບ /api/uploads = ຮູບ 404)
+const uploadsDir = UPLOADS_DIR;
 const ALLOWED = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
 const MAX_BYTES = 16 * 1024 * 1024;
 

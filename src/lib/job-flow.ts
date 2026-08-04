@@ -414,8 +414,6 @@ async function jobPhotosByKind(workflow: Workflow, code: string, kind: "finish" 
  * ⇒ ອ່ານໄຟລ໌ແປງເປັນ data-URI base64 ໃຫ້ແອັບເລີຍ (ຄືກັບຮູບ QC). ຂ້າມວິດີໂອ (ໃຫຍ່ເກີນ).
  */
 async function receivePhotos(code: string): Promise<string[]> {
-  const dir = process.env.ODS_UPLOADS_DIR;
-  if (!dir) return [];
   const rows = (
     await query<{ product_url: string }>(
       `select product_url from product_image
@@ -425,8 +423,8 @@ async function receivePhotos(code: string): Promise<string[]> {
       [code],
     )
   ).rows;
-  const { readFile } = await import("node:fs/promises");
-  const { basename, extname, join } = await import("node:path");
+  const { readUpload } = await import("@/lib/uploads");
+  const { basename, extname } = await import("node:path");
   const mime: Record<string, string> = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
@@ -439,12 +437,9 @@ async function receivePhotos(code: string): Promise<string[]> {
     const file = basename(product_url);
     const type = mime[extname(file).toLowerCase()];
     if (!type) continue;
-    try {
-      const buf = await readFile(join(/*turbopackIgnore: true*/ dir, file));
-      out.push(`data:${type};base64,${buf.toString("base64")}`);
-    } catch {
-      // ໄຟລ໌ຫາຍ — ຂ້າມໄປ
-    }
+    const buf = await readUpload(file);
+    // ໄຟລ໌ຫາຍ — ຂ້າມໄປ
+    if (buf) out.push(`data:${type};base64,${buf.toString("base64")}`);
   }
   return out;
 }

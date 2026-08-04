@@ -12,6 +12,7 @@ import { ERP_PURCHASE, LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import { requireRole } from "@/lib/guard";
 import { APPROVER_SIDE, roleOf, type Role } from "@/lib/roles";
 import { STAGE_SQL } from "@/lib/stage";
+import { UPLOADS_DIR } from "@/lib/uploads";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import type { PoolClient } from "pg";
@@ -40,7 +41,8 @@ import { z } from "zod";
  */
 const PURCHASE_SIDE: Role[] = ["manager", "admin", "stock"];
 
-const uploadsDir = process.env.ODS_UPLOADS_DIR;
+// ບ່ອນຂຽນຮູບ — ເອົາຈາກ lib/uploads ບ່ອນດຽວ (ຢ່າອ່ານ env ເອງ: ຂຽນຄົນລະບ່ອນກັບ /api/uploads = ຮູບ 404)
+const uploadsDir = UPLOADS_DIR;
 const ALLOWED = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
 const MAX_BYTES = 16 * 1024 * 1024;
 

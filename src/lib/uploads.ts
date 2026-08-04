@@ -1,6 +1,6 @@
 import "server-only";
-import { mkdir, writeFile } from "node:fs/promises";
-import { extname, join, resolve as resolvePath } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { basename, extname, join, resolve as resolvePath } from "node:path";
 import os from "node:os";
 import type { PoolClient } from "pg";
 
@@ -16,26 +16,49 @@ import type { PoolClient } from "pg";
 const configuredUploadsDir = process.env.ODS_UPLOADS_DIR;
 
 /**
- * Resolve a safe uploads directory. If `ODS_UPLOADS_DIR` points outside
- * the project root and outside the current user's home directory, fall back
- * to a project-local `var/uploads` directory to avoid attempting to create
- * or write top-level system folders (which can cause EPERM on Windows).
+ * ໂຟນເດີ upload — **ຂຽນ ແລະ ອ່ານ ຕ້ອງເປັນບ່ອນດຽວກັນ**.
+ *
+ * ⚠️ ບົດຮຽນ (04-08-2026): ແຕ່ກ່ອນ ບ່ອນຂຽນ (ໄຟລ໌ນີ້) ຫຼົບໄປ `<project>/var/uploads`
+ * ອັດຕະໂນມັດເມື່ອ ODS_UPLOADS_DIR ຢູ່ນອກໂປຣເຈັກ/ນອກ home (ກັນ EPERM ຕອນ dev ເທິງ Windows)
+ * ແຕ່ບ່ອນອ່ານ (/api/uploads) ອ່ານ ODS_UPLOADS_DIR ກົງໆ ⇒ ເທິງ server (uploads ຢູ່ /var/www...)
+ * ຮູບຂຽນລົງບ່ອນໜຶ່ງ ອ່ານອີກບ່ອນໜຶ່ງ ⇒ ແຖວມີໃນຖານ ແຕ່ຮູບ 404.
+ *
+ * ດັ່ງນັ້ນ: fallback ໃຊ້**ສະເພາະ Windows** (ບ່ອນທີ່ EPERM ເກີດຈິງ) ແລະ ຝັ່ງອ່ານໃຫ້ໄລ່ຫາ
+ * ທຸກບ່ອນທີ່ເຄີຍຂຽນ (uploadsReadDirs) ⇒ ຮູບເກົ່າທີ່ຕົກຄ້າງຢູ່ var/uploads ຍັງເປີດໄດ້.
  */
-function getSafeUploadsDir() {
-  if (!configuredUploadsDir) return null;
+function resolveUploadsDirs(): { write: string | null; read: string[] } {
+  if (!configuredUploadsDir) return { write: null, read: [] };
   const projectRoot = resolvePath(/*turbopackIgnore: true*/ process.cwd());
-  const home = resolvePath(os.homedir());
-  const resolved = resolvePath(configuredUploadsDir);
+  const configured = resolvePath(configuredUploadsDir);
+  const local = resolvePath(projectRoot, "var", "uploads");
 
-  if (resolved.startsWith(projectRoot) || resolved.startsWith(home)) {
-    return resolved;
-  }
-
-  // Fallback: project-local uploads directory
-  return resolvePath(projectRoot, "var", "uploads");
+  const inSafeArea = configured.startsWith(projectRoot) || configured.startsWith(resolvePath(os.homedir()));
+  const write = process.platform === "win32" && !inSafeArea ? local : configured;
+  // ອ່ານ: ບ່ອນຂຽນປັດຈຸບັນກ່ອນ ແລ້ວຄ່ອຍໄລ່ບ່ອນເກົ່າ (ບໍ່ຊ້ຳກັນ)
+  return { write, read: [...new Set([write, configured, local])] };
 }
 
-const uploadsDir = getSafeUploadsDir();
+const { write: uploadsDir, read: uploadsReadDirs } = resolveUploadsDirs();
+
+/** ບ່ອນຂຽນໄຟລ໌ upload — ໃຫ້ທຸກທີ່ໃຊ້ຄ່ານີ້ ຢ່າອ່ານ process.env ເອງ (ບໍ່ດັ່ງນັ້ນຈະຂຽນຄົນລະບ່ອນ) */
+export const UPLOADS_DIR = uploadsDir;
+
+/**
+ * ອ່ານໄຟລ໌ upload — ໄລ່ຫາທຸກໂຟນເດີທີ່ລະບົບເຄີຍຂຽນ, ບໍ່ພົບຄືນ null.
+ * ຕັດ path traversal ດ້ວຍ basename() ໃນຕົວ (ຊື່ໄຟລ໌ອາດມາຈາກ URL).
+ */
+export async function readUpload(name: string): Promise<Buffer | null> {
+  const file = basename(name);
+  if (!file || file === "." || file === "..") return null;
+  for (const dir of uploadsReadDirs) {
+    try {
+      return await readFile(join(/*turbopackIgnore: true*/ dir, file));
+    } catch {
+      // ບໍ່ມີໃນໂຟນເດີນີ້ — ລອງບ່ອນຕໍ່ໄປ
+    }
+  }
+  return null;
+}
 const ALLOWED = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
 /** ວິດີໂອ — ໃຊ້ຮ່ວມຕາຕະລາງ product_image ໂດຍບໍ່ແກ້ schema, ແຍກຊະນິດດ້ວຍ **ນາມສະກຸນ** */
 const ALLOWED_VIDEO = new Set([".mp4", ".webm", ".mov", ".m4v", ".3gp"]);
