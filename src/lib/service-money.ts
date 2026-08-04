@@ -234,3 +234,26 @@ export async function techRevenueByMonth(from: string, to: string): Promise<Tech
     )
   ).rows;
 }
+
+/**
+ * **ລາຍຮັບງານຕິດຕັ້ງ — ນັບຈາກໃບງານຕິດຕັ້ງໂດຍກົງ**.
+ *
+ * ── ຕົວເຊື່ອມທີ່ພົບ (ວັດ 04-08-2026) ──
+ * `ods_tb_install.doc_ref_1` ເກັບ **ເລກບິນຂາຍ ERP** ໄວ້ (ເຊັ່ນ CAK24002067) — ມີຄົບ 100%.
+ * join ໄປ ERP ຕິດ 6,503/6,972 ໃບ ແລະ **6,393 ໃບ (92%) ມີຄ່າບໍລິການຕິດຕັ້ງ 9701xx**
+ * ⇒ ຜູກແບບນີ້ເຊື່ອຖືໄດ້ ບໍ່ຕ້ອງເດົາຈາກລູກຄ້າ+ວັນທີ.
+ *
+ * ⚠️ ຄ່າຝັ່ງ ERP ເປັນ **ບາດ** — ຜູ້ເອີ້ນແປງເອງດ້ວຍ `kipPerBaht()` ຖ້າຢາກເປັນກີບ.
+ * ນັບຕາມ **ວັນປິດງານ** (job_finish) = ວັນທີ່ລາຍຮັບເກີດຈິງຂອງສູນບໍລິການ.
+ */
+export async function installRevenueBetween(from: string, to: string): Promise<{ jobs: number; baht: number }> {
+  const { rows } = await query<{ jobs: number; baht: number }>(
+    `select count(distinct a.code)::int jobs, coalesce(sum(d.sum_amount),0)::float8 baht
+       from ods.ods_tb_install a
+       join public.ic_trans_detail d
+         on d.doc_no = trim(a.doc_ref_1) and d.item_code like '9701%'
+      where a.cancel_date is null and a.job_finish::date between $1 and $2`,
+    [from, to],
+  );
+  return rows[0] ?? { jobs: 0, baht: 0 };
+}
