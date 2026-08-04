@@ -18,7 +18,15 @@ export type UsedSpareLine = {
 };
 
 /**
- * ອາໄຫຼ່ຕອນສ້ອມ (ຂັ້ນ 9) — ເພີ່ມ/ລຶບ ອາໄຫຼ່ທີ່ພົບຕ້ອງໃຊ້ເພີ່ມຕອນລົງມືສ້ອມ ແລ້ວ
+ * **ອາໄຫຼ່ທີ່ຕ້ອງໃຊ້** — ບັນຊີອາໄຫຼ່ຂອງໃບງານ (ຕາຕະລາງ tb_used_spare).
+ *
+ * ⚠️ ຊື່ເກົ່າ "ອາໄຫຼ່ຕອນສ້ອມ (ຂັ້ນ 9)" **ບໍ່ຕົງກັບຄວາມຈິງ** — ວັດ 04-08-2026 ຈາກ 2,531 ແຖວ:
+ *   ໃສ່ຕອນກວດ (≤ ຈົບກວດ)          1,777 ແຖວ = **70%**
+ *   ຫຼັງຈົບກວດ ກ່ອນເລີ່ມສ້ອມ          643 ແຖວ = 25%
+ *   ໃສ່ຕອນສ້ອມຈິງ                    110 ແຖວ = **4%**
+ * ⇒ ນີ້ຄື **ຜົນຂອງການກວດເຊັກ** (ຊ່າງກວດແລ້ວລົງວ່າຕ້ອງໃຊ້ຫຍັງ) ບໍ່ແມ່ນສິ່ງທີ່ເກີດຕອນສ້ອມ.
+ *
+ * ເພີ່ມ/ລຶບ ອາໄຫຼ່ (ໄດ້ຕັ້ງແຕ່ຂັ້ນ 5–9 — ພົບເພີ່ມຕອນໃດກໍ່ໃສ່ໄດ້) ແລ້ວ
  * ອອກ **ໃບຂໍເບີກເພີ່ມ** (ຮອບ 2) ໃຫ້ສາງເບີກ. ແຖວທີ່ເບີກແລ້ວ (locked) ແກ້ບໍ່ໄດ້ —
  * ຢາກ "ປ່ຽນ" ໃຫ້ສົ່ງຄືນຕົວເກົ່າ (ໜ້າສາງ) ແລ້ວເພີ່ມຕົວໃໝ່. ວຽກຄົງຢູ່ຂັ້ນ "ກຳລັງສ້ອມ".
  */
@@ -47,7 +55,10 @@ export function RepairSpareEditor({
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
-        <h2 className="text-sm font-bold text-slate-700">ອາໄຫຼ່ຕອນສ້ອມ</h2>
+        <h2 className="text-sm font-bold text-slate-700">
+          ອາໄຫຼ່ທີ່ຕ້ອງໃຊ້
+          <span className="ml-1.5 text-[11px] font-medium text-slate-400">(ຈາກການກວດເຊັກ)</span>
+        </h2>
         <button
           type="button"
           onClick={() => setOpen(true)}
