@@ -23,10 +23,27 @@ export function ServicePhotos() {
 
   // input[name=photos] ຄືຕົວທີ່ຖືກ submit ຈິງ — sync ໃຫ້ຕົງກັບ state ສະເໝີ
   useEffect(() => {
-    if (!inputRef.current) return;
-    const transfer = new DataTransfer();
-    for (const item of media) transfer.items.add(item.file);
-    inputRef.current.files = transfer.files;
+    const input = inputRef.current;
+    if (!input) return;
+    const sync = () => {
+      const transfer = new DataTransfer();
+      for (const item of media) transfer.items.add(item.file);
+      input.files = transfer.files;
+    };
+    sync();
+
+    /**
+     * ⚠️ React 19 ສັ່ງ `form.reset()` ໃຫ້ເອງ **ທຸກຄັ້ງທີ່ submit** ຜ່ານ `<form action={fn}>`
+     * (react-dom: startHostTransition → requestFormReset) ⇒ ໄຟລ໌ໃນ input ຫາຍ ແຕ່ thumbnail
+     * (React state) ຍັງຄາຢູ່ ⇒ ຮອບທຳອິດ error (ຂໍ້ມູນບໍ່ຄົບ · ພົບລາຍການຊ້ຳ · ຍັງບໍ່ເລືອກລູກຄ້າ)
+     * ແລ້ວກົດສົ່ງຮອບສອງ ຈະຖືກຟ້ອງວ່າ "ຕ້ອງແນບຮູບຮັບເຄື່ອງ" ທັງທີ່ຈໍສະແດງຮູບຢູ່.
+     * ⇒ ໃສ່ໄຟລ໌ຄືນຫຼັງ reset. ຕ້ອງລໍໃຫ້ browser ລ້າງ control ແລ້ວກ່ອນ (ລ້າງຫຼັງ event ຍິງ)
+     *   ຈຶ່ງໃສ່ຄືນໃນ microtask ບໍ່ແມ່ນໃນ handler ໂດຍກົງ.
+     */
+    const form = input.form;
+    const restore = () => queueMicrotask(sync);
+    form?.addEventListener("reset", restore);
+    return () => form?.removeEventListener("reset", restore);
   }, [media]);
 
   useEffect(() => () => { for (const item of media) URL.revokeObjectURL(item.url); }, [media]);
