@@ -110,7 +110,7 @@ export function AddRateForm({ categories }: { categories: Option[] }) {
       <h2 className="text-sm font-bold text-slate-700">{t.addRateHeading}</h2>
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
       {state.ok && (
-        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">{state.ok}</p>
+        <p className="rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">{state.ok}</p>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -217,7 +217,7 @@ export function DeactivateRateButton({ id, label }: { id: number; label: string 
             if (result.error) setError(result.error);
           });
         }}
-        className="text-slate-400 transition hover:text-red-600 disabled:opacity-50"
+        className="text-slate-400 transition hover:text-brand-orange-700 disabled:opacity-50"
       >
         {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
       </button>
@@ -244,7 +244,7 @@ export function SplitForm({ workflow, current }: { workflow: Workflow; current: 
 
       {message.error && <ErrorBox>{message.error}</ErrorBox>}
       {message.ok && (
-        <p className="mb-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">{message.ok}</p>
+        <p className="mb-2 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">{message.ok}</p>
       )}
 
       <div className="grid gap-3 sm:grid-cols-4">
@@ -271,7 +271,7 @@ export function SplitForm({ workflow, current }: { workflow: Workflow; current: 
         {/* ລວມຕ້ອງເປັນ 100 ພໍດີ — ບໍ່ດັ່ງນັ້ນເງິນຫາຍ (<100) ຫຼື ຈ່າຍເກີນ (>100) */}
         <span
           className={`rounded px-2 py-1 text-xs font-bold ${
-            valid ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+            valid ? "bg-brand-50 text-brand-800" : "bg-brand-orange-50 text-brand-orange-700"
           }`}
         >
           {t.total} {total}% {valid ? "✓" : t.mustBe100}
@@ -329,8 +329,8 @@ export function PayeeForm({
         {pending && <LoaderCircle className="size-3.5 animate-spin" />}
         {t.save}
       </Button>
-      {state.error && <span className="text-xs font-semibold text-red-600">{state.error}</span>}
-      {state.ok && <span className="text-xs font-semibold text-emerald-600">✓</span>}
+      {state.error && <span className="text-xs font-semibold text-brand-orange-700">{state.error}</span>}
+      {state.ok && <span className="text-xs font-semibold text-brand-800">✓</span>}
     </form>
   );
 }

@@ -21,9 +21,9 @@ import { useState, useTransition } from "react";
 type Mode = "verify" | "cancel" | "repaired";
 
 const modeConfig = (t: Record<string, string>) => ({
-  verify: { label: t.verifyLabel, icon: CircleAlert, tone: "text-amber-700 border-amber-300 hover:bg-amber-50", placeholder: t.verifyPlaceholder },
-  cancel: { label: t.cancelLabel, icon: X, tone: "text-rose-700 border-rose-300 hover:bg-rose-50", placeholder: t.cancelPlaceholder },
-  repaired: { label: t.repairedLabel, icon: Wrench, tone: "text-emerald-700 border-emerald-300 hover:bg-emerald-50", placeholder: t.repairedPlaceholder },
+  verify: { label: t.verifyLabel, icon: CircleAlert, tone: "text-brand-900 border-brand-orange-400 hover:bg-brand-orange-100", placeholder: t.verifyPlaceholder },
+  cancel: { label: t.cancelLabel, icon: X, tone: "text-brand-orange-700 border-brand-orange-400 hover:bg-brand-orange-50", placeholder: t.cancelPlaceholder },
+  repaired: { label: t.repairedLabel, icon: Wrench, tone: "text-brand-800 border-brand-200 hover:bg-brand-50", placeholder: t.repairedPlaceholder },
 }) as const;
 
 export function HoldButtons({ code, hold }: { code: string; hold: JobHold | null }) {
@@ -58,7 +58,7 @@ export function HoldButtons({ code, hold }: { code: string; hold: JobHold | null
         {dialog}
         <span
           title={`${hold.reason}\n${t.markedBy} ${hold.created_by} · ${hold.created_at}`}
-          className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700"
+          className="inline-flex items-center gap-1 rounded bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-brand-900"
         >
           <CircleAlert className="size-3" />
           {t.needCheckBadge} · {hold.held_days} {t.daysUnit}
@@ -84,7 +84,7 @@ export function HoldButtons({ code, hold }: { code: string; hold: JobHold | null
         >
           {busy ? <LoaderCircle className="size-3.5 animate-spin" /> : <Undo2 className="size-3.5" />}
         </button>
-        {error && <span className="text-[10px] text-rose-600">{error}</span>}
+        {error && <span className="text-[10px] text-brand-orange-700">{error}</span>}
       </span>
     );
   }
@@ -101,7 +101,7 @@ export function HoldButtons({ code, hold }: { code: string; hold: JobHold | null
           onChange={(event) => setReason(event.target.value)}
           maxLength={200}
           placeholder={m.placeholder}
-          className="h-6 w-44 rounded border border-slate-300 px-1.5 text-[10px] focus:border-teal-500 focus:outline-none"
+          className="h-6 w-44 rounded border border-slate-300 px-1.5 text-[10px] focus:border-brand-600 focus:outline-none"
         />
         <button
           type="button"
@@ -124,7 +124,7 @@ export function HoldButtons({ code, hold }: { code: string; hold: JobHold | null
         <button type="button" disabled={busy} onClick={() => { setOpen(null); setReason(""); setError(null); }} className="h-6 px-1 text-[10px] text-slate-400 hover:text-slate-700">
           {t.dismiss}
         </button>
-        {error && <span className="text-[10px] text-rose-600">{error}</span>}
+        {error && <span className="text-[10px] text-brand-orange-700">{error}</span>}
       </span>
     );
   }

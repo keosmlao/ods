@@ -71,7 +71,7 @@ export default async function ServiceImages({ params }: Props) {
                   href={`/api/uploads/${encodeURIComponent(image.product_url)}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="block overflow-hidden rounded-lg border border-slate-200 transition hover:border-teal-300"
+                  className="block overflow-hidden rounded-lg border border-slate-200 transition hover:border-brand-300"
                 >
                   <Image
                     src={`/api/uploads/${encodeURIComponent(image.product_url)}`}
@@ -88,7 +88,7 @@ export default async function ServiceImages({ params }: Props) {
 
           {/* ② ຕອນກວດເຊັກ — base64 */}
           {checkPhotos.length > 0 && (
-            <PhotoSection title="ຮູບຕອນກວດເຊັກ" count={checkPhotos.length} accent="text-sky-700">
+            <PhotoSection title="ຮູບຕອນກວດເຊັກ" count={checkPhotos.length} accent="text-brand-600">
               {checkPhotos.map((p) => (
                 <Base64Photo key={p.id} id={p.id} src={p.photo} caption={`${p.created_by} · ${p.created_at}`} />
               ))}
@@ -97,7 +97,7 @@ export default async function ServiceImages({ params }: Props) {
 
           {/* ③ ຕອນສ້ອມສຳເລັດ — base64 */}
           {finishPhotos.length > 0 && (
-            <PhotoSection title="ຮູບຕອນສ້ອມສຳເລັດ" count={finishPhotos.length} accent="text-emerald-700">
+            <PhotoSection title="ຮູບຕອນສ້ອມສຳເລັດ" count={finishPhotos.length} accent="text-brand-800">
               {finishPhotos.map((p) => (
                 <Base64Photo key={p.id} id={p.id} src={p.photo} caption={`${p.created_by} · ${p.created_at}`} />
               ))}
@@ -128,7 +128,7 @@ function PhotoSection({ title, count, accent, children }: { title: string; count
 function Base64Photo({ id, src, caption }: { id: number; src: string; caption: string }) {
   const uri = src.startsWith("data:") ? src : `data:image/jpeg;base64,${src}`;
   return (
-    <a href={`/api/job-photo/${id}`} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-slate-200 transition hover:border-teal-300">
+    <a href={`/api/job-photo/${id}`} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-slate-200 transition hover:border-brand-300">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={uri} alt={caption} className="h-52 w-full bg-slate-50 object-contain" />
       <p className="border-t border-slate-100 px-3 py-1.5 text-[10px] text-slate-500">{caption}</p>

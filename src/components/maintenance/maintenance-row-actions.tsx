@@ -31,7 +31,7 @@ export function MaintenanceRowActions({ code, editable }: { code: string; editab
         <>
           <Link
             href={`/maintenance/${encodeURIComponent(code)}/edit`}
-            className="inline-flex h-8 items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+            className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-orange-400 bg-brand-orange-100 px-2.5 text-xs font-semibold text-brand-900 hover:bg-brand-orange-300"
             title="ແກ້ໄຂ"
           >
             <Pencil className="size-3.5" /> ແກ້ໄຂ
@@ -40,7 +40,7 @@ export function MaintenanceRowActions({ code, editable }: { code: string; editab
             type="button"
             onClick={remove}
             disabled={pending}
-            className="inline-flex h-8 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+            className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-orange-400 bg-brand-orange-50 px-2.5 text-xs font-semibold text-brand-orange-700 hover:bg-brand-orange-100 disabled:opacity-50"
             title="ລົບ"
           >
             {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />} ລົບ

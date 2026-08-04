@@ -95,7 +95,7 @@ export function SparePicker({
               <X className="size-4" />
             </button>
           </div>
-          <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
+          <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 focus-within:border-brand-600 focus-within:ring-2 focus-within:ring-brand-100">
             {searching ? (
               <LoaderCircle className="size-4 shrink-0 animate-spin text-slate-400" />
             ) : (
@@ -131,13 +131,13 @@ export function SparePicker({
                     key={item.code}
                     onClick={() => !already && toggle(item)}
                     className={`border-b border-slate-100 ${
-                      already ? "opacity-40" : `cursor-pointer ${on ? "bg-teal-50" : "hover:bg-slate-50"}`
+                      already ? "opacity-40" : `cursor-pointer ${on ? "bg-brand-50" : "hover:bg-slate-50"}`
                     }`}
                   >
                     <td className="px-3 py-2">
                       <span
                         className={`grid size-4 place-items-center rounded border ${
-                          on ? "border-teal-600 bg-teal-600 text-white" : "border-slate-300 bg-white"
+                          on ? "border-brand-700 bg-brand-700 text-white" : "border-slate-300 bg-white"
                         }`}
                       >
                         {on && <Check className="size-3" strokeWidth={4} />}
@@ -154,7 +154,7 @@ export function SparePicker({
                       ) : (
                         <span
                           className={`font-semibold tabular-nums ${
-                            item.balance_qty > 0 ? "text-emerald-600" : "text-slate-400"
+                            item.balance_qty > 0 ? "text-brand-800" : "text-slate-400"
                           }`}
                         >
                           {item.balance_qty}
@@ -190,7 +190,7 @@ export function SparePicker({
               type="button"
               disabled={picked.size === 0}
               onClick={confirm}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-4 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-40"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-xs font-semibold text-white hover:bg-brand-800 disabled:opacity-40"
             >
               <Check className="size-3.5" />
               {t.add} {picked.size > 0 && `(${picked.size})`}

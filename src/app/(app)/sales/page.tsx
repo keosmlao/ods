@@ -29,7 +29,7 @@ export default async function SalesHomePage() {
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-start gap-3">
-          <ClipboardList className="mt-0.5 size-5 text-teal-600" />
+          <ClipboardList className="mt-0.5 size-5 text-brand-700" />
           <div>
             <p className="text-sm font-semibold text-slate-700">ງານກຳລັງດຳເນີນ</p>
             <p className="mt-1 text-xs text-slate-400">ທັງໝົດ: <b className="text-slate-600">{open}</b> ລາຍການ</p>
@@ -40,18 +40,18 @@ export default async function SalesHomePage() {
       <div className="grid gap-4 sm:grid-cols-2">
         <Link
           href="/sales/report-repair"
-          className="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow"
+          className="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-brand-200 hover:shadow"
         >
-          <Send className="size-6 text-emerald-600" />
-          <h2 className="mt-2 font-bold text-slate-700 group-hover:text-emerald-700">ແຈ້ງສ້ອມ</h2>
+          <Send className="size-6 text-brand-800" />
+          <h2 className="mt-2 font-bold text-slate-700 group-hover:text-brand-800">ແຈ້ງສ້ອມ</h2>
           <p className="mt-0.5 text-sm text-slate-500">ແຈ້ງເຄື່ອງເສຍແທນລູກຄ້າ — ທີມບໍລິການຮັບເຂົ້າສ້ອມໃຫ້</p>
         </Link>
         <Link
           href="/sales/jobs"
-          className="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-teal-300 hover:shadow"
+          className="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-brand-300 hover:shadow"
         >
-          <ClipboardList className="size-6 text-teal-600" />
-          <h2 className="mt-2 font-bold text-slate-700 group-hover:text-teal-700">ຕິດຕາມງານສ້ອມ</h2>
+          <ClipboardList className="size-6 text-brand-700" />
+          <h2 className="mt-2 font-bold text-slate-700 group-hover:text-brand-800">ຕິດຕາມງານສ້ອມ</h2>
           <p className="mt-0.5 text-sm text-slate-500">ເບິ່ງສະຖານະງານສ້ອມຂອງລູກຄ້າໃນເຂດຂອງທ່ານ</p>
         </Link>
       </div>

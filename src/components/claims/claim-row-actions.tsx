@@ -23,7 +23,7 @@ export function ClaimRowActions({ claimNo }: { claimNo: string }) {
     <div className="flex items-center justify-end gap-1">
       <Link
         href={`/claims/${claimNo}`}
-        className="grid size-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-teal-600"
+        className="grid size-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-brand-700"
         title="ແກ້ໄຂ / ຈັດການ"
       >
         <Pencil className="size-3.5" />
@@ -32,7 +32,7 @@ export function ClaimRowActions({ claimNo }: { claimNo: string }) {
         type="button"
         disabled={pending}
         onClick={del}
-        className="grid size-7 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+        className="grid size-7 place-items-center rounded-lg text-slate-400 hover:bg-brand-orange-50 hover:text-brand-orange-700 disabled:opacity-50"
         title="ລບ"
       >
         {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}

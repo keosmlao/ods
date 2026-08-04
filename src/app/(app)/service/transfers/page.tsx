@@ -30,7 +30,7 @@ export default async function JobTransfersPage() {
 
       {rows.length === 0 ? (
         <div className="grid place-items-center gap-2 rounded-xl border border-slate-200 bg-white p-10 text-sm text-slate-400 shadow-sm">
-          <PackageCheck className="size-6 text-emerald-500" />
+          <PackageCheck className="size-6 text-brand-600" />
           {t.empty}
         </div>
       ) : (
@@ -53,7 +53,7 @@ export default async function JobTransfersPage() {
               {rows.map((row) => (
                 <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50">
                   <td className="px-3 py-2">
-                    <Link href={`/service/${row.job_code}`} className="font-semibold text-teal-700 hover:underline">
+                    <Link href={`/service/${row.job_code}`} className="font-semibold text-brand-800 hover:underline">
                       #{row.job_code}
                       <LinkPending className="ml-1 size-3" />
                     </Link>
@@ -74,7 +74,7 @@ export default async function JobTransfersPage() {
                     <span className="block text-slate-400">{t.by} {row.created_by || "-"}</span>
                   </td>
                   <td className="px-3 py-2">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${row.days >= 3 ? "bg-red-100 text-red-700" : row.days >= 1 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${row.days >= 3 ? "bg-brand-orange-100 text-brand-orange-700" : row.days >= 1 ? "bg-brand-orange-300 text-brand-900" : "bg-slate-100 text-slate-600"}`}>
                       {row.days} {t.days}
                     </span>
                   </td>

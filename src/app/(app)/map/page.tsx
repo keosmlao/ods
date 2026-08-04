@@ -31,16 +31,16 @@ export default async function MapPage() {
     <div className="w-full space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="flex items-center gap-2 text-lg font-bold text-slate-700">
-          <MapPin className="size-5 text-teal-600" /> ແຜนที่ຕິດຕາມงาน on-site
+          <MapPin className="size-5 text-brand-700" /> ແຜนที่ຕິດຕາມงาน on-site
         </h1>
         <div className="flex flex-wrap gap-2">
-          {legend("#0d9488", "ສ້ອມບ້ານ IH", ih)}
-          {legend("#7c3aed", "ໄປຮັບ PS", ps)}
-          {legend("#d97706", "ຕິດຕັ້ງ", inst)}
+          {legend("#1e5b9a", "ສ້ອມບ້ານ IH", ih)}
+          {legend("#4bc7ef", "ໄປຮັບ PS", ps)}
+          {legend("#f6921e", "ຕິດຕັ້ງ", inst)}
         </div>
       </div>
       {markers.length === 0 ? (
-        <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-800">
+        <p className="rounded-2xl border border-brand-orange-400 bg-brand-orange-100 p-4 text-center text-sm text-brand-900">
           ຍັງບໍ່ມີงานที่ໝາຍພິກັດ (location) — ໝາຍພິກັດຕອນເປີດงาน (IH/PS/ຕິດຕັ້ງ) ຈຶ່ງຂຶ້ນແຜนที่.
         </p>
       ) : (

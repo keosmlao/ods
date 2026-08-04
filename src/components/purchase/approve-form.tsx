@@ -83,7 +83,7 @@ export function ApproveForm({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p
               className={`rounded-lg px-3 py-2 text-sm font-semibold ${
-                head.aprove_status === 1 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+                head.aprove_status === 1 ? "bg-brand-50 text-brand-800" : "bg-brand-orange-50 text-brand-orange-700"
               }`}
             >
               {head.aprove_status === 1
@@ -226,7 +226,7 @@ export function ApproveForm({
             ))}
             <tr className="bg-slate-50 font-bold">
               <td colSpan={5} className="px-3 py-3 text-right">{t.total}</td>
-              <td className="px-3 py-3 text-right text-red-600">{money(total)}</td>
+              <td className="px-3 py-3 text-right text-brand-orange-700">{money(total)}</td>
             </tr>
           </Table>
         )}
@@ -239,7 +239,7 @@ function Field({ label, value, wide, highlight }: { label: string; value: string
   return (
     <div className={wide ? "sm:col-span-2" : ""}>
       <dt className="text-xs text-slate-500">{label}</dt>
-      <dd className={highlight ? "font-semibold text-amber-700" : "text-slate-800"}>{value || "-"}</dd>
+      <dd className={highlight ? "font-semibold text-brand-900" : "text-slate-800"}>{value || "-"}</dd>
     </div>
   );
 }

@@ -50,7 +50,7 @@ function Info({ label, value, danger }: { label: string; value: string | null; d
   return (
     <div className="border-b border-slate-100 pb-3">
       <dt className="text-xs text-slate-400">{label}</dt>
-      <dd className={`mt-1 text-sm font-medium ${danger ? "text-[#e75555]" : "text-slate-800"}`}>{value || "-"}</dd>
+      <dd className={`mt-1 text-sm font-medium ${danger ? "text-[#9f5f14]" : "text-slate-800"}`}>{value || "-"}</dd>
     </div>
   );
 }
@@ -85,7 +85,7 @@ function BasketRow({ code, line, t }: { code: string; line: BasketLine; t: Dict 
             if (!ok) return;
             start(() => void deleteSpareItem(code, line.roworder));
           }}
-          className="text-[#DE3163] transition hover:opacity-70 disabled:opacity-40"
+          className="text-[#9f5f14] transition hover:opacity-70 disabled:opacity-40"
         >
           <Trash2 className="size-4" />
         </button>
@@ -100,7 +100,7 @@ function BasketRow({ code, line, t }: { code: string; line: BasketLine; t: Dict 
               autoFocus
               value={qty}
               onChange={(event) => setQty(event.target.value)}
-              className="h-8 w-20 rounded border border-slate-300 px-2 text-right text-sm outline-none focus:border-teal-500"
+              className="h-8 w-20 rounded border border-slate-300 px-2 text-right text-sm outline-none focus:border-brand-600"
             />
             <Button
               type="button"
@@ -124,7 +124,7 @@ function BasketRow({ code, line, t }: { code: string; line: BasketLine; t: Dict 
               setQty(line.qty);
               setEditing(true);
             }}
-            className="font-medium text-[#0536a9] underline"
+            className="font-medium text-brand underline"
           >
             {line.qty}
           </button>
@@ -170,7 +170,7 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
           </Button>
           <Link
             href="/checking"
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#DE3163] px-5 text-sm font-semibold text-white transition hover:opacity-90"
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#9f5f14] px-5 text-sm font-semibold text-white transition hover:opacity-90"
           >
             <LogOut className="size-4" />
             {t.exit}
@@ -223,7 +223,7 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
                   className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${slaTone(slaState(head.check_seconds, head.service_type)).chip}`}
                 />
                 {slaState(head.check_seconds, head.service_type) === "late" && (
-                  <span className="rounded bg-red-100 px-1 text-[10px] font-bold text-red-700">{t.overdue}</span>
+                  <span className="rounded bg-brand-orange-100 px-1 text-[10px] font-bold text-brand-orange-700">{t.overdue}</span>
                 )}
                 <span className="text-[10px] text-slate-400">
                   {head.check_started}
@@ -238,14 +238,14 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
               <label className={labelClass}>
-                {t.techDiagnosis} <span className="text-red-500">*</span>
+                {t.techDiagnosis} <span className="text-brand-orange-700">*</span>
               </label>
               <input name="isue_bytech" required value={issue} onChange={(event) => setIssue(event.target.value)} className={inputClass} />
             </div>
 
             <div>
               <label className={labelClass}>
-                {t.warrantyConsideration} <span className="text-red-500">*</span>
+                {t.warrantyConsideration} <span className="text-brand-orange-700">*</span>
               </label>
               <SelectField
                 name="war_by_t"
@@ -261,7 +261,7 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
             {/* ເຫດຜົນ = ຫຼັກຖານຂອງການຕັດສິນປະກັນ → ບັງຄັບເມື່ອ "ຂໍປ່ຽນປະກັນ" (ບັງຄັບຢູ່ server ນຳ) */}
             <div>
               <label className={labelClass}>
-                {t.reasonWarrantyExpired}{warByT === "1" && <span className="text-red-500"> *</span>}
+                {t.reasonWarrantyExpired}{warByT === "1" && <span className="text-brand-orange-700"> *</span>}
               </label>
               <input
                 name="t_reason"
@@ -275,7 +275,7 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
 
             <div>
               <label className={labelClass}>
-                {t.useSpare} <span className="text-red-500">*</span>
+                {t.useSpare} <span className="text-brand-orange-700">*</span>
               </label>
               {/* ຄ່ານີ້ຖືກສົ່ງອອກຜ່ານ hidden input ຂອງ SelectField (name="use_spare") */}
               <SelectField
@@ -297,8 +297,8 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
             ແຕ່ຟອມບໍ່ເຄີຍມີຕົວເລືອກ ⇒ ຊ່າງພິມໃສ່ຊ່ອງອາການ ແລ້ວກໍ່ບໍ່ມີໃຜຮູ້ວ່າຕ້ອງໄປຕໍ່.
             ດຽວນີ້ເລືອກຢູ່ນີ້ໄດ້ ແລະ ລະບົບຍື່ນຄຳຂໍຍົກເລີກໃຫ້ເລີຍ.
           */}
-          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/50 p-3">
-            <label className="flex items-center gap-2 text-sm font-bold text-amber-800">
+          <div className="mt-4 rounded-xl border border-brand-orange-400 bg-brand-orange-100/50 p-3">
+            <label className="flex items-center gap-2 text-sm font-bold text-brand-900">
               <input
                 type="checkbox"
                 checked={cannotRepair === "1"}
@@ -306,12 +306,12 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
                   setCannotRepair(event.target.checked ? "1" : "0");
                   if (event.target.checked) setUseSpare("0"); // ສ້ອມບໍ່ໄດ້ = ບໍ່ໃຊ້ອາໄຫຼ່
                 }}
-                className="size-4 accent-amber-600"
+                className="size-4 accent-brand-orange-700"
               />
               {t.cannotRepair}
             </label>
             <input type="hidden" name="cannot_repair" value={cannotRepair} />
-            <p className="mt-1 text-[11px] text-amber-700">{t.cannotRepairNote}</p>
+            <p className="mt-1 text-[11px] text-brand-900">{t.cannotRepairNote}</p>
             {cannotRepair === "1" && (
               <input
                 name="cannot_reason"

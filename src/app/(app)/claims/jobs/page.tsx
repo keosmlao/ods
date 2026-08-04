@@ -40,7 +40,7 @@ export default async function ClaimJobsIndex() {
         </PageTitle>
         <Link
           href="/claims/new"
-          className="inline-flex h-10 items-center gap-2 rounded-lg bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-700"
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-orange-600 px-4 text-sm font-semibold text-white hover:bg-brand-orange-700"
         >
           <FilePlus2 className="size-4" />
           ຮັບເຄື່ອງເຄມ
@@ -55,7 +55,7 @@ export default async function ClaimJobsIndex() {
               key={slug}
               href={`/claims/jobs/${slug}`}
               className={`rounded-xl border p-4 shadow-sm transition hover:shadow ${
-                count > 0 ? "border-violet-200 bg-white" : "border-slate-200 bg-slate-50/60"
+                count > 0 ? "border-brand-orange-200 bg-white" : "border-slate-200 bg-slate-50/60"
               }`}
             >
               <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-400">
@@ -63,10 +63,10 @@ export default async function ClaimJobsIndex() {
                 ຂັ້ນ {index + 1}
               </p>
               <p className="mt-1 text-sm font-bold text-slate-700">{def.label}</p>
-              <p className={`mt-2 text-2xl font-black tabular-nums ${count > 0 ? "text-violet-700" : "text-slate-300"}`}>
+              <p className={`mt-2 text-2xl font-black tabular-nums ${count > 0 ? "text-brand-orange-700" : "text-slate-300"}`}>
                 {count}
               </p>
-              <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-violet-600">
+              <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-orange-600">
                 ເປີດເບິ່ງ <ArrowRight className="size-3" />
                 <LinkPending className="size-3" />
               </span>

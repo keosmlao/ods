@@ -131,7 +131,7 @@ export default async function ServiceNotices({ searchParams }: Props) {
             className="w-full text-xs outline-none"
           />
         </div>
-        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+        <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
       </form>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -161,7 +161,7 @@ export default async function ServiceNotices({ searchParams }: Props) {
             <tbody>
               {list.rows.map((row) => (
                 <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">{row.code}</td>
+                  <td className="whitespace-nowrap px-3 py-2.5 font-bold text-brand">{row.code}</td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">{row.noticed ?? "-"}</td>
                   <td className="max-w-40 truncate px-3 py-2.5" title={row.creator_name ?? ""}>{row.creator_name || "-"}</td>
                   <td className="whitespace-nowrap px-3 py-2.5">{row.telephone || "-"}</td>
@@ -170,7 +170,7 @@ export default async function ServiceNotices({ searchParams }: Props) {
                   </td>
                   <td className="max-w-40 truncate px-3 py-2.5 text-slate-500" title={row.sn ?? ""}>{row.sn || "-"}</td>
                   <td className="max-w-40 truncate px-3 py-2.5" title={row.custname ?? ""}>{row.custname || "-"}</td>
-                  <td className="max-w-56 truncate px-3 py-2.5 font-semibold text-red-600" title={row.issue ?? ""}>
+                  <td className="max-w-56 truncate px-3 py-2.5 font-semibold text-brand-orange-700" title={row.issue ?? ""}>
                     {row.issue || "-"}
                   </td>
                   <td className="max-w-40 truncate px-3 py-2.5 text-slate-600" title={row.remark ?? ""}>
@@ -183,7 +183,7 @@ export default async function ServiceNotices({ searchParams }: Props) {
                         href={`/api/uploads/${encodeURIComponent(row.product_url)}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 hover:bg-blue-100"
+                        className="inline-flex items-center gap-1 rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700 hover:bg-brand-100"
                       >
                         <ImageIcon className="size-3" />
                         {t.viewImage}
@@ -196,7 +196,7 @@ export default async function ServiceNotices({ searchParams }: Props) {
                     <div className="flex items-center justify-end gap-2">
                       <Link
                         href={`/service/notices/${encodeURIComponent(row.code)}`}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-700"
                       >
                         {t.openJob}
                         <LinkPending className="size-3" />

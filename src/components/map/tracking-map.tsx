@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 /** ນະຄອນຫຼວງວຽງຈັນ — ຈຸດເລີ່ມຕົ້ນເມື່ອບໍ່ມີໝຸດ */
 const VIENTIANE: [number, number] = [17.9757, 102.6331];
 
-const colorOf = (m: MapMarker) => (m.kind === "install" ? "#d97706" : m.service_type === "PS" ? "#7c3aed" : "#0d9488");
+const colorOf = (m: MapMarker) => (m.kind === "install" ? "#f6921e" : m.service_type === "PS" ? "#4bc7ef" : "#1e5b9a");
 
 /** ແຜนที่ຕິດຕາມงาน on-site — leaflet + OpenStreetMap (ບໍ່ຕ້ອງ API key). ໂຫ฼ด client-side. */
 export function TrackingMap({ markers }: { markers: MapMarker[] }) {

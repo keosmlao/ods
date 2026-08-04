@@ -22,7 +22,7 @@ export function ClaimMarkToggle({ jobCode, marked }: { jobCode: string; marked: 
       onClick={toggle}
       disabled={pending}
       title="ໝາຍວ່າงานนี้ เก็บเงินค่าสอมนำ supplier (ไม่เก็บลูกค้า)"
-      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${on ? "bg-amber-100 text-amber-800 ring-1 ring-amber-300" : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"}`}
+      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${on ? "bg-brand-orange-300 text-brand-900 ring-1 ring-brand-orange-300" : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"}`}
     >
       {pending ? <LoaderCircle className="size-4 animate-spin" /> : <BadgeDollarSign className="size-4" />}
       {on ? "ເຄມເງິນ supplier ✓" : "ໝາຍ ເຄມ supplier"}

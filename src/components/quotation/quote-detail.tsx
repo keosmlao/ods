@@ -62,7 +62,7 @@ function Field({ label, value, accent }: { label: string; value: string | null |
   return (
     <div className="flex gap-2">
       <dt className="shrink-0 text-slate-500">{label}:</dt>
-      <dd className={accent ? "font-medium text-[#b91c1c]" : "text-slate-800"}>{value || "-"}</dd>
+      <dd className={accent ? "font-medium text-[#9f5f14]" : "text-slate-800"}>{value || "-"}</dd>
     </div>
   );
 }
@@ -71,7 +71,7 @@ function Money({ label, value, unit, strong }: { label: string; value: number; u
   return (
     <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-1.5 last:border-0">
       <span className={strong ? "font-bold text-slate-700" : "text-slate-500"}>{label}</span>
-      <span className={`whitespace-nowrap ${strong ? "text-sm font-bold text-[#e75555]" : "font-semibold text-slate-700"}`}>
+      <span className={`whitespace-nowrap ${strong ? "text-sm font-bold text-[#9f5f14]" : "font-semibold text-slate-700"}`}>
         {money(value)} {unit}
       </span>
     </div>
@@ -166,7 +166,7 @@ export async function QuoteDetail({
           )}
           <tr className="border-t border-slate-200">
             <td colSpan={5} className="px-3 py-3 text-right font-bold">{t.rowTotal}</td>
-            <td className="whitespace-nowrap px-3 py-3 text-right font-bold text-[#e75555]">{money(total)}</td>
+            <td className="whitespace-nowrap px-3 py-3 text-right font-bold text-[#9f5f14]">{money(total)}</td>
           </tr>
         </Table>
 
@@ -185,7 +185,7 @@ export async function QuoteDetail({
         </div>
 
         {mismatch && (
-          <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-right text-[11px] font-semibold text-amber-700">
+          <p className="mt-2 rounded-lg bg-brand-orange-100 px-3 py-2 text-right text-[11px] font-semibold text-brand-900">
             ⚠ {t.mismatchPrefix} ({money(totalValue)}) {t.mismatchMid} ({money(total)}) {t.mismatchSuffix}
           </p>
         )}

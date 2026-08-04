@@ -95,13 +95,13 @@ export default async function EditSpareRequestPage({ params }: Props) {
       <div className="w-full space-y-5">
         <PageTitle>ແກ້ໃບຂໍເບີກ {docNo}</PageTitle>
         <JobHeader head={job.rows[0]} />
-        <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-5 shadow-sm">
-          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />
+        <div className="flex items-start gap-3 rounded-xl border border-brand-orange-400 bg-brand-orange-100 p-5 shadow-sm">
+          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-brand-900" />
           <div className="space-y-2">
-            <p className="text-sm font-bold text-amber-800">{blocked}</p>
+            <p className="text-sm font-bold text-brand-900">{blocked}</p>
             <Link
               href={`/installations/spare-requests/view/${encodeURIComponent(docNo)}`}
-              className="text-xs text-amber-700 underline"
+              className="text-xs text-brand-900 underline"
             >
               ເປີດເບິ່ງໃບຂໍເບີກ
             </Link>

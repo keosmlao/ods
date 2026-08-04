@@ -36,7 +36,7 @@ export function SortHeader({
         className={`inline-flex items-center gap-1 transition hover:text-slate-900 ${active ? "text-slate-900" : ""}`}
       >
         {label}
-        <Icon className={`size-3.5 ${active ? "text-teal-600" : "text-slate-300"}`} />
+        <Icon className={`size-3.5 ${active ? "text-brand-700" : "text-slate-300"}`} />
       </Link>
     </th>
   );

@@ -41,7 +41,7 @@ export default async function WarrantyApprovalsPage({ searchParams }: Props) {
             key={key}
             href={key === "pending" ? "/approvals/warranty" : `/approvals/warranty?tab=${key}`}
             className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-              state === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+              state === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
             }`}
           >
             {label}
@@ -51,7 +51,7 @@ export default async function WarrantyApprovalsPage({ searchParams }: Props) {
       </div>
 
       {rows.length === 0 ? (
-        <p className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-6 text-center text-sm font-semibold text-emerald-700">
+        <p className="rounded-xl border border-brand-200 bg-brand-50/50 p-6 text-center text-sm font-semibold text-brand-800">
           ບໍ່ມີຄຳຂໍໃນກຸ່ມນີ້
         </p>
       ) : (
@@ -61,7 +61,7 @@ export default async function WarrantyApprovalsPage({ searchParams }: Props) {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                    <ShieldAlert className="size-4 text-amber-600" />
+                    <ShieldAlert className="size-4 text-brand-900" />
                     <Link href={`/service/${row.job_code}`} className="hover:underline">
                       #{row.job_code}
                     </Link>
@@ -77,7 +77,7 @@ export default async function WarrantyApprovalsPage({ searchParams }: Props) {
                       {row.from_warranty}
                     </span>
                     <span className="mx-1.5 text-slate-400">→</span>
-                    <span className="rounded bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-800">
+                    <span className="rounded bg-brand-orange-300 px-1.5 py-0.5 font-semibold text-brand-900">
                       {row.to_warranty}
                     </span>
                   </p>
@@ -87,7 +87,7 @@ export default async function WarrantyApprovalsPage({ searchParams }: Props) {
                   </p>
                   <p className="mt-1.5 text-[11px] text-slate-400">
                     ຂໍໂດຍ {row.requested_by} · {row.requested_at}
-                    {row.age_days > 0 && <span className="ml-1 font-semibold text-amber-600">· ຄ້າງ {row.age_days} ມື້</span>}
+                    {row.age_days > 0 && <span className="ml-1 font-semibold text-brand-900">· ຄ້າງ {row.age_days} ມື້</span>}
                     {row.decided_by && (
                       <span className="ml-2">
                         · ຕັດສິນໂດຍ {row.decided_by} {row.decided_at}

@@ -1,11 +1,28 @@
 import { getLocale } from "@/lib/i18n/locale";
 import type { Metadata } from "next";
+import { Montserrat } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 
 const font = localFont({
   src: "../../mobile/assets/fonts/NotoSansLao.ttf",
   variable: "--font-lao",
+  display: "swap",
+});
+
+/**
+ * ຟອນລາຕິນຕາມ Brand Guideline (ໜ້າ 7) — ໃຊ້ກັບຕົວອັກສອນ A–Z ແລະ ຕົວເລກ.
+ *
+ * Montserrat ບໍ່ມີ glyph ພາສາລາວ ⇒ browser ຈະຕົກໄປໃຊ້ --font-lao ໃຫ້ຕົວອັກສອນລາວ
+ * ໂດຍອັດຕະໂນມັດ (fallback ເປັນລາຍ glyph ບໍ່ແມ່ນລາຍ element) ຈຶ່ງບໍ່ຕ້ອງແຍກ class.
+ * ລຳດັບໃນ font-family ຂອງ globals.css ຈຶ່ງຕ້ອງເປັນ latin ກ່ອນ lao ສະເໝີ.
+ *
+ * ໝາຍເຫດ: guideline ກຳນົດ BoonHome ສຳລັບພາສາລາວ ແຕ່ຍັງບໍ່ມີໄຟລ໌ຟອນ —
+ * ເມື່ອໄດ້ມາແລ້ວປ່ຽນສະເພາະ src ຂອງ localFont ຂ້າງເທິງ.
+ */
+const latin = Montserrat({
+  subsets: ["latin"],
+  variable: "--font-latin",
   display: "swap",
 });
 export const metadata: Metadata = { title: "ODIEN Service", description: "ລະບົບບໍລິການ ODS" };
@@ -23,7 +40,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const locale = await getLocale();
   return (
     <html lang={locale}>
-      <body suppressHydrationWarning className={`${font.variable} antialiased`}>
+      <body suppressHydrationWarning className={`${font.variable} ${latin.variable} antialiased`}>
         {children}
       </body>
     </html>

@@ -193,7 +193,7 @@ export default async function SparePartsPage({ searchParams }: Props) {
               key={key}
               href={tabHref(key)}
               className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon className="size-3.5" />
@@ -235,7 +235,7 @@ export default async function SparePartsPage({ searchParams }: Props) {
                 return (
                   <tr key={spare.code} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="whitespace-nowrap px-3 py-2.5">
-                      <Link href={`/stock/spare-parts/${encodeURIComponent(spare.code)}`} className="font-bold text-[#0536a9] hover:underline">
+                      <Link href={`/stock/spare-parts/${encodeURIComponent(spare.code)}`} className="font-bold text-brand hover:underline">
                         {spare.code}
                         <LinkPending className="ml-1 inline size-3" />
                       </Link>
@@ -254,7 +254,7 @@ export default async function SparePartsPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <span
                         className={`rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${
-                          inStock ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                          inStock ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"
                         }`}
                       >
                         {spare.balance_qty.toLocaleString()}

@@ -49,7 +49,7 @@ export async function QuotationPrices({
           {t.priceFromQuote}{" "}
           <Link
             href={`/quotations/${encodeURIComponent(quote.doc_no)}/print`}
-            className="font-bold text-[#0536a9] hover:underline"
+            className="font-bold text-brand hover:underline"
           >
             {quote.doc_no}
           </Link>
@@ -60,12 +60,12 @@ export async function QuotationPrices({
       }
       actions={
         changed === 0 ? (
-          <span className={`${chip} bg-emerald-50 text-emerald-700`}>
+          <span className={`${chip} bg-brand-50 text-brand-800`}>
             <CheckCircle2 className="size-3.5" />
             {t.matchesQuote}
           </span>
         ) : (
-          <span className={`${chip} bg-amber-50 text-amber-700`}>
+          <span className={`${chip} bg-brand-orange-100 text-brand-900`}>
             <TriangleAlert className="size-3.5" />
             {t.editedPrefix} {changed} {t.itemsSuffix}
           </span>
@@ -91,22 +91,22 @@ export async function QuotationPrices({
                 {Number(line.qty)} {line.unit_code}
               </td>
               <td className="px-3 py-2 text-right font-semibold">{money(quotedPrice)}</td>
-              <td className={`px-3 py-2 text-right font-semibold ${differs ? "text-amber-700" : ""}`}>
+              <td className={`px-3 py-2 text-right font-semibold ${differs ? "text-brand-900" : ""}`}>
                 {price === null ? "-" : money(price)}
               </td>
               <td className="px-3 py-2">
                 {!row ? (
-                  <span className={`${chip} bg-amber-50 text-amber-700`}>
+                  <span className={`${chip} bg-brand-orange-100 text-brand-900`}>
                     <TriangleAlert className="size-3.5" />
                     {t.removedFromInvoice}
                   </span>
                 ) : differs ? (
-                  <span className={`${chip} bg-amber-50 text-amber-700`}>
+                  <span className={`${chip} bg-brand-orange-100 text-brand-900`}>
                     <TriangleAlert className="size-3.5" />
                     {t.priceDiffersFromQuote} ({t.quotedLabel} {money(quotedPrice)} × {Number(line.qty)})
                   </span>
                 ) : (
-                  <span className={`${chip} bg-emerald-50 text-emerald-700`}>
+                  <span className={`${chip} bg-brand-50 text-brand-800`}>
                     <CheckCircle2 className="size-3.5" />
                     {t.matches}
                   </span>
@@ -133,7 +133,7 @@ export async function QuotationPrices({
           <dd className="w-36 text-right font-bold">{money(billTotal)} {t.baht}</dd>
         </div>
         {Math.abs(gap) >= 0.005 && (
-          <div className="flex justify-end gap-3 text-amber-700">
+          <div className="flex justify-end gap-3 text-brand-900">
             <dt>{t.difference}</dt>
             <dd className="w-36 text-right font-bold">
               {gap > 0 ? "+" : ""}
@@ -149,7 +149,7 @@ export async function QuotationPrices({
         </p>
       )}
       {discount > 0 && (
-        <p className="mt-2 text-xs text-amber-700">
+        <p className="mt-2 text-xs text-brand-900">
           {t.discountNotePrefix} {money(discount)} {t.baht} {t.discountNoteSuffix}
         </p>
       )}

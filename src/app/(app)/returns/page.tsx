@@ -276,7 +276,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
               key={key}
               href={tabHref(key)}
               className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon className="size-3.5" />
@@ -302,7 +302,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+          <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -347,7 +347,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                   const inWarranty = row.warranty === "ຮັບປະກັນ";
                   return (
                     <RowLink key={row.code} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                      <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                         <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                         <Link href={`/service/${row.code}`} className="hover:underline">
                           {row.code}
@@ -373,7 +373,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                       <td className="whitespace-nowrap px-3 py-2.5">
                         <span
                           className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                            inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                            inWarranty ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"
                           }`}
                         >
                           {row.warranty || "-"}
@@ -381,7 +381,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5">{row.emp_code || "-"}</td>
                       <td
-                        className="max-w-52 truncate px-3 py-2.5 font-semibold text-red-600"
+                        className="max-w-52 truncate px-3 py-2.5 font-semibold text-brand-orange-700"
                         title={(tab === "cancelled" ? row.issue : row.issue_2) ?? ""}
                       >
                         {(tab === "cancelled" ? row.issue_2 || row.issue : row.issue_2) || "-"}
@@ -390,7 +390,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                         <td className="whitespace-nowrap px-3 py-2.5">
                           {row.spares && row.spares.lines > 0 ? (
                             <>
-                              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                              <span className="rounded bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-brand-900">
                                 {row.spares.lines} {t.items} · {row.spares.units.toLocaleString()} {t.units}
                               </span>
                               <span className="mt-0.5 block text-[10px] text-slate-400">
@@ -398,7 +398,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                               </span>
                             </>
                           ) : (
-                            <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                            <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-800">
                               {t.returnedComplete}
                             </span>
                           )}
@@ -429,7 +429,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                         <span className="inline-flex items-center gap-1.5">
                           <Link
                             href={`/returns/${encodeURIComponent(row.code)}`}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
                           >
                             <CheckCircle2 className="size-3.5" />
                             {tab === "cancelled" ? t.returnAction : t.withdrawAction}
@@ -461,7 +461,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
               {tab === "bills" &&
                 bills.rows.map((row) => (
                   <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="whitespace-nowrap px-3 py-2.5 font-bold text-emerald-700">{row.doc_no}</td>
+                    <td className="whitespace-nowrap px-3 py-2.5 font-bold text-brand-800">{row.doc_no}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.doc_date ?? "-"}</td>
                     <td className="max-w-52 truncate px-3 py-2.5" title={row.customer ?? ""}>
                       {row.customer || "-"}
@@ -501,7 +501,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
               return (
                 <div key={row.code} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
                   <div className="flex items-start justify-between gap-2">
-                    <Link href={`/service/${row.code}`} className="font-bold text-[#0536a9] hover:underline">
+                    <Link href={`/service/${row.code}`} className="font-bold text-brand hover:underline">
                       {row.code}
                     </Link>
                     <Elapsed
@@ -544,7 +544,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                     {t.customer}: {row.customer || "-"}
                   </p>
                   {issue && (
-                    <p className="mt-0.5 truncate text-xs font-semibold text-red-600" title={issue}>
+                    <p className="mt-0.5 truncate text-xs font-semibold text-brand-orange-700" title={issue}>
                       {t.issue}: {issue}
                     </p>
                   )}
@@ -552,7 +552,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     <span
                       className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                        inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                        inWarranty ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"
                       }`}
                     >
                       {row.warranty || "-"}
@@ -562,11 +562,11 @@ export default async function ReturnsPage({ searchParams }: Props) {
                     </span>
                     {tab === "cancelled" &&
                       (row.spares && row.spares.lines > 0 ? (
-                        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                        <span className="rounded bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-brand-900">
                           {t.sparesOutstandingShort} {row.spares.lines} {t.items} · {row.spares.docs} {t.issueDoc}
                         </span>
                       ) : (
-                        <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                        <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-800">
                           {t.returnedComplete}
                         </span>
                       ))}
@@ -574,7 +574,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
 
                   <Link
                     href={`/returns/${encodeURIComponent(row.code)}`}
-                    className="mt-2.5 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-3 text-sm font-semibold text-white hover:bg-teal-700"
+                    className="mt-2.5 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-brand-700 px-3 text-sm font-semibold text-white hover:bg-brand-800"
                   >
                     <CheckCircle2 className="size-4" />
                     {tab === "cancelled" ? t.returnAction : t.withdrawAction}
@@ -588,7 +588,7 @@ export default async function ReturnsPage({ searchParams }: Props) {
             bills.rows.map((row) => (
               <div key={row.doc_no} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="font-bold text-emerald-700">{row.doc_no}</span>
+                  <span className="font-bold text-brand-800">{row.doc_no}</span>
                   <span className="shrink-0 text-[11px] text-slate-400">{row.doc_date ?? "-"}</span>
                 </div>
                 <p className="mt-1.5 truncate text-xs text-slate-600" title={row.customer ?? ""}>

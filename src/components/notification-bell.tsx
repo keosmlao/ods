@@ -25,8 +25,8 @@ type Dict = ReturnType<typeof useDict>["notificationBell"];
 
 const KIND_DOT: Record<NotificationKind, string> = {
   log: "bg-slate-300",
-  comment: "bg-sky-500",
-  assign: "bg-amber-500",
+  comment: "bg-brand-500",
+  assign: "bg-brand-orange-500",
 };
 
 /**
@@ -140,7 +140,7 @@ export function NotificationBell({ count, label }: { count: number; label: strin
       >
         <BellRing className="size-4" />
         {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white">
+          <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand-700 px-1 text-[10px] font-bold text-white">
             {unread > 99 ? "99+" : unread}
           </span>
         )}
@@ -163,7 +163,7 @@ export function NotificationBell({ count, label }: { count: number; label: strin
                 type="button"
                 disabled={marking}
                 onClick={markAll}
-                className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-teal-700 hover:bg-teal-50 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-brand-800 hover:bg-brand-50 disabled:opacity-50"
               >
                 {marking ? <LoaderCircle className="size-3.5 animate-spin" /> : <CheckCheck className="size-3.5" />}
                 {t.markAllRead}
@@ -193,7 +193,7 @@ export function NotificationBell({ count, label }: { count: number; label: strin
                     </span>
                   </>
                 );
-                const cls = `flex w-full gap-2 px-4 py-2.5 text-left ${row.read ? "" : "bg-teal-50/40"}`;
+                const cls = `flex w-full gap-2 px-4 py-2.5 text-left ${row.read ? "" : "bg-brand-50/40"}`;
                 return href === "#" ? (
                   <span key={row.id} className={cls}>{body}</span>
                 ) : (
@@ -210,7 +210,7 @@ export function NotificationBell({ count, label }: { count: number; label: strin
           <Link
             href="/notifications"
             onClick={() => setOpen(false)}
-            className="flex items-center justify-center gap-1.5 border-t border-slate-100 bg-slate-50 py-2.5 text-xs font-semibold text-[#0536a9] hover:bg-slate-100"
+            className="flex items-center justify-center gap-1.5 border-t border-slate-100 bg-slate-50 py-2.5 text-xs font-semibold text-brand hover:bg-slate-100"
           >
             {t.viewAll}
             <LinkPending className="size-3" />

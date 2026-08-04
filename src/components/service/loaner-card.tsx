@@ -12,7 +12,7 @@ import { useActionState, useState } from "react";
  * ພິມ ISN ແລ້ວກົດ "ຫາຈາກ ERP" ⇒ ຕື່ມຊື່/ລະຫັດໃຫ້ (api/scan — ຕ່ອງໂສ້ດຽວກັບໜ້າຮັບເຄື່ອງ).
  * ຍັງມີໜ່ວຍຄ້າງ ⇒ ສົ່ງເຄື່ອງຄືນລູກຄ້າບໍ່ໄດ້ (ດ່ານຢູ່ actions/return.ts).
  */
-const field = "h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-teal-500";
+const field = "h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-brand-600";
 
 export function LoanerCard({
   code,
@@ -74,10 +74,10 @@ export function LoanerCard({
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
         <h2 className="flex items-center gap-2 text-sm font-bold text-slate-700">
-          <PackageCheck className="size-4 text-teal-600" />
+          <PackageCheck className="size-4 text-brand-700" />
           {t.cardTitle}
           {outstanding.length > 0 && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+            <span className="rounded-full bg-brand-orange-300 px-2 py-0.5 text-[11px] font-bold text-brand-900">
               {t.outstanding} {outstanding.length}
             </span>
           )}
@@ -86,7 +86,7 @@ export function LoanerCard({
           <button
             type="button"
             onClick={() => setOpen(!open)}
-            className="inline-flex h-8 items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-100"
+            className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-3 text-xs font-semibold text-brand-800 hover:bg-brand-100"
           >
             {open ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
             {open ? t.cancel : t.lend}
@@ -103,7 +103,7 @@ export function LoanerCard({
           <input type="hidden" name="item_name" value={itemName} />
 
           {picked ? (
-            <div className="flex items-start justify-between gap-2 rounded-lg border border-emerald-200 bg-white p-3">
+            <div className="flex items-start justify-between gap-2 rounded-lg border border-brand-200 bg-white p-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-slate-800">{picked.item_name}</p>
                 <p className="mt-0.5 text-xs text-slate-500">
@@ -112,7 +112,7 @@ export function LoanerCard({
                   {picked.wh_name && <span className="ml-2 text-slate-400">· {picked.wh_name}</span>}
                 </p>
               </div>
-              <button type="button" onClick={clearPick} className="shrink-0 text-slate-400 hover:text-red-600">
+              <button type="button" onClick={clearPick} className="shrink-0 text-slate-400 hover:text-brand-orange-700">
                 <X className="size-4" />
               </button>
             </div>
@@ -151,7 +151,7 @@ export function LoanerCard({
                         type="button"
                         disabled={!!unit.lent_job}
                         onClick={() => pick(unit)}
-                        className="block w-full rounded px-3 py-2 text-left text-xs hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+                        className="block w-full rounded px-3 py-2 text-left text-xs hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
                       >
                         <span className="font-semibold text-slate-800">{unit.item_name}</span>
                         <span className="mt-0.5 block text-slate-400">
@@ -159,7 +159,7 @@ export function LoanerCard({
                           {unit.wh_name ? ` · ${unit.wh_name}` : ""}
                         </span>
                         {unit.lent_job && (
-                          <span className="mt-0.5 block font-semibold text-amber-600">
+                          <span className="mt-0.5 block font-semibold text-brand-900">
                             {t.alreadyLent} {unit.lent_job}
                           </span>
                         )}
@@ -178,10 +178,10 @@ export function LoanerCard({
             <label className="mb-1 block text-xs text-slate-500">{t.lendNoteLabel}</label>
             <input name="note" className={field} />
           </div>
-          {lendState.error && <p className="text-xs font-semibold text-red-600">{lendState.error}</p>}
+          {lendState.error && <p className="text-xs font-semibold text-brand-orange-700">{lendState.error}</p>}
           <button
             disabled={lending || !picked}
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+            className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
           >
             {lending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
             {t.saveLend}
@@ -196,7 +196,7 @@ export function LoanerCard({
           {rows.map((row) => (
             <li
               key={row.id}
-              className={`rounded-lg border p-3 ${row.return_time ? "border-slate-200 bg-slate-50" : "border-amber-200 bg-amber-50"}`}
+              className={`rounded-lg border p-3 ${row.return_time ? "border-slate-200 bg-slate-50" : "border-brand-orange-400 bg-brand-orange-100"}`}
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -211,35 +211,35 @@ export function LoanerCard({
                     href={`/service/loaners/${row.id}/print`}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-teal-700 hover:underline"
+                    className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-800 hover:underline"
                   >
                     <Printer className="size-3" />
                     {t.printSlip}
                   </a>
                   {row.return_time && (
-                    <p className="text-[11px] font-semibold text-emerald-700">
+                    <p className="text-[11px] font-semibold text-brand-800">
                       {t.returnedAt} {row.return_time} {t.by} {row.return_by}
                       {row.return_note ? ` · ${row.return_note}` : ""}
                     </p>
                   )}
                 </div>
                 {row.return_time ? (
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
+                  <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[11px] font-bold text-brand-800">
                     {t.returnedDays} · {row.days} {t.days}
                   </span>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[11px] font-bold text-amber-900">
+                    <span className="rounded-full bg-brand-orange-300 px-2 py-0.5 text-[11px] font-bold text-brand-900">
                       {t.withCustomer} {row.days} {t.days}
                     </span>
                     {canEdit && (
                       <form action={returnAction} className="flex items-center gap-1">
                         <input type="hidden" name="id" value={row.id} />
                         <input type="hidden" name="job" value={code} />
-                        <input name="note" placeholder={t.returnNotePlaceholder} className="h-8 w-36 rounded-lg border border-slate-300 px-2 text-xs outline-none focus:border-teal-500" />
+                        <input name="note" placeholder={t.returnNotePlaceholder} className="h-8 w-36 rounded-lg border border-slate-300 px-2 text-xs outline-none focus:border-brand-600" />
                         <button
                           disabled={returning}
-                          className="inline-flex h-8 items-center gap-1 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-60"
+                          className="inline-flex h-8 items-center gap-1 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800 disabled:opacity-60"
                         >
                           {returning ? <LoaderCircle className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
                           {t.returnAction}
@@ -253,9 +253,9 @@ export function LoanerCard({
           ))}
         </ul>
       )}
-      {returnState.error && <p className="mt-2 text-xs font-semibold text-red-600">{returnState.error}</p>}
+      {returnState.error && <p className="mt-2 text-xs font-semibold text-brand-orange-700">{returnState.error}</p>}
       {outstanding.length > 0 && (
-        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">
+        <p className="mt-2 rounded-lg bg-brand-orange-100 px-3 py-2 text-[11px] font-semibold text-brand-900">
           {t.blockNote}
         </p>
       )}

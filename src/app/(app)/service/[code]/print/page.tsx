@@ -228,7 +228,7 @@ export default async function PrintReceipt({ params }: Props) {
       </div>
 
       {/* ເງື່ອນໄຂ */}
-      <ol className="mt-8 space-y-1 text-[11px] leading-snug text-[#0536a9]">
+      <ol className="mt-8 space-y-1 text-[11px] leading-snug text-brand">
         <li>1. {t.condition1}</li>
         <li>2. {t.condition2}</li>
         <li>3. {t.condition3}</li>

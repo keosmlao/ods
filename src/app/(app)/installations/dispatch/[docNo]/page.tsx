@@ -76,7 +76,7 @@ export default async function DispatchDetail({ params }: Props) {
                     <td className="px-3 py-2">{line.item_name}</td>
                     <td className="px-3 py-2 text-center">{Number(line.qty)}</td>
                     <td className="px-3 py-2 text-center">{line.unit_code}</td>
-                    <td className={`px-3 py-2 text-right ${enough ? "" : "font-bold text-red-600"}`}>
+                    <td className={`px-3 py-2 text-right ${enough ? "" : "font-bold text-brand-orange-700"}`}>
                       {Number(line.stock)}
                     </td>
                   </tr>
@@ -92,9 +92,9 @@ export default async function DispatchDetail({ params }: Props) {
         ສາງເບີກຢູ່ **ERP** (ບ່ອນທີ່ສະຕັອກຈິງຢູ່ ແລະ ບ່ອນທີ່ບັນຊີເບິ່ງ) ⇒ ODS ເປັນຝ່າຍອ່ານ:
         lib/erp-dispatch ດຶງໃບເບີກຂອງ ERP ທີ່ອ້າງອີງໃບຂໍນີ້ ແລ້ວເລື່ອນຂັ້ນງານໃຫ້ເອງ.
       */}
-      <div className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
-        <PackageMinus className="mt-0.5 size-5 shrink-0 text-sky-600" />
-        <div className="text-sm text-sky-900">
+      <div className="flex items-start gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-4">
+        <PackageMinus className="mt-0.5 size-5 shrink-0 text-brand-500" />
+        <div className="text-sm text-brand-800">
           <p className="font-bold">{t.erpDispatchTitle}</p>
           <p className="mt-1 text-xs">
             {t.erpNoticeBefore} <b>{docNo}</b> {t.erpNoticeAfter} <b>{t.erpNoticePull}</b> {t.erpNoticeEnd}

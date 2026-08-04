@@ -31,7 +31,7 @@ export function AcceptRepairButton({ code }: { code: string }) {
         {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
         ຮັບງານ
       </Button>
-      {error && <span className="text-[10px] text-red-600">{error}</span>}
+      {error && <span className="text-[10px] text-brand-orange-700">{error}</span>}
     </span>
   );
 }

@@ -25,7 +25,7 @@ export function JobPickerModal({ open, onClose, onPick }: { open: boolean; onClo
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-brand-900/50 p-4" onClick={onClose}>
       <div className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-100 p-4">
           <div>
@@ -36,7 +36,7 @@ export function JobPickerModal({ open, onClose, onPick }: { open: boolean; onClo
         </div>
 
         <div className="border-b border-slate-100 p-3">
-          <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-2.5 focus-within:border-teal-500">
+          <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-2.5 focus-within:border-brand-600">
             <Search className="size-4 shrink-0 text-slate-400" />
             <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="ຄົ້ນ code / ສິນຄ້າ / SN / ຫຍີ່ຫໍ້ / ລູກຄ້າ" className="h-9 w-full text-sm outline-none" />
             {pending && <LoaderCircle className="size-4 shrink-0 animate-spin text-slate-400" />}
@@ -50,8 +50,8 @@ export function JobPickerModal({ open, onClose, onPick }: { open: boolean; onClo
             <ul className="divide-y divide-slate-100">
               {jobs.map((j) => (
                 <li key={j.code}>
-                  <button type="button" onClick={() => onPick(j)} className="flex w-full items-start gap-3 px-4 py-2.5 text-left hover:bg-teal-50/60">
-                    <span className="mt-0.5 shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-[#0536a9]">{j.code}</span>
+                  <button type="button" onClick={() => onPick(j)} className="flex w-full items-start gap-3 px-4 py-2.5 text-left hover:bg-brand-50/60">
+                    <span className="mt-0.5 shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-brand">{j.code}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-slate-800">{j.product || "-"} {j.brand ? <span className="text-slate-400">· {j.brand}</span> : null}</span>
                       <span className="block truncate text-[11px] text-slate-500">

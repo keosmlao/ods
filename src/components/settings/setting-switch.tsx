@@ -49,7 +49,7 @@ export function SettingSwitch({
           if (ok) formRef.current?.requestSubmit();
         }}
         className={`relative inline-flex h-6 w-11 items-center rounded-full transition disabled:opacity-50 ${
-          enabled ? "bg-teal-600" : "bg-slate-300"
+          enabled ? "bg-brand-700" : "bg-slate-300"
         }`}
       >
         <span

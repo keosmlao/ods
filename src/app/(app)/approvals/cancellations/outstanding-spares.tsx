@@ -26,13 +26,13 @@ export function OutstandingSpares({ code, docs }: { code: string; docs: SpareDoc
   );
 
   return (
-    <section className="overflow-hidden rounded-xl border border-amber-300 bg-amber-50 shadow-sm">
+    <section className="overflow-hidden rounded-xl border border-brand-orange-400 bg-brand-orange-100 shadow-sm">
       {dialog}
-      <div className="flex flex-wrap items-start gap-2 border-b border-amber-200 px-4 py-3">
-        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+      <div className="flex flex-wrap items-start gap-2 border-b border-brand-orange-400 px-4 py-3">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-brand-900" />
         <div className="min-w-56 flex-1">
-          <h2 className="text-sm font-bold text-amber-800">ອາໄຫຼ່ຍັງບໍ່ໄດ້ສົ່ງຄືນສາງ</h2>
-          <p className="mt-0.5 text-xs text-amber-700">
+          <h2 className="text-sm font-bold text-brand-900">ອາໄຫຼ່ຍັງບໍ່ໄດ້ສົ່ງຄືນສາງ</h2>
+          <p className="mt-0.5 text-xs text-brand-900">
             ໃບຮັບເຄື່ອງ {code} ຖືກຍົກເລີກ ແຕ່ຍັງມີອາໄຫຼ່ທີ່ເບີກອອກຈາກສາງແລ້ວ{" "}
             <b>{lines} ລາຍການ</b> ({units.toLocaleString()} ໜ່ວຍ) ຈາກ {docs.length} ໃບເບີກ ຍັງຄ້າງຢູ່ນອກສາງ.
             ກະລຸນາສ້າງ <b>ໃບຂໍສົ່ງອາໄຫຼ່ຄືນ</b> ໃຫ້ແຕ່ລະໃບເບີກ ແລ້ວໃຫ້ສາງຮັບຄືນ.
@@ -40,7 +40,7 @@ export function OutstandingSpares({ code, docs }: { code: string; docs: SpareDoc
         </div>
       </div>
 
-      <div className="divide-y divide-amber-200">
+      <div className="divide-y divide-brand-orange-300">
         {docs.map((doc) => (
           <div key={doc.doc_no} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <div className="min-w-56 flex-1">
@@ -77,7 +77,7 @@ export function OutstandingSpares({ code, docs }: { code: string; docs: SpareDoc
                 data.set("doc_no", doc.doc_no);
                 start(() => void startReturnRequest(data));
               }}
-              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white transition hover:bg-amber-700 disabled:opacity-60"
+              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-brand-orange-700 px-3 text-xs font-semibold text-white transition hover:bg-brand-orange-700 disabled:opacity-60"
             >
               {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Undo2 className="size-3.5" />}
               ຂໍສົ່ງຄືນອາໄຫຼ່

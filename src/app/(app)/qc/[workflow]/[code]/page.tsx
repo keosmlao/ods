@@ -77,7 +77,7 @@ export default async function QcJobPage({ params }: Props) {
               {t.noChecklist}
             </ErrorBox>
             <Empty>
-              <Link href="/manage/qc-checklist" className="font-semibold text-teal-700 hover:underline">
+              <Link href="/manage/qc-checklist" className="font-semibold text-brand-800 hover:underline">
                 {t.goToChecklistSetup}
               </Link>
             </Empty>

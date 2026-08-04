@@ -92,7 +92,7 @@ export function FinishInstallButton({ code }: { code: string }) {
         </div>
       )}
 
-      {error && <span className="text-[11px] font-semibold text-red-600">{error}</span>}
+      {error && <span className="text-[11px] font-semibold text-brand-orange-700">{error}</span>}
 
       <Button
         tone="success"

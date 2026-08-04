@@ -141,7 +141,7 @@ export default async function NewSparePage({ searchParams }: Props) {
                 {/* ic_code = ລະຫັດທີ່ SML ອອກໃຫ້ແລ້ວ; ຍັງບໍ່ມີ = ຍັງລໍຖ້າ */}
                 {draft.ic_code ? (
                   <div className="flex flex-col gap-0.5">
-                    <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                    <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold text-brand-800">
                       {draft.ic_code}
                     </span>
                     {ready ? (
@@ -150,14 +150,14 @@ export default async function NewSparePage({ searchParams }: Props) {
                       // ລະຫັດອອກແລ້ວ ແຕ່ຍັງບໍ່ເຂົ້າ ic_inventory ⇒ ເບີກ/ສັ່ງຊື້ອາໄຫຼ່ຕົວນີ້ຍັງບໍ່ໄດ້
                       <Link
                         href="/stock/spare-parts"
-                        className="text-[10px] font-semibold text-amber-700 underline underline-offset-2"
+                        className="text-[10px] font-semibold text-brand-900 underline underline-offset-2"
                       >
                         {t.notInStock}
                       </Link>
                     )}
                   </div>
                 ) : (
-                  <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                  <span className="rounded bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-medium text-brand-900">
                     {t.creating}
                   </span>
                 )}

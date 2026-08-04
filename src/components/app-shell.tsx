@@ -117,7 +117,7 @@ export function AppShell({
             {activities.total > 0 && (
               <span
                 className={`absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold text-white ${
-                  activities.late > 0 ? "bg-red-500" : "bg-teal-600"
+                  activities.late > 0 ? "bg-brand-orange-700" : "bg-brand-700"
                 }`}
               >
                 {activities.total > 99 ? "99+" : activities.total}
@@ -126,7 +126,7 @@ export function AppShell({
           </Link>
 
           <span className="flex items-center gap-2 rounded-lg bg-slate-100 py-1 pl-1 pr-3">
-            <span className="grid size-7 place-items-center rounded-md bg-teal-600 text-white">
+            <span className="grid size-7 place-items-center rounded-md bg-brand-700 text-white">
               <UserRound className="size-4" />
             </span>
             <span className="leading-tight">
@@ -138,7 +138,7 @@ export function AppShell({
           <form action={logout}>
             <button
               title={shellLabels.logout}
-              className="grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+              className="grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-brand-orange-50 hover:text-brand-orange-700"
             >
               <LogOut className="size-4" />
             </button>

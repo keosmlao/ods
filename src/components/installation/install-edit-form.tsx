@@ -83,7 +83,7 @@ export function InstallEditForm({
       <input type="hidden" name="code" value={row.code} />
 
       {isnOnly && (
-        <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
+        <p className="rounded-xl bg-brand-orange-100 px-4 py-3 text-xs font-semibold text-brand-900">
           {t.isnOnlyNotice}
         </p>
       )}

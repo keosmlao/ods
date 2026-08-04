@@ -293,7 +293,7 @@ function JobBadge({ jobType, t }: { jobType: string | null; t: Dict }) {
   return (
     <span
       className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-        install ? "bg-violet-50 text-violet-700" : "bg-slate-100 text-slate-600"
+        install ? "bg-brand-orange-50 text-brand-orange-700" : "bg-slate-100 text-slate-600"
       }`}
     >
       {install ? t.jobInstall : t.jobRepair}
@@ -384,7 +384,7 @@ export default async function StockReturnsPage({ searchParams }: Props) {
               key={key}
               href={tabHref(key)}
               className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon className="size-3.5" />
@@ -440,7 +440,7 @@ export default async function StockReturnsPage({ searchParams }: Props) {
                   return (
                     <RowLink key={row.code} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="max-w-64 px-3 py-2.5">
-                        <Link href={`/service/${row.code}`} className="block truncate font-medium text-[#0536a9] hover:underline" title={row.name_1 ?? ""}>
+                        <Link href={`/service/${row.code}`} className="block truncate font-medium text-brand hover:underline" title={row.name_1 ?? ""}>
                           {row.name_1 || "-"}
                         </Link>
                       </td>
@@ -467,9 +467,9 @@ export default async function StockReturnsPage({ searchParams }: Props) {
                         <span
                           className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
                             done
-                              ? "bg-emerald-50 text-emerald-700"
+                              ? "bg-brand-50 text-brand-800"
                               : row.reg_at
-                                ? "bg-amber-50 text-amber-700"
+                                ? "bg-brand-orange-100 text-brand-900"
                                 : "bg-slate-100 text-slate-600"
                           }`}
                         >
@@ -508,7 +508,7 @@ export default async function StockReturnsPage({ searchParams }: Props) {
                   return (
                     <Fragment key={doc.doc_no}>
                     <tr className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                      <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                         <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                         {doc.doc_no}
                         <span className="mt-0.5 block">
@@ -534,10 +534,10 @@ export default async function StockReturnsPage({ searchParams }: Props) {
                         <span
                           className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
                             tab === "cancelled"
-                              ? "bg-red-100 text-red-700"
+                              ? "bg-brand-orange-100 text-brand-orange-700"
                               : tab === "dispatched"
-                                ? "bg-blue-50 text-blue-700"
-                                : "bg-amber-50 text-amber-700"
+                                ? "bg-brand-50 text-brand-700"
+                                : "bg-brand-orange-100 text-brand-900"
                           }`}
                         >
                           {tab === "cancelled"
@@ -556,9 +556,9 @@ export default async function StockReturnsPage({ searchParams }: Props) {
 
                     {/* ລາຍການອາໄຫຼ່ທີ່ຍັງຄ້າງນອກສາງຂອງໃບເບີກນີ້ — ຄິວ "ຍົກເລີກ" ເທົ່ານັ້ນ */}
                     {tab === "cancelled" && lines.length > 0 && (
-                      <tr className="border-b border-slate-100 bg-red-50/40">
+                      <tr className="border-b border-slate-100 bg-brand-orange-50/40">
                         <td colSpan={docColumns(t).length + 2} className="px-3 pb-3 pt-0">
-                          <p className="mb-1 text-[11px] font-bold text-red-800">
+                          <p className="mb-1 text-[11px] font-bold text-brand-orange-700">
                             {t.sparesOutstanding} {lines.length} {t.items}
                           </p>
                           <ul className="grid gap-x-6 gap-y-0.5 sm:grid-cols-2 lg:grid-cols-3">

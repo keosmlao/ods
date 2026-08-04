@@ -40,7 +40,7 @@ export default async function ChatPage({ searchParams }: Props) {
   const roomHref = (target: string) => `/chat?room=${encodeURIComponent(target)}`;
   const ItemClass = (active: boolean) =>
     `flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs ${
-      active ? "bg-[#0536a9] text-white" : "text-slate-600 hover:bg-slate-100"
+      active ? "bg-brand text-white" : "text-slate-600 hover:bg-slate-100"
     }`;
 
   return (

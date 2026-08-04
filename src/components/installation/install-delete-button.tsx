@@ -26,16 +26,16 @@ export function InstallDeleteButton({ code }: { code: string }) {
         type="button"
         title={t.deleteInstallTitle}
         onClick={() => setOpen(true)}
-        className="text-slate-400 hover:text-red-600"
+        className="text-slate-400 hover:text-brand-orange-700"
       >
         <Trash2 className="size-4" />
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-brand-900/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
             <div className="mb-3 flex items-start gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-red-50 text-red-600">
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-orange-50 text-brand-orange-700">
                 <TriangleAlert className="size-5" />
               </span>
               <div>
@@ -51,7 +51,7 @@ export function InstallDeleteButton({ code }: { code: string }) {
               </button>
             </div>
 
-            <ul className="mb-3 space-y-1 rounded-lg bg-red-50 p-3 text-xs text-red-800">
+            <ul className="mb-3 space-y-1 rounded-lg bg-brand-orange-50 p-3 text-xs text-brand-orange-700">
               <li>{t.docsDeletedText}<b>{t.docsDeletedBold}</b></li>
               <li>· <b>{t.stockBold}</b> {t.stockText}</li>
               <li>{t.keepHistoryHint}</li>
@@ -65,7 +65,7 @@ export function InstallDeleteButton({ code }: { code: string }) {
               placeholder={t.reasonPlaceholder}
               className={inputClass}
             />
-            {error && <p className="mt-2 text-xs font-semibold text-red-600">{error}</p>}
+            {error && <p className="mt-2 text-xs font-semibold text-brand-orange-700">{error}</p>}
 
             <div className="mt-4 flex justify-end gap-2">
               <Button tone="neutral" onClick={() => setOpen(false)} className="h-9 text-xs">

@@ -48,7 +48,7 @@ export default async function TrackSearchPage({ searchParams }: Props) {
               className="w-full text-sm outline-none"
             />
           </div>
-          <button className="h-11 rounded-lg bg-[#0536a9] px-5 text-sm font-semibold text-white">ຄົ້ນຫາ</button>
+          <button className="h-11 rounded-lg bg-brand px-5 text-sm font-semibold text-white">ຄົ້ນຫາ</button>
         </div>
         <p className="mt-2 text-[11px] text-slate-400">ເລກທີຢູ່ເທິງໃບຮັບເຄື່ອງ ຫຼື ສະແກນ QR ໃນໃບຮັບເຄື່ອງກໍໄດ້</p>
       </form>

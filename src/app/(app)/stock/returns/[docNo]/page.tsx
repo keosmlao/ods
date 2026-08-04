@@ -114,7 +114,7 @@ export default async function ReturnRequestPage({ params }: Props) {
                   <form action={removeReturnDraftLine}>
                     <input type="hidden" name="row_id" value={line.roworder} />
                     <input type="hidden" name="doc_no" value={code} />
-                    <button type="submit" title={t.removeLine} className="text-[#DE3163] hover:opacity-70">
+                    <button type="submit" title={t.removeLine} className="text-[#9f5f14] hover:opacity-70">
                       <Trash2 className="size-4" />
                     </button>
                   </form>

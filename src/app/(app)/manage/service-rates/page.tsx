@@ -109,7 +109,7 @@ export default async function ServiceRatesPage() {
                     <td className="whitespace-nowrap px-3 py-2.5 text-xs">
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                          rate.workflow === "install" ? "bg-violet-50 text-violet-700" : "bg-slate-100 text-slate-600"
+                          rate.workflow === "install" ? "bg-brand-orange-50 text-brand-orange-700" : "bg-slate-100 text-slate-600"
                         }`}
                       >
                         {rate.workflow === "install" ? t.workflowInstall : t.workflowRepair}

@@ -29,7 +29,7 @@ export function BillDismissButton({ docNo }: { docNo: string }) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-brand-900/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
             <div className="mb-3 flex items-start gap-3">
               <div className="min-w-0 flex-1">
@@ -53,7 +53,7 @@ export function BillDismissButton({ docNo }: { docNo: string }) {
               placeholder="ເຊັ່ນ: ລູກຄ້າຕິດເອງ, ຍົກເລີກ, ຕິດໄປແລ້ວແຕ່ບໍ່ໄດ້ເປີດໃບງານ..."
               className={inputClass}
             />
-            {error && <p className="mt-2 text-xs font-semibold text-red-600">{error}</p>}
+            {error && <p className="mt-2 text-xs font-semibold text-brand-orange-700">{error}</p>}
 
             <div className="mt-4 flex justify-end gap-2">
               <Button tone="neutral" onClick={() => setOpen(false)} className="h-9 text-xs">

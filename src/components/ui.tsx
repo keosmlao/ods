@@ -4,7 +4,7 @@ import type { ComponentProps, ReactNode } from "react";
 /* UI primitives ທີ່ທຸກໜ້າໃຊ້ຮ່ວມກັນ — ໃຫ້ໜ້າຕາຄືກັນທັງລະບົບ */
 
 export const inputClass =
-  "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 disabled:bg-slate-50 read-only:bg-slate-50";
+  "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100 disabled:bg-slate-50 read-only:bg-slate-50";
 
 export const labelClass = "mb-1 block text-sm text-slate-600";
 
@@ -33,10 +33,10 @@ export function Card({ title, children, actions }: { title?: ReactNode; children
 
 type ButtonTone = "primary" | "success" | "danger" | "neutral" | "info";
 const tones: Record<ButtonTone, string> = {
-  primary: "bg-teal-600 text-white hover:bg-teal-700",
-  success: "bg-emerald-600 text-white hover:bg-emerald-700",
-  danger: "bg-[#DE3163] text-white hover:opacity-90",
-  info: "bg-sky-500 text-white hover:bg-sky-600",
+  primary: "bg-brand-700 text-white hover:bg-brand-800",
+  success: "bg-brand-700 text-white hover:bg-brand-700",
+  danger: "bg-[#9f5f14] text-white hover:opacity-90",
+  info: "bg-brand-500 text-white hover:bg-brand-500",
   neutral: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
 };
 type ButtonSize = "sm" | "md";
@@ -99,5 +99,5 @@ export function Empty({ children = "ບໍ່ພົບລາຍການ" }: { c
 }
 
 export function ErrorBox({ children }: { children: ReactNode }) {
-  return <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{children}</p>;
+  return <p className="rounded-lg border border-brand-orange-400 bg-brand-orange-50 p-4 text-sm text-brand-orange-700">{children}</p>;
 }

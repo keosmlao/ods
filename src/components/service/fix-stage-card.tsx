@@ -34,21 +34,21 @@ export function FixStageCard({ code, currentStage }: { code: string; currentStag
   };
 
   return (
-    <section className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 shadow-sm">
+    <section className="rounded-xl border border-brand-orange-400 bg-brand-orange-100/40 p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="flex items-center gap-2 text-sm font-bold text-amber-800">
+        <p className="flex items-center gap-2 text-sm font-bold text-brand-900">
           <Wrench className="size-4" />
           ແກ້ຂັ້ນໃບງານໃຫ້ຕົງກັບຄວາມຈິງ
         </p>
         <button
           type="button"
           onClick={() => setOpen(!open)}
-          className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50"
+          className="rounded-lg border border-brand-orange-400 bg-white px-3 py-1.5 text-xs font-semibold text-brand-900 hover:bg-brand-orange-100"
         >
           {open ? "ປິດ" : "ເປີດ"}
         </button>
       </div>
-      <p className="mt-1 text-[11px] text-amber-700">
+      <p className="mt-1 text-[11px] text-brand-900">
         ຂັ້ນປັດຈຸບັນ: <b>{STAGE_LABEL[currentStage] ?? currentStage}</b> · ໃຊ້ເມື່ອໃບຄ້າງຢູ່ຂັ້ນຜິດ (ລືມກົດ / ຂໍ້ມູນເກົ່າ)
       </p>
 
@@ -63,7 +63,7 @@ export function FixStageCard({ code, currentStage }: { code: string; currentStag
                 onClick={() => setStage(value)}
                 className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition disabled:opacity-40 ${
                   stage === value
-                    ? "bg-amber-600 text-white"
+                    ? "bg-brand-orange-700 text-white"
                     : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
                 }`}
               >
@@ -87,26 +87,26 @@ export function FixStageCard({ code, currentStage }: { code: string; currentStag
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             placeholder="ເຫດຜົນ * (ເຊັ່ນ ຊ່າງສ້ອມຈົບແລ້ວແຕ່ລືມກົດ)"
-            className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-amber-500"
+            className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-orange-500"
           />
 
           <button
             type="button"
             disabled={pending || stage === null || !reason.trim()}
             onClick={submit}
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-amber-600 px-4 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+            className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-orange-700 px-4 text-xs font-semibold text-white hover:bg-brand-orange-700 disabled:opacity-50"
           >
             {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Wrench className="size-4" />}
             ບັນທຶກການແກ້ຂັ້ນ
           </button>
 
           {state.error && (
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-red-600">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-brand-orange-700">
               <AlertTriangle className="size-3.5" />
               {state.error}
             </p>
           )}
-          {state.ok && <p className="text-xs font-semibold text-emerald-700">{state.ok}</p>}
+          {state.ok && <p className="text-xs font-semibold text-brand-800">{state.ok}</p>}
         </div>
       )}
     </section>

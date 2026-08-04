@@ -50,7 +50,7 @@ export function RepairTransferForm({ warehouses }: { warehouses: { code: string;
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
           >
             <Plus className="size-3.5" /> ເພີ່ມອາໄຫຼ່
           </button>
@@ -80,7 +80,7 @@ export function RepairTransferForm({ warehouses }: { warehouses: { code: string;
                 <button
                   type="button"
                   onClick={() => setLines((rows) => rows.filter((_, i) => i !== index))}
-                  className="rounded p-1.5 text-red-600 hover:bg-red-50"
+                  className="rounded p-1.5 text-brand-orange-700 hover:bg-brand-orange-50"
                 >
                   <Trash2 className="size-4" />
                 </button>
@@ -98,12 +98,12 @@ export function RepairTransferForm({ warehouses }: { warehouses: { code: string;
       />
 
       {state.error && (
-        <p className="flex items-center gap-1.5 text-sm font-medium text-red-600">
+        <p className="flex items-center gap-1.5 text-sm font-medium text-brand-orange-700">
           <AlertTriangle className="size-4 shrink-0" /> {state.error}
         </p>
       )}
       {state.ok && (
-        <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700">
+        <p className="flex items-center gap-1.5 text-sm font-medium text-brand-800">
           <CheckCircle2 className="size-4 shrink-0" /> {state.ok}
         </p>
       )}
@@ -111,7 +111,7 @@ export function RepairTransferForm({ warehouses }: { warehouses: { code: string;
       <button
         type="submit"
         disabled={pending || !toWh || lines.length === 0}
-        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-50"
+        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-900 px-4 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-50"
       >
         <Truck className="size-4" /> {pending ? "ກຳລັງສ້າງໃບຂໍໂອນ..." : "ສ້າງໃບຂໍໂອນມາຫ້ອງສ້ອມ"}
       </button>

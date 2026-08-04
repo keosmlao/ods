@@ -126,7 +126,7 @@ export function AssignTechButton({
         <button
           type="button"
           onClick={openModal}
-          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white transition hover:bg-teal-700"
+          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white transition hover:bg-brand-800"
         >
           {label}
         </button>
@@ -137,7 +137,7 @@ export function AssignTechButton({
       )}
 
       {open && (
-        <div data-no-nav className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4">
+        <div data-no-nav className="fixed inset-0 z-50 grid place-items-center bg-brand-900/50 p-4">
           <form
             action={submit}
             className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
@@ -192,7 +192,7 @@ export function AssignTechButton({
                       onClick={() => setDay(quick.value)}
                       className={`h-10 shrink-0 rounded-lg border px-3 text-xs font-semibold transition ${
                         day === quick.value
-                          ? "border-teal-500 bg-teal-50 text-teal-700"
+                          ? "border-brand-600 bg-brand-50 text-brand-800"
                           : "border-slate-300 text-slate-600 hover:bg-slate-50"
                       }`}
                     >
@@ -236,15 +236,15 @@ export function AssignTechButton({
                         onClick={() => setTech(item.code)}
                         className={`flex items-center gap-2 rounded-xl border p-2.5 text-left transition ${
                           active
-                            ? "border-teal-500 bg-teal-50"
+                            ? "border-brand-600 bg-brand-50"
                             : busy
-                              ? "border-red-200 hover:border-red-300"
-                              : "border-slate-200 hover:border-teal-300"
+                              ? "border-brand-orange-400 hover:border-brand-orange-400"
+                              : "border-slate-200 hover:border-brand-300"
                         }`}
                       >
                         <span
                           className={`grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold ${
-                            active ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-500"
+                            active ? "bg-brand-700 text-white" : "bg-slate-100 text-slate-500"
                           }`}
                         >
                           {active ? <Check className="size-4" /> : (row2?.day ?? 0)}
@@ -258,7 +258,7 @@ export function AssignTechButton({
                               </span>
                             )}
                           </span>
-                          <span className={`block text-[11px] ${busy ? "font-semibold text-red-600" : "text-slate-500"}`}>
+                          <span className={`block text-[11px] ${busy ? "font-semibold text-brand-orange-700" : "text-slate-500"}`}>
                             {t.appointedThatDay} {row2?.day ?? 0} {t.jobsWord} · {t.openInHand} {row2?.open ?? 0}
                           </span>
                         </span>
@@ -269,7 +269,7 @@ export function AssignTechButton({
 
                 {/* ນັດ 4 ບ່ອນຂຶ້ນໄປໃນມື້ດຽວ = ເປັນໄປໄດ້ຍາກ ⇒ ເຕືອນ ແຕ່ບໍ່ຫ້າມ (ບາງເທື່ອບ້ານຢູ່ຕິດກັນ) */}
                 {chosen && chosen.day >= BUSY && (
-                  <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                  <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-brand-orange-50 px-3 py-2 text-xs font-semibold text-brand-orange-700">
                     <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
                     {t.thisTechBooked} {chosen.day} {t.slotsThatDayConfirm}
                   </p>
@@ -301,7 +301,7 @@ export function AssignTechButton({
               {changing && (
                 <div>
                   <label className={labelClass}>
-                    <TriangleAlert className="mr-1 inline size-3.5 text-amber-500" />
+                    <TriangleAlert className="mr-1 inline size-3.5 text-brand-orange-300" />
                     {t.changeTechReason} *
                   </label>
                   <input

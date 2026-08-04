@@ -43,7 +43,7 @@ export function RejectButton({
         type="button"
         onClick={() => setOpen(true)}
         title="ປະຕິເສດງານນີ້ (ຕ້ອງມີເຫດຜົນ)"
-        className={`inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 font-semibold text-slate-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700 ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 font-semibold text-slate-600 transition hover:border-brand-orange-400 hover:bg-brand-orange-50 hover:text-brand-orange-700 ${className}`}
       >
         <ThumbsDown className="size-3.5" />
         ບໍ່ຮັບ
@@ -52,10 +52,10 @@ export function RejectButton({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-brand-900/50 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
         <div className="mb-3 flex items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-600">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-orange-100 text-brand-900">
             <TriangleAlert className="size-5" />
           </span>
           <div className="min-w-0 flex-1">
@@ -84,7 +84,7 @@ export function RejectButton({
           placeholder="ເຊັ່ນ: ຕິດງານອື່ນມື້ນີ້, ຢູ່ໄກເກີນ, ບໍ່ຖະນັດເຄື່ອງລຸ້ນນີ້..."
           className={inputClass}
         />
-        {error && <p className="mt-2 text-xs font-semibold text-red-600">{error}</p>}
+        {error && <p className="mt-2 text-xs font-semibold text-brand-orange-700">{error}</p>}
 
         <div className="mt-4 flex justify-end gap-2">
           <Button tone="neutral" onClick={() => setOpen(false)} className="h-9 text-xs">

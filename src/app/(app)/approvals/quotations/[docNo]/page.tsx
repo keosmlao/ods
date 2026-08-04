@@ -52,7 +52,7 @@ export default async function ApproveQuotationDetailPage({ params }: Props) {
   const banner = decided ? (
     <div
       className={`rounded-xl border p-4 text-sm ${
-        head.aprove_status === 2 ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-800"
+        head.aprove_status === 2 ? "border-brand-orange-400 bg-brand-orange-50 text-brand-orange-700" : "border-brand-200 bg-brand-50 text-brand-800"
       }`}
     >
       <p className="font-semibold">

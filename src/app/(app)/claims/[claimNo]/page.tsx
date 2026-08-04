@@ -61,7 +61,7 @@ export default async function ClaimDetailPage({ params }: Props) {
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold text-[#0536a9]">{claim.claim_no}</h1>
+            <h1 className="text-lg font-bold text-brand">{claim.claim_no}</h1>
             <span className="rounded bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-600">CLM-{claim.claim_type}</span>
             <span className="text-xs text-slate-500">{CLAIM_TYPE_LABEL[claim.claim_type]}</span>
           </div>
@@ -74,13 +74,13 @@ export default async function ClaimDetailPage({ params }: Props) {
               return (
                 <span
                   key={s.status}
-                  className={`relative px-3 py-1 text-[11px] font-semibold ${i === 0 ? "rounded-l-lg" : ""} ${i === CLAIM_FLOW[claim.claim_type].length - 1 ? "rounded-r-lg" : ""} ${active ? "bg-teal-600 text-white" : done ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-400"}`}
+                  className={`relative px-3 py-1 text-[11px] font-semibold ${i === 0 ? "rounded-l-lg" : ""} ${i === CLAIM_FLOW[claim.claim_type].length - 1 ? "rounded-r-lg" : ""} ${active ? "bg-brand-700 text-white" : done ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-400"}`}
                 >
                   {s.label}
                 </span>
               );
             })}
-            {claim.status === CLAIM_REJECTED.status && <span className="ml-1 rounded-lg bg-rose-50 px-3 py-1 text-[11px] font-semibold text-rose-600">{CLAIM_REJECTED.label}</span>}
+            {claim.status === CLAIM_REJECTED.status && <span className="ml-1 rounded-lg bg-brand-orange-50 px-3 py-1 text-[11px] font-semibold text-brand-orange-700">{CLAIM_REJECTED.label}</span>}
           </div>
         </div>
       </div>
@@ -137,21 +137,21 @@ export default async function ClaimDetailPage({ params }: Props) {
                   {related.map((r) => (
                     <Link key={r.claim_no} href={`/claims/${r.claim_no}`} className="flex items-center gap-2 rounded-lg border border-slate-100 px-2.5 py-1.5 text-[12px] hover:bg-slate-50">
                       <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-600">CLM-{r.claim_type}</span>
-                      <b className="text-[#0536a9]">{r.claim_no}</b>
+                      <b className="text-brand">{r.claim_no}</b>
                       <span className="truncate text-slate-500">{CLAIM_TYPE_LABEL[r.claim_type]}</span>
-                      <span className={`ml-auto shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${isClaimOpen(r.status) ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-500"}`}>{r.status_label}</span>
+                      <span className={`ml-auto shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${isClaimOpen(r.status) ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"}`}>{r.status_label}</span>
                     </Link>
                   ))}
                 </div>
               )}
               <div className="mt-3 flex flex-wrap gap-2">
                 {!haveTypes.has("A") && (
-                  <Link href={spawnQs("A")} className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[11px] font-semibold text-violet-700 hover:bg-violet-100">
+                  <Link href={spawnQs("A")} className="inline-flex items-center gap-1 rounded-lg border border-brand-orange-200 bg-brand-orange-50 px-2.5 py-1.5 text-[11px] font-semibold text-brand-orange-700 hover:bg-brand-orange-100">
                     <Plus className="size-3.5" /> ຂໍອາໄຫຼ່ supplier (CLM-A)
                   </Link>
                 )}
                 {!haveTypes.has("C") && (
-                  <Link href={spawnQs("C")} className="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-[11px] font-semibold text-sky-700 hover:bg-sky-100">
+                  <Link href={spawnQs("C")} className="inline-flex items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-[11px] font-semibold text-brand-600 hover:bg-brand-100">
                     <Plus className="size-3.5" /> ເກັບຄ່າສ້ອມ supplier (CLM-C)
                   </Link>
                 )}

@@ -48,9 +48,9 @@ export const dynamic = "force-dynamic";
 type Tone = "red" | "amber" | "violet";
 
 const TONE: Record<Tone, { card: string; icon: string; value: string }> = {
-  red: { card: "border-red-200 hover:border-red-400", icon: "bg-red-50 text-red-600", value: "text-red-700" },
-  amber: { card: "border-amber-200 hover:border-amber-400", icon: "bg-amber-50 text-amber-700", value: "text-amber-800" },
-  violet: { card: "border-violet-200 hover:border-violet-400", icon: "bg-violet-50 text-violet-700", value: "text-violet-800" },
+  red: { card: "border-brand-orange-400 hover:border-brand-orange-600", icon: "bg-brand-orange-50 text-brand-orange-700", value: "text-brand-orange-700" },
+  amber: { card: "border-brand-orange-400 hover:border-brand-orange-500", icon: "bg-brand-orange-100 text-brand-900", value: "text-brand-900" },
+  violet: { card: "border-brand-orange-200 hover:border-brand-orange-400", icon: "bg-brand-orange-50 text-brand-orange-700", value: "text-brand-orange-700" },
 };
 
 type Action = {
@@ -98,7 +98,7 @@ export default async function ManagerOverview() {
 
   /** ຄະແນນຄວາມພໍໃຈ **ຕໍ່າ = ດີ** — ກົດດຽວກັບ scoreTone ຂອງ /dashboard */
   const score = data?.feedback.avg_points ?? 0;
-  const feedbackTone = score >= 2.5 ? "text-red-600" : score >= 1.5 ? "text-amber-600" : "text-emerald-600";
+  const feedbackTone = score >= 2.5 ? "text-brand-orange-700" : score >= 1.5 ? "text-brand-900" : "text-brand-800";
 
   return (
     <div className="w-full space-y-6">
@@ -110,15 +110,15 @@ export default async function ManagerOverview() {
       </div>
 
       {/* ── ພາດຫົວ: ອາຍຸຂອງກອງວຽກ — ຕົວເລກດຽວທີ່ບອກສຸຂະພາບຂອງສູນໄດ້ດີສຸດ ── */}
-      <section className={`rounded-2xl border p-5 shadow-sm ${stale > 0 ? "border-red-200 bg-red-50/50" : "border-emerald-200 bg-emerald-50/50"}`}>
+      <section className={`rounded-2xl border p-5 shadow-sm ${stale > 0 ? "border-brand-orange-400 bg-brand-orange-50/50" : "border-brand-200 bg-brand-50/50"}`}>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="flex items-center gap-2 text-sm font-bold text-slate-700">
-              {stale > 0 && <AlertTriangle className="size-4 text-red-600" />}
+              {stale > 0 && <AlertTriangle className="size-4 text-brand-orange-700" />}
               {t.staleTitle}
             </p>
             <p className="mt-1">
-              <span className={`text-4xl font-black ${stale > 0 ? "text-red-700" : "text-emerald-700"}`}>{stale}</span>
+              <span className={`text-4xl font-black ${stale > 0 ? "text-brand-orange-700" : "text-brand-800"}`}>{stale}</span>
               <span className="ml-2 text-sm text-slate-500">
                 {t.staleOf} {mgr.openTotal} {t.jobsUnit}
               </span>
@@ -126,7 +126,7 @@ export default async function ManagerOverview() {
           </div>
           <Link
             href="/reports/pending"
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-slate-800 px-4 text-xs font-semibold text-white hover:bg-slate-900"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-800 px-4 text-xs font-semibold text-white hover:bg-brand-900"
           >
             {t.seeAllPending}
             <ArrowRight className="size-3.5" />
@@ -141,10 +141,10 @@ export default async function ManagerOverview() {
               key={bucket.key}
               style={{ width: `${mgr.openTotal ? (bucket.n / mgr.openTotal) * 100 : 0}%` }}
               className={
-                bucket.key === "over30" ? "bg-red-500"
-                : bucket.key === "d30" ? "bg-amber-400"
-                : bucket.key === "d14" ? "bg-yellow-300"
-                : "bg-emerald-400"
+                bucket.key === "over30" ? "bg-brand-orange-700"
+                : bucket.key === "d30" ? "bg-brand-orange-300"
+                : bucket.key === "d14" ? "bg-brand-orange-300"
+                : "bg-brand-400"
               }
             />
           ))}
@@ -167,7 +167,7 @@ export default async function ManagerOverview() {
               key={flow.key}
               href={flow.href}
               className={`rounded-xl border bg-white p-4 shadow-sm transition ${
-                flow.stale > 0 ? "border-red-200 hover:border-red-400" : "border-slate-200 hover:border-teal-300"
+                flow.stale > 0 ? "border-brand-orange-400 hover:border-brand-orange-600" : "border-slate-200 hover:border-brand-300"
               }`}
             >
               <p className="text-xs font-bold text-slate-500">{flow.label}</p>
@@ -177,16 +177,16 @@ export default async function ManagerOverview() {
               </p>
               {/* ແຖບ: ແດງ = ຄ້າງເກີນ 30 ມື້ · ຂຽວ = ຍັງຢູ່ໃນເກນ */}
               <span className="mt-2 flex h-1.5 overflow-hidden rounded-full bg-slate-100">
-                <span style={{ width: `${flow.open ? (flow.stale / flow.open) * 100 : 0}%` }} className="bg-red-500" />
-                <span style={{ width: `${flow.open ? ((flow.open - flow.stale) / flow.open) * 100 : 0}%` }} className="bg-teal-400" />
+                <span style={{ width: `${flow.open ? (flow.stale / flow.open) * 100 : 0}%` }} className="bg-brand-orange-700" />
+                <span style={{ width: `${flow.open ? ((flow.open - flow.stale) / flow.open) * 100 : 0}%` }} className="bg-brand-400" />
               </span>
               <p className="mt-1.5 text-[11px] text-slate-500">
                 {flow.stale > 0 ? (
-                  <span className="font-semibold text-red-600">
+                  <span className="font-semibold text-brand-orange-700">
                     {flow.stale} {t.workflowStale}
                   </span>
                 ) : (
-                  <span className="text-emerald-600">{t.workflowClean}</span>
+                  <span className="text-brand-800">{t.workflowClean}</span>
                 )}
                 {flow.oldest_days > 0 && (
                   <span className="ml-2 text-slate-400">
@@ -203,7 +203,7 @@ export default async function ManagerOverview() {
       <section>
         <h2 className="mb-2 text-sm font-bold text-slate-700">{t.actionsTitle}</h2>
         {actions.length === 0 ? (
-          <p className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5 text-center text-sm font-semibold text-emerald-700">
+          <p className="rounded-xl border border-brand-200 bg-brand-50/50 p-5 text-center text-sm font-semibold text-brand-800">
             {t.actionsEmpty}
           </p>
         ) : (
@@ -238,7 +238,7 @@ export default async function ManagerOverview() {
               <li key={job.code}>
                 <RowLink href={`/service/${job.code}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
                   <span className="w-14 shrink-0 text-right">
-                    <span className={`text-lg font-black ${job.days > 30 ? "text-red-600" : "text-slate-700"}`}>{job.days}</span>
+                    <span className={`text-lg font-black ${job.days > 30 ? "text-brand-orange-700" : "text-slate-700"}`}>{job.days}</span>
                     <span className="ml-0.5 text-[10px] text-slate-400">{t.daysUnit}</span>
                   </span>
                   <span className="min-w-0 flex-1">
@@ -267,22 +267,22 @@ export default async function ManagerOverview() {
           {/* ເງິນ */}
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="flex items-center gap-2 text-xs font-bold text-slate-500">
-              <Wallet className="size-4 text-teal-600" />
+              <Wallet className="size-4 text-brand-700" />
               {t.moneyTitle}
             </p>
             <p className="mt-2 text-2xl font-black text-slate-800">{money(month.quoted)}</p>
             <p className="text-[11px] text-slate-400">{t.moneyQuoted}</p>
             <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-lg bg-emerald-50 p-2">
-                <dt className="text-[11px] text-emerald-700">{t.moneyPaid}</dt>
-                <dd className="font-bold text-emerald-800">{money(month.paid)}</dd>
+              <div className="rounded-lg bg-brand-50 p-2">
+                <dt className="text-[11px] text-brand-800">{t.moneyPaid}</dt>
+                <dd className="font-bold text-brand-800">{money(month.paid)}</dd>
               </div>
-              <div className="rounded-lg bg-amber-50 p-2">
-                <dt className="text-[11px] text-amber-700">{t.moneyDue}</dt>
-                <dd className="font-bold text-amber-800">{money(month.due)}</dd>
+              <div className="rounded-lg bg-brand-orange-100 p-2">
+                <dt className="text-[11px] text-brand-900">{t.moneyDue}</dt>
+                <dd className="font-bold text-brand-900">{money(month.due)}</dd>
               </div>
             </dl>
-            <Link href="/reports/service-revenue" className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-teal-600 hover:underline">
+            <Link href="/reports/service-revenue" className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-700 hover:underline">
               {t.moreReport}
               <ArrowRight className="size-3" />
             </Link>
@@ -291,11 +291,11 @@ export default async function ManagerOverview() {
           {/* ໄຫຼເຂົ້າ / ໄຫຼອອກ */}
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="flex items-center gap-2 text-xs font-bold text-slate-500">
-              {flowDelta >= 0 ? <TrendingUp className="size-4 text-emerald-600" /> : <TrendingDown className="size-4 text-red-600" />}
+              {flowDelta >= 0 ? <TrendingUp className="size-4 text-brand-800" /> : <TrendingDown className="size-4 text-brand-orange-700" />}
               {t.flowTitle}
             </p>
             <p className="mt-2">
-              <span className={`text-2xl font-black ${flowDelta >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+              <span className={`text-2xl font-black ${flowDelta >= 0 ? "text-brand-800" : "text-brand-orange-700"}`}>
                 {flowDelta > 0 ? "+" : ""}
                 {flowDelta}
               </span>
@@ -311,7 +311,7 @@ export default async function ManagerOverview() {
                 <dd className="font-bold text-slate-700">{mgr.flow.closed}</dd>
               </div>
             </dl>
-            <Link href="/reports/kpi" className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-teal-600 hover:underline">
+            <Link href="/reports/kpi" className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-700 hover:underline">
               {t.moreReport}
               <ArrowRight className="size-3" />
             </Link>
@@ -320,7 +320,7 @@ export default async function ManagerOverview() {
           {/* ຄວາມພໍໃຈລູກຄ້າ */}
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="flex items-center gap-2 text-xs font-bold text-slate-500">
-              <ClipboardCheck className="size-4 text-violet-600" />
+              <ClipboardCheck className="size-4 text-brand-orange-600" />
               {t.feedbackTitle}
             </p>
             {/*
@@ -337,12 +337,12 @@ export default async function ManagerOverview() {
             <p className="mt-1 text-[11px] text-slate-500">
               {data?.feedback.jobs ?? 0} {t.feedbackJobs}
               {(data?.feedback.unhappy_jobs ?? 0) > 0 && (
-                <span className="ml-2 font-semibold text-red-600">
+                <span className="ml-2 font-semibold text-brand-orange-700">
                   · {data?.feedback.unhappy_jobs} {t.feedbackUnhappy}
                 </span>
               )}
             </p>
-            <Link href="/reports/customer-feedback" className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-teal-600 hover:underline">
+            <Link href="/reports/customer-feedback" className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-700 hover:underline">
               {t.moreReport}
               <ArrowRight className="size-3" />
             </Link>
@@ -363,16 +363,16 @@ export default async function ManagerOverview() {
                 <span className="flex h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                   <span
                     style={{ width: `${tech.open ? (tech.stale / tech.open) * 100 : 0}%` }}
-                    className="bg-red-500"
+                    className="bg-brand-orange-700"
                   />
                   <span
                     style={{ width: `${tech.open ? ((tech.open - tech.stale) / tech.open) * 100 : 0}%` }}
-                    className="bg-teal-400"
+                    className="bg-brand-400"
                   />
                 </span>
                 <span className="w-40 shrink-0 text-right text-xs text-slate-500">
                   <b className="text-slate-700">{tech.open}</b> {t.jobsUnit}
-                  {tech.stale > 0 && <span className="ml-2 font-semibold text-red-600">{tech.stale} {t.techStale}</span>}
+                  {tech.stale > 0 && <span className="ml-2 font-semibold text-brand-orange-700">{tech.stale} {t.techStale}</span>}
                   <span className="ml-2 text-slate-400">· {tech.oldest_days}{t.daysUnit}</span>
                 </span>
               </li>

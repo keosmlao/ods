@@ -22,7 +22,7 @@ export function KindCell({ code, value, canEdit }: { code: string; value: CustKi
     return value ? (
       <span
         className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-          value === "shop" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-600"
+          value === "shop" ? "bg-brand-orange-100 text-brand-orange-700" : "bg-slate-100 text-slate-600"
         }`}
       >
         {CUST_KIND_LABEL[value]}
@@ -42,7 +42,7 @@ export function KindCell({ code, value, canEdit }: { code: string; value: CustKi
         onChange={() => formRef.current?.requestSubmit()}
         className={`h-7 rounded border px-1 text-[11px] focus:outline-none ${
           value === "shop"
-            ? "border-violet-300 bg-violet-50 text-violet-700"
+            ? "border-brand-orange-300 bg-brand-orange-50 text-brand-orange-700"
             : value === "general"
               ? "border-slate-300 bg-white text-slate-600"
               : "border-dashed border-slate-300 bg-white text-slate-400"
@@ -53,7 +53,7 @@ export function KindCell({ code, value, canEdit }: { code: string; value: CustKi
         <option value="general">{CUST_KIND_LABEL.general}</option>
       </select>
       {saving && <LoaderCircle className="size-3 animate-spin text-slate-400" />}
-      {state.error && <span className="text-[9px] font-semibold text-rose-600">{state.error}</span>}
+      {state.error && <span className="text-[9px] font-semibold text-brand-orange-700">{state.error}</span>}
     </form>
   );
 }

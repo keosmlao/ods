@@ -41,7 +41,7 @@ export function DeliveryProof({
       <button
         type="button"
         onClick={show}
-        className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+        className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-800 transition hover:bg-brand-100"
       >
         <Camera className="size-3" />
         {labels.proof} {count}
@@ -49,7 +49,7 @@ export function DeliveryProof({
 
       {open && (
         <div
-          className="fixed inset-0 z-50 grid place-items-center bg-slate-900/60 p-4"
+          className="fixed inset-0 z-50 grid place-items-center bg-brand-900/60 p-4"
           onClick={() => setOpen(false)}
         >
           <div

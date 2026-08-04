@@ -74,9 +74,9 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
   const breakdown = useMemo(() => {
     const rowStage = (r: StockCountReportRow) => (r.counted ? r.counted_stage_label ?? r.stage_label : r.stage_label) || "-";
     const groups: { key: string; label: string; tone: string; rows: StockCountReportRow[] }[] = [
-      { key: "counted", label: t.tabCounted, tone: "text-emerald-700", rows: rows.filter((r) => stateOf(r) === "counted") },
-      { key: "uncounted", label: t.tabUncounted, tone: "text-rose-600", rows: rows.filter((r) => stateOf(r) === "uncounted") },
-      { key: "missing", label: t.tabMissing, tone: "text-amber-600", rows: rows.filter((r) => stateOf(r) === "missing") },
+      { key: "counted", label: t.tabCounted, tone: "text-brand-800", rows: rows.filter((r) => stateOf(r) === "counted") },
+      { key: "uncounted", label: t.tabUncounted, tone: "text-brand-orange-700", rows: rows.filter((r) => stateOf(r) === "uncounted") },
+      { key: "missing", label: t.tabMissing, tone: "text-brand-900", rows: rows.filter((r) => stateOf(r) === "missing") },
     ];
     return groups
       .filter((g) => g.rows.length > 0)
@@ -168,7 +168,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
             <div className="space-y-2.5">
               {g.services.map((s) => (
                 <div key={s.sv}>
-                  <div className="flex items-center justify-between gap-2 text-[12px] font-bold text-sky-700">
+                  <div className="flex items-center justify-between gap-2 text-[12px] font-bold text-brand-600">
                     <span className="min-w-0 truncate">{s.sv === "?" ? "" : `${s.sv} · `}{s.svLabel}</span>
                     <span className="shrink-0 tabular-nums text-slate-500">{s.total}</span>
                   </div>
@@ -191,9 +191,9 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
       <div className="flex flex-wrap items-center gap-1.5">
         <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1">
           {tabBtn("all", t.tabAll, rows.length, "bg-slate-700 text-white")}
-          {tabBtn("counted", t.tabCounted, counts.counted, "bg-emerald-600 text-white")}
-          {tabBtn("missing", t.tabMissing, counts.missing, "bg-amber-500 text-white")}
-          {tabBtn("uncounted", t.tabUncounted, counts.uncounted, "bg-rose-600 text-white")}
+          {tabBtn("counted", t.tabCounted, counts.counted, "bg-brand-700 text-white")}
+          {tabBtn("missing", t.tabMissing, counts.missing, "bg-brand-orange-500 text-white")}
+          {tabBtn("uncounted", t.tabUncounted, counts.uncounted, "bg-brand-orange-700 text-white")}
         </div>
         {counts.counted > 0 && (
           <button
@@ -201,7 +201,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
             disabled={pending}
             onClick={resetAllCounted}
             title="ນຳ ນັບແລ້ວ ທັງໝົດ ກັບເປັນ ຍັງບໍ່ນັບ (pending)"
-            className="ml-auto inline-flex h-8 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:opacity-50"
+            className="ml-auto inline-flex h-8 items-center gap-1 rounded-lg border border-brand-orange-400 bg-brand-orange-50 px-2.5 text-xs font-semibold text-brand-orange-700 hover:bg-brand-orange-100 disabled:opacity-50"
           >
             <RotateCcw className="size-3.5" />
             ນຳ ນັບແລ້ວ ທັງໝົດ → ຍັງບໍ່ນັບ
@@ -216,7 +216,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
           <button
             type="button"
             onClick={() => setSvc("all")}
-            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${svc === "all" ? "bg-sky-600 text-white" : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50"}`}
+            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${svc === "all" ? "bg-brand-500 text-white" : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50"}`}
           >
             {t.svcAll} <span className="tabular-nums opacity-80">{statusRows.length}</span>
           </button>
@@ -225,7 +225,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
               key={key}
               type="button"
               onClick={() => setSvc(key)}
-              className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${svc === key ? "bg-sky-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${svc === key ? "bg-brand-500 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}
             >
               {key === "?" ? t.svcNone : key} <span className="tabular-nums opacity-80">{count}</span>
             </button>
@@ -261,24 +261,24 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                 return (
                   <tr
                     key={row.code}
-                    className={`border-b border-slate-100 ${state === "uncounted" ? "bg-rose-50/40" : state === "missing" ? "bg-amber-50/50" : ""}`}
+                    className={`border-b border-slate-100 ${state === "uncounted" ? "bg-brand-orange-50/40" : state === "missing" ? "bg-brand-orange-100/50" : ""}`}
                   >
                     <td className="whitespace-nowrap px-2 py-1">
                       {state === "counted" ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                        <span className="inline-flex items-center gap-1 rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-800">
                           <Check className="size-3" /> {t.stateCounted}
                         </span>
                       ) : state === "missing" ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+                        <span className="inline-flex items-center gap-1 rounded bg-brand-orange-300 px-1.5 py-0.5 text-[10px] font-semibold text-brand-900">
                           <PackageX className="size-3" /> {t.stateMissing}
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600">
+                        <span className="inline-flex items-center gap-1 rounded bg-brand-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-orange-700">
                           <Clock className="size-3" /> {t.stateNotCounted}
                         </span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-2 py-1 font-bold text-[#0536a9]">{row.code}</td>
+                    <td className="whitespace-nowrap px-2 py-1 font-bold text-brand">{row.code}</td>
                     <td className="max-w-72 px-2 py-1">
                       <span className="block truncate font-medium text-slate-800" title={row.product ?? ""}>{row.product || "-"}</span>
                       <span className="block truncate text-[10px] text-slate-400">{row.sn || "-"}</span>
@@ -287,16 +287,16 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                     <td className="max-w-48 truncate px-2 py-1" title={row.customer ?? ""}>{row.customer || "-"}</td>
                     <td className="max-w-56 truncate px-2 py-1 text-slate-600" title={row.issue ?? ""}>{row.issue || "-"}</td>
                     <td className="whitespace-nowrap px-2 py-1">
-                      {row.service_type ? <b className="text-sky-700">{row.service_type}</b> : <span className="text-slate-300">-</span>}
+                      {row.service_type ? <b className="text-brand-600">{row.service_type}</b> : <span className="text-slate-300">-</span>}
                     </td>
                     <td className="whitespace-nowrap px-2 py-1">
                       <span className="inline-flex items-center gap-1">
                         <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">{row.stage_label}</span>
                         {row.counted && row.counted_stage_label && row.counted_stage_label !== row.stage_label && (
-                          <span className="rounded bg-teal-50 px-1.5 py-0.5 text-[9px] font-semibold text-teal-700" title={t.countedStageTooltip}>{row.counted_stage_label}</span>
+                          <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[9px] font-semibold text-brand-800" title={t.countedStageTooltip}>{row.counted_stage_label}</span>
                         )}
                         {row.returned && (
-                          <span className="inline-flex items-center gap-0.5 rounded bg-amber-50 px-1 py-0.5 text-[9px] font-semibold text-amber-700" title={t.returnedTooltip}>
+                          <span className="inline-flex items-center gap-0.5 rounded bg-brand-orange-100 px-1 py-0.5 text-[9px] font-semibold text-brand-900" title={t.returnedTooltip}>
                             <TriangleAlert className="size-2.5" /> {t.returnedBadge}
                           </span>
                         )}
@@ -314,7 +314,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                         <span className="text-slate-300">-</span>
                       ) : (
                         <span className="inline-flex items-center gap-1">
-                          <Check className="size-3 text-emerald-600" />
+                          <Check className="size-3 text-brand-800" />
                           {row.counted_at || "-"}
                           {row.counted_by && <span className="text-slate-400">· {row.counted_by}</span>}
                         </span>
@@ -336,7 +336,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                               disabled={pending}
                               onClick={() => markCorrect(row.code)}
                               title="ຢືນຢັນວ່າມີເຄື່ອງ + ຂໍ້ມູນຖືກ = ນັບພົບ"
-                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                              className="inline-flex items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-800 hover:bg-brand-100 disabled:opacity-50"
                             >
                               <CheckCheck className="size-3" /> ຖືກຕ້ອງ
                             </button>
@@ -344,7 +344,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                               type="button"
                               disabled={pending}
                               onClick={() => closeAsMissing(row.code)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                              className="inline-flex items-center gap-1 rounded-lg border border-brand-orange-400 bg-brand-orange-100 px-2 py-0.5 text-[10px] font-semibold text-brand-900 hover:bg-brand-orange-300 disabled:opacity-50"
                             >
                               <PackageX className="size-3" /> {t.closeMissing}
                             </button>
@@ -358,7 +358,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                                 disabled={pending}
                                 onClick={() => toggleChecked(row.code, false)}
                                 title={`ເຊັກແລ້ວ${row.checked_by ? ` · ${row.checked_by}` : ""}${row.checked_at ? ` · ${row.checked_at}` : ""} — ກົດເພື່ອຍົກເລີກ`}
-                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-200 disabled:opacity-50"
+                                className="inline-flex items-center gap-1 rounded-lg border border-brand-200 bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand-800 hover:bg-brand-200 disabled:opacity-50"
                               >
                                 <CheckCheck className="size-3" /> ເຊັກແລ້ວ
                               </button>
@@ -368,7 +368,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                                 disabled={pending}
                                 onClick={() => toggleChecked(row.code, true)}
                                 title="ຢືນຢັນຊ້ຳວ່າເຊັກແລ້ວ"
-                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-50"
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-brand-50 hover:text-brand-800 disabled:opacity-50"
                               >
                                 <Check className="size-3" /> ເຊັກແລ້ວ
                               </button>
@@ -398,7 +398,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                           href={`/service/${row.code}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-brand-50 hover:text-brand-700"
                         >
                           {t.manageJob}
                         </a>
@@ -406,7 +406,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                           href={`/service/${row.code}/label`}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-teal-50 hover:text-teal-700"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-brand-50 hover:text-brand-800"
                         >
                           {t.printSticker}
                         </a>

@@ -50,8 +50,8 @@ export function RepairHistory({ sn, currentCode }: { sn: string; currentCode?: s
   if (items.length === 0) return null;
 
   return (
-    <section className="rounded-xl border border-amber-300 bg-amber-50/70 p-4">
-      <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-amber-800">
+    <section className="rounded-xl border border-brand-orange-400 bg-brand-orange-100/70 p-4">
+      <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-brand-900">
         <History className="size-4" />
         ເຄື່ອງໜ່ວຍນີ້ເຄີຍສ້ອມມາແລ້ວ {items.length} ຄັ້ງ
       </h3>
@@ -61,13 +61,13 @@ export function RepairHistory({ sn, currentCode }: { sn: string; currentCode?: s
             key={item.code}
             href={`/service/${item.code}`}
             target="_blank"
-            className="block rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs transition hover:border-amber-400 hover:shadow-sm"
+            className="block rounded-lg border border-brand-orange-400 bg-white px-3 py-2 text-xs transition hover:border-brand-orange-500 hover:shadow-sm"
           >
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <span className="font-bold text-[#0536a9]">#{item.code}</span>
+              <span className="font-bold text-brand">#{item.code}</span>
               <span className="text-slate-400">ຮັບ {item.received ?? "-"}</span>
               {item.returned ? (
-                <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-semibold text-emerald-700">ສົ່ງຄືນ {item.returned}</span>
+                <span className="rounded bg-brand-100 px-1.5 py-0.5 font-semibold text-brand-800">ສົ່ງຄືນ {item.returned}</span>
               ) : (
                 <span className="rounded bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-500">{item.stage ?? "ຍັງບໍ່ຈົບ"}</span>
               )}

@@ -75,7 +75,7 @@ export function CustomerTable({
         </div>
         <Link
           href="/customers/new"
-          className="inline-flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-3 text-xs font-medium text-white hover:bg-emerald-700"
+          className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-3 text-xs font-medium text-white hover:bg-brand-700"
         >
           <Plus className="size-4" />
           {t.addCustomer}
@@ -98,7 +98,7 @@ export function CustomerTable({
             className="w-full text-xs outline-none"
           />
         </div>
-        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+        <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
       </form>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -130,7 +130,7 @@ export function CustomerTable({
               {rows.map((row, index) => (
                 <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="px-3 py-2.5 text-slate-400">{(page - 1) * pageSize + index + 1}</td>
-                  <td className="whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">{row.code}</td>
+                  <td className="whitespace-nowrap px-3 py-2.5 font-bold text-brand">{row.code}</td>
                   <td className="max-w-64 px-3 py-2.5">
                     <span className="block truncate font-medium text-slate-800" title={row.name_1}>
                       {row.name_1}
@@ -160,7 +160,7 @@ export function CustomerTable({
                   <td className="whitespace-nowrap px-3 py-2.5">
                     {/* ລູກຄ້າທີ່ມີໃບຮັບເຄື່ອງແລ້ວ ລົບບໍ່ໄດ້ — ບອກໄວ້ກ່ອນ ຈຶ່ງບໍ່ຕ້ອງກົດແລ້ວຄ່ອຍຮູ້ */}
                     {row.jobs > 0 ? (
-                      <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
+                      <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">
                         {row.jobs.toLocaleString()}
                       </span>
                     ) : (
@@ -172,7 +172,7 @@ export function CustomerTable({
                       <Link
                         href={`/customers/${encodeURIComponent(row.code)}/edit`}
                         title={t.edit}
-                        className="text-[#F27B1A] transition hover:opacity-70"
+                        className="text-[#f6921e] transition hover:opacity-70"
                       >
                         <Pencil className="size-4" />
                       </Link>

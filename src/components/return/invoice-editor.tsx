@@ -66,7 +66,7 @@ function LineRow({ row, index, productCode }: { row: CartRow; index: number; pro
             type="submit"
             disabled={removing}
             title={t.deleteTitle}
-            className="grid size-7 place-items-center rounded text-slate-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+            className="grid size-7 place-items-center rounded text-slate-300 hover:bg-brand-orange-50 hover:text-brand-orange-700 disabled:opacity-50"
           >
             <Trash2 className="size-4" />
           </button>
@@ -85,13 +85,13 @@ function LineRow({ row, index, productCode }: { row: CartRow; index: number; pro
             name="qty"
             defaultValue={Number(row.qty)}
             aria-label={t.qty}
-            className="h-8 w-20 border-b border-slate-200 bg-transparent px-1 text-center outline-none focus:border-rose-300"
+            className="h-8 w-20 border-b border-slate-200 bg-transparent px-1 text-center outline-none focus:border-brand-orange-400"
           />
           <input
             name="price"
             defaultValue={Number(row.price)}
             aria-label={t.price}
-            className="h-8 w-28 border-b border-slate-200 bg-transparent px-1 text-right outline-none focus:border-rose-300"
+            className="h-8 w-28 border-b border-slate-200 bg-transparent px-1 text-right outline-none focus:border-brand-orange-400"
           />
           <span className="text-center text-slate-400">0%</span>
           <span className="w-32 text-right font-semibold">{money(Number(row.sum_amount))}</span>
@@ -99,7 +99,7 @@ function LineRow({ row, index, productCode }: { row: CartRow; index: number; pro
             {updating ? <LoaderCircle className="size-4 animate-spin" /> : t.save}
           </Button>
         </form>
-        {updateState.error && <p className="mt-1 text-right text-xs text-red-600">{updateState.error}</p>}
+        {updateState.error && <p className="mt-1 text-right text-xs text-brand-orange-700">{updateState.error}</p>}
       </td>
     </tr>
   );
@@ -113,7 +113,7 @@ function ServicePicker({ services, productCode }: { services: Service[]; product
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-500 hover:text-rose-600">
+      <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-brand-orange-700 hover:text-brand-orange-700">
         <Search className="size-4" />
         {t.addItem}
       </button>
@@ -220,8 +220,8 @@ export function InvoiceEditor({
           <input type="hidden" name="bank_value" value={bank ? bankValue : "0"} />
           <input type="hidden" name="product_code" value={head.code} />
 
-          <div className="flex min-h-12 flex-wrap items-center gap-3 border-b border-rose-100 bg-[#fffafa] px-3 py-2">
-            <Button type="submit" disabled={saving} className="h-8 rounded-md bg-[#e99a9a] px-4 text-xs text-white hover:bg-[#df8787]">
+          <div className="flex min-h-12 flex-wrap items-center gap-3 border-b border-brand-orange-200 bg-[#fef6ed] px-3 py-2">
+            <Button type="submit" disabled={saving} className="h-8 rounded-md bg-[#fbb148] px-4 text-xs text-white hover:bg-[#9f5f14]">
               {saving ? <LoaderCircle className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
               {t.save}
             </Button>
@@ -244,7 +244,7 @@ export function InvoiceEditor({
               <div className="space-y-3">
                 <div className="grid grid-cols-[130px_1fr] items-center gap-3 text-sm">
                   <label htmlFor="doc_date" className="text-slate-500">{t.docDateLabel}</label>
-                  <input id="doc_date" type="date" name="doc_date" required defaultValue={today} className="h-8 border-b border-slate-200 bg-transparent px-1 text-sm outline-none focus:border-rose-300" />
+                  <input id="doc_date" type="date" name="doc_date" required defaultValue={today} className="h-8 border-b border-slate-200 bg-transparent px-1 text-sm outline-none focus:border-brand-orange-400" />
                 </div>
                 <InvoiceField label={t.productCodeLabel} value={head.code} />
                 <InvoiceField label={t.productLabel} value={[head.product, head.brand, head.model].filter(Boolean).join(" · ")} />
@@ -281,7 +281,7 @@ export function InvoiceEditor({
                   <p className="text-right text-sm text-slate-600">= {money(bankAmount)} {t.baht}</p>
                 </div>
               </div>
-              <p className="mt-4 text-right text-sm">{t.totalReceivedLabel} <b>{money(paid)}</b> {t.baht} / {t.billTotalLabel} <b>{money(total)}</b> {t.baht}{paid < total && <span className="ml-2 text-amber-600">({t.shortBy} {money(total - paid)} {t.baht})</span>}</p>
+              <p className="mt-4 text-right text-sm">{t.totalReceivedLabel} <b>{money(paid)}</b> {t.baht} / {t.billTotalLabel} <b>{money(total)}</b> {t.baht}{paid < total && <span className="ml-2 text-brand-900">({t.shortBy} {money(total - paid)} {t.baht})</span>}</p>
             </div>
 
             <div className={activeTab === "details" ? "grid gap-8 py-6 md:grid-cols-[1fr_auto]" : "hidden"}>
@@ -298,7 +298,7 @@ export function InvoiceEditor({
 
             <div className="border-t border-slate-100 py-4">
               <label htmlFor="remark" className="text-xs text-slate-500">{t.termsRemarkLabel}</label>
-              <textarea id="remark" name="remark" rows={3} placeholder={t.remarkPlaceholder} className="mt-2 w-full resize-none border-b border-slate-200 bg-transparent px-1 py-2 text-sm outline-none focus:border-rose-300" />
+              <textarea id="remark" name="remark" rows={3} placeholder={t.remarkPlaceholder} className="mt-2 w-full resize-none border-b border-slate-200 bg-transparent px-1 py-2 text-sm outline-none focus:border-brand-orange-400" />
             </div>
           </div>
         </form>
@@ -364,11 +364,11 @@ export function InvoiceEditor({
 }
 
 function InvoiceField({ label, value, required = false }: { label: string; value: string | null; required?: boolean }) {
-  return <div className="grid grid-cols-[130px_1fr] items-center gap-3 text-sm"><span className="text-slate-500">{label}{required && <span className="ml-1 text-red-500">*</span>}</span><span className="min-h-8 border-b border-slate-200 px-1 py-1.5 text-slate-800">{value || "-"}</span></div>;
+  return <div className="grid grid-cols-[130px_1fr] items-center gap-3 text-sm"><span className="text-slate-500">{label}{required && <span className="ml-1 text-brand-orange-700">*</span>}</span><span className="min-h-8 border-b border-slate-200 px-1 py-1.5 text-slate-800">{value || "-"}</span></div>;
 }
 
 function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return <button type="button" onClick={onClick} className={`border-b-2 px-2 pb-3 text-sm ${active ? "border-rose-400 text-rose-500" : "border-transparent text-slate-500"}`}>{children}</button>;
+  return <button type="button" onClick={onClick} className={`border-b-2 px-2 pb-3 text-sm ${active ? "border-brand-orange-600 text-brand-orange-700" : "border-transparent text-slate-500"}`}>{children}</button>;
 }
 
 function SummaryRow({ label, children }: { label: string; children: React.ReactNode }) {

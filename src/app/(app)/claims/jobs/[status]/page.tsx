@@ -106,7 +106,7 @@ export default async function ClaimStagePage({ params }: { params: Promise<{ sta
               {rows.map((row) => (
                 <tr key={row.code} className="border-t border-slate-100 hover:bg-slate-50">
                   <td className="px-3 py-2">
-                    <Link href={`/claims/jobs/detail/${row.code}`} className="font-semibold text-violet-700 hover:underline">
+                    <Link href={`/claims/jobs/detail/${row.code}`} className="font-semibold text-brand-orange-700 hover:underline">
                       #{row.code}
                       <LinkPending className="ml-1 size-3" />
                     </Link>
@@ -122,7 +122,7 @@ export default async function ClaimStagePage({ params }: { params: Promise<{ sta
                   </td>
                   <td className="px-3 py-2 text-xs">
                     {row.claim_scope === "part" ? (
-                      <span className="rounded-full bg-violet-100 px-2 py-0.5 font-semibold text-violet-800">
+                      <span className="rounded-full bg-brand-orange-100 px-2 py-0.5 font-semibold text-brand-orange-700">
                         ອາໄຫຼ່ {row.claim_part_name || ""}
                       </span>
                     ) : (
@@ -131,7 +131,7 @@ export default async function ClaimStagePage({ params }: { params: Promise<{ sta
                   </td>
                   <td className="px-3 py-2 text-xs">
                     {row.claim_no ? (
-                      <Link href={`/claims/${row.claim_no}`} className="font-semibold text-teal-700 hover:underline">
+                      <Link href={`/claims/${row.claim_no}`} className="font-semibold text-brand-800 hover:underline">
                         {row.claim_no}
                       </Link>
                     ) : (
@@ -163,7 +163,7 @@ export default async function ClaimStagePage({ params }: { params: Promise<{ sta
                       {step && (
                         <Link
                           href={step.href(row.code)}
-                          className="inline-flex h-8 items-center gap-1 rounded-lg bg-violet-600 px-3 text-xs font-semibold text-white hover:bg-violet-700"
+                          className="inline-flex h-8 items-center gap-1 rounded-lg bg-brand-orange-600 px-3 text-xs font-semibold text-white hover:bg-brand-orange-700"
                         >
                           {step.label}
                           <ArrowRight className="size-3.5" />

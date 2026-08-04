@@ -76,7 +76,7 @@ export function RepairBalanceTable({
       type="button"
       onClick={() => { setTab(key); setLoc(""); setPage(1); }}
       className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-        tab === key ? "bg-slate-900 text-white shadow-sm" : "bg-white text-slate-500 hover:bg-slate-50"
+        tab === key ? "bg-brand-900 text-white shadow-sm" : "bg-white text-slate-500 hover:bg-slate-50"
       }`}
     >
       {label}
@@ -96,11 +96,11 @@ export function RepairBalanceTable({
       {shelves.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] font-semibold text-slate-400">ທີ່ຈັດເກັບ:</span>
-          <button type="button" onClick={() => { setLoc(""); setPage(1); }} className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${loc === "" ? "bg-teal-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
+          <button type="button" onClick={() => { setLoc(""); setPage(1); }} className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${loc === "" ? "bg-brand-700 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
             ທຸກທີ່ <span className="tabular-nums opacity-70">{rows.length.toLocaleString()}</span>
           </button>
           {shelves.map(([code, shelf]) => (
-            <button key={code} type="button" onClick={() => { setLoc(code); setPage(1); }} className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${loc === code ? "bg-teal-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
+            <button key={code} type="button" onClick={() => { setLoc(code); setPage(1); }} className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${loc === code ? "bg-brand-700 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
               {shelf.name ? (
                 <>
                   {shelf.name} <span className={`font-mono ${loc === code ? "opacity-70" : "text-slate-400"}`}>{code}</span>
@@ -165,7 +165,7 @@ export function RepairBalanceTable({
                             {tab === "all" && <b className="font-semibold text-slate-600">{l.wh_name}</b>}
                             {l.location_name && <span className="text-slate-600">{l.location_name}</span>}
                             <span className="font-mono">{l.location || "—"}</span>
-                            <span className="tabular-nums text-emerald-600">{fmt(l.qty)}</span>
+                            <span className="tabular-nums text-brand-800">{fmt(l.qty)}</span>
                           </span>
                         ))}
                       </span>
@@ -180,10 +180,10 @@ export function RepairBalanceTable({
                         <td key={c.code} className="px-3 py-2.5 text-right tabular-nums text-slate-600">{qty ? fmt(qty) : "–"}</td>
                       );
                     })}
-                    <td className="px-3 py-2.5 text-right font-bold tabular-nums text-emerald-600">{fmt(item.total)}</td>
+                    <td className="px-3 py-2.5 text-right font-bold tabular-nums text-brand-800">{fmt(item.total)}</td>
                   </>
                 ) : (
-                  <td className="px-3 py-2.5 text-right font-bold tabular-nums text-emerald-600">{fmt(loc ? qtyAtLoc(item, tab, loc) : qtyIn(item, tab))}</td>
+                  <td className="px-3 py-2.5 text-right font-bold tabular-nums text-brand-800">{fmt(loc ? qtyAtLoc(item, tab, loc) : qtyIn(item, tab))}</td>
                 )}
               </tr>
             ))}

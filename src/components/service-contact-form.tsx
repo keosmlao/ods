@@ -4,7 +4,7 @@ import { LoaderCircle, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100";
+const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100";
 
 /** ຄື /add_cust_contact/<code> ຂອງ ods — ເພີ່ມຮອບຕິດຕໍ່ລູກຄ້າ */
 export function ContactForm({ code, nextRound }: { code: string; nextRound: number }) {
@@ -37,13 +37,13 @@ export function ContactForm({ code, nextRound }: { code: string; nextRound: numb
           type="button"
           disabled={pending}
           onClick={submit}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:opacity-60"
         >
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Plus className="size-4" />}
           ເພີ່ມ
         </button>
       </div>
-      {error && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mt-3 rounded-lg border border-brand-orange-400 bg-brand-orange-50 p-2 text-sm text-brand-orange-700">{error}</p>}
     </div>
   );
 }

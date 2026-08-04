@@ -39,28 +39,28 @@ export function JobTimeline({
               <li key={step.stage} className="relative min-w-32 px-2 text-center">
                 {index > 0 && (
                   <span
-                    className={`absolute left-0 right-1/2 top-[7px] h-0.5 ${reached ? "bg-emerald-500" : "bg-slate-200"}`}
+                    className={`absolute left-0 right-1/2 top-[7px] h-0.5 ${reached ? "bg-brand-700" : "bg-slate-200"}`}
                     aria-hidden
                   />
                 )}
                 {index < steps.length - 1 && (
                   <span
-                    className={`absolute left-1/2 right-0 top-[7px] h-0.5 ${done ? "bg-emerald-500" : "bg-slate-200"}`}
+                    className={`absolute left-1/2 right-0 top-[7px] h-0.5 ${done ? "bg-brand-700" : "bg-slate-200"}`}
                     aria-hidden
                   />
                 )}
                 <span
                   className={`relative z-[1] mx-auto grid size-4 place-items-center rounded-full border-2 ${
                     done
-                      ? "border-emerald-600 bg-emerald-600 text-white"
+                      ? "border-brand-600 bg-brand-700 text-white"
                       : current
-                        ? "border-blue-600 bg-blue-600 text-white ring-4 ring-blue-100"
+                        ? "border-brand-600 bg-brand-600 text-white ring-4 ring-brand-100"
                         : "border-slate-300 bg-white text-transparent"
                   }`}
                 >
                   {reached && <Check className="size-2.5" strokeWidth={4} />}
                 </span>
-                <span className={`mt-2 block text-[10px] font-semibold ${current ? "text-blue-700" : done ? "text-slate-700" : "text-slate-400"}`}>
+                <span className={`mt-2 block text-[10px] font-semibold ${current ? "text-brand-700" : done ? "text-slate-700" : "text-slate-400"}`}>
                   {step.label}
                 </span>
                 <span className="mt-0.5 block text-[9px] tabular-nums text-slate-400">{step.at || "ລໍຖ້າ"}</span>
@@ -75,9 +75,9 @@ export function JobTimeline({
           })}
           {cancelledAt && (
             <li className="relative min-w-32 px-2 text-center">
-              <span className="absolute left-0 right-1/2 top-[7px] h-0.5 bg-rose-400" aria-hidden />
-              <span className="relative z-[1] mx-auto block size-4 rounded-full border-2 border-rose-600 bg-rose-600" />
-              <span className="mt-2 block text-[10px] font-semibold text-rose-700">ຂໍຍົກເລີກ</span>
+              <span className="absolute left-0 right-1/2 top-[7px] h-0.5 bg-brand-orange-400" aria-hidden />
+              <span className="relative z-[1] mx-auto block size-4 rounded-full border-2 border-brand-orange-600 bg-brand-orange-700" />
+              <span className="mt-2 block text-[10px] font-semibold text-brand-orange-700">ຂໍຍົກເລີກ</span>
               <span className="mt-0.5 block text-[9px] text-slate-400">{cancelledAt}</span>
             </li>
           )}
@@ -94,19 +94,19 @@ export function JobTimeline({
           // ງານຈົບແລ້ວ (ຂັ້ນສຸດທ້າຍຜ່ານແລ້ວ) — ໝາຍຂຽວຄົງທີ່ ບໍ່ກະພິບ
           const finished = done && last;
           const dot = current
-            ? "border-indigo-500 bg-indigo-500"
+            ? "border-brand-600 bg-brand-600"
             : finished
-              ? "border-emerald-500 bg-emerald-500"
+              ? "border-brand-600 bg-brand-700"
               : done
-                ? "border-indigo-500 bg-white"
+                ? "border-brand-600 bg-white"
                 : "border-slate-300 bg-white";
           return (
             <li key={s.stage} className="relative flex gap-3 pb-4 last:pb-0">
-              {!last && <span className={`absolute left-[7px] top-4 h-full w-px ${done ? "bg-indigo-300" : "bg-slate-200"}`} aria-hidden />}
+              {!last && <span className={`absolute left-[7px] top-4 h-full w-px ${done ? "bg-brand-300" : "bg-slate-200"}`} aria-hidden />}
               <span className={`relative z-[1] mt-0.5 size-3.5 shrink-0 rounded-full border-2 ${dot} ${current ? "animate-pulse" : ""}`} aria-hidden />
               <div className="-mt-0.5 min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-                  <span className={`text-sm font-semibold ${current ? "text-indigo-700" : finished ? "text-emerald-700" : done ? "text-slate-700" : "text-slate-400"}`}>{s.label}</span>
+                  <span className={`text-sm font-semibold ${current ? "text-brand-700" : finished ? "text-brand-800" : done ? "text-slate-700" : "text-slate-400"}`}>{s.label}</span>
                   {s.at && <span className="text-[11px] tabular-nums text-slate-400">{s.at}</span>}
                 </div>
                 {s.durationSeconds != null ? (
@@ -124,9 +124,9 @@ export function JobTimeline({
         })}
         {cancelledAt && (
           <li className="relative flex gap-3">
-            <span className="relative z-[1] mt-0.5 size-3.5 shrink-0 rounded-full border-2 border-rose-500 bg-rose-500" aria-hidden />
+            <span className="relative z-[1] mt-0.5 size-3.5 shrink-0 rounded-full border-2 border-brand-orange-600 bg-brand-orange-700" aria-hidden />
             <div className="-mt-0.5">
-              <span className="text-sm font-semibold text-rose-600">ຂໍຍົກເລີກ</span>
+              <span className="text-sm font-semibold text-brand-orange-700">ຂໍຍົກເລີກ</span>
               <span className="ml-2 text-[11px] tabular-nums text-slate-400">{cancelledAt}</span>
             </div>
           </li>

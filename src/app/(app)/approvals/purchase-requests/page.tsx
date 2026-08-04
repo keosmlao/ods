@@ -85,7 +85,7 @@ export default async function ApprovePurchasePage({ searchParams }: Props) {
             key={key}
             href={key === "waiting" ? "/approvals/purchase-requests" : "/approvals/purchase-requests?tab=approved"}
             className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-              tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+              tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
             }`}
           >
             <Icon className="size-3.5" />
@@ -114,14 +114,14 @@ export default async function ApprovePurchasePage({ searchParams }: Props) {
               {rows.map((row) => (
                 <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="px-3 py-2.5 font-bold">
-                    <Link href={`/purchase-orders/${encodeURIComponent(row.doc_no)}`} className="text-[#0536a9] hover:underline">
+                    <Link href={`/purchase-orders/${encodeURIComponent(row.doc_no)}`} className="text-brand hover:underline">
                       {row.doc_no}
                     </Link>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5">{row.doc_date ?? "-"}</td>
                   <td className="px-3 py-2.5">
                     {isJobCode(row.job) ? (
-                      <Link href={`/service/${row.job}`} className="font-medium text-[#0536a9] hover:underline">
+                      <Link href={`/service/${row.job}`} className="font-medium text-brand hover:underline">
                         {row.job}
                       </Link>
                     ) : (
@@ -142,7 +142,7 @@ export default async function ApprovePurchasePage({ searchParams }: Props) {
                     {tab === "waiting" && (
                       <Link
                         href={`/purchase-orders/${encodeURIComponent(row.doc_no)}`}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
                       >
                         ອະນຸມັດ
                         <ArrowRight className="size-3.5" />

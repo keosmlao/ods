@@ -59,7 +59,7 @@ export function DocForm({
       <SaveBar backHref={backHref} exitAction={exitAction} disabled={disabled} />
       <FormError message={state.error} />
 
-      <div className="grid gap-4 rounded-xl bg-[#0a5e96] p-5 text-white md:grid-cols-2">
+      <div className="grid gap-4 rounded-xl bg-[#2c6fb6] p-5 text-white md:grid-cols-2">
         <div className="space-y-1 text-sm">
           <p>
             <span className="text-white/70">{t.dateLabel}</span> {today}
@@ -73,7 +73,7 @@ export function DocForm({
           {fields.map((field) => (
             <p key={field.label}>
               <span className="text-white/70">{field.label}</span>{" "}
-              <span className={field.accent ? "text-[#ffd0d0]" : undefined}>{field.value || "-"}</span>
+              <span className={field.accent ? "text-[#ffd071]" : undefined}>{field.value || "-"}</span>
             </p>
           ))}
         </div>

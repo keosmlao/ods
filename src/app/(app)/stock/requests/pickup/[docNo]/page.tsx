@@ -116,7 +116,7 @@ export default async function SparePickupDetail({ params }: Props) {
       </Card>
 
       {head.picked ? (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center text-sm font-semibold text-emerald-700">
+        <p className="rounded-lg border border-brand-200 bg-brand-50 p-4 text-center text-sm font-semibold text-brand-800">
           {t.alreadyPicked}
         </p>
       ) : (

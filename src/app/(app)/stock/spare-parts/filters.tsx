@@ -69,7 +69,7 @@ export function SpareFilters({
         />
       </div>
 
-      <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
+      <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">ຄົ້ນຫາ</button>
     </form>
   );
 }

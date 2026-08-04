@@ -30,7 +30,7 @@ export function ApprovePoButton({ poNo, back }: { poNo: string; back?: string })
             });
             if (ok) formRef.current?.requestSubmit();
           }}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
         >
           {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
           ອະນຸມັດ PO

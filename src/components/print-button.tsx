@@ -10,7 +10,7 @@ export function PrintButton({ label = "ພິມ / ບັນທຶກ PDF" }: { 
     <button
       type="button"
       onClick={() => window.print()}
-      className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#0536a9] px-4 text-xs font-semibold text-white transition hover:opacity-90"
+      className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand px-4 text-xs font-semibold text-white transition hover:opacity-90"
     >
       <Printer className="size-3.5" />
       {label}

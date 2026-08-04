@@ -74,17 +74,17 @@ export async function PurchaseState({ track, compact }: { track: PurchaseTrack |
           return (
             <span key={step.label} className={`flex items-center ${index > 0 ? "flex-1" : ""}`}>
               {index > 0 && (
-                <span className={`h-0.5 min-w-2 flex-1 ${done ? "bg-emerald-400" : "bg-slate-200"}`} />
+                <span className={`h-0.5 min-w-2 flex-1 ${done ? "bg-brand-400" : "bg-slate-200"}`} />
               )}
               <span
                 title={`${step.label}${step.no ? ` · ${step.no}` : ""}${step.date ? ` · ${step.date}` : current ? ` · ${t.waiting}` : ""}`}
                 className={`grid ${size} shrink-0 place-items-center rounded-full border ${
                   alert
-                    ? "border-red-600 bg-red-600 text-white"
+                    ? "border-brand-orange-600 bg-brand-orange-700 text-white"
                     : done
-                      ? "border-emerald-600 bg-emerald-600 text-white"
+                      ? "border-brand-600 bg-brand-700 text-white"
                       : current
-                        ? "border-blue-600 bg-white ring-2 ring-blue-100"
+                        ? "border-brand-600 bg-white ring-2 ring-brand-100"
                         : "border-slate-300 bg-white"
                 }`}
               >
@@ -125,22 +125,22 @@ export async function PurchaseState({ track, compact }: { track: PurchaseTrack |
       {/* ແຖວຄວາມໝາຍ — ຂັ້ນທີ່ກຳລັງລໍ + ໃບຫຼ້າສຸດ + ອາຍຸ */}
       <div className={`flex flex-wrap items-center gap-x-1.5 gap-y-0.5 ${compact ? "text-[10px]" : "text-xs"}`}>
         {stuck ? (
-          <span className="font-bold text-red-700">
+          <span className="font-bold text-brand-orange-700">
             {t.goodsInWarehouse}{track.days_since_receipt !== null && ` ${track.days_since_receipt} ${t.daysUnit}`}
             {!compact && ` — ${t.shouldProceed}`}
           </span>
         ) : (
           <>
-            <span className="font-semibold text-blue-700">{t.waitPrefix}{waiting?.label ?? "-"}</span>
+            <span className="font-semibold text-brand-700">{t.waitPrefix}{waiting?.label ?? "-"}</span>
             {partial && (
-              <span className="font-semibold text-amber-700">
+              <span className="font-semibold text-brand-900">
                 {t.arrived} {track.items_received}/{track.items}
               </span>
             )}
             {idle !== null && idle > 0 && (
               <span
                 className={`rounded px-1 py-px text-[9px] font-bold ${
-                  idle >= 7 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800"
+                  idle >= 7 ? "bg-brand-orange-100 text-brand-orange-700" : "bg-brand-orange-300 text-brand-900"
                 }`}
                 title={`${t.lastMovement} ${lastDone?.date ?? "-"} (${lastDone?.no ?? "-"})`}
               >

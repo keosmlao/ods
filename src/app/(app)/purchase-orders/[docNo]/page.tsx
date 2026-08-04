@@ -251,9 +251,9 @@ export default async function PurchaseDocPage({ params }: Props) {
               key={label}
               className={`flex items-center gap-1 px-3 py-1.5 ${
                 index === state
-                  ? "bg-[#0536a9] text-white"
+                  ? "bg-brand text-white"
                   : index < state
-                    ? "bg-emerald-50 text-emerald-700"
+                    ? "bg-brand-50 text-brand-800"
                     : "bg-white text-slate-400"
               }`}
             >
@@ -286,7 +286,7 @@ export default async function PurchaseDocPage({ params }: Props) {
                 {wpra && (
                   <Link
                     href={`/purchase-orders/new?from=${encodeURIComponent(wpra.doc_no)}`}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-4 text-xs font-semibold text-white hover:bg-teal-700"
+                    className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-xs font-semibold text-white hover:bg-brand-800"
                   >
                     <ShoppingCart className="size-3.5" />
                     {t.issuePo}
@@ -328,7 +328,7 @@ export default async function PurchaseDocPage({ params }: Props) {
           </div>
         )}
         {fullyReceived && (
-          <p className="text-xs font-semibold text-emerald-700">
+          <p className="text-xs font-semibold text-brand-800">
             {t.receivedAllPrefix} ({receipts.map((r) => r.doc_no).join(", ")}) {t.chainDone}
           </p>
         )}
@@ -367,7 +367,7 @@ export default async function PurchaseDocPage({ params }: Props) {
                     {po && (
                       <td className="px-3 py-2 text-center">
                         {receivedItems.has(line.item_code) ? (
-                          <Check className="inline size-3.5 text-emerald-600" strokeWidth={3} />
+                          <Check className="inline size-3.5 text-brand-800" strokeWidth={3} />
                         ) : (
                           <span className="text-[10px] text-slate-400">{t.awaitingGoods}</span>
                         )}
@@ -399,7 +399,7 @@ export default async function PurchaseDocPage({ params }: Props) {
                 <dt className="text-slate-400">{t.repairJob}</dt>
                 <dd>
                   {isJobCode(jobRef) ? (
-                    <Link href={`/service/${jobRef}`} className="font-medium text-[#0536a9] hover:underline">{jobRef}</Link>
+                    <Link href={`/service/${jobRef}`} className="font-medium text-brand hover:underline">{jobRef}</Link>
                   ) : jobRef ? (
                     // ໃບເກົ່າ doc_ref ເປັນເລກ RQ/ຂໍ້ຄວາມ — ສະແດງຕາມຕົວ ບໍ່ລິ້ງ
                     <span className="font-mono text-[11px] text-slate-500">{jobRef}</span>
@@ -494,7 +494,7 @@ export default async function PurchaseDocPage({ params }: Props) {
               {receipts.map((receipt) => (
                 <li key={receipt.doc_no} className="flex items-center justify-between gap-2">
                   <span className="text-slate-400">{t.chainReceipt}</span>
-                  <span className="font-mono text-[11px] font-medium text-emerald-700">
+                  <span className="font-mono text-[11px] font-medium text-brand-800">
                     {receipt.doc_no} <span className="text-slate-400">· {receipt.doc_date ?? "-"} · {receipt.items} {t.itemsWord}</span>
                   </span>
                 </li>

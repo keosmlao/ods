@@ -86,7 +86,7 @@ export default async function ReturnHandoverPrintPage({
         <PrintButton label="ພິມໃບຄືນເຄື່ອງ / PDF" />
       </div>
 
-      <header className="flex items-start justify-between gap-6 border-b-2 border-slate-900 pb-4 text-sm">
+      <header className="flex items-start justify-between gap-6 border-b-2 border-brand-900 pb-4 text-sm">
         <div>
           <p className="text-base font-bold">{company?.name_1}</p>
           <p>{company?.name_2}</p>
@@ -101,9 +101,9 @@ export default async function ReturnHandoverPrintPage({
 
       <h1 className="my-5 text-center text-2xl font-bold">ໃບສົ່ງຄືນເຄື່ອງ</h1>
 
-      <section className="grid grid-cols-2 border-l border-t border-slate-900 text-sm">
+      <section className="grid grid-cols-2 border-l border-t border-brand-900 text-sm">
         {fields.map(([label, value]) => (
-          <div key={label} className="min-h-14 border-b border-r border-slate-900 p-2">
+          <div key={label} className="min-h-14 border-b border-r border-brand-900 p-2">
             <p className="text-xs text-slate-500">{label}</p>
             <p className="mt-1 font-medium">{value || "-"}</p>
           </div>
@@ -117,7 +117,7 @@ export default async function ReturnHandoverPrintPage({
       <div className="mt-20 grid grid-cols-3 gap-8 text-center text-sm">
         {["ຜູ້ສົ່ງມອບ", "ຜູ້ຮັບເຄື່ອງ", "ຜູ້ອະນຸມັດ"].map((label) => (
           <div key={label}>
-            <div className="border-t border-slate-900 pt-2">{label}</div>
+            <div className="border-t border-brand-900 pt-2">{label}</div>
             <p className="mt-1 text-xs text-slate-500">ວັນທີ ____ / ____ / ______</p>
           </div>
         ))}

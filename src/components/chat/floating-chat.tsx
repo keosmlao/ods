@@ -120,7 +120,7 @@ export function FloatingChat({ unread }: { unread: number }) {
                       value={term}
                       onChange={(event) => setTerm(event.target.value)}
                       placeholder="ຄົ້ນຫາຊື່..."
-                      className="h-8 w-full rounded-lg border border-slate-300 pl-7 pr-2 text-xs focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100"
+                      className="h-8 w-full rounded-lg border border-slate-300 pl-7 pr-2 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
                     />
                   </div>
 
@@ -142,7 +142,7 @@ export function FloatingChat({ unread }: { unread: number }) {
                         <span className="flex items-center gap-1">
                           <span className="truncate font-semibold">{contact.name}</span>
                           {contact.unread > 0 && (
-                            <span className="ml-auto grid min-w-4 shrink-0 place-items-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white">
+                            <span className="ml-auto grid min-w-4 shrink-0 place-items-center rounded-full bg-brand-orange-700 px-1 text-[9px] font-bold text-white">
                               {contact.unread}
                             </span>
                           )}
@@ -164,11 +164,11 @@ export function FloatingChat({ unread }: { unread: number }) {
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-label="ສົນທະນາ"
-        className="no-print fixed bottom-4 right-4 z-50 grid size-12 place-items-center rounded-full bg-[#0536a9] text-white shadow-lg transition hover:opacity-90"
+        className="no-print fixed bottom-4 right-4 z-50 grid size-12 place-items-center rounded-full bg-brand text-white shadow-lg transition hover:opacity-90"
       >
         {open ? <X className="size-5" /> : <MessageCircle className="size-5" />}
         {!open && badge > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 grid min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+          <span className="absolute -right-0.5 -top-0.5 grid min-w-5 place-items-center rounded-full bg-brand-orange-700 px-1 text-[10px] font-bold text-white ring-2 ring-white">
             {badge > 99 ? "99+" : badge}
           </span>
         )}

@@ -58,16 +58,16 @@ export const INSTALL_STAGE_LABEL: Record<number, string> = {
 
 /** ສີຂອງປ້າຍສະຖານະ — ໃຫ້ໜ້າຕາຄືກັນທຸກໜ້າ */
 export const INSTALL_STAGE_CHIP: Record<number, string> = {
-  [-1]: "bg-red-100 text-red-700",
-  0: "bg-amber-100 text-amber-800",
-  1: "bg-amber-100 text-amber-800",
-  2: "bg-blue-50 text-blue-700",
-  3: "bg-blue-50 text-blue-700",
-  4: "bg-indigo-50 text-indigo-700",
-  5: "bg-cyan-100 text-cyan-800",
-  6: "bg-purple-100 text-purple-800",
-  7: "bg-teal-50 text-teal-700",
-  8: "bg-orange-50 text-orange-700",
+  [-1]: "bg-brand-orange-100 text-brand-orange-700",
+  0: "bg-brand-orange-300 text-brand-900",
+  1: "bg-brand-orange-300 text-brand-900",
+  2: "bg-brand-50 text-brand-700",
+  3: "bg-brand-50 text-brand-700",
+  4: "bg-brand-50 text-brand-700",
+  5: "bg-brand-100 text-brand-700",
+  6: "bg-brand-300 text-brand-900",
+  7: "bg-brand-50 text-brand-800",
+  8: "bg-brand-orange-50 text-brand-orange-700",
   9: "bg-slate-100 text-slate-600",
 };
 

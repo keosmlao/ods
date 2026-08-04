@@ -57,7 +57,7 @@ export type ServiceHead = {
   claim_no: string | null;
 };
 
-const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 disabled:bg-slate-50 read-only:bg-slate-50";
+const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100 disabled:bg-slate-50 read-only:bg-slate-50";
 const label = "mb-1 block text-sm text-slate-600";
 
 /** ຮູບ 1 ຊ່ອງ — ສະແດງຮູບເກົ່າ ແລະເລືອກຮູບໃໝ່ໄດ້ (ຮູບໃໝ່ຈະຖືກເພີ່ມເຂົ້າ ຄື update_rcpro ຂອງ ods) */
@@ -92,7 +92,7 @@ function ImageSlot({ name, index, current, t }: { name: string; index: number; c
         <button
           type="button"
           onClick={() => { if (inputRef.current) inputRef.current.value = ""; setPreview((old) => { if (old) URL.revokeObjectURL(old); return ""; }); }}
-          className="mt-2 text-xs text-red-600 hover:underline"
+          className="mt-2 text-xs text-brand-orange-700 hover:underline"
         >
           {t.removeImage}
         </button>
@@ -165,18 +165,18 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
       <div className="sticky top-20 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <button
           disabled={pending}
-          className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-700 px-5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
         >
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
           {pending ? t.saving : t.save}
         </button>
-        <Link href="/service" className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#DE3163] px-5 text-sm font-semibold text-white transition hover:opacity-90">
+        <Link href="/service" className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#9f5f14] px-5 text-sm font-semibold text-white transition hover:opacity-90">
           <LogOut className="size-4" />
           {t.exit}
         </Link>
       </div>
 
-      {state.error && <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{state.error}</p>}
+      {state.error && <p className="rounded-lg border border-brand-orange-400 bg-brand-orange-50 p-4 text-sm text-brand-orange-700">{state.error}</p>}
 
       {/* ປະເພດງານ — ໂຄງດຽວກັນກັບຟອມເປີດງານ (service-form.tsx) */}
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -186,7 +186,7 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
             type="button"
             disabled={claimLocked}
             onClick={() => setJobKind("repair")}
-            className={`rounded-xl border p-3 text-left disabled:cursor-not-allowed disabled:opacity-60 ${jobKind === "repair" ? "border-teal-500 bg-teal-50 ring-2 ring-teal-100" : "border-slate-200"}`}
+            className={`rounded-xl border p-3 text-left disabled:cursor-not-allowed disabled:opacity-60 ${jobKind === "repair" ? "border-brand-600 bg-brand-50 ring-2 ring-brand-100" : "border-slate-200"}`}
           >
             <b className="block text-sm">{t.kindRepair}</b>
             <span className="text-xs text-slate-500">{t.kindRepairHint}</span>
@@ -194,7 +194,7 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
           <button
             type="button"
             onClick={() => pickClaim()}
-            className={`rounded-xl border p-3 text-left ${jobKind === "claim" ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100" : "border-slate-200"}`}
+            className={`rounded-xl border p-3 text-left ${jobKind === "claim" ? "border-brand-orange-500 bg-brand-orange-50 ring-2 ring-brand-orange-100" : "border-slate-200"}`}
           >
             <b className="block text-sm">{t.kindClaim}</b>
             <span className="text-xs text-slate-500">{t.kindClaimHint}</span>
@@ -203,7 +203,7 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
         <input type="hidden" name="job_kind" value={jobKind} />
 
         {claimLocked && (
-          <p className="mt-2 rounded-lg bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800">
+          <p className="mt-2 rounded-lg bg-brand-orange-50 px-3 py-2 text-xs font-semibold text-brand-orange-700">
             {t.claimLockedPrefix}{" "}
             <Link href={`/claims/${encodeURIComponent(head.claim_no ?? "")}`} className="underline">
               {head.claim_no}
@@ -213,21 +213,21 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
         )}
 
         {jobKind === "claim" && (
-          <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50/50 p-3">
-            <p className="mb-2 text-xs font-bold text-violet-800">{t.claimScopeQuestion}</p>
-            {!claimLocked && <p className="mb-2 text-[11px] text-violet-700">{t.claimServiceHint}</p>}
+          <div className="mt-3 rounded-xl border border-brand-orange-200 bg-brand-orange-50/50 p-3">
+            <p className="mb-2 text-xs font-bold text-brand-orange-700">{t.claimScopeQuestion}</p>
+            {!claimLocked && <p className="mb-2 text-[11px] text-brand-orange-700">{t.claimServiceHint}</p>}
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => setClaimScope("whole")}
-                className={`rounded-lg px-3 py-2 text-xs font-semibold ${claimScope === "whole" ? "bg-violet-600 text-white" : "border border-violet-200 bg-white text-violet-700"}`}
+                className={`rounded-lg px-3 py-2 text-xs font-semibold ${claimScope === "whole" ? "bg-brand-orange-600 text-white" : "border border-brand-orange-200 bg-white text-brand-orange-700"}`}
               >
                 {t.claimWhole}
               </button>
               <button
                 type="button"
                 onClick={() => setClaimScope("part")}
-                className={`rounded-lg px-3 py-2 text-xs font-semibold ${claimScope === "part" ? "bg-violet-600 text-white" : "border border-violet-200 bg-white text-violet-700"}`}
+                className={`rounded-lg px-3 py-2 text-xs font-semibold ${claimScope === "part" ? "bg-brand-orange-600 text-white" : "border border-brand-orange-200 bg-white text-brand-orange-700"}`}
               >
                 {t.claimPart}
               </button>
@@ -259,7 +259,7 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className="relative">
             <label className={label}>{t.customerCode} *</label>
-            <div className="flex h-10 items-center rounded-lg border border-slate-300 px-3 focus-within:border-teal-500">
+            <div className="flex h-10 items-center rounded-lg border border-slate-300 px-3 focus-within:border-brand-600">
               <Search className="size-4 shrink-0 text-slate-400" />
               <input
                 value={q}
@@ -275,7 +275,7 @@ export function ServiceEditForm({ head, types, brands, techs, images }: {
                     type="button"
                     key={c.code}
                     onClick={() => { setSelected(c); setQ(c.name_1); setCustomers([]); }}
-                    className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-teal-50"
+                    className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-brand-50"
                   >
                     <b>{c.name_1}</b>
                     <span className="ml-2 text-xs text-slate-400">{c.code} · {c.tel}</span>

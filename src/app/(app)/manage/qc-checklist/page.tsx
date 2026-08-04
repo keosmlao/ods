@@ -36,7 +36,7 @@ export default async function QcChecklistPage() {
       {(["install", "repair"] as const)
         .filter((workflow) => !items.some((item) => item.workflow === workflow && item.is_active))
         .map((workflow) => (
-          <p key={workflow} className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <p key={workflow} className="rounded-lg border border-brand-orange-400 bg-brand-orange-100 p-4 text-sm text-brand-900">
             {t.workflow} <b>{WORKFLOW_LABEL[workflow]}</b> {t.warnMid}
             <b> {t.warnHighlight}</b> {t.warnSuffix}
           </p>
@@ -69,12 +69,12 @@ export default async function QcChecklistPage() {
                     <td className="px-3 py-2.5 font-semibold text-slate-700">{item.name}</td>
                     <td className="px-3 py-2.5 text-center text-slate-500">{item.sort_order}</td>
                     <td className="px-3 py-2.5 text-center">
-                      {item.require_photo ? <Camera className="mx-auto size-4 text-teal-600" /> : "-"}
+                      {item.require_photo ? <Camera className="mx-auto size-4 text-brand-700" /> : "-"}
                     </td>
                     <td className="px-3 py-2.5 text-center">
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          item.is_active ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500"
+                          item.is_active ? "bg-brand-100 text-brand-800" : "bg-slate-200 text-slate-500"
                         }`}
                       >
                         {item.is_active ? t.statusActive : t.statusInactive}

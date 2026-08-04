@@ -6,8 +6,8 @@
 export function elapsedTone(seconds: number | null) {
   if (seconds == null) return { chip: "bg-slate-100 text-slate-500", bar: "bg-slate-200" };
   const days = seconds / 86400;
-  if (days >= 30) return { chip: "bg-red-600 text-white", bar: "bg-red-600" };
-  if (days >= 7) return { chip: "bg-red-100 text-red-700", bar: "bg-red-400" };
-  if (days >= 3) return { chip: "bg-amber-100 text-amber-800", bar: "bg-amber-400" };
+  if (days >= 30) return { chip: "bg-brand-orange-700 text-white", bar: "bg-brand-orange-700" };
+  if (days >= 7) return { chip: "bg-brand-orange-100 text-brand-orange-700", bar: "bg-brand-orange-400" };
+  if (days >= 3) return { chip: "bg-brand-orange-300 text-brand-900", bar: "bg-brand-orange-300" };
   return { chip: "bg-slate-100 text-slate-600", bar: "bg-slate-200" };
 }

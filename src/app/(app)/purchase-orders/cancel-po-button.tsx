@@ -22,7 +22,7 @@ export function CancelPoButton({ poNo, back }: { poNo: string; back?: string }) 
       <button
         type="button"
         onClick={() => ref.current?.showModal()}
-        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-rose-300 bg-white px-3 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-brand-orange-400 bg-white px-3 text-xs font-semibold text-brand-orange-700 hover:bg-brand-orange-50"
       >
         <X className="size-3.5" />
         ຍົກເລີກ PO
@@ -39,28 +39,28 @@ export function CancelPoButton({ poNo, back }: { poNo: string; back?: string }) 
           </p>
 
           <fieldset className="space-y-2">
-            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 p-2.5 text-xs has-[:checked]:border-rose-400 has-[:checked]:bg-rose-50/50">
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 p-2.5 text-xs has-[:checked]:border-brand-orange-600 has-[:checked]:bg-brand-orange-50/50">
               <input
                 type="radio"
                 name="mode"
                 value="po"
                 checked={mode === "po"}
                 onChange={() => setMode("po")}
-                className="mt-0.5 accent-rose-600"
+                className="mt-0.5 accent-brand-orange-700"
               />
               <span>
                 <span className="block font-semibold text-slate-700">ຍົກເລີກສະເພາະໃບສັ່ງຊື້ — ຈະອອກ PO ໃໝ່</span>
                 <span className="text-slate-500">ໃບຂໍຊື້ຍັງຢູ່ ກັບໄປຄິວ &quot;ລໍອອກ PO&quot; ເລືອກຜູ້ສະໜອງ/ລາຄາໃໝ່ໄດ້</span>
               </span>
             </label>
-            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 p-2.5 text-xs has-[:checked]:border-rose-400 has-[:checked]:bg-rose-50/50">
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 p-2.5 text-xs has-[:checked]:border-brand-orange-600 has-[:checked]:bg-brand-orange-50/50">
               <input
                 type="radio"
                 name="mode"
                 value="chain"
                 checked={mode === "chain"}
                 onChange={() => setMode("chain")}
-                className="mt-0.5 accent-rose-600"
+                className="mt-0.5 accent-brand-orange-700"
               />
               <span>
                 <span className="block font-semibold text-slate-700">ບໍ່ຊື້ຕໍ່ແລ້ວ — ຍົກເລີກທັງສາຍ</span>
@@ -79,7 +79,7 @@ export function CancelPoButton({ poNo, back }: { poNo: string; back?: string }) 
               onChange={(event) => setReason(event.target.value)}
               maxLength={200}
               placeholder="ຕົວຢ່າງ: ຜູ້ສະໜອງບໍ່ມີເຄື່ອງ / ສັ່ງຜິດລາຍການ"
-              className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"
+              className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-brand-orange-600 focus:outline-none focus:ring-2 focus:ring-brand-orange-100"
             />
           </label>
           <div className="flex justify-end gap-2 pt-1">
@@ -93,7 +93,7 @@ export function CancelPoButton({ poNo, back }: { poNo: string; back?: string }) 
             <button
               type="submit"
               disabled={reason.trim().length < 3 || pending}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-rose-600 px-4 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-40"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-orange-700 px-4 text-xs font-semibold text-white hover:bg-brand-orange-700 disabled:opacity-40"
             >
               {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <X className="size-3.5" />}
               ຍົກເລີກ PO

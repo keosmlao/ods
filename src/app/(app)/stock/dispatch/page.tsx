@@ -236,11 +236,11 @@ async function getCounts(warehouses: string[]) {
 function StockChip({ inWh, other, t }: { inWh: number; other: number; t: Dict }) {
   if (inWh > 0)
     return (
-      <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">{t.inThisWarehouse}</span>
+      <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-800">{t.inThisWarehouse}</span>
     );
   if (other > 0)
-    return <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">{t.inOtherWarehouse}</span>;
-  return <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">{t.notInStock}</span>;
+    return <span className="rounded bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-brand-900">{t.inOtherWarehouse}</span>;
+  return <span className="rounded bg-brand-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-orange-700">{t.notInStock}</span>;
 }
 
 const actionClass = "inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white";
@@ -254,7 +254,7 @@ function RowAction({ line, t }: { line: Line; t: Dict }) {
   const other = Number(line.owh_qty ?? 0);
 
   const dispatch = (
-    <Link href={`/stock/dispatch/${line.roworder}`} className={`${actionClass} bg-teal-600 hover:bg-teal-700`}>
+    <Link href={`/stock/dispatch/${line.roworder}`} className={`${actionClass} bg-brand-700 hover:bg-brand-800`}>
       <PackageCheck className="size-3.5" />
       {t.dispatch}
       <LinkPending className="size-3" />
@@ -270,14 +270,14 @@ function RowAction({ line, t }: { line: Line; t: Dict }) {
     line.transfer_status === LINE_STATUS.PENDING ? (
       <Link
         href={`/stock/transfers?q=${encodeURIComponent(line.doc_no)}`}
-        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-50 px-3 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-orange-100 px-3 text-xs font-semibold text-brand-900 hover:bg-brand-orange-300"
       >
         <ArrowLeftRight className="size-3.5" />
         {t.transferRequestedWaiting}
         <LinkPending className="size-3" />
       </Link>
     ) : (
-      <Link href={`/stock/transfers/${line.roworder}`} className={`${actionClass} bg-sky-500 hover:bg-sky-600`}>
+      <Link href={`/stock/transfers/${line.roworder}`} className={`${actionClass} bg-brand-500 hover:bg-brand-500`}>
         <ArrowLeftRight className="size-3.5" />
         {t.requestTransfer}
         <LinkPending className="size-3" />
@@ -287,7 +287,7 @@ function RowAction({ line, t }: { line: Line; t: Dict }) {
   const purchase = (
     <Link
       href={`/purchase-requests/spare/${encodeURIComponent(line.doc_no)}/${encodeURIComponent(line.item_code)}`}
-      className={`${actionClass} bg-indigo-600 hover:bg-indigo-700`}
+      className={`${actionClass} bg-brand-600 hover:bg-brand-700`}
     >
       <ShoppingCart className="size-3.5" />
       {t.purchase}
@@ -298,7 +298,7 @@ function RowAction({ line, t }: { line: Line; t: Dict }) {
   if (line.status === LINE_STATUS.ON_PURCHASE_ORDER) {
     if (inWh > 0) return dispatch;
     if (other > 0) return transfer;
-    return <span className="text-[11px] font-semibold text-indigo-600">{t.purchasing}</span>;
+    return <span className="text-[11px] font-semibold text-brand-600">{t.purchasing}</span>;
   }
   if (total < 1) return purchase;
   if (inWh > 0) return dispatch;
@@ -412,7 +412,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
               key={key}
               href={tabHref(key)}
               className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon className="size-3.5" />
@@ -440,7 +440,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+          <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -476,7 +476,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                   const other = Number(line.owh_qty ?? 0);
                   return (
                     <tr key={line.roworder} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                      <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                         <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                         <Link
                           href={`/stock/requests/view/${encodeURIComponent(line.doc_no)}?from=/stock/dispatch`}
@@ -509,14 +509,14 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                         {Number(line.balance_qty ?? 0)}{" "}
                         <span className="text-[10px] text-slate-400">{line.inv_unit_code ?? ""}</span>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-center font-semibold text-emerald-700">
+                      <td className="whitespace-nowrap px-3 py-2.5 text-center font-semibold text-brand-800">
                         {inWh}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-center">{other}</td>
                       <td className="whitespace-nowrap px-3 py-2.5">
                         <StockChip inWh={inWh} other={other} t={t} />
                         {line.status === LINE_STATUS.ON_PURCHASE_ORDER && (
-                          <span className="ml-1 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700">
+                          <span className="ml-1 rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">
                             {t.purchasing}
                           </span>
                         )}
@@ -554,7 +554,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
               <tbody>
                 {docs.map((doc) => (
                   <tr key={doc.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">{doc.doc_no}</td>
+                    <td className="whitespace-nowrap px-3 py-2.5 font-bold text-brand">{doc.doc_no}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">{doc.doc_date ?? "-"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">{doc.doc_ref ?? "-"}</td>
                     <td className="max-w-72 truncate px-3 py-2.5" title={doc.remark ?? ""}>
@@ -564,7 +564,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <Link
                         href={`/stock/dispatch/bill/${encodeURIComponent(doc.doc_no)}`}
-                        className={`${actionClass} bg-sky-500 hover:bg-sky-600`}
+                        className={`${actionClass} bg-brand-500 hover:bg-brand-500`}
                       >
                         {t.view}
                         <LinkPending className="size-3" />

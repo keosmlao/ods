@@ -28,7 +28,7 @@ export default async function TechnicianLinkPage() {
       </div>
 
       {unlinked > 0 && (
-        <p className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+        <p className="flex items-center gap-2 rounded-xl border border-brand-orange-400 bg-brand-orange-100 px-4 py-3 text-xs text-brand-900">
           <AlertTriangle className="size-4 shrink-0" />
           <span>
             <b>{unlinked} ຄົນ</b> ຍັງບໍ່ໄດ້ເຊື່ອມ — ຄ່າຄອມຂອງເຂົາເຈົ້າຈະ<b>ບໍ່ຂຶ້ນໃນລາຍງານລາຍຮັບ</b>{" "}

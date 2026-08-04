@@ -49,7 +49,7 @@ export function JobEvidence({
       {checkins.length > 0 && (
         <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 text-sm font-bold text-slate-700">
-            <MapPin className="size-4 text-rose-600" />
+            <MapPin className="size-4 text-brand-orange-700" />
             ຫຼັກຖານໜ້າງານ (check-in · ສ້ອມສຳເລັດ · check-out)
             {serviceType && <span className="text-[10px] font-medium text-slate-400">· {serviceType}</span>}
           </h2>
@@ -70,7 +70,7 @@ export function JobEvidence({
       )}
 
       {checkPhotos.length > 0 && (
-        <PhotoSection title="ຮູບຕອນກວດເຊັກ" count={checkPhotos.length} accent="text-sky-700">
+        <PhotoSection title="ຮູບຕອນກວດເຊັກ" count={checkPhotos.length} accent="text-brand-600">
           {checkPhotos.map((p) => (
             <Base64Photo key={p.id} id={p.id} src={p.photo} caption={`${p.created_by} · ${p.created_at}`} />
           ))}
@@ -78,7 +78,7 @@ export function JobEvidence({
       )}
 
       {finishPhotos.length > 0 && (
-        <PhotoSection title="ຮູບຕອນສ້ອມສຳເລັດ" count={finishPhotos.length} accent="text-emerald-700">
+        <PhotoSection title="ຮູບຕອນສ້ອມສຳເລັດ" count={finishPhotos.length} accent="text-brand-800">
           {finishPhotos.map((p) => (
             <Base64Photo key={p.id} id={p.id} src={p.photo} caption={`${p.created_by} · ${p.created_at}`} />
           ))}
@@ -114,7 +114,7 @@ function CheckinCard({ c, completion }: { c: Checkin; completion: JobPhoto | nul
       </div>
       <div className="space-y-1.5 border-t border-slate-100 p-2.5 text-xs">
         <div className="font-semibold text-slate-700">{c.tech_code}</div>
-        <EvidenceRow icon={<LogIn className="size-3.5 text-emerald-600" />} label="ເຂົ້າ" time={c.checkin_at} map={inMap} />
+        <EvidenceRow icon={<LogIn className="size-3.5 text-brand-800" />} label="ເຂົ້າ" time={c.checkin_at} map={inMap} />
         <EvidenceRow icon={<LogOut className="size-3.5 text-slate-500" />} label="ອອກ" time={c.checkout_at} map={outMap} />
         {c.note?.trim() && <div className="pt-0.5 text-[11px] text-slate-500">{c.note.trim()}</div>}
       </div>
@@ -163,7 +163,7 @@ function EvidenceRow({
           href={map}
           target="_blank"
           rel="noreferrer"
-          className="ml-auto inline-flex items-center gap-1 rounded bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600 hover:bg-rose-100"
+          className="ml-auto inline-flex items-center gap-1 rounded bg-brand-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-orange-700 hover:bg-brand-orange-100"
         >
           <MapPin className="size-3" />
           ພິກັດ
@@ -188,7 +188,7 @@ function PhotoSection({ title, count, accent, children }: { title: string; count
 function FilePhoto({ url, alt }: { url: string; alt: string }) {
   const src = `/api/uploads/${encodeURIComponent(url)}`;
   return (
-    <a href={src} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-slate-200 transition hover:border-teal-300">
+    <a href={src} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-slate-200 transition hover:border-brand-300">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt={alt} className="h-52 w-full bg-slate-50 object-contain" />
     </a>
@@ -202,7 +202,7 @@ const asUri = (s: string) => (s.startsWith("data:") ? s : `data:image/jpeg;base6
 function Base64Photo({ id, src, caption }: { id: number; src: string; caption: string }) {
   const uri = asUri(src);
   return (
-    <a href={`/api/job-photo/${id}`} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-slate-200 transition hover:border-teal-300">
+    <a href={`/api/job-photo/${id}`} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-slate-200 transition hover:border-brand-300">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={uri} alt={caption} className="h-52 w-full bg-slate-50 object-contain" />
       <p className="border-t border-slate-100 px-3 py-1.5 text-[10px] text-slate-500">{caption}</p>

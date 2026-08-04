@@ -53,7 +53,7 @@ export default async function CheckingDetail({ params }: Props) {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5">
       <div>
-        <Link href="/checking" className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-teal-600">
+        <Link href="/checking" className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-brand-700">
           <ArrowLeft className="size-4" />
           ກັບລາຍການ
         </Link>

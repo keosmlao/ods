@@ -22,7 +22,7 @@ export function ReleaseGhostButton({ job }: { job: string }) {
         type="button"
         onClick={() => ref.current?.showModal()}
         title="ODS ວ່າກຳລັງສັ່ງຊື້ ແຕ່ ERP ບໍ່ມີໃບ — ປົດວຽກກັບໄປຂໍຊື້ໃໝ່"
-        className="inline-flex h-7 items-center gap-1 rounded-lg border border-amber-300 bg-white px-2 text-[10px] font-semibold text-amber-700 hover:bg-amber-50"
+        className="inline-flex h-7 items-center gap-1 rounded-lg border border-brand-orange-400 bg-white px-2 text-[10px] font-semibold text-brand-900 hover:bg-brand-orange-100"
       >
         <Undo2 className="size-3" />
         ຍົກເລີກສັ່ງຊື້
@@ -44,7 +44,7 @@ export function ReleaseGhostButton({ job }: { job: string }) {
               onChange={(event) => setReason(event.target.value)}
               maxLength={200}
               placeholder="ຕົວຢ່າງ: ໃບບໍ່ໄດ້ລົງ ERP ຕັ້ງແຕ່ຕົ້ນ — ຂໍຊື້ໃໝ່"
-              className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100"
+              className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-brand-orange-500 focus:outline-none focus:ring-2 focus:ring-brand-orange-300"
             />
           </label>
           <div className="flex justify-end gap-2 pt-1">
@@ -58,7 +58,7 @@ export function ReleaseGhostButton({ job }: { job: string }) {
             <button
               type="submit"
               disabled={reason.trim().length < 3 || pending}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-amber-600 px-4 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-40"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-orange-700 px-4 text-xs font-semibold text-white hover:bg-brand-orange-700 disabled:opacity-40"
             >
               {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Undo2 className="size-3.5" />}
               ຍົກເລີກສັ່ງຊື້

@@ -71,7 +71,7 @@ export function LocationPicker({
           onClick={() => setOpen(true)}
           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
         >
-          <MapPin className="size-3.5 text-teal-600" />
+          <MapPin className="size-3.5 text-brand-700" />
           {value ? t.changePointOnMap : t.pinOnMap}
         </button>
 
@@ -104,14 +104,14 @@ export function LocationPicker({
               target="_blank"
               rel="noreferrer"
               title={t.openInGoogleMaps}
-              className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:underline"
+              className="rounded-full bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-800 hover:underline"
             >
               {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
             </a>
             <button
               type="button"
               onClick={() => onChange(null)}
-              className="text-xs font-semibold text-slate-400 hover:text-red-600"
+              className="text-xs font-semibold text-slate-400 hover:text-brand-orange-700"
             >
               {t.removePoint}
             </button>
@@ -142,9 +142,9 @@ export function LocationPicker({
             }
           }}
           placeholder={t.pastePlaceholder}
-          className="h-9 w-full max-w-md rounded-lg border border-slate-300 px-3 text-xs outline-none focus:border-teal-500 md:w-96"
+          className="h-9 w-full max-w-md rounded-lg border border-slate-300 px-3 text-xs outline-none focus:border-brand-600 md:w-96"
         />
-        {pasteError && <span className="text-[11px] font-semibold text-amber-600">{pasteError}</span>}
+        {pasteError && <span className="text-[11px] font-semibold text-brand-900">{pasteError}</span>}
       </div>
 
       {open && <MapDialog t={t} value={value} onClose={() => setOpen(false)} onPick={onChange} />}
@@ -184,7 +184,7 @@ function MapDialog({
 
       const icon = L.divIcon({
         className: "",
-        html: '<div style="width:18px;height:18px;border-radius:9999px;background:#0d9488;border:3px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',
+        html: '<div style="width:18px;height:18px;border-radius:9999px;background:#1e5b9a;border:3px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',
         iconSize: [18, 18],
         iconAnchor: [9, 9],
       });
@@ -205,7 +205,7 @@ function MapDialog({
   }, [value]);
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-brand-900/50 p-4">
       <div className="flex h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <header className="flex items-center justify-between gap-3 border-b border-slate-100 p-4">
           <div>
@@ -234,7 +234,7 @@ function MapDialog({
               if (picked) onPick(picked);
               onClose();
             }}
-            className="ml-auto inline-flex h-9 items-center rounded-lg bg-teal-600 px-4 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+            className="ml-auto inline-flex h-9 items-center rounded-lg bg-brand-700 px-4 text-xs font-semibold text-white hover:bg-brand-800 disabled:opacity-50"
           >
             {t.useThisPoint}
           </button>

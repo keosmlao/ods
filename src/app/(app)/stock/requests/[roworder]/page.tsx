@@ -142,7 +142,7 @@ export default async function StockRequestFormPage({ params }: Props) {
         <div>
           <BackLink fallback="/stock/requests" label={t.backToList} />
           <div className="flex items-center gap-3">
-            <span className="grid size-11 place-items-center rounded-2xl bg-teal-600 text-white shadow-sm">
+            <span className="grid size-11 place-items-center rounded-2xl bg-brand-700 text-white shadow-sm">
               <PackageOpen className="size-5" />
             </span>
             <div>
@@ -151,38 +151,38 @@ export default async function StockRequestFormPage({ params }: Props) {
             </div>
           </div>
         </div>
-        <span className="inline-flex h-9 items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 text-xs font-semibold text-sky-700">
+        <span className="inline-flex h-9 items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-3 text-xs font-semibold text-brand-600">
           <ClipboardList className="size-4" />
           {t.pendingBadgePrefix} {pending.length} {t.items}
         </span>
       </div>
 
       {purchaseNeeded.length > 0 && (
-        <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
+        <section className="rounded-2xl border border-brand-orange-400 bg-brand-orange-100 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="flex items-center gap-2 text-sm font-bold text-amber-900">
+              <h2 className="flex items-center gap-2 text-sm font-bold text-brand-900">
                 <TriangleAlert className="size-4" />
                 {availableNow.length > 0
                   ? "ມີທັງລາຍການເບີກຈາກສາງ ແລະ ລາຍການຕ້ອງສັ່ງຊື້"
                   : t.purchaseTitle}
               </h2>
-              <p className="mt-1 text-xs text-amber-800">
+              <p className="mt-1 text-xs text-brand-900">
                 {t.purchaseNeedPrefix} {purchaseNeeded.length} {t.purchaseNeedSuffix}
               </p>
               {availableNow.length > 0 && (
-                <ol className="mt-2 space-y-1 text-xs text-amber-900">
+                <ol className="mt-2 space-y-1 text-xs text-brand-900">
                   <li><b>1.</b> ເລືອກສາງ ແລະບັນທຶກໃບຂໍເບີກສຳລັບຈຳນວນທີ່ມີກ່ອນ</li>
                   <li><b>2.</b> ກົດ “ຂໍສັ່ງຊື້” ເພື່ອອອກ SPR ສຳລັບສ່ວນທີ່ຂາດ</li>
                 </ol>
               )}
             </div>
             {canPurchase ? (
-              <Link href={`/purchase-requests/new/${encodeURIComponent(head.product_code)}/direct`} className="inline-flex h-9 items-center gap-2 rounded-lg bg-amber-600 px-4 text-xs font-bold text-white hover:bg-amber-700">
+              <Link href={`/purchase-requests/new/${encodeURIComponent(head.product_code)}/direct`} className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-orange-700 px-4 text-xs font-bold text-white hover:bg-brand-orange-700">
                 <ShoppingCart className="size-4" /> {t.createPurchaseDoc}
               </Link>
             ) : (
-              <span className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-amber-800">{t.sentToPurchaseQueue}</span>
+              <span className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-brand-900">{t.sentToPurchaseQueue}</span>
             )}
           </div>
         </section>

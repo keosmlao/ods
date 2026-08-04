@@ -46,7 +46,7 @@ type DocRow = {
 /** ສະຖານະຂອງແຕ່ລະ node — ຄຳເວົ້າ + ໃຜຕ້ອງລົງມືຕໍ່ + ສີ */
 type NodeState = { label: string; next: string | null; tone: string; pending: boolean };
 
-const DONE: NodeState = { label: "ຮຽບຮ້ອຍ", next: null, tone: "bg-emerald-50 text-emerald-700", pending: false };
+const DONE: NodeState = { label: "ຮຽບຮ້ອຍ", next: null, tone: "bg-brand-50 text-brand-800", pending: false };
 
 export default async function InstallSpareTreePage() {
   const { rows } = await query<DocRow>(
@@ -104,7 +104,7 @@ export default async function InstallSpareTreePage() {
       // ຄືກັນ: ລາຍລະອຽດຂອງການຊື້ຢູ່ແຖວ RQ ຂ້າງລຸ່ມ — ແຖວນີ້ບອກແຕ່ວ່າ "ໄປທາງຊື້"
       return { label: "ສາງບໍ່ມີ — ໄປທາງສັ່ງຊື້", next: null, tone: "bg-slate-100 text-slate-600", pending: true };
     }
-    return { label: "ລໍສາງເບີກ", next: "ສາງ", tone: "bg-amber-100 text-amber-800", pending: true };
+    return { label: "ລໍສາງເບີກ", next: "ສາງ", tone: "bg-brand-orange-300 text-brand-900", pending: true };
   }
 
   const cards = [...jobs.values()]
@@ -121,7 +121,7 @@ export default async function InstallSpareTreePage() {
 
   const days = (seconds: number) => Math.max(0, Math.floor(seconds / 86400));
   const ageTone = (d: number) =>
-    d >= 30 ? "bg-red-100 text-red-700" : d >= 7 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600";
+    d >= 30 ? "bg-brand-orange-100 text-brand-orange-700" : d >= 7 ? "bg-brand-orange-300 text-brand-900" : "bg-slate-100 text-slate-600";
 
   return (
     <div className="w-full space-y-4 pb-10">
@@ -129,7 +129,7 @@ export default async function InstallSpareTreePage() {
         <h1 className="text-xl font-bold text-slate-700">ອາໄຫຼ່ຕາມໃບງານຕິດຕັ້ງ</h1>
         <p className="mt-0.5 text-xs text-slate-500">
           {cards.length} ໃບງານຄ້າງອາໄຫຼ່ — ກົດແຖວເພື່ອເປີດ <b>ຕົ້ນໄມ້ເອກະສານ</b> ຂອງໃບງານນັ້ນ ·{" "}
-          <Link href="/manual/spares" className="font-semibold text-teal-700 hover:underline">
+          <Link href="/manual/spares" className="font-semibold text-brand-800 hover:underline">
             ຄູ່ມືຂັ້ນຕອນອາໄຫຼ່
           </Link>
         </p>
@@ -159,7 +159,7 @@ export default async function InstallSpareTreePage() {
                 <ChevronRight className="size-4 shrink-0 text-slate-400 transition group-open:rotate-90" />
                 <Link
                   href={`/installations/${encodeURIComponent(card.job)}`}
-                  className="font-bold text-blue-700 hover:underline"
+                  className="font-bold text-brand-700 hover:underline"
                 >
                   {card.job}
                 </Link>
@@ -185,11 +185,11 @@ export default async function InstallSpareTreePage() {
               <span className="text-center tabular-nums text-slate-600">{card.rounds.length}</span>
               <span>
                 {card.pending > 0 ? (
-                  <span className="rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                  <span className="rounded bg-brand-orange-300 px-2 py-0.5 text-[11px] font-semibold text-brand-900">
                     ຄ້າງ {card.pending} ຮອບ
                   </span>
                 ) : (
-                  <span className="rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">ຄົບແລ້ວ</span>
+                  <span className="rounded bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-800">ຄົບແລ້ວ</span>
                 )}
               </span>
             </summary>
@@ -205,7 +205,7 @@ export default async function InstallSpareTreePage() {
                       <span className="font-bold text-slate-500">ຮອບ {round}</span>
                       <Link
                         href={`/installations/spare-requests/view/${encodeURIComponent(sio.doc_no)}`}
-                        className="font-mono font-semibold text-teal-700 hover:underline"
+                        className="font-mono font-semibold text-brand-800 hover:underline"
                       >
                         {sio.doc_no}
                       </Link>
@@ -228,7 +228,7 @@ export default async function InstallSpareTreePage() {
                             <span>ສາງເບີກ {swc.doc_date}</span>
                             <span className="ml-auto flex items-center gap-2">
                               {/* ງານສ້ອມ: ສາງເບີກອອກ = ຈົບ — ບໍ່ລໍໃບຮັບ (PISP) ອີກແລ້ວ */}
-                              <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700">
+                              <span className="rounded bg-brand-50 px-1.5 py-0.5 font-semibold text-brand-800">
                                 {picks.length > 0
                                   ? `ຊ່າງຮັບແລ້ວ · ${picks.map((pick) => pick.doc_no).join(", ")}`
                                   : "ສາງເບີກອອກແລ້ວ"}
@@ -247,8 +247,8 @@ export default async function InstallSpareTreePage() {
                               rq.approve === 1
                                 ? "bg-slate-100 text-slate-700"
                                 : rq.approve === 2
-                                  ? "bg-red-50 text-red-700"
-                                  : "bg-violet-50 text-violet-700"
+                                  ? "bg-brand-orange-50 text-brand-orange-700"
+                                  : "bg-brand-orange-50 text-brand-orange-700"
                             }`}
                           >
                             {rq.approve === 1
@@ -274,7 +274,7 @@ export default async function InstallSpareTreePage() {
               <li className="pt-1">
                 <Link
                   href={`/installations/${encodeURIComponent(card.job)}`}
-                  className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-slate-700"
+                  className="inline-flex items-center gap-1 rounded-lg bg-brand-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-slate-700"
                 >
                   ເປີດໜ້າວຽກສ້ອມ
                   <LinkPending className="size-3" />

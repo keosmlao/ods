@@ -91,13 +91,13 @@ export default async function SalesJobsPage({ searchParams }: Props) {
         <div className="flex overflow-hidden rounded-lg border border-slate-300">
           <Link
             href={tabHref("open")}
-            className={`inline-flex h-9 items-center px-3 text-xs font-medium ${!done ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+            className={`inline-flex h-9 items-center px-3 text-xs font-medium ${!done ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
           >
             {t.tabOpen}
           </Link>
           <Link
             href={tabHref("done")}
-            className={`inline-flex h-9 items-center border-l border-slate-300 px-3 text-xs font-medium ${done ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+            className={`inline-flex h-9 items-center border-l border-slate-300 px-3 text-xs font-medium ${done ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
           >
             {t.tabDone}
           </Link>
@@ -114,7 +114,7 @@ export default async function SalesJobsPage({ searchParams }: Props) {
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+          <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -137,7 +137,7 @@ export default async function SalesJobsPage({ searchParams }: Props) {
             <tbody>
               {list.rows.map((row) => (
                 <RowLink key={row.code} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                  <td className="whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                     <Link href={`/service/${row.code}`} className="hover:underline">
                       {row.code}
                     </Link>
@@ -159,7 +159,7 @@ export default async function SalesJobsPage({ searchParams }: Props) {
                   <td className="whitespace-nowrap px-3 py-2.5 text-right">
                     <Link
                       href={`/service/${row.code}`}
-                      className="inline-flex h-8 items-center rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                      className="inline-flex h-8 items-center rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
                     >
                       {t.view}
                     </Link>

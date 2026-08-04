@@ -146,7 +146,7 @@ export default async function InstallationsPage({ searchParams }: Props) {
                     href={`/installations/${encodeURIComponent(row.code)}/print`}
                     target="_blank"
                     title="ພິມ"
-                    className="text-[#D35400] hover:opacity-70"
+                    className="text-[#f6921e] hover:opacity-70"
                   >
                     <Printer className="size-4" />
                   </Link>
@@ -155,7 +155,7 @@ export default async function InstallationsPage({ searchParams }: Props) {
                       <Link
                         href={`/installations/${encodeURIComponent(row.code)}/edit`}
                         title="ແກ້ໄຂ"
-                        className="text-teal-600 hover:opacity-70"
+                        className="text-brand-700 hover:opacity-70"
                       >
                         <Pencil className="size-4" />
                       </Link>

@@ -154,7 +154,7 @@ export default async function StockTransfersPage({ searchParams }: Props) {
               key={key}
               href={tabHref(key)}
               className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon className="size-3.5" />
@@ -182,13 +182,13 @@ export default async function StockTransfersPage({ searchParams }: Props) {
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+          <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
       {/* ຄຳເຕືອນ: ການໂອນຈິງເກີດຢູ່ ERP ບໍ່ແມ່ນຢູ່ນີ້ */}
       {tab === "pending" && data.total > 0 && (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+        <p className="rounded-xl border border-brand-orange-400 bg-brand-orange-100 px-4 py-2.5 text-xs text-brand-900">
           {t.warningBefore} <span className="font-semibold">{t.warningTransferBill}</span> {t.warningAfter}
         </p>
       )}
@@ -221,7 +221,7 @@ export default async function StockTransfersPage({ searchParams }: Props) {
                 const tone = elapsedTone(row.elapsed_seconds);
                 return (
                   <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <span
                         className={`absolute inset-y-0 left-0 w-1 ${tab === "pending" ? tone.bar : ""}`}
                         aria-hidden
@@ -241,7 +241,7 @@ export default async function StockTransfersPage({ searchParams }: Props) {
                       {row.doc_ref ? (
                         <Link
                           href={`/stock/requests/view/${encodeURIComponent(row.doc_ref)}?from=/stock/transfers`}
-                          className="text-[#0536a9] hover:underline"
+                          className="text-brand hover:underline"
                         >
                           {row.doc_ref}
                         </Link>
@@ -264,7 +264,7 @@ export default async function StockTransfersPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                          tab === "pending" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
+                          tab === "pending" ? "bg-brand-orange-100 text-brand-900" : "bg-brand-50 text-brand-800"
                         }`}
                       >
                         {tab === "pending" ? t.tabPending : t.statusReceived}
@@ -274,7 +274,7 @@ export default async function StockTransfersPage({ searchParams }: Props) {
                       {tab === "pending" ? (
                         <Link
                           href={`/stock/transfers/receive/${encodeURIComponent(row.doc_no)}`}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
                         >
                           <PackageCheck className="size-3.5" />
                           {t.receiveTransfer}

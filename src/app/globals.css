@@ -1,4 +1,63 @@
 @import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ສີແບຣນ ODIEN Mall — ອີງ Brand Guideline ໜ້າ 16–17
+   ═══════════════════════════════════════════════════════════════════════════
+   Guideline ໃຫ້ມາ 5 ສີ ແຕ່ UI ຕ້ອງການລະດັບອ່ອນ–ເຂັ້ມ (ພື້ນອ່ອນ, ເສັ້ນຂອບ, hover).
+   ຈຶ່ງສ້າງ ramp ຂຶ້ນມາ ໂດຍ **ບໍ່ເພີ່ມສີໃໝ່ແມ້ແຕ່ສີດຽວ**:
+
+   ramp ຟ້າ (brand-50…900) — ສາມສີຟ້າຂອງ guideline ນອນຢູ່ເສັ້ນດຽວກັນ:
+       brand-400 = Sky Blue  #4bc7ef   ┐
+       brand-600 = Deep Blue #2c6fb6   ├ ສີ guideline ແທ້
+       brand-900 = Navy      #003260   ┘
+   ຂັ້ນທີ່ເຫຼືອຄື tint (ປົນຂາວ) ແລະ ການໄລ່ລະຫວ່າງສາມສີນັ້ນ — guideline ໜ້າ 16
+   ສະແດງ tint 20/40/60% ຂອງແຕ່ລະສີໄວ້ຢູ່ແລ້ວ ຈຶ່ງຢູ່ໃນຂອບເຂດ.
+
+   ramp ສົ້ມ (brand-orange-50…700) — ສີເສີມ, ມີ Warm Yellow ນອນຢູ່ຂັ້ນ 300:
+       brand-orange-300 = Warm Yellow #ffd071
+       brand-orange-500 = Orange      #f6921e
+
+   ຫ້າມ hardcode hex ຂອງແບຣນລົງໃນ component — ໃຫ້ໃຊ້ token ເທົ່ານັ້ນ.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@theme {
+  /* ── ramp ຟ້າ: ຫຼັກຂອງລະບົບ ─────────────────────────────────────────────── */
+  --color-brand-50: #f1fafe;
+  --color-brand-100: #dff5fc;
+  --color-brand-200: #c0ebf9;
+  --color-brand-300: #93ddf5;
+  --color-brand-400: #4bc7ef; /* Sky Blue — guideline */
+  --color-brand-500: #3c9bd3;
+  --color-brand-600: #2c6fb6; /* Deep Blue — guideline */
+  --color-brand-700: #1e5b9a;
+  --color-brand-800: #0f477d;
+  --color-brand-900: #003260; /* Navy — guideline */
+
+  /* ── ramp ສົ້ມ: ສີເສີມ / ໝວດຂໍ້ມູນທີ່ຕ້ອງແຍກຈາກຟ້າ ──────────────────────── */
+  --color-brand-orange-50: #fef6ed;
+  --color-brand-orange-100: #fdebd7;
+  --color-brand-orange-200: #fcd9b0;
+  --color-brand-orange-300: #ffd071; /* Warm Yellow — guideline */
+  --color-brand-orange-400: #fbb148;
+  --color-brand-orange-500: #f6921e; /* Orange — guideline */
+  --color-brand-orange-600: #d17c1a;
+  /* ຂັ້ນ 700 ເປັນສີຕົວໜັງສື "ອັນຕະລາຍ" ⇒ ຕ້ອງຜ່ານ AA ທັງເທິງພື້ນຂາວ (5.09:1)
+     ແລະ ເທິງພື້ນ brand-orange-50 ຂອງມັນເອງ (4.76:1) ຈຶ່ງເລືອກຄ່ານີ້ */
+  --color-brand-orange-700: #9f5f14;
+
+  /* ── ຊື່ຫຍໍ້ ຊີ້ໄປຂັ້ນທີ່ເປັນສີ guideline ແທ້ (ໃຊ້ໄດ້ທັງສອງແບບ) ─────────── */
+  /* Deep Blue — ສີຫຼັກ: ປຸ່ມ, ລິ້ງ, ເລກເອກະສານ, focus ring
+     contrast ເທິງພື້ນຂາວ 5.18:1 ⇒ ຜ່ານ WCAG AA ສຳລັບຕົວໜັງສືທຳມະດາ */
+  --color-brand: #2c6fb6;
+  /* Sky Blue — ພື້ນອ່ອນ, highlight, gradient
+     ອ່ອນເກີນໄປສຳລັບຕົວໜັງສືເທິງພື້ນຂາວ (1.9:1) — ໃຊ້ເປັນພື້ນເທົ່ານັ້ນ */
+  --color-brand-sky: #4bc7ef;
+  /* Navy — ຕົວໜັງສືເນັ້ນ, ຫົວຕາຕະລາງ, ພື້ນເຂັ້ມ (contrast 12.6:1) */
+  --color-brand-navy: #003260;
+  /* Orange / Warm Yellow — ສີເສີມ: ເນັ້ນ, ລາຄາ, ໝວດຂໍ້ມູນທີ່ຕ່າງຈາກຟ້າ */
+  --color-brand-orange: #f6921e;
+  --color-brand-yellow: #ffd071;
+}
+
 :root { --background: #f4f7fb; --foreground: #172033; }
 * { box-sizing: border-box; }
 /* ຫຼຸດຂະໜາດ font ທັງລະບົບ: Tailwind ໃຊ້ rem ໝົດ ຈຶ່ງຫຍໍ້ base ອັນດຽວ
@@ -6,6 +65,9 @@
    16px → 14px = ນ້ອຍລົງ ~12% */
 html { font-size: 14px; }
 html, body { margin: 0; min-height: 100%; background: var(--background); color: var(--foreground); }
-body, button, input { font-family: var(--font-lao), sans-serif; }
+/* ລຳດັບສຳຄັນ: Montserrat (ລາຕິນ+ຕົວເລກ) ກ່ອນ ⇒ ຕົວອັກສອນລາວທີ່ Montserrat ບໍ່ມີ
+   ຈະຕົກໄປໃຊ້ --font-lao ເອງ. ສະຫຼັບລຳດັບແລ້ວ ຕົວລາຕິນຈະບໍ່ໄດ້ເປັນ Montserrat. */
+/* select/textarea ບໍ່ສືບທອດ font-family ຈາກ body ⇒ ຕ້ອງລະບຸເອງ ບໍ່ດັ່ງນັ້ນຈະໃຊ້ຟອນລະບົບ */
+body, button, input, select, textarea { font-family: var(--font-latin), var(--font-lao), sans-serif; }
 button { cursor: pointer; }
 @media print { .no-print { display: none !important; } body { background: white; } }

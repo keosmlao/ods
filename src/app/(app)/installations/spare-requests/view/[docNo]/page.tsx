@@ -97,7 +97,7 @@ export default async function ViewSpareRequest({ params }: Props) {
     <div className="mx-auto w-full max-w-5xl space-y-5 bg-white print:max-w-none">
       <style>{`@media print { @page { size: A4; margin: 12mm } .no-print { display:none !important } }`}</style>
       <div className="no-print"><PageTitle>{t.title}</PageTitle></div>
-      <h1 className="hidden border-b-2 border-slate-900 pb-3 text-center text-xl font-bold print:block">
+      <h1 className="hidden border-b-2 border-brand-900 pb-3 text-center text-xl font-bold print:block">
         {t.title}
       </h1>
 
@@ -145,9 +145,9 @@ export default async function ViewSpareRequest({ params }: Props) {
                 <td className="whitespace-nowrap px-3 py-2">{row.item_code}</td>
                 <td className="px-3 py-2">{row.item_name}</td>
                 <td className="px-3 py-2 text-center">{Number(row.qty)}</td>
-                <td className="px-3 py-2 text-center text-emerald-700">{Number(row.issued_qty)}</td>
+                <td className="px-3 py-2 text-center text-brand-800">{Number(row.issued_qty)}</td>
                 <td className={`px-3 py-2 text-center font-bold ${
-                  Number(row.pending_qty) > 0 ? "text-amber-700" : "text-slate-400"
+                  Number(row.pending_qty) > 0 ? "text-brand-900" : "text-slate-400"
                 }`}>
                   {Number(row.pending_qty)}
                 </td>

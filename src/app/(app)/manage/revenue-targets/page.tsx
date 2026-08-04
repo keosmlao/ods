@@ -56,7 +56,7 @@ export default async function RevenueTargetsPage({ searchParams }: Props) {
         >
           ← {year - 1}
         </Link>
-        <span className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-bold text-white">{year}</span>
+        <span className="rounded-lg bg-brand-800 px-4 py-2 text-sm font-bold text-white">{year}</span>
         <Link
           href={`/manage/revenue-targets?year=${year + 1}`}
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
@@ -65,7 +65,7 @@ export default async function RevenueTargetsPage({ searchParams }: Props) {
         </Link>
         <Link
           href={`/reports/monthly-revenue?month=${year}-${String(Math.min(new Date().getUTCMonth() + 1, 12)).padStart(2, "0")}`}
-          className="ml-auto text-xs font-semibold text-teal-700 hover:underline"
+          className="ml-auto text-xs font-semibold text-brand-800 hover:underline"
         >
           {t.backToReport}
         </Link>
@@ -77,7 +77,7 @@ export default async function RevenueTargetsPage({ searchParams }: Props) {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] text-xs">
               <thead>
-                <tr className="border-b border-slate-200 bg-amber-50 text-slate-600">
+                <tr className="border-b border-slate-200 bg-brand-orange-100 text-slate-600">
                   <th className="px-3 py-2 text-left">{t.colMonth}</th>
                   <th className="px-3 py-2 text-right">{t.colTarget} ({t.unitBaht})</th>
                   <th className="px-3 py-2 text-right">{t.colActual}</th>
@@ -96,20 +96,20 @@ export default async function RevenueTargetsPage({ searchParams }: Props) {
                           inputMode="numeric"
                           defaultValue={row.target ? String(Math.round(row.target)) : ""}
                           placeholder="—"
-                          className="h-8 w-32 rounded-lg border border-slate-300 px-2 text-right text-xs tabular-nums outline-none focus:border-teal-500"
+                          className="h-8 w-32 rounded-lg border border-slate-300 px-2 text-right text-xs tabular-nums outline-none focus:border-brand-600"
                         />
                       ) : (
                         <span className="tabular-nums">{row.target ? fmt(row.target) : "—"}</span>
                       )}
                     </td>
                     <td className={`${cellRight} font-semibold`}>{fmt(row.actual)}</td>
-                    <td className={`${cellRight} ${row.target && row.actual < row.target ? "text-rose-600" : "text-emerald-600"}`}>
+                    <td className={`${cellRight} ${row.target && row.actual < row.target ? "text-brand-orange-700" : "text-brand-800"}`}>
                       {pct(row.actual, row.target)}
                     </td>
                     <td className={`${cellRight} text-slate-500`}>{fmt(row.lastYear)}</td>
                   </tr>
                 ))}
-                <tr className="bg-fuchsia-50 font-bold">
+                <tr className="bg-brand-orange-50 font-bold">
                   <td className="px-3 py-2 text-slate-700">{t.yearTotal}</td>
                   <td className={cellRight}>{total.target ? fmt(total.target) : "—"}</td>
                   <td className={cellRight}>{fmt(total.actual)}</td>

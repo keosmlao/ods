@@ -54,7 +54,7 @@ export default async function InstallPrint({ params }: Props) {
     <div className="mx-auto max-w-4xl bg-white p-8 text-slate-950">
       <p className="mb-6 text-right text-sm text-slate-500 print:hidden">{t.printHint}</p>
 
-      <header className="border-b-2 border-slate-900 pb-5 text-center">
+      <header className="border-b-2 border-brand-900 pb-5 text-center">
         <h1 className="text-2xl font-bold">{co?.name_1 ?? "ODIEN SERVICE"}</h1>
         <p className="text-sm">{co?.name_2}</p>
         <p className="mt-1 text-sm">{co?.address}</p>

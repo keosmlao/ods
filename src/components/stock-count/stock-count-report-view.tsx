@@ -32,14 +32,14 @@ export async function StockCountReportView({ defaultTab = "uncounted" }: { defau
     <div className="w-full space-y-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="flex items-center gap-2 text-lg font-bold text-slate-700">
-          {missingView ? <PackageX className="size-5 text-amber-500" /> : <FileBarChart className="size-5 text-teal-600" />}
+          {missingView ? <PackageX className="size-5 text-brand-orange-300" /> : <FileBarChart className="size-5 text-brand-700" />}
           {missingView ? t.missingMenuTitle : t.title}
         </h1>
         <div className="flex shrink-0 items-center gap-2">
           {rows.length > 0 && (
             <a
               href="/api/reports/export/stock-count"
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 text-xs font-semibold text-brand-800 hover:bg-brand-100"
             >
               <Download className="size-4" />
               {t.exportXlsx}
@@ -49,7 +49,7 @@ export async function StockCountReportView({ defaultTab = "uncounted" }: { defau
             href="/service/stock-count"
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"
           >
-            <ScanLine className="size-4 text-teal-600" />
+            <ScanLine className="size-4 text-brand-700" />
             {t.goToCount}
           </Link>
         </div>
@@ -57,9 +57,9 @@ export async function StockCountReportView({ defaultTab = "uncounted" }: { defau
 
       <div className="grid grid-cols-2 gap-2 sm:max-w-2xl sm:grid-cols-4">
         {stat(t.statPending, pending, "text-slate-700")}
-        {stat(t.statFound, found, "text-emerald-600")}
-        {stat(t.statNotCounted, notCounted, "text-rose-600")}
-        {stat(t.statMissing, missing, "text-amber-600")}
+        {stat(t.statFound, found, "text-brand-800")}
+        {stat(t.statNotCounted, notCounted, "text-brand-orange-700")}
+        {stat(t.statMissing, missing, "text-brand-900")}
       </div>
 
       {rows.length === 0 ? (

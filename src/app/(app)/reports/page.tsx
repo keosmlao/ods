@@ -129,7 +129,7 @@ export default async function ReportsIndex() {
               <Link
                 key={href}
                 href={href}
-                className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-teal-400 hover:bg-teal-50/40"
+                className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-brand-400 hover:bg-brand-50/40"
               >
                 <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600">
                   <Icon className="size-4" />

@@ -37,7 +37,7 @@ export function ReturnRequestButton({ docNo, jobType }: { docNo: string; jobType
           data.set("doc_no", docNo);
           start(() => void (isInstall ? startInstallReturnRequest(data) : startReturnRequest(data)));
         }}
-        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white transition hover:bg-brand-800 disabled:opacity-60"
       >
         {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Undo2 className="size-3.5" />}
         ຂໍສົ່ງ​ຄືນ

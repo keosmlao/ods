@@ -14,24 +14,24 @@ import Link from "next/link";
 const ACCENT: Record<number, string> = {
   // ໜ້າ /service ເປັນ **ທະບຽນຮັບເຄື່ອງປະຈຳວັນ (ທຸກສະຖານະ)** ⇒ ຕ້ອງມີຖັນ 0/12/-1 ນຳ,
   // ບໍ່ດັ່ງນັ້ນໃບທີ່ຢູ່ຂັ້ນເຫຼົ່ານັ້ນຈະ **ຫາຍງຽບ** ຈາກກະດານ (ຕາຕະລາງເຫັນ ແຕ່ກະດານບໍ່ເຫັນ)
-  [-1]: "bg-rose-500",
+  [-1]: "bg-brand-orange-700",
   0: "bg-slate-400",
   1: "bg-slate-400",
-  2: "bg-sky-500",
+  2: "bg-brand-500",
   3: "bg-slate-400",
-  4: "bg-sky-500",
+  4: "bg-brand-500",
   5: "bg-slate-400",
-  6: "bg-sky-500",
-  7: "bg-violet-500",
+  6: "bg-brand-500",
+  7: "bg-brand-orange-500",
   8: "bg-slate-400",
-  9: "bg-amber-500",
-  10: "bg-teal-500",
-  11: "bg-emerald-500",
-  12: "bg-emerald-600",
-  13: "bg-violet-500",
-  14: "bg-emerald-500",
-  15: "bg-amber-500",
-  16: "bg-indigo-500",
+  9: "bg-brand-orange-500",
+  10: "bg-brand-600",
+  11: "bg-brand-700",
+  12: "bg-brand-700",
+  13: "bg-brand-orange-500",
+  14: "bg-brand-700",
+  15: "bg-brand-orange-500",
+  16: "bg-brand-600",
 };
 
 export const STAGES = Object.entries(ACCENT).map(([stage, accent]) => ({
@@ -88,11 +88,11 @@ function Card({ card }: { card: BoardCard }) {
       <div className="space-y-2 py-3 pl-4 pr-3">
         <div className="flex items-start justify-between gap-2">
           <span className="flex min-w-0 items-center gap-1.5">
-            <Link href={`/service/${card.code}`} className="font-bold text-[#0536a9] hover:underline">
+            <Link href={`/service/${card.code}`} className="font-bold text-brand hover:underline">
               #{card.code}
             </Link>
             {card.is_claim && (
-              <span className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 ring-1 ring-amber-300" title="job claim — ໝາຍ/ມີໃບເຄມ">
+              <span className="inline-flex items-center gap-0.5 rounded bg-brand-orange-300 px-1.5 py-0.5 text-[10px] font-bold text-brand-900 ring-1 ring-brand-orange-300" title="job claim — ໝາຍ/ມີໃບເຄມ">
                 <ReceiptText className="size-3" /> ເຄມ
               </span>
             )}
@@ -127,7 +127,7 @@ function Card({ card }: { card: BoardCard }) {
         <div className="flex items-center justify-between border-t border-slate-100 pt-2">
           <span
             className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-              inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+              inWarranty ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"
             }`}
           >
             {card.warranty || "-"}
@@ -135,10 +135,10 @@ function Card({ card }: { card: BoardCard }) {
 
           {/* ປຸ່ມໂຜ່ຂຶ້ນເມື່ອເອົາເມົ້າຊີ້ — ບໍ່ລົບກວນສາຍຕາຕອນອ່ານ */}
           <div className="flex items-center gap-2.5 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
-            <Link href={`/service/${card.code}/print`} target="_blank" title="ພິມ" className="text-[#D35400] hover:opacity-70">
+            <Link href={`/service/${card.code}/print`} target="_blank" title="ພິມ" className="text-[#f6921e] hover:opacity-70">
               <Printer className="size-3.5" />
             </Link>
-            <Link href={`/service/${card.code}/label`} target="_blank" title="ພິມສະຕິກເກີ" className="text-teal-600 hover:opacity-70">
+            <Link href={`/service/${card.code}/label`} target="_blank" title="ພິມສະຕິກເກີ" className="text-brand-700 hover:opacity-70">
               <Tag className="size-3.5" />
             </Link>
             <Link href={`/service/${card.code}/edit`} title="ແກ້ໄຂ" className="text-slate-500 hover:opacity-70">
@@ -170,7 +170,7 @@ export function ServiceBoard({ cards }: { cards: BoardCard[] }) {
                 {stage.label}
               </h2>
               {stale > 0 && (
-                <span title={`${stale} ໃບຄ້າງເກີນ 7 ມື້`} className="rounded bg-red-100 px-1.5 text-xs font-bold text-red-700">
+                <span title={`${stale} ໃບຄ້າງເກີນ 7 ມື້`} className="rounded bg-brand-orange-100 px-1.5 text-xs font-bold text-brand-orange-700">
                   {stale}
                 </span>
               )}

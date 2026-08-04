@@ -26,7 +26,7 @@ export function DeleteSpareRequestButton({
         type="button"
         title="ລົບ"
         disabled={pending}
-        className="text-slate-500 hover:text-red-600 disabled:opacity-50"
+        className="text-slate-500 hover:text-brand-orange-700 disabled:opacity-50"
         onClick={async () => {
           const ok = await ask({
             title: "ລົບເລກທີຂໍເບີກ?",

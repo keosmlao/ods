@@ -117,7 +117,7 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
       {/* ── ① ເລືອກເດືອນ ── */}
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="flex items-center gap-2 text-xl font-bold text-slate-700">
-          <Wallet className="size-5 text-teal-600" />
+          <Wallet className="size-5 text-brand-700" />
           ລາຍຮັບຊ່າງ
         </h1>
         <div className="flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-1 py-1">
@@ -141,21 +141,21 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
           </Link>
         </div>
         {month !== current && (
-          <Link href={monthHref(current)} className="text-xs font-semibold text-teal-700 hover:underline">
+          <Link href={monthHref(current)} className="text-xs font-semibold text-brand-800 hover:underline">
             ກັບເດືອນນີ້
           </Link>
         )}
       </div>
 
       {error && (
-        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</p>
+        <p className="rounded-xl border border-brand-orange-400 bg-brand-orange-50 px-4 py-3 text-xs text-brand-orange-700">{error}</p>
       )}
 
       {/* ── ② ຍອດລວມ ── */}
       <div className="grid gap-3 sm:grid-cols-2">
         {[
           { label: "ວຽກທີ່ຈ່າຍແລ້ວ", value: totals.jobs.toLocaleString(), tone: "text-slate-800" },
-          { label: "ລາຍຮັບຊ່າງ (ບາດ)", value: Math.round(totals.thb).toLocaleString(), tone: "text-emerald-700" },
+          { label: "ລາຍຮັບຊ່າງ (ບາດ)", value: Math.round(totals.thb).toLocaleString(), tone: "text-brand-800" },
         ].map((card) => (
           <div key={card.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-[11px] text-slate-400">{card.label}</p>
@@ -167,7 +167,7 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
       {/* ── ③ ລາຍຮັບຕິດຕັ້ງ (ຈາກບິນຂາຍ ERP) ── */}
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-3 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2 text-sm font-bold text-slate-700">
-          <Wrench className="size-4 text-indigo-600" />
+          <Wrench className="size-4 text-brand-600" />
           ລາຍຮັບຈາກການຕິດຕັ້ງ
           <span className="text-[11px] font-medium text-slate-400">
             {install.jobs.toLocaleString()} ໃບງານປິດໃນເດືອນນີ້ · ແອ {install.ac.toLocaleString()} · ໄຟຟ້າ {install.app.toLocaleString()}
@@ -208,7 +208,7 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
       {/* ── ④ ບັນຊີຊ່າງ ຮຽງຈາກຫຼາຍໄປໜ້ອຍ ── */}
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-600">
-          <Trophy className="size-3.5 text-amber-500" />
+          <Trophy className="size-3.5 text-brand-orange-300" />
           ຮຽງຕາມລາຍຮັບ · {ranked.length} ຄົນ
         </div>
 
@@ -222,7 +222,7 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <span
                 className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                  index === 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+                  index === 0 ? "bg-brand-orange-300 text-brand-900" : "bg-slate-100 text-slate-500"
                 }`}
               >
                 {index + 1}
@@ -236,20 +236,20 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
                 {/* ແຖບສ່ວນແບ່ງທຽບກັບຄົນສູງສຸດ — ເຫັນຄວາມຕ່າງໄດ້ໂດຍບໍ່ຕ້ອງອ່ານເລກ */}
                 <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                   <div
-                    className="h-full rounded-full bg-teal-500"
+                    className="h-full rounded-full bg-brand-600"
                     style={{ width: `${top > 0 ? Math.max(2, (row.thb / top) * 100) : 0}%` }}
                   />
                 </div>
               </div>
               <dl className="text-right text-xs tabular-nums">
                 <dt className="text-[10px] text-slate-400">ລາຍຮັບ (ບາດ)</dt>
-                <dd className="text-base font-bold text-emerald-700">{Math.round(row.thb).toLocaleString()}</dd>
+                <dd className="text-base font-bold text-brand-800">{Math.round(row.thb).toLocaleString()}</dd>
               </dl>
               </div>
 
               {/* ── ກົດເບິ່ງໃບງານທີ່ເປັນທີ່ມາຂອງລາຍຮັບກ້ອນນີ້ ── */}
               <details className="mt-2">
-                <summary className="cursor-pointer text-[11px] font-semibold text-teal-700 hover:underline">
+                <summary className="cursor-pointer text-[11px] font-semibold text-brand-800 hover:underline">
                   ເບິ່ງລາຍລະອຽດ {row.lines.length} ລາຍການ
                 </summary>
                 <table className="mt-1.5 w-full border-collapse text-[11px]">
@@ -272,7 +272,7 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
                                 ? `/installations/${encodeURIComponent(line.job_code)}`
                                 : `/service/${encodeURIComponent(line.job_code)}`
                             }
-                            className="font-semibold text-blue-700 hover:underline"
+                            className="font-semibold text-brand-700 hover:underline"
                           >
                             {line.job_code}
                           </Link>

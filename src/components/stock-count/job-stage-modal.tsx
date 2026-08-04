@@ -65,10 +65,10 @@ export function JobStageModal({
       router.refresh();
     });
 
-  const field = "h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-teal-500";
+  const field = "h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-600";
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-brand-900/50 p-4" onClick={onClose}>
       <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
@@ -107,7 +107,7 @@ export function JobStageModal({
               </div>
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-600">ເຫດຜົນ *</label>
-                <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="ບອກເຫດຜົນທີ່ພັກ (ຢ່າງໜ້ອຍ 3 ຕົວອັກສອນ)" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500" />
+                <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="ບອກເຫດຜົນທີ່ພັກ (ຢ່າງໜ້ອຍ 3 ຕົວອັກສອນ)" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-600" />
               </div>
             </>
           )}
@@ -122,13 +122,13 @@ export function JobStageModal({
               </div>
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-600">ເຫດຜົນ *</label>
-                <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="ຍ້ອນຫຍັງຈຶ່ງໂອນ (ຢ່າງໜ້ອຍ 3 ຕົວອັກສອນ)" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500" />
+                <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="ຍ້ອນຫຍັງຈຶ່ງໂອນ (ຢ່າງໜ້ອຍ 3 ຕົວອັກສອນ)" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-600" />
               </div>
             </>
           )}
         </div>
 
-        <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 p-2.5 text-[11px] text-amber-800">
+        <div className="mt-3 flex items-start gap-2 rounded-lg bg-brand-orange-100 p-2.5 text-[11px] text-brand-900">
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
           <span>
             {isPaused
@@ -141,11 +141,11 @@ export function JobStageModal({
           </span>
         </div>
 
-        {err && <p className="mt-2 text-xs font-semibold text-rose-600">{err}</p>}
+        {err && <p className="mt-2 text-xs font-semibold text-brand-orange-700">{err}</p>}
 
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="h-9 rounded-lg border border-slate-200 px-4 text-xs font-semibold text-slate-600 hover:bg-slate-50">ຍົກເລີກ</button>
-          <button type="button" disabled={pending} onClick={save} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
+          <button type="button" disabled={pending} onClick={save} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-900 px-4 text-xs font-semibold text-white hover:bg-brand-800 disabled:opacity-60">
             {pending && <LoaderCircle className="size-4 animate-spin" />} ບັນທຶກ
           </button>
         </div>

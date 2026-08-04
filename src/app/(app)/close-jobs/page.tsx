@@ -131,7 +131,7 @@ export default async function CloseJobsPage({ searchParams }: Props) {
               key={key}
               href={href({ tab: key, page: 1 })}
               className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon className="size-3.5" />
@@ -152,7 +152,7 @@ export default async function CloseJobsPage({ searchParams }: Props) {
             <Search className="size-3.5 shrink-0 text-slate-400" />
             <input name="q" defaultValue={q} placeholder={t.searchPlaceholder} className="w-full text-xs outline-none" />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+          <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
           {q && (
             <Link href={href({ q: "", page: 1 })} className="text-xs text-slate-500 underline">
               {t.clear}
@@ -187,7 +187,7 @@ export default async function CloseJobsPage({ searchParams }: Props) {
                   }
                   className="border-b border-slate-100 hover:bg-slate-50"
                 >
-                  <td className="whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">{row.code}</td>
+                  <td className="whitespace-nowrap px-3 py-2.5 font-bold text-brand">{row.code}</td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">{row.done_at ?? "-"}</td>
                   <td className="max-w-72 px-3 py-2.5">
                     <span className="block truncate font-medium text-slate-800" title={row.product ?? ""}>
@@ -233,7 +233,7 @@ export default async function CloseJobsPage({ searchParams }: Props) {
                       ? `/service/${encodeURIComponent(row.code)}`
                       : `/installations/${encodeURIComponent(row.code)}`
                   }
-                  className="font-bold text-[#0536a9]"
+                  className="font-bold text-brand"
                 >
                   {row.code}
                 </Link>

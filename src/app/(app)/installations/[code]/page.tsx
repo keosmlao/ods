@@ -177,9 +177,9 @@ export default async function InstallationDetail({ params }: Props) {
       </div>
 
       {row.cancel_date && (
-        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3">
-          <p className="text-sm font-bold text-red-800">{t.jobCancelled} · {row.cancel_date}</p>
-          {row.cancel_remark && <p className="mt-0.5 text-xs text-red-700">{t.reason} {row.cancel_remark}</p>}
+        <div className="rounded-xl border border-brand-orange-400 bg-brand-orange-50 px-4 py-3">
+          <p className="text-sm font-bold text-brand-orange-700">{t.jobCancelled} · {row.cancel_date}</p>
+          {row.cancel_remark && <p className="mt-0.5 text-xs text-brand-orange-700">{t.reason} {row.cancel_remark}</p>}
         </div>
       )}
 

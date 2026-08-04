@@ -90,7 +90,7 @@ export function QcForm({
       />
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
       {state.ok && (
-        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">{state.ok}</p>
+        <p className="rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">{state.ok}</p>
       )}
 
       <div className="space-y-2">
@@ -101,9 +101,9 @@ export function QcForm({
               key={item.id}
               className={`rounded-xl border p-3 ${
                 answer?.passed === false
-                  ? "border-red-300 bg-red-50"
+                  ? "border-brand-orange-400 bg-brand-orange-50"
                   : answer?.passed === true
-                    ? "border-emerald-300 bg-emerald-50/50"
+                    ? "border-brand-200 bg-brand-50/50"
                     : "border-slate-200 bg-white"
               }`}
             >
@@ -117,7 +117,7 @@ export function QcForm({
                   onClick={() => set(item.id, { passed: true })}
                   className={`inline-flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-semibold ${
                     answer?.passed === true
-                      ? "bg-emerald-600 text-white"
+                      ? "bg-brand-700 text-white"
                       : "border border-slate-300 bg-white text-slate-600"
                   }`}
                 >
@@ -127,7 +127,7 @@ export function QcForm({
                   type="button"
                   onClick={() => set(item.id, { passed: false })}
                   className={`inline-flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-semibold ${
-                    answer?.passed === false ? "bg-red-600 text-white" : "border border-slate-300 bg-white text-slate-600"
+                    answer?.passed === false ? "bg-brand-orange-700 text-white" : "border border-slate-300 bg-white text-slate-600"
                   }`}
                 >
                   <X className="size-3.5" /> {t.fail}
@@ -202,7 +202,7 @@ export function QcForm({
       <div className="sticky bottom-0 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <span className="text-xs text-slate-500">
           {t.checked} <b className="text-slate-800">{answered}/{items.length}</b>
-          {failed > 0 && <b className="ml-2 text-red-600">{t.fail} {failed}</b>}
+          {failed > 0 && <b className="ml-2 text-brand-orange-700">{t.fail} {failed}</b>}
         </span>
         <Button
           tone={failed > 0 ? "danger" : "success"}

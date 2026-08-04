@@ -147,7 +147,7 @@ export async function InstallationCloseQueue({ searchParams, queue }: CloseQueue
           defaultValue={to}
           className="h-9 rounded-lg border border-slate-300 px-2.5 text-xs outline-none"
         />
-        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.filter}</button>
+        <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.filter}</button>
         {(from || to) && (
           <Link href={basePath} className="text-xs text-slate-500 underline">
             {t.clear}
@@ -190,7 +190,7 @@ export async function InstallationCloseQueue({ searchParams, queue }: CloseQueue
                         href={feedbackLinks.get(row.code) ?? "#"}
                         target="_blank"
                         title={t.questionnaireTitle}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:underline"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-brand-800 hover:underline"
                       >
                         <ClipboardList className="size-4" /> {t.questionnaire}
                       </Link>

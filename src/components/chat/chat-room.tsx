@@ -140,7 +140,7 @@ export function ChatRoom({
                   )}
                   <div
                     className={`rounded-2xl px-3 py-2 text-sm ${
-                      mine ? "rounded-br-sm bg-[#0536a9] text-white" : "rounded-bl-sm bg-white text-slate-800 shadow-sm"
+                      mine ? "rounded-br-sm bg-brand text-white" : "rounded-bl-sm bg-white text-slate-800 shadow-sm"
                     }`}
                   >
                     <p className="whitespace-pre-wrap break-words">{message.body}</p>
@@ -156,7 +156,7 @@ export function ChatRoom({
         <div ref={bottomRef} />
       </div>
 
-      {state.error && <p className="bg-rose-50 px-4 py-1.5 text-xs font-semibold text-rose-600">{state.error}</p>}
+      {state.error && <p className="bg-brand-orange-50 px-4 py-1.5 text-xs font-semibold text-brand-orange-700">{state.error}</p>}
 
       <form ref={formRef} action={submit} className="flex items-center gap-2 border-t border-slate-200 p-2.5">
         <input type="hidden" name="room" value={room} />
@@ -168,12 +168,12 @@ export function ChatRoom({
           maxLength={2000}
           autoComplete="off"
           placeholder="ພິມຂໍ້ຄວາມ..."
-          className="h-10 flex-1 rounded-lg border border-slate-300 px-3 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100"
+          className="h-10 flex-1 rounded-lg border border-slate-300 px-3 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
         <button
           type="submit"
           disabled={sending || !text.trim()}
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#0536a9] text-white hover:opacity-90 disabled:opacity-40"
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand text-white hover:opacity-90 disabled:opacity-40"
         >
           {sending ? <LoaderCircle className="size-4 animate-spin" /> : <Send className="size-4" />}
         </button>

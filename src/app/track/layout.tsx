@@ -17,7 +17,7 @@ export default function TrackLayout({ children }: { children: React.ReactNode })
     <main className="min-h-dvh bg-slate-50">
       <div className="mx-auto w-full max-w-md px-4 py-6">
         <header className="mb-4 text-center">
-          <Link href="/track" className="text-lg font-bold text-[#0536a9]">
+          <Link href="/track" className="text-lg font-bold text-brand">
             ODIEN SERVICE
           </Link>
           <p className="mt-0.5 text-xs text-slate-500">ຕິດຕາມເຄື່ອງສ້ອມ</p>

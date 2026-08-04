@@ -109,7 +109,7 @@ export default async function KpiPage({ searchParams }: Props) {
             key={period}
             href={`/reports/kpi?d=${period}`}
             className={`inline-flex h-9 items-center rounded-lg px-3 text-xs font-semibold transition ${
-              days === period ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+              days === period ? "bg-brand-900 text-white" : "text-slate-600 hover:bg-slate-100"
             }`}
           >
             {period} {t.daysUnit}
@@ -129,10 +129,10 @@ export default async function KpiPage({ searchParams }: Props) {
         <div
           className={`flex flex-wrap items-center gap-4 rounded-2xl border p-4 ${
             install.target.pct >= 80
-              ? "border-emerald-200 bg-emerald-50"
+              ? "border-brand-200 bg-brand-50"
               : install.target.pct >= 50
-                ? "border-amber-200 bg-amber-50"
-                : "border-red-200 bg-red-50"
+                ? "border-brand-orange-400 bg-brand-orange-100"
+                : "border-brand-orange-400 bg-brand-orange-50"
           }`}
         >
           <div className="min-w-0 flex-1">
@@ -151,17 +151,17 @@ export default async function KpiPage({ searchParams }: Props) {
           </div>
           <span className="h-2 w-full overflow-hidden rounded-full bg-white sm:w-64">
             <span
-              className={`block h-full rounded-full ${install.target.pct >= 80 ? "bg-emerald-500" : "bg-red-500"}`}
+              className={`block h-full rounded-full ${install.target.pct >= 80 ? "bg-brand-700" : "bg-brand-orange-700"}`}
               style={{ width: `${Math.max(1, install.target.pct)}%` }}
             />
           </span>
         </div>
       )}
 
-      <Flow title={t.install} icon={<HardHat className="size-4 text-teal-600" />} kpi={install} overdueLabel={t.overdueInstall} t={t} />
+      <Flow title={t.install} icon={<HardHat className="size-4 text-brand-700" />} kpi={install} overdueLabel={t.overdueInstall} t={t} />
       <Flow
         title={t.repairFull}
-        icon={<Wrench className="size-4 text-teal-600" />}
+        icon={<Wrench className="size-4 text-brand-700" />}
         kpi={repair}
         overdueLabel={t.overdueRepair}
         t={t}
@@ -177,7 +177,7 @@ export default async function KpiPage({ searchParams }: Props) {
               <td className="whitespace-nowrap px-3 py-2.5 font-bold text-slate-800">
                 {policy.stage}. {policy.label}
                 {policy.external && (
-                  <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">External</span>
+                  <span className="ml-2 rounded bg-brand-orange-300 px-1.5 py-0.5 text-[9px] font-bold text-brand-900">External</span>
                 )}
               </td>
               <td className="px-3 py-2.5 text-slate-600">{policy.owner}</td>
@@ -189,14 +189,14 @@ export default async function KpiPage({ searchParams }: Props) {
                   <td key={code} className="whitespace-nowrap px-3 py-2.5 text-center tabular-nums">
                     <span className="block font-semibold text-slate-700">SLA {hours(policy.hours[code], t)}</span>
                     <span className={`mt-0.5 block text-[10px] font-bold ${
-                      !actual?.total ? "text-slate-400" : met ? "text-emerald-700" : "text-red-600"
+                      !actual?.total ? "text-slate-400" : met ? "text-brand-800" : "text-brand-orange-700"
                     }`}>
                       {t.resultPrefix} {actual?.total ? `${actual.pct}% (${actual.within_sla}/${actual.total})` : "-"}
                     </span>
                   </td>
                 );
               })}
-              <td className="whitespace-nowrap px-3 py-2.5 text-center font-bold text-teal-700">≥ {policy.targetPct}%</td>
+              <td className="whitespace-nowrap px-3 py-2.5 text-center font-bold text-brand-800">≥ {policy.targetPct}%</td>
             </tr>
           ))}
         </Table>
@@ -230,7 +230,7 @@ export default async function KpiPage({ searchParams }: Props) {
           />
         </div>
         {quality.qc_answers === 0 && (
-          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+          <p className="mt-3 rounded-lg bg-brand-orange-100 px-3 py-2 text-xs font-semibold text-brand-900">
             {t.qcNoDataNote}
           </p>
         )}
@@ -248,7 +248,7 @@ export default async function KpiPage({ searchParams }: Props) {
       <Card
         title={
           <span className="inline-flex items-center gap-2">
-            <TrendingUp className="size-4 text-teal-600" />
+            <TrendingUp className="size-4 text-brand-700" />
             {t.techResultsTitle} ({days} {t.daysUnit})
           </span>
         }
@@ -271,7 +271,7 @@ export default async function KpiPage({ searchParams }: Props) {
                 <td className="px-3 py-2.5 text-center tabular-nums">
                   {sla ? (
                     <span className="inline-flex flex-col items-center leading-tight">
-                      <span className={`font-bold ${sla.pct >= 90 ? "text-emerald-600" : sla.pct >= 75 ? "text-amber-600" : "text-red-600"}`}>
+                      <span className={`font-bold ${sla.pct >= 90 ? "text-brand-800" : sla.pct >= 75 ? "text-brand-900" : "text-brand-orange-700"}`}>
                         {sla.pct}%
                       </span>
                       <span className="text-[11px] text-slate-400">
@@ -284,12 +284,12 @@ export default async function KpiPage({ searchParams }: Props) {
                 </td>
                 <td className="px-3 py-2.5 text-center tabular-nums">
                   {/* ປະຕິເສດຫຼາຍ = ຈັດງານບໍ່ຕົງຄົນ ຫຼື ຊ່າງເລືອກງານ ⇒ ຄວນຖາມ */}
-                  <span className={tech.rejects > 0 ? "font-bold text-amber-700" : "text-slate-400"}>
+                  <span className={tech.rejects > 0 ? "font-bold text-brand-900" : "text-slate-400"}>
                     {tech.rejects}
                   </span>
                 </td>
                 <td className="px-3 py-2.5 text-center tabular-nums">
-                  <span className={tech.qc_failed > 0 ? "font-bold text-red-600" : "text-slate-400"}>
+                  <span className={tech.qc_failed > 0 ? "font-bold text-brand-orange-700" : "text-slate-400"}>
                     {tech.qc_failed}
                   </span>
                 </td>
@@ -304,7 +304,7 @@ export default async function KpiPage({ searchParams }: Props) {
       <Card
         title={
           <span className="inline-flex items-center gap-2">
-            <Wrench className="size-4 text-teal-600" />
+            <Wrench className="size-4 text-brand-700" />
             {t.serviceMixTitle} ({days} {t.daysUnit})
           </span>
         }
@@ -319,10 +319,10 @@ export default async function KpiPage({ searchParams }: Props) {
                 <td className="px-3 py-2.5 text-center tabular-nums text-slate-600">{row.ci || "–"}</td>
                 <td className="px-3 py-2.5 text-center tabular-nums text-slate-600">{row.st || "–"}</td>
                 <td className="px-3 py-2.5 text-center tabular-nums">
-                  <span className={row.ih > 0 ? "font-semibold text-emerald-700" : "text-slate-300"}>{row.ih || "–"}</span>
+                  <span className={row.ih > 0 ? "font-semibold text-brand-800" : "text-slate-300"}>{row.ih || "–"}</span>
                 </td>
                 <td className="px-3 py-2.5 text-center tabular-nums">
-                  <span className={row.ps > 0 ? "font-semibold text-amber-700" : "text-slate-300"}>{row.ps || "–"}</span>
+                  <span className={row.ps > 0 ? "font-semibold text-brand-900" : "text-slate-300"}>{row.ps || "–"}</span>
                 </td>
                 <td className="px-3 py-2.5 text-center font-bold tabular-nums text-slate-800">{row.total}</td>
               </tr>
@@ -335,7 +335,7 @@ export default async function KpiPage({ searchParams }: Props) {
       <Card
         title={
           <span className="inline-flex items-center gap-2">
-            <TriangleAlert className="size-4 text-teal-600" />
+            <TriangleAlert className="size-4 text-brand-700" />
             {t.ownerSlaTitle} ({days} {t.daysUnit})
           </span>
         }
@@ -349,7 +349,7 @@ export default async function KpiPage({ searchParams }: Props) {
                 <td className="px-3 py-2.5 font-semibold text-slate-800">{row.owner}</td>
                 <td className="px-3 py-2.5 text-center font-mono text-xs text-slate-400">{row.stages.join(", ")}</td>
                 <td className="px-3 py-2.5 text-center">
-                  <span className={`font-bold ${row.pct >= 90 ? "text-emerald-600" : row.pct >= 75 ? "text-amber-600" : "text-red-600"}`}>
+                  <span className={`font-bold ${row.pct >= 90 ? "text-brand-800" : row.pct >= 75 ? "text-brand-900" : "text-brand-orange-700"}`}>
                     {row.pct}%
                   </span>
                 </td>
@@ -364,14 +364,14 @@ export default async function KpiPage({ searchParams }: Props) {
       <Card
         title={
           <span className="inline-flex items-center gap-2">
-            <TrendingUp className="size-4 text-teal-600" />
+            <TrendingUp className="size-4 text-brand-700" />
             {t.frontStageTitle} ({days} {t.daysUnit})
           </span>
         }
       >
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-            <p className="text-xs font-bold text-amber-700">{t.psStageLabel}</p>
+          <div className="rounded-xl border border-brand-orange-400 bg-brand-orange-100/50 p-4">
+            <p className="text-xs font-bold text-brand-900">{t.psStageLabel}</p>
             {frontStage.ps.count === 0 ? (
               <p className="mt-2 text-sm text-slate-400">{t.noDataNewColumn}</p>
             ) : (
@@ -382,8 +382,8 @@ export default async function KpiPage({ searchParams }: Props) {
             )}
             <p className="mt-1 text-[11px] text-slate-400">{t.psStageNote}</p>
           </div>
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
-            <p className="text-xs font-bold text-emerald-700">{t.ihStageLabel}</p>
+          <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4">
+            <p className="text-xs font-bold text-brand-800">{t.ihStageLabel}</p>
             {frontStage.ih.count === 0 ? (
               <p className="mt-2 text-sm text-slate-400">{t.noDataNewColumn}</p>
             ) : (
@@ -431,7 +431,7 @@ function Flow({
       {/* ເວລາຕໍ່ຂັ້ນ — ອັນຍາວສຸດຄືບ່ອນທີ່ຕ້ອງແກ້ */}
       <div className="mt-4 space-y-2">
         <p className="text-xs font-semibold text-slate-500">
-          {t.stageTimePrefix} <b className="text-red-600">{t.bottleneckLabel}</b>
+          {t.stageTimePrefix} <b className="text-brand-orange-700">{t.bottleneckLabel}</b>
         </p>
         {kpi.stages.map((stage) => {
           const bottleneck = stage.label === worst?.label && stage.median > 0;
@@ -440,13 +440,13 @@ function Flow({
               <span className="w-28 shrink-0 truncate text-xs text-slate-600 sm:w-56">{stage.label}</span>
               <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                 <span
-                  className={`block h-full rounded-full ${bottleneck ? "bg-red-500" : "bg-teal-500"}`}
+                  className={`block h-full rounded-full ${bottleneck ? "bg-brand-orange-700" : "bg-brand-600"}`}
                   style={{ width: `${Math.max(2, Math.round((stage.median / max) * 100))}%` }}
                 />
               </span>
               <span
                 className={`w-24 shrink-0 text-right text-xs tabular-nums sm:w-32 ${
-                  bottleneck ? "font-bold text-red-600" : "text-slate-600"
+                  bottleneck ? "font-bold text-brand-orange-700" : "text-slate-600"
                 }`}
               >
                 {hours(stage.median, t)}
@@ -456,7 +456,7 @@ function Flow({
           );
         })}
         {worst && worst.median > 0 && (
-          <p className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+          <p className="flex items-center gap-1.5 rounded-lg bg-brand-orange-100 px-3 py-2 text-xs font-semibold text-brand-900">
             <TriangleAlert className="size-3.5" />
             {t.bottleneckLabel}: <b>{worst.label}</b> — {hours(worst.median, t)} {t.perJobFromTotal} {hours(kpi.total.median, t)})
           </p>
@@ -475,7 +475,7 @@ function Weekly({ title, points, t }: { title: string; points: { week: string; o
         {title}
         <span className="ml-3 text-[11px] font-normal text-slate-400">
           <span className="mr-1 inline-block size-2 rounded-sm bg-slate-400" /> {t.opened}
-          <span className="ml-2 mr-1 inline-block size-2 rounded-sm bg-teal-500" /> {t.closed}
+          <span className="ml-2 mr-1 inline-block size-2 rounded-sm bg-brand-600" /> {t.closed}
         </span>
       </p>
       <div className="flex h-28 items-end gap-1 overflow-x-auto">
@@ -489,7 +489,7 @@ function Weekly({ title, points, t }: { title: string; points: { week: string; o
               />
               <span
                 title={`${t.closed} ${point.closed}`}
-                className="w-1/2 rounded-t bg-teal-500"
+                className="w-1/2 rounded-t bg-brand-600"
                 style={{ height: `${Math.round((point.closed / max) * 100)}%` }}
               />
             </div>
@@ -516,9 +516,9 @@ function Stat({
 }) {
   const color =
     tone === "good"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      ? "border-brand-200 bg-brand-50 text-brand-800"
       : tone === "bad"
-        ? "border-red-200 bg-red-50 text-red-700"
+        ? "border-brand-orange-400 bg-brand-orange-50 text-brand-orange-700"
         : "border-slate-200 bg-white text-slate-700";
   return (
     <div className={`rounded-xl border p-3 ${color}`}>

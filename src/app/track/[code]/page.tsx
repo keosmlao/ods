@@ -33,7 +33,7 @@ export default async function TrackJobPage({ params }: Props) {
       <TrackStatus job={job} />
       <Link
         href="/track"
-        className="block rounded-xl border border-slate-200 bg-white py-2.5 text-center text-xs font-medium text-[#0536a9] shadow-sm"
+        className="block rounded-xl border border-slate-200 bg-white py-2.5 text-center text-xs font-medium text-brand shadow-sm"
       >
         ຄົ້ນຫາໃບອື່ນ
       </Link>

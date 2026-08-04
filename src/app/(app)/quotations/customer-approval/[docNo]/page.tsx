@@ -53,7 +53,7 @@ export default async function CustomerApprovalDetailPage({ params }: Props) {
   const banner = answered ? (
     <div
       className={`rounded-xl border p-4 text-sm ${
-        head.aprove_status_2 === 2 ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-800"
+        head.aprove_status_2 === 2 ? "border-brand-orange-400 bg-brand-orange-50 text-brand-orange-700" : "border-brand-200 bg-brand-50 text-brand-800"
       }`}
     >
       <p className="font-semibold">
@@ -65,7 +65,7 @@ export default async function CustomerApprovalDetailPage({ params }: Props) {
       <p className="mt-1 text-xs">ກົດຜິດບໍ? ກົດ “ຖອນຄຳຕອບ” — ຖອນໄດ້ຕາບໃດທີ່ຍັງບໍ່ໄດ້ອອກໃບຮັບເງິນ</p>
     </div>
   ) : pendingInternal ? (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+    <div className="rounded-xl border border-brand-orange-400 bg-brand-orange-100 p-4 text-sm text-brand-900">
       <p className="font-semibold">ໃບນີ້ຍັງບໍ່ໄດ້ຮັບອະນຸມັດພາຍໃນ</p>
       <p className="mt-1 text-xs">ບັນທຶກຄຳຕອບຂອງລູກຄ້າບໍ່ໄດ້ຈົນກວ່າຜູ້ອະນຸມັດຈະອະນຸມັດໃບນີ້ກ່ອນ</p>
     </div>

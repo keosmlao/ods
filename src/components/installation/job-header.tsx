@@ -58,7 +58,7 @@ export function JobHeader({ head, title = "ຂໍ້ມູນງານຕິດ�
         {/* ① ງານໃດ */}
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-slate-900 px-2 py-0.5 text-xs font-bold text-white">{head.code}</span>
+            <span className="rounded-md bg-brand-900 px-2 py-0.5 text-xs font-bold text-white">{head.code}</span>
             {head.doc_ref_1 && (
               <span className="text-[11px] text-slate-500">
                 ບິນ <b className="font-semibold text-slate-700">{head.doc_ref_1}</b>
@@ -68,7 +68,7 @@ export function JobHeader({ head, title = "ຂໍ້ມູນງານຕິດ�
           <p className="mt-1 text-[11px] text-slate-400">ເປີດງານ {head.time_register ?? "-"}</p>
           {head.tech_code && (
             <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-700">
-              <UserRound className="size-3.5 text-teal-600" />
+              <UserRound className="size-3.5 text-brand-700" />
               ຊ່າງ {head.tech_code}
             </p>
           )}
@@ -77,7 +77,7 @@ export function JobHeader({ head, title = "ຂໍ້ມູນງານຕິດ�
         {/* ② ເຄື່ອງຫຍັງ — ອັນນີ້ຄືສິ່ງທີ່ຕັດສິນວ່າຕ້ອງເບີກອາໄຫຼ່ຫຍັງ */}
         <div className="min-w-0 md:border-l md:border-slate-100 md:pl-4">
           <p className="inline-flex items-start gap-1.5 text-sm font-bold text-slate-800">
-            <Package className="mt-0.5 size-4 shrink-0 text-teal-600" />
+            <Package className="mt-0.5 size-4 shrink-0 text-brand-700" />
             <span className="min-w-0">{head.item_name ?? "-"}</span>
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1">
@@ -97,7 +97,7 @@ export function JobHeader({ head, title = "ຂໍ້ມູນງານຕິດ�
 
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
             {head.tel && (
-              <a href={`tel:${head.tel}`} className="inline-flex items-center gap-1 font-semibold text-emerald-700">
+              <a href={`tel:${head.tel}`} className="inline-flex items-center gap-1 font-semibold text-brand-800">
                 <Phone className="size-3.5" />
                 {head.tel}
               </a>
@@ -122,7 +122,7 @@ export function JobHeader({ head, title = "ຂໍ້ມູນງານຕິດ�
               href={`https://www.google.com/maps/dir/?api=1&destination=${head.location_lat},${head.location_lng}`}
               target="_blank"
               rel="noreferrer"
-              className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:underline"
+              className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-brand-800 hover:underline"
             >
               <MapPin className="size-3.5" />
               ນຳທາງ

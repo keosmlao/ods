@@ -257,11 +257,11 @@ const money = (v: string | null) => {
 
 /** ປ້າຍສະຖານະໃບສະເໜີລາຄາ */
 const STATUS_TONE: Record<string, string> = {
-  ລໍຖ້າອະນຸມັດ: "bg-amber-50 text-amber-700",
-  ລໍຖ້າລູກຄ້າອະນຸມັດ: "bg-blue-50 text-blue-700",
-  ອະນຸມັດເເລ້ວ: "bg-emerald-50 text-emerald-700",
-  ບໍ່ອະນຸມັດ: "bg-red-50 text-red-700",
-  ລູກຄ້າບໍ່ອະນຸມັດ: "bg-red-50 text-red-700",
+  ລໍຖ້າອະນຸມັດ: "bg-brand-orange-100 text-brand-900",
+  ລໍຖ້າລູກຄ້າອະນຸມັດ: "bg-brand-50 text-brand-700",
+  ອະນຸມັດເເລ້ວ: "bg-brand-50 text-brand-800",
+  ບໍ່ອະນຸມັດ: "bg-brand-orange-50 text-brand-orange-700",
+  ລູກຄ້າບໍ່ອະນຸມັດ: "bg-brand-orange-50 text-brand-orange-700",
 };
 
 function Thumb({ url }: { url: string | null }) {
@@ -339,7 +339,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
               key={key}
               href={tabHref(key)}
               className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon className="size-3.5" />
@@ -365,7 +365,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+          <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -401,7 +401,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                 const tone = elapsedTone(row.elapsed_seconds);
                 return (
                   <RowLink key={row.code} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                       <Link href={`/service/${row.code}`} className="hover:underline">
                         {row.code}
@@ -430,7 +430,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.technician || "-"}</td>
-                    <td className="max-w-52 truncate px-3 py-2.5 font-semibold text-red-600" title={row.issue ?? ""}>
+                    <td className="max-w-52 truncate px-3 py-2.5 font-semibold text-brand-orange-700" title={row.issue ?? ""}>
                       {row.issue || "-"}
                     </td>
 
@@ -438,7 +438,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                     <td className="max-w-56 px-3 py-2.5">
                       {row.quote_doc_no ? (
                         <>
-                          <span className="inline-block rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
+                          <span className="inline-block rounded bg-brand-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-orange-700">
                             {row.quote_status === 2 ? t.rejected : t.pendingApproval} · {row.quote_doc_no}
                           </span>
                           <span
@@ -463,7 +463,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                       ) : (
                         <Link
                           href={`/quotations/new/${encodeURIComponent(row.code)}`}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
                         >
                           <FileCheck2 className="size-3.5" />
                           {t.quote}
@@ -480,7 +480,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                 const inWarranty = row.warranty === "ຮັບປະກັນ";
                 return (
                   <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                       {row.doc_no}
                     </td>
@@ -500,9 +500,9 @@ export default async function QuotationsPage({ searchParams }: Props) {
                     </td>
                     {/* ຍອດຫຼັງສ່ວນຫຼຸດ — ຕົວເລກທີ່ພິມໃສ່ໃບ ແລະ ທີ່ໃບຮັບເງິນຈະອີງໃສ່ */}
                     <td className="whitespace-nowrap px-3 py-2.5 text-right">
-                      <span className="font-bold text-[#e75555]">{money(row.total_amount)}</span>
+                      <span className="font-bold text-[#9f5f14]">{money(row.total_amount)}</span>
                       {Number(row.total_discount) > 0 && (
-                        <span className="mt-0.5 block text-[10px] text-emerald-700">
+                        <span className="mt-0.5 block text-[10px] text-brand-800">
                           {t.discount} {money(row.total_discount)}
                         </span>
                       )}
@@ -520,14 +520,14 @@ export default async function QuotationsPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                          inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                          inWarranty ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"
                         }`}
                       >
                         {row.warranty || "-"}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.user_created || "-"}</td>
-                    <td className="max-w-52 truncate px-3 py-2.5 font-semibold text-red-600" title={row.issue_2 ?? ""}>
+                    <td className="max-w-52 truncate px-3 py-2.5 font-semibold text-brand-orange-700" title={row.issue_2 ?? ""}>
                       {row.issue_2 || "-"}
                     </td>
 
@@ -555,7 +555,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                           href={`/quotations/${encodeURIComponent(row.doc_no)}/print`}
                           target="_blank"
                           title={t.printQuote}
-                          className="inline-block text-[#D35400] hover:opacity-70"
+                          className="inline-block text-[#f6921e] hover:opacity-70"
                         >
                           <Printer className="size-4" />
                         </Link>
@@ -585,7 +585,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
           return (
             <div key={row.code} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
               <div className="flex items-start justify-between gap-2">
-                <Link href={`/service/${row.code}`} className="font-bold text-[#0536a9] hover:underline">
+                <Link href={`/service/${row.code}`} className="font-bold text-brand hover:underline">
                   {row.code}
                 </Link>
                 <Elapsed
@@ -606,11 +606,11 @@ export default async function QuotationsPage({ searchParams }: Props) {
                 <span>{t.techShort}: {row.technician || "-"}</span>
               </div>
               <p className="mt-1 text-[11px] text-slate-600">{t.customer}: {row.customer || "-"}</p>
-              {row.issue && <p className="mt-1 text-[11px] font-semibold text-red-600">{t.issue}: {row.issue}</p>}
+              {row.issue && <p className="mt-1 text-[11px] font-semibold text-brand-orange-700">{t.issue}: {row.issue}</p>}
 
               {row.quote_doc_no && (
                 <div className="mt-2">
-                  <span className="inline-block rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
+                  <span className="inline-block rounded bg-brand-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-orange-700">
                     {row.quote_status === 2 ? t.rejected : t.pendingApproval} · {row.quote_doc_no}
                   </span>
                   <p className="mt-0.5 text-[10px] text-slate-500">
@@ -626,7 +626,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                 ) : (
                   <Link
                     href={`/quotations/new/${encodeURIComponent(row.code)}`}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
                   >
                     <FileCheck2 className="size-3.5" />
                     {t.quote}
@@ -644,7 +644,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
           return (
             <div key={row.doc_no} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
               <div className="flex items-start justify-between gap-2">
-                <span className="font-bold text-[#0536a9]">{row.doc_no}</span>
+                <span className="font-bold text-brand">{row.doc_no}</span>
                 <span className="text-right text-[11px] text-slate-500">{row.doc_date ?? "-"}</span>
               </div>
 
@@ -660,9 +660,9 @@ export default async function QuotationsPage({ searchParams }: Props) {
                   </span>
                 )}
                 <span className="text-right">
-                  <span className="font-bold text-[#e75555]">{money(row.total_amount)}</span>
+                  <span className="font-bold text-[#9f5f14]">{money(row.total_amount)}</span>
                   {Number(row.total_discount) > 0 && (
-                    <span className="ml-1 text-[10px] text-emerald-700">{t.discountShort} {money(row.total_discount)}</span>
+                    <span className="ml-1 text-[10px] text-brand-800">{t.discountShort} {money(row.total_discount)}</span>
                   )}
                 </span>
               </div>
@@ -677,7 +677,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                 <span>{t.brand}: {row.brand || "-"}</span>
                 <span
                   className={`rounded px-1.5 py-0.5 font-medium ${
-                    inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                    inWarranty ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"
                   }`}
                 >
                   {row.warranty || "-"}
@@ -685,7 +685,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                 <span>{t.issuedByShort}: {row.user_created || "-"}</span>
               </div>
               <p className="mt-1 text-[11px] text-slate-600">{t.customer}: {row.customer || "-"}</p>
-              {row.issue_2 && <p className="mt-1 text-[11px] font-semibold text-red-600">{t.issue}: {row.issue_2}</p>}
+              {row.issue_2 && <p className="mt-1 text-[11px] font-semibold text-brand-orange-700">{t.issue}: {row.issue_2}</p>}
 
               {tab === "all" && (
                 <div className="mt-2">
@@ -705,7 +705,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
                   href={`/quotations/${encodeURIComponent(row.doc_no)}/print`}
                   target="_blank"
                   title={t.printQuote}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-[#D35400] hover:opacity-70"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-[#f6921e] hover:opacity-70"
                 >
                   <Printer className="size-4" />
                   {t.print}

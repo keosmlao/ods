@@ -80,13 +80,13 @@ export function RemarkCell({ code, value, canEdit }: { code: string; value: stri
           }}
           maxLength={500}
           placeholder="ພິມໝາຍເຫດ..."
-          className="h-8 w-full rounded border border-teal-500 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-100"
+          className="h-8 w-full rounded border border-brand-600 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
         <button
           type="submit"
           disabled={saving}
           title="ບັນທຶກ (Enter)"
-          className="grid size-7 shrink-0 place-items-center rounded text-teal-600 hover:bg-teal-50 disabled:opacity-40"
+          className="grid size-7 shrink-0 place-items-center rounded text-brand-700 hover:bg-brand-50 disabled:opacity-40"
         >
           {saving ? <LoaderCircle className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
         </button>
@@ -102,7 +102,7 @@ export function RemarkCell({ code, value, canEdit }: { code: string; value: stri
           <X className="size-3.5" />
         </button>
       </div>
-      {state.error && <p className="text-[10px] font-semibold text-rose-600">{state.error}</p>}
+      {state.error && <p className="text-[10px] font-semibold text-brand-orange-700">{state.error}</p>}
     </form>
   );
 }

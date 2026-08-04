@@ -55,7 +55,7 @@ export default async function ClaimCheckPage({ params }: { params: Promise<{ cod
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5">
       <div>
-        <Link href="/claims/jobs/claim-checking" className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-violet-600">
+        <Link href="/claims/jobs/claim-checking" className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-brand-orange-600">
           <ArrowLeft className="size-4" />
           ກັບຄິວງານເຄມ
           <LinkPending className="size-3" />

@@ -65,17 +65,17 @@ const SORT_SQL: Record<string, string> = {
 /** ສີຂອງແຕ່ລະຂັ້ນ */
 const STAGE_TONE: Record<number, string> = {
   [-1]: "bg-slate-100 text-slate-500",
-  1: "bg-red-50 text-red-700",
-  2: "bg-blue-50 text-blue-700",
-  3: "bg-violet-50 text-violet-700",
-  4: "bg-violet-50 text-violet-700",
-  5: "bg-amber-50 text-amber-700",
-  6: "bg-amber-50 text-amber-700",
-  7: "bg-orange-50 text-orange-700",
-  8: "bg-teal-50 text-teal-700",
-  9: "bg-indigo-50 text-indigo-700",
-  10: "bg-fuchsia-50 text-fuchsia-700",
-  11: "bg-emerald-50 text-emerald-700",
+  1: "bg-brand-orange-50 text-brand-orange-700",
+  2: "bg-brand-50 text-brand-700",
+  3: "bg-brand-orange-50 text-brand-orange-700",
+  4: "bg-brand-orange-50 text-brand-orange-700",
+  5: "bg-brand-orange-100 text-brand-900",
+  6: "bg-brand-orange-100 text-brand-900",
+  7: "bg-brand-orange-50 text-brand-orange-700",
+  8: "bg-brand-50 text-brand-800",
+  9: "bg-brand-50 text-brand-700",
+  10: "bg-brand-orange-50 text-brand-orange-700",
+  11: "bg-brand-50 text-brand-800",
 };
 
 async function getProducts(tab: Tab, q: string, page: number, sort: string, dir: SortDir) {
@@ -218,7 +218,7 @@ export default async function StockProductsPage({ searchParams }: Props) {
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+          <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -252,9 +252,9 @@ export default async function StockProductsPage({ searchParams }: Props) {
                   <RowLink
                     key={product.code}
                     href={`/service/${product.code}`}
-                    className={`border-b border-slate-100 ${selected ? "bg-teal-50" : "hover:bg-slate-50"}`}
+                    className={`border-b border-slate-100 ${selected ? "bg-brand-50" : "hover:bg-slate-50"}`}
                   >
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                       <Link href={`/service/${product.code}`} className="hover:underline">
                         {product.code}
@@ -287,7 +287,7 @@ export default async function StockProductsPage({ searchParams }: Props) {
                         {STAGE_LABEL[product.stage] ?? "-"}
                       </span>
                     </td>
-                    <td className="max-w-52 truncate px-3 py-2.5 font-semibold text-red-600" title={product.issue ?? ""}>
+                    <td className="max-w-52 truncate px-3 py-2.5 font-semibold text-brand-orange-700" title={product.issue ?? ""}>
                       {product.issue || "-"}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-center">
@@ -297,7 +297,7 @@ export default async function StockProductsPage({ searchParams }: Props) {
                         className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold ${
                           selected
                             ? "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
-                            : "bg-sky-500 text-white hover:bg-sky-600"
+                            : "bg-brand-500 text-white hover:bg-brand-500"
                         }`}
                       >
                         {selected ? t.close : t.detail}

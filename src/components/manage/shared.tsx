@@ -31,7 +31,7 @@ export function Alert({ state, onClear }: { state: ActionState; onClear?: () => 
     <p
       role="status"
       className={`rounded-lg border p-3 text-center text-sm font-semibold ${
-        good ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"
+        good ? "border-brand-200 bg-brand-50 text-brand-800" : "border-brand-orange-400 bg-brand-orange-50 text-brand-orange-700"
       }`}
     >
       {message}
@@ -66,7 +66,7 @@ export function DeleteButton<Id extends string | number>({
         type="button"
         title="ລົບ"
         disabled={pending}
-        className="text-[#DC3545] transition hover:opacity-70 disabled:opacity-40"
+        className="text-[#9f5f14] transition hover:opacity-70 disabled:opacity-40"
         onClick={async () => {
           const ok = await ask({
             title,

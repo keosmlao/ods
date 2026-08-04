@@ -184,7 +184,7 @@ export default async function CancellationsPage({ searchParams }: Props) {
               key={key}
               href={tabHref(key)}
               className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon className="size-3.5" />
@@ -210,7 +210,7 @@ export default async function CancellationsPage({ searchParams }: Props) {
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+          <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -249,7 +249,7 @@ export default async function CancellationsPage({ searchParams }: Props) {
                 const inWarranty = row.warranty === "ຮັບປະກັນ";
                 return (
                   <RowLink key={row.code} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                       <Link href={`/service/${row.code}`} className="hover:underline">
                         {row.code}
@@ -266,7 +266,7 @@ export default async function CancellationsPage({ searchParams }: Props) {
                       <span className="block truncate font-medium text-slate-800" title={row.product ?? ""}>
                         {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
                       </span>
-                      <span className="block truncate text-[10px] font-bold text-[#790404]">{row.sn || "-"}</span>
+                      <span className="block truncate text-[10px] font-bold text-[#9f5f14]">{row.sn || "-"}</span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.brand || "-"}</td>
                     <td className="max-w-44 truncate px-3 py-2.5" title={row.customer ?? ""}>
@@ -275,7 +275,7 @@ export default async function CancellationsPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                          inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                          inWarranty ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"
                         }`}
                       >
                         {row.warranty || "-"}
@@ -283,7 +283,7 @@ export default async function CancellationsPage({ searchParams }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.request_cancel || "-"}</td>
                     <td className="max-w-52 px-3 py-2.5">
-                      <span className="block truncate font-semibold text-red-600" title={row.issue ?? ""}>
+                      <span className="block truncate font-semibold text-brand-orange-700" title={row.issue ?? ""}>
                         {row.issue || "-"}
                       </span>
                       {row.issue_2 && (
@@ -305,7 +305,7 @@ export default async function CancellationsPage({ searchParams }: Props) {
                       <td className="whitespace-nowrap px-3 py-2.5 text-center">
                         <Link
                           href={`/approvals/cancellations/${encodeURIComponent(row.code)}`}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
                         >
                           <FileCheck2 className="size-3.5" />
                           {t.details}

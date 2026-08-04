@@ -40,7 +40,7 @@ export function SprDangerButtons({ sprNo, back }: { sprNo: string; back?: string
             });
             if (ok) unapproveRef.current?.requestSubmit();
           }}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-brand-orange-400 bg-white px-3 text-xs font-semibold text-brand-900 hover:bg-brand-orange-100 disabled:opacity-50"
         >
           {unapproving ? <LoaderCircle className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
           ຖອນການອະນຸມັດ
@@ -57,7 +57,7 @@ export function SprDangerButtons({ sprNo, back }: { sprNo: string; back?: string
             });
             if (ok) deleteRef.current?.requestSubmit();
           }}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-rose-300 bg-white px-3 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-brand-orange-400 bg-white px-3 text-xs font-semibold text-brand-orange-700 hover:bg-brand-orange-50 disabled:opacity-50"
         >
           {removing ? <LoaderCircle className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
           ລົບທັງໃບ

@@ -38,7 +38,7 @@ export function FeedbackEditButton({
       <button
         type="button"
         title="ແກ້ໄຂຄຳຕິຊົມ"
-        className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:underline"
+        className="inline-flex items-center gap-1 text-xs font-semibold text-brand-800 hover:underline"
         onClick={() => {
           setError("");
           setOpen(true);
@@ -64,7 +64,7 @@ export function FeedbackEditButton({
             }
           >
             <input type="hidden" name="code" value={code} />
-            <div className="rounded-t-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white">
+            <div className="rounded-t-xl bg-brand-900 px-5 py-3 text-sm font-bold text-white">
               ແກ້ໄຂແບບສອບຖາມ · {code}
             </div>
 
@@ -81,7 +81,7 @@ export function FeedbackEditButton({
                           name={`points_${topic.line_number}`}
                           value={point}
                           defaultChecked={current.get(topic.line_number) === point}
-                          className="size-4 accent-teal-600"
+                          className="size-4 accent-brand-700"
                         />
                         {POINTS[point]}
                       </label>
@@ -97,11 +97,11 @@ export function FeedbackEditButton({
                   rows={3}
                   defaultValue={comment}
                   placeholder="ຄຳຕິຊົມຂອງລູກຄ້າ..."
-                  className="w-full rounded-lg border border-slate-300 p-3 text-xs outline-none focus:border-teal-500"
+                  className="w-full rounded-lg border border-slate-300 p-3 text-xs outline-none focus:border-brand-600"
                 />
               </div>
 
-              {error && <p className="text-xs text-red-600">{error}</p>}
+              {error && <p className="text-xs text-brand-orange-700">{error}</p>}
             </div>
 
             <div className="flex justify-end gap-2 border-t border-slate-100 p-4">

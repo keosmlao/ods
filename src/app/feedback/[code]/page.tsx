@@ -79,7 +79,7 @@ export default async function FeedbackPage({ params, searchParams }: Props) {
     return shell(
       <div className="space-y-5">
         {done && (
-          <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center text-sm font-semibold text-emerald-700">
+          <p className="rounded-lg border border-brand-200 bg-brand-50 p-4 text-center text-sm font-semibold text-brand-800">
             ບັນທຶກສຳເລັດ — ຂໍຂອບໃຈຫຼາຍໆ
           </p>
         )}
@@ -100,9 +100,9 @@ export default async function FeedbackPage({ params, searchParams }: Props) {
   const gate = await feedbackGate(code);
   if (!gate.ok) {
     return shell(
-      <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-5 text-center">
-        <p className="text-sm font-semibold text-amber-800">{gate.message}</p>
-        <p className="text-xs text-amber-700">
+      <div className="space-y-3 rounded-lg border border-brand-orange-400 bg-brand-orange-100 p-5 text-center">
+        <p className="text-sm font-semibold text-brand-900">{gate.message}</p>
+        <p className="text-xs text-brand-900">
           ຖ້າທ່ານຄິດວ່ານີ້ບໍ່ຖືກຕ້ອງ ກະລຸນາຕິດຕໍ່ພະນັກງານຂອງພວກເຮົາ
         </p>
       </div>,

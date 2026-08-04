@@ -40,7 +40,7 @@ function Field({ label, value, accent }: { label: string; value: string | null; 
   return (
     <div className="flex gap-2">
       <dt className="shrink-0 text-slate-500">{label}:</dt>
-      <dd className={accent ? "font-medium text-[#b91c1c]" : "text-slate-800"}>{value || "-"}</dd>
+      <dd className={accent ? "font-medium text-[#9f5f14]" : "text-slate-800"}>{value || "-"}</dd>
     </div>
   );
 }
@@ -78,7 +78,7 @@ export default async function CancellationDetailPage({ params }: Props) {
       <Card title={`${t.receiptCode} ${head.code}`}>
         {head.cancel_finish ? (
           <div className="flex flex-wrap items-center gap-3">
-            <p className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+            <p className="flex-1 rounded-lg border border-brand-200 bg-brand-50 p-4 text-sm text-brand-800">
               {t.approvedCancel} ({head.cancel_finish})
               {head.return_complete && <> · {t.returnedToCustomer} ({head.return_complete})</>}
             </p>
@@ -86,7 +86,7 @@ export default async function CancellationDetailPage({ params }: Props) {
             {!head.return_complete && (
               <Link
                 href={`/returns/${encodeURIComponent(head.code)}`}
-                className="inline-flex h-10 items-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700"
+                className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800"
               >
                 <PackageCheck className="size-4" />
                 {t.returnToCustomer}

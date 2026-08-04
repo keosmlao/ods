@@ -157,7 +157,7 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
         <Link href={monthHref(shift(-1))} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
           ← {t.prevMonth}
         </Link>
-        <span className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white">{month}</span>
+        <span className="rounded-lg bg-brand-900 px-3 py-1.5 text-xs font-bold text-white">{month}</span>
         <Link href={monthHref(shift(1))} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
           {t.nextMonth} →
         </Link>
@@ -171,7 +171,7 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
       {orphanJobs > 0 && (
         <Link
           href="/manage/technicians"
-          className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-800 transition hover:bg-amber-100"
+          className="flex items-center gap-2 rounded-xl border border-brand-orange-400 bg-brand-orange-100 px-4 py-3 text-xs text-brand-900 transition hover:bg-brand-orange-300"
         >
           <AlertTriangle className="size-4 shrink-0" />
           <span className="flex-1">
@@ -185,7 +185,7 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
       {missing > 0 && (
         <Link
           href="/manage/service-rates"
-          className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-800 transition hover:bg-amber-100"
+          className="flex items-center gap-2 rounded-xl border border-brand-orange-400 bg-brand-orange-100 px-4 py-3 text-xs text-brand-900 transition hover:bg-brand-orange-300"
         >
           <AlertTriangle className="size-4 shrink-0" />
           <span className="flex-1">
@@ -222,7 +222,7 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
             {details.rows.map((row) => (
               <tr key={`${row.workflow}-${row.job_code}-${row.role}`} className="border-b border-slate-100">
                 <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-500">{row.closed_on ?? "-"}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-[#0536a9]">
+                <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-brand">
                   <Link
                     href={
                       row.workflow === "install"
@@ -237,7 +237,7 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
                 <td className="whitespace-nowrap px-3 py-2 text-xs">
                   <span
                     className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                      row.workflow === "install" ? "bg-violet-50 text-violet-700" : "bg-slate-100 text-slate-600"
+                      row.workflow === "install" ? "bg-brand-orange-50 text-brand-orange-700" : "bg-slate-100 text-slate-600"
                     }`}
                   >
                     {row.workflow === "install" ? t.workflowInstall : t.workflowRepair}
@@ -250,7 +250,7 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
                   {Number(row.amount_thb).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-700">
-                  {nameOf(row.employee_code) ?? <span className="text-amber-700">—</span>}
+                  {nameOf(row.employee_code) ?? <span className="text-brand-900">—</span>}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-600">
                   {ROLE_LABEL[row.role] ?? row.role}

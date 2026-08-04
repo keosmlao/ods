@@ -32,16 +32,16 @@ export function ClaimResolveCard({ claim, canEdit }: { claim: ClaimRow; canEdit:
   const button = "inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-white disabled:opacity-60";
 
   return (
-    <section className="rounded-xl border border-violet-200 bg-violet-50/40 p-4 shadow-sm">
+    <section className="rounded-xl border border-brand-orange-200 bg-brand-orange-50/40 p-4 shadow-sm">
       <div className="flex flex-wrap items-center gap-3">
         <p className="text-sm font-bold text-slate-700">
           ໃບເຄມ {claim.claim_no} · ຂັ້ນ{" "}
-          <span className="rounded-full bg-violet-600 px-2 py-0.5 text-xs text-white">
+          <span className="rounded-full bg-brand-orange-600 px-2 py-0.5 text-xs text-white">
             {claimStatusLabel(claim.claim_type, claim.status)}
           </span>
         </p>
         {claim.resolution && (
-          <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-violet-700 ring-1 ring-violet-200">
+          <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-brand-orange-700 ring-1 ring-brand-orange-200">
             ຕັດສິນແລ້ວ: {claim.resolution === "repair" ? "ສ້ອມ" : `ປ່ຽນ · ${claim.fulfillment_source ?? ""}`}
           </span>
         )}
@@ -53,21 +53,21 @@ export function ClaimResolveCard({ claim, canEdit }: { claim: ClaimRow; canEdit:
           {claim.claim_type === "B" && claim.status === "checking" ? (
             <>
               <span className="text-xs font-semibold text-slate-500">ຕັດສິນ:</span>
-              <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claim.claim_no, "repair"))} className={`${button} bg-teal-600 hover:bg-teal-700`}>
+              <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claim.claim_no, "repair"))} className={`${button} bg-brand-700 hover:bg-brand-800`}>
                 {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ສ້ອມໃຫ້
               </button>
-              <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claim.claim_no, "replace", "stock"))} className={`${button} bg-emerald-600 hover:bg-emerald-700`}>
+              <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claim.claim_no, "replace", "stock"))} className={`${button} bg-brand-700 hover:bg-brand-700`}>
                 <ArrowRight className="size-4" /> ປ່ຽນຈາກ stock
               </button>
-              <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claim.claim_no, "replace", "purchase"))} className={`${button} bg-amber-500 hover:bg-amber-600`}>
+              <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claim.claim_no, "replace", "purchase"))} className={`${button} bg-brand-orange-500 hover:bg-brand-orange-700`}>
                 <ArrowRight className="size-4" /> ສັ່ງຊື້ມາປ່ຽນ
               </button>
-              <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claim.claim_no, "replace", "supplier"))} className={`${button} bg-violet-600 hover:bg-violet-700`}>
+              <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claim.claim_no, "replace", "supplier"))} className={`${button} bg-brand-orange-600 hover:bg-brand-orange-700`}>
                 <ArrowRight className="size-4" /> ເຄມ supplier
               </button>
             </>
           ) : next ? (
-            <button type="button" disabled={pending} onClick={() => act(() => advanceClaim(claim.claim_no, next.status))} className={`${button} bg-violet-600 hover:bg-violet-700`}>
+            <button type="button" disabled={pending} onClick={() => act(() => advanceClaim(claim.claim_no, next.status))} className={`${button} bg-brand-orange-600 hover:bg-brand-orange-700`}>
               {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}
               ໄປຂັ້ນ “{next.label}”
             </button>
@@ -77,7 +77,7 @@ export function ClaimResolveCard({ claim, canEdit }: { claim: ClaimRow; canEdit:
         </div>
       )}
 
-      {error && <p className="mt-2 text-xs font-semibold text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-xs font-semibold text-brand-orange-700">{error}</p>}
     </section>
   );
 }

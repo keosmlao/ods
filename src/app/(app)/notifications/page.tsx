@@ -18,8 +18,8 @@ type Props = { searchParams: Promise<{ tab?: string; page?: string }> };
 
 const KIND_CHIP: Record<NotificationKind, string> = {
   log: "bg-slate-100 text-slate-600",
-  comment: "bg-sky-50 text-sky-700",
-  assign: "bg-amber-100 text-amber-800",
+  comment: "bg-brand-50 text-brand-600",
+  assign: "bg-brand-orange-300 text-brand-900",
 };
 
 export default async function NotificationsPage({ searchParams }: Props) {
@@ -47,7 +47,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
           <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
             {total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
-            {unread > 0 && <span className="font-semibold text-teal-700"> · {t.unread} {unread}</span>}
+            {unread > 0 && <span className="font-semibold text-brand-800"> · {t.unread} {unread}</span>}
           </p>
         </div>
         {unread > 0 && (
@@ -68,7 +68,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
               key={key}
               href={tabHref(key)}
               className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon className="size-3.5" />
@@ -107,11 +107,11 @@ export default async function NotificationsPage({ searchParams }: Props) {
                 return (
                   <tr
                     key={row.id}
-                    className={`relative border-b border-slate-100 hover:bg-slate-50 ${row.read ? "" : "bg-teal-50/40"}`}
+                    className={`relative border-b border-slate-100 hover:bg-slate-50 ${row.read ? "" : "bg-brand-50/40"}`}
                   >
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <span
-                        className={`absolute inset-y-0 left-0 w-1 ${row.read ? "bg-transparent" : "bg-teal-500"}`}
+                        className={`absolute inset-y-0 left-0 w-1 ${row.read ? "bg-transparent" : "bg-brand-600"}`}
                         aria-hidden
                       />
                       {href === "#" ? (

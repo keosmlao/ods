@@ -114,12 +114,12 @@ export function MaintenanceCells({ row }: { row: MaintenanceRow }) {
   const tone = elapsedTone(row.elapsed_seconds);
   return (
     <>
-      <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+      <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
         <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
         <Link href={`/maintenance/${encodeURIComponent(row.code)}`} className="hover:underline">{row.code}</Link>
       </td>
       <td className="whitespace-nowrap px-3 py-2.5">
-        <Elapsed seconds={row.elapsed_seconds} className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-bold ${tone.chip} !text-red-600`} />
+        <Elapsed seconds={row.elapsed_seconds} className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-bold ${tone.chip} !text-brand-orange-700`} />
         <span className="mt-0.5 block text-[10px] text-slate-400">{row.stage_time ?? "-"}</span>
       </td>
       <td className="max-w-64 px-3 py-2.5">
@@ -131,7 +131,7 @@ export function MaintenanceCells({ row }: { row: MaintenanceRow }) {
       </td>
       <td className="whitespace-nowrap px-3 py-2.5 text-center">
         <span className="block">{row.appoint_date ?? "-"}</span>
-        <span className="mt-0.5 block text-[10px] font-bold text-red-600">{row.time_register ?? "-"}</span>
+        <span className="mt-0.5 block text-[10px] font-bold text-brand-orange-700">{row.time_register ?? "-"}</span>
       </td>
       <td className="whitespace-nowrap px-3 py-2.5">{row.tech || "-"}</td>
       <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-slate-600">{row.total ? row.total.toLocaleString() : "-"}</td>

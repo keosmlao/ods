@@ -37,12 +37,12 @@ export function ReceiveTransferButton({
             router.refresh();
           })
         }
-        className="inline-flex h-8 items-center gap-1 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+        className="inline-flex h-8 items-center gap-1 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
       >
         {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
         {pending ? busyLabel : label}
       </button>
-      {error && <span className="text-[11px] font-semibold text-red-600">{error}</span>}
+      {error && <span className="text-[11px] font-semibold text-brand-orange-700">{error}</span>}
     </div>
   );
 }

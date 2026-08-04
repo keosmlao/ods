@@ -92,7 +92,7 @@ export default async function EditQuotationPage({ params }: Props) {
   if (head.aprove_status_2 !== 0) {
     return (
       <div className="w-full space-y-4">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+        <div className="rounded-xl border border-brand-orange-400 bg-brand-orange-50 p-5 text-sm text-brand-orange-700">
           <p className="font-semibold">{t.cannotEdit} {head.doc_no} {t.cannotEditSuffix}</p>
           <p className="mt-1">
             {t.customer}
@@ -120,7 +120,7 @@ export default async function EditQuotationPage({ params }: Props) {
     <div className="w-full space-y-4">
       {/* ຖືກ "ບໍ່ອະນຸມັດ" ມາ (2) ຫຼື ອະນຸມັດແລ້ວແຕ່ກຳລັງຖືກແກ້ (1) — ບອກໃຫ້ຮູ້ວ່າຈະເກີດຫຍັງຕອນບັນທຶກ */}
       {head.aprove_status === 2 && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-xl border border-brand-orange-400 bg-brand-orange-50 p-4 text-sm text-brand-orange-700">
           <p className="font-semibold">{t.notApprovedTitle}</p>
           <p className="mt-1">
             {t.reason}: {head.remark_2?.trim() || t.notSpecified}
@@ -130,7 +130,7 @@ export default async function EditQuotationPage({ params }: Props) {
         </div>
       )}
       {head.aprove_status === 1 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+        <div className="rounded-xl border border-brand-orange-400 bg-brand-orange-100 p-4 text-sm text-brand-900">
           <p className="font-semibold">{t.approvedInternallyTitle}</p>
           <p className="mt-1 text-xs">{t.approvedInternallyNote}</p>
         </div>

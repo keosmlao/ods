@@ -80,7 +80,7 @@ export default async function ServiceReceiptsReport({ searchParams }: { searchPa
             key={item.key}
             href={tab(item.key)}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-              view === item.key ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"
+              view === item.key ? "bg-brand-900 text-white" : "text-slate-600 hover:bg-slate-50"
             }`}
           >
             {item.label}

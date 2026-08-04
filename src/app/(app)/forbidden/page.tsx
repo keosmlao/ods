@@ -17,7 +17,7 @@ export default async function ForbiddenPage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="mx-auto mt-10 grid max-w-md place-items-center gap-4 rounded-xl border border-slate-200 bg-white p-10 text-center">
-      <span className="grid size-14 place-items-center rounded-full bg-red-50 text-red-600">
+      <span className="grid size-14 place-items-center rounded-full bg-brand-orange-50 text-brand-orange-700">
         <ShieldOff className="size-7" />
       </span>
       <h1 className="text-lg font-bold text-slate-800">ບໍ່ມີສິດເຂົ້າເຖິງ</h1>
@@ -27,7 +27,7 @@ export default async function ForbiddenPage({ searchParams }: { searchParams: Pr
       {params.from && <p className="break-all text-xs text-slate-400">{params.from}</p>}
       <Link
         href={home}
-        className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700"
+        className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-800"
       >
         ກັບໄປໜ້າຫຼັກ
       </Link>

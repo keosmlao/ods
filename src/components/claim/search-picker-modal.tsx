@@ -44,7 +44,7 @@ export function SearchPickerModal<T>({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-brand-900/50 p-4" onClick={onClose}>
       <div className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-100 p-4">
           <div>
@@ -55,7 +55,7 @@ export function SearchPickerModal<T>({
         </div>
 
         <div className="border-b border-slate-100 p-3">
-          <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-2.5 focus-within:border-teal-500">
+          <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-2.5 focus-within:border-brand-600">
             <Search className="size-4 shrink-0 text-slate-400" />
             <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} className="h-9 w-full text-sm outline-none" />
             {pending && <LoaderCircle className="size-4 shrink-0 animate-spin text-slate-400" />}
@@ -71,7 +71,7 @@ export function SearchPickerModal<T>({
             <ul className="divide-y divide-slate-100">
               {items.map((it) => (
                 <li key={keyOf(it)}>
-                  <button type="button" onClick={() => onPick(it)} className="w-full px-4 py-2.5 text-left hover:bg-teal-50/60">
+                  <button type="button" onClick={() => onPick(it)} className="w-full px-4 py-2.5 text-left hover:bg-brand-50/60">
                     {renderItem(it)}
                   </button>
                 </li>

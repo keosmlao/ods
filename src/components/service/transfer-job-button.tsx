@@ -46,14 +46,14 @@ export function TransferJobButton({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           <span className="flex items-center gap-1.5 font-bold text-slate-700">
-            <ArrowLeftRight className="size-4 text-teal-600" />
+            <ArrowLeftRight className="size-4 text-brand-700" />
             {t.intakeAt} <b className="text-slate-900">{centerLabel(intake)}</b>
           </span>
-          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${away ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${away ? "bg-brand-orange-300 text-brand-900" : "bg-slate-100 text-slate-600"}`}>
             {t.nowAt} {centerLabel(current)}
           </span>
           {transferTo && (
-            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800">
+            <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-bold text-brand-800">
               → {centerLabel(transferTo)} ({t.receive})
             </span>
           )}
@@ -73,7 +73,7 @@ export function TransferJobButton({
                     router.refresh();
                   })
                 }
-                className="inline-flex h-8 items-center gap-1 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                className="inline-flex h-8 items-center gap-1 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
               >
                 {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
                 {t.receive}
@@ -82,7 +82,7 @@ export function TransferJobButton({
               <button
                 type="button"
                 onClick={() => setOpen(!open)}
-                className="inline-flex h-8 items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-100"
+                className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-3 text-xs font-semibold text-brand-800 hover:bg-brand-100"
               >
                 {open ? <X className="size-3.5" /> : <ArrowLeftRight className="size-3.5" />}
                 {open ? t.cancel : t.transferTitle}
@@ -97,7 +97,7 @@ export function TransferJobButton({
           <select
             value={to}
             onChange={(event) => setTo(event.target.value)}
-            className="h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm outline-none focus:border-teal-500"
+            className="h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm outline-none focus:border-brand-600"
           >
             <option value="">{t.transferTo}...</option>
             {REPAIR_CENTERS.filter((centre) => centre !== current).map((centre) => (
@@ -110,7 +110,7 @@ export function TransferJobButton({
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             placeholder={t.reason}
-            className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-teal-500"
+            className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-brand-600"
           />
           <button
             type="button"
@@ -125,7 +125,7 @@ export function TransferJobButton({
                 router.refresh();
               })
             }
-            className="inline-flex h-9 items-center gap-1 rounded-lg bg-teal-600 px-4 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-60"
+            className="inline-flex h-9 items-center gap-1 rounded-lg bg-brand-700 px-4 text-xs font-semibold text-white hover:bg-brand-800 disabled:opacity-60"
           >
             {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <ArrowLeftRight className="size-3.5" />}
             {t.transfer}
@@ -133,7 +133,7 @@ export function TransferJobButton({
         </div>
       )}
 
-      {error && <p className="mt-2 text-xs font-semibold text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-xs font-semibold text-brand-orange-700">{error}</p>}
     </section>
   );
 }

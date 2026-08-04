@@ -120,7 +120,7 @@ export function SpareRequestEditForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>
-                <span className="text-red-500">*</span> ສາງ
+                <span className="text-brand-orange-700">*</span> ສາງ
               </label>
               <SelectField
                 name="wh_code"
@@ -138,7 +138,7 @@ export function SpareRequestEditForm({
             </div>
             <div>
               <label className={labelClass}>
-                <span className="text-red-500">*</span> ທີ່ເກັບ
+                <span className="text-brand-orange-700">*</span> ທີ່ເກັບ
               </label>
               <SelectField
                 name="shelf_code"
@@ -186,12 +186,12 @@ export function SpareRequestEditForm({
                             ເລືອກສາງກ່ອນ
                           </span>
                         ) : enough ? (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-brand-50 px-2 py-1 text-[10px] font-semibold text-brand-800">
                             <CheckCircle2 className="size-3" /> ສາງນີ້ມີ{" "}
                             {inWarehouse.toLocaleString()}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-brand-orange-50 px-2 py-1 text-[10px] font-semibold text-brand-orange-700">
                             <AlertTriangle className="size-3" /> ສາງນີ້ມີ{" "}
                             {inWarehouse.toLocaleString()} · ຂາດ{" "}
                             {Math.max(0, want - inWarehouse).toLocaleString()}

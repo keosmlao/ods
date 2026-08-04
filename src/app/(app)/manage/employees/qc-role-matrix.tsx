@@ -31,7 +31,7 @@ export function QcRoleMatrix({ current }: { current: { workflow: Workflow; role:
   return (
     <div className="space-y-3">
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
-      {state.ok && <p className="text-xs font-semibold text-emerald-700">{state.ok}</p>}
+      {state.ok && <p className="text-xs font-semibold text-brand-800">{state.ok}</p>}
 
       <div className="overflow-x-auto">
         <table className="text-sm">
@@ -55,7 +55,7 @@ export function QcRoleMatrix({ current }: { current: { workflow: Workflow; role:
                       type="checkbox"
                       checked={has(workflow.value, role)}
                       onChange={() => toggle(workflow.value, role)}
-                      className="size-4 accent-teal-600"
+                      className="size-4 accent-brand-700"
                     />
                   </td>
                 ))}

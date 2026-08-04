@@ -28,21 +28,21 @@ export function NewMaintenanceModal({ catalog, technicians }: { catalog: Mainten
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-xs font-semibold text-white transition hover:bg-emerald-700"
+        className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-xs font-semibold text-white transition hover:bg-brand-700"
       >
         <FilePlus2 className="size-4" />
         ເປີດງານໃໝ່
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 backdrop-blur-sm sm:p-6">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-brand-900/50 p-4 backdrop-blur-sm sm:p-6">
           {/* ກົດພື້ນຫຼັງ = ປິດ */}
           <button type="button" aria-label="ປິດ" className="absolute inset-0 cursor-default" onClick={() => setOpen(false)} />
 
           <div className="relative z-10 my-4 w-full max-w-5xl rounded-2xl bg-slate-50 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
               <h2 className="flex items-center gap-2 text-base font-bold text-slate-700">
-                <SprayCan className="size-5 text-cyan-600" />
+                <SprayCan className="size-5 text-brand-500" />
                 ເປີດງານສ້ອມບໍລຸງ
               </h2>
               <button

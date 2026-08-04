@@ -52,7 +52,7 @@ export function JobButton({
       >
         {children}
       </Button>
-      {error && <span className="ml-2 text-xs text-red-600">{error}</span>}
+      {error && <span className="ml-2 text-xs text-brand-orange-700">{error}</span>}
     </>
   );
 }
@@ -70,7 +70,7 @@ export function CancelJobButton({ code, onDone }: { code: string; onDone?: () =>
       <button
         type="button"
         title="ຍົກເລີກ"
-        className="text-[#DE3163] hover:opacity-70"
+        className="text-[#9f5f14] hover:opacity-70"
         onClick={() => {
           setRemark("");
           setError("");
@@ -83,22 +83,22 @@ export function CancelJobButton({ code, onDone }: { code: string; onDone?: () =>
       {open && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
-            <div className="rounded-t-xl bg-[#E74033] px-5 py-3 font-bold text-white">ຍົກເລີກງານຕິດຕັ້ງ</div>
+            <div className="rounded-t-xl bg-[#9f5f14] px-5 py-3 font-bold text-white">ຍົກເລີກງານຕິດຕັ້ງ</div>
             <div className="space-y-3 p-5">
               <p className="text-sm text-slate-600">
-                ລະຫັດງານ: <strong className="text-red-600">{code}</strong>
+                ລະຫັດງານ: <strong className="text-brand-orange-700">{code}</strong>
               </p>
               <label className="mb-1 block text-sm font-semibold text-slate-600">
-                ຫມາຍເຫດຍົກເລີກ <span className="text-red-600">*</span>
+                ຫມາຍເຫດຍົກເລີກ <span className="text-brand-orange-700">*</span>
               </label>
               <textarea
                 rows={3}
                 value={remark}
                 onChange={(event) => setRemark(event.target.value)}
                 placeholder="ລະບຸເຫດຜົນ..."
-                className="w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:border-teal-500"
+                className="w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:border-brand-600"
               />
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <p className="text-sm text-brand-orange-700">{error}</p>}
             </div>
             <div className="flex justify-end gap-2 border-t border-slate-100 p-4">
               <Button type="button" tone="neutral" onClick={() => setOpen(false)}>

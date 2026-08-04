@@ -101,7 +101,7 @@ export function CancelDecision({ productCode }: { productCode: string }) {
 
       <div>
         <label className={labelClass} htmlFor="reject-reason">
-          {t.rejectReasonLabel} <span className="text-red-500">*</span>{" "}
+          {t.rejectReasonLabel} <span className="text-brand-orange-700">*</span>{" "}
           <span className="text-xs text-slate-400">{t.rejectReasonNote}</span>
         </label>
         <input

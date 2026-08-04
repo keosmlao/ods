@@ -88,8 +88,8 @@ export async function ServiceTable({
             {rows.map((row) => {
               const cancelled = row.raw_status === 6;
               return (
-                <tr key={row.code} className={`border-b border-slate-100 ${cancelled ? "bg-[#F3A9A3]" : "hover:bg-slate-50"}`}>
-                  <td className="whitespace-nowrap px-3 py-3 text-center font-bold text-[#0536a9]">
+                <tr key={row.code} className={`border-b border-slate-100 ${cancelled ? "bg-[#fcd9b0]" : "hover:bg-slate-50"}`}>
+                  <td className="whitespace-nowrap px-3 py-3 text-center font-bold text-brand">
                     <Link href={`/service/${row.code}`} className="hover:underline">{row.code}</Link>
                   </td>
                   <td className="whitespace-nowrap px-3 py-3">{row.registered ?? "-"}</td>
@@ -102,11 +102,11 @@ export async function ServiceTable({
                   <td className="px-3 py-3">{row.technician ?? "-"}</td>
                   <td className="px-3 py-3">{row.receiver ?? "-"}</td>
                   <td className="whitespace-nowrap px-3 py-3">{row.warranty ?? "-"}</td>
-                  <td className="max-w-64 truncate px-3 py-3 font-semibold text-red-600" title={row.issue ?? ""}>{row.issue ?? "-"}</td>
+                  <td className="max-w-64 truncate px-3 py-3 font-semibold text-brand-orange-700" title={row.issue ?? ""}>{row.issue ?? "-"}</td>
                   <td className="whitespace-nowrap px-3 py-3">{row.status}</td>
                   <td className="px-3 py-3 text-center">
                     <div className="flex items-center justify-center gap-2.5">
-                      <Link href={`/service/${row.code}/print`} target="_blank" title={t.printTitle} className="text-[#D35400] hover:opacity-70">
+                      <Link href={`/service/${row.code}/print`} target="_blank" title={t.printTitle} className="text-[#f6921e] hover:opacity-70">
                         <Printer className="size-4" />
                       </Link>
                       {canDelete && <ServiceDeleteButton code={row.code} />}

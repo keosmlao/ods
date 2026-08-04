@@ -67,11 +67,11 @@ export function RequestForm({
           <SaveBar backHref="/work/repair/wait-withdraw" disabled={!hasSpares || !warehouseValue || !shelfValue} />
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-slate-600">
-              <FileText className="size-3.5 text-teal-600" />
+              <FileText className="size-3.5 text-brand-700" />
               {t.docNoLabel} <b className="font-mono text-slate-800">{docNo}</b>
             </span>
             <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-slate-600">
-              <CalendarDays className="size-3.5 text-teal-600" />
+              <CalendarDays className="size-3.5 text-brand-700" />
               {t.dateLabel} <b className="text-slate-800">{today}</b>
             </span>
           </div>
@@ -80,7 +80,7 @@ export function RequestForm({
         <div className="grid xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="p-5">
             <div className="mb-4 flex items-center gap-2">
-              <span className="grid size-8 place-items-center rounded-lg bg-teal-50 text-teal-700">
+              <span className="grid size-8 place-items-center rounded-lg bg-brand-50 text-brand-800">
                 <PackageCheck className="size-4" />
               </span>
               <div>
@@ -102,7 +102,7 @@ export function RequestForm({
 
           <aside className="border-t border-slate-200 bg-slate-50/70 p-5 xl:border-l xl:border-t-0">
             <div className="mb-4 flex items-center gap-2">
-              <span className="grid size-8 place-items-center rounded-lg bg-blue-50 text-blue-700">
+              <span className="grid size-8 place-items-center rounded-lg bg-brand-50 text-brand-700">
                 <WarehouseIcon className="size-4" />
               </span>
               <div>
@@ -121,7 +121,7 @@ export function RequestForm({
                 onShelfChange={onShelfChange}
               />
               {!warehouseValue || !shelfValue ? (
-                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
+                <p className="rounded-lg border border-brand-orange-400 bg-brand-orange-100 px-3 py-2 text-[11px] font-medium text-brand-900">
                   {t.selectWarehouseWarning}
                 </p>
               ) : null}
@@ -150,7 +150,7 @@ function Info({ label, value, danger, badge }: { label: string; value: string | 
       <dt className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{label}</dt>
       <dd
         className={`mt-1 text-xs font-semibold ${
-          danger ? "text-red-600" : badge ? "inline-flex rounded-md bg-emerald-50 px-2 py-1 text-emerald-700" : "text-slate-800"
+          danger ? "text-brand-orange-700" : badge ? "inline-flex rounded-md bg-brand-50 px-2 py-1 text-brand-800" : "text-slate-800"
         }`}
       >
         {value || "-"}

@@ -34,7 +34,7 @@ export function ItemForm({ categories, editing }: { categories: Option[]; editin
     <form action={action} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
       {editing && <input type="hidden" name="id" value={editing.id} />}
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
-      {state.ok && <p className="text-xs font-semibold text-emerald-700">{state.ok}</p>}
+      {state.ok && <p className="text-xs font-semibold text-brand-800">{state.ok}</p>}
 
       <div className="grid gap-3 sm:grid-cols-4">
         <div>
@@ -79,7 +79,7 @@ export function ItemForm({ categories, editing }: { categories: Option[]; editin
             type="checkbox"
             name="require_photo"
             defaultChecked={editing?.require_photo}
-            className="size-4 accent-teal-600"
+            className="size-4 accent-brand-700"
           />
           <Camera className="size-4 text-slate-400" /> {t.requirePhoto}
         </label>

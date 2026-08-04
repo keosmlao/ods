@@ -119,8 +119,8 @@ export function QuoteBuilder({
         <input type="hidden" name="total_discount_baht" value={discount || "0"} />
         <input type="hidden" name="currency_rate" value={rate || "0"} />
 
-        <div className="flex min-h-12 flex-wrap items-center gap-3 border-b border-rose-100 bg-[#fffafa] px-3 py-2">
-          <Button type="submit" disabled={busy} className="h-8 rounded-md bg-[#e99a9a] px-4 text-xs text-white hover:bg-[#df8787]">
+        <div className="flex min-h-12 flex-wrap items-center gap-3 border-b border-brand-orange-200 bg-[#fef6ed] px-3 py-2">
+          <Button type="submit" disabled={busy} className="h-8 rounded-md bg-[#fbb148] px-4 text-xs text-white hover:bg-[#9f5f14]">
             {saving ? <LoaderCircle className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
             {t.save}
           </Button>
@@ -157,7 +157,7 @@ export function QuoteBuilder({
             <div className="space-y-3">
               <div className="grid grid-cols-[130px_1fr] items-center gap-3 text-sm">
                 <label htmlFor="doc_date" className="text-slate-500">{t.docDate}</label>
-                <input id="doc_date" type="date" name="doc_date" required defaultValue={docDate} className="h-8 border-b border-slate-200 bg-transparent px-1 text-sm outline-none focus:border-rose-300" />
+                <input id="doc_date" type="date" name="doc_date" required defaultValue={docDate} className="h-8 border-b border-slate-200 bg-transparent px-1 text-sm outline-none focus:border-brand-orange-400" />
               </div>
               <QuoteField label={t.currency} value="THB → LAK" />
               <div className="grid grid-cols-[130px_1fr] items-center gap-3 text-sm">
@@ -172,8 +172,8 @@ export function QuoteBuilder({
           </div>
 
           <div className="mt-10 flex gap-5 border-b border-slate-200">
-            <button type="button" onClick={() => setActiveTab("lines")} className={`border-b-2 px-2 pb-3 text-sm ${activeTab === "lines" ? "border-rose-400 text-rose-500" : "border-transparent text-slate-500"}`}>{t.tabLines}</button>
-            <button type="button" onClick={() => setActiveTab("details")} className={`border-b-2 px-2 pb-3 text-sm ${activeTab === "details" ? "border-rose-400 text-rose-500" : "border-transparent text-slate-500"}`}>{t.tabDetails}</button>
+            <button type="button" onClick={() => setActiveTab("lines")} className={`border-b-2 px-2 pb-3 text-sm ${activeTab === "lines" ? "border-brand-orange-600 text-brand-orange-700" : "border-transparent text-slate-500"}`}>{t.tabLines}</button>
+            <button type="button" onClick={() => setActiveTab("details")} className={`border-b-2 px-2 pb-3 text-sm ${activeTab === "details" ? "border-brand-orange-600 text-brand-orange-700" : "border-transparent text-slate-500"}`}>{t.tabDetails}</button>
           </div>
 
           {activeTab === "lines" ? (
@@ -196,7 +196,7 @@ export function QuoteBuilder({
                     {lines.map((line) => (
                       <tr key={line.roworder} className="border-b border-slate-100 hover:bg-slate-50/60">
                         <td className="px-2 py-3 text-center">
-                          <button type="button" title={t.deleteItem} disabled={busy} onClick={() => run(() => deleteDraftItem(line.roworder))} className="text-slate-300 hover:text-red-500 disabled:opacity-40"><Trash2 className="size-4" /></button>
+                          <button type="button" title={t.deleteItem} disabled={busy} onClick={() => run(() => deleteDraftItem(line.roworder))} className="text-slate-300 hover:text-brand-orange-700 disabled:opacity-40"><Trash2 className="size-4" /></button>
                         </td>
                         <td className="px-3 py-3"><span className="font-medium text-slate-800">{line.item_name}</span><span className="mt-0.5 block text-[10px] text-slate-400">{line.item_code}</span></td>
                         <td className="px-3 py-3 text-slate-500">{head.issue2 || head.issue || "-"}</td>
@@ -212,12 +212,12 @@ export function QuoteBuilder({
                 </table>
               </div>
 
-              <button type="button" disabled={busy} onClick={() => setPicker(true)} className="mt-3 inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-500 hover:text-rose-600 disabled:opacity-50"><Search className="size-3.5" />{t.addItem}</button>
+              <button type="button" disabled={busy} onClick={() => setPicker(true)} className="mt-3 inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-brand-orange-700 hover:text-brand-orange-700 disabled:opacity-50"><Search className="size-3.5" />{t.addItem}</button>
 
               <div className="mt-7 ml-auto w-full max-w-sm space-y-3 text-sm">
                 <Row label={t.subtotal}><span>{money(totalValue)} {t.baht}</span></Row>
                 <Row label={t.discount}>
-                  <div className="flex items-center gap-2"><input type="number" min={0} step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} className="h-8 w-32 border-b border-slate-300 bg-transparent px-1 text-right outline-none focus:border-rose-300" /><span className="text-xs text-slate-400">{t.baht}</span></div>
+                  <div className="flex items-center gap-2"><input type="number" min={0} step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} className="h-8 w-32 border-b border-slate-300 bg-transparent px-1 text-right outline-none focus:border-brand-orange-400" /><span className="text-xs text-slate-400">{t.baht}</span></div>
                 </Row>
                 <Row label={t.afterDiscount}><span>{money(totalAmount)} {t.baht}</span></Row>
                 <Row label="VAT 0%"><span>0.00 {t.baht}</span></Row>
@@ -241,7 +241,7 @@ export function QuoteBuilder({
 
           <div className="mt-9 border-t border-slate-100 pt-4">
             <label htmlFor="remark" className="text-xs text-slate-500">{t.remarkLabel}</label>
-            <textarea id="remark" name="remark" defaultValue={defaultRemark} rows={3} placeholder={t.remarkPlaceholder} className="mt-2 w-full resize-none border-b border-slate-200 bg-transparent px-1 py-2 text-sm outline-none focus:border-rose-300" />
+            <textarea id="remark" name="remark" defaultValue={defaultRemark} rows={3} placeholder={t.remarkPlaceholder} className="mt-2 w-full resize-none border-b border-slate-200 bg-transparent px-1 py-2 text-sm outline-none focus:border-brand-orange-400" />
           </div>
         </div>
       </form>
@@ -317,7 +317,7 @@ function QuoteField({ label, value, required = false }: { label: string; value: 
   return (
     <div className="grid grid-cols-[130px_1fr] items-center gap-3 text-sm">
       <span className="text-slate-500">
-        {label}{required && <span className="ml-1 text-red-500">*</span>}
+        {label}{required && <span className="ml-1 text-brand-orange-700">*</span>}
       </span>
       <span className="min-h-8 border-b border-slate-200 px-1 py-1.5 text-slate-800">{value || "-"}</span>
     </div>
@@ -328,7 +328,7 @@ function Field({ label, value, accent }: { label: string; value: string | null; 
   return (
     <div className="flex gap-2">
       <dt className="shrink-0 text-slate-500">{label}:</dt>
-      <dd className={accent ? "font-medium text-[#b91c1c]" : "text-slate-800"}>{value || "-"}</dd>
+      <dd className={accent ? "font-medium text-[#9f5f14]" : "text-slate-800"}>{value || "-"}</dd>
     </div>
   );
 }
@@ -368,7 +368,7 @@ function PriceInput({
           event.currentTarget.blur();
         }
       }}
-      className="h-9 w-32 rounded-lg border border-slate-300 px-2 text-right text-sm outline-none focus:border-teal-500 disabled:bg-slate-50"
+      className="h-9 w-32 rounded-lg border border-slate-300 px-2 text-right text-sm outline-none focus:border-brand-600 disabled:bg-slate-50"
     />
   );
 }

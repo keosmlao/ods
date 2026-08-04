@@ -71,7 +71,7 @@ export default async function SpareRecoveryDetail({ params }: Props) {
           <div className="flex gap-2">
             <dt className="shrink-0 text-slate-500">{t.labelDevice}:</dt>
             <dd className="text-slate-800">
-              {head.product || "-"} {head.model} · <span className="font-bold text-[#790404]">{head.sn || "-"}</span>
+              {head.product || "-"} {head.model} · <span className="font-bold text-[#9f5f14]">{head.sn || "-"}</span>
             </dd>
           </div>
           <div className="flex gap-2">
@@ -93,7 +93,7 @@ export default async function SpareRecoveryDetail({ params }: Props) {
         </dl>
         <p className="mt-3 text-[11px] text-slate-400">
           {t.viewFullReceipt}{" "}
-          <Link href={`/service/${head.code}`} className="font-semibold text-[#0536a9] hover:underline">
+          <Link href={`/service/${head.code}`} className="font-semibold text-brand hover:underline">
             /service/{head.code}
           </Link>
         </p>
@@ -102,9 +102,9 @@ export default async function SpareRecoveryDetail({ params }: Props) {
       {docs.length > 0 ? (
         <OutstandingSpares code={head.code} docs={docs} />
       ) : (
-        <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-          <PackageCheck className="size-5 shrink-0 text-emerald-600" />
-          <p className="text-xs font-semibold text-emerald-800">{t.allRecovered}</p>
+        <div className="flex items-center gap-2.5 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
+          <PackageCheck className="size-5 shrink-0 text-brand-800" />
+          <p className="text-xs font-semibold text-brand-800">{t.allRecovered}</p>
         </div>
       )}
     </div>

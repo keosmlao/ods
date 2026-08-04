@@ -22,7 +22,7 @@ export function ContactActions({ job }: { job: ContactJob }) {
       {job.tel && (
         <a
           href={`tel:${job.tel.replace(/\s/g, "")}`}
-          className="inline-flex h-8 items-center gap-1 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700"
+          className="inline-flex h-8 items-center gap-1 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-700"
         >
           <Phone className="size-3.5" /> {job.tel}
         </a>
@@ -38,7 +38,7 @@ export function ContactActions({ job }: { job: ContactJob }) {
         title={message}
         className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"
       >
-        {copied ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
+        {copied ? <Check className="size-3.5 text-brand-800" /> : <Copy className="size-3.5" />}
         {copied ? "ກັອບປີ້ແລ້ວ" : "ກັອບປີ້ຂໍ້ຄວາມ"}
       </button>
 

@@ -159,14 +159,14 @@ export default async function RepairJobPage({ params }: Props) {
         <BackLink fallback="/work/repair/repairing" label="ກັບຄິວກຳລັງສ້ອມ" />
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-bold text-slate-700">ວຽກສ້ອມ #{job.code}</h1>
-          <span className="rounded-lg bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white">
+          <span className="rounded-lg bg-brand-900 px-2 py-0.5 text-[11px] font-semibold text-white">
             {STAGE_LABEL[job.stage] ?? "-"}
           </span>
           {serviceLabel && (
             <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{serviceLabel}</span>
           )}
           {job.cancelled && (
-            <span className="rounded-lg bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">ຍົກເລີກແລ້ວ</span>
+            <span className="rounded-lg bg-brand-orange-100 px-2 py-0.5 text-[11px] font-semibold text-brand-orange-700">ຍົກເລີກແລ້ວ</span>
           )}
         </div>
         <p className="mt-0.5 text-xs text-slate-500">
@@ -180,7 +180,7 @@ export default async function RepairJobPage({ params }: Props) {
       {/* ── ປຸ່ມຂອງຊ່າງ ຕາມຂັ້ນ — ລຳດັບດຽວກັບແອັບ ── */}
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 text-sm font-bold text-slate-700">
-          <Wrench className="size-4 text-teal-600" />
+          <Wrench className="size-4 text-brand-700" />
           ຂັ້ນຕອນຂອງຊ່າງ
         </h2>
 
@@ -196,7 +196,7 @@ export default async function RepairJobPage({ params }: Props) {
           {job.stage >= 1 && job.stage <= 2 && !job.cancelled && (
             <Link
               href={`/checking/${encodeURIComponent(job.code)}`}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-sky-600 px-3 text-xs font-semibold text-white hover:bg-sky-700"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-500 px-3 text-xs font-semibold text-white hover:bg-brand-600"
             >
               <ClipboardCheck className="size-4" />
               {job.stage === 1 ? "ເລີ່ມກວດເຊັກ" : "ບັນທຶກຜົນກວດເຊັກ"}
@@ -217,7 +217,7 @@ export default async function RepairJobPage({ params }: Props) {
           )}
 
           {(job.stage === 8 || job.stage === 9) && !job.cancelled && sparePending && (
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800">
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-brand-orange-400 bg-brand-orange-100 px-3 py-1.5 text-xs font-medium text-brand-900">
               ຍັງມີອາໄຫຼ່ຄ້າງ — ຮັບໃຫ້ຄົບກ່ອນ ຈຶ່ງລົງມືສ້ອມໄດ້
             </span>
           )}
@@ -267,7 +267,7 @@ export default async function RepairJobPage({ params }: Props) {
           ⇒ ຊ່ອງທີ່ຫວ່າງບໍ່ໂຊ້ວ ບໍ່ໃຫ້ກິນທີ່ລ້າໆ. */}
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-3 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2 text-sm font-bold text-slate-700">
-          <ClipboardCheck className="size-4 text-teal-600" />
+          <ClipboardCheck className="size-4 text-brand-700" />
           ຜົນການກວດເຊັກ
           {job.check_finish ? (
             <span className="text-[11px] font-medium text-slate-400">
@@ -275,7 +275,7 @@ export default async function RepairJobPage({ params }: Props) {
               {job.check_minutes !== null && job.check_minutes >= 0 && ` · ໃຊ້ເວລາ ${job.check_minutes} ນາທີ`}
             </span>
           ) : (
-            <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+            <span className="rounded bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-brand-900">
               ຍັງບໍ່ຈົບການກວດ
             </span>
           )}
@@ -287,7 +287,7 @@ export default async function RepairJobPage({ params }: Props) {
           </div>
           <div>
             <dt className="text-[10px] text-slate-400">ຜົນກວດຂອງຊ່າງ</dt>
-            <dd className="mt-0.5 font-medium text-red-600">{job.issue_2 || "-"}</dd>
+            <dd className="mt-0.5 font-medium text-brand-orange-700">{job.issue_2 || "-"}</dd>
           </div>
           {job.accessories && (
             <div>

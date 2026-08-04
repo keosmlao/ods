@@ -38,7 +38,7 @@ export function ReturnNoChargeButton({
           event.stopPropagation();
           setOpen(true);
         }}
-        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 text-xs font-semibold text-slate-600 transition hover:border-amber-400 hover:bg-amber-50 hover:text-amber-800"
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 text-xs font-semibold text-slate-600 transition hover:border-brand-orange-500 hover:bg-brand-orange-100 hover:text-brand-900"
       >
         <HandCoins className="size-3.5" />
         {labels.action}
@@ -46,7 +46,7 @@ export function ReturnNoChargeButton({
 
       {open && (
         <div
-          className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4"
+          className="fixed inset-0 z-50 grid place-items-center bg-brand-900/50 p-4"
           onClick={(event) => {
             event.stopPropagation();
             setOpen(false);
@@ -75,12 +75,12 @@ export function ReturnNoChargeButton({
                   autoFocus
                   required
                   minLength={3}
-                  className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-teal-500"
+                  className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-600"
                 />
               </div>
 
               {state?.error && (
-                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{state.error}</p>
+                <p className="rounded-lg bg-brand-orange-50 px-3 py-2 text-xs font-semibold text-brand-orange-700">{state.error}</p>
               )}
 
               <div className="flex justify-end gap-2">
@@ -94,7 +94,7 @@ export function ReturnNoChargeButton({
                 <button
                   type="submit"
                   disabled={pending}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white disabled:opacity-60"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-orange-700 px-3 text-xs font-semibold text-white disabled:opacity-60"
                 >
                   {pending && <LoaderCircle className="size-3.5 animate-spin" />}
                   {labels.confirm}

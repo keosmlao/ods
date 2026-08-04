@@ -48,7 +48,7 @@ export default async function InstallSpareMonthlyReport({ searchParams }: Props)
             type="month"
             name="month"
             defaultValue={month}
-            className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs outline-none focus:border-teal-500"
+            className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs outline-none focus:border-brand-600"
           />
           <div className="flex h-9 min-w-56 flex-1 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3">
             <Search className="size-3.5 text-slate-400" />
@@ -88,14 +88,14 @@ export default async function InstallSpareMonthlyReport({ searchParams }: Props)
           <Table head={[t.code, t.itemName, t.unit, t.documents, t.jobs, t.issued, t.returned, t.netQty]} minWidth={1050}>
             {items.map((row) => (
               <tr key={`${row.item_code}-${row.unit_code}`} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-[#0536a9]">{row.item_code}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-brand">{row.item_code}</td>
                 <td className="px-3 py-2 text-xs text-slate-700">{row.item_name}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-center text-xs text-slate-500">{row.unit_code}</td>
                 <td className="px-3 py-2 text-center text-xs tabular-nums">{row.documents}</td>
                 <td className="px-3 py-2 text-center text-xs tabular-nums">{row.jobs}</td>
-                <td className="px-3 py-2 text-right text-xs font-semibold tabular-nums text-blue-700">{qty(row.issued_qty)}</td>
-                <td className="px-3 py-2 text-right text-xs font-semibold tabular-nums text-amber-700">{qty(row.returned_qty)}</td>
-                <td className="px-3 py-2 text-right text-xs font-bold tabular-nums text-emerald-700">{qty(row.net_qty)}</td>
+                <td className="px-3 py-2 text-right text-xs font-semibold tabular-nums text-brand-700">{qty(row.issued_qty)}</td>
+                <td className="px-3 py-2 text-right text-xs font-semibold tabular-nums text-brand-900">{qty(row.returned_qty)}</td>
+                <td className="px-3 py-2 text-right text-xs font-bold tabular-nums text-brand-800">{qty(row.net_qty)}</td>
               </tr>
             ))}
           </Table>
@@ -115,9 +115,9 @@ export default async function InstallSpareMonthlyReport({ searchParams }: Props)
                 <td className="px-3 py-2 text-center text-xs tabular-nums">{row.jobs}</td>
                 <td className="px-3 py-2 text-center text-xs tabular-nums">{row.documents}</td>
                 <td className="px-3 py-2 text-center text-xs tabular-nums">{row.item_types}</td>
-                <td className="px-3 py-2 text-right text-xs tabular-nums text-blue-700">{qty(row.issued_qty)}</td>
-                <td className="px-3 py-2 text-right text-xs tabular-nums text-amber-700">{qty(row.returned_qty)}</td>
-                <td className="px-3 py-2 text-right text-xs font-bold tabular-nums text-emerald-700">{qty(row.net_qty)}</td>
+                <td className="px-3 py-2 text-right text-xs tabular-nums text-brand-700">{qty(row.issued_qty)}</td>
+                <td className="px-3 py-2 text-right text-xs tabular-nums text-brand-900">{qty(row.returned_qty)}</td>
+                <td className="px-3 py-2 text-right text-xs font-bold tabular-nums text-brand-800">{qty(row.net_qty)}</td>
               </tr>
             ))}
           </Table>
@@ -130,9 +130,9 @@ export default async function InstallSpareMonthlyReport({ searchParams }: Props)
 function Stat({ label, value, tone = "plain" }: { label: string; value: string | number; tone?: "plain" | "blue" | "amber" | "green" }) {
   const colors = {
     plain: "border-slate-200 bg-white text-slate-800",
-    blue: "border-blue-200 bg-blue-50 text-blue-800",
-    amber: "border-amber-200 bg-amber-50 text-amber-800",
-    green: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    blue: "border-brand-200 bg-brand-50 text-brand-800",
+    amber: "border-brand-orange-400 bg-brand-orange-100 text-brand-900",
+    green: "border-brand-200 bg-brand-50 text-brand-800",
   };
   return (
     <div className={`rounded-xl border p-4 shadow-sm ${colors[tone]}`}>

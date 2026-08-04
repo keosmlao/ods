@@ -46,7 +46,7 @@ export function WithdrawButton({ docNo, item }: { docNo: string; item: string })
         {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Undo2 className="size-3.5" />}
         ຖອນຄືນ
       </button>
-      {error && <span className="mt-1 block text-[10px] font-medium text-red-600">{error}</span>}
+      {error && <span className="mt-1 block text-[10px] font-medium text-brand-orange-700">{error}</span>}
     </>
   );
 }

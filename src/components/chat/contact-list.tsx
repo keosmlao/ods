@@ -40,7 +40,7 @@ export function ContactList({ contacts, room }: { contacts: Contact[]; room: str
           value={term}
           onChange={(event) => setTerm(event.target.value)}
           placeholder="ຄົ້ນຫາຊື່..."
-          className="h-8 w-full rounded-lg border border-slate-300 pl-7 pr-2 text-xs focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100"
+          className="h-8 w-full rounded-lg border border-slate-300 pl-7 pr-2 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </div>
 
@@ -53,7 +53,7 @@ export function ContactList({ contacts, room }: { contacts: Contact[]; room: str
             key={contact.username}
             href={`/chat?room=${encodeURIComponent(contact.room)}`}
             className={`flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs ${
-              active ? "bg-[#0536a9] text-white" : "text-slate-600 hover:bg-slate-100"
+              active ? "bg-brand text-white" : "text-slate-600 hover:bg-slate-100"
             }`}
           >
             <span className="grid size-7 shrink-0 place-items-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600">
@@ -63,7 +63,7 @@ export function ContactList({ contacts, room }: { contacts: Contact[]; room: str
               <span className="flex items-center gap-1">
                 <span className="truncate font-semibold">{contact.name}</span>
                 {contact.unread > 0 && (
-                  <span className="ml-auto grid min-w-4 shrink-0 place-items-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white">
+                  <span className="ml-auto grid min-w-4 shrink-0 place-items-center rounded-full bg-brand-orange-700 px-1 text-[9px] font-bold text-white">
                     {contact.unread}
                   </span>
                 )}

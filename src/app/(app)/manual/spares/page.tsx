@@ -27,24 +27,24 @@ const DOCS: { code: string; name: string; by: string; means: string; next: strin
 
 const STATES: { label: string; tone: string; means: string; who: string; slow: string }[] = [
   {
-    label: "ລໍສາງເບີກ", tone: "bg-amber-100 text-amber-800",
+    label: "ລໍສາງເບີກ", tone: "bg-brand-orange-300 text-brand-900",
     means: "ອອກ SIO ແລ້ວ ແຕ່ຍັງບໍ່ມີ SWC", who: "ສາງ",
     slow: "ອາດເປັນວ່າຂອງບໍ່ມີ ⇒ ຕ້ອງອອກ RQ ຂໍຊື້ ບໍ່ແມ່ນປະໄວ້ຊື່ໆ",
   },
   {
-    label: "ສາງເບີກແລ້ວ ລໍຊ່າງຮັບ", tone: "bg-blue-50 text-blue-700",
+    label: "ສາງເບີກແລ້ວ ລໍຊ່າງຮັບ", tone: "bg-brand-50 text-brand-700",
     means: "ມີ SWC ແລ້ວ ແຕ່ຍັງບໍ່ມີ PISP", who: "ຊ່າງ",
     slow: "ຂອງຕັດສະຕັອກໄປແລ້ວແຕ່ບໍ່ມີໃຜຮັບ ⇒ ຂອງລອຍ ບັນຊີບໍ່ຕົງ",
   },
   {
-    label: "ຊ່າງຮັບແລ້ວ", tone: "bg-emerald-50 text-emerald-700",
+    label: "ຊ່າງຮັບແລ້ວ", tone: "bg-brand-50 text-brand-800",
     means: "ຄົບ SIO → SWC → PISP", who: "—", slow: "ຮອບນີ້ຈົບ",
   },
 ];
 
 const ROLES: { title: string; color: string; rules: string[] }[] = [
   {
-    title: "ຊ່າງ", color: "border-t-teal-500",
+    title: "ຊ່າງ", color: "border-t-brand-600",
     rules: [
       "ພົບຕ້ອງໃຊ້ເພີ່ມ ⇒ ຂໍເບີກຮອບໃໝ່ໄດ້ເລີຍ ບໍ່ຕ້ອງລໍຮອບເກົ່າຈົບ (ເປີດຕັ້ງແຕ່ຂັ້ນ “ກວດ Stock” ຮອດ “ກຳລັງສ້ອມ”)",
       "ສາງແຈ້ງວ່າຈ່າຍແລ້ວ ⇒ ກົດຮັບທັນທີ. ບໍ່ກົດ = ຂອງຕັດສະຕັອກແລ້ວແຕ່ບໍ່ມີເຈົ້າຂອງ",
@@ -52,7 +52,7 @@ const ROLES: { title: string; color: string; rules: string[] }[] = [
     ],
   },
   {
-    title: "ສາງ", color: "border-t-indigo-500",
+    title: "ສາງ", color: "border-t-brand-600",
     rules: [
       "ເຫັນ SIO ໃໝ່ ⇒ ຈ່າຍອອກ ຫຼື ບອກວ່າບໍ່ມີ — ຢ່າປະໃບຄ້າງງຽບໆ",
       "ບໍ່ມີຂອງ ⇒ ໃຫ້ອອກ RQ ຂໍຊື້ຕໍ່ ໃນວັນນັ້ນ",
@@ -60,7 +60,7 @@ const ROLES: { title: string; color: string; rules: string[] }[] = [
     ],
   },
   {
-    title: "ຈັດຊື້ / ຜູ້ຈັດການ", color: "border-t-amber-500",
+    title: "ຈັດຊື້ / ຜູ້ຈັດການ", color: "border-t-brand-orange-500",
     rules: [
       "ອະນຸມັດ RQ ⇒ ອອກ SPR ຢູ່ ERP ດ້ວຍລະຫັດສິນຄ້າອັນດຽວກັບທີ່ຂໍ",
       "ປ່ຽນລະຫັດ/ຮຸ່ນ ⇒ ບອກ CS ແລະ ແກ້ໃນໃບຂໍ ບໍ່ດັ່ງນັ້ນລະບົບຈະຕິດຕາມບໍ່ໄດ້",
@@ -68,7 +68,7 @@ const ROLES: { title: string; color: string; rules: string[] }[] = [
     ],
   },
   {
-    title: "ຝ່າຍຮັບ / CS", color: "border-t-rose-500",
+    title: "ຝ່າຍຮັບ / CS", color: "border-t-brand-orange-600",
     rules: [
       "ວຽກໜຶ່ງມີໄດ້ຫຼາຍຮອບ — ເບິ່ງຕາຕະລາງ “ອາໄຫຼ່ຂອງໃບງານ” ວ່າຮອບໃດຄ້າງ ກ່ອນຕອບລູກຄ້າ",
       "ຂອງເຂົ້າສາງແລ້ວ ≠ ວຽກໄປຕໍ່ໄດ້ — ຕ້ອງລໍ SWC + PISP",
@@ -105,7 +105,7 @@ export default function SpareManualPage() {
                   <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
                 </marker>
                 <marker id="sp-ar-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#0d9488" />
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e5b9a" />
                 </marker>
               </defs>
 
@@ -122,7 +122,7 @@ export default function SpareManualPage() {
                 <rect x="212" y="70" width="150" height="56" rx="9" />
                 <rect x="404" y="70" width="150" height="56" rx="9" />
                 <rect x="596" y="70" width="150" height="56" rx="9" />
-                <rect x="788" y="70" width="150" height="56" rx="9" stroke="#0d9488" strokeWidth="2" />
+                <rect x="788" y="70" width="150" height="56" rx="9" stroke="#1e5b9a" strokeWidth="2" />
               </g>
               <g textAnchor="middle" fontSize="12" fill="currentColor">
                 <text x="95" y="94" fontWeight="700">ກະຕ່າອາໄຫຼ່</text>
@@ -133,7 +133,7 @@ export default function SpareManualPage() {
                 <text x="479" y="112" fontSize="11" opacity="0.65">ຕັດສະຕັອກ ERP</text>
                 <text x="671" y="94" fontWeight="700">PISP — ໃບຮັບ</text>
                 <text x="671" y="112" fontSize="11" opacity="0.65">ຊ່າງກົດຮັບ</text>
-                <text x="863" y="94" fontWeight="700" fill="#0d9488">ພ້ອມລົງມືສ້ອມ</text>
+                <text x="863" y="94" fontWeight="700" fill="#1e5b9a">ພ້ອມລົງມືສ້ອມ</text>
               </g>
               <g stroke="currentColor" strokeWidth="1.5" markerEnd="url(#sp-ar)">
                 <line x1="170" y1="98" x2="206" y2="98" />
@@ -147,8 +147,8 @@ export default function SpareManualPage() {
                 <text x="572" y="90">ກົດຮັບ</text>
               </g>
 
-              <path d="M 287 126 L 287 250" stroke="#0d9488" strokeWidth="1.8" fill="none" markerEnd="url(#sp-ar-a)" />
-              <text x="297" y="196" fontSize="11.5" fill="#0d9488" fontWeight="700">ສາງບໍ່ມີເຄື່ອງ ⇒ ແຖວນັ້ນຄ້າງ</text>
+              <path d="M 287 126 L 287 250" stroke="#1e5b9a" strokeWidth="1.8" fill="none" markerEnd="url(#sp-ar-a)" />
+              <text x="297" y="196" fontSize="11.5" fill="#1e5b9a" fontWeight="700">ສາງບໍ່ມີເຄື່ອງ ⇒ ແຖວນັ້ນຄ້າງ</text>
 
               <text x="20" y="238" fontSize="11.5" fontWeight="700" fill="currentColor" opacity="0.55">ທາງອ້ອມ — ຕ້ອງສັ່ງຊື້</text>
               <g fontSize="11" textAnchor="middle" fill="currentColor" opacity="0.62">
@@ -179,8 +179,8 @@ export default function SpareManualPage() {
                 <line x1="746" y1="310" x2="782" y2="310" />
               </g>
 
-              <path d="M 863 282 L 863 200 L 479 200 L 479 130" stroke="#0d9488" strokeWidth="1.8" fill="none" markerEnd="url(#sp-ar-a)" />
-              <text x="671" y="192" fontSize="11.5" fill="#0d9488" fontWeight="700" textAnchor="middle">ຂອງເຂົ້າສາງແລ້ວ ⇒ ກັບໄປໃຫ້ສາງເບີກ</text>
+              <path d="M 863 282 L 863 200 L 479 200 L 479 130" stroke="#1e5b9a" strokeWidth="1.8" fill="none" markerEnd="url(#sp-ar-a)" />
+              <text x="671" y="192" fontSize="11.5" fill="#1e5b9a" fontWeight="700" textAnchor="middle">ຂອງເຂົ້າສາງແລ້ວ ⇒ ກັບໄປໃຫ້ສາງເບີກ</text>
 
               <g fontSize="11" fill="currentColor" opacity="0.7">
                 <text x="20" y="390">ວຽກໜຶ່ງມີໄດ້ຫຼາຍ SIO — ແຕ່ລະໃບຄື “ຮອບ 1 · ຮອບ 2 · ຮອບ 3 …” ແລ່ນຂະໜານກັນ ບໍ່ຕ້ອງລໍກັນ</text>
@@ -192,7 +192,7 @@ export default function SpareManualPage() {
             ເສັ້ນສີຄື <b>ທາງອ້ອມຕອນສາງບໍ່ມີເຄື່ອງ</b> — ບ່ອນທີ່ຄົນສັບສົນທີ່ສຸດ ເພາະມັນອອກໄປ ERP ແລ້ວກັບເຂົ້າມາ.
           </figcaption>
         </figure>
-        <p className="mt-3 rounded-lg border-l-4 border-teal-500 bg-teal-50 p-3 text-xs text-slate-700">
+        <p className="mt-3 rounded-lg border-l-4 border-brand-600 bg-brand-50 p-3 text-xs text-slate-700">
           <b>ກົດເຫຼັກ 1 ຂໍ້:</b> ວຽກຈະອອກຈາກຂັ້ນອາໄຫຼ່ໄດ້ ກໍ່ຕໍ່ເມື່ອ <b>ທຸກ SIO ໄດ້ SWC ຄົບ</b> ແລະ{" "}
           <b>ທຸກ SWC ໄດ້ PISP ຄົບ</b> — ບໍ່ແມ່ນເມື່ອ “ຂອງມາຮອດສາງ”.
         </p>
@@ -216,7 +216,7 @@ export default function SpareManualPage() {
               {DOCS.map((doc) => (
                 <tr key={doc.code} className="border-b border-slate-100 last:border-0">
                   <td className="whitespace-nowrap px-3 py-2">
-                    <span className="rounded bg-teal-50 px-2 py-0.5 font-mono text-[11px] font-bold text-teal-700">{doc.code}</span>
+                    <span className="rounded bg-brand-50 px-2 py-0.5 font-mono text-[11px] font-bold text-brand-800">{doc.code}</span>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-slate-700">{doc.name}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-slate-600">{doc.by}</td>
@@ -261,9 +261,9 @@ export default function SpareManualPage() {
         </div>
         <p className="mt-3 text-xs text-slate-600">
           ຝັ່ງສັ່ງຊື້ມີ 3 ປ້າຍ:{" "}
-          <span className="rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">ລໍອະນຸມັດ</span> (ຜູ້ຈັດການ) ·{" "}
-          <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">ອະນຸມັດແລ້ວ — ຕິດຕາມຢູ່ ERP</span> (ຈັດຊື້) ·{" "}
-          <span className="rounded bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">ບໍ່ອະນຸມັດ</span> (CS ຫາທາງອື່ນ)
+          <span className="rounded bg-brand-orange-300 px-2 py-0.5 text-[11px] font-semibold text-brand-900">ລໍອະນຸມັດ</span> (ຜູ້ຈັດການ) ·{" "}
+          <span className="rounded bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">ອະນຸມັດແລ້ວ — ຕິດຕາມຢູ່ ERP</span> (ຈັດຊື້) ·{" "}
+          <span className="rounded bg-brand-orange-50 px-2 py-0.5 text-[11px] font-semibold text-brand-orange-700">ບໍ່ອະນຸມັດ</span> (CS ຫາທາງອື່ນ)
         </p>
       </section>
 
@@ -287,17 +287,17 @@ export default function SpareManualPage() {
       {/* ⑤ ເບິ່ງຢູ່ໃສ */}
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-3 border-b border-slate-100 pb-2 text-sm font-bold text-slate-700">5. ເບິ່ງຂໍ້ມູນຢູ່ໃສ</h2>
-        <ol className="list-decimal space-y-2 pl-5 text-xs text-slate-600 marker:font-bold marker:text-teal-600">
+        <ol className="list-decimal space-y-2 pl-5 text-xs text-slate-600 marker:font-bold marker:text-brand-700">
           <li>
             <b>ໜ້າວຽກສ້ອມຂອງໃບນັ້ນ</b> <span className="font-mono">/repair/&lt;ເລກງານ&gt;</span> — ຕາຕະລາງ{" "}
             <b>“ອາໄຫຼ່ຂອງໃບງານ”</b> ແຍກເປັນຮອບ (ໃບຂໍເບີກ · ວັນທີ · ສາງ · SWC · PISP · ສະຖານະ · ລໍໃຜ)
             ພ້ອມປຸ່ມ <b>+ ຂໍເບີກຮອບໃໝ່</b> ແລະ <b>+ ຂໍຊື້ຮອບໃໝ່</b>
           </li>
           <li>
-            <Link href="/work/spares" className="font-semibold text-teal-700 hover:underline">ອາໄຫຼ່ (ທັງສາຍ)</Link> — ວຽກອາໄຫຼ່ຄ້າງທັງໝົດ ຈັດກຸ່ມຕາມ “ໃຜຕ້ອງເຮັດຕໍ່”
+            <Link href="/work/spares" className="font-semibold text-brand-800 hover:underline">ອາໄຫຼ່ (ທັງສາຍ)</Link> — ວຽກອາໄຫຼ່ຄ້າງທັງໝົດ ຈັດກຸ່ມຕາມ “ໃຜຕ້ອງເຮັດຕໍ່”
           </li>
           <li>
-            <Link href="/work/repair/purchasing" className="font-semibold text-teal-700 hover:underline">ຄິວກຳລັງສັ່ງຊື້</Link> — ກ່ອງຂຽວ “ວຽກຄວນໄປຕໍ່ໄດ້ແລ້ວ” = ERP ຢືນຢັນວ່າຂອງເຂົ້າສາງຄົບແລ້ວ ແຕ່ວຽກຍັງບໍ່ຂະຫຍັບ
+            <Link href="/work/repair/purchasing" className="font-semibold text-brand-800 hover:underline">ຄິວກຳລັງສັ່ງຊື້</Link> — ກ່ອງຂຽວ “ວຽກຄວນໄປຕໍ່ໄດ້ແລ້ວ” = ERP ຢືນຢັນວ່າຂອງເຂົ້າສາງຄົບແລ້ວ ແຕ່ວຽກຍັງບໍ່ຂະຫຍັບ
           </li>
           <li>ກົດເລກໃບໃນຕາຕະລາງ ⇒ ເປີດເບິ່ງລາຍການຂອງໃບນັ້ນໄດ້ເລີຍ</li>
         </ol>

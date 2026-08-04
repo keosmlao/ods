@@ -171,28 +171,28 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
 
   /** ສະຖານະລວມຂອງໃບ — ນິຍາມດຽວກັບປ້າຍໃນຄິວກຳລັງເບີກອາໄຫຼ່ (request_status) */
   const docStatus = allIssued
-    ? { label: t.statusIssued, chip: "bg-emerald-50 text-emerald-700", icon: CheckCircle2 }
+    ? { label: t.statusIssued, chip: "bg-brand-50 text-brand-800", icon: CheckCircle2 }
     : hasPurchasing
-      ? { label: t.statusPurchasing, chip: "bg-violet-50 text-violet-700", icon: ShoppingCart }
+      ? { label: t.statusPurchasing, chip: "bg-brand-orange-50 text-brand-orange-700", icon: ShoppingCart }
       : hasIssued
-        ? { label: `${t.statusIssued} ${totalQty}/${lines.length}`, chip: "bg-sky-50 text-sky-700", icon: Boxes }
-        : { label: t.statusWaiting, chip: "bg-amber-50 text-amber-700", icon: Clock3 };
+        ? { label: `${t.statusIssued} ${totalQty}/${lines.length}`, chip: "bg-brand-50 text-brand-600", icon: Boxes }
+        : { label: t.statusWaiting, chip: "bg-brand-orange-100 text-brand-900", icon: Clock3 };
 
   const lineStatus = (line: Line) =>
     line.status === LINE_STATUS.ISSUED
-      ? { label: t.statusIssued, chip: "bg-emerald-50 text-emerald-700", print: "text-emerald-700" }
+      ? { label: t.statusIssued, chip: "bg-brand-50 text-brand-800", print: "text-brand-800" }
       : line.status === LINE_STATUS.ON_PURCHASE_ORDER && !line.arrive_at
-        ? { label: t.statusPurchasing, chip: "bg-violet-50 text-violet-700", print: "text-violet-700" }
-        : { label: t.statusWaiting, chip: "bg-amber-50 text-amber-700", print: "text-amber-700" };
+        ? { label: t.statusPurchasing, chip: "bg-brand-orange-50 text-brand-orange-700", print: "text-brand-orange-700" }
+        : { label: t.statusWaiting, chip: "bg-brand-orange-100 text-brand-900", print: "text-brand-900" };
 
   const StatusIcon = docStatus.icon;
 
   /** ປ້າຍສະຖານະຂອງຮອບອື່ນ — ສີດຽວກັບປ້າຍໃບນີ້ ແລະ ຄິວກຳລັງເບີກ (REQUEST_STATUS) */
   const SIBLING_STATUS: Record<Exclude<SiblingDoc["status"], null>, { label: string; chip: string }> = {
-    waiting: { label: t.statusWaiting, chip: "bg-amber-50 text-amber-700" },
-    partial: { label: "ເບີກບາງສ່ວນ", chip: "bg-sky-50 text-sky-700" },
-    purchasing: { label: t.statusPurchasing, chip: "bg-violet-50 text-violet-700" },
-    issued: { label: t.statusIssued, chip: "bg-emerald-50 text-emerald-700" },
+    waiting: { label: t.statusWaiting, chip: "bg-brand-orange-100 text-brand-900" },
+    partial: { label: "ເບີກບາງສ່ວນ", chip: "bg-brand-50 text-brand-600" },
+    purchasing: { label: t.statusPurchasing, chip: "bg-brand-orange-50 text-brand-orange-700" },
+    issued: { label: t.statusIssued, chip: "bg-brand-50 text-brand-800" },
   };
   const currentRound = siblings.find((doc) => doc.doc_no === bill.doc_no);
 
@@ -204,7 +204,7 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
       <div className="mx-auto w-full max-w-[1480px] space-y-4 pb-8 print:hidden">
         <Link
           href={backHref}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 hover:text-teal-800"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-800 hover:text-brand-900"
         >
           <ArrowLeft className="size-3.5" />
           {back.back}
@@ -214,7 +214,7 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="grid size-12 place-items-center rounded-2xl bg-teal-600 text-white shadow-sm">
+              <span className="grid size-12 place-items-center rounded-2xl bg-brand-700 text-white shadow-sm">
                 <FileText className="size-6" />
               </span>
               <div>
@@ -225,7 +225,7 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
                   </span>
                   {/* ໃບນີ້ແມ່ນຮອບທີເທົ່າໃດຂອງວຽກ — ເຫັນສະເພາະເມື່ອມີຫຼາຍຮອບ */}
                   {siblings.length > 1 && currentRound && (
-                    <span className="rounded-lg bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-700">
+                    <span className="rounded-lg bg-brand-50 px-2 py-0.5 text-xs font-bold text-brand-700">
                       ຮອບທີ {currentRound.round}/{siblings.length}
                     </span>
                   )}
@@ -245,7 +245,7 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
             </div>
           </div>
           {dispatches.length > 0 && (
-            <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
+            <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">
               {t.dispatchBy}{" "}
               <span className="font-mono">
                 {dispatches.map((doc) => `${doc.doc_no} (${doc.doc_date ?? "-"})`).join(", ")}
@@ -258,7 +258,7 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
         {siblings.length > 1 && (
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-800">
-              <FileText className="size-4 text-indigo-600" />
+              <FileText className="size-4 text-brand-600" />
               ໃບຂໍເບີກທັງໝົດຂອງວຽກ #{bill.product_code} · {siblings.length} ຮອບ
             </h2>
             <div className="space-y-1.5">
@@ -269,18 +269,18 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
                   <div
                     key={doc.doc_no}
                     className={`flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-xs ${
-                      isCurrent ? "bg-teal-50 ring-1 ring-teal-200" : "bg-slate-50"
+                      isCurrent ? "bg-brand-50 ring-1 ring-brand-200" : "bg-slate-50"
                     }`}
                   >
-                    <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+                    <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[10px] font-bold text-brand-700">
                       ຮອບ {doc.round}
                     </span>
                     {isCurrent ? (
-                      <span className="font-mono font-bold text-teal-700">{doc.doc_no} · ໃບນີ້</span>
+                      <span className="font-mono font-bold text-brand-800">{doc.doc_no} · ໃບນີ້</span>
                     ) : (
                       <Link
                         href={`/stock/requests/view/${encodeURIComponent(doc.doc_no)}`}
-                        className="font-mono font-bold text-blue-700 hover:underline"
+                        className="font-mono font-bold text-brand-700 hover:underline"
                       >
                         {doc.doc_no}
                       </Link>
@@ -304,7 +304,7 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
         <div className="grid gap-4 md:grid-cols-2">
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-800">
-              <Boxes className="size-4 text-teal-600" />
+              <Boxes className="size-4 text-brand-700" />
               {t.jobInfo}
             </h2>
             <dl className="space-y-1.5 text-sm">
@@ -314,7 +314,7 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
               <InfoRow label={t.warranty} value={bill.warranty} />
               <div className="flex gap-2">
                 <dt className="w-32 shrink-0 text-slate-400">{t.issue}</dt>
-                <dd className="font-semibold text-red-600">{bill.issue || "-"}</dd>
+                <dd className="font-semibold text-brand-orange-700">{bill.issue || "-"}</dd>
               </div>
               <InfoRow label={t.technicianDiagnosis} value={bill.issue_2} />
             </dl>
@@ -322,7 +322,7 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-800">
-              <User className="size-4 text-teal-600" />
+              <User className="size-4 text-brand-700" />
               {t.customer} {bill.customer ?? "-"}
             </h2>
             <dl className="space-y-1.5 text-sm">
@@ -346,10 +346,10 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
             <h2 className="flex items-center gap-2 text-sm font-bold text-slate-800">
-              <Boxes className="size-4 text-teal-600" />
+              <Boxes className="size-4 text-brand-700" />
               {t.sparesTitle}
             </h2>
-            <span className="rounded-lg bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-700">
+            <span className="rounded-lg bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-600">
               {t.total} {lines.length} {t.lines} · {totalQty}
             </span>
           </div>
@@ -377,7 +377,7 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
       {/* ════════════════ ② ໃບພິມ — ຟອມເອກະສານທາງການ A4 ════════════════ */}
       <div className="hidden text-slate-950 print:block">
         {/* ── ຫົວເອກະສານ: ບໍລິສັດ · ຊື່ຟອມ · ເລກທີ/ວັນທີ ── */}
-        <header className="flex items-start justify-between gap-6 border-b-2 border-slate-900 pb-4">
+        <header className="flex items-start justify-between gap-6 border-b-2 border-brand-900 pb-4">
           <div className="text-xs leading-5">
             <p className="text-base font-bold">{company?.name_1}</p>
             <p>{company?.name_2}</p>
@@ -425,7 +425,7 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
             {t.technician} {bill.technician ?? "-"}
           </p>
           <p className="col-span-2">
-            {t.issue} <span className="text-red-700">{bill.issue ?? "-"}</span>
+            {t.issue} <span className="text-brand-orange-700">{bill.issue ?? "-"}</span>
           </p>
           <p className="col-span-2">{t.technicianDiagnosis} {bill.issue_2 ?? "-"}</p>
           {whShelf && (
@@ -446,7 +446,7 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
           <thead>
             <tr>
               {[t.colNo, t.colCode, t.colName, t.colQty, t.colUnit, t.colStatus].map((cell) => (
-                <th key={cell} className="border border-slate-900 px-2 py-1.5 font-semibold">
+                <th key={cell} className="border border-brand-900 px-2 py-1.5 font-semibold">
                   {cell}
                 </th>
               ))}
@@ -457,23 +457,23 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
               const status = lineStatus(line);
               return (
                 <tr key={line.rnum}>
-                  <td className="border border-slate-900 px-2 py-1.5 text-center">{line.rnum}</td>
-                  <td className="border border-slate-900 px-2 py-1.5 font-mono text-xs">{line.item_code}</td>
-                  <td className="border border-slate-900 px-2 py-1.5">{line.item_name ?? "-"}</td>
-                  <td className="border border-slate-900 px-2 py-1.5 text-center">{Number(line.qty)}</td>
-                  <td className="border border-slate-900 px-2 py-1.5 text-center">{line.unit_code ?? "-"}</td>
-                  <td className={`border border-slate-900 px-2 py-1.5 text-center font-semibold ${status.print} print:text-slate-900`}>
+                  <td className="border border-brand-900 px-2 py-1.5 text-center">{line.rnum}</td>
+                  <td className="border border-brand-900 px-2 py-1.5 font-mono text-xs">{line.item_code}</td>
+                  <td className="border border-brand-900 px-2 py-1.5">{line.item_name ?? "-"}</td>
+                  <td className="border border-brand-900 px-2 py-1.5 text-center">{Number(line.qty)}</td>
+                  <td className="border border-brand-900 px-2 py-1.5 text-center">{line.unit_code ?? "-"}</td>
+                  <td className={`border border-brand-900 px-2 py-1.5 text-center font-semibold ${status.print} print:text-slate-900`}>
                     {status.label}
                   </td>
                 </tr>
               );
             })}
             <tr>
-              <td colSpan={3} className="border border-slate-900 px-2 py-1.5 text-right font-bold">
+              <td colSpan={3} className="border border-brand-900 px-2 py-1.5 text-right font-bold">
                 {t.total} {lines.length} {t.lines}
               </td>
-              <td className="border border-slate-900 px-2 py-1.5 text-center font-bold">{totalQty}</td>
-              <td colSpan={2} className="border border-slate-900 px-2 py-1.5" />
+              <td className="border border-brand-900 px-2 py-1.5 text-center font-bold">{totalQty}</td>
+              <td colSpan={2} className="border border-brand-900 px-2 py-1.5" />
             </tr>
           </tbody>
         </table>
@@ -497,7 +497,7 @@ export default async function ShowRequestBillPage({ params, searchParams }: Prop
           ].map((role) => (
             <div key={role.label}>
               <p>{role.label}</p>
-              <p className="mt-12 border-t border-slate-900 pt-1">{role.name || "(.......................................)"}</p>
+              <p className="mt-12 border-t border-brand-900 pt-1">{role.name || "(.......................................)"}</p>
               <p className="mt-1 text-xs">{t.signDate} ......./......./...........</p>
             </div>
           ))}

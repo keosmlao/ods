@@ -210,7 +210,7 @@ export function PoEditor({
             <ChevronRight className="mx-1 inline size-3.5" />
             <span className="font-semibold text-slate-700">{from ? `${t.issuedFrom} ${from.wpraNo}` : t.newDoc}</span>
           </p>
-          {dirty && !valid && <span className="text-xs text-amber-600">{missing}</span>}
+          {dirty && !valid && <span className="text-xs text-brand-900">{missing}</span>}
           {dirty && (
             <span className="flex items-center gap-1">
               <button
@@ -218,7 +218,7 @@ export function PoEditor({
                 disabled={!valid || saving}
                 title={t.titleSave}
                 onClick={submit}
-                className="grid size-7 place-items-center rounded-full text-teal-600 hover:bg-teal-50 disabled:opacity-40"
+                className="grid size-7 place-items-center rounded-full text-brand-700 hover:bg-brand-50 disabled:opacity-40"
               >
                 {saving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
               </button>
@@ -245,7 +245,7 @@ export function PoEditor({
             <li
               key={label}
               className={`flex items-center gap-1 px-3 py-1 ${
-                index === 0 ? "bg-[#0536a9] text-white" : "bg-white text-slate-400"
+                index === 0 ? "bg-brand text-white" : "bg-white text-slate-400"
               }`}
             >
               {label}
@@ -278,7 +278,7 @@ export function PoEditor({
               {from.jobCode && (
                 <span>
                   · {t.jobLabel}{" "}
-                  <Link href={`/service/${from.jobCode}`} className="font-semibold text-[#0536a9] hover:underline">
+                  <Link href={`/service/${from.jobCode}`} className="font-semibold text-brand hover:underline">
                     {from.jobCode}
                   </Link>
                 </span>
@@ -290,7 +290,7 @@ export function PoEditor({
           <div className="mt-6 grid gap-x-12 gap-y-4 lg:grid-cols-2">
             <div className="flex items-center gap-4">
               <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">
-                {t.labelSupplier} <span className="text-rose-500">*</span>
+                {t.labelSupplier} <span className="text-brand-orange-700">*</span>
               </span>
               <div className="flex-1">
                 <SelectField
@@ -314,26 +314,26 @@ export function PoEditor({
                   // ຄາດວ່າຮອດ ຫ້າມກ່ອນວັນທີໃບ — ດຶງຕາມໄປໃຫ້ ບໍ່ໃຫ້ຄົນຕ້ອງແກ້ສອງບ່ອນ
                   if (value && sendDate < value) setSendDate(value);
                 }}
-                className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 focus:border-solid focus:border-teal-500 focus:outline-none"
+                className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 focus:border-solid focus:border-brand-600 focus:outline-none"
               />
             </label>
 
             <label className="flex items-center gap-4">
               <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">
-                {t.labelEta} <span className="text-rose-500">*</span>
+                {t.labelEta} <span className="text-brand-orange-700">*</span>
               </span>
               <input
                 type="date"
                 value={sendDate}
                 min={docDate}
                 onChange={(event) => setSendDate(event.target.value)}
-                className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 focus:border-solid focus:border-teal-500 focus:outline-none"
+                className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 focus:border-solid focus:border-brand-600 focus:outline-none"
               />
             </label>
 
             <div className="flex items-center gap-4">
               <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">
-                {t.labelTransport} <span className="text-rose-500">*</span>
+                {t.labelTransport} <span className="text-brand-orange-700">*</span>
               </span>
               <div className="flex-1">
                 <SelectField
@@ -348,7 +348,7 @@ export function PoEditor({
 
             <div className="flex items-center gap-4">
               <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">
-                {t.labelWarehouse} <span className="text-rose-500">*</span>
+                {t.labelWarehouse} <span className="text-brand-orange-700">*</span>
               </span>
               <div className="flex-1">
                 <SelectField
@@ -374,7 +374,7 @@ export function PoEditor({
                   if (value === "05") { setVatType(0); setVatRate(7); }
                   else { setVatType(2); setVatRate(10); }
                 }}
-                className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 focus:border-solid focus:border-teal-500 focus:outline-none"
+                className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 focus:border-solid focus:border-brand-600 focus:outline-none"
               >
                 {BRANCHES.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -396,7 +396,7 @@ export function PoEditor({
                     const found = currencies.find((c) => c.code === code);
                     if (found) setRate(found.rate);
                   }}
-                  className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 focus:border-solid focus:border-teal-500 focus:outline-none"
+                  className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 focus:border-solid focus:border-brand-600 focus:outline-none"
                 >
                   {currencies.map((option) => (
                     <option key={option.code} value={option.code}>
@@ -412,7 +412,7 @@ export function PoEditor({
                   value={rate}
                   onChange={(event) => setRate(Number(event.target.value))}
                   title={t.rateTitle}
-                  className="h-8 w-28 border-0 border-b border-dashed border-slate-300 bg-transparent text-right text-sm tabular-nums text-slate-800 focus:border-solid focus:border-teal-500 focus:outline-none"
+                  className="h-8 w-28 border-0 border-b border-dashed border-slate-300 bg-transparent text-right text-sm tabular-nums text-slate-800 focus:border-solid focus:border-brand-600 focus:outline-none"
                 />
               </div>
             </div>
@@ -433,7 +433,7 @@ export function PoEditor({
                     setVatType(2);
                     setVatRate(vatRate || 10);
                   }}
-                  className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 focus:border-solid focus:border-teal-500 focus:outline-none"
+                  className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 focus:border-solid focus:border-brand-600 focus:outline-none"
                 >
                   <option value="none">{t.vatNone}</option>
                   <option value="exclude">{t.vatExclude}</option>
@@ -447,7 +447,7 @@ export function PoEditor({
                   value={vatRate}
                   disabled={vatMode === "none"}
                   onChange={(event) => setVatRate(Number(event.target.value))}
-                  className="h-8 w-16 border-0 border-b border-dashed border-slate-300 bg-transparent text-right text-sm tabular-nums text-slate-800 focus:border-solid focus:border-teal-500 focus:outline-none disabled:text-slate-300"
+                  className="h-8 w-16 border-0 border-b border-dashed border-slate-300 bg-transparent text-right text-sm tabular-nums text-slate-800 focus:border-solid focus:border-brand-600 focus:outline-none disabled:text-slate-300"
                 />
                 <span className="shrink-0 text-xs text-slate-400">%</span>
               </div>
@@ -456,7 +456,7 @@ export function PoEditor({
             {/* ສົດ/ຕິດໜີ້ — ບອກພ້ອມຕອນອອກໃບ (ERP ເກັບເປັນ credit_day: 0 = ສົດ) */}
             <div className="flex items-center gap-4">
               <span className="w-36 shrink-0 text-sm font-semibold text-slate-500">
-                {t.labelPayment} <span className="text-rose-500">*</span>
+                {t.labelPayment} <span className="text-brand-orange-700">*</span>
               </span>
               <div className="flex flex-1 items-center gap-2">
                 <select
@@ -466,7 +466,7 @@ export function PoEditor({
                       (event.target.value as PayMode) === "cash" ? 0 : creditDay || DEFAULT_CREDIT_DAY,
                     )
                   }
-                  className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 focus:border-solid focus:border-teal-500 focus:outline-none"
+                  className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 focus:border-solid focus:border-brand-600 focus:outline-none"
                 >
                   <option value="cash">{t.payCash}</option>
                   <option value="credit">{t.payCredit}</option>
@@ -480,7 +480,7 @@ export function PoEditor({
                       step={1}
                       value={creditDay}
                       onChange={(event) => setCreditDay(Math.trunc(Number(event.target.value)))}
-                      className="h-8 w-16 border-0 border-b border-dashed border-slate-300 bg-transparent text-right text-sm tabular-nums text-slate-800 focus:border-solid focus:border-teal-500 focus:outline-none"
+                      className="h-8 w-16 border-0 border-b border-dashed border-slate-300 bg-transparent text-right text-sm tabular-nums text-slate-800 focus:border-solid focus:border-brand-600 focus:outline-none"
                     />
                     <span className="shrink-0 text-xs text-slate-400">{t.daysUnit} · {t.dueLabel} {dueDate}</span>
                   </>
@@ -495,14 +495,14 @@ export function PoEditor({
                 onChange={(event) => setRemark(event.target.value)}
                 maxLength={200}
                 placeholder={t.placeholderRemark}
-                className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 placeholder:text-slate-300 focus:border-solid focus:border-teal-500 focus:outline-none"
+                className="h-8 flex-1 border-0 border-b border-dashed border-slate-300 bg-transparent text-sm text-slate-800 placeholder:text-slate-300 focus:border-solid focus:border-brand-600 focus:outline-none"
               />
             </label>
           </div>
 
           {/* ── notebook tab ── */}
           <div className="mt-8 border-b border-slate-200">
-            <span className="inline-block border-b-2 border-[#0536a9] px-1 pb-2 text-sm font-bold text-[#0536a9]">
+            <span className="inline-block border-b-2 border-brand px-1 pb-2 text-sm font-bold text-brand">
               {t.tabSpares}
             </span>
           </div>
@@ -533,7 +533,7 @@ export function PoEditor({
                         min={1}
                         value={line.qty}
                         onChange={(event) => patch(line.item_code, "qty", Math.max(0, Number(event.target.value)))}
-                        className="h-7 w-20 rounded border-0 bg-transparent px-1 text-right tabular-nums hover:bg-slate-50 focus:bg-white focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                        className="h-7 w-20 rounded border-0 bg-transparent px-1 text-right tabular-nums hover:bg-slate-50 focus:bg-white focus:ring-1 focus:ring-brand-600 focus:outline-none"
                       />
                     </td>
                     <td className="px-3 py-2 text-slate-500">{line.unit_code || "-"}</td>
@@ -543,7 +543,7 @@ export function PoEditor({
                         min={0}
                         value={line.price}
                         onChange={(event) => patch(line.item_code, "price", Math.max(0, Number(event.target.value)))}
-                        className="h-7 w-28 rounded border-0 bg-transparent px-1 text-right tabular-nums hover:bg-slate-50 focus:bg-white focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                        className="h-7 w-28 rounded border-0 bg-transparent px-1 text-right tabular-nums hover:bg-slate-50 focus:bg-white focus:ring-1 focus:ring-brand-600 focus:outline-none"
                       />
                     </td>
                     <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-700">
@@ -555,7 +555,7 @@ export function PoEditor({
                         hidden={Boolean(from)}
                         onClick={() => setLines((prev) => prev.filter((l) => l.item_code !== line.item_code))}
                         title={t.deleteRowTitle}
-                        className="rounded p-1 text-slate-300 opacity-0 group-hover:opacity-100 hover:text-rose-600"
+                        className="rounded p-1 text-slate-300 opacity-0 group-hover:opacity-100 hover:text-brand-orange-700"
                       >
                         <Trash2 className="size-3.5" />
                       </button>
@@ -577,7 +577,7 @@ export function PoEditor({
                 <button
                   type="button"
                   onClick={() => setPicking(true)}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#0536a9] hover:underline"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline"
                 >
                   <Plus className="size-3.5" />
                   {t.addRow}

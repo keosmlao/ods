@@ -55,7 +55,7 @@ export function slaLabel(secondsLeft: number | null): string {
 
 export const SLA_CHIP: Record<SlaLeft, string> = {
   none: "bg-slate-100 text-slate-400",
-  ok: "bg-emerald-50 text-emerald-700",
-  soon: "bg-amber-100 text-amber-800",
-  late: "bg-red-100 text-red-700",
+  ok: "bg-brand-50 text-brand-800",
+  soon: "bg-brand-orange-300 text-brand-900",
+  late: "bg-brand-orange-100 text-brand-orange-700",
 };

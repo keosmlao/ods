@@ -34,7 +34,7 @@ export function DeliveryCard({ info, labels }: { info: DeliveryInfo; labels: Del
   return (
     <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
       <h2 className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 text-sm font-bold text-slate-700">
-        <Truck className="size-4 text-emerald-600" />
+        <Truck className="size-4 text-brand-800" />
         {labels.title}
         <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">
           {info.bill_no}
@@ -63,7 +63,7 @@ export function DeliveryCard({ info, labels }: { info: DeliveryInfo; labels: Del
             <div>
               <dt className="text-xs text-slate-400">{labels.receiverPhone}</dt>
               <dd className="mt-1 text-sm font-medium">
-                <a href={`tel:${info.telephone}`} className="text-[#0536a9] hover:underline">
+                <a href={`tel:${info.telephone}`} className="text-brand hover:underline">
                   {info.telephone}
                 </a>
               </dd>
@@ -84,7 +84,7 @@ export function DeliveryCard({ info, labels }: { info: DeliveryInfo; labels: Del
               href={mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white transition hover:bg-emerald-700"
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white transition hover:bg-brand-700"
             >
               <Navigation className="size-3.5" />
               {labels.openMap}
@@ -122,7 +122,7 @@ export function DeliveryCard({ info, labels }: { info: DeliveryInfo; labels: Del
           ))}
 
         {!hasGeo && (
-          <p className="flex items-center gap-1.5 text-xs text-amber-700">
+          <p className="flex items-center gap-1.5 text-xs text-brand-900">
             <MapPin className="size-3.5" />
             {labels.noDropPointHint}
           </p>

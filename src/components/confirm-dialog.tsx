@@ -7,18 +7,18 @@ export type ConfirmTone = "danger" | "warning" | "default";
 const TONES: Record<ConfirmTone, { icon: typeof HelpCircle; ring: string; button: string }> = {
   danger: {
     icon: Trash2,
-    ring: "bg-red-50 text-red-600",
-    button: "bg-red-600 hover:bg-red-700",
+    ring: "bg-brand-orange-50 text-brand-orange-700",
+    button: "bg-brand-orange-700 hover:bg-brand-orange-700",
   },
   warning: {
     icon: AlertTriangle,
-    ring: "bg-amber-50 text-amber-600",
-    button: "bg-amber-600 hover:bg-amber-700",
+    ring: "bg-brand-orange-100 text-brand-900",
+    button: "bg-brand-orange-700 hover:bg-brand-orange-700",
   },
   default: {
     icon: HelpCircle,
-    ring: "bg-teal-50 text-teal-600",
-    button: "bg-teal-600 hover:bg-teal-700",
+    ring: "bg-brand-50 text-brand-700",
+    button: "bg-brand-700 hover:bg-brand-800",
   },
 };
 

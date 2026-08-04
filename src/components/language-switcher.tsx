@@ -29,7 +29,7 @@ export function LanguageSwitcher({ locale }: { locale: Locale }) {
             onClick={() => startTransition(() => setLocaleAction(code))}
             className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition disabled:cursor-default ${
               active
-                ? "bg-white text-teal-700 shadow-sm"
+                ? "bg-white text-brand-800 shadow-sm"
                 : "text-slate-500 hover:text-slate-800 disabled:opacity-50"
             }`}
           >

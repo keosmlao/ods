@@ -24,7 +24,7 @@ export default async function ClaimBrandsPage() {
     <div className="w-full space-y-4">
       <div>
         <h1 className="flex items-center gap-2 text-lg font-bold text-slate-700">
-          <BadgeDollarSign className="size-5 text-teal-600" /> ຕັ້ງຄ່າ ຫຍີ່ຫໍ້ ເກັບເງินกับ supplier
+          <BadgeDollarSign className="size-5 text-brand-700" /> ຕັ້ງຄ່າ ຫຍີ່ຫໍ້ ເກັບເງินกับ supplier
         </h1>
         <p className="mt-1 text-sm text-slate-500">ຫຍີ່ຫໍ້ໃด ສອมในประกัน → ເກັບຄ່າສ້ອມກັບ supplier (ບໍ່ເກັບลูกค้า). ງານยี่ห้อนี้ ส่งคืนแล้ว → ขึ้น candidate CLM-C อัตโนมัติ.</p>
       </div>

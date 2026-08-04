@@ -69,11 +69,11 @@ export function slaState(seconds: number | null, serviceType: string | null): Sl
 export function slaTone(state: SlaState) {
   switch (state) {
     case "late":
-      return { chip: "bg-red-600 text-white", bar: "bg-red-600" };
+      return { chip: "bg-brand-orange-700 text-white", bar: "bg-brand-orange-700" };
     case "warn":
-      return { chip: "bg-amber-100 text-amber-800", bar: "bg-amber-400" };
+      return { chip: "bg-brand-orange-300 text-brand-900", bar: "bg-brand-orange-300" };
     case "ok":
-      return { chip: "bg-emerald-50 text-emerald-700", bar: "bg-emerald-400" };
+      return { chip: "bg-brand-50 text-brand-800", bar: "bg-brand-400" };
     default:
       return { chip: "bg-slate-100 text-slate-600", bar: "bg-slate-200" };
   }

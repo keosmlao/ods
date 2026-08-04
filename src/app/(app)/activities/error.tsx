@@ -10,8 +10,8 @@ export default function ActivitiesError({
 }) {
   return (
     <div className="grid min-h-[55vh] place-items-center">
-      <div className="w-full max-w-md rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm">
-        <AlertTriangle className="mx-auto size-10 text-red-500" />
+      <div className="w-full max-w-md rounded-2xl border border-brand-orange-400 bg-white p-6 text-center shadow-sm">
+        <AlertTriangle className="mx-auto size-10 text-brand-orange-700" />
         <h1 className="mt-3 text-lg font-bold text-slate-800">
           ໂຫຼດກິດຈະກຳບໍ່ສຳເລັດ
         </h1>
@@ -21,7 +21,7 @@ export default function ActivitiesError({
         <button
           type="button"
           onClick={reset}
-          className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800"
+          className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-900 px-4 text-xs font-semibold text-white hover:bg-brand-800"
         >
           <RotateCcw className="size-3.5" />
           ລອງໃໝ່

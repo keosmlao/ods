@@ -31,10 +31,10 @@ export default async function StockBalancePage({ searchParams }: Props) {
             defaultValue={q}
             autoFocus
             placeholder="ຊື່ ຫຼື ລະຫັດອາໄຫຼ່..."
-            className="h-11 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+            className="h-11 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100"
           />
         </div>
-        <button type="submit" className="h-11 rounded-lg bg-slate-900 px-5 text-sm font-bold text-white hover:bg-slate-800">
+        <button type="submit" className="h-11 rounded-lg bg-brand-900 px-5 text-sm font-bold text-white hover:bg-brand-800">
           ຄົ້ນ
         </button>
       </form>
@@ -57,7 +57,7 @@ export default async function StockBalancePage({ searchParams }: Props) {
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className={`block text-xl font-extrabold tabular-nums ${inStock ? "text-emerald-600" : "text-red-600"}`}>
+                    <span className={`block text-xl font-extrabold tabular-nums ${inStock ? "text-brand-800" : "text-brand-orange-700"}`}>
                       {fmt(item.total)}
                     </span>
                     <span className="text-[11px] text-slate-400">{item.unit_code ?? ""}</span>
@@ -72,7 +72,7 @@ export default async function StockBalancePage({ searchParams }: Props) {
                     ))}
                   </div>
                 ) : !inStock ? (
-                  <p className="mt-2 text-xs font-medium text-red-600">ບໍ່ມີໃນສາງໃດ</p>
+                  <p className="mt-2 text-xs font-medium text-brand-orange-700">ບໍ່ມີໃນສາງໃດ</p>
                 ) : null}
               </div>
             );

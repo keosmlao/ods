@@ -66,7 +66,7 @@ export default async function ReturnDetailPage({ params }: { params: Promise<{ c
       )}
 
       {waitingApproval ? (
-        <p className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-medium text-amber-800">
+        <p className="rounded-xl border border-brand-orange-400 bg-brand-orange-100 p-4 text-sm font-medium text-brand-900">
           ໃບຮັບເຄື່ອງນີ້ຢູ່ໃນຂັ້ນຕອນຂໍຍົກເລີກ ແລະ ຍັງບໍ່ໄດ້ຮັບການອະນຸມັດ — ຕ້ອງອະນຸມັດການຍົກເລີກກ່ອນ ຈຶ່ງສົ່ງຄືນລູກຄ້າໄດ້
         </p>
       ) : (

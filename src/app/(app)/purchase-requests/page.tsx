@@ -205,10 +205,10 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
       </div>
 
       {/* ① ວຽກທີ່ຕ້ອງສັ່ງຊື້ — ຈາກຜົນກວດເຊັກ (ຂັ້ນ 5, ERP ບໍ່ພໍ, ຍັງບໍ່ໄດ້ຂໍຊື້) */}
-      <section className="overflow-hidden rounded-xl border border-amber-300 bg-white shadow-sm">
-        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2.5">
-          <h2 className="text-sm font-bold text-amber-900">{t.jobsNeedingPurchase} ({directJobs.length})</h2>
-          <p className="text-[11px] text-amber-800">{t.jobsNeedingPurchaseDesc}</p>
+      <section className="overflow-hidden rounded-xl border border-brand-orange-400 bg-white shadow-sm">
+        <div className="border-b border-brand-orange-400 bg-brand-orange-100 px-4 py-2.5">
+          <h2 className="text-sm font-bold text-brand-900">{t.jobsNeedingPurchase} ({directJobs.length})</h2>
+          <p className="text-[11px] text-brand-900">{t.jobsNeedingPurchaseDesc}</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse text-xs">
@@ -224,18 +224,18 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
             <tbody>
               {directJobs.map((job) => (
                 <tr key={job.product_code} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="px-3 py-2.5 font-bold text-[#0536a9]">
+                  <td className="px-3 py-2.5 font-bold text-brand">
                     <Link href={`/service/${job.product_code}`} className="hover:underline">
                       {job.product_code}
                     </Link>
                   </td>
                   <td className="max-w-96 truncate px-3 py-2.5" title={job.product ?? ""}>{job.product ?? "-"}</td>
-                  <td className="px-3 py-2.5 text-right font-bold tabular-nums text-red-600">{job.shortages}</td>
+                  <td className="px-3 py-2.5 text-right font-bold tabular-nums text-brand-orange-700">{job.shortages}</td>
                   <td className="whitespace-nowrap px-3 py-2.5">{job.checked_at ?? "-"}</td>
                   <td className="px-3 py-2.5 text-center">
                     <Link
                       href={`/purchase-requests/new/${encodeURIComponent(job.product_code)}/direct`}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-orange-700 px-3 text-xs font-semibold text-white hover:bg-brand-orange-700"
                     >
                       <ShoppingCart className="size-3.5" />
                       {t.createPurchaseRequest}
@@ -265,7 +265,7 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
                 key={key}
                 href={key === "wait" ? "/purchase-requests" : `/purchase-requests?tab=${key}`}
                 className={`inline-flex h-8 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                  tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                  tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
                 }`}
               >
                 {label}
@@ -292,7 +292,7 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
             <tbody>
               {sprDocs.map((doc) => (
                 <tr key={doc.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="px-3 py-2.5 font-bold text-[#0536a9]">
+                  <td className="px-3 py-2.5 font-bold text-brand">
                     <Link href={`/purchase-orders/${encodeURIComponent(doc.doc_no)}`} className="hover:underline">
                       {doc.doc_no}
                     </Link>
@@ -300,7 +300,7 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
                   <td className="whitespace-nowrap px-3 py-2.5">{doc.doc_date ?? "-"}</td>
                   <td className="px-3 py-2.5">
                     {isJobCode(doc.job) ? (
-                      <Link href={`/service/${doc.job}`} className="font-medium text-[#0536a9] hover:underline">
+                      <Link href={`/service/${doc.job}`} className="font-medium text-brand hover:underline">
                         {doc.job}
                       </Link>
                     ) : (
@@ -314,15 +314,15 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
                   <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{doc.total ?? "0"}</td>
                   <td className="whitespace-nowrap px-3 py-2.5">
                     {doc.po ? (
-                      <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                      <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-800">
                         {t.statusPoIssued} · {doc.po}
                       </span>
                     ) : doc.wpra ? (
-                      <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
+                      <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">
                         {t.approved} · {doc.wpra}
                       </span>
                     ) : (
-                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                      <span className="rounded bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-brand-900">
                         {t.pendingApproval}
                       </span>
                     )}

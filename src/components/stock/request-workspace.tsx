@@ -77,14 +77,14 @@ export function RequestWorkspace({
           role="dialog"
           aria-modal="true"
           aria-label="ເລືອກອາໄຫຼ່ທີ່ຈະຂໍເບີກ"
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-slate-900/50 p-4 pt-12 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-brand-900/50 p-4 pt-12 backdrop-blur-sm"
           onClick={(event) => event.target === event.currentTarget && setPicking(false)}
         >
           <div className="flex max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div>
                 <h2 className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                  <ListChecks className="size-4 text-teal-600" />
+                  <ListChecks className="size-4 text-brand-700" />
                   ເລືອກອາໄຫຼ່ທີ່ຈະຂໍເບີກ
                 </h2>
                 <p className="mt-1 text-[11px] text-slate-400">ເລືອກເປັນລາຍການ ຫຼືເລືອກທັງໝົດຄັ້ງດຽວ</p>
@@ -99,7 +99,7 @@ export function RequestWorkspace({
                   type="checkbox"
                   checked={lines.length > 0 && draftCodes.size === lines.length}
                   onChange={(event) => setDraftCodes(event.target.checked ? new Set(lines.map((line) => line.item_code)) : new Set())}
-                  className="size-4 accent-teal-600"
+                  className="size-4 accent-brand-700"
                 />
                 ເລືອກທັງໝົດ ({lines.length})
               </label>
@@ -128,7 +128,7 @@ export function RequestWorkspace({
                         else next.add(line.item_code);
                         return next;
                       })}
-                      className="size-4 accent-teal-600"
+                      className="size-4 accent-brand-700"
                     />
                     <span className="min-w-0 flex-1">
                       <b className="block truncate text-xs text-slate-800">{line.item_name ?? "-"}</b>
@@ -149,7 +149,7 @@ export function RequestWorkspace({
                   setSelectedCodes(new Set(draftCodes));
                   setPicking(false);
                 }}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-4 text-xs font-bold text-white disabled:opacity-40"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-xs font-bold text-white disabled:opacity-40"
               >
                 <Check className="size-3.5" /> ເພີ່ມ {draftCodes.size} ລາຍການ
               </button>

@@ -140,7 +140,7 @@ export default async function NewPurchaseRequestPage({ params }: Props) {
     return (
       <div className="w-full max-w-2xl space-y-5">
         <PageTitle sub="ຂໍສັ່ງຊື່">ຂໍອະນຸມັດສະເໜີຊື້ອາໄຫຼ່</PageTitle>
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p className="rounded-lg border border-brand-orange-400 bg-brand-orange-100 px-4 py-3 text-sm text-brand-900">
           ວຽກ #{productCode} ຢູ່ຂັ້ນ <b>{stageLabel(direct.stage, direct.service_type)}</b> —
           ຂໍສັ່ງຊື້ອາໄຫຼ່ໂດຍກົງໄດ້ສະເພາະວຽກທີ່ຢູ່ຂັ້ນ <b>{STAGE_LABEL[5]}</b>
           {" "}ຫຼື <b>{STAGE_LABEL[6]}</b> ເທົ່ານັ້ນ.
@@ -150,7 +150,7 @@ export default async function NewPurchaseRequestPage({ params }: Props) {
               ? " ວຽກນີ້ມີໃບຂໍຊື້ຢູ່ແລ້ວ — ຕິດຕາມໄດ້ຢູ່ຄິວ ອະນຸມັດຂໍສັ່ງຊື້."
               : ""}
         </p>
-        <Link href={`/service/${encodeURIComponent(productCode)}`} className="text-sm font-semibold text-[#0536a9] hover:underline">
+        <Link href={`/service/${encodeURIComponent(productCode)}`} className="text-sm font-semibold text-brand hover:underline">
           ← ກັບໄປໜ້າໃບງານ
         </Link>
       </div>
@@ -169,7 +169,7 @@ export default async function NewPurchaseRequestPage({ params }: Props) {
     return (
       <div className="w-full max-w-2xl space-y-5">
         <PageTitle sub="ຂໍສັ່ງຊື່">ຂໍອະນຸມັດສະເໜີຊື້ອາໄຫຼ່</PageTitle>
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <p className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800">
           {prior.length
             ? `ອາໄຫຼ່ຂອງວຽກ #${productCode} ຖືກຂໍຊື້ໄປແລ້ວ (${prior.join(", ")}) — ຂໍຊ້ຳບໍ່ໄດ້. ຕິດຕາມໄດ້ຢູ່ຄິວ "ອະນຸມັດຂໍສັ່ງຊື້"`
             : `ວຽກ #${productCode} ບໍ່ມີອາໄຫຼ່ທີ່ຕ້ອງສັ່ງຊື້ — ສາງມີພໍແລ້ວ ໃຫ້ຂໍເບີກແທນ`}

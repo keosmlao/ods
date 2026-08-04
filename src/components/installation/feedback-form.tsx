@@ -15,7 +15,7 @@ export function FeedbackForm({ code, token, topics }: { code: string; token: str
       <input type="hidden" name="token" value={token} />
 
       {state.error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{state.error}</p>
+        <p className="rounded-lg border border-brand-orange-400 bg-brand-orange-50 p-4 text-sm text-brand-orange-700">{state.error}</p>
       )}
 
       {topics.map((topic) => (
@@ -32,7 +32,7 @@ export function FeedbackForm({ code, token, topics }: { code: string; token: str
                     required
                     name={`points_${topic.line_number}`}
                     value={point}
-                    className="size-5 accent-teal-600"
+                    className="size-5 accent-brand-700"
                   />
                 </label>
               ))}
@@ -51,14 +51,14 @@ export function FeedbackForm({ code, token, topics }: { code: string; token: str
           name="cust_complain"
           rows={3}
           placeholder="ຂໍ້ຄວາມຄຳຕອບແບບຍາວ..."
-          className="w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:border-teal-500"
+          className="w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:border-brand-600"
         />
       </div>
 
       <button
         type="submit"
         disabled={pending}
-        className="h-11 w-full rounded-lg bg-[#0069D9] text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+        className="h-11 w-full rounded-lg bg-[#1e5b9a] text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
       >
         {pending ? "ກຳລັງບັນທຶກ..." : "ບັນທືກ"}
       </button>

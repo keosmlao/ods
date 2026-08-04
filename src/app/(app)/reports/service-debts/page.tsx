@@ -93,7 +93,7 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
           </div>
           <button
             type="submit"
-            className="h-10 rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800"
+            className="h-10 rounded-lg bg-brand-900 px-4 text-xs font-semibold text-white hover:bg-brand-800"
           >
             {t.filter}
           </button>
@@ -101,9 +101,9 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
       </div>
 
       {/* ຄວາມຈິງທີ່ຕ້ອງບອກ — ບໍ່ດັ່ງນັ້ນຄົນຈະຄິດວ່າລູກຄ້າຄ້າງ 3 ລ້ານແທ້ */}
-      <div className="flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
-        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
-        <p className="text-xs text-amber-800">
+      <div className="flex items-start gap-2.5 rounded-xl border border-brand-orange-400 bg-brand-orange-100 px-4 py-3">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-brand-900" />
+        <p className="text-xs text-brand-900">
           {t.noticePrefix}<b>{t.noticeStarted}</b> {t.noticeBody}
         </p>
       </div>
@@ -112,8 +112,8 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
         {[
           { label: t.statJobs, value: total.jobs.toLocaleString(), tone: "text-slate-700" },
           { label: t.statQuoted, value: thb(total.quoted), tone: "text-slate-700" },
-          { label: t.received, value: thb(total.paid), tone: "text-emerald-600" },
-          { label: t.statDue, value: thb(total.due), tone: "text-red-600" },
+          { label: t.received, value: thb(total.paid), tone: "text-brand-800" },
+          { label: t.statDue, value: thb(total.due), tone: "text-brand-orange-700" },
         ].map((item) => (
           <div key={item.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-xs text-slate-400">{item.label}</p>
@@ -123,7 +123,7 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
       </div>
 
       {risky.length > 0 && (
-        <p className="text-xs text-red-600">
+        <p className="text-xs text-brand-orange-700">
           {t.riskyPrefix} <b>{risky.length}</b> {t.riskySuffix}
         </p>
       )}
@@ -138,7 +138,7 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
               <div key={row.job} className="space-y-2 p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <Link href={`/service/${row.job}`} className="font-bold text-[#0536a9] hover:underline">
+                    <Link href={`/service/${row.job}`} className="font-bold text-brand hover:underline">
                       {row.job}
                     </Link>
                     <p className="truncate text-xs text-slate-600" title={row.customer ?? ""}>
@@ -149,7 +149,7 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
                   {row.cust_kind ? (
                     <span
                       className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                        row.cust_kind === "shop" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-600"
+                        row.cust_kind === "shop" ? "bg-brand-orange-100 text-brand-orange-700" : "bg-slate-100 text-slate-600"
                       }`}
                     >
                       {CUST_KIND_LABEL[row.cust_kind as CustKind]}
@@ -172,16 +172,16 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
                   </div>
                   <div>
                     <span className="block text-[10px] text-slate-400">{t.received}</span>
-                    <span className="text-emerald-600">{row.paid_thb}</span>
+                    <span className="text-brand-800">{row.paid_thb}</span>
                   </div>
                   <div>
                     <span className="block text-[10px] text-slate-400">{t.due}</span>
-                    <span className={`font-bold ${due > 0 ? "text-red-600" : "text-slate-300"}`}>{row.due_thb}</span>
+                    <span className={`font-bold ${due > 0 ? "text-brand-orange-700" : "text-slate-300"}`}>{row.due_thb}</span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   {row.returned_on ? (
-                    <span className={`text-[10px] ${due > 0 ? "font-semibold text-red-600" : "text-slate-500"}`}>
+                    <span className={`text-[10px] ${due > 0 ? "font-semibold text-brand-orange-700" : "text-slate-500"}`}>
                       {t.returned} {row.returned_on}
                     </span>
                   ) : (
@@ -217,7 +217,7 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
                 return (
                   <tr key={row.job} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="px-3 py-2.5 font-bold">
-                      <Link href={`/service/${row.job}`} className="text-[#0536a9] hover:underline">
+                      <Link href={`/service/${row.job}`} className="text-brand hover:underline">
                         {row.job}
                       </Link>
                     </td>
@@ -229,7 +229,7 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
                       {row.cust_kind ? (
                         <span
                           className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                            row.cust_kind === "shop" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-600"
+                            row.cust_kind === "shop" ? "bg-brand-orange-100 text-brand-orange-700" : "bg-slate-100 text-slate-600"
                           }`}
                         >
                           {CUST_KIND_LABEL[row.cust_kind as CustKind]}
@@ -249,13 +249,13 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums">{row.quoted_thb}</td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-emerald-600">{row.paid_thb}</td>
-                    <td className={`px-3 py-2.5 text-right font-bold tabular-nums ${due > 0 ? "text-red-600" : "text-slate-300"}`}>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-brand-800">{row.paid_thb}</td>
+                    <td className={`px-3 py-2.5 text-right font-bold tabular-nums ${due > 0 ? "text-brand-orange-700" : "text-slate-300"}`}>
                       {row.due_thb}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">
                       {row.returned_on ? (
-                        <span className={due > 0 ? "font-semibold text-red-600" : "text-slate-500"}>{row.returned_on}</span>
+                        <span className={due > 0 ? "font-semibold text-brand-orange-700" : "text-slate-500"}>{row.returned_on}</span>
                       ) : (
                         <span className="text-[10px] text-slate-400">{t.stillInShop}</span>
                       )}

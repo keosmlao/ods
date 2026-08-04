@@ -90,14 +90,14 @@ export function SpareRounds({
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <h2 className="mb-3 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2 text-sm font-bold text-slate-700">
-        <PackageSearch className="size-4 text-teal-600" />
+        <PackageSearch className="size-4 text-brand-700" />
         ອາໄຫຼ່ຂອງໃບງານ
         <span className="text-[11px] font-medium text-slate-400">
           ຂໍເບີກ {withdrawals.length} ຮອບ
           {purchases.length > 0 && ` · ສັ່ງຊື້ ${purchases.length} ຮອບ`}
         </span>
         {waiting > 0 && (
-          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+          <span className="rounded bg-brand-orange-300 px-1.5 py-0.5 text-[10px] font-bold text-brand-900">
             ຄ້າງ {waiting} ຮອບ
           </span>
         )}
@@ -106,14 +106,14 @@ export function SpareRounds({
             {/* ຂໍເບີກ/ຂໍຊື້ **ຮອບໃໝ່** ໄດ້ຕະຫຼອດ ຕາບໃດວຽກຍັງບໍ່ຈົບ — ຮອບເກົ່າຄ້າງຢູ່ກໍ່ຂໍໄດ້ */}
             <Link
               href={url.newRequest}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
             >
               + ຂໍເບີກຮອບໃໝ່
             </Link>
             {url.newPurchase && (
               <Link
                 href={url.newPurchase}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-brand-orange-400 bg-brand-orange-100 px-3 text-xs font-semibold text-brand-900 hover:bg-brand-orange-300"
               >
                 + ຂໍຊື້ຮອບໃໝ່
               </Link>
@@ -174,7 +174,7 @@ function RoundTree({
   // ບໍ່ມີຂັ້ນ PISP ແລ້ວ ⇒ "ສາງເບີກແລ້ວ" ຄືຈົບ ບໍ່ແມ່ນ "ລໍຊ່າງຮັບ"
   const state =
     raw && !techReceipt && withdrawal?.state === "dispatched"
-      ? { ...raw, label: "ສາງເບີກແລ້ວ", next: "—", tone: "bg-emerald-50 text-emerald-700" }
+      ? { ...raw, label: "ສາງເບີກແລ້ວ", next: "—", tone: "bg-brand-50 text-brand-800" }
       : raw;
   const items = withdrawal?.items ?? purchases[0]?.items ?? [];
 
@@ -185,11 +185,11 @@ function RoundTree({
         <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
           {label ?? `ຮອບ ${round}`}
         </span>
-        <ClipboardList className="size-3.5 text-teal-600" />
+        <ClipboardList className="size-3.5 text-brand-700" />
         {withdrawal ? (
           <Link
             href={url.viewRequest(withdrawal.doc_no)}
-            className="font-mono text-xs font-bold text-teal-700 hover:underline"
+            className="font-mono text-xs font-bold text-brand-800 hover:underline"
           >
             {withdrawal.doc_no}
           </Link>
@@ -222,7 +222,7 @@ function RoundTree({
         {withdrawal && (
           <Node
             icon={<PackageCheck className="size-3.5" />}
-            tone={withdrawal.dispatch_no ? "text-emerald-600" : "text-slate-300"}
+            tone={withdrawal.dispatch_no ? "text-brand-800" : "text-slate-300"}
             title="ສາງເບີກ (SWC)"
             docNo={withdrawal.dispatch_no}
             docDate={withdrawal.dispatch_date}
@@ -237,7 +237,7 @@ function RoundTree({
                   className={
                     jobStarted
                       ? "inline-flex h-7 items-center rounded-lg border border-slate-300 px-2.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
-                      : "inline-flex h-7 items-center rounded-lg bg-teal-600 px-2.5 text-[11px] font-semibold text-white hover:bg-teal-700"
+                      : "inline-flex h-7 items-center rounded-lg bg-brand-700 px-2.5 text-[11px] font-semibold text-white hover:bg-brand-800"
                   }
                 >
                   {jobStarted ? "ເຊັນຮັບຍ້ອນຫຼັງ" : "ຮັບອາໄຫຼ່"}
@@ -251,7 +251,7 @@ function RoundTree({
         {techReceipt && withdrawal && (
           <Node
             icon={<Wrench className="size-3.5" />}
-            tone={withdrawal.pick_no ? "text-emerald-600" : "text-slate-300"}
+            tone={withdrawal.pick_no ? "text-brand-800" : "text-slate-300"}
             title="ຊ່າງຮັບ (PISP)"
             docNo={withdrawal.pick_no}
             docDate={withdrawal.pick_date}
@@ -274,21 +274,21 @@ function PurchaseBranch({ buy, chain }: { buy: PurchaseRound; chain?: ErpChain }
     <div>
       <div className="relative flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 pl-5">
         <Elbow />
-        <ShoppingCart className="size-3.5 text-indigo-600" />
+        <ShoppingCart className="size-3.5 text-brand-600" />
         <span className="font-mono text-[11px] font-semibold text-slate-700">{buy.doc_no}</span>
         {buy.doc_date && <span className="text-[11px] text-slate-500">{buy.doc_date}</span>}
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${state.tone}`}>{state.label}</span>
       </div>
       {/* ຕ່ອງໂສ້ຝັ່ງ ERP — ຢູ່ໃຕ້ໃບຂໍຊື້ທີ່ເປັນເຈົ້າຂອງມັນ. ແຕ່ລະຂັ້ນທຽບກັບຂັ້ນກ່ອນໜ້າ ⇒ ຫຼຸດ/ເກີນ = ແດງ */}
-      <div className="ml-5 border-l border-dashed border-indigo-200">
+      <div className="ml-5 border-l border-dashed border-brand-200">
         {chain?.mismatch && (
-          <p className="ml-5 mt-1 rounded bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700">
+          <p className="ml-5 mt-1 rounded bg-brand-orange-50 px-2 py-1 text-[10px] font-semibold text-brand-orange-700">
             ⚠️ ໃບ ERP ເລກນີ້ບໍ່ມີສິນຄ້າກົງກັບໃບຂໍຊື້ຂອງວຽກນີ້ເລີຍ — ອາດເປັນເລກຊົນກັນ (ຄົນລະໃບ) ໃຫ້ກວດກັບຈັດຊື້ກ່ອນເຊື່ອ
           </p>
         )}
         <Node
           icon={<Dot />}
-          tone="text-indigo-500"
+          tone="text-brand-600"
           title="ໃບ ERP (SPR)"
           docNo={chain?.spr_no ?? null}
           docDate={chain?.spr_date ?? null}
@@ -299,7 +299,7 @@ function PurchaseBranch({ buy, chain }: { buy: PurchaseRound; chain?: ErpChain }
         />
         <Node
           icon={<Dot />}
-          tone="text-indigo-500"
+          tone="text-brand-600"
           title="ອະນຸມັດ (WPRA)"
           docNo={chain?.approve_no ?? null}
           docDate={chain?.approve_date ?? null}
@@ -310,7 +310,7 @@ function PurchaseBranch({ buy, chain }: { buy: PurchaseRound; chain?: ErpChain }
         />
         <Node
           icon={<Dot />}
-          tone="text-indigo-500"
+          tone="text-brand-600"
           title="ໃບສັ່ງຊື້ (PO)"
           docNo={chain?.order_no ?? null}
           docDate={chain?.order_date ?? null}
@@ -321,7 +321,7 @@ function PurchaseBranch({ buy, chain }: { buy: PurchaseRound; chain?: ErpChain }
         />
         <Node
           icon={<CheckCircle2 className="size-3.5" />}
-          tone={chain?.receipt_no ? "text-emerald-600" : "text-slate-300"}
+          tone={chain?.receipt_no ? "text-brand-800" : "text-slate-300"}
           title="ຮັບເຂົ້າສາງ (PUI)"
           docNo={chain?.receipt_no ?? null}
           docDate={chain?.receipt_date ?? null}
@@ -383,12 +383,12 @@ function Node({
             {docDate && <span className="text-[11px] text-slate-400">{docDate}</span>}
           </>
         ) : (
-          <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${pendingTone ?? "bg-amber-50 text-amber-700"}`}>
+          <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${pendingTone ?? "bg-brand-orange-100 text-brand-900"}`}>
             {pending}
           </span>
         )}
         {diff?.mismatch && (
-          <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
+          <span className="rounded bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-brand-orange-700">
             ບໍ່ຄືກັບ{againstLabel}
           </span>
         )}
@@ -419,14 +419,14 @@ function ItemLine({ item, expected }: { item: DocItem; expected?: number }) {
     <div className="relative flex items-center gap-2 py-1 pl-5">
       <Elbow />
       <span
-        className={`truncate text-[11px] ${off ? "font-semibold text-red-700" : "text-slate-600"}`}
+        className={`truncate text-[11px] ${off ? "font-semibold text-brand-orange-700" : "text-slate-600"}`}
         title={item.item_code}
       >
         {item.item_name || item.item_code}
       </span>
-      <b className={`whitespace-nowrap text-[11px] ${off ? "text-red-700" : "text-slate-500"}`}>× {item.qty}</b>
+      <b className={`whitespace-nowrap text-[11px] ${off ? "text-brand-orange-700" : "text-slate-500"}`}>× {item.qty}</b>
       {off && (
-        <span className="whitespace-nowrap rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
+        <span className="whitespace-nowrap rounded bg-brand-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-orange-700">
           {item.qty === 0 ? `ຂາດ ${expected}` : `ຄວນເປັນ ${expected}`}
         </span>
       )}

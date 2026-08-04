@@ -184,10 +184,10 @@ export default async function SparePickupPage({ searchParams }: Props) {
 
       {pendingWarehouse.total > 0 && (
         <section className="space-y-2">
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-brand-orange-100 px-4 py-3 text-sm text-brand-900">
             <p className="font-semibold">
               ລໍສາງ ERP ເບີກອາໄຫຼ່
-              <span className="ml-2 rounded-full bg-amber-200 px-2 py-0.5 text-xs">{pendingWarehouse.total}</span>
+              <span className="ml-2 rounded-full bg-brand-orange-300 px-2 py-0.5 text-xs">{pendingWarehouse.total}</span>
             </p>
             <span className="text-xs">ຍັງບໍ່ສາມາດກົດຮັບໄດ້</span>
           </div>
@@ -218,7 +218,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
                               ↳ ໃບຂໍເບີກ{" "}
                               <Link
                                 href={`/installations/spare-requests/view/${encodeURIComponent(row.doc_no)}`}
-                                className="font-mono font-semibold text-blue-700 hover:underline"
+                                className="font-mono font-semibold text-brand-700 hover:underline"
                               >
                                 {row.doc_no}
                               </Link>
@@ -237,7 +237,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
                         />
                         <td className="whitespace-nowrap bg-slate-50/60 px-3 py-2.5 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
+                            <span className="rounded-lg bg-brand-orange-300 px-3 py-1.5 text-xs font-semibold text-brand-900">
                               ຄ້າງ {pendingByDoc.get(row.doc_no) ?? 0} ລາຍການ
                             </span>
                             {/* ສາງຍັງບໍ່ທັນເບີກ ⇒ ຊ່າງແກ້ຈຳນວນ/ລາຍການຄາເລກໃບເກົ່າໄດ້ */}
@@ -304,7 +304,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
                   ) : (
                     <td colSpan={7} className={`py-2 pl-10 text-xs text-slate-400 ${cellBg}`}>
                       ↳ ໃບຂໍ{" "}
-                      <span className="font-mono font-semibold text-teal-700">{row.request_doc || "-"}</span>
+                      <span className="font-mono font-semibold text-brand-800">{row.request_doc || "-"}</span>
                       <span className="mx-2 text-slate-300">→</span>
                       ໃບເບີກ{" "}
                       <span className="font-mono font-semibold text-slate-600">{row.doc_no}</span>
@@ -314,7 +314,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
                   <td className={`whitespace-nowrap px-3 py-2.5 text-center ${cellBg}`}>
                     <Link
                       href={`/installations/spare-pickup/${encodeURIComponent(row.doc_no)}`}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
                     >
                       <PackageCheck className="size-3.5" />
                       ຮັບອາໄຫຼ່

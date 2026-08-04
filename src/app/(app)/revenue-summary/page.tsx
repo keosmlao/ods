@@ -26,10 +26,10 @@ const LABEL: Record<RevCategory, string> = {
   other: "ອື່ນໆ",
 };
 const BAR: Record<RevCategory, string> = {
-  install_ac: "bg-teal-600",
-  install_app: "bg-teal-400",
-  repair_ac: "bg-indigo-600",
-  repair_app: "bg-indigo-400",
+  install_ac: "bg-brand-700",
+  install_app: "bg-brand-400",
+  repair_ac: "bg-brand-600",
+  repair_app: "bg-brand-500",
   other: "bg-slate-400",
 };
 const MONTHS = ["ມັງກອນ","ກຸມພາ","ມີນາ","ເມສາ","ພຶດສະພາ","ມິຖຸນາ","ກໍລະກົດ","ສິງຫາ","ກັນຍາ","ຕຸລາ","ພະຈິກ","ທັນວາ"];
@@ -84,7 +84,7 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
       {/* ── ຫົວ + ຕົວເລືອກປີ ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-teal-700">ODIEN SERVICE CENTER</p>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-brand-800">ODIEN SERVICE CENTER</p>
           <h1 className="mt-1 text-2xl font-bold">ລາຍງານລາຍຮັບປະຈຳປີ {year}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
             ແຍກຕາມປະເພດງານ (ຕິດຕັ້ງ · ສ້ອມແປງ) ແລະ ປະເພດເຄື່ອງ (ແອ · ເຄື່ອງໃຊ້ໄຟຟ້າ) · ຫົວໜ່ວຍ: ບາດ
@@ -107,11 +107,11 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
 
       {/* ── ຕົວເລກຫຼັກ ── */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+        <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-4">
           <p className="text-[11px] font-semibold text-slate-500">ລາຍຮັບລວມທັງປີ</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-700">{money(grand)}</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-brand-800">{money(grand)}</p>
           {yoyAll !== null ? (
-            <p className={`text-xs font-semibold ${yoyAll >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+            <p className={`text-xs font-semibold ${yoyAll >= 0 ? "text-brand-800" : "text-brand-orange-700"}`}>
               {yoyAll >= 0 ? "▲" : "▼"} {Math.abs(Math.round(yoyAll))}% ທຽບປີ {year - 1}
             </p>
           ) : (
@@ -133,7 +133,7 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
           {hasTarget ? (
             <>
               <p className="mt-1 text-2xl font-bold tabular-nums">{money(targetSum)}</p>
-              <p className="text-xs font-semibold text-teal-700">
+              <p className="text-xs font-semibold text-brand-800">
                 ສຳເລັດ {grand > 0 ? Math.round((grand / targetSum) * 100) : 0}%
               </p>
             </>
@@ -142,7 +142,7 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
               <p className="mt-1 text-2xl font-bold text-slate-300">—</p>
               <p className="text-xs text-slate-400">
                 ຍັງບໍ່ຕັ້ງເປົ້າ ·{" "}
-                <Link href="/manage/revenue-targets" className="text-teal-700 underline print:hidden">
+                <Link href="/manage/revenue-targets" className="text-brand-800 underline print:hidden">
                   ໄປຕັ້ງເປົ້າ
                 </Link>
               </p>
@@ -158,7 +158,7 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
           {rows.map((row) => (
             <div key={row.label} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
               <div
-                className={`flex w-full max-w-9 flex-col-reverse overflow-hidden rounded-t ${row.current ? "ring-2 ring-teal-500" : ""}`}
+                className={`flex w-full max-w-9 flex-col-reverse overflow-hidden rounded-t ${row.current ? "ring-2 ring-brand-600" : ""}`}
                 style={{ height: `${Math.max((row.total / maxMonth) * 100, row.total > 0 ? 2 : 0)}%` }}
                 title={`${row.label}: ${money(row.total)} ບາດ`}
               >
@@ -172,7 +172,7 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
                   ) : null,
                 )}
               </div>
-              <span className={`text-[9px] ${row.current ? "font-bold text-teal-700" : "text-slate-400"}`}>
+              <span className={`text-[9px] ${row.current ? "font-bold text-brand-800" : "text-slate-400"}`}>
                 {MONTH_SHORT[MONTHS.indexOf(row.label)]}
               </span>
             </div>
@@ -222,12 +222,12 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
             {rows.map((row) => (
               <tr
                 key={row.label}
-                className={`border-b border-slate-100 ${row.current ? "bg-teal-50/70 font-semibold" : ""}`}
+                className={`border-b border-slate-100 ${row.current ? "bg-brand-50/70 font-semibold" : ""}`}
               >
                 <td className="px-3 py-1.5 font-medium">
                   {row.label}
                   {row.current && (
-                    <span className="ml-1.5 rounded bg-teal-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    <span className="ml-1.5 rounded bg-brand-700 px-1.5 py-0.5 text-[10px] font-bold text-white">
                       ເດືອນນີ້
                     </span>
                   )}
@@ -243,7 +243,7 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
                     {row.target > 0 ? (
                       <>
                         {money(row.target)}
-                        <span className={`ml-1 text-[10px] font-semibold ${row.total >= row.target ? "text-emerald-700" : "text-slate-400"}`}>
+                        <span className={`ml-1 text-[10px] font-semibold ${row.total >= row.target ? "text-brand-800" : "text-slate-400"}`}>
                           {row.total > 0 ? `${Math.round((row.total / row.target) * 100)}%` : ""}
                         </span>
                       </>
@@ -254,7 +254,7 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
                 )}
                 <td
                   className={`px-3 py-1.5 text-right tabular-nums ${
-                    row.yoy === null ? "text-slate-300" : row.yoy >= 0 ? "text-emerald-700" : "text-red-600"
+                    row.yoy === null ? "text-slate-300" : row.yoy >= 0 ? "text-brand-800" : "text-brand-orange-700"
                   }`}
                 >
                   {row.yoy === null ? "—" : `${row.yoy >= 0 ? "+" : ""}${Math.round(row.yoy)}%`}
@@ -263,7 +263,7 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-slate-800 font-bold">
+            <tr className="border-t-2 border-brand-800 font-bold">
               <td className="px-3 py-2">ລວມ</td>
               {REV_CATEGORIES.map((category) => (
                 <td key={category} className="px-3 py-2 text-right tabular-nums">
@@ -306,7 +306,7 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
 
       <p className="border-t border-slate-200 pt-3 text-[10px] leading-5 text-slate-400">
         ແຫຼ່ງຂໍ້ມູນ: ຕິດຕັ້ງ = ບິນຂາຍ ERP ທີ່ຜູກໃບງານ (ນັບຕາມວັນປິດງານ — ຕົງກັບ{" "}
-        <Link href="/install-revenue" className="text-teal-700 underline print:hidden">ລາຍຮັບງານຕິດຕັ້ງ</Link>) +
+        <Link href="/install-revenue" className="text-brand-800 underline print:hidden">ລາຍຮັບງານຕິດຕັ້ງ</Link>) +
         ບິນຍັງບໍ່ຜູກໃບງານ (ນັບຕາມວັນທີບິນ) · ສ້ອມ = ໃບສະເໜີລາຄາທີ່ລູກຄ້າຮັບແລ້ວ · ອື່ນໆ = ໂຄງການ · ໄລຍະທາງ · ບຳລຸງຮັກສາ ·
         ໃບຕະກູນ HSV ປ້ອນເປັນກີບ ຈຶ່ງແປງດ້ວຍອັດຕາ tb_bill_rate ກ່ອນລວມ · ສ້າງໂດຍລະບົບ ODS
       </p>

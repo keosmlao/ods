@@ -21,10 +21,10 @@ const serviceTypes = (t: Dict) => [
 ];
 
 const TONE: Record<string, string> = {
-  sky: "border-t-sky-500 [&_.code]:bg-sky-50 [&_.code]:text-sky-700 [&_.where]:text-sky-700",
-  violet: "border-t-violet-500 [&_.code]:bg-violet-50 [&_.code]:text-violet-700 [&_.where]:text-violet-700",
-  emerald: "border-t-emerald-500 [&_.code]:bg-emerald-50 [&_.code]:text-emerald-700 [&_.where]:text-emerald-700",
-  amber: "border-t-amber-500 [&_.code]:bg-amber-50 [&_.code]:text-amber-700 [&_.where]:text-amber-700",
+  sky: "border-t-brand-500 [&_.code]:bg-brand-50 [&_.code]:text-brand-600 [&_.where]:text-brand-600",
+  violet: "border-t-brand-orange-500 [&_.code]:bg-brand-orange-50 [&_.code]:text-brand-orange-700 [&_.where]:text-brand-orange-700",
+  emerald: "border-t-brand-600 [&_.code]:bg-brand-50 [&_.code]:text-brand-800 [&_.where]:text-brand-800",
+  amber: "border-t-brand-orange-500 [&_.code]:bg-brand-orange-100 [&_.code]:text-brand-900 [&_.where]:text-brand-900",
 };
 
 const stagesList = (t: Dict) => [
@@ -95,16 +95,16 @@ const situations = (t: Dict): Situation[] => [
 ];
 
 const ACCENT: Record<string, string> = {
-  info: "border-l-teal-500",
-  warn: "border-l-amber-500",
-  danger: "border-l-red-500",
+  info: "border-l-brand-600",
+  warn: "border-l-brand-orange-500",
+  danger: "border-l-brand-orange-600",
 };
-const STEP_BG: Record<string, string> = { info: "bg-teal-600", warn: "bg-amber-600", danger: "bg-red-600" };
+const STEP_BG: Record<string, string> = { info: "bg-brand-700", warn: "bg-brand-orange-700", danger: "bg-brand-orange-700" };
 const WHO: Record<string, string> = {
-  cs: "bg-amber-50 text-amber-700",
-  tech: "bg-emerald-50 text-emerald-700",
-  stock: "bg-violet-50 text-violet-700",
-  ht: "bg-sky-50 text-sky-700",
+  cs: "bg-brand-orange-100 text-brand-900",
+  tech: "bg-brand-50 text-brand-800",
+  stock: "bg-brand-orange-50 text-brand-orange-700",
+  ht: "bg-brand-50 text-brand-600",
   any: "bg-slate-100 text-slate-600",
 };
 
@@ -120,7 +120,7 @@ function Section({ n, title, children }: { n: string; title: string; children: R
   return (
     <section className="mt-10">
       <div className="mb-4 flex items-baseline gap-3 border-b border-slate-200 pb-2">
-        <span className="font-mono text-sm font-bold text-teal-700">{n}</span>
+        <span className="font-mono text-sm font-bold text-brand-800">{n}</span>
         <h2 className="text-lg font-extrabold text-slate-800">{title}</h2>
       </div>
       {children}
@@ -177,7 +177,7 @@ export default async function ManualPage() {
       <ul className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
         {s.items.map((item, j) => (
           <li key={j} className="flex gap-2.5 rounded-xl border border-slate-200 bg-white p-3.5 text-[13px] leading-relaxed text-slate-700 shadow-sm">
-            <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-teal-500" aria-hidden />
+            <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brand-600" aria-hidden />
             <span>{item}</span>
           </li>
         ))}
@@ -189,7 +189,7 @@ export default async function ManualPage() {
     <Section n={n} title={title}>
       {setHref && (
         <div className="mb-4 flex flex-wrap gap-2">
-          <Link href={setHref} target="_blank" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-100">
+          <Link href={setHref} target="_blank" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 text-xs font-semibold text-brand-800 hover:bg-brand-100">
             <Printer className="size-4" /> {setLabel}
           </Link>
         </div>
@@ -233,12 +233,12 @@ export default async function ManualPage() {
           {t.stageNoteA}<b>3–4</b>{t.stageNoteB}<b>5–7</b>{t.stageNoteC}
         </p>
         <div className="mt-5 space-y-3">
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-            <span className="font-mono text-xs font-bold text-amber-700">PS</span>
+          <div className="rounded-lg border border-brand-orange-400 bg-brand-orange-100 p-3">
+            <span className="font-mono text-xs font-bold text-brand-900">PS</span>
             <span className="ml-2 text-[13px] text-slate-700">{t.psFlowA}<b>{t.psFlowBold1}</b>{t.psFlowB}<b>{t.psFlowBold2}</b>{t.psFlowC}</span>
           </div>
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-            <span className="font-mono text-xs font-bold text-emerald-700">IH</span>
+          <div className="rounded-lg border border-brand-200 bg-brand-50 p-3">
+            <span className="font-mono text-xs font-bold text-brand-800">IH</span>
             <span className="ml-2 text-[13px] text-slate-700">{t.ihFlowA}<b>{t.ihFlowBold}</b>{t.ihFlowB}</span>
           </div>
         </div>

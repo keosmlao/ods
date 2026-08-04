@@ -208,7 +208,7 @@ export function SpareRequestForm({
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>
-                <span className="text-red-500">*</span> {t.warehouse}
+                <span className="text-brand-orange-700">*</span> {t.warehouse}
               </label>
               <SelectField
                 name="wh_code"
@@ -223,7 +223,7 @@ export function SpareRequestForm({
             </div>
             <div>
               <label className={labelClass}>
-                <span className="text-red-500">*</span> {t.storage}
+                <span className="text-brand-orange-700">*</span> {t.storage}
               </label>
               <SelectField
                 name="shelf_code"
@@ -243,7 +243,7 @@ export function SpareRequestForm({
             </div>
           </div>
           {selectedLines.length > 0 && warehouses.length === 0 && (
-            <p className="mt-4 flex items-center gap-2 rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-700">
+            <p className="mt-4 flex items-center gap-2 rounded-lg bg-brand-orange-50 p-3 text-xs font-semibold text-brand-orange-700">
               <AlertTriangle className="size-4" /> {t.noSparesInErp}
             </p>
           )}
@@ -388,7 +388,7 @@ function LineRow({
             ຕິກເພີ່ມເຂົ້າ draft ບໍ່ໄດ້ອີກ ແລະ ງຽບ. ບາງເທື່ອຕ້ອງຂໍຊ້ຳຈິງ (ເສຍ/ຫາຍໜ້າງານ).
           */}
           {line.dispatched_at && (
-            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+            <span className="ml-2 rounded-full bg-brand-orange-300 px-2 py-0.5 text-[10px] font-bold text-brand-900">
               {t.dispatchedOn} {line.dispatched_at}
             </span>
           )}
@@ -399,12 +399,12 @@ function LineRow({
               {t.selectWarehouseFirst}
             </span>
           ) : enough ? (
-            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+            <span className="inline-flex items-center gap-1 rounded-md bg-brand-50 px-2 py-1 text-[10px] font-semibold text-brand-800">
               <CheckCircle2 className="size-3" /> {t.selectedWarehouseHas}{" "}
               {selectedBalance.toLocaleString()}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700">
+            <span className="inline-flex items-center gap-1 rounded-md bg-brand-orange-50 px-2 py-1 text-[10px] font-semibold text-brand-orange-700">
               <AlertTriangle className="size-3" /> {t.selectedWarehouseHas}{" "}
               {selectedBalance.toLocaleString()} · {t.short}{" "}
               {Math.max(0, Number(line.qty) - selectedBalance).toLocaleString()}
@@ -419,14 +419,14 @@ function LineRow({
               <span
                 key={warehouseCode}
                 title={warehouse?.name_1}
-                className="rounded-md bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700"
+                className="rounded-md bg-brand-50 px-2 py-1 text-[10px] font-semibold text-brand-700"
               >
                 {warehouseCode}: {available.toLocaleString()}
               </span>
             );
           })}
           {availableWarehouses.length === 0 && (
-            <span className="text-[10px] font-semibold text-red-500">
+            <span className="text-[10px] font-semibold text-brand-orange-700">
               {t.outOfStockAll}
             </span>
           )}
@@ -436,10 +436,10 @@ function LineRow({
         <b className="tabular-nums">{Number(line.standard_qty).toLocaleString()}</b>
       </td>
       <td className="px-3 py-3 text-center">
-        <b className="tabular-nums text-teal-700">{Number(line.requested_qty).toLocaleString()}</b>
+        <b className="tabular-nums text-brand-800">{Number(line.requested_qty).toLocaleString()}</b>
       </td>
       <td className="px-3 py-3 text-center">
-        <b className="tabular-nums text-amber-700">{Number(line.remaining_qty).toLocaleString()}</b>
+        <b className="tabular-nums text-brand-900">{Number(line.remaining_qty).toLocaleString()}</b>
       </td>
       {/*
         ── ເບີກຮອບນີ້ (1 ສາງ / 1 ໃບ) ──
@@ -473,7 +473,7 @@ function LineRow({
         <button
           type="button"
           title={t.delete}
-          className="text-slate-500 hover:text-red-600 disabled:opacity-50"
+          className="text-slate-500 hover:text-brand-orange-700 disabled:opacity-50"
           onClick={onRemove}
         >
           <Trash2 className="size-4" />
@@ -623,10 +623,10 @@ function SparePicker({
   };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4 backdrop-blur-[1px]">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-brand-900/45 p-4 backdrop-blur-[1px]">
       <div className="flex max-h-[82vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50/80 px-5 py-4">
-          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-teal-100 text-teal-700">
+          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-brand-100 text-brand-800">
             <PackageOpen className="size-5" />
           </span>
           <div className="min-w-0 flex-1">
@@ -644,7 +644,7 @@ function SparePicker({
         </div>
 
         <div className="border-b border-slate-200 p-4">
-          <label className="flex h-12 items-center gap-3 rounded-full border-2 border-teal-500 bg-white px-4 shadow-[0_0_0_5px_rgba(20,184,166,0.10)]">
+          <label className="flex h-12 items-center gap-3 rounded-full border-2 border-brand-600 bg-white px-4 shadow-[0_0_0_5px_rgba(20,184,166,0.10)]">
             <Search className="size-5 shrink-0 text-slate-400" />
             <input
               autoFocus
@@ -663,7 +663,7 @@ function SparePicker({
             (ເປີດ/ປິດຢູ່ /manage/settings — ດ່ານຈິງຢູ່ຝັ່ງ server).
           */}
           {!allowFreeSearch && (
-            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">
+            <p className="mt-2 rounded-lg bg-brand-orange-100 px-3 py-2 text-[11px] font-semibold text-brand-900">
               ປິດການເບີກອາໄຫຼ່ນອກມາດຕະຖານໄວ້ — ເລືອກໄດ້ແຕ່ລາຍການມາດຕະຖານ ແລະ ລາຍການທີ່ຢູ່ໃນກະຕ່າແລ້ວ
             </p>
           )}
@@ -685,7 +685,7 @@ function SparePicker({
                   return next;
                 })
               }
-              className="size-4 accent-teal-600"
+              className="size-4 accent-brand-700"
             />
             ເລືອກທັງໝົດ
           </label>
@@ -698,13 +698,13 @@ function SparePicker({
           {rows.map((row) => (
             <label
               key={row.item_code}
-              className="flex w-full cursor-pointer items-center gap-3 border-b border-slate-100 px-5 py-3 text-left transition hover:bg-teal-50/60"
+              className="flex w-full cursor-pointer items-center gap-3 border-b border-slate-100 px-5 py-3 text-left transition hover:bg-brand-50/60"
             >
               <input
                 type="checkbox"
                 checked={checked.has(row.item_code)}
                 onChange={() => toggle(row.item_code)}
-                className="size-5 shrink-0 accent-teal-600"
+                className="size-5 shrink-0 accent-brand-700"
               />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-bold text-slate-800">{row.item_name}</span>
@@ -715,21 +715,21 @@ function SparePicker({
               <span className="shrink-0 text-right text-xs leading-5">
                 <span className="block text-slate-500">
                   ມາດຕະຖານ: <b>{Number(row.standard_qty).toLocaleString()}</b>
-                  {" · "}ຂໍແລ້ວ: <b className="text-teal-700">{Number(row.requested_qty).toLocaleString()}</b>
+                  {" · "}ຂໍແລ້ວ: <b className="text-brand-800">{Number(row.requested_qty).toLocaleString()}</b>
                 </span>
                 <span className="block text-slate-500">
-                  ຄົງເຫຼືອ: <b className="text-amber-700">{Number(row.remaining_qty).toLocaleString()}</b>
-                  {" · "}Stock: <b className={row.stock_qty > 0 ? "text-emerald-700" : "text-red-600"}>
+                  ຄົງເຫຼືອ: <b className="text-brand-900">{Number(row.remaining_qty).toLocaleString()}</b>
+                  {" · "}Stock: <b className={row.stock_qty > 0 ? "text-brand-800" : "text-brand-orange-700"}>
                     {row.stock_qty.toLocaleString()}
                   </b>
                 </span>
                 {row.source === "cart" && (
-                  <span className="block font-semibold text-amber-600">
+                  <span className="block font-semibold text-brand-900">
                     ນອກຊຸດມາດຕະຖານ · ຢູ່ໃນກະຕ່າແລ້ວ
                   </span>
                 )}
                 {row.source === "erp" && (
-                  <span className="block font-semibold text-blue-600">
+                  <span className="block font-semibold text-brand-600">
                     ລາຍການເພີ່ມຈາກ ERP
                   </span>
                 )}

@@ -84,17 +84,17 @@ export function NoticeForm({
   // ບັນທຶກສຳເລັດ → ໜ້າຢືນຢັນ (ລູກຄ້າ: ລິ້ງຕິດຕາມ · ຂາຍ: ແຈ້ງອີກ/ໄປຕິດຕາມ)
   if (state.code) {
     return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-6 text-center">
-        <CheckCircle2 className="mx-auto size-12 text-emerald-600" />
+      <div className="rounded-xl border border-brand-200 bg-brand-50 p-6 text-center">
+        <CheckCircle2 className="mx-auto size-12 text-brand-800" />
         <h2 className="mt-3 text-lg font-bold text-slate-700">{t.noticeReceived}</h2>
         <p className="mt-1 text-sm text-slate-600">
-          {t.noticeCodeLabel} <b className="text-emerald-700">{state.code}</b>
+          {t.noticeCodeLabel} <b className="text-brand-800">{state.code}</b>
         </p>
         <p className="mt-1 text-xs text-slate-500">{t.teamWillContact}</p>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           <Link
             href={`/track/${encodeURIComponent(state.code)}`}
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0536a9] px-5 text-sm font-semibold text-white hover:opacity-90"
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand px-5 text-sm font-semibold text-white hover:opacity-90"
           >
             {t.trackStatus}
           </Link>
@@ -109,7 +109,7 @@ export function NoticeForm({
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="inline-flex h-10 items-center rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white hover:bg-emerald-700"
+                className="inline-flex h-10 items-center rounded-lg bg-brand-700 px-5 text-sm font-semibold text-white hover:bg-brand-700"
               >
                 {t.reportAnother}
               </button>
@@ -125,7 +125,7 @@ export function NoticeForm({
       <KeepFormValues />
       <input type="hidden" name="mode" value={mode} />
 
-      {state.error && <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{state.error}</p>}
+      {state.error && <p className="rounded-lg border border-brand-orange-400 bg-brand-orange-50 p-4 text-sm text-brand-orange-700">{state.error}</p>}
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="mb-4 border-b border-slate-100 pb-2 font-bold text-slate-700">{t.reporterSection}</h2>
@@ -211,7 +211,7 @@ export function NoticeForm({
 
       <button
         disabled={pending}
-        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60 sm:w-auto"
+        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60 sm:w-auto"
       >
         {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Send className="size-4" />}
         {pending ? t.sending : t.submit}

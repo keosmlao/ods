@@ -33,14 +33,14 @@ export function WarrantyDecideButtons({ id }: { id: number }) {
         value={note}
         onChange={(event) => setNote(event.target.value)}
         placeholder="ໝາຍເຫດ (ບັງຄັບເມື່ອບໍ່ອະນຸມັດ)"
-        className="h-9 w-full rounded-lg border border-slate-300 px-3 text-xs outline-none focus:border-teal-500"
+        className="h-9 w-full rounded-lg border border-slate-300 px-3 text-xs outline-none focus:border-brand-600"
       />
       <div className="flex gap-2">
         <button
           type="button"
           disabled={pending}
           onClick={() => act(() => approveWarranty(id, note))}
-          className={`${button} flex-1 justify-center bg-emerald-600 text-white hover:bg-emerald-700`}
+          className={`${button} flex-1 justify-center bg-brand-700 text-white hover:bg-brand-700`}
         >
           {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
           ອະນຸມັດ
@@ -55,13 +55,13 @@ export function WarrantyDecideButtons({ id }: { id: number }) {
             }
             act(() => rejectWarranty(id, note));
           }}
-          className={`${button} flex-1 justify-center border border-red-200 text-red-600 hover:bg-red-50`}
+          className={`${button} flex-1 justify-center border border-brand-orange-400 text-brand-orange-700 hover:bg-brand-orange-50`}
         >
           <X className="size-3.5" />
           ບໍ່ອະນຸມັດ
         </button>
       </div>
-      {error && <p className="text-xs font-semibold text-red-600">{error}</p>}
+      {error && <p className="text-xs font-semibold text-brand-orange-700">{error}</p>}
     </div>
   );
 }

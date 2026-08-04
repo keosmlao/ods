@@ -45,7 +45,7 @@ function SpareResult({
       {/* ຄົງເຫຼືອໃນສາງ */}
       <span
         className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-bold ${
-          outOfStock ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"
+          outOfStock ? "bg-brand-orange-50 text-brand-orange-700" : "bg-brand-50 text-brand-800"
         }`}
         title={t.stockTooltip}
       >
@@ -109,7 +109,7 @@ function SpareResult({
           </>
         )}
       </Button>
-      {error && <p className="basis-full text-right text-[10px] font-medium text-red-600">{error}</p>}
+      {error && <p className="basis-full text-right text-[10px] font-medium text-brand-orange-700">{error}</p>}
     </li>
   );
 }
@@ -161,7 +161,7 @@ export function SpareSearchDialog({
       aria-modal="true"
       aria-label={t.selectSpare}
       onClick={(event) => event.target === event.currentTarget && onClose()}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-slate-900/50 p-4 pt-12 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-brand-900/50 p-4 pt-12 backdrop-blur-sm"
     >
       <div className="flex max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
@@ -174,7 +174,7 @@ export function SpareSearchDialog({
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2.5">
           <div className="flex h-9 min-w-56 flex-1 items-center gap-2 rounded-lg border border-slate-300 bg-white px-2.5">
             {loading ? (
-              <LoaderCircle className="size-3.5 shrink-0 animate-spin text-teal-600" />
+              <LoaderCircle className="size-3.5 shrink-0 animate-spin text-brand-700" />
             ) : (
               <Search className="size-3.5 shrink-0 text-slate-400" />
             )}
@@ -196,7 +196,7 @@ export function SpareSearchDialog({
               type="checkbox"
               checked={inStockOnly}
               onChange={(event) => setInStockOnly(event.target.checked)}
-              className="size-3.5 accent-teal-600"
+              className="size-3.5 accent-brand-700"
             />
             {t.inStockOnly}
           </label>

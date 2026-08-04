@@ -49,13 +49,13 @@ export const maintenanceStatusBySlug = (slug: string) =>
 
 /** ສີຂອງປ້າຍສະຖານະ — ໃຫ້ໜ້າຕາຄືກັນທຸກໜ້າ (ຄູ່ກັບ INSTALL_STAGE_CHIP) */
 export const MAINTENANCE_STAGE_CHIP: Record<number, string> = {
-  [-1]: "bg-red-100 text-red-700",
-  0: "bg-amber-100 text-amber-800",
-  1: "bg-amber-100 text-amber-800",
-  2: "bg-indigo-50 text-indigo-700",
-  3: "bg-cyan-100 text-cyan-800",
-  4: "bg-purple-100 text-purple-800",
-  5: "bg-orange-50 text-orange-700",
+  [-1]: "bg-brand-orange-100 text-brand-orange-700",
+  0: "bg-brand-orange-300 text-brand-900",
+  1: "bg-brand-orange-300 text-brand-900",
+  2: "bg-brand-50 text-brand-700",
+  3: "bg-brand-100 text-brand-700",
+  4: "bg-brand-300 text-brand-900",
+  5: "bg-brand-orange-50 text-brand-orange-700",
   6: "bg-slate-100 text-slate-600",
 };
 

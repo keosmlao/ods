@@ -293,7 +293,7 @@ export default async function ServicePage({ searchParams }: Props) {
           {servicePermission.create && (
             <Link
               href="/service/new"
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white transition hover:bg-emerald-700"
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition hover:bg-brand-700"
             >
               <FilePlus2 className="size-4" />
               {t.receipt}
@@ -301,7 +301,7 @@ export default async function ServicePage({ searchParams }: Props) {
           )}
           <Link
             href="/reports/job-dispatch"
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white transition hover:bg-emerald-700"
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition hover:bg-brand-700"
           >
             <FileBarChart className="size-4" />
             {t.report}
@@ -319,16 +319,16 @@ export default async function ServicePage({ searchParams }: Props) {
             })}`}
             className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
-            <FileSpreadsheet className="size-4 text-emerald-700" />
+            <FileSpreadsheet className="size-4 text-brand-800" />
             Excel
           </a>
           <Link
             href="/service/notices"
-            className="inline-flex h-10 items-center gap-2 rounded-lg border-2 border-red-500 bg-slate-100 px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-200"
+            className="inline-flex h-10 items-center gap-2 rounded-lg border-2 border-brand-orange-600 bg-slate-100 px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-200"
           >
             {t.customerNotice}
             <Bell className="size-4" />
-            <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-bold text-white">
+            <span className="grid min-w-6 place-items-center rounded-full bg-brand-orange-700 px-1.5 py-0.5 text-xs font-bold text-white">
               {noticeCount}
             </span>
           </Link>
@@ -390,7 +390,7 @@ export default async function ServicePage({ searchParams }: Props) {
           />
         </div>
 
-        <button className="h-10 rounded-lg bg-slate-900 px-5 text-sm font-medium text-white">{t.search}</button>
+        <button className="h-10 rounded-lg bg-brand-900 px-5 text-sm font-medium text-white">{t.search}</button>
 
         {/* ວຽກຄ້າງ: ສະຫຼັບ ຕາຕະລາງ ↔ ກະດານ */}
         {isPending && (
@@ -398,7 +398,7 @@ export default async function ServicePage({ searchParams }: Props) {
             <Link
               href={tabHref("pending")}
               title={t.table}
-              className={`inline-flex h-10 items-center gap-2 px-3 text-sm font-medium ${!board_view ? "bg-slate-900 text-white" : "bg-white text-slate-600"}`}
+              className={`inline-flex h-10 items-center gap-2 px-3 text-sm font-medium ${!board_view ? "bg-brand-900 text-white" : "bg-white text-slate-600"}`}
             >
               <Table2 className="size-4" />
               {t.table}
@@ -407,7 +407,7 @@ export default async function ServicePage({ searchParams }: Props) {
             <Link
               href={`/service?${new URLSearchParams({ view: "board", ...(q && { q }), from, to })}`}
               title={t.board}
-              className={`inline-flex h-10 items-center gap-2 px-3 text-sm font-medium ${board_view ? "bg-slate-900 text-white" : "bg-white text-slate-600"}`}
+              className={`inline-flex h-10 items-center gap-2 px-3 text-sm font-medium ${board_view ? "bg-brand-900 text-white" : "bg-white text-slate-600"}`}
             >
               <LayoutGrid className="size-4" />
               {t.board}

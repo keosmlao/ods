@@ -37,7 +37,7 @@ export default async function LoginLogPage() {
                     <td className="px-4 py-2.5">
                       <span
                         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                          mobile ? "bg-emerald-50 text-emerald-700" : "bg-sky-50 text-sky-700"
+                          mobile ? "bg-brand-50 text-brand-800" : "bg-brand-50 text-brand-600"
                         }`}
                         title={row.user_agent ?? ""}
                       >

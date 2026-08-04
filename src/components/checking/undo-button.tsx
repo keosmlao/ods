@@ -67,7 +67,7 @@ export function UndoButton({
           aria-label={label}
           disabled={pending}
           onClick={run}
-          className={`grid size-8 place-items-center rounded-lg border border-slate-300 bg-white text-slate-500 transition hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50 ${className}`}
+          className={`grid size-8 place-items-center rounded-lg border border-slate-300 bg-white text-slate-500 transition hover:bg-brand-orange-100 hover:text-brand-900 disabled:opacity-50 ${className}`}
         >
           {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Undo2 className="size-3.5" />}
         </button>
@@ -76,7 +76,7 @@ export function UndoButton({
           type="button"
           disabled={pending}
           onClick={run}
-          className={`inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50 ${className}`}
+          className={`inline-flex h-9 items-center gap-1.5 rounded-lg border border-brand-orange-400 bg-brand-orange-100 px-3 text-xs font-semibold text-brand-900 transition hover:bg-brand-orange-300 disabled:opacity-50 ${className}`}
         >
           {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Undo2 className="size-3.5" />}
           {buttonLabel ?? label}

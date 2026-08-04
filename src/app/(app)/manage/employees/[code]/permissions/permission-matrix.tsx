@@ -79,7 +79,7 @@ export function PermissionMatrix({ employeeCode, initialRows }: { employeeCode: 
         </div>
         <div className="flex items-center gap-2">
           {message && (
-            <span className={`text-xs font-semibold ${message.tone === "ok" ? "text-emerald-700" : "text-red-600"}`}>
+            <span className={`text-xs font-semibold ${message.tone === "ok" ? "text-brand-800" : "text-brand-orange-700"}`}>
               {message.tone === "ok" && <CircleCheck className="mr-1 inline size-4" />}
               {message.text}
             </span>
@@ -88,7 +88,7 @@ export function PermissionMatrix({ employeeCode, initialRows }: { employeeCode: 
             type="button"
             disabled={pending}
             onClick={save}
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-teal-600 px-4 text-xs font-bold text-white hover:bg-teal-700 disabled:opacity-50"
+            className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-xs font-bold text-white hover:bg-brand-800 disabled:opacity-50"
           >
             {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
             ບັນທຶກສິດ
@@ -99,7 +99,7 @@ export function PermissionMatrix({ employeeCode, initialRows }: { employeeCode: 
       {groups.map((group) => (
         <section key={group} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
-            <SlidersHorizontal className="size-4 text-teal-600" />
+            <SlidersHorizontal className="size-4 text-brand-700" />
             <h2 className="text-sm font-bold text-slate-700">{group}</h2>
           </div>
           <div className="overflow-x-auto">
@@ -129,7 +129,7 @@ export function PermissionMatrix({ employeeCode, initialRows }: { employeeCode: 
                           <button
                             type="button"
                             onClick={() => customize(index)}
-                            className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600 hover:bg-teal-50 hover:text-teal-700"
+                            className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600 hover:bg-brand-50 hover:text-brand-800"
                           >
                             ຕາມ role
                           </button>
@@ -137,7 +137,7 @@ export function PermissionMatrix({ employeeCode, initialRows }: { employeeCode: 
                           <button
                             type="button"
                             onClick={() => inherit(index)}
-                            className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 text-[10px] font-semibold text-teal-700 hover:bg-slate-100"
+                            className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-[10px] font-semibold text-brand-800 hover:bg-slate-100"
                           >
                             <RotateCcw className="size-3" /> ກຳນົດເອງ
                           </button>
@@ -152,7 +152,7 @@ export function PermissionMatrix({ employeeCode, initialRows }: { employeeCode: 
                                 type="checkbox"
                                 checked={row.permission[action]}
                                 onChange={() => toggle(index, action)}
-                                className={`size-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 ${row.inherit ? "opacity-55" : ""}`}
+                                className={`size-4 rounded border-slate-300 text-brand-700 focus:ring-brand-600 ${row.inherit ? "opacity-55" : ""}`}
                                 aria-label={`${row.label} ${PERMISSION_ACTION_LABEL[action]}`}
                               />
                             ) : (

@@ -70,7 +70,7 @@ export default async function PendingBillsPage({ searchParams }: Props) {
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+          <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -97,7 +97,7 @@ export default async function PendingBillsPage({ searchParams }: Props) {
                 <td className="whitespace-nowrap px-3 py-2.5 text-center">
                   <span
                     className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-bold tabular-nums ${
-                      overdue ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"
+                      overdue ? "bg-brand-orange-100 text-brand-orange-700" : "bg-slate-100 text-slate-600"
                     }`}
                   >
                     <CalendarClock className="size-3" />
@@ -134,7 +134,7 @@ export default async function PendingBillsPage({ searchParams }: Props) {
                   )}
                   {/* ຄ່າບໍລິການຕິດຕັ້ງທີ່ພະນັກງານຂາຍໃສ່ໄວ້ — ນີ້ຄືສາເຫດທີ່ບິນນີ້ຢູ່ໃນຄິວ */}
                   {bill.services.map((service) => (
-                    <p key={service.item_code} className="mt-0.5 text-[11px] font-semibold text-teal-700">
+                    <p key={service.item_code} className="mt-0.5 text-[11px] font-semibold text-brand-800">
                       🛠 {service.item_name} × {service.qty}
                     </p>
                   ))}
@@ -145,7 +145,7 @@ export default async function PendingBillsPage({ searchParams }: Props) {
                   {bill.telephone && (
                     <a
                       href={`tel:${bill.telephone}`}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-brand-800"
                     >
                       <Phone className="size-3" />
                       {bill.telephone}
@@ -163,7 +163,7 @@ export default async function PendingBillsPage({ searchParams }: Props) {
                   {bill.ship_status ? (
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                        bill.ship_date ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                        bill.ship_date ? "bg-brand-100 text-brand-800" : "bg-brand-orange-300 text-brand-900"
                       }`}
                     >
                       <Truck className="size-3" />
@@ -192,7 +192,7 @@ export default async function PendingBillsPage({ searchParams }: Props) {
                 </td>
 
                 {/* ② ຈຳນວນທີ່ຈ່າຍຄ່າຕິດຕັ້ງ = ຈຳນວນໃບງານທີ່ຄວນເປີດ */}
-                <td className="whitespace-nowrap px-3 py-2.5 text-center text-sm font-bold text-red-600 tabular-nums">
+                <td className="whitespace-nowrap px-3 py-2.5 text-center text-sm font-bold text-brand-orange-700 tabular-nums">
                   {bill.paid} {t.units}
                 </td>
 
@@ -240,9 +240,9 @@ function Stat({
 }) {
   const color =
     tone === "danger"
-      ? "border-red-200 bg-red-50 text-red-700"
+      ? "border-brand-orange-400 bg-brand-orange-50 text-brand-orange-700"
       : tone === "warn"
-        ? "border-amber-200 bg-amber-50 text-amber-800"
+        ? "border-brand-orange-400 bg-brand-orange-100 text-brand-900"
         : "border-slate-200 bg-white text-slate-700";
   return (
     <div className={`rounded-xl border p-3 ${color}`}>

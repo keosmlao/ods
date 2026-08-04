@@ -35,8 +35,8 @@ export default async function DownloadAppPage() {
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-start gap-4">
-          <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-emerald-50">
-            <Smartphone className="size-6 text-emerald-600" />
+          <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-brand-50">
+            <Smartphone className="size-6 text-brand-800" />
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="font-bold text-slate-800">ODIEN Service — ແອັບຊ່າງ</h2>
@@ -48,13 +48,13 @@ export default async function DownloadAppPage() {
               <a
                 href={APK_PATH}
                 download
-                className="mt-4 inline-flex h-11 items-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-medium text-white transition hover:bg-emerald-700"
+                className="mt-4 inline-flex h-11 items-center gap-2 rounded-lg bg-brand-700 px-5 text-sm font-medium text-white transition hover:bg-brand-700"
               >
                 <Download className="size-4" />
                 ດາວໂຫຼດ APK
               </a>
             ) : (
-              <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+              <div className="mt-4 rounded-lg border border-brand-orange-400 bg-brand-orange-100 p-3 text-sm text-brand-900">
                 <p className="flex items-center gap-2 font-semibold">
                   <TriangleAlert className="size-4" />
                   ຍັງບໍ່ໄດ້ວາງໄຟລ໌ APK

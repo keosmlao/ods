@@ -121,7 +121,7 @@ export type Activity = {
 
 /** ສີຂອງກິດຈະກຳຕາມກຳນົດເວລາ — ຄື Odoo (ແດງ=ເລີຍກຳນົດ, ເຫຼືອງ=ມື້ນີ້, ຂຽວ=ຍັງມີເວລາ) */
 export function activityTone(daysLeft: number) {
-  if (daysLeft < 0) return { chip: "bg-red-100 text-red-700", dot: "bg-red-500", label: "ເລີຍກຳນົດ" };
-  if (daysLeft === 0) return { chip: "bg-amber-100 text-amber-800", dot: "bg-amber-500", label: "ມື້ນີ້" };
-  return { chip: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-500", label: "ວາງແຜນໄວ້" };
+  if (daysLeft < 0) return { chip: "bg-brand-orange-100 text-brand-orange-700", dot: "bg-brand-orange-700", label: "ເລີຍກຳນົດ" };
+  if (daysLeft === 0) return { chip: "bg-brand-orange-300 text-brand-900", dot: "bg-brand-orange-500", label: "ມື້ນີ້" };
+  return { chip: "bg-brand-50 text-brand-800", dot: "bg-brand-700", label: "ວາງແຜນໄວ້" };
 }

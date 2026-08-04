@@ -56,9 +56,9 @@ export default async function ActivitiesPage({ searchParams }: Props) {
     isManager || activity.assigned_to === session?.username || activity.created_by === session?.username;
 
   const SECTIONS: { key: keyof ReturnType<typeof group>; label: string; icon: typeof CalendarDays; tone: string }[] = [
-    { key: "late", label: "ເລີຍກຳນົດ", icon: AlertTriangle, tone: "text-red-600" },
-    { key: "today", label: "ມື້ນີ້", icon: CalendarClock, tone: "text-amber-600" },
-    { key: "next", label: "ຕໍ່ໄປ", icon: CalendarDays, tone: "text-emerald-600" },
+    { key: "late", label: "ເລີຍກຳນົດ", icon: AlertTriangle, tone: "text-brand-orange-700" },
+    { key: "today", label: "ມື້ນີ້", icon: CalendarClock, tone: "text-brand-900" },
+    { key: "next", label: "ຕໍ່ໄປ", icon: CalendarDays, tone: "text-brand-800" },
   ];
 
   const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
@@ -72,18 +72,18 @@ export default async function ActivitiesPage({ searchParams }: Props) {
         <h1 className="text-xl font-bold text-slate-700">ກິດຈະກຳຂອງຂ້ອຍ</h1>
         <p className="mt-0.5 text-xs text-slate-500">
           {tab === "all" ? "ກິດຈະກຳຄ້າງຂອງທຸກຄົນ" : "ກິດຈະກຳຄ້າງທີ່ມອບໃຫ້ທ່ານ"} · {activities.length.toLocaleString()} ລາຍການ
-          {groups.late.length > 0 && <span className="font-semibold text-red-600"> · ເລີຍກຳນົດ {groups.late.length}</span>}
+          {groups.late.length > 0 && <span className="font-semibold text-brand-orange-700"> · ເລີຍກຳນົດ {groups.late.length}</span>}
         </p>
       </div>
 
       {loadError && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-          <p className="text-xs font-semibold text-red-700">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-orange-400 bg-brand-orange-50 px-4 py-3">
+          <p className="text-xs font-semibold text-brand-orange-700">
             ໂຫຼດກິດຈະກຳບໍ່ສຳເລັດຊົ່ວຄາວ — ກະລຸນາລອງໃໝ່
           </p>
           <Link
             href={tab === "all" ? "/activities?tab=all" : "/activities"}
-            className="inline-flex h-8 items-center rounded-lg bg-red-600 px-3 text-xs font-semibold text-white hover:bg-red-700"
+            className="inline-flex h-8 items-center rounded-lg bg-brand-orange-700 px-3 text-xs font-semibold text-white hover:bg-brand-orange-700"
           >
             ລອງໃໝ່
           </Link>
@@ -99,7 +99,7 @@ export default async function ActivitiesPage({ searchParams }: Props) {
                 key={key}
                 href={key === "me" ? "/activities" : "/activities?tab=all"}
                 className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                  tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                  tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
                 }`}
               >
                 <Icon className="size-3.5" />

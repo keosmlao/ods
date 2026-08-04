@@ -67,7 +67,7 @@ export function ClaimPartPicker({
           <span className="min-w-0 truncate">
             <b className="text-slate-800">{name}</b>
             {code && <span className="ml-2 text-xs text-slate-400">{code}</span>}
-            {!code && <span className="ml-2 text-xs text-amber-600">(ບໍ່ມີໃນ ERP)</span>}
+            {!code && <span className="ml-2 text-xs text-brand-900">(ບໍ່ມີໃນ ERP)</span>}
           </span>
           <button
             type="button"
@@ -76,7 +76,7 @@ export function ClaimPartPicker({
               setName("");
               setOpen(true);
             }}
-            className="shrink-0 text-slate-400 hover:text-red-600"
+            className="shrink-0 text-slate-400 hover:text-brand-orange-700"
             aria-label="ປ່ຽນອາໄຫຼ່"
           >
             <X className="size-4" />
@@ -109,7 +109,7 @@ export function ClaimPartPicker({
                   type="button"
                   key={item.code}
                   onClick={() => pick(item)}
-                  className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-violet-50"
+                  className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-brand-orange-50"
                 >
                   <b className="text-slate-800">{item.name}</b>
                   <span className="ml-2 text-xs text-slate-400">
@@ -123,7 +123,7 @@ export function ClaimPartPicker({
                 <button
                   type="button"
                   onClick={() => pick({ code: "", name: q.trim(), unit: null, brand: null })}
-                  className="block w-full rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50"
+                  className="block w-full rounded px-3 py-2 text-left text-sm text-brand-900 hover:bg-brand-orange-100"
                 >
                   ບໍ່ພົບໃນ ERP — ໃຊ້ຊື່ “{q.trim()}” (ບໍ່ມີລະຫັດ)
                 </button>

@@ -160,7 +160,7 @@ export default async function CancelService({ searchParams }: Props) {
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+          <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -198,7 +198,7 @@ export default async function CancelService({ searchParams }: Props) {
                 const inWarranty = row.warranty === "ຮັບປະກັນ";
                 return (
                   <RowLink key={row.code} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <Link href={`/service/${row.code}`} className="hover:underline">
                         {row.code}
                       </Link>
@@ -220,13 +220,13 @@ export default async function CancelService({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                          inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                          inWarranty ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"
                         }`}
                       >
                         {row.warranty || "-"}
                       </span>
                     </td>
-                    <td className="max-w-52 truncate px-3 py-2.5 font-semibold text-red-600" title={row.issue ?? ""}>
+                    <td className="max-w-52 truncate px-3 py-2.5 font-semibold text-brand-orange-700" title={row.issue ?? ""}>
                       {row.issue || "-"}
                     </td>
 
@@ -240,7 +240,7 @@ export default async function CancelService({ searchParams }: Props) {
                           {row.spares && row.spares.lines > 0 ? (
                             <Link
                               href={`/approvals/cancellations/${encodeURIComponent(row.code)}`}
-                              className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 hover:bg-amber-100"
+                              className="rounded bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-brand-900 hover:bg-brand-orange-300"
                             >
                               {row.spares.lines} {t.items} · {row.spares.units.toLocaleString()} {t.units}
                             </Link>
@@ -254,8 +254,8 @@ export default async function CancelService({ searchParams }: Props) {
                               row.returned
                                 ? "bg-slate-100 text-slate-600"
                                 : row.approved
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : "bg-amber-50 text-amber-700"
+                                  ? "bg-brand-50 text-brand-800"
+                                  : "bg-brand-orange-100 text-brand-900"
                             }`}
                           >
                             {row.returned ? t.returnedToCustomer : row.approved ? t.approved : t.pendingApproval}
@@ -273,7 +273,7 @@ export default async function CancelService({ searchParams }: Props) {
                           {row.approved && !row.returned && (
                             <Link
                               href={`/returns/${encodeURIComponent(row.code)}`}
-                              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
                             >
                               <PackageCheck className="size-3.5" />
                               {t.returnToCustomer}

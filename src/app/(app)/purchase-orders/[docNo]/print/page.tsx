@@ -109,7 +109,7 @@ export default async function PrintPoPage({ params }: Props) {
         <PrintButton />
       </div>
 
-      <header className="flex items-start justify-between gap-6 border-b-2 border-slate-900 pb-4">
+      <header className="flex items-start justify-between gap-6 border-b-2 border-brand-900 pb-4">
         <div className="text-sm leading-6">
           <p className="text-base font-bold">{company?.name_1}</p>
           <p>{company?.name_2}</p>
@@ -181,7 +181,7 @@ export default async function PrintPoPage({ params }: Props) {
 
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-y border-slate-900 text-left">
+          <tr className="border-y border-brand-900 text-left">
             <th className="w-8 py-1.5">#</th>
             <th className="py-1.5">{t.colItem}</th>
             <th className="w-20 py-1.5 text-right">{t.colQty}</th>
@@ -219,7 +219,7 @@ export default async function PrintPoPage({ params }: Props) {
             </dt>
             <dd className="tabular-nums">{money(totals.vat_value)}</dd>
           </div>
-          <div className="flex justify-between border-t border-slate-900 pt-1 text-base font-bold">
+          <div className="flex justify-between border-t border-brand-900 pt-1 text-base font-bold">
             <dt>{t.grandTotal}</dt>
             <dd className="tabular-nums">
               {money(totals.amount)} {symbol}

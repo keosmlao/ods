@@ -106,18 +106,18 @@ export function StockCountClient({ initialItems }: { initialItems: CountedItem[]
           className="flex items-center gap-2"
         >
           {pending ? (
-            <LoaderCircle className="size-5 shrink-0 animate-spin text-teal-600" />
+            <LoaderCircle className="size-5 shrink-0 animate-spin text-brand-700" />
           ) : (
-            <ScanLine className="size-5 shrink-0 text-teal-600" />
+            <ScanLine className="size-5 shrink-0 text-brand-700" />
           )}
           <input
             ref={inputRef}
             autoFocus
             inputMode="text"
             placeholder={t.scanPlaceholder}
-            className="h-11 w-full rounded-xl border border-slate-300 px-3 text-base focus:border-teal-500 focus:outline-none"
+            className="h-11 w-full rounded-xl border border-slate-300 px-3 text-base focus:border-brand-600 focus:outline-none"
           />
-          <button type="submit" disabled={pending} className="h-11 shrink-0 rounded-xl bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+          <button type="submit" disabled={pending} className="h-11 shrink-0 rounded-xl bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60">
             {pending ? t.scanning : t.count}
           </button>
         </form>
@@ -126,10 +126,10 @@ export function StockCountClient({ initialItems }: { initialItems: CountedItem[]
           <p
             className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold ${
               !flash.ok
-                ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+                ? "bg-brand-orange-50 text-brand-orange-700 ring-1 ring-brand-orange-200"
                 : flash.warn
-                  ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
-                  : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                  ? "bg-brand-orange-100 text-brand-900 ring-1 ring-brand-orange-300"
+                  : "bg-brand-50 text-brand-800 ring-1 ring-brand-200"
             }`}
             role="status"
             aria-live="assertive"
@@ -141,14 +141,14 @@ export function StockCountClient({ initialItems }: { initialItems: CountedItem[]
 
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold text-slate-700">
-            {t.foundCount} <span className="tabular-nums text-teal-700">{items.length.toLocaleString()}</span> {t.itemsUnit}
+            {t.foundCount} <span className="tabular-nums text-brand-800">{items.length.toLocaleString()}</span> {t.itemsUnit}
           </span>
           {items.length > 0 && (
             <button
               type="button"
               onClick={resetAll}
               title={t.resetCount}
-              className="inline-flex h-8 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-100"
+              className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-orange-400 bg-brand-orange-50 px-2.5 text-xs font-semibold text-brand-orange-700 hover:bg-brand-orange-100"
             >
               <RotateCcw className="size-3.5" />
               {t.resetCount}
@@ -167,18 +167,18 @@ export function StockCountClient({ initialItems }: { initialItems: CountedItem[]
           <ul className="divide-y divide-slate-100">
             {items.map((it) => (
               <li key={it.code} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50">
-                <Check className="size-4 shrink-0 text-emerald-600" />
+                <Check className="size-4 shrink-0 text-brand-800" />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <span className="text-sm font-bold text-[#0536a9]">{it.code}</span>
+                    <span className="text-sm font-bold text-brand">{it.code}</span>
                     {it.service_type && (
-                      <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">{it.service_type}</span>
+                      <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-600">{it.service_type}</span>
                     )}
                     {it.counted_stage_label && (
-                      <span className="rounded bg-teal-50 px-1.5 py-0.5 text-[10px] font-semibold text-teal-700">{it.counted_stage_label}</span>
+                      <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-800">{it.counted_stage_label}</span>
                     )}
                     {it.returned && (
-                      <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                      <span className="inline-flex items-center gap-1 rounded bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-brand-900">
                         <TriangleAlert className="size-3" />
                         {t.returnedWarn}
                       </span>
@@ -199,7 +199,7 @@ export function StockCountClient({ initialItems }: { initialItems: CountedItem[]
                   target="_blank"
                   rel="noreferrer"
                   title={t.manageJob}
-                  className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-indigo-50 hover:text-indigo-600"
+                  className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-brand-50 hover:text-brand-600"
                 >
                   <SlidersHorizontal className="size-4" />
                 </a>
@@ -208,7 +208,7 @@ export function StockCountClient({ initialItems }: { initialItems: CountedItem[]
                   target="_blank"
                   rel="noreferrer"
                   title={t.printLabel}
-                  className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-teal-50 hover:text-teal-600"
+                  className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-brand-50 hover:text-brand-700"
                 >
                   <Printer className="size-4" />
                 </a>
@@ -216,7 +216,7 @@ export function StockCountClient({ initialItems }: { initialItems: CountedItem[]
                   type="button"
                   onClick={() => remove(it.code)}
                   title={t.remove}
-                  className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                  className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-brand-orange-50 hover:text-brand-orange-700"
                 >
                   <Trash2 className="size-4" />
                 </button>

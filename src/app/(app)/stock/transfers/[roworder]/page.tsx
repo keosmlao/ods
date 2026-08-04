@@ -132,7 +132,7 @@ export default async function TransferRequestPage({ params }: Props) {
             <td className="px-3 py-3 text-center">{Number(line.qty)}</td>
             <td className="px-3 py-3 text-center">{line.unit_code ?? "-"}</td>
             <td className="px-3 py-3 text-center">{Number(line.wh_balance ?? 0)}</td>
-            <td className="px-3 py-3 text-center font-semibold text-emerald-700">{otherWh}</td>
+            <td className="px-3 py-3 text-center font-semibold text-brand-800">{otherWh}</td>
           </tr>
         </Table>
       </Card>

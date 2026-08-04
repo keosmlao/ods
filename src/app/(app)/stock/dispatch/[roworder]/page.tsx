@@ -111,7 +111,7 @@ export default async function ShowDispatchPage({ params }: Props) {
 
       {/* ເບີກບໍ່ຄົບ → ບອກໃຫ້ຮູ້ກ່ອນກົດບັນທຶກ */}
       {insufficient.length > 0 && (
-        <p className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+        <p className="flex items-center gap-2 rounded-lg border border-brand-orange-400 bg-brand-orange-100 px-4 py-3 text-sm font-semibold text-brand-900">
           <AlertTriangle className="size-4 shrink-0" />
           ສິນຄ້າໃນສາງ/ບ່ອນເກັບບໍ່ພໍ {insufficient.length} ລາຍການ — ຍັງບໍ່ສາມາດກົດເບີກໄດ້
         </p>
@@ -129,15 +129,15 @@ export default async function ShowDispatchPage({ params }: Props) {
                 <td className="px-3 py-3">{line.item_code}</td>
                 <td className="px-3 py-3">{line.item_name ?? "-"}</td>
                 <td className="px-3 py-3 text-center">{Number(line.qty)}</td>
-                <td className={`px-3 py-3 text-center font-bold ${enough ? "text-emerald-700" : "text-red-600"}`}>{stock.toLocaleString()}</td>
+                <td className={`px-3 py-3 text-center font-bold ${enough ? "text-brand-800" : "text-brand-orange-700"}`}>{stock.toLocaleString()}</td>
                 <td className="px-3 py-3 text-center">{line.unit_code ?? "-"}</td>
                 <td className="px-3 py-3 text-center">
                   {enough ? (
-                    <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+                    <span className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-[10px] font-semibold text-brand-800">
                       <CheckCircle2 className="size-3" /> ພຽງພໍ
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 rounded bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700">
+                    <span className="inline-flex items-center gap-1 rounded bg-brand-orange-50 px-2 py-1 text-[10px] font-semibold text-brand-orange-700">
                       <AlertTriangle className="size-3" /> ຂາດ {Math.max(0, needed - stock).toLocaleString()}
                     </span>
                   )}

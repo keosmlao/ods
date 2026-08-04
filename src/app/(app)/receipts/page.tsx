@@ -115,12 +115,12 @@ export default async function ReceiptsPage({ searchParams }: Props) {
       {/* ຫົວໜ້າ + ເລືອກເດືອນ ‹ › — ວາງແບບດຽວກັບ /install-revenue ແລະ /tech-revenue */}
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="flex items-center gap-2 text-xl font-bold text-slate-700">
-          <Receipt className="size-5 text-teal-600" />
+          <Receipt className="size-5 text-brand-700" />
           ບິນຂາຍງານສ້ອມແປງ
         </h1>
         <Link
           href="/install-revenue"
-          className="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-700 hover:bg-teal-100"
+          className="rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1 text-[11px] font-semibold text-brand-800 hover:bg-brand-100"
         >
           ງານຕິດຕັ້ງ → ລາຍຮັບງານຕິດຕັ້ງ
         </Link>
@@ -145,7 +145,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
           </Link>
         </div>
         {month !== current && (
-          <Link href={monthHref(current)} className="text-xs font-semibold text-teal-700 hover:underline">
+          <Link href={monthHref(current)} className="text-xs font-semibold text-brand-800 hover:underline">
             ກັບເດືອນນີ້
           </Link>
         )}
@@ -154,7 +154,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
       <div className="grid gap-3 sm:grid-cols-2">
         {[
           { label: "ຈຳນວນບິນ", value: totals.bills.toLocaleString(), tone: "text-slate-800" },
-          { label: "ລວມ (ບາດ)", value: Math.round(totals.baht).toLocaleString(), tone: "text-emerald-700" },
+          { label: "ລວມ (ບາດ)", value: Math.round(totals.baht).toLocaleString(), tone: "text-brand-800" },
         ].map((card) => (
           <div key={card.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-[11px] text-slate-400">{card.label}</p>
@@ -178,7 +178,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
         <input type="hidden" name="month" value={month} />
         <button
           type="submit"
-          className="inline-flex h-10 items-center rounded-xl bg-slate-800 px-5 text-sm font-semibold text-white hover:bg-slate-900"
+          className="inline-flex h-10 items-center rounded-xl bg-brand-800 px-5 text-sm font-semibold text-white hover:bg-brand-900"
         >
           ຄົ້ນຫາ
         </button>
@@ -253,7 +253,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
       <p className="text-[11px] text-slate-400">
         ອ່ານຈາກ ERP ໂດຍກົງ (public.ic_trans · trans_flag 44) — ບໍ່ແມ່ນສຳເນົາຝັ່ງ ODS ທີ່ບໍ່ມີລາຄາ.
         ຍອດເປັນ <b>ບາດ</b> ຕາມທີ່ບັນທຶກໃນ ERP · ສະເພາະບິນທີ່ມີຄ່າບໍລິການສ້ອມ 9702xx —
-        ບິນງານຕິດຕັ້ງ (9701xx) ຢູ່ໜ້າ <Link href="/install-revenue" className="text-teal-700 hover:underline">ລາຍຮັບງານຕິດຕັ້ງ</Link>
+        ບິນງານຕິດຕັ້ງ (9701xx) ຢູ່ໜ້າ <Link href="/install-revenue" className="text-brand-800 hover:underline">ລາຍຮັບງານຕິດຕັ້ງ</Link>
       </p>
     </div>
   );

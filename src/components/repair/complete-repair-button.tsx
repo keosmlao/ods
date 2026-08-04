@@ -82,7 +82,7 @@ export function CompleteRepairButton({ code, initialNote = "" }: { code: string;
                 onChange={(event) => setNote(event.target.value)}
                 rows={4}
                 placeholder="ລະບຸວິທີແກ້ໄຂ..."
-                className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-700 outline-none focus:border-teal-500"
+                className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-700 outline-none focus:border-brand-600"
               />
             </label>
 
@@ -115,7 +115,7 @@ export function CompleteRepairButton({ code, initialNote = "" }: { code: string;
                       <button
                         type="button"
                         onClick={() => setPhotos((current) => current.filter((_, i) => i !== index))}
-                        className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm hover:text-red-600"
+                        className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm hover:text-brand-orange-700"
                       >
                         <X className="size-3" />
                       </button>
@@ -125,7 +125,7 @@ export function CompleteRepairButton({ code, initialNote = "" }: { code: string;
               )}
             </div>
 
-            {error && <p className="font-medium text-red-600">{error}</p>}
+            {error && <p className="font-medium text-brand-orange-700">{error}</p>}
           </div>
         }
         onCancel={() => {

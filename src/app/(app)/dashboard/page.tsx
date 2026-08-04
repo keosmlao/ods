@@ -78,8 +78,8 @@ type Alert = {
 };
 
 const TONE = {
-  red: { card: "border-red-200 bg-white hover:border-red-300", icon: "bg-red-50 text-red-600", value: "text-red-700", bar: "bg-red-500" },
-  amber: { card: "border-amber-200 bg-white hover:border-amber-300", icon: "bg-amber-50 text-amber-700", value: "text-amber-800", bar: "bg-amber-400" },
+  red: { card: "border-brand-orange-400 bg-white hover:border-brand-orange-400", icon: "bg-brand-orange-50 text-brand-orange-700", value: "text-brand-orange-700", bar: "bg-brand-orange-700" },
+  amber: { card: "border-brand-orange-400 bg-white hover:border-brand-orange-400", icon: "bg-brand-orange-100 text-brand-900", value: "text-brand-900", bar: "bg-brand-orange-300" },
 };
 
 function alertsFor(role: Role, data: DashboardData, canQc: boolean, t: Dict): Alert[] {
@@ -340,7 +340,7 @@ function Pipeline({
             </span>
             <span className="relative h-5 flex-1 overflow-hidden rounded bg-slate-100">
               <span
-                className={`absolute inset-y-0 left-0 rounded ${isPeak ? "bg-amber-400" : "bg-teal-400"}`}
+                className={`absolute inset-y-0 left-0 rounded ${isPeak ? "bg-brand-orange-300" : "bg-brand-400"}`}
                 style={{ width: `${width}%` }}
                 aria-hidden
               />
@@ -404,11 +404,11 @@ function Pipeline({
  */
 function RepeatPanel({ rows, t }: { rows: RepeatJob[]; t: Dict }) {
   return (
-    <article className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
-      <h2 className="flex items-center gap-2 border-b border-amber-100 bg-amber-50 px-5 py-4 text-sm font-bold text-amber-900">
+    <article className="overflow-hidden rounded-2xl border border-brand-orange-400 bg-white shadow-sm">
+      <h2 className="flex items-center gap-2 border-b border-brand-orange-300 bg-brand-orange-100 px-5 py-4 text-sm font-bold text-brand-900">
         <RotateCcw className="size-4" />
         {t.repeatTitle} {REPEAT_DAYS} {t.days}
-        <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[11px] text-amber-900">{rows.length}</span>
+        <span className="rounded-full bg-brand-orange-300 px-2 py-0.5 text-[11px] text-brand-900">{rows.length}</span>
       </h2>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[680px] border-collapse text-xs">
@@ -424,9 +424,9 @@ function RepeatPanel({ rows, t }: { rows: RepeatJob[]; t: Dict }) {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.code} className="border-b border-slate-100 transition last:border-0 hover:bg-amber-50/40">
+              <tr key={row.code} className="border-b border-slate-100 transition last:border-0 hover:bg-brand-orange-100/40">
                 <td className="px-3 py-2.5">
-                  <Link href={`/service/${encodeURIComponent(row.code)}`} className="font-bold text-teal-700 hover:underline">
+                  <Link href={`/service/${encodeURIComponent(row.code)}`} className="font-bold text-brand-800 hover:underline">
                     #{row.code}
                   </Link>
                 </td>
@@ -437,7 +437,7 @@ function RepeatPanel({ rows, t }: { rows: RepeatJob[]; t: Dict }) {
                   <span className="ml-1 text-slate-400">{row.prev_returned}</span>
                 </td>
                 <td className="whitespace-nowrap px-3 py-2.5">
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">
+                  <span className="rounded-full bg-brand-orange-300 px-2 py-0.5 font-semibold text-brand-900">
                     {row.days_between} {t.days}
                   </span>
                 </td>
@@ -478,7 +478,7 @@ function PriorityBacklog({
           <h2 className="text-sm font-bold text-slate-900">{t.priorityBacklog}</h2>
           <p className="mt-0.5 text-[11px] text-slate-500">{t.priorityBacklogSubtitle}</p>
         </div>
-        <span className="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-700">
+        <span className="rounded-full bg-brand-orange-50 px-2.5 py-1 text-[10px] font-bold text-brand-orange-700">
           TOP {rows.length}
         </span>
       </div>
@@ -503,8 +503,8 @@ function PriorityBacklog({
                   ? `/service/${encodeURIComponent(row.code)}`
                   : `/installations/${encodeURIComponent(row.code)}`;
               return (
-                <RowLink key={`${row.workflow}:${row.code}`} href={href} className="border-b border-slate-100 transition last:border-0 hover:bg-teal-50/40">
-                  <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                <RowLink key={`${row.workflow}:${row.code}`} href={href} className="border-b border-slate-100 transition last:border-0 hover:bg-brand-50/40">
+                  <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                     <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                     <Link href={href} className="hover:underline">
                       {row.code}
@@ -513,8 +513,8 @@ function PriorityBacklog({
                   <td className="whitespace-nowrap px-3 py-2.5">
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                       row.workflow === "repair"
-                        ? "bg-sky-50 text-sky-700"
-                        : "bg-violet-50 text-violet-700"
+                        ? "bg-brand-50 text-brand-600"
+                        : "bg-brand-orange-50 text-brand-orange-700"
                     }`}>
                       {row.workflow === "repair" ? t.repairJob : t.installJob}
                     </span>
@@ -567,7 +567,7 @@ function Throughput({ label, opened, closed, t }: { label: string; opened: numbe
       </div>
       <span
         className={`flex shrink-0 items-center gap-1 rounded px-2 py-1 text-xs font-bold ${
-          growing ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+          growing ? "bg-brand-orange-50 text-brand-orange-700" : "bg-brand-50 text-brand-800"
         }`}
       >
         {growing ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />}
@@ -605,7 +605,7 @@ function TechLoadPanel({ rows, t }: { rows: TechLoad[]; t: Dict }) {
               </span>
               <span className="relative h-5 flex-1 overflow-hidden rounded bg-slate-100">
                 <span
-                  className="absolute inset-y-0 left-0 rounded bg-indigo-400"
+                  className="absolute inset-y-0 left-0 rounded bg-brand-500"
                   style={{ width: `${(row.jobs / peak) * 100}%` }}
                   aria-hidden
                 />
@@ -639,7 +639,7 @@ function TechLoadPanel({ rows, t }: { rows: TechLoad[]; t: Dict }) {
  *   · ໃຜບໍ່ພໍໃຈ — ງານທີ່ລູກຄ້າໃຫ້ຄະແນນ ≥3 ຄວນຕິດຕາມ
  */
 const scoreTone = (value: number) =>
-  value >= 2.5 ? "text-red-600" : value >= 1.5 ? "text-amber-600" : "text-emerald-600";
+  value >= 2.5 ? "text-brand-orange-700" : value >= 1.5 ? "text-brand-900" : "text-brand-800";
 
 function FeedbackPanel({ data, score, t }: { data: DashboardData; score: number; t: Dict }) {
   const trend = data.feedbackTrend;
@@ -652,7 +652,7 @@ function FeedbackPanel({ data, score, t }: { data: DashboardData; score: number;
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-teal-50 text-teal-600">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-700">
           <Smile className="size-4" />
         </span>
         <div className="min-w-40 flex-1">
@@ -672,7 +672,7 @@ function FeedbackPanel({ data, score, t }: { data: DashboardData; score: number;
       {data.feedback.unhappy_jobs > 0 && (
         <Link
           href="/reports/customer-feedback"
-          className="mb-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 transition hover:bg-red-100"
+          className="mb-3 flex items-center gap-2 rounded-lg border border-brand-orange-400 bg-brand-orange-50 px-3 py-2 text-xs text-brand-orange-700 transition hover:bg-brand-orange-100"
         >
           <Frown className="size-4 shrink-0" />
           <span className="flex-1">
@@ -689,11 +689,11 @@ function FeedbackPanel({ data, score, t }: { data: DashboardData; score: number;
             <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-slate-600">
               {t.trend6mo}
               {worsening ? (
-                <span className="flex items-center gap-0.5 rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
+                <span className="flex items-center gap-0.5 rounded bg-brand-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-orange-700">
                   <TrendingUp className="size-3" /> {t.worsening}
                 </span>
               ) : (
-                <span className="flex items-center gap-0.5 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                <span className="flex items-center gap-0.5 rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-800">
                   <TrendingDown className="size-3" /> {t.improving}
                 </span>
               )}
@@ -708,10 +708,10 @@ function FeedbackPanel({ data, score, t }: { data: DashboardData; score: number;
                   <div
                     className={`w-full rounded-t ${
                       month.avg_points >= 2.5
-                        ? "bg-red-400"
+                        ? "bg-brand-orange-400"
                         : month.avg_points >= 1.5
-                          ? "bg-amber-400"
-                          : "bg-emerald-400"
+                          ? "bg-brand-orange-300"
+                          : "bg-brand-400"
                     }`}
                     // ມາດຕາສ່ວນ 1-4 → ຄວາມສູງ (4 = ເຕັມ)
                     style={{ height: `${Math.max(6, (month.avg_points / 4) * 100)}%` }}
@@ -739,10 +739,10 @@ function FeedbackPanel({ data, score, t }: { data: DashboardData; score: number;
                     <span
                       className={`absolute inset-y-0 left-0 rounded ${
                         topic.avg_points >= 2.5
-                          ? "bg-red-400"
+                          ? "bg-brand-orange-400"
                           : topic.avg_points >= 1.5
-                            ? "bg-amber-400"
-                            : "bg-emerald-400"
+                            ? "bg-brand-orange-300"
+                            : "bg-brand-400"
                       }`}
                       style={{ width: `${(topic.avg_points / peak) * 100}%` }}
                       aria-hidden
@@ -792,15 +792,15 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     minute: "2-digit",
   }).format(new Date());
   const kpis = [
-    { label: t.kpiRepairPending, value: repair.total ?? 0, tone: "text-sky-700", bg: "bg-sky-50" },
-    { label: t.kpiInstallPending, value: install.total ?? 0, tone: "text-violet-700", bg: "bg-violet-50" },
-    { label: t.overSla, value: data?.sla.late ?? 0, tone: "text-red-700", bg: "bg-red-50" },
-    { label: t.kpiActionItems, value: actionTotal, tone: "text-amber-700", bg: "bg-amber-50" },
+    { label: t.kpiRepairPending, value: repair.total ?? 0, tone: "text-brand-600", bg: "bg-brand-50" },
+    { label: t.kpiInstallPending, value: install.total ?? 0, tone: "text-brand-orange-700", bg: "bg-brand-orange-50" },
+    { label: t.overSla, value: data?.sla.late ?? 0, tone: "text-brand-orange-700", bg: "bg-brand-orange-50" },
+    { label: t.kpiActionItems, value: actionTotal, tone: "text-brand-900", bg: "bg-brand-orange-100" },
   ];
   const criticalTotal = (data?.sla.critical ?? 0) + (data?.overdueAppointments ?? 0) + (data?.unassigned.repair ?? 0) + (data?.unassigned.install ?? 0);
-  const health = criticalTotal === 0 ? { label: t.healthNormal, detail: t.healthNoCrisis, tone: "text-emerald-700", ring: "bg-emerald-500" }
-    : criticalTotal < 10 ? { label: t.healthWatch, detail: `${criticalTotal} ${t.criticalItems}`, tone: "text-amber-700", ring: "bg-amber-500" }
-      : { label: t.healthAct, detail: `${criticalTotal} ${t.criticalItems}`, tone: "text-red-700", ring: "bg-red-500" };
+  const health = criticalTotal === 0 ? { label: t.healthNormal, detail: t.healthNoCrisis, tone: "text-brand-800", ring: "bg-brand-700" }
+    : criticalTotal < 10 ? { label: t.healthWatch, detail: `${criticalTotal} ${t.criticalItems}`, tone: "text-brand-900", ring: "bg-brand-orange-500" }
+      : { label: t.healthAct, detail: `${criticalTotal} ${t.criticalItems}`, tone: "text-brand-orange-700", ring: "bg-brand-orange-700" };
   const quickActions = [
     { label: t.quickReceiveNew, href: "/service/new", icon: Plus },
     { label: t.quickNewInstall, href: "/installations/new", icon: Plus },
@@ -812,13 +812,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   return (
     <div className="w-full space-y-6 pb-6">
       <DashboardAutoRefresh />
-      <div className="relative overflow-hidden rounded-2xl bg-slate-950 px-5 py-6 text-white shadow-xl shadow-slate-200 sm:px-7 sm:py-7">
-        <div className="pointer-events-none absolute -right-12 -top-24 size-64 rounded-full bg-teal-500/20 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 right-1/3 size-32 rounded-full bg-sky-500/10 blur-2xl" />
+      <div className="relative overflow-hidden rounded-2xl bg-brand-900 px-5 py-6 text-white shadow-xl shadow-slate-200 sm:px-7 sm:py-7">
+        <div className="pointer-events-none absolute -right-12 -top-24 size-64 rounded-full bg-brand-600/20 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 right-1/3 size-32 rounded-full bg-brand-500/10 blur-2xl" />
         <div className="relative flex flex-wrap items-center justify-between gap-5">
         <div>
           {/* ທັກທາຍຜູ້ໃຊ້ດ້ວຍຊື່ — username = ຕົວຕົນ ERP (nickname/ຊື່ເຕັມ) */}
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-300">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-300">
             {session?.username ? `${t.greeting}, ${session.username}` : "ODIEN Service Operations"}
           </p>
           <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{t.controlCenter}</h1>
@@ -839,7 +839,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           {/* ດາວໂຫຼດແອັບຊ່າງ — ເນັ້ນ (ຂຽວ) ໃຫ້ຫາງ່າຍ ບໍ່ຕ້ອງເຂົ້າເມນູ */}
           <Link
             href="/download"
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-emerald-500 px-4 text-xs font-semibold text-white transition hover:bg-emerald-400"
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand-700 px-4 text-xs font-semibold text-white transition hover:bg-brand-400"
           >
             <Smartphone className="size-4" /> {t.downloadApp} <LinkPending className="size-3.5" />
           </Link>
@@ -865,7 +865,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               <h2 className="text-base font-bold text-slate-900">{t.actionNeeded}</h2>
               <p className="mt-0.5 text-[11px] text-slate-500">{t.actionNeededSubtitle}</p>
             </div>
-            <span className="rounded-full bg-slate-900 px-3 py-1 text-[10px] font-bold text-white">
+            <span className="rounded-full bg-brand-900 px-3 py-1 text-[10px] font-bold text-white">
               {actionTotal.toLocaleString()} {t.kpiActionItems}
             </span>
           </div>
@@ -899,14 +899,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       )}
 
       {!error && alerts.length === 0 && (
-        <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800">
+        <p className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-xs font-semibold text-brand-800">
           {t.noPendingWork}
         </p>
       )}
 
       <section className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
         <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="pointer-events-none absolute -bottom-16 -right-12 size-40 rounded-full bg-teal-100/70 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-16 -right-12 size-40 rounded-full bg-brand-100/70 blur-3xl" />
           <div className="relative flex flex-wrap items-center gap-5">
             <div className={`grid size-16 shrink-0 place-items-center rounded-2xl ${health.ring} text-white shadow-lg shadow-slate-200`}>
               <span className="text-2xl font-black">{criticalTotal}</span>
@@ -916,14 +916,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               <h2 className={`mt-1 text-xl font-bold ${health.tone}`}>{health.label}</h2>
               <p className="mt-1 text-xs text-slate-500">{health.detail} · {t.healthBasis}</p>
             </div>
-            <Link href="/dashboard/tracking" className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-teal-700">{t.viewOverview} <ArrowRight className="size-3.5" /></Link>
+            <Link href="/dashboard/tracking" className="inline-flex items-center gap-1.5 rounded-xl bg-brand-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-brand-800">{t.viewOverview} <ArrowRight className="size-3.5" /></Link>
           </div>
         </div>
 
         {quickActions.length > 0 && <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-3"><h2 className="text-sm font-bold text-slate-800">{t.dailyShortcuts}</h2><p className="mt-0.5 text-[11px] text-slate-500">{t.shortcutsSubtitle}</p></div>
           <div className="grid grid-cols-2 gap-2">
-            {quickActions.slice(0, 6).map(({ label, href, icon: Icon }) => <Link key={href} href={href} className="group flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800"><span className="grid size-7 place-items-center rounded-lg bg-white text-slate-500 shadow-sm group-hover:text-teal-700"><Icon className="size-3.5" /></span><span className="truncate">{label}</span></Link>)}
+            {quickActions.slice(0, 6).map(({ label, href, icon: Icon }) => <Link key={href} href={href} className="group flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-900"><span className="grid size-7 place-items-center rounded-lg bg-white text-slate-500 shadow-sm group-hover:text-brand-800"><Icon className="size-3.5" /></span><span className="truncate">{label}</span></Link>)}
           </div>
         </div>}
       </section>
@@ -934,25 +934,25 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             <div><h2 className="text-base font-bold text-slate-900">{t.todayJobs}</h2><p className="mt-0.5 text-[11px] text-slate-500">{t.todayJobsSubtitle}</p></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            {canAccess(role, "/installations/work") && <Link href="/installations/work" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-teal-300 hover:bg-teal-50"><p className="text-xs font-semibold text-slate-600">{t.todayAppointments}</p><p className="mt-1 text-2xl font-bold text-teal-700">{data.today.appointments.toLocaleString()}</p></Link>}
-            {canAccess(role, "/checking") && <Link href="/checking" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-sky-300 hover:bg-sky-50"><p className="text-xs font-semibold text-slate-600">{t.todayChecking}</p><p className="mt-1 text-2xl font-bold text-sky-700">{data.today.checking.toLocaleString()}</p></Link>}
-            {canAccess(role, "/work") && <Link href="/work/repair/repairing" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-violet-300 hover:bg-violet-50"><p className="text-xs font-semibold text-slate-600">{t.todayRepairing}</p><p className="mt-1 text-2xl font-bold text-violet-700">{data.today.repairing.toLocaleString()}</p></Link>}
+            {canAccess(role, "/installations/work") && <Link href="/installations/work" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-brand-300 hover:bg-brand-50"><p className="text-xs font-semibold text-slate-600">{t.todayAppointments}</p><p className="mt-1 text-2xl font-bold text-brand-800">{data.today.appointments.toLocaleString()}</p></Link>}
+            {canAccess(role, "/checking") && <Link href="/checking" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-brand-300 hover:bg-brand-50"><p className="text-xs font-semibold text-slate-600">{t.todayChecking}</p><p className="mt-1 text-2xl font-bold text-brand-600">{data.today.checking.toLocaleString()}</p></Link>}
+            {canAccess(role, "/work") && <Link href="/work/repair/repairing" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-brand-orange-300 hover:bg-brand-orange-50"><p className="text-xs font-semibold text-slate-600">{t.todayRepairing}</p><p className="mt-1 text-2xl font-bold text-brand-orange-700">{data.today.repairing.toLocaleString()}</p></Link>}
           </div>
-          {(data.sla.warning > 0 || data.sla.late > 0) && canAccess(role, "/checking") && <div className="mt-3 flex flex-wrap gap-2 text-[11px]"><Link href="/checking?sla=warning&sort=elapsed&dir=desc" className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-800 hover:bg-amber-200">{t.nearSla} {data.sla.warning}</Link><Link href="/checking?sla=late&sort=elapsed&dir=desc" className="rounded-full bg-red-100 px-2.5 py-1 font-semibold text-red-700 hover:bg-red-200">{t.overSla} {data.sla.late}</Link><Link href="/checking?sla=critical&sort=elapsed&dir=desc" className="rounded-full bg-red-700 px-2.5 py-1 font-semibold text-white hover:bg-red-800">{t.critical} {data.sla.critical}</Link></div>}
+          {(data.sla.warning > 0 || data.sla.late > 0) && canAccess(role, "/checking") && <div className="mt-3 flex flex-wrap gap-2 text-[11px]"><Link href="/checking?sla=warning&sort=elapsed&dir=desc" className="rounded-full bg-brand-orange-300 px-2.5 py-1 font-semibold text-brand-900 hover:bg-brand-orange-300">{t.nearSla} {data.sla.warning}</Link><Link href="/checking?sla=late&sort=elapsed&dir=desc" className="rounded-full bg-brand-orange-100 px-2.5 py-1 font-semibold text-brand-orange-700 hover:bg-brand-orange-200">{t.overSla} {data.sla.late}</Link><Link href="/checking?sla=critical&sort=elapsed&dir=desc" className="rounded-full bg-brand-orange-700 px-2.5 py-1 font-semibold text-white hover:bg-brand-orange-700">{t.critical} {data.sla.critical}</Link></div>}
         </section>
       )}
 
       {data && canAccess(role, "/installations/work") && data.upcomingAppointments.length > 0 && (
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
-            <span className="grid size-9 place-items-center rounded-xl bg-teal-50 text-teal-700"><CalendarDays className="size-4" /></span>
+            <span className="grid size-9 place-items-center rounded-xl bg-brand-50 text-brand-800"><CalendarDays className="size-4" /></span>
             <div className="flex-1"><h2 className="text-sm font-bold text-slate-800">{t.upcoming7days}</h2><p className="text-[11px] text-slate-500">{t.upcomingSubtitle}</p></div>
           </div>
           <div className="grid divide-y divide-slate-100 md:grid-cols-2 md:divide-x md:divide-y-0">
             {data.upcomingAppointments.map((item) => (
-              <Link key={item.code} href={`/installations/${encodeURIComponent(item.code)}`} className="flex min-w-0 items-center gap-3 border-b border-slate-100 px-5 py-3 transition hover:bg-teal-50/40">
-                <div className="w-20 shrink-0 text-center"><p className="text-xs font-bold text-slate-800">{item.appoint_date}</p>{item.same_day_jobs > 1 && <span className="mt-1 inline-block rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700">{t.overlapAppointment} {item.same_day_jobs}</span>}</div>
-                <div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-[#0536a9]">{item.code} · {item.customer || "-"}</p><p className="mt-0.5 truncate text-[11px] text-slate-500">{item.product || "-"}</p></div>
+              <Link key={item.code} href={`/installations/${encodeURIComponent(item.code)}`} className="flex min-w-0 items-center gap-3 border-b border-slate-100 px-5 py-3 transition hover:bg-brand-50/40">
+                <div className="w-20 shrink-0 text-center"><p className="text-xs font-bold text-slate-800">{item.appoint_date}</p>{item.same_day_jobs > 1 && <span className="mt-1 inline-block rounded bg-brand-orange-100 px-1.5 py-0.5 text-[9px] font-bold text-brand-orange-700">{t.overlapAppointment} {item.same_day_jobs}</span>}</div>
+                <div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-brand">{item.code} · {item.customer || "-"}</p><p className="mt-0.5 truncate text-[11px] text-slate-500">{item.product || "-"}</p></div>
                 <span className="max-w-24 truncate text-[10px] font-semibold text-slate-500">{item.tech || t.noTechYet}</span>
               </Link>
             ))}
@@ -961,7 +961,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       )}
 
       {error && (
-        <p className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+        <p className="flex items-center gap-2 rounded-lg border border-brand-orange-400 bg-brand-orange-50 px-3 py-2 text-xs text-brand-orange-700">
           <AlertCircle className="size-4 shrink-0" />
           {t.loadError}
         </p>
@@ -1023,7 +1023,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-bold text-slate-800">{t.performance} {days} {t.daysAgoCompare}</h2>
             <div className="flex overflow-hidden rounded-lg border border-slate-200">
-              {[1, 7, 30, 90].map((value) => <Link key={value} href={`/dashboard?range=${value}`} className={`px-2.5 py-1.5 text-[10px] font-semibold ${days === value ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>{value} {t.days}</Link>)}
+              {[1, 7, 30, 90].map((value) => <Link key={value} href={`/dashboard?range=${value}`} className={`px-2.5 py-1.5 text-[10px] font-semibold ${days === value ? "bg-brand-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>{value} {t.days}</Link>)}
             </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -1050,9 +1050,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {data && canAccess(role, "/reports/technician-income") && (data.payout.assigned_thb > 0 || data.payout.orphan_thb > 0) && (
         <Link
           href="/reports/technician-income"
-          className="flex flex-wrap items-center gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-white to-emerald-50/60 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          className="flex flex-wrap items-center gap-4 rounded-2xl border border-brand-200 bg-gradient-to-r from-white to-brand-50/60 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         >
-          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600">
+          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-800">
             <Wallet className="size-5" />
           </span>
           <div className="min-w-48 flex-1">
@@ -1064,7 +1064,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             </p>
             {/* ເງິນທີ່ຍັງບໍ່ມີເຈົ້າຂອງ — ບໍ່ຢູ່ໃນຍອດຂວາ ຈຶ່ງຕ້ອງບອກ ບໍ່ດັ່ງນັ້ນຫາຍງຽບໆ */}
             {data.payout.orphan_thb > 0 && (
-              <p className="mt-1 text-[11px] font-semibold text-amber-700">
+              <p className="mt-1 text-[11px] font-semibold text-brand-900">
                 ⚠ {t.orphanMore} {data.payout.orphan_thb.toLocaleString("en-US", { minimumFractionDigits: 2 })} {t.baht}
                 {" "}{t.orphanNote}
               </p>

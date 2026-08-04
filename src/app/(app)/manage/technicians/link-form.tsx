@@ -37,7 +37,7 @@ export function LinkRow({ row, employees }: { row: TechRow; employees: Employee[
   const willMove = selected && selected !== row.user_code && selected !== row.employee_code;
 
   return (
-    <tr className={`border-b border-slate-100 ${row.employee_code ? "" : "bg-amber-50/50"}`}>
+    <tr className={`border-b border-slate-100 ${row.employee_code ? "" : "bg-brand-orange-100/50"}`}>
       <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-slate-800">
         {row.user_code}
         {row.ods_name && row.ods_name !== row.user_code && (
@@ -69,7 +69,7 @@ export function LinkRow({ row, employees }: { row: TechRow; employees: Employee[
               <button
                 type="button"
                 onClick={() => setSelected(suggested.code)}
-                className="inline-flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2 py-1 text-[11px] font-semibold text-sky-800 hover:bg-sky-100"
+                className="inline-flex items-center gap-1 rounded-lg border border-brand-300 bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-100"
                 title="ນີ້ເປັນພຽງການເດົາຈາກຊື່ຫຼິ້ນ — ກະລຸນາກວດກ່ອນບັນທຶກ"
               >
                 <Sparkles className="size-3" />
@@ -93,12 +93,12 @@ export function LinkRow({ row, employees }: { row: TechRow; employees: Employee[
               </Button>
             )}
 
-            {state.error && <span className="text-xs font-semibold text-red-600">{state.error}</span>}
-            {state.ok && <span className="text-xs font-semibold text-emerald-600">{state.ok}</span>}
+            {state.error && <span className="text-xs font-semibold text-brand-orange-700">{state.error}</span>}
+            {state.ok && <span className="text-xs font-semibold text-brand-800">{state.ok}</span>}
           </div>
 
           {willMove && confirming && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-800">
+            <p className="rounded-lg bg-brand-orange-50 px-3 py-2 text-[11px] font-semibold text-brand-orange-700">
               ຈະຂຽນລະຫັດ <b>{selected}</b> ທັບຊື່ <b>{row.user_code}</b> ໃນທຸກຕາຕະລາງ (ງານ {row.jobs.toLocaleString()} ງານ
               ພ້ອມ ຮູບ · check-in · ຄ່າຄອມ · ຂ່າວສານ · ເອກະສານສາງ) — ຫຼັງຈາກນີ້ ລາວຈະໃຊ້ <b>ລະຫັດ ERP</b> ເຂົ້າລະບົບ
               ແລະ ເຫັນງານເກົ່າຄົບຄືເກົ່າ.
@@ -123,7 +123,7 @@ export function LinkRow({ row, employees }: { row: TechRow; employees: Employee[
               router.refresh();
             });
           }}
-          className="h-8 rounded-lg border border-slate-300 px-2 text-xs outline-none focus:border-teal-500 disabled:opacity-60"
+          className="h-8 rounded-lg border border-slate-300 px-2 text-xs outline-none focus:border-brand-600 disabled:opacity-60"
         >
           <option value="">— ບໍ່ລະບຸ —</option>
           {REPAIR_CENTERS.map((code) => (

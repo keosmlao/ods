@@ -89,7 +89,7 @@ export default async function CheckingPrintPage({ params }: { params: Promise<{ 
 
       <p className="no-print mb-6 text-right text-sm text-slate-500">{t.pressToPrint}</p>
 
-      <header className="flex items-start justify-between gap-6 border-b-2 border-slate-900 pb-4">
+      <header className="flex items-start justify-between gap-6 border-b-2 border-brand-900 pb-4">
         <div className="text-sm leading-6">
           <p className="text-base font-bold">{company?.name_1}</p>
           <p>{company?.name_2}</p>
@@ -121,7 +121,7 @@ export default async function CheckingPrintPage({ params }: { params: Promise<{ 
         <p>{t.model}: {head.model ?? "-"}</p>
         <p>{t.brand}: {head.brand ?? "-"}</p>
         <p>{t.serialNo}: {head.sn ?? "-"}</p>
-        <p className="col-span-2 text-red-700">{t.issue}: {head.issue ?? "-"}</p>
+        <p className="col-span-2 text-brand-orange-700">{t.issue}: {head.issue ?? "-"}</p>
         <p>{t.warranty}: {head.warranty ?? "-"}</p>
         <p>{t.receiver}: {head.receiver ?? "-"}</p>
 
@@ -142,7 +142,7 @@ export default async function CheckingPrintPage({ params }: { params: Promise<{ 
             <thead>
               <tr>
                 {["#", t.itemCode, t.productName, t.qty, t.unit].map((cell) => (
-                  <th key={cell} className="border border-slate-900 px-2 py-1 font-normal">
+                  <th key={cell} className="border border-brand-900 px-2 py-1 font-normal">
                     {cell}
                   </th>
                 ))}
@@ -151,11 +151,11 @@ export default async function CheckingPrintPage({ params }: { params: Promise<{ 
             <tbody>
               {lines.map((line) => (
                 <tr key={line.rnum}>
-                  <td className="border border-slate-900 px-2 py-1 text-center">{line.rnum}</td>
-                  <td className="border border-slate-900 px-2 py-1">{line.item_code}</td>
-                  <td className="border border-slate-900 px-2 py-1">{line.item_name ?? "-"}</td>
-                  <td className="border border-slate-900 px-2 py-1 text-center">{Number(line.qty)}</td>
-                  <td className="border border-slate-900 px-2 py-1 text-center">{line.unit_code ?? "-"}</td>
+                  <td className="border border-brand-900 px-2 py-1 text-center">{line.rnum}</td>
+                  <td className="border border-brand-900 px-2 py-1">{line.item_code}</td>
+                  <td className="border border-brand-900 px-2 py-1">{line.item_name ?? "-"}</td>
+                  <td className="border border-brand-900 px-2 py-1 text-center">{Number(line.qty)}</td>
+                  <td className="border border-brand-900 px-2 py-1 text-center">{line.unit_code ?? "-"}</td>
                 </tr>
               ))}
             </tbody>
@@ -171,7 +171,7 @@ export default async function CheckingPrintPage({ params }: { params: Promise<{ 
         ].map((role) => (
           <div key={role.label}>
             <p className="mb-12">{role.label}</p>
-            <p className="border-t border-slate-900 pt-1">{role.name}</p>
+            <p className="border-t border-brand-900 pt-1">{role.name}</p>
           </div>
         ))}
       </div>

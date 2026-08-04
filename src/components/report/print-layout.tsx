@@ -32,7 +32,7 @@ export async function PrintLayout({
       <p className="no-print mb-4 rounded-lg bg-slate-100 px-4 py-2 text-center text-sm text-slate-600">
         ກົດ Ctrl/Cmd + P ເພື່ອພິມ
       </p>
-      <header className="border-b-2 border-slate-900 pb-4 text-center">
+      <header className="border-b-2 border-brand-900 pb-4 text-center">
         <h1 className="text-xl font-bold">{company.name_1}</h1>
         <p className="text-sm">{company.name_2}</p>
         <p className="text-xs">{company.address}</p>

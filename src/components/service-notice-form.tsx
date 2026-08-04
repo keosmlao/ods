@@ -39,7 +39,7 @@ export type Notice = {
   location_lng: number | null;
 };
 
-const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100";
+const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100";
 const label = "mb-1 block text-sm text-slate-600";
 
 /** ໄລຍະຮັບປະກັນມາດຕະຖານ — ຄືກັບໜ້າຮັບເຄື່ອງໂດຍພະນັກງານ */
@@ -182,20 +182,20 @@ export function ServiceNoticeForm({ notice, types, brands, techs, images, initia
       <div className="sticky top-20 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
         <button
           disabled={pending}
-          className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-700 px-5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
         >
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
           {pending ? t.saving : t.save}
         </button>
-        <Link href="/service/notices" className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#DE3163] px-5 text-sm font-semibold text-white transition hover:opacity-90">
+        <Link href="/service/notices" className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#9f5f14] px-5 text-sm font-semibold text-white transition hover:opacity-90">
           <LogOut className="size-4" />
           {t.exit}
         </Link>
-        <span className="ml-auto text-sm text-slate-500">{t.noticeCodeLabel} <b className="text-[#0536a9]">{notice.code}</b> · {notice.noticed}</span>
+        <span className="ml-auto text-sm text-slate-500">{t.noticeCodeLabel} <b className="text-brand">{notice.code}</b> · {notice.noticed}</span>
       </div>
 
       {state.error && (
-        <p className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <p className="flex items-center gap-2 rounded-lg border border-brand-orange-400 bg-brand-orange-50 p-4 text-sm text-brand-orange-700">
           <AlertTriangle className="size-4 shrink-0" />
           {state.error}
         </p>
@@ -205,7 +205,7 @@ export function ServiceNoticeForm({ notice, types, brands, techs, images, initia
         <div className="space-y-5">
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 font-bold text-slate-700">
-              <span className="grid size-6 place-items-center rounded-full bg-slate-800 text-xs text-white">1</span>
+              <span className="grid size-6 place-items-center rounded-full bg-brand-800 text-xs text-white">1</span>
               {t.customer}
             </h2>
             <ServiceCustomer
@@ -221,7 +221,7 @@ export function ServiceNoticeForm({ notice, types, brands, techs, images, initia
 
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 font-bold text-slate-700">
-              <span className="grid size-6 place-items-center rounded-full bg-slate-800 text-xs text-white">2</span>
+              <span className="grid size-6 place-items-center rounded-full bg-brand-800 text-xs text-white">2</span>
               {t.productSection}
             </h2>
 
@@ -310,7 +310,7 @@ export function ServiceNoticeForm({ notice, types, brands, techs, images, initia
 
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 font-bold text-slate-700">
-              <span className="grid size-6 place-items-center rounded-full bg-slate-800 text-xs text-white">3</span>
+              <span className="grid size-6 place-items-center rounded-full bg-brand-800 text-xs text-white">3</span>
               {t.billAndWarranty}
             </h2>
 
@@ -350,7 +350,7 @@ export function ServiceNoticeForm({ notice, types, brands, techs, images, initia
                 {suggestion && (
                   <p
                     className={`mt-2 flex items-start gap-2 rounded-lg p-2 text-xs ${
-                      suggestion.inWarranty ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"
+                      suggestion.inWarranty ? "bg-brand-50 text-brand-800" : "bg-brand-orange-100 text-brand-900"
                     }`}
                   >
                     <ShieldCheck className="mt-0.5 size-4 shrink-0" />
@@ -367,7 +367,7 @@ export function ServiceNoticeForm({ notice, types, brands, techs, images, initia
 
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 font-bold text-slate-700">
-              <span className="grid size-6 place-items-center rounded-full bg-slate-800 text-xs text-white">4</span>
+              <span className="grid size-6 place-items-center rounded-full bg-brand-800 text-xs text-white">4</span>
               {t.symptomsAndOwner}
             </h2>
 

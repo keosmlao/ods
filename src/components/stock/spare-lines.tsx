@@ -77,7 +77,7 @@ export function EditableSpareLines({
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
         <div className="flex items-center gap-3">
-          <span className="grid size-9 place-items-center rounded-xl bg-sky-50 text-sky-700">
+          <span className="grid size-9 place-items-center rounded-xl bg-brand-50 text-brand-600">
             <Boxes className="size-4.5" />
           </span>
           <div>
@@ -91,12 +91,12 @@ export function EditableSpareLines({
         </div>
         <div className="flex items-center gap-2">
           {selectedWarehouse ? (
-            <span className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-700">
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-50 px-3 text-[11px] font-semibold text-brand-800">
               <Warehouse className="size-3.5" />
               {selectedWarehouse}{selectedShelf ? ` / ${selectedShelf}` : ""}
             </span>
           ) : (
-            <span className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-50 px-3 text-[11px] font-semibold text-amber-700">
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-orange-100 px-3 text-[11px] font-semibold text-brand-900">
               <AlertTriangle className="size-3.5" />
               {t.noWarehouseSelected}
             </span>
@@ -150,10 +150,10 @@ export function EditableSpareLines({
                       <b className="tabular-nums">{standardQty.toLocaleString()}</b>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <b className="tabular-nums text-teal-700">{alreadyRequested.toLocaleString()}</b>
+                      <b className="tabular-nums text-brand-800">{alreadyRequested.toLocaleString()}</b>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <b className="tabular-nums text-amber-700">{remainingQty.toLocaleString()}</b>
+                      <b className="tabular-nums text-brand-900">{remainingQty.toLocaleString()}</b>
                     </td>
                     {/*
                       ── ເບີກຮອບນີ້ (1 ສາງ / 1 ໃບ) ──
@@ -179,7 +179,7 @@ export function EditableSpareLines({
                         />
                       </div>
                     </td>
-                    <td className={`px-4 py-3 text-right text-sm font-bold tabular-nums ${selectedBalance === null ? "text-slate-300" : enough ? "text-emerald-600" : "text-red-600"}`}>
+                    <td className={`px-4 py-3 text-right text-sm font-bold tabular-nums ${selectedBalance === null ? "text-slate-300" : enough ? "text-brand-800" : "text-brand-orange-700"}`}>
                       {selectedBalance === null ? "—" : selectedBalance.toLocaleString()}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-600">
@@ -189,11 +189,11 @@ export function EditableSpareLines({
                       {selectedBalance === null ? (
                         <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">{t.selectWarehouseFirst}</span>
                       ) : enough ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-brand-50 px-2 py-1 text-[10px] font-semibold text-brand-800">
                           <CheckCircle2 className="size-3" /> {t.enough}
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-brand-orange-50 px-2 py-1 text-[10px] font-semibold text-brand-orange-700">
                           <AlertTriangle className="size-3" /> {t.short} {Math.max(0, remainingQty - selectedBalance).toLocaleString()}
                         </span>
                       )}
@@ -202,7 +202,7 @@ export function EditableSpareLines({
                       <form action={deleteSpareFromRequest}>
                         <input type="hidden" name="roworder" value={roworder} />
                         <input type="hidden" name="row_id" value={line.roworder} />
-                        <button type="submit" title={t.delete} className="rounded-lg p-2 text-[#DE3163] hover:bg-red-50">
+                        <button type="submit" title={t.delete} className="rounded-lg p-2 text-[#9f5f14] hover:bg-brand-orange-50">
                           <Trash2 className="size-4" />
                         </button>
                       </form>

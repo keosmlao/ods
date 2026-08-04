@@ -125,11 +125,11 @@ export default async function TrackingPage({ searchParams }: Props) {
             className="w-full text-xs outline-none"
           />
         </div>
-        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.searchButton}</button>
+        <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.searchButton}</button>
       </form>
 
       {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
+        <p className="rounded-lg border border-brand-orange-400 bg-brand-orange-50 px-3 py-2 text-xs text-brand-orange-700">{error}</p>
       )}
 
       {q && (
@@ -144,12 +144,12 @@ export default async function TrackingPage({ searchParams }: Props) {
                 <Link
                   key={code}
                   href={`/service/${code}`}
-                  className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-[#0536a9] hover:underline"
+                  className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand hover:underline"
                 >
                   {t.receiptDoc} {code}
                 </Link>
               ) : (
-                <span key={code} className="rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
+                <span key={code} className="rounded bg-brand-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-orange-700">
                   {t.installJob} {code}
                 </span>
               ),
@@ -157,10 +157,10 @@ export default async function TrackingPage({ searchParams }: Props) {
           </div>
 
           {events.length ? (
-            <ol className="relative ml-2 border-l-2 border-teal-100">
+            <ol className="relative ml-2 border-l-2 border-brand-100">
               {events.map((event, index) => (
                 <li key={`${event.code}-${event.event}-${index}`} className="relative mb-5 ml-6 last:mb-0">
-                  <span className="absolute -left-[29px] top-1 size-2.5 rounded-full bg-teal-500 ring-4 ring-teal-50" />
+                  <span className="absolute -left-[29px] top-1 size-2.5 rounded-full bg-brand-600 ring-4 ring-brand-50" />
                   <p className="text-xs font-semibold text-slate-800">{event.event}</p>
                   <p className="mt-0.5 text-[11px] text-slate-500">
                     {event.date} · {event.time} · {t.docNo} {event.code}

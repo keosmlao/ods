@@ -59,15 +59,15 @@ export type PurchaseRound = {
 
 /** ສະຖານະຂອງແຕ່ລະຮອບ ເປັນຄຳເວົ້າ + ໃຜຕ້ອງລົງມືຕໍ່ */
 export const WITHDRAW_STATE: Record<WithdrawRound["state"], { label: string; next: string; tone: string }> = {
-  requested: { label: "ລໍສາງເບີກ", next: "ສາງ", tone: "bg-amber-100 text-amber-800" },
-  dispatched: { label: "ສາງເບີກແລ້ວ ລໍຊ່າງຮັບ", next: "ຊ່າງ", tone: "bg-blue-50 text-blue-700" },
-  received: { label: "ຊ່າງຮັບແລ້ວ", next: "—", tone: "bg-emerald-50 text-emerald-700" },
+  requested: { label: "ລໍສາງເບີກ", next: "ສາງ", tone: "bg-brand-orange-300 text-brand-900" },
+  dispatched: { label: "ສາງເບີກແລ້ວ ລໍຊ່າງຮັບ", next: "ຊ່າງ", tone: "bg-brand-50 text-brand-700" },
+  received: { label: "ຊ່າງຮັບແລ້ວ", next: "—", tone: "bg-brand-50 text-brand-800" },
 };
 
 export const PURCHASE_STATE: Record<PurchaseRound["state"], { label: string; next: string; tone: string }> = {
-  waiting_approve: { label: "ລໍອະນຸມັດ", next: "ຜູ້ຈັດການ", tone: "bg-amber-100 text-amber-800" },
-  approved: { label: "ອະນຸມັດແລ້ວ — ຕິດຕາມຢູ່ ERP", next: "ຈັດຊື້", tone: "bg-blue-50 text-blue-700" },
-  rejected: { label: "ບໍ່ອະນຸມັດ", next: "—", tone: "bg-red-50 text-red-700" },
+  waiting_approve: { label: "ລໍອະນຸມັດ", next: "ຜູ້ຈັດການ", tone: "bg-brand-orange-300 text-brand-900" },
+  approved: { label: "ອະນຸມັດແລ້ວ — ຕິດຕາມຢູ່ ERP", next: "ຈັດຊື້", tone: "bg-brand-50 text-brand-700" },
+  rejected: { label: "ບໍ່ອະນຸມັດ", next: "—", tone: "bg-brand-orange-50 text-brand-orange-700" },
 };
 
 

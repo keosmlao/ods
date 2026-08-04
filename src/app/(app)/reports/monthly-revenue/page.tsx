@@ -11,7 +11,7 @@ import Link from "next/link";
  * ແຖວ stat tiles → bar chart ລາຍເດືອນ (ປີນີ້/ປີກາຍ + ຂີດເປົ້າ) → bar chart ແຍກໝວດ
  * → ຕາຕະລາງລະອຽດ (table view ຂອງ chart — ຕາມກົດ accessibility).
  *
- * ສີ series ຜ່ານ validator ຂອງ dataviz skill (ຟ້າ #2a78d6 / ສົ້ມ #eb6834, ພື້ນຂາວ):
+ * ສີ series ຜ່ານ validator ຂອງ dataviz skill (ຟ້າ #2c6fb6 / ສົ້ມ #f6921e, ພື້ນຂາວ):
  * lightness · chroma · CVD ΔE 24.7 · normal ΔE 33.6 · contrast ≥3:1 — ຫ້າມປ່ຽນຕາມໃຈ.
  * ຕົວໜັງສື/ຕົວເລກໃຊ້ສີ text (slate) ສະເໝີ — ສີ series ຢູ່ແຕ່ແທ່ງ/chip.
  */
@@ -19,8 +19,8 @@ export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<{ month?: string }> };
 
-const SERIES_NOW = "#2a78d6";  // ປີນີ້
-const SERIES_LAST = "#eb6834"; // ປີກາຍ
+const SERIES_NOW = "#2c6fb6";  // ປີນີ້
+const SERIES_LAST = "#f6921e"; // ປີກາຍ
 
 const fmt = (value: number) => Math.round(value).toLocaleString("en-US");
 const pct = (actual: number, base: number) =>
@@ -61,7 +61,7 @@ function Delta({ actual, base, label }: { actual: number; base: number; label: s
   const ratio = actual / base;
   const up = ratio >= 1;
   return (
-    <span className={`text-xs font-semibold ${up ? "text-emerald-600" : "text-rose-600"}`}>
+    <span className={`text-xs font-semibold ${up ? "text-brand-800" : "text-brand-orange-700"}`}>
       {up ? "▲" : "▼"} {Math.round(ratio * 100)}% <span className="font-normal text-slate-400">{label}</span>
     </span>
   );
@@ -115,12 +115,12 @@ export default async function MonthlyRevenueReport({ searchParams }: Props) {
   const breakdownRows = [
     categories[0],
     categories[1],
-    { sum: true as const, label: t.installSum, keys: ["install_ac", "install_app"] as RevCategory[], tone: "bg-orange-50" },
+    { sum: true as const, label: t.installSum, keys: ["install_ac", "install_app"] as RevCategory[], tone: "bg-brand-orange-50" },
     categories[2],
     categories[3],
-    { sum: true as const, label: t.repairSum, keys: ["repair_ac", "repair_app"] as RevCategory[], tone: "bg-sky-50" },
+    { sum: true as const, label: t.repairSum, keys: ["repair_ac", "repair_app"] as RevCategory[], tone: "bg-brand-50" },
     categories[4],
-    { sum: true as const, label: t.total, keys: ["install_ac", "install_app", "repair_ac", "repair_app", "other"] as RevCategory[], tone: "bg-fuchsia-50 font-bold" },
+    { sum: true as const, label: t.total, keys: ["install_ac", "install_app", "repair_ac", "repair_app", "other"] as RevCategory[], tone: "bg-brand-orange-50 font-bold" },
   ];
   const pick = (row: typeof breakdownRows[number], source: Record<RevCategory, number>) =>
     "sum" in row ? row.keys.reduce((total, key) => total + source[key], 0) : source[row.key];
@@ -145,7 +145,7 @@ export default async function MonthlyRevenueReport({ searchParams }: Props) {
             type="month"
             name="month"
             defaultValue={month}
-            className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs outline-none focus:border-teal-500"
+            className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs outline-none focus:border-brand-600"
           />
           <Button type="submit" size="sm">{t.show}</Button>
         </form>
@@ -184,7 +184,7 @@ export default async function MonthlyRevenueReport({ searchParams }: Props) {
           <div className="flex items-center justify-between text-xs text-slate-500">
             <span>{t.colTarget} · {monthNo}/{year}</span>
             {canEdit && (
-              <Link href={`/manage/revenue-targets?year=${year}`} className="font-semibold text-teal-700 hover:underline">
+              <Link href={`/manage/revenue-targets?year=${year}`} className="font-semibold text-brand-800 hover:underline">
                 {t.setTargets}
               </Link>
             )}
@@ -209,7 +209,7 @@ export default async function MonthlyRevenueReport({ searchParams }: Props) {
             <span className="inline-block size-2.5 rounded-sm" style={{ background: SERIES_LAST }} /> {t.lastYear} ({year - 1})
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block h-0.5 w-3.5 bg-slate-800" /> {t.colTarget}
+            <span className="inline-block h-0.5 w-3.5 bg-brand-800" /> {t.colTarget}
           </span>
           <span className="ml-auto text-slate-400">{t.unitBaht}</span>
         </div>
@@ -266,7 +266,7 @@ export default async function MonthlyRevenueReport({ searchParams }: Props) {
 
                   {/* ຂີດເປົ້າ */}
                   {row.target > 0 && (
-                    <div className="pointer-events-none absolute inset-x-1.5 h-0.5 bg-slate-800" style={{ bottom: h(row.target) }} />
+                    <div className="pointer-events-none absolute inset-x-1.5 h-0.5 bg-brand-800" style={{ bottom: h(row.target) }} />
                   )}
                 </div>
               ))}
@@ -280,7 +280,7 @@ export default async function MonthlyRevenueReport({ searchParams }: Props) {
             <Link
               key={row.key}
               href={`/reports/monthly-revenue?month=${row.key}`}
-              className={`flex-1 rounded py-0.5 hover:bg-slate-100 ${row.m === monthNo ? "font-bold text-teal-700" : "text-slate-500"}`}
+              className={`flex-1 rounded py-0.5 hover:bg-slate-100 ${row.m === monthNo ? "font-bold text-brand-800" : "text-slate-500"}`}
             >
               {row.m}
             </Link>
@@ -325,7 +325,7 @@ export default async function MonthlyRevenueReport({ searchParams }: Props) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-xs">
             <thead>
-              <tr className="border-b border-slate-200 bg-amber-50 text-slate-600">
+              <tr className="border-b border-slate-200 bg-brand-orange-100 text-slate-600">
                 <th className="px-3 py-2 text-left"></th>
                 <th className="px-3 py-2 text-right">{monthNo}/{year}</th>
                 <th className="px-3 py-2 text-right">{monthNo}/{year - 1}</th>

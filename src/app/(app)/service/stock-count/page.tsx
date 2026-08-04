@@ -24,14 +24,14 @@ export default async function StockCountPage() {
     <div className="w-full space-y-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="flex items-center gap-2 text-lg font-bold text-slate-700">
-          <ScanLine className="size-5 text-teal-600" />
+          <ScanLine className="size-5 text-brand-700" />
           ກວດນັບສະຕ໋ອກເຄື່ອງສ້ອມແປງ
         </h1>
         <Link
           href="/reports/stock-count"
           className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"
         >
-          <FileBarChart className="size-4 text-teal-600" />
+          <FileBarChart className="size-4 text-brand-700" />
           ລາຍງານຜົນກວດນັບ
         </Link>
       </div>

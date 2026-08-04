@@ -129,7 +129,7 @@ function JobBadge({ jobType, t }: { jobType: string | null; t: Dict }) {
   return (
     <span
       className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-        install ? "bg-violet-50 text-violet-700" : "bg-slate-100 text-slate-600"
+        install ? "bg-brand-orange-50 text-brand-orange-700" : "bg-slate-100 text-slate-600"
       }`}
     >
       {install ? t.badgeInstall : t.badgeRepair}
@@ -190,7 +190,7 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
               key={key}
               href={tabHref(key)}
               className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon className="size-3.5" />
@@ -234,7 +234,7 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
                 const tone = elapsedTone(doc.elapsed_seconds);
                 return (
                   <tr key={doc.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tab === "pending" ? tone.bar : ""}`} aria-hidden />
                       {doc.doc_no}
                       <span className="mt-0.5 block">
@@ -261,7 +261,7 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                          tab === "pending" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
+                          tab === "pending" ? "bg-brand-orange-100 text-brand-900" : "bg-brand-50 text-brand-800"
                         }`}
                       >
                         {tab === "pending" ? t.statusReturnRequest : t.statusReceived}
@@ -276,7 +276,7 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
                               ? `/installations/spare-returns/receive/${encodeURIComponent(doc.doc_no)}`
                               : `/stock/receive-returns/${encodeURIComponent(doc.doc_no)}`
                           }
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
                         >
                           <PackageCheck className="size-3.5" />
                           {t.receive}
@@ -285,7 +285,7 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
                       ) : (
                         <Link
                           href={`/stock/receive-returns/bill/${encodeURIComponent(doc.doc_no)}`}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-sky-500 px-3 text-xs font-semibold text-white hover:bg-sky-600"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-500 px-3 text-xs font-semibold text-white hover:bg-brand-500"
                         >
                           <Eye className="size-3.5" />
                           {t.view}

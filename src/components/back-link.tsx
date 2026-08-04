@@ -26,7 +26,7 @@ export function BackLink({ fallback, label }: { fallback: string; label: string 
     <button
       type="button"
       onClick={goBack}
-      className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline"
+      className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:underline"
     >
       <ArrowLeft className="size-3.5" />
       {label}

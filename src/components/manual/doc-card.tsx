@@ -13,17 +13,17 @@ function DocumentHeader({ doc, meta, printHref, printLabel }: { doc: Doc; meta: 
   const documentType = doc.code.startsWith("SOP-") ? "SOP" : "WI";
 
   return (
-    <header className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950 px-5 py-5 text-white print:border-b-2 print:border-slate-800 print:bg-white print:px-4 print:py-3 print:text-slate-900">
-      <div className="pointer-events-none absolute -right-16 -top-20 size-52 rounded-full bg-teal-400/10 blur-2xl print:hidden" />
-      <div className="pointer-events-none absolute -bottom-24 left-1/3 size-44 rounded-full bg-cyan-300/5 blur-2xl print:hidden" />
+    <header className="relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-900 to-brand-900 px-5 py-5 text-white print:border-b-2 print:border-brand-800 print:bg-white print:px-4 print:py-3 print:text-slate-900">
+      <div className="pointer-events-none absolute -right-16 -top-20 size-52 rounded-full bg-brand-400/10 blur-2xl print:hidden" />
+      <div className="pointer-events-none absolute -bottom-24 left-1/3 size-44 rounded-full bg-brand-300/5 blur-2xl print:hidden" />
 
       <div className="relative flex items-start gap-3.5 pr-9">
         <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/10 ring-1 ring-white/15 backdrop-blur print:size-10 print:rounded-lg print:bg-slate-100 print:text-slate-800 print:ring-slate-300">
-          <FileCheck2 className="size-6 text-teal-300 print:size-5 print:text-teal-700" />
+          <FileCheck2 className="size-6 text-brand-300 print:size-5 print:text-brand-800" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-teal-400/15 px-2.5 py-1 font-mono text-[10px] font-black tracking-[0.18em] text-teal-200 ring-1 ring-inset ring-teal-300/20 print:bg-teal-50 print:text-teal-800 print:ring-teal-200">
+            <span className="rounded-full bg-brand-400/15 px-2.5 py-1 font-mono text-[10px] font-black tracking-[0.18em] text-brand-200 ring-1 ring-inset ring-brand-300/20 print:bg-brand-50 print:text-brand-900 print:ring-brand-200">
               {documentType}
             </span>
             <span className="font-mono text-[11px] font-semibold text-slate-400 print:text-slate-500">{doc.code}</span>
@@ -35,21 +35,21 @@ function DocumentHeader({ doc, meta, printHref, printLabel }: { doc: Doc; meta: 
 
       <dl className="relative mt-5 grid gap-2 sm:grid-cols-3 print:mt-3 print:grid-cols-3">
         <div className="flex min-w-0 items-center gap-2.5 rounded-xl bg-white/[0.07] px-3 py-2.5 ring-1 ring-inset ring-white/10 print:rounded-none print:bg-white print:px-2 print:py-1.5 print:ring-slate-300">
-          <RefreshCcw className="size-4 shrink-0 text-teal-300 print:size-3.5 print:text-teal-700" />
+          <RefreshCcw className="size-4 shrink-0 text-brand-300 print:size-3.5 print:text-brand-800" />
           <div className="min-w-0">
             <dt className="text-[9px] font-bold uppercase tracking-wider text-slate-400 print:text-slate-500">{meta.revision}</dt>
             <dd className="font-mono text-xs font-bold text-white print:text-slate-800">{DOC_REV}</dd>
           </div>
         </div>
         <div className="flex min-w-0 items-center gap-2.5 rounded-xl bg-white/[0.07] px-3 py-2.5 ring-1 ring-inset ring-white/10 print:rounded-none print:bg-white print:px-2 print:py-1.5 print:ring-slate-300">
-          <CalendarDays className="size-4 shrink-0 text-teal-300 print:size-3.5 print:text-teal-700" />
+          <CalendarDays className="size-4 shrink-0 text-brand-300 print:size-3.5 print:text-brand-800" />
           <div className="min-w-0">
             <dt className="text-[9px] font-bold uppercase tracking-wider text-slate-400 print:text-slate-500">{meta.effectiveDate}</dt>
             <dd className="font-mono text-xs font-bold text-white print:text-slate-800">{DOC_EFF}</dd>
           </div>
         </div>
         <div className="flex min-w-0 items-center gap-2.5 rounded-xl bg-white/[0.07] px-3 py-2.5 ring-1 ring-inset ring-white/10 print:rounded-none print:bg-white print:px-2 print:py-1.5 print:ring-slate-300">
-          <UserRound className="size-4 shrink-0 text-teal-300 print:size-3.5 print:text-teal-700" />
+          <UserRound className="size-4 shrink-0 text-brand-300 print:size-3.5 print:text-brand-800" />
           <div className="min-w-0">
             <dt className="text-[9px] font-bold uppercase tracking-wider text-slate-400 print:text-slate-500">{meta.owner}</dt>
             <dd className="truncate text-xs font-bold text-white print:text-slate-800">{doc.owner}</dd>
@@ -74,7 +74,7 @@ function DocumentHeader({ doc, meta, printHref, printLabel }: { doc: Doc; meta: 
 function NumberedSection({ n, label, children }: { n: number; label: string; children: React.ReactNode }) {
   return (
     <section className="group flex gap-3 border-b border-slate-100 px-5 py-4 last:border-b-0 print:gap-2 print:border-slate-300 print:px-4 print:py-2.5">
-      <div className="grid size-7 shrink-0 place-items-center rounded-lg bg-teal-50 font-mono text-[11px] font-black text-teal-700 ring-1 ring-inset ring-teal-100 transition group-hover:bg-teal-600 group-hover:text-white print:size-6 print:rounded-none print:bg-slate-100 print:text-slate-800 print:ring-slate-300">
+      <div className="grid size-7 shrink-0 place-items-center rounded-lg bg-brand-50 font-mono text-[11px] font-black text-brand-800 ring-1 ring-inset ring-brand-100 transition group-hover:bg-brand-700 group-hover:text-white print:size-6 print:rounded-none print:bg-slate-100 print:text-slate-800 print:ring-slate-300">
         {String(n).padStart(2, "0")}
       </div>
       <div className="min-w-0 flex-1">
@@ -94,7 +94,7 @@ export function DocCard({ doc, meta, printHref, printLabel }: { doc: Doc; meta: 
   const isSop = doc.code.startsWith("SOP-");
 
   return (
-    <article className="doc-card relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_18px_50px_-28px_rgba(15,23,42,0.35)] ring-1 ring-slate-900/[0.025] transition-shadow hover:shadow-[0_22px_60px_-28px_rgba(15,23,42,0.45)] print:rounded-none print:border-slate-400 print:shadow-none print:ring-0">
+    <article className="doc-card relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_18px_50px_-28px_rgba(15,23,42,0.35)] ring-1 ring-brand-900/[0.025] transition-shadow hover:shadow-[0_22px_60px_-28px_rgba(15,23,42,0.45)] print:rounded-none print:border-slate-400 print:shadow-none print:ring-0">
       <DocumentHeader doc={doc} meta={meta} printHref={printHref} printLabel={printLabel} />
 
       {isSop ? (
@@ -107,7 +107,7 @@ export function DocCard({ doc, meta, printHref, printLabel }: { doc: Doc; meta: 
             <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 shadow-sm print:rounded-none print:border-slate-400 print:shadow-none">
               <table className="w-full border-collapse text-left">
                 <thead>
-                  <tr className="bg-slate-900 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300 print:bg-slate-100 print:text-slate-700">
+                  <tr className="bg-brand-900 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300 print:bg-slate-100 print:text-slate-700">
                     <th className="w-11 border-r border-white/10 px-2 py-2.5 text-center print:border-slate-300">#</th>
                     <th className="px-3 py-2">{meta.procedure}</th>
                     <th className="hidden w-32 border-l border-white/10 px-3 py-2 sm:table-cell print:border-slate-300">{meta.owner}</th>
@@ -115,8 +115,8 @@ export function DocCard({ doc, meta, printHref, printLabel }: { doc: Doc; meta: 
                 </thead>
                 <tbody>
                   {doc.steps.map((step, i) => (
-                    <tr key={i} className="border-t border-slate-100 align-top transition-colors even:bg-slate-50/60 hover:bg-teal-50/50 print:border-slate-300 print:bg-white">
-                      <td className="border-r border-slate-100 px-2 py-3 text-center font-mono text-[11px] font-black text-teal-700 print:border-slate-300">{String(i + 1).padStart(2, "0")}</td>
+                    <tr key={i} className="border-t border-slate-100 align-top transition-colors even:bg-slate-50/60 hover:bg-brand-50/50 print:border-slate-300 print:bg-white">
+                      <td className="border-r border-slate-100 px-2 py-3 text-center font-mono text-[11px] font-black text-brand-800 print:border-slate-300">{String(i + 1).padStart(2, "0")}</td>
                       <td className="px-3 py-2.5 text-[12.5px] leading-relaxed text-slate-700">{step}</td>
                       <td className="hidden border-l border-slate-100 px-3 py-2.5 text-[11px] text-slate-500 sm:table-cell print:border-slate-300">
                         <span className="inline-flex rounded-full bg-slate-100 px-2 py-1 font-semibold text-slate-600 print:bg-white print:p-0">{doc.owner}</span>
@@ -132,16 +132,16 @@ export function DocCard({ doc, meta, printHref, printLabel }: { doc: Doc; meta: 
         <div>
           <div className="grid gap-3 border-b border-slate-200 p-4 md:grid-cols-2">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-teal-700">{meta.purpose}</p>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-brand-800">{meta.purpose}</p>
               <p className="mt-0.5 text-[13px] text-slate-600">{doc.purpose}</p>
             </div>
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-teal-700">{meta.scope}</p>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-brand-800">{meta.scope}</p>
               <p className="mt-0.5 text-[13px] text-slate-600">{doc.scope}</p>
             </div>
           </div>
           <div className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-teal-700">{meta.procedure}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-brand-800">{meta.procedure}</p>
             <ol className="mt-2 space-y-1.5">
               {doc.steps.map((step, i) => (
                 <li key={i} className="flex gap-2.5 text-[13px] text-slate-700">

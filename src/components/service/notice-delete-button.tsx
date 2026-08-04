@@ -42,8 +42,8 @@ export function NoticeDeleteButton({ code }: { code: string }) {
         }}
         className={`inline-flex size-8 items-center justify-center rounded-lg border ${
           error
-            ? "border-red-300 bg-red-50 text-red-600"
-            : "border-slate-300 bg-white text-slate-500 hover:bg-red-50 hover:text-red-600"
+            ? "border-brand-orange-400 bg-brand-orange-50 text-brand-orange-700"
+            : "border-slate-300 bg-white text-slate-500 hover:bg-brand-orange-50 hover:text-brand-orange-700"
         }`}
       >
         {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}

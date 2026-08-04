@@ -154,15 +154,15 @@ export default async function SpareRequestPage({ params }: Props) {
       <div className="w-full space-y-5">
         <PageTitle>ໃບຂໍເບີກຕິດຕັ້ງ</PageTitle>
         <JobHeader head={head.rows[0]} />
-        <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-5 shadow-sm">
-          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />
+        <div className="flex items-start gap-3 rounded-xl border border-brand-orange-400 bg-brand-orange-100 p-5 shadow-sm">
+          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-brand-900" />
           <div className="space-y-2">
-            <p className="text-sm font-bold text-amber-800">
+            <p className="text-sm font-bold text-brand-900">
               {BLOCKED[blocked]}
             </p>
             <Link
               href="/installations/spare-requests"
-              className="text-xs text-amber-700 underline"
+              className="text-xs text-brand-900 underline"
             >
               ກັບຄືນລາຍການໃບຂໍເບີກ
             </Link>

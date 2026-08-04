@@ -140,7 +140,7 @@ export function IsnField({
           <button
             type="button"
             onClick={() => setManual(!manual)}
-            className="ml-2 font-semibold text-teal-700 hover:underline"
+            className="ml-2 font-semibold text-brand-800 hover:underline"
           >
             {manual ? t.isnBackToList : t.isnTypeManually}
           </button>

@@ -32,19 +32,19 @@ export function PhotoThumb({
   return (
     <Link
       href={`/service/${code}/images`}
-      className={`relative block ${size} shrink-0 overflow-hidden rounded-lg border border-slate-200 transition hover:border-teal-400`}
+      className={`relative block ${size} shrink-0 overflow-hidden rounded-lg border border-slate-200 transition hover:border-brand-400`}
       title={`ເບິ່ງຮູບ (${count})`}
     >
       {thumb ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={`/api/uploads/${encodeURIComponent(thumb)}`} alt="" className="size-full bg-slate-50 object-cover" />
       ) : (
-        <span className="grid size-full place-items-center bg-teal-50 text-teal-500">
+        <span className="grid size-full place-items-center bg-brand-50 text-brand-600">
           <Images className="size-4" />
         </span>
       )}
       {count > 1 && (
-        <span className="absolute bottom-0 right-0 rounded-tl bg-slate-900/70 px-1 text-[9px] font-bold text-white">{count}</span>
+        <span className="absolute bottom-0 right-0 rounded-tl bg-brand-900/70 px-1 text-[9px] font-bold text-white">{count}</span>
       )}
     </Link>
   );

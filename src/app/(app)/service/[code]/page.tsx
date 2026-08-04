@@ -330,7 +330,7 @@ export default async function ServiceDetail({ params }: Props) {
   return (
     <div className="w-full space-y-4">
       {previous && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-brand-orange-400 bg-brand-orange-100 px-4 py-3 text-sm text-brand-900">
           <RotateCcw className="size-4 shrink-0" />
           <span>
             <b>{t.repeatRepair}</b> — {t.repeatReturnedOn} {previous.prev_returned} ({previous.days_between} {t.repeatDaysBefore} {REPEAT_DAYS} {t.repeatDaysUnit})
@@ -338,7 +338,7 @@ export default async function ServiceDetail({ params }: Props) {
           </span>
           <Link
             href={`/service/${previous.prev_code}`}
-            className="ml-auto inline-flex h-8 items-center gap-1 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700"
+            className="ml-auto inline-flex h-8 items-center gap-1 rounded-lg bg-brand-orange-700 px-3 text-xs font-semibold text-white hover:bg-brand-orange-700"
           >
             {t.viewOldReceipt} #{previous.prev_code}
             <LinkPending className="size-3" />
@@ -347,29 +347,29 @@ export default async function ServiceDetail({ params }: Props) {
       )}
 
       {/* ── HERO — ໂຕນຂຽວເຂັ້ມ ແບບແອັບ ODIEN SERVICE ── */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#0F2F2B] via-[#123f39] to-[#134E48] px-5 py-4 text-white shadow-lg shadow-teal-900/10">
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#003260] via-[#0f477d] to-[#1e5b9a] px-5 py-4 text-white shadow-lg shadow-brand-900/10">
         <BackLink fallback="/service" label={t.backToList} />
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-300/80">ODIEN SERVICE</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-300/80">ODIEN SERVICE</p>
             <h1 className="mt-0.5 text-2xl font-bold tracking-tight">{t.receipt} #{job.code}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
               <span
                 className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                  cancelled ? "bg-rose-500/30 text-rose-50" : done ? "bg-emerald-400/25 text-emerald-50" : "bg-white/15 text-white"
+                  cancelled ? "bg-brand-orange-700/30 text-brand-orange-100" : done ? "bg-brand-400/25 text-brand-100" : "bg-white/15 text-white"
                 }`}
               >
                 {stageLabel(job.stage, job.service_type)}
               </span>
-              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${inWarranty ? "bg-emerald-400/20 text-emerald-50" : "bg-white/10 text-teal-100/80"}`}>
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${inWarranty ? "bg-brand-400/20 text-brand-100" : "bg-white/10 text-brand-100/80"}`}>
                 {job.warranty || "-"}
               </span>
               {!done && !cancelled && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-teal-100/90">
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-brand-100/90">
                   {t.receivedSince} <Elapsed seconds={job.elapsed_seconds} className="font-semibold text-white" />
                 </span>
               )}
-              <span className="text-teal-200/60">· {job.registered || "-"}</span>
+              <span className="text-brand-200/60">· {job.registered || "-"}</span>
             </div>
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-2">
@@ -385,30 +385,30 @@ export default async function ServiceDetail({ params }: Props) {
           <ClaimMarkToggle jobCode={code} marked={claimMarked} />
           {linkedClaims.map((cl) => (
             <Link key={cl.claim_no} href={`/claims/${cl.claim_no}`} className={action} title="ໃບເຄມທີ່ຜູກ">
-              <ReceiptText className="size-3.5 text-teal-600" /> ເຄມ {cl.claim_no}
+              <ReceiptText className="size-3.5 text-brand-700" /> ເຄມ {cl.claim_no}
             </Link>
           ))}
           {/* A = ຂໍອາໄຫຼ່/ປ່ຽນ supplier — ຕອນກຳລັງສ້ອມ (ຍັງບໍ່ສົ່ງເຄື່ອງຄືນ) */}
           {canClaim && !job.returned && !haveClaimTypes.has("A") && (
             <Link href={claimSpawnQs("A")} className={action} title="ຂໍອາໄຫຼ່ / ປ່ຽນຕົວໃໝ່ ຈາກ supplier (ໃນປະກັນ)">
-              <FilePlus2 className="size-3.5 text-violet-600" /> ແຕກເຄມ · ຂໍອາໄຫຼ່ (A)
+              <FilePlus2 className="size-3.5 text-brand-orange-600" /> ແຕກເຄມ · ຂໍອາໄຫຼ່ (A)
             </Link>
           )}
           {/* C = ເຄມເງິນຄືນ supplier — ໄດ້ຕໍ່ເມື່ອ ສົ່ງເຄື່ອງສຳເລັດ (ສ້ອມຟຣີໃຫ້ລູກຄ້າແລ້ວ) */}
           {canClaim && job.returned && !haveClaimTypes.has("C") && (
             <Link href={claimSpawnQs("C")} className={action} title="ເຄມເງິນຄືນ supplier — ສ້ອມໃນປະກັນໃຫ້ລູກຄ້າຟຣີ ໄປເກັບເງິນນຳ supplier">
-              <FilePlus2 className="size-3.5 text-sky-600" /> ເຄມເງິນຄືນ supplier (C)
+              <FilePlus2 className="size-3.5 text-brand-500" /> ເຄມເງິນຄືນ supplier (C)
             </Link>
           )}
           {mapsUrl && (
             <a href={mapsUrl} target="_blank" rel="noreferrer" className={action} title="ເປີດ Google Maps">
-              <MapPin className="size-3.5 text-rose-600" />
+              <MapPin className="size-3.5 text-brand-orange-700" />
               {job.location_inst?.trim() || "ສະຖານທີ່"}
             </a>
           )}
           {waUrl && (
-            <a href={waUrl} target="_blank" rel="noreferrer" className={`${action} !text-green-700 hover:!bg-green-50`} title={`WhatsApp ${job.phone}`}>
-              <MessageCircle className="size-3.5 text-green-600" />
+            <a href={waUrl} target="_blank" rel="noreferrer" className={`${action} !text-brand-800 hover:!bg-brand-50`} title={`WhatsApp ${job.phone}`}>
+              <MessageCircle className="size-3.5 text-brand-800" />
               WhatsApp
             </a>
           )}
@@ -441,7 +441,7 @@ export default async function ServiceDetail({ params }: Props) {
           <Link
             href={`/service/${code}/print`}
             target="_blank"
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800"
+            className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-900 px-3 text-xs font-medium text-white hover:bg-brand-800"
           >
             <Printer className="size-3.5" />
             {t.print}
@@ -463,19 +463,19 @@ export default async function ServiceDetail({ params }: Props) {
         ຂຶ້ນກ່ອນ ຈັດການວຽກຄ້າງ/ປ່ຽນຊ່າງ ເພາະນັ້ນແມ່ນເຄື່ອງມື ບໍ່ແມ່ນສະຖານະ.
       */}
       {nextAction && (
-        <section className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-teal-200 bg-teal-50/70 px-5 py-4 shadow-sm">
-          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-teal-600 text-white">
+        <section className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-brand-200 bg-brand-50/70 px-5 py-4 shadow-sm">
+          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-700 text-white">
             <UserRound className="size-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-teal-900">
+            <p className="text-sm font-bold text-brand-900">
               ຕອນນີ້ລໍ <span className="text-base font-extrabold">{nextAction.actorLabel}</span> ເຮັດຕໍ່
             </p>
-            <p className="mt-0.5 text-xs font-medium text-teal-800">
+            <p className="mt-0.5 text-xs font-medium text-brand-900">
               {nextAction.label} · ຕ້ອງ: {nextAction.action}
             </p>
           </div>
-          <span className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-bold text-teal-700 ring-1 ring-teal-200">
+          <span className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-200">
             {stageLabel(job.stage, job.service_type)}
           </span>
         </section>
@@ -514,7 +514,7 @@ export default async function ServiceDetail({ params }: Props) {
             />
           )}
           {job.service_type === "IH" && job.repair_appoint_date && (
-            <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
+            <span className="inline-flex items-center gap-1 rounded-lg bg-brand-orange-100 px-2 py-1 text-xs font-semibold text-brand-900">
               <CalendarDays className="size-3.5" />
               {job.repair_appoint_date}
             </span>
@@ -544,7 +544,7 @@ export default async function ServiceDetail({ params }: Props) {
           <span className="flex items-center gap-2">
             <Clock className="size-4 text-slate-400" />
             ເສັ້ນເວລາລະອຽດ
-            <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+            <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-600">
               {stageLabel(job.stage, job.service_type)}
             </span>
           </span>
@@ -610,7 +610,7 @@ function HeroFact({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
   return (
     <div className="min-w-0 max-w-[190px]">
-      <p className="text-[10px] uppercase tracking-wide text-teal-300/70">{label}</p>
+      <p className="text-[10px] uppercase tracking-wide text-brand-300/70">{label}</p>
       <p className="truncate text-sm font-semibold text-white">{value}</p>
     </div>
   );

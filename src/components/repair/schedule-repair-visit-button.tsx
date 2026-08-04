@@ -50,16 +50,16 @@ export function ScheduleRepairVisitButton({
           setError("");
           setOpen(true);
         }}
-        className="inline-flex h-8 items-center gap-1 rounded-lg bg-amber-500 px-3 text-xs font-semibold text-white transition hover:bg-amber-600"
+        className="inline-flex h-8 items-center gap-1 rounded-lg bg-brand-orange-500 px-3 text-xs font-semibold text-white transition hover:bg-brand-orange-700"
       >
         <CalendarPlus className="size-3.5" />
         {currentDate ? t.rescheduleLabel : t.scheduleLabel}
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 p-4" onClick={() => !pending && setOpen(false)}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-brand-900/40 p-4" onClick={() => !pending && setOpen(false)}>
           <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="flex h-12 items-center bg-amber-500 px-5 text-sm font-bold text-white">{t.dialogTitle}</div>
+            <div className="flex h-12 items-center bg-brand-orange-500 px-5 text-sm font-bold text-white">{t.dialogTitle}</div>
             <div className="space-y-3 p-5 text-left">
               <p className="text-xs text-slate-500">{t.dialogHint}</p>
               <label className="block">
@@ -68,7 +68,7 @@ export function ScheduleRepairVisitButton({
                   type="date"
                   value={date}
                   onChange={(event) => setDate(event.target.value)}
-                  className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-teal-500"
+                  className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-600"
                 />
               </label>
               <label className="block">
@@ -77,16 +77,16 @@ export function ScheduleRepairVisitButton({
                   value={place}
                   onChange={(event) => setPlace(event.target.value)}
                   placeholder={t.locationPlaceholder}
-                  className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-teal-500"
+                  className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-600"
                 />
               </label>
-              {error && <p className="rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+              {error && <p className="rounded-lg border border-brand-orange-400 bg-brand-orange-50 p-2 text-sm text-brand-orange-700">{error}</p>}
               <div className="flex gap-3 pt-1">
                 <button
                   type="button"
                   disabled={pending}
                   onClick={submit}
-                  className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-teal-600 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
+                  className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-brand-700 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:opacity-60"
                 >
                   {pending && <LoaderCircle className="size-4 animate-spin" />}
                   {t.save}

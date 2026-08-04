@@ -84,7 +84,7 @@ export function RoleSelect({
             {t.saving}
           </span>
         )}
-        {error && <span className="mt-0.5 block text-[10px] font-semibold text-red-600">{error}</span>}
+        {error && <span className="mt-0.5 block text-[10px] font-semibold text-brand-orange-700">{error}</span>}
       </div>
     </>
   );
@@ -133,8 +133,8 @@ export function ActiveToggle({ code, name, active }: { code: string; name: strin
         title={active ? t.clickToDisable : t.clickToEnable}
         className={`inline-flex h-7 items-center gap-1 rounded-full px-2 text-[11px] font-semibold transition disabled:opacity-50 ${
           active
-            ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-            : "bg-red-50 text-red-700 hover:bg-red-100"
+            ? "bg-brand-50 text-brand-800 hover:bg-brand-100"
+            : "bg-brand-orange-50 text-brand-orange-700 hover:bg-brand-orange-100"
         }`}
       >
         {pending ? (
@@ -146,7 +146,7 @@ export function ActiveToggle({ code, name, active }: { code: string; name: strin
         )}
         {active ? t.active : t.disabled}
       </button>
-      {error && <span className="mt-0.5 block text-[10px] font-semibold text-red-600">{error}</span>}
+      {error && <span className="mt-0.5 block text-[10px] font-semibold text-brand-orange-700">{error}</span>}
     </>
   );
 }

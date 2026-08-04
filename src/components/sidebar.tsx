@@ -130,7 +130,7 @@ export function NavTree({
       {/* ຊ່ອງຄົ້ນຫາເມນູ — ມີ 40 ກວ່າລາຍການ ຈຶ່ງຈຳເປັນ */}
       {!collapsed && (
         <div className="px-3 pb-2">
-          <div className="flex h-9 items-center gap-2 rounded-lg bg-white/5 px-2.5 ring-1 ring-white/10 focus-within:ring-teal-500">
+          <div className="flex h-9 items-center gap-2 rounded-lg bg-white/5 px-2.5 ring-1 ring-white/10 focus-within:ring-brand-600">
             <Search className="size-4 shrink-0 text-slate-500" />
             <input
               value={query}
@@ -170,12 +170,12 @@ export function NavTree({
                   onClick={onExpand}
                   title={groupLabel}
                   className={`relative grid h-10 w-full place-items-center rounded-lg transition ${
-                    hasActive ? "bg-teal-500 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
+                    hasActive ? "bg-brand-600 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
                   }`}
                 >
                   <Icon className="size-5" />
                   {groupTotal > 0 && (
-                    <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500" />
+                    <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-brand-orange-700" />
                   )}
                 </button>
               </div>
@@ -192,7 +192,7 @@ export function NavTree({
                   hasActive ? "text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
                 }`}
               >
-                <Icon className={`size-4 shrink-0 ${hasActive ? "text-teal-400" : ""}`} />
+                <Icon className={`size-4 shrink-0 ${hasActive ? "text-brand-400" : ""}`} />
                 <span className="flex-1 text-left">{groupLabel}</span>
                 {!open && groupTotal > 0 && (
                   <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-xs font-bold text-slate-300">
@@ -225,18 +225,18 @@ export function NavTree({
                             onClick={onNavigate}
                             className={`relative flex items-center justify-between gap-2 rounded-lg py-1.5 pl-9 pr-3 text-sm transition ${
                               active
-                                ? "bg-teal-500/10 font-semibold text-teal-300"
+                                ? "bg-brand-600/10 font-semibold text-brand-300"
                                 : "text-slate-400 hover:bg-white/5 hover:text-white"
                             }`}
                           >
                             {/* ແຖບຂີດຊ້າຍ = ໜ້າທີ່ກຳລັງເປີດ */}
-                            {active && <span className="absolute inset-y-1 left-3 w-0.5 rounded-full bg-teal-400" />}
+                            {active && <span className="absolute inset-y-1 left-3 w-0.5 rounded-full bg-brand-400" />}
                             <span className="truncate">{itemLabel}</span>
                             {/* ຕົວເລກຄິວ — ນັບດ້ວຍເງື່ອນໄຂອັນດຽວກັບໜ້າປາຍທາງ (lib/nav-counts) */}
                             {item.count && (counts[item.count] ?? 0) > 0 && (
                               <span
                                 className={`shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
-                                  active ? "bg-teal-400 text-slate-900" : "bg-white/10 text-slate-300"
+                                  active ? "bg-brand-400 text-slate-900" : "bg-white/10 text-slate-300"
                                 }`}
                               >
                                 {counts[item.count]! > 99 ? "99+" : counts[item.count]}
@@ -280,13 +280,13 @@ export function Sidebar({
   return (
     <aside
       data-collapsed={collapsed}
-      className={`no-print fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-white/5 bg-slate-950 transition-[width] duration-200 lg:flex ${
+      className={`no-print fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-white/5 bg-brand-900 transition-[width] duration-200 lg:flex ${
         collapsed ? "w-16" : "w-64"
       }`}
     >
       <div className={`flex h-14 shrink-0 items-center border-b border-white/5 ${collapsed ? "justify-center px-2" : "gap-2.5 px-3"}`}>
         <Link href={homeForRole(role)} title="ODIEN SERVICE" className="flex items-center gap-3 overflow-hidden">
-          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-teal-500 text-white">
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand-600 text-white">
             <Wrench className="size-4" />
           </span>
           {!collapsed && (

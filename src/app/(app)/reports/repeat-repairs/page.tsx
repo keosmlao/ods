@@ -39,7 +39,7 @@ export default async function RepeatRepairsPage({ searchParams }: Props) {
             key={period}
             href={`/reports/repeat-repairs?d=${period}`}
             className={`inline-flex h-9 items-center rounded-lg px-3 text-xs font-semibold transition ${
-              days === period ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+              days === period ? "bg-brand-900 text-white" : "text-slate-600 hover:bg-slate-100"
             }`}
           >
             {period} {t.days}
@@ -48,7 +48,7 @@ export default async function RepeatRepairsPage({ searchParams }: Props) {
       </div>
 
       {rows.length > 0 && (
-        <p className="flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+        <p className="flex flex-wrap items-center gap-2 rounded-xl bg-brand-orange-100 px-4 py-3 text-sm font-semibold text-brand-900">
           <TriangleAlert className="size-4" />
           {rows.length} {t.summaryCount} <b>{sameTech} {t.summaryTechCount}</b> {t.summaryHint}
         </p>
@@ -69,7 +69,7 @@ export default async function RepeatRepairsPage({ searchParams }: Props) {
             return (
               <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="whitespace-nowrap px-3 py-2.5">
-                  <Link href={`/service/${row.code}`} className="font-bold text-teal-700 hover:underline">
+                  <Link href={`/service/${row.code}`} className="font-bold text-brand-800 hover:underline">
                     {row.code}
                   </Link>
                   <span className="block text-[11px] text-slate-400">{row.registered}</span>
@@ -82,7 +82,7 @@ export default async function RepeatRepairsPage({ searchParams }: Props) {
                 <td className="px-3 py-2.5 text-xs text-slate-700">
                   {row.issue ?? "-"}
                   {sameIssue && (
-                    <span className="ml-1 rounded bg-red-100 px-1 py-0.5 text-[10px] font-bold text-red-700">
+                    <span className="ml-1 rounded bg-brand-orange-100 px-1 py-0.5 text-[10px] font-bold text-brand-orange-700">
                       {t.sameIssueBadge}
                     </span>
                   )}
@@ -97,7 +97,7 @@ export default async function RepeatRepairsPage({ searchParams }: Props) {
                 <td className="whitespace-nowrap px-3 py-2.5 text-center">
                   <span
                     className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-bold ${
-                      row.days_after <= 14 ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"
+                      row.days_after <= 14 ? "bg-brand-orange-100 text-brand-orange-700" : "bg-slate-100 text-slate-600"
                     }`}
                   >
                     <RotateCcw className="size-3" />
@@ -107,7 +107,7 @@ export default async function RepeatRepairsPage({ searchParams }: Props) {
                 <td className="whitespace-nowrap px-3 py-2.5 text-center text-xs">
                   <span className="block font-semibold text-slate-700">{row.tech ?? "-"}</span>
                   {row.same_tech ? (
-                    <span className="rounded bg-amber-100 px-1 py-0.5 text-[10px] font-bold text-amber-800">
+                    <span className="rounded bg-brand-orange-300 px-1 py-0.5 text-[10px] font-bold text-brand-900">
                       {t.sameTechBadge}
                     </span>
                   ) : (

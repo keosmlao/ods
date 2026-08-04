@@ -83,7 +83,7 @@ export default async function SparePartDetailPage({ params }: Props) {
             <p className="text-xs text-slate-500">ຄົງເຫຼືອ</p>
             <p
               className={`mt-1 inline-block rounded px-1.5 py-0.5 text-sm font-semibold tabular-nums ${
-                inStock ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                inStock ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"
               }`}
             >
               {spare.balance_qty.toLocaleString()}
@@ -105,7 +105,7 @@ export default async function SparePartDetailPage({ params }: Props) {
           <Table head={["ລະຫັດສິນຄ້າ", "ຊື່ສິນຄ້າ", "ຮຸ່ນ", "ຫຍີ່ຫໍ້"]} minWidth={700}>
             {products.map((product) => (
               <tr key={product.product_code} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">{product.product_code}</td>
+                <td className="whitespace-nowrap px-3 py-2.5 font-bold text-brand">{product.product_code}</td>
                 <td className="px-3 py-2.5">
                   <span className="block font-medium text-slate-800">{product.name_1 || "-"}</span>
                   {product.name_2 && <span className="block text-[10px] text-slate-400">{product.name_2}</span>}

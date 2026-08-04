@@ -56,15 +56,15 @@ export function LazyTimelineRow({
 }) {
   const { data, loading, load, current } = useTimeline(workflow, code, openOnMount);
   return (
-    <tr className="border-b border-dashed border-indigo-100 bg-indigo-50/20">
+    <tr className="border-b border-dashed border-brand-100 bg-brand-50/20">
       <td colSpan={colSpan} className="px-10 py-2">
         <details open={openOnMount || undefined} onToggle={load}>
-          <summary className="cursor-pointer select-none text-[11px] font-semibold text-indigo-700">
+          <summary className="cursor-pointer select-none text-[11px] font-semibold text-brand-700">
             ↳ Timeline
             {loading && <span className="ml-2 font-normal text-slate-400">ກຳລັງໂຫຼດ…</span>}
             {current && <span className="ml-2 font-normal text-slate-500">ຂັ້ນປັດຈຸບັນ: {current.label}</span>}
           </summary>
-          <div className="mt-3 w-full rounded-xl border border-indigo-100 bg-white p-4">
+          <div className="mt-3 w-full rounded-xl border border-brand-100 bg-white p-4">
             {data && data.steps.length > 0 ? (
               <JobTimeline steps={data.steps} cancelledAt={data.cancelledAt} bare horizontal />
             ) : (
@@ -81,7 +81,7 @@ export function LazyTimelineRow({
 export function LazyTimelineBlock({
   workflow,
   code,
-  className = "mt-2 rounded-lg border border-indigo-100 bg-indigo-50/30 p-2",
+  className = "mt-2 rounded-lg border border-brand-100 bg-brand-50/30 p-2",
 }: {
   workflow: "repair" | "install";
   code: string;
@@ -90,7 +90,7 @@ export function LazyTimelineBlock({
   const { data, loading, load, current } = useTimeline(workflow, code, false);
   return (
     <details className={className} onToggle={load}>
-      <summary className="cursor-pointer select-none text-[11px] font-semibold text-indigo-700">
+      <summary className="cursor-pointer select-none text-[11px] font-semibold text-brand-700">
         ↳ Timeline
         {loading && <span className="ml-1 font-normal text-slate-400">ກຳລັງໂຫຼດ…</span>}
         {current && <span className="ml-1 font-normal text-slate-500">· {current.label}</span>}

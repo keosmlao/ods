@@ -157,7 +157,7 @@ export function CustomerApproveActions({ docNo, productCode }: { docNo: string; 
 
       <div>
         <label className={labelClass} htmlFor="cust_remark">
-          {t.reasonRemarkLabel} <span className="text-red-600">{t.reasonRequiredNote}</span>
+          {t.reasonRemarkLabel} <span className="text-brand-orange-700">{t.reasonRequiredNote}</span>
         </label>
         <input
           id="cust_remark"
@@ -222,14 +222,14 @@ function UndoButton({
         onClick={click}
         title={icon ? title : undefined}
         aria-label={icon ? label : undefined}
-        className={`inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-300 font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-40 ${
+        className={`inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-orange-400 font-semibold text-brand-900 hover:bg-brand-orange-100 disabled:opacity-40 ${
           icon ? "size-8" : size === "sm" ? "h-8 px-2.5 text-xs" : "h-10 px-4 text-sm"
         }`}
       >
         {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Undo2 className="size-3.5" />}
         {!icon && label}
       </button>
-      {error && <span className="max-w-56 text-[10px] font-medium text-red-600">{error}</span>}
+      {error && <span className="max-w-56 text-[10px] font-medium text-brand-orange-700">{error}</span>}
     </div>
   );
 }

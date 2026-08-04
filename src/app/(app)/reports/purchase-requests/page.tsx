@@ -76,7 +76,7 @@ export default async function PurchaseRequestsReport({ searchParams }: { searchP
               : `/reports/purchase-requests?${new URLSearchParams({ all: "1", report_type: reportType })}`
           }
           className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-medium ${
-            all ? "bg-sky-500 text-white hover:bg-sky-600" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+            all ? "bg-brand-500 text-white hover:bg-brand-500" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
           }`}
         >
           ສະແດງທັງໝົດ

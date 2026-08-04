@@ -21,7 +21,7 @@ export function ReturnWithoutInvoice({ code, outstandingLines }: { code: string;
     <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm">
       {dialog}
       <div className="flex flex-wrap items-center gap-3">
-        <Ban className="size-4 shrink-0 text-red-600" />
+        <Ban className="size-4 shrink-0 text-brand-orange-700" />
         <div className="min-w-56 flex-1">
           <h2 className="text-sm font-bold text-slate-700">ວຽກນີ້ຖືກຍົກເລີກ — ສົ່ງຄືນໂດຍບໍ່ສ້ອມ</h2>
           <p className="mt-0.5 text-xs text-slate-500">
@@ -42,7 +42,7 @@ export function ReturnWithoutInvoice({ code, outstandingLines }: { code: string;
                   {outstandingLines > 0 && (
                     <>
                       {" "}
-                      <b className="text-amber-700">
+                      <b className="text-brand-900">
                         ເຕືອນ: ຍັງມີອາໄຫຼ່ {outstandingLines} ລາຍການ ທີ່ຍັງບໍ່ໄດ້ສົ່ງຄືນສາງ
                       </b>{" "}
                       — ຢ່າລືມສ້າງໃບຂໍສົ່ງອາໄຫຼ່ຄືນ.

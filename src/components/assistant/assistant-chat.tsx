@@ -110,7 +110,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
     <section className="flex h-[calc(100vh-11rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       {/* ── ຫົວ ── */}
       <header className="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#0536a9] text-white">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand text-white">
           <Bot className="size-5" />
         </span>
         <span className="min-w-0 flex-1">
@@ -118,7 +118,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
             {t.title}
           </span>
           <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500">
-            <ShieldCheck className="size-3 text-emerald-600" />
+            <ShieldCheck className="size-3 text-brand-800" />
             {t.readonlyNote}
           </span>
         </span>
@@ -142,7 +142,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
       <div className="flex-1 overflow-y-auto bg-slate-50 p-4">
         <div className="mx-auto max-w-4xl space-y-3">
           {!configured && (
-            <div className="mx-auto flex max-w-xl items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs leading-5 text-amber-900">
+            <div className="mx-auto flex max-w-xl items-start gap-2.5 rounded-xl border border-brand-orange-400 bg-brand-orange-100 p-3.5 text-xs leading-5 text-brand-900">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
               <span>
                 <b className="block">{t.notReadyTitle}</b>
@@ -157,7 +157,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
 
           {configured && messages.length === 0 && (
             <div className="mx-auto flex max-w-2xl flex-col items-center py-8 text-center">
-              <span className="grid size-14 place-items-center rounded-2xl bg-white text-[#0536a9] ring-1 ring-slate-200">
+              <span className="grid size-14 place-items-center rounded-2xl bg-white text-brand ring-1 ring-slate-200">
                 <Bot className="size-7" />
               </span>
               <h2 className="mt-3 text-base font-bold text-slate-800">
@@ -173,9 +173,9 @@ export function AssistantChat({ configured }: { configured: boolean }) {
                     key={starter}
                     onClick={() => void ask(starter)}
                     disabled={!configured || pending}
-                    className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-left text-xs font-medium text-slate-700 shadow-sm transition hover:border-[#0536a9]/40 hover:bg-slate-50 disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-left text-xs font-medium text-slate-700 shadow-sm transition hover:border-brand/40 hover:bg-slate-50 disabled:opacity-50"
                   >
-                    <Sparkles className="size-3.5 shrink-0 text-[#0536a9]" />
+                    <Sparkles className="size-3.5 shrink-0 text-brand" />
                     {starter}
                   </button>
                 ))}
@@ -188,7 +188,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
             message.failed ? (
               <div
                 key={`error-${index}`}
-                className="mx-auto flex max-w-xl items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs leading-5 text-amber-900"
+                className="mx-auto flex max-w-xl items-start gap-2.5 rounded-xl border border-brand-orange-400 bg-brand-orange-100 p-3.5 text-xs leading-5 text-brand-900"
               >
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                 <span>
@@ -202,14 +202,14 @@ export function AssistantChat({ configured }: { configured: boolean }) {
                 className={`flex gap-2.5 ${message.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 {message.role === "assistant" && (
-                  <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-[#0536a9] text-white">
+                  <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-brand text-white">
                     <Bot className="size-4" />
                   </span>
                 )}
                 <div
                   className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-6 sm:max-w-[75%] ${
                     message.role === "user"
-                      ? "rounded-br-sm bg-[#0536a9] text-white"
+                      ? "rounded-br-sm bg-brand text-white"
                       : "rounded-bl-sm border border-slate-200 bg-white text-slate-700 shadow-sm"
                   }`}
                 >
@@ -221,11 +221,11 @@ export function AssistantChat({ configured }: { configured: boolean }) {
 
           {pending && (
             <div className="flex items-center gap-2.5">
-              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-[#0536a9] text-white">
+              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-brand text-white">
                 <Bot className="size-4" />
               </span>
               <span className="inline-flex items-center gap-2 rounded-2xl rounded-bl-sm border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-500 shadow-sm">
-                <LoaderCircle className="size-3.5 animate-spin text-[#0536a9]" />
+                <LoaderCircle className="size-3.5 animate-spin text-brand" />
                 {t.checking}
               </span>
             </div>
@@ -249,7 +249,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
                   key={starter}
                   onClick={() => void ask(starter)}
                   disabled={!configured || pending}
-                  className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-medium text-slate-600 hover:border-[#0536a9]/40 hover:bg-slate-50 disabled:opacity-50"
+                  className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-medium text-slate-600 hover:border-brand/40 hover:bg-slate-50 disabled:opacity-50"
                 >
                   {starter}
                 </button>
@@ -257,7 +257,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
             </div>
           )}
 
-          <div className="flex items-end gap-2 rounded-xl border border-slate-300 bg-white p-1.5 focus-within:border-[#0536a9] focus-within:ring-2 focus-within:ring-[#0536a9]/10">
+          <div className="flex items-end gap-2 rounded-xl border border-slate-300 bg-white p-1.5 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/10">
             <textarea
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
@@ -275,7 +275,7 @@ export function AssistantChat({ configured }: { configured: boolean }) {
             />
             <button
               disabled={!canSend}
-              className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#0536a9] text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-slate-300"
               aria-label={t.sendQuestion}
             >
               {pending ? (

@@ -254,12 +254,12 @@ export default async function CheckingPage({ searchParams }: Props) {
 
       {/* ເຕືອນລາຍການທີ່ໃຊ້ເວລາເກີນກຳນົດ */}
       {jobs.late > 0 && (
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-brand-orange-400 bg-brand-orange-50 px-3 py-2 text-sm text-brand-orange-700">
           <AlertTriangle className="size-4 shrink-0" />
           <span>
             {t.thereAre} <b>{jobs.late}</b> {t.items} <b>{t.overTimeLimit}</b>
           </span>
-          <span className="text-xs text-red-500">{t.slaNote}</span>
+          <span className="text-xs text-brand-orange-700">{t.slaNote}</span>
         </p>
       )}
 
@@ -275,7 +275,7 @@ export default async function CheckingPage({ searchParams }: Props) {
               key={key}
               href={tabHref(key)}
               className={`inline-flex h-10 items-center gap-2 border-l border-slate-300 px-3 text-sm font-medium first:border-l-0 ${
-                tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon className="size-4" />
@@ -317,7 +317,7 @@ export default async function CheckingPage({ searchParams }: Props) {
           />
         </div>
 
-        <button className="h-10 rounded-lg bg-slate-900 px-5 text-sm font-medium text-white">{t.search}</button>
+        <button className="h-10 rounded-lg bg-brand-900 px-5 text-sm font-medium text-white">{t.search}</button>
       </form>
 
       {/* ຕາຕະລາງ — ເດັສທັອບ (ຮູບແບບດຽວກັບ service-pending-table) */}
@@ -351,13 +351,13 @@ export default async function CheckingPage({ searchParams }: Props) {
                 const inWarranty = row.warranty === "ຮັບປະກັນ";
                 return (
                   <RowLink key={row.code} href={`/service/${row.code}`} className="relative border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-3 text-center font-bold text-[#0536a9]">
+                    <td className="relative whitespace-nowrap px-3 py-3 text-center font-bold text-brand">
                       {/* ແຖບສີບອກຄວາມດ່ວນ — ຄ້າງດົນເທົ່າໃດ ຍິ່ງແດງ */}
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                       <Link href={`/service/${row.code}`} className="hover:underline">{row.code}</Link>
                       {row.is_claim && (
                         <span
-                          className="mt-0.5 inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800 ring-1 ring-amber-300"
+                          className="mt-0.5 inline-flex items-center gap-0.5 rounded bg-brand-orange-300 px-1.5 py-0.5 text-[9px] font-bold text-brand-900 ring-1 ring-brand-orange-300"
                           title="job claim — ໝາຍ/ມີໃບເຄມ"
                         >
                           <ReceiptText className="size-2.5" /> ເຄມ
@@ -371,7 +371,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                           className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${tone.chip}`}
                         />
                         {state === "late" && (
-                          <span className="rounded bg-red-100 px-1 text-[10px] font-bold text-red-700">{t.slaLate}</span>
+                          <span className="rounded bg-brand-orange-100 px-1 text-[10px] font-bold text-brand-orange-700">{t.slaLate}</span>
                         )}
                       </span>
                       <span className="mt-0.5 block text-xs text-slate-400">
@@ -396,7 +396,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-3">
                       <span
                         className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-                          inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                          inWarranty ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"
                         }`}
                       >
                         {row.warranty || "-"}
@@ -406,7 +406,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-3 text-slate-600">
                       {SERVICE_TYPE_LABEL[row.service_type ?? ""] ?? row.service_type ?? "-"}
                     </td>
-                    <td className="max-w-52 truncate px-3 py-3 font-semibold text-red-600" title={row.issue ?? ""}>
+                    <td className="max-w-52 truncate px-3 py-3 font-semibold text-brand-orange-700" title={row.issue ?? ""}>
                       {row.issue || "-"}
                     </td>
                     <td className="whitespace-nowrap px-3 py-3">
@@ -416,7 +416,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                           href={`/service/${row.code}/print`}
                           target="_blank"
                           title={tt.printTitle}
-                          className="text-[#D35400] hover:opacity-70"
+                          className="text-[#f6921e] hover:opacity-70"
                         >
                           <Printer className="size-4" />
                         </Link>
@@ -424,7 +424,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                           href={`/service/${row.code}/label`}
                           target="_blank"
                           title={tt.printStickerTitle}
-                          className="text-teal-600 hover:opacity-70"
+                          className="text-brand-700 hover:opacity-70"
                         >
                           <Tag className="size-4" />
                         </Link>
@@ -435,7 +435,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                           <span className="flex items-center gap-1.5">
                             <Link
                               href={`/checking/${row.code}`}
-                              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-sm font-semibold text-white hover:bg-teal-700"
+                              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-sm font-semibold text-white hover:bg-brand-800"
                             >
                               <ClipboardCheck className="size-4" />
                               {t.continueCheck}
@@ -469,11 +469,11 @@ export default async function CheckingPage({ searchParams }: Props) {
               <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
               <div className="flex items-start justify-between gap-2">
                 <span className="flex items-center gap-1.5">
-                  <Link href={`/service/${row.code}`} className="text-base font-bold text-[#0536a9] hover:underline">
+                  <Link href={`/service/${row.code}`} className="text-base font-bold text-brand hover:underline">
                     {row.code}
                   </Link>
                   {row.is_claim && (
-                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800 ring-1 ring-amber-300">
+                    <span className="rounded bg-brand-orange-300 px-1.5 py-0.5 text-[9px] font-bold text-brand-900 ring-1 ring-brand-orange-300">
                       ເຄມ
                     </span>
                   )}
@@ -484,7 +484,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                     className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${tone.chip}`}
                   />
                   {state === "late" && (
-                    <span className="rounded bg-red-100 px-1 text-[10px] font-bold text-red-700">{t.slaLate}</span>
+                    <span className="rounded bg-brand-orange-100 px-1 text-[10px] font-bold text-brand-orange-700">{t.slaLate}</span>
                   )}
                 </span>
               </div>
@@ -508,7 +508,7 @@ export default async function CheckingPage({ searchParams }: Props) {
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
                 <span
                   className={`rounded px-1.5 py-0.5 font-medium ${
-                    inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                    inWarranty ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"
                   }`}
                 >
                   {row.warranty || "-"}
@@ -517,7 +517,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                 {row.receiver && <span className="text-slate-400">· {row.receiver}</span>}
               </div>
 
-              {row.issue && <p className="mt-1 text-sm font-semibold text-red-600">{row.issue}</p>}
+              {row.issue && <p className="mt-1 text-sm font-semibold text-brand-orange-700">{row.issue}</p>}
 
               <div className="mt-2.5 border-t border-slate-100 pt-2.5">
                 {tab === "waiting" ? (
@@ -527,7 +527,7 @@ export default async function CheckingPage({ searchParams }: Props) {
                   <div className="flex items-center gap-1.5">
                     <Link
                       href={`/checking/${row.code}`}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-sm font-semibold text-white hover:bg-teal-700"
+                      className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-sm font-semibold text-white hover:bg-brand-800"
                     >
                       <ClipboardCheck className="size-4" />
                       {t.continueCheck}

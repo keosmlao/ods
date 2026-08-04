@@ -184,10 +184,10 @@ export async function ReportShell({
     <div className="w-full space-y-5 pb-6">
       {/* ຫົວລາຍງານ */}
       <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm sm:px-6">
-        <div className="pointer-events-none absolute -right-16 -top-20 size-52 rounded-full bg-teal-100/60 blur-3xl" />
+        <div className="pointer-events-none absolute -right-16 -top-20 size-52 rounded-full bg-brand-100/60 blur-3xl" />
         <div className="relative flex flex-wrap items-start justify-between gap-5">
           <div className="min-w-0">
-          <Link href="/reports" className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-teal-700 transition hover:text-teal-900">
+          <Link href="/reports" className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-brand-800 transition hover:text-brand-900">
             <ChevronLeft className="size-3.5" />
             {t.reports}
             <LinkPending className="size-3" />
@@ -206,7 +206,7 @@ export async function ReportShell({
           {exportHref && (
             <a
               href={exportHref}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-semibold text-white shadow-sm shadow-emerald-200 transition hover:-translate-y-0.5 hover:bg-emerald-700"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand-700 px-4 text-xs font-semibold text-white shadow-sm shadow-brand-200 transition hover:-translate-y-0.5 hover:bg-brand-700"
             >
               <Download className="size-3.5" />
               {t.downloadExcel}
@@ -235,7 +235,7 @@ export async function ReportShell({
               key={tab.key}
               href={tab.href}
               className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                tab.active ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                tab.active ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               {tab.label}
@@ -277,7 +277,7 @@ export async function ReportShell({
                 type="date"
                 name="from"
                 defaultValue={dateRange.from}
-                className="h-10 w-full min-w-40 rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs outline-none transition focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100"
+                className="h-10 w-full min-w-40 rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs outline-none transition focus:border-brand-600 focus:bg-white focus:ring-2 focus:ring-brand-100"
               />
             </label>
             <label className="block">
@@ -286,7 +286,7 @@ export async function ReportShell({
                 type="date"
                 name="to"
                 defaultValue={dateRange.to}
-                className="h-10 w-full min-w-40 rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs outline-none transition focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100"
+                className="h-10 w-full min-w-40 rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs outline-none transition focus:border-brand-600 focus:bg-white focus:ring-2 focus:ring-brand-100"
               />
             </label>
           </>
@@ -296,13 +296,13 @@ export async function ReportShell({
 
         <label className="flex min-w-56 flex-1 flex-col">
           <span className="mb-1 block text-[11px] text-slate-500">{t.search}</span>
-          <span className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 transition focus-within:border-teal-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-teal-100">
+          <span className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 transition focus-within:border-brand-600 focus-within:bg-white focus-within:ring-2 focus-within:ring-brand-100">
             <Search className="size-3.5 shrink-0 text-slate-400" />
             <input name="q" defaultValue={state.q} placeholder={searchPlaceholder ?? t.searchPlaceholder} className="w-full text-xs outline-none" />
           </span>
         </label>
 
-        <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-900 px-5 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700">
+        <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand-900 px-5 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-800">
           <Search className="size-3.5" /> {t.search}
         </button>
         </div>
@@ -315,13 +315,13 @@ export async function ReportShell({
             <div
               key={`${tile.label}-${index}`}
               className={`relative min-w-40 overflow-hidden rounded-2xl border px-4 py-3 shadow-sm ${
-                index === 0 ? "border-teal-200 bg-gradient-to-br from-teal-50 to-emerald-50" : "border-slate-200 bg-white"
+                index === 0 ? "border-brand-200 bg-gradient-to-br from-brand-50 to-brand-50" : "border-slate-200 bg-white"
               }`}
             >
               <div className="flex items-center justify-between gap-6">
-                <div><p className={`text-[11px] font-medium ${index === 0 ? "text-teal-700" : "text-slate-500"}`}>{tile.label}</p>
-                <p className={`mt-1 text-xl font-bold ${index === 0 ? "text-teal-900" : "text-slate-900"}`}>{tile.value}</p></div>
-                <span className={`grid size-9 place-items-center rounded-xl ${index === 0 ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-500"}`}><BarChart3 className="size-4" /></span>
+                <div><p className={`text-[11px] font-medium ${index === 0 ? "text-brand-800" : "text-slate-500"}`}>{tile.label}</p>
+                <p className={`mt-1 text-xl font-bold ${index === 0 ? "text-brand-900" : "text-slate-900"}`}>{tile.value}</p></div>
+                <span className={`grid size-9 place-items-center rounded-xl ${index === 0 ? "bg-brand-700 text-white" : "bg-slate-100 text-slate-500"}`}><BarChart3 className="size-4" /></span>
               </div>
             </div>
           ))}
@@ -329,7 +329,7 @@ export async function ReportShell({
       )}
 
       {error ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-700">{error}</p>
+        <p className="rounded-lg border border-brand-orange-400 bg-brand-orange-50 p-4 text-xs text-brand-orange-700">{error}</p>
       ) : (
         <>
           {/* ຕາຕະລາງ desktop — ເຊື່ອງໃນມືຖື, ຄົງເດີມທຸກປະການໃນຈໍໃຫຍ່ */}
@@ -363,7 +363,7 @@ export async function ReportShell({
                 </thead>
                 <tbody>
                   {shown.map((row, index) => (
-                    <tr key={`${row[columns[0].key] ?? ""}-${index}`} className="group transition hover:bg-teal-50/40">
+                    <tr key={`${row[columns[0].key] ?? ""}-${index}`} className="group transition hover:bg-brand-50/40">
                       {columns.map((column) => {
                         const value = row[column.key];
                         return (

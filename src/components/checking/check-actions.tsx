@@ -45,7 +45,7 @@ export function StartCheckButton({ code }: { code: string }) {
           {t.startCheck}
         </Button>
         {error && (
-          <p className="flex items-center gap-1 text-[11px] font-medium text-red-600">
+          <p className="flex items-center gap-1 text-[11px] font-medium text-brand-orange-700">
             <AlertTriangle className="size-3 shrink-0" />
             {error}
           </p>

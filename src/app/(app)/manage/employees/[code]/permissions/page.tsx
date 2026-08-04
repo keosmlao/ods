@@ -46,11 +46,11 @@ export default async function EmployeePermissionsPage({ params }: { params: Prom
         <div>
           <BackLink fallback="/manage/employees" label="ກັບໄປລາຍການພະນັກງານ" />
           <h1 className="flex items-center gap-2 text-xl font-bold text-slate-800">
-            <ShieldCheck className="size-5 text-teal-600" /> ກຳນົດສິດລາຍຜູ້ໃຊ້
+            <ShieldCheck className="size-5 text-brand-700" /> ກຳນົດສິດລາຍຜູ້ໃຊ້
           </h1>
         </div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-          <span className="grid size-9 place-items-center rounded-lg bg-teal-50 text-teal-700">
+          <span className="grid size-9 place-items-center rounded-lg bg-brand-50 text-brand-800">
             <UserRound className="size-5" />
           </span>
           <span>
@@ -62,7 +62,7 @@ export default async function EmployeePermissionsPage({ params }: { params: Prom
         </div>
       </div>
 
-      <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-800">
+      <div className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-xs leading-5 text-brand-800">
         ສິດ “ອ່ານ” ຄວບຄຸມການເຫັນເມນູ ແລະເຂົ້າໜ້າ. ສິດ “ສ້າງ / ແກ້ໄຂ / ລົບ”
         ຖືກກວດຊ້ຳຝັ່ງ server. ການຕັ້ງເປັນ “ຕາມ role” ຈະປັບຕາມ role ໃໝ່ໃນອະນາຄົດອັດຕະໂນມັດ.
       </div>

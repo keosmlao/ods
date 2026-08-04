@@ -91,7 +91,7 @@ function PriceRow({ line, index, head }: { line: RqLine; index: number; head: Rq
             {pending ? <LoaderCircle className="size-4 animate-spin" /> : t.save}
           </Button>
         </form>
-        {state.error && <p className="mt-1 text-right text-xs text-red-600">{state.error}</p>}
+        {state.error && <p className="mt-1 text-right text-xs text-brand-orange-700">{state.error}</p>}
       </td>
       <td className="px-3 py-2 text-right font-semibold">{money(line.sum_amount)}</td>
     </tr>
@@ -162,7 +162,7 @@ export function RqForm({ head, lines, docNo, today }: { head: RqHead; lines: RqL
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>
-                <span className="text-red-500">*</span> {t.status}
+                <span className="text-brand-orange-700">*</span> {t.status}
               </label>
               <SelectField
                 name="status_doc"
@@ -175,7 +175,7 @@ export function RqForm({ head, lines, docNo, today }: { head: RqHead; lines: RqL
             </div>
             <div>
               <label className={labelClass}>
-                <span className="text-red-500">*</span> {t.warrantyLabel}
+                <span className="text-brand-orange-700">*</span> {t.warrantyLabel}
               </label>
               <SelectField
                 name="wanrunty"
@@ -194,7 +194,7 @@ export function RqForm({ head, lines, docNo, today }: { head: RqHead; lines: RqL
              */}
             <div>
               <label className={labelClass}>
-                <span className="text-red-500">*</span> {t.orderBranch}
+                <span className="text-brand-orange-700">*</span> {t.orderBranch}
               </label>
               <SelectField
                 name="branch_code"
@@ -211,7 +211,7 @@ export function RqForm({ head, lines, docNo, today }: { head: RqHead; lines: RqL
             </div>
             <div>
               <label className={labelClass} htmlFor="file1">
-                {t.attachFile} <span className="text-red-500">*</span>
+                {t.attachFile} <span className="text-brand-orange-700">*</span>
               </label>
               <input
                 id="file1"

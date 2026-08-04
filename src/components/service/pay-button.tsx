@@ -32,7 +32,7 @@ export function PayButton({ job, due, today }: { job: string; due: number; today
           setAmount(String(due));
           ref.current?.showModal();
         }}
-        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700"
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-700"
       >
         <Banknote className="size-3.5" />
         {t.receiveMoney}
@@ -57,7 +57,7 @@ export function PayButton({ job, due, today }: { job: string; due: number; today
               max={due}
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
-              className="h-10 w-full rounded-lg border border-slate-300 px-3 text-right text-sm tabular-nums focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+              className="h-10 w-full rounded-lg border border-slate-300 px-3 text-right text-sm tabular-nums focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
             />
           </label>
 
@@ -69,7 +69,7 @@ export function PayButton({ job, due, today }: { job: string; due: number; today
                 type="date"
                 defaultValue={today}
                 max={today}
-                className="h-10 w-full rounded-lg border border-slate-300 px-2 text-sm focus:border-emerald-500 focus:outline-none"
+                className="h-10 w-full rounded-lg border border-slate-300 px-2 text-sm focus:border-brand-600 focus:outline-none"
               />
             </label>
             <label className="block text-xs">
@@ -77,7 +77,7 @@ export function PayButton({ job, due, today }: { job: string; due: number; today
               <select
                 name="method"
                 defaultValue="cash"
-                className="h-10 w-full rounded-lg border border-slate-300 px-2 text-sm focus:border-emerald-500 focus:outline-none"
+                className="h-10 w-full rounded-lg border border-slate-300 px-2 text-sm focus:border-brand-600 focus:outline-none"
               >
                 {Object.entries(METHOD_LABEL).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -94,7 +94,7 @@ export function PayButton({ job, due, today }: { job: string; due: number; today
               name="reference"
               maxLength={100}
               placeholder={t.referencePlaceholder}
-              className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-emerald-500 focus:outline-none"
+              className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-brand-600 focus:outline-none"
             />
           </label>
           <input type="hidden" name="note" value="" />
@@ -110,7 +110,7 @@ export function PayButton({ job, due, today }: { job: string; due: number; today
             <button
               type="submit"
               disabled={pending}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-4 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-40"
             >
               {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Banknote className="size-3.5" />}
               {t.savePayment}

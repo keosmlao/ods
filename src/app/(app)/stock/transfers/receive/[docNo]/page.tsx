@@ -107,11 +107,11 @@ export default async function ReceiveTransferPage({ params }: Props) {
               <td className="px-3 py-3">{line.item_name ?? "-"}</td>
               <td className="px-3 py-3 text-center">{Number(line.qty)}</td>
               <td className="px-3 py-3 text-center">{line.unit_code ?? "-"}</td>
-              <td className="px-3 py-3 text-center font-semibold text-emerald-700">{line.inWh}</td>
+              <td className="px-3 py-3 text-center font-semibold text-brand-800">{line.inWh}</td>
               <td className="px-3 py-3 text-center">
                 <span
                   className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                    line.inWh > 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                    line.inWh > 0 ? "bg-brand-50 text-brand-800" : "bg-brand-orange-100 text-brand-900"
                   }`}
                 >
                   {line.inWh > 0 ? t.arrived : t.notArrived}

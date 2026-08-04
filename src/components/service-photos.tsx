@@ -88,7 +88,7 @@ export function ServicePhotos() {
         onDragLeave={() => setDragging(false)}
         onDrop={(event) => { event.preventDefault(); setDragging(false); add(event.dataTransfer.files); }}
         className={`rounded-xl border-2 border-dashed p-5 text-center transition ${
-          dragging ? "border-teal-500 bg-teal-50" : "border-slate-300 bg-slate-50"
+          dragging ? "border-brand-600 bg-brand-50" : "border-slate-300 bg-slate-50"
         }`}
       >
         <ImagePlus className="mx-auto size-7 text-slate-400" />
@@ -128,7 +128,7 @@ export function ServicePhotos() {
           <p className="text-xs font-medium text-slate-500">{media.length} ໄຟລ໌ · ອັນທຳອິດຈະເປັນໜ້າປົກ</p>
           <div className="grid grid-cols-3 gap-2">
             {media.map((item, index) => (
-              <div key={item.id} className="group relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-900/5">
+              <div key={item.id} className="group relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-brand-900/5">
                 {item.kind === "video" ? (
                   <video src={item.url} muted playsInline className="size-full object-cover" />
                 ) : (
@@ -140,7 +140,7 @@ export function ServicePhotos() {
                   </span>
                 )}
                 {index === 0 && (
-                  <span className="absolute left-1 top-1 rounded bg-teal-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                  <span className="absolute left-1 top-1 rounded bg-brand-700 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                     ໜ້າປົກ
                   </span>
                 )}
@@ -148,7 +148,7 @@ export function ServicePhotos() {
                   type="button"
                   onClick={() => remove(item.id)}
                   aria-label="ເອົາອອກ"
-                  className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-red-600 text-white opacity-0 transition group-hover:opacity-100 focus:opacity-100"
+                  className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-brand-orange-700 text-white opacity-0 transition group-hover:opacity-100 focus:opacity-100"
                 >
                   <X className="size-3.5" />
                 </button>

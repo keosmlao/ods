@@ -17,7 +17,7 @@ function ReceiveButton({ onConfirmed, disabled }: { onConfirmed: () => void; dis
       type="button"
       onClick={onConfirmed}
       disabled={pending || disabled}
-      className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+      className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? <LoaderCircle className="size-4 animate-spin" /> : <PackageCheck className="size-4" />}
       &nbsp;ຮັບຂອງທີ່ໂອນມາ
@@ -67,7 +67,7 @@ export function ReceiveTransferForm({
 
         <FormError message={state.error} />
 
-        <div className="grid gap-4 rounded-xl bg-[#0a5e96] p-5 text-white md:grid-cols-2">
+        <div className="grid gap-4 rounded-xl bg-[#2c6fb6] p-5 text-white md:grid-cols-2">
           <div className="space-y-1 text-sm">
             <p>
               <span className="text-white/70">ເລກທີ:</span> {docNo}
@@ -78,7 +78,7 @@ export function ReceiveTransferForm({
             {fields.map((field) => (
               <p key={field.label}>
                 <span className="text-white/70">{field.label}</span>{" "}
-                <span className={field.accent ? "text-[#ffd0d0]" : undefined}>{field.value || "-"}</span>
+                <span className={field.accent ? "text-[#ffd071]" : undefined}>{field.value || "-"}</span>
               </p>
             ))}
           </div>

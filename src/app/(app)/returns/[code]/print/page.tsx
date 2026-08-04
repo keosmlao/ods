@@ -84,7 +84,7 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ c
 
       <p className="no-print mb-6 text-right text-sm text-slate-500">{t.pressToPrint}</p>
 
-      <header className="flex items-start justify-between gap-6 border-b-2 border-slate-900 pb-4">
+      <header className="flex items-start justify-between gap-6 border-b-2 border-brand-900 pb-4">
         <div className="text-sm leading-6">
           <p className="text-base font-bold">{company?.name_1}</p>
           <p>{company?.name_2}</p>
@@ -119,29 +119,29 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ c
         <thead>
           <tr>
             {[t.colNo, t.colItem, t.qty, t.colUnit, t.colPrice, t.colSum].map((cell) => (
-              <th key={cell} className="border border-slate-900 px-2 py-1 font-normal">{cell}</th>
+              <th key={cell} className="border border-brand-900 px-2 py-1 font-normal">{cell}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {lines.map((line) => (
             <tr key={line.rnum}>
-              <td className="border border-slate-900 px-2 py-1 text-center">{line.rnum}</td>
-              <td className="border border-slate-900 px-2 py-1">{line.item_name}</td>
-              <td className="border border-slate-900 px-2 py-1 text-center">{Number(line.qty)}</td>
-              <td className="border border-slate-900 px-2 py-1 text-center">{line.unit_code}</td>
-              <td className="border border-slate-900 px-2 py-1 text-right">{money(line.price)} {t.baht}</td>
-              <td className="border border-slate-900 px-2 py-1 text-right">{money(line.sum_amount)} {t.baht}</td>
+              <td className="border border-brand-900 px-2 py-1 text-center">{line.rnum}</td>
+              <td className="border border-brand-900 px-2 py-1">{line.item_name}</td>
+              <td className="border border-brand-900 px-2 py-1 text-center">{Number(line.qty)}</td>
+              <td className="border border-brand-900 px-2 py-1 text-center">{line.unit_code}</td>
+              <td className="border border-brand-900 px-2 py-1 text-right">{money(line.price)} {t.baht}</td>
+              <td className="border border-brand-900 px-2 py-1 text-right">{money(line.sum_amount)} {t.baht}</td>
             </tr>
           ))}
           <tr>
             <td colSpan={4} className="px-2 py-1 text-right font-bold">{t.grandTotal}</td>
-            <td colSpan={2} className="border border-slate-900 px-2 py-1 text-right font-bold">{money(total)} {t.baht}</td>
+            <td colSpan={2} className="border border-brand-900 px-2 py-1 text-right font-bold">{money(total)} {t.baht}</td>
           </tr>
           <tr>
             <td colSpan={2} className="px-2 py-1 text-right">{t.exchangeRate}: {money(rates["02"])}</td>
             <td colSpan={2} className="px-2 py-1 text-right">{t.grandTotalKip}</td>
-            <td colSpan={2} className="border border-slate-900 px-2 py-1 text-right font-bold">
+            <td colSpan={2} className="border border-brand-900 px-2 py-1 text-right font-bold">
               {money(total * rates["02"])} {t.kip}
             </td>
           </tr>
@@ -155,18 +155,18 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ c
             <thead>
               <tr>
                 {[t.payColType, t.payColCurrency, t.payAmount, t.payColRate, t.payColBaht].map((cell) => (
-                  <th key={cell} className="border border-slate-900 px-2 py-1 font-normal">{cell}</th>
+                  <th key={cell} className="border border-brand-900 px-2 py-1 font-normal">{cell}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {payments.map((payment, index) => (
                 <tr key={index}>
-                  <td className="border border-slate-900 px-2 py-1">{payment.item_name || t.cash}</td>
-                  <td className="border border-slate-900 px-2 py-1 text-center">{payment.item_code}</td>
-                  <td className="border border-slate-900 px-2 py-1 text-right">{money(payment.total_value)}</td>
-                  <td className="border border-slate-900 px-2 py-1 text-right">{money(payment.exchange_rate)}</td>
-                  <td className="border border-slate-900 px-2 py-1 text-right">{money(payment.total_value_2)}</td>
+                  <td className="border border-brand-900 px-2 py-1">{payment.item_name || t.cash}</td>
+                  <td className="border border-brand-900 px-2 py-1 text-center">{payment.item_code}</td>
+                  <td className="border border-brand-900 px-2 py-1 text-right">{money(payment.total_value)}</td>
+                  <td className="border border-brand-900 px-2 py-1 text-right">{money(payment.exchange_rate)}</td>
+                  <td className="border border-brand-900 px-2 py-1 text-right">{money(payment.total_value_2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -184,7 +184,7 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ c
         ].map((role) => (
           <div key={role.label}>
             <p className="mb-12">{role.label}</p>
-            <p className="border-t border-slate-900 pt-1">
+            <p className="border-t border-brand-900 pt-1">
               {role.showUser ? head.user_created : ""}
             </p>
           </div>

@@ -89,14 +89,14 @@ export async function ServicePendingTable({
               const inWarranty = card.warranty === "ຮັບປະກັນ";
               return (
                 <tr key={card.code} className="relative border-b border-slate-100 hover:bg-slate-50">
-                  <td className="relative whitespace-nowrap px-3 py-3 text-center font-bold text-[#0536a9]">
+                  <td className="relative whitespace-nowrap px-3 py-3 text-center font-bold text-brand">
                     {/* ແຖບສີບອກຄວາມດ່ວນ — ຄ້າງດົນເທົ່າໃດ ຍິ່ງແດງ */}
                     <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                     <Link href={`/service/${card.code}`} className="hover:underline">
                       {card.code}
                     </Link>
                     {card.is_claim && (
-                      <span className="mt-0.5 inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800 ring-1 ring-amber-300" title="job claim — ໝາຍ/ມີໃບເຄມ">
+                      <span className="mt-0.5 inline-flex items-center gap-0.5 rounded bg-brand-orange-300 px-1.5 py-0.5 text-[9px] font-bold text-brand-900 ring-1 ring-brand-orange-300" title="job claim — ໝາຍ/ມີໃບເຄມ">
                         <ReceiptText className="size-2.5" /> ເຄມ
                       </span>
                     )}
@@ -108,7 +108,7 @@ export async function ServicePendingTable({
                       className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${tone.chip}`}
                     />
                     {/* ນາລິກາຢຸດຢູ່ ⇒ ຕ້ອງບອກ ບໍ່ດັ່ງນັ້ນຄົນອ່ານເລກນີ້ຜິດ */}
-                    {card.hold && <b className="mt-0.5 block text-[10px] text-amber-600">{t.clockStopped}</b>}
+                    {card.hold && <b className="mt-0.5 block text-[10px] text-brand-900">{t.clockStopped}</b>}
                   </td>
                   <td className="max-w-72 px-3 py-3">
                     <div className="flex items-center gap-2.5">
@@ -132,10 +132,10 @@ export async function ServicePendingTable({
                                 src={`/api/checkin-photo/${card.code}`}
                                 alt="check-in"
                                 loading="lazy"
-                                className={`size-7 rounded-md object-cover ring-2 ${card.checked_out ? "ring-slate-300" : "ring-teal-400"}`}
+                                className={`size-7 rounded-md object-cover ring-2 ${card.checked_out ? "ring-slate-300" : "ring-brand-400"}`}
                               />
                               <MapPin
-                                className={`absolute -bottom-1 -right-1 size-3 rounded-full bg-white p-px ${card.checked_out ? "text-slate-500" : "text-teal-600"}`}
+                                className={`absolute -bottom-1 -right-1 size-3 rounded-full bg-white p-px ${card.checked_out ? "text-slate-500" : "text-brand-700"}`}
                               />
                             </Link>
                           )}
@@ -152,7 +152,7 @@ export async function ServicePendingTable({
                   <td className="whitespace-nowrap px-3 py-3">
                     <span
                       className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-                        inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                        inWarranty ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"
                       }`}
                     >
                       {card.warranty || "-"}
@@ -170,7 +170,7 @@ export async function ServicePendingTable({
                         href={`/service/${card.code}/print`}
                         target="_blank"
                         title={t.printTitle}
-                        className="text-[#D35400] hover:opacity-70"
+                        className="text-[#f6921e] hover:opacity-70"
                       >
                         <Printer className="size-4" />
                       </Link>
@@ -179,7 +179,7 @@ export async function ServicePendingTable({
                         href={`/service/${card.code}/label`}
                         target="_blank"
                         title={t.printStickerTitle}
-                        className="text-teal-600 hover:opacity-70"
+                        className="text-brand-700 hover:opacity-70"
                       >
                         <Tag className="size-4" />
                       </Link>

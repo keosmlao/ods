@@ -111,7 +111,7 @@ export default async function DispatchPage({ searchParams }: Props) {
               <td className="whitespace-nowrap px-3 py-2.5 text-center">
                 <Link
                   href={`/installations/dispatch/${encodeURIComponent(row.doc_no)}`}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
                 >
                   <PackageMinus className="size-3.5" />
                   ເບີກ

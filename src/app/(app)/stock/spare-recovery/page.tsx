@@ -145,9 +145,9 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
           { label: t.statSpareLines, value: list.lines.toLocaleString() },
           { label: t.statUnits, value: list.units.toLocaleString() },
         ].map((item) => (
-          <div key={item.label} className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <p className="text-xs text-amber-700">{item.label}</p>
-            <p className="mt-1 text-xl font-bold tabular-nums text-amber-800">{item.value}</p>
+          <div key={item.label} className="rounded-xl border border-brand-orange-400 bg-brand-orange-100 p-4">
+            <p className="text-xs text-brand-900">{item.label}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-brand-900">{item.value}</p>
           </div>
         ))}
       </div>
@@ -164,7 +164,7 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
             className="w-full text-xs outline-none"
           />
         </div>
-        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+        <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
       </form>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -194,7 +194,7 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
                 const tone = elapsedTone(row.elapsed_seconds);
                 return (
                   <RowLink key={row.code} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                       <Link href={`/service/${row.code}`} className="hover:underline">
                         {row.code}
@@ -211,7 +211,7 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
                       <span className="block truncate font-medium text-slate-800" title={row.product ?? ""}>
                         {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
                       </span>
-                      <span className="block truncate text-[10px] font-bold text-[#790404]">{row.sn || "-"}</span>
+                      <span className="block truncate text-[10px] font-bold text-[#9f5f14]">{row.sn || "-"}</span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.brand || "-"}</td>
                     <td className="max-w-44 truncate px-3 py-2.5" title={row.customer ?? ""}>
@@ -219,7 +219,7 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.technician || "-"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">
-                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                      <span className="rounded bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-brand-900">
                         {row.spares?.lines ?? 0} {t.lines} · {(row.spares?.units ?? 0).toLocaleString()} {t.units}
                       </span>
                       <span className="mt-0.5 block text-[10px] text-slate-400">
@@ -229,7 +229,7 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                          row.returned ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
+                          row.returned ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-600"
                         }`}
                       >
                         {row.returned ?? t.notReturned}
@@ -239,7 +239,7 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
                       {/* ປຸ່ມຂໍສົ່ງຄືນຢູ່ໜ້າລາຍລະອຽດ (ຂັ້ນຕອນເກົ່າ) — ໜ້ານີ້ບໍ່ຍ້າຍສະຕັອກເອງ */}
                       <Link
                         href={`/stock/spare-recovery/${encodeURIComponent(row.code)}`}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-orange-700 px-3 text-xs font-semibold text-white hover:bg-brand-orange-700"
                       >
                         <PackageX className="size-3.5" />
                         {t.manageSpares}

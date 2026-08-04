@@ -21,7 +21,7 @@ export type Customer = {
   lng?: number | null;
 };
 
-const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100";
+const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100";
 
 /**
  * ເລືອກລູກຄ້າ — ຫຼືສ້າງໃໝ່ໄດ້ໃນບ່ອນນີ້ເລີຍ.
@@ -95,11 +95,11 @@ export function ServiceCustomer({
 
   if (selected) {
     return (
-      <div className="rounded-xl border border-teal-200 bg-teal-50/60 p-4">
+      <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="flex items-center gap-2 font-semibold text-slate-800">
-              <Check className="size-4 shrink-0 text-teal-600" />
+              <Check className="size-4 shrink-0 text-brand-700" />
               {selected.name_1}
             </p>
             <dl className="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
@@ -111,7 +111,7 @@ export function ServiceCustomer({
               <div className="flex gap-2 sm:col-span-2"><dt className="shrink-0 text-slate-400">{t.address}</dt><dd className="truncate text-slate-700">{selected.address || "-"}</dd></div>
             </dl>
           </div>
-          <button type="button" onClick={() => onSelect(null)} className="shrink-0 text-sm font-medium text-slate-500 hover:text-red-600">
+          <button type="button" onClick={() => onSelect(null)} className="shrink-0 text-sm font-medium text-slate-500 hover:text-brand-orange-700">
             {t.change}
           </button>
         </div>
@@ -129,7 +129,7 @@ export function ServiceCustomer({
     return (
       <div className="space-y-3 rounded-xl border border-slate-300 bg-slate-50 p-4">
         <p className="text-sm font-semibold text-slate-700">{t.newCustomer}</p>
-        {error && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+        {error && <p className="rounded-lg bg-brand-orange-50 p-2 text-sm text-brand-orange-700">{error}</p>}
         <div className="grid gap-3 sm:grid-cols-3">
           <input ref={nameRef} placeholder={t.namePlaceholder} className={field} />
           <input ref={telRef} placeholder={t.telPlaceholder} inputMode="tel" className={field} />
@@ -140,7 +140,7 @@ export function ServiceCustomer({
             type="button"
             onClick={saveNew}
             disabled={pending}
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60"
+            className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60"
           >
             {pending ? <LoaderCircle className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
             {t.saveCustomer}
@@ -189,7 +189,7 @@ export function ServiceCustomer({
 
       <div className="relative">
       <div className="flex gap-2">
-        <div className="flex h-10 flex-1 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 focus-within:border-teal-500">
+        <div className="flex h-10 flex-1 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 focus-within:border-brand-600">
           <Search className="size-4 shrink-0 text-slate-400" />
           <input
             value={q}
@@ -214,7 +214,7 @@ export function ServiceCustomer({
           {results.length === 0 ? (
             <div className="p-3 text-center text-sm text-slate-500">
               {t.notFound}
-              <button type="button" onClick={() => setCreating(true)} className="ml-2 font-semibold text-teal-600 hover:underline">
+              <button type="button" onClick={() => setCreating(true)} className="ml-2 font-semibold text-brand-700 hover:underline">
                 {t.createNew}
               </button>
             </div>
@@ -224,7 +224,7 @@ export function ServiceCustomer({
                 type="button"
                 key={customer.code}
                 onClick={() => pick(customer)}
-                className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-teal-50"
+                className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-brand-50"
               >
                 <b className="text-slate-800">{customer.name_1}</b>
                 <span className="block text-xs text-slate-400">

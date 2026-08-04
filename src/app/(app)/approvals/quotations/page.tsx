@@ -183,7 +183,7 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
               key={key}
               href={tabHref(key)}
               className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon className="size-3.5" />
@@ -209,7 +209,7 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+          <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -245,7 +245,7 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
                 const inWarranty = row.warranty === "ຮັບປະກັນ";
                 return (
                   <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                       {row.doc_no}
                     </td>
@@ -259,9 +259,9 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
                     </td>
                     {/* ຍອດທີ່ກຳລັງອະນຸມັດ — ແຕ່ກ່ອນຄິວອະນຸມັດບໍ່ສະແດງເງິນເລີຍ */}
                     <td className="whitespace-nowrap px-3 py-2.5 text-right">
-                      <span className="font-bold text-[#e75555]">{money(row.total_amount)}</span>
+                      <span className="font-bold text-[#9f5f14]">{money(row.total_amount)}</span>
                       {Number(row.total_discount) > 0 && (
-                        <span className="mt-0.5 block text-[10px] text-emerald-700">
+                        <span className="mt-0.5 block text-[10px] text-brand-800">
                           {t.discount} {money(row.total_discount)}
                         </span>
                       )}
@@ -270,7 +270,7 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
                       <span className="block truncate font-medium text-slate-800" title={row.product ?? ""}>
                         {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
                       </span>
-                      <span className="block truncate text-[10px] font-bold text-[#790404]">{row.sn || "-"}</span>
+                      <span className="block truncate text-[10px] font-bold text-[#9f5f14]">{row.sn || "-"}</span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.brand || "-"}</td>
                     <td className="max-w-44 truncate px-3 py-2.5" title={row.customer ?? ""}>
@@ -279,7 +279,7 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                          inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                          inWarranty ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"
                         }`}
                       >
                         {row.warranty || "-"}
@@ -288,7 +288,7 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5">{row.technician || "-"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.user_created || "-"}</td>
                     <td className="max-w-64 px-3 py-2.5">
-                      <span className="block truncate font-semibold text-red-600" title={row.issue_2 ?? ""}>
+                      <span className="block truncate font-semibold text-brand-orange-700" title={row.issue_2 ?? ""}>
                         {row.issue_2 || "-"}
                       </span>
                       <span className="block truncate text-[10px] text-slate-400" title={row.issue ?? ""}>
@@ -302,7 +302,7 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
                           <div className="min-w-0 flex-1">
                             <span
                               className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                                row.aprove_status === 2 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+                                row.aprove_status === 2 ? "bg-brand-orange-50 text-brand-orange-700" : "bg-brand-50 text-brand-800"
                               }`}
                             >
                               {row.aprove_status === 2 ? t.notApproved : t.approved} · {row.approver1 ?? "-"}
@@ -326,7 +326,7 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
                       <td className="whitespace-nowrap px-3 py-2.5 text-center">
                         <Link
                           href={`/approvals/quotations/${encodeURIComponent(row.doc_no)}`}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
                         >
                           <FileCheck2 className="size-3.5" />
                           {t.details}

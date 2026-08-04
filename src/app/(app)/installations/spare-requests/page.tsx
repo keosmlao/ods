@@ -122,7 +122,7 @@ export default async function SpareRequestsPage({ searchParams }: Props) {
         ອອກໃນນາມຊ່າງທີ່ຍັງບໍ່ໄດ້ຮັບງານ ແລ້ວລາວປະຕິເສດ). ບໍ່ບອກ = ຄິວ 0 ແລ້ວຄົນຫາງານບໍ່ພົບ.
       */}
       {counts.unassigned + counts.unaccepted > 0 && (
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-brand-orange-100 px-4 py-3 text-xs font-semibold text-brand-900">
           {t.blockedNotice}
           {counts.unassigned > 0 && (
             <Link href="/installations/assign" className="underline">
@@ -154,7 +154,7 @@ export default async function SpareRequestsPage({ searchParams }: Props) {
               <td className="whitespace-nowrap px-3 py-2.5 text-center">
                 <Link
                   href={`/installations/spare-requests/${encodeURIComponent(row.code)}`}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
                 >
                   <PackagePlus className="size-3.5" />
                   {t.request}

@@ -176,12 +176,12 @@ function sortValue(row: Row, key: SortKey): string {
 }
 
 const ROLE_TONE: Record<Role, string> = {
-  manager: "bg-violet-50 text-violet-700",
-  headtechnical: "bg-amber-50 text-amber-700",
-  admin: "bg-sky-50 text-sky-700",
-  stock: "bg-orange-50 text-orange-700",
-  technical: "bg-teal-50 text-teal-700",
-  sales: "bg-rose-50 text-rose-700",
+  manager: "bg-brand-orange-50 text-brand-orange-700",
+  headtechnical: "bg-brand-orange-100 text-brand-900",
+  admin: "bg-brand-50 text-brand-600",
+  stock: "bg-brand-orange-50 text-brand-orange-700",
+  technical: "bg-brand-50 text-brand-800",
+  sales: "bg-brand-orange-50 text-brand-orange-700",
   user: "bg-slate-100 text-slate-600",
 };
 
@@ -277,7 +277,7 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
               key={key}
               href={scopeHref(key)}
               className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-                scope === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                scope === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon className="size-3.5" />
@@ -327,7 +327,7 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
               className="w-full text-xs outline-none"
             />
           </div>
-          <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+          <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
         </form>
       </div>
 
@@ -356,8 +356,8 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.code} className={`border-b border-slate-100 ${row.active ? "hover:bg-slate-50" : "bg-red-50/40"}`}>
-                  <td className="whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">{row.code}</td>
+                <tr key={row.code} className={`border-b border-slate-100 ${row.active ? "hover:bg-slate-50" : "bg-brand-orange-50/40"}`}>
+                  <td className="whitespace-nowrap px-3 py-2.5 font-bold text-brand">{row.code}</td>
                   <td className="whitespace-nowrap px-3 py-2.5 font-medium text-slate-800">{row.identity}</td>
                   <td className="max-w-52 truncate px-3 py-2.5 text-slate-600" title={row.fullname}>
                     {row.fullname}
@@ -366,7 +366,7 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
                     {row.department}
                     {/* ຊ່າງໂຄງການ (403) — ບໍ່ແມ່ນສູນບໍລິການ ⇒ ໝາຍໄວ້ (ເຫັນຕອນເບິ່ງ "ທັງໝົດ") */}
                     {row.department_code === PROJECT_DEPT && (
-                      <span className="ml-1.5 rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700">ໂຄງການ</span>
+                      <span className="ml-1.5 rounded bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-brand-orange-700">ໂຄງການ</span>
                     )}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{row.position}</td>
@@ -389,7 +389,7 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
                   <td className="whitespace-nowrap px-3 py-2.5">
                     <Link
                       href={`/manage/employees/${encodeURIComponent(row.code)}/permissions`}
-                      className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-2.5 text-[11px] font-semibold text-teal-700 hover:bg-teal-100"
+                      className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2.5 text-[11px] font-semibold text-brand-800 hover:bg-brand-100"
                     >
                       <Settings2 className="size-3.5" />
                       {t.setMenus}
@@ -455,7 +455,7 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
         </h2>
         <p className="mb-4 text-xs text-slate-500">
           {t.qcDesc}{" "}
-          <Link href="/manage/qc-checklist" className="font-semibold text-teal-700 hover:underline">
+          <Link href="/manage/qc-checklist" className="font-semibold text-brand-800 hover:underline">
             {t.qcSetChecklist}
           </Link>
         </p>

@@ -18,7 +18,7 @@ type InitialMaintenance = {
   lines: Line[];
 };
 
-const field = "h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100";
+const field = "h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 const labelCls = "mb-1 block text-xs font-semibold text-slate-600";
 
 /**
@@ -107,7 +107,7 @@ export function MaintenanceForm({
             </div>
             <div className="sm:col-span-2">
               <label className={labelCls}>ໝາຍເຫດ</label>
-              <textarea name="remark" rows={3} defaultValue={initial?.remark} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100" />
+              <textarea name="remark" rows={3} defaultValue={initial?.remark} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
             </div>
           </div>
         </section>
@@ -116,7 +116,7 @@ export function MaintenanceForm({
         <section className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-3">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="text-sm font-bold text-slate-700">ລາຍການບໍລິການ *</h2>
-            <select value="" onChange={(e) => addService(e.target.value)} className="h-9 rounded-lg border border-cyan-200 bg-cyan-50 px-3 text-xs font-semibold text-cyan-700 outline-none focus:border-cyan-500">
+            <select value="" onChange={(e) => addService(e.target.value)} className="h-9 rounded-lg border border-brand-200 bg-brand-50 px-3 text-xs font-semibold text-brand-600 outline-none focus:border-brand-500">
               <option value="">+ ເພີ່ມບໍລິການ</option>
               {catalog.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
             </select>
@@ -158,7 +158,7 @@ export function MaintenanceForm({
                       </td>
                       <td className="py-2 text-right font-semibold tabular-nums text-slate-700">{((l.price || 0) * (l.qty || 1)).toLocaleString()}</td>
                       <td className="py-2 text-right">
-                        <button type="button" onClick={() => remove(i)} className="grid size-9 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600">
+                        <button type="button" onClick={() => remove(i)} className="grid size-9 place-items-center rounded-lg text-slate-400 hover:bg-brand-orange-50 hover:text-brand-orange-700">
                           <Trash2 className="size-4" />
                         </button>
                       </td>
@@ -171,18 +171,18 @@ export function MaintenanceForm({
 
           {total > 0 && (
             <p className="mt-4 border-t border-slate-100 pt-3 text-right text-base font-bold text-slate-700">
-              ລວມ: <span className="tabular-nums text-cyan-700">{total.toLocaleString()}</span> ກີບ
+              ລວມ: <span className="tabular-nums text-brand-600">{total.toLocaleString()}</span> ກີບ
             </p>
           )}
         </section>
       </div>
 
-      {err && <p className="text-sm font-semibold text-rose-600">{err}</p>}
+      {err && <p className="text-sm font-semibold text-brand-orange-700">{err}</p>}
 
       {/* ແຖບປຸ່ມ — ຕິດລຸ່ມ ເຕັມກ້ວາງ */}
       <div className="flex justify-end gap-2">
         <button type="button" onClick={() => (onCancel ? onCancel() : router.push("/maintenance"))} className="h-11 rounded-lg border border-slate-200 px-6 text-sm font-semibold text-slate-600 hover:bg-slate-50">ຍົກເລີກ</button>
-        <button type="submit" disabled={pending} className="inline-flex h-11 items-center gap-2 rounded-lg bg-cyan-600 px-8 text-sm font-semibold text-white hover:bg-cyan-700 disabled:opacity-60">
+        <button type="submit" disabled={pending} className="inline-flex h-11 items-center gap-2 rounded-lg bg-brand-500 px-8 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60">
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : initial ? <Save className="size-4" /> : <Plus className="size-4" />}
           {initial ? "ບັນທຶກການແກ້ໄຂ" : "ເປີດງານ"}
         </button>

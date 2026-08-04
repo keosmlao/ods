@@ -55,7 +55,7 @@ export function QuoteRowActions({ docNo, variant = "compact" }: Props) {
             type="button"
             disabled={pending}
             onClick={edit}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-sky-600 px-3 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-40"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-500 px-3 text-xs font-semibold text-white hover:bg-brand-600 disabled:opacity-40"
           >
             {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
             {t.editAndResubmit}
@@ -65,13 +65,13 @@ export function QuoteRowActions({ docNo, variant = "compact" }: Props) {
             title={t.deleteAndCreateNewTitle}
             disabled={pending}
             onClick={remove}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-200 px-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-brand-orange-400 px-2.5 text-xs font-semibold text-brand-orange-700 hover:bg-brand-orange-50 disabled:opacity-40"
           >
             <Trash2 className="size-3.5" />
             {t.delete}
           </button>
         </div>
-        {error && <span className="text-[10px] font-medium text-red-600">{error}</span>}
+        {error && <span className="text-[10px] font-medium text-brand-orange-700">{error}</span>}
       </div>
     );
   }
@@ -84,12 +84,12 @@ export function QuoteRowActions({ docNo, variant = "compact" }: Props) {
           type="button"
           disabled={pending}
           onClick={remove}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-brand-orange-400 bg-brand-orange-100 px-3 text-xs font-semibold text-brand-900 transition hover:bg-brand-orange-300 disabled:opacity-50"
         >
           {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
           {t.cancelQuotation}
         </button>
-        {error && <span className="text-[10px] font-medium text-red-600">{error}</span>}
+        {error && <span className="text-[10px] font-medium text-brand-orange-700">{error}</span>}
       </div>
     );
   }
@@ -103,7 +103,7 @@ export function QuoteRowActions({ docNo, variant = "compact" }: Props) {
           title={t.deleteQuotationTitle}
           disabled={pending}
           onClick={remove}
-          className="text-red-600 hover:opacity-70 disabled:opacity-40"
+          className="text-brand-orange-700 hover:opacity-70 disabled:opacity-40"
         >
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
         </button>
@@ -112,12 +112,12 @@ export function QuoteRowActions({ docNo, variant = "compact" }: Props) {
           title={t.editTitle}
           disabled={pending}
           onClick={edit}
-          className="text-sky-600 hover:opacity-70 disabled:opacity-40"
+          className="text-brand-500 hover:opacity-70 disabled:opacity-40"
         >
           <Pencil className="size-4" />
         </button>
       </div>
-      {error && <span className="text-[10px] font-medium text-red-600">{error}</span>}
+      {error && <span className="text-[10px] font-medium text-brand-orange-700">{error}</span>}
     </div>
   );
 }

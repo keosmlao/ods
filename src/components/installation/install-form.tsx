@@ -273,9 +273,9 @@ export function InstallForm({
       <Card
         title={
           <span className="inline-flex items-center gap-2">
-            <Receipt className="size-4 text-teal-600" />
+            <Receipt className="size-4 text-brand-700" />
             {t.billSale}
-            {bill && <CheckCircle2 className="size-4 text-emerald-600" />}
+            {bill && <CheckCircle2 className="size-4 text-brand-800" />}
           </span>
         }
         actions={
@@ -298,7 +298,7 @@ export function InstallForm({
                   <span className="text-xs text-slate-400">-</span>
                 ) : (
                   bill.services.map((service) => (
-                    <span key={service.item_code} className="block text-xs font-semibold text-teal-700">
+                    <span key={service.item_code} className="block text-xs font-semibold text-brand-800">
                       🛠 {service.item_name} × {service.qty}
                     </span>
                   ))
@@ -310,7 +310,7 @@ export function InstallForm({
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 py-10 text-slate-500 transition hover:border-teal-400 hover:bg-teal-50/40"
+            className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 py-10 text-slate-500 transition hover:border-brand-400 hover:bg-brand-50/40"
           >
             <Search className="size-6" />
             <span className="text-sm font-semibold">{t.startBySearchingBill}</span>
@@ -324,10 +324,10 @@ export function InstallForm({
         <Card
           title={
             <span className="inline-flex items-center gap-2">
-              <Package className="size-4 text-teal-600" />
+              <Package className="size-4 text-brand-700" />
               {t.itemsToInstall}
               {chosenItems.length > 0 && (
-                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-800">
+                <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-bold text-brand-900">
                   {chosenItems.length} {t.itemsUnit} · {totalJobs} {t.jobsUnit}
                 </span>
               )}
@@ -345,7 +345,7 @@ export function InstallForm({
             <button
               type="button"
               onClick={() => setPicking(true)}
-              className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 py-8 text-slate-500 transition hover:border-teal-400 hover:bg-teal-50/40"
+              className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 py-8 text-slate-500 transition hover:border-brand-400 hover:bg-brand-50/40"
             >
               <Plus className="size-6" />
               <span className="text-sm font-semibold">{t.selectItemsToInstall}</span>
@@ -375,7 +375,7 @@ export function InstallForm({
             <div
               key={item.item_code}
               className={`rounded-2xl border bg-white p-4 shadow-sm transition ${
-                missing ? "border-amber-300" : "border-teal-300"
+                missing ? "border-brand-orange-400" : "border-brand-300"
               }`}
             >
               <div className="flex items-start gap-3">
@@ -385,14 +385,14 @@ export function InstallForm({
                     {item.pro_type_name ?? "-"} · {item.pro_size ?? "-"} · {t.soldPrefix} {item.qty} {t.unitsWord}
                   </span>
                 </span>
-                <span className="shrink-0 rounded-full bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-800">
+                <span className="shrink-0 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-bold text-brand-900">
                   {draft.units} {t.jobsUnit}
                 </span>
                 <button
                   type="button"
                   title={t.removeItem}
                   onClick={() => patch(item.item_code, { on: false })}
-                  className="shrink-0 text-slate-400 hover:text-red-600"
+                  className="shrink-0 text-slate-400 hover:text-brand-orange-700"
                 >
                   <X className="size-4" />
                 </button>
@@ -493,7 +493,7 @@ export function InstallForm({
                         <button
                           type="button"
                           onClick={() => patch(item.item_code, { manual: !draft.manual })}
-                          className="ml-2 font-semibold text-teal-700 hover:underline"
+                          className="ml-2 font-semibold text-brand-800 hover:underline"
                         >
                           {draft.manual ? t.backToList : t.notInListType}
                         </button>
@@ -532,7 +532,7 @@ export function InstallForm({
                   </div>
 
                   {missing && (
-                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                    <p className="rounded-lg bg-brand-orange-100 px-3 py-2 text-xs font-semibold text-brand-900">
                       {t.stillMissing}
                       {!draft.model.trim() && t.missingModel}
                       {!draft.type && t.missingType}
@@ -548,7 +548,7 @@ export function InstallForm({
 
       {/* ⚠️ ຈຳນວນງານບໍ່ຕົງກັບຄ່າຕິດຕັ້ງທີ່ຈ່າຍມາ — ບອກໄວ້ ບໍ່ໄດ້ຫ້າມ (41% ຂອງບິນຂາຍຫຼາຍກວ່າທີ່ຈ້າງຕິດ) */}
       {bill && bill.services.length > 0 && totalJobs > 0 && totalJobs !== paidUnits(bill) && (
-        <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
+        <p className="rounded-xl bg-brand-orange-100 px-4 py-3 text-xs font-semibold text-brand-900">
           {t.paidMismatchPrefix} {paidUnits(bill)} {t.paidMismatchMid} {totalJobs} {t.paidMismatchSuffix}
         </p>
       )}
@@ -558,7 +558,7 @@ export function InstallForm({
         <Card
           title={
             <span className="inline-flex items-center gap-2">
-              <MapPin className="size-4 text-teal-600" />
+              <MapPin className="size-4 text-brand-700" />
               {t.locationAndAppointment}
             </span>
           }
@@ -616,7 +616,7 @@ export function InstallForm({
             </>
           )}
           {incomplete.length > 0 && (
-            <span className="font-semibold text-amber-700">
+            <span className="font-semibold text-brand-900">
               {" "}
               {t.incompletePrefix} {incomplete.length} {t.incompleteSuffix}
             </span>
@@ -688,7 +688,7 @@ function ItemPicker({
     setPicked((current) => (current.includes(code) ? current.filter((row) => row !== code) : [...current, code]));
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-brand-900/50 p-4" onClick={onClose}>
       <div
         className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
         onClick={(event) => event.stopPropagation()}
@@ -714,14 +714,14 @@ function ItemPicker({
               <label
                 key={item.item_code}
                 className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${
-                  on ? "border-teal-400 bg-teal-50/50" : "border-slate-200 hover:border-teal-300"
+                  on ? "border-brand-400 bg-brand-50/50" : "border-slate-200 hover:border-brand-300"
                 }`}
               >
                 <input
                   type="checkbox"
                   checked={on}
                   onChange={() => toggle(item.item_code)}
-                  className="mt-0.5 size-5 shrink-0 accent-teal-600"
+                  className="mt-0.5 size-5 shrink-0 accent-brand-700"
                 />
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold text-slate-800">{item.item_name}</span>
@@ -811,7 +811,7 @@ function BillPicker({
   }, [q]);
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-brand-900/50 p-4" onClick={onClose}>
       <div
         className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
         onClick={(event) => event.stopPropagation()}
@@ -827,7 +827,7 @@ function BillPicker({
               <X className="size-4" />
             </button>
           </div>
-          <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-300 px-3 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
+          <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-300 px-3 focus-within:border-brand-600 focus-within:ring-2 focus-within:ring-brand-100">
             <Search className="size-4 shrink-0 text-slate-400" />
             <input
               autoFocus
@@ -850,18 +850,18 @@ function BillPicker({
               key={bill.doc_no}
               type="button"
               onClick={() => onPick(bill)}
-              className="w-full rounded-xl border border-slate-200 p-3 text-left transition hover:border-teal-400 hover:bg-teal-50/40"
+              className="w-full rounded-xl border border-slate-200 p-3 text-left transition hover:border-brand-400 hover:bg-brand-50/40"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-md bg-slate-900 px-2 py-0.5 text-xs font-bold text-white">{bill.doc_no}</span>
+                <span className="rounded-md bg-brand-900 px-2 py-0.5 text-xs font-bold text-white">{bill.doc_no}</span>
                 <span className="text-xs text-slate-500">{bill.doc_date}</span>
-                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-bold text-teal-800">
+                <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[11px] font-bold text-brand-900">
                   {t.installFeePrefix} {bill.services.reduce((sum, row) => sum + Math.round(row.qty || 0), 0)} {t.unitsWord}
                 </span>
 
                 {/* ຄ່າຕິດຕັ້ງອອກເປັນອີກໃບ — ບອກ CS ໃຫ້ຮູ້ວ່າເຄື່ອງຢູ່ບິນນີ້ ແຕ່ຄ່າຕິດຕັ້ງຢູ່ໃບນັ້ນ */}
                 {bill.service_doc_no && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-bold text-violet-800">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-brand-orange-100 px-2 py-0.5 text-[11px] font-bold text-brand-orange-700">
                     <ReceiptText className="size-3" />
                     ຄ່າຕິດຕັ້ງຈາກບິນ {bill.service_doc_no}
                   </span>
@@ -874,7 +874,7 @@ function BillPicker({
                 {bill.ship_status && (
                   <span
                     className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                      bill.ship_date ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                      bill.ship_date ? "bg-brand-100 text-brand-800" : "bg-brand-orange-300 text-brand-900"
                     }`}
                   >
                     <Truck className="size-3" />
@@ -885,7 +885,7 @@ function BillPicker({
 
                 {/* ມີພິກັດແລ້ວ — ຟອມຈະຕື່ມແຜນທີ່ໃຫ້ເລີຍ. ຈຸດສົ່ງຈິງ ໜ້າເຊື່ອກວ່າທະບຽນລູກຄ້າ */}
                 {bill.cust_lat != null && bill.cust_lng != null && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-bold text-sky-800">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-2 py-0.5 text-[11px] font-bold text-brand-700">
                     <MapPin className="size-3" />
                     {bill.loc_source === "delivery" ? t.locationFromDelivery : t.hasLocation}
                   </span>
@@ -896,8 +896,8 @@ function BillPicker({
               {bill.services.length > 0 && (
                 <ul className="mt-1.5 space-y-0.5">
                   {bill.services.map((service) => (
-                    <li key={service.item_code} className="text-xs font-semibold text-teal-700">
-                      🛠 {service.item_name} <span className="text-teal-600">× {service.qty}</span>
+                    <li key={service.item_code} className="text-xs font-semibold text-brand-800">
+                      🛠 {service.item_name} <span className="text-brand-700">× {service.qty}</span>
                     </li>
                   ))}
                 </ul>

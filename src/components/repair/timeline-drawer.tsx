@@ -28,13 +28,13 @@ export function TimelineDrawerButton({ code }: { code: string }) {
         type="button"
         onClick={openDrawer}
         title="ເສັ້ນເວລາ (timeline)"
-        className="ml-1.5 inline-flex size-6 items-center justify-center rounded align-middle text-slate-400 hover:bg-indigo-50 hover:text-indigo-600"
+        className="ml-1.5 inline-flex size-6 items-center justify-center rounded align-middle text-slate-400 hover:bg-brand-50 hover:text-brand-600"
       >
         <Clock className="size-3.5" />
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40" onClick={close}>
+        <div className="fixed inset-0 z-50 flex justify-end bg-brand-900/40" onClick={close}>
           <div className="h-full w-full max-w-md overflow-y-auto bg-slate-50 p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-bold text-slate-800">ເສັ້ນເວລາ · {code}</h2>

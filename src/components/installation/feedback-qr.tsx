@@ -54,7 +54,7 @@ export function FeedbackQrButton({ code }: { code: string }) {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/50 p-4"
           onClick={() => setOpen(false)}
         >
           <div
@@ -69,7 +69,7 @@ export function FeedbackQrButton({ code }: { code: string }) {
             </div>
 
             {error ? (
-              <p className="rounded-lg bg-red-50 px-3 py-4 text-xs font-semibold text-red-700">{error}</p>
+              <p className="rounded-lg bg-brand-orange-50 px-3 py-4 text-xs font-semibold text-brand-orange-700">{error}</p>
             ) : qr ? (
               <>
                 <p className="mb-3 text-xs text-slate-500">ໃຫ້ລູກຄ້າສະແກນ QR ນີ້ ເພື່ອຕອບແບບສອບຖາມ</p>

@@ -10,7 +10,7 @@ import { useState, useTransition } from "react";
 
 type Tech = { code: string; name: string };
 
-const field = "h-9 rounded-lg border border-slate-300 px-2 text-sm outline-none focus:border-cyan-500";
+const field = "h-9 rounded-lg border border-slate-300 px-2 text-sm outline-none focus:border-brand-500";
 
 /** ເສັ້ນເວລາ (timeline) — ແຕ່ລະຂັ້ນ: ເວລາເຂົ້າ + ໄລຍະທີ່ຢູ່ຂັ້ນນັ້ນ */
 function Timeline({ steps, cancelledAt }: { steps: MaintenanceStep[]; cancelledAt: string | null }) {
@@ -21,15 +21,15 @@ function Timeline({ steps, cancelledAt }: { steps: MaintenanceStep[]; cancelledA
         {steps.map((s, i) => {
           const done = s.state === "done";
           const current = s.state === "current";
-          const dot = current ? "border-cyan-500 bg-cyan-500" : done ? "border-cyan-500 bg-white" : "border-slate-300 bg-white";
+          const dot = current ? "border-brand-500 bg-brand-500" : done ? "border-brand-500 bg-white" : "border-slate-300 bg-white";
           const line = i < steps.length - 1;
           return (
             <li key={s.stage} className="relative flex gap-3 pb-4 last:pb-0">
-              {line && <span className={`absolute left-[7px] top-4 h-full w-px ${done ? "bg-cyan-300" : "bg-slate-200"}`} aria-hidden />}
+              {line && <span className={`absolute left-[7px] top-4 h-full w-px ${done ? "bg-brand-300" : "bg-slate-200"}`} aria-hidden />}
               <span className={`relative z-[1] mt-0.5 size-3.5 shrink-0 rounded-full border-2 ${dot} ${current ? "animate-pulse" : ""}`} aria-hidden />
               <div className="min-w-0 flex-1 -mt-0.5">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-                  <span className={`text-sm font-semibold ${current ? "text-cyan-700" : done ? "text-slate-700" : "text-slate-400"}`}>{s.label}</span>
+                  <span className={`text-sm font-semibold ${current ? "text-brand-600" : done ? "text-slate-700" : "text-slate-400"}`}>{s.label}</span>
                   {s.at && <span className="text-[11px] tabular-nums text-slate-400">{s.at}</span>}
                 </div>
                 {s.durationSeconds != null ? (
@@ -46,9 +46,9 @@ function Timeline({ steps, cancelledAt }: { steps: MaintenanceStep[]; cancelledA
         })}
         {cancelledAt && (
           <li className="relative flex gap-3">
-            <span className="relative z-[1] mt-0.5 size-3.5 shrink-0 rounded-full border-2 border-rose-500 bg-rose-500" aria-hidden />
+            <span className="relative z-[1] mt-0.5 size-3.5 shrink-0 rounded-full border-2 border-brand-orange-600 bg-brand-orange-700" aria-hidden />
             <div className="-mt-0.5">
-              <span className="text-sm font-semibold text-rose-600">ຍົກເລີກງານ</span>
+              <span className="text-sm font-semibold text-brand-orange-700">ຍົກເລີກງານ</span>
               <span className="ml-2 text-[11px] tabular-nums text-slate-400">{cancelledAt}</span>
             </div>
           </li>
@@ -97,7 +97,7 @@ export function MaintenanceDetail({
   const cancelled = job.stage === -1;
 
   const primary = (label: string, fn: () => Promise<{ error?: string }>) => (
-    <button type="button" disabled={pending} onClick={() => run(fn)} className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-cyan-600 px-4 text-sm font-semibold text-white hover:bg-cyan-700 disabled:opacity-60">
+    <button type="button" disabled={pending} onClick={() => run(fn)} className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-brand-500 px-4 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60">
       {pending ? <LoaderCircle className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />} {label}
     </button>
   );
@@ -169,13 +169,13 @@ export function MaintenanceDetail({
           {job.stage === 4 && primary("ຜ່ານ QC", () => advanceMaintenance(job.code, "qc"))}
           {job.stage === 5 && primary("ເກັບເງິນ + ປິດງານ", () => closeMaintenance(job.code))}
 
-          <button type="button" disabled={pending} onClick={cancel} className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-4 text-sm font-semibold text-rose-600 hover:bg-rose-100 disabled:opacity-60">
+          <button type="button" disabled={pending} onClick={cancel} className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-brand-orange-400 bg-brand-orange-50 px-4 text-sm font-semibold text-brand-orange-700 hover:bg-brand-orange-100 disabled:opacity-60">
             <XCircle className="size-4" /> ຍົກເລີກງານ
           </button>
         </div>
       )}
-      {closed && <p className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-center text-sm font-semibold text-emerald-700">✓ ງານສຳເລັດ ແລະ ປິດແລ້ວ</p>}
-      {cancelled && <p className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-center text-sm font-semibold text-rose-700">ງານນີ້ຖືກຍົກເລີກ</p>}
+      {closed && <p className="rounded-2xl border border-brand-200 bg-brand-50 p-3 text-center text-sm font-semibold text-brand-800">✓ ງານສຳເລັດ ແລະ ປິດແລ້ວ</p>}
+      {cancelled && <p className="rounded-2xl border border-brand-orange-400 bg-brand-orange-50 p-3 text-center text-sm font-semibold text-brand-orange-700">ງານນີ້ຖືກຍົກເລີກ</p>}
     </div>
   );
 }

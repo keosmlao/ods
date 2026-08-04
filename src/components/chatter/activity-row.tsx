@@ -68,7 +68,7 @@ export function ActivityRow({
           <span>· {t.due} {activity.due_date}</span>
           {activity.note && <span className="truncate">· {activity.note}</span>}
         </p>
-        {error && <p className="mt-0.5 text-[10px] font-semibold text-red-600">{error}</p>}
+        {error && <p className="mt-0.5 text-[10px] font-semibold text-brand-orange-700">{error}</p>}
       </div>
 
       {href === "#" ? (
@@ -78,7 +78,7 @@ export function ActivityRow({
       ) : (
         <Link
           href={href}
-          className="inline-flex items-center gap-1 whitespace-nowrap rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-[#0536a9] hover:bg-slate-200"
+          className="inline-flex items-center gap-1 whitespace-nowrap rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-brand hover:bg-slate-200"
         >
           {label} {activity.res_id}
           <LinkPending className="size-2.5" />
@@ -96,13 +96,13 @@ export function ActivityRow({
             value={note}
             onChange={(event) => setNote(event.target.value)}
             placeholder={t.resultPlaceholder}
-            className="h-7 flex-1 rounded border border-slate-300 px-2 text-[11px] outline-none focus:border-teal-500 sm:w-44"
+            className="h-7 flex-1 rounded border border-slate-300 px-2 text-[11px] outline-none focus:border-brand-600 sm:w-44"
           />
           <button
             type="button"
             disabled={pending}
             onClick={() => run(() => completeActivity(activity.id, note))}
-            className="inline-flex h-7 items-center gap-1 rounded bg-emerald-600 px-2 text-[11px] font-semibold text-white disabled:opacity-60"
+            className="inline-flex h-7 items-center gap-1 rounded bg-brand-700 px-2 text-[11px] font-semibold text-white disabled:opacity-60"
           >
             {pending ? <LoaderCircle className="size-3 animate-spin" /> : <Check className="size-3" />}
             {t.done}
@@ -115,7 +115,7 @@ export function ActivityRow({
             title={t.markDone}
             disabled={pending}
             onClick={() => setNoting(true)}
-            className="grid size-7 place-items-center rounded text-emerald-600 transition hover:bg-emerald-50"
+            className="grid size-7 place-items-center rounded text-brand-800 transition hover:bg-brand-50"
           >
             <Check className="size-4" />
           </button>
@@ -134,7 +134,7 @@ export function ActivityRow({
               if (!ok) return;
               run(() => cancelActivity(activity.id));
             }}
-            className="grid size-7 place-items-center rounded text-[#DE3163] transition hover:bg-red-50"
+            className="grid size-7 place-items-center rounded text-[#9f5f14] transition hover:bg-brand-orange-50"
           >
             <X className="size-4" />
           </button>

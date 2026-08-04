@@ -23,7 +23,7 @@ export function TrackStatus({ job }: { job: TrackJob }) {
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <header className={`px-4 py-3 text-white ${cancelled ? "bg-red-600" : "bg-[#0536a9]"}`}>
+      <header className={`px-4 py-3 text-white ${cancelled ? "bg-brand-orange-700" : "bg-brand"}`}>
         <p className="text-[11px] opacity-80">ເລກທີໃບຮັບເຄື່ອງ</p>
         <p className="text-2xl font-bold">{job.code}</p>
         <p className="mt-1.5 inline-block rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold">
@@ -34,7 +34,7 @@ export function TrackStatus({ job }: { job: TrackJob }) {
       <div className="p-4">
         <p
           className={`rounded-lg px-3 py-2 text-xs font-medium ${
-            cancelled ? "bg-red-50 text-red-700" : job.stage === DONE_STAGE ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"
+            cancelled ? "bg-brand-orange-50 text-brand-orange-700" : job.stage === DONE_STAGE ? "bg-brand-50 text-brand-800" : "bg-brand-orange-100 text-brand-900"
           }`}
         >
           {cancelled ? CANCELLED_NEXT : (NEXT_STEP[job.stage] ?? "ກະລຸນາຕິດຕໍ່ສູນບໍລິການ")}
@@ -58,15 +58,15 @@ export function TrackStatus({ job }: { job: TrackJob }) {
                 <li key={step} className="relative flex gap-3 pb-4 last:pb-0">
                   {index < STEPS.length - 1 && (
                     <span
-                      className={`absolute top-5 left-[9px] h-full w-0.5 ${done ? "bg-emerald-400" : "bg-slate-200"}`}
+                      className={`absolute top-5 left-[9px] h-full w-0.5 ${done ? "bg-brand-400" : "bg-slate-200"}`}
                     />
                   )}
                   <span
                     className={`relative z-10 mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${
                       done
-                        ? "bg-emerald-500 text-white"
+                        ? "bg-brand-700 text-white"
                         : active
-                          ? "bg-[#0536a9] ring-4 ring-blue-100"
+                          ? "bg-brand ring-4 ring-brand-100"
                           : "border border-slate-300 bg-white"
                     }`}
                   >
@@ -74,7 +74,7 @@ export function TrackStatus({ job }: { job: TrackJob }) {
                   </span>
                   <span
                     className={`text-xs ${
-                      active ? "font-bold text-[#0536a9]" : done ? "font-medium text-slate-700" : "text-slate-400"
+                      active ? "font-bold text-brand" : done ? "font-medium text-slate-700" : "text-slate-400"
                     }`}
                   >
                     {step}

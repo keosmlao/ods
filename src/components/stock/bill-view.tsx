@@ -40,15 +40,15 @@ export async function BillView({
         <PrintButton />
       </div>
 
-      <h1 className="hidden border-b-2 border-slate-900 pb-3 text-center text-xl font-bold print:block">
+      <h1 className="hidden border-b-2 border-brand-900 pb-3 text-center text-xl font-bold print:block">
         {title}
       </h1>
 
-      <div className="grid gap-x-8 gap-y-1 rounded-xl bg-[#0a5e96] p-5 text-sm text-white md:grid-cols-2 print:grid-cols-2 print:rounded-none print:border print:border-slate-900 print:bg-white print:text-slate-900">
+      <div className="grid gap-x-8 gap-y-1 rounded-xl bg-[#2c6fb6] p-5 text-sm text-white md:grid-cols-2 print:grid-cols-2 print:rounded-none print:border print:border-brand-900 print:bg-white print:text-slate-900">
         {fields.map((field) => (
           <p key={field.label}>
             <span className="text-white/70 print:text-slate-500">{field.label}</span>{" "}
-            <span className={field.accent ? "text-[#ffd0d0] print:text-slate-900" : undefined}>{field.value || "-"}</span>
+            <span className={field.accent ? "text-[#ffd071] print:text-slate-900" : undefined}>{field.value || "-"}</span>
           </p>
         ))}
       </div>

@@ -161,24 +161,24 @@ const SERVICE_TYPES = [
 ] as const;
 
 const SERVICE_TONE = {
-  sky: { active: "border-sky-500 bg-sky-50 text-sky-800 ring-sky-100", icon: "bg-sky-100 text-sky-700", badge: "bg-sky-50 text-sky-700" },
-  violet: { active: "border-violet-500 bg-violet-50 text-violet-800 ring-violet-100", icon: "bg-violet-100 text-violet-700", badge: "bg-violet-50 text-violet-700" },
-  emerald: { active: "border-emerald-500 bg-emerald-50 text-emerald-800 ring-emerald-100", icon: "bg-emerald-100 text-emerald-700", badge: "bg-emerald-50 text-emerald-700" },
-  amber: { active: "border-amber-500 bg-amber-50 text-amber-800 ring-amber-100", icon: "bg-amber-100 text-amber-700", badge: "bg-amber-50 text-amber-700" },
+  sky: { active: "border-brand-500 bg-brand-50 text-brand-700 ring-brand-100", icon: "bg-brand-100 text-brand-600", badge: "bg-brand-50 text-brand-600" },
+  violet: { active: "border-brand-orange-500 bg-brand-orange-50 text-brand-orange-700 ring-brand-orange-100", icon: "bg-brand-orange-100 text-brand-orange-700", badge: "bg-brand-orange-50 text-brand-orange-700" },
+  emerald: { active: "border-brand-600 bg-brand-50 text-brand-800 ring-brand-100", icon: "bg-brand-100 text-brand-800", badge: "bg-brand-50 text-brand-800" },
+  amber: { active: "border-brand-orange-500 bg-brand-orange-100 text-brand-900 ring-brand-orange-300", icon: "bg-brand-orange-300 text-brand-900", badge: "bg-brand-orange-100 text-brand-900" },
 } as const;
 
 const REQUEST_STATUS = {
-  waiting: { label: "ລໍຖ້າສາງເບີກ", className: "bg-amber-50 text-amber-700" },
-  partial: { label: "ເບີກບາງສ່ວນ", className: "bg-sky-50 text-sky-700" },
-  purchasing: { label: "ກຳລັງສັ່ງຊື້", className: "bg-violet-50 text-violet-700" },
-  issued: { label: "ເບີກຄົບແລ້ວ", className: "bg-emerald-50 text-emerald-700" },
+  waiting: { label: "ລໍຖ້າສາງເບີກ", className: "bg-brand-orange-100 text-brand-900" },
+  partial: { label: "ເບີກບາງສ່ວນ", className: "bg-brand-50 text-brand-600" },
+  purchasing: { label: "ກຳລັງສັ່ງຊື້", className: "bg-brand-orange-50 text-brand-orange-700" },
+  issued: { label: "ເບີກຄົບແລ້ວ", className: "bg-brand-50 text-brand-800" },
 } as const;
 
 function quoteStatus(approved: number, customerStatus: number) {
-  if (customerStatus === 2) return { label: "ລູກຄ້າບໍ່ຕົກລົງ", className: "bg-red-50 text-red-700" };
-  if (customerStatus === 1) return { label: "ລູກຄ້າຕົກລົງ", className: "bg-emerald-50 text-emerald-700" };
-  if (approved === 1) return { label: "ລໍລູກຄ້າຢືນຢັນ", className: "bg-sky-50 text-sky-700" };
-  return { label: "ລໍອະນຸມັດ", className: "bg-amber-50 text-amber-700" };
+  if (customerStatus === 2) return { label: "ລູກຄ້າບໍ່ຕົກລົງ", className: "bg-brand-orange-50 text-brand-orange-700" };
+  if (customerStatus === 1) return { label: "ລູກຄ້າຕົກລົງ", className: "bg-brand-50 text-brand-800" };
+  if (approved === 1) return { label: "ລໍລູກຄ້າຢືນຢັນ", className: "bg-brand-50 text-brand-600" };
+  return { label: "ລໍອະນຸມັດ", className: "bg-brand-orange-100 text-brand-900" };
 }
 
 /**
@@ -614,12 +614,12 @@ export default async function StatusPage({ params, searchParams }: Props) {
   const canCreateRequest = isRepair && canAccess(role, "/stock/requests");
   const requestDocBadge = (doc: RequestDocRow) => (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+      <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[10px] font-bold text-brand-700">
         ຮອບ {doc.round}
       </span>
       <Link
         href={`/stock/requests/view/${encodeURIComponent(doc.doc_no)}?from=${encodeURIComponent(`/work/${workflow}/${status}`)}`}
-        className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700 hover:bg-blue-100"
+        className="inline-flex items-center gap-1 rounded-lg bg-brand-50 px-2 py-1 text-[10px] font-bold text-brand-700 hover:bg-brand-100"
         title="ເບິ່ງ ແລະ ພິມໃບຂໍເບີກ"
       >
         <FileText className="size-3.5" />
@@ -722,7 +722,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
           return (
             <Link
               href={awaitingCustomer ? `/quotations/customer-approval/${doc}` : `/approvals/quotations/${doc}`}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
             >
               {awaitingCustomer ? t.decidePrice : t.approvePrice}
               <LinkPending className="size-3" />
@@ -748,7 +748,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
           href={linkAction.href(row)}
           title={linkAction.label}
           aria-label={linkAction.label}
-          className="grid size-8 place-items-center rounded-lg bg-teal-600 text-white transition hover:bg-teal-700"
+          className="grid size-8 place-items-center rounded-lg bg-brand-700 text-white transition hover:bg-brand-800"
         >
           <ArrowRight className="size-4" />
         </Link>
@@ -770,7 +770,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
         </div>
         <a
           href={`/api/dashboard/export?${new URLSearchParams({ workflow, status, ...(service && { service }) })}`}
-          className="inline-flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-3 text-xs font-medium text-white hover:bg-emerald-700"
+          className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-3 text-xs font-medium text-white hover:bg-brand-700"
         >
           <Download className="size-4" />
           Export CSV
@@ -778,28 +778,28 @@ export default async function StatusPage({ params, searchParams }: Props) {
       </div>
 
       {stagePolicy && (
-        <section className="rounded-2xl border border-teal-200 bg-teal-50/70 p-3 shadow-sm">
+        <section className="rounded-2xl border border-brand-200 bg-brand-50/70 p-3 shadow-sm">
           <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
             <div>
-              <p className="text-xs font-bold text-teal-900">
+              <p className="text-xs font-bold text-brand-900">
                 {t.slaStage} {stagePolicy.stage}: {stagePolicy.label}
               </p>
-              <p className="mt-1 text-[11px] text-teal-800">
+              <p className="mt-1 text-[11px] text-brand-900">
                 {t.owner}: <b>{stagePolicy.owner}</b> · KPI: {stagePolicy.kpi}
               </p>
               {stagePolicy.external && (
-                <p className="mt-1 text-[10px] font-semibold text-amber-700">
+                <p className="mt-1 text-[10px] font-semibold text-brand-900">
                   {t.externalSlaNote}
                 </p>
               )}
             </div>
             <div className="flex flex-wrap gap-1.5 text-[10px] font-bold">
               {serviceTypes.map(({ code }) => (
-                <span key={code} className="rounded-lg border border-teal-200 bg-white px-2 py-1 text-teal-800">
+                <span key={code} className="rounded-lg border border-brand-200 bg-white px-2 py-1 text-brand-900">
                   {code} {stagePolicy.hours[code]} {t.hoursUnit}
                 </span>
               ))}
-              <span className="rounded-lg bg-teal-700 px-2 py-1 text-white">{t.target} {stagePolicy.targetPct}%</span>
+              <span className="rounded-lg bg-brand-800 px-2 py-1 text-white">{t.target} {stagePolicy.targetPct}%</span>
             </div>
           </div>
         </section>
@@ -818,8 +818,8 @@ export default async function StatusPage({ params, searchParams }: Props) {
               className={`inline-flex h-8 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
                 holdTab === held
                   ? held
-                    ? "bg-amber-600 text-white"
-                    : "bg-slate-900 text-white"
+                    ? "bg-brand-orange-700 text-white"
+                    : "bg-brand-900 text-white"
                   : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
@@ -833,7 +833,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
       )}
 
       {holdTab && (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+        <p className="rounded-lg border border-brand-orange-400 bg-brand-orange-100 px-3 py-2 text-[11px] text-brand-900">
           {t.holdNoteLead} <b>{t.holdNoteStillHere}</b> {t.holdNoteMid} <b>{t.holdNoteClockStops}</b> {t.holdNoteTail}
         </p>
       )}
@@ -846,7 +846,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
               <p className="mt-0.5 text-[10px] text-slate-400">{t.chooseServiceTypeHint}</p>
             </div>
             {service && (
-              <Link href={serviceHref("")} className="text-[11px] font-semibold text-teal-600 hover:underline">
+              <Link href={serviceHref("")} className="text-[11px] font-semibold text-brand-700 hover:underline">
                 {t.clearFilter}
               </Link>
             )}
@@ -856,7 +856,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
               href={serviceHref("")}
               className={`flex min-h-16 items-center justify-between rounded-xl border px-3 py-2.5 transition ${
                 !service
-                  ? "border-slate-800 bg-slate-900 text-white ring-4 ring-slate-100"
+                  ? "border-brand-800 bg-brand-900 text-white ring-4 ring-slate-100"
                   : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
               }`}
             >
@@ -866,7 +866,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
               </span>
               <span className="text-right">
                 <b className="block text-lg tabular-nums">{allServiceCount.toLocaleString()}</b>
-                <span className={`block text-[9px] font-semibold ${!service ? "text-red-300" : "text-red-600"}`}>
+                <span className={`block text-[9px] font-semibold ${!service ? "text-brand-orange-300" : "text-brand-orange-700"}`}>
                   {t.overSla} {allServiceOverdue.toLocaleString()}
                 </span>
               </span>
@@ -893,7 +893,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                   </span>
                   <span className="text-right">
                     <b className="block text-base tabular-nums">{(serviceCounts.get(code) ?? 0).toLocaleString()}</b>
-                    <span className="block text-[9px] font-semibold text-red-600">
+                    <span className="block text-[9px] font-semibold text-brand-orange-700">
                       {t.over} {serviceOverdue.get(code) ?? 0}
                     </span>
                   </span>
@@ -917,26 +917,26 @@ export default async function StatusPage({ params, searchParams }: Props) {
             className="w-full text-xs outline-none"
           />
         </div>
-        <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+        <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
       </form>
 
       {readyToProceedRows.length > 0 && (
-        <section className="hidden overflow-hidden rounded-xl border-2 border-emerald-300 bg-white shadow-sm md:block">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-200 bg-emerald-50 px-4 py-3">
+        <section className="hidden overflow-hidden rounded-xl border-2 border-brand-200 bg-white shadow-sm md:block">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-200 bg-brand-50 px-4 py-3">
             <div>
-              <h2 className="text-sm font-bold text-emerald-900">ວຽກຄວນໄປຕໍ່ໄດ້ແລ້ວ</h2>
-              <p className="mt-0.5 text-[11px] font-medium text-emerald-700">
+              <h2 className="text-sm font-bold text-brand-900">ວຽກຄວນໄປຕໍ່ໄດ້ແລ້ວ</h2>
+              <p className="mt-0.5 text-[11px] font-medium text-brand-800">
                 ERP ຢືນຢັນວ່າອາໄຫຼ່ເຂົ້າສາງຄົບແລ້ວ — ກະລຸນາດຳເນີນງານຕໍ່
               </p>
             </div>
-            <span className="rounded-full bg-emerald-700 px-3 py-1 text-xs font-bold text-white">
+            <span className="rounded-full bg-brand-700 px-3 py-1 text-xs font-bold text-white">
               {readyToProceedRows.length} ວຽກ
             </span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1050px] border-collapse text-xs">
               <thead>
-                <tr className="border-b border-emerald-100 bg-emerald-50/50 text-left text-slate-600">
+                <tr className="border-b border-brand-100 bg-brand-50/50 text-left text-slate-600">
                   <th className="px-4 py-2.5 font-semibold">ເລກວຽກ</th>
                   <th className="px-4 py-2.5 font-semibold">ສິນຄ້າ / ລູກຄ້າ</th>
                   <th className="px-4 py-2.5 font-semibold">ໃບຮັບເຂົ້າ ERP</th>
@@ -950,9 +950,9 @@ export default async function StatusPage({ params, searchParams }: Props) {
                 {readyToProceedRows.map((row) => {
                   const track = tracking.get(row.code)!;
                   return (
-                    <tr key={`ready-${row.code}`} className="border-b border-emerald-100 hover:bg-emerald-50/40">
+                    <tr key={`ready-${row.code}`} className="border-b border-brand-100 hover:bg-brand-50/40">
                       <td className="px-4 py-3">
-                        <Link href={detailHref(row.code)} className="font-bold text-blue-700 hover:underline">
+                        <Link href={detailHref(row.code)} className="font-bold text-brand-700 hover:underline">
                           {row.code}
                         </Link>
                       </td>
@@ -960,10 +960,10 @@ export default async function StatusPage({ params, searchParams }: Props) {
                         <span className="block truncate font-semibold text-slate-800">{row.product || "-"}</span>
                         <span className="block truncate text-[10px] text-slate-400">{row.customer || "-"}</span>
                       </td>
-                      <td className="px-4 py-3 font-mono font-bold text-emerald-700">{track.receipt_no || "-"}</td>
+                      <td className="px-4 py-3 font-mono font-bold text-brand-800">{track.receipt_no || "-"}</td>
                       <td className="whitespace-nowrap px-4 py-3">{track.receipt_date || "-"}</td>
                       <td className="px-4 py-3 text-center">
-                        <span className="rounded-lg bg-red-100 px-2 py-1 font-bold text-red-700">
+                        <span className="rounded-lg bg-brand-orange-100 px-2 py-1 font-bold text-brand-orange-700">
                           {track.days_since_receipt ?? 0} ມື້
                         </span>
                       </td>
@@ -971,7 +971,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                       <td className="px-4 py-3 text-center">
                         <Link
                           href={`/purchase-requests?q=${encodeURIComponent(row.code)}`}
-                          className="inline-flex h-8 items-center rounded-lg bg-emerald-700 px-3 font-bold text-white hover:bg-emerald-800"
+                          className="inline-flex h-8 items-center rounded-lg bg-brand-700 px-3 font-bold text-white hover:bg-brand-800"
                         >
                           ດຳເນີນງານຕໍ່
                         </Link>
@@ -1046,12 +1046,12 @@ export default async function StatusPage({ params, searchParams }: Props) {
                 return (
                   <Fragment key={row.code}>
                   <tr className="cursor-default border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                       <span>{row.code}</span>
                       <Link
                         href={detailHref(row.code)}
-                        className="ml-2 inline-flex h-7 items-center rounded-lg bg-blue-50 px-2 text-[10px] font-semibold text-blue-700 hover:bg-blue-100"
+                        className="ml-2 inline-flex h-7 items-center rounded-lg bg-brand-50 px-2 text-[10px] font-semibold text-brand-700 hover:bg-brand-100"
                       >
                         ລາຍລະອຽດ
                       </Link>
@@ -1070,7 +1070,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                       {showCase && (
                         <span
                           className={`ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                            (row as RepairRow).cancelled ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+                            (row as RepairRow).cancelled ? "bg-brand-orange-100 text-brand-orange-700" : "bg-brand-100 text-brand-800"
                           }`}
                         >
                           {(row as RepairRow).cancelled ? "ຍົກເລີກ" : "ສ້ອມສຳເລັດ"}
@@ -1086,12 +1086,12 @@ export default async function StatusPage({ params, searchParams }: Props) {
                         {isRepair ? row.stage_started || row.registered || "-" : row.registered || "-"}
                         {/* ນາລິກາຢຸດຢູ່ ⇒ ຕ້ອງບອກ ບໍ່ດັ່ງນັ້ນຄົນອ່ານວ່າ "ຄ້າງ 3 ມື້" ແລ້ວເຂົ້າໃຈຜິດ */}
                         {isRepair && holdOn && (row as RepairRow).hold && (
-                          <b className="ml-1 text-amber-600">· {t.clockStopped}</b>
+                          <b className="ml-1 text-brand-900">· {t.clockStopped}</b>
                         )}
                       </span>
                       <span className="mt-1 block text-[10px] font-medium text-slate-500">
                         {t.sinceOpened}:{" "}
-                        <Elapsed seconds={row.opened_seconds} className="font-bold text-red-600" />
+                        <Elapsed seconds={row.opened_seconds} className="font-bold text-brand-orange-700" />
                         <span className="ml-1 text-slate-400">· {row.registered || "-"}</span>
                       </span>
                       {/* ໝາຍ/ປົດທຸງ — ຢູ່ຄຽງນາລິກາ ເພາະທຸງນີ້ຄືສິ່ງທີ່ຢຸດນາລິກາ */}
@@ -1115,7 +1115,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                           <span className="block truncate font-medium text-slate-800" title={row.product ?? ""}>
                             {/* ງານເຄມ — ເຫັນຕັ້ງແຕ່ໃນຄິວ ບໍ່ຕ້ອງເປີດເຂົ້າໄປໃນໃບຈຶ່ງຮູ້ */}
                             {isRepair && (row as RepairRow).is_claim && (
-                              <span className="mr-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 ring-1 ring-amber-300">
+                              <span className="mr-1.5 rounded bg-brand-orange-300 px-1.5 py-0.5 text-[10px] font-bold text-brand-900 ring-1 ring-brand-orange-300">
                                 ເຄມ
                               </span>
                             )}
@@ -1137,7 +1137,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     {isRepair ? (
                       <>
                         <td className="whitespace-nowrap px-3 py-2.5">
-                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${inWarranty ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"}`}>
                             {row.warranty || "-"}
                           </span>
                         </td>
@@ -1163,7 +1163,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                       <td className="whitespace-nowrap px-3 py-2.5">
                         {requestDocs.length > 0 ? (
                           <div className="flex flex-col items-start gap-1">
-                            <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">
+                            <span className="inline-flex items-center gap-1 rounded-lg bg-brand-50 px-2 py-1 text-[10px] font-bold text-brand-700">
                               <FileText className="size-3.5" />
                               {requestDocs.length} ໃບ · ເບິ່ງ Tree ດ້ານລຸ່ມ
                             </span>
@@ -1175,7 +1175,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                             {(requestOutstanding.get(row.code) ?? 0) > 0 && canCreateRequest && (
                               <Link
                                 href={`/stock/requests/${row.roworder}`}
-                                className="inline-flex h-7 items-center gap-1 rounded-lg bg-teal-600 px-2 text-[10px] font-bold text-white hover:bg-teal-700"
+                                className="inline-flex h-7 items-center gap-1 rounded-lg bg-brand-700 px-2 text-[10px] font-bold text-white hover:bg-brand-800"
                               >
                                 ອອກໃບໃໝ່
                                 <ArrowRight className="size-3" />
@@ -1191,7 +1191,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                       <td className="whitespace-nowrap px-3 py-2.5">
                         {nextAction ? (
                           <span className="inline-flex flex-col items-start gap-1">
-                            <span className="rounded-lg bg-teal-600 px-2 py-1 text-[10px] font-bold text-white">
+                            <span className="rounded-lg bg-brand-700 px-2 py-1 text-[10px] font-bold text-white">
                               {nextAction.actorLabel}
                             </span>
                             <span className="text-[10px] font-medium text-slate-500">{nextAction.label}</span>
@@ -1209,7 +1209,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                         <td className="max-w-32 truncate px-3 py-2.5 text-slate-600" title={row.reference ?? ""}>
                           {row.reference || "-"}
                         </td>
-                        <td className="max-w-52 truncate px-3 py-2.5 font-semibold text-red-600" title={row.issue ?? ""}>
+                        <td className="max-w-52 truncate px-3 py-2.5 font-semibold text-brand-orange-700" title={row.issue ?? ""}>
                           {row.issue || "-"}
                         </td>
                         {hasAction && (
@@ -1241,7 +1241,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                   {isRepair && row.quote_docs.map((doc) => {
                     const state = quoteStatus(doc.approved, doc.customer_status);
                     return (
-                      <tr key={`${row.code}-quote-${doc.doc_no}`} className="border-b border-dashed border-violet-100 bg-violet-50/30">
+                      <tr key={`${row.code}-quote-${doc.doc_no}`} className="border-b border-dashed border-brand-orange-100 bg-brand-orange-50/30">
                         <td colSpan={desktopColumnCount} className="px-10 py-2">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400">
@@ -1250,7 +1250,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                                 <Link
                                   href={`/quotations/${encodeURIComponent(doc.doc_no)}/print`}
                                   target="_blank"
-                                  className="font-mono font-bold text-violet-700 hover:underline"
+                                  className="font-mono font-bold text-brand-orange-700 hover:underline"
                                 >
                                   {doc.doc_no}
                                 </Link>
@@ -1267,7 +1267,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     );
                   })}
                   {isRepair && tracking.size > 0 && (
-                    <tr className="border-b border-dashed border-emerald-100 bg-emerald-50/30">
+                    <tr className="border-b border-dashed border-brand-100 bg-brand-50/30">
                       <td colSpan={desktopColumnCount} className="px-10 py-2.5">
                         <div className="flex flex-wrap items-center gap-3">
                           <span className="shrink-0 text-[11px] font-semibold text-slate-500">
@@ -1326,7 +1326,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-sm font-bold text-[#0536a9]">
+                      <span className="text-sm font-bold text-brand">
                         {row.code}
                       </span>
                       {isRepair && (
@@ -1342,7 +1342,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                       {showCase && (
                         <span
                           className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                            (row as RepairRow).cancelled ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+                            (row as RepairRow).cancelled ? "bg-brand-orange-100 text-brand-orange-700" : "bg-brand-100 text-brand-800"
                           }`}
                         >
                           {(row as RepairRow).cancelled ? "ຍົກເລີກ" : "ສ້ອມສຳເລັດ"}
@@ -1351,7 +1351,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     </div>
                     <p className="mt-0.5 text-[10px] text-slate-400">
                       {isRepair ? row.stage_started || row.registered || "-" : row.registered || "-"}
-                      {isRepair && holdOn && (row as RepairRow).hold && <b className="ml-1 text-amber-600">· {t.clockStopped}</b>}
+                      {isRepair && holdOn && (row as RepairRow).hold && <b className="ml-1 text-brand-900">· {t.clockStopped}</b>}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
@@ -1365,7 +1365,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     )}
                     <span className="mt-1 block text-[9px] text-slate-400">
                       {t.sinceOpened}{" "}
-                      <Elapsed seconds={row.opened_seconds} className="font-bold text-red-600" />
+                      <Elapsed seconds={row.opened_seconds} className="font-bold text-brand-orange-700" />
                     </span>
                   </div>
                 </div>
@@ -1379,7 +1379,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     <p className="truncate text-xs font-medium text-slate-800" title={row.product ?? ""}>
                       {/* ງານເຄມ — ຄືກັນກັບຕາຕະລາງ desktop */}
                       {isRepair && (row as RepairRow).is_claim && (
-                        <span className="mr-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 ring-1 ring-amber-300">
+                        <span className="mr-1.5 rounded bg-brand-orange-300 px-1.5 py-0.5 text-[10px] font-bold text-brand-900 ring-1 ring-brand-orange-300">
                           ເຄມ
                         </span>
                       )}
@@ -1397,7 +1397,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                 <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
                   {row.brand && <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-600">{row.brand}</span>}
                   {isRepair ? (
-                    <span className={`rounded px-1.5 py-0.5 font-medium ${inWarranty ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                    <span className={`rounded px-1.5 py-0.5 font-medium ${inWarranty ? "bg-brand-50 text-brand-800" : "bg-slate-100 text-slate-500"}`}>
                       {row.warranty || "-"}
                     </span>
                   ) : (
@@ -1423,7 +1423,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     {isRepair ? row.receiver || "-" : row.creator || "-"}
                   </p>
                   {isRepair && row.issue && (
-                    <p className="truncate font-semibold text-red-600" title={row.issue}>
+                    <p className="truncate font-semibold text-brand-orange-700" title={row.issue}>
                       <span className="font-normal text-slate-400">{t.issue}:</span> {row.issue}
                     </p>
                   )}
@@ -1431,11 +1431,11 @@ export default async function StatusPage({ params, searchParams }: Props) {
 
                 {/* ຜູ້ເຮັດຕໍ່ (ຄິວເບີກ/ສັ່ງຊື້) — ຄິດຈາກແຖວ SIO ດ້ວຍ nextActor() */}
                 {nextAction && (
-                  <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-teal-50 px-2.5 py-2 ring-1 ring-teal-100">
-                    <span className="rounded bg-teal-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-brand-50 px-2.5 py-2 ring-1 ring-brand-100">
+                    <span className="rounded bg-brand-700 px-1.5 py-0.5 text-[10px] font-bold text-white">
                       {nextAction.actorLabel}
                     </span>
-                    <span className="text-[11px] font-semibold text-teal-900">{nextAction.label}</span>
+                    <span className="text-[11px] font-semibold text-brand-900">{nextAction.label}</span>
                   </div>
                 )}
 
@@ -1457,7 +1457,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     {(requestOutstanding.get(row.code) ?? 0) > 0 && canCreateRequest && (
                       <Link
                         href={`/stock/requests/${row.roworder}`}
-                        className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-bold text-white"
+                        className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-bold text-white"
                       >
                         ອອກໃບໃໝ່
                         <ArrowRight className="size-3.5" />
@@ -1493,7 +1493,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <Link
                     href={detailHref(row.code)}
-                    className="inline-flex h-8 items-center rounded-lg bg-blue-50 px-3 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                    className="inline-flex h-8 items-center rounded-lg bg-brand-50 px-3 text-xs font-semibold text-brand-700 hover:bg-brand-100"
                   >
                     ລາຍລະອຽດ
                   </Link>

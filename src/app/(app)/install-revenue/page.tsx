@@ -108,7 +108,7 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
       {/* ── ① ເລືອກເດືອນ ── */}
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="flex items-center gap-2 text-xl font-bold text-slate-700">
-          <HardHat className="size-5 text-teal-600" />
+          <HardHat className="size-5 text-brand-700" />
           ລາຍຮັບງານຕິດຕັ້ງ
         </h1>
         <div className="flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-1 py-1">
@@ -132,23 +132,23 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
           </Link>
         </div>
         {month !== current && (
-          <Link href={monthHref(current)} className="text-xs font-semibold text-teal-700 hover:underline">
+          <Link href={monthHref(current)} className="text-xs font-semibold text-brand-800 hover:underline">
             ກັບເດືອນນີ້
           </Link>
         )}
       </div>
 
       {error && (
-        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</p>
+        <p className="rounded-xl border border-brand-orange-400 bg-brand-orange-50 px-4 py-3 text-xs text-brand-orange-700">{error}</p>
       )}
 
       {/* ── ② ຍອດລວມຂອງເດືອນ — ແຍກ ແອ / ເຄື່ອງໃຊ້ໄຟຟ້າ ດ້ວຍກົດດຽວກັບລາຍງານປະຈຳເດືອນ ── */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: "ໃບງານທີ່ປິດ", value: total.jobs.toLocaleString(), tone: "text-slate-800", sub: `ສະເລ່ຍ ${Math.round(avg).toLocaleString()} ບາດ/ໃບງານ` },
-          { label: "ລາຍຮັບລວມ (ບາດ)", value: Math.round(total.baht).toLocaleString(), tone: "text-emerald-700", sub: unlinked.length > 0 ? `ລວມບິນຍັງບໍ່ຜູກໃບງານ ${Math.round(unSum.baht).toLocaleString()}` : "" },
-          { label: "ຕິດຕັ້ງແອ", value: Math.round(total.ac).toLocaleString(), tone: "text-teal-700", sub: `${pct(total.ac)}% ຂອງລາຍຮັບ` },
-          { label: "ຕິດຕັ້ງເຄື່ອງໃຊ້ໄຟຟ້າ", value: Math.round(total.app).toLocaleString(), tone: "text-indigo-700", sub: `${pct(total.app)}% ຂອງລາຍຮັບ` },
+          { label: "ລາຍຮັບລວມ (ບາດ)", value: Math.round(total.baht).toLocaleString(), tone: "text-brand-800", sub: unlinked.length > 0 ? `ລວມບິນຍັງບໍ່ຜູກໃບງານ ${Math.round(unSum.baht).toLocaleString()}` : "" },
+          { label: "ຕິດຕັ້ງແອ", value: Math.round(total.ac).toLocaleString(), tone: "text-brand-800", sub: `${pct(total.ac)}% ຂອງລາຍຮັບ` },
+          { label: "ຕິດຕັ້ງເຄື່ອງໃຊ້ໄຟຟ້າ", value: Math.round(total.app).toLocaleString(), tone: "text-brand-700", sub: `${pct(total.app)}% ຂອງລາຍຮັບ` },
         ].map((card) => (
           <div key={card.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-[11px] text-slate-400">{card.label}</p>
@@ -167,7 +167,7 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
       <div className="grid gap-3 xl:grid-cols-2">
         <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 text-sm font-bold text-slate-700">
-            <BarChart3 className="size-4 text-teal-600" />
+            <BarChart3 className="size-4 text-brand-700" />
             ລາຍຮັບລາຍວັນ
             <span className="ml-auto text-[11px] font-medium text-slate-400">
               {days.length} ວັນທີ່ມີງານປິດ
@@ -192,7 +192,7 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
                       className="flex-1 rounded-t-sm"
                       style={{
                         height: `${height}%`,
-                        backgroundColor: day ? (day.baht >= peak ? "#0d9488" : "#5eead4") : "#f1f5f9",
+                        backgroundColor: day ? (day.baht >= peak ? "#1e5b9a" : "#93ddf5") : "#f1f5f9",
                       }}
                     />
                   );
@@ -211,7 +211,7 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
 
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-600">
-            <Trophy className="size-3.5 text-amber-500" />
+            <Trophy className="size-3.5 text-brand-orange-300" />
             ຍອດຕາມຊ່າງ · {techs.length} ຄົນ
           </div>
           {techs.length === 0 && !error && (
@@ -222,7 +222,7 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
               <li key={row.tech} className="flex items-center gap-3 px-4 py-2.5">
                 <span
                   className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                    index === 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+                    index === 0 ? "bg-brand-orange-300 text-brand-900" : "bg-slate-100 text-slate-500"
                   }`}
                 >
                   {index + 1}
@@ -239,7 +239,7 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
                   <div className="mt-1 flex items-center gap-2">
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className="h-full rounded-full bg-teal-500"
+                        className="h-full rounded-full bg-brand-600"
                         style={{ width: `${topTech > 0 ? Math.max(2, (row.baht / topTech) * 100) : 0}%` }}
                       />
                     </div>
@@ -283,7 +283,7 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
                   <td className="whitespace-nowrap px-4 py-2">
                     <Link
                       href={`/installations/${encodeURIComponent(row.code)}`}
-                      className="font-bold text-blue-700 hover:underline"
+                      className="font-bold text-brand-700 hover:underline"
                     >
                       {row.code}
                     </Link>
@@ -333,21 +333,21 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
 
       {/* ── ⑥ ບິນຕິດຕັ້ງທີ່ຍັງບໍ່ຜູກໃບງານ — ແປງກີບ→ບາດ ແລ້ວລວມເຂົ້າຍອດຂ້າງເທິງແລ້ວ ── */}
       {unlinked.length > 0 && (
-        <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-          <h2 className="flex flex-wrap items-center gap-2 text-sm font-bold text-amber-800">
+        <section className="rounded-xl border border-brand-orange-400 bg-brand-orange-100 p-4 shadow-sm">
+          <h2 className="flex flex-wrap items-center gap-2 text-sm font-bold text-brand-900">
             <AlertTriangle className="size-4" />
             ບິນຕິດຕັ້ງຍັງບໍ່ຜູກໃບງານ · {unlinked.length.toLocaleString()} ໃບ ·{" "}
             <span className="tabular-nums">{Math.round(unSum.baht).toLocaleString()} ບາດ</span>
           </h2>
-          <p className="mt-1 text-[11px] text-amber-700">
+          <p className="mt-1 text-[11px] text-brand-900">
             ບິນເຫຼົ່ານີ້ມີລາຍການຄ່າຕິດຕັ້ງ (9701xx) ມີລາຄາ ແຕ່ບໍ່ມີໃບງານໃດໃສ່ເລກບິນນີ້ໃນ <b>doc_ref_1</b>
             ⇒ ຍອດ <b>ເອົາຈາກ ERP ມາຊື່ໆ ແລະ ລວມເຂົ້າຍອດຂ້າງເທິງແລ້ວ</b> (ບໍ່ແປງອັດຕາ) ·
             ໃສ່ເລກບິນໃນໃບງານ ເມື່ອໄດ້ໃບງານແລ້ວ ຕົວເລກຈະຍ້າຍໄປຢູ່ໃບງານນັ້ນເອງ.
           </p>
-          <div className="mt-2 overflow-x-auto rounded-lg border border-amber-200 bg-white">
+          <div className="mt-2 overflow-x-auto rounded-lg border border-brand-orange-400 bg-white">
             <table className="w-full min-w-[760px] border-collapse text-xs">
               <thead>
-                <tr className="border-b border-amber-100 bg-amber-50/60 text-left text-amber-700">
+                <tr className="border-b border-brand-orange-300 bg-brand-orange-100/60 text-left text-brand-900">
                   <th className="px-3 py-2 font-semibold">ເລກບິນ</th>
                   <th className="px-3 py-2 font-semibold">ວັນທີບິນ</th>
                   <th className="px-3 py-2 font-semibold">ລູກຄ້າ</th>
@@ -357,7 +357,7 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
               </thead>
               <tbody>
                 {unlinked.map((bill) => (
-                  <tr key={bill.doc_no} className="border-b border-amber-50">
+                  <tr key={bill.doc_no} className="border-b border-brand-orange-200">
                     <td className="whitespace-nowrap px-3 py-1.5 font-mono text-[11px] font-semibold text-slate-700">
                       {bill.doc_no}
                     </td>
@@ -372,7 +372,7 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
                       {Math.round(bill.baht).toLocaleString()}
                       <span className="ml-1 text-[10px] font-semibold text-slate-400">ບາດ</span>
                       {bill.kip && (
-                        <p className="text-[10px] font-normal text-amber-600">
+                        <p className="text-[10px] font-normal text-brand-900">
                           ຈາກ {Math.round(bill.baht).toLocaleString()} ກີບ
                         </p>
                       )}
@@ -402,8 +402,8 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
 function InstallKindBadge({ ac, app, baht }: { ac: number; app: number; baht: number }) {
   const other = Math.max(0, baht - ac - app);
   const entries = [
-    { label: "ແອ", value: ac, className: "bg-teal-50 text-teal-700 border-teal-200" },
-    { label: "ໄຟຟ້າ", value: app, className: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+    { label: "ແອ", value: ac, className: "bg-brand-50 text-brand-800 border-brand-200" },
+    { label: "ໄຟຟ້າ", value: app, className: "bg-brand-50 text-brand-700 border-brand-200" },
     { label: "ອື່ນໆ", value: other, className: "bg-slate-100 text-slate-500 border-slate-200" },
   ].filter((entry) => entry.value > 0);
   const top = entries.reduce((best, entry) => (entry.value > best.value ? entry : best), entries[0]);
@@ -411,7 +411,7 @@ function InstallKindBadge({ ac, app, baht }: { ac: number; app: number; baht: nu
   const mixed = entries.filter((entry) => Math.abs(entry.value - top.value) < 0.005).length > 1;
   return (
     <span
-      className={`inline-flex rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${mixed ? "bg-amber-50 text-amber-700 border-amber-200" : top.className}`}
+      className={`inline-flex rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${mixed ? "bg-brand-orange-100 text-brand-900 border-brand-orange-400" : top.className}`}
     >
       {mixed ? "ປົນ" : top.label}
     </span>

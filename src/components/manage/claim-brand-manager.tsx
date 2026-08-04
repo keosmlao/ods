@@ -38,7 +38,7 @@ export function ClaimBrandManager({
   };
 
   const supName = (code: string | null) => (code ? suppliers.find((s) => s.code === code)?.name ?? code : "-");
-  const inp = "h-9 rounded-lg border border-slate-300 px-2.5 text-sm outline-none focus:border-teal-500";
+  const inp = "h-9 rounded-lg border border-slate-300 px-2.5 text-sm outline-none focus:border-brand-600";
 
   return (
     <div className="max-w-2xl space-y-4">
@@ -53,11 +53,11 @@ export function ClaimBrandManager({
             <option value="">— supplier —</option>
             {suppliers.map((s) => <option key={s.code} value={s.code}>{s.code} · {s.name}</option>)}
           </select>
-          <button type="button" disabled={pending} onClick={add} className="inline-flex h-9 items-center gap-1 rounded-lg bg-teal-600 px-3 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+          <button type="button" disabled={pending} onClick={add} className="inline-flex h-9 items-center gap-1 rounded-lg bg-brand-700 px-3 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60">
             {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Plus className="size-4" />} ເພີ່ມ
           </button>
         </div>
-        {err && <p className="mt-2 text-xs font-semibold text-rose-600">{err}</p>}
+        {err && <p className="mt-2 text-xs font-semibold text-brand-orange-700">{err}</p>}
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -68,11 +68,11 @@ export function ClaimBrandManager({
           <ul className="divide-y divide-slate-100">
             {initial.map((b) => (
               <li key={b.brand_code} className="flex items-center gap-2 py-1.5 text-sm">
-                <input type="checkbox" checked={b.active} onChange={(e) => act(() => setBrandClaim(b.brand_code, b.supplier_code ?? "", e.target.checked))} className="size-4 accent-teal-600" />
+                <input type="checkbox" checked={b.active} onChange={(e) => act(() => setBrandClaim(b.brand_code, b.supplier_code ?? "", e.target.checked))} className="size-4 accent-brand-700" />
                 <span className={`font-semibold ${b.active ? "text-slate-800" : "text-slate-400 line-through"}`}>{b.brand_code}</span>
                 <span className="text-slate-400">→</span>
                 <span className="min-w-0 flex-1 truncate text-slate-600">{supName(b.supplier_code)}</span>
-                <button type="button" onClick={() => act(() => removeBrandClaim(b.brand_code))} className="text-slate-400 hover:text-rose-600"><Trash2 className="size-4" /></button>
+                <button type="button" onClick={() => act(() => removeBrandClaim(b.brand_code))} className="text-slate-400 hover:text-brand-orange-700"><Trash2 className="size-4" /></button>
               </li>
             ))}
           </ul>

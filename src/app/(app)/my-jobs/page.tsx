@@ -259,7 +259,7 @@ export default async function MyJobsPage({ searchParams }: Props) {
                 }))}
               />
             </div>
-            <button className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white">{t.show}</button>
+            <button className="h-10 rounded-lg bg-brand-900 px-4 text-sm font-medium text-white">{t.show}</button>
           </form>
         )}
       </div>
@@ -274,7 +274,7 @@ export default async function MyJobsPage({ searchParams }: Props) {
                 key={key}
                 href={wfHref(key)}
                 className={`inline-flex h-10 flex-1 items-center justify-center gap-2 border-l border-slate-300 px-3 text-sm font-medium first:border-l-0 ${
-                  wf === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                  wf === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
                 }`}
               >
                 <Icon className="size-4" />
@@ -293,7 +293,7 @@ export default async function MyJobsPage({ searchParams }: Props) {
           <Link
             href={stageHref(null)}
             className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium ${
-              stage === null ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+              stage === null ? "border-brand-900 bg-brand-900 text-white" : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
             }`}
           >
             <Layers className="size-4" />
@@ -313,7 +313,7 @@ export default async function MyJobsPage({ searchParams }: Props) {
                 href={stageHref(row.stage)}
                 className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm ${
                   stage === row.stage
-                    ? "border-slate-900 bg-slate-900 font-semibold text-white"
+                    ? "border-brand-900 bg-brand-900 font-semibold text-white"
                     : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
                 }`}
               >
@@ -352,7 +352,7 @@ export default async function MyJobsPage({ searchParams }: Props) {
                   : (config.labels[row.stage] ?? `${t.stage} ${row.stage}`);
                 return (
                   <RowLink key={row.code} href={config.href(row.code)} className="relative border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-3 text-center font-bold text-[#0536a9]">
+                    <td className="relative whitespace-nowrap px-3 py-3 text-center font-bold text-brand">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                       <Link href={config.href(row.code)} className="hover:underline">{row.code}</Link>
                     </td>
@@ -409,7 +409,7 @@ export default async function MyJobsPage({ searchParams }: Props) {
               >
                 <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-base font-bold text-[#0536a9]">{row.code}</span>
+                  <span className="text-base font-bold text-brand">{row.code}</span>
                   <Elapsed
                     seconds={row.elapsed_seconds}
                     className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${tone.chip}`}

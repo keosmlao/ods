@@ -231,7 +231,7 @@ export async function SearchBar({
         <Search className="size-3.5 shrink-0 text-slate-400" />
         <input name="q" defaultValue={q} placeholder={placeholder ?? t.searchPlaceholder} className="w-full text-xs outline-none" />
       </div>
-      <button className="h-9 rounded-lg bg-slate-900 px-4 text-xs font-medium text-white">{t.search}</button>
+      <button className="h-9 rounded-lg bg-brand-900 px-4 text-xs font-medium text-white">{t.search}</button>
     </form>
   );
 }
@@ -298,13 +298,13 @@ export function DocCell({ row, href, showRequest = false }: { row: InstallDocRow
     <td className="whitespace-nowrap px-3 py-2.5">
       {showRequest && row.request_doc && (
         <span className="mb-0.5 block text-[10px] font-medium text-slate-400">
-          ໃບຂໍ <b className="font-mono text-teal-700">{row.request_doc}</b>
+          ໃບຂໍ <b className="font-mono text-brand-800">{row.request_doc}</b>
         </span>
       )}
       {href ? (
         <Link
           href={href}
-          className="font-semibold text-teal-700 underline decoration-teal-300 underline-offset-2 hover:text-teal-900"
+          className="font-semibold text-brand-800 underline decoration-brand-300 underline-offset-2 hover:text-brand-900"
         >
           {row.doc_no}
         </Link>
@@ -337,7 +337,7 @@ export function InstallCells({
   const tone = elapsedTone(row.elapsed_seconds);
   return (
     <>
-      <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
+      <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
         <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
         {/* ກົດເລກງານ → ໜ້າລາຍລະອຽດ (ອ່ານຢ່າງດຽວ, ເປີດໃຫ້ທຸກ role). list ບໍ່ເຄີຍລິ້ງໄປ detail ມາກ່ອນ */}
         <Link href={`/installations/${encodeURIComponent(row.code)}`} className="hover:underline">

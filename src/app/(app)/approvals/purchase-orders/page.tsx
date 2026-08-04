@@ -113,7 +113,7 @@ function AgeBadge({ days, daysUnit }: { days: number | null; daysUnit: string })
   return (
     <span
       className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
-        days >= 14 ? "bg-red-100 text-red-700" : days >= 7 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"
+        days >= 14 ? "bg-brand-orange-100 text-brand-orange-700" : days >= 7 ? "bg-brand-orange-300 text-brand-900" : "bg-slate-100 text-slate-600"
       }`}
     >
       {days} {daysUnit}
@@ -151,7 +151,7 @@ export default async function ApprovePurchaseOrdersPage({ searchParams }: Props)
             key={key}
             href={key === "waiting" ? "/approvals/purchase-orders" : "/approvals/purchase-orders?tab=approved"}
             className={`inline-flex h-9 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
-              tab === key ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+              tab === key ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
             }`}
           >
             <Icon className="size-3.5" />
@@ -188,7 +188,7 @@ export default async function ApprovePurchaseOrdersPage({ searchParams }: Props)
                 <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="px-3 py-2.5 font-bold">
                     {/* ໜ້າເອກະສານຮັບເລກ PO ໂດຍກົງ — ໃບຂອງຕ່ອງໂສ້ SPR ມັນເດັ້ງໄປໜ້າ SPR ເອງ */}
-                    <Link href={`/purchase-orders/${encodeURIComponent(row.doc_no)}`} className="text-[#0536a9] hover:underline">
+                    <Link href={`/purchase-orders/${encodeURIComponent(row.doc_no)}`} className="text-brand hover:underline">
                       {row.doc_no}
                     </Link>
                   </td>
@@ -200,7 +200,7 @@ export default async function ApprovePurchaseOrdersPage({ searchParams }: Props)
                     {row.spr ? (
                       <span className="inline-flex flex-col items-start">
                         {isJobCode(row.job) ? (
-                          <Link href={`/service/${row.job}`} className="font-medium text-[#0536a9] hover:underline">
+                          <Link href={`/service/${row.job}`} className="font-medium text-brand hover:underline">
                             {t.jobPrefix} {row.job}
                           </Link>
                         ) : (
@@ -221,7 +221,7 @@ export default async function ApprovePurchaseOrdersPage({ searchParams }: Props)
                   <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{row.total ?? "0"}</td>
                   {tab === "approved" && (
                     <td className="whitespace-nowrap px-3 py-2.5">
-                      <span className="font-mono text-[10px] text-emerald-700">{row.wpoa}</span>
+                      <span className="font-mono text-[10px] text-brand-800">{row.wpoa}</span>
                       <span className="block text-[10px] text-slate-400">{row.wpoa_date}</span>
                     </td>
                   )}

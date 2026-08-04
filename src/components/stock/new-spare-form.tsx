@@ -18,7 +18,7 @@ export function NewSpareForm({ today }: { today: string }) {
     <form ref={formRef} action={action} className="space-y-4">
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
       {state.ok && (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">ບັນທຶກສຳເລັດ</p>
+        <p className="rounded-lg border border-brand-200 bg-brand-50 p-3 text-sm text-brand-800">ບັນທຶກສຳເລັດ</p>
       )}
 
       <div className="grid gap-4 md:grid-cols-4">

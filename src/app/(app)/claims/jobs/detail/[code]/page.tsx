@@ -118,7 +118,7 @@ export default async function ClaimJobDetail({ params }: { params: Promise<{ cod
 
       <Card title="ຂອບເຂດເຄມ">
         <div className="flex flex-wrap items-center gap-3">
-          <span className={`rounded-full px-3 py-1 text-xs font-bold ${row.claim_scope === "part" ? "bg-violet-100 text-violet-800" : "bg-slate-100 text-slate-700"}`}>
+          <span className={`rounded-full px-3 py-1 text-xs font-bold ${row.claim_scope === "part" ? "bg-brand-orange-100 text-brand-orange-700" : "bg-slate-100 text-slate-700"}`}>
             {row.claim_scope === "part" ? "ເຄມສະເພາະອາໄຫຼ່" : "ເຄມທັງເຄື່ອງ"}
           </span>
           {row.claim_scope === "part" && (
@@ -130,7 +130,7 @@ export default async function ClaimJobDetail({ params }: { params: Promise<{ cod
             </span>
           )}
           {row.claim_no && (
-            <Link href={`/claims/${row.claim_no}`} className="ml-auto text-sm font-semibold text-teal-700 hover:underline">
+            <Link href={`/claims/${row.claim_no}`} className="ml-auto text-sm font-semibold text-brand-800 hover:underline">
               ໃບເຄມ {row.claim_no} {claim ? `· ${claim.status}` : ""}
             </Link>
           )}

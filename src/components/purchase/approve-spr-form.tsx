@@ -35,7 +35,7 @@ export function ApproveSprForm({ sprNo, back }: { sprNo: string; back?: string }
             });
             if (ok) approveRef.current?.requestSubmit();
           }}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
         >
           {approving ? <LoaderCircle className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
           ອະນຸມັດ
@@ -52,7 +52,7 @@ export function ApproveSprForm({ sprNo, back }: { sprNo: string; back?: string }
             });
             if (ok) rejectRef.current?.requestSubmit();
           }}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-rose-300 bg-white px-3 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-brand-orange-400 bg-white px-3 text-xs font-semibold text-brand-orange-700 hover:bg-brand-orange-50 disabled:opacity-50"
         >
           {rejecting ? <LoaderCircle className="size-3.5 animate-spin" /> : <X className="size-3.5" />}
           ປະຕິເສດ

@@ -73,7 +73,7 @@ export function RepairSpareEditor({
             type="button"
             onClick={() => setOpen(true)}
             disabled={busy}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800 disabled:opacity-50"
           >
             <Plus className="size-3.5" /> ເພີ່ມອາໄຫຼ່
           </button>
@@ -108,7 +108,7 @@ export function RepairSpareEditor({
                   onClick={() => run(() => deleteUsedSpare(code, line.roworder))}
                   disabled={busy}
                   title="ຖອດອອກ"
-                  className="rounded p-1.5 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  className="rounded p-1.5 text-brand-orange-700 hover:bg-brand-orange-50 disabled:opacity-50"
                 >
                   <Trash2 className="size-4" />
                 </button>
@@ -119,7 +119,7 @@ export function RepairSpareEditor({
       )}
 
       {error && (
-        <p className="mt-2 flex items-center gap-1 text-[11px] font-medium text-red-600">
+        <p className="mt-2 flex items-center gap-1 text-[11px] font-medium text-brand-orange-700">
           <AlertTriangle className="size-3 shrink-0" />
           {error}
         </p>
@@ -128,7 +128,7 @@ export function RepairSpareEditor({
       {pending > 0 && (
         <Link
           href={`/stock/requests/${roworder}`}
-          className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700"
+          className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-brand-orange-700 px-3 text-xs font-semibold text-white hover:bg-brand-orange-700"
         >
           <PackagePlus className="size-4" /> ຂໍເບີກອາໄຫຼ່ເພີ່ມ ({pending})
         </Link>

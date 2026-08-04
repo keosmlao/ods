@@ -40,7 +40,7 @@ export default async function PendingReport({ searchParams }: { searchParams: Se
         <Link
           href={all ? `/reports/pending?from=${from}&to=${to}` : "/reports/pending?all=1"}
           className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-medium ${
-            all ? "bg-sky-500 text-white hover:bg-sky-600" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+            all ? "bg-brand-500 text-white hover:bg-brand-500" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
           }`}
         >
           ສະແດງທັງໝົດ
