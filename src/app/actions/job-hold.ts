@@ -196,11 +196,11 @@ export async function markJobRepaired(_: HoldState, formData: FormData): Promise
 /**
  * ໜ້າທີ່ນັບ/ສະແດງວຽກຄ້າງ — ທຸງປ່ຽນທັງຕົວເລກ ແລະ ແທັບ ⇒ ຕ້ອງ revalidate ພ້ອມ.
  * ໜ້າຂັ້ນຕອນເປັນ route ແບບ dynamic ⇒ ຕ້ອງສົ່ງ**ຮູບແບບ route** + type 'page'
- * (`/dashboard/status/repair` ບໍ່ແມ່ນ path ທີ່ມີຈິງ ⇒ revalidate ບໍ່ຕິດ).
+ * (`/work/repair` ບໍ່ແມ່ນ path ທີ່ມີຈິງ ⇒ revalidate ບໍ່ຕິດ).
  */
 function revalidateJobViews() {
   revalidatePath("/dashboard");
-  revalidatePath("/(app)/dashboard/status/[workflow]/[status]", "page");
+  revalidatePath("/(app)/work/[workflow]/[status]", "page");
   revalidatePath("/service");
   revalidatePath("/repair");
 }

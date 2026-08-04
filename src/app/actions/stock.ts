@@ -64,7 +64,7 @@ export async function syncStockDispatch(): Promise<void> {
   await Promise.all([syncErpDispatch(), syncErpPurchase()]);
   revalidatePath("/stock/dispatch");
   revalidatePath("/stock/requests/pickup");
-  revalidatePath("/dashboard/status/repair/withdrawing");
+  revalidatePath("/work/repair/withdrawing");
 }
 
 /**
@@ -269,7 +269,7 @@ export async function saveRequest(_: StockState, formData: FormData): Promise<St
   const roworder = text(formData, "roworder");
   if ((result.remaining ?? 0) > 0 && roworder) redirect(`/stock/requests/${roworder}`);
   // ໜ້າລາຍການຖືກລົບ (17-07-2026) ⇒ ກັບໄປ**ຄິວຂອງຂັ້ນ** ບ່ອນທີ່ວຽກຍ້າຍໄປຢູ່
-  redirect("/dashboard/status/repair/withdrawing");
+  redirect("/work/repair/withdrawing");
 }
 
 /** ods: /del_request/<product_code>/<doc_no> — ຍົກເລີກໃບຂໍເບີກ */
@@ -327,8 +327,8 @@ export async function deleteRequest(formData: FormData): Promise<void> {
     odg.release();
   }
   if (deleted) await logChange(jobModel(productCode), productCode, `ຍົກເລີກໃບຂໍເບີກ ${docNo}`);
-  revalidatePath("/dashboard/status/repair/withdrawing");
-  revalidatePath("/dashboard/status/repair/wait-withdraw");
+  revalidatePath("/work/repair/withdrawing");
+  revalidatePath("/work/repair/wait-withdraw");
 }
 
 /* ─────────────────────────── ເບີກອາໄຫຼ່ (trans_flag 56) ─────────────────────────── */

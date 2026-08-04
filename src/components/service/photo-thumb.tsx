@@ -9,7 +9,7 @@ import Link from "next/link";
  *   ບໍ່ມີ thumb ແຕ່ count>0 → ມີແຕ່ຮູບກວດ/ສ້ອມ (base64) ⇒ ໄອຄອນ
  *   ບໍ່ມີເລີຍ            → ກ່ອງຈາງ (ບໍ່ກົດໄດ້)
  *
- * ໃຊ້ຮ່ວມ: ໜ້າຮັບສິນຄ້າປະຈຳວັນ (/service) ແລະ ຄິວທຸກຂັ້ນຕອນ (/dashboard/status/repair/*).
+ * ໃຊ້ຮ່ວມ: ໜ້າຮັບສິນຄ້າປະຈຳວັນ (/service) ແລະ ຄິວທຸກຂັ້ນຕອນ (/work/repair/*).
  */
 export function PhotoThumb({
   code,

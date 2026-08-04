@@ -300,7 +300,7 @@ export default function SpareManualPage() {
             <Link href="/work/spares" className="font-semibold text-teal-700 hover:underline">ອາໄຫຼ່ (ທັງສາຍ)</Link> — ວຽກອາໄຫຼ່ຄ້າງທັງໝົດ ຈັດກຸ່ມຕາມ “ໃຜຕ້ອງເຮັດຕໍ່”
           </li>
           <li>
-            <Link href="/dashboard/status/repair/purchasing" className="font-semibold text-teal-700 hover:underline">ຄິວກຳລັງສັ່ງຊື້</Link> — ກ່ອງຂຽວ “ວຽກຄວນໄປຕໍ່ໄດ້ແລ້ວ” = ERP ຢືນຢັນວ່າຂອງເຂົ້າສາງຄົບແລ້ວ ແຕ່ວຽກຍັງບໍ່ຂະຫຍັບ
+            <Link href="/work/repair/purchasing" className="font-semibold text-teal-700 hover:underline">ຄິວກຳລັງສັ່ງຊື້</Link> — ກ່ອງຂຽວ “ວຽກຄວນໄປຕໍ່ໄດ້ແລ້ວ” = ERP ຢືນຢັນວ່າຂອງເຂົ້າສາງຄົບແລ້ວ ແຕ່ວຽກຍັງບໍ່ຂະຫຍັບ
           </li>
           <li>ກົດເລກໃບໃນຕາຕະລາງ ⇒ ເປີດເບິ່ງລາຍການຂອງໃບນັ້ນໄດ້ເລີຍ</li>
         </ol>

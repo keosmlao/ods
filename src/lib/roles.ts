@@ -123,6 +123,8 @@ const RULES: Rule[] = [
   { path: "/overview", roles: [M] },
   // ຊ່າງເຂົ້າຄິວຕາມສະຖານະໄດ້; ໜ້າປາຍທາງກອງ emp_code
   // ເຫຼືອແຕ່ໃບງານຂອງຜູ້ທີ່ login. Dashboard ເປີດໃຫ້ອ່ານພາບລວມໄດ້ນຳ.
+  { path: "/work", roles: EVERYONE },
+  // ເສັ້ນທາງເກົ່າ — ໜ້າ redirect ໄປ /work/<ສາຍງານ>/<ຂັ້ນ>
   { path: "/dashboard/status", roles: EVERYONE },
   { path: "/dashboard", roles: EVERYONE },
   { path: "/assistant", roles: EVERYONE },
@@ -155,9 +157,11 @@ const RULES: Rule[] = [
   { path: "/customer-contact", roles: SERVICE_SIDE },
   // ປິດງານ (ສ້ອມ + ຕິດຕັ້ງ) — ວຽກຫຼັງບ້ານຂອງ CS ຄືກັບ /returns ແລະ /installations/close
   { path: "/close-jobs", roles: SERVICE_SIDE },
-  // ໜ້າວຽກຕາມສາຍ (/work/*) — ຊ່າງ · ສາງ · CS · ຫົວໜ້າ · ຜູ້ຈັດການ
-  { path: "/work", roles: [M, HT, A, S, T] },
   /**
+   * ໜ້າວຽກຕາມສາຍງານ `/work/*` — ຄິວທຸກຂັ້ນ + ໜ້າອາໄຫຼ່.
+   * ເປີດຄືກັບ `/dashboard/status` ເກົ່າ (EVERYONE): ໜ້າປາຍທາງກອງ emp_code ໃຫ້ຊ່າງເອງ.
+   */
+    /**
    * ⚠️ **ບໍ່ມີໜ້ານີ້ແລ້ວ** (ລົບ 17-07-2026 — ຊ້ຳກັບຄິວ "2. ລໍຖ້າກວດເຊັກ" ແລະ ບໍ່ມີລິ້ງໃດພາໄປ).
    * ເກັບກົດໄວ້ເພາະມັນຍັງເປັນ **ສິດ** ທີ່ຄຸມປຸ່ມ "ຈັດຊ່າງ / ຍົກເລີກການຈັດ" ຢູ່ຄິວນັ້ນ
    * (dashboard/status/… ໃຊ້ canAccess(role, "/repair/assign")) — ລຶບອອກ = ປຸ່ມຫາຍງຽບໆ.
@@ -169,7 +173,7 @@ const RULES: Rule[] = [
   /* ຊ່າງ — ods: ເມນູ "ຊ່າງ" ({% else %} + manager) */
   /**
    * ວຽກຂອງຂ້ອຍ ຕາມຂັ້ນ — ຄິວທຸກຂັ້ນຂອງຊ່າງຄົນດຽວ ຢູ່ໜ້າດຽວ.
-   * ຊ່າງເປີດໄດ້ (ເຫັນສະເພາະຂອງຕົນ ຜ່ານ lib/scope) ເພາະ /dashboard/status/* ຊ່າງບໍ່ມີສິດ
+   * ຊ່າງເປີດໄດ້ (ເຫັນສະເພາະຂອງຕົນ ຜ່ານ lib/scope) ເພາະ /work/* ຊ່າງບໍ່ມີສິດ
    * ⇒ ຖ້າບໍ່ມີໜ້ານີ້ ຊ່າງບໍ່ມີບ່ອນເຫັນວຽກຕົນເອງຄົບທຸກຂັ້ນເລີຍ.
    */
   { path: "/my-jobs", roles: TECH_SIDE },

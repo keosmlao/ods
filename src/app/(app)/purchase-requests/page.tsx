@@ -195,7 +195,7 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
           </p>
         </div>
         <Link
-          href="/dashboard/status/repair/purchasing"
+          href="/work/repair/purchasing"
           className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
         >
           <PackageCheck className="size-4" />

@@ -8,7 +8,7 @@ import { UndoButton } from "@/components/checking/undo-button";
  * ໃຊ້ `UndoButton` ກາງອັນດຽວກັບປຸ່ມຖອນຄືນອື່ນ ⇒ ໄດ້ `variant="icon"` (ປຸ່ມນ້ອຍໃນຕາຕະລາງ)
  * ແລະ ຮູບແບບການຖາມຢືນຢັນ/ສະແດງ error ຄືກັນທັງລະບົບ.
  *
- * ບ່ອນທີ່ໃຊ້: ຄິວ "ກຳລັງເບີກອາໄຫຼ່" (/dashboard/status/repair/withdrawing)
+ * ບ່ອນທີ່ໃຊ້: ຄິວ "ກຳລັງເບີກອາໄຫຼ່" (/work/repair/withdrawing)
  * — ໜ້າລາຍການ /stock/requests ຖືກລົບແລ້ວ (17-07-2026, ຊ້ຳກັບຄິວ).
  */
 export function CancelRequestButton({

@@ -41,7 +41,7 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ສ້ອມແປງ", label: "ຂໍ້ມູນລູກຄ້າ", resource: "/customers" },
   /** ບໍ່ມີໜ້າແລ້ວ (ລົບ 17-07-2026) — ຄົງໄວ້ເປັນ **ສິດ** ທີ່ຄຸມປຸ່ມຈັດຊ່າງຢູ່ຄິວ "ລໍຖ້າກວດເຊັກ" */
   { group: "ສ້ອມແປງ", label: "ຈັດຊ່າງ / ຍົກເລີກການຈັດ", resource: "/repair/assign", actions: ["read", "update"] },
-  { group: "ສ້ອມແປງ", label: "ຄິວງານສ້ອມຕາມສະຖານະ", resource: "/dashboard/status", actions: READ_ONLY },
+  { group: "ສ້ອມແປງ", label: "ຄິວງານສ້ອມຕາມສະຖານະ", resource: "/work", actions: READ_ONLY },
   { group: "ສ້ອມແປງ", label: "ກວດເຊັກ", resource: "/checking", actions: ["read", "update"] },
   { group: "ສ້ອມແປງ", label: "ໃບສະເໜີລາຄາ", resource: "/quotations" },
   { group: "ສ້ອມແປງ", label: "ລູກຄ້າອະນຸມັດລາຄາ", resource: "/quotations/customer-approval", actions: ["read", "update"] },

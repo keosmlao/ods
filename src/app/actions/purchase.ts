@@ -1589,7 +1589,7 @@ export async function cancelPoOrder(_: PurchaseState, formData: FormData): Promi
   if (mode === "chain") {
     revalidatePath("/purchase-requests");
     revalidatePath("/approvals/purchase-requests");
-    revalidatePath("/dashboard/status/repair/purchasing");
+    revalidatePath("/work/repair/purchasing");
     revalidatePath("/dashboard");
     if (jobCode) revalidatePath(`/service/${jobCode}`);
     // ທັງ PO ແລະ SPR ຖືກລຶບ ⇒ ໜ້າເອກະສານໃດກໍ່ 404 — ພາໄປໜ້າວຽກເລີຍ ໃຫ້ກົດຍົກເລີກວຽກຕໍ່ໄດ້
@@ -1734,7 +1734,7 @@ export async function releaseGhostPurchase(_: PurchaseState, formData: FormData)
   await logChange("tb_product", job,
     `ຍົກເລີກສັ່ງຊື້ (ໃບຜີ: ${keys.join(", ") || "-"} ບໍ່ມີໃນ ERP) — ເຫດຜົນ: ${reason} · ວຽກກັບໄປຂັ້ນດຳເນີນອາໄຫຼ່ ຂໍຊື້ໃໝ່ໄດ້`,
     { roles: ROLE_WAREHOUSE });
-  revalidatePath("/dashboard/status/repair/purchasing");
+  revalidatePath("/work/repair/purchasing");
   revalidatePath("/purchase-requests");
   revalidatePath(`/service/${job}`);
   revalidatePath("/dashboard");

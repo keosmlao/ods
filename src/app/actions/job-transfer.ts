@@ -11,7 +11,7 @@ export type JobTransferState = { error?: string; ok?: boolean };
 function revalidate() {
   revalidatePath("/reports/stock-count");
   revalidatePath("/dashboard");
-  revalidatePath("/(app)/dashboard/status/[workflow]/[status]", "page");
+  revalidatePath("/(app)/work/[workflow]/[status]", "page");
 }
 
 /**

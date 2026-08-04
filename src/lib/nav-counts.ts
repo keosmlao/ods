@@ -20,7 +20,7 @@ import { CANCELLED_JOBS, NOT_MISSING, STAGE_SQL } from "@/lib/stage";
  * ທັງ 3 ຈະໄດ້ຍອດຂັ້ນ 0 ອັນດຽວກັນ (badge ຊ້ຳ 6,6,6) ແຕ່ໜ້າປາຍທາງກອງດ້ວຍ sub-condition
  * (PS/pickup_start vs IH) ⇒ ເຫັນ 0,0,6 — ຫຼົ້ນກັບ badge (ຜິດກົດເກນ ①). ໃສ່ ${NOT_MISSING}
  * ໃຫ້ຕົງກັບໜ້າປາຍທາງ (page.tsx push NOT_MISSING). **ບໍ່ກອງຕາມຊ່າງ** ໂດຍເຈດຕະນາ:
- * ໜ້າ /dashboard/status/repair/<slug> ສະແດງທຸກວຽກ (ບໍ່ໃຊ້ ownJobsOnly).
+ * ໜ້າ /work/repair/<slug> ສະແດງທຸກວຽກ (ບໍ່ໃຊ້ ownJobsOnly).
  * key = href ຂອງລາຍການເມນູ; slug + condition ມາຈາກ repairStatuses ບ່ອນດຽວ.
  */
 const CLAIM_STAGE_COUNTS = pipelineOf(claimStatuses)
@@ -33,7 +33,7 @@ const CLAIM_STAGE_COUNTS = pipelineOf(claimStatuses)
 const repairStageCounts = (mine: string) => pipelineOf(repairStatuses)
   .map(
     ([slug, def]) =>
-      `(select count(*) from tb_product a where (${def.condition}) and ${NOT_MISSING} ${mine})::int as "/dashboard/status/repair/${slug}"`,
+      `(select count(*) from tb_product a where (${def.condition}) and ${NOT_MISSING} ${mine})::int as "/work/repair/${slug}"`,
   )
   .join(",\n          ");
 
@@ -41,11 +41,11 @@ const repairStageCounts = (mine: string) => pipelineOf(repairStatuses)
  * ຕົວເລກຄິວຂອງແຕ່ລະຂັ້ນຕິດຕັ້ງ — ຄູ່ກັບກຸ່ມເມນູ "ຂັ້ນຕອນຕິດຕັ້ງ" (lib/navigation).
  *
  * ຄືກັບຝັ່ງສ້ອມທຸກປະການ ແຕ່ນັບຈາກ CTE `ist` (ຂັ້ນ ods_tb_install + ຈຳນວນ, ສະແກນເທື່ອດຽວ).
- * **ບໍ່ກອງຕາມຊ່າງ**: ໜ້າ /dashboard/status/install/<slug> ສະແດງທຸກວຽກ (ບໍ່ໃຊ້ ownJobsOnly)
+ * **ບໍ່ກອງຕາມຊ່າງ**: ໜ້າ /work/install/<slug> ສະແດງທຸກວຽກ (ບໍ່ໃຊ້ ownJobsOnly)
  * ⇒ ຕົວເລກຕ້ອງນັບທຸກວຽກຄືກັນ ຈຶ່ງບໍ່ຫຼົ້ນກັບແຖວທີ່ເຫັນ (ກົດເກນ ①).
  */
 const INSTALL_STAGE_COUNTS = pipelineOf(installStatuses)
-  .map(([slug, def]) => `coalesce((select n from ist where st = ${def.stage}), 0)::int as "/dashboard/status/install/${slug}"`)
+  .map(([slug, def]) => `coalesce((select n from ist where st = ${def.stage}), 0)::int as "/work/install/${slug}"`)
   .join(",\n          ");
 
 /**
@@ -147,7 +147,7 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
         `with ist as (
           -- ຂັ້ນຕິດຕັ້ງ: ສະແກນ ods_tb_install ເທື່ອດຽວ ⇒ ຄູ່ກັບກຸ່ມເມນູ "ຂັ້ນຕອນຕິດຕັ້ງ".
           -- ຂັ້ນ 0-8 ແມ່ນຄິວເປີດ; INSTALL_STAGE_SQL ຈັດ -1/9 ເປັນຍົກເລີກ/ປິດແລ້ວ.
-          -- ⇒ count ຕໍ່ຂັ້ນ = ຈຳນວນແຖວໜ້າ /dashboard/status/install/<slug> ພໍດີ (ກົດເກນ ①).
+          -- ⇒ count ຕໍ່ຂັ້ນ = ຈຳນວນແຖວໜ້າ /work/install/<slug> ພໍດີ (ກົດເກນ ①).
           select (${INSTALL_STAGE_SQL}) st, count(*)::int n
           from ods_tb_install a
           group by 1

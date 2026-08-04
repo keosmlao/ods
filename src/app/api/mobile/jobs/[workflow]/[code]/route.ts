@@ -353,8 +353,8 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
     "/installations/work",
     "/repair",
     "/qc",
-    "/dashboard/status/repair/picking-up",
-    "/dashboard/status/repair/wait-schedule",
+    "/work/repair/picking-up",
+    "/work/repair/wait-schedule",
   ]) {
     revalidatePath(path);
   }

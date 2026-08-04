@@ -64,7 +64,7 @@ export function RequestForm({
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/70 px-4 py-3">
-          <SaveBar backHref="/dashboard/status/repair/wait-withdraw" disabled={!hasSpares || !warehouseValue || !shelfValue} />
+          <SaveBar backHref="/work/repair/wait-withdraw" disabled={!hasSpares || !warehouseValue || !shelfValue} />
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-slate-600">
               <FileText className="size-3.5 text-teal-600" />

@@ -39,8 +39,8 @@ export async function dispatchPickup(code: string): Promise<{ ok?: string; error
   if (!res.rowCount) return { error: "ບໍ່ພົບວຽກ PS ທີ່ລໍໄປຮັບ (ອາດອອກໄປຮັບ ຫຼື ຮັບເຂົ້າສູນແລ້ວ)" };
 
   await logChange("tb_product", code, "ອອກໄປຮັບເຄື່ອງ (PS) — ຂົນສົ່ງເດີນທາງໄປບ້ານລູກຄ້າ");
-  revalidatePath("/dashboard/status/repair/wait-pickup");
-  revalidatePath("/dashboard/status/repair/picking-up");
+  revalidatePath("/work/repair/wait-pickup");
+  revalidatePath("/work/repair/picking-up");
   revalidatePath("/dashboard");
   revalidatePath(`/service/${code}`);
   return { ok: "ໝາຍອອກໄປຮັບແລ້ວ — ວຽກຍ້າຍໄປ ກຳລັງໄປຮັບ" };
@@ -61,8 +61,8 @@ export async function undoDispatchPickup(code: string): Promise<{ ok?: string; e
   if (!res.rowCount) return { error: "ຍົກເລີກບໍ່ໄດ້ — ວຽກຮັບເຂົ້າສູນແລ້ວ ຫຼື ບໍ່ແມ່ນ PS" };
 
   await logChange("tb_product", code, 'ຍົກເລີກ "ອອກໄປຮັບ" (PS) — ວຽກກັບໄປ ລໍໄປຮັບເຄື່ອງ');
-  revalidatePath("/dashboard/status/repair/wait-pickup");
-  revalidatePath("/dashboard/status/repair/picking-up");
+  revalidatePath("/work/repair/wait-pickup");
+  revalidatePath("/work/repair/picking-up");
   revalidatePath("/dashboard");
   revalidatePath(`/service/${code}`);
   return { ok: "ຍົກເລີກອອກໄປຮັບແລ້ວ" };
@@ -89,9 +89,9 @@ export async function receivePickup(code: string): Promise<{ ok?: string; error?
   await logChange("tb_product", code, "ຮັບເຄື່ອງເຂົ້າສູນ (PS) — ໄປຮັບບ້ານລູກຄ້າມາຮອດສູນ");
   // ເຄື່ອງຮອດສູນແລ້ວ ⇒ ຂັ້ນ "ລໍຖ້າກວດເຊັກ" = ວຽກຢູ່ມືຊ່າງ
   await notifyTechStage("repair", code);
-  revalidatePath("/dashboard/status/repair/wait-pickup");
-  revalidatePath("/dashboard/status/repair/picking-up");
-  revalidatePath("/dashboard/status/repair/wait-check");
+  revalidatePath("/work/repair/wait-pickup");
+  revalidatePath("/work/repair/picking-up");
+  revalidatePath("/work/repair/wait-check");
   revalidatePath("/dashboard");
   revalidatePath(`/service/${code}`);
   revalidatePath("/service");
@@ -615,7 +615,7 @@ export async function assignRepairTech(_: RepairState, formData: FormData): Prom
   revalidatePath("/repair");
   revalidatePath("/installations/schedule");
   // IH: ຕັ້ງວັນນັດ ⇒ ວຽກຍ້າຍຈາກ "ລໍນັດໝາຍ/ຈັດຊ່າງໄປສ້ອມ" (ຂັ້ນ 0) ໄປ "ລໍຖ້າຊ່າງຮັບ" (ຂັ້ນ 1)
-  revalidatePath("/dashboard/status/repair/wait-schedule");
+  revalidatePath("/work/repair/wait-schedule");
   revalidatePath("/dashboard");
   return { ok: "ຈັດຊ່າງສຳເລັດ" };
 }
@@ -686,7 +686,7 @@ export async function scheduleRepairVisit(_: RepairState, formData: FormData): P
   }
 
   revalidatePath(`/service/${code}`);
-  revalidatePath("/dashboard/status/repair/wait-repair");
+  revalidatePath("/work/repair/wait-repair");
   revalidatePath("/repair");
   revalidatePath("/installations/schedule");
   revalidatePath("/dashboard");

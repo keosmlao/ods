@@ -140,7 +140,7 @@ export default async function RepairJobPage({ params }: Props) {
     // ເຕັມຄວາມກວ້າງ ຄືກັບໜ້າໃບຮັບເຄື່ອງ/ຄິວອື່ນ — ຕາຕະລາງອາໄຫຼ່ຕາມຮອບ ແລະ ຮູບ ຕ້ອງການບ່ອນ
     <div className="w-full space-y-4">
       <div>
-        <Link href="/dashboard/status/repair/repairing" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
+        <Link href="/work/repair/repairing" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
           <ArrowLeft className="size-3.5" />
           ກັບຄິວກຳລັງສ້ອມ
           <LinkPending className="size-3" />

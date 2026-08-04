@@ -155,8 +155,8 @@ const REPAIR: NavGroup = {
         if (slug === "withdrawing" || slug === "purchasing") return [];
         return [{
           label: def.label,
-          href: `/dashboard/status/repair/${slug}`,
-          count: `/dashboard/status/repair/${slug}`,
+          href: `/work/repair/${slug}`,
+          count: `/work/repair/${slug}`,
           // labelKey ແຍກ (ບໍ່ໃຊ້ href) — ຂັ້ນ pipeline ໃຊ້ href ດຽວກັບເມນູຝັ່ງຊ່າງ ແຕ່ປ້າຍຕ່າງກັນ
           labelKey: `pipe:repair:${slug}`,
         }];
@@ -193,7 +193,7 @@ const INSTALL_FLOW: NavItem[] = [
   { label: "ລໍຖ້າຕິດຕັ້ງ", href: "/installations/work", count: "/installations/work" },
   { label: "ກຳລັງຕິດຕັ້ງ", href: "/installations/work/doing", count: "/installations/work/doing" },
   { label: "ລໍຖ້າກວດ QC", href: "/qc?workflow=install", flag: "qc", count: "/qc/install" },
-  { label: "ລໍຖ້າລູກຄ້າປະເມີນ", href: "/installations/feedback", count: "/dashboard/status/install/wait-feedback" },
+  { label: "ລໍຖ້າລູກຄ້າປະເມີນ", href: "/installations/feedback", count: "/work/install/wait-feedback" },
   { label: "ລໍຖ້າປິດງານ", href: "/installations/close", count: "/installations/close" },
 ];
 
@@ -275,7 +275,7 @@ const CLAIM: NavGroup = {
      * ── ຄິວງານເຄມ (ແຍກອອກຈາກກຸ່ມ "ສະຖານະງານສ້ອມ" 31-07-2026) ──
      * ແຕ່ກ່ອນ 4 ຄິວນີ້ປົນຢູ່ໃນ 12 ຂັ້ນຂອງສ້ອມ ⇒ ຄົນສ້ອມເຫັນວຽກທີ່ບໍ່ແມ່ນຂອງຕົນ
      * ແລະ ຄົນເຄມຕ້ອງໄປຫາຢູ່ເມນູສ້ອມ. ດຽວນີ້ຢູ່ກຸ່ມນີ້ຄົບ (ຮັບ → ກວດ → ຕັດສິນ → ຄືນຮ້ານ).
-     * href ຍັງເປັນ /dashboard/status/repair/<slug> ເພາະໃຊ້ຕາຕະລາງ tb_product ອັນດຽວກັນ.
+     * href ຍັງເປັນ /work/repair/<slug> ເພາະໃຊ້ຕາຕະລາງ tb_product ອັນດຽວກັນ.
      */
     ...pipelineOf(claimStatuses).map(([slug, def], index) => ({
       label: `${index + 1}. ${def.label}`,
@@ -429,8 +429,8 @@ const TECHNICIAN_NAVIGATION: NavGroup[] = [
             }
           : {
               label: `${index + 1}. ${repairStatuses[slug].label}`,
-              href: `/dashboard/status/repair/${slug}`,
-              count: `/dashboard/status/repair/${slug}`,
+              href: `/work/repair/${slug}`,
+              count: `/work/repair/${slug}`,
               labelKey: `pipe:repair:${slug}`,
             },
       ),

@@ -4,7 +4,7 @@ import { inTransferSql } from "@/lib/repair-center";
 import { IS_CLAIM, NOT_CLAIM, STAGE_SQL } from "@/lib/stage";
 
 /**
- * ຂັ້ນຂອງວຽກ ສຳລັບໜ້າລວມ ແລະ ໜ້າລາຍລະອຽດ /dashboard/status/<workflow>/<slug>.
+ * ຂັ້ນຂອງວຽກ ສຳລັບໜ້າລວມ ແລະ ໜ້າລາຍລະອຽດ /work/<workflow>/<slug>.
  *
  * ທັງສອງໜ້າອ່ານຈາກໄຟລ໌ນີ້ບ່ອນດຽວ ⇒ ຕົວເລກຢູ່ໜ້າລວມ ກັບ ຈຳນວນແຖວຢູ່ໜ້າລາຍລະອຽດ
  * ບໍ່ມີທາງບໍ່ຕົງກັນ.
@@ -101,7 +101,7 @@ export const repairStatuses: Record<string, StatusDef> = {
  * → ຄືນຮ້ານ. ຂັ້ນ 13-16 ຂອງ STAGE_SQL ຄືສາຂາເຄມທີ່ບໍ່ໄຫຼເຂົ້າ "ລໍສ້ອມ" ຂອງງານທົ່ວໄປ.
  *
  * ⚠️ ຂັ້ນ 1/2/11 ໃຊ້ເລກດຽວກັບສ້ອມ ແຕ່ **ກອງດ້ວຍ IS_CLAIM** ⇒ ໃບດຽວກັນຈະຢູ່ຝັ່ງດຽວ
- * ບໍ່ມີທາງນັບຊ້ຳ. ໜ້າ /dashboard/status/repair/<slug> ໃຊ້ໄດ້ຄືເກົ່າ (ຄີຢູ່ຊຸດດຽວກັນ)
+ * ບໍ່ມີທາງນັບຊ້ຳ. ໜ້າ /work/repair/<slug> ໃຊ້ໄດ້ຄືເກົ່າ (ຄີຢູ່ຊຸດດຽວກັນ)
  * ພຽງແຕ່ **ເມນູ** ຢູ່ຄົນລະກຸ່ມ (lib/navigation).
  */
 export const claimStatuses: Record<string, StatusDef> = {

@@ -49,7 +49,7 @@ export async function setSetting(_: SettingState, formData: FormData): Promise<S
   // ຄ່າຖືກ cache ໄວ້ (lib/settings) ⇒ ບໍ່ລ້າງ tag ໜ້າອື່ນຈະຍັງເຫັນຄ່າເກົ່າ
   updateTag(SETTING_TAG);
   revalidatePath("/manage/settings");
-  revalidatePath("/(app)/dashboard/status/[workflow]/[status]", "page");
+  revalidatePath("/(app)/work/[workflow]/[status]", "page");
   revalidatePath("/service");
   return { ok: true };
 }

@@ -125,6 +125,6 @@ export async function undoQc(workflow: Workflow, jobCode: string): Promise<QcSta
   await logChange(workflow === "repair" ? "tb_product" : "ods_tb_install", jobCode, "ຍົກເລີກ QC ຜ່ານ — ກັບໄປລໍກວດຮັບຄຸນນະພາບ");
   revalidatePath("/qc");
   revalidatePath("/dashboard");
-  revalidatePath(`/dashboard/status/${workflow}/wait-return`);
+  revalidatePath(`/work/${workflow}/wait-return`);
   return {};
 }
