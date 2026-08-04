@@ -1,15 +1,23 @@
-import { installRevenueBetween, installRevenueDetail } from "@/lib/service-money";
-import { ChevronDown, HardHat } from "lucide-react";
+import { employeeNameMap, resolveName } from "@/lib/employee-names";
+import { kipPerBaht } from "@/lib/monthly-report";
+import {
+  installRevenueBetween,
+  installRevenueByDay,
+  installRevenueByTech,
+  installRevenueDetail,
+} from "@/lib/service-money";
+import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, HardHat, Trophy } from "lucide-react";
 import Link from "next/link";
 
 /**
- * **ລາຍຮັບງານຕິດຕັ້ງ** — ນັບຈາກ **ໃບງານຕິດຕັ້ງ** ບໍ່ແມ່ນຈາກບິນລອຍໆ.
+ * **ລາຍຮັບງານຕິດຕັ້ງ — ໂຕໂຕໃໝ່** (ອອກແບບຄືກັບ /tech-revenue ໃຫ້ອ່ານເປັນເດືອນ).
  *
- * ຜູກຜ່ານ `ods_tb_install.doc_ref_1` = ເລກບິນຂາຍ ERP ຂອງໃບງານນັ້ນ (ວັດ 04-08-2026:
- * ມີຄົບ 100% ຂອງໃບງານ · join ຕິດ 6,503/6,972 · **6,393 ໃບ (92%) ມີຄ່າບໍລິການ 9701xx**)
- * ⇒ ບອກໄດ້ວ່າເງິນກ້ອນນີ້ມາຈາກໃບງານໃດ ບໍ່ຕ້ອງເດົາຈາກລູກຄ້າ+ວັນທີ.
+ * ນັບຈາກ **ໃບງານຕິດຕັ້ງ** ບໍ່ແມ່ນຈາກບິນລອຍໆ — ຜູກຜ່ານ `ods_tb_install.doc_ref_1`
+ * = ເລກບິນຂາຍ ERP ຂອງໃບງານນັ້ນ · ເອົາສະເພາະລາຍການຄ່າບໍລິການ 9701xx · ນັບຕາມວັນປິດງານ.
+ * ຍອດເປັນ **ບາດ** ຕາມ ERP (ແຖວກີບແປງດ້ວຍອັດຕາ tb_bill_rate).
  *
- * ນັບຕາມ **ວັນປິດງານ** (job_finish). ຍອດເປັນ **ບາດ** ຕາມທີ່ບັນທຶກໃນ ERP (ບໍ່ແປງໜ່ວຍ).
+ * ໂຄງໜ້າ: ① ເລືອກເດືອນ ‹ › ② ຍອດລວມ 4 ກ້ອນ ③ ກຣາຟລາຍວັນ + ອັນດັບຊ່າງ
+ * ④ ຕາຕະລາງລາຍໃບງານ. ທຸກສ່ວນອ່ານຈາກສູດດຽວກັນ (lib/service-money) ⇒ ຕົວເລກກົງກັນ.
  */
 export const dynamic = "force-dynamic";
 
@@ -17,6 +25,18 @@ type Props = { searchParams: Promise<{ month?: string; page?: string }> };
 
 const BATCH = 20;
 const MONTH_RE = /^\d{4}-\d{2}$/;
+
+/** ບວກ/ລົບເດືອນຈາກ string — ໃຫ້ລິ້ງ ‹ › ຄິດໄດ້ໂດຍບໍ່ພຶ່ງ Date ຝັ່ງ SQL */
+function shiftMonth(month: string, step: number) {
+  const [year, mon] = month.split("-").map(Number);
+  const total = year * 12 + (mon - 1) + step;
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, "0")}`;
+}
+
+const LAO_MONTH = [
+  "ມັງກອນ", "ກຸມພາ", "ມີນາ", "ເມສາ", "ພຶດສະພາ", "ມິຖຸນາ",
+  "ກໍລະກົດ", "ສິງຫາ", "ກັນຍາ", "ຕຸລາ", "ພະຈິກ", "ທັນວາ",
+];
 
 export default async function InstallRevenuePage({ searchParams }: Props) {
   const params = await searchParams;
@@ -28,50 +48,93 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
 
   const [year, mon] = month.split("-").map(Number);
   const from = `${month}-01`;
-  const to = `${month}-${String(new Date(year, mon, 0).getDate()).padStart(2, "0")}`;
+  const daysInMonth = new Date(year, mon, 0).getDate();
+  const to = `${month}-${String(daysInMonth).padStart(2, "0")}`;
 
   let total = { jobs: 0, baht: 0 };
   let rows: Awaited<ReturnType<typeof installRevenueDetail>> = [];
+  let days: Awaited<ReturnType<typeof installRevenueByDay>> = [];
+  let techs: Awaited<ReturnType<typeof installRevenueByTech>> = [];
+  let rate = 0;
   let error: string | null = null;
   try {
-    [total, rows] = await Promise.all([
+    [total, rows, days, techs, rate] = await Promise.all([
       installRevenueBetween(from, to),
       installRevenueDetail(from, to, shown + 1),
+      installRevenueByDay(from, to),
+      installRevenueByTech(from, to),
+      kipPerBaht(),
     ]);
   } catch (exception) {
     error = exception instanceof Error ? exception.message : "ດຶງຂໍ້ມູນບໍ່ສຳເລັດ";
   }
   const hasMore = rows.length > shown;
   const list = rows.slice(0, shown);
+  const avg = total.jobs > 0 ? total.baht / total.jobs : 0;
+
+  // ຊ່າງ: ຕ້ອງໂຊ້ **ຊື່** ບໍ່ແມ່ນລະຫັດ — tech_code ເປັນລະຫັດ ERP (23031) ຫຼືຊື່ຫຼິ້ນ
+  // ⇒ ແປຈາກ odg_employee (ຄ່າທີ່ບໍ່ກົງລະຫັດ = ເປັນຊື່ຢູ່ແລ້ວ ຄົງໄວ້ຕາມເດີມ)
+  const techNames = await employeeNameMap([...list.map((row) => row.tech), ...techs.map((row) => row.tech)]);
+
+  const monthHref = (value: string) => `/install-revenue?month=${value}`;
+
+  // ກຣາຟລາຍວັນ — ເຕັມຊ່ອງທຸກວັນຂອງເດືອນ (ວັນບໍ່ມີງານ = ຊ່ອງວ່າງ)
+  const dayMap = new Map(days.map((day) => [day.day, day]));
+  const peak = days.reduce((max, day) => Math.max(max, day.baht), 0);
+
+  // ອັນດັບຊ່າງ — ແຖບສ່ວນແບ່ງທຽບກັບຄົນສູງສຸດ (ຮຽງມາຈາກ SQL ແລ້ວ)
+  const topTech = techs[0]?.baht ?? 0;
 
   return (
-    <div className="w-full space-y-4 pb-10">
+    <div className="w-full space-y-5 pb-10">
+      {/* ── ① ເລືອກເດືອນ ── */}
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="flex items-center gap-2 text-xl font-bold text-slate-700">
           <HardHat className="size-5 text-teal-600" />
           ລາຍຮັບງານຕິດຕັ້ງ
         </h1>
-        {/* ກັ່ນເປັນເດືອນ — ສົ່ງດ້ວຍ form ທຳມະດາ ບໍ່ຕ້ອງໃຊ້ client component */}
-        <form action="/install-revenue" className="flex items-center gap-2">
-          <input
-            type="month"
-            name="month"
-            defaultValue={month}
-            className="h-9 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700"
-          />
-          <button type="submit" className="h-9 rounded-xl bg-slate-800 px-4 text-xs font-semibold text-white">
-            ເບິ່ງ
-          </button>
-        </form>
+        <div className="flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-1 py-1">
+          <Link
+            href={monthHref(shiftMonth(month, -1))}
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+            aria-label="ເດືອນກ່ອນ"
+          >
+            <ChevronLeft className="size-4" />
+          </Link>
+          <span className="min-w-36 text-center text-sm font-bold text-slate-700">
+            {LAO_MONTH[mon - 1]} {year}
+          </span>
+          <Link
+            href={monthHref(shiftMonth(month, 1))}
+            aria-disabled={month >= current}
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 aria-disabled:pointer-events-none aria-disabled:opacity-30"
+            aria-label="ເດືອນຕໍ່ໄປ"
+          >
+            <ChevronRight className="size-4" />
+          </Link>
+        </div>
+        {month !== current && (
+          <Link href={monthHref(current)} className="text-xs font-semibold text-teal-700 hover:underline">
+            ກັບເດືອນນີ້
+          </Link>
+        )}
       </div>
 
-      {error && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</p>}
+      {error && (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</p>
+      )}
 
-      {/* ── ສະຫຼຸບຂອງເດືອນ (ທັງເດືອນ ບໍ່ແມ່ນສະເພາະແຖວທີ່ໂຫຼດ) ── */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      {/* ── ② ຍອດລວມຂອງເດືອນ (ທັງເດືອນ ບໍ່ແມ່ນສະເພາະແຖວທີ່ໂຫຼດ) ── */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: "ໃບງານທີ່ປິດ", value: total.jobs.toLocaleString(), tone: "text-slate-800" },
           { label: "ລາຍຮັບ (ບາດ)", value: Math.round(total.baht).toLocaleString(), tone: "text-emerald-700" },
+          {
+            label: "ລາຍຮັບ (ກີບ)",
+            value: rate > 0 ? Math.round(total.baht * rate).toLocaleString() : "—",
+            tone: "text-slate-800",
+          },
+          { label: "ສະເລ່ຍຕໍ່ໃບງານ (ບາດ)", value: Math.round(avg).toLocaleString(), tone: "text-slate-800" },
         ].map((card) => (
           <div key={card.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-[11px] text-slate-400">{card.label}</p>
@@ -80,6 +143,98 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
         ))}
       </div>
 
+      {/* ── ③ ແນວໂນ້ມລາຍວັນ + ອັນດັບຊ່າງ ── */}
+      <div className="grid gap-3 xl:grid-cols-2">
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 text-sm font-bold text-slate-700">
+            <BarChart3 className="size-4 text-teal-600" />
+            ລາຍຮັບລາຍວັນ
+            <span className="ml-auto text-[11px] font-medium text-slate-400">
+              {days.length} ວັນທີ່ມີງານປິດ
+            </span>
+          </h2>
+          {days.length === 0 && !error ? (
+            <p className="py-10 text-center text-xs text-slate-400">ເດືອນນີ້ຍັງບໍ່ມີລາຍຮັບ</p>
+          ) : (
+            <>
+              <div className="flex h-32 items-end gap-[3px]">
+                {Array.from({ length: daysInMonth }, (_, index) => {
+                  const day = dayMap.get(index + 1);
+                  const height = day && peak > 0 ? Math.max(3, (day.baht / peak) * 100) : 0;
+                  return (
+                    <div
+                      key={index + 1}
+                      title={
+                        day
+                          ? `ວັນທີ ${index + 1} · ${day.jobs.toLocaleString()} ໃບງານ · ${Math.round(day.baht).toLocaleString()} ບາດ`
+                          : `ວັນທີ ${index + 1} · ບໍ່ມີງານປິດ`
+                      }
+                      className="flex-1 rounded-t-sm"
+                      style={{
+                        height: `${height}%`,
+                        backgroundColor: day ? (day.baht >= peak ? "#0d9488" : "#5eead4") : "#f1f5f9",
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="mt-1 flex gap-[3px] text-center text-[9px] text-slate-400">
+                {Array.from({ length: daysInMonth }, (_, index) => (
+                  <span key={index + 1} className="flex-1">
+                    {(index + 1) % 5 === 1 || index + 1 === daysInMonth ? index + 1 : ""}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-600">
+            <Trophy className="size-3.5 text-amber-500" />
+            ຍອດຕາມຊ່າງ · {techs.length} ຄົນ
+          </div>
+          {techs.length === 0 && !error && (
+            <p className="py-10 text-center text-xs text-slate-400">ເດືອນນີ້ຍັງບໍ່ມີລາຍຮັບ</p>
+          )}
+          <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto">
+            {techs.map((row, index) => (
+              <li key={row.tech} className="flex items-center gap-3 px-4 py-2.5">
+                <span
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                    index === 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {index + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="truncate text-xs font-bold text-slate-700">
+                      {resolveName(row.tech, techNames)}
+                    </p>
+                    <p className="shrink-0 text-xs font-bold tabular-nums text-slate-800">
+                      {Math.round(row.baht).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-teal-500"
+                        style={{ width: `${topTech > 0 ? Math.max(2, (row.baht / topTech) * 100) : 0}%` }}
+                      />
+                    </div>
+                    <span className="shrink-0 text-[10px] tabular-nums text-slate-400">
+                      {row.jobs.toLocaleString()} ໃບງານ
+                    </span>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+
+      {/* ── ④ ຕາຕະລາງລາຍໃບງານ ── */}
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1000px] border-collapse text-xs">
@@ -107,7 +262,9 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-slate-500">{row.finished ?? "-"}</td>
                   <td className="max-w-56 truncate px-4 py-2 text-slate-700">{row.customer ?? "-"}</td>
-                  <td className="whitespace-nowrap px-4 py-2 text-slate-600">{row.tech ?? "-"}</td>
+                  <td className="whitespace-nowrap px-4 py-2 text-slate-600">
+                    {row.tech ? resolveName(row.tech, techNames) : "-"}
+                  </td>
                   <td className="whitespace-nowrap px-4 py-2 font-mono text-[11px] text-slate-500">
                     {row.bill_no ?? "-"}
                   </td>
@@ -145,7 +302,9 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
 
       <p className="text-[11px] text-slate-400">
         ຜູກຜ່ານ <b>ods_tb_install.doc_ref_1</b> = ເລກບິນຂາຍ ERP ຂອງໃບງານ ແລ້ວເອົາສະເພາະລາຍການ
-        ຄ່າບໍລິການຕິດຕັ້ງ (ລະຫັດ 9701xx) · ນັບຕາມວັນປິດງານ · ຍອດເປັນບາດ ຕາມທີ່ບັນທຶກໃນ ERP · 1 ບິນທີ່ຄຸມຫຼາຍໃບງານ ນັບຍອດເທື່ອດຽວ
+        ຄ່າບໍລິການຕິດຕັ້ງ (ລະຫັດ 9701xx) · ນັບຕາມວັນປິດງານ · ຍອດເປັນບາດ ຕາມທີ່ບັນທຶກໃນ ERP ·
+        1 ບິນທີ່ຄຸມຫຼາຍໃບງານ ນັບຍອດເທື່ອດຽວ ແລ້ວຫານໃຫ້ແຕ່ລະໃບງານເທົ່າກັນ ·
+        ແຖວກີບແປງດ້ວຍອັດຕາ tb_bill_rate
       </p>
     </div>
   );

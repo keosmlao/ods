@@ -245,44 +245,61 @@ export async function techRevenueByMonth(from: string, to: string): Promise<Tech
  *
  * ⚠️ ຄ່າຝັ່ງ ERP ເປັນ **ບາດ** — ຜູ້ເອີ້ນແປງເອງດ້ວຍ `kipPerBaht()` ຖ້າຢາກເປັນກີບ.
  * ນັບຕາມ **ວັນປິດງານ** (job_finish) = ວັນທີ່ລາຍຮັບເກີດຈິງຂອງສູນບໍລິການ.
+ *
+ * ── ຫຼັກຄິດໄລ່ (ໃຊ້ຮ່ວມກັນທຸກຟັງຊັນຂ້າງລຸ່ມ ⇒ ຕົວເລກຈຶ່ງກົງກັນ) ──
+ * ① ຍອດບິນຄິດ **ເທື່ອດຽວຕໍ່ບິນ** (CTE bills) — ບໍ່ຄູນຕາມຈຳນວນໃບງານທີ່ບິນຄຸມ.
+ * ② 1 ບິນຄຸມຫຼາຍໃບງານ (ເຊັ່ນ CAK26009420 = INST-7162 + INST-7163) ⇒
+ *    **ຫານຍອດບິນໃຫ້ໃບງານເທົ່າກັນ** (baht/n) ⇒ ຍອດລວມ/ລາຍວັນ/ຕາມຊ່າງ/ຕາຕະລາງ ບວກກັນໄດ້ພໍດີ.
+ * ③ ແຖວ sum_amount = 0 ⇒ ຖອຍໄປໃຊ້ລາຄາມາດຕະຖານ 2 ຊັ້ນ (ເບິ່ງ `installLineBaht`).
  */
-export async function installRevenueBetween(from: string, to: string): Promise<{ jobs: number; baht: number }> {
-  const { rows } = await query<{ jobs: number; baht: number }>(
-    /**
-     * ⚠️ **1 ບິນອາດຄຸມຫຼາຍໃບງານ** (ຕົວຢ່າງ CAK26009420 = INST-7162 + INST-7163)
-     * ⇒ ຖ້າ sum ຕາມແຖວ join ຈະນັບຍອດບິນນັ້ນ 2 ເທື່ອ. ຈຶ່ງລວມ **ຕໍ່ບິນ** ກ່ອນ (bills)
-     * ແລ້ວຈຶ່ງບວກ — ຍອດລວມຈຶ່ງບໍ່ພອງ.
-     */
-    `with jobs as (
-        select a.code, trim(a.doc_ref_1) bill
+
+/**
+ * ມູນຄ່າ (ບາດ) ຂອງແຖວລາຍການບິນ — ຖ້າບໍ່ໄດ້ປ້ອນລາຄາ (sum_amount = 0) ຖອຍ 2 ຊັ້ນ:
+ * ① ic_inventory_price (ສະກຸນ '01' = ບາດ) **ແຖວສຸດທ້າຍທີ່ມີລາຄາ** (ບໍ່ຜູກ to_date
+ *    ເພາະຫຼາຍແຖວໝົດອາຍຸແຕ່ຍັງໃຊ້ຈິງ)
+ * ② ບໍ່ມີໃນຕາຕະລາງລາຄາເລີຍ (ເຊັ່ນ 970101-0013) ⇒ **ລາຄາທີ່ເຄີຍອອກບິນຫຼ້າສຸດ**
+ *    ຂອງລະຫັດນັ້ນ ທີ່ບໍ່ເກີນວັນອ້າງອີງ (ຂໍ້ມູນຈິງ ບໍ່ແມ່ນເດົາ).
+ * `${anchor}` = ນິພົນວັນທີສຳລັບຂັ້ນ ②.
+ */
+const installLineBaht = (anchor: string) => `coalesce(nullif(d.sum_amount, 0),
+      d.qty * coalesce(
+        (select pr.sale_price1 from public.ic_inventory_price pr
+          where pr.ic_code = d.item_code and pr.currency_code = '01'
+            and coalesce(pr.sale_price1,0) > 0
+          order by pr.from_date desc nulls last, pr.roworder desc limit 1),
+        (select p2.price from public.ic_trans_detail p2
+           join public.ic_trans t2 on t2.doc_no = p2.doc_no
+          where p2.item_code = d.item_code and coalesce(p2.price,0) > 0
+            and t2.doc_date <= ${anchor}
+          order by t2.doc_date desc limit 1),
+        0))`;
+
+/**
+ * CTE ຮ່ວມຂອງທຸກຄຳຖາມລາຍຮັບຕິດຕັ້ງ ($1/$2 = ວັນທີ from/to):
+ * - jobs: ໃບງານທີ່ປິດໃນຊ່ວງ ບໍ່ໂດນຍົກເລີກ ແລະ ມີເລກບິນ
+ * - anchor: ຕໍ່ບິນ — ວັນປິດງານສຸດທ້າຍ (ຈຸດອ້າງອີງລາຄາຂັ້ນ ②) + ຈຳນວນໃບງານທີ່ບິນຄຸມ
+ * - bills: ຍອດຄ່າບໍລິການ 9701xx ຕໍ່ບິນ (ເທື່ອດຽວ ບໍ່ຄູນຕາມໃບງານ)
+ */
+const INSTALL_REVENUE_CTES = `with jobs as (
+        select a.code, trim(a.doc_ref_1) bill, a.job_finish, a.tech_code, a.cust_code
           from ods.ods_tb_install a
          where a.cancel_date is null and a.job_finish::date between $1 and $2
            and nullif(trim(coalesce(a.doc_ref_1,'')),'') is not null
+      ), anchor as (
+        select j.bill, max(j.job_finish) finished, count(*)::int n
+          from jobs j
+         group by j.bill
       ), bills as (
-        -- ບາງແຖວ sum_amount = 0 (ບໍ່ໄດ້ປ້ອນລາຄາ) ⇒ ຖອຍໄປໃຊ້ລາຄາຂາຍມາດຕະຖານ
-        -- ic_inventory_price (ສະກຸນ '01' = ບາດ) ທີ່ມີຜົນໃນວັນປິດງານ
-        select d.doc_no, sum(coalesce(nullif(d.sum_amount, 0),
-              d.qty * coalesce(
-                -- ບໍ່ຜູກກັບ to_date (ຕາຕະລາງລາຄາຫຼາຍແຖວໝົດອາຍຸແຕ່ຍັງໃຊ້ຈິງ)
-                -- ⇒ ເອົາ **ແຖວສຸດທ້າຍທີ່ມີລາຄາ** ຂອງລະຫັດນັ້ນ
-                (select pr.sale_price1 from public.ic_inventory_price pr
-                  where pr.ic_code = d.item_code and pr.currency_code = '01'
-                    and coalesce(pr.sale_price1,0) > 0
-                  order by pr.from_date desc nulls last, pr.roworder desc limit 1),
-                -- ບາງລະຫັດບໍ່ມີໃນຕາຕະລາງລາຄາເລີຍ (ເຊັ່ນ 970101-0013 ບໍລິການຕິດຕັ້ງເຄື່ອງໃຊ້ໄຟຟ້າ)
-                -- ⇒ ໃຊ້ **ລາຄາທີ່ເຄີຍອອກບິນຫຼ້າສຸດ** ຂອງລະຫັດນັ້ນ (ຂໍ້ມູນຈິງ ບໍ່ແມ່ນເດົາ)
-                (select p2.price from public.ic_trans_detail p2
-                   join public.ic_trans t2 on t2.doc_no = p2.doc_no
-                  where p2.item_code = d.item_code and coalesce(p2.price,0) > 0
-                    and t2.doc_date <= a.job_finish
-                  order by t2.doc_date desc limit 1),
-                0))) baht
+        select d.doc_no, sum(${installLineBaht("anc.finished")}) baht
           from public.ic_trans_detail d
-          join jobs j on j.bill = d.doc_no
-          join ods.ods_tb_install a on a.code = j.code
+          join anchor anc on anc.bill = d.doc_no
          where d.item_code like '9701%'
          group by d.doc_no
-      )
+      )`;
+
+export async function installRevenueBetween(from: string, to: string): Promise<{ jobs: number; baht: number }> {
+  const { rows } = await query<{ jobs: number; baht: number }>(
+    `${INSTALL_REVENUE_CTES}
       select (select count(*)::int from jobs j join bills b on b.doc_no = j.bill) jobs,
              (select coalesce(sum(b.baht),0)::float8 from bills b) baht`,
     [from, to],
@@ -290,7 +307,7 @@ export async function installRevenueBetween(from: string, to: string): Promise<{
   return rows[0] ?? { jobs: 0, baht: 0 };
 }
 
-/** ລາຍການລະອຽດ — 1 ແຖວ = 1 ໃບງານຕິດຕັ້ງ ພ້ອມບິນ ແລະ ຄ່າບໍລິການຂອງມັນ */
+/** ລາຍການລະອຽດ — 1 ແຖວ = 1 ໃບງານຕິດຕັ້ງ; ບາດ = ສ່ວນແບ່ງຂອງໃບງານນັ້ນ (ບິນດຽວຄຸມຫຼາຍໃບງານ ⇒ ຫານເທົ່າກັນ) */
 export type InstallRevenueDetail = {
   code: string;
   finished: string | null;
@@ -304,36 +321,89 @@ export type InstallRevenueDetail = {
 export async function installRevenueDetail(from: string, to: string, limit: number): Promise<InstallRevenueDetail[]> {
   return (
     await query<InstallRevenueDetail>(
-      `select a.code, to_char(a.job_finish,'DD-MM-YYYY') finished,
-          trim(a.doc_ref_1) bill_no,
-          coalesce(nullif(c.name_1,''), nullif(a.cust_code,'')) customer,
-          nullif(a.tech_code,'') tech,
-          string_agg(distinct d.item_name, ' · ') items,
-          coalesce(sum(coalesce(nullif(d.sum_amount, 0),
-              d.qty * coalesce(
-                -- ບໍ່ຜູກກັບ to_date (ຕາຕະລາງລາຄາຫຼາຍແຖວໝົດອາຍຸແຕ່ຍັງໃຊ້ຈິງ)
-                -- ⇒ ເອົາ **ແຖວສຸດທ້າຍທີ່ມີລາຄາ** ຂອງລະຫັດນັ້ນ
-                (select pr.sale_price1 from public.ic_inventory_price pr
-                  where pr.ic_code = d.item_code and pr.currency_code = '01'
-                    and coalesce(pr.sale_price1,0) > 0
-                  order by pr.from_date desc nulls last, pr.roworder desc limit 1),
-                -- ບາງລະຫັດບໍ່ມີໃນຕາຕະລາງລາຄາເລີຍ (ເຊັ່ນ 970101-0013 ບໍລິການຕິດຕັ້ງເຄື່ອງໃຊ້ໄຟຟ້າ)
-                -- ⇒ ໃຊ້ **ລາຄາທີ່ເຄີຍອອກບິນຫຼ້າສຸດ** ຂອງລະຫັດນັ້ນ (ຂໍ້ມູນຈິງ ບໍ່ແມ່ນເດົາ)
-                (select p2.price from public.ic_trans_detail p2
-                   join public.ic_trans t2 on t2.doc_no = p2.doc_no
-                  where p2.item_code = d.item_code and coalesce(p2.price,0) > 0
-                    and t2.doc_date <= a.job_finish
-                  order by t2.doc_date desc limit 1),
-                0))),0)::float8 baht
-        from ods.ods_tb_install a
-        join public.ic_trans_detail d
-          on d.doc_no = trim(a.doc_ref_1) and d.item_code like '9701%'
-        left join ods.ar_customer c on c.code = a.cust_code
-       where a.cancel_date is null and a.job_finish::date between $1 and $2
-       group by a.code, a.job_finish, a.doc_ref_1, c.name_1, a.cust_code, a.tech_code
-       order by a.job_finish desc, a.code desc
+      `${INSTALL_REVENUE_CTES}, items as (
+        select d.doc_no, string_agg(distinct d.item_name, ' · ') items
+          from public.ic_trans_detail d
+          join anchor anc on anc.bill = d.doc_no
+         where d.item_code like '9701%'
+         group by d.doc_no
+      )
+      select j.code, to_char(j.job_finish,'DD-MM-YYYY') finished,
+          j.bill bill_no,
+          coalesce(nullif(c.name_1,''), nullif(j.cust_code,'')) customer,
+          nullif(j.tech_code,'') tech,
+          i.items,
+          (b.baht / anc.n)::float8 baht
+        from jobs j
+        join bills b on b.doc_no = j.bill
+        join anchor anc on anc.bill = j.bill
+        join items i on i.doc_no = j.bill
+        left join ods.ar_customer c on c.code = j.cust_code
+       order by j.job_finish desc, j.code desc
        limit $3`,
       [from, to, limit],
+    )
+  ).rows;
+}
+
+/** ລາຍຮັບຕໍ່ວັນໃນເດືອນ — ໄວ້ແຕ້ມກຣາຟແນວໂນ້ມ; ຍອດ = ສ່ວນແບ່ງຕໍ່ໃບງານ ບວກກັນໄດ້ຍອດເດືອນພໍດີ */
+export type InstallRevenueDay = { day: number; date: string; jobs: number; baht: number };
+
+export async function installRevenueByDay(from: string, to: string): Promise<InstallRevenueDay[]> {
+  const { rows } = await query<{ date: string; jobs: number; baht: number }>(
+    `${INSTALL_REVENUE_CTES}
+      select to_char(j.job_finish::date,'YYYY-MM-DD') as date,
+          count(*)::int jobs, sum(b.baht / anc.n)::float8 baht
+        from jobs j
+        join bills b on b.doc_no = j.bill
+        join anchor anc on anc.bill = j.bill
+       group by j.job_finish::date
+       order by j.job_finish::date`,
+    [from, to],
+  );
+  return rows.map((row) => ({ ...row, day: Number(row.date.slice(8, 10)) }));
+}
+
+/** ລາຍຮັບຕາມຊ່າງ — ຍອດ = ສ່ວນແບ່ງຕໍ່ໃບງານ; ຍັງບໍ່ຈັດຊ່າງ ບໍ່ຖິ້ມ (ບໍ່ດັ່ງນັ້ນຍອດລວມບໍ່ຄົບ) */
+export type InstallRevenueTech = { tech: string; jobs: number; baht: number };
+
+export async function installRevenueByTech(from: string, to: string): Promise<InstallRevenueTech[]> {
+  return (
+    await query<InstallRevenueTech>(
+      `${INSTALL_REVENUE_CTES}
+      select coalesce(nullif(j.tech_code,''),'ຍັງບໍ່ຈັດຊ່າງ') tech,
+          count(*)::int jobs, sum(b.baht / anc.n)::float8 baht
+        from jobs j
+        join bills b on b.doc_no = j.bill
+        join anchor anc on anc.bill = j.bill
+       group by coalesce(nullif(j.tech_code,''),'ຍັງບໍ່ຈັດຊ່າງ')
+       order by sum(b.baht / anc.n) desc`,
+      [from, to],
+    )
+  ).rows;
+}
+
+/**
+ * **ລາຍຮັບຊ່າງຕໍ່ເດືອນ — ອ່ານແຫຼ່ງດຽວກັບແອັບ**.
+ *
+ * ແອັບ (`myIncome` ຢູ່ lib/mobile-jobs) ອ່ານ `ods_service_payout` ເຊິ່ງ **ແຊ່ໄວ້ຕອນປິດງານ**
+ * (pay_thb ຕໍ່ໃບງານ/ບົດບາດ) ⇒ ໜ້າເວັບຕ້ອງອ່ານບ່ອນດຽວກັນ ບໍ່ດັ່ງນັ້ນຊ່າງເຫັນ 2 ຕົວເລກ.
+ *
+ * ⚠️ `employee_code` ເກັບ **emp_code ຂອງງານ** — ຊ່າງທີ່ເຊື່ອມ ERP ແລ້ວ = ລະຫັດ ERP,
+ * ຍັງບໍ່ເຊື່ອມ = ຊື່ຫຼິ້ນ ⇒ ຈັດກຸ່ມຕາມຄ່ານີ້ໂດຍກົງ (ຄືກັບ /commission).
+ */
+export type TechPayoutRow = { technician: string; jobs: number; thb: number };
+
+export async function techPayoutByMonth(from: string, to: string): Promise<TechPayoutRow[]> {
+  return (
+    await query<TechPayoutRow>(
+      `select coalesce(nullif(p.employee_code,''),'ບໍ່ລະບຸ') technician,
+          count(distinct p.job_code)::int jobs,
+          coalesce(sum(p.pay_thb),0)::float8 thb
+        from ods_service_payout p
+       where p.closed_at::date between $1 and $2
+       group by 1 order by 3 desc`,
+      [from, to],
     )
   ).rows;
 }

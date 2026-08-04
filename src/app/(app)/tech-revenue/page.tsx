@@ -1,5 +1,6 @@
+import { employeeNameMap, resolveName } from "@/lib/employee-names";
 import { kipPerBaht } from "@/lib/monthly-report";
-import { installRevenueBetween, techRevenueByMonth } from "@/lib/service-money";
+import { installRevenueBetween, techPayoutByMonth } from "@/lib/service-money";
 import { ChevronLeft, ChevronRight, Trophy, Wallet, Wrench } from "lucide-react";
 import Link from "next/link";
 
@@ -18,7 +19,6 @@ export const dynamic = "force-dynamic";
 type Props = { searchParams: Promise<{ month?: string }> };
 
 const MONTH_RE = /^\d{4}-\d{2}$/;
-const num = (text: string) => Number(text.replace(/,/g, "")) || 0;
 
 /** ບວກ/ລົບເດືອນ ໂດຍບໍ່ພຶ່ງ Date ໃນຝັ່ງ SQL — ໃຫ້ລິ້ງ ‹ › ຄິດໄດ້ຈາກ string */
 function shiftMonth(month: string, step: number) {
@@ -43,7 +43,7 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
   const from = `${month}-01`;
   const to = `${month}-${String(new Date(year, mon, 0).getDate()).padStart(2, "0")}`;
 
-  let rows: Awaited<ReturnType<typeof techRevenueByMonth>> = [];
+  let rows: Awaited<ReturnType<typeof techPayoutByMonth>> = [];
   /**
    * **ລາຍຮັບຕິດຕັ້ງ** ບໍ່ໄດ້ຢູ່ຝັ່ງ ODS ເລີຍ — ວັດ 04-08-2026: ໃບງານ INST- ມີແຕ່ເອກະສານ
    * ອາໄຫຼ່ (122/56/166) **ບໍ່ມີບິນຈັກໃບ** ⇒ ຄ່າບໍລິການຕິດຕັ້ງອອກເປັນ **ບິນຂາຍຝັ່ງ ERP**
@@ -54,7 +54,7 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
   let error: string | null = null;
   try {
     const [techRows, erpInstall, rate] = await Promise.all([
-      techRevenueByMonth(from, to),
+      techPayoutByMonth(from, to),
       installRevenueBetween(from, to),
       kipPerBaht(),
     ]);
@@ -65,15 +65,16 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
     error = exception instanceof Error ? exception.message : "ດຶງຂໍ້ມູນບໍ່ສຳເລັດ";
   }
 
+  // ແຫຼ່ງດຽວກັບແອັບ: ods_service_payout ⇒ ມີແຕ່ "ຈ່າຍຈິງ" ບໍ່ມີ ຕົກລົງ/ຄ້າງ
+  // ຈັດກຸ່ມຕາມລະຫັດ (ຢ່າງກັບ /commission) ແຕ່ຕອນໂຊ້ **ຕ້ອງເປັນຊື່** — ແປຈາກ odg_employee
+  const techNames = await employeeNameMap(rows.map((row) => row.technician));
   const ranked = rows
-    .map((row) => ({ ...row, quotedNum: num(row.quoted), paidNum: num(row.paid), dueNum: num(row.due) }))
-    .sort((a, b) => b.quotedNum - a.quotedNum);
+    .map((row) => ({ ...row, technician: resolveName(row.technician, techNames), quotedNum: row.thb }))
+    .sort((a, b) => b.thb - a.thb);
   const top = ranked[0]?.quotedNum ?? 0;
   const totals = {
     jobs: ranked.reduce((sum, row) => sum + row.jobs, 0),
-    quoted: ranked.reduce((sum, row) => sum + row.quotedNum, 0),
-    paid: ranked.reduce((sum, row) => sum + row.paidNum, 0),
-    due: ranked.reduce((sum, row) => sum + row.dueNum, 0),
+    thb: ranked.reduce((sum, row) => sum + row.thb, 0),
   };
 
   const monthHref = (value: string) => `/tech-revenue?month=${value}`;
@@ -118,12 +119,10 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
       )}
 
       {/* ── ② ຍອດລວມ ── */}
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-3">
         {[
           { label: "ວຽກທີ່ຕົກລົງ", value: totals.jobs.toLocaleString(), tone: "text-slate-800" },
-          { label: "ຕົກລົງ (ກີບ)", value: totals.quoted.toLocaleString(), tone: "text-slate-800" },
-          { label: "ຮັບແລ້ວ (ກີບ)", value: totals.paid.toLocaleString(), tone: "text-emerald-700" },
-          { label: "ຄ້າງຮັບ (ກີບ)", value: totals.due.toLocaleString(), tone: "text-amber-700" },
+          { label: "ລາຍຮັບຊ່າງ (ບາດ)", value: totals.thb.toLocaleString(), tone: "text-emerald-700" },
         ].map((card) => (
           <div key={card.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-[11px] text-slate-400">{card.label}</p>
@@ -182,21 +181,9 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
                   />
                 </div>
               </div>
-              <dl className="flex items-center gap-5 text-right text-xs tabular-nums">
-                <div>
-                  <dt className="text-[10px] text-slate-400">ຕົກລົງ</dt>
-                  <dd className="font-bold text-slate-800">{row.quotedNum.toLocaleString()}</dd>
-                </div>
-                <div>
-                  <dt className="text-[10px] text-slate-400">ຮັບແລ້ວ</dt>
-                  <dd className="font-semibold text-emerald-700">{row.paidNum.toLocaleString()}</dd>
-                </div>
-                <div>
-                  <dt className="text-[10px] text-slate-400">ຄ້າງ</dt>
-                  <dd className={row.dueNum > 0 ? "font-semibold text-amber-700" : "text-slate-300"}>
-                    {row.dueNum > 0 ? row.dueNum.toLocaleString() : "—"}
-                  </dd>
-                </div>
+              <dl className="text-right text-xs tabular-nums">
+                <dt className="text-[10px] text-slate-400">ລາຍຮັບ (ບາດ)</dt>
+                <dd className="text-base font-bold text-emerald-700">{row.thb.toLocaleString()}</dd>
               </dl>
             </li>
           ))}
@@ -204,7 +191,7 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
       </section>
 
       <p className="text-[11px] text-slate-400">
-        ຍອດ = ໃບສະເໜີລາຄາທີ່ລູກຄ້າຮັບແລ້ວ ຂອງໃບງານທີ່ຊ່າງຄົນນັ້ນຖື · “ຮັບແລ້ວ” ເລີ່ມບັນທຶກ 17-07-2026 ⇒ ເດືອນກ່ອນໜ້ານັ້ນຈະເປັນ 0
+        ອ່ານຈາກ <b>ods_service_payout</b> — ແຫຼ່ງດຽວກັບໜ້າ “ລາຍຮັບຂອງຂ້ອຍ” ໃນແອັບ (ແຊ່ໄວ້ຕອນປິດງານ) ⇒ ຕົວເລກຕົງກັນ
       </p>
     </div>
   );
