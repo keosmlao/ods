@@ -116,35 +116,53 @@ export default async function SpareTreePage() {
       </div>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          ໃບງານ · ຮອບອາໄຫຼ່ · ຄ້າງມາ
-        </div>
+        {/* ຫົວຖັນ — ໃຊ້ຊຸດດຽວກັບຄິວ /work/<ຂັ້ນ> ອື່ນ (ພື້ນເທົາ · ເສັ້ນລຸ່ມ · ໜາ) */}
+        <div className="overflow-x-auto">
+          <div className="min-w-[1050px]">
+            <div className="grid grid-cols-[4.5rem_5rem_minmax(0,1fr)_minmax(0,1fr)_7rem_5.5rem_11rem] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-600">
+              <span>ເລກວຽກ</span>
+              <span className="text-center">ຄ້າງມາ</span>
+              <span>ສິນຄ້າ</span>
+              <span>ລູກຄ້າ</span>
+              <span>ຊ່າງ</span>
+              <span className="text-center">ຮອບອາໄຫຼ່</span>
+              <span>ສະຖານະ</span>
+            </div>
 
         {cards.map((card) => (
           <details key={card.job} open={card.pending > 0} className="group border-b border-slate-100 last:border-0">
-            <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
-              <ChevronRight className="size-4 shrink-0 text-slate-400 transition group-open:rotate-90" />
-              <Link
-                href={`/repair/${encodeURIComponent(card.job)}`}
-                className="w-16 shrink-0 font-bold text-blue-700 hover:underline"
-              >
-                {card.job}
-              </Link>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs text-slate-800">{card.product || "-"}</span>
-                <span className="block truncate text-[10px] text-slate-400">
-                  {card.customer || "-"} {card.tech && `· ຊ່າງ ${card.tech}`}
-                </span>
+            <summary className="grid grid-cols-[4.5rem_5rem_minmax(0,1fr)_minmax(0,1fr)_7rem_5.5rem_11rem] items-center gap-3 cursor-pointer list-none px-4 py-2.5 text-xs hover:bg-slate-50">
+              <span className="flex items-center gap-1.5">
+                <ChevronRight className="size-4 shrink-0 text-slate-400 transition group-open:rotate-90" />
+                <Link
+                  href={`/repair/${encodeURIComponent(card.job)}`}
+                  className="font-bold text-blue-700 hover:underline"
+                >
+                  {card.job}
+                </Link>
               </span>
-              <span className="shrink-0 text-[11px] text-slate-500">
-                {card.rounds.length} ຮອບ
-                {card.pending > 0 && <b className="ml-1 text-amber-700">· ຄ້າງ {card.pending}</b>}
+              <span className="text-center">
+                {card.pending > 0 ? (
+                  <span className={`rounded px-2 py-0.5 text-[11px] font-bold tabular-nums ${ageTone(days(card.oldest))}`}>
+                    {days(card.oldest)} ມື້
+                  </span>
+                ) : (
+                  <span className="text-slate-300">—</span>
+                )}
               </span>
-              {card.pending > 0 && (
-                <span className={`shrink-0 rounded px-2 py-0.5 text-[11px] font-bold tabular-nums ${ageTone(days(card.oldest))}`}>
-                  {days(card.oldest)} ມື້
-                </span>
-              )}
+              <span className="truncate text-slate-800">{card.product || "-"}</span>
+              <span className="truncate text-slate-600">{card.customer || "-"}</span>
+              <span className="truncate text-slate-600">{card.tech || "-"}</span>
+              <span className="text-center tabular-nums text-slate-600">{card.rounds.length}</span>
+              <span>
+                {card.pending > 0 ? (
+                  <span className="rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                    ຄ້າງ {card.pending} ຮອບ
+                  </span>
+                ) : (
+                  <span className="rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">ຄົບແລ້ວ</span>
+                )}
+              </span>
             </summary>
 
             {/* ── ຕົ້ນໄມ້ເອກະສານຂອງໃບງານນີ້ ── */}
@@ -237,7 +255,11 @@ export default async function SpareTreePage() {
           </details>
         ))}
 
-        {cards.length === 0 && <p className="px-4 py-8 text-center text-xs text-slate-400">ບໍ່ມີໃບງານທີ່ມີອາໄຫຼ່ຄ້າງ</p>}
+            {cards.length === 0 && (
+              <p className="px-4 py-8 text-center text-xs text-slate-400">ບໍ່ມີໃບງານທີ່ມີອາໄຫຼ່ຄ້າງ</p>
+            )}
+          </div>
+        </div>
       </section>
     </div>
   );
