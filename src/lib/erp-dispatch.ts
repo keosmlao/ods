@@ -161,13 +161,9 @@ async function syncErpDispatchByDocRefs(requestNos: string[]): Promise<SyncResul
       const spareComplete = (incomplete.rows[0]?.count ?? 0) === 0;
       if (spareComplete) {
         if (install) {
-          // ສາງເບີກຄົບ ⇒ ຜ່ານທັງ "ເບີກ" ແລະ "ຮັບ" ພ້ອມກັນ — ຊ່າງບໍ່ຕ້ອງກົດຮັບອີກ (04-08-2026)
-          await client.query(
-            `update ods_tb_install set reg_finish=localtimestamp(0),
-                pick_finish=coalesce(pick_finish, localtimestamp(0))
-              where code=$1 and reg_finish is null`,
-            [job.product_code],
-          );
+          await client.query("update ods_tb_install set reg_finish=localtimestamp(0) where code=$1 and reg_finish is null", [
+            job.product_code,
+          ]);
         } else {
           await client.query(
             "update tb_product set spare_finish=localtimestamp(0), status=4 where code=$1 and spare_finish is null",

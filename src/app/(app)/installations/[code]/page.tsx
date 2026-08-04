@@ -249,7 +249,6 @@ export default async function InstallationDetail({ params }: Props) {
         purchases={rounds.purchases}
         erp={rounds.erp}
         canRequest={canCancelRequest}
-        jobStarted={row.stage >= 5}
         links={{
           newRequest: `/installations/spare-requests/${encodeURIComponent(row.code)}`,
           newPurchase: null, // ຕິດຕັ້ງບໍ່ມີໃບຂໍຊື້ (ວັດແລ້ວ 0 ໃບ)
