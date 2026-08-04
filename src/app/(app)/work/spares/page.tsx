@@ -65,6 +65,29 @@ export default async function SpareTreePage() {
      order by t.doc_date, t.doc_no`,
   );
 
+  /**
+   * ── ວຽກທີ່ **ຍັງບໍ່ທັນອອກໃບຂໍເບີກ** (ຂັ້ນ 5 ກວດ Stock / ດຳເນີນອາໄຫຼ່) ──
+   * ໜ້ານີ້ນັບຈາກ**ເອກະສານ** ⇒ ວຽກທີ່ຍັງບໍ່ມີເອກະສານຈັກໃບຈະຕົກຫາຍທັງທີ່**ຄ້າງແທ້**
+   * (ວັດ 04-08-2026: 4 ໃບ — ນີ້ຄືຊ່ອງຫວ່າງ 4 ທີ່ຄົນໃຊ້ພົບລະຫວ່າງ dashboard ກັບເມນູ).
+   * ດຶງມາເພີ່ມເປັນ "ຮອບ 0" ⇒ ເຫັນ ແລະ ກົດເຂົ້າໄປອອກໃບຂໍເບີກໄດ້.
+   */
+  const { rows: notYet } = await query<{
+    job: string; product: string | null; sn: string | null; brand: string | null;
+    customer: string | null; tech: string | null; warranty: string | null;
+    service_type: string | null; age: number;
+  }>(
+    `select a.code job, a.name_1 product, nullif(a.sn,'') sn, nullif(a.p_brand,'') brand,
+        c.name_1 customer, nullif(a.emp_code,'') tech,
+        nullif(a.warrunty,'') warranty, nullif(a.service_type,'') service_type,
+        extract(epoch from (localtimestamp - coalesce(a.time_finish_check, a.time_register)))::int age
+      from tb_product a
+      left join ar_customer c on c.code = a.cust_code
+     where coalesce(a.used_spare,0) = 1 and ${OPEN_JOB}
+       and a.time_repair is null and a.time_finish_repair is null
+       and not exists (select 1 from ic_trans t where t.trans_flag = ${TRANS.REQUEST} and t.product_code = a.code)
+     order by age desc`,
+  );
+
   // ── ຮວມເປັນໃບງານ ──
   type Job = Pick<DocRow, "product" | "sn" | "brand" | "customer" | "tech" | "warranty" | "service_type"> & {
     job: string;
@@ -106,6 +129,16 @@ export default async function SpareTreePage() {
     return { label: "ລໍສາງເບີກ", next: "ສາງ", tone: "bg-amber-100 text-amber-800", pending: true };
   }
 
+  /** ວຽກຍັງບໍ່ອອກໃບຂໍເບີກ = ຄ້າງ 1 "ຮອບ 0" ⇒ ນັບເຂົ້າຍອດຄ້າງ ແລະ ຂຶ້ນຄຽງກັນ */
+  const pendingCards = notYet.map((job) => ({
+    ...job,
+    docs: [] as DocRow[],
+    rounds: [] as { sio: DocRow; round: number; state: NodeState }[],
+    pending: 1,
+    oldest: job.age,
+    notRequested: true,
+  }));
+
   const cards = [...jobs.values()]
     .map((job) => {
       const sios = job.docs.filter((doc) => doc.flag === TRANS.REQUEST);
@@ -117,6 +150,7 @@ export default async function SpareTreePage() {
     // ເບີກຄົບແລ້ວ ⇒ ວຽກໄປຢູ່ຄິວ 'ລໍຖ້າສ້ອມ' ແລ້ວ ບໍ່ຄວນຄ້າງຢູ່ໜ້ານີ້ອີກ (ກົດເກນ ①: ແຖວ = badge)
     .filter((card) => card.rounds.length > 0 && card.pending > 0)
     .sort((a, b) => b.pending - a.pending || b.oldest - a.oldest);
+  const allCards = [...pendingCards, ...cards].sort((a, b) => b.oldest - a.oldest);
 
   const days = (seconds: number) => Math.max(0, Math.floor(seconds / 86400));
   const ageTone = (d: number) =>
@@ -127,7 +161,7 @@ export default async function SpareTreePage() {
       <div>
         <h1 className="text-xl font-bold text-slate-700">ອາໄຫຼ່ຕາມໃບງານ</h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          {cards.length} ໃບງານຄ້າງອາໄຫຼ່ — ກົດແຖວເພື່ອເປີດ <b>ຕົ້ນໄມ້ເອກະສານ</b> ຂອງໃບງານນັ້ນ ·{" "}
+          {allCards.length} ໃບງານຄ້າງອາໄຫຼ່ — ກົດແຖວເພື່ອເປີດ <b>ຕົ້ນໄມ້ເອກະສານ</b> ຂອງໃບງານນັ້ນ ·{" "}
           <Link href="/manual/spares" className="font-semibold text-teal-700 hover:underline">
             ຄູ່ມືຂັ້ນຕອນອາໄຫຼ່
           </Link>
@@ -151,7 +185,7 @@ export default async function SpareTreePage() {
               <span>ສະຖານະ</span>
             </div>
 
-        {cards.map((card) => (
+        {allCards.map((card) => (
           <details key={card.job} open={card.pending > 0} className="group border-b border-slate-100 last:border-0">
             <summary className="grid grid-cols-[4.5rem_5rem_minmax(0,1.4fr)_7rem_minmax(0,1.2fr)_6rem_6rem_6rem_4rem_9rem] items-center gap-3 cursor-pointer list-none px-4 py-2.5 text-xs hover:bg-slate-50">
               <span className="flex items-center gap-1.5">
@@ -185,7 +219,7 @@ export default async function SpareTreePage() {
               <span>
                 {card.pending > 0 ? (
                   <span className="rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
-                    ຄ້າງ {card.pending} ຮອບ
+                    {"notRequested" in card && card.notRequested ? "ຍັງບໍ່ໄດ້ອອກໃບຂໍເບີກ" : `ຄ້າງ ${card.pending} ຮອບ`}
                   </span>
                 ) : (
                   <span className="rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">ຄົບແລ້ວ</span>
@@ -283,7 +317,7 @@ export default async function SpareTreePage() {
           </details>
         ))}
 
-            {cards.length === 0 && (
+            {allCards.length === 0 && (
               <p className="px-4 py-8 text-center text-xs text-slate-400">ບໍ່ມີໃບງານທີ່ມີອາໄຫຼ່ຄ້າງ</p>
             )}
           </div>

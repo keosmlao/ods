@@ -201,10 +201,16 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
            * ໃບຂໍເບີກລໍສາງ + ໃບຂໍເບີກທີ່ຂອງມາຮອດແລ້ວ + ລໍຂອງມາ + ໃບຂໍຊື້ລໍອະນຸມັດ
            * ⚠️ **ບໍ່ນັບ "ໃບເບີກລໍຊ່າງຮັບ" ອີກແລ້ວ** — ງານສ້ອມຖືວ່າສາງເບີກອອກ = ຈົບ (04-08-2026)
            */
-          (select count(distinct t.product_code) from ic_trans t
-             join tb_product a on a.code = t.product_code
-            where t.trans_flag = 122 and a.return_complete is null and coalesce(a.status,0) <> 6
-              and not exists (select 1 from ic_trans sw where sw.trans_flag = 56 and sw.doc_ref = t.doc_no)
+          -- ໃບຂໍເບີກທີ່ສາງຍັງບໍ່ຈ່າຍ **ບວກ** ວຽກທີ່ຍັງບໍ່ທັນອອກໃບຂໍເບີກ (ຂັ້ນ 5)
+          -- ⇒ ຄືກັບແຖວທີ່ເຫັນໃນໜ້າ (ກົດເກນ ①). ຂາດພົດທີ 2 ຄືເຫດຜົນທີ່ 4 ໃບຫາຍໄປ.
+          ((select count(distinct t.product_code) from ic_trans t
+              join tb_product a on a.code = t.product_code
+             where t.trans_flag = 122 and a.return_complete is null and coalesce(a.status,0) <> 6
+               and not exists (select 1 from ic_trans sw where sw.trans_flag = 56 and sw.doc_ref = t.doc_no))
+           + (select count(*) from tb_product a
+               where coalesce(a.used_spare,0) = 1 and a.return_complete is null and coalesce(a.status,0) <> 6
+                 and a.time_repair is null and a.time_finish_repair is null
+                 and not exists (select 1 from ic_trans t where t.trans_flag = 122 and t.product_code = a.code))
           )::int as "/work/spares",
           -- ອາໄຫຼ່ຕິດຕັ້ງ (ໜ້າ /work/install-spares) = ຈຳນວນ**ໃບງານ**ທີ່ມີໃບຂໍເບີກຍັງບໍ່ໄດ້ຈ່າຍອອກ
           -- ນັບແບບດຽວກັບ /work/spares ⇒ badge = ແຖວທີ່ເຫັນ (ກົດເກນ ①)
