@@ -140,7 +140,7 @@ export default async function StockRequestFormPage({ params }: Props) {
     <div className="mx-auto w-full max-w-[1480px] space-y-4 pb-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <BackLink fallback="/stock/requests" label="{t.backToList}" />
+          <BackLink fallback="/stock/requests" label={t.backToList} />
           <div className="flex items-center gap-3">
             <span className="grid size-11 place-items-center rounded-2xl bg-teal-600 text-white shadow-sm">
               <PackageOpen className="size-5" />
