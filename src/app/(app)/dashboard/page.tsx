@@ -287,15 +287,34 @@ function Pipeline({
   role: Role;
   t: Dict;
 }) {
-  const stages = pipelineOf(statuses);
+  /**
+   * **ລວມຂັ້ນອາໄຫຼ່ເປັນແຖວດຽວ ຄືກັບເມນູ sidebar**.
+   * ເມນູລວມ "ກຳລັງເບີກອາໄຫຼ່ + ກຳລັງສັ່ງຊື້" (ສ້ອມ) ແລະ "ລໍເບີກ + ລໍຮັບ" (ຕິດຕັ້ງ)
+   * ເປັນຂັ້ນດຽວ (/work/spares · /work/install-spares) ແຕ່ dashboard ຍັງແຍກ
+   * ⇒ ຄົນອ່ານ 2 ບ່ອນແລ້ວນັບບໍ່ຕົງກັນ. ດຽວນີ້ລວມຢູ່ນີ້ຄືກັນ ພ້ອມລິ້ງໄປໜ້າດຽວກັນ.
+   */
+  const SPARE = workflow === "repair"
+    ? { slugs: ["withdrawing", "purchasing"], href: "/work/spares", label: "ອາໄຫຼ່ (ເບີກ · ສັ່ງຊື້)" }
+    : { slugs: ["wait-register", "wait-pick"], href: "/work/install-spares", label: "ອາໄຫຼ່ (ເບີກ · ຮັບ)" };
+
+  const raw = pipelineOf(statuses);
+  const spareTotal = raw.reduce((sum, [slug]) => (SPARE.slugs.includes(slug) ? sum + (counts[slug] ?? 0) : sum), 0);
+  const spareAt = raw.findIndex(([slug]) => SPARE.slugs.includes(slug));
+  const stages: typeof raw = [];
+  raw.forEach(([slug, def], index) => {
+    if (!SPARE.slugs.includes(slug)) return void stages.push([slug, def]);
+    // ວາງແຖວລວມໄວ້ບ່ອນຂັ້ນທຳອິດຂອງກຸ່ມ ⇒ ລຳດັບ pipeline ຍັງຖືກ
+    if (index === spareAt) stages.push([SPARE.slugs[0], { ...def, label: SPARE.label }]);
+  });
   const total = stages.reduce((sum, [slug]) => sum + (counts[slug] ?? 0), 0);
   const peak = Math.max(1, ...stages.map(([slug]) => counts[slug] ?? 0));
 
   return (
     <div className="space-y-1">
       {stages.map(([slug, def]) => {
-        const value = counts[slug] ?? 0;
-        const href = `/work/${workflow}/${slug}`;
+        const merged = slug === SPARE.slugs[0];
+        const value = merged ? spareTotal : (counts[slug] ?? 0);
+        const href = merged ? SPARE.href : `/work/${workflow}/${slug}`;
         const width = (value / peak) * 100;
         // ຄໍຂວດ = ຂັ້ນທີ່ກອງວຽກໄວ້ຫຼາຍສຸດ (ແລະ ບໍ່ແມ່ນສູນ)
         const isPeak = value > 0 && value === peak && total > 0;
