@@ -12,7 +12,7 @@ import Link from "next/link";
  * ໂຫຼດທີລະ 10 ແລ້ວ "ໂຫຼດເພີ່ມ" — ຕາຕະລາງ ERP ໃຫຍ່ ຈຶ່ງ **ບໍ່ນັບຈຳນວນທັງໝົດ**
  * (count(*) ເຕັມຕາຕະລາງຊ້າ) ⇒ ດຶງເກີນມາ 1 ແຖວ ເພື່ອຮູ້ວ່າ "ຍັງມີຕໍ່ບໍ່".
  */
-type Props = { searchParams: Promise<{ q?: string; page?: string }> };
+type Props = { searchParams: Promise<{ q?: string; page?: string; month?: string }> };
 
 type Row = {
   doc_no: string;
@@ -32,6 +32,8 @@ export default async function ReceiptsPage({ searchParams }: Props) {
   const params = await searchParams;
   const q = (params.q ?? "").trim();
   const page = Math.max(1, Number(params.page) || 1);
+  // ກັ່ນເປັນເດືອນ (YYYY-MM) — ຫວ່າງ = ທຸກເດືອນ
+  const month = /^\d{4}-\d{2}$/.test(params.month ?? "") ? params.month! : "";
   const shown = BATCH * page;
 
   const args: (string | number)[] = [];
@@ -44,18 +46,23 @@ export default async function ReceiptsPage({ searchParams }: Props) {
   if (q) {
     args.push(`%${q}%`);
     where.push(`(t.doc_no ilike $${args.length} or coalesce(t.cust_code,'') ilike $${args.length}
-       or coalesce(t.remark,'') ilike $${args.length})`);
+       or coalesce(c.name_1,'') ilike $${args.length} or coalesce(t.remark,'') ilike $${args.length})`);
+  }
+  if (month) {
+    args.push(`${month}-01`);
+    where.push(`t.doc_date >= $${args.length}::date and t.doc_date < ($${args.length}::date + interval '1 month')`);
   }
 
   const list = await queryOdg<Row>(
     `select t.doc_no, to_char(t.doc_date,'DD-MM-YYYY') doc_date,
-        nullif(t.doc_ref,'') job, nullif(t.remark,'') product, nullif(t.cust_code,'') customer,
+        nullif(t.doc_ref,'') job, nullif(t.remark,'') product, coalesce(nullif(c.name_1,''), nullif(t.cust_code,'')) customer,
         (select string_agg(d.item_name, ' · ' order by d.line_number)
            from ic_trans_detail d where d.doc_no = t.doc_no and d.trans_flag = 44) items,
         (select count(*) from ic_trans_detail d where d.doc_no = t.doc_no and d.trans_flag = 44)::int lines,
         coalesce(t.total_amount,0)::float8 amount,
         nullif(t.department_code,'') user_created
       from ic_trans t
+      left join ar_customer c on c.code = t.cust_code
      where ${where.join(" and ")}
      order by t.doc_date desc, t.doc_no desc
      limit $${args.length + 1}`,
@@ -65,6 +72,16 @@ export default async function ReceiptsPage({ searchParams }: Props) {
   const hasMore = list.rows.length > shown;
   const rows = list.rows.slice(0, shown);
 
+  // ສະຫຼຸບ = ທັງເງື່ອນໄຂ (ບໍ່ແມ່ນສະເພາະແຖວທີ່ໂຫຼດມາ) ⇒ ຄົນເຫັນຍອດລວມຈິງຂອງເດືອນ
+  const sum = await queryOdg<{ bills: number; baht: number }>(
+    `select count(*)::int bills, coalesce(sum(t.total_amount),0)::float8 baht
+       from ic_trans t
+       left join ar_customer c on c.code = t.cust_code
+      where ${where.join(" and ")}`,
+    args,
+  );
+  const totals = sum.rows[0] ?? { bills: 0, baht: 0 };
+
   return (
     <div className="w-full space-y-4 pb-10">
       <div>
@@ -73,7 +90,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
           ບິນຂາຍຂອງຝ່າຍບໍລິການ
         </h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          ສະແດງ {rows.length.toLocaleString()} ບິນຫຼ້າສຸດ — ຈາກ ERP (ic_trans · trans_flag 44)
+          {totals.bills.toLocaleString()} ບິນ · ລວມ {Math.round(totals.baht).toLocaleString()} ບາດ — ຈາກ ERP (side_code 400)
         </p>
       </div>
 
@@ -88,6 +105,12 @@ export default async function ReceiptsPage({ searchParams }: Props) {
             className="w-full bg-transparent text-sm outline-none"
           />
         </label>
+        <input
+          type="month"
+          name="month"
+          defaultValue={month}
+          className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700"
+        />
         <button
           type="submit"
           className="inline-flex h-10 items-center rounded-xl bg-slate-800 px-5 text-sm font-semibold text-white hover:bg-slate-900"
@@ -144,7 +167,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
       {hasMore && (
         <nav className="flex items-center justify-center gap-3 text-xs">
           <Link
-            href={`/receipts?${new URLSearchParams({ ...(q && { q }), page: String(page + 1) })}`}
+            href={`/receipts?${new URLSearchParams({ ...(q && { q }), ...(month && { month }), page: String(page + 1) })}`}
             scroll={false}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50"
           >
