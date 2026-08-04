@@ -61,6 +61,12 @@ type Job = {
   registered: string | null;
   appoint_date: string | null;
   repair_note: string | null;
+  /** ── ຜົນການກວດເຊັກ ── */
+  accessories: string | null;
+  condition: string | null;
+  check_start: string | null;
+  check_finish: string | null;
+  check_minutes: number | null;
 };
 
 export default async function RepairJobPage({ params }: Props) {
@@ -80,7 +86,13 @@ export default async function RepairJobPage({ params }: Props) {
           (a.status = 6) cancelled,
           to_char(a.time_register,'DD-MM-YYYY HH24:MI') registered,
           to_char(a.appoint_date,'DD-MM-YYYY') appoint_date,
-          a.repair_note
+          a.repair_note,
+          -- ຜົນການກວດເຊັກ: ອຸປະກອນທີ່ມາພ້ອມ · ສະພາບ/ຮອຍ · ໃຜກວດ · ໃຊ້ເວລາເທົ່າໃດ
+          nullif(trim(coalesce(a.p_access,'')),'') accessories,
+          nullif(trim(coalesce(a.p_abrasion,'')),'') condition,
+          to_char(a.time_check,'DD-MM-YYYY HH24:MI') check_start,
+          to_char(a.time_finish_check,'DD-MM-YYYY HH24:MI') check_finish,
+          (extract(epoch from (a.time_finish_check - a.time_check))/60)::int check_minutes
         from tb_product a
         left join ar_customer c on c.code = a.cust_code
        where a.code = $1 limit 1`,
@@ -230,14 +242,6 @@ export default async function RepairJobPage({ params }: Props) {
 
         <dl className="mt-4 grid gap-3 border-t border-slate-100 pt-3 text-xs sm:grid-cols-3">
           <div>
-            <dt className="text-[10px] text-slate-400">ອາການທີ່ລູກຄ້າແຈ້ງ</dt>
-            <dd className="mt-0.5 font-medium text-slate-700">{job.issue || "-"}</dd>
-          </div>
-          <div>
-            <dt className="text-[10px] text-slate-400">ຜົນກວດຂອງຊ່າງ</dt>
-            <dd className="mt-0.5 font-medium text-red-600">{job.issue_2 || "-"}</dd>
-          </div>
-          <div>
             <dt className="text-[10px] text-slate-400">ປະກັນ · ຊ່າງ · ວັນນັດ</dt>
             <dd className="mt-0.5 font-medium text-slate-700">
               {job.warranty || "-"} · {job.technician || "ຍັງບໍ່ຈັດ"} {job.appoint_date && `· ນັດ ${job.appoint_date}`}
@@ -251,6 +255,55 @@ export default async function RepairJobPage({ params }: Props) {
             <dt className="text-[10px] text-slate-400">ຮັບເຄື່ອງເມື່ອ</dt>
             <dd className="mt-0.5 text-slate-600">{job.registered ?? "-"}</dd>
           </div>
+        </dl>
+      </section>
+
+      {/* ── ຜົນການກວດເຊັກ ──
+          ຊ່າງສ້ອມຕ້ອງອ່ານສິ່ງທີ່ຄົນກວດພົບກ່ອນລົງມື ແຕ່ກ່ອນໜ້ານີ້ມີພຽງ 2 ແຖວນ້ອຍໆປົນຢູ່ຫົວໜ້າ.
+          ວັດ 5,180 ໃບງານສ້ອມ: issue 100% · issue_2 93% · ອຸປະກອນ 22% · ສະພາບ/ຮອຍ 14%
+          ⇒ ຊ່ອງທີ່ຫວ່າງບໍ່ໂຊ້ວ ບໍ່ໃຫ້ກິນທີ່ລ້າໆ. */}
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="mb-3 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2 text-sm font-bold text-slate-700">
+          <ClipboardCheck className="size-4 text-teal-600" />
+          ຜົນການກວດເຊັກ
+          {job.check_finish ? (
+            <span className="text-[11px] font-medium text-slate-400">
+              ກວດຈົບ {job.check_finish}
+              {job.check_minutes !== null && job.check_minutes >= 0 && ` · ໃຊ້ເວລາ ${job.check_minutes} ນາທີ`}
+            </span>
+          ) : (
+            <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+              ຍັງບໍ່ຈົບການກວດ
+            </span>
+          )}
+        </h2>
+        <dl className="grid gap-3 text-xs sm:grid-cols-2">
+          <div>
+            <dt className="text-[10px] text-slate-400">ອາການທີ່ລູກຄ້າແຈ້ງ</dt>
+            <dd className="mt-0.5 font-medium text-slate-700">{job.issue || "-"}</dd>
+          </div>
+          <div>
+            <dt className="text-[10px] text-slate-400">ຜົນກວດຂອງຊ່າງ</dt>
+            <dd className="mt-0.5 font-medium text-red-600">{job.issue_2 || "-"}</dd>
+          </div>
+          {job.accessories && (
+            <div>
+              <dt className="text-[10px] text-slate-400">ອຸປະກອນທີ່ມາພ້ອມ</dt>
+              <dd className="mt-0.5 text-slate-700">{job.accessories}</dd>
+            </div>
+          )}
+          {job.condition && (
+            <div>
+              <dt className="text-[10px] text-slate-400">ສະພາບ / ຮອຍ</dt>
+              <dd className="mt-0.5 text-slate-700">{job.condition}</dd>
+            </div>
+          )}
+          {job.repair_note && (
+            <div className="sm:col-span-2">
+              <dt className="text-[10px] text-slate-400">ບັນທຶກເພີ່ມ</dt>
+              <dd className="mt-0.5 whitespace-pre-wrap text-slate-700">{job.repair_note}</dd>
+            </div>
+          )}
         </dl>
       </section>
 
