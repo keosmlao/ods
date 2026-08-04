@@ -248,11 +248,24 @@ export async function techRevenueByMonth(from: string, to: string): Promise<Tech
  */
 export async function installRevenueBetween(from: string, to: string): Promise<{ jobs: number; baht: number }> {
   const { rows } = await query<{ jobs: number; baht: number }>(
-    `select count(distinct a.code)::int jobs, coalesce(sum(d.sum_amount),0)::float8 baht
-       from ods.ods_tb_install a
-       join public.ic_trans_detail d
-         on d.doc_no = trim(a.doc_ref_1) and d.item_code like '9701%'
-      where a.cancel_date is null and a.job_finish::date between $1 and $2`,
+    /**
+     * ⚠️ **1 ບິນອາດຄຸມຫຼາຍໃບງານ** (ຕົວຢ່າງ CAK26009420 = INST-7162 + INST-7163)
+     * ⇒ ຖ້າ sum ຕາມແຖວ join ຈະນັບຍອດບິນນັ້ນ 2 ເທື່ອ. ຈຶ່ງລວມ **ຕໍ່ບິນ** ກ່ອນ (bills)
+     * ແລ້ວຈຶ່ງບວກ — ຍອດລວມຈຶ່ງບໍ່ພອງ.
+     */
+    `with jobs as (
+        select a.code, trim(a.doc_ref_1) bill
+          from ods.ods_tb_install a
+         where a.cancel_date is null and a.job_finish::date between $1 and $2
+           and nullif(trim(coalesce(a.doc_ref_1,'')),'') is not null
+      ), bills as (
+        select d.doc_no, sum(d.sum_amount) baht
+          from public.ic_trans_detail d
+         where d.item_code like '9701%' and d.doc_no in (select bill from jobs)
+         group by d.doc_no
+      )
+      select (select count(*)::int from jobs j join bills b on b.doc_no = j.bill) jobs,
+             (select coalesce(sum(b.baht),0)::float8 from bills b) baht`,
     [from, to],
   );
   return rows[0] ?? { jobs: 0, baht: 0 };

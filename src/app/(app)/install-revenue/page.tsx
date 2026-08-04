@@ -1,4 +1,3 @@
-import { kipPerBaht } from "@/lib/monthly-report";
 import { installRevenueBetween, installRevenueDetail } from "@/lib/service-money";
 import { ChevronDown, HardHat } from "lucide-react";
 import Link from "next/link";
@@ -10,7 +9,7 @@ import Link from "next/link";
  * ມີຄົບ 100% ຂອງໃບງານ · join ຕິດ 6,503/6,972 · **6,393 ໃບ (92%) ມີຄ່າບໍລິການ 9701xx**)
  * ⇒ ບອກໄດ້ວ່າເງິນກ້ອນນີ້ມາຈາກໃບງານໃດ ບໍ່ຕ້ອງເດົາຈາກລູກຄ້າ+ວັນທີ.
  *
- * ນັບຕາມ **ວັນປິດງານ** (job_finish). ຄ່າຝັ່ງ ERP ເປັນບາດ ⇒ ແປງເປັນກີບດ້ວຍ tb_bill_rate.
+ * ນັບຕາມ **ວັນປິດງານ** (job_finish). ຍອດເປັນ **ບາດ** ຕາມທີ່ບັນທຶກໃນ ERP (ບໍ່ແປງໜ່ວຍ).
  */
 export const dynamic = "force-dynamic";
 
@@ -33,20 +32,17 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
 
   let total = { jobs: 0, baht: 0 };
   let rows: Awaited<ReturnType<typeof installRevenueDetail>> = [];
-  let rate = 0;
   let error: string | null = null;
   try {
-    [total, rows, rate] = await Promise.all([
+    [total, rows] = await Promise.all([
       installRevenueBetween(from, to),
       installRevenueDetail(from, to, shown + 1),
-      kipPerBaht(),
     ]);
   } catch (exception) {
     error = exception instanceof Error ? exception.message : "ດຶງຂໍ້ມູນບໍ່ສຳເລັດ";
   }
   const hasMore = rows.length > shown;
   const list = rows.slice(0, shown);
-  const kip = (baht: number) => Math.round(baht * rate);
 
   return (
     <div className="w-full space-y-4 pb-10">
@@ -72,11 +68,10 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
       {error && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</p>}
 
       {/* ── ສະຫຼຸບຂອງເດືອນ (ທັງເດືອນ ບໍ່ແມ່ນສະເພາະແຖວທີ່ໂຫຼດ) ── */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         {[
           { label: "ໃບງານທີ່ປິດ", value: total.jobs.toLocaleString(), tone: "text-slate-800" },
-          { label: "ລາຍຮັບ (ກີບ)", value: kip(total.baht).toLocaleString(), tone: "text-emerald-700" },
-          { label: "ລາຍຮັບ (ບາດ)", value: Math.round(total.baht).toLocaleString(), tone: "text-slate-500" },
+          { label: "ລາຍຮັບ (ບາດ)", value: Math.round(total.baht).toLocaleString(), tone: "text-emerald-700" },
         ].map((card) => (
           <div key={card.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-[11px] text-slate-400">{card.label}</p>
@@ -96,7 +91,7 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
                 <th className="px-4 py-2.5 font-semibold">ຊ່າງ</th>
                 <th className="px-4 py-2.5 font-semibold">ບິນຂາຍ ERP</th>
                 <th className="px-4 py-2.5 font-semibold">ຄ່າບໍລິການ</th>
-                <th className="px-4 py-2.5 text-right font-semibold">ກີບ</th>
+                <th className="px-4 py-2.5 text-right font-semibold">ບາດ</th>
               </tr>
             </thead>
             <tbody>
@@ -122,7 +117,7 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-right font-bold tabular-nums text-slate-800">
-                    {kip(row.baht).toLocaleString()}
+                    {Math.round(row.baht).toLocaleString()}
                   </td>
                 </tr>
               ))}
@@ -150,7 +145,7 @@ export default async function InstallRevenuePage({ searchParams }: Props) {
 
       <p className="text-[11px] text-slate-400">
         ຜູກຜ່ານ <b>ods_tb_install.doc_ref_1</b> = ເລກບິນຂາຍ ERP ຂອງໃບງານ ແລ້ວເອົາສະເພາະລາຍການ
-        ຄ່າບໍລິການຕິດຕັ້ງ (ລະຫັດ 9701xx) · ນັບຕາມວັນປິດງານ · ແປງບາດ→ກີບ ດ້ວຍອັດຕາ tb_bill_rate
+        ຄ່າບໍລິການຕິດຕັ້ງ (ລະຫັດ 9701xx) · ນັບຕາມວັນປິດງານ · ຍອດເປັນບາດ ຕາມທີ່ບັນທຶກໃນ ERP · 1 ບິນທີ່ຄຸມຫຼາຍໃບງານ ນັບຍອດເທື່ອດຽວ
       </p>
     </div>
   );
