@@ -3,7 +3,7 @@ import { RowLink } from "@/components/row-link";
 import { query } from "@/lib/db";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
-import { CheckCircle2, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { CheckCircle2, ChevronDown, Search } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -78,11 +78,16 @@ export default async function CompletedReturnsPage({ searchParams }: Props) {
   const page = Math.max(1, Number(params.page) || 1);
   const t = (await getDictionary(await getLocale())).returnsList;
 
-  // ຄັ້ງລະ 20 · ຄົ້ນຫາ (ຫຼືກອງວັນທີ) = 5
-  const size = q || from || to ? 5 : 20;
+  /**
+   * **ໂຫຼດທີລະ 10 ແລ້ວ "ໂຫຼດເພີ່ມ"** (ບໍ່ແມ່ນແບ່ງໜ້າ 1/255).
+   * ລາຍການນີ້ມີ 5,093 ແຖວ ⇒ ຄົນຫາຂອງບໍ່ໄດ້ດ້ວຍການກົດໜ້າຕໍ່ໜ້າ ແລະ ບໍ່ຕ້ອງການເຫັນໝົດ.
+   * `page` ດຽວນີ້ໝາຍເຖິງ **ຈຳນວນຮອບທີ່ໂຫຼດແລ້ວ** ⇒ ດຶງ 10 × page ແຖວ ຈາກຕົ້ນ
+   * ⇒ ກົດ "ໂຫຼດເພີ່ມ" ແລ້ວແຖວເກົ່າຍັງຢູ່ (ບໍ່ຫາຍໄປຄືການແບ່ງໜ້າ) ແລະ ລິ້ງແຊເປັນ URL ໄດ້.
+   */
+  const BATCH = 10;
+  const shown = BATCH * page;
 
-  const { rows, total } = await getRows(q, from, to, page, size);
-  const pages = Math.max(1, Math.ceil(total / size));
+  const { rows, total } = await getRows(q, from, to, 1, shown);
 
   const base = () => ({ ...(q && { q }), ...(from && { from }), ...(to && { to }) });
   const pageHref = (n: number) =>
@@ -95,7 +100,7 @@ export default async function CompletedReturnsPage({ searchParams }: Props) {
       <div>
         <h1 className="text-xl font-bold text-slate-700">ລາຍການສົ່ງຄືນສຳເລັດ</h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          {total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
+          {total.toLocaleString()} {t.items} · ສະແດງ {Math.min(rows.length, total).toLocaleString()}
         </p>
       </div>
 
@@ -205,30 +210,19 @@ export default async function CompletedReturnsPage({ searchParams }: Props) {
         {total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
-      {pages > 1 && (
-        <nav className="flex items-center justify-between gap-3 text-xs">
-          <span className="text-slate-500">
-            {t.showing} {(page - 1) * size + 1}–{Math.min(page * size, total)} {t.of} {total.toLocaleString()}
+      {rows.length < total && (
+        <nav className="flex items-center justify-center gap-3 text-xs">
+          <Link
+            href={pageHref(page + 1)}
+            scroll={false}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            <ChevronDown className="size-3.5" />
+            ໂຫຼດເພີ່ມ {Math.min(BATCH, total - rows.length)} ລາຍການ
+          </Link>
+          <span className="text-slate-400">
+            {t.showing} {rows.length.toLocaleString()} {t.of} {total.toLocaleString()}
           </span>
-          <div className="flex items-center gap-1">
-            <Link
-              href={pageHref(page - 1)}
-              aria-disabled={page === 1}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
-            >
-              <ChevronLeft className="size-3.5" />
-              {t.prev}
-            </Link>
-            <span className="px-3 font-medium text-slate-700">{page} / {pages}</span>
-            <Link
-              href={pageHref(page + 1)}
-              aria-disabled={page >= pages}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
-            >
-              {t.next}
-              <ChevronRight className="size-3.5" />
-            </Link>
-          </div>
         </nav>
       )}
     </div>
