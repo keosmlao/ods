@@ -23,6 +23,19 @@ import type { ReactNode } from "react";
  * ຮອບ = 1 ໃບຂໍເບີກ. ໃບຂໍຊື້ຜູກເຂົ້າຮອບຂອງມັນຜ່ານ `from_request`;
  * ໃບຂໍຊື້ທີ່ບໍ່ມີໃບຂໍເບີກຕົ້ນທາງ (ຂໍຊື້ກົງ) ຢູ່ເປັນຮອບຂອງຕົນເອງທ້າຍລາຍການ.
  */
+/**
+ * ລິ້ງຕ່າງກັນລະຫວ່າງ **ສ້ອມ** ກັບ **ຕິດຕັ້ງ** (ຄົນລະຊຸດໜ້າ) — ສ່ວນຕ່ອງໂສ້ເອກະສານຄືກັນທຸກຢ່າງ
+ * (ວັດ 04-08-2026: ຕິດຕັ້ງໃຊ້ SION 122 → SWC 56 → PISP 166 ຄືກັບສ້ອມ ແລະ ຫຼາຍຮອບໜັກກວ່າ —
+ * 312 ວຽກຂໍເບີກ >1 ຮອບ ສູງສຸດ 10 ຮອບ) ⇒ ໃຊ້ອົງປະກອບດຽວກັນ ປ່ຽນແຕ່ລິ້ງ.
+ */
+export type SpareLinks = {
+  newRequest: string;
+  /** null = ຝັ່ງນັ້ນບໍ່ມີການຂໍຊື້ (ຕິດຕັ້ງມີ RQ 0 ໃບ) */
+  newPurchase: string | null;
+  viewRequest: (docNo: string) => string;
+  pickup: (dispatchNo: string) => string;
+};
+
 export function SpareRounds({
   code,
   roworder,
@@ -30,6 +43,8 @@ export function SpareRounds({
   purchases,
   erp = {},
   canRequest = false,
+  links,
+  docAction,
 }: {
   code: string;
   /** key ຂອງໜ້າ /stock/requests/[roworder] — ບ່ອນອອກໃບຂໍເບີກຮອບໃໝ່ */
@@ -40,7 +55,16 @@ export function SpareRounds({
   erp?: Record<string, ErpChain>;
   /** ເປີດປຸ່ມ "ຂໍເບີກ/ຂໍຊື້ ຮອບໃໝ່" (ວຽກຍັງບໍ່ຈົບ ແລະ ຜູ້ໃຊ້ມີສິດ) */
   canRequest?: boolean;
+  links?: SpareLinks;
+  /** ປຸ່ມເພີ່ມຢູ່ແຖວໃບຂໍເບີກ (ຕິດຕັ້ງ: ແກ້ໄຂ/ຍົກເລີກ ຕອນສາງຍັງບໍ່ເບີກ) */
+  docAction?: (docNo: string, dispatched: boolean) => ReactNode;
 }) {
+  const url: SpareLinks = links ?? {
+    newRequest: `/stock/requests/${encodeURIComponent(roworder)}`,
+    newPurchase: `/purchase-requests/new/${encodeURIComponent(code)}/direct`,
+    viewRequest: (docNo) => `/stock/requests/view/${encodeURIComponent(docNo)}`,
+    pickup: (docNo) => `/stock/requests/pickup/${encodeURIComponent(docNo)}`,
+  };
   if (withdrawals.length === 0 && purchases.length === 0 && !canRequest) return null;
 
   const waiting = withdrawals.filter((row) => row.state !== "received").length;
@@ -66,17 +90,19 @@ export function SpareRounds({
           <span className="ml-auto flex items-center gap-2">
             {/* ຂໍເບີກ/ຂໍຊື້ **ຮອບໃໝ່** ໄດ້ຕະຫຼອດ ຕາບໃດວຽກຍັງບໍ່ຈົບ — ຮອບເກົ່າຄ້າງຢູ່ກໍ່ຂໍໄດ້ */}
             <Link
-              href={`/stock/requests/${encodeURIComponent(roworder)}`}
+              href={url.newRequest}
               className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white hover:bg-teal-700"
             >
               + ຂໍເບີກຮອບໃໝ່
             </Link>
-            <Link
-              href={`/purchase-requests/new/${encodeURIComponent(code)}/direct`}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-800 hover:bg-amber-100"
-            >
-              + ຂໍຊື້ຮອບໃໝ່
-            </Link>
+            {url.newPurchase && (
+              <Link
+                href={url.newPurchase}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+              >
+                + ຂໍຊື້ຮອບໃໝ່
+              </Link>
+            )}
           </span>
         )}
       </h2>
@@ -89,10 +115,12 @@ export function SpareRounds({
             withdrawal={row}
             purchases={purchases.filter((p) => p.from_request === row.doc_no)}
             erp={erp}
+            url={url}
+            docAction={docAction}
           />
         ))}
         {orphanPurchases.map((row) => (
-          <RoundTree key={row.doc_no} round={row.round} purchases={[row]} erp={erp} label="ຂໍຊື້ກົງ" />
+          <RoundTree key={row.doc_no} round={row.round} purchases={[row]} erp={erp} url={url} label="ຂໍຊື້ກົງ" />
         ))}
       </div>
 
@@ -109,12 +137,16 @@ function RoundTree({
   withdrawal,
   purchases,
   erp,
+  url,
+  docAction,
   label,
 }: {
   round: number;
   withdrawal?: WithdrawRound;
   purchases: PurchaseRound[];
   erp: Record<string, ErpChain>;
+  url: SpareLinks;
+  docAction?: (docNo: string, dispatched: boolean) => ReactNode;
   label?: string;
 }) {
   const state = withdrawal ? WITHDRAW_STATE[withdrawal.state] : null;
@@ -130,7 +162,7 @@ function RoundTree({
         <ClipboardList className="size-3.5 text-teal-600" />
         {withdrawal ? (
           <Link
-            href={`/stock/requests/view/${encodeURIComponent(withdrawal.doc_no)}`}
+            href={url.viewRequest(withdrawal.doc_no)}
             className="font-mono text-xs font-bold text-teal-700 hover:underline"
           >
             {withdrawal.doc_no}
@@ -144,6 +176,7 @@ function RoundTree({
           <span className="ml-auto flex items-center gap-2">
             <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${state.tone}`}>{state.label}</span>
             {state.next !== "—" && <span className="text-[10px] text-slate-400">ລໍ {state.next}</span>}
+            {withdrawal && docAction?.(withdrawal.doc_no, Boolean(withdrawal.dispatch_no))}
           </span>
         )}
       </div>
@@ -174,7 +207,7 @@ function RoundTree({
             action={
               withdrawal.state === "dispatched" && withdrawal.dispatch_no ? (
                 <Link
-                  href={`/stock/requests/pickup/${encodeURIComponent(withdrawal.dispatch_no.split(",")[0].trim())}`}
+                  href={url.pickup(withdrawal.dispatch_no.split(",")[0].trim())}
                   className="inline-flex h-7 items-center rounded-lg bg-teal-600 px-2.5 text-[11px] font-semibold text-white hover:bg-teal-700"
                 >
                   ຮັບອາໄຫຼ່

@@ -7,6 +7,8 @@ import { JOB_HEAD_COLUMNS, type JobHead, JobHeader } from "@/components/installa
 import { ReopenJobButton } from "@/components/installation/undo-buttons";
 import { DeliveryCard } from "@/components/installation/delivery-card";
 import { JobTimeline } from "@/components/repair/job-timeline";
+import { SpareRounds } from "@/components/repair/spare-rounds";
+import { repairSpareRounds } from "@/lib/repair-spare-rounds";
 import { deliveryFor } from "@/lib/delivery";
 import { installTimeline } from "@/lib/install-timeline";
 import { Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
@@ -17,7 +19,6 @@ import { getLocale } from "@/lib/i18n/locale";
 import { INSTALL_ELAPSED_SQL, INSTALL_STAGE_SQL, installStageChip, installStageLabel } from "@/lib/install-stage";
 import { canViewAssignedJob } from "@/lib/scope";
 import { TECH_SIDE, roleOf } from "@/lib/roles";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 /**
@@ -61,23 +62,7 @@ type Spare = {
   pick_finish: string | null;
 };
 
-type Doc = {
-  doc_no: string;
-  doc_date: string | null;
-  trans_flag: number;
-  lines: number;
-  dispatched: boolean;
-};
-
 /** ຊື່ເອກະສານຂອງສາຍງານຕິດຕັ້ງ — ຄືກັບ lib/stock-constants */
-const DOC_LABEL: Record<number, string> = {
-  122: "ໃບຂໍເບີກ (SION)",
-  56: "ໃບເບີກອອກສາງ (SWC)",
-  166: "ຊ່າງຮັບອາໄຫຼ່ (PISP)",
-  59: "ໃບຂໍສົ່ງຄືນ (SRI)",
-  58: "ສາງຮັບຄືນ (SRT)",
-};
-
 export default async function InstallationDetail({ params }: Props) {
   const code = decodeURIComponent((await params).code);
   const session = await getSession();
@@ -86,7 +71,7 @@ export default async function InstallationDetail({ params }: Props) {
   const installPermission = await permissionFor(session, "/installations");
   const canDelete = installPermission.delete;
 
-  const [job, spares, docs, outstanding] = await Promise.all([
+  const [job, spares, outstanding, rounds] = await Promise.all([
     query<Row>(
       `select ${JOB_HEAD_COLUMNS},
           (${INSTALL_STAGE_SQL})::int as stage,
@@ -104,18 +89,6 @@ export default async function InstallationDetail({ params }: Props) {
           to_char(reg_finish,'DD-MM-YYYY') reg_finish,
           to_char(pick_finish,'DD-MM-YYYY') pick_finish
         from tb_used_spare where product_code = $1 order by roworder`,
-      [code],
-    ),
-    query<Doc>(
-      `select t.doc_no, to_char(t.doc_date,'DD-MM-YYYY') doc_date, t.trans_flag,
-          (select count(*)::int from ic_trans_detail d where d.doc_no = t.doc_no) lines,
-          exists (
-            select 1 from ic_trans issued
-             where issued.trans_flag = 56 and issued.doc_ref = t.doc_no
-          ) dispatched
-        from ic_trans t
-        where t.product_code = $1 and t.trans_flag in (122,56,166,59,58)
-        order by t.doc_no`,
       [code],
     ),
     /**
@@ -137,6 +110,8 @@ export default async function InstallationDetail({ params }: Props) {
        ) t`,
       [code],
     ),
+    // ຮອບອາໄຫຼ່ — ຕ່ອງໂສ້ SION → SWC → PISP ດຽວກັນກັບຝັ່ງສ້ອມ (ຕິດຕັ້ງເຖິງ 10 ຮອບ/ວຽກ)
+    repairSpareRounds(code),
   ]);
 
   const row = job.rows[0];
@@ -265,48 +240,32 @@ export default async function InstallationDetail({ params }: Props) {
         )}
       </Card>
 
-      <Card title={`${t.relatedDocs} (${docs.rows.length})`}>
-        {docs.rows.length === 0 ? (
-          <Empty>{t.noDocs}</Empty>
-        ) : (
-          <Table head={[t.docType, t.docNo, t.date, t.lines, ""]} minWidth={650}>
-            {docs.rows.map((doc) => (
-              <tr key={doc.doc_no} className="border-b border-slate-100">
-                <td className="px-3 py-2 text-xs">{DOC_LABEL[doc.trans_flag] ?? doc.trans_flag}</td>
-                <td className="px-3 py-2 text-xs font-semibold">
-                  {doc.trans_flag === 122 ? (
-                    <Link
-                      href={`/installations/spare-requests/view/${encodeURIComponent(doc.doc_no)}`}
-                      className="text-teal-700 underline decoration-teal-300 underline-offset-2 hover:text-teal-900"
-                    >
-                      {doc.doc_no}
-                    </Link>
-                  ) : (
-                    doc.doc_no
-                  )}
-                </td>
-                <td className="px-3 py-2 text-xs text-slate-500">{doc.doc_date ?? "-"}</td>
-                <td className="px-3 py-2 text-xs text-slate-500">{doc.lines}</td>
-                <td className="px-3 py-2 text-right">
-                  {canCancelRequest && doc.trans_flag === 122 && !doc.dispatched && (
-                    <div className="flex items-center justify-end gap-2">
-                      {/* ແກ້ໄດ້ພາຍໃຕ້ເງື່ອນໄຂດຽວກັບການລົບ — ສາງຍັງບໍ່ທັນເບີກຕາມໃບນີ້ */}
-                      <LinkButton
-                        href={`/installations/spare-requests/edit/${encodeURIComponent(doc.doc_no)}`}
-                        tone="info"
-                        size="sm"
-                      >
-                        ແກ້ໄຂ
-                      </LinkButton>
-                      <CancelInstallSpareRequestButton docNo={doc.doc_no} code={row.code} />
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </Table>
-        )}
-      </Card>
+      {/* ── ອາໄຫຼ່: tree ຕາມຕ່ອງໂສ້ເອກະສານ ຄືກັບຝັ່ງສ້ອມ ──
+          ແທນຕາຕະລາງເອກະສານແປທີ່ບອກບໍ່ໄດ້ວ່າໃບໃດຄູ່ກັບໃບໃດ ຫຼື ຮອບໃດຄ້າງຢູ່ໃສ */}
+      <SpareRounds
+        code={row.code}
+        roworder={row.code}
+        withdrawals={rounds.withdrawals}
+        purchases={rounds.purchases}
+        erp={rounds.erp}
+        canRequest={canCancelRequest}
+        links={{
+          newRequest: `/installations/spare-requests/${encodeURIComponent(row.code)}`,
+          newPurchase: null, // ຕິດຕັ້ງບໍ່ມີໃບຂໍຊື້ (ວັດແລ້ວ 0 ໃບ)
+          viewRequest: (docNo) => `/installations/spare-requests/view/${encodeURIComponent(docNo)}`,
+          pickup: (docNo) => `/installations/spare-pickup/${encodeURIComponent(docNo)}`,
+        }}
+        docAction={(docNo, dispatched) =>
+          canCancelRequest && !dispatched ? (
+            <span className="flex items-center gap-2">
+              <LinkButton href={`/installations/spare-requests/edit/${encodeURIComponent(docNo)}`} tone="info" size="sm">
+                ແກ້ໄຂ
+              </LinkButton>
+              <CancelInstallSpareRequestButton docNo={docNo} code={row.code} />
+            </span>
+          ) : null
+        }
+      />
 
       <Chatter model="ods_tb_install" resId={row.code} />
     </div>
