@@ -2009,6 +2009,7 @@ export async function savePickSpare(
     /**
      * ຂັ້ນ 3 ຈົບເມື່ອ **ເບີກຄົບທຸກໃບຂໍ ແລະ ຮັບຄົບທຸກໃບເບີກ** — ກົດເກນຢູ່
      * lib/install-spare-gate ບ່ອນດຽວ (ແອັບມືຖືໃຊ້ອັນດຽວກັນ).
+     * ແຖວກະຕ່າທີ່ບໍ່ເຄີຍຂໍເບີກ (ຂອງທີ່ຖືກປ່ຽນແທນ) ບໍ່ກັ້ນ — ເບິ່ງເຫດຜົນຢູ່ install-spare-gate.
      */
     const outstanding = await installSpareOutstanding(
       (sql, params) => client.query(sql, params),

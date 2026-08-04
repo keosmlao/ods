@@ -832,6 +832,7 @@ export async function pickupSpares(session: Session, docRef: string, remark: str
       /**
        * ຄົບທັງ "ເບີກຄົບທຸກໃບຂໍ" ແລະ "ຮັບຄົບທຸກໃບເບີກ" ຈຶ່ງໄປ "ລໍຖ້າຕິດຕັ້ງ" —
        * ກົດເກນຢູ່ lib/install-spare-gate ບ່ອນດຽວ (ຝັ່ງເວັບໃຊ້ອັນດຽວກັນ).
+       * ແຖວກະຕ່າທີ່ບໍ່ເຄີຍຂໍເບີກ (ຂອງທີ່ຖືກປ່ຽນແທນ) ບໍ່ກັ້ນ — ເບິ່ງເຫດຜົນຢູ່ install-spare-gate.
        */
       const outstanding = await installSpareOutstanding(
         (sql, params) => client.query(sql, params),
