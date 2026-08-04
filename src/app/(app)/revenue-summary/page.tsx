@@ -41,6 +41,7 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
   const matrix = await monthlyRevenueMatrix(year);
   const cell = (y: number, m: number) => matrix.get(`${y}-${String(m + 1).padStart(2, "0")}`);
 
+  const nowMonth = new Date().getMonth();
   const rows = MONTHS.map((label, index) => {
     const now = cell(year, index);
     const prev = cell(year - 1, index);
@@ -48,6 +49,7 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
     const last = prev?.total ?? 0;
     return {
       label,
+      current: year === thisYear && index === nowMonth,
       values: Object.fromEntries(REV_CATEGORIES.map((c) => [c, now?.[c] ?? 0])) as Record<RevCategory, number>,
       total,
       last,
@@ -69,7 +71,7 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
   const yoyAll = lastYear > 0 ? ((grand - lastYear) / lastYear) * 100 : null;
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6 bg-white p-8 text-slate-800 print:p-0">
+    <div className="w-full space-y-6 bg-white p-6 text-slate-800 print:p-0">
       <div className="flex items-start justify-between gap-4 border-b-2 border-slate-800 pb-4">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-widest text-teal-700">ODIEN SERVICE CENTER</p>
@@ -156,8 +158,18 @@ export default async function RevenueSummaryPage({ searchParams }: Props) {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.label} className="border-b border-slate-100">
-                <td className="py-1.5 font-medium">{row.label}</td>
+              <tr
+                key={row.label}
+                className={`border-b border-slate-100 ${row.current ? "bg-teal-50/70 font-semibold" : ""}`}
+              >
+                <td className="py-1.5 font-medium">
+                  {row.label}
+                  {row.current && (
+                    <span className="ml-1.5 rounded bg-teal-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      ເດືອນນີ້
+                    </span>
+                  )}
+                </td>
                 {REV_CATEGORIES.map((category) => (
                   <td key={category} className="py-1.5 text-right tabular-nums text-slate-600">
                     {row.values[category] > 0 ? money(row.values[category]) : "—"}

@@ -262,12 +262,21 @@ export async function installRevenueBetween(from: string, to: string): Promise<{
         -- ບາງແຖວ sum_amount = 0 (ບໍ່ໄດ້ປ້ອນລາຄາ) ⇒ ຖອຍໄປໃຊ້ລາຄາຂາຍມາດຕະຖານ
         -- ic_inventory_price (ສະກຸນ '01' = ບາດ) ທີ່ມີຜົນໃນວັນປິດງານ
         select d.doc_no, sum(coalesce(nullif(d.sum_amount, 0),
-              d.qty * coalesce((
-                select max(pr.sale_price1) from public.ic_inventory_price pr
-                 where pr.ic_code = d.item_code and pr.currency_code = '01'
-                   and coalesce(pr.status,1) = 1
-                   and (pr.from_date is null or pr.from_date <= a.job_finish::date)
-                   and (pr.to_date is null or pr.to_date >= a.job_finish::date)), 0))) baht
+              d.qty * coalesce(
+                -- ບໍ່ຜູກກັບ to_date (ຕາຕະລາງລາຄາຫຼາຍແຖວໝົດອາຍຸແຕ່ຍັງໃຊ້ຈິງ)
+                -- ⇒ ເອົາ **ແຖວສຸດທ້າຍທີ່ມີລາຄາ** ຂອງລະຫັດນັ້ນ
+                (select pr.sale_price1 from public.ic_inventory_price pr
+                  where pr.ic_code = d.item_code and pr.currency_code = '01'
+                    and coalesce(pr.sale_price1,0) > 0
+                  order by pr.from_date desc nulls last, pr.roworder desc limit 1),
+                -- ບາງລະຫັດບໍ່ມີໃນຕາຕະລາງລາຄາເລີຍ (ເຊັ່ນ 970101-0013 ບໍລິການຕິດຕັ້ງເຄື່ອງໃຊ້ໄຟຟ້າ)
+                -- ⇒ ໃຊ້ **ລາຄາທີ່ເຄີຍອອກບິນຫຼ້າສຸດ** ຂອງລະຫັດນັ້ນ (ຂໍ້ມູນຈິງ ບໍ່ແມ່ນເດົາ)
+                (select p2.price from public.ic_trans_detail p2
+                   join public.ic_trans t2 on t2.doc_no = p2.doc_no
+                  where p2.item_code = d.item_code and coalesce(p2.price,0) > 0
+                    and t2.doc_date <= a.job_finish
+                  order by t2.doc_date desc limit 1),
+                0))) baht
           from public.ic_trans_detail d
           join jobs j on j.bill = d.doc_no
           join ods.ods_tb_install a on a.code = j.code
@@ -301,12 +310,21 @@ export async function installRevenueDetail(from: string, to: string, limit: numb
           nullif(a.tech_code,'') tech,
           string_agg(distinct d.item_name, ' · ') items,
           coalesce(sum(coalesce(nullif(d.sum_amount, 0),
-              d.qty * coalesce((
-                select max(pr.sale_price1) from public.ic_inventory_price pr
-                 where pr.ic_code = d.item_code and pr.currency_code = '01'
-                   and coalesce(pr.status,1) = 1
-                   and (pr.from_date is null or pr.from_date <= a.job_finish::date)
-                   and (pr.to_date is null or pr.to_date >= a.job_finish::date)), 0))),0)::float8 baht
+              d.qty * coalesce(
+                -- ບໍ່ຜູກກັບ to_date (ຕາຕະລາງລາຄາຫຼາຍແຖວໝົດອາຍຸແຕ່ຍັງໃຊ້ຈິງ)
+                -- ⇒ ເອົາ **ແຖວສຸດທ້າຍທີ່ມີລາຄາ** ຂອງລະຫັດນັ້ນ
+                (select pr.sale_price1 from public.ic_inventory_price pr
+                  where pr.ic_code = d.item_code and pr.currency_code = '01'
+                    and coalesce(pr.sale_price1,0) > 0
+                  order by pr.from_date desc nulls last, pr.roworder desc limit 1),
+                -- ບາງລະຫັດບໍ່ມີໃນຕາຕະລາງລາຄາເລີຍ (ເຊັ່ນ 970101-0013 ບໍລິການຕິດຕັ້ງເຄື່ອງໃຊ້ໄຟຟ້າ)
+                -- ⇒ ໃຊ້ **ລາຄາທີ່ເຄີຍອອກບິນຫຼ້າສຸດ** ຂອງລະຫັດນັ້ນ (ຂໍ້ມູນຈິງ ບໍ່ແມ່ນເດົາ)
+                (select p2.price from public.ic_trans_detail p2
+                   join public.ic_trans t2 on t2.doc_no = p2.doc_no
+                  where p2.item_code = d.item_code and coalesce(p2.price,0) > 0
+                    and t2.doc_date <= a.job_finish
+                  order by t2.doc_date desc limit 1),
+                0))),0)::float8 baht
         from ods.ods_tb_install a
         join public.ic_trans_detail d
           on d.doc_no = trim(a.doc_ref_1) and d.item_code like '9701%'
