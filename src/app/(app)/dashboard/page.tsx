@@ -306,8 +306,16 @@ function Pipeline({
     // ວາງແຖວລວມໄວ້ບ່ອນຂັ້ນທຳອິດຂອງກຸ່ມ ⇒ ລຳດັບ pipeline ຍັງຖືກ
     if (index === spareAt) stages.push([SPARE.slugs[0], { ...def, label: SPARE.label }]);
   });
-  const total = stages.reduce((sum, [slug]) => sum + (counts[slug] ?? 0), 0);
-  const peak = Math.max(1, ...stages.map(([slug]) => counts[slug] ?? 0));
+  /**
+   * ⚠️ ນັບຈາກ **raw** ບໍ່ແມ່ນ `stages` — ແຖວອາໄຫຼ່ທີ່ລວມແລ້ວໃຊ້ slug ຂອງຂັ້ນທຳອິດ
+   * ⇒ `counts[slug]` ຈະໄດ້ພຽງຂັ້ນນັ້ນ ແລະ **ຕົກຂັ້ນທີ 2 ໄປ** (ພົບ: ລວມ 75 ແທນ 86).
+   */
+  const total = raw.reduce((sum, [slug]) => sum + (counts[slug] ?? 0), 0);
+  const peak = Math.max(
+    1,
+    spareTotal,
+    ...raw.filter(([slug]) => !SPARE.slugs.includes(slug)).map(([slug]) => counts[slug] ?? 0),
+  );
 
   return (
     <div className="space-y-1">
