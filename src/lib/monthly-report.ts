@@ -63,7 +63,8 @@ const emptyMonth = (month: string): MonthRevenue => ({
 const monthKey = (year: number, month: number) => `${year}-${String(month).padStart(2, "0")}`;
 
 /** ອັດຕາກີບຕໍ່ບາດ (tb_bill_rate code 02 ~690) — 0 = ອ່ານບໍ່ໄດ້ (ແຖວກີບຈະຖືກຂ້າມ) */
-async function kipPerBaht(): Promise<number> {
+/** ອັດຕາ ກີບ/ບາດ (tb_bill_rate code 02) — export ໃຫ້ໜ້າອື່ນແປງໜ່ວຍໄດ້ດ້ວຍອັດຕາດຽວກັນ */
+export async function kipPerBaht(): Promise<number> {
   const result = await queryOdg<{ rate: string | null }>(
     `select exchange_rate rate from tb_bill_rate where code='02'`,
   );

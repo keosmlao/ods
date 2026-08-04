@@ -1,4 +1,4 @@
-import { monthlyRevenueMatrix } from "@/lib/monthly-report";
+import { kipPerBaht, monthlyRevenueMatrix } from "@/lib/monthly-report";
 import { techRevenueByMonth } from "@/lib/service-money";
 import { ChevronLeft, ChevronRight, Trophy, Wallet, Wrench } from "lucide-react";
 import Link from "next/link";
@@ -53,10 +53,16 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
   let install = { ac: 0, app: 0 };
   let error: string | null = null;
   try {
-    const [techRows, matrix] = await Promise.all([techRevenueByMonth(from, to), monthlyRevenueMatrix(year)]);
+    const [techRows, matrix, rate] = await Promise.all([
+      techRevenueByMonth(from, to),
+      monthlyRevenueMatrix(year),
+      kipPerBaht(),
+    ]);
     rows = techRows;
     const cell = matrix.get(month);
-    install = { ac: cell?.install_ac ?? 0, app: cell?.install_app ?? 0 };
+    // ⚠️ monthlyRevenueMatrix ຄືນຄ່າເປັນ **ບາດ** (ເບິ່ງຄຳເມັນຢູ່ lib/monthly-report)
+    // ໜ້ານີ້ໃຊ້ກີບທັງໜ້າ ⇒ ຄູນອັດຕາດຽວກັບທີ່ lib ໃຊ້ຫານ ບໍ່ດັ່ງນັ້ນຕົວເລກນ້ອຍຜິດ 1,000 ເທົ່າ
+    install = { ac: Math.round((cell?.install_ac ?? 0) * rate), app: Math.round((cell?.install_app ?? 0) * rate) };
   } catch (exception) {
     error = exception instanceof Error ? exception.message : "ດຶງຂໍ້ມູນບໍ່ສຳເລັດ";
   }
@@ -134,7 +140,7 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
           <Wrench className="size-4 text-indigo-600" />
           ລາຍຮັບຈາກການຕິດຕັ້ງ
           <span className="text-[11px] font-medium text-slate-400">
-            ຄ່າບໍລິການຕິດຕັ້ງ (ລະຫັດ 9701xx) ໃນບິນຂາຍ ERP
+            ຄ່າບໍລິການຕິດຕັ້ງ (ລະຫັດ 9701xx) ໃນບິນຂາຍ ERP · ແປງເປັນກີບແລ້ວ
           </span>
           <span className="ml-auto text-lg font-bold tabular-nums text-slate-800">
             {(install.ac + install.app).toLocaleString()}

@@ -97,10 +97,9 @@ export default async function ReceiptsPage({ searchParams }: Props) {
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
                 <th className="px-4 py-2.5 font-semibold">ເລກໃບ</th>
                 <th className="px-4 py-2.5 font-semibold">ວັນທີ</th>
-                <th className="px-4 py-2.5 font-semibold">ເລກວຽກ</th>
                 <th className="px-4 py-2.5 font-semibold">ລູກຄ້າ</th>
                 <th className="px-4 py-2.5 font-semibold">ລາຍການ</th>
-                <th className="px-4 py-2.5 text-right font-semibold">ຍອດ (ກີບ)</th>
+                <th className="px-4 py-2.5 text-right font-semibold">ຍອດ (ບາດ)</th>
                 <th className="px-4 py-2.5 font-semibold">ພະແນກ</th>
               </tr>
             </thead>
@@ -109,10 +108,6 @@ export default async function ReceiptsPage({ searchParams }: Props) {
                 <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="whitespace-nowrap px-4 py-2 font-mono font-semibold text-slate-700">{row.doc_no}</td>
                   <td className="whitespace-nowrap px-4 py-2 text-slate-500">{row.doc_date ?? "-"}</td>
-                  <td className="whitespace-nowrap px-4 py-2">
-                    {row.job ? <span className="font-mono text-slate-600">{row.job}</span> : "-"}
-                    {row.product && <span className="ml-1.5 text-[10px] text-slate-400">{row.product}</span>}
-                  </td>
                   <td className="max-w-56 truncate px-4 py-2 text-slate-600">{row.customer ?? "-"}</td>
                   <td className="max-w-72 px-4 py-2 text-slate-600">
                     {row.items ? (
@@ -156,6 +151,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
 
       <p className="text-[11px] text-slate-400">
         ອ່ານຈາກ ERP ໂດຍກົງ (public.ic_trans · trans_flag 44) — ບໍ່ແມ່ນສຳເນົາຝັ່ງ ODS ທີ່ບໍ່ມີລາຄາ.
+        ຍອດເປັນ <b>ບາດ</b> ຕາມທີ່ບັນທຶກໃນ ERP (ຍົກເວັ້ນໃບຕະກູນ HSV ທີ່ປ້ອນເປັນກີບ).
       </p>
     </div>
   );
