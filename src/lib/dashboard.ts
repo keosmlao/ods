@@ -3,7 +3,7 @@ import { installStatuses, repairStatuses, type StatusDef } from "@/lib/dashboard
 import { INSTALL_ELAPSED_SQL, INSTALL_OPEN, INSTALL_STAGE_LABEL_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { SLA_SQL } from "@/lib/sla";
 import { openRepeatJobs, type RepeatJob } from "@/lib/repeat";
-import { NOT_MISSING, NOT_PENDING_CANCEL, OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
+import { NOT_MISSING, OPEN_JOBS, STAGE_ELAPSED_SQL, STAGE_LABEL_SQL, STAGE_SQL } from "@/lib/stage";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import type { QueryResultRow } from "pg";
 
@@ -395,9 +395,17 @@ export async function getDashboard(tech: string | null, days = 30): Promise<{ da
   // ຊ່າງ: ຝັ່ງສ້ອມກອງດ້ວຍ emp_code · ຝັ່ງຕິດຕັ້ງກອງດ້ວຍ tech_code (ຄືກັບທຸກໜ້າອື່ນ)
   // ${NOT_PENDING_CANCEL}: ຕັດໃບຮ້ອງຂໍຍົກເລີກ-ຍັງບໍ່ອະນຸມັດ (stage -1) ⇒ KPI "ວຽກສ້ອມຄ້າງ"
   // = ຜົນບວກຂັ້ນ pipeline (0–11) ພໍດີ. ບໍ່ດັ່ງນັ້ນ total ນັບ stage -1 ທີ່ບໍ່ມີ bucket ⇒ ຫຼົ້ນກັນ.
+  /**
+   * ⚠️ **ນັບຄືກັບຄິວ/ເມນູ** (ຕັດສິນໃຈ 04-08-2026) — ຢ່າໃສ່ຕົວກັ່ນເພີ່ມຢູ່ນີ້.
+   * ແຕ່ກ່ອນ dashboard ໃສ່ `NOT_PENDING_CANCEL` (ຕັດງານທີ່ຂໍຍົກເລີກແຕ່ຍັງບໍ່ອະນຸມັດ)
+   * ຂະນະທີ່ຄິວ `/work/repair/<ຂັ້ນ>` ແລະ badge ບໍ່ໄດ້ຕັດ ⇒ 2 ບ່ອນນັບຄົນລະຢ່າງ
+   * ພໍມີງານຄ້າງອະນຸມັດຍົກເລີກເມື່ອໃດ. **ຄິວເປັນຫຼັກ** ⇒ ຖອດອອກ.
+   * (ງານທີ່ຂໍຍົກເລີກຍັງຕ້ອງຢູ່ໃນສາຍຕາຈົນກວ່າຈະອະນຸມັດ — ບົດຮຽນ 570 ໜ່ວຍທີ່ເຄີຍຄ້າງງຽບ)
+   */
   const repairWhere = tech
-    ? `${OPEN_JOBS} and ${NOT_MISSING} and ${NOT_PENDING_CANCEL} and a.emp_code = $1`
-    : `${OPEN_JOBS} and ${NOT_MISSING} and ${NOT_PENDING_CANCEL}`;
+    ? `${OPEN_JOBS} and ${NOT_MISSING} and a.emp_code = $1`
+    : `${OPEN_JOBS} and ${NOT_MISSING}`;
+  // ຝັ່ງຕິດຕັ້ງ: ນັບຄືກັບເມນູຄືກັນ — INSTALL_OPEN ຢ່າງດຽວ ບໍ່ມີຕົວກັ່ນເພີ່ມ
   const installWhere = tech ? `${INSTALL_OPEN} and a.tech_code = $1` : INSTALL_OPEN;
   const args = tech ? [tech] : [];
 
