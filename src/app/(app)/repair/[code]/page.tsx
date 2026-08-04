@@ -1,4 +1,3 @@
-import { AcceptRepairButton } from "@/components/repair/accept-repair-button";
 import { BackLink } from "@/components/back-link";
 import { CompleteRepairButton } from "@/components/repair/complete-repair-button";
 import { StartRepairButton, UndoStartRepairButton } from "@/components/repair/repair-actions";
@@ -186,8 +185,12 @@ export default async function RepairJobPage({ params }: Props) {
         </h2>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* ① ຮັບງານ (ຄືປຸ່ມ accept ຢູ່ແອັບ) */}
-          {!job.accepted && !job.started && !job.cancelled && <AcceptRepairButton code={job.code} />}
+          {/*
+            ⛔ **ບໍ່ມີປຸ່ມ "ຮັບງານ" ຢູ່ໜ້ານີ້** (04-08-2026).
+            ການຮັບງານເປັນການກະທຳຂອງ **ຄິວ** (/work/repair/<ຂັ້ນ>) ແລະ **ແອັບ** —
+            ໜ້ານີ້ແມ່ນໜ້າ "ລົງມືເຮັດວຽກ" ຫຼັງຮັບແລ້ວ. ວາງໄວ້ 2 ບ່ອນເຮັດໃຫ້ຄົນສັບສົນ
+            ແລະ ເຄີຍພາໃຫ້ເກີດປັນຫາປຸ່ມຄ້າງ (ວຽກ 7530 ກຳລັງສ້ອມແຕ່ຍັງມີປຸ່ມຮັບງານ).
+          */}
 
           {/* ② ກວດເຊັກ — ໜ້າດຽວກັບ CheckScreen ຂອງແອັບ */}
           {job.stage >= 1 && job.stage <= 2 && !job.cancelled && (
