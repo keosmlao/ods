@@ -1,6 +1,6 @@
 import { LinkPending } from "@/components/link-pending";
 import { query } from "@/lib/db";
-import { NOT_MISSING } from "@/lib/stage";
+import { NOT_MISSING , STAGE_SQL } from "@/lib/stage";
 import { TRANS } from "@/lib/stock-constants";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
@@ -83,7 +83,9 @@ export default async function SpareTreePage() {
       from tb_product a
       left join ar_customer c on c.code = a.cust_code
      where coalesce(a.used_spare,0) = 1 and ${OPEN_JOB}
-       and a.time_repair is null and a.time_finish_repair is null
+       -- ⚠️ ຕ້ອງເປັນ **ຂັ້ນ 5 ເທົ່ານັ້ນ** — ບໍ່ດັ່ງນັ້ນວຽກທີ່ຍັງຢູ່ຂັ້ນສະເໜີລາຄາ (3/4)
+       -- ຈະຖືກດຶງມາຄືກັນ (ພົບໃບ 7494) ທັງທີ່ຍັງບໍ່ຮອດຂັ້ນອາໄຫຼ່
+       and (${STAGE_SQL}) = 5
        and not exists (select 1 from ic_trans t where t.trans_flag = ${TRANS.REQUEST} and t.product_code = a.code)
      order by age desc`,
   );
