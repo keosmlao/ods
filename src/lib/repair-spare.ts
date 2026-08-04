@@ -41,7 +41,20 @@ export async function listRepairSpares(code: string): Promise<RepairSpareLine[]>
         from tb_used_spare s where s.product_code = $1 order by s.roworder`,
       [code],
     )
-  ).rows;
+  ).rows.reduce<RepairSpareLine[]>((list, row) => {
+    /**
+     * ── ລວມແຖວຊ້ຳຂອງສິນຄ້າຕົວດຽວກັນທີ່ **ລ໋ອກແລ້ວ** ──
+     * ພົບແຖວຊ້ຳຈິງ 80 ຄູ່ (ວຽກ+ສິນຄ້າ) ໃນ tb_used_spare — ເຊັ່ນວຽກ 7530 ມີ 2 ແຖວ
+     * ມໍເຕີ້ຕົວດຽວກັນ ຈຳນວນ 1 ທັງສອງ ແຕ່ຂໍເບີກຈິງພຽງ 1 (SIO ×1 · SWC ×1)
+     * ⇒ ໜ້າຈໍໂຊ້ວ 2 ແຖວ "ເບີກແລ້ວ" ຄືກັບໃຊ້ 2 ຕົວ.
+     * ແຖວທີ່ລ໋ອກແລ້ວຖອດບໍ່ໄດ້ຢູ່ແລ້ວ ⇒ ລວມເປັນແຖວດຽວບວກຈຳນວນ ປອດໄພ ແລະ ອ່ານຖືກ.
+     * ແຖວທີ່ **ຍັງບໍ່ລ໋ອກ** ບໍ່ລວມ — ຍັງຕ້ອງຖອດເປັນລາຍແຖວ (ອ້າງ roworder).
+     */
+    const same = row.locked ? list.find((old) => old.locked && old.item_code === row.item_code) : undefined;
+    if (same) same.qty += row.qty;
+    else list.push({ ...row });
+    return list;
+  }, []);
 }
 
 export async function addRepairSpare(
