@@ -433,7 +433,8 @@ export type PayoutLine = {
  * ທຸກການຈ່າຍໃນເດືອນ ພ້ອມ **ຊື່ຄົນ**.
  *
  * `employee_code` ອາດເປັນລະຫັດ ERP (ຊ່າງເຊື່ອມແລ້ວ) ຫຼື ຊື່ login (ຍັງບໍ່ເຊື່ອມ)
- * ⇒ ຫາຊື່ 2 ທາງ: ① users.code = ລະຫັດ ② ຜ່ານສະພານ ods_user_employee → users.username
+ * ⇒ ຫາຊື່ຕາມລຳດັບ: ① users.code ② ສະພານ ods_user_employee → users.username
+ * ③ users.username ④ **odg_employee** (ບັນຊີພະນັກງານ ERP — ຊ່າງສ່ວນຫຼາຍມີແຕ່ບ່ອນນີ້)
  */
 export async function payoutLines(from: string, to: string): Promise<PayoutLine[]> {
   return (
@@ -445,7 +446,10 @@ export async function payoutLines(from: string, to: string): Promise<PayoutLine[
             (select u.name_1 from users u where u.code = p.employee_code and nullif(u.name_1,'') is not null limit 1),
             (select u.name_1 from ods_user_employee b join users u on u.username = b.user_code
               where b.employee_code = p.employee_code and nullif(u.name_1,'') is not null limit 1),
-            (select u.name_1 from users u where u.username = p.employee_code and nullif(u.name_1,'') is not null limit 1)
+            (select u.name_1 from users u where u.username = p.employee_code and nullif(u.name_1,'') is not null limit 1),
+            -- ⑤ ບັນຊີພະນັກງານ ERP — ຊ່າງສ່ວນຫຼາຍບໍ່ມີບັນຊີຜູ້ໃຊ້ ODS ຈຶ່ງບໍ່ມີຊື່ 3 ທາງເທິງ
+            (select coalesce(nullif(e.nickname,''), e.fullname_lo, e.fullname_en)
+               from public.odg_employee e where e.employee_code = p.employee_code limit 1)
           ) as "name"
         from ods_service_payout p
        where p.closed_at::date between $1 and $2

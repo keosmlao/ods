@@ -56,7 +56,7 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
    * ດ້ວຍລະຫັດບໍລິການ 9701xx (ic_inventory). ໃຊ້ສູດດຽວກັບລາຍງານປະຈຳເດືອນ (lib/monthly-report)
    * ຈຶ່ງບໍ່ຂັດກັນລະຫວ່າງ 2 ໜ້າ.
    */
-  let install = { jobs: 0, baht: 0 };
+  let install = { jobs: 0, baht: 0, ac: 0, app: 0 };
   let error: string | null = null;
   try {
     const [payRows, erpInstall] = await Promise.all([
@@ -64,8 +64,13 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
       installRevenueBetween(from, to),
     ]);
     lines = payRows;
-    // ໂຊ້ **ບາດ** ຕາມທີ່ບັນທຶກໃນ ERP — ບໍ່ແປງເປັນກີບ
-    install = { jobs: erpInstall.jobs, baht: Math.round(erpInstall.baht) };
+    // ໂຊ້ **ບາດ** ຕາມທີ່ບັນທຶກໃນ ERP — ບໍ່ແປງເປັນກີບ · ແຍກ ແອ/ໄຟຟ້າ ກົດດຽວກັບໜ້າລາຍຮັບງານຕິດຕັ້ງ
+    install = {
+      jobs: erpInstall.jobs,
+      baht: Math.round(erpInstall.baht),
+      ac: Math.round(erpInstall.ac),
+      app: Math.round(erpInstall.app),
+    };
   } catch (exception) {
     error = exception instanceof Error ? exception.message : "ດຶງຂໍ້ມູນບໍ່ສຳເລັດ";
   }
@@ -165,7 +170,7 @@ export default async function TechRevenueMonthPage({ searchParams }: Props) {
           <Wrench className="size-4 text-indigo-600" />
           ລາຍຮັບຈາກການຕິດຕັ້ງ
           <span className="text-[11px] font-medium text-slate-400">
-            {install.jobs.toLocaleString()} ໃບງານປິດໃນເດືອນນີ້ · ຄ່າບໍລິການ 9701xx ຈາກບິນ ERP ຂອງໃບງານ
+            {install.jobs.toLocaleString()} ໃບງານປິດໃນເດືອນນີ້ · ແອ {install.ac.toLocaleString()} · ໄຟຟ້າ {install.app.toLocaleString()}
           </span>
           <span className="ml-auto text-lg font-bold tabular-nums text-slate-800">
             {install.baht.toLocaleString()} ບາດ
