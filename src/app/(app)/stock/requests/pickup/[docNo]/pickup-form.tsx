@@ -44,14 +44,14 @@ export function PickupForm({
                   <b className="text-slate-700">{docRef}</b> ຄົບຖ້ວນແລ້ວ
                 </>
               ),
-              confirmLabel: "ຮັບອາໄຫຼ່",
+              confirmLabel: "ຮັບອາໄຫຼ່ຈາກການເບີກ",
               cancelLabel: "ຍັງບໍ່ຮັບ",
             });
             if (ok) form.current?.requestSubmit();
           }}
         >
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : <PackageCheck className="size-4" />}
-          &nbsp;{pending ? "ກຳລັງບັນທຶກ..." : "ຮັບອາໄຫຼ່"}
+          &nbsp;{pending ? "ກຳລັງບັນທຶກ..." : "ຮັບອາໄຫຼ່ຈາກການເບີກ"}
         </Button>
 
         <LinkButton href="/stock/requests/pickup" tone="neutral">

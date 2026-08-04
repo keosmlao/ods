@@ -5,16 +5,23 @@ import test from "node:test";
 const stageSource = readFileSync(new URL("../src/lib/stage.ts", import.meta.url), "utf8");
 const syncSource = readFileSync(new URL("../src/lib/erp-purchase.ts", import.meta.url), "utf8");
 
-test("pending purchase lines remain visible in purchasing stage after ERP sync", () => {
+test("purchase lines hold the job in purchasing only until ERP confirms arrival", () => {
+  /**
+   * ສັນຍາເກົ່າ (28-07-2026): ແຖວ status=5 ຢ່າງວຽກໄວ້ຂັ້ນ 7 ບໍ່ວ່າທຸງຈະເປັນຫຍັງ — ຍ້ອນ
+   * spare_arrive ຕອນນັ້ນມາຈາກປຸ່ມກົດມື ເຊື່ອບໍ່ໄດ້. ດຽວນີ້ spare_arrive ມາຈາກ
+   * syncErpPurchase ຢ່າງດຽວ (ກວດໃບຮັບ ERP ທຽບ item_code ຄົບ) ຈຶ່ງເຊື່ອໄດ້:
+   * ຂອງເຂົ້າສາງແລ້ວ ວຽກຕ້ອງອອກຈາກ "ກຳລັງສັ່ງຊື້" — ບໍ່ດັ່ງນັ້ນຄ້າງຕະຫຼອດໄປ
+   * ທັງທີ່ມີໃບຂໍເບີກພ້ອມ (ຂໍ້ມູນຈິງ 15 ໃບ, ຄ້າງດົນສຸດ 343 ມື້).
+   */
   assert.match(
     stageSource,
-    /when coalesce\(a\.used_spare,0\) = 1\s+and exists/,
-    "an ERP arrival stamp must not hide a job while its purchase line is still pending",
-  );
-  assert.doesNotMatch(
-    stageSource,
     /when coalesce\(a\.used_spare,0\) = 1\s+and a\.spare_arrive is null\s+and exists/,
-    "spare_arrive is a sync marker, not permission to remove the job from purchasing",
+    "pending purchase lines must hold the job at stage 7 while arrival is unconfirmed",
+  );
+  assert.match(
+    stageSource,
+    /a\.spare_reg is null\s+and not exists/,
+    "a job with an existing request doc must skip stage 5 and go to withdrawing",
   );
 });
 

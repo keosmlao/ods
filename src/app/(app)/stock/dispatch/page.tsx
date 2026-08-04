@@ -1,6 +1,4 @@
-import { syncErpDispatch } from "@/lib/erp-dispatch";
-import { syncErpPurchase } from "@/lib/erp-purchase";
-import { refreshInventory } from "@/app/actions/stock";
+import { refreshInventory, syncStockDispatch } from "@/app/actions/stock";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
 import { SortHeader, type SortDir } from "@/components/sort-header";
@@ -326,10 +324,6 @@ const docColumns = (t: Dict): Column[] => [
 ];
 
 export default async function StockDispatchPage({ searchParams }: Props) {
-  // ດຶງໃບເບີກທີ່ສາງອອກໃນ ERP ກັບມາກ່ອນ ⇒ ຄິວທີ່ເຫັນເປັນຄວາມຈິງລ້າສຸດ (lib/erp-dispatch)
-  // ພ້ອມກັນນັ້ນ ອາໄຫຼ່ທີ່ສັ່ງຊື້ ແລະ ຮັບເຂົ້າສາງແລ້ວຢູ່ ERP ຈະຕົກລົງມາຄິວນີ້ເອງ (lib/erp-purchase)
-  await Promise.all([syncErpDispatch(), syncErpPurchase()]);
-
   const t = (await getDictionary(await getLocale())).stockDispatch;
 
   const session = await getSession();
@@ -379,6 +373,16 @@ export default async function StockDispatchPage({ searchParams }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
+          <form action={syncStockDispatch}>
+            <button
+              type="submit"
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              title="ດຶງໃບເບີກ/ຮັບຂອງຈາກ ERP ກັບມາໃສ່ ODSS"
+            >
+              <RotateCcw className="size-4" />
+              ກວດ ERP
+            </button>
+          </form>
           <form action={refreshInventory}>
             <button
               type="submit"
@@ -475,7 +479,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                       <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-[#0536a9]">
                         <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                         <Link
-                          href={`/stock/requests/view/${encodeURIComponent(line.doc_no)}`}
+                          href={`/stock/requests/view/${encodeURIComponent(line.doc_no)}?from=/stock/dispatch`}
                           className="hover:underline"
                         >
                           {line.doc_no}

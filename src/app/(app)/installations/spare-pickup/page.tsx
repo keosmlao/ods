@@ -1,4 +1,5 @@
 import { syncErpDispatch } from "@/lib/erp-dispatch";
+import { ErpDispatchWatcher } from "@/components/erp-dispatch-watcher";
 import { techFilter } from "@/app/actions/installation";
 import { CancelInstallSpareRequestButton } from "@/components/installation/cancel-spare-request-button";
 import { LinkPending } from "@/components/link-pending";
@@ -169,6 +170,8 @@ export default async function SparePickupPage({ searchParams }: Props) {
 
   return (
     <div className="w-full space-y-4">
+      {/* ສາງເບີກຢູ່ ERP ແປ້ບດຽວ ຄິວນີ້ກໍ່ອັບເດດເອງ — ບໍ່ຕ້ອງລໍ cron ຫຼື refresh ມື */}
+      <ErpDispatchWatcher />
       <ListHeader
         title="ຮັບອາໄຫຼ່ (ຕິດຕັ້ງ)"
         scope={`ລາຍການລໍຖ້າຮັບອາໄຫຼ່ · ${tech ? "ສະແດງສະເພາະງານຂອງທ່ານ" : "ສະແດງທຸກງານ"}`}

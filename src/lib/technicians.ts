@@ -1,5 +1,6 @@
 import { query, queryOdg } from "@/lib/db";
 import { ERP_IDENTITY_SQL, ERP_ROLE_CASE } from "@/lib/erp-auth";
+import { unstable_cache } from "next/cache";
 
 /**
  * **ລາຍຊື່ຊ່າງ — ບ່ອນດຽວຂອງທັງລະບົບ.**
@@ -49,6 +50,22 @@ type ErpRow = {
 const PROJECT_DEPT = "403";
 
 export async function listTechnicians(): Promise<Technician[]> {
+  return cachedTechnicians();
+}
+
+/**
+ * cache ລາຍຊື່ຊ່າງ 60 ວິນາທີ — ປ່ຽນບໍ່ຖີ່ (ເພີ່ມ/ປິດຊ່າງ ນານໆເທື່ອ) ແຕ່ຖືກອ່ານຈາກ
+ * ~15 ໜ້າ ແລະ ທຸກໜ້າຈ່າຍ 5 query (1 ໃນນັ້ນຂ້າມໄປ ERP). ກົດເກນດຽວກັບ nav-counts:
+ * ບໍ່ຂຶ້ນກັບຜູ້ໃຊ້ ⇒ cache ຮ່ວມທັງລະບົບໄດ້. ຊ່າງໃໝ່ອາດຊັກ 60 ວິ ກ່ອນຂຶ້ນ dropdown
+ * — ຍອมຮັບໄດ້ ແລກກັບໜ້າລາຍການທຸກໜ້າໄວຂຶ້ນ.
+ */
+const cachedTechnicians = unstable_cache(
+  loadTechnicians,
+  ["technicians"],
+  { revalidate: 60 },
+);
+
+async function loadTechnicians(): Promise<Technician[]> {
   const [erp, overrides, legacy, links] = await Promise.all([
     queryOdg<ErpRow>(
       `select e.employee_code, ${ERP_IDENTITY_SQL} as identity, e.fullname_lo, ${ERP_ROLE_CASE} as role

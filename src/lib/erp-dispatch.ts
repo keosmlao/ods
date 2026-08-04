@@ -1,5 +1,5 @@
 import { db, queryOdg } from "@/lib/db";
-import { notifyTechStage } from "@/lib/notify-tech";
+import { notifyTechDispatched, notifyTechStage } from "@/lib/notify-tech";
 import { CALC_IN, CALC_OUT, LINE_STATUS, TRANS } from "@/lib/stock-constants";
 
 /**
@@ -42,6 +42,171 @@ const OUR_REQUEST = "SIO";
 
 export type SyncResult = { imported: number; jobs: string[] };
 
+async function syncErpDispatchByDocRefs(requestNos: string[]): Promise<SyncResult> {
+  const empty: SyncResult = { imported: 0, jobs: [] };
+  if (!db || requestNos.length === 0) return empty;
+
+  const heads = await queryOdg<ErpHead>(
+    `select doc_no, to_char(doc_date,'YYYY-MM-DD') as doc_date,
+        split_part(trim(doc_ref), ' ', 1) as doc_ref, remark, creator_code
+      from ic_trans
+     where trans_flag = $1
+       and split_part(trim(doc_ref), ' ', 1) = any($2::text[])`,
+    [TRANS.DISPATCH, requestNos],
+  );
+  if (heads.rows.length === 0) return empty;
+
+  // ໃບທີ່ດຶງມາແລ້ວ ⇒ ຂ້າມ (idempotent)
+  const known = await db.query<{ doc_no: string }>(
+    "select doc_no from ic_trans where trans_flag = $1 and doc_no = any($2::varchar[])",
+    [TRANS.DISPATCH, heads.rows.map((row) => row.doc_no)],
+  );
+  const seen = new Set(known.rows.map((row) => row.doc_no));
+  const fresh = heads.rows.filter((row) => !seen.has(row.doc_no));
+  if (fresh.length === 0) return empty;
+
+  const lines = await queryOdg<ErpLine>(
+    `select doc_no, item_code, item_name, unit_code, qty::text as qty
+       from ic_trans_detail
+      where trans_flag = $1 and doc_no = any($2::text[])
+      order by line_number`,
+    [TRANS.DISPATCH, fresh.map((row) => row.doc_no)],
+  );
+
+  const jobs: string[] = [];
+  let imported = 0;
+
+  for (const head of fresh) {
+    const docLines = lines.rows.filter((row) => row.doc_no === head.doc_no);
+    if (docLines.length === 0) continue;
+
+    const client = await db.connect();
+    try {
+      await client.query("begin");
+
+      // ໃບຂໍຕົ້ນທາງ (ODS) — ໃຫ້ຮູ້ວ່າໃບເບີກນີ້ຂອງງານໃດ ແລະ ຝັ່ງໃດ (ຕິດຕັ້ງ/ສ້ອມ)
+      const request = await client.query<{ product_code: string; job_type: string | null }>(
+        "select product_code, job_type from ic_trans where doc_no = $1 and trans_flag = $2 limit 1",
+        [head.doc_ref, TRANS.REQUEST],
+      );
+      const job = request.rows[0];
+      if (!job?.product_code) {
+        await client.query("rollback");
+        continue;
+      }
+      const install = job.job_type === "install";
+
+      // ① ຫົວ/ລາຍລະອຽດຂອງໃບເບີກ ລົງ ODS (ກ໋ອບຄ່າຂອງງານມາຈາກໃບຂໍ ຄືເກົ່າ)
+      await client.query(
+        `insert into ic_trans(trans_flag,doc_date,doc_no,doc_ref,doc_ref_date,cust_code,product_code,issue,remark,
+           wanrunty,isue_2,waranty_request,emp,w_reason,used_spare,job_type,wh_code,shelf_code,user_created)
+         select $1,$2,$3,doc_no,doc_date,cust_code,product_code,issue,$4,
+           wanrunty,isue_2,waranty_request,emp,w_reason,used_spare,job_type,wh_code,shelf_code,$5
+         from ic_trans where doc_no=$6 and trans_flag=$7`,
+        [TRANS.DISPATCH, head.doc_date, head.doc_no, head.remark ?? "", head.creator_code ?? "", head.doc_ref,
+          TRANS.REQUEST],
+      );
+
+      for (const line of docLines) {
+        await client.query(
+          `insert into ic_trans_detail(trans_flag,doc_date,doc_no,doc_ref,product_code,item_code,item_name,qty,
+             unit_code,calc_flag,status,user_created,job_type)
+           values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,0,$11,$12)`,
+          [TRANS.DISPATCH, head.doc_date, head.doc_no, head.doc_ref, job.product_code, line.item_code,
+            line.item_name, line.qty, line.unit_code, CALC_OUT, head.creator_code ?? "", job.job_type],
+        );
+
+        // ② ບັນຊີອາໄຫຼ່ຂອງງານ: ແຖວນີ້ຖືກເບີກແລ້ວ · ③ ສະຕັອກເງົາຂອງ ODS ຫັກຕາມ
+        await client.query(
+          `update tb_used_spare set reg_finish=localtimestamp(0)
+            where product_code=$1 and item_code=$2 and reg_finish is null`,
+          [job.product_code, line.item_code],
+        );
+        await client.query(
+          "update ic_inventory set balance_qty=balance_qty-$1, wh_qty=wh_qty-$1 where code=$2",
+          [Number(line.qty), line.item_code],
+        );
+        // ແຖວຂອງໃບຂໍ = ເບີກແລ້ວ (ສູດ outstanding ອ່ານຄ່ານີ້). ລວມແຖວ status=5
+        // (ກຳລັງສັ່ງຊື້) ນຳ — ຂອງມາຮອດສາງແລ້ວສາງຈຶ່ງເບີກໄດ້, ບໍ່ດັ່ງນັ້ນແຖວທີ່ຜ່ານ
+        // ການສັ່ງຊື້ຈະຄ້າງ status=5 ຕະຫຼອດ ແລະ ວຽກບໍ່ໄປຂັ້ນຕໍ່ໄປ (03-08-2026).
+        await client.query(
+          `update ic_trans_detail set status=$4
+            where doc_no=$1 and trans_flag=$2 and item_code=$3
+              and status in (0, $5)`,
+          [head.doc_ref, TRANS.REQUEST, line.item_code, LINE_STATUS.ISSUED, LINE_STATUS.ON_PURCHASE_ORDER],
+        );
+      }
+
+      const incomplete = await client.query<{ count: number }>(
+        `select (
+           (select count(*) from ic_trans_detail
+             where product_code=$1 and trans_flag=$2 and coalesce(status,0) in (0, $4))
+           +
+           (select count(*) from (
+              select s.item_code
+                from tb_used_spare s
+                left join (
+                  select item_code, sum(case when trans_flag=$2 then qty else -qty end) requested_qty
+                    from ic_trans_detail
+                   where product_code=$1 and trans_flag in ($2,$3)
+                   group by item_code
+                ) r on r.item_code=s.item_code
+               where s.product_code=$1
+               group by s.item_code, r.requested_qty
+              having sum(coalesce(s.qty,0)) > coalesce(r.requested_qty,0)
+           ) outstanding)
+         )::int count`,
+        [job.product_code, TRANS.REQUEST, TRANS.RETURN_REQUEST, LINE_STATUS.ON_PURCHASE_ORDER],
+      );
+      const spareComplete = (incomplete.rows[0]?.count ?? 0) === 0;
+      if (spareComplete) {
+        if (install) {
+          await client.query("update ods_tb_install set reg_finish=localtimestamp(0) where code=$1 and reg_finish is null", [
+            job.product_code,
+          ]);
+        } else {
+          await client.query(
+            "update tb_product set spare_finish=localtimestamp(0), status=4 where code=$1 and spare_finish is null",
+            [job.product_code],
+          );
+        }
+      }
+
+      await client.query("commit");
+      imported += 1;
+      jobs.push(job.product_code);
+
+      // ອາໄຫຼ່ຄົບ ⇒ ວຽກກັບມາຢູ່ມືຊ່າງ ("ລໍຖ້າສ້ອມແປງ" / "ລໍຖ້າຕິດຕັ້ງ") — ບອກຊ່າງທັນທີ.
+      // ຍັງບໍ່ຄົບ ⇒ ກໍ່ບອກເລີຍວ່າ "ເບີກແລ້ວ" (ໃບເບີກເຂົ້າມາເທົ່າໃດ ເຕືອນທັນທີ ບໍ່ຕ້ອງລໍເປີດໜ້າ).
+      // ຢູ່ຫຼັງ commit ເພື່ອບໍ່ໃຫ້ການແຈ້ງເຕືອນຄ້າງ transaction ຂອງສາງ
+      if (spareComplete) {
+        await notifyTechStage(install ? "install" : "repair", job.product_code);
+      } else {
+        await notifyTechDispatched(install ? "install" : "repair", job.product_code, head.doc_no);
+      }
+    } catch (error) {
+      await client.query("rollback").catch(() => {});
+      console.error("syncErpDispatch failed", head.doc_no, error);
+    } finally {
+      client.release();
+    }
+  }
+
+  return { imported, jobs };
+}
+
+export async function syncErpDispatchForDocRef(docRef: string): Promise<SyncResult> {
+  const empty: SyncResult = { imported: 0, jobs: [] };
+  const requestNo = docRef.trim().split(/\s+/)[0];
+  if (!requestNo) return empty;
+  try {
+    return await syncErpDispatchByDocRefs([requestNo]);
+  } catch (error) {
+    console.error("syncErpDispatchForDocRef failed", requestNo, error);
+    return empty;
+  }
+}
+
 /**
  * ດຶງໃບເບີກຂອງ **ໃບຂໍທີ່ຍັງຄ້າງ** — ເອີ້ນຈາກໜ້າຄິວ (ສາງເບີກ · ຮັບອາໄຫຼ່ · ໃບຂໍເບີກ).
  * ບໍ່ໂຍນ error ອອກ: ໜ້າຈໍຕ້ອງເປີດໄດ້ ເຖິງ ERP ຈະລົ້ມ (ພຽງແຕ່ຈະບໍ່ເຫັນໃບໃໝ່ຮອບນີ້).
@@ -51,175 +216,21 @@ export async function syncErpDispatch(): Promise<SyncResult> {
   if (!db) return empty;
 
   try {
-    // ໃບຂໍທີ່ຍັງບໍ່ໄດ້ຮັບໃບເບີກຄົບ — ມີແຖວທີ່ status=0 (ຍັງບໍ່ຖືກເບີກ)
+    // ໃບຂໍທີ່ຍັງບໍ່ໄດ້ຮັບໃບເບີກຄົບ — ມີແຖວທີ່ status=0 (ຍັງບໍ່ຖືກເບີກ) ຫຼື 5
+    // (ຜ່ານການສັ່ງຊື້ — ຂອງມາຮອດສາງແລ້ວສາງຈຶ່ງເບີກໄດ້, ເບິ່ງໝາຍເຫດດ້ານເທິງ)
     const open = await db.query<{ doc_no: string }>(
       `select distinct t.doc_no
          from ic_trans t
          join ic_trans_detail d on d.doc_no = t.doc_no and d.trans_flag = t.trans_flag
-        where t.trans_flag = $1 and d.status = 0
-          and t.doc_no like $2 || '%'
+        where t.trans_flag = $1 and d.status in ($2, $3)
+          and t.doc_no like $4 || '%'
           and t.doc_date >= current_date - 180`,
-      [TRANS.REQUEST, OUR_REQUEST],
+      [TRANS.REQUEST, LINE_STATUS.PENDING, LINE_STATUS.ON_PURCHASE_ORDER, OUR_REQUEST],
     );
     if (open.rows.length === 0) return empty;
 
     const requestNos = open.rows.map((row) => row.doc_no);
-
-    // ໃບເບີກຂອງ ERP ທີ່ອ້າງອີງໃບຂໍເຫຼົ່ານີ້ (doc_ref ອາດມີຂໍ້ຄວາມຕໍ່ທ້າຍ ⇒ ທຽບຄຳທຳອິດ)
-    const heads = await queryOdg<ErpHead>(
-      `select doc_no, to_char(doc_date,'YYYY-MM-DD') as doc_date,
-          split_part(trim(doc_ref), ' ', 1) as doc_ref, remark, creator_code
-        from ic_trans
-       where trans_flag = $1
-         and split_part(trim(doc_ref), ' ', 1) = any($2::text[])`,
-      [TRANS.DISPATCH, requestNos],
-    );
-    if (heads.rows.length === 0) return empty;
-
-    // ໃບທີ່ດຶງມາແລ້ວ ⇒ ຂ້າມ (idempotent)
-    const known = await db.query<{ doc_no: string }>(
-      "select doc_no from ic_trans where trans_flag = $1 and doc_no = any($2::varchar[])",
-      [TRANS.DISPATCH, heads.rows.map((row) => row.doc_no)],
-    );
-    const seen = new Set(known.rows.map((row) => row.doc_no));
-    const fresh = heads.rows.filter((row) => !seen.has(row.doc_no));
-    if (fresh.length === 0) return empty;
-
-    const lines = await queryOdg<ErpLine>(
-      `select doc_no, item_code, item_name, unit_code, qty::text as qty
-         from ic_trans_detail
-        where trans_flag = $1 and doc_no = any($2::text[])
-        order by line_number`,
-      [TRANS.DISPATCH, fresh.map((row) => row.doc_no)],
-    );
-
-    const jobs: string[] = [];
-    let imported = 0;
-
-    for (const head of fresh) {
-      const docLines = lines.rows.filter((row) => row.doc_no === head.doc_no);
-      if (docLines.length === 0) continue;
-
-      const client = await db.connect();
-      try {
-        await client.query("begin");
-
-        // ໃບຂໍຕົ້ນທາງ (ODS) — ໃຫ້ຮູ້ວ່າໃບເບີກນີ້ຂອງງານໃດ ແລະ ຝັ່ງໃດ (ຕິດຕັ້ງ/ສ້ອມ)
-        const request = await client.query<{ product_code: string; job_type: string | null }>(
-          "select product_code, job_type from ic_trans where doc_no = $1 and trans_flag = $2 limit 1",
-          [head.doc_ref, TRANS.REQUEST],
-        );
-        const job = request.rows[0];
-        if (!job?.product_code) {
-          await client.query("rollback");
-          continue;
-        }
-        const install = job.job_type === "install";
-
-        // ① ຫົວ/ລາຍລະອຽດຂອງໃບເບີກ ລົງ ODS (ກ໋ອບຄ່າຂອງງານມາຈາກໃບຂໍ ຄືເກົ່າ)
-        await client.query(
-          `insert into ic_trans(trans_flag,doc_date,doc_no,doc_ref,doc_ref_date,cust_code,product_code,issue,remark,
-             wanrunty,isue_2,waranty_request,emp,w_reason,used_spare,job_type,wh_code,shelf_code,user_created)
-           select $1,$2,$3,doc_no,doc_date,cust_code,product_code,issue,$4,
-             wanrunty,isue_2,waranty_request,emp,w_reason,used_spare,job_type,wh_code,shelf_code,$5
-           from ic_trans where doc_no=$6 and trans_flag=$7`,
-          [TRANS.DISPATCH, head.doc_date, head.doc_no, head.remark ?? "", head.creator_code ?? "", head.doc_ref,
-            TRANS.REQUEST],
-        );
-
-        for (const line of docLines) {
-          await client.query(
-            `insert into ic_trans_detail(trans_flag,doc_date,doc_no,doc_ref,product_code,item_code,item_name,qty,
-               unit_code,calc_flag,status,user_created,job_type)
-             values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,0,$11,$12)`,
-            [TRANS.DISPATCH, head.doc_date, head.doc_no, head.doc_ref, job.product_code, line.item_code,
-              line.item_name, line.qty, line.unit_code, CALC_OUT, head.creator_code ?? "", job.job_type],
-          );
-
-          // ② ບັນຊີອາໄຫຼ່ຂອງງານ: ແຖວນີ້ຖືກເບີກແລ້ວ · ③ ສະຕັອກເງົາຂອງ ODS ຫັກຕາມ
-          await client.query(
-            `update tb_used_spare set reg_finish=localtimestamp(0)
-              where product_code=$1 and item_code=$2 and reg_finish is null`,
-            [job.product_code, line.item_code],
-          );
-          await client.query(
-            "update ic_inventory set balance_qty=balance_qty-$1, wh_qty=wh_qty-$1 where code=$2",
-            [Number(line.qty), line.item_code],
-          );
-          // ແຖວຂອງໃບຂໍ = ເບີກແລ້ວ (ສູດ outstanding ອ່ານຄ່ານີ້)
-          await client.query(
-            "update ic_trans_detail set status=1 where doc_no=$1 and trans_flag=$2 and item_code=$3 and status=0",
-            [head.doc_ref, TRANS.REQUEST, line.item_code],
-          );
-        }
-
-        /**
-         * ④ ໃບຂໍ **ທຸກໃບ** ຂອງງານຖືກເບີກຄົບແລ້ວ ⇒ ງານເລື່ອນໄປຂັ້ນ "ຮັບອາໄຫຼ່".
-         *
-         * ⚠️ ນັບຂ້າມ**ທຸກໃບຂໍ**ຂອງງານ (product_code) ບໍ່ແມ່ນສະເພາະໃບນີ້ (head.doc_ref):
-         * ງານມີໄດ້ຫຼາຍໃບ SIO (ອາໄຫຼ່ພົບເພີ່ມຕອນສ້ອມ — 674 ງານມີ >1 ໃບ). ແຕ່ກ່ອນນັບແຕ່
-         * ໃບດຽວ ⇒ ໃບທຳອິດເບີກຄົບ ພາທັງງານໄປຂັ້ນ 8 ທັງທີ່ໃບທີສອງຍັງເປີດ (ຂັ້ນສະແດງຜິດ).
-         */
-        /**
-         * "ຄົບ" ບໍ່ແມ່ນແຕ່ SIO ທີ່ສ້າງແລ້ວຖືກເບີກຄົບ:
-         * ກໍລະນີປະສົມອາດມີ 2/5 ຢູ່ສາງ ແລະອີກ 3/5 ກຳລັງສັ່ງຊື້.
-         * ຖ້ານັບແຕ່ແຖວ SIO status=0, ພໍເບີກ 2 ອັນທຳອິດລະບົບຈະ stamp
-         * spare_finish ແລ້ວພາວຽກໄປລໍສ້ອມຜິດ. ຈຶ່ງຕ້ອງກວດທຽບກັບ
-         * ຈຳນວນມາດຕະຖານໃນ tb_used_spare ນຳ.
-         */
-        const incomplete = await client.query<{ count: number }>(
-          `select (
-             (select count(*) from ic_trans_detail
-               where product_code=$1 and trans_flag=$2 and coalesce(status,0)=0)
-             +
-             (select count(*) from (
-                select s.item_code
-                  from tb_used_spare s
-                  left join (
-                    select item_code, sum(case when trans_flag=$2 then qty else -qty end) requested_qty
-                      from ic_trans_detail
-                     where product_code=$1 and trans_flag in ($2,$3)
-                     group by item_code
-                  ) r on r.item_code=s.item_code
-                 where s.product_code=$1
-                 group by s.item_code, r.requested_qty
-                having sum(coalesce(s.qty,0)) > coalesce(r.requested_qty,0)
-             ) outstanding)
-           )::int count`,
-          [job.product_code, TRANS.REQUEST, TRANS.RETURN_REQUEST],
-        );
-        const spareComplete = (incomplete.rows[0]?.count ?? 0) === 0;
-        if (spareComplete) {
-          if (install) {
-            await client.query("update ods_tb_install set reg_finish=localtimestamp(0) where code=$1 and reg_finish is null", [
-              job.product_code,
-            ]);
-          } else {
-            await client.query(
-              "update tb_product set spare_finish=localtimestamp(0), status=4 where code=$1 and spare_finish is null",
-              [job.product_code],
-            );
-          }
-        }
-
-        await client.query("commit");
-        imported += 1;
-        jobs.push(job.product_code);
-
-        // ອາໄຫຼ່ຄົບ ⇒ ວຽກກັບມາຢູ່ມືຊ່າງ ("ລໍຖ້າສ້ອມແປງ" / "ລໍຖ້າຕິດຕັ້ງ") — ບອກຊ່າງທັນທີ.
-        // ຢູ່ຫຼັງ commit ເພື່ອບໍ່ໃຫ້ການແຈ້ງເຕືອນຄ້າງ transaction ຂອງສາງ
-        if (spareComplete) {
-          await notifyTechStage(install ? "install" : "repair", job.product_code);
-        }
-      } catch (error) {
-        await client.query("rollback").catch(() => {});
-        console.error("syncErpDispatch failed", head.doc_no, error);
-      } finally {
-        client.release();
-      }
-    }
-
-    return { imported, jobs };
+    return await syncErpDispatchByDocRefs(requestNos);
   } catch (error) {
     // ERP ລົ້ມ ⇒ ໜ້າຈໍຍັງເປີດໄດ້ (ພຽງແຕ່ຍັງບໍ່ເຫັນໃບໃໝ່)
     console.error("syncErpDispatch failed", error);

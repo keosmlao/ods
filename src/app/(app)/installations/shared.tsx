@@ -1,12 +1,11 @@
 import { Elapsed } from "@/components/elapsed";
+import { LazyTimelineRow } from "@/components/lazy-timeline";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import { INSTALL_LEFT_SQL } from "@/lib/install-sla";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
-import { installTimeline } from "@/lib/install-timeline";
-import { JobTimeline } from "@/components/repair/job-timeline";
 import {
   INSTALL_ELAPSED_SQL,
   INSTALL_STAGE_SQL,
@@ -25,27 +24,10 @@ import type { ReactNode } from "react";
 
 export const PAGE_SIZE = 20;
 
-/** Timeline Tree ມາດຕະຖານສຳລັບຕາຕະລາງຄິວຕິດຕັ້ງທຸກຂັ້ນ. */
-export async function InstallTimelineTreeRow({ code, colSpan = 20 }: { code: string; colSpan?: number }) {
-  const timeline = await installTimeline(code);
-  if (timeline.steps.length === 0) return null;
-  const current = timeline.steps.find((step) => step.state === "current")
-    ?? [...timeline.steps].reverse().find((step) => step.state === "done");
-  return (
-    <tr className="border-b border-dashed border-indigo-100 bg-indigo-50/20">
-      <td colSpan={colSpan} className="px-10 py-2">
-        <details open>
-          <summary className="cursor-pointer select-none text-[11px] font-semibold text-indigo-700">
-            ↳ Timeline
-            {current && <span className="ml-2 font-normal text-slate-500">ຂັ້ນປັດຈຸບັນ: {current.label}</span>}
-          </summary>
-          <div className="mt-3 w-full rounded-xl border border-indigo-100 bg-white p-4">
-            <JobTimeline steps={timeline.steps} cancelledAt={timeline.cancelledAt} bare horizontal />
-          </div>
-        </details>
-      </td>
-    </tr>
-  );
+/** Timeline Tree ມາດຕະຖານສຳລັບຕາຕະລາງຄິວຕິດຕັ້ງທຸກຂັ້ນ — ໂຫຼດຝັ່ງ client ຫຼັງ render ໜ້າ
+ * (ບໍ່ຖ່ວງໜ້າລາຍການ) ແລະ ກາງອອກໄວ້ຄືເກົ່າ. */
+export function InstallTimelineTreeRow({ code, colSpan = 20 }: { code: string; colSpan?: number }) {
+  return <LazyTimelineRow workflow="install" code={code} colSpan={colSpan} openOnMount />;
 }
 
 /** ຊ່ອງທີ່ <InstallCells/> ຕ້ອງການ — ໜ້າທີ່ດຶງຈາກ ic_trans ກໍໃຫ້ຊ່ອງຊຸດນີ້ຄືກັນ */

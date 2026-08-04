@@ -1,4 +1,5 @@
 import { syncErpDispatch } from "@/lib/erp-dispatch";
+import { ErpDispatchWatcher } from "@/components/erp-dispatch-watcher";
 import { LinkPending } from "@/components/link-pending";
 import { PackageMinus } from "lucide-react";
 import Link from "next/link";
@@ -77,6 +78,8 @@ export default async function DispatchPage({ searchParams }: Props) {
 
   return (
     <div className="w-full space-y-4">
+      {/* ສາງເບີກຢູ່ ERP ແປ້ບດຽວ ຄິວນີ້ກໍ່ອັບເດດເອງ — ບໍ່ຕ້ອງລໍ cron ຫຼື refresh ມື */}
+      <ErpDispatchWatcher />
       <ListHeader
         title="ສາງເບີກອາໄຫຼ່ (ຕິດຕັ້ງ)"
         scope="ລາຍການລໍຖ້າສາງເບີກ"

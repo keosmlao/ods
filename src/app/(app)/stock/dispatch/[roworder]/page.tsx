@@ -3,12 +3,13 @@ import type { SpareLine } from "@/components/stock/spare-lines";
 import { Card, ErrorBox, PageTitle, Table } from "@/components/ui";
 import { query } from "@/lib/db";
 import { docPrefix } from "@/lib/doc-no";
+import { syncErpDispatchForDocRef } from "@/lib/erp-dispatch";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { LINE_STATUS } from "@/lib/stock-constants";
 import { getBalances } from "@/lib/stock-balance";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 /** ods: stock.py /showdisp/<roworder> + templates/stock/showdispatch.html */
 
@@ -53,6 +54,11 @@ export default async function ShowDispatchPage({ params }: Props) {
   );
   const bill = head.rows[0];
   if (!bill) notFound();
+
+  // ກວດໃບນີ້ຈາກ ERP ໂດຍກົງ: ERP SWC.doc_ref = ODS SIO.doc_no.
+  // ຖ້າສາງເບີກໃນ ERP ໄປແລ້ວ ດຶງເຂົ້າ ODS ທັນທີ ແລ້ວພາໄປຫນ້າຊ່າງຮັບອາໄຫຼ່.
+  const erpSync = await syncErpDispatchForDocRef(bill.doc_no);
+  if (erpSync.imported > 0) redirect(`/stock/requests/pickup?q=${encodeURIComponent(bill.doc_no)}`);
 
   const lines = await query<Omit<SpareLine, "roworder"> & { status: number | null }>(
     `select row_number() over ()::int rnum, a.item_code, a.item_name, a.qty, a.unit_code

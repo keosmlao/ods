@@ -1,4 +1,5 @@
 import { Elapsed } from "@/components/elapsed";
+import { ErpDispatchWatcher } from "@/components/erp-dispatch-watcher";
 import { CancelRequestButton } from "@/app/(app)/stock/requests/cancel-request-button";
 import { LinkPending } from "@/components/link-pending";
 import { RowLink } from "@/components/row-link";
@@ -204,6 +205,8 @@ export default async function SparePickupPage({ searchParams }: Props) {
 
   return (
     <div className="w-full space-y-4">
+      {/* ສາງເບີກຢູ່ ERP ແປ້ບດຽວ ຄິວນີ້ກໍ່ອັບເດດເອງ — ບໍ່ຕ້ອງລໍ cron ຫຼື refresh ມື */}
+      <ErpDispatchWatcher />
       <div>
         <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
         <p className="mt-0.5 text-xs text-slate-500">
@@ -262,7 +265,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
                             <td colSpan={6} className="py-3 pl-10 text-xs text-slate-400">
                               ↳ ໃບຂໍເບີກ{" "}
                               <Link
-                                href={`/stock/requests/view/${encodeURIComponent(row.doc_no)}`}
+                                href={`/stock/requests/view/${encodeURIComponent(row.doc_no)}?from=/stock/requests/pickup`}
                                 className="font-mono font-semibold text-teal-700 hover:underline"
                               >
                                 {row.doc_no}
@@ -270,7 +273,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
                             </td>
                             <td className="whitespace-nowrap px-3 py-2.5">
                               <Link
-                                href={`/stock/requests/view/${encodeURIComponent(row.doc_no)}`}
+                                href={`/stock/requests/view/${encodeURIComponent(row.doc_no)}?from=/stock/requests/pickup`}
                                 className="font-mono font-bold text-teal-700 hover:underline"
                               >
                                 {row.doc_no}
@@ -299,7 +302,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
                         <td className="whitespace-nowrap px-3 py-2.5">{row.technician ?? "-"}</td>
                         <td className="whitespace-nowrap px-3 py-2.5">
                           <Link
-                            href={`/stock/requests/view/${encodeURIComponent(row.doc_no)}`}
+                            href={`/stock/requests/view/${encodeURIComponent(row.doc_no)}?from=/stock/requests/pickup`}
                             className="font-mono font-bold text-teal-700 hover:underline"
                           >
                             {row.doc_no}

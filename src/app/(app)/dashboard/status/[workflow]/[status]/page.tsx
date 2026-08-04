@@ -1,7 +1,8 @@
 import { CancelCheckButton, StartCheckButton, UndoStartCheckButton } from "@/components/checking/check-actions";
 import { CancelRequestButton } from "@/app/(app)/stock/requests/cancel-request-button";
 import { Elapsed } from "@/components/elapsed";
-import { JobTimeline } from "@/components/repair/job-timeline";
+import { ErpDispatchWatcher } from "@/components/erp-dispatch-watcher";
+import { LazyTimelineBlock, LazyTimelineRow } from "@/components/lazy-timeline";
 import { AssignTechButton } from "@/components/installation/assign-tech";
 import { LinkPending } from "@/components/link-pending";
 import { AcceptRepairButton } from "@/components/repair/accept-repair-button";
@@ -39,8 +40,6 @@ import { APPROVER_SIDE, canAccess, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { listTechnicians } from "@/lib/technicians";
-import { repairTimeline } from "@/lib/repair-timeline";
-import { installTimeline } from "@/lib/install-timeline";
 import { PhotoThumb } from "@/components/service/photo-thumb";
 import { ArrowLeft, ArrowRight, Barcode, ChevronLeft, ChevronRight, CircleAlert, Download, FileText, House, PackageOpen, Search, Truck, Warehouse } from "lucide-react";
 import { type Dictionary, getDictionary } from "@/lib/i18n/dictionaries";
@@ -410,7 +409,10 @@ export default async function StatusPage({ params, searchParams }: Props) {
          (
            select case
              when count(*) = 0 then null
-             when count(*) filter (where coalesce(d.status,0) = 5) > 0 then 'purchasing'
+             -- status=5 ບໍ່ແມ່ນ "ກຳລັງສັ່ງຊື້" ອີກ ຖ້າ ERP ຮັບເຂົ້າສາງແລ້ວ (spare_arrive)
+             -- ⇒ ສະແດງເປັນລໍຖ້າເບີກ ໃນຄິວກຳລັງເບີກອາໄຫຼ່ ບໍ່ໃຫ້ຄ້າງປ້າຍສັ່ງຊື້.
+             when count(*) filter (where coalesce(d.status,0) = 5) > 0
+                  and a.spare_arrive is null then 'purchasing'
              when count(*) filter (where coalesce(d.status,0) = 1) = count(*) then 'issued'
              when count(*) filter (where coalesce(d.status,0) = 1) > 0 then 'partial'
              else 'waiting'
@@ -480,14 +482,8 @@ export default async function StatusPage({ params, searchParams }: Props) {
     isRepair && status === "purchasing"
       ? await purchaseTracking(list.rows.map((row) => row.code))
       : new Map<string, PurchaseTrack>();
-  const timelineByJob = new Map(
-    await Promise.all(
-      list.rows.map(async (row) => [
-        row.code,
-        await (isRepair ? repairTimeline(row.code) : installTimeline(row.code)),
-      ] as const),
-    ),
-  );
+  // Timeline ໂຫຼດແບບ lazy (LazyTimelineRow) — STAGE_SQL ໜັກຕໍ່ວຽກ ຈຶ່ງບໍ່ຖາມລ່ວງໜ້າ
+  // ທຸກແຖວຕອນ render ໜ້າ ແຕ່ດຶງສະເພາະແຖວທີ່ຜູ້ໃຊ້ກາງເບິ່ງ.
   const readyToProceedRows =
     isRepair && status === "purchasing"
       ? list.rows.filter((row) => tracking.get(row.code)?.stage === "received")
@@ -508,12 +504,15 @@ export default async function StatusPage({ params, searchParams }: Props) {
             `select d.product_code, d.doc_no, to_char(max(d.doc_date),'DD-MM-YYYY') doc_date,
                 count(*)::int lines,
                 case
-                  when count(*) filter (where coalesce(d.status,0)=5)>0 then 'purchasing'
+                  -- status=5 ບໍ່ແມ່ນ "ກຳລັງສັ່ງຊື້" ອີກ ຖ້າ ERP ຮັບເຂົ້າສາງແລ້ວ (spare_arrive)
+                  -- ນິຍາມດຽວກັບ request_status ຂອງແຖວ — ບໍ່ດັ່ງນັ້ນໃບຂໍເບີກໃນ Tree ຍັງຄ້າຍປ້າຍສັ່ງຊື້
+                  when count(*) filter (where coalesce(d.status,0)=5 and a.spare_arrive is null)>0 then 'purchasing'
                   when count(*) filter (where coalesce(d.status,0)=1)=count(*) then 'issued'
                   when count(*) filter (where coalesce(d.status,0)=1)>0 then 'partial'
                   else 'waiting'
                 end status
                from ic_trans_detail d
+               join tb_product a on a.code = d.product_code
               where d.trans_flag=122 and d.product_code=any($1::text[])
               group by d.product_code,d.doc_no
               order by d.product_code,max(d.roworder) desc`,
@@ -589,7 +588,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
   const requestDocBadge = (doc: RequestDocRow) => (
     <div className="flex flex-wrap items-center gap-1.5">
       <Link
-        href={`/stock/requests/view/${encodeURIComponent(doc.doc_no)}`}
+        href={`/stock/requests/view/${encodeURIComponent(doc.doc_no)}?from=${encodeURIComponent(`/dashboard/status/${workflow}/${status}`)}`}
         className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700 hover:bg-blue-100"
         title="ເບິ່ງ ແລະ ພິມໃບຂໍເບີກ"
       >
@@ -729,6 +728,8 @@ export default async function StatusPage({ params, searchParams }: Props) {
 
   return (
     <div className="w-full space-y-4">
+      {/* ຂັ້ນລໍສາງເບີກ: ສາງເບີກຢູ່ ERP ແປ້ບດຽວ ຄິວນີ້ກໍ່ອັບເດດເອງ — ບໍ່ຕ້ອງລໍ cron ຫຼື refresh ມື */}
+      {status === "withdrawing" && <ErpDispatchWatcher />}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <Link href="/dashboard" className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:underline">
@@ -1230,27 +1231,11 @@ export default async function StatusPage({ params, searchParams }: Props) {
                       </td>
                     </tr>
                   )}
-                  {(() => {
-                    const timeline = timelineByJob.get(row.code);
-                    if (!timeline || timeline.steps.length === 0) return null;
-                    const current = timeline.steps.find((step) => step.state === "current")
-                      ?? [...timeline.steps].reverse().find((step) => step.state === "done");
-                    return (
-                      <tr className="border-b border-dashed border-indigo-100 bg-indigo-50/20">
-                        <td colSpan={desktopColumnCount} className="px-10 py-2">
-                          <details>
-                            <summary className="cursor-pointer select-none text-[11px] font-semibold text-indigo-700">
-                              ↳ Timeline
-                              {current && <span className="ml-2 font-normal text-slate-500">ຂັ້ນປັດຈຸບັນ: {current.label}</span>}
-                            </summary>
-                            <div className="mt-3 w-full rounded-xl border border-indigo-100 bg-white p-4">
-                              <JobTimeline steps={timeline.steps} cancelledAt={timeline.cancelledAt} bare horizontal />
-                            </div>
-                          </details>
-                        </td>
-                      </tr>
-                    );
-                  })()}
+                  <LazyTimelineRow
+                    workflow={isRepair ? "repair" : "install"}
+                    code={row.code}
+                    colSpan={desktopColumnCount}
+                  />
                   </Fragment>
                 );
               })}
@@ -1425,23 +1410,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
                   </div>
                 )}
 
-                {(() => {
-                  const timeline = timelineByJob.get(row.code);
-                  if (!timeline || timeline.steps.length === 0) return null;
-                  const current = timeline.steps.find((step) => step.state === "current")
-                    ?? [...timeline.steps].reverse().find((step) => step.state === "done");
-                  return (
-                    <details className="mt-2 rounded-lg border border-indigo-100 bg-indigo-50/30 p-2">
-                      <summary className="cursor-pointer select-none text-[11px] font-semibold text-indigo-700">
-                        ↳ Timeline
-                        {current && <span className="ml-1 font-normal text-slate-500">· {current.label}</span>}
-                      </summary>
-                      <div className="mt-3 rounded-lg bg-white p-3">
-                        <JobTimeline steps={timeline.steps} cancelledAt={timeline.cancelledAt} bare horizontal />
-                      </div>
-                    </details>
-                  );
-                })()}
+                <LazyTimelineBlock workflow={isRepair ? "repair" : "install"} code={row.code} />
 
                 {/* ໝາຍ/ປົດ ທຸງ ແລະ ປຸ່ມລົງມືຕໍ່ຂັ້ນ — ຄືກັນກັບ desktop */}
                 {isRepair && canHold && (

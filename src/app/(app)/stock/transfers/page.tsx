@@ -240,7 +240,7 @@ export default async function StockTransfersPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5">
                       {row.doc_ref ? (
                         <Link
-                          href={`/stock/requests/view/${encodeURIComponent(row.doc_ref)}`}
+                          href={`/stock/requests/view/${encodeURIComponent(row.doc_ref)}?from=/stock/transfers`}
                           className="text-[#0536a9] hover:underline"
                         >
                           {row.doc_ref}

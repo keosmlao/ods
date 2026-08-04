@@ -32,26 +32,31 @@ const INSTALL_STAGE_MESSAGE: Record<number, string> = {
   4: "ອາໄຫຼ່ພ້ອມແລ້ວ — ລໍຖ້າຕິດຕັ້ງ",
 };
 
+async function techOf(workflow: Workflow, code: string) {
+  return (
+    workflow === "install"
+      ? (
+          await query<{ tech: string | null; stage: number; title: string | null }>(
+            `select nullif(a.tech_code,'') as tech, (${INSTALL_STAGE_SQL})::int as stage,
+                a.item_name as title
+              from ods_tb_install a where a.code = $1`,
+            [code],
+          )
+        ).rows[0]
+      : (
+          await query<{ tech: string | null; stage: number; title: string | null }>(
+            `select nullif(a.emp_code,'') as tech, (${STAGE_SQL})::int as stage,
+                concat_ws(' ', a.name_1, a.p_model) as title
+              from tb_product a where a.code = $1`,
+            [code],
+          )
+        ).rows[0]
+  );
+}
+
 export async function notifyTechStage(workflow: Workflow, code: string): Promise<void> {
   try {
-    const row =
-      workflow === "install"
-        ? (
-            await query<{ tech: string | null; stage: number; title: string | null }>(
-              `select nullif(a.tech_code,'') as tech, (${INSTALL_STAGE_SQL})::int as stage,
-                  a.item_name as title
-                from ods_tb_install a where a.code = $1`,
-              [code],
-            )
-          ).rows[0]
-        : (
-            await query<{ tech: string | null; stage: number; title: string | null }>(
-              `select nullif(a.emp_code,'') as tech, (${STAGE_SQL})::int as stage,
-                  concat_ws(' ', a.name_1, a.p_model) as title
-                from tb_product a where a.code = $1`,
-              [code],
-            )
-          ).rows[0];
+    const row = await techOf(workflow, code);
 
     // ຍັງບໍ່ໄດ້ຈັດຊ່າງ = ບໍ່ມີໃຜໃຫ້ແຈ້ງ (ວຽກຢູ່ຄິວ CS ຈັດຊ່າງ)
     if (!row?.tech) return;
@@ -66,5 +71,29 @@ export async function notifyTechStage(workflow: Workflow, code: string): Promise
     });
   } catch (error) {
     console.error("notifyTechStage failed", error);
+  }
+}
+
+/**
+ * **ສາງເບີກອາໄຫຼ່ອອກແລ້ວ (ຍັງບໍ່ຄົບ) ⇒ ບອກຊ່າງທັນທີ.**
+ *
+ * ຄູ່ກັບ notifyTechStage — ອັນນັ້ນເຕືອນຕອນອາໄຫຼ່ **ຄົບ**, ອັນນີ້ເຕືອນຕອນ
+ * ໃບເບີກຂອງ ERP ຖືກດຶງເຂົ້າມາ **ທຸກໃບ** ເພື່ອຊ່າງຮູ້ທັນທີວ່າເບີກແລ້ວ
+ * (ບໍ່ຕ້ອງລໍໃຫ້ຄົບທຸກລາຍການ ຫຼື ເປີດໜ້າຄິວເອງ).
+ */
+export async function notifyTechDispatched(
+  workflow: Workflow,
+  code: string,
+  dispatchDocNo: string,
+): Promise<void> {
+  try {
+    const row = await techOf(workflow, code);
+    if (!row?.tech) return;
+    await pushToUser(row.tech, "ເບີກອາໄຫຼ່ແລ້ວ", `${code} · ໃບເບີກ ${dispatchDocNo}`, {
+      workflow,
+      code,
+    });
+  } catch (error) {
+    console.error("notifyTechDispatched failed", error);
   }
 }

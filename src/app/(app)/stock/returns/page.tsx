@@ -1,5 +1,6 @@
 import { syncErpReturns } from "@/lib/erp-dispatch";
 import { Elapsed } from "@/components/elapsed";
+import { ErpDispatchWatcher } from "@/components/erp-dispatch-watcher";
 import { LinkPending } from "@/components/link-pending";
 import { RowLink } from "@/components/row-link";
 import { SortHeader, type SortDir } from "@/components/sort-header";
@@ -358,6 +359,8 @@ export default async function StockReturnsPage({ searchParams }: Props) {
 
   return (
     <div className="w-full space-y-4">
+      {/* ສາງເບີກ/ຮັບຄືນຢູ່ ERP ແປ້ບດຽວ ໜ້ານີ້ກໍ່ອັບເດດເອງ — ບໍ່ຕ້ອງລໍ cron ຫຼື refresh ມື */}
+      <ErpDispatchWatcher />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-700">

@@ -359,10 +359,14 @@ export async function syncErpPurchase(): Promise<PurchaseSync> {
     const jobs: string[] = [];
     for (const track of arrived) {
       // ເງື່ອນໄຂຂັ້ນຢູ່ໃນ WHERE ເອງ ⇒ ວຽກທີ່ຖືກປ່ຽນໄປແລ້ວລະຫວ່າງນີ້ ຈະບໍ່ຖືກແຕະ
-      const done = await query<{ emp_code: string | null; product: string | null; sn: string | null }>(
+      const done = await query<{ emp_code: string | null; product: string | null; sn: string | null; has_sio: boolean }>(
         `update tb_product a set spare_arrive = $2::timestamp, spare_arrive_by = $3
           where a.code = $1 and a.spare_arrive is null and ${STAGE_7}
-        returning a.emp_code, a.name_1 product, a.sn`,
+        returning a.emp_code, a.name_1 product, a.sn,
+          (a.spare_reg is not null
+            or exists (select 1 from ic_trans_detail d
+                        where d.product_code = a.code and d.trans_flag = 122
+                          and coalesce(d.status,0) in (0, 5))) has_sio`,
         [track.job, track.receipt_iso, ERP_ACTOR],
       );
       if (!done.rowCount) continue;
@@ -370,7 +374,8 @@ export async function syncErpPurchase(): Promise<PurchaseSync> {
 
       const message =
         `ອາໄຫຼ່ມາຮອດແລ້ວ — ERP ຮັບເຂົ້າສາງດ້ວຍໃບ ${track.receipt_no} ວັນທີ ${track.receipt_date}` +
-        `${track.days_since_receipt ? ` (${track.days_since_receipt} ມື້ກ່ອນ)` : ""} · ລະບົບເລື່ອນຂັ້ນໃຫ້ເອງ — ພ້ອມສ້າງໃບຂໍເບີກ SIO`;
+        `${track.days_since_receipt ? ` (${track.days_since_receipt} ມື້ກ່ອນ)` : ""} · ລະບົບເລື່ອນຂັ້ນໃຫ້ເອງ — ` +
+        (job.has_sio ? "ມີໃບຂໍເບີກແລ້ວ ວຽກໄປຄິວກຳລັງເບີກອາໄຫຼ່ ໃຫ້ສາງເບີກ" : "ພ້ອມສ້າງໃບຂໍເບີກ SIO");
 
       /**
        * ── ແຈ້ງໃຫ້ **ທຸກຄົນທີ່ກ່ຽວຂ້ອງ** ຮູ້ວ່າຂອງມາຮອດສາງແລ້ວ (17-07-2026) ──
@@ -392,7 +397,7 @@ export async function syncErpPurchase(): Promise<PurchaseSync> {
         await pushToUser(
           job.emp_code,
           "ອາໄຫຼ່ມາຮອດສາງແລ້ວ",
-          `${track.job} · ${job.product ?? ""}${job.sn ? ` (${job.sn})` : ""} — ພ້ອມຂໍເບີກອາໄຫຼ່`,
+          `${track.job} · ${job.product ?? ""}${job.sn ? ` (${job.sn})` : ""} — ${job.has_sio ? "ລໍສາງເບີກ" : "ພ້ອມຂໍເບີກອາໄຫຼ່"}`,
           { model: "tb_product", res_id: track.job },
         );
       }

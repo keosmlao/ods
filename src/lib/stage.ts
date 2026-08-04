@@ -89,7 +89,14 @@ export const STAGE_SQL = `case
   -- ⇒ ຖ້າ **ຍັງມີແຖວໃດຄ້າງຢູ່ໃບສັ່ງຊື້** ⇒ ຍັງເປັນ "ກຳລັງສັ່ງຊື້ອາໄຫຼ່" ບໍ່ວ່າທຸງຈະເປັນແນວໃດ.
   -- ວາງໄວ້ໃນສ່ວນອາໄຫຼ່ (ຫຼັງ 9/10/11/12) ⇒ ງານທີ່ລົງມືສ້ອມ/ຜ່ານ QC ແລ້ວ **ບໍ່ຖືກດຶງກັບ**
   -- ເຖິງຈະມີແຖວຄ້າງຫຼົງເຫຼືອ. ວັດແລ້ວ: ຍ້າຍ 11 ໃບ (6→7 ຫົກ · 5→7 ສີ່ · 8→7 ນຶ່ງ) ໃຊ້ 42ms.
+  --
+  -- ⚠️ ຂໍ້ຍົກເວັ້ນ (03-08-2026): ຖ້າ **ERP ຢືນຢັນຮັບເຂົ້າສາງຄົບແລ້ວ** (spare_arrive ສະແຕມ
+  -- ໂດຍ syncErpPurchase — ກວດໃບຮັບ PUIT ທຽບ item_code ຄົບທຸກລາຍການ, ບໍ່ມີປຸ່ມກົດມືອີກ)
+  -- ແຖວ status=5 ບໍ່ມີສິດຢ່າງວຽກໄວ້ຂັ້ນ 7 — ບໍ່ດັ່ງນັ້ນວຽກຄ້າງຢູ່ "ກຳລັງສັ່ງຊື້" ຕະຫຼອດໄປ
+  -- ທັງທີ່ຂອງນອນຢູ່ສາງແລ້ວ (ຂໍ້ມູນຈິງ 15 ໃບ, 8 ໃບມີໃບຂໍເບີກ SIO ພ້ອມ). ປ່ອຍແລ້ວວຽກໄປ:
+  -- ມີໃບຂໍເບີກ ⇒ ຂັ້ນ 6 (ກຳລັງເບີກອາໄຫຼ່ — ສາງເບີກ ແລ້ວຊ່າງກົດຮັບ) · ບໍ່ມີ ⇒ ຂັ້ນ 5.
   when coalesce(a.used_spare,0) = 1
+   and a.spare_arrive is null
    and exists (select 1 from ic_trans_detail d
                 where d.product_code = a.code
                   and d.trans_flag = ${TRANS.REQUEST}
@@ -99,7 +106,13 @@ export const STAGE_SQL = `case
   when coalesce(a.used_spare,0) = 1 and a.spare_order is not null
        and a.spare_order_finish is null
        and a.spare_arrive is null                              then 7
-  when coalesce(a.used_spare,0) = 1 and a.spare_reg is null    then 5
+  -- ຂັ້ນ 5 = ຍັງບໍ່ມີໃບຂໍເບີກ. ໃບເກົ່າບາງໃບມີແຖວ SIO ແລ້ວແຕ່ spare_reg ຫວ່າງ
+  -- (ໂຄ້ດເກົ່າບໍ່ໄດ້ຕັ້ງ) ⇒ ຖືວ່າມີໃບຂໍເບີກແລ້ວ ໃຫ້ຕົກໄປຂັ້ນ 6 ຄືກັນ.
+  when coalesce(a.used_spare,0) = 1 and a.spare_reg is null
+   and not exists (select 1 from ic_trans_detail d
+                    where d.product_code = a.code
+                      and d.trans_flag = ${TRANS.REQUEST}
+                      and coalesce(d.status,0) in (${LINE_STATUS.PENDING}, ${LINE_STATUS.ON_PURCHASE_ORDER})) then 5
   when coalesce(a.used_spare,0) = 1 and a.spare_finish is null then 6
   else 8
 end`;

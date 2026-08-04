@@ -5,6 +5,8 @@ import { notify } from "@/lib/notify";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb, queryOdg } from "@/lib/db";
 import { docPrefix, nextDocNo } from "@/lib/doc-no";
+import { syncErpDispatch } from "@/lib/erp-dispatch";
+import { syncErpPurchase } from "@/lib/erp-purchase";
 import { deleteErpRequest, writeErpRequest } from "@/lib/erp-request";
 import { requirePermissionOrRedirect, requireRole, requireRoleOrRedirect } from "@/lib/guard";
 import {
@@ -50,6 +52,20 @@ export type StockState = { error?: string; ok?: string };
 
 /** ລັອກຕອນອອກເລກເອກະສານ ກັນສອງຄົນກົດພ້ອມກັນແລ້ວໄດ້ເລກຊ້ຳ */
 const DOC_LOCK = 734211;
+
+/**
+ * ດຶງຂໍ້ມູນທີ່ອອກໃນ ERP ເຂົ້າ ODS ແບບ manual.
+ *
+ * ຢ່າເອີ້ນອັນນີ້ອັດຕະໂນມັດຕອນເປີດຫນ້າຄິວ: sync ERP ຊ້າຕາມຈຳນວນໃບຄ້າງ.
+ * ໃບທີ່ກົດເບີກໃນ ODSS ຖືກຂຽນລົງ ODS ທັນທີຢູ່ແລ້ວ; ປຸ່ມນີ້ມີໄວ້ສຳລັບໃບທີ່ສາງໄປເບີກໃນ ERP ໂດຍກົງ.
+ */
+export async function syncStockDispatch(): Promise<void> {
+  await requireRoleOrRedirect(STOCK_SIDE);
+  await Promise.all([syncErpDispatch(), syncErpPurchase()]);
+  revalidatePath("/stock/dispatch");
+  revalidatePath("/stock/requests/pickup");
+  revalidatePath("/dashboard/status/repair/withdrawing");
+}
 
 /**
  * trans_flag 166 = "ຊ່າງຮັບອາໄຫຼ່" (PISP) — ເອກະສານຢູ່ ODS ຢ່າງດຽວ ບໍ່ຕັດສະຕັອກ
