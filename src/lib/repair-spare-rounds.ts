@@ -74,7 +74,7 @@ async function itemsByDoc(docNos: string[]): Promise<Record<string, DocItem[]>> 
   const { rows } = await query<DocItem & { doc_no: string }>(
     `select d.doc_no, d.item_code, d.item_name, coalesce(d.qty,0)::float8 qty
        from ic_trans_detail d where d.doc_no = any($1::text[])
-      order by d.doc_no, d.line_number`,
+      order by d.doc_no, d.roworder`,   -- ⚠️ ods.ic_trans_detail ບໍ່ມີ line_number (ມີແຕ່ຝັ່ງ ERP) — ຮຽງດ້ວຍ roworder
     [keys],
   );
   const map: Record<string, DocItem[]> = {};
