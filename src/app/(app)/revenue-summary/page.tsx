@@ -1,21 +1,17 @@
 import { monthlyRevenueMatrix, REV_CATEGORIES, type RevCategory } from "@/lib/monthly-report";
-import { ChevronLeft, ChevronRight, PieChart } from "lucide-react";
 import Link from "next/link";
 
 /**
- * **ສະຫຼຸບລາຍຮັບປະຈຳເດືອນ — ໜ້າດຽວຈົບ**.
+ * **ສະຫຼຸບລາຍຮັບປະຈຳເດືອນ — ສະບັບນຳສະເໜີຜູ້ບໍລິຫານ** (ໜ້າດຽວ · ພິມ A4 ໄດ້).
  *
- * ແຍກ 2 ຊັ້ນຕາມທີ່ຕ້ອງການ: **ຕິດຕັ້ງ / ສ້ອມ** × **ແອ / ເຄື່ອງໃຊ້ໄຟຟ້າ**
- * ⇒ 4 ໝວດຫຼັກ + "ອື່ນໆ" (ຕິດຕັ້ງໂຄງການ · ຄ່າໄລຍະທາງ · ບຳລຸງຮັກສາ).
+ * ແຍກ 2 ຊັ້ນ: **ຕິດຕັ້ງ / ສ້ອມ** × **ແອ / ເຄື່ອງໃຊ້ໄຟຟ້າ** ⇒ 4 ໝວດ + ອື່ນໆ.
  *
- * ໃຊ້ `lib/monthly-report` ທີ່ມີຢູ່ແລ້ວ — ບໍ່ຂຽນສູດໃໝ່ ຈຶ່ງ **ບໍ່ມີ 2 ຕົວເລກຂັດກັນ**
- * ກັບໜ້າ /reports/monthly-revenue (ຂອງຜູ້ຈັດການ).
+ * ⚠️ ຕົວເລກມາຈາກ `monthlyRevenueMatrix` ເທົ່ານັ້ນ — ຢ່າຄິດສູດເອງໃໝ່.
+ * ເຫດຜົນ: ໃບຕະກູນ **HSV ປ້ອນຄ່າເປັນກີບ**ທັງໃບ ທັງທີ່ currency_code='01'
+ * ⇒ ຖ້າ sum ດິບຈະໄດ້ "ຕິດຕັ້ງເຄື່ອງໃຊ້ໄຟຟ້າ 3 ລ້ານບາດ/ເດືອນ" ເຊິ່ງບໍ່ມີຈິງ.
+ * lib ນັ້ນຫານອັດຕາໃຫ້ແລ້ວ (ເບິ່ງຄຳເມັນໃນໄຟລ໌ນັ້ນ).
  *
- * ⚠️ ຝັ່ງຕິດຕັ້ງທີ່ນີ້ນັບຈາກ **ບິນຂາຍ ERP ຕາມວັນທີບິນ** (ລະຫັດ 9701xx).
- * ໜ້າ /install-revenue ນັບຄົນລະແບບ — ຈາກ **ໃບງານ** (doc_ref_1) ຕາມ **ວັນປິດງານ**
- * ⇒ 2 ໜ້ານັ້ນຈະບໍ່ເທົ່າກັນໂດຍທຳມະຊາດ ແລະ ບອກໄວ້ໃຫ້ຄົນອ່ານຮູ້ ບໍ່ໃຫ້ເຂົ້າໃຈວ່າຜິດ.
- *
- * ຄ່າທັງໝົດເປັນ **ບາດ** (ຄືກັບ 2 ໜ້າເງິນອື່ນ).
+ * ໜ້ານີ້ບໍ່ມີເມນູ/ປຸ່ມຕອນພິມ (`print:hidden`) ⇒ ໄດ້ເອກະສານສະອາດ.
  */
 export const dynamic = "force-dynamic";
 
@@ -28,167 +24,194 @@ const LABEL: Record<RevCategory, string> = {
   repair_app: "ສ້ອມ · ເຄື່ອງໃຊ້ໄຟຟ້າ",
   other: "ອື່ນໆ",
 };
-
-const TONE: Record<RevCategory, string> = {
-  install_ac: "bg-teal-500",
-  install_app: "bg-teal-300",
-  repair_ac: "bg-indigo-500",
-  repair_app: "bg-indigo-300",
-  other: "bg-slate-300",
+const BAR: Record<RevCategory, string> = {
+  install_ac: "bg-teal-600",
+  install_app: "bg-teal-400",
+  repair_ac: "bg-indigo-600",
+  repair_app: "bg-indigo-400",
+  other: "bg-slate-400",
 };
-
-const LAO_MONTH = [
-  "ມັງກອນ", "ກຸມພາ", "ມີນາ", "ເມສາ", "ພຶດສະພາ", "ມິຖຸນາ",
-  "ກໍລະກົດ", "ສິງຫາ", "ກັນຍາ", "ຕຸລາ", "ພະຈິກ", "ທັນວາ",
-];
+const MONTHS = ["ມັງກອນ","ກຸມພາ","ມີນາ","ເມສາ","ພຶດສະພາ","ມິຖຸນາ","ກໍລະກົດ","ສິງຫາ","ກັນຍາ","ຕຸລາ","ພະຈິກ","ທັນວາ"];
 
 export default async function RevenueSummaryPage({ searchParams }: Props) {
   const params = await searchParams;
   const thisYear = new Date().getFullYear();
-  const year = Number(params.year) >= 2020 && Number(params.year) <= thisYear + 1 ? Number(params.year) : thisYear;
+  const year = Number(params.year) >= 2020 && Number(params.year) <= thisYear ? Number(params.year) : thisYear;
 
-  let matrix: Awaited<ReturnType<typeof monthlyRevenueMatrix>> = new Map();
-  let error: string | null = null;
-  try {
-    matrix = await monthlyRevenueMatrix(year);
-  } catch (exception) {
-    error = exception instanceof Error ? exception.message : "ດຶງຂໍ້ມູນບໍ່ສຳເລັດ";
-  }
+  const matrix = await monthlyRevenueMatrix(year);
+  const cell = (y: number, m: number) => matrix.get(`${y}-${String(m + 1).padStart(2, "0")}`);
 
-  const months = Array.from({ length: 12 }, (_, index) => {
-    const key = `${year}-${String(index + 1).padStart(2, "0")}`;
-    const cell = matrix.get(key);
+  const rows = MONTHS.map((label, index) => {
+    const now = cell(year, index);
+    const prev = cell(year - 1, index);
+    const total = now?.total ?? 0;
+    const last = prev?.total ?? 0;
     return {
-      key,
-      label: LAO_MONTH[index],
-      values: Object.fromEntries(REV_CATEGORIES.map((c) => [c, cell?.[c] ?? 0])) as Record<RevCategory, number>,
-      total: cell?.total ?? 0,
+      label,
+      values: Object.fromEntries(REV_CATEGORIES.map((c) => [c, now?.[c] ?? 0])) as Record<RevCategory, number>,
+      total,
+      last,
+      yoy: last > 0 ? ((total - last) / last) * 100 : null,
     };
   });
 
-  const yearTotal = Object.fromEntries(
-    REV_CATEGORIES.map((c) => [c, months.reduce((sum, m) => sum + m.values[c], 0)]),
+  const active = rows.filter((row) => row.total > 0);
+  const grand = rows.reduce((sum, row) => sum + row.total, 0);
+  const lastYear = rows.reduce((sum, row) => sum + row.last, 0);
+  const byCategory = Object.fromEntries(
+    REV_CATEGORIES.map((c) => [c, rows.reduce((sum, row) => sum + row.values[c], 0)]),
   ) as Record<RevCategory, number>;
-  const grand = months.reduce((sum, m) => sum + m.total, 0);
-  const peak = Math.max(1, ...months.map((m) => m.total));
+  const peak = active.reduce((best, row) => (row.total > best.total ? row : best), active[0] ?? rows[0]);
+  const best = REV_CATEGORIES.reduce((a, b) => (byCategory[a] >= byCategory[b] ? a : b));
+  const average = active.length > 0 ? grand / active.length : 0;
   const money = (value: number) => Math.round(value).toLocaleString();
-  const yearHref = (value: number) => `/revenue-summary?year=${value}`;
+  const pct = (value: number) => (grand > 0 ? Math.round((value / grand) * 100) : 0);
+  const yoyAll = lastYear > 0 ? ((grand - lastYear) / lastYear) * 100 : null;
 
   return (
-    <div className="w-full space-y-5 pb-10">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="flex items-center gap-2 text-xl font-bold text-slate-700">
-          <PieChart className="size-5 text-teal-600" />
-          ສະຫຼຸບລາຍຮັບປະຈຳເດືອນ
-        </h1>
-        <div className="flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-1 py-1">
-          <Link href={yearHref(year - 1)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100">
-            <ChevronLeft className="size-4" />
+    <div className="mx-auto w-full max-w-4xl space-y-6 bg-white p-8 text-slate-800 print:p-0">
+      <div className="flex items-start justify-between gap-4 border-b-2 border-slate-800 pb-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-teal-700">ODIEN SERVICE CENTER</p>
+          <h1 className="mt-1 text-2xl font-bold">ລາຍງານລາຍຮັບປະຈຳປີ {year}</h1>
+          <p className="mt-0.5 text-xs text-slate-500">
+            ແຍກຕາມປະເພດງານ (ຕິດຕັ້ງ · ສ້ອມແປງ) ແລະ ປະເພດເຄື່ອງ (ແອ · ເຄື່ອງໃຊ້ໄຟຟ້າ) · ຫົວໜ່ວຍ: ບາດ
+          </p>
+        </div>
+        {/* ເລືອກປີ — ເຊື່ອງຕອນພິມ ⇒ ເອກະສານສະອາດ */}
+        <div className="flex shrink-0 items-center gap-1 rounded-xl border border-slate-300 px-1 py-1 print:hidden">
+          <Link href={`/revenue-summary?year=${year - 1}`} className="rounded-lg px-2 py-1 text-xs hover:bg-slate-100">
+            ‹ {year - 1}
           </Link>
-          <span className="min-w-16 text-center text-sm font-bold text-slate-700">{year}</span>
           <Link
-            href={yearHref(year + 1)}
+            href={`/revenue-summary?year=${year + 1}`}
             aria-disabled={year >= thisYear}
-            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 aria-disabled:pointer-events-none aria-disabled:opacity-30"
+            className="rounded-lg px-2 py-1 text-xs hover:bg-slate-100 aria-disabled:pointer-events-none aria-disabled:opacity-30"
           >
-            <ChevronRight className="size-4" />
+            {year + 1} ›
           </Link>
         </div>
-        <Link
-          href={`/revenue-summary/print?year=${year}`}
-          className="ml-auto inline-flex h-9 items-center rounded-xl bg-slate-800 px-4 text-xs font-semibold text-white hover:bg-slate-900"
-        >
-          ລາຍງານຜູ້ບໍລິຫານ
-        </Link>
       </div>
 
-      {error && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</p>}
-
-      {/* ── ຍອດປີ ແຍກ 4 ໝວດ + ອື່ນໆ ── */}
-      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {REV_CATEGORIES.map((category) => (
-          <div key={category} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="flex items-center gap-1.5 text-[11px] text-slate-400">
-              <span className={`size-2 rounded-full ${TONE[category]}`} />
-              {LABEL[category]}
+      {/* ── ຕົວເລກຫຼັກ ── */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="rounded-xl border border-slate-300 p-4">
+          <p className="text-[11px] text-slate-500">ລາຍຮັບລວມທັງປີ</p>
+          <p className="mt-1 text-3xl font-bold tabular-nums">{money(grand)}</p>
+          {yoyAll !== null && (
+            <p className={`text-xs font-semibold ${yoyAll >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+              {yoyAll >= 0 ? "▲" : "▼"} {Math.abs(Math.round(yoyAll))}% ທຽບປີ {year - 1}
             </p>
-            <p className="mt-1 text-xl font-bold tabular-nums text-slate-800">{money(yearTotal[category])}</p>
-            <p className="text-[10px] text-slate-400">
-              {grand > 0 ? Math.round((yearTotal[category] / grand) * 100) : 0}% ຂອງປີ
-            </p>
-          </div>
-        ))}
+          )}
+        </div>
+        <div className="rounded-xl border border-slate-300 p-4">
+          <p className="text-[11px] text-slate-500">ສະເລ່ຍຕໍ່ເດືອນ</p>
+          <p className="mt-1 text-3xl font-bold tabular-nums">{money(average)}</p>
+          <p className="text-xs text-slate-500">ຈາກ {active.length} ເດືອນທີ່ມີລາຍຮັບ</p>
+        </div>
+        <div className="rounded-xl border border-slate-300 p-4">
+          <p className="text-[11px] text-slate-500">ເດືອນສູງສຸດ</p>
+          <p className="mt-1 text-3xl font-bold">{peak?.label ?? "-"}</p>
+          <p className="text-xs text-slate-500">{money(peak?.total ?? 0)} ບາດ</p>
+        </div>
       </div>
 
-      {/* ── ຕາຕະລາງ 12 ເດືອນ × ໝວດ ── */}
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                <th className="px-4 py-2.5 font-semibold">ເດືອນ</th>
-                {REV_CATEGORIES.map((category) => (
-                  <th key={category} className="px-4 py-2.5 text-right font-semibold">
-                    {LABEL[category]}
-                  </th>
-                ))}
-                <th className="px-4 py-2.5 text-right font-semibold">ລວມ (ບາດ)</th>
-                <th className="w-40 px-4 py-2.5 font-semibold">ສັດສ່ວນ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {months.map((row) => (
-                <tr key={row.key} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="whitespace-nowrap px-4 py-2 font-semibold text-slate-700">{row.label}</td>
-                  {REV_CATEGORIES.map((category) => (
-                    <td
-                      key={category}
-                      className={`px-4 py-2 text-right tabular-nums ${
-                        row.values[category] > 0 ? "text-slate-700" : "text-slate-300"
-                      }`}
-                    >
-                      {row.values[category] > 0 ? money(row.values[category]) : "—"}
-                    </td>
-                  ))}
-                  <td className="px-4 py-2 text-right font-bold tabular-nums text-slate-800">{money(row.total)}</td>
-                  <td className="px-4 py-2">
-                    {/* ແຖບແບ່ງສ່ວນ — ເຫັນອົງປະກອບຂອງເດືອນນັ້ນທັນທີ ໂດຍບໍ່ຕ້ອງອ່ານ 5 ຕົວເລກ */}
-                    <span
-                      className="flex h-2 w-full overflow-hidden rounded-full bg-slate-100"
-                      style={{ opacity: row.total > 0 ? Math.max(0.35, row.total / peak) : 0.25 }}
-                    >
-                      {REV_CATEGORIES.map((category) => (
-                        <span
-                          key={category}
-                          className={TONE[category]}
-                          style={{ width: `${row.total > 0 ? (row.values[category] / row.total) * 100 : 0}%` }}
-                        />
-                      ))}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-slate-200 bg-slate-50 font-bold text-slate-800">
-                <td className="px-4 py-2.5">ລວມທັງປີ</td>
-                {REV_CATEGORIES.map((category) => (
-                  <td key={category} className="px-4 py-2.5 text-right tabular-nums">
-                    {money(yearTotal[category])}
-                  </td>
-                ))}
-                <td className="px-4 py-2.5 text-right tabular-nums">{money(grand)}</td>
-                <td />
-              </tr>
-            </tfoot>
-          </table>
+      {/* ── ສັດສ່ວນຕາມໝວດ ── */}
+      <section>
+        <h2 className="mb-2 text-sm font-bold">ອົງປະກອບລາຍຮັບ</h2>
+        <div className="flex h-4 w-full overflow-hidden rounded-full">
+          {REV_CATEGORIES.map((category) => (
+            <span key={category} className={BAR[category]} style={{ width: `${pct(byCategory[category])}%` }} />
+          ))}
+        </div>
+        <div className="mt-3 grid grid-cols-5 gap-3 text-xs">
+          {REV_CATEGORIES.map((category) => (
+            <div key={category}>
+              <p className="flex items-center gap-1.5 text-slate-500">
+                <span className={`size-2 rounded-full ${BAR[category]}`} />
+                {LABEL[category]}
+              </p>
+              <p className="mt-0.5 font-bold tabular-nums">{money(byCategory[category])}</p>
+              <p className="text-[10px] text-slate-400">{pct(byCategory[category])}%</p>
+            </div>
+          ))}
         </div>
       </section>
 
-      <p className="text-[11px] text-slate-400">
-        ຄ່າເປັນ <b>ບາດ</b> · ໃຊ້ສູດດຽວກັບລາຍງານປະຈຳເດືອນຂອງຜູ້ຈັດການ (lib/monthly-report) ⇒ ຕົວເລກບໍ່ຂັດກັນ.
-        ຝັ່ງຕິດຕັ້ງທີ່ນີ້ນັບຈາກ <b>ບິນຂາຍ ERP ຕາມວັນທີບິນ</b>; ໜ້າ “ລາຍຮັບງານຕິດຕັ້ງ” ນັບຈາກ
-        <b> ໃບງານ ຕາມວັນປິດງານ</b> ⇒ 2 ໜ້ານັ້ນຈະບໍ່ເທົ່າກັນໂດຍທຳມະຊາດ.
+      {/* ── ຕາຕະລາງລາຍເດືອນ ── */}
+      <section>
+        <h2 className="mb-2 text-sm font-bold">ລາຍຮັບລາຍເດືອນ</h2>
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            <tr className="border-y border-slate-300 text-left">
+              <th className="py-2 font-semibold">ເດືອນ</th>
+              {REV_CATEGORIES.map((category) => (
+                <th key={category} className="py-2 text-right font-semibold">
+                  {LABEL[category]}
+                </th>
+              ))}
+              <th className="py-2 text-right font-semibold">ລວມ</th>
+              <th className="py-2 text-right font-semibold">ທຽບ {year - 1}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.label} className="border-b border-slate-100">
+                <td className="py-1.5 font-medium">{row.label}</td>
+                {REV_CATEGORIES.map((category) => (
+                  <td key={category} className="py-1.5 text-right tabular-nums text-slate-600">
+                    {row.values[category] > 0 ? money(row.values[category]) : "—"}
+                  </td>
+                ))}
+                <td className="py-1.5 text-right font-bold tabular-nums">{money(row.total)}</td>
+                <td
+                  className={`py-1.5 text-right tabular-nums ${
+                    row.yoy === null ? "text-slate-300" : row.yoy >= 0 ? "text-emerald-700" : "text-red-600"
+                  }`}
+                >
+                  {row.yoy === null ? "—" : `${row.yoy >= 0 ? "+" : ""}${Math.round(row.yoy)}%`}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-slate-800 font-bold">
+              <td className="py-2">ລວມ</td>
+              {REV_CATEGORIES.map((category) => (
+                <td key={category} className="py-2 text-right tabular-nums">
+                  {money(byCategory[category])}
+                </td>
+              ))}
+              <td className="py-2 text-right tabular-nums">{money(grand)}</td>
+              <td />
+            </tr>
+          </tfoot>
+        </table>
+      </section>
+
+      {/* ── ຂໍ້ສັງເກດ — ຄິດຈາກຂໍ້ມູນ ບໍ່ແມ່ນຂໍ້ຄວາມຕາຍຕົວ ── */}
+      <section className="rounded-xl border border-slate-300 bg-slate-50 p-4 text-xs leading-6">
+        <h2 className="mb-1 text-sm font-bold">ຂໍ້ສັງເກດ</h2>
+        <ul className="list-disc space-y-0.5 pl-5">
+          <li>
+            ໝວດທີ່ສ້າງລາຍຮັບຫຼາຍສຸດແມ່ນ <b>{LABEL[best]}</b> ຄິດເປັນ {pct(byCategory[best])}% ຂອງລາຍຮັບທັງປີ
+          </li>
+          <li>
+            ເດືອນ <b>{peak?.label}</b> ສູງສຸດທີ່ {money(peak?.total ?? 0)} ບາດ — ສູງກວ່າຄ່າສະເລ່ຍ{" "}
+            {average > 0 ? Math.round((((peak?.total ?? 0) - average) / average) * 100) : 0}%
+          </li>
+          {yoyAll !== null && (
+            <li>
+              ລາຍຮັບລວມ {yoyAll >= 0 ? "ເພີ່ມຂຶ້ນ" : "ຫຼຸດລົງ"} {Math.abs(Math.round(yoyAll))}% ທຽບກັບປີ {year - 1}
+              （{money(lastYear)} ບາດ）
+            </li>
+          )}
+        </ul>
+      </section>
+
+      <p className="border-t border-slate-200 pt-3 text-[10px] text-slate-400">
+        ແຫຼ່ງຂໍ້ມູນ: ບິນຂາຍ ERP (ic_trans trans_flag 44) ລະຫັດບໍລິການ 9701xx (ຕິດຕັ້ງ) ແລະ 9702xx (ສ້ອມ) ·
+        ໃບຕະກູນ HSV ປ້ອນເປັນກີບ ຈຶ່ງແປງດ້ວຍອັດຕາ tb_bill_rate ກ່ອນລວມ · ສ້າງໂດຍລະບົບ ODS
       </p>
     </div>
   );
