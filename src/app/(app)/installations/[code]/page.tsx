@@ -255,6 +255,14 @@ export default async function InstallationDetail({ params }: Props) {
           newPurchase: null, // ຕິດຕັ້ງບໍ່ມີໃບຂໍຊື້ (ວັດແລ້ວ 0 ໃບ)
           viewRequest: (docNo) => `/installations/spare-requests/view/${encodeURIComponent(docNo)}`,
           pickup: (docNo) => `/installations/spare-pickup/${encodeURIComponent(docNo)}`,
+          // ຝັ່ງຕິດຕັ້ງມີເມນູ "ສົ່ງຄືນອາໄຫຼ່ງານຕິດຕັ້ງ" ຢູ່ແລ້ວ — ພາໄປບ່ອນດຽວກັນ ພ້ອມກອງໃສ່ໃບງານນີ້
+          returnSpare: `/stock/receive-returns?q=${encodeURIComponent(row.code)}`,
+          /**
+           * ຝັ່ງຕິດຕັ້ງໃຊ້ **ຄົນລະ action ແລະ ຄົນລະໜ້າ** (startInstallReturnRequest) —
+           * ReturnRequestButton ແຍກໃຫ້ເອງຕາມຄ່ານີ້. ⚠️ ຫຼັງລົບໜ້າລາຍການ /stock/returns
+           * ປຸ່ມນີ້ຄື **ທາງເຂົ້າດຽວ**ຂອງການຂໍຄືນອາໄຫຼ່ຝັ່ງຕິດຕັ້ງ — ຢ່າຖອດອອກ.
+           */
+          returnJobType: "install",
         }}
         docAction={(docNo, dispatched) =>
           canCancelRequest && !dispatched ? (

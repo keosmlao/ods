@@ -59,7 +59,7 @@ export default async function InstallReturnRequestPage({ params }: Props) {
       "select count(*)::int count from ic_trans_detail where doc_no=$1 and status=$2",
       [docNo, LINE_STATUS.ISSUED],
     );
-    if (!issued.rows[0]?.count) redirect("/stock/returns?job=install");
+    if (!issued.rows[0]?.count) redirect("/stock/receive-returns");
   }
 
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });

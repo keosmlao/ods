@@ -125,7 +125,7 @@ function alertsFor(role: Role, data: DashboardData, canQc: boolean, t: Dict): Al
       label: t.alertCancelledSparesLabel,
       value: data.cancelledSpares.docs,
       detail: `${data.cancelledSpares.lines.toLocaleString()} ${t.alertCancelledSparesDetail}`,
-      href: "/stock/returns?tab=cancelled",
+      href: "/stock/receive-returns",
       icon: PackageX,
       tone: "red",
     },

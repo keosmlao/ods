@@ -6,7 +6,8 @@ import {
   type PurchaseRound,
   type WithdrawRound,
 } from "@/lib/repair-spare-rounds";
-import { CheckCircle2, ClipboardList, PackageCheck, PackageSearch, ShoppingCart, Wrench } from "lucide-react";
+import { CheckCircle2, ClipboardList, PackageCheck, PackageSearch, ShoppingCart, Undo2, Wrench } from "lucide-react";
+import { ReturnRequestButton } from "@/components/repair/return-request-button";
 import { compareItems } from "@/lib/doc-item-diff";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -34,6 +35,17 @@ export type SpareLinks = {
   newPurchase: string | null;
   viewRequest: (docNo: string) => string;
   pickup: (dispatchNo: string) => string;
+  /**
+   * ໜ້າ **ສົ່ງຄືນອາໄຫຼ່** ຂອງໃບງານນີ້ — ໃຊ້ຕອນລົງມືສ້ອມແລ້ວພົບວ່າບໍ່ຕ້ອງໃຊ້
+   * ຫຼື ເບີກມາຜິດຕົວ. null = ຝັ່ງນັ້ນບໍ່ມີ.
+   */
+  returnSpare: string | null;
+  /**
+   * ໜ້າ **ຂໍຄືນອາໄຫຼ່ຂອງໃບເບີກໃບນັ້ນ** — ໃບຄືນ (SRI) ຜູກກັບໃບເບີກ (SWC) ໂດຍກົງ
+   * (ເບິ່ງ saveReturn ຢູ່ actions/stock: `doc_ref` = ເລກໃບເບີກ) ⇒ ປຸ່ມຈຶ່ງຄວນຢູ່ຄຽງ
+   * ແຖວໃບເບີກ ບໍ່ແມ່ນລອຍຢູ່ຫົວແຜງ. null = ຝັ່ງນັ້ນໃຊ້ຄົນລະເສັ້ນທາງ (ຕິດຕັ້ງ).
+   */
+  returnJobType: "repair" | "install" | null;
 };
 
 export function SpareRounds({
@@ -88,7 +100,15 @@ export function SpareRounds({
     newPurchase: `/purchase-requests/new/${encodeURIComponent(code)}/direct`,
     viewRequest: (docNo) => `/stock/requests/view/${encodeURIComponent(docNo)}`,
     pickup: (docNo) => `/stock/requests/pickup/${encodeURIComponent(docNo)}`,
+    // ພາໄປໜ້າສົ່ງຄືນ **ພ້ອມກອງໃສ່ໃບງານນີ້ແລ້ວ** — ບໍ່ໃຫ້ໄປໄລ່ຫາເອງໃນລາຍການທັງໝົດ
+    returnSpare: `/stock/receive-returns?q=${encodeURIComponent(code)}`,
+    returnJobType: "repair",
   };
+  /**
+   * ມີຂອງອອກສາງໄປແລ້ວ ຈຶ່ງມີຫຍັງໃຫ້ສົ່ງຄືນ — ຍັງບໍ່ເບີກ ບໍ່ຕ້ອງໂຊ້ວປຸ່ມມາລົບກວນ.
+   * (ຢາກຖອດລາຍການທີ່**ຍັງບໍ່ເບີກ** ອອກ ⇒ ແກ້ຢູ່ກ່ອງ "ອາໄຫຼ່ທີ່ຕ້ອງໃຊ້" ບໍ່ແມ່ນສົ່ງຄືນ)
+   */
+  const hasDispatched = withdrawals.some((row) => Boolean(row.dispatch_no));
   if (withdrawals.length === 0 && purchases.length === 0 && !canRequest) return null;
 
   const waiting = withdrawals.filter((row) => row.state !== "received").length;
@@ -110,9 +130,26 @@ export function SpareRounds({
             ຄ້າງ {waiting} ຮອບ
           </span>
         )}
-        {canRequest && (
+        {(canRequest || (hasDispatched && url.returnSpare)) && (
           <span className="ml-auto flex items-center gap-2">
+            {/**
+              * **ສົ່ງຄືນອາໄຫຼ່** — ລົງມືສ້ອມແລ້ວພົບວ່າບໍ່ຕ້ອງໃຊ້ ຫຼື ເບີກມາຜິດຕົວ.
+              * ເມື່ອກ່ອນຕ້ອງໄປຫາໜ້າ /stock/returns ເອງ ແລະ **ເມນູມີແຕ່ຝັ່ງຕິດຕັ້ງ**
+              * (`?job=install`) ⇒ ຄົນງານສ້ອມຫາທາງເຂົ້າບໍ່ພົບເລີຍ ທັງທີ່ໜ້າຮອງຮັບຢູ່.
+              * ວາງໄວ້ຄຽງກັບ "ຂໍເບີກ/ຂໍຊື້" ເພາະເປັນເລື່ອງອາໄຫຼ່ຂອງໃບງານດຽວກັນ.
+              */}
+            {hasDispatched && url.returnSpare && (
+              <Link
+                href={url.returnSpare}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <Undo2 className="size-3.5" />
+                ສົ່ງຄືນອາໄຫຼ່
+              </Link>
+            )}
             {/* ຂໍເບີກ/ຂໍຊື້ **ຮອບໃໝ່** ໄດ້ຕະຫຼອດ ຕາບໃດວຽກຍັງບໍ່ຈົບ — ຮອບເກົ່າຄ້າງຢູ່ກໍ່ຂໍໄດ້ */}
+            {canRequest && (
+            <>
             <Link
               href={url.newRequest}
               className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
@@ -126,6 +163,8 @@ export function SpareRounds({
               >
                 + ຂໍຊື້ຮອບໃໝ່
               </Link>
+            )}
+            </>
             )}
           </span>
         )}
@@ -254,18 +293,33 @@ function RoundTree({
             against={withdrawal.dispatch_no ? withdrawal.items : undefined}
             againstLabel="ທີ່ຂໍ"
             action={
-              techReceipt && withdrawal.state === "dispatched" && withdrawal.dispatch_no ? (
-                <Link
-                  href={url.pickup(withdrawal.dispatch_no.split(",")[0].trim())}
-                  className={
-                    jobStarted
-                      ? "inline-flex h-7 items-center rounded-lg border border-slate-300 px-2.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
-                      : "inline-flex h-7 items-center rounded-lg bg-brand-700 px-2.5 text-[11px] font-semibold text-white hover:bg-brand-800"
-                  }
-                >
-                  {jobStarted ? "ເຊັນຮັບຍ້ອນຫຼັງ" : "ຮັບອາໄຫຼ່"}
-                </Link>
-              ) : null
+              <>
+                {techReceipt && withdrawal.state === "dispatched" && withdrawal.dispatch_no && (
+                  <Link
+                    href={url.pickup(withdrawal.dispatch_no.split(",")[0].trim())}
+                    className={
+                      jobStarted
+                        ? "inline-flex h-7 items-center rounded-lg border border-slate-300 px-2.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                        : "inline-flex h-7 items-center rounded-lg bg-brand-700 px-2.5 text-[11px] font-semibold text-white hover:bg-brand-800"
+                    }
+                  >
+                    {jobStarted ? "ເຊັນຮັບຍ້ອນຫຼັງ" : "ຮັບອາໄຫຼ່"}
+                  </Link>
+                )}
+                {/**
+                  * **ຂໍຄືນ** — ຂອງອອກສາງໄປແລ້ວແຕ່ບໍ່ໄດ້ໃຊ້ / ເບີກມາຜິດຕົວ.
+                  * ⚠️ ເປັນ **ປຸ່ມ** ບໍ່ແມ່ນລິ້ງ: ຕ້ອງໃຫ້ action ດຶງລາຍການຂອງໃບເບີກ
+                  * ເຂົ້າກະຕ່າຮ່າງກ່ອນ ຈຶ່ງພາໄປຟອມ (ເບິ່ງ ReturnRequestButton).
+                  * ໃບດຽວ ⇒ ປຸ່ມຢູ່ນີ້ · ຫຼາຍໃບ ⇒ ປຸ່ມຢູ່ແຕ່ລະແຖວຂອງຕາຕະລາງລຸ່ມ.
+                  */}
+                {url.returnJobType && withdrawal.dispatches.length === 1 && (
+                  <ReturnRequestButton
+                    docNo={withdrawal.dispatches[0].doc_no}
+                    jobType={url.returnJobType}
+                    size="sm"
+                  />
+                )}
+              </>
             }
           />
         )}
@@ -291,6 +345,7 @@ function RoundTree({
                   <th className="px-2.5 py-1 font-medium">ວັນທີ</th>
                   <th className="px-2.5 py-1 font-medium">ຜູ້ເບີກ</th>
                   <th className="px-2.5 py-1 font-medium">ລາຍການທີ່ຈ່າຍ</th>
+                  {url.returnJobType && <th className="px-2.5 py-1" />}
                 </tr>
               </thead>
               <tbody>
@@ -317,6 +372,18 @@ function RoundTree({
                         </ul>
                       )}
                     </td>
+                    {/* ຂໍຄືນ **ສະເພາະໃບນີ້** — ໃບຫວ່າງບໍ່ມີຫຍັງໃຫ້ຄືນ ຈຶ່ງບໍ່ໂຊ້ວປຸ່ມ */}
+                    {url.returnJobType && (
+                      <td className="whitespace-nowrap px-2.5 py-1.5 text-right">
+                        {dispatch.items.length > 0 && (
+                          <ReturnRequestButton
+                            docNo={dispatch.doc_no}
+                            jobType={url.returnJobType}
+                            size="sm"
+                          />
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

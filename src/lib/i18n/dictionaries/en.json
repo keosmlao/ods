@@ -4508,13 +4508,21 @@
     "fieldIssue": "Issue:",
     "fieldWarranty": "Warranty:",
     "fieldTechnician": "Technician:",
-    "sparesUsed": "Spares Used",
+    "docSection": "Return request",
+    "fromDispatch": "From dispatch",
+    "jobSection": "Source job",
+    "sparesToReturn": "Spares to return",
+    "linesSuffix": "items",
+    "pickHint": "Remove any line you do not want to return",
+    "totalLabel": "Total",
     "colItemCode": "Item Code",
     "colItemName": "Item Name",
     "colQty": "Quantity",
     "colUnit": "Unit",
     "removeLine": "Remove this item",
-    "noSparesToReturn": "No spare parts to return"
+    "noSparesToReturn": "No spare parts to return",
+    "emptyHint": "Only lines still marked \"pending\" can be pulled in — if the technician already took delivery of this dispatch, or every line was removed, nothing is available to select",
+    "backToList": "Back to spare returns"
   },
   "qcForm": {
     "requirePhotoTag": "(photo required)",

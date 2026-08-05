@@ -201,7 +201,7 @@ const INSTALL_FLOW: NavItem[] = [
 
 /** ລາຍງານຂອງສາຍງານຕິດຕັ້ງ — ບໍ່ແມ່ນຂັ້ນຕອນ ຈຶ່ງບໍ່ໃສ່ເລກ */
 const INSTALL_REPORTS: NavItem[] = [
-  { label: "ສົ່ງຄືນອາໄຫຼ່ງານຕິດຕັ້ງ", href: "/stock/returns?job=install", divider: true },
+  { label: "ສົ່ງຄືນອາໄຫຼ່ງານຕິດຕັ້ງ", href: "/stock/receive-returns", divider: true },
   { label: "ລາຍງານງານຕິດຕັ້ງ", href: "/reports/installations" },
   { label: "ສະຫຼຸບອາໄຫຼ່ຕິດຕັ້ງປະຈຳເດືອນ", href: "/reports/install-spares-monthly" },
   { label: "ລາຍງານແບບສອບຖາມລູກຄ້າ", href: "/reports/customer-feedback" },
@@ -472,7 +472,7 @@ const TECHNICIAN_NAVIGATION: NavGroup[] = [
       { label: "ອາໄຫຼ່ຕິດຕັ້ງ", href: "/work/install-spares", count: "/work/install-spares" },
       { label: "ລໍຖ້າຕິດຕັ້ງ", href: "/installations/work", count: "/installations/work" },
       { label: "ກຳລັງຕິດຕັ້ງ", href: "/installations/work/doing", count: "/installations/work/doing" },
-      { label: "ສົ່ງຄືນອາໄຫຼ່", href: "/stock/returns?job=install", labelKey: "tech:returns-install" },
+      { label: "ສົ່ງຄືນອາໄຫຼ່", href: "/stock/receive-returns", labelKey: "tech:returns-install" },
       { label: "ກວດຮັບຄຸນນະພາບ", href: "/qc?workflow=install", flag: "qc", count: "/qc/install", labelKey: "tech:qc-install" },
     ],
   },

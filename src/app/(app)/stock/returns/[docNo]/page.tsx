@@ -1,14 +1,10 @@
-import { cancelReturnRequest, removeReturnDraftLine } from "@/app/actions/stock";
-import { DocForm } from "@/components/stock/doc-form";
-import { Card, Empty, ErrorBox, PageTitle, Table } from "@/components/ui";
+import { ReturnRequestForm, type ReturnDraftLine } from "@/components/stock/return-request-form";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { docPrefix } from "@/lib/doc-no";
-import { getDictionary } from "@/lib/i18n/dictionaries";
-import { getLocale } from "@/lib/i18n/locale";
+import { employeeNameMap, resolveName } from "@/lib/employee-names";
 import { canViewAssignedJob } from "@/lib/scope";
 import { TRANS } from "@/lib/stock-constants";
-import { Trash2 } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 
 /** ods: stock.py /return_req_check + /show_return_req/<doc_no> + templates/stock/return_req_page.html */
@@ -27,15 +23,6 @@ type Head = {
   doc_ref_date: string | null;
 };
 
-type DraftLine = {
-  rnum: number;
-  item_code: string;
-  item_name: string | null;
-  qty: string;
-  unit_code: string | null;
-  roworder: number;
-};
-
 async function previewDocNo() {
   const prefix = docPrefix("SRI");
   const sql = `select coalesce(max(substring(doc_no from ${prefix.length + 1})::int), 0) + 1 seq
@@ -47,12 +34,11 @@ async function previewDocNo() {
 export default async function ReturnRequestPage({ params }: Props) {
   const session = await getSession();
   if (!session) redirect("/login");
-  const t = (await getDictionary(await getLocale())).stockReturnsDetail;
   const { docNo } = await params;
   const code = decodeURIComponent(docNo);
 
   const head = await query<Head>(
-    `select to_char(a.spare_finish,'DD-MM-YYYY HH24:MI:SS') finished_at,
+    `select to_char(a.spare_finish,'DD-MM-YYYY HH24:MI') finished_at,
        b.name_1||'-'||b.tel customer, a.name_1||'-'||a.sn product, a.warrunty warranty, a.issue,
        a.emp_code technician, a.code product_code, c.doc_no, to_char(a.spare_finish,'YYYY-MM-DD') doc_ref_date
      from tb_product a
@@ -65,67 +51,32 @@ export default async function ReturnRequestPage({ params }: Props) {
   if (!bill) notFound();
   if (!canViewAssignedJob(session, bill.technician)) redirect("/forbidden");
 
-  const draft = await query<DraftLine>(
+  const draft = await query<ReturnDraftLine>(
     `select row_number() over (order by roworder)::int rnum, item_code, item_name, qty, unit_code, roworder
      from ic_trans_detail_draft where doc_no = $1 and user_created = $2 and trans_flag = $3 order by roworder`,
     [code, session?.username ?? "", TRANS.DRAFT],
   );
 
   const newDocNo = await previewDocNo();
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+  // ວັນທີສະແດງເປັນ dd-MM-yyyy (ຄ່າທີ່ບັນທຶກລົງຖານມາຈາກ nowParts() ຢູ່ຝັ່ງ action ຢູ່ແລ້ວ)
+  const today = new Date()
+    .toLocaleDateString("en-GB", { timeZone: "Asia/Bangkok", day: "2-digit", month: "2-digit", year: "numeric" })
+    .replaceAll("/", "-");
 
   return (
-    <div className="w-full space-y-6">
-      <PageTitle sub={t.subtitle}>{t.title}</PageTitle>
-
-      <DocForm
-        kind="returnRequest"
-        exitAction={cancelReturnRequest}
-        docNo={newDocNo}
-        today={today}
-        docRef={bill.doc_no}
-        docRefDate={bill.doc_ref_date ?? ""}
-        productCode={bill.product_code}
-        disabled={draft.rows.length === 0}
-        fields={[
-          { label: t.fieldFinishedAt, value: bill.finished_at },
-          { label: t.fieldBillNo, value: bill.doc_no },
-          { label: t.fieldCustomer, value: bill.customer },
-          { label: t.fieldProduct, value: bill.product },
-          { label: t.fieldIssue, value: bill.issue, accent: true },
-          { label: t.fieldWarranty, value: bill.warranty },
-          { label: t.fieldTechnician, value: bill.technician },
-        ]}
-      />
-
-      <Card title={t.sparesUsed}>
-        {draft.rows.length === 0 ? (
-          <Empty />
-        ) : (
-          <Table head={["#", t.colItemCode, t.colItemName, t.colQty, t.colUnit, ""]} minWidth={800}>
-            {draft.rows.map((line) => (
-              <tr key={line.roworder} className="border-b border-slate-100">
-                <td className="px-3 py-3 text-center">{line.rnum}</td>
-                <td className="px-3 py-3">{line.item_code}</td>
-                <td className="px-3 py-3">{line.item_name ?? "-"}</td>
-                <td className="px-3 py-3 text-center">{Number(line.qty)}</td>
-                <td className="px-3 py-3 text-center">{line.unit_code ?? "-"}</td>
-                <td className="px-3 py-3 text-center">
-                  <form action={removeReturnDraftLine}>
-                    <input type="hidden" name="row_id" value={line.roworder} />
-                    <input type="hidden" name="doc_no" value={code} />
-                    <button type="submit" title={t.removeLine} className="text-[#9f5f14] hover:opacity-70">
-                      <Trash2 className="size-4" />
-                    </button>
-                  </form>
-                </td>
-              </tr>
-            ))}
-          </Table>
-        )}
-      </Card>
-
-      {draft.rows.length === 0 && <ErrorBox>{t.noSparesToReturn}</ErrorBox>}
-    </div>
+    <ReturnRequestForm
+      docNo={newDocNo}
+      docDate={today}
+      docRef={bill.doc_no}
+      docRefDate={bill.doc_ref_date ?? ""}
+      dispatchedAt={bill.finished_at}
+      productCode={bill.product_code}
+      customer={bill.customer}
+      product={bill.product}
+      issue={bill.issue}
+      warranty={bill.warranty}
+      technician={resolveName(bill.technician, await employeeNameMap([bill.technician]))}
+      lines={draft.rows}
+    />
   );
 }

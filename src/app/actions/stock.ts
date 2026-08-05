@@ -593,7 +593,7 @@ export async function cancelReturnRequest(): Promise<void> {
     TRANS.DRAFT,
     session.username,
   ]);
-  redirect("/stock/returns");
+  redirect("/stock/receive-returns");
 }
 
 /** ods: /save_return_req — ບັນທຶກໃບຂໍສົ່ງຄືນຈາກແຖວຮ່າງ */
@@ -743,7 +743,7 @@ export async function saveReturnRequest(_: StockState, formData: FormData): Prom
     );
   }
 
-  redirect("/stock/returns");
+  redirect("/stock/receive-returns");
 }
 
 /* ─────────────────────────── ຮັບຄືນເຂົ້າສາງ (trans_flag 58) ─────────────────────────── */

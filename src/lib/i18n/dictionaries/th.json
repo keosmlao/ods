@@ -4508,13 +4508,21 @@
     "fieldIssue": "อาการเสีย:",
     "fieldWarranty": "ประกัน:",
     "fieldTechnician": "ช่างซ่อม:",
-    "sparesUsed": "อะไหล่ที่ใช้",
+    "docSection": "ใบขอส่งคืน",
+    "fromDispatch": "ออกจากใบเบิก",
+    "jobSection": "งานต้นทาง",
+    "sparesToReturn": "อะไหล่ที่จะส่งคืน",
+    "linesSuffix": "รายการ",
+    "pickHint": "รายการไหนไม่คืน ให้กดถังขยะออก",
+    "totalLabel": "รวม",
     "colItemCode": "รหัสสินค้า",
     "colItemName": "ชื่อสินค้า",
     "colQty": "จำนวน",
     "colUnit": "หน่วย",
     "removeLine": "ไม่เอารายการนี้",
-    "noSparesToReturn": "ไม่มีอะไหล่ให้ส่งคืน"
+    "noSparesToReturn": "ไม่มีอะไหล่ให้ส่งคืน",
+    "emptyHint": "ดึงมาได้เฉพาะแถวที่ยัง «รอ» เท่านั้น — ถ้าอะไหล่ของใบเบิกนี้ถูกช่างรับไปแล้ว หรือถูกเอาออกหมด จะไม่มีรายการให้เลือก",
+    "backToList": "กลับไปหน้ารับคืนอะไหล่"
   },
   "qcForm": {
     "requirePhotoTag": "(ต้องมีรูป)",

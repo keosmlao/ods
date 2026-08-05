@@ -4508,13 +4508,21 @@
     "fieldIssue": "ອາການເສຍ:",
     "fieldWarranty": "ປະກັນ:",
     "fieldTechnician": "ຊ່າງສ້ອມ:",
-    "sparesUsed": "ອາໄຫຼ່ທີ່ໃຊ້",
+    "docSection": "ໃບຂໍສົ່ງຄືນ",
+    "fromDispatch": "ອອກຈາກໃບເບີກ",
+    "jobSection": "ວຽກຕົ້ນທາງ",
+    "sparesToReturn": "ອາໄຫຼ່ທີ່ຈະສົ່ງຄືນ",
+    "linesSuffix": "ລາຍການ",
+    "pickHint": "ອັນໃດບໍ່ຄືນ ໃຫ້ກົດຖັງຂີ້ເຫຍື້ອອອກ",
+    "totalLabel": "ລວມ",
     "colItemCode": "ລະຫັດສິນຄ້າ",
     "colItemName": "ຊື່ສິນຄ້າ",
     "colQty": "ຈຳນວນ",
     "colUnit": "ຫົວໜ່ວຍ",
     "removeLine": "ບໍ່ເອົາລາຍການນີ້",
-    "noSparesToReturn": "ບໍ່ມີອາໄຫຼ່ໃຫ້ສົ່ງຄືນ"
+    "noSparesToReturn": "ບໍ່ມີອາໄຫຼ່ໃຫ້ສົ່ງຄືນ",
+    "emptyHint": "ດຶງມາໄດ້ແຕ່ແຖວທີ່ຍັງ «ລໍຖ້າ» ເທົ່ານັ້ນ — ຖ້າອາໄຫຼ່ຂອງໃບເບີກນີ້ຖືກຊ່າງຮັບໄປແລ້ວ ຫຼື ຖືກເອົາອອກໝົດ ຈະບໍ່ມີລາຍການໃຫ້ເລືອກ",
+    "backToList": "ກັບໄປໜ້າຮັບຄືນອາໄຫຼ່"
   },
   "qcForm": {
     "requirePhotoTag": "(ຕ້ອງມີຮູບ)",

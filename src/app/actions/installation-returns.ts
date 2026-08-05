@@ -83,7 +83,7 @@ export async function startInstallReturnRequest(formData: FormData): Promise<voi
   if (!db) return;
 
   const parsed = startSchema.safeParse({ doc_no: formData.get("doc_no") });
-  if (!parsed.success) redirect("/stock/returns?job=install");
+  if (!parsed.success) redirect("/stock/receive-returns");
   const docNo = parsed.data.doc_no;
 
   // ກັນທີ່ server ອີກຊັ້ນ: ເຊື່ອມໃບເບີກກັບງານຈິງ ແລະ ບໍ່ອະນຸຍາດຖ້າຕິດຕັ້ງສຳເລັດແລ້ວ.
@@ -94,14 +94,14 @@ export async function startInstallReturnRequest(formData: FormData): Promise<voi
       where d.doc_no=$1 and d.trans_flag=$2 and d.job_type='install' and i.finish_install is null`,
     [docNo, TRANS.DISPATCH],
   );
-  if (!returnable.rows[0]?.count) redirect("/stock/returns?job=install");
+  if (!returnable.rows[0]?.count) redirect("/stock/receive-returns");
 
   // ods ບໍ່ກວດ — ໃບເບີກທີ່ຂໍສົ່ງຄືນແລ້ວກົດຊ້ຳໄດ້ອີກ
   const requested = await db.query<{ count: number }>(
     "select count(*)::int count from ic_trans where trans_flag=$1 and doc_ref=$2",
     [TRANS.RETURN_REQUEST, docNo],
   );
-  if (requested.rows[0]?.count) redirect("/stock/returns?job=install");
+  if (requested.rows[0]?.count) redirect("/stock/receive-returns");
 
   const existing = await db.query<{ count: number }>(
     "select count(*)::int count from ic_trans_detail_draft where doc_no=$1 and trans_flag=$2 and user_created=$3",
@@ -174,7 +174,7 @@ export async function cancelInstallReturnRequest(): Promise<void> {
       session.username,
     ]);
   }
-  redirect("/stock/returns?job=install");
+  redirect("/stock/receive-returns");
 }
 
 /* ── ບັນທຶກໃບຂໍສົ່ງຄືນ SRI (save_return_req_inst) ─────────── */
@@ -300,7 +300,7 @@ export async function saveInstallReturnRequest(_: ActionState, formData: FormDat
   );
 
   revalidateReturns();
-  redirect("/stock/returns?job=install");
+  redirect("/stock/receive-returns");
 }
 
 /* ── ສາງຮັບຄືນ SRT (show_return_inst → save_com_return) ───── */
