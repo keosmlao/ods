@@ -8,6 +8,7 @@ import { ReopenJobButton } from "@/components/installation/undo-buttons";
 import { DeliveryCard } from "@/components/installation/delivery-card";
 import { JobTimeline } from "@/components/repair/job-timeline";
 import { SpareRounds } from "@/components/repair/spare-rounds";
+import { syncErpDispatchForJob } from "@/lib/erp-dispatch";
 import { repairSpareRounds } from "@/lib/repair-spare-rounds";
 import { deliveryFor } from "@/lib/delivery";
 import { installTimeline } from "@/lib/install-timeline";
@@ -70,6 +71,9 @@ export default async function InstallationDetail({ params }: Props) {
   const t = (await getDictionary(await getLocale())).installDetail;
   const installPermission = await permissionFor(session, "/installations");
   const canDelete = installPermission.delete;
+
+  // ໃບເບີກຂອງ ERP ເຂົ້າກ່ອນ — ຝັ່ງຕິດຕັ້ງກໍ່ຄືກັນ (ເບິ່ງ syncErpDispatchForJob)
+  await syncErpDispatchForJob(code);
 
   const [job, spares, outstanding, rounds] = await Promise.all([
     query<Row>(

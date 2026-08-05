@@ -12,6 +12,8 @@ import { loanerBlock } from "@/lib/loaner";
 import { centerBlock } from "@/lib/job-center";
 import { warrantyBlock } from "@/lib/warranty-request";
 import { HAS_OUTSTANDING_SPARES } from "@/lib/outstanding-spares";
+import { openReimburseClaim } from "@/lib/claim";
+import { serviceChargeForJob } from "@/lib/service-charge";
 import { UPLOADS_DIR, uploadsWriteDir } from "@/lib/uploads";
 import { unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
@@ -221,6 +223,39 @@ export async function seedCart(productCode: string, warranty: string | null, use
       [CART_FLAG, productCode, session.username],
     );
   }
+
+  await seedServiceCharge(productCode, warranty, session.username);
+}
+
+/**
+ * ຕື່ມ **ຄ່າບໍລິການສ້ອມແປງ** ໃສ່ຕະກ້າໃຫ້ອັດຕະໂນມັດ (ລະຫັດ 9702xx ຈາກການຕັ້ງຄ່າ
+ * ຕາມປະເພດເຄື່ອງ — ເບິ່ງ lib/service-charge).
+ *
+ * ── ກົດ 2 ຂໍ້ ──
+ * ① **ໃນປະກັນ ⇒ ລາຄາ 0** (ບໍ່ເກັບລູກຄ້າ ແຕ່ຍັງຕ້ອງມີແຖວ ⇒ ຮູ້ວ່າໄດ້ໃຫ້ບໍລິການຫຍັງ
+ *   ແລະ ເປັນຖານໃຫ້ CLM-C ໄປເກັບເງິນນຳ supplier ຕໍ່).
+ * ② ຕື່ມ**ເທື່ອດຽວ** — ມີແຖວ 9702 ຢູ່ໃນຕະກ້າແລ້ວບໍ່ຕື່ມຊ້ຳ ແລະ ຄົນລຶບອອກເອງໄດ້
+ *   (ບໍ່ດັ່ງນັ້ນລຶບແລ້ວມັນເດັ້ງກັບມາທຸກເທື່ອທີ່ໂຫຼດໜ້າ).
+ *
+ * ບໍ່ພົບການຕັ້ງຄ່າ ⇒ ບໍ່ເຮັດຫຍັງ (ຄົນເລືອກເອງຄືເກົ່າ) — ການອອກບິນຫ້າມພັງເພາະການຕັ້ງຄ່າ.
+ */
+async function seedServiceCharge(productCode: string, warranty: string | null, username: string) {
+  if (!db) return;
+  const already = await db.query(
+    `select 1 from ic_trans_detail_draft
+      where trans_flag=$1 and product_code=$2 and user_created=$3::varchar and item_code like '9702%' limit 1`,
+    [CART_FLAG, productCode, username],
+  );
+  if (already.rowCount) return;
+
+  const charge = await serviceChargeForJob(productCode);
+  if (!charge) return;
+  const price = warranty === "ຮັບປະກັນ" ? 0 : charge.price_thb;
+  await db.query(
+    `insert into ic_trans_detail_draft(trans_flag, product_code, item_code, item_name, qty, unit_code, price, sum_amount, user_created)
+     values ($1, $2, $3, $4, 1, $5, $6, $6, $7::varchar)`,
+    [CART_FLAG, productCode, charge.service_code, charge.service_name ?? "ຄ່າບໍລິການສ້ອມແປງ", charge.unit_code ?? "", price, username],
+  );
 }
 
 export async function getCart(productCode: string): Promise<CartRow[]> {
@@ -356,6 +391,8 @@ const saveSchema = z.object({
   account_name: z.string().optional().default(""),
   bexch: z.string().optional().default(""),
   bank_value: z.string().default("0"),
+  /** ໝາຍວ່າ "ບິນນີ້ໄປເກັບເງິນນຳ supplier" — ຫວ່າງ = ບໍ່ໝາຍ (ເບິ່ງ openReimburseClaim) */
+  claim_supplier: z.string().optional().default(""),
 });
 
 export type SaveInvoiceState = { error?: string };
@@ -428,6 +465,8 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
   let billTotal = 0;
   let quoteNo: string | null = null;
   let editedLines = 0;
+  /** ລາຍການໃນບິນ — ເກັບໄວ້ໃຊ້ຕໍ່ຫຼັງ commit (ໃບເຄມ CLM-C) */
+  let billLines: CartRow[] = [];
 
   try {
     await client.query("begin");
@@ -449,6 +488,7 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
     // ຍອດລວມ ຄິດຈາກຕະກ້າຢູ່ server — ບໍ່ເຊື່ອຄ່າຈາກ browser
     const total = cart.rows.reduce((sum, row) => sum + Number(row.sum_amount), 0);
     billTotal = total;
+    billLines = cart.rows;
 
     // ອອກບິນດ້ວຍລາຄາທີ່ຕ່າງຈາກໃບສະເໜີລາຄາ = ເລື່ອງທີ່ຕ້ອງມີຫຼັກຖານ → ລົງ chatter ໄວ້
     quoteNo = cart.rows.find((row) => row.quote_no)?.quote_no ?? null;
@@ -609,6 +649,51 @@ export async function saveInvoice(_: SaveInvoiceState, formData: FormData): Prom
    * ⇒ ບໍ່ຄວນມີຄ່າບໍລິການ. ກືນ error ໄວ້ — ການສົ່ງຄືນຫ້າມພັງເພາະເລື່ອງເງິນ.
    */
   await recordPayout("repair", d.pro_code);
+
+  /**
+   * ── ໝາຍວ່າ "ບິນນີ້ເກັບເງິນນຳ supplier" ⇒ **ເປີດໃບ CLM-C ໃຫ້ເລີຍ** ──
+   * ຈຸດນີ້ງານ **ສົ່ງຄືນສຳເລັດແລ້ວ** (return_complete ຫາກໍ່ຖືກປະທັບຂ້າງເທິງ) ⇒ ຄົບເງື່ອນໄຂ
+   * ຂອງ CLM-C ພໍດີ. ລາຄາທີ່ຮຽກຈາກ supplier ≠ ລາຄາທີ່ເກັບລູກຄ້າ: ງານໃນປະກັນລູກຄ້າຈ່າຍ 0
+   * ແຕ່ **ຄ່າບໍລິການຕ້ອງເກັບເຕັມ** ⇒ ແຖວຄ່າບໍລິການ (9702xx) ທີ່ເປັນ 0 ຖືກຕື່ມລາຄາຈາກ
+   * ການຕັ້ງຄ່າ (lib/service-charge) ຄືນໃຫ້. ລົ້ມເຫຼວ ⇒ ບິນຍັງສຳເລັດ (ຄືນ null ງຽບໆ).
+   */
+  if (d.claim_supplier.trim()) {
+    const charge = await serviceChargeForJob(d.pro_code);
+    const job = (
+      await db.query<{ brand: string | null; product: string | null; model: string | null; sn: string | null; issue: string | null; warranty: string | null }>(
+        `select p_brand brand, name_1 product, p_model model, nullif(sn,'') sn, nullif(issue,'') issue,
+            nullif(warrunty,'') warranty
+           from tb_product where code=$1 limit 1`,
+        [d.pro_code],
+      )
+    ).rows[0];
+    const claimNo = await openReimburseClaim({
+      jobCode: d.pro_code,
+      supplierCode: d.claim_supplier,
+      brandCode: job?.brand ?? null,
+      customerCode: d.cust_code,
+      reason: job?.issue ?? null,
+      product: job?.product ?? null,
+      model: job?.model ?? null,
+      sn: job?.sn ?? null,
+      warranty: job?.warranty === "ຮັບປະກັນ" ? "in" : job?.warranty ? "out" : null,
+      createdBy: session.username,
+      lines: billLines.map((row) => ({
+        item_code: row.item_code,
+        item_name: row.item_name,
+        qty: Number(row.qty) || 1,
+        unit: row.unit_code,
+        amount:
+          Number(row.sum_amount) ||
+          (charge && row.item_code === charge.service_code ? charge.price_thb : 0),
+      })),
+    });
+    if (claimNo) {
+      await logChange("tb_product", d.pro_code, `ເປີດໃບເຄມເກັບເງິນນຳ supplier ${claimNo} (ຈາກໃບຮັບເງິນ ${docNo})`, {
+        roles: ["manager", "stock"],
+      });
+    }
+  }
 
   revalidatePath("/returns", "layout");
   revalidatePath("/approvals/cancellations", "layout");

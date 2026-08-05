@@ -199,10 +199,15 @@ const INSTALL_FLOW: NavItem[] = [
   { label: "ລໍຖ້າປິດງານ", href: "/installations/close", count: "/installations/close" },
 ];
 
-/** ລາຍງານຂອງສາຍງານຕິດຕັ້ງ — ບໍ່ແມ່ນຂັ້ນຕອນ ຈຶ່ງບໍ່ໃສ່ເລກ */
+/**
+ * ລາຍງານຂອງສາຍງານຕິດຕັ້ງ — ບໍ່ແມ່ນຂັ້ນຕອນ ຈຶ່ງບໍ່ໃສ່ເລກ.
+ *
+ * ⚠️ ບໍ່ມີ "ສົ່ງຄືນອາໄຫຼ່ງານຕິດຕັ້ງ" ອີກ (ຖອດ 05-08-2026 ຕາມຄຳສັ່ງ): ລິ້ງນັ້ນພາໄປ
+ * /stock/receive-returns ເຊິ່ງເປັນ**ໜ້າຂອງສາງ** ແລະ ຢູ່ໃນເມນູ "ສາງ ແລະ ອາໄຫຼ່" ຢູ່ແລ້ວ
+ * ⇒ ຊ້ຳກັນ. ຝັ່ງຊ່າງຕິດຕັ້ງຍັງເຂົ້າໄດ້ຈາກເມນູ "ງານຕິດຕັ້ງຂອງຂ້ອຍ" ຄືເກົ່າ.
+ */
 const INSTALL_REPORTS: NavItem[] = [
-  { label: "ສົ່ງຄືນອາໄຫຼ່ງານຕິດຕັ້ງ", href: "/stock/receive-returns", divider: true },
-  { label: "ລາຍງານງານຕິດຕັ້ງ", href: "/reports/installations" },
+  { label: "ລາຍງານງານຕິດຕັ້ງ", href: "/reports/installations", divider: true },
   { label: "ສະຫຼຸບອາໄຫຼ່ຕິດຕັ້ງປະຈຳເດືອນ", href: "/reports/install-spares-monthly" },
   { label: "ລາຍງານແບບສອບຖາມລູກຄ້າ", href: "/reports/customer-feedback" },
 ];
@@ -372,6 +377,7 @@ const USERS: NavGroup = {
     // ຕັ້ງລາຍການກວດຮັບ = **ການຕັ້ງຄ່າ** (ຜູ້ຈັດການເຮັດເທື່ອດຽວ) ບໍ່ແມ່ນຄິວງານປະຈຳວັນ
     { label: "ຕັ້ງລາຍການກວດຮັບ (QC)", href: "/manage/qc-checklist" },
     { label: "ຄ່າບໍລິການ / ຄ່າຄອມຊ່າງ", href: "/manage/service-rates" },
+    { label: "ຄ່າບໍລິການສ້ອມແປງ ຕາມປະເພດເຄື່ອງ", href: "/manage/service-charges" },
     { label: "ເປົ້າລາຍຮັບລາຍເດືອນ", href: "/manage/revenue-targets" },
     { label: "ເຊື່ອມຕົວຕົນຊ່າງ", href: "/manage/technicians" },
     { label: "ການຕັ້ງຄ່າລະບົບ", href: "/manage/settings" },

@@ -1,5 +1,5 @@
 "use server";
-import { billItems, claimByNo, claimCanTransition, claimItems, type ClaimJobCandidate, cobInfo, ensureOdsCustomer, isClaimEditable, isClaimFulfillmentSource, jobClaimCandidates, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, searchBills, searchInventory, type ClaimType } from "@/lib/claim";
+import { billItems, claimByNo, claimCanTransition, claimItems, type ClaimJobCandidate, type ClaimJobDetail, cobInfo, ensureOdsCustomer, isClaimEditable, ensureClaimCob, isClaimFulfillmentSource, jobClaimCandidates, jobClaimDetail, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, searchBills, searchInventory, type ClaimType } from "@/lib/claim";
 import { logChange } from "@/lib/chatter-log";
 import { loanerBlock } from "@/lib/loaner";
 import { centerBlock } from "@/lib/job-center";
@@ -27,6 +27,17 @@ export async function searchClaimJobs(q: string): Promise<{ error?: string; jobs
   const g = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
   if (!g.ok) return { error: g.error };
   return { jobs: await jobClaimCandidates(q) };
+}
+
+/**
+ * ລາຍລະອຽດຂອງໃບງານທີ່ເລືອກ + ລາຍການທີ່ຈະຮຽກເກັບ (ໃບສະເໜີລາຄາ ຫຼື ອາໄຫຼ່ທີ່ໃຊ້).
+ * ຟອມເອີ້ນທັນທີຫຼັງເລືອກງານ ⇒ ຄົນເຫັນວ່າ "ງານນີ້ແມ່ນຫຍັງ ແລະ ຈະເກັບຫຍັງແດ່" ກ່ອນເປີດໃບ.
+ */
+export async function loadClaimJob(code: string): Promise<{ error?: string; job?: ClaimJobDetail }> {
+  const g = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດ");
+  if (!g.ok) return { error: g.error };
+  const job = await jobClaimDetail(code.trim());
+  return job ? { job } : { error: `ບໍ່ພົບງານ ${code}` };
 }
 
 /** ເປີດໃບເຄມໃໝ່ — ຄືນ claim_no */
@@ -114,6 +125,11 @@ export async function createClaim(input: {
   purchase_date?: string;
   contact?: string;
   bill_no?: string;
+  /**
+   * ລາຍການທີ່ຈະຮຽກເກັບ (ຈາກໃບງານ) — ໃສ່ມາພ້ອມ ⇒ ໃບເຄມ**ມີຍອດຕັ້ງແຕ່ເກີດ**
+   * ຈຶ່ງອອກ COB ໃຫ້ໄດ້ທັນທີ (COB ຍອດ 0 ບໍ່ມີຄວາມໝາຍທາງບັນຊີ).
+   */
+  items?: { item_code?: string | null; item_name: string; qty?: number; unit?: string | null; amount?: number }[];
 }): Promise<ClaimState> {
   const guard = await requireRole(CLAIM_SIDE, "ບໍ່ມີສິດເປີດໃບເຄມ");
   if (!guard.ok) return { error: guard.error };
@@ -125,8 +141,19 @@ export async function createClaim(input: {
   if ((type === "A" || type === "C") && !input.supplier_code?.trim()) return { error: "ຕ້ອງເລືອກ supplier" };
   if (type === "C" && !input.ref_job?.trim()) return { error: "CLM-C ຕ້ອງອ້າງອີງ ເລກງານສ້ອມ" };
   const refJob = input.ref_job?.trim() ?? "";
-  if (refJob && ((await query(`select 1 from tb_product where code=$1`, [refJob])).rowCount ?? 0) === 0) {
-    return { error: `ບໍ່ພົບງານສ້ອມ ${refJob}` };
+  const job = refJob
+    ? (await query<{ returned: boolean }>(`select (return_complete is not null) returned from tb_product where code=$1`, [refJob])).rows[0]
+    : undefined;
+  if (refJob && !job) return { error: `ບໍ່ພົບງານສ້ອມ ${refJob}` };
+  /**
+   * **CLM-C ອອກໄດ້ຫຼັງ "ສົ່ງຄືນລູກຄ້າສຳເລັດ" ເທົ່ານັ້ນ** (tb_product.return_complete).
+   * ເຫດຜົນ: ໃບນີ້ຄືການ**ຮຽກເກັບຄ່າສ້ອມທີ່ເຮັດຈົບແລ້ວ**ນຳ supplier — ງານທີ່ຍັງບໍ່ຈົບ
+   * ຄ່າໃຊ້ຈ່າຍຍັງປ່ຽນໄດ້ ⇒ ຮຽກເກັບໄປກ່ອນ = ຍອດຜິດ ແລະ ຕ້ອງຕາມແກ້ກັບ supplier.
+   * (ບັດ candidate ແລະ picker ກອງໄວ້ຢູ່ແລ້ວ — ອັນນີ້ແມ່ນດ່ານຝັ່ງ server ສຳລັບລິ້ງ
+   * ທີ່ຕິດ `ref_job=` ມາເອງ ເຊັ່ນປຸ່ມຢູ່ໜ້າໃບຮັບເຄື່ອງ/ໃບເຄມ.)
+   */
+  if (type === "C" && job && !job.returned) {
+    return { error: `ງານ ${refJob} ຍັງບໍ່ໄດ້ສົ່ງຄືນລູກຄ້າ — CLM-C ເປີດໄດ້ຫຼັງສົ່ງຄືນສຳເລັດ` };
   }
   if (refJob && (await query(`select 1 from ods_claim where claim_type=$1 and ref_job=$2`, [type, refJob])).rowCount) {
     return { error: `ງານ ${refJob} ມີໃບ CLM-${type} ແລ້ວ` };
@@ -152,7 +179,24 @@ export async function createClaim(input: {
     await query<{ claim_no: string }>(`update ods_claim set claim_no = 'CLM'||lpad(id::text,5,'0') where id = $1 returning claim_no`, [id])
   ).rows[0];
   if (!row) return { error: "ເປີດໃບເຄມບໍ່ສຳເລັດ" };
+  for (const item of input.items ?? []) {
+    if (!item.item_name?.trim()) continue;
+    await query(
+      `insert into ods_claim_item(claim_no, item_code, item_name, qty, unit, amount)
+       values ($1, nullif($2,''), $3, $4, nullif($5,''), $6)`,
+      [row.claim_no, item.item_code ?? "", item.item_name.trim(), item.qty ?? 1, item.unit ?? "", item.amount ?? 0],
+    );
+  }
+  if ((input.items ?? []).length > 0) {
+    await query(
+      `update ods_claim set amount = coalesce((select sum(amount) from ods_claim_item where claim_no=$1),0) where claim_no=$1`,
+      [row.claim_no],
+    );
+  }
   await log(row.claim_no, guard.session.username, "created", `ເປີດໃບເຄມ type ${type}`);
+  // ອອກໃບເຄມ = ອອກ COB ໃຫ້ເລີຍ (CLM-C ທີ່ມີຍອດ — ເບິ່ງ ensureClaimCob)
+  const cobNo = await ensureClaimCob(row.claim_no, guard.session.username);
+  if (cobNo) await log(row.claim_no, guard.session.username, "cob", `ອອກເອກະສານ COB ${cobNo} ຢູ່ ERP`);
   revalidatePath("/claims");
   return { claimNo: row.claim_no };
 }
@@ -364,6 +408,8 @@ export async function pullJobItems(claimNo: string): Promise<ClaimState> {
     client.release();
   }
   await log(claimNo, guard.session.username, "items", `ດຶງ ໃບ ${docNo} — ${items.length} ລາຍການ`);
+  const cobNo = await ensureClaimCob(claimNo, guard.session.username);
+  if (cobNo) await log(claimNo, guard.session.username, "cob", `ອອກເອກະສານ COB ${cobNo} ຢູ່ ERP`);
   revalidatePath(`/claims/${claimNo}`);
   return { claimNo };
 }

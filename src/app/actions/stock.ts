@@ -8,7 +8,7 @@ import { docPrefix, nextDocNo } from "@/lib/doc-no";
 import { syncErpDispatch } from "@/lib/erp-dispatch";
 import { syncErpPurchase } from "@/lib/erp-purchase";
 import { deleteErpRequest, writeErpRequest } from "@/lib/erp-request";
-import { requirePermissionOrRedirect, requireRole, requireRoleOrRedirect } from "@/lib/guard";
+import { requirePermission, requirePermissionOrRedirect, requireRole, requireRoleOrRedirect } from "@/lib/guard";
 import {
   REPAIR_REQUEST_SIDE,
   RETURN_SIDE,
@@ -744,6 +744,159 @@ export async function saveReturnRequest(_: StockState, formData: FormData): Prom
   }
 
   redirect("/stock/receive-returns");
+}
+
+/**
+ * **ຍົກເລີກໃບຂໍສົ່ງຄືນ** (ຍັງບໍ່ຮັບເຂົ້າສາງ) — ຄືນທຸກຢ່າງໃຫ້ຄືສະພາບກ່ອນອອກໃບ.
+ *
+ * ── 3 ຢ່າງທີ່ຕ້ອງຄືນ (ບໍ່ດັ່ງນັ້ນເຫຼືອຂີ້ເຫຍື້ອ) ──
+ *  ① ໃບຢູ່ **ERP** (odg) — ໃບຂໍສົ່ງຄືນລົງທັງສອງຖານ (ເບິ່ງ saveReturnRequest) ⇒ ລຶບທັງສອງ.
+ *    ລຶບແຕ່ ODS = ໃບກຳພ້າຢູ່ ERP ແລ້ວສາງໄປຮັບຄືນຕາມໃບທີ່ຖືກລຶບແລ້ວ.
+ *  ② **ແຖວຂອງໃບເບີກ** ທີ່ຖືກໝາຍວ່າ "ຄືນແລ້ວ" (status 1) ⇒ ຄືນເປັນ 0 ບໍ່ດັ່ງນັ້ນ
+ *    ຂໍຄືນລາຍການນັ້ນອີກບໍ່ໄດ້ຕະຫຼອດໄປ (ຮ່າງກ໋ອບແຕ່ແຖວ status=0 — ເບິ່ງ startReturnRequest).
+ *    ⚠️ ຄືນ **ແຖວຕໍ່ແຖວຕາມ item_code** ບໍ່ແມ່ນຄືນໝົດທັງໃບເບີກ: ໃບເບີກໜຶ່ງມີໃບຂໍຄືນ
+ *    ຫຼາຍໃບໄດ້ (ພົບຈິງ SWC2024070014 = 2 ໃບ) ⇒ ຄືນໝົດ = ໄປແກ້ຂອງໃບອື່ນນຳ.
+ *  ③ ບັນທຶກລົງ chatter ຂອງໃບງານ — ໃບເອກະສານຫາຍໄປ ຕ້ອງມີຮ່ອງຮອຍວ່າໃຜລຶບ.
+ *
+ * **ຮັບເຂົ້າສາງແລ້ວ (ໃບ 58 ອ້າງໃບນີ້) ⇒ ລຶບບໍ່ໄດ້** — ສະຕັອກຍ້າຍໄປແລ້ວ, ຕ້ອງແກ້ຢູ່ ERP.
+ */
+export async function deleteReturnRequest(_: StockState, formData: FormData): Promise<StockState> {
+  const guard = await requirePermission(
+    "/stock/receive-returns",
+    "delete",
+    STOCK_SIDE,
+    "ບໍ່ມີສິດຍົກເລີກໃບຂໍສົ່ງຄືນ",
+  );
+  if (!guard.ok) return { error: guard.error };
+  if (!db || !odgDb) return { error: "ບໍ່ພົບ DATABASE_URL / ODG_DATABASE_URL" };
+
+  const docNo = text(formData, "doc_no");
+  if (!docNo) return { error: "ບໍ່ພົບເລກທີໃບຂໍສົ່ງຄືນ" };
+
+  const client = await db.connect();
+  const odg = await odgDb.connect();
+  let productCode = "";
+  let docRef = "";
+  try {
+    await client.query("begin");
+    await odg.query("begin");
+
+    const head = (
+      await client.query<{ doc_ref: string | null; product_code: string | null; job_type: string | null }>(
+        `select doc_ref, product_code, job_type from ic_trans where doc_no=$1 and trans_flag=$2 for update`,
+        [docNo, TRANS.RETURN_REQUEST],
+      )
+    ).rows[0];
+    if (!head) throw new Error("NOT_FOUND");
+    productCode = head.product_code ?? "";
+    docRef = head.doc_ref ?? "";
+    /**
+     * ໃບຂອງ**ງານຕິດຕັ້ງ**ບໍ່ຜ່ານທາງນີ້: ຝັ່ງນັ້ນບໍ່ຂຽນ ERP ເລີຍ ແລະ ໝາຍແຖວໃບເບີກເປັນ
+     * status 3 (ບໍ່ແມ່ນ 1 — ເບິ່ງ saveInstallReturnRequest) ⇒ ໂຄດຄືນຄ່າຂ້າງລຸ່ມນີ້ຈະຄືນຜິດ.
+     */
+    if (head.job_type === "install" || productCode.startsWith("INST-")) throw new Error("INSTALL_ONLY");
+
+    // ຮັບເຂົ້າສາງແລ້ວບໍ — ກວດ **ທັງສອງຖານ** (ໃບຮັບຄືນອອກຢູ່ ERP ແລ້ວ ODS ດຶງຕາມ)
+    const received = await client.query(
+      `select 1 from ic_trans where trans_flag=$1 and doc_ref=$2 limit 1`,
+      [TRANS.RECEIVE_BACK, docNo],
+    );
+    const receivedErp = await odg.query(
+      `select 1 from ic_trans where trans_flag=$1 and split_part(trim(coalesce(doc_ref,'')),' ',1)=$2 limit 1`,
+      [TRANS.RECEIVE_BACK, docNo],
+    );
+    if (received.rowCount || receivedErp.rowCount) throw new Error("ALREADY_RECEIVED");
+
+    const lines = (
+      await client.query<{ item_code: string }>(
+        `select item_code from ic_trans_detail where doc_no=$1 and trans_flag=$2`,
+        [docNo, TRANS.RETURN_REQUEST],
+      )
+    ).rows;
+
+    // ② ປົດແຖວຂອງໃບເບີກໃຫ້ກັບມາ "ຍັງບໍ່ຄືນ" — 1 ແຖວຕໍ່ 1 ລາຍການທີ່ຄືນ
+    if (docRef) {
+      for (const line of lines) {
+        await client.query(
+          `update ic_trans_detail set status=$1 where roworder = (
+             select roworder from ic_trans_detail
+              where doc_no=$2 and trans_flag=$3 and item_code=$4 and status=$5
+              order by roworder limit 1)`,
+          [LINE_STATUS.PENDING, docRef, TRANS.DISPATCH, line.item_code, LINE_STATUS.ISSUED],
+        );
+      }
+    }
+
+    // ① ລຶບຢູ່ ERP ກ່ອນ ແລ້ວຈຶ່ງລຶບຢູ່ ODS (ຝັ່ງໃດລົ້ມ ⇒ rollback ທັງສອງ)
+    await odg.query(`delete from ic_trans_detail where doc_no=$1 and trans_flag=$2`, [docNo, TRANS.RETURN_REQUEST]);
+    await odg.query(`delete from ic_trans where doc_no=$1 and trans_flag=$2`, [docNo, TRANS.RETURN_REQUEST]);
+    await client.query(`delete from ic_trans_detail where doc_no=$1 and trans_flag=$2`, [docNo, TRANS.RETURN_REQUEST]);
+    await client.query(`delete from ic_trans where doc_no=$1 and trans_flag=$2`, [docNo, TRANS.RETURN_REQUEST]);
+
+    await client.query("commit");
+    await odg.query("commit");
+  } catch (error) {
+    await Promise.all([client.query("rollback").catch(() => {}), odg.query("rollback").catch(() => {})]);
+    const code = error instanceof Error ? error.message : "";
+    if (code === "NOT_FOUND") return { error: "ບໍ່ພົບໃບຂໍສົ່ງຄືນນີ້ (ອາດຖືກລຶບໄປແລ້ວ)" };
+    if (code === "ALREADY_RECEIVED") return { error: "ສາງຮັບຄືນເຂົ້າແລ້ວ — ຍົກເລີກບໍ່ໄດ້" };
+    if (code === "INSTALL_ONLY") return { error: "ໃບຂອງງານຕິດຕັ້ງ — ຈັດການຢູ່ໜ້າອາໄຫຼ່ງານຕິດຕັ້ງ" };
+    console.error("deleteReturnRequest failed", error);
+    return { error: "ຍົກເລີກບໍ່ສຳເລັດ — ກະລຸນາລອງໃໝ່" };
+  } finally {
+    client.release();
+    odg.release();
+  }
+
+  if (productCode) {
+    await logChange(
+      jobModel(productCode),
+      productCode,
+      `ຍົກເລີກໃບຂໍສົ່ງອາໄຫຼ່ຄືນ ${docNo}${docRef ? ` (ອ້າງອີງໃບເບີກ ${docRef})` : ""}`,
+      { roles: ROLE_WAREHOUSE },
+    );
+  }
+  revalidatePath("/stock/receive-returns");
+  return { ok: `ຍົກເລີກໃບ ${docNo} ແລ້ວ` };
+}
+
+/**
+ * **ແກ້ໄຂໃບຂໍສົ່ງຄືນ** = ຍົກເລີກໃບເກົ່າ ແລ້ວເປີດຟອມຂອງໃບເບີກຄືນໃໝ່.
+ *
+ * ເປັນຫຍັງບໍ່ແກ້ໃບເກົ່າຢູ່ບ່ອນເກົ່າ: ໃບນີ້ຢູ່ **ສອງຖານ** (ODS + ERP) ແລະ ຟອມສ້າງໃບ
+ * ອ່ານຈາກ**ກະຕ່າຮ່າງ** ບໍ່ແມ່ນອ່ານຈາກໃບ ⇒ ທາງທີ່ບໍ່ມີຮູຮົ່ວຄື ໃຊ້ເສັ້ນທາງເກົ່າທັງໝົດ:
+ * ລຶບ (ຄືນ status ຂອງແຖວໃບເບີກ) → ກ໋ອບແຖວທີ່ "ຍັງບໍ່ຄືນ" ຂອງໃບເບີກເຂົ້າຮ່າງ → ໄປຟອມ.
+ * ຜູ້ໃຊ້ເລືອກລາຍການໃໝ່ ແລ້ວບັນທຶກເປັນໃບໃໝ່ (ເລກໃໝ່ — ໃບເກົ່າຫາຍໄປທັງສອງຖານແລ້ວ).
+ */
+export async function editReturnRequest(_: StockState, formData: FormData): Promise<StockState> {
+  const guard = await requirePermission(
+    "/stock/receive-returns",
+    "update",
+    STOCK_SIDE,
+    "ບໍ່ມີສິດແກ້ໄຂໃບຂໍສົ່ງຄືນ",
+  );
+  if (!guard.ok) return { error: guard.error };
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const docNo = text(formData, "doc_no");
+  const docRef = text(formData, "doc_ref");
+  if (!docNo || !docRef) return { error: "ບໍ່ພົບເລກທີໃບ" };
+
+  // ⚠️ ຂັ້ນນີ້ກວດສິດ **delete** ອີກເທື່ອ (ຢູ່ໃນ deleteReturnRequest) — ຕັ້ງໃຈ:
+  //    "ແກ້ໄຂ" ທຳລາຍໃບເກົ່າຈິງ ⇒ ຜູ້ທີ່ລຶບບໍ່ໄດ້ ກໍ່ບໍ່ຄວນແກ້ໄດ້.
+  const removed = await deleteReturnRequest(_, formData);
+  if (removed.error) return removed;
+
+  // ຮ່າງເກົ່າຂອງຜູ້ໃຊ້ຕໍ່ໃບເບີກນີ້ (ຖ້າມີ) ຖິ້ມກ່ອນ ບໍ່ດັ່ງນັ້ນລາຍການຊ້ຳ
+  await db.query(`delete from ic_trans_detail_draft where trans_flag=$1 and user_created=$2 and doc_no=$3`, [
+    TRANS.DRAFT,
+    guard.session.username,
+    docRef,
+  ]);
+  const staged = new FormData();
+  staged.set("doc_no", docRef);
+  await startReturnRequest(staged); // redirect() → /stock/returns/<ໃບເບີກ>
+  return {};
 }
 
 /* ─────────────────────────── ຮັບຄືນເຂົ້າສາງ (trans_flag 58) ─────────────────────────── */

@@ -173,6 +173,8 @@ export function InvoiceEditor({
   rates,
   banks,
   services,
+  suppliers = [],
+  claimNo = null,
   docNo,
   today,
 }: {
@@ -181,6 +183,10 @@ export function InvoiceEditor({
   rates: Rates;
   banks: Bank[];
   services: Service[];
+  /** supplier ຈາກ ERP — ໃຫ້ຕິກ "ເກັບເງິນນຳ supplier" ແລ້ວເລືອກໄດ້ (ຫວ່າງ = ບໍ່ໂຊ້ວກ່ອງນັ້ນ) */
+  suppliers?: { code: string; name: string }[];
+  /** ງານນີ້ມີໃບ CLM-C ຢູ່ແລ້ວ ⇒ ບໍ່ໂຊ້ວກ່ອງໝາຍ (ອອກຊ້ຳບໍ່ໄດ້ຢູ່ແລ້ວ — ເບິ່ງ openReimburseClaim) */
+  claimNo?: string | null;
   docNo: string;
   today: string;
 }) {
@@ -193,6 +199,8 @@ export function InvoiceEditor({
   const [bankValue, setBankValue] = useState("0");
   const [pickingBank, setPickingBank] = useState(false);
   const [activeTab, setActiveTab] = useState<"lines" | "payment" | "details">("lines");
+  const [claimOn, setClaimOn] = useState(false);
+  const [claimSupplier, setClaimSupplier] = useState("");
 
   const total = useMemo(() => cart.reduce((sum, row) => sum + Number(row.sum_amount), 0), [cart]);
 
@@ -264,7 +272,45 @@ export function InvoiceEditor({
               <TabButton active={activeTab === "details"} onClick={() => setActiveTab("details")}>{t.tabDetails}</TabButton>
             </div>
 
-            <div className={activeTab === "payment" ? "py-6" : "hidden"}>
+            {/**
+              * ── ແທັບ "ການຮັບເງິນ" — ອອກແບບໃໝ່ (05-08-2026) ──
+              * ເມື່ອກ່ອນເປັນ 2 ກ່ອງຟອມທຽບກັນ ແລ້ວປະໂຫຍກລວມນ້ອຍໆທ້າຍ ⇒ ຄຳຖາມທີ່ຄົນເກັບເງິນ
+              * ຖາມແທ້ໆ ("ຍັງຂາດເທົ່າໃດ?") ຢູ່ຕົວນ້ອຍສຸດຂອງໜ້າ ແລະ ຍອດບິນບໍ່ຢູ່ໃນສາຍຕາ.
+              * ດຽວນີ້: **ຍອດທີ່ຕ້ອງຈ່າຍຂຶ້ນກ່ອນ** ພ້ອມສະຖານະ (ຄົບ/ຂາດ/ເກີນ) ເປັນປ້າຍໃຫຍ່,
+              * ມີປຸ່ມ "ຮັບເຕັມຈຳນວນ" ໃສ່ຄ່າໃຫ້ເລີຍ (ກໍລະນີສ່ວນຫຼາຍ = ຈ່າຍສົດເຕັມ),
+              * ແລ້ວຄ່ອຍເປັນ 2 ຊ່ອງທາງ. ຍອດ 0 (ງານໃນປະກັນ) ⇒ ບອກໄປເລີຍວ່າບໍ່ຕ້ອງເກັບເງິນ.
+              */}
+            <div className={activeTab === "payment" ? "space-y-5 py-6" : "hidden"}>
+              <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+                <div>
+                  <p className="text-[11px] text-slate-500">{t.billTotalLabel}</p>
+                  <p className="text-2xl font-bold tabular-nums text-slate-900">{money(total)} <span className="text-sm font-medium text-slate-500">{t.baht}</span></p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] text-slate-500">{t.totalReceivedLabel}</p>
+                  <p className={`text-2xl font-bold tabular-nums ${paid > 0 ? "text-brand-800" : "text-slate-300"}`}>{money(paid)}</p>
+                </div>
+                <div className="ml-auto flex items-center gap-2">
+                  {total === 0 ? (
+                    <span className="rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-800">ບໍ່ຕ້ອງເກັບເງິນ (ຍອດ 0)</span>
+                  ) : paid === 0 ? (
+                    <>
+                      <span className="rounded-lg bg-brand-orange-100 px-3 py-1.5 text-xs font-bold text-brand-900">{t.shortBy} {money(total)}</span>
+                      {/* ຈ່າຍສົດເຕັມຈຳນວນ = ກໍລະນີສ່ວນຫຼາຍ ⇒ ກົດເທື່ອດຽວ ບໍ່ຕ້ອງພິມ */}
+                      <button type="button" onClick={() => { setCashType("01"); setCashValue(String(total)); }} className="rounded-lg border border-brand-300 bg-white px-3 py-1.5 text-xs font-semibold text-brand-800 hover:bg-brand-50">
+                        ຮັບສົດເຕັມຈຳນວນ
+                      </button>
+                    </>
+                  ) : paid < total ? (
+                    <span className="rounded-lg bg-brand-orange-100 px-3 py-1.5 text-xs font-bold text-brand-900">{t.shortBy} {money(total - paid)} {t.baht}</span>
+                  ) : paid > total ? (
+                    <span className="rounded-lg bg-brand-orange-50 px-3 py-1.5 text-xs font-bold text-brand-orange-700">ເກີນ {money(paid - total)} {t.baht}</span>
+                  ) : (
+                    <span className="rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-800">ຮັບຄົບແລ້ວ</span>
+                  )}
+                </div>
+              </div>
+
               <div className="grid gap-5 md:grid-cols-2">
                 <div className="space-y-3 rounded-lg border border-slate-200 p-4">
                   <p className="font-semibold text-slate-700">{t.cash}</p>
@@ -287,7 +333,42 @@ export function InvoiceEditor({
                   <p className="text-right text-sm text-slate-600">= {money(bankAmount)} {t.baht}</p>
                 </div>
               </div>
-              <p className="mt-4 text-right text-sm">{t.totalReceivedLabel} <b>{money(paid)}</b> {t.baht} / {t.billTotalLabel} <b>{money(total)}</b> {t.baht}{paid < total && <span className="ml-2 text-brand-900">({t.shortBy} {money(total - paid)} {t.baht})</span>}</p>
+
+              {/**
+                * ── ໝາຍ "ບິນນີ້ເກັບເງິນນຳ supplier" ──
+                * ຢູ່ນີ້ເພາະນີ້ຄື**ນາທີດຽວ**ທີ່ຮູ້ຄົບ: ສ້ອມຫຍັງແດ່ · ໃນປະກັນ (ລູກຄ້າຈ່າຍ 0) ·
+                * ແລະ ງານກຳລັງຈະສົ່ງຄືນສຳເລັດ. ຕິກແລ້ວ ບັນທຶກ ⇒ **ອອກໃບ CLM-C ໃຫ້ເລີຍ**
+                * ພ້ອມລາຍການໃນບິນ (ຄ່າບໍລິການທີ່ເກັບລູກຄ້າ 0 ຖືກຕື່ມລາຄາຈິງໃຫ້ — ເບິ່ງ saveInvoice).
+                */}
+              {claimNo ? (
+                <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+                  ງານນີ້ມີໃບເຄມເກັບເງິນນຳ supplier ແລ້ວ · <b className="font-mono text-brand">{claimNo}</b>
+                </p>
+              ) : suppliers.length > 0 && (
+                <div className={`rounded-xl border p-4 ${claimOn ? "border-brand-orange-400 bg-brand-orange-50/50" : "border-slate-200"}`}>
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input type="checkbox" checked={claimOn} onChange={(e) => setClaimOn(e.target.checked)} className="size-4 accent-brand-700" />
+                    <span className="text-sm font-semibold text-slate-700">ບິນນີ້ໄປເກັບເງິນນຳ supplier (ອອກໃບເຄມ CLM-C)</span>
+                  </label>
+                  {claimOn && (
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                      <div>
+                        <label className={labelClass}>Supplier *</label>
+                        <SelectField
+                          name="claim_supplier_pick"
+                          value={claimSupplier}
+                          onChange={setClaimSupplier}
+                          options={suppliers.map((s) => ({ value: s.code, label: `${s.code} · ${s.name}` }))}
+                          placeholder="— ເລືອກ supplier —"
+                        />
+                      </div>
+                      <p className="pb-2 text-[11px] text-slate-500">ບັນທຶກແລ້ວຈະສ້າງໃບເຄມພ້ອມລາຍການໃນບິນໃຫ້ອັດຕະໂນມັດ</p>
+                    </div>
+                  )}
+                  {/* ຄ່າຈິງທີ່ສົ່ງໄປ server — ບໍ່ຕິກ ຫຼື ບໍ່ເລືອກ supplier = ຫວ່າງ ⇒ ບໍ່ສ້າງໃບ */}
+                  <input type="hidden" name="claim_supplier" value={claimOn ? claimSupplier : ""} />
+                </div>
+              )}
             </div>
 
             <div className={activeTab === "details" ? "grid gap-8 py-6 md:grid-cols-[1fr_auto]" : "hidden"}>
@@ -320,11 +401,32 @@ export function InvoiceEditor({
             </table>
           </div>
           <ServicePicker services={services} productCode={head.code} />
-          <div className="mt-7 ml-auto w-full max-w-sm space-y-3 text-sm">
-            <SummaryRow label={t.totalValue}><span>{money(total)} {t.baht}</span></SummaryRow>
-            <SummaryRow label="VAT 0%"><span>0.00 {t.baht}</span></SummaryRow>
-            <SummaryRow label={t.kipRate}><span>{money(rates["02"])} LAK</span></SummaryRow>
-            <div className="flex items-center justify-between gap-4 border-t border-slate-300 pt-3 font-bold text-slate-900"><span>{t.grandTotal}</span><span className="text-lg">{money(total * rates["02"])} {t.kip}</span></div>
+
+          {/**
+            * ── ແຖບລວມທ້າຍໜ້າ — ອອກແບບໃໝ່ (05-08-2026) ──
+            * ເມື່ອກ່ອນເປັນ 4 ແຖວນ້ອຍໆລອຍຢູ່ຂວາ ແລະ **ຍອດກີບ (ຕົວທີ່ລູກຄ້າຈ່າຍຈິງ)
+            * ຢູ່ແຖວທ້າຍສຸດ ຂະໜາດເທົ່າກັບອັດຕາແລກປ່ຽນ** ⇒ ຄົນເກັບເງິນອ່ານຜິດແຖວໄດ້.
+            * ດຽວນີ້ຍອດກີບເປັນຕົວໃຫຍ່ຢູ່ກ່ອງເຂັ້ມ, ຍອດບາດ/VAT/ອັດຕາ ເປັນຂໍ້ມູນປະກອບ
+            * ຂ້າງໆ ແລະ ບອກ**ຈຳນວນລາຍການ**ໄວ້ນຳ (ກັນອອກບິນທັງທີ່ຍັງບໍ່ໄດ້ຕື່ມລາຍການ).
+            */}
+          <div className="mt-7 flex flex-wrap items-stretch justify-end gap-3">
+            <dl className="grid flex-1 grid-cols-2 gap-x-6 gap-y-1.5 self-center text-sm sm:max-w-xs">
+              <dt className="text-slate-500">{t.totalValue}</dt>
+              <dd className="text-right font-semibold tabular-nums text-slate-800">{money(total)} {t.baht}</dd>
+              <dt className="text-slate-500">VAT 0%</dt>
+              <dd className="text-right tabular-nums text-slate-500">0.00 {t.baht}</dd>
+              <dt className="text-slate-500">{t.kipRate}</dt>
+              <dd className="text-right tabular-nums text-slate-500">{money(rates["02"])} LAK</dd>
+              <dt className="text-slate-500">ຈຳນວນລາຍການ</dt>
+              <dd className={`text-right tabular-nums ${cart.length === 0 ? "font-bold text-brand-orange-700" : "text-slate-500"}`}>
+                {cart.length}
+              </dd>
+            </dl>
+            <div className="min-w-64 rounded-xl bg-brand-900 px-5 py-4 text-right text-white">
+              <p className="text-[11px] text-brand-100/80">{t.grandTotal}</p>
+              <p className="text-3xl font-bold tabular-nums">{money(total * rates["02"])}</p>
+              <p className="text-xs text-brand-100/80">{t.kip}</p>
+            </div>
           </div>
         </div>
       </section>
@@ -375,10 +477,6 @@ function InvoiceField({ label, value, required = false }: { label: string; value
 
 function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return <button type="button" onClick={onClick} className={`border-b-2 px-2 pb-3 text-sm ${active ? "border-brand-orange-600 text-brand-orange-700" : "border-transparent text-slate-500"}`}>{children}</button>;
-}
-
-function SummaryRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2"><span className="font-semibold text-slate-600">{label}</span>{children}</div>;
 }
 
 function Field({ label, value, wide }: { label: string; value: string | null; wide?: boolean }) {

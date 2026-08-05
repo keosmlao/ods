@@ -1,9 +1,11 @@
 import {
   PURCHASE_STATE,
   WITHDRAW_STATE,
+  type DispatchDoc,
   type DocItem,
   type ErpChain,
   type PurchaseRound,
+  type ReturnDoc,
   type WithdrawRound,
 } from "@/lib/repair-spare-rounds";
 import { CheckCircle2, ClipboardList, PackageCheck, PackageSearch, ShoppingCart, Undo2, Wrench } from "lucide-react";
@@ -112,6 +114,12 @@ export function SpareRounds({
   if (withdrawals.length === 0 && purchases.length === 0 && !canRequest) return null;
 
   const waiting = withdrawals.filter((row) => row.state !== "received").length;
+  /**
+   * ໃບຂໍຄືນທັງໝົດຂອງວຽກ — ຂຶ້ນຫົວແຜງເພື່ອໃຫ້ຮູ້ **ໂດຍບໍ່ຕ້ອງໄລ່ເປີດແຕ່ລະຮອບ** ວ່າມີຂອງຄືນຄ້າງ.
+   * ຄ້າງ = ຂໍໄປແລ້ວແຕ່ສາງຍັງບໍ່ຮັບເຂົ້າ ⇒ ຂອງຍັງຢູ່ມືຊ່າງ ແລະ ສະຕັອກຍັງບໍ່ຄືນ.
+   */
+  const returns = withdrawals.flatMap((row) => row.dispatches.flatMap((doc: DispatchDoc) => doc.returns));
+  const returnsPending = returns.filter((doc) => !doc.receive_no).length;
   /** ຂໍຊື້ກົງ (ບໍ່ໄດ້ເກີດຈາກໃບຂໍເບີກໃບໃດ) ⇒ ບໍ່ມີຮາກ, ຕ້ອງໂຊ້ວແຍກ */
   const requestNos = new Set(withdrawals.map((row) => row.doc_no));
   const orphanPurchases = purchases.filter((row) => !row.from_request || !requestNos.has(row.from_request));
@@ -128,6 +136,13 @@ export function SpareRounds({
         {waiting > 0 && (
           <span className="rounded bg-brand-orange-300 px-1.5 py-0.5 text-[10px] font-bold text-brand-900">
             ຄ້າງ {waiting} ຮອບ
+          </span>
+        )}
+        {returns.length > 0 && (
+          <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+            <Undo2 className="size-3" />
+            ຂໍຄືນ {returns.length} ໃບ
+            {returnsPending > 0 && <b className="text-brand-orange-700">· ລໍສາງຮັບຄືນ {returnsPending}</b>}
           </span>
         )}
         {(canRequest || (hasDispatched && url.returnSpare)) && (
@@ -311,17 +326,38 @@ function RoundTree({
                   * ⚠️ ເປັນ **ປຸ່ມ** ບໍ່ແມ່ນລິ້ງ: ຕ້ອງໃຫ້ action ດຶງລາຍການຂອງໃບເບີກ
                   * ເຂົ້າກະຕ່າຮ່າງກ່ອນ ຈຶ່ງພາໄປຟອມ (ເບິ່ງ ReturnRequestButton).
                   * ໃບດຽວ ⇒ ປຸ່ມຢູ່ນີ້ · ຫຼາຍໃບ ⇒ ປຸ່ມຢູ່ແຕ່ລະແຖວຂອງຕາຕະລາງລຸ່ມ.
+                  *
+                  * ⚠️ **ຂໍຄືນໄປແລ້ວ ⇒ ບໍ່ໂຊ້ວປຸ່ມອີກ** (ງ່າຂໍຄືນຢູ່ລຸ່ມບອກສະຖານະຢູ່ແລ້ວ).
+                  * ນອກຈາກກັນຂໍຄືນຊ້ຳ ຍັງກັນທາງຕັນ: ແຖວທີ່ຄືນແລ້ວຖືກໝາຍ status=1 ⇒ ຮ່າງ
+                  * ຂອງໃບເບີກນັ້ນຫວ່າງ ⇒ ຟອມຂຶ້ນ "ບໍ່ມີອາໄຫຼ່ໃຫ້ສົ່ງຄືນ" ແລະ ບັນທຶກບໍ່ໄດ້.
                   */}
-                {url.returnJobType && withdrawal.dispatches.length === 1 && (
-                  <ReturnRequestButton
-                    docNo={withdrawal.dispatches[0].doc_no}
-                    jobType={url.returnJobType}
-                    size="sm"
-                  />
-                )}
+                {url.returnJobType &&
+                  withdrawal.dispatches.length === 1 &&
+                  withdrawal.dispatches[0].returns.length === 0 && (
+                    <ReturnRequestButton
+                      docNo={withdrawal.dispatches[0].doc_no}
+                      jobType={url.returnJobType}
+                      size="sm"
+                    />
+                  )}
               </>
             }
           />
+        )}
+
+        {/**
+          * **ງ່າຂໍຄືນ** — ຂອງອອກສາງໄປແລ້ວ ແລ້ວສົ່ງກັບ. ຂຶ້ນ**ສະເພາະຕອນເຄີຍຂໍຄືນ**
+          * (ວຽກສ່ວນຫຼາຍບໍ່ມີ ⇒ ບໍ່ເພີ່ມແຖວຫວ່າງໃຫ້ຮົກ). ຢູ່ໃຕ້ໃບເບີກເພາະໃບຂໍຄືນ
+          * ຜູກກັບ **ໃບເບີກ** ໂດຍກົງ (doc_ref = ເລກໃບເບີກ) ບໍ່ແມ່ນຜູກກັບໃບຂໍເບີກ.
+          * ໃບດຽວ ⇒ ວາງເປັນຕົ້ນໄມ້ຢູ່ນີ້ · ຫຼາຍໃບ ⇒ ຢູ່ໃນຕາຕະລາງ "ແຍກຕາມໃບເບີກ" ລຸ່ມນີ້
+          * (ບໍ່ດັ່ງນັ້ນຄົນບອກບໍ່ໄດ້ວ່າຄືນຈາກໃບເບີກໃບໃດ).
+          */}
+        {withdrawal && withdrawal.dispatches.length === 1 && withdrawal.dispatches[0].returns.length > 0 && (
+          <div className="ml-5 border-l border-dashed border-brand-200">
+            {withdrawal.dispatches[0].returns.map((doc) => (
+              <ReturnBranch key={doc.doc_no} doc={doc} />
+            ))}
+          </div>
         )}
 
         {/**
@@ -371,11 +407,13 @@ function RoundTree({
                           ))}
                         </ul>
                       )}
+                      {/* ຄືນຈາກໃບເບີກ**ໃບນີ້** — ຢູ່ໃນແຖວດຽວກັນ ຄົນຈຶ່ງບອກໄດ້ວ່າຄືນຂອງໃບໃດ */}
+                      <ReturnLines returns={dispatch.returns} />
                     </td>
-                    {/* ຂໍຄືນ **ສະເພາະໃບນີ້** — ໃບຫວ່າງບໍ່ມີຫຍັງໃຫ້ຄືນ ຈຶ່ງບໍ່ໂຊ້ວປຸ່ມ */}
+                    {/* ຂໍຄືນ **ສະເພາະໃບນີ້** — ໃບຫວ່າງ ຫຼື ຂໍຄືນໄປແລ້ວ ບໍ່ໂຊ້ວປຸ່ມ */}
                     {url.returnJobType && (
                       <td className="whitespace-nowrap px-2.5 py-1.5 text-right">
-                        {dispatch.items.length > 0 && (
+                        {dispatch.items.length > 0 && dispatch.returns.length === 0 && (
                           <ReturnRequestButton
                             docNo={dispatch.doc_no}
                             jobType={url.returnJobType}
@@ -408,6 +446,68 @@ function RoundTree({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * **ໃບຂໍຄືນ 1 ໃບ ເປັນງ່າ** — ຂໍຄືນ (SRI) ແລ້ວລົງອີກຂັ້ນເປັນ "ສາງຮັບຄືນ" (SRT/RIM).
+ *
+ * ຂັ້ນຮັບຄືນເປັນຂັ້ນທີ່**ຄ້າງໄດ້**: ຊ່າງກົດຂໍຄືນແລ້ວ ແຕ່ຖ້າສາງຍັງບໍ່ຮັບເຂົ້າ ຂອງຍັງຄາຢູ່ມືຊ່າງ
+ * ແລະ ສະຕັອກຍັງບໍ່ຄືນ ⇒ ຕ້ອງເຫັນປ້າຍ "ລໍສາງຮັບຄືນ" ບໍ່ແມ່ນເຫັນແຕ່ວ່າ "ຂໍຄືນແລ້ວ".
+ */
+function ReturnBranch({ doc }: { doc: ReturnDoc }) {
+  return (
+    <div>
+      <Node
+        icon={<Undo2 className="size-3.5" />}
+        tone="text-brand-orange-700"
+        title="ຂໍຄືນ (SRI)"
+        docNo={doc.doc_no}
+        docDate={doc.doc_date}
+        pending="—"
+        items={doc.items}
+      />
+      <div className="ml-5 border-l border-slate-200">
+        <Node
+          icon={<PackageCheck className="size-3.5" />}
+          tone={doc.receive_no ? "text-brand-800" : "text-slate-300"}
+          title="ສາງຮັບຄືນ (SRT)"
+          docNo={doc.receive_no}
+          docDate={doc.receive_date}
+          pending="ລໍສາງຮັບຄືນ"
+        />
+      </div>
+    </div>
+  );
+}
+
+/** ຮູບແບບແໜ້ນຂອງງ່າຂໍຄືນ — ໃຊ້ໃນຊ່ອງຕາຕະລາງ "ແຍກຕາມໃບເບີກ" (ບ່ອນແຄບ ວາງ tree ບໍ່ໄດ້) */
+function ReturnLines({ returns }: { returns: ReturnDoc[] }) {
+  if (returns.length === 0) return null;
+  return (
+    <ul className="mt-1 space-y-0.5 border-t border-dashed border-slate-200 pt-1">
+      {returns.map((doc) => (
+        <li key={doc.doc_no} className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+          <Undo2 className="size-3 text-brand-orange-700" />
+          <span className="text-[10px] text-slate-500">ຂໍຄືນ</span>
+          <span className="font-mono text-[10px] font-semibold text-slate-700">{doc.doc_no}</span>
+          {doc.doc_date && <span className="text-[10px] text-slate-400">{doc.doc_date}</span>}
+          <span className="text-[10px] text-slate-500">
+            {doc.items.map((item) => `${item.item_name || item.item_code} ×${item.qty}`).join(" · ")}
+          </span>
+          {doc.receive_no ? (
+            <span className="text-[10px] text-brand-800">
+              ສາງຮັບຄືນແລ້ວ <span className="font-mono font-semibold">{doc.receive_no}</span>
+              {doc.receive_date && <span className="ml-1 text-slate-400">{doc.receive_date}</span>}
+            </span>
+          ) : (
+            <span className="rounded bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-medium text-brand-900">
+              ລໍສາງຮັບຄືນ
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 

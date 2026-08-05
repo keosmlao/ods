@@ -11,13 +11,12 @@ import { getLocale } from "@/lib/i18n/locale";
 import { holdJsonSql, type JobHold } from "@/lib/job-hold";
 import { previousJobOf, REPEAT_DAYS } from "@/lib/repeat";
 import { AssignTechButton } from "@/components/installation/assign-tech";
-import { ClaimMarkToggle } from "@/components/claim/claim-mark-toggle";
-import { isJobClaimMarked, relatedClaims } from "@/lib/claim";
+import { relatedClaims } from "@/lib/claim";
 import { RepairSpareEditor, type UsedSpareLine } from "@/components/repair/repair-spare-editor";
 import { ScheduleRepairVisitButton } from "@/components/repair/schedule-repair-visit-button";
 import { listTechnicians } from "@/lib/technicians";
 import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
-import { APPROVER_SIDE, CLAIM_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
+import { APPROVER_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { canViewAssignedJob } from "@/lib/scope";
 import { permissionFor } from "@/lib/permissions";
 import { ServiceDeleteButton } from "@/components/service/service-delete-button";
@@ -34,10 +33,11 @@ import { stageLabel, STAGE_SQL } from "@/lib/stage";
 import { repairTimeline } from "@/lib/repair-timeline";
 import { JobTimeline } from "@/components/repair/job-timeline";
 import { SpareRounds } from "@/components/repair/spare-rounds";
+import { syncErpDispatchForJob } from "@/lib/erp-dispatch";
 import { repairSpareRounds } from "@/lib/repair-spare-rounds";
 import { nextActor } from "@/lib/repair-next-action";
 import { DONE_STAGE } from "@/lib/track";
-import { ArrowLeft, Barcode, CalendarDays, ChevronDown, Clock, FilePlus2, ImageIcon, MapPin, MessageCircle, Pencil, Phone, Printer, ReceiptText, RotateCcw, UserRound } from "lucide-react";
+import { ArrowLeft, Barcode, CalendarDays, ChevronDown, Clock, ImageIcon, MapPin, MessageCircle, Pencil, Phone, Printer, ReceiptText, RotateCcw, UserRound } from "lucide-react";
 import Link from "next/link";
 import { claimRedirectTarget } from "@/lib/claim-route";
 import { notFound, redirect } from "next/navigation";
@@ -144,6 +144,10 @@ export default async function ServiceDetail({ params }: Props) {
   if (!canViewAssignedJob(session, job.technician)) redirect("/forbidden");
 
   const timeline = await repairTimeline(code);
+
+  // ໃບເບີກທີ່ສາງອອກຢູ່ ERP ⇒ ດຶງມາກ່ອນ ບໍ່ດັ່ງນັ້ນຮອບອາໄຫຼ່ຂຶ້ນ "ລໍສາງເບີກ" ຄ້າງ
+  // (ເບິ່ງ syncErpDispatchForJob — ງານທີ່ບໍ່ມີແຖວລໍເບີກ ບໍ່ແຕະ ERP ເລີຍ)
+  await syncErpDispatchForJob(code);
 
   // ── ຫຼັກຖານໜ້າງານ + ຮູບ — ໂຫຼດມາສະແດງ **ຢູ່ໜ້ານີ້ເລີຍ** (ບໍ່ຕ້ອງກົດເຂົ້າ /images) ──
   const [checkins, receivePhotos, jobPhotoRows, spareRounds, spareSummary] = await Promise.all([
@@ -314,16 +318,8 @@ export default async function ServiceDetail({ params }: Props) {
       : [];
   // "ຄ້າງເບີກ" = ຍັງບໍ່ຢູ່ໃບຂໍເບີກ/ໃບເບີກໃດ (locked=false) ⇒ ອັນທີ່ createSpareRequest ຈະດຶງ
   const pendingSpares = spareLines.filter((line) => !line.locked).length;
-  const claimMarked = await isJobClaimMarked(code);
   // ໃບເຄມທີ່ຜູກກັບງານນີ້ (ເປີດຈາກປຸ່ມ "ສ້ອມ" ຂອງ CLM ⇒ ref_job = ເລກງານນີ້)
   const linkedClaims = await relatedClaims(code, "");
-  // ── ແຕກໃບເຄມ ຈາກໃບงານ (repair-first, ສະເພາະ ໃນປະກັນ) ──
-  //   A = ຂໍອາໄຫຼ່/ປ່ຽນ ຈາກ supplier → ຕອນ **ກຳລັງສ້ອມ** (ຍັງບໍ່ສົ່ງຄືນ, ຕ້ອງการอะไหล่)
-  //   C = ເຄມເງິນຄືນ supplier → ຕອນ **ສົ່ງເຄື່ອງສຳເລັດ** (ສ້ອມໃນປະກັນໃຫ້ລູກຄ້າຟຣີ ແລ້ວໄປເກັບເງິນ supplier)
-  const canClaim = !cancelled && inWarranty && CLAIM_SIDE.includes(roleOf(session));
-  const haveClaimTypes = new Set(linkedClaims.map((cl) => cl.claim_type));
-  const claimSpawnQs = (ty: string) =>
-    `/claims/new?${new URLSearchParams({ type: ty, ref_job: code, ...(job.brand ? { brand: job.brand } : {}), ...(job.product ? { product: job.product } : {}), ...(job.model ? { model: job.model } : {}), ...(job.sn ? { sn: job.sn } : {}) })}`;
 
   // ── ສະຖານທີ່ (ກົດເປີດ maps) + WhatsApp ຫາລູກຄ້າ ──
   const mapsUrl =
@@ -400,24 +396,33 @@ export default async function ServiceDetail({ params }: Props) {
 
       {/* ── ACTIONS ── */}
       <div className="flex flex-wrap items-center gap-2">
-          <ClaimMarkToggle jobCode={code} marked={claimMarked} />
+          {/**
+            * ⚠️ **ບໍ່ມີປຸ່ມເຄມຢູ່ໜ້ານີ້ອີກ — ທຸກສະຖານະ** (ຖອດ 05-08-2026 ຕາມຄຳສັ່ງ):
+            * "ໝາຍ ເຄມ supplier" · "ແຕກເຄມ · ຂໍອາໄຫຼ່ (A)" · "ເຄມເງິນຄືນ supplier (C)".
+            * ການໝາຍວ່າ "ບິນນີ້ເກັບເງິນນຳ supplier" ຍ້າຍໄປຢູ່**ໜ້າໃບຮັບເງິນ**ແທນ.
+            * ລິ້ງໄປ**ໃບເຄມທີ່ຜູກແລ້ວ** ຍັງຢູ່ຂ້າງລຸ່ມ — ນັ້ນເປັນທາງໄປອ່ານເອກະສານ ບໍ່ແມ່ນປຸ່ມສ້າງ.
+            */}
+          {/**
+            * **ສົ່ງເຄື່ອງຄືນ / ອອກໃບເກັບເງິນ** — ຂັ້ນສຸດທ້າຍຂອງງານ.
+            * ເມື່ອກ່ອນໜ້ານີ້ບໍ່ມີທາງເຂົ້າໄປ /returns/<ລະຫັດ> ເລີຍ ⇒ ຄົນທີ່ເປີດໃບງານມາເຫັນ
+            * "ລໍຖ້າສົ່ງຄືນ" ຕ້ອງກັບໄປຫາຄິວເອງຈຶ່ງລົງມືໄດ້. ຂຶ້ນສະເພາະຕອນ**ຮອດຂັ້ນນັ້ນຈິງ**
+            * (ຜ່ານ QC ແລ້ວ ຍັງບໍ່ໄດ້ສົ່ງຄືນ) — ໜ້າປາຍທາງກວດ qc_finish ຊ້ຳຢູ່ແລ້ວ.
+            */}
+          {!job.returned && !cancelled && job.stage === 11 && (
+            <Link
+              href={`/returns/${encodeURIComponent(code)}`}
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
+              title="ອອກໃບຮັບເງິນ ແລະ ປິດການສົ່ງຄືນ"
+            >
+              <ReceiptText className="size-3.5" /> ສົ່ງເຄື່ອງຄືນ / ອອກໃບເກັບເງິນ
+              <LinkPending className="size-3" />
+            </Link>
+          )}
           {linkedClaims.map((cl) => (
             <Link key={cl.claim_no} href={`/claims/${cl.claim_no}`} className={action} title="ໃບເຄມທີ່ຜູກ">
               <ReceiptText className="size-3.5 text-brand-700" /> ເຄມ {cl.claim_no}
             </Link>
           ))}
-          {/* A = ຂໍອາໄຫຼ່/ປ່ຽນ supplier — ຕອນກຳລັງສ້ອມ (ຍັງບໍ່ສົ່ງເຄື່ອງຄືນ) */}
-          {canClaim && !job.returned && !haveClaimTypes.has("A") && (
-            <Link href={claimSpawnQs("A")} className={action} title="ຂໍອາໄຫຼ່ / ປ່ຽນຕົວໃໝ່ ຈາກ supplier (ໃນປະກັນ)">
-              <FilePlus2 className="size-3.5 text-brand-orange-600" /> ແຕກເຄມ · ຂໍອາໄຫຼ່ (A)
-            </Link>
-          )}
-          {/* C = ເຄມເງິນຄືນ supplier — ໄດ້ຕໍ່ເມື່ອ ສົ່ງເຄື່ອງສຳເລັດ (ສ້ອມຟຣີໃຫ້ລູກຄ້າແລ້ວ) */}
-          {canClaim && job.returned && !haveClaimTypes.has("C") && (
-            <Link href={claimSpawnQs("C")} className={action} title="ເຄມເງິນຄືນ supplier — ສ້ອມໃນປະກັນໃຫ້ລູກຄ້າຟຣີ ໄປເກັບເງິນນຳ supplier">
-              <FilePlus2 className="size-3.5 text-brand-500" /> ເຄມເງິນຄືນ supplier (C)
-            </Link>
-          )}
           {mapsUrl && (
             <a href={mapsUrl} target="_blank" rel="noreferrer" className={action} title="ເປີດ Google Maps">
               <MapPin className="size-3.5 text-brand-orange-700" />

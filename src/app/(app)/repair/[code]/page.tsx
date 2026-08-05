@@ -9,6 +9,7 @@ import { SpareRounds } from "@/components/repair/spare-rounds";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { canViewAssignedJob } from "@/lib/scope";
+import { syncErpDispatchForJob } from "@/lib/erp-dispatch";
 import { repairSpareRounds } from "@/lib/repair-spare-rounds";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { STAGE_LABEL, STAGE_SQL } from "@/lib/stage";
@@ -103,6 +104,13 @@ export default async function RepairJobPage({ params }: Props) {
   if (!canViewAssignedJob(session, job.technician)) redirect("/forbidden");
 
   const spareWindow = job.stage >= 5 && job.stage <= 9 && !job.cancelled;
+
+  /**
+   * ດຶງໃບເບີກທີ່ສາງອອກຢູ່ **ERP** ມາກ່ອນອ່ານຮອບອາໄຫຼ່ — ບໍ່ດັ່ງນັ້ນໜ້ານີ້ຂຶ້ນ
+   * "ລໍສາງເບີກ" ທັງທີ່ສາງເບີກໄປແລ້ວ (ພົບ 05-08-2026: SWC26080022 ຂອງງານ 7195
+   * ຄ້າງຢູ່ ERP ຝ່າຍດຽວ ເພາະ sync ຖືກເອີ້ນແຕ່ຢູ່ໜ້າຄິວ). ບໍ່ມີແຖວລໍເບີກ ⇒ ຂ້າມທັນທີ.
+   */
+  await syncErpDispatchForJob(code);
 
   const [spareRounds, spareRows, checkins, receivePhotos, jobPhotoRows] = await Promise.all([
     repairSpareRounds(code),

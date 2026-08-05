@@ -23,6 +23,30 @@ import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 /** ລາຍການສິນຄ້າໃນໃບ (ຊື່ + ຈຳນວນ) — ຄົນຢາກເຫັນວ່າ "ອາໄຫຼ່ຫຍັງ" ບໍ່ແມ່ນແຕ່ "ກີ່ລາຍການ" */
 export type DocItem = { item_code: string; item_name: string | null; qty: number };
 
+/**
+ * **ໃບຂໍຄືນ (SRI, 59) 1 ໃບ** — ຂອງທີ່ເບີກອອກໄປແລ້ວແຕ່ບໍ່ໄດ້ໃຊ້ / ເບີກມາຜິດຕົວ ຂໍສົ່ງກັບສາງ.
+ *
+ * ຜູກກັບ**ໃບເບີກ** (SWC) ໂດຍກົງ: `ic_trans.doc_ref` = ເລກໃບເບີກ (ເບິ່ງ saveReturnRequest
+ * ຢູ່ actions/stock ແລະ saveInstallReturnRequest ຢູ່ actions/installation-returns —
+ * ທັງສອງຝັ່ງຂຽນຄືກັນ) ⇒ ງ່າຂໍຄືນຈຶ່ງແຕກອອກຈາກໃບເບີກ ບໍ່ແມ່ນຈາກໃບຂໍເບີກ.
+ *
+ * ⚠️ **1 ໃບເບີກ ມີໃບຂໍຄືນໄດ້ຫຼາຍໃບ** (ຝັ່ງສ້ອມຄືນເປັນສ່ວນໆໄດ້ — ຮ່າງກ໋ອບແຕ່ແຖວ status=0
+ * ແລ້ວແຖວທີ່ຄືນແລ້ວປ່ຽນເປັນ 1) ⇒ ເປັນ array.
+ */
+export type ReturnDoc = {
+  doc_no: string;
+  doc_date: string | null;
+  /** ຜູ້ຂໍຄືນ */
+  user_created: string | null;
+  items: DocItem[];
+  /**
+   * ໃບ**ຮັບຄືນເຂົ້າສາງ** (58 — SRT/RIM, `doc_ref` = ເລກໃບຂໍຄືນ). ຫວ່າງ = ຂໍໄປແລ້ວ
+   * ແຕ່ **ສາງຍັງບໍ່ຮັບເຂົ້າ** ⇒ ຂອງຍັງຄາຢູ່ມືຊ່າງ ແລະ ສະຕັອກຍັງບໍ່ຄືນ.
+   */
+  receive_no: string | null;
+  receive_date: string | null;
+};
+
 /** ໃບເບີກ 1 ໃບ ພ້ອມລາຍການຂອງມັນເອງ — ບອກໄດ້ວ່າ **ໃບໃດ ໃຜເບີກ ຈ່າຍຫຍັງແດ່** */
 export type DispatchDoc = {
   doc_no: string;
@@ -30,6 +54,8 @@ export type DispatchDoc = {
   /** ຜູ້ອອກໃບເບີກ (ic_trans.user_created) — ໃຫ້ທວງຄືນຖືກຄົນ */
   user_created: string | null;
   items: DocItem[];
+  /** ໃບຂໍຄືນທີ່ອອກຈາກໃບເບີກນີ້ — ຫວ່າງ = ບໍ່ເຄີຍຂໍຄືນ (ກໍລະນີທົ່ວໄປ) */
+  returns: ReturnDoc[];
 };
 
 export type WithdrawRound = {
@@ -151,23 +177,56 @@ export async function withdrawRounds(code: string): Promise<WithdrawRound[]> {
     )
   ).rows;
 
-  // ດຶງລາຍການຂອງ **ທັງ 3 ຂັ້ນ** ເທື່ອດຽວ (ຂໍ · ສາງເບີກ · ຊ່າງຮັບ) — ຄົນເຮັດວຽກຕ້ອງທຽບໄດ້ວ່າ
-  // ຂໍຫຍັງ ⇒ ສາງເບີກໃຫ້ຫຍັງແດ່ ⇒ ຊ່າງຮັບຫຍັງແດ່
-  const items = await itemsByDoc(
-    rows.flatMap((row) => [row.doc_no, ...splitDocs(row.dispatch_no), ...splitDocs(row.pick_no)]),
-  );
+  const dispatchNos = rows.flatMap((row) => splitDocs(row.dispatch_no));
+
+  /**
+   * ໃບຂໍຄືນຂອງທຸກໃບເບີກໃນວຽກນີ້ — ຖາມເທື່ອດຽວ ແລ້ວແຈກໃສ່ໃບເບີກທາງ `doc_ref`.
+   * ດຶງໃບ**ຮັບຄືນ** (58) ມານຳເລີຍ ເພື່ອບອກໄດ້ວ່າ "ຂໍແລ້ວ ສາງຮັບຫຼືຍັງ".
+   */
+  const returnDocs = dispatchNos.length === 0 ? [] : (
+    await query<{
+      doc_no: string; doc_ref: string; doc_date: string | null; user_created: string | null;
+      receive_no: string | null; receive_date: string | null;
+    }>(
+      `select r.doc_no, r.doc_ref,
+          to_char(r.doc_date,'DD-MM-YYYY') doc_date,
+          nullif(r.user_created,'') user_created,
+          (select string_agg(distinct rc.doc_no, ', ') from ic_trans rc
+            where rc.trans_flag = $2 and rc.doc_ref = r.doc_no) receive_no,
+          (select to_char(min(rc.doc_date),'DD-MM-YYYY') from ic_trans rc
+            where rc.trans_flag = $2 and rc.doc_ref = r.doc_no) receive_date
+        from ic_trans r
+       where r.trans_flag = $3 and r.doc_ref = any($1::text[])
+       order by r.doc_date, r.doc_no`,
+      [dispatchNos, TRANS.RECEIVE_BACK, TRANS.RETURN_REQUEST],
+    )
+  ).rows;
+
+  // ດຶງລາຍການຂອງ **ທຸກຂັ້ນ** ເທື່ອດຽວ (ຂໍ · ສາງເບີກ · ຊ່າງຮັບ · ຂໍຄືນ) — ຄົນເຮັດວຽກຕ້ອງທຽບໄດ້ວ່າ
+  // ຂໍຫຍັງ ⇒ ສາງເບີກໃຫ້ຫຍັງແດ່ ⇒ ຊ່າງຮັບຫຍັງແດ່ ⇒ ຄືນຫຍັງແດ່
+  const items = await itemsByDoc([
+    ...rows.flatMap((row) => [row.doc_no, ...splitDocs(row.dispatch_no), ...splitDocs(row.pick_no)]),
+    ...returnDocs.map((row) => row.doc_no),
+  ]);
+
+  const returnsByDispatch = new Map<string, ReturnDoc[]>();
+  for (const { doc_ref, ...doc } of returnDocs) {
+    const list = returnsByDispatch.get(doc_ref) ?? [];
+    list.push({ ...doc, items: items[doc.doc_no] ?? [] });
+    returnsByDispatch.set(doc_ref, list);
+  }
 
   /**
    * ວັນທີຂອງໃບເບີກ **ແຕ່ລະໃບ** — `dispatch_date` ຂ້າງເທິງເປັນ min() ຂອງທັງກຸ່ມ
    * ຈຶ່ງໃຊ້ບອກວັນຂອງໃບໃດໃບໜຶ່ງບໍ່ໄດ້. ຖາມເທື່ອດຽວສຳລັບທຸກຮອບ.
    */
   const dispatchHeads = new Map<string, { doc_date: string | null; user_created: string | null }>(
-    rows.flatMap((row) => splitDocs(row.dispatch_no)).length > 0
+    dispatchNos.length > 0
       ? (
           await query<{ doc_no: string; doc_date: string | null; user_created: string | null }>(
             `select doc_no, to_char(doc_date,'DD-MM-YYYY') doc_date, nullif(user_created,'') user_created
                from ic_trans where doc_no = any($1::text[])`,
-            [rows.flatMap((row) => splitDocs(row.dispatch_no))],
+            [dispatchNos],
           )
         ).rows.map((row) => [row.doc_no, { doc_date: row.doc_date, user_created: row.user_created }])
       : [],
@@ -183,6 +242,7 @@ export async function withdrawRounds(code: string): Promise<WithdrawRound[]> {
       doc_date: dispatchHeads.get(doc)?.doc_date ?? row.dispatch_date,
       user_created: dispatchHeads.get(doc)?.user_created ?? null,
       items: items[doc] ?? [],
+      returns: returnsByDispatch.get(doc) ?? [],
     })),
     pick_items: mergeItems(splitDocs(row.pick_no).map((doc) => items[doc] ?? [])),
     round: index + 1,

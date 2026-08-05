@@ -11,6 +11,7 @@ import { LINE_STATUS, REPAIR_WAREHOUSES, TRANS } from "@/lib/stock-constants";
 import { ChevronLeft, ChevronRight, Eye, FileBarChart, PackageCheck, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { ReceiveFilters } from "./filters";
+import { ReturnRowActions } from "./row-actions";
 
 /** ods: stock.py /home_stock_return + templates/stock/home_stock_return.html (ອອກແບບໃໝ່) */
 
@@ -269,19 +270,27 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-center">
                       {tab === "pending" ? (
-                        /* ງານຕິດຕັ້ງໄປໜ້າຂອງມັນເອງ (ods: /show_return_inst ຂອງ tech_install.py) */
-                        <Link
-                          href={
-                            install
-                              ? `/installations/spare-returns/receive/${encodeURIComponent(doc.doc_no)}`
-                              : `/stock/receive-returns/${encodeURIComponent(doc.doc_no)}`
-                          }
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
-                        >
-                          <PackageCheck className="size-3.5" />
-                          {t.receive}
-                          <LinkPending className="size-3" />
-                        </Link>
+                        <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
+                          {/* ງານຕິດຕັ້ງໄປໜ້າຂອງມັນເອງ (ods: /show_return_inst ຂອງ tech_install.py) */}
+                          <Link
+                            href={
+                              install
+                                ? `/installations/spare-returns/receive/${encodeURIComponent(doc.doc_no)}`
+                                : `/stock/receive-returns/${encodeURIComponent(doc.doc_no)}`
+                            }
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
+                          >
+                            <PackageCheck className="size-3.5" />
+                            {t.receive}
+                            <LinkPending className="size-3" />
+                          </Link>
+                          {/**
+                            * ແກ້ໄຂ/ລົບ — ໄດ້**ສະເພາະໃບຂອງງານສ້ອມ**: ຝັ່ງຕິດຕັ້ງໝາຍແຖວໃບເບີກ
+                            * ຄົນລະຄ່າ ແລະ ບໍ່ໄດ້ຂຽນ ERP ⇒ ຄືນຄ່າດ້ວຍໂຄດດຽວກັນບໍ່ໄດ້
+                            * (ເບິ່ງ deleteReturnRequest — ຝັ່ງ action ກັນໄວ້ອີກຊັ້ນ).
+                            */}
+                          {!install && <ReturnRowActions docNo={doc.doc_no} docRef={doc.doc_ref} />}
+                        </span>
                       ) : (
                         <Link
                           href={`/stock/receive-returns/bill/${encodeURIComponent(doc.doc_no)}`}

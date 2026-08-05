@@ -6,6 +6,8 @@ import { Chatter } from "@/components/chatter/chatter";
 import { InvoiceEditor } from "@/components/return/invoice-editor";
 import { LinkButton, PageTitle } from "@/components/ui";
 import { claimRedirectTarget } from "@/lib/claim-route";
+import { query } from "@/lib/db";
+import { searchSuppliers } from "@/lib/erp-supplier";
 import { notFound, redirect } from "next/navigation";
 import { Printer } from "lucide-react";
 import { ReturnWithoutInvoice } from "./return-without-invoice";
@@ -32,13 +34,19 @@ export default async function ReturnDetailPage({ params }: { params: Promise<{ c
 
   // ຄ່າຈາກ ERP (ອັດຕາ/ບັນຊີ/ຄ່າບໍລິການ) ຂັດຂ້ອງຊົ່ວຄາວ → ໃຫ້ໜ້າໂຫຼດຕໍ່ໄດ້ດ້ວຍຄ່າວ່າງ
     // ແທນທີ່ຈະພັງທັງໜ້າ ("This page couldn't load"). ຕອນບັນທຶກ server ດຶງອັດຕາຄືນເອງ.
-  const [cart, rates, banks, services, docNo, spares] = await Promise.all([
+  const [cart, rates, banks, services, docNo, spares, suppliers, claimNo] = await Promise.all([
     getCart(head.code),
     getRates().catch(() => ({ "01": 1, "02": 0, "03": 0 })),
     getBanks().catch(() => []),
     getServices().catch(() => []),
     previewDocNo().catch(() => ""),
     cancelled ? getOutstandingSpares(head.code) : Promise.resolve([]),
+    // ໃຫ້ຕິກ "ເກັບເງິນນຳ supplier" ແລ້ວເລືອກໄດ້ໃນແທັບການຮັບເງິນ (ອອກ CLM-C ຕອນບັນທຶກ)
+    searchSuppliers("", 1000).catch(() => []),
+    // ມີໃບ CLM-C ຂອງງານນີ້ແລ້ວບໍ — ມີແລ້ວບໍ່ໃຫ້ໝາຍຊ້ຳ
+    query<{ claim_no: string }>("select claim_no from ods_claim where claim_type='C' and ref_job=$1 limit 1", [head.code])
+      .then((r) => r.rows[0]?.claim_no ?? null)
+      .catch(() => null),
   ]);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -79,6 +87,8 @@ export default async function ReturnDetailPage({ params }: { params: Promise<{ c
             rates={rates}
             banks={banks}
             services={services}
+            suppliers={suppliers.map((s) => ({ code: s.code, name: s.name }))}
+            claimNo={claimNo}
             docNo={docNo}
             today={today}
           />

@@ -10,7 +10,7 @@ import { claimStatuses, pipelineOf } from "@/lib/dashboard-status";
 import { query } from "@/lib/db";
 import { CLAIM_SIDE, roleOf } from "@/lib/roles";
 import { listTechnicians } from "@/lib/technicians";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -19,6 +19,9 @@ import { notFound, redirect } from "next/navigation";
  *
  * ສະແດງແຕ່ສິ່ງທີ່ຄົນເຄມຕ້ອງການ: ໃບງານ · ຮ້ານ/ລູກຄ້າ · ເຄື່ອງ · ຂອບເຂດເຄມ · ຊ່າງ ·
  * ໂມງຄ້າງ ພ້ອມ **ປຸ່ມໄປຕໍ່ຂອງຂັ້ນນັ້ນ**. ນິຍາມຂັ້ນມາຈາກ lib/dashboard-status ບ່ອນດຽວ.
+ *
+ * ອອກແບບໃໝ່ 05-08-2026: pill ຂັ້ນພ້ອມຕົວເລກ (ກະໂດດຂ້າມຂັ້ນໄດ້) · ສີໂມງຄ້າງຕາມອາຍຸ
+ * (≥7 ວັນສົ້ມ · ≥30 ວັນແດງ) — ກົດດຽວກັບໜ້າອາໄຫຼ່ຕາມໃບງານ.
  */
 export const dynamic = "force-dynamic";
 
@@ -75,13 +78,51 @@ export default async function ClaimStagePage({ params }: { params: Promise<{ sta
   const stages = pipelineOf(claimStatuses);
   const index = stages.findIndex(([slug]) => slug === status);
   const step = NEXT_STEP[status];
+  // ຕົວເລກທຸກຂັ້ນສຳລັບ pill — query ດຽວຄືໜ້າ /claims/jobs (ນິຍາມຂັ້ນບ່ອນດຽວ ຕົວເລກຈຶ່ງກົງກັນ)
+  const stageCounts = (
+    await query<Record<string, number>>(
+      `select ${stages
+        .map(([slug, d]) => `(select count(*) from tb_product a where ${d.condition})::int as "${slug}"`)
+        .join(", ")}`,
+    )
+  ).rows[0];
   const techs = status === "claim-wait-check" ? await listTechnicians() : [];
+  const days = (seconds: number) => Math.floor(seconds / 86400);
+  const ageTone = (seconds: number) =>
+    days(seconds) >= 30
+      ? "bg-red-100 text-red-700"
+      : days(seconds) >= 7
+        ? "bg-amber-100 text-amber-800"
+        : "bg-slate-100 text-slate-600";
 
   return (
     <div className="w-full space-y-4">
       <BackLink fallback="/claims/jobs" label="ຄິວງານເຄມ" />
 
       <PageTitle sub={`ຂັ້ນ ${index + 1}/${stages.length} · ${rows.length} ໃບ`}>{def.label}</PageTitle>
+
+      {/* ── pill ຂັ້ນ — ກະໂດດໄປຂັ້ນອື່ນໄດ້ ພ້ອມຕົວເລກຄິວ ── */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {stages.map(([slug, d], i) => {
+          const count = Number(stageCounts?.[slug] ?? 0);
+          const active = slug === status;
+          return (
+            <Link
+              key={slug}
+              href={`/claims/jobs/${slug}`}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
+                active
+                  ? "bg-brand-orange-600 text-white"
+                  : count > 0
+                    ? "bg-white text-slate-600 ring-1 ring-brand-orange-200 hover:bg-brand-orange-50"
+                    : "bg-white text-slate-400 ring-1 ring-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              {i + 1}. {d.label} <span className="tabular-nums opacity-80">{count}</span>
+            </Link>
+          );
+        })}
+      </div>
 
       {rows.length === 0 ? (
         <p className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-400 shadow-sm">
@@ -142,7 +183,7 @@ export default async function ClaimStagePage({ params }: { params: Promise<{ sta
                   <td className="px-3 py-2">
                     <Elapsed
                       seconds={row.elapsed_seconds}
-                      className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600"
+                      className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${ageTone(row.elapsed_seconds)}`}
                     />
                   </td>
                   <td className="px-3 py-2">

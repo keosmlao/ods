@@ -1,7 +1,7 @@
 "use client";
-import { advanceClaim, deleteClaimItem, linkCob, pullJobItems, resolveClaim, sendClaimEmail, setClaimJob, setClaimPaid, updateClaimRemark } from "@/app/actions/claim";
+import { advanceClaim, deleteClaimItem, resolveClaim, sendClaimEmail, setClaimPaid, updateClaimRemark } from "@/app/actions/claim";
 import { claimCanTransition, type ClaimItem, type ClaimType, type CobInfo, type JobDelivery, PAY_METHOD_LABEL } from "@/lib/claim-shared";
-import { ArrowRight, BadgeCheck, DownloadCloud, Link2, LoaderCircle, Mail, Trash2, Truck, X } from "lucide-react";
+import { ArrowRight, BadgeCheck, CircleCheck, FileText, ListChecks, LoaderCircle, Mail, Package, Trash2, Truck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -43,9 +43,7 @@ export function ClaimManage({
   const [pending, start] = useTransition();
   const [items, setItems] = useState(initialItems);
   const [note, setNote] = useState(remark ?? "");
-  const [cobDoc, setCobDoc] = useState(erpDocNo ?? "");
   const [payM, setPayM] = useState(payMethod ?? "");
-  const [jobInput, setJobInput] = useState(refJob ?? "");
   const [err, setErr] = useState("");
   const payNext = type === "C" && nextStatus?.status === "paid";
 
@@ -62,13 +60,15 @@ export function ClaimManage({
     act(() => deleteClaimItem(claimNo, id));
   };
 
-  const inp = "h-9 rounded-lg border border-slate-300 px-2.5 text-sm outline-none focus:border-brand-600";
-
   return (
-    <div className="space-y-5">
+    <main className="min-w-0 space-y-5">
+      <div className="flex items-end justify-between gap-3 px-1">
+        <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-600">Workflow</p><h2 className="mt-1 text-lg font-bold text-slate-900">ຈັດການໃບເຄມ</h2></div>
+        {emailSentAt && <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-700"><CircleCheck className="size-3.5" /> ສົ່ງ email ແລ້ວ</span>}
+      </div>
       {/* ── ຈັດການ status ── */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <p className="mb-2 text-xs font-semibold text-slate-500">ຈັດການສະຖານະ</p>
+      <div className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 to-white p-5 shadow-sm">
+        <div className="mb-3 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-brand-700 text-white"><ListChecks className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">ຂັ້ນຕອນຕໍ່ໄປ</p><p className="text-[11px] text-slate-500">ເລືອກຄຳສັ່ງເພື່ອດຳເນີນ workflow</p></div></div>
         <div className="flex flex-wrap items-center gap-2">
           {payNext ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -149,44 +149,43 @@ export function ClaimManage({
         </div>
       )}
 
-      {/* ── COB (ຜูกเอกสาร ERP — ສະເພาะ CLM-C) ── */}
+      {/**
+        * ── COB (ເອກະສານບັນຊີ ERP · trans_flag 87 — ສະເພາະ CLM-C) ──
+        * ⚠️ **ບໍ່ມີຊ່ອງພິມເລກ/ປຸ່ມ "ຜູກ COB" ອີກ** (ຖອດ 05-08-2026): ລະບົບ**ສ້າງ COB ໃຫ້ເອງ**
+        * ຕອນອອກໃບເຄມ ແລະ ໃຊ້ **ລະຫັດໃບເຄມເປັນເລກເອກະສານ** (ເບິ່ງ lib/erp-cob) ⇒ ບໍ່ມີ
+        * ຫຍັງໃຫ້ຄົນພິມອີກ. ຢູ່ນີ້ເຫຼືອແຕ່ **ສະແດງຜົນ** ວ່າ ERP ຮັບແລ້ວບໍ.
+        */}
       {type === "C" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="mb-2 text-xs font-semibold text-slate-500">ເອກະສານ COB (ERP · trans_flag 87)</p>
-          <div className="flex flex-wrap items-end gap-2">
-            <input value={cobDoc} onChange={(e) => setCobDoc(e.target.value)} placeholder="ເລກ COB (ເຊັ່ນ COB26060003)" className={`${inp} min-w-48 flex-1`} />
-            <button type="button" disabled={pending} onClick={() => act(() => linkCob(claimNo, cobDoc))} className="inline-flex h-9 items-center gap-1 rounded-lg bg-brand-900 px-3 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60"><Link2 className="size-4" /> ຜູກ COB</button>
-          </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-brand-50 text-brand-700"><FileText className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">1. ໃບຕັ້ງໜີ້ຕ້ອງຮັບ (ERP · AOB)</p><p className="text-[11px] text-slate-400">ລະບົບອອກໃຫ້ອັດຕະໂນມັດ ຕອນອອກໃບເຄມ · ເລກດຽວກັບໃບເຄມ</p></div></div>
           {cob ? (
-            <div className="mt-3 rounded-lg border border-brand-200 bg-brand-50 p-2.5 text-[12px] text-brand-800">
-              <b>{cob.doc_no}</b> · ຍอด <b className="tabular-nums">{cob.total_amount.toLocaleString()}</b> · supplier {cob.supplier_code ?? "-"} · {cob.doc_date ?? "-"} · status {cob.status === 0 ? "ยังไม่ดำเนินการ" : cob.status}
+            <div className="rounded-lg border border-brand-200 bg-brand-50 p-2.5 text-[12px] text-brand-800">
+              <b>{cob.doc_no}</b> · ຍອດ <b className="tabular-nums">{cob.total_amount.toLocaleString()}</b> · supplier {cob.supplier_code ?? "-"} · {cob.doc_date ?? "-"} · status {cob.status === 0 ? "ຍັງບໍ່ດຳເນີນການ" : cob.status}
             </div>
           ) : erpDocNo ? (
-            <p className="mt-2 text-[11px] text-brand-900">ຜูกไว้ {erpDocNo} ແຕ່ອ່ານจาก ERP ບໍ່ໄດ້ (ตรวจเลข).</p>
+            <p className="text-[11px] text-brand-900">ອອກເລກ {erpDocNo} ແລ້ວ ແຕ່ອ່ານຈາກ ERP ບໍ່ໄດ້ (ກວດການເຊື່ອມ ERP).</p>
           ) : (
-            <p className="mt-2 text-[11px] text-slate-400">ບັນຊີສ້າງ COB ໃນ ERP ແລ້ວ ⇒ ໃສ່ເລກ COB ຢູ່ນີ້ (read-only, ບໍ່ສ້າง/ບໍ່ແก้ ERP).</p>
+            <p className="text-[11px] text-slate-400">ຍັງບໍ່ມີໃບຕັ້ງໜີ້ — ລະບົບອອກໃຫ້ເມື່ອໃບເຄມ**ມີຍອດ** ແລະ ມີ supplier.</p>
           )}
         </div>
       )}
 
+
       {/* ── ເອກະສານສົ່ງເຄື່ອງ + email (CLM-C) ── */}
       {type === "C" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Truck className="size-4 text-brand-700" /> ຂໍ້ມູນงาน + ສ່ງ email</p>
-          {/* ຜูก/ปรับ เลขงาน + ดึงรายการซ่อม (อะไหล่) จาก job */}
-          <div className="mb-3 flex flex-wrap items-end gap-2">
-            <input value={jobInput} onChange={(e) => setJobInput(e.target.value)} placeholder="ເລກงาน (ສ້ອม)" className="h-9 w-36 rounded-lg border border-slate-300 px-2.5 text-sm outline-none focus:border-brand-600" />
-            <button type="button" disabled={pending} onClick={() => act(() => setClaimJob(claimNo, jobInput))} className="inline-flex h-9 items-center gap-1 rounded-lg bg-brand-900 px-3 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60"><Link2 className="size-4" /> ຜູກงาน</button>
-            {refJob && (
-              <button type="button" disabled={pending} onClick={() => act(() => pullJobItems(claimNo))} className="inline-flex h-9 items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-3 text-sm font-semibold text-brand-800 hover:bg-brand-100 disabled:opacity-60"><DownloadCloud className="size-4" /> ດຶງ ໃບເກັບເງิน</button>
-            )}
-          </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-brand-50 text-brand-700"><Truck className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">2. ກວດງານ ແລະ ສົ່ງ email</p><p className="text-[11px] text-slate-400">ແຈ້ງ supplier</p></div></div>
+          {/**
+            * ⚠️ **ບໍ່ມີ "ຜູກງານ" / "ດຶງ ໃບເກັບເງິນ" ອີກ** (ຖອດ 05-08-2026): ໃບ CLM-C ດຽວນີ້
+            * ເກີດພ້ອມ **ເລກງານ ແລະ ລາຍການ**ຢູ່ແລ້ວ — ຈາກຟອມເປີດໃບ (ເລືອກງານ ⇒ ດຶງລາຍການໃຫ້)
+            * ຫຼື ຈາກໃບຮັບເງິນ (ຕິກ "ເກັບເງິນນຳ supplier") ⇒ ບໍ່ມີຫຍັງໃຫ້ພິມ/ກົດຊ້ຳຢູ່ນີ້.
+            */}
           {delivery ? (
             <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-[12px] text-slate-700">
               ງານ <b>{delivery.code}</b> · {delivery.product || "-"} · {delivery.brand || ""} · ລູກຄ້າ {delivery.customer || "-"} · ສ່ງคืน <b>{delivery.returned_at || "-"}</b>
             </div>
           ) : (
-            <p className="mb-3 text-[11px] text-brand-900">ບໍ່ພົບ ເອກະສານສົ່ງເຄື່ອງ (ໃສ່ ເລກງານ ທີ່ສ່ງຄືນແລ້ວ).</p>
+            <p className="mb-3 text-[11px] text-brand-900">ບໍ່ພົບ ເອກະສານສົ່ງເຄື່ອງ ຂອງງານທີ່ຜູກໄວ້.</p>
           )}
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" disabled={pending} onClick={() => act(() => sendClaimEmail(claimNo))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60">
@@ -199,8 +198,8 @@ export function ClaimManage({
       )}
 
       {/* ── ລາຍการ ── */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <p className="mb-2 text-xs font-semibold text-slate-500">ອາໄຫຼ່ / ລາຍการ</p>
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-slate-100 text-slate-600"><Package className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">ອາໄຫຼ່ / ລາຍການ</p><p className="text-[11px] text-slate-400">{items.length} ລາຍການໃນໃບເຄມ</p></div></div>
         {items.length > 0 && (
           <div className="mb-3 overflow-x-auto">
             <table className="w-full min-w-[520px] border-collapse text-[12px]">
@@ -230,6 +229,6 @@ export function ClaimManage({
           <button type="button" disabled={pending} onClick={() => act(() => updateClaimRemark(claimNo, note))} className="h-8 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60">ບັນທຶກໝາຍເຫตุ</button>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

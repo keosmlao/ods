@@ -15,6 +15,7 @@ import {
   type JobDelivery,
 } from "@/lib/claim-shared";
 import { query, queryOdg } from "@/lib/db";
+import { createCobForClaim } from "@/lib/erp-cob";
 
 // ⚠️ ຄ່າຄົງ + types + pure fn ຢູ່ claim-shared (client import ໄດ້). ບ່ອນນີ້ = query functions (server).
 export * from "@/lib/claim-shared";
@@ -188,8 +189,9 @@ export async function claimLogs(claimNo: string): Promise<ClaimLog[]> {
 export async function cobInfo(docNo: string): Promise<CobInfo | null> {
   const r = (
     await queryOdg<{ doc_no: string; doc_date: string | null; cust_code: string | null; total_amount: string | null; status: number }>(
+      // ໃບຕັ້ງໜີ້ຕ້ອງຮັບ (AOB 99) ຂອງລະບົບ — ຮັບໃບ COB (87) ເກົ່າທີ່ບັນຊີເຄີຍຜູກໄວ້ນຳ
       `select doc_no, to_char(doc_date,'DD-MM-YYYY') doc_date, cust_code, total_amount, status
-         from ic_trans where trans_flag = 87 and doc_no = $1 limit 1`,
+         from ic_trans where trans_flag in (99, 87) and doc_no = $1 limit 1`,
       [docNo],
     )
   ).rows[0];
@@ -230,6 +232,69 @@ export async function jobQuoteItems(code: string): Promise<{ docNo: string | nul
 }
 
 /**
+ * **ລາຍລະອຽດຂອງໃບງານ + ລາຍການທີ່ຈະຮຽກເກັບ** — ໃຫ້ຟອມ "ເປີດໃບເຄມ" ດຶງຕອນເລືອກງານ.
+ *
+ * ── ລາຍການມາຈາກໃສ ──
+ * ① **ໃບສະເໜີລາຄາ/ເກັບເງິນ (17)** ຖ້າມີ — ດີທີ່ສຸດ ເພາະມີ **ລາຄາຈິງ** (ຄ່າແຮງ + ອາໄຫຼ່)
+ * ② ບໍ່ມີໃບນັ້ນ ⇒ **ອາໄຫຼ່ທີ່ໃຊ້ຈິງ** (tb_used_spare) ລາຄາ 0 ໃຫ້ຄົນຕື່ມເອງ.
+ *   ງານຮັບປະກັນສ່ວນຫຼາຍບໍ່ໄດ້ອອກໃບສະເໜີລາຄາ (ບໍ່ໄດ້ເກັບເງິນລູກຄ້າ) ແຕ່**ຍັງຕ້ອງເກັບ
+ *   ຄ່າອາໄຫຼ່ນຳ supplier** ⇒ ຂາດຂັ້ນ ② ໄປ ຄົນຕ້ອງພິມລາຍການເອງທຸກເທື່ອ.
+ */
+export type ClaimJobDetail = {
+  code: string;
+  product: string | null;
+  brand: string | null;
+  model: string | null;
+  sn: string | null;
+  customer: string | null;
+  customer_code: string | null;
+  fault: string | null;
+  fault_2: string | null;
+  warranty: string | null;
+  service_type: string | null;
+  technician: string | null;
+  returned_at: string | null;
+  /** ເລກໃບສະເໜີລາຄາ/ເກັບເງິນ ທີ່ເອົາລາຍການມາ (null = ເອົາມາຈາກອາໄຫຼ່ທີ່ໃຊ້) */
+  quote_no: string | null;
+  items_from: "quote" | "spare" | null;
+  items: JobQuoteItem[];
+};
+
+export async function jobClaimDetail(code: string): Promise<ClaimJobDetail | null> {
+  const job = (
+    await query<Omit<ClaimJobDetail, "quote_no" | "items" | "items_from">>(
+      `select a.code, a.name_1 product, a.p_brand brand, a.p_model model, nullif(a.sn,'') sn,
+          c.name_1 customer, a.cust_code customer_code,
+          nullif(trim(coalesce(a.issue,'')),'') fault, nullif(trim(coalesce(a.issue_2,'')),'') fault_2,
+          nullif(a.warrunty,'') warranty, nullif(a.service_type,'') service_type, nullif(a.emp_code,'') technician,
+          to_char(a.return_complete,'DD-MM-YYYY') returned_at
+        from tb_product a
+        left join ar_customer c on c.code = a.cust_code
+       where a.code = $1 limit 1`,
+      [code],
+    )
+  ).rows[0];
+  if (!job) return null;
+
+  const quote = await jobQuoteItems(code);
+  if (quote.items.length > 0) return { ...job, quote_no: quote.docNo, items_from: "quote", items: quote.items };
+
+  const spares = (
+    await query<{ item_code: string | null; item_name: string | null; qty: string; unit: string | null }>(
+      `select item_code, item_name, coalesce(qty,0)::float8 qty, unit_code unit
+         from tb_used_spare where product_code = $1 and coalesce(item_code,'') <> '' order by roworder`,
+      [code],
+    )
+  ).rows;
+  return {
+    ...job,
+    quote_no: null,
+    items_from: spares.length > 0 ? "spare" : null,
+    items: spares.map((s) => ({ ...s, qty: Number(s.qty) || 1, amount: 0 })),
+  };
+}
+
+/**
  * งานสอมที่ "**สำเร็จ · ส่งคืนลูกค้าแล้ว · ยังไม่มีใบเคลม**" — สำหรับ modal เลือก
  * เลขงานตอนเปิดใบเคลม. return_complete is not null (ส่งคืนแล้ว) + ยังไม่ถูกอ้างอิง
  * ในใบเคลมใดๆ (ทุกประเภท). ค้นด้วย code/สินค้า/SN/ยี่ห้อ/ลูกค้า.
@@ -251,6 +316,110 @@ export async function jobClaimCandidates(q = ""): Promise<ClaimJobCandidate[]> {
       [q.trim(), term],
     )
   ).rows;
+}
+
+/**
+ * **ເປີດໃບ CLM-C ຈາກໜ້າໃບຮັບເງິນ** — ໝາຍວ່າ "ບິນນີ້ໄປເກັບເງິນນຳ supplier".
+ *
+ * ── ເປັນຫຍັງຢູ່ຈຸດອອກໃບຮັບເງິນ ──
+ * ນັ້ນຄື**ນາທີດຽວ**ທີ່ຮູ້ຄົບທຸກຢ່າງພ້ອມກັນ: ສ້ອມຫຍັງແດ່ (ລາຍການໃນບິນ) · ໃນປະກັນບໍ (ລູກຄ້າຈ່າຍ 0)
+ * · ແລະ ງານ**ສົ່ງຄືນສຳເລັດ**ແລ້ວ (ເງື່ອນໄຂຂອງ CLM-C). ໃຫ້ຄົນໄປເປີດເອງພາຍຫຼັງ = ລືມ ແລ້ວ
+ * ເງິນທີ່ຄວນເກັບຄືນຈາກ supplier ຫາຍໄປ.
+ *
+ * ລາຍການຂອງໃບເຄມ = **ລາຍການໃນບິນ** (ອາໄຫຼ່ + ຄ່າບໍລິການ) ພ້ອມລາຄາ **ຈາກການຕັ້ງຄ່າ**
+ * ບໍ່ແມ່ນລາຄາ 0 ທີ່ເກັບລູກຄ້າ — ງານໃນປະກັນລູກຄ້າຈ່າຍ 0 ແຕ່ supplier ຕ້ອງຈ່າຍເຕັມ
+ * (ຜູ້ເອີ້ນສົ່ງ `lines` ມາເອງ ⇒ ຕັດສິນລາຄາຢູ່ບ່ອນທີ່ຮູ້ context).
+ *
+ * ບໍ່ໂຍນ error: ການອອກໃບຮັບເງິນ**ຫ້າມພັງ**ເພາະໃບເຄມ — ຄືນ null ແລ້ວປ່ອຍໃຫ້ບິນສຳເລັດ.
+ */
+export async function openReimburseClaim(input: {
+  jobCode: string;
+  supplierCode: string;
+  brandCode?: string | null;
+  customerCode?: string | null;
+  reason?: string | null;
+  product?: string | null;
+  model?: string | null;
+  sn?: string | null;
+  /** ຮັບປະກັນຂອງງານ — 'in' ໃນປະກັນ · 'out' ນອກ (ຄ່າດຽວກັບຟອມເປີດໃບເຄມ) */
+  warranty?: "in" | "out" | null;
+  createdBy: string;
+  lines: { item_code: string | null; item_name: string | null; qty: number; unit: string | null; amount: number }[];
+}): Promise<string | null> {
+  try {
+    if (!input.supplierCode.trim()) return null;
+    // ມີໃບ CLM-C ຂອງງານນີ້ຢູ່ແລ້ວ ⇒ ບໍ່ອອກຊ້ຳ (ກົດດຽວກັບ createClaim)
+    const exists = await query(`select 1 from ods_claim where claim_type='C' and ref_job=$1 limit 1`, [input.jobCode]);
+    if (exists.rowCount) return null;
+
+    const id = (
+      await query<{ id: number }>(
+        `insert into ods_claim(claim_type, supplier_code, brand_code, customer_code, ref_job, reason, status,
+           created_by, product, model, sn, warranty)
+         values ('C', $1, nullif($2,''), nullif($3,''), $4, nullif($5,''), 'notify', $6,
+           nullif($7,''), nullif($8,''), nullif($9,''), nullif($10,'')) returning id`,
+        [
+          input.supplierCode.trim(), input.brandCode ?? "", input.customerCode ?? "", input.jobCode,
+          input.reason ?? "", input.createdBy, input.product ?? "", input.model ?? "", input.sn ?? "",
+          input.warranty ?? "",
+        ],
+      )
+    ).rows[0]?.id;
+    if (!id) return null;
+    const claimNo = (
+      await query<{ claim_no: string }>(
+        `update ods_claim set claim_no = 'CLM'||lpad(id::text,5,'0') where id=$1 returning claim_no`,
+        [id],
+      )
+    ).rows[0]?.claim_no;
+    if (!claimNo) return null;
+
+    for (const line of input.lines) {
+      await query(
+        `insert into ods_claim_item(claim_no, item_code, item_name, qty, unit, amount)
+         values ($1, nullif($2,''), $3, $4, nullif($5,''), $6)`,
+        [claimNo, line.item_code ?? "", line.item_name || "ລາຍການ", line.qty || 1, line.unit ?? "", line.amount || 0],
+      );
+    }
+    await query(
+      `update ods_claim set amount = coalesce((select sum(amount) from ods_claim_item where claim_no=$1),0) where claim_no=$1`,
+      [claimNo],
+    );
+    // ອອກໃບເຄມ = ອອກ COB ໃຫ້ເລີຍ (ຕັດສິນໃຈ 05-08-2026)
+    await ensureClaimCob(claimNo, input.createdBy);
+    return claimNo;
+  } catch (error) {
+    console.error("openReimburseClaim failed", input.jobCode, error);
+    return null;
+  }
+}
+
+/**
+ * **ອອກ COB ຢູ່ ERP ໃຫ້ໃບເຄມ (ຖ້າຍັງບໍ່ມີ)** ແລ້ວເກັບເລກໃສ່ `ods_claim.erp_doc_no`.
+ *
+ * ເອີ້ນຕອນ**ໃບເຄມມີຍອດແລ້ວ** (ສ້າງພ້ອມລາຍການ · ດຶງລາຍການຈາກງານ) — ບໍ່ແມ່ນຕອນເປົ່າ
+ * ເພາະ COB ຍອດ 0 ບໍ່ມີຄວາມໝາຍທາງບັນຊີ. idempotent: ມີ erp_doc_no ແລ້ວ ⇒ ບໍ່ເຮັດຫຍັງ.
+ * ບໍ່ໂຍນ error — ໃບເຄມສຳຄັນກວ່າເອກະສານບັນຊີ (ເບິ່ງ lib/erp-cob).
+ */
+export async function ensureClaimCob(claimNo: string, by: string): Promise<string | null> {
+  try {
+    const claim = await claimByNo(claimNo);
+    if (!claim || claim.claim_type !== "C" || claim.erp_doc_no || !claim.supplier_code) return null;
+    if (!(claim.amount > 0)) return null;
+    const docNo = await createCobForClaim({
+      claimNo: claim.claim_no,
+      supplierCode: claim.supplier_code,
+      jobCode: claim.ref_job,
+      amountThb: claim.amount,
+      by,
+    });
+    if (!docNo) return null;
+    await query(`update ods_claim set erp_doc_no=$2 where claim_no=$1 and erp_doc_no is null`, [claimNo, docNo]);
+    return docNo;
+  } catch (error) {
+    console.error("ensureClaimCob failed", claimNo, error);
+    return null;
+  }
 }
 
 /** ໝາຍໄວ້ວ່າ "ເຄມເງິນ supplier" ບໍ (ods_claim_mark) */
@@ -302,6 +471,45 @@ export async function claimCounts(type: ClaimType): Promise<Record<string, numbe
     [type],
   )).rows;
   return Object.fromEntries(rows.map((r) => [r.status, r.n]));
+}
+
+/**
+ * ສະຫຼຸບຍອດເງິນ/ອາຍຸຂອງເຄມຕໍ່ type — **ບໍ່ຂຶ້ນກັບ filter status/ຄົ້ນ** (ຄື claimCounts)
+ * ໃຫ້ບັດ KPI ຂອງໜ້າເຄມທັງ 3 (ບໍ່ຫົດເມື່ອກົດ chip). open = ບໍ່ closed/rejected/paid.
+ */
+export async function claimAmountSummary(type: ClaimType): Promise<{
+  openCount: number;
+  openAmount: number;
+  approvedAmount: number;
+  /** CLM-C: ຍອດແຈ້ງແລ້ວລໍຊຳລະ / ຍອດທີ່ເກັບແລ້ວ */
+  notifiedAmount: number;
+  paidAmount: number;
+  suppliers: number;
+  oldestDays: number;
+}> {
+  const open = `status not in ('closed','rejected','paid')`;
+  const row = (
+    await query<{ open_count: number; open_amount: number; approved_amount: number; notified_amount: number; paid_amount: number; suppliers: number; oldest_days: number }>(
+      `select count(*) filter (where ${open})::int open_count,
+          coalesce(sum(case when ${open} then amount end),0)::float8 open_amount,
+          coalesce(sum(case when status = 'approved' then amount end),0)::float8 approved_amount,
+          coalesce(sum(case when status = 'notified' then amount end),0)::float8 notified_amount,
+          coalesce(sum(case when status = 'paid' then amount end),0)::float8 paid_amount,
+          count(distinct supplier_code) filter (where ${open})::int suppliers,
+          coalesce(max(extract(epoch from (localtimestamp - created_at)) / 86400) filter (where ${open}),0)::int oldest_days
+        from ods_claim where claim_type = $1`,
+      [type],
+    )
+  ).rows[0];
+  return {
+    openCount: row?.open_count ?? 0,
+    openAmount: row?.open_amount ?? 0,
+    approvedAmount: row?.approved_amount ?? 0,
+    notifiedAmount: row?.notified_amount ?? 0,
+    paidAmount: row?.paid_amount ?? 0,
+    suppliers: row?.suppliers ?? 0,
+    oldestDays: row?.oldest_days ?? 0,
+  };
 }
 
 /**

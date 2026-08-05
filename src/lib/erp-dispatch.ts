@@ -212,6 +212,40 @@ export async function syncErpDispatchForDocRef(docRef: string): Promise<SyncResu
 }
 
 /**
+ * **ດຶງໃບເບີກຂອງ 1 ໃບງານ** — ເອີ້ນຈາກໜ້າລາຍລະອຽດງານ (ສ້ອມ · ບໍລິການ · ຕິດຕັ້ງ).
+ *
+ * ── ເປັນຫຍັງຕ້ອງມີ (ພົບ 05-08-2026) ──
+ * ງານ 7195: ສາງເບີກຢູ່ ERP ແລ້ວ (SWC26080022 → SIO2026080014) ແຕ່ໃນ ODSS ຍັງຂຶ້ນ
+ * "ລໍສາງເບີກ" ເພາະ **ບໍ່ມີໃຜ sync**: syncErpDispatch ຖືກເອີ້ນແຕ່ຢູ່ໜ້າ**ຄິວ**
+ * (ຄິວ "ກຳລັງເບີກອາໄຫຼ່", /stock/requests/pickup, ຄິວຕິດຕັ້ງ) ແລະ cron ພາຍນອກ
+ * ⇒ ຄົນທີ່ເປີດ**ໃບງານ**ໂດຍກົງ ເຫັນສະຖານະເກົ່າຄ້າງຢູ່ ບໍ່ວ່າຈະໂຫຼດຈັກເທື່ອ.
+ *
+ * ຖືກກວ່າ syncErpDispatch ທົ່ວລະບົບ: ຖາມ ERP ສະເພາະໃບຂໍຂອງງານນີ້ ແລະ
+ * **ຂ້າມທັນທີ** ຖ້າງານນີ້ບໍ່ມີແຖວທີ່ຍັງລໍເບີກ (ຄຳຖາມ ODS ອັນດຽວ ບໍ່ແຕະ ERP ເລີຍ).
+ */
+export async function syncErpDispatchForJob(code: string): Promise<SyncResult> {
+  const empty: SyncResult = { imported: 0, jobs: [] };
+  if (!db || !code) return empty;
+
+  try {
+    const open = await db.query<{ doc_no: string }>(
+      `select distinct t.doc_no
+         from ic_trans t
+         join ic_trans_detail d on d.doc_no = t.doc_no and d.trans_flag = t.trans_flag
+        where t.trans_flag = $1 and t.product_code = $2 and d.status in ($3, $4)
+          and t.doc_no like $5 || '%'`,
+      [TRANS.REQUEST, code, LINE_STATUS.PENDING, LINE_STATUS.ON_PURCHASE_ORDER, OUR_REQUEST],
+    );
+    if (open.rows.length === 0) return empty;
+    return await syncErpDispatchByDocRefs(open.rows.map((row) => row.doc_no));
+  } catch (error) {
+    // ERP ລົ້ມ ⇒ ໜ້າໃບງານຍັງເປີດໄດ້ (ພຽງແຕ່ຍັງເຫັນສະຖານະເກົ່າ)
+    console.error("syncErpDispatchForJob failed", code, error);
+    return empty;
+  }
+}
+
+/**
  * ດຶງໃບເບີກຂອງ **ໃບຂໍທີ່ຍັງຄ້າງ** — ເອີ້ນຈາກໜ້າຄິວ (ສາງເບີກ · ຮັບອາໄຫຼ່ · ໃບຂໍເບີກ).
  * ບໍ່ໂຍນ error ອອກ: ໜ້າຈໍຕ້ອງເປີດໄດ້ ເຖິງ ERP ຈະລົ້ມ (ພຽງແຕ່ຈະບໍ່ເຫັນໃບໃໝ່ຮອບນີ້).
  */

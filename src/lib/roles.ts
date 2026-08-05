@@ -272,6 +272,8 @@ const RULES: Rule[] = [
   { path: "/manage/employees", roles: [M] },
   // ຄ່າບໍລິການ/ຄ່າຄອມ = ເລື່ອງເງິນ ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ (actions/service-rate ກວດຊ້ຳ)
   { path: "/manage/service-rates", roles: [M] },
+  // ຈັບຄູ່ ປະເພດເຄື່ອງ → ຄ່າບໍລິການທີ່ບິນຕື່ມໃຫ້ເອງ — ເລື່ອງເງິນ ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ
+  { path: "/manage/service-charges", roles: [M] },
   // ເປົ້າລາຍຮັບ = ຄ່າຕັ້ງຂອງລາຍງານ (ບໍ່ແມ່ນເງິນຈ່າຍ) ⇒ ເປີດໃຫ້ admin ນຳ ຄືສິດເບິ່ງລາຍງານ
   { path: "/manage/revenue-targets", roles: [M, A] },
   // ເຊື່ອມຕົວຕົນຊ່າງ — ຕັດສິນວ່າຄ່າຄອມເຂົ້າບັນຊີໃຜ ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ
