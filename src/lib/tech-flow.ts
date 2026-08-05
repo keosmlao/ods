@@ -281,10 +281,22 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
         [session.username, input.code],
       );
       spareCount = moved.rowCount ?? 0;
-      if (spareCount === 0) {
-        await client.query("rollback");
-        return { ok: false, error: "ເລືອກວ່າໃຊ້ອາໄຫຼ່ ແຕ່ຍັງບໍ່ມີລາຍການອາໄຫຼ່" };
-      }
+      /**
+       * ── ກະຕ່າຫວ່າງ **ບໍ່ແມ່ນ** ເຫດຫ້າມປິດການກວດເຊັກອີກ (05-08-2026) ──
+       *
+       * ເມື່ອກ່ອນຢຸດໄວ້ວ່າ "ເລືອກວ່າໃຊ້ອາໄຫຼ່ ແຕ່ຍັງບໍ່ມີລາຍການອາໄຫຼ່" ⇒ ຊ່າງທີ່**ຮູ້ແລ້ວວ່າ
+       * ຕ້ອງໃຊ້ອາໄຫຼ່ ແຕ່ຍັງບໍ່ຮູ້ວ່າຕົວໃດ** (ຕ້ອງໄປຊອກລະຫັດ/ຖາມ supplier ກ່ອນສະເໜີຊື້)
+       * ປິດການກວດເຊັກບໍ່ໄດ້ເລີຍ. ທາງອອກດຽວທີ່ເຫຼືອຄືຕິກ "ບໍ່ໃຊ້ອາໄຫຼ່" ເຊິ່ງພາວຽກໄປ
+       * ຂັ້ນ 8 "ລໍຖ້າສ້ອມແປງ" — **ບອກຄວາມຈິງບໍ່ຖືກ** ແລະ ບໍ່ມີໃຜຖືກສັ່ງໃຫ້ໄປຊອກອາໄຫຼ່.
+       *
+       * ດຽວນີ້ປ່ອຍຜ່ານ: used_spare=1 ແຕ່ຍັງບໍ່ມີແຖວ ⇒ STAGE_SQL ໃຫ້ **ຂັ້ນ 5
+       * "ກວດ Stock / ດຳເນີນອາໄຫຼ່"** ເຊິ່ງຄືຄວາມຈິງພໍດີ.
+       *
+       * ⚠️ ສະພາບນີ້ **ຕ້ອງມີຄິວເຝົ້າ** — ຄິວຂໍສັ່ງຊື້ join tb_used_spare ⇒ ວຽກທີ່ບໍ່ມີແຖວ
+       * ຈະບໍ່ຂຶ້ນຄິວນັ້ນ ແລະ ຫາຍງຽບ (ພົບຂໍ້ມູນເກົ່າ 2 ໃບ: 7480 ຄ້າງ 15 ມື້ · 7583 ຄ້າງ 9 ມື້).
+       * ຈຶ່ງເພີ່ມສ່ວນ "ຍັງບໍ່ລະບຸອາໄຫຼ່" ຢູ່ /purchase-requests ຄູ່ກັບການປ່ຽນນີ້ —
+       * ຫ້າມຖອດອັນໃດອັນນຶ່ງອອກໂດຍບໍ່ຖອດອີກອັນ.
+       */
       await client.query("delete from ic_trans_detail_draft where user_created=$1 and product_code=$2", [
         session.username,
         input.code,
@@ -356,7 +368,12 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
     client.release();
   }
 
-  const spareNote = input.use_spare ? `ໃຊ້ອາໄຫຼ່ ${spareCount} ລາຍການ` : "ບໍ່ໃຊ້ອາໄຫຼ່";
+  // ກະຕ່າຫວ່າງ = ຮູ້ວ່າຕ້ອງໃຊ້ ແຕ່ຍັງບໍ່ໄດ້ລະບຸຕົວ — ຂຽນໃຫ້ຊັດ ຄົນອ່ານ log ຈຶ່ງຮູ້ວ່າຄ້າງຫຍັງ
+  const spareNote = input.use_spare
+    ? spareCount > 0
+      ? `ໃຊ້ອາໄຫຼ່ ${spareCount} ລາຍການ`
+      : "ຕ້ອງໃຊ້ອາໄຫຼ່ ແຕ່ຍັງບໍ່ໄດ້ລະບຸລາຍການ — ຕ້ອງໄປຊອກອາໄຫຼ່ກ່ອນສະເໜີຊື້"
+    : "ບໍ່ໃຊ້ອາໄຫຼ່";
   const warrantyNote = input.warranty_void ? ` · ຊ່າງແຈ້ງວ່າໝົດຮັບປະກັນ ເຫດຜົນ: ${reason}` : "";
   await logChange("tb_product", input.code, `ບັນທຶກຜົນກວດເຊັກ: ${input.diagnosis.trim()} · ${spareNote}${warrantyNote}`, { author: session.username });
 

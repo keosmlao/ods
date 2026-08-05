@@ -810,51 +810,67 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   ].filter((item) => canAccess(role, item.href));
 
   return (
-    <div className="w-full space-y-6 pb-6">
+    <div className="w-full space-y-8 pb-8">
       <DashboardAutoRefresh />
-      <div className="relative overflow-hidden rounded-2xl bg-brand-900 px-5 py-6 text-white shadow-xl shadow-slate-200 sm:px-7 sm:py-7">
-        <div className="pointer-events-none absolute -right-12 -top-24 size-64 rounded-full bg-brand-600/20 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 right-1/3 size-32 rounded-full bg-brand-500/10 blur-2xl" />
-        <div className="relative flex flex-wrap items-center justify-between gap-5">
-        <div>
-          {/* ທັກທາຍຜູ້ໃຊ້ດ້ວຍຊື່ — username = ຕົວຕົນ ERP (nickname/ຊື່ເຕັມ) */}
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-300">
-            {session?.username ? `${t.greeting}, ${session.username}` : "ODIEN Service Operations"}
-          </p>
-          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{t.controlCenter}</h1>
-          <p className="mt-2 text-xs text-slate-300">
-            {ROLE_LABEL[role]}
-            {tech ? ` · ${t.showOwnJobs}` : ` · ${t.showAllJobs}`}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] text-slate-400">{t.updated} {updatedAt}</span>
-          <Link href={`/dashboard?range=${days}`} className="grid size-10 place-items-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20" title={t.refreshData}><RefreshCw className="size-4" /></Link>
-          <Link
-            href="/dashboard/tracking"
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 text-xs font-semibold text-white backdrop-blur transition hover:bg-white/20"
-          >
-            <Radar className="size-4" /> {t.trackJobs} <LinkPending className="size-3.5" />
-          </Link>
-          {/* ດາວໂຫຼດແອັບຊ່າງ — ເນັ້ນ (ຂຽວ) ໃຫ້ຫາງ່າຍ ບໍ່ຕ້ອງເຂົ້າເມນູ */}
-          <Link
-            href="/download"
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand-700 px-4 text-xs font-semibold text-white transition hover:bg-brand-400"
-          >
-            <Smartphone className="size-4" /> {t.downloadApp} <LinkPending className="size-3.5" />
-          </Link>
-        </div>
-        </div>
-      </div>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {kpis.map((kpi) => (
-          <div key={kpi.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className={`mb-3 h-1.5 w-10 rounded-full ${kpi.bg}`} />
-            <p className="text-[11px] font-medium text-slate-500">{kpi.label}</p>
-            <p className={`mt-1 text-3xl font-bold tracking-tight ${kpi.tone}`}>{kpi.value.toLocaleString()}</p>
+      {/* ── Hero — ສູນຄວບຄຸມວຽກ ── */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-navy via-brand-900 to-brand-800 px-5 py-6 text-white shadow-2xl shadow-brand-900/20 sm:px-8 sm:py-7">
+        {/* ຊາຍພື້ນລາຍຕາລະອຽດ + ແສງສະຫວ່າງ */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,.7) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.7) 1px, transparent 1px)",
+            backgroundSize: "34px 34px",
+          }}
+          aria-hidden
+        />
+        <div className="pointer-events-none absolute -right-16 -top-24 size-72 rounded-full bg-brand-400/20 blur-3xl" aria-hidden />
+        <div className="pointer-events-none absolute -bottom-24 left-1/4 size-56 rounded-full bg-brand-orange-500/10 blur-3xl" aria-hidden />
+
+        <div className="relative flex flex-wrap items-start justify-between gap-5">
+          <div className="min-w-0">
+            {/* ສະບາຍດີຜູ້ໃຊ້ດ້ວຍຊື່ — username = ຕົວຕົນ ERP (nickname/ຊື່ເຕັມ) */}
+            <p className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-300">
+              <span className="inline-block size-1.5 rounded-full bg-brand-orange-300" aria-hidden />
+              {session?.username ? `${t.greeting}, ${session.username}` : "ODIEN Service Operations"}
+            </p>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-[28px]">{t.controlCenter}</h1>
+            <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-300">
+              <span className="rounded-md bg-white/10 px-2 py-0.5 font-medium text-brand-100">{ROLE_LABEL[role]}</span>
+              <span className="text-slate-500">·</span>
+              <span>{tech ? t.showOwnJobs : t.showAllJobs}</span>
+            </p>
           </div>
-        ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] text-slate-400">{t.updated} {updatedAt}</span>
+            <Link href={`/dashboard?range=${days}`} className="grid size-10 place-items-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20" title={t.refreshData}><RefreshCw className="size-4" /></Link>
+            <Link
+              href="/dashboard/tracking"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 text-xs font-semibold text-white backdrop-blur transition hover:bg-white/20"
+            >
+              <Radar className="size-4" /> {t.trackJobs} <LinkPending className="size-3.5" />
+            </Link>
+            {/* ດາວໂຫຼດແອັບຊ່າງ — ເນັ້ນ (ຂຽວ) ໃຫ້ຫາງ່າຍ ບໍ່ຕ້ອງເຂົ້າເມນູ */}
+            <Link
+              href="/download"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand-400 px-4 text-xs font-bold text-brand-900 shadow-lg shadow-brand-900/30 transition hover:bg-brand-300"
+            >
+              <Smartphone className="size-4" /> {t.downloadApp} <LinkPending className="size-3.5" />
+            </Link>
+          </div>
+        </div>
+
+        {/* ແຖບ KPI ຢູ່ໃນ hero — ປະຫຍຸດ ບໍ່ແຍກບັດ */}
+        <div className="relative mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 sm:grid-cols-4">
+          {kpis.map((kpi) => (
+            <div key={kpi.label} className="bg-white/[0.04] px-4 py-3.5 backdrop-blur-sm">
+              <div className={`mb-2 h-1 w-8 rounded-full ${kpi.bg}`} />
+              <p className="text-2xl font-bold tracking-tight tabular-nums text-white">{kpi.value.toLocaleString()}</p>
+              <p className="mt-0.5 text-[11px] font-medium text-slate-400">{kpi.label}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ຄິວຫຼັກຢູ່ເທິງ: ເປີດໜ້າມາແລ້ວຮູ້ທັນທີວ່າຕ້ອງເຄຍຫຍັງກ່ອນ */}
@@ -905,7 +921,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       )}
 
       <section className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
-        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="pointer-events-none absolute -bottom-16 -right-12 size-40 rounded-full bg-brand-100/70 blur-3xl" />
           <div className="relative flex flex-wrap items-center gap-5">
             <div className={`grid size-16 shrink-0 place-items-center rounded-2xl ${health.ring} text-white shadow-lg shadow-slate-200`}>
@@ -920,7 +936,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           </div>
         </div>
 
-        {quickActions.length > 0 && <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        {quickActions.length > 0 && <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="mb-3"><h2 className="text-sm font-bold text-slate-800">{t.dailyShortcuts}</h2><p className="mt-0.5 text-[11px] text-slate-500">{t.shortcutsSubtitle}</p></div>
           <div className="grid grid-cols-2 gap-2">
             {quickActions.slice(0, 6).map(({ label, href, icon: Icon }) => <Link key={href} href={href} className="group flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-900"><span className="grid size-7 place-items-center rounded-lg bg-white text-slate-500 shadow-sm group-hover:text-brand-800"><Icon className="size-3.5" /></span><span className="truncate">{label}</span></Link>)}
@@ -929,14 +945,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       </section>
 
       {data && ["/installations/work", "/checking", "/work"].some((path) => canAccess(role, path)) && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
             <div><h2 className="text-base font-bold text-slate-900">{t.todayJobs}</h2><p className="mt-0.5 text-[11px] text-slate-500">{t.todayJobsSubtitle}</p></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            {canAccess(role, "/installations/work") && <Link href="/installations/work" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-brand-300 hover:bg-brand-50"><p className="text-xs font-semibold text-slate-600">{t.todayAppointments}</p><p className="mt-1 text-2xl font-bold text-brand-800">{data.today.appointments.toLocaleString()}</p></Link>}
-            {canAccess(role, "/checking") && <Link href="/checking" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-brand-300 hover:bg-brand-50"><p className="text-xs font-semibold text-slate-600">{t.todayChecking}</p><p className="mt-1 text-2xl font-bold text-brand-600">{data.today.checking.toLocaleString()}</p></Link>}
-            {canAccess(role, "/work") && <Link href="/work/repair/repairing" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-brand-orange-300 hover:bg-brand-orange-50"><p className="text-xs font-semibold text-slate-600">{t.todayRepairing}</p><p className="mt-1 text-2xl font-bold text-brand-orange-700">{data.today.repairing.toLocaleString()}</p></Link>}
+            {canAccess(role, "/installations/work") && <Link href="/installations/work" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-brand-300 hover:bg-brand-50"><p className="text-xs font-semibold text-slate-600">{t.todayAppointments}</p><p className="mt-1 text-2xl font-bold tabular-nums text-brand-800">{data.today.appointments.toLocaleString()}</p></Link>}
+            {canAccess(role, "/checking") && <Link href="/checking" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-brand-300 hover:bg-brand-50"><p className="text-xs font-semibold text-slate-600">{t.todayChecking}</p><p className="mt-1 text-2xl font-bold tabular-nums text-brand-600">{data.today.checking.toLocaleString()}</p></Link>}
+            {canAccess(role, "/work") && <Link href="/work/repair/repairing" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-brand-orange-300 hover:bg-brand-orange-50"><p className="text-xs font-semibold text-slate-600">{t.todayRepairing}</p><p className="mt-1 text-2xl font-bold tabular-nums text-brand-orange-700">{data.today.repairing.toLocaleString()}</p></Link>}
           </div>
           {(data.sla.warning > 0 || data.sla.late > 0) && canAccess(role, "/checking") && <div className="mt-3 flex flex-wrap gap-2 text-[11px]"><Link href="/checking?sla=warning&sort=elapsed&dir=desc" className="rounded-full bg-brand-orange-300 px-2.5 py-1 font-semibold text-brand-900 hover:bg-brand-orange-300">{t.nearSla} {data.sla.warning}</Link><Link href="/checking?sla=late&sort=elapsed&dir=desc" className="rounded-full bg-brand-orange-100 px-2.5 py-1 font-semibold text-brand-orange-700 hover:bg-brand-orange-200">{t.overSla} {data.sla.late}</Link><Link href="/checking?sla=critical&sort=elapsed&dir=desc" className="rounded-full bg-brand-orange-700 px-2.5 py-1 font-semibold text-white hover:bg-brand-orange-700">{t.critical} {data.sla.critical}</Link></div>}
         </section>
@@ -969,7 +985,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       {/* ② ຂັ້ນໄດ — ບໍ່ຫຼົ້ນກັນ ລວມກັນໄດ້ຍອດພໍດີ */}
       <section className="grid gap-4 xl:grid-cols-2">
-        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="mb-3 flex items-center gap-2">
             <Wrench className="size-4 text-slate-400" />
             <h2 className="text-sm font-bold text-slate-700">{t.repairPipeline}</h2>
@@ -991,7 +1007,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           />
         </article>
 
-        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="mb-3 flex items-center gap-2">
             <HardHat className="size-4 text-slate-400" />
             <h2 className="text-sm font-bold text-slate-700">{t.installPipeline}</h2>
@@ -1019,7 +1035,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       {/* ຜົນງານ 30 ມື້ — ບອກທິດທາງ ບໍ່ແມ່ນແຕ່ຍອດ */}
       {data && !tech && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-bold text-slate-800">{t.performance} {days} {t.daysAgoCompare}</h2>
             <div className="flex overflow-hidden rounded-lg border border-slate-200">
@@ -1050,7 +1066,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {data && canAccess(role, "/reports/technician-income") && (data.payout.assigned_thb > 0 || data.payout.orphan_thb > 0) && (
         <Link
           href="/reports/technician-income"
-          className="flex flex-wrap items-center gap-4 rounded-2xl border border-brand-200 bg-gradient-to-r from-white to-brand-50/60 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          className="flex flex-wrap items-center gap-4 rounded-2xl border border-brand-200 bg-gradient-to-r from-white to-brand-50/60 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-6"
         >
           <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-800">
             <Wallet className="size-5" />
@@ -1071,7 +1087,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             )}
           </div>
           <div className="text-right">
-            <p className="text-3xl font-bold text-slate-900">
+            <p className="text-3xl font-bold tabular-nums text-slate-900">
               {data.payout.assigned_thb.toLocaleString("en-US", { minimumFractionDigits: 2 })}
             </p>
             <p className="text-[11px] text-slate-400">{t.baht}</p>

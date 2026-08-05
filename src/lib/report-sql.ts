@@ -1,6 +1,6 @@
 import { query, queryOdg } from "@/lib/db";
 import { INSTALL_STAGE_LABEL_SQL } from "@/lib/install-stage";
-import { CANCELLED_JOBS, NOT_MISSING, STAGE_LABEL, STAGE_LABEL_SQL, STAGE_SQL, NOT_CLAIM } from "@/lib/stage";
+import { CANCELLED_JOBS, NOT_MISSING, NOT_PENDING_CANCEL, OPEN_JOBS, STAGE_LABEL, STAGE_LABEL_SQL, STAGE_SQL, NOT_CLAIM } from "@/lib/stage";
 import type { XlsxColumn } from "@/lib/xlsx";
 
 /*
@@ -12,7 +12,14 @@ export type Row = Record<string, string | number | null>;
 
 /** ຫົວຄໍລຳ (ຄັດລອກຈາກ template ຂອງ ods ຄຳຕໍ່ຄຳ) — ໃຊ້ຮ່ວມກັນທັງໜ້າຈໍ ແລະ Excel */
 export const columns = {
-  /** 27 ຄໍລຳ — /download/report/excel ແລະ ໜ້າ /reports/pending */
+  /**
+   * 26 ຄໍລຳ — /download/report/excel ແລະ ໜ້າ /reports/pending
+   *
+   * ⚠️ **ບໍ່ມີ "ສຳເລັດສັ່ງ" (spare_order_finish)** — ຖັນນັ້ນ **ບໍ່ມີ code ບ່ອນໃດຂຽນມັນ**
+   * (job-stage.ts ຕັ້ງເປັນ null ຢ່າງດຽວ) ⇒ ທັງຕາຕະລາງມີພຽງ 6/5,184 ແຖວ ແລະ
+   * ໃນງານຄ້າງ **0/87** ⇒ ເປັນຄໍລຳຫວ່າງຖາວອນ ກິນເນື້ອທີ່ຈໍໂດຍບໍ່ບອກຫຍັງ.
+   * ຂັ້ນ "ກຳລັງສັ່ງຊື້ອາໄຫຼ່" ອ່ານຈາກແຖວ SIO ແທນແລ້ວ (ເບິ່ງ STAGE_SQL ຢູ່ lib/stage).
+   */
   pending: [
     { header: "ລຳດັບ", key: "rnum", width: 8 },
     { header: "ລະຫັດຮັບເຄື່ອງ", key: "code" },
@@ -37,7 +44,6 @@ export const columns = {
     { header: "ຂໍເບີກອາໃຫຼ່", key: "spare_reg", width: 20 },
     { header: "ເບີກອາໃຫຼ່", key: "spare_finish", width: 20 },
     { header: "ສັ່ງອາໃຫຼ່", key: "spare_order", width: 20 },
-    { header: "ສຳເລັດສັ່ງ", key: "spare_order_finish", width: 20 },
     { header: "ສ້ອມແປງ", key: "time_repair", width: 20 },
     { header: "ສຳເລັດສ້ອມ", key: "time_finish_repair", width: 20 },
     { header: "ສະຖານະ", key: "status_name" },
@@ -328,8 +334,19 @@ const productBase = `row_number() over (order by a.time_register) rnum,
  * ods: /report_pending (POST) + /report_allpd
  * FIX: GET branch ຂອງ ods ອ້າງອີງຕົວແປ `today` ທີ່ບໍ່ໄດ້ປະກາດ → NameError → ໜ້າວ່າງສະເໝີ.
  */
+/**
+ * ── ຍອດຄ້າງຕ້ອງ **ຕົງກັບ dashboard** (05-08-2026) ──
+ * ເດີມ where ຂຽນເອງ (`status <> 6`) ແລະ **ບໍ່ໄດ້ຕັດງານເຄມ** ⇒ ລາຍງານໄດ້ 89 ໃບ
+ * ແຕ່ໜ້າລວມໄດ້ 87 (ຕ່າງ 2 ໃບ: ຂັ້ນ 8 ນຶ່ງ · ຂັ້ນ 13 "ລໍຕັດສິນຜົນເຄມ" ນຶ່ງ).
+ * ເຄມບໍ່ແມ່ນວຽກສ້ອມ ແລະ ມີຄິວ/ລາຍງານຂອງຕົນເອງ — ເບິ່ງ NOT_CLAIM ຢູ່ lib/stage.
+ *
+ * ⚠️ ໃຊ້ **ຄ່າຄົງທີ່ນິຍາມກາງ** ບໍ່ຂຽນເງື່ອນໄຂເອງອີກ ⇒ ບໍ່ຫຼົງກັບໜ້າລວມໄດ້ອີກ:
+ *   OPEN_JOBS · NOT_PENDING_CANCEL · NOT_CLAIM · NOT_MISSING (ຊຸດດຽວກັບ dashboard).
+ * `status <> 6` ⇒ `NOT_PENDING_CANCEL`: ໃບຍົກເລີກ-ອະນຸມັດແລ້ວ-**ເຄື່ອງຍັງຢູ່ຮ້ານ**
+ * ຍັງເປັນວຽກຄ້າງ (ຍັງຕ້ອງອອກໃບຄືນເຄື່ອງ+ເກັບຄ່າກວດ) ຈຶ່ງຕ້ອງຢູ່ໃນລາຍງານນຳ.
+ */
 export async function fetchPending(from: string, to: string, all: boolean) {
-  const where = `where a.return_complete isnull and a.status <> 6 and ${NOT_MISSING}`;
+  const where = `where ${OPEN_JOBS} and ${NOT_PENDING_CANCEL} and ${NOT_CLAIM} and ${NOT_MISSING}`;
   const sql = all
     ? `select ${productBase} ${where} order by a.time_register`
     : `select ${productBase} ${where} and a.time_register::date between $1 and $2 order by a.time_register`;

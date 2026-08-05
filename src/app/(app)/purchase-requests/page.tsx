@@ -9,7 +9,7 @@ import { getLocale } from "@/lib/i18n/locale";
 import { query, queryOdg } from "@/lib/db";
 import { getBalances, withdrawableQty } from "@/lib/stock-balance";
 import { STAGE_SQL } from "@/lib/stage";
-import { PackageCheck, ShoppingCart } from "lucide-react";
+import { PackageCheck, PackageSearch, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -19,9 +19,10 @@ import Link from "next/link";
  * ຕາຕະລາງແຖວ SIO ຄ້າງເກົ່າຖືກຖອດອອກຕາມຄຳສັ່ງຜູ້ຈັດການ — ມັນຄືກົນໄກເກົ່າ:
  * 103/129 ແຖວເປັນວຽກຕາຍ ແລະ ທີ່ເຫຼືອກໍ່ຊ້ຳກັບຄິວ "ວຽກທີ່ຕ້ອງສັ່ງຊື້" ຢູ່ນີ້.
  *
- * ໜ້ານີ້ມີ 2 ສ່ວນ:
+ * ໜ້ານີ້ມີ 3 ສ່ວນ:
  *   ① ວຽກທີ່ຕ້ອງສັ່ງຊື້ — ວຽກຂັ້ນ 5 ທີ່ ERP ບໍ່ມີ/ບໍ່ພໍ ແລະ ຍັງບໍ່ໄດ້ຂໍຊື້
- *   ② ໃບສະເໜີຊື້ (SPR) ທີ່ອອກແລ້ວ ຈາກ ERP — **ແຍກ 2 ແທັບ**: ລໍຖ້າອະນຸມັດ / ອະນຸມັດແລ້ວ
+ *   ② ຍັງບໍ່ລະບຸອາໄຫຼ່ — ຮູ້ວ່າຕ້ອງໃຊ້ ແຕ່ຍັງບໍ່ຮູ້ຕົວ (ຕ້ອງຊອກກ່ອນຈຶ່ງສະເໜີຊື້ໄດ້)
+ *   ③ ໃບສະເໜີຊື້ (SPR) ທີ່ອອກແລ້ວ ຈາກ ERP — **ແຍກ 2 ແທັບ**: ລໍຖ້າອະນຸມັດ / ອະນຸມັດແລ້ວ
  */
 export const dynamic = "force-dynamic";
 
@@ -85,6 +86,43 @@ async function getDirectPurchaseJobs() {
     jobs.set(line.product_code, item);
   }
   return [...jobs.values()].slice(0, 50);
+}
+
+type UnspecifiedJob = {
+  product_code: string;
+  product: string | null;
+  tech: string | null;
+  checked_at: string | null;
+  days_waiting: number;
+};
+
+/**
+ * ── ວຽກທີ່ **ຮູ້ວ່າຕ້ອງໃຊ້ອາໄຫຼ່ ແຕ່ຍັງບໍ່ໄດ້ລະບຸຕົວ** (05-08-2026) ──
+ *
+ * ຊ່າງປິດການກວດເຊັກໄດ້ໂດຍຍັງບໍ່ຮູ້ລະຫັດອາໄຫຼ່ (ຕ້ອງໄປຊອກ/ຖາມ supplier ກ່ອນ) —
+ * ເບິ່ງ saveCheckFlow ຢູ່ lib/tech-flow. ວຽກກຸ່ມນີ້ໄດ້ຂັ້ນ 5 ຄືກັບວຽກອື່ນ ແຕ່
+ * **ຄິວ ① ຂ້າງເທິງເຫັນມັນບໍ່ໄດ້** ເພາະຄິວນັ້ນ join tb_used_spare ຫາ "ອາໄຫຼ່ຂາດ"
+ * ⇒ ບໍ່ມີແຖວ = ບໍ່ມີໃນຄິວ = ຫາຍງຽບ. ພິສູດແລ້ວດ້ວຍຂໍ້ມູນເກົ່າ 2 ໃບທີ່ຕົກຢູ່ສະພາບນີ້
+ * ໂດຍບໍ່ມີໃຜເຫັນ: ໃບ 7480 (ຕູ້ເຢັນ) ຄ້າງ 15 ມື້ · ໃບ 7583 (ແອ) ຄ້າງ 9 ມື້.
+ *
+ * ⇒ ສ່ວນນີ້ຄື**ຄິວເຝົ້າ**ຂອງມັນ: ຜູ້ເຮັດຕໍ່ຄືຊ່າງ/ຈັດຊື້ ໄປຫາລະຫັດອາໄຫຼ່ໃຫ້ໄດ້ກ່ອນ
+ * (ບໍ່ມີໃນລາຍການສິນຄ້າ → ຂໍສ້າງລະຫັດທີ່ /spare-parts/new) ແລ້ວຈຶ່ງສະເໜີຊື້ໄດ້.
+ */
+async function getUnspecifiedSpareJobs(): Promise<UnspecifiedJob[]> {
+  return (
+    await query<UnspecifiedJob>(
+      `select a.code product_code, concat_ws(' · ', a.name_1, a.sn) product,
+          nullif(a.emp_code,'') tech,
+          to_char(a.time_finish_check,'DD-MM-YYYY HH24:MI') checked_at,
+          greatest(0, current_date - coalesce(a.time_finish_check, a.time_register)::date)::int days_waiting
+        from tb_product a
+       where (${STAGE_SQL}) in (5, 6)
+         and coalesce(a.used_spare,0) = 1
+         and not exists (select 1 from tb_used_spare s where s.product_code = a.code)
+       order by a.time_finish_check asc nulls last
+       limit 50`,
+    )
+  ).rows;
 }
 
 type SprDoc = {
@@ -170,8 +208,9 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
   const params = await searchParams;
   // ຕັ້ງຕົ້ນ "ລໍຖ້າອະນຸມັດ" — ແທັບທີ່ມີວຽກໃຫ້ເຮັດ (ອະນຸມັດແລ້ວແມ່ນໄວ້ເບິ່ງຍ້ອນຫຼັງ)
   const tab: SprTab = params.tab === "approved" ? "approved" : "wait";
-  const [directJobs, sprDocs, waitCount, approvedCount, session] = await Promise.all([
+  const [directJobs, unspecifiedJobs, sprDocs, waitCount, approvedCount, session] = await Promise.all([
     getDirectPurchaseJobs(),
+    getUnspecifiedSpareJobs(),
     getSprDocs(tab),
     countSprDocs("wait"),
     countSprDocs("approved"),
@@ -252,7 +291,60 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
         )}
       </section>
 
-      {/* ② ໃບສະເໜີຊື້ (SPR) ຈາກ ERP — ແຍກ 2 ແທັບ (ກອງຢູ່ ERP ບໍ່ແມ່ນຢູ່ Node) */}
+      {/* ②ຍັງບໍ່ລະບຸອາໄຫຼ່ — ຮູ້ວ່າຕ້ອງໃຊ້ ແຕ່ຍັງບໍ່ຮູ້ຕົວ ⇒ ຕ້ອງຊອກກ່ອນຈຶ່ງສະເໜີຊື້ໄດ້.
+          ເຊື່ອງທັງແຖບເມື່ອບໍ່ມີວຽກ — ບໍ່ໃຫ້ກ່ອງຫວ່າງມາແຍ່ງສາຍຕາຈາກຄິວທີ່ມີວຽກແທ້ */}
+      {unspecifiedJobs.length > 0 && (
+        <section className="overflow-hidden rounded-xl border border-slate-300 bg-white shadow-sm">
+          <div className="border-b border-slate-300 bg-slate-100 px-4 py-2.5">
+            <h2 className="text-sm font-bold text-slate-800">{t.unspecifiedTitle} ({unspecifiedJobs.length})</h2>
+            <p className="text-[11px] text-slate-600">{t.unspecifiedDesc}</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                  <th className="px-3 py-2.5 font-semibold">{t.colJob}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.colProduct}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.colTech}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.colChecked}</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">{t.colWaiting}</th>
+                  <th className="px-3 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {unspecifiedJobs.map((job) => (
+                  <tr key={job.product_code} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="px-3 py-2.5 font-bold text-brand">
+                      <Link href={`/service/${job.product_code}`} className="hover:underline">
+                        {job.product_code}
+                      </Link>
+                    </td>
+                    <td className="max-w-96 truncate px-3 py-2.5" title={job.product ?? ""}>{job.product ?? "-"}</td>
+                    <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{job.tech ?? "-"}</td>
+                    <td className="whitespace-nowrap px-3 py-2.5">{job.checked_at ?? "-"}</td>
+                    {/* ຄ້າງດົນ = ບັນຫາ ⇒ ເນັ້ນສີເມື່ອເກີນ 7 ມື້ ໃຫ້ຕາຈັບໄດ້ກ່ອນ */}
+                    <td className={`px-3 py-2.5 text-right font-bold tabular-nums ${job.days_waiting > 7 ? "text-brand-orange-700" : "text-slate-600"}`}>
+                      {job.days_waiting} {t.daysUnit}
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <Link
+                        href="/spare-parts/new"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        <PackageSearch className="size-3.5" />
+                        {t.requestSpareCode}
+                        <LinkPending className="size-3" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* ③ ໃບສະເໜີຊື້ (SPR) ຈາກ ERP — ແຍກ 2 ແທັບ (ກອງຢູ່ ERP ບໍ່ແມ່ນຢູ່ Node) */}
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 bg-slate-50 px-4 py-2.5">
           <h2 className="text-sm font-bold text-slate-700">{t.sprTitle}</h2>
