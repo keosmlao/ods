@@ -31,6 +31,7 @@ import {
   repairStageTargetHours,
 } from "@/lib/repair-sla";
 import { NOT_MISSING, STAGE_ELAPSED_SQL, STAGE_TIME_COL } from "@/lib/stage";
+import { TRANS } from "@/lib/stock-constants";
 import { heldSql, holdJsonSql, notHeldSql, type JobHold } from "@/lib/job-hold";
 import { HoldButtons } from "@/components/repair/hold-buttons";
 import { MobileCardList } from "@/components/mobile-card-list";
@@ -43,7 +44,7 @@ import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { listTechnicians } from "@/lib/technicians";
 import { PhotoThumb } from "@/components/service/photo-thumb";
-import { ArrowLeft, ArrowRight, Barcode, ChevronLeft, ChevronRight, CircleAlert, Download, FileText, House, PackageOpen, Search, Truck, Warehouse } from "lucide-react";
+import { ArrowLeft, ArrowRight, Barcode, ChevronLeft, ChevronRight, CircleAlert, Download, FileText, House, PackageOpen, Search, TriangleAlert, Truck, Warehouse, Wrench } from "lucide-react";
 import { type Dictionary, getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import Link from "next/link";
@@ -70,7 +71,10 @@ type RepairRow = {
   total_count: number;
   code: string; roworder: number; customer: string | null; phone: string | null; product: string | null; sn: string | null;
   model: string | null; brand: string | null; warranty: string | null; service_type: string | null;
-  issue: string | null; accessory: string | null; reference: string | null; receiver: string | null;
+  issue: string | null;
+  /** ຜົນວິເຄາະຂອງຊ່າງຕອນກວດເຊັກ (tb_product.issue_2) — "ເສຍຫຍັງແທ້" */
+  issue_2: string | null;
+  accessory: string | null; reference: string | null; receiver: string | null;
   technician: string | null; registered: string | null; elapsed_seconds: number | null; opened_seconds: number | null;
   stage_started: string | null;
   location_inst: string | null; appoint_date: string | null; remark: string | null;
@@ -94,6 +98,8 @@ type RepairRow = {
   thumb: string | null; photo_count: number;
   /** ງານເຄມ — ໝາຍໄວ້ (ods_claim_mark) ຫຼື ມີໃບເຄມຜູກ (ods_claim.ref_job) · ນິຍາມດຽວກັບ /service */
   is_claim: boolean;
+  /** ຕ້ອງໃຊ້ອາໄຫຼ່ ແຕ່ຍັງບໍ່ໄດ້ລະບຸຕົວ ⇒ ຕິດປ້າຍແດງ "ຈຳເປັນຕ້ອງຫາອາໄຫຼ່" */
+  needs_spare_id: boolean;
   /** ທຸງ "ມີບັນຫາ" ທີ່ເປີດຢູ່ — null = ປົກກະຕິ (ເບິ່ງ src/lib/job-hold.ts) */
   hold: JobHold | null;
 };
@@ -397,7 +403,11 @@ export default async function StatusPage({ params, searchParams }: Props) {
   const rowsSql = isRepair
     ? `select count(*) over()::int total_count,
          a.code, a.roworder, c.name_1 customer, c.tel phone, a.name_1 product, a.sn, a.p_model model, a.p_brand brand,
-         a.warrunty warranty, a.service_type, a.issue, a.p_access accessory, a.doc_def reference,
+         a.warrunty warranty, a.service_type, a.issue,
+         -- ຜົນວິເຄາະຂອງຊ່າງຕອນກວດເຊັກ — ຄິວ "ລໍຖ້າສ້ອມ" ຕ້ອງເຫັນວ່າ **ເສຍຫຍັງແທ້**
+         -- ບໍ່ແມ່ນແຕ່ຄຳທີ່ລູກຄ້າແຈ້ງ (issue) ⇒ ຊ່າງລົງມືໄດ້ໂດຍບໍ່ຕ້ອງກົດເຂົ້າໃບ
+         a.issue_2,
+         a.p_access accessory, a.doc_def reference,
          a.user_regis receiver, a.emp_code technician, a.repair_confirm,
          coalesce(nullif(a.location_repair,''), c.address) location_inst,
          to_char(a.appoint_date,'YYYY-MM-DD') appoint_date, nullif(a.remark,'') remark,
@@ -466,6 +476,15 @@ export default async function StatusPage({ params, searchParams }: Props) {
          -- ງານເຄມ ⇒ ຕິດປ້າຍໃນຄິວ (ນິຍາມດຽວກັບໜ້າ /service)
          (exists(select 1 from ods_claim_mark m where m.job_code=a.code)
            or exists(select 1 from ods_claim cl where cl.ref_job=a.code)) as is_claim,
+         /**
+          * **ຕ້ອງໃຊ້ອາໄຫຼ່ ແຕ່ຍັງບໍ່ໄດ້ລະບຸຕົວ** — ຊ່າງປິດການກວດເຊັກໂດຍຍັງບໍ່ຮູ້ລະຫັດ
+          * (ເບິ່ງ saveCheckFlow ຢູ່ lib/tech-flow) ⇒ ວຽກຍ້າຍມາຂັ້ນອາໄຫຼ່ແຕ່**ບໍ່ມີລາຍການ
+          * ໃຫ້ໃຜເບີກ/ຊື້** ⇒ ຄິວອື່ນເຫັນມັນເປັນວຽກປົກກະຕິ ແລ້ວມັນນອນຢູ່ງຽບໆ
+          * (ພົບຂໍ້ມູນຈິງ 2 ໃບ ຄ້າງ 15 ແລະ 9 ມື້ ໂດຍບໍ່ມີໃຜເຫັນ).
+          * ⇒ ຕິດປ້າຍ **ສີແດງ** ໃນຄິວ ໃຫ້ຮູ້ວ່າສິ່ງທີ່ຄ້າງຄື "ຍັງບໍ່ຮູ້ວ່າຈະໃຊ້ອາໄຫຼ່ຫຍັງ".
+          */
+         (coalesce(a.used_spare,0) = 1
+           and not exists (select 1 from tb_used_spare s where s.product_code = a.code)) as needs_spare_id,
          ${holdJsonSql("repair")}
        ${from} where ${filter} order by ${orderBy} limit $${args.length + 1} offset $${args.length + 2}`
     : `select count(*) over()::int total_count,
@@ -575,6 +594,55 @@ export default async function StatusPage({ params, searchParams }: Props) {
   const requestOutstanding = new Map(
     requestOutstandingResult.rows.map((row) => [row.product_code, row.remaining]),
   );
+
+  /**
+   * ── **ອາໄຫຼ່ທີ່ໃຊ້ ຂອງແຕ່ລະໃບງານ** (05-08-2026) ──
+   *
+   * ຄຳຖາມທຳອິດຂອງຄົນທີ່ເບິ່ງຄິວຄື "ໃບນີ້ໃຊ້ອາໄຫຼ່ບໍ ແລະ ໃຊ້ຫຍັງແດ່" — ແຕ່ເມື່ອກ່ອນ
+   * ຕ້ອງກົດເຂົ້າໄປໃນໃບຈຶ່ງຮູ້. ດຶງມາໃຫ້ເຫັນຢູ່ຄິວເລີຍ ພ້ອມສະຖານະຂອງແຕ່ລະລາຍການ.
+   *
+   * ⚠️ ດຶງ **ທຸກຄິວສ້ອມ** ບໍ່ແມ່ນສະເພາະຄິວອາໄຫຼ່ (repairCodes ຂ້າງເທິງມີແຕ່ຄິວເບີກ/ຊື້)
+   * — ຄິວ "ລໍຖ້າສ້ອມ"/"ກຳລັງສ້ອມ" ກໍ່ຕ້ອງເຫັນວ່າຊ່າງມີອາໄຫຼ່ຄົບແລ້ວບໍ.
+   *
+   * ສະຖານະຄິດຈາກ **ເອກະສານ** ຄືກັນກັບບ່ອນອື່ນ (lib/repair-spare-rounds):
+   *   ເບີກແລ້ວ (SWC 56) > ຂໍເບີກແລ້ວ (SIO 122) > ຍັງບໍ່ຂໍເບີກ
+   */
+  const spareLineRows =
+    isRepair && list.rows.length > 0
+      ? (
+          await query<{
+            product_code: string; item_code: string; item_name: string | null;
+            qty: number; requested: boolean; dispatched: boolean;
+          }>(
+            `select s.product_code, s.item_code, max(s.item_name) item_name,
+                sum(coalesce(s.qty,0))::float8 qty,
+                bool_or(exists (select 1 from ic_trans_detail d
+                  where d.product_code = s.product_code and d.item_code = s.item_code
+                    and d.trans_flag = ${TRANS.REQUEST})) requested,
+                bool_or(exists (select 1 from ic_trans_detail d
+                  where d.product_code = s.product_code and d.item_code = s.item_code
+                    and d.trans_flag = ${TRANS.DISPATCH})) dispatched
+               from tb_used_spare s
+              where s.product_code = any($1::text[])
+              group by s.product_code, s.item_code
+              order by s.product_code, max(s.item_name)`,
+            [list.rows.map((row) => row.code)],
+          )
+        ).rows
+      : [];
+  const spareLinesByJob = new Map<string, typeof spareLineRows>();
+  for (const line of spareLineRows) {
+    const lines = spareLinesByJob.get(line.product_code) ?? [];
+    lines.push(line);
+    spareLinesByJob.set(line.product_code, lines);
+  }
+  /** ປ້າຍສະຖານະຕໍ່ລາຍການ — ເບີກແລ້ວ > ຂໍເບີກແລ້ວ > ຍັງບໍ່ຂໍເບີກ */
+  const spareLineState = (line: { requested: boolean; dispatched: boolean }) =>
+    line.dispatched
+      ? { label: "ເບີກແລ້ວ", tone: "bg-brand-50 text-brand-800" }
+      : line.requested
+        ? { label: "ຂໍເບີກແລ້ວ", tone: "bg-brand-orange-300 text-brand-900" }
+        : { label: "ຍັງບໍ່ຂໍເບີກ", tone: "bg-slate-100 text-slate-600" };
 
   // emp_code → ຊື່ ERP (ຊື່ຢູ່ຖານ ERP ຄົນລະບົບ ⇒ ຕ້ອງ resolve ຢູ່ນີ້ ບໍ່ join ໃນ SQL ໄດ້)
   const techName = new Map(techs.map((item) => [item.code, item.name]));
@@ -1121,6 +1189,26 @@ export default async function StatusPage({ params, searchParams }: Props) {
                             )}
                             {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
                           </span>
+                          {/* ຍັງບໍ່ຮູ້ວ່າຈະໃຊ້ອາໄຫຼ່ຫຍັງ ⇒ ແດງ ພ້ອມບອກສິ່ງທີ່ຕ້ອງເຮັດຕໍ່ */}
+                          {isRepair && (row as RepairRow).needs_spare_id && (
+                            <span className="mt-0.5 inline-flex items-center gap-1 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                              <TriangleAlert className="size-3" />
+                              ຈຳເປັນຕ້ອງຫາອາໄຫຼ່
+                            </span>
+                          )}
+                          {/* ໃຊ້ອາໄຫຼ່ບໍ — ຕອບຄຳຖາມທຳອິດຂອງຄົນເບິ່ງຄິວ ໂດຍບໍ່ຕ້ອງກົດເຂົ້າໃບ */}
+                          {isRepair && !(row as RepairRow).needs_spare_id && (
+                            (spareLinesByJob.get(row.code)?.length ?? 0) > 0 ? (
+                              <span className="mt-0.5 inline-flex items-center gap-1 rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-800">
+                                <Wrench className="size-3" />
+                                ໃຊ້ອາໄຫຼ່ {spareLinesByJob.get(row.code)?.length} ລາຍການ
+                              </span>
+                            ) : (
+                              <span className="mt-0.5 inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                                ບໍ່ໃຊ້ອາໄຫຼ່
+                              </span>
+                            )
+                          )}
                           <span className="block truncate text-[10px] text-slate-400">
                             {isRepair
                               ? row.sn || "-"
@@ -1209,8 +1297,22 @@ export default async function StatusPage({ params, searchParams }: Props) {
                         <td className="max-w-32 truncate px-3 py-2.5 text-slate-600" title={row.reference ?? ""}>
                           {row.reference || "-"}
                         </td>
-                        <td className="max-w-52 truncate px-3 py-2.5 font-semibold text-brand-orange-700" title={row.issue ?? ""}>
-                          {row.issue || "-"}
+                        {/* ອາການລູກຄ້າແຈ້ງ (ເທິງ) + **ຜົນວິເຄາະຂອງຊ່າງ** (ລຸ່ມ) — ຄົນລະເລື່ອງກັນ */}
+                        <td className="max-w-52 px-3 py-2.5">
+                          <span
+                            className="block truncate font-semibold text-brand-orange-700"
+                            title={row.issue ?? ""}
+                          >
+                            {row.issue || "-"}
+                          </span>
+                          {(row as RepairRow).issue_2 && (
+                            <span
+                              className="mt-0.5 block truncate text-[10px] text-slate-500"
+                              title={(row as RepairRow).issue_2 ?? ""}
+                            >
+                              <span className="text-slate-400">ຊ່າງວິເຄາະ:</span> {(row as RepairRow).issue_2}
+                            </span>
+                          )}
                         </td>
                         {hasAction && (
                           <td className="whitespace-nowrap px-3 py-2.5 text-center">
@@ -1226,6 +1328,32 @@ export default async function StatusPage({ params, searchParams }: Props) {
                       </td>
                     )}
                   </tr>
+                  {/* ↳ ຕົ້ນໄມ້ອາໄຫຼ່ທີ່ໃຊ້ — ຊື່ · ຈຳນວນ · ສະຖານະ (ຄິດຈາກເອກະສານ) */}
+                  {isRepair && (spareLinesByJob.get(row.code)?.length ?? 0) > 0 && (
+                    <tr className="border-b border-dashed border-brand-100 bg-brand-50/20">
+                      <td colSpan={desktopColumnCount} className="px-10 py-2">
+                        <div className="flex flex-wrap items-start gap-x-3 gap-y-1.5">
+                          <span className="shrink-0 pt-0.5 text-[11px] font-semibold text-slate-500">
+                            ↳ ອາໄຫຼ່ທີ່ໃຊ້ ({spareLinesByJob.get(row.code)?.length})
+                          </span>
+                          <ul className="flex min-w-64 flex-1 flex-wrap gap-x-4 gap-y-1">
+                            {spareLinesByJob.get(row.code)?.map((line) => {
+                              const state = spareLineState(line);
+                              return (
+                                <li key={`${row.code}-${line.item_code}`} className="flex items-center gap-1.5 text-[11px]">
+                                  <span className="text-slate-700">{line.item_name || line.item_code}</span>
+                                  <span className="font-semibold tabular-nums text-slate-500">×{line.qty}</span>
+                                  <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${state.tone}`}>
+                                    {state.label}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {requestTreeDocs.map((doc) => (
                     <tr key={`${row.code}-${doc.doc_no}`} className="border-b border-dashed border-slate-100 bg-slate-50/60">
                       <td colSpan={desktopColumnCount} className="px-10 py-2">
@@ -1385,6 +1513,40 @@ export default async function StatusPage({ params, searchParams }: Props) {
                       )}
                       {row.product || "-"} {row.model && <span className="text-slate-400">{row.model}</span>}
                     </p>
+                    {/* ຍັງບໍ່ຮູ້ວ່າຈະໃຊ້ອາໄຫຼ່ຫຍັງ — ຄືກັນກັບຕາຕະລາງ desktop */}
+                    {isRepair && (row as RepairRow).needs_spare_id && (
+                      <span className="mt-0.5 inline-flex items-center gap-1 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        <TriangleAlert className="size-3" />
+                        ຈຳເປັນຕ້ອງຫາອາໄຫຼ່
+                      </span>
+                    )}
+                    {/* ອາໄຫຼ່ທີ່ໃຊ້ — ມືຖືສະແດງເປັນລາຍການສັ້ນໆ ບໍ່ມີແຖວຍ່ອຍຄື desktop */}
+                    {isRepair && !(row as RepairRow).needs_spare_id && (
+                      (spareLinesByJob.get(row.code)?.length ?? 0) > 0 ? (
+                        <div className="mt-1 rounded-lg bg-brand-50/60 p-1.5">
+                          <p className="flex items-center gap-1 text-[10px] font-semibold text-brand-800">
+                            <Wrench className="size-3" />
+                            ອາໄຫຼ່ທີ່ໃຊ້ {spareLinesByJob.get(row.code)?.length} ລາຍການ
+                          </p>
+                          <ul className="mt-0.5 space-y-0.5">
+                            {spareLinesByJob.get(row.code)?.map((line) => {
+                              const state = spareLineState(line);
+                              return (
+                                <li key={`${row.code}-m-${line.item_code}`} className="flex items-center gap-1.5 text-[10px]">
+                                  <span className="min-w-0 flex-1 truncate text-slate-700">{line.item_name || line.item_code}</span>
+                                  <span className="shrink-0 font-semibold tabular-nums text-slate-500">×{line.qty}</span>
+                                  <span className={`shrink-0 rounded px-1 py-0.5 font-semibold ${state.tone}`}>{state.label}</span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      ) : (
+                        <span className="mt-0.5 inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                          ບໍ່ໃຊ້ອາໄຫຼ່
+                        </span>
+                      )
+                    )}
                     <p className="truncate text-[10px] text-slate-400">
                       {isRepair
                         ? row.sn || "-"
@@ -1422,6 +1584,11 @@ export default async function StatusPage({ params, searchParams }: Props) {
                     <span className="text-slate-400"> · {isRepair ? t.receiver : t.creator}:</span>{" "}
                     {isRepair ? row.receiver || "-" : row.creator || "-"}
                   </p>
+                  {isRepair && (row as RepairRow).issue_2 && (
+                    <p className="truncate text-slate-600" title={(row as RepairRow).issue_2 ?? ""}>
+                      <span className="text-slate-400">ຊ່າງວິເຄາະ:</span> {(row as RepairRow).issue_2}
+                    </p>
+                  )}
                   {isRepair && row.issue && (
                     <p className="truncate font-semibold text-brand-orange-700" title={row.issue}>
                       <span className="font-normal text-slate-400">{t.issue}:</span> {row.issue}

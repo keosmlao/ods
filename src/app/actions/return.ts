@@ -289,7 +289,8 @@ export async function deleteAllInvoiceItems(formData: FormData) {
       [CART_FLAG, productCode, session.username],
     );
   }
-  redirect("/returns");
+  // ໜ້າລາຍການ /returns ຖືກລົບ (ຊ້ຳກັບຄິວ) ⇒ ກັບໄປຄິວ "ລໍຖ້າສົ່ງຄືນ" ແທນ
+  redirect("/work/repair/wait-return");
 }
 
 /**
@@ -697,7 +698,11 @@ export async function returnWithoutInvoice(_: ReturnState, formData: FormData): 
   revalidatePath("/returns", "layout");
   revalidatePath("/approvals/cancellations", "layout");
   revalidatePath("/service/cancel");
-  redirect("/returns?tab=cancelled");
+  /**
+   * ເດີມກັບໄປແທັບ "ສົ່ງຄືນໂດຍບໍ່ສ້ອມ" ຂອງ /returns ແຕ່ໜ້ານັ້ນຖືກລົບ (ຊ້ຳ).
+   * ຂັ້ນ 11 **ລວມງານຍົກເລີກທີ່ເຄື່ອງຍັງຢູ່** ຢູ່ແລ້ວ ⇒ ຄິວນີ້ຮັບແທນໄດ້ຄົບ.
+   */
+  redirect("/work/repair/wait-return");
 }
 
 /**

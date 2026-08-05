@@ -2,6 +2,7 @@ import { Chatter } from "@/components/chatter/chatter";
 import { BackLink } from "@/components/back-link";
 import { getSession } from "@/lib/auth";
 import { Elapsed } from "@/components/elapsed";
+import { CompanyDeviceBanner } from "@/components/repair/company-device-banner";
 import { HoldButtons } from "@/components/repair/hold-buttons";
 import { LinkPending } from "@/components/link-pending";
 import { query } from "@/lib/db";
@@ -91,6 +92,12 @@ type Job = {
   contacts: number;
   /** ທຸງ "ຕ້ອງກວດ" ທີ່ຍັງເປີດຢູ່ (null = ບໍ່ມີ) — ໃຫ້ HoldButtons ສະແດງສະຖານະ/ປົດ */
   hold: JobHold | null;
+  /** ຜົນກວດທີ່ຈົບໂດຍບໍ່ສ້ອມ — 'cannot_repair' | 'replace_advice' | null (ເບິ່ງ lib/check-outcome) */
+  check_outcome: string | null;
+  /** ໃບນີ້**ເປັນ**ໃບເຄື່ອງບໍລິສັດ ທີ່ຮັບເຂົ້າມາຈາກໃບເລກນີ້ */
+  company_from_job: string | null;
+  /** ໃບເຄື່ອງບໍລິສັດທີ່**ເກີດຈາກ**ໃບນີ້ (null = ຍັງບໍ່ໄດ້ຮັບເຂົ້າ) */
+  company_job: string | null;
 };
 
 type Props = { params: Promise<{ code: string }> };
@@ -112,6 +119,9 @@ export default async function ServiceDetail({ params }: Props) {
          c.code customer_code, c.name_1 customer, c.tel phone, c.address,
          a.name_1 product, a.sn, a.p_model model, a.p_brand brand, a.p_type product_type, a.p_access accessory,
          a.warrunty warranty, a.warranty_reason, a.service_type, a.issue, a.issue_2, a.p_abrasion remark, a.repair_note note,
+         -- ຜົນກວດທີ່ຈົບໂດຍບໍ່ສ້ອມ + ການເຊື່ອມກັບໃບເຄື່ອງບໍລິສັດ (ເບິ່ງ lib/check-outcome)
+         a.check_outcome, a.company_from_job,
+         (select p.code from tb_product p where p.company_from_job = a.code limit 1) company_job,
          a.p_delivery delivery, a.doc_def bill_no, a.doc_date_ref bill_date,
          a.emp_code technician, to_char(a.appoint_date,'YYYY-MM-DD') appoint_date,
          to_char(a.repair_appoint_date,'YYYY-MM-DD') repair_appoint_date,
@@ -329,6 +339,14 @@ export default async function ServiceDetail({ params }: Props) {
 
   return (
     <div className="w-full space-y-4">
+      {/* ແນະນຳປ່ຽນເຄື່ອງ / ໃບເຄື່ອງບໍລິສັດ — ວາງເທິງສຸດ ເພາະມັນປ່ຽນຄວາມໝາຍຂອງທັງໃບ */}
+      <CompanyDeviceBanner
+        code={job.code}
+        checkOutcome={job.check_outcome}
+        companyJob={job.company_job}
+        companyFromJob={job.company_from_job}
+      />
+
       {previous && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-brand-orange-400 bg-brand-orange-100 px-4 py-3 text-sm text-brand-900">
           <RotateCcw className="size-4 shrink-0" />

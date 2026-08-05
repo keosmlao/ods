@@ -1,6 +1,7 @@
 "use server";
 import { logChange } from "@/lib/chatter-log";
 import { getSession, type Session } from "@/lib/auth";
+import { CHECK_OUTCOMES, type CheckOutcome } from "@/lib/check-outcome";
 import { db, query } from "@/lib/db";
 import { roleOf, TECH_SIDE } from "@/lib/roles";
 import {
@@ -244,6 +245,8 @@ const saveSchema = z.object({
   /** ສ້ອມບໍ່ໄດ້ ⇒ ຄືນເຄື່ອງໂດຍບໍ່ສ້ອມ (ຍື່ນຄຳຂໍຍົກເລີກໃຫ້ອັດຕະໂນມັດ) */
   cannot_repair: z.enum(["0", "1"]).optional().default("0"),
   cannot_reason: z.string().optional().default(""),
+  /** ຈົບໂດຍບໍ່ສ້ອມ **ຍ້ອນຫຍັງ** — ເບິ່ງ lib/check-outcome (ບໍ່ສົ່ງມາ = ສ້ອມບໍ່ໄດ້) */
+  check_outcome: z.enum(CHECK_OUTCOMES as [CheckOutcome, ...CheckOutcome[]]).optional(),
 });
 
 export async function saveCheck(_: CheckState, formData: FormData): Promise<CheckState> {
@@ -266,6 +269,7 @@ export async function saveCheck(_: CheckState, formData: FormData): Promise<Chec
     use_spare: parsed.data.use_spare === "1",
     cannot_repair: parsed.data.cannot_repair === "1",
     cannot_repair_reason: parsed.data.cannot_reason,
+    outcome: parsed.data.check_outcome,
   });
   if (!result.ok) return { error: result.error };
 

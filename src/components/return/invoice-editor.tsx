@@ -95,8 +95,14 @@ function LineRow({ row, index, productCode }: { row: CartRow; index: number; pro
           />
           <span className="text-center text-slate-400">0%</span>
           <span className="w-32 text-right font-semibold">{money(Number(row.sum_amount))}</span>
+          {/**
+            * ⚠️ **ບໍ່ໃຊ້ຄຳວ່າ "ບັນທຶກ" ຢູ່ນີ້** — ຫົວໜ້າເອກະສານມີປຸ່ມ "ບັນທຶກ" ຢູ່ແລ້ວ
+            * ເຊິ່ງ **ອອກໃບຮັບເງິນ ແລະ ປິດການສົ່ງຄືນ** (ຄົນລະເລື່ອງກັນຄົນລະຟ້າ).
+            * ສອງປຸ່ມຊື່ດຽວກັນຢູ່ໜ້າດຽວ ⇒ ຄົນເຂົ້າໃຈວ່າກົດອັນໃດກໍ່ຄືກັນ.
+            * ປຸ່ມນີ້ພຽງແຕ່ **ອັບເດດ ຈຳນວນ/ລາຄາ ຂອງແຖວນີ້**.
+            */}
           <Button type="submit" disabled={updating} className="h-8 px-3 text-xs">
-            {updating ? <LoaderCircle className="size-4 animate-spin" /> : t.save}
+            {updating ? <LoaderCircle className="size-4 animate-spin" /> : t.saveLine}
           </Button>
         </form>
         {updateState.error && <p className="mt-1 text-right text-xs text-brand-orange-700">{updateState.error}</p>}

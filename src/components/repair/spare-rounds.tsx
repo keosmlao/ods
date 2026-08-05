@@ -46,7 +46,16 @@ export function SpareRounds({
   links,
   docAction,
   jobStarted = false,
-  techReceipt = true,
+  /**
+   * ⚠️ ຄ່າຕັ້ງຕົ້ນ **false** (ແກ້ 05-08-2026 — ເມື່ອກ່ອນເປັນ `true`).
+   *
+   * ຕັ້ງແຕ່ຕັດສິນໃຈ 04-08-2026 ວ່າ "ສາງເບີກແລ້ວ = ຜ່ານ" ຜູ້ເອີ້ນ**ທຸກອັນ**ສົ່ງ false
+   * (repair/[code] ແລະ installations/[code]) ⇒ ບໍ່ມີໃຜຢາກໄດ້ `true` ອີກ ແຕ່ຄ່າຕັ້ງຕົ້ນ
+   * ຍັງເປັນ true ຄ້າງໄວ້ ⇒ **ໜ້າ /service/[code] ທີ່ບໍ່ໄດ້ສົ່ງ prop ນີ້ ໄດ້ true**
+   * ແລ້ວສະແດງ "ສາງເບີກແລ້ວ ລໍຊ່າງຮັບ" + ຂັ້ນ PISP ທັງທີ່ສາງຈ່າຍຄົບແລ້ວ
+   * ⇒ **ໃບງານດຽວກັນ ສະຖານະບໍ່ຄືກັນລະຫວ່າງ 2 ໜ້າ** (ພົບ 05-08-2026).
+   */
+  techReceipt = false,
 }: {
   code: string;
   /** key ຂອງໜ້າ /stock/requests/[roworder] — ບ່ອນອອກໃບຂໍເບີກຮອບໃໝ່ */
@@ -218,13 +227,27 @@ function RoundTree({
           <PurchaseBranch key={buy.doc_no} buy={buy} chain={erp[buy.doc_no]} />
         ))}
 
-        {/* ສາງຈ່າຍອອກ — ທຽບກັບ "ທີ່ຂໍ" */}
+        {/**
+          * ສາງຈ່າຍອອກ — **ແຍກເປັນລາຍໃບ** ເມື່ອມີຫຼາຍໃບ (05-08-2026).
+          * ເມື່ອກ່ອນລວມທຸກໃບເປັນ node ດຽວ (ເລກໃບຄັ່ນດ້ວຍ ", " ແລະ ລາຍການບວກກັນ)
+          * ⇒ ພົບຮອບທີ່ມີ 4 ໃບ ແລ້ວ **ບອກບໍ່ໄດ້ວ່າໃບໃດຈ່າຍຫຍັງ** ⇒ ຕາມຂອງ/ທວງສາງບໍ່ຖືກໃບ.
+          * ໃບດຽວ ⇒ ຄືເກົ່າທຸກປະການ (ບໍ່ເພີ່ມຄວາມຮົກໃຫ້ກໍລະນີທົ່ວໄປ).
+          */}
         {withdrawal && (
           <Node
             icon={<PackageCheck className="size-3.5" />}
             tone={withdrawal.dispatch_no ? "text-brand-800" : "text-slate-300"}
-            title="ສາງເບີກ (SWC)"
-            docNo={withdrawal.dispatch_no}
+            /**
+             * ຫຼາຍໃບ ⇒ node ນີ້ຄື **ຍອດລວມທຽບກັບທີ່ຂໍ** (ບອກວ່າຂາດຫຍັງ) ສ່ວນ
+             * "ໃບໃດຈ່າຍຫຍັງ" ຢູ່ຕາຕະລາງຂ້າງລຸ່ມ ⇒ ຕັ້ງຊື່ໃຫ້ຕ່າງກັນ ຄົນຈຶ່ງບໍ່ອ່ານວ່າຊ້ຳ.
+             * ແລະ ບໍ່ໂຊ້ວເລກໃບຍາວໆ 4 ໃບຄັ່ນດ້ວຍ comma ອີກ — ຕາຕະລາງລຸ່ມມີຄົບແລ້ວ.
+             */
+            title={withdrawal.dispatches.length > 1 ? "ສາງເບີກ (SWC) — ລວມທຸກໃບ" : "ສາງເບີກ (SWC)"}
+            docNo={
+              withdrawal.dispatches.length > 1
+                ? `${withdrawal.dispatches.length} ໃບ`
+                : withdrawal.dispatch_no
+            }
             docDate={withdrawal.dispatch_date}
             pending="ລໍສາງເບີກອອກ"
             items={withdrawal.dispatch_items}
@@ -245,6 +268,60 @@ function RoundTree({
               ) : null
             }
           />
+        )}
+
+        {/**
+          * **ແຍກຕາມໃບເບີກ** — ຂຶ້ນສະເພາະຕອນສາງຈ່າຍເປັນຫຼາຍໃບ (ໃບດຽວ node ຂ້າງເທິງບອກຄົບແລ້ວ).
+          * ຈັດເປັນ **ຕາຕະລາງ** ບໍ່ແມ່ນລາຍການລອຍ: 4 ຄໍລຳຄົງທີ່ (ໃບ · ວັນທີ · ຜູ້ເບີກ · ລາຍການ)
+          * ⇒ ຕາໄລ່ລົງລຸ່ມທຽບໃບຕໍ່ໃບໄດ້ ບໍ່ຕ້ອງອ່ານເປັນຫຍໍ້ໜ້າ.
+          * ໃບທີ່**ບໍ່ມີລາຍການ**ຕິດປ້າຍເຫຼືອງ — ນັ້ນຄືຄວາມຜິດປົກກະຕິທີ່ຄວນເຫັນ ບໍ່ແມ່ນເລື່ອງທຳມະດາ.
+          */}
+        {withdrawal && withdrawal.dispatches.length > 1 && (
+          <div className="ml-6 mt-1.5 overflow-hidden rounded-lg border border-slate-200 bg-white">
+            <div className="flex items-center gap-1.5 border-b border-slate-200 bg-slate-50 px-2.5 py-1.5">
+              <PackageCheck className="size-3 text-slate-400" />
+              <span className="text-[10px] font-bold text-slate-600">
+                ແຍກຕາມໃບເບີກ · {withdrawal.dispatches.length} ໃບ
+              </span>
+            </div>
+            <table className="w-full border-collapse text-[11px]">
+              <thead>
+                <tr className="border-b border-slate-100 text-left text-slate-400">
+                  <th className="px-2.5 py-1 font-medium">ໃບເບີກ</th>
+                  <th className="px-2.5 py-1 font-medium">ວັນທີ</th>
+                  <th className="px-2.5 py-1 font-medium">ຜູ້ເບີກ</th>
+                  <th className="px-2.5 py-1 font-medium">ລາຍການທີ່ຈ່າຍ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {withdrawal.dispatches.map((dispatch) => (
+                  <tr key={dispatch.doc_no} className="border-b border-slate-50 last:border-b-0 align-top">
+                    <td className="whitespace-nowrap px-2.5 py-1.5 font-mono font-bold text-brand-800">
+                      {dispatch.doc_no}
+                    </td>
+                    <td className="whitespace-nowrap px-2.5 py-1.5 text-slate-500">{dispatch.doc_date ?? "-"}</td>
+                    <td className="whitespace-nowrap px-2.5 py-1.5 text-slate-600">{dispatch.user_created ?? "-"}</td>
+                    <td className="px-2.5 py-1.5">
+                      {dispatch.items.length === 0 ? (
+                        <span className="rounded bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-brand-orange-700">
+                          ໃບຫວ່າງ — ບໍ່ມີລາຍການ
+                        </span>
+                      ) : (
+                        <ul className="space-y-0.5">
+                          {dispatch.items.map((item) => (
+                            <li key={`${dispatch.doc_no}-${item.item_code}`} className="text-slate-700">
+                              {item.item_name || item.item_code}
+                              <span className="ml-1.5 font-semibold tabular-nums text-slate-500">×{item.qty}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {/* ຊ່າງກົດຮັບ — ຝັ່ງສ້ອມຖອດຂັ້ນນີ້ອອກແລ້ວ (ສາງເບີກແລ້ວ = ຜ່ານ) */}

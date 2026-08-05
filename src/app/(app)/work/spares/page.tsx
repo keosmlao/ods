@@ -2,7 +2,7 @@ import { LinkPending } from "@/components/link-pending";
 import { query } from "@/lib/db";
 import { NOT_MISSING, STAGE_SQL } from "@/lib/stage";
 import { TRANS } from "@/lib/stock-constants";
-import { ChevronRight, Search } from "lucide-react";
+import { ChevronRight, Search, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -92,12 +92,19 @@ export default async function SpareTreePage({ searchParams }: Props) {
   const { rows: notYet } = await query<{
     job: string; product: string | null; sn: string | null; brand: string | null;
     customer: string | null; tech: string | null; warranty: string | null;
-    service_type: string | null; age: number;
+    service_type: string | null; age: number; needs_spare_id: boolean;
   }>(
     `select a.code job, a.name_1 product, nullif(a.sn,'') sn, nullif(a.p_brand,'') brand,
         c.name_1 customer, nullif(a.emp_code,'') tech,
         nullif(a.warrunty,'') warranty, nullif(a.service_type,'') service_type,
-        extract(epoch from (localtimestamp - coalesce(a.time_finish_check, a.time_register)))::int age
+        extract(epoch from (localtimestamp - coalesce(a.time_finish_check, a.time_register)))::int age,
+        /**
+         * **ຍັງບໍ່ຮູ້ວ່າຈະໃຊ້ອາໄຫຼ່ຫຍັງ** — ຊ່າງປິດການກວດເຊັກໂດຍຕິກ "ໃຊ້ອາໄຫຼ່" ແຕ່
+         * ກະຕ່າຫວ່າງ (ເບິ່ງ saveCheckFlow ຢູ່ lib/tech-flow) ⇒ ວຽກຍ້າຍມາຂັ້ນອາໄຫຼ່
+         * ແຕ່ **ບໍ່ມີລາຍການໃຫ້ອອກໃບຂໍເບີກ** ⇒ ຄຳວ່າ "ຍັງບໍ່ອອກໃບຂໍເບີກ" ຢ່າງດຽວພາໃຫ້
+         * ເຂົ້າໃຈຜິດວ່າພຽງແຕ່ລືມກົດ. ຕິດປ້າຍ **ແດງ** ບອກວ່າຕ້ອງໄປຫາອາໄຫຼ່ກ່ອນ.
+         */
+        not exists (select 1 from tb_used_spare s where s.product_code = a.code) as needs_spare_id
       from tb_product a
       left join ar_customer c on c.code = a.cust_code
      where coalesce(a.used_spare,0) = 1 and ${OPEN_JOB}
@@ -329,7 +336,13 @@ export default async function SpareTreePage({ searchParams }: Props) {
                   <span className="truncate text-slate-600">{card.tech || "-"}</span>
                   <span className="text-center tabular-nums text-slate-600">{card.rounds.length || "—"}</span>
                   <span>
-                    {card.status === "not_requested" ? (
+                    {/* ຍັງບໍ່ຮູ້ອາໄຫຼ່ ⇒ ແດງ ແລະ ບອກສິ່ງທີ່ຕ້ອງເຮັດ ບໍ່ແມ່ນແຕ່ "ຍັງບໍ່ອອກໃບ" */}
+                    {card.status === "not_requested" && card.needs_spare_id ? (
+                      <span className="inline-flex items-center gap-1 rounded bg-red-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                        <TriangleAlert className="size-3" />
+                        ຈຳເປັນຕ້ອງຫາອາໄຫຼ່
+                      </span>
+                    ) : card.status === "not_requested" ? (
                       <span className="rounded bg-brand-orange-50 px-2 py-0.5 text-[11px] font-semibold text-brand-orange-700">
                         {STATUS.not_requested.label}
                       </span>

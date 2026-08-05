@@ -3,6 +3,12 @@ import { Elapsed } from "@/components/elapsed";
 import { slaLabel, slaState, slaTone } from "@/lib/sla";
 import { addSpareItem, deleteSpareItem, saveCheck, updateSpareQty } from "@/app/actions/checking";
 import { CancelCheckButton, UndoStartCheckButton } from "@/components/checking/check-actions";
+import {
+  CHECK_OUTCOME_HINT,
+  CHECK_OUTCOME_LABEL,
+  CHECK_OUTCOMES,
+  type CheckOutcome,
+} from "@/lib/check-outcome";
 import { useConfirm } from "@/components/confirm-dialog";
 import { SelectField } from "@/components/select-field";
 import { SpareSearchDialog } from "@/components/spare-search";
@@ -140,9 +146,11 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
   const [state, action, pending] = useActionState(saveCheck, {});
   // ມີອາໄຫຼ່ຄ້າງໃນກະຕ່າຢູ່ແລ້ວ → ເປີດຕາຕະລາງໃຫ້ເລີຍ
   const [useSpare, setUseSpare] = useState(lines.length > 0 ? "1" : "0");
-  /** ສ້ອມບໍ່ໄດ້ ⇒ ຄືນເຄື່ອງໂດຍບໍ່ສ້ອມ (ລະບົບຍື່ນຄຳຂໍຍົກເລີກໃຫ້) */
+  /** ຈົບໂດຍບໍ່ສ້ອມ ⇒ ຄືນເຄື່ອງ (ລະບົບຍື່ນຄຳຂໍໃຫ້) — ເລື່ອງໃດຢູ່ທີ່ `outcome` */
   const [cannotRepair, setCannotRepair] = useState("0");
   const [cannotReason, setCannotReason] = useState("");
+  /** ສ້ອມບໍ່ໄດ້ ຫຼື ແນະນຳປ່ຽນເຄື່ອງ — ເບິ່ງ lib/check-outcome */
+  const [outcome, setOutcome] = useState<CheckOutcome>("cannot_repair");
   const [warByT, setWarByT] = useState("0");
   // ເຫດຜົນເກົ່າ (ຖ້າເຄີຍຕັດສິນວ່າໝົດປະກັນ) ຄ້າງໄວ້ໃຫ້ ບໍ່ໃຫ້ພິມຄືນໃໝ່ຕອນແກ້ໄຂຜົນກວດ
   const [reason, setReason] = useState(head.warranty_reason ?? "");
@@ -292,10 +300,11 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
           </div>
 
           {/*
-            ── ສ້ອມບໍ່ໄດ້ ⇒ ຄືນເຄື່ອງ (01-08-2026) ──
-            ຄູ່ມືມີຂັ້ນຕອນນີ້ຢູ່ແລ້ວ (ຊ່າງແຈ້ງ "ສ້ອມບໍ່ໄດ້" → ຝ່າຍບໍລິການຂໍຍົກເລີກ)
-            ແຕ່ຟອມບໍ່ເຄີຍມີຕົວເລືອກ ⇒ ຊ່າງພິມໃສ່ຊ່ອງອາການ ແລ້ວກໍ່ບໍ່ມີໃຜຮູ້ວ່າຕ້ອງໄປຕໍ່.
-            ດຽວນີ້ເລືອກຢູ່ນີ້ໄດ້ ແລະ ລະບົບຍື່ນຄຳຂໍຍົກເລີກໃຫ້ເລີຍ.
+            ── ຈົບໂດຍບໍ່ສ້ອມ ⇒ ຄືນເຄື່ອງ (01-08-2026 · ຂະຫຍາຍ 05-08-2026) ──
+            ເດີມມີທາງອອກດຽວຄື "ສ້ອມບໍ່ໄດ້". ແຕ່ຊ່າງທີ່ພົບວ່າ**ຄວນປ່ຽນເຄື່ອງໃໝ່**
+            ຕ້ອງຢືມມັນມາໃຊ້ ທັງທີ່ເປັນຄົນລະເລື່ອງ: ການປ່ຽນເຄື່ອງເປັນໜ້າທີ່**ຝ່າຍຂາຍ**
+            ສູນບໍລິການພຽງແຕ່ແນະນຳ. ດຽວນີ້ຈຶ່ງເລືອກໄດ້ 2 ຜົນ (lib/check-outcome).
+            ເສັ້ນທາງຫຼັງຈາກນີ້ຄືກັນທັງສອງ — ຕ່າງກັນທີ່ປ້າຍ ແລະ ສິ່ງທີ່ເກີດຕໍ່.
           */}
           <div className="mt-4 rounded-xl border border-brand-orange-400 bg-brand-orange-100/50 p-3">
             <label className="flex items-center gap-2 text-sm font-bold text-brand-900">
@@ -304,23 +313,50 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
                 checked={cannotRepair === "1"}
                 onChange={(event) => {
                   setCannotRepair(event.target.checked ? "1" : "0");
-                  if (event.target.checked) setUseSpare("0"); // ສ້ອມບໍ່ໄດ້ = ບໍ່ໃຊ້ອາໄຫຼ່
+                  if (event.target.checked) setUseSpare("0"); // ຈົບໂດຍບໍ່ສ້ອມ = ບໍ່ໃຊ້ອາໄຫຼ່
                 }}
                 className="size-4 accent-brand-orange-700"
               />
-              {t.cannotRepair}
+              {t.noRepairOutcome}
             </label>
             <input type="hidden" name="cannot_repair" value={cannotRepair} />
+            <input type="hidden" name="check_outcome" value={outcome} />
             <p className="mt-1 text-[11px] text-brand-900">{t.cannotRepairNote}</p>
+
             {cannotRepair === "1" && (
-              <input
-                name="cannot_reason"
-                required
-                value={cannotReason}
-                onChange={(event) => setCannotReason(event.target.value)}
-                placeholder={t.cannotRepairPlaceholder}
-                className={`${inputClass} mt-2`}
-              />
+              <div className="mt-2 space-y-2">
+                {/* ເລືອກ 1 ໃນ 2 — radio ບໍ່ແມ່ນ dropdown ເພື່ອໃຫ້ເຫັນຄຳອະທິບາຍທັງສອງພ້ອມກັນ */}
+                {CHECK_OUTCOMES.map((value) => (
+                  <label
+                    key={value}
+                    className={`flex cursor-pointer items-start gap-2 rounded-lg border p-2 ${
+                      outcome === value ? "border-brand-orange-700 bg-white" : "border-slate-300 bg-white/60"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="check_outcome_pick"
+                      checked={outcome === value}
+                      onChange={() => setOutcome(value)}
+                      className="mt-0.5 size-4 accent-brand-orange-700"
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-xs font-bold text-brand-900">{CHECK_OUTCOME_LABEL[value]}</span>
+                      <span className="mt-0.5 block text-[11px] text-slate-600">{CHECK_OUTCOME_HINT[value]}</span>
+                    </span>
+                  </label>
+                ))}
+                <input
+                  name="cannot_reason"
+                  required
+                  value={cannotReason}
+                  onChange={(event) => setCannotReason(event.target.value)}
+                  placeholder={
+                    outcome === "replace_advice" ? t.replaceAdvicePlaceholder : t.cannotRepairPlaceholder
+                  }
+                  className={inputClass}
+                />
+              </div>
             )}
           </div>
         </Card>

@@ -248,7 +248,8 @@ function alertsFor(role: Role, data: DashboardData, canQc: boolean, t: Dict): Al
       label: t.alertReturnLabel,
       value: data.repair["wait-return"] ?? 0,
       detail: t.alertReturnDetail,
-      href: "/returns",
+      // ໜ້າລາຍການ /returns ຖືກລົບ (ຊ້ຳກັບຄິວນີ້) — ບັດນີ້ພາໄປຄິວໂດຍກົງ
+      href: "/work/repair/wait-return",
       icon: PackageCheck,
       tone: "amber",
     },

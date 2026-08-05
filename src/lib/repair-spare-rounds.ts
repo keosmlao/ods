@@ -23,6 +23,15 @@ import { LINE_STATUS, TRANS } from "@/lib/stock-constants";
 /** ລາຍການສິນຄ້າໃນໃບ (ຊື່ + ຈຳນວນ) — ຄົນຢາກເຫັນວ່າ "ອາໄຫຼ່ຫຍັງ" ບໍ່ແມ່ນແຕ່ "ກີ່ລາຍການ" */
 export type DocItem = { item_code: string; item_name: string | null; qty: number };
 
+/** ໃບເບີກ 1 ໃບ ພ້ອມລາຍການຂອງມັນເອງ — ບອກໄດ້ວ່າ **ໃບໃດ ໃຜເບີກ ຈ່າຍຫຍັງແດ່** */
+export type DispatchDoc = {
+  doc_no: string;
+  doc_date: string | null;
+  /** ຜູ້ອອກໃບເບີກ (ic_trans.user_created) — ໃຫ້ທວງຄືນຖືກຄົນ */
+  user_created: string | null;
+  items: DocItem[];
+};
+
 export type WithdrawRound = {
   items: DocItem[];
   round: number;
@@ -31,11 +40,19 @@ export type WithdrawRound = {
   wh_code: string | null;
   lines: number;
   qty: number;
-  /** ໃບເບີກຂອງສາງ (SWC) — ຫວ່າງ = ສາງຍັງບໍ່ຈ່າຍ */
+  /** ໃບເບີກຂອງສາງ (SWC) — ຫວ່າງ = ສາງຍັງບໍ່ຈ່າຍ. ຫຼາຍໃບຄັ່ນດ້ວຍ ", " */
   dispatch_no: string | null;
   dispatch_date: string | null;
-  /** ລາຍການທີ່ **ສາງເບີກອອກຈິງ** — ບໍ່ຈຳເປັນຄືກັບທີ່ຂໍ (79 ຄູ່ແຖວບໍ່ຄືກັນ · 82 ຄູ່ຈຳນວນບໍ່ຄືກັນ) */
+  /** ລາຍການທີ່ **ສາງເບີກອອກຈິງ** ລວມທຸກໃບ — ໃຊ້ທຽບກັບ "ທີ່ຂໍ" ເປັນຍອດລວມ */
   dispatch_items: DocItem[];
+  /**
+   * ໃບເບີກ **ແຍກເປັນລາຍໃບ** ພ້ອມລາຍການຂອງໃບນັ້ນເອງ.
+   *
+   * ⚠️ ເປັນຫຍັງຕ້ອງມີ ນອກຈາກ `dispatch_items`: 1 ໃບຂໍຖືກເບີກເປັນຫຼາຍໃບໄດ້ (ຄົນລະສາງ
+   * ຫຼື ຄົນລະເທື່ອ) — ພົບຈິງ 4 ໃບຕໍ່ຮອບດຽວ. ຕອນລວມໝົດເປັນກ້ອນດຽວ ຄົນເບິ່ງ
+   * **ບອກບໍ່ໄດ້ວ່າໃບໃດຈ່າຍຫຍັງ** ⇒ ຕາມຂອງບໍ່ຖືກ ແລະ ທວງສາງບໍ່ຖືກໃບ.
+   */
+  dispatches: DispatchDoc[];
   /** ໃບຮັບຂອງຊ່າງ (PISP) — ຫວ່າງ = ຈ່າຍແລ້ວແຕ່ຊ່າງຍັງບໍ່ກົດຮັບ */
   pick_no: string | null;
   pick_date: string | null;
@@ -139,10 +156,34 @@ export async function withdrawRounds(code: string): Promise<WithdrawRound[]> {
   const items = await itemsByDoc(
     rows.flatMap((row) => [row.doc_no, ...splitDocs(row.dispatch_no), ...splitDocs(row.pick_no)]),
   );
+
+  /**
+   * ວັນທີຂອງໃບເບີກ **ແຕ່ລະໃບ** — `dispatch_date` ຂ້າງເທິງເປັນ min() ຂອງທັງກຸ່ມ
+   * ຈຶ່ງໃຊ້ບອກວັນຂອງໃບໃດໃບໜຶ່ງບໍ່ໄດ້. ຖາມເທື່ອດຽວສຳລັບທຸກຮອບ.
+   */
+  const dispatchHeads = new Map<string, { doc_date: string | null; user_created: string | null }>(
+    rows.flatMap((row) => splitDocs(row.dispatch_no)).length > 0
+      ? (
+          await query<{ doc_no: string; doc_date: string | null; user_created: string | null }>(
+            `select doc_no, to_char(doc_date,'DD-MM-YYYY') doc_date, nullif(user_created,'') user_created
+               from ic_trans where doc_no = any($1::text[])`,
+            [rows.flatMap((row) => splitDocs(row.dispatch_no))],
+          )
+        ).rows.map((row) => [row.doc_no, { doc_date: row.doc_date, user_created: row.user_created }])
+      : [],
+  );
+
   return rows.map((row, index) => ({
     ...row,
     items: items[row.doc_no] ?? [],
     dispatch_items: mergeItems(splitDocs(row.dispatch_no).map((doc) => items[doc] ?? [])),
+    // ແຍກລາຍໃບ — ລຳດັບຕາມ string_agg (ຮຽງຕາມເລກໃບ) ⇒ ຄົງທີ່ທຸກຄັ້ງທີ່ໂຫຼດ
+    dispatches: splitDocs(row.dispatch_no).map((doc) => ({
+      doc_no: doc,
+      doc_date: dispatchHeads.get(doc)?.doc_date ?? row.dispatch_date,
+      user_created: dispatchHeads.get(doc)?.user_created ?? null,
+      items: items[doc] ?? [],
+    })),
     pick_items: mergeItems(splitDocs(row.pick_no).map((doc) => items[doc] ?? [])),
     round: index + 1,
     state: row.pick_no ? "received" : row.dispatch_no ? "dispatched" : "requested",

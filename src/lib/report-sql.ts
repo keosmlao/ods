@@ -26,24 +26,31 @@ export const columns = {
     { header: "ລູກຄ້າ", key: "customer", width: 28 },
     { header: "ເບີໂທ", key: "tel" },
     { header: "ເຄື່ອງ", key: "product", width: 22 },
-    { header: "sn", key: "sn" },
-    { header: "model", key: "p_model" },
-    { header: "brand", key: "p_brand" },
-    { header: "acessory", key: "p_access" },
-    { header: "warunty", key: "warrunty" },
-    { header: "service_type", key: "service_type" },
-    { header: "issue", key: "issue", width: 28 },
-    { header: "do_ref", key: "doc_def" },
+    { header: "ໝາຍເລກເຄື່ອງ (SN)", key: "sn", width: 20 },
+    { header: "ລຸ້ນ", key: "p_model" },
+    { header: "ຫຍີ່ຫໍ້", key: "p_brand" },
+    { header: "ອຸປະກອນມາກັບເຄື່ອງ", key: "p_access", width: 22 },
+    { header: "ການຮັບປະກັນ", key: "warrunty" },
+    { header: "ປະເພດບໍລິການ", key: "service_type" },
+    { header: "ອາການເສຍ", key: "issue", width: 28 },
+    { header: "ເລກບິນອ້າງອີງ", key: "doc_def" },
     { header: "ຜູ້ຮັບເຄື່ອງ", key: "user_regis" },
     { header: "ຊ່າງສ້ອມ", key: "emp_code" },
     { header: "ວັນທີຮັບ", key: "time_register", width: 20 },
+    /**
+     * **ຄ້າງມາຈັກມື້** — ນັບແຕ່ວັນຮັບເຄື່ອງເຖິງມື້ນີ້.
+     * ລາຍງານມີວັນທີຂອງທຸກຂັ້ນຢູ່ແລ້ວ (10 ຄໍລຳ) ແຕ່ບໍ່ມີໃຜຢາກໄລ່ລົບວັນທີເອງ —
+     * ຄຳຖາມທຳອິດຂອງລາຍງານ "ເຄື່ອງຄ້າງ" ຄື **ຄ້າງດົນປານໃດ** ຈຶ່ງໃສ່ໃຫ້ຊື່ໆ.
+     * ຈັດຮຽງເປັນຕົວເລກໄດ້ (report-shell ຮັບຮູ້ຕົວເລກ) ⇒ ກົດຫົວຄໍລຳຈັດຫາໃບເກົ່າສຸດໄດ້ທັນທີ.
+     */
+    { header: "ຄ້າງມາ (ມື້)", key: "days_open", width: 12 },
     { header: "ວັນທີກວດເຊັກ", key: "time_check", width: 20 },
     { header: "ກວດເຊັກສຳເລັດ", key: "time_finish_check", width: 20 },
     { header: "ວັນທີສະເໜີລາຄາ", key: "qt_start", width: 20 },
     { header: "ສຳເລັດສະເໜີລາຄາ", key: "qt_finish", width: 20 },
-    { header: "ຂໍເບີກອາໃຫຼ່", key: "spare_reg", width: 20 },
-    { header: "ເບີກອາໃຫຼ່", key: "spare_finish", width: 20 },
-    { header: "ສັ່ງອາໃຫຼ່", key: "spare_order", width: 20 },
+    { header: "ຂໍເບີກອາໄຫຼ່", key: "spare_reg", width: 20 },
+    { header: "ເບີກອາໄຫຼ່", key: "spare_finish", width: 20 },
+    { header: "ສັ່ງອາໄຫຼ່", key: "spare_order", width: 20 },
     { header: "ສ້ອມແປງ", key: "time_repair", width: 20 },
     { header: "ສຳເລັດສ້ອມ", key: "time_finish_repair", width: 20 },
     { header: "ສະຖານະ", key: "status_name" },
@@ -347,9 +354,18 @@ const productBase = `row_number() over (order by a.time_register) rnum,
  */
 export async function fetchPending(from: string, to: string, all: boolean) {
   const where = `where ${OPEN_JOBS} and ${NOT_PENDING_CANCEL} and ${NOT_CLAIM} and ${NOT_MISSING}`;
+  /**
+   * ຕື່ມ **ຄ້າງມາຈັກມື້** ໃສ່ຊຸດຄໍລຳກາງ — ວິທີດຽວກັບ fetchReceiptTurnaround
+   * (ແປະຕໍ່ໜ້າ `from` ຂອງ productBase) ⇒ ລາຍງານອື່ນທີ່ໃຊ້ productBase ບໍ່ໄດ້ຮັບຄໍລຳນີ້.
+   * ນັບເປັນ **ວັນ** ບໍ່ແມ່ນວິນາທີ: ຄ່າໄປລົງ Excel ນຳ ຄົນຕ້ອງອ່ານອອກທັນທີ.
+   */
+  const base = productBase.replace(
+    "from tb_product a",
+    `, (current_date - a.time_register::date)::int days_open from tb_product a`,
+  );
   const sql = all
-    ? `select ${productBase} ${where} order by a.time_register`
-    : `select ${productBase} ${where} and a.time_register::date between $1 and $2 order by a.time_register`;
+    ? `select ${base} ${where} order by a.time_register`
+    : `select ${base} ${where} and a.time_register::date between $1 and $2 order by a.time_register`;
   return (await query<Row>(sql, all ? [] : [from, to])).rows;
 }
 

@@ -207,12 +207,22 @@ export default async function RepairJobPage({ params }: Props) {
           {/* ③ ອາໄຫຼ່ — ບໍ່ມີປຸ່ມຢູ່ນີ້: ຂໍເບີກ/ຮັບອາໄຫຼ່ ຢູ່ໃນແຜງ "ອາໄຫຼ່ຂອງໃບງານ" ຂ້າງລຸ່ມ
               (ປຸ່ມຕ້ອງຢູ່ກັບແຖວຂອງໃບທີ່ມັນເປັນເຈົ້າຂອງ ບໍ່ແມ່ນລອຍຢູ່ແຖວຂັ້ນຕອນ) */}
 
-          {/* ④ ຈົບງານ — ຂັ້ນ 8 ກົດໄດ້ເລີຍ ຄືກັບແອັບ (ບໍ່ຕ້ອງກົດ "ເລີ່ມສ້ອມ" ກ່ອນ) */}
-          {(job.stage === 8 || job.stage === 9) && !job.cancelled && !sparePending && (
+          {/**
+            * ④ ລົງມືສ້ອມ — **ຂັ້ນລະປຸ່ມ** (ແກ້ 05-08-2026)
+            *
+            * ເມື່ອກ່ອນຂັ້ນ 8 ("ລໍຖ້າສ້ອມແປງ") ໂຊ້ວທັງ "ສ້ອມສຳເລັດ" ແລະ "ເລີ່ມສ້ອມແປງ"
+            * ⇒ ກົດຈົບໄດ້ໂດຍບໍ່ເຄີຍເລີ່ມ ແລ້ວ `time_repair` ຫວ່າງ ຫຼື ຖືກຕັ້ງພ້ອມກັບຈົບ
+            * ⇒ **ວັດເວລາທີ່ໃຊ້ສ້ອມຈິງບໍ່ໄດ້** ແລະ ຄິວ "ກຳລັງສ້ອມ" ບໍ່ເຄີຍມີໃຜຜ່ານ.
+            *
+            * ດຽວນີ້: ຂັ້ນ 8 ⇒ **ເລີ່ມສ້ອມແປງ ຢ່າງດຽວ** · ຂັ້ນ 9 ⇒ ສ້ອມສຳເລັດ (+ ຖອນການເລີ່ມ).
+            */}
+          {job.stage === 8 && !job.cancelled && !sparePending && (
+            <StartRepairButton code={job.code} />
+          )}
+          {job.stage === 9 && !job.cancelled && !sparePending && (
             <>
               <CompleteRepairButton code={job.code} initialNote={job.repair_note ?? ""} />
-              {job.stage === 8 && <StartRepairButton code={job.code} />}
-              {job.stage === 9 && <UndoStartRepairButton code={job.code} variant="icon" />}
+              <UndoStartRepairButton code={job.code} variant="icon" />
             </>
           )}
 

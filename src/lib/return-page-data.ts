@@ -43,12 +43,35 @@ export async function getBanks() {
   ).rows;
 }
 
+/**
+ * **ລາຍການຄ່າບໍລິການສ້ອມແປງ — ic_inventory ລະຫັດ `9702xx`.**
+ *
+ * ── ເປັນຫຍັງເຄີຍຫວ່າງ (05-08-2026) ── ມີ 2 ບັກຊ້ອນກັນ:
+ *
+ * ① **ລະຫັດຜິດໝວດ**: ຄົ້ນ `9900%` ເຊິ່ງແມ່ນ **ຊຸດອາໄຫຼ່ຕິດຕັ້ງແບ່ງຕາມ BTU**
+ *    (ເບິ່ງ lib/install-standard) ບໍ່ແມ່ນຄ່າບໍລິການ. ຄ່າບໍລິການແທ້ແມ່ນ
+ *    **ສ້ອມ = 9702xx** · ຕິດຕັ້ງ = 9701xx (ເບິ່ງ /receipts ແລະ lib/service-money).
+ *    ຫຼັກຖານຈາກໃບຈິງ SIN2026080055: ແຖວຄ່າບໍລິການຄື `970202-0033`
+ *    ⇒ `like '9900%'` **ບໍ່ມີວັນຄືນມັນມາໄດ້**.
+ *
+ * ② **ຖັນຜິດ**: `unit_cost` — ບ່ອນອື່ນທັງລະບົບໃຊ້ `unit_code`. ຖ້າຖັນນັ້ນບໍ່ມີ
+ *    query ຈະ throw ແລ້ວຜູ້ເອີ້ນ `.catch(() => [])` ກືນມັນງຽບໆ ⇒ ໜ້າຈໍຂຶ້ນ
+ *    "ບໍ່ພົບລາຍການຄ່າບໍລິການ" ທັງທີ່ຄວາມຈິງຄື **query ລົ້ມ**.
+ *
+ * ⚠️ ຢ່າກືນ error ງຽບໆອີກ — log ໄວ້ບ່ອນນີ້ ຈຶ່ງແຍກ "ບໍ່ມີລາຍການ" ອອກຈາກ
+ * "ຖາມຖານບໍ່ໄດ້" ໄດ້ຕອນໄລ່ບັນຫາເທື່ອໜ້າ.
+ */
 export async function getServices() {
-  return (
-    await queryOdg<Service>(
-      `select code, name_1, unit_cost unit_code from ic_inventory where code like '9900%' order by code`,
-    )
-  ).rows;
+  try {
+    return (
+      await queryOdg<Service>(
+        `select code, name_1, unit_code from ic_inventory where code like '9702%' order by code`,
+      )
+    ).rows;
+  } catch (error) {
+    console.error("getServices failed — ດຶງລາຍການຄ່າບໍລິການ (9702xx) ຈາກ ic_inventory ບໍ່ສຳເລັດ", error);
+    throw error;
+  }
 }
 
 /** ເລກບິນທີ່ຈະໄດ້ (ສະແດງເທົ່ານັ້ນ — ຕອນບັນທຶກຈະອອກເລກໃໝ່ໃນ transaction ທີ່ລັອກແລ້ວ) */

@@ -9,7 +9,7 @@ import { getLocale } from "@/lib/i18n/locale";
 import { query, queryOdg } from "@/lib/db";
 import { getBalances, withdrawableQty } from "@/lib/stock-balance";
 import { STAGE_SQL } from "@/lib/stage";
-import { PackageCheck, PackageSearch, ShoppingCart } from "lucide-react";
+import { PackageCheck, PackageSearch, ShoppingCart, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -292,12 +292,16 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
       </section>
 
       {/* ②ຍັງບໍ່ລະບຸອາໄຫຼ່ — ຮູ້ວ່າຕ້ອງໃຊ້ ແຕ່ຍັງບໍ່ຮູ້ຕົວ ⇒ ຕ້ອງຊອກກ່ອນຈຶ່ງສະເໜີຊື້ໄດ້.
-          ເຊື່ອງທັງແຖບເມື່ອບໍ່ມີວຽກ — ບໍ່ໃຫ້ກ່ອງຫວ່າງມາແຍ່ງສາຍຕາຈາກຄິວທີ່ມີວຽກແທ້ */}
+          ເຊື່ອງທັງແຖບເມື່ອບໍ່ມີວຽກ — ບໍ່ໃຫ້ກ່ອງຫວ່າງມາແຍ່ງສາຍຕາຈາກຄິວທີ່ມີວຽກແທ້.
+          **ແດງ** ເພາະວຽກກຸ່ມນີ້ບໍ່ມີໃຜເຮັດຕໍ່ໄດ້ຈົນກວ່າຈະຫາລະຫັດອາໄຫຼ່ໄດ້ ⇒ ດ່ວນກວ່າຄິວອື່ນ */}
       {unspecifiedJobs.length > 0 && (
-        <section className="overflow-hidden rounded-xl border border-slate-300 bg-white shadow-sm">
-          <div className="border-b border-slate-300 bg-slate-100 px-4 py-2.5">
-            <h2 className="text-sm font-bold text-slate-800">{t.unspecifiedTitle} ({unspecifiedJobs.length})</h2>
-            <p className="text-[11px] text-slate-600">{t.unspecifiedDesc}</p>
+        <section className="overflow-hidden rounded-xl border border-red-300 bg-white shadow-sm">
+          <div className="border-b border-red-300 bg-red-50 px-4 py-2.5">
+            <h2 className="flex items-center gap-1.5 text-sm font-bold text-red-700">
+              <TriangleAlert className="size-4" />
+              {t.unspecifiedTitle} ({unspecifiedJobs.length})
+            </h2>
+            <p className="text-[11px] text-red-700">{t.unspecifiedDesc}</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] border-collapse text-xs">
@@ -323,7 +327,7 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{job.tech ?? "-"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">{job.checked_at ?? "-"}</td>
                     {/* ຄ້າງດົນ = ບັນຫາ ⇒ ເນັ້ນສີເມື່ອເກີນ 7 ມື້ ໃຫ້ຕາຈັບໄດ້ກ່ອນ */}
-                    <td className={`px-3 py-2.5 text-right font-bold tabular-nums ${job.days_waiting > 7 ? "text-brand-orange-700" : "text-slate-600"}`}>
+                    <td className={`px-3 py-2.5 text-right font-bold tabular-nums ${job.days_waiting > 7 ? "text-red-700" : "text-slate-600"}`}>
                       {job.days_waiting} {t.daysUnit}
                     </td>
                     <td className="px-3 py-2.5 text-center">

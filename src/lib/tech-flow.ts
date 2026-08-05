@@ -1,6 +1,13 @@
 import { logChange } from "@/lib/chatter-log";
 import type { Session } from "@/lib/auth";
 import { ROLE_WAREHOUSE } from "@/lib/chatter";
+import {
+  CHECK_OUTCOME_LABEL,
+  CHECK_OUTCOME_REASON_ERROR,
+  CHECK_OUTCOME_REMARK,
+  isCheckOutcome,
+  type CheckOutcome,
+} from "@/lib/check-outcome";
 import { db, odgDb, query, queryOdg } from "@/lib/db";
 import { writeErpRequest } from "@/lib/erp-request";
 import { nextDocNo } from "@/lib/doc-no";
@@ -220,11 +227,18 @@ export type SaveCheckInput = {
   warranty_reason: string;
   use_spare: boolean;
   /**
-   * **ສ້ອມບໍ່ໄດ້** (ອາໄຫຼ່ໝົດ · ບໍ່ຄຸ້ມ · ເສຍໜັກ) ⇒ ຄືນເຄື່ອງໂດຍບໍ່ສ້ອມ.
-   * ຕ້ອງມີເຫດຜົນ (`cannot_repair_reason`) — ເປັນສິ່ງທີ່ບອກລູກຄ້າ ແລະ ເປັນຫຼັກຖານ.
+   * **ຈົບງານໂດຍບໍ່ສ້ອມ** ⇒ ຄືນເຄື່ອງ. ຕ້ອງມີເຫດຜົນ (`cannot_repair_reason`).
+   * ⚠️ ຊື່ຖັນຍັງເປັນ `cannot_repair` ເພື່ອ**ບໍ່ໃຫ້ແອັບມືຖືລຸ້ນເກົ່າພັງ** — ຄວາມໝາຍ
+   * ຂອງມັນຄື "ຈົບໂດຍບໍ່ສ້ອມ" ສ່ວນ**ເລື່ອງໃດ**ຢູ່ທີ່ `outcome` ຂ້າງລຸ່ມ.
    */
   cannot_repair?: boolean;
   cannot_repair_reason?: string;
+  /**
+   * ຈົບໂດຍບໍ່ສ້ອມ **ຍ້ອນຫຍັງ** — ເບິ່ງ lib/check-outcome.
+   *   cannot_repair  ສ້ອມບໍ່ໄດ້ (ຄ່າຕັ້ງຕົ້ນ — ລຸ້ນເກົ່າທີ່ບໍ່ສົ່ງມາ ຍັງໄດ້ອັນນີ້)
+   *   replace_advice ແນະນຳໃຫ້ປ່ຽນເຄື່ອງ ⇒ ສົ່ງຕໍ່ຝ່າຍຂາຍ
+   */
+  outcome?: CheckOutcome;
   /** ຮູບຕອນກວດເຊັກ (base64) — ບໍ່ບັງຄັບ */
   photos?: string[];
 };
@@ -243,13 +257,18 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
     return { ok: false, error: "ກະລຸນາປ້ອນເຫດຜົນ ທີ່ຕັດສິນວ່າ ໝົດຮັບປະກັນ — ເປັນຫຼັກຖານເມື່ອລູກຄ້າຄ້ານ" };
   }
 
+  // ລຸ້ນເກົ່າ (ແອັບມືຖື) ບໍ່ສົ່ງ outcome ມາ ⇒ ຖືວ່າ "ສ້ອມບໍ່ໄດ້" ຄືພຶດຕິກຳເດີມ
+  const outcome: CheckOutcome = isCheckOutcome(input.outcome) ? input.outcome : "cannot_repair";
   const cannotReason = (input.cannot_repair_reason ?? "").trim();
   if (input.cannot_repair && !cannotReason) {
-    return { ok: false, error: "ກະລຸນາປ້ອນເຫດຜົນ ທີ່ສ້ອມບໍ່ໄດ້ — ເປັນສິ່ງທີ່ຕ້ອງບອກລູກຄ້າຕອນຄືນເຄື່ອງ" };
+    return { ok: false, error: CHECK_OUTCOME_REASON_ERROR[outcome] };
   }
-  // ສ້ອມບໍ່ໄດ້ ແຕ່ຍັງເລືອກໃຊ້ອາໄຫຼ່ = ຂັດກັນເອງ ⇒ ຢຸດໄວ້ກ່ອນຈະບັນທຶກຜິດ
+  // ຈົບໂດຍບໍ່ສ້ອມ ແຕ່ຍັງເລືອກໃຊ້ອາໄຫຼ່ = ຂັດກັນເອງ ⇒ ຢຸດໄວ້ກ່ອນຈະບັນທຶກຜິດ
   if (input.cannot_repair && input.use_spare) {
-    return { ok: false, error: "ເລືອກ “ສ້ອມບໍ່ໄດ້” ແລ້ວ ຈະໃຊ້ອາໄຫຼ່ບໍ່ໄດ້ — ເອົາອາໄຫຼ່ອອກກ່ອນ" };
+    return {
+      ok: false,
+      error: `ເລືອກ “${CHECK_OUTCOME_LABEL[outcome]}” ແລ້ວ ຈະໃຊ້ອາໄຫຼ່ບໍ່ໄດ້ — ເອົາອາໄຫຼ່ອອກກ່ອນ`,
+    };
   }
 
   const client = await db.connect();
@@ -329,12 +348,19 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
      * (status=6 + cancel_finish + return_complete ຫວ່າງ ⇒ ຂັ້ນ 11).
      */
     if (input.cannot_repair) {
+      /**
+       * ── ແຍກ 2 ເລື່ອງດ້ວຍ `check_outcome` (05-08-2026) ──
+       * ເສັ້ນທາງຂອງທັງສອງ**ຄືກັນເປັນຕົວ** (ຄຳຂໍຍົກເລີກ → ອະນຸມັດ → ລໍຖ້າສົ່ງຄືນ) —
+       * ຕ່າງກັນທີ່**ຄວາມໝາຍ**: ສ້ອມບໍ່ໄດ້ = ງານຈົບ · ແນະນຳປ່ຽນເຄື່ອງ = ສົ່ງຕໍ່ຝ່າຍຂາຍ
+       * ແລະ ເຄື່ອງເກົ່າອາດຖືກຮັບເຂົ້າເປັນເຄື່ອງບໍລິສັດ (actions/company-device).
+       * ⇒ ຂຽນປ້າຍລົງຖັນ ບໍ່ແມ່ນອາໄສການອ່ານຄຳນຳໜ້າຂອງ remark (ຂໍ້ຄວາມອິດສະຫຼະ ເຊື່ອບໍ່ໄດ້).
+       */
       await client.query(
         `update tb_product
             set status = 6, cancel_start = ${NOW}, request_cancel = $1,
-                remark = $2
+                remark = $2, check_outcome = $4
           where code = $3 and status <> 6`,
-        [session.username, `ສ້ອມບໍ່ໄດ້: ${cannotReason}`, input.code],
+        [session.username, `${CHECK_OUTCOME_REMARK[outcome]}: ${cannotReason}`, input.code, outcome],
       );
     }
 
@@ -378,16 +404,27 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
   await logChange("tb_product", input.code, `ບັນທຶກຜົນກວດເຊັກ: ${input.diagnosis.trim()} · ${spareNote}${warrantyNote}`, { author: session.username });
 
   if (input.cannot_repair) {
-    // ແຈ້ງຜູ້ອະນຸມັດ — ໃບນີ້ຢຸດຢູ່ຄິວຍົກເລີກ ຈົນກວ່າຈະຕັດສິນ
+    /**
+     * ແຈ້ງຜູ້ອະນຸມັດ — ໃບນີ້ຢຸດຢູ່ຄິວຍົກເລີກ ຈົນກວ່າຈະຕັດສິນ.
+     * ຂໍ້ຄວາມຕ່າງກັນຕາມຜົນ: "ແນະນຳປ່ຽນເຄື່ອງ" ຕ້ອງບອກໃຫ້ຊັດວ່າ**ຝ່າຍຂາຍ**ເປັນຜູ້ຕັດສິນ
+     * ບໍ່ດັ່ງນັ້ນຜູ້ອະນຸມັດຈະເຂົ້າໃຈວ່າສູນຕັດສິນປ່ຽນເຄື່ອງເອງ (ເຊິ່ງບໍ່ແມ່ນໜ້າທີ່ສູນ).
+     */
+    const tail =
+      outcome === "replace_advice"
+        ? "⇒ ຍື່ນຄຳຂໍຄືນເຄື່ອງ · **ຝ່າຍຂາຍ** ເປັນຜູ້ຕັດສິນ ແລະ ດຳເນີນການປ່ຽນເຄື່ອງ"
+        : "⇒ ຍື່ນຄຳຂໍຍົກເລີກ ເພື່ອຄືນເຄື່ອງໃຫ້ລູກຄ້າ";
     await logChange(
       "tb_product",
       input.code,
-      `ຊ່າງແຈ້ງວ່າ **ສ້ອມບໍ່ໄດ້** — ${cannotReason} ⇒ ຍື່ນຄຳຂໍຍົກເລີກ ເພື່ອຄືນເຄື່ອງໃຫ້ລູກຄ້າ`,
+      `ຊ່າງແຈ້ງວ່າ **${CHECK_OUTCOME_LABEL[outcome]}** — ${cannotReason} ${tail}`,
       { author: session.username, roles: ["manager", "headtechnical", "admin"] },
     );
     return {
       ok: true,
-      message: `ບັນທຶກແລ້ວ — ໃບ ${input.code} ເຂົ້າຄິວ "ຂໍຍົກເລີກ" ລໍຜູ້ຈັດການອະນຸມັດ ກ່ອນຄືນເຄື່ອງ`,
+      message:
+        outcome === "replace_advice"
+          ? `ບັນທຶກແລ້ວ — ໃບ ${input.code} ແນະນຳໃຫ້ປ່ຽນເຄື່ອງ, ເຂົ້າຄິວອະນຸມັດຄືນເຄື່ອງ ແລ້ວສົ່ງຕໍ່ຝ່າຍຂາຍ`
+          : `ບັນທຶກແລ້ວ — ໃບ ${input.code} ເຂົ້າຄິວ "ຂໍຍົກເລີກ" ລໍຜູ້ຈັດການອະນຸມັດ ກ່ອນຄືນເຄື່ອງ`,
     };
   }
 

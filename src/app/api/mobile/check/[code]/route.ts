@@ -1,3 +1,4 @@
+import { isCheckOutcome } from "@/lib/check-outcome";
 import { MAX_PHOTO_CHARS, requireMobile } from "@/lib/mobile-auth";
 import { TECH_SIDE } from "@/lib/roles";
 import { ownMobileJob } from "@/lib/job-flow";
@@ -27,9 +28,14 @@ type Body =
       warranty_void: boolean;
       warranty_reason: string;
       use_spare: boolean;
-      /** ສ້ອມບໍ່ໄດ້ ⇒ ຄືນເຄື່ອງ (ຍື່ນຄຳຂໍຍົກເລີກໃຫ້ — ເບິ່ງ lib/tech-flow) */
+      /** ຈົບໂດຍບໍ່ສ້ອມ ⇒ ຄືນເຄື່ອງ (ຍື່ນຄຳຂໍໃຫ້ — ເບິ່ງ lib/tech-flow) */
       cannot_repair?: boolean;
       cannot_repair_reason?: string;
+      /**
+       * ຈົບໂດຍບໍ່ສ້ອມ **ຍ້ອນຫຍັງ** — 'cannot_repair' | 'replace_advice' (ເບິ່ງ lib/check-outcome).
+       * ບໍ່ສົ່ງມາ = 'cannot_repair' ⇒ **ແອັບລຸ້ນເກົ່າເຮັດວຽກຄືເກົ່າທຸກປະການ**.
+       */
+      check_outcome?: string;
       /** ຮູບຕອນກວດເຊັກ (base64) — ບໍ່ບັງຄັບ */
       photos?: string[];
     };
@@ -88,6 +94,7 @@ export async function POST(request: Request, context: { params: Promise<{ code: 
                     // ສ້ອມບໍ່ໄດ້ ⇒ ຄືນເຄື່ອງ (ຍື່ນຄຳຂໍຍົກເລີກໃຫ້ — ເບິ່ງ lib/tech-flow)
                     cannot_repair: Boolean(body.cannot_repair),
                     cannot_repair_reason: String(body.cannot_repair_reason ?? ""),
+                    outcome: isCheckOutcome(body.check_outcome) ? body.check_outcome : undefined,
                     photos,
                   });
                 })()

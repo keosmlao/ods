@@ -1855,7 +1855,8 @@
     "totalValue": "Subtotal",
     "kipRate": "Kip rate",
     "grandTotal": "Grand total",
-    "accountListTitle": "Accounts"
+    "accountListTitle": "Accounts",
+    "saveLine": "Update"
   },
   "poDetail": {
     "branchOdienThai": "Odien Thailand",
@@ -2404,8 +2405,10 @@
     "qty": "Quantity",
     "unit": "Unit",
     "cannotRepair": "Cannot repair — return to customer",
-    "cannotRepairNote": "Selecting this files a cancellation request automatically — the job waits for manager approval before the unit goes back",
-    "cannotRepairPlaceholder": "Reason * (e.g. part discontinued, damage not worth repairing)"
+    "noRepairOutcome": "End without repairing — return the unit",
+    "cannotRepairNote": "Selecting this files the request automatically — the job waits for manager approval before the unit goes back",
+    "cannotRepairPlaceholder": "Reason * (e.g. part discontinued, damage not worth repairing)",
+    "replaceAdvicePlaceholder": "Reason * why it should be replaced (sales uses this when offering the customer)"
   },
   "servicePrint": {
     "receiptTitleDefault": "Repair Receipt",
@@ -4169,7 +4172,7 @@
     "colElapsed": "Elapsed",
     "colRequester": "Requester",
     "readyInStock": "Ready in stock",
-    "notInStock": "Not in stock yet — click “Pull new spare”",
+    "notInStock": "Not in the item list yet — cannot withdraw or purchase it · contact the warehouse team",
     "creating": "Creating"
   },
   "roleControls": {

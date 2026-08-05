@@ -147,13 +147,16 @@ export default async function NewSparePage({ searchParams }: Props) {
                     {ready ? (
                       <span className="text-[10px] text-slate-400">{t.readyInStock}</span>
                     ) : (
-                      // ລະຫັດອອກແລ້ວ ແຕ່ຍັງບໍ່ເຂົ້າ ic_inventory ⇒ ເບີກ/ສັ່ງຊື້ອາໄຫຼ່ຕົວນີ້ຍັງບໍ່ໄດ້
-                      <Link
-                        href="/stock/spare-parts"
-                        className="text-[10px] font-semibold text-brand-900 underline underline-offset-2"
-                      >
-                        {t.notInStock}
-                      </Link>
+                      /**
+                       * ລະຫັດອອກແລ້ວ ແຕ່ຍັງບໍ່ເຂົ້າ ic_inventory ⇒ ເບີກ/ສັ່ງຊື້ອາໄຫຼ່ຕົວນີ້ຍັງບໍ່ໄດ້.
+                       *
+                       * ⚠️ ເມື່ອກ່ອນເປັນ **ລິ້ງ** ໄປ /stock/spare-parts ພ້ອມຄຳວ່າ ກົດ "ດຶງອາໄຫຼ່ໃໝ່" —
+                       * ແຕ່ໜ້ານັ້ນ**ອ່ານກົງຈາກ ERP ແລ້ວ ແລະ ບໍ່ມີປຸ່ມນັ້ນອີກ** (ບໍ່ມີຟອມ/action ຈັກອັນ)
+                       * ⇒ ຄົນກົດເຂົ້າໄປແລ້ວຫາປຸ່ມບໍ່ພົບ. ແລະ **ບໍ່ມີ code ບ່ອນໃດ insert ic_inventory ເລີຍ**
+                       * ⇒ ມັນມາຈາກການ sync ຝັ່ງ ERP/SML ບໍ່ແມ່ນສິ່ງທີ່ກົດເອງໄດ້ຢູ່ລະບົບນີ້.
+                       * ດຽວນີ້ຈຶ່ງເປັນ**ຂໍ້ຄວາມ ບໍ່ແມ່ນລິ້ງ** ແລະ ບອກໃຫ້ຕິດຕໍ່ຄົນທີ່ແກ້ໄດ້ແທນ.
+                       */
+                      <span className="text-[10px] font-semibold text-brand-orange-700">{t.notInStock}</span>
                     )}
                   </div>
                 ) : (
