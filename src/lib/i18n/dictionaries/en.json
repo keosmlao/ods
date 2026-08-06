@@ -1,11 +1,12 @@
 {
   "common": {
+    "cancel": "Cancel",
     "language": "Language",
     "loading": "Loading…",
+    "loadingMore": "Loading more… {n} left",
+    "logout": "Log out",
     "save": "Save",
-    "cancel": "Cancel",
-    "search": "Search",
-    "logout": "Log out"
+    "search": "Search"
   },
   "shell": {
     "notifications": "Notifications",

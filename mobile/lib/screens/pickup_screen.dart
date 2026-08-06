@@ -690,7 +690,7 @@ class _PickupScreenState extends State<PickupScreen> {
                           child: Text(
                             'ຮອບ ${doc.round}',
                             style: const TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 11.5,
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF4338CA),
                             ),
@@ -708,7 +708,7 @@ class _PickupScreenState extends State<PickupScreen> {
                         child: Text(
                           '${doc.lines} ລາຍການ',
                           style: const TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w800,
                             color: muted,
                           ),
@@ -776,13 +776,6 @@ class _PickupScreenState extends State<PickupScreen> {
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: line)),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x0F0F172A),
-            blurRadius: 18,
-            offset: Offset(0, -6),
-          ),
-        ],
       ),
       child: SafeArea(
         top: false,

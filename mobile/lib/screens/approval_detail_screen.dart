@@ -461,7 +461,7 @@ class _LineRow extends StatelessWidget {
               Text(
                 'x${line.qty}${line.unit != null ? ' ${line.unit}' : ''}'
                 '${showPrice && line.price != null ? ' · ${_thousands(line.price)} ฿/ໜ່ວຍ' : ''}',
-                style: const TextStyle(fontSize: 10.5, color: faint),
+                style: const TextStyle(fontSize: 11.5, color: faint),
               ),
             ],
           ),

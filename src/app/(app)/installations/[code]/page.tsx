@@ -2,6 +2,10 @@ import { Chatter } from "@/components/chatter/chatter";
 import { getSession } from "@/lib/auth";
 import { CancelInstallSpareRequestButton } from "@/components/installation/cancel-spare-request-button";
 import { CancelJobButton } from "@/components/installation/job-buttons";
+import { NextVisitButton } from "@/components/installation/next-visit-button";
+import { HandoverTechButton } from "@/components/installation/handover-tech-button";
+import { technicianOptions } from "@/lib/technicians";
+import { jobVisits } from "@/lib/job-flow";
 import { Elapsed } from "@/components/elapsed";
 import { InstallDeleteButton } from "@/components/installation/install-delete-button";
 import { JOB_HEAD_COLUMNS, type JobHead, JobHeader } from "@/components/installation/job-header";
@@ -139,8 +143,12 @@ export default async function InstallationDetail({ params }: Props) {
    * ດຶງ **ຫຼັງ**ກວດສິດ — ບໍ່ດັ່ງນັ້ນຄົນທີ່ເປີດງານຂອງຄົນອື່ນບໍ່ໄດ້ ຍັງເຮັດໃຫ້ລະບົບ
    * ຂົນສົ່ງຖືກ query ຢູ່. metadata ຢ່າງດຽວ (ບໍ່ມີຮູບ) ⇒ ເບົາ.
    */
-  const [delivery, timeline] = await Promise.all([
+  const [delivery, visits, techs, timeline] = await Promise.all([
     deliveryFor(row.doc_ref_1),
+    // 1 ໃບງານ = ຫຼາຍຮອບເຂົ້າໜ້າງານ (ເບິ່ງ lib/job-flow.scheduleNextVisit)
+    jobVisits("install", row.code),
+    // ລາຍຊື່ຊ່າງ — ໃຫ້ປຸ່ມ "ປ່ຽນຊ່າງ" ຕອນງານກຳລັງດຳເນີນ (ຮອບຕໍ່ໄປອາດເປັນຄົນອື່ນ)
+    row.stage === 4 || row.stage === 5 ? technicianOptions() : Promise.resolve([]),
     installTimeline(row.code),
   ]);
 
@@ -195,6 +203,16 @@ export default async function InstallationDetail({ params }: Props) {
             ດ່ານ ແລະ ໝາຍເຫດບັງຄັບ ຢູ່ `cancelInstall` ຄືເກົ່າ (ຍັງບອກອາໄຫຼ່ຄ້າງນອກສາງນຳ).
             ງານທີ່ຍົກເລີກ/ປິດແລ້ວ ບໍ່ໂຊ້ວ — ຍົກເລີກຊ້ຳບໍ່ໄດ້ຢູ່ແລ້ວ.
           */}
+          {/* ຕິດຕັ້ງບໍ່ຈົບໃນມື້ດຽວ — ນັດກັບໄປໂດຍບໍ່ຕ້ອງກົດ "ຈົບງານ" ຫຼອກ (06-08-2026) */}
+          {installPermission.update && !row.cancel_date && row.stage === 5 && <NextVisitButton code={row.code} />}
+          {/* ຮອບຕໍ່ໄປອາດເປັນຊ່າງຄົນອື່ນ — ສົ່ງມອບກາງທາງໂດຍບໍ່ຖອຍຂັ້ນ */}
+          {installPermission.update && !row.cancel_date && (row.stage === 4 || row.stage === 5) && (
+            <HandoverTechButton
+              code={row.code}
+              current={row.tech_code}
+              techs={techs.map((tech) => ({ code: tech.code, name: tech.name_1 || tech.code }))}
+            />
+          )}
           {installPermission.update && !row.cancel_date && row.stage !== 9 && (
             <CancelJobButton code={row.code} label={t.cancelJob} />
           )}
@@ -227,6 +245,47 @@ export default async function InstallationDetail({ params }: Props) {
       )}
 
       <JobHeader head={row} />
+
+      {visits.length > 0 && (
+        <Card title={`ຮອບເຂົ້າໜ້າງານ (${visits.length})`}>
+          {/* ຜ່ານມືຫຼາຍຄົນ ⇒ ບອກໄວ້ ເພາະຄ່າຄອມຄິດຕໍ່ໃບງານ (ຕົກໃສ່ຄົນທີ່ຖືງານຕອນປິດ) */}
+          {new Set(visits.map((visit) => visit.tech_code).filter(Boolean)).size > 1 && (
+            <p className="mb-2 rounded-lg bg-brand-orange-50 px-3 py-2 text-[11px] font-medium text-brand-orange-700">
+              ງານນີ້ຜ່ານມືຊ່າງຫຼາຍກວ່າ 1 ຄົນ — ຄ່າຄອມຄິດ <b>ຕໍ່ໃບງານ</b> ຕົກໃສ່ຄົນທີ່ຖືງານຕອນປິດ
+            </p>
+          )}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-xs">
+              <thead className="bg-slate-50 text-left text-slate-500">
+                <tr>
+                  <th className="px-3 py-2 font-semibold">ຮອບ</th>
+                  <th className="px-3 py-2 font-semibold">ຊ່າງ</th>
+                  <th className="px-3 py-2 font-semibold">ເຂົ້າໜ້າງານ</th>
+                  <th className="px-3 py-2 font-semibold">ອອກ</th>
+                  <th className="px-3 py-2 font-semibold">ໃຊ້ເວລາ</th>
+                  <th className="px-3 py-2 font-semibold">ໝາຍເຫດ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visits.map((visit, index) => (
+                  <tr key={visit.id} className="border-t border-slate-100">
+                    <td className="px-3 py-2 font-bold text-brand-700 tabular-nums">{index + 1}</td>
+                    <td className="px-3 py-2 text-slate-600">{visit.tech_code ?? "-"}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-600">{visit.checkin_at ?? "-"}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                      {visit.checkout_at ?? <span className="text-brand-orange-700">ຍັງຢູ່ໜ້າງານ</span>}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-600">
+                      {visit.minutes == null ? "-" : `${Math.floor(visit.minutes / 60)} ຊມ ${visit.minutes % 60} ນທ`}
+                    </td>
+                    <td className="px-3 py-2 text-slate-500">{visit.note ?? "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       <Card title="Timeline ງານຕິດຕັ້ງ">
         <JobTimeline

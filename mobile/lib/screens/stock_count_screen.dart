@@ -418,7 +418,7 @@ class _ItemCard extends StatelessWidget {
                         'ພົບແລ້ວ',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -439,7 +439,7 @@ class _ItemCard extends StatelessWidget {
                     item.stageLabel,
                     style: const TextStyle(
                       color: muted,
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -474,7 +474,7 @@ class _ItemCard extends StatelessWidget {
                 '${item.serviceType} · ${item.serviceTypeLabel}',
                 style: const TextStyle(
                   color: Color(0xFF1D4ED8),
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),
               ),

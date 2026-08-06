@@ -210,7 +210,7 @@ class MonitorTile extends StatelessWidget {
     ),
     child: Text(
       text,
-      style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: c),
+      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: c),
     ),
   );
 }
@@ -423,7 +423,7 @@ Widget _statusValue(String label, String value, Color color) => Padding(
       Text(
         label,
         style: const TextStyle(
-          fontSize: 9.5,
+          fontSize: 11,
           color: muted,
           fontWeight: FontWeight.w600,
         ),

@@ -21,25 +21,41 @@ void main() async {
   WidgetsBinding.instance.addPostFrameCallback((_) => AppLinks.flush());
 }
 
-// ── Design tokens v3 (Minimalist Executive Slate) ──
-const teal = Color(0xFF0F766E); // brand teal-slate
+// ── Design tokens v4 (Flat High-Contrast — ອ່ານງ່າຍເທິງຈໍລຸ້ນເກົ່າ) ──
+// ຫຼັກການ: ສີ contrast ສູງ (WCAG AA ຂຶ້ນໄປສຳລັບ text), ບໍ່ມີ gradient/blur ໃນ widget ທີ່
+// render ຖີ່ (GPU ເກົ່າແຮງ), flat surface + border ແທນເງົາ.
+const teal = Color(0xFF0F766E); // brand teal-700 — ສີຫຼັກ (contrast 4.6:1 ເທິງຂາວ)
 const tealBright = Color(0xFF0D9488); // active highlight
+const tealDeep = Color(0xFF115E59); // pressed/hover state (teal-800)
 const tealTint = Color(0xFFCCFBF1); // soft badge tint
-const ink = Color(0xFF0F172A); // slate 900 — crisp title text
+const tealWash = Color(0xFFF0FDFA); // ພື້ນອ່ອນສຸດ (tint ກາດ selected)
+const ink = Color(0xFF0F172A); // slate 900 — ຫົວຂໍ້
+const body = Color(0xFF1E293B); // slate 800 — ເນື້ອຄວາມອ່ານງ່າຍກວ່າ muted
 const danger = Color(0xFFE11D48); // rose 600
-const ok = Color(0xFF059669); // emerald 600
-const warn = Color(0xFFD97706); // amber 600
-const muted = Color(0xFF64748B); // slate 500
-const faint = Color(0xFF94A3B8); // slate 400
-const ground = Color(0xFFF8FAFC); // slate 50 clean background
+const dangerTint = Color(0xFFFFE4E6); // rose 100
+const ok = Color(0xFF047857); // emerald 700 (ເຂັ້ມຂຶ້ນ — ອ່ານງ່າຍກວ່າ 600)
+const okTint = Color(0xFFD1FAE5); // emerald 100
+const warn = Color(0xFFB45309); // amber 700 (ເຂັ້ມຂຶ້ນ)
+const warnTint = Color(0xFFFEF3C7); // amber 100
+const muted = Color(0xFF475569); // slate 600 — ຍົກຈາກ 500 ໃຫ້ອ່ານງ່າຍຂຶ້ນ
+const faint = Color(0xFF64748B); // slate 500 — ຍົກຈາກ 400 (4.5:1 ພໍດີ)
+const ground = Color(0xFFF8FAFC); // slate 50 — ພື້ນຫຼັງ
 const surfaceAlt = Color(0xFFF1F5F9); // slate 100
-const line = Color(0xFFE2E8F0); // slate 200
+const line = Color(0xFFE2E8F0); // slate 200 — ຂອບ
+const lineStrong = Color(0xFFCBD5E1); // slate 300 — ຂອບເນັ້ນ (input ປົກກະຕິ)
 
-// ── Hero header (Obsidian Slate Theme) ──
-const hero1 = Color(0xFF0F172A); // slate 900
-const hero2 = Color(0xFF1E293B); // slate 800
+// ── Hero header v4 (flat, ບໍ່ມີ gradient — ປະຢັດ GPU ເຄື່ອງເກົ່າ) ──
+const hero1 = Color(0xFF0F172A); // slate 900 (ພື້ນ)
+const hero2 = Color(0xFF1E293B); // slate 800 (tile ເທິງ hero)
 const onHero = Color(0xFFF8FAFC);
-const onHeroDim = Color(0xFF94A3B8);
+const onHeroDim = Color(0xFFB6C2D4); // ຍົກຈາກ slate 400 ໃຫ້ອ່ານງ່າຍເທິງພື້ນມືດ
+
+/// ລັດສະໝີມາດຕະຖານ (ກາດ = 16, ປຸ່ມ = 14, ຊິບ = pill)
+const kCardRadius = 16.0;
+const kButtonRadius = 14.0;
+
+/// ຄວາມສູງສຳຜັດຂັ້ນຕ່ຳ — ນິ້ວໂປ້ຊ່າງງານ + ຈໍລຸ້ນເກົ່າ density ຕ່ຳ
+const kMinTouch = 48.0;
 
 class OdssApp extends StatelessWidget {
   const OdssApp({super.key});
@@ -87,37 +103,38 @@ class OdssApp extends StatelessWidget {
           ),
           hintStyle: const TextStyle(color: faint),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: line),
+            borderRadius: BorderRadius.circular(kButtonRadius),
+            borderSide: const BorderSide(color: lineStrong),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: line),
+            borderRadius: BorderRadius.circular(kButtonRadius),
+            borderSide: const BorderSide(color: lineStrong),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: teal, width: 1.6),
+            borderRadius: BorderRadius.circular(kButtonRadius),
+            borderSide: const BorderSide(color: teal, width: 2),
           ),
         ),
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
             backgroundColor: teal,
             foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(52),
+            // ສຳຜັດ 48px ຂຶ້ນໄປທຸກປຸ່ມຫຼັກ (ນິ້ວໂປ້ + ຈໍລຸ້ນເກົ່າ)
+            minimumSize: const Size.fromHeight(kMinTouch),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(kButtonRadius),
             ),
-            textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+            textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5),
           ),
         ),
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
             foregroundColor: teal,
-            minimumSize: const Size.fromHeight(48),
-            backgroundColor: surfaceAlt,
-            side: const BorderSide(color: line),
+            minimumSize: const Size.fromHeight(kMinTouch),
+            backgroundColor: Colors.white,
+            side: const BorderSide(color: lineStrong),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(kButtonRadius),
             ),
             textStyle: const TextStyle(fontWeight: FontWeight.w700),
           ),
@@ -126,9 +143,9 @@ class OdssApp extends StatelessWidget {
           color: Colors.white,
           elevation: 0,
           margin: EdgeInsets.zero,
-          shadowColor: const Color(0x140C1B18),
+          shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(kCardRadius),
             side: const BorderSide(color: line),
           ),
         ),
@@ -146,9 +163,9 @@ class OdssApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      // ຫຍໍ້ font ທັງແອັບ ~10% (ບໍ່ໃຫ້ໃຫຍ່ເກີນ 0.9 ເຖິງ system ຕັ້ງໃຫຍ່)
+      // ອະນຸຍາດໃຫ້ system font-scale ເຕັມ 1.0 (v3 ຫຍໍ້ 0.9 — ຈໍນ້ອຍລຸ້ນເກົ່າອ່ານຍາກ)
       builder: (context, child) => MediaQuery.withClampedTextScaling(
-        maxScaleFactor: 0.9,
+        maxScaleFactor: 1.0,
         child: child!,
       ),
       home: const _Gate(),

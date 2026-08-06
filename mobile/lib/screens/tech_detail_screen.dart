@@ -321,7 +321,7 @@ class _TechStatusSummary extends StatelessWidget {
           const SizedBox(height: 5),
           Text(
             '${counts.length} ສະຖານະທີ່ກຳລັງມີວຽກ',
-            style: const TextStyle(fontSize: 10.5, color: muted),
+            style: const TextStyle(fontSize: 11.5, color: muted),
           ),
           const SizedBox(height: 11),
           SingleChildScrollView(
@@ -426,7 +426,7 @@ class _TechStatusChip extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: 10.5,
+                fontSize: 11.5,
                 color: selected ? Colors.white : ink,
                 fontWeight: FontWeight.w800,
               ),
@@ -445,7 +445,7 @@ class _TechStatusChip extends StatelessWidget {
                 '$count',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 9.5,
+                  fontSize: 11,
                   color: selected ? Colors.white : muted,
                   fontWeight: FontWeight.w900,
                 ),

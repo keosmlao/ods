@@ -1533,6 +1533,9 @@ class _JobScreenState extends State<JobScreen> {
                                                     base64Decode(
                                                       photos[i].split(',').last,
                                                     ),
+                                                    // ຈຳກັດ 1800px — ພໍສຳລັບ zoom ເຕັມຈໍ
+                                                    // ແຕ່ບໍ່ decode ຮູບ 12MP ເຕັມ (ເຄື່ອງເກົ່າ RAM ໜ້ອຍ)
+                                                    cacheWidth: 1800,
                                                   ),
                                                 ),
                                                 Positioned(
@@ -1555,6 +1558,8 @@ class _JobScreenState extends State<JobScreen> {
                                           borderRadius: BorderRadius.circular(
                                             10,
                                           ),
+                                          // cacheWidth — ຮູບກ້ອງໃໝ່ 12MP ຖອດລະຫັດເຕັມ
+                                          // ຈະກິນ RAM ເຄື່ອງເກົ່າ (ເບິ່ງ _photoRow)
                                           child: Image.memory(
                                             base64Decode(
                                               photos[i].split(',').last,
@@ -1562,6 +1567,7 @@ class _JobScreenState extends State<JobScreen> {
                                             width: 78,
                                             height: 78,
                                             fit: BoxFit.cover,
+                                            cacheWidth: (78 * MediaQuery.of(context).devicePixelRatio).round(),
                                           ),
                                         ),
                                       ),
@@ -1649,6 +1655,27 @@ class _JobScreenState extends State<JobScreen> {
                                       'photos': photos,
                                     }),
                             ),
+
+                            /*
+                              ── 1 ໃບງານ = ຫຼາຍຮອບເຂົ້າໜ້າງານ (06-08-2026) ──
+                              ຕິດຕັ້ງບໍ່ຈົບໃນມື້ດຽວ (ລໍງານໄຟຟ້າ · ຝົນຕົກ · ຂາດອາໄຫຼ່) ເປັນເລື່ອງປົກກະຕິ
+                              — ວັດແລ້ວ 65 ໃບ/ປີ ຈົບຄົນລະວັນກັບວັນເລີ່ມ. ແຕ່ກ່ອນຊ່າງມີແຕ່ 2 ທາງ:
+                              ກົດ "ຈົບງານ" ຫຼອກ (QC ແລະ ການປະເມີນຂອງລູກຄ້າແລ່ນຜິດ) ຫຼື ປະໄວ້ງຽບໆ.
+                              ປຸ່ມນີ້ປິດຮອບປັດຈຸບັນ + ໃສ່ວັນນັດ ⇒ ງານຄາຢູ່ຂັ້ນເດີມ ແລະ ຂຶ້ນຄິວມື້ນັ້ນເອງ.
+                            */
+                            if (job.workflow == 'install') ...[
+                              const SizedBox(height: 10),
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(48),
+                                  foregroundColor: warn,
+                                  side: const BorderSide(color: warn),
+                                ),
+                                onPressed: busy ? null : _askNextVisit,
+                                icon: const Icon(Icons.event_repeat_outlined, size: 18),
+                                label: const Text('ຍັງບໍ່ຈົບ — ນັດຮອບຕໍ່ໄປ'),
+                              ),
+                            ],
                           ],
 
                           if (job.action == 'wait_spare') ...[
@@ -1887,7 +1914,7 @@ class _JobScreenState extends State<JobScreen> {
     decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
     child: Text(
       text,
-      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: fg),
+      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: fg),
     ),
   );
 
@@ -2058,6 +2085,8 @@ class _JobScreenState extends State<JobScreen> {
                   width: 140,
                   height: 110,
                   fit: BoxFit.cover,
+                  // cacheWidth — ບໍ່ decode ຮູບກ້ອງເຕັມຄວາມລະອຽດ (ເຄື່ອງເກົ່າ RAM ໜ້ອຍ)
+                  cacheWidth: (140 * MediaQuery.of(context).devicePixelRatio).round(),
                 ),
               ),
             ),
@@ -2175,6 +2204,9 @@ class _JobScreenState extends State<JobScreen> {
                         InteractiveViewer(
                           child: Image.memory(
                             base64Decode(img.split(',').last),
+                            // ຈຳກັດ 1800px — ພໍສຳລັບ zoom ເຕັມຈໍ
+                            // ແຕ່ບໍ່ decode ຮູບ 12MP ເຕັມ (ເຄື່ອງເກົ່າ RAM ໜ້ອຍ)
+                            cacheWidth: 1800,
                           ),
                         ),
                         Positioned(
@@ -2192,11 +2224,14 @@ class _JobScreenState extends State<JobScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
+                  // cacheWidth: ຖອດລະຫັດຮູບຂະໜາດນ້ອຍເທົ່າ thumbnail ຈິງ — ຮູບກ້ອງ
+                  // 12MP ຫຼາຍໜ່ວຍໃນ RAM 1-2GB ຂອງເຄື່ອງເກົ່າ ຈະ OOM ຖ້າ decode ເຕັມ
                   child: Image.memory(
                     base64Decode(img.split(',').last),
                     width: 76,
                     height: 76,
                     fit: BoxFit.cover,
+                    cacheWidth: (76 * MediaQuery.of(context).devicePixelRatio).round(),
                   ),
                 ),
               ),
@@ -2207,7 +2242,7 @@ class _JobScreenState extends State<JobScreen> {
     ),
   );
 
-  /// ປຸ່ມ **ຫຼັກ** — ຖົມສີເຕັມ + ເງົາອ່ອນ ⇒ ຕາໄປຫາກ່ອນ
+  /// ປຸ່ມ **ຫຼັກ** — ຖົມສີເຕັມ (v4: flat, ບໍ່ມີເງົາສີ ⇒ ປະຢັດ GPU ເຄື່ອງເກົ່າ)
   Widget _primaryAction(
     String label,
     IconData icon,
@@ -2221,9 +2256,10 @@ class _JobScreenState extends State<JobScreen> {
       foregroundColor: Colors.white,
       minimumSize: Size.fromHeight(height),
       padding: const EdgeInsets.symmetric(horizontal: 10),
-      elevation: 2,
-      shadowColor: color.withValues(alpha: .45),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(kButtonRadius),
+      ),
     ),
     icon: busy
         ? const SizedBox(
@@ -2258,7 +2294,9 @@ class _JobScreenState extends State<JobScreen> {
       minimumSize: Size.fromHeight(height),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       side: BorderSide(color: color.withValues(alpha: .35)),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(kButtonRadius),
+      ),
     ),
     icon: Icon(icon, size: 18),
     label: Text(
@@ -2268,6 +2306,65 @@ class _JobScreenState extends State<JobScreen> {
       style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
     ),
   );
+
+  /// ຖາມ ວັນນັດ + ເຫດຜົນ ແລ້ວສົ່ງຄຳສັ່ງ next-visit (ເບິ່ງ lib/job-flow.scheduleNextVisit)
+  Future<void> _askNextVisit() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 180)),
+      helpText: 'ວັນທີ່ຈະກັບໄປຕິດຕັ້ງຕໍ່',
+    );
+    if (picked == null || !mounted) return;
+
+    final reason = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('ຍັງບໍ່ຈົບ — ນັດຮອບຕໍ່ໄປ'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'ກັບໄປວັນທີ ${picked.day}/${picked.month}/${picked.year}',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: reason,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'ຍັງບໍ່ຈົບຍ້ອນຫຍັງ',
+                hintText: 'ລໍງານໄຟຟ້າ · ຝົນຕົກ · ຂາດອາໄຫຼ່ · ລູກຄ້າຂໍເລື່ອນ',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('ຍົກເລີກ')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('ບັນທຶກນັດ')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final text = reason.text.trim();
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ກະລຸນາໃສ່ເຫດຜົນ')),
+      );
+      return;
+    }
+    final month = picked.month.toString().padLeft(2, '0');
+    final day = picked.day.toString().padLeft(2, '0');
+    await run({
+      'action': 'next-visit',
+      'next_date': '${picked.year}-$month-$day',
+      'reason': text,
+    });
+  }
 
   Widget _button(String label, Color color, VoidCallback? onPressed) {
     return FilledButton(
@@ -2326,8 +2423,8 @@ class _StepLabel extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     children: [
       Container(
-        width: 19,
-        height: 19,
+        width: 22,
+        height: 22,
         alignment: Alignment.center,
         decoration: const BoxDecoration(
           color: tealTint,
@@ -2336,7 +2433,7 @@ class _StepLabel extends StatelessWidget {
         child: Text(
           step,
           style: const TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w900,
             color: teal,
           ),
@@ -2405,7 +2502,7 @@ class _MessageRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '${message.author} · ${message.createdAt}',
-                  style: const TextStyle(fontSize: 10.5, color: faint),
+                  style: const TextStyle(fontSize: 11.5, color: faint),
                 ),
               ],
             ),
@@ -2458,7 +2555,7 @@ class _ActivityRow extends StatelessWidget {
                 ),
                 Text(
                   '$due · ${activity.dueDate}',
-                  style: TextStyle(fontSize: 10.5, color: color),
+                  style: TextStyle(fontSize: 11.5, color: color),
                 ),
               ],
             ),
@@ -2485,18 +2582,12 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      // v4: flat — ຂອບແທນເງົາ (ໜ້ານີ້ມີຫຼາຍກາດ ⇒ ປະຢັດ GPU ເຄື່ອງເກົ່າ)
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE6ECEF)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A0F172A),
-            blurRadius: 16,
-            offset: Offset(0, 5),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(kCardRadius),
+        border: Border.all(color: line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

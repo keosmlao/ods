@@ -44,12 +44,15 @@ android {
 
     defaultConfig {
         applicationId = "net.odien.service.odss_tech"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // ຮອງຮັບ Android ລຸ້ນເກົ່າ — ປັກໝຸດໃຫ້ຊັດ 21 (Android 5.0), ບໍ່ໃຊ້ຄ່າ default ທີ່
+        // ປ່ຽນຕາມ Flutter SDK. plugin ທັງໝົດທີ່ໃຊ້ຮອງຮັບ 21 ຂຶ້ນໄປ (ກວດແລ້ວ).
+        minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // API < 21 ບໍ່ມີ multi-dex ໃນລະບົບ ⇒ ຕ້ອງໃສ່ multidex runtime ຕິດໄປກັບ APK
+        // (ຈຳນວນ method ຂອງ Firebase + map + chart ເກີນ 64k ຂີດຈຳກັດ dex ດຽວ)
+        multiDexEnabled = true
     }
 
     signingConfigs {

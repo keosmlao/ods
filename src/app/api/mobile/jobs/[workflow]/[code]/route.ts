@@ -10,6 +10,7 @@ import {
   jobPhotoSets,
   ownMobileJob,
   rejectJob,
+  scheduleNextVisit,
   startInstallFlow,
   startRepairFlow,
   type FlowResult,
@@ -42,7 +43,16 @@ import { query } from "@/lib/db";
  * ຢ່າຂຽນ SQL ປ່ຽນຂັ້ນຢູ່ນີ້ ບໍ່ດັ່ງນັ້ນແອັບຈະຂ້າມເງື່ອນໄຂຂັ້ນທີ່ເວັບກວດໄວ້.
  */
 type Body = {
-  action: "accept" | "reject" | "start" | "finish" | "checkin" | "checkout" | "bring-in" | "undo";
+  action:
+    | "accept"
+    | "reject"
+    | "start"
+    | "finish"
+    | "checkin"
+    | "checkout"
+    | "bring-in"
+    | "next-visit"
+    | "undo";
   /** bring-in: ວິທີເອົາເຄື່ອງເຂົ້າສູນ — carry=ຊ່າງເອົາກັບພ້ອມ · pickup=ຂົນສົ່ງມາຮັບ (ຄ່າເລີ່ມ) */
   mode?: "carry" | "pickup";
   reason?: string;
@@ -50,6 +60,8 @@ type Body = {
   lat?: number;
   lng?: number;
   photo?: string;
+  /** next-visit: ວັນນັດເຂົ້າຮອບຕໍ່ໄປ (YYYY-MM-DD) — ງານຕິດຕັ້ງທີ່ຮອບນີ້ຍັງບໍ່ຈົບ */
+  next_date?: string;
   /** ຮູບຜົນງານຕອນຈົບງານ — ບັງຄັບຝັ່ງຕິດຕັ້ງ (ເບິ່ງ lib/job-flow) */
   photos?: string[];
   client_action_id?: string;
@@ -310,6 +322,16 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
           lat: body.lat ?? null,
           lng: body.lng ?? null,
           note: body.note ?? "",
+        });
+        break;
+      case "next-visit":
+        // 1 ໃບງານ = ຫຼາຍຮອບເຂົ້າໜ້າງານ — ຮອບນີ້ຍັງບໍ່ຈົບ ⇒ ນັດວັນກັບໄປ (ສະເພາະຕິດຕັ້ງ)
+        if (workflow !== "install") {
+          return NextResponse.json({ error: "ຄຳສັ່ງນີ້ໃຊ້ໄດ້ແຕ່ງານຕິດຕັ້ງ" }, { status: 400 });
+        }
+        result = await scheduleNextVisit(user, code, {
+          next_date: String(body.next_date ?? ""),
+          reason: String(body.reason ?? ""),
         });
         break;
       case "bring-in":

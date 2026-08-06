@@ -318,7 +318,7 @@ class _MessageCard extends StatelessWidget {
               child: Text(
                 message.author,
                 style: const TextStyle(
-                  fontSize: 10.5,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w800,
                   color: ink,
                 ),
@@ -326,7 +326,7 @@ class _MessageCard extends StatelessWidget {
             ),
             Text(
               message.createdAt,
-              style: const TextStyle(fontSize: 9.5, color: faint),
+              style: const TextStyle(fontSize: 11, color: faint),
             ),
           ],
         ),

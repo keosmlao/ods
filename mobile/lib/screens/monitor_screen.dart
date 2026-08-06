@@ -189,7 +189,7 @@ class _MonitorTabLabel extends StatelessWidget {
           child: Text(
             '${group.jobs.length}',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
           ),
         ),
       ],
@@ -235,7 +235,7 @@ class _MonitorAppBar extends StatelessWidget {
               Text(
                 'ວຽກທີ່ຕ້ອງກວດສອບ ແລະ ລົງມື',
                 style: TextStyle(
-                  fontSize: 10.5,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                   color: muted,
                 ),
@@ -265,18 +265,11 @@ class _MonitorSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(18),
+    // v4: flat — ພື້ນ ink ລ້ວນ ບໍ່ມີ gradient/ເງົາ (ປະຢັດ GPU ເຄື່ອງເກົ່າ)
     decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [Color(0xFF0F172A), Color(0xFF134E4A)],
-      ),
-      borderRadius: BorderRadius.circular(22),
-      boxShadow: [
-        BoxShadow(
-          color: ink.withValues(alpha: .14),
-          blurRadius: 20,
-          offset: const Offset(0, 8),
-        ),
-      ],
+      color: hero1,
+      borderRadius: BorderRadius.circular(kCardRadius),
+      border: Border.all(color: const Color(0xFF334155)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -353,7 +346,7 @@ class _SummaryPill extends StatelessWidget {
       '${group.jobs.length}  ${group.label}',
       style: const TextStyle(
         color: Colors.white,
-        fontSize: 10.5,
+        fontSize: 11.5,
         fontWeight: FontWeight.w700,
       ),
     ),

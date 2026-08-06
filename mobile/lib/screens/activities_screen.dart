@@ -184,7 +184,7 @@ class _ActivityRow extends StatelessWidget {
                       Text(
                         overdue ? 'ເລີຍ ${-activity.daysLeft} ມື້' : '${activity.dueDate}',
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w800,
                           color: overdue ? danger : faint,
                         ),
@@ -204,7 +204,7 @@ class _ActivityRow extends StatelessWidget {
                     '${activity.kindLabel} · ມອບໃຫ້ ${activity.assignedTo} · ນັດໂດຍ ${activity.createdBy}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 10.5, color: faint),
+                    style: const TextStyle(fontSize: 11.5, color: faint),
                   ),
                 ],
               ),

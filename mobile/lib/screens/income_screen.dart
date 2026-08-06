@@ -151,7 +151,7 @@ class _IncomeScreenState extends State<IncomeScreen> {
           _summary(data, repairTotal, installTotal),
           const SizedBox(height: 14),
           SizedBox(
-            height: 34,
+            height: 48,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
@@ -240,14 +240,10 @@ class _IncomeScreenState extends State<IncomeScreen> {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      // v4: flat — ພື້ນ ink ລ້ວນ ບໍ່ມີ gradient/ເງົາ (ປະຢັດ GPU ເຄື່ອງເກົ່າ)
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-          colors: [hero2, hero1],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: kSoftShadow,
+        color: hero1,
+        borderRadius: BorderRadius.circular(kCardRadius),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,7 +348,7 @@ class _IncomeScreenState extends State<IncomeScreen> {
       const SizedBox(width: 6),
       Text(
         label,
-        style: const TextStyle(fontSize: 11, color: onHeroDim),
+        style: const TextStyle(fontSize: 11.5, color: onHeroDim),
       ),
       const SizedBox(width: 5),
       Text(
@@ -383,7 +379,7 @@ class _IncomeScreenState extends State<IncomeScreen> {
           ),
         ),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 10.5, color: onHeroDim)),
+        Text(label, style: const TextStyle(fontSize: 11.5, color: onHeroDim)),
       ],
     ),
   );
@@ -470,7 +466,7 @@ class _IncomeScreenState extends State<IncomeScreen> {
                         'ບົດບາດ: ${_roleLabel[role] ?? (role.isEmpty ? '-' : role)}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 11, color: muted),
+                        style: const TextStyle(fontSize: 11.5, color: muted),
                       ),
                     ),
                   ],
@@ -491,7 +487,7 @@ class _IncomeScreenState extends State<IncomeScreen> {
                   fontFeatures: [FontFeature.tabularFigures()],
                 ),
               ),
-              const Text('ບາທ', style: TextStyle(fontSize: 10, color: faint)),
+              const Text('ບາທ', style: TextStyle(fontSize: 11, color: faint)),
             ],
           ),
         ],

@@ -256,7 +256,7 @@ class _PersonRow extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             '${person.jobs} ໃບ · ${person.lines} ແຖວ',
-            style: const TextStyle(fontSize: 10.5, color: muted),
+            style: const TextStyle(fontSize: 11.5, color: muted),
           ),
         ],
       ),
@@ -285,7 +285,7 @@ class _LineRow extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               line.workflow == 'install' ? 'ຕິດຕັ້ງ' : 'ສ້ອມ',
-              style: const TextStyle(fontSize: 10, color: muted),
+              style: const TextStyle(fontSize: 11, color: muted),
             ),
             const Spacer(),
             Text(
@@ -312,7 +312,7 @@ class _LineRow extends StatelessWidget {
           ].join('  ·  '),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 10.5, color: muted),
+          style: const TextStyle(fontSize: 11.5, color: muted),
         ),
       ],
     ),

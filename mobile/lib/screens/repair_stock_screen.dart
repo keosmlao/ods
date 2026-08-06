@@ -162,7 +162,7 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
               child: Text(
                 '$n',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: FontWeight.w900,
                   color: active ? Colors.white : muted,
                 ),
@@ -185,17 +185,11 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
           Container(
             margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
             padding: const EdgeInsets.all(12),
+            // v4: flat — ຂອບແທນເງົາ
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE6ECEF)),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x080F172A),
-                  blurRadius: 14,
-                  offset: Offset(0, 4),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(kCardRadius),
+              border: Border.all(color: line),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,7 +239,7 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
                     'ສູນບໍລິການ',
                     style: TextStyle(
                       color: muted,
-                      fontSize: 10.5,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -284,7 +278,7 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
                     'ບ່ອນຈັດເກັບ',
                     style: TextStyle(
                       color: muted,
-                      fontSize: 10.5,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -371,17 +365,11 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
                         ),
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
+                          // v4: flat — ຂອບແທນເງົາ
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFE6ECEF)),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x080F172A),
-                                blurRadius: 10,
-                                offset: Offset(0, 3),
-                              ),
-                            ],
+                            borderRadius: BorderRadius.circular(kCardRadius),
+                            border: Border.all(color: line),
                           ),
                           padding: const EdgeInsets.all(14),
                           child: Row(
@@ -437,7 +425,7 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
                                   Text(
                                     item.unitCode ?? '',
                                     style: const TextStyle(
-                                      fontSize: 10,
+                                      fontSize: 11,
                                       color: muted,
                                     ),
                                   ),

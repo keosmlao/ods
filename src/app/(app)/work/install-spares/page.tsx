@@ -1,6 +1,6 @@
 import { LinkPending } from "@/components/link-pending";
 import { query } from "@/lib/db";
-import { NOT_MISSING } from "@/lib/stage";
+import { INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { TRANS } from "@/lib/stock-constants";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
@@ -66,6 +66,27 @@ export default async function InstallSpareTreePage() {
      order by t.doc_date, t.doc_no`,
   );
 
+  /**
+   * ── ງານທີ່ **ຊ່າງຮັບແລ້ວ ແຕ່ຍັງບໍ່ໄດ້ອອກໃບຂໍເບີກ** (ຂັ້ນ 2) ──
+   * query ຂ້າງເທິງເລີ່ມຈາກ `ic_trans` ⇒ ເຫັນສະເພາະໃບງານທີ່**ມີເອກະສານແລ້ວ**
+   * ⇒ ງານທີ່ຫາກໍ່ຮັບ (ຍັງບໍ່ມີ SIO ຈັກໃບ) **ບໍ່ເຄີຍຂຶ້ນໜ້ານີ້ເລີຍ** ທັງທີ່ນີ້ຄືໜ້າ
+   * ທີ່ຄົນມາເບີກອາໄຫຼ່ຕິດຕັ້ງ (ແຈ້ງມາ 06-08-2026 · ວັດແລ້ວມີ 1 ໃບຄ້າງແບບນີ້).
+   * ດຶງມາເປັນບັດ "ຍັງບໍ່ໄດ້ຂໍເບີກ" ພ້ອມທາງເຂົ້າໄປອອກໃບຂໍເບີກ.
+   */
+  const fresh = (
+    await query<{ job: string; product: string | null; sn: string | null; brand: string | null;
+      customer: string | null; tech: string | null; age: number }>(
+      `select a.code job, coalesce(nullif(a.item_name,''), nullif(a.pro_model,'')) product,
+          nullif(a.pro_sn,'') sn, nullif(a.pro_brand,'') brand, c.name_1 customer, nullif(a.tech_code,'') tech,
+          extract(epoch from (localtimestamp - coalesce(a.tech_confirm, a.time_register)))::int age
+        from ods_tb_install a
+        left join ar_customer c on c.code = a.cust_code
+       where ${OPEN_JOB} and (${INSTALL_STAGE_SQL}) = 2
+         and not exists (select 1 from ic_trans t where t.product_code = a.code and t.trans_flag = ${TRANS.REQUEST})
+       order by coalesce(a.tech_confirm, a.time_register)`,
+    )
+  ).rows;
+
   // ── ຮວມເປັນໃບງານ ──
   type Job = Pick<DocRow, "product" | "sn" | "brand" | "customer" | "tech" | "warranty" | "service_type"> & {
     job: string;
@@ -107,7 +128,7 @@ export default async function InstallSpareTreePage() {
     return { label: "ລໍສາງເບີກ", next: "ສາງ", tone: "bg-brand-orange-300 text-brand-900", pending: true };
   }
 
-  const cards = [...jobs.values()]
+  const withDocs = [...jobs.values()]
     .map((job) => {
       const sios = job.docs.filter((doc) => doc.flag === TRANS.REQUEST);
       const rounds = sios.map((sio, index) => ({ sio, round: index + 1, state: roundState(job.docs, sio) }));
@@ -116,8 +137,24 @@ export default async function InstallSpareTreePage() {
       return { ...job, rounds, pending: pending.length, oldest };
     })
     // ເບີກຄົບແລ້ວ ⇒ ວຽກໄປຢູ່ຄິວ 'ລໍຖ້າສ້ອມ' ແລ້ວ ບໍ່ຄວນຄ້າງຢູ່ໜ້ານີ້ອີກ (ກົດເກນ ①: ແຖວ = badge)
-    .filter((card) => card.rounds.length > 0 && card.pending > 0)
-    .sort((a, b) => b.pending - a.pending || b.oldest - a.oldest);
+    .filter((card) => card.rounds.length > 0 && card.pending > 0);
+
+  const cards = [
+    // ຍັງບໍ່ໄດ້ຂໍເບີກ = ຄົນຍັງບໍ່ໄດ້ລົງມືເລີຍ ⇒ ຂຶ້ນກ່ອນວຽກທີ່ອອກໃບໄປແລ້ວ
+    ...fresh.map((job) => ({
+      ...job,
+      warranty: null as string | null,
+      service_type: null as string | null,
+      docs: [] as DocRow[],
+      rounds: [] as { sio: DocRow; round: number; state: NodeState }[],
+      pending: 0,
+      oldest: job.age,
+      needRequest: true,
+    })),
+    ...withDocs
+      .map((card) => ({ ...card, needRequest: false }))
+      .sort((a, b) => b.pending - a.pending || b.oldest - a.oldest),
+  ];
 
   const days = (seconds: number) => Math.max(0, Math.floor(seconds / 86400));
   const ageTone = (d: number) =>
@@ -128,7 +165,7 @@ export default async function InstallSpareTreePage() {
       <div>
         <h1 className="text-xl font-bold text-slate-700">ອາໄຫຼ່ຕາມໃບງານຕິດຕັ້ງ</h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          {cards.length} ໃບງານຄ້າງອາໄຫຼ່ — ກົດແຖວເພື່ອເປີດ <b>ຕົ້ນໄມ້ເອກະສານ</b> ຂອງໃບງານນັ້ນ ·{" "}
+          {cards.length} ໃບງານຄ້າງອາໄຫຼ່{fresh.length > 0 ? ` (ຍັງບໍ່ໄດ້ຂໍເບີກ ${fresh.length})` : ""} — ກົດແຖວເພື່ອເປີດ <b>ຕົ້ນໄມ້ເອກະສານ</b> ຂອງໃບງານນັ້ນ ·{" "}
           <Link href="/manual/spares" className="font-semibold text-brand-800 hover:underline">
             ຄູ່ມືຂັ້ນຕອນອາໄຫຼ່
           </Link>
@@ -139,7 +176,7 @@ export default async function InstallSpareTreePage() {
         {/* ຫົວຖັນ — ໃຊ້ຊຸດດຽວກັບຄິວ /work/<ຂັ້ນ> ອື່ນ (ພື້ນເທົາ · ເສັ້ນລຸ່ມ · ໜາ) */}
         <div className="overflow-x-auto">
           <div className="min-w-[1250px]">
-            <div className="grid grid-cols-[4.5rem_5rem_minmax(0,1.4fr)_7rem_minmax(0,1.2fr)_6rem_6rem_6rem_4rem_9rem] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-600">
+            <div className="grid grid-cols-[5.5rem_5rem_minmax(0,1.4fr)_7rem_minmax(0,1.2fr)_6rem_6rem_6rem_4rem_9rem] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-600">
               <span>ເລກວຽກ</span>
               <span className="text-center">ຄ້າງມາ</span>
               <span>ສິນຄ້າ / SN</span>
@@ -154,18 +191,18 @@ export default async function InstallSpareTreePage() {
 
         {cards.map((card) => (
           <details key={card.job} open={card.pending > 0} className="group border-b border-slate-100 last:border-0">
-            <summary className="grid grid-cols-[4.5rem_5rem_minmax(0,1.4fr)_7rem_minmax(0,1.2fr)_6rem_6rem_6rem_4rem_9rem] items-center gap-3 cursor-pointer list-none px-4 py-2.5 text-xs hover:bg-slate-50">
+            <summary className="grid grid-cols-[5.5rem_5rem_minmax(0,1.4fr)_7rem_minmax(0,1.2fr)_6rem_6rem_6rem_4rem_9rem] items-center gap-3 cursor-pointer list-none px-4 py-2.5 text-xs hover:bg-slate-50">
               <span className="flex items-center gap-1.5">
                 <ChevronRight className="size-4 shrink-0 text-slate-400 transition group-open:rotate-90" />
                 <Link
                   href={`/installations/${encodeURIComponent(card.job)}`}
-                  className="font-bold text-brand-700 hover:underline"
+                  className="whitespace-nowrap font-bold text-brand-700 hover:underline"
                 >
                   {card.job}
                 </Link>
               </span>
               <span className="text-center">
-                {card.pending > 0 ? (
+                {card.pending > 0 || card.needRequest ? (
                   <span className={`rounded px-2 py-0.5 text-[11px] font-bold tabular-nums ${ageTone(days(card.oldest))}`}>
                     {days(card.oldest)} ມື້
                   </span>
@@ -184,7 +221,11 @@ export default async function InstallSpareTreePage() {
               <span className="truncate text-slate-600">{card.tech || "-"}</span>
               <span className="text-center tabular-nums text-slate-600">{card.rounds.length}</span>
               <span>
-                {card.pending > 0 ? (
+                {card.needRequest ? (
+                  <span className="rounded bg-brand-orange-100 px-2 py-0.5 text-[11px] font-semibold text-brand-orange-700">
+                    ຍັງບໍ່ໄດ້ຂໍເບີກ
+                  </span>
+                ) : card.pending > 0 ? (
                   <span className="rounded bg-brand-orange-300 px-2 py-0.5 text-[11px] font-semibold text-brand-900">
                     ຄ້າງ {card.pending} ຮອບ
                   </span>
@@ -271,12 +312,26 @@ export default async function InstallSpareTreePage() {
                 );
               })}
 
+              {/* ຊ່າງຮັບງານແລ້ວແຕ່ຍັງບໍ່ມີໃບຂໍເບີກ ⇒ ໜ້ານີ້ຕ້ອງມີປຸ່ມພາໄປອອກໃບ ບໍ່ແມ່ນປ່ອຍວ່າງ */}
+              {card.needRequest && (
+                <li className="pb-1 text-slate-500">
+                  ຊ່າງຮັບງານແລ້ວ ແຕ່ຍັງບໍ່ໄດ້ອອກໃບຂໍເບີກອາໄຫຼ່ຈັກໃບ
+                  <Link
+                    href={`/installations/spare-requests/${encodeURIComponent(card.job)}`}
+                    className="ml-2 inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-brand-700"
+                  >
+                    ຂໍເບີກອາໄຫຼ່
+                    <LinkPending className="size-3" />
+                  </Link>
+                </li>
+              )}
+
               <li className="pt-1">
                 <Link
                   href={`/installations/${encodeURIComponent(card.job)}`}
                   className="inline-flex items-center gap-1 rounded-lg bg-brand-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-slate-700"
                 >
-                  ເປີດໜ້າວຽກສ້ອມ
+                  ເປີດໜ້າວຽກຕິດຕັ້ງ
                   <LinkPending className="size-3" />
                 </Link>
               </li>

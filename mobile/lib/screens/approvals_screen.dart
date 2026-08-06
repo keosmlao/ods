@@ -183,15 +183,11 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                   unselectedLabelColor: muted,
                   dividerColor: Colors.transparent,
                   indicatorSize: TabBarIndicatorSize.tab,
+                  // v4: flat — ຂອບແທນເງົາ (ຄື jobs_screen)
                   indicator: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(11),
-                    boxShadow: [
-                      BoxShadow(
-                        color: ink.withValues(alpha: .07),
-                        blurRadius: 8,
-                      ),
-                    ],
+                    border: Border.all(color: lineStrong),
                   ),
                   labelPadding: EdgeInsets.zero,
                   labelStyle: const TextStyle(
@@ -223,7 +219,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                                 '${items.where((i) => i.kind == meta.kind).length}',
                                 style: TextStyle(
                                   color: meta.color,
-                                  fontSize: 10.5,
+                                  fontSize: 11.5,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -333,7 +329,7 @@ class _ApprovalAppBar extends StatelessWidget {
               Text(
                 'ກວດສອບ ແລະ ຕັດສິນຄຳຂໍ',
                 style: TextStyle(
-                  fontSize: 10.5,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                   color: muted,
                 ),
@@ -368,18 +364,11 @@ class _ApprovalSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(17),
+    // v4: flat — ພື້ນ ink ລ້ວນ ບໍ່ມີ gradient/ເງົາ (ປະຢັດ GPU ເຄື່ອງເກົ່າ)
     decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [Color(0xFF431407), Color(0xFF9A3412)],
-      ),
-      borderRadius: BorderRadius.circular(22),
-      boxShadow: [
-        BoxShadow(
-          color: const Color(0xFF7C2D12).withValues(alpha: .18),
-          blurRadius: 20,
-          offset: const Offset(0, 8),
-        ),
-      ],
+      color: hero1,
+      borderRadius: BorderRadius.circular(kCardRadius),
+      border: Border.all(color: const Color(0xFF334155)),
     ),
     child: Row(
       children: [
@@ -456,7 +445,7 @@ class _ApprovalStat extends StatelessWidget {
         label,
         style: TextStyle(
           color: Colors.white.withValues(alpha: .65),
-          fontSize: 9.5,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -528,17 +517,11 @@ class _ApprovalCard extends StatelessWidget {
 
     return Container(
       clipBehavior: Clip.antiAlias,
+      // v4: flat — ຂອບແທນເງົາ
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(kCardRadius),
         border: Border.all(color: line),
-        boxShadow: [
-          BoxShadow(
-            color: ink.withValues(alpha: .035),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -600,7 +583,7 @@ class _ApprovalCard extends StatelessWidget {
                                 Text(
                                   item.waitingLabel,
                                   style: TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w800,
                                     color: late ? danger : faint,
                                   ),
@@ -752,7 +735,7 @@ class _Field extends StatelessWidget {
           child: Text(
             label,
             style: const TextStyle(
-              fontSize: 10.5,
+              fontSize: 11.5,
               color: faint,
               fontWeight: FontWeight.w600,
             ),

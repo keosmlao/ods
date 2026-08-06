@@ -486,6 +486,8 @@ class _CheckScreenState extends State<CheckScreen> {
                       width: 78,
                       height: 78,
                       fit: BoxFit.cover,
+                      // cacheWidth — ບໍ່ decode ຮູບກ້ອງເຕັມຄວາມລະອຽດ (ເຄື່ອງເກົ່າ RAM ໜ້ອຍ)
+                      cacheWidth: (78 * MediaQuery.of(context).devicePixelRatio).round(),
                     ),
                   ),
                   Positioned(

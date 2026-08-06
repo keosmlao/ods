@@ -409,7 +409,7 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
                   ),
                   Text(
                     sub,
-                    style: const TextStyle(fontSize: 10.5, color: faint),
+                    style: const TextStyle(fontSize: 11.5, color: faint),
                   ),
                 ],
               ),
@@ -427,9 +427,6 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
     decoration: const BoxDecoration(
       color: Colors.white,
       border: Border(top: BorderSide(color: line)),
-      boxShadow: [
-        BoxShadow(color: Color(0x0F0F172A), blurRadius: 18, offset: Offset(0, -6)),
-      ],
     ),
     child: SafeArea(
       top: false,

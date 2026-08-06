@@ -198,12 +198,11 @@ class _TabButton extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(vertical: 10),
+        // v4: flat — ຂອບແທນເງົາ
         decoration: BoxDecoration(
           color: selected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(11),
-          boxShadow: selected
-              ? [BoxShadow(color: ink.withValues(alpha: .07), blurRadius: 8)]
-              : null,
+          border: selected ? Border.all(color: lineStrong) : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -227,7 +226,7 @@ class _TabButton extends StatelessWidget {
                 child: Text(
                   '$count',
                   style: const TextStyle(
-                    fontSize: 9,
+                    fontSize: 11,
                     color: danger,
                     fontWeight: FontWeight.w900,
                   ),
@@ -254,18 +253,10 @@ class _NotificationCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(17),
+        // v4: flat — ບໍ່ອ່ານ = ຂອບສີເຂັ້ມພໍ, ບໍ່ຕ້ອງໃຊ້ເງົາ
         border: Border.all(
-          color: row.read ? line : visual.color.withValues(alpha: .28),
+          color: row.read ? line : visual.color.withValues(alpha: .45),
         ),
-        boxShadow: row.read
-            ? null
-            : [
-                BoxShadow(
-                  color: visual.color.withValues(alpha: .06),
-                  blurRadius: 14,
-                  offset: const Offset(0, 4),
-                ),
-              ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -358,7 +349,7 @@ class _NotificationCard extends StatelessWidget {
       Text(
         text,
         style: const TextStyle(
-          fontSize: 9.5,
+          fontSize: 11,
           color: muted,
           fontWeight: FontWeight.w600,
         ),
@@ -417,7 +408,7 @@ class _NotificationEmpty extends StatelessWidget {
         const SizedBox(height: 4),
         const Text(
           'ດຶງລົງເພື່ອໂຫຼດຂໍ້ມູນໃໝ່',
-          style: TextStyle(fontSize: 10.5, color: muted),
+          style: TextStyle(fontSize: 11.5, color: muted),
         ),
       ],
     ),

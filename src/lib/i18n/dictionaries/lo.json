@@ -1,11 +1,12 @@
 {
   "common": {
+    "cancel": "ຍົກເລີກ",
     "language": "ພາສາ",
     "loading": "ກຳລັງໂຫຼດ…",
+    "loadingMore": "ກຳລັງໂຫຼດເພີ່ມ… ຍັງເຫຼືອ {n} ລາຍການ",
+    "logout": "ອອກຈາກລະບົບ",
     "save": "ບັນທຶກ",
-    "cancel": "ຍົກເລີກ",
-    "search": "ຄົ້ນຫາ",
-    "logout": "ອອກຈາກລະບົບ"
+    "search": "ຄົ້ນຫາ"
   },
   "shell": {
     "notifications": "ການແຈ້ງເຕືອນ",

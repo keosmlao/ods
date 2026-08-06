@@ -370,20 +370,10 @@ class _ExecutiveOverview extends StatelessWidget {
     final healthy = data.slaLate == 0 && data.staleJobs == 0;
     return Container(
       padding: const EdgeInsets.all(18),
+      // v4: flat — ພື້ນ ink ລ້ວນ ບໍ່ມີ gradient/ເງົາ (ປະຢັດ GPU ເຄື່ອງເກົ່າ)
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0F172A), Color(0xFF164E63)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: .18),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        color: hero1,
+        borderRadius: BorderRadius.circular(kCardRadius),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,7 +417,7 @@ class _ExecutiveOverview extends StatelessWidget {
                 'ອັບເດດຫຼ້າສຸດ',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: .55),
-                  fontSize: 10.5,
+                  fontSize: 11.5,
                 ),
               ),
             ],
@@ -553,7 +543,7 @@ class _ExecutiveMetric extends StatelessWidget {
               label,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: .7),
-                fontSize: 10.5,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -729,7 +719,7 @@ class _WorkCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 9.5,
+                fontSize: 11,
                 color: note.startsWith('0 ') ? muted : color,
                 fontWeight: FontWeight.w700,
               ),
@@ -765,7 +755,7 @@ class _WorkflowBrief extends StatelessWidget {
     ),
     subtitle: Text(
       'ເກົ່າສຸດ ${item.oldestDays} ມື້',
-      style: const TextStyle(fontSize: 10.5, color: faint),
+      style: const TextStyle(fontSize: 11.5, color: faint),
     ),
     trailing: Row(
       mainAxisSize: MainAxisSize.min,
@@ -781,7 +771,7 @@ class _WorkflowBrief extends StatelessWidget {
             child: Text(
               '${item.stale} ເກີນ 30ມື້',
               style: const TextStyle(
-                fontSize: 9,
+                fontSize: 11,
                 color: danger,
                 fontWeight: FontWeight.w800,
               ),
@@ -923,7 +913,7 @@ class _TodayMetric extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 9.5,
+            fontSize: 11,
             color: muted,
             fontWeight: FontWeight.w700,
           ),
@@ -1237,16 +1227,10 @@ class _CommandHero extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
+      // v4: flat — ບໍ່ມີເງົາ (ປະຢັດ GPU ເຄື່ອງເກົ່າ)
       decoration: BoxDecoration(
         color: ink,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: ink.withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(kCardRadius),
       ),
       child: Stack(
         children: [
@@ -1280,7 +1264,7 @@ class _CommandHero extends StatelessWidget {
                       'LIVE OVERVIEW',
                       style: TextStyle(
                         color: Color(0xFF99F6E4),
-                        fontSize: 9,
+                        fontSize: 11,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.1,
                       ),
@@ -1378,7 +1362,7 @@ class _HeroFact extends StatelessWidget {
               label,
               style: const TextStyle(
                 color: onHeroDim,
-                fontSize: 10.5,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1471,7 +1455,7 @@ class _KPIGrid extends StatelessWidget {
                             Text(
                               m.detail!,
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 11,
                                 color: Colors.grey.shade400,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -1663,7 +1647,7 @@ class _HealthTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 10.5,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                       color: muted,
                     ),
@@ -2268,7 +2252,7 @@ class _OldJobRow extends StatelessWidget {
                   const Text(
                     'ມື້',
                     style: TextStyle(
-                      fontSize: 9,
+                      fontSize: 11,
                       color: Colors.grey,
                       fontWeight: FontWeight.w700,
                     ),
@@ -2295,7 +2279,7 @@ class _OldJobRow extends StatelessWidget {
                     '${job.custName ?? '-'} · ${job.stageLabel}${job.tech != null ? ' · ${job.tech}' : ''}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                    style: const TextStyle(fontSize: 11.5, color: Colors.grey),
                   ),
                 ],
               ),
@@ -2347,7 +2331,7 @@ class _PipelineSection extends StatelessWidget {
                   '${rod.toY.toInt()}',
                   const TextStyle(
                     color: ink,
-                    fontSize: 10.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -2593,7 +2577,7 @@ class _QuickActionTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 10.5,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                   color: ink,
                 ),
@@ -2795,7 +2779,7 @@ class _MiniStat extends StatelessWidget {
                 label,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 10.5,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                   color: Colors.grey.shade500,
                   decoration: onTap != null ? TextDecoration.underline : null,
@@ -2831,17 +2815,11 @@ class _Card extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(top: 6),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      // v4: flat — ຂອບແທນເງົາ
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(kCardRadius),
         border: Border.all(color: line),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.035),
-            blurRadius: 18,
-            offset: const Offset(0, 5),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2874,7 +2852,7 @@ class _Card extends StatelessWidget {
                       Text(
                         subtitle!,
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11.5,
                           color: Colors.grey.shade500,
                           fontWeight: FontWeight.w500,
                         ),

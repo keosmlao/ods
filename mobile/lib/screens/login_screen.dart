@@ -82,23 +82,9 @@ class _LoginScreenState extends State<LoginScreen> {
     // ຈໍ 4 ນິ້ວ (ສູງ ~530-640) → ຫຍໍ້ hero ແລະ ໄລຍະຫ່າງ ໃຫ້ຟອມພໍດີ ບໍ່ຕ້ອງເລື່ອນຫຼາຍ
     final compact = MediaQuery.of(context).size.height < 680;
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F4),
-    body: Stack(
-      children: [
-        Positioned(
-          right: -90,
-          top: -100,
-          child: _Glow(size: 250, color: teal.withValues(alpha: .10)),
-        ),
-        Positioned(
-          left: -130,
-          bottom: -80,
-          child: _Glow(
-            size: 260,
-            color: const Color(0xFF0F766E).withValues(alpha: .06),
-          ),
-        ),
-        SafeArea(
+      backgroundColor: ground,
+      // v4: ບໍ່ມີ glow ຕົກແຕ່ງ — ພື້ນລ້ວນ render ໄວກວ່າເທິງ GPU ເກົ່າ
+      body: SafeArea(
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
@@ -133,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   'TECHNICIAN APP',
                                   style: TextStyle(
                                     color: Color(0xFF0F766E),
-                                    fontSize: 9,
+                                    fontSize: 10.5,
                                     letterSpacing: 1.8,
                                   ),
                                 ),
@@ -158,18 +144,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Container(
-                          width: 68,
-                          height: 68,
+                          width: 64,
+                          height: 64,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE1F5F0),
+                            color: tealTint,
                             shape: BoxShape.circle,
-                            border: Border.all(color: const Color(0xFFB9E6DC)),
                           ),
                           child: const Icon(
                             Icons.person_outline_rounded,
-                            color: Color(0xFF087F6B),
-                            size: 34,
+                            color: teal,
+                            size: 32,
                           ),
                         ),
                       ),
@@ -192,17 +177,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     SizedBox(height: compact ? 12 : 22),
                     Container(
                       padding: EdgeInsets.all(compact ? 15 : 20),
+                      // v4: flat — ຂອບແທນເງົາໃຫຍ່
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x140F172A),
-                            blurRadius: 28,
-                            offset: Offset(0, 10),
-                          ),
-                        ],
-                        border: Border.all(color: const Color(0xFFE2E8E6)),
+                        borderRadius: BorderRadius.circular(kCardRadius),
+                        border: Border.all(color: line),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -281,16 +260,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             subtitle: const Text(
                               'ຄົງການ Login ໄວ້ໃນເຄື່ອງນີ້',
-                              style: TextStyle(color: muted, fontSize: 10),
+                              style: TextStyle(color: muted, fontSize: 11),
                             ),
                           ),
                           if (error.isNotEmpty) ...[
                             const SizedBox(height: 13),
                             Container(
-                              padding: const EdgeInsets.all(11),
+                              padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFEE2E2),
+                                color: dangerTint,
                                 borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: danger.withValues(alpha: .35),
+                                ),
                               ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,9 +287,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                     child: Text(
                                       error,
                                       style: const TextStyle(
-                                        color: Color(0xFF991B1B),
-                                        fontSize: 12,
+                                        color: Color(0xFF9F1239),
+                                        fontSize: 13,
                                         fontWeight: FontWeight.w700,
+                                        height: 1.4,
                                       ),
                                     ),
                                   ),
@@ -355,7 +338,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               SizedBox(width: 5),
                               Text(
                                 'ຂໍ້ມູນຖືກເກັບໃນ Secure Storage',
-                                style: TextStyle(color: muted, fontSize: 10),
+                                style: TextStyle(color: muted, fontSize: 11),
                               ),
                             ],
                           ),
@@ -376,7 +359,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Text(
                             serverUrl,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: muted, fontSize: 10),
+                            style: const TextStyle(color: muted, fontSize: 11),
                           ),
                         ),
                       ],
@@ -385,30 +368,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text(
                       'ODIEN Group · Service Operations',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Color(0xFF64748B), fontSize: 10),
+                      style: TextStyle(color: faint, fontSize: 11),
                     ),
                   ],
                 ),
               ),
             ),
           ),
-        ),
-      ],
-    ),
+      ),
     );
   }
-}
-
-class _Glow extends StatelessWidget {
-  const _Glow({required this.size, required this.color});
-  final double size;
-  final Color color;
-  @override
-  Widget build(BuildContext context) => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-  );
 }
 
 class _BrandMark extends StatelessWidget {
@@ -420,9 +389,6 @@ class _BrandMark extends StatelessWidget {
     decoration: BoxDecoration(
       color: teal,
       borderRadius: BorderRadius.circular(13),
-      boxShadow: [
-        BoxShadow(color: teal.withValues(alpha: .35), blurRadius: 18),
-      ],
     ),
     child: const Icon(Icons.handyman_rounded, color: Colors.white, size: 23),
   );

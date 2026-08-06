@@ -242,12 +242,11 @@ class _PeriodButton extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(vertical: 10),
+        // v4: flat — ຂອບແທນເງົາ
         decoration: BoxDecoration(
           color: selected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(11),
-          boxShadow: selected
-              ? [BoxShadow(color: ink.withValues(alpha: .07), blurRadius: 8)]
-              : null,
+          border: selected ? Border.all(color: lineStrong) : null,
         ),
         child: Text(
           label,
@@ -354,7 +353,7 @@ class _SummaryCard extends StatelessWidget {
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 10.5,
+                  fontSize: 11.5,
                   color: muted,
                   fontWeight: FontWeight.w700,
                 ),
@@ -377,7 +376,7 @@ class _SummaryCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 9.5,
+              fontSize: 11,
               color: faint,
               fontWeight: FontWeight.w600,
             ),
@@ -466,7 +465,7 @@ class _InsightRow extends StatelessWidget {
             Text(
               detail,
               style: const TextStyle(
-                fontSize: 10.5,
+                fontSize: 11.5,
                 height: 1.35,
                 color: muted,
               ),
@@ -618,7 +617,7 @@ class _TrendChart extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
                       '${parts[2]}/${parts[1]}',
-                      style: const TextStyle(fontSize: 9, color: muted),
+                      style: const TextStyle(fontSize: 11, color: muted),
                     ),
                   );
                 },

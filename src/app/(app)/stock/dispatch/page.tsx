@@ -1,8 +1,11 @@
 import { refreshInventory, syncStockDispatch } from "@/app/actions/stock";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
+import { LoadMore } from "@/components/load-more";
+import { DocActions } from "./doc-actions";
 import { SortHeader, type SortDir } from "@/components/sort-header";
 import { getSession } from "@/lib/auth";
+import { permissionFor } from "@/lib/permissions";
 import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -11,8 +14,6 @@ import { fmtQty, getBalances } from "@/lib/stock-balance";
 import { REPAIR_WAREHOUSES, LINE_STATUS, TRANS } from "@/lib/stock-constants";
 import {
   ArrowLeftRight,
-  ChevronLeft,
-  ChevronRight,
   FileBarChart,
   FileText,
   PackageCheck,
@@ -24,7 +25,15 @@ import Link from "next/link";
 
 /** ods: stock.py /spdispatch + templates/stock/spdispatch.html (ອອກແບບໜ້າຕາໃໝ່) */
 
-const PAGE_SIZE = 20;
+/**
+ * ── ເປີດໜ້າມາເທື່ອທຳອິດ **10 ແຖວ** ແລ້ວເລື່ອນລົງຈຶ່ງໂຫຼດເພີ່ມ (06-08-2026) ──
+ * ແທັບ "ເບີກແລ້ວ" ມີ 4,882 ໃບ ⇒ ດຶງມາຫຼາຍແຖວແຕ່ຕົ້ນບໍ່ມີປະໂຫຍດ ເພາະຄົນເບິ່ງ
+ * ພຽງສອງສາມແຖວເທິງສຸດ. ຈຳນວນຢູ່ `?n=` ⇒ server ດຶງເທົ່າທີ່ຈະສະແດງຈິງ
+ * (ເບິ່ງ components/load-more). ຄົ້ນຫາ ຫຼື ປ່ຽນການຮຽງ ⇒ ກັບໄປ 10 ຄືເກົ່າ.
+ */
+const PAGE_SIZE = 10;
+/** ເພດານກັນ URL ຖືກແກ້ດ້ວຍມືເປັນ ?n=999999 ແລ້ວດຶງທັງຖານ */
+const MAX_ROWS = 500;
 
 /**
  * ⚠️ ຖອດແທັບ "ໃບຂໍໂອນ" ອອກ (17-07-2026) — ມັນ `select ... where trans_flag=124` ບໍ່ກອງສະຖານະ
@@ -32,7 +41,7 @@ const PAGE_SIZE = 20;
  * /stock/transfers ຢູ່ໃນເມນູ (ສາງ ແລະ ອາໄຫຼ່) ⇒ ໃຫ້ບ່ອນນັ້ນເປັນເຈົ້າຂອງເລື່ອງໂອນ.
  */
 type Tab = "pending" | "dispatched";
-type Props = { searchParams: Promise<{ tab?: string; q?: string; page?: string; sort?: string; dir?: string }> };
+type Props = { searchParams: Promise<{ tab?: string; q?: string; n?: string; sort?: string; dir?: string }> };
 
 /** ແຖວດິບຈາກ SQL — ຍັງບໍ່ມີຍອດສະຕັອກ (ຄິດເພີ່ມພາຍຫຼັງດ້ວຍ getBalances) */
 type RawLine = Omit<Line, "balance_qty" | "balance_qty_wh" | "owh_qty"> & { wh_code: string | null };
@@ -120,7 +129,7 @@ function order(map: Record<string, string>, sort: string, dir: SortDir, fallback
   return `${column} ${dir} nulls last`;
 }
 
-async function getPending(warehouses: string[], q: string, page: number, sort: string, dir: SortDir) {
+async function getPending(warehouses: string[], q: string, limit: number, sort: string, dir: SortDir) {
   const params: unknown[] = [TRANS.REQUEST, LINE_STATUS.ISSUED, warehouses];
   let where = PENDING_WHERE;
   if (q) {
@@ -165,7 +174,7 @@ async function getPending(warehouses: string[], q: string, page: number, sort: s
   const countSql = `select count(*)::int total ${PENDING_COUNT_FROM} where ${where}`;
 
   const [rows, count] = await Promise.all([
-    query<RawLine>(rowsSql, sortsByBalance ? [...params, 500, 0] : [...params, PAGE_SIZE, (page - 1) * PAGE_SIZE]),
+    query<RawLine>(rowsSql, sortsByBalance ? [...params, MAX_ROWS, 0] : [...params, limit, 0]),
     query<{ total: number }>(countSql, params),
   ]);
 
@@ -186,14 +195,14 @@ async function getPending(warehouses: string[], q: string, page: number, sort: s
   // ຮຽງຕາມ "ຄົງເຫຼືອ" ເຮັດຢູ່ Node ໄດ້ ເພາະຍອດພຶ່ງຄິດຂຶ້ນມາບ່ອນນີ້
   if (sortsByBalance) {
     lines.sort((a, b) => (dir === "asc" ? 1 : -1) * (Number(a.balance_qty) - Number(b.balance_qty)));
-    lines = lines.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    lines = lines.slice(0, limit);
   }
 
   return { rows: lines, total: count.rows[0]?.total ?? 0 };
 }
 
 /** ໃບເບີກ (56) / ໃບສັ່ງຊື້ (2) / ໃບຂໍໂອນ (124) — ເມື່ອກ່ອນດຶງແຕ່ 15 ໃບລ່າສຸດ, ດຽວນີ້ແບ່ງໜ້າໄດ້ໝົດ */
-async function getDocs(transFlag: number, q: string, page: number, sort: string, dir: SortDir) {
+async function getDocs(transFlag: number, q: string, limit: number, sort: string, dir: SortDir) {
   const params: unknown[] = [transFlag];
   let where = "trans_flag = $1";
   if (q) {
@@ -208,8 +217,8 @@ async function getDocs(transFlag: number, q: string, page: number, sort: string,
          to_char(doc_ref_date::date,'DD-MM-YYYY') doc_ref_date, remark
        from ic_trans where ${where}
        order by ${order(DOC_SORT, sort, dir, "doc_no")}
-       limit $${params.length + 1} offset $${params.length + 2}`,
-      [...params, PAGE_SIZE, (page - 1) * PAGE_SIZE],
+       limit $${params.length + 1}`,
+      [...params, limit],
     ),
     query<{ total: number }>(`select count(*)::int total from ic_trans where ${where}`, params),
   ]);
@@ -328,31 +337,31 @@ export default async function StockDispatchPage({ searchParams }: Props) {
 
   const session = await getSession();
   const warehouses = await getOwnWarehouses(session?.username ?? "");
+  // ປຸ່ມແກ້ໄຂ/ລົບ ຂຶ້ນສະເພາະຄົນທີ່ມີສິດຈິງ — ດ່ານແທ້ຢູ່ actions/stock.deleteDispatch
+  const canDelete = session ? (await permissionFor(session, "/stock/dispatch")).delete : false;
 
   const params = await searchParams;
   const tab: Tab = params.tab === "dispatched" ? "dispatched" : "pending";
   const q = (params.q ?? "").trim();
-  const page = Math.max(1, Number(params.page) || 1);
+  // ຈຳນວນແຖວທີ່ຈະສະແດງ — ຂຶ້ນເທື່ອລະ 10 ຕອນເລື່ອນລົງ (components/load-more)
+  const shown = Math.min(MAX_ROWS, Math.max(PAGE_SIZE, Number(params.n) || PAGE_SIZE));
   const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
   const sort = (params.sort ?? (tab === "pending" ? "elapsed" : "doc_no")).trim();
 
   const load = async (): Promise<{ rows: Line[] | Doc[]; total: number }> => {
-    if (tab === "pending") return getPending(warehouses, q, page, sort, dir);
-    return getDocs(TRANS.DISPATCH, q, page, sort, dir);
+    if (tab === "pending") return getPending(warehouses, q, shown, sort, dir);
+    return getDocs(TRANS.DISPATCH, q, shown, sort, dir);
   };
 
   const [counts, data] = await Promise.all([getCounts(warehouses), load()]);
 
   const total = data.total;
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const base = () => ({ ...(tab !== "pending" && { tab }), ...(q && { q }) });
   const tabHref = (target: Tab) =>
     `/stock/dispatch?${new URLSearchParams({ ...(target !== "pending" && { tab: target }), ...(q && { q }) })}`;
   const sortHref = (key: string, nextDir: SortDir) =>
     `/stock/dispatch?${new URLSearchParams({ ...base(), sort: key, dir: nextDir })}`;
-  const pageHref = (n: number) =>
-    `/stock/dispatch?${new URLSearchParams({ ...base(), sort, dir, ...(n > 1 && { page: String(n) }) })}`;
 
   const TABS: { key: Tab; label: string; icon: typeof PackageCheck; count: number }[] = [
     { key: "pending", label: t.tabPending, icon: PackageCheck, count: counts.pending },
@@ -368,7 +377,8 @@ export default async function StockDispatchPage({ searchParams }: Props) {
         <div>
           <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            {t.warehouse}: {warehouses.join(", ")} · {total.toLocaleString()} {t.items} · {t.page} {page}/{pages}
+            {t.warehouse}: {warehouses.join(", ")} · {t.showing} {Math.min(data.rows.length, total).toLocaleString()}{" "}
+            {t.of} {total.toLocaleString()} {t.items}
           </p>
         </div>
 
@@ -562,13 +572,17 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{doc.doc_ref_date ?? "-"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">
-                      <Link
-                        href={`/stock/dispatch/bill/${encodeURIComponent(doc.doc_no)}`}
-                        className={`${actionClass} bg-brand-500 hover:bg-brand-500`}
-                      >
-                        {t.view}
-                        <LinkPending className="size-3" />
-                      </Link>
+                      <span className="flex items-center justify-end gap-1">
+                        <Link
+                          href={`/stock/dispatch/bill/${encodeURIComponent(doc.doc_no)}`}
+                          className={`${actionClass} bg-brand-500 hover:bg-brand-500`}
+                        >
+                          {t.view}
+                          <LinkPending className="size-3" />
+                        </Link>
+                        {/* ແກ້ໄຂ = ລົບແລ້ວອອກໃໝ່ · ລົບ = ຄືນສະຕັອກ ແລະ ຖອຍຂັ້ນງານ (ດ່ານຢູ່ server) */}
+                        {canDelete && <DocActions docNo={doc.doc_no} docRef={doc.doc_ref} />}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -580,34 +594,11 @@ export default async function StockDispatchPage({ searchParams }: Props) {
         {total === 0 && <p className="py-12 text-center text-xs text-slate-400">{t.noResults}</p>}
       </section>
 
-      {pages > 1 && (
-        <nav className="flex items-center justify-between gap-3 text-xs">
-          <span className="text-slate-500">
-            {t.showing} {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} {t.of} {total.toLocaleString()}
-          </span>
-          <div className="flex items-center gap-1">
-            <Link
-              href={pageHref(page - 1)}
-              aria-disabled={page === 1}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
-            >
-              <ChevronLeft className="size-3.5" />
-              {t.prev}
-            </Link>
-            <span className="px-3 font-medium text-slate-700">
-              {page} / {pages}
-            </span>
-            <Link
-              href={pageHref(page + 1)}
-              aria-disabled={page >= pages}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
-            >
-              {t.next}
-              <ChevronRight className="size-3.5" />
-            </Link>
-          </div>
-        </nav>
-      )}
+      {/*
+        ໂຫຼດເພີ່ມຕອນເລື່ອນລົງ — ແທນປຸ່ມແບ່ງໜ້າເກົ່າ (ໜ້າ 1/245 ບໍ່ມີໃຜກົດຮອດໜ້າ 245).
+        ຈຳນວນເກັບຢູ່ `?n=` ⇒ ກົດ refresh ແລ້ວຍັງເຫັນເທົ່າເກົ່າ ແລະ ແຊ່ລິ້ງໄດ້.
+      */}
+      <LoadMore shown={data.rows.length} total={total} step={PAGE_SIZE} />
     </div>
   );
 }

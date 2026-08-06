@@ -597,7 +597,15 @@ export async function checkIn(
     return { ok: false, error: "ຕ້ອງກົດຮັບງານກ່ອນ ຈຶ່ງສາມາດ check-in ໄດ້" };
   }
   if (!own.job?.onsite) return { ok: false, error: "ງານນີ້ເຮັດຢູ່ໃນສູນ ບໍ່ຕ້ອງ check-in" };
-  const allowedStages = workflow === "install" ? [4] : [1, 2, 8, 9];
+  /**
+   * ── 1 ໃບງານ = **ຫຼາຍຮອບເຂົ້າໜ້າງານ** (06-08-2026) ──
+   * ຕິດຕັ້ງແອຫຼາຍໜ່ວຍ · ລໍງານໄຟຟ້າ · ຝົນຕົກ ⇒ ຊ່າງກັບມາອີກມື້. ວັດແລ້ວ **65 ໃບ/ປີ**
+   * ວັນຈົບ ≠ ວັນເລີ່ມ ແຕ່ລະບົບບັນທຶກໄດ້ຮອບດຽວ ⇒ ບອກບໍ່ໄດ້ວ່າໄປຈັກເທື່ອ.
+   * ດຽວນີ້ check-in ຕອນຂັ້ນ **5 (ກຳລັງຕິດຕັ້ງ)** ໄດ້ນຳ ⇒ ແຕ່ລະຮອບເປັນ 1 ແຖວ
+   * ຢູ່ `ods_job_checkin` (ຕາຕະລາງນີ້ຮອງຮັບຫຼາຍແຖວຕໍ່ງານຢູ່ແລ້ວ).
+   * ⚠️ ຄ່າຄອມຍັງຄິດ **ຕໍ່ໃບງານ** ຄືເກົ່າ (ຕົກລົງ 06-08-2026) — ຮອບບໍ່ກະທົບເງິນ.
+   */
+  const allowedStages = workflow === "install" ? [4, 5] : [1, 2, 8, 9];
   if (!allowedStages.includes(own.job.stage)) {
     return { ok: false, error: "ຂັ້ນປັດຈຸບັນຍັງບໍ່ສາມາດ check-in ໄດ້" };
   }
@@ -633,6 +641,83 @@ export async function checkIn(
     { author: session.username, roles: ["admin", "manager"] },
   );
   return { ok: true, message: "check-in ສຳເລັດ" };
+}
+
+/**
+ * **ຮອບນີ້ຍັງບໍ່ຈົບ — ນັດເຂົ້າຮອບຕໍ່ໄປ** (ງານຕິດຕັ້ງ).
+ *
+ * ── ບັນຫາທີ່ແກ້ ──
+ * ຊ່າງມີແຕ່ 2 ທາງເລືອກ: ກົດ "ຈົບງານ" (ທັງທີ່ຍັງບໍ່ຈົບ ⇒ QC ແລະ ລູກຄ້າປະເມີນເລີ່ມແລ່ນຜິດ)
+ * ຫຼື ປະໄວ້ງຽບໆ (⇒ ງານຄາຢູ່ "ກຳລັງຕິດຕັ້ງ" ໂດຍບໍ່ມີໃຜຮູ້ວ່າຈະກັບໄປມື້ໃດ).
+ * ອັນນີ້ຄືທາງທີສາມ: **ປິດຮອບນີ້ + ບອກວັນທີ່ຈະກັບໄປ** ໂດຍງານຄາຢູ່ຂັ້ນເດີມ.
+ *
+ * ບໍ່ແຕະ `finish_install` ⇒ ຂັ້ນບໍ່ຂະຍັບ · ອັບເດດ `appoint_date` ⇒ ຄິວງານປະຈຳວັນ
+ * ຂອງມື້ນັ້ນຂຶ້ນເອງ · ປິດ check-in ທີ່ຄ້າງໃຫ້ (ຖ້າຊ່າງລືມກົດ check-out).
+ */
+export async function scheduleNextVisit(
+  session: Session,
+  code: string,
+  input: { next_date: string; reason: string },
+): Promise<FlowResult> {
+  const own = await ownJob(session, "install", code);
+  if (!own.ok) return own;
+  if (own.job?.stage !== 5) {
+    return { ok: false, error: 'ນັດຮອບຕໍ່ໄປໄດ້ສະເພາະງານທີ່ "ກຳລັງຕິດຕັ້ງ"' };
+  }
+  const reason = input.reason.trim();
+  if (!reason) return { ok: false, error: "ກະລຸນາໃສ່ເຫດຜົນ ວ່າຍັງບໍ່ຈົບຍ້ອນຫຍັງ" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.next_date)) return { ok: false, error: "ກະລຸນາເລືອກວັນນັດຮອບຕໍ່ໄປ" };
+
+  /**
+   * ປິດຮອບທີ່ຍັງເປີດຄ້າງ — **ຂອງທຸກຄົນ ບໍ່ແມ່ນສະເພາະຕົນ**: ຮອບກ່ອນອາດເປັນ
+   * ຊ່າງຄົນອື່ນ (ປ່ຽນຊ່າງກາງທາງ — ເບິ່ງ handoverInstallTech) ທີ່ລືມ check-out
+   * ⇒ ຖ້າປິດແຕ່ຂອງຕົນ ແຖວເກົ່າຈະຄ້າງເປັນ "ຍັງຢູ່ໜ້າງານ" ຕະຫຼອດໄປ.
+   */
+  await query(
+    `update ods_job_checkin set checkout_at=${NOW}
+      where workflow='install' and job_code=$1 and checkout_at is null`,
+    [code],
+  );
+
+  const done = await query(
+    `update ods_tb_install a set appoint_date=$2::date
+      where a.code=$1 and (${INSTALL_STAGE_SQL}) = 5`,
+    [code, input.next_date],
+  );
+  if (!done.rowCount) return { ok: false, error: "ບັນທຶກບໍ່ໄດ້ — ງານນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນກຳລັງຕິດຕັ້ງແລ້ວ" };
+
+  await logChange("ods_tb_install", code, `ຮອບນີ້ຍັງບໍ່ຈົບ — ນັດເຂົ້າຮອບຕໍ່ໄປ ${input.next_date} · ${reason}`, {
+    author: session.username,
+    roles: ["admin", "manager"],
+  });
+  return { ok: true, message: `ນັດເຂົ້າຮອບຕໍ່ໄປ ${input.next_date} ແລ້ວ` };
+}
+
+/** ຮອບເຂົ້າໜ້າງານທັງໝົດຂອງໃບງານ — ໜ້າໃບງານ ແລະ ແອັບ ໃຊ້ຮ່ວມກັນ */
+export type JobVisit = {
+  id: number;
+  tech_code: string | null;
+  checkin_at: string | null;
+  checkout_at: string | null;
+  minutes: number | null;
+  note: string | null;
+};
+
+export async function jobVisits(workflow: Workflow, code: string): Promise<JobVisit[]> {
+  return (
+    await query<JobVisit>(
+      `select id, nullif(tech_code,'') tech_code,
+          to_char(checkin_at,'DD-MM-YYYY HH24:MI') checkin_at,
+          to_char(checkout_at,'DD-MM-YYYY HH24:MI') checkout_at,
+          case when checkout_at is null then null
+               else round(extract(epoch from (checkout_at - checkin_at)) / 60)::int end minutes,
+          nullif(note,'') note
+        from ods_job_checkin
+       where workflow=$1 and job_code=$2
+       order by id`,
+      [workflow, code],
+    )
+  ).rows;
 }
 
 export async function checkOut(

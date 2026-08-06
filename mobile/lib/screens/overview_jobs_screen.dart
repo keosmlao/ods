@@ -264,7 +264,7 @@ class _StatusChip extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: 10.5,
+                fontSize: 11.5,
                 color: selected ? Colors.white : ink,
                 fontWeight: FontWeight.w800,
               ),
@@ -283,7 +283,7 @@ class _StatusChip extends StatelessWidget {
                 '$count',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 9.5,
+                  fontSize: 11,
                   color: selected ? Colors.white : muted,
                   fontWeight: FontWeight.w900,
                 ),

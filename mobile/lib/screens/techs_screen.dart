@@ -129,7 +129,7 @@ class _TeamAppBar extends StatelessWidget {
               Text(
                 'ພາລະວຽກ ແລະ ຜົນງານລູກນ້ອງ',
                 style: TextStyle(
-                  fontSize: 10.5,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                   color: muted,
                 ),
@@ -188,12 +188,11 @@ class _TeamTabs extends StatelessWidget {
             child: TabBar(
               dividerColor: Colors.transparent,
               indicatorSize: TabBarIndicatorSize.tab,
+              // v4: flat — ຂອບແທນເງົາ
               indicator: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(11),
-                boxShadow: [
-                  BoxShadow(color: ink.withValues(alpha: .07), blurRadius: 8),
-                ],
+                border: Border.all(color: lineStrong),
               ),
               labelColor: ink,
               unselectedLabelColor: muted,
@@ -258,18 +257,11 @@ class _TeamSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(17),
+    // v4: flat — ພື້ນ ink ລ້ວນ ບໍ່ມີ gradient/ເງົາ (ປະຢັດ GPU ເຄື່ອງເກົ່າ)
     decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [Color(0xFF312E81), Color(0xFF6D28D9)],
-      ),
-      borderRadius: BorderRadius.circular(22),
-      boxShadow: [
-        BoxShadow(
-          color: const Color(0xFF4C1D95).withValues(alpha: .18),
-          blurRadius: 20,
-          offset: const Offset(0, 8),
-        ),
-      ],
+      color: hero1,
+      borderRadius: BorderRadius.circular(kCardRadius),
+      border: Border.all(color: const Color(0xFF334155)),
     ),
     child: Row(
       children: [
@@ -339,7 +331,7 @@ class _TeamStat extends StatelessWidget {
         label,
         style: TextStyle(
           color: Colors.white.withValues(alpha: .65),
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -412,7 +404,7 @@ class _TechCard extends StatelessWidget {
                         Text(
                           'ລະຫັດ ${tech.employeeCode}',
                           style: const TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 11.5,
                             color: muted,
                             fontWeight: FontWeight.w700,
                           ),
@@ -456,7 +448,7 @@ class _TechCard extends StatelessWidget {
                   ),
                   const Text(
                     'ຈົບ/ເດືອນ',
-                    style: TextStyle(fontSize: 9.5, color: muted),
+                    style: TextStyle(fontSize: 11, color: muted),
                   ),
                   if (tech.monthThb != null) ...[
                     const SizedBox(height: 3),
@@ -495,7 +487,7 @@ class _TechCard extends StatelessWidget {
     ),
     child: Text(
       text,
-      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: c),
+      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: c),
     ),
   );
 }

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../main.dart';
 
-/// Bottom navigation ແບບກະທັດຮັດ: ພື້ນຂາວຄົງທີ່ ແລະ active tab ເປັນ pill.
+/// Bottom navigation v4 — Material NavigationBar (theme-driven, ບໍ່ມີ custom
+/// animation ໜັກ — ເຄື່ອງລຸ້ນເກົ່າແລ່ນລື່ນ) · active tab ເປັນ pill ຕາມ M3.
 class ServiceBottomNav extends StatelessWidget {
   const ServiceBottomNav({
     super.key,
@@ -14,9 +16,6 @@ class ServiceBottomNav extends StatelessWidget {
   final List<NavTab> items;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
-
-  static const active = Color(0xFF0F766E);
-  static const inactive = Color(0xFF64748B);
 
   static (IconData, IconData) iconFor(String key) => switch (key) {
     'overview' => (Icons.home_outlined, Icons.home_rounded),
@@ -40,105 +39,44 @@ class ServiceBottomNav extends StatelessWidget {
   };
 
   @override
-  Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(
-      color: Colors.white,
-      border: const Border(top: BorderSide(color: Color(0xFFE2E8F0))),
-      boxShadow: [
-        BoxShadow(
-          color: const Color(0xFF0F172A).withValues(alpha: .08),
-          blurRadius: 20,
-          offset: const Offset(0, -5),
+  Widget build(BuildContext context) => NavigationBarTheme(
+    data: NavigationBarThemeData(
+      height: 64,
+      backgroundColor: Colors.white,
+      elevation: 0,
+      // ຂອບເທິງແທນເງົາ (ປະຢັດ GPU ເຄື່ອງເກົ່າ)
+      labelTextStyle: WidgetStateProperty.resolveWith(
+        (states) => TextStyle(
+          fontSize: 11,
+          height: 1,
+          fontWeight: states.contains(WidgetState.selected)
+              ? FontWeight.w900
+              : FontWeight.w600,
+          color: states.contains(WidgetState.selected) ? teal : muted,
         ),
-      ],
+      ),
+      indicatorColor: tealTint,
+      indicatorShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(999),
+      ),
     ),
-    child: SafeArea(
-      top: false,
-      minimum: const EdgeInsets.fromLTRB(8, 7, 8, 7),
-      child: Row(
-        children: [
-          for (var i = 0; i < items.length; i++)
-            Expanded(
-              child: _NavItem(
-                item: items[i],
-                selected: i == selectedIndex,
-                onTap: () => onSelected(i),
-              ),
+    child: DecoratedBox(
+      // ເສັ້ນຂອບເທິງແທນເງົາ (ປະຢັດ GPU ເຄື່ອງເກົ່າ)
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: line)),
+      ),
+      child: NavigationBar(
+        selectedIndex: selectedIndex,
+        onDestinationSelected: onSelected,
+        destinations: [
+          for (final t in items)
+            NavigationDestination(
+              icon: Icon(iconFor(t.key).$1),
+              selectedIcon: Icon(iconFor(t.key).$2, color: teal),
+              label: t.label,
             ),
         ],
       ),
     ),
   );
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.item,
-    required this.selected,
-    required this.onTap,
-  });
-  final NavTab item;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final icons = ServiceBottomNav.iconFor(item.key);
-    return Semantics(
-      selected: selected,
-      button: true,
-      label: item.label,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          padding: const EdgeInsets.symmetric(vertical: 7),
-          decoration: BoxDecoration(
-            color: selected
-                ? ServiceBottomNav.active.withValues(alpha: .1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                width: selected ? 32 : 28,
-                height: 27,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? ServiceBottomNav.active
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  selected ? icons.$2 : icons.$1,
-                  size: selected ? 18 : 20,
-                  color: selected ? Colors.white : ServiceBottomNav.inactive,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                item.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 9.5,
-                  height: 1,
-                  color: selected
-                      ? ServiceBottomNav.active
-                      : ServiceBottomNav.inactive,
-                  fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

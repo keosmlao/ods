@@ -71,17 +71,11 @@ class _RepairStockItemScreenState extends State<RepairStockItemScreen> {
 
   Widget _errorCard() => Container(
     padding: const EdgeInsets.all(20),
+    // v4: flat — ຂອບແທນເງົາ
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFFE6ECEF)),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x0A0F172A),
-          blurRadius: 16,
-          offset: Offset(0, 5),
-        ),
-      ],
+      borderRadius: BorderRadius.circular(kCardRadius),
+      border: Border.all(color: line),
     ),
     child: Column(
       children: [
@@ -163,18 +157,11 @@ class _RepairStockItemScreenState extends State<RepairStockItemScreen> {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(16),
+                        // v4: flat — ພື້ນ teal ລ້ວນ ບໍ່ມີ gradient/ເງົາ
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF0F766E), Color(0xFF258E83)],
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x241C8077),
-                              blurRadius: 18,
-                              offset: Offset(0, 7),
-                            ),
-                          ],
+                          color: tealDeep,
+                          borderRadius: BorderRadius.circular(kCardRadius),
+                          border: Border.all(color: const Color(0xFF0F766E)),
                         ),
                         child: Row(
                           children: [
@@ -229,7 +216,7 @@ class _RepairStockItemScreenState extends State<RepairStockItemScreen> {
                                     d.unitCode ?? 'ລວມ',
                                     style: const TextStyle(
                                       color: Color(0xFFCCFBF1),
-                                      fontSize: 10.5,
+                                      fontSize: 11.5,
                                     ),
                                   ),
                                 ],
@@ -356,7 +343,7 @@ class _RepairStockItemScreenState extends State<RepairStockItemScreen> {
                                                   overflow:
                                                       TextOverflow.ellipsis,
                                                   style: const TextStyle(
-                                                    fontSize: 10.5,
+                                                    fontSize: 11.5,
                                                     color: muted,
                                                   ),
                                                 ),

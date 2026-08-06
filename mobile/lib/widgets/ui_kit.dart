@@ -4,19 +4,21 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 
-/// ── ຊຸດ UI ກາງ (ອອກແບບໃໝ່) ──
+/// ── ຊຸດ UI ກາງ (ອອກແບບ v4 — Flat High-Contrast) ──
 /// ຊິ້ນສ່ວນທີ່ໃຊ້ຊ້ຳທຸກໜ້າ ⇒ ໜ້າຕາເປັນລະບົບດຽວກັນ ແລະ ແກ້ບ່ອນດຽວ.
+/// ຫຼັກການ v4: flat + border ແທນເງົາ (GPU ເກົ່າ render ໄວກວ່າ), ສຳຜັດ ≥48px,
+/// contrast ສູງອ່ານງ່າຍເທິງຈໍລຸ້ນເກົ່າ.
 
-/// ເງົານຸ້ມມາດຕະຖານຂອງກາດ (Minimalist micro shadow)
+/// ເງົາມາດຕະຖານ — v4 ໃຊ້ສະເພາະຊັ້ນທີ່ລອຍແທ້ (dialog/sheet) ເທົ່ານັ້ນ, ບໍ່ໃສ່ກາດປົກກະຕິ
 const kSoftShadow = [
-  BoxShadow(color: Color(0x060F172A), blurRadius: 16, offset: Offset(0, 4)),
+  BoxShadow(color: Color(0x140F172A), blurRadius: 8, offset: Offset(0, 2)),
 ];
 
-BoxDecoration cardDecoration({Color? color, Color? border, double borderRadius = 18}) => BoxDecoration(
+/// ກາດ v4: ພື້ນຂາວ + ຂອບ 1px (ບໍ່ມີເງົາປົກກະຕິ — ປະຢັດ GPU ເຄື່ອງເກົ່າ)
+BoxDecoration cardDecoration({Color? color, Color? border, double borderRadius = kCardRadius}) => BoxDecoration(
   color: color ?? Colors.white,
   borderRadius: BorderRadius.circular(borderRadius),
-  border: Border.all(color: border ?? const Color(0xFFF1F5F9)),
-  boxShadow: kSoftShadow,
+  border: Border.all(color: border ?? line),
 );
 
 /// ຫົວແອັບບາ: eyebrow ນ້ອຍ + ຫົວຂໍ້ໃຫຍ່ (ໃຊ້ໃນ AppBar.title)
@@ -71,16 +73,16 @@ class RoundIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final btn = InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(13),
+      borderRadius: BorderRadius.circular(kButtonRadius),
       child: Container(
-        width: 40,
-        height: 40,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: surfaceAlt,
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: line),
+          borderRadius: BorderRadius.circular(kButtonRadius),
+          border: Border.all(color: lineStrong),
         ),
-        child: Icon(icon, size: 20, color: muted),
+        child: Icon(icon, size: 21, color: ink),
       ),
     );
     final wrapped = badge == null || badge == 0
@@ -90,15 +92,15 @@ class RoundIconButton extends StatelessWidget {
             children: [
               btn,
               Positioned(
-                top: -3,
-                right: -3,
+                top: -4,
+                right: -4,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  constraints: const BoxConstraints(minWidth: 16),
-                  height: 16,
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  constraints: const BoxConstraints(minWidth: 18),
+                  height: 18,
                   decoration: BoxDecoration(
                     color: danger,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(9),
                     border: Border.all(color: Colors.white, width: 1.5),
                   ),
                   child: Center(
@@ -106,7 +108,7 @@ class RoundIconButton extends StatelessWidget {
                       '$badge',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 9.5,
+                        fontSize: 10,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -188,11 +190,13 @@ class FilterPill extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        // ສຳຜັດສູງ 44px — ກົດງ່າຍເທິງຈໍລຸ້ນເກົ່າ
+        constraints: const BoxConstraints(minHeight: 44),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
         decoration: BoxDecoration(
           color: selected ? ink : Colors.white,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: selected ? ink : line),
+          border: Border.all(color: selected ? ink : lineStrong),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -200,9 +204,9 @@ class FilterPill extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: selected ? Colors.white : muted,
+                color: selected ? Colors.white : body,
               ),
             ),
             if (count != null) ...[
@@ -210,7 +214,7 @@ class FilterPill extends StatelessWidget {
               Text(
                 '$count',
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 13,
                   fontWeight: FontWeight.w800,
                   color: selected ? Colors.white70 : faint,
                 ),
@@ -232,7 +236,7 @@ class StageTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
     decoration: BoxDecoration(
       color: bg,
       borderRadius: BorderRadius.circular(999),
@@ -240,7 +244,7 @@ class StageTag extends StatelessWidget {
     child: Text(
       text,
       style: TextStyle(
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: FontWeight.w800,
         color: color,
       ),
@@ -259,9 +263,9 @@ class SlaChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (fg, bg) = switch (tone) {
-      SlaTone.late_ => (danger, const Color(0xFFFCE4EA)),
-      SlaTone.soon => (warn, const Color(0xFFFBEED5)),
-      SlaTone.ok => (ok, const Color(0xFFE1F5EC)),
+      SlaTone.late_ => (danger, dangerTint),
+      SlaTone.soon => (warn, warnTint),
+      SlaTone.ok => (ok, okTint),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -273,15 +277,15 @@ class SlaChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 6,
-            height: 6,
+            width: 7,
+            height: 7,
             decoration: BoxDecoration(color: fg, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 5),
+          const SizedBox(width: 6),
           Text(
             label,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 11.5,
               fontWeight: FontWeight.w700,
               color: fg,
             ),
@@ -335,7 +339,7 @@ class HeroStat {
   final Color? badgeColor;
 }
 
-/// ປຸ່ມໄອຄອນແກ້ວ (glass) ເທິງ hero
+/// ປຸ່ມໄອຄອນເທິງ hero (v4: solid tile, ບໍ່ມີ alpha compositing)
 class HeroIconButton extends StatelessWidget {
   const HeroIconButton({super.key, required this.icon, required this.onTap, this.badge});
   final IconData icon;
@@ -346,16 +350,16 @@ class HeroIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final btn = InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(kButtonRadius),
       child: Container(
-        width: 42,
-        height: 42,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: .14),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: .18)),
+          color: hero2,
+          borderRadius: BorderRadius.circular(kButtonRadius),
+          border: Border.all(color: const Color(0xFF334155)),
         ),
-        child: Icon(icon, size: 20, color: onHero),
+        child: Icon(icon, size: 21, color: onHero),
       ),
     );
     if (badge == null || badge == 0) return btn;
@@ -364,21 +368,21 @@ class HeroIconButton extends StatelessWidget {
       children: [
         btn,
         Positioned(
-          top: -3,
-          right: -3,
+          top: -4,
+          right: -4,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            constraints: const BoxConstraints(minWidth: 16),
-            height: 16,
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            constraints: const BoxConstraints(minWidth: 18),
+            height: 18,
             decoration: BoxDecoration(
               color: danger,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(9),
               border: Border.all(color: hero1, width: 2),
             ),
             child: Center(
               child: Text(
                 '$badge',
-                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
+                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
               ),
             ),
           ),
@@ -388,8 +392,8 @@ class HeroIconButton extends StatelessWidget {
   }
 }
 
-/// ຫົວຈໍ hero — ໄລ່ສີ emerald→ink, eyebrow + title + (ທາງເລືອກ) ແຖບ stat.
-/// ໃຊ້ແທນ AppBar ໃນໜ້າຫຼັກ (jobs / manager / income / stock-count...).
+/// ຫົວຈໍ hero v4 — ພື້ນ ink ລ້ວນ (ບໍ່ມີ gradient/ເງົາ — GPU ເກົ່າແຮງ), eyebrow + title +
+/// (ທາງເລືອກ) ແຖບ stat. ໃຊ້ແທນ AppBar ໃນໜ້າຫຼັກ (jobs / manager / income / stock-count...).
 class HeroHeader extends StatelessWidget {
   const HeroHeader({
     super.key,
@@ -412,15 +416,8 @@ class HeroHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     decoration: const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topRight,
-        end: Alignment.bottomLeft,
-        colors: [hero2, hero1],
-      ),
-      borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-      boxShadow: [
-        BoxShadow(color: Color(0x1804241D), blurRadius: 20, offset: Offset(0, 10)),
-      ],
+      color: hero1,
+      borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
     ),
     child: SafeArea(
       bottom: false,
@@ -546,9 +543,9 @@ class _HeroStatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .06),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: .10)),
+        color: hero2,
+        borderRadius: BorderRadius.circular(kCardRadius),
+        border: Border.all(color: const Color(0xFF334155)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -667,47 +664,38 @@ class AiAssistCard extends StatelessWidget {
   final Widget body;
   final List<Widget>? chips;
 
-  static const _sky = Color(0xFF0EA5E9);
-  static const _violet = Color(0xFF8B5CF6);
+  static const _violet = Color(0xFF7C3AED); // violet 600 — contrast ສູງກວ່າ
 
   @override
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.only(bottom: 13),
-    padding: const EdgeInsets.all(1.5),
     decoration: BoxDecoration(
-      gradient: const LinearGradient(colors: [teal, _sky, _violet]),
-      borderRadius: BorderRadius.circular(18),
-      boxShadow: kSoftShadow,
+      // v4 flat — ບໍ່ມີ gradient border (ປະຢັດ GPU ເຄື່ອງເກົ່າ)
+      color: const Color(0xFFF5F3FF), // violet 50
+      borderRadius: BorderRadius.circular(kCardRadius),
+      border: Border.all(color: const Color(0xFFDDD6FE)), // violet 200
     ),
-    child: Container(
-      padding: const EdgeInsets.fromLTRB(13, 12, 13, 13),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16.5),
-      ),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 20,
-                height: 20,
+                width: 22,
+                height: 22,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [teal, _violet],
-                  ),
+                  color: _violet,
                   borderRadius: BorderRadius.circular(7),
                 ),
-                child: const Icon(Icons.auto_awesome, size: 12, color: Colors.white),
+                child: const Icon(Icons.auto_awesome, size: 13, color: Colors.white),
               ),
               const SizedBox(width: 8),
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w800,
                   color: _violet,
                   letterSpacing: .2,
@@ -715,9 +703,9 @@ class AiAssistCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 9),
           DefaultTextStyle.merge(
-            style: const TextStyle(fontSize: 12.5, color: ink, height: 1.5),
+            style: const TextStyle(fontSize: 13, color: ink, height: 1.5),
             child: body,
           ),
           if (chips != null && chips!.isNotEmpty) ...[
@@ -784,12 +772,168 @@ class SectionLabel extends StatelessWidget {
     child: Text(
       text,
       style: const TextStyle(
-        fontSize: 12.5,
+        fontSize: 13,
         fontWeight: FontWeight.w800,
         color: ink,
       ),
     ),
   );
+}
+
+/// ── ສະຖານະໜ້າຈໍມາດຕະຖານ (loading / empty / error) — ຟອນໃຫຍ່ອ່ານງ່າຍ ──
+class StateBlock extends StatelessWidget {
+  const StateBlock({
+    super.key,
+    required this.icon,
+    required this.message,
+    this.detail,
+    this.action,
+  });
+  final IconData icon;
+  final String message;
+  final String? detail;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: surfaceAlt,
+              shape: BoxShape.circle,
+              border: Border.all(color: line),
+            ),
+            child: Icon(icon, size: 26, color: muted),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: ink,
+            ),
+          ),
+          if (detail != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              detail!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: muted, height: 1.45),
+            ),
+          ],
+          if (action != null) ...[const SizedBox(height: 16), action!],
+        ],
+      ),
+    ),
+  );
+}
+
+/// ແຖບປຸ່ມລຸ່ມຕິດໜ້າຈໍ (sticky action bar) — ຄຳສັ່ງຫຼັກຂອງໜ້າ ຢູ່ນິ້ວໂປ້ສະເໝີ.
+/// ຮອງຮັບ safe-area ລຸ່ມ (ເຄື່ອງມີແຖບ gesture).
+class StickyActionBar extends StatelessWidget {
+  const StickyActionBar({super.key, required this.child, this.padding});
+  final Widget child;
+  final EdgeInsets? padding;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: const BoxDecoration(
+      color: Colors.white,
+      border: Border(top: BorderSide(color: line)),
+    ),
+    child: SafeArea(
+      top: false,
+      child: Padding(
+        padding: padding ?? const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: child,
+      ),
+    ),
+  );
+}
+
+/// ແຖວລາຍການມາດຕະຖານ (icon ຕົ້ນ · ຫົວ+ຮອງ · ທ້າຍ) — ໃຊ້ໃນ list ທຸກໜ້າ.
+class ListRow extends StatelessWidget {
+  const ListRow({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.icon,
+    this.iconColor,
+    this.trailing,
+    this.onTap,
+  });
+  final String title;
+  final String? subtitle;
+  final IconData? icon;
+  final Color? iconColor;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          if (icon != null) ...[
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: surfaceAlt,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 20, color: iconColor ?? muted),
+            ),
+            const SizedBox(width: 12),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: ink,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12.5, color: muted, height: 1.35),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (trailing != null) ...[const SizedBox(width: 10), trailing!],
+        ],
+      ),
+    );
+    if (onTap == null) return row;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: row,
+      ),
+    );
+  }
 }
 
 /// ຮູບແບບເວລາ ຄືກັບເວັບ: `N ມື້ HH:MM:SS` (ບໍ່ມີວັນ = `HH:MM:SS`)

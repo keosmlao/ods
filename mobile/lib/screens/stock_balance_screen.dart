@@ -221,7 +221,7 @@ class _StockBalanceScreenState extends State<StockBalanceScreen> {
                     const SizedBox(height: 2),
                     Text(
                       item.unitCode ?? '',
-                      style: const TextStyle(fontSize: 10.5, color: faint),
+                      style: const TextStyle(fontSize: 11.5, color: faint),
                     ),
                   ],
                 ),

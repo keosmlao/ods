@@ -1,11 +1,12 @@
 {
   "common": {
+    "cancel": "ยกเลิก",
     "language": "ภาษา",
     "loading": "กำลังโหลด…",
+    "loadingMore": "กำลังโหลดเพิ่ม… เหลืออีก {n} รายการ",
+    "logout": "ออกจากระบบ",
     "save": "บันทึก",
-    "cancel": "ยกเลิก",
-    "search": "ค้นหา",
-    "logout": "ออกจากระบบ"
+    "search": "ค้นหา"
   },
   "shell": {
     "notifications": "การแจ้งเตือน",

@@ -118,7 +118,7 @@ class _PendingMapScreenState extends State<PendingMapScreen> {
                   ),
                   child: Text(
                     pin.workflow == 'install' ? 'ຕິດຕັ້ງ' : 'ສ້ອມ${pin.serviceType != null ? '·${pin.serviceType}' : ''}',
-                    style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: _tone(pin)),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _tone(pin)),
                   ),
                 ),
               ],

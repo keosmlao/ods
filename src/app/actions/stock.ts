@@ -447,6 +447,199 @@ export async function saveDispatch(_: StockState, formData: FormData): Promise<S
   revalidatePath("/stock/dispatch"); revalidatePath("/stock/requests/pickup");
   redirect("/stock/dispatch");
 }
+/* ─────────────────────── ລົບ / ແກ້ໄຂ ໃບເບີກ (trans_flag 56) ─────────────────────── */
+
+/**
+ * **ຄິດຍອດສະຕັອກເງົາຄືນໃໝ່ ສະເພາະລາຍການທີ່ລະບຸ** — ຫຼັກການດຽວກັບປຸ່ມ refresh
+ * (`refreshInventory`) ແຕ່ແຄບກວ່າ. ໃຊ້ຫຼັງລົບໃບເບີກ: ຢ່າ **ບວກຄືນເອງ** ເພາະ
+ * ບາງໃບຫັກສະຕັອກເງົາ (ຝັ່ງທີ່ດຶງມາຈາກ ERP) ບາງໃບບໍ່ຫັກ (ຝັ່ງທີ່ອອກໃນ ODSS —
+ * ຕັດຈິງຢູ່ ERP ຢ່າງດຽວ) ⇒ ບວກຄືນແບບເໝົາລວມຈະເກີນ. **ຖາມ ERP ໃໝ່ຈຶ່ງບໍ່ຜິດ.**
+ */
+async function recountShadowStock(itemCodes: string[]): Promise<void> {
+  const scope = [...new Set(itemCodes.filter(Boolean))];
+  if (!db || !scope.length) return;
+  try {
+    const owhOf = new Map(
+      (
+        await db.query<{ item_code: string; owh: string }>(
+          `select d.item_code, sum(d.qty)::text owh from ic_trans t
+             join ic_trans_detail d on d.doc_no=t.doc_no
+            where t.trans_flag=$1 and d.status=$2 and d.item_code = any($3)
+            group by d.item_code`,
+          [TRANS.DISPATCH, LINE_STATUS.PENDING, scope],
+        )
+      ).rows.map((row): [string, number] => [row.item_code, Number(row.owh)]),
+    );
+    const whOf = new Map(
+      (
+        await queryOdg<{ code: string; total: string }>(
+          `select i.code, coalesce(sum(b.balance_qty),0)::text total
+             from unnest($1::text[]) i(code)
+             left join lateral sml_ic_function_stock_balance_warehouse_location('2099-12-31', i.code, '', '') b on true
+            group by i.code`,
+          [scope],
+        )
+      ).rows.map((row): [string, number] => [row.code, Math.max(0, Number(row.total))]),
+    );
+    await db.query(
+      `update ic_inventory a set wh_qty=v.wh, owh_qty=v.owh, balance_qty=v.wh + v.owh
+         from (select unnest($1::text[]) code, unnest($2::numeric[]) wh, unnest($3::numeric[]) owh) v
+        where v.code = a.code`,
+      [scope, scope.map((c) => whOf.get(c) ?? 0), scope.map((c) => owhOf.get(c) ?? 0)],
+    );
+  } catch (error) {
+    // ຄິດຍອດບໍ່ໄດ້ ບໍ່ຄວນລົ້ມການລົບທີ່ commit ໄປແລ້ວ — ປຸ່ມ refresh ຢູ່ໜ້ານັ້ນກູ້ໄດ້
+    console.error("recountShadowStock failed", error);
+  }
+}
+
+/**
+ * **ລົບໃບເບີກອາໄຫຼ່ (56) ຄົບທັງສອງຖານ + ຄືນສະຕັອກ** (06-08-2026 ຕາມຄຳສັ່ງ).
+ *
+ * ⚠️ ອັນນີ້ແຕະ **ສະຕັອກຈິງຂອງ ERP** — ໃບເບີກສ່ວນໃຫຍ່ສາງອອກຢູ່ ERP ແລ້ວ ODSS ດຶງມາ.
+ * ລົບແລ້ວ: ເອກະສານຫາຍທັງສອງຖານ · ສະຕັອກກັບຄືນ · ໃບຂໍເບີກກັບເປັນ "ລໍສາງເບີກ" ·
+ * ຂັ້ນຂອງງານຖອຍກັບ. ຈຶ່ງກັນໄວ້ 2 ດ່ານ:
+ *   ① **ຊ່າງຮັບໄປແລ້ວ** (ມີໃບ PISP 166 ອ້າງອີງ) ⇒ ລົບບໍ່ໄດ້ — ຂອງອອກຈາກສາງໄປແລ້ວຈິງ
+ *   ② **ມີໃບຂໍສົ່ງຄືນ (59) ຜູກຢູ່** ⇒ ລົບບໍ່ໄດ້ — ຕ້ອງຈັດການໃບຄືນກ່ອນ
+ * ບໍ່ດັ່ງນັ້ນເອກະສານລູກຈະຊີ້ໄປຫາໃບແມ່ທີ່ບໍ່ມີແລ້ວ.
+ *
+ * ສະຕັອກເງົາຂອງ ODS ຄິດໃໝ່ຈາກ ERP (recountShadowStock) ບໍ່ແມ່ນບວກຄືນເອງ — ເບິ່ງເຫດຜົນຂ້າງເທິງ.
+ */
+export async function deleteDispatch(_: StockState, formData: FormData): Promise<StockState> {
+  const guard = await requirePermission("/stock/dispatch", "delete", STOCK_SIDE, "ບໍ່ມີສິດລົບໃບເບີກ");
+  if (!guard.ok) return { error: guard.error };
+  if (!db || !odgDb) return { error: "ບໍ່ພົບ DATABASE_URL / ODG_DATABASE_URL" };
+
+  const docNo = text(formData, "doc_no");
+  if (!docNo) return { error: "ບໍ່ພົບເລກທີໃບເບີກ" };
+
+  const ods = await db.connect();
+  const odg = await odgDb.connect();
+  let productCode = "";
+  let docRef = "";
+  let items: string[] = [];
+  try {
+    await ods.query("begin");
+    await odg.query("begin");
+
+    const head = (
+      await ods.query<{ doc_ref: string | null; product_code: string | null; job_type: string | null }>(
+        `select doc_ref, product_code, job_type from ic_trans where doc_no=$1 and trans_flag=$2 for update`,
+        [docNo, TRANS.DISPATCH],
+      )
+    ).rows[0];
+    if (!head) throw new Error("NOT_FOUND");
+    productCode = head.product_code ?? "";
+    docRef = (head.doc_ref ?? "").trim().split(/\s+/)[0] ?? "";
+
+    const picked = await ods.query(`select 1 from ic_trans where trans_flag=166 and doc_ref=$1 limit 1`, [docNo]);
+    if (picked.rowCount) throw new Error("ALREADY_PICKED");
+    const returned = await ods.query(`select 1 from ic_trans where trans_flag=$1 and doc_ref=$2 limit 1`, [
+      TRANS.RETURN_REQUEST,
+      docNo,
+    ]);
+    if (returned.rowCount) throw new Error("HAS_RETURN");
+
+    const lines = (
+      await ods.query<{ item_code: string; qty: string }>(
+        `select item_code, qty::text qty from ic_trans_detail where doc_no=$1 and trans_flag=$2 order by roworder`,
+        [docNo, TRANS.DISPATCH],
+      )
+    ).rows;
+    items = lines.map((line) => line.item_code);
+
+    for (const line of lines) {
+      // ① ແຖວຂອງໃບຂໍເບີກກັບເປັນ "ຍັງບໍ່ເບີກ" — ທີ່ລະແຖວ ບໍ່ດັ່ງນັ້ນໃບທີ່ຂໍລາຍການດຽວກັນ 2 ແຖວຈະຄືນຜິດ
+      if (docRef) {
+        await ods.query(
+          `update ic_trans_detail set status=$1 where roworder = (
+             select roworder from ic_trans_detail
+              where doc_no=$2 and trans_flag=$3 and item_code=$4 and status=$5
+              order by roworder limit 1)`,
+          [LINE_STATUS.PENDING, docRef, TRANS.REQUEST, line.item_code, LINE_STATUS.ISSUED],
+        );
+      }
+      // ② ບັນຊີອາໄຫຼ່ຂອງງານ: ຖອນ "ເບີກແລ້ວ" ອອກ (ແຖວຫຼ້າສຸດທີ່ຖືກສະແຕມ)
+      await ods.query(
+        `update tb_used_spare set reg_finish=null where roworder = (
+           select roworder from tb_used_spare
+            where product_code=$1 and item_code=$2 and reg_finish is not null
+            order by roworder desc limit 1)`,
+        [productCode, line.item_code],
+      );
+    }
+
+    // ③ ຂັ້ນຂອງງານຖອຍກັບ — ອາໄຫຼ່ຍັງບໍ່ຄົບແລ້ວ ຈະຄາຢູ່ "ລໍຖ້າສ້ອມ/ຕິດຕັ້ງ" ບໍ່ໄດ້
+    if (head.job_type === "install" || productCode.startsWith("INST-")) {
+      await ods.query(
+        `update ods_tb_install set reg_finish=null, pick_finish=null
+          where code=$1 and start_install is null`,
+        [productCode],
+      );
+    } else if (productCode) {
+      await ods.query(`update tb_product set spare_finish=null where code=$1 and time_repair is null`, [productCode]);
+    }
+
+    // ④ ລົບ ERP ກ່ອນ ແລ້ວຈຶ່ງ ODS (ຝັ່ງໃດລົ້ມ ⇒ rollback ທັງສອງ)
+    await odg.query(`delete from ic_trans_detail where doc_no=$1 and trans_flag=$2`, [docNo, TRANS.DISPATCH]);
+    await odg.query(`delete from ic_trans where doc_no=$1 and trans_flag=$2`, [docNo, TRANS.DISPATCH]);
+    await ods.query(`delete from ic_trans_detail where doc_no=$1 and trans_flag=$2`, [docNo, TRANS.DISPATCH]);
+    await ods.query(`delete from ic_trans where doc_no=$1 and trans_flag=$2`, [docNo, TRANS.DISPATCH]);
+
+    await odg.query("commit");
+    await ods.query("commit");
+  } catch (error) {
+    await Promise.all([ods.query("rollback").catch(() => {}), odg.query("rollback").catch(() => {})]);
+    const code = error instanceof Error ? error.message : "";
+    if (code === "NOT_FOUND") return { error: "ບໍ່ພົບໃບເບີກນີ້ (ອາດຖືກລົບໄປແລ້ວ)" };
+    if (code === "ALREADY_PICKED") return { error: "ຊ່າງຮັບອາໄຫຼ່ຂອງໃບນີ້ໄປແລ້ວ — ລົບບໍ່ໄດ້" };
+    if (code === "HAS_RETURN") return { error: "ໃບນີ້ມີໃບຂໍສົ່ງຄືນຜູກຢູ່ — ຈັດການໃບຄືນກ່ອນ" };
+    console.error("deleteDispatch failed", error);
+    return { error: "ລົບບໍ່ສຳເລັດ — ກະລຸນາລອງໃໝ່" };
+  } finally {
+    ods.release();
+    odg.release();
+  }
+
+  await recountShadowStock(items);
+  if (productCode) {
+    await logChange(
+      jobModel(productCode),
+      productCode,
+      `ລົບໃບເບີກອາໄຫຼ່ ${docNo}${docRef ? ` (ໃບຂໍ ${docRef} ກັບເປັນລໍສາງເບີກ)` : ""} · ${items.length} ລາຍການ`,
+      { roles: ROLE_WAREHOUSE },
+    );
+  }
+  revalidatePath("/stock/dispatch");
+  revalidatePath("/stock/requests/pickup");
+  return { ok: `ລົບໃບ ${docNo} ແລ້ວ — ອາໄຫຼ່ຄືນສາງ ແລະ ໃບຂໍກັບເປັນລໍສາງເບີກ` };
+}
+
+/**
+ * **ແກ້ໄຂໃບເບີກ = ລົບແລ້ວອອກໃໝ່** (ຕົກລົງ 06-08-2026).
+ * ໃບເບີກເປັນເອກະສານຕັດສະຕັອກ — ແກ້ຈຳນວນ/ລາຍການໃນໃບເກົ່າຈະເຮັດໃຫ້ຍອດຕັດກັບຍອດໃນໃບ
+ * ບໍ່ຕົງກັນ. ຈຶ່ງລົບ (ຄືນສະຕັອກ · ໃບຂໍກັບເປັນລໍເບີກ) ແລ້ວພາໄປໜ້າເບີກຂອງໃບຂໍນັ້ນ
+ * ໃຫ້ອອກໃໝ່ຕາມຈິງ.
+ */
+export async function editDispatch(_: StockState, formData: FormData): Promise<StockState> {
+  const deleted = await deleteDispatch({}, formData);
+  if (deleted.error) return deleted;
+
+  const docRef = text(formData, "doc_ref").trim().split(/\s+/)[0] ?? "";
+  if (db && docRef) {
+    // ແຖວທຳອິດຂອງໃບຂໍ = ທາງເຂົ້າໜ້າເບີກ (/stock/dispatch/<roworder>)
+    const row = (
+      await db.query<{ roworder: number }>(
+        `select roworder from ic_trans_detail
+          where doc_no=$1 and trans_flag=$2 and status=$3 order by roworder limit 1`,
+        [docRef, TRANS.REQUEST, LINE_STATUS.PENDING],
+      )
+    ).rows[0];
+    if (row) redirect(`/stock/dispatch/${row.roworder}`);
+  }
+  redirect("/stock/dispatch");
+}
+
 /* ─────────────────────── ຊ່າງຮັບອາໄຫຼ່ — ວຽກສ້ອມ (trans_flag 166) ─────────────────────── */
 
 /**

@@ -419,9 +419,6 @@ class _CheckSpareScreenState extends State<CheckSpareScreen> {
     decoration: const BoxDecoration(
       color: Colors.white,
       border: Border(top: BorderSide(color: line)),
-      boxShadow: [
-        BoxShadow(color: Color(0x0F0F172A), blurRadius: 18, offset: Offset(0, -6)),
-      ],
     ),
     child: SafeArea(
       top: false,

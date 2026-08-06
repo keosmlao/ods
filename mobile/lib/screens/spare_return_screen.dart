@@ -359,7 +359,7 @@ class _SpareReturnScreenState extends State<SpareReturnScreen> {
                   ),
                   Text(
                     row.unitCode ?? 'ຫົວໜ່ວຍ',
-                    style: const TextStyle(fontSize: 10, color: faint),
+                    style: const TextStyle(fontSize: 11, color: faint),
                   ),
                 ],
               ),
@@ -379,7 +379,7 @@ class _SpareReturnScreenState extends State<SpareReturnScreen> {
     child: Text(
       text,
       style: const TextStyle(
-        fontSize: 10.5,
+        fontSize: 11.5,
         fontWeight: FontWeight.w700,
         color: muted,
       ),
@@ -391,9 +391,6 @@ class _SpareReturnScreenState extends State<SpareReturnScreen> {
     decoration: const BoxDecoration(
       color: Colors.white,
       border: Border(top: BorderSide(color: line)),
-      boxShadow: [
-        BoxShadow(color: Color(0x0F0F172A), blurRadius: 18, offset: Offset(0, -6)),
-      ],
     ),
     child: SafeArea(
       top: false,

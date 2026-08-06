@@ -257,8 +257,7 @@ enum _Band { check, repair, install, maintenance }
 class _BandMeta {
   final String label;
   final IconData icon;
-  final List<Color> gradient;
-  const _BandMeta(this.label, this.icon, this.gradient);
+  const _BandMeta(this.label, this.icon);
 }
 
 /// ປ້າຍສັ້ນສຳລັບ **tab** (ບ່ອນແຄບ) — ບຳລຸງຮັກສາ / ລ້າງແອ ຍາວເກີນ ⇒ ໃຊ້ "ລ້າງແອ"
@@ -270,22 +269,12 @@ const _bandTabLabel = {
 };
 
 const _bandMeta = {
-  _Band.check: _BandMeta('ກວດເຊັກ', Icons.fact_check_outlined, [
-    Color(0xFFF59E0B),
-    Color(0xFFEA580C),
-  ]),
-  _Band.repair: _BandMeta('ສ້ອມແປງ', Icons.handyman_outlined, [
-    Color(0xFF059669),
-    Color(0xFF0E7490),
-  ]),
-  _Band.install: _BandMeta('ຕິດຕັ້ງ', Icons.construction_outlined, [
-    Color(0xFF6D4AFF),
-    Color(0xFF9333EA),
-  ]),
+  _Band.check: _BandMeta('ກວດເຊັກ', Icons.fact_check_outlined),
+  _Band.repair: _BandMeta('ສ້ອມແປງ', Icons.handyman_outlined),
+  _Band.install: _BandMeta('ຕິດຕັ້ງ', Icons.construction_outlined),
   _Band.maintenance: _BandMeta(
     'ບຳລຸງຮັກສາ / ລ້າງແອ',
     Icons.cleaning_services_outlined,
-    [Color(0xFF0284C7), Color(0xFF0891B2)],
   ),
 };
 
@@ -503,16 +492,14 @@ class _JobsScreenState extends State<JobsScreen> {
                   ),
                 ],
                 child: Container(
-                  width: 40,
-                  height: 40,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: .14),
-                    ),
+                    color: hero2,
+                    borderRadius: BorderRadius.circular(kButtonRadius),
+                    border: Border.all(color: const Color(0xFF334155)),
                   ),
-                  child: const Icon(Icons.more_vert, size: 20, color: onHero),
+                  child: const Icon(Icons.more_vert, size: 21, color: onHero),
                 ),
               ),
             ],
@@ -566,8 +553,9 @@ class _JobsScreenState extends State<JobsScreen> {
             margin: const EdgeInsets.fromLTRB(12, 10, 12, 6),
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: const Color(0xFFE8EFED),
+              color: surfaceAlt,
               borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: line),
             ),
             child: TabBar(
               isScrollable: bs.length > 2,
@@ -578,16 +566,15 @@ class _JobsScreenState extends State<JobsScreen> {
               unselectedLabelColor: muted,
               indicatorSize: TabBarIndicatorSize.tab,
               dividerColor: Colors.transparent,
+              // v4: flat — ຂອບແທນເງົາ
               indicator: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(color: ink.withValues(alpha: .07), blurRadius: 8),
-                ],
+                border: Border.all(color: lineStrong),
               ),
               labelStyle: const TextStyle(
                 fontWeight: FontWeight.w900,
-                fontSize: 11.5,
+                fontSize: 12,
               ),
               tabs: [for (final b in bs) _bandTab(b)],
             ),
@@ -819,20 +806,15 @@ class _JobCard extends StatelessWidget {
       MaterialPageRoute(builder: (_) => JobScreen(job: job)),
     ).then((_) => onDone());
 
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0C0F172A),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
+    return RepaintBoundary(
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        // v4: flat — ບໍ່ມີເງົາ (list ຍາວ render ໄວຂຶ້ນເທິງເຄື່ອງເກົ່າ)
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(kCardRadius),
+          border: Border.all(color: line),
+        ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -891,7 +873,7 @@ class _JobCard extends StatelessWidget {
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
                                             color: kind.color,
-                                            fontSize: 10.5,
+                                            fontSize: 11.5,
                                             fontWeight: FontWeight.w800,
                                           ),
                                         ),
@@ -915,7 +897,7 @@ class _JobCard extends StatelessWidget {
                                 actionLabel[job.action] ?? '-',
                                 style: TextStyle(
                                   color: statusColor,
-                                  fontSize: 9.5,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -950,7 +932,7 @@ class _JobCard extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: muted,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -984,7 +966,7 @@ class _JobCard extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontSize: 10.5,
+                                  fontSize: 11.5,
                                   color: muted,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -1014,6 +996,7 @@ class _JobCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

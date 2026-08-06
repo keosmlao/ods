@@ -277,6 +277,8 @@ class _QcJobScreenState extends State<QcJobScreen> {
                         width: 96,
                         height: 96,
                         fit: BoxFit.cover,
+                        // cacheWidth — ບໍ່ decode ຮູບກ້ອງເຕັມຄວາມລະອຽດ (ເຄື່ອງເກົ່າ RAM ໜ້ອຍ)
+                        cacheWidth: (96 * MediaQuery.of(context).devicePixelRatio).round(),
                       ),
                     ),
                   ),
@@ -361,6 +363,7 @@ class _QcJobScreenState extends State<QcJobScreen> {
                             width: 96,
                             height: 96,
                             fit: BoxFit.cover,
+                            cacheWidth: (96 * MediaQuery.of(context).devicePixelRatio).round(),
                           ),
                         ],
                       ],

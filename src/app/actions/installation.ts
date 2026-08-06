@@ -4,6 +4,7 @@ import {
   acceptInstall,
   finishInstallFlow,
   startInstallFlow,
+  scheduleNextVisit,
 } from "@/lib/job-flow";
 import { pushToUser } from "@/lib/push";
 import { recordPayout } from "@/lib/commission-record";
@@ -319,9 +320,18 @@ export async function createInstall(
         [row.sv_type],
       );
 
-      // ສິນຄ້າລະຫັດຂຶ້ນຕົ້ນ '97' ບໍ່ໃຊ້ອາໄຫຼ່ (ຄືກັບ ods)
+      /**
+       * ສິນຄ້າລະຫັດຂຶ້ນຕົ້ນ '97' ບໍ່ໃຊ້ອາໄຫຼ່ (ຄືກັບ ods).
+       *
+       * ⚠️ **ແອ (ລະຫັດ 12xx) ຕ້ອງເຂົ້າຂະບວນການອາໄຫຼ່ສະເໝີ** (06-08-2026) — ຕິດແອ
+       * ຕ້ອງໃຊ້ທໍ່ · ນ້ຳຢາ · ຂາຈັບ ທຸກເທື່ອ. ປົກກະຕິ `used_spare_install` ຂອງ sv_type
+       * ຕອບໃຫ້ຢູ່ແລ້ວ (556/556 ໃບ 1 ປີຜ່ານມາ) ແຕ່ຖ້າ item_size ຂອງ ERP ບໍ່ຈັບຄູ່ sv_type
+       * (ສິນຄ້າໃໝ່ · ຂະໜາດໃໝ່) ⇒ spares ຫວ່າງ ⇒ ວຽກຈະ**ຂ້າມຂັ້ນເບີກອາໄຫຼ່ໄປເລີຍ**.
+       * ບັງຄັບໃຫ້ເປັນ 1 ໄວ້ ⇒ ຊ່າງຍັງໄດ້ຂໍເບີກເອງ (ລາຍການຫວ່າງ ບໍ່ແມ່ນຂ້າມຂັ້ນ).
+       */
+      const isAircon = row.item_code.slice(0, 2) === "12";
       const usedSpare =
-        spares.rowCount === 0 || row.item_code.slice(0, 2) === "97" ? 0 : 1;
+        row.item_code.slice(0, 2) === "97" ? 0 : spares.rowCount === 0 && !isAircon ? 0 : 1;
 
       const category = await client.query<{ name_1: string }>(
         "select name_1 from tb_category where code=$1",
@@ -770,6 +780,73 @@ export async function assignTech(
 }
 
 /**
+ * **ສົ່ງມອບງານໃຫ້ຊ່າງຄົນໃໝ່ ກາງທາງ** (ຂັ້ນ 4 ລໍຕິດຕັ້ງ · 5 ກຳລັງຕິດຕັ້ງ).
+ *
+ * ── ເປັນຫຍັງຕ້ອງມີ (06-08-2026) ──
+ * ງານຕິດຕັ້ງທີ່ໄປຫຼາຍຮອບ **ຮອບຕໍ່ໄປອາດເປັນຊ່າງຄົນອື່ນ** (ຄົນເກົ່າລາພັກ · ຍ້າຍທີມ ·
+ * ວຽກດ່ວນຊ້ອນ). ແຕ່ `chooseNewTech` ປະຕິເສດຕັ້ງແຕ່ຊ່າງຮັບງານ ຫຼື ມີໃບຂໍເບີກແລ້ວ
+ * ⇒ ກາງທາງປ່ຽນບໍ່ໄດ້ເລີຍ ຄົນຈຶ່ງໄປໃຊ້ບັນຊີກັນ ຫຼື ປ່ອຍໃຫ້ຊື່ຜິດຄ້າງໄວ້.
+ *
+ * ຕ່າງຈາກ `chooseNewTech` (ໃຊ້ຕອນ**ຍັງບໍ່ເລີ່ມ** — ດຶງງານກັບຄິວຈັດຊ່າງ):
+ * ອັນນີ້ **ບໍ່ຖອຍຂັ້ນ** ⇒ ອາໄຫຼ່ທີ່ເບີກແລ້ວ · ຮອບທີ່ໄປແລ້ວ ຄາຢູ່ຄືເກົ່າ ·
+ * ເອກະສານທີ່ອອກໃນນາມຊ່າງເກົ່າ **ບໍ່ຖືກແຕະ** (ຂອງອອກຈາກສາງໃນນາມລາວຈິງ).
+ * ປະຫວັດ "ໃຜໄປຮອບໃດ" ຢູ່ `ods_job_checkin` ຢູ່ແລ້ວ (1 ຮອບ = 1 ແຖວ ພ້ອມຊື່ຊ່າງ).
+ *
+ * ⚠️ ຄ່າຄອມຍັງຄິດ **ຕໍ່ໃບງານ** (ຕົກລົງ 06-08-2026) ⇒ ຕົກໃສ່ຄົນທີ່ຖືງານຕອນປິດ.
+ * ຕາຕະລາງຮອບເຂົ້າໜ້າງານຢູ່ໜ້າໃບງານ ຄືຫຼັກຖານໃຫ້ຫົວໜ້າຕັດສິນຖ້າຕ້ອງແບ່ງ.
+ */
+export async function handoverInstallTech(
+  code: string,
+  techCode: string,
+  reason: string,
+): Promise<ActionState> {
+  const guard = await guardJob(code, SERVICE_SIDE);
+  if (!guard.ok) return { error: guard.error };
+  const { session, job } = guard;
+  if (job.cancelled) return { error: IS_CANCELLED };
+  if (job.closed) return { error: IS_CLOSED };
+  if (!techCode) return { error: "ກະລຸນາເລືອກຊ່າງຄົນໃໝ່" };
+  if (!reason.trim()) return { error: "ກະລຸນາໃສ່ເຫດຜົນທີ່ປ່ຽນຊ່າງ" };
+
+  const before = (
+    await query<{ tech_code: string | null }>("select nullif(tech_code,'') tech_code from ods_tb_install where code=$1", [
+      code,
+    ])
+  ).rows[0];
+  if ((before?.tech_code ?? "") === techCode) return { error: "ເປັນຊ່າງຄົນເກົ່າຢູ່ແລ້ວ" };
+
+  // ຮອບທີ່ຊ່າງເກົ່າຍັງເປີດຄ້າງ ⇒ ປິດໃຫ້ ບໍ່ດັ່ງນັ້ນມັນຄ້າງເປັນ "ຍັງຢູ່ໜ້າງານ" ຕະຫຼອດ
+  await query(
+    `update ods_job_checkin set checkout_at=localtimestamp(0)
+      where workflow='install' and job_code=$1 and checkout_at is null`,
+    [code],
+  );
+
+  const done = await query(
+    `update ods_tb_install a
+        set tech_before=coalesce(nullif(a.tech_code,''), a.tech_before),
+            tech_code=$2,
+            tech_confirm=localtimestamp(0)
+      where a.code=$1 and (${INSTALL_STAGE_SQL}) in (4,5)`,
+    [code, techCode],
+  );
+  if (!done.rowCount) {
+    return { error: "ປ່ຽນຊ່າງກາງທາງໄດ້ສະເພາະງານທີ່ລໍຕິດຕັ້ງ ຫຼື ກຳລັງຕິດຕັ້ງ" };
+  }
+
+  await logChange(
+    "ods_tb_install",
+    code,
+    `ປ່ຽນຊ່າງກາງທາງ: ${before?.tech_code ?? "-"} → ${techCode} · ${reason.trim()}`,
+    { author: session.username, users: [techCode], roles: ["admin", "manager"] },
+  );
+  await pushToUser(techCode, "ຮັບຊ່ວງງານຕິດຕັ້ງ", `${code} · ${reason.trim()}`, { workflow: "install", code });
+
+  revalidateAll();
+  return { ok: `ສົ່ງມອບງານໃຫ້ ${techCode} ແລ້ວ` };
+}
+
+/**
  * ເລືອກຊ່າງໃໝ່ — ເກັບຊ່າງເກົ່າໄວ້ໃນ tech_before ແລ້ວລ້າງ tech_code.
  * ລ້າງ assigt_time/user_assigt ນຳ: ງານກັບໄປຄິວ "ລໍຖ້າຈັດຊ່າງ" ເຊິ່ງນັບໂມງຈາກ time_register
  * — ໂມງ "ລໍຖ້າຊ່າງຮັບງານ" ຈະຖືກ stamp ໃໝ່ຕອນ assignTech ຄັ້ງຕໍ່ໄປ (B6).
@@ -850,6 +927,24 @@ export async function startInstall(code: string): Promise<ActionState> {
   if (!guard.ok) return { error: guard.error };
 
   const result = await startInstallFlow(guard.session, code);
+  if (!result.ok) return { error: result.error };
+  revalidateAll();
+  return { ok: result.message };
+}
+
+/**
+ * **ຮອບນີ້ຍັງບໍ່ຈົບ — ນັດເຂົ້າຮອບຕໍ່ໄປ** (1 ໃບງານ = ຫຼາຍຮອບເຂົ້າໜ້າງານ).
+ * ກົດເກນຢູ່ lib/job-flow ບ່ອນດຽວ ⇒ ແອັບກັບເວັບໄດ້ຜົນຄືກັນ.
+ */
+export async function scheduleInstallVisit(
+  code: string,
+  nextDate: string,
+  reason: string,
+): Promise<ActionState> {
+  const guard = await guardJob(code, TECH_SIDE);
+  if (!guard.ok) return { error: guard.error };
+
+  const result = await scheduleNextVisit(guard.session, code, { next_date: nextDate, reason });
   if (!result.ok) return { error: result.error };
   revalidateAll();
   return { ok: result.message };
