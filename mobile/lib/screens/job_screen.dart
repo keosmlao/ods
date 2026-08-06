@@ -1428,6 +1428,26 @@ class _JobScreenState extends State<JobScreen> {
                               checkIn,
                             ),
 
+                          /*
+                            ── check-out ອອກຈາກໜ້າງານ — **ບໍ່ແມ່ນການປິດງານ** (06-08-2026) ──
+                            ຮອບນີ້ຍັງບໍ່ຈົບ (ລໍງານໄຟຟ້າ · ຝົນຕົກ) ⇒ ອອກກ່ອນ ແລ້ວນັດຮອບຕໍ່ໄປ.
+                            ງານຄາຢູ່ "ກຳລັງຕິດຕັ້ງ" ຄືເກົ່າ · ຊົ່ວໂມງໜ້າງານຂອງຮອບນີ້ຖືກປິດຕາມເວລາຈິງ
+                            (ບໍ່ແມ່ນເວລາທີ່ກົດນັດ). ຮອບຕໍ່ໄປກັບມາຕ້ອງ check-in ໃໝ່.
+                          */
+                          if (job.workflow == 'install' && job.canCheckOut) ...[
+                            _button(
+                              'check-out ອອກຈາກໜ້າງານ',
+                              muted,
+                              () => run({'action': 'checkout'}),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'check-out ບໍ່ແມ່ນການປິດງານ — ງານຍັງຢູ່ຂັ້ນ "ກຳລັງຕິດຕັ້ງ"',
+                              style: TextStyle(color: muted, fontSize: 11.5),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+
                           // ງານສ້ອມຂັ້ນ 1-2 = ກວດເຊັກ (ບໍ່ແມ່ນ "ເລີ່ມສ້ອມ" ຂອງຂັ້ນ 8).
                           // ໜ້າງານທີ່ຍັງບໍ່ check-in ໃຊ້ປຸ່ມ check-in ດ້ານເທິງແທນ.
                           if (job.workflow == 'repair' &&
@@ -1461,6 +1481,31 @@ class _JobScreenState extends State<JobScreen> {
                                 await _openCheck();
                               },
                             ),
+
+                          /*
+                            ── ໄປຮອດແລ້ວແຕ່ເຮັດບໍ່ໄດ້ (ບໍ່ມີໄຟ · ບ່ອນຕິດບໍ່ພ້ອມ) ──
+                            ຂັ້ນນີ້ຍັງບໍ່ໄດ້ກົດ "ເລີ່ມຕິດຕັ້ງ" ⇒ ໃຫ້ນັດຮອບຕໍ່ໄປໄດ້ເລີຍ
+                            ບໍ່ຕ້ອງກົດເລີ່ມຫຼອກໆກ່ອນ (ເວລາເລີ່ມຈະຜິດ). ຕ້ອງ check-out ອອກກ່ອນ.
+                          */
+                          if (job.workflow == 'install' &&
+                              job.action == 'start' &&
+                              job.hasCheckedIn) ...[
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(48),
+                                foregroundColor: warn,
+                                side: const BorderSide(color: warn),
+                              ),
+                              onPressed: busy ? null : _askNextVisit,
+                              icon: const Icon(Icons.event_repeat_outlined, size: 18),
+                              label: Text(
+                                job.canCheckOut
+                                    ? 'ເຮັດບໍ່ໄດ້ — check-out ກ່ອນ ແລ້ວນັດຮອບຕໍ່ໄປ'
+                                    : 'ເຮັດບໍ່ໄດ້ — ນັດຮອບຕໍ່ໄປ',
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
 
                           if (job.action == 'start')
                             _button(
@@ -1729,7 +1774,11 @@ class _JobScreenState extends State<JobScreen> {
                                 ),
                                 onPressed: busy ? null : _askNextVisit,
                                 icon: const Icon(Icons.event_repeat_outlined, size: 18),
-                                label: const Text('ຍັງບໍ່ຈົບ — ນັດຮອບຕໍ່ໄປ'),
+                                label: Text(
+                                  job.canCheckOut
+                                      ? 'ຍັງບໍ່ຈົບ — check-out ກ່ອນ ແລ້ວນັດຮອບຕໍ່ໄປ'
+                                      : 'ຍັງບໍ່ຈົບ — ນັດຮອບຕໍ່ໄປ',
+                                ),
                               ),
                               const SizedBox(height: 8),
                               // ຮອບຕໍ່ໄປອາດເປັນຊ່າງຄົນອື່ນ — ຊ່າງທີ່ຢູ່ໜ້າງານສົ່ງມອບເອງໄດ້
@@ -1837,7 +1886,7 @@ class _JobScreenState extends State<JobScreen> {
                                       Expanded(
                                         child: Text(
                                           job.workflow == 'install'
-                                              ? 'ຢູ່ໜ້າງານແລ້ວ — ກົດ "ບັນທຶກຕິດຕັ້ງສຳເລັດ" ⇒ checkout ອັດຕະໂນມັດ'
+                                              ? 'ຢູ່ໜ້າງານແລ້ວ — ຈົບແລ້ວກົດ "ບັນທຶກຕິດຕັ້ງສຳເລັດ" · ຍັງບໍ່ຈົບກົດ "check-out ອອກຈາກໜ້າງານ"'
                                               : 'ຢູ່ໜ້າງານແລ້ວ — ກົດ "ບັນທຶກສ້ອມສຳເລັດ" ⇒ checkout ອັດຕະໂນມັດ',
                                           style: const TextStyle(
                                             color: muted,
