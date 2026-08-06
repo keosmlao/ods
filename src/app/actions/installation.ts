@@ -12,7 +12,7 @@ import { ROLE_WAREHOUSE } from "@/lib/chatter";
 import { db, odgDb, query, queryOdg } from "@/lib/db";
 import { deleteErpRequest, writeErpRequest } from "@/lib/erp-request";
 import { nextDocNo } from "@/lib/doc-no";
-import { requireRole, runAction } from "@/lib/guard";
+import { requirePermission, requireRole, runAction } from "@/lib/guard";
 import { takeFromForm, takeQty } from "@/lib/spare-take";
 import { type Role, roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
@@ -476,7 +476,9 @@ export async function updateInstall(
   _: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດແກ້ໄຂງານຕິດຕັ້ງ");
+  // ສິດລາຍຄົນຊະນະສິດຕາມຕຳແໜ່ງ — ຄືກັບ updateService / updateMaintenance (ບໍ່ດັ່ງນັ້ນ
+  // ຜູ້ຈັດການໃຫ້ສິດແກ້ງານຕິດຕັ້ງແກ່ໃຜຄົນໜຶ່ງບໍ່ໄດ້ ທັງທີ່ໜ້າອື່ນເຮັດໄດ້)
+  const guard = await requirePermission("/installations", "update", SERVICE_SIDE, "ບໍ່ມີສິດແກ້ໄຂງານຕິດຕັ້ງ");
   if (!guard.ok) return { error: guard.error };
   const session = guard.session;
 

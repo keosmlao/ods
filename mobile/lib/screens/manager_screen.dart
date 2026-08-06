@@ -281,6 +281,20 @@ class _ManagerScreenState extends State<ManagerScreen>
               _open('tech:${tech.techCode}', '${tech.tech} · ວຽກຄ້າງ'),
         ),
       const SizedBox(height: 14),
+      /*
+        ── ຂັ້ນຕອນງານ (funnel) — **ເອົາກັບມາໂຊ້ວ** (06-08-2026) ──
+        `_PipelineSection` ຖືກຂຽນໄວ້ແຕ່ **ບໍ່ເຄີຍຖືກເອີ້ນ** ⇒ ຜູ້ຈັດການເບິ່ງແອັບແລ້ວ
+        ບໍ່ເຫັນວ່າວຽກຄາຢູ່ຂັ້ນໃດເລີຍ (ເວັບເຫັນຢູ່ໜ້າພາບລວມ). ຂັ້ນ ແລະ ຊື່ຂັ້ນມາຈາກ
+        server (lib/mobile-overview ⇒ dashboard-status ບ່ອນດຽວກັບເວັບ) ⇒ ບໍ່ຫຼົ້ນກັນ.
+        ກົດແທ່ງ ⇒ ເປີດລາຍການຂອງຂັ້ນນັ້ນ (`stage:<n>` ຂອງ lib/manager-drill).
+      */
+      if (d.pipeline.isNotEmpty) ...[
+        _PipelineSection(
+          pipeline: d.pipeline,
+          onTap: (stage) => _open('stage:${stage.stage}', stage.label),
+        ),
+        const SizedBox(height: 14),
+      ],
       _ManagementSnapshot(data: d),
       const SizedBox(height: 18),
       const _DashboardTitle(

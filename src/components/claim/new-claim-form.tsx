@@ -220,7 +220,7 @@ export function NewClaimForm({
             {refJob ? (
               <div className="flex items-start gap-2 rounded-lg border border-brand-200 bg-brand-50/60 px-3 py-2">
                 <span className="mt-0.5 shrink-0 rounded bg-white px-1.5 py-0.5 font-mono text-xs font-bold text-brand">{refJob}</span>
-                <span className="min-w-0 flex-1 text-xs text-slate-600">{jobInfo ? `${jobInfo.product || "-"}${jobInfo.brand ? ` · ${jobInfo.brand}` : ""}` : "ງານທີ່ເລືອກ"}</span>
+                <span className="min-w-0 flex-1 text-xs text-slate-600">{jobInfo ? `${jobInfo.product || "-"}${jobInfo.brand ? ` · ${jobInfo.brand}` : ""}` : t.pickedJob}</span>
                 <button type="button" onClick={clearJob} className="shrink-0 text-slate-400 hover:text-brand-orange-700"><X className="size-4" /></button>
               </div>
             ) : (

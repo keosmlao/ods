@@ -1,15 +1,15 @@
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { getCart, getRates, seedCart } from "@/app/actions/return";
 import { BackLink } from "@/components/back-link";
 import { Chatter } from "@/components/chatter/chatter";
 import { InvoiceEditor } from "@/components/return/invoice-editor";
-import { LinkPending } from "@/components/link-pending";
 import { LinkButton } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { getBanks, getHead, getServices, previewDocNo } from "@/lib/return-page-data";
 import { CLAIM_SIDE, roleOf } from "@/lib/roles";
-import { ArrowLeft, Printer } from "lucide-react";
-import Link from "next/link";
+import { Printer } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 
 /**
@@ -24,6 +24,7 @@ import { notFound, redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 export default async function ClaimReturnPage({ params }: { params: Promise<{ code: string }> }) {
+  const t = (await getDictionary(await getLocale())).claimJobs;
   const session = await getSession();
   if (!session) redirect("/login");
   if (!CLAIM_SIDE.includes(roleOf(session))) redirect("/forbidden");
@@ -55,18 +56,18 @@ export default async function ClaimReturnPage({ params }: { params: Promise<{ co
   return (
     <div className="w-full space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <BackLink fallback="/claims/jobs/claim-return" label="ກັບຄິວ “ລໍສົ່ງຄືນຮ້ານ”" />
+        <BackLink fallback="/claims/jobs/claim-return" label="{t.backReturnQueue}" />
         <LinkButton href={`/returns/${encodeURIComponent(head.code)}/handover-print`} tone="neutral">
           <Printer className="size-4" />
-          ພິມໃບຄືນເຄື່ອງ
+          {t.printReturn}
         </LinkButton>
       </div>
 
       <div>
-        <h1 className="text-2xl font-bold text-slate-700">🛡️ ສົ່ງເຄື່ອງເຄມຄືນຮ້ານ #{head.code}</h1>
+        <h1 className="text-2xl font-bold text-slate-700">{t.returnTitle.replace("{code}", "")}{head.code}</h1>
         <p className="mt-0.5 text-xs text-slate-500">
-          {claim.scope === "part" ? `ເຄມສະເພາະອາໄຫຼ່: ${claim.part || "-"}` : "ເຄມທັງເຄື່ອງ"}
-          {claim.claim_no ? ` · ໃບເຄມ ${claim.claim_no}` : ""}
+          {claim.scope === "part" ? `{t.scopePartWith.replace("{name}", "")}${claim.part || "-"}` : "{t.scopeWholeFull}"}
+          {claim.claim_no ? ` · {t.claimDoc} ${claim.claim_no}` : ""}
         </p>
       </div>
 

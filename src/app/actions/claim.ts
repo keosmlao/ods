@@ -1,6 +1,6 @@
 "use server";
-import { billItems, claimByNo, claimCanTransition, claimItems, type ClaimJobCandidate, type ClaimJobDetail, cobInfo, ensureOdsCustomer, isClaimEditable, ensureClaimCob, isClaimFulfillmentSource, jobClaimCandidates, jobClaimDetail, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, searchBills, searchInventory, type ClaimType } from "@/lib/claim";
-import { deleteCobForClaim, syncCobAmount } from "@/lib/erp-cob";
+import { billItems, claimByNo, claimCanTransition, claimItems, type ClaimJobCandidate, type ClaimJobDetail, aobInfo, ensureOdsCustomer, isClaimEditable, ensureClaimAob, isClaimFulfillmentSource, jobClaimCandidates, jobClaimDetail, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, searchBills, searchInventory, type ClaimType } from "@/lib/claim";
+import { deleteAobForClaim, syncAobAmount } from "@/lib/erp-aob";
 import { logChange } from "@/lib/chatter-log";
 import { loanerBlock } from "@/lib/loaner";
 import { centerBlock } from "@/lib/job-center";
@@ -14,7 +14,11 @@ import { supplierContactByCode } from "@/lib/erp-supplier";
 import { unlink } from "node:fs/promises";
 import { revalidatePath } from "next/cache";
 
-export type ClaimState = { error?: string; claimNo?: string };
+/**
+ * `warn` = **ສຳເລັດ ແຕ່ມີເລື່ອງໃຫ້ຮູ້** (ເຊັ່ນ ໃບຕັ້ງໜີ້ຢູ່ ERP ຖືກລັອກ ⇒ ຍອດບໍ່ຖືກປັບ).
+ * ຢ່າໃສ່ `error` ແທນ — ໜ້າຈໍຖືວ່າ error = ລົ້ມເຫຼວ ແລ້ວ**ບໍ່ refresh** ⇒ ຄົນເຫັນລາຍການເກົ່າ.
+ */
+export type ClaimState = { error?: string; claimNo?: string; warn?: string };
 
 const START: Record<ClaimType, string> = { A: "draft", B: "received", C: "notify" };
 
@@ -43,17 +47,17 @@ export async function loadClaimJob(code: string): Promise<{ error?: string; job?
 
 /**
  * ໃຫ້ **ໃບຕັ້ງໜີ້ຢູ່ ERP ຕົງກັບໃບເຄມ** ຫຼັງລາຍການປ່ຽນ:
- * ຍັງບໍ່ມີໃບ ⇒ ອອກໃຫ້ (ensureClaimCob) · ມີແລ້ວ ⇒ ປັບຍອດ (syncCobAmount).
+ * ຍັງບໍ່ມີໃບ ⇒ ອອກໃຫ້ (ensureClaimAob) · ມີແລ້ວ ⇒ ປັບຍອດ (syncAobAmount).
  * ຄືນຂໍ້ຄວາມເຕືອນ ຖ້າບັນຊີເອົາໃບໄປໃຊ້ແລ້ວ (ຍອດສອງຝັ່ງຈະບໍ່ຕົງ ⇒ ຄົນຕ້ອງຮູ້).
  */
-async function syncClaimCob(claimNo: string, by: string): Promise<string | null> {
+async function syncClaimAob(claimNo: string, by: string): Promise<string | null> {
   const claim = await claimByNo(claimNo);
   if (!claim || claim.claim_type !== "C") return null;
   if (!claim.erp_doc_no) {
-    await ensureClaimCob(claimNo, by);
+    await ensureClaimAob(claimNo, by);
     return null;
   }
-  const result = await syncCobAmount(claim.erp_doc_no, claim.amount);
+  const result = await syncAobAmount(claim.erp_doc_no, claim.amount);
   return result === "locked"
     ? `ແກ້ລາຍການແລ້ວ ແຕ່ **ໃບຕັ້ງໜີ້ ${claim.erp_doc_no} ຢູ່ ERP ຖືກດຳເນີນການແລ້ວ** ⇒ ຍອດບໍ່ຖືກປັບ — ໃຫ້ບັນຊີແກ້ຢູ່ ERP`
     : null;
@@ -213,8 +217,8 @@ export async function createClaim(input: {
     );
   }
   await log(row.claim_no, guard.session.username, "created", `ເປີດໃບເຄມ type ${type}`);
-  // ອອກໃບເຄມ = ອອກ COB ໃຫ້ເລີຍ (CLM-C ທີ່ມີຍອດ — ເບິ່ງ ensureClaimCob)
-  const cobNo = await ensureClaimCob(row.claim_no, guard.session.username);
+  // ອອກໃບເຄມ = ອອກ COB ໃຫ້ເລີຍ (CLM-C ທີ່ມີຍອດ — ເບິ່ງ ensureClaimAob)
+  const cobNo = await ensureClaimAob(row.claim_no, guard.session.username);
   if (cobNo) await log(row.claim_no, guard.session.username, "cob", `ອອກເອກະສານ COB ${cobNo} ຢູ່ ERP`);
   revalidatePath("/claims");
   return { claimNo: row.claim_no };
@@ -334,8 +338,8 @@ export async function addClaimItem(claimNo: string, item: { item_code?: string; 
     [claimNo, item.item_code ?? "", item.item_name.trim(), item.qty ?? 1, item.unit ?? "", item.amount ?? 0],
   );
   await query(`update ods_claim set amount = coalesce((select sum(amount) from ods_claim_item where claim_no=$1),0) where claim_no=$1`, [claimNo]);
-  const added = await syncClaimCob(claimNo, guard.session.username);
-  if (added) return { claimNo, error: added };
+  const added = await syncClaimAob(claimNo, guard.session.username);
+  if (added) return { claimNo, warn: added };
   revalidatePath(`/claims/${claimNo}`);
   return { claimNo };
 }
@@ -347,8 +351,8 @@ export async function deleteClaimItem(claimNo: string, id: number): Promise<Clai
   if (!claim || !isClaimEditable(claim.claim_type, claim.status)) return { error: "ໃບເຄມສົ່ງແລ້ວ — ລຶບລາຍການບໍ່ໄດ້" };
   await query(`delete from ods_claim_item where id = $1 and claim_no = $2`, [id, claimNo]);
   await query(`update ods_claim set amount = coalesce((select sum(amount) from ods_claim_item where claim_no=$1),0) where claim_no=$1`, [claimNo]);
-  const warn = await syncClaimCob(claimNo, guard.session.username);
-  if (warn) return { claimNo, error: warn };
+  const warn = await syncClaimAob(claimNo, guard.session.username);
+  if (warn) return { claimNo, warn };
   revalidatePath(`/claims/${claimNo}`);
   return { claimNo };
 }
@@ -370,7 +374,7 @@ export async function linkCob(claimNo: string, docNo: string): Promise<ClaimStat
     revalidatePath(`/claims/${claimNo}`);
     return { claimNo };
   }
-  const info = await cobInfo(d);
+  const info = await aobInfo(d);
   if (!info) return { error: `ບໍ່ພົບເອກະສານ COB ${d} ໃນ ERP` };
   if (claim.supplier_code && info.supplier_code && claim.supplier_code !== info.supplier_code) {
     return { error: `Supplier ໃນ COB (${info.supplier_code}) ບໍ່ກົງກັບໃບເຄມ (${claim.supplier_code})` };
@@ -431,7 +435,7 @@ export async function pullJobItems(claimNo: string): Promise<ClaimState> {
     client.release();
   }
   await log(claimNo, guard.session.username, "items", `ດຶງ ໃບ ${docNo} — ${items.length} ລາຍການ`);
-  const cobNo = await ensureClaimCob(claimNo, guard.session.username);
+  const cobNo = await ensureClaimAob(claimNo, guard.session.username);
   if (cobNo) await log(claimNo, guard.session.username, "cob", `ອອກເອກະສານ COB ${cobNo} ຢູ່ ERP`);
   revalidatePath(`/claims/${claimNo}`);
   return { claimNo };
@@ -532,7 +536,7 @@ export async function deleteClaim(claimNo: string): Promise<ClaimState> {
    * ບັນຊີເອົາໄປໃຊ້ແລ້ວ (status ≠ 0) ⇒ **ຫ້າມລຶບໃບເຄມ** — ໃຫ້ໄປຈັດການຢູ່ ERP ກ່ອນ
    * ບໍ່ດັ່ງນັ້ນເອກະສານສອງຝັ່ງຈະຂັດກັນ ໂດຍບໍ່ມີໃຜຮູ້.
    */
-  const cobResult = await deleteCobForClaim(claimNo);
+  const cobResult = await deleteAobForClaim(claimNo);
   if (cobResult === "locked") {
     return { error: "ລຶບບໍ່ໄດ້ — ໃບຕັ້ງໜີ້ຢູ່ ERP ຖືກດຳເນີນການແລ້ວ (ໃຫ້ບັນຊີຈັດການຢູ່ ERP ກ່ອນ)" };
   }

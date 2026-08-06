@@ -1,13 +1,12 @@
-import { LinkPending } from "@/components/link-pending";
-import { BackLink } from "@/components/back-link";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
+import { JobEditHeader } from "@/components/job-edit-header";
 import { ServiceEditForm, type ServiceHead } from "@/components/service-edit-form";
 import { query } from "@/lib/db";
 import { getErpBrands, getErpCategories } from "@/lib/erp-master";
 import { technicianOptions } from "@/lib/technicians";
 import { getSession } from "@/lib/auth";
 import { CLAIM_SIDE, roleOf } from "@/lib/roles";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 /**
@@ -23,6 +22,9 @@ type Props = { params: Promise<{ code: string }> };
 export const dynamic = "force-dynamic";
 
 export default async function EditClaimJob({ params }: Props) {
+  const t = (await getDictionary(await getLocale())).jobEdit;
+  const fill = (text: string, vars: Record<string, string>) =>
+    Object.entries(vars).reduce((out, [k, v]) => out.replaceAll(`{${k}}`, v), text);
   const session = await getSession();
   if (!session) redirect("/login");
   if (!CLAIM_SIDE.includes(roleOf(session))) redirect("/forbidden");
@@ -30,8 +32,9 @@ export default async function EditClaimJob({ params }: Props) {
 
   // doc_date_ref ເປັນ varchar — ຫ້າມເອົາໄປໃສ່ to_char()
   const head = (
-    await query<ServiceHead>(
-      `select a.code, a.name_1, coalesce(a.sn,'') sn, coalesce(a.p_model,'') p_model, coalesce(a.p_type,'') p_type,
+    await query<ServiceHead & { returned: boolean; cancelled: boolean }>(
+      `select (a.return_complete is not null) returned, (a.status = 6) cancelled,
+         a.code, a.name_1, coalesce(a.sn,'') sn, coalesce(a.p_model,'') p_model, coalesce(a.p_type,'') p_type,
          coalesce(a.p_brand,'') p_brand, coalesce(a.p_access,'') p_access, coalesce(a.warrunty,'') warrunty,
          coalesce(a.p_delivery,'') p_delivery, coalesce(a.service_type,'') service_type, coalesce(a.issue,'') issue,
          coalesce(a.p_abrasion,'') p_abrasion, coalesce(a.cust_code,'') cust_code, coalesce(a.emp_code,'') emp_code,
@@ -77,11 +80,17 @@ export default async function EditClaimJob({ params }: Props) {
 
   return (
     <div className="w-full space-y-4">
-      <div>
-        <BackLink fallback={`/claims/jobs/detail/${code}`} label="ກັບໜ້າໃບງານເຄມ" />
-        <h1 className="text-xl font-bold text-slate-700">🛡️ ແກ້ໄຂໃບງານເຄມ #{head.code}</h1>
-        <p className="mt-0.5 text-xs text-slate-500">{head.name_1} {head.sn && <span className="text-slate-400">· {head.sn}</span>}</p>
-      </div>
+      <JobEditHeader
+        back={{ href: `/claims/jobs/detail/${code}`, label: t.backClaimJob }}
+        title={fill(t.titleClaimJob, { code: head.code })}
+        subtitle={[head.name_1, head.sn].filter(Boolean).join(" · ")}
+        /* ດ່ານດຽວກັບຝັ່ງສ້ອມ — ໃບງານເຄມນອນຢູ່ tb_product ແລະ ໃຊ້ updateService ອັນດຽວກັນ */
+        locked={
+          head.returned || head.cancelled
+            ? fill(t.lockedRepair, { state: head.returned ? t.lockedReturned : t.lockedCancelled })
+            : null
+        }
+      />
 
       {/* ຊ່າງເກັບເປັນ "ຊື່ຫຼິ້ນ" ຢູ່ tb_product.emp_code — ຄ່າ ແລະ ປ້າຍຈຶ່ງເປັນອັນດຽວກັນ */}
       <ServiceEditForm

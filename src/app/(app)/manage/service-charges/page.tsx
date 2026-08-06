@@ -1,9 +1,11 @@
 import { productTypeOptions, serviceItemOptions } from "@/app/actions/service-charge";
 import { rateOptions } from "@/app/actions/service-rate";
 import { Card, PageTitle, Table } from "@/components/ui";
-import { cobConfig } from "@/lib/erp-cob";
+import { aobConfig } from "@/lib/erp-aob";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { listServiceCharges } from "@/lib/service-charge";
-import { AddChargeForm, CobConfigForm, DeleteChargeButton, EditChargeRow } from "./charge-forms";
+import { AddChargeForm, AobConfigForm, DeleteChargeButton, EditChargeRow } from "./charge-forms";
 
 /**
  * **ຈັບຄູ່ ປະເພດເຄື່ອງ → ຄ່າບໍລິການສ້ອມແປງ** — ໜ້າໃບຮັບເງິນເອົາການຕັ້ງຄ່ານີ້ໄປຕື່ມ
@@ -14,49 +16,42 @@ import { AddChargeForm, CobConfigForm, DeleteChargeButton, EditChargeRow } from 
  */
 export const dynamic = "force-dynamic";
 
-const SERVICE_TYPE_LABEL: Record<string, string> = {
-  CI: "ລູກຄ້ານຳເຄື່ອງເຂົ້າ",
-  ST: "ສ້ອມໃນສາງ",
-  IH: "ສ້ອມບ້ານລູກຄ້າ",
-  PS: "ໄປຮັບເຄື່ອງມາສ້ອມຢູ່ສູນ",
-};
-
 export default async function ServiceChargesPage() {
-  const [options, productTypes, services, rows, cob] = await Promise.all([
+  const t = (await getDictionary(await getLocale())).serviceCharges;
+  const serviceTypeLabel: Record<string, string> = { CI: t.stCI, ST: t.stST, IH: t.stIH, PS: t.stPS };
+  const [options, productTypes, services, rows, aob] = await Promise.all([
     rateOptions(),
     productTypeOptions(),
     serviceItemOptions(),
     listServiceCharges(),
-    cobConfig(),
+    aobConfig(),
   ]);
   const productTypeName = (code: string | null) =>
-    code ? (productTypes.find((p) => p.code === code)?.name ?? code) : "ທຸກປະເພດ";
+    code ? (productTypes.find((p) => p.code === code)?.name ?? code) : t.allTypes;
   const categoryName = (code: string | null) =>
-    code ? (options.categories.find((c) => c.code === code)?.name ?? code) : "ທຸກໝວດ";
+    code ? (options.categories.find((c) => c.code === code)?.name ?? code) : t.allCategories;
 
   return (
     <div className="w-full space-y-4">
-      <PageTitle sub="ໜ້າໃບຮັບເງິນຈະຕື່ມລາຍການນີ້ໃຫ້ອັດຕະໂນມັດ · ງານໃນປະກັນລາຄາ 0">
-        ຄ່າບໍລິການສ້ອມແປງ ຕາມປະເພດເຄື່ອງ
-      </PageTitle>
+      <PageTitle sub={t.sub}>{t.title}</PageTitle>
 
       <AddChargeForm categories={options.categories} productTypes={productTypes} services={services} />
 
-      <CobConfigForm config={cob} />
+      <AobConfigForm config={aob} />
 
       <Card>
-        <Table head={["ປະເພດເຄື່ອງ", "ປະເພດບໍລິການ", "ໝວດ ERP", "ແບບ", "ຂະໜາດ", "ລາຍການທີ່ຈະຕື່ມ", "ລາຄາ (ບາດ)", "ແກ້ໄຂລ່າສຸດ", ""]} minWidth={1000}>
+        <Table head={[t.colProductType, t.colServiceType, t.colCategory, t.colDesign, t.colSize, t.colItem, t.colPrice, t.colUpdated, ""]} minWidth={1000}>
           {rows.length === 0 && (
             <tr>
               <td colSpan={9} className="py-10 text-center text-xs text-slate-400">
-                ຍັງບໍ່ໄດ້ຕັ້ງຄ່າ — ບິນຈະບໍ່ຕື່ມຄ່າບໍລິການໃຫ້ (ຄົນເລືອກເອງຄືເກົ່າ)
+                {t.emptyTable}
               </td>
             </tr>
           )}
           {rows.map((row) => (
             <tr key={row.id} className="border-b border-slate-100">
               <td className="px-3 py-2 font-medium text-slate-700">{productTypeName(row.product_type)}</td>
-              <td className="px-3 py-2">{row.service_type ? SERVICE_TYPE_LABEL[row.service_type] ?? row.service_type : "ທຸກປະເພດ"}</td>
+              <td className="px-3 py-2">{row.service_type ? serviceTypeLabel[row.service_type] ?? row.service_type : t.allTypes}</td>
               <td className="px-3 py-2">{categoryName(row.category_code)}</td>
               <td className="px-3 py-2 text-slate-500">{row.design_code ?? "—"}</td>
               <td className="px-3 py-2 text-slate-500">{row.size_code ?? "—"}</td>
@@ -70,11 +65,7 @@ export default async function ServiceChargesPage() {
             </tr>
           ))}
         </Table>
-        <p className="mt-3 text-[11px] text-slate-400">
-          ຈັບຄູ່ແບບ <b>ລະອຽດກວ່າຊະນະ</b>: ຂະໜາດ &gt; ແບບ &gt; ໝວດ ERP &gt; ປະເພດເຄື່ອງ &gt; ປະເພດບໍລິການ — ຫວ່າງ = ໃຊ້ກັບທຸກຄ່າ.
-          ໝວດ/ແບບ/ຂະໜາດ ຂອງ ERP ໃຊ້ໄດ້ສະເພາະງານທີ່ມີລະຫັດສິນຄ້າ (ໜ້ອຍກວ່າ 1%) ⇒ ຕັ້ງດ້ວຍ <b>ປະເພດເຄື່ອງ</b> ເປັນຫຼັກ.
-          ຕັ້ງແຖວກວ້າງໆ 1 ແຖວ (ຫວ່າງໝົດ) ໄວ້ເປັນຄ່າສຳຮອງກໍ່ໄດ້.
-        </p>
+        <p className="mt-3 text-[11px] text-slate-400">{t.footer}</p>
       </Card>
     </div>
   );

@@ -445,6 +445,47 @@ export async function updateService(_: ServiceState, formData: FormData): Promis
     return { error: "ເຄມອາໄຫຼ່ຕ້ອງລະບຸຊື່ອາໄຫຼ່" };
   }
 
+  const d0 = parsed.data;
+  /**
+   * ── ງານທີ່ **ຈົບແລ້ວ** ແກ້ໄດ້ແຕ່ຂໍ້ມູນທີ່ບໍ່ຍ້ອນຫຼັງໄປແຕະເງິນ/ຂັ້ນຕອນ ──
+   *
+   * ຝັ່ງຕິດຕັ້ງ ແລະ ບຳລຸງຮັກສາກັນໄວ້ຢູ່ແລ້ວ (updateInstall: ປິດງານ ⇒ ແກ້ໄດ້ແຕ່ ISN ·
+   * updateMaintenance: ຊ່າງຮັບ/ຍົກເລີກ ⇒ ຫ້າມ) ແຕ່**ຝັ່ງສ້ອມບໍ່ກັນເລີຍ** ⇒ ໃບທີ່
+   * ສົ່ງຄືນລູກຄ້າໄປແລ້ວ ຍັງປ່ຽນ ປະເພດບໍລິການ · ການຮັບປະກັນ · ຊ່າງ · ປະເພດງານ(ເຄມ) ໄດ້
+   * ທັງທີ່ຄ່າພວກນີ້**ຄິດຄ່າຄອມ (recordPayout) · ລົງລາຍງານ · ຕັດສິດເຄມ ໄປແລ້ວ**
+   * ⇒ ຕົວເລກຫຼັງບ້ານປ່ຽນຍ້ອນຫຼັງໂດຍບໍ່ມີໃຜຮູ້.
+   *
+   * ບໍ່ຫ້າມທັງໃບ (ຄົນຍັງຕ້ອງແກ້ SN/ຮຸ່ນ/ເບີໂທ/ໝາຍເຫດ ພິມຜິດໄດ້) — ຫ້າມ**ສະເພາະຊ່ອງ
+   * ທີ່ປ່ຽນຄວາມໝາຍທາງເງິນ/ຂັ້ນຕອນ** ແລ້ວບອກໄປເລີຍວ່າຊ່ອງໃດ.
+   */
+  const finished = (
+    await db.query<{
+      returned: boolean; cancelled: boolean;
+      service_type: string | null; warrunty: string | null; emp_code: string | null; job_kind: string | null;
+    }>(
+      `select (return_complete is not null) returned, (status = 6) cancelled,
+          nullif(service_type,'') service_type, nullif(warrunty,'') warrunty,
+          nullif(emp_code,'') emp_code, coalesce(job_kind,'repair') job_kind
+        from tb_product where code = $1 limit 1`,
+      [d0.code],
+    )
+  ).rows[0];
+  if (finished && (finished.returned || finished.cancelled)) {
+    const locked: string[] = [];
+    const same = (a: string | null, b: string) => (a ?? "") === b.trim();
+    if (!same(finished.service_type, d0.service_type)) locked.push("ປະເພດບໍລິການ");
+    if (!same(finished.warrunty, d0.pro_wa)) locked.push("ການຮັບປະກັນ");
+    if (!same(finished.emp_code, d0.emp)) locked.push("ຊ່າງ");
+    if (!same(finished.job_kind, d0.job_kind)) locked.push("ປະເພດງານ (ສ້ອມ/ເຄມ)");
+    if (locked.length > 0) {
+      return {
+        error:
+          `ງານນີ້${finished.returned ? "ສົ່ງຄືນລູກຄ້າແລ້ວ" : "ຖືກຍົກເລີກແລ້ວ"} — ແກ້ ${locked.join(" · ")} ບໍ່ໄດ້ ` +
+          "(ຄ່າເຫຼົ່ານີ້ຄິດຄ່າຄອມ · ລົງລາຍງານ · ຕັດສິດເຄມ ໄປແລ້ວ). ຂໍ້ມູນອື່ນ (SN · ຮຸ່ນ · ຕິດຕໍ່ · ໝາຍເຫດ) ຍັງແກ້ໄດ້.",
+      };
+    }
+  }
+
   const files = await collectUploads(formData);
   if (!files.ok) return { error: files.error };
 

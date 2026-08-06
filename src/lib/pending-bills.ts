@@ -76,10 +76,19 @@ export async function pendingInstallBills(withDismissed = false): Promise<Pendin
          and sv.doc_date >= current_date - ${DAYS}
        group by sv.doc_no`,
     ),
+    /**
+     * ── ນັບໃບງານ **ລວມໃບທີ່ຍົກເລີກແລ້ວ** (ແກ້ 06-08-2026 ຕາມຄຳສັ່ງ) ──
+     * ເມື່ອກ່ອນມີ `and cancel_date is null` ⇒ ພໍ CS ດຶງບິນມາອອກໃບງານ ແລ້ວ**ຍົກເລີກ
+     * ການຕິດຕັ້ງ** (ລູກຄ້າບໍ່ເອົາ · ຕິດບໍ່ໄດ້ · ອອກຜິດ) ບິນນັ້ນ **ເດັ້ງກັບເຂົ້າຄິວ
+     * "ບິນຄ້າງອອກໃບງານ" ອີກ** ⇒ ຄົນໄປເປີດງານໃໝ່ຊ້ຳ ຫຼື ທວງກັນລ້າໆ ທັງທີ່ຕັດສິນໃຈໄປແລ້ວ.
+     *
+     * ຄິວນີ້ຖາມຄຳຖາມດຽວ: "ບິນນີ້ເຄີຍຖືກຈັດການແລ້ວບໍ" ⇒ **ເຄີຍອອກໃບງານ = ຈັດການແລ້ວ**
+     * ບໍ່ວ່າໃບນັ້ນຈະຈົບ ຫຼື ຖືກຍົກເລີກ. ຢາກເປີດໃໝ່ ⇒ ເປີດຈາກໜ້າງານຕິດຕັ້ງໄດ້ຕາມປົກກະຕິ.
+     */
     query<{ doc_no: string; opened: number }>(
       `select doc_ref_1 as doc_no, count(*)::int as opened
          from ods_tb_install
-        where coalesce(doc_ref_1,'') <> '' and cancel_date is null
+        where coalesce(doc_ref_1,'') <> ''
         group by doc_ref_1`,
     ),
     query<{ doc_no: string; reason: string; by: string; at: string }>(

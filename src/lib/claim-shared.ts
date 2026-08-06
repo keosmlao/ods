@@ -197,7 +197,7 @@ export type JobDelivery = {
 
 export type ClaimItem = { id: number; item_code: string | null; item_name: string | null; qty: number; unit: string | null; amount: number; note: string | null };
 export type ClaimLog = { at: string | null; by_user: string | null; event: string | null; detail: string | null };
-export type CobInfo = { doc_no: string; doc_date: string | null; supplier_code: string | null; total_amount: number; status: number };
+export type AobInfo = { doc_no: string; doc_date: string | null; supplier_code: string | null; total_amount: number; status: number };
 export type ClaimCandidate = { code: string; product: string | null; brand: string | null; customer: string | null; returned_at: string | null; supplier: string | null };
 /** งานสอมที่ "สำเร็จ · ส่งคืนลูกค้าแล้ว · ยังไม่มีใบเคลม" — ใช้ modal เลือกตอนเปิดใบเคลม */
 export type ClaimJobCandidate = { code: string; product: string | null; brand: string | null; model: string | null; sn: string | null; fault: string | null; customer: string | null; returned_at: string | null };

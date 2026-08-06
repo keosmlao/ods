@@ -96,7 +96,7 @@ export default async function PrintReceipt({ params }: Props) {
   const typeLabel =
     receipt.type_name ??
     categories.find((category) => category.code === receipt.product_type)?.name_1 ??
-    (receipt.product_type && receipt.product_type !== "ເລືອກ..." ? receipt.product_type : null);
+    (receipt.product_type && receipt.product_type !== t.pickPlaceholder ? receipt.product_type : null);
   const deliveryLabel = receipt.delivery ? deliveryLabelMap(t)[receipt.delivery] ?? receipt.delivery : null;
 
   /**
@@ -142,7 +142,7 @@ export default async function PrintReceipt({ params }: Props) {
         </div>
       </div>
 
-      <h1 className="my-3 text-center text-xl font-bold">{"ໃບຮັບເຄື່ອງເຄມ (ຈາກຮ້ານ)"}</h1>
+      <h1 className="my-3 text-center text-xl font-bold">{t.claimIntakeTitle}</h1>
 
       {/* ຂໍ້ມູນລູກຄ້າ */}
       <p className="mb-1 font-bold underline">{t.customerInfo} / Customer Information</p>

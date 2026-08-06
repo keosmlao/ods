@@ -1,6 +1,6 @@
 "use client";
 import { advanceClaim, deleteClaimItem, resolveClaim, sendClaimEmail, setClaimPaid, updateClaimRemark } from "@/app/actions/claim";
-import { claimCanTransition, type ClaimItem, type ClaimType, type CobInfo, type JobDelivery } from "@/lib/claim-shared";
+import { claimCanTransition, type ClaimItem, type ClaimType, type AobInfo, type JobDelivery } from "@/lib/claim-shared";
 import { useDict } from "@/lib/i18n/context";
 import { ArrowRight, BadgeCheck, CircleCheck, FileText, ListChecks, LoaderCircle, Mail, Package, Trash2, Truck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -15,7 +15,7 @@ export function ClaimManage({
   initialItems,
   remark,
   erpDocNo,
-  cob,
+  aob,
   emailSentAt,
   delivery,
   payMethod,
@@ -31,7 +31,7 @@ export function ClaimManage({
   initialItems: ClaimItem[];
   remark: string | null;
   erpDocNo: string | null;
-  cob: CobInfo | null;
+  aob: AobInfo | null;
   emailSentAt: string | null;
   delivery: JobDelivery | null;
   payMethod: string | null;
@@ -56,11 +56,16 @@ export function ClaimManage({
   const [err, setErr] = useState("");
   const payNext = type === "C" && nextStatus?.status === "paid";
 
-  const act = (fn: () => Promise<{ error?: string }>) =>
+  /**
+   * ⚠️ `warn` ≠ `error`: warn = **ສຳເລັດແລ້ວ ແຕ່ມີເລື່ອງໃຫ້ຮູ້** ⇒ ຕ້ອງ refresh ນຳ
+   * (ບໍ່ດັ່ງນັ້ນຄົນເຫັນຂໍ້ຄວາມເຕືອນ ພ້ອມລາຍການເກົ່າ ແລ້ວເຂົ້າໃຈວ່າບໍ່ສຳເລັດ).
+   */
+  const act = (fn: () => Promise<{ error?: string; warn?: string }>) =>
     start(async () => {
       setErr("");
       const r = await fn();
       if (r.error) { setErr(r.error); return; }
+      if (r.warn) setErr(r.warn);
       router.refresh();
     });
 
@@ -159,22 +164,22 @@ export function ClaimManage({
       )}
 
       {/**
-        * ── COB (ເອກະສານບັນຊີ ERP · trans_flag 87 — ສະເພາະ CLM-C) ──
-        * ⚠️ **ບໍ່ມີຊ່ອງພິມເລກ/ປຸ່ມ "ຜູກ COB" ອີກ** (ຖອດ 05-08-2026): ລະບົບ**ສ້າງ COB ໃຫ້ເອງ**
-        * ຕອນອອກໃບເຄມ ແລະ ໃຊ້ **ລະຫັດໃບເຄມເປັນເລກເອກະສານ** (ເບິ່ງ lib/erp-cob) ⇒ ບໍ່ມີ
+        * ── ໃບຕັ້ງໜີ້ຕ້ອງຮັບ AOB (ເອກະສານບັນຊີ ERP · trans_flag 99 — ສະເພາະ CLM-C) ──
+        * ⚠️ **ບໍ່ມີຊ່ອງພິມເລກ/ປຸ່ມ "ຜູກ COB" ອີກ** (ຖອດ 05-08-2026): ລະບົບ**ຕັ້ງໜີ້ AOB ໃຫ້ເອງ**
+        * ຕອນອອກໃບເຄມ ແລະ ໃຊ້ **ລະຫັດໃບເຄມເປັນເລກເອກະສານ** (ເບິ່ງ lib/erp-aob) ⇒ ບໍ່ມີ
         * ຫຍັງໃຫ້ຄົນພິມອີກ. ຢູ່ນີ້ເຫຼືອແຕ່ **ສະແດງຜົນ** ວ່າ ERP ຮັບແລ້ວບໍ.
         */}
       {type === "C" && (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-brand-50 text-brand-700"><FileText className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">1. {t.cobTitle}</p><p className="text-[11px] text-slate-400">{t.cobSub}</p></div></div>
-          {cob ? (
+          <div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-brand-50 text-brand-700"><FileText className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">1. {t.aobTitle}</p><p className="text-[11px] text-slate-400">{t.aobSub}</p></div></div>
+          {aob ? (
             <div className="rounded-lg border border-brand-200 bg-brand-50 p-2.5 text-[12px] text-brand-800">
-              <b>{cob.doc_no}</b> · {t.cobAmount} <b className="tabular-nums">{cob.total_amount.toLocaleString()}</b> · supplier {cob.supplier_code ?? "-"} · {cob.doc_date ?? "-"} · status {cob.status === 0 ? t.cobNotProcessed : cob.status}
+              <b>{aob.doc_no}</b> · {t.aobAmount} <b className="tabular-nums">{aob.total_amount.toLocaleString()}</b> · supplier {aob.supplier_code ?? "-"} · {aob.doc_date ?? "-"} · status {aob.status === 0 ? t.aobNotProcessed : aob.status}
             </div>
           ) : erpDocNo ? (
-            <p className="text-[11px] text-brand-900">{fill(t.cobUnreadable, { doc: erpDocNo ?? "" })}</p>
+            <p className="text-[11px] text-brand-900">{fill(t.aobUnreadable, { doc: erpDocNo ?? "" })}</p>
           ) : (
-            <p className="text-[11px] text-slate-400">{t.cobNone}</p>
+            <p className="text-[11px] text-slate-400">{t.aobNone}</p>
           )}
         </div>
       )}
@@ -208,7 +213,7 @@ export function ClaimManage({
 
       {/* ── ລາຍการ ── */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-slate-100 text-slate-600"><Package className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">{t.partsItems}</p><p className="text-[11px] text-slate-400">{items.length} ລາຍການໃນໃບເຄມ</p></div></div>
+        <div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-slate-100 text-slate-600"><Package className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">{t.partsItems}</p><p className="text-[11px] text-slate-400">{items.length} {t.itemsTitle}</p></div></div>
         {items.length > 0 && (
           <div className="mb-3 overflow-x-auto">
             <table className="w-full min-w-[520px] border-collapse text-[12px]">

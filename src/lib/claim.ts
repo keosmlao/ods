@@ -11,11 +11,11 @@ import {
   type ClaimRow,
   claimStatusLabel,
   type ClaimType,
-  type CobInfo,
+  type AobInfo,
   type JobDelivery,
 } from "@/lib/claim-shared";
 import { query, queryOdg } from "@/lib/db";
-import { createCobForClaim } from "@/lib/erp-cob";
+import { createAobForClaim } from "@/lib/erp-aob";
 
 // ⚠️ ຄ່າຄົງ + types + pure fn ຢູ່ claim-shared (client import ໄດ້). ບ່ອນນີ້ = query functions (server).
 export * from "@/lib/claim-shared";
@@ -186,7 +186,7 @@ export async function claimLogs(claimNo: string): Promise<ClaimLog[]> {
  * ອ່ານເອກະສານ COB (ic_trans trans_flag=87) ຈາກ ERP — **read-only** (ໃຫ້ CLM-C ຜູກ doc_no
  * ຂອງໃບ COB ທີ່ບັນຊີສ້າງໄວ້ແລ້ວ, ບໍ່ສ້າງ/ບໍ່ແກ້ ໃນ ERP). status 0 = ຍັງ, 1+ = ດຳເນີນການ.
  */
-export async function cobInfo(docNo: string): Promise<CobInfo | null> {
+export async function aobInfo(docNo: string): Promise<AobInfo | null> {
   const r = (
     await queryOdg<{ doc_no: string; doc_date: string | null; cust_code: string | null; total_amount: string | null; status: number }>(
       // ໃບຕັ້ງໜີ້ຕ້ອງຮັບ (AOB 99) ຂອງລະບົບ — ຮັບໃບ COB (87) ເກົ່າທີ່ບັນຊີເຄີຍຜູກໄວ້ນຳ
@@ -386,7 +386,7 @@ export async function openReimburseClaim(input: {
       [claimNo],
     );
     // ອອກໃບເຄມ = ອອກ COB ໃຫ້ເລີຍ (ຕັດສິນໃຈ 05-08-2026)
-    await ensureClaimCob(claimNo, input.createdBy);
+    await ensureClaimAob(claimNo, input.createdBy);
     return claimNo;
   } catch (error) {
     console.error("openReimburseClaim failed", input.jobCode, error);
@@ -399,14 +399,14 @@ export async function openReimburseClaim(input: {
  *
  * ເອີ້ນຕອນ**ໃບເຄມມີຍອດແລ້ວ** (ສ້າງພ້ອມລາຍການ · ດຶງລາຍການຈາກງານ) — ບໍ່ແມ່ນຕອນເປົ່າ
  * ເພາະ COB ຍອດ 0 ບໍ່ມີຄວາມໝາຍທາງບັນຊີ. idempotent: ມີ erp_doc_no ແລ້ວ ⇒ ບໍ່ເຮັດຫຍັງ.
- * ບໍ່ໂຍນ error — ໃບເຄມສຳຄັນກວ່າເອກະສານບັນຊີ (ເບິ່ງ lib/erp-cob).
+ * ບໍ່ໂຍນ error — ໃບເຄມສຳຄັນກວ່າເອກະສານບັນຊີ (ເບິ່ງ lib/erp-aob).
  */
-export async function ensureClaimCob(claimNo: string, by: string): Promise<string | null> {
+export async function ensureClaimAob(claimNo: string, by: string): Promise<string | null> {
   try {
     const claim = await claimByNo(claimNo);
     if (!claim || claim.claim_type !== "C" || claim.erp_doc_no || !claim.supplier_code) return null;
     if (!(claim.amount > 0)) return null;
-    const docNo = await createCobForClaim({
+    const docNo = await createAobForClaim({
       claimNo: claim.claim_no,
       supplierCode: claim.supplier_code,
       jobCode: claim.ref_job,
@@ -417,7 +417,7 @@ export async function ensureClaimCob(claimNo: string, by: string): Promise<strin
     await query(`update ods_claim set erp_doc_no=$2 where claim_no=$1 and erp_doc_no is null`, [claimNo, docNo]);
     return docNo;
   } catch (error) {
-    console.error("ensureClaimCob failed", claimNo, error);
+    console.error("ensureClaimAob failed", claimNo, error);
     return null;
   }
 }

@@ -2408,6 +2408,8 @@ class SpareWithdrawRound {
   final String? status; // waiting | partial | purchasing | issued | null
   final int onOrder;
   final int arrived;
+  /// ໃບຂໍຄືນຂອງຮອບນີ້ (ລວມທຸກໃບເບີກ) — ຫວ່າງ = ບໍ່ເຄີຍຂໍຄືນ
+  final List<SpareReturnDoc> returns;
 
   const SpareWithdrawRound({
     required this.round,
@@ -2420,7 +2422,14 @@ class SpareWithdrawRound {
     required this.status,
     required this.onOrder,
     required this.arrived,
+    this.returns = const [],
   });
+
+  /// ຂໍຄືນໄປແລ້ວບໍ — ຖ້າແລ້ວ **ບໍ່ໃຫ້ຂໍຄືນຊ້ຳ** (ກົດດຽວກັບເວັບ)
+  bool get hasReturn => returns.isNotEmpty;
+
+  /// ຍັງລໍສາງຮັບຄືນຢູ່ຈັກໃບ
+  int get returnsWaiting => returns.where((r) => r.waitingWarehouse).length;
 
   factory SpareWithdrawRound.fromJson(Map<String, dynamic> json) =>
       SpareWithdrawRound(
@@ -2434,7 +2443,39 @@ class SpareWithdrawRound {
         status: json['status'] as String?,
         onOrder: (json['on_order'] as num?)?.toInt() ?? 0,
         arrived: (json['arrived'] as num?)?.toInt() ?? 0,
+        // ໃບຂໍຄືນຢູ່ໃນ dispatches[].returns (ຝັ່ງ server ແຍກເປັນລາຍໃບເບີກ) ⇒ ລວມເປັນລາຍການດຽວ
+        returns: ((json['dispatches'] as List?) ?? const [])
+            .expand((d) => ((d as Map)['returns'] as List?) ?? const [])
+            .map((r) => SpareReturnDoc.fromJson(r as Map<String, dynamic>))
+            .toList(),
       );
+}
+
+/// **ໃບຂໍຄືນອາໄຫຼ່ (SRI)** ຂອງໃບເບີກ — ພ້ອມໃບຮັບຄືນຂອງສາງ (SRT).
+///
+/// ຮັບຄືນຫວ່າງ = **ຂໍຄືນໄປແລ້ວ ແຕ່ສາງຍັງບໍ່ຮັບເຂົ້າ** ⇒ ຂອງຍັງຄາຢູ່ມືຊ່າງ ແລະ
+/// ສະຕັອກຍັງບໍ່ຄືນ (ຝັ່ງເວັບສະແດງເປັນປ້າຍ "ລໍສາງຮັບຄືນ" — ແອັບຕ້ອງບອກຄືກັນ).
+class SpareReturnDoc {
+  final String docNo;
+  final String? docDate;
+  final String? receiveNo;
+  final String? receiveDate;
+
+  const SpareReturnDoc({
+    required this.docNo,
+    required this.docDate,
+    required this.receiveNo,
+    required this.receiveDate,
+  });
+
+  bool get waitingWarehouse => receiveNo == null || receiveNo!.isEmpty;
+
+  factory SpareReturnDoc.fromJson(Map<String, dynamic> json) => SpareReturnDoc(
+    docNo: json['doc_no'] as String? ?? '',
+    docDate: json['doc_date'] as String?,
+    receiveNo: json['receive_no'] as String?,
+    receiveDate: json['receive_date'] as String?,
+  );
 }
 
 /// ໃບຂໍຊື້ 1 ຮອບ (RQ)

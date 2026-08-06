@@ -4,8 +4,10 @@ import { ClaimManage } from "@/components/claim/claim-manage";
 import { getErpBrands } from "@/lib/erp-master";
 import { searchSuppliers } from "@/lib/erp-supplier";
 import { getSession } from "@/lib/auth";
-import { CLAIM_FLOW, CLAIM_REJECTED, CLAIM_SCOPE_LABEL, CLAIM_TYPE_LABEL, claimByNo, claimItems, claimNextStatus, claimPagePath, claimPhotos, cobInfo, FULFILLMENT_LABEL, isClaimEditable, isClaimOpen, jobDelivery, PAY_METHOD_LABEL, RESOLUTION_LABEL, WARRANTY_LABEL } from "@/lib/claim";
+import { CLAIM_FLOW, CLAIM_REJECTED, claimByNo, claimFulfillText, claimScopeText, claimStatusText, claimTypeText, claimItems, claimNextStatus, claimPagePath, claimPhotos, aobInfo, isClaimEditable, isClaimOpen, jobDelivery, PAY_METHOD_LABEL } from "@/lib/claim";
 import { CLAIM_SIDE, roleOf } from "@/lib/roles";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { CalendarDays, ChevronLeft, CircleCheck, Package, Store, UserRound } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -19,6 +21,10 @@ export default async function ClaimDetailPage({ params }: Props) {
   if (!session) redirect("/login");
   if (!CLAIM_SIDE.includes(roleOf(session))) redirect("/forbidden");
 
+  const dict = await getDictionary(await getLocale());
+  const t = dict.claimDetail;
+  /** ປ້າຍ ປະເພດ/ສະຖານະ/ຂອບເຂດ ຮ່ວມກັບລາຍການເຄມ (ເບິ່ງ claim-shared) */
+  const CL = dict.claimLabels;
   const { claimNo } = await params;
   const claim = await claimByNo(claimNo);
   if (!claim) notFound();
@@ -26,7 +32,7 @@ export default async function ClaimDetailPage({ params }: Props) {
   const photos = await claimPhotos(claimNo);
   // (ຖອດຕົວຊ່ວຍ "ແຕກໃບ A/C" ອອກແລ້ວ 05-08-2026 — ບໍ່ມີປຸ່ມນັ້ນຢູ່ໜ້ານີ້ອີກ)
   const next = claimNextStatus(claim.claim_type, claim.status);
-  const cob = claim.claim_type === "C" && claim.erp_doc_no ? await cobInfo(claim.erp_doc_no).catch(() => null) : null;
+  const aob = claim.claim_type === "C" && claim.erp_doc_no ? await aobInfo(claim.erp_doc_no).catch(() => null) : null;
   const delivery = claim.claim_type === "C" && claim.ref_job ? await jobDelivery(claim.ref_job).catch(() => null) : null;
   // ຕົວເລືອກ ສຳລັບ ແກ້ໄຂ (supplier/brand) — ໂຫຼດເມື່ອໃບຍັງເປີດ (ປິດແລ້ວ ບໍ່ໃຫ້ແກ້)
   const [supList, brandList] = isClaimOpen(claim.status)
@@ -46,7 +52,7 @@ export default async function ClaimDetailPage({ params }: Props) {
   return (
     <div className="mx-auto w-full max-w-[1500px] space-y-5 pb-10">
       <Link href={claimPagePath(claim.claim_type)} className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-700">
-        <ChevronLeft className="size-4" /> ກັບລາຍการเคลม
+        <ChevronLeft className="size-4" /> {t.back}
       </Link>
 
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,71,125,0.07)]">
@@ -54,7 +60,7 @@ export default async function ClaimDetailPage({ params }: Props) {
           <div className="min-w-0">
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-brand-50 px-2.5 py-1 font-mono text-[11px] font-bold tracking-wide text-brand-800">CLM-{claim.claim_type}</span>
-              <span className="text-sm font-medium text-slate-500">{CLAIM_TYPE_LABEL[claim.claim_type]}</span>
+              <span className="text-sm font-medium text-slate-500">{claimTypeText(CL, claim.claim_type)}</span>
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">{claim.claim_no}</h1>
             <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500">
@@ -74,7 +80,7 @@ export default async function ClaimDetailPage({ params }: Props) {
                     <span className={`grid size-8 place-items-center rounded-full border-2 text-xs font-bold ${active ? "border-brand-700 bg-brand-700 text-white shadow-[0_0_0_4px_rgba(44,111,182,0.12)]" : done ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 bg-white text-slate-400"}`}>
                       {done ? <CircleCheck className="size-4" /> : i + 1}
                     </span>
-                    <span className={`mt-2 whitespace-nowrap text-[11px] font-semibold ${active ? "text-brand-800" : done ? "text-slate-600" : "text-slate-400"}`}>{s.label}</span>
+                    <span className={`mt-2 whitespace-nowrap text-[11px] font-semibold ${active ? "text-brand-800" : done ? "text-slate-600" : "text-slate-400"}`}>{claimStatusText(CL, claim.claim_type, s.status)}</span>
                   </div>
                   {i < CLAIM_FLOW[claim.claim_type].length - 1 && <span className={`mt-4 h-0.5 min-w-6 flex-1 ${done ? "bg-brand-500" : "bg-slate-200"}`} />}
                 </div>
@@ -82,7 +88,7 @@ export default async function ClaimDetailPage({ params }: Props) {
             })}
           </div>
         </div>
-        {claim.status === CLAIM_REJECTED.status && <div className="border-t border-brand-orange-100 bg-brand-orange-50 px-7 py-2.5 text-sm font-semibold text-brand-orange-700">{CLAIM_REJECTED.label}</div>}
+        {claim.status === CLAIM_REJECTED.status && <div className="border-t border-brand-orange-100 bg-brand-orange-50 px-7 py-2.5 text-sm font-semibold text-brand-orange-700">{CL.rejected}</div>}
       </section>
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(330px,0.82fr)_minmax(560px,1.38fr)]">
@@ -90,41 +96,41 @@ export default async function ClaimDetailPage({ params }: Props) {
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-4">
               <span className="grid size-9 place-items-center rounded-xl bg-brand-50 text-brand-700"><Package className="size-4.5" /></span>
-              <div><h2 className="text-sm font-bold text-slate-800">ຂໍ້ມູນໃບເຄມ</h2><p className="text-[11px] text-slate-400">ລາຍລະອຽດອ້າງອີງ ແລະ ສິນຄ້າ</p></div>
+              <div><h2 className="text-sm font-bold text-slate-800">{t.infoTitle}</h2><p className="text-[11px] text-slate-400">{t.infoSub}</p></div>
             </div>
             <div className="px-5 py-1">
             {info("Supplier", claim.supplier_code)}
-            {info("ຮ້ານ/ລູກຄ້າ", claim.customer_name || claim.customer_code)}
-            {info("ຫຍີ່ຫໍ້", claim.brand_code)}
-            {info("ຜູ້ຕິດຕໍ່", claim.contact)}
-            {info("ເລກບິນຂາຍ", claim.bill_no)}
-            {info("ເລກສ້ອມ", claim.ref_job)}
+            {info(t.shop, claim.customer_name || claim.customer_code)}
+            {info(t.brand, claim.brand_code)}
+            {info(t.contact, claim.contact)}
+            {info(t.billNo, claim.bill_no)}
+            {info(t.refJob, claim.ref_job)}
             {/* ຂໍ້ມູນສິນຄ້າ: ຈາກໃບເຄມເອງ (B) ຫຼື ດຶງຈາກงานสอม (C=delivery) */}
-            {info("ສິນຄ້າ", claim.product ?? delivery?.product ?? null)}
+            {info(t.product, claim.product ?? delivery?.product ?? null)}
             {info("Model", claim.model ?? delivery?.model ?? null)}
             {info("SN", claim.sn ?? delivery?.sn ?? null)}
-            {claim.warranty && info("ຮັບປະກັນ", WARRANTY_LABEL[claim.warranty] ?? claim.warranty)}
-            {claim.resolution && info("ຜົນຕັດສິນ", RESOLUTION_LABEL[claim.resolution] ?? claim.resolution)}
-            {claim.claim_scope && info("ຂອບເຂດເຄມ", CLAIM_SCOPE_LABEL[claim.claim_scope] ?? claim.claim_scope)}
-            {claim.fulfillment_source && info("ວິທີດຳເນີນການ", FULFILLMENT_LABEL[claim.fulfillment_source] ?? claim.fulfillment_source)}
-            {info("ວັນຊື້", claim.purchase_date)}
-            {delivery && info("ອາການສ້ອມ", delivery.fault)}
-            {/* ຍອດເຄມເປັນ **ບາດ** — ຕົງກັບ COB ທີ່ອອກໃຫ້ ERP (lib/erp-cob: amountThb) */}
-            {info("ຄ່າແຮງງານ", claim.amount ? `${claim.amount.toLocaleString()} ບາດ` : null, true)}
-            {claim.pay_method && info("ວິທີຊຳລະ", PAY_METHOD_LABEL[claim.pay_method] ?? claim.pay_method)}
-            {info("ເປີດໂດຍ", claim.created_by)}
+            {claim.warranty && info(t.warranty, claim.warranty === "in" ? CL.warrantyIn : CL.warrantyOut)}
+            {claim.resolution && info(t.resolution, claim.resolution === "repair" ? CL.resolutionRepair : CL.resolutionReplace)}
+            {claim.claim_scope && info(t.scope, claimScopeText(CL, claim.claim_scope))}
+            {claim.fulfillment_source && info(t.fulfillment, claimFulfillText(CL, claim.fulfillment_source))}
+            {info(t.purchaseDate, claim.purchase_date)}
+            {delivery && info(t.jobFault, delivery.fault)}
+            {/* ຍອດເຄມເປັນ **ບາດ** — ຕົງກັບໃບຕັ້ງໜີ້ AOB ທີ່ອອກໃຫ້ ERP (lib/erp-aob: amountThb) */}
+            {info(t.amount, claim.amount ? `${claim.amount.toLocaleString()} ບາດ` : null, true)}
+            {claim.pay_method && info(t.payMethod, PAY_METHOD_LABEL[claim.pay_method] ?? claim.pay_method)}
+            {info(t.createdBy, claim.created_by)}
             </div>
           </section>
 
           {/* ── ຮູບຫຼັກฐาน ── */}
           {photos.length > 0 && (
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="mb-2 text-xs font-bold text-slate-600">ຮູບຫຼັກຖານ ({photos.length})</p>
+              <p className="mb-2 text-xs font-bold text-slate-600">{t.photos} ({photos.length})</p>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {photos.map((p) => (
                   <a key={p.id} href={`/api/uploads/${encodeURIComponent(p.path)}`} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-slate-200">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={`/api/uploads/${encodeURIComponent(p.path)}`} alt="ຫຼັກຖານ" className="aspect-square w-full bg-slate-50 object-cover" />
+                    <img src={`/api/uploads/${encodeURIComponent(p.path)}`} alt={t.photoAlt} className="aspect-square w-full bg-slate-50 object-cover" />
                   </a>
                 ))}
               </div>
@@ -164,7 +170,7 @@ export default async function ClaimDetailPage({ params }: Props) {
           initialItems={items}
           remark={claim.remark}
           erpDocNo={claim.erp_doc_no}
-          cob={cob}
+          aob={aob}
           emailSentAt={claim.email_sent_at}
           delivery={delivery}
           payMethod={claim.pay_method}

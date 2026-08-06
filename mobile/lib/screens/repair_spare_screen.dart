@@ -374,6 +374,35 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
                 ],
               ],
             ),
+            // ── ໃບຂໍຄືນອາໄຫຼ່ (SRI) — ຝັ່ງເວັບສະແດງເປັນງ່າຢູ່ tree, ຢູ່ນີ້ເປັນແຖວຍ່ອຍ ──
+            // ຮັບຄືນຫວ່າງ = ຂໍໄປແລ້ວແຕ່ສາງຍັງບໍ່ຮັບເຂົ້າ ⇒ ຂອງຍັງຄາຢູ່ມືຊ່າງ
+            if (round.hasReturn) ...[
+              const SizedBox(height: 7),
+              for (final ret in round.returns)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.undo_rounded, size: 13, color: faint),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          'ຂໍຄືນ ${ret.docNo}${ret.docDate != null ? " · ${ret.docDate}" : ""}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11, color: muted),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      StageTag(
+                        ret.waitingWarehouse ? 'ລໍສາງຮັບຄືນ' : 'ສາງຮັບຄືນແລ້ວ',
+                        color: ret.waitingWarehouse ? warn : ok,
+                        bg: ret.waitingWarehouse ? const Color(0xFFFBEED5) : const Color(0xFFE1F5EC),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ],
         ),
       ),

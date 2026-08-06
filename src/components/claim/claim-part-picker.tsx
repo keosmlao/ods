@@ -1,6 +1,7 @@
 "use client";
 import { findInventory } from "@/app/actions/claim";
 import { LoaderCircle, Search, X } from "lucide-react";
+import { useDict } from "@/lib/i18n/context";
 import { useEffect, useState } from "react";
 
 /**
@@ -11,7 +12,7 @@ import { useEffect, useState } from "react";
  * ແລ້ວຕື່ມ **ລະຫັດ + ຊື່** ໃຫ້ພ້ອມກັນ.
  *
  * ⚠️ ຍັງເປີດໃຫ້ພິມເອງໄດ້ເມື່ອຫາບໍ່ພົບ (ອາໄຫຼ່ໃໝ່ທີ່ ERP ຍັງບໍ່ມີລະຫັດ) ແຕ່ຕ້ອງກົດເລືອກ
- * “ໃຊ້ຊື່ນີ້ (ບໍ່ມີໃນ ERP)” ຢ່າງຈົງໃຈ ⇒ ບໍ່ແມ່ນທາງລັດທີ່ເຮັດໂດຍບໍ່ຮູ້ຕົວ.
+ * “ໃຊ້ຊື່ນີ້ {t.notInErp}” ຢ່າງຈົງໃຈ ⇒ ບໍ່ແມ່ນທາງລັດທີ່ເຮັດໂດຍບໍ່ຮູ້ຕົວ.
  */
 type Item = { code: string; name: string; unit?: string | null; brand?: string | null };
 
@@ -25,6 +26,7 @@ export function ClaimPartPicker({
   defaultCode?: string;
   defaultName?: string;
 }) {
+  const t = useDict().claimDetail;
   const [code, setCode] = useState(defaultCode);
   const [name, setName] = useState(defaultName);
   const [q, setQ] = useState("");
@@ -67,7 +69,7 @@ export function ClaimPartPicker({
           <span className="min-w-0 truncate">
             <b className="text-slate-800">{name}</b>
             {code && <span className="ml-2 text-xs text-slate-400">{code}</span>}
-            {!code && <span className="ml-2 text-xs text-brand-900">(ບໍ່ມີໃນ ERP)</span>}
+            {!code && <span className="ml-2 text-xs text-brand-900">{t.notInErp}</span>}
           </span>
           <button
             type="button"
@@ -77,7 +79,7 @@ export function ClaimPartPicker({
               setOpen(true);
             }}
             className="shrink-0 text-slate-400 hover:text-brand-orange-700"
-            aria-label="ປ່ຽນອາໄຫຼ່"
+            aria-label="{t.changePart}"
           >
             <X className="size-4" />
           </button>
@@ -94,7 +96,7 @@ export function ClaimPartPicker({
                 if (event.target.value.trim().length < 2) setRows([]);
                 setOpen(true);
               }}
-              placeholder="ຄົ້ນອາໄຫຼ່ຈາກ ERP (ລະຫັດ ຫຼື ຊື່) *"
+              placeholder="{t.searchPartErp}"
               /* ຍັງບໍ່ທັນເລືອກ ⇒ ບັນທຶກບໍ່ໄດ້ (ດ່ານຈິງຢູ່ actions/service ຄືເກົ່າ) */
               required
               className="w-full bg-transparent outline-none"
@@ -125,7 +127,7 @@ export function ClaimPartPicker({
                   onClick={() => pick({ code: "", name: q.trim(), unit: null, brand: null })}
                   className="block w-full rounded px-3 py-2 text-left text-sm text-brand-900 hover:bg-brand-orange-100"
                 >
-                  ບໍ່ພົບໃນ ERP — ໃຊ້ຊື່ “{q.trim()}” (ບໍ່ມີລະຫັດ)
+                  {t.useTypedName.replace("{name}", q.trim())} (ບໍ່ມີລະຫັດ)
                 </button>
               )}
             </div>

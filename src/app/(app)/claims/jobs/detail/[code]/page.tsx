@@ -1,7 +1,6 @@
 import { Chatter } from "@/components/chatter/chatter";
 import { BackLink } from "@/components/back-link";
 import { ClaimResolveCard } from "@/components/claim/claim-resolve-card";
-import { LinkPending } from "@/components/link-pending";
 import { LoanerCard } from "@/components/service/loaner-card";
 import { Card, LinkButton, PageTitle } from "@/components/ui";
 import { getSession } from "@/lib/auth";
@@ -9,7 +8,9 @@ import { claimByNo } from "@/lib/claim";
 import { query } from "@/lib/db";
 import { loanersFor } from "@/lib/loaner";
 import { CLAIM_SIDE, roleOf, SERVICE_SIDE } from "@/lib/roles";
-import { ArrowLeft, ClipboardCheck, PackageCheck, Printer } from "lucide-react";
+import { ClipboardCheck, PackageCheck, Printer } from "lucide-react";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -49,6 +50,7 @@ type Row = {
 };
 
 export default async function ClaimJobDetail({ params }: { params: Promise<{ code: string }> }) {
+  const t = (await getDictionary(await getLocale())).claimJobs;
   const session = await getSession();
   if (!session) redirect("/login");
   if (!CLAIM_SIDE.includes(roleOf(session))) redirect("/forbidden");
@@ -90,36 +92,36 @@ export default async function ClaimJobDetail({ params }: { params: Promise<{ cod
 
   return (
     <div className="w-full space-y-5">
-      <BackLink fallback="/claims/jobs" label="ຄິວງານເຄມ" />
+      <BackLink fallback="/claims/jobs" label={t.queueTitle} />
 
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <PageTitle sub={`ໃບງານເຄມ #${row.code} · ຮັບເມື່ອ ${row.registered ?? "-"}`}>
-          🛡️ {row.product || "ງານເຄມ"}
+        <PageTitle sub={`${t.detailTitle.replace("{code}", row.code)} · ${t.receivedAt} ${row.registered ?? "-"}`}>
+          🛡️ {row.product || t.claimJob}
         </PageTitle>
         <div className="flex gap-2">
           {!row.checked && (
             <LinkButton tone="success" href={`/claims/jobs/check/${encodeURIComponent(row.code)}`}>
               <ClipboardCheck className="size-4" />
-              ບັນທຶກຜົນກວດ
+              {t.saveCheck}
             </LinkButton>
           )}
           {row.checked && !row.returned && (
             <LinkButton tone="success" href={`/claims/jobs/return/${encodeURIComponent(row.code)}`}>
               <PackageCheck className="size-4" />
-              ສົ່ງຄືນຮ້ານ
+              {t.returnToShop}
             </LinkButton>
           )}
           <LinkButton tone="neutral" href={`/service/${encodeURIComponent(row.code)}/print`}>
             <Printer className="size-4" />
-            ພິມໃບຮັບເຄື່ອງ
+            {t.printIntake}
           </LinkButton>
         </div>
       </div>
 
-      <Card title="ຂອບເຂດເຄມ">
+      <Card title={t.colScope}>
         <div className="flex flex-wrap items-center gap-3">
           <span className={`rounded-full px-3 py-1 text-xs font-bold ${row.claim_scope === "part" ? "bg-brand-orange-100 text-brand-orange-700" : "bg-slate-100 text-slate-700"}`}>
-            {row.claim_scope === "part" ? "ເຄມສະເພາະອາໄຫຼ່" : "ເຄມທັງເຄື່ອງ"}
+            {row.claim_scope === "part" ? "{t.scopePart}" : "{t.scopeWhole}"}
           </span>
           {row.claim_scope === "part" && (
             <span className="text-sm text-slate-700">
@@ -131,7 +133,7 @@ export default async function ClaimJobDetail({ params }: { params: Promise<{ cod
           )}
           {row.claim_no && (
             <Link href={`/claims/${row.claim_no}`} className="ml-auto text-sm font-semibold text-brand-800 hover:underline">
-              ໃບເຄມ {row.claim_no} {claim ? `· ${claim.status}` : ""}
+              {t.claimDoc} {row.claim_no} {claim ? `· ${claim.status}` : ""}
             </Link>
           )}
         </div>
@@ -140,20 +142,20 @@ export default async function ClaimJobDetail({ params }: { params: Promise<{ cod
       {/* ຕັດສິນ ປ່ຽນ/ສ້ອມ — ຂັ້ນຫຼັກຂອງເຄມ (ເຮັດຢູ່ນີ້ ບໍ່ຕ້ອງໄປໜ້າໃບເຄມ) */}
       {claim && <ClaimResolveCard claim={claim} canEdit={canEdit} />}
 
-      <Card title="ຂໍ້ມູນໃບງານ">
+      <Card title={t.jobInfo}>
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {field("ຮ້ານ / ລູກຄ້າ", row.customer)}
-          {field("ເບີໂທ", row.tel)}
-          {field("ທີ່ຢູ່", row.address)}
-          {field("ຜູ້ຮັບເຄື່ອງ", row.receiver)}
-          {field("ສິນຄ້າ", row.product)}
-          {field("ຍີ່ຫໍ້ / Model", [row.brand, row.model].filter(Boolean).join(" / "))}
+          {field(t.colShop, row.customer)}
+          {field(t.tel, row.tel)}
+          {field(t.address, row.address)}
+          {field(t.receiver, row.receiver)}
+          {field(t.product, row.product)}
+          {field(t.brandModel, [row.brand, row.model].filter(Boolean).join(" / "))}
           {field("S/N", row.sn)}
-          {field("ການຮັບປະກັນ", row.warranty)}
-          {field("ອາການທີ່ຮ້ານແຈ້ງ", row.issue)}
-          {field("ຜົນກວດຂອງຊ່າງ", row.diagnosis)}
-          {field("ຊ່າງ", row.technician)}
-          {field("ກວດແລ້ວເມື່ອ", row.checked)}
+          {field(t.warranty, row.warranty)}
+          {field(t.shopFault, row.issue)}
+          {field(t.techResult, row.diagnosis)}
+          {field(t.tech, row.technician)}
+          {field(t.checkedAt, row.checked)}
         </dl>
       </Card>
 

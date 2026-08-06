@@ -57,8 +57,22 @@ export function JobButton({
   );
 }
 
-/** ຍົກເລີກງານ — ຕ້ອງໃສ່ໝາຍເຫດ (ຄືກັບ modal ໃນ Homeinstall.html) */
-export function CancelJobButton({ code, onDone }: { code: string; onDone?: () => void }) {
+/**
+ * ຍົກເລີກງານ — ຕ້ອງໃສ່ໝາຍເຫດ (ຄືກັບ modal ໃນ Homeinstall.html).
+ *
+ * `label` ⇒ ປຸ່ມ**ມີຄຳ** ("ຍົກເລີກຕິດຕັ້ງ") ສຳລັບ**ໜ້າໃບງານ** ບ່ອນທີ່ຢືນຄຽງກັບ
+ * ແກ້ໄຂ/ພິມ — ໄອຄອນລ້ວນຢູ່ບ່ອນນັ້ນອ່ານບໍ່ອອກວ່າແມ່ນຫຍັງ (06-08-2026).
+ * ບໍ່ໃສ່ ⇒ ໄອຄອນລ້ວນຄືເກົ່າ ສຳລັບ**ແຖວຕາຕະລາງ**ຂອງຄິວ (ບ່ອນແຄບ).
+ */
+export function CancelJobButton({
+  code,
+  onDone,
+  label,
+}: {
+  code: string;
+  onDone?: () => void;
+  label?: string;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [remark, setRemark] = useState("");
@@ -69,8 +83,12 @@ export function CancelJobButton({ code, onDone }: { code: string; onDone?: () =>
     <>
       <button
         type="button"
-        title="ຍົກເລີກ"
-        className="text-[#9f5f14] hover:opacity-70"
+        title={label ?? "ຍົກເລີກ"}
+        className={
+          label
+            ? "inline-flex h-9 items-center gap-1.5 rounded-lg border border-brand-orange-400 bg-white px-3 text-xs font-semibold text-brand-orange-700 hover:bg-brand-orange-50"
+            : "text-[#9f5f14] hover:opacity-70"
+        }
         onClick={() => {
           setRemark("");
           setError("");
@@ -78,6 +96,7 @@ export function CancelJobButton({ code, onDone }: { code: string; onDone?: () =>
         }}
       >
         <Ban className="size-4" />
+        {label}
       </button>
 
       {open && (

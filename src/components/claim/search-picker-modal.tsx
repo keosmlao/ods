@@ -1,4 +1,5 @@
 "use client";
+import { useDict } from "@/lib/i18n/context";
 import { LoaderCircle, Search, X } from "lucide-react";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 
@@ -27,6 +28,7 @@ export function SearchPickerModal<T>({
   renderItem: (item: T) => ReactNode;
   keyOf: (item: T) => string;
 }) {
+  const t = useDict().claimDetail;
   const [q, setQ] = useState("");
   const [items, setItems] = useState<T[]>([]);
   const [pending, start] = useTransition();
@@ -35,7 +37,7 @@ export function SearchPickerModal<T>({
   useEffect(() => {
     if (!open) return;
     const term = q.trim();
-    if (!term) return; // ວ່າງ ⇒ ບໍ່ຄົ້ນ (render ໂຊ້ "ພິມເພື່ອຄົ້ນ" ຢູ່ແລ້ວ — ບໍ່ຕ້ອງ setState ກາງ effect)
+    if (!term) return; // ວ່າງ ⇒ ບໍ່ຄົ້ນ (render ໂຊ້ຄຳ "ພິມເພື່ອຄົ້ນ" ຢູ່ແລ້ວ — ບໍ່ຕ້ອງ setState ກາງ effect)
     const t = setTimeout(() => start(async () => { setItems(await search(term)); setLoaded(true); }), 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -64,9 +66,9 @@ export function SearchPickerModal<T>({
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {!q.trim() ? (
-            <p className="py-12 text-center text-sm text-slate-400">ພິມເພື່ອຄົ້ນ</p>
+            <p className="py-12 text-center text-sm text-slate-400">{t.typeToSearch}</p>
           ) : loaded && items.length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-400">ບໍ່ພົບ</p>
+            <p className="py-12 text-center text-sm text-slate-400">{t.notFound}</p>
           ) : (
             <ul className="divide-y divide-slate-100">
               {items.map((it) => (

@@ -1,6 +1,7 @@
 "use client";
 import { advanceClaim, resolveClaim } from "@/app/actions/claim";
-import { claimNextStatus, claimStatusLabel, type ClaimRow } from "@/lib/claim-shared";
+import { claimFulfillText, claimNextStatus, claimStatusText, type ClaimRow } from "@/lib/claim-shared";
+import { useDict } from "@/lib/i18n/context";
 import { ArrowRight, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -13,6 +14,10 @@ import { useState, useTransition } from "react";
  * ດ່ານຈິງຢູ່ actions/claim (ກວດ status + ສິດ) — ບ່ອນນີ້ພຽງແຕ່ຢູ່ໃນ UI ຂອງເຄມ.
  */
 export function ClaimResolveCard({ claim, canEdit }: { claim: ClaimRow; canEdit: boolean }) {
+  const dict = useDict();
+  const t = dict.claimDetail;
+  /** ປ້າຍສະຖານະ/ວິທີດຳເນີນການ — ຊຸດດຽວກັບລາຍການ ແລະ ໜ້າໃບເຄມ (claim-shared) */
+  const CL = dict.claimLabels;
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState("");
@@ -35,14 +40,14 @@ export function ClaimResolveCard({ claim, canEdit }: { claim: ClaimRow; canEdit:
     <section className="rounded-xl border border-brand-orange-200 bg-brand-orange-50/40 p-4 shadow-sm">
       <div className="flex flex-wrap items-center gap-3">
         <p className="text-sm font-bold text-slate-700">
-          ໃບເຄມ {claim.claim_no} · ຂັ້ນ{" "}
+          {t.claimDoc} {claim.claim_no} ·{" "}
           <span className="rounded-full bg-brand-orange-600 px-2 py-0.5 text-xs text-white">
-            {claimStatusLabel(claim.claim_type, claim.status)}
+            {claimStatusText(CL, claim.claim_type, claim.status)}
           </span>
         </p>
         {claim.resolution && (
           <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-brand-orange-700 ring-1 ring-brand-orange-200">
-            ຕັດສິນແລ້ວ: {claim.resolution === "repair" ? "ສ້ອມ" : `ປ່ຽນ · ${claim.fulfillment_source ?? ""}`}
+            {t.decided} {claim.resolution === "repair" ? t.repair : t.replaceWith.replace("{source}", claim.fulfillment_source ? claimFulfillText(CL, claim.fulfillment_source) : "")}
           </span>
         )}
       </div>
@@ -52,18 +57,18 @@ export function ClaimResolveCard({ claim, canEdit }: { claim: ClaimRow; canEdit:
           {/* ຂັ້ນ "ກວດ/ຕັດສິນ" ⇒ 4 ທາງ (ນິຍາມດຽວກັບ actions/claim.resolveClaim) */}
           {claim.claim_type === "B" && claim.status === "checking" ? (
             <>
-              <span className="text-xs font-semibold text-slate-500">ຕັດສິນ:</span>
+              <span className="text-xs font-semibold text-slate-500">{t.decide}</span>
               <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claim.claim_no, "repair"))} className={`${button} bg-brand-700 hover:bg-brand-800`}>
                 {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ສ້ອມໃຫ້
               </button>
               <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claim.claim_no, "replace", "stock"))} className={`${button} bg-brand-700 hover:bg-brand-700`}>
-                <ArrowRight className="size-4" /> ປ່ຽນຈາກ stock
+                <ArrowRight className="size-4" /> {t.fromStock}
               </button>
               <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claim.claim_no, "replace", "purchase"))} className={`${button} bg-brand-orange-500 hover:bg-brand-orange-700`}>
-                <ArrowRight className="size-4" /> ສັ່ງຊື້ມາປ່ຽນ
+                <ArrowRight className="size-4" /> {t.buyNew}
               </button>
               <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claim.claim_no, "replace", "supplier"))} className={`${button} bg-brand-orange-600 hover:bg-brand-orange-700`}>
-                <ArrowRight className="size-4" /> ເຄມ supplier
+                <ArrowRight className="size-4" /> {t.claimSupplier}
               </button>
             </>
           ) : next ? (
@@ -72,7 +77,7 @@ export function ClaimResolveCard({ claim, canEdit }: { claim: ClaimRow; canEdit:
               ໄປຂັ້ນ “{next.label}”
             </button>
           ) : (
-            <span className="text-xs text-slate-500">ໃບເຄມນີ້ຈົບແລ້ວ</span>
+            <span className="text-xs text-slate-500">{t.claimDone}</span>
           )}
         </div>
       )}

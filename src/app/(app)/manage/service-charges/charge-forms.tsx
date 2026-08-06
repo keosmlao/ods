@@ -1,17 +1,15 @@
 "use client";
-import { deleteServiceCharge, saveCobConfig, saveServiceCharge } from "@/app/actions/service-charge";
+import { deleteServiceCharge, saveAobConfig, saveServiceCharge } from "@/app/actions/service-charge";
 import { type Option, optionsForCategory } from "@/app/actions/service-rate";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Button, ErrorBox, inputClass } from "@/components/ui";
+import { useDict } from "@/lib/i18n/context";
 import { LoaderCircle, Plus, Trash2 } from "lucide-react";
 import { useActionState, useState, useTransition } from "react";
 
 /** ປະເພດບໍລິການ — ຄືກັບໜ້າອັດຕາຄ່າຄອມ (ຄ່າຢູ່ tb_product.service_type) */
-const SERVICE_TYPES: Option[] = [
-  { code: "CI", name: "ລູກຄ້ານຳເຄື່ອງເຂົ້າ" },
-  { code: "ST", name: "ສ້ອມເຄື່ອງໃນສາງ" },
-  { code: "IH", name: "ສ້ອມບ້ານລູກຄ້າ" },
-  { code: "PS", name: "ໄປຮັບເຄື່ອງທີ່ບ້ານລູກຄ້າມາສ້ອມຢູ່ສູນ" },
+const serviceTypes = (t: { stCI: string; stST: string; stIH: string; stPS: string }): Option[] => [
+  { code: "CI", name: t.stCI }, { code: "ST", name: t.stST }, { code: "IH", name: t.stIH }, { code: "PS", name: t.stPS },
 ];
 
 function Select({
@@ -20,13 +18,14 @@ function Select({
   name: string; label: string; options: Option[];
   value?: string; onChange?: (value: string) => void; disabled?: boolean; hint?: string;
 }) {
+  const t = useDict().serviceCharges;
   return (
     <label className="block">
       <span className="mb-1 block text-xs text-slate-600">
-        {label} <span className="text-slate-400">{hint ?? "(ຫວ່າງ = ທຸກອັນ)"}</span>
+        {label} <span className="text-slate-400">{hint ?? t.allHint}</span>
       </span>
       <select name={name} className={inputClass} value={value} disabled={disabled} onChange={(e) => onChange?.(e.target.value)}>
-        <option value="">— ທຸກອັນ —</option>
+        <option value="">{t.all}</option>
         {options.map((o) => <option key={o.code} value={o.code}>{o.name}</option>)}
       </select>
     </label>
@@ -47,6 +46,9 @@ export function AddChargeForm({
   productTypes: { code: string; name: string; jobs: number }[];
   services: { code: string; name: string }[];
 }) {
+  const t = useDict().serviceCharges;
+  const fill = (text: string, vars: Record<string, number>) =>
+    Object.entries(vars).reduce((out, [k, v]) => out.replaceAll(`{${k}}`, String(v)), text);
   const [state, action, pending] = useActionState(saveServiceCharge, {});
   const [category, setCategory] = useState("");
   const [designs, setDesigns] = useState<Option[]>([]);
@@ -68,7 +70,7 @@ export function AddChargeForm({
 
   return (
     <form action={action} className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-bold text-slate-700">ເພີ່ມການຈັບຄູ່</h2>
+      <h2 className="text-sm font-bold text-slate-700">{t.addTitle}</h2>
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
       {state.ok && <p className="rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">{state.ok}</p>}
 
@@ -79,29 +81,29 @@ export function AddChargeForm({
           */}
         <Select
           name="product_type"
-          label="ປະເພດເຄື່ອງ (ໃບຮັບເຄື່ອງ)"
-          options={productTypes.map((p) => ({ code: p.code, name: `${p.name} · ${p.jobs.toLocaleString()} ງານ` }))}
-          hint="(ມິຕິຫຼັກ — ຫວ່າງ = ທຸກປະເພດ)"
+          label={t.productType}
+          options={productTypes.map((p) => ({ code: p.code, name: `${p.name} · ${p.jobs.toLocaleString()} ${t.jobsUnit}` }))}
+          hint={t.productTypeHint}
         />
-        <Select name="service_type" label="ປະເພດບໍລິການ" options={SERVICE_TYPES} />
-        <Select name="category_code" label="ໝວດສິນຄ້າ (ERP)" options={categories} value={category} onChange={pickCategory} hint="(ໃຊ້ໄດ້ສະເພາະງານທີ່ມີລະຫັດສິນຄ້າ ERP)" />
+        <Select name="service_type" label={t.serviceType} options={serviceTypes(t)} />
+        <Select name="category_code" label={t.category} options={categories} value={category} onChange={pickCategory} hint={t.categoryHint} />
         <Select
           name="design_code"
-          label="ແບບ"
+          label={t.design}
           options={designs}
           disabled={!category || loading}
-          hint={!category ? "(ເລືອກໝວດກ່ອນ)" : loading ? "(ກຳລັງໂຫຼດ…)" : `(${designs.length} ແບບ · ຫວ່າງ = ທຸກອັນ)`}
+          hint={!category ? t.pickCategoryFirst : loading ? t.loadingOptions : fill(t.designsCount, { n: designs.length })}
         />
         <Select
           name="size_code"
-          label="ຂະໜາດ"
+          label={t.size}
           options={sizes}
           disabled={!category || loading}
-          hint={!category ? "(ເລືອກໝວດກ່ອນ)" : loading ? "(ກຳລັງໂຫຼດ…)" : `(${sizes.length} ຂະໜາດ · ຫວ່າງ = ທຸກອັນ)`}
+          hint={!category ? t.pickCategoryFirst : loading ? t.loadingOptions : fill(t.sizesCount, { n: sizes.length })}
         />
 
         <label className="block sm:col-span-2">
-          <span className="mb-1 block text-xs text-slate-600">ລາຍການຄ່າບໍລິການ (ERP 9702xx) *</span>
+          <span className="mb-1 block text-xs text-slate-600">{t.serviceItem}</span>
           <select
             name="service_code"
             required
@@ -109,7 +111,7 @@ export function AddChargeForm({
             value={service}
             onChange={(e) => setService(e.target.value)}
           >
-            <option value="">— ເລືອກລາຍການ —</option>
+            <option value="">{t.pickService}</option>
             {services.map((s) => <option key={s.code} value={s.code}>{s.code} · {s.name}</option>)}
           </select>
           {/* ຊື່ໄປນຳ ⇒ ບິນເກົ່າຍັງອ່ານອອກ ເຖິງ ERP ຈະປ່ຽນຊື່ພາຍຫຼັງ */}
@@ -118,7 +120,7 @@ export function AddChargeForm({
 
         <label className="block">
           <span className="mb-1 block text-xs text-slate-600">
-            ລາຄາ (ບາດ) <span className="text-slate-400">— ໃນປະກັນລະບົບໃສ່ 0 ໃຫ້ເອງ</span>
+            {t.price} <span className="text-slate-400">{t.priceHint}</span>
           </span>
           <input name="price_thb" type="number" step="0.01" min="0" defaultValue="0" className={inputClass} />
         </label>
@@ -126,7 +128,7 @@ export function AddChargeForm({
 
       <Button type="submit" disabled={pending}>
         {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Plus className="size-4" />}
-        ບັນທຶກ
+        {t.save}
       </Button>
     </form>
   );
@@ -155,6 +157,7 @@ export function EditChargeRow({
   };
   services: { code: string; name: string }[];
 }) {
+  const t = useDict().serviceCharges;
   const [state, action, pending] = useActionState(saveServiceCharge, {});
   const [service, setService] = useState(row.service_code);
   return (
@@ -171,7 +174,7 @@ export function EditChargeRow({
         value={service}
         onChange={(e) => setService(e.target.value)}
         className="h-8 max-w-56 rounded-lg border border-slate-200 px-2 text-[11px] outline-none focus:border-brand-600"
-        aria-label="ລາຍການຄ່າບໍລິການ"
+        aria-label={t.serviceItem}
       >
         {services.map((s) => <option key={s.code} value={s.code}>{s.code} · {s.name}</option>)}
       </select>
@@ -181,7 +184,7 @@ export function EditChargeRow({
         step="0.01"
         min="0"
         defaultValue={row.price_thb}
-        aria-label="ລາຄາ (ບາດ)"
+        aria-label={t.price}
         className="h-8 w-24 rounded-lg border border-slate-200 px-2 text-right text-[11px] outline-none focus:border-brand-600"
       />
       <button
@@ -190,7 +193,7 @@ export function EditChargeRow({
         className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-300 px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
       >
         {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : null}
-        ບັນທຶກ
+        {t.save}
       </button>
       {state.error && <span className="text-[10px] font-semibold text-brand-orange-700">{state.error}</span>}
       {state.ok && <span className="text-[10px] font-semibold text-brand-800">✓</span>}
@@ -199,6 +202,7 @@ export function EditChargeRow({
 }
 
 export function DeleteChargeButton({ id }: { id: number }) {
+  const t = useDict().serviceCharges;
   const [pending, start] = useTransition();
   const { ask, dialog } = useConfirm();
   return (
@@ -208,13 +212,13 @@ export function DeleteChargeButton({ id }: { id: number }) {
         type="button"
         disabled={pending}
         onClick={async () => {
-          if (!(await ask({ title: "ລຶບການຈັບຄູ່ນີ້?", message: "ບິນໃໝ່ຈະບໍ່ຕື່ມຄ່າບໍລິການໃຫ້ອັດຕະໂນມັດອີກ", tone: "danger" }))) return;
+          if (!(await ask({ title: t.deleteTitle, message: t.deleteMessage, tone: "danger" }))) return;
           const data = new FormData();
           data.set("id", String(id));
           start(() => void deleteServiceCharge(data));
         }}
         className="grid size-7 place-items-center rounded text-slate-300 hover:bg-brand-orange-50 hover:text-brand-orange-700 disabled:opacity-50"
-        title="ລຶບ"
+        title={t.delete}
       >
         {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
       </button>
@@ -223,35 +227,32 @@ export function DeleteChargeButton({ id }: { id: number }) {
 }
 
 /**
- * ຕັ້ງຄ່າ **COB** — ລະຫັດບັນຊີທີ່ໃບເຄມ CLM-C ຈະລົງຢູ່ ERP.
- * ຫວ່າງ = ບໍ່ອອກ COB (ໃບເຄມຍັງອອກປົກກະຕິ). ເລກເອກະສານໃຊ້ **ລະຫັດໃບເຄມ** ສະເໝີ.
+ * ຕັ້ງຄ່າ **ໃບຕັ້ງໜີ້ຕ້ອງຮັບ (AOB)** — ລະຫັດບັນຊີຄູ່ທີ່ໃບເຄມ CLM-C ຈະລົງຢູ່ ERP.
+ * ຫວ່າງ = ໃຊ້ຄ່າຕັ້ງຕົ້ນ 4010501 ລາຍຮັບຈາກການບໍລິການ. ເລກເອກະສານໃຊ້ **ລະຫັດໃບເຄມ** ສະເໝີ.
  */
-export function CobConfigForm({ config }: { config: { account_code: string; account_name: string; branch_code: string } }) {
-  const [state, action, pending] = useActionState(saveCobConfig, {});
+export function AobConfigForm({ config }: { config: { account_code: string; account_name: string; branch_code: string } }) {
+  const t = useDict().serviceCharges;
+  const [state, action, pending] = useActionState(saveAobConfig, {});
   return (
     <form action={action} className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div>
-        <h2 className="text-sm font-bold text-slate-700">ໃບຕັ້ງໜີ້ຕ້ອງຮັບ ຂອງໃບເຄມ (CLM-C · AOB)</h2>
-        <p className="text-[11px] text-slate-400">
-          ອອກໃບເຄມ ⇒ ລະບົບ<b>ຕັ້ງໜີ້ຕ້ອງຮັບຈາກ supplier</b> ຢູ່ ERP ໃຫ້ເລີຍ (ເອກະສານ AOB)
-          ໂດຍໃຊ້ <b>ລະຫັດໃບເຄມເປັນເລກເອກະສານ</b>. ບັນຊີຄູ່ຄ່າຕັ້ງຕົ້ນ = 4010501 ລາຍຮັບຈາກການບໍລິການ —
-          ບັນຊີກວດແລ້ວປ່ຽນໄດ້ຢູ່ນີ້.
-        </p>
+        <h2 className="text-sm font-bold text-slate-700">{t.aobTitle}</h2>
+        <p className="text-[11px] text-slate-400">{t.aobHint}</p>
       </div>
       {state.error && <ErrorBox>{state.error}</ErrorBox>}
       {state.ok && <p className="rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">{state.ok}</p>}
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="block">
-          <span className="mb-1 block text-xs text-slate-600">ລະຫັດບັນຊີຄູ່ (ERP)</span>
-          <input name="cob_account_code" defaultValue={config.account_code} placeholder="4010501" className={inputClass} />
+          <span className="mb-1 block text-xs text-slate-600">{t.accountCode}</span>
+          <input name="aob_account_code" defaultValue={config.account_code} placeholder="4010501" className={inputClass} />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs text-slate-600">ຊື່ບັນຊີ (ໂຊ້ວໃນເອກະສານ)</span>
-          <input name="cob_account_name" defaultValue={config.account_name} placeholder="ລາຍຮັບຈາກການບໍລິການ" className={inputClass} />
+          <span className="mb-1 block text-xs text-slate-600">{t.accountName}</span>
+          <input name="aob_account_name" defaultValue={config.account_name} placeholder={t.accountName} className={inputClass} />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs text-slate-600">ສາຂາ</span>
-          <input name="cob_branch_code" defaultValue={config.branch_code} placeholder="01" className={inputClass} />
+          <span className="mb-1 block text-xs text-slate-600">{t.branch}</span>
+          <input name="aob_branch_code" defaultValue={config.branch_code} placeholder="01" className={inputClass} />
         </label>
       </div>
       <Button type="submit" disabled={pending}>

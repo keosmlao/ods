@@ -1,6 +1,7 @@
 "use client";
 import { searchClaimJobs } from "@/app/actions/claim";
 import type { ClaimJobCandidate } from "@/lib/claim-shared";
+import { useDict } from "@/lib/i18n/context";
 import { LoaderCircle, Search, X } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 
@@ -10,6 +11,7 @@ import { useEffect, useState, useTransition } from "react";
  * ເລືອກແລ້ວ → onPick(job) (form ເອົາ code + prefill ຫຍີ່ຫໍ້).
  */
 export function JobPickerModal({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (job: ClaimJobCandidate) => void }) {
+  const t = useDict().claimDetail;
   const [q, setQ] = useState("");
   const [jobs, setJobs] = useState<ClaimJobCandidate[]>([]);
   const [pending, start] = useTransition();
@@ -29,8 +31,8 @@ export function JobPickerModal({ open, onClose, onPick }: { open: boolean; onClo
       <div className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-100 p-4">
           <div>
-            <h2 className="text-sm font-bold text-slate-800">ເລືອກເລກງານສ້ອມ</h2>
-            <p className="text-[11px] text-slate-500">ສຳເລັດ · ສົ່ງຄືນລູກຄ້າແລ້ວ · ຍັງບໍ່ມີໃບເຄມ</p>
+            <h2 className="text-sm font-bold text-slate-800">{t.jobPickTitle}</h2>
+            <p className="text-[11px] text-slate-500">{t.jobPickSub}</p>
           </div>
           <button type="button" onClick={onClose} className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100"><X className="size-4" /></button>
         </div>
@@ -38,14 +40,14 @@ export function JobPickerModal({ open, onClose, onPick }: { open: boolean; onClo
         <div className="border-b border-slate-100 p-3">
           <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-2.5 focus-within:border-brand-600">
             <Search className="size-4 shrink-0 text-slate-400" />
-            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="ຄົ້ນ code / ສິນຄ້າ / SN / ຫຍີ່ຫໍ້ / ລູກຄ້າ" className="h-9 w-full text-sm outline-none" />
+            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t.jobPickSearch} className="h-9 w-full text-sm outline-none" />
             {pending && <LoaderCircle className="size-4 shrink-0 animate-spin text-slate-400" />}
           </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {loaded && jobs.length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-400">ບໍ່ພົບງານ</p>
+            <p className="py-12 text-center text-sm text-slate-400">{t.jobPickEmpty}</p>
           ) : (
             <ul className="divide-y divide-slate-100">
               {jobs.map((j) => (
@@ -58,7 +60,7 @@ export function JobPickerModal({ open, onClose, onPick }: { open: boolean; onClo
                         {j.sn ? `SN ${j.sn} · ` : ""}{j.customer || "-"}{j.fault ? ` · ${j.fault}` : ""}
                       </span>
                     </span>
-                    {j.returned_at && <span className="shrink-0 text-[10px] text-slate-400">ຄືນ {j.returned_at}</span>}
+                    {j.returned_at && <span className="shrink-0 text-[10px] text-slate-400">{t.returnedShort} {j.returned_at}</span>}
                   </button>
                 </li>
               ))}

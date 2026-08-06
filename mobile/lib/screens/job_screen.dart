@@ -1652,9 +1652,20 @@ class _JobScreenState extends State<JobScreen> {
                           ],
 
                           if (job.action == 'wait_spare') ...[
+                            /*
+                              ⚠️ **ບັກເກົ່າ (ແກ້ 06-08-2026)**: ຝັ່ງຕິດຕັ້ງເຄີຍກວດ `stage == 1`
+                              ແຕ່ຂັ້ນ 1 ຂອງຕິດຕັ້ງ = **ຊ່າງຍັງບໍ່ທັນຮັບງານ** (tech_confirm ຫວ່າງ)
+                              ເຊິ່ງຕອນນັ້ນ action ເປັນ 'accept' ບໍ່ແມ່ນ 'wait_spare'
+                              ⇒ ເງື່ອນໄຂນີ້ **ບໍ່ເຄີຍເປັນຈິງ** ⇒ ຊ່າງຕິດຕັ້ງບໍ່ເຫັນປຸ່ມ
+                              "ອອກໃບຂໍເບີກອາໄຫຼ່" ຈັກເທື່ອ ເຫັນແຕ່ "ລໍສາງເບີກ — ຍັງລົງມືບໍ່ໄດ້".
+
+                              ຂັ້ນຈິງຂອງຕິດຕັ້ງ (lib/install-stage): ຮັບງານແລ້ວ ⇒ **2 = ລໍຂໍເບີກ**
+                              (reg_start ຫວ່າງ) · 3 = ຂໍແລ້ວ ລໍສາງ · 4 = ອາໄຫຼ່ຄົບ/ບໍ່ໃຊ້ອາໄຫຼ່.
+                              ເອົາ 2–3 ໃຫ້ຕົງກັບເວັບ (/installations/[code] ໂຊ້ວປຸ່ມຂໍເບີກຂັ້ນ 2–3).
+                            */
                             if ((job.workflow == 'repair' && job.stage == 5) ||
                                 (job.workflow == 'install' &&
-                                    job.stage == 1)) ...[
+                                    (job.stage == 2 || job.stage == 3))) ...[
                               const Text(
                                 'ຕ້ອງອອກໃບຂໍເບີກອາໄຫຼ່ກ່ອນ',
                                 style: TextStyle(color: muted),

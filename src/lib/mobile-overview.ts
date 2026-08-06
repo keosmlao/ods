@@ -8,6 +8,7 @@ import {
 } from "@/lib/manager-overview";
 import { listTechnicians } from "@/lib/technicians";
 import { query } from "@/lib/db";
+import { claimStatuses, pipelineOf, repairStatuses } from "@/lib/dashboard-status";
 import { STAGE_LABEL } from "@/lib/stage";
 
 /**
@@ -54,18 +55,24 @@ export type MobileOverview = {
  * `stage` = ເລກຂັ້ນຂອງ STAGE_SQL — ສົ່ງລົງໄປໃຫ້ແອັບກົດເປີດລາຍການຂອງຂັ້ນນັ້ນໄດ້
  * ⇒ ແອັບບໍ່ຕ້ອງເກັບຕາຕະລາງ slug→ຂັ້ນ ຊ້ຳອີກບ່ອນໜຶ່ງ (ບ່ອນທີ່ຈະລືມແກ້ແນ່ນອນ).
  */
+/**
+ * ⚠️ **ບໍ່ຂຽນລາຍການຂັ້ນເອງອີກ** (ແກ້ 06-08-2026) — ສ້າງຈາກ `repairStatuses` ບ່ອນດຽວ
+ * ກັບເວັບ (lib/dashboard-status) ⇒ ຊື່ຂັ້ນ ແລະ ລຳດັບ **ຕົງກັບໜ້າຈໍຜູ້ຈັດການຢູ່ເວັບສະເໝີ**.
+ *
+ * ບັນຫາຂອງລາຍການທີ່ຂຽນເອງ (ຂອງເກົ່າ): ຂາດ **ຂັ້ນອາໄຫຼ່ທັງສາມ** (ກວດ Stock · ກຳລັງເບີກ ·
+ * ກຳລັງສັ່ງຊື້) ແລະ ຂັ້ນ "ກຳລັງສະເໜີລາຄາ" ⇒ ຜູ້ຈັດການເບິ່ງແອັບແລ້ວ **ບໍ່ເຫັນວຽກທີ່ຄາຢູ່ອາໄຫຼ່ເລີຍ**
+ * (ຈຸດທີ່ຄາຫຼາຍທີ່ສຸດ) ແລະ ຊື່ຂັ້ນກໍ່ບໍ່ຄືກັບເວັບ. ດຽວນີ້ເພີ່ມ/ປ່ຽນຊື່ຢູ່ເວັບ ⇒ ແອັບຕາມເອງ.
+ *
+ * ຂັ້ນ 0 (ລໍໄປຮັບ · ກຳລັງໄປຮັບ · ລໍນັດໝາຍ) ຕັດອອກ: ຍັງບໍ່ຮັບເຂົ້າສູນ ⇒ ບໍ່ແມ່ນ "ວຽກໃນມື"
+ * ຂອງ funnel (ເວັບກໍ່ໂຊ້ວແຍກ). ຂັ້ນເຄມມາຈາກ `claimStatuses` ຕໍ່ທ້າຍ.
+ */
 const REPAIR_FUNNEL: { key: string; label: string; stage: number }[] = [
-  { key: "wait-check", label: "ລໍກວດ", stage: 1 },
-  { key: "checking", label: "ກຳລັງກວດ", stage: 2 },
-  { key: "claim-decision", label: "ລໍຕັດສິນເຄມ", stage: 13 },
-  { key: "claim-stock", label: "ລໍປ່ຽນຈາກ Stock", stage: 14 },
-  { key: "claim-purchase", label: "ລໍຂອງສັ່ງຊື້", stage: 15 },
-  { key: "claim-supplier", label: "ລໍ Supplier", stage: 16 },
-  { key: "wait-quote", label: "ລໍ Quotation", stage: 3 },
-  { key: "wait-repair", label: "ລໍສ້ອມ", stage: 8 },
-  { key: "repairing", label: "ກຳລັງສ້ອມ", stage: 9 },
-  { key: "wait-qc", label: "ລໍ QC", stage: 10 },
-  { key: "wait-return", label: "ພ້ອມສົ່ງ", stage: 11 },
+  ...pipelineOf(repairStatuses)
+    .filter(([, def]) => (def.stage ?? 0) > 0)
+    .map(([key, def]) => ({ key, label: def.label, stage: def.stage as number })),
+  ...pipelineOf(claimStatuses)
+    .filter(([, def]) => (def.stage ?? 0) >= 13)
+    .map(([key, def]) => ({ key, label: def.label, stage: def.stage as number })),
 ];
 
 export async function mobileOverview(days = 30): Promise<MobileOverview> {

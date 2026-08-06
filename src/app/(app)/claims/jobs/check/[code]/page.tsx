@@ -1,3 +1,5 @@
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { Chatter } from "@/components/chatter/chatter";
 import { CheckForm, type BasketLine, type CheckHead } from "@/components/checking/check-form";
 import { LinkPending } from "@/components/link-pending";
@@ -19,6 +21,7 @@ import { notFound, redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 export default async function ClaimCheckPage({ params }: { params: Promise<{ code: string }> }) {
+  const t = (await getDictionary(await getLocale())).claimJobs;
   const { code } = await params;
   const session = await getSession();
   if (!session) redirect("/login");
@@ -57,15 +60,15 @@ export default async function ClaimCheckPage({ params }: { params: Promise<{ cod
       <div>
         <Link href="/claims/jobs/claim-checking" className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-brand-orange-600">
           <ArrowLeft className="size-4" />
-          ກັບຄິວງານເຄມ
+          {t.backQueue}
           <LinkPending className="size-3" />
         </Link>
-        <h1 className="text-2xl font-bold text-slate-700">🛡️ ກວດເຄມ #{head.code}</h1>
+        <h1 className="text-2xl font-bold text-slate-700">{t.checkTitle.replace("{code}", "")}{head.code}</h1>
         {/* ຂອບເຂດເຄມ — ຊ່າງຕ້ອງຮູ້ວ່າກຳລັງກວດ "ທັງເຄື່ອງ" ຫຼື "ສະເພາະອາໄຫຼ່ໃດ" */}
         <p className="mt-1 text-xs text-slate-500">
           {head.claim_scope === "part"
-            ? `ເຄມສະເພາະອາໄຫຼ່: ${head.claim_part_name || "-"}`
-            : "ເຄມທັງເຄື່ອງ"}
+            ? `{t.scopePartWith.replace("{name}", "")}${head.claim_part_name || "-"}`
+            : "{t.scopeWholeFull}"}
           {" · "}ບັນທຶກແລ້ວໃບເຄມຈະເລື່ອນເປັນ “ກວດ/ຕັດສິນ” ໃຫ້ອັດຕະໂນມັດ
         </p>
       </div>

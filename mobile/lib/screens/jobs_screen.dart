@@ -174,8 +174,15 @@ _Phase _phaseOf(Job job) {
       );
     case 2:
       return const _Phase(2, 'ກຳລັງກວດເຊັກ', Icons.fact_check_outlined, _cBlue);
+    // ── ຂັ້ນ 3-4 = **ສະເໜີລາຄາ** ບໍ່ແມ່ນອາໄຫຼ່ (ແກ້ 06-08-2026) ──
+    // ເມື່ອກ່ອນເອົາ 3-7 ລວມເປັນ "ຂະບວນການເບີກອາໄຫຼ່" ⇒ ວຽກທີ່ລໍ/ກຳລັງສະເໜີລາຄາ
+    // ຂຶ້ນວ່າກຳລັງເບີກອາໄຫຼ່ ທັງທີ່ຍັງບໍ່ໄດ້ຂໍເບີກຈັກແຖວ (ຜິດຈາກເວັບ — lib/stage).
     case 3:
+      return const _Phase(3, 'ລໍຖ້າສະເໜີລາຄາ', Icons.request_quote_outlined, _cViolet);
     case 4:
+      return const _Phase(3, 'ກຳລັງສະເໜີລາຄາ', Icons.request_quote_outlined, _cViolet);
+    // 5-7 (ກວດ Stock · ກຳລັງເບີກ · ກຳລັງສັ່ງຊື້) = ຂັ້ນອາໄຫຼ່ — ລວມເປັນກ້ອນດຽວ
+    // ຄືກັບເມນູເວັບ ("ອາໄຫຼ່ — ຂໍເບີກ · ສາງເບີກ · ຮັບ · ສັ່ງຊື້" ໃນ lib/navigation)
     case 5:
     case 6:
     case 7:

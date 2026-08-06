@@ -1,6 +1,7 @@
 import { Chatter } from "@/components/chatter/chatter";
 import { getSession } from "@/lib/auth";
 import { CancelInstallSpareRequestButton } from "@/components/installation/cancel-spare-request-button";
+import { CancelJobButton } from "@/components/installation/job-buttons";
 import { Elapsed } from "@/components/elapsed";
 import { InstallDeleteButton } from "@/components/installation/install-delete-button";
 import { JOB_HEAD_COLUMNS, type JobHead, JobHeader } from "@/components/installation/job-header";
@@ -87,12 +88,23 @@ export default async function InstallationDetail({ params }: Props) {
         where a.code = $1 limit 1`,
       [code],
     ),
+    /**
+     * ── ອາໄຫຼ່ຂອງງານ — **ລວມແຖວຊ້ຳ** (06-08-2026 ຕາມຄຳສັ່ງ) ──
+     * `tb_used_spare` ເກັບເປັນລາຍແຖວ ⇒ ອາໄຫຼ່ຕົວດຽວກັນຖືກໃສ່ຫຼາຍເທື່ອ (ຊຸດຕິດຕັ້ງ +
+     * ຊ່າງເພີ່ມເອງ) ແລ້ວຕາຕະລາງໂຊ້ວຊ້ຳກັນ (ພົບຈິງ: ມ໋ອດ VK 4 ອັນ ແລະ 1 ອັນ ຄົນລະແຖວ)
+     * ⇒ ຄົນອ່ານຕ້ອງບວກເອງ ແລະ ນັບຈຳນວນລາຍການຜິດ.
+     *
+     * ⚠️ **ລວມສະເພາະແຖວທີ່ຢູ່ຂັ້ນດຽວກັນ** (ຂໍເບີກ · ສາງເບີກ · ຊ່າງຮັບ ວັນທີດຽວກັນ) —
+     * ບໍ່ດັ່ງນັ້ນຈະໄປລວມແຖວທີ່ "ຂໍແລ້ວ" ກັບ "ຍັງບໍ່ຂໍ" ເປັນອັນດຽວ ແລ້ວສະຖານະຫາຍ.
+     */
     query<Spare>(
-      `select item_code, item_name, coalesce(qty,0)::text qty, unit_code,
+      `select item_code, max(item_name) item_name, coalesce(sum(qty),0)::text qty, max(unit_code) unit_code,
           to_char(reg_start,'DD-MM-YYYY') reg_start,
           to_char(reg_finish,'DD-MM-YYYY') reg_finish,
           to_char(pick_finish,'DD-MM-YYYY') pick_finish
-        from tb_used_spare where product_code = $1 order by roworder`,
+        from tb_used_spare where product_code = $1
+       group by item_code, reg_start, reg_finish, pick_finish
+       order by min(roworder)`,
       [code],
     ),
     /**
@@ -176,14 +188,41 @@ export default async function InstallationDetail({ params }: Props) {
           <LinkButton tone="neutral" href={`/installations/${encodeURIComponent(row.code)}/print`}>
             {t.print}
           </LinkButton>
+          {/*
+            ── ຍົກເລີກງານ (ພ້ອມໝາຍເຫດ) — ເພີ່ມຢູ່ໜ້ານີ້ 06-08-2026 ──
+            ເມື່ອກ່ອນປຸ່ມນີ້ມີແຕ່ຢູ່**ຄິວ** /installations ⇒ ຄົນທີ່ເປີດໃບງານມາເບິ່ງ
+            (ຈາກລິ້ງແຈ້ງເຕືອນ · ຈາກ chatter · ຈາກຄົ້ນຫາ) ຍົກເລີກບໍ່ໄດ້ ຕ້ອງກັບໄປຄິວກ່ອນ.
+            ດ່ານ ແລະ ໝາຍເຫດບັງຄັບ ຢູ່ `cancelInstall` ຄືເກົ່າ (ຍັງບອກອາໄຫຼ່ຄ້າງນອກສາງນຳ).
+            ງານທີ່ຍົກເລີກ/ປິດແລ້ວ ບໍ່ໂຊ້ວ — ຍົກເລີກຊ້ຳບໍ່ໄດ້ຢູ່ແລ້ວ.
+          */}
+          {installPermission.update && !row.cancel_date && row.stage !== 9 && (
+            <CancelJobButton code={row.code} label={t.cancelJob} />
+          )}
           {canDelete && <InstallDeleteButton code={row.code} />}
         </div>
       </div>
 
       {row.cancel_date && (
-        <div className="rounded-xl border border-brand-orange-400 bg-brand-orange-50 px-4 py-3">
-          <p className="text-sm font-bold text-brand-orange-700">{t.jobCancelled} · {row.cancel_date}</p>
-          {row.cancel_remark && <p className="mt-0.5 text-xs text-brand-orange-700">{t.reason} {row.cancel_remark}</p>}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-orange-400 bg-brand-orange-50 px-4 py-3">
+          <div>
+            <p className="text-sm font-bold text-brand-orange-700">{t.jobCancelled} · {row.cancel_date}</p>
+            {row.cancel_remark && <p className="mt-0.5 text-xs text-brand-orange-700">{t.reason} {row.cancel_remark}</p>}
+          </div>
+          {/*
+            ── ທາງເຂົ້າ "ອອກໃບງານໃໝ່ຈາກບິນນີ້" (06-08-2026) ──
+            ບິນທີ່ເຄີຍອອກໃບງານ **ບໍ່ເດັ້ງກັບເຂົ້າຄິວ "ບິນຄ້າງອອກໃບງານ" ອີກ** ເຖິງໃບງານຈະຖືກ
+            ຍົກເລີກ (ເບິ່ງ lib/pending-bills) ⇒ ຢາກເປີດໃໝ່ ຕ້ອງໄປພິມເລກບິນເອງຢູ່ຟອມ.
+            ປຸ່ມນີ້ພາໄປພ້ອມເລກບິນເລີຍ — ບ່ອນນີ້ຄືບ່ອນທີ່ຄົນຮູ້ວ່າ "ຕ້ອງເປີດໃໝ່".
+            ບໍ່ມີດ່ານກັນບິນຊ້ຳຢູ່ createInstall ⇒ ຟອມຈະຂຶ້ນປ້າຍເຕືອນວ່າບິນນີ້ເຄີຍມີໃບງານ.
+          */}
+          {installPermission.update && row.doc_ref_1 && (
+            <LinkButton
+              tone="neutral"
+              href={`/installations/new?bill=${encodeURIComponent(row.doc_ref_1)}`}
+            >
+              {t.reopenFromBill}
+            </LinkButton>
+          )}
         </div>
       )}
 

@@ -15,6 +15,7 @@ import {
   pickupSpares,
 } from "@/lib/tech-flow";
 import { revalidatePath } from "next/cache";
+import { syncErpDispatchForJob } from "@/lib/erp-dispatch";
 import { NextResponse } from "next/server";
 
 /**
@@ -62,6 +63,13 @@ export async function GET(request: Request) {
   try {
     const own = await ownMobileJob(guard.user, workflow, code);
     if (!own.ok) return NextResponse.json({ error: own.error }, { status: 403 });
+
+    /**
+     * ດຶງໃບເບີກທີ່ສາງອອກຢູ່ **ERP** ກ່ອນອ່ານຮອບ — ຄືກັບໜ້າໃບງານຝັ່ງເວັບ (05-08-2026).
+     * ບໍ່ດັ່ງນັ້ນແອັບຊ່າງຂຶ້ນ "ລໍສາງເບີກ" ຄ້າງ ທັງທີ່ສາງເບີກໄປແລ້ວ — ຊ່າງຢູ່ໜ້າງານ
+     * ເຫັນສະຖານະຜິດ ແລ້ວໄປທວງສາງລ້າໆ. ບໍ່ມີແຖວລໍເບີກ ⇒ ຂ້າມທັນທີ (ບໍ່ແຕະ ERP).
+     */
+    await syncErpDispatchForJob(code);
 
     const [withdrawals, purchases, statuses] = await Promise.all([
       withdrawRounds(code),

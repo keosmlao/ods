@@ -4,7 +4,7 @@ import { LocationPicker, type Point } from "@/components/installation/location-p
 import { SelectField } from "@/components/select-field";
 import { Button, Card, ErrorBox, LinkButton, inputClass, labelClass } from "@/components/ui";
 import { useDict } from "@/lib/i18n/context";
-import { CheckCircle2, LoaderCircle, MapPin, Package, Plus, Receipt, ReceiptText, Save, Search, Truck, X } from "lucide-react";
+import { CheckCircle2, LoaderCircle, MapPin, Package, Plus, Receipt, ReceiptText, Save, Search, TriangleAlert, Truck, X } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
 import { KeepFormValues } from "@/components/keep-form-values";
 
@@ -62,6 +62,8 @@ type Bill = {
   cust_lat: number | null;
   cust_lng: number | null;
   loc_source: "delivery" | "customer" | null;
+  /** ໃບງານທີ່ເຄີຍອອກຈາກບິນນີ້ — ໃຊ້ຂຶ້ນປ້າຍເຕືອນ (ເບິ່ງ api/installations/bills) */
+  jobs?: { code: string; cancelled: boolean }[];
 };
 
 /**
@@ -864,6 +866,27 @@ function BillPicker({
                   <span className="inline-flex items-center gap-1 rounded-full bg-brand-orange-100 px-2 py-0.5 text-[11px] font-bold text-brand-orange-700">
                     <ReceiptText className="size-3" />
                     ຄ່າຕິດຕັ້ງຈາກບິນ {bill.service_doc_no}
+                  </span>
+                )}
+
+                {/**
+                  * ── ບິນນີ້ເຄີຍອອກໃບງານແລ້ວ ──
+                  * ຄິວ "ບິນຄ້າງອອກໃບງານ" ຕັດບິນທີ່ເຄີຍອອກໃບງານອອກ (ລວມໃບທີ່ຍົກເລີກ) ⇒ ບິນທີ່ຂຶ້ນ
+                  * ຢູ່ນີ້ໂດຍການຄົ້ນເລກບິນ ອາດເປັນບິນທີ່ຈັດການໄປແລ້ວ. ບອກໄວ້ **ບໍ່ຫ້າມ** — ຍົກເລີກແລ້ວ
+                  * ເປີດໃໝ່ຄືການໃຊ້ງານທີ່ຖືກ ແຕ່ອອກຊ້ຳໂດຍບໍ່ຮູ້ຕົວແມ່ນບັນຫາ.
+                  */}
+                {(bill.jobs?.length ?? 0) > 0 && (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                      bill.jobs!.every((job) => job.cancelled)
+                        ? "bg-brand-orange-100 text-brand-orange-700"
+                        : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    <TriangleAlert className="size-3" />
+                    {bill.jobs!.every((job) => job.cancelled) ? t.billHadCancelledJobs : t.billHasJobs}
+                    {" "}
+                    {bill.jobs!.map((job) => job.code).join(", ")}
                   </span>
                 )}
 

@@ -242,7 +242,11 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
     );
   }
 
+  /// ປ້າຍສະຖານະຮອບ — ນິຍາມດຽວກັບເວັບ (lib/repair-spare-rounds).
+  /// **ຂໍຄືນຄ້າງ** ຂຶ້ນກ່ອນສະຖານະອື່ນ: ຂອງອອກສາງໄປແລ້ວ ແຕ່ສາງຍັງບໍ່ຮັບຄືນ
+  /// ⇒ ຊ່າງຍັງຖືຂອງຢູ່ ຕ້ອງເຫັນກ່ອນສິ່ງອື່ນ (ຝັ່ງເວັບໂຊ້ວເປັນປ້າຍ "ລໍສາງຮັບຄືນ").
   static String _roundLabel(SpareWithdrawRound round) {
+    if (round.returnsWaiting > 0) return 'ລໍສາງຮັບຄືນ ${round.returnsWaiting} ໃບ';
     if (round.state == 'received') return 'ຮັບແລ້ວ';
     if (round.onOrder > 0) return 'ກຳລັງສັ່ງຊື້ ${round.onOrder} ລາຍການ';
     if (round.state == 'dispatched') return 'ສາງເບີກແລ້ວ ລໍຮັບ';

@@ -12,6 +12,8 @@ import { CLAIM_SIDE, roleOf } from "@/lib/roles";
 import { listTechnicians } from "@/lib/technicians";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import { notFound, redirect } from "next/navigation";
 
 /**
@@ -41,17 +43,21 @@ type Row = {
   elapsed_seconds: number;
 };
 
-/** ປຸ່ມໄປຕໍ່ຂອງແຕ່ລະຂັ້ນ — ພາໄປໜ້າທີ່ເຮັດວຽກຂັ້ນນັ້ນຂອງໃບນັ້ນ */
-const NEXT_STEP: Record<string, { label: string; href: (code: string) => string }> = {
-  "claim-checking": { label: "ບັນທຶກຜົນກວດ", href: (code) => `/claims/jobs/check/${encodeURIComponent(code)}` },
-  "claim-decision": { label: "ໄປຕັດສິນຜົນເຄມ", href: (code) => `/claims/jobs/detail/${encodeURIComponent(code)}` },
-  "claim-stock": { label: "ຈັດການປ່ຽນຈາກ Stock", href: (code) => `/claims/jobs/detail/${encodeURIComponent(code)}` },
-  "claim-purchase": { label: "ຕິດຕາມຂອງສັ່ງຊື້", href: (code) => `/claims/jobs/detail/${encodeURIComponent(code)}` },
-  "claim-supplier": { label: "ຕິດຕາມເຄມ Supplier", href: (code) => `/claims/jobs/detail/${encodeURIComponent(code)}` },
-  "claim-return": { label: "ສົ່ງຄືນຮ້ານ", href: (code) => `/claims/jobs/return/${encodeURIComponent(code)}` },
-};
+/**
+ * ປຸ່ມໄປຕໍ່ຂອງແຕ່ລະຂັ້ນ — ພາໄປໜ້າທີ່ເຮັດວຽກຂັ້ນນັ້ນຂອງໃບນັ້ນ.
+ * ຮັບ `t` ເຂົ້າມາ (ບໍ່ແມ່ນ const ນອກ) ເພາະປ້າຍປຸ່ມເປັນຄຳແປ ⇒ ຂຶ້ນກັບພາສາຂອງຜູ້ໃຊ້.
+ */
+const nextStep = (t: Record<string, string>): Record<string, { label: string; href: (code: string) => string }> => ({
+  "claim-checking": { label: t.saveCheck, href: (code) => `/claims/jobs/check/${encodeURIComponent(code)}` },
+  "claim-decision": { label: t.goDecide, href: (code) => `/claims/jobs/detail/${encodeURIComponent(code)}` },
+  "claim-stock": { label: t.handleStock, href: (code) => `/claims/jobs/detail/${encodeURIComponent(code)}` },
+  "claim-purchase": { label: t.trackPurchase, href: (code) => `/claims/jobs/detail/${encodeURIComponent(code)}` },
+  "claim-supplier": { label: t.trackSupplier, href: (code) => `/claims/jobs/detail/${encodeURIComponent(code)}` },
+  "claim-return": { label: t.returnToShop, href: (code) => `/claims/jobs/return/${encodeURIComponent(code)}` },
+});
 
 export default async function ClaimStagePage({ params }: { params: Promise<{ status: string }> }) {
+  const t = (await getDictionary(await getLocale())).claimJobs;
   const session = await getSession();
   if (!session) redirect("/login");
   if (!CLAIM_SIDE.includes(roleOf(session))) redirect("/forbidden");
@@ -77,7 +83,7 @@ export default async function ClaimStagePage({ params }: { params: Promise<{ sta
 
   const stages = pipelineOf(claimStatuses);
   const index = stages.findIndex(([slug]) => slug === status);
-  const step = NEXT_STEP[status];
+  const step = nextStep(t)[status];
   // ຕົວເລກທຸກຂັ້ນສຳລັບ pill — query ດຽວຄືໜ້າ /claims/jobs (ນິຍາມຂັ້ນບ່ອນດຽວ ຕົວເລກຈຶ່ງກົງກັນ)
   const stageCounts = (
     await query<Record<string, number>>(
@@ -97,9 +103,9 @@ export default async function ClaimStagePage({ params }: { params: Promise<{ sta
 
   return (
     <div className="w-full space-y-4">
-      <BackLink fallback="/claims/jobs" label="ຄິວງານເຄມ" />
+      <BackLink fallback="/claims/jobs" label={t.queueTitle} />
 
-      <PageTitle sub={`ຂັ້ນ ${index + 1}/${stages.length} · ${rows.length} ໃບ`}>{def.label}</PageTitle>
+      <PageTitle sub={`${t.stageN.replace("{n}", String(index + 1))}/${stages.length} · ${rows.length} ໃບ`}>{def.label}</PageTitle>
 
       {/* ── pill ຂັ້ນ — ກະໂດດໄປຂັ້ນອື່ນໄດ້ ພ້ອມຕົວເລກຄິວ ── */}
       <div className="flex flex-wrap items-center gap-1.5">
@@ -126,20 +132,20 @@ export default async function ClaimStagePage({ params }: { params: Promise<{ sta
 
       {rows.length === 0 ? (
         <p className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-400 shadow-sm">
-          ບໍ່ມີງານຢູ່ຂັ້ນນີ້
+          {t.emptyStage}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full min-w-[1000px] text-sm">
             <thead className="bg-slate-50 text-left text-xs text-slate-500">
               <tr>
-                <th className="px-3 py-2">ໃບງານ</th>
-                <th className="px-3 py-2">ຮ້ານ / ລູກຄ້າ</th>
-                <th className="px-3 py-2">ເຄື່ອງ</th>
-                <th className="px-3 py-2">ຂອບເຂດເຄມ</th>
-                <th className="px-3 py-2">ໃບເຄມ</th>
-                <th className="px-3 py-2">ຊ່າງ</th>
-                <th className="px-3 py-2">ຄ້າງ</th>
+                <th className="px-3 py-2">{t.colJob}</th>
+                <th className="px-3 py-2">{t.colShop}</th>
+                <th className="px-3 py-2">{t.colDevice}</th>
+                <th className="px-3 py-2">{t.colScope}</th>
+                <th className="px-3 py-2">{t.colClaim}</th>
+                <th className="px-3 py-2">{t.colTech}</th>
+                <th className="px-3 py-2">{t.colWaited}</th>
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
@@ -164,10 +170,10 @@ export default async function ClaimStagePage({ params }: { params: Promise<{ sta
                   <td className="px-3 py-2 text-xs">
                     {row.claim_scope === "part" ? (
                       <span className="rounded-full bg-brand-orange-100 px-2 py-0.5 font-semibold text-brand-orange-700">
-                        ອາໄຫຼ່ {row.claim_part_name || ""}
+                        {t.scopePart} {row.claim_part_name || ""}
                       </span>
                     ) : (
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">ທັງເຄື່ອງ</span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">{t.scopeWhole}</span>
                     )}
                   </td>
                   <td className="px-3 py-2 text-xs">
@@ -179,7 +185,7 @@ export default async function ClaimStagePage({ params }: { params: Promise<{ sta
                       <span className="text-slate-400">-</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-xs">{row.technician || <span className="text-slate-400">ຍັງບໍ່ຈັດ</span>}</td>
+                  <td className="px-3 py-2 text-xs">{row.technician || <span className="text-slate-400">{t.noTech}</span>}</td>
                   <td className="px-3 py-2">
                     <Elapsed
                       seconds={row.elapsed_seconds}

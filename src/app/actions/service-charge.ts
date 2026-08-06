@@ -140,24 +140,23 @@ export async function deleteServiceCharge(formData: FormData): Promise<void> {
   revalidatePath("/manage/service-charges");
 }
 
-/* ───────────────────── ຕັ້ງຄ່າ COB (ເອກະສານບັນຊີຂອງໃບເຄມ CLM-C) ───────────────────── */
+/* ─────────── ຕັ້ງຄ່າໃບຕັ້ງໜີ້ຕ້ອງຮັບ AOB (ເອກະສານບັນຊີຂອງໃບເຄມ CLM-C) ─────────── */
 
 /**
- * ລະຫັດ**ບັນຊີ**ທີ່ COB ຈະລົງ + ສາຂາ — ເກັບໃນ `ods_setting`.
+ * ລະຫັດ**ບັນຊີຄູ່**ຂອງໃບຕັ້ງໜີ້ຕ້ອງຮັບ (AOB) + ສາຂາ — ເກັບໃນ `ods_setting`.
  *
- * ⚠️ ລະບົບ**ບໍ່ເດົາ**ລະຫັດບັນຊີໃຫ້: ແຖວຂອງ COB ຄືລາຍການບັນຊີແທ້ໆ (ເຊັ່ນ 5020103
- * "ລາຍຈ່າຍ ຄ່າຄອມມິດຊັນ") ⇒ ໃສ່ຜິດ = ງົບການເງິນຜິດ. ຍັງບໍ່ຕັ້ງ ⇒ ບໍ່ສ້າງ COB
- * (ໃບເຄມຍັງອອກປົກກະຕິ — ເບິ່ງ lib/erp-cob).
+ * ຄ່າຕັ້ງຕົ້ນ 4010501 "ລາຍຮັບຈາກການບໍລິການ" (ເບິ່ງ lib/erp-aob) ⇒ **ໃຊ້ໄດ້ເລີຍ**
+ * ໂດຍບໍ່ຕ້ອງຕັ້ງ. ຕັ້ງຢູ່ນີ້ເມື່ອຝ່າຍບັນຊີຢືນຢັນວ່າຄວນລົງບັນຊີອື່ນ — ໃສ່ຜິດ = ງົບການເງິນຜິດ.
  */
-export async function saveCobConfig(_: ChargeState, formData: FormData): Promise<ChargeState> {
+export async function saveAobConfig(_: ChargeState, formData: FormData): Promise<ChargeState> {
   const guard = await requireManager();
   if (!guard.ok) return { error: guard.error };
   if (!db) return { error: "ຖານຂໍ້ມູນຍັງບໍ່ພ້ອມ" };
 
   const values: Record<string, string> = {
-    cob_account_code: text(formData, "cob_account_code"),
-    cob_account_name: text(formData, "cob_account_name"),
-    cob_branch_code: text(formData, "cob_branch_code") || "01",
+    aob_account_code: text(formData, "aob_account_code"),
+    aob_account_name: text(formData, "aob_account_name"),
+    aob_branch_code: text(formData, "aob_branch_code") || "01",
   };
   for (const [key, value] of Object.entries(values)) {
     await db.query(

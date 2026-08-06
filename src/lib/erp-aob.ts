@@ -28,20 +28,20 @@ export const AOB_FLAG = 99;
 const DEFAULT_ACCOUNT = "4010501";
 const DEFAULT_ACCOUNT_NAME = "ລາຍຮັບຈາກການບໍລິການ";
 
-export type CobConfig = { account_code: string; account_name: string; branch_code: string };
+export type AobConfig = { account_code: string; account_name: string; branch_code: string };
 
-export async function cobConfig(): Promise<CobConfig> {
+export async function aobConfig(): Promise<AobConfig> {
   try {
     const rows = (
       await query<{ key: string; value: string | null }>(
-        `select key, value from ods_setting where key in ('cob_account_code','cob_account_name','cob_branch_code')`,
+        `select key, value from ods_setting where key in ('aob_account_code','aob_account_name','aob_branch_code')`,
       )
     ).rows;
     const map = new Map(rows.map((row) => [row.key, (row.value ?? "").trim()]));
     return {
-      account_code: map.get("cob_account_code") || DEFAULT_ACCOUNT,
-      account_name: map.get("cob_account_name") || DEFAULT_ACCOUNT_NAME,
-      branch_code: map.get("cob_branch_code") || "01",
+      account_code: map.get("aob_account_code") || DEFAULT_ACCOUNT,
+      account_name: map.get("aob_account_name") || DEFAULT_ACCOUNT_NAME,
+      branch_code: map.get("aob_branch_code") || "01",
     };
   } catch {
     return { account_code: DEFAULT_ACCOUNT, account_name: DEFAULT_ACCOUNT_NAME, branch_code: "01" };
@@ -52,7 +52,7 @@ export async function cobConfig(): Promise<CobConfig> {
  * ສ້າງໃບຕັ້ງໜີ້ຕ້ອງຮັບ 1 ໃບ (ເລກ = ລະຫັດໃບເຄມ). ຄືນເລກເອກະສານ ຫຼື null
  * (ບໍ່ມີ supplier · ຍອດ 0 · ERP ລົ້ມ).
  */
-export async function createCobForClaim(input: {
+export async function createAobForClaim(input: {
   claimNo: string;
   supplierCode: string;
   jobCode: string | null;
@@ -64,7 +64,7 @@ export async function createCobForClaim(input: {
   if (!input.supplierCode.trim()) return null;
   if (!(input.amountThb > 0)) return null; // ຍອດ 0 = ບໍ່ມີໜີ້ໃຫ້ຕັ້ງ
 
-  const config = await cobConfig();
+  const config = await aobConfig();
   const now = new Date();
   const docDate = now.toISOString().slice(0, 10);
   const docTime = new Intl.DateTimeFormat("en-GB", {
@@ -102,7 +102,7 @@ export async function createCobForClaim(input: {
     return docNo;
   } catch (error) {
     await client.query("rollback").catch(() => {});
-    console.error("createCobForClaim (AOB) failed", input.claimNo, error);
+    console.error("createAobForClaim (AOB) failed", input.claimNo, error);
     return null;
   } finally {
     client.release();
@@ -113,7 +113,7 @@ export async function createCobForClaim(input: {
  * ສະຖານະຂອງໃບຕັ້ງໜີ້ຢູ່ ERP.
  * `status` 0 = ບັນຊີຍັງບໍ່ດຳເນີນການ ⇒ ແກ້/ລຶບໄດ້ · ≠0 = **ຢ່າແຕະ** (ບັນຊີເອົາໄປໃຊ້ແລ້ວ).
  */
-export async function cobState(claimNo: string): Promise<{ exists: boolean; locked: boolean; amount: number }> {
+export async function aobState(claimNo: string): Promise<{ exists: boolean; locked: boolean; amount: number }> {
   if (!odgDb) return { exists: false, locked: false, amount: 0 };
   try {
     const row = (
@@ -125,7 +125,7 @@ export async function cobState(claimNo: string): Promise<{ exists: boolean; lock
     if (!row) return { exists: false, locked: false, amount: 0 };
     return { exists: true, locked: (row.status ?? 0) !== 0, amount: Number(row.total_amount ?? 0) };
   } catch (error) {
-    console.error("cobState failed", claimNo, error);
+    console.error("aobState failed", claimNo, error);
     // ອ່ານ ERP ບໍ່ໄດ້ ⇒ ຖືວ່າ **ລັອກ** (ປອດໄພກວ່າ: ບໍ່ໄປລຶບ/ແກ້ຂອງທີ່ເບິ່ງບໍ່ເຫັນ)
     return { exists: true, locked: true, amount: 0 };
   }
@@ -135,9 +135,9 @@ export async function cobState(claimNo: string): Promise<{ exists: boolean; lock
  * **ປັບຍອດໃບຕັ້ງໜີ້ໃຫ້ຕົງກັບໃບເຄມ** — ເອີ້ນຫຼັງແກ້ລາຍການ.
  * ບັນຊີເອົາໄປໃຊ້ແລ້ວ (status ≠ 0) ⇒ ບໍ່ແຕະ ແລ້ວຄືນ 'locked' ໃຫ້ຜູ້ເອີ້ນເຕືອນຄົນ.
  */
-export async function syncCobAmount(claimNo: string, amountThb: number): Promise<"updated" | "locked" | "none"> {
+export async function syncAobAmount(claimNo: string, amountThb: number): Promise<"updated" | "locked" | "none"> {
   if (!odgDb) return "none";
-  const state = await cobState(claimNo);
+  const state = await aobState(claimNo);
   if (!state.exists) return "none";
   if (state.locked) return "locked";
   const amount = Math.round(amountThb * 100) / 100;
@@ -160,7 +160,7 @@ export async function syncCobAmount(claimNo: string, amountThb: number): Promise
     return "updated";
   } catch (error) {
     await client.query("rollback").catch(() => {});
-    console.error("syncCobAmount failed", claimNo, error);
+    console.error("syncAobAmount failed", claimNo, error);
     return "none";
   } finally {
     client.release();
@@ -171,9 +171,9 @@ export async function syncCobAmount(claimNo: string, amountThb: number): Promise
  * **ລຶບໃບຕັ້ງໜີ້ຢູ່ ERP** — ໃຊ້ຕອນລຶບໃບເຄມ ບໍ່ດັ່ງນັ້ນເອກະສານບັນຊີກຳພ້າຄ້າງຢູ່ ERP.
  * ບັນຊີເອົາໄປໃຊ້ແລ້ວ ⇒ 'locked' (ຜູ້ເອີ້ນຕ້ອງຫ້າມການລຶບ ແລ້ວໃຫ້ໄປຈັດການຢູ່ ERP).
  */
-export async function deleteCobForClaim(claimNo: string): Promise<"deleted" | "locked" | "none"> {
+export async function deleteAobForClaim(claimNo: string): Promise<"deleted" | "locked" | "none"> {
   if (!odgDb) return "none";
-  const state = await cobState(claimNo);
+  const state = await aobState(claimNo);
   if (!state.exists) return "none";
   if (state.locked) return "locked";
   const client = await odgDb.connect();
@@ -185,7 +185,7 @@ export async function deleteCobForClaim(claimNo: string): Promise<"deleted" | "l
     return "deleted";
   } catch (error) {
     await client.query("rollback").catch(() => {});
-    console.error("deleteCobForClaim failed", claimNo, error);
+    console.error("deleteAobForClaim failed", claimNo, error);
     return "none";
   } finally {
     client.release();

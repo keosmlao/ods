@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth";
-import { queryOdg } from "@/lib/db";
+import { query, queryOdg } from "@/lib/db";
 import { roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -85,6 +85,14 @@ export type BillRow = {
   cust_lng: number | null;
   /** ພິກັດນີ້ມາຈາກໃສ — ໃຫ້ໜ້າຈໍບອກຜູ້ໃຊ້ໄດ້ວ່າເຊື່ອໄດ້ຫຼາຍປານໃດ */
   loc_source: "delivery" | "customer" | null;
+  /**
+   * ── ໃບງານທີ່ **ເຄີຍອອກ** ຈາກບິນນີ້ (ods_tb_install.doc_ref_1) ──
+   * ຄິວ "ບິນຄ້າງອອກໃບງານ" ຕັດບິນທີ່ເຄີຍອອກໃບງານອອກໝົດ (ລວມໃບທີ່ຍົກເລີກແລ້ວ) ⇒ ບິນພວກນີ້
+   * ມາຮອດຟອມໄດ້ທາງ**ຄົ້ນເລກບິນ**ເທົ່ານັ້ນ ແລະ ຟອມບໍ່ເຄີຍບອກວ່າມັນເຄີຍຖືກເປີດແລ້ວ
+   * ⇒ CS ອອກງານຊ້ຳໂດຍບໍ່ຮູ້ຕົວ. ຕິດມາໃຫ້ຟອມຂຶ້ນປ້າຍເຕືອນ (ບໍ່ຫ້າມ — ເປີດໃໝ່ຫຼັງຍົກເລີກ
+   * ຄືການໃຊ້ງານທີ່ຖືກຕ້ອງ).
+   */
+  jobs: { code: string; cancelled: boolean }[];
 };
 
 /**
@@ -409,6 +417,20 @@ export async function GET(request: NextRequest) {
       const byDoc = new Map(ship.map((row) => [row.doc_no, row]));
 
       /**
+       * ໃບງານເກົ່າຂອງບິນເຫຼົ່ານີ້ — **ຖາມ ODS** (ບິນຢູ່ ERP · ໃບງານຢູ່ ODS ⇒ join ຂ້າມຖານບໍ່ໄດ້).
+       * ຖາມດ້ວຍລາຍການ doc_no ທີ່ຄັດແລ້ວ (≤30 ໃບ) ⇒ ຖືກ.
+       */
+      const priorJobs = (
+        await query<{ doc_no: string; code: string; cancelled: boolean }>(
+          `select doc_ref_1 as doc_no, code, (cancel_date is not null) as cancelled
+             from ods_tb_install
+            where doc_ref_1 = any($1::text[])
+            order by code`,
+          [docs],
+        )
+      ).rows;
+
+      /**
        * ພິກັດ**ຈຸດສົ່ງຈິງ**ຈາກລະບົບຂົນສົ່ງ — ນີ້ຄືບ່ອນທີ່ຄົນສົ່ງເຄື່ອງໄປຮອດຈິງ
        * ⇒ ຊ່າງຕິດຕັ້ງກໍ່ຕ້ອງໄປບ່ອນນັ້ນ. ດີກວ່າພິກັດໃນທະບຽນລູກຄ້າ (ມີພຽງ 251/20,788).
        *
@@ -429,6 +451,9 @@ export async function GET(request: NextRequest) {
       const geoByDoc = new Map(delivered.map((row) => [row.bill_no, row]));
 
       for (const row of rows) {
+        row.jobs = priorJobs
+          .filter((job) => job.doc_no === row.doc_no)
+          .map(({ code, cancelled }) => ({ code, cancelled }));
         const found = byDoc.get(row.doc_no);
         row.ship_status = found?.status_ship ?? null;
         row.ship_date = found?.ship_date ?? null;

@@ -1,9 +1,13 @@
 import { Chatter } from "@/components/chatter/chatter";
 import { InstallEditForm, type InstallRow } from "@/components/installation/install-edit-form";
-import { PageTitle } from "@/components/ui";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
+import { JobEditHeader } from "@/components/job-edit-header";
 import { query } from "@/lib/db";
 import { listTechnicians } from "@/lib/technicians";
-import { notFound } from "next/navigation";
+import { permissionFor } from "@/lib/permissions";
+import { getSession } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
 
 /**
  * ຖອດແບບຈາກ ods: /edit_install/<id> + /edit_save_install (install_admin.py).
@@ -15,6 +19,13 @@ type Props = { params: Promise<{ code: string }> };
 type Option = { code: string; name_1: string };
 
 export default async function EditInstallation({ params }: Props) {
+  // ດ່ານຂອງໜ້າ — ຕົງກັບດ່ານຂອງ updateInstall (ສິດລາຍຄົນ update ຊະນະສິດຕາມຕຳແໜ່ງ)
+  const t = (await getDictionary(await getLocale())).jobEdit;
+  const fill = (text: string, vars: Record<string, string>) =>
+    Object.entries(vars).reduce((out, [k, v]) => out.replaceAll(`{${k}}`, v), text);
+  const session = await getSession();
+  if (!session) redirect("/login");
+  if (!(await permissionFor(session, "/installations")).update) redirect("/forbidden");
   const { code } = await params;
 
   const [row, categories, brands, techs] = await Promise.all([
@@ -47,7 +58,13 @@ export default async function EditInstallation({ params }: Props) {
 
   return (
     <div className="w-full space-y-5">
-      <PageTitle>ເເກ້ໄຂງານຕິດຕັ້ງ</PageTitle>
+      <JobEditHeader
+        back={{ href: `/installations/${encodeURIComponent(install.code)}`, label: t.backInstall }}
+        title={fill(t.titleInstall, { code: install.code })}
+        subtitle={[install.item_name, install.pro_model, install.cust_name].filter(Boolean).join(" · ")}
+        /* ປິດງານແລ້ວ ⇒ updateInstall ຮັບແຕ່ ISN (ເບິ່ງ isnOnlyUpdate) — ບອກໄວ້ກ່ອນ */
+        locked={install.closed ? t.lockedInstall : null}
+      />
       <InstallEditForm
         row={install}
         categories={categories.rows}

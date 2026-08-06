@@ -5,6 +5,8 @@ import { query } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { CLAIM_SIDE, roleOf } from "@/lib/roles";
 import { ArrowRight, ShieldCheck } from "lucide-react";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -21,6 +23,7 @@ import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 export default async function ClaimJobsIndex() {
+  const t = (await getDictionary(await getLocale())).claimJobs;
   const session = await getSession();
   if (!session) redirect("/login");
   if (!CLAIM_SIDE.includes(roleOf(session))) redirect("/forbidden");
@@ -46,16 +49,16 @@ export default async function ClaimJobsIndex() {
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-700">ຄິວງານເຄມ</h1>
+          <h1 className="text-xl font-bold text-slate-700">{t.queueTitle}</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            ງານເຄມທີ່ດຳເນີນຢູ່ <b className="tabular-nums text-slate-700">{total}</b> ໃບ — ຮັບຈາກຮ້ານ → ກວດ → ຕັດສິນ → ຄືນຮ້ານ
+            {t.queueOpen} <b className="tabular-nums text-slate-700">{total}</b> {t.queueFlow}
           </p>
         </div>
         <Link
           href="/claims/new"
           className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-orange-600 px-4 text-sm font-semibold text-white hover:bg-brand-orange-700"
         >
-          ຮັບເຄື່ອງເຄມ
+          {t.receiveGoods}
         </Link>
       </div>
 
@@ -74,10 +77,10 @@ export default async function ClaimJobsIndex() {
                 {page.short}
               </p>
               <p className={`mt-2 text-2xl font-bold tabular-nums ${open > 0 ? "text-amber-700" : "text-slate-300"}`}>
-                {open} <span className="text-sm font-semibold text-slate-400">ໃບເປີດຢູ່</span>
+                {open} <span className="text-sm font-semibold text-slate-400">{t.openDocs}</span>
               </p>
               <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-700 group-hover:underline">
-                ເປີດລາຍການເຄມ <ArrowRight className="size-3" />
+                {t.openClaimList} <ArrowRight className="size-3" />
               </span>
             </Link>
           );
@@ -98,14 +101,14 @@ export default async function ClaimJobsIndex() {
             >
               <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-400">
                 <ShieldCheck className="size-3.5" />
-                ຂັ້ນ {index + 1}
+                {t.stage} {index + 1}
               </p>
               <p className="mt-1 text-sm font-bold text-slate-700">{def.label}</p>
               <p className={`mt-2 text-2xl font-black tabular-nums ${count > 0 ? "text-brand-orange-700" : "text-slate-300"}`}>
                 {count}
               </p>
               <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-orange-600">
-                ເປີດເບິ່ງ <ArrowRight className="size-3" />
+                {t.open} <ArrowRight className="size-3" />
                 <LinkPending className="size-3" />
               </span>
             </Link>

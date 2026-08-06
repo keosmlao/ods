@@ -1,12 +1,13 @@
-import { LinkPending } from "@/components/link-pending";
-import { BackLink } from "@/components/back-link";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
+import { JobEditHeader } from "@/components/job-edit-header";
 import { ServiceEditForm, type ServiceHead } from "@/components/service-edit-form";
 import { query } from "@/lib/db";
 import { getErpBrands, getErpCategories } from "@/lib/erp-master";
 import { technicianOptions } from "@/lib/technicians";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { claimRedirectTarget } from "@/lib/claim-route";
+import { permissionFor } from "@/lib/permissions";
+import { getSession } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
 
 /**
@@ -17,18 +18,35 @@ import { notFound, redirect } from "next/navigation";
  * ແລະ ບໍ່ຕົງກັບໜ້າ "ໃບຮັບເຄື່ອງໃໝ່" ທີ່ດຶງຈາກ ERP ຢູ່ແລ້ວ.
  * ດຽວນີ້ໃຊ້ແຫຼ່ງດຽວກັນກັບໜ້າສ້າງໃໝ່ (ic_category / ic_brand / odg_employee).
  */
+/**
+ * ຄຳເຕືອນຊ່ອງທີ່ **ລັອກແລ້ວ** — ຕົງກັບດ່ານຢູ່ `updateService` (ງານຈົບ/ຍົກເລີກ ⇒ 4 ຊ່ອງນີ້
+ * ແກ້ບໍ່ໄດ້ ເພາະຄິດຄ່າຄອມ · ລົງລາຍງານ · ຕັດສິດເຄມ ໄປແລ້ວ). ບອກກ່ອນຕື່ມຟອມ ບໍ່ແມ່ນຫຼັງກົດບັນທຶກ.
+ */
+
 type Props = { params: Promise<{ code: string }> };
 
 export default async function EditService({ params }: Props) {
   const { code } = await params;
+  /**
+   * ດ່ານຂອງ**ໜ້າ** — ເມື່ອກ່ອນອີງ proxy (RULES) ຢ່າງດຽວ ຄືກັບໜ້າຕິດຕັ້ງ ແຕ່ໜ້າ
+   * ເຄມ/ບຳລຸງຮັກສາກວດເອງ ⇒ ບໍ່ຄືກັນ. ກວດເອງນຳ: ສິດລາຍຄົນ (update) ຊະນະສິດຕາມຕຳແໜ່ງ
+   * ແລະ ຕົງກັບດ່ານຂອງ action (updateService) ⇒ ຄົນທີ່ບັນທຶກບໍ່ໄດ້ ຈະບໍ່ເຫັນຟອມແຕ່ຕົ້ນ.
+   */
+  const t = (await getDictionary(await getLocale())).jobEdit;
+  const fill = (text: string, vars: Record<string, string>) =>
+    Object.entries(vars).reduce((out, [k, v]) => out.replaceAll(`{${k}}`, v), text);
+  const session = await getSession();
+  if (!session) redirect("/login");
+  if (!(await permissionFor(session, "/service")).update) redirect("/forbidden");
   /* ໃບເຄມມີໜ້າຂອງຕົນ ⇒ ພາໄປ route ຝັ່ງເຄມ (lib/claim-route) — ຫ້າມມີ 2 ທາງເຂົ້າ */
   const claimPath = await claimRedirectTarget(decodeURIComponent(code), "edit");
   if (claimPath) redirect(claimPath);
 
   // doc_date_ref ເປັນ varchar — ຫ້າມເອົາໄປໃສ່ to_char()
   const head = (
-    await query<ServiceHead>(
-      `select a.code, a.name_1, coalesce(a.sn,'') sn, coalesce(a.p_model,'') p_model, coalesce(a.p_type,'') p_type,
+    await query<ServiceHead & { returned: boolean; cancelled: boolean; cust_name: string }>(
+      `select (a.return_complete is not null) returned, (a.status = 6) cancelled,
+         a.code, a.name_1, coalesce(a.sn,'') sn, coalesce(a.p_model,'') p_model, coalesce(a.p_type,'') p_type,
          coalesce(a.p_brand,'') p_brand, coalesce(a.p_access,'') p_access, coalesce(a.warrunty,'') warrunty,
          coalesce(a.p_delivery,'') p_delivery, coalesce(a.service_type,'') service_type, coalesce(a.issue,'') issue,
          coalesce(a.p_abrasion,'') p_abrasion, coalesce(a.cust_code,'') cust_code, coalesce(a.emp_code,'') emp_code,
@@ -74,11 +92,17 @@ export default async function EditService({ params }: Props) {
 
   return (
     <div className="w-full space-y-4">
-      <div>
-        <BackLink fallback={`/service/${code}`} label="ກັບໜ້າໃບຮັບເຄື່ອງ" />
-        <h1 className="text-xl font-bold text-slate-700">ແກ້ໄຂໃບຮັບເຄື່ອງ #{head.code}</h1>
-        <p className="mt-0.5 text-xs text-slate-500">{head.name_1} {head.sn && <span className="text-slate-400">· {head.sn}</span>}</p>
-      </div>
+      <JobEditHeader
+        back={{ href: `/service/${code}`, label: t.backService }}
+        title={fill(t.titleService, { code: head.code })}
+        subtitle={[head.name_1, head.sn, head.cust_name].filter(Boolean).join(" · ")}
+        /* ຄຳເຕືອນຕົງກັບດ່ານຢູ່ updateService — ບອກກ່ອນຕື່ມຟອມ ບໍ່ແມ່ນຫຼັງກົດບັນທຶກ */
+        locked={
+          head.returned || head.cancelled
+            ? fill(t.lockedRepair, { state: head.returned ? t.lockedReturned : t.lockedCancelled })
+            : null
+        }
+      />
 
       {/* ຊ່າງເກັບເປັນ "ຊື່ຫຼິ້ນ" ຢູ່ tb_product.emp_code — ຄ່າ ແລະ ປ້າຍຈຶ່ງເປັນອັນດຽວກັນ */}
       <ServiceEditForm
