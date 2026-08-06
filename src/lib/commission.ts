@@ -123,20 +123,96 @@ export async function computePayout(client: PoolClient, workflow: Workflow, dims
 
   const amount = Number(rate.amount_thb);
 
+  /**
+   * ── ແບ່ງສ່ວນຂອງ **ຊ່າງ** ຕາມ "ຮອບເຂົ້າໜ້າງານ" (06-08-2026) ──
+   * ງານຕິດຕັ້ງໄປຫຼາຍມື້ໄດ້ ແລະ **ຮອບຕໍ່ໄປອາດເປັນຊ່າງຄົນອື່ນ** (ປ່ຽນຊ່າງກາງທາງ —
+   * ເບິ່ງ handoverInstallTech). ຖ້າຈ່າຍໃຫ້ຄົນທີ່ຖືງານຕອນປິດຄົນດຽວ ຄົນທີ່ໄປຮອບກ່ອນ
+   * ບໍ່ໄດ້ຫຍັງ ທັງທີ່ໄປຈິງ (ຂໍ້ມູນຈິງ: 24 ໃບເຄີຍປ່ຽນຊ່າງ).
+   *
+   * ຖານແບ່ງ = **ຈຳນວນຮອບ** (ບໍ່ແມ່ນຊົ່ວໂມງ — ຮອບທີ່ລືມ check-out ຈະບໍ່ມີເວລາ
+   * ⇒ ນັບຮອບຈຶ່ງບໍ່ຫາຍ ແລະ ຄົນເຂົ້າໃຈງ່າຍກວ່າ).
+   * ບໍ່ມີຮອບຖືກບັນທຶກ (ງານເກົ່າ · ບໍ່ໄດ້ check-in) ⇒ ຄືນໄປໃຊ້ກົດເກົ່າ: ຄົນທີ່ຖືງານຕອນປິດ.
+   * ເສດຈາກການປັດ ຕົກໃສ່ຄົນທີ່ໄປຮອບຫຼ້າສຸດ ⇒ ຍອດລວມຕົງກັບ pct ສະເໝີ.
+   */
+  const visitShares = await technicianVisitShares(client, workflow, dims.job_code);
+
   for (const split of splits.rows) {
     const pct = Number(split.pct);
     // ຊ່າງ = ຄົນທີ່ຮັບງານ (ແປງເປັນ employee_code ແລ້ວ) · ບົດບາດອື່ນ = ຄົນທີ່ຜູ້ຈັດການລະບຸ
     const employee = split.role === "technician" ? technician : (payeeOf.get(split.role) ?? null);
 
-    await client.query(
-      `insert into ods_service_payout(
-          workflow, job_code, rate_id, rate_label, amount_thb,
-          role, employee_code, pct, pay_thb, closed_at)
-       values($1,$2,$3,$4,$5,$6,$7,$8,round($5::numeric * $8::numeric / 100, 2),$9)
-       on conflict (workflow, job_code, role) do nothing`,
-      [workflow, dims.job_code, rate.id, rate.label, amount, split.role, employee, pct, dims.closed_at],
-    );
+    const pool = Math.round((amount * pct) / 100 * 100) / 100;
+    const shares =
+      split.role === "technician" && visitShares.length > 1
+        ? splitByVisits(pool, visitShares)
+        : [{ employee_code: employee, pay: pool, visits: null as number | null }];
+
+    for (const share of shares) {
+      await client.query(
+        `insert into ods_service_payout(
+            workflow, job_code, rate_id, rate_label, amount_thb,
+            role, employee_code, pct, pay_thb, visits, closed_at)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         on conflict (workflow, job_code, role, employee_code) do nothing`,
+        [
+          workflow,
+          dims.job_code,
+          rate.id,
+          rate.label,
+          amount,
+          split.role,
+          share.employee_code,
+          pct,
+          share.pay,
+          share.visits,
+          dims.closed_at,
+        ],
+      );
+    }
   }
+}
+
+/** ຊ່າງແຕ່ລະຄົນໄປຈັກຮອບ — ຮຽງຕາມຮອບທຳອິດຂອງແຕ່ລະຄົນ (ຄົນຫຼ້າສຸດຢູ່ທ້າຍ ⇒ ໄດ້ເສດ) */
+async function technicianVisitShares(
+  client: PoolClient,
+  workflow: Workflow,
+  jobCode: string,
+): Promise<{ employee_code: string; visits: number }[]> {
+  try {
+    const rows = (
+      await client.query<{ tech_code: string; visits: number }>(
+        `select tech_code, count(*)::int visits
+           from ods_job_checkin
+          where workflow=$1 and job_code=$2 and coalesce(tech_code,'') <> ''
+          group by tech_code
+          order by min(id)`,
+        [workflow, jobCode],
+      )
+    ).rows;
+    // ແປງເປັນລະຫັດພະນັກງານ ERP ຄືກັບເສັ້ນທາງຫຼັກ ⇒ ຈ່າຍເຂົ້າ ERP ໄດ້
+    const shares: { employee_code: string; visits: number }[] = [];
+    for (const row of rows) {
+      shares.push({ employee_code: (await employeeCode(row.tech_code)) || row.tech_code, visits: row.visits });
+    }
+    // ຄົນດຽວກັນຖືກແປງເປັນລະຫັດດຽວກັນໄດ້ ⇒ ຮວມກັນ ບໍ່ດັ່ງນັ້ນ insert ຊ້ຳກະແຈ
+    const merged = new Map<string, number>();
+    for (const share of shares) merged.set(share.employee_code, (merged.get(share.employee_code) ?? 0) + share.visits);
+    return [...merged].map(([employee_code, visits]) => ({ employee_code, visits }));
+  } catch (error) {
+    console.error("technicianVisitShares failed", jobCode, error);
+    return [];
+  }
+}
+
+/** ແບ່ງເງິນກ້ອນນຶ່ງຕາມສັດສ່ວນຮອບ — ເສດຕົກໃສ່ຄົນສຸດທ້າຍ ⇒ ຍອດລວມບໍ່ຫາຍ */
+function splitByVisits(pool: number, shares: { employee_code: string; visits: number }[]) {
+  const total = shares.reduce((sum, share) => sum + share.visits, 0);
+  let left = Math.round(pool * 100);
+  return shares.map((share, index) => {
+    const cents = index === shares.length - 1 ? left : Math.round((pool * 100 * share.visits) / total);
+    left -= cents;
+    return { employee_code: share.employee_code, pay: cents / 100, visits: share.visits };
+  });
 }
 
 /* ── ດຶງມິຕິຂອງງານ ─────────────────────────────────────────────── */
