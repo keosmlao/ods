@@ -1,6 +1,7 @@
 "use client";
 import { advanceClaim, deleteClaimItem, resolveClaim, sendClaimEmail, setClaimPaid, updateClaimRemark } from "@/app/actions/claim";
-import { claimCanTransition, type ClaimItem, type ClaimType, type CobInfo, type JobDelivery, PAY_METHOD_LABEL } from "@/lib/claim-shared";
+import { claimCanTransition, type ClaimItem, type ClaimType, type CobInfo, type JobDelivery } from "@/lib/claim-shared";
+import { useDict } from "@/lib/i18n/context";
 import { ArrowRight, BadgeCheck, CircleCheck, FileText, ListChecks, LoaderCircle, Mail, Package, Trash2, Truck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -43,6 +44,14 @@ export function ClaimManage({
   const [pending, start] = useTransition();
   const [items, setItems] = useState(initialItems);
   const [note, setNote] = useState(remark ?? "");
+  const t = useDict().claimManage;
+  /** ຕື່ມຄ່າໃສ່ຄຳແປ — {label} · {method} · {at} · {doc} */
+  const fill = (text: string, vars: Record<string, string>) =>
+    Object.entries(vars).reduce((out, [k, v]) => out.replaceAll(`{${k}}`, v), text);
+  /** ວິທີຊຳລະ — ຄຳຈາກ dictionary (ຄ່າຄົງ PAY_METHOD_LABEL ໃຊ້ຝັ່ງ server/email ຄືເກົ່າ) */
+  const payLabel: Record<string, string> = {
+    cash: t.payCash, transfer: t.payTransfer, replace: t.payReplace, discount: t.payDiscount,
+  };
   const [payM, setPayM] = useState(payMethod ?? "");
   const [err, setErr] = useState("");
   const payNext = type === "C" && nextStatus?.status === "paid";
@@ -63,35 +72,35 @@ export function ClaimManage({
   return (
     <main className="min-w-0 space-y-5">
       <div className="flex items-end justify-between gap-3 px-1">
-        <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-600">Workflow</p><h2 className="mt-1 text-lg font-bold text-slate-900">ຈັດການໃບເຄມ</h2></div>
-        {emailSentAt && <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-700"><CircleCheck className="size-3.5" /> ສົ່ງ email ແລ້ວ</span>}
+        <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-600">Workflow</p><h2 className="mt-1 text-lg font-bold text-slate-900">{t.manageTitle}</h2></div>
+        {emailSentAt && <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-700"><CircleCheck className="size-3.5" /> {t.emailSent}</span>}
       </div>
       {/* ── ຈັດການ status ── */}
       <div className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 to-white p-5 shadow-sm">
-        <div className="mb-3 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-brand-700 text-white"><ListChecks className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">ຂັ້ນຕອນຕໍ່ໄປ</p><p className="text-[11px] text-slate-500">ເລືອກຄຳສັ່ງເພື່ອດຳເນີນ workflow</p></div></div>
+        <div className="mb-3 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-brand-700 text-white"><ListChecks className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">{t.nextStep}</p><p className="text-[11px] text-slate-500">{t.workflowHint}</p></div></div>
         <div className="flex flex-wrap items-center gap-2">
           {payNext ? (
             <div className="flex flex-wrap items-center gap-2">
               <select value={payM} onChange={(e) => setPayM(e.target.value)} className="h-9 rounded-lg border border-slate-300 px-2.5 text-sm outline-none focus:border-brand-600">
-                <option value="">— ວິທີຊຳລະ —</option>
-                {Object.entries(PAY_METHOD_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                <option value="">{t.payMethodPick}</option>
+                {Object.entries(payLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
               <button type="button" disabled={pending || !payM} onClick={() => act(() => setClaimPaid(claimNo, payM))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60">
-                {pending ? <LoaderCircle className="size-4 animate-spin" /> : <BadgeCheck className="size-4" />} ໝາຍ ຊຳລະແລ້ວ
+                {pending ? <LoaderCircle className="size-4 animate-spin" /> : <BadgeCheck className="size-4" />} {t.markPaid}
               </button>
             </div>
           ) : type === "B" && nextStatus?.status === "done" ? (
             // ຂັ້ນ "ກວດ/ຕັດສິນ" ⇒ ເລືອກໄດ້ 2 ຢ່າງ: ປ່ຽນ ຫຼື ສ້ອມ (ບັນທຶກ resolution)
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-slate-500">ຕັດສິນ:</span>
+              <span className="text-xs font-semibold text-slate-500">{t.decide}</span>
               <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claimNo, "replace", "stock"))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60">
-                {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ປ່ຽນຈາກ stock
+                {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} {t.replaceFromStock}
               </button>
               <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claimNo, "replace", "purchase"))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-orange-500 px-3 text-sm font-semibold text-white hover:bg-brand-orange-700 disabled:opacity-60">
-                <ArrowRight className="size-4" /> ສັ່ງຊື້ມາປ່ຽນ
+                <ArrowRight className="size-4" /> {t.buyToReplace}
               </button>
               <button type="button" disabled={pending} onClick={() => act(() => resolveClaim(claimNo, "replace", "supplier"))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-orange-600 px-3 text-sm font-semibold text-white hover:bg-brand-orange-700 disabled:opacity-60">
-                <ArrowRight className="size-4" /> ເຄມ supplier
+                <ArrowRight className="size-4" /> {t.claimSupplier}
               </button>
               <button type="button" disabled={pending} onClick={() => act(async () => {
                 // ສ້ອມ ⇒ ບັນທຶກ resolution ແລ້ວ **ເຊື່ອມໄປເປີດໃບງານສ້ອມ** (ຕື່ມ ສິນຄ້າ/SN/ບິນ ໃຫ້)
@@ -107,20 +116,20 @@ export function ClaimManage({
                 }
                 return r;
               })} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60">
-                {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ສ້ອມ → ເປີດໃບງານ
+                {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} {t.repairOpenJob}
               </button>
             </div>
           ) : type === "B" && status === "received" ? (
             // received → checking ຕ້ອງຜ່ານ ຊ່າງ QC (saveCheck) ບໍ່ແມ່ນປຸ່ມນີ້
-            <span className="text-sm text-slate-500">⏳ ລໍຊ່າງ ກວດເຊັກ (QC) ກ່ອນ ຈຶ່ງຕັດສິນໄດ້</span>
+            <span className="text-sm text-slate-500">{t.waitQc}</span>
           ) : nextStatus && claimCanTransition(type, status, nextStatus.status) && !(editable && (type === "A" || type === "C")) ? (
             <button type="button" disabled={pending} onClick={() => act(() => advanceClaim(claimNo, nextStatus.status))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60">
-              {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} ໄປ: {nextStatus.label}
+              {pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />} {fill(t.goTo, { label: nextStatus.label })}
             </button>
           ) : payMethod ? (
-            <span className="text-sm font-semibold text-brand-800">✓ ຊຳລະແລ້ວ · {PAY_METHOD_LABEL[payMethod] ?? payMethod}</span>
+            <span className="text-sm font-semibold text-brand-800">{fill(t.paidWith, { method: payLabel[payMethod] ?? payMethod })}</span>
           ) : (
-            <span className="text-sm text-slate-400">— ຈົບ pipeline —</span>
+            <span className="text-sm text-slate-400">{t.pipelineEnd}</span>
           )}
           {canReject && ["sent", "review"].includes(status) && (
             <button type="button" disabled={pending} onClick={() => act(() => advanceClaim(claimNo, "rejected"))} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-brand-orange-400 bg-brand-orange-50 px-3 text-sm font-semibold text-brand-orange-700 hover:bg-brand-orange-100 disabled:opacity-60">
@@ -134,18 +143,18 @@ export function ClaimManage({
       {/* ── ສ່ງຄຳຂໍ ຫາ supplier (CLM-A) — flow ມີຂັ້ນ "ສົ່ງ supplier" ── */}
       {type === "A" && (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Mail className="size-4 text-brand-700" /> ສ່ງຄຳຂໍອາໄຫຼ່ ຫາ supplier</p>
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Mail className="size-4 text-brand-700" /> {t.sendPartsRequest}</p>
           <p className="mb-3 text-[12px] text-slate-600">
-            ອາໄຫຼ່ທີ່ຂໍ: <b className="tabular-nums">{items.length}</b> ລາຍการ
+            {t.itemsAsked} <b className="tabular-nums">{items.length}</b> {t.itemsUnit}
             {items.length > 0 && <span className="text-slate-400"> · {items.map((i) => i.item_name).slice(0, 3).join(", ")}{items.length > 3 ? " …" : ""}</span>}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" disabled={pending} onClick={() => act(() => sendClaimEmail(claimNo))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60">
-              {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Mail className="size-4" />} ສ່ງ email ຫາ supplier
+              {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Mail className="size-4" />} {t.sendEmailSupplier}
             </button>
-            {emailSentAt && <span className="text-[12px] font-semibold text-brand-800">✓ ສ່ງແລ້ວ {emailSentAt}</span>}
+            {emailSentAt && <span className="text-[12px] font-semibold text-brand-800">{fill(t.sentAt, { at: emailSentAt })}</span>}
           </div>
-          <p className="mt-2 text-[11px] text-slate-400">ສົ່ງໄປ email ຂອງ supplier ໃນ ERP, CC ຜູ້ຮັບລາຍງານ ແລະປ່ຽນສະຖານະອັດຕະໂນມັດ.</p>
+          <p className="mt-2 text-[11px] text-slate-400">{t.emailHintA}</p>
         </div>
       )}
 
@@ -157,15 +166,15 @@ export function ClaimManage({
         */}
       {type === "C" && (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-brand-50 text-brand-700"><FileText className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">1. ໃບຕັ້ງໜີ້ຕ້ອງຮັບ (ERP · AOB)</p><p className="text-[11px] text-slate-400">ລະບົບອອກໃຫ້ອັດຕະໂນມັດ ຕອນອອກໃບເຄມ · ເລກດຽວກັບໃບເຄມ</p></div></div>
+          <div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-brand-50 text-brand-700"><FileText className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">1. {t.cobTitle}</p><p className="text-[11px] text-slate-400">{t.cobSub}</p></div></div>
           {cob ? (
             <div className="rounded-lg border border-brand-200 bg-brand-50 p-2.5 text-[12px] text-brand-800">
-              <b>{cob.doc_no}</b> · ຍອດ <b className="tabular-nums">{cob.total_amount.toLocaleString()}</b> · supplier {cob.supplier_code ?? "-"} · {cob.doc_date ?? "-"} · status {cob.status === 0 ? "ຍັງບໍ່ດຳເນີນການ" : cob.status}
+              <b>{cob.doc_no}</b> · {t.cobAmount} <b className="tabular-nums">{cob.total_amount.toLocaleString()}</b> · supplier {cob.supplier_code ?? "-"} · {cob.doc_date ?? "-"} · status {cob.status === 0 ? t.cobNotProcessed : cob.status}
             </div>
           ) : erpDocNo ? (
-            <p className="text-[11px] text-brand-900">ອອກເລກ {erpDocNo} ແລ້ວ ແຕ່ອ່ານຈາກ ERP ບໍ່ໄດ້ (ກວດການເຊື່ອມ ERP).</p>
+            <p className="text-[11px] text-brand-900">{fill(t.cobUnreadable, { doc: erpDocNo ?? "" })}</p>
           ) : (
-            <p className="text-[11px] text-slate-400">ຍັງບໍ່ມີໃບຕັ້ງໜີ້ — ລະບົບອອກໃຫ້ເມື່ອໃບເຄມ**ມີຍອດ** ແລະ ມີ supplier.</p>
+            <p className="text-[11px] text-slate-400">{t.cobNone}</p>
           )}
         </div>
       )}
@@ -174,7 +183,7 @@ export function ClaimManage({
       {/* ── ເອກະສານສົ່ງເຄື່ອງ + email (CLM-C) ── */}
       {type === "C" && (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-brand-50 text-brand-700"><Truck className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">2. ກວດງານ ແລະ ສົ່ງ email</p><p className="text-[11px] text-slate-400">ແຈ້ງ supplier</p></div></div>
+          <div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-brand-50 text-brand-700"><Truck className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">2. {t.deliveryTitle}</p><p className="text-[11px] text-slate-400">{t.deliverySub}</p></div></div>
           {/**
             * ⚠️ **ບໍ່ມີ "ຜູກງານ" / "ດຶງ ໃບເກັບເງິນ" ອີກ** (ຖອດ 05-08-2026): ໃບ CLM-C ດຽວນີ້
             * ເກີດພ້ອມ **ເລກງານ ແລະ ລາຍການ**ຢູ່ແລ້ວ — ຈາກຟອມເປີດໃບ (ເລືອກງານ ⇒ ດຶງລາຍການໃຫ້)
@@ -182,29 +191,29 @@ export function ClaimManage({
             */}
           {delivery ? (
             <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-[12px] text-slate-700">
-              ງານ <b>{delivery.code}</b> · {delivery.product || "-"} · {delivery.brand || ""} · ລູກຄ້າ {delivery.customer || "-"} · ສ່ງคืน <b>{delivery.returned_at || "-"}</b>
+              {t.deliveryJob} <b>{delivery.code}</b> · {delivery.product || "-"} · {delivery.brand || ""} · {t.deliveryCustomer} {delivery.customer || "-"} · {t.deliveryReturned} <b>{delivery.returned_at || "-"}</b>
             </div>
           ) : (
-            <p className="mb-3 text-[11px] text-brand-900">ບໍ່ພົບ ເອກະສານສົ່ງເຄື່ອງ ຂອງງານທີ່ຜູກໄວ້.</p>
+            <p className="mb-3 text-[11px] text-brand-900">{t.deliveryNone}</p>
           )}
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" disabled={pending} onClick={() => act(() => sendClaimEmail(claimNo))} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60">
-              {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Mail className="size-4" />} ສ່ງ email ຫາຜູ້ຮັບ
+              {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Mail className="size-4" />} {t.sendEmailRecipients}
             </button>
-            {emailSentAt && <span className="text-[12px] font-semibold text-brand-800">✓ ສ່ງແລ້ວ {emailSentAt}</span>}
+            {emailSentAt && <span className="text-[12px] font-semibold text-brand-800">{fill(t.sentAt, { at: emailSentAt })}</span>}
           </div>
-          <p className="mt-2 text-[11px] text-slate-400">ສົ່ງໄປ email ຂອງ supplier ໃນ ERP, CC ຜູ້ຮັບລາຍງານ ແລະປ່ຽນເປັນ “ແຈ້ງແລ້ວ” ອັດຕະໂນມັດ.</p>
+          <p className="mt-2 text-[11px] text-slate-400">{t.emailHintC}</p>
         </div>
       )}
 
       {/* ── ລາຍการ ── */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-slate-100 text-slate-600"><Package className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">ອາໄຫຼ່ / ລາຍການ</p><p className="text-[11px] text-slate-400">{items.length} ລາຍການໃນໃບເຄມ</p></div></div>
+        <div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-slate-100 text-slate-600"><Package className="size-4.5" /></span><div><p className="text-sm font-bold text-slate-800">{t.partsItems}</p><p className="text-[11px] text-slate-400">{items.length} ລາຍການໃນໃບເຄມ</p></div></div>
         {items.length > 0 && (
           <div className="mb-3 overflow-x-auto">
             <table className="w-full min-w-[520px] border-collapse text-[12px]">
               <thead><tr className="border-b border-slate-200 text-left text-[10px] uppercase text-slate-400">
-                <th className="px-2 py-1">ລະຫັດ</th><th className="px-2 py-1">ຊື່</th><th className="px-2 py-1 text-right">ຈຳນວນ</th><th className="px-2 py-1 text-right">ຍอด</th><th /></tr></thead>
+                <th className="px-2 py-1">{t.colCode}</th><th className="px-2 py-1">{t.colName}</th><th className="px-2 py-1 text-right">{t.colQty}</th><th className="px-2 py-1 text-right">{t.colAmount}</th><th /></tr></thead>
               <tbody>
                 {items.map((it) => (
                   <tr key={it.id} className="border-b border-slate-100">
@@ -223,10 +232,10 @@ export function ClaimManage({
 
       {/* ── ໝາຍເຫตุ ── */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <p className="mb-2 text-xs font-semibold text-slate-500">ໝາຍເຫตุ</p>
+        <p className="mb-2 text-xs font-semibold text-slate-500">{t.remark}</p>
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-600" />
         <div className="mt-2 flex justify-end">
-          <button type="button" disabled={pending} onClick={() => act(() => updateClaimRemark(claimNo, note))} className="h-8 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60">ບັນທຶກໝາຍເຫตุ</button>
+          <button type="button" disabled={pending} onClick={() => act(() => updateClaimRemark(claimNo, note))} className="h-8 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60">{t.saveRemark}</button>
         </div>
       </div>
     </main>

@@ -1,6 +1,7 @@
 "use client";
 import { deleteReturnRequest, editReturnRequest } from "@/app/actions/stock";
 import { useConfirm } from "@/components/confirm-dialog";
+import { useDict } from "@/lib/i18n/context";
 import { LoaderCircle, Pencil, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 
@@ -17,30 +18,23 @@ export function ReturnRowActions({ docNo, docRef }: { docNo: string; docRef: str
   const [pending, start] = useTransition();
   const [error, setError] = useState("");
   const { ask, dialog } = useConfirm();
+  const t = useDict().receiveReturns;
+  /** ຕື່ມເລກໃບໃສ່ຂໍ້ຄວາມແປ ({doc} = ໃບຂໍຄືນ · {ref} = ໃບເບີກ) */
+  const fill = (text: string) => text.replace("{doc}", docNo).replace("{ref}", docRef ?? "-");
 
   const run = (action: "edit" | "delete") => async () => {
     const ok = await ask(
       action === "delete"
         ? {
-            title: "ຍົກເລີກໃບຂໍສົ່ງຄືນ?",
-            message: (
-              <>
-                ໃບ <b className="text-slate-700">{docNo}</b> ຈະຖືກລຶບອອກທັງ ODSS ແລະ ERP
-                ແລ້ວລາຍການອາໄຫຼ່ຈະກັບໄປເປັນ &quot;ຍັງບໍ່ຄືນ&quot; ຂອງໃບເບີກ {docRef}
-              </>
-            ),
-            confirmLabel: "ຍົກເລີກໃບນີ້",
+            title: t.deleteTitle,
+            message: fill(t.deleteMessage),
+            confirmLabel: t.deleteConfirm,
             tone: "danger",
           }
         : {
-            title: "ແກ້ໄຂໃບຂໍສົ່ງຄືນ?",
-            message: (
-              <>
-                ໃບ <b className="text-slate-700">{docNo}</b> ຈະຖືກຍົກເລີກ ແລ້ວເປີດຟອມຂອງໃບເບີກ {docRef}
-                ໃຫ້ເລືອກລາຍການໃໝ່ — ບັນທຶກແລ້ວຈະໄດ້ <b className="text-slate-700">ເລກໃບໃໝ່</b>
-              </>
-            ),
-            confirmLabel: "ແກ້ໄຂ",
+            title: t.editTitle,
+            message: fill(t.editMessage),
+            confirmLabel: t.edit,
           },
     );
     if (!ok) return;
@@ -66,7 +60,7 @@ export function ReturnRowActions({ docNo, docRef }: { docNo: string; docRef: str
             className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
           >
             {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Pencil className="size-3.5" />}
-            ແກ້ໄຂ
+            {t.edit}
           </button>
         )}
         <button
@@ -76,7 +70,7 @@ export function ReturnRowActions({ docNo, docRef }: { docNo: string; docRef: str
           className="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-orange-400 bg-white px-2.5 text-xs font-semibold text-brand-orange-700 hover:bg-brand-orange-50 disabled:opacity-60"
         >
           <Trash2 className="size-3.5" />
-          ລົບ
+          {t.delete}
         </button>
       </span>
       {error && <p className="mt-1 text-[10px] font-semibold text-brand-orange-700">{error}</p>}

@@ -3,7 +3,7 @@ import { rateOptions } from "@/app/actions/service-rate";
 import { Card, PageTitle, Table } from "@/components/ui";
 import { cobConfig } from "@/lib/erp-cob";
 import { listServiceCharges } from "@/lib/service-charge";
-import { AddChargeForm, CobConfigForm, DeleteChargeButton } from "./charge-forms";
+import { AddChargeForm, CobConfigForm, DeleteChargeButton, EditChargeRow } from "./charge-forms";
 
 /**
  * **ຈັບຄູ່ ປະເພດເຄື່ອງ → ຄ່າບໍລິການສ້ອມແປງ** — ໜ້າໃບຮັບເງິນເອົາການຕັ້ງຄ່ານີ້ໄປຕື່ມ
@@ -60,11 +60,11 @@ export default async function ServiceChargesPage() {
               <td className="px-3 py-2">{categoryName(row.category_code)}</td>
               <td className="px-3 py-2 text-slate-500">{row.design_code ?? "—"}</td>
               <td className="px-3 py-2 text-slate-500">{row.size_code ?? "—"}</td>
-              <td className="px-3 py-2">
-                <span className="font-mono text-[11px] font-bold text-brand">{row.service_code}</span>
-                <span className="block truncate text-[11px] text-slate-500">{row.service_name ?? "-"}</span>
+              {/* ລາຍການ + ລາຄາ **ແກ້ໄດ້ຢູ່ນີ້ເລີຍ** (ບັນທຶກແລ້ວທັບແຖວເດີມຕາມມິຕິ) */}
+              <td className="px-3 py-2" colSpan={2}>
+                <EditChargeRow row={row} services={services} />
+                <span className="mt-0.5 block truncate text-[10px] text-slate-400">{row.service_name ?? "-"}</span>
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">{row.price_thb.toLocaleString()}</td>
               <td className="px-3 py-2 text-[11px] text-slate-400">{row.updated_at}{row.updated_by ? ` · ${row.updated_by}` : ""}</td>
               <td className="px-3 py-2 text-center"><DeleteChargeButton id={row.id} /></td>
             </tr>

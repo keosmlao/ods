@@ -414,7 +414,7 @@ export default async function ServiceDetail({ params }: Props) {
               className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
               title="ອອກໃບຮັບເງິນ ແລະ ປິດການສົ່ງຄືນ"
             >
-              <ReceiptText className="size-3.5" /> ສົ່ງເຄື່ອງຄືນ / ອອກໃບເກັບເງິນ
+              <ReceiptText className="size-3.5" /> {t.returnAndInvoice}
               <LinkPending className="size-3" />
             </Link>
           )}

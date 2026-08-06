@@ -214,3 +214,32 @@ export function claimDailyText(s: ClaimDailySummary, date: string): string {
     `• ງານรอเปิด CLM-C (ໝາຍ+ສ่งคืน): ${s.candidates}`,
   ].join("\n");
 }
+
+/* ─────────────────────────── ຄຳແປຂອງປ້າຍເຄມ (i18n) ─────────────────────────── */
+
+/**
+ * ປ້າຍ ປະເພດ/ສະຖານະ/ຂອບເຂດ ຂອງເຄມ **ເປັນຄຳແປ**.
+ *
+ * ⚠️ ຄ່າຄົງ `CLAIM_TYPE_LABEL` · `CLAIM_FLOW[].label` · `CLAIM_SCOPE_LABEL` …
+ * ຍັງຢູ່ຄືເກົ່າ ເພາະ **email · ລາຍງານ · export** ຝັ່ງ server ໃຊ້ຢູ່ (ບໍ່ມີ locale ໃຫ້ອ່ານ).
+ * ໜ້າຈໍໃຫ້ໃຊ້ຕົວນີ້ແທນ ⇒ ຄຳດຽວກັນຢູ່ 3 ພາສາ ໂດຍບໍ່ຕ້ອງແກ້ຄ່າຄົງທີ່ທີ່ໃຊ້ຮ່ວມ.
+ *
+ * key ຂອງສະຖານະຕ້ອງເປັນ **type_status** ເພາະ status ຊື່ຊ້ຳກັນຂ້າມ type ແຕ່ຄວາມໝາຍຕ່າງ
+ * (A.received = ຮັບຂອງໃໝ່/ເຄຣດິດ · B.received = ຮັບຈາກຮ້ານ).
+ */
+export type ClaimLabelDict = Record<string, string>;
+
+export const claimTypeText = (t: ClaimLabelDict, type: ClaimType) =>
+  t[`type${type}`] ?? CLAIM_TYPE_LABEL[type];
+
+export const claimStatusText = (t: ClaimLabelDict, type: ClaimType, status: string) =>
+  status === CLAIM_REJECTED.status
+    ? (t.rejected ?? CLAIM_REJECTED.label)
+    : (t[`${type}_${status}`] ?? claimStatusLabel(type, status));
+
+export const claimScopeText = (t: ClaimLabelDict, scope: string) =>
+  ({ whole: t.scopeWhole, part: t.scopePart })[scope] ?? CLAIM_SCOPE_LABEL[scope] ?? scope;
+
+export const claimFulfillText = (t: ClaimLabelDict, source: string) =>
+  ({ stock: t.fulfillStock, purchase: t.fulfillPurchase, supplier: t.fulfillSupplier })[source]
+  ?? FULFILLMENT_LABEL[source] ?? source;

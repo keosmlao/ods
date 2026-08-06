@@ -8,6 +8,7 @@ import {
   type BillItem, type ClaimBill, CLAIM_TYPE_LABEL, claimPagePath, type ClaimJobCandidate, type ClaimType,
   type InvItem, warrantyFromBillDate,
 } from "@/lib/claim-shared";
+import { useDict } from "@/lib/i18n/context";
 import { ImagePlus, LoaderCircle, Receipt, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -34,6 +35,10 @@ export function NewClaimForm({
   initialSn?: string;
 }) {
   const router = useRouter();
+  const t = useDict().newClaimForm;
+  /** ຕື່ມຄ່າໃສ່ຄຳແປ — {n} · {error} */
+  const fill = (text: string, vars: Record<string, string | number>) =>
+    Object.entries(vars).reduce((out, [k, v]) => out.replaceAll(`{${k}}`, String(v)), text);
   const type = defaultType; // fixed ຕາມໜ້າ (shop=B · supplier=A · reimburse=C)
   const [supplier, setSupplier] = useState(initialSupplier);
   const [brand, setBrand] = useState(initialBrand);
@@ -123,20 +128,20 @@ export function NewClaimForm({
         // ສົ່ງລາຍການໄປພ້ອມ ⇒ ໃບເຄມມີຍອດຕັ້ງແຕ່ເກີດ ແລະ ລະບົບອອກ COB ໃຫ້ເລີຍ
         items: jobItems.filter((x) => x.take).map((it) => ({
           item_code: it.item_code,
-          item_name: it.item_name ?? "ລາຍການ",
+          item_name: it.item_name ?? t.itemFallback,
           qty: it.qty || 1,
           unit: it.unit,
           amount: it.amount || 0,
         })),
       });
-      if (res.error || !res.claimNo) { setError(res.error ?? "ບໍ່ສຳເລັດ"); return; }
+      if (res.error || !res.claimNo) { setError(res.error ?? t.failed); return; }
       // ອາໄຫຼ່/ສິນຄ້າທີ່ຕ້ອງການປ່ຽນ → ບັນທຶກເປັນ claim item
       if (replacement) await addClaimItem(res.claimNo, { item_code: replacement.code, item_name: replacement.name, unit: replacement.unit ?? undefined });
       if (photos.length) {
         const fd = new FormData();
         for (const f of photos) fd.append("photos", f);
         const up = await addClaimPhotos(res.claimNo, fd);
-        if (up.error) { setError(`ເປີດໃບແລ້ວ ແຕ່ແนบຮูปບໍ່ສຳເລັດ: ${up.error}`); router.push(`/claims/${res.claimNo}`); return; }
+        if (up.error) { setError(fill(t.photoFailed, { error: up.error })); router.push(`/claims/${res.claimNo}`); return; }
       }
       router.push(`/claims/${res.claimNo}`);
     });
@@ -156,32 +161,32 @@ export function NewClaimForm({
         <div className="space-y-4">
           {isB && (
             <div className={card}>
-              <p className="text-[11px] font-bold text-slate-500">① ບິນຂາຍ (ERP) — ດຶງລູກຄ້າ · ວັນຊື້ · ປະກັນ</p>
+              <p className="text-[11px] font-bold text-slate-500">{t.billStep}</p>
               {bill ? (
                 <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-3 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="font-mono font-bold text-brand">{bill.doc_no}</span>
                     <button type="button" onClick={() => { setBill(null); setBillLines([]); }} className="text-slate-400 hover:text-brand-orange-700"><X className="size-4" /></button>
                   </div>
-                  <p className="mt-0.5 text-xs text-slate-600">{bill.cust_name || bill.cust_code} · ວັນຊື້ {bill.doc_date}</p>
+                  <p className="mt-0.5 text-xs text-slate-600">{bill.cust_name || bill.cust_code} · {t.buyDate} {bill.doc_date}</p>
                   {warrantyInfo && (
                     <p className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[11px] font-bold ${warrantyInfo.status === "in" ? "bg-brand-100 text-brand-800" : "bg-brand-orange-100 text-brand-orange-700"}`}>{warrantyInfo.label}</p>
                   )}
                 </div>
               ) : (
                 <button type="button" onClick={() => setBillOpen(true)} className={`${field} flex items-center gap-2 text-left text-slate-400 hover:border-brand-600`}>
-                  <Receipt className="size-4" /> ຄົ້ນ-ເລືອກ ເລກບິນ / ລູກຄ້າ
+                  <Receipt className="size-4" /> {t.pickBill}
                 </button>
               )}
 
               {/* ② ລາຍการສินค้าใນບິນ → ເລືອກອັນທີ່ມີບັນຫາ */}
               {bill && (
                 <div>
-                  <p className={label}>② ສິນຄ້າໃນບິນ — ເລືອກອັນທີ່ມີບັນຫາ</p>
+                  <p className={label}>{t.billItemsStep}</p>
                   {loadingLines ? (
-                    <p className="py-3 text-center text-xs text-slate-400"><LoaderCircle className="inline size-4 animate-spin" /> ໂຫຼດ...</p>
+                    <p className="py-3 text-center text-xs text-slate-400"><LoaderCircle className="inline size-4 animate-spin" /> {t.loading}</p>
                   ) : billLines.length === 0 ? (
-                    <p className="py-2 text-xs text-slate-400">ບໍ່ພົບລາຍการ</p>
+                    <p className="py-2 text-xs text-slate-400">{t.noBillItems}</p>
                   ) : (
                     <ul className="max-h-48 space-y-1 overflow-y-auto">
                       {billLines.map((ln, i) => (
@@ -201,7 +206,7 @@ export function NewClaimForm({
 
           {/* ── ເລກສ້ອມ (B=ດຶງ auto-fill · A=ອ້າງອີງ · C=**ບັງຄັບ ແລະ ຕ້ອງສົ່ງຄືນແລ້ວ**) ── */}
           <div className={isC ? `${card} border-brand-orange-400 bg-brand-orange-50/40` : card}>
-            <p className={label}>{isB ? "ດຶງຈາກເລກສ້ອມ (ຖ້າມີງານສ້ອມແລ້ວ)" : `ເລກງານສ້ອມ (ອ້າງອີງ)${isC ? " *" : ""}`}</p>
+            <p className={label}>{isB ? t.jobFromRepair : `${t.jobRef}${isC ? " *" : ""}`}</p>
             {/**
               * CLM-C = ຮຽກເກັບຄ່າສ້ອມທີ່ເຮັດຈົບແລ້ວນຳ supplier ⇒ ຕ້ອງມີເລກງານ ແລະ
               * ງານນັ້ນຕ້ອງ **ສົ່ງຄືນລູກຄ້າສຳເລັດ** (picker ໂຊ້ວແຕ່ງານແບບນັ້ນ ແລະ
@@ -209,7 +214,7 @@ export function NewClaimForm({
               */}
             {isC && (
               <p className="-mt-1.5 mb-2 text-[11px] text-brand-orange-700">
-                ບັງຄັບ — ເລືອກໄດ້ສະເພາະງານທີ່ <b>ສົ່ງຄືນລູກຄ້າສຳເລັດແລ້ວ</b> ແລະ ຍັງບໍ່ມີໃບເຄມ
+                {t.jobRequiredHint}
               </p>
             )}
             {refJob ? (
@@ -220,27 +225,27 @@ export function NewClaimForm({
               </div>
             ) : (
               <button type="button" onClick={() => setJobOpen(true)} className={`${field} flex items-center gap-2 text-left text-slate-400 hover:border-brand-600`}>
-                <Search className="size-4" /> ເລືອກເລກງານສ້ອມ
+                <Search className="size-4" /> {t.pickJob}
               </button>
             )}
 
             {loadingJob && (
-              <p className="pt-2 text-[11px] text-slate-400"><LoaderCircle className="inline size-3.5 animate-spin" /> ດຶງລາຍລະອຽດງານ...</p>
+              <p className="pt-2 text-[11px] text-slate-400"><LoaderCircle className="inline size-3.5 animate-spin" /> {t.loadingJob}</p>
             )}
 
             {/* ── ລາຍລະອຽດຂອງງານ — ອ່ານຢ່າງດຽວ (ຄ່າຈິງຢູ່ໃບງານ ບໍ່ໃຫ້ແກ້ຢູ່ນີ້) ── */}
             {jobDetail && (
               <dl className="grid grid-cols-2 gap-x-3 gap-y-1 border-t border-slate-200/70 pt-2 text-[11px]">
                 {([
-                  ["ສິນຄ້າ", jobDetail.product],
-                  ["ຫຍີ່ຫໍ້ / ຮຸ່ນ", [jobDetail.brand, jobDetail.model].filter(Boolean).join(" · ")],
+                  [t.fProduct, jobDetail.product],
+                  [t.fBrandModel, [jobDetail.brand, jobDetail.model].filter(Boolean).join(" · ")],
                   ["SN", jobDetail.sn],
-                  ["ລູກຄ້າ", jobDetail.customer],
-                  ["ອາການ", jobDetail.fault],
-                  ["ອາການ (ພົບຈິງ)", jobDetail.fault_2],
-                  ["ຮັບປະກັນ", jobDetail.warranty],
-                  ["ຊ່າງ", jobDetail.technician],
-                  ["ສົ່ງຄືນລູກຄ້າ", jobDetail.returned_at],
+                  [t.fCustomer, jobDetail.customer],
+                  [t.fFault, jobDetail.fault],
+                  [t.fFault2, jobDetail.fault_2],
+                  [t.fWarranty, jobDetail.warranty],
+                  [t.fTechnician, jobDetail.technician],
+                  [t.fReturnedAt, jobDetail.returned_at],
                 ] as const).map(([k, v]) =>
                   v ? (
                     <div key={k} className="min-w-0">
@@ -262,8 +267,8 @@ export function NewClaimForm({
               <div className="border-t border-slate-200/70 pt-2">
                 <p className="mb-1 flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
                   {jobDetail?.items_from === "quote"
-                    ? <>ລາຍການຈາກໃບສະເໜີລາຄາ <span className="font-mono font-medium text-slate-400">{jobDetail.quote_no}</span></>
-                    : <>ອາໄຫຼ່ທີ່ໃຊ້ໃນງານນີ້ <span className="font-medium text-slate-400">(ບໍ່ມີໃບລາຄາ — ຕື່ມລາຄາຢູ່ໜ້າໃບເຄມ)</span></>}
+                    ? <>{t.itemsFromQuote} <span className="font-mono font-medium text-slate-400">{jobDetail.quote_no}</span></>
+                    : <>{t.itemsFromSpares} <span className="font-medium text-slate-400">{t.itemsNoPrice}</span></>}
                 </p>
                 <ul className="space-y-1">
                   {jobItems.map((it) => (
@@ -286,7 +291,7 @@ export function NewClaimForm({
                 </ul>
                 {jobItems.some((it) => it.take && it.amount > 0) && (
                   <p className="mt-1 text-right text-[11px] font-bold text-slate-700">
-                    ລວມ {jobItems.filter((it) => it.take).reduce((s, it) => s + it.amount, 0).toLocaleString()}
+                    {t.total} {jobItems.filter((it) => it.take).reduce((s, it) => s + it.amount, 0).toLocaleString()}
                   </p>
                 )}
               </div>
@@ -296,9 +301,9 @@ export function NewClaimForm({
           {/* ── ຮູບຫຼັກฐาน ── */}
           {showPhotos && (
             <div className={card}>
-              <p className={label}>ຮູບຫຼັກຖານ</p>
+              <p className={label}>{t.photos}</p>
               <label className={`${field} flex cursor-pointer items-center gap-2 text-slate-400 hover:border-brand-600`}>
-                <ImagePlus className="size-4" />{photos.length ? `${photos.length} ຮູບ` : "ເລືອກ / ຖ່າຍຮູບ"}
+                <ImagePlus className="size-4" />{photos.length ? fill(t.photoCount, { n: photos.length }) : t.pickPhotos}
                 <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => setPhotos(Array.from(e.target.files ?? []))} />
               </label>
               {photos.length > 0 && (
@@ -319,14 +324,14 @@ export function NewClaimForm({
           <div className={card}>
             {needsSupplier && (
               <div>
-                <label className={label}>Supplier (ຈາກ ERP) *</label>
-                <SelectField name="claim_supplier" options={supplierOpts} value={supplier} onChange={setSupplier} placeholder="— ເລືອກ supplier —" />
+                <label className={label}>{t.supplierLabel}</label>
+                <SelectField name="claim_supplier" options={supplierOpts} value={supplier} onChange={setSupplier} placeholder={t.supplierPick} />
               </div>
             )}
             {isB && (
               <div>
-                <label className={label}>ຮ້ານ / ລູກຄ້າ *{bill ? " (ດຶງຈາກບິນ)" : ""}</label>
-                <SelectField name="claim_customer" options={customerOpts} value={customer} onChange={setCustomer} placeholder="— ຄົ້ນ ຮ້ານ/ລູກຄ້າ —" />
+                <label className={label}>{t.shopLabel}{bill ? ` ${t.fromBill}` : ""}</label>
+                <SelectField name="claim_customer" options={customerOpts} value={customer} onChange={setCustomer} placeholder={t.shopPick} />
                 {bill && customer && !customerOpts.some((o) => o.value === customer) && (
                   <p className="mt-1 text-[11px] text-slate-500">{bill.cust_name || bill.cust_code}</p>
                 )}
@@ -334,8 +339,8 @@ export function NewClaimForm({
             )}
             {isB && (
               <div>
-                <label className={label}>ຜູ້ຕິດຕໍ່ / ເບີໂທ</label>
-                <input value={contact} onChange={(e) => setContact(e.target.value)} placeholder="ຊື່ · ເບີໂທ (ບໍ່ບັງຄັບ)" className={field} />
+                <label className={label}>{t.contactLabel}</label>
+                <input value={contact} onChange={(e) => setContact(e.target.value)} placeholder={t.contactPlaceholder} className={field} />
               </div>
             )}
             {/**
@@ -347,10 +352,10 @@ export function NewClaimForm({
 
           {(isB || type === "A") && (
             <div className={card}>
-              <p className="text-[11px] font-bold text-slate-500">ສິນຄ້າ{isB ? " & ຮັບປະກັນ" : " (ອ້າງອີງ)"}</p>
+              <p className="text-[11px] font-bold text-slate-500">{t.productSection}{isB ? t.withWarranty : t.refOnly}</p>
               <div>
-                <label className={label}>ສິນຄ້າ{isB ? " (ຈາກບິນ ຫຼື ພິມ)" : ""}</label>
-                <input value={product} onChange={(e) => setProduct(e.target.value)} placeholder="ຊື່ສິນຄ້າ" className={field} />
+                <label className={label}>{t.productSection}{isB ? t.productFromBill : ""}</label>
+                <input value={product} onChange={(e) => setProduct(e.target.value)} placeholder={t.productPlaceholder} className={field} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className={label}>Model</label><input value={model} onChange={(e) => setModel(e.target.value)} className={field} /></div>
@@ -358,11 +363,11 @@ export function NewClaimForm({
               </div>
               {isB && (
                 <div className="grid grid-cols-2 gap-3">
-                  <div><label className={label}>ວັນຊື້</label><input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className={field} /></div>
+                  <div><label className={label}>{t.buyDate}</label><input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className={field} /></div>
                   <div>
-                    <label className={label}>ຮັບປະກັນ{warrantyInfo ? " (ຄິດຈາກບິນ)" : ""}</label>
+                    <label className={label}>{t.fWarranty}{warrantyInfo ? ` ${t.warrantyFromBill}` : ""}</label>
                     <div className="flex gap-1.5">
-                      {[["in", "ໃນປະກັນ"], ["out", "ນອກປະກັນ"]].map(([v, l]) => (
+                      {[["in", t.inWarranty], ["out", t.outWarranty]].map(([v, l]) => (
                         <button key={v} type="button" onClick={() => setWarranty(warranty === v ? "" : v)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${warranty === v ? "bg-brand-700 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>{l}</button>
                       ))}
                     </div>
@@ -375,7 +380,7 @@ export function NewClaimForm({
           {/* ③ ອາໄຫຼ່/ສິນຄ້າ ທີ່ຕ້ອງการปเปลี่ยน (ic_inventory) */}
           {(isB || type === "A") && (
             <div className={card}>
-              <p className={label}>③ ອາໄຫຼ່/ສິນຄ້າ ທີ່ຕ້ອງການປ່ຽນ (ic_inventory)</p>
+              <p className={label}>{t.replacementStep}</p>
               {replacement ? (
                 <div className="flex items-start gap-2 rounded-lg border border-brand-200 bg-brand-50/60 px-3 py-2 text-xs">
                   <span className="mt-0.5 shrink-0 rounded bg-white px-1.5 py-0.5 font-mono font-bold text-brand">{replacement.code}</span>
@@ -384,15 +389,15 @@ export function NewClaimForm({
                 </div>
               ) : (
                 <button type="button" onClick={() => setInvOpen(true)} className={`${field} flex items-center gap-2 text-left text-slate-400 hover:border-brand-600`}>
-                  <Search className="size-4" /> ຄົ້ນ ອາໄຫຼ່/ສິນຄ້າ
+                  <Search className="size-4" /> {t.searchInventory}
                 </button>
               )}
             </div>
           )}
 
           <div className={card}>
-            <label className={label}>{isB ? "ອາການ / ບັນຫາ *" : "ເຫດຜົນ / ໝາຍເຫตุ"}</label>
-            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder={isB ? "ອາການເສຍ / ບັນຫາຂອງສິນຄ້າ" : ""} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-600" />
+            <label className={label}>{isB ? t.faultLabel : t.reasonLabel}</label>
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder={isB ? t.faultPlaceholder : ""} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-600" />
           </div>
         </div>
       </div>
@@ -400,17 +405,17 @@ export function NewClaimForm({
       {error && <p className="text-xs font-semibold text-brand-orange-700">{error}</p>}
 
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={() => router.push(claimPagePath(type))} className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50">ຍົກເລີກ</button>
+        <button type="button" onClick={() => router.push(claimPagePath(type))} className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50">{t.cancel}</button>
         {/* C ບໍ່ມີເລກງານ = ກົດບໍ່ໄດ້ (server ກໍ່ປະຕິເສດ — ຢ່າໃຫ້ຄົນຕື່ມຟອມຈົນຈົບກ່ອນຮູ້) */}
         <button type="button" disabled={pending || (isC && !refJob)} onClick={submit} className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-brand-700 px-5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60">
-          {pending && <LoaderCircle className="size-4 animate-spin" />} ເປີດໃບເຄມ
+          {pending && <LoaderCircle className="size-4 animate-spin" />} {t.submit}
         </button>
       </div>
 
       <JobPickerModal open={jobOpen} onClose={() => setJobOpen(false)} onPick={pickJob} />
       <SearchPickerModal<ClaimBill>
         open={billOpen} onClose={() => setBillOpen(false)} onPick={pickBill}
-        title="ເລືອກເລກບິນຂາຍ (ERP)" subtitle="ຄົ້ນ ເລກບິນ · ລະຫัส/ຊື່ລູກຄ້າ" placeholder="ຄົ້ນ ເລກບິນ / ລູກຄ້າ"
+        title={t.billPickerTitle} subtitle={t.billPickerSub} placeholder={t.billPickerPlaceholder}
         search={async (q) => (await findBills(q)).bills ?? []} keyOf={(b) => b.doc_no}
         renderItem={(b) => (
           <span className="block">
@@ -421,7 +426,7 @@ export function NewClaimForm({
       />
       <SearchPickerModal<InvItem>
         open={invOpen} onClose={() => setInvOpen(false)} onPick={(it) => { setReplacement(it); if (it.brand) setBrand((b) => b || it.brand!); setInvOpen(false); }}
-        title="ຄົ້ນ ອາໄຫຼ່/ສິນຄ້າ (ic_inventory)" placeholder="ຄົ້ນ ລະຫັດ / ຊື່ສິນຄ້າ"
+        title={t.invPickerTitle} placeholder={t.invPickerPlaceholder}
         search={async (q) => (await findInventory(q)).items ?? []} keyOf={(it) => it.code}
         renderItem={(it) => (
           <span className="block"><span className="font-mono text-xs font-bold text-brand">{it.code}</span><span className="block truncate text-sm text-slate-700">{it.name}</span></span>

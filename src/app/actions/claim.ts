@@ -1,5 +1,6 @@
 "use server";
 import { billItems, claimByNo, claimCanTransition, claimItems, type ClaimJobCandidate, type ClaimJobDetail, cobInfo, ensureOdsCustomer, isClaimEditable, ensureClaimCob, isClaimFulfillmentSource, jobClaimCandidates, jobClaimDetail, jobDelivery, jobQuoteItems, PAY_METHOD_LABEL, searchBills, searchInventory, type ClaimType } from "@/lib/claim";
+import { deleteCobForClaim, syncCobAmount } from "@/lib/erp-cob";
 import { logChange } from "@/lib/chatter-log";
 import { loanerBlock } from "@/lib/loaner";
 import { centerBlock } from "@/lib/job-center";
@@ -38,6 +39,24 @@ export async function loadClaimJob(code: string): Promise<{ error?: string; job?
   if (!g.ok) return { error: g.error };
   const job = await jobClaimDetail(code.trim());
   return job ? { job } : { error: `ບໍ່ພົບງານ ${code}` };
+}
+
+/**
+ * ໃຫ້ **ໃບຕັ້ງໜີ້ຢູ່ ERP ຕົງກັບໃບເຄມ** ຫຼັງລາຍການປ່ຽນ:
+ * ຍັງບໍ່ມີໃບ ⇒ ອອກໃຫ້ (ensureClaimCob) · ມີແລ້ວ ⇒ ປັບຍອດ (syncCobAmount).
+ * ຄືນຂໍ້ຄວາມເຕືອນ ຖ້າບັນຊີເອົາໃບໄປໃຊ້ແລ້ວ (ຍອດສອງຝັ່ງຈະບໍ່ຕົງ ⇒ ຄົນຕ້ອງຮູ້).
+ */
+async function syncClaimCob(claimNo: string, by: string): Promise<string | null> {
+  const claim = await claimByNo(claimNo);
+  if (!claim || claim.claim_type !== "C") return null;
+  if (!claim.erp_doc_no) {
+    await ensureClaimCob(claimNo, by);
+    return null;
+  }
+  const result = await syncCobAmount(claim.erp_doc_no, claim.amount);
+  return result === "locked"
+    ? `ແກ້ລາຍການແລ້ວ ແຕ່ **ໃບຕັ້ງໜີ້ ${claim.erp_doc_no} ຢູ່ ERP ຖືກດຳເນີນການແລ້ວ** ⇒ ຍອດບໍ່ຖືກປັບ — ໃຫ້ບັນຊີແກ້ຢູ່ ERP`
+    : null;
 }
 
 /** ເປີດໃບເຄມໃໝ່ — ຄືນ claim_no */
@@ -315,6 +334,8 @@ export async function addClaimItem(claimNo: string, item: { item_code?: string; 
     [claimNo, item.item_code ?? "", item.item_name.trim(), item.qty ?? 1, item.unit ?? "", item.amount ?? 0],
   );
   await query(`update ods_claim set amount = coalesce((select sum(amount) from ods_claim_item where claim_no=$1),0) where claim_no=$1`, [claimNo]);
+  const added = await syncClaimCob(claimNo, guard.session.username);
+  if (added) return { claimNo, error: added };
   revalidatePath(`/claims/${claimNo}`);
   return { claimNo };
 }
@@ -326,6 +347,8 @@ export async function deleteClaimItem(claimNo: string, id: number): Promise<Clai
   if (!claim || !isClaimEditable(claim.claim_type, claim.status)) return { error: "ໃບເຄມສົ່ງແລ້ວ — ລຶບລາຍການບໍ່ໄດ້" };
   await query(`delete from ods_claim_item where id = $1 and claim_no = $2`, [id, claimNo]);
   await query(`update ods_claim set amount = coalesce((select sum(amount) from ods_claim_item where claim_no=$1),0) where claim_no=$1`, [claimNo]);
+  const warn = await syncClaimCob(claimNo, guard.session.username);
+  if (warn) return { claimNo, error: warn };
   revalidatePath(`/claims/${claimNo}`);
   return { claimNo };
 }
@@ -503,6 +526,16 @@ export async function deleteClaim(claimNo: string): Promise<ClaimState> {
    * ໂດຍບໍ່ມີທາງເອົາອອກ. ດຽວນີ້ລົບໄດ້ ແຕ່ **ຕັດການຜູກກັບໃບງານ**ໃຫ້ຮຽບຮ້ອຍກ່ອນ
    * ແລະ ບັນທຶກໄວ້ໃນປະຫວັດຂອງໃບງານນຳ ⇒ ຮູ້ວ່າໃຜລົບ ແລະ ໃບງານບໍ່ຄ້າງອ້າງອີງທີ່ຫາຍໄປ.
    */
+  /**
+   * ── ໃບຕັ້ງໜີ້ຕ້ອງຮັບ (AOB) ຢູ່ ERP ຕ້ອງໄປນຳ ──
+   * ລຶບແຕ່ຝັ່ງ ODS = **ເອກະສານບັນຊີກຳພ້າ** ຄ້າງຢູ່ ERP (ໜີ້ທີ່ບໍ່ມີໃບເຄມຮອງຮັບ).
+   * ບັນຊີເອົາໄປໃຊ້ແລ້ວ (status ≠ 0) ⇒ **ຫ້າມລຶບໃບເຄມ** — ໃຫ້ໄປຈັດການຢູ່ ERP ກ່ອນ
+   * ບໍ່ດັ່ງນັ້ນເອກະສານສອງຝັ່ງຈະຂັດກັນ ໂດຍບໍ່ມີໃຜຮູ້.
+   */
+  const cobResult = await deleteCobForClaim(claimNo);
+  if (cobResult === "locked") {
+    return { error: "ລຶບບໍ່ໄດ້ — ໃບຕັ້ງໜີ້ຢູ່ ERP ຖືກດຳເນີນການແລ້ວ (ໃຫ້ບັນຊີຈັດການຢູ່ ERP ກ່ອນ)" };
+  }
   await query(`delete from ods_claim_item where claim_no = $1`, [claimNo]);
   await query(`delete from ods_claim where claim_no = $1`, [claimNo]);
   if (claim.ref_job) {
@@ -510,7 +543,12 @@ export async function deleteClaim(claimNo: string): Promise<ClaimState> {
       roles: ["manager", "stock"],
     });
   }
-  await log(claimNo, guard.session.username, "delete", `ລບ ໃບເຄມ ${claimNo} (ຂັ້ນ ${claim.status})`);
+  await log(
+    claimNo,
+    guard.session.username,
+    "delete",
+    `ລຶບ ໃບເຄມ ${claimNo} (ຂັ້ນ ${claim.status})${cobResult === "deleted" ? " · ລຶບໃບຕັ້ງໜີ້ຢູ່ ERP ນຳ" : ""}`,
+  );
   revalidatePath("/claims");
   return { claimNo };
 }

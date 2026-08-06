@@ -132,6 +132,72 @@ export function AddChargeForm({
   );
 }
 
+/**
+ * **ແກ້ແຖວທີ່ມີຢູ່** — ປ່ຽນ ລາຍການ/ລາຄາ ໄດ້ຢູ່ໃນຕາຕະລາງເລີຍ.
+ *
+ * ໃຊ້ `saveServiceCharge` ອັນເກົ່າ ໂດຍສົ່ງ **ມິຕິເດີມ**ໄປນຳ (hidden) — action ນັ້ນ
+ * ຖືກອອກແບບໃຫ້ "ມິຕິຊ້ຳ = ທັບອັນເກົ່າ" ຢູ່ແລ້ວ ⇒ ບໍ່ຕ້ອງມີເສັ້ນທາງແກ້ໄຂອີກເສັ້ນ
+ * (ໜ້ອຍໂຄດ ແລະ ບໍ່ມີທາງທີ່ສອງເສັ້ນຈະປະພຶດຕ່າງກັນ).
+ */
+export function EditChargeRow({
+  row,
+  services,
+}: {
+  row: {
+    id: number;
+    service_type: string | null;
+    product_type: string | null;
+    category_code: string | null;
+    design_code: string | null;
+    size_code: string | null;
+    service_code: string;
+    price_thb: number;
+  };
+  services: { code: string; name: string }[];
+}) {
+  const [state, action, pending] = useActionState(saveServiceCharge, {});
+  const [service, setService] = useState(row.service_code);
+  return (
+    <form action={action} className="flex items-center gap-1.5">
+      {/* ມິຕິເດີມ — ບອກ action ວ່າແກ້ແຖວໃດ */}
+      <input type="hidden" name="service_type" value={row.service_type ?? ""} />
+      <input type="hidden" name="product_type" value={row.product_type ?? ""} />
+      <input type="hidden" name="category_code" value={row.category_code ?? ""} />
+      <input type="hidden" name="design_code" value={row.design_code ?? ""} />
+      <input type="hidden" name="size_code" value={row.size_code ?? ""} />
+      <input type="hidden" name="service_name" value={services.find((s) => s.code === service)?.name ?? ""} />
+      <select
+        name="service_code"
+        value={service}
+        onChange={(e) => setService(e.target.value)}
+        className="h-8 max-w-56 rounded-lg border border-slate-200 px-2 text-[11px] outline-none focus:border-brand-600"
+        aria-label="ລາຍການຄ່າບໍລິການ"
+      >
+        {services.map((s) => <option key={s.code} value={s.code}>{s.code} · {s.name}</option>)}
+      </select>
+      <input
+        name="price_thb"
+        type="number"
+        step="0.01"
+        min="0"
+        defaultValue={row.price_thb}
+        aria-label="ລາຄາ (ບາດ)"
+        className="h-8 w-24 rounded-lg border border-slate-200 px-2 text-right text-[11px] outline-none focus:border-brand-600"
+      />
+      <button
+        type="submit"
+        disabled={pending}
+        className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-300 px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+      >
+        {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : null}
+        ບັນທຶກ
+      </button>
+      {state.error && <span className="text-[10px] font-semibold text-brand-orange-700">{state.error}</span>}
+      {state.ok && <span className="text-[10px] font-semibold text-brand-800">✓</span>}
+    </form>
+  );
+}
+
 export function DeleteChargeButton({ id }: { id: number }) {
   const [pending, start] = useTransition();
   const { ask, dialog } = useConfirm();

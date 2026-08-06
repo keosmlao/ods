@@ -292,21 +292,21 @@ export function InvoiceEditor({
                 </div>
                 <div className="ml-auto flex items-center gap-2">
                   {total === 0 ? (
-                    <span className="rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-800">ບໍ່ຕ້ອງເກັບເງິນ (ຍອດ 0)</span>
+                    <span className="rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-800">{t.noChargeZero}</span>
                   ) : paid === 0 ? (
                     <>
                       <span className="rounded-lg bg-brand-orange-100 px-3 py-1.5 text-xs font-bold text-brand-900">{t.shortBy} {money(total)}</span>
                       {/* ຈ່າຍສົດເຕັມຈຳນວນ = ກໍລະນີສ່ວນຫຼາຍ ⇒ ກົດເທື່ອດຽວ ບໍ່ຕ້ອງພິມ */}
                       <button type="button" onClick={() => { setCashType("01"); setCashValue(String(total)); }} className="rounded-lg border border-brand-300 bg-white px-3 py-1.5 text-xs font-semibold text-brand-800 hover:bg-brand-50">
-                        ຮັບສົດເຕັມຈຳນວນ
+                        {t.takeFullCash}
                       </button>
                     </>
                   ) : paid < total ? (
                     <span className="rounded-lg bg-brand-orange-100 px-3 py-1.5 text-xs font-bold text-brand-900">{t.shortBy} {money(total - paid)} {t.baht}</span>
                   ) : paid > total ? (
-                    <span className="rounded-lg bg-brand-orange-50 px-3 py-1.5 text-xs font-bold text-brand-orange-700">ເກີນ {money(paid - total)} {t.baht}</span>
+                    <span className="rounded-lg bg-brand-orange-50 px-3 py-1.5 text-xs font-bold text-brand-orange-700">{t.overBy} {money(paid - total)} {t.baht}</span>
                   ) : (
-                    <span className="rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-800">ຮັບຄົບແລ້ວ</span>
+                    <span className="rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-800">{t.receivedFull}</span>
                   )}
                 </div>
               </div>
@@ -342,13 +342,13 @@ export function InvoiceEditor({
                 */}
               {claimNo ? (
                 <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
-                  ງານນີ້ມີໃບເຄມເກັບເງິນນຳ supplier ແລ້ວ · <b className="font-mono text-brand">{claimNo}</b>
+                  {t.claimSupplierTitle} · <b className="font-mono text-brand">{claimNo}</b>
                 </p>
               ) : suppliers.length > 0 && (
                 <div className={`rounded-xl border p-4 ${claimOn ? "border-brand-orange-400 bg-brand-orange-50/50" : "border-slate-200"}`}>
                   <label className="flex cursor-pointer items-center gap-2">
                     <input type="checkbox" checked={claimOn} onChange={(e) => setClaimOn(e.target.checked)} className="size-4 accent-brand-700" />
-                    <span className="text-sm font-semibold text-slate-700">ບິນນີ້ໄປເກັບເງິນນຳ supplier (ອອກໃບເຄມ CLM-C)</span>
+                    <span className="text-sm font-semibold text-slate-700">{t.claimSupplierTitle}</span>
                   </label>
                   {claimOn && (
                     <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
@@ -359,10 +359,10 @@ export function InvoiceEditor({
                           value={claimSupplier}
                           onChange={setClaimSupplier}
                           options={suppliers.map((s) => ({ value: s.code, label: `${s.code} · ${s.name}` }))}
-                          placeholder="— ເລືອກ supplier —"
+                          placeholder={t.claimSupplierPick}
                         />
                       </div>
-                      <p className="pb-2 text-[11px] text-slate-500">ບັນທຶກແລ້ວຈະສ້າງໃບເຄມພ້ອມລາຍການໃນບິນໃຫ້ອັດຕະໂນມັດ</p>
+                      <p className="pb-2 text-[11px] text-slate-500">{t.claimSupplierHint}</p>
                     </div>
                   )}
                   {/* ຄ່າຈິງທີ່ສົ່ງໄປ server — ບໍ່ຕິກ ຫຼື ບໍ່ເລືອກ supplier = ຫວ່າງ ⇒ ບໍ່ສ້າງໃບ */}
@@ -417,7 +417,7 @@ export function InvoiceEditor({
               <dd className="text-right tabular-nums text-slate-500">0.00 {t.baht}</dd>
               <dt className="text-slate-500">{t.kipRate}</dt>
               <dd className="text-right tabular-nums text-slate-500">{money(rates["02"])} LAK</dd>
-              <dt className="text-slate-500">ຈຳນວນລາຍການ</dt>
+              <dt className="text-slate-500">{t.lineCount}</dt>
               <dd className={`text-right tabular-nums ${cart.length === 0 ? "font-bold text-brand-orange-700" : "text-slate-500"}`}>
                 {cart.length}
               </dd>

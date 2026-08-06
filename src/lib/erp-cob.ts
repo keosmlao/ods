@@ -108,3 +108,86 @@ export async function createCobForClaim(input: {
     client.release();
   }
 }
+
+/**
+ * ສະຖານະຂອງໃບຕັ້ງໜີ້ຢູ່ ERP.
+ * `status` 0 = ບັນຊີຍັງບໍ່ດຳເນີນການ ⇒ ແກ້/ລຶບໄດ້ · ≠0 = **ຢ່າແຕະ** (ບັນຊີເອົາໄປໃຊ້ແລ້ວ).
+ */
+export async function cobState(claimNo: string): Promise<{ exists: boolean; locked: boolean; amount: number }> {
+  if (!odgDb) return { exists: false, locked: false, amount: 0 };
+  try {
+    const row = (
+      await odgDb.query<{ status: number | null; total_amount: string | null }>(
+        `select status, total_amount from ic_trans where doc_no=$1 and trans_flag=$2 limit 1`,
+        [claimNo.trim(), AOB_FLAG],
+      )
+    ).rows[0];
+    if (!row) return { exists: false, locked: false, amount: 0 };
+    return { exists: true, locked: (row.status ?? 0) !== 0, amount: Number(row.total_amount ?? 0) };
+  } catch (error) {
+    console.error("cobState failed", claimNo, error);
+    // ອ່ານ ERP ບໍ່ໄດ້ ⇒ ຖືວ່າ **ລັອກ** (ປອດໄພກວ່າ: ບໍ່ໄປລຶບ/ແກ້ຂອງທີ່ເບິ່ງບໍ່ເຫັນ)
+    return { exists: true, locked: true, amount: 0 };
+  }
+}
+
+/**
+ * **ປັບຍອດໃບຕັ້ງໜີ້ໃຫ້ຕົງກັບໃບເຄມ** — ເອີ້ນຫຼັງແກ້ລາຍການ.
+ * ບັນຊີເອົາໄປໃຊ້ແລ້ວ (status ≠ 0) ⇒ ບໍ່ແຕະ ແລ້ວຄືນ 'locked' ໃຫ້ຜູ້ເອີ້ນເຕືອນຄົນ.
+ */
+export async function syncCobAmount(claimNo: string, amountThb: number): Promise<"updated" | "locked" | "none"> {
+  if (!odgDb) return "none";
+  const state = await cobState(claimNo);
+  if (!state.exists) return "none";
+  if (state.locked) return "locked";
+  const amount = Math.round(amountThb * 100) / 100;
+  if (Math.abs(state.amount - amount) < 0.005) return "updated"; // ຕົງຢູ່ແລ້ວ
+  const client = await odgDb.connect();
+  try {
+    await client.query("begin");
+    await client.query(
+      `update ic_trans set total_value=$2, total_amount=$2, total_value_2=$2, total_amount_2=$2,
+          lastedit_datetime=localtimestamp
+        where doc_no=$1 and trans_flag=$3`,
+      [claimNo.trim(), amount, AOB_FLAG],
+    );
+    await client.query(
+      `update ic_trans_detail set sum_amount=$2, sum_amount_exclude_vat=$2, sum_amount_2=$2
+        where doc_no=$1 and trans_flag=$3`,
+      [claimNo.trim(), amount, AOB_FLAG],
+    );
+    await client.query("commit");
+    return "updated";
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("syncCobAmount failed", claimNo, error);
+    return "none";
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * **ລຶບໃບຕັ້ງໜີ້ຢູ່ ERP** — ໃຊ້ຕອນລຶບໃບເຄມ ບໍ່ດັ່ງນັ້ນເອກະສານບັນຊີກຳພ້າຄ້າງຢູ່ ERP.
+ * ບັນຊີເອົາໄປໃຊ້ແລ້ວ ⇒ 'locked' (ຜູ້ເອີ້ນຕ້ອງຫ້າມການລຶບ ແລ້ວໃຫ້ໄປຈັດການຢູ່ ERP).
+ */
+export async function deleteCobForClaim(claimNo: string): Promise<"deleted" | "locked" | "none"> {
+  if (!odgDb) return "none";
+  const state = await cobState(claimNo);
+  if (!state.exists) return "none";
+  if (state.locked) return "locked";
+  const client = await odgDb.connect();
+  try {
+    await client.query("begin");
+    await client.query(`delete from ic_trans_detail where doc_no=$1 and trans_flag=$2`, [claimNo.trim(), AOB_FLAG]);
+    await client.query(`delete from ic_trans where doc_no=$1 and trans_flag=$2`, [claimNo.trim(), AOB_FLAG]);
+    await client.query("commit");
+    return "deleted";
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("deleteCobForClaim failed", claimNo, error);
+    return "none";
+  } finally {
+    client.release();
+  }
+}
