@@ -5333,7 +5333,7 @@
     "pickCategoryFirst": "(pick a category first)",
     "pickService": "— pick an item —",
     "price": "Price (THB)",
-    "priceHint": "— in-warranty is set to 0 automatically",
+    "priceHint": "— blank/0 = use the ERP price · in-warranty is set to 0 automatically",
     "productType": "Product type (from intake)",
     "productTypeHint": "(primary dimension — blank = all)",
     "save": "Save",

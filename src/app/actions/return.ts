@@ -13,7 +13,7 @@ import { centerBlock } from "@/lib/job-center";
 import { warrantyBlock } from "@/lib/warranty-request";
 import { HAS_OUTSTANDING_SPARES } from "@/lib/outstanding-spares";
 import { openReimburseClaim } from "@/lib/claim";
-import { serviceChargeForJob } from "@/lib/service-charge";
+import { erpServicePrice, serviceChargeForJob } from "@/lib/service-charge";
 import { UPLOADS_DIR, uploadsWriteDir } from "@/lib/uploads";
 import { unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
@@ -285,10 +285,20 @@ export async function addInvoiceItem(_: CartState, formData: FormData): Promise<
   if (!parsed.success) return { error: "ຂໍ້ມູນບໍ່ຄົບ" };
   const d = parsed.data;
 
+  /**
+   * ── ລາຄາ**ຄ່າບໍລິການ**ຕື່ມໃຫ້ຈາກ ERP (06-08-2026) ──
+   * ເມື່ອກ່ອນແຖວທີ່ຄົນເລືອກເອງລົງ price=0 ສະເໝີ ⇒ ຕ້ອງພິມລາຄາຄືນທຸກແຖວ ທັງທີ່
+   * ic_inventory_price ມີລາຄາ 9702xx ຢູ່ແລ້ວ (44/46 ລະຫັດ) ⇒ ລືມພິມ = ລາຍຮັບຫາຍ.
+   * ສະເພາະລະຫັດ 9702 (ຄ່າບໍລິການ) — **ອາໄຫຼ່ຍັງເປັນ 0 ຄືເກົ່າ** ເພາະລາຄາອາໄຫຼ່ມາຈາກ
+   * ໃບສະເໜີລາຄາທີ່ລູກຄ້າຕົກລົງ (ເບິ່ງ seedCart) ບໍ່ແມ່ນລາຄາປ້າຍ.
+   * ຄົນຍັງແກ້ລາຄາໃນຕະກ້າໄດ້ຄືເກົ່າ.
+   */
+  const price = d.item_code.startsWith("9702") ? ((await erpServicePrice(d.item_code))?.price_thb ?? 0) : 0;
+
   await db.query(
     `insert into ic_trans_detail_draft(trans_flag, product_code, item_code, item_name, unit_code, qty, price, sum_amount, user_created)
-     values($1,$2,$3,$4,$5,1,0,0,$6)`,
-    [CART_FLAG, d.product_code, d.item_code, d.item_name, d.unit_code, session.username],
+     values($1,$2,$3,$4,$5,1,$6,$6,$7)`,
+    [CART_FLAG, d.product_code, d.item_code, d.item_name, d.unit_code, price, session.username],
   );
   revalidatePath(`/returns/${d.product_code}`);
   return {};

@@ -1,4 +1,4 @@
-import { syncErpDispatch } from "@/lib/erp-dispatch";
+import { syncErpOnView } from "@/lib/erp-sync-view";
 import { ErpDispatchWatcher } from "@/components/erp-dispatch-watcher";
 import { LinkPending } from "@/components/link-pending";
 import { PackageMinus } from "lucide-react";
@@ -47,8 +47,11 @@ const WHERE = `ic.trans_flag = 122 and ic.job_type = 'install' and a.reg_finish 
   and ic.doc_no not in (select doc_ref from ic_trans where trans_flag = 56 and doc_ref is not null)`;
 
 export default async function DispatchPage({ searchParams }: Props) {
-  // ດຶງໃບເບີກທີ່ສາງອອກໃນ ERP ກັບມາກ່ອນ ⇒ ຄິວທີ່ເຫັນເປັນຄວາມຈິງລ້າສຸດ (lib/erp-dispatch)
-  await syncErpDispatch();
+  /**
+   * ດຶງຂອງຈາກ ERP ກ່ອນ (ຮັບເຂົ້າສາງ · ໃບເບີກ · ໃບຮັບຄືນ) ⇒ ຄິວທີ່ເຫັນເປັນຄວາມຈິງລ້າສຸດ.
+   * ຄຸມ 1 ຮອບ/ນາທີ ທັງລະບົບ (lib/erp-sync-view) ⇒ **ບໍ່ຕ້ອງມີ cron ພາຍນອກ**.
+   */
+  await syncErpOnView();
 
   const raw = await searchParams;
   const { q, page, sort, dir } = readParams(raw);

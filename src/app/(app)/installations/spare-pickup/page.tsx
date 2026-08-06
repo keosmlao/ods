@@ -1,4 +1,4 @@
-import { syncErpDispatch } from "@/lib/erp-dispatch";
+import { syncErpOnView } from "@/lib/erp-sync-view";
 import { ErpDispatchWatcher } from "@/components/erp-dispatch-watcher";
 import { techFilter } from "@/app/actions/installation";
 import { CancelInstallSpareRequestButton } from "@/components/installation/cancel-spare-request-button";
@@ -85,8 +85,11 @@ const WHERE = `ic.trans_flag = 56 and ic.job_type = 'install'
   and ic.doc_no not in (select doc_ref from ic_trans where trans_flag = 166 and doc_ref is not null)`;
 
 export default async function SparePickupPage({ searchParams }: Props) {
-  // ດຶງໃບເບີກທີ່ສາງອອກໃນ ERP ກັບມາກ່ອນ ⇒ ຄິວທີ່ເຫັນເປັນຄວາມຈິງລ້າສຸດ (lib/erp-dispatch)
-  await syncErpDispatch();
+  /**
+   * ດຶງຂອງຈາກ ERP ກ່ອນ (ຮັບເຂົ້າສາງ · ໃບເບີກ · ໃບຮັບຄືນ) ⇒ ຄິວທີ່ເຫັນເປັນຄວາມຈິງລ້າສຸດ.
+   * ຄຸມ 1 ຮອບ/ນາທີ ທັງລະບົບ (lib/erp-sync-view) ⇒ **ບໍ່ຕ້ອງມີ cron ພາຍນອກ**.
+   */
+  await syncErpOnView();
 
   const tech = await techFilter();
   const raw = await searchParams;

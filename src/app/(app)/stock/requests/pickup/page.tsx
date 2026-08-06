@@ -1,3 +1,4 @@
+import { syncErpOnView } from "@/lib/erp-sync-view";
 import { Elapsed } from "@/components/elapsed";
 import { ErpDispatchWatcher } from "@/components/erp-dispatch-watcher";
 import { CancelRequestButton } from "@/app/(app)/stock/requests/cancel-request-button";
@@ -179,6 +180,13 @@ const columns = (t: Dict): { key: string; label: string; defaultDir: SortDir }[]
 ];
 
 export default async function SparePickupPage({ searchParams }: Props) {
+  /**
+   * ດຶງຂອງຈາກ ERP ກ່ອນ (ຮັບເຂົ້າສາງ · ໃບເບີກ · ໃບຮັບຄືນ) — ຄິວນີ້ເຄີຍອາໄສ cron ພາຍນອກ
+   * ຢ່າງດຽວ ⇒ ສາງເບີກຢູ່ ERP ແລ້ວ ໃບຍັງຄ້າງຄິວນີ້ຈົນກວ່າ cron ຈະຍິງ.
+   * ຄຸມ 1 ຮອບ/ນາທີ ທັງລະບົບ (lib/erp-sync-view) ⇒ **ບໍ່ຕ້ອງມີ cron ພາຍນອກ**.
+   */
+  await syncErpOnView();
+
   const t = (await getDictionary(await getLocale())).requestsPickup;
 
   const session = await getSession();

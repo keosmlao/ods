@@ -114,19 +114,54 @@ export const PURCHASE_STATE: Record<PurchaseRound["state"], { label: string; nex
 };
 
 
+/**
+ * **ໃບເບີກ (56) ຂອງໃບຂໍນຶ່ງ — ODS ∪ ERP ໂດຍ join ສົດ** (06-08-2026).
+ *
+ * ── ເປັນຫຍັງບໍ່ອ່ານແຕ່ ODS ຄືເກົ່າ ──
+ * ODS ຮູ້ຈັກໃບເບີກໄດ້ກໍ່ຕໍ່ເມື່ອ `syncErpDispatch` ກ໋ອບມາສຳເລັດ ⇒ **ກ໋ອບພາດເທື່ອດຽວ
+ * = ຄ້າງຜິດຕະຫຼອດໄປ** ເພາະຮອບຕໍ່ໄປຂ້າມໃບທີ່ "ມີໃນ ODS ແລ້ວ". ວັດຈິງ 06-08-2026:
+ * **6 ໃບຂໍທີ່ ERP ເບີກໄປແລ້ວ ແຕ່ ODS ຍັງສະແດງວ່າ "ລໍສາງເບີກ"** (ລວມ SIO2026080014
+ * ຂອງວຽກ 7195 ທີ່ຖືກແຈ້ງມາ).
+ *
+ * ODS ກັບ ERP ຢູ່ **ຖານດຽວກັນ** (schema `ods` ກັບ `public`) ⇒ join ຂ້າມ schema ໄດ້ເລີຍ
+ * ໃນ query ດຽວ (ຮູບແບບດຽວກັບ lib/monthly-report ທີ່ອ່ານ `public.ic_inventory_price`).
+ * ⇒ ຄວາມຈິງຄິດໃໝ່ທຸກຄັ້ງທີ່ອ່ານ ບໍ່ຂຶ້ນກັບວ່າການກ໋ອບສຳເລັດຫຼືບໍ່.
+ *
+ * ⚠️ `doc_ref` ຂອງ ERP ບາງໃບຕໍ່ຂໍ້ຄວາມທ້າຍເລກ ("SIO2026070040 ດ່ວນ") ⇒ ຕັດດ້ວຍ
+ * split_part. ຄູ່ກັບ `like` ນຳໜ້າ ເພື່ອໃຫ້ໃຊ້ `ic_trans_doc_ref_idx` ໄດ້ (65ms → 31ms).
+ *
+ * ⚠️ ອັນນີ້ຄື**ການສະແດງຜົນ**ເທົ່ານັ້ນ — ການກ໋ອບຍັງຕ້ອງມີຢູ່ ເພາະສະຕັອກເງົາ ·
+ * reg_finish · ການເລື່ອນຂັ້ນ · push ຫາຊ່າງ ຕ້ອງມີ "ເຫດການ" ບໍ່ແມ່ນແຕ່ SELECT.
+ */
+const DISPATCH_DOCS = (requestNo: string) => `
+  select sw.doc_no, sw.doc_date from ic_trans sw
+   where sw.trans_flag = ${TRANS.DISPATCH} and sw.doc_ref = ${requestNo}
+  union
+  select e.doc_no, e.doc_date from public.ic_trans e
+   where e.trans_flag = ${TRANS.DISPATCH}
+     and e.doc_ref like ${requestNo} || '%'
+     and split_part(trim(e.doc_ref), ' ', 1) = ${requestNo}`;
+
 /** ລາຍການສິນຄ້າຂອງແຕ່ລະໃບ — ດຶງເທື່ອດຽວ ແລ້ວແຈກໃສ່ຮອບ */
 async function itemsByDoc(docNos: string[]): Promise<Record<string, DocItem[]>> {
   const keys = [...new Set(docNos.filter(Boolean))];
   if (keys.length === 0) return {};
-  const { rows } = await query<DocItem & { doc_no: string }>(
-    `select d.doc_no, d.item_code, d.item_name, coalesce(d.qty,0)::float8 qty
+  const { rows } = await query<DocItem & { doc_no: string; ord: number }>(
+    `select d.doc_no, d.item_code, d.item_name, coalesce(d.qty,0)::float8 qty, d.roworder ord
        from ic_trans_detail d where d.doc_no = any($1::text[])
+     union all
+     /* ໃບເບີກທີ່ຍັງບໍ່ໄດ້ກ໋ອບລົງ ODS (ເບິ່ງ DISPATCH_DOCS) — ບໍ່ດັ່ງນັ້ນລາຍການຫວ່າງ */
+     select p.doc_no, p.item_code, p.item_name, coalesce(p.qty,0)::float8, p.line_number
+       from public.ic_trans_detail p
+      where p.doc_no = any($1::text[])
+        and not exists (select 1 from ic_trans_detail o where o.doc_no = p.doc_no)
       -- ⚠️ ods.ic_trans_detail ບໍ່ມີ line_number (ມີແຕ່ຕາຕະລາງຝັ່ງ ERP) — ຮຽງດ້ວຍ roworder
-      order by d.doc_no, d.roworder`,
+      order by 1, 5`,
     [keys],
   );
   const map: Record<string, DocItem[]> = {};
-  for (const { doc_no, ...item } of rows) (map[doc_no] ??= []).push(item);
+  // `ord` ມີໄວ້ຮຽງລຳດັບໃນ SQL ເທົ່ານັ້ນ — ບໍ່ໃສ່ໃສ່ DocItem
+  for (const { doc_no, ord, ...item } of rows) { void ord; (map[doc_no] ??= []).push(item); }
   return map;
 }
 
@@ -160,20 +195,24 @@ export async function withdrawRounds(code: string): Promise<WithdrawRound[]> {
           nullif(t.wh_code,'') wh_code,
           (select count(*) from ic_trans_detail d where d.doc_no = t.doc_no)::int lines,
           (select coalesce(sum(d.qty),0) from ic_trans_detail d where d.doc_no = t.doc_no)::float8 qty,
-          (select string_agg(distinct sw.doc_no, ', ') from ic_trans sw
-            where sw.trans_flag = $2 and sw.doc_ref = t.doc_no) dispatch_no,
-          (select to_char(min(sw.doc_date),'DD-MM-YYYY') from ic_trans sw
-            where sw.trans_flag = $2 and sw.doc_ref = t.doc_no) dispatch_date,
+          swc.dispatch_no, swc.dispatch_date,
+          -- ໃບຮັບຂອງຊ່າງ (166) ເກີດຢູ່ ODSS ຢ່າງດຽວ ⇒ ບໍ່ມີຝັ່ງ ERP ໃຫ້ join
           (select string_agg(distinct pi.doc_no, ', ') from ic_trans pi
-            where pi.trans_flag = 166 and pi.doc_ref in (
-              select sw.doc_no from ic_trans sw where sw.trans_flag = $2 and sw.doc_ref = t.doc_no)) pick_no,
+            where pi.trans_flag = 166 and pi.doc_ref = any(swc.docs)) pick_no,
           (select to_char(min(pi.doc_date),'DD-MM-YYYY') from ic_trans pi
-            where pi.trans_flag = 166 and pi.doc_ref in (
-              select sw.doc_no from ic_trans sw where sw.trans_flag = $2 and sw.doc_ref = t.doc_no)) pick_date
+            where pi.trans_flag = 166 and pi.doc_ref = any(swc.docs)) pick_date
         from ic_trans t
-       where t.trans_flag = $3 and t.product_code = $1
+        /* ຄິດໃບເບີກ (ODS ∪ ERP) **ເທື່ອດຽວຕໍ່ໃບຂໍ** — ໃສ່ເປັນ subquery ຊ້ຳ 4 ບ່ອນ
+           ວັດໄດ້ 344ms, ແບບ lateral ນີ້ ~90ms (ERP branch ຖືກ scan ເທື່ອດຽວ) */
+        cross join lateral (
+          select string_agg(distinct sw.doc_no, ', ') dispatch_no,
+              to_char(min(sw.doc_date),'DD-MM-YYYY') dispatch_date,
+              coalesce(array_agg(distinct sw.doc_no), '{}') docs
+            from (${DISPATCH_DOCS('t.doc_no')}) sw
+        ) swc
+       where t.trans_flag = $2 and t.product_code = $1
        order by t.doc_date, t.doc_no`,
-      [code, TRANS.DISPATCH, TRANS.REQUEST],
+      [code, TRANS.REQUEST],
     )
   ).rows;
 
@@ -224,8 +263,14 @@ export async function withdrawRounds(code: string): Promise<WithdrawRound[]> {
     dispatchNos.length > 0
       ? (
           await query<{ doc_no: string; doc_date: string | null; user_created: string | null }>(
+            /* ໃບທີ່ຍັງບໍ່ໄດ້ກ໋ອບລົງ ODS ຕ້ອງເອົາຫົວຈາກ ERP ບໍ່ດັ່ງນັ້ນວັນທີ/ຜູ້ອອກຫວ່າງ */
             `select doc_no, to_char(doc_date,'DD-MM-YYYY') doc_date, nullif(user_created,'') user_created
-               from ic_trans where doc_no = any($1::text[])`,
+               from ic_trans where doc_no = any($1::text[])
+             union all
+             select e.doc_no, to_char(e.doc_date,'DD-MM-YYYY'), nullif(e.creator_code,'')
+               from public.ic_trans e
+              where e.doc_no = any($1::text[])
+                and not exists (select 1 from ic_trans o where o.doc_no = e.doc_no)`,
             [dispatchNos],
           )
         ).rows.map((row) => [row.doc_no, { doc_date: row.doc_date, user_created: row.user_created }])
@@ -306,15 +351,31 @@ export type RoundLineStatus = {
   arrived: number;
 };
 
+/**
+ * ແຖວ "ເບີກແລ້ວ" = ODS ໝາຍໄວ້ **ຫຼື** ERP ມີໃບເບີກທີ່ຈ່າຍລາຍການນີ້ພາຍໃຕ້ໃບຂໍນີ້.
+ * ຂ້າງທີ່ສອງຄືຕົວກັນຄ້າງຜິດເມື່ອການກ໋ອບພາດ (ເບິ່ງ DISPATCH_DOCS).
+ */
+const ISSUED_LINE = `d.status = ${LINE_STATUS.ISSUED} or exists (
+       select 1 from public.ic_trans_detail ed
+        where ed.trans_flag = ${TRANS.DISPATCH} and ed.item_code = d.item_code
+          and ed.doc_no in (select sw.doc_no from (${DISPATCH_DOCS("t.doc_no")}) sw))`;
+
 export async function withdrawLineStatuses(code: string): Promise<Record<string, RoundLineStatus>> {
   const rows = (
     await query<{ doc_no: string; status: RoundLineStatus["status"]; on_order: number; arrived: number }>(
+      /**
+       * ── ນັບ "ເບີກແລ້ວ" ຈາກ **ERP ສົດ** ນຳ (06-08-2026) ──
+       * `d.status = 1` ຖືກຕັ້ງໂດຍການກ໋ອບ (syncErpDispatch) ⇒ ກ໋ອບພາດ = ຄ້າງຜິດຕະຫຼອດ.
+       * ວັດຈິງ: SIO2026080014 (ວຽກ 7195) ERP ເບີກ 140101-2324 ຄົບ ໃບເບີກກ໋ອບລົງ ODS
+       * ແລ້ວ ແຕ່ແຖວໃບຂໍຍັງ status=0 ⇒ ໜ້າຈໍຂຶ້ນ "ລໍສາງເບີກ" ທັງທີ່ຂອງອອກໄປແລ້ວ.
+       * ດຽວນີ້ຖາມ ERP ວ່າ "ລາຍການນີ້ ຖືກເບີກພາຍໃຕ້ໃບຂໍນີ້ແລ້ວບໍ" (ເບິ່ງ DISPATCH_DOCS).
+       */
       `select t.doc_no,
           case
             when count(d.doc_no) = 0 then null
             when count(d.doc_no) filter (where coalesce(d.status,0) = ${LINE_STATUS.ON_PURCHASE_ORDER} and d.arrive_at is null) > 0 then 'purchasing'
-            when count(d.doc_no) filter (where d.status = ${LINE_STATUS.ISSUED}) = count(d.doc_no) then 'issued'
-            when count(d.doc_no) filter (where d.status = ${LINE_STATUS.ISSUED}) > 0 then 'partial'
+            when count(d.doc_no) filter (where ${ISSUED_LINE}) = count(d.doc_no) then 'issued'
+            when count(d.doc_no) filter (where ${ISSUED_LINE}) > 0 then 'partial'
             else 'waiting'
           end status,
           count(d.doc_no) filter (where coalesce(d.status,0) = ${LINE_STATUS.ON_PURCHASE_ORDER} and d.arrive_at is null)::int on_order,

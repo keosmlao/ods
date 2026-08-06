@@ -1,4 +1,4 @@
-import { syncErpReturns } from "@/lib/erp-dispatch";
+import { syncErpOnView } from "@/lib/erp-sync-view";
 import { Elapsed } from "@/components/elapsed";
 import { LinkPending } from "@/components/link-pending";
 import { SortHeader, type SortDir } from "@/components/sort-header";
@@ -139,8 +139,11 @@ function JobBadge({ jobType, t }: { jobType: string | null; t: Dict }) {
 }
 
 export default async function ReceiveReturnsPage({ searchParams }: Props) {
-  // ດຶງໃບຮັບຄືນທີ່ສາງຮັບໃນ ERP ກັບມາ ⇒ ໃບທີ່ຮັບແລ້ວຫຼຸດອອກຈາກຄິວເອງ (lib/erp-dispatch)
-  await syncErpReturns();
+  /**
+   * ດຶງຂອງຈາກ ERP ກ່ອນ (ຮັບເຂົ້າສາງ · ໃບເບີກ · ໃບຮັບຄືນ) ⇒ ຄິວທີ່ເຫັນເປັນຄວາມຈິງລ້າສຸດ.
+   * ຄຸມ 1 ຮອບ/ນາທີ ທັງລະບົບ (lib/erp-sync-view) ⇒ **ບໍ່ຕ້ອງມີ cron ພາຍນອກ**.
+   */
+  await syncErpOnView();
 
   const t = (await getDictionary(await getLocale())).receiveReturns;
 

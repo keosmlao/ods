@@ -65,6 +65,44 @@ const MATCH_SQL = `
   limit 1`;
 
 /**
+ * **ລາຄາ ແລະ ຊື່ ຂອງລາຍການບໍລິການ — ເອົາຈາກ ERP ໂດຍກົງ** (ic_inventory_price).
+ *
+ * ── ເປັນຫຍັງບໍ່ເກັບລາຄາໄວ້ໃນຕາຕະລາງຈັບຄູ່ ──
+ * ລາຄາຄ່າບໍລິການເປັນ **ຂໍ້ມູນຫຼັກຂອງ ERP ຢູ່ແລ້ວ** — 9702xx ເກືອບທຸກລະຫັດມີລາຄາບາດ
+ * ໃນ ic_inventory_price (ກວດ 06-08-2026: 44/46 ລະຫັດ). ຖ້າຈື່ໄວ້ອີກບ່ອນນຶ່ງ ບັນຊີຂຶ້ນ
+ * ລາຄາຢູ່ ERP ແລ້ວບິນຍັງອອກລາຄາເກົ່າ ⇒ **ຂໍ້ມູນສອງບ່ອນຄ້າງກັນ**. ຕາຕະລາງຈັບຄູ່ຈຶ່ງ
+ * ຕອບແຕ່ຄຳຖາມທີ່ ERP ຕອບບໍ່ໄດ້: "ງານແບບນີ້ໃຊ້ລະຫັດໃດ".
+ *
+ * ໃຊ້ສູດດຽວກັບ lib/service-money ແລະ lib/maintenance ທີ່ພິສູດແລ້ວ:
+ * ສະກຸນ '01' = ບາດ · ເອົາແຖວ**ຫຼ້າສຸດທີ່ມີລາຄາ** · **ບໍ່ຜູກ to_date** ເພາະຫຼາຍແຖວ
+ * ໝົດອາຍຸແຕ່ຍັງໃຊ້ຈິງ.
+ *
+ * `price_thb` ໃນຕາຕະລາງຈັບຄູ່ ເຫຼືອເປັນພຽງ **ຄ່າແທນຕອນ ERP ບໍ່ມີລາຄາ** (ໃສ່ 0 = ໃຊ້ ERP).
+ */
+export async function erpServicePrice(
+  itemCode: string,
+): Promise<{ price_thb: number; name: string | null; unit_code: string | null } | null> {
+  if (!odgDb) return null;
+  try {
+    const row = (
+      await odgDb.query<{ price_thb: number; name: string | null; unit_code: string | null }>(
+        `select coalesce((select pr.sale_price1 from ic_inventory_price pr
+                where pr.ic_code = a.code and pr.currency_code = '01'
+                  and coalesce(pr.sale_price1,0) > 0
+                order by pr.from_date desc nulls last, pr.roworder desc limit 1), 0)::float8 price_thb,
+            nullif(a.name_1,'') as name, nullif(a.unit_standard,'') as unit_code
+          from ic_inventory a where a.code = $1 limit 1`,
+        [itemCode],
+      )
+    ).rows[0];
+    return row ?? null;
+  } catch (error) {
+    console.error("erpServicePrice failed", itemCode, error);
+    return null;
+  }
+}
+
+/**
  * ຫາລາຍການຄ່າບໍລິການຂອງໃບງານນຶ່ງ. ບໍ່ໂຍນ error ແລະ ບໍ່ບັງຄັບໃຫ້ພົບ —
  * ຍັງບໍ່ໄດ້ຕັ້ງຄ່າ ຫຼື ງານບໍ່ມີລະຫັດສິນຄ້າ ERP ⇒ null ແລ້ວບິນກໍ່ອອກໄດ້ຄືເກົ່າ
  * (ຄົນເລືອກເອງຈາກປຸ່ມ "ລາຍການຄ່າບໍລິການ"). **ການອອກບິນຫ້າມພັງເພາະການຕັ້ງຄ່າ.**
@@ -95,7 +133,21 @@ export async function serviceChargeForJob(jobCode: string): Promise<ServiceCharg
         job.product_type,
       ])
     ).rows[0];
-    return row ?? null;
+    if (!row) return null;
+
+    /**
+     * ── ລາຄາ/ຊື່/ຫົວໜ່ວຍ **ຈາກ ERP ຊະນະສະເໝີ** ──
+     * ຕາຕະລາງຈັບຄູ່ບອກແຕ່ "ລະຫັດໃດ" — ສ່ວນຄ່າຂອງລະຫັດນັ້ນຖາມ ERP ⇒ ບັນຊີຂຶ້ນລາຄາ
+     * ບ່ອນດຽວ ບິນປ່ຽນຕາມທັນທີ ບໍ່ຕ້ອງມາແກ້ການຕັ້ງຄ່າຊ້ຳ. ERP ບໍ່ມີລາຄາ (2/46 ລະຫັດ)
+     * ຈຶ່ງຄ່ອຍຕົກລົງໃຊ້ price_thb ທີ່ຕັ້ງໄວ້.
+     */
+    const erpPrice = await erpServicePrice(row.service_code);
+    return {
+      ...row,
+      service_name: erpPrice?.name ?? row.service_name,
+      unit_code: erpPrice?.unit_code ?? row.unit_code,
+      price_thb: erpPrice && erpPrice.price_thb > 0 ? erpPrice.price_thb : row.price_thb,
+    };
   } catch (error) {
     console.error("serviceChargeForJob failed", jobCode, error);
     return null;
