@@ -32,6 +32,8 @@ type Detail = {
   job_code: string;
   workflow: string;
   rate_label: string | null;
+  /** ຈຳນວນຮອບເຂົ້າໜ້າງານທີ່ຄິດສ່ວນແບ່ງມາຈາກ (null = ບໍ່ໄດ້ແບ່ງຕາມຮອບ) */
+  visits: number | null;
   role: string;
   employee_code: string | null;
   amount_thb: string;
@@ -84,7 +86,7 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
     ),
     query<Detail>(
       `select p.job_code, p.workflow, p.rate_label, p.role, p.employee_code,
-          p.amount_thb, p.pct, p.pay_thb, to_char(p.closed_at,'DD-MM-YYYY') closed_on
+          p.amount_thb, p.pct, p.pay_thb, p.visits, to_char(p.closed_at,'DD-MM-YYYY') closed_on
          from ods_service_payout p
         where ${filter}
         order by p.closed_at desc, p.job_code
@@ -254,6 +256,12 @@ export default async function TechnicianIncomePage({ searchParams }: Props) {
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-600">
                   {ROLE_LABEL[row.role] ?? row.role}
+                  {/* ແບ່ງຕາມຮອບເຂົ້າໜ້າງານ ⇒ ບອກໄວ້ ບໍ່ດັ່ງນັ້ນຄົນງົງວ່າເປັນຫຍັງໃບດຽວຈ່າຍ 2 ຄົນ */}
+                  {row.visits != null && (
+                    <span className="ml-1 rounded bg-brand-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-orange-700">
+                      {row.visits} ຮອບ
+                    </span>
+                  )}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-500">{Number(row.pct)}%</td>
                 <td className="whitespace-nowrap px-3 py-2 text-xs font-bold text-slate-900">
