@@ -5,6 +5,7 @@ import {
   finishInstallFlow,
   startInstallFlow,
   scheduleNextVisit,
+  handoverInstallFlow,
 } from "@/lib/job-flow";
 import { pushToUser } from "@/lib/push";
 import { recordPayout } from "@/lib/commission-record";
@@ -805,45 +806,13 @@ export async function handoverInstallTech(
   const { session, job } = guard;
   if (job.cancelled) return { error: IS_CANCELLED };
   if (job.closed) return { error: IS_CLOSED };
-  if (!techCode) return { error: "ກະລຸນາເລືອກຊ່າງຄົນໃໝ່" };
-  if (!reason.trim()) return { error: "ກະລຸນາໃສ່ເຫດຜົນທີ່ປ່ຽນຊ່າງ" };
 
-  const before = (
-    await query<{ tech_code: string | null }>("select nullif(tech_code,'') tech_code from ods_tb_install where code=$1", [
-      code,
-    ])
-  ).rows[0];
-  if ((before?.tech_code ?? "") === techCode) return { error: "ເປັນຊ່າງຄົນເກົ່າຢູ່ແລ້ວ" };
+  const result = await handoverInstallFlow(session, code, techCode, reason);
+  if (!result.ok) return { error: result.error };
 
-  // ຮອບທີ່ຊ່າງເກົ່າຍັງເປີດຄ້າງ ⇒ ປິດໃຫ້ ບໍ່ດັ່ງນັ້ນມັນຄ້າງເປັນ "ຍັງຢູ່ໜ້າງານ" ຕະຫຼອດ
-  await query(
-    `update ods_job_checkin set checkout_at=localtimestamp(0)
-      where workflow='install' and job_code=$1 and checkout_at is null`,
-    [code],
-  );
-
-  const done = await query(
-    `update ods_tb_install a
-        set tech_before=coalesce(nullif(a.tech_code,''), a.tech_before),
-            tech_code=$2,
-            tech_confirm=localtimestamp(0)
-      where a.code=$1 and (${INSTALL_STAGE_SQL}) in (4,5)`,
-    [code, techCode],
-  );
-  if (!done.rowCount) {
-    return { error: "ປ່ຽນຊ່າງກາງທາງໄດ້ສະເພາະງານທີ່ລໍຕິດຕັ້ງ ຫຼື ກຳລັງຕິດຕັ້ງ" };
-  }
-
-  await logChange(
-    "ods_tb_install",
-    code,
-    `ປ່ຽນຊ່າງກາງທາງ: ${before?.tech_code ?? "-"} → ${techCode} · ${reason.trim()}`,
-    { author: session.username, users: [techCode], roles: ["admin", "manager"] },
-  );
   await pushToUser(techCode, "ຮັບຊ່ວງງານຕິດຕັ້ງ", `${code} · ${reason.trim()}`, { workflow: "install", code });
-
   revalidateAll();
-  return { ok: `ສົ່ງມອບງານໃຫ້ ${techCode} ແລ້ວ` };
+  return { ok: result.message };
 }
 
 /**

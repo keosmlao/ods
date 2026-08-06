@@ -693,6 +693,57 @@ export async function scheduleNextVisit(
   return { ok: true, message: `ນັດເຂົ້າຮອບຕໍ່ໄປ ${input.next_date} ແລ້ວ` };
 }
 
+/**
+ * **ສົ່ງມອບງານຕິດຕັ້ງໃຫ້ຊ່າງຄົນໃໝ່ ກາງທາງ** — ແກ່ນຮ່ວມຂອງເວັບ ແລະ ແອັບ.
+ *
+ * ດ່ານສິດຢູ່**ຜູ້ເອີ້ນ** (ເວັບ = ຝ່າຍບໍລິການ/ຫົວໜ້າ · ແອັບ = ຊ່າງເຈົ້າຂອງງານເອງ)
+ * ເພາະສອງທາງມີເຫດຜົນຕ່າງກັນ: ຫົວໜ້າຈັດຄົນ ສ່ວນຊ່າງທີ່ຢູ່ໜ້າງານຮູ້ວ່າຕ້ອງສົ່ງໃຫ້ໃຜຕໍ່.
+ * ຂັ້ນງານ ແລະ ເອກະສານທີ່ອອກໃນນາມຊ່າງເກົ່າ **ບໍ່ຖືກແຕະ** — ເບິ່ງເຫດຜົນຢູ່ actions/installation.
+ */
+export async function handoverInstallFlow(
+  session: Session,
+  code: string,
+  techCode: string,
+  reason: string,
+): Promise<FlowResult & { from?: string | null }> {
+  if (!techCode.trim()) return { ok: false, error: "ກະລຸນາເລືອກຊ່າງຄົນໃໝ່" };
+  if (!reason.trim()) return { ok: false, error: "ກະລຸນາໃສ່ເຫດຜົນທີ່ປ່ຽນຊ່າງ" };
+
+  const before = (
+    await query<{ tech_code: string | null }>(
+      "select nullif(tech_code,'') tech_code from ods_tb_install where code=$1",
+      [code],
+    )
+  ).rows[0];
+  if ((before?.tech_code ?? "") === techCode) return { ok: false, error: "ເປັນຊ່າງຄົນເກົ່າຢູ່ແລ້ວ" };
+
+  // ຮອບທີ່ຊ່າງເກົ່າຍັງເປີດຄ້າງ ⇒ ປິດໃຫ້ ບໍ່ດັ່ງນັ້ນຄ້າງເປັນ "ຍັງຢູ່ໜ້າງານ" ຕະຫຼອດ
+  await query(
+    `update ods_job_checkin set checkout_at=${NOW}
+      where workflow='install' and job_code=$1 and checkout_at is null`,
+    [code],
+  );
+
+  const done = await query(
+    `update ods_tb_install a
+        set tech_before=coalesce(nullif(a.tech_code,''), a.tech_before),
+            tech_code=$2,
+            tech_confirm=${NOW}
+      where a.code=$1 and (${INSTALL_STAGE_SQL}) in (4,5)`,
+    [code, techCode],
+  );
+  if (!done.rowCount) {
+    return { ok: false, error: "ປ່ຽນຊ່າງກາງທາງໄດ້ສະເພາະງານທີ່ລໍຕິດຕັ້ງ ຫຼື ກຳລັງຕິດຕັ້ງ" };
+  }
+
+  await logChange("ods_tb_install", code, `ປ່ຽນຊ່າງກາງທາງ: ${before?.tech_code ?? "-"} → ${techCode} · ${reason.trim()}`, {
+    author: session.username,
+    users: [techCode],
+    roles: ["admin", "manager"],
+  });
+  return { ok: true, message: `ສົ່ງມອບງານໃຫ້ ${techCode} ແລ້ວ`, from: before?.tech_code ?? null };
+}
+
 /** ຮອບເຂົ້າໜ້າງານທັງໝົດຂອງໃບງານ — ໜ້າໃບງານ ແລະ ແອັບ ໃຊ້ຮ່ວມກັນ */
 export type JobVisit = {
   id: number;
