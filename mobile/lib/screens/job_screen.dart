@@ -313,11 +313,25 @@ class _JobScreenState extends State<JobScreen> {
 
   /// ຮູບ base64 — ບີບໄວ້ (ກວ້າງ ≤1280, ຄຸນນະພາບ 50) ເພາະຮູບເກັບໃນຖານຂໍ້ມູນ
   Future<String?> shoot() async {
-    final shot = await picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 50,
-      maxWidth: 1280,
-    );
+    XFile? shot;
+    try {
+      shot = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 50,
+        maxWidth: 1280,
+      );
+    } catch (error) {
+      // ບໍ່ມີສິດກ້ອງ (camera_access_denied) ເຄີຍ throw ອອກໄປໂດຍບໍ່ມີໃຜຈັບ
+      // ⇒ ຊ່າງກົດແລ້ວງຽບ ບໍ່ຮູ້ວ່າຕ້ອງໄປເປີດສິດ (ແກ້ 06-08-2026).
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ເປີດກ້ອງບໍ່ໄດ້ — ກະລຸນາອະນຸຍາດສິດກ້ອງໃຫ້ແອັບ ແລ້ວລອງໃໝ່'),
+          ),
+        );
+      }
+      return null;
+    }
     if (shot == null) return null;
     final bytes = await shot.readAsBytes();
     return 'data:image/jpeg;base64,${base64Encode(bytes)}';
@@ -340,7 +354,32 @@ class _JobScreenState extends State<JobScreen> {
       }
       return null;
     }
-    return Geolocator.getCurrentPosition();
+    /*
+      ── ບອກເຫດຜົນທຸກທາງທີ່ລົ້ມ (ແກ້ 06-08-2026) ──
+      ແຕ່ກ່ອນ `getCurrentPosition()` ບໍ່ຖືກຫຸ້ມ ແລະ ບໍ່ໄດ້ກວດວ່າ GPS ເປີດບໍ ⇒ ເຄື່ອງທີ່ປິດ
+      ບໍລິການທີ່ຕັ້ງ ຫຼື ຈັບສັນຍານບໍ່ໄດ້ ຈະ throw ອອກໄປງຽບໆ ⇒ ຊ່າງກົດແລ້ວ "ບໍ່ມີຫຍັງເກີດຂຶ້ນ"
+      ແລ້ວແຈ້ງວ່າ "ປຸ່ມກົດບໍ່ໄດ້" ທັງທີ່ບັນຫາຢູ່ເຄື່ອງ.
+    */
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('GPS ປິດຢູ່ — ກະລຸນາເປີດບໍລິການທີ່ຕັ້ງ ແລ້ວກົດ check-in ຄືນ'),
+          ),
+        );
+      }
+      return null;
+    }
+    try {
+      return await Geolocator.getCurrentPosition();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('ຈັບພິກັດບໍ່ໄດ້ — ອອກໄປບ່ອນໂລ່ງແລ້ວລອງໃໝ່ ($error)')),
+        );
+      }
+      return null;
+    }
   }
 
   /// ຮູບ check-in ທີ່ຖ່າຍໄວ້ແຕ່ command ລົ້ມ (offline/500) — ເກັບໄວ້ retry ໂດຍ **ບໍ່ຖ່າຍໃໝ່**
@@ -1366,6 +1405,23 @@ class _JobScreenState extends State<JobScreen> {
                               job.onsite &&
                               !job.hasCheckedIn &&
                               job.canCheckIn)
+                            _button(
+                              'check-in ໜ້າງານ (ພິກັດ + ຮູບ)',
+                              ink,
+                              checkIn,
+                            ),
+
+                          /*
+                            ── ຕິດຕັ້ງ: ປຸ່ມ check-in ຂອງຕົນເອງ (ແກ້ 06-08-2026) ──
+                            ເມື່ອກ່ອນເງື່ອນໄຂຂ້າງເທິງບັງຄັບ `workflow == 'repair'` ⇒ **ງານຕິດຕັ້ງ
+                            ບໍ່ມີປຸ່ມ check-in ເລີຍ** ໃນຂະນະທີ່ປຸ່ມ "ເລີ່ມຕິດຕັ້ງ" ຂ້າງລຸ່ມ
+                            ຖືກ disable ຕາບໃດຍັງບໍ່ check-in (ຕິດຕັ້ງ onsite=true ສະເໝີ)
+                            ⇒ ຊ່າງເຫັນແຕ່ປຸ່ມສີເທົາ "ຕ້ອງ check-in ກ່ອນເລີ່ມງານ" ແລ້ວຕັນ.
+
+                            ເຊື່ອ `canCheckIn` ຂອງ server ບ່ອນດຽວ — ຢ່າຂຽນເງື່ອນໄຂຂັ້ນຊ້ຳຢູ່ນີ້
+                            (ຮອບເຂົ້າໜ້າງານຮອບ 2 ຢູ່ຂັ້ນ 5 ກໍ່ຜ່ານ flag ດຽວກັນ ໂດຍບໍ່ຕ້ອງແກ້ແອັບອີກ).
+                          */
+                          if (job.workflow == 'install' && job.canCheckIn)
                             _button(
                               'check-in ໜ້າງານ (ພິກັດ + ຮູບ)',
                               ink,
