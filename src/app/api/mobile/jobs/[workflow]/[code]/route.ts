@@ -7,6 +7,7 @@ import {
   checkOut,
   finishInstallFlow,
   finishRepairFlow,
+  handoverInstallFlow,
   jobPhotoSets,
   ownMobileJob,
   rejectJob,
@@ -52,6 +53,7 @@ type Body = {
     | "checkout"
     | "bring-in"
     | "next-visit"
+    | "handover"
     | "undo";
   /** bring-in: ວິທີເອົາເຄື່ອງເຂົ້າສູນ — carry=ຊ່າງເອົາກັບພ້ອມ · pickup=ຂົນສົ່ງມາຮັບ (ຄ່າເລີ່ມ) */
   mode?: "carry" | "pickup";
@@ -62,6 +64,8 @@ type Body = {
   photo?: string;
   /** next-visit: ວັນນັດເຂົ້າຮອບຕໍ່ໄປ (YYYY-MM-DD) — ງານຕິດຕັ້ງທີ່ຮອບນີ້ຍັງບໍ່ຈົບ */
   next_date?: string;
+  /** handover: ລະຫັດຊ່າງຄົນໃໝ່ທີ່ຈະຮັບຊ່ວງ */
+  tech_code?: string;
   /** ຮູບຜົນງານຕອນຈົບງານ — ບັງຄັບຝັ່ງຕິດຕັ້ງ (ເບິ່ງ lib/job-flow) */
   photos?: string[];
   client_action_id?: string;
@@ -333,6 +337,17 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
           next_date: String(body.next_date ?? ""),
           reason: String(body.reason ?? ""),
         });
+        break;
+      case "handover":
+        /*
+          ຊ່າງທີ່ຢູ່ໜ້າງານຮູ້ດີທີ່ສຸດວ່າຕ້ອງສົ່ງໃຫ້ໃຜຕໍ່ (ຕົນລາພັກ · ຍ້າຍງານດ່ວນ).
+          ດ່ານ ownMobileJob ຂ້າງເທິງບັງຄັບວ່າຕ້ອງເປັນງານຂອງຕົນຢູ່ແລ້ວ ⇒ ສົ່ງມອບໄດ້
+          ສະເພາະງານທີ່ຕົນຖືຢູ່. ຝັ່ງເວັບເປັນຝ່າຍບໍລິການ/ຫົວໜ້າ (ຄົນລະດ່ານ ຈຸດປະສົງດຽວກັນ).
+        */
+        if (workflow !== "install") {
+          return NextResponse.json({ error: "ຄຳສັ່ງນີ້ໃຊ້ໄດ້ແຕ່ງານຕິດຕັ້ງ" }, { status: 400 });
+        }
+        result = await handoverInstallFlow(user, code, String(body.tech_code ?? ""), String(body.reason ?? ""));
         break;
       case "bring-in":
         // IH ສ້ອມໜ້າງານບໍ່ໄດ້ ⇒ ນຳເຂົ້າສູນ (ແປງ IH→PS). ສະເພາະສາຍງານສ້ອມ.

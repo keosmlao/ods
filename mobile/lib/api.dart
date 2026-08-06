@@ -1845,7 +1845,14 @@ class PickupDoc {
 class Lookups {
   final List<Map<String, String>> warehouses;
   final List<Map<String, String>> shelves;
-  Lookups({required this.warehouses, required this.shelves});
+
+  /// ລາຍຊື່ຊ່າງ — ໃຊ້ຢູ່ຟອມ "ສົ່ງມອບງານໃຫ້ຊ່າງຄົນໃໝ່" (ງານຕິດຕັ້ງຫຼາຍຮອບ)
+  final List<Map<String, String>> technicians;
+  Lookups({
+    required this.warehouses,
+    required this.shelves,
+    this.technicians = const [],
+  });
 
   factory Lookups.fromJson(Map<String, dynamic> json) => Lookups(
     warehouses: (json['warehouses'] as List)
@@ -1862,6 +1869,14 @@ class Lookups {
             'code': row['code'] as String,
             'name': row['name'] as String,
             'wh_code': row['wh_code'] as String,
+          },
+        )
+        .toList(),
+    technicians: ((json['technicians'] as List?) ?? [])
+        .map(
+          (row) => {
+            'code': row['code'] as String,
+            'name': (row['name'] ?? row['code']) as String,
           },
         )
         .toList(),

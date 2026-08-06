@@ -1675,6 +1675,17 @@ class _JobScreenState extends State<JobScreen> {
                                 icon: const Icon(Icons.event_repeat_outlined, size: 18),
                                 label: const Text('ຍັງບໍ່ຈົບ — ນັດຮອບຕໍ່ໄປ'),
                               ),
+                              const SizedBox(height: 8),
+                              // ຮອບຕໍ່ໄປອາດເປັນຊ່າງຄົນອື່ນ — ຊ່າງທີ່ຢູ່ໜ້າງານສົ່ງມອບເອງໄດ້
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(48),
+                                  foregroundColor: muted,
+                                ),
+                                onPressed: busy ? null : _askHandover,
+                                icon: const Icon(Icons.person_search_outlined, size: 18),
+                                label: const Text('ສົ່ງມອບໃຫ້ຊ່າງຄົນອື່ນ'),
+                              ),
                             ],
                           ],
 
@@ -2306,6 +2317,89 @@ class _JobScreenState extends State<JobScreen> {
       style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
     ),
   );
+
+  /// ເລືອກຊ່າງຄົນໃໝ່ + ເຫດຜົນ ແລ້ວສົ່ງຄຳສັ່ງ handover (ເບິ່ງ lib/job-flow.handoverInstallFlow)
+  Future<void> _askHandover() async {
+    List<Map<String, String>> techs = const [];
+    try {
+      techs = (await Api.lookups()).technicians;
+    } catch (_) {
+      // ໂຫຼດລາຍຊື່ບໍ່ໄດ້ ⇒ ບອກແລ້ວຢຸດ (ຢ່າໃຫ້ພິມລະຫັດເອງ — ພິມຜິດແລ້ວງານໄປຜິດຄົນ)
+    }
+    if (!mounted) return;
+    if (techs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ໂຫຼດລາຍຊື່ຊ່າງບໍ່ໄດ້ — ລອງໃໝ່')),
+      );
+      return;
+    }
+
+    String? picked;
+    final reason = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (builderContext, setDialogState) => AlertDialog(
+          title: const Text('ສົ່ງມອບໃຫ້ຊ່າງຄົນອື່ນ'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DropdownButtonFormField<String>(
+                value: picked,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'ຊ່າງຄົນໃໝ່',
+                  border: OutlineInputBorder(),
+                ),
+                items: techs
+                    .map(
+                      (tech) => DropdownMenuItem(
+                        value: tech['code'],
+                        child: Text(tech['name'] ?? tech['code']!),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) => setDialogState(() => picked = value),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: reason,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'ເຫດຜົນ',
+                  hintText: 'ລາພັກ · ຍ້າຍໄປງານດ່ວນ · ທີມອື່ນຮັບຊ່ວງ',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('ຍົກເລີກ'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('ສົ່ງມອບ'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    if (picked == null || reason.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ຕ້ອງເລືອກຊ່າງ ແລະ ໃສ່ເຫດຜົນ')),
+      );
+      return;
+    }
+    await run({
+      'action': 'handover',
+      'tech_code': picked,
+      'reason': reason.text.trim(),
+    }, pop: true);
+  }
 
   /// ຖາມ ວັນນັດ + ເຫດຜົນ ແລ້ວສົ່ງຄຳສັ່ງ next-visit (ເບິ່ງ lib/job-flow.scheduleNextVisit)
   Future<void> _askNextVisit() async {
