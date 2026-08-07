@@ -191,8 +191,31 @@ class _GateState extends State<_Gate> {
     _decide();
   }
 
+  /// ຂໍ້ຄວາມຜິດພາດຕອນເປີດແອັບ (null = ປົກກະຕິ) — ບໍ່ດັ່ງນັ້ນຈໍໝູນຄ້າງໂດຍບໍ່ບອກຫຍັງ
+  String? _bootError;
+
   Future<void> _decide() async {
-    final token = await Api.token();
+    /*
+      ── ຫຸ້ມທັງໝົດ + ໃສ່ timeout (07-08-2026) ──
+      ພົບຈິງ: ບາງເຄື່ອງ (Samsung One UI) ເປີດແອັບແລ້ວ **ໝູນຄ້າງຕະຫຼອດ** ເພາະ
+      `flutter_secure_storage` ອ່ານ token ບໍ່ໄດ້ (keystore ເສຍ ຫຼື ຖືກ Auto Blocker ກັ້ນ)
+      ⇒ ໂຍນ exception ອອກຈາກ _decide() ⇒ **ບໍ່ມີ setState ຈັກເທື່ອ** ⇒ ຈໍໝູນຢູ່ຢ່າງນັ້ນ
+      ໂດຍບໍ່ມີຂໍ້ຄວາມ ແລະ ບໍ່ມີທາງອອກ. ດຽວນີ້: ລົ້ມ/ຊ້າ ⇒ ພາໄປໜ້າ login ພ້ອມບອກເຫດຜົນ.
+    */
+    try {
+      await _boot();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _bootError = '$error';
+        _screen = const LoginScreen();
+      });
+    }
+  }
+
+  Future<void> _boot() async {
+    // ອ່ານ token — ຄ້າງເກີນ 8 ວິ ຖືວ່າ storage ມີບັນຫາ ⇒ ໃຫ້ login ໃໝ່ດີກວ່າຄ້າງ
+    final token = await Api.token().timeout(const Duration(seconds: 8));
     if (token != null) {
       /*
         ລົງທະບຽນ token FCM **ທຸກເທື່ອທີ່ເປີດແອັບ** ບໍ່ແມ່ນສະເພາະຕອນ login.
@@ -211,7 +234,8 @@ class _GateState extends State<_Gate> {
     // ── cache-first: ສະແດງແອັບ **ທັນທີ** ຈາກ tab cache (ບໍ່ຖ່ວງດ້ວຍເຄືອຂ່າຍ) ──
     // ຊ່າງພາກສະໜາມສັນຍານບໍ່ດີ ⇒ ຢ່າໃຫ້ໝູນຄ້າງລໍ /me. ດຶງ manifest ໃໝ່ພື້ນຫຼັງ,
     // ປ່ຽນແທ້ (role/tab ຕ່າງ) ຈຶ່ງ rebuild · token ໝົດອາຍຸ (401) → refreshSession ລ້າງ → login.
-    final cached = await Api.savedTabs();
+    // ອ່ານ cache ຈາກ secure storage — ຄ້າງກໍ່ຢ່າໃຫ້ແອັບຄາ (ຮ້າຍສຸດ = ໄປ login)
+    final cached = await Api.savedTabs().timeout(const Duration(seconds: 8));
     final cachedSig = cached.map((t) => t.key).join(',');
     if (mounted) setState(() => _screen = NavHost(key: ValueKey(cachedSig), tabs: cached));
 
@@ -230,7 +254,34 @@ class _GateState extends State<_Gate> {
 
   @override
   Widget build(BuildContext context) {
-    return _screen ??
-        const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_screen != null) {
+      // ບອກເຫດຜົນຄັ້ງດຽວຫຼັງໜ້າ login ຂຶ້ນ (ບໍ່ດັ່ງນັ້ນຊ່າງບໍ່ຮູ້ວ່າເປັນຫຍັງຖືກໄລ່ອອກ)
+      final message = _bootError;
+      if (message != null) {
+        _bootError = null;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final messenger = ScaffoldMessenger.maybeOf(context);
+          messenger?.showSnackBar(
+            SnackBar(
+              content: Text('ເປີດແອັບບໍ່ສຳເລັດ — ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່ ($message)'),
+              duration: const Duration(seconds: 6),
+            ),
+          );
+        });
+      }
+      return _screen!;
+    }
+    return const Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 14),
+            Text('ກຳລັງເປີດແອັບ…', style: TextStyle(color: muted, fontSize: 12.5)),
+          ],
+        ),
+      ),
+    );
   }
 }
