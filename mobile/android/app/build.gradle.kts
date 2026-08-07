@@ -27,7 +27,12 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "net.odien.service.odss_tech"
-    compileSdk = flutter.compileSdkVersion
+    /**
+     * ⚠️ ຢ່າໃຊ້ flutter.compileSdkVersion (35) — mobile_scanner 7 / androidx.camera 1.6
+     * ຕ້ອງການ **36**. ອັບເປັນ 36 ພ້ອມ AGP 8.9.1 ⇒ ໄດ້ .so ທີ່ **16 KB aligned**
+     * (Android 15+ ເຄື່ອງລຸ້ນໃໝ່ໃຊ້ໜ້າ 16 KB — ບໍ່ດັ່ງນັ້ນແລ່ນໃນ "compat mode").
+     */
+    compileSdk = 36
     // Firebase/secure-storage/location plugins require NDK 27; newer NDKs remain backward compatible.
     ndkVersion = "27.0.12077973"
 
@@ -46,7 +51,21 @@ android {
         applicationId = "net.odien.service.odss_tech"
         // ຮອງຮັບ Android ລຸ້ນເກົ່າ — ປັກໝຸດໃຫ້ຊັດ 21 (Android 5.0), ບໍ່ໃຊ້ຄ່າ default ທີ່
         // ປ່ຽນຕາມ Flutter SDK. plugin ທັງໝົດທີ່ໃຊ້ຮອງຮັບ 21 ຂຶ້ນໄປ (ກວດແລ້ວ).
-        minSdk = 21
+        /**
+         * minSdk 23 (Android 6) — mobile_scanner 7 ຕ້ອງການ. ຜົນກະທົບ: ບໍ່ມີ
+         * (Android 5 ອາຍຸ 11 ປີ ແລະ ບໍ່ມີໃນມືຖືຊ່າງຈັກເຄື່ອງ).
+         */
+        minSdk = 23
+
+        /**
+         * ── ສ້າງສະເພາະ **arm64-v8a** (07-08-2026) ──
+         * ML Kit (ສະແກນບາໂຄດ) + CameraX ມີ .so ໜັກ ⇒ ໃສ່ຄົບ 4 ABI = APK 79 MB.
+         * ມືຖື Android ທຸກເຄື່ອງຕັ້ງແຕ່ ~2016 ເປັນ arm64 ໝົດ (x86 = emulator ເທົ່ານັ້ນ)
+         * ⇒ ຕັດອອກ ເຫຼືອ ~30 MB. ຢາກໄດ້ຄົບ ⇒ ຖອດ block ນີ້ອອກ.
+         */
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

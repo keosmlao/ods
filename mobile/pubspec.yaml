@@ -1,7 +1,7 @@
 name: odss_tech
 description: "ODIEN Service — ແອັບຊ່າງ (ຮັບງານ · ຂັ້ນຕອນ · check-in · ລາຍຮັບ)"
 publish_to: "none"
-version: 1.7.1+26
+version: 1.8.0+27
 
 environment:
   sdk: ^3.8.0
@@ -19,7 +19,7 @@ dependencies:
   # ພິກັດ check-in (ຫຼັກຖານວ່າຊ່າງໄປຮອດໜ້າງານຈິງ)
   geolocator: ^13.0.2
   # ສະແກນ ISN/SN ດ້ວຍກ້ອງ (ງານຕິດຕັ້ງ) — ຊ່າງບໍ່ຕ້ອງພິມເລກຍາວໆ ແລະ ບໍ່ພິມຜິດ
-  mobile_scanner: ^5.2.3
+  mobile_scanner: ^7.4.0
   # ກົດໂທຫາລູກຄ້າ
   url_launcher: ^6.3.1
 
