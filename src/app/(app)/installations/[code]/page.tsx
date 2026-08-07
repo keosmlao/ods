@@ -204,7 +204,9 @@ export default async function InstallationDetail({ params }: Props) {
             ງານທີ່ຍົກເລີກ/ປິດແລ້ວ ບໍ່ໂຊ້ວ — ຍົກເລີກຊ້ຳບໍ່ໄດ້ຢູ່ແລ້ວ.
           */}
           {/* ຕິດຕັ້ງບໍ່ຈົບໃນມື້ດຽວ — ນັດກັບໄປໂດຍບໍ່ຕ້ອງກົດ "ຈົບງານ" ຫຼອກ (06-08-2026) */}
-          {installPermission.update && !row.cancel_date && row.stage === 5 && <NextVisitButton code={row.code} />}
+          {installPermission.update && !row.cancel_date && (row.stage === 4 || row.stage === 5) && (
+            <NextVisitButton code={row.code} />
+          )}
           {/* ຮອບຕໍ່ໄປອາດເປັນຊ່າງຄົນອື່ນ — ສົ່ງມອບກາງທາງໂດຍບໍ່ຖອຍຂັ້ນ */}
           {installPermission.update && !row.cancel_date && (row.stage === 4 || row.stage === 5) && (
             <HandoverTechButton

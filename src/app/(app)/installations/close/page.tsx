@@ -2,7 +2,6 @@ import { closeJob } from "@/app/actions/installation";
 import { FeedbackQrButton } from "@/components/installation/feedback-qr";
 import { JobButton } from "@/components/installation/job-buttons";
 import { RowLink } from "@/components/row-link";
-import { query } from "@/lib/db";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { installStageIs } from "@/lib/install-stage";
@@ -10,7 +9,6 @@ import { feedbackUrl } from "@/lib/track";
 import { ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { Fragment } from "react";
-import { FeedbackEditButton, type FeedbackAnswer } from "../feedback-edit";
 import {
   INSTALL_PLAIN_COLUMNS,
   INSTALL_SEARCH,
@@ -46,7 +44,7 @@ export const dynamic = "force-dynamic";
  * ງານທີ່ປິດແລ້ວເບິ່ງໄດ້: ຄົ້ນຫາ · /installations/<ລະຫັດ> · ລາຍງານງານຕິດຕັ້ງ · KPI.
  */
 type Queue = "feedback" | "close";
-type Row = InstallRow & { feedback: FeedbackAnswer[] | null };
+type Row = InstallRow;
 export type CloseQueueProps = { searchParams: Promise<ListSearchParams & { from?: string; to?: string }> };
 
 /** ຂັ້ນ 7 = ລໍລູກຄ້າປະເມີນ · 8 = ລໍປິດງານ · 9 = ປິດແລ້ວ */
@@ -56,11 +54,6 @@ const BUCKET: Record<Queue, { where: string; timeCol: string }> = {
 };
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
-
-/** ຄຳຕອບແບບສອບຖາມຂອງແຕ່ລະງານ — ເອົາມາໃຫ້ປຸ່ມແກ້ໄຂຄຳຕິຊົມ */
-const FEEDBACK_JSON = `(select json_agg(json_build_object('line', cc.line_number, 'points', cc.points)
-    order by cc.line_number)
-  from cust_complain cc where cc.product_code = a.code and cc.topic_code = '002') feedback`;
 
 const timeLabels = (t: Record<string, string>): Record<Queue, string> => ({
   feedback: t.timeInstallFinish,
@@ -93,18 +86,13 @@ export async function InstallationCloseQueue({ searchParams, queue }: CloseQueue
     where.push(INSTALL_SEARCH.replaceAll("$Q", `$${params.length}`));
   }
 
-  const [jobs, topics] = await Promise.all([
-    fetchInstallRows({
-      where: where.join(" and "),
-      params,
-      orderBy: installOrderBy(sort, dir, bucket.timeCol),
-      page,
-      extraColumns: FEEDBACK_JSON,
-    }),
-    query<{ line_number: number; name_1: string }>(
-      "select line_number, name_1 from topic_complain where code='002' order by line_number asc",
-    ),
-  ]);
+  // ຫົວຂໍ້ແບບສອບຖາມເຄີຍດຶງມາໃຫ້ຟອມແກ້ໄຂ — ຟອມຖືກຖອດແລ້ວ ⇒ ບໍ່ຕ້ອງຖາມອີກ (07-08-2026)
+  const jobs = await fetchInstallRows({
+    where: where.join(" and "),
+    params,
+    orderBy: installOrderBy(sort, dir, bucket.timeCol),
+    page,
+  });
   const rows = jobs.rows as Row[];
   const feedbackLinks = new Map(
     await Promise.all(rows.map(async (row) => [row.code, await feedbackUrl(row.code)] as const)),
@@ -197,12 +185,12 @@ export async function InstallationCloseQueue({ searchParams, queue }: CloseQueue
                     </>
                   ) : (
                     <>
-                      <FeedbackEditButton
-                        code={row.code}
-                        comment={row.complain_cust ?? ""}
-                        topics={topics.rows}
-                        answers={row.feedback ?? []}
-                      />
+                      {/*
+                        ⚠️ ຖອດປຸ່ມ "ແກ້ໄຂຄຳຕິຊົມ" ອອກ (07-08-2026 ຕາມຄຳສັ່ງ) —
+                        ໜ້າປິດງານມີໜ້າທີ່ດຽວຄື **ປິດງານ**. ຄຳຕິຊົມເປັນຄຳຕອບຂອງລູກຄ້າ
+                        ⇒ ພະນັກງານບໍ່ຄວນແກ້ທັບ (ຢາກໃຫ້ຕອບໃໝ່ ⇒ ສົ່ງ QR ໃຫ້ລູກຄ້າຢູ່ຄິວ
+                        "ລໍຖ້າລູກຄ້າປະເມີນ"). ຟອມ ແລະ action ຖືກລຶບອອກນຳ.
+                      */}
                       <JobButton
                         code={row.code}
                         action={closeJob}

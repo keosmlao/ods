@@ -171,8 +171,11 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         a.tech_confirm is not null as accepted,
         exists (select 1 from ods_job_checkin h where h.workflow='install' and h.job_code=a.code and h.tech_code=$1) as has_checked_in,
         exists (select 1 from ods_job_checkin h where h.workflow='install' and h.job_code=a.code and h.tech_code=$1 and h.checkout_at is not null) as has_checked_out,
+        -- ⚠️ ຕ້ອງຕົງກັບ allowedStages ຂອງ lib/job-flow.checkIn ສະເໝີ — ອັນນີ້ບອກແອັບວ່າກົດໄດ້ບໍ
+        -- ສ່ວນອັນນັ້ນເປັນດ່ານຈິງ. ຂັ້ນ 5 (ກຳລັງຕິດຕັ້ງ) ຮັບນຳ ເພາະ 1 ໃບງານເຂົ້າໜ້າງານໄດ້
+        -- ຫຼາຍຮອບ (06-08-2026) ⇒ ຮອບ 2 ຕ້ອງ check-in ໃໝ່ໄດ້.
         (a.tech_confirm is not null
-          and (${INSTALL_STAGE_SQL}) = 4
+          and (${INSTALL_STAGE_SQL}) in (4, 5)
           and not ${CHECKED_IN("install")}) as can_check_in,
         ${CHECKED_IN("install")} as can_check_out,
         ${CHECKED_IN("install")} as checked_in,

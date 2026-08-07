@@ -310,7 +310,8 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
       case "finish":
         result =
           workflow === "install"
-            ? await finishInstallFlow(user, code, photos)
+            // ແອັບ = ຊ່າງຢູ່ໜ້າງານ ⇒ ບັງຄັບ check-in ຄືກັບ 'start' (ທຸກຮອບຕ້ອງມີຫຼັກຖານ)
+            ? await finishInstallFlow(user, code, photos, { requireCheckin: true })
             : await finishRepairFlow(user, code, String(body.note ?? ""), photos);
         break;
       case "checkin":

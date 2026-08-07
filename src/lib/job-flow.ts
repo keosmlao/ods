@@ -341,6 +341,7 @@ export async function finishInstallFlow(
   session: Session,
   code: string,
   photos: string[] = [],
+  options: { requireCheckin?: boolean } = {},
 ): Promise<FlowResult> {
   const own = await ownJob(session, "install", code);
   if (!own.ok) return own;
@@ -348,6 +349,24 @@ export async function finishInstallFlow(
   const clean = photos.filter(Boolean);
   if (clean.length === 0) {
     return { ok: false, error: "ຕ້ອງແນບຮູບຜົນງານຢ່າງໜ້ອຍ 1 ຮູບ ກ່ອນຈົບງານຕິດຕັ້ງ" };
+  }
+
+  /**
+   * ── ທຸກຮອບເຂົ້າໜ້າງານຕ້ອງມີ check-in ແລະ check-out (06-08-2026 ຕາມຄຳສັ່ງ) ──
+   * ຮອບກ່ອນຖືກ check-out ໄປແລ້ວ (ຕອນນັດຮອບຕໍ່ໄປ) ⇒ ພໍກັບມາຮອບໃໝ່ຕ້ອງ check-in ອີກ
+   * ບໍ່ດັ່ງນັ້ນຮອບສຸດທ້າຍຈະ**ບໍ່ມີແຖວຫຼັກຖານ**ວ່າຊ່າງໄປຮອດຈິງ ແລະ ໃຊ້ເວລາເທົ່າໃດ
+   * (ຄ່າຄອມແບ່ງຕາມຮອບ — ເບິ່ງ lib/commission). ບັງຄັບສະເພາະຝັ່ງແອັບ (ຊ່າງຢູ່ໜ້າງານ);
+   * ຝັ່ງເວັບ (CS/ຫົວໜ້າບັນທຶກແທນ) ບໍ່ບັງຄັບ ຄືກັບ startInstallFlow.
+   */
+  if (options.requireCheckin) {
+    const openVisit = await query<{ n: number }>(
+      `select count(*)::int n from ods_job_checkin
+        where workflow='install' and job_code=$1 and tech_code=$2 and checkout_at is null`,
+      [code, session.username],
+    );
+    if (!openVisit.rows[0]?.n) {
+      return { ok: false, error: "ຕ້ອງ check-in ໜ້າງານກ່ອນ ຈຶ່ງບັນທຶກຕິດຕັ້ງສຳເລັດໄດ້" };
+    }
   }
 
   if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };
@@ -634,13 +653,36 @@ export async function checkIn(
     );
   }
 
+  /**
+   * **check-in ຮອບທຳອິດ = ເລີ່ມຕິດຕັ້ງ** (07-08-2026 ຕາມຄຳສັ່ງ — ຫຼັກການດຽວກັບຝັ່ງສ້ອມ).
+   * ຊ່າງໄປຮອດໜ້າງານ ຖ່າຍຮູບ ປັກພິກັດແລ້ວ = ລົງມືແລ້ວ ⇒ ບໍ່ຕ້ອງກົດ "ເລີ່ມຕິດຕັ້ງ" ອີກປຸ່ມ
+   * (2 ປຸ່ມຕິດກັນ ຊ່າງກົດແຕ່ອັນທຳອິດແລ້ວປະໄວ້ ⇒ ເວລາເລີ່ມບໍ່ຖືກບັນທຶກ).
+   *
+   * `start_install is null` ⇒ **ຮອບທຳອິດເທົ່ານັ້ນ**: ຮອບ 2, 3… (ຂັ້ນ 5) ບໍ່ທັບເວລາເດີມ
+   * ⇒ ໄລຍະ "ກຳລັງຕິດຕັ້ງ" ນັບຈາກຄັ້ງທຳອິດທີ່ລົງມືຈິງ.
+   */
+  if (workflow === "install" && own.job.stage === 4) {
+    await query(
+      `update ods_tb_install a set start_install = ${NOW}
+        where a.code = $1 and a.start_install is null and (${INSTALL_STAGE_SQL}) = 4`,
+      [code],
+    );
+  }
+
   await logChange(
     workflow === "install" ? "ods_tb_install" : "tb_product",
     code,
-    `ຊ່າງ check-in ໜ້າງານ${input.lat != null && input.lng != null ? ` (${input.lat.toFixed(5)}, ${input.lng.toFixed(5)})` : ""}`,
+    `ຊ່າງ check-in ໜ້າງານ${input.lat != null && input.lng != null ? ` (${input.lat.toFixed(5)}, ${input.lng.toFixed(5)})` : ""}` +
+      (workflow === "install" && own.job.stage === 4 ? " — ເລີ່ມຕິດຕັ້ງ" : ""),
     { author: session.username, roles: ["admin", "manager"] },
   );
-  return { ok: true, message: "check-in ສຳເລັດ" };
+  return {
+    ok: true,
+    message:
+      workflow === "install" && own.job.stage === 4
+        ? "check-in ສຳເລັດ — ເລີ່ມຕິດຕັ້ງແລ້ວ"
+        : "check-in ສຳເລັດ",
+  };
 }
 
 /**
@@ -657,27 +699,61 @@ export async function checkIn(
 export async function scheduleNextVisit(
   session: Session,
   code: string,
-  input: { next_date: string; reason: string },
+  input: { next_date: string; reason: string; closeOpenVisit?: boolean },
 ): Promise<FlowResult> {
   const own = await ownJob(session, "install", code);
   if (!own.ok) return own;
-  if (own.job?.stage !== 5) {
-    return { ok: false, error: 'ນັດຮອບຕໍ່ໄປໄດ້ສະເພາະງານທີ່ "ກຳລັງຕິດຕັ້ງ"' };
+  /**
+   * ຂັ້ນ **4 (ລໍຖ້າຕິດຕັ້ງ)** ນັດໄດ້ນຳ (07-08-2026): ຊ່າງໄປຮອດ · check-in ແລ້ວ ພົບວ່າ
+   * ເຮັດບໍ່ໄດ້ (ບໍ່ມີໄຟ · ບ່ອນຕິດຍັງບໍ່ພ້ອມ) ⇒ ຍັງບໍ່ໄດ້ກົດ "ເລີ່ມຕິດຕັ້ງ" ຈັກເທື່ອ.
+   * ຖ້າຮັບແຕ່ຂັ້ນ 5 ຊ່າງຕ້ອງກົດ "ເລີ່ມຕິດຕັ້ງ" ຫຼອກໆກ່ອນ ຈຶ່ງນັດໄດ້ ⇒ ເວລາເລີ່ມຜິດ.
+   */
+  if (own.job?.stage !== 4 && own.job?.stage !== 5) {
+    return { ok: false, error: 'ນັດຮອບຕໍ່ໄປໄດ້ສະເພາະງານທີ່ "ລໍຖ້າຕິດຕັ້ງ" ຫຼື "ກຳລັງຕິດຕັ້ງ"' };
   }
   const reason = input.reason.trim();
   if (!reason) return { ok: false, error: "ກະລຸນາໃສ່ເຫດຜົນ ວ່າຍັງບໍ່ຈົບຍ້ອນຫຍັງ" };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.next_date)) return { ok: false, error: "ກະລຸນາເລືອກວັນນັດຮອບຕໍ່ໄປ" };
 
   /**
-   * ປິດຮອບທີ່ຍັງເປີດຄ້າງ — **ຂອງທຸກຄົນ ບໍ່ແມ່ນສະເພາະຕົນ**: ຮອບກ່ອນອາດເປັນ
-   * ຊ່າງຄົນອື່ນ (ປ່ຽນຊ່າງກາງທາງ — ເບິ່ງ handoverInstallTech) ທີ່ລືມ check-out
-   * ⇒ ຖ້າປິດແຕ່ຂອງຕົນ ແຖວເກົ່າຈະຄ້າງເປັນ "ຍັງຢູ່ໜ້າງານ" ຕະຫຼອດໄປ.
+   * ── ຕ້ອງ **check-out ອອກເອງກ່ອນ** ຈຶ່ງນັດຮອບຕໍ່ໄປໄດ້ (06-08-2026 ຕາມຄຳສັ່ງ) ──
+   * ເມື່ອກ່ອນຢູ່ນີ້ປິດ check-in ໃຫ້ອັດຕະໂນມັດ ⇒ ເວລາອອກຈາກໜ້າງານເປັນເວລາທີ່ກົດນັດ
+   * ບໍ່ແມ່ນເວລາອອກຈິງ ⇒ ຊົ່ວໂມງໜ້າງານຂອງຮອບນັ້ນຜິດ. ດຽວນີ້ບອກໃຫ້ໄປກົດ check-out
+   * ກ່ອນ (ການ check-out **ບໍ່ປິດງານ** — ງານຄາຢູ່ "ກຳລັງຕິດຕັ້ງ" ຄືເກົ່າ).
    */
-  await query(
-    `update ods_job_checkin set checkout_at=${NOW}
-      where workflow='install' and job_code=$1 and checkout_at is null`,
+  /**
+   * ── ທຸກຮອບຕ້ອງມີ check-in **ແລະ** check-out (ຄຳສັ່ງ 06/07-08-2026) ──
+   * ນັບ 2 ຢ່າງພ້ອມກັນ:
+   *   `open`   — ຍັງ check-in ຄ້າງ ⇒ ຕ້ອງກົດ check-out ອອກກ່ອນ (ເວລາອອກຈຶ່ງເປັນເວລາຈິງ)
+   *   `closed` — ຮອບທີ່ຄົບຄູ່ແລ້ວ; **0 = ບໍ່ເຄີຍໄປໜ້າງານເລີຍ** ⇒ ນັດຮອບ "ຕໍ່ໄປ" ບໍ່ໄດ້
+   *              (ຮູເກົ່າ: ກົດນັດເລື່ອນໄປເລື່ອຍໆໂດຍບໍ່ເຄີຍໄປ ⇒ ບໍ່ມີຫຼັກຖານຈັກແຖວ).
+   *              ຢາກເລື່ອນວັນນັດໂດຍບໍ່ໄປ ⇒ ໃຊ້ "ແກ້ໄຂໃບງານ" ປ່ຽນວັນນັດແທນ.
+   */
+  const visits = await query<{ open: number; closed: number }>(
+    `select count(*) filter (where checkout_at is null)::int open,
+        count(*) filter (where checkout_at is not null)::int closed
+       from ods_job_checkin where workflow='install' and job_code=$1`,
     [code],
   );
+  if (!visits.rows[0]?.closed && !visits.rows[0]?.open) {
+    return { ok: false, error: "ຮອບນີ້ຍັງບໍ່ມີ check-in — ຕ້ອງ check-in ໜ້າງານ ແລ້ວ check-out ອອກກ່ອນ" };
+  }
+  const openVisit = { rows: [{ n: visits.rows[0]?.open ?? 0 }] };
+  if (openVisit.rows[0]?.n) {
+    /**
+     * `closeOpenVisit` = ທາງອອກຂອງ**ຝັ່ງເວັບ** (CS/ຫົວໜ້າບັນທຶກແທນ): ຊ່າງລືມກົດ
+     * check-out ແລ້ວກັບບ້ານໄປແລ້ວ ⇒ ຖ້າບໍ່ມີທາງນີ້ ໃບງານຈະຄ້າງນັດບໍ່ໄດ້ຕະຫຼອດ.
+     * ຝັ່ງແອັບບໍ່ສົ່ງຄ່ານີ້ ⇒ ຊ່າງຕ້ອງກົດ check-out ເອງສະເໝີ (ເວລາອອກຈຶ່ງເປັນເວລາຈິງ).
+     */
+    if (!input.closeOpenVisit) {
+      return { ok: false, error: 'ກົດ "check-out ອອກຈາກໜ້າງານ" ກ່ອນ ແລ້ວຄ່ອຍນັດຮອບຕໍ່ໄປ' };
+    }
+    await query(
+      `update ods_job_checkin set checkout_at=${NOW}
+        where workflow='install' and job_code=$1 and checkout_at is null`,
+      [code],
+    );
+  }
 
   const done = await query(
     `update ods_tb_install a set appoint_date=$2::date
@@ -686,7 +762,12 @@ export async function scheduleNextVisit(
   );
   if (!done.rowCount) return { ok: false, error: "ບັນທຶກບໍ່ໄດ້ — ງານນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນກຳລັງຕິດຕັ້ງແລ້ວ" };
 
-  await logChange("ods_tb_install", code, `ຮອບນີ້ຍັງບໍ່ຈົບ — ນັດເຂົ້າຮອບຕໍ່ໄປ ${input.next_date} · ${reason}`, {
+  await logChange(
+    "ods_tb_install",
+    code,
+    `ຮອບນີ້ຍັງບໍ່ຈົບ — ນັດເຂົ້າຮອບຕໍ່ໄປ ${input.next_date} · ${reason}` +
+      (input.closeOpenVisit && openVisit.rows[0]?.n ? " (ປິດຮອບໃຫ້ — ຊ່າງລືມ check-out)" : ""),
+    {
     author: session.username,
     roles: ["admin", "manager"],
   });

@@ -161,10 +161,17 @@ async function syncErpDispatchByDocRefs(requestNos: string[]): Promise<SyncResul
       const spareComplete = (incomplete.rows[0]?.count ?? 0) === 0;
       if (spareComplete) {
         if (install) {
-          // ສາງເບີກຄົບ ⇒ ຜ່ານທັງ "ເບີກ" ແລະ "ຮັບ" ພ້ອມກັນ — ຊ່າງບໍ່ຕ້ອງກົດຮັບອີກ (04-08-2026)
+          /**
+           * ── ⚠️ ຖອນການ stamp `pick_finish` ອັດຕະໂນມັດ (06-08-2026 ຕາມຄຳສັ່ງ) ──
+           * ຮຸ່ນ 04-08-2026 ຖືວ່າ "ສາງເບີກຄົບ = ຊ່າງຮັບແລ້ວ" ຈຶ່ງ stamp ໃຫ້ພ້ອມກັນ.
+           * ແຕ່ຄຳວ່າ "ຄົບ" ຢູ່ນີ້ນັບຈາກ**ໃບຂໍ** ⇒ ງານທີ່ມີໃບເບີກຫຼາຍໃບ ພໍໃບໜຶ່ງເບີກຄົບ
+           * ງານກໍ່ຂ້າມໄປ "ລໍຖ້າຕິດຕັ້ງ" ທັງທີ່ອີກໃບຊ່າງຍັງບໍ່ໄດ້ໄປຮັບ
+           * (ຂໍ້ມູນຈິງ 06-08-2026: INST-7208 ຢູ່ຂັ້ນ 4 ທັງທີ່ຮັບ 1 ໃນ 2 ໃບເບີກ · 1 ປີ 3 ໃບ).
+           * ດຽວນີ້ stamp ແຕ່ `reg_finish` — `pick_finish` ໃຫ້ຊ່າງກົດຮັບ**ທຸກໃບ**ເອງ
+           * ຜ່ານດ່ານ lib/install-spare-gate (ນັບໃບເບີກທີ່ຍັງບໍ່ມີ PISP ຄົບທຸກໃບ).
+           */
           await client.query(
-            `update ods_tb_install set reg_finish=localtimestamp(0),
-                pick_finish=coalesce(pick_finish, localtimestamp(0))
+            `update ods_tb_install set reg_finish=localtimestamp(0)
               where code=$1 and reg_finish is null`,
             [job.product_code],
           );

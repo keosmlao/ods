@@ -909,11 +909,17 @@ export async function scheduleInstallVisit(
   code: string,
   nextDate: string,
   reason: string,
+  /** ຊ່າງລືມກົດ check-out ⇒ ໃຫ້ຝັ່ງເວັບປິດຮອບໃຫ້ (ເບິ່ງເຫດຜົນຢູ່ scheduleNextVisit) */
+  closeOpenVisit = false,
 ): Promise<ActionState> {
   const guard = await guardJob(code, TECH_SIDE);
   if (!guard.ok) return { error: guard.error };
 
-  const result = await scheduleNextVisit(guard.session, code, { next_date: nextDate, reason });
+  const result = await scheduleNextVisit(guard.session, code, {
+    next_date: nextDate,
+    reason,
+    closeOpenVisit,
+  });
   if (!result.ok) return { error: result.error };
   revalidateAll();
   return { ok: result.message };
@@ -2297,107 +2303,3 @@ export async function saveFeedback(
   );
 }
 
-/**
- * ແກ້ໄຂແບບສອບຖາມທີ່ສົ່ງແລ້ວ (ods: save_cust_complain_new — install_admin.py:1425).
- *
- * ໃນ ods ເສັ້ນທາງນີ້ຮຽກຮ້ອງ login (ພະນັກງານແກ້ໃຫ້ລູກຄ້າ) ແລະ ອັບເດດພຽງ complain_cust
- * ໂດຍ insert ຄະແນນຊ້ຳເຂົ້າໄປອີກ ⇒ ໄດ້ຄະແນນຊ້ຳສອງເທື່ອຕໍ່ຂໍ້ ຖ້າແກ້ຫຼາຍເທື່ອ.
- * ບ່ອນນີ້: update ຄະແນນເກົ່າ (ຫຼື insert ຖ້າຍັງບໍ່ມີຂໍ້ນັ້ນ) ຈຶ່ງບໍ່ຊ້ຳ
- * ແລະ ຮັກສາ complain_finish/complain_status ທີ່ saveFeedback stamp ໄວ້ (ບໍ່ລຶບ, ບໍ່ stamp ຄືນ).
- * ຖ້າແຖວນັ້ນຍັງບໍ່ມີ complain_finish (ຂໍ້ມູນເກົ່າຈາກ ods) → stamp ໃຫ້ ເພື່ອໃຫ້ປິດງານໄດ້.
- */
-const feedbackEditSchema = z.object({
-  code: z.string().min(1),
-  cust_complain: z.string().max(2000),
-});
-
-export async function updateFeedback(
-  _: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  // ພະນັກງານແກ້/ຕອບແທນລູກຄ້າ (ປຸ່ມຢູ່ /installations/close) ⇒ ຝ່າຍບໍລິການ.
-  // ໝາຍເຫດ: saveFeedback ຂ້າງເທິງເປັນ **ສາທາລະນະ** ໂດຍເຈດຕະນາ (ລູກຄ້າບໍ່ມີບັນຊີ) —
-  // ດ່ານຂອງມັນຄື feedbackGate ບໍ່ແມ່ນ role.
-  const guard = await requireRole(SERVICE_SIDE, "ບໍ່ມີສິດແກ້ໄຂແບບສອບຖາມ");
-  if (!guard.ok) return { error: guard.error };
-  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
-
-  const parsed = feedbackEditSchema.safeParse({
-    code: formData.get("code") ?? "",
-    cust_complain: String(formData.get("cust_complain") ?? ""),
-  });
-  if (!parsed.success) return { error: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ" };
-  const { code, cust_complain: comment } = parsed.data;
-
-  const answer = z.object({
-    line: z.number().int().positive(),
-    points: z.number().int().min(1).max(4),
-  });
-  const answers: z.infer<typeof answer>[] = [];
-  for (const [key, value] of formData.entries()) {
-    const match = key.match(/^points_(\d+)$/);
-    if (!match) continue;
-    const row = answer.safeParse({
-      line: Number(match[1]),
-      points: Number(value),
-    });
-    if (!row.success) return { error: "ຄະແນນບໍ່ຖືກຕ້ອງ" };
-    answers.push(row.data);
-  }
-  if (answers.length === 0) return { error: "ກະລຸນາຕອບທຸກຂໍ້" };
-
-  const client = await db.connect();
-  try {
-    await client.query("begin");
-    // ຄືກັບ saveFeedback: ແກ້ຄຳຕອບໄດ້ສະເພາະງານທີ່ຕິດຕັ້ງແລ້ວຈິງ ແລະ ບໍ່ຖືກຍົກເລີກ (B1)
-    const job = await client.query<{ code: string }>(
-      `select code from ods_tb_install
-       where code=$1 and cancel_date is null and finish_install is not null for update`,
-      [code],
-    );
-    if (!job.rows[0]) {
-      await client.query("rollback");
-      return { error: "ບໍ່ພົບງານນີ້ ຫຼື ງານຍັງບໍ່ທັນຕິດຕັ້ງສຳເລັດ" };
-    }
-
-    await client.query(
-      `update ods_tb_install
-       set complain_cust=$1, complain_status=1,
-           complain_finish=coalesce(complain_finish, localtimestamp(0))
-       where code=$2`,
-      [comment, code],
-    );
-
-    for (const row of answers) {
-      const updated = await client.query(
-        "update cust_complain set points=$1 where product_code=$2 and topic_code='002' and line_number=$3",
-        [row.points, code, row.line],
-      );
-      if (updated.rowCount === 0) {
-        await client.query(
-          "insert into cust_complain(product_code,topic_code,line_number,points) values($1,'002',$2,$3)",
-          [code, row.line, row.points],
-        );
-      }
-    }
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    console.error("updateFeedback failed", error);
-    return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
-  } finally {
-    client.release();
-  }
-
-  const average =
-    answers.reduce((sum, row) => sum + row.points, 0) / answers.length;
-  await logChange(
-    "ods_tb_install",
-    code,
-    `ແກ້ໄຂແບບສອບຖາມລູກຄ້າ: ${average.toFixed(1)}/4`,
-  );
-
-  revalidateAll();
-  revalidatePath(`/feedback/${code}`);
-  return { ok: "ບັນທຶກສຳເລັດ" };
-}

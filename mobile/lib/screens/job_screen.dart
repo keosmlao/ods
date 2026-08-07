@@ -1423,30 +1423,13 @@ class _JobScreenState extends State<JobScreen> {
                           */
                           if (job.workflow == 'install' && job.canCheckIn)
                             _button(
-                              'check-in ໜ້າງານ (ພິກັດ + ຮູບ)',
+                              // ຮອບທຳອິດ (ຍັງບໍ່ໄດ້ເລີ່ມ) ⇒ check-in ຄື "ເລີ່ມຕິດຕັ້ງ" ນຳ
+                              job.stage == 4
+                                  ? 'check-in ໜ້າງານ — ເລີ່ມຕິດຕັ້ງ (ພິກັດ + ຮູບ)'
+                                  : 'check-in ໜ້າງານ ຮອບຕໍ່ໄປ (ພິກັດ + ຮູບ)',
                               ink,
                               checkIn,
                             ),
-
-                          /*
-                            ── check-out ອອກຈາກໜ້າງານ — **ບໍ່ແມ່ນການປິດງານ** (06-08-2026) ──
-                            ຮອບນີ້ຍັງບໍ່ຈົບ (ລໍງານໄຟຟ້າ · ຝົນຕົກ) ⇒ ອອກກ່ອນ ແລ້ວນັດຮອບຕໍ່ໄປ.
-                            ງານຄາຢູ່ "ກຳລັງຕິດຕັ້ງ" ຄືເກົ່າ · ຊົ່ວໂມງໜ້າງານຂອງຮອບນີ້ຖືກປິດຕາມເວລາຈິງ
-                            (ບໍ່ແມ່ນເວລາທີ່ກົດນັດ). ຮອບຕໍ່ໄປກັບມາຕ້ອງ check-in ໃໝ່.
-                          */
-                          if (job.workflow == 'install' && job.canCheckOut) ...[
-                            _button(
-                              'check-out ອອກຈາກໜ້າງານ',
-                              muted,
-                              () => run({'action': 'checkout'}),
-                            ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'check-out ບໍ່ແມ່ນການປິດງານ — ງານຍັງຢູ່ຂັ້ນ "ກຳລັງຕິດຕັ້ງ"',
-                              style: TextStyle(color: muted, fontSize: 11.5),
-                            ),
-                            const SizedBox(height: 10),
-                          ],
 
                           // ງານສ້ອມຂັ້ນ 1-2 = ກວດເຊັກ (ບໍ່ແມ່ນ "ເລີ່ມສ້ອມ" ຂອງຂັ້ນ 8).
                           // ໜ້າງານທີ່ຍັງບໍ່ check-in ໃຊ້ປຸ່ມ check-in ດ້ານເທິງແທນ.
@@ -1483,31 +1466,12 @@ class _JobScreenState extends State<JobScreen> {
                             ),
 
                           /*
-                            ── ໄປຮອດແລ້ວແຕ່ເຮັດບໍ່ໄດ້ (ບໍ່ມີໄຟ · ບ່ອນຕິດບໍ່ພ້ອມ) ──
-                            ຂັ້ນນີ້ຍັງບໍ່ໄດ້ກົດ "ເລີ່ມຕິດຕັ້ງ" ⇒ ໃຫ້ນັດຮອບຕໍ່ໄປໄດ້ເລີຍ
-                            ບໍ່ຕ້ອງກົດເລີ່ມຫຼອກໆກ່ອນ (ເວລາເລີ່ມຈະຜິດ). ຕ້ອງ check-out ອອກກ່ອນ.
+                            ── ຝັ່ງຕິດຕັ້ງ: check-in = ເລີ່ມຕິດຕັ້ງ (07-08-2026) ──
+                            ⇒ ບໍ່ຕ້ອງໂຊ້ປຸ່ມ "ເລີ່ມຕິດຕັ້ງ" ຄຽງກັບປຸ່ມ check-in ອີກ
+                            (ເມື່ອກ່ອນເປັນປຸ່ມສີເທົາ "ຕ້ອງ check-in ກ່ອນເລີ່ມງານ" ⇒ ຄົນສັບສົນ).
+                            ຝັ່ງສ້ອມຄືເກົ່າ · ຕິດຕັ້ງທີ່ຖືກ CS ເລີ່ມໃຫ້ຈາກເວັບ ກໍ່ຂ້າມມາຂັ້ນ 5 ຢູ່ແລ້ວ.
                           */
-                          if (job.workflow == 'install' &&
-                              job.action == 'start' &&
-                              job.hasCheckedIn) ...[
-                            OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(48),
-                                foregroundColor: warn,
-                                side: const BorderSide(color: warn),
-                              ),
-                              onPressed: busy ? null : _askNextVisit,
-                              icon: const Icon(Icons.event_repeat_outlined, size: 18),
-                              label: Text(
-                                job.canCheckOut
-                                    ? 'ເຮັດບໍ່ໄດ້ — check-out ກ່ອນ ແລ້ວນັດຮອບຕໍ່ໄປ'
-                                    : 'ເຮັດບໍ່ໄດ້ — ນັດຮອບຕໍ່ໄປ',
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-
-                          if (job.action == 'start')
+                          if (job.action == 'start' && job.workflow != 'install')
                             _button(
                               job.onsite && !job.hasCheckedIn
                                   ? 'ຕ້ອງ check-in ກ່ອນເລີ່ມງານ'
@@ -1765,7 +1729,35 @@ class _JobScreenState extends State<JobScreen> {
                               ປຸ່ມນີ້ປິດຮອບປັດຈຸບັນ + ໃສ່ວັນນັດ ⇒ ງານຄາຢູ່ຂັ້ນເດີມ ແລະ ຂຶ້ນຄິວມື້ນັ້ນເອງ.
                             */
                             if (job.workflow == 'install') ...[
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 14),
+                              const Divider(height: 1),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'ຍັງບໍ່ຈົບຮອບນີ້?',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: ink,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              /*
+                                ຕອນຈະອອກຈາກໜ້າງານມີ **2 ທາງ** ຢູ່ບ່ອນດຽວ (07-08-2026):
+                                ① ຈົບແລ້ວ ⇒ "ບັນທຶກຕິດຕັ້ງສຳເລັດ" ຂ້າງເທິງ (checkout ໃຫ້ເອງ → QC)
+                                ② ຍັງບໍ່ຈົບ ⇒ check-out ອອກ (ບໍ່ປິດງານ) ແລ້ວນັດຮອບຕໍ່ໄປ
+                              */
+                              if (job.canCheckOut) ...[
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: const Size.fromHeight(48),
+                                    foregroundColor: muted,
+                                  ),
+                                  onPressed: busy ? null : () => run({'action': 'checkout'}),
+                                  icon: const Icon(Icons.logout_rounded, size: 18),
+                                  label: const Text('check-out ອອກຈາກໜ້າງານ (ບໍ່ປິດງານ)'),
+                                ),
+                                const SizedBox(height: 8),
+                              ],
                               OutlinedButton.icon(
                                 style: OutlinedButton.styleFrom(
                                   minimumSize: const Size.fromHeight(48),
@@ -1775,9 +1767,7 @@ class _JobScreenState extends State<JobScreen> {
                                 onPressed: busy ? null : _askNextVisit,
                                 icon: const Icon(Icons.event_repeat_outlined, size: 18),
                                 label: Text(
-                                  job.canCheckOut
-                                      ? 'ຍັງບໍ່ຈົບ — check-out ກ່ອນ ແລ້ວນັດຮອບຕໍ່ໄປ'
-                                      : 'ຍັງບໍ່ຈົບ — ນັດຮອບຕໍ່ໄປ',
+                                  job.canCheckOut ? 'ນັດຮອບຕໍ່ໄປ (check-out ກ່ອນ)' : 'ນັດຮອບຕໍ່ໄປ',
                                 ),
                               ),
                               const SizedBox(height: 8),

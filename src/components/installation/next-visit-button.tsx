@@ -10,13 +10,18 @@ import { useState, useTransition } from "react";
  *
  * ເມື່ອກ່ອນຊ່າງມີແຕ່ "ຈົບງານ" ຫຼື ປະໄວ້ງຽບໆ ⇒ ກົດຈົບທັງທີ່ຍັງບໍ່ຈົບ (QC ແລະ ການປະເມີນ
  * ຂອງລູກຄ້າເລີ່ມແລ່ນຜິດ) ຫຼື ງານຄາຢູ່ "ກຳລັງຕິດຕັ້ງ" ໂດຍບໍ່ມີໃຜຮູ້ວ່າຈະກັບໄປມື້ໃດ.
- * ປຸ່ມນີ້ປິດຮອບປັດຈຸບັນ ແລ້ວໃສ່ວັນນັດ ⇒ ງານຂຶ້ນຄິວປະຈຳວັນຂອງມື້ນັ້ນເອງ ໂດຍຂັ້ນບໍ່ຂະຍັບ.
+ * ປຸ່ມນີ້ໃສ່ວັນນັດ ⇒ ງານຂຶ້ນຄິວປະຈຳວັນຂອງມື້ນັ້ນເອງ ໂດຍຂັ້ນບໍ່ຂະຍັບ.
+ *
+ * ⚠️ **ຊ່າງຕ້ອງກົດ check-out ອອກຈາກໜ້າງານກ່ອນ** (06-08-2026) — ບໍ່ປິດຮອບໃຫ້ອັດຕະໂນມັດ
+ * ອີກແລ້ວ ເພາະເວລາອອກຕ້ອງເປັນເວລາຈິງ ບໍ່ແມ່ນເວລາທີ່ CS ກົດນັດ. ຊ່າງລືມກົດ ⇒ ໝາຍໃສ່
+ * ຊ່ອງ "ປິດຮອບໃຫ້ດ້ວຍ" ໃນຟອມ (ຖືກບັນທຶກໄວ້ໃນ chatter ວ່າປິດແທນ).
  */
 export function NextVisitButton({ code }: { code: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState("");
   const [reason, setReason] = useState("");
+  const [closeVisit, setCloseVisit] = useState(false);
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
 
@@ -27,6 +32,7 @@ export function NextVisitButton({ code }: { code: string }) {
         onClick={() => {
           setError("");
           setReason("");
+          setCloseVisit(false);
           // ຄ່າຕັ້ງຕົ້ນ = ມື້ອື່ນ (ກໍລະນີພົບຫຼາຍທີ່ສຸດ)
           const tomorrow = new Date(Date.now() + 86_400_000);
           setDate(tomorrow.toISOString().slice(0, 10));
@@ -72,6 +78,22 @@ export function NextVisitButton({ code }: { code: string }) {
               />
             </label>
 
+            {/*
+              ຊ່າງຕ້ອງກົດ check-out ເອງ (ເວລາອອກຈຶ່ງເປັນເວລາຈິງ) — ແຕ່ຖ້າລືມ ແລ້ວກັບບ້ານໄປແລ້ວ
+              ໃບງານຈະນັດບໍ່ໄດ້ຕະຫຼອດ ⇒ ໃຫ້ CS/ຫົວໜ້າ ປິດຮອບໃຫ້ໄດ້ ໂດຍໝາຍໄວ້ໃນ chatter.
+            */}
+            <label className="flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={closeVisit}
+                onChange={(event) => setCloseVisit(event.target.checked)}
+                className="mt-0.5 size-4 accent-brand-700"
+              />
+              <span>
+                ຊ່າງລືມກົດ <b>check-out</b> — ປິດຮອບໃຫ້ດ້ວຍເວລານີ້
+              </span>
+            </label>
+
             {error && <p className="rounded-lg bg-brand-orange-50 px-3 py-2 text-xs text-brand-orange-700">{error}</p>}
 
             <div className="flex justify-end gap-2 pt-1">
@@ -87,7 +109,7 @@ export function NextVisitButton({ code }: { code: string }) {
                 disabled={pending}
                 onClick={() =>
                   start(async () => {
-                    const result = await scheduleInstallVisit(code, date, reason);
+                    const result = await scheduleInstallVisit(code, date, reason, closeVisit);
                     if (result.error) {
                       setError(result.error);
                       return;

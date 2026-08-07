@@ -36,8 +36,14 @@ export type SpareOutstanding = {
   notRequested: number;
   /** ຈຳນວນໃນໃບຂໍທີ່ສາງຍັງບໍ່ທັນເບີກອອກ */
   notDispatched: number;
-  /** ຈຳນວນທີ່ສາງເບີກແລ້ວ ແຕ່ຊ່າງຍັງບໍ່ທັນກົດຮັບ */
+  /** ຈຳນວນທີ່ສາງເບີກແລ້ວ ແຕ່ຊ່າງຍັງບໍ່ທັນກົດຮັບ (ນັບເປັນ**ຈຳນວນຂອງ**) */
   notReceived: number;
+  /**
+   * **ໃບເບີກ (56) ທີ່ຍັງບໍ່ມີໃບຮັບ (PISP)** — ນັບເປັນ**ໃບ** ບໍ່ແມ່ນຈຳນວນຂອງ.
+   * ນີ້ຄືຕົວທີ່ກັ້ນຂັ້ນ: ຄຳສັ່ງ 06-08-2026 ວ່າ "ຕ້ອງກົດຮັບທຸກເອກະສານກ່ອນ".
+   * ນັບເປັນໃບ ຈຶ່ງຕົງກັບໜ້າ /installations/spare-pickup ທີ່ລາຍການເປັນ "ໃບ".
+   */
+  notReceivedDocs: number;
   /** ເບີກຄົບທຸກໃບຂໍ ແລະ ຮັບຄົບທຸກໃບເບີກ ⇒ stamp pick_finish ໄດ້ */
   done: boolean;
 };
@@ -87,17 +93,38 @@ export async function installSpareOutstanding(
   const notRequested = rows[0]?.not_requested ?? 0;
   const notDispatched = rows[0]?.not_dispatched ?? 0;
   const notReceived = rows[0]?.not_received ?? 0;
+
+  /**
+   * ນັບ **ໃບເບີກທີ່ຍັງບໍ່ມີໃບຮັບ** — ຖາມແຍກເພາະເປັນຄຳຖາມລະດັບ**ເອກະສານ**
+   * (ອັນຂ້າງເທິງທຽບເປັນຈຳນວນຂອງຕໍ່ item_code ⇒ PISP ທີ່ລົງບໍ່ຄົບແຖວຈະນັບຄ້າງຄ້າຍກັນ
+   * ແຕ່ບອກບໍ່ໄດ້ວ່າ "ຍັງເຫຼືອໃບໃດໃຫ້ໄປຮັບ").
+   */
+  const docs = await run(
+    `select 0 not_requested, 0 not_dispatched,
+        (select count(*) from ic_trans sw
+          where sw.trans_flag = $2
+            and sw.doc_ref in (select r.doc_no from ic_trans r
+                                where r.trans_flag = $3 and r.product_code = $1)
+            and not exists (select 1 from ic_trans p
+                             where p.trans_flag = $4 and p.doc_ref = sw.doc_no))::float8 not_received`,
+    [productCode, TRANS.DISPATCH, TRANS.REQUEST, TRANS_PICK],
+  );
+  const notReceivedDocs = docs.rows[0]?.not_received ?? 0;
   return {
     notRequested,
     notDispatched,
     notReceived,
+    notReceivedDocs,
     // notRequested ບໍ່ຢູ່ໃນສູດ — ເບິ່ງເຫດຜົນຢູ່ຫົວໄຟລ໌ (ປ່ຽນກົດເກນ 04-08-2026)
     /**
-     * **ສາງເບີກແລ້ວ = ຜ່ານ** — ນຳໃຊ້ທັງສ້ອມ ແລະ **ຕິດຕັ້ງ** (ຢືນຢັນ 04-08-2026).
-     * ຫຼັກຖານ: ໃບສາງເບີກ 2,508 ໃບບໍ່ເຄີຍມີໃບຮັບ (PISP) — 97% ວຽກເລີ່ມ/ຈົບໄປແລ້ວ
-     * ⇒ ຂັ້ນ "ຊ່າງກົດຮັບ" ບໍ່ໄດ້ຖືກໃຊ້ຈິງ ພຽງແຕ່ກັກວຽກໄວ້ໃນຄິວ.
-     * `notReceived` ຍັງນັບໃຫ້ເບິ່ງ ແຕ່ບໍ່ກັ້ນ `done` ອີກແລ້ວ.
+     * ── ⚠️ ກັບມາບັງຄັບ "**ຮັບຄົບທຸກໃບເບີກ**" (06-08-2026 ຕາມຄຳສັ່ງ) ──
+     * ຮຸ່ນ 04-08-2026 ປ່ອຍໃຫ້ "ສາງເບີກແລ້ວ = ຜ່ານ" ເພາະຕອນນັ້ນໃບເບີກ 2,508 ໃບ
+     * ບໍ່ເຄີຍມີໃບຮັບ ⇒ ຂັ້ນຮັບຄືກັກວຽກໄວ້ລ້າໆ. ແຕ່ຜົນຂ້າງຄຽງຄື: ງານທີ່ມີ**ຫຼາຍໃບເບີກ**
+     * ພໍຊ່າງກົດຮັບໃບໜຶ່ງ ງານກໍ່ໄປຂັ້ນຕໍ່ໄປ ທັງທີ່ອີກໃບຍັງຄາຢູ່ສາງ ⇒ ຊ່າງໄປໜ້າງານ
+     * ໂດຍຂາດຂອງ. ດຽວນີ້ນັບເປັນ **ໃບ**: ຍັງເຫຼືອໃບໃດທີ່ບໍ່ມີ PISP ⇒ ຍັງບໍ່ຜ່ານ.
+     * (`notReceived` ທີ່ນັບເປັນຈຳນວນຂອງ ຍັງໃຫ້ເບິ່ງ ແຕ່ບໍ່ໃຊ້ຕັດສິນ — ຂໍ້ມູນເກົ່າ
+     * ບາງໃບ PISP ບໍ່ມີແຖວລາຍການ ⇒ ນັບເປັນຈຳນວນຈະຄ້າງຕະຫຼອດ.)
      */
-    done: notDispatched === 0,
+    done: notDispatched === 0 && notReceivedDocs === 0,
   };
 }
