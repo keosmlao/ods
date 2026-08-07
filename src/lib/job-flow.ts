@@ -353,7 +353,7 @@ export async function finishInstallFlow(
   session: Session,
   code: string,
   photos: string[] = [],
-  options: { requireCheckin?: boolean; requireScan?: boolean; scan?: string } = {},
+  options: { requireCheckin?: boolean; requireScan?: boolean; scan?: string; scanManual?: boolean } = {},
 ): Promise<FlowResult> {
   const own = await ownJob(session, "install", code);
   if (!own.ok) return own;
@@ -389,11 +389,11 @@ export async function finishInstallFlow(
    */
   if (options.requireScan) {
     if (!(await hasInstallScan(code, "install"))) {
-      return { ok: false, error: "ຕ້ອງສະແກນ ISN/SN ຕອນກຳລັງຕິດຕັ້ງກ່ອນ" };
+      return { ok: false, error: "ຕ້ອງອ່ານ ISN/SN ຕອນກຳລັງຕິດຕັ້ງກ່ອນ" };
     }
     const scanned = (options.scan ?? "").trim();
-    if (!scanned) return { ok: false, error: "ຕ້ອງສະແກນ ISN/SN ອີກເທື່ອກ່ອນບັນທຶກສຳເລັດ" };
-    const result = await recordInstallScan(session, code, scanned, "finish");
+    if (!scanned) return { ok: false, error: "ຕ້ອງອ່ານ ISN/SN ອີກເທື່ອກ່ອນບັນທຶກສຳເລັດ (ຍິງ ຫຼື ພິມເອງ)" };
+    const result = await recordInstallScan(session, code, scanned, "finish", { manual: options.scanManual });
     if (!result.ok) return { ok: false, error: result.error };
   }
 

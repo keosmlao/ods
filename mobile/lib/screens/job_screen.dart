@@ -1739,7 +1739,9 @@ class _JobScreenState extends State<JobScreen> {
                                   foregroundColor: job.scanDone ? ok : teal,
                                   side: BorderSide(color: job.scanDone ? ok : teal),
                                 ),
-                                onPressed: busy ? null : _scanNow,
+                                // ຕ້ອງ check-in ກ່ອນ — ເລກນີ້ຄືຫຼັກຖານວ່າຢູ່ຕໍ່ໜ້າເຄື່ອງຈິງ
+                                // (ດ່ານຈິງຢູ່ server: /api/mobile/jobs … action 'scan')
+                                onPressed: busy || !job.canCheckOut ? null : _scanNow,
                                 icon: Icon(
                                   job.scanDone
                                       ? Icons.check_circle_outline
@@ -1748,10 +1750,17 @@ class _JobScreenState extends State<JobScreen> {
                                 ),
                                 label: Text(
                                   job.scanDone
-                                      ? 'ສະແກນ ISN/SN ແລ້ວ — ຍິງຊ້ຳໄດ້'
-                                      : 'ສະແກນ ISN/SN ຂອງເຄື່ອງ (ຕ້ອງເຮັດ)',
+                                      ? 'ອ່ານ ISN/SN ແລ້ວ — ເຮັດຊ້ຳໄດ້'
+                                      : 'ອ່ານ ISN/SN ຂອງເຄື່ອງ (ຍິງ ຫຼື ພິມເອງ)',
                                 ),
                               ),
+                              if (!job.canCheckOut) ...[
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'ຕ້ອງ check-in ໜ້າງານກ່ອນ ຈຶ່ງອ່ານ ISN/SN ໄດ້',
+                                  style: TextStyle(color: muted, fontSize: 11.5),
+                                ),
+                              ],
                               const SizedBox(height: 10),
                             ],
 
@@ -1765,14 +1774,16 @@ class _JobScreenState extends State<JobScreen> {
                                   ? null
                                   : () async {
                                       if (job.workflow == 'install') {
-                                        // ຍິງອີກເທື່ອກ່ອນຈົບ — ຫຼັກຖານວ່າໜ່ວຍທີ່ຕິດແມ່ນອັນເກົ່າ
-                                        final value = await _scanSerial('ສະແກນ ISN/SN — ກ່ອນຈົບງານ');
-                                        if (value == null) return;
+                                        // ອ່ານອີກເທື່ອກ່ອນຈົບ — ຫຼັກຖານວ່າໜ່ວຍທີ່ຕິດແມ່ນອັນເກົ່າ
+                                        // (ຍິງກ້ອງ ຫຼື ພິມເອງ — ທຽບກັບໃບງານຄືກັນ)
+                                        final input = await _scanSerial('ISN/SN — ກ່ອນຈົບງານ');
+                                        if (input == null) return;
                                         await run({
                                           'action': 'finish',
                                           'note': note.text,
                                           'photos': photos,
-                                          'scan': value,
+                                          'scan': input.value,
+                                          'scan_manual': input.manual,
                                         });
                                         return;
                                       }
@@ -1786,7 +1797,7 @@ class _JobScreenState extends State<JobScreen> {
                             if (job.workflow == 'install' && !job.scanDone) ...[
                               const SizedBox(height: 6),
                               const Text(
-                                'ຕ້ອງສະແກນ ISN/SN ຕອນຕິດຕັ້ງກ່ອນ ຈຶ່ງກົດສຳເລັດໄດ້',
+                                'ຕ້ອງອ່ານ ISN/SN ຕອນຕິດຕັ້ງກ່ອນ ຈຶ່ງກົດສຳເລັດໄດ້',
                                 style: TextStyle(color: muted, fontSize: 11.5),
                               ),
                             ],
@@ -1818,7 +1829,11 @@ class _JobScreenState extends State<JobScreen> {
                                   foregroundColor: warn,
                                   side: const BorderSide(color: warn),
                                 ),
-                                onPressed: busy ? null : _askNextVisit,
+                                // ນັດຮອບຕໍ່ໄປໄດ້**ຫຼັງ check-in ແລ້ວ**ເທົ່ານັ້ນ (07-08-2026):
+                                // ຮອບທີ່ບໍ່ເຄີຍໄປໜ້າງານ = ບໍ່ມີຫຼັກຖານຫຍັງ ⇒ ເປັນການເລື່ອນນັດ
+                                // ບໍ່ແມ່ນ "ຮອບຕໍ່ໄປ" (ເລື່ອນວັນ ⇒ ໃຫ້ CS ແກ້ໃບງານແທນ).
+                                // ດ່ານຈິງຢູ່ lib/job-flow.scheduleNextVisit.
+                                onPressed: busy || !_visitedThisJob ? null : _askNextVisit,
                                 icon: const Icon(Icons.event_repeat_outlined, size: 18),
                                 label: Text(
                                   job.canCheckOut
@@ -1826,6 +1841,13 @@ class _JobScreenState extends State<JobScreen> {
                                       : 'ນັດຮອບຕໍ່ໄປ',
                                 ),
                               ),
+                              if (!_visitedThisJob) ...[
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'ຕ້ອງ check-in ໜ້າງານກ່ອນ ຈຶ່ງນັດຮອບຕໍ່ໄປໄດ້',
+                                  style: TextStyle(color: muted, fontSize: 11.5),
+                                ),
+                              ],
                             ] else if (job.workflow == 'install' ||
                                 (job.workflow == 'repair' && job.onsite)) ...[
                               const SizedBox(height: 14),
@@ -1857,7 +1879,11 @@ class _JobScreenState extends State<JobScreen> {
                                   foregroundColor: warn,
                                   side: const BorderSide(color: warn),
                                 ),
-                                onPressed: busy ? null : _askNextVisit,
+                                // ນັດຮອບຕໍ່ໄປໄດ້**ຫຼັງ check-in ແລ້ວ**ເທົ່ານັ້ນ (07-08-2026):
+                                // ຮອບທີ່ບໍ່ເຄີຍໄປໜ້າງານ = ບໍ່ມີຫຼັກຖານຫຍັງ ⇒ ເປັນການເລື່ອນນັດ
+                                // ບໍ່ແມ່ນ "ຮອບຕໍ່ໄປ" (ເລື່ອນວັນ ⇒ ໃຫ້ CS ແກ້ໃບງານແທນ).
+                                // ດ່ານຈິງຢູ່ lib/job-flow.scheduleNextVisit.
+                                onPressed: busy || !_visitedThisJob ? null : _askNextVisit,
                                 icon: const Icon(Icons.event_repeat_outlined, size: 18),
                                 label: Text(
                                   job.canCheckOut
@@ -1865,6 +1891,13 @@ class _JobScreenState extends State<JobScreen> {
                                       : 'ນັດຮອບຕໍ່ໄປ',
                                 ),
                               ),
+                              if (!_visitedThisJob) ...[
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'ຕ້ອງ check-in ໜ້າງານກ່ອນ ຈຶ່ງນັດຮອບຕໍ່ໄປໄດ້',
+                                  style: TextStyle(color: muted, fontSize: 11.5),
+                                ),
+                              ],
                             ],
                           ],
 
@@ -2645,13 +2678,17 @@ class _JobScreenState extends State<JobScreen> {
     });
   }
 
-  /// ເປີດກ້ອງສະແກນ ISN/SN ແລ້ວຄືນຄ່າດິບ (null = ຍົກເລີກ)
-  Future<String?> _scanSerial(String title) async {
+  /// ຊ່າງເຂົ້າໜ້າງານຂອງໃບນີ້ແລ້ວບໍ — ຍັງຢູ່ (`canCheckOut`) ຫຼື ໄປມາແລ້ວ (`hasCheckedIn`).
+  /// ໃຊ້ຄຸມປຸ່ມ "ນັດຮອບຕໍ່ໄປ" ໃຫ້ຕົງກັບດ່ານຂອງ server (ຕ້ອງມີຢ່າງໜ້ອຍ 1 ຮອບ).
+  bool get _visitedThisJob => job.canCheckOut || job.hasCheckedIn;
+
+  /// ເປີດໜ້າອ່ານ ISN/SN (ກ້ອງ ຫຼື ພິມເອງ) ແລ້ວຄືນຄ່າດິບ (null = ຍົກເລີກ)
+  Future<SerialInput?> _scanSerial(String title) async {
     final expect = [
       job.expectSn,
       job.expectSnOut,
     ].where((v) => v != null && v.isNotEmpty && v != '-').join(' / ');
-    return Navigator.push<String>(
+    return Navigator.push<SerialInput>(
       context,
       MaterialPageRoute(
         builder: (_) => ScanSerialScreen(title: title, hint: expect.isEmpty ? null : expect),
@@ -2659,11 +2696,11 @@ class _JobScreenState extends State<JobScreen> {
     );
   }
 
-  /// ສະແກນ **ຕອນກຳລັງຕິດຕັ້ງ** — server ທຽບກັບໃບງານໃຫ້ (ບໍ່ຕົງ ⇒ ບໍ່ບັນທຶກ)
+  /// ອ່ານ ISN/SN **ຕອນກຳລັງຕິດຕັ້ງ** — server ທຽບກັບໃບງານໃຫ້ (ບໍ່ຕົງ ⇒ ບໍ່ບັນທຶກ)
   Future<void> _scanNow() async {
-    final value = await _scanSerial('ສະແກນ ISN/SN — ຕອນຕິດຕັ້ງ');
-    if (value == null || !mounted) return;
-    await run({'action': 'scan', 'scan': value});
+    final input = await _scanSerial('ISN/SN — ຕອນຕິດຕັ້ງ');
+    if (input == null || !mounted) return;
+    await run({'action': 'scan', 'scan': input.value, 'scan_manual': input.manual});
   }
 
   /// ປ້າຍສະຖານະຂອງຮອບ — ຄຳດຽວກັບຝັ່ງເວັບ (ລໍສາງເບີກ · ເບີກແລ້ວລໍຮັບ · ຮັບແລ້ວ · ສັ່ງຊື້)

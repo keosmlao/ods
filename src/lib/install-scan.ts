@@ -10,7 +10,12 @@ import type { Session } from "@/lib/auth";
  * ມາຈາກ ISN ທີ່ຂາຍໃນບິນ) ແຕ່ບໍ່ເຄີຍມີການພິສູດວ່າ**ໜ່ວຍທີ່ຕິດຈິງ**ແມ່ນອັນນັ້ນ.
  * ຊ່າງສະແກນປ້າຍດ້ວຍກ້ອງ ⇒ ທຽບໃຫ້ທັນທີ ບໍ່ຕ້ອງພິມ ແລະ ບໍ່ຕ້ອງເຊື່ອຄວາມຈຳ.
  *
- * ── ຮັບໄດ້ 2 ແບບ ──
+ * ── ຮັບຄ່າໄດ້ 2 ທາງ (07-08-2026) ──
+ * **ຍິງກ້ອງ** (ທາງຫຼັກ) ຫຼື **ພິມເອງ** — ບັງຄັບຍິງຢ່າງດຽວບໍ່ໄດ້ ເພາະປ້າຍຈືດ · ຕິດຢູ່ບ່ອນ
+ * ຈໍ້ກ້ອງບໍ່ເຖິງ · ບາໂຄດຂາດ ⇒ ຊ່າງຄາຢູ່ໜ້າງານ ປິດງານບໍ່ໄດ້. ພິມເອງກໍ່**ຍັງຖືກທຽບ**
+ * ຄືເກົ່າ (ຫຼອກລະບົບບໍ່ໄດ້) ພຽງແຕ່ໝາຍໄວ້ໃນປະຫວັດວ່າ "ປ້ອນເລກເອງ" ໃຫ້ກວດຍ້ອນຫຼັງໄດ້.
+ *
+ * ── ຮັບເລກໄດ້ 2 ແບບ ──
  * ① **ISN** (ປ້າຍ ODIEN) ② **SN ໂຮງງານ** (ປ້າຍຜູ້ຜະລິດ) — ແປງຫາກັນຜ່ານ ERP
  * `sn_inventory` (isn ↔ sn). ຂໍ້ມູນຈິງ: `pro_sn` ຂອງໃບງານເກັບເປັນ **SN ໂຮງງານ**
  * ⇒ ຊ່າງຍິງ ISN ກໍ່ຕົງໄດ້ ຫຼັງແປງແລ້ວ.
@@ -71,9 +76,10 @@ export async function recordInstallScan(
   code: string,
   raw: string,
   phase: ScanPhase,
+  options: { manual?: boolean } = {},
 ): Promise<ScanResult> {
   const value = (raw ?? "").trim();
-  if (!value) return { ok: false, error: "ບໍ່ໄດ້ຄ່າຈາກການສະແກນ — ລອງຍິງໃໝ່" };
+  if (!value) return { ok: false, error: "ບໍ່ໄດ້ເລກ ISN/SN — ລອງຍິງໃໝ່ ຫຼື ພິມເອງ" };
 
   const job = (
     await query<{ pro_sn: string | null; pro_sn_out: string | null }>(
@@ -110,10 +116,12 @@ export async function recordInstallScan(
   );
 
   const where = matched === "indoor" ? "ໜ່ວຍໃນ" : "ໜ່ວຍນອກ";
+  // ຍິງກ້ອງ ຫຼື ພິມເອງ — ຫຼັກຖານໜັກບໍ່ເທົ່າກັນ ⇒ ຂຽນຄົນລະຄຳໃນປະຫວັດ
+  const how = options.manual ? "ປ້ອນເລກເອງ" : "ສະແກນ";
   await logChange(
     "ods_tb_install",
     code,
-    `ສະແກນ ${phase === "finish" ? "ກ່ອນຈົບງານ" : "ຕອນຕິດຕັ້ງ"}: ${where} ${sn ?? value}${isn ? ` (ISN ${isn})` : ""} — ຕົງກັບໃບງານ`,
+    `${how} ${phase === "finish" ? "ກ່ອນຈົບງານ" : "ຕອນຕິດຕັ້ງ"}: ${where} ${sn ?? value}${isn ? ` (ISN ${isn})` : ""} — ຕົງກັບໃບງານ`,
     { author: session.username },
   );
 

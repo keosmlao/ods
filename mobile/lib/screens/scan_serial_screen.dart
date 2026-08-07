@@ -3,14 +3,26 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../main.dart';
 
-/// **ສະແກນ ISN / SN ດ້ວຍກ້ອງ** — ງານຕິດຕັ້ງ (07-08-2026).
+/// ຄ່າທີ່ໄດ້ຈາກໜ້ານີ້ — ພ້ອມບອກວ່າມາຈາກ**ກ້ອງ**ຫຼື**ພິມເອງ**.
 ///
-/// ຊ່າງບໍ່ຕ້ອງພິມເລກຍາວ 20 ກວ່າຕົວ (ພິມຜິດ 1 ຕົວ = ທຽບບໍ່ຕົງ ແລ້ວເສຍເວລາຢູ່ໜ້າງານ).
-/// ຍິງແລ້ວ pop ຄ່າດິບກັບໄປໃຫ້ໜ້າທີ່ເອີ້ນ ⇒ ໜ້ານັ້ນສົ່ງໃຫ້ server ທຽບກັບໃບງານ
-/// (lib/install-scan — ຮັບໄດ້ທັງ ISN ແລະ SN ໂຮງງານ).
+/// ຕ້ອງແຍກໃຫ້ຮູ້ ເພາະຫຼັກຖານສອງແບບນີ້ໜັກບໍ່ເທົ່າກັນ: ຍິງກ້ອງ = ຢູ່ຕໍ່ໜ້າເຄື່ອງຈິງ,
+/// ພິມເອງ = ເຊື່ອຄົນພິມ ⇒ ບັນທຶກໄວ້ໃນ chatter ຄົນລະຄຳ ໃຫ້ກວດຍ້ອນຫຼັງໄດ້.
+class SerialInput {
+  const SerialInput(this.value, {this.manual = false});
+
+  final String value;
+  final bool manual;
+}
+
+/// **ອ່ານ ISN / SN ດ້ວຍກ້ອງ ຫຼື ພິມເອງ** — ງານຕິດຕັ້ງ (07-08-2026).
 ///
-/// ບໍ່ມີຊ່ອງພິມ **ໂດຍເຈດຕະນາ**: ຄຳສັ່ງແມ່ນ "ບໍ່ຕ້ອງປ້ອນຂໍ້ມູນ" ⇒ ຫຼັກຖານຕ້ອງມາຈາກ
-/// ປ້າຍຈິງເທົ່ານັ້ນ ບໍ່ແມ່ນຄວາມຈຳ.
+/// ຊ່າງບໍ່ຕ້ອງພິມເລກຍາວ 20 ກວ່າຕົວ (ພິມຜິດ 1 ຕົວ = ທຽບບໍ່ຕົງ ແລ້ວເສຍເວລາຢູ່ໜ້າງານ)
+/// ⇒ **ກ້ອງເປັນທາງຫຼັກ**. ແຕ່ບັງຄັບຍິງຢ່າງດຽວບໍ່ໄດ້: ປ້າຍຈືດ · ຕິດຢູ່ບ່ອນຈໍ້ກ້ອງບໍ່ເຖິງ
+/// (ໜ່ວຍນອກຢູ່ສູງ) · ບາໂຄດຂາດ ⇒ ຊ່າງຈະຄາຢູ່ໜ້າງານ ປິດງານບໍ່ໄດ້ (ຄຳສັ່ງ 07-08-2026)
+/// ⇒ ມີຊ່ອງ **ພິມເລກເອງ** ໄວ້ນຳ.
+///
+/// ບໍ່ວ່າທາງໃດ ຄ່າຍັງຖືກສົ່ງໃຫ້ server ທຽບກັບໃບງານຄືເກົ່າ (lib/install-scan —
+/// ຮັບທັງ ISN ແລະ SN ໂຮງງານ, ບໍ່ຕົງ ⇒ ບໍ່ບັນທຶກ) ⇒ ພິມເອງກໍ່ຫຼອກລະບົບບໍ່ໄດ້.
 class ScanSerialScreen extends StatefulWidget {
   const ScanSerialScreen({super.key, required this.title, this.hint});
 
@@ -29,11 +41,16 @@ class _ScanSerialScreenState extends State<ScanSerialScreen> {
     // ປ້າຍເຄື່ອງໃຊ້ໄຟຟ້າສ່ວນຫຼາຍເປັນບາໂຄດເສັ້ນ — ເປີດ QR ໄວ້ນຳ ເພາະບາງຍີ່ຫໍ້ໃຊ້
     formats: const [BarcodeFormat.all],
   );
+  final _typed = TextEditingController();
   bool _done = false;
+
+  /// ຊ່ອງພິມເປີດຢູ່ບໍ — ເລີ່ມຕົ້ນປິດ ເພື່ອໃຫ້ກ້ອງຍັງເປັນທາງທຳອິດທີ່ຕາເຫັນ
+  bool _manual = false;
 
   @override
   void dispose() {
     _controller.dispose();
+    _typed.dispose();
     super.dispose();
   }
 
@@ -44,7 +61,14 @@ class _ScanSerialScreenState extends State<ScanSerialScreen> {
         .firstWhere((v) => v.isNotEmpty, orElse: () => '');
     if (value.isEmpty) return;
     _done = true;
-    Navigator.pop(context, value);
+    Navigator.pop(context, SerialInput(value));
+  }
+
+  void _submitTyped() {
+    final value = _typed.text.trim();
+    if (value.isEmpty || _done) return;
+    _done = true;
+    Navigator.pop(context, SerialInput(value, manual: true));
   }
 
   @override
@@ -83,9 +107,58 @@ class _ScanSerialScreenState extends State<ScanSerialScreen> {
                 ],
                 const SizedBox(height: 4),
                 const Text(
-                  'ລະບົບຈະທຽບກັບໃບງານໃຫ້ເອງ — ບໍ່ຕ້ອງພິມ',
+                  'ລະບົບຈະທຽບກັບໃບງານໃຫ້ເອງ',
                   style: TextStyle(color: muted, fontSize: 12),
                 ),
+
+                // ── ທາງສຳຮອງ: ປ້າຍຍິງບໍ່ອອກ ⇒ ພິມເລກເອງໄດ້ (ຍັງຖືກທຽບຄືເກົ່າ) ──
+                if (!_manual)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => setState(() => _manual = true),
+                      icon: const Icon(Icons.keyboard_alt_outlined, size: 18),
+                      label: const Text('ຍິງບໍ່ອອກ? ພິມເລກເອງ'),
+                    ),
+                  )
+                else ...[
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _typed,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.characters,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _submitTyped(),
+                    decoration: const InputDecoration(
+                      labelText: 'ພິມ ISN ຫຼື SN ຈາກປ້າຍ',
+                      hintText: 'ຕົວຢ່າງ: ISN0012345 ຫຼື SN ໂຮງງານ',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _submitTyped,
+                          icon: const Icon(Icons.check_rounded, size: 18),
+                          label: const Text('ໃຊ້ເລກນີ້'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: () => setState(() => _manual = false),
+                        child: const Text('ກັບໄປຍິງ'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'ພິມເອງຈະຖືກໝາຍໄວ້ໃນປະຫວັດໃບງານວ່າ “ປ້ອນເລກເອງ”',
+                    style: TextStyle(color: muted, fontSize: 11.5),
+                  ),
+                ],
               ],
             ),
           ),

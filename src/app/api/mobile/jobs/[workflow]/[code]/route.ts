@@ -67,8 +67,10 @@ type Body = {
   photo?: string;
   /** next-visit: ວັນນັດເຂົ້າຮອບຕໍ່ໄປ (YYYY-MM-DD) — ງານຕິດຕັ້ງທີ່ຮອບນີ້ຍັງບໍ່ຈົບ */
   next_date?: string;
-  /** scan / finish: ຄ່າ ISN ຫຼື SN ທີ່ສະແກນມາຈາກກ້ອງ (ບໍ່ໃຫ້ພິມເອງ) */
+  /** scan / finish: ຄ່າ ISN ຫຼື SN ຂອງເຄື່ອງ (ຍິງກ້ອງ ຫຼື ພິມເອງ — ທຽບກັບໃບງານຄືກັນ) */
   scan?: string;
+  /** ຄ່າ `scan` ມາຈາກການພິມເອງບໍ (ບໍ່ແມ່ນຍິງກ້ອງ) — ບັນທຶກໄວ້ໃນປະຫວັດໃບງານ */
+  scan_manual?: boolean;
   /** ຮູບຜົນງານຕອນຈົບງານ — ບັງຄັບຝັ່ງຕິດຕັ້ງ (ເບິ່ງ lib/job-flow) */
   photos?: string[];
   client_action_id?: string;
@@ -345,6 +347,8 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
                 requireCheckin: true,
                 requireScan: true,
                 scan: String(body.scan ?? ""),
+                // ຍິງກ້ອງ ຫຼື ພິມເອງ — ບັນທຶກໄວ້ໃນປະຫວັດຄົນລະຄຳ (lib/install-scan)
+                scanManual: body.scan_manual === true,
               })
             : await finishRepairFlow(user, code, String(body.note ?? ""), photos);
         break;
@@ -376,7 +380,22 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
         if (workflow !== "install") {
           return NextResponse.json({ error: "ຄຳສັ່ງນີ້ໃຊ້ໄດ້ແຕ່ງານຕິດຕັ້ງ" }, { status: 400 });
         }
-        const scan = await recordInstallScan(user, code, String(body.scan ?? ""), "install");
+        /**
+         * ຕ້ອງ **check-in ຢູ່ໜ້າງານກ່ອນ** (07-08-2026 ຕາມຄຳສັ່ງ) — ອ່ານ ISN/SN ແມ່ນ
+         * ຫຼັກຖານວ່າຢູ່ຕໍ່ໜ້າເຄື່ອງຈິງ ⇒ ຍັງບໍ່ໄດ້ເຂົ້າໜ້າງານ ກໍ່ບໍ່ຄວນມີເລກນີ້.
+         * ດ່ານດຽວກັບຝັ່ງແອັບທີ່ເຊື່ອງປຸ່ມ (job_screen — canCheckOut).
+         */
+        const onSite = await query<{ n: number }>(
+          `select count(*)::int n from ods_job_checkin
+            where workflow='install' and job_code=$1 and tech_code=$2 and checkout_at is null`,
+          [code, user.username],
+        );
+        if (!onSite.rows[0]?.n) {
+          return NextResponse.json({ error: "ຕ້ອງ check-in ໜ້າງານກ່ອນ ຈຶ່ງອ່ານ ISN/SN ໄດ້" }, { status: 400 });
+        }
+        const scan = await recordInstallScan(user, code, String(body.scan ?? ""), "install", {
+          manual: body.scan_manual === true,
+        });
         result = scan.ok ? { ok: true, message: scan.message } : { ok: false, error: scan.error };
         break;
       }
