@@ -12,7 +12,8 @@ export async function GET(request: Request) {
   if (!guard.ok) return guard.response;
 
   try {
-    return NextResponse.json(await mobileOverview());
+    // ສົ່ງຊື່ຜູ້ໃຊ້ໄປນຳ ⇒ ໄດ້ການເຄື່ອນໄຫວລ່າສຸດ**ຂອງຄົນນີ້**ມາພ້ອມພາບລວມ (ບໍ່ຕ້ອງຂໍອີກຮອບ)
+    return NextResponse.json(await mobileOverview(guard.user.username));
   } catch (error) {
     console.error("Mobile overview failed", error);
     return NextResponse.json({ error: "ໂຫຼດພາບລວມບໍ່ສຳເລັດ" }, { status: 500 });

@@ -1089,6 +1089,40 @@ class WorkflowSummary {
 }
 
 /// ພາບລວມບໍລິຫານ (ໜ້າຫຼັກຜູ້ຈັດການ) — ຫຍໍ້ຈາກ dashboard ຝັ່ງເວັບ
+/// ການເຄື່ອນໄຫວລ່າສຸດ 1 ແຖວ (ຊຸດດຽວກັບກ່ອງແຈ້ງເຕືອນ — ods_notification)
+class FeedItem {
+  const FeedItem({
+    required this.id,
+    required this.model,
+    required this.resId,
+    required this.kind,
+    required this.body,
+    required this.actor,
+    required this.createdAt,
+    required this.read,
+  });
+
+  final int id;
+  final String model;
+  final String resId;
+  final String kind;
+  final String body;
+  final String? actor;
+  final String createdAt;
+  final bool read;
+
+  factory FeedItem.fromJson(Map<String, dynamic> j) => FeedItem(
+    id: _asInt(j['id']),
+    model: j['model'] as String? ?? '',
+    resId: j['res_id']?.toString() ?? '',
+    kind: j['kind'] as String? ?? 'log',
+    body: j['body'] as String? ?? '',
+    actor: j['actor'] as String?,
+    createdAt: j['created_at'] as String? ?? '',
+    read: j['read'] as bool? ?? false,
+  );
+}
+
 class Overview {
   final int repairOpen;
   final int installOpen;
@@ -1128,6 +1162,12 @@ class Overview {
   final double moneyPaid;
   final double moneyDue;
   final List<WorkflowSummary> workflows;
+
+  /// ── ການເຄື່ອນໄຫວລ່າສຸດ + ຈຳນວນທີ່ຍັງບໍ່ອ່ານ (07-08-2026) ──
+  /// ແຕ່ກ່ອນໜ້ານີ້ມີແຕ່ຮູບກະດິ່ງທີ່ຕິດຈຸດແດງໄວ້ຕາຍຕົວ ⇒ ຜູ້ຈັດການ "ບໍ່ເຫັນ" ການເຄື່ອນໄຫວ
+  /// ທັງທີ່ຂໍ້ມູນມີຄົບ. ດຽວນີ້ພາບລວມພາມານຳເລີຍ.
+  final int unreadCount;
+  final List<FeedItem> feed;
 
   /// ຄ້າງເກີນ 30 ມື້ຈັກໃບ — ຕົວເລກດຽວທີ່ບອກສຸຂະພາບຂອງສູນໄດ້ດີສຸດ
   int get staleJobs =>
@@ -1174,6 +1214,8 @@ class Overview {
     required this.moneyPaid,
     required this.moneyDue,
     required this.workflows,
+    this.unreadCount = 0,
+    this.feed = const [],
   });
 
   factory Overview.fromJson(Map<String, dynamic> json) {
@@ -1186,6 +1228,7 @@ class Overview {
     final claims = (json['claims'] as Map?)?.cast<String, dynamic>() ?? {};
     final flow = (json['flow'] as Map?)?.cast<String, dynamic>() ?? {};
     final money = (json['money'] as Map?)?.cast<String, dynamic>() ?? {};
+    final notif = (json['notifications'] as Map?)?.cast<String, dynamic>() ?? {};
     int n(Map<String, dynamic> m, String k) => (m[k] as num?)?.toInt() ?? 0;
     double d(Map<String, dynamic> m, String k) =>
         (m[k] as num?)?.toDouble() ?? 0;
@@ -1240,6 +1283,10 @@ class Overview {
       moneyDue: d(money, 'due'),
       workflows: ((json['workflows'] as List?) ?? [])
           .map((row) => WorkflowSummary.fromJson(row as Map<String, dynamic>))
+          .toList(),
+      unreadCount: n(notif, 'unread'),
+      feed: ((notif['recent'] as List?) ?? [])
+          .map((row) => FeedItem.fromJson(row as Map<String, dynamic>))
           .toList(),
     );
   }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../api.dart';
+import '../app_links.dart';
 import '../main.dart';
 import '../push.dart';
 import 'activities_screen.dart';
@@ -104,10 +105,15 @@ class _ManagerScreenState extends State<ManagerScreen>
             subtitle: 'ພາບລວມສະຖານະການບໍລິຫານ',
             onRefresh: load,
             onLogout: logout,
-            onNotifications: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-            ),
+            // ຈຳນວນຈິງ (ບໍ່ແມ່ນຈຸດແດງຕາຍຕົວ) — ກັບມາແລ້ວໂຫຼດຄືນ ໃຫ້ຕົວເລກຫຼຸດຕາມ
+            unread: data?.unreadCount ?? 0,
+            onNotifications: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              );
+              await load();
+            },
           ),
           Expanded(
             child: loading
@@ -296,6 +302,31 @@ class _ManagerScreenState extends State<ManagerScreen>
         const SizedBox(height: 14),
       ],
       _ManagementSnapshot(data: d),
+      const SizedBox(height: 18),
+      /*
+        ── ການເຄື່ອນໄຫວລ່າສຸດ (07-08-2026) ──
+        ຜູ້ຈັດການແຈ້ງວ່າ "ບໍ່ເຫັນແຈ້ງເຕືອນການເຄື່ອນໄຫວ". ກວດແລ້ວຂໍ້ມູນມາຄົບ
+        (ບັນຊີຜູ້ຈັດການໄດ້ຮັບ 1,010 ແຖວ/2 ມື້ · API ຄືນ 30 ແຖວປົກກະຕິ) —
+        ບັນຫາຄື**ໜ້ານີ້ບໍ່ເຄີຍໂຊ້ວ**: ມີແຕ່ຮູບກະດິ່ງມູມຂວາ ຕ້ອງກົດເຂົ້າໄປຈຶ່ງຮູ້.
+        ດຽວນີ້ 6 ແຖວລ່າສຸດຢູ່ໜ້າຫຼັກເລີຍ ກົດແຖວ ⇒ ເປີດເອກະສານນັ້ນ.
+      */
+      _DashboardTitle(
+        title: 'ການເຄື່ອນໄຫວລ່າສຸດ',
+        subtitle: d.unreadCount > 0
+            ? '${d.unreadCount} ລາຍການຍັງບໍ່ອ່ານ'
+            : 'ທຸກຢ່າງອ່ານແລ້ວ',
+      ),
+      const SizedBox(height: 10),
+      _ActivityFeedSection(
+        items: d.feed,
+        onOpenAll: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+          );
+          await load();
+        },
+      ),
       const SizedBox(height: 18),
       const _DashboardTitle(
         title: 'ເຄື່ອງມືຈັດການ',
@@ -1024,6 +1055,7 @@ class _ModernHeader extends StatelessWidget {
     required this.onRefresh,
     required this.onLogout,
     required this.onNotifications,
+    this.unread = 0,
   });
 
   final String title;
@@ -1031,6 +1063,9 @@ class _ModernHeader extends StatelessWidget {
   final VoidCallback onRefresh;
   final VoidCallback onLogout;
   final VoidCallback onNotifications;
+
+  /// ຈຳນວນແຈ້ງເຕືອນທີ່ຍັງບໍ່ອ່ານ — 0 = ບໍ່ໂຊ້ວປ້າຍ
+  final int unread;
 
   @override
   Widget build(BuildContext context) {
@@ -1107,7 +1142,7 @@ class _ModernHeader extends StatelessWidget {
               _HeaderIconButton(
                 icon: Icons.notifications_none_rounded,
                 onTap: onNotifications,
-                showBadge: true,
+                count: unread,
               ),
               const SizedBox(width: 5),
               _HeaderIconButton(icon: Icons.refresh_rounded, onTap: onRefresh),
@@ -1162,16 +1197,116 @@ class _ModernHeader extends StatelessWidget {
   }
 }
 
+/// **ການເຄື່ອນໄຫວລ່າສຸດ** ຢູ່ໜ້າຜູ້ຈັດການ — ອ່ານໄດ້ໂດຍບໍ່ຕ້ອງກົດກະດິ່ງ.
+///
+/// ແຖວມາຈາກ `ods_notification` (ຕາຕະລາງດຽວກັບກະດິ່ງເວັບ) ⇒ ອ່ານຢູ່ໃສກໍ່ຄືກັນ.
+/// ກົດແຖວ = ເປີດເອກະສານນັ້ນ (AppLinks ຮູ້ວ່າ model ໃດໄປໜ້າໃດ).
+class _ActivityFeedSection extends StatelessWidget {
+  const _ActivityFeedSection({required this.items, required this.onOpenAll});
+
+  final List<FeedItem> items;
+  final VoidCallback onOpenAll;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: line),
+        ),
+        child: const Text(
+          'ຍັງບໍ່ມີການເຄື່ອນໄຫວ',
+          style: TextStyle(color: muted, fontSize: 12.5),
+        ),
+      );
+    }
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: line),
+      ),
+      child: Column(
+        children: [
+          for (final item in items)
+            InkWell(
+              onTap: () => AppLinks.openRecord(item.model, item.resId),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 11, 12, 11),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ຈຸດໜ້າແຖວ: ຍັງບໍ່ອ່ານ = ສີ · ອ່ານແລ້ວ = ຈາງ
+                    Container(
+                      width: 7,
+                      height: 7,
+                      margin: const EdgeInsets.only(top: 5, right: 9),
+                      decoration: BoxDecoration(
+                        color: item.read ? line : teal,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.body,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              height: 1.35,
+                              color: ink,
+                              fontWeight: item.read ? FontWeight.w500 : FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${item.resId} · ${item.actor ?? "-"} · ${item.createdAt}',
+                            style: const TextStyle(fontSize: 10.5, color: muted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded, size: 16, color: muted),
+                  ],
+                ),
+              ),
+            ),
+          const Divider(height: 1),
+          InkWell(
+            onTap: onOpenAll,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 11),
+              child: Text(
+                'ເບິ່ງທັງໝົດ',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: teal),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _HeaderIconButton extends StatelessWidget {
   const _HeaderIconButton({
     required this.icon,
     required this.onTap,
-    this.showBadge = false,
+    this.count = 0,
   });
 
   final IconData icon;
   final VoidCallback onTap;
-  final bool showBadge;
+
+  /// ຕົວເລກເທິງໄອຄອນ (0 = ບໍ່ໂຊ້ວ) — ຈຸດແດງລ້ວນໆບອກບໍ່ໄດ້ວ່າ 1 ຫຼື 6,000
+  final int count;
 
   @override
   Widget build(BuildContext context) {
@@ -1189,16 +1324,27 @@ class _HeaderIconButton extends StatelessWidget {
         child: Stack(
           children: [
             Center(child: Icon(icon, size: 20, color: ink)),
-            if (showBadge)
+            if (count > 0)
               Positioned(
-                top: 8,
-                right: 8,
+                top: 2,
+                right: 0,
                 child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF43F5E),
-                    shape: BoxShape.circle,
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  constraints: const BoxConstraints(minWidth: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF43F5E),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: surfaceAlt, width: 1.5),
+                  ),
+                  child: Text(
+                    count > 99 ? '99+' : '$count',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      height: 1.2,
+                    ),
                   ),
                 ),
               ),

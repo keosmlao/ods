@@ -89,6 +89,7 @@ export function AppShell({
         onToggle={() => setCollapsed(!collapsed)}
       />
       <MobileNav
+        notifications={notifications}
         role={role}
         navFlags={navFlags}
         readableResources={readableResources}

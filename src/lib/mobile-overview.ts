@@ -17,6 +17,18 @@ import { STAGE_LABEL } from "@/lib/stage";
  */
 
 export type OverviewStage = { key: string; label: string; count: number; stage: number };
+
+/** ການເຄື່ອນໄຫວລ່າສຸດ 1 ແຖວ — ຊຸດຫຍໍ້ຂອງ ods_notification (ຕາຕະລາງດຽວກັບກະດິ່ງເວັບ) */
+export type OverviewFeedItem = {
+  id: number;
+  model: string;
+  res_id: string;
+  kind: string;
+  body: string;
+  actor: string | null;
+  created_at: string;
+  read: boolean;
+};
 export type OverviewTech = { tech: string; jobs: number; oldest_seconds: number };
 
 export type MobileOverview = {
@@ -48,6 +60,14 @@ export type MobileOverview = {
   money: { quoted: number; paid: number; due: number };
   /** ສະຫຼຸບແຍກຕາມສາຍງານ (ສ້ອມ · ຕິດຕັ້ງ · ເຄມ · ສ້ອມບຳລຸງ) */
   workflows: WorkflowSummary[];
+  /**
+   * ── ການເຄື່ອນໄຫວລ່າສຸດ (07-08-2026) ──
+   * ຜູ້ຈັດການແຈ້ງວ່າ "ບໍ່ເຫັນແຈ້ງເຕືອນການເຄື່ອນໄຫວ" — ຄວາມຈິງແມ່ນຂໍ້ມູນມີຄົບ
+   * (ວັດແລ້ວ: manager ໄດ້ຮັບ 1,010 ແຖວ/2 ມື້) ແຕ່ **ໜ້າຜູ້ຈັດການບໍ່ເຄີຍໂຊ້ວ**:
+   * ມີແຕ່ຮູບກະດິ່ງທີ່ຕິດຈຸດແດງໄວ້ຕາຍຕົວ ບໍ່ບອກຈຳນວນ ແລະ ບໍ່ມີລາຍການໃຫ້ອ່ານ
+   * ⇒ ຕ້ອງກົດເຂົ້າໄປຈຶ່ງຮູ້. ດຽວນີ້ສົ່ງ 6 ແຖວລ່າສຸດ + ຈຳນວນທີ່ຍັງບໍ່ອ່ານມານຳ.
+   */
+  notifications: { unread: number; recent: OverviewFeedItem[] };
 };
 
 /**
@@ -75,12 +95,45 @@ const REPAIR_FUNNEL: { key: string; label: string; stage: number }[] = [
     .map(([key, def]) => ({ key, label: def.label, stage: def.stage as number })),
 ];
 
-export async function mobileOverview(days = 30): Promise<MobileOverview> {
+/** ຈຳນວນແຖວທີ່ໂຊ້ວຢູ່ໜ້າຜູ້ຈັດການ — ພໍໃຫ້ຮູ້ວ່າ "ມີຫຍັງເກີດຂຶ້ນແດ່" ບໍ່ໃຫ້ຍາວຈົນຮົກ */
+const FEED_SIZE = 6;
+
+/** ການເຄື່ອນໄຫວລ່າສຸດຂອງຜູ້ໃຊ້ນີ້ — ລົ້ມກໍ່ບໍ່ໃຫ້ພາໜ້າພາບລວມລົ້ມນຳ */
+async function recentFeed(username: string) {
+  const empty = { unread: 0, recent: [] as OverviewFeedItem[] };
+  if (!username) return empty;
+  try {
+    const [rows, stats] = await Promise.all([
+      query<OverviewFeedItem>(
+        `select id::float8 as id, model, res_id::text as res_id, kind, body, actor,
+            to_char(created_at,'DD-MM-YYYY HH24:MI') as created_at,
+            (read_at is not null) as "read"
+           from ods_notification where username=$1
+          order by id desc limit ${FEED_SIZE}`,
+        [username],
+      ),
+      query<{ unread: number }>(
+        "select count(*)::int unread from ods_notification where username=$1 and read_at is null",
+        [username],
+      ),
+    ]);
+    return { unread: stats.rows[0]?.unread ?? 0, recent: rows.rows };
+  } catch (error) {
+    console.error("recentFeed failed", username, error);
+    return empty;
+  }
+}
+
+export async function mobileOverview(username = "", days = 30): Promise<MobileOverview> {
   // tech = null ⇒ ຕົວເລກທັງບໍລິສັດ (ຜູ້ຈັດການເຫັນໝົດ)
   const { data, error } = await getDashboard(null, days);
   if (error || !data) throw new Error("dashboard unavailable");
 
-  const [mgr, money] = await Promise.all([getManagerOverview(days), monthRevenue()]);
+  const [mgr, money, notifications] = await Promise.all([
+    getManagerOverview(days),
+    monthRevenue(),
+    recentFeed(username),
+  ]);
 
   // ── ຊ່າງວ່າງ/ບໍ່ຫວ່າງ: ຊ່າງສູນບໍລິການທັງໝົດ vs ຄົນທີ່ມີວຽກຄ້າງ (techLoad) ──
   const techs = await listTechnicians();
@@ -98,6 +151,7 @@ export async function mobileOverview(days = 30): Promise<MobileOverview> {
   ).rows[0] ?? { received: 0, returned: 0 };
 
   return {
+    notifications,
     kpi: {
       repair_open: data.repair.total ?? 0,
       install_open: data.install.total ?? 0,
