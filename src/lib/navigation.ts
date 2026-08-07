@@ -386,6 +386,7 @@ const USERS: NavGroup = {
     // ລ້າງຂໍ້ມູນເກົ່າເທື່ອດຽວ — ໃບງານໃໝ່ຊ່າງເກັບເລກເອງຢູ່ໜ້າງານ
     { label: "ຕື່ມ ISN/SN ໃບງານເກົ່າ", href: "/manage/install-serials" },
     { label: "ລາຍງານອັດຕະໂນມັດ (email/Line)", href: "/manage/report-recipients" },
+    { label: "ຜູ້ຮັບແຈ້ງເຕືອນເຂົ້າມືຖື (push)", href: "/manage/push-recipients" },
     { label: "ຫຍີ່ຫໍ້ເກັບເງินกับ supplier", href: "/manage/claim-brands" },
     { label: "ຕິດຕາມການເຂົ້າລະບົບ", href: "/manage/login-log" },
   ],

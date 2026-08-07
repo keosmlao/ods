@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { recipientsForRoles } from "@/lib/notify";
+import { applyPushChoice } from "@/lib/push-recipient";
 import { SignJWT, importPKCS8 } from "jose";
 
 /**
@@ -24,11 +25,28 @@ import { SignJWT, importPKCS8 } from "jose";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 
+/**
+ * ⚠️ ບໍ່ຕັ້ງຄ່າ = **ງຽບສະນິດ** — ນີ້ຄືເຫດຜົນທີ່ບັນຫາ "ບໍ່ມີ push ເຂົ້າແອັບ" ຢູ່ໄດ້ດົນ
+ * ໂດຍບໍ່ມີໃຜຮູ້: `.env.local` **ບໍ່ຢູ່ໃນ git** (ເບິ່ງ docs/06-deploy.md) ⇒ ກະແຈ FCM ທີ່
+ * ຕັ້ງຢູ່ເຄື່ອງພັດທະນາ **ບໍ່ໄດ້ຕິດຂຶ້ນ server ນຳ**. ຈຶ່ງເຕືອນລົງ log ຄັ້ງດຽວ (ບໍ່ຖີ່)
+ * ໃຫ້ເຫັນຢູ່ `pm2 logs` ວ່າ push ຖືກປິດຢູ່ ບໍ່ແມ່ນ "ສົ່ງແລ້ວແຕ່ບໍ່ຮອດ".
+ */
+let warned = false;
+
 function config() {
   const projectId = process.env.FCM_PROJECT_ID?.trim();
   const clientEmail = process.env.FCM_CLIENT_EMAIL?.trim();
   const privateKey = process.env.FCM_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
-  if (!projectId || !clientEmail || !privateKey) return null;
+  if (!projectId || !clientEmail || !privateKey) {
+    if (!warned) {
+      warned = true;
+      console.warn(
+        "push: ຍັງບໍ່ໄດ້ຕັ້ງ FCM_PROJECT_ID / FCM_CLIENT_EMAIL / FCM_PRIVATE_KEY " +
+          "⇒ **ບໍ່ສົ່ງແຈ້ງເຕືອນເຂົ້າມືຖືເລີຍ** (ເວັບຍັງປົກກະຕິ). ຕັ້ງໃສ່ .env.local ຂອງ server ແລ້ວ restart.",
+      );
+    }
+    return null;
+  }
   return { projectId, clientEmail, privateKey };
 }
 
@@ -104,7 +122,8 @@ export async function pushToRoles(
 ): Promise<void> {
   try {
     if (!config()) return;
-    const users = await recipientsForRoles(roles);
+    // ຜູ້ຈັດການຕື່ມ/ຕັດຜູ້ຮັບເອງໄດ້ທີ່ /manage/push-recipients — ບໍ່ໄດ້ກຳນົດ = ຕາມ role ຄືເກົ່າ
+    const users = await applyPushChoice("approval", await recipientsForRoles(roles));
     // ຄົນດຽວອາດຢູ່ຫຼາຍ role ⇒ ຕັດຊ້ຳກ່ອນ ບໍ່ດັ່ງນັ້ນມືຖືສັ່ນສອງເທື່ອ
     await Promise.all([...new Set(users)].map((user) => pushToUser(user, title, body, data)));
   } catch (error) {
@@ -131,7 +150,9 @@ const DIGEST_MINUTES = 15;
 export async function digestPush(usernames: string[]): Promise<void> {
   try {
     if (!config() || usernames.length === 0) return;
-    for (const username of [...new Set(usernames.map((name) => name.trim()).filter(Boolean))]) {
+    // ຜູ້ຈັດການເລືອກໄດ້ວ່າໃຜຄວນໄດ້ຮັບສະຫຼຸບ (/manage/push-recipients) — ບໍ່ໄດ້ກຳນົດ = ທຸກຄົນຄືເກົ່າ
+    const targets = await applyPushChoice("digest", usernames);
+    for (const username of [...new Set(targets.map((name) => name.trim()).filter(Boolean))]) {
       /**
        * ຈອງສິດສົ່ງແບບ **atomic**: ແຖວຖືກອັບເດດຕໍ່ເມື່ອຄົບໄລຍະແລ້ວ ⇒ ສອງຄຳຂໍທີ່ມາພ້ອມກັນ
        * ມີແຕ່ອັນດຽວທີ່ໄດ້ແຖວກັບຄືນ ⇒ ບໍ່ຍິງຊ້ຳ (ຫຼັກການດຽວກັບ claimErpSyncSlot).
@@ -189,8 +210,14 @@ export async function pushToUser(
     const settings = config();
     if (!settings) return; // ຍັງບໍ່ຕັ້ງຄ່າ Firebase — ບໍ່ສົ່ງ ແຕ່ບໍ່ລົ້ມງານ
 
+    /**
+     * ທຽບແບບ **ບໍ່ສົນໂຕພິມໃຫຍ່-ນ້ອຍ**: ຊື່ຜູ້ໃຊ້ເກົ່າຂອງ ODS ຂຽນຄົນລະຮູບ ('Mee' · 'Phuang')
+     * ແລະ ບ່ອນເອີ້ນອາດສົ່ງມາອີກຮູບໜຶ່ງ ⇒ ທຽບຕົງໆຈະຫຼົ່ນຄົນໂດຍບໍ່ມີ error (ຕາຕະລາງນ້ອຍ ບໍ່ໜັກ).
+     */
     const tokens = (
-      await query<{ token: string }>("select token from ods_push_token where user_code = $1", [userCode])
+      await query<{ token: string }>("select token from ods_push_token where lower(user_code) = lower($1)", [
+        userCode,
+      ])
     ).rows;
     if (tokens.length === 0) return;
 

@@ -13,6 +13,7 @@ import { query, queryOdg } from "@/lib/db";
 import { listEmployeeOverrides, type EmployeeOverride } from "@/lib/employee-role";
 import { ERP_IDENTITY_SQL, ERP_ROLE_CASE } from "@/lib/erp-auth";
 import { ROLES } from "@/lib/roles";
+import { linkedEmployeeCodes, sessionIdentity } from "@/lib/session-identity";
 import { SETTING, settingEnabled } from "@/lib/settings";
 
 const NOW = "localtimestamp(0)";
@@ -55,7 +56,7 @@ export type NotifyTargets = {
  *      ⇒ ສິດທີ່ກຳນົດເອງຊະນະສິດຕາມຕຳແໜ່ງສະເໝີ, ຄືກັນກັບຕອນ login.
  */
 const ERP_ROLE_SQL = `
-  select ${ERP_IDENTITY_SQL} as identity
+  select ${ERP_IDENTITY_SQL} as identity, e.employee_code
     from odg_employee e
    where e.employment_status = 'ACTIVE'
      and lower(e.employee_code) <> all($4::text[])
@@ -101,16 +102,24 @@ export async function recipientsForRoles(roles: string[]): Promise<string[]> {
     // ສົ່ງ role ໄປໃຫ້ SQL ຄິດເອງ (ຕຳແໜ່ງ + ພະແນກ) ບໍ່ຕ້ອງແປງເປັນລາຍການພະແນກອີກ
     const aliases = legacy.map((name) => name.toLowerCase());
     const rows = (
-      await queryOdg<{ identity: string | null }>(ERP_ROLE_SQL, [
+      await queryOdg<{ identity: string | null; employee_code: string }>(ERP_ROLE_SQL, [
         roles,
         aliases,
         include.map((row) => row.employee_code.toLowerCase()),
         [...excludeNames],
       ])
     ).rows;
+
+    /**
+     * ── ⚠️ ຕົວຕົນຕ້ອງ **ຕົງກັບ session.username** (08-08-2026) ──
+     * ແຕ່ກ່ອນຄືນ **ຊື່ຫຼິ້ນ** ສະເໝີ ('ແກ້ວ') ແຕ່ຄົນທີ່ເຊື່ອມແລ້ວ login ເປັນ **ລະຫັດ ERP**
+     * ('22020') ⇒ ແຖວແຈ້ງເຕືອນ ແລະ push ໄປໃສ່ຊື່ທີ່**ບໍ່ມີໃຜ login ດ້ວຍ** = ຫາຍງຽບ.
+     * ກົດເຕັມ + ເປັນຫຍັງຫ້າມແກ້ດ້ວຍການໄລ່ຫາຊື່ອື່ນ: ເບິ່ງ lib/session-identity.
+     */
+    const linked = await linkedEmployeeCodes(rows.map((row) => row.employee_code));
     for (const row of rows) {
-      const identity = (row.identity ?? "").trim();
-      if (identity) found.add(identity);
+      const name = sessionIdentity(row.employee_code, row.identity, linked);
+      if (name) found.add(name);
     }
   } catch (error) {
     // ຖານ ERP ບໍ່ພ້ອມ → ຍັງແຈ້ງຫາຜູ້ໃຊ້ເກົ່າໄດ້ຢູ່ ບໍ່ໃຫ້ລົ້ມທັງໜ້າ
