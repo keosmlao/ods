@@ -681,12 +681,15 @@ class Api {
 
   /* ── ແຈ້ງເຕືອນ (ຕາຕະລາງດຽວກັບເວັບ) ───────────────────────────── */
 
+  /// [before] = id ຂອງແຖວສຸດທ້າຍທີ່ມີຢູ່ແລ້ວ ⇒ ໂຫຼດຕໍ່ (0 = ໜ້າທຳອິດ)
   static Future<(List<AppNotification>, int)> notifications({
     bool unreadOnly = true,
+    int before = 0,
   }) async {
     final result = await _send(
       'GET',
-      '/api/mobile/notifications?tab=${unreadOnly ? 'unread' : 'all'}',
+      '/api/mobile/notifications?tab=${unreadOnly ? 'unread' : 'all'}'
+      '${before > 0 ? '&before=$before' : ''}',
     );
     final rows = ((result['data'] as List?) ?? const [])
         .map((row) => AppNotification.fromJson(row as Map<String, dynamic>))

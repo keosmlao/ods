@@ -34,6 +34,13 @@ export async function GET(request: NextRequest) {
   if (!guard.ok) return guard.response;
 
   const unreadOnly = request.nextUrl.searchParams.get("tab") !== "all";
+  /**
+   * ── ໂຫຼດຕໍ່ (07-08-2026) ──
+   * ຄຳສັ່ງ: "ຜູ້ຈັດການຕ້ອງເຫັນທຸກຢ່າງທີ່ເຄື່ອນໄຫວ". ແຕ່ກ່ອນ endpoint ນີ້ຄືນ **30 ແຖວ
+   * ຕາຍຕົວ ບໍ່ມີທາງໂຫຼດຕໍ່** ⇒ ຜູ້ຈັດການທີ່ມີ 630 ແຖວ/ມື້ ເຫັນໄດ້ພຽງ 30 ອັນລ່າສຸດ
+   * ແລ້ວທີ່ເຫຼືອຫາຍໄປຈາກສາຍຕາ. `before` = id ຂອງແຖວສຸດທ້າຍທີ່ໄດ້ໄປແລ້ວ.
+   */
+  const before = Number(request.nextUrl.searchParams.get("before") ?? 0);
 
   try {
     const [rows, stats] = await Promise.all([
@@ -43,9 +50,10 @@ export async function GET(request: NextRequest) {
             (read_at is not null) as "read"
            from ods_notification
           where username = $1 ${unreadOnly ? "and read_at is null" : ""}
-          order by (read_at is null) desc, id desc
+            ${before > 0 ? "and id < $2" : ""}
+          order by id desc
           limit ${PAGE_SIZE}`,
-        [guard.user.username],
+        before > 0 ? [guard.user.username, before] : [guard.user.username],
       ),
       query<{ unread: number }>(
         "select count(*) filter (where read_at is null)::int unread from ods_notification where username = $1",

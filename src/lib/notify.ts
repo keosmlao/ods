@@ -211,12 +211,27 @@ export async function notify(
      * ຫໍ່ດ້ວຍ try ຕ່າງຫາກ: push ລົ້ມ **ຫ້າມ** ເຮັດໃຫ້ການແຈ້ງເຕືອນເວັບລົ້ມຕາມ.
      */
     try {
-      const { pushToUser } = await import("@/lib/push");
+      const { pushToUser, digestPush } = await import("@/lib/push");
       const me = actor.trim().toLowerCase();
-      const targets = users.filter((name) => name.trim().toLowerCase() !== me);
-      await Promise.all(
-        targets.map((name) => pushToUser(name, body.slice(0, 80), `${model === "ods_tb_install" ? "ງານຕິດຕັ້ງ" : model === "ods_tb_maintenance" ? "ງານບຳລຸງຮັກສາ" : "ໃບງານ"} ${resId}`, { model, resId })),
-      );
+      const notMe = (name: string) => name.trim().toLowerCase() !== me;
+      /**
+       * ── ແຍກ 2 ຊັ້ນ (07-08-2026) ──
+       * ① **ຄົນທີ່ຖືກລະບຸໂດຍກົງ** (ຊ່າງທີ່ຖືກມອບງານ · ຄົນທີ່ຖືກເອີ້ນ) ⇒ ຍິງທັນທີຕໍ່ເຫດການ
+       *    — ເປັນວຽກຂອງລາວເອງ ແລະ ມີບໍ່ຫຼາຍ.
+       * ② **ຄົນທີ່ໄດ້ຮັບຍ້ອນ role/ຕິດຕາມ** (ຜູ້ຈັດການໄດ້ຮັບ**ທຸກ**ການເຄື່ອນໄຫວ) ⇒ ຮວບເປັນ
+       *    **ສະຫຼຸບ** ຢ່າງໜ້ອຍ 15 ນາທີ/ຄັ້ງ. ວັດຈິງ 579 ເຫດການ/ມື້ ⇒ ຍິງທຸກເຫດການ
+       *    = ມືຖືສັ່ນທຸກນາທີ ⇒ ຄົນປິດແຈ້ງເຕືອນ ແລ້ວກາຍເປັນ "ບໍ່ເຫັນຫຍັງເລີຍ".
+       *    ⚠️ ແຖວໃນກ່ອງແຈ້ງເຕືອນ **ຍັງຄົບທຸກແຖວ** — ຫຍໍ້ແຕ່ສຽງເອີ້ນເທົ່ານັ້ນ.
+       */
+      const direct = (targets.users ?? []).map((name) => name.trim()).filter(Boolean).filter(notMe);
+      const directSet = new Set(direct.map((name) => name.toLowerCase()));
+      const broadcast = users.filter(notMe).filter((name) => !directSet.has(name.trim().toLowerCase()));
+      const where =
+        model === "ods_tb_install" ? "ງານຕິດຕັ້ງ" : model === "ods_tb_maintenance" ? "ງານບຳລຸງຮັກສາ" : "ໃບງານ";
+      await Promise.all([
+        ...direct.map((name) => pushToUser(name, body.slice(0, 80), `${where} ${resId}`, { model, resId })),
+        digestPush(broadcast),
+      ]);
     } catch (error) {
       console.error("notify push failed", error);
     }

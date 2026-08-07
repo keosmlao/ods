@@ -25,6 +25,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   String? error;
   int unreadCount = 0;
 
+  /// ── ໂຫຼດຕໍ່ (07-08-2026) ──
+  /// ຜູ້ຈັດການໄດ້ຮັບ 600+ ແຖວ/ມື້ ແຕ່ໜ້ານີ້ເຄີຍໂຊ້ວແຕ່ 30 ອັນລ່າສຸດ ແລ້ວຈົບ
+  /// ⇒ "ບໍ່ເຫັນທຸກຢ່າງທີ່ເຄື່ອນໄຫວ". ດຽວນີ້ເລື່ອນລົງສຸດແລ້ວກົດໂຫຼດຕໍ່ໄດ້.
+  bool loadingMore = false;
+  bool hasMore = true;
+
   @override
   void initState() {
     super.initState();
@@ -32,7 +38,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => loading = true);
+    setState(() {
+      loading = true;
+      hasMore = true;
+    });
     try {
       final (list, unread) = await Api.notifications(unreadOnly: unreadOnly);
       if (!mounted) return;
@@ -41,12 +50,38 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         unreadCount = unread;
         error = null;
         loading = false;
+        hasMore = list.length >= 30;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         error = '$e';
         loading = false;
+      });
+    }
+  }
+
+  /// ໂຫຼດແຖວເກົ່າກວ່າຕໍ່ທ້າຍ (ບໍ່ແທນຂອງເກົ່າ)
+  Future<void> _loadMore() async {
+    if (loadingMore || !hasMore || rows.isEmpty) return;
+    setState(() => loadingMore = true);
+    try {
+      final (list, unread) = await Api.notifications(
+        unreadOnly: unreadOnly,
+        before: rows.last.id,
+      );
+      if (!mounted) return;
+      setState(() {
+        rows = [...rows, ...list];
+        unreadCount = unread;
+        hasMore = list.length >= 30;
+        loadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        loadingMore = false;
+        error = '$e';
       });
     }
   }
@@ -114,8 +149,36 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           onRefresh: _load,
                           child: ListView.builder(
                             padding: const EdgeInsets.fromLTRB(14, 5, 14, 28),
-                            itemCount: rows.length,
+                            // +1 ແຖວທ້າຍ = ປຸ່ມ "ໂຫຼດຕໍ່" (ຫຼື ຄຳວ່າຄົບແລ້ວ)
+                            itemCount: rows.length + 1,
                             itemBuilder: (context, index) {
+                              if (index == rows.length) {
+                                if (!hasMore) {
+                                  return const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 18),
+                                    child: Text(
+                                      'ຄົບແລ້ວ',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(color: muted, fontSize: 12),
+                                    ),
+                                  );
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  child: Center(
+                                    child: loadingMore
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                          )
+                                        : OutlinedButton(
+                                            onPressed: _loadMore,
+                                            child: const Text('ໂຫຼດເພີ່ມ'),
+                                          ),
+                                  ),
+                                );
+                              }
                               final row = rows[index];
                               return _NotificationCard(
                                 row: row,

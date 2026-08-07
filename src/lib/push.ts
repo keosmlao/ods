@@ -113,6 +113,68 @@ export async function pushToRoles(
 }
 
 /**
+ * ── **ສະຫຼຸບການເຄື່ອນໄຫວເຂົ້າມືຖື** (07-08-2026 ຕາມຄຳສັ່ງ "ຜູ້ຈັດການຕ້ອງເຫັນທຸກຢ່າງ") ──
+ *
+ * ທຸກແຖວຍັງເຂົ້າກ່ອງແຈ້ງເຕືອນ **ຄົບ 100%** (ໜ້າຈໍເຫັນໝົດ) — ອັນນີ້ຄື**ສຽງເອີ້ນ**ໃຫ້ຮູ້ວ່າ
+ * ມີຂອງໃໝ່. ຍິງທຸກແຖວບໍ່ໄດ້: ວັດຈິງ 154,689 ແຖວ/ມື້ (579 ເຫດການ × 258 ຄົນ) ⇒ ຜູ້ຈັດການ
+ * ຄົນດຽວ 630 ຄັ້ງ/ມື້ ⇒ ຄົນປິດແຈ້ງເຕືອນພາຍໃນມື້ດຽວ ແລ້ວກາຍເປັນ "ບໍ່ເຫັນຫຍັງເລີຍ"
+ * (Android ເອງກໍ່ຍຸບ/ຈຳກັດຂໍ້ຄວາມທີ່ມາຖີ່ເກີນ).
+ *
+ * ⇒ ຮວບເປັນສະຫຼຸບ: ຢ່າງໜ້ອຍ `DIGEST_MINUTES` ນາທີຕໍ່ຄັ້ງ ຕໍ່ 1 ຄົນ
+ *   "ມີການເຄື່ອນໄຫວ 37 ລາຍການໃໝ່ · ລ່າສຸດ: …" ⇒ ກົດເຂົ້າໄປອ່ານທັງໝົດໄດ້.
+ *
+ * ນັບຈາກ `ods_notification` ໂດຍກົງ (ຂອງຄົນນັ້ນເອງ) ບໍ່ແມ່ນນັບເອົາຈາກຜູ້ເອີ້ນ
+ * ⇒ ຕົວເລກຖືກສະເໝີ ເຖິງຈະມີຫຼາຍເຫດການເກີດພ້ອມກັນ.
+ */
+const DIGEST_MINUTES = 15;
+
+export async function digestPush(usernames: string[]): Promise<void> {
+  try {
+    if (!config() || usernames.length === 0) return;
+    for (const username of [...new Set(usernames.map((name) => name.trim()).filter(Boolean))]) {
+      /**
+       * ຈອງສິດສົ່ງແບບ **atomic**: ແຖວຖືກອັບເດດຕໍ່ເມື່ອຄົບໄລຍະແລ້ວ ⇒ ສອງຄຳຂໍທີ່ມາພ້ອມກັນ
+       * ມີແຕ່ອັນດຽວທີ່ໄດ້ແຖວກັບຄືນ ⇒ ບໍ່ຍິງຊ້ຳ (ຫຼັກການດຽວກັບ claimErpSyncSlot).
+       */
+      const slot = await query<{ last_id: string }>(
+        `insert into ods_push_digest(username, last_push_at, last_id)
+         values($1, localtimestamp(0), 0)
+         on conflict (username) do update
+            set last_push_at = localtimestamp(0)
+          where ods_push_digest.last_push_at < localtimestamp - interval '${DIGEST_MINUTES} minutes'
+         returning last_id::text`,
+        [username],
+      );
+      if (!slot.rowCount) continue; // ຫາກໍ່ສົ່ງໄປ — ລໍຮອບໜ້າ
+
+      const since = Number(slot.rows[0]?.last_id ?? 0);
+      const stat = (
+        await query<{ n: number; max_id: string; body: string | null }>(
+          `select count(*)::int n, coalesce(max(id),$2)::text max_id,
+              (select body from ods_notification
+                where username=$1 and id > $2 order by id desc limit 1) body
+             from ods_notification where username=$1 and id > $2 and read_at is null`,
+          [username, since],
+        )
+      ).rows[0];
+      const total = stat?.n ?? 0;
+      if (total === 0) continue;
+
+      await query("update ods_push_digest set last_id=$2 where username=$1", [username, stat?.max_id ?? "0"]);
+      await pushToUser(
+        username,
+        total === 1 ? "ມີການເຄື່ອນໄຫວໃໝ່" : `ມີການເຄື່ອນໄຫວໃໝ່ ${total} ລາຍການ`,
+        (stat?.body ?? "").slice(0, 120),
+        { kind: "digest" },
+      );
+    }
+  } catch (error) {
+    // ຫ້າມໂຍນຕໍ່ — ສະຫຼຸບລົ້ມ ບໍ່ຄວນເຮັດໃຫ້ການບັນທຶກງານລົ້ມ
+    console.error("digestPush failed", error);
+  }
+}
+
+/**
  * ສົ່ງແຈ້ງເຕືອນຫາທຸກເຄື່ອງຂອງຄົນນຶ່ງ.
  * FCM ຕອບ 404 (NOT_FOUND) ຫຼື 403 ເມື່ອ token ຕາຍ → ລຶບຖິ້ມທັນທີ
  * ບໍ່ດັ່ງນັ້ນຕາຕະລາງຈະເຕັມໄປດ້ວຍ token ຜີ ແລະ ທຸກການສົ່ງຈະຊ້າລົງເລື້ອຍໆ.
