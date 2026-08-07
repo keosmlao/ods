@@ -5,7 +5,13 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!--
+      allowBackup=false — ຂໍ້ມູນ token ເຂົ້າລະຫັດດ້ວຍຄີໃນ Keystore ຂອງ**ເຄື່ອງນັ້ນ**
+      ⇒ ກູ້ backup ຂ້າມເຄື່ອງ/ຫຼັງ reset ຈະໄດ້ຂໍ້ມູນທີ່ຖອດລະຫັດບໍ່ໄດ້ (BAD_DECRYPT)
+      ແລ້ວແອັບເປີດບໍ່ໄດ້. ບໍ່ backup = login ໃໝ່ ຈົບ (07-08-2026).
+    -->
     <application
+        android:allowBackup="false"
         android:label="ODIEN Service"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"

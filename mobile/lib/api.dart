@@ -31,8 +31,31 @@ class Api {
   static String? _sessionToken;
   static bool _syncingActions = false;
 
-  static Future<String?> token() async =>
-      _sessionToken ?? await _storage.read(key: _tokenKey);
+
+  /// ── ອ່ານຄ່າຈາກ secure storage ແບບ **ບໍ່ລົ້ມ** (07-08-2026) ──
+  ///
+  /// ພົບຈິງຢູ່ໜ້າງານ: `BadPaddingException / BAD_DECRYPT` — ຄີໃນ Android Keystore
+  /// ບໍ່ຕົງກັບຂໍ້ມູນທີ່ເຂົ້າລະຫັດໄວ້ (ຕິດຕັ້ງທັບ · ກູ້ backup ຂ້າມເຄື່ອງ · ລ້າງ keystore)
+  /// ⇒ ທຸກການອ່ານໂຍນ exception ⇒ ແອັບເປີດບໍ່ໄດ້ເລີຍ ແລະ ຊ່າງແກ້ເອງບໍ່ໄດ້.
+  ///
+  /// ວິທີແກ້ທີ່ຖືກ: ຂໍ້ມູນນັ້ນ**ກູ້ບໍ່ໄດ້ແລ້ວ** ⇒ ລ້າງຖິ້ມ ແລ້ວຖືວ່າ "ຍັງບໍ່ໄດ້ login"
+  /// (ຊ່າງ login ໃໝ່ເທື່ອດຽວ ຈົບ) — ດີກວ່າຄ້າງ ຫຼື ຟ້ອງ stack trace ໃສ່ໜ້າຊ່າງ.
+  static Future<String?> _readSafe(String key) async {
+    try {
+      return await _storage.read(key: key);
+    } catch (error) {
+      debugPrint('secure storage ອ່ານບໍ່ໄດ້ ($key) — ລ້າງຖິ້ມ: $error');
+      try {
+        await _storage.deleteAll();
+      } catch (_) {
+        // ລ້າງບໍ່ໄດ້ກໍ່ບໍ່ເປັນຫຍັງ — ຄືນ null ໃຫ້ໄປໜ້າ login ຢູ່ດີ
+      }
+      _sessionToken = null;
+      return null;
+    }
+  }
+
+  static Future<String?> token() async => _sessionToken ?? await _readSafe(_tokenKey);
   static Future<void> saveToken(String value, {bool remember = true}) async {
     _sessionToken = value;
     if (remember) {
@@ -55,13 +78,13 @@ class Api {
   // ຊື່ຜູ້ໃຊ້ + ປ້າຍ role — ເກັບໄວ້ໃຫ້ໜ້າ home ທັກທາຍ (ບໍ່ຕ້ອງ login ຄືນ)
   static const _userKey = 'odss_user';
   static const _roleLabelKey = 'odss_role_label';
-  static Future<String?> savedUsername() => _storage.read(key: _userKey);
-  static Future<String?> savedRoleLabel() => _storage.read(key: _roleLabelKey);
+  static Future<String?> savedUsername() => _readSafe(_userKey);
+  static Future<String?> savedRoleLabel() => _readSafe(_roleLabelKey);
 
   // ໜ້າຕັ້ງຕົ້ນ (jobs/stock-count) — ເກັບໄວ້ໃຫ້ _Gate route ຖືກຕອນເປີດແອັບຄືນ
   static const _homeKey = 'odss_home';
   static Future<String> savedHome() async =>
-      (await _storage.read(key: _homeKey)) ?? 'jobs';
+      (await _readSafe(_homeKey)) ?? 'jobs';
   static Future<void> saveHome(String value) =>
       _storage.write(key: _homeKey, value: value);
 
@@ -69,7 +92,7 @@ class Api {
   // ປະກອບແອັບຄືນຕອນເປີດໃໝ່ໂດຍບໍ່ຕ້ອງ login ຄືນ (token ອາຍຸ 30 ມື້).
   static const _navKey = 'odss_nav';
   static Future<List<NavTab>> savedTabs() async {
-    final raw = await _storage.read(key: _navKey);
+    final raw = await _readSafe(_navKey);
     if (raw == null || raw.isEmpty) {
       // ແອັບອັບເດດ ແຕ່ token ເກົ່າຍັງຄ້າງ (ບໍ່ມີ manifest) — ອະນຸມານຈາກ home ເກົ່າ
       final home = await savedHome();
@@ -111,7 +134,7 @@ class Api {
   }
 
   static Future<String> serverUrl() async =>
-      (await _storage.read(key: _serverKey)) ?? defaultBaseUrl;
+      (await _readSafe(_serverKey)) ?? defaultBaseUrl;
   static Future<void> saveServerUrl(String value) =>
       _storage.write(key: _serverKey, value: normalizeServerUrl(value));
   static Future<void> resetServerUrl() => _storage.delete(key: _serverKey);
@@ -288,7 +311,7 @@ class Api {
     String code,
     Map<String, dynamic> body,
   ) async {
-    final raw = await _storage.read(key: _pendingActionKey);
+    final raw = await _readSafe(_pendingActionKey);
     final rows = raw == null || raw.isEmpty
         ? <dynamic>[]
         : (jsonDecode(raw) as List<dynamic>);
@@ -300,7 +323,7 @@ class Api {
     if (_syncingActions) return 0;
     _syncingActions = true;
     try {
-      final raw = await _storage.read(key: _pendingActionKey);
+      final raw = await _readSafe(_pendingActionKey);
       if (raw == null || raw.isEmpty) return 0;
       final rows = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
       final remaining = <Map<String, dynamic>>[];

@@ -206,8 +206,9 @@ class _GateState extends State<_Gate> {
       await _boot();
     } catch (error) {
       if (!mounted) return;
+      debugPrint('boot ລົ້ມ: $error');
       setState(() {
-        _bootError = '$error';
+        _bootError = 'boot';
         _screen = const LoginScreen();
       });
     }
@@ -263,8 +264,10 @@ class _GateState extends State<_Gate> {
           final messenger = ScaffoldMessenger.maybeOf(context);
           messenger?.showSnackBar(
             SnackBar(
-              content: Text('ເປີດແອັບບໍ່ສຳເລັດ — ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່ ($message)'),
-              duration: const Duration(seconds: 6),
+              // ບໍ່ຕ້ອງເອົາ stack trace ໃສ່ໜ້າຊ່າງ — ບອກສິ່ງທີ່ຕ້ອງເຮັດພໍ
+              // (ລາຍລະອຽດຢູ່ debugPrint ໃຫ້ນັກພັດທະນາເບິ່ງ)
+              content: const Text('ຂໍ້ມູນເຂົ້າສູ່ລະບົບເກົ່າໃຊ້ບໍ່ໄດ້ — ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່'),
+              duration: const Duration(seconds: 5),
             ),
           );
         });
