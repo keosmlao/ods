@@ -32,6 +32,9 @@ export function FinishInstallButton({ code }: { code: string }) {
   const [open, setOpen] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const [error, setError] = useState("");
+  /** ງານບໍ່ມີ check-in ⇒ server ຂໍເຫດຜົນ "ບັນທຶກແທນຊ່າງ" (ເບິ່ງ lib/job-flow.onBehalfGate) */
+  const [needReason, setNeedReason] = useState(false);
+  const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [pending, start] = useTransition();
 
@@ -94,15 +97,31 @@ export function FinishInstallButton({ code }: { code: string }) {
 
       {error && <span className="text-[11px] font-semibold text-brand-orange-700">{error}</span>}
 
+      {/*
+        ── ບັນທຶກແທນຊ່າງ (07-08-2026) ──
+        ງານໜ້າງານທີ່ **ບໍ່ມີ check-in ຈັກແຖວ** ⇒ server ຂໍເຫດຜົນກ່ອນ (lib/job-flow.onBehalfGate)
+        ⇒ ພໍໄດ້ຮັບ error ນັ້ນ ຈຶ່ງໂຊ້ວຊ່ອງນີ້ ແລ້ວກົດຊ້ຳໄດ້ເລີຍ. ບໍ່ຫ້າມ ແຕ່ຕ້ອງມີຫຼັກຖານວ່າໃຜກົດແທນ ແລະ ຍ້ອນຫຍັງ.
+      */}
+      {needReason && (
+        <input
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          placeholder="ເຫດຜົນທີ່ບັນທຶກແທນຊ່າງ (ມືຖືຊ່າງເສຍ · ບັນທຶກຍ້ອນຫຼັງ …)"
+          className="w-full rounded-lg border border-brand-orange-300 px-3 py-2 text-xs outline-none focus:border-brand-orange-500"
+        />
+      )}
+
       <Button
         tone="success"
         className="h-8 px-3 text-xs"
         disabled={photos.length === 0 || pending || busy}
         onClick={() =>
           start(async () => {
-            const result = await finishInstall(code, photos);
+            const result = await finishInstall(code, photos, reason);
             if (result.error) {
               setError(result.error);
+              // server ບອກວ່າຂາດເຫດຜົນ ⇒ ເປີດຊ່ອງໃຫ້ພິມ
+              if (result.error.includes("check-in")) setNeedReason(true);
               return;
             }
             setOpen(false);

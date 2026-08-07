@@ -6,7 +6,7 @@ import { centerLabel } from "@/lib/repair-center";
 import { notifyTechStage } from "@/lib/notify-tech";
 import { getSession, type Session } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { acceptRepair, finishRepairFlow, startRepairFlow } from "@/lib/job-flow";
+import { acceptRepair, finishRepairFlow, onBehalfGate, startRepairFlow } from "@/lib/job-flow";
 import { requireRole } from "@/lib/guard";
 import { pushToUser } from "@/lib/push";
 import { roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
@@ -211,11 +211,26 @@ export async function startRepair(code: string) {
  * ແລະ ສົ່ງ error ກັບໄປສະແດງ (startRepair ຖິ້ມຜົນຂອງ flow ແລ້ວ redirect ໄປ list
  * ⇒ ໃຊ້ຢູ່ໜ້າລາຍລະອຽດບໍ່ໄດ້: ກົດແລ້ວເດັ້ງໜີ ແລະ ຜິດພາດກໍ່ບໍ່ມີໃຜເຫັນ).
  */
-export async function startRepairStay(code: string): Promise<RepairState> {
+export async function startRepairStay(code: string, reason?: string): Promise<RepairState> {
   const session = await getSession();
   if (!session) return { error: "ກະລຸນາເຂົ້າສູ່ລະບົບ" };
   const loaded = await loadJob(code);
   if (!loaded.ok) return { error: loaded.error };
+
+  /**
+   * ງານ **IH (ໄປສ້ອມບ້ານ)** ທີ່ບໍ່ມີ check-in ⇒ ບັນທຶກແທນຊ່າງໄດ້ ແຕ່ຕ້ອງໃສ່ເຫດຜົນ
+   * (07-08-2026). ງານໃນສູນ ແລະ PS ບໍ່ຖືກຖາມ — ບໍ່ແມ່ນວຽກໜ້າງານ (ເບິ່ງ lib/mobile-jobs).
+   */
+  const onsite = (
+    await query<{ ih: boolean }>(
+      "select coalesce(service_type,'')='IH' as ih from tb_product where code=$1",
+      [code],
+    )
+  ).rows[0]?.ih;
+  if (onsite) {
+    const gate = await onBehalfGate(session, "repair", code, "ເລີ່ມສ້ອມ", reason);
+    if (gate) return { error: gate };
+  }
 
   const result = await startRepairFlow(session, code);
   if (!result.ok) return { error: result.error };
@@ -422,6 +437,8 @@ const saveSchema = z.object({
   repair_note: z.string(),
   /** ຮູບຜົນງານ base64 (JSON array) — ຄືກັບແອັບມືຖື; ງານນອກສະຖານທີ່ບັງຄັບຢ່າງໜ້ອຍ 1 ຮູບ */
   photos: z.string().optional(),
+  /** ເຫດຜົນ ຖ້າ CS/ຫົວໜ້າ **ບັນທຶກແທນຊ່າງ** ງານ IH ທີ່ບໍ່ມີ check-in (lib/job-flow) */
+  on_behalf_reason: z.string().optional(),
 });
 
 export async function saveRepair(_: RepairState, formData: FormData): Promise<RepairState> {
@@ -451,6 +468,21 @@ export async function saveRepair(_: RepairState, formData: FormData): Promise<Re
     } catch {
       photos = [];
     }
+  }
+
+  /**
+   * ງານ **IH (ໄປສ້ອມບ້ານ)** ທີ່ບໍ່ມີ check-in ຈັກແຖວ ⇒ ບັນທຶກແທນຊ່າງໄດ້ ແຕ່ຕ້ອງໃສ່ເຫດຜົນ
+   * ແລ້ວລົງ chatter (07-08-2026) — ຄືກັບ startRepairStay ແລະ ຝັ່ງຕິດຕັ້ງ.
+   */
+  const onsite = (
+    await query<{ ih: boolean }>(
+      "select coalesce(service_type,'')='IH' as ih from tb_product where code=$1",
+      [code],
+    )
+  ).rows[0]?.ih;
+  if (onsite) {
+    const gate = await onBehalfGate(loaded.session, "repair", code, "ສ້ອມສຳເລັດ", parsed.data.on_behalf_reason);
+    if (gate) return { error: gate };
   }
 
   // ຕົວປ່ຽນຂັ້ນຢູ່ lib/job-flow ບ່ອນດຽວ (ເງື່ອນໄຂ "ຕ້ອງຢູ່ຂັ້ນ 9" ຢູ່ໃນ WHERE ຂອງມັນ)

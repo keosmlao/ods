@@ -11,6 +11,7 @@ import '../widgets/ui_kit.dart';
 import 'check_screen.dart';
 import 'pickup_screen.dart';
 import 'repair_spare_screen.dart';
+import 'scan_serial_screen.dart';
 import 'spare_request_screen.dart';
 import 'spare_return_screen.dart';
 
@@ -29,6 +30,9 @@ class JobScreen extends StatefulWidget {
 
 class _JobScreenState extends State<JobScreen> {
   late Job job = widget.job;
+
+  /// ຮອບຂໍເບີກຂອງງານນີ້ (ພ້ອມໃບເບີກລາຍໃບ) — ໂຫຼດຕອນຢູ່ຂັ້ນອາໄຫຼ່
+  List<SpareWithdrawRound> _rounds = const [];
   final note = TextEditingController();
   final reason = TextEditingController();
   final photos = <String>[];
@@ -245,7 +249,20 @@ class _JobScreenState extends State<JobScreen> {
   }
 
   /// ໂຫຼດຈຳນວນອາໄຫຼ່ຄ້າງນຳຊ່າງ — ລົ້ມກໍ່ບໍ່ເປັນຫຍັງ (ພຽງເຊື່ອງປຸ່ມ)
+  /// ຮອບຂໍເບີກ + ໃບເບີກລາຍໃບ — ໃຫ້ຊ່າງເຫັນວ່າ **ໃບໃດຍັງບໍ່ໄດ້ຮັບ** ແລະ ກົດຮັບໄດ້ຈາກໜ້ານີ້ເລີຍ
+  /// (ກົດເກນ 06-08-2026: ຕ້ອງກົດຮັບ**ທຸກໃບ** ຈຶ່ງໄປຂັ້ນຕໍ່ໄປ ⇒ ບໍ່ເຫັນລາຍໃບ = ຕິດ)
+  Future<void> loadRounds() async {
+    if (job.action != 'wait_spare') return;
+    try {
+      final data = await Api.spareRounds(job.workflow, job.code);
+      if (mounted) setState(() => _rounds = data.withdrawals);
+    } catch (_) {
+      // ບໍ່ໃຫ້ລົ້ມໜ້າງານ — ຍັງມີປຸ່ມ "ໄປໜ້າ ຮັບອາໄຫຼ່" ເປັນທາງສຳຮອງ
+    }
+  }
+
   Future<void> loadOutstanding() async {
+    loadRounds();
     try {
       final rows = await Api.outstandingSpares(job.workflow, job.code);
       if (mounted) setState(() => outstandingSpares = rows.length);
@@ -1421,11 +1438,14 @@ class _JobScreenState extends State<JobScreen> {
                             ເຊື່ອ `canCheckIn` ຂອງ server ບ່ອນດຽວ — ຢ່າຂຽນເງື່ອນໄຂຂັ້ນຊ້ຳຢູ່ນີ້
                             (ຮອບເຂົ້າໜ້າງານຮອບ 2 ຢູ່ຂັ້ນ 5 ກໍ່ຜ່ານ flag ດຽວກັນ ໂດຍບໍ່ຕ້ອງແກ້ແອັບອີກ).
                           */
-                          if (job.workflow == 'install' && job.canCheckIn)
+                          if ((job.workflow == 'install' ||
+                                  job.workflow == 'maintenance') &&
+                              job.canCheckIn)
                             _button(
-                              // ຮອບທຳອິດ (ຍັງບໍ່ໄດ້ເລີ່ມ) ⇒ check-in ຄື "ເລີ່ມຕິດຕັ້ງ" ນຳ
-                              job.stage == 4
-                                  ? 'check-in ໜ້າງານ — ເລີ່ມຕິດຕັ້ງ (ພິກັດ + ຮູບ)'
+                              // ຮອບທຳອິດ (ຍັງບໍ່ໄດ້ເລີ່ມ) ⇒ check-in ຄື "ເລີ່ມງານ" ນຳ
+                              (job.workflow == 'install' && job.stage == 4) ||
+                                      (job.workflow == 'maintenance' && job.stage == 2)
+                                  ? 'check-in ໜ້າງານ — ເລີ່ມງານ (ພິກັດ + ຮູບ)'
                                   : 'check-in ໜ້າງານ ຮອບຕໍ່ໄປ (ພິກັດ + ຮູບ)',
                               ink,
                               checkIn,
@@ -1706,20 +1726,70 @@ class _JobScreenState extends State<JobScreen> {
                                   ],
                                 ),
                               ),
+                            /*
+                              ── ສະແກນ ISN/SN 2 ຈຸດ (07-08-2026) ──
+                              ① ຕອນກຳລັງຕິດຕັ້ງ (ປຸ່ມນີ້) ② ຕອນກົດສຳເລັດ (ຍິງອີກເທື່ອ).
+                              ພິສູດວ່າ**ໜ່ວຍທີ່ຕິດຈິງ**ແມ່ນໜ່ວຍທີ່ຂາຍໃນບິນ — server ທຽບໃຫ້,
+                              ບໍ່ຕົງ ⇒ ບໍ່ບັນທຶກ ແລະ ຈົບງານບໍ່ໄດ້.
+                            */
+                            if (job.workflow == 'install') ...[
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(48),
+                                  foregroundColor: job.scanDone ? ok : teal,
+                                  side: BorderSide(color: job.scanDone ? ok : teal),
+                                ),
+                                onPressed: busy ? null : _scanNow,
+                                icon: Icon(
+                                  job.scanDone
+                                      ? Icons.check_circle_outline
+                                      : Icons.qr_code_scanner_rounded,
+                                  size: 18,
+                                ),
+                                label: Text(
+                                  job.scanDone
+                                      ? 'ສະແກນ ISN/SN ແລ້ວ — ຍິງຊ້ຳໄດ້'
+                                      : 'ສະແກນ ISN/SN ຂອງເຄື່ອງ (ຕ້ອງເຮັດ)',
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+
                             _primaryAction(
                               job.workflow == 'install'
                                   ? 'ບັນທຶກຕິດຕັ້ງສຳເລັດ — ສົ່ງກວດ QC'
                                   : 'ບັນທຶກສ້ອມສຳເລັດ — ສົ່ງກວດ QC',
                               Icons.check_circle_outline_rounded,
                               ok,
-                              evidenceRequired
+                              evidenceRequired || (job.workflow == 'install' && !job.scanDone)
                                   ? null
-                                  : () => run({
-                                      'action': 'finish',
-                                      'note': note.text,
-                                      'photos': photos,
-                                    }),
+                                  : () async {
+                                      if (job.workflow == 'install') {
+                                        // ຍິງອີກເທື່ອກ່ອນຈົບ — ຫຼັກຖານວ່າໜ່ວຍທີ່ຕິດແມ່ນອັນເກົ່າ
+                                        final value = await _scanSerial('ສະແກນ ISN/SN — ກ່ອນຈົບງານ');
+                                        if (value == null) return;
+                                        await run({
+                                          'action': 'finish',
+                                          'note': note.text,
+                                          'photos': photos,
+                                          'scan': value,
+                                        });
+                                        return;
+                                      }
+                                      await run({
+                                        'action': 'finish',
+                                        'note': note.text,
+                                        'photos': photos,
+                                      });
+                                    },
                             ),
+                            if (job.workflow == 'install' && !job.scanDone) ...[
+                              const SizedBox(height: 6),
+                              const Text(
+                                'ຕ້ອງສະແກນ ISN/SN ຕອນຕິດຕັ້ງກ່ອນ ຈຶ່ງກົດສຳເລັດໄດ້',
+                                style: TextStyle(color: muted, fontSize: 11.5),
+                              ),
+                            ],
 
                             /*
                               ── 1 ໃບງານ = ຫຼາຍຮອບເຂົ້າໜ້າງານ (06-08-2026) ──
@@ -1728,7 +1798,36 @@ class _JobScreenState extends State<JobScreen> {
                               ກົດ "ຈົບງານ" ຫຼອກ (QC ແລະ ການປະເມີນຂອງລູກຄ້າແລ່ນຜິດ) ຫຼື ປະໄວ້ງຽບໆ.
                               ປຸ່ມນີ້ປິດຮອບປັດຈຸບັນ + ໃສ່ວັນນັດ ⇒ ງານຄາຢູ່ຂັ້ນເດີມ ແລະ ຂຶ້ນຄິວມື້ນັ້ນເອງ.
                             */
-                            if (job.workflow == 'install') ...[
+                            if (job.workflow == 'maintenance') ...[
+                              const SizedBox(height: 14),
+                              const Divider(height: 1),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'ຍັງບໍ່ຈົບຮອບນີ້?',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: ink,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              // ລ້າງແອບໍ່ຈົບຮອບດຽວກໍ່ມີ (ນ້ຳບໍ່ມາ · ລູກຄ້າຂໍເລື່ອນ) ⇒ ຊຸດດຽວກັບສາຍງານອື່ນ
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(48),
+                                  foregroundColor: warn,
+                                  side: const BorderSide(color: warn),
+                                ),
+                                onPressed: busy ? null : _askNextVisit,
+                                icon: const Icon(Icons.event_repeat_outlined, size: 18),
+                                label: Text(
+                                  job.canCheckOut
+                                      ? 'check-out ອອກ ແລະ ນັດຮອບຕໍ່ໄປ'
+                                      : 'ນັດຮອບຕໍ່ໄປ',
+                                ),
+                              ),
+                            ] else if (job.workflow == 'install' ||
+                                (job.workflow == 'repair' && job.onsite)) ...[
                               const SizedBox(height: 14),
                               const Divider(height: 1),
                               const SizedBox(height: 12),
@@ -1743,21 +1842,15 @@ class _JobScreenState extends State<JobScreen> {
                               const SizedBox(height: 8),
                               /*
                                 ຕອນຈະອອກຈາກໜ້າງານມີ **2 ທາງ** ຢູ່ບ່ອນດຽວ (07-08-2026):
-                                ① ຈົບແລ້ວ ⇒ "ບັນທຶກຕິດຕັ້ງສຳເລັດ" ຂ້າງເທິງ (checkout ໃຫ້ເອງ → QC)
+                                ① ຈົບແລ້ວ ⇒ ປຸ່ມ "ບັນທຶກ…ສຳເລັດ" ຂ້າງເທິງ (checkout ໃຫ້ເອງ → QC)
                                 ② ຍັງບໍ່ຈົບ ⇒ check-out ອອກ (ບໍ່ປິດງານ) ແລ້ວນັດຮອບຕໍ່ໄປ
                               */
-                              if (job.canCheckOut) ...[
-                                OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    minimumSize: const Size.fromHeight(48),
-                                    foregroundColor: muted,
-                                  ),
-                                  onPressed: busy ? null : () => run({'action': 'checkout'}),
-                                  icon: const Icon(Icons.logout_rounded, size: 18),
-                                  label: const Text('check-out ອອກຈາກໜ້າງານ (ບໍ່ປິດງານ)'),
-                                ),
-                                const SizedBox(height: 8),
-                              ],
+                              /*
+                                ── ປຸ່ມດຽວ: check-out + ນັດຮອບຕໍ່ໄປ (07-08-2026 ຕາມຄຳສັ່ງ) ──
+                                ແຕ່ກ່ອນແຍກເປັນ 2 ປຸ່ມ (ອອກກ່ອນ → ແລ້ວນັດ) ⇒ ຊ່າງກົດອັນທຳອິດແລ້ວ
+                                ອອກຈາກໜ້າໄປ ⇒ ບໍ່ໄດ້ນັດ ງານຄາງຽບໆ. ດຽວນີ້ຂັ້ນຕອນດຽວ:
+                                ຖາມວັນ+ເຫດຜົນ → check-out (ເວລາຈິງ) → ບັນທຶກນັດ.
+                              */
                               OutlinedButton.icon(
                                 style: OutlinedButton.styleFrom(
                                   minimumSize: const Size.fromHeight(48),
@@ -1767,19 +1860,10 @@ class _JobScreenState extends State<JobScreen> {
                                 onPressed: busy ? null : _askNextVisit,
                                 icon: const Icon(Icons.event_repeat_outlined, size: 18),
                                 label: Text(
-                                  job.canCheckOut ? 'ນັດຮອບຕໍ່ໄປ (check-out ກ່ອນ)' : 'ນັດຮອບຕໍ່ໄປ',
+                                  job.canCheckOut
+                                      ? 'check-out ອອກ ແລະ ນັດຮອບຕໍ່ໄປ'
+                                      : 'ນັດຮອບຕໍ່ໄປ',
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              // ຮອບຕໍ່ໄປອາດເປັນຊ່າງຄົນອື່ນ — ຊ່າງທີ່ຢູ່ໜ້າງານສົ່ງມອບເອງໄດ້
-                              OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(48),
-                                  foregroundColor: muted,
-                                ),
-                                onPressed: busy ? null : _askHandover,
-                                icon: const Icon(Icons.person_search_outlined, size: 18),
-                                label: const Text('ສົ່ງມອບໃຫ້ຊ່າງຄົນອື່ນ'),
                               ),
                             ],
                           ],
@@ -1817,10 +1901,87 @@ class _JobScreenState extends State<JobScreen> {
                                 if (mounted) await reload();
                               }),
                             ] else ...[
-                              const Text(
-                                'ລໍສາງເບີກອາໄຫຼ່ — ຍັງລົງມືບໍ່ໄດ້',
-                                style: TextStyle(color: muted),
-                              ),
+                              /*
+                                ── ລາຍການ **ໃບຂໍເບີກ ແລະ ໃບເບີກ ລາຍໃບ** (07-08-2026) ──
+                                1 ງານມີໃບຂໍຫຼາຍໃບ ແລະ 1 ໃບຂໍຖືກເບີກຫຼາຍໃບໄດ້ (ຄົນລະສາງ/ຄົນລະເທື່ອ)
+                                ⇒ ຕ້ອງ **ກົດຮັບທຸກໃບ** ຈຶ່ງໄປຂັ້ນຕໍ່ໄປ. ແຕ່ກ່ອນແອັບບອກແຕ່
+                                "ລໍສາງເບີກ — ຍັງລົງມືບໍ່ໄດ້" ⇒ ຊ່າງບໍ່ຮູ້ວ່າເຫຼືອໃບໃດ ຕ້ອງອອກໄປໜ້າອື່ນ.
+                              */
+                              if (_rounds.isEmpty)
+                                const Text(
+                                  'ລໍສາງເບີກອາໄຫຼ່ — ຍັງລົງມືບໍ່ໄດ້',
+                                  style: TextStyle(color: muted),
+                                )
+                              else
+                                ..._rounds.map(
+                                  (round) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              'ຮອບ ${round.round} · ${round.docNo}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                color: ink,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            _stateChip(round),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        if (round.dispatches.isEmpty)
+                                          const Padding(
+                                            padding: EdgeInsets.only(left: 4),
+                                            child: Text(
+                                              'ສາງຍັງບໍ່ໄດ້ເບີກໃຫ້',
+                                              style: TextStyle(color: muted, fontSize: 12),
+                                            ),
+                                          )
+                                        else
+                                          ...round.dispatches.map(
+                                            (doc) => Padding(
+                                              padding: const EdgeInsets.only(left: 4, bottom: 6),
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    doc.received
+                                                        ? Icons.check_circle
+                                                        : Icons.inventory_2_outlined,
+                                                    size: 16,
+                                                    color: doc.received ? ok : warn,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Text(
+                                                      '${doc.docNo} · ${doc.lines} ລາຍການ'
+                                                      '${doc.received ? " · ຮັບແລ້ວ" : ""}',
+                                                      style: const TextStyle(fontSize: 12.5, color: ink),
+                                                    ),
+                                                  ),
+                                                  if (!doc.received)
+                                                    FilledButton(
+                                                      style: FilledButton.styleFrom(
+                                                        backgroundColor: teal,
+                                                        visualDensity: VisualDensity.compact,
+                                                      ),
+                                                      onPressed: busy
+                                                          ? null
+                                                          : () => _receiveDoc(doc.docNo),
+                                                      child: const Text('ຮັບ'),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               const SizedBox(height: 8),
                               _button(
                                 'ໄປໜ້າ ຮັບອາໄຫຼ່',
@@ -1876,7 +2037,7 @@ class _JobScreenState extends State<JobScreen> {
                                       Expanded(
                                         child: Text(
                                           job.workflow == 'install'
-                                              ? 'ຢູ່ໜ້າງານແລ້ວ — ຈົບແລ້ວກົດ "ບັນທຶກຕິດຕັ້ງສຳເລັດ" · ຍັງບໍ່ຈົບກົດ "check-out ອອກຈາກໜ້າງານ"'
+                                              ? 'ຢູ່ໜ້າງານແລ້ວ — ຈົບແລ້ວກົດ "ບັນທຶກຕິດຕັ້ງສຳເລັດ" · ຍັງບໍ່ຈົບກົດ "check-out ອອກ ແລະ ນັດຮອບຕໍ່ໄປ"'
                                               : 'ຢູ່ໜ້າງານແລ້ວ — ກົດ "ບັນທຶກສ້ອມສຳເລັດ" ⇒ checkout ອັດຕະໂນມັດ',
                                           style: const TextStyle(
                                             color: muted,
@@ -2413,89 +2574,6 @@ class _JobScreenState extends State<JobScreen> {
     ),
   );
 
-  /// ເລືອກຊ່າງຄົນໃໝ່ + ເຫດຜົນ ແລ້ວສົ່ງຄຳສັ່ງ handover (ເບິ່ງ lib/job-flow.handoverInstallFlow)
-  Future<void> _askHandover() async {
-    List<Map<String, String>> techs = const [];
-    try {
-      techs = (await Api.lookups()).technicians;
-    } catch (_) {
-      // ໂຫຼດລາຍຊື່ບໍ່ໄດ້ ⇒ ບອກແລ້ວຢຸດ (ຢ່າໃຫ້ພິມລະຫັດເອງ — ພິມຜິດແລ້ວງານໄປຜິດຄົນ)
-    }
-    if (!mounted) return;
-    if (techs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ໂຫຼດລາຍຊື່ຊ່າງບໍ່ໄດ້ — ລອງໃໝ່')),
-      );
-      return;
-    }
-
-    String? picked;
-    final reason = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (builderContext, setDialogState) => AlertDialog(
-          title: const Text('ສົ່ງມອບໃຫ້ຊ່າງຄົນອື່ນ'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              DropdownButtonFormField<String>(
-                value: picked,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'ຊ່າງຄົນໃໝ່',
-                  border: OutlineInputBorder(),
-                ),
-                items: techs
-                    .map(
-                      (tech) => DropdownMenuItem(
-                        value: tech['code'],
-                        child: Text(tech['name'] ?? tech['code']!),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) => setDialogState(() => picked = value),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: reason,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'ເຫດຜົນ',
-                  hintText: 'ລາພັກ · ຍ້າຍໄປງານດ່ວນ · ທີມອື່ນຮັບຊ່ວງ',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('ຍົກເລີກ'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('ສົ່ງມອບ'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (ok != true || !mounted) return;
-    if (picked == null || reason.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ຕ້ອງເລືອກຊ່າງ ແລະ ໃສ່ເຫດຜົນ')),
-      );
-      return;
-    }
-    await run({
-      'action': 'handover',
-      'tech_code': picked,
-      'reason': reason.text.trim(),
-    }, pop: true);
-  }
-
   /// ຖາມ ວັນນັດ + ເຫດຜົນ ແລ້ວສົ່ງຄຳສັ່ງ next-visit (ເບິ່ງ lib/job-flow.scheduleNextVisit)
   Future<void> _askNextVisit() async {
     final picked = await showDatePicker(
@@ -2503,7 +2581,11 @@ class _JobScreenState extends State<JobScreen> {
       initialDate: DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 180)),
-      helpText: 'ວັນທີ່ຈະກັບໄປຕິດຕັ້ງຕໍ່',
+      helpText: job.workflow == 'install'
+          ? 'ວັນທີ່ຈະກັບໄປຕິດຕັ້ງຕໍ່'
+          : job.workflow == 'maintenance'
+          ? 'ວັນທີ່ຈະກັບໄປລ້າງຕໍ່'
+          : 'ວັນທີ່ຈະກັບໄປສ້ອມຕໍ່',
     );
     if (picked == null || !mounted) return;
 
@@ -2511,7 +2593,7 @@ class _JobScreenState extends State<JobScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('ຍັງບໍ່ຈົບ — ນັດຮອບຕໍ່ໄປ'),
+        title: const Text('check-out ອອກ ແລະ ນັດຮອບຕໍ່ໄປ'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2548,11 +2630,79 @@ class _JobScreenState extends State<JobScreen> {
     }
     final month = picked.month.toString().padLeft(2, '0');
     final day = picked.day.toString().padLeft(2, '0');
+    /*
+      check-out ກ່ອນ **ໃນຂັ້ນຕອນດຽວກັນ** — ເວລາອອກຈຶ່ງເປັນເວລາຈິງທີ່ຊ່າງກົດ
+      (server ປະຕິເສດການນັດ ຖ້າຍັງມີ check-in ຄ້າງ — ເບິ່ງ lib/job-flow).
+    */
+    if (job.canCheckOut) {
+      await run({'action': 'checkout'});
+      if (!mounted) return;
+    }
     await run({
       'action': 'next-visit',
       'next_date': '${picked.year}-$month-$day',
       'reason': text,
     });
+  }
+
+  /// ເປີດກ້ອງສະແກນ ISN/SN ແລ້ວຄືນຄ່າດິບ (null = ຍົກເລີກ)
+  Future<String?> _scanSerial(String title) async {
+    final expect = [
+      job.expectSn,
+      job.expectSnOut,
+    ].where((v) => v != null && v.isNotEmpty && v != '-').join(' / ');
+    return Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ScanSerialScreen(title: title, hint: expect.isEmpty ? null : expect),
+      ),
+    );
+  }
+
+  /// ສະແກນ **ຕອນກຳລັງຕິດຕັ້ງ** — server ທຽບກັບໃບງານໃຫ້ (ບໍ່ຕົງ ⇒ ບໍ່ບັນທຶກ)
+  Future<void> _scanNow() async {
+    final value = await _scanSerial('ສະແກນ ISN/SN — ຕອນຕິດຕັ້ງ');
+    if (value == null || !mounted) return;
+    await run({'action': 'scan', 'scan': value});
+  }
+
+  /// ປ້າຍສະຖານະຂອງຮອບ — ຄຳດຽວກັບຝັ່ງເວັບ (ລໍສາງເບີກ · ເບີກແລ້ວລໍຮັບ · ຮັບແລ້ວ · ສັ່ງຊື້)
+  Widget _stateChip(SpareWithdrawRound round) {
+    final (String label, Color color) = round.status == 'purchasing'
+        ? ('ກຳລັງສັ່ງຊື້', warn)
+        : round.dispatches.isEmpty
+        ? ('ລໍສາງເບີກ', warn)
+        : round.waitingPickup.isNotEmpty
+        ? ('ລໍຮັບ ${round.waitingPickup.length} ໃບ', warn)
+        : ('ຮັບຄົບແລ້ວ', ok);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: color),
+      ),
+    );
+  }
+
+  /// ກົດຮັບ **ໃບເບີກໃບໜຶ່ງ** — ຮັບຄົບທຸກໃບແລ້ວ server ຈຶ່ງດັນງານໄປຂັ້ນຕໍ່ໄປ
+  Future<void> _receiveDoc(String docNo) async {
+    setState(() => busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final message = await Api.pickupSpares(docNo);
+      messenger.showSnackBar(SnackBar(content: Text(message)));
+    } on ApiError catch (failure) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(failure.message), backgroundColor: danger),
+      );
+    } finally {
+      if (mounted) setState(() => busy = false);
+      await reload();
+    }
   }
 
   Widget _button(String label, Color color, VoidCallback? onPressed) {

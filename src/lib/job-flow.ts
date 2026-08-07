@@ -1,4 +1,5 @@
 import { logChange } from "@/lib/chatter-log";
+import { hasInstallScan, recordInstallScan } from "@/lib/install-scan";
 import type { Session } from "@/lib/auth";
 import type { Workflow } from "@/lib/commission";
 import { query } from "@/lib/db";
@@ -51,7 +52,8 @@ async function ownerOf(workflow: Workflow, code: string): Promise<JobOwner | nul
           // ຈະຖືກ startRepair/finish ບັງຄັບ check-in ທີ່ເຮັດບໍ່ໄດ້ ⇒ ວຽກຄ້າງ.
           `select code, nullif(emp_code,'') as tech, status = 6 as cancelled,
                   repair_confirm is not null as accepted,
-                  (coalesce(service_type,'')='IH' or (coalesce(service_type,'')='PS' and pickup_at is null)) as onsite,
+                  -- ນອກສະຖານທີ່ = IH ເທົ່ານັ້ນ (PS = ໄປຮັບເຄື່ອງມາສ້ອມຢູ່ສູນ — ເບິ່ງ lib/mobile-jobs)
+                  (coalesce(service_type,'')='IH') as onsite,
                   (${STAGE_SQL})::int as stage
              from tb_product a where a.code=$1`,
           [code],
@@ -341,7 +343,7 @@ export async function finishInstallFlow(
   session: Session,
   code: string,
   photos: string[] = [],
-  options: { requireCheckin?: boolean } = {},
+  options: { requireCheckin?: boolean; requireScan?: boolean; scan?: string } = {},
 ): Promise<FlowResult> {
   const own = await ownJob(session, "install", code);
   if (!own.ok) return own;
@@ -367,6 +369,22 @@ export async function finishInstallFlow(
     if (!openVisit.rows[0]?.n) {
       return { ok: false, error: "ຕ້ອງ check-in ໜ້າງານກ່ອນ ຈຶ່ງບັນທຶກຕິດຕັ້ງສຳເລັດໄດ້" };
     }
+  }
+
+  /**
+   * ── ສະແກນ ISN/SN 2 ຈຸດ (07-08-2026 ຕາມຄຳສັ່ງ) ──
+   * ① ຕອນກຳລັງຕິດຕັ້ງ (ຄຳສັ່ງ `scan` ຂອງແອັບ) ② ຕອນກົດສຳເລັດ (ຄ່າ `scan` ມາພ້ອມຄຳສັ່ງນີ້).
+   * ທັງສອງຕ້ອງ**ຕົງກັບ `pro_sn`/`pro_sn_out` ຂອງໃບງານ** (ເບິ່ງ lib/install-scan)
+   * ⇒ ພິສູດວ່າໜ່ວຍທີ່ຕິດຈິງແມ່ນໜ່ວຍທີ່ຂາຍໃນບິນ ບໍ່ແມ່ນເຄື່ອງອື່ນ.
+   */
+  if (options.requireScan) {
+    if (!(await hasInstallScan(code, "install"))) {
+      return { ok: false, error: "ຕ້ອງສະແກນ ISN/SN ຕອນກຳລັງຕິດຕັ້ງກ່ອນ" };
+    }
+    const scanned = (options.scan ?? "").trim();
+    if (!scanned) return { ok: false, error: "ຕ້ອງສະແກນ ISN/SN ອີກເທື່ອກ່ອນບັນທຶກສຳເລັດ" };
+    const result = await recordInstallScan(session, code, scanned, "finish");
+    if (!result.ok) return { ok: false, error: result.error };
   }
 
   if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };
@@ -699,17 +717,32 @@ export async function checkIn(
 export async function scheduleNextVisit(
   session: Session,
   code: string,
-  input: { next_date: string; reason: string; closeOpenVisit?: boolean },
+  input: { next_date: string; reason: string; closeOpenVisit?: boolean; workflow?: Workflow },
 ): Promise<FlowResult> {
-  const own = await ownJob(session, "install", code);
+  /**
+   * ── ໃຊ້ໄດ້ **ທັງຕິດຕັ້ງ ແລະ ສ້ອມນອກສູນ** (07-08-2026) ──
+   * ສ້ອມ IH ກໍ່ໄປຫຼາຍຮອບຄືກັນ (ອາໄຫຼ່ຍັງບໍ່ມາ · ລູກຄ້າບໍ່ຢູ່ເຮືອນ) ⇒ ຕ້ອງມີທາງນັດ
+   * ໂດຍບໍ່ຕ້ອງກົດ "ສ້ອມສຳເລັດ" ຫຼອກ. ວັນນັດເກັບຢູ່ `appoint_date` ຂອງແຕ່ລະຕາຕະລາງ.
+   */
+  const workflow: Workflow = input.workflow ?? "install";
+  const own = await ownJob(session, workflow, code);
   if (!own.ok) return own;
   /**
    * ຂັ້ນ **4 (ລໍຖ້າຕິດຕັ້ງ)** ນັດໄດ້ນຳ (07-08-2026): ຊ່າງໄປຮອດ · check-in ແລ້ວ ພົບວ່າ
    * ເຮັດບໍ່ໄດ້ (ບໍ່ມີໄຟ · ບ່ອນຕິດຍັງບໍ່ພ້ອມ) ⇒ ຍັງບໍ່ໄດ້ກົດ "ເລີ່ມຕິດຕັ້ງ" ຈັກເທື່ອ.
    * ຖ້າຮັບແຕ່ຂັ້ນ 5 ຊ່າງຕ້ອງກົດ "ເລີ່ມຕິດຕັ້ງ" ຫຼອກໆກ່ອນ ຈຶ່ງນັດໄດ້ ⇒ ເວລາເລີ່ມຜິດ.
    */
-  if (own.job?.stage !== 4 && own.job?.stage !== 5) {
-    return { ok: false, error: 'ນັດຮອບຕໍ່ໄປໄດ້ສະເພາະງານທີ່ "ລໍຖ້າຕິດຕັ້ງ" ຫຼື "ກຳລັງຕິດຕັ້ງ"' };
+  /**
+   * ຂັ້ນທີ່ນັດໄດ້ — **ຂັ້ນທີ່ຊ່າງຢູ່ໜ້າງານຈິງ** ຂອງແຕ່ລະສາຍງານ:
+   *   ຕິດຕັ້ງ 4 ລໍຕິດຕັ້ງ · 5 ກຳລັງຕິດຕັ້ງ
+   *   ສ້ອມ   1-2 ກວດເຊັກ (IH ໄປຮອດແລ້ວກວດ) · 8 ລໍສ້ອມ · 9 ກຳລັງສ້ອມ
+   */
+  const allowed = workflow === "install" ? [4, 5] : [1, 2, 8, 9];
+  if (!allowed.includes(own.job?.stage ?? -1)) {
+    return { ok: false, error: "ຂັ້ນປັດຈຸບັນຂອງງານນີ້ ຍັງນັດຮອບຕໍ່ໄປບໍ່ໄດ້" };
+  }
+  if (workflow === "repair" && !own.job?.onsite) {
+    return { ok: false, error: "ງານນີ້ເຮັດຢູ່ໃນສູນ — ບໍ່ຕ້ອງນັດເຂົ້າໜ້າງານ" };
   }
   const reason = input.reason.trim();
   if (!reason) return { ok: false, error: "ກະລຸນາໃສ່ເຫດຜົນ ວ່າຍັງບໍ່ຈົບຍ້ອນຫຍັງ" };
@@ -732,8 +765,8 @@ export async function scheduleNextVisit(
   const visits = await query<{ open: number; closed: number }>(
     `select count(*) filter (where checkout_at is null)::int open,
         count(*) filter (where checkout_at is not null)::int closed
-       from ods_job_checkin where workflow='install' and job_code=$1`,
-    [code],
+       from ods_job_checkin where workflow=$2 and job_code=$1`,
+    [code, workflow],
   );
   if (!visits.rows[0]?.closed && !visits.rows[0]?.open) {
     return { ok: false, error: "ຮອບນີ້ຍັງບໍ່ມີ check-in — ຕ້ອງ check-in ໜ້າງານ ແລ້ວ check-out ອອກກ່ອນ" };
@@ -746,24 +779,34 @@ export async function scheduleNextVisit(
      * ຝັ່ງແອັບບໍ່ສົ່ງຄ່ານີ້ ⇒ ຊ່າງຕ້ອງກົດ check-out ເອງສະເໝີ (ເວລາອອກຈຶ່ງເປັນເວລາຈິງ).
      */
     if (!input.closeOpenVisit) {
-      return { ok: false, error: 'ກົດ "check-out ອອກຈາກໜ້າງານ" ກ່ອນ ແລ້ວຄ່ອຍນັດຮອບຕໍ່ໄປ' };
+      return {
+        ok: false,
+        error: "ຊ່າງຍັງ check-in ຄ້າງຢູ່ໜ້າງານ — ໃຫ້ຊ່າງກົດ check-out ໃນແອັບ ຫຼື ໝາຍຊ່ອງ “ຊ່າງລືມກົດ check-out”",
+      };
     }
     await query(
       `update ods_job_checkin set checkout_at=${NOW}
-        where workflow='install' and job_code=$1 and checkout_at is null`,
-      [code],
+        where workflow=$2 and job_code=$1 and checkout_at is null`,
+      [code, workflow],
     );
   }
 
-  const done = await query(
-    `update ods_tb_install a set appoint_date=$2::date
-      where a.code=$1 and (${INSTALL_STAGE_SQL}) = 5`,
-    [code, input.next_date],
-  );
-  if (!done.rowCount) return { ok: false, error: "ບັນທຶກບໍ່ໄດ້ — ງານນີ້ບໍ່ໄດ້ຢູ່ຂັ້ນກຳລັງຕິດຕັ້ງແລ້ວ" };
+  const done =
+    workflow === "install"
+      ? await query(
+          `update ods_tb_install a set appoint_date=$2::date
+            where a.code=$1 and (${INSTALL_STAGE_SQL}) in (4,5)`,
+          [code, input.next_date],
+        )
+      : await query(
+          `update tb_product a set appoint_date=$2::date
+            where a.code=$1 and (${STAGE_SQL}) in (1,2,8,9)`,
+          [code, input.next_date],
+        );
+  if (!done.rowCount) return { ok: false, error: "ບັນທຶກບໍ່ໄດ້ — ຂັ້ນຂອງງານປ່ຽນໄປແລ້ວ" };
 
   await logChange(
-    "ods_tb_install",
+    workflow === "install" ? "ods_tb_install" : "tb_product",
     code,
     `ຮອບນີ້ຍັງບໍ່ຈົບ — ນັດເຂົ້າຮອບຕໍ່ໄປ ${input.next_date} · ${reason}` +
       (input.closeOpenVisit && openVisit.rows[0]?.n ? " (ປິດຮອບໃຫ້ — ຊ່າງລືມ check-out)" : ""),
@@ -823,6 +866,44 @@ export async function handoverInstallFlow(
     roles: ["admin", "manager"],
   });
   return { ok: true, message: `ສົ່ງມອບງານໃຫ້ ${techCode} ແລ້ວ`, from: before?.tech_code ?? null };
+}
+
+/**
+ * **ບັນທຶກແທນຊ່າງຈາກເວັບ — ຕ້ອງໃສ່ເຫດຜົນ** (07-08-2026 ຕາມຄຳສັ່ງ).
+ *
+ * ຝັ່ງແອັບບັງຄັບ check-in ຢູ່ແລ້ວ ແຕ່ຝັ່ງ**ເວັບ** (CS/ຫົວໜ້າກົດແທນ ຕອນມືຖືຊ່າງມີບັນຫາ)
+ * ຂ້າມໄດ້ໝົດ ⇒ ງານໜ້າງານຈົບໄດ້ໂດຍບໍ່ມີຫຼັກຖານຈັກແຖວ ແລະ ບໍ່ມີໃຜຮູ້ວ່າໃຜກົດແທນ.
+ * ດຽວນີ້: **ບໍ່ຫ້າມ** (ຕ້ອງບັນທຶກຍ້ອນຫຼັງໄດ້) ແຕ່ຖ້າງານນັ້ນ**ບໍ່ມີ check-in ຈັກແຖວ**
+ * ຕ້ອງໃສ່ເຫດຜົນ ແລ້ວລົງ chatter ໄວ້ ⇒ ລາຍງານ /reports/site-visits ຕິດຕາມໄດ້.
+ *
+ * ຄືນ `string` = ຂໍ້ຄວາມຜິດພາດ (ຜູ້ເອີ້ນຢຸດ) · `null` = ຜ່ານ.
+ */
+export async function onBehalfGate(
+  session: Session,
+  workflow: Workflow | "maintenance",
+  code: string,
+  action: string,
+  reason: string | undefined,
+): Promise<string | null> {
+  const visits = (
+    await query<{ n: number }>(
+      "select count(*)::int n from ods_job_checkin where workflow=$1 and job_code=$2",
+      [workflow, code],
+    )
+  ).rows[0];
+  if (visits?.n) return null; // ມີຫຼັກຖານແລ້ວ — ບໍ່ຕ້ອງຖາມ
+
+  const note = (reason ?? "").trim();
+  if (!note) {
+    return "ງານນີ້ຍັງບໍ່ມີ check-in ໜ້າງານ — ກະລຸນາໃສ່ເຫດຜົນທີ່ບັນທຶກແທນຊ່າງ";
+  }
+  await logChange(
+    workflow === "install" ? "ods_tb_install" : workflow === "maintenance" ? "ods_tb_maintenance" : "tb_product",
+    code,
+    `⚠️ ບັນທຶກແທນຊ່າງຈາກເວັບ (${action}) ໂດຍບໍ່ມີ check-in ໜ້າງານ · ເຫດຜົນ: ${note}`,
+    { author: session.username, roles: ["admin", "manager"] },
+  );
+  return null;
 }
 
 /** ຮອບເຂົ້າໜ້າງານທັງໝົດຂອງໃບງານ — ໜ້າໃບງານ ແລະ ແອັບ ໃຊ້ຮ່ວມກັນ */

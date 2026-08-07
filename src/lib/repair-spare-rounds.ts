@@ -56,6 +56,13 @@ export type DispatchDoc = {
   items: DocItem[];
   /** ໃບຂໍຄືນທີ່ອອກຈາກໃບເບີກນີ້ — ຫວ່າງ = ບໍ່ເຄີຍຂໍຄືນ (ກໍລະນີທົ່ວໄປ) */
   returns: ReturnDoc[];
+  /**
+   * ໃບຮັບຂອງຊ່າງ (PISP) ຂອງ**ໃບເບີກໃບນີ້** — ຫວ່າງ = ສາງເບີກແລ້ວ ແຕ່ຊ່າງຍັງບໍ່ໄດ້ຮັບ.
+   * ຕ້ອງແຍກເປັນລາຍໃບ (ບໍ່ແມ່ນລວມທັງຮອບຄື `pick_no`) ເພາະ 1 ຮອບຖືກເບີກຫຼາຍໃບໄດ້
+   * ແລະ ຊ່າງຕ້ອງ**ກົດຮັບທຸກໃບ** (ກົດເກນ 06-08-2026) ⇒ ແອັບຕ້ອງຮູ້ວ່າໃບໃດຍັງເຫຼືອ.
+   */
+  pick_no: string | null;
+  pick_date: string | null;
 };
 
 export type WithdrawRound = {
@@ -259,6 +266,20 @@ export async function withdrawRounds(code: string): Promise<WithdrawRound[]> {
    * ວັນທີຂອງໃບເບີກ **ແຕ່ລະໃບ** — `dispatch_date` ຂ້າງເທິງເປັນ min() ຂອງທັງກຸ່ມ
    * ຈຶ່ງໃຊ້ບອກວັນຂອງໃບໃດໃບໜຶ່ງບໍ່ໄດ້. ຖາມເທື່ອດຽວສຳລັບທຸກຮອບ.
    */
+  /** ໃບຮັບ (166) ຂອງແຕ່ລະໃບເບີກ — ຖາມເທື່ອດຽວ ແລ້ວແຈກໃສ່ລາຍໃບ */
+  const pickByDispatch = new Map<string, { doc_no: string; doc_date: string | null }>(
+    dispatchNos.length > 0
+      ? (
+          await query<{ doc_ref: string; doc_no: string; doc_date: string | null }>(
+            `select doc_ref, doc_no, to_char(doc_date,'DD-MM-YYYY') doc_date
+               from ic_trans where trans_flag = 166 and doc_ref = any($1::text[])
+              order by doc_no`,
+            [dispatchNos],
+          )
+        ).rows.map((row) => [row.doc_ref, { doc_no: row.doc_no, doc_date: row.doc_date }])
+      : [],
+  );
+
   const dispatchHeads = new Map<string, { doc_date: string | null; user_created: string | null }>(
     dispatchNos.length > 0
       ? (
@@ -288,6 +309,8 @@ export async function withdrawRounds(code: string): Promise<WithdrawRound[]> {
       user_created: dispatchHeads.get(doc)?.user_created ?? null,
       items: items[doc] ?? [],
       returns: returnsByDispatch.get(doc) ?? [],
+      pick_no: pickByDispatch.get(doc)?.doc_no ?? null,
+      pick_date: pickByDispatch.get(doc)?.doc_date ?? null,
     })),
     pick_items: mergeItems(splitDocs(row.pick_no).map((doc) => items[doc] ?? [])),
     round: index + 1,

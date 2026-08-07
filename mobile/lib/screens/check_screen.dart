@@ -231,13 +231,40 @@ class _CheckScreenState extends State<CheckScreen> {
           ]),
           const SizedBox(height: 10),
 
-          _optionCard(
-            icon: Icons.verified_user_outlined,
-            title: 'ໝົດຮັບປະກັນ (ຊ່າງຕັດສິນ)',
-            subtitle: 'ຕ້ອງໃສ່ເຫດຜົນ — ຫຼັກຖານເມື່ອລູກຄ້າຄ້ານ',
-            value: warrantyVoid,
-            onChanged: (value) => setState(() => warrantyVoid = value),
-          ),
+          /*
+            ── ໃບທີ່ **ໝົດປະກັນຢູ່ແລ້ວ** ບໍ່ຕ້ອງມີຕົວເລືອກນີ້ (07-08-2026 ຕາມຄຳສັ່ງ) ──
+            ຂໍປ່ຽນເປັນ "ໝົດຮັບປະກັນ" ທັງທີ່ມັນໝົດຢູ່ແລ້ວ = ຄຳຂໍທີ່ບໍ່ມີຄວາມໝາຍ ແລະ
+            ຍັງໄປສ້າງຄິວລໍອະນຸມັດໃຫ້ຜູ້ຈັດການລ້າໆ (ເບິ່ງ lib/warranty-request).
+            ⇒ ໂຊ້ວແຕ່ປ້າຍບອກສະຖານະແທນ.
+          */
+          if (widget.outOfWarranty)
+            Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.verified_user_outlined, size: 17, color: muted),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'ໃບນີ້ໝົດຮັບປະກັນຢູ່ແລ້ວ — ຕ້ອງອອກໃບສະເໜີລາຄາ',
+                      style: TextStyle(color: muted, fontSize: 12.5),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            _optionCard(
+              icon: Icons.verified_user_outlined,
+              title: 'ໝົດຮັບປະກັນ (ຊ່າງຕັດສິນ)',
+              subtitle: 'ຕ້ອງໃສ່ເຫດຜົນ — ຫຼັກຖານເມື່ອລູກຄ້າຄ້ານ',
+              value: warrantyVoid,
+              onChanged: (value) => setState(() => warrantyVoid = value),
+            ),
           // ຊ່ອງ "ເຫດຜົນ" ໃຊ້ຮ່ວມກັນ 2 ກໍລະນີ — ໝົດປະກັນ ຫຼື ສ້ອມບໍ່ໄດ້
           // (ເລືອກພ້ອມກັນໄດ້ ⇒ ເຫດຜົນອັນດຽວກັນຖືກສົ່ງໄປທັງສອງຊ່ອງ)
           if (warrantyVoid || cannotRepair) ...[

@@ -6,6 +6,7 @@ import {
   startInstallFlow,
   scheduleNextVisit,
   handoverInstallFlow,
+  onBehalfGate,
 } from "@/lib/job-flow";
 import { pushToUser } from "@/lib/push";
 import { recordPayout } from "@/lib/commission-record";
@@ -891,9 +892,13 @@ export async function acceptJob(code: string): Promise<ActionState> {
 
 /* ── ຕິດຕັ້ງ (start/finish_tech_install) ──────────────────── */
 
-export async function startInstall(code: string): Promise<ActionState> {
+export async function startInstall(code: string, reason?: string): Promise<ActionState> {
   const guard = await guardJob(code, TECH_SIDE);
   if (!guard.ok) return { error: guard.error };
+
+  // ບັນທຶກແທນຊ່າງ (ງານບໍ່ມີ check-in) ⇒ ຕ້ອງໃສ່ເຫດຜົນ ແລ້ວລົງ chatter (lib/job-flow)
+  const gate = await onBehalfGate(guard.session, "install", code, "ເລີ່ມຕິດຕັ້ງ", reason);
+  if (gate) return { error: gate };
 
   const result = await startInstallFlow(guard.session, code);
   if (!result.ok) return { error: result.error };
@@ -932,9 +937,13 @@ export async function scheduleInstallVisit(
 export async function finishInstall(
   code: string,
   photos: string[] = [],
+  reason?: string,
 ): Promise<ActionState> {
   const guard = await guardJob(code, TECH_SIDE);
   if (!guard.ok) return { error: guard.error };
+
+  const gate = await onBehalfGate(guard.session, "install", code, "ຕິດຕັ້ງສຳເລັດ", reason);
+  if (gate) return { error: gate };
 
   const result = await finishInstallFlow(guard.session, code, photos);
   if (!result.ok) return { error: result.error };

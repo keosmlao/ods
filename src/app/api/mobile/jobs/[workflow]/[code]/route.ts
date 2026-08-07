@@ -7,7 +7,6 @@ import {
   checkOut,
   finishInstallFlow,
   finishRepairFlow,
-  handoverInstallFlow,
   jobPhotoSets,
   ownMobileJob,
   rejectJob,
@@ -16,12 +15,16 @@ import {
   startRepairFlow,
   type FlowResult,
 } from "@/lib/job-flow";
+import { recordInstallScan } from "@/lib/install-scan";
 import { deliveryFor } from "@/lib/delivery";
 import { undoLastStep } from "@/lib/mobile-undo";
 import {
   acceptMaintenance,
-  finishMaintenance,
+  checkInMaintenance,
+  checkOutMaintenance,
+  finishMaintenanceOnsite,
   ownMaintenanceJob,
+  scheduleNextVisitMaintenance,
   startMaintenance,
 } from "@/lib/maintenance-flow";
 import { installTimeline } from "@/lib/install-timeline";
@@ -53,7 +56,7 @@ type Body = {
     | "checkout"
     | "bring-in"
     | "next-visit"
-    | "handover"
+    | "scan"
     | "undo";
   /** bring-in: ວິທີເອົາເຄື່ອງເຂົ້າສູນ — carry=ຊ່າງເອົາກັບພ້ອມ · pickup=ຂົນສົ່ງມາຮັບ (ຄ່າເລີ່ມ) */
   mode?: "carry" | "pickup";
@@ -64,8 +67,8 @@ type Body = {
   photo?: string;
   /** next-visit: ວັນນັດເຂົ້າຮອບຕໍ່ໄປ (YYYY-MM-DD) — ງານຕິດຕັ້ງທີ່ຮອບນີ້ຍັງບໍ່ຈົບ */
   next_date?: string;
-  /** handover: ລະຫັດຊ່າງຄົນໃໝ່ທີ່ຈະຮັບຊ່ວງ */
-  tech_code?: string;
+  /** scan / finish: ຄ່າ ISN ຫຼື SN ທີ່ສະແກນມາຈາກກ້ອງ (ບໍ່ໃຫ້ພິມເອງ) */
+  scan?: string;
   /** ຮູບຜົນງານຕອນຈົບງານ — ບັງຄັບຝັ່ງຕິດຕັ້ງ (ເບິ່ງ lib/job-flow) */
   photos?: string[];
   client_action_id?: string;
@@ -217,23 +220,50 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
    * (lib/maintenance-flow) ແທນການຍັດເງື່ອນໄຂເພີ່ມເຂົ້າ lib/job-flow.
    */
   if (raw === "maintenance") {
-    let action = "";
+    let body: Body;
     try {
-      action = String(((await request.json()) as { action?: string }).action ?? "");
+      body = (await request.json()) as Body;
     } catch {
       return NextResponse.json({ error: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ" }, { status: 400 });
+    }
+    const action = String(body.action ?? "");
+    if ((body.photo ?? "").length > MAX_PHOTO_CHARS) {
+      return NextResponse.json({ error: "ຮູບໃຫຍ່ເກີນໄປ — ກະລຸນາຖ່າຍໃໝ່" }, { status: 413 });
     }
     const own = await ownMaintenanceJob(guard.user, code);
     if (!own.ok) return NextResponse.json({ error: own.error }, { status: 403 });
 
+    /**
+     * ⚠️ ອ່ານ body ເທື່ອດຽວ (ຂ້າງເທິງ) ແລ້ວໃຊ້ຄືນ — ບຳລຸງຮັກສາດຽວນີ້ມີ check-in/out
+     * ທີ່ຕ້ອງການ ພິກັດ+ຮູບ ນຳ (07-08-2026: ວຽກລ້າງແອເປັນວຽກໜ້າງານ 100%).
+     */
     const result =
       action === "accept"
         ? await acceptMaintenance(guard.user, code)
         : action === "start"
           ? await startMaintenance(guard.user, code)
-          : action === "finish"
-            ? await finishMaintenance(guard.user, code)
-            : ({ ok: false, error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" } as const);
+          : action === "checkin"
+            ? await checkInMaintenance(guard.user, code, {
+                lat: body.lat ?? null,
+                lng: body.lng ?? null,
+                photo: body.photo ?? null,
+                note: String(body.note ?? ""),
+              })
+            : action === "checkout"
+              ? await checkOutMaintenance(guard.user, code, {
+                  lat: body.lat ?? null,
+                  lng: body.lng ?? null,
+                  note: String(body.note ?? ""),
+                })
+              : action === "next-visit"
+                ? await scheduleNextVisitMaintenance(guard.user, code, {
+                    next_date: String(body.next_date ?? ""),
+                    reason: String(body.reason ?? ""),
+                  })
+                : action === "finish"
+                  // ຈາກແອັບ = ຊ່າງຢູ່ໜ້າງານ ⇒ ບັງຄັບ check-in ຄືສາຍງານອື່ນ
+                  ? await finishMaintenanceOnsite(guard.user, code)
+                  : ({ ok: false, error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" } as const);
 
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
     for (const path of ["/maintenance", "/dashboard"]) revalidatePath(path);
@@ -311,7 +341,11 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
         result =
           workflow === "install"
             // ແອັບ = ຊ່າງຢູ່ໜ້າງານ ⇒ ບັງຄັບ check-in ຄືກັບ 'start' (ທຸກຮອບຕ້ອງມີຫຼັກຖານ)
-            ? await finishInstallFlow(user, code, photos, { requireCheckin: true })
+            ? await finishInstallFlow(user, code, photos, {
+                requireCheckin: true,
+                requireScan: true,
+                scan: String(body.scan ?? ""),
+              })
             : await finishRepairFlow(user, code, String(body.note ?? ""), photos);
         break;
       case "checkin":
@@ -330,26 +364,22 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
         });
         break;
       case "next-visit":
-        // 1 ໃບງານ = ຫຼາຍຮອບເຂົ້າໜ້າງານ — ຮອບນີ້ຍັງບໍ່ຈົບ ⇒ ນັດວັນກັບໄປ (ສະເພາະຕິດຕັ້ງ)
-        if (workflow !== "install") {
-          return NextResponse.json({ error: "ຄຳສັ່ງນີ້ໃຊ້ໄດ້ແຕ່ງານຕິດຕັ້ງ" }, { status: 400 });
-        }
+        // 1 ໃບງານ = ຫຼາຍຮອບເຂົ້າໜ້າງານ — ໃຊ້ໄດ້ທັງຕິດຕັ້ງ ແລະ ສ້ອມນອກສູນ (07-08-2026)
         result = await scheduleNextVisit(user, code, {
+          workflow,
           next_date: String(body.next_date ?? ""),
           reason: String(body.reason ?? ""),
         });
         break;
-      case "handover":
-        /*
-          ຊ່າງທີ່ຢູ່ໜ້າງານຮູ້ດີທີ່ສຸດວ່າຕ້ອງສົ່ງໃຫ້ໃຜຕໍ່ (ຕົນລາພັກ · ຍ້າຍງານດ່ວນ).
-          ດ່ານ ownMobileJob ຂ້າງເທິງບັງຄັບວ່າຕ້ອງເປັນງານຂອງຕົນຢູ່ແລ້ວ ⇒ ສົ່ງມອບໄດ້
-          ສະເພາະງານທີ່ຕົນຖືຢູ່. ຝັ່ງເວັບເປັນຝ່າຍບໍລິການ/ຫົວໜ້າ (ຄົນລະດ່ານ ຈຸດປະສົງດຽວກັນ).
-        */
+      case "scan": {
+        // ສະແກນ ISN/SN ຕອນກຳລັງຕິດຕັ້ງ — ຕ້ອງຕົງກັບໜ່ວຍທີ່ໃບງານລະບຸ (lib/install-scan)
         if (workflow !== "install") {
           return NextResponse.json({ error: "ຄຳສັ່ງນີ້ໃຊ້ໄດ້ແຕ່ງານຕິດຕັ້ງ" }, { status: 400 });
         }
-        result = await handoverInstallFlow(user, code, String(body.tech_code ?? ""), String(body.reason ?? ""));
+        const scan = await recordInstallScan(user, code, String(body.scan ?? ""), "install");
+        result = scan.ok ? { ok: true, message: scan.message } : { ok: false, error: scan.error };
         break;
+      }
       case "bring-in":
         // IH ສ້ອມໜ້າງານບໍ່ໄດ້ ⇒ ນຳເຂົ້າສູນ (ແປງ IH→PS). ສະເພາະສາຍງານສ້ອມ.
         if (workflow !== "repair") {

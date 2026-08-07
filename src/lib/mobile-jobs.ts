@@ -73,6 +73,11 @@ export type MobileJob = {
   can_check_out: boolean;
   /** ຍັງ check-in ຄ້າງຢູ່ບໍ (ຍັງບໍ່ໄດ້ check-out) */
   checked_in: boolean;
+  /** ຕິດຕັ້ງ: ສະແກນ ISN/SN ຮອບ "ກຳລັງຕິດຕັ້ງ" ແລ້ວບໍ (ດ່ານກ່ອນກົດສຳເລັດ) */
+  scan_done?: boolean;
+  /** ຕິດຕັ້ງ: ເລກທີ່ໃບງານລະບຸໄວ້ — ໃຫ້ຊ່າງທຽບດ້ວຍຕາກ່ອນຍິງ */
+  expect_sn?: string | null;
+  expect_sn_out?: string | null;
   /** ພິກັດສະຖານທີ່ (ຖ້າ CS ປັກໝຸດໄວ້) — ແອັບກົດນຳທາງໄດ້ */
   lat: number | null;
   lng: number | null;
@@ -103,8 +108,16 @@ export type MobileJob = {
  * (pickup_at set — ລວມ IH→PS "ເອົາກັບພ້ອມ") ວຽກກວດ/ສ້ອມ **ຢູ່ສູນ** ⇒ ບໍ່ຕ້ອງ check-in GPS.
  * IH ສ້ອມບ້ານ = ນອກສະຖານທີ່ຕະຫຼອດ.
  */
-const REPAIR_ONSITE =
-  "(coalesce(a.service_type,'')='IH' or (coalesce(a.service_type,'')='PS' and a.pickup_at is null))";
+/**
+ * **ວຽກນອກສະຖານທີ່ = IH ເທົ່ານັ້ນ** (07-08-2026 ຕາມຄຳສັ່ງ).
+ *
+ * ── ເປັນຫຍັງ PS ບໍ່ນັບ ──
+ * PS = **ໄປຮັບເຄື່ອງ**ບ້ານລູກຄ້າມາສ້ອມຢູ່ສູນ — ຄົນທີ່ໄປແມ່ນຂົນສົ່ງ/ຄົນຮັບເຄື່ອງ
+ * ບໍ່ແມ່ນຊ່າງໄປລົງມືສ້ອມ ⇒ ບໍ່ມີ "ຮອບເຮັດວຽກໜ້າງານ" ໃຫ້ບັນທຶກ. ວຽກຈິງຂອງຊ່າງ
+ * ເກີດຢູ່ສູນຫຼັງເຄື່ອງມາຮອດ. ບັງຄັບ check-in ໃຫ້ PS = ກັກວຽກໂດຍບໍ່ມີເຫດຜົນ.
+ * (ຮຸ່ນກ່ອນນັບ PS ເປັນນອກສະຖານທີ່ຕອນຍັງບໍ່ pickup_at.)
+ */
+const REPAIR_ONSITE = "(coalesce(a.service_type,'')='IH')";
 
 const CHECKED_IN = (workflow: string) => `exists (
   select 1 from ods_job_checkin ck
@@ -177,6 +190,11 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         (a.tech_confirm is not null
           and (${INSTALL_STAGE_SQL}) in (4, 5)
           and not ${CHECKED_IN("install")}) as can_check_in,
+        -- ສະແກນ ISN/SN ຕອນກຳລັງຕິດຕັ້ງແລ້ວບໍ (ດ່ານກ່ອນກົດສຳເລັດ — ເບິ່ງ lib/install-scan)
+        exists (select 1 from ods_install_scan sc
+                 where sc.job_code = a.code and sc.phase = 'install') as scan_done,
+        nullif(a.pro_sn,'') as expect_sn,
+        nullif(a.pro_sn_out,'') as expect_sn_out,
         ${CHECKED_IN("install")} as can_check_out,
         ${CHECKED_IN("install")} as checked_in,
         a.location_lat as lat, a.location_lng as lng,
@@ -214,6 +232,7 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         ((${REPAIR_ONSITE}) and a.repair_confirm is not null
           and (${STAGE_SQL}) in (1,2,8,9)
           and not ${CHECKED_IN("repair")}) as can_check_in,
+        false as scan_done, null::varchar as expect_sn, null::varchar as expect_sn_out,
         ${CHECKED_IN("repair")} as can_check_out,
         ${CHECKED_IN("repair")} as checked_in,
         a.location_lat as lat, a.location_lng as lng,
@@ -255,8 +274,17 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         to_char(a.appoint_date,'DD-MM-YYYY') as appointment,
         (${MAINTENANCE_ACTION}) as action,
         a.tech_confirm is not null as accepted,
-        false as has_checked_in, false as has_checked_out,
-        false as can_check_in, false as can_check_out, false as checked_in,
+        -- ວຽກລ້າງແອເປັນວຽກໜ້າງານ 100% ⇒ ດຽວນີ້ມີ check-in/out ຄືສາຍງານອື່ນ (07-08-2026)
+        exists (select 1 from ods_job_checkin h
+                 where h.workflow='maintenance' and h.job_code=a.code and h.tech_code=$1) as has_checked_in,
+        exists (select 1 from ods_job_checkin h
+                 where h.workflow='maintenance' and h.job_code=a.code and h.tech_code=$1
+                   and h.checkout_at is not null) as has_checked_out,
+        (a.tech_confirm is not null and (${MAINTENANCE_STAGE_SQL}) in (2,3)
+          and not ${CHECKED_IN("maintenance")}) as can_check_in,
+        ${CHECKED_IN("maintenance")} as can_check_out,
+        ${CHECKED_IN("maintenance")} as checked_in,
+        false as scan_done, null::varchar as expect_sn, null::varchar as expect_sn_out,
         null::double precision as lat, null::double precision as lng,
         null::double precision as sla_left,
         null as undo_to

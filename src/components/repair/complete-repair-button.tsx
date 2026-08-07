@@ -35,6 +35,9 @@ export function CompleteRepairButton({ code, initialNote = "" }: { code: string;
   const [photos, setPhotos] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  /** ງານ IH ບໍ່ມີ check-in ⇒ server ຂໍເຫດຜົນ (ເບິ່ງ lib/job-flow.onBehalfGate) */
+  const [needReason, setNeedReason] = useState(false);
+  const [reason, setReason] = useState("");
   const [pending, start] = useTransition();
 
   async function pick(files: FileList | null) {
@@ -125,6 +128,19 @@ export function CompleteRepairButton({ code, initialNote = "" }: { code: string;
               )}
             </div>
 
+            {/*
+              ງານ IH ທີ່ບໍ່ມີ check-in ⇒ server ຂໍເຫດຜົນ "ບັນທຶກແທນຊ່າງ" ກ່ອນ
+              (lib/job-flow.onBehalfGate) ⇒ ເປີດຊ່ອງໃຫ້ພິມແລ້ວກົດຢືນຢັນຄືນໄດ້ເລີຍ.
+            */}
+            {needReason && (
+              <input
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder="ເຫດຜົນທີ່ບັນທຶກແທນຊ່າງ (ມືຖືຊ່າງເສຍ · ບັນທຶກຍ້ອນຫຼັງ …)"
+                className="w-full rounded-lg border border-brand-orange-300 px-3 py-2 text-xs outline-none focus:border-brand-orange-500"
+              />
+            )}
+
             {error && <p className="font-medium text-brand-orange-700">{error}</p>}
           </div>
         }
@@ -137,8 +153,12 @@ export function CompleteRepairButton({ code, initialNote = "" }: { code: string;
             data.set("pro_code", code);
             data.set("repair_note", note);
             data.set("photos", JSON.stringify(photos));
+            if (reason.trim()) data.set("on_behalf_reason", reason.trim());
             const result = await saveRepair({}, data);
-            if (result?.error) setError(result.error);
+            if (result?.error) {
+              setError(result.error);
+              if (result.error.includes("check-in")) setNeedReason(true);
+            }
           })
         }
       />

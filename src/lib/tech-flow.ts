@@ -135,7 +135,8 @@ export async function startCheckFlow(session: Session, code: string): Promise<Fl
       // PS ນອກສະຖານທີ່ສະເພາະຕອນໄປຮັບ (ຍັງບໍ່ pickup_at); ຮັບເຂົ້າສູນແລ້ວ = ຢູ່ສູນ ບໍ່ຕ້ອງ check-in.
       // IH = ນອກສະຖານທີ່ຕະຫຼອດ. (ຕົງກັບ REPAIR_ONSITE ໃນ lib/mobile-jobs)
       `select a.repair_confirm is not null as accepted,
-              (coalesce(a.service_type,'')='IH' or (coalesce(a.service_type,'')='PS' and a.pickup_at is null)) as onsite,
+              -- ນອກສະຖານທີ່ = IH ເທົ່ານັ້ນ (07-08-2026 — PS ໄປຮັບເຄື່ອງມາສ້ອມສູນ ບໍ່ຕ້ອງ check-in)
+              (coalesce(a.service_type,'')='IH') as onsite,
               exists (select 1 from ods_job_checkin c
                        where c.workflow='repair' and c.job_code=a.code and c.tech_code=$2) as checkedin
          from tb_product a where a.code=$1 and a.emp_code=$2`,
@@ -371,7 +372,12 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
      * "ລໍຖ້າສະເໜີລາຄາ" ທັນທີ ແລ້ວການອະນຸມັດກໍ່ບໍ່ມີຄວາມໝາຍ. ໃບຍັງເປັນ "ຮັບປະກັນ"
      * ຈົນກວ່າຈະອະນຸມັດ (actions/warranty.approveWarranty).
      */
-    if (input.warranty_void) {
+    /**
+     * ⚠️ **ໃບທີ່ໝົດປະກັນຢູ່ແລ້ວ ບໍ່ຕ້ອງຂໍ** (07-08-2026) — ຂໍປ່ຽນເປັນສິ່ງທີ່ມັນເປັນຢູ່ແລ້ວ
+     * = ຄິວລໍອະນຸມັດລ້າໆ. ຝັ່ງໜ້າຈໍເຊື່ອງຕົວເລືອກໃຫ້ແລ້ວ ແຕ່ດ່ານຕ້ອງຢູ່ server ນຳ
+     * (ຄຳສັ່ງຖືກຍິງໂດຍກົງໄດ້ ແລະ ແອັບຮຸ່ນເກົ່າຍັງສົ່ງມາ).
+     */
+    if (input.warranty_void && (current.rows[0]?.warrunty ?? "") !== "ໝົດຮັບປະກັນ") {
       await createWarrantyRequest(client, {
         code: input.code,
         from: current.rows[0]?.warrunty ?? "ຮັບປະກັນ",

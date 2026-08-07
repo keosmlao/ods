@@ -1558,6 +1558,13 @@ class Job {
   final bool hasCheckedIn;
   final bool hasCheckedOut;
   final bool canCheckIn;
+
+  /// ຕິດຕັ້ງ: ສະແກນ ISN/SN ຮອບ "ກຳລັງຕິດຕັ້ງ" ແລ້ວບໍ (ດ່ານກ່ອນກົດສຳເລັດ)
+  final bool scanDone;
+
+  /// ເລກທີ່ໃບງານລະບຸ — ໃຫ້ຊ່າງທຽບດ້ວຍຕາກ່ອນຍິງກ້ອງ
+  final String? expectSn;
+  final String? expectSnOut;
   final bool canCheckOut;
 
   /// ພິກັດສະຖານທີ່ (ຖ້າ CS ປັກໝຸດໄວ້) — ກົດນຳທາງໄດ້
@@ -1597,6 +1604,9 @@ class Job {
     required this.hasCheckedIn,
     required this.hasCheckedOut,
     required this.canCheckIn,
+    this.scanDone = false,
+    this.expectSn,
+    this.expectSnOut,
     required this.canCheckOut,
     this.lat,
     this.lng,
@@ -1632,6 +1642,9 @@ class Job {
     hasCheckedIn: json['has_checked_in'] as bool? ?? false,
     hasCheckedOut: json['has_checked_out'] as bool? ?? false,
     canCheckIn: json['can_check_in'] as bool? ?? false,
+    scanDone: json['scan_done'] as bool? ?? false,
+    expectSn: json['expect_sn'] as String?,
+    expectSnOut: json['expect_sn_out'] as String?,
     canCheckOut: json['can_check_out'] as bool? ?? false,
     lat: (json['lat'] as num?)?.toDouble(),
     lng: (json['lng'] as num?)?.toDouble(),
@@ -1846,13 +1859,7 @@ class Lookups {
   final List<Map<String, String>> warehouses;
   final List<Map<String, String>> shelves;
 
-  /// ລາຍຊື່ຊ່າງ — ໃຊ້ຢູ່ຟອມ "ສົ່ງມອບງານໃຫ້ຊ່າງຄົນໃໝ່" (ງານຕິດຕັ້ງຫຼາຍຮອບ)
-  final List<Map<String, String>> technicians;
-  Lookups({
-    required this.warehouses,
-    required this.shelves,
-    this.technicians = const [],
-  });
+  Lookups({required this.warehouses, required this.shelves});
 
   factory Lookups.fromJson(Map<String, dynamic> json) => Lookups(
     warehouses: (json['warehouses'] as List)
@@ -1869,14 +1876,6 @@ class Lookups {
             'code': row['code'] as String,
             'name': row['name'] as String,
             'wh_code': row['wh_code'] as String,
-          },
-        )
-        .toList(),
-    technicians: ((json['technicians'] as List?) ?? [])
-        .map(
-          (row) => {
-            'code': row['code'] as String,
-            'name': (row['name'] ?? row['code']) as String,
           },
         )
         .toList(),
@@ -2426,6 +2425,9 @@ class SpareWithdrawRound {
   /// ໃບຂໍຄືນຂອງຮອບນີ້ (ລວມທຸກໃບເບີກ) — ຫວ່າງ = ບໍ່ເຄີຍຂໍຄືນ
   final List<SpareReturnDoc> returns;
 
+  /// ໃບເບີກ**ລາຍໃບ** ຂອງຮອບນີ້ — 1 ຮອບຖືກເບີກຫຼາຍໃບໄດ້ (ຄົນລະສາງ/ຄົນລະເທື່ອ)
+  final List<SpareDispatchDoc> dispatches;
+
   const SpareWithdrawRound({
     required this.round,
     required this.docNo,
@@ -2438,6 +2440,7 @@ class SpareWithdrawRound {
     required this.onOrder,
     required this.arrived,
     this.returns = const [],
+    this.dispatches = const [],
   });
 
   /// ຂໍຄືນໄປແລ້ວບໍ — ຖ້າແລ້ວ **ບໍ່ໃຫ້ຂໍຄືນຊ້ຳ** (ກົດດຽວກັບເວັບ)
@@ -2445,6 +2448,10 @@ class SpareWithdrawRound {
 
   /// ຍັງລໍສາງຮັບຄືນຢູ່ຈັກໃບ
   int get returnsWaiting => returns.where((r) => r.waitingWarehouse).length;
+
+  /// ໃບເບີກທີ່ **ຍັງບໍ່ໄດ້ກົດຮັບ** — ຕ້ອງເປັນ 0 ຈຶ່ງໄປຂັ້ນຕໍ່ໄປໄດ້
+  List<SpareDispatchDoc> get waitingPickup =>
+      dispatches.where((d) => !d.received).toList();
 
   factory SpareWithdrawRound.fromJson(Map<String, dynamic> json) =>
       SpareWithdrawRound(
@@ -2463,7 +2470,40 @@ class SpareWithdrawRound {
             .expand((d) => ((d as Map)['returns'] as List?) ?? const [])
             .map((r) => SpareReturnDoc.fromJson(r as Map<String, dynamic>))
             .toList(),
+        dispatches: ((json['dispatches'] as List?) ?? const [])
+            .map((d) => SpareDispatchDoc.fromJson(d as Map<String, dynamic>))
+            .toList(),
       );
+}
+
+/// **ໃບເບີກ (SWC) 1 ໃບ** ຂອງຮອບ — ຊ່າງຕ້ອງ **ກົດຮັບທຸກໃບ** ຈຶ່ງໄປຂັ້ນຕໍ່ໄປໄດ້
+/// (ກົດເກນ 06-08-2026) ⇒ ແອັບຕ້ອງໂຊ້ວເປັນລາຍໃບ ພ້ອມປຸ່ມ "ຮັບ" ຂອງໃບນັ້ນ.
+class SpareDispatchDoc {
+  final String docNo;
+  final String? docDate;
+  final int lines;
+
+  /// ໃບຮັບ (PISP) ຂອງໃບນີ້ — ຫວ່າງ = ສາງເບີກແລ້ວ ແຕ່ຊ່າງຍັງບໍ່ໄດ້ກົດຮັບ
+  final String? pickNo;
+  final String? pickDate;
+
+  const SpareDispatchDoc({
+    required this.docNo,
+    required this.docDate,
+    required this.lines,
+    required this.pickNo,
+    required this.pickDate,
+  });
+
+  bool get received => pickNo != null && pickNo!.isNotEmpty;
+
+  factory SpareDispatchDoc.fromJson(Map<String, dynamic> json) => SpareDispatchDoc(
+    docNo: json['doc_no'] as String? ?? '',
+    docDate: json['doc_date'] as String?,
+    lines: ((json['items'] as List?) ?? const []).length,
+    pickNo: json['pick_no'] as String?,
+    pickDate: json['pick_date'] as String?,
+  );
 }
 
 /// **ໃບຂໍຄືນອາໄຫຼ່ (SRI)** ຂອງໃບເບີກ — ພ້ອມໃບຮັບຄືນຂອງສາງ (SRT).

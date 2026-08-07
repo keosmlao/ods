@@ -154,6 +154,8 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
   const [warByT, setWarByT] = useState("0");
   // ເຫດຜົນເກົ່າ (ຖ້າເຄີຍຕັດສິນວ່າໝົດປະກັນ) ຄ້າງໄວ້ໃຫ້ ບໍ່ໃຫ້ພິມຄືນໃໝ່ຕອນແກ້ໄຂຜົນກວດ
   const [reason, setReason] = useState(head.warranty_reason ?? "");
+  /** ໝົດປະກັນຢູ່ແລ້ວບໍ — ຄ່າຢູ່ DB ເປັນຄຳເວົ້າ ("ໝົດຮັບປະກັນ" / "ຮັບປະກັນ") */
+  const outOfWarranty = (head.warranty ?? "").trim() === "ໝົດຮັບປະກັນ";
   const [issue, setIssue] = useState("");
   const [searching, setSearching] = useState(false);
 
@@ -251,20 +253,36 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
               <input name="isue_bytech" required value={issue} onChange={(event) => setIssue(event.target.value)} className={inputClass} />
             </div>
 
-            <div>
-              <label className={labelClass}>
-                {t.warrantyConsideration} <span className="text-brand-orange-700">*</span>
-              </label>
-              <SelectField
-                name="war_by_t"
-                value={warByT}
-                onChange={(value) => setWarByT(value || "0")}
-                options={[
-                  { value: "0", label: t.warrantyNormal },
-                  { value: "1", label: t.warrantyRequestChange },
-                ]}
-              />
-            </div>
+            {/*
+              ── ໃບທີ່ **ໝົດປະກັນຢູ່ແລ້ວ** ບໍ່ຕ້ອງມີຕົວເລືອກນີ້ (07-08-2026 ຕາມຄຳສັ່ງ) ──
+              ຂໍປ່ຽນເປັນ "ໝົດຮັບປະກັນ" ທັງທີ່ມັນໝົດຢູ່ແລ້ວ = ຄຳຂໍທີ່ບໍ່ມີຄວາມໝາຍ
+              ແລະ ຍັງໄປສ້າງຄິວລໍອະນຸມັດໃຫ້ຜູ້ຈັດການລ້າໆ (lib/warranty-request).
+              ສົ່ງ war_by_t = 0 ໄປແທນ ⇒ server ບໍ່ສ້າງຄຳຂໍ.
+            */}
+            {outOfWarranty ? (
+              <div>
+                <label className={labelClass}>{t.warrantyConsideration}</label>
+                <p className="flex h-10 items-center rounded-lg bg-slate-100 px-3 text-xs font-medium text-slate-500">
+                  {t.warrantyAlreadyExpired}
+                </p>
+                <input type="hidden" name="war_by_t" value="0" />
+              </div>
+            ) : (
+              <div>
+                <label className={labelClass}>
+                  {t.warrantyConsideration} <span className="text-brand-orange-700">*</span>
+                </label>
+                <SelectField
+                  name="war_by_t"
+                  value={warByT}
+                  onChange={(value) => setWarByT(value || "0")}
+                  options={[
+                    { value: "0", label: t.warrantyNormal },
+                    { value: "1", label: t.warrantyRequestChange },
+                  ]}
+                />
+              </div>
+            )}
 
             {/* ເຫດຜົນ = ຫຼັກຖານຂອງການຕັດສິນປະກັນ → ບັງຄັບເມື່ອ "ຂໍປ່ຽນປະກັນ" (ບັງຄັບຢູ່ server ນຳ) */}
             <div>

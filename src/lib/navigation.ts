@@ -360,6 +360,8 @@ const REPORT: NavGroup = {
     { label: "ລາຍງານການສັ່ງຊື້", href: "/reports/purchase-requests" },
     { label: "ລາຍງານໃບສັ່ງຊື້", href: "/reports/purchase-orders" },
     { label: "ລາຍງານມອບໝາຍງານ", href: "/reports/job-dispatch" },
+    // ຫຼັກຖານວ່າຊ່າງໄປຮອດໜ້າງານຈິງ — ຮອບທີ່ຄ້າງເປີດ ແລະ ງານທີ່ຈົບໂດຍບໍ່ມີ check-in
+    { label: "ຮອບເຂົ້າໜ້າງານ (check-in/out)", href: "/reports/site-visits" },
     { label: "ລາຍຮັບຊ່າງ (ຄ່າຄອມ)", href: "/reports/technician-income", divider: true },
   ],
 };
