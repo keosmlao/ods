@@ -16,6 +16,8 @@ import { roleOf } from "@/lib/roles";
 import { takeQty } from "@/lib/spare-take";
 import { canViewAssignedJob } from "@/lib/scope";
 import { createWarrantyRequest } from "@/lib/warranty-request";
+import { ROLE_APPROVER } from "@/lib/chatter";
+import { pushToRoles } from "@/lib/push";
 import { STAGE_SQL } from "@/lib/stage";
 import { ERP, LINE_STATUS, RETURN_SHELF, RETURN_WH, TRANS } from "@/lib/stock-constants";
 import { installSpareOutstanding, TRANS_PICK } from "@/lib/install-spare-gate";
@@ -416,6 +418,18 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
     return { ok: false, error: "ບັນທຶກບໍ່ສຳເລັດ" };
   } finally {
     client.release();
+  }
+
+  /**
+   * ── ຂໍປ່ຽນປະກັນ ⇒ ເດັ້ງຂຶ້ນມືຖືຜູ້ອະນຸມັດ (Firebase · 07-08-2026) ──
+   * ວຽກຄາຢູ່ "ລໍຖ້າອະນຸມັດປ່ຽນປະກັນ" ຈົນກວ່າຈະມີຄົນຕັດສິນ ແລະ ລູກຄ້າລໍຢູ່ ⇒ ຢ່າໃຫ້
+   * ຮູ້ຕໍ່ເມື່ອເປີດແອັບເບິ່ງເອງ. ຍິງຫຼັງ commit ແລ້ວເທົ່ານັ້ນ (rollback = ບໍ່ມີຄຳຂໍຈິງ).
+   */
+  if (input.warranty_void) {
+    await pushToRoles(ROLE_APPROVER, "ຂໍອະນຸມັດປ່ຽນເປັນໝົດປະກັນ", `ວຽກ ${input.code} · ${reason}`, {
+      kind: "approval",
+      href: "/approvals/warranty",
+    });
   }
 
   // ກະຕ່າຫວ່າງ = ຮູ້ວ່າຕ້ອງໃຊ້ ແຕ່ຍັງບໍ່ໄດ້ລະບຸຕົວ — ຂຽນໃຫ້ຊັດ ຄົນອ່ານ log ຈຶ່ງຮູ້ວ່າຄ້າງຫຍັງ

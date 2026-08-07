@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { recipientsForRoles } from "@/lib/notify";
 import { SignJWT, importPKCS8 } from "jose";
 
 /**
@@ -80,6 +81,35 @@ export async function savePushToken(userCode: string, token: string, platform: s
 
 export async function removePushToken(token: string) {
   await query("delete from ods_push_token where token = $1", [token]);
+}
+
+/**
+ * **ສົ່ງແຈ້ງເຕືອນຫາກຸ່ມ role** (ຜູ້ອະນຸມັດ · ຜູ້ຈັດການ · ສາງ) — 07-08-2026.
+ *
+ * ── ເປັນຫຍັງຕ້ອງມີ ──
+ * `pushToUser` ຍິງໄດ້ເທື່ອລະຄົນ ⇒ ຄົນທີ່ຖືກມອບໝາຍງານ (ຊ່າງ) ໄດ້ຮັບ push ຢູ່ແລ້ວ
+ * ແຕ່ **ຜູ້ຈັດການ/ຜູ້ອະນຸມັດບໍ່ເຄີຍໄດ້ຮັບຈັກເທື່ອ** ⇒ ໃບສະເໜີລາຄາ ຫຼື ຄຳຂໍຍົກເລີກ
+ * ຄາຄິວໂດຍບໍ່ມີໃຜຮູ້ ຈົນກວ່າຈະເປີດແອັບເບິ່ງເອງ.
+ *
+ * ── ຍິງສະເພາະເລື່ອງທີ່ "ລໍການຕັດສິນ" ເທົ່ານັ້ນ ──
+ * ຄວາມເຄື່ອນໄຫວທົ່ວໄປມີ **154,689 ແຖວ/ມື້** (579 ເຫດການ × 258 ຄົນ) ⇒ ຍິງໝົດ
+ * ຄືການທຳລາຍປະໂຫຍດຂອງ push. ຈຸດທີ່ເອີ້ນ = ຈຸດທີ່ເອກະສານ**ເຂົ້າຄິວອະນຸມັດ**
+ * (ນັບຈິງ < 20 ຄັ້ງ/ມື້) — ຢ່າເອົາໄປໃສ່ logChange ທົ່ວໄປ.
+ */
+export async function pushToRoles(
+  roles: string[],
+  title: string,
+  body: string,
+  data?: Record<string, string>,
+): Promise<void> {
+  try {
+    if (!config()) return;
+    const users = await recipientsForRoles(roles);
+    // ຄົນດຽວອາດຢູ່ຫຼາຍ role ⇒ ຕັດຊ້ຳກ່ອນ ບໍ່ດັ່ງນັ້ນມືຖືສັ່ນສອງເທື່ອ
+    await Promise.all([...new Set(users)].map((user) => pushToUser(user, title, body, data)));
+  } catch (error) {
+    console.error("pushToRoles failed", error);
+  }
 }
 
 /**

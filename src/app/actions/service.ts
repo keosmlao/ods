@@ -1,7 +1,8 @@
 "use server";
 import { logChange } from "@/lib/chatter-log";
 import { claimMarkChange } from "@/lib/claim-shared";
-import { pushToUser } from "@/lib/push";
+import { ROLE_APPROVER } from "@/lib/chatter";
+import { pushToRoles, pushToUser } from "@/lib/push";
 import { db } from "@/lib/db";
 import { requirePermission, requireRole } from "@/lib/guard";
 import { APPROVER_SIDE, SERVICE_SIDE } from "@/lib/roles";
@@ -688,7 +689,12 @@ export async function requestCancel(code: string, remark: string): Promise<Servi
     [remark.trim(), session.username, code],
   );
   if (!updated.rowCount) return { error: "ບໍ່ພົບລາຍການ ຫຼືຖືກຍົກເລີກໄປແລ້ວ" };
-  await logChange("tb_product", code, `ຂໍຍົກເລີກໃບຮັບເຄື່ອງ: ${remark.trim()}`);
+  await logChange("tb_product", code, `ຂໍຍົກເລີກໃບຮັບເຄື່ອງ: ${remark.trim()}`, { roles: ROLE_APPROVER });
+  // ລໍການຕັດສິນຂອງຜູ້ຈັດການ ⇒ ເດັ້ງຂຶ້ນມືຖືເລີຍ (ເບິ່ງໝາຍເຫດຢູ່ lib/push.pushToRoles)
+  await pushToRoles(ROLE_APPROVER, "ຄຳຂໍຍົກເລີກໃບຮັບເຄື່ອງ", `${code} · ${remark.trim()}`, {
+    kind: "approval",
+    href: `/approvals/cancellations/${code}`,
+  });
   revalidatePath("/service/cancel");
   revalidatePath("/service");
   return {};

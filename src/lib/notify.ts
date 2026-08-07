@@ -65,7 +65,7 @@ const ERP_ROLE_SQL = `
         or lower(coalesce(e.nickname,'')) = any($2::text[])
         or lower(coalesce(e.fullname_lo,'')) = any($2::text[]) )`;
 
-async function recipientsForRoles(roles: string[]): Promise<string[]> {
+export async function recipientsForRoles(roles: string[]): Promise<string[]> {
   if (!roles.length) return [];
   const found = new Set<string>();
 

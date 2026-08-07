@@ -1,5 +1,6 @@
 "use server";
 import { logChange } from "@/lib/chatter-log";
+import { pushToRoles } from "@/lib/push";
 import type { Session } from "@/lib/auth";
 import { ROLE_APPROVER } from "@/lib/chatter";
 import { db, query } from "@/lib/db";
@@ -326,6 +327,17 @@ export async function saveQuote(_: QuoteState, formData: FormData): Promise<Quot
     `ສ້າງໃບສະເໜີລາຄາ ${docNo} · ${money(quoteTotal)} ບາດ${discount > 0 ? ` (ຫຼັງສ່ວນຫຼຸດ ${money(discount)} ບາດ)` : ""} — ລໍຖ້າອະນຸມັດ` +
       (supersedes ? ` · ອອກທັບໃບ ${supersedes} ທີ່ລູກຄ້າບໍ່ຕົກລົງ` : ""),
     { roles: ROLE_APPROVER },
+  );
+  /**
+   * ── ເດັ້ງຂຶ້ນມືຖືຜູ້ອະນຸມັດເລີຍ (Firebase · 07-08-2026) ──
+   * ກ່ອນນີ້ຜູ້ອະນຸມັດຮູ້ຕໍ່ເມື່ອເປີດແອັບເບິ່ງເອງ ⇒ ໃບຄາຄິວທັງທີ່ລູກຄ້າລໍຢູ່ໜ້າຮ້ານ.
+   * ຍິງສະເພາະຕອນໃບ**ເຂົ້າຄິວ** (ບໍ່ແມ່ນທຸກຄວາມເຄື່ອນໄຫວ) ⇒ ວັນລະບໍ່ຮອດ 20 ຄັ້ງ.
+   */
+  await pushToRoles(
+    ROLE_APPROVER,
+    "ໃບສະເໜີລາຄາລໍອະນຸມັດ",
+    `${docNo} · ${money(quoteTotal)} ບາດ · ວຽກ ${productCode}`,
+    { kind: "approval", href: `/approvals/quotations/${docNo}` },
   );
 
   revalidateAll();
