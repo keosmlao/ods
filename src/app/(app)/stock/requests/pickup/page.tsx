@@ -253,6 +253,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
               <table className="w-full min-w-[1200px] border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                    <th className="px-3 py-2.5 text-center font-semibold">ຈັດການ</th>
                     <th className="px-3 py-2.5 font-semibold">ເລກທີ / ເລກບິນ</th>
                     <th className="px-3 py-2.5 font-semibold">ຄ້າງມາ</th>
                     <th className="px-3 py-2.5 font-semibold">ລາຍການສ້ອມ</th>
@@ -260,7 +261,6 @@ export default async function SparePickupPage({ searchParams }: Props) {
                     <th className="px-3 py-2.5 font-semibold">ຍີ່ຫໍ້</th>
                     <th className="px-3 py-2.5 font-semibold">ຊ່າງ</th>
                     <th className="px-3 py-2.5 font-semibold">ເລກທີຂໍເບີກ</th>
-                    <th className="px-3 py-2.5 text-center font-semibold">ຈັດການ</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -270,6 +270,9 @@ export default async function SparePickupPage({ searchParams }: Props) {
                       if (index > 0) {
                         return (
                           <tr key={row.doc_no} className="border-t border-dashed border-brand-orange-300 bg-slate-50/60">
+                            <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                              <CancelRequestButton docNo={row.doc_no} productCode={row.code} variant="button" />
+                            </td>
                             <td colSpan={6} className="py-3 pl-10 text-xs text-slate-400">
                               ↳ ໃບຂໍເບີກ{" "}
                               <Link
@@ -288,16 +291,16 @@ export default async function SparePickupPage({ searchParams }: Props) {
                               </Link>
                               <span className="block text-[10px] text-slate-400">ຄ້າງ {row.lines} ລາຍການ</span>
                             </td>
-                            <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                              <CancelRequestButton docNo={row.doc_no} productCode={row.code} variant="button" />
-                            </td>
                           </tr>
                         );
                       }
                       return (
                       <tr key={row.doc_no} className="border-t-2 border-brand-orange-400 bg-brand-orange-100/30">
-                        <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
+                        <td className="relative whitespace-nowrap px-3 py-2.5 text-center">
                           <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                          <CancelRequestButton docNo={row.doc_no} productCode={row.code} variant="button" />
+                        </td>
+                        <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                           {row.code}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2.5">
@@ -317,9 +320,6 @@ export default async function SparePickupPage({ searchParams }: Props) {
                           </Link>
                           <span className="block text-[10px] text-slate-400">ຄ້າງ {row.lines} ລາຍການ</span>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                          <CancelRequestButton docNo={row.doc_no} productCode={row.code} variant="button" />
-                        </td>
                       </tr>
                       );
                     }),
@@ -336,6 +336,7 @@ export default async function SparePickupPage({ searchParams }: Props) {
           <table className="w-full min-w-[1150px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-2.5" />
                 {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
@@ -350,7 +351,6 @@ export default async function SparePickupPage({ searchParams }: Props) {
                 ))}
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colIssue}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 text-center font-semibold">{t.colSpare}</th>
-                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
@@ -360,15 +360,6 @@ export default async function SparePickupPage({ searchParams }: Props) {
                   if (index > 0) {
                     return (
                       <tr key={row.doc_no} className="border-t border-dashed border-slate-100 bg-slate-50/60">
-                        <td colSpan={8} className="py-2 pl-10 text-xs text-slate-400">
-                          ↳ ໃບເບີກ{" "}
-                          <span className="font-mono font-semibold text-slate-600">{row.doc_no}</span>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
-                            {row.lines}
-                          </span>
-                        </td>
                         <td className="whitespace-nowrap px-3 py-2.5 text-center">
                           <Link
                             href={`/stock/requests/pickup/${encodeURIComponent(row.doc_no)}`}
@@ -379,13 +370,32 @@ export default async function SparePickupPage({ searchParams }: Props) {
                             <LinkPending className="size-3" />
                           </Link>
                         </td>
+                        <td colSpan={8} className="py-2 pl-10 text-xs text-slate-400">
+                          ↳ ໃບເບີກ{" "}
+                          <span className="font-mono font-semibold text-slate-600">{row.doc_no}</span>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                            {row.lines}
+                          </span>
+                        </td>
                       </tr>
                     );
                   }
                   return (
                   <RowLink key={row.doc_no} href={`/service/${row.code}`} className="border-t-2 border-slate-200 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 text-center">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                      <Link
+                        href={`/stock/requests/pickup/${encodeURIComponent(row.doc_no)}`}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
+                      >
+                        <PackageCheck className="size-3.5" />
+                        {t.receiveSpare}
+                        <LinkPending className="size-3" />
+                      </Link>
+                    </td>
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       {row.doc_no}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">
@@ -415,16 +425,6 @@ export default async function SparePickupPage({ searchParams }: Props) {
                       <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
                         {row.lines}
                       </span>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                      <Link
-                        href={`/stock/requests/pickup/${encodeURIComponent(row.doc_no)}`}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
-                      >
-                        <PackageCheck className="size-3.5" />
-                        {t.receiveSpare}
-                        <LinkPending className="size-3" />
-                      </Link>
                     </td>
                   </RowLink>
                   );

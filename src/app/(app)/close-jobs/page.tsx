@@ -166,6 +166,7 @@ export default async function CloseJobsPage({ searchParams }: Props) {
           <table className="w-full min-w-[1000px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="whitespace-nowrap px-3 py-2.5 text-center font-semibold">{t.colAction}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colCode}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">
                   {tab === "repair" ? t.colReturnedAt : t.colFeedbackAt}
@@ -173,7 +174,6 @@ export default async function CloseJobsPage({ searchParams }: Props) {
                 <th className="px-3 py-2.5 font-semibold">{t.colProduct}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.colCustomer}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colTech}</th>
-                <th className="whitespace-nowrap px-3 py-2.5 text-center font-semibold">{t.colAction}</th>
               </tr>
             </thead>
             <tbody>
@@ -187,6 +187,12 @@ export default async function CloseJobsPage({ searchParams }: Props) {
                   }
                   className="border-b border-slate-100 hover:bg-slate-50"
                 >
+                  <td className="whitespace-nowrap px-3 py-2.5">
+                    <div className="flex items-center justify-center gap-2">
+                      <PrintLink tab={tab} code={row.code} label={t.print} />
+                      <CloseButton tab={tab} code={row.code} label={t.close} confirm={t.confirmClose} />
+                    </div>
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2.5 font-bold text-brand">{row.code}</td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">{row.done_at ?? "-"}</td>
                   <td className="max-w-72 px-3 py-2.5">
@@ -203,12 +209,6 @@ export default async function CloseJobsPage({ searchParams }: Props) {
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5">{row.tech || "-"}</td>
-                  <td className="whitespace-nowrap px-3 py-2.5">
-                    <div className="flex items-center justify-center gap-2">
-                      <PrintLink tab={tab} code={row.code} label={t.print} />
-                      <CloseButton tab={tab} code={row.code} label={t.close} confirm={t.confirmClose} />
-                    </div>
-                  </td>
                 </RowLink>
               ))}
               {rows.length === 0 && (

@@ -216,6 +216,7 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
           <table className="w-full min-w-[1100px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-2.5" />
                 {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
@@ -229,7 +230,6 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
                   />
                 ))}
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colStatus}</th>
-                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
@@ -238,40 +238,8 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
                 const tone = elapsedTone(doc.elapsed_seconds);
                 return (
                   <tr key={doc.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 text-center">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tab === "pending" ? tone.bar : ""}`} aria-hidden />
-                      {doc.doc_no}
-                      <span className="mt-0.5 block">
-                        <JobBadge jobType={doc.job_type} t={t} />
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5">
-                      <Elapsed
-                        seconds={doc.elapsed_seconds}
-                        className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${
-                          tab === "pending" ? tone.chip : "bg-slate-100 text-slate-500"
-                        }`}
-                      />
-                      <span className="mt-0.5 block text-[10px] text-slate-400">{doc.doc_date ?? "-"}</span>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5">
-                      {doc.doc_ref || "-"}
-                      <span className="mt-0.5 block text-[10px] text-slate-400">{doc.doc_ref_date ?? "-"}</span>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{doc.product_code || "-"}</td>
-                    <td className="max-w-72 truncate px-3 py-2.5" title={doc.remark ?? ""}>
-                      {doc.remark || "-"}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5">
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                          tab === "pending" ? "bg-brand-orange-100 text-brand-900" : "bg-brand-50 text-brand-800"
-                        }`}
-                      >
-                        {tab === "pending" ? t.statusReturnRequest : t.statusReceived}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-center">
                       {tab === "pending" ? (
                         <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
                           {/* ງານຕິດຕັ້ງໄປໜ້າຂອງມັນເອງ (ods: /show_return_inst ຂອງ tech_install.py) */}
@@ -304,6 +272,38 @@ export default async function ReceiveReturnsPage({ searchParams }: Props) {
                           <LinkPending className="size-3" />
                         </Link>
                       )}
+                    </td>
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
+                      {doc.doc_no}
+                      <span className="mt-0.5 block">
+                        <JobBadge jobType={doc.job_type} t={t} />
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2.5">
+                      <Elapsed
+                        seconds={doc.elapsed_seconds}
+                        className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${
+                          tab === "pending" ? tone.chip : "bg-slate-100 text-slate-500"
+                        }`}
+                      />
+                      <span className="mt-0.5 block text-[10px] text-slate-400">{doc.doc_date ?? "-"}</span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2.5">
+                      {doc.doc_ref || "-"}
+                      <span className="mt-0.5 block text-[10px] text-slate-400">{doc.doc_ref_date ?? "-"}</span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{doc.product_code || "-"}</td>
+                    <td className="max-w-72 truncate px-3 py-2.5" title={doc.remark ?? ""}>
+                      {doc.remark || "-"}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2.5">
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                          tab === "pending" ? "bg-brand-orange-100 text-brand-900" : "bg-brand-50 text-brand-800"
+                        }`}
+                      >
+                        {tab === "pending" ? t.statusReturnRequest : t.statusReceived}
+                      </span>
                     </td>
                   </tr>
                 );

@@ -49,6 +49,7 @@ export default async function QcChecklistPage() {
             <table className="w-full border-collapse text-xs" style={{ minWidth: 900 }}>
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                  <th className="px-3 py-2.5" />
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.workflow}</th>
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colCategory}</th>
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colItem}</th>
@@ -56,12 +57,14 @@ export default async function QcChecklistPage() {
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colPhoto}</th>
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colStatus}</th>
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colUsed}</th>
-                  <th className="px-3 py-2.5" />
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => (
                   <tr key={item.id} className={`border-b border-slate-100 ${item.is_active ? "hover:bg-slate-50" : "bg-slate-50 opacity-60"}`}>
+                    <td className="px-3 py-2.5">
+                      <ItemRowActions item={item} categories={options.categories} />
+                    </td>
                     <td className="px-3 py-2.5 text-center">{WORKFLOW_LABEL[item.workflow]}</td>
                     <td className="px-3 py-2.5 text-center text-slate-600">
                       {item.category_code ? (categoryName.get(item.category_code) ?? item.category_code) : t.allCategories}
@@ -81,9 +84,6 @@ export default async function QcChecklistPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-center text-slate-500">{item.used > 0 ? `${item.used} ${t.jobsUnit}` : "-"}</td>
-                    <td className="px-3 py-2.5">
-                      <ItemRowActions item={item} categories={options.categories} />
-                    </td>
                   </tr>
                 ))}
               </tbody>

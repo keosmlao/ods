@@ -263,24 +263,16 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
           <table className="w-full min-w-[760px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-2.5" />
                 <th className="px-3 py-2.5 font-semibold">{t.colJob}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.colProduct}</th>
                 <th className="px-3 py-2.5 text-right font-semibold">{t.colShortage}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.colChecked}</th>
-                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
               {directJobs.map((job) => (
                 <tr key={job.product_code} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="px-3 py-2.5 font-bold text-brand">
-                    <Link href={`/service/${job.product_code}`} className="hover:underline">
-                      {job.product_code}
-                    </Link>
-                  </td>
-                  <td className="max-w-96 truncate px-3 py-2.5" title={job.product ?? ""}>{job.product ?? "-"}</td>
-                  <td className="px-3 py-2.5 text-right font-bold tabular-nums text-brand-orange-700">{job.shortages}</td>
-                  <td className="whitespace-nowrap px-3 py-2.5">{job.checked_at ?? "-"}</td>
                   <td className="px-3 py-2.5 text-center">
                     <Link
                       href={`/purchase-requests/new/${encodeURIComponent(job.product_code)}/direct`}
@@ -291,6 +283,14 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
                       <LinkPending className="size-3" />
                     </Link>
                   </td>
+                  <td className="px-3 py-2.5 font-bold text-brand">
+                    <Link href={`/service/${job.product_code}`} className="hover:underline">
+                      {job.product_code}
+                    </Link>
+                  </td>
+                  <td className="max-w-96 truncate px-3 py-2.5" title={job.product ?? ""}>{job.product ?? "-"}</td>
+                  <td className="px-3 py-2.5 text-right font-bold tabular-nums text-brand-orange-700">{job.shortages}</td>
+                  <td className="whitespace-nowrap px-3 py-2.5">{job.checked_at ?? "-"}</td>
                 </tr>
               ))}
             </tbody>
@@ -317,18 +317,28 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
             <table className="w-full min-w-[760px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                  <th className="px-3 py-2.5" />
                   <th className="px-3 py-2.5 font-semibold">{t.colJob}</th>
                   <th className="px-3 py-2.5 font-semibold">{t.colProduct}</th>
                   <th className="px-3 py-2.5 font-semibold">{t.colTech}</th>
                   <th className="px-3 py-2.5 font-semibold">{t.colChecked}</th>
                   <th className="px-3 py-2.5 text-center font-semibold">{t.colSparePhoto}</th>
                   <th className="px-3 py-2.5 text-right font-semibold">{t.colWaiting}</th>
-                  <th className="px-3 py-2.5" />
                 </tr>
               </thead>
               <tbody>
                 {unspecifiedJobs.map((job) => (
                   <tr key={job.product_code} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="px-3 py-2.5 text-center">
+                      <Link
+                        href="/spare-parts/new"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        <PackageSearch className="size-3.5" />
+                        {t.requestSpareCode}
+                        <LinkPending className="size-3" />
+                      </Link>
+                    </td>
                     <td className="px-3 py-2.5 font-bold text-brand">
                       <Link href={`/service/${job.product_code}`} className="hover:underline">
                         {job.product_code}
@@ -353,16 +363,6 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
                     {/* ຄ້າງດົນ = ບັນຫາ ⇒ ເນັ້ນສີເມື່ອເກີນ 7 ມື້ ໃຫ້ຕາຈັບໄດ້ກ່ອນ */}
                     <td className={`px-3 py-2.5 text-right font-bold tabular-nums ${job.days_waiting > 7 ? "text-red-700" : "text-slate-600"}`}>
                       {job.days_waiting} {t.daysUnit}
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <Link
-                        href="/spare-parts/new"
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        <PackageSearch className="size-3.5" />
-                        {t.requestSpareCode}
-                        <LinkPending className="size-3" />
-                      </Link>
                     </td>
                   </tr>
                 ))}

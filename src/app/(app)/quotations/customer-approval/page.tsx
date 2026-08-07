@@ -240,6 +240,7 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
           <table className="w-full min-w-[1250px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-2.5" />
                 {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
@@ -255,7 +256,6 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">
                   {tab === "done" ? t.colAnswerReason : t.colTechInitialIssue}
                 </th>
-                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
@@ -265,8 +265,21 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
                 const discount = Number(row.total_discount);
                 return (
                   <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 text-center">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                      <div className="flex items-center justify-center gap-2">
+                        {tab === "done" && <UndoCustomerButton docNo={row.doc_no} variant="icon" />}
+                        <Link
+                          href={`/quotations/customer-approval/${encodeURIComponent(row.doc_no)}`}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
+                        >
+                          <FileCheck2 className="size-3.5" />
+                          {t.details}
+                          <LinkPending className="size-3" />
+                        </Link>
+                      </div>
+                    </td>
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       {row.doc_no}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.doc_date ?? "-"}</td>
@@ -333,19 +346,6 @@ export default async function CustomerApprovalPage({ searchParams }: Props) {
                       </td>
                     )}
 
-                    <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        {tab === "done" && <UndoCustomerButton docNo={row.doc_no} variant="icon" />}
-                        <Link
-                          href={`/quotations/customer-approval/${encodeURIComponent(row.doc_no)}`}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
-                        >
-                          <FileCheck2 className="size-3.5" />
-                          {t.details}
-                          <LinkPending className="size-3" />
-                        </Link>
-                      </div>
-                    </td>
                   </tr>
                 );
               })}

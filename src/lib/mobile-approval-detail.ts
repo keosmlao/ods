@@ -15,6 +15,11 @@ export type ApprovalLine = {
   unit: string | null;
   price: string | null;
   total: string | null;
+  /**
+   * ໃບຂໍຊື້ອາໄຫຼ່: ແຖວນີ້ຢູ່ໃນ**ໃບຂໍເບີກຂອງວຽກ**ບໍ (07-08-2026).
+   * false = ຊື້ຕົວທີ່ຊ່າງບໍ່ໄດ້ຂໍ ⇒ ຜູ້ອະນຸມັດຄວນເຫັນກ່ອນກົດ · null = ບໍ່ຮູ້ (ບໍ່ມີເລກ job).
+   */
+  requested?: boolean | null;
 };
 
 export type ApprovalDetail = {
@@ -63,18 +68,59 @@ export async function approvalDetail(kind: string, ref: string): Promise<Approva
       [ref, flag, ERP_PURCHASE.PR_REQUEST],
     )).rows[0];
     if (!head) return null;
-    const lines = (await queryOdg<ApprovalLine>(
-      `select item_name as "name", coalesce(qty,0)::text as qty, unit_code as unit,
+    /**
+     * ── ເລກ job ຂອງໃບຂໍຊື້ ──
+     * `doc_ref` ເປັນໄດ້ 2 ຢ່າງ: ລະຫັດວຽກໂດຍກົງ (ໃບທີ່ ODSS ອອກ) ຫຼື ເລກ RQ ເກົ່າ
+     * ⇒ ຖ້າເປັນ RQ ໄປເອົາ `product_code` ຈາກ RQ ຢູ່ ODS. ຫວ່າງ = ບໍ່ໄດ້ອ້າງອີງ.
+     */
+    const rawRef = (head.job_code ?? "").trim();
+    const job =
+      kind === "purchase-request"
+        ? /^([0-9]+|INST-.+)$/.test(rawRef)
+          ? rawRef
+          : rawRef.startsWith("RQ")
+            ? (
+                await query<{ product_code: string | null }>(
+                  "select product_code from ic_trans where doc_no=$1 and trans_flag=78 limit 1",
+                  [rawRef],
+                )
+              ).rows[0]?.product_code ?? null
+            : null
+        : rawRef || null;
+
+    /**
+     * ໝາຍແຕ່ລະແຖວວ່າ**ຊ່າງຂໍມາຈິງບໍ** — ທຽບກັບໃບຂໍເບີກ (SIO) ຂອງວຽກນັ້ນ.
+     * ບໍ່ມີເລກ job ⇒ ທຽບບໍ່ໄດ້ ⇒ ປະເປັນ null (ແອັບຂຶ້ນປ້າຍ "ບໍ່ໄດ້ອ້າງອີງເລກ job" ຢູ່ຫົວໃບ).
+     */
+    const requestedCodes =
+      kind === "purchase-request" && job
+        ? new Set(
+            (
+              await query<{ item_code: string }>(
+                `select distinct x.item_code from ic_trans_detail x
+                   join ic_trans h on h.doc_no = x.doc_no and h.trans_flag = 122
+                  where h.product_code = $1`,
+                [job],
+              )
+            ).rows.map((row) => row.item_code),
+          )
+        : null;
+
+    const lines = (await queryOdg<ApprovalLine & { item_code: string }>(
+      `select item_code, item_name as "name", coalesce(qty,0)::text as qty, unit_code as unit,
           coalesce(price,0)::text price, coalesce(sum_amount,0)::text total
         from ic_trans_detail where doc_no=$1 and trans_flag=$2 order by roworder`,
       [ref, flag],
-    )).rows;
+    )).rows.map(({ item_code, ...line }) => ({
+      ...line,
+      requested: requestedCodes ? requestedCodes.has(item_code) : null,
+    }));
     return {
-      kind, ref, product: head.job_code, brand: null, model: null, sn: null,
+      kind, ref, product: job ?? head.job_code, brand: null, model: null, sn: null,
       customer: null, tel: null, warranty: null, symptom: null, diagnosis: null,
       requestedBy: head.requested_by, requestedAt: head.requested_at,
       amount: head.amount, discount: null, amountKip: null, reason: null,
-      branch: head.branch, supplier: head.supplier, jobCode: head.job_code, remark: head.remark, lines,
+      branch: head.branch, supplier: head.supplier, jobCode: job, remark: head.remark, lines,
     };
   }
   if (kind === "quotation") {

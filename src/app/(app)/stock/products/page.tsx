@@ -228,6 +228,7 @@ export default async function StockProductsPage({ searchParams }: Props) {
           <table className="w-full min-w-[1100px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-2.5" />
                 {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
@@ -241,7 +242,6 @@ export default async function StockProductsPage({ searchParams }: Props) {
                   />
                 ))}
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colIssue}</th>
-                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
@@ -254,8 +254,22 @@ export default async function StockProductsPage({ searchParams }: Props) {
                     href={`/service/${product.code}`}
                     className={`border-b border-slate-100 ${selected ? "bg-brand-50" : "hover:bg-slate-50"}`}
                   >
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 text-center">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                      <Link
+                        href={rowHref(product.code)}
+                        scroll={false}
+                        className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold ${
+                          selected
+                            ? "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                            : "bg-brand-500 text-white hover:bg-brand-500"
+                        }`}
+                      >
+                        {selected ? t.close : t.detail}
+                        <LinkPending className="size-3" />
+                      </Link>
+                    </td>
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <Link href={`/service/${product.code}`} className="hover:underline">
                         {product.code}
                       </Link>
@@ -289,20 +303,6 @@ export default async function StockProductsPage({ searchParams }: Props) {
                     </td>
                     <td className="max-w-52 truncate px-3 py-2.5 font-semibold text-brand-orange-700" title={product.issue ?? ""}>
                       {product.issue || "-"}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                      <Link
-                        href={rowHref(product.code)}
-                        scroll={false}
-                        className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold ${
-                          selected
-                            ? "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
-                            : "bg-brand-500 text-white hover:bg-brand-500"
-                        }`}
-                      >
-                        {selected ? t.close : t.detail}
-                        <LinkPending className="size-3" />
-                      </Link>
                     </td>
                   </RowLink>
                 );

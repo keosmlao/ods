@@ -100,6 +100,7 @@ export default async function ApprovePurchasePage({ searchParams }: Props) {
           <table className="w-full min-w-[900px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-2.5" />
                 <th className="px-3 py-2.5 font-semibold">{t.colDocNo}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.colDate}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.colJob}</th>
@@ -107,12 +108,23 @@ export default async function ApprovePurchasePage({ searchParams }: Props) {
                 <th className="px-3 py-2.5 text-right font-semibold">{t.colItems}</th>
                 <th className="px-3 py-2.5 text-right font-semibold">{t.colTotal}</th>
                 {tab === "approved" && <th className="px-3 py-2.5 font-semibold">WPRA · PO</th>}
-                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="px-3 py-2.5 text-center">
+                    {tab === "waiting" && (
+                      <Link
+                        href={`/purchase-orders/${encodeURIComponent(row.doc_no)}`}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
+                      >
+                        ອະນຸມັດ
+                        <ArrowRight className="size-3.5" />
+                        <LinkPending className="size-3" />
+                      </Link>
+                    )}
+                  </td>
                   <td className="px-3 py-2.5 font-bold">
                     <Link href={`/purchase-orders/${encodeURIComponent(row.doc_no)}`} className="text-brand hover:underline">
                       {row.doc_no}
@@ -138,18 +150,6 @@ export default async function ApprovePurchasePage({ searchParams }: Props) {
                       {row.wpra} {row.po && `· ${row.po}`}
                     </td>
                   )}
-                  <td className="px-3 py-2.5 text-center">
-                    {tab === "waiting" && (
-                      <Link
-                        href={`/purchase-orders/${encodeURIComponent(row.doc_no)}`}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
-                      >
-                        ອະນຸມັດ
-                        <ArrowRight className="size-3.5" />
-                        <LinkPending className="size-3" />
-                      </Link>
-                    )}
-                  </td>
                 </tr>
               ))}
             </tbody>

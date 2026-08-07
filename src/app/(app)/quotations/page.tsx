@@ -375,6 +375,7 @@ export default async function QuotationsPage({ searchParams }: Props) {
           <table className="w-full min-w-[1200px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-2.5" />
                 {columns.map((column) => (
                   <SortHeader
                     key={column.key}
@@ -393,7 +394,6 @@ export default async function QuotationsPage({ searchParams }: Props) {
                 {tab === "waiting" && <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.pendingQuote}</th>}
                 {tab === "all" && <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.status}</th>}
                 {tab !== "all" && <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.image}</th>}
-                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
@@ -401,8 +401,22 @@ export default async function QuotationsPage({ searchParams }: Props) {
                 const tone = elapsedTone(row.elapsed_seconds);
                 return (
                   <RowLink key={row.code} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 text-center">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                      {row.quote_doc_no ? (
+                        <QuoteRowActions docNo={row.quote_doc_no} variant="rejected" />
+                      ) : (
+                        <Link
+                          href={`/quotations/new/${encodeURIComponent(row.code)}`}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
+                        >
+                          <FileCheck2 className="size-3.5" />
+                          {t.quote}
+                          <LinkPending className="size-3" />
+                        </Link>
+                      )}
+                    </td>
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <Link href={`/service/${row.code}`} className="hover:underline">
                         {row.code}
                       </Link>
@@ -457,20 +471,6 @@ export default async function QuotationsPage({ searchParams }: Props) {
                     <td className="px-3 py-2.5 text-center">
                       <Thumb url={row.product_url} />
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                      {row.quote_doc_no ? (
-                        <QuoteRowActions docNo={row.quote_doc_no} variant="rejected" />
-                      ) : (
-                        <Link
-                          href={`/quotations/new/${encodeURIComponent(row.code)}`}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
-                        >
-                          <FileCheck2 className="size-3.5" />
-                          {t.quote}
-                          <LinkPending className="size-3" />
-                        </Link>
-                      )}
-                    </td>
                   </RowLink>
                 );
               })}
@@ -480,8 +480,21 @@ export default async function QuotationsPage({ searchParams }: Props) {
                 const inWarranty = row.warranty === "ຮັບປະກັນ";
                 return (
                   <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
+                    <td className="relative whitespace-nowrap px-3 py-2.5">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                      <div className="flex items-center justify-center gap-3">
+                        {tab === "progress" && <QuoteRowActions docNo={row.doc_no} />}
+                        <Link
+                          href={`/quotations/${encodeURIComponent(row.doc_no)}/print`}
+                          target="_blank"
+                          title={t.printQuote}
+                          className="inline-block text-[#f6921e] hover:opacity-70"
+                        >
+                          <Printer className="size-4" />
+                        </Link>
+                      </div>
+                    </td>
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       {row.doc_no}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.doc_date ?? "-"}</td>
@@ -548,19 +561,6 @@ export default async function QuotationsPage({ searchParams }: Props) {
                       </td>
                     )}
 
-                    <td className="whitespace-nowrap px-3 py-2.5">
-                      <div className="flex items-center justify-center gap-3">
-                        {tab === "progress" && <QuoteRowActions docNo={row.doc_no} />}
-                        <Link
-                          href={`/quotations/${encodeURIComponent(row.doc_no)}/print`}
-                          target="_blank"
-                          title={t.printQuote}
-                          className="inline-block text-[#f6921e] hover:opacity-70"
-                        >
-                          <Printer className="size-4" />
-                        </Link>
-                      </div>
-                    </td>
                   </tr>
                 );
               })}

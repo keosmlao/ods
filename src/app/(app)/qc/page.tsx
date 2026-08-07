@@ -90,13 +90,13 @@ function QcQueueCard({
         <table className="w-full min-w-[900px] border-collapse text-xs">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+              <th className="px-3 py-2.5" />
               <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colCode}</th>
               <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.customer}</th>
               <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.item}</th>
               <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.technician}</th>
               <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.finishedAt}</th>
               <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.pending}</th>
-              <th className="px-3 py-2.5" />
             </tr>
           </thead>
           <tbody>
@@ -104,20 +104,6 @@ function QcQueueCard({
               const mine = !!row.worker && row.worker === me;
               return (
                 <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="px-3 py-2.5 text-center font-semibold text-slate-700">{row.code}</td>
-                  <td className="px-3 py-2.5">{row.customer ?? "-"}</td>
-                  <td className="px-3 py-2.5">
-                    {row.item ?? "-"}
-                    {row.detail?.trim() && <span className="block text-xs text-slate-400">{row.detail}</span>}
-                  </td>
-                  <td className="px-3 py-2.5 text-center">{row.worker ?? "-"}</td>
-                  <td className="px-3 py-2.5 text-center whitespace-nowrap">{row.finished_at ?? "-"}</td>
-                  <td className="px-3 py-2.5 text-center">
-                    <Elapsed
-                      seconds={row.elapsed_seconds}
-                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${elapsedTone(row.elapsed_seconds).chip}`}
-                    />
-                  </td>
                   <td className="px-3 py-2.5 text-center">
                     {mine ? (
                       // ຄົນເຮັດກວດຂອງຕົນເອງບໍ່ໄດ້ — ບອກເຫດຜົນໄວ້ບ່ອນນີ້ ບໍ່ໃຫ້ກົດແລ້ວຄ່ອຍຖືກປະຕິເສດ
@@ -132,6 +118,20 @@ function QcQueueCard({
                         {row.checked > 0 ? t.continueCheck : t.check}
                       </Link>
                     )}
+                  </td>
+                  <td className="px-3 py-2.5 text-center font-semibold text-slate-700">{row.code}</td>
+                  <td className="px-3 py-2.5">{row.customer ?? "-"}</td>
+                  <td className="px-3 py-2.5">
+                    {row.item ?? "-"}
+                    {row.detail?.trim() && <span className="block text-xs text-slate-400">{row.detail}</span>}
+                  </td>
+                  <td className="px-3 py-2.5 text-center">{row.worker ?? "-"}</td>
+                  <td className="px-3 py-2.5 text-center whitespace-nowrap">{row.finished_at ?? "-"}</td>
+                  <td className="px-3 py-2.5 text-center">
+                    <Elapsed
+                      seconds={row.elapsed_seconds}
+                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${elapsedTone(row.elapsed_seconds).chip}`}
+                    />
                   </td>
                 </tr>
               );

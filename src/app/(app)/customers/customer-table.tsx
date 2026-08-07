@@ -106,6 +106,7 @@ export function CustomerTable({
           <table className="w-full min-w-[900px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-2.5" />
                 <th className="w-10 px-3 py-2.5 font-semibold">#</th>
                 {columns(t).map((column) => (
                   <SortHeader
@@ -123,12 +124,28 @@ export function CustomerTable({
                 {/* ປະເພດລູກຄ້າ — ລະບຸໄດ້ຈາກແຖວເລີຍ (ລາຍງານ /reports/service-by-kind ໃຊ້ຄ່ານີ້) */}
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.kind}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.receipt}</th>
-                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
               {rows.map((row, index) => (
                 <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="whitespace-nowrap px-3 py-2.5">
+                    <div className="flex items-center gap-3">
+                      <Link
+                        href={`/customers/${encodeURIComponent(row.code)}/edit`}
+                        title={t.edit}
+                        className="text-[#f6921e] transition hover:opacity-70"
+                      >
+                        <Pencil className="size-4" />
+                      </Link>
+                      <DeleteButton
+                        id={row.code}
+                        action={deleteCustomer}
+                        onResult={setAlert}
+                        confirmText={t.deleteConfirm}
+                      />
+                    </div>
+                  </td>
                   <td className="px-3 py-2.5 text-slate-400">{(page - 1) * pageSize + index + 1}</td>
                   <td className="whitespace-nowrap px-3 py-2.5 font-bold text-brand">{row.code}</td>
                   <td className="max-w-64 px-3 py-2.5">
@@ -166,23 +183,6 @@ export function CustomerTable({
                     ) : (
                       <span className="text-[10px] text-slate-400">-</span>
                     )}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2.5">
-                    <div className="flex items-center gap-3">
-                      <Link
-                        href={`/customers/${encodeURIComponent(row.code)}/edit`}
-                        title={t.edit}
-                        className="text-[#f6921e] transition hover:opacity-70"
-                      >
-                        <Pencil className="size-4" />
-                      </Link>
-                      <DeleteButton
-                        id={row.code}
-                        action={deleteCustomer}
-                        onResult={setAlert}
-                        confirmText={t.deleteConfirm}
-                      />
-                    </div>
                   </td>
                 </tr>
               ))}

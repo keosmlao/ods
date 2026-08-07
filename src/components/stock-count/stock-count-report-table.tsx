@@ -240,6 +240,7 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
           <table className="w-full min-w-[1330px] border-collapse text-[11px] leading-tight">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
+                <th className="px-2 py-1.5 font-semibold">{t.colActions}</th>
                 <th className="px-2 py-1.5 font-semibold">{t.colCountState}</th>
                 <th className="px-2 py-1.5 font-semibold">{t.colJob}</th>
                 <th className="px-2 py-1.5 font-semibold">{t.colProduct}</th>
@@ -252,7 +253,6 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                 <th className="px-2 py-1.5 font-semibold">ໄລຍະແຕ່ເປີດ</th>
                 <th className="px-2 py-1.5 font-semibold">ໄລຍະສະຖານະ</th>
                 <th className="px-2 py-1.5 font-semibold">{t.colCountedAtBy}</th>
-                <th className="px-2 py-1.5 font-semibold">{t.colActions}</th>
               </tr>
             </thead>
             <tbody>
@@ -263,63 +263,6 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                     key={row.code}
                     className={`border-b border-slate-100 ${state === "uncounted" ? "bg-brand-orange-50/40" : state === "missing" ? "bg-brand-orange-100/50" : ""}`}
                   >
-                    <td className="whitespace-nowrap px-2 py-1">
-                      {state === "counted" ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-800">
-                          <Check className="size-3" /> {t.stateCounted}
-                        </span>
-                      ) : state === "missing" ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-brand-orange-300 px-1.5 py-0.5 text-[10px] font-semibold text-brand-900">
-                          <PackageX className="size-3" /> {t.stateMissing}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded bg-brand-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-orange-700">
-                          <Clock className="size-3" /> {t.stateNotCounted}
-                        </span>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-1 font-bold text-brand">{row.code}</td>
-                    <td className="max-w-72 px-2 py-1">
-                      <span className="block truncate font-medium text-slate-800" title={row.product ?? ""}>{row.product || "-"}</span>
-                      <span className="block truncate text-[10px] text-slate-400">{row.sn || "-"}</span>
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-1">{row.brand || "-"}</td>
-                    <td className="max-w-48 truncate px-2 py-1" title={row.customer ?? ""}>{row.customer || "-"}</td>
-                    <td className="max-w-56 truncate px-2 py-1 text-slate-600" title={row.issue ?? ""}>{row.issue || "-"}</td>
-                    <td className="whitespace-nowrap px-2 py-1">
-                      {row.service_type ? <b className="text-brand-600">{row.service_type}</b> : <span className="text-slate-300">-</span>}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-1">
-                      <span className="inline-flex items-center gap-1">
-                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">{row.stage_label}</span>
-                        {row.counted && row.counted_stage_label && row.counted_stage_label !== row.stage_label && (
-                          <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[9px] font-semibold text-brand-800" title={t.countedStageTooltip}>{row.counted_stage_label}</span>
-                        )}
-                        {row.returned && (
-                          <span className="inline-flex items-center gap-0.5 rounded bg-brand-orange-100 px-1 py-0.5 text-[9px] font-semibold text-brand-900" title={t.returnedTooltip}>
-                            <TriangleAlert className="size-2.5" /> {t.returnedBadge}
-                          </span>
-                        )}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-1 text-slate-500">{row.registered || "-"}</td>
-                    <td className="whitespace-nowrap px-2 py-1">
-                      <Elapsed seconds={row.elapsed_seconds} className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${elapsedTone(row.elapsed_seconds).chip}`} />
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-1">
-                      <Elapsed seconds={row.stage_elapsed_seconds} className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${elapsedTone(row.stage_elapsed_seconds).chip}`} />
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-1 text-slate-600">
-                      {state === "uncounted" ? (
-                        <span className="text-slate-300">-</span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1">
-                          <Check className="size-3 text-brand-800" />
-                          {row.counted_at || "-"}
-                          {row.counted_by && <span className="text-slate-400">· {row.counted_by}</span>}
-                        </span>
-                      )}
-                    </td>
                     <td className="whitespace-nowrap px-2 py-1">
                       <div className="flex items-center gap-1.5">
                         <button
@@ -411,6 +354,63 @@ export function StockCountReportTable({ rows, t, initialTab = "uncounted" }: { r
                           {t.printSticker}
                         </a>
                       </div>
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-1">
+                      {state === "counted" ? (
+                        <span className="inline-flex items-center gap-1 rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-800">
+                          <Check className="size-3" /> {t.stateCounted}
+                        </span>
+                      ) : state === "missing" ? (
+                        <span className="inline-flex items-center gap-1 rounded bg-brand-orange-300 px-1.5 py-0.5 text-[10px] font-semibold text-brand-900">
+                          <PackageX className="size-3" /> {t.stateMissing}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded bg-brand-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-orange-700">
+                          <Clock className="size-3" /> {t.stateNotCounted}
+                        </span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-1 font-bold text-brand">{row.code}</td>
+                    <td className="max-w-72 px-2 py-1">
+                      <span className="block truncate font-medium text-slate-800" title={row.product ?? ""}>{row.product || "-"}</span>
+                      <span className="block truncate text-[10px] text-slate-400">{row.sn || "-"}</span>
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-1">{row.brand || "-"}</td>
+                    <td className="max-w-48 truncate px-2 py-1" title={row.customer ?? ""}>{row.customer || "-"}</td>
+                    <td className="max-w-56 truncate px-2 py-1 text-slate-600" title={row.issue ?? ""}>{row.issue || "-"}</td>
+                    <td className="whitespace-nowrap px-2 py-1">
+                      {row.service_type ? <b className="text-brand-600">{row.service_type}</b> : <span className="text-slate-300">-</span>}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-1">
+                      <span className="inline-flex items-center gap-1">
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">{row.stage_label}</span>
+                        {row.counted && row.counted_stage_label && row.counted_stage_label !== row.stage_label && (
+                          <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[9px] font-semibold text-brand-800" title={t.countedStageTooltip}>{row.counted_stage_label}</span>
+                        )}
+                        {row.returned && (
+                          <span className="inline-flex items-center gap-0.5 rounded bg-brand-orange-100 px-1 py-0.5 text-[9px] font-semibold text-brand-900" title={t.returnedTooltip}>
+                            <TriangleAlert className="size-2.5" /> {t.returnedBadge}
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-1 text-slate-500">{row.registered || "-"}</td>
+                    <td className="whitespace-nowrap px-2 py-1">
+                      <Elapsed seconds={row.elapsed_seconds} className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${elapsedTone(row.elapsed_seconds).chip}`} />
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-1">
+                      <Elapsed seconds={row.stage_elapsed_seconds} className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${elapsedTone(row.stage_elapsed_seconds).chip}`} />
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-1 text-slate-600">
+                      {state === "uncounted" ? (
+                        <span className="text-slate-300">-</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1">
+                          <Check className="size-3 text-brand-800" />
+                          {row.counted_at || "-"}
+                          {row.counted_by && <span className="text-slate-400">· {row.counted_by}</span>}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );

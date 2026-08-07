@@ -93,6 +93,7 @@ export default async function ServiceRatesPage() {
             <table className="w-full border-collapse text-xs" style={{ minWidth: 900 }}>
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                  <th className="px-3 py-2.5" />
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colWorkflow}</th>
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colLabel}</th>
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colServiceType}</th>
@@ -100,12 +101,14 @@ export default async function ServiceRatesPage() {
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colDesign}</th>
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colSize}</th>
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colAmount}</th>
-                  <th className="px-3 py-2.5" />
                 </tr>
               </thead>
               <tbody>
                 {rows.map((rate) => (
                   <tr key={rate.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="px-3 py-2.5 text-center">
+                      <DeactivateRateButton id={rate.id} label={rate.label} />
+                    </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-xs">
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
@@ -125,9 +128,6 @@ export default async function ServiceRatesPage() {
                     <td className="px-3 py-2.5 text-xs text-slate-500">{rate.size_name ?? t.all}</td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-xs font-bold text-slate-900">
                       {Number(rate.amount_thb).toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <DeactivateRateButton id={rate.id} label={rate.label} />
                     </td>
                   </tr>
                 ))}

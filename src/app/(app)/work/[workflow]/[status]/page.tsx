@@ -1005,13 +1005,13 @@ export default async function StatusPage({ params, searchParams }: Props) {
             <table className="w-full min-w-[1050px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-brand-100 bg-brand-50/50 text-left text-slate-600">
+                  <th className="px-4 py-2.5 text-center font-semibold">ຈັດການ</th>
                   <th className="px-4 py-2.5 font-semibold">ເລກວຽກ</th>
                   <th className="px-4 py-2.5 font-semibold">ສິນຄ້າ / ລູກຄ້າ</th>
                   <th className="px-4 py-2.5 font-semibold">ໃບຮັບເຂົ້າ ERP</th>
                   <th className="px-4 py-2.5 font-semibold">ວັນຮັບເຂົ້າ</th>
                   <th className="px-4 py-2.5 text-center font-semibold">ຄ້າງຫຼັງຂອງມາ</th>
                   <th className="px-4 py-2.5 font-semibold">ຄວາມຄືບໜ້າ ERP</th>
-                  <th className="px-4 py-2.5 text-center font-semibold">ຈັດການ</th>
                 </tr>
               </thead>
               <tbody>
@@ -1019,6 +1019,14 @@ export default async function StatusPage({ params, searchParams }: Props) {
                   const track = tracking.get(row.code)!;
                   return (
                     <tr key={`ready-${row.code}`} className="border-b border-brand-100 hover:bg-brand-50/40">
+                      <td className="px-4 py-3 text-center">
+                        <Link
+                          href={`/purchase-requests?q=${encodeURIComponent(row.code)}`}
+                          className="inline-flex h-8 items-center rounded-lg bg-brand-700 px-3 font-bold text-white hover:bg-brand-800"
+                        >
+                          ດຳເນີນງານຕໍ່
+                        </Link>
+                      </td>
                       <td className="px-4 py-3">
                         <Link href={detailHref(row.code)} className="font-bold text-brand-700 hover:underline">
                           {row.code}
@@ -1036,14 +1044,6 @@ export default async function StatusPage({ params, searchParams }: Props) {
                         </span>
                       </td>
                       <td className="min-w-80 px-4 py-3"><PurchaseState track={track} compact /></td>
-                      <td className="px-4 py-3 text-center">
-                        <Link
-                          href={`/purchase-requests?q=${encodeURIComponent(row.code)}`}
-                          className="inline-flex h-8 items-center rounded-lg bg-brand-700 px-3 font-bold text-white hover:bg-brand-800"
-                        >
-                          ດຳເນີນງານຕໍ່
-                        </Link>
-                      </td>
                     </tr>
                   );
                 })}
@@ -1059,6 +1059,12 @@ export default async function StatusPage({ params, searchParams }: Props) {
           <table className={`w-full border-collapse text-xs ${hasAction ? "min-w-[1400px]" : "min-w-[1250px]"}`}>
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                {/*
+                  ── "ຈັດການ" ຢູ່**ຖັນທຳອິດ** (07-08-2026 ຕາມຄຳສັ່ງ) ──
+                  ຕາຕະລາງນີ້ກວ້າງ 1400px ⇒ ປຸ່ມທີ່ຢູ່ຖັນສຸດທ້າຍຕ້ອງເລື່ອນຈໍໄປຂວາຈຶ່ງເຫັນ.
+                  ຄົນເຮັດວຽກເປີດໜ້ານີ້ເພື່ອ **ກົດ** ບໍ່ແມ່ນເພື່ອອ່ານ ⇒ ປຸ່ມຢູ່ບ່ອນທຳອິດທີ່ຕາເຫັນ.
+                */}
+                {hasAction && <th className="whitespace-nowrap px-3 py-2.5 text-center font-semibold">{t.manage}</th>}
                 {columns.map((col) => (
                   <SortHeader
                     key={col.key}
@@ -1087,7 +1093,6 @@ export default async function StatusPage({ params, searchParams }: Props) {
                 ) : (
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.saleBill}</th>
                 )}
-                {hasAction && <th className="whitespace-nowrap px-3 py-2.5 text-center font-semibold">{t.manage}</th>}
               </tr>
             </thead>
             <tbody>
@@ -1114,8 +1119,17 @@ export default async function StatusPage({ params, searchParams }: Props) {
                 return (
                   <Fragment key={row.code}>
                   <tr className="cursor-default border-b border-slate-100 hover:bg-slate-50">
+                    {/* ປຸ່ມມາກ່ອນ — ແຖບສີ SLA ຍ້າຍມານຳ ເພື່ອໃຫ້ຍັງຕິດຂອບຊ້າຍຂອງແຖວ */}
+                    {hasAction && (
+                      <td className="relative whitespace-nowrap px-3 py-2.5 text-center">
+                        <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                        {/* ປຸ່ມທັງໝົດເປັນ icon ຂະໜາດດຽວກັນ ຮຽງແຖວດຽວ — ຂໍ້ຄວາມເຕັມເຮັດໃຫ້
+                            ແຖວສູງເປັນສອງເທົ່າ ແລະ ຕາຕະລາງອ່ານບໍ່ອອກ (ຄວາມໝາຍຢູ່ tooltip) */}
+                        <span className="inline-flex items-center justify-center gap-1">{rowActions(row)}</span>
+                      </td>
+                    )}
                     <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
-                      <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                      {!hasAction && <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />}
                       <span>{row.code}</span>
                       <Link
                         href={detailHref(row.code)}
@@ -1314,13 +1328,6 @@ export default async function StatusPage({ params, searchParams }: Props) {
                             </span>
                           )}
                         </td>
-                        {hasAction && (
-                          <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                            {/* ປຸ່ມທັງໝົດເປັນ icon ຂະໜາດດຽວກັນ ຮຽງແຖວດຽວ — ຂໍ້ຄວາມເຕັມເຮັດໃຫ້
-                                ແຖວສູງເປັນສອງເທົ່າ ແລະ ຕາຕະລາງອ່ານບໍ່ອອກ (ຄວາມໝາຍຢູ່ tooltip) */}
-                            <span className="inline-flex items-center justify-center gap-1">{rowActions(row)}</span>
-                          </td>
-                        )}
                       </>
                     ) : (
                       <td className="max-w-40 truncate px-3 py-2.5 text-slate-600" title={row.sale_bill ?? ""}>

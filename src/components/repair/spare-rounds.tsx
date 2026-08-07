@@ -400,16 +400,27 @@ function RoundTree({
             <table className="w-full border-collapse text-[11px]">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-slate-400">
+                  {url.returnJobType && <th className="px-2.5 py-1" />}
                   <th className="px-2.5 py-1 font-medium">{t.colDispatch}</th>
                   <th className="px-2.5 py-1 font-medium">{t.colDate}</th>
                   <th className="px-2.5 py-1 font-medium">{t.colBy}</th>
                   <th className="px-2.5 py-1 font-medium">{t.colItems}</th>
-                  {url.returnJobType && <th className="px-2.5 py-1" />}
                 </tr>
               </thead>
               <tbody>
                 {withdrawal.dispatches.map((dispatch) => (
                   <tr key={dispatch.doc_no} className="border-b border-slate-50 last:border-b-0 align-top">
+                    {url.returnJobType && (
+                      <td className="whitespace-nowrap px-2.5 py-1.5 text-right">
+                        {dispatch.items.length > 0 && dispatch.returns.length === 0 && (
+                          <ReturnRequestButton
+                            docNo={dispatch.doc_no}
+                            jobType={url.returnJobType}
+                            size="sm"
+                          />
+                        )}
+                      </td>
+                    )}
                     <td className="whitespace-nowrap px-2.5 py-1.5 font-mono font-bold text-brand-800">
                       {dispatch.doc_no}
                     </td>
@@ -434,17 +445,6 @@ function RoundTree({
                       <ReturnLines returns={dispatch.returns} t={t} />
                     </td>
                     {/* ຂໍຄືນ **ສະເພາະໃບນີ້** — ໃບຫວ່າງ ຫຼື ຂໍຄືນໄປແລ້ວ ບໍ່ໂຊ້ວປຸ່ມ */}
-                    {url.returnJobType && (
-                      <td className="whitespace-nowrap px-2.5 py-1.5 text-right">
-                        {dispatch.items.length > 0 && dispatch.returns.length === 0 && (
-                          <ReturnRequestButton
-                            docNo={dispatch.doc_no}
-                            jobType={url.returnJobType}
-                            size="sm"
-                          />
-                        )}
-                      </td>
-                    )}
                   </tr>
                 ))}
               </tbody>

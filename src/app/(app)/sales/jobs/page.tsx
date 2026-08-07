@@ -124,6 +124,7 @@ export default async function SalesJobsPage({ searchParams }: Props) {
           <table className="w-full min-w-[900px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-2.5" />
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colCode}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colCustomer}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colTel}</th>
@@ -131,12 +132,19 @@ export default async function SalesJobsPage({ searchParams }: Props) {
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colArea}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colReceivedAt}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colStatus}</th>
-                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
               {list.rows.map((row) => (
                 <RowLink key={row.code} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                    <Link
+                      href={`/service/${row.code}`}
+                      className="inline-flex h-8 items-center rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
+                    >
+                      {t.view}
+                    </Link>
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                     <Link href={`/service/${row.code}`} className="hover:underline">
                       {row.code}
@@ -155,14 +163,6 @@ export default async function SalesJobsPage({ searchParams }: Props) {
                   <td className="whitespace-nowrap px-3 py-2.5">{row.opened || "-"}</td>
                   <td className="whitespace-nowrap px-3 py-2.5">
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">{row.stage_label}</span>
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2.5 text-right">
-                    <Link
-                      href={`/service/${row.code}`}
-                      className="inline-flex h-8 items-center rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
-                    >
-                      {t.view}
-                    </Link>
                   </td>
                 </RowLink>
               ))}

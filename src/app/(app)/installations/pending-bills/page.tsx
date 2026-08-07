@@ -79,13 +79,13 @@ export default async function PendingBillsPage({ searchParams }: Props) {
           <table className="w-full border-collapse text-xs" style={{ minWidth: 1150 }}>
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-2.5" />
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colWaited}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colDocNo}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colItems}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colCustomer}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colDelivery}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colPaidInstall}</th>
-                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
@@ -93,6 +93,19 @@ export default async function PendingBillsPage({ searchParams }: Props) {
             const overdue = bill.days >= LATE;
             return (
               <tr key={bill.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
+                <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                  <span className="inline-flex items-center gap-2">
+                    <BillDismissButton docNo={bill.doc_no} />
+                    <LinkButton
+                      href={`/installations/new?bill=${encodeURIComponent(bill.doc_no)}`}
+                      tone="success"
+                      className="h-9 text-xs"
+                    >
+                      <FilePlus2 className="size-3.5" />
+                      {t.openJob}
+                    </LinkButton>
+                  </span>
+                </td>
                 {/* ① ຄ້າງດົນປານໃດ — ຄ່າທີ່ຈັດລຳດັບຄວາມສຳຄັນ */}
                 <td className="whitespace-nowrap px-3 py-2.5 text-center">
                   <span
@@ -197,19 +210,6 @@ export default async function PendingBillsPage({ searchParams }: Props) {
                 </td>
 
                 {/* ③ ລົງມື — ເປີດໃບງານ ຫຼື ໝາຍວ່າຄົບແລ້ວ (ບາງບິນບໍ່ຕ້ອງມີໃບງານແທ້ໆ) */}
-                <td className="whitespace-nowrap px-3 py-2.5 text-right">
-                  <span className="inline-flex items-center gap-2">
-                    <BillDismissButton docNo={bill.doc_no} />
-                    <LinkButton
-                      href={`/installations/new?bill=${encodeURIComponent(bill.doc_no)}`}
-                      tone="success"
-                      className="h-9 text-xs"
-                    >
-                      <FilePlus2 className="size-3.5" />
-                      {t.openJob}
-                    </LinkButton>
-                  </span>
-                </td>
               </tr>
             );
           })}

@@ -172,6 +172,7 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
           <table className="w-full min-w-[1100px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-2.5" />
                 {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
@@ -186,7 +187,6 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
                 ))}
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colToRecover}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colReturnedToCustomer}</th>
-                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
@@ -194,8 +194,19 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
                 const tone = elapsedTone(row.elapsed_seconds);
                 return (
                   <RowLink key={row.code} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
+                    <td className="relative whitespace-nowrap px-3 py-2.5 text-center">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                      {/* ປຸ່ມຂໍສົ່ງຄືນຢູ່ໜ້າລາຍລະອຽດ (ຂັ້ນຕອນເກົ່າ) — ໜ້ານີ້ບໍ່ຍ້າຍສະຕັອກເອງ */}
+                      <Link
+                        href={`/stock/spare-recovery/${encodeURIComponent(row.code)}`}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-orange-700 px-3 text-xs font-semibold text-white hover:bg-brand-orange-700"
+                      >
+                        <PackageX className="size-3.5" />
+                        {t.manageSpares}
+                        <LinkPending className="size-3" />
+                      </Link>
+                    </td>
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <Link href={`/service/${row.code}`} className="hover:underline">
                         {row.code}
                       </Link>
@@ -234,17 +245,6 @@ export default async function SpareRecoveryPage({ searchParams }: Props) {
                       >
                         {row.returned ?? t.notReturned}
                       </span>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                      {/* ປຸ່ມຂໍສົ່ງຄືນຢູ່ໜ້າລາຍລະອຽດ (ຂັ້ນຕອນເກົ່າ) — ໜ້ານີ້ບໍ່ຍ້າຍສະຕັອກເອງ */}
-                      <Link
-                        href={`/stock/spare-recovery/${encodeURIComponent(row.code)}`}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-orange-700 px-3 text-xs font-semibold text-white hover:bg-brand-orange-700"
-                      >
-                        <PackageX className="size-3.5" />
-                        {t.manageSpares}
-                        <LinkPending className="size-3" />
-                      </Link>
                     </td>
                   </RowLink>
                 );

@@ -278,6 +278,7 @@ export async function ClaimsView({
           <table className="w-full min-w-[820px] border-collapse text-[12px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
+                <th className="px-3 py-2" />
                 <th className="px-3 py-2 font-semibold">{t.colNo}</th>
                 <th className="px-3 py-2 font-semibold">{t.colStatus}</th>
                 <th className="px-3 py-2 font-semibold">{t.colSupplier}</th>
@@ -286,12 +287,12 @@ export async function ClaimsView({
                 <th className="px-3 py-2 font-semibold">{t.colScope}</th>
                 <th className="px-3 py-2 text-right font-semibold">{t.colAmount}</th>
                 <th className="px-3 py-2 font-semibold">{t.colOpened}</th>
-                <th className="px-3 py-2" />
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.claim_no} className={`border-b border-slate-100 hover:bg-slate-50 ${isClaimOpen(r.status) ? "" : "bg-slate-50/60"}`}>
+                  <td className="whitespace-nowrap px-3 py-2"><ClaimRowActions claimNo={r.claim_no} /></td>
                   <td className="whitespace-nowrap px-3 py-2 font-bold text-brand">
                     <Link href={`/claims/${r.claim_no}`} className="hover:underline">{r.claim_no}</Link>
                   </td>
@@ -304,7 +305,6 @@ export async function ClaimsView({
                   <td className="whitespace-nowrap px-3 py-2">{r.claim_scope ? claimScopeText(CL, r.claim_scope) : "-"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{r.amount ? r.amount.toLocaleString() : "-"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-slate-500">{r.created_at || "-"}{r.created_by ? ` · ${r.created_by}` : ""}</td>
-                  <td className="whitespace-nowrap px-3 py-2"><ClaimRowActions claimNo={r.claim_no} /></td>
                 </tr>
               ))}
             </tbody>

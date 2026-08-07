@@ -220,6 +220,7 @@ export default async function CancellationsPage({ searchParams }: Props) {
           <table className="w-full min-w-[1250px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                {tab !== "done" && <th className="px-3 py-2.5" />}
                 {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
@@ -240,7 +241,6 @@ export default async function CancellationsPage({ searchParams }: Props) {
                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colApprover}</th>
                   </>
                 )}
-                {tab !== "done" && <th className="px-3 py-2.5" />}
               </tr>
             </thead>
             <tbody>
@@ -249,8 +249,20 @@ export default async function CancellationsPage({ searchParams }: Props) {
                 const inWarranty = row.warranty === "ຮັບປະກັນ";
                 return (
                   <RowLink key={row.code} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
+                    {tab !== "done" && (
+                      <td className="relative whitespace-nowrap px-3 py-2.5 text-center">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                        <Link
+                          href={`/approvals/cancellations/${encodeURIComponent(row.code)}`}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
+                        >
+                          <FileCheck2 className="size-3.5" />
+                          {t.details}
+                          <LinkPending className="size-3" />
+                        </Link>
+                      </td>
+                    )}
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <Link href={`/service/${row.code}`} className="hover:underline">
                         {row.code}
                       </Link>
@@ -301,18 +313,6 @@ export default async function CancellationsPage({ searchParams }: Props) {
                       </>
                     )}
 
-                    {tab !== "done" && (
-                      <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                        <Link
-                          href={`/approvals/cancellations/${encodeURIComponent(row.code)}`}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
-                        >
-                          <FileCheck2 className="size-3.5" />
-                          {t.details}
-                          <LinkPending className="size-3" />
-                        </Link>
-                      </td>
-                    )}
                   </RowLink>
                 );
               })}

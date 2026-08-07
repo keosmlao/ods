@@ -11,6 +11,18 @@ import { ERP_PURCHASE } from "@/lib/stock-constants";
  *   • **ໃບຂໍຊື້ (SPR) ລໍ WPRA**       ← ເພີ່ມ 31-07-2026
  *   • **ໃບສັ່ງຊື້ (PO) ລໍ WPOA**       ← ເພີ່ມ 31-07-2026
  *
+ * ── ⚠️ ສະເພາະ **ຝ່າຍບໍລິການ** ເທົ່ານັ້ນ (07-08-2026 ຕາມຄຳສັ່ງ) ──
+ * ຄິວໃນແອັບແມ່ນຂອງ**ຜູ້ຈັດການຝ່າຍບໍລິການ** ⇒ ບໍ່ຄວນມີໃບຂອງຝ່າຍອື່ນມາປົນ.
+ * ວັດຈິງ 07-08-2026: PO ລໍອະນຸມັດ 51 ໃບ **ບໍ່ມີໃບໃດເປັນຂອງບໍລິການເລີຍ** — ເປັນ
+ * plan order ຂອງຈັດຊື້ · ງານໂຄງການ · HR ທັງໝົດ ⇒ ຜູ້ຈັດການບໍລິການໄລ່ອ່ານແລ້ວບໍ່ມີ
+ * ອັນໃດຕ້ອງຕັດສິນ ແລະ ໃບຂອງຕົນຈົມຢູ່ໃນນັ້ນ.
+ *
+ * ນິຍາມ "ຂອງບໍລິການ" ຈາກຂໍ້ມູນຈິງ:
+ *   ໃບຂໍຊື້ = `doc_format_code = 'SPR'` (ERP ຕັ້ງຊື່ໄວ້ວ່າ **“ໃບສະເໜີຊື້-ອາໄຫຼ່-ບໍລິການ”**)
+ *   ໃບສັ່ງຊື້ = ໃບທີ່**ຕໍ່ມາຈາກ SPR** ເທົ່ານັ້ນ (SPR → WPRA → PO)
+ * PO ທີ່ອອກໂດຍກົງ (ບໍ່ຜູກໃບຂໍ) = ຊື້ຕຸນ/ໂຄງການຂອງຝ່າຍອື່ນ ⇒ **ບໍ່ເອົາເຂົ້າແອັບ**
+ * (ຍັງເຫັນຢູ່ຄິວເວັບ /approvals/purchase-orders ຄືເກົ່າ ສຳລັບຜູ້ອະນຸມັດລວມ).
+ *
  * ສອງອັນຫຼັງ **ຂາດໄປທັງໝົດ** ⇒ ຜູ້ຈັດການເປີດແອັບແລ້ວບໍ່ເຫັນໃບສັ່ງຊື້ຈັກໃບ
  * ທັງທີ່ຄິວຢູ່ເວັບມີ 48 ໃບຄ້າງ (ເກົ່າສຸດ 361 ມື້). ຂໍ້ມູນຢູ່ **ERP (odg)**
  * ບໍ່ແມ່ນ ODS ຈຶ່ງໃຊ້ queryOdg ແລະ ຫໍ່ try/catch ແຍກ — ERP ລົ້ມ ⇒ ຄິວອື່ນຍັງມາຄືເກົ່າ.
@@ -33,7 +45,44 @@ export type ApprovalItem = {
   waiting_seconds: number;
   /** ໜ້າເວັບທີ່ໄປຕັດສິນ */
   href: string;
+  /**
+   * ── ໃບຂໍຊື້: ອ້າງອີງເລກ job ບໍ (07-08-2026 ຕາມຄຳສັ່ງ) ──
+   * ໃບຂໍຊື້ອາໄຫຼ່ຕ້ອງບອກໄດ້ວ່າຊື້ໃຫ້**ວຽກໃດ** — ບໍ່ດັ່ງນັ້ນອະນຸມັດໄປກໍ່ບໍ່ຮູ້ວ່າຄວນຊື້ບໍ.
+   * null = ບໍ່ໄດ້ອ້າງອີງ (ແອັບຂຶ້ນປ້າຍເຕືອນສີສົ້ມ).
+   */
+  job?: string | null;
+  /** ຜົນທຽບລາຍການໃນໃບ ກັບ**ອາໄຫຼ່ທີ່ຊ່າງຂໍມາ** (ໃບຂໍເບີກ SIO ຂອງ job ນັ້ນ) */
+  match_label?: string | null;
+  /** true = ຕົງໝົດ · false = ມີລາຍການນອກທີ່ຂໍ / ບໍ່ພົບໃບຂໍເບີກ · null = ບໍ່ກ່ຽວ */
+  match_ok?: boolean | null;
 };
+
+/** ແຖວດິບຂອງ SPR — ມີຕົວເລກທຽບລາຍການທີ່ຈະແປງເປັນຄຳຢູ່ `withMatch` */
+type SprRow = ApprovalItem & { items: number; matched: number };
+
+/**
+ * ແປງຜົນທຽບເປັນຄຳທີ່ຜູ້ຈັດການອ່ານແລ້ວຕັດສິນໄດ້ທັນທີ.
+ *
+ * ບໍ່ **ຫ້າມ** ອະນຸມັດເມື່ອບໍ່ຕົງ — ຊື້ຕົວທົດແທນ/ຕົວອື່ນແທນຂອງທີ່ຂໍ ເປັນເລື່ອງປົກກະຕິ —
+ * ແຕ່ຕ້ອງ**ເຫັນ**ກ່ອນກົດ. ວັດຈິງ: SPR26010006 ຂໍ 3 ລາຍການ ບໍ່ຕົງກັບໃບຂໍເບີກຈັກລາຍການ.
+ */
+function withMatch(row: SprRow): ApprovalItem {
+  const { items, matched, ...item } = row;
+  if (!item.job) {
+    return { ...item, match_ok: false, match_label: "ບໍ່ໄດ້ອ້າງອີງເລກ job" };
+  }
+  if (!items) return { ...item, match_ok: null, match_label: null };
+  if (matched === items) {
+    return { ...item, match_ok: true, match_label: `ຕົງກັບທີ່ຊ່າງຂໍ ${matched}/${items} ລາຍການ` };
+  }
+  return {
+    ...item,
+    match_ok: false,
+    match_label: matched
+      ? `ຕົງກັບທີ່ຊ່າງຂໍ ${matched}/${items} ລາຍການ — ທີ່ເຫຼືອບໍ່ຢູ່ໃນໃບຂໍເບີກ`
+      : `ບໍ່ຕົງກັບໃບຂໍເບີກຂອງວຽກ ${item.job} ຈັກລາຍການ`,
+  };
+}
 
 export async function pendingApprovals(): Promise<ApprovalItem[]> {
   const [quotes, cancels, purchases] = await Promise.all([
@@ -109,25 +158,58 @@ function withBudget<T>(work: Promise<T>, fallback: T, label: string): Promise<T>
 async function erpPurchaseApprovals(): Promise<ApprovalItem[]> {
   try {
     const [pr, po] = await Promise.all([
-      withBudget(queryOdg<ApprovalItem>(
-        `select 'purchase-request' as kind, 'ໃບຂໍຊື້ (SPR)' as kind_label,
-            t.doc_no as ref,
-            split_part(trim(coalesce(t.doc_ref,'')),' ',1) as title,
-            coalesce(nullif(t.user_request,''), t.creator_code) as customer,
-            (select to_char(sum(d.sum_amount),'FM999,999,999,990') from ic_trans_detail d
-              where d.doc_no = t.doc_no and d.trans_flag = t.trans_flag) as amount,
-            to_char(t.doc_date,'DD-MM-YYYY') as requested_at,
-            extract(epoch from localtimestamp - t.doc_date)::double precision as waiting_seconds,
-            '/approvals/purchase-requests' as href
-          from ic_trans t
-         where t.trans_flag = $1 and t.doc_format_code = 'SPR'
-           and t.doc_date >= current_date - 365
-           and not exists (select 1 from ic_trans_detail w
-                            where w.trans_flag = $2 and w.ref_doc_no = t.doc_no)
-         order by t.doc_date
-         limit 100`,
+      withBudget(queryOdg<SprRow>(
+        /*
+          ── ອ້າງອີງເລກ job + ທຽບລາຍການ (07-08-2026 ຕາມຄຳສັ່ງ) ──
+          ໃບຂໍຊື້ອາໄຫຼ່ຄວນຊີ້ໄດ້ວ່າຊື້ໃຫ້ວຽກໃດ ແລະ **ຕົງກັບອາໄຫຼ່ທີ່ຊ່າງຂໍມາ**ບໍ.
+          ເລກ job ຢູ່ 2 ຮູບແບບ (ຂໍ້ມູນຈິງ):
+            • `doc_ref` = ລະຫັດວຽກໂດຍກົງ — ໃບທີ່ ODSS ອອກໃຫ້ (lib/erp-spr)
+            • `doc_ref` = ເລກ RQ ເກົ່າ ⇒ ຕ້ອງໄປເອົາ `product_code` ຈາກ RQ ຢູ່ **ods**
+          ⚠️ ໃບທີ່ພິມມືຢູ່ ERP ສ່ວນຫຼາຍ `doc_ref` **ຫວ່າງ** ⇒ job = null (ຂຶ້ນປ້າຍເຕືອນ).
+
+          "ອາໄຫຼ່ທີ່ຂໍມາ" = ແຖວຂອງ**ໃບຂໍເບີກ (SIO)** ຂອງວຽກນັ້ນ (ods.ic_trans flag 122)
+          — ນັ້ນຄືສິ່ງທີ່ຊ່າງລະບຸຫຼັງກວດເຄື່ອງ. ODS ກັບ ERP ຢູ່ຖານດຽວກັນ ⇒ join ຂ້າມ schema ໄດ້.
+        */
+        `with spr as (
+           select t.doc_no, t.doc_date, t.user_request, t.creator_code,
+               nullif(trim(coalesce(t.doc_ref,'')),'') as docref
+             from ic_trans t
+            where t.trans_flag = $1 and t.doc_format_code = 'SPR'
+              and t.doc_date >= current_date - 365
+              and not exists (select 1 from ic_trans_detail w
+                               where w.trans_flag = $2 and w.ref_doc_no = t.doc_no)
+         ),
+         j as (
+           select s.*,
+               case when s.docref ~ '^([0-9]+|INST-.+)$' then s.docref
+                    when s.docref like 'RQ%'
+                      then (select r.product_code from ods.ic_trans r
+                             where r.doc_no = s.docref and r.trans_flag = 78 limit 1)
+               end as job
+             from spr s
+         )
+         select 'purchase-request' as kind, 'ໃບຂໍຊື້ອາໄຫຼ່ (SPR)' as kind_label,
+             j.doc_no as ref,
+             j.docref as title,
+             coalesce(nullif(j.user_request,''), j.creator_code) as customer,
+             (select to_char(sum(d.sum_amount),'FM999,999,999,990') from ic_trans_detail d
+               where d.doc_no = j.doc_no and d.trans_flag = $1) as amount,
+             to_char(j.doc_date,'DD-MM-YYYY') as requested_at,
+             extract(epoch from localtimestamp - j.doc_date)::double precision as waiting_seconds,
+             '/approvals/purchase-requests' as href,
+             nullif(j.job,'') as job,
+             (select count(distinct d.item_code) from ic_trans_detail d
+               where d.doc_no = j.doc_no and d.trans_flag = $1)::int as items,
+             (select count(distinct d.item_code) from ic_trans_detail d
+               where d.doc_no = j.doc_no and d.trans_flag = $1
+                 and d.item_code in (select x.item_code from ods.ic_trans_detail x
+                                       join ods.ic_trans h on h.doc_no = x.doc_no and h.trans_flag = 122
+                                      where h.product_code = j.job))::int as matched
+           from j
+          order by j.doc_date
+          limit 100`,
         [ERP_PURCHASE.PR_REQUEST, ERP_PURCHASE.PR_APPROVE],
-      ).then((result) => result.rows), [], "ຄິວ SPR ຝັ່ງ ERP"),
+      ).then((result) => result.rows.map(withMatch)), [], "ຄິວ SPR ຝັ່ງ ERP"),
       withBudget(queryOdg<ApprovalItem>(
         `with wpoa as (
            select distinct split_part(trim(coalesce(doc_ref,'')),' ',1) as po
@@ -139,12 +221,8 @@ async function erpPurchaseApprovals(): Promise<ApprovalItem[]> {
              join ic_trans_detail w on w.doc_no = d.ref_doc_no
                                    and w.trans_flag = $2 and w.ref_doc_no like 'SPR%'
             where d.trans_flag = $1
-         ),
-         linked as (
-           select distinct doc_no from ic_trans_detail
-            where trans_flag = $1 and coalesce(ref_doc_no,'') <> ''
          )
-         select 'purchase-order' as kind, 'ໃບສັ່ງຊື້ (PO)' as kind_label,
+         select 'purchase-order' as kind, 'ໃບສັ່ງຊື້ອາໄຫຼ່ (PO)' as kind_label,
              t.doc_no as ref,
              (select s.name_1 from ap_supplier s where s.code = t.cust_code limit 1) as title,
              t.cust_code as customer,
@@ -155,8 +233,8 @@ async function erpPurchaseApprovals(): Promise<ApprovalItem[]> {
            from ic_trans t
           where t.trans_flag = $1 and t.doc_date >= current_date - 365
             and not exists (select 1 from wpoa where wpoa.po = t.doc_no)
-            and (t.doc_no in (select doc_no from from_spr)
-              or t.doc_no not in (select doc_no from linked))
+            -- ສະເພາະໃບທີ່ຕໍ່ມາຈາກ SPR = ຂອງຝ່າຍບໍລິການ (ໃບອອກໂດຍກົງ = ຝ່າຍອື່ນ)
+            and t.doc_no in (select doc_no from from_spr)
           order by t.doc_date
           limit 100`,
         [ERP_PURCHASE.ORDER, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER_APPROVE],

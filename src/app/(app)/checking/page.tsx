@@ -326,6 +326,7 @@ export default async function CheckingPage({ searchParams }: Props) {
           <table className="w-full min-w-[1320px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-3" />
                 {JOB_COLUMNS.map((column) => (
                   <SortHeader
                     key={column.key}
@@ -340,7 +341,6 @@ export default async function CheckingPage({ searchParams }: Props) {
                 ))}
                 <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colServiceType}</th>
                 <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colIssue}</th>
-                <th className="px-3 py-3" />
               </tr>
             </thead>
             <tbody>
@@ -351,9 +351,46 @@ export default async function CheckingPage({ searchParams }: Props) {
                 const inWarranty = row.warranty === "ຮັບປະກັນ";
                 return (
                   <RowLink key={row.code} href={`/service/${row.code}`} className="relative border-b border-slate-100 hover:bg-slate-50">
+                    <td className="relative whitespace-nowrap px-3 py-3">
+                      <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                      <div className="flex items-center gap-2.5">
+                        {/* ພິມໃບຮັບເຄື່ອງ ແລະ ສະຕິກເກີ — ຊຸດໄອຄອນດຽວກັບໜ້າ CS */}
+                        <Link
+                          href={`/service/${row.code}/print`}
+                          target="_blank"
+                          title={tt.printTitle}
+                          className="text-[#f6921e] hover:opacity-70"
+                        >
+                          <Printer className="size-4" />
+                        </Link>
+                        <Link
+                          href={`/service/${row.code}/label`}
+                          target="_blank"
+                          title={tt.printStickerTitle}
+                          className="text-brand-700 hover:opacity-70"
+                        >
+                          <Tag className="size-4" />
+                        </Link>
+                        {tab === "waiting" ? (
+                          <StartCheckButton code={row.code} />
+                        ) : (
+                          /* ກຳລັງກວດເຊັກ — ກົດ "ເລີ່ມກວດເຊັກ" ຜິດໃບ ຖອນຄືນໄດ້ຢູ່ນີ້ */
+                          <span className="flex items-center gap-1.5">
+                            <Link
+                              href={`/checking/${row.code}`}
+                              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-sm font-semibold text-white hover:bg-brand-800"
+                            >
+                              <ClipboardCheck className="size-4" />
+                              {t.continueCheck}
+                              <LinkPending />
+                            </Link>
+                            <UndoStartCheckButton code={row.code} variant="icon" />
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="relative whitespace-nowrap px-3 py-3 text-center font-bold text-brand">
                       {/* ແຖບສີບອກຄວາມດ່ວນ — ຄ້າງດົນເທົ່າໃດ ຍິ່ງແດງ */}
-                      <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                       <Link href={`/service/${row.code}`} className="hover:underline">{row.code}</Link>
                       {row.is_claim && (
                         <span
@@ -408,43 +445,6 @@ export default async function CheckingPage({ searchParams }: Props) {
                     </td>
                     <td className="max-w-52 truncate px-3 py-3 font-semibold text-brand-orange-700" title={row.issue ?? ""}>
                       {row.issue || "-"}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-3">
-                      <div className="flex items-center gap-2.5">
-                        {/* ພິມໃບຮັບເຄື່ອງ ແລະ ສະຕິກເກີ — ຊຸດໄອຄອນດຽວກັບໜ້າ CS */}
-                        <Link
-                          href={`/service/${row.code}/print`}
-                          target="_blank"
-                          title={tt.printTitle}
-                          className="text-[#f6921e] hover:opacity-70"
-                        >
-                          <Printer className="size-4" />
-                        </Link>
-                        <Link
-                          href={`/service/${row.code}/label`}
-                          target="_blank"
-                          title={tt.printStickerTitle}
-                          className="text-brand-700 hover:opacity-70"
-                        >
-                          <Tag className="size-4" />
-                        </Link>
-                        {tab === "waiting" ? (
-                          <StartCheckButton code={row.code} />
-                        ) : (
-                          /* ກຳລັງກວດເຊັກ — ກົດ "ເລີ່ມກວດເຊັກ" ຜິດໃບ ຖອນຄືນໄດ້ຢູ່ນີ້ */
-                          <span className="flex items-center gap-1.5">
-                            <Link
-                              href={`/checking/${row.code}`}
-                              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-sm font-semibold text-white hover:bg-brand-800"
-                            >
-                              <ClipboardCheck className="size-4" />
-                              {t.continueCheck}
-                              <LinkPending />
-                            </Link>
-                            <UndoStartCheckButton code={row.code} variant="icon" />
-                          </span>
-                        )}
-                      </div>
                     </td>
                   </RowLink>
                 );

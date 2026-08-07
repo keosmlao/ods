@@ -597,9 +597,49 @@ class _ApprovalCard extends StatelessWidget {
                               ],
                             ),
                             const SizedBox(height: 10),
+                            /*
+                              ── ໃບຂໍຊື້ອາໄຫຼ່: ອ້າງອີງ job + ຕົງກັບທີ່ຊ່າງຂໍບໍ (07-08-2026) ──
+                              ຜູ້ຈັດການຕັດສິນຈາກ 2 ຄຳຖາມ: ຊື້ໃຫ້**ວຽກໃດ** ແລະ **ຕົງກັບອາໄຫຼ່ທີ່
+                              ຊ່າງລະບຸໄວ້ໃນໃບຂໍເບີກ**ບໍ. ບໍ່ຫ້າມກົດ (ຊື້ຕົວທົດແທນມີຈິງ) ແຕ່ຕ້ອງເຫັນກ່ອນ.
+                            */
+                            if (item.matchLabel != null) ...[
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: (item.matchOk == true ? ok : danger).withValues(alpha: .08),
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      item.matchOk == true
+                                          ? Icons.verified_outlined
+                                          : Icons.report_gmailerrorred_outlined,
+                                      size: 15,
+                                      color: item.matchOk == true ? ok : danger,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        item.job == null
+                                            ? item.matchLabel!
+                                            : 'job ${item.job} · ${item.matchLabel}',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: item.matchOk == true ? ok : danger,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                             // ── ຂໍ້ມູນເປັນສັດສ່ວນ: ປ້າຍ (ຖັນຊ້າຍ) : ຄ່າ (ຖັນຂວາ) ຮຽງຕົງກັນ ──
                             _Field(
-                              label: 'ສິນຄ້າ',
+                              label: item.kind == 'purchase-request' ? 'ອ້າງອີງ' : 'ສິນຄ້າ',
                               value: item.title ?? '-',
                               strong: true,
                             ),

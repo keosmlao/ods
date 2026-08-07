@@ -66,6 +66,7 @@ export async function ServicePendingTable({
         <table className="w-full min-w-[1480px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+              <th className="px-3 py-3" />
               {columns.map((column) => (
                 <SortHeader
                   key={column.key}
@@ -80,7 +81,6 @@ export async function ServicePendingTable({
               ))}
               <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colWarranty}</th>
               {canHold && <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colHoldActions}</th>}
-              <th className="px-3 py-3" />
             </tr>
           </thead>
           <tbody>
@@ -89,9 +89,37 @@ export async function ServicePendingTable({
               const inWarranty = card.warranty === "ຮັບປະກັນ";
               return (
                 <tr key={card.code} className="relative border-b border-slate-100 hover:bg-slate-50">
+                  <td className="relative whitespace-nowrap px-3 py-3">
+                    <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                    <div className="flex items-center gap-2.5">
+                      <Link
+                        href={`/service/${card.code}/print`}
+                        target="_blank"
+                        title={t.printTitle}
+                        className="text-[#f6921e] hover:opacity-70"
+                      >
+                        <Printer className="size-4" />
+                      </Link>
+                      {/* ພິມສະຕິກເກີ 100×150mm (ປ້າຍ tracking + barcode) — ຕິດໃສ່ເຄື່ອງ */}
+                      <Link
+                        href={`/service/${card.code}/label`}
+                        target="_blank"
+                        title={t.printStickerTitle}
+                        className="text-brand-700 hover:opacity-70"
+                      >
+                        <Tag className="size-4" />
+                      </Link>
+                      {canUpdate && (
+                        <Link href={`/service/${card.code}/edit`} title={t.editTitle} className="text-slate-500 hover:opacity-70">
+                          <Pencil className="size-4" />
+                        </Link>
+                      )}
+                      {/* ລຶບໃບຮັບເຄື່ອງ — ຜູ້ຈັດການເທົ່ານັ້ນ (server ກວດຊ້ຳ) */}
+                      {canDelete && <ServiceDeleteButton code={card.code} />}
+                    </div>
+                  </td>
                   <td className="relative whitespace-nowrap px-3 py-3 text-center font-bold text-brand">
                     {/* ແຖບສີບອກຄວາມດ່ວນ — ຄ້າງດົນເທົ່າໃດ ຍິ່ງແດງ */}
-                    <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
                     <Link href={`/service/${card.code}`} className="hover:underline">
                       {card.code}
                     </Link>
@@ -164,34 +192,6 @@ export async function ServicePendingTable({
                       <HoldButtons key={card.hold ? "held" : "free"} code={card.code} hold={card.hold ?? null} />
                     </td>
                   )}
-                  <td className="whitespace-nowrap px-3 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <Link
-                        href={`/service/${card.code}/print`}
-                        target="_blank"
-                        title={t.printTitle}
-                        className="text-[#f6921e] hover:opacity-70"
-                      >
-                        <Printer className="size-4" />
-                      </Link>
-                      {/* ພິມສະຕິກເກີ 100×150mm (ປ້າຍ tracking + barcode) — ຕິດໃສ່ເຄື່ອງ */}
-                      <Link
-                        href={`/service/${card.code}/label`}
-                        target="_blank"
-                        title={t.printStickerTitle}
-                        className="text-brand-700 hover:opacity-70"
-                      >
-                        <Tag className="size-4" />
-                      </Link>
-                      {canUpdate && (
-                        <Link href={`/service/${card.code}/edit`} title={t.editTitle} className="text-slate-500 hover:opacity-70">
-                          <Pencil className="size-4" />
-                        </Link>
-                      )}
-                      {/* ລຶບໃບຮັບເຄື່ອງ — ຜູ້ຈັດການເທົ່ານັ້ນ (server ກວດຊ້ຳ) */}
-                      {canDelete && <ServiceDeleteButton code={card.code} />}
-                    </div>
-                  </td>
                 </tr>
               );
             })}

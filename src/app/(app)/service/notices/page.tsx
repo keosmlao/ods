@@ -139,6 +139,7 @@ export default async function ServiceNotices({ searchParams }: Props) {
           <table className="w-full min-w-[1200px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-2.5" />
                 {columnDefs(t).map((column) => (
                   <SortHeader
                     key={column.key}
@@ -155,12 +156,24 @@ export default async function ServiceNotices({ searchParams }: Props) {
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colInitialIssue}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colRemark}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colImage}</th>
-                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
               {list.rows.map((row) => (
                 <tr key={row.code} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="whitespace-nowrap px-3 py-2.5">
+                    <div className="flex items-center justify-end gap-2">
+                      <Link
+                        href={`/service/notices/${encodeURIComponent(row.code)}`}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-700"
+                      >
+                        {t.openJob}
+                        <LinkPending className="size-3" />
+                      </Link>
+                      {/* ລຶບ**ຄຳແຈ້ງ** (ບໍ່ແມ່ນລຶບງານ — ອັນນັ້ນຍັງຫ້າມ). ຄຳແຈ້ງທີ່ເປີດງານແລ້ວ server ກັນໃຫ້ */}
+                      <NoticeDeleteButton code={row.code} />
+                    </div>
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2.5 font-bold text-brand">{row.code}</td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">{row.noticed ?? "-"}</td>
                   <td className="max-w-40 truncate px-3 py-2.5" title={row.creator_name ?? ""}>{row.creator_name || "-"}</td>
@@ -191,19 +204,6 @@ export default async function ServiceNotices({ searchParams }: Props) {
                     ) : (
                       <span className="text-[10px] text-slate-400">{t.noImage}</span>
                     )}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2.5">
-                    <div className="flex items-center justify-end gap-2">
-                      <Link
-                        href={`/service/notices/${encodeURIComponent(row.code)}`}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-700"
-                      >
-                        {t.openJob}
-                        <LinkPending className="size-3" />
-                      </Link>
-                      {/* ລຶບ**ຄຳແຈ້ງ** (ບໍ່ແມ່ນລຶບງານ — ອັນນັ້ນຍັງຫ້າມ). ຄຳແຈ້ງທີ່ເປີດງານແລ້ວ server ກັນໃຫ້ */}
-                      <NoticeDeleteButton code={row.code} />
-                    </div>
                   </td>
                 </tr>
               ))}

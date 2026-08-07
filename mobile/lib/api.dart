@@ -1310,6 +1310,15 @@ class ApprovalItem {
   final int waitingSeconds;
   final String href;
 
+  /// ໃບຂໍຊື້: ເລກ job ທີ່ໃບນີ້ອ້າງອີງ (null = ບໍ່ໄດ້ອ້າງອີງ ⇒ ຂຶ້ນປ້າຍເຕືອນ)
+  final String? job;
+
+  /// ຜົນທຽບລາຍການໃນໃບ ກັບອາໄຫຼ່ທີ່ຊ່າງຂໍມາ (ໃບຂໍເບີກຂອງ job)
+  final String? matchLabel;
+
+  /// true = ຕົງໝົດ · false = ມີບັນຫາ ⇒ ເບິ່ງກ່ອນກົດ · null = ບໍ່ກ່ຽວ
+  final bool? matchOk;
+
   const ApprovalItem({
     required this.kind,
     required this.kindLabel,
@@ -1320,6 +1329,9 @@ class ApprovalItem {
     this.requestedAt,
     required this.waitingSeconds,
     required this.href,
+    this.job,
+    this.matchLabel,
+    this.matchOk,
   });
 
   int get days => waitingSeconds ~/ 86400;
@@ -1341,6 +1353,9 @@ class ApprovalItem {
     requestedAt: json['requested_at'] as String?,
     waitingSeconds: _asInt(json['waiting_seconds']),
     href: json['href'] as String? ?? '',
+    job: json['job'] as String?,
+    matchLabel: json['match_label'] as String?,
+    matchOk: json['match_ok'] as bool?,
   );
 }
 
@@ -1351,12 +1366,17 @@ class ApprovalLine {
   final String? unit;
   final String? price;
   final String? total;
+
+  /// ໃບຂໍຊື້ອາໄຫຼ່: ແຖວນີ້ຢູ່ໃນໃບຂໍເບີກຂອງວຽກບໍ (null = ບໍ່ມີເລກ job ⇒ ທຽບບໍ່ໄດ້)
+  final bool? requested;
+
   const ApprovalLine({
     this.name,
     required this.qty,
     this.unit,
     this.price,
     this.total,
+    this.requested,
   });
 
   factory ApprovalLine.fromJson(Map<String, dynamic> j) => ApprovalLine(
@@ -1365,6 +1385,7 @@ class ApprovalLine {
     unit: j['unit'] as String?,
     price: j['price']?.toString(),
     total: j['total']?.toString(),
+    requested: j['requested'] as bool?,
   );
 }
 

@@ -379,6 +379,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
             <table className="w-full min-w-[900px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                  <th className="px-3 py-2.5" />
                   <th className="px-3 py-2.5 font-semibold">{t.colApprovalWpra}</th>
                   <th className="px-3 py-2.5 font-semibold">{t.colDate}</th>
                   <th className="px-3 py-2.5 font-semibold">{t.colPending}</th>
@@ -386,12 +387,22 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
                   <th className="px-3 py-2.5 font-semibold">{t.job}</th>
                   <th className="px-3 py-2.5 font-semibold">{t.branch}</th>
                   <th className="px-3 py-2.5 text-right font-semibold">{t.amount}</th>
-                  <th className="px-3 py-2.5" />
                 </tr>
               </thead>
               <tbody>
                 {wpraRows.map((row) => (
                   <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="px-3 py-2.5 text-center">
+                      {/* ໄປໜ້າ PO ເຕັມ — ຈັດຊື້ຕ້ອງໃສ່ລາຄາ/ຜູ້ສະໜອງ/ຂົນສົ່ງ/ສາງ ຢູ່ບ່ອນນັ້ນ */}
+                      <Link
+                        href={`/purchase-orders/new?from=${encodeURIComponent(row.doc_no)}`}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
+                      >
+                        <Plus className="size-3.5" />
+                        {t.issuePo}
+                        <LinkPending className="size-3" />
+                      </Link>
+                    </td>
                     <td className="px-3 py-2.5 font-bold text-brand">{row.doc_no}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.doc_date ?? "-"}</td>
                     <td className="px-3 py-2.5"><AgeBadge days={row.age} t={t} /></td>
@@ -407,17 +418,6 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{branchName(row.branch_code)}</td>
                     <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{row.total ?? "0"}</td>
-                    <td className="px-3 py-2.5 text-center">
-                      {/* ໄປໜ້າ PO ເຕັມ — ຈັດຊື້ຕ້ອງໃສ່ລາຄາ/ຜູ້ສະໜອງ/ຂົນສົ່ງ/ສາງ ຢູ່ບ່ອນນັ້ນ */}
-                      <Link
-                        href={`/purchase-orders/new?from=${encodeURIComponent(row.doc_no)}`}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
-                      >
-                        <Plus className="size-3.5" />
-                        {t.issuePo}
-                        <LinkPending className="size-3" />
-                      </Link>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -505,6 +505,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
             <table className="w-full min-w-[1050px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                  {canApprove && <th className="px-3 py-2.5" />}
                   <th className="px-3 py-2.5 font-semibold">{t.colPoNumber}</th>
                   <th className="px-3 py-2.5 font-semibold">{t.colDate}</th>
                   <th className="px-3 py-2.5 font-semibold">{t.colAge}</th>
@@ -513,12 +514,16 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
                   <th className="px-3 py-2.5 font-semibold">{t.branch}</th>
                   <th className="px-3 py-2.5 text-right font-semibold">{t.amount}</th>
                   <th className="px-3 py-2.5 font-semibold">{t.status}</th>
-                  {canApprove && <th className="px-3 py-2.5" />}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
+                    {canApprove && (
+                      <td className="px-3 py-2.5 text-center">
+                        {!row.wpoa && !row.pui && <ApprovePoButton poNo={row.doc_no} back="/purchase-orders" />}
+                      </td>
+                    )}
                     <td className="px-3 py-2.5 font-bold">
                       {/* ໜ້າເອກະສານຮັບເລກ PO ໂດຍກົງ — ໃບຂອງຕ່ອງໂສ້ SPR ມັນເດັ້ງໄປໜ້າ SPR ເອງ */}
                       <Link href={`/purchase-orders/${encodeURIComponent(row.doc_no)}`} className="text-brand hover:underline">
@@ -550,11 +555,6 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5">{branchName(row.branch_code)}</td>
                     <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{row.total ?? "0"}</td>
                     <td className="px-3 py-2.5"><StatusChip row={row} t={t} /></td>
-                    {canApprove && (
-                      <td className="px-3 py-2.5 text-center">
-                        {!row.wpoa && !row.pui && <ApprovePoButton poNo={row.doc_no} back="/purchase-orders" />}
-                      </td>
-                    )}
                   </tr>
                 ))}
               </tbody>

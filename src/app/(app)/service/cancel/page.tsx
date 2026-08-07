@@ -169,6 +169,7 @@ export default async function CancelService({ searchParams }: Props) {
           <table className="w-full min-w-[1250px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-2.5" />
                 {columns.map((column) => (
                   <SortHeader
                     key={column.key}
@@ -190,7 +191,6 @@ export default async function CancelService({ searchParams }: Props) {
                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.status}</th>
                   </>
                 )}
-                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
@@ -198,6 +198,27 @@ export default async function CancelService({ searchParams }: Props) {
                 const inWarranty = row.warranty === "ຮັບປະກັນ";
                 return (
                   <RowLink key={row.code} href={`/service/${row.code}`} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="whitespace-nowrap px-3 py-2.5">
+                      {tab === "cancelled" ? (
+                        <>
+                          {/* ຖອນຄືນໄດ້ສະເພາະໃບທີ່ຍັງບໍ່ທັນອະນຸມັດ */}
+                          {!row.approved && <UndoCancelButton code={row.code} />}
+                          {/* GAP A — ອະນຸມັດຍົກເລີກແລ້ວ ແຕ່ເຄື່ອງຍັງຢູ່ນຳເຮົາ → ສົ່ງຄືນລູກຄ້າ */}
+                          {row.approved && !row.returned && (
+                            <Link
+                              href={`/returns/${encodeURIComponent(row.code)}`}
+                              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
+                            >
+                              <PackageCheck className="size-3.5" />
+                              {t.returnToCustomer}
+                              <LinkPending className="size-3" />
+                            </Link>
+                          )}
+                        </>
+                      ) : (
+                        <CancelJobButton code={row.code} />
+                      )}
+                    </td>
                     <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <Link href={`/service/${row.code}`} className="hover:underline">
                         {row.code}
@@ -264,27 +285,6 @@ export default async function CancelService({ searchParams }: Props) {
                       </>
                     )}
 
-                    <td className="whitespace-nowrap px-3 py-2.5">
-                      {tab === "cancelled" ? (
-                        <>
-                          {/* ຖອນຄືນໄດ້ສະເພາະໃບທີ່ຍັງບໍ່ທັນອະນຸມັດ */}
-                          {!row.approved && <UndoCancelButton code={row.code} />}
-                          {/* GAP A — ອະນຸມັດຍົກເລີກແລ້ວ ແຕ່ເຄື່ອງຍັງຢູ່ນຳເຮົາ → ສົ່ງຄືນລູກຄ້າ */}
-                          {row.approved && !row.returned && (
-                            <Link
-                              href={`/returns/${encodeURIComponent(row.code)}`}
-                              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
-                            >
-                              <PackageCheck className="size-3.5" />
-                              {t.returnToCustomer}
-                              <LinkPending className="size-3" />
-                            </Link>
-                          )}
-                        </>
-                      ) : (
-                        <CancelJobButton code={row.code} />
-                      )}
-                    </td>
                   </RowLink>
                 );
               })}

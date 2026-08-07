@@ -66,6 +66,7 @@ export async function ServiceTable({
         <table className="w-full min-w-[1200px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+              <th className="px-3 py-3" />
               {columns.map((column) => (
                 <SortHeader
                   key={column.key}
@@ -81,7 +82,6 @@ export async function ServiceTable({
               <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colWarranty}</th>
               <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colIssue}</th>
               <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colStatus}</th>
-              <th className="px-3 py-3" />
             </tr>
           </thead>
           <tbody>
@@ -89,6 +89,14 @@ export async function ServiceTable({
               const cancelled = row.raw_status === 6;
               return (
                 <tr key={row.code} className={`border-b border-slate-100 ${cancelled ? "bg-[#fcd9b0]" : "hover:bg-slate-50"}`}>
+                  <td className="px-3 py-3 text-center">
+                    <div className="flex items-center justify-center gap-2.5">
+                      <Link href={`/service/${row.code}/print`} target="_blank" title={t.printTitle} className="text-[#f6921e] hover:opacity-70">
+                        <Printer className="size-4" />
+                      </Link>
+                      {canDelete && <ServiceDeleteButton code={row.code} />}
+                    </div>
+                  </td>
                   <td className="whitespace-nowrap px-3 py-3 text-center font-bold text-brand">
                     <Link href={`/service/${row.code}`} className="hover:underline">{row.code}</Link>
                   </td>
@@ -104,14 +112,6 @@ export async function ServiceTable({
                   <td className="whitespace-nowrap px-3 py-3">{row.warranty ?? "-"}</td>
                   <td className="max-w-64 truncate px-3 py-3 font-semibold text-brand-orange-700" title={row.issue ?? ""}>{row.issue ?? "-"}</td>
                   <td className="whitespace-nowrap px-3 py-3">{row.status}</td>
-                  <td className="px-3 py-3 text-center">
-                    <div className="flex items-center justify-center gap-2.5">
-                      <Link href={`/service/${row.code}/print`} target="_blank" title={t.printTitle} className="text-[#f6921e] hover:opacity-70">
-                        <Printer className="size-4" />
-                      </Link>
-                      {canDelete && <ServiceDeleteButton code={row.code} />}
-                    </div>
-                  </td>
                 </tr>
               );
             })}

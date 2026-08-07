@@ -92,12 +92,12 @@ export default async function NotificationsPage({ searchParams }: Props) {
           <table className="w-full min-w-[900px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-2.5" />
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colDocument}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colType}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.colContent}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colActor}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colTime}</th>
-                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
@@ -109,6 +109,25 @@ export default async function NotificationsPage({ searchParams }: Props) {
                     key={row.id}
                     className={`relative border-b border-slate-100 hover:bg-slate-50 ${row.read ? "" : "bg-brand-50/40"}`}
                   >
+                    <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                      {/* ກົດ read/unread ໄດ້ສອງທາງ — ອ່ານຜິດ ຫຼື ຢາກໝາຍໄວ້ອ່ານຄືນ ກໍ່ກັບໄດ້ */}
+                      <form action={row.read ? markNotificationUnread : markNotificationRead}>
+                        <input type="hidden" name="id" value={row.id} />
+                        <button className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                          {row.read ? (
+                            <>
+                              <Mail className="size-3.5" />
+                              {t.markUnread}
+                            </>
+                          ) : (
+                            <>
+                              <Check className="size-3.5" />
+                              {t.markRead}
+                            </>
+                          )}
+                        </button>
+                      </form>
+                    </td>
                     <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <span
                         className={`absolute inset-y-0 left-0 w-1 ${row.read ? "bg-transparent" : "bg-brand-600"}`}
@@ -136,25 +155,6 @@ export default async function NotificationsPage({ searchParams }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{row.actor}</td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-400">{row.created_at}</td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-right">
-                      {/* ກົດ read/unread ໄດ້ສອງທາງ — ອ່ານຜິດ ຫຼື ຢາກໝາຍໄວ້ອ່ານຄືນ ກໍ່ກັບໄດ້ */}
-                      <form action={row.read ? markNotificationUnread : markNotificationRead}>
-                        <input type="hidden" name="id" value={row.id} />
-                        <button className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
-                          {row.read ? (
-                            <>
-                              <Mail className="size-3.5" />
-                              {t.markUnread}
-                            </>
-                          ) : (
-                            <>
-                              <Check className="size-3.5" />
-                              {t.markRead}
-                            </>
-                          )}
-                        </button>
-                      </form>
-                    </td>
                   </tr>
                 );
               })}

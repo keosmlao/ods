@@ -458,6 +458,20 @@ class _LineRow extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              // ໃບຂໍຊື້: ຕົວທີ່ຊ່າງບໍ່ໄດ້ຂໍ ຕ້ອງເຫັນທັນທີ (ຕົງກັນ = ບໍ່ຕ້ອງມີປ້າຍ ບໍ່ໃຫ້ຮົກ)
+              if (line.requested == false)
+                Container(
+                  margin: const EdgeInsets.only(top: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: dangerTint,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'ບໍ່ຢູ່ໃນໃບຂໍເບີກຂອງວຽກ',
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: danger),
+                  ),
+                ),
               Text(
                 'x${line.qty}${line.unit != null ? ' ${line.unit}' : ''}'
                 '${showPrice && line.price != null ? ' · ${_thousands(line.price)} ฿/ໜ່ວຍ' : ''}',

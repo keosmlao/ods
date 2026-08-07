@@ -219,6 +219,11 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
           <table className="w-full min-w-[1250px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                {tab === "done" ? (
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colResultApprover}</th>
+                ) : (
+                  <th className="px-3 py-2.5" />
+                )}
                 {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
@@ -232,11 +237,6 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
                   />
                 ))}
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colTechInitialIssue}</th>
-                {tab === "done" ? (
-                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colResultApprover}</th>
-                ) : (
-                  <th className="px-3 py-2.5" />
-                )}
               </tr>
             </thead>
             <tbody>
@@ -245,8 +245,46 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
                 const inWarranty = row.warranty === "ຮັບປະກັນ";
                 return (
                   <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
+                    {tab === "done" ? (
+                      <td className="relative max-w-72 px-3 py-2.5">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                        <div className="flex items-start gap-2">
+                          <div className="min-w-0 flex-1">
+                            <span
+                              className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                                row.aprove_status === 2 ? "bg-brand-orange-50 text-brand-orange-700" : "bg-brand-50 text-brand-800"
+                              }`}
+                            >
+                              {row.aprove_status === 2 ? t.notApproved : t.approved} · {row.approver1 ?? "-"}
+                            </span>
+                            {row.remark_2?.trim() && (
+                              <span className="mt-0.5 block truncate text-[10px] text-slate-500" title={row.remark_2}>
+                                {row.remark_2}
+                              </span>
+                            )}
+                            {row.aprove_status_2 !== 0 && (
+                              <span className="mt-0.5 block text-[10px] text-slate-400">
+                                {t.customer}{row.aprove_status_2 === 1 ? t.agreed : t.disagreed} — {t.cannotUndo}
+                              </span>
+                            )}
+                          </div>
+                          {/* ກົດຜິດ → ຖອນຄືນໄດ້ ຕາບໃດທີ່ລູກຄ້າຍັງບໍ່ຕອບ */}
+                          {row.aprove_status_2 === 0 && <UndoApprovalButton docNo={row.doc_no} />}
+                        </div>
+                      </td>
+                    ) : (
+                      <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                        <Link
+                          href={`/approvals/quotations/${encodeURIComponent(row.doc_no)}`}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
+                        >
+                          <FileCheck2 className="size-3.5" />
+                          {t.details}
+                          <LinkPending className="size-3" />
+                        </Link>
+                      </td>
+                    )}
+                    <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       {row.doc_no}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{row.doc_date ?? "-"}</td>
@@ -296,44 +334,6 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
                       </span>
                     </td>
 
-                    {tab === "done" ? (
-                      <td className="max-w-72 px-3 py-2.5">
-                        <div className="flex items-start gap-2">
-                          <div className="min-w-0 flex-1">
-                            <span
-                              className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                                row.aprove_status === 2 ? "bg-brand-orange-50 text-brand-orange-700" : "bg-brand-50 text-brand-800"
-                              }`}
-                            >
-                              {row.aprove_status === 2 ? t.notApproved : t.approved} · {row.approver1 ?? "-"}
-                            </span>
-                            {row.remark_2?.trim() && (
-                              <span className="mt-0.5 block truncate text-[10px] text-slate-500" title={row.remark_2}>
-                                {row.remark_2}
-                              </span>
-                            )}
-                            {row.aprove_status_2 !== 0 && (
-                              <span className="mt-0.5 block text-[10px] text-slate-400">
-                                {t.customer}{row.aprove_status_2 === 1 ? t.agreed : t.disagreed} — {t.cannotUndo}
-                              </span>
-                            )}
-                          </div>
-                          {/* ກົດຜິດ → ຖອນຄືນໄດ້ ຕາບໃດທີ່ລູກຄ້າຍັງບໍ່ຕອບ */}
-                          {row.aprove_status_2 === 0 && <UndoApprovalButton docNo={row.doc_no} />}
-                        </div>
-                      </td>
-                    ) : (
-                      <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                        <Link
-                          href={`/approvals/quotations/${encodeURIComponent(row.doc_no)}`}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
-                        >
-                          <FileCheck2 className="size-3.5" />
-                          {t.details}
-                          <LinkPending className="size-3" />
-                        </Link>
-                      </td>
-                    )}
                   </tr>
                 );
               })}

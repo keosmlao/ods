@@ -199,6 +199,7 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
           <table className="w-full min-w-[1100px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                {permission.update && <th className="px-3 py-2.5" />}
                 <th className="px-3 py-2.5 font-semibold">{t.colJob}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.colCustomer}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.colType}</th>
@@ -208,7 +209,6 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
                 <th className="px-3 py-2.5 text-right font-semibold">{t.received}</th>
                 <th className="px-3 py-2.5 text-right font-semibold">{t.due}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.returned}</th>
-                {permission.update && <th className="px-3 py-2.5" />}
               </tr>
             </thead>
             <tbody>
@@ -216,6 +216,11 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
                 const due = Number(row.due_thb.replace(/,/g, "")) || 0;
                 return (
                   <tr key={row.job} className="border-b border-slate-100 hover:bg-slate-50">
+                    {permission.update && (
+                      <td className="px-3 py-2.5 text-center">
+                        {due > 0 && <PayButton job={row.job} due={due} today={today} />}
+                      </td>
+                    )}
                     <td className="px-3 py-2.5 font-bold">
                       <Link href={`/service/${row.job}`} className="text-brand hover:underline">
                         {row.job}
@@ -260,11 +265,6 @@ export default async function ServiceDebtsPage({ searchParams }: Props) {
                         <span className="text-[10px] text-slate-400">{t.stillInShop}</span>
                       )}
                     </td>
-                    {permission.update && (
-                      <td className="px-3 py-2.5 text-center">
-                        {due > 0 && <PayButton job={row.job} due={due} today={today} />}
-                      </td>
-                    )}
                   </tr>
                 );
               })}

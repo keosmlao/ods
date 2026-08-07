@@ -335,13 +335,13 @@ export default async function MyJobsPage({ searchParams }: Props) {
           <table className="w-full min-w-[1000px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-3" />
                 <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">{t.colCode}</th>
                 <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colStage}</th>
                 <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colElapsed}</th>
                 <th className="px-3 py-3 font-semibold">{t.colProduct}</th>
                 <th className="px-3 py-3 font-semibold">{t.colCustomer}</th>
                 {config.appoint && <th className="whitespace-nowrap px-3 py-3 font-semibold">{t.colAppoint}</th>}
-                <th className="px-3 py-3" />
               </tr>
             </thead>
             <tbody>
@@ -352,8 +352,17 @@ export default async function MyJobsPage({ searchParams }: Props) {
                   : (config.labels[row.stage] ?? `${t.stage} ${row.stage}`);
                 return (
                   <RowLink key={row.code} href={config.href(row.code)} className="relative border-b border-slate-100 hover:bg-slate-50">
-                    <td className="relative whitespace-nowrap px-3 py-3 text-center font-bold text-brand">
+                    <td className="relative whitespace-nowrap px-3 py-3 text-right">
                       <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                      <Link
+                        href={config.href(row.code)}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                      >
+                        {t.open}
+                        <LinkPending />
+                      </Link>
+                    </td>
+                    <td className="relative whitespace-nowrap px-3 py-3 text-center font-bold text-brand">
                       <Link href={config.href(row.code)} className="hover:underline">{row.code}</Link>
                     </td>
                     <td className="whitespace-nowrap px-3 py-3">
@@ -375,15 +384,6 @@ export default async function MyJobsPage({ searchParams }: Props) {
                     {config.appoint && (
                       <td className="whitespace-nowrap px-3 py-3 text-slate-600">{row.appoint || "-"}</td>
                     )}
-                    <td className="whitespace-nowrap px-3 py-3 text-right">
-                      <Link
-                        href={config.href(row.code)}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                      >
-                        {t.open}
-                        <LinkPending />
-                      </Link>
-                    </td>
                   </RowLink>
                 );
               })}

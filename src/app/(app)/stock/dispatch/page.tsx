@@ -461,6 +461,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
             <table className="w-full min-w-[1250px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                  <th className="px-3 py-2.5" />
                   {pendingColumns(t).map((column) => (
                     <SortHeader
                       key={column.key}
@@ -476,7 +477,6 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colIssuingWarehouse}</th>
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colOtherWarehouse}</th>
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colStatus}</th>
-                  <th className="px-3 py-2.5" />
                 </tr>
               </thead>
               <tbody>
@@ -486,8 +486,11 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                   const other = Number(line.owh_qty ?? 0);
                   return (
                     <tr key={line.roworder} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
+                      <td className="relative whitespace-nowrap px-3 py-2.5">
                         <span className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} aria-hidden />
+                        <RowAction line={line} t={t} />
+                      </td>
+                      <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                         <Link
                           href={`/stock/requests/view/${encodeURIComponent(line.doc_no)}?from=/stock/dispatch`}
                           className="hover:underline"
@@ -531,9 +534,6 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                           </span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5">
-                        <RowAction line={line} t={t} />
-                      </td>
                     </tr>
                   );
                 })}
@@ -545,6 +545,7 @@ export default async function StockDispatchPage({ searchParams }: Props) {
             <table className="w-full min-w-[900px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                  <th className="px-3 py-2.5" />
                   {docColumns(t).map((column) => (
                     <SortHeader
                       key={column.key}
@@ -558,19 +559,11 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                     />
                   ))}
                   <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colRefDate}</th>
-                  <th className="px-3 py-2.5" />
                 </tr>
               </thead>
               <tbody>
                 {docs.map((doc) => (
                   <tr key={doc.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="whitespace-nowrap px-3 py-2.5 font-bold text-brand">{doc.doc_no}</td>
-                    <td className="whitespace-nowrap px-3 py-2.5">{doc.doc_date ?? "-"}</td>
-                    <td className="whitespace-nowrap px-3 py-2.5">{doc.doc_ref ?? "-"}</td>
-                    <td className="max-w-72 truncate px-3 py-2.5" title={doc.remark ?? ""}>
-                      {doc.remark ?? "-"}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5">{doc.doc_ref_date ?? "-"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <span className="flex items-center justify-end gap-1">
                         <Link
@@ -584,6 +577,13 @@ export default async function StockDispatchPage({ searchParams }: Props) {
                         {canDelete && <DocActions docNo={doc.doc_no} docRef={doc.doc_ref} />}
                       </span>
                     </td>
+                    <td className="whitespace-nowrap px-3 py-2.5 font-bold text-brand">{doc.doc_no}</td>
+                    <td className="whitespace-nowrap px-3 py-2.5">{doc.doc_date ?? "-"}</td>
+                    <td className="whitespace-nowrap px-3 py-2.5">{doc.doc_ref ?? "-"}</td>
+                    <td className="max-w-72 truncate px-3 py-2.5" title={doc.remark ?? ""}>
+                      {doc.remark ?? "-"}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2.5">{doc.doc_ref_date ?? "-"}</td>
                   </tr>
                 ))}
               </tbody>

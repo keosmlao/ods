@@ -199,6 +199,7 @@ export default async function StockTransfersPage({ searchParams }: Props) {
           <table className="w-full min-w-[1100px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="px-3 py-2.5" />
                 {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
@@ -213,7 +214,6 @@ export default async function StockTransfersPage({ searchParams }: Props) {
                 ))}
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colProduct}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colStatus}</th>
-                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
@@ -221,6 +221,20 @@ export default async function StockTransfersPage({ searchParams }: Props) {
                 const tone = elapsedTone(row.elapsed_seconds);
                 return (
                   <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                      {tab === "pending" ? (
+                        <Link
+                          href={`/stock/transfers/receive/${encodeURIComponent(row.doc_no)}`}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
+                        >
+                          <PackageCheck className="size-3.5" />
+                          {t.receiveTransfer}
+                          <LinkPending className="size-3" />
+                        </Link>
+                      ) : (
+                        <span className="text-[11px] text-slate-400">{t.closed}</span>
+                      )}
+                    </td>
                     <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
                       <span
                         className={`absolute inset-y-0 left-0 w-1 ${tab === "pending" ? tone.bar : ""}`}
@@ -269,20 +283,6 @@ export default async function StockTransfersPage({ searchParams }: Props) {
                       >
                         {tab === "pending" ? t.tabPending : t.statusReceived}
                       </span>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                      {tab === "pending" ? (
-                        <Link
-                          href={`/stock/transfers/receive/${encodeURIComponent(row.doc_no)}`}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
-                        >
-                          <PackageCheck className="size-3.5" />
-                          {t.receiveTransfer}
-                          <LinkPending className="size-3" />
-                        </Link>
-                      ) : (
-                        <span className="text-[11px] text-slate-400">{t.closed}</span>
-                      )}
                     </td>
                   </tr>
                 );
