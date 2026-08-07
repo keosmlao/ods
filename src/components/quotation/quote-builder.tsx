@@ -4,6 +4,7 @@ import { Button, ErrorBox, Table } from "@/components/ui";
 import { useDict } from "@/lib/i18n/context";
 import { LoaderCircle, Save, Search, Trash2, X } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useActionState, useMemo, useState, useTransition } from "react";
 import { KeepFormValues } from "@/components/keep-form-values";
 
@@ -78,6 +79,8 @@ export function QuoteBuilder({
     {},
   );
   const [pending, startTransition] = useTransition();
+  // ອອກຈາກຟອມດ້ວຍ router — `window.location.href` ໂຫຼດທັງແອັບຄືນ (ຊ້າ ແລະ ເສຍ state)
+  const router = useRouter();
   const [rowError, setRowError] = useState("");
   const [picker, setPicker] = useState(false);
   const [q, setQ] = useState("");
@@ -129,7 +132,7 @@ export function QuoteBuilder({
           <button
             type="button"
             disabled={busy}
-            onClick={() => mode === "edit" ? startTransition(() => exitEditQuote(docNo)) : (window.location.href = "/quotations")}
+            onClick={() => (mode === "edit" ? startTransition(() => exitEditQuote(docNo)) : router.push("/quotations"))}
             className="text-xs font-medium text-slate-600 hover:text-slate-900 disabled:opacity-50"
           >
             {t.cancel}

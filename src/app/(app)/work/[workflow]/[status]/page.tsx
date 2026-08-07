@@ -44,7 +44,7 @@ import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { listTechnicians } from "@/lib/technicians";
 import { PhotoThumb } from "@/components/service/photo-thumb";
-import { ArrowLeft, ArrowRight, Barcode, ChevronLeft, ChevronRight, CircleAlert, Download, FileText, House, PackageOpen, Search, TriangleAlert, Truck, Warehouse, Wrench } from "lucide-react";
+import { ArrowRight, Barcode, ChevronLeft, ChevronRight, CircleAlert, Download, FileText, House, PackageOpen, Search, TriangleAlert, Truck, Warehouse, Wrench } from "lucide-react";
 import { type Dictionary, getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import Link from "next/link";
