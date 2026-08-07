@@ -383,6 +383,8 @@ const USERS: NavGroup = {
     { label: "ເປົ້າລາຍຮັບລາຍເດືອນ", href: "/manage/revenue-targets" },
     { label: "ເຊື່ອມຕົວຕົນຊ່າງ", href: "/manage/technicians" },
     { label: "ການຕັ້ງຄ່າລະບົບ", href: "/manage/settings" },
+    // ລ້າງຂໍ້ມູນເກົ່າເທື່ອດຽວ — ໃບງານໃໝ່ຊ່າງເກັບເລກເອງຢູ່ໜ້າງານ
+    { label: "ຕື່ມ ISN/SN ໃບງານເກົ່າ", href: "/manage/install-serials" },
     { label: "ລາຍງານອັດຕະໂນມັດ (email/Line)", href: "/manage/report-recipients" },
     { label: "ຫຍີ່ຫໍ້ເກັບເງินกับ supplier", href: "/manage/claim-brands" },
     { label: "ຕິດຕາມການເຂົ້າລະບົບ", href: "/manage/login-log" },

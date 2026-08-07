@@ -128,6 +128,7 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ຜູ້ໃຊ້", label: "ເປົ້າລາຍຮັບລາຍເດືອນ", resource: "/manage/revenue-targets" },
   { group: "ຜູ້ໃຊ້", label: "ເຊື່ອມຕົວຕົນຊ່າງ", resource: "/manage/technicians" },
   { group: "ຜູ້ໃຊ້", label: "ການຕັ້ງຄ່າລະບົບ", resource: "/manage/settings", protected: true },
+  { group: "ຜູ້ໃຊ້", label: "ຕື່ມ ISN/SN ໃບງານເກົ່າ", resource: "/manage/install-serials", protected: true },
   { group: "ຜູ້ໃຊ້", label: "ຕິດຕາມການເຂົ້າລະບົບ", resource: "/manage/login-log", actions: READ_ONLY },
 ] as const;
 
