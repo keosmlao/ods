@@ -196,6 +196,17 @@ class _CheckSpareScreenState extends State<CheckSpareScreen> {
                           'ຍັງບໍ່ໄດ້ເລືອກ — ຄົ້ນຫາຂ້າງລຸ່ມແລ້ວແຕະ +',
                           style: TextStyle(fontSize: 12.5, color: faint),
                         ),
+                        SizedBox(height: 6),
+                        // ຫາລະຫັດບໍ່ພົບ = ບໍ່ຕ້ອງຕິດຢູ່ໜ້ານີ້ (07-08-2026) — ຮູບໃຊ້ແທນໄດ້
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 18),
+                          child: Text(
+                            'ຫາລະຫັດບໍ່ພົບ? ບໍ່ຕ້ອງເລືອກກໍ່ໄດ້ — ກັບຄືນໄປ '
+                            'ຖ່າຍຮູບອາໄຫຼ່ທີ່ຕ້ອງການ ແລ້ວ admin ຈະລະບຸ/ສັ່ງໃຫ້',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 11.5, color: muted),
+                          ),
+                        ),
                       ],
                     ),
                   )

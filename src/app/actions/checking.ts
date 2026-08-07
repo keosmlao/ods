@@ -247,6 +247,11 @@ const saveSchema = z.object({
   cannot_reason: z.string().optional().default(""),
   /** ຈົບໂດຍບໍ່ສ້ອມ **ຍ້ອນຫຍັງ** — ເບິ່ງ lib/check-outcome (ບໍ່ສົ່ງມາ = ສ້ອມບໍ່ໄດ້) */
   check_outcome: z.enum(CHECK_OUTCOMES as [CheckOutcome, ...CheckOutcome[]]).optional(),
+  /**
+   * ຮູບຕອນກວດເຊັກ (JSON array ຂອງ data-URI, ບີບຢູ່ browser ແລ້ວ) — ຄືກັບແອັບ.
+   * **ບັງຄັບເມື່ອເລືອກ "ໃຊ້ອາໄຫຼ່" ແຕ່ບໍ່ໄດ້ເລືອກລາຍການ** (ດ່ານຢູ່ lib/tech-flow).
+   */
+  photos: z.string().optional(),
 });
 
 export async function saveCheck(_: CheckState, formData: FormData): Promise<CheckState> {
@@ -261,8 +266,19 @@ export async function saveCheck(_: CheckState, formData: FormData): Promise<Chec
    * ກົດເກນທັງໝົດ (ຕ້ອງຢູ່ຂັ້ນ 2 · ຍ້າຍກະຕ່າຮ່າງ → tb_used_spare · status ໃໝ່ ·
    * ເຫດຜົນປະກັນເປັນຫຼັກຖານ) ຢູ່ lib/tech-flow ບ່ອນດຽວ — **ອັນດຽວກັບທີ່ແອັບມືຖືເອີ້ນ**.
    */
+  let photos: string[] = [];
+  if (parsed.data.photos) {
+    try {
+      const raw: unknown = JSON.parse(parsed.data.photos);
+      if (Array.isArray(raw)) photos = raw.filter((item): item is string => typeof item === "string" && !!item);
+    } catch {
+      photos = [];
+    }
+  }
+
   const result = await saveCheckFlow(loaded.session, {
     code: parsed.data.code,
+    photos,
     diagnosis: parsed.data.isue_bytech,
     warranty_void: parsed.data.war_by_t === "1",
     warranty_reason: parsed.data.t_reason,

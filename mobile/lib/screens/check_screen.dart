@@ -154,8 +154,14 @@ class _CheckScreenState extends State<CheckScreen> {
       return 'ຕ້ອງໃສ່ເຫດຜົນໝົດຮັບປະກັນ';
     }
     if (outcome == null) return 'ເລືອກຜົນຕັດສິນຫຼັງກວດເຊັກ';
-    if (outcome == CheckOutcome.spare && draft.isEmpty) {
-      return 'ຕ້ອງເລືອກອາໄຫຼ່ຢ່າງໜ້ອຍ 1 ລາຍການ';
+    /*
+      ── ບໍ່ເລືອກອາໄຫຼ່ກໍ່ໄດ້ **ແຕ່ຕ້ອງມີຮູບ** (07-08-2026 — ຄືກັບເວັບ) ──
+      ຊ່າງມັກຮູ້ວ່າຕ້ອງໃຊ້ອາໄຫຼ່ຫຍັງ ແຕ່ຫາລະຫັດໃນລະບົບບໍ່ພົບ ⇒ ບັງຄັບເລືອກຈາກ catalog
+      = ຊ່າງຕິດຢູ່ໜ້າງານ. ດຽວນີ້ຖ່າຍຮູບຕົວອາໄຫຼ່ແທນໄດ້ ⇒ admin ລະບຸ/ສັ່ງໃຫ້.
+      ດ່ານຈິງຢູ່ server (lib/tech-flow) — ອັນນີ້ພຽງບອກກ່ອນໃຫ້ບໍ່ເສຍເວລາ.
+    */
+    if (outcome == CheckOutcome.spare && draft.isEmpty && photos.isEmpty) {
+      return 'ບໍ່ໄດ້ເລືອກອາໄຫຼ່ — ຕ້ອງຖ່າຍຮູບອາໄຫຼ່ທີ່ຕ້ອງການໄວ້ຢ່າງໜ້ອຍ 1 ຮູບ';
     }
     // ເຫດຜົນຄືສິ່ງທີ່ຕ້ອງບອກລູກຄ້າຕອນຄືນເຄື່ອງ ⇒ ບັງຄັບ (ດ່ານຈິງຢູ່ server ນຳ)
     if (cannotRepair && reason.text.trim().isEmpty) {
@@ -494,9 +500,12 @@ class _CheckScreenState extends State<CheckScreen> {
           ],
         ),
         const SizedBox(height: 4),
-        const Text(
-          'ຖ່າຍຮູບອາການ ຫຼື ຄວາມເສຍຫາຍທີ່ພົບ (ບໍ່ບັງຄັບ)',
-          style: TextStyle(fontSize: 12, color: muted),
+        Text(
+          useSpare && draft.isEmpty
+              // ເລືອກ "ໃຊ້ອາໄຫຼ່" ແຕ່ຍັງບໍ່ໄດ້ລະບຸລາຍການ ⇒ ຮູບກາຍເປັນ**ຫຼັກຖານແທນ**
+              ? 'ບໍ່ໄດ້ເລືອກອາໄຫຼ່ ⇒ ຖ່າຍຮູບອາໄຫຼ່ທີ່ຕ້ອງການໄວ້ (ບັງຄັບ) — admin ຈະລະບຸ/ສັ່ງໃຫ້'
+              : 'ຖ່າຍຮູບອາການ ຫຼື ຄວາມເສຍຫາຍທີ່ພົບ (ບໍ່ບັງຄັບ)',
+          style: const TextStyle(fontSize: 12, color: muted),
         ),
         const SizedBox(height: 12),
         Wrap(

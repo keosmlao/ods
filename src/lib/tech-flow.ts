@@ -293,7 +293,25 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
     const underWarranty = current.rows[0]?.warrunty === "ຮັບປະກັນ";
     const status = input.use_spare ? (underWarranty ? 3 : 2) : underWarranty ? 4 : 2;
 
+    /**
+     * ── ບໍ່ເລືອກອາໄຫຼ່ກໍ່ໄດ້ **ແຕ່ຕ້ອງມີຮູບ** (07-08-2026 ຕາມຄຳສັ່ງ) ──
+     * ຊ່າງມັກຮູ້ວ່າຕ້ອງໃຊ້ອາໄຫຼ່ຫຍັງ **ແຕ່ຫາລະຫັດໃນລະບົບບໍ່ພົບ** (ຂອງໃໝ່ · ຊື່ຄົນລະແບບ)
+     * ⇒ ບັງຄັບໃຫ້ເລືອກຈາກ catalog = ຊ່າງຕິດ. ດຽວນີ້ປ່ອຍໃຫ້ຜ່ານ ແຕ່ຕ້ອງ**ຖ່າຍຮູບຕົວອາໄຫຼ່**
+     * ໄວ້ເປັນຫຼັກຖານ ⇒ admin/ສາງ ເບິ່ງຮູບແລ້ວລະບຸລະຫັດ ຫຼື ສັ່ງຊື້ໃຫ້ໄດ້.
+     * ດ່ານຢູ່ນີ້ບ່ອນດຽວ ⇒ ທັງເວັບ ແລະ ແອັບ ໄດ້ກົດເກນອັນດຽວກັນ.
+     */
     if (input.use_spare) {
+      const cart = await client.query<{ n: number }>(
+        `select count(*)::int n from ic_trans_detail_draft where user_created=$1 and product_code=$2`,
+        [session.username, input.code],
+      );
+      if (!cart.rows[0]?.n && !(input.photos ?? []).filter(Boolean).length) {
+        await client.query("rollback");
+        return {
+          ok: false,
+          error: "ບໍ່ໄດ້ເລືອກອາໄຫຼ່ — ຕ້ອງຖ່າຍຮູບອາໄຫຼ່ທີ່ຕ້ອງການໄວ້ຢ່າງໜ້ອຍ 1 ຮູບ ໃຫ້ admin ລະບຸ/ສັ່ງໃຫ້",
+        };
+      }
       const moved = await client.query(
         `insert into tb_used_spare(product_code, item_code, item_name, qty, unit_code)
          select product_code, item_code, item_name, qty, unit_code
@@ -404,7 +422,7 @@ export async function saveCheckFlow(session: Session, input: SaveCheckInput): Pr
   const spareNote = input.use_spare
     ? spareCount > 0
       ? `ໃຊ້ອາໄຫຼ່ ${spareCount} ລາຍການ`
-      : "ຕ້ອງໃຊ້ອາໄຫຼ່ ແຕ່ຍັງບໍ່ໄດ້ລະບຸລາຍການ — ຕ້ອງໄປຊອກອາໄຫຼ່ກ່ອນສະເໜີຊື້"
+      : `ຕ້ອງໃຊ້ອາໄຫຼ່ ແຕ່ຍັງບໍ່ໄດ້ລະບຸລາຍການ — **ເບິ່ງຮູບອາໄຫຼ່ທີ່ຊ່າງຖ່າຍໄວ້** (${(input.photos ?? []).filter(Boolean).length} ຮູບ) ແລ້ວລະບຸ/ສັ່ງໃຫ້`
     : "ບໍ່ໃຊ້ອາໄຫຼ່";
   const warrantyNote = input.warranty_void ? ` · ຊ່າງແຈ້ງວ່າໝົດຮັບປະກັນ ເຫດຜົນ: ${reason}` : "";
   await logChange("tb_product", input.code, `ບັນທຶກຜົນກວດເຊັກ: ${input.diagnosis.trim()} · ${spareNote}${warrantyNote}`, { author: session.username });

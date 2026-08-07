@@ -11,6 +11,25 @@ import {
 } from "@/lib/check-outcome";
 import { useConfirm } from "@/components/confirm-dialog";
 import { SelectField } from "@/components/select-field";
+
+/**
+ * ── ຮູບອາໄຫຼ່ທີ່ຕ້ອງການ (07-08-2026) ──
+ * ຊ່າງມັກຮູ້ວ່າຕ້ອງໃຊ້ອາໄຫຼ່ຫຍັງ ແຕ່ **ຫາລະຫັດໃນລະບົບບໍ່ພົບ** ⇒ ບັງຄັບເລືອກຈາກ catalog
+ * = ຊ່າງຕິດ. ດຽວນີ້ບໍ່ເລືອກກໍ່ໄດ້ ແຕ່ຕ້ອງ**ຖ່າຍຮູບຕົວອາໄຫຼ່**ໄວ້ ⇒ admin ລະບຸ/ສັ່ງໃຫ້.
+ * ບີບຢູ່ browser ກ່ອນສົ່ງ (ກວ້າງ ≤1200px · JPEG 0.7) ຄືກັບປຸ່ມຈົບງານ.
+ */
+const MAX_WIDTH = 1200;
+const QUALITY = 0.7;
+
+async function compress(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, MAX_WIDTH / bitmap.width);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", QUALITY);
+}
 import { SpareSearchDialog } from "@/components/spare-search";
 import { Button, Card, ErrorBox, Empty, Table, inputClass, labelClass } from "@/components/ui";
 import { LoaderCircle, LogOut, Printer, RotateCcw, Save, Search, Trash2 } from "lucide-react";
@@ -142,6 +161,9 @@ function BasketRow({ code, line, t }: { code: string; line: BasketLine; t: Dict 
 }
 
 export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[] }) {
+  /** ຮູບອາໄຫຼ່ທີ່ຕ້ອງການ — ບັງຄັບເມື່ອ "ໃຊ້ອາໄຫຼ່" ແຕ່ບໍ່ໄດ້ເລືອກລາຍການ (lib/tech-flow) */
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const t = useDict().checkForm;
   const [state, action, pending] = useActionState(saveCheck, {});
   // ມີອາໄຫຼ່ຄ້າງໃນກະຕ່າຢູ່ແລ້ວ → ເປີດຕາຕະລາງໃຫ້ເລີຍ
@@ -316,6 +338,51 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
               />
             </div>
           </div>
+
+          {/* ຮູບອາໄຫຼ່ທີ່ຕ້ອງການ — ໂຊ້ວເມື່ອເລືອກ "ໃຊ້ອາໄຫຼ່" (ບໍ່ເລືອກລາຍການກໍ່ໄດ້ ຖ້າມີຮູບ) */}
+          {useSpare === "1" && (
+            <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50/40 p-3">
+              <p className="text-xs font-bold text-brand-900">{t.sparePhotoTitle}</p>
+              <p className="mt-0.5 text-[11px] text-slate-500">{t.sparePhotoHint}</p>
+              <input type="hidden" name="photos" value={JSON.stringify(photos)} />
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {photos.map((photo, index) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={index} src={photo} alt="" className="size-14 rounded border border-slate-200 object-cover" />
+                ))}
+                <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={async (event) => {
+                      const files = event.target.files;
+                      if (!files?.length) return;
+                      setPhotoBusy(true);
+                      try {
+                        const shots = await Promise.all([...files].map(compress));
+                        setPhotos((current) => [...current, ...shots]);
+                      } finally {
+                        setPhotoBusy(false);
+                        event.target.value = "";
+                      }
+                    }}
+                  />
+                  {photoBusy ? t.sparePhotoBusy : t.sparePhotoAdd}
+                </label>
+                {photos.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setPhotos([])}
+                    className="text-[11px] font-semibold text-brand-orange-700 hover:underline"
+                  >
+                    {t.sparePhotoClear}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/*
             ── ຈົບໂດຍບໍ່ສ້ອມ ⇒ ຄືນເຄື່ອງ (01-08-2026 · ຂະຫຍາຍ 05-08-2026) ──
