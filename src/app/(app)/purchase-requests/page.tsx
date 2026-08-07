@@ -2,6 +2,7 @@ import { jobsForDocs } from "@/lib/erp-doc-link";
 import { ApproveSprForm } from "@/components/purchase/approve-spr-form";
 import { SprDangerButtons } from "@/components/purchase/spr-danger-buttons";
 import { LinkPending } from "@/components/link-pending";
+import { Image as ImageIcon } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { APPROVER_SIDE, roleOf } from "@/lib/roles";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -94,6 +95,8 @@ type UnspecifiedJob = {
   tech: string | null;
   checked_at: string | null;
   days_waiting: number;
+  /** ຈຳນວນຮູບຕອນກວດເຊັກ — ຊ່າງອາດຖ່າຍຮູບອາໄຫຼ່ໄວ້ແທນການເລືອກລາຍການ */
+  photos: number;
 };
 
 /**
@@ -114,7 +117,14 @@ async function getUnspecifiedSpareJobs(): Promise<UnspecifiedJob[]> {
       `select a.code product_code, concat_ws(' · ', a.name_1, a.sn) product,
           nullif(a.emp_code,'') tech,
           to_char(a.time_finish_check,'DD-MM-YYYY HH24:MI') checked_at,
-          greatest(0, current_date - coalesce(a.time_finish_check, a.time_register)::date)::int days_waiting
+          greatest(0, current_date - coalesce(a.time_finish_check, a.time_register)::date)::int days_waiting,
+          /**
+           * ຮູບຕອນກວດເຊັກ — ຊ່າງທີ່ຫາລະຫັດບໍ່ພົບ **ຖ່າຍຮູບອາໄຫຼ່ໄວ້ແທນ** (07-08-2026)
+           * ⇒ ຄິວນີ້ຕ້ອງບອກວ່າມີຮູບໃຫ້ເບິ່ງ ບໍ່ດັ່ງນັ້ນຄົນຈັດຊື້ບໍ່ຮູ້ວ່າມີເບາະແສຢູ່.
+           * ນັບຢ່າງດຽວ (ບໍ່ດຶງ base64 ມາໃສ່ຕາຕະລາງ — ຮູບລະ 100-200KB).
+           */
+          (select count(*)::int from ods_job_photo ph
+            where ph.workflow='repair' and ph.job_code = a.code and ph.kind='check') photos
         from tb_product a
        where (${STAGE_SQL}) in (5, 6)
          and coalesce(a.used_spare,0) = 1
@@ -311,6 +321,7 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
                   <th className="px-3 py-2.5 font-semibold">{t.colProduct}</th>
                   <th className="px-3 py-2.5 font-semibold">{t.colTech}</th>
                   <th className="px-3 py-2.5 font-semibold">{t.colChecked}</th>
+                  <th className="px-3 py-2.5 text-center font-semibold">{t.colSparePhoto}</th>
                   <th className="px-3 py-2.5 text-right font-semibold">{t.colWaiting}</th>
                   <th className="px-3 py-2.5" />
                 </tr>
@@ -326,6 +337,19 @@ export default async function PurchaseRequestsPage({ searchParams }: Props) {
                     <td className="max-w-96 truncate px-3 py-2.5" title={job.product ?? ""}>{job.product ?? "-"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{job.tech ?? "-"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">{job.checked_at ?? "-"}</td>
+                    <td className="whitespace-nowrap px-3 py-2.5 text-center">
+                      {job.photos > 0 ? (
+                        <Link
+                          href={`/service/${job.product_code}`}
+                          className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-0.5 font-semibold text-brand-800 hover:underline"
+                        >
+                          <ImageIcon className="size-3.5" />
+                          {job.photos}
+                        </Link>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
+                    </td>
                     {/* ຄ້າງດົນ = ບັນຫາ ⇒ ເນັ້ນສີເມື່ອເກີນ 7 ມື້ ໃຫ້ຕາຈັບໄດ້ກ່ອນ */}
                     <td className={`px-3 py-2.5 text-right font-bold tabular-nums ${job.days_waiting > 7 ? "text-red-700" : "text-slate-600"}`}>
                       {job.days_waiting} {t.daysUnit}
