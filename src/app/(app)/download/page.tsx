@@ -1,22 +1,23 @@
 import { PageTitle } from "@/components/ui";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
-import { Download, Smartphone, TriangleAlert } from "lucide-react";
+import { Download, TriangleAlert } from "lucide-react";
+import Image from "next/image";
 
 /**
  * **ດາວໂຫຼດແອັບຊ່າງ (Android)** — ໃຫ້ຊ່າງຕິດຕັ້ງເອງຈາກເວັບ ບໍ່ຕ້ອງສົ່ງໄຟລ໌ຜ່ານແຊັດ.
  *
- * ໄຟລ໌ຢູ່ `public/downloads/odss-tech.apk` ເຊິ່ງ **ບໍ່ຢູ່ໃນ git** (APK ໃຫຍ່ 100MB+).
+ * ໄຟລ໌ຢູ່ `public/downloads/ods.apk` ເຊິ່ງ **ບໍ່ຢູ່ໃນ git** (APK ໃຫຍ່ 100MB+).
  * ຕອນ deploy ໃຫ້ copy ໄຟລ໌ທີ່ build ແລ້ວໄປວາງໄວ້ບ່ອນນັ້ນ (ເບິ່ງ .gitignore ໃນໂຟນເດີ).
  * ບໍ່ມີໄຟລ໌ = ໜ້ານີ້ບອກວິທີເອົາມາວາງ ແທນທີ່ຈະໃຫ້ລິ້ງທີ່ກົດແລ້ວ 404.
  */
 export const dynamic = "force-dynamic";
 
-const APK_PATH = "/downloads/odss-tech.apk";
+const APK_PATH = "/downloads/ods.apk";
 
 async function apkInfo() {
   try {
-    const info = await stat(join(process.cwd(), "public", "downloads", "odss-tech.apk"));
+    const info = await stat(join(process.cwd(), "public", "downloads", "ods.apk"));
     return {
       size: `${(info.size / 1024 / 1024).toFixed(1)} MB`,
       updated: info.mtime.toISOString().slice(0, 16).replace("T", " "),
@@ -35,9 +36,15 @@ export default async function DownloadAppPage() {
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-start gap-4">
-          <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-brand-50">
-            <Smartphone className="size-6 text-brand-800" />
-          </div>
+          {/* ໂລໂກ້ຈິງຂອງແອັບ (ອັນດຽວກັບໄອຄອນໃນມືຖື) — ຊ່າງຈຳໄດ້ວ່າກຳລັງໂຫຼດອັນຖືກ */}
+          <Image
+            src="/ods-logo.png"
+            alt="ODIEN Service & Spare Parts"
+            width={48}
+            height={48}
+            priority
+            className="size-12 shrink-0 rounded-xl border border-slate-200 object-contain"
+          />
           <div className="min-w-0 flex-1">
             <h2 className="font-bold text-slate-800">ODIEN Service — ແອັບຊ່າງ</h2>
             <p className="mt-0.5 text-sm text-slate-500">
@@ -63,7 +70,7 @@ export default async function DownloadAppPage() {
                 <pre className="mt-2 overflow-x-auto rounded bg-white/70 p-2 text-[11px] leading-relaxed">
 {`cd mobile && flutter build apk --release
 cp build/app/outputs/flutter-apk/app-release.apk \\
-   ../public/downloads/odss-tech.apk`}
+   ../public/downloads/ods.apk`}
                 </pre>
               </div>
             )}
