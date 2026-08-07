@@ -1604,7 +1604,11 @@ class Job {
   final bool canCheckIn;
 
   /// ຕິດຕັ້ງ: ສະແກນ ISN/SN ຮອບ "ກຳລັງຕິດຕັ້ງ" ແລ້ວບໍ (ດ່ານກ່ອນກົດສຳເລັດ)
+  /// ເກັບ ISN/SN ຄົບທຸກໜ່ວຍແລ້ວບໍ (ດ່ານກ່ອນກົດຕິດຕັ້ງສຳເລັດ)
   final bool scanDone;
+
+  /// ງານນີ້ມີໜ່ວຍນອກນຳບໍ (ແອ) ⇒ ຕ້ອງເກັບ 2 ເລກ
+  final bool needOutdoor;
 
   /// ເລກທີ່ໃບງານລະບຸ — ໃຫ້ຊ່າງທຽບດ້ວຍຕາກ່ອນຍິງກ້ອງ
   final String? expectSn;
@@ -1649,6 +1653,7 @@ class Job {
     required this.hasCheckedOut,
     required this.canCheckIn,
     this.scanDone = false,
+    this.needOutdoor = false,
     this.expectSn,
     this.expectSnOut,
     required this.canCheckOut,
@@ -1687,6 +1692,7 @@ class Job {
     hasCheckedOut: json['has_checked_out'] as bool? ?? false,
     canCheckIn: json['can_check_in'] as bool? ?? false,
     scanDone: json['scan_done'] as bool? ?? false,
+    needOutdoor: json['need_outdoor'] as bool? ?? false,
     expectSn: json['expect_sn'] as String?,
     expectSnOut: json['expect_sn_out'] as String?,
     canCheckOut: json['can_check_out'] as bool? ?? false,

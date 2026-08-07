@@ -1,5 +1,5 @@
 import { logChange } from "@/lib/chatter-log";
-import { hasInstallScan, recordInstallScan } from "@/lib/install-scan";
+import { installUnits, recordInstallScan } from "@/lib/install-scan";
 import type { Session } from "@/lib/auth";
 import type { Workflow } from "@/lib/commission";
 import { query } from "@/lib/db";
@@ -353,7 +353,7 @@ export async function finishInstallFlow(
   session: Session,
   code: string,
   photos: string[] = [],
-  options: { requireCheckin?: boolean; requireScan?: boolean; scan?: string; scanManual?: boolean } = {},
+  options: { requireCheckin?: boolean; scan?: string; scanManual?: boolean } = {},
 ): Promise<FlowResult> {
   const own = await ownJob(session, "install", code);
   if (!own.ok) return own;
@@ -382,19 +382,29 @@ export async function finishInstallFlow(
   }
 
   /**
-   * ── ສະແກນ ISN/SN 2 ຈຸດ (07-08-2026 ຕາມຄຳສັ່ງ) ──
-   * ① ຕອນກຳລັງຕິດຕັ້ງ (ຄຳສັ່ງ `scan` ຂອງແອັບ) ② ຕອນກົດສຳເລັດ (ຄ່າ `scan` ມາພ້ອມຄຳສັ່ງນີ້).
-   * ທັງສອງຕ້ອງ**ຕົງກັບ `pro_sn`/`pro_sn_out` ຂອງໃບງານ** (ເບິ່ງ lib/install-scan)
-   * ⇒ ພິສູດວ່າໜ່ວຍທີ່ຕິດຈິງແມ່ນໜ່ວຍທີ່ຂາຍໃນບິນ ບໍ່ແມ່ນເຄື່ອງອື່ນ.
+   * ── ISN/SN ຕ້ອງຄົບ**ທຸກໜ່ວຍ**ກ່ອນຈົບງານ (07-08-2026 ຕາມຄຳສັ່ງ) ──
+   * ເປີດງານປະຊ່ອງ ISN/SN ໄວ້ຫວ່າງ ⇒ **ຊ່າງເປັນຄົນເກັບມາຜ່ານແອັບ** (ຍິງ ຫຼື ພິມ)
+   * ⇒ ດ່ານຢູ່ນີ້ບໍ່ແມ່ນ "ຍິງແລ້ວບໍ" ແຕ່ແມ່ນ "**ເກັບຄົບທຸກໜ່ວຍແລ້ວບໍ**":
+   *   ແອ = ໜ່ວຍໃນ [C] + ໜ່ວຍນອກ [H] ຄົນລະເລກ · ເຄື່ອງອື່ນ = 1 ໜ່ວຍ
+   * (ຈຳນວນໜ່ວຍຄິດຈາກໃບຈ່າຍສິນຄ້າຂອງບິນ — ເບິ່ງ lib/install-scan.installUnits)
    */
-  if (options.requireScan) {
-    if (!(await hasInstallScan(code, "install"))) {
-      return { ok: false, error: "ຕ້ອງອ່ານ ISN/SN ຕອນກຳລັງຕິດຕັ້ງກ່ອນ" };
-    }
-    const scanned = (options.scan ?? "").trim();
-    if (!scanned) return { ok: false, error: "ຕ້ອງອ່ານ ISN/SN ອີກເທື່ອກ່ອນບັນທຶກສຳເລັດ (ຍິງ ຫຼື ພິມເອງ)" };
+  // ຄ່າທີ່ສົ່ງມາພ້ອມການກົດຈົບ (ຖ້າມີ) = ໜ່ວຍສຸດທ້າຍທີ່ຍັງຂາດ ⇒ ບັນທຶກກ່ອນກວດ
+  const scanned = (options.scan ?? "").trim();
+  if (scanned) {
     const result = await recordInstallScan(session, code, scanned, "finish", { manual: options.scanManual });
     if (!result.ok) return { ok: false, error: result.error };
+  }
+  /**
+   * ດ່ານນີ້ໃຊ້**ທັງແອັບ ແລະ ເວັບ** (ບໍ່ຄືດ່ານ check-in ທີ່ບັງຄັບສະເພາະແອັບ):
+   * ໃບງານທີ່ບໍ່ມີ ISN/SN = ຮັບປະກັນ/ສ້ອມພາຍຫຼັງອ້າງອີງບໍ່ໄດ້ ⇒ ຈົບບໍ່ໄດ້ບໍ່ວ່າໃຜກົດ.
+   * ຝັ່ງເວັບຍັງຕື່ມເລກເອງໄດ້ຢູ່ໜ້າ "ແກ້ໄຂໃບງານ" (ກໍລະນີຊ່າງເກັບບໍ່ໄດ້ຈິງໆ).
+   */
+  const units = await installUnits(code);
+  if (units?.missing.length) {
+    return {
+      ok: false,
+      error: `ຕ້ອງເກັບ ISN/SN ໃຫ້ຄົບກ່ອນຈົບງານ — ຍັງຂາດ ${units.missing.join(" ແລະ ")}`,
+    };
   }
 
   if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };

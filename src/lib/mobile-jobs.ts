@@ -73,8 +73,10 @@ export type MobileJob = {
   can_check_out: boolean;
   /** ຍັງ check-in ຄ້າງຢູ່ບໍ (ຍັງບໍ່ໄດ້ check-out) */
   checked_in: boolean;
-  /** ຕິດຕັ້ງ: ສະແກນ ISN/SN ຮອບ "ກຳລັງຕິດຕັ້ງ" ແລ້ວບໍ (ດ່ານກ່ອນກົດສຳເລັດ) */
+  /** ຕິດຕັ້ງ: ເກັບ ISN/SN ຄົບທຸກໜ່ວຍແລ້ວບໍ (ດ່ານກ່ອນກົດສຳເລັດ) */
   scan_done?: boolean;
+  /** ຕິດຕັ້ງ: ງານນີ້ມີ **ໜ່ວຍນອກ** ນຳບໍ (ແອ) ⇒ ຕ້ອງເກັບ 2 ເລກ */
+  need_outdoor?: boolean;
   /** ຕິດຕັ້ງ: ເລກທີ່ໃບງານລະບຸໄວ້ — ໃຫ້ຊ່າງທຽບດ້ວຍຕາກ່ອນຍິງ */
   expect_sn?: string | null;
   expect_sn_out?: string | null;
@@ -191,8 +193,16 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
           and (${INSTALL_STAGE_SQL}) in (4, 5)
           and not ${CHECKED_IN("install")}) as can_check_in,
         -- ສະແກນ ISN/SN ຕອນກຳລັງຕິດຕັ້ງແລ້ວບໍ (ດ່ານກ່ອນກົດສຳເລັດ — ເບິ່ງ lib/install-scan)
-        exists (select 1 from ods_install_scan sc
-                 where sc.job_code = a.code and sc.phase = 'install') as scan_done,
+        /*
+          ── ເກັບ ISN/SN ຄົບແລ້ວບໍ (07-08-2026) ──
+          ດຽວນີ້ຊ່າງເປັນຄົນເກັບເລກ ⇒ "ຄົບ" = ຊ່ອງໃນໃບງານມີຄ່າ ບໍ່ແມ່ນ "ເຄີຍຍິງແລ້ວ".
+          ແອ (ລະຫັດ 12xx) = 2 ໜ່ວຍ (ໃນ+ນອກ) · ເຄື່ອງອື່ນ = 1 ໜ່ວຍ.
+          ⚠️ ດ່ານຈິງຢູ່ lib/install-scan.installUnits (ຖາມໃບຈ່າຍສິນຄ້າຂອງບິນ) —
+          ອັນນີ້ເປັນພຽງທຸງໃຫ້ໜ້າຈໍ ຢ່າຖາມ ERP ຢູ່ລາຍການວຽກ (ຊ້າ).
+        */
+        (nullif(a.pro_sn,'') is not null
+          and (a.item_code not like '12%' or nullif(a.pro_sn_out,'') is not null)) as scan_done,
+        (a.item_code like '12%') as need_outdoor,
         nullif(a.pro_sn,'') as expect_sn,
         nullif(a.pro_sn_out,'') as expect_sn_out,
         ${CHECKED_IN("install")} as can_check_out,
@@ -232,7 +242,8 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         ((${REPAIR_ONSITE}) and a.repair_confirm is not null
           and (${STAGE_SQL}) in (1,2,8,9)
           and not ${CHECKED_IN("repair")}) as can_check_in,
-        false as scan_done, null::varchar as expect_sn, null::varchar as expect_sn_out,
+        false as scan_done, false as need_outdoor,
+        null::varchar as expect_sn, null::varchar as expect_sn_out,
         ${CHECKED_IN("repair")} as can_check_out,
         ${CHECKED_IN("repair")} as checked_in,
         a.location_lat as lat, a.location_lng as lng,
@@ -284,7 +295,8 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
           and not ${CHECKED_IN("maintenance")}) as can_check_in,
         ${CHECKED_IN("maintenance")} as can_check_out,
         ${CHECKED_IN("maintenance")} as checked_in,
-        false as scan_done, null::varchar as expect_sn, null::varchar as expect_sn_out,
+        false as scan_done, false as need_outdoor,
+        null::varchar as expect_sn, null::varchar as expect_sn_out,
         null::double precision as lat, null::double precision as lng,
         null::double precision as sla_left,
         null as undo_to

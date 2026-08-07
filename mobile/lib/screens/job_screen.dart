@@ -1727,10 +1727,10 @@ class _JobScreenState extends State<JobScreen> {
                                 ),
                               ),
                             /*
-                              ── ສະແກນ ISN/SN 2 ຈຸດ (07-08-2026) ──
-                              ① ຕອນກຳລັງຕິດຕັ້ງ (ປຸ່ມນີ້) ② ຕອນກົດສຳເລັດ (ຍິງອີກເທື່ອ).
-                              ພິສູດວ່າ**ໜ່ວຍທີ່ຕິດຈິງ**ແມ່ນໜ່ວຍທີ່ຂາຍໃນບິນ — server ທຽບໃຫ້,
-                              ບໍ່ຕົງ ⇒ ບໍ່ບັນທຶກ ແລະ ຈົບງານບໍ່ໄດ້.
+                              ── ຊ່າງເປັນຄົນເກັບ ISN/SN (07-08-2026 ຕາມຄຳສັ່ງ) ──
+                              ໃບງານເປີດມາ**ຫວ່າງ** ⇒ ຊ່າງຢູ່ໜ້າງານຍິງ/ພິມຈາກປ້າຍຕົວຈິງ
+                              ⇒ server ບັນທຶກໃສ່ໃບງານໃຫ້ເອງ (ທຽບກັບໜ່ວຍທີ່ຈ່າຍໃນບິນ).
+                              ແອ = 2 ໜ່ວຍ (ໃນ+ນອກ) ຄົນລະເລກ ⇒ ຕ້ອງເກັບໃຫ້ຄົບກ່ອນຈົບງານ.
                             */
                             if (job.workflow == 'install') ...[
                               OutlinedButton.icon(
@@ -1750,8 +1750,8 @@ class _JobScreenState extends State<JobScreen> {
                                 ),
                                 label: Text(
                                   job.scanDone
-                                      ? 'ອ່ານ ISN/SN ແລ້ວ — ເຮັດຊ້ຳໄດ້'
-                                      : 'ອ່ານ ISN/SN ຂອງເຄື່ອງ (ຍິງ ຫຼື ພິມເອງ)',
+                                      ? 'ເກັບ ISN/SN ຄົບແລ້ວ — ເບິ່ງ/ແກ້ໄດ້'
+                                      : 'ເກັບ ISN/SN ${_missingUnit()} (ຍິງ ຫຼື ພິມເອງ)',
                                 ),
                               ),
                               if (!job.canCheckOut) ...[
@@ -1773,20 +1773,6 @@ class _JobScreenState extends State<JobScreen> {
                               evidenceRequired || (job.workflow == 'install' && !job.scanDone)
                                   ? null
                                   : () async {
-                                      if (job.workflow == 'install') {
-                                        // ອ່ານອີກເທື່ອກ່ອນຈົບ — ຫຼັກຖານວ່າໜ່ວຍທີ່ຕິດແມ່ນອັນເກົ່າ
-                                        // (ຍິງກ້ອງ ຫຼື ພິມເອງ — ທຽບກັບໃບງານຄືກັນ)
-                                        final input = await _scanSerial('ISN/SN — ກ່ອນຈົບງານ');
-                                        if (input == null) return;
-                                        await run({
-                                          'action': 'finish',
-                                          'note': note.text,
-                                          'photos': photos,
-                                          'scan': input.value,
-                                          'scan_manual': input.manual,
-                                        });
-                                        return;
-                                      }
                                       await run({
                                         'action': 'finish',
                                         'note': note.text,
@@ -1796,9 +1782,9 @@ class _JobScreenState extends State<JobScreen> {
                             ),
                             if (job.workflow == 'install' && !job.scanDone) ...[
                               const SizedBox(height: 6),
-                              const Text(
-                                'ຕ້ອງອ່ານ ISN/SN ຕອນຕິດຕັ້ງກ່ອນ ຈຶ່ງກົດສຳເລັດໄດ້',
-                                style: TextStyle(color: muted, fontSize: 11.5),
+                              Text(
+                                'ຕ້ອງເກັບ ISN/SN ${_missingUnit()} ກ່ອນ ຈຶ່ງກົດສຳເລັດໄດ້',
+                                style: const TextStyle(color: muted, fontSize: 11.5),
                               ),
                             ],
 
@@ -2682,12 +2668,24 @@ class _JobScreenState extends State<JobScreen> {
   /// ໃຊ້ຄຸມປຸ່ມ "ນັດຮອບຕໍ່ໄປ" ໃຫ້ຕົງກັບດ່ານຂອງ server (ຕ້ອງມີຢ່າງໜ້ອຍ 1 ຮອບ).
   bool get _visitedThisJob => job.canCheckOut || job.hasCheckedIn;
 
+  /// ໜ່ວຍທີ່ຍັງບໍ່ທັນເກັບ — ຂໍ້ຄວາມສັ້ນໆໃສ່ປຸ່ມ/ຄຳອະທິບາຍ
+  String _missingUnit() {
+    if (!job.needOutdoor) return '';
+    final indoor = (job.expectSn ?? '').isNotEmpty;
+    final outdoor = (job.expectSnOut ?? '').isNotEmpty;
+    if (!indoor && !outdoor) return '(ໜ່ວຍໃນ + ໜ່ວຍນອກ)';
+    if (!indoor) return '(ຍັງຂາດ ໜ່ວຍໃນ)';
+    if (!outdoor) return '(ຍັງຂາດ ໜ່ວຍນອກ)';
+    return '';
+  }
+
   /// ເປີດໜ້າອ່ານ ISN/SN (ກ້ອງ ຫຼື ພິມເອງ) ແລ້ວຄືນຄ່າດິບ (null = ຍົກເລີກ)
   Future<SerialInput?> _scanSerial(String title) async {
+    // ເກັບແລ້ວອັນໃດ (ໃຫ້ຊ່າງຮູ້ວ່າກຳລັງເກັບໜ່ວຍໃດຢູ່) — ຫວ່າງໝົດ = ຍັງບໍ່ໄດ້ເກັບຫຍັງ
     final expect = [
-      job.expectSn,
-      job.expectSnOut,
-    ].where((v) => v != null && v.isNotEmpty && v != '-').join(' / ');
+      if ((job.expectSn ?? '').isNotEmpty && job.expectSn != '-') 'ໜ່ວຍໃນ ${job.expectSn}',
+      if ((job.expectSnOut ?? '').isNotEmpty && job.expectSnOut != '-') 'ໜ່ວຍນອກ ${job.expectSnOut}',
+    ].join(' · ');
     return Navigator.push<SerialInput>(
       context,
       MaterialPageRoute(
@@ -2698,7 +2696,7 @@ class _JobScreenState extends State<JobScreen> {
 
   /// ອ່ານ ISN/SN **ຕອນກຳລັງຕິດຕັ້ງ** — server ທຽບກັບໃບງານໃຫ້ (ບໍ່ຕົງ ⇒ ບໍ່ບັນທຶກ)
   Future<void> _scanNow() async {
-    final input = await _scanSerial('ISN/SN — ຕອນຕິດຕັ້ງ');
+    final input = await _scanSerial('ເກັບ ISN/SN ຂອງເຄື່ອງ');
     if (input == null || !mounted) return;
     await run({'action': 'scan', 'scan': input.value, 'scan_manual': input.manual});
   }

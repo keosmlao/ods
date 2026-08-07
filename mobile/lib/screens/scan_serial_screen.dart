@@ -28,7 +28,7 @@ class ScanSerialScreen extends StatefulWidget {
 
   final String title;
 
-  /// ບອກວ່າໃບງານລໍໜ່ວຍໃດ (ໃຫ້ຊ່າງທຽບດ້ວຍຕາໄດ້ກ່ອນຍິງ)
+  /// ເລກທີ່ເກັບໄວ້ແລ້ວ (ໃຫ້ຊ່າງຮູ້ວ່າຍັງຂາດໜ່ວຍໃດ)
   final String? hint;
 
   @override
@@ -101,7 +101,7 @@ class _ScanSerialScreenState extends State<ScanSerialScreen> {
                 if (widget.hint != null) ...[
                   const SizedBox(height: 6),
                   Text(
-                    'ໃບງານນີ້ຕ້ອງເປັນ: ${widget.hint}',
+                    'ເກັບແລ້ວ: ${widget.hint}',
                     style: const TextStyle(color: muted, fontSize: 12.5),
                   ),
                 ],

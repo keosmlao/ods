@@ -345,7 +345,6 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
             // ແອັບ = ຊ່າງຢູ່ໜ້າງານ ⇒ ບັງຄັບ check-in ຄືກັບ 'start' (ທຸກຮອບຕ້ອງມີຫຼັກຖານ)
             ? await finishInstallFlow(user, code, photos, {
                 requireCheckin: true,
-                requireScan: true,
                 scan: String(body.scan ?? ""),
                 // ຍິງກ້ອງ ຫຼື ພິມເອງ — ບັນທຶກໄວ້ໃນປະຫວັດຄົນລະຄຳ (lib/install-scan)
                 scanManual: body.scan_manual === true,

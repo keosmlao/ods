@@ -156,14 +156,6 @@ export function InstallForm({
     });
   };
 
-  const setSerial = (code: string, index: number, value: string, outdoor = false) =>
-    setDrafts((current) => {
-      const draft = current[code];
-      const list = [...(outdoor ? draft.outdoor : draft.serials)];
-      list[index] = value;
-      return { ...current, [code]: { ...draft, [outdoor ? "outdoor" : "serials"]: list } };
-    });
-
   /**
    * ເລືອກບິນແລ້ວ ⇒ ຕຽມຄ່າຕັ້ງຕົ້ນຂອງທຸກລາຍການໄວ້ ແລ້ວ **ເປີດ modal ໃຫ້ເລືອກລາຍການ**
    * (ບິນມີລາຍການດຽວ ⇒ ໃສ່ໃຫ້ເລີຍ ບໍ່ຕ້ອງເປີດ modal).
@@ -181,21 +173,24 @@ export function InstallForm({
     for (const item of chosen.items) {
       const sold = Math.max(1, Math.round(item.qty || 1));
       const units = Math.max(1, single && paid > 0 ? Math.min(paid, sold) : sold);
-      const indoor = item.serials.filter((serial) => serial.part !== "ໜ່ວຍນອກ");
-      const outer = item.serials.filter((serial) => serial.part === "ໜ່ວຍນອກ");
-      const valueOf = (serial?: Serial) => (serial ? serial.sn || serial.isn : "");
-
       next[item.item_code] = {
         // ບິນລາຍການດຽວ = ບໍ່ມີຫຍັງໃຫ້ເລືອກ ⇒ ໃສ່ໃຫ້ເລີຍ · ຫຼາຍລາຍການ ⇒ ໃຫ້ເລືອກໃນ modal
         on: single,
         units,
-        serials: Array.from({ length: units }, (_, index) => valueOf(indoor[index])),
-        outdoor: Array.from({ length: units }, (_, index) => valueOf(outer[index])),
+        /**
+         * ── ISN/SN ເປີດງານປະ**ຫວ່າງ** (07-08-2026 ຕາມຄຳສັ່ງ) ──
+         * ເລກຂອງໜ່ວຍທີ່ຈ່າຍອອກສາງມັກເກີດ**ຫຼັງ**ເປີດໃບງານ ⇒ ຕອນນີ້ໃສ່ໄປກໍ່ບໍ່ຈິງ
+         * (ວັດຈິງ: INST-7213/7214 ບິນດຽວກັນ 2 ໜ່ວຍ ໄດ້ເລກອັນດຽວກັນ ຍ້ອນພິມມື).
+         * ຊ່າງເປັນຄົນເກັບຢູ່ໜ້າງານຜ່ານແອັບ ⇒ ລະບົບບັນທຶກໃສ່ໃບງານໃຫ້ເອງ (lib/install-scan).
+         * ຈຳນວນຊ່ອງຍັງເທົ່າ `units` ເພາະ **1 ໜ່ວຍ = 1 ໃບງານ**.
+         */
+        serials: Array.from({ length: units }, () => ""),
+        outdoor: Array.from({ length: units }, () => ""),
         model: guessModel(item.item_name),
         type: matchCategory(categories, item.pro_type_name),
         size: item.pro_size ?? "",
         stock: [],
-        loading: indoor.length === 0,
+        loading: false,
         manual: false,
       };
     }
@@ -211,24 +206,6 @@ export function InstallForm({
         : null,
     );
     setPicking(!single);
-
-    // ບິນບໍ່ໄດ້ລົງ ISN ⇒ ດຶງຈາກຄັງ (api/installations/serials)
-    for (const item of chosen.items) {
-      if (item.serials.some((serial) => serial.part !== "ໜ່ວຍນອກ")) continue;
-      fetch(`/api/installations/serials?item_code=${encodeURIComponent(item.item_code)}`)
-        .then((response) => response.json())
-        .then((body: { data?: { isn: string; sn: string; in_stock: boolean }[] }) =>
-          patch(item.item_code, {
-            stock: (body.data ?? []).map((row) => ({
-              isn: row.isn,
-              sn: row.sn,
-              part: row.in_stock ? "ໃນສາງ" : "",
-            })),
-            loading: false,
-          }),
-        )
-        .catch(() => patch(item.item_code, { stock: [], loading: false }));
-    }
   }
 
   /** ລາຍການທີ່ **ເລືອກແລ້ວ** (ຜ່ານ modal) ແລະ ລາຍການທີ່ຍັງເລືອກໄດ້ */
@@ -240,8 +217,8 @@ export function InstallForm({
     .map((item) => ({ item, draft: drafts[item.item_code] }))
     .filter(({ draft }) => draft?.on)
     /**
-     * S/N **ບໍ່ບັງຄັບ** — ບິນຫຼາຍໃບບໍ່ໄດ້ລົງ ISN ແລະ CS ຢູ່ໜ້າເຄົາເຕີບໍ່ໄດ້ຖືເຄື່ອງຢູ່ນຳ
-     * ⇒ ບັງຄັບໄວ້ = ເປີດງານບໍ່ໄດ້ເລີຍ. ຊ່າງອ່ານປ້າຍຕົວເຄື່ອງຕອນໄປຕິດຕັ້ງແລ້ວຕື່ມພາຍຫຼັງໄດ້.
+     * S/N **ບໍ່ມີຢູ່ໜ້ານີ້ແລ້ວ** (07-08-2026) — ຊ່າງເກັບຢູ່ໜ້າງານຜ່ານແອັບ ແລ້ວລະບົບບັນທຶກ
+     * ໃສ່ໃບງານໃຫ້ເອງ (lib/install-scan) ⇒ ດ່ານຢູ່ບ່ອນ**ຈົບງານ** ບໍ່ແມ່ນບ່ອນເປີດງານ.
      * ຊ່ອງທີ່ຍັງບັງຄັບ: Model · ປະເພດ · ຂະໜາດ.
      */
     .filter(({ draft }) => draft.model.trim() && draft.type && draft.size.trim())
@@ -366,11 +343,9 @@ export function InstallForm({
         chosenItems.map((item) => {
           const draft = drafts[item.item_code];
 
-          const billIndoor = item.serials.filter((serial) => serial.part !== "ໜ່ວຍນອກ");
-          const outdoorOptions = item.serials.filter((serial) => serial.part === "ໜ່ວຍນອກ");
-          const fromStock = billIndoor.length === 0 && draft.stock.length > 0;
-          const indoorOptions = billIndoor.length > 0 ? billIndoor : draft.stock;
-          const isAc = outdoorOptions.length > 0 || (item.pro_type_name ?? "").includes("ແອ");
+          const isAc =
+            item.serials.some((serial) => serial.part === "ໜ່ວຍນອກ") ||
+            (item.pro_type_name ?? "").includes("ແອ");
           const missing = !lines.some((line) => line.item_code === item.item_code);
 
           return (
@@ -418,90 +393,15 @@ export function InstallForm({
                     </span>
                   </div>
 
-                  {/* S/N ຕໍ່ໜ່ວຍ */}
-                  <div className="space-y-2">
-                    {draft.serials.map((serial, index) => (
-                      <div key={index} className={`grid gap-2 ${isAc ? "md:grid-cols-2" : ""}`}>
-                        <div>
-                          <label className="mb-1 block text-xs text-slate-500">
-                            {t.unitNoLabel} {index + 1} {isAc ? t.snIndoorSuffix : t.snSuffix}
-                          </label>
-                          {indoorOptions.length > 0 && !draft.manual ? (
-                            <select
-                              value={serial}
-                              onChange={(event) => setSerial(item.item_code, index, event.target.value)}
-                              className={inputClass}
-                            >
-                              <option value="">{t.selectIsn}</option>
-                              {indoorOptions.map((row) => (
-                                <option key={row.isn} value={row.sn || row.isn}>
-                                  {row.isn}
-                                  {row.sn ? ` · S/N ${row.sn}` : ""}
-                                  {row.part === "ໃນສາງ" ? ` · ${t.stillInStock}` : ""}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <input
-                              value={serial}
-                              onChange={(event) => setSerial(item.item_code, index, event.target.value)}
-                              placeholder={draft.loading ? t.loadingIsn : t.readFromLabel}
-                              className={inputClass}
-                            />
-                          )}
-                        </div>
-
-                        {/* ແອມີຄອມເພຣສເຊີຢູ່ນອກ — ຄົນລະ S/N ⇒ ຮັບປະກັນ/ສ້ອມພາຍຫຼັງອ້າງອີງໄດ້ */}
-                        {isAc && (
-                          <div>
-                            <label className="mb-1 block text-xs text-slate-500">{t.snOutdoor}</label>
-                            {outdoorOptions.length > 0 && !draft.manual ? (
-                              <select
-                                value={draft.outdoor[index] ?? ""}
-                                onChange={(event) => setSerial(item.item_code, index, event.target.value, true)}
-                                className={inputClass}
-                              >
-                                <option value="">{t.selectIsn}</option>
-                                {outdoorOptions.map((row) => (
-                                  <option key={row.isn} value={row.sn || row.isn}>
-                                    {row.isn}
-                                    {row.sn ? ` · S/N ${row.sn}` : ""}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <input
-                                value={draft.outdoor[index] ?? ""}
-                                onChange={(event) => setSerial(item.item_code, index, event.target.value, true)}
-                                placeholder={t.readFromCompressor}
-                                className={inputClass}
-                              />
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                    {/* ບອກແຫຼ່ງທີ່ມາຂອງ ISN ແລະ ທາງອອກເມື່ອຫາບໍ່ພົບ */}
-                    <p className="text-[11px] text-slate-400">
-                      {draft.loading
-                        ? t.loadingItemIsn
-                        : indoorOptions.length === 0
-                          ? t.isnNotFoundErp
-                          : fromStock
-                            ? t.isnFromStockWarn
-                            : t.isnSoldInBill}
-                      {indoorOptions.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => patch(item.item_code, { manual: !draft.manual })}
-                          className="ml-2 font-semibold text-brand-800 hover:underline"
-                        >
-                          {draft.manual ? t.backToList : t.notInListType}
-                        </button>
-                      )}
-                    </p>
-                  </div>
+                  {/*
+                    ── ບໍ່ມີຊ່ອງ ISN/SN ຢູ່ໜ້າເປີດງານແລ້ວ (07-08-2026 ຕາມຄຳສັ່ງ) ──
+                    CS ຢູ່ໜ້າເຄົາເຕີບໍ່ໄດ້ຖືເຄື່ອງຢູ່ນຳ ແລະ ໃບຈ່າຍສິນຄ້າຫຼາຍເທື່ອອອກ**ຫຼັງ**
+                    ເປີດໃບງານ ⇒ ໃສ່ຕອນນີ້ໄດ້ແຕ່ຂອງທີ່ບໍ່ຈິງ. ຊ່າງເກັບຈາກປ້າຍຕົວຈິງຜ່ານແອັບ.
+                  */}
+                  <p className="rounded-lg bg-brand-50 px-3 py-2 text-[11px] text-brand-900">
+                    <b>ISN/SN</b> ບໍ່ຕ້ອງໃສ່ຢູ່ນີ້ — ຊ່າງເກັບຢູ່ໜ້າງານຜ່ານແອັບ (ຍິງບາໂຄດ ຫຼື ພິມເອງ)
+                    {isAc && " · ແອຕ້ອງເກັບ 2 ເລກ: ໜ່ວຍໃນ + ໜ່ວຍນອກ"} ⇒ ເກັບບໍ່ຄົບ ຈົບງານບໍ່ໄດ້
+                  </p>
 
                   {/* ຂໍ້ມູນສິນຄ້າ — ດຶງມາຈາກ ERP ແລ້ວ ສ່ວນຫຼາຍບໍ່ຕ້ອງແຕະ */}
                   <div className="grid gap-3 md:grid-cols-3">
