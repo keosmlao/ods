@@ -1,9 +1,11 @@
 "use client";
+
+import Image from "next/image";
 import { LinkPending } from "@/components/link-pending";
 import { navigationFor, NAV_GROUP_KEY, type NavFlags, type NavGroup, type NavItem } from "@/lib/navigation";
 import type { NavCounts } from "@/lib/nav-counts";
 import { homeForRole, type Role } from "@/lib/roles";
-import { ChevronDown, PanelLeftClose, PanelLeftOpen, Search, Wrench, X } from "lucide-react";
+import { ChevronDown, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -286,9 +288,15 @@ export function Sidebar({
     >
       <div className={`flex h-14 shrink-0 items-center border-b border-white/5 ${collapsed ? "justify-center px-2" : "gap-2.5 px-3"}`}>
         <Link href={homeForRole(role)} title="ODIEN SERVICE" className="flex items-center gap-3 overflow-hidden">
-          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand-600 text-white">
-            <Wrench className="size-4" />
-          </span>
+          {/* ໂລໂກ້ຈິງ ODIEN Service & Spare Parts — ພື້ນຂາວເພື່ອໃຫ້ເຫັນຊັດເທິງແຖບເຂັ້ມ */}
+          <Image
+            src="/ods-logo.png"
+            alt="ODIEN Service & Spare Parts"
+            width={32}
+            height={32}
+            priority
+            className="size-8 shrink-0 rounded-lg bg-white object-contain p-0.5"
+          />
           {!collapsed && (
             <span className="whitespace-nowrap">
               <span className="block text-sm font-bold leading-tight text-white">ODIEN SERVICE</span>

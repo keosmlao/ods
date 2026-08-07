@@ -118,7 +118,7 @@ export default async function PrintReceipt({ params }: Props) {
       {/* ຫົວກະດາດ: ໂລໂກ້ · ຂໍ້ມູນບໍລິສັດ · QR */}
       <header className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <Image src="/odm.png" alt="" width={96} height={68} priority className="h-auto w-24 object-contain" />
+          <Image src="/ods-logo.png" alt="ODIEN Service & Spare Parts" width={72} height={72} priority className="h-16 w-auto object-contain" />
           <div className="text-xs leading-5">
             <p className="text-sm font-bold">{company.name_1 || "ODIEN SERVICE"}</p>
             {company.name_2 && <p>{company.name_2}</p>}

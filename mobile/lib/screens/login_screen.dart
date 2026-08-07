@@ -107,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'ODS by ODG',
+                                  'ODIEN Service',
                                   style: TextStyle(
                                     color: ink,
                                     fontSize: 15,

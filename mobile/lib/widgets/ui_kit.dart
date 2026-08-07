@@ -23,7 +23,7 @@ BoxDecoration cardDecoration({Color? color, Color? border, double borderRadius =
 
 /// ຫົວແອັບບາ: eyebrow ນ້ອຍ + ຫົວຂໍ້ໃຫຍ່ (ໃຊ້ໃນ AppBar.title)
 class AppTitle extends StatelessWidget {
-  const AppTitle({super.key, required this.title, this.eyebrow = 'ODS by ODG'});
+  const AppTitle({super.key, required this.title, this.eyebrow = 'ODIEN Service'});
   final String title;
   final String eyebrow;
 
@@ -398,7 +398,7 @@ class HeroHeader extends StatelessWidget {
   const HeroHeader({
     super.key,
     required this.title,
-    this.eyebrow = 'ODS by ODG',
+    this.eyebrow = 'ODIEN Service',
     this.trailing,
     this.above,
     this.stats,
