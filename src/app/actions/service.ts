@@ -195,11 +195,12 @@ export async function createService(_: ServiceState, formData: FormData): Promis
   const files = await collectUploads(formData);
   if (!files.ok) return { error: files.error };
   const uploads = files.uploads;
-  // ບັງຄັບຮູບຮັບເຄື່ອງ ≥1 — ຫຼັກຖານສະພາບເຄື່ອງຕອນຮັບ (ຄືກັບຈົບງານທີ່ບັງຄັບຮູບຜົນງານ)
-  // ⇒ ທຸກໃບມີຮູບໃຫ້ສະແດງໃນລາຍการ ແລະ ກັນຂໍ້ຂັດແຍ້ງສະພາບເຄື່ອງກັບລູກຄ້າ.
-  if (uploads.length === 0) {
-    return { error: "ຕ້ອງແນບຮູບຮັບເຄື່ອງຢ່າງໜ້ອຍ 1 ຮູບ (ຫຼັກຖານສະພາບເຄື່ອງຕອນຮັບ)" };
-  }
+  /**
+   * ── ຮູບຮັບເຄື່ອງ **ບໍ່ບັງຄັບອີກແລ້ວ** (07-08-2026 ຕາມຄຳສັ່ງ) ──
+   * ເມື່ອກ່ອນບັງຄັບ ≥1 ຮູບ ເປັນຫຼັກຖານສະພາບເຄື່ອງ ແຕ່ຕົວຈິງ CS ຮັບເຄື່ອງໜ້າຮ້ານ
+   * ຕອນລູກຄ້າຢືນລໍຢູ່ ⇒ ຖ່າຍຮູບບໍ່ທັນ ຫຼື ກ້ອງມີບັນຫາ ແລ້ວ**ເປີດໃບບໍ່ໄດ້ເລີຍ**.
+   * ດຽວນີ້ແນບພາຍຫຼັງໄດ້ຢູ່ໜ້າໃບງານ (components/service-photos).
+   */
 
   const d = parsed.data;
   const client = await db.connect();
@@ -853,10 +854,7 @@ export async function createServiceFromNotice(_: ServiceState, formData: FormDat
 
   const files = await collectUploads(formData);
   if (!files.ok) return { error: files.error };
-  // ບັງຄັບຮູບຮັບເຄື່ອງ ≥1 (ຄືກັບໜ້າຮັບໃໝ່) — ທຸກໃບມີຫຼັກຖານສະພາບເຄື່ອງ
-  if (files.uploads.length === 0) {
-    return { error: "ຕ້ອງແນບຮູບຮັບເຄື່ອງຢ່າງໜ້ອຍ 1 ຮູບ (ຫຼັກຖານສະພາບເຄື່ອງຕອນຮັບ)" };
-  }
+  // ຮູບຮັບເຄື່ອງບໍ່ບັງຄັບ (07-08-2026 — ຄືກັບໜ້າຮັບໃໝ່; ແນບພາຍຫຼັງໄດ້ຢູ່ໜ້າໃບງານ)
 
   const d = parsed.data;
   const client = await db.connect();

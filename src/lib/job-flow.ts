@@ -173,11 +173,21 @@ export async function bringRepairToCenter(
   const why = reason.trim();
   if (!why) return { ok: false, error: "ກະລຸນາໃສ່ເຫດຜົນທີ່ສ້ອມໜ້າງານບໍ່ໄດ້" };
 
-  // ເອົາກັບພ້ອມ = ຊ່າງຫອບເຄື່ອງເຂົ້າສູນເອງ ⇒ ໝາຍ pickup_at ທັນທີ (ຂ້າມຄິວໄປຮັບ).
+  /**
+   * ── ເລືອກ "ໃຫ້ຂົນສົ່ງໄປຮັບ" ⇒ ຕ້ອງເປັນ **"ລໍໄປຮັບເຄື່ອງ"** (07-08-2026 ຕາມຄຳສັ່ງ) ──
+   * ຮຸ່ນກ່ອນໝາຍ `pickup_start` (= "ອອກໄປຮັບແລ້ວ") ໃຫ້ທັງສອງແບບ ⇒ ວຽກຕົກໄປຄິວ
+   * **"ກຳລັງໄປຮັບ"** ທັນທີ ທັງທີ່**ຍັງບໍ່ມີໃຜອອກໄປ** ⇒ ຄິວ "ລໍໄປຮັບເຄື່ອງ" ວ່າງຕະຫຼອດ
+   * ແລະ ບໍ່ມີໃຜຮູ້ວ່າຕ້ອງຈັດຄົນໄປຮັບ. ດຽວນີ້:
+   *   ຂົນສົ່ງໄປຮັບ ⇒ pickup_start ຫວ່າງ ⇒ **ລໍໄປຮັບເຄື່ອງ (ຂັ້ນ 0)**
+   *                  ຈົນກວ່າຈະກົດ "ອອກໄປຮັບ" (actions/repair) ຈຶ່ງເປັນ "ກຳລັງໄປຮັບ"
+   *   ຊ່າງເອົາກັບພ້ອມ ⇒ ໝາຍທັງ pickup_start ແລະ pickup_at ⇒ ຂ້າມຄິວໄປຮັບ ເຂົ້າສູນເລີຍ
+   */
   const carry = mode === "carry";
   const done = await query(
     `update tb_product a set
-        service_type='PS', pickup_start=${NOW}, pickup_at=${carry ? NOW : "null"},
+        service_type='PS',
+        pickup_start=${carry ? NOW : "null"},
+        pickup_at=${carry ? NOW : "null"},
         time_check=null, time_finish_check=null
       where a.code=$1 and coalesce(service_type,'')='IH' and (${STAGE_SQL}) between 1 and 8`,
     [code],
@@ -199,7 +209,7 @@ export async function bringRepairToCenter(
     ok: true,
     message: carry
       ? `ນຳ ${code} ເຂົ້າສູນແລ້ວ (ເອົາກັບພ້ອມ) — ຢູ່ຄິວ ລໍຖ້າກວດເຊັກ`
-      : `ນຳ ${code} ເຂົ້າສູນແລ້ວ — ລໍຂົນສົ່ງໄປຮັບ`,
+      : `${code} ປ່ຽນເປັນ PS ແລ້ວ — ຢູ່ຄິວ "ລໍໄປຮັບເຄື່ອງ"`,
   };
 }
 
