@@ -337,6 +337,12 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
           <table className="w-full min-w-[1240px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                {/*
+                  ── ປຸ່ມລົງມືຢູ່**ຖັນທຳອິດ** (08-08-2026 ຕາມຄຳສັ່ງ — ຄືກັບຄິວງານ /work) ──
+                  ຕາຕະລາງກວ້າງ 1240px ⇒ ປຸ່ມ "ກຳນົດເມນູ" ຢູ່ຖັນທ້າຍຕ້ອງເລື່ອນຈໍໄປຂວາຈຶ່ງເຫັນ.
+                  (ສະວິດ "ເປີດ/ປິດ" ບໍ່ຍ້າຍ — ມັນເປັນຄ່າຂອງແຖວ ບໍ່ແມ່ນທາງເຂົ້າໜ້າອື່ນ)
+                */}
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colMenuCrud}</th>
                 {columns(t).map((column) => (
                   <SortHeader
                     key={column.key}
@@ -350,13 +356,21 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
                   />
                 ))}
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colActive}</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colMenuCrud}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">{t.colLastEditor}</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.code} className={`border-b border-slate-100 ${row.active ? "hover:bg-slate-50" : "bg-brand-orange-50/40"}`}>
+                  <td className="whitespace-nowrap px-3 py-2.5">
+                    <Link
+                      href={`/manage/employees/${encodeURIComponent(row.code)}/permissions`}
+                      className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2.5 text-[11px] font-semibold text-brand-800 hover:bg-brand-100"
+                    >
+                      <Settings2 className="size-3.5" />
+                      {t.setMenus}
+                    </Link>
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2.5 font-bold text-brand">{row.code}</td>
                   <td className="whitespace-nowrap px-3 py-2.5 font-medium text-slate-800">{row.identity}</td>
                   <td className="max-w-52 truncate px-3 py-2.5 text-slate-600" title={row.fullname}>
@@ -385,15 +399,6 @@ export default async function EmployeeRolesPage({ searchParams }: Props) {
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5">
                     <ActiveToggle code={row.code} name={row.identity} active={row.active} />
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2.5">
-                    <Link
-                      href={`/manage/employees/${encodeURIComponent(row.code)}/permissions`}
-                      className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2.5 text-[11px] font-semibold text-brand-800 hover:bg-brand-100"
-                    >
-                      <Settings2 className="size-3.5" />
-                      {t.setMenus}
-                    </Link>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">
                     {row.updated_by ? (

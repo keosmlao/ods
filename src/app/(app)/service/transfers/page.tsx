@@ -38,6 +38,11 @@ export default async function JobTransfersPage() {
           <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-slate-50 text-left text-xs text-slate-500">
               <tr>
+                {/*
+                  ── ປຸ່ມລົງມືຢູ່**ຖັນທຳອິດ** (08-08-2026 ຕາມຄຳສັ່ງ — ຄືກັບຄິວງານ /work) ──
+                  ຕາຕະລາງກວ້າງ 900px ⇒ ຢູ່ຖັນສຸດທ້າຍຕ້ອງເລື່ອນຈໍໄປຂວາຈຶ່ງເຫັນປຸ່ມ "ຮັບແລ້ວ".
+                */}
+                <th className="px-3 py-2"></th>
                 <th className="px-3 py-2">{t.colJob}</th>
                 <th className="px-3 py-2">{t.colCustomer}</th>
                 <th className="px-3 py-2">{t.colProduct}</th>
@@ -46,12 +51,14 @@ export default async function JobTransfersPage() {
                 <th className="px-3 py-2">{t.colReason}</th>
                 <th className="px-3 py-2">{t.colSent}</th>
                 <th className="px-3 py-2">{t.colAge}</th>
-                <th className="px-3 py-2"></th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50">
+                  <td className="px-3 py-2">
+                    <ReceiveTransferButton code={row.job_code} label={t.receive} busyLabel={t.receiving} />
+                  </td>
                   <td className="px-3 py-2">
                     <Link href={`/service/${row.job_code}`} className="font-semibold text-brand-800 hover:underline">
                       #{row.job_code}
@@ -77,9 +84,6 @@ export default async function JobTransfersPage() {
                     <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${row.days >= 3 ? "bg-brand-orange-100 text-brand-orange-700" : row.days >= 1 ? "bg-brand-orange-300 text-brand-900" : "bg-slate-100 text-slate-600"}`}>
                       {row.days} {t.days}
                     </span>
-                  </td>
-                  <td className="px-3 py-2">
-                    <ReceiveTransferButton code={row.job_code} label={t.receive} busyLabel={t.receiving} />
                   </td>
                 </tr>
               ))}

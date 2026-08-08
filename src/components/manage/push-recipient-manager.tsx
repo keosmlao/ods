@@ -112,6 +112,8 @@ export function PushRecipientManager({
         <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-slate-50 text-xs text-slate-500">
             <tr>
+              {/* ປຸ່ມລົງມືຢູ່ຖັນທຳອິດ — ຄືກັບຄິວງານ /work ແລະ ໜ້າອື່ນທັງໝົດ */}
+              <th className="px-3 py-2" />
               <th className="px-3 py-2 text-left font-semibold">ຄົນ</th>
               <th className="px-3 py-2 text-left font-semibold">ບົດບາດ</th>
               <th className="px-3 py-2 text-left font-semibold">ເຄື່ອງ</th>
@@ -121,7 +123,6 @@ export function PushRecipientManager({
                   {kind === "approval" ? "ລໍອະນຸມັດ" : "ສະຫຼຸບ 15 ນາທີ"}
                 </th>
               ))}
-              <th className="px-3 py-2" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -134,6 +135,21 @@ export function PushRecipientManager({
             )}
             {people.map((person) => (
               <tr key={person.username} className={person.devices ? "" : "bg-slate-50/60"}>
+                <td className="px-3 py-2 text-left">
+                  <button
+                    type="button"
+                    disabled={pending || !person.devices}
+                    onClick={() => test(person.username)}
+                    title="ຍິງທົດສອບໃສ່ເຄື່ອງຂອງຄົນນີ້"
+                    className="text-slate-400 hover:text-brand-700 disabled:opacity-30"
+                  >
+                    {testing === person.username ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <Send className="size-4" />
+                    )}
+                  </button>
+                </td>
                 <td className="px-3 py-2">
                   <span className="font-medium text-slate-800">{person.name}</span>
                   {person.name.toLowerCase() !== person.username.toLowerCase() && (
@@ -171,21 +187,6 @@ export function PushRecipientManager({
                     />
                   </td>
                 ))}
-                <td className="px-3 py-2 text-right">
-                  <button
-                    type="button"
-                    disabled={pending || !person.devices}
-                    onClick={() => test(person.username)}
-                    title="ຍິງທົດສອບໃສ່ເຄື່ອງຂອງຄົນນີ້"
-                    className="text-slate-400 hover:text-brand-700 disabled:opacity-30"
-                  >
-                    {testing === person.username ? (
-                      <LoaderCircle className="size-4 animate-spin" />
-                    ) : (
-                      <Send className="size-4" />
-                    )}
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>

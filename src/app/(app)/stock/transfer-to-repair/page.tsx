@@ -90,6 +90,11 @@ export default async function TransferToRepairPage() {
             <table className="w-full min-w-[820px] text-xs">
               <thead className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
                 <tr>
+                  {/*
+                    ── ປຸ່ມລົງມືຢູ່**ຖັນທຳອິດ** (08-08-2026 ຕາມຄຳສັ່ງ — ຄືກັບຄິວງານ /work) ──
+                    ຄົນເປີດໜ້ານີ້ເພື່ອ **ກົດຕິດຕາມ/ຮັບຂອງ** ບໍ່ແມ່ນເພື່ອອ່ານເລກທີ.
+                  */}
+                  <th className="px-3 py-2.5" />
                   <th className="px-4 py-2.5 font-semibold">ເລກທີ</th>
                   <th className="px-3 py-2.5 font-semibold">ວັນທີ</th>
                   <th className="px-3 py-2.5 font-semibold">ສາງປາຍທາງ</th>
@@ -97,7 +102,6 @@ export default async function TransferToRepairPage() {
                   <th className="px-3 py-2.5 text-center font-semibold">ຈຳນວນ</th>
                   <th className="px-3 py-2.5 font-semibold">ຄ້າງມາ</th>
                   <th className="px-3 py-2.5 font-semibold">ສະຖານະ</th>
-                  <th className="px-3 py-2.5" />
                 </tr>
               </thead>
               <tbody>
@@ -106,6 +110,16 @@ export default async function TransferToRepairPage() {
                   const tone = elapsedTone(row.elapsed_seconds);
                   return (
                     <tr key={row.doc_no} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                      <td className="whitespace-nowrap px-3 py-2.5 text-left">
+                        {/* ຮັບຂອງ ແລະ ຕິດຕາມ ຢູ່ /stock/transfers ບ່ອນດຽວ — ຢ່າມີສອງທາງເຂົ້າ */}
+                        <Link
+                          href={`/stock/transfers?q=${encodeURIComponent(row.doc_no)}`}
+                          className="inline-flex h-8 items-center gap-1 rounded-lg bg-brand-500 px-3 text-[11px] font-semibold text-white hover:bg-brand-600"
+                        >
+                          {received ? "ເບິ່ງ" : "ຕິດຕາມ / ຮັບຂອງ"}
+                          <LinkPending className="size-3" />
+                        </Link>
+                      </td>
                       <td className="whitespace-nowrap px-4 py-2.5 font-bold text-brand-700">{row.doc_no}</td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{row.doc_date ?? "-"}</td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
@@ -136,16 +150,6 @@ export default async function TransferToRepairPage() {
                             ລໍສາງໃຫຍ່ໂອນ
                           </span>
                         )}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-right">
-                        {/* ຮັບຂອງ ແລະ ຕິດຕາມ ຢູ່ /stock/transfers ບ່ອນດຽວ — ຢ່າມີສອງທາງເຂົ້າ */}
-                        <Link
-                          href={`/stock/transfers?q=${encodeURIComponent(row.doc_no)}`}
-                          className="inline-flex h-8 items-center gap-1 rounded-lg bg-brand-500 px-3 text-[11px] font-semibold text-white hover:bg-brand-600"
-                        >
-                          {received ? "ເບິ່ງ" : "ຕິດຕາມ / ຮັບຂອງ"}
-                          <LinkPending className="size-3" />
-                        </Link>
                       </td>
                     </tr>
                   );

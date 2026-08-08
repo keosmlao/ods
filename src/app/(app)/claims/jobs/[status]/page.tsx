@@ -139,6 +139,12 @@ export default async function ClaimStagePage({ params }: { params: Promise<{ sta
           <table className="w-full min-w-[1000px] text-sm">
             <thead className="bg-slate-50 text-left text-xs text-slate-500">
               <tr>
+                {/*
+                  ── ປຸ່ມລົງມືຢູ່**ຖັນທຳອິດ** (08-08-2026 ຕາມຄຳສັ່ງ — ຄືກັບຄິວງານ /work) ──
+                  ຕາຕະລາງນີ້ກວ້າງ 1000px ⇒ ປຸ່ມທີ່ຢູ່ຖັນສຸດທ້າຍຕ້ອງເລື່ອນຈໍໄປຂວາຈຶ່ງເຫັນ.
+                  ຄົນເປີດໜ້ານີ້ເພື່ອ **ກົດ** ບໍ່ແມ່ນເພື່ອອ່ານ ⇒ ປຸ່ມຢູ່ບ່ອນທຳອິດທີ່ຕາເຫັນ.
+                */}
+                <th className="px-3 py-2"></th>
                 <th className="px-3 py-2">{t.colJob}</th>
                 <th className="px-3 py-2">{t.colShop}</th>
                 <th className="px-3 py-2">{t.colDevice}</th>
@@ -146,12 +152,37 @@ export default async function ClaimStagePage({ params }: { params: Promise<{ sta
                 <th className="px-3 py-2">{t.colClaim}</th>
                 <th className="px-3 py-2">{t.colTech}</th>
                 <th className="px-3 py-2">{t.colWaited}</th>
-                <th className="px-3 py-2"></th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.code} className="border-t border-slate-100 hover:bg-slate-50">
+                  <td className="px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {/* ຂັ້ນ "ຮັບຈາກຮ້ານ/ລໍກວດ": ຈັດຊ່າງ → ຊ່າງຮັບ → ເລີ່ມກວດ */}
+                      {status === "claim-wait-check" && !row.technician && (
+                        <AssignTechButton
+                          row={{ code: row.code, customer: row.customer, location_inst: null, appoint_date: null, remark: null }}
+                          techs={techs}
+                          workflow="repair"
+                          size="sm"
+                        />
+                      )}
+                      {status === "claim-wait-check" && row.technician && !row.accepted && (
+                        <AcceptRepairButton code={row.code} />
+                      )}
+                      {status === "claim-wait-check" && row.accepted && <StartCheckButton code={row.code} />}
+                      {step && (
+                        <Link
+                          href={step.href(row.code)}
+                          className="inline-flex h-8 items-center gap-1 rounded-lg bg-brand-orange-600 px-3 text-xs font-semibold text-white hover:bg-brand-orange-700"
+                        >
+                          {step.label}
+                          <ArrowRight className="size-3.5" />
+                        </Link>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-3 py-2">
                     <Link href={`/claims/jobs/detail/${row.code}`} className="font-semibold text-brand-orange-700 hover:underline">
                       #{row.code}
@@ -191,32 +222,6 @@ export default async function ClaimStagePage({ params }: { params: Promise<{ sta
                       seconds={row.elapsed_seconds}
                       className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${ageTone(row.elapsed_seconds)}`}
                     />
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap items-center justify-end gap-1.5">
-                      {/* ຂັ້ນ "ຮັບຈາກຮ້ານ/ລໍກວດ": ຈັດຊ່າງ → ຊ່າງຮັບ → ເລີ່ມກວດ */}
-                      {status === "claim-wait-check" && !row.technician && (
-                        <AssignTechButton
-                          row={{ code: row.code, customer: row.customer, location_inst: null, appoint_date: null, remark: null }}
-                          techs={techs}
-                          workflow="repair"
-                          size="sm"
-                        />
-                      )}
-                      {status === "claim-wait-check" && row.technician && !row.accepted && (
-                        <AcceptRepairButton code={row.code} />
-                      )}
-                      {status === "claim-wait-check" && row.accepted && <StartCheckButton code={row.code} />}
-                      {step && (
-                        <Link
-                          href={step.href(row.code)}
-                          className="inline-flex h-8 items-center gap-1 rounded-lg bg-brand-orange-600 px-3 text-xs font-semibold text-white hover:bg-brand-orange-700"
-                        >
-                          {step.label}
-                          <ArrowRight className="size-3.5" />
-                        </Link>
-                      )}
-                    </div>
                   </td>
                 </tr>
               ))}
