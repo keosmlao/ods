@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { recipientsForRoles } from "@/lib/notify";
+import { disabledPushEvents } from "@/lib/push-event";
 import { applyPushChoice } from "@/lib/push-recipient";
 import { SignJWT, importPKCS8 } from "jose";
 
@@ -152,6 +153,12 @@ export async function digestPush(usernames: string[]): Promise<void> {
     if (!config() || usernames.length === 0) return;
     // ຜູ້ຈັດການເລືອກໄດ້ວ່າໃຜຄວນໄດ້ຮັບສະຫຼຸບ (/manage/push-recipients) — ບໍ່ໄດ້ກຳນົດ = ທຸກຄົນຄືເກົ່າ
     const targets = await applyPushChoice("digest", usernames);
+    /**
+     * ປະເພດທີ່ຜູ້ຈັດການ**ປິດ**ບໍ່ໃຫ້ຍິງເຂົ້າແອັບ — ຕ້ອງຕັດອອກຈາກ**ການນັບ**ນຳ
+     * ບໍ່ດັ່ງນັ້ນສະຫຼຸບຈະບອກ "ມີ 37 ລາຍການໃໝ່" ໂດຍນັບເອົາອັນທີ່ຖືກປິດປົນເຂົ້າມາ
+     * (ແຖວຍັງຢູ່ໃນຖານສະເໝີ — ປິດແຕ່ສຽງເອີ້ນ ບໍ່ໄດ້ປິດປະຫວັດ).
+     */
+    const muted = [...(await disabledPushEvents())];
     for (const username of [...new Set(targets.map((name) => name.trim()).filter(Boolean))]) {
       /**
        * ຈອງສິດສົ່ງແບບ **atomic**: ແຖວຖືກອັບເດດຕໍ່ເມື່ອຄົບໄລຍະແລ້ວ ⇒ ສອງຄຳຂໍທີ່ມາພ້ອມກັນ
@@ -173,9 +180,12 @@ export async function digestPush(usernames: string[]): Promise<void> {
         await query<{ n: number; max_id: string; body: string | null }>(
           `select count(*)::int n, coalesce(max(id),$2)::text max_id,
               (select body from ods_notification
-                where username=$1 and id > $2 order by id desc limit 1) body
-             from ods_notification where username=$1 and id > $2 and read_at is null`,
-          [username, since],
+                where username=$1 and id > $2 and (model || ':' || kind) <> all($3::text[])
+                order by id desc limit 1) body
+             from ods_notification
+            where username=$1 and id > $2 and read_at is null
+              and (model || ':' || kind) <> all($3::text[])`,
+          [username, since, muted],
         )
       ).rows[0];
       const total = stat?.n ?? 0;

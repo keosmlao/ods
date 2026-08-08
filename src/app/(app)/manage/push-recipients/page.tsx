@@ -1,7 +1,12 @@
+import { PushEventMatrix } from "@/components/manage/push-event-matrix";
+import { PushStatusMatrix } from "@/components/manage/push-status-matrix";
 import { PushRecipientManager, type KindState } from "@/components/manage/push-recipient-manager";
 import { getSession } from "@/lib/auth";
 import { ROLE_APPROVER } from "@/lib/chatter";
 import { recipientsForRoles } from "@/lib/notify";
+import { listPushEvents } from "@/lib/push-event";
+import { pushStatusOverrides } from "@/lib/push-status";
+import { pushEventKey } from "@/lib/push-event-shared";
 import { listPushChoices, pushAudience } from "@/lib/push-recipient";
 import { PUSH_KINDS, type PushKind } from "@/lib/push-recipient-shared";
 import { APPROVER_SIDE, roleOf } from "@/lib/roles";
@@ -22,11 +27,13 @@ export default async function PushRecipientsPage() {
   if (!APPROVER_SIDE.includes(roleOf(session))) redirect("/forbidden");
 
   const choices = await listPushChoices();
-  const [people, approvers] = await Promise.all([
+  const [people, approvers, events, statusRules] = await Promise.all([
     // ຄົນທີ່ເຄີຍຖືກເລືອກ ຕ້ອງຢູ່ໃນຕາຕະລາງນຳ ເຖິງລາວຈະຖອນແອັບອອກແລ້ວ
     pushAudience(choices.map((row) => row.username)),
     // ຄ່າຕັ້ງຕົ້ນຂອງ 'approval' = ຄົນທີ່ pushToRoles ຈະຍິງໃສ່ຖ້າຍັງບໍ່ໄດ້ກຳນົດຫຍັງ
     recipientsForRoles(ROLE_APPROVER),
+    listPushEvents(),
+    pushStatusOverrides(),
   ]);
 
   const state = Object.fromEntries(
@@ -59,6 +66,11 @@ export default async function PushRecipientsPage() {
           ງານທີ່ມອບໃຫ້ຊ່າງໂດຍກົງ ແລະ ຂໍ້ຄວາມແຊັດ <b>ສົ່ງເຖິງເຈົ້າຕົວສະເໝີ</b> (ປິດບໍ່ໄດ້).
         </p>
       </div>
+      {/* ① ຍິງ**ອັນໃດ** ② ຍິງ**ໃຫ້ໃຜ** — ສອງຄຳຖາມຄົນລະອັນ ຈຶ່ງແຍກບັດ */}
+      <PushEventMatrix
+        disabled={events.filter((row) => !row.enabled).map((row) => pushEventKey(row.model, row.kind))}
+      />
+      <PushStatusMatrix overrides={Object.fromEntries(statusRules)} />
       <PushRecipientManager people={people} state={state} />
     </div>
   );

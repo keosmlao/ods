@@ -221,6 +221,14 @@ export async function notify(
      */
     try {
       const { pushToUser, digestPush } = await import("@/lib/push");
+      /**
+       * ── ຜູ້ຈັດການເລືອກໄດ້ວ່າ**ອັນໃດຍິງເຂົ້າແອັບ** (/manage/push-recipients — 08-08-2026) ──
+       * ປິດແລ້ວ = ມືຖືບໍ່ສັ່ນ ແຕ່ **ແຖວຂ້າງເທິງຍັງຂຽນລົງ ods_notification ຄົບ** ⇒ ກ່ອງ
+       * ແຈ້ງເຕືອນຢູ່ເວັບ/ໃນແອັບຍັງເຫັນທຸກຢ່າງ. ດ່ານຢູ່ບ່ອນນີ້ຈຶ່ງຄຸມສະເພາະ push.
+       */
+      const { disabledPushEvents, pushEventOn } = await import("@/lib/push-event");
+      if (!pushEventOn(await disabledPushEvents(), model, kind)) return;
+
       const me = actor.trim().toLowerCase();
       const notMe = (name: string) => name.trim().toLowerCase() !== me;
       /**
@@ -234,7 +242,48 @@ export async function notify(
        */
       const direct = (targets.users ?? []).map((name) => name.trim()).filter(Boolean).filter(notMe);
       const directSet = new Set(direct.map((name) => name.toLowerCase()));
-      const broadcast = users.filter(notMe).filter((name) => !directSet.has(name.trim().toLowerCase()));
+
+      /**
+       * ── ຊັ້ນ ③ **ສະຖານະໃດ ຄວນແຈ້ງໃຜ** (08-08-2026 ຕາມຄຳສັ່ງ) ──
+       * ອ່ານ**ຂັ້ນປັດຈຸບັນ**ຂອງໃບ (ອັນດຽວກັບຄິວ /work) ແລ້ວແຈ້ງສະເພາະສິດທີ່ຕິດໄວ້
+       * ໃນຕາຕະລາງ ⇒ "ລໍຖ້າເບີກອາໄຫຼ່" ດັງໃສ່ສາງ · "ລໍຕັດສິນຜົນເຄມ" ດັງໃສ່ຜູ້ຈັດການ
+       * ແທນທີ່ຈະດັງໃສ່ທຸກຄົນທຸກຂັ້ນ.
+       *
+       * ໃບທີ່**ບໍ່ມີຂັ້ນ** (ic_trans · ar_customer) ⇒ `rolesForPush` ຄືນ null ⇒ ຖອຍໄປໃຊ້
+       * ພຶດຕິກຳເກົ່າ (ຜູ້ຮັບທັງໝົດ) — ຫ້າມຕີຄວາມວ່າ "ບໍ່ແຈ້ງໃຜ".
+       * ⚠️ ຄົນທີ່ຖືກລະບຸໂດຍກົງ (`direct`) ບໍ່ຜ່ານດ່ານນີ້ — ວຽກຂອງລາວເອງຕ້ອງຮອດຕົວສະເໝີ.
+       */
+      const { rolesForPush } = await import("@/lib/push-status");
+      const allowedRoles = await rolesForPush(model, resId);
+      const byStatus = allowedRoles === null ? users : await recipientsForRoles(allowedRoles);
+
+      /**
+       * ── ⚠️ **ຄົນທີ່ຕິດຕາມໃບນີ້ ຫ້າມຕົກຫຼົ່ນ** (08-08-2026) ──
+       * ຕາຕະລາງ "ສະຖານະ × ສິດ" ມີແຕ່ 4 ສິດ (ຜູ້ຈັດການ · ຫົວໜ້າຊ່າງ · CS · ສາງ) ເພາະ
+       * ການຍິງໃສ່ **ຊ່າງທຸກຄົນ** ທຸກຂັ້ນແມ່ນຜິດ — ຊ່າງສົນໃຈແຕ່ໃບຂອງຕົນ. ແຕ່ຖ້າເອົາ
+       * ຕາຕະລາງນັ້ນມາເປັນຜູ້ຮັບ**ທັງໝົດ** ⇒ ຊ່າງ (role `technical`) ຫຼຸດອອກໝົດ ແລ້ວ
+       * "ສະຫຼຸບການເຄື່ອນໄຫວ" ຂອງໃບທີ່ລາວເຮັດຢູ່ຈະງຽບໄປ — ພັງກວ່າເກົ່າ.
+       *
+       * ⇒ ຜູ້ຕິດຕາມເອກະສານ (ຄົນທີ່ເຄີຍລົງມື/ຖືກມອບ — ods_chatter_follower) ໄດ້ຮັບສະເໝີ
+       * ໂດຍບໍ່ຜ່ານດ່ານສະຖານະ. ຕາຕະລາງສະຖານະຄຸມແຕ່ການ**ກະຈາຍຕາມກຸ່ມ** ເທົ່ານັ້ນ.
+       */
+      let followers: string[] = [];
+      try {
+        followers = (
+          await query<{ username: string }>(
+            "select username from ods_chatter_follower where model=$1 and res_id=$2",
+            [model, resId],
+          )
+        ).rows.map((row) => (row.username ?? "").trim()).filter(Boolean);
+      } catch (error) {
+        console.error("notify push: follower lookup failed", error);
+      }
+
+      const blockedPush = blocked;
+      const broadcast = [...new Set([...byStatus, ...followers])]
+        .filter(notMe)
+        .filter((name) => !directSet.has(name.trim().toLowerCase()))
+        .filter((name) => !blockedPush.has(name.trim().toLowerCase()));
       const where =
         model === "ods_tb_install" ? "ງານຕິດຕັ້ງ" : model === "ods_tb_maintenance" ? "ງານບຳລຸງຮັກສາ" : "ໃບງານ";
       await Promise.all([
