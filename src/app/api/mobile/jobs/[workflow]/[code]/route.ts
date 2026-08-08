@@ -67,10 +67,12 @@ type Body = {
   photo?: string;
   /** next-visit: ວັນນັດເຂົ້າຮອບຕໍ່ໄປ (YYYY-MM-DD) — ງານຕິດຕັ້ງທີ່ຮອບນີ້ຍັງບໍ່ຈົບ */
   next_date?: string;
-  /** scan / finish: ຄ່າ ISN ຫຼື SN ຂອງເຄື່ອງ (ຍິງກ້ອງ ຫຼື ພິມເອງ — ທຽບກັບໃບງານຄືກັນ) */
+  /** scan / finish: ຄ່າ ISN ຫຼື SN ຂອງເຄື່ອງທີ່**ຕິດຈິງ** (ຍິງກ້ອງ ຫຼື ພິມເອງ) */
   scan?: string;
   /** ຄ່າ `scan` ມາຈາກການພິມເອງບໍ (ບໍ່ແມ່ນຍິງກ້ອງ) — ບັນທຶກໄວ້ໃນປະຫວັດໃບງານ */
   scan_manual?: boolean;
+  /** ຊ່າງເລືອກເອງວ່າເລກນີ້ແມ່ນໜ່ວຍໃນ (`pro_sn`) ຫຼື ໜ່ວຍນອກ (`pro_sn_out`) — ແອ 2 ໜ່ວຍ */
+  unit?: "indoor" | "outdoor";
   /** ຮູບຜົນງານຕອນຈົບງານ — ບັງຄັບຝັ່ງຕິດຕັ້ງ (ເບິ່ງ lib/job-flow) */
   photos?: string[];
   client_action_id?: string;
@@ -348,6 +350,7 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
                 scan: String(body.scan ?? ""),
                 // ຍິງກ້ອງ ຫຼື ພິມເອງ — ບັນທຶກໄວ້ໃນປະຫວັດຄົນລະຄຳ (lib/install-scan)
                 scanManual: body.scan_manual === true,
+                scanPart: body.unit === "indoor" || body.unit === "outdoor" ? body.unit : null,
               })
             : await finishRepairFlow(user, code, String(body.note ?? ""), photos);
         break;
@@ -375,7 +378,11 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
         });
         break;
       case "scan": {
-        // ສະແກນ ISN/SN ຕອນກຳລັງຕິດຕັ້ງ — ຕ້ອງຕົງກັບໜ່ວຍທີ່ໃບງານລະບຸ (lib/install-scan)
+        /**
+         * ເກັບ ISN/SN ຕອນກຳລັງຕິດຕັ້ງ — **ບໍ່ຈຳເປັນຕ້ອງຕົງກັບໃບງານ/ບິນ** (08-08-2026):
+         * ຮັບເລກຈາກປ້າຍເຄື່ອງທີ່ຕິດຈິງ ແລ້ວ lib/install-scan ບັນທຶກໃສ່ໃບງານ +
+         * ເກັບປະຫວັດການອັບເດດ (ຄ່າເກົ່າ → ຄ່າໃໝ່ · ຕົງກັບບິນບໍ) ໄວ້ໃຫ້.
+         */
         if (workflow !== "install") {
           return NextResponse.json({ error: "ຄຳສັ່ງນີ້ໃຊ້ໄດ້ແຕ່ງານຕິດຕັ້ງ" }, { status: 400 });
         }
@@ -394,6 +401,7 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
         }
         const scan = await recordInstallScan(user, code, String(body.scan ?? ""), "install", {
           manual: body.scan_manual === true,
+          part: body.unit === "indoor" || body.unit === "outdoor" ? body.unit : null,
         });
         result = scan.ok ? { ok: true, message: scan.message } : { ok: false, error: scan.error };
         break;

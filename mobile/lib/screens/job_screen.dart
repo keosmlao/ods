@@ -1726,41 +1726,8 @@ class _JobScreenState extends State<JobScreen> {
                                   ],
                                 ),
                               ),
-                            /*
-                              ── ຊ່າງເປັນຄົນເກັບ ISN/SN (07-08-2026 ຕາມຄຳສັ່ງ) ──
-                              ໃບງານເປີດມາ**ຫວ່າງ** ⇒ ຊ່າງຢູ່ໜ້າງານຍິງ/ພິມຈາກປ້າຍຕົວຈິງ
-                              ⇒ server ບັນທຶກໃສ່ໃບງານໃຫ້ເອງ (ທຽບກັບໜ່ວຍທີ່ຈ່າຍໃນບິນ).
-                              ແອ = 2 ໜ່ວຍ (ໃນ+ນອກ) ຄົນລະເລກ ⇒ ຕ້ອງເກັບໃຫ້ຄົບກ່ອນຈົບງານ.
-                            */
                             if (job.workflow == 'install') ...[
-                              OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(48),
-                                  foregroundColor: job.scanDone ? ok : teal,
-                                  side: BorderSide(color: job.scanDone ? ok : teal),
-                                ),
-                                // ຕ້ອງ check-in ກ່ອນ — ເລກນີ້ຄືຫຼັກຖານວ່າຢູ່ຕໍ່ໜ້າເຄື່ອງຈິງ
-                                // (ດ່ານຈິງຢູ່ server: /api/mobile/jobs … action 'scan')
-                                onPressed: busy || !job.canCheckOut ? null : _scanNow,
-                                icon: Icon(
-                                  job.scanDone
-                                      ? Icons.check_circle_outline
-                                      : Icons.qr_code_scanner_rounded,
-                                  size: 18,
-                                ),
-                                label: Text(
-                                  job.scanDone
-                                      ? 'ເກັບ ISN/SN ຄົບແລ້ວ — ເບິ່ງ/ແກ້ໄດ້'
-                                      : 'ເກັບ ISN/SN ${_missingUnit()} (ຍິງ ຫຼື ພິມເອງ)',
-                                ),
-                              ),
-                              if (!job.canCheckOut) ...[
-                                const SizedBox(height: 6),
-                                const Text(
-                                  'ຕ້ອງ check-in ໜ້າງານກ່ອນ ຈຶ່ງອ່ານ ISN/SN ໄດ້',
-                                  style: TextStyle(color: muted, fontSize: 11.5),
-                                ),
-                              ],
+                              _serialCollector(),
                               const SizedBox(height: 10),
                             ],
 
@@ -2096,6 +2063,19 @@ class _JobScreenState extends State<JobScreen> {
                                       fontSize: 12,
                                     ),
                                   ),
+
+                            /*
+                              ── ເກັບ ISN/SN ຢູ່ບັດໜ້າງານນຳ (08-08-2026 ຕາມຄຳສັ່ງ) ──
+                              ຊ່າງເປີດປ້າຍເຄື່ອງເບິ່ງ**ຕອນຕິດ** ບໍ່ແມ່ນຕອນຈະກົດຈົບງານ
+                              (ໜ່ວຍນອກຂຶ້ນຢູ່ຝາແລ້ວ ຈໍ້ກ້ອງບໍ່ເຖິງອີກ) ⇒ ປຸ່ມຕ້ອງຢູ່ບ່ອນ
+                              ດຽວກັບ check-in/check-out ບໍ່ແມ່ນລີ້ຢູ່ທ້າຍກ່ອງ "ຈົບງານ".
+                              ອັນດຽວກັນກັບປຸ່ມຂ້າງເທິງ — ກົດບ່ອນໃດກໍ່ໄດ້.
+                            */
+                            if (job.workflow == 'install' &&
+                                job.canCheckOut) ...[
+                              const SizedBox(height: 10),
+                              _serialCollector(),
+                            ],
                           ],
                         ),
                       ],
@@ -2679,6 +2659,73 @@ class _JobScreenState extends State<JobScreen> {
     return '';
   }
 
+  /// ເລກທີ່ໃບງານມີຢູ່ແລ້ວຂອງໜ່ວຍນັ້ນ — '' = ຍັງຫວ່າງ ('-' ຂອງເກົ່ານັບເປັນຫວ່າງ)
+  String _kept(String? value) {
+    final text = (value ?? '').trim();
+    return text.isEmpty || text == '-' || text.toUpperCase() == 'N/A' ? '' : text;
+  }
+
+  /*
+    ── ປຸ່ມເກັບ ISN/SN ຂອງເຄື່ອງທີ່ຕິດຈິງ (ໃຊ້ 2 ບ່ອນ: ບັດໜ້າງານ ແລະ ກ່ອງຈົບງານ) ──
+    ໃບງານເປີດມາ**ຫວ່າງ** ⇒ ຊ່າງຢູ່ໜ້າງານຍິງ/ພິມຈາກປ້າຍຕົວຈິງ ⇒ server ບັນທຶກໃສ່
+    ໃບງານ (pro_sn / pro_sn_out) ພ້ອມ**ເກັບປະຫວັດການອັບເດດ** ໄວ້ໃຫ້.
+    ບໍ່ຕົງກັບໃບງານ/ບິນ ກໍ່**ຮັບໄວ້** (08-08-2026) — ໝາຍເປັນຄຳເຕືອນຢູ່ປະຫວັດແທນ.
+    ແອ = 2 ໜ່ວຍ (ໃນ+ນອກ) ຄົນລະເລກ ⇒ ຕ້ອງເກັບໃຫ້ຄົບກ່ອນຈົບງານ.
+  */
+  Widget _serialCollector() {
+    final indoor = _kept(job.expectSn);
+    final outdoor = _kept(job.expectSnOut);
+    final done = job.scanDone;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(48),
+            foregroundColor: done ? ok : teal,
+            side: BorderSide(color: done ? ok : teal),
+          ),
+          // ຕ້ອງ check-in ກ່ອນ — ເລກນີ້ຄືຫຼັກຖານວ່າຢູ່ຕໍ່ໜ້າເຄື່ອງຈິງ
+          // (ດ່ານຈິງຢູ່ server: /api/mobile/jobs … action 'scan')
+          onPressed: busy || !job.canCheckOut ? null : _scanNow,
+          icon: Icon(
+            done ? Icons.check_circle_outline : Icons.qr_code_scanner_rounded,
+            size: 18,
+          ),
+          label: Text(
+            done
+                ? 'ເກັບ ISN/SN ຄົບແລ້ວ — ເບິ່ງ/ແກ້ໄດ້'
+                : 'ເກັບ ISN/SN ${_missingUnit()} (ຍິງ ຫຼື ພິມເອງ)',
+          ),
+        ),
+        if (!job.canCheckOut) ...[
+          const SizedBox(height: 6),
+          const Text(
+            'ຕ້ອງ check-in ໜ້າງານກ່ອນ ຈຶ່ງອ່ານ ISN/SN ໄດ້',
+            style: TextStyle(color: muted, fontSize: 11.5),
+          ),
+        ] else ...[
+          const SizedBox(height: 6),
+          // ເກັບແລ້ວອັນໃດ — ຊ່າງກວດຕາເອງໄດ້ ວ່າລົງຖືກໜ່ວຍບໍ ກ່ອນຈົບງານ
+          Text(
+            [
+              job.needOutdoor
+                  ? 'ໜ່ວຍໃນ: ${indoor.isEmpty ? "— ຍັງບໍ່ໄດ້ເກັບ" : indoor}'
+                  : 'ເລກເຄື່ອງ: ${indoor.isEmpty ? "— ຍັງບໍ່ໄດ້ເກັບ" : indoor}',
+              if (job.needOutdoor)
+                'ໜ່ວຍນອກ: ${outdoor.isEmpty ? "— ຍັງບໍ່ໄດ້ເກັບ" : outdoor}',
+            ].join('\n'),
+            style: const TextStyle(color: muted, fontSize: 11.5, height: 1.5),
+          ),
+          const Text(
+            'ບໍ່ຈຳເປັນຕ້ອງຕົງກັບໃບງານ — ເອົາຕາມປ້າຍເຄື່ອງທີ່ຕິດຈິງ (ລະບົບເກັບປະຫວັດການແກ້ໄວ້ໃຫ້)',
+            style: TextStyle(color: faint, fontSize: 11),
+          ),
+        ],
+      ],
+    );
+  }
+
   /// ເປີດໜ້າອ່ານ ISN/SN (ກ້ອງ ຫຼື ພິມເອງ) ແລ້ວຄືນຄ່າດິບ (null = ຍົກເລີກ)
   Future<SerialInput?> _scanSerial(String title) async {
     // ເກັບແລ້ວອັນໃດ (ໃຫ້ຊ່າງຮູ້ວ່າກຳລັງເກັບໜ່ວຍໃດຢູ່) — ຫວ່າງໝົດ = ຍັງບໍ່ໄດ້ເກັບຫຍັງ
@@ -2694,11 +2741,70 @@ class _JobScreenState extends State<JobScreen> {
     );
   }
 
-  /// ອ່ານ ISN/SN **ຕອນກຳລັງຕິດຕັ້ງ** — server ທຽບກັບໃບງານໃຫ້ (ບໍ່ຕົງ ⇒ ບໍ່ບັນທຶກ)
+  /// ແອ = 2 ໜ່ວຍຄົນລະເລກ ⇒ **ຖາມກ່ອນວ່າກຳລັງເກັບໜ່ວຍໃດ**.
+  ///
+  /// ແຕ່ກ່ອນ server ເດົາເອງຈາກໃບຈ່າຍຂອງບິນ — ບິນທີ່ບໍ່ໄດ້ລົງ ISN (ຫຼາຍ) ເດົາບໍ່ໄດ້
+  /// ⇒ ລົງຊ່ອງທຳອິດທີ່ຫວ່າງ ⇒ ຊ່າງຍິງໜ່ວຍນອກກ່ອນ ກໍ່ໄປລົງຊ່ອງໜ່ວຍໃນ. ຄົນທີ່ຢືນຢູ່
+  /// ໜ້າເຄື່ອງຮູ້ດີກວ່າ ⇒ ໃຫ້ເລືອກເອງ 1 ຈັບ.
+  ///
+  /// ຄືນ: null = ຍົກເລີກ · '' = ບໍ່ຕ້ອງເລືອກ (ເຄື່ອງໜ່ວຍດຽວ) · 'indoor'/'outdoor'
+  Future<String?> _pickUnit() async {
+    if (!job.needOutdoor) return '';
+    return showModalBottomSheet<String>(
+      context: context,
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Text(
+                'ກຳລັງເກັບເລກຂອງໜ່ວຍໃດ?',
+                style: TextStyle(fontWeight: FontWeight.bold, color: ink),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.living_outlined, color: teal),
+              title: const Text('ໜ່ວຍໃນ (ຄອຍລ໌ເຢັນ)'),
+              subtitle: Text(
+                _kept(job.expectSn).isEmpty ? 'ຍັງບໍ່ໄດ້ເກັບ' : 'ດຽວນີ້: ${_kept(job.expectSn)}',
+              ),
+              onTap: () => Navigator.pop(sheet, 'indoor'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.ac_unit_outlined, color: teal),
+              title: const Text('ໜ່ວຍນອກ (ຄອມເພຣສເຊີ)'),
+              subtitle: Text(
+                _kept(job.expectSnOut).isEmpty ? 'ຍັງບໍ່ໄດ້ເກັບ' : 'ດຽວນີ້: ${_kept(job.expectSnOut)}',
+              ),
+              onTap: () => Navigator.pop(sheet, 'outdoor'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// ອ່ານ ISN/SN **ຕອນກຳລັງຕິດຕັ້ງ** — ບໍ່ຕ້ອງຕົງກັບໃບງານ, server ບັນທຶກໃສ່ໃບງານ
+  /// ພ້ອມເກັບປະຫວັດການອັບເດດໄວ້ (ບໍ່ຕົງກັບບິນ ⇒ ຮັບໄວ້ ພ້ອມຄຳເຕືອນ)
   Future<void> _scanNow() async {
-    final input = await _scanSerial('ເກັບ ISN/SN ຂອງເຄື່ອງ');
+    final unit = await _pickUnit();
+    if (unit == null || !mounted) return;
+    final input = await _scanSerial(
+      unit == 'outdoor'
+          ? 'ເກັບ ISN/SN — ໜ່ວຍນອກ'
+          : unit == 'indoor'
+              ? 'ເກັບ ISN/SN — ໜ່ວຍໃນ'
+              : 'ເກັບ ISN/SN ຂອງເຄື່ອງ',
+    );
     if (input == null || !mounted) return;
-    await run({'action': 'scan', 'scan': input.value, 'scan_manual': input.manual});
+    await run({
+      'action': 'scan',
+      'scan': input.value,
+      'scan_manual': input.manual,
+      if (unit.isNotEmpty) 'unit': unit,
+    });
   }
 
   /// ປ້າຍສະຖານະຂອງຮອບ — ຄຳດຽວກັບຝັ່ງເວັບ (ລໍສາງເບີກ · ເບີກແລ້ວລໍຮັບ · ຮັບແລ້ວ · ສັ່ງຊື້)

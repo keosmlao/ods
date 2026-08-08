@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show Color;
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -54,7 +55,7 @@ class Push {
       // ① ຕັ້ງ channel + ຕົວສະແດງແຈ້ງເຕືອນພາຍໃນເຄື່ອງ
       await _local.initialize(
         settings: const InitializationSettings(
-          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          android: AndroidInitializationSettings('@drawable/ic_notification'),
           iOS: DarwinInitializationSettings(),
         ),
         onDidReceiveNotificationResponse: (response) {
@@ -113,7 +114,9 @@ class Push {
             channelDescription: _channel.description,
             importance: Importance.high,
             priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
+            // ຮູບກະແຈ (ເງົາຂາວ) — ຕ້ອງຄືກັບ default_notification_icon ໃນ manifest
+            icon: '@drawable/ic_notification',
+            color: const Color(0xFF0F766E),
           ),
           iOS: const DarwinNotificationDetails(),
         ),

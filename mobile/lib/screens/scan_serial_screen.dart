@@ -21,8 +21,10 @@ class SerialInput {
 /// (ໜ່ວຍນອກຢູ່ສູງ) · ບາໂຄດຂາດ ⇒ ຊ່າງຈະຄາຢູ່ໜ້າງານ ປິດງານບໍ່ໄດ້ (ຄຳສັ່ງ 07-08-2026)
 /// ⇒ ມີຊ່ອງ **ພິມເລກເອງ** ໄວ້ນຳ.
 ///
-/// ບໍ່ວ່າທາງໃດ ຄ່າຍັງຖືກສົ່ງໃຫ້ server ທຽບກັບໃບງານຄືເກົ່າ (lib/install-scan —
-/// ຮັບທັງ ISN ແລະ SN ໂຮງງານ, ບໍ່ຕົງ ⇒ ບໍ່ບັນທຶກ) ⇒ ພິມເອງກໍ່ຫຼອກລະບົບບໍ່ໄດ້.
+/// ບໍ່ວ່າທາງໃດ ຄ່າຖືກສົ່ງໃຫ້ server ບັນທຶກໃສ່ໃບງານ (lib/install-scan — ຮັບທັງ ISN
+/// ແລະ SN ໂຮງງານ). **ບໍ່ຈຳເປັນຕ້ອງຕົງກັບໃບງານ/ບິນ** (08-08-2026): ເລກຢູ່ປ້າຍເຄື່ອງ
+/// ທີ່ຕິດຈິງ = ຄວາມຈິງ ⇒ ຮັບໄວ້ ແລ້ວເກັບ**ປະຫວັດການອັບເດດ** (ຄ່າເກົ່າ → ຄ່າໃໝ່ ·
+/// ຕົງກັບບິນບໍ · ຍິງ ຫຼື ພິມ) ໄວ້ໃຫ້ຜູ້ຈັດການຕາມກວດຍ້ອນຫຼັງແທນ.
 class ScanSerialScreen extends StatefulWidget {
   const ScanSerialScreen({super.key, required this.title, this.hint});
 
@@ -107,7 +109,7 @@ class _ScanSerialScreenState extends State<ScanSerialScreen> {
                 ],
                 const SizedBox(height: 4),
                 const Text(
-                  'ລະບົບຈະທຽບກັບໃບງານໃຫ້ເອງ',
+                  'ບໍ່ຈຳເປັນຕ້ອງຕົງກັບໃບງານ — ເອົາຕາມເຄື່ອງທີ່ຕິດຈິງ',
                   style: TextStyle(color: muted, fontSize: 12),
                 ),
 

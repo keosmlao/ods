@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ສີພື້ນຫຼັງວົງກົມຂອງໄອຄອນແຈ້ງເຕືອນ = teal-700 ດຽວກັບແອັບ (main.dart) -->
+    <color name="notification_color">#0F766E</color>
+</resources>

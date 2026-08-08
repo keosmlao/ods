@@ -38,6 +38,17 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!--
+          ໄອຄອນ/ສີ ຂອງແຈ້ງເຕືອນຕອນແອັບ**ຢູ່ພື້ນຫຼັງ ຫຼື ຖືກຂ້າ** — ຕອນນັ້ນ Dart ບໍ່ໄດ້ແລ່ນ,
+          ລະບົບຂຶ້ນ tray ໃຫ້ເອງ ⇒ ອ່ານຄ່າຈາກ meta-data ນີ້ເທົ່ານັ້ນ.
+          (ຕອນເປີດແອັບຢູ່ ໃຊ້ຄ່າໃນ push.dart — ຕ້ອງຕັ້ງທັງສອງບ່ອນ ຈຶ່ງເປັນຮູບດຽວກັນ)
+        -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

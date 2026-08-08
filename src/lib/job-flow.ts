@@ -353,7 +353,12 @@ export async function finishInstallFlow(
   session: Session,
   code: string,
   photos: string[] = [],
-  options: { requireCheckin?: boolean; scan?: string; scanManual?: boolean } = {},
+  options: {
+    requireCheckin?: boolean;
+    scan?: string;
+    scanManual?: boolean;
+    scanPart?: "indoor" | "outdoor" | null;
+  } = {},
 ): Promise<FlowResult> {
   const own = await ownJob(session, "install", code);
   if (!own.ok) return own;
@@ -391,7 +396,10 @@ export async function finishInstallFlow(
   // ຄ່າທີ່ສົ່ງມາພ້ອມການກົດຈົບ (ຖ້າມີ) = ໜ່ວຍສຸດທ້າຍທີ່ຍັງຂາດ ⇒ ບັນທຶກກ່ອນກວດ
   const scanned = (options.scan ?? "").trim();
   if (scanned) {
-    const result = await recordInstallScan(session, code, scanned, "finish", { manual: options.scanManual });
+    const result = await recordInstallScan(session, code, scanned, "finish", {
+      manual: options.scanManual,
+      part: options.scanPart ?? null,
+    });
     if (!result.ok) return { ok: false, error: result.error };
   }
   /**
