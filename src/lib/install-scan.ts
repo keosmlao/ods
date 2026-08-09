@@ -1,4 +1,4 @@
-import { db, query, queryOdg } from "@/lib/db";
+import { db, query } from "@/lib/db";
 import { logChange } from "@/lib/chatter-log";
 import type { Session } from "@/lib/auth";
 
@@ -12,29 +12,27 @@ import type { Session } from "@/lib/auth";
  *     **ຫຼັງ**ເປີດໃບງານ ⇒ ຕອນເປີດງານຍັງບໍ່ມີເລກໃຫ້ໃສ່ (ວັດຈິງ CAK26009551:
  *     ຂາຍ 06-08 · ໃບຈ່າຍ 07-08 · ໃບງານເປີດ 06-08 ⇒ pro_sn ຫວ່າງ)
  *   • ພິມມືແລ້ວຜິດ: INST-7213 ກັບ INST-7214 (ບິນດຽວກັນ 2 ໜ່ວຍ) ໄດ້ເລກ**ອັນດຽວກັນ**
- *     ທັງທີ່ໃບຈ່າຍລົງໄວ້ 032A0013582 [C] ແລະ 032A0013977 [H] ຄົນລະໜ່ວຍ
  *
  * ⇒ ດຽວນີ້: ເປີດງານປະໄວ້**ຫວ່າງ** · ຊ່າງຢູ່ໜ້າງານຍິງ/ພິມເລກຈາກປ້າຍຕົວຈິງ ⇒ ລະບົບ
  * **ບັນທຶກໃສ່ໃບງານໃຫ້ເອງ** ແລ້ວຈຶ່ງຈົບງານໄດ້.
  *
+ * ── ຍິງແລ້ວ**ລົງເລີຍ** ບໍ່ຕ້ອງກັບໄປກວດສອບ (08-08-2026 ຕາມຄຳສັ່ງ) ──
+ * ຮຸ່ນກ່ອນເອົາຄ່າທີ່ຍິງໄດ້ໄປຖາມ ERP 2 ຮອບ (`sn_inventory` ແປງ ISN↔SN ·
+ * `sn_trans_detail` ຫາໜ່ວຍທີ່ຈ່າຍໃຫ້ບິນ) ແລ້ວຈຶ່ງຕັດສິນວ່າຮັບ ຫຼື ປະຕິເສດ. ຖິ້ມແລ້ວ:
+ *   • ບໍ່ມີປະໂຫຍດ — ຮັບທຸກເລກຢູ່ແລ້ວ (ປ້າຍຂອງເຄື່ອງທີ່ຕິດຈິງ = ຄວາມຈິງທີ່ສຸດ)
+ *   • ຊ້າຢູ່ໜ້າງານ — `sn_trans_detail` ບໍ່ມີ index ຢູ່ `doc_ref` ⇒ seq scan ~0.5 ວິ
+ *     ຕໍ່ 1 ຄັ້ງທີ່ຍິງ, ບວກກັບເນັດ 3G ໜ້າງານ
+ *   • ERP ລົ້ມ/ຊ້າ ⇒ ຊ່າງຄາ ທັງທີ່ວຽກນີ້ບໍ່ຕ້ອງເພິ່ງ ERP ຈັກໜ້ອຍ
+ *
+ * ⇒ ດຽວນີ້: ຂຽນຄ່າທີ່ໄດ້ລົງ `pro_sn`/`pro_sn_out` ຕົງໆ + ເກັບ**ປະຫວັດການອັບເດດ**
+ * (ຄ່າເກົ່າ → ຄ່າໃໝ່ · ໃຜ · ເມື່ອໃດ · ຍິງ ຫຼື ພິມ) ໄວ້ 2 ບ່ອນ: ຕາຕະລາງ
+ * `ods_install_scan` ແລະ chatter ຂອງໃບງານ ⇒ ຜູ້ຈັດການຕາມກວດຍ້ອນຫຼັງໄດ້ຄືເກົ່າ.
+ * ຢາກທຽບກັບໃບຈ່າຍ ⇒ ເຮັດຢູ່ຝັ່ງເວັບ ບ່ອນທີ່ຊ້າແດ່ກໍ່ບໍ່ມີໃຜຄາຢູ່ໜ້າງານ.
+ *
  * ── ແອ = 2 ໜ່ວຍ = 2 ເລກ ──
- * ໃບຈ່າຍລົງແຍກ `[C]` ໜ່ວຍໃນ ແລະ `[H]` ໜ່ວຍນອກ (ຄົນລະ ISN) ⇒ ຕ້ອງເກັບໃຫ້ຄົບ
- * ທັງສອງກ່ອນຈົບງານ. ເຄື່ອງໃຊ້ໄຟຟ້າອື່ນ (ໂທລະທັດ · ຈັກຊັກ · ຕູ້ເຢັນ) = 1 ໜ່ວຍ.
- *
- * ── ບໍ່ຈຳເປັນຕ້ອງຕົງກັບໃບງານ — ເກັບເປັນປະຫວັດແທນ (08-08-2026 ຕາມຄຳສັ່ງ) ──
- * ແຕ່ກ່ອນ: ເລກທີ່ບໍ່ຢູ່ໃນໃບຈ່າຍຂອງບິນ ⇒ **ປະຕິເສດ**. ໜ້າງານຈິງມັນລົ້ມ: ສາງສັບໜ່ວຍ
- * ຕອນຈ່າຍ · ບິນຂາຍເປັນຊຸດແຕ່ຈ່າຍອອກຄົນລະລະຫັດ · ERP ບໍ່ໄດ້ລົງ ISN ບາງໜ່ວຍ
- * ⇒ ຊ່າງຢືນຢູ່ຕໍ່ໜ້າເຄື່ອງ ອ່ານປ້າຍໄດ້ ແຕ່ລະບົບບໍ່ຍອມຮັບ ⇒ ປິດງານບໍ່ໄດ້.
- *
- * ⇒ ດຽວນີ້ **ຮັບທຸກເລກ** (ປ້າຍຂອງເຄື່ອງທີ່ຕິດຈິງ = ຄວາມຈິງທີ່ສຸດ) ແລ້ວ**ບັນທຶກ
- * ປະຫວັດການອັບເດດ `pro_sn`/`pro_sn_out`**: ຄ່າເກົ່າ → ຄ່າໃໝ່ · ຕົງກັບບິນບໍ · ໃຜ ·
- * ເມື່ອໃດ · ຍິງ ຫຼື ພິມ (ຕາຕະລາງ `ods_install_scan` + chatter ຂອງໃບງານ).
- * ການທຽບກັບໃບຈ່າຍຍັງເຮັດຢູ່ ແຕ່ອອກມາເປັນ **ຄຳເຕືອນ** ບໍ່ແມ່ນດ່ານກັ້ນ ⇒ ຜູ້ຈັດການ
- * ຍັງເຫັນວ່າໃບໃດເລກບໍ່ຕົງກັບບິນ ແລະ ຕາມແກ້ພາຍຫຼັງໄດ້.
- *
- * ── ຮັບເລກໄດ້ 2 ແບບ · ໄດ້ 2 ທາງ ──
- * ① ISN (ປ້າຍ ODIEN) ② SN ໂຮງງານ — ແປງຫາກັນຜ່ານ `sn_inventory`.
- * ຍິງກ້ອງ (ທາງຫຼັກ) ຫຼື ພິມເອງ — ພິມເອງກໍ່ຖືກທຽບຄືກັນ ພຽງແຕ່ໝາຍໄວ້ໃນປະຫວັດ.
+ * ໜ່ວຍໃນ (`pro_sn`) ແລະ ໜ່ວຍນອກ (`pro_sn_out`) ຄົນລະເລກ ⇒ ຕ້ອງເກັບໃຫ້ຄົບທັງສອງ
+ * ກ່ອນຈົບງານ. ເຄື່ອງໃຊ້ໄຟຟ້າອື່ນ (ໂທລະທັດ · ຈັກຊັກ · ຕູ້ເຢັນ) = 1 ໜ່ວຍ.
+ * ຊ່າງເລືອກເອງໃນແອັບວ່າກຳລັງເກັບໜ່ວຍໃດ (`part`) — ບໍ່ໄດ້ເລືອກ ⇒ ລົງຊ່ອງທີ່ຫວ່າງກ່ອນ.
  */
 
 export type ScanPhase = "install" | "finish";
@@ -44,20 +42,16 @@ export type ScanResult =
       ok: true;
       /** ຊ່ອງທີ່ລົງ — indoor = `pro_sn` · outdoor = `pro_sn_out` */
       matched: "indoor" | "outdoor";
-      isn: string | null;
-      sn: string | null;
       message: string;
-      /** ຮັບໄວ້ແລ້ວ ແຕ່ບໍ່ຕົງກັບບິນ/ຄ່າເກົ່າ — ຫວ່າງ = ຕົງດີ */
-      warning: string | null;
     }
   | { ok: false; error: string };
 
-/** ຕັດຍະຫວ່າງ/ຂີດ ແລະ ເປັນຕົວພິມໃຫຍ່ — ປ້າຍພິມຄົນລະຮູບແບບ ແຕ່ເປັນເລກອັນດຽວກັນ */
+/** ຕັດຍະຫວ່າງ/ຂີດ ແລະ ເປັນຕົວພິມໃຫຍ່ — ໃຊ້ທຽບວ່າ "ເລກເກົ່າກັບເລກໃໝ່ແມ່ນອັນດຽວກັນບໍ" */
 const norm = (value: string | null | undefined) => (value ?? "").replace(/[\s-]/g, "").toUpperCase();
 
 /**
  * ຄ່າທີ່ **ບໍ່ແມ່ນເລກຈິງ** — ຂໍ້ມູນເກົ່າໃສ່ "-" ຫຼື "N/A" ແທນການປະຫວ່າງ
- * ⇒ ຖ້າບໍ່ກັນໄວ້ ຈະໄປທຽບກັບ "-" ແລ້ວແຈ້ງວ່າ "ບໍ່ຕົງກັບໃບງານ" ທັງທີ່ໃບງານບໍ່ໄດ້ລະບຸ.
+ * ⇒ ຖ້າບໍ່ກັນໄວ້ ຈະນັບວ່າ "ຊ່ອງນີ້ມີເລກແລ້ວ" ທັງທີ່ໃບງານບໍ່ໄດ້ລະບຸ.
  */
 const realSerial = (value: string | null | undefined) => {
   const clean = norm(value);
@@ -68,18 +62,14 @@ type Job = {
   pro_sn: string | null;
   pro_sn_out: string | null;
   item_code: string | null;
-  doc_ref_1: string | null;
 };
-
-/** ໜ່ວຍທີ່ຂາຍໃນບິນ — ມາຈາກ**ໃບຈ່າຍສິນຄ້າອອກສາງ** ທີ່ອ້າງອີງບິນນັ້ນ */
-type IssuedUnit = { isn: string; sn: string | null; part: "indoor" | "outdoor" };
 
 async function loadJob(code: string): Promise<Job | null> {
   return (
     (
       await query<Job>(
         `select nullif(pro_sn,'') pro_sn, nullif(pro_sn_out,'') pro_sn_out,
-            nullif(item_code,'') item_code, nullif(doc_ref_1,'') doc_ref_1
+            nullif(item_code,'') item_code
            from ods_tb_install where code = $1 limit 1`,
         [code],
       )
@@ -88,62 +78,11 @@ async function loadJob(code: string): Promise<Job | null> {
 }
 
 /**
- * ISN ທີ່ **ຈ່າຍອອກສາງ** ໃຫ້ບິນນີ້ — `sn_trans_detail.doc_ref = ເລກບິນ`
- * (ແຖວຢູ່ໃບຈ່າຍ DPC… ແຕ່ອ້າງບິນ CAK… ⇒ ຄົ້ນດ້ວຍ doc_ref).
- *
- * ⚠️ ແອ: ISN ຢູ່**ອົງປະກອບຂອງຊຸດ** ບໍ່ແມ່ນແຖວ [SET] ⇒ ຮັບທັງລະຫັດຂອງງານ ແລະ
- * ລະຫັດລູກຂອງມັນ (ic_inventory_set_detail) ຄືກັນກັບ api/installations/bills.
- *
- * ⚠️ `sn_trans_detail` ບໍ່ມີ index ຢູ່ doc_ref ⇒ seq scan ~0.5 ວິ. ຮັບໄດ້ເພາະເອີ້ນ
- * ສະເພາະຕອນຊ່າງຍິງ / ກົດຈົບງານ — ບໍ່ແມ່ນທຸກຄັ້ງທີ່ໂຫຼດລາຍການວຽກ.
+ * ງານນີ້ຕ້ອງມີໜ່ວຍນອກບໍ — **ລະຫັດສິນຄ້າ 12xx = ແອ** (2 ໜ່ວຍ).
+ * ກົດດຽວກັນກັບ `lib/mobile-jobs` (`need_outdoor`) ⇒ ປຸ່ມໃນແອັບ ກັບ ດ່ານຈົບງານ
+ * ບອກຄືກັນສະເໝີ ໂດຍບໍ່ຕ້ອງຖາມ ERP.
  */
-async function issuedUnits(job: Job): Promise<IssuedUnit[]> {
-  if (!job.doc_ref_1 || !job.item_code) return [];
-  try {
-    return (
-      await queryOdg<IssuedUnit>(
-        `select d.sn as isn, nullif(sni.sn,'') as sn,
-            case when d.item_name like '%[H]%' then 'outdoor' else 'indoor' end as part
-           from sn_trans_detail d
-           left join sn_inventory sni on sni.isn = d.sn
-          where d.trans_flag = 44 and d.doc_ref = $1 and coalesce(d.sn,'') <> ''
-            and (d.item_code = $2
-                 or d.item_code in (select sd.ic_code from ic_inventory_set_detail sd
-                                     where sd.ic_set_code = $2))`,
-        [job.doc_ref_1, job.item_code],
-      )
-    ).rows;
-  } catch (error) {
-    // ERP ລົ້ມ ⇒ ບໍ່ມີຫຍັງໃຫ້ທຽບ (ຊ່າງຍັງເກັບເລກໄດ້ ພ້ອມໝາຍໄວ້ໃນປະຫວັດ)
-    console.error("issuedUnits failed", job.doc_ref_1, error);
-    return [];
-  }
-}
-
-/**
- * ແປງຄ່າທີ່ໄດ້ເປັນຄູ່ (isn, sn) ຈາກ ERP.
- * ຫາບໍ່ພົບ ⇒ ຄືນຄ່າດິບເປັນ sn ໄວ້ (ເຄື່ອງທີ່ບໍ່ໄດ້ຜ່ານລະບົບ ISN ຍັງເກັບໄດ້).
- */
-async function resolveSerial(raw: string): Promise<{ isn: string | null; sn: string | null }> {
-  const value = raw.trim();
-  if (!value) return { isn: null, sn: null };
-  try {
-    const row = (
-      await queryOdg<{ isn: string | null; sn: string | null }>(
-        `select nullif(isn,'') isn, nullif(sn,'') sn from sn_inventory
-          where replace(replace(upper(coalesce(isn,'')),' ',''),'-','') = $1
-             or replace(replace(upper(coalesce(sn,'')),' ',''),'-','') = $1
-          limit 1`,
-        [norm(value)],
-      )
-    ).rows[0];
-    return { isn: row?.isn ?? null, sn: row?.sn ?? value };
-  } catch (error) {
-    // ERP ລົ້ມ ⇒ ຍັງເກັບດ້ວຍຄ່າດິບໄດ້ (ຢ່າໃຫ້ຊ່າງຕິດຢູ່ໜ້າງານ)
-    console.error("resolveSerial failed", value, error);
-    return { isn: null, sn: value };
-  }
-}
+const needsOutdoor = (job: Job) => (job.item_code ?? "").startsWith("12");
 
 /** ງານນີ້ຕ້ອງເກັບຈັກໜ່ວຍ ແລະ ເກັບໄດ້ແລ້ວຈັກໜ່ວຍ */
 export type UnitState = {
@@ -156,17 +95,12 @@ export type UnitState = {
 };
 
 /**
- * ຕ້ອງເກັບຈັກໜ່ວຍ — ຖາມ**ໃບຈ່າຍສິນຄ້າ**ກ່ອນ (ຄວາມຈິງທີ່ສຸດ), ບໍ່ມີຂໍ້ມູນຈຶ່ງເດົາຈາກ
- * ລະຫັດສິນຄ້າ (12xx = ແອ ⇒ 2 ໜ່ວຍ). ເອົາໄວ້ບ່ອນດຽວ ໃຫ້ດ່ານຈົບງານກັບໜ້າຈໍແອັບ
- * ບອກຄືກັນສະເໝີ.
+ * ຕ້ອງເກັບຈັກໜ່ວຍ — ເອົາໄວ້ບ່ອນດຽວ ໃຫ້ດ່ານຈົບງານກັບໜ້າຈໍແອັບບອກຄືກັນສະເໝີ.
  */
 export async function installUnits(code: string): Promise<UnitState | null> {
   const job = await loadJob(code);
   if (!job) return null;
-  const units = await issuedUnits(job);
-  const needOutdoor = units.length
-    ? units.some((unit) => unit.part === "outdoor")
-    : (job.item_code ?? "").startsWith("12");
+  const needOutdoor = needsOutdoor(job);
   const indoor = realSerial(job.pro_sn) ? job.pro_sn : null;
   const outdoor = realSerial(job.pro_sn_out) ? job.pro_sn_out : null;
   const missing: string[] = [];
@@ -176,14 +110,13 @@ export async function installUnits(code: string): Promise<UnitState | null> {
 }
 
 /**
- * ເກັບ ISN-SN ຂອງໜ່ວຍທີ່**ຕິດຈິງ** ໃສ່ໃບງານ — ຮັບທຸກເລກ, ບໍ່ບລັອກຊ່າງ.
+ * **ເກັບ ISN/SN ຂອງໜ່ວຍທີ່ຕິດຈິງ ໃສ່ໃບງານ** — ຮັບທຸກເລກ ບໍ່ທຽບກັບຫຍັງ.
  *
- * ຊ່ອງຫວ່າງ ⇒ ບັນທຶກ · ຊ່ອງມີເລກຢູ່ແລ້ວ ແລະ ໄດ້ມາຄົນລະເລກ ⇒ **ທັບ ພ້ອມເກັບຄ່າເກົ່າ
- * ໄວ້ໃນປະຫວັດ** (ຄ່າເກົ່າມາຈາກການເດົາ/ພິມມື — ເລກຢູ່ປ້າຍເຄື່ອງທີ່ຕິດແມ່ນຂອງຈິງ).
- * ບໍ່ຕົງກັບໃບຈ່າຍຂອງບິນ ⇒ ຮັບໄວ້ຄືກັນ ແຕ່ໝາຍ `mismatch` ໄວ້ໃຫ້ຜູ້ຈັດການຕາມເບິ່ງ.
+ * ຊ່ອງຫວ່າງ ⇒ ລົງ · ຊ່ອງມີເລກຢູ່ແລ້ວ ແລະ ໄດ້ມາຄົນລະເລກ ⇒ **ທັບ ພ້ອມເກັບຄ່າເກົ່າ
+ * ໄວ້ໃນປະຫວັດ** · ເລກເກົ່າອັນເກົ່າ ⇒ ບໍ່ຂຽນຊ້ຳ ແຕ່ຍັງລົງປະຫວັດວ່າຢືນຢັນແລ້ວ.
  *
- * `options.part` = ຊ່າງເລືອກເອງວ່າກຳລັງເກັບໜ່ວຍໃນ ຫຼື ໜ່ວຍນອກ (ແອ 2 ໜ່ວຍ) —
- * ບໍ່ສົ່ງມາ ⇒ ຄິດໃຫ້ເອງ: ຕົງກັບບິນ ⇒ ຕາມບິນ · ບໍ່ດັ່ງນັ້ນລົງຊ່ອງທີ່ຫວ່າງກ່ອນ.
+ * `options.part` = ຊ່າງເລືອກເອງໃນແອັບ (ແອ 2 ໜ່ວຍ) — ບໍ່ສົ່ງມາ ⇒ ຄິດໃຫ້ເອງ:
+ * ຕົງກັບຊ່ອງໃດຢູ່ແລ້ວ ⇒ ຊ່ອງນັ້ນ · ບໍ່ດັ່ງນັ້ນລົງຊ່ອງທີ່ຫວ່າງກ່ອນ (ໃນ → ນອກ).
  */
 export async function recordInstallScan(
   session: Session,
@@ -198,76 +131,33 @@ export async function recordInstallScan(
   const job = await loadJob(code);
   if (!job) return { ok: false, error: "ບໍ່ພົບໃບງານນີ້" };
 
-  const { isn, sn } = await resolveSerial(value);
-  const candidates = [norm(value), norm(isn), norm(sn)].filter(Boolean);
-  const units = await issuedUnits(job);
   const indoorSet = realSerial(job.pro_sn);
   const outdoorSet = realSerial(job.pro_sn_out);
-  const needOutdoor = units.length
-    ? units.some((unit) => unit.part === "outdoor")
-    : (job.item_code ?? "").startsWith("12");
-
-  // ── ໜ່ວຍນີ້ຢູ່ໃນໃບຈ່າຍຂອງບິນນີ້ບໍ (ໃຊ້ຈັດຊ່ອງ ແລະ ອອກຄຳເຕືອນ — ບໍ່ແມ່ນດ່ານກັ້ນ) ──
-  const hit = units.find(
-    (unit) => candidates.includes(norm(unit.isn)) || candidates.includes(norm(unit.sn)),
-  );
+  const scanned = norm(value);
 
   /**
-   * ລົງຊ່ອງໃດ — ຕາມລຳດັບຄວາມແນ່ນອນ:
-   *   ① ຊ່າງເລືອກເອງໃນແອັບ (ຮູ້ດີກວ່າໃຜ ວ່າກຳລັງຢືນຢູ່ໜ້າໜ່ວຍໃນ ຫຼື ໜ່ວຍນອກ)
-   *   ② ໃບຈ່າຍບອກ ([C] ໃນ · [H] ນອກ)
-   *   ③ ຕົງກັບຄ່າທີ່ໃບງານມີຢູ່ແລ້ວ = ຢືນຢັນຊ້ຳຊ່ອງນັ້ນ
-   *   ④ ບໍ່ມີຫຍັງໃຫ້ອີງ ⇒ ລົງຊ່ອງທີ່ຫວ່າງກ່ອນ (ໃນ → ນອກ), ເຕັມໝົດ ⇒ ທັບໜ່ວຍໃນ
+   * ລົງຊ່ອງໃດ:
+   *   ① ຊ່າງເລືອກເອງໃນແອັບ (ຄົນທີ່ຢືນຢູ່ໜ້າເຄື່ອງຮູ້ດີກວ່າໃຜ)
+   *   ② ຕົງກັບຄ່າທີ່ໃບງານມີຢູ່ແລ້ວ = ຢືນຢັນຊ້ຳຊ່ອງນັ້ນ (ຢ່າໃຫ້ເລກອັນດຽວລົງ 2 ຊ່ອງ)
+   *   ③ ບໍ່ມີຫຍັງໃຫ້ອີງ ⇒ ຊ່ອງທີ່ຫວ່າງກ່ອນ (ໃນ → ນອກ), ເຕັມໝົດ ⇒ ທັບໜ່ວຍໃນ
    */
   const part: "indoor" | "outdoor" =
-    options.part === "indoor" || options.part === "outdoor"
-      ? options.part
-      : hit
-        ? hit.part
-        : indoorSet && candidates.includes(indoorSet)
-          ? "indoor"
-          : outdoorSet && candidates.includes(outdoorSet)
-            ? "outdoor"
-            : !indoorSet
-              ? "indoor"
-              : needOutdoor && !outdoorSet
-                ? "outdoor"
-                : "indoor";
-
-  /**
-   * ດ່ານດຽວທີ່ຍັງເຫຼືອ — **ເລກອັນດຽວລົງ 2 ຊ່ອງບໍ່ໄດ້**. ບໍ່ແມ່ນການບັງຄັບໃຫ້ຕົງກັບໃບງານ
-   * ແຕ່ເປັນຄວາມຂັດແຍ້ງໃນຕົວມັນເອງ (ໜ່ວຍໃນ ກັບ ໜ່ວຍນອກ ເປັນເຄື່ອງຄົນລະໜ່ວຍ) —
-   * ຮູເກົ່າທີ່ເຮັດໃຫ້ INST-7213/7214 ໄດ້ເລກຊ້ຳກັນ. ບອກໃຫ້ຊ່າງຮູ້ ແລ້ວຍິງໃໝ່.
-   */
-  const other = part === "indoor" ? outdoorSet : indoorSet;
-  if (other && candidates.includes(other)) {
-    const otherWhere = part === "indoor" ? "ໜ່ວຍນອກ" : "ໜ່ວຍໃນ";
-    return {
-      ok: false,
-      error: `ເລກນີ້ລົງເປັນ${otherWhere}ຂອງໃບນີ້ຢູ່ແລ້ວ — ໜ່ວຍໃນ ກັບ ໜ່ວຍນອກ ຕ້ອງຄົນລະເລກ`,
-    };
-  }
+    indoorSet === scanned
+      ? "indoor"
+      : outdoorSet === scanned
+        ? "outdoor"
+        : options.part === "indoor" || options.part === "outdoor"
+          ? options.part
+          : !indoorSet
+            ? "indoor"
+            : needsOutdoor(job) && !outdoorSet
+              ? "outdoor"
+              : "indoor";
 
   const current = part === "indoor" ? indoorSet : outdoorSet;
   const currentRaw = (part === "indoor" ? job.pro_sn : job.pro_sn_out) ?? "";
   const where = part === "indoor" ? "ໜ່ວຍໃນ" : "ໜ່ວຍນອກ";
-  const label = sn && sn !== value ? `${sn}${isn ? ` (ISN ${isn})` : ""}` : value;
-  // ຄ່າທີ່ລົງໃບງານ — ຢາກໄດ້ SN ໂຮງງານ (ERP ຮູ້ຈັກ) ບໍ່ດັ່ງນັ້ນເອົາຄ່າດິບທີ່ຍິງມາ
-  const saved = sn ?? value;
-
-  const replaced = Boolean(current) && !candidates.includes(current);
-
-  /**
-   * ບໍ່ຕົງກັບບິນ ຫຼື ທັບຄ່າເກົ່າ = ບໍ່ໄດ້ຫ້າມ ແຕ່ຕ້ອງ**ຕາມເບິ່ງພາຍຫຼັງໄດ້**
-   * (ຜູ້ຈັດການກອງດ້ວຍ `mismatch` ຢູ່ ods_install_scan).
-   */
-  const offBill = units.length > 0 && !hit;
-  const warning = offBill
-    ? `⚠️ ບໍ່ຢູ່ໃນໃບຈ່າຍຂອງບິນ ${job.doc_ref_1} (ບິນຈ່າຍ ` +
-      `${units.map((unit) => `${unit.isn}${unit.part === "outdoor" ? " (ນອກ)" : ""}`).join(" · ")}) — ຮັບໄວ້ຕາມເຄື່ອງທີ່ຕິດຈິງ`
-    : units.length === 0
-      ? "⚠️ ບິນບໍ່ໄດ້ລົງ ISN ໄວ້ ຈຶ່ງທຽບບໍ່ໄດ້"
-      : null;
+  const replaced = Boolean(current) && current !== scanned;
 
   /**
    * ── ລົງໃບງານ + ລົງປະຫວັດ = ຄັ້ງດຽວກັນ ──
@@ -282,25 +172,22 @@ export async function recordInstallScan(
       const column = part === "indoor" ? "pro_sn" : "pro_sn_out";
       await client.query(`update ods_tb_install set ${column}=$2, user_edit=$3 where code=$1`, [
         code,
-        saved,
+        value,
         session.username,
       ]);
     }
     await client.query(
-      `insert into ods_install_scan(job_code, phase, scanned, matched, isn, sn, tech_code,
-          prev_value, saved_value, mismatch)
-       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      `insert into ods_install_scan(job_code, phase, scanned, matched, tech_code, prev_value, mismatch)
+       values($1,$2,$3,$4,$5,$6,$7)`,
       [
         code,
         phase,
         value.slice(0, 60),
         part,
-        isn,
-        sn,
         session.username,
         currentRaw.slice(0, 60) || null,
-        saved.slice(0, 60),
-        offBill || replaced,
+        // ທັບຂອງເກົ່າ = ແຖວທີ່ຜູ້ຈັດການຄວນເຫັນ (ໃບງານເຄີຍລະບຸອີກເລກໜຶ່ງ)
+        replaced,
       ],
     );
     await client.query("commit");
@@ -313,37 +200,30 @@ export async function recordInstallScan(
 
   // ຍິງກ້ອງ ຫຼື ພິມເອງ — ຫຼັກຖານໜັກບໍ່ເທົ່າກັນ ⇒ ຂຽນຄົນລະຄຳໃນປະຫວັດ
   const how = options.manual ? "ປ້ອນເລກເອງ" : "ສະແກນ";
-  // ປະຫວັດການອັບເດດ pro_sn/pro_sn_out — ຄ່າເກົ່າ → ຄ່າໃໝ່ ພ້ອມຜົນການທຽບກັບບິນ
-  const note = [
-    replaced
-      ? `ແກ້ຈາກ ${currentRaw} ⇒ ${saved}`
-      : current
-        ? "ຢືນຢັນຊ້ຳ — ຄືເກົ່າ"
-        : `ບັນທຶກໃສ່ໃບງານ ${saved}`,
-    warning ?? "ຕົງກັບໜ່ວຍທີ່ຈ່າຍໃນບິນ",
-  ].join(" · ");
-  await logChange("ods_tb_install", code, `${how} ${where}: ${label} — ${note}`, {
+  // ປະຫວັດການອັບເດດ pro_sn / pro_sn_out — ຄ່າເກົ່າ → ຄ່າໃໝ່
+  const note = replaced
+    ? `⚠️ ແກ້ຈາກ ${currentRaw} ⇒ ${value}`
+    : current
+      ? "ຢືນຢັນຊ້ຳ — ຄືເກົ່າ"
+      : `ບັນທຶກໃສ່ໃບງານ ${value}`;
+  await logChange("ods_tb_install", code, `${how} ${where}: ${value} — ${note}`, {
     author: session.username,
   });
 
   return {
     ok: true,
     matched: part,
-    isn,
-    sn,
-    warning,
-    message:
-      (replaced
-        ? `ແກ້${where} ຈາກ ${currentRaw} ເປັນ ${label}`
-        : current
-          ? `ຢືນຢັນ${where}ແລ້ວ — ${label}`
-          : `ບັນທຶກ${where}ແລ້ວ — ${label}`) + (warning ? ` ${warning}` : ""),
+    message: replaced
+      ? `ແກ້${where} ຈາກ ${currentRaw} ເປັນ ${value}`
+      : current
+        ? `ຢືນຢັນ${where}ແລ້ວ — ${value}`
+        : `ບັນທຶກ${where}ແລ້ວ — ${value}`,
   };
 }
 
 /**
  * **ປະຫວັດການອັບເດດ ISN/SN ຂອງໃບງານນີ້** (ໃຫ້ໜ້າໃບງານ ແລະ ແອັບ ສະແດງ) —
- * ແຕ່ລະແຖວ = 1 ຄັ້ງທີ່ຊ່າງເກັບເລກ: ຄ່າເກົ່າ → ຄ່າທີ່ລົງໃບງານ · ຕົງກັບບິນບໍ (`mismatch`).
+ * ແຕ່ລະແຖວ = 1 ຄັ້ງທີ່ຊ່າງເກັບເລກ: ລົງຊ່ອງໃດ · ຄ່າເກົ່າແມ່ນຫຍັງ · ທັບຂອງເກົ່າບໍ.
  */
 export async function installScans(code: string) {
   return (
@@ -352,16 +232,13 @@ export async function installScans(code: string) {
       phase: string;
       scanned: string;
       matched: string;
-      isn: string | null;
-      sn: string | null;
       tech_code: string | null;
       scanned_at: string;
       prev_value: string | null;
-      saved_value: string | null;
       mismatch: boolean;
     }>(
-      `select id, phase, scanned, matched, isn, sn, tech_code,
-          prev_value, saved_value, coalesce(mismatch,false) mismatch,
+      `select id, phase, scanned, matched, tech_code,
+          prev_value, coalesce(mismatch,false) mismatch,
           to_char(scanned_at,'DD-MM-YYYY HH24:MI') scanned_at
         from ods_install_scan where job_code = $1 order by id`,
       [code],

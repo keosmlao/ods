@@ -197,8 +197,8 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
           ── ເກັບ ISN/SN ຄົບແລ້ວບໍ (07-08-2026) ──
           ດຽວນີ້ຊ່າງເປັນຄົນເກັບເລກ ⇒ "ຄົບ" = ຊ່ອງໃນໃບງານມີຄ່າ ບໍ່ແມ່ນ "ເຄີຍຍິງແລ້ວ".
           ແອ (ລະຫັດ 12xx) = 2 ໜ່ວຍ (ໃນ+ນອກ) · ເຄື່ອງອື່ນ = 1 ໜ່ວຍ.
-          ⚠️ ດ່ານຈິງຢູ່ lib/install-scan.installUnits (ຖາມໃບຈ່າຍສິນຄ້າຂອງບິນ) —
-          ອັນນີ້ເປັນພຽງທຸງໃຫ້ໜ້າຈໍ ຢ່າຖາມ ERP ຢູ່ລາຍການວຽກ (ຊ້າ).
+          ດ່ານຈິງຢູ່ lib/install-scan.installUnits — ດຽວນີ້ໃຊ້**ກົດດຽວກັນ**ກັບແຖວນີ້
+          (12xx = 2 ໜ່ວຍ) ບໍ່ຖາມ ERP ອີກແລ້ວ (08-08-2026) ⇒ ໜ້າຈໍກັບດ່ານບໍ່ຂັດກັນ.
         */
         (nullif(a.pro_sn,'') is not null
           and (a.item_code not like '12%' or nullif(a.pro_sn_out,'') is not null)) as scan_done,
