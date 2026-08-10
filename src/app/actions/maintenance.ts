@@ -1,5 +1,6 @@
 "use server";
 import { logChange } from "@/lib/chatter-log";
+import { parseHelpers, setJobHelpers } from "@/lib/job-techs";
 import { db, query } from "@/lib/db";
 import { requirePermission, requireRole } from "@/lib/guard";
 import { MAINTENANCE_SIDE } from "@/lib/roles";
@@ -29,6 +30,8 @@ export async function createMaintenance(formData: FormData): Promise<Maintenance
   const custTel = String(formData.get("cust_tel") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();
   const empCode = String(formData.get("emp_code") ?? "").trim();
+  // ຊ່າງຮ່ວມ (10-08-2026) — ຫົວໜ້າຢູ່ `emp_code` ຄືເກົ່າ (ເບິ່ງ lib/job-techs)
+  const helpers = parseHelpers(formData.get("helper_codes"), empCode);
   const appoint = String(formData.get("appoint_date") ?? "").trim();
   const remark = String(formData.get("remark") ?? "").trim();
   if (!custName) return { error: "ກະລຸນາໃສ່ຊື່ລູກຄ້າ" };
@@ -75,6 +78,7 @@ export async function createMaintenance(formData: FormData): Promise<Maintenance
   } finally {
     client.release();
   }
+  await setJobHelpers("maintenance", code, helpers, { by: g.session.username });
   await logChange("ods_tb_maintenance", code, `ເປີດງານສ້ອມບໍລຸງ ${code} (${custName}) ໂດຍ ${g.session.username}`, { roles: ["manager"] });
   revalidate(code);
   return { code };
@@ -91,6 +95,8 @@ export async function updateMaintenance(code: string, formData: FormData): Promi
   const custTel = String(formData.get("cust_tel") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();
   const empCode = String(formData.get("emp_code") ?? "").trim();
+  // ຊ່າງຮ່ວມ (10-08-2026) — ຫົວໜ້າຢູ່ `emp_code` ຄືເກົ່າ (ເບິ່ງ lib/job-techs)
+  const helpers = parseHelpers(formData.get("helper_codes"), empCode);
   const appoint = String(formData.get("appoint_date") ?? "").trim();
   const remark = String(formData.get("remark") ?? "").trim();
   if (!custName) return { error: "ກະລຸນາໃສ່ຊື່ລູກຄ້າ" };
@@ -145,6 +151,7 @@ export async function updateMaintenance(code: string, formData: FormData): Promi
   } finally {
     client.release();
   }
+  await setJobHelpers("maintenance", cleanCode, helpers, { by: g.session.username });
   await logChange("ods_tb_maintenance", cleanCode, `ແກ້ໄຂງານ ${cleanCode} ໂດຍ ${g.session.username}`, { roles: ["manager"] });
   revalidate(cleanCode);
   return { code: cleanCode };
@@ -183,8 +190,18 @@ export async function deleteMaintenance(code: string): Promise<MaintenanceState>
   return { code: cleanCode };
 }
 
-/** ຈັດຊ່າງ + ນັດ (→ ຂັ້ນ 1 ລໍຊ່າງຮັບ). ວ່າງ emp = ຖອນການຈັດ. */
-export async function assignMaintenance(code: string, empCode: string, appoint: string): Promise<MaintenanceState> {
+/**
+ * ຈັດຊ່າງ + ນັດ (→ ຂັ້ນ 1 ລໍຊ່າງຮັບ). ວ່າງ emp = ຖອນການຈັດ.
+ *
+ * `helpers` = **ຊ່າງຮ່ວມ** (10-08-2026) — ຫົວໜ້າຢູ່ `emp_code` ຄືເກົ່າ, ຊ່າງຮ່ວມຢູ່
+ * `ods_job_tech` ⇒ ເຫັນງານໃນແອັບ ແລະ check-in ໄດ້ (ເບິ່ງ lib/job-techs).
+ */
+export async function assignMaintenance(
+  code: string,
+  empCode: string,
+  appoint: string,
+  helpers: string[] = [],
+): Promise<MaintenanceState> {
   const g = await requireRole(MAINTENANCE_SIDE, "ບໍ່ມີສິດຈັດຊ່າງ");
   if (!g.ok) return { error: g.error };
   await query(
@@ -194,7 +211,18 @@ export async function assignMaintenance(code: string, empCode: string, appoint: 
      where code = $1`,
     [code.trim(), empCode.trim(), appoint.trim()],
   );
-  await logChange("ods_tb_maintenance", code, `ຈັດຊ່າງ ${empCode || "-"} ນັດ ${appoint || "-"} ໂດຍ ${g.session.username}`, { roles: ["manager"] });
+  await setJobHelpers(
+    "maintenance",
+    code.trim(),
+    helpers.filter((tech) => tech && tech !== empCode.trim()),
+    { by: g.session.username },
+  );
+  await logChange(
+    "ods_tb_maintenance",
+    code,
+    `ຈັດຊ່າງ ${empCode || "-"}${helpers.length ? ` (+ຊ່າງຮ່ວມ ${helpers.join(" · ")})` : ""} ນັດ ${appoint || "-"} ໂດຍ ${g.session.username}`,
+    { roles: ["manager"] },
+  );
   revalidate(code);
   return { code };
 }

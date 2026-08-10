@@ -91,6 +91,14 @@ export type MobileJob = {
   sla_left: number | null;
   /** ປ້າຍ "ຖອຍໄປຫາ" (ຂັ້ນກ່ອນໜ້າ) — null = ຂັ້ນນີ້ຖອຍບໍ່ໄດ້ (ໃຫ້ແອັບເຊື່ອງປຸ່ມ) */
   undo_to: string | null;
+  /**
+   * ຄົນນີ້ເປັນ **ຫົວໜ້າງານ** ບໍ (false = ຊ່າງຮ່ວມ — 10-08-2026).
+   * ຊ່າງຮ່ວມເຫັນງານ · check-in/out · ເກັບ ISN/SN ໄດ້ ແຕ່ **ຮັບງານ/ຈົບງານບໍ່ໄດ້**
+   * ⇒ ແອັບໃຊ້ທຸງນີ້ເຊື່ອງປຸ່ມ ບໍ່ດັ່ງນັ້ນຊ່າງກົດແລ້ວຖືກ server ປະຕິເສດ (ງົງຢູ່ໜ້າງານ).
+   */
+  is_lead: boolean;
+  /** ຊ່າງຄົນອື່ນໃນທີມຂອງງານນີ້ (ຊື່ຫຍໍ້, ບໍ່ລວມຕົນເອງ) — ໃຫ້ຊ່າງຮູ້ວ່າໄປກັບໃຜ */
+  mates: string[];
 };
 
 /**
@@ -125,6 +133,27 @@ const CHECKED_IN = (workflow: string) => `exists (
   select 1 from ods_job_checkin ck
    where ck.workflow = '${workflow}' and ck.job_code = a.code
      and ck.tech_code = $1 and ck.checkout_at is null)`;
+
+/**
+ * ── ທີມຊ່າງຂອງໃບງານ (10-08-2026) ──
+ * **ຫົວໜ້າ** ຢູ່ຊ່ອງເກົ່າຂອງແຕ່ລະຕາຕະລາງ · **ຊ່າງຮ່ວມ** ຢູ່ `ods_job_tech`
+ * (ເບິ່ງ lib/job-techs). ລາຍການວຽກຂອງແອັບຈຶ່ງຕ້ອງເອົາ 2 ບ່ອນມາລວມກັນ:
+ *   `IN_TEAM`  — ງານນີ້ຂ້ອຍຢູ່ໃນທີມບໍ (ໃສ່ໃນ where)
+ *   `MATES`    — ຄົນອື່ນທີ່ໄປນຳ (ໃຫ້ຊ່າງຮູ້ວ່າມື້ນີ້ໄປກັບໃຜ ໂດຍບໍ່ຕ້ອງໂທຖາມ)
+ */
+const HELPER_OF = (workflow: string) => `exists (
+  select 1 from ods_job_tech t
+   where t.workflow = '${workflow}' and t.job_code = a.code and t.tech_code = $1)`;
+
+const IN_TEAM = (workflow: string, lead: string) => `(${lead} = $1 or ${HELPER_OF(workflow)})`;
+
+const MATES = (workflow: string, lead: string) => `(
+  select coalesce(array_agg(m.code order by m.code), '{}')
+    from (select ${lead} as code
+           union all
+          select t.tech_code from ods_job_tech t
+           where t.workflow = '${workflow}' and t.job_code = a.code) m
+   where coalesce(m.code,'') <> '' and m.code <> $1)`;
 
 /**
  * ປຸ່ມທີ່ກົດໄດ້ດຽວນີ້ — ຄິດຈາກຂັ້ນ (ບໍ່ແມ່ນຈາກຖັນດິບ).
@@ -209,12 +238,13 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         ${CHECKED_IN("install")} as checked_in,
         a.location_lat as lat, a.location_lng as lng,
         (${INSTALL_LEFT_SQL}) as sla_left,
-        null as undo_to
+        null as undo_to,
+        (a.tech_code = $1) as is_lead,
+        ${MATES("install", "a.tech_code")} as mates
       from ods_tb_install a
       left join ar_customer c on c.code = a.cust_code
      where ${INSTALL_OPEN}
-       and coalesce(a.tech_code,'') <> ''
-       and a.tech_code = $1
+       and ${IN_TEAM("install", "a.tech_code")}
      order by a.appoint_date asc nulls last, a.time_register asc`,
     [tech],
   );
@@ -250,12 +280,13 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         case when (${REPAIR_STAGE_SLA_HOURS_SQL}) is not null
           then (${REPAIR_STAGE_SLA_HOURS_SQL}) * 3600 - (${STAGE_ELAPSED_SQL})
           else null end::double precision as sla_left,
-        (${UNDO_TO_SQL}) as undo_to
+        (${UNDO_TO_SQL}) as undo_to,
+        (a.emp_code = $1) as is_lead,
+        ${MATES("repair", "a.emp_code")} as mates
       from tb_product a
       left join ar_customer b on b.code = a.cust_code
      where ${OPEN_JOBS}
-       and coalesce(a.emp_code,'') <> ''
-       and a.emp_code = $1
+       and ${IN_TEAM("repair", "a.emp_code")}
      order by sla_left asc nulls last, a.appoint_date asc nulls last, a.time_register asc`,
     [tech],
   );
@@ -299,12 +330,13 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         null::varchar as expect_sn, null::varchar as expect_sn_out,
         null::double precision as lat, null::double precision as lng,
         null::double precision as sla_left,
-        null as undo_to
+        null as undo_to,
+        (a.emp_code = $1) as is_lead,
+        ${MATES("maintenance", "a.emp_code")} as mates
       from ods_tb_maintenance a
       left join ar_customer c on c.code = a.cust_code
      where ${MAINTENANCE_OPEN}
-       and coalesce(a.emp_code,'') <> ''
-       and a.emp_code = $1
+       and ${IN_TEAM("maintenance", "a.emp_code")}
      order by a.appoint_date asc nulls last, a.time_register asc`,
     [tech],
   );

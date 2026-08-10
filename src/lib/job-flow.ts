@@ -1,5 +1,6 @@
 import { logChange } from "@/lib/chatter-log";
 import { installUnits, recordInstallScan } from "@/lib/install-scan";
+import { clearJobHelpers, isJobHelper } from "@/lib/job-techs";
 import type { Session } from "@/lib/auth";
 import type { Workflow } from "@/lib/commission";
 import { query } from "@/lib/db";
@@ -70,6 +71,17 @@ export async function ownJob(session: Session, workflow: Workflow, code: string)
   if (!job) return { ok: false, error: "ບໍ່ພົບງານນີ້" };
   if (job.cancelled) return { ok: false, error: "ງານນີ້ຖືກຍົກເລີກແລ້ວ" };
   if (roleOf(session) === "technical" && (job.tech ?? "") !== session.username) {
+    /**
+     * ຊ່າງຮ່ວມ (10-08-2026) — ຢູ່ໃນທີມແທ້ ແຕ່ **ຮັບງານ/ຈົບງານເປັນຂອງຫົວໜ້າຄົນດຽວ**
+     * ⇒ ບອກໃຫ້ຊັດວ່າ "ບໍ່ແມ່ນວ່າບໍ່ມີສິດ ແຕ່ຂັ້ນນີ້ຫົວໜ້າກົດ" ບໍ່ດັ່ງນັ້ນຊ່າງຈະຄິດວ່າ
+     * ລະບົບມອບໝາຍຜິດຄົນ ແລ້ວໂທຫາ CS.
+     */
+    if (await isJobHelper(workflow, code, session.username)) {
+      return {
+        ok: false,
+        error: `ທ່ານເປັນ**ຊ່າງຮ່ວມ**ຂອງງານນີ້ — ຂັ້ນນີ້ຫົວໜ້າງານ (${job.tech ?? "-"}) ເປັນຄົນກົດ`,
+      };
+    }
     return { ok: false, error: "ງານນີ້ບໍ່ແມ່ນຂອງທ່ານ" };
   }
   return { ok: true, message: "", job };
@@ -79,15 +91,39 @@ export async function ownJob(session: Session, workflow: Workflow, code: string)
  * Mobile ເປັນພື້ນທີ່ລົງມືຂອງຜູ້ຮັບງານ, ບໍ່ແມ່ນໜ້າຄຸ້ມຄອງ.
  * ຈຶ່ງບັງຄັບ ownership ທຸກ role; ສິດຫົວໜ້າທີ່ເຮັດງານຂອງຄົນອື່ນ
  * ຍັງຄົງໄວ້ສຳລັບ workflow ຝັ່ງ web ຜ່ານ ownJob ຕາມເດີມ.
+ *
+ * ⚠️ **ຊ່າງຮ່ວມຜ່ານດ່ານນີ້ນຳ** (10-08-2026) — ດ່ານນີ້ພຽງບອກວ່າ "ຢູ່ໃນທີມຂອງງານນີ້ບໍ"
+ * ⇒ ເປີດເບິ່ງລາຍລະອຽດ · check-in/out · ເກັບ ISN/SN ໄດ້. ຄຳສັ່ງທີ່ປ່ຽນຂັ້ນງານ
+ * (ຮັບງານ · ເລີ່ມ · ຈົບ · ນັດຮອບຕໍ່ໄປ · ຖອຍຂັ້ນ) ຍັງຜ່ານ `ownJob` ອີກຊັ້ນ ⇒ ຫົວໜ້າເທົ່ານັ້ນ.
  */
 export async function ownMobileJob(session: Session, workflow: Workflow, code: string): Promise<FlowResult> {
   const job = await ownerOf(workflow, code);
   if (!job) return { ok: false, error: "ບໍ່ພົບງານນີ້" };
   if (job.cancelled) return { ok: false, error: "ງານນີ້ຖືກຍົກເລີກແລ້ວ" };
-  if ((job.tech ?? "") !== session.username) {
+  if ((job.tech ?? "") !== session.username && !(await isJobHelper(workflow, code, session.username))) {
     return { ok: false, error: "ງານນີ້ບໍ່ແມ່ນວຽກທີ່ມອບໝາຍໃຫ້ທ່ານ" };
   }
   return { ok: true, message: "" };
+}
+
+/**
+ * ດ່ານຂອງ**ວຽກໜ້າງານ** (check-in/out · ເກັບ ISN/SN) — ຫົວໜ້າ **ຫຼື** ຊ່າງຮ່ວມ.
+ * ຄືນ `job` ມານຳ ເພື່ອໃຫ້ຜູ້ເອີ້ນກວດຂັ້ນ/ຮັບງານແລ້ວບໍ ຕໍ່ໄດ້ຄືກັບ `ownJob`.
+ */
+export async function ownTeamJob(
+  session: Session,
+  workflow: Workflow,
+  code: string,
+): Promise<FlowResult & { job?: JobOwner }> {
+  const job = await ownerOf(workflow, code);
+  if (!job) return { ok: false, error: "ບໍ່ພົບງານນີ້" };
+  if (job.cancelled) return { ok: false, error: "ງານນີ້ຖືກຍົກເລີກແລ້ວ" };
+  if (roleOf(session) === "technical" && (job.tech ?? "") !== session.username) {
+    if (!(await isJobHelper(workflow, code, session.username))) {
+      return { ok: false, error: "ງານນີ້ບໍ່ແມ່ນຂອງທ່ານ" };
+    }
+  }
+  return { ok: true, message: "", job };
 }
 
 /* ── ຮັບງານ / ປະຕິເສດງານ ───────────────────────────────────────── */
@@ -255,6 +291,12 @@ export async function rejectJob(
       error: "ປະຕິເສດບໍ່ໄດ້ — ງານນີ້ຮັບ ຫຼື ເລີ່ມລົງມືໄປແລ້ວ (ຕິດຕໍ່ CS ເພື່ອປ່ຽນຊ່າງ)",
     };
   }
+
+  /**
+   * ງານກັບເຂົ້າຄິວຈັດຊ່າງ ⇒ **ທີມເກົ່າຕ້ອງຫາຍໄປນຳ** (10-08-2026) — ບໍ່ດັ່ງນັ້ນຊ່າງຮ່ວມ
+   * ຂອງຫົວໜ້າຄົນເກົ່າຍັງເຫັນງານໃນແອັບ ທັງທີ່ງານຖືກປະຕິເສດໄປແລ້ວ.
+   */
+  await clearJobHelpers(workflow, code);
 
   await query(
     "insert into ods_job_reject(workflow, job_code, tech_code, reason) values($1,$2,$3,$4)",
@@ -656,7 +698,8 @@ export async function checkIn(
   code: string,
   input: CheckinInput,
 ): Promise<FlowResult> {
-  const own = await ownJob(session, workflow, code);
+  // ຊ່າງຮ່ວມກໍ່ໄປໜ້າງານຄືກັນ ⇒ check-in ໄດ້ (ຫຼັກຖານ + ຄ່າຄອມແບ່ງຕາມຮອບ check-in)
+  const own = await ownTeamJob(session, workflow, code);
   if (!own.ok) return own;
   if (!own.job?.accepted) {
     return { ok: false, error: "ຕ້ອງກົດຮັບງານກ່ອນ ຈຶ່ງສາມາດ check-in ໄດ້" };

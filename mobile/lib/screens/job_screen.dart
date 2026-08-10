@@ -329,7 +329,25 @@ class _JobScreenState extends State<JobScreen> {
   }
 
   /// ຮູບ base64 — ບີບໄວ້ (ກວ້າງ ≤1280, ຄຸນນະພາບ 50) ເພາະຮູບເກັບໃນຖານຂໍ້ມູນ
+  /// ກຳລັງເປີດກ້ອງ / ອ່ານຮູບຢູ່ບໍ.
+  ///
+  /// ຮູບ 12MP ອ່ານເປັນ bytes ແລ້ວແປງເປັນ base64 ໃຊ້ເວລາ 1-3 ວິ ຢູ່ເຄື່ອງເກົ່າ ແລະ
+  /// ເຮັດຢູ່ isolate ຫຼັກ ⇒ ໜ້າຈໍຍັງກົດໄດ້ ⇒ **ຊ່າງກົດຊ້ຳຕອນຮູບທຳອິດຍັງ load ບໍ່ທັນແລ້ວ**
+  /// ⇒ ກ້ອງເປີດຊ້ອນກັນ ຫຼື ໄດ້ຮູບຊ້ຳ 2 ໃບ. ທຸງນີ້ກັ້ນໄວ້ບ່ອນດຽວ (ໃນ `shoot()` ເອງ)
+  /// ⇒ ທຸກປຸ່ມທີ່ເອີ້ນມັນຖືກກັນຄືກັນ ບໍ່ຕ້ອງໄປແກ້ແຕ່ລະບ່ອນ.
+  bool shooting = false;
+
   Future<String?> shoot() async {
+    if (shooting) return null; // ກົດຊ້ຳລະຫວ່າງກຳລັງດຳເນີນ ⇒ ບໍ່ເປີດກ້ອງອີກ
+    if (mounted) setState(() => shooting = true);
+    try {
+      return await _shoot();
+    } finally {
+      if (mounted) setState(() => shooting = false);
+    }
+  }
+
+  Future<String?> _shoot() async {
     XFile? shot;
     try {
       shot = await picker.pickImage(
@@ -403,6 +421,9 @@ class _JobScreenState extends State<JobScreen> {
   String? _retainedCheckinPhoto;
 
   Future<void> checkIn() async {
+    // ກົດຊ້ຳຕອນຮູບໃບກ່ອນຍັງ load ຢູ່ ⇒ ອອກງຽບໆ (ຢ່າໄປຟ້ອງ "ຕ້ອງຖ່າຍຮູບກ່ອນ"
+    // ຊຶ່ງເປັນຄຳຕອບຂອງການ**ຍົກເລີກ**ກ້ອງ ບໍ່ແມ່ນຂອງການກົດຊ້ຳ)
+    if (busy || shooting) return;
     final point = await coordinates();
     if (point == null) return;
     // ມີຮູບຄ້າງຈາກຄັ້ງກ່ອນ (command ລົ້ມ) ⇒ ໃຊ້ຄືນ, ບໍ່ໃຫ້ຊ່າງຖ່າຍໜ້າງານໃໝ່
@@ -1329,7 +1350,53 @@ class _JobScreenState extends State<JobScreen> {
                 "ປະຕິເສດ" = ທາງເລືອກທີ່ນານໆເຮັດເທື່ອ ⇒ ເສັ້ນຂອບບາງໆ ບໍ່ຖົມສີ
                 ບໍ່ດັ່ງນັ້ນສອງປຸ່ມແຍ້ງກັນ ແລະ ກົດຜິດງ່າຍ.
               */
-                          if (job.action == 'accept' && !rejecting) ...[
+                          /*
+                            ── ຊ່າງຮ່ວມ (10-08-2026) ──
+                            1 ໃບງານໃສ່ຊ່າງໄດ້ຫຼາຍຄົນ ແຕ່ "ຮັບງານ/ຈົບງານ" ເປັນຂອງ
+                            **ຫົວໜ້າຄົນດຽວ** (server ປະຕິເສດຄົນອື່ນຢູ່ແລ້ວ) ⇒ ເຊື່ອງປຸ່ມ
+                            ໄປເລີຍ ດີກວ່າໃຫ້ກົດແລ້ວຄາຢູ່ໜ້າງານ ບໍ່ຮູ້ວ່າຜິດຫຍັງ.
+                          */
+                          if (!job.isLead || job.mates.isNotEmpty) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(11),
+                              decoration: BoxDecoration(
+                                color: tealTint,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: line),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.groups_2_outlined, size: 17, color: teal),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        job.isLead
+                                            ? 'ທ່ານເປັນຫົວໜ້າງານນີ້'
+                                            : 'ທ່ານເປັນຊ່າງຮ່ວມຂອງງານນີ້',
+                                        style: const TextStyle(fontWeight: FontWeight.w700, color: ink),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    job.isLead
+                                        ? 'ໄປນຳ: ${job.mates.join(" · ")} — ທຸກຄົນ check-in ເອງ '
+                                              '(ຄ່າຄອມແບ່ງຕາມຄົນທີ່ check-in ຈິງ)'
+                                        : 'check-in/out ແລະ ຖ່າຍຮູບ ໄດ້ຄືກັນ — '
+                                              '"ຮັບງານ · ຈົບງານ · ເກັບ ISN/SN" ຫົວໜ້າງານເປັນຄົນເຮັດ'
+                                              '${job.mates.isEmpty ? "" : " · ທີມ: ${job.mates.join(" · ")}"}',
+                                    style: const TextStyle(color: muted, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+
+                          if (job.isLead && job.action == 'accept' && !rejecting) ...[
                             Row(
                               children: [
                                 const Icon(
@@ -1453,7 +1520,8 @@ class _JobScreenState extends State<JobScreen> {
 
                           // ງານສ້ອມຂັ້ນ 1-2 = ກວດເຊັກ (ບໍ່ແມ່ນ "ເລີ່ມສ້ອມ" ຂອງຂັ້ນ 8).
                           // ໜ້າງານທີ່ຍັງບໍ່ check-in ໃຊ້ປຸ່ມ check-in ດ້ານເທິງແທນ.
-                          if (job.workflow == 'repair' &&
+                          if (job.isLead &&
+                              job.workflow == 'repair' &&
                               job.accepted &&
                               (job.stage == 1 || job.stage == 2) &&
                               !(job.stage == 1 &&
@@ -1491,7 +1559,7 @@ class _JobScreenState extends State<JobScreen> {
                             (ເມື່ອກ່ອນເປັນປຸ່ມສີເທົາ "ຕ້ອງ check-in ກ່ອນເລີ່ມງານ" ⇒ ຄົນສັບສົນ).
                             ຝັ່ງສ້ອມຄືເກົ່າ · ຕິດຕັ້ງທີ່ຖືກ CS ເລີ່ມໃຫ້ຈາກເວັບ ກໍ່ຂ້າມມາຂັ້ນ 5 ຢູ່ແລ້ວ.
                           */
-                          if (job.action == 'start' && job.workflow != 'install')
+                          if (job.isLead && job.action == 'start' && job.workflow != 'install')
                             _button(
                               job.onsite && !job.hasCheckedIn
                                   ? 'ຕ້ອງ check-in ກ່ອນເລີ່ມງານ'
@@ -1675,7 +1743,8 @@ class _JobScreenState extends State<JobScreen> {
                                     ],
                                   ),
                                 InkWell(
-                                  onTap: busy
+                                  // ກຳລັງອ່ານຮູບໃບກ່ອນຢູ່ ⇒ ກົດບໍ່ໄດ້ (ກັນໄດ້ຮູບຊ້ຳ)
+                                  onTap: busy || shooting
                                       ? null
                                       : () async {
                                           final photo = await shoot();
@@ -1692,10 +1761,22 @@ class _JobScreenState extends State<JobScreen> {
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(color: line),
                                     ),
-                                    child: const Icon(
-                                      Icons.add_a_photo_outlined,
-                                      color: teal,
-                                    ),
+                                    // ບອກໃຫ້ຮູ້ວ່າ**ກຳລັງດຳເນີນຢູ່** ບໍ່ແມ່ນກົດບໍ່ຕິດ
+                                    child: shooting
+                                        ? const Center(
+                                            child: SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: teal,
+                                              ),
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.add_a_photo_outlined,
+                                            color: teal,
+                                          ),
                                   ),
                                 ),
                               ],
@@ -1726,27 +1807,36 @@ class _JobScreenState extends State<JobScreen> {
                                   ],
                                 ),
                               ),
-                            if (job.workflow == 'install') ...[
+                            // ເກັບ ISN/SN = ຫົວໜ້າຄົນດຽວ (10-08-2026) — ເລກຜູກກັບການຮັບປະກັນ
+                            if (job.workflow == 'install' && job.isLead) ...[
                               _serialCollector(),
                               const SizedBox(height: 10),
                             ],
 
-                            _primaryAction(
-                              job.workflow == 'install'
-                                  ? 'ບັນທຶກຕິດຕັ້ງສຳເລັດ — ສົ່ງກວດ QC'
-                                  : 'ບັນທຶກສ້ອມສຳເລັດ — ສົ່ງກວດ QC',
-                              Icons.check_circle_outline_rounded,
-                              ok,
-                              evidenceRequired || (job.workflow == 'install' && !job.scanDone)
-                                  ? null
-                                  : () async {
-                                      await run({
-                                        'action': 'finish',
-                                        'note': note.text,
-                                        'photos': photos,
-                                      });
-                                    },
-                            ),
+                            // ຈົບງານ = ຫົວໜ້າຄົນດຽວ (ຊ່າງຮ່ວມຍັງຖ່າຍຮູບ/ເກັບ ISN/SN ໃຫ້ໄດ້)
+                            if (job.isLead)
+                              _primaryAction(
+                                job.workflow == 'install'
+                                    ? 'ບັນທຶກຕິດຕັ້ງສຳເລັດ — ສົ່ງກວດ QC'
+                                    : 'ບັນທຶກສ້ອມສຳເລັດ — ສົ່ງກວດ QC',
+                                Icons.check_circle_outline_rounded,
+                                ok,
+                                evidenceRequired || (job.workflow == 'install' && !job.scanDone)
+                                    ? null
+                                    : () async {
+                                        await run({
+                                          'action': 'finish',
+                                          'note': note.text,
+                                          'photos': photos,
+                                        });
+                                      },
+                              )
+                            else
+                              const Text(
+                                'ຮູບທີ່ທ່ານຖ່າຍ ຖືກແນບໃສ່ໃບງານແລ້ວ — '
+                                'ປຸ່ມ "ບັນທຶກສຳເລັດ" ແລະ ການເກັບ ISN/SN ຢູ່ນຳຫົວໜ້າງານ',
+                                style: TextStyle(color: muted, fontSize: 12),
+                              ),
                             if (job.workflow == 'install' && !job.scanDone) ...[
                               const SizedBox(height: 6),
                               Text(
@@ -1786,7 +1876,8 @@ class _JobScreenState extends State<JobScreen> {
                                 // ຮອບທີ່ບໍ່ເຄີຍໄປໜ້າງານ = ບໍ່ມີຫຼັກຖານຫຍັງ ⇒ ເປັນການເລື່ອນນັດ
                                 // ບໍ່ແມ່ນ "ຮອບຕໍ່ໄປ" (ເລື່ອນວັນ ⇒ ໃຫ້ CS ແກ້ໃບງານແທນ).
                                 // ດ່ານຈິງຢູ່ lib/job-flow.scheduleNextVisit.
-                                onPressed: busy || !_visitedThisJob ? null : _askNextVisit,
+                                // ນັດຮອບໃໝ່ = ຕັດສິນໃຈຂອງຫົວໜ້າງານ (ຊ່າງຮ່ວມໃຊ້ປຸ່ມ check-out ແທນ)
+                                onPressed: busy || !_visitedThisJob || !job.isLead ? null : _askNextVisit,
                                 icon: const Icon(Icons.event_repeat_outlined, size: 18),
                                 label: Text(
                                   job.canCheckOut
@@ -1836,7 +1927,8 @@ class _JobScreenState extends State<JobScreen> {
                                 // ຮອບທີ່ບໍ່ເຄີຍໄປໜ້າງານ = ບໍ່ມີຫຼັກຖານຫຍັງ ⇒ ເປັນການເລື່ອນນັດ
                                 // ບໍ່ແມ່ນ "ຮອບຕໍ່ໄປ" (ເລື່ອນວັນ ⇒ ໃຫ້ CS ແກ້ໃບງານແທນ).
                                 // ດ່ານຈິງຢູ່ lib/job-flow.scheduleNextVisit.
-                                onPressed: busy || !_visitedThisJob ? null : _askNextVisit,
+                                // ນັດຮອບໃໝ່ = ຕັດສິນໃຈຂອງຫົວໜ້າງານ (ຊ່າງຮ່ວມໃຊ້ປຸ່ມ check-out ແທນ)
+                                onPressed: busy || !_visitedThisJob || !job.isLead ? null : _askNextVisit,
                                 icon: const Icon(Icons.event_repeat_outlined, size: 18),
                                 label: Text(
                                   job.canCheckOut
@@ -2065,6 +2157,21 @@ class _JobScreenState extends State<JobScreen> {
                                   ),
 
                             /*
+                              ── ຊ່າງຮ່ວມຕ້ອງ check-out ເອງໄດ້ (10-08-2026) ──
+                              ຫົວໜ້າຖືກ checkout ໃຫ້ອັດຕະໂນມັດຕອນກົດຈົບງານ ແຕ່ຊ່າງຮ່ວມ
+                              **ຈົບງານບໍ່ໄດ້** ⇒ ຖ້າບໍ່ມີປຸ່ມນີ້ ຮອບຂອງລາວຈະຄ້າງເປີດຕະຫຼອດ
+                              (ລາຍງານຮອບໜ້າງານຜິດ ແລະ ຄ່າຄອມນັບຮອບບໍ່ຈົບ).
+                            */
+                            if (!job.isLead && job.canCheckOut) ...[
+                              const SizedBox(height: 10),
+                              _button(
+                                'check-out ອອກຈາກໜ້າງານ',
+                                ink,
+                                busy ? null : () => run({'action': 'checkout'}),
+                              ),
+                            ],
+
+                            /*
                               ── ເກັບ ISN/SN ຢູ່ບັດໜ້າງານນຳ (08-08-2026 ຕາມຄຳສັ່ງ) ──
                               ຊ່າງເປີດປ້າຍເຄື່ອງເບິ່ງ**ຕອນຕິດ** ບໍ່ແມ່ນຕອນຈະກົດຈົບງານ
                               (ໜ່ວຍນອກຂຶ້ນຢູ່ຝາແລ້ວ ຈໍ້ກ້ອງບໍ່ເຖິງອີກ) ⇒ ປຸ່ມຕ້ອງຢູ່ບ່ອນ
@@ -2072,6 +2179,7 @@ class _JobScreenState extends State<JobScreen> {
                               ອັນດຽວກັນກັບປຸ່ມຂ້າງເທິງ — ກົດບ່ອນໃດກໍ່ໄດ້.
                             */
                             if (job.workflow == 'install' &&
+                                job.isLead &&
                                 job.canCheckOut) ...[
                               const SizedBox(height: 10),
                               _serialCollector(),

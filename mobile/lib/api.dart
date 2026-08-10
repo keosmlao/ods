@@ -1674,6 +1674,17 @@ class Job {
   final double? slaLeft;
   final String? undoTo; // ປ້າຍ "ຖອຍໄປຫາ" (null = ຖອຍບໍ່ໄດ້)
 
+  /// ຄົນນີ້ເປັນ **ຫົວໜ້າງານ** ບໍ (false = ຊ່າງຮ່ວມ — 10-08-2026).
+  ///
+  /// 1 ໃບງານໃສ່ຊ່າງໄດ້ຫຼາຍຄົນ: ຫົວໜ້າ 1 ຄົນ + ຊ່າງຮ່ວມ N ຄົນ. ຊ່າງຮ່ວມ **ເຫັນງານ ·
+  /// check-in/out · ຖ່າຍຮູບ · ເກັບ ISN/SN** ໄດ້ ແຕ່ **ຮັບງານ/ຈົບງານບໍ່ໄດ້** (server
+  /// ປະຕິເສດ) ⇒ ຕ້ອງເຊື່ອງປຸ່ມ ບໍ່ດັ່ງນັ້ນຊ່າງກົດແລ້ວຄາຢູ່ໜ້າງານ ບໍ່ຮູ້ວ່າຜິດຫຍັງ.
+  /// ຄ່າເລີ່ມ `true` — server ຮຸ່ນເກົ່າບໍ່ສົ່ງຖັນນີ້ມາ (ຕອນນັ້ນທຸກຄົນຄືຫົວໜ້າ).
+  final bool isLead;
+
+  /// ຊ່າງຄົນອື່ນທີ່ໄປງານນີ້ນຳ (ບໍ່ລວມຕົນເອງ) — ໃຫ້ຮູ້ວ່າມື້ນີ້ໄປກັບໃຜ ບໍ່ຕ້ອງໂທຖາມ
+  final List<String> mates;
+
   Job({
     required this.workflow,
     required this.code,
@@ -1711,6 +1722,8 @@ class Job {
     this.lng,
     this.slaLeft,
     this.undoTo,
+    this.isLead = true,
+    this.mates = const [],
   });
 
   factory Job.fromJson(Map<String, dynamic> json) => Job(
@@ -1750,6 +1763,11 @@ class Job {
     lng: (json['lng'] as num?)?.toDouble(),
     slaLeft: (json['sla_left'] as num?)?.toDouble(),
     undoTo: json['undo_to'] as String?,
+    isLead: json['is_lead'] as bool? ?? true,
+    mates: ((json['mates'] as List?) ?? const [])
+        .map((value) => '$value')
+        .where((value) => value.isNotEmpty)
+        .toList(),
   );
 
   /// "ເຫຼືອ 5 ຊມ" · "ເລີຍ 2 ມື້" · null = ບໍ່ມີນາລິກາ (ບິນເກົ່າບໍ່ມີວັນທີ / ງານສ້ອມ)

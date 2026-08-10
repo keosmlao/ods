@@ -76,6 +76,11 @@ export function MaintenanceDetail({
   const { ask, dialog } = useConfirm();
   const [pending, start] = useTransition();
   const [emp, setEmp] = useState(job.emp_code ?? "");
+  /**
+   * ຊ່າງຮ່ວມ (10-08-2026) — ວຽກລ້າງແອບ້ານໃຫຍ່ໄປຄົນດຽວບໍ່ໄດ້. ຫົວໜ້າ (ຊ່ອງເທິງ) ຄື
+   * ຄົນຮັບ/ຈົບງານ · ຊ່າງຮ່ວມເຫັນງານໃນແອັບ ແລະ check-in ໄດ້ (ຄ່າຄອມແບ່ງຕາມ check-in).
+   */
+  const [helpers, setHelpers] = useState<string[]>(job.helpers ?? []);
   const [appoint, setAppoint] = useState(job.appoint_date ?? "");
 
   const run = (fn: () => Promise<{ error?: string }>) =>
@@ -124,7 +129,19 @@ export function MaintenanceDetail({
       <div className="grid gap-2 rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm sm:grid-cols-2">
         <div><span className="text-slate-400">ທີ່ຢູ່ໜ້າງານ:</span> {job.location || "-"}</div>
         <div><span className="text-slate-400">ວັນນັດ:</span> {job.appoint_date || "-"}</div>
-        <div><span className="text-slate-400">ຊ່າງ:</span> {technicians.find((t) => t.code === job.emp_code)?.name ?? job.emp_code ?? "-"}</div>
+        <div>
+          <span className="text-slate-400">ຊ່າງ:</span>{" "}
+          {technicians.find((t) => t.code === job.emp_code)?.name ?? job.emp_code ?? "-"}
+          {(job.helpers ?? []).length > 0 && (
+            <span className="text-slate-500">
+              {" "}
+              + ຊ່າງຮ່ວມ{" "}
+              {(job.helpers ?? [])
+                .map((code) => technicians.find((t) => t.code === code)?.name ?? code)
+                .join(" · ")}
+            </span>
+          )}
+        </div>
         <div><span className="text-slate-400">ລວມ:</span> <b className="tabular-nums text-slate-700">{job.total.toLocaleString()}</b> ກີບ</div>
         {job.remark && <div className="sm:col-span-2"><span className="text-slate-400">ໝາຍເຫດ:</span> {job.remark}</div>}
       </div>
@@ -160,7 +177,40 @@ export function MaintenanceDetail({
                 {technicians.map((t) => <option key={t.code} value={t.code}>{t.name}</option>)}
               </select>
               <input type="date" value={appoint} onChange={(e) => setAppoint(e.target.value)} className={field} />
-              {primary("ຈັດຊ່າງ + ນັດ", () => assignMaintenance(job.code, emp, appoint))}
+              {primary("ຈັດຊ່າງ + ນັດ", () => assignMaintenance(job.code, emp, appoint, helpers))}
+              {emp && (
+                <div className="w-full">
+                  <p className="mb-1 text-xs font-semibold text-slate-500">ຊ່າງຮ່ວມ (ໄປນຳ ແຕ່ບໍ່ໄດ້ກົດຮັບ/ຈົບງານ)</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {technicians
+                      .filter((t) => t.code !== emp)
+                      .map((t) => {
+                        const on = helpers.includes(t.code);
+                        return (
+                          <button
+                            key={t.code}
+                            type="button"
+                            onClick={() =>
+                              setHelpers((current) =>
+                                current.includes(t.code)
+                                  ? current.filter((code) => code !== t.code)
+                                  : [...current, t.code],
+                              )
+                            }
+                            className={`h-8 rounded-lg border px-2.5 text-xs font-semibold transition ${
+                              on
+                                ? "border-brand-600 bg-brand-50 text-brand-800"
+                                : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            {on ? "✓ " : "+ "}
+                            {t.name}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
             </>
           )}
           {job.stage === 1 && primary("ຊ່າງຮັບງານ", () => advanceMaintenance(job.code, "accept"))}

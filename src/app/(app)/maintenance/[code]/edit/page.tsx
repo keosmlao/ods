@@ -47,6 +47,8 @@ export default async function EditMaintenancePage({ params }: { params: Promise<
           emp_code: data.job.emp_code ?? "",
           appoint_date: data.job.appoint_date ?? "",
           remark: data.job.remark ?? "",
+          // ຊ່າງຮ່ວມທີ່ໃສ່ໄວ້ແລ້ວ (ມາຈາກ ods_job_tech ຜ່ານ maintenanceJob)
+          helpers: data.job.helpers ?? [],
           lines: data.details.map((line) => ({
             service_code: line.service_code,
             name: line.name,

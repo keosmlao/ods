@@ -26,6 +26,8 @@ export type MaintenanceJob = {
   services: string | null;
   remark: string | null;
   next_due: string | null;
+  /** ຊ່າງຮ່ວມ (ຄົນທີ 2 ຂຶ້ນໄປ) — ຫົວໜ້າຢູ່ `emp_code` (ເບິ່ງ lib/job-techs) */
+  helpers?: string[];
 };
 
 export type MaintenanceDetail = {
@@ -91,7 +93,10 @@ const JOB_SELECT = `select a.code, a.cust_name, a.cust_tel, a.location, a.emp_co
     (${MAINTENANCE_ELAPSED_SQL}) elapsed_seconds,
     coalesce(a.total,0)::float total, a.remark,
     to_char(a.next_due,'YYYY-MM-DD') next_due,
-    (select string_agg(d.name, ', ') from ods_tb_maintenance_detail d where d.job_code = a.code) services
+    (select string_agg(d.name, ', ') from ods_tb_maintenance_detail d where d.job_code = a.code) services,
+    -- ຊ່າງຮ່ວມ (10-08-2026) — ຫົວໜ້າຢູ່ emp_code ຄືເກົ່າ, ອັນນີ້ຄືຄົນທີ່ໄປນຳ
+    (select coalesce(array_agg(t.tech_code order by t.added_at), '{}')
+       from ods_job_tech t where t.workflow='maintenance' and t.job_code = a.code) helpers
   from ods_tb_maintenance a`;
 
 const mapJob = (row: Omit<MaintenanceJob, "stage_label">): MaintenanceJob => ({

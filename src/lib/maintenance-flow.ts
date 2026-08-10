@@ -3,6 +3,7 @@ import { logChange } from "@/lib/chatter-log";
 import { query } from "@/lib/db";
 import type { FlowResult } from "@/lib/job-flow";
 import { MAINTENANCE_STAGE_SQL } from "@/lib/maintenance-stage";
+import { isJobHelper } from "@/lib/job-techs";
 import { roleOf } from "@/lib/roles";
 
 /**
@@ -16,8 +17,17 @@ import { roleOf } from "@/lib/roles";
 const NOW = "localtimestamp(0)";
 const MODEL = "ods_tb_maintenance";
 
-/** ຊ່າງແຕະໄດ້ແຕ່ວຽກຂອງຕົນ (ຫົວໜ້າ/ຜູ້ຈັດການແຕະໄດ້ໝົດ) — ຄືກົດເກນຂອງສ້ອມ/ຕິດຕັ້ງ */
-export async function ownMaintenanceJob(session: Session, code: string): Promise<FlowResult> {
+/**
+ * ຊ່າງແຕະໄດ້ແຕ່ວຽກຂອງຕົນ (ຫົວໜ້າ/ຜູ້ຈັດການແຕະໄດ້ໝົດ) — ຄືກົດເກນຂອງສ້ອມ/ຕິດຕັ້ງ.
+ *
+ * `mode: "team"` (ຄ່າເລີ່ມ) = **ຊ່າງຮ່ວມຜ່ານນຳ** (10-08-2026) ⇒ ເປີດເບິ່ງງານ ·
+ * check-in/out ໄດ້. `mode: "lead"` = ຫົວໜ້າຄົນດຽວ ⇒ ໃຊ້ກັບຄຳສັ່ງທີ່**ປ່ຽນຂັ້ນງານ**.
+ */
+export async function ownMaintenanceJob(
+  session: Session,
+  code: string,
+  mode: "team" | "lead" = "team",
+): Promise<FlowResult> {
   const row = (
     await query<{ tech: string | null; cancelled: boolean }>(
       `select nullif(emp_code,'') as tech, cancel_date is not null as cancelled
@@ -28,7 +38,14 @@ export async function ownMaintenanceJob(session: Session, code: string): Promise
   if (!row) return { ok: false, error: "ບໍ່ພົບງານນີ້" };
   if (row.cancelled) return { ok: false, error: "ງານນີ້ຖືກຍົກເລີກແລ້ວ" };
   if (roleOf(session) === "technical" && (row.tech ?? "") !== session.username) {
-    return { ok: false, error: "ງານນີ້ບໍ່ແມ່ນຂອງທ່ານ" };
+    const helper = await isJobHelper("maintenance", code, session.username);
+    if (!helper) return { ok: false, error: "ງານນີ້ບໍ່ແມ່ນຂອງທ່ານ" };
+    if (mode === "lead") {
+      return {
+        ok: false,
+        error: `ທ່ານເປັນ**ຊ່າງຮ່ວມ**ຂອງງານນີ້ — ຂັ້ນນີ້ຫົວໜ້າງານ (${row.tech ?? "-"}) ເປັນຄົນກົດ`,
+      };
+    }
   }
   return { ok: true, message: "" };
 }
@@ -42,7 +59,8 @@ async function advance(
   log: string,
   message: string,
 ): Promise<FlowResult> {
-  const own = await ownMaintenanceJob(session, code);
+  // ປ່ຽນຂັ້ນງານ (ຮັບງານ · ເລີ່ມລ້າງ · ຈົບ) = ຫົວໜ້າຄົນດຽວ
+  const own = await ownMaintenanceJob(session, code, "lead");
   if (!own.ok) return own;
 
   const done = await query(
@@ -183,7 +201,8 @@ export async function scheduleNextVisitMaintenance(
   code: string,
   input: { next_date: string; reason: string; closeOpenVisit?: boolean },
 ): Promise<FlowResult> {
-  const own = await ownMaintenanceJob(session, code);
+  // ປິດຮອບ + ນັດຮອບໃໝ່ = ຕັດສິນໃຈຂອງຫົວໜ້າງານ
+  const own = await ownMaintenanceJob(session, code, "lead");
   if (!own.ok) return own;
 
   const reason = input.reason.trim();

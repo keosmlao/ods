@@ -3,9 +3,10 @@ import { updateInstall, type ActionState } from "@/app/actions/installation";
 import { IsnField } from "@/components/installation/isn-field";
 import { SelectField } from "@/components/select-field";
 import { Button, Card, ErrorBox, LinkButton, inputClass, labelClass } from "@/components/ui";
+import { HelperPicker } from "@/components/tech-helpers";
 import { useDict } from "@/lib/i18n/context";
 import { Save } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { KeepFormValues } from "@/components/keep-form-values";
 
 /**
@@ -57,12 +58,15 @@ export function InstallEditForm({
   categories,
   brands,
   techs,
+  helpers = [],
   isnOnly = false,
 }: {
   row: InstallRow;
   categories: Option[];
   brands: Option[];
   techs: Tech[];
+  /** ຊ່າງຮ່ວມທີ່ມີຢູ່ແລ້ວ (10-08-2026) — ຫົວໜ້າຢູ່ `row.tech_code` ຄືເກົ່າ */
+  helpers?: string[];
   /** ງານປິດແລ້ວ ⇒ ແກ້ໄດ້ສະເພາະ ISN/SN */
   isnOnly?: boolean;
 }) {
@@ -73,6 +77,8 @@ export function InstallEditForm({
   const nameOf = (options: Option[], code: string | null) =>
     options.find((option) => option.code === code)?.name_1 ?? code ?? "";
   const techName = techs.find((tech) => tech.code === row.tech_code);
+  // ຫົວໜ້າປັດຈຸບັນຂອງຟອມ — ປ່ຽນ dropdown ແລ້ວລາຍຊ່າງຮ່ວມຕ້ອງຕັດຄົນນັ້ນອອກທັນທີ
+  const [lead, setLead] = useState(row.tech_code ?? "");
   /** ແອ ⇒ ມີ 2 ISN (ໜ່ວຍໃນ/ໜ່ວຍນອກ) — ນິຍາມດຽວກັບຟອມເປີດງານ (install-form) */
   const isAc = `${row.pro_type ?? ""} ${row.item_name ?? ""}`.includes("ແອ") || (row.item_name ?? "").includes("AIR");
 
@@ -228,10 +234,22 @@ export function InstallEditForm({
             ) : (
               <SelectField
                 name="tech_code"
-                defaultValue={row.tech_code ?? ""}
+                // controlled — ຕ້ອງຮູ້ຫົວໜ້າປັດຈຸບັນ ເພື່ອຕັດຄົນນັ້ນອອກຈາກລາຍຊ່າງຮ່ວມ
+                value={lead}
+                onChange={setLead}
                 options={techs.map((tech) => ({ value: tech.code, label: `${tech.name} (${tech.code})` }))}
                 placeholder={t.selectTechPlaceholder}
               />
+            )}
+            {/* ຊ່າງຮ່ວມ — ແກ້ໄດ້ຢູ່ຟອມນີ້ນຳ (ບໍ່ຕ້ອງກັບໄປ modal ຈັດຊ່າງ) */}
+            {!isnOnly && lead && (
+              <div className="mt-3">
+                <HelperPicker
+                  techs={techs.map((tech) => ({ code: tech.code, name: `${tech.name} (${tech.code})` }))}
+                  lead={lead}
+                  value={helpers}
+                />
+              </div>
             )}
           </div>
           <div>

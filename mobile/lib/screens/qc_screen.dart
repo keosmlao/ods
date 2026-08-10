@@ -170,17 +170,28 @@ class _QcJobScreenState extends State<QcJobScreen> {
     }
   }
 
+  /// ກຳລັງເປີດກ້ອງ / ອ່ານຮູບຢູ່ບໍ — ກັນກົດຊ້ຳຕອນຮູບໃບກ່ອນຍັງ load ບໍ່ທັນແລ້ວ
+  /// (ອ່ານ+base64 ຮູບ 12MP ໃຊ້ 1-3 ວິ ຢູ່ isolate ຫຼັກ ⇒ ຈໍຍັງກົດໄດ້ ⇒ ກ້ອງເປີດຊ້ອນກັນ)
+  bool shooting = false;
+
   Future<void> shoot(QcItem item) async {
-    final shot = await picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 50,
-      maxWidth: 1280,
-    );
-    if (shot == null) return;
-    final bytes = await shot.readAsBytes();
-    setState(
-      () => item.photo = 'data:image/jpeg;base64,${base64Encode(bytes)}',
-    );
+    if (shooting) return;
+    setState(() => shooting = true);
+    try {
+      final shot = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 50,
+        maxWidth: 1280,
+      );
+      if (shot == null) return;
+      final bytes = await shot.readAsBytes();
+      if (!mounted) return;
+      setState(
+        () => item.photo = 'data:image/jpeg;base64,${base64Encode(bytes)}',
+      );
+    } finally {
+      if (mounted) setState(() => shooting = false);
+    }
   }
 
   Future<void> submit() async {
@@ -342,8 +353,17 @@ class _QcJobScreenState extends State<QcJobScreen> {
                             ),
                             const Spacer(),
                             IconButton(
-                              icon: const Icon(Icons.photo_camera_outlined),
-                              onPressed: () => shoot(item),
+                              // ກຳລັງອ່ານຮູບໃບກ່ອນຢູ່ ⇒ ກົດບໍ່ໄດ້ (ກັນກ້ອງເປີດຊ້ອນ)
+                              icon: shooting
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.photo_camera_outlined),
+                              onPressed: shooting ? null : () => shoot(item),
                             ),
                           ],
                         ),

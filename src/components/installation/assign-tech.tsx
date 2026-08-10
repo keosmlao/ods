@@ -78,7 +78,14 @@ export function AssignTechButton({
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
 
-  const [tech, setTech] = useState("");
+  /**
+   * ── ທີມ: ຄົນທຳອິດ = **ຫົວໜ້າ** ຄົນຕໍ່ໄປ = ຊ່າງຮ່ວມ (10-08-2026) ──
+   * ວຽກຈິງໄປກັນເປັນທີມ (ແອຂຶ້ນຝາຄົນດຽວບໍ່ໄດ້) ແຕ່ຖານມີຊ່ອງຊ່າງຊ່ອງດຽວ ⇒ ຄົນທີ 2
+   * ບໍ່ເຫັນງານໃນແອັບ ແລະ check-in ບໍ່ໄດ້ (= ບໍ່ໄດ້ສ່ວນແບ່ງຄ່າຄອມ ເພາະຄ່າຄອມແບ່ງ
+   * ຕາມຮອບ check-in). ດຽວນີ້ກົດບັດເພີ່ມໄດ້ຫຼາຍຄົນ — ຫົວໜ້າຄືຄົນທີ່ຮັບ/ຈົບງານ.
+   */
+  const [team, setTeam] = useState<string[]>([]);
+  const tech = team[0] ?? "";
   const [day, setDay] = useState(row.appoint_date ?? "");
   const [q, setQ] = useState("");
   const [load, setLoad] = useState<Record<string, Load>>({});
@@ -114,7 +121,7 @@ export function AssignTechButton({
 
   const openModal = () => {
     setError("");
-    setTech("");
+    setTeam([]);
     setQ("");
     setDay(row.appoint_date ?? isoDate(0));
     setOpen(true);
@@ -167,6 +174,8 @@ export function AssignTechButton({
               {error && <ErrorBox>{error}</ErrorBox>}
               <input type="hidden" name="code" value={row.code} />
               <input type="hidden" name="tech_code" value={tech} />
+              {/* ຊ່າງຮ່ວມ — server ຂຽນລົງ ods_job_tech (ຫົວໜ້າຢູ່ຊ່ອງເກົ່າຄືເກົ່າ) */}
+              <input type="hidden" name="helper_codes" value={team.slice(1).join(",")} />
 
               {/* ① ວັນນັດ — ຕ້ອງມາກ່ອນ ເພາະພາລະງານຂອງຊ່າງຂຶ້ນກັບວັນ */}
               <div>
@@ -228,12 +237,21 @@ export function AssignTechButton({
                   {shown.map((item) => {
                     const row2 = load[item.code];
                     const busy = (row2?.day ?? 0) >= BUSY;
-                    const active = tech === item.code;
+                    const rank = team.indexOf(item.code);
+                    const active = rank >= 0;
+                    const lead = rank === 0;
                     return (
                       <button
                         key={item.code}
                         type="button"
-                        onClick={() => setTech(item.code)}
+                        // ກົດ = ເພີ່ມ/ຖອດອອກຈາກທີມ · ຄົນທຳອິດທີ່ເລືອກ = ຫົວໜ້າ
+                        onClick={() =>
+                          setTeam((current) =>
+                            current.includes(item.code)
+                              ? current.filter((code) => code !== item.code)
+                              : [...current, item.code],
+                          )
+                        }
                         className={`flex items-center gap-2 rounded-xl border p-2.5 text-left transition ${
                           active
                             ? "border-brand-600 bg-brand-50"
@@ -259,7 +277,15 @@ export function AssignTechButton({
                             )}
                           </span>
                           <span className={`block text-[11px] ${busy ? "font-semibold text-brand-orange-700" : "text-slate-500"}`}>
-                            {t.appointedThatDay} {row2?.day ?? 0} {t.jobsWord} · {t.openInHand} {row2?.open ?? 0}
+                            {active ? (
+                              <b className={lead ? "text-brand-800" : "text-slate-600"}>
+                                {lead ? "ຫົວໜ້າງານ — ຮັບ/ຈົບງານ" : `ຊ່າງຮ່ວມ ${rank}`}
+                              </b>
+                            ) : (
+                              <>
+                                {t.appointedThatDay} {row2?.day ?? 0} {t.jobsWord} · {t.openInHand} {row2?.open ?? 0}
+                              </>
+                            )}
                           </span>
                         </span>
                       </button>
@@ -315,7 +341,11 @@ export function AssignTechButton({
             </div>
 
             <footer className="flex items-center gap-2 border-t border-slate-100 bg-slate-50 p-3">
-              <span className="text-[11px] text-slate-500">{t.techNotifiedHint}</span>
+              <span className="text-[11px] text-slate-500">
+                {team.length > 1
+                  ? `ທີມ ${team.length} ຄົນ — ຫົວໜ້າ ${tech} ເປັນຄົນຮັບ/ຈົບງານ`
+                  : t.techNotifiedHint}
+              </span>
               <div className="ml-auto flex gap-2">
                 <Button type="button" tone="neutral" onClick={() => setOpen(false)} className="h-9 text-xs">
                   {t.exit}
@@ -324,6 +354,7 @@ export function AssignTechButton({
                 <Button type="submit" tone="success" disabled={pending || !tech} className="h-9 text-xs">
                   {pending && <LoaderCircle className="size-3.5 animate-spin" />}
                   {t.assignTechAction} {tech && `→ ${tech}`}
+                  {team.length > 1 && ` +${team.length - 1}`}
                 </Button>
               </div>
             </footer>

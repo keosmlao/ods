@@ -113,7 +113,7 @@ export async function installUnits(code: string): Promise<UnitState | null> {
  * **ເກັບ ISN/SN ຂອງໜ່ວຍທີ່ຕິດຈິງ ໃສ່ໃບງານ** — ຮັບທຸກເລກ ບໍ່ທຽບກັບຫຍັງ.
  *
  * ຊ່ອງຫວ່າງ ⇒ ລົງ · ຊ່ອງມີເລກຢູ່ແລ້ວ ແລະ ໄດ້ມາຄົນລະເລກ ⇒ **ທັບ ພ້ອມເກັບຄ່າເກົ່າ
- * ໄວ້ໃນປະຫວັດ** · ເລກເກົ່າອັນເກົ່າ ⇒ ບໍ່ຂຽນຊ້ຳ ແຕ່ຍັງລົງປະຫວັດວ່າຢືນຢັນແລ້ວ.
+ * ໄວ້ໃນປະຫວັດ** · **ເລກເກົ່າອັນເກົ່າ ⇒ ບໍ່ເຮັດຫຍັງເລີຍ** (ບໍ່ຂຽນ ບໍ່ລົງປະຫວັດຊ້ຳ).
  *
  * `options.part` = ຊ່າງເລືອກເອງໃນແອັບ (ແອ 2 ໜ່ວຍ) — ບໍ່ສົ່ງມາ ⇒ ຄິດໃຫ້ເອງ:
  * ຕົງກັບຊ່ອງໃດຢູ່ແລ້ວ ⇒ ຊ່ອງນັ້ນ · ບໍ່ດັ່ງນັ້ນລົງຊ່ອງທີ່ຫວ່າງກ່ອນ (ໃນ → ນອກ).
@@ -127,69 +127,92 @@ export async function recordInstallScan(
 ): Promise<ScanResult> {
   const value = (raw ?? "").trim();
   if (!value) return { ok: false, error: "ບໍ່ໄດ້ເລກ ISN/SN — ລອງຍິງໃໝ່ ຫຼື ພິມເອງ" };
-
-  const job = await loadJob(code);
-  if (!job) return { ok: false, error: "ບໍ່ພົບໃບງານນີ້" };
-
-  const indoorSet = realSerial(job.pro_sn);
-  const outdoorSet = realSerial(job.pro_sn_out);
-  const scanned = norm(value);
-
-  /**
-   * ລົງຊ່ອງໃດ:
-   *   ① ຊ່າງເລືອກເອງໃນແອັບ (ຄົນທີ່ຢືນຢູ່ໜ້າເຄື່ອງຮູ້ດີກວ່າໃຜ)
-   *   ② ຕົງກັບຄ່າທີ່ໃບງານມີຢູ່ແລ້ວ = ຢືນຢັນຊ້ຳຊ່ອງນັ້ນ (ຢ່າໃຫ້ເລກອັນດຽວລົງ 2 ຊ່ອງ)
-   *   ③ ບໍ່ມີຫຍັງໃຫ້ອີງ ⇒ ຊ່ອງທີ່ຫວ່າງກ່ອນ (ໃນ → ນອກ), ເຕັມໝົດ ⇒ ທັບໜ່ວຍໃນ
-   */
-  const part: "indoor" | "outdoor" =
-    indoorSet === scanned
-      ? "indoor"
-      : outdoorSet === scanned
-        ? "outdoor"
-        : options.part === "indoor" || options.part === "outdoor"
-          ? options.part
-          : !indoorSet
-            ? "indoor"
-            : needsOutdoor(job) && !outdoorSet
-              ? "outdoor"
-              : "indoor";
-
-  const current = part === "indoor" ? indoorSet : outdoorSet;
-  const currentRaw = (part === "indoor" ? job.pro_sn : job.pro_sn_out) ?? "";
-  const where = part === "indoor" ? "ໜ່ວຍໃນ" : "ໜ່ວຍນອກ";
-  const replaced = Boolean(current) && current !== scanned;
-
-  /**
-   * ── ລົງໃບງານ + ລົງປະຫວັດ = ຄັ້ງດຽວກັນ ──
-   * ແຍກກັນບໍ່ໄດ້: ຖ້າ update ຜ່ານ ແຕ່ແຖວປະຫວັດລົ້ມ ⇒ `pro_sn` ຂອງໃບງານປ່ຽນໄປ
-   * **ໂດຍບໍ່ມີໃຜຮູ້ວ່າໃຜປ່ຽນ ຈາກຄ່າຫຍັງ** ຊຶ່ງແມ່ນສິ່ງດຽວທີ່ຄຸນສົມບັດນີ້ຮັບປະກັນໄວ້.
-   */
   if (!db) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL" };
+
+  const scanned = norm(value);
+  let part: "indoor" | "outdoor" = "indoor";
+  let currentRaw = "";
+  let replaced = false;
+  /** ເລກນີ້ຢູ່ໃນຊ່ອງນັ້ນແລ້ວ ⇒ ຄັ້ງນີ້ບໍ່ໄດ້ບັນທຶກຫຍັງໃໝ່ */
+  let already = false;
+
+  /**
+   * ── ອ່ານ · ຕັດສິນ · ຂຽນ = transaction ດຽວ ພ້ອມລັອກແຖວໃບງານ ──
+   * ① ລົງໃບງານ ກັບ ລົງປະຫວັດ ແຍກກັນບໍ່ໄດ້ — ຖ້າ update ຜ່ານ ແຕ່ແຖວປະຫວັດລົ້ມ
+   *   ⇒ `pro_sn` ປ່ຽນໄປ**ໂດຍບໍ່ມີໃຜຮູ້ວ່າໃຜປ່ຽນ ຈາກຄ່າຫຍັງ**
+   * ② `for update` ກັນ**ຍິງຊ້ຳຕອນຄຳສັ່ງກ່ອນຍັງແລ່ນຢູ່** (07-08 ວັດຈິງ INST-7215:
+   *   ເລກອັນດຽວກັນລົງ 2 ແຖວ ຫ່າງກັນ 1 ນາທີ). ອ່ານຄ່າປັດຈຸບັນ**ຢູ່ໃນລັອກ** ⇒ ຄຳສັ່ງ
+   *   ທີ 2 ຈະເຫັນຄ່າທີ່ຄຳສັ່ງທີ 1 ຂຽນລົງແລ້ວ ⇒ ຮູ້ວ່າ "ມີແລ້ວ" ແລ້ວບໍ່ລົງແຖວຊ້ຳ.
+   */
   const client = await db.connect();
   try {
     await client.query("begin");
-    if (!current || replaced) {
-      const column = part === "indoor" ? "pro_sn" : "pro_sn_out";
-      await client.query(`update ods_tb_install set ${column}=$2, user_edit=$3 where code=$1`, [
-        code,
-        value,
-        session.username,
-      ]);
+    const job = (
+      await client.query<Job>(
+        `select nullif(pro_sn,'') pro_sn, nullif(pro_sn_out,'') pro_sn_out,
+            nullif(item_code,'') item_code
+           from ods_tb_install where code = $1 limit 1 for update`,
+        [code],
+      )
+    ).rows[0];
+    if (!job) {
+      await client.query("rollback");
+      return { ok: false, error: "ບໍ່ພົບໃບງານນີ້" };
     }
-    await client.query(
-      `insert into ods_install_scan(job_code, phase, scanned, matched, tech_code, prev_value, mismatch)
-       values($1,$2,$3,$4,$5,$6,$7)`,
-      [
-        code,
-        phase,
-        value.slice(0, 60),
-        part,
-        session.username,
-        currentRaw.slice(0, 60) || null,
-        // ທັບຂອງເກົ່າ = ແຖວທີ່ຜູ້ຈັດການຄວນເຫັນ (ໃບງານເຄີຍລະບຸອີກເລກໜຶ່ງ)
-        replaced,
-      ],
-    );
+
+    const indoorSet = realSerial(job.pro_sn);
+    const outdoorSet = realSerial(job.pro_sn_out);
+
+    /**
+     * ລົງຊ່ອງໃດ:
+     *   ① ຕົງກັບຄ່າທີ່ໃບງານມີຢູ່ແລ້ວ = ຊ່ອງນັ້ນ (ຢ່າໃຫ້ເລກອັນດຽວລົງ 2 ຊ່ອງ ·
+     *      ມາກ່ອນການເລືອກຂອງຊ່າງ ເພາະນີ້ຄື**ການຍິງຊ້ຳ**ທີ່ຕ້ອງກັນ)
+     *   ② ຊ່າງເລືອກເອງໃນແອັບ (ຄົນທີ່ຢືນຢູ່ໜ້າເຄື່ອງຮູ້ດີກວ່າໃຜ)
+     *   ③ ບໍ່ມີຫຍັງໃຫ້ອີງ ⇒ ຊ່ອງທີ່ຫວ່າງກ່ອນ (ໃນ → ນອກ), ເຕັມໝົດ ⇒ ທັບໜ່ວຍໃນ
+     */
+    part =
+      indoorSet === scanned
+        ? "indoor"
+        : outdoorSet === scanned
+          ? "outdoor"
+          : options.part === "indoor" || options.part === "outdoor"
+            ? options.part
+            : !indoorSet
+              ? "indoor"
+              : needsOutdoor(job) && !outdoorSet
+                ? "outdoor"
+                : "indoor";
+
+    const current = part === "indoor" ? indoorSet : outdoorSet;
+    currentRaw = (part === "indoor" ? job.pro_sn : job.pro_sn_out) ?? "";
+    replaced = Boolean(current) && current !== scanned;
+    already = current === scanned;
+
+    // ── ຍິງຊ້ຳ (ເລກນີ້ຢູ່ໃນຊ່ອງນັ້ນແລ້ວ) ⇒ ອອກເລີຍ ບໍ່ຂຽນ ບໍ່ລົງປະຫວັດ ──
+    if (!already) {
+      if (!current || replaced) {
+        const column = part === "indoor" ? "pro_sn" : "pro_sn_out";
+        await client.query(`update ods_tb_install set ${column}=$2, user_edit=$3 where code=$1`, [
+          code,
+          value,
+          session.username,
+        ]);
+      }
+      await client.query(
+        `insert into ods_install_scan(job_code, phase, scanned, matched, tech_code, prev_value, mismatch)
+         values($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          code,
+          phase,
+          value.slice(0, 60),
+          part,
+          session.username,
+          currentRaw.slice(0, 60) || null,
+          // ທັບຂອງເກົ່າ = ແຖວທີ່ຜູ້ຈັດການຄວນເຫັນ (ໃບງານເຄີຍລະບຸອີກເລກໜຶ່ງ)
+          replaced,
+        ],
+      );
+    }
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");
@@ -198,26 +221,35 @@ export async function recordInstallScan(
     client.release();
   }
 
+  const where = part === "indoor" ? "ໜ່ວຍໃນ" : "ໜ່ວຍນອກ";
+  if (already) {
+    return {
+      ok: true,
+      matched: part,
+      message: `${where} ເລກ ${value} ບັນທຶກໄວ້ແລ້ວ — ບໍ່ຕ້ອງຍິງຊ້ຳ`,
+    };
+  }
+
+  /**
+   * ມາຮອດນີ້ເຫຼືອ 2 ກໍລະນີເທົ່ານັ້ນ — ຊ່ອງຫວ່າງແລ້ວລົງໃໝ່ ຫຼື ທັບເລກເກົ່າ
+   * (ຍິງຊ້ຳຖືກຕັດອອກໄປແລ້ວຂ້າງເທິງ ⇒ ບໍ່ມີແຖວປະຫວັດ "ຢືນຢັນຊ້ຳ" ອີກຕໍ່ໄປ).
+   */
   // ຍິງກ້ອງ ຫຼື ພິມເອງ — ຫຼັກຖານໜັກບໍ່ເທົ່າກັນ ⇒ ຂຽນຄົນລະຄຳໃນປະຫວັດ
   const how = options.manual ? "ປ້ອນເລກເອງ" : "ສະແກນ";
-  // ປະຫວັດການອັບເດດ pro_sn / pro_sn_out — ຄ່າເກົ່າ → ຄ່າໃໝ່
-  const note = replaced
-    ? `⚠️ ແກ້ຈາກ ${currentRaw} ⇒ ${value}`
-    : current
-      ? "ຢືນຢັນຊ້ຳ — ຄືເກົ່າ"
-      : `ບັນທຶກໃສ່ໃບງານ ${value}`;
-  await logChange("ods_tb_install", code, `${how} ${where}: ${value} — ${note}`, {
-    author: session.username,
-  });
+  await logChange(
+    "ods_tb_install",
+    code,
+    `${how} ${where}: ${value} — ` +
+      (replaced ? `⚠️ ແກ້ຈາກ ${currentRaw} ⇒ ${value}` : `ບັນທຶກໃສ່ໃບງານ ${value}`),
+    { author: session.username },
+  );
 
   return {
     ok: true,
     matched: part,
     message: replaced
       ? `ແກ້${where} ຈາກ ${currentRaw} ເປັນ ${value}`
-      : current
-        ? `ຢືນຢັນ${where}ແລ້ວ — ${value}`
-        : `ບັນທຶກ${where}ແລ້ວ — ${value}`,
+      : `ບັນທຶກ${where}ແລ້ວ — ${value}`,
   };
 }
 

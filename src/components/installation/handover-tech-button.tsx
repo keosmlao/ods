@@ -1,6 +1,7 @@
 "use client";
 
 import { handoverInstallTech } from "@/app/actions/installation";
+import { HelperPicker } from "@/components/tech-helpers";
 import { LoaderCircle, UserRoundCog } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -15,14 +16,22 @@ export function HandoverTechButton({
   code,
   current,
   techs,
+  helpers = [],
 }: {
   code: string;
   current: string | null;
   techs: { code: string; name: string }[];
+  /** ຊ່າງຮ່ວມປັດຈຸບັນ — ແກ້ພ້ອມການສົ່ງມອບໄດ້ເລີຍ (10-08-2026) */
+  helpers?: string[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [tech, setTech] = useState("");
+  /**
+   * ທີມຂອງຮອບຕໍ່ໄປ — ຕັ້ງຕົ້ນເປັນທີມເກົ່າ ບວກ**ຫົວໜ້າຄົນເກົ່າ** (ຄົນທີ່ໄປແລ້ວມັກຕ້ອງ
+   * ໄປນຳຮອບຕໍ່ໄປ ເພື່ອສົ່ງຕໍ່ໜ້າງານ) — ຖອດອອກໄດ້ຖ້າບໍ່ຕ້ອງການ.
+   */
+  const [team, setTeam] = useState<string[]>(helpers);
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
@@ -35,6 +44,7 @@ export function HandoverTechButton({
           setError("");
           setTech("");
           setReason("");
+          setTeam(current ? [...new Set([...helpers, current])] : helpers);
           setOpen(true);
         }}
         className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
@@ -74,6 +84,16 @@ export function HandoverTechButton({
               </select>
             </label>
 
+            {tech && (
+              <HelperPicker
+                techs={techs}
+                lead={tech}
+                value={team}
+                onChange={setTeam}
+                label="ທີມຮອບຕໍ່ໄປ (ຊ່າງຮ່ວມ — ບໍ່ໄດ້ກົດຮັບ/ຈົບງານ)"
+              />
+            )}
+
             <label className="block text-xs font-semibold text-slate-600">
               ເຫດຜົນ
               <textarea
@@ -100,7 +120,7 @@ export function HandoverTechButton({
                 disabled={pending}
                 onClick={() =>
                   start(async () => {
-                    const result = await handoverInstallTech(code, tech, reason);
+                    const result = await handoverInstallTech(code, tech, reason, team);
                     if (result.error) {
                       setError(result.error);
                       return;

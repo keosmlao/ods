@@ -129,22 +129,33 @@ class _CheckScreenState extends State<CheckScreen> {
     }
   }
 
+  /// ກຳລັງເປີດກ້ອງ / ອ່ານຮູບຢູ່ບໍ — ກັນກົດຊ້ຳຕອນຮູບໃບກ່ອນຍັງ load ບໍ່ທັນແລ້ວ
+  /// (ອ່ານ+base64 ຮູບ 12MP ໃຊ້ 1-3 ວິ ຢູ່ isolate ຫຼັກ ⇒ ຈໍຍັງກົດໄດ້ ⇒ ໄດ້ຮູບຊ້ຳ)
+  bool shooting = false;
+
   /// ຖ່າຍຮູບຕອນກວດເຊັກ (ສູງສຸດ 6 ຮູບ) — ຫຼັກຖານອາການ/ຄວາມເສຍຫາຍທີ່ພົບ
   Future<void> shoot() async {
+    if (shooting) return;
     if (photos.length >= 6) {
       _toast('ແນບຮູບໄດ້ສູງສຸດ 6 ຮູບ', warn);
       return;
     }
-    final shot = await picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 50,
-      maxWidth: 1280,
-    );
-    if (shot == null) return;
-    final bytes = await shot.readAsBytes();
-    setState(
-      () => photos.add('data:image/jpeg;base64,${base64Encode(bytes)}'),
-    );
+    setState(() => shooting = true);
+    try {
+      final shot = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 50,
+        maxWidth: 1280,
+      );
+      if (shot == null) return;
+      final bytes = await shot.readAsBytes();
+      if (!mounted) return;
+      setState(
+        () => photos.add('data:image/jpeg;base64,${base64Encode(bytes)}'),
+      );
+    } finally {
+      if (mounted) setState(() => shooting = false);
+    }
   }
 
   /// ເຫດຜົນທີ່ຍັງບັນທຶກບໍ່ໄດ້ (null = ພ້ອມບັນທຶກ) — ບອກຊ່າງໃຫ້ຮູ້ວ່າຂາດຫຍັງ
@@ -540,7 +551,8 @@ class _CheckScreenState extends State<CheckScreen> {
               ),
             if (photos.length < 6)
               InkWell(
-                onTap: busy ? null : shoot,
+                // ກຳລັງອ່ານຮູບໃບກ່ອນຢູ່ ⇒ ກົດບໍ່ໄດ້ (ກັນໄດ້ຮູບຊ້ຳ)
+                onTap: busy || shooting ? null : shoot,
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   width: 78,
@@ -550,7 +562,18 @@ class _CheckScreenState extends State<CheckScreen> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: line),
                   ),
-                  child: const Icon(Icons.add_a_photo_outlined, color: teal),
+                  child: shooting
+                      ? const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: teal,
+                            ),
+                          ),
+                        )
+                      : const Icon(Icons.add_a_photo_outlined, color: teal),
                 ),
               ),
           ],

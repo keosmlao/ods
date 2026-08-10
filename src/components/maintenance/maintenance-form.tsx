@@ -1,5 +1,6 @@
 "use client";
 import { createMaintenance, updateMaintenance } from "@/app/actions/maintenance";
+import { HelperPicker } from "@/components/tech-helpers";
 import type { MaintenanceCatalogItem } from "@/lib/maintenance";
 import { LoaderCircle, Plus, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -16,6 +17,8 @@ type InitialMaintenance = {
   appoint_date: string;
   remark: string;
   lines: Line[];
+  /** ຊ່າງຮ່ວມ (10-08-2026) — ຫົວໜ້າຢູ່ `emp_code` ຄືເກົ່າ */
+  helpers?: string[];
 };
 
 const field = "h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
@@ -42,6 +45,8 @@ export function MaintenanceForm({
   initial?: InitialMaintenance;
 }) {
   const router = useRouter();
+  // ຫົວໜ້າປັດຈຸບັນ — ປ່ຽນແລ້ວລາຍຊ່າງຮ່ວມຕ້ອງຕັດຄົນນັ້ນອອກທັນທີ
+  const [lead, setLead] = useState(initial?.emp_code ?? "");
   const [lines, setLines] = useState<Line[]>(initial?.lines ?? []);
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
@@ -100,10 +105,21 @@ export function MaintenanceForm({
             </div>
             <div className="sm:col-span-2">
               <label className={labelCls}>ຊ່າງ (ຈັດຕອນນີ້ ຫຼື ພາຍຫຼັງ)</label>
-              <select name="emp_code" defaultValue={initial?.emp_code ?? ""} className={field}>
+              <select
+                name="emp_code"
+                value={lead}
+                onChange={(event) => setLead(event.target.value)}
+                className={field}
+              >
                 <option value="">— ຍັງບໍ່ຈັດ —</option>
                 {technicians.map((t) => <option key={t.code} value={t.code}>{t.name}</option>)}
               </select>
+              {/* ລ້າງແອບ້ານໃຫຍ່ໄປຄົນດຽວບໍ່ໄດ້ ⇒ ໃສ່ຊ່າງຮ່ວມໄດ້ຕັ້ງແຕ່ຕອນເປີດງານ */}
+              {lead && (
+                <div className="mt-3">
+                  <HelperPicker techs={technicians} lead={lead} value={initial?.helpers ?? []} />
+                </div>
+              )}
             </div>
             <div className="sm:col-span-2">
               <label className={labelCls}>ໝາຍເຫດ</label>

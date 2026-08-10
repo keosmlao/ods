@@ -1,5 +1,6 @@
 "use server";
 import { logChange } from "@/lib/chatter-log";
+import { parseHelpers, setJobHelpers } from "@/lib/job-techs";
 import { jobCenterState } from "@/lib/job-center";
 import { transferJob } from "@/app/actions/job-transfer";
 import { centerLabel } from "@/lib/repair-center";
@@ -553,6 +554,8 @@ export async function assignRepairTech(_: RepairState, formData: FormData): Prom
 
   const code = String(formData.get("code") ?? "");
   const tech = String(formData.get("tech_code") ?? "").trim();
+  // ຊ່າງຮ່ວມ (ຄົນທີ 2 ຂຶ້ນໄປ) — ຫົວໜ້າຢູ່ `emp_code` ຄືເກົ່າ (ເບິ່ງ lib/job-techs)
+  const helpers = parseHelpers(formData.get("helper_codes"), tech);
   const appoint = String(formData.get("appoint_date") ?? "").trim();
   const location = String(formData.get("location_inst") ?? "").trim();
   const remark = String(formData.get("remark") ?? "").trim();
@@ -607,12 +610,14 @@ export async function assignRepairTech(_: RepairState, formData: FormData): Prom
     return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
   }
 
+  await setJobHelpers("repair", code, helpers, { by: guard.session.username });
+
   // ເກັບປະຫວັດ "ປ່ຽນຊ່າງ" — ສະແດງ **ຊື່ ERP** (ບໍ່ແມ່ນລະຫັດ) ຈາກ ຄົນເກົ່າ → ຄົນໃໝ່
   const techs = await listTechnicians();
   const nameOf = (value: string | null) => (value ? techs.find((item) => item.code === value)?.name ?? value : value);
   const action = changed
     ? `ປ່ຽນຊ່າງສ້ອມ: ${nameOf(previous)} → ${nameOf(tech)} · ເຫດຜົນ: ${reason}`
-    : `ຈັດຊ່າງສ້ອມ: ${nameOf(tech)}`;
+    : `ຈັດຊ່າງສ້ອມ: ${nameOf(tech)}${helpers.length ? ` (+ຊ່າງຮ່ວມ ${helpers.map(nameOf).join(" · ")})` : ""}`;
   await logChange(
     "tb_product",
     code,

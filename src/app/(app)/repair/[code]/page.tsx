@@ -7,6 +7,7 @@ import { LinkPending } from "@/components/link-pending";
 import { RepairSpareEditor, type UsedSpareLine } from "@/components/repair/repair-spare-editor";
 import { SpareRounds } from "@/components/repair/spare-rounds";
 import { getSession } from "@/lib/auth";
+import { jobHelpers } from "@/lib/job-techs";
 import { query } from "@/lib/db";
 import { canViewAssignedJob } from "@/lib/scope";
 import { syncErpDispatchForJob } from "@/lib/erp-dispatch";
@@ -112,7 +113,7 @@ export default async function RepairJobPage({ params }: Props) {
    */
   await syncErpDispatchForJob(code);
 
-  const [spareRounds, spareRows, checkins, receivePhotos, jobPhotoRows] = await Promise.all([
+  const [spareRounds, spareRows, checkins, receivePhotos, jobPhotoRows, helpers] = await Promise.all([
     repairSpareRounds(code),
     spareWindow
       ? query<UsedSpareLine>(
@@ -145,6 +146,8 @@ export default async function RepairJobPage({ params }: Props) {
          from ods_job_photo where workflow='repair' and job_code=$1 and kind in ('check','finish') order by id`,
       [code],
     ),
+    // ຊ່າງຮ່ວມ (10-08-2026) — ຫົວໜ້າຢູ່ `emp_code` ຄືເກົ່າ (ເບິ່ງ lib/job-techs)
+    jobHelpers("repair", code),
   ]);
 
   /**
@@ -265,7 +268,9 @@ export default async function RepairJobPage({ params }: Props) {
           <div>
             <dt className="text-[10px] text-slate-400">ປະກັນ · ຊ່າງ · ວັນນັດ</dt>
             <dd className="mt-0.5 font-medium text-slate-700">
-              {job.warranty || "-"} · {job.technician || "ຍັງບໍ່ຈັດ"} {job.appoint_date && `· ນັດ ${job.appoint_date}`}
+              {job.warranty || "-"} · {job.technician || "ຍັງບໍ່ຈັດ"}
+              {helpers.length > 0 && ` (+ຊ່າງຮ່ວມ ${helpers.join(" · ")})`}{" "}
+              {job.appoint_date && `· ນັດ ${job.appoint_date}`}
             </dd>
           </div>
           <div className="sm:col-span-2">

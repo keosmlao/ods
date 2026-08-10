@@ -16,6 +16,7 @@ import { SpareRounds } from "@/components/repair/spare-rounds";
 import { syncErpDispatchForJob } from "@/lib/erp-dispatch";
 import { repairSpareRounds } from "@/lib/repair-spare-rounds";
 import { deliveryFor } from "@/lib/delivery";
+import { jobHelpers } from "@/lib/job-techs";
 import { installTimeline } from "@/lib/install-timeline";
 import { Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
 import { query } from "@/lib/db";
@@ -143,13 +144,15 @@ export default async function InstallationDetail({ params }: Props) {
    * ດຶງ **ຫຼັງ**ກວດສິດ — ບໍ່ດັ່ງນັ້ນຄົນທີ່ເປີດງານຂອງຄົນອື່ນບໍ່ໄດ້ ຍັງເຮັດໃຫ້ລະບົບ
    * ຂົນສົ່ງຖືກ query ຢູ່. metadata ຢ່າງດຽວ (ບໍ່ມີຮູບ) ⇒ ເບົາ.
    */
-  const [delivery, visits, techs, timeline] = await Promise.all([
+  const [delivery, visits, techs, timeline, helpers] = await Promise.all([
     deliveryFor(row.doc_ref_1),
     // 1 ໃບງານ = ຫຼາຍຮອບເຂົ້າໜ້າງານ (ເບິ່ງ lib/job-flow.scheduleNextVisit)
     jobVisits("install", row.code),
     // ລາຍຊື່ຊ່າງ — ໃຫ້ປຸ່ມ "ປ່ຽນຊ່າງ" ຕອນງານກຳລັງດຳເນີນ (ຮອບຕໍ່ໄປອາດເປັນຄົນອື່ນ)
     row.stage === 4 || row.stage === 5 ? technicianOptions() : Promise.resolve([]),
     installTimeline(row.code),
+    // ຊ່າງຮ່ວມ (10-08-2026) — ຫົວໜ້າຢູ່ `tech_code` ຄືເກົ່າ (ເບິ່ງ lib/job-techs)
+    jobHelpers("install", row.code),
   ]);
 
   return (
@@ -212,6 +215,7 @@ export default async function InstallationDetail({ params }: Props) {
             <HandoverTechButton
               code={row.code}
               current={row.tech_code}
+              helpers={helpers}
               techs={techs.map((tech) => ({ code: tech.code, name: tech.name_1 || tech.code }))}
             />
           )}
@@ -243,6 +247,20 @@ export default async function InstallationDetail({ params }: Props) {
               {t.reopenFromBill}
             </LinkButton>
           )}
+        </div>
+      )}
+
+      {/*
+        ── ທີມຊ່າງ (10-08-2026) ──
+        ຫົວໜ້າຢູ່ໃນ JobHeader ຄືເກົ່າ; ແຖບນີ້ໂຜ່ສະເພາະງານທີ່ໄປກັນຫຼາຍຄົນ ⇒ CS ຮູ້ວ່າ
+        ໃຜໄປນຳ ໂດຍບໍ່ຕ້ອງໄປອ່ານ chatter. ຄ່າຄອມແບ່ງຕາມຮອບ check-in ຈິງ (ບໍ່ແມ່ນລາຍຊື່).
+      */}
+      {helpers.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs shadow-sm">
+          <span className="font-semibold text-slate-600">ທີມຊ່າງ:</span>{" "}
+          <b className="text-brand-800">{row.tech_code ?? "-"}</b>
+          <span className="text-slate-400"> (ຫົວໜ້າ — ຮັບ/ຈົບງານ)</span>
+          <span className="text-slate-600"> · ຊ່າງຮ່ວມ {helpers.join(" · ")}</span>
         </div>
       )}
 

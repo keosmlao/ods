@@ -4,6 +4,7 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { JobEditHeader } from "@/components/job-edit-header";
 import { query } from "@/lib/db";
+import { jobHelpers } from "@/lib/job-techs";
 import { listTechnicians } from "@/lib/technicians";
 import { permissionFor } from "@/lib/permissions";
 import { getSession } from "@/lib/auth";
@@ -28,7 +29,7 @@ export default async function EditInstallation({ params }: Props) {
   if (!(await permissionFor(session, "/installations")).update) redirect("/forbidden");
   const { code } = await params;
 
-  const [row, categories, brands, techs] = await Promise.all([
+  const [row, categories, brands, techs, helpers] = await Promise.all([
     query<InstallRow>(
       `select a.code, to_char(a.time_register,'DD-MM-YYYY HH24:MI:SS') as time_register, a.cust_code,
          c.name_1 as cust_name, c.tel,
@@ -51,6 +52,8 @@ export default async function EditInstallation({ params }: Props) {
     query<Option>("select code,name_1 from tb_brand order by name_1"),
     // ຊ່າງມາຈາກ ERP + ຜູ້ທີ່ຖືກກຳນົດສິດເປັນຊ່າງ (lib/technicians) ບໍ່ແມ່ນຕາຕະລາງ users ເກົ່າ
     listTechnicians(),
+    // ຊ່າງຮ່ວມ (10-08-2026) — ຫົວໜ້າຢູ່ `tech_code` ຄືເກົ່າ (ເບິ່ງ lib/job-techs)
+    jobHelpers("install", decodeURIComponent(code)),
   ]);
 
   const install = row.rows[0];
@@ -70,6 +73,7 @@ export default async function EditInstallation({ params }: Props) {
         categories={categories.rows}
         brands={brands.rows}
         techs={techs}
+        helpers={helpers}
         isnOnly={install.closed}
       />
       <Chatter model="ods_tb_install" resId={install.code} />

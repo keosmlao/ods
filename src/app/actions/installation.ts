@@ -1,5 +1,6 @@
 "use server";
 import { logChange } from "@/lib/chatter-log";
+import { jobHelpers, parseHelpers, setJobHelpers } from "@/lib/job-techs";
 import {
   acceptInstall,
   finishInstallFlow,
@@ -466,6 +467,8 @@ export async function createInstall(
 const editSchema = z.object({
   code: z.string().min(1),
   tech_code: z.string(),
+  /** ຊ່າງຮ່ວມ "A,B,C" (10-08-2026) — ຫວ່າງ = ບໍ່ມີ / ຖອດອອກໝົດ */
+  helper_codes: z.string().optional().default(""),
   appoint_date: z.string(),
   location_inst: z.string(),
   pro_sn: z.string(),
@@ -553,6 +556,14 @@ export async function updateInstall(
     console.error("updateInstall failed", error);
     return { error: "ເເກ້ໄຂບໍ່ສຳເລັດ" };
   }
+
+  /**
+   * ຊ່າງຮ່ວມ — ຂຽນຫຼັງ update ຫົວໜ້າ ເພື່ອໃຫ້ຄົນທີ່ຫາກໍ່ຖືກຕັ້ງເປັນຫົວໜ້າ ຖືກຕັດອອກຈາກ
+   * ລາຍຊ່າງຮ່ວມ (ຄົນດຽວກັນເປັນທັງສອງບໍ່ໄດ້). ຖອດຊ່າງອອກໝົດ ⇒ ລາຍຫວ່າງ = ລຶບໃຫ້.
+   */
+  await setJobHelpers("install", d.code, parseHelpers(d.helper_codes, d.tech_code), {
+    by: session.username,
+  });
 
   const detail = [
     d.tech_code && `ຊ່າງ ${d.tech_code}`,
@@ -726,6 +737,8 @@ export async function assignTech(
 ): Promise<ActionState> {
   const code = String(formData.get("code") ?? "");
   const techCode = String(formData.get("tech_code") ?? "");
+  // ຊ່າງຮ່ວມ (ຄົນທີ 2 ຂຶ້ນໄປ) — ຫົວໜ້າຢູ່ `tech_code` ຄືເກົ່າ (ເບິ່ງ lib/job-techs)
+  const helpers = parseHelpers(formData.get("helper_codes"), techCode);
   const appointDate = String(formData.get("appoint_date") ?? "");
   const locationInst = String(formData.get("location_inst") ?? "");
   const remark = String(formData.get("remark") ?? "");
@@ -758,11 +771,15 @@ export async function assignTech(
     return { error: "ບັນທຶກບໍ່ສຳເລັດ" };
   }
 
+  // ຊ່າງຮ່ວມ — ຂຽນຫຼັງຫົວໜ້າ ເພື່ອໃຫ້ປະຫວັດອ່ານເປັນລຳດັບ (ຈັດຊ່າງ → ເພີ່ມຊ່າງຮ່ວມ)
+  await setJobHelpers("install", code, helpers, { by: session.username });
+
   // ແຈ້ງຊ່າງວ່າມີງານໃໝ່ (ods ຍິງ LINE Notify ຢູ່ຈຸດນີ້)
   await logChange(
     "ods_tb_install",
     code,
-    `ຈັດຊ່າງ: ${techCode}${appointDate ? ` · ນັດວັນທີ ${appointDate}` : ""}${locationInst ? ` · ${locationInst}` : ""}`,
+    `ຈັດຊ່າງ: ${techCode}${helpers.length ? ` (+ຊ່າງຮ່ວມ ${helpers.join(" · ")})` : ""}` +
+      `${appointDate ? ` · ນັດວັນທີ ${appointDate}` : ""}${locationInst ? ` · ${locationInst}` : ""}`,
     { users: [techCode] },
   );
   /**
@@ -801,6 +818,12 @@ export async function handoverInstallTech(
   code: string,
   techCode: string,
   reason: string,
+  /**
+   * ທີມຂອງຮອບຕໍ່ໄປ (10-08-2026) — ສົ່ງ `undefined` = ຄາທີມເກົ່າໄວ້ຄືເກົ່າ.
+   * ສົ່ງລາຍຊື່ມາ (ລວມລາຍຫວ່າງ) = ຕັ້ງໃໝ່ທັງໝົດ ⇒ ຫົວໜ້າຄົນເກົ່າຈະກາຍເປັນຊ່າງຮ່ວມ
+   * ໄດ້ຖ້າເລືອກໄວ້ (ຄົນທີ່ໄປແລ້ວຫຼາຍຮອບ ມັກຕ້ອງໄປນຳຮອບຕໍ່ໄປ ເພື່ອສົ່ງຕໍ່ໜ້າງານ).
+   */
+  helpers?: string[],
 ): Promise<ActionState> {
   const guard = await guardJob(code, SERVICE_SIDE);
   if (!guard.ok) return { error: guard.error };
@@ -810,6 +833,21 @@ export async function handoverInstallTech(
 
   const result = await handoverInstallFlow(session, code, techCode, reason);
   if (!result.ok) return { error: result.error };
+
+  if (helpers) {
+    await setJobHelpers("install", code, parseHelpers(helpers.join(","), techCode), {
+      by: session.username,
+    });
+  } else {
+    // ບໍ່ໄດ້ລະບຸທີມ ⇒ ຢ່າງໜ້ອຍຕ້ອງຕັດຫົວໜ້າໃໝ່ອອກຈາກລາຍຊ່າງຮ່ວມ (ຄົນດຽວເປັນທັງສອງບໍ່ໄດ້)
+    const current = await jobHelpers("install", code);
+    if (current.includes(techCode)) {
+      await setJobHelpers("install", code, current.filter((tech) => tech !== techCode), {
+        by: session.username,
+        notify: false,
+      });
+    }
+  }
 
   await pushToUser(techCode, "ຮັບຊ່ວງງານຕິດຕັ້ງ", `${code} · ${reason.trim()}`, { workflow: "install", code });
   revalidateAll();
@@ -864,6 +902,8 @@ export async function chooseNewTech(code: string): Promise<ActionState> {
       "update ods_tb_install set tech_confirm=null, tech_code=null, assigt_time=null, user_assigt=null where code=$1",
       [code],
     );
+    // ດຶງງານກັບຄິວຈັດຊ່າງ ⇒ ທີມເກົ່າຫາຍໄປນຳ (ຊ່າງຮ່ວມບໍ່ຄວນເຫັນງານທີ່ຍັງບໍ່ມີຫົວໜ້າ)
+    await client.query("delete from ods_job_tech where workflow='install' and job_code=$1", [code]);
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");

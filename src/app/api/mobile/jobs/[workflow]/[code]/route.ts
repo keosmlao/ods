@@ -8,6 +8,7 @@ import {
   finishInstallFlow,
   finishRepairFlow,
   jobPhotoSets,
+  ownJob,
   ownMobileJob,
   rejectJob,
   scheduleNextVisit,
@@ -386,6 +387,14 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
         if (workflow !== "install") {
           return NextResponse.json({ error: "ຄຳສັ່ງນີ້ໃຊ້ໄດ້ແຕ່ງານຕິດຕັ້ງ" }, { status: 400 });
         }
+        /**
+         * ── ເກັບ ISN/SN = **ຫົວໜ້າງານຄົນດຽວ** (10-08-2026 ຕາມຄຳສັ່ງ) ──
+         * ເລກນີ້ຖືກຂຽນລົງໃບງານ (`pro_sn`) ແລະ ຜູກກັບການຮັບປະກັນຂອງລູກຄ້າ ⇒ ຕ້ອງເປັນ
+         * ຄົນຮັບຜິດຊອບໃບງານເປັນຄົນເກັບ ຄືກັບການຮັບງານ/ຈົບງານ. ຊ່າງຮ່ວມຍັງ check-in ·
+         * ຖ່າຍຮູບ ໄດ້ຄືເກົ່າ. `ownJob` ຄືນຄຳຕອບທີ່ບອກຊັດວ່າ "ຫົວໜ້າເປັນຄົນກົດ".
+         */
+        const lead = await ownJob(user, workflow, code);
+        if (!lead.ok) return NextResponse.json({ error: lead.error }, { status: 403 });
         /**
          * ຕ້ອງ **check-in ຢູ່ໜ້າງານກ່ອນ** (07-08-2026 ຕາມຄຳສັ່ງ) — ອ່ານ ISN/SN ແມ່ນ
          * ຫຼັກຖານວ່າຢູ່ຕໍ່ໜ້າເຄື່ອງຈິງ ⇒ ຍັງບໍ່ໄດ້ເຂົ້າໜ້າງານ ກໍ່ບໍ່ຄວນມີເລກນີ້.
