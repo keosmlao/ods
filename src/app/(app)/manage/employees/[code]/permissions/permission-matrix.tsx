@@ -31,20 +31,45 @@ export function PermissionMatrix({ employeeCode, initialRows }: { employeeCode: 
   const [pending, startTransition] = useTransition();
   const groups = useMemo(() => [...new Set(rows.map((row) => row.group))], [rows]);
 
+  /**
+   * ── ຕິກແລ້ວ **ບັນທຶກໃຫ້ເອງທັນທີ** (10-08-2026 ຕາມຄຳສັ່ງ) ──
+   * ຮຸ່ນກ່ອນຕິກແລ້ວຕ້ອງໄປກົດ "ບັນທຶກສິດ" ຢູ່ແຖບເທິງ ⇒ ຄົນຕິກແລ້ວອອກຈາກໜ້າໄປເລີຍ
+   * ⇒ ຄ່າບໍ່ລົງຖານ ແລ້ວເຂົ້າໃຈວ່າ "ກຳນົດແລ້ວ ໃຊ້ບໍ່ໄດ້" (ວັດຈິງ 10-08: ສິດຂອງ 25060
+   * ຄ້າງເປັນອ່ານຢ່າງດຽວ ທັງທີ່ຕິກ ແກ້ໄຂ ໄປແລ້ວ). ດຽວນີ້ທຸກການປ່ຽນຍິງບັນທຶກເລີຍ
+   * ພ້ອມສະແດງຜົນຂ້າງປຸ່ມ ⇒ ບໍ່ມີ "ຄ່າຄ້າງຢູ່ໜ້າຈໍ" ອີກຕໍ່ໄປ.
+   */
+  function persist(next: PermissionMatrixRow[]) {
+    setMessage(null);
+    startTransition(async () => {
+      const result = await saveEmployeePermissions({
+        employeeCode,
+        entries: next.map((row) => ({ resource: row.resource, inherit: row.inherit, ...row.permission })),
+      });
+      setMessage(
+        result.error
+          ? { tone: "error", text: `${result.error} — ຄ່າຍັງບໍ່ລົງຖານ` }
+          : { tone: "ok", text: result.ok ?? "ບັນທຶກແລ້ວ" },
+      );
+    });
+  }
+
+  function apply(next: PermissionMatrixRow[]) {
+    setRows(next);
+    persist(next);
+  }
+
   function customize(index: number) {
-    setRows((current) => current.map((row, i) => (i === index ? { ...row, inherit: false } : row)));
+    apply(rows.map((row, i) => (i === index ? { ...row, inherit: false } : row)));
   }
 
   function inherit(index: number) {
     const original = initialRows[index];
-    setRows((current) =>
-      current.map((row, i) => (i === index ? { ...original, inherit: true, permission: original.permission } : row)),
-    );
+    apply(rows.map((row, i) => (i === index ? { ...original, inherit: true, permission: original.permission } : row)));
   }
 
   function toggle(index: number, action: PermissionAction) {
-    setRows((current) =>
-      current.map((row, i) => {
+    apply(
+      rows.map((row, i) => {
         if (i !== index) return row;
         const next = { ...row.permission, [action]: !row.permission[action] };
         if (action === "read" && !next.read) {
@@ -58,16 +83,9 @@ export function PermissionMatrix({ employeeCode, initialRows }: { employeeCode: 
     );
   }
 
+  /** ບັນທຶກລົ້ມ (ເນັດຂາດ) ⇒ ກົດຊ້ຳໄດ້ຈາກປຸ່ມ */
   function save() {
-    setMessage(null);
-    startTransition(async () => {
-      const result = await saveEmployeePermissions({
-        employeeCode,
-        entries: rows.map((row) => ({ resource: row.resource, inherit: row.inherit, ...row.permission })),
-      });
-      setMessage(result.error ? { tone: "error", text: result.error } : { tone: "ok", text: result.ok ?? "ບັນທຶກແລ້ວ" });
-      if (!result.error) setRows((current) => current.map((row) => ({ ...row })));
-    });
+    persist(rows);
   }
 
   return (
@@ -75,7 +93,9 @@ export function PermissionMatrix({ employeeCode, initialRows }: { employeeCode: 
       <div className="sticky top-14 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
         <div>
           <p className="text-sm font-bold text-slate-700">ສິດເຂົ້າເມນູ ແລະ CRUD</p>
-          <p className="text-xs text-slate-500">ຖ້າເລືອກ “ຕາມ role” ລະບົບຈະໃຊ້ສິດກຸ່ມເກົ່າອັດຕະໂນມັດ</p>
+          <p className="text-xs text-slate-500">
+            ຕິກແລ້ວ <b>ບັນທຶກໃຫ້ເອງທັນທີ</b> · “ຕາມ role” = ໃຊ້ສິດຕາມກຸ່ມ (ປ່ຽນ role ແລ້ວປັບຕາມເອງ)
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {message && (
@@ -91,7 +111,7 @@ export function PermissionMatrix({ employeeCode, initialRows }: { employeeCode: 
             className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-xs font-bold text-white hover:bg-brand-800 disabled:opacity-50"
           >
             {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
-            ບັນທຶກສິດ
+            ບັນທຶກຄືນ
           </button>
         </div>
       </div>

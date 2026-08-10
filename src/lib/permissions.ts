@@ -94,12 +94,14 @@ export function permissionFromOverrides(
   }
 
   /**
-   * ຊ່າງມີ hard ceiling ຕາມ TECH_SIDE: permission override ເກົ່າຫ້າມເປີດ
-   * ໜ້າຈັດການທີ່ role ບໍ່ອະນຸຍາດ. Dashboard ເປັນໜ້າອ່ານພາບລວມ
-   * ຈຶ່ງເປີດໄດ້; ສິດລາຍ user ຍັງປິດເມນູຊ່າງໄດ້ຕາມປົກກະຕິ.
+   * ── ສິດທີ່ຜູ້ຈັດການກຳນົດເອງ **ຊະນະ role ສະເໝີ** (10-08-2026 ຕາມຄຳສັ່ງ) ──
+   * ຕ້ອງກວດກ່ອນທຸກຢ່າງ ⇒ ທັງ**ເປີດ** (ໃຫ້ເມນູທີ່ role ບໍ່ມີ) ແລະ **ປິດ** (ຕັດເມນູທີ່
+   * role ມີ) ໄດ້ຜົນຈິງ. ຮຸ່ນກ່ອນມີ hard ceiling ຂອງ role `technical` ຢູ່ຂ້າງເທິງ
+   * ⇒ ຜູ້ຈັດການຕິກເປີດເມນູໃຫ້ຊ່າງ **ບັນທຶກລົງຖານແທ້ ແຕ່ບໍ່ມີຜົນຈັກໜ້ອຍ** ໂດຍບໍ່ມີ
+   * ຄຳເຕືອນ (ວັດຈິງ: 25041 ໄດ້ /service · 23037 ໄດ້ /map — ທັງສອງໃຊ້ບໍ່ໄດ້)
+   * ⇒ ຄົນກຳນົດເຂົ້າໃຈວ່າລະບົບພັງ. ດ່ານທີ່ຍັງເຫຼືອຄື `/manage/employees` ຂ້າງເທິງ
+   * (ຜູ້ຈັດການເທົ່ານັ້ນ) ⇒ ຍັງ delegate ສິດກຳນົດສິດຕໍ່ບໍ່ໄດ້ ແລະ lock ຕົນເອງອອກບໍ່ໄດ້.
    */
-  if (roleOf(session) === "technical" && !canAccess("technical", resource)) return EMPTY;
-
   const assigned = overrides.get(resource);
   if (assigned) return assigned;
 
