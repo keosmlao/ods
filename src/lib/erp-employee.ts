@@ -47,3 +47,27 @@ export async function employeeCode(username: string): Promise<string> {
   console.warn(`employeeCode: ຜູ້ໃຊ້ "${name}" ຍັງບໍ່ໄດ້ຜູກລະຫັດພະນັກງານ ERP — ໃບຈະບໍ່ມີຊື່ຜູ້ສ້າງ`);
   return "";
 }
+
+/**
+ * **ລະຫັດພະນັກງານ ERP ຂອງສູນບໍລິການ** — ຄົນທີ່ມີບັນຊີຢູ່ ODSS ຄືພະນັກງານສູນ
+ * ⇒ ໃບທີ່ເຂົາອອກ (creator_code) ເປັນໃບຂອງສູນ ເຖິງ ERP ຈະບໍ່ໄດ້ຕິດ `side_code` ໃຫ້.
+ *
+ * ໃຊ້ຢູ່ໜ້າ PO ເພື່ອກອງເອົາສະເພາະໃບຂອງສູນ — ຂໍ້ມູນຈິງ (12-08-2026) ພະນັກງານທີ່
+ * ອອກ PO ຈິງມີ 23015 (ຈັດຊື້ຂອງສູນ) ແລະ 25009 ⇒ ຕື່ມ 10 ໃບທີ່ side_code ຫວ່າງ.
+ *
+ * ຂ້າມຖານກັນ join ບໍ່ໄດ້ (ລາຍຊື່ຢູ່ ODS · ໃບຢູ່ ERP) ⇒ ດຶງລາຍຊື່ກ່ອນ ແລ້ວສົ່ງເປັນ
+ * array param ໃຫ້ query ຝັ່ງ ERP. ລົ້ມ ⇒ ຄືນ [] (ໜ້າຍັງເປີດໄດ້ ພຽງແຕ່ຂາດຂໍ້ ③).
+ */
+export async function serviceStaffCodes(): Promise<string[]> {
+  try {
+    const rows = await query<{ code: string }>(
+      `select employee_code code from ods_user_employee where employee_code ~ '^[0-9]+$'
+        union select code from users where code ~ '^[0-9]+$'
+        union select username from users where username ~ '^[0-9]+$'`,
+    );
+    return rows.rows.map((r) => r.code);
+  } catch (error) {
+    console.error("serviceStaffCodes failed", error);
+    return [];
+  }
+}

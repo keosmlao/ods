@@ -126,6 +126,16 @@ export const ERP = {
   FORMAT_RETURN: "SRI",
 } as const;
 
+/**
+ * **ໃບຂອງຝ່າຍບໍລິການ** — ERP ໝາຍຝ່າຍເຈົ້າຂອງໃບດ້ວຍ `ic_trans.side_code`
+ * (400 = ບໍລິການ · 200 = ຝ່າຍອື່ນ · ຫວ່າງ/null = ໃບທີ່ບໍ່ໄດ້ຕິດປ້າຍ).
+ *
+ * ຂໍ້ມູນຈິງ (12-08-2026 · PO ຍ້ອນຫຼັງ 1 ປີ): 273 ໃບຕິດ 400 · 1,962 ໃບບໍ່ໄດ້ຕິດ
+ * ⇒ ຖັນນີ້ຢ່າງດຽວຍັງບໍ່ພໍ ຕ້ອງນັບໃບຕ່ອງໂສ້ SPR ແລະ ໃບຂອງພະນັກງານສູນນຳ
+ * (ເບິ່ງ `serviceStaffCodes` ໃນ erp-employee.ts).
+ */
+export const SERVICE_SIDE_SQL = (alias = "t") => `coalesce(${alias}.side_code,'') = '${ERP.SIDE_CODE}'`;
+
 /** calc_flag: -1 = ຕັດອອກຈາກສາງ, 1 = ບວກເຂົ້າສາງ */
 export const CALC_OUT = -1;
 export const CALC_IN = 1;

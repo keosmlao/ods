@@ -3,10 +3,11 @@ import { BackLink } from "@/components/back-link";
 import { LinkPending } from "@/components/link-pending";
 import { getSession } from "@/lib/auth";
 import { queryOdg } from "@/lib/db";
+import { serviceStaffCodes } from "@/lib/erp-employee";
 import { APPROVER_SIDE, roleOf } from "@/lib/roles";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
-import { ERP_PURCHASE } from "@/lib/stock-constants";
+import { ERP_PURCHASE, SERVICE_SIDE_SQL } from "@/lib/stock-constants";
 import { ArrowLeft, BellRing, ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import Link from "next/link";
 
@@ -20,8 +21,8 @@ type Dict = Record<string, string>;
  * ຈາກມື້ອອກໃບຫາມື້ນີ້ (ຄ້າງດົນ = ແດງ). ກົດເລກໃບ = ເປີດ**ໜ້າເອກະສານ**ແບບ Odoo.
  * ເທິງລາຍການມີແຈ້ງເຕືອນ WPRA ທີ່ຍັງບໍ່ອອກ PO + ປຸ່ມສ້າງເອກະສານໃໝ່ (ບໍ່ອ້າງອີງວຽກ).
  *
- * ສະແດງສະເພາະ PO ຂອງສາຍງານສ້ອມ = PO ທີ່ doc_ref ຊີ້ໃສ່ WPRA ທີ່ອ້າງອີງ SPR
- * (PO ຂອງຝ່າຍອື່ນອ້າງອີງ PRHN/PRTN — ບໍ່ກ່ຽວກັບເຮົາ ບໍ່ເອົາມາປົນ).
+ * ສະແດງ**ສະເພາະໃບຂອງສູນບໍລິການ** — ນິຍາມຢູ່ `OURS` ຂ້າງລຸ່ມ (side_code 400 ·
+ * ຕ່ອງໂສ້ SPR · ຜູ້ອອກເປັນພະນັກງານສູນ). ໃບຂອງຝ່າຍອື່ນບໍ່ເອົາມາປົນ.
  */
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,8 @@ type Row = {
   job: string | null;
   supplier: string | null;
   supplier_name: string | null;
+  creator: string | null;
+  creator_name: string | null;
   branch_code: string | null;
   total: string | null;
   wpoa: string | null;
@@ -86,10 +89,16 @@ type Row = {
 };
 
 /**
- * ── PO ໃບໃດ "ຂອງເຮົາ" ──
- * ① ຈາກໃບຂໍຊື້ຂອງວຽກສ້ອມ (ຕ່ອງໂສ້ຫາ SPR ພົບ) — 115 ໃບ/ປີ
- * ② **ອອກໂດຍກົງ** (ບໍ່ອ້າງອີງໃບໃດ — ຊື້ຕຸນເຂົ້າສາງ/ຊື້ດ່ວນ, ອອກຈາກລະບົບນີ້ ຫຼື ERP) — 1,305 ໃບ/ປີ
- * ໃບທີ່ອ້າງອີງ PRHN/PRTN = ໃບຂໍຊື້ຂອງ**ຝ່າຍອື່ນ** (767 ໃບ) — ບໍ່ກ່ຽວ ບໍ່ເອົາມາປົນ.
+ * ── PO ໃບໃດ "ຂອງສູນບໍລິການ" (ຂໍຈາກຜູ້ໃຊ້ 12-08-2026) ──
+ * ① ERP ຕິດປ້າຍ **side_code = 400 (ຝ່າຍບໍລິການ)** ໃຫ້ແລ້ວ — 273 ໃບ/ປີ
+ * ② ອອກຈາກ**ຕ່ອງໂສ້ໃບຂໍຊື້ຂອງວຽກສ້ອມ** (PO → WPRA → SPR) — ໃບເກົ່າ 29 ໃບ
+ *    ບໍ່ໄດ້ຕິດປ້າຍ (ສ່ວນຫຼາຍອອກຈາກ ods ເກົ່າ) ⇒ ຂາດຂໍ້ນີ້ບໍ່ໄດ້
+ * ③ ຜູ້ອອກໃບເປັນ**ພະນັກງານສູນບໍລິການ** (creator_code ຢູ່ໃນລາຍຊື່ຜູ້ໃຊ້ ODSS) — 10 ໃບ
+ * ນອກນັ້ນ = ໃບຂອງຝ່າຍອື່ນ (~1,300 ໃບ/ປີ) — ບໍ່ກ່ຽວ ບໍ່ເອົາມາປົນ.
+ *
+ * ⚠️ ເມື່ອກ່ອນນັບ "ໃບທີ່ບໍ່ອ້າງອີງໃບໃດ" (ຊື້ຕຸນ) ເປັນຂອງເຮົາ ⇒ ໄດ້ໃບຊື້ຕຸນຂອງ
+ * ທຸກຝ່າຍມາປົນ 1,401 ໃບ. ຕັດອອກແລ້ວ ແລະ ໄດ້ໃບບໍລິການທີ່ອ້າງອີງໃບຂໍຊື້ຂອງ
+ * ຝ່າຍອື່ນ (PRTM/PRHN ແຕ່ side_code=400) ເພີ່ມມາ 176 ໃບແທນ ⇒ ລວມ 312 ໃບ/ປີ.
  */
 const FROM_SPR = `exists (
   select 1 from ic_trans_detail d
@@ -98,10 +107,8 @@ const FROM_SPR = `exists (
        select w.doc_no from ic_trans_detail w
         where w.trans_flag=$2 and w.ref_doc_no like 'SPR%')
 )`;
-const STANDALONE = `not exists (
-  select 1 from ic_trans_detail x
-   where x.doc_no=t.doc_no and x.trans_flag=$1 and coalesce(x.ref_doc_no,'') <> ''
-)`;
+/** ພະນັກງານສູນ — ສົ່ງລາຍຊື່ເຂົ້າມາເປັນ array param (ລາຍຊື່ຢູ່ ODS ⇒ join ຂ້າມຖານບໍ່ໄດ້) */
+const BY_STAFF = (param: string) => `(coalesce(t.creator_code,'') <> '' and t.creator_code = any(${param}::text[]))`;
 /**
  * ── ສະຖານະຂອງ PO — ນິຍາມບ່ອນດຽວ ──
  * ຕ້ອງກອງຢູ່ **ໃນ CTE po** (ກ່ອນ limit/offset) ບໍ່ແມ່ນກອງແຖວທີ່ດຶງມາແລ້ວ:
@@ -129,8 +136,23 @@ const statusLabel = (t: Dict): Record<PoStatus, string> => ({
 const statusOf = (value: string | undefined): PoStatus | null =>
   value === "wait" || value === "approved" || value === "received" ? value : null;
 
-const whereOf = (src: "all" | "repair") =>
-  `t.trans_flag=$1 and t.doc_date >= current_date - 365 and ${src === "repair" ? FROM_SPR : `(${FROM_SPR} or ${STANDALONE})`}`;
+/**
+ * ── ບອກຊະນິດຂໍ້ມູນຂອງ param ທີ່ບາງເສັ້ນທາງບໍ່ໄດ້ໃຊ້ (ບັກເກົ່າ ພົບ 12-08-2026) ──
+ * ຈຳນວນ param ທີ່ສົ່ງໄປຄົງທີ່ ແຕ່ SQL ປະກອບຕາມຕົວກອງ ⇒ ບາງເທື່ອມີ param ທີ່
+ * **ບໍ່ຖືກໃຊ້ບ່ອນໃດເລີຍ** (ບໍ່ກອງສະຖານະ = $3/$4 ລອຍ · ແທັບງານສ້ອມ = ລາຍຊື່ພະນັກງານລອຍ)
+ * ⇒ Postgres ຫາຊະນິດບໍ່ໄດ້ ("could not determine data type of parameter $3") ຫຼື
+ * ຟ້ອງຈຳນວນ param ບໍ່ຕົງ ⇒ query ລົ້ມ, catch ຄືນ 0/ວ່າງ ⇒ ໜ້າຈໍຂຶ້ນ "0 ໃບ" ທັງທີ່ມີໃບ.
+ * ເງື່ອນໄຂຂ້າງລຸ່ມຈິງສະເໝີ — ມີໄວ້**ບອກຊະນິດ**ຢ່າງດຽວ ບໍ່ໄດ້ກອງຫຍັງ.
+ */
+const TYPED_STATUS = `$3::int is not null and $4::int is not null`;
+const TYPED_STAFF = (param: string) => `${param}::text[] is not null`;
+
+const whereOf = (src: "all" | "repair", staffParam: string) =>
+  `t.trans_flag=$1 and t.doc_date >= current_date - 365 and ${
+    src === "repair"
+      ? `${FROM_SPR} and ${TYPED_STAFF(staffParam)}`
+      : `(${SERVICE_SIDE_SQL()} or ${FROM_SPR} or ${BY_STAFF(staffParam)})`
+  }`;
 
 /**
  * ── ເປັນຫຍັງບໍ່ໃຊ້ `whereOf` ໃນການນັບ ──
@@ -144,7 +166,6 @@ const MINE_CTE = `with wpra as (
      where w.trans_flag=$2 and w.ref_doc_no like 'SPR%'),
   mine as (
     select d.doc_no,
-        bool_or(coalesce(d.ref_doc_no,'') <> '') has_ref,
         bool_or(d.ref_doc_no in (select doc_no from wpra)) from_spr
       from ic_trans_detail d where d.trans_flag=$1 group by d.doc_no)`;
 
@@ -152,14 +173,24 @@ const COUNT_SQL = (src: "all" | "repair", status: PoStatus | null) => `${MINE_CT
   select count(*)::int count from ic_trans t
    ${src === "repair" ? "join" : "left join"} mine m on m.doc_no = t.doc_no
    where t.trans_flag=$1 and t.doc_date >= current_date - 365
-     and ${src === "repair" ? "m.from_spr" : "(coalesce(m.from_spr,false) or not coalesce(m.has_ref,false))"}
+     and ${
+       src === "repair"
+         ? `m.from_spr and ${TYPED_STAFF("$6")}`
+         : `(${SERVICE_SIDE_SQL()} or coalesce(m.from_spr,false) or ${BY_STAFF("$6")})`
+     }
      ${status ? `and ${STATUS_WHERE[status]}` : ""}
-     ${SEARCH_SQL(5)}`;
+     ${SEARCH_SQL(5)}
+     and ${TYPED_STATUS}`;
 
-async function countRows(src: "all" | "repair", q = "", status: PoStatus | null = null): Promise<number> {
+async function countRows(
+  src: "all" | "repair",
+  staff: string[],
+  q = "",
+  status: PoStatus | null = null,
+): Promise<number> {
   try {
     const rows = await queryOdg<{ count: number }>(COUNT_SQL(src, status), [
-      ERP_PURCHASE.ORDER, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER_APPROVE, ERP_PURCHASE.RECEIPT, q,
+      ERP_PURCHASE.ORDER, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER_APPROVE, ERP_PURCHASE.RECEIPT, q, staff,
     ]);
     return rows.rows[0]?.count ?? 0;
   } catch {
@@ -167,7 +198,13 @@ async function countRows(src: "all" | "repair", q = "", status: PoStatus | null 
   }
 }
 
-async function getRows(page: number, src: "all" | "repair", q = "", status: PoStatus | null = null): Promise<Row[]> {
+async function getRows(
+  page: number,
+  src: "all" | "repair",
+  staff: string[],
+  q = "",
+  status: PoStatus | null = null,
+): Promise<Row[]> {
   try {
     const rows = await queryOdg<Row>(
       /**
@@ -177,7 +214,7 @@ async function getRows(page: number, src: "all" | "repair", q = "", status: PoSt
        * ຕໍ່ແຖວ ⇒ ໄລ່ 5,469 ແຖວ **ຕໍ່ PO ໜຶ່ງໃບ** (483ms). ລວມຄ່າໄວ້ກ່ອນແລ້ວ join = 56ms.
        */
       `with po as (
-          select t.* from ic_trans t where ${whereOf(src)} ${status ? `and ${STATUS_WHERE[status]}` : ""} ${SEARCH_SQL(8)}
+          select t.* from ic_trans t where ${whereOf(src, "$9")} ${status ? `and ${STATUS_WHERE[status]}` : ""} ${SEARCH_SQL(8)}
            order by t.doc_no desc limit $5 offset $6),
         wpoa as (
           select split_part(trim(coalesce(doc_ref,'')),' ',1) po_no, min(doc_no) doc_no
@@ -196,6 +233,13 @@ async function getRows(page: number, src: "all" | "repair", q = "", status: PoSt
                limit 1)) job,
           t.cust_code supplier,
           (select s.name_1 from ap_supplier s where s.code=t.cust_code limit 1) supplier_name,
+          /**
+           * ຜູ້ສ້າງເອກະສານ — ERP ເກັບເປັນ**ລະຫັດພະນັກງານ** (23015) ⇒ ຫາຊື່ຈາກ odg_employee.
+           * ໃບເກົ່າບາງໃບ creator ເປັນຊື່ login ຂອງ ERP (ເຊັ່ນ NARD) ທີ່ບໍ່ມີໃນຕາຕະລາງພະນັກງານ
+           * ⇒ ຊື່ເປັນ null ແລ້ວໜ້າຈໍສະແດງລະຫັດນັ້ນແທນ (ດີກວ່າຫວ່າງເປົ່າ).
+           */
+          t.creator_code creator,
+          (select e.fullname_lo from odg_employee e where e.employee_code=t.creator_code limit 1) creator_name,
           t.branch_code,
           to_char(coalesce(t.total_amount,0),'FM999,999,999,990') total,
           wpoa.doc_no wpoa,
@@ -207,7 +251,7 @@ async function getRows(page: number, src: "all" | "repair", q = "", status: PoSt
        order by t.doc_no desc`,
       [
         ERP_PURCHASE.ORDER, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER_APPROVE, ERP_PURCHASE.RECEIPT,
-        PAGE_SIZE, (page - 1) * PAGE_SIZE, ERP_PURCHASE.PR_REQUEST, q,
+        PAGE_SIZE, (page - 1) * PAGE_SIZE, ERP_PURCHASE.PR_REQUEST, q, staff,
       ],
     );
     return rows.rows;
@@ -297,13 +341,15 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
   const q = (params.q ?? "").trim();
   const status = statusOf(params.status);
   const page = Math.max(1, Number(params.page) || 1);
+  // ລາຍຊື່ພະນັກງານສູນ — ຕ້ອງໄດ້ກ່ອນ ເພາະທຸກ query ຂ້າງລຸ່ມກອງດ້ວຍລາຍຊື່ນີ້
+  const staff = await serviceStaffCodes();
   // ຕົວເລກຂອງທຸກແທັບຄິດພ້ອມກັນ — ຄົນຕ້ອງເຫັນວ່າແຕ່ລະສະຖານະມີຈັກໃບກ່ອນກົດ
   const [rows, total, wait, approved, received, wpraRows, session] = await Promise.all([
-    getRows(page, src, q, status),
-    countRows(src, q, status),
-    countRows(src, q, "wait"),
-    countRows(src, q, "approved"),
-    countRows(src, q, "received"),
+    getRows(page, src, staff, q, status),
+    countRows(src, staff, q, status),
+    countRows(src, staff, q, "wait"),
+    countRows(src, staff, q, "approved"),
+    countRows(src, staff, q, "received"),
     getWpraWaiting(),
     getSession(),
   ]);
@@ -511,6 +557,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
                   <th className="px-3 py-2.5 font-semibold">{t.colAge}</th>
                   <th className="px-3 py-2.5 font-semibold">{t.colSource}</th>
                   <th className="px-3 py-2.5 font-semibold">{t.colSupplier}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t.colCreator}</th>
                   <th className="px-3 py-2.5 font-semibold">{t.branch}</th>
                   <th className="px-3 py-2.5 text-right font-semibold">{t.amount}</th>
                   <th className="px-3 py-2.5 font-semibold">{t.status}</th>
@@ -551,6 +598,19 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
                     <td className="max-w-52 truncate px-3 py-2.5" title={row.supplier_name ?? ""}>
                       <span className="font-mono text-[10px] text-slate-400">{row.supplier ?? "-"}</span>{" "}
                       {row.supplier_name ?? ""}
+                    </td>
+                    {/* ຜູ້ສ້າງເອກະສານ — ຊື່ພະນັກງານ + ລະຫັດ (ໃບເກົ່າທີ່ບໍ່ມີຊື່ ສະແດງລະຫັດຢ່າງດຽວ) */}
+                    <td className="whitespace-nowrap px-3 py-2.5">
+                      {row.creator ? (
+                        <span className="inline-flex flex-col items-start">
+                          <span className="font-medium text-slate-600">{row.creator_name ?? row.creator}</span>
+                          {row.creator_name && (
+                            <span className="font-mono text-[9px] text-slate-400">{row.creator}</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300">-</span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{branchName(row.branch_code)}</td>
                     <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{row.total ?? "0"}</td>

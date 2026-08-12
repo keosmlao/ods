@@ -2051,6 +2051,7 @@
     "colAge": "Age",
     "colSource": "Source",
     "colSupplier": "Supplier",
+    "colCreator": "Created by",
     "status": "Status",
     "direct": "Direct",
     "noPoPrefix": "No purchase orders yet — start by approving a purchase request or click",

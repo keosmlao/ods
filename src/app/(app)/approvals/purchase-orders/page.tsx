@@ -1,9 +1,10 @@
 import { ApprovePoButton } from "@/app/(app)/purchase-orders/approve-po-button";
 import { LinkPending } from "@/components/link-pending";
 import { queryOdg } from "@/lib/db";
+import { serviceStaffCodes } from "@/lib/erp-employee";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
-import { ERP_PURCHASE } from "@/lib/stock-constants";
+import { ERP_PURCHASE, SERVICE_SIDE_SQL } from "@/lib/stock-constants";
 import { ArrowRight, CheckCheck, Clock } from "lucide-react";
 import Link from "next/link";
 
@@ -16,7 +17,7 @@ import Link from "next/link";
  * ປຸ່ມຢູ່ໜ້າລາຍການ PO ຍັງຢູ່ຄືເກົ່າ (ຈັດຊື້ເຫັນສະຖານະ) — ອັນນີ້ເປັນ**ຄິວ** ບໍ່ແມ່ນລາຍການ.
  *
  * ── ນັບແນວໃດ ──
- * ລໍອະນຸມັດ = PO ຂອງສາຍເຮົາ (ຈາກ SPR ຫຼື ອອກໂດຍກົງ) ທີ່ **ຍັງບໍ່ມີ WPOA**.
+ * ລໍອະນຸມັດ = PO **ຂອງສູນບໍລິການ** (ເບິ່ງ `OURS`) ທີ່ **ຍັງບໍ່ມີ WPOA**.
  * ⚠️ WPOA ຜູກ**ທາງຫົວໃບ** (`doc_ref`) ບໍ່ແມ່ນທາງແຖວ — ເບິ່ງໝາຍເຫດທີ່ lib/erp-purchase.
  */
 export const dynamic = "force-dynamic";
@@ -60,19 +61,23 @@ from_spr as (
   select distinct d.doc_no from ic_trans_detail d
     join ic_trans_detail w on w.doc_no = d.ref_doc_no and w.trans_flag=$2 and w.ref_doc_no like 'SPR%'
    where d.trans_flag=$1
-),
-linked as (
-  select distinct doc_no from ic_trans_detail where trans_flag=$1 and coalesce(ref_doc_no,'') <> ''
 )`;
 
-/** PO ຂອງສາຍງານເຮົາ: ຈາກໃບຂໍຊື້ຂອງວຽກສ້ອມ (SPR) ຫຼື ອອກໂດຍກົງ (ຊື້ຕຸນ) */
-const OURS = `(t.doc_no in (select doc_no from from_spr) or t.doc_no not in (select doc_no from linked))`;
+/**
+ * PO ຂອງ**ສູນບໍລິການ** — ນິຍາມດຽວກັນກັບໜ້າລາຍການ PO (ເບິ່ງ `OURS` ຢູ່ນັ້ນ):
+ * ERP ຕິດ side_code=400 · ຫຼື ມາຈາກຕ່ອງໂສ້ SPR ຂອງວຽກສ້ອມ · ຫຼື ຜູ້ອອກເປັນພະນັກງານສູນ.
+ * ⚠️ ຢ່າເອົາ "ໃບທີ່ບໍ່ອ້າງອີງໃບໃດ" ມານັບເປັນຂອງເຮົາຄືເມື່ອກ່ອນ — ໃບຊື້ຕຸນຂອງຝ່າຍອື່ນ
+ * ຈະໄຫຼເຂົ້າຄິວອະນຸມັດຂອງສູນ (1,400+ ໃບ/ປີ) ແລະ ຜູ້ອະນຸມັດຈະກົດອະນຸມັດໃບຂອງຄົນອື່ນ.
+ */
+const OURS = `(${SERVICE_SIDE_SQL()}
+  or t.doc_no in (select doc_no from from_spr)
+  or (coalesce(t.creator_code,'') <> '' and t.creator_code = any($4)))`;
 const WPOA_OF = `(select min(w2.doc_no) from ic_trans w2
   where w2.trans_flag=$3 and split_part(trim(coalesce(w2.doc_ref,'')),' ',1)=t.doc_no)`;
 /** ອະນຸມັດແລ້ວບໍ — ອ່ານຈາກ CTE (ໄວ); WPOA_OF ໃຊ້ສະເພາະຕອນຢາກໄດ້**ເລກໃບ**ຂອງແຖວທີ່ຄັດມາແລ້ວ */
 const APPROVED = `exists (select 1 from wpoa where wpoa.po = t.doc_no)`;
 
-async function getRows(waiting: boolean): Promise<Row[]> {
+async function getRows(waiting: boolean, staff: string[]): Promise<Row[]> {
   try {
     return (
       await queryOdg<Row>(
@@ -98,7 +103,7 @@ async function getRows(waiting: boolean): Promise<Row[]> {
            and ${waiting ? "not" : ""} ${APPROVED}
          order by t.doc_date ${waiting ? "asc" : "desc"}, t.doc_no
          limit 200`,
-        [ERP_PURCHASE.ORDER, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER_APPROVE],
+        [ERP_PURCHASE.ORDER, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER_APPROVE, staff],
       )
     ).rows;
   } catch (error) {
@@ -125,9 +130,11 @@ export default async function ApprovePurchaseOrdersPage({ searchParams }: Props)
   const params = await searchParams;
   const tab = params.tab === "approved" ? "approved" : "waiting";
   const t = (await getDictionary(await getLocale())).approvalsPo;
+  // ລາຍຊື່ພະນັກງານສູນ — ຄິວກອງດ້ວຍລາຍຊື່ນີ້ ⇒ ຕ້ອງໄດ້ກ່ອນ query ໃບ
+  const staff = await serviceStaffCodes();
   const [rows, waitingCount] = await Promise.all([
-    getRows(tab === "waiting"),
-    tab === "waiting" ? Promise.resolve(0) : getRows(true).then((list) => list.length),
+    getRows(tab === "waiting", staff),
+    tab === "waiting" ? Promise.resolve(0) : getRows(true, staff).then((list) => list.length),
   ]);
   const counts = { waiting: tab === "waiting" ? rows.length : waitingCount, approved: tab === "approved" ? rows.length : 0 };
 

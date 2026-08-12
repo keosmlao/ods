@@ -1,6 +1,6 @@
 import { employeeCode } from "@/lib/erp-employee";
 import { odgDb, queryOdg } from "@/lib/db";
-import { ERP_PURCHASE } from "@/lib/stock-constants";
+import { ERP, ERP_PURCHASE } from "@/lib/stock-constants";
 import type { PoolClient } from "pg";
 
 /**
@@ -216,20 +216,29 @@ async function writeChainDoc(
     credit_day: D.CREDIT_DAY,
   };
   const t = poTotals(value, terms);
+  /**
+   * **ຕິດປ້າຍຝ່າຍໃຫ້ໃບ PO** (12-08-2026) — ໜ້າລາຍການ PO ກອງດ້ວຍ `side_code`
+   * ⇒ ໃບທີ່ບໍ່ຕິດປ້າຍຈະບໍ່ຂຶ້ນໃນລາຍການຂອງສູນ. ຕິດສະເພາະ**ໃບ PO** ຄືໃບຈິງຂອງ ERP:
+   * PO ຕິດ 273 ໃບ · ຮັບເຂົ້າສາງ (PUI) ຕິດ 252 ໃບ ແຕ່ WPRA/WPOA **ບໍ່ເຄີຍຕິດ**
+   * (0/2,900 ໃບ) ⇒ ຢ່າຕິດໃຫ້ໃບອະນຸມັດ ຈະຜິດຮູບແບບຂອງ ERP.
+   */
+  const isPo = opts.transFlag === ERP_PURCHASE.ORDER;
+  const sideCode = isPo ? ERP.SIDE_CODE : "";
+  const departmentCode = isPo ? ERP.DEPARTMENT_CODE : "";
   // ວັນຄົບກຳນົດ ຄິດຢູ່ຝັ່ງ ERP (doc_date + credit_day) — ສູດດຽວກັບໃບຈິງທຸກໃບ
   await odg.query(
     `insert into ic_trans(trans_type, trans_flag, doc_date, doc_no, doc_ref, doc_ref_date, doc_time,
        branch_code, cust_code, remark, status, doc_format_code, vat_type, vat_rate, currency_code,
        exchange_rate, total_value, total_amount, total_before_vat, total_vat_value, total_after_vat,
        user_request, user_approve, creator_code, send_date, transport_code, credit_day, credit_date,
-       create_date_time_now)
+       side_code, department_code, create_date_time_now)
      values($1,$2,$3,$4,$5,$3,$6,$7,$8,$9,0,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$20,$20,$21,$22,
-       $23,$3::date + $23::int,localtimestamp)`,
+       $23,$3::date + $23::int,$24,$25,localtimestamp)`,
     [
       D.TRANS_TYPE, opts.transFlag, opts.doc_date, opts.docNo, headRef, opts.doc_time,
       opts.branch, opts.supplier, remark, opts.format, terms.vat_type, terms.vat_rate, terms.currency_code,
       terms.exchange_rate, t.value, t.amount, t.before_vat, t.vat_value, t.after_vat,
-      opts.creator, sendDate, transport, terms.credit_day,
+      opts.creator, sendDate, transport, terms.credit_day, sideCode, departmentCode,
     ],
   );
 
