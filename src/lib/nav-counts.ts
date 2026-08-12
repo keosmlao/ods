@@ -3,6 +3,7 @@ import { unreadTotal } from "@/lib/chat";
 import { unstable_cache } from "next/cache";
 import { claimStatuses, installStatuses, pipelineOf, repairStatuses } from "@/lib/dashboard-status";
 import { query, queryOdg } from "@/lib/db";
+import { countWaitingPoApprovals } from "@/lib/erp-po-queue";
 import { INSTALL_STAGE_SQL, installStageIs } from "@/lib/install-stage";
 import { INSTALL_SPARE_REQUEST_QUEUE } from "@/lib/install-spare-request";
 import { canAccess, roleOf } from "@/lib/roles";
@@ -97,8 +98,13 @@ const cachedPendingBillCount = unstable_cache(
  */
 const cachedErpCounts = unstable_cache(
   async () => {
-    const erp = await queryOdg<{ spr: number; wpra: number; po: number }>(ERP_COUNT_SQL);
-    return { spr: erp.rows[0]?.spr ?? 0, wpra: erp.rows[0]?.wpra ?? 0, po: erp.rows[0]?.po ?? 0 };
+    // ຄິວອະນຸມັດ PO ນັບດ້ວຍ**ນິຍາມອັນດຽວກັບໜ້າ** (lib/erp-po-queue) — ຕ້ອງໃຊ້ລາຍຊື່
+    // ພະນັກງານສູນຈາກ ODS ⇒ ຖາມແຍກຈາກ ERP_COUNT_SQL ບໍ່ໄດ້ (ຄົນລະ database).
+    const [erp, po] = await Promise.all([
+      queryOdg<{ spr: number; wpra: number }>(ERP_COUNT_SQL),
+      countWaitingPoApprovals(),
+    ]);
+    return { spr: erp.rows[0]?.spr ?? 0, wpra: erp.rows[0]?.wpra ?? 0, po };
   },
   ["nav-counts-erp"],
   { revalidate: 60, tags: [PURCHASE_COUNT_TAG] },
@@ -113,21 +119,11 @@ const ERP_COUNT_SQL = `select
              *   wpra = ໃບຂໍຊື້ອະນຸມັດແລ້ວ ແຕ່ຍັງບໍ່ອອກ PO  → ວຽກ**ຈັດຊື້** (ເມນູ ໃບສັ່ງຊື້)
              *   po   = PO ທີ່ຍັງບໍ່ມີ WPOA                → ວຽກ**ຜູ້ອະນຸມັດ** (ເມນູ ອະນຸມັດ)
              * ເມື່ອກ່ອນບວກລວມກັນໄວ້ເມນູດຽວ ⇒ ຜູ້ອະນຸມັດເຫັນເລກທີ່ລວມວຽກຂອງຄົນອື່ນ.
-             * ເອົາສະເພາະສາຍຂອງເຮົາ (ຕ່ອງໂສ້ SPR ຫຼື PO ອອກໂດຍກົງ) ບໍ່ເອົາຂອງຝ່າຍອື່ນ.
+             * po ຍ້າຍໄປ lib/erp-po-queue ແລ້ວ (ນິຍາມອັນດຽວກັບໜ້າ — ເບິ່ງເຫດຜົນຢູ່ນັ້ນ).
              */
             (select count(*)::int from ic_trans w
               where w.trans_flag = 4 and w.doc_ref like 'SPR%' and w.doc_date >= current_date - 365
-                and not exists (select 1 from ic_trans_detail p where p.trans_flag = 6 and p.ref_doc_no = w.doc_no)) wpra,
-            (select count(*)::int from ic_trans t
-              where t.trans_flag = 6 and t.doc_date >= current_date - 365
-                -- WPOA ຜູກທາງ**ຫົວໃບ** (ແຖວ ref_doc_no ຫວ່າງ 100%) — ເບິ່ງ lib/erp-purchase
-                and not exists (select 1 from ic_trans a where a.trans_flag = 8
-                                 and split_part(trim(coalesce(a.doc_ref,'')),' ',1) = t.doc_no)
-                and (exists (select 1 from ic_trans_detail d where d.doc_no = t.doc_no and d.trans_flag = 6
-                              and d.ref_doc_no in (select w2.doc_no from ic_trans_detail w2
-                                                    where w2.trans_flag = 4 and w2.ref_doc_no like 'SPR%'))
-                     or not exists (select 1 from ic_trans_detail x where x.doc_no = t.doc_no
-                                     and x.trans_flag = 6 and coalesce(x.ref_doc_no,'') <> ''))) po`;
+                and not exists (select 1 from ic_trans_detail p where p.trans_flag = 6 and p.ref_doc_no = w.doc_no)) wpra`;
 
 export type NavCounts = Record<string, number>;
 

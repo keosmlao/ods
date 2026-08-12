@@ -28,6 +28,7 @@ type Row = {
   job: string | null;
   branch_code: string | null;
   requester: string | null;
+  requester_name: string | null;
   lines: number;
   total: string | null;
   wpra: string | null;
@@ -37,9 +38,19 @@ type Row = {
 async function getRows(waiting: boolean): Promise<Row[]> {
   try {
     const rows = await queryOdg<Row>(
+      /**
+       * ── ຕົວກອງ ລໍ/ອະນຸມັດແລ້ວ ຕ້ອງຢູ່ໃນ SQL (12-08-2026) ──
+       * ແຕ່ກ່ອນດຶງ 100 ໃບຫຼ້າສຸດມາແລ້ວຈຶ່ງກອງໃນ JS ⇒ ໃບລໍທີ່ເກົ່າກວ່າ 100 ໃບຫຼ້າສຸດ
+       * ຕົກອອກ (365 ວັນມີ 154 ໃບ) ⇒ ຕົວເລກຂ້າງເມນູ 16 ແຕ່ໜ້າສະແດງ 8. ກອງໃນ SQL
+       * ⇒ limit ນັບສະເພາະໃບຂອງແທັບນັ້ນ ແລະ ຄິວ "ລໍອະນຸມັດ" ຄົບຄືກັບ lib/nav-counts.
+       */
       `select t.doc_no, to_char(t.doc_date,'DD-MM-YYYY') doc_date,
           split_part(trim(coalesce(t.doc_ref,'')),' ',1) job, t.branch_code,
-          coalesce(nullif(t.user_request,''), t.creator_code) requester,
+          coalesce(nullif(t.user_request,''), nullif(t.creator_code,'')) requester,
+          /* ERP ເກັບເປັນ**ລະຫັດພະນັກງານ** (25009) ⇒ ຫາຊື່ຈາກ odg_employee ຄືໜ້າ /purchase-orders.
+             ໃບຈາກ ERP ໂດຍກົງ creator_code ຫວ່າງ ເຫຼືອແຕ່ user_request ⇒ coalesce ຂ້າງເທິງ. */
+          (select e.fullname_lo from odg_employee e
+            where e.employee_code = coalesce(nullif(t.user_request,''), nullif(t.creator_code,'')) limit 1) requester_name,
           (select count(*) from ic_trans_detail d where d.doc_no=t.doc_no and d.trans_flag=t.trans_flag)::int lines,
           (select to_char(sum(d.sum_amount),'FM999,999,999,990') from ic_trans_detail d
             where d.doc_no=t.doc_no and d.trans_flag=t.trans_flag) total,
@@ -48,10 +59,13 @@ async function getRows(waiting: boolean): Promise<Row[]> {
             and p.ref_doc_no in (select w.doc_no from ic_trans_detail w where w.trans_flag=$2 and w.ref_doc_no=t.doc_no)) po
         from ic_trans t
        where t.trans_flag=$1 and t.doc_format_code='SPR' and t.doc_date >= current_date - 365
+         and case when $4::boolean
+                  then not exists (select 1 from ic_trans_detail w where w.trans_flag=$2 and w.ref_doc_no=t.doc_no)
+                  else exists (select 1 from ic_trans_detail w where w.trans_flag=$2 and w.ref_doc_no=t.doc_no) end
        order by t.doc_no desc limit 100`,
-      [ERP_PURCHASE.PR_REQUEST, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER],
+      [ERP_PURCHASE.PR_REQUEST, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER, waiting],
     );
-    return rows.rows.filter((row) => (waiting ? !row.wpra : Boolean(row.wpra)));
+    return rows.rows;
   } catch (error) {
     // ERP ລົ້ມ ⇒ ໜ້າຍັງເປີດໄດ້ ພຽງແຕ່ຄິວຫວ່າງ (ຫຼັກການດຽວກັບ lib/erp-purchase)
     console.error("approvals queue read failed", error);
@@ -97,22 +111,25 @@ export default async function ApprovePurchasePage({ searchParams }: Props) {
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-xs">
+          <table className="w-full min-w-[1050px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="w-10 px-3 py-2.5 text-right font-semibold">{t.colNo}</th>
                 <th className="px-3 py-2.5" />
                 <th className="px-3 py-2.5 font-semibold">{t.colDocNo}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.colDate}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.colJob}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.colBranch}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colCreator}</th>
                 <th className="px-3 py-2.5 text-right font-semibold">{t.colItems}</th>
                 <th className="px-3 py-2.5 text-right font-semibold">{t.colTotal}</th>
                 {tab === "approved" && <th className="px-3 py-2.5 font-semibold">WPRA · PO</th>}
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {rows.map((row, index) => (
                 <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">{index + 1}</td>
                   <td className="px-3 py-2.5 text-center">
                     {tab === "waiting" && (
                       <Link
@@ -142,6 +159,17 @@ export default async function ApprovePurchasePage({ searchParams }: Props) {
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5">
                     {row.branch_code === "05" ? "ໂອດ່ຽນໄທ" : row.branch_code === "00" ? "ສຳນັກງານໃຫ່ຍ" : (row.branch_code ?? "-")}
+                  </td>
+                  {/* ຊື່ພະນັກງານ; ໃບເກົ່າທີ່ລະຫັດບໍ່ມີໃນຕາຕະລາງພະນັກງານ ⇒ ສະແດງລະຫັດແທນ */}
+                  <td className="whitespace-nowrap px-3 py-2.5">
+                    {row.requester_name ? (
+                      <>
+                        <span className="font-medium text-slate-600">{row.requester_name}</span>
+                        <span className="ml-1 font-mono text-[10px] text-slate-400">{row.requester}</span>
+                      </>
+                    ) : (
+                      (row.requester ?? "-")
+                    )}
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{row.lines}</td>
                   <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{row.total ?? "0"}</td>

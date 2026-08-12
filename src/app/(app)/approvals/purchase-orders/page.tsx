@@ -2,9 +2,16 @@ import { ApprovePoButton } from "@/app/(app)/purchase-orders/approve-po-button";
 import { LinkPending } from "@/components/link-pending";
 import { queryOdg } from "@/lib/db";
 import { serviceStaffCodes } from "@/lib/erp-employee";
+import {
+  countWaitingPoApprovals,
+  poQueueParams,
+  PO_QUEUE_APPROVED,
+  PO_QUEUE_CTES,
+  PO_QUEUE_OURS,
+  PO_QUEUE_WINDOW,
+} from "@/lib/erp-po-queue";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
-import { ERP_PURCHASE, SERVICE_SIDE_SQL } from "@/lib/stock-constants";
 import { ArrowRight, CheckCheck, Clock } from "lucide-react";
 import Link from "next/link";
 
@@ -39,55 +46,19 @@ type Row = {
   supplier: string | null;
   supplier_name: string | null;
   branch_code: string | null;
+  creator: string | null;
+  creator_name: string | null;
   total: string | null;
   items: number;
   wpoa: string | null;
   wpoa_date: string | null;
 };
 
-/**
- * ── CTE ແທນ subquery ຕໍ່ແຖວ (31-07-2026) ──
- *
- * ⚠️ WPOA ຜູກທາງຫົວໃບ — ແຖວຂອງມັນ ref_doc_no ຫວ່າງ 100% (15,240 ແຖວ) ⇒ ຕ້ອງຈັບຄູ່
- * ດ້ວຍ `split_part(w.doc_ref,' ',1) = t.doc_no`. ຖ້າຂຽນເປັນ subquery ທີ່ຜູກກັບແຕ່ລະແຖວ
- * ຈະໃຊ້ index ບໍ່ໄດ້ ແລະ ວັດແທ້ **25.8 ວິນາທີ** (ຄົນເປີດໜ້າຄິວແລ້ວນັ່ງລໍ).
- * ກວາດ WPOA ຮອບດຽວໄວ້ໃນ CTE ແລ້ວຄົ້ນ ⇒ **0.4 ວິນາທີ** ຜົນລັບ 48 ໃບຄືກັນເປັນຕົວຕໍ່ຕົວ.
- */
-const CTES = `with wpoa as (
-  select split_part(trim(coalesce(doc_ref,'')),' ',1) as po,
-      min(doc_no) as doc_no, to_char(min(doc_date),'DD-MM-YYYY') as doc_date
-    from ic_trans where trans_flag=$3 and doc_date >= current_date - 400
-   group by 1
-),
-from_spr as (
-  select distinct d.doc_no from ic_trans_detail d
-    join ic_trans_detail w on w.doc_no = d.ref_doc_no and w.trans_flag=$2 and w.ref_doc_no like 'SPR%'
-   where d.trans_flag=$1
-)`;
-
-/**
- * PO ຂອງ**ສູນບໍລິການ** — ນິຍາມດຽວກັນກັບໜ້າລາຍການ PO (ເບິ່ງ `OURS` ຢູ່ນັ້ນ):
- * ERP ຕິດ side_code=400 · ຫຼື ມາຈາກຕ່ອງໂສ້ SPR ຂອງວຽກສ້ອມ · ຫຼື ຜູ້ອອກເປັນພະນັກງານສູນ.
- * ⚠️ ຢ່າເອົາ "ໃບທີ່ບໍ່ອ້າງອີງໃບໃດ" ມານັບເປັນຂອງເຮົາຄືເມື່ອກ່ອນ — ໃບຊື້ຕຸນຂອງຝ່າຍອື່ນ
- * ຈະໄຫຼເຂົ້າຄິວອະນຸມັດຂອງສູນ (1,400+ ໃບ/ປີ) ແລະ ຜູ້ອະນຸມັດຈະກົດອະນຸມັດໃບຂອງຄົນອື່ນ.
- */
-const OURS = `(${SERVICE_SIDE_SQL()}
-  or t.doc_no in (select doc_no from from_spr)
-  or (coalesce(t.creator_code,'') <> '' and t.creator_code = any($4)))`;
-/**
- * ອະນຸມັດແລ້ວບໍ + ເລກ/ວັນຂອງໃບ WPOA — **ອ່ານຈາກ CTE ທັງໝົດ ຢ່າຖາມຕໍ່ແຖວ**.
- * ⚠️ ບົດຮຽນ (12-08-2026): ຮຸ່ນກ່ອນເອົາ CTE ມາໃຊ້ແຕ່ໃນ `where` ສ່ວນ**ເລກໃບ WPOA**
- * ແລະ **ວັນອະນຸມັດ** ຍັງເປັນ subquery ຕໍ່ແຖວທີ່ຕ້ອງ `split_part(doc_ref)` ⇒ index
- * ໃຊ້ບໍ່ໄດ້ ແລະ ຕ້ອງກວາດ ic_trans ຄືນ **ຕໍ່ໜຶ່ງແຖວ**. ແທັບ "ອະນຸມັດແລ້ວ" ມີ 200 ແຖວ
- * ⇒ ວັດແທ້ **8-12 ວິນາທີ**. ຕອນນີ້ join CTE ເອົາທັງສາມຄ່າພ້ອມກັນ ⇒ ຕໍ່າກວ່າ 1 ວິນາທີ.
- */
-const APPROVED = `w.po is not null`;
-
 async function getRows(waiting: boolean, staff: string[]): Promise<Row[]> {
   try {
     return (
       await queryOdg<Row>(
-        `${CTES}
+        `${PO_QUEUE_CTES}
          select t.doc_no, to_char(t.doc_date,'DD-MM-YYYY') doc_date,
             (current_date - t.doc_date)::int age,
             (select split_part(trim(coalesce(w.doc_ref,'')),' ',1) from ic_trans w
@@ -98,6 +69,11 @@ async function getRows(waiting: boolean, staff: string[]): Promise<Row[]> {
             t.cust_code supplier,
             (select s.name_1 from ap_supplier s where s.code=t.cust_code limit 1) supplier_name,
             t.branch_code,
+            /* ຜູ້ສ້າງເອກະສານ — ERP ເກັບເປັນລະຫັດພະນັກງານ ⇒ ຫາຊື່ຈາກ odg_employee (ຄືໜ້າ /purchase-orders).
+               ໃບທີ່ອອກຈາກ ERP ໂດຍກົງ creator_code ຫວ່າງ ເຫຼືອແຕ່ user_request ⇒ coalesce ສອງຖັນ. */
+            coalesce(nullif(t.creator_code,''), nullif(t.user_request,'')) creator,
+            (select e.fullname_lo from odg_employee e
+              where e.employee_code = coalesce(nullif(t.creator_code,''), nullif(t.user_request,'')) limit 1) creator_name,
             to_char(coalesce(t.total_amount,0),'FM999,999,999,990') total,
             (select count(distinct d.item_code) from ic_trans_detail d
               where d.doc_no=t.doc_no and d.trans_flag=$1)::int items,
@@ -105,11 +81,11 @@ async function getRows(waiting: boolean, staff: string[]): Promise<Row[]> {
             w.doc_date wpoa_date
           from ic_trans t
           left join wpoa w on w.po = t.doc_no
-         where t.trans_flag=$1 and t.doc_date >= current_date - 365 and ${OURS}
-           and ${waiting ? "not" : ""} ${APPROVED}
+         where t.trans_flag=$1 and ${PO_QUEUE_WINDOW} and ${PO_QUEUE_OURS}
+           and ${waiting ? "not" : ""} ${PO_QUEUE_APPROVED}
          order by t.doc_date ${waiting ? "asc" : "desc"}, t.doc_no
          limit 200`,
-        [ERP_PURCHASE.ORDER, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER_APPROVE, staff],
+        poQueueParams(staff),
       )
     ).rows;
   } catch (error) {
@@ -118,21 +94,10 @@ async function getRows(waiting: boolean, staff: string[]): Promise<Row[]> {
   }
 }
 
-/**
- * ຈຳນວນໃບໃນຄິວ "ລໍອະນຸມັດ" — ໃຊ້ຕອນຢູ່ແທັບ "ອະນຸມັດແລ້ວ" ເພື່ອຂຶ້ນຕົວເລກໃສ່ແທັບອີກອັນ.
- * ເມື່ອກ່ອນເອີ້ນ `getRows(true)` ມານັບຄວາມຍາວ ⇒ ດຶງ 200 ແຖວພ້ອມ subquery ຕໍ່ແຖວ
- * (ຊື່ຜູ້ສະໜອງ · ເລກ SPR · ຈຳນວນລາຍການ · ວັນອະນຸມັດ) ມາຖິ້ມ. ນັບຢ່າງດຽວພໍ.
- */
+/** ຈຳນວນໃບໃນຄິວ "ລໍອະນຸມັດ" — ໃຊ້ຕອນຢູ່ແທັບ "ອະນຸມັດແລ້ວ" ເພື່ອຂຶ້ນຕົວເລກໃສ່ແທັບອີກອັນ */
 async function countWaiting(staff: string[]): Promise<number> {
   try {
-    const rows = await queryOdg<{ count: number }>(
-      `${CTES}
-       select count(*)::int count from ic_trans t
-        left join wpoa w on w.po = t.doc_no
-        where t.trans_flag=$1 and t.doc_date >= current_date - 365 and ${OURS} and not ${APPROVED}`,
-      [ERP_PURCHASE.ORDER, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER_APPROVE, staff],
-    );
-    return rows.rows[0]?.count ?? 0;
+    return await countWaitingPoApprovals(staff);
   } catch (error) {
     console.error("approvals/purchase-orders count failed", error);
     return 0;
@@ -202,9 +167,10 @@ export default async function ApprovePurchaseOrdersPage({ searchParams }: Props)
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1050px] border-collapse text-xs">
+          <table className="w-full min-w-[1200px] border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                <th className="w-10 px-3 py-2.5 text-right font-semibold">{t.colNo}</th>
                 <th className="px-3 py-2.5" />
                 <th className="px-3 py-2.5 font-semibold">{t.colDocNo}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.colDate}</th>
@@ -212,14 +178,16 @@ export default async function ApprovePurchaseOrdersPage({ searchParams }: Props)
                 <th className="px-3 py-2.5 font-semibold">{t.colSource}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.colSupplier}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.colBranch}</th>
+                <th className="px-3 py-2.5 font-semibold">{t.colCreator}</th>
                 <th className="px-3 py-2.5 text-right font-semibold">{t.colItems}</th>
                 <th className="px-3 py-2.5 text-right font-semibold">{t.colTotal}</th>
                 {tab === "approved" && <th className="px-3 py-2.5 font-semibold">{t.colApprovalDoc}</th>}
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {rows.map((row, index) => (
                 <tr key={row.doc_no} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">{index + 1}</td>
                   <td className="px-3 py-2.5 text-center">
                     {tab === "waiting" ? (
                       <ApprovePoButton poNo={row.doc_no} back="/approvals/purchase-orders" />
@@ -265,6 +233,17 @@ export default async function ApprovePurchaseOrdersPage({ searchParams }: Props)
                     {row.supplier_name ?? ""}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5">{branchName(row.branch_code)}</td>
+                  {/* ຊື່ພະນັກງານ; ລະຫັດທີ່ບໍ່ມີໃນຕາຕະລາງພະນັກງານ (ຊື່ login ເກົ່າຂອງ ERP) ⇒ ສະແດງລະຫັດແທນ */}
+                  <td className="whitespace-nowrap px-3 py-2.5">
+                    {row.creator_name ? (
+                      <>
+                        <span className="font-medium text-slate-600">{row.creator_name}</span>
+                        <span className="ml-1 font-mono text-[10px] text-slate-400">{row.creator}</span>
+                      </>
+                    ) : (
+                      (row.creator ?? "-")
+                    )}
+                  </td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{row.items}</td>
                   <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{row.total ?? "0"}</td>
                   {tab === "approved" && (
