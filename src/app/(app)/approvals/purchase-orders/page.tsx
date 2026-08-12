@@ -54,8 +54,10 @@ type Row = {
  * ກວາດ WPOA ຮອບດຽວໄວ້ໃນ CTE ແລ້ວຄົ້ນ ⇒ **0.4 ວິນາທີ** ຜົນລັບ 48 ໃບຄືກັນເປັນຕົວຕໍ່ຕົວ.
  */
 const CTES = `with wpoa as (
-  select distinct split_part(trim(coalesce(doc_ref,'')),' ',1) as po
+  select split_part(trim(coalesce(doc_ref,'')),' ',1) as po,
+      min(doc_no) as doc_no, to_char(min(doc_date),'DD-MM-YYYY') as doc_date
     from ic_trans where trans_flag=$3 and doc_date >= current_date - 400
+   group by 1
 ),
 from_spr as (
   select distinct d.doc_no from ic_trans_detail d
@@ -72,10 +74,14 @@ from_spr as (
 const OURS = `(${SERVICE_SIDE_SQL()}
   or t.doc_no in (select doc_no from from_spr)
   or (coalesce(t.creator_code,'') <> '' and t.creator_code = any($4)))`;
-const WPOA_OF = `(select min(w2.doc_no) from ic_trans w2
-  where w2.trans_flag=$3 and split_part(trim(coalesce(w2.doc_ref,'')),' ',1)=t.doc_no)`;
-/** ອະນຸມັດແລ້ວບໍ — ອ່ານຈາກ CTE (ໄວ); WPOA_OF ໃຊ້ສະເພາະຕອນຢາກໄດ້**ເລກໃບ**ຂອງແຖວທີ່ຄັດມາແລ້ວ */
-const APPROVED = `exists (select 1 from wpoa where wpoa.po = t.doc_no)`;
+/**
+ * ອະນຸມັດແລ້ວບໍ + ເລກ/ວັນຂອງໃບ WPOA — **ອ່ານຈາກ CTE ທັງໝົດ ຢ່າຖາມຕໍ່ແຖວ**.
+ * ⚠️ ບົດຮຽນ (12-08-2026): ຮຸ່ນກ່ອນເອົາ CTE ມາໃຊ້ແຕ່ໃນ `where` ສ່ວນ**ເລກໃບ WPOA**
+ * ແລະ **ວັນອະນຸມັດ** ຍັງເປັນ subquery ຕໍ່ແຖວທີ່ຕ້ອງ `split_part(doc_ref)` ⇒ index
+ * ໃຊ້ບໍ່ໄດ້ ແລະ ຕ້ອງກວາດ ic_trans ຄືນ **ຕໍ່ໜຶ່ງແຖວ**. ແທັບ "ອະນຸມັດແລ້ວ" ມີ 200 ແຖວ
+ * ⇒ ວັດແທ້ **8-12 ວິນາທີ**. ຕອນນີ້ join CTE ເອົາທັງສາມຄ່າພ້ອມກັນ ⇒ ຕໍ່າກວ່າ 1 ວິນາທີ.
+ */
+const APPROVED = `w.po is not null`;
 
 async function getRows(waiting: boolean, staff: string[]): Promise<Row[]> {
   try {
@@ -95,10 +101,10 @@ async function getRows(waiting: boolean, staff: string[]): Promise<Row[]> {
             to_char(coalesce(t.total_amount,0),'FM999,999,999,990') total,
             (select count(distinct d.item_code) from ic_trans_detail d
               where d.doc_no=t.doc_no and d.trans_flag=$1)::int items,
-            ${WPOA_OF} wpoa,
-            (select to_char(min(w.doc_date),'DD-MM-YYYY') from ic_trans w
-              where w.trans_flag=$3 and split_part(trim(coalesce(w.doc_ref,'')),' ',1)=t.doc_no) wpoa_date
+            w.doc_no wpoa,
+            w.doc_date wpoa_date
           from ic_trans t
+          left join wpoa w on w.po = t.doc_no
          where t.trans_flag=$1 and t.doc_date >= current_date - 365 and ${OURS}
            and ${waiting ? "not" : ""} ${APPROVED}
          order by t.doc_date ${waiting ? "asc" : "desc"}, t.doc_no
@@ -109,6 +115,27 @@ async function getRows(waiting: boolean, staff: string[]): Promise<Row[]> {
   } catch (error) {
     console.error("approvals/purchase-orders read failed", error);
     return [];
+  }
+}
+
+/**
+ * ຈຳນວນໃບໃນຄິວ "ລໍອະນຸມັດ" — ໃຊ້ຕອນຢູ່ແທັບ "ອະນຸມັດແລ້ວ" ເພື່ອຂຶ້ນຕົວເລກໃສ່ແທັບອີກອັນ.
+ * ເມື່ອກ່ອນເອີ້ນ `getRows(true)` ມານັບຄວາມຍາວ ⇒ ດຶງ 200 ແຖວພ້ອມ subquery ຕໍ່ແຖວ
+ * (ຊື່ຜູ້ສະໜອງ · ເລກ SPR · ຈຳນວນລາຍການ · ວັນອະນຸມັດ) ມາຖິ້ມ. ນັບຢ່າງດຽວພໍ.
+ */
+async function countWaiting(staff: string[]): Promise<number> {
+  try {
+    const rows = await queryOdg<{ count: number }>(
+      `${CTES}
+       select count(*)::int count from ic_trans t
+        left join wpoa w on w.po = t.doc_no
+        where t.trans_flag=$1 and t.doc_date >= current_date - 365 and ${OURS} and not ${APPROVED}`,
+      [ERP_PURCHASE.ORDER, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER_APPROVE, staff],
+    );
+    return rows.rows[0]?.count ?? 0;
+  } catch (error) {
+    console.error("approvals/purchase-orders count failed", error);
+    return 0;
   }
 }
 
@@ -134,7 +161,7 @@ export default async function ApprovePurchaseOrdersPage({ searchParams }: Props)
   const staff = await serviceStaffCodes();
   const [rows, waitingCount] = await Promise.all([
     getRows(tab === "waiting", staff),
-    tab === "waiting" ? Promise.resolve(0) : getRows(true, staff).then((list) => list.length),
+    tab === "waiting" ? Promise.resolve(0) : countWaiting(staff),
   ]);
   const counts = { waiting: tab === "waiting" ? rows.length : waitingCount, approved: tab === "approved" ? rows.length : 0 };
 

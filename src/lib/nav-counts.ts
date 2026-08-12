@@ -131,20 +131,13 @@ const ERP_COUNT_SQL = `select
 
 export type NavCounts = Record<string, number>;
 
-export async function navCounts(session: Session | null): Promise<NavCounts> {
-  if (!session) return {};
-  const tech = ownJobsOnly(session);
-  const role = roleOf(session);
-
-  // ຊ່າງ: ຝັ່ງສ້ອມກອງດ້ວຍ emp_code · ຝັ່ງຕິດຕັ້ງດ້ວຍ tech_code (ຄືທຸກໜ້າ)
-  const mineRepair = tech ? "and a.emp_code = $1" : "";
-  const mineInstall = tech ? "and a.tech_code = $1" : "";
-  const args = tech ? [tech] : [];
-
-  try {
-    const row = (
-      await query<NavCounts>(
-        `with ist as (
+/**
+ * ── ຕົວເລກຄິວທັງໝົດຂອງເມນູ **ຄຳຖາມດຽວ** ──
+ * ສະແກນ tb_product / ods_tb_install / ods_tb_maintenance ດ້ວຍ subquery ນັບຫຼາຍສິບອັນ.
+ * `mine*` = ຕົວກອງຂອງຊ່າງ (ຫວ່າງ = ເຫັນທຸກວຽກ) ⇒ ເປັນສ່ວນໜຶ່ງຂອງກະແຈ cache.
+ */
+const STAGE_COUNTS_SQL = (mineRepair: string, mineInstall: string) =>
+  `with ist as (
           -- ຂັ້ນຕິດຕັ້ງ: ສະແກນ ods_tb_install ເທື່ອດຽວ ⇒ ຄູ່ກັບກຸ່ມເມນູ "ຂັ້ນຕອນຕິດຕັ້ງ".
           -- ຂັ້ນ 0-8 ແມ່ນຄິວເປີດ; INSTALL_STAGE_SQL ຈັດ -1/9 ເປັນຍົກເລີກ/ປິດແລ້ວ.
           -- ⇒ count ຕໍ່ຂັ້ນ = ຈຳນວນແຖວໜ້າ /work/install/<slug> ພໍດີ (ກົດເກນ ①).
@@ -258,11 +251,37 @@ export async function navCounts(session: Session | null): Promise<NavCounts> {
               and a.cancel_start is null)::int as "/claims/jobs",
 
           -- ── 9 ຄິວຫຼັກຂອງງານຕິດຕັ້ງ (0-8) ──
-          ${INSTALL_STAGE_COUNTS}`,
-        args,
-      )
-    ).rows[0];
-    if (!row) return {};
+          ${INSTALL_STAGE_COUNTS}`;
+
+/**
+ * ── cache 30 ວິນາທີ (12-08-2026) ──
+ * sidebar ຢູ່ **layout** ⇒ ຄຳຖາມນີ້ແລ່ນ**ທຸກໆການເປີດໜ້າ** ແລະ ວັດແທ້ **456ms**
+ * (ໜັກກວ່າ query ຂອງໜ້າ PO ທັງໜ້າ) ⇒ ທຸກໆການກົດເມນູຈ່າຍ 456ms ຟຣີໆ ທັງທີ່
+ * ຕົວເລກຄິວປ່ຽນເມື່ອມີຄົນຂຶ້ນຂັ້ນວຽກ ບໍ່ແມ່ນທຸກວິນາທີ. ຫຼັກການດຽວກັນກັບ ERP counts
+ * ຂ້າງລຸ່ມທີ່ cache ໄວ້ແລ້ວ 60 ວິ. ກະແຈລວມຕົວກອງຂອງຊ່າງ ⇒ ຊ່າງແຕ່ລະຄົນຄົນລະຊຸດ.
+ * ຢາກໃຫ້ສົດທັນທີຫຼັງ action ໃດ ⇒ ເອີ້ນ `revalidateTag(NAV_STAGE_COUNT_TAG)`.
+ */
+export const NAV_STAGE_COUNT_TAG = "nav-stage-counts";
+
+const cachedStageCounts = unstable_cache(
+  async (mineRepair: string, mineInstall: string, args: string[]): Promise<NavCounts> =>
+    (await query<NavCounts>(STAGE_COUNTS_SQL(mineRepair, mineInstall), args)).rows[0] ?? {},
+  ["nav-counts-stages"],
+  { revalidate: 30, tags: [NAV_STAGE_COUNT_TAG] },
+);
+
+export async function navCounts(session: Session | null): Promise<NavCounts> {
+  if (!session) return {};
+  const tech = ownJobsOnly(session);
+  const role = roleOf(session);
+
+  // ຊ່າງ: ຝັ່ງສ້ອມກອງດ້ວຍ emp_code · ຝັ່ງຕິດຕັ້ງດ້ວຍ tech_code (ຄືທຸກໜ້າ)
+  const mineRepair = tech ? "and a.emp_code = $1" : "";
+  const mineInstall = tech ? "and a.tech_code = $1" : "";
+  const args = tech ? [tech] : [];
+
+  try {
+    const row: NavCounts = { ...(await cachedStageCounts(mineRepair, mineInstall, args)) };
 
     /**
      * ── ຕົວເລກຈາກ **ERP** — cache 60 ວິນາທີ (17-07-2026) ──

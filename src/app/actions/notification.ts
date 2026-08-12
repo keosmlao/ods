@@ -2,7 +2,7 @@
 import { getSession } from "@/lib/auth";
 import type { Notification } from "@/lib/chatter";
 import { query } from "@/lib/db";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_cache, updateTag } from "next/cache";
 import { z } from "zod";
 
 /**
@@ -24,18 +24,31 @@ const PAGE_SIZE = 20;
 
 /* ── ອ່ານ ───────────────────────────────────────────────────────── */
 
+/**
+ * ── ນັບແຈ້ງເຕືອນທີ່ຍັງບໍ່ອ່ານ — cache 30 ວິນາທີ (12-08-2026) ──
+ * ປ້າຍນີ້ຢູ່ topbar ຂອງ **layout** ⇒ ນັບໃໝ່ທຸກໆການເປີດໜ້າ ແລະ ວັດແທ້ **194ms**:
+ * ຕາຕະລາງມີ 1.73 ລ້ານແຖວ ແລະ bitmap scan ຕ້ອງເປີດ heap 5,383 block ເພື່ອໄດ້ 752 ແຖວ.
+ * ຕົວເລກນີ້ຊ້າໄດ້ 30 ວິ ໂດຍບໍ່ມີໃຜເດືອດຮ້ອນ — ກົດເຂົ້າກ່ອງແຈ້ງເຕືອນຍັງເຫັນລາຍການສົດ.
+ */
+const NOTIFICATION_COUNT_TAG = "notification-count";
+const cachedUnread = unstable_cache(
+  async (username: string) =>
+    (
+      await query<{ unread: number }>(
+        `select count(*)::int unread from ods_notification where username=$1 and read_at is null`,
+        [username],
+      )
+    ).rows[0]?.unread ?? 0,
+  ["notification-unread"],
+  { revalidate: 30, tags: [NOTIFICATION_COUNT_TAG] },
+);
+
 /** ປ້າຍຕົວເລກເທິງ topbar — ນັບສະເພາະທີ່ຍັງບໍ່ໄດ້ອ່ານ */
 export async function myNotificationCount(): Promise<number> {
   const session = await getSession();
   if (!session) return 0;
   try {
-    const row = (
-      await query<{ unread: number }>(
-        `select count(*)::int unread from ods_notification where username=$1 and read_at is null`,
-        [session.username],
-      )
-    ).rows[0];
-    return row?.unread ?? 0;
+    return await cachedUnread(session.username);
   } catch (error) {
     console.error("myNotificationCount failed", error);
     return 0;
@@ -133,6 +146,8 @@ export async function markNotificationRead(formData: FormData) {
   );
   revalidatePath("/notifications");
   revalidatePath("/", "layout");
+  // ປ້າຍນັບ cache ໄວ້ 30 ວິ ⇒ ຕ້ອງລ້າງ tag ນຳ ບໍ່ດັ່ງນັ້ນກົດ "ອ່ານແລ້ວ" ຕົວເລກບໍ່ຫຼຸດ
+  updateTag(NOTIFICATION_COUNT_TAG);
 }
 
 /** ໝາຍກັບເປັນ "ຍັງບໍ່ອ່ານ" — 1 ລາຍການ (ຄູ່ກັບ markNotificationRead ໃຫ້ກົດ read/unread ໄດ້) */
@@ -149,6 +164,8 @@ export async function markNotificationUnread(formData: FormData) {
   );
   revalidatePath("/notifications");
   revalidatePath("/", "layout");
+  // ປ້າຍນັບ cache ໄວ້ 30 ວິ ⇒ ຕ້ອງລ້າງ tag ນຳ ບໍ່ດັ່ງນັ້ນກົດ "ອ່ານແລ້ວ" ຕົວເລກບໍ່ຫຼຸດ
+  updateTag(NOTIFICATION_COUNT_TAG);
 }
 
 /** ອ່ານທັງໝົດ */
@@ -159,4 +176,6 @@ export async function markAllNotificationsRead() {
   await query(`update ods_notification set read_at=${NOW} where username=$1 and read_at is null`, [session.username]);
   revalidatePath("/notifications");
   revalidatePath("/", "layout");
+  // ປ້າຍນັບ cache ໄວ້ 30 ວິ ⇒ ຕ້ອງລ້າງ tag ນຳ ບໍ່ດັ່ງນັ້ນກົດ "ອ່ານແລ້ວ" ຕົວເລກບໍ່ຫຼຸດ
+  updateTag(NOTIFICATION_COUNT_TAG);
 }

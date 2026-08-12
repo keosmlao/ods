@@ -57,17 +57,27 @@ export async function employeeCode(username: string): Promise<string> {
  *
  * ຂ້າມຖານກັນ join ບໍ່ໄດ້ (ລາຍຊື່ຢູ່ ODS · ໃບຢູ່ ERP) ⇒ ດຶງລາຍຊື່ກ່ອນ ແລ້ວສົ່ງເປັນ
  * array param ໃຫ້ query ຝັ່ງ ERP. ລົ້ມ ⇒ ຄືນ [] (ໜ້າຍັງເປີດໄດ້ ພຽງແຕ່ຂາດຂໍ້ ③).
+ *
+ * **ຈື່ໄວ້ 5 ນາທີ** — ລາຍຊື່ພະນັກງານປ່ຽນປີລະເທື່ອສອງເທື່ອ ແຕ່ໜ້າ PO ຖາມທຸກຄັ້ງທີ່ເປີດ
+ * ⇒ ເສຍ round-trip ຂ້າມຖານຟຣີໆ. ຜູກຄູ່ພະນັກງານໃໝ່ແລ້ວ ລໍບໍ່ເກີນ 5 ນາທີກໍເຫັນຜົນ.
  */
+const STAFF_TTL_MS = 5 * 60 * 1000;
+let staffCache: { at: number; codes: string[] } | null = null;
+
 export async function serviceStaffCodes(): Promise<string[]> {
+  if (staffCache && Date.now() - staffCache.at < STAFF_TTL_MS) return staffCache.codes;
   try {
     const rows = await query<{ code: string }>(
       `select employee_code code from ods_user_employee where employee_code ~ '^[0-9]+$'
         union select code from users where code ~ '^[0-9]+$'
         union select username from users where username ~ '^[0-9]+$'`,
     );
-    return rows.rows.map((r) => r.code);
+    const codes = rows.rows.map((r) => r.code);
+    staffCache = { at: Date.now(), codes };
+    return codes;
   } catch (error) {
     console.error("serviceStaffCodes failed", error);
-    return [];
+    // ຄືນຄ່າເກົ່າຖ້າມີ — ດີກວ່າໃຫ້ໜ້າຂາດໃບຂອງພະນັກງານໄປທັງໜ້າ
+    return staffCache?.codes ?? [];
   }
 }

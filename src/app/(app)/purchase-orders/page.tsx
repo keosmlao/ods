@@ -7,7 +7,9 @@ import { serviceStaffCodes } from "@/lib/erp-employee";
 import { APPROVER_SIDE, roleOf } from "@/lib/roles";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
+import { PURCHASE_COUNT_TAG } from "@/lib/nav-counts";
 import { ERP_PURCHASE, SERVICE_SIDE_SQL } from "@/lib/stock-constants";
+import { unstable_cache } from "next/cache";
 import { ArrowLeft, BellRing, ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import Link from "next/link";
 
@@ -48,7 +50,23 @@ function AgeBadge({ days, t }: { days: number | null; t: Dict }) {
   );
 }
 
-type Props = { searchParams: Promise<{ tab?: string; page?: string; src?: string; q?: string; status?: string }> };
+type Props = {
+  searchParams: Promise<{ tab?: string; page?: string; src?: string; q?: string; status?: string; days?: string }>;
+};
+
+/**
+ * ── ຊ່ວງເວລາທີ່ດຶງມາ (ຂໍຈາກຜູ້ໃຊ້ 12-08-2026: "ໃຫ້ limit ລາຍການທີ່ດຶງ") ──
+ * ເມື່ອກ່ອນດຶງຍ້ອນຫຼັງ **1 ປີ ຕາຍຕົວ** ⇒ ທຸກໆການເປີດໜ້າໄລ່ໃບ 2,237 ໃບ ທັງທີ່ຄົນ
+ * ເບິ່ງແຕ່ໃບຂອງເດືອນນີ້. ຕັ້ງຕົ້ນເປັນ **90 ມື້** ແລ້ວໃຫ້ຜູ້ໃຊ້ຂະຫຍາຍເອງໄດ້ —
+ * ໃບເກົ່າກວ່ານັ້ນຍັງເປີດຈາກເລກໃບໄດ້ຕາມປົກກະຕິ (ໜ້າເອກະສານບໍ່ໄດ້ຈຳກັດວັນ).
+ */
+const DAY_CHOICES = [90, 180, 365] as const;
+const DEFAULT_DAYS = 90;
+const daysOf = (value: string | undefined) => {
+  const n = Number(value);
+  return DAY_CHOICES.includes(n as (typeof DAY_CHOICES)[number]) ? n : DEFAULT_DAYS;
+};
+const dayLabel = (days: number, t: Dict) => (days >= 365 ? t.range1Year : days >= 180 ? t.range6Months : t.range90Days);
 
 /**
  * ຄົ້ນຫາ — **ຄົ້ນຢູ່ server** (ຮ່ວມກັບການແບ່ງໜ້າ) ບໍ່ແມ່ນກອງແຖວທີ່ໂຫຼດມາແລ້ວ:
@@ -138,75 +156,99 @@ const statusOf = (value: string | undefined): PoStatus | null =>
 
 /**
  * ── ບອກຊະນິດຂໍ້ມູນຂອງ param ທີ່ບາງເສັ້ນທາງບໍ່ໄດ້ໃຊ້ (ບັກເກົ່າ ພົບ 12-08-2026) ──
- * ຈຳນວນ param ທີ່ສົ່ງໄປຄົງທີ່ ແຕ່ SQL ປະກອບຕາມຕົວກອງ ⇒ ບາງເທື່ອມີ param ທີ່
- * **ບໍ່ຖືກໃຊ້ບ່ອນໃດເລີຍ** (ບໍ່ກອງສະຖານະ = $3/$4 ລອຍ · ແທັບງານສ້ອມ = ລາຍຊື່ພະນັກງານລອຍ)
- * ⇒ Postgres ຫາຊະນິດບໍ່ໄດ້ ("could not determine data type of parameter $3") ຫຼື
- * ຟ້ອງຈຳນວນ param ບໍ່ຕົງ ⇒ query ລົ້ມ, catch ຄືນ 0/ວ່າງ ⇒ ໜ້າຈໍຂຶ້ນ "0 ໃບ" ທັງທີ່ມີໃບ.
- * ເງື່ອນໄຂຂ້າງລຸ່ມຈິງສະເໝີ — ມີໄວ້**ບອກຊະນິດ**ຢ່າງດຽວ ບໍ່ໄດ້ກອງຫຍັງ.
+ * ຈຳນວນ param ທີ່ສົ່ງໄປຄົງທີ່ ແຕ່ SQL ປະກອບຕາມຕົວກອງ ⇒ ແທັບ "ງານສ້ອມ" ບໍ່ໄດ້ໃຊ້
+ * ລາຍຊື່ພະນັກງານ ⇒ param ນັ້ນລອຍ ແລະ Postgres ຟ້ອງ ("bind message supplies 9
+ * parameters, but prepared statement requires 8") ⇒ query ລົ້ມ, catch ຄືນວ່າງ.
+ * ເງື່ອນໄຂນີ້ຈິງສະເໝີ — ມີໄວ້**ບອກຊະນິດ**ຢ່າງດຽວ ບໍ່ໄດ້ກອງຫຍັງ.
  */
-const TYPED_STATUS = `$3::int is not null and $4::int is not null`;
 const TYPED_STAFF = (param: string) => `${param}::text[] is not null`;
 
-const whereOf = (src: "all" | "repair", staffParam: string) =>
-  `t.trans_flag=$1 and t.doc_date >= current_date - 365 and ${
+const whereOf = (src: "all" | "repair", staffParam: string, days: number) =>
+  `t.trans_flag=$1 and t.doc_date >= current_date - ${days} and ${
     src === "repair"
       ? `${FROM_SPR} and ${TYPED_STAFF(staffParam)}`
       : `(${SERVICE_SIDE_SQL()} or ${FROM_SPR} or ${BY_STAFF(staffParam)})`
   }`;
 
+export type PoCounts = { total: number } & Record<PoStatus, number>;
+
+const NO_COUNTS: PoCounts = { total: 0, wait: 0, approved: 0, received: 0 };
+
 /**
- * ── ເປັນຫຍັງບໍ່ໃຊ້ `whereOf` ໃນການນັບ ──
- * `whereOf` ຖາມ `exists(...)` **ຄືນທຸກແຖວ** ຂອງ ic_trans ⇒ ນັບເທື່ອໜຶ່ງກິນ 566ms.
- * ບ່ອນນີ້ຄິດ "ໃບໃດເປັນຂອງເຮົາ" **ເທື່ອດຽວເປັນຕາຕະລາງ** ແລ້ວ join ⇒ 265ms
- * (ຢືນຢັນແລ້ວວ່າໄດ້ຕົວເລກຕົງກັນຄືເກົ່າ: ທັງໝົດ 1,425 ໃບ · ສະເພາະງານສ້ອມ 116 ໃບ).
- * `wpra` = ໃບອະນຸມັດຂໍຊື້ທີ່ອ້າງອີງ SPR ຂອງງານສ້ອມ · `mine` = ສະຫຼຸບຕໍ່ໃບ PO.
+ * ── ນັບທຸກສະຖານະ **ດ້ວຍ query ດຽວ** (ແກ້ຄວາມຊ້າ 12-08-2026) ──
+ * ເມື່ອກ່ອນຍິງ 4 query (ທັງໝົດ · ລໍ · ອະນຸມັດ · ຮັບແລ້ວ) ⇒ ກວາດຕາຕະລາງດຽວກັນ 4 ຮອບ
+ * ວັດແທ້ 110ms × 4 ບວກກັບການແຍ່ງ connection ⇒ ໂຄ້ດຂອງໜ້າກິນ 600-1,100ms.
+ * ດຽວນີ້ຄິດ "ໃບຂອງເຮົາ + ມີ WPOA ບໍ + ມີ PUI ບໍ" ຮອບດຽວແລ້ວນັບດ້ວຍ filter ⇒ **140ms**.
+ *
+ * ⚠️ ຢ່າຄິດວ່າ CTE ຈະຖືກ inline — ERP ແລ່ນ **PostgreSQL 11** ທີ່ຈະ materialize CTE ສະເໝີ.
+ * ຢ່າຫຼົງເອົາຊຸດ PUI ມາເປັນ CTE ນຳ (ວັດແທ້ 219ms ຕໍ່ຮອບ) — exists ຕໍ່ແຖວໄວກວ່າ
+ * ເພາະມີ index (ref_doc_no, trans_flag) ແລະ ແຖວທີ່ຕ້ອງກວດມີແຕ່ 312 ໃບ.
+ * `wpoa` ຕ້ອງເປັນຊຸດ (23ms) ເພາະຜູກທາງຫົວໃບດ້ວຍ split_part ⇒ index ໃຊ້ບໍ່ໄດ້.
  */
-const MINE_CTE = `with wpra as (
-    select distinct w.doc_no from ic_trans_detail w
-     where w.trans_flag=$2 and w.ref_doc_no like 'SPR%'),
-  mine as (
-    select d.doc_no,
-        bool_or(d.ref_doc_no in (select doc_no from wpra)) from_spr
-      from ic_trans_detail d where d.trans_flag=$1 group by d.doc_no)`;
+const COUNT_SQL = (src: "all" | "repair", days: number) => `with spr_po as (
+    select distinct d.doc_no from ic_trans_detail d
+      join ic_trans_detail w on w.doc_no=d.ref_doc_no and w.trans_flag=$2 and w.ref_doc_no like 'SPR%'
+     where d.trans_flag=$1),
+  wpoa as (
+    select distinct split_part(trim(coalesce(doc_ref,'')),' ',1) po_no
+      from ic_trans where trans_flag=$3 and coalesce(doc_ref,'') <> '')
+  select count(*)::int total,
+     count(*) filter (where not has_wpoa)::int wait,
+     count(*) filter (where has_wpoa and not has_pui)::int approved,
+     count(*) filter (where has_pui)::int received
+   from (
+     select (w.po_no is not null) has_wpoa,
+         exists (select 1 from ic_trans_detail r where r.trans_flag=$4 and r.ref_doc_no=t.doc_no) has_pui
+       from ic_trans t
+       left join spr_po s on s.doc_no = t.doc_no
+       left join wpoa w on w.po_no = t.doc_no
+      where t.trans_flag=$1 and t.doc_date >= current_date - ${days}
+        and ${
+          src === "repair"
+            ? `s.doc_no is not null and ${TYPED_STAFF("$6")}`
+            : `(${SERVICE_SIDE_SQL()} or ${BY_STAFF("$6")} or s.doc_no is not null)`
+        }
+        ${SEARCH_SQL(5)}) x`;
 
-const COUNT_SQL = (src: "all" | "repair", status: PoStatus | null) => `${MINE_CTE}
-  select count(*)::int count from ic_trans t
-   ${src === "repair" ? "join" : "left join"} mine m on m.doc_no = t.doc_no
-   where t.trans_flag=$1 and t.doc_date >= current_date - 365
-     and ${
-       src === "repair"
-         ? `m.from_spr and ${TYPED_STAFF("$6")}`
-         : `(${SERVICE_SIDE_SQL()} or coalesce(m.from_spr,false) or ${BY_STAFF("$6")})`
-     }
-     ${status ? `and ${STATUS_WHERE[status]}` : ""}
-     ${SEARCH_SQL(5)}
-     and ${TYPED_STATUS}`;
+/**
+ * ── cache 30 ວິນາທີ + ຜູກ tag ຂອງການສັ່ງຊື້ (12-08-2026) ──
+ * ໃບຢູ່ **ERP** ແລະ ປ່ຽນເມື່ອມີຄົນອອກ/ອະນຸມັດ/ຮັບເຂົ້າສາງ — ບໍ່ແມ່ນທຸກວິນາທີ ⇒ ບໍ່ຕ້ອງ
+ * ຖາມຄືນທຸກໆການກົດ. ທຸກ action ຂອງສາຍສັ່ງຊື້ເອີ້ນ `updateTag(PURCHASE_COUNT_TAG)`
+ * ຢູ່ແລ້ວ (actions/purchase.ts) ⇒ ອອກ PO/ອະນຸມັດແລ້ວ **ເຫັນຜົນທັນທີ** ບໍ່ຕ້ອງລໍ 30 ວິ.
+ * ກະແຈ = ຕົວກອງທັງໝົດ (ແຫຼ່ງ · ຊ່ວງວັນ · ຄຳຄົ້ນ · ໜ້າ · ສະຖານະ) ⇒ ບໍ່ປົນກັນ.
+ */
+const cachedCounts = unstable_cache(
+  async (src: "all" | "repair", staff: string[], days: number, q: string): Promise<PoCounts> =>
+    (
+      await queryOdg<PoCounts>(COUNT_SQL(src, days), [
+        ERP_PURCHASE.ORDER, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER_APPROVE, ERP_PURCHASE.RECEIPT, q, staff,
+      ])
+    ).rows[0] ?? NO_COUNTS,
+  ["purchase-orders-counts"],
+  { revalidate: 30, tags: [PURCHASE_COUNT_TAG] },
+);
 
-async function countRows(
-  src: "all" | "repair",
-  staff: string[],
-  q = "",
-  status: PoStatus | null = null,
-): Promise<number> {
+async function getCounts(src: "all" | "repair", staff: string[], days: number, q = ""): Promise<PoCounts> {
   try {
-    const rows = await queryOdg<{ count: number }>(COUNT_SQL(src, status), [
-      ERP_PURCHASE.ORDER, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER_APPROVE, ERP_PURCHASE.RECEIPT, q, staff,
-    ]);
-    return rows.rows[0]?.count ?? 0;
-  } catch {
-    return 0;
+    return await cachedCounts(src, staff, days, q);
+  } catch (error) {
+    console.error("purchase-orders count failed", error);
+    return NO_COUNTS;
   }
 }
 
-async function getRows(
-  page: number,
-  src: "all" | "repair",
-  staff: string[],
-  q = "",
-  status: PoStatus | null = null,
-): Promise<Row[]> {
-  try {
-    const rows = await queryOdg<Row>(
+/** ແຖວຂອງໜ້າປັດຈຸບັນ — cache/ຜູກ tag ຄືກັນກັບ `cachedCounts` (ເບິ່ງເຫດຜົນຢູ່ນັ້ນ) */
+const cachedRows = unstable_cache(
+  async (
+    page: number,
+    src: "all" | "repair",
+    staff: string[],
+    days: number,
+    q: string,
+    status: PoStatus | null,
+  ): Promise<Row[]> =>
+    (
+      await queryOdg<Row>(
       /**
        * ຕັດໜ້າກ່ອນ (po) ແລ້ວຈຶ່ງເອົາຂໍ້ມູນປະກອບ — ບໍ່ດັ່ງນັ້ນ subquery ຈະແລ່ນທົ່ວຕາຕະລາງ.
        * `wpoa` ຜູກທາງ**ຫົວໃບ** (ແຖວຂອງມັນ ref_doc_no ຫວ່າງ 100% — ເບິ່ງ lib/erp-purchase)
@@ -214,7 +256,7 @@ async function getRows(
        * ຕໍ່ແຖວ ⇒ ໄລ່ 5,469 ແຖວ **ຕໍ່ PO ໜຶ່ງໃບ** (483ms). ລວມຄ່າໄວ້ກ່ອນແລ້ວ join = 56ms.
        */
       `with po as (
-          select t.* from ic_trans t where ${whereOf(src, "$9")} ${status ? `and ${STATUS_WHERE[status]}` : ""} ${SEARCH_SQL(8)}
+          select t.* from ic_trans t where ${whereOf(src, "$9", days)} ${status ? `and ${STATUS_WHERE[status]}` : ""} ${SEARCH_SQL(8)}
            order by t.doc_no desc limit $5 offset $6),
         wpoa as (
           select split_part(trim(coalesce(doc_ref,'')),' ',1) po_no, min(doc_no) doc_no
@@ -249,12 +291,26 @@ async function getRows(
         from po t
         left join wpoa on wpoa.po_no = t.doc_no
        order by t.doc_no desc`,
-      [
-        ERP_PURCHASE.ORDER, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER_APPROVE, ERP_PURCHASE.RECEIPT,
-        PAGE_SIZE, (page - 1) * PAGE_SIZE, ERP_PURCHASE.PR_REQUEST, q, staff,
-      ],
-    );
-    return rows.rows;
+        [
+          ERP_PURCHASE.ORDER, ERP_PURCHASE.PR_APPROVE, ERP_PURCHASE.ORDER_APPROVE, ERP_PURCHASE.RECEIPT,
+          PAGE_SIZE, (page - 1) * PAGE_SIZE, ERP_PURCHASE.PR_REQUEST, q, staff,
+        ],
+      )
+    ).rows,
+  ["purchase-orders-rows"],
+  { revalidate: 30, tags: [PURCHASE_COUNT_TAG] },
+);
+
+async function getRows(
+  page: number,
+  src: "all" | "repair",
+  staff: string[],
+  days: number,
+  q = "",
+  status: PoStatus | null = null,
+): Promise<Row[]> {
+  try {
+    return await cachedRows(page, src, staff, days, q, status);
   } catch (error) {
     console.error("purchase-orders read failed", error);
     return [];
@@ -341,21 +397,20 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
   const q = (params.q ?? "").trim();
   const status = statusOf(params.status);
   const page = Math.max(1, Number(params.page) || 1);
-  // ລາຍຊື່ພະນັກງານສູນ — ຕ້ອງໄດ້ກ່ອນ ເພາະທຸກ query ຂ້າງລຸ່ມກອງດ້ວຍລາຍຊື່ນີ້
-  const staff = await serviceStaffCodes();
-  // ຕົວເລກຂອງທຸກແທັບຄິດພ້ອມກັນ — ຄົນຕ້ອງເຫັນວ່າແຕ່ລະສະຖານະມີຈັກໃບກ່ອນກົດ
-  const [rows, total, wait, approved, received, wpraRows, session] = await Promise.all([
-    getRows(page, src, staff, q, status),
-    countRows(src, staff, q, status),
-    countRows(src, staff, q, "wait"),
-    countRows(src, staff, q, "approved"),
-    countRows(src, staff, q, "received"),
-    getWpraWaiting(),
-    getSession(),
-  ]);
+  // ຊ່ວງເວລາທີ່ດຶງ — ຕັ້ງຕົ້ນ 90 ມື້, ຂະຫຍາຍໄດ້ດ້ວຍ ?days=180/365
+  const days = daysOf(params.days);
+  /**
+   * ລາຍຊື່ພະນັກງານສູນຕ້ອງໄດ້ກ່ອນ (query ໃບກອງດ້ວຍລາຍຊື່ນີ້) ແຕ່ **ຢ່າລໍມັນຢູ່ຊື່ໆ** —
+   * ຍິງພ້ອມກັບຄິວ WPRA ແລະ session ທີ່ບໍ່ຂຶ້ນກັບມັນ ⇒ ຫຼຸດ round-trip ຕໍ່ແຖວກັນໜຶ່ງຮອບ.
+   */
+  const [staff, wpraRows, session] = await Promise.all([serviceStaffCodes(), getWpraWaiting(), getSession()]);
+  // ຕົວເລກຂອງທຸກແທັບມາຈາກ **ຮອບດຽວ** (getCounts) — ຄົນຕ້ອງເຫັນວ່າແຕ່ລະສະຖານະມີຈັກໃບກ່ອນກົດ
+  const [rows, counts] = await Promise.all([getRows(page, src, staff, days, q, status), getCounts(src, staff, days, q)]);
+  // ກອງສະຖານະຢູ່ ⇒ "ທັງໝົດ" ຂອງການແບ່ງໜ້າ = ຈຳນວນຂອງສະຖານະນັ້ນ (ມາຈາກຮອບນັບອັນດຽວກັນ)
+  const total = status ? counts[status] : counts.total;
   const t = (await getDictionary(await getLocale())).poList;
   const statusLabels = statusLabel(t);
-  const statusCount: Record<PoStatus, number> = { wait, approved, received };
+  const statusCount: Record<PoStatus, number> = counts;
   /** ຮັກສາຕົວກອງອື່ນໄວ້ຕອນກົດປ່ຽນອັນໜຶ່ງ — ບໍ່ດັ່ງນັ້ນຄົນຕັ້ງໃໝ່ໝົດທຸກເທື່ອ */
   const hrefWith = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams();
@@ -363,6 +418,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
     if (src === "repair") base.src = "repair";
     if (q) base.q = q;
     if (status) base.status = status;
+    if (days !== DEFAULT_DAYS) base.days = String(days);
     Object.entries({ ...base, ...patch }).forEach(([k, v]) => {
       if (v) next.set(k, v);
     });
@@ -371,7 +427,7 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
   };
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const canApprove = APPROVER_SIDE.includes(roleOf(session));
-  const pageHref = (p: number) => `/purchase-orders?src=${src}&page=${p}`;
+  const pageHref = (p: number) => hrefWith({ page: p > 1 ? String(p) : null });
 
   return (
     <div className="w-full space-y-4">
@@ -519,10 +575,27 @@ export default async function PurchaseOrdersPage({ searchParams }: Props) {
             ))}
           </div>
 
+          {/* ຊ່ວງເວລາ — ດຶງໜ້ອຍ = ໄວ. ໃບເກົ່າກວ່ານີ້ຍັງເປີດຈາກເລກໃບ ຫຼື ຂະຫຍາຍຊ່ວງໄດ້ */}
+          <div className="flex w-fit overflow-hidden rounded-lg border border-slate-300 bg-white">
+            {DAY_CHOICES.map((choice) => (
+              <Link
+                key={choice}
+                href={hrefWith({ days: choice === DEFAULT_DAYS ? null : String(choice), page: null })}
+                className={`inline-flex h-8 items-center gap-1.5 border-l border-slate-300 px-3 text-xs font-medium first:border-l-0 ${
+                  days === choice ? "bg-brand-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {dayLabel(choice, t)}
+                <LinkPending className="size-3" />
+              </Link>
+            ))}
+          </div>
+
           {/* ຄົ້ນຫາ: ເລກ PO · ຜູ້ສະໜອງ · ເລກ SPR · ເລກວຽກ */}
           <form className="flex items-center gap-1.5">
             {src === "repair" && <input type="hidden" name="src" value="repair" />}
             {status && <input type="hidden" name="status" value={status} />}
+            {days !== DEFAULT_DAYS && <input type="hidden" name="days" value={days} />}
             <div className="relative">
               <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
               <input
