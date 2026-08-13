@@ -122,6 +122,25 @@ async function syncErpDispatchByDocRefs(requestNos: string[]): Promise<SyncResul
             where product_code=$1 and item_code=$2 and reg_finish is null`,
           [job.product_code, line.item_code],
         );
+        /**
+         * ── ສ້ອມ: **ສາງເບີກອອກ = ຊ່າງໄດ້ຮັບ** (13-08-2026 ຕາມຄຳສັ່ງ) ──
+         * ຊ່າງສ້ອມ **ບໍ່ຈຳເປັນຕ້ອງກົດຮັບອາໄຫຼ່** ອີກຕໍ່ໄປ: ຫ້ອງສ້ອມຢູ່ສູນບ່ອນດຽວກັບສາງ
+         * ⇒ ພໍສາງເບີກອອກ ຂອງກໍ່ຢູ່ໃນມືຊ່າງແລ້ວ. ບັງຄັບໃຫ້ກົດອີກຂັ້ນ = ງານຄ້າງທີ່ດ່ານ
+         * "ຍັງມີອາໄຫຼ່ n ລາຍການທີ່ຍັງບໍ່ໄດ້ກົດຮັບ" ຕອນຈະບັນທຶກສ້ອມສຳເລັດ ທັງທີ່ຂອງມາຮອດແລ້ວ.
+         *
+         * ⚠️ **ຝັ່ງຕິດຕັ້ງບໍ່ stamp** (ເບິ່ງໝາຍເຫດ 06-08-2026 ຂ້າງລຸ່ມ): ຊ່າງຕິດຕັ້ງເອົາຂອງ
+         * ອອກໜ້າງານຈິງ ແລະ 1 ງານມີຫຼາຍໃບເບີກ ⇒ ຍັງຕ້ອງກົດຮັບທຸກໃບຄືເກົ່າ.
+         *
+         * ໃບ PISP (166) ຍັງອອກໄດ້ຢູ່ ຖ້າໃຜຢາກກົດ (savePickSpare / ແອັບ) — ພຽງແຕ່
+         * **ບໍ່ແມ່ນດ່ານ**ອີກແລ້ວ (ເບິ່ງ lib/job-flow.pendingSpareBlocker).
+         */
+        if (!install) {
+          await client.query(
+            `update tb_used_spare set pick_finish=localtimestamp(0)
+              where product_code=$1 and item_code=$2 and pick_finish is null`,
+            [job.product_code, line.item_code],
+          );
+        }
         await client.query(
           "update ic_inventory set balance_qty=balance_qty-$1, wh_qty=wh_qty-$1 where code=$2",
           [Number(line.qty), line.item_code],

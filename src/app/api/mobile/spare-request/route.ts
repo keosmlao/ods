@@ -1,5 +1,12 @@
 import { requireMobile } from "@/lib/mobile-auth";
 import { ownMobileJob } from "@/lib/job-flow";
+import {
+  addInstallSpare,
+  installSpareStandards,
+  listInstallSpares,
+  removeInstallSpare,
+  setInstallSpareQty,
+} from "@/lib/install-spare";
 import { addRepairSpare, listRepairSpares, removeRepairSpare } from "@/lib/repair-spare";
 import {
   purchaseRounds,
@@ -12,6 +19,7 @@ import {
   createSpareRequest,
   createSpareReturn,
   outstandingSpares,
+  pendingSpareLines,
   pickupSpares,
 } from "@/lib/tech-flow";
 import { revalidatePath } from "next/cache";
@@ -26,7 +34,21 @@ import { NextResponse } from "next/server";
  * ຕົວອອກເອກະສານຢູ່ lib/tech-flow ບ່ອນດຽວ (ອັນດຽວກັບປຸ່ມຢູ່ເວັບ).
  */
 type Body =
-  | { action: "request"; workflow?: "install" | "repair"; code: string; remark?: string; wh_code: string; shelf_code: string }
+  /**
+   * `take` = item_code → ຈຳນວນທີ່ **ໃບນີ້** ຈະເອົາ (1 ສາງ ຕໍ່ 1 ໃບ — lib/spare-take).
+   * ບໍ່ສົ່ງມາ = ເອົາຄ້າງທັງໝົດ ຄືເກົ່າ ⇒ ແອັບຮຸ່ນເກົ່າບໍ່ຕ້ອງແກ້.
+   */
+  | {
+      action: "request";
+      workflow?: "install" | "repair";
+      code: string;
+      remark?: string;
+      wh_code: string;
+      shelf_code: string;
+      take?: Record<string, number>;
+    }
+  /** ລາຍການທີ່ຍັງຄ້າງຂໍເບີກ — ໃຫ້ແອັບໂຊ້ວກ່ອນເລືອກຈຳນວນ */
+  | { action: "request-lines"; workflow?: "install" | "repair"; code: string }
   | { action: "pickup"; doc_ref: string; remark?: string }
   /** ອາໄຫຼ່ທີ່ **ຢູ່ນຳຊ່າງ** ຂອງງານນີ້ (ເບີກອອກແລ້ວ ຍັງບໍ່ຂໍຄືນ) */
   | { action: "outstanding"; workflow?: "install" | "repair"; code: string }
@@ -41,10 +63,42 @@ type Body =
       remark?: string;
       items: { item_code: string; qty: number }[];
     }
-  /** ອາໄຫຼ່ຕອນສ້ອມ (ຂັ້ນ 9) — ລາຍການ · ເພີ່ມ · ຖອດ. ຫຼັງເພີ່ມແລ້ວ ໃຊ້ action "request" ຂໍເບີກ */
-  | { action: "used-list"; code: string }
-  | { action: "add-used"; code: string; item: { code: string; name_1: string; unit_code: string | null }; qty: number }
-  | { action: "remove-used"; code: string; roworder: number };
+  /**
+   * ກະຕ່າອາໄຫຼ່ຂອງງານ — ລາຍການ · ເພີ່ມ · ຖອດ · ແກ້ຈຳນວນ. ຫຼັງເພີ່ມແລ້ວ ໃຊ້ action "request" ຂໍເບີກ.
+   *
+   * `workflow` ຫວ່າງ = ສ້ອມ (ຄືເກົ່າ — ແອັບຮຸ່ນເກົ່າບໍ່ສົ່ງຖັນນີ້ມາ):
+   *   ສ້ອມ   ຂັ້ນ 5-9 · ຄົ້ນ ERP ແລ້ວແຕະເພີ່ມ (lib/repair-spare)
+   *   ຕິດຕັ້ງ ຮັບງານແລ້ວ ຈົນກ່ອນເລີ່ມຕິດຕັ້ງ · ຊຸດຕິດຕັ້ງ + ນອກຊຸດຕາມສະວິດ (lib/install-spare)
+   */
+  | { action: "used-list"; workflow?: "install" | "repair"; code: string }
+  | {
+      action: "add-used";
+      workflow?: "install" | "repair";
+      code: string;
+      item: { code: string; name_1: string; unit_code: string | null };
+      qty: number;
+    }
+  | { action: "remove-used"; workflow?: "install" | "repair"; code: string; roworder: number }
+  /** ແກ້ຈຳນວນແຖວກະຕ່າ — ຝັ່ງຕິດຕັ້ງເທົ່ານັ້ນ (ຈຳນວນມາຈາກຊຸດ ⇒ ຕ້ອງປັບໄດ້) */
+  | { action: "set-qty"; workflow?: "install"; code: string; roworder: number; qty: number }
+  /** ຊຸດຕິດຕັ້ງຂອງໃບງານ (ລາຍການມາດຕະຖານ) + ເປີດໃຫ້ຄົ້ນນອກຊຸດບໍ */
+  | { action: "standards"; code: string };
+
+/**
+ * ລ້າງຮູບແບບ `take` ທີ່ມາຈາກແອັບ — ຮັບແຕ່ຕົວເລກ ≥ 0; ອັນອື່ນເປັນ 0 (ບໍ່ເອົາລາຍການນັ້ນ).
+ * ບໍ່ແມ່ນດ່ານຄວາມປອດໄພ: ຕົວຕັດຈິງແມ່ນ `takeQty` ຢູ່ lib/tech-flow ທີ່ຕັດບໍ່ໃຫ້ເກີນ
+ * "ຈຳນວນຄ້າງ" ທີ່ server ຄິດເອງ. ຢູ່ນີ້ພຽງກັນ NaN/null ລາມເຂົ້າໄປເປັນ qty ຜິດ.
+ * ບໍ່ສົ່ງມາ (undefined) = ເອົາຄ້າງທັງໝົດ ຄືເກົ່າ ⇒ ແອັບຮຸ່ນເກົ່າບໍ່ຕ້ອງແກ້.
+ */
+function sanitizeTake(take: unknown): Record<string, number> | undefined {
+  if (!take || typeof take !== "object" || Array.isArray(take)) return undefined;
+  const clean: Record<string, number> = {};
+  for (const [itemCode, value] of Object.entries(take as Record<string, unknown>)) {
+    const qty = Number(value);
+    clean[itemCode] = Number.isFinite(qty) && qty > 0 ? qty : 0;
+  }
+  return Object.keys(clean).length ? clean : undefined;
+}
 
 /**
  * **ບັນຊີອາໄຫຼ່ແບ່ງຕາມຮອບ** (GET ?code=…&workflow=…) — ຂໍ້ມູນຊຸດດຽວກັບເວັບ
@@ -102,7 +156,12 @@ export async function POST(request: Request) {
 
   try {
     // ທຸກຄຳສັ່ງທີ່ອ້າງເຖິງ "ງານ" ຕ້ອງເປັນງານຂອງຊ່າງຄົນນີ້ເອງ
-    if (body.action === "request" || body.action === "return" || body.action === "outstanding") {
+    if (
+      body.action === "request" ||
+      body.action === "request-lines" ||
+      body.action === "return" ||
+      body.action === "outstanding"
+    ) {
       const workflow = body.workflow === "install" ? "install" : "repair";
       const own = await ownMobileJob(guard.user, workflow, String(body.code ?? ""));
       if (!own.ok) return NextResponse.json({ error: own.error }, { status: 403 });
@@ -112,37 +171,72 @@ export async function POST(request: Request) {
     if (body.action === "outstanding") {
       return NextResponse.json({ data: await outstandingSpares(String(body.code ?? "")) });
     }
-    // ລາຍການອາໄຫຼ່ຕອນສ້ອມ (ຂັ້ນ 9) — ownMobileJob ກວດຢູ່ໃນ add/remove ເອງ; list ກວດຢູ່ນີ້
-    if (body.action === "used-list") {
-      const own = await ownMobileJob(guard.user, "repair", String(body.code ?? ""));
-      if (!own.ok) return NextResponse.json({ error: own.error }, { status: 403 });
-      return NextResponse.json({ data: await listRepairSpares(String(body.code ?? "")) });
+    // ລາຍການທີ່ຍັງຄ້າງຂໍເບີກ — ອ່ານຢ່າງດຽວ (ໃຫ້ຊ່າງເລືອກຈຳນວນຂອງໃບນີ້)
+    if (body.action === "request-lines") {
+      return NextResponse.json({ data: await pendingSpareLines(String(body.code ?? "")) });
     }
+    // ລາຍການອາໄຫຼ່ຂອງງານ — ownMobileJob ກວດຢູ່ໃນ add/remove ເອງ; ອ່ານຢ່າງດຽວກວດຢູ່ນີ້
+    if (body.action === "used-list" || body.action === "standards") {
+      const workflow = body.action === "standards" || body.workflow === "install" ? "install" : "repair";
+      const own = await ownMobileJob(guard.user, workflow, String(body.code ?? ""));
+      if (!own.ok) return NextResponse.json({ error: own.error }, { status: 403 });
+      if (body.action === "standards") {
+        return NextResponse.json(await installSpareStandards(String(body.code ?? "")));
+      }
+      return NextResponse.json({
+        data: await (workflow === "install" ? listInstallSpares : listRepairSpares)(String(body.code ?? "")),
+      });
+    }
+    // "pickup" ບໍ່ມີຖັນ workflow (ອ້າງເອກະສານ ບໍ່ແມ່ນງານ) ⇒ ກວດດ້ວຍ `in` ບໍ່ໃຫ້ TS ຟ້ອງ
+    const install = "workflow" in body && body.workflow === "install";
     const result =
       body.action === "request"
-        ? await (body.workflow === "install" ? createInstallSpareRequest : createSpareRequest)(guard.user, {
+        ? await (install ? createInstallSpareRequest : createSpareRequest)(guard.user, {
             code: String(body.code ?? ""),
             remark: String(body.remark ?? ""),
             wh_code: String(body.wh_code ?? ""),
             shelf_code: String(body.shelf_code ?? ""),
+            take: sanitizeTake(body.take),
           })
         : body.action === "add-used"
-          ? await addRepairSpare(guard.user, String(body.code ?? ""), body.item, Number(body.qty) || 1)
+          ? install
+            ? await addInstallSpare(guard.user, String(body.code ?? ""), String(body.item?.code ?? ""))
+            : await addRepairSpare(guard.user, String(body.code ?? ""), body.item, Number(body.qty) || 1)
           : body.action === "remove-used"
-            ? await removeRepairSpare(guard.user, String(body.code ?? ""), Number(body.roworder))
-            : body.action === "pickup"
-              ? await pickupSpares(guard.user, String(body.doc_ref ?? ""), String(body.remark ?? ""))
-              : body.action === "return"
-                ? await createSpareReturn(guard.user, {
-                    code: String(body.code ?? ""),
-                    remark: String(body.remark ?? ""),
-                    items: Array.isArray(body.items) ? body.items : [],
-                  })
-                : { ok: false as const, error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" };
+            ? await (install ? removeInstallSpare : removeRepairSpare)(
+                guard.user,
+                String(body.code ?? ""),
+                Number(body.roworder),
+              )
+            : body.action === "set-qty"
+              ? await setInstallSpareQty(
+                  guard.user,
+                  String(body.code ?? ""),
+                  Number(body.roworder),
+                  Number(body.qty),
+                )
+              : body.action === "pickup"
+                ? await pickupSpares(guard.user, String(body.doc_ref ?? ""), String(body.remark ?? ""))
+                : body.action === "return"
+                  ? await createSpareReturn(guard.user, {
+                      code: String(body.code ?? ""),
+                      remark: String(body.remark ?? ""),
+                      items: Array.isArray(body.items) ? body.items : [],
+                    })
+                  : { ok: false as const, error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" };
 
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
-    for (const path of ["/stock/requests", "/stock/requests/pickup", "/stock/returns", "/repair", "/dashboard"]) {
+    // ແອັບແກ້ກະຕ່າຝັ່ງຕິດຕັ້ງໄດ້ແລ້ວ ⇒ ລ້າງແຄສໜ້າຕິດຕັ້ງນຳ ບໍ່ດັ່ງນັ້ນເວັບຍັງເຫັນລາຍການເກົ່າ
+    for (const path of [
+      "/stock/requests",
+      "/stock/requests/pickup",
+      "/stock/returns",
+      "/repair",
+      "/installations",
+      `/installations/spare-requests/${"code" in body ? String(body.code ?? "") : ""}`,
+      "/dashboard",
+    ]) {
       revalidatePath(path);
     }
     return NextResponse.json({ ok: true, message: result.message });

@@ -1,4 +1,6 @@
 import { query } from "@/lib/db";
+import { outsideStandardCodes } from "@/lib/loaner-shared";
+import { SETTING, settingEnabled } from "@/lib/settings";
 // ດ່ານ "ນອກມາດຕະຖານ" ຢູ່ໄຟລ໌ -shared (ບໍ່ແຕະຖານ ⇒ ທົດສອບໄດ້) — ສົ່ງຕໍ່ໃຫ້ຜູ້ໃຊ້ເກົ່າ
 export { outsideStandardCodes } from "@/lib/loaner-shared";
 
@@ -110,4 +112,37 @@ export async function getStandardSpares(jobCode: string): Promise<StandardSpare[
       remaining_qty: Math.max(0, row.standard_qty - already),
     };
   });
+}
+
+/**
+ * ── ດ່ານ "ເບີກອາໄຫຼ່ນອກມາດຕະຖານ" (SETTING.INSTALL_SPARE_FREE_SEARCH) ──
+ *
+ * ປິດແລ້ວ = ເພີ່ມໄດ້ແຕ່ລາຍການທີ່ **ຢູ່ໃນຊຸດຕິດຕັ້ງຂອງໃບງານ** (used_spare_install ຕາມ
+ * install_type) ຫຼື **ຢູ່ໃນກະຕ່າຂອງງານແລ້ວ**. ກວດຢູ່ຝັ່ງ server ບໍ່ແມ່ນເຊື່ອງແຕ່ຊ່ອງ
+ * ຄົ້ນຫາ — action/API ຖືກຍິງໂດຍກົງໄດ້ (lib/guard).
+ *
+ * ⚠️ ຢູ່ **lib** ບໍ່ແມ່ນ actions ເພາະດຽວນີ້ມີສອງທາງເຂົ້າ: ຟອມເວັບ (actions/installation)
+ * ແລະ **ແອັບຊ່າງ** (lib/install-spare) ⇒ ສຳເນົາເງື່ອນໄຂສອງສະບັບ = ດ່ານຄົນລະຊຸດ.
+ *
+ * @returns ຂໍ້ຄວາມຜິດພາດ ຖ້າມີລາຍການທີ່ຫ້າມ · null ຖ້າຜ່ານ
+ */
+export async function blockNonStandard(
+  code: string,
+  itemCodes: string[],
+): Promise<string | null> {
+  if (await settingEnabled(SETTING.INSTALL_SPARE_FREE_SEARCH)) return null;
+
+  const [setLines, cart] = await Promise.all([
+    getStandardKitLines(code),
+    query<{ item_code: string }>(
+      "select distinct item_code from tb_used_spare where product_code=$1",
+      [code],
+    ),
+  ]);
+  const outside = outsideStandardCodes(
+    [...setLines.keys(), ...cart.rows.map((row) => row.item_code)],
+    itemCodes,
+  );
+  if (!outside.length) return null;
+  return `ປິດການເບີກອາໄຫຼ່ນອກມາດຕະຖານໄວ້ — ເພີ່ມ ${outside.join(", ")} ບໍ່ໄດ້ (ເປີດຄືນທີ່ ການຕັ້ງຄ່າລະບົບ)`;
 }

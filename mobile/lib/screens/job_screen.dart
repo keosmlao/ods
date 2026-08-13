@@ -10,7 +10,7 @@ import '../main.dart';
 import '../widgets/ui_kit.dart';
 import 'check_screen.dart';
 import 'pickup_screen.dart';
-import 'repair_spare_screen.dart';
+import 'job_spare_screen.dart';
 import 'scan_serial_screen.dart';
 import 'spare_request_screen.dart';
 import 'spare_return_screen.dart';
@@ -1596,23 +1596,44 @@ class _JobScreenState extends State<JobScreen> {
                           // "ສ້ອມໜ້າງານບໍ່ໄດ້ → ນຳເຂົ້າສູນ" = **ຕັດສິນຕອນກວດເຊັກ** (CheckScreen outcome)
                           // ບ່ອນດຽວ. ຫຼັງກວດເຊັກແລ້ວ (ເລືອກ ສ້ອມ/ສຳເລັດການກວດ) = ຕົກລົງສ້ອມແລ້ວ ⇒ ບໍ່ໂຊ້ຢູ່ນີ້.
 
-                          // ── ຂໍເບີກ / ປ່ຽນ ອາໄຫຼ່ — **ຂັ້ນ 5-9** (ຫຼັງກວດເຊັກ ຈົນກ່ອນຈົບສ້ອມ) ──
-                          // ແຕ່ກ່ອນເປີດສະເພາະຂັ້ນ 9 ⇒ ຊ່າງທີ່ "ກຳລັງເບີກອາໄຫຼ່" (ຂັ້ນ 6) ຫຼື
-                          // "ລໍຖ້າສ້ອມ" (ຂັ້ນ 8) ຂໍເບີກ**ເພີ່ມ**ບໍ່ໄດ້ ທັງທີ່ນັ້ນຄືຈັງຫວະທີ່ພົບຫຼາຍສຸດ
-                          // (399 ໃບງານຂໍເບີກຫຼາຍກວ່າ 1 ຮອບ). ດ່ານຈິງຢູ່ server (lib/repair-spare).
-                          if (job.workflow == 'repair' &&
-                              job.stage >= 5 &&
-                              job.stage <= 9) ...[
+                          /*
+                            ── ຂໍເບີກ / ປ່ຽນ ອາໄຫຼ່ ──
+                            ສ້ອມ  : **ຂັ້ນ 5-9** (ຫຼັງກວດເຊັກ ຈົນກ່ອນຈົບສ້ອມ)
+                              ແຕ່ກ່ອນເປີດສະເພາະຂັ້ນ 9 ⇒ ຊ່າງທີ່ "ກຳລັງເບີກອາໄຫຼ່" (ຂັ້ນ 6) ຫຼື
+                              "ລໍຖ້າສ້ອມ" (ຂັ້ນ 8) ຂໍເບີກ**ເພີ່ມ**ບໍ່ໄດ້ ທັງທີ່ນັ້ນຄືຈັງຫວະທີ່ພົບຫຼາຍສຸດ
+                              (399 ໃບງານຂໍເບີກຫຼາຍກວ່າ 1 ຮອບ).
+                            ຕິດຕັ້ງ: **ຂັ້ນ 2-4** (ຮັບງານແລ້ວ ຈົນກ່ອນເລີ່ມຕິດຕັ້ງ) — 13-08-2026.
+                              ຂັ້ນ 1 = ຍັງບໍ່ທັນຮັບງານ (tech_confirm ຫວ່າງ) ⇒ server ປະຕິເສດ
+                              ຢູ່ແລ້ວ ("ຕ້ອງຮັບງານກ່ອນເພີ່ມອາໄຫຼ່") ຈຶ່ງບໍ່ໂຊ້ວປຸ່ມໃຫ້ກົດລ້າໆ.
+                              ງານທີ່ບໍ່ໃຊ້ອາໄຫຼ່ຂ້າມ 2-3 ໄປຢູ່ຂັ້ນ 4 ⇒ ຕ້ອງລວມ 4 ນຳ
+                              ບໍ່ດັ່ງນັ້ນຊ່າງທີ່ພົບວ່າຕ້ອງໃຊ້ອາໄຫຼ່ຕອນຮອດໜ້າງານກໍ່ຕັນອີກ.
+
+                            ⚠️ **ບັກທີ່ແກ້**: ເງື່ອນໄຂນີ້ເຄີຍເປັນ `workflow == 'repair'` ຢ່າງດຽວ
+                            ⇒ ຝັ່ງຕິດຕັ້ງ **ບໍ່ເຫັນປຸ່ມເຂົ້າໄປເລືອກລາຍການອາໄຫຼ່ຈັກເທື່ອ** ເຫັນແຕ່
+                            "ອອກໃບຂໍເບີກອາໄຫຼ່" ທີ່ຂໍທັງກະຕ່າ (ກະຕ່າຖືກຕື່ມຕອນເປີດງານເທົ່ານັ້ນ)
+                            ⇒ ຢາກປ່ຽນຂອງແທນກັນ ຫຼື ງານທີ່ບໍ່ມີຊຸດ ຕ້ອງກັບໄປໃຊ້ເວັບ.
+                            ດ່ານຈິງຢູ່ server (lib/repair-spare · lib/install-spare).
+                          */
+                          if ((job.workflow == 'repair' &&
+                                  job.stage >= 5 &&
+                                  job.stage <= 9) ||
+                              (job.workflow == 'install' &&
+                                  job.stage >= 2 &&
+                                  job.stage <= 4)) ...[
                             _ghostAction(
-                              'ຂໍເບີກ / ປ່ຽນ ອາໄຫຼ່',
+                              job.workflow == 'install'
+                                  ? 'ເລືອກ / ແກ້ ລາຍການອາໄຫຼ່'
+                                  : 'ຂໍເບີກ / ປ່ຽນ ອາໄຫຼ່',
                               Icons.inventory_2_outlined,
                               const Color(0xFF7C3AED),
                               () async {
                                 await Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) =>
-                                        RepairSpareScreen(code: job.code),
+                                    builder: (_) => JobSpareScreen(
+                                      code: job.code,
+                                      workflow: job.workflow,
+                                    ),
                                   ),
                                 );
                                 if (mounted) await reload();

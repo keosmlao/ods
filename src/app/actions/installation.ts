@@ -22,9 +22,8 @@ import { type Role, roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
 import { INSTALL_FEEDBACK_DONE_SQL, INSTALL_FEEDBACK_TIME_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { installSpareOutstanding } from "@/lib/install-spare-gate";
-import { getStandardKitLines, outsideStandardCodes } from "@/lib/install-standard";
+import { blockNonStandard, getStandardKitLines } from "@/lib/install-standard";
 import { EDITABLE_SPARE_LINES } from "@/lib/install-spare-edit";
-import { SETTING, settingEnabled } from "@/lib/settings";
 import { feedbackUrl, validFeedbackToken } from "@/lib/track";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -1153,38 +1152,9 @@ export async function reopenJob(code: string): Promise<ActionState> {
  */
 
 /**
- * ── ດ່ານ "ເບີກອາໄຫຼ່ນອກມາດຕະຖານ" (SETTING.INSTALL_SPARE_FREE_SEARCH) ──
- *
- * ປິດແລ້ວ = ເພີ່ມໄດ້ແຕ່ລາຍການທີ່ **ຢູ່ໃນຊຸດມາດຕະຖານຂອງສິນຄ້າ** (ic_inventory_set_detail)
- * ຫຼື **ຢູ່ໃນກະຕ່າຂອງງານແລ້ວ**. ກວດຢູ່ຝັ່ງ server ບໍ່ແມ່ນເຊື່ອງແຕ່ຊ່ອງຄົ້ນຫາ — action
- * ຖືກຍິງໂດຍກົງໄດ້ (lib/guard).
- *
- * ⚠️ ດຽວນີ້ "ຊຸດ" ຂອງ ERP ຄືອົງປະກອບຂອງຕົວເຄື່ອງ (ໜ່ວຍໃນ/ໜ່ວຍນອກ/ກ່ອງທໍ່) ບໍ່ແມ່ນ
- * ອາໄຫຼ່ຕິດຕັ້ງ ⇒ ປິດສະວິດນີ້ກ່ອນນິຍາມລາຍການມາດຕະຖານແທ້ = ເພີ່ມອາໄຫຼ່ບໍ່ໄດ້ເລີຍ
- * (ເບິ່ງຄຳເຕືອນຢູ່ SETTING_META).
- *
- * @returns ຂໍ້ຄວາມຜິດພາດ ຖ້າມີລາຍການທີ່ຫ້າມ · null ຖ້າຜ່ານ
+ * ດ່ານ "ເບີກອາໄຫຼ່ນອກມາດຕະຖານ" ຍ້າຍໄປ **lib/install-standard** ແລ້ວ (blockNonStandard)
+ * — ແອັບຊ່າງ (lib/install-spare) ໃຊ້ດ່ານອັນດຽວກັນນຳ.
  */
-async function blockNonStandard(
-  code: string,
-  itemCodes: string[],
-): Promise<string | null> {
-  if (await settingEnabled(SETTING.INSTALL_SPARE_FREE_SEARCH)) return null;
-
-  const [setLines, cart] = await Promise.all([
-    getStandardKitLines(code),
-    query<{ item_code: string }>(
-      "select distinct item_code from tb_used_spare where product_code=$1",
-      [code],
-    ),
-  ]);
-  const outside = outsideStandardCodes(
-    [...setLines.keys(), ...cart.rows.map((row) => row.item_code)],
-    itemCodes,
-  );
-  if (!outside.length) return null;
-  return `ປິດການເບີກອາໄຫຼ່ນອກມາດຕະຖານໄວ້ — ເພີ່ມ ${outside.join(", ")} ບໍ່ໄດ້ (ເປີດຄືນທີ່ ການຕັ້ງຄ່າລະບົບ)`;
-}
 
 /** ເພີ່ມອາໄຫຼ່ເຂົ້າໃບຂໍເບີກ (additemtoreg_inst) — ຍົກທຸງ used_spare ຂຶ້ນນຳ */
 export async function addSpareLine(

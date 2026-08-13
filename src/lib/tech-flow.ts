@@ -699,11 +699,40 @@ export async function createSpareRequest(
   };
 }
 
+/**
+ * **ລາຍການທີ່ຍັງຄ້າງຂໍເບີກ** ຂອງງານໜຶ່ງ — ໃຫ້ແອັບເອົາໄປໃຫ້ຊ່າງເລືອກ "ໃບນີ້ເອົາຈັກໜ່ວຍ"
+ * ກ່ອນກົດອອກໃບ (ຄູ່ກັບຕາຕະລາງໃນຟອມເວັບ). ນິຍາມ "ຄ້າງ" = OUTSTANDING_SPARES ອັນດຽວ
+ * ກັບຕົວທີ່ອອກໃບຈິງ ⇒ ສິ່ງທີ່ຈໍໂຊ້ວ ກັບ ສິ່ງທີ່ບັນທຶກ ບໍ່ມີວັນຕ່າງກັນ.
+ */
+export type PendingSpareLine = {
+  item_code: string;
+  item_name: string | null;
+  unit_code: string | null;
+  qty: number;
+};
+
+export async function pendingSpareLines(code: string): Promise<PendingSpareLine[]> {
+  return (
+    await query<PendingSpareLine>(
+      // qty ຂອງ OUTSTANDING_SPARES ເປັນ numeric ⇒ ບີບເປັນ float8 ໃຫ້ JSON ອ່ານງ່າຍ
+      `select item_code, item_name, unit_code, qty::float8 qty from (${OUTSTANDING_SPARES}) o`,
+      [code],
+    )
+  ).rows;
+}
+
 /** ໃບຂໍເບີກອາໄຫຼ່ຂອງງານຕິດຕັ້ງ — ໃຊ້ກົດ outstanding ດຽວກັນ. */
 export async function createInstallSpareRequest(
   session: Session,
-  input: { code: string; remark: string; wh_code: string; shelf_code: string },
-): Promise<FlowResult & { doc_no?: string }> {
+  input: {
+    code: string;
+    remark: string;
+    wh_code: string;
+    shelf_code: string;
+    /** item_code → ຈຳນວນທີ່ຈະເອົາໃສ່ **ໃບນີ້** (ຕັດໃຫ້ບໍ່ເກີນຈຳນວນຄ້າງຢູ່ server) */
+    take?: Record<string, number>;
+  },
+): Promise<FlowResult & { doc_no?: string; remaining?: number }> {
   if (!db || !odgDb) return { ok: false, error: "ບໍ່ພົບ DATABASE_URL / ODG_DATABASE_URL" };
   if (!input.wh_code || !input.shelf_code) return { ok: false, error: "ກະລຸນາເລືອກສາງ ແລະ ທີ່ເກັບ" };
   const { date: docDate, at, time: docTime } = nowParts();
@@ -711,6 +740,8 @@ export async function createInstallSpareRequest(
   const odg = await odgDb.connect();
   let docNo = "";
   let lineCount = 0;
+  /** ລາຍການທີ່ຍັງຄ້າງຫຼັງໃບນີ້ (ເອົາບໍ່ຄົບ ຫຼື ຍັງບໍ່ໄດ້ເອົາ) — ໃຫ້ອອກໃບຈາກສາງອື່ນຕໍ່ */
+  let remaining = 0;
   try {
     await client.query("begin");
     await odg.query("begin");
@@ -734,25 +765,54 @@ export async function createInstallSpareRequest(
       await client.query("rollback");
       return { ok: false, error: "ບໍ່ມີອາໄຫຼ່ທີ່ຄ້າງຂໍເບີກ" };
     }
+
+    /**
+     * ── 1 ສາງ ຕໍ່ 1 ໃບ ⇒ ໃບນີ້ເອົາ "ເທົ່າທີ່ສາງນີ້ມີ" ──
+     * ຄືກັບຝັ່ງສ້ອມ (createSpareRequest) ແລະ ຟອມເວັບ (saveSpareRequest): ຕັດໃຫ້ບໍ່ເກີນ
+     * ຈຳນວນຄ້າງທີ່ **server ຄິດເອງ** ສະເໝີ — ຢ່າເຊື່ອຕົວເລກຈາກແອັບ ບໍ່ດັ່ງນັ້ນຂໍເກີນ
+     * ແລ້ວສາງເບີກອອກເກີນ. ບໍ່ສົ່ງ `take` ມາ = ເອົາຄ້າງທັງໝົດ ຄືເກົ່າ (ແອັບຮຸ່ນເກົ່າ).
+     */
+    const picked = lines.rows
+      .map((line) => {
+        const outstanding = Number(line.qty);
+        // ລາຍການທີ່ຄົນເອົາອອກຈາກໃບ = ບໍ່ເອົາ (ເບິ່ງ lib/spare-take.takeQty)
+        const qty = takeQty(input.take, line.item_code, outstanding);
+        return { ...line, qty: String(qty), outstanding };
+      })
+      .filter((line) => Number(line.qty) > 0);
+    if (picked.length === 0) {
+      await client.query("rollback");
+      await odg.query("rollback");
+      return { ok: false, error: "ຍັງບໍ່ໄດ້ລະບຸຈຳນວນທີ່ຈະເບີກໃນໃບນີ້" };
+    }
+
     docNo = await nextDocNo(client, "SION", at);
-    lineCount = lines.rows.length;
+    lineCount = picked.length;
     await client.query(
       `insert into ic_trans(trans_flag,doc_date,doc_no,product_code,remark,status,used_status,user_created,job_type,wh_code,shelf_code)
        values($1,$2,$3,$4,$5,0,1,$6,'install',$7,$8)`,
       [TRANS.REQUEST, docDate, docNo, input.code, input.remark, session.username, input.wh_code, input.shelf_code],
     );
-    for (const line of lines.rows) {
+    for (const line of picked) {
       await client.query(
         `insert into ic_trans_detail(trans_flag,doc_date,doc_no,product_code,item_code,item_name,qty,unit_code,calc_flag,status,user_created,job_type)
          values($1,$2,$3,$4,$5,$6,$7,$8,1,0,$9,'install')`,
         [TRANS.REQUEST, docDate, docNo, input.code, line.item_code, line.item_name, line.qty, line.unit_code, session.username],
       );
     }
-    await client.query(
-      `update tb_used_spare set reg_start=${NOW}
-        where product_code=$1 and reg_start is null and item_code=any($2::varchar[])`,
-      [input.code, lines.rows.map((line) => line.item_code)],
-    );
+    /**
+     * ໝາຍ "ຂໍເບີກແລ້ວ" **ສະເພາະລາຍການທີ່ເອົາຄົບ** — ລາຍການທີ່ຍັງເອົາບໍ່ຄົບຕ້ອງເຫຼືອ
+     * reg_start ຫວ່າງ ບໍ່ດັ່ງນັ້ນຈໍຈະຂຶ້ນ "ຂໍໄປແລ້ວ" ທັງທີ່ຍັງຄ້າງເຄິ່ງ (ຄືກັບຝັ່ງເວັບ).
+     */
+    const fully = picked.filter((line) => Number(line.qty) >= line.outstanding).map((line) => line.item_code);
+    if (fully.length > 0) {
+      await client.query(
+        `update tb_used_spare set reg_start=${NOW}
+          where product_code=$1 and reg_start is null and item_code=any($2::varchar[])`,
+        [input.code, fully],
+      );
+    }
+    remaining = lines.rows.length - fully.length;
     await client.query(`update ods_tb_install set reg_start=coalesce(reg_start,${NOW}) where code=$1`, [input.code]);
     await client.query(`update ods_tb_install_detail set reg_start=coalesce(reg_start,${NOW}) where code=$1`, [input.code]);
 
@@ -760,7 +820,9 @@ export async function createInstallSpareRequest(
       {
         doc_no: docNo, doc_date: docDate, doc_time: docTime,
         job_code: input.code, wh_code: input.wh_code, shelf_code: input.shelf_code,
-        remark: input.remark, requester: session.username, lines: lines.rows,
+        // ⚠️ `picked` ບໍ່ແມ່ນ `lines.rows` — ERP ຕ້ອງໄດ້ຈຳນວນ**ອັນດຽວກັບ ODS**
+        // ບໍ່ດັ່ງນັ້ນສອງຖານຖືໃບດຽວກັນຄົນລະຈຳນວນ ແລ້ວສາງເບີກຕາມ ERP ເກີນທີ່ຂໍ.
+        remark: input.remark, requester: session.username, lines: picked,
       },
       odg,
     );
@@ -779,10 +841,17 @@ export async function createInstallSpareRequest(
   await logChange(
     "ods_tb_install",
     input.code,
-    `ສ້າງໃບຂໍເບີກ ${docNo} · ອາໄຫຼ່ ${lineCount} ລາຍການ`,
-    { roles: ROLE_WAREHOUSE },
+    `ສ້າງໃບຂໍເບີກ ${docNo} · ສາງ ${input.wh_code}/${input.shelf_code} · ອາໄຫຼ່ ${lineCount} ລາຍການ${
+      remaining > 0 ? ` · ຍັງຄ້າງ ${remaining} ລາຍການ (ຈະເບີກຈາກສາງອື່ນຕໍ່)` : ""
+    }`,
+    { author: session.username, roles: ROLE_WAREHOUSE },
   );
-  return { ok: true, message: `ສ້າງໃບຂໍເບີກ ${docNo} (${lineCount} ລາຍການ)`, doc_no: docNo };
+  return {
+    ok: true,
+    message: `ສ້າງໃບຂໍເບີກ ${docNo} (${lineCount} ລາຍການ)${remaining > 0 ? ` · ຍັງຄ້າງ ${remaining} ລາຍການ` : ""}`,
+    doc_no: docNo,
+    remaining,
+  };
 }
 
 /* ── ຊ່າງຮັບອາໄຫຼ່ (PISP · 166) ─────────────────────────────────── */
@@ -813,6 +882,10 @@ export async function pickupQueue(session: Session): Promise<PickupDoc[]> {
        where ic.trans_flag = ${TRANS.DISPATCH}
          and (ic.job_type is null or ic.job_type <> 'install')
          and not exists (select 1 from ic_trans k where k.trans_flag = ${TRANS_PICK} and k.doc_ref = ic.doc_no)
+         -- ສ້ອມ: ສາງເບີກອອກ = ຮັບແລ້ວ (lib/erp-dispatch stamp pick_finish) ⇒ ບໍ່ຕ້ອງເຂົ້າຄິວອີກ.
+         -- ເງື່ອນໄຂອັນດຽວກັບຄິວເວັບ /stock/requests/pickup ⇒ ສອງທາງເຫັນຄືກັນ.
+         and exists (select 1 from tb_used_spare s
+                      where s.product_code = ic.product_code and s.pick_finish is null)
          and p.emp_code = $1
        union all
        select 'install'::varchar workflow, ic.doc_no, ic.product_code as job_code,

@@ -5,8 +5,19 @@ import '../main.dart';
 import '../widgets/ui_kit.dart';
 import 'spare_request_screen.dart';
 
-/// ອາໄຫຼ່ຕອນສ້ອມ (ຂັ້ນ 9) — ພົບຕ້ອງໃຊ້ອາໄຫຼ່ເພີ່ມ/ປ່ຽນ: ຄົ້ນ+ເພີ່ມ, ຖອດ, ແລ້ວ
-/// "ໄປອອກໃບຂໍເບີກ" (ຮອບ 2). ແຖວທີ່ເບີກແລ້ວ (locked) ຖອດບໍ່ໄດ້ — ຢາກປ່ຽນໃຫ້ສົ່ງຄືນສາງກ່ອນ.
+/// ອາໄຫຼ່ຂອງໃບງານ — ຄົ້ນ+ເພີ່ມ, ຖອດ, ແກ້ຈຳນວນ ແລ້ວ "ໄປອອກໃບຂໍເບີກ".
+/// ແຖວທີ່ເບີກແລ້ວ (locked) ຖອດບໍ່ໄດ້ — ຢາກປ່ຽນໃຫ້ສົ່ງຄືນສາງກ່ອນ.
+///
+/// ── ໜ້າດຽວ ສອງສາຍງານ (13-08-2026) ──
+/// ແຕ່ກ່ອນເປັນ `RepairSpareScreen` ຂອງ**ສາຍສ້ອມຢ່າງດຽວ** ⇒ ຊ່າງຕິດຕັ້ງ **ບໍ່ມີທາງເຂົ້າ
+/// ໄປເລືອກລາຍການອາໄຫຼ່ໃນແອັບເລີຍ**: ມີແຕ່ໜ້າ "ໃບຂໍເບີກ" ທີ່ເລືອກ ສາງ/ທີ່ເກັບ ແລ້ວຂໍ
+/// **ທັງກະຕ່າ** ທີ່ຖືກຕື່ມຕອນເປີດງານ (ຊຸດຕາມ install_type). ຢາກປ່ຽນຂອງແທນກັນ ຫຼື
+/// ງານທີ່ບໍ່ມີຊຸດ (ໂທລະທັດ · ຈັກຊັກ) ຕ້ອງກັບໄປໃຊ້ເວັບ.
+///
+/// ຄວາມຕ່າງຂອງສອງສາຍງານ:
+///   ສ້ອມ   — ຂັ້ນ 5-9 · ຄົ້ນ ERP ແລ້ວແຕະເພີ່ມ (ແຕະຊ້ຳ = +1)
+///   ຕິດຕັ້ງ — ຮັບງານແລ້ວ ຈົນກ່ອນເລີ່ມຕິດຕັ້ງ · ມີ**ຊຸດຕິດຕັ້ງ**ໃຫ້ແຕະເພີ່ມ ·
+///            ຈຳນວນປັບດ້ວຍ −/+ · ຄົ້ນນອກຊຸດໄດ້ຕາມສະວິດ (INSTALL_SPARE_FREE_SEARCH)
 ///
 /// ── ຕ່າງຈາກລຸ້ນກ່ອນ (ອອກແບບໃໝ່) ──
 ///   ① ແຕ່ລະແຖວມີ **ປ້າຍສະຖານະ** (ຄ້າງເບີກ · ຂໍເບີກແລ້ວ · ເບີກແລ້ວ) ເປັນສີ
@@ -14,24 +25,33 @@ import 'spare_request_screen.dart';
 ///   ② ຄົ້ນຫາຄືນຜົນເປັນກາດ ບອກ **ຄົງເຫຼືອ** ເປັນສີ (0 = ໝົດສາງ ⇒ ຮູ້ກ່ອນເພີ່ມ)
 ///   ③ ປຸ່ມ "ໄປອອກໃບຂໍເບີກ" ຢູ່ **ແຖບລຸ່ມຄົງທີ່** ບໍ່ຕ້ອງເລື່ອນລົງສຸດຈຶ່ງເຫັນ
 ///   ④ ຄົ້ນຫາຜິດພາດ/ບໍ່ພົບ = ບອກ (ແຕ່ກ່ອນຜົນເກົ່າຄ້າງຢູ່ ຄືກັບບໍ່ມີຫຍັງເກີດຂຶ້ນ)
-class RepairSpareScreen extends StatefulWidget {
-  const RepairSpareScreen({super.key, required this.code});
+class JobSpareScreen extends StatefulWidget {
+  const JobSpareScreen({super.key, required this.code, this.workflow = 'repair'});
   final String code;
+  final String workflow;
 
   @override
-  State<RepairSpareScreen> createState() => _RepairSpareScreenState();
+  State<JobSpareScreen> createState() => _JobSpareScreenState();
 }
 
-class _RepairSpareScreenState extends State<RepairSpareScreen> {
+class _JobSpareScreenState extends State<JobSpareScreen> {
   final term = TextEditingController();
   List<RepairSpareLine> lines = [];
   List<SpareItem> results = [];
+
+  /// ຊຸດຕິດຕັ້ງ + ສະວິດຄົ້ນນອກຊຸດ — ຝັ່ງສ້ອມບໍ່ໃຊ້ (null = ຍັງບໍ່ໂຫຼດ/ບໍ່ມີ)
+  InstallStandards? standards;
 
   /// ບັນຊີອາໄຫຼ່ແບ່ງຕາມຮອບ (ໃບຂໍເບີກ + ໃບຂໍຊື້) — ຊຸດດຽວກັບເວັບ; ລົ້ມ = null (ບໍ່ສະແດງ)
   SpareRounds? rounds;
   bool busy = false;
   bool loading = true;
   bool searched = false;
+
+  bool get isInstall => widget.workflow == 'install';
+
+  /// ຄົ້ນນອກຊຸດໄດ້ບໍ — ຝັ່ງສ້ອມໄດ້ສະເໝີ; ຕິດຕັ້ງຂຶ້ນກັບສະວິດຝັ່ງ server
+  bool get canSearch => !isInstall || (standards?.freeSearch ?? false);
 
   @override
   void initState() {
@@ -47,7 +67,7 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
 
   Future<void> load() async {
     try {
-      final rows = await Api.usedSpares(widget.code);
+      final rows = await Api.usedSpares(widget.code, workflow: widget.workflow);
       if (mounted) setState(() => lines = rows);
     } catch (caught) {
       if (mounted) {
@@ -58,9 +78,16 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
     } finally {
       if (mounted) setState(() => loading = false);
     }
+    // ຊຸດຕິດຕັ້ງ — ຂໍ້ມູນເສີມ ລົ້ມກໍ່ບໍ່ໃຫ້ໜ້າພັງ (ພຽງບໍ່ສະແດງ ແລະ ຊ່ອງຄົ້ນຫາຍັງປິດໄວ້)
+    if (isInstall) {
+      try {
+        final data = await Api.installStandards(widget.code);
+        if (mounted) setState(() => standards = data);
+      } catch (_) {}
+    }
     // ຮອບອາໄຫຼ່ — ຂໍ້ມູນເສີມ ລົ້ມກໍ່ບໍ່ໃຫ້ໜ້າພັງ (ພຽງບໍ່ສະແດງ)
     try {
-      final data = await Api.spareRounds('repair', widget.code);
+      final data = await Api.spareRounds(widget.workflow, widget.code);
       if (mounted) setState(() => rounds = data);
     } catch (_) {}
   }
@@ -110,13 +137,23 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
 
   int get pending => lines.where((line) => !line.locked).length;
 
+  /// ລາຍການໃນຊຸດທີ່ **ຍັງບໍ່ຢູ່ໃນກະຕ່າ** — ຄືສິ່ງດຽວທີ່ຄວນເອົາມາໃຫ້ແຕະເພີ່ມ
+  List<InstallStandardSpare> get missingStandards {
+    final data = standards;
+    if (data == null) return const [];
+    final inCart = lines.map((line) => line.itemCode).toSet();
+    return data.items
+        .where((item) => !inCart.contains(item.itemCode))
+        .toList(growable: false);
+  }
+
   static String _qty(double value) => value == value.roundToDouble()
       ? value.toStringAsFixed(0)
       : value.toStringAsFixed(2);
 
   @override
   Widget build(BuildContext context) => HeroScaffold(
-    title: 'ອາໄຫຼ່ຕອນສ້ອມ',
+    title: isInstall ? 'ອາໄຫຼ່ງານຕິດຕັ້ງ' : 'ອາໄຫຼ່ຕອນສ້ອມ',
     onBack: () => Navigator.pop(context),
     body: loading
         ? const Center(child: CircularProgressIndicator())
@@ -137,23 +174,40 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
                           vertical: 18,
                         ),
                         decoration: cardDecoration(),
-                        child: const Column(
+                        child: Column(
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.inventory_2_outlined,
                               size: 24,
                               color: faint,
                             ),
-                            SizedBox(height: 7),
+                            const SizedBox(height: 7),
                             Text(
-                              'ຍັງບໍ່ມີອາໄຫຼ່ — ຄົ້ນຫາ ແລະ ເພີ່ມຂ້າງລຸ່ມ',
-                              style: TextStyle(fontSize: 12.5, color: faint),
+                              isInstall
+                                  ? 'ຍັງບໍ່ມີອາໄຫຼ່ — ເລືອກຈາກຊຸດຕິດຕັ້ງ ຫຼື ຄົ້ນຫາຂ້າງລຸ່ມ'
+                                  : 'ຍັງບໍ່ມີອາໄຫຼ່ — ຄົ້ນຫາ ແລະ ເພີ່ມຂ້າງລຸ່ມ',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                color: faint,
+                              ),
                             ),
                           ],
                         ),
                       )
                     else
                       for (final line in lines) _lineCard(line),
+
+                    // ── ຊຸດຕິດຕັ້ງ: ລາຍການທີ່ຍັງບໍ່ຢູ່ໃນກະຕ່າ (ຝັ່ງຕິດຕັ້ງເທົ່ານັ້ນ) ──
+                    if (isInstall && missingStandards.isNotEmpty) ...[
+                      const SizedBox(height: 18),
+                      SectionLabel('ຊຸດຕິດຕັ້ງ — ຍັງບໍ່ໄດ້ເພີ່ມ (${missingStandards.length})'),
+                      const SizedBox(height: 8),
+                      for (final item in missingStandards) _standardCard(item),
+                      const SizedBox(height: 2),
+                      _addAllStandards(),
+                    ],
+
                     if (rounds != null &&
                         (rounds!.withdrawals.isNotEmpty ||
                             rounds!.purchases.isNotEmpty)) ...[
@@ -166,28 +220,52 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
                         _purchaseRoundCard(round),
                     ],
                     const SizedBox(height: 18),
-                    const SectionLabel('ຄົ້ນຫາ ແລະ ເພີ່ມອາໄຫຼ່'),
-                    _searchBar(),
-                    const SizedBox(height: 10),
-                    if (busy && results.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 14),
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    else if (searched && results.isEmpty)
+                    if (canSearch) ...[
+                      const SectionLabel('ຄົ້ນຫາ ແລະ ເພີ່ມອາໄຫຼ່'),
+                      _searchBar(),
+                      const SizedBox(height: 10),
+                      if (busy && results.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 14),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (searched && results.isEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: cardDecoration(),
+                          child: const Center(
+                            child: Text(
+                              'ບໍ່ພົບອາໄຫຼ່ທີ່ຄົ້ນ',
+                              style: TextStyle(fontSize: 12.5, color: faint),
+                            ),
+                          ),
+                        )
+                      else
+                        for (final item in results) _resultCard(item),
+                    ] else
+                      // ສະວິດ "ເບີກນອກມາດຕະຖານ" ປິດຢູ່ ⇒ ບອກເຫດຜົນ ບໍ່ແມ່ນເຊື່ອງງຽບໆ
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
                         decoration: cardDecoration(),
-                        child: const Center(
-                          child: Text(
-                            'ບໍ່ພົບອາໄຫຼ່ທີ່ຄົ້ນ',
-                            style: TextStyle(fontSize: 12.5, color: faint),
-                          ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.lock_outline_rounded, size: 17, color: faint),
+                            SizedBox(width: 9),
+                            Expanded(
+                              child: Text(
+                                'ເບີກໄດ້ສະເພາະລາຍການໃນຊຸດຕິດຕັ້ງ — ຢາກເບີກນອກຊຸດ ໃຫ້ແຈ້ງ admin ເປີດການຕັ້ງຄ່າ',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: muted,
+                                  height: 1.45,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      )
-                    else
-                      for (final item in results) _resultCard(item),
+                      ),
                   ],
                 ),
               ),
@@ -205,10 +283,14 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: tealTint,
+            color: isInstall ? const Color(0xFFEFF6FF) : tealTint,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.build_rounded, size: 19, color: teal),
+          child: Icon(
+            isInstall ? Icons.home_repair_service_rounded : Icons.build_rounded,
+            size: 19,
+            color: isInstall ? const Color(0xFF2563EB) : teal,
+          ),
         ),
         const SizedBox(width: 11),
         Expanded(
@@ -237,7 +319,7 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
             ],
           ),
         ),
-        const StageTag('ຂັ້ນສ້ອມ'),
+        StageTag(isInstall ? 'ຕິດຕັ້ງ' : 'ຂັ້ນສ້ອມ'),
       ],
     ),
   );
@@ -277,12 +359,24 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       StageTag(label, color: fg, bg: bg),
+                      // ນອກຊຸດ = ຂອງທີ່ຊ່າງເພີ່ມເອງ ⇒ ຕິດປ້າຍໃຫ້ຮູ້ (ສາງ/ຜູ້ຈັດການຖາມແນ່)
+                      if (isInstall && !line.standard)
+                        const StageTag(
+                          'ນອກຊຸດ',
+                          color: Color(0xFF7C3AED),
+                          bg: Color(0xFFF5F3FF),
+                        ),
                       Text(
                         '${line.itemCode} · ${_qty(line.qty)} ${line.unitCode ?? ''}',
                         style: const TextStyle(fontSize: 11, color: muted),
                       ),
                     ],
                   ),
+                  // ── ປັບຈຳນວນ (ຝັ່ງຕິດຕັ້ງ) — ຈຳນວນຕັ້ງຕົ້ນມາຈາກຊຸດ ຈຶ່ງຕ້ອງແກ້ໄດ້ ──
+                  if (isInstall && !line.locked) ...[
+                    const SizedBox(height: 8),
+                    _qtyStepper(line),
+                  ],
                 ],
               ),
             ),
@@ -300,14 +394,192 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
                 icon: const Icon(Icons.delete_outline_rounded, color: danger),
                 onPressed: busy
                     ? null
-                    : () =>
-                          run(() => Api.removeUsedSpare(widget.code, line.roworder)),
+                    : () => run(
+                        () => Api.removeUsedSpare(
+                          widget.code,
+                          line.roworder,
+                          workflow: widget.workflow,
+                        ),
+                      ),
               ),
           ],
         ),
       ),
     );
   }
+
+  /// −/+ ຂອງແຖວກະຕ່າ (ຝັ່ງຕິດຕັ້ງ) — ຕໍ່າສຸດ 1 (ຢາກເອົາອອກໃຫ້ກົດຖັງຂີ້ເຫຍື້ອ)
+  Widget _qtyStepper(RepairSpareLine line) => Row(
+    children: [
+      _stepButton(
+        Icons.remove_rounded,
+        line.qty <= 1 || busy
+            ? null
+            : () => run(
+                () => Api.setUsedSpareQty(
+                  widget.code,
+                  line.roworder,
+                  line.qty - 1,
+                ),
+              ),
+      ),
+      Container(
+        width: 46,
+        alignment: Alignment.center,
+        child: Text(
+          _qty(line.qty),
+          style: const TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w900,
+            color: ink,
+          ),
+        ),
+      ),
+      _stepButton(
+        Icons.add_rounded,
+        busy
+            ? null
+            : () => run(
+                () => Api.setUsedSpareQty(
+                  widget.code,
+                  line.roworder,
+                  line.qty + 1,
+                ),
+              ),
+      ),
+    ],
+  );
+
+  Widget _stepButton(IconData icon, VoidCallback? onTap) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(10),
+    child: Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: surfaceAlt,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: line),
+      ),
+      child: Icon(icon, size: 17, color: onTap == null ? faint : ink),
+    ),
+  );
+
+  /// ລາຍການໃນຊຸດຕິດຕັ້ງທີ່ຍັງບໍ່ໄດ້ເພີ່ມ — ແຕະ = ເພີ່ມດ້ວຍຈຳນວນຕາມຊຸດ
+  Widget _standardCard(InstallStandardSpare item) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: busy
+          ? null
+          : () => run(
+              () => Api.addUsedSpare(
+                widget.code,
+                SpareItem(
+                  code: item.itemCode,
+                  name: item.itemName,
+                  unitCode: item.unitCode,
+                  balance: 0,
+                ),
+                1,
+                workflow: 'install',
+              ),
+            ),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(13, 11, 11, 11),
+        decoration: cardDecoration(border: const Color(0xFFBFDBFE)),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.itemName.isEmpty ? item.itemCode : item.itemName,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: ink,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${item.itemCode} · ຕາມຊຸດ ${_qty(item.standardQty)} ${item.unitCode ?? ''}',
+                    style: const TextStyle(fontSize: 11, color: faint),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                size: 20,
+                color: Color(0xFF2563EB),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  /// ເພີ່ມທັງຊຸດເທື່ອດຽວ — ຊຸດມີ 13 ລາຍການ ແຕະເທື່ອລະອັນຢູ່ໜ້າງານແມ່ນຊ້າ
+  Widget _addAllStandards() => SizedBox(
+    width: double.infinity,
+    child: OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFF2563EB),
+        side: const BorderSide(color: Color(0xFFBFDBFE)),
+        minimumSize: const Size.fromHeight(44),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      icon: const Icon(Icons.playlist_add_rounded, size: 19),
+      label: Text('ເພີ່ມທັງຊຸດ (${missingStandards.length} ລາຍການ)'),
+      onPressed: busy
+          ? null
+          : () async {
+              final items = missingStandards;
+              setState(() => busy = true);
+              var added = 0;
+              String? failure;
+              for (final item in items) {
+                try {
+                  await Api.addUsedSpare(
+                    widget.code,
+                    SpareItem(
+                      code: item.itemCode,
+                      name: item.itemName,
+                      unitCode: item.unitCode,
+                      balance: 0,
+                    ),
+                    1,
+                    workflow: 'install',
+                  );
+                  added++;
+                } on ApiError catch (error) {
+                  failure ??= error.message;
+                }
+              }
+              if (!mounted) return;
+              setState(() => busy = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(failure ?? 'ເພີ່ມແລ້ວ $added ລາຍການ'),
+                  backgroundColor: failure == null ? ok : danger,
+                ),
+              );
+              await load();
+            },
+    ),
+  );
 
   /// ສະຖານະຮອບຂໍເບີກ — ນິຍາມດຽວກັບເວັບ (lib/repair-spare-rounds):
   /// ກຳລັງສັ່ງຊື້ = ແຖວ status=5 ທີ່ arrive_at ຫວ່າງ · ຮັບແລ້ວ = ມີໃບ PISP
@@ -513,7 +785,16 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: busy ? null : () => run(() => Api.addUsedSpare(widget.code, item, 1)),
+        onTap: busy
+            ? null
+            : () => run(
+                () => Api.addUsedSpare(
+                  widget.code,
+                  item,
+                  1,
+                  workflow: widget.workflow,
+                ),
+              ),
         child: Container(
           padding: const EdgeInsets.fromLTRB(13, 11, 11, 11),
           decoration: cardDecoration(),
@@ -607,7 +888,10 @@ class _RepairSpareScreenState extends State<RepairSpareScreen> {
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => SpareRequestScreen(code: widget.code),
+                      builder: (_) => SpareRequestScreen(
+                        code: widget.code,
+                        workflow: widget.workflow,
+                      ),
                     ),
                   );
                   if (mounted) await load();

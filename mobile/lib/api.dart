@@ -577,30 +577,47 @@ class Api {
     return Lookups.fromJson(result);
   }
 
-  /* ── ອາໄຫຼ່ຕອນສ້ອມ (ຂັ້ນ 9): ລາຍການ · ເພີ່ມ · ຖອດ ── */
+  /* ── ກະຕ່າອາໄຫຼ່ຂອງງານ: ລາຍການ · ເພີ່ມ · ຖອດ · ແກ້ຈຳນວນ ──
+     ສ້ອມ = ຂັ້ນ 5-9 (ຄົ້ນ ERP ແລ້ວແຕະເພີ່ມ) · ຕິດຕັ້ງ = ຮັບງານແລ້ວ ຈົນກ່ອນເລີ່ມຕິດຕັ້ງ
+     (ຊຸດຕິດຕັ້ງ + ນອກຊຸດຕາມສະວິດ). ດ່ານຢູ່ server: lib/repair-spare · lib/install-spare. */
 
-  static Future<List<RepairSpareLine>> usedSpares(String code) async {
+  static Future<List<RepairSpareLine>> usedSpares(
+    String code, {
+    String workflow = 'repair',
+  }) async {
     final result = await _send(
       'POST',
       '/api/mobile/spare-request',
-      body: {'action': 'used-list', 'code': code},
+      body: {'action': 'used-list', 'code': code, 'workflow': workflow},
     );
     return (result['data'] as List)
         .map((row) => RepairSpareLine.fromJson(row))
         .toList();
   }
 
+  /// ຊຸດຕິດຕັ້ງ (ອາໄຫຼ່ມາດຕະຖານ) ຂອງໃບງານ + ເປີດໃຫ້ຄົ້ນນອກຊຸດບໍ — ສະເພາະຝັ່ງຕິດຕັ້ງ
+  static Future<InstallStandards> installStandards(String code) async {
+    final result = await _send(
+      'POST',
+      '/api/mobile/spare-request',
+      body: {'action': 'standards', 'code': code},
+    );
+    return InstallStandards.fromJson(result);
+  }
+
   static Future<String> addUsedSpare(
     String code,
     SpareItem item,
-    int qty,
-  ) async {
+    int qty, {
+    String workflow = 'repair',
+  }) async {
     final result = await _send(
       'POST',
       '/api/mobile/spare-request',
       body: {
         'action': 'add-used',
         'code': code,
+        'workflow': workflow,
         'item': {
           'code': item.code,
           'name_1': item.name,
@@ -612,22 +629,69 @@ class Api {
     return result['message'] as String;
   }
 
-  static Future<String> removeUsedSpare(String code, int roworder) async {
+  static Future<String> removeUsedSpare(
+    String code,
+    int roworder, {
+    String workflow = 'repair',
+  }) async {
     final result = await _send(
       'POST',
       '/api/mobile/spare-request',
-      body: {'action': 'remove-used', 'code': code, 'roworder': roworder},
+      body: {
+        'action': 'remove-used',
+        'code': code,
+        'workflow': workflow,
+        'roworder': roworder,
+      },
     );
     return result['message'] as String;
   }
 
+  /// ແກ້ຈຳນວນແຖວກະຕ່າ (ຝັ່ງຕິດຕັ້ງ — ຈຳນວນຕັ້ງຕົ້ນມາຈາກຊຸດ ⇒ ຕ້ອງປັບໄດ້)
+  static Future<String> setUsedSpareQty(
+    String code,
+    int roworder,
+    num qty,
+  ) async {
+    final result = await _send(
+      'POST',
+      '/api/mobile/spare-request',
+      body: {
+        'action': 'set-qty',
+        'workflow': 'install',
+        'code': code,
+        'roworder': roworder,
+        'qty': qty,
+      },
+    );
+    return result['message'] as String;
+  }
+
+  /// ລາຍການທີ່ຍັງ **ຄ້າງຂໍເບີກ** ຂອງງານ — ໃຫ້ຊ່າງເລືອກວ່າໃບນີ້ເອົາຈັກໜ່ວຍ
+  static Future<List<PendingSpareLine>> pendingSpareLines(
+    String workflow,
+    String code,
+  ) async {
+    final result = await _send(
+      'POST',
+      '/api/mobile/spare-request',
+      body: {'action': 'request-lines', 'workflow': workflow, 'code': code},
+    );
+    return (result['data'] as List)
+        .map((row) => PendingSpareLine.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// ອອກໃບຂໍເບີກ — `take` = ລະຫັດອາໄຫຼ່ → ຈຳນວນທີ່ **ໃບນີ້** ຈະເອົາ (1 ສາງ ຕໍ່ 1 ໃບ).
+  /// ບໍ່ສົ່ງ = ເອົາຄ້າງທັງໝົດ ຄືເກົ່າ. ຕົວຕັດຈິງຢູ່ server (lib/spare-take.takeQty).
   static Future<String> requestSpares(
     String workflow,
     String code,
     String whCode,
     String shelfCode,
-    String remark,
-  ) async {
+    String remark, {
+    Map<String, num>? take,
+  }) async {
     final result = await _send(
       'POST',
       '/api/mobile/spare-request',
@@ -638,6 +702,7 @@ class Api {
         'wh_code': whCode,
         'shelf_code': shelfCode,
         'remark': remark,
+        if (take != null) 'take': take,
       },
     );
     return result['message'] as String;
@@ -1834,6 +1899,9 @@ class RepairSpareLine {
   final String? unitCode;
   final bool requested;
   final bool locked;
+
+  /// ຢູ່ໃນຊຸດຕິດຕັ້ງຂອງໃບງານບໍ (ຝັ່ງຕິດຕັ້ງເທົ່ານັ້ນ — ຝັ່ງສ້ອມບໍ່ມີຊຸດ ⇒ false)
+  final bool standard;
   RepairSpareLine({
     required this.roworder,
     required this.itemCode,
@@ -1842,6 +1910,7 @@ class RepairSpareLine {
     required this.unitCode,
     required this.requested,
     required this.locked,
+    this.standard = false,
   });
 
   factory RepairSpareLine.fromJson(Map<String, dynamic> json) =>
@@ -1853,6 +1922,78 @@ class RepairSpareLine {
         unitCode: json['unit_code'] as String?,
         requested: json['requested'] as bool? ?? false,
         locked: json['locked'] as bool? ?? false,
+        standard: json['standard'] as bool? ?? false,
+      );
+}
+
+/// ອາໄຫຼ່ 1 ລາຍການທີ່ຍັງ **ຄ້າງຂໍເບີກ** (ກະຕ່າ ລົບ ບັນຊີເອກະສານ 122/59)
+class PendingSpareLine {
+  final String itemCode;
+  final String itemName;
+  final String? unitCode;
+
+  /// ຈຳນວນທີ່ຍັງຄ້າງ — ເພດານຂອງ "ໃບນີ້ເອົາຈັກໜ່ວຍ"
+  final double qty;
+  PendingSpareLine({
+    required this.itemCode,
+    required this.itemName,
+    required this.unitCode,
+    required this.qty,
+  });
+
+  factory PendingSpareLine.fromJson(Map<String, dynamic> json) =>
+      PendingSpareLine(
+        itemCode: json['item_code'] as String,
+        itemName: json['item_name'] as String? ?? '',
+        unitCode: json['unit_code'] as String?,
+        qty: (json['qty'] as num?)?.toDouble() ?? 0,
+      );
+}
+
+/// ອາໄຫຼ່ 1 ລາຍການໃນ **ຊຸດຕິດຕັ້ງ** ຂອງໃບງານ (used_spare_install ຕາມ install_type)
+class InstallStandardSpare {
+  final String itemCode;
+  final String itemName;
+  final String? unitCode;
+  final double standardQty;
+  final double requestedQty;
+  final double remainingQty;
+  InstallStandardSpare({
+    required this.itemCode,
+    required this.itemName,
+    required this.unitCode,
+    required this.standardQty,
+    required this.requestedQty,
+    required this.remainingQty,
+  });
+
+  factory InstallStandardSpare.fromJson(Map<String, dynamic> json) =>
+      InstallStandardSpare(
+        itemCode: json['item_code'] as String,
+        itemName: json['item_name'] as String? ?? '',
+        unitCode: json['unit_code'] as String?,
+        standardQty: (json['standard_qty'] as num?)?.toDouble() ?? 0,
+        requestedQty: (json['requested_qty'] as num?)?.toDouble() ?? 0,
+        remainingQty: (json['remaining_qty'] as num?)?.toDouble() ?? 0,
+      );
+}
+
+/// ຊຸດຕິດຕັ້ງ + ສະວິດ "ເບີກນອກມາດຕະຖານ" — ປິດແລ້ວແອັບເຊື່ອງຊ່ອງຄົ້ນຫາ
+/// (ດ່ານຈິງຢູ່ server: lib/install-standard.blockNonStandard)
+class InstallStandards {
+  final List<InstallStandardSpare> items;
+  final bool freeSearch;
+  InstallStandards({required this.items, required this.freeSearch});
+
+  factory InstallStandards.fromJson(Map<String, dynamic> json) =>
+      InstallStandards(
+        items: ((json['items'] as List?) ?? const [])
+            .map(
+              (row) =>
+                  InstallStandardSpare.fromJson(row as Map<String, dynamic>),
+            )
+            .toList(),
+        freeSearch: json['free_search'] as bool? ?? true,
       );
 }
 
