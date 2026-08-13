@@ -7,12 +7,17 @@ import { INSTALL_LEFT_SQL } from "@/lib/install-sla";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import {
+  INSTALL_APPOINT_WAIT_SQL,
   INSTALL_ELAPSED_SQL,
   INSTALL_STAGE_SQL,
   INSTALL_STAGE_TIME_COL,
+  INSTALL_VISIT_MINUTES_SQL,
+  INSTALL_VISIT_ROUNDS_SQL,
+  INSTALL_WAIT_TIME_COL,
   installStageChip,
   installStageLabel,
 } from "@/lib/install-stage";
+import { visitSummaryLabel } from "@/lib/install-visits";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -49,6 +54,11 @@ export type InstallCellRow = {
   elapsed_seconds: number | null;
   /** ວັນ/ເວລາທີ່ເຂົ້າຂັ້ນປັດຈຸບັນ */
   stage_time: string | null;
+  /** ນັດຮອບຕໍ່ໄປໄວ້ແລ້ວ ແລະ ວັນນັດຍັງບໍ່ຮອດ ⇒ ບໍ່ແມ່ນງານຄ້າງ */
+  appoint_wait: boolean | null;
+  /** ຈຳນວນຮອບເຂົ້າໜ້າງານ ແລະ ນາທີລວມ (1 ໃບງານ = ຫຼາຍຮອບ — ເບິ່ງ lib/install-visits) */
+  visit_rounds: number | null;
+  visit_minutes: number | null;
 };
 
 export type InstallRow = InstallCellRow & {
@@ -79,6 +89,9 @@ export const INSTALL_COLUMNS = `a.code,
   to_char(a.appoint_date,'DD-MM-YYYY') appoint_date,
   (${INSTALL_STAGE_SQL}) stage,
   ${INSTALL_ELAPSED_SQL} elapsed_seconds,
+  (${INSTALL_APPOINT_WAIT_SQL}) appoint_wait,
+  ${INSTALL_VISIT_ROUNDS_SQL} visit_rounds,
+  ${INSTALL_VISIT_MINUTES_SQL} visit_minutes,
   to_char((${INSTALL_STAGE_TIME_COL}),'DD-MM-YYYY HH24:MI') stage_time,
   a.complain_cust, a.cancel_date, a.cancel_remark, a.cancel_code, a.used_spare`;
 
@@ -102,7 +115,8 @@ export const INSTALL_SORT_SQL: Record<string, string> = {
 
 /**
  * ປະໂຫຍກ ORDER BY — "ຄ້າງດົນສຸດກ່ອນ" ໝາຍເຖິງເວລາເກົ່າສຸດກ່ອນ ຈຶ່ງກັບທິດໃຫ້.
- * timeCol = ຖັນເວລາທີ່ໜ້ານັ້ນນັບຄ້າງຈາກ (ຫຼື ຂັ້ນປັດຈຸບັນ).
+ * timeCol = ຖັນເວລາທີ່ໜ້ານັ້ນນັບຄ້າງຈາກ (ຄ່າຕັ້ງຕົ້ນ = ໂມງຄ້າງ INSTALL_WAIT_TIME_COL
+ * ⇒ ງານທີ່ນັດວັນໜ້າໄວ້ແລ້ວ ມີເວລາເປັນອະນາຄົດ ຈຶ່ງຕົກລົງລຸ່ມສຸດເອງ ຄືກັບປ້າຍໃນຕາຕະລາງ).
  * sortSql = whitelist ຂອງໜ້ານັ້ນ (ໜ້າໃບເບີກໃຊ້ INSTALL_DOC_SORT_SQL ທີ່ມີ doc_no ເພີ່ມ).
  */
 /** ຮຽງຕາມນາລິກາ 24 ຊມ (ນ້ອຍສຸດ = ໃກ້ໝົດ/ເລີຍແລ້ວ ຂຶ້ນກ່ອນ) — ບິນທີ່ບໍ່ມີວັນທີ ຕົກລຸ່ມສຸດ */
@@ -111,7 +125,7 @@ const SLA_ORDER = `(${INSTALL_LEFT_SQL}) asc nulls last`;
 export function installOrderBy(
   sort: string,
   dir: SortDir,
-  timeCol = INSTALL_STAGE_TIME_COL,
+  timeCol = INSTALL_WAIT_TIME_COL,
   sortSql: Record<string, string> = INSTALL_SORT_SQL,
 ) {
   if (sort === "sla") return SLA_ORDER;
@@ -135,6 +149,9 @@ export const INSTALL_DOC_COLUMNS = `ic.doc_no, ic.doc_ref request_doc,
   to_char(a.appoint_date,'DD-MM-YYYY') appoint_date,
   (${INSTALL_STAGE_SQL}) stage,
   ${INSTALL_ELAPSED_SQL} elapsed_seconds,
+  (${INSTALL_APPOINT_WAIT_SQL}) appoint_wait,
+  ${INSTALL_VISIT_ROUNDS_SQL} visit_rounds,
+  ${INSTALL_VISIT_MINUTES_SQL} visit_minutes,
   to_char((${INSTALL_STAGE_TIME_COL}),'DD-MM-YYYY HH24:MI') stage_time,
   to_char(coalesce(ic.create_date_time_now, ic.doc_date),'DD-MM-YYYY HH24:MI') doc_time`;
 
@@ -317,6 +334,12 @@ export function DocCell({ row, href, showRequest = false }: { row: InstallDocRow
 }
 
 /**
+ * ສີຂອງງານທີ່ "ນັດໄວ້ແລ້ວ ຍັງບໍ່ຮອດວັນ" — ສີກາງ (ບໍ່ແມ່ນສີເຕືອນ ແລະ ບໍ່ແມ່ນສີງານປົກກະຕິ)
+ * ⇒ ຫົວໜ້າກວາດຕາເຫັນທັນທີວ່າໃບນີ້ມີຄົນຄຸມແລ້ວ ບໍ່ຕ້ອງໄລ່ຖາມ.
+ */
+const APPOINT_TONE = { chip: "bg-brand-50 text-brand-700", bar: "bg-brand-300" };
+
+/**
  * ຊ່ອງມາດຕະຖານຂອງແຖວງານຕິດຕັ້ງ — ຕ້ອງກົງລຳດັບກັບ INSTALL_TABLE_COLUMNS.
  * ໜ້າໃດຢາກເພີ່ມຊ່ອງ ໃຫ້ຕໍ່ <td> ຂອງຕົນຫຼັງຈາກນີ້.
  */
@@ -334,7 +357,11 @@ export function InstallCells({
   timeLabel?: string;
   showStatus?: boolean;
 }) {
-  const tone = elapsedTone(row.elapsed_seconds);
+  /**
+   * ນັດຮອບຕໍ່ໄປໄວ້ ແລະ ວັນນັດຍັງບໍ່ຮອດ ⇒ **ບໍ່ແມ່ນງານຄ້າງ** — ໂມງເປັນ 0 ຢູ່ແລ້ວ
+   * (ເບິ່ງ INSTALL_WAIT_TIME_COL) ແຕ່ "00:00:00" ອ່ານບໍ່ອອກ ⇒ ສະແດງວັນນັດແທນ.
+   */
+  const tone = row.appoint_wait ? APPOINT_TONE : elapsedTone(row.elapsed_seconds);
   return (
     <>
       <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">
@@ -346,13 +373,28 @@ export function InstallCells({
         {row.doc_ref_1 && <span className="mt-0.5 block text-[10px] font-normal text-slate-400">{row.doc_ref_1}</span>}
       </td>
       <td className="whitespace-nowrap px-3 py-2.5">
-        <Elapsed
-          seconds={row.elapsed_seconds}
-          className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`}
-        />
+        {row.appoint_wait ? (
+          <span className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`}>
+            ນັດ {row.appoint_date}
+          </span>
+        ) : (
+          <Elapsed
+            seconds={row.elapsed_seconds}
+            className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone.chip}`}
+          />
+        )}
         <span className="mt-0.5 block text-[10px] text-slate-400" title={timeLabel}>
           {row.stage_time ?? "-"}
         </span>
+        {/*
+          ຮອບເຂົ້າໜ້າງານ — ໂຜ່ສະເພາະງານທີ່ເຄີຍໄປແລ້ວ (ງານສ່ວນຫຼາຍຈົບໃນຮອບດຽວ ⇒ ບໍ່ຮົກ).
+          ບອກຫົວໜ້າວ່າ "ຄ້າງ 20 ມື້" ນີ້ ຊ່າງໄປມາແລ້ວ 3 ຮອບ ຫຼື ບໍ່ເຄີຍໄປເລີຍ.
+        */}
+        {visitSummaryLabel(row.visit_rounds, row.visit_minutes) && (
+          <span className="mt-0.5 block text-[10px] font-medium text-brand-700">
+            {visitSummaryLabel(row.visit_rounds, row.visit_minutes)}
+          </span>
+        )}
       </td>
       <td className="max-w-64 px-3 py-2.5">
         <span className="block truncate font-medium text-slate-800" title={row.item_name ?? ""}>

@@ -1,5 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { minutesLabel } from "@/lib/install-visits";
+import { jobVisits } from "@/lib/job-flow";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { canViewAssignedJob } from "@/lib/scope";
@@ -20,7 +22,7 @@ export default async function InstallPrint({ params }: Props) {
   const { code } = await params;
   const t = (await getDictionary(await getLocale())).installPrint;
 
-  const [job, company] = await Promise.all([
+  const [job, company, visits] = await Promise.all([
     query<Row>(
       `select to_char(a.time_register,'dd-MM-yyyy') as reg_date, to_char(a.time_register,'HH24:MI') as reg_time,
          a.code, a.cust_code || '-' || coalesce(c.name_1,'') as customer,
@@ -34,6 +36,8 @@ export default async function InstallPrint({ params }: Props) {
       [decodeURIComponent(code)],
     ),
     query<Company>("select name_1,name_2,address,tel,min,tin from company_profile limit 1"),
+    // 1 ໃບງານ = ຫຼາຍຮອບເຂົ້າໜ້າງານ (ເບິ່ງ lib/job-flow.scheduleNextVisit)
+    jobVisits("install", decodeURIComponent(code)),
   ]);
 
   const x = job.rows[0];
@@ -91,6 +95,48 @@ export default async function InstallPrint({ params }: Props) {
           <p className="col-span-2">{t.remark}: {x.remark || "-"}</p>
         </div>
       </section>
+
+      {/*
+        ── ຮອບເຂົ້າໜ້າງານ (12-08-2026) ──
+        ໃບນີ້ຄື**ໃບດຽວຂອງທັງງານ**: ງານທີ່ໄປຫຼາຍຮອບ ຖ້າພິມແຕ່ຫົວໃບ ລູກຄ້າ (ແລະ ຝ່າຍບັນຊີ)
+        ຈະເຫັນແຕ່ "ນັດວັນທີ..." ດຽວ ⇒ ເຖີຍງານທີ່ຊ່າງໄປມາ 3 ຮອບ. ພິມສະເພາະງານທີ່ມີຮອບຈິງ.
+      */}
+      {visits.length > 0 && (
+        <section className="mt-5">
+          <h2 className="border-b bg-slate-100 p-2 font-bold">ຮອບເຂົ້າໜ້າງານ ({visits.length})</h2>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left">
+                <th className="p-2 font-semibold">ຮອບ</th>
+                <th className="p-2 font-semibold">ຊ່າງ</th>
+                <th className="p-2 font-semibold">ເຂົ້າໜ້າງານ</th>
+                <th className="p-2 font-semibold">ອອກ</th>
+                <th className="p-2 font-semibold">ໃຊ້ເວລາ</th>
+                <th className="p-2 font-semibold">ໝາຍເຫດ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visits.map((visit, index) => (
+                <tr key={visit.id} className="border-b border-slate-200">
+                  <td className="p-2 tabular-nums">{index + 1}</td>
+                  <td className="p-2">{visit.tech_code ?? "-"}</td>
+                  <td className="whitespace-nowrap p-2">{visit.checkin_at ?? "-"}</td>
+                  <td className="whitespace-nowrap p-2">{visit.checkout_at ?? "-"}</td>
+                  <td className="whitespace-nowrap p-2 tabular-nums">{minutesLabel(visit.minutes)}</td>
+                  <td className="p-2">{visit.note ?? "-"}</td>
+                </tr>
+              ))}
+              <tr className="font-bold">
+                <td className="p-2" colSpan={4}>ລວມເວລາຢູ່ໜ້າງານ</td>
+                <td className="whitespace-nowrap p-2 tabular-nums">
+                  {minutesLabel(visits.reduce((sum, visit) => sum + (visit.minutes ?? 0), 0))}
+                </td>
+                <td className="p-2" />
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className="mt-6 flex items-center gap-4 rounded border border-slate-300 p-4">
         {/* svg ມາຈາກ qrcode ຢູ່ຝັ່ງ server — ບໍ່ແມ່ນ input ຂອງຜູ້ໃຊ້ */}

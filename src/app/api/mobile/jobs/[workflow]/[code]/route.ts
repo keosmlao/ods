@@ -29,6 +29,7 @@ import {
   startMaintenance,
 } from "@/lib/maintenance-flow";
 import { installTimeline } from "@/lib/install-timeline";
+import type { JobVisitStep } from "@/lib/install-visits";
 import { openLoaners } from "@/lib/loaner";
 import { maintenanceTimeline } from "@/lib/maintenance-timeline";
 import { MAX_PHOTO_CHARS, requireMobile } from "@/lib/mobile-auth";
@@ -83,8 +84,17 @@ type Body = {
  * ຮູບຂອງງານ (ຕອນຮັບເຄື່ອງ · ຕອນກວດເຊັກ · ຕອນສ້ອມ/ຕິດຕັ້ງສຳເລັດ) — ໃຫ້ໜ້າລາຍລະອຽດແອັບສະແດງ.
  * ຮູບເປັນ data-URI base64 ທັງໝົດ (ຮັບເຄື່ອງອ່ານຈາກໄຟລ໌ແປງໃຫ້) ⇒ ແອັບ render ດ້ວຍ Image.memory ທາງດຽວ.
  */
-/** ແປງເສັ້ນເວລາ → payload snake_case ໃຫ້ແອັບ (ຮູບແບບດຽວກັນທຸກສາຍງານ) */
-function timelinePayload(timeline: { steps: TimelineStep[]; cancelledAt: string | null }) {
+/**
+ * ແປງເສັ້ນເວລາ → payload snake_case ໃຫ້ແອັບ (ຮູບແບບດຽວກັນທຸກສາຍງານ).
+ *
+ * `visits` = **ຮອບເຂົ້າໜ້າງານ** — ມີສະເພາະງານຕິດຕັ້ງ (ສ້ອມ/ບຳລຸງບໍ່ສົ່ງມາ ⇒ ວ່າງ).
+ * ຊ່າງຢູ່ໜ້າງານຕ້ອງເຫັນວ່າ "ໃບນີ້ຂ້ອຍມາຮອບທີ 3 ແລ້ວ" ຄືກັບທີ່ຫົວໜ້າເຫັນຢູ່ເວັບ.
+ */
+function timelinePayload(timeline: {
+  steps: TimelineStep[];
+  cancelledAt: string | null;
+  visits?: JobVisitStep[];
+}) {
   return {
     cancelled_at: timeline.cancelledAt,
     steps: timeline.steps.map((s) => ({
@@ -93,6 +103,15 @@ function timelinePayload(timeline: { steps: TimelineStep[]; cancelledAt: string 
       at: s.at,
       duration_seconds: s.durationSeconds,
       state: s.state,
+    })),
+    visits: (timeline.visits ?? []).map((v) => ({
+      n: v.n,
+      tech: v.tech,
+      at: v.at,
+      out: v.out,
+      minutes: v.minutes,
+      // "ຮອບນີ້ຍັງບໍ່ຈົບຍ້ອນຫຍັງ" — ແອັບເອົາໄປຂຶ້ນແຖບເຕືອນເທິງສຸດຂອງໜ້າໃບງານ
+      reason: v.reason,
     })),
   };
 }

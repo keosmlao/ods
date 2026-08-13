@@ -99,6 +99,11 @@ export type MobileJob = {
   is_lead: boolean;
   /** ຊ່າງຄົນອື່ນໃນທີມຂອງງານນີ້ (ຊື່ຫຍໍ້, ບໍ່ລວມຕົນເອງ) — ໃຫ້ຊ່າງຮູ້ວ່າໄປກັບໃຜ */
   mates: string[];
+  /**
+   * ຈຳນວນຮອບເຂົ້າໜ້າງານທີ່ຜ່ານມາ — ບັດງານໃນຄິວສະແດງ "ຮອບທີ N" ຄູ່ກັບວັນນັດ.
+   * ຊ່າງຕ້ອງຮູ້ຕັ້ງແຕ່ຢູ່ໜ້າລາຍການວ່າໃບນີ້ເປັນໃບທີ່ **ກັບໄປ** ບໍ່ແມ່ນໃບໃໝ່.
+   */
+  visit_rounds: number;
 };
 
 /**
@@ -240,7 +245,9 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         (${INSTALL_LEFT_SQL}) as sla_left,
         null as undo_to,
         (a.tech_code = $1) as is_lead,
-        ${MATES("install", "a.tech_code")} as mates
+        ${MATES("install", "a.tech_code")} as mates,
+        (select count(*) from ods_job_checkin v
+          where v.workflow='install' and v.job_code=a.code)::int as visit_rounds
       from ods_tb_install a
       left join ar_customer c on c.code = a.cust_code
      where ${INSTALL_OPEN}
@@ -282,7 +289,9 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
           else null end::double precision as sla_left,
         (${UNDO_TO_SQL}) as undo_to,
         (a.emp_code = $1) as is_lead,
-        ${MATES("repair", "a.emp_code")} as mates
+        ${MATES("repair", "a.emp_code")} as mates,
+        (select count(*) from ods_job_checkin v
+          where v.workflow='repair' and v.job_code=a.code)::int as visit_rounds
       from tb_product a
       left join ar_customer b on b.code = a.cust_code
      where ${OPEN_JOBS}
@@ -332,7 +341,9 @@ export async function myJobs(session: Session): Promise<MobileJob[]> {
         null::double precision as sla_left,
         null as undo_to,
         (a.emp_code = $1) as is_lead,
-        ${MATES("maintenance", "a.emp_code")} as mates
+        ${MATES("maintenance", "a.emp_code")} as mates,
+        (select count(*) from ods_job_checkin v
+          where v.workflow='maintenance' and v.job_code=a.code)::int as visit_rounds
       from ods_tb_maintenance a
       left join ar_customer c on c.code = a.cust_code
      where ${MAINTENANCE_OPEN}

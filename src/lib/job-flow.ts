@@ -876,6 +876,18 @@ export async function scheduleNextVisit(
         );
   if (!done.rowCount) return { ok: false, error: "ບັນທຶກບໍ່ໄດ້ — ຂັ້ນຂອງງານປ່ຽນໄປແລ້ວ" };
 
+  /**
+   * ຕິດເຫດຜົນໄວ້ກັບ **ຮອບຫຼ້າສຸດ** ນຳ (12-08-2026) — chatter ຢ່າງດຽວບໍ່ພໍ:
+   * ຊ່າງທີ່ໄປຮອບຕໍ່ໄປ (ອາດຄົນລະຄົນ) ຕ້ອງເຫັນ "ຮອບກ່ອນຄ້າງຍ້ອນຫຍັງ" ຢູ່ຫົວໜ້າຈໍ
+   * ບໍ່ແມ່ນໄປໄລ່ຫາໃນກອງ log. ຂຽນທັບຮອບເກົ່າບໍ່ໄດ້ ⇒ ຈຳກັດແຖວດຽວ (id ໃຫຍ່ສຸດ).
+   */
+  await query(
+    `update ods_job_checkin set next_reason = $3
+      where id = (select id from ods_job_checkin
+                   where workflow = $2 and job_code = $1 order by id desc limit 1)`,
+    [code, workflow, reason],
+  );
+
   await logChange(
     workflow === "install" ? "ods_tb_install" : "tb_product",
     code,
@@ -985,6 +997,8 @@ export type JobVisit = {
   checkout_at: string | null;
   minutes: number | null;
   note: string | null;
+  /** "ຮອບນີ້ຍັງບໍ່ຈົບຍ້ອນຫຍັງ" — ໃສ່ຕອນນັດຮອບຕໍ່ໄປ (ຂໍ້ມູນເກົ່າເປັນ null) */
+  next_reason: string | null;
 };
 
 export async function jobVisits(workflow: Workflow, code: string): Promise<JobVisit[]> {
@@ -995,7 +1009,7 @@ export async function jobVisits(workflow: Workflow, code: string): Promise<JobVi
           to_char(checkout_at,'DD-MM-YYYY HH24:MI') checkout_at,
           case when checkout_at is null then null
                else round(extract(epoch from (checkout_at - checkin_at)) / 60)::int end minutes,
-          nullif(note,'') note
+          nullif(note,'') note, nullif(next_reason,'') next_reason
         from ods_job_checkin
        where workflow=$1 and job_code=$2
        order by id`,

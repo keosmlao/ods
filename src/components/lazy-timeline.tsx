@@ -3,10 +3,12 @@
 import { fetchInstallTimeline } from "@/app/actions/install-timeline";
 import { fetchRepairTimeline } from "@/app/actions/repair-timeline";
 import { JobTimeline } from "@/components/repair/job-timeline";
+import type { JobVisitStep } from "@/lib/install-visits";
 import type { TimelineStep } from "@/lib/repair-timeline";
 import { useEffect, useRef, useState } from "react";
 
-type TimelineData = { steps: TimelineStep[]; cancelledAt: string | null };
+/** ງານສ້ອມບໍ່ສົ່ງ `visits` ມາ ⇒ optional (ແຖບຮອບຈະບໍ່ໂຜ່) */
+type TimelineData = { steps: TimelineStep[]; cancelledAt: string | null; visits?: JobVisitStep[] };
 
 /**
  * Timeline ແບບ **ໂຫຼດຕອນກາງອອກ** — ໜ້າລາຍການມີຫຼາຍແຖວ ແຕ່ຄົນກາງເບິ່ງພຽງບາງແຖວ:
@@ -66,7 +68,7 @@ export function LazyTimelineRow({
           </summary>
           <div className="mt-3 w-full rounded-xl border border-brand-100 bg-white p-4">
             {data && data.steps.length > 0 ? (
-              <JobTimeline steps={data.steps} cancelledAt={data.cancelledAt} bare horizontal />
+              <JobTimeline steps={data.steps} cancelledAt={data.cancelledAt} visits={data.visits} bare horizontal />
             ) : (
               <p className="text-xs text-slate-400">ບໍ່ມີຂໍ້ມູນ timeline</p>
             )}
@@ -97,7 +99,7 @@ export function LazyTimelineBlock({
       </summary>
       <div className="mt-3 rounded-lg bg-white p-3">
         {data && data.steps.length > 0 ? (
-          <JobTimeline steps={data.steps} cancelledAt={data.cancelledAt} bare horizontal />
+          <JobTimeline steps={data.steps} cancelledAt={data.cancelledAt} visits={data.visits} bare horizontal />
         ) : (
           <p className="text-xs text-slate-400">ບໍ່ມີຂໍ້ມູນ timeline</p>
         )}

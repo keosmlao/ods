@@ -2,7 +2,7 @@ import { InstallDeleteButton } from "@/components/installation/install-delete-bu
 import { CancelJobButton } from "@/components/installation/job-buttons";
 import { LinkButton } from "@/components/ui";
 import { getSession } from "@/lib/auth";
-import { INSTALL_OPEN, INSTALL_STAGE_SQL, INSTALL_STAGE_TIME_COL } from "@/lib/install-stage";
+import { INSTALL_OPEN, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { permissionFor } from "@/lib/permissions";
 import { FilePlus2, Pencil, Printer } from "lucide-react";
 import Link from "next/link";
@@ -81,7 +81,8 @@ export default async function InstallationsPage({ searchParams }: Props) {
   const jobs = await fetchInstallRows({
     where: where.join(" and "),
     params,
-    orderBy: installOrderBy(sort, dir, INSTALL_STAGE_TIME_COL),
+    // ບໍ່ສົ່ງ timeCol ⇒ ໃຊ້ **ໂມງຄ້າງ** ຕາມຄ່າຕັ້ງຕົ້ນ (ງານທີ່ນັດໄວ້ແລ້ວຕົກລົງລຸ່ມ)
+    orderBy: installOrderBy(sort, dir),
     page,
   });
 

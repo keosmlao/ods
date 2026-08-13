@@ -26,6 +26,7 @@ void main() {
       'can_check_out': true,
       'lat': 17.9757,
       'lng': 102.6331,
+      'visit_rounds': 2,
     });
 
     expect(job.workflow, 'install');
@@ -37,6 +38,52 @@ void main() {
     expect(job.canCheckOut, isTrue);
     expect(job.lat, 17.9757);
     expect(job.lng, 102.6331);
+    // ໄປມາແລ້ວ 2 ຮອບ ⇒ ບັດງານໃນຄິວຂຶ້ນປ້າຍ "ຮອບທີ 3"
+    expect(job.visitRounds, 2);
+  });
+
+  test('timeline carries site-visit rounds (1 ໃບງານ = ຫຼາຍຮອບ)', () {
+    final timeline = JobTimelineData.fromJson({
+      'cancelled_at': null,
+      'steps': [
+        {
+          'stage': 5,
+          'label': 'ກຳລັງຕິດຕັ້ງ',
+          'at': '25-06-2026 13:29',
+          'duration_seconds': 120,
+          'state': 'current',
+        },
+      ],
+      'visits': [
+        {
+          'n': 1,
+          'tech': 'ສັກດາ',
+          'at': '07-08-2026 13:56',
+          'out': '07-08-2026 14:02',
+          'minutes': 6,
+        },
+        // ຮອບທີ່ຊ່າງຍັງບໍ່ໄດ້ check-out — ຄວາມຍາວຍັງບໍ່ຮູ້
+        {
+          'n': 2,
+          'tech': 'ສັກດາ',
+          'at': '09-08-2026 15:09',
+          'out': null,
+          'minutes': null,
+          'reason': 'ລໍງານໄຟຟ້າ',
+        },
+      ],
+    });
+
+    expect(timeline.steps.single.isCurrent, isTrue);
+    expect(timeline.visits.length, 2);
+    expect(timeline.visits.first.lengthLabel, '6 ນທ');
+    expect(timeline.visits.last.out, isNull);
+    expect(timeline.visits.last.lengthLabel, '-');
+    // ເຫດຜົນຕິດຢູ່ຮອບຫຼ້າສຸດ — ແຖບເຕືອນເທິງສຸດຂອງໜ້າໃບງານດຶງຈາກນີ້
+    expect(timeline.visits.first.reason, isNull);
+    expect(timeline.visits.last.reason, 'ລໍງານໄຟຟ້າ');
+    // ງານສ້ອມບໍ່ສົ່ງ visits ມາ ⇒ ຕ້ອງບໍ່ພັງ ແລະ ບໍ່ສະແດງແຖບຮອບ
+    expect(JobTimelineData.fromJson({'steps': []}).visits, isEmpty);
   });
 
   test('ApiError exposes a readable message', () {

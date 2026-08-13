@@ -1,6 +1,42 @@
 import { Elapsed } from "@/components/elapsed";
+import { minutesLabel, type JobVisitStep } from "@/lib/install-visits";
 import type { TimelineStep } from "@/lib/repair-timeline";
-import { Check } from "lucide-react";
+import { Check, MapPin } from "lucide-react";
+
+/**
+ * ແຖບ **ຮອບເຂົ້າໜ້າງານ** ທີ່ຕິດຢູ່ລຸ່ມເສັ້ນເວລາ.
+ *
+ * ເສັ້ນເວລາ 9 ຂັ້ນສະແດງຮອບບໍ່ໄດ້ ເພາະຮອບເກີດ **ພາຍໃນຂັ້ນດຽວ** (4 ລໍຕິດຕັ້ງ / 5 ກຳລັງຕິດຕັ້ງ):
+ * ຊ່າງເຂົ້າ-ອອກ 3 ຮອບ ຂັ້ນກໍຍັງເປັນ "ກຳລັງຕິດຕັ້ງ" ຢູ່ຕະຫຼອດ (ເບິ່ງ lib/job-flow.scheduleNextVisit).
+ * ຈຶ່ງໃສ່ເປັນແຖວທີສອງ ⇒ ຄົນເບິ່ງຮູ້ວ່າ "ຄ້າງ" ນັ້ນ ໄປມາແລ້ວຈັກເທື່ອ ບໍ່ແມ່ນຖືກປະຖິ້ມ.
+ */
+function VisitStrip({ visits }: { visits: JobVisitStep[] }) {
+  if (visits.length === 0) return null;
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-dashed border-brand-100 pt-2.5">
+      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand-700">
+        <MapPin className="size-3" />
+        ຮອບເຂົ້າໜ້າງານ ({visits.length})
+      </span>
+      {visits.map((visit) => (
+        <span
+          key={visit.n}
+          className="rounded-md bg-brand-50 px-1.5 py-0.5 text-[10px] tabular-nums text-brand-800"
+          title={[visit.tech && `ຊ່າງ ${visit.tech}`, visit.reason && `ຍັງບໍ່ຈົບຍ້ອນ: ${visit.reason}`]
+            .filter(Boolean)
+            .join(" · ") || undefined}
+        >
+          <b className="font-bold">ຮອບ {visit.n}</b> {visit.at ?? "-"}
+          {visit.out ? ` → ${visit.out.slice(-5)} (${minutesLabel(visit.minutes)})` : (
+            <span className="text-brand-orange-700"> · ຍັງຢູ່ໜ້າງານ</span>
+          )}
+          {/* ເຫດຜົນທີ່ຮອບນັ້ນຄ້າງ — ຄຳຕອບຂອງ "ເປັນຫຍັງຕ້ອງໄປອີກຮອບ" */}
+          {visit.reason && <span className="text-brand-orange-700"> · {visit.reason}</span>}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 /**
  * ເສັ້ນເວລາຂອງງານສ້ອມ — ທຸກຂັ້ນ (ໄປຕາມ service_type) ພ້ອມ **ໄລຍະເວລາທີ່ຢູ່ແຕ່ລະຂັ້ນ**.
@@ -15,6 +51,7 @@ export function JobTimeline({
   cancelledAt,
   bare = false,
   horizontal = false,
+  visits = [],
 }: {
   steps: TimelineStep[];
   cancelledAt: string | null;
@@ -22,11 +59,14 @@ export function JobTimeline({
   bare?: boolean;
   /** horizontal = stepper ແນວນອນ ສຳລັບ Tree ໃນໜ້າລາຍການ */
   horizontal?: boolean;
+  /** ຮອບເຂົ້າໜ້າງານ (ງານຕິດຕັ້ງ/ສ້ອມນອກສູນ) — ວ່າງ ⇒ ບໍ່ສະແດງແຖບ */
+  visits?: JobVisitStep[];
 }) {
   if (steps.length === 0) return null;
   if (horizontal) {
     return (
-      <div className="overflow-x-auto pb-1">
+      <div className="pb-1">
+        <div className="overflow-x-auto">
         <ol
           className="grid min-w-max"
           style={{ gridTemplateColumns: `repeat(${steps.length + (cancelledAt ? 1 : 0)}, minmax(130px, 1fr))` }}
@@ -82,6 +122,8 @@ export function JobTimeline({
             </li>
           )}
         </ol>
+        </div>
+        <VisitStrip visits={visits} />
       </div>
     );
   }
@@ -133,11 +175,17 @@ export function JobTimeline({
         )}
       </ol>
   );
-  if (bare) return list;
+  const block = (
+    <>
+      {list}
+      <VisitStrip visits={visits} />
+    </>
+  );
+  if (bare) return block;
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <h2 className="mb-3 border-b border-slate-100 pb-2 text-sm font-bold text-slate-700">ເສັ້ນເວລາ (Timeline)</h2>
-      {list}
+      {block}
     </section>
   );
 }

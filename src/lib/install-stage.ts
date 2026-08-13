@@ -121,5 +121,53 @@ end`;
  */
 export const INSTALL_ACCEPT_CLOCK = "coalesce(a.assigt_time, a.time_register)";
 
-/** ຈຳນວນວິນາທີທີ່ຄ້າງຢູ່ຂັ້ນປັດຈຸບັນ — ສົ່ງໃຫ້ <Elapsed seconds=... /> */
-export const INSTALL_ELAPSED_SQL = `greatest(0, round(extract(epoch from (localtimestamp - (${INSTALL_STAGE_TIME_COL})))))::int`;
+/* ── ໂມງຄ້າງຂອງງານ **ຫຼາຍຮອບ** (12-08-2026) ───────────────────────── */
+
+/**
+ * ເວລາທີ່ຊ່າງອອກຈາກໜ້າງານ **ຮອບຫຼ້າສຸດ** (ຮອບເກັບຢູ່ `ods_job_checkin`).
+ * ຮອບທີ່ຍັງ check-in ຄ້າງບໍ່ນັບ — ຊ່າງຍັງຢູ່ໜ້າງານ ຈຶ່ງບໍ່ແມ່ນ "ຄ້າງ".
+ */
+export const INSTALL_LAST_VISIT_SQL = `(select max(v.checkout_at) from ods_job_checkin v
+  where v.workflow = 'install' and v.job_code = a.code)`;
+
+/**
+ * **ໂມງທີ່ໃຊ້ວັດ "ຄ້າງ"** — ຕ່າງຈາກ INSTALL_STAGE_TIME_COL ທີ່ບອກ "ເຂົ້າຂັ້ນນີ້ຕອນໃດ".
+ *
+ * ── ເປັນຫຍັງຈຶ່ງແຍກ (12-08-2026) ──
+ * ງານຕິດຕັ້ງ 1 ໃບ = **ຫຼາຍຮອບເຂົ້າໜ້າງານ** (ລໍງານໄຟຟ້າ · ຝົນຕົກ · ລູກຄ້າຂໍເລື່ອນ)
+ * ⇒ ຂັ້ນ 4/5 ຄາຢູ່ດົນເປັນເລື່ອງປົກກະຕິ. ໂມງເກົ່ານັບຈາກ `start_install` ຕົວດຽວ
+ * ⇒ INST-6892 ຂຶ້ນ "48 ມື້" ທັງທີ່ຊ່າງເຂົ້າໄປແລ້ວຫຼາຍຮອບ ແລະ ນັດຮອບໜ້າໄວ້ແລ້ວ
+ * ⇒ ຕົວເລກວັດ "ງານຍາວ" ບໍ່ແມ່ນ "ຖືກລືມ" ⇒ ຫົວໜ້າໃຊ້ຕັດສິນຫຍັງບໍ່ໄດ້.
+ *
+ * ຂັ້ນ **4 ລໍຖ້າຕິດຕັ້ງ · 5 ກຳລັງຕິດຕັ້ງ** (ຂັ້ນທີ່ນັດຮອບຕໍ່ໄປໄດ້ — ເບິ່ງ lib/job-flow)
+ * ຈຶ່ງນັບຈາກ **ອັນໃໝ່ສຸດ** ໃນ 3 ຢ່າງ:
+ *   ① ເວລາເຂົ້າຂັ້ນ  ② ອອກຈາກໜ້າງານຮອບຫຼ້າສຸດ  ③ ວັນນັດ
+ * ⇒ ນັດໄວ້ວັນໜ້າ = ໂມງເປັນ 0 (ຍັງບໍ່ຮອດຕາເວັນນັດ ບໍ່ມີຫຍັງໃຫ້ໄລ່) ·
+ *   ເລີຍວັນນັດ = ນັບຈາກວັນນັດ (**ຜິດນັດຈິງ**) · ບໍ່ເຄີຍນັດ = ນັບຈາກຮອບຫຼ້າສຸດ.
+ * ຂັ້ນອື່ນບໍ່ມີຮອບໜ້າງານ ⇒ ໃຊ້ເວລາເຂົ້າຂັ້ນຄືເກົ່າ.
+ */
+export const INSTALL_WAIT_TIME_COL = `case
+  when (${INSTALL_STAGE_SQL}) in (4,5)
+    then greatest((${INSTALL_STAGE_TIME_COL}), ${INSTALL_LAST_VISIT_SQL}, a.appoint_date::timestamp)
+  else (${INSTALL_STAGE_TIME_COL})
+end`;
+
+/** ຈຳນວນຮອບເຂົ້າໜ້າງານທັງໝົດ (ລວມຮອບທີ່ຊ່າງຍັງຢູ່ໜ້າງານ) */
+export const INSTALL_VISIT_ROUNDS_SQL = `(select count(*) from ods_job_checkin v
+  where v.workflow = 'install' and v.job_code = a.code)::int`;
+
+/** ນາທີລວມທີ່ຢູ່ໜ້າງານ — ນັບສະເພາະຮອບທີ່ check-out ແລ້ວ (ຮອບທີ່ຍັງເປີດຢູ່ ຍັງບໍ່ຮູ້ຄວາມຍາວ) */
+export const INSTALL_VISIT_MINUTES_SQL = `(select coalesce(round(
+    sum(extract(epoch from (v.checkout_at - v.checkin_at))) / 60), 0)
+  from ods_job_checkin v
+  where v.workflow = 'install' and v.job_code = a.code and v.checkout_at is not null)::int`;
+
+/**
+ * ງານທີ່ **ນັດໄວ້ແລ້ວ ແລະ ວັນນັດຍັງບໍ່ຮອດ** — ບໍ່ຖືວ່າຄ້າງ.
+ * ໜ້າລາຍການສະແດງເປັນປ້າຍ "ນັດ DD-MM" ແທນນາລິກາ (ເບິ່ງ installations/shared).
+ */
+export const INSTALL_APPOINT_WAIT_SQL = `((${INSTALL_STAGE_SQL}) in (4,5)
+  and a.appoint_date is not null and a.appoint_date::date >= current_date)`;
+
+/** ຈຳນວນວິນາທີທີ່ຄ້າງ — ສົ່ງໃຫ້ <Elapsed seconds=... /> */
+export const INSTALL_ELAPSED_SQL = `greatest(0, round(extract(epoch from (localtimestamp - (${INSTALL_WAIT_TIME_COL})))))::int`;

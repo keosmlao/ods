@@ -2,7 +2,7 @@ import { startInstall, techFilter } from "@/app/actions/installation";
 import { FinishInstallButton } from "@/components/installation/finish-install-button";
 import { UndoStartInstallButton } from "@/components/installation/undo-buttons";
 import { JobButton } from "@/components/installation/job-buttons";
-import { installStageIs } from "@/lib/install-stage";
+import { INSTALL_WAIT_TIME_COL, installStageIs } from "@/lib/install-stage";
 import { Fragment } from "react";
 import {
   INSTALL_PLAIN_COLUMNS,
@@ -34,13 +34,18 @@ export const dynamic = "force-dynamic";
 type Queue = "waiting" | "doing";
 export type WorkQueueProps = { searchParams: Promise<ListSearchParams> };
 
+/**
+ * timeCol = ຖັນທີ່ໃຊ້ຮຽງ "ຄ້າງດົນສຸດກ່ອນ" — ໃຊ້ **ໂມງຄ້າງ** (INSTALL_WAIT_TIME_COL)
+ * ບໍ່ແມ່ນເວລາເຂົ້າຂັ້ນ ເພາະ 1 ໃບງານ = ຫຼາຍຮອບເຂົ້າໜ້າງານ: ຮຽງດ້ວຍ `start_install`
+ * ຕົວດຽວ ⇒ ໃບທີ່ນັດຮອບໜ້າໄວ້ຮຽບຮ້ອຍແລ້ວ ຍັງລອຍຢູ່ຫົວຕາຕະລາງກີດງານທີ່ຖືກລືມຈິງ.
+ */
 const BUCKET: Record<Queue, { where: string; timeCol: string }> = {
   // ຂັ້ນ 4 = ຮັບອາໄຫຼ່ຄົບແລ້ວ (ຫຼື ບໍ່ໃຊ້ອາໄຫຼ່) ແລະ ຍັງບໍ່ເລີ່ມ · ຕ້ອງຮັບງານກ່ອນ (tech_confirm)
   waiting: {
     where: `${installStageIs(4)} and a.tech_confirm is not null and a.start_install is null`,
-    timeCol: "coalesce(a.pick_finish, a.tech_confirm, a.time_register)",
+    timeCol: INSTALL_WAIT_TIME_COL,
   },
-  doing: { where: installStageIs(5), timeCol: "a.start_install" },
+  doing: { where: installStageIs(5), timeCol: INSTALL_WAIT_TIME_COL },
 };
 
 const TIME_LABEL: Record<Queue, string> = {

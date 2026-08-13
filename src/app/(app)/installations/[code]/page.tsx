@@ -6,6 +6,8 @@ import { NextVisitButton } from "@/components/installation/next-visit-button";
 import { HandoverTechButton } from "@/components/installation/handover-tech-button";
 import { technicianOptions } from "@/lib/technicians";
 import { jobVisits } from "@/lib/job-flow";
+import { minutesLabel, nextRoundHint } from "@/lib/install-visits";
+import { RotateCcw } from "lucide-react";
 import { Elapsed } from "@/components/elapsed";
 import { InstallDeleteButton } from "@/components/installation/install-delete-button";
 import { JOB_HEAD_COLUMNS, type JobHead, JobHeader } from "@/components/installation/job-header";
@@ -264,10 +266,59 @@ export default async function InstallationDetail({ params }: Props) {
         </div>
       )}
 
+      {/*
+        ── ແຖບ "ຮອບນີ້ຄືຮອບທີ N" (12-08-2026) ──
+        ວາງ **ເໜືອຫົວໃບງານ** ໂດຍເຈດຕະນາ: ຄົນທີ່ເປີດໃບງານທີ່ໄປມາແລ້ວ ຕ້ອງຮູ້ກ່ອນອື່ນ
+        ວ່າຮອບກ່ອນຄ້າງຍ້ອນຫຍັງ — ບໍ່ດັ່ງນັ້ນຈະໄປຊ້ຳຮອຍເກົ່າ (ໄປຮອດແລ້ວຍັງບໍ່ມີໄຟຄືເກົ່າ).
+        ແອັບສະແດງແຖບດຽວກັນນີ້ (screens/job_screen) — ຫົວໜ້າກັບຊ່າງເຫັນປະໂຫຍກດຽວກັນ.
+      */}
+      {(() => {
+        const hint = nextRoundHint(timeline.visits);
+        if (!hint || row.stage > 5) return null;
+        return (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-brand-orange-200 bg-brand-orange-50 px-4 py-2.5 text-xs">
+            <span className="inline-flex items-center gap-1.5 font-bold text-brand-orange-800">
+              <RotateCcw className="size-4" />
+              {hint.open ? `ກຳລັງຢູ່ໜ້າງານ ຮອບທີ ${hint.round}` : `ຮອບຕໍ່ໄປຄືຮອບທີ ${hint.round}`}
+            </span>
+            {hint.lastAt && <span className="text-slate-600">ຮອບກ່ອນ {hint.lastAt}</span>}
+            {hint.reason && (
+              <span className="text-slate-700">
+                ຍັງບໍ່ຈົບຍ້ອນ: <b className="text-brand-orange-800">{hint.reason}</b>
+              </span>
+            )}
+          </div>
+        );
+      })()}
+
       <JobHeader head={row} />
 
       {visits.length > 0 && (
         <Card title={`ຮອບເຂົ້າໜ້າງານ (${visits.length})`}>
+          {/*
+            ── ສະຫຼຸບ "ໃບດຽວ ຫຼາຍຮອບ" ──
+            ຕາຕະລາງລຸ່ມນີ້ບອກລາຍຮອບ ແຕ່ຄຳຖາມທຳອິດຂອງຫົວໜ້າແມ່ນ 3 ຂໍ້: ໄປມາຈັກຮອບ ·
+            ຢູ່ໜ້າງານລວມດົນປານໃດ · **ຮອບຕໍ່ໄປວັນໃດ**. ບໍ່ຄວນໃຫ້ນັ່ງບວກເອົາເອງ.
+          */}
+          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            <span>
+              ໄປມາແລ້ວ <b className="text-brand-800">{visits.length}</b> ຮອບ
+            </span>
+            <span>
+              ຢູ່ໜ້າງານລວມ{" "}
+              <b className="text-brand-800">
+                {minutesLabel(visits.reduce((sum, visit) => sum + (visit.minutes ?? 0), 0))}
+              </b>
+            </span>
+            {row.appoint_date && (
+              <span>
+                ນັດຮອບຕໍ່ໄປ <b className="text-brand-800">{row.appoint_date}</b>
+              </span>
+            )}
+            {visits.some((visit) => !visit.checkout_at) && (
+              <span className="font-semibold text-brand-orange-700">ມີຮອບທີ່ຍັງບໍ່ໄດ້ check-out</span>
+            )}
+          </div>
           {/* ຜ່ານມືຫຼາຍຄົນ ⇒ ບອກໄວ້ ເພາະຄ່າຄອມຄິດຕໍ່ໃບງານ (ຕົກໃສ່ຄົນທີ່ຖືງານຕອນປິດ) */}
           {new Set(visits.map((visit) => visit.tech_code).filter(Boolean)).size > 1 && (
             <p className="mb-2 rounded-lg bg-brand-orange-50 px-3 py-2 text-[11px] font-medium text-brand-orange-700">
@@ -298,7 +349,15 @@ export default async function InstallationDetail({ params }: Props) {
                     <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-600">
                       {visit.minutes == null ? "-" : `${Math.floor(visit.minutes / 60)} ຊມ ${visit.minutes % 60} ນທ`}
                     </td>
-                    <td className="px-3 py-2 text-slate-500">{visit.note ?? "-"}</td>
+                    <td className="px-3 py-2 text-slate-500">
+                      {visit.note ?? "-"}
+                      {/* ເຫດຜົນທີ່ຮອບນັ້ນຍັງບໍ່ຈົບ — ຄຳຕອບຂອງ "ເປັນຫຍັງຕ້ອງໄປອີກຮອບ" */}
+                      {visit.next_reason && (
+                        <span className="mt-0.5 block text-[11px] font-medium text-brand-orange-700">
+                          ຍັງບໍ່ຈົບຍ້ອນ: {visit.next_reason}
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

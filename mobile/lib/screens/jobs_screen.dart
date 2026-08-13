@@ -954,6 +954,33 @@ class _JobCard extends StatelessWidget {
                               ),
                               const SizedBox(width: 3),
                             ],
+                            /*
+                              ── ໃບທີ່ຕ້ອງກັບໄປອີກຮອບ (12-08-2026) ──
+                              ຊ່າງບໍ່ສົນວ່າ "ຄ້າງ 48 ມື້" (ຕົວເລກຂອງຫົວໜ້າ) — ລາວສົນວ່າ
+                              ໃບນີ້ເຄີຍໄປແລ້ວບໍ ແລະ ນັດວັນໃດ. ຮອບ > 0 ⇒ ຂຶ້ນປ້າຍນຳໜ້າ.
+                            */
+                            if (job.visitRounds > 0) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: tealTint,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  // ຍັງ check-in ຄ້າງ = ກຳລັງເຮັດຮອບນັ້ນຢູ່ ⇒ ບໍ່ບວກເພີ່ມ
+                                  'ຮອບທີ ${job.checkedIn ? job.visitRounds : job.visitRounds + 1}',
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w900,
+                                    color: teal,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
                             Expanded(
                               child: Text(
                                 [

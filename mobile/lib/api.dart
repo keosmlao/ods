@@ -1685,6 +1685,9 @@ class Job {
   /// ຊ່າງຄົນອື່ນທີ່ໄປງານນີ້ນຳ (ບໍ່ລວມຕົນເອງ) — ໃຫ້ຮູ້ວ່າມື້ນີ້ໄປກັບໃຜ ບໍ່ຕ້ອງໂທຖາມ
   final List<String> mates;
 
+  /// ຈຳນວນຮອບເຂົ້າໜ້າງານທີ່ຜ່ານມາ — >0 ໝາຍວ່າໃບນີ້ເປັນໃບທີ່ **ກັບໄປ** ບໍ່ແມ່ນໃບໃໝ່
+  final int visitRounds;
+
   Job({
     required this.workflow,
     required this.code,
@@ -1724,6 +1727,7 @@ class Job {
     this.undoTo,
     this.isLead = true,
     this.mates = const [],
+    this.visitRounds = 0,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) => Job(
@@ -1768,6 +1772,7 @@ class Job {
         .map((value) => '$value')
         .where((value) => value.isNotEmpty)
         .toList(),
+    visitRounds: (json['visit_rounds'] as num?)?.toInt() ?? 0,
   );
 
   /// "ເຫຼືອ 5 ຊມ" · "ເລີຍ 2 ມື້" · null = ບໍ່ມີນາລິກາ (ບິນເກົ່າບໍ່ມີວັນທີ / ງານສ້ອມ)
@@ -2406,16 +2411,70 @@ class TimelineStep {
   bool get isDone => state == 'done';
 }
 
+/// 1 **ຮອບເຂົ້າໜ້າງານ** (check-in → check-out) — ງານຕິດຕັ້ງ 1 ໃບໄປໄດ້ຫຼາຍຮອບ.
+///
+/// ຮອບເກີດ**ພາຍໃນຂັ້ນດຽວ** (ລໍຕິດຕັ້ງ / ກຳລັງຕິດຕັ້ງ) ⇒ ເສັ້ນເວລາ 9 ຂັ້ນສະແດງບໍ່ໄດ້
+/// ຈຶ່ງມາເປັນລາຍການແຍກ (ນິຍາມດຽວກັບເວັບ — lib/install-visits).
+class JobVisit {
+  final int n;
+  final String? tech;
+  final String? at; // ເຂົ້າໜ້າງານ
+  final String? out; // ອອກ (null = ຍັງຢູ່ໜ້າງານ)
+  final int? minutes;
+
+  /// "ຮອບນີ້ຍັງບໍ່ຈົບຍ້ອນຫຍັງ" — ໃສ່ຕອນນັດຮອບຕໍ່ໄປ (null = ຮອບຈົບປົກກະຕິ ຫຼື ຂໍ້ມູນເກົ່າ)
+  final String? reason;
+
+  const JobVisit({
+    required this.n,
+    required this.tech,
+    required this.at,
+    required this.out,
+    required this.minutes,
+    this.reason,
+  });
+
+  factory JobVisit.fromJson(Map<String, dynamic> json) => JobVisit(
+    n: (json['n'] as num?)?.toInt() ?? 0,
+    tech: json['tech'] as String?,
+    at: json['at'] as String?,
+    out: json['out'] as String?,
+    minutes: (json['minutes'] as num?)?.toInt(),
+    reason: json['reason'] as String?,
+  );
+
+  /// "1 ຊມ 20 ນທ" · "45 ນທ" · "-" (ຄູ່ກັບ minutesLabel ຢູ່ເວັບ)
+  String get lengthLabel {
+    final value = minutes;
+    if (value == null || value == 0) return '-';
+    final hours = value ~/ 60;
+    final rest = value % 60;
+    if (hours == 0) return '$rest ນທ';
+    return rest == 0 ? '$hours ຊມ' : '$hours ຊມ $rest ນທ';
+  }
+}
+
 class JobTimelineData {
   final List<TimelineStep> steps;
   final String? cancelledAt;
-  JobTimelineData({required this.steps, required this.cancelledAt});
+
+  /// ຮອບເຂົ້າໜ້າງານ — ວ່າງສະເໝີສຳລັບງານສ້ອມ/ບຳລຸງ
+  final List<JobVisit> visits;
+
+  JobTimelineData({
+    required this.steps,
+    required this.cancelledAt,
+    this.visits = const [],
+  });
   factory JobTimelineData.fromJson(Map<String, dynamic> json) =>
       JobTimelineData(
         steps: ((json['steps'] as List?) ?? [])
             .map((row) => TimelineStep.fromJson(row as Map<String, dynamic>))
             .toList(),
         cancelledAt: json['cancelled_at'] as String?,
+        visits: ((json['visits'] as List?) ?? [])
+            .map((row) => JobVisit.fromJson(row as Map<String, dynamic>))
+            .toList(),
       );
 }
 
