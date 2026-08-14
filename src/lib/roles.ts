@@ -281,6 +281,9 @@ const RULES: Rule[] = [
   // ສະວິດເປີດ/ປິດຄວາມສາມາດຂອງທັງລະບົບ (ບາງອັນຢຸດນາລິກາ KPI) ⇒ ຜູ້ຈັດການເທົ່ານັ້ນ
   { path: "/manage/settings", roles: [M] },
   { path: "/manage/install-serials", roles: [M] },
+  // ຊຸດອາໄຫຼ່ມາດຕະຖານ — ແກ້ແລ້ວມີຜົນກັບໃບງານໃໝ່ທຸກໃບ ⇒ ຕັ້ງຕົ້ນຜູ້ຈັດການເທົ່ານັ້ນ,
+  // ຄົນອື່ນເປີດໃຫ້ເປັນລາຍຄົນທີ່ /manage/employees (ສິດລາຍຄົນຊະນະ role)
+  { path: "/manage/install-kits", roles: [M] },
   { path: "/manage/login-log", roles: [M] },
 
   /* ລາຍງານ — ods ໃຫ້ manager ຄົບ, admin ໄດ້ 2 ໜ້າ; ສາງໄດ້ສະເພາະລາຍງານສາງ/ສັ່ງຊື້ */

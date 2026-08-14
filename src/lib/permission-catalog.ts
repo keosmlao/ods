@@ -68,6 +68,7 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ຕິດຕັ້ງ", label: "ຕິດຕັ້ງ", resource: "/installations/work", actions: ["read", "update"] },
   { group: "ຕິດຕັ້ງ", label: "ລູກຄ້າປະເມີນ", resource: "/installations/feedback", actions: ["read", "update"] },
   { group: "ຕິດຕັ້ງ", label: "ປິດງານ", resource: "/installations/close", actions: ["read", "update"] },
+  { group: "ຕິດຕັ້ງ", label: "ຊຸດອາໄຫຼ່ມາດຕະຖານ", resource: "/manage/install-kits" },
   { group: "ຕິດຕັ້ງ", label: "ລາຍງານງານຕິດຕັ້ງ", resource: "/reports/installations", actions: READ_ONLY },
   { group: "ຕິດຕັ້ງ", label: "ສະຫຼຸບອາໄຫຼ່ປະຈຳເດືອນ", resource: "/reports/install-spares-monthly", actions: READ_ONLY },
 

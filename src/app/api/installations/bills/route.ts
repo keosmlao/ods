@@ -1,4 +1,5 @@
 import { getSession } from "@/lib/auth";
+import { installTypeFromSizeSql } from "@/lib/install-kit";
 import { query, queryOdg } from "@/lib/db";
 import { roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { NextResponse, type NextRequest } from "next/server";
@@ -230,12 +231,8 @@ export async function GET(request: NextRequest) {
          lines as (
            -- ⑤ ແຖວລາຍການ ພ້ອມຂໍ້ມູນທີ່ດຶງຈາກ ERP
            select k.doc_no, k.doc_date, k.item_code, k.item_name, k.qty::float as qty,
-              case when inv.item_size='112' then '9900-0020'
-                   when inv.item_size='023' then '9900-0019'
-                   when inv.item_size='033' then '9900-0018'
-                   when inv.item_size='051' then '9900-0017'
-                   when inv.item_size='121' then '9900-0016'
-                   else '' end as sv_type,
+              -- ຄູ່ ຂະໜາດ↔ຊຸດ ຢູ່ lib/install-kit ບ່ອນດຽວ (ໜ້າຈັດການຊຸດໃຊ້ອັນດຽວກັນ)
+              ${installTypeFromSizeSql("inv.item_size")} as sv_type,
               inv.item_brand,
               inv.item_category as pro_type,
               cat.name_1 as pro_type_name,
