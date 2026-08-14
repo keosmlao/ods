@@ -27,7 +27,6 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { INSTALL_ELAPSED_SQL, INSTALL_STAGE_SQL, installStageChip, installStageLabel } from "@/lib/install-stage";
 import { canViewAssignedJob } from "@/lib/scope";
-import { TECH_SIDE, roleOf } from "@/lib/roles";
 import { notFound, redirect } from "next/navigation";
 
 /**
@@ -77,8 +76,21 @@ export default async function InstallationDetail({ params }: Props) {
   const session = await getSession();
   if (!session) redirect("/login");
   const t = (await getDictionary(await getLocale())).installDetail;
-  const installPermission = await permissionFor(session, "/installations");
+  const [installPermission, sparePermission] = await Promise.all([
+    permissionFor(session, "/installations"),
+    permissionFor(session, "/installations/spare-requests"),
+  ]);
   const canDelete = installPermission.delete;
+  /**
+   * ປຸ່ມຂອງບລັອກ "ອາໄຫຼ່ຂອງໃບງານ" ຕ້ອງອີງ **ສິດເມນູ** ຄືກັນກັບ action ຝັ່ງ server
+   * (actions/installation → INSTALL_MENU.spareRequest) ບໍ່ແມ່ນ role ລ້ວນ.
+   * ກ່ອນແກ້: `TECH_SIDE.includes(roleOf(session))` ⇒ CS ທີ່ຜູ້ຈັດການເປີດສິດ
+   * ສ້າງ/ແກ້/ລຶບ ໃຫ້ແລ້ວ **ບໍ່ເຫັນປຸ່ມຈັກອັນ** (ປຸ່ມບໍ່ຖືກ render ເລີຍ ບໍ່ແມ່ນກົດແລ້ວຖືກປະຕິເສດ)
+   * ⇒ ຄົນຕັ້ງສິດເຂົ້າໃຈວ່າສິດບໍ່ຕິດ. ບໍ່ມີ override = ຕົກມາໃຊ້ role ຄືເກົ່າ.
+   */
+  const canNewRequest = sparePermission.read && sparePermission.create;
+  const canEditRequest = sparePermission.read && sparePermission.update;
+  const canDeleteRequest = sparePermission.read && sparePermission.delete;
 
   // ໃບເບີກຂອງ ERP ເຂົ້າກ່ອນ — ຝັ່ງຕິດຕັ້ງກໍ່ຄືກັນ (ເບິ່ງ syncErpDispatchForJob)
   await syncErpDispatchForJob(code);
@@ -140,7 +152,6 @@ export default async function InstallationDetail({ params }: Props) {
   const row = job.rows[0];
   if (!row) notFound();
   if (!canViewAssignedJob(session, row.tech_code)) redirect("/forbidden");
-  const canCancelRequest = TECH_SIDE.includes(roleOf(session));
 
   /**
    * ດຶງ **ຫຼັງ**ກວດສິດ — ບໍ່ດັ່ງນັ້ນຄົນທີ່ເປີດງານຂອງຄົນອື່ນບໍ່ໄດ້ ຍັງເຮັດໃຫ້ລະບົບ
@@ -429,7 +440,7 @@ export default async function InstallationDetail({ params }: Props) {
         withdrawals={rounds.withdrawals}
         purchases={rounds.purchases}
         erp={rounds.erp}
-        canRequest={canCancelRequest}
+        canRequest={canNewRequest}
         techReceipt={false}
         links={{
           newRequest: `/installations/spare-requests/${encodeURIComponent(row.code)}`,
@@ -446,12 +457,14 @@ export default async function InstallationDetail({ params }: Props) {
           returnJobType: "install",
         }}
         docAction={(docNo, dispatched) =>
-          canCancelRequest && !dispatched ? (
+          (canEditRequest || canDeleteRequest) && !dispatched ? (
             <span className="flex items-center gap-2">
-              <LinkButton href={`/installations/spare-requests/edit/${encodeURIComponent(docNo)}`} tone="info" size="sm">
-                ແກ້ໄຂ
-              </LinkButton>
-              <CancelInstallSpareRequestButton docNo={docNo} code={row.code} />
+              {canEditRequest && (
+                <LinkButton href={`/installations/spare-requests/edit/${encodeURIComponent(docNo)}`} tone="info" size="sm">
+                  ແກ້ໄຂ
+                </LinkButton>
+              )}
+              {canDeleteRequest && <CancelInstallSpareRequestButton docNo={docNo} code={row.code} />}
             </span>
           ) : null
         }

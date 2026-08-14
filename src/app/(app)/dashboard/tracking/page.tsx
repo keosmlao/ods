@@ -98,7 +98,7 @@ export default async function TrackingPage({ searchParams }: Props) {
   return (
     <div className="mx-auto w-full max-w-4xl space-y-4">
       <div>
-        <BackLink fallback="/dashboard" label="{t.backToOverview}" />
+        <BackLink fallback="/dashboard" label={t.backToOverview} />
         <h1 className="text-xl font-bold text-slate-700">{t.title}</h1>
         <p className="mt-0.5 text-xs text-slate-500">{t.subtitle}</p>
       </div>

@@ -17,6 +17,7 @@ import { db, odgDb, query, queryOdg } from "@/lib/db";
 import { deleteErpRequest, writeErpRequest } from "@/lib/erp-request";
 import { nextDocNo } from "@/lib/doc-no";
 import { requirePermission, requireRole, runAction } from "@/lib/guard";
+import type { PermissionAction } from "@/lib/permission-catalog";
 import { takeFromForm, takeQty } from "@/lib/spare-take";
 import { type Role, roleOf, SERVICE_SIDE, TECH_SIDE } from "@/lib/roles";
 import { TRANS } from "@/lib/stock-constants";
@@ -132,11 +133,25 @@ const NOT_YOURS = "ງານນີ້ບໍ່ແມ່ນຂອງທ່ານ"
 type JobGuard =
   { ok: true; session: Session; job: JobState } | { ok: false; error: string };
 
+/**
+ * ── `gate` = ຜູກ action ນີ້ເຂົ້າກັບ **ເມນູ** ⇒ ສິດລາຍຄົນຊະນະ role ──
+ * ມີແຖວໃນ `ods_user_menu_permission` ຂອງ resource ນີ້ → ໃຊ້ C/R/U/D ທີ່ຜູ້ຈັດການຕິກ
+ * (ທັງເປີດ ແລະ ປິດ) · ບໍ່ມີແຖວ → ຕົກມາໃຊ້ `allowed` ຄືເກົ່າ.
+ * ນະໂຍບາຍອັນດຽວກັບ permissionFromOverrides (lib/permissions) ທີ່ໜ້າ/sidebar ໃຊ້ຢູ່ແລ້ວ
+ * ⇒ "ເປີດໜ້າໄດ້ ແຕ່ກົດບັນທຶກບໍ່ໄດ້" ຫາຍໄປ.
+ *
+ * ⚠️ resource **ຂຽນຄາໄວ້ໃນໂຄດ** ບໍ່ແມ່ນເອົາຈາກ header — ບໍ່ດັ່ງນັ້ນຜູ້ໃຊ້ຕັ້ງ `Referer`
+ * ເອງແລ້ວຍືມສິດຂອງເມນູອື່ນໄດ້ (ເຫດຜົນທີ່ requestOverride ຖືກຕັດ — ເບິ່ງ lib/guard).
+ * ບໍ່ສົ່ງ `gate` = ກວດ role ຢ່າງດຽວຄືເກົ່າ.
+ */
 async function guardJob(
   code: string,
   allowed: readonly Role[],
+  gate?: { resource: string; action: PermissionAction },
 ): Promise<JobGuard> {
-  const guard = await requireRole(allowed);
+  const guard = gate
+    ? await requirePermission(gate.resource, gate.action, allowed)
+    : await requireRole(allowed);
   if (!guard.ok) return { ok: false, error: guard.error };
 
   const job = await jobState(code);
@@ -150,6 +165,18 @@ async function guardJob(
   }
   return { ok: true, session: guard.session, job };
 }
+
+/** ເມນູ "ໃບຂໍເບີກ" — ຊື່ຕ້ອງຕົງກັບ PERMISSION_RESOURCES (lib/permission-catalog) */
+const INSTALL_MENU = {
+  jobs: "/installations",
+  assign: "/installations/assign",
+  accept: "/installations/accept",
+  spareRequest: "/installations/spare-requests",
+  sparePickup: "/installations/spare-pickup",
+  work: "/installations/work",
+  feedback: "/installations/feedback",
+  close: "/installations/close",
+} as const;
 
 /* ── ເປີດງານຕິດຕັ້ງ (save_install_create) ─────────────────── */
 
@@ -661,7 +688,7 @@ export async function cancelInstall(
   code: string,
   remark: string,
 ): Promise<ActionState> {
-  const guard = await guardJob(code, SERVICE_SIDE);
+  const guard = await guardJob(code, SERVICE_SIDE, { resource: INSTALL_MENU.jobs, action: "delete" });
   if (!guard.ok) return { error: guard.error };
   const { session, job } = guard;
   if (!remark.trim()) return { error: "ກະລຸນາໃສ່ຫມາຍເຫດ" };
@@ -743,7 +770,7 @@ export async function assignTech(
   const remark = String(formData.get("remark") ?? "");
   if (!code || !techCode) return { error: "ກະລຸນາເລືອກຊ່າງ" };
 
-  const guard = await guardJob(code, SERVICE_SIDE);
+  const guard = await guardJob(code, SERVICE_SIDE, { resource: INSTALL_MENU.assign, action: "update" });
   if (!guard.ok) return { error: guard.error };
   const { session, job } = guard;
   if (job.cancelled) return { error: IS_CANCELLED };
@@ -824,7 +851,7 @@ export async function handoverInstallTech(
    */
   helpers?: string[],
 ): Promise<ActionState> {
-  const guard = await guardJob(code, SERVICE_SIDE);
+  const guard = await guardJob(code, SERVICE_SIDE, { resource: INSTALL_MENU.assign, action: "update" });
   if (!guard.ok) return { error: guard.error };
   const { session, job } = guard;
   if (job.cancelled) return { error: IS_CANCELLED };
@@ -919,7 +946,7 @@ export async function chooseNewTech(code: string): Promise<ActionState> {
 /* ── ຊ່າງຮັບງານ (tech_accept_*) ───────────────────────────── */
 
 export async function acceptJob(code: string): Promise<ActionState> {
-  const guard = await guardJob(code, TECH_SIDE);
+  const guard = await guardJob(code, TECH_SIDE, { resource: INSTALL_MENU.accept, action: "update" });
   if (!guard.ok) return { error: guard.error };
 
   // ຕົວປ່ຽນຂັ້ນຢູ່ lib/job-flow ບ່ອນດຽວ — **ອັນດຽວກັບທີ່ແອັບມືຖືເອີ້ນ**
@@ -932,7 +959,7 @@ export async function acceptJob(code: string): Promise<ActionState> {
 /* ── ຕິດຕັ້ງ (start/finish_tech_install) ──────────────────── */
 
 export async function startInstall(code: string, reason?: string): Promise<ActionState> {
-  const guard = await guardJob(code, TECH_SIDE);
+  const guard = await guardJob(code, TECH_SIDE, { resource: INSTALL_MENU.work, action: "update" });
   if (!guard.ok) return { error: guard.error };
 
   // ບັນທຶກແທນຊ່າງ (ງານບໍ່ມີ check-in) ⇒ ຕ້ອງໃສ່ເຫດຜົນ ແລ້ວລົງ chatter (lib/job-flow)
@@ -956,7 +983,7 @@ export async function scheduleInstallVisit(
   /** ຊ່າງລືມກົດ check-out ⇒ ໃຫ້ຝັ່ງເວັບປິດຮອບໃຫ້ (ເບິ່ງເຫດຜົນຢູ່ scheduleNextVisit) */
   closeOpenVisit = false,
 ): Promise<ActionState> {
-  const guard = await guardJob(code, TECH_SIDE);
+  const guard = await guardJob(code, TECH_SIDE, { resource: INSTALL_MENU.work, action: "update" });
   if (!guard.ok) return { error: guard.error };
 
   const result = await scheduleNextVisit(guard.session, code, {
@@ -978,7 +1005,7 @@ export async function finishInstall(
   photos: string[] = [],
   reason?: string,
 ): Promise<ActionState> {
-  const guard = await guardJob(code, TECH_SIDE);
+  const guard = await guardJob(code, TECH_SIDE, { resource: INSTALL_MENU.work, action: "update" });
   if (!guard.ok) return { error: guard.error };
 
   const gate = await onBehalfGate(guard.session, "install", code, "ຕິດຕັ້ງສຳເລັດ", reason);
@@ -995,7 +1022,7 @@ export async function finishInstall(
 /** ປິດງານໄດ້ສະເພາະງານທີ່ຕິດຕັ້ງແລ້ວ ແລະ ລູກຄ້າຕອບແບບສອບຖາມແລ້ວ (ຂັ້ນ 8) */
 export async function closeJob(code: string): Promise<ActionState> {
   return runAction("closeJob", async () => {
-  const guard = await guardJob(code, SERVICE_SIDE);
+  const guard = await guardJob(code, SERVICE_SIDE, { resource: INSTALL_MENU.close, action: "update" });
   if (!guard.ok) return { error: guard.error };
   const { job } = guard;
   if (job.cancelled) return { error: IS_CANCELLED };
@@ -1038,7 +1065,7 @@ export async function closeJob(code: string): Promise<ActionState> {
 
 /** ຖອນ "ເລີ່ມຕິດຕັ້ງ" — ງານກັບໄປ "ລໍຖ້າຊ່າງຕິດຕັ້ງ" (ຂັ້ນ 4) */
 export async function undoStartInstall(code: string): Promise<ActionState> {
-  const guard = await guardJob(code, TECH_SIDE);
+  const guard = await guardJob(code, TECH_SIDE, { resource: INSTALL_MENU.work, action: "update" });
   if (!guard.ok) return { error: guard.error };
   const { job } = guard;
 
@@ -1077,7 +1104,7 @@ export async function undoStartInstall(code: string): Promise<ActionState> {
  * (lib/install-stage ຂໍ້ ①) ບໍ່ຍອມຮັບ complain_finish ທີ່ບໍ່ມີ finish_install ຢູ່ແລ້ວ.
  */
 export async function undoFinishInstall(code: string): Promise<ActionState> {
-  const guard = await guardJob(code, TECH_SIDE);
+  const guard = await guardJob(code, TECH_SIDE, { resource: INSTALL_MENU.work, action: "update" });
   if (!guard.ok) return { error: guard.error };
   const { job } = guard;
 
@@ -1110,7 +1137,7 @@ export async function undoFinishInstall(code: string): Promise<ActionState> {
 
 /** ເປີດງານທີ່ປິດແລ້ວຄືນ — ງານກັບໄປ "ລໍຖ້າປິດງານ" (ຂັ້ນ 8). ຝ່າຍບໍລິການເປັນຄົນປິດ ຈຶ່ງເປັນຄົນເປີດຄືນ */
 export async function reopenJob(code: string): Promise<ActionState> {
-  const guard = await guardJob(code, SERVICE_SIDE);
+  const guard = await guardJob(code, SERVICE_SIDE, { resource: INSTALL_MENU.close, action: "update" });
   if (!guard.ok) return { error: guard.error };
   const { job } = guard;
 
@@ -1163,7 +1190,7 @@ export async function addSpareLine(
   itemName: string,
   unitCode: string,
 ) {
-  const guard = await guardJob(code, TECH_SIDE);
+  const guard = await guardJob(code, TECH_SIDE, { resource: INSTALL_MENU.spareRequest, action: "create" });
   if (!guard.ok) return { error: guard.error } satisfies ActionState;
   const { job } = guard;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" } satisfies ActionState;
@@ -1221,7 +1248,7 @@ export async function addSpareLines(
   const uniqueCodes = [...new Set(itemCodes.map((value) => value.trim()).filter(Boolean))];
   if (uniqueCodes.length === 0) return { ok: "ບໍ່ມີລາຍການໃໝ່" };
 
-  const guard = await guardJob(code, TECH_SIDE);
+  const guard = await guardJob(code, TECH_SIDE, { resource: INSTALL_MENU.spareRequest, action: "create" });
   if (!guard.ok) return { error: guard.error };
   const { job } = guard;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
@@ -1307,7 +1334,7 @@ export async function addSpareLines(
  * ແລ້ວ savePickSpare ຫາແຖວກະຕ່າຄູ່ຂອງໃບເບີກບໍ່ພົບ (ຕົ້ນເຫດຂອງ B4).
  */
 export async function deleteSpareLine(code: string, roworder: number) {
-  const guard = await guardJob(code, TECH_SIDE);
+  const guard = await guardJob(code, TECH_SIDE, { resource: INSTALL_MENU.spareRequest, action: "delete" });
   if (!guard.ok) return { error: guard.error } satisfies ActionState;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" } satisfies ActionState;
 
@@ -1363,7 +1390,7 @@ export async function updateSpareQty(
   roworder: number,
   qty: number,
 ) {
-  const guard = await guardJob(code, TECH_SIDE);
+  const guard = await guardJob(code, TECH_SIDE, { resource: INSTALL_MENU.spareRequest, action: "update" });
   if (!guard.ok) return { error: guard.error } satisfies ActionState;
   if (!Number.isFinite(qty) || qty <= 0)
     return { error: "ຈຳນວນບໍ່ຖືກຕ້ອງ" } satisfies ActionState;
@@ -1453,7 +1480,7 @@ export async function saveSpareRequest(
     return { error: "ກະລຸນາລະບຸ ສາງ ແລະ ທີ່ເກັບ" };
   }
 
-  const guarded = await guardJob(productCode, TECH_SIDE);
+  const guarded = await guardJob(productCode, TECH_SIDE, { resource: INSTALL_MENU.spareRequest, action: "create" });
   if (!guarded.ok) return { error: guarded.error };
   const { session, job: guard } = guarded;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
@@ -1705,7 +1732,7 @@ export async function updateSpareRequest(
   if (!docNo || !productCode || !docDate || !whCode || !shelfCode)
     return { error: "ກະລຸນາລະບຸ ວັນທີ ສາງ ແລະ ທີ່ເກັບ" };
 
-  const guarded = await guardJob(productCode, TECH_SIDE);
+  const guarded = await guardJob(productCode, TECH_SIDE, { resource: INSTALL_MENU.spareRequest, action: "update" });
   if (!guarded.ok) return { error: guarded.error };
   const { session, job } = guarded;
   if (!db || !odgDb) return { error: "ບໍ່ພົບ DATABASE_URL ຫຼື ODG_DATABASE_URL" };
@@ -1873,7 +1900,7 @@ export async function deleteSpareRequest(
   docNo: string,
   code: string,
 ): Promise<ActionState> {
-  const guard = await guardJob(code, TECH_SIDE);
+  const guard = await guardJob(code, TECH_SIDE, { resource: INSTALL_MENU.spareRequest, action: "delete" });
   if (!guard.ok) return { error: guard.error };
   if (!db || !odgDb)
     return { error: "ບໍ່ພົບ DATABASE_URL ຫຼື ODG_DATABASE_URL" };
@@ -1985,7 +2012,7 @@ export async function savePickSpare(
   _: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const guard = await requireRole(TECH_SIDE, "ບໍ່ມີສິດຮັບອາໄຫຼ່");
+  const guard = await requirePermission(INSTALL_MENU.sparePickup, "update", TECH_SIDE, "ບໍ່ມີສິດຮັບອາໄຫຼ່");
   if (!guard.ok) return { error: guard.error };
   const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
@@ -2142,7 +2169,7 @@ export async function savePickSpare(
 export type FeedbackQr = { url: string; svg: string } | { error: string };
 
 export async function feedbackQr(code: string): Promise<FeedbackQr> {
-  const guard = await guardJob(code, [...TECH_SIDE, ...SERVICE_SIDE]);
+  const guard = await guardJob(code, [...TECH_SIDE, ...SERVICE_SIDE], { resource: INSTALL_MENU.feedback, action: "read" });
   if (!guard.ok) return { error: guard.error };
   const { job } = guard;
 
