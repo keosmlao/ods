@@ -123,10 +123,13 @@ export const columns = {
     { header: "ລຸູກຄ້າ", key: "customer", width: 30 },
     { header: "ຊື່ເຄືອງ", key: "product", width: 30 },
     { header: "ຫຍີ່ຫໍ້", key: "p_brand" },
+    { header: "ລຸ້ນ", key: "p_model", width: 18 },
+    { header: "ໝາຍເລກເຄື່ອງ (SN)", key: "sn", width: 20 },
     { header: "ອຸປະກອນມາກັບເຄື່ອງ", key: "p_access", width: 24 },
     { header: "ອາການເບື້ອງຕົ້ນ", key: "issue", width: 28 },
     { header: "ການຮັບປະກັນ", key: "warrunty" },
     { header: "ບໍລິການ", key: "service_type" },
+    { header: "ສະຖານະ", key: "status_name", width: 18 },
   ],
   /** ລາຍງານການຍົກເລີກບິນສ້ອມ */
   cancelled: [
@@ -392,8 +395,9 @@ export async function fetchDailyReceipts(from: string, to: string) {
       `select row_number() over (order by a.time_register) rnum,
         to_char(a.time_register,'DD-MM-YYYY HH24:MI:SS') registered,
         coalesce(b.name_1,'') || ' - ' || coalesce(b.tel,'') customer,
-        coalesce(a.name_1,'') || ' - ' || coalesce(a.sn,'') product,
-        a.p_brand, a.p_access, a.issue, a.warrunty, a.service_type
+        coalesce(a.name_1,'') product,
+        a.p_brand, a.p_model, a.sn, a.p_access, a.issue, a.warrunty, a.service_type,
+        ${statusName}
        from tb_product a
        left join ar_customer b on b.code = a.cust_code
        where a.time_register::date between $1 and $2

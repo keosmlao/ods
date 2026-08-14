@@ -37,8 +37,8 @@ export default async function DailyReceiptsReport({ searchParams }: { searchPara
       summary={tiles}
       exportHref={`/api/reports/export/daily-receipts?${new URLSearchParams({ from, to, ...(state.q && { q: state.q }) })}`}
       printHref={`/reports/daily-receipts/print?from=${from}&to=${to}`}
-      minWidth={1400}
-      searchPlaceholder="ຄົ້ນຫາ ລູກຄ້າ, ເຄື່ອງ, ຫຍີ່ຫໍ້, ອາການ..."
+      minWidth={1700}
+      searchPlaceholder="ຄົ້ນຫາ ລູກຄ້າ, ເຄື່ອງ, ຫຍີ່ຫໍ້, ລຸ້ນ, SN, ອາການ..."
     />
   );
 }
