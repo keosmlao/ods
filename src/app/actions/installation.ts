@@ -24,6 +24,8 @@ import { TRANS } from "@/lib/stock-constants";
 import { INSTALL_FEEDBACK_DONE_SQL, INSTALL_FEEDBACK_TIME_SQL, INSTALL_STAGE_SQL } from "@/lib/install-stage";
 import { installSpareOutstanding } from "@/lib/install-spare-gate";
 import { blockNonStandard, getStandardKitLines } from "@/lib/install-standard";
+import { SPARE_ON_DOC } from "@/lib/install-spare";
+import { findInstallKitType } from "@/lib/install-kit";
 import { EDITABLE_SPARE_LINES } from "@/lib/install-spare-edit";
 import { feedbackUrl, validFeedbackToken } from "@/lib/track";
 import { revalidatePath } from "next/cache";
@@ -59,6 +61,18 @@ const INSTALL_PATHS = [
 
 function revalidateAll() {
   for (const path of INSTALL_PATHS) revalidatePath(path);
+}
+
+/**
+ * ໜ້າທີ່ສະແດງ**ກະຕ່າອາໄຫຼ່ຂອງງານ** — ຕ້ອງ revalidate ທັງສອງ:
+ *   • /installations/spare-requests/<code> — ຟອມຂໍເບີກ (ຄືເກົ່າ)
+ *   • /installations/<code>               — ໜ້າລາຍລະອຽດ ທີ່ດຽວນີ້ **ແກ້ອາໄຫຼ່ໄດ້ໃນຕົວ**
+ * ບໍ່ດັ່ງນັ້ນແກ້ຢູ່ໜ້າລາຍລະອຽດແລ້ວຕາຕະລາງຄ້າງຄ່າເກົ່າ (INSTALL_PATHS ເປັນ path ຄົງທີ່
+ * ⇒ ບໍ່ຄອບ segment ແບບ dynamic).
+ */
+function revalidateSpares(code: string) {
+  revalidatePath(`/installations/${code}`);
+  revalidatePath(`/installations/spare-requests/${code}`);
 }
 
 async function requireSession() {
@@ -1231,7 +1245,7 @@ export async function addSpareLine(
   } finally {
     client.release();
   }
-  revalidatePath(`/installations/spare-requests/${code}`);
+  revalidateSpares(code);
   return { ok: "ສຳເລັດ" } satisfies ActionState;
 }
 
@@ -1324,8 +1338,176 @@ export async function addSpareLines(
     client.release();
   }
 
-  revalidatePath(`/installations/spare-requests/${code}`);
+  const added = inventory.filter((item) => !skipped.includes(item.code));
+  if (added.length > 0) {
+    await logChange(
+      "ods_tb_install",
+      code,
+      `ເພີ່ມອາໄຫຼ່: ${added.map((item) => item.name_1).join(" · ")}`,
+    );
+  }
+  revalidateSpares(code);
   return { ok: "ເພີ່ມລາຍການສຳເລັດ", skipped };
+}
+
+/**
+ * ── ປ່ຽນ **ໝວດຊຸດອາໄຫຼ່ມາດຕະຖານ** ຂອງໃບງານ ແລ້ວອ້າງອີງອາໄຫຼ່ໃໝ່ຕາມໝວດນັ້ນ ──
+ *
+ * ເປັນຫຍັງຕ້ອງມີ: `install_type` ຖືກເດົາຈາກ `ic_inventory.item_size` ຕອນອ່ານບິນ
+ * (api/installations/bills) ⇒ ບິນທີ່ ERP ໃສ່ຂະໜາດຜິດ/ບໍ່ໃສ່ ຈະໄດ້ຊຸດຜິດ ຫຼື ບໍ່ໄດ້ຊຸດເລີຍ
+ * ແລະ **ແກ້ຄືນບໍ່ໄດ້** ນອກຈາກໄປ update ຖານດ້ວຍມື.
+ *
+ * ── ກົດການອ້າງອີງໃໝ່ (ເຮັດໃນ transaction ດຽວ) ──
+ *   ① ແຖວທີ່ **ເຂົ້າເອກະສານແລ້ວ** (SPARE_ON_DOC) — ບໍ່ແຕະຈັກອັນ. ຂໍເບີກ/ເບີກອອກ/
+ *      ຊ່າງຮັບໄປແລ້ວ = ຄວາມຈິງທີ່ປ່ຽນບໍ່ໄດ້ ⇒ ຄ້າງໄວ້ ແລ້ວບອກຈຳນວນໃຫ້ຄົນຮູ້.
+ *   ② ແຖວທີ່ຢູ່ໃນ**ຊຸດເກົ່າ ແຕ່ບໍ່ຢູ່ຊຸດໃໝ່** ແລະ ຍັງບໍ່ເຂົ້າເອກະສານ — ຖອດອອກ.
+ *   ③ ແຖວຂອງ**ຊຸດໃໝ່** — ມີແລ້ວ(ບໍ່ລ໋ອກ) ⇒ ຕັ້ງຈຳນວນ/ຫົວໜ່ວຍຕາມຊຸດ · ບໍ່ມີ ⇒ ເພີ່ມ.
+ *   ④ ແຖວທີ່**ບໍ່ຢູ່ໃນຊຸດໃດເລີຍ** (ຊ່າງ/CS ເພີ່ມເອງ) — **ຮັກສາໄວ້**. ມັນເປັນການຕັດສິນໃຈ
+ *      ຂອງຄົນ ບໍ່ແມ່ນຜົນຂອງຊຸດ ⇒ ປ່ຽນໝວດບໍ່ຄວນລຶບຄວາມຕັ້ງໃຈນັ້ນ.
+ *
+ * ⚠️ ຕັ້ງຈຳນວນ**ທັບ**ຄ່າທີ່ຄົນເຄີຍແກ້ໄວ້ (ຂໍ້ ③) ໂດຍເຈດຕະນາ — ຄຳສັ່ງຄື "ອ້າງອີງຕາມ
+ * ຊຸດມາດຕະຖານທີ່ເລືອກ" ⇒ ຖ້າບໍ່ທັບ ຜົນຈະບໍ່ຕົງກັບຊຸດ ແລ້ວປຸ່ມນີ້ບໍ່ມີຄວາມໝາຍ.
+ */
+export async function changeInstallKitType(
+  code: string,
+  installType: string,
+): Promise<ActionState> {
+  const guard = await guardJob(code, TECH_SIDE, {
+    resource: INSTALL_MENU.spareRequest,
+    action: "update",
+  });
+  if (!guard.ok) return { error: guard.error } satisfies ActionState;
+  const { job } = guard;
+  if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" } satisfies ActionState;
+  if (job.cancelled) return { error: IS_CANCELLED } satisfies ActionState;
+  if (job.closed) return { error: IS_CLOSED } satisfies ActionState;
+  if (!job.accepted) return { error: "ຕ້ອງຮັບງານກ່ອນປ່ຽນໝວດອາໄຫຼ່" } satisfies ActionState;
+  if (job.started)
+    return { error: "ປ່ຽນໝວດບໍ່ໄດ້ — ເລີ່ມຕິດຕັ້ງແລ້ວ" } satisfies ActionState;
+
+  const target = await findInstallKitType(installType);
+  if (!target) return { error: "ບໍ່ຮູ້ຈັກໝວດຊຸດອາໄຫຼ່ນີ້" } satisfies ActionState;
+  if (!target.active)
+    return { error: `ໝວດ ${installType} ຖືກປິດການໃຊ້ງານ` } satisfies ActionState;
+
+  let added = 0;
+  let updated = 0;
+  let removed = 0;
+  let locked = 0;
+
+  const client = await db.connect();
+  try {
+    await client.query("begin");
+
+    // `for update` — ກັນສອງຄົນປ່ຽນໝວດພ້ອມກັນແລ້ວກະຕ່າປະສົມກັນ
+    const head = await client.query<{ install_type: string }>(
+      "select coalesce(install_type,'') install_type from ods_tb_install where code=$1 for update",
+      [code],
+    );
+    const from = head.rows[0]?.install_type ?? "";
+    if (from === installType) {
+      await client.query("rollback");
+      return { ok: "ໝວດເດີມຢູ່ແລ້ວ — ບໍ່ມີການປ່ຽນແປງ" } satisfies ActionState;
+    }
+
+    /**
+     * ຊຸດໃໝ່ **ລວມແຖວຊ້ຳ** ດ້ວຍ sum(qty) — ຊຸດເກົ່າບາງອັນລົງລາຍການດຽວກັນ 2 ແຖວ
+     * (9900-0018 ນ໋ອດລະເບີດ 4+1) ⇒ ຄືກັບ KIT_LINES ຂອງ lib/install-standard.
+     */
+    const [oldKit, newKit] = await Promise.all([
+      client.query<{ ic_code: string }>(
+        "select distinct ic_code from used_spare_install where install_type=$1 and coalesce(ic_code,'') <> ''",
+        [from],
+      ),
+      client.query<{ ic_code: string; name_1: string; unit_code: string | null; qty: number }>(
+        `select ic_code, coalesce(nullif(max(name_1),''), ic_code) name_1,
+            nullif(max(unit_code),'') unit_code, sum(qty)::float8 qty
+          from used_spare_install
+         where install_type=$1 and coalesce(ic_code,'') <> ''
+         group by ic_code order by min(line_number)`,
+        [installType],
+      ),
+    ]);
+    const newCodes = new Set(newKit.rows.map((row) => row.ic_code));
+    const dropCodes = oldKit.rows.map((row) => row.ic_code).filter((item) => !newCodes.has(item));
+
+    await client.query("update ods_tb_install set install_type=$2 where code=$1", [
+      code,
+      installType,
+    ]);
+
+    // ② ຖອດແຖວຂອງຊຸດເກົ່າທີ່ຊຸດໃໝ່ບໍ່ໃຊ້ (ສະເພາະທີ່ຍັງບໍ່ເຂົ້າເອກະສານ)
+    if (dropCodes.length) {
+      const gone = await client.query(
+        `delete from tb_used_spare s
+          where s.product_code=$1 and s.item_code = any($2::varchar[]) and not ${SPARE_ON_DOC}`,
+        [code, dropCodes],
+      );
+      removed = gone.rowCount ?? 0;
+    }
+
+    // ③ ຕັ້ງ/ເພີ່ມ ແຖວຂອງຊຸດໃໝ່
+    for (const line of newKit.rows) {
+      const qty = Math.max(0.01, Math.round(line.qty * 100) / 100);
+      const set = await client.query(
+        `update tb_used_spare s
+            set qty=$3::numeric, unit_code=$4, item_name=$5
+          where s.product_code=$1 and s.item_code=$2 and not ${SPARE_ON_DOC}`,
+        [code, line.ic_code, qty, line.unit_code ?? "", line.name_1],
+      );
+      if (set.rowCount) {
+        updated += set.rowCount;
+        continue;
+      }
+      /**
+       * update ບໍ່ໂດນ = ຫຼືບໍ່ມີແຖວ ຫຼືແຖວທີ່ມີ**ຖືກລ໋ອກ**. `not exists` ຢູ່ insert
+       * ກັນການໃສ່ຊ້ຳຂອງກໍລະນີລ໋ອກ (ບໍ່ດັ່ງນັ້ນຈະໄດ້ 2 ແຖວຂອງອາໄຫຼ່ຕົວດຽວ).
+       */
+      const put = await client.query(
+        `insert into tb_used_spare(product_code,item_code,item_name,qty,unit_code)
+         select $1::varchar,$2::varchar,$5::varchar,$3::numeric,$4::varchar
+          where not exists (
+            select 1 from tb_used_spare where product_code=$1::varchar and item_code=$2::varchar)`,
+        [code, line.ic_code, qty, line.unit_code ?? "", line.name_1],
+      );
+      if (put.rowCount) added += put.rowCount;
+      else locked += 1;
+    }
+
+    /**
+     * ມາດຕະຖານປ່ຽນ = ຍອດ "ຮັບຄົບແລ້ວ" ເກົ່າໃຊ້ບໍ່ໄດ້ອີກ ⇒ ລ້າງ pick_finish ດຶງງານ
+     * ກັບຈາກ "ລໍຕິດຕັ້ງ" ມາຂໍ/ຮັບໃຫ້ຄົບ (ຄືກັບ addSpareLine).
+     */
+    await client.query(
+      `update ods_tb_install
+          set used_spare = case when exists (select 1 from tb_used_spare s where s.product_code=$1)
+                                then 1 else 0 end,
+              pick_finish = null
+        where code=$1`,
+      [code],
+    );
+    await client.query("update ods_tb_install_detail set pick_finish=null where code=$1", [code]);
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    console.error("changeInstallKitType failed", error);
+    return { error: "ປ່ຽນໝວດບໍ່ສຳເລັດ" } satisfies ActionState;
+  } finally {
+    client.release();
+  }
+
+  await logChange(
+    "ods_tb_install",
+    code,
+    `ປ່ຽນໝວດຊຸດອາໄຫຼ່ → ${installType} ${target.name_1}` +
+      ` (ເພີ່ມ ${added} · ປັບ ${updated} · ຖອດ ${removed}${locked ? ` · ຄ້າງເອກະສານ ${locked}` : ""})`,
+  );
+  revalidateSpares(code);
+  return {
+    ok:
+      `ປ່ຽນເປັນໝວດ ${installType} ແລ້ວ — ເພີ່ມ ${added} · ປັບ ${updated} · ຖອດ ${removed}` +
+      (locked ? ` (${locked} ລາຍການຄ້າງຢູ່ເອກະສານ ຈຶ່ງບໍ່ຖືກແຕະ)` : ""),
+  } satisfies ActionState;
 }
 
 /**
@@ -1338,31 +1520,34 @@ export async function deleteSpareLine(code: string, roworder: number) {
   if (!guard.ok) return { error: guard.error } satisfies ActionState;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" } satisfies ActionState;
 
+  let removed = "";
   const client = await db.connect();
   try {
     await client.query("begin");
-    const line = await client.query<{
-      requested: boolean;
-      dispatched: boolean;
-    }>(
-      `select reg_start is not null as requested, reg_finish is not null as dispatched
-       from tb_used_spare where roworder=$1 and product_code=$2 for update`,
+    /**
+     * ດ່ານ = SPARE_ON_DOC (lib/install-spare) ອັນດຽວກັບແອັບຊ່າງ — ບໍ່ແມ່ນກວດແຕ່
+     * reg_start/reg_finish ຄືເກົ່າ. ເບິ່ງເຫດຜົນຢູ່ຄຳອະທິບາຍຂອງ SPARE_ON_DOC.
+     */
+    const gone = await client.query<{ item_name: string | null }>(
+      `delete from tb_used_spare s
+        where s.roworder=$1 and s.product_code=$2 and not ${SPARE_ON_DOC}
+        returning s.item_name`,
       [roworder, code],
     );
-    const row = line.rows[0];
-    if (!row) {
-      await client.query("rollback");
-      return { error: "ບໍ່ພົບລາຍການ" } satisfies ActionState;
-    }
-    if (row.requested || row.dispatched) {
+    if (!gone.rowCount) {
+      // ແຍກ "ບໍ່ພົບ" ອອກຈາກ "ລົບບໍ່ໄດ້" ⇒ ຄົນອ່ານຮູ້ວ່າຕ້ອງເຮັດຫຍັງຕໍ່
+      const exists = await client.query(
+        "select 1 from tb_used_spare where roworder=$1 and product_code=$2",
+        [roworder, code],
+      );
       await client.query("rollback");
       return {
-        error: "ລົບບໍ່ໄດ້ ອາໄຫຼ່ແຖວນີ້ຖືກຂໍເບີກ/ເບີກອອກໄປແລ້ວ",
+        error: exists.rowCount
+          ? "ລົບບໍ່ໄດ້ ອາໄຫຼ່ແຖວນີ້ຖືກຂໍເບີກ/ເບີກອອກ/ຊ່າງຮັບໄປແລ້ວ"
+          : "ບໍ່ພົບລາຍການ",
       } satisfies ActionState;
     }
-    await client.query("delete from tb_used_spare where roworder=$1", [
-      roworder,
-    ]);
+    removed = gone.rows[0]?.item_name ?? "";
 
     // ກະຕ່າຫວ່າງ ແລະ ບໍ່ມີເອກະສານເບີກຈັກໃບ ⇒ ປັດທຸງລົງໄດ້ (ຄວາມຈິງ = ບໍ່ໃຊ້ອາໄຫຼ່)
     await client.query(
@@ -1380,11 +1565,13 @@ export async function deleteSpareLine(code: string, roworder: number) {
   } finally {
     client.release();
   }
-  revalidatePath(`/installations/spare-requests/${code}`);
+  // ໃຜຖອດອາໄຫຼ່ອອກ = ຄຳຖາມທີ່ຖືກຖາມແທ້ ⇒ ລົງ chatter ຄືກັບແອັບຊ່າງ
+  await logChange("ods_tb_install", code, `ຖອດອາໄຫຼ່: ${removed}`);
+  revalidateSpares(code);
   return { ok: "ສຳເລັດ" } satisfies ActionState;
 }
 
-/** ແກ້ຈຳນວນ (update_qty_reg_spare) — ແກ້ໄດ້ສະເພາະແຖວທີ່ຍັງບໍ່ທັນຂໍເບີກ */
+/** ແກ້ຈຳນວນ (update_qty_reg_spare) — ແກ້ໄດ້ສະເພາະແຖວທີ່ຍັງບໍ່ເຂົ້າເອກະສານ */
 export async function updateSpareQty(
   code: string,
   roworder: number,
@@ -1392,16 +1579,19 @@ export async function updateSpareQty(
 ) {
   const guard = await guardJob(code, TECH_SIDE, { resource: INSTALL_MENU.spareRequest, action: "update" });
   if (!guard.ok) return { error: guard.error } satisfies ActionState;
-  if (!Number.isFinite(qty) || qty <= 0)
+  // ເພດານດຽວກັບແອັບຊ່າງ (setInstallSpareQty) — ບໍ່ດັ່ງນັ້ນເວັບໃສ່ໄດ້ ແອັບໃສ່ບໍ່ໄດ້
+  if (!Number.isFinite(qty) || qty <= 0 || qty > 9999)
     return { error: "ຈຳນວນບໍ່ຖືກຕ້ອງ" } satisfies ActionState;
+  // ດ່ານ = SPARE_ON_DOC ອັນດຽວກັບ deleteSpareLine ແລະ ແອັບຊ່າງ
   const done = await query(
-    "update tb_used_spare set qty=round($1,2) where roworder=$2 and product_code=$3 and reg_start is null and reg_finish is null",
+    `update tb_used_spare s set qty=round($1::numeric,2)
+      where s.roworder=$2 and s.product_code=$3 and not ${SPARE_ON_DOC}`,
     [qty, roworder, code],
   );
-  revalidatePath(`/installations/spare-requests/${code}`);
+  revalidateSpares(code);
   if (!done.rowCount)
     return {
-      error: "ແກ້ບໍ່ໄດ້ ອາໄຫຼ່ແຖວນີ້ຖືກຂໍເບີກ/ເບີກອອກໄປແລ້ວ",
+      error: "ແກ້ບໍ່ໄດ້ ອາໄຫຼ່ແຖວນີ້ຖືກຂໍເບີກ/ເບີກອອກ/ຊ່າງຮັບໄປແລ້ວ",
     } satisfies ActionState;
   return { ok: "ສຳເລັດ" } satisfies ActionState;
 }

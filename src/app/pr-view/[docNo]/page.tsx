@@ -54,14 +54,39 @@ async function getHead(docNo: string) {
     left join tb_product c on c.code = a.product_code
     left join ar_customer b on b.code = c.cust_code
     where a.doc_no = $1`;
-  return (await query<Head>(sql, [docNo])).rows[0] ?? null;
+  const own = (await query<Head>(sql, [docNo])).rows[0];
+  if (own) return own;
+
+  /**
+   * ຫາບໍ່ພົບຢູ່ ODS — ອາດເປັນໃບທີ່ອອກກົງໃສ່ ERP (SPR, flow ໃໝ່ 16-07-2026, ເບິ່ງ lib/erp-spr)
+   * ⇒ ບໍ່ມີ `product_code` ຢູ່ ERP (ລະຫັດວຽກໄປຢູ່ doc_ref/remark ແທນ) ຈຶ່ງຫາວຽກຜ່ານ
+   * `ods_erp_doc_link` ເປັນຫຼັກ ຕົກໄປໃຊ້ doc_ref ເປັນທາງສຳຮອງ (ຄືກັບ purchase-requests/page.tsx).
+   */
+  const erpSql = `select a.doc_no, to_char(a.create_date_time_now,'DD-MM-YYYY HH24:MI:SS') created,
+      a.doc_ref, a.doc_ref_date, null::text customer,
+      c.name_1 product, c.p_model model, c.sn, c.issue, c.warrunty warranty, c.issue_2, c.emp_code,
+      c.used_spare, a.remark, null::text attach_url
+    from public.ic_trans a
+    left join tb_product c on c.code = coalesce(
+      (select job_code from ods_erp_doc_link where doc_no = a.doc_no limit 1),
+      nullif(split_part(trim(coalesce(a.doc_ref,'')),' ',1),'')
+    )
+    where a.doc_no = $1`;
+  return (await query<Head>(erpSql, [docNo])).rows[0] ?? null;
 }
 
 async function getLines(docNo: string) {
   const sql = `select row_number() over (order by roworder)::int rnum, item_code, item_name,
       coalesce(qty,0) qty, unit_code, coalesce(price,0) price, coalesce(sum_amount,0) sum_amount
     from ic_trans_detail where doc_no = $1 order by roworder`;
-  return (await query<Line>(sql, [docNo])).rows;
+  const own = (await query<Line>(sql, [docNo])).rows;
+  if (own.length > 0) return own;
+
+  // ໃບ ERP ເທົ່ານັ້ນ (ບໍ່ມີສຳເນົາຢູ່ ODS) — ຕາຕະລາງນັ້ນມີ line_number ບໍ່ແມ່ນ roworder
+  const erpSql = `select row_number() over (order by line_number)::int rnum, item_code, item_name,
+      coalesce(qty,0) qty, unit_code, coalesce(price,0) price, coalesce(sum_amount,0) sum_amount
+    from public.ic_trans_detail where doc_no = $1 order by line_number`;
+  return (await query<Line>(erpSql, [docNo])).rows;
 }
 
 export default async function PrViewPage({ params }: Props) {

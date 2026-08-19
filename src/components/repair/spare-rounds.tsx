@@ -546,7 +546,13 @@ function PurchaseBranch({ buy, chain, t }: { buy: PurchaseRound; chain?: ErpChai
       <div className="relative flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 pl-5">
         <Elbow />
         <ShoppingCart className="size-3.5 text-brand-600" />
-        <span className="font-mono text-[11px] font-semibold text-slate-700">{buy.doc_no}</span>
+        <Link
+          href={`/pr-view/${encodeURIComponent(buy.doc_no)}`}
+          target="_blank"
+          className="font-mono text-[11px] font-semibold text-brand-700 underline-offset-2 hover:underline"
+        >
+          {buy.doc_no}
+        </Link>
         {buy.doc_date && <span className="text-[11px] text-slate-500">{buy.doc_date}</span>}
         {/* ຄຳຈາກ dictionary · ສີຈາກ PURCHASE_STATE (ຄ່າຄົງທີ່ເຫຼືອໜ້າທີ່ບອກສີເທົ່ານັ້ນ) */}
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${state.tone}`}>{label}</span>

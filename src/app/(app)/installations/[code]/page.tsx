@@ -11,6 +11,11 @@ import { RotateCcw } from "lucide-react";
 import { Elapsed } from "@/components/elapsed";
 import { InstallDeleteButton } from "@/components/installation/install-delete-button";
 import { JOB_HEAD_COLUMNS, type JobHead, JobHeader } from "@/components/installation/job-header";
+import { JobSparesEditor } from "@/components/installation/job-spares-editor";
+import { listInstallSpares } from "@/lib/install-spare";
+import { getStandardSpares } from "@/lib/install-standard";
+import { listInstallKitTypes } from "@/lib/install-kit";
+import { SETTING, settingEnabled } from "@/lib/settings";
 import { ReopenJobButton } from "@/components/installation/undo-buttons";
 import { DeliveryCard } from "@/components/installation/delivery-card";
 import { JobTimeline } from "@/components/repair/job-timeline";
@@ -20,7 +25,7 @@ import { repairSpareRounds } from "@/lib/repair-spare-rounds";
 import { deliveryFor } from "@/lib/delivery";
 import { jobHelpers } from "@/lib/job-techs";
 import { installTimeline } from "@/lib/install-timeline";
-import { Card, Empty, LinkButton, PageTitle, Table } from "@/components/ui";
+import { Card, LinkButton, PageTitle } from "@/components/ui";
 import { query } from "@/lib/db";
 import { permissionFor } from "@/lib/permissions";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -58,6 +63,15 @@ type Row = JobHead & {
   user_created: string | null;
   cancel_remark: string | null;
   cancel_date: string | null;
+  /**
+   * ໜ້າຕ່າງທີ່ **ແກ້ກະຕ່າອາໄຫຼ່ໄດ້** — ເອົາຖັນຈິງ ບໍ່ແມ່ນເດົາຈາກ `stage` ເພື່ອໃຫ້ຕົງກັບ
+   * ດ່ານຂອງ action ແທ້ (addSpareLines · deleteSpareLine · updateSpareQty → guardJob)
+   */
+  accepted: boolean;
+  started: boolean;
+  closed: boolean;
+  /** ໝວດຊຸດອາໄຫຼ່ມາດຕະຖານຂອງໃບງານ — "" = ຍັງບໍ່ໄດ້ກຳນົດ (ໂທລະທັດ/ຈັກຊັກ ຫຼື ERP ບໍ່ໃສ່ຂະໜາດ) */
+  install_type: string;
 };
 
 type Spare = {
@@ -75,7 +89,10 @@ export default async function InstallationDetail({ params }: Props) {
   const code = decodeURIComponent((await params).code);
   const session = await getSession();
   if (!session) redirect("/login");
-  const t = (await getDictionary(await getLocale())).installDetail;
+  const dict = await getDictionary(await getLocale());
+  const t = dict.installDetail;
+  // ເຫດຜົນ "ແກ້ອາໄຫຼ່ບໍ່ໄດ້" ຄິດຢູ່ server ⇒ ຂໍ dict ຂອງ editor ມານຳ
+  const tEditor = dict.jobSpareEditor;
   const [installPermission, sparePermission] = await Promise.all([
     permissionFor(session, "/installations"),
     permissionFor(session, "/installations/spare-requests"),
@@ -101,7 +118,11 @@ export default async function InstallationDetail({ params }: Props) {
           (${INSTALL_STAGE_SQL})::int as stage,
           (${INSTALL_ELAPSED_SQL}) as elapsed_seconds,
           a.remark, a.location_inst, a.pro_sn, a.pro_sn_out, a.user_created, a.cancel_remark,
-          to_char(a.cancel_date,'DD-MM-YYYY HH24:MI') as cancel_date
+          to_char(a.cancel_date,'DD-MM-YYYY HH24:MI') as cancel_date,
+          a.tech_confirm is not null as accepted,
+          a.start_install is not null as started,
+          a.job_finish is not null as closed,
+          coalesce(a.install_type,'') as install_type
         from ods_tb_install a
         left join ar_customer c on c.code = a.cust_code
         where a.code = $1 limit 1`,
@@ -157,16 +178,60 @@ export default async function InstallationDetail({ params }: Props) {
    * ດຶງ **ຫຼັງ**ກວດສິດ — ບໍ່ດັ່ງນັ້ນຄົນທີ່ເປີດງານຂອງຄົນອື່ນບໍ່ໄດ້ ຍັງເຮັດໃຫ້ລະບົບ
    * ຂົນສົ່ງຖືກ query ຢູ່. metadata ຢ່າງດຽວ (ບໍ່ມີຮູບ) ⇒ ເບົາ.
    */
-  const [delivery, visits, techs, timeline, helpers] = await Promise.all([
-    deliveryFor(row.doc_ref_1),
-    // 1 ໃບງານ = ຫຼາຍຮອບເຂົ້າໜ້າງານ (ເບິ່ງ lib/job-flow.scheduleNextVisit)
-    jobVisits("install", row.code),
-    // ລາຍຊື່ຊ່າງ — ໃຫ້ປຸ່ມ "ປ່ຽນຊ່າງ" ຕອນງານກຳລັງດຳເນີນ (ຮອບຕໍ່ໄປອາດເປັນຄົນອື່ນ)
-    row.stage === 4 || row.stage === 5 ? technicianOptions() : Promise.resolve([]),
-    installTimeline(row.code),
-    // ຊ່າງຮ່ວມ (10-08-2026) — ຫົວໜ້າຢູ່ `tech_code` ຄືເກົ່າ (ເບິ່ງ lib/job-techs)
-    jobHelpers("install", row.code),
-  ]);
+  const [delivery, visits, techs, timeline, helpers, cart, standards, freeSearch, kitTypes] =
+    await Promise.all([
+      deliveryFor(row.doc_ref_1),
+      // 1 ໃບງານ = ຫຼາຍຮອບເຂົ້າໜ້າງານ (ເບິ່ງ lib/job-flow.scheduleNextVisit)
+      jobVisits("install", row.code),
+      // ລາຍຊື່ຊ່າງ — ໃຫ້ປຸ່ມ "ປ່ຽນຊ່າງ" ຕອນງານກຳລັງດຳເນີນ (ຮອບຕໍ່ໄປອາດເປັນຄົນອື່ນ)
+      row.stage === 4 || row.stage === 5 ? technicianOptions() : Promise.resolve([]),
+      installTimeline(row.code),
+      // ຊ່າງຮ່ວມ (10-08-2026) — ຫົວໜ້າຢູ່ `tech_code` ຄືເກົ່າ (ເບິ່ງ lib/job-techs)
+      jobHelpers("install", row.code),
+      /**
+       * ── ກະຕ່າອາໄຫຼ່ຂອງໃບງານ ສຳລັບໂໝດແກ້ໄຂ ──
+       * ໃຊ້ `listInstallSpares` ອັນດຽວກັບ**ແອັບຊ່າງ** ⇒ ນິຍາມ "ແຖວໃດລ໋ອກ" (SPARE_ON_DOC)
+       * ແລະ "ແຖວໃດຢູ່ໃນຊຸດ" ຄືກັນທັງສອງທາງເຂົ້າ ບໍ່ຕ້ອງຂຽນ query ຊ້ຳ.
+       */
+      listInstallSpares(row.code),
+      // ຊຸດມາດຕະຖານຕາມ install_type — ໃຫ້ຕົວເລືອກຕອນ "ເພີ່ມລາຍການ"
+      getStandardSpares(row.code),
+      settingEnabled(SETTING.INSTALL_SPARE_FREE_SEARCH),
+      // ໝວດຊຸດມາດຕະຖານໃຫ້ເລືອກ — ປ່ຽນໝວດແລ້ວອາໄຫຼ່ອ້າງອີງໃໝ່ (changeInstallKitType)
+      listInstallKitTypes(),
+    ]);
+
+  /**
+   * ── ໃຜແກ້ກະຕ່າອາໄຫຼ່ໄດ້ ──
+   * ສິດ: ເມນູ /installations/spare-requests (ຄືກັບ action → INSTALL_MENU.spareRequest).
+   * ຕ້ອງມີທັງ create (ເພີ່ມ) · update (ແກ້ຈຳນວນ) · delete (ລົບ) ເພາະໂໝດແກ້ໄຂເປີດທັງສາມ
+   * ພ້ອມກັນ — ຖ້າແຍກປຸ່ມຕາມສິດທີລະອັນ ຄົນຈະເຫັນປຸ່ມທີ່ກົດແລ້ວຖືກປະຕິເສດ.
+   */
+  const canEditSpares =
+    sparePermission.read &&
+    sparePermission.create &&
+    sparePermission.update &&
+    sparePermission.delete;
+
+  /**
+   * ໝວດທີ່ໃຫ້ເລືອກ = ທີ່ເປີດໃຊ້ງານ **ບວກ** ໝວດທີ່ໃບງານນີ້ຖືຢູ່ (ເຖິງຈະປິດແລ້ວ) —
+   * ບໍ່ດັ່ງນັ້ນ `<select>` ຫາຄ່າປັດຈຸບັນບໍ່ພົບ ແລ້ວເດັ້ງໄປໝວດອື່ນເອງ ⇒ ຄົນເຂົ້າໃຈວ່າ
+   * ໝວດຖືກປ່ຽນໄປແລ້ວ ທັງທີ່ຖານຍັງເປັນຄ່າເກົ່າ.
+   */
+  const activeKitTypes = kitTypes
+    .filter((type) => type.active || type.install_type === row.install_type)
+    .map((type) => ({ code: type.install_type, name: type.name_1 }));
+
+  /** ເຫດຜົນທີ່ແກ້ບໍ່ໄດ້ (null = ແກ້ໄດ້) — ລຳດັບດຽວກັບດ່ານຂອງ action */
+  const spareWindow = row.cancel_date
+    ? tEditor.lockedCancelled
+    : row.closed
+      ? tEditor.lockedClosed
+      : !row.accepted
+        ? tEditor.lockedNotAccepted
+        : row.started
+          ? tEditor.lockedStarted
+          : null;
 
   return (
     <div className="w-full space-y-5">
@@ -411,26 +476,28 @@ export default async function InstallationDetail({ params }: Props) {
         </dl>
       </Card>
 
-      <Card title={`${t.jobSpares} (${spares.rows.length})`}>
-        {spares.rows.length === 0 ? (
-          <Empty>{t.noSparesUsed}</Empty>
-        ) : (
-          <Table head={[t.code, t.spareName, t.qty, t.requested, t.dispatched, t.received]} minWidth={700}>
-            {spares.rows.map((spare, index) => (
-              <tr key={`${spare.item_code}-${index}`} className="border-b border-slate-100">
-                <td className="px-3 py-2 text-xs">{spare.item_code ?? "-"}</td>
-                <td className="px-3 py-2 text-xs">{spare.item_name ?? "-"}</td>
-                <td className="px-3 py-2 text-xs font-semibold">
-                  {Number(spare.qty).toLocaleString()} {spare.unit_code ?? ""}
-                </td>
-                <td className="px-3 py-2 text-xs text-slate-500">{spare.reg_start ?? "-"}</td>
-                <td className="px-3 py-2 text-xs text-slate-500">{spare.reg_finish ?? "-"}</td>
-                <td className="px-3 py-2 text-xs text-slate-500">{spare.pick_finish ?? "-"}</td>
-              </tr>
-            ))}
-          </Table>
-        )}
-      </Card>
+      {/**
+        * ── ອາໄຫຼ່ຂອງງານ — **ແກ້ໄຂໄດ້ໃນຕົວ** (ods.tb_used_spare ຂອງໃບງານນີ້) ──
+        * ໂໝດອ່ານໃຊ້ແຖວ**ລວມ** (`spares`) ຄືເກົ່າ; ໂໝດແກ້ໄຂໃຊ້ແຖວ**ດິບ** (`cart`) ເພາະ
+        * ຕ້ອງມີ `roworder` ຈຶ່ງລົບ/ແກ້ຈຳນວນທີລະແຖວໄດ້ (ຊຸດຕິດຕັ້ງລົງລາຍການດຽວກັນ 2 ແຖວ
+        * ໄດ້ ເຊັ່ນ ນ໋ອດລະເບີດ 4+1 ⇒ ລວມແລ້ວແກ້ບໍ່ໄດ້ວ່າຈະແກ້ແຖວໃດ).
+        */}
+      <JobSparesEditor
+        code={row.code}
+        view={spares.rows}
+        lines={cart}
+        standards={standards}
+        allowFreeSearch={freeSearch}
+        canEdit={canEditSpares && spareWindow === null}
+        lockReason={canEditSpares ? spareWindow : null}
+        kitType={row.install_type}
+        kitTypeName={activeKitTypes.find((type) => type.code === row.install_type)?.name ?? null}
+        /**
+         * ໝວດທີ່**ປິດແລ້ວ** ບໍ່ໃຫ້ເລືອກໃໝ່ (action ປະຕິເສດຢູ່ແລ້ວ) ແຕ່ຖ້າໃບງານນີ້ຖືມັນຢູ່
+         * ຕ້ອງມີໃນລາຍການ ບໍ່ດັ່ງນັ້ນ select ຈະເດັ້ງໄປຄ່າອື່ນ ແລ້ວເບິ່ງຄືວ່າໝວດຖືກປ່ຽນແລ້ວ.
+         */
+        kitTypes={activeKitTypes}
+      />
 
       {/* ── ອາໄຫຼ່: tree ຕາມຕ່ອງໂສ້ເອກະສານ ຄືກັບຝັ່ງສ້ອມ ──
           ແທນຕາຕະລາງເອກະສານແປທີ່ບອກບໍ່ໄດ້ວ່າໃບໃດຄູ່ກັບໃບໃດ ຫຼື ຮອບໃດຄ້າງຢູ່ໃສ */}

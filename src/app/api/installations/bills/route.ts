@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth";
-import { installTypeFromSizeSql } from "@/lib/install-kit";
+import { installTypeCaseSql } from "@/lib/install-kit";
 import { query, queryOdg } from "@/lib/db";
 import { roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { NextResponse, type NextRequest } from "next/server";
@@ -180,6 +180,12 @@ export async function GET(request: NextRequest) {
         : "and i.doc_no like upper($1) || '%'";
 
     /**
+     * ຄູ່ ຂະໜາດ↔ຊຸດ ມາຈາກ **ຕາຕະລາງ** `install_kit_type` ແລ້ວ (19-08-2026) ⇒ ຕ້ອງ await
+     * ກ່ອນປະກອບ SQL. ອ່ານເທື່ອດຽວຕໍ່ 1 request ແລ້ວໃຊ້ຊ້ຳທັງ 2 ຮອບລຸ່ມນີ້.
+     */
+    const svTypeCase = await installTypeCaseSql("inv.item_size");
+
+    /**
      * SQL ອັນດຽວ ໃຊ້ **2 ຮອບ**: ຮອບປົກກະຕິ (ບິນທີ່ມີບໍລິການຕິດຕັ້ງໃນໃບດຽວກັນ)
      * ແລະ ຮອບ fallback (ບິນເຄື່ອງທີ່ຖືກໃບຄ່າຕິດຕັ້ງອ້າງເຖິງ — ເບິ່ງ linkedBills ລຸ່ມນີ້).
      */
@@ -231,8 +237,8 @@ export async function GET(request: NextRequest) {
          lines as (
            -- ⑤ ແຖວລາຍການ ພ້ອມຂໍ້ມູນທີ່ດຶງຈາກ ERP
            select k.doc_no, k.doc_date, k.item_code, k.item_name, k.qty::float as qty,
-              -- ຄູ່ ຂະໜາດ↔ຊຸດ ຢູ່ lib/install-kit ບ່ອນດຽວ (ໜ້າຈັດການຊຸດໃຊ້ອັນດຽວກັນ)
-              ${installTypeFromSizeSql("inv.item_size")} as sv_type,
+              -- ຄູ່ ຂະໜາດ↔ຊຸດ ຢູ່ ods.install_kit_type (ໜ້າຈັດການຊຸດແກ້ໄດ້ — lib/install-kit)
+              ${svTypeCase} as sv_type,
               inv.item_brand,
               inv.item_category as pro_type,
               cat.name_1 as pro_type_name,

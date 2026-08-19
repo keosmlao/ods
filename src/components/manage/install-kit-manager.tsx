@@ -1,13 +1,36 @@
 "use client";
-import { addInstallKitLine, deleteInstallKitLine, updateInstallKitLine, type KitState } from "@/app/actions/install-kit";
+import {
+  addInstallKitLine,
+  addInstallKitType,
+  deleteInstallKitLine,
+  deleteInstallKitType,
+  updateInstallKitLine,
+  updateInstallKitType,
+  type KitState,
+} from "@/app/actions/install-kit";
 import { UndoButton } from "@/components/checking/undo-button";
-import { Button, Card, Empty, Table, inputClass } from "@/components/ui";
+import { SelectField } from "@/components/select-field";
+import { Button, Card, Empty, Table, inputClass, labelClass } from "@/components/ui";
 import type { InstallKit, InstallKitLine } from "@/lib/install-kit";
-import { Package, Plus, Save } from "lucide-react";
-import { useActionState } from "react";
+import {
+  AlertTriangle,
+  LoaderCircle,
+  Package,
+  Pencil,
+  Plus,
+  Save,
+  Search,
+  X,
+} from "lucide-react";
+import { useActionState, useEffect, useState } from "react";
 
 /**
  * ── ຈັດການຊຸດອາໄຫຼ່ມາດຕະຖານຂອງງານຕິດຕັ້ງ ──
+ *
+ * ສອງຊັ້ນ:
+ *   ① **ໝວດ** (`install_kit_type`) — ເພີ່ມ/ແກ້/ລົບ ໄດ້ແລ້ວ (19-08-2026). ໝວດຜູກກັບ
+ *      `ic_size` ຂອງ ERP ຊຶ່ງເປັນຊ່ວງ BTU ⇒ ບິນໃໝ່ຖືກຈັບໝວດອັດຕະໂນມັດ.
+ *   ② **ລາຍການໃນໝວດ** (`used_spare_install`) — ອາໄຫຼ່ + ຈຳນວນ + ຫົວໜ່ວຍ
  *
  * ປຸ່ມແຕ່ລະອັນ**ຜູກກັບ action ຂອງຕົນເອງ** (ເພີ່ມ=create · ບັນທຶກ=update · ລົບ=delete)
  * ⇒ ຜູ້ຈັດການຕິກ "ແກ້ໄຂ" ຢ່າງດຽວ ກໍ່ໄດ້ແຕ່ປຸ່ມບັນທຶກຈິງ. ດ່ານຈິງຢູ່ຝັ່ງ server
@@ -15,25 +38,101 @@ import { useActionState } from "react";
  */
 export type KitPermission = { create: boolean; update: boolean; delete: boolean };
 
-export function InstallKitManager({ kits, can }: { kits: InstallKit[]; can: KitPermission }) {
+export type SizeOption = { code: string; name_1: string };
+
+type ErpItem = { code: string; name_1: string; unit_code: string | null };
+
+export function InstallKitManager({
+  kits,
+  sizes,
+  can,
+}: {
+  kits: InstallKit[];
+  /** ຂະໜາດ (ic_size) ຂອງ ERP ໃຫ້ຜູກກັບໝວດ */
+  sizes: SizeOption[];
+  can: KitPermission;
+}) {
+  const [adding, setAdding] = useState(false);
+  // ຂະໜາດທີ່ໝວດອື່ນຈອງໄປແລ້ວ ⇒ ບໍ່ຕ້ອງສະແດງໃຫ້ເລືອກຊ້ຳ (server ກັນຢູ່ແລ້ວ)
+  const taken = new Set(kits.filter((kit) => kit.active && kit.ic_size).map((kit) => kit.ic_size!));
+
   return (
     <div className="space-y-4">
-      {kits.map((kit) => (
-        <KitCard key={kit.code} kit={kit} can={can} />
-      ))}
+      {can.create && (
+        <Card
+          title={<span className="text-sm">ໝວດຊຸດອາໄຫຼ່</span>}
+          actions={
+            <Button type="button" size="sm" tone={adding ? "neutral" : "primary"} onClick={() => setAdding((v) => !v)}>
+              {adding ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
+              {adding ? "ຍົກເລີກ" : "ເພີ່ມໝວດໃໝ່"}
+            </Button>
+          }
+        >
+          {adding ? (
+            <KitTypeForm
+              sizes={sizes.filter((size) => !taken.has(size.code))}
+              nextCode={suggestNextCode(kits)}
+              onDone={() => setAdding(false)}
+            />
+          ) : (
+            <p className="text-xs text-slate-500">
+              ໝວດແບ່ງຕາມ<b> ຂະໜາດ BTU </b>ໂດຍຜູກກັບຂະໜາດສິນຄ້າ (<span className="font-mono">ic_size</span>) ຂອງ ERP —
+              ບິນໃໝ່ຈຶ່ງຖືກຈັບໝວດອັດຕະໂນມັດ. ດຽວນີ້ມີ {kits.length} ໝວດ.
+            </p>
+          )}
+        </Card>
+      )}
+
+      {kits.length === 0 ? (
+        <Empty>ຍັງບໍ່ມີໝວດຊຸດອາໄຫຼ່ — ກົດ &quot;ເພີ່ມໝວດໃໝ່&quot; ເພື່ອເລີ່ມ</Empty>
+      ) : (
+        kits.map((kit) => (
+          <KitCard key={kit.code} kit={kit} sizes={sizes} taken={taken} can={can} />
+        ))
+      )}
     </div>
   );
 }
 
-function KitCard({ kit, can }: { kit: InstallKit; can: KitPermission }) {
+/**
+ * ແນະລະຫັດຖັດໄປໃນຊຸດ `9900-xxxx` — ຄົນຕັ້ງເອງໄດ້ ແຕ່ສ່ວນຫຼາຍຢາກໃຫ້ຕໍ່ຈາກເກົ່າ.
+ * ບໍ່ມີໝວດຮູບແບບນັ້ນຈັກອັນ ⇒ ປະຫວ່າງໄວ້ໃຫ້ພິມເອງ.
+ */
+function suggestNextCode(kits: InstallKit[]): string {
+  const numbers = kits
+    .map((kit) => /^9900-(\d{4})$/.exec(kit.code)?.[1])
+    .filter((value): value is string => !!value)
+    .map(Number);
+  if (!numbers.length) return "";
+  return `9900-${String(Math.max(...numbers) + 1).padStart(4, "0")}`;
+}
+
+function KitCard({
+  kit,
+  sizes,
+  taken,
+  can,
+}: {
+  kit: InstallKit;
+  sizes: SizeOption[];
+  taken: Set<string>;
+  can: KitPermission;
+}) {
+  const [editing, setEditing] = useState(false);
   const total = kit.lines.reduce((sum, line) => sum + line.qty, 0);
+
   return (
     <Card
       title={
         <span className="flex flex-wrap items-center gap-2">
           <Package className="size-4 text-brand-700" />
           <span className="font-mono">{kit.code}</span>
-          {kit.size_name && <span className="text-sm font-normal text-slate-500">{kit.size_name}</span>}
+          <span className="text-sm font-normal text-slate-600">{kit.name || "(ບໍ່ມີຊື່)"}</span>
+          {!kit.active && (
+            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+              ປິດການໃຊ້ງານ
+            </span>
+          )}
         </span>
       }
       actions={
@@ -44,19 +143,68 @@ function KitCard({ kit, can }: { kit: InstallKit; can: KitPermission }) {
           <span className="rounded bg-brand-50 px-2 py-0.5 font-semibold text-brand-800 tabular-nums">
             ໃຊ້ຢູ່ {kit.jobs} ໃບງານ
           </span>
+          {can.update && (
+            <Button type="button" size="sm" tone="neutral" onClick={() => setEditing((v) => !v)}>
+              {editing ? <X className="size-3.5" /> : <Pencil className="size-3.5" />}
+              {editing ? "ປິດ" : "ແກ້ໝວດ"}
+            </Button>
+          )}
+          {can.delete && (
+            <UndoButton
+              variant="icon"
+              label="ລົບໝວດນີ້"
+              title={`ລົບໝວດ ${kit.code}?`}
+              message={
+                <>
+                  ລາຍການອາໄຫຼ່ <b className="text-slate-700">{kit.lines.length} ລາຍການ</b> ຂອງໝວດນີ້ຈະຖືກລົບນຳ.
+                  {kit.jobs > 0 && (
+                    <span className="mt-1 block font-semibold text-brand-orange-700">
+                      ມີ {kit.jobs} ໃບງານໃຊ້ໝວດນີ້ຢູ່ — ລະບົບຈະປະຕິເສດ, ໃຫ້ປິດການໃຊ້ງານແທນ
+                    </span>
+                  )}
+                </>
+              }
+              action={() => deleteInstallKitType(kit.code)}
+            />
+          )}
         </span>
       }
     >
+      {/*
+        ── ຄຳເຕືອນ "ໝວດນີ້ບໍ່ຖືກຈັບຄູ່ອັດຕະໂນມັດ" ──
+        ບໍ່ຜູກ ic_size = ບິນໃໝ່ບໍ່ມີວັນຕົກມາໝວດນີ້ (installTypeCaseSql ບໍ່ນັບເຂົ້າ)
+        ⇒ ຄົນສ້າງໝວດແລ້ວໃສ່ອາໄຫຼ່ຄົບ ແຕ່ລໍວ່າເປັນຫຍັງງານໃໝ່ບໍ່ໄດ້ຊຸດ. ຕ້ອງບອກ.
+      */}
+      {kit.active && !kit.ic_size && (
+        <p className="mb-3 flex items-start gap-2 rounded-lg bg-brand-orange-50 px-3 py-2 text-[11px] font-semibold text-brand-orange-700">
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+          ໝວດນີ້ຍັງບໍ່ໄດ້ຜູກຂະໜາດ (ic_size) ຂອງ ERP ⇒ ບິນໃໝ່ຈະບໍ່ຖືກຈັບເຂົ້າໝວດນີ້ອັດຕະໂນມັດ
+        </p>
+      )}
+      {kit.ic_size && (
+        <p className="mb-3 text-[11px] text-slate-500">
+          ຜູກກັບຂະໜາດ ERP <span className="font-mono font-semibold text-slate-700">{kit.ic_size}</span>
+          {kit.size_name && <> — {kit.size_name}</>}
+        </p>
+      )}
+
+      {editing && can.update && (
+        <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+          <KitTypeForm
+            kit={kit}
+            sizes={sizes.filter((size) => !taken.has(size.code) || size.code === kit.ic_size)}
+            onDone={() => setEditing(false)}
+          />
+        </div>
+      )}
+
       {kit.lines.length === 0 ? (
         <Empty>
           ຊຸດນີ້ຍັງບໍ່ມີລາຍການ — ງານໃໝ່ຂອງຂະໜາດນີ້ຈະ<b> ຂ້າມຂັ້ນເບີກອາໄຫຼ່ </b>
           (ຍົກເວັ້ນແອ ທີ່ບັງຄັບເຂົ້າຂະບວນການສະເໝີ)
         </Empty>
       ) : (
-        <Table
-          minWidth={860}
-          head={["#", "ລະຫັດອາໄຫຼ່", "ຊື່ລາຍການ", "ຈຳນວນ", "ຫົວໜ່ວຍ", ""]}
-        >
+        <Table minWidth={860} head={["#", "ລະຫັດອາໄຫຼ່", "ຊື່ລາຍການ", "ຈຳນວນ", "ຫົວໜ່ວຍ", ""]}>
           {kit.lines.map((line, index) => (
             <LineRow key={line.roworder} line={line} index={index + 1} can={can} />
           ))}
@@ -68,8 +216,112 @@ function KitCard({ kit, can }: { kit: InstallKit; can: KitPermission }) {
   );
 }
 
+/** ຟອມສ້າງ/ແກ້ໝວດ — ໃຊ້ຮ່ວມກັນ, ມີ `kit` = ໂໝດແກ້ */
+function KitTypeForm({
+  kit,
+  sizes,
+  nextCode = "",
+  onDone,
+}: {
+  kit?: InstallKit;
+  sizes: SizeOption[];
+  nextCode?: string;
+  onDone: () => void;
+}) {
+  const editing = !!kit;
+  /**
+   * ພັບຟອມລົງ **ໃນຕົວ action** ບໍ່ແມ່ນໃນ effect — ຟັງຊັນຂອງ useActionState ແລ່ນເປັນ
+   * transition handler (setState ໄດ້ປົກກະຕິ) ຂະນະທີ່ setState ໃນ effect ເຮັດໃຫ້
+   * render ຊ້ອນກັນ (react-hooks/set-state-in-effect).
+   * ຄຳຢືນຢັນທີ່ຄົນເຫັນ = ລາຍການໝວດລຸ່ມນີ້ຖືກ revalidate ມາໃໝ່ພ້ອມຊື່/ຂະໜາດທີ່ແກ້.
+   */
+  const [state, formAction, pending] = useActionState<KitState, FormData>(
+    async (previous, formData) => {
+      const result = await (editing ? updateInstallKitType : addInstallKitType)(previous, formData);
+      if (result.ok) onDone();
+      return result;
+    },
+    {},
+  );
+
+  return (
+    <form action={formAction} className="flex flex-wrap items-end gap-3">
+      {editing ? (
+        <input type="hidden" name="install_type" value={kit.code} />
+      ) : (
+        <label className="text-xs text-slate-500">
+          <span className={labelClass}>ລະຫັດໝວດ</span>
+          <input
+            name="install_type"
+            required
+            defaultValue={nextCode}
+            placeholder="9900-0021"
+            className={`${inputClass} h-9 w-36 font-mono`}
+          />
+        </label>
+      )}
+
+      <label className="text-xs text-slate-500">
+        <span className={labelClass}>ຊື່ໝວດ (ຊ່ວງ BTU)</span>
+        <input
+          name="name_1"
+          required
+          defaultValue={kit?.name ?? ""}
+          placeholder="20,000-29,999 btu."
+          className={`${inputClass} h-9 w-56`}
+        />
+      </label>
+
+      <div className="text-xs text-slate-500">
+        <span className={labelClass}>ຂະໜາດ ERP (ic_size)</span>
+        <div className="w-72">
+          <SelectField
+            name="ic_size"
+            defaultValue={kit?.ic_size ?? ""}
+            placeholder="ບໍ່ຜູກ (ບໍ່ຈັບຄູ່ອັດຕະໂນມັດ)"
+            options={sizes.map((size) => ({
+              value: size.code,
+              label: `${size.code} ~ ${size.name_1}`,
+            }))}
+          />
+        </div>
+      </div>
+
+      <label className="text-xs text-slate-500">
+        <span className={labelClass}>ລຳດັບ</span>
+        <input
+          name="sort_order"
+          type="number"
+          step="10"
+          defaultValue={kit?.sort_order ?? 0}
+          title="ເລກໃຫຍ່ຂຶ້ນເທິງ — ໃຫ້ BTU ສູງຢູ່ເທິງ"
+          className={`${inputClass} h-9 w-24 text-center tabular-nums`}
+        />
+      </label>
+
+      {editing && (
+        <label className="flex items-center gap-2 pb-2 text-xs font-semibold text-slate-600">
+          <input type="checkbox" name="active" value="1" defaultChecked={kit.active} className="size-4 accent-brand-700" />
+          ເປີດໃຊ້ງານ
+        </label>
+      )}
+
+      <Button type="submit" size="sm" disabled={pending}>
+        {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+        {editing ? "ບັນທຶກໝວດ" : "ສ້າງໝວດ"}
+      </Button>
+
+      {state.error && <span className="pb-2 text-xs font-semibold text-brand-orange-700">{state.error}</span>}
+      {state.ok && <span className="pb-2 text-xs font-semibold text-brand-800">{state.ok}</span>}
+    </form>
+  );
+}
+
 function LineRow({ line, index, can }: { line: InstallKitLine; index: number; can: KitPermission }) {
   const [state, formAction, pending] = useActionState<KitState, FormData>(updateInstallKitLine, {});
+  // ຫົວໜ່ວຍມາພ້ອມຂໍ້ມູນຈາກ server (ດຶງເປັນກ້ອນດຽວ — ເບິ່ງ lib/install-kit itemUnitsMap)
+  const units = line.units.length > 0 ? line.units : null;
+
   return (
     <tr className="border-b border-slate-100 last:border-0">
       <td className="px-3 py-2 text-center text-xs text-slate-400 tabular-nums">{index}</td>
@@ -92,15 +344,38 @@ function LineRow({ line, index, can }: { line: InstallKitLine; index: number; ca
           />
         </form>
       </td>
+      {/*
+        ── ຫົວໜ່ວຍ = **ເລືອກ** ບໍ່ແມ່ນພິມ (19-08-2026) ──
+        ຕົວເລືອກມາຈາກ `ic_unit_use` ຂອງສິນຄ້ານັ້ນ. ພິມມືແລ້ວຜິດ = ຈຳນວນຜິດຄວາມໝາຍ
+        (140507-0334 ຂາຍເປັນ **ກິໂລ** ແຕ່ຕິດຕັ້ງເບີກເປັນ **ຕົວ** — lib/install-standard).
+        ຍັງບໍ່ໂຫຼດ/ERP ລົ້ມ ⇒ ຕົກມາເປັນຊ່ອງພິມຄືເກົ່າ ຈະໄດ້ບໍ່ຕິດຢູ່.
+      */}
       <td className="px-3 py-2 text-center">
-        <input
-          form={`kit-${line.roworder}`}
-          name="unit_code"
-          defaultValue={line.unit_code ?? ""}
-          disabled={!can.update}
-          placeholder="-"
-          className={`${inputClass} h-9 w-24 text-center`}
-        />
+        {units === null ? (
+          <input
+            form={`kit-${line.roworder}`}
+            name="unit_code"
+            defaultValue={line.unit_code ?? ""}
+            disabled={!can.update}
+            placeholder="-"
+            className={`${inputClass} h-9 w-24 text-center`}
+          />
+        ) : (
+          <select
+            form={`kit-${line.roworder}`}
+            name="unit_code"
+            defaultValue={line.unit_code ?? ""}
+            disabled={!can.update}
+            className={`${inputClass} h-9 w-28 text-center`}
+          >
+            <option value="">(ຕາມ ERP)</option>
+            {unitOptions(units, line.unit_code).map((unit) => (
+              <option key={unit} value={unit}>
+                {unit}
+              </option>
+            ))}
+          </select>
+        )}
       </td>
       <td className="px-3 py-2">
         <span className="flex items-center justify-center gap-2">
@@ -129,28 +404,186 @@ function LineRow({ line, index, can }: { line: InstallKitLine; index: number; ca
   );
 }
 
+/** ຫົວໜ່ວຍທີ່ບັນທຶກໄວ້ ຕ້ອງຢູ່ໃນລາຍການສະເໝີ — ບໍ່ດັ່ງນັ້ນ select ຈະເດັ້ງເປັນຄ່າອື່ນງຽບໆ */
+function unitOptions(units: string[], current: string | null): string[] {
+  if (current && !units.includes(current)) return [current, ...units];
+  return units;
+}
+
+/**
+ * ຫົວໜ່ວຍຂອງສິນຄ້າ 1 ຕົວ — `null` = ຍັງບໍ່ຮູ້ (ກຳລັງໂຫຼດ ຫຼື ບໍ່ໄດ້ຖາມ) ⇒ ໃຫ້ຄົນເອີ້ນ
+ * ຕົກມາໃຊ້ຊ່ອງພິມ. ຖາມທີລະແຖວແບບ lazy — ໜ້ານີ້ມີບໍ່ຫຼາຍແຖວຕໍ່ໝວດ.
+ */
+function useItemUnits(itemCode: string): string[] | null {
+  const [units, setUnits] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!itemCode) return;
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const response = await fetch(
+          `/api/manage/install-kits/items?units=${encodeURIComponent(itemCode)}`,
+          { signal: controller.signal },
+        );
+        const json = await response.json();
+        if (Array.isArray(json.units) && json.units.length) setUnits(json.units);
+      } catch {
+        // ERP ລົ້ມ/ຍົກເລີກ ⇒ ປະໄວ້ null ໃຫ້ຕົກມາເປັນຊ່ອງພິມ
+      }
+    })();
+    return () => controller.abort();
+  }, [itemCode]);
+  return units;
+}
+
 function AddLineForm({ installType }: { installType: string }) {
-  const [state, formAction, pending] = useActionState<KitState, FormData>(addInstallKitLine, {});
+  const [picked, setPicked] = useState<ErpItem | null>(null);
+  const units = useItemUnits(picked?.code ?? "");
+  // ເພີ່ມສຳເລັດ ⇒ ລ້າງລາຍການທີ່ເລືອກ ໃຫ້ພ້ອມເພີ່ມຕົວຖັດໄປ (ຢູ່ໃນ action ບໍ່ແມ່ນ effect)
+  const [state, formAction, pending] = useActionState<KitState, FormData>(
+    async (previous, formData) => {
+      const result = await addInstallKitLine(previous, formData);
+      if (result.ok) setPicked(null);
+      return result;
+    },
+    {},
+  );
+
   return (
-    <form action={formAction} className="mt-4 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-4">
+    <form action={formAction} className="mt-4 space-y-3 border-t border-slate-100 pt-4">
       <input type="hidden" name="install_type" value={installType} />
-      <label className="text-xs text-slate-500">
-        ລະຫັດອາໄຫຼ່ (ERP)
-        <input name="ic_code" required placeholder="140507-0200" className={`${inputClass} mt-1 h-9 w-48 font-mono`} />
-      </label>
-      <label className="text-xs text-slate-500">
-        ຈຳນວນ
-        <input name="qty" type="number" min="0.01" step="0.01" defaultValue={1} className={`${inputClass} mt-1 h-9 w-24 text-center tabular-nums`} />
-      </label>
-      <label className="text-xs text-slate-500">
-        ຫົວໜ່ວຍ
-        <input name="unit_code" placeholder="ຕາມ ERP" className={`${inputClass} mt-1 h-9 w-28 text-center`} />
-      </label>
-      <Button type="submit" size="sm" disabled={pending}>
-        <Plus className="size-3.5" /> ເພີ່ມເຂົ້າຊຸດ
-      </Button>
-      {state.error && <span className="text-xs font-semibold text-brand-orange-700">{state.error}</span>}
-      {state.ok && <span className="text-xs font-semibold text-brand-800">{state.ok}</span>}
+      <input type="hidden" name="ic_code" value={picked?.code ?? ""} />
+
+      <ItemPicker picked={picked} onPick={setPicked} />
+
+      {picked && (
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="text-xs text-slate-500">
+            <span className={labelClass}>ຈຳນວນ</span>
+            <input
+              name="qty"
+              type="number"
+              min="0.01"
+              step="0.01"
+              defaultValue={1}
+              className={`${inputClass} h-9 w-24 text-center tabular-nums`}
+            />
+          </label>
+          <label className="text-xs text-slate-500">
+            <span className={labelClass}>ຫົວໜ່ວຍ</span>
+            {units === null ? (
+              <input name="unit_code" placeholder="ຕາມ ERP" className={`${inputClass} h-9 w-28 text-center`} />
+            ) : (
+              <select name="unit_code" defaultValue="" className={`${inputClass} h-9 w-32 text-center`}>
+                <option value="">(ຕາມ ERP: {picked.unit_code || "-"})</option>
+                {units.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {unit}
+                  </option>
+                ))}
+              </select>
+            )}
+          </label>
+          <Button type="submit" size="sm" disabled={pending}>
+            {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+            ເພີ່ມເຂົ້າຊຸດ
+          </Button>
+        </div>
+      )}
+
+      {state.error && <p className="text-xs font-semibold text-brand-orange-700">{state.error}</p>}
+      {state.ok && <p className="text-xs font-semibold text-brand-800">{state.ok}</p>}
     </form>
+  );
+}
+
+/**
+ * ຄົ້ນຫາອາໄຫຼ່ຈາກ ERP (`ic_inventory`) ແລ້ວເລືອກ 1 ຕົວ.
+ * ເມື່ອກ່ອນເປັນ**ຊ່ອງພິມລະຫັດ** ⇒ ຕ້ອງຮູ້ລະຫັດຢູ່ຫົວກ່ອນ (140507-0200) ບໍ່ດັ່ງນັ້ນ
+ * ໄປເປີດ ERP ຫາເອົາ. ດຽວນີ້ພິມຊື່ຄົ້ນໄດ້.
+ */
+function ItemPicker({ picked, onPick }: { picked: ErpItem | null; onPick: (item: ErpItem | null) => void }) {
+  const [q, setQ] = useState("");
+  const [rows, setRows] = useState<ErpItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const keyword = q.trim();
+    if (keyword.length < 2) return;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(
+          `/api/manage/install-kits/items?q=${encodeURIComponent(keyword)}`,
+          { signal: controller.signal },
+        );
+        const json = await response.json();
+        setRows(json.data ?? []);
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) setRows([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [q]);
+
+  if (picked) {
+    return (
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-200 bg-brand-50/60 px-3 py-2">
+        <span className="font-mono text-xs font-bold text-brand-800">{picked.code}</span>
+        <span className="text-sm font-semibold text-slate-700">{picked.name_1}</span>
+        <button
+          type="button"
+          onClick={() => onPick(null)}
+          className="ml-auto text-xs font-semibold text-slate-500 underline hover:text-brand-orange-700"
+        >
+          ປ່ຽນລາຍການ
+        </button>
+      </div>
+    );
+  }
+
+  const keyword = q.trim();
+  return (
+    <div>
+      <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 focus-within:border-brand-600">
+        <Search className="size-4 shrink-0 text-slate-400" />
+        <input
+          value={q}
+          onChange={(event) => setQ(event.target.value)}
+          placeholder="ຄົ້ນຫາອາໄຫຼ່ຈາກ ERP — ພິມລະຫັດ ຫຼື ຊື່ (2 ຕົວອັກສອນຂຶ້ນໄປ)"
+          className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+        />
+      </label>
+      {keyword.length >= 2 && (
+        <div className="mt-2 max-h-64 overflow-auto rounded-lg border border-slate-200">
+          {rows.map((row) => (
+            <button
+              key={row.code}
+              type="button"
+              onClick={() => {
+                onPick(row);
+                setQ("");
+                setRows([]);
+              }}
+              className="flex w-full items-center gap-3 border-b border-slate-100 px-3 py-2 text-left last:border-0 hover:bg-brand-50/60"
+            >
+              <span className="font-mono text-xs text-slate-500">{row.code}</span>
+              <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{row.name_1}</span>
+              <span className="shrink-0 text-xs text-slate-400">{row.unit_code || "-"}</span>
+            </button>
+          ))}
+          {!loading && rows.length === 0 && (
+            <p className="py-6 text-center text-xs text-slate-400">ບໍ່ພົບລາຍການ</p>
+          )}
+          {loading && <p className="py-6 text-center text-xs text-slate-400">ກຳລັງຄົ້ນຫາ...</p>}
+        </div>
+      )}
+    </div>
   );
 }

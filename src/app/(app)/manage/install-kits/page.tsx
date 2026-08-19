@@ -1,6 +1,6 @@
 import { InstallKitManager } from "@/components/manage/install-kit-manager";
 import { requirePermissionOrRedirect } from "@/lib/guard";
-import { INSTALL_KIT_MENU, listInstallKits } from "@/lib/install-kit";
+import { INSTALL_KIT_MENU, listErpSizes, listInstallKits } from "@/lib/install-kit";
 import { permissionFor } from "@/lib/permissions";
 import { Boxes } from "lucide-react";
 
@@ -18,9 +18,11 @@ export const dynamic = "force-dynamic";
 
 export default async function InstallKitsPage() {
   const session = await requirePermissionOrRedirect(INSTALL_KIT_MENU, "read", ["manager"]);
-  const [kits, permission] = await Promise.all([
+  const [kits, permission, sizes] = await Promise.all([
     listInstallKits(),
     permissionFor(session, INSTALL_KIT_MENU),
+    // ຂະໜາດ ERP ໃຫ້ຜູກກັບໝວດ — ~489 ແຖວ, dropdown ພິມຄົ້ນໄດ້ (components/select-field)
+    listErpSizes(),
   ]);
 
   return (
@@ -38,6 +40,7 @@ export default async function InstallKitsPage() {
 
       <InstallKitManager
         kits={kits}
+        sizes={sizes}
         can={{
           create: permission.read && permission.create,
           update: permission.read && permission.update,

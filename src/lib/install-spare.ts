@@ -26,8 +26,19 @@ import { TRANS } from "@/lib/stock-constants";
  * ລົງມື ຍັງເພີ່ມລາຍການທີ່ລືມໄດ້ (ຈະໄປຢູ່ໃບຂໍຮອບຖັດໄປ).
  */
 
-/** ແຖວທີ່ "ເຂົ້າເອກະສານແລ້ວ" — ຖອດ/ແກ້ຈຳນວນບໍ່ໄດ້ (ບໍ່ດັ່ງນັ້ນເອກະສານກັບກະຕ່າຂັດກັນ) */
-const ON_DOC = `(s.reg_start is not null or s.reg_finish is not null or s.pick_finish is not null
+/**
+ * ແຖວທີ່ "ເຂົ້າເອກະສານແລ້ວ" — ຖອດ/ແກ້ຈຳນວນບໍ່ໄດ້ (ບໍ່ດັ່ງນັ້ນເອກະສານກັບກະຕ່າຂັດກັນ)
+ *
+ * ⚠️ ຕ້ອງ query ດ້ວຍ alias `s` ໃສ່ `tb_used_spare`.
+ *
+ * export ອອກເພື່ອໃຫ້ **ທຸກທາງເຂົ້າໃຊ້ນິຍາມອັນດຽວ**: ແອັບຊ່າງ (ໄຟລ໌ນີ້), ຟອມເວັບ
+ * (actions/installation → deleteSpareLine · updateSpareQty) ແລະ **ໜ້າລາຍລະອຽດງານ**
+ * (components/installation/job-spares-editor ໃຊ້ຄ່ານີ້ປິດປຸ່ມໃຫ້ຖືກ).
+ * ກ່ອນແກ້: ຝັ່ງເວັບກວດແຕ່ `reg_start`/`reg_finish` ⇒ ແຖວທີ່ **ຊ່າງຮັບໄປແລ້ວ**
+ * (pick_finish) ຫຼື ທີ່ມີ 122/56 ແຕ່ຖັນກະຕ່າເປັນ null (ພົບຈິງ: INST-5849/5850)
+ * ຍັງລົບ/ແກ້ຈຳນວນໄດ້ ⇒ ກະຕ່າກັບເອກະສານແຍກກັນ ແລ້ວ savePickSpare ຫາແຖວຄູ່ບໍ່ພົບ.
+ */
+export const SPARE_ON_DOC = `(s.reg_start is not null or s.reg_finish is not null or s.pick_finish is not null
   or exists (
     select 1 from ic_trans_detail d
     where d.product_code = s.product_code and d.item_code = s.item_code
@@ -45,6 +56,10 @@ export type InstallSpareLine = {
   locked: boolean;
   /** ຢູ່ໃນຊຸດຕິດຕັ້ງຂອງໃບງານ (ບໍ່ແມ່ນລາຍການນອກມາດຕະຖານ) */
   standard: boolean;
+  /** ວັນທີ່ຂໍເບີກ · ສາງເບີກ · ຊ່າງຮັບ (DD-MM-YYYY) — ໃຫ້ໜ້າເວັບສະແດງຄືເກົ່າ */
+  reg_start: string | null;
+  reg_finish: string | null;
+  pick_finish: string | null;
 };
 
 /** ລາຍການໃນກະຕ່າ + ທຸງບອກວ່າແຖວໃດຍັງແກ້ໄດ້ (ໃຫ້ແອັບປິດປຸ່ມໃຫ້ຖືກ) */
@@ -57,7 +72,10 @@ export async function listInstallSpares(code: string): Promise<InstallSpareLine[
              select 1 from ic_trans_detail d
              where d.product_code = s.product_code and d.item_code = s.item_code
                and d.trans_flag = ${TRANS.REQUEST})) as "requested",
-          ${ON_DOC} as "locked"
+          ${SPARE_ON_DOC} as "locked",
+          to_char(s.reg_start,'DD-MM-YYYY') as reg_start,
+          to_char(s.reg_finish,'DD-MM-YYYY') as reg_finish,
+          to_char(s.pick_finish,'DD-MM-YYYY') as pick_finish
         from tb_used_spare s where s.product_code = $1 order by s.roworder`,
       [code],
     ),
@@ -172,7 +190,7 @@ export async function removeInstallSpare(
   if (!Number.isFinite(roworder)) return { ok: false, error: "ບໍ່ພົບລາຍການ" };
 
   const removed = await query<{ item_name: string | null }>(
-    `delete from tb_used_spare s where s.roworder=$1 and s.product_code=$2 and not ${ON_DOC}
+    `delete from tb_used_spare s where s.roworder=$1 and s.product_code=$2 and not ${SPARE_ON_DOC}
      returning s.item_name`,
     [roworder, code],
   );
@@ -208,7 +226,7 @@ export async function setInstallSpareQty(
 
   const done = await query(
     `update tb_used_spare s set qty=round($1::numeric,2)
-      where s.roworder=$2 and s.product_code=$3 and not ${ON_DOC}`,
+      where s.roworder=$2 and s.product_code=$3 and not ${SPARE_ON_DOC}`,
     [qty, roworder, code],
   );
   if (!done.rowCount) return { ok: false, error: "ແກ້ບໍ່ໄດ້ — ອາໄຫຼ່ແຖວນີ້ຖືກຂໍເບີກ/ເບີກອອກໄປແລ້ວ" };

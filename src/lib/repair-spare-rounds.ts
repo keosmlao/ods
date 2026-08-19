@@ -333,8 +333,8 @@ async function itemsByDocOdg(docNos: string[]): Promise<Record<string, DocItem[]
   return map;
 }
 
-/** ຮອບຂໍຊື້ທັງໝົດຂອງໃບງານ (RQ ຝັ່ງ ODS) */
-export async function purchaseRounds(code: string): Promise<PurchaseRound[]> {
+/** ຮອບຂໍຊື້ແບບເກົ່າ (RQ ຝັ່ງ ODS) — ໃບເກົ່າກ່ອນ 16-07-2026 ເທົ່ານັ້ນ (ເບິ່ງ lib/erp-spr) */
+async function legacyRqRounds(code: string): Promise<Omit<PurchaseRound, "round">[]> {
   const rows = (
     await query<Omit<PurchaseRound, "round" | "state"> & { aprove_status: number | null }>(
       `select t.doc_no,
@@ -351,13 +351,69 @@ export async function purchaseRounds(code: string): Promise<PurchaseRound[]> {
   ).rows;
 
   const items = await itemsByDoc(rows.map((row) => row.doc_no));
-  return rows.map(({ aprove_status, ...row }, index) => ({
+  return rows.map(({ aprove_status, ...row }) => ({
     ...row,
     items: items[row.doc_no] ?? [],
-    round: index + 1,
     // 0 = ຍັງບໍ່ພິຈາລະນາ · 1 = ອະນຸມັດ · 2 = ບໍ່ອະນຸມັດ (ຄືກັບໜ້າ /approvals/purchase-requests)
     state: aprove_status === 1 ? "approved" : aprove_status === 2 ? "rejected" : "waiting_approve",
   }));
+}
+
+/**
+ * **ໃບຂໍຊື້ (SPR) ອອກກົງໃສ່ ERP** — flow ໃໝ່ 16-07-2026 (ເບິ່ງ lib/erp-spr): ບໍ່ມີໃບ RQ
+ * ຢູ່ ODS ອີກ ⇒ `legacyRqRounds` ຫາບໍ່ພົບ ແລະ ໜ້ານີ້ຂຶ້ນ "ລວມ 0 ຮອບ" ທັງທີ່ ERP ກຳລັງ
+ * ດຳເນີນການຊື້ຢູ່ (ພົບຈິງ 19-08-2026: ວຽກ 7630 ມີ SPR26080001 ອະນຸມັດແລ້ວ ແຕ່ໜ້ານີ້ບໍ່ເຫັນ).
+ *
+ * ຜູກກັບວຽກຜ່ານ `ods_erp_doc_link` ເປັນຫຼັກ (ຂຽນຕອນອອກ SPR — ເບິ່ງ lib/erp-spr),
+ * ຕົກໄປໃຊ້ `doc_ref` ຂອງ ERP ເປັນທາງສຳຮອງ (ໃບເກົ່າກ່ອນມີດັດຊະນີ ຫຼື ຄົນ ERP ບໍ່ໄດ້ຜູກ — ຄືກັບ
+ * ໜ້າ /purchase-requests ໃຊ້). ລາຍການ/ວັນທີ ອ່ານກົງຈາກ **ERP ເທົ່ານັ້ນ** — ບໍ່ມີສຳເນົາຢູ່ ODS.
+ */
+async function directSprDocNos(code: string): Promise<string[]> {
+  const { rows } = await query<{ doc_no: string }>(
+    `select doc_no from ods_erp_doc_link where trans_flag = 2 and job_code = $1
+     union
+     select doc_no from public.ic_trans
+      where trans_flag = 2 and split_part(trim(coalesce(doc_ref,'')),' ',1) = $1
+        and doc_no not in (select doc_no from ods_erp_doc_link where trans_flag = 2)`,
+    [code],
+  );
+  return rows.map((row) => row.doc_no);
+}
+
+async function directSprRounds(code: string): Promise<Omit<PurchaseRound, "round">[]> {
+  const docNos = await directSprDocNos(code);
+  if (docNos.length === 0) return [];
+
+  const [heads, items, approved] = await Promise.all([
+    query<{ doc_no: string; doc_date: string | null }>(
+      `select doc_no, to_char(doc_date,'DD-MM-YYYY') doc_date from public.ic_trans where doc_no = any($1::text[])`,
+      [docNos],
+    ).then((result) => result.rows),
+    itemsByDocOdg(docNos),
+    // ອະນຸມັດແລ້ວ = ມີໃບ WPRA (trans_flag 4) ອ້າງກັບຄືນມາ — ນິຍາມດຽວກັບໜ້າ /purchase-requests
+    query<{ doc_no: string }>(
+      `select distinct ref_doc_no doc_no from public.ic_trans_detail where trans_flag = 4 and ref_doc_no = any($1::text[])`,
+      [docNos],
+    ).then((result) => new Set(result.rows.map((row) => row.doc_no))),
+  ]);
+
+  return heads.map((row) => ({
+    doc_no: row.doc_no,
+    doc_date: row.doc_date,
+    from_request: null,
+    items: items[row.doc_no] ?? [],
+    lines: (items[row.doc_no] ?? []).length,
+    qty: (items[row.doc_no] ?? []).reduce((sum, item) => sum + item.qty, 0),
+    state: approved.has(row.doc_no) ? "approved" : "waiting_approve",
+  }));
+}
+
+/** ຮອບຂໍຊື້ທັງໝົດຂອງໃບງານ — ລວມທັງໃບເກົ່າ (RQ ຝັ່ງ ODS) ແລະ ໃບໃໝ່ (SPR ກົງໃສ່ ERP) */
+export async function purchaseRounds(code: string): Promise<PurchaseRound[]> {
+  const [legacy, direct] = await Promise.all([legacyRqRounds(code), directSprRounds(code)]);
+  return [...legacy, ...direct]
+    .sort((a, b) => (a.doc_date ?? "").localeCompare(b.doc_date ?? "") || a.doc_no.localeCompare(b.doc_no))
+    .map((row, index) => ({ ...row, round: index + 1 }));
 }
 
 /**
@@ -443,6 +499,55 @@ export type ErpChain = {
   mismatch: boolean;
 };
 
+/**
+ * ຈາກລາຍການ SPR ທີ່ຮູ້ຢູ່ແລ້ວ, ໄລ່ຕໍ່ຢູ່ **ERP** (WPRA → PO → WPOA → PUI) ດ້ວຍ `ref_doc_no`.
+ * ໃຊ້ຮ່ວມກັນທັງທາງ RQ→SPR (bridge ຈາກ ODS) ແລະ ທາງ SPR ໂດຍກົງ (ຮູ້ເລກ SPR ຢູ່ແລ້ວ).
+ */
+async function chainStepsFromSpr(sprNos: string[]) {
+  const chains = (
+    await queryOdg<{
+      spr: string;
+      approve_no: string | null; approve_date: string | null;
+      order_no: string | null; order_date: string | null;
+      oa_no: string | null;
+      receipt_no: string | null; receipt_date: string | null;
+    }>(
+      `with ap as (
+         select d.ref_doc_no spr, d.doc_no, d.doc_date
+           from ic_trans_detail d where d.trans_flag = 4 and d.ref_doc_no = any($1::text[])
+       ), po as (
+         select ap.spr, d.doc_no, d.doc_date
+           from ap join ic_trans_detail d on d.ref_doc_no = ap.doc_no and d.trans_flag = 6
+       ), rc as (
+         select po.spr, d.doc_no, d.doc_date
+           from po join ic_trans_detail d on d.ref_doc_no = po.doc_no and d.trans_flag = 12
+       )
+       select s.spr,
+         (select string_agg(distinct a.doc_no, ', ') from ap a where a.spr = s.spr) approve_no,
+         (select to_char(min(a.doc_date),'DD-MM-YYYY') from ap a where a.spr = s.spr) approve_date,
+         (select string_agg(distinct o.doc_no, ', ') from po o where o.spr = s.spr) order_no,
+         (select to_char(min(o.doc_date),'DD-MM-YYYY') from po o where o.spr = s.spr) order_date,
+         (select string_agg(distinct w.doc_no, ', ') from ic_trans w
+           where w.trans_flag = 8 and split_part(trim(coalesce(w.doc_ref,'')),' ',1)
+                 in (select o.doc_no from po o where o.spr = s.spr)) oa_no,
+         (select string_agg(distinct r.doc_no, ', ') from rc r where r.spr = s.spr) receipt_no,
+         (select to_char(max(r.doc_date),'DD-MM-YYYY') from rc r where r.spr = s.spr) receipt_date
+       from (select unnest($1::text[]) spr) s`,
+      [sprNos],
+    )
+  ).rows;
+  const bySpr = new Map(chains.map((chain) => [chain.spr, chain]));
+
+  // ── ລາຍການສິນຄ້າຂອງແຕ່ລະຂັ້ນ ── ຝັ່ງ ERP ອ່ານຈາກ public.ic_trans_detail (ມີ line_number)
+  const erpDocs = [
+    ...sprNos,
+    ...chains.flatMap((chain) => [...splitDocs(chain.approve_no), ...splitDocs(chain.order_no), ...splitDocs(chain.receipt_no)]),
+  ];
+  const erpItems = await itemsByDocOdg(erpDocs);
+  const pick = (agg: string | null) => mergeItems(splitDocs(agg).map((doc) => erpItems[doc] ?? []));
+  return { bySpr, erpItems, pick };
+}
+
 export async function erpChainForRq(rqNos: string[]): Promise<Record<string, ErpChain>> {
   const keys = [...new Set(rqNos.filter(Boolean))];
   if (keys.length === 0) return {};
@@ -451,6 +556,8 @@ export async function erpChainForRq(rqNos: string[]): Promise<Record<string, Erp
      * ຂັ້ນ ①: RQ → SPR **ອ່ານຈາກ ODS** — ໃບ SPR ຢູ່ ERP ມີ `doc_ref` ຫວ່າງ (ກວດແລ້ວ
      * 04-08-2026: SPR26060027 · SPR26070014 ທັງສອງ doc_ref = '') ⇒ ຜູກຈາກຝັ່ງ ERP ບໍ່ໄດ້.
      * ສຳເນົາຝັ່ງ ODS ເກັບ doc_ref = ເລກ RQ ໄວ້ ⇒ ໃຊ້ອັນນັ້ນເປັນສະພານ.
+     * ⚠️ ໃບ SPR ອອກຫຼັງ 16-07-2026 ບໍ່ມີສຳເນົານີ້ອີກ (ເບິ່ງ erpChainForSpr) — bridge ນີ້
+     * ໃຊ້ໄດ້ສະເພາະໃບເກົ່າ.
      */
     const bridge = (
       await query<{ rq: string; spr: string; spr_date: string | null }>(
@@ -463,51 +570,9 @@ export async function erpChainForRq(rqNos: string[]): Promise<Record<string, Erp
     ).rows;
     if (bridge.length === 0) return {};
 
-    // ຂັ້ນ ②: ຈາກ SPR ໄລ່ຕໍ່ຢູ່ **ERP** (WPRA → PO → WPOA → PUI) ດ້ວຍ ref_doc_no
-    const chains = (
-      await queryOdg<{
-        spr: string;
-        approve_no: string | null; approve_date: string | null;
-        order_no: string | null; order_date: string | null;
-        oa_no: string | null;
-        receipt_no: string | null; receipt_date: string | null;
-      }>(
-        `with ap as (
-           select d.ref_doc_no spr, d.doc_no, d.doc_date
-             from ic_trans_detail d where d.trans_flag = 4 and d.ref_doc_no = any($1::text[])
-         ), po as (
-           select ap.spr, d.doc_no, d.doc_date
-             from ap join ic_trans_detail d on d.ref_doc_no = ap.doc_no and d.trans_flag = 6
-         ), rc as (
-           select po.spr, d.doc_no, d.doc_date
-             from po join ic_trans_detail d on d.ref_doc_no = po.doc_no and d.trans_flag = 12
-         )
-         select s.spr,
-           (select string_agg(distinct a.doc_no, ', ') from ap a where a.spr = s.spr) approve_no,
-           (select to_char(min(a.doc_date),'DD-MM-YYYY') from ap a where a.spr = s.spr) approve_date,
-           (select string_agg(distinct o.doc_no, ', ') from po o where o.spr = s.spr) order_no,
-           (select to_char(min(o.doc_date),'DD-MM-YYYY') from po o where o.spr = s.spr) order_date,
-           (select string_agg(distinct w.doc_no, ', ') from ic_trans w
-             where w.trans_flag = 8 and split_part(trim(coalesce(w.doc_ref,'')),' ',1)
-                   in (select o.doc_no from po o where o.spr = s.spr)) oa_no,
-           (select string_agg(distinct r.doc_no, ', ') from rc r where r.spr = s.spr) receipt_no,
-           (select to_char(max(r.doc_date),'DD-MM-YYYY') from rc r where r.spr = s.spr) receipt_date
-         from (select unnest($1::text[]) spr) s`,
-        [bridge.map((row) => row.spr)],
-      )
-    ).rows;
-    const bySpr = new Map(chains.map((chain) => [chain.spr, chain]));
-
-    // ── ລາຍການສິນຄ້າຂອງແຕ່ລະຂັ້ນ ──
-    // ຝັ່ງ ERP ອ່ານຈາກ public.ic_trans_detail (ມີ line_number); ຝັ່ງ ODS ໃຊ້ itemsByDoc ຄືເກົ່າ.
-    const erpDocs = chains.flatMap((chain) => [
-      chain.spr,
-      ...splitDocs(chain.approve_no),
-      ...splitDocs(chain.order_no),
-      ...splitDocs(chain.receipt_no),
-    ]);
-    const [erpItems, rqItems] = await Promise.all([itemsByDocOdg(erpDocs), itemsByDoc(keys)]);
-    const pick = (agg: string | null) => mergeItems(splitDocs(agg).map((doc) => erpItems[doc] ?? []));
+    // ຂັ້ນ ②: ຈາກ SPR ໄລ່ຕໍ່ (ໃຊ້ຮ່ວມກັບ erpChainForSpr)
+    const { bySpr, erpItems, pick } = await chainStepsFromSpr(bridge.map((row) => row.spr));
+    const rqItems = await itemsByDoc(keys);
 
     return Object.fromEntries(
       bridge.map((row) => {
@@ -544,10 +609,52 @@ export async function erpChainForRq(rqNos: string[]): Promise<Record<string, Erp
   }
 }
 
+/**
+ * ຕ່ອງໂສ້ຝັ່ງ ERP ຂອງໃບ SPR ທີ່ອອກກົງ (flow ໃໝ່ 16-07-2026, ບໍ່ຜ່ານ RQ — ເບິ່ງ directSprRounds).
+ * ຮູ້ເລກ SPR ຢູ່ແລ້ວ (ຄືເລກຂອງຮອບເອງ) ⇒ ບໍ່ຕ້ອງ bridge, ໄລ່ຕໍ່ approve→order→receipt ໂດຍກົງ.
+ * ບໍ່ມີການປຽບທຽບລາຍການ (mismatch) ເພາະ SPR ນີ້ຄືຮອບເອງ ບໍ່ແມ່ນເລກທີ່ອາດຊົນກັນ 2 ລະບົບ.
+ */
+export async function erpChainForSpr(sprNos: string[]): Promise<Record<string, ErpChain>> {
+  const keys = [...new Set(sprNos.filter(Boolean))];
+  if (keys.length === 0) return {};
+  try {
+    const { bySpr, erpItems, pick } = await chainStepsFromSpr(keys);
+    return Object.fromEntries(
+      keys.map((spr) => {
+        const chain = bySpr.get(spr);
+        return [
+          spr,
+          {
+            spr_no: spr,
+            spr_date: null,
+            approve_no: chain?.approve_no ?? null,
+            approve_date: chain?.approve_date ?? null,
+            order_no: chain?.order_no ?? null,
+            order_date: chain?.order_date ?? null,
+            oa_no: chain?.oa_no ?? null,
+            receipt_no: chain?.receipt_no ?? null,
+            receipt_date: chain?.receipt_date ?? null,
+            spr_items: erpItems[spr] ?? [],
+            approve_items: pick(chain?.approve_no ?? null),
+            order_items: pick(chain?.order_no ?? null),
+            receipt_items: pick(chain?.receipt_no ?? null),
+            mismatch: false,
+          } satisfies ErpChain,
+        ];
+      }),
+    );
+  } catch (error) {
+    console.error("erpChainForSpr failed", error);
+    return {};
+  }
+}
+
 /** ອາໄຫຼ່ທັງໝົດຂອງໃບງານ ແຍກເປັນຮອບ — ດຶງພ້ອມກັນ (ບໍ່ຂຶ້ນຕໍ່ກັນ) */
 export async function repairSpareRounds(code: string) {
   const [withdrawals, purchases] = await Promise.all([withdrawRounds(code), purchaseRounds(code)]);
-  // ຕ່ອງໂສ້ ERP ຂອງທຸກຮອບຊື້ — ດຶງເທື່ອດຽວຫຼັງຮູ້ເລກ RQ ຄົບ
-  const erp = await erpChainForRq(purchases.map((round) => round.doc_no));
-  return { withdrawals, purchases, erp };
+  // ຕ່ອງໂສ້ ERP ຂອງທຸກຮອບຊື້ — ແຍກ 2 ທາງຕາມຄຳນຳໜ້າເລກໃບ: RQ (ເກົ່າ, ຕ້ອງ bridge) ແລະ SPR (ໃໝ່, ຮູ້ຢູ່ແລ້ວ)
+  const rqNos = purchases.map((round) => round.doc_no).filter((docNo) => docNo.startsWith("RQ"));
+  const sprNos = purchases.map((round) => round.doc_no).filter((docNo) => docNo.startsWith("SPR"));
+  const [rqChain, sprChain] = await Promise.all([erpChainForRq(rqNos), erpChainForSpr(sprNos)]);
+  return { withdrawals, purchases, erp: { ...rqChain, ...sprChain } };
 }
