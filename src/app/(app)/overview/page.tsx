@@ -1,6 +1,5 @@
 import { DashboardAutoRefresh } from "@/components/dashboard-auto-refresh";
 import { LinkPending } from "@/components/link-pending";
-import { RowLink } from "@/components/row-link";
 import { getSession } from "@/lib/auth";
 import { getDashboard } from "@/lib/dashboard";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -236,7 +235,7 @@ export default async function ManagerOverview() {
           <ul className="divide-y divide-slate-100">
             {mgr.oldest.map((job) => (
               <li key={job.code}>
-                <RowLink href={`/service/${job.code}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
+                <Link href={`/service/${job.code}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
                   <span className="w-14 shrink-0 text-right">
                     <span className={`text-lg font-black ${job.days > 30 ? "text-brand-orange-700" : "text-slate-700"}`}>{job.days}</span>
                     <span className="ml-0.5 text-[10px] text-slate-400">{t.daysUnit}</span>
@@ -253,7 +252,7 @@ export default async function ManagerOverview() {
                       </span>
                     </span>
                   </span>
-                </RowLink>
+                </Link>
               </li>
             ))}
           </ul>

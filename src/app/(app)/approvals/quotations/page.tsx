@@ -6,7 +6,7 @@ import { query } from "@/lib/db";
 import { elapsedTone } from "@/lib/elapsed-tone";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
-import { CheckCheck, ChevronLeft, ChevronRight, Clock, FileCheck2, Search } from "lucide-react";
+import { CheckCheck, ChevronLeft, ChevronRight, Clock, FileCheck2, Printer, Search } from "lucide-react";
 import Link from "next/link";
 
 /** ຖອດແບບຈາກ ods: qt.py home_qt_approve() + templates/approve/qt/homeqt.html (ອອກແບບໃໝ່) */
@@ -271,17 +271,48 @@ export default async function ApproveQuotationsPage({ searchParams }: Props) {
                           {/* ກົດຜິດ → ຖອນຄືນໄດ້ ຕາບໃດທີ່ລູກຄ້າຍັງບໍ່ຕອບ */}
                           {row.aprove_status_2 === 0 && <UndoApprovalButton docNo={row.doc_no} />}
                         </div>
+                        {/* ໃບທີ່ຕັດສິນແລ້ວກໍ່ຍັງຕ້ອງເປີດເບິ່ງ ແລະ ພິມໄດ້ — ແຕ່ກ່ອນແທັບນີ້ເປັນທາງຕັນ */}
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <Link
+                            href={`/approvals/quotations/${encodeURIComponent(row.doc_no)}`}
+                            className="inline-flex h-7 items-center gap-1 rounded-lg border border-brand-300 px-2 text-[11px] font-semibold text-brand-700 hover:bg-brand-50"
+                          >
+                            <FileCheck2 className="size-3" />
+                            {t.details}
+                            <LinkPending className="size-3" />
+                          </Link>
+                          <Link
+                            href={`/quotations/${encodeURIComponent(row.doc_no)}/print`}
+                            target="_blank"
+                            title={t.printQuote}
+                            className="inline-flex h-7 items-center gap-1 rounded-lg border border-brand-orange-400 px-2 text-[11px] font-semibold text-brand-orange-700 hover:bg-brand-orange-50"
+                          >
+                            <Printer className="size-3" />
+                            {t.print}
+                          </Link>
+                        </div>
                       </td>
                     ) : (
                       <td className="whitespace-nowrap px-3 py-2.5 text-center">
-                        <Link
-                          href={`/approvals/quotations/${encodeURIComponent(row.doc_no)}`}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
-                        >
-                          <FileCheck2 className="size-3.5" />
-                          {t.details}
-                          <LinkPending className="size-3" />
-                        </Link>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <Link
+                            href={`/approvals/quotations/${encodeURIComponent(row.doc_no)}`}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white hover:bg-brand-800"
+                          >
+                            <FileCheck2 className="size-3.5" />
+                            {t.details}
+                            <LinkPending className="size-3" />
+                          </Link>
+                          {/* ພິມບິນກ່ອນຕັດສິນໄດ້ — ຜູ້ອະນຸມັດບາງຄົນເບິ່ງໃບພິມກ່ອນເຊັນ */}
+                          <Link
+                            href={`/quotations/${encodeURIComponent(row.doc_no)}/print`}
+                            target="_blank"
+                            title={t.printQuote}
+                            className="inline-flex size-8 items-center justify-center rounded-lg border border-brand-orange-400 text-brand-orange-700 hover:bg-brand-orange-50"
+                          >
+                            <Printer className="size-3.5" />
+                          </Link>
+                        </div>
                       </td>
                     )}
                     <td className="relative whitespace-nowrap px-3 py-2.5 font-bold text-brand">

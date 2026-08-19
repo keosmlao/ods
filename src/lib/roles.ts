@@ -153,6 +153,11 @@ const RULES: Rule[] = [
   { path: "/sales", roles: [M, SL] },
 
   { path: "/quotations", roles: SERVICE_SIDE },
+  /**
+   * ພິມໃບສະເໜີລາຄາ — ຫົວໜ້າຊ່າງ (ຜູ້ອະນຸມັດ) ຕ້ອງເປີດໄດ້ນຳ ເພາະໜ້າອະນຸມັດ
+   * (/approvals/quotations) ມີປຸ່ມ "ພິມບິນ" ຊີ້ມາໃບພິມນີ້. ອ່ານ/ພິມຢ່າງດຽວ.
+   */
+  { path: "/quotations/*/print", roles: [...SERVICE_SIDE, HT] },
   // ຄິວແຈ້ງລູກຄ້າ (ລໍຕັດສິນລາຄາ · ມາຮັບເຄື່ອງ · ຢືນຢັນນັດ) — ຝ່າຍບໍລິການເປັນຜູ້ຕິດຕໍ່ລູກຄ້າ
   { path: "/customer-contact", roles: SERVICE_SIDE },
   // ປິດງານ (ສ້ອມ + ຕິດຕັ້ງ) — ວຽກຫຼັງບ້ານຂອງ CS ຄືກັບ /returns ແລະ /installations/close

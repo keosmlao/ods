@@ -1,6 +1,9 @@
 import { QuoteApproveActions, UndoApprovalButton } from "@/components/quotation/approve-actions";
 import { QuoteDetail, type DetailHead, type DetailLine, type DetailTotals } from "@/components/quotation/quote-detail";
 import { query } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/locale";
+import { Printer } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -17,6 +20,7 @@ type Head = DetailHead &
 
 export default async function ApproveQuotationDetailPage({ params }: Props) {
   const { docNo } = await params;
+  const t = (await getDictionary(await getLocale())).approvalsQuotations;
 
   const [headResult, lineResult] = await Promise.all([
     query<Head>(
@@ -69,6 +73,19 @@ export default async function ApproveQuotationDetailPage({ params }: Props) {
     </div>
   ) : undefined;
 
+  /** ພິມບິນອອກໃຫ້ລູກຄ້າ — ໃບດຽວກັນກັບໜ້າ /quotations, ເປີດແທັບໃໝ່ຈຶ່ງບໍ່ເສຍໜ້າອະນຸມັດ */
+  const printLink = (
+    <Link
+      href={`/quotations/${encodeURIComponent(head.doc_no)}/print`}
+      target="_blank"
+      title={t.printQuote}
+      className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-orange-400 px-4 text-sm font-semibold text-brand-orange-700 hover:bg-brand-orange-50"
+    >
+      <Printer className="size-4" />
+      {t.print}
+    </Link>
+  );
+
   return (
     <QuoteDetail
       head={head}
@@ -80,6 +97,7 @@ export default async function ApproveQuotationDetailPage({ params }: Props) {
         decided ? (
           <div className="flex flex-wrap items-center gap-2">
             {!customerAnswered && <UndoApprovalButton docNo={head.doc_no} size="md" />}
+            {printLink}
             <Link
               href="/approvals/quotations"
               className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -88,7 +106,10 @@ export default async function ApproveQuotationDetailPage({ params }: Props) {
             </Link>
           </div>
         ) : (
-          <QuoteApproveActions docNo={head.doc_no} productCode={head.product_code ?? ""} />
+          <div className="space-y-3">
+            <QuoteApproveActions docNo={head.doc_no} productCode={head.product_code ?? ""} />
+            {printLink}
+          </div>
         )
       }
     />
