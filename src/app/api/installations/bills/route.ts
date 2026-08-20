@@ -1,4 +1,5 @@
 import { getSession } from "@/lib/auth";
+import { billRemarkRefsByPrefix, type BillRemarkRef } from "@/lib/bill-remark-refs";
 import { installTypeCaseSql } from "@/lib/install-kit";
 import { query, queryOdg } from "@/lib/db";
 import { roleOf, SERVICE_SIDE } from "@/lib/roles";
@@ -71,6 +72,12 @@ export type BillRow = {
    */
   service_doc_no?: string | null;
   /**
+   * ເລກ **ໃບເບີກສາງ (trans_flag 56)** ທີ່ລາຍການສິນຄ້າຂ້າງເທິງມາຈາກ — ບິນຄ່າຕິດຕັ້ງ
+   * ບໍ່ມີແຖວສິນຄ້າຂອງຕົນເອງ ແລະ ໝາຍເຫດອ້າງໃບເບີກໄວ້ (ເບິ່ງ lib/bill-remark-refs).
+   * null/undefined = ສິນຄ້າມາຈາກບິນເອງ ຄືປົກກະຕິ.
+   */
+  items_doc_no?: string | null;
+  /**
    * ສະຖານະການສົ່ງເຄື່ອງຈາກລະບົບຂົນສົ່ງ (bill_tracking_tms) — ຄ່າຈິງຈາກ ERP:
    * `ສົ່ງແລ້ວ` ຫຼື `ຄ້າງສົ່ງ` · null = ບິນນີ້ບໍ່ຢູ່ໃນລະບົບຂົນສົ່ງ (ລູກຄ້າຫອບເອງ).
    * CS ຕ້ອງເຫັນກ່ອນເປີດງານ — ສົ່ງເຄື່ອງບໍ່ທັນ ຊ່າງໄປຮອດກໍ່ຕິດຕັ້ງບໍ່ໄດ້.
@@ -128,6 +135,116 @@ const RECENT_DAYS = 90;
  * ແລະ 970102xx (ເຄື່ອງເຮັດນ້ຳອຸ່ນ).
  */
 const INSTALL_SERVICE_ITEM = "(sv.item_code like '9701%' or sv.item_code like '970102%')";
+
+/**
+ * ── ບິນຄ່າຕິດຕັ້ງທີ່ໝາຍເຫດອ້າງ **ໃບເບີກສາງ (trans_flag 56)** ──
+ *
+ * ຕ່າງຈາກເສັ້ນທາງ "ບິນຂາຍທີ່ຖືກອ້າງ" ຢູ່ຂ້າງເທິງບ່ອນນຶ່ງທີ່ສຳຄັນ:
+ * **ແຖວທີ່ຄືນອອກໄປ ຍັງເປັນບິນຄ່າຕິດຕັ້ງເອງ** (doc_no = CAKSV…) ບໍ່ແມ່ນໃບເບີກ ເພາະ
+ *   · ໃບເບີກ **ບໍ່ມີລູກຄ້າ** (ic_trans.cust_code ຫວ່າງ) ⇒ ຊື່/ເບີ/ທີ່ຢູ່/ພິກັດ ຕ້ອງເອົາຈາກບິນ
+ *   · `doc_ref_1` ຂອງໃບງານທີ່ຈະສ້າງ = doc_no ນີ້ ⇒ ໃສ່ເລກໃບເບີກແທນ ຄິວ "ບິນຄ້າງອອກໃບງານ"
+ *     ຈະ**ບໍ່ປິດຈັກເທື່ອ** (ຄິວທຽບກັບເລກບິນ) ແລະ ຍອດເງິນທາບກັບບິນບໍ່ໄດ້
+ * ⇒ ໃບເບີກໃຫ້ມາແຕ່ **ລາຍການສິນຄ້າ + ISN**, ສ່ວນທີ່ເຫຼືອມາຈາກບິນ (`items_doc_no` ບອກທີ່ມາ).
+ *
+ * ISN: `sn_trans_detail` ຂອງໃບເບີກໃຊ້ `trans_flag = 56` (ບໍ່ແມ່ນ 44).
+ * ແອ: ໃບເບີກມັກລົງເປັນ **ອົງປະກອບ** ([C] ກັບ [H] ຄົນລະແຖວ) ບໍ່ແມ່ນແຖວ [SET]
+ * ⇒ ຫາ ISN ຂອງໜ່ວຍນອກຜ່ານ **ພີ່ນ້ອງໃນຊຸດດຽວກັນ** ບໍ່ດັ່ງນັ້ນຊ່ອງ S/N ໜ່ວຍນອກຈະຫວ່າງ.
+ */
+async function billsFromIssueNotes(
+  refs: BillRemarkRef[],
+  svTypeCase: string,
+): Promise<BillRow[]> {
+  const rows = await queryOdg<BillRow & { items_doc_no: string }>(
+    `with ref as (
+         select * from unnest($1::text[], $2::text[]) as r(bill_no, issue_no)
+       ),
+       kept as (
+         select r.bill_no, r.issue_no, i.item_code, i.item_name, sum(i.qty)::float as qty
+           from ref r
+           join ic_trans_detail i on i.doc_no = r.issue_no and i.trans_flag = 56
+          where ${INSTALLABLE_GROUPS}
+            and i.item_type in (0,1,3)
+            and i.item_name not ilike '%[H]%'   -- ແອ: ຕັດໜ່ວຍນອກສະເໝີ (ນັບເປັນຊຸດ)
+          group by r.bill_no, r.issue_no, i.item_code, i.item_name
+       ),
+       comp as (
+         -- ອົງປະກອບຂອງຊຸດ (ແຖວ [SET] → [C]/[H]) ແລະ ພີ່ນ້ອງໃນຊຸດດຽວກັນ ([C] → [H])
+         select k.issue_no, k.item_code, sd.ic_code
+           from kept k
+           join ic_inventory_set_detail sd on sd.ic_set_code = k.item_code
+         union
+         select k.issue_no, k.item_code, sib.ic_code
+           from kept k
+           join ic_inventory_set_detail me on me.ic_code = k.item_code
+           join ic_inventory_set_detail sib on sib.ic_set_code = me.ic_set_code
+       ),
+       isn as (
+         select d.doc_ref, d.item_code, d.item_name, d.sn as isn, coalesce(sni.sn,'') as sn
+           from sn_trans_detail d
+           left join sn_inventory sni on sni.isn = d.sn
+          where d.trans_flag = 56 and coalesce(d.sn,'') <> ''
+            and d.doc_ref = any(select issue_no from kept)
+       ),
+       lines as (
+         select k.bill_no, k.issue_no, k.item_code, k.item_name, k.qty,
+            ${svTypeCase} as sv_type,
+            inv.item_brand,
+            inv.item_category as pro_type,
+            cat.name_1 as pro_type_name,
+            siz.name_1 as pro_size,
+            coalesce((
+              select json_agg(json_build_object(
+                       'isn', x.isn, 'sn', x.sn,
+                       'part', case when x.item_name ilike '%[C]%' then 'ໜ່ວຍໃນ'
+                                    when x.item_name ilike '%[H]%' then 'ໜ່ວຍນອກ'
+                                    else '' end)
+                       order by (x.item_name ilike '%[C]%') desc, x.isn)
+                from isn x
+               where x.doc_ref = k.issue_no
+                 and (x.item_code = k.item_code
+                      or x.item_code in (select c.ic_code from comp c
+                                          where c.issue_no = k.issue_no
+                                            and c.item_code = k.item_code))
+            ), '[]'::json) as serials
+           from kept k
+           join ic_inventory inv on inv.code = k.item_code
+           left join ic_category cat on cat.code = inv.item_category
+           left join ic_size siz on siz.code = inv.item_size
+       )
+       select to_char(a.doc_date,'dd/mm/yyyy') as doc_date,
+          to_char(a.doc_date,'YYYY-MM-DD') as doc_date_raw,
+          l.bill_no as doc_no,
+          l.issue_no as items_doc_no,
+          case when ar.telephone is not null then ar.telephone else ar2.name_1 end as cust_name,
+          case when ar.telephone is not null then ar.mobile else ar2.telephone end as telephone,
+          case when ar.telephone is not null then ar.address else ar2.address end as address,
+          case when ar.telephone is not null then ar.name else ar2.code end as cust_code,
+          nullif(acd.latitude, 0)::float8 as cust_lat,
+          nullif(acd.longitude, 0)::float8 as cust_lng,
+          -- ຄ່າຕິດຕັ້ງຢູ່ **ໃນບິນນີ້ເອງ** (ນີ້ຄືເຫດຜົນທີ່ບິນນີ້ຢູ່ໃນຄິວ)
+          (select coalesce(json_agg(json_build_object(
+                    'item_code', sv.item_code, 'item_name', sv.item_name, 'qty', sv.qty::float)
+                    order by sv.item_code), '[]'::json)
+             from ic_trans_detail sv
+            where sv.doc_no = l.bill_no and sv.trans_flag = 44
+              and ${INSTALL_SERVICE_ITEM}) as services,
+          json_agg(json_build_object(
+            'item_code', l.item_code, 'item_name', l.item_name, 'qty', l.qty,
+            'sv_type', l.sv_type, 'item_brand', l.item_brand,
+            'pro_type', l.pro_type, 'pro_type_name', l.pro_type_name, 'pro_size', l.pro_size,
+            'serials', l.serials) order by l.item_name) as items
+        from lines l
+        join ic_trans a on a.doc_no = l.bill_no and a.trans_flag = 44
+        left join ar_contactor ar on ar.ar_code = a.cust_code and ar.name = a.contactor
+        left join ar_customer ar2 on ar2.code = a.cust_code
+        left join ar_customer_detail acd on acd.ar_code = a.cust_code
+       group by l.bill_no, l.issue_no, a.doc_date, ar.telephone, ar.mobile, ar.address, ar.name,
+                ar2.name_1, ar2.telephone, ar2.address, ar2.code, acd.latitude, acd.longitude
+       order by a.doc_date desc, l.bill_no desc`,
+    [refs.map((ref) => ref.doc_no), refs.map((ref) => ref.ref_doc)],
+  );
+  return rows.rows;
+}
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -348,19 +465,12 @@ export async function GET(request: NextRequest) {
      * ບໍ່ບັງຄັບວ່າຕ້ອງເປັນລູກຄ້າຄົນດຽວກັນ — ຂໍ້ມູນຈິງ 2/6 ໃບ ບິນເຄື່ອງເປັນລະຫັດ walk-in.
      */
     if (q && rows.length === 0) {
-      const linked = (
-        await queryOdg<{ doc_no: string; ref_doc: string }>(
-          `select t.doc_no, (regexp_matches(upper(t.remark), '([A-Z]{2,6}[0-9]{6,})'))[1] as ref_doc
-             from ic_trans t
-            where t.trans_flag = 44
-              and t.doc_no like upper($1) || '%'
-              and upper(t.remark) ~ '[A-Z]{2,6}[0-9]{6,}'
-              and exists (select 1 from ic_trans_detail sv
-                           where sv.doc_no = t.doc_no and sv.trans_flag = 44 and ${INSTALL_SERVICE_ITEM})
-            limit 5`,
-          [q],
-        )
-      ).rows.filter((row) => row.ref_doc && row.ref_doc !== row.doc_no);
+      /**
+       * ເອກະສານທີ່ໝາຍເຫດອ້າງໄວ້ — ອາດເປັນ **ບິນຂາຍ (44)** ຫຼື **ໃບເບີກສາງ (56)**
+       * (ເບິ່ງ lib/bill-remark-refs). ບິນຂາຍລອງກ່ອນ ເພາະມີທັງລູກຄ້າ ແລະ ISN ຂອງບິນ.
+       */
+      const refs = await billRemarkRefsByPrefix(q);
+      const linked = refs.filter((ref) => ref.ref_flag === 44);
 
       if (linked.length > 0) {
         const serviceOf = new Map(linked.map((row) => [row.ref_doc, row.doc_no]));
@@ -398,6 +508,17 @@ export async function GET(request: NextRequest) {
             .map(({ item_code, item_name, qty }) => ({ item_code, item_name, qty }));
         }
         rows.push(...refRows);
+      }
+
+      /**
+       * ── ຍັງບໍ່ພົບ ⇒ ໝາຍເຫດອ້າງ **ໃບເບີກສາງ (56)** ──
+       * ເຊັ່ນ CAKSV26000283 remark = "…ບິນເບີກ **WEOK260002**": ເຄື່ອງບໍ່ໄດ້ຖືກຂາຍຜ່ານບິນ
+       * ແຕ່ຖືກ**ເບີກອອກຈາກສາງ**ໄປຕິດ (ໂຄງການ · ຮັບປະກັນ · ປ່ຽນເຄື່ອງ) ⇒ ບໍ່ມີບິນຂາຍໃຫ້ອ້າງ.
+       * ໃບເບີກເປັນເອກະສານດຽວທີ່ບອກໄດ້ວ່າຈະໄປຕິດ **ເຄື່ອງໃດ ISN ໃດ**.
+       */
+      if (rows.length === 0) {
+        const issues = refs.filter((ref) => ref.ref_flag === 56);
+        if (issues.length > 0) rows.push(...(await billsFromIssueNotes(issues, svTypeCase)));
       }
     }
 

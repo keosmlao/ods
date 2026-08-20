@@ -3792,7 +3792,9 @@
     "proof": "หลักฐาน",
     "proofLoading": "กำลังโหลดรูป…",
     "proofNone": "ไม่มีรูปหลักฐาน",
-    "close": "ปิด"
+    "close": "ปิด",
+    "itemsFromIssue": "สินค้าจากใบเบิก",
+    "itemsFromBill": "สินค้าจากบิล"
   },
   "requestForm": {
     "docNoLabel": "เลขที่",

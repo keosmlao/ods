@@ -1,3 +1,4 @@
+import { billRemarkRefs } from "@/lib/bill-remark-refs";
 import { query, queryOdg } from "@/lib/db";
 
 /**
@@ -38,6 +39,14 @@ export type PendingBill = {
   days: number;
   /** **ສິນຄ້າທີ່ຈະຕິດຕັ້ງ** (ກຸ່ມ 11 ເຄື່ອງໃຊ້ໄຟຟ້າ · 12 ແອ · 13 ຈັກຊັກ) — ບອກວ່າບິນນີ້ຈະໄປຕິດຫຍັງ */
   items: BillLine[];
+  /**
+   * ສິນຄ້າຂ້າງເທິງ **ບໍ່ໄດ້ຢູ່ໃນບິນນີ້** — ມາຈາກເອກະສານທີ່ remark ອ້າງໄວ້
+   * (ໃບເບີກ WEOK260002 ຫຼື ບິນຂາຍ CAK…) ⇒ ຕ້ອງບອກຄົນວ່າຂໍ້ມູນມາຈາກໃສ.
+   * null = ສິນຄ້າຢູ່ໃນບິນດຽວກັນ ຄືປົກກະຕິ.
+   */
+  items_doc_no?: string | null;
+  /** 44 = ບິນຂາຍເຄື່ອງ · 56 = ໃບເບີກສາງ (ໃຊ້ຕິດປ້າຍໃຫ້ຖືກ) */
+  items_doc_flag?: 44 | 56 | null;
   /** ແຖວຄ່າບໍລິການຕິດຕັ້ງທີ່ພະນັກງານຂາຍໃສ່ໄວ້ (9701xx · 970102xx) */
   services: BillLine[];
   /**
@@ -164,6 +173,8 @@ export async function pendingInstallBills(withDismissed = false): Promise<Pendin
     bill.services = own.filter((row) => row.kind === "service");
   }
 
+  await fillItemsFromRefDocs(pending);
+
   /**
    * ── ສະຖານະການສົ່ງ + ຫຼັກຖານ ──
    * ສອງ query ນ້ອຍ ດ້ວຍລາຍການເລກບິນທີ່ຄັດແລ້ວ (ບໍ່ແມ່ນ join ເຂົ້າ query ຫຼັກ —
@@ -199,4 +210,60 @@ export async function pendingInstallBills(withDismissed = false): Promise<Pendin
   }
 
   return pending;
+}
+
+/**
+ * ── ບິນຄ່າຕິດຕັ້ງທີ່ **ບໍ່ມີແຖວສິນຄ້າຢູ່ໃນຕົນເອງ** ──
+ *
+ * ຮ້ານອອກໃບຄ່າຕິດຕັ້ງແຍກ (CAKSV… · INKSV… · CAHSV…) ⇒ ໃບນັ້ນມີແຕ່ແຖວບໍລິການ 9701xx
+ * ⇒ ຖັນ "ສິນຄ້າທີ່ຈະຕິດຕັ້ງ" ຂຶ້ນ "ບໍ່ພົບສິນຄ້າ…" ⇒ CS ບອກບໍ່ໄດ້ວ່າຈະໄປຕິດຫຍັງ
+ * ຈັດຊ່າງ/ອາໄຫຼ່ບໍ່ຖືກ ຕ້ອງໄປເປີດ ERP ອ່ານໝາຍເຫດເອງ.
+ *
+ * ເລກເອກະສານຕົ້ນທາງຢູ່ໃນ `remark` ຢູ່ແລ້ວ (lib/bill-remark-refs) ⇒ ດຶງສິນຄ້າຈາກ
+ * ເອກະສານນັ້ນມາໃສ່ ພ້ອມບອກວ່າມາຈາກໃບໃດ (`items_doc_no`):
+ *   · **44** ບິນຂາຍເຄື່ອງ  — CAKSV26000282 → CAK26010017
+ *   · **56** ໃບເບີກສາງ    — CAKSV26000283 → WEOK260002
+ *
+ * ⚠️ ບໍ່ແຕະຄ່າ `paid` / `opened` / ຄິວ: ນີ້ແມ່ນຂໍ້ມູນປະກອບໃຫ້ຄົນອ່ານ ບໍ່ແມ່ນເກນເຂົ້າ-ອອກຄິວ
+ * (ຄິວຍັງຖາມຄຳຖາມດຽວ: "ບິນນີ້ຍັງບໍ່ມີໃບງານຈັກໃບບໍ").
+ *
+ * ນິຍາມ "ສິນຄ້າທີ່ຕິດຕັ້ງໄດ້" ຕ້ອງຕົງກັບ query ຫຼັກຂ້າງເທິງ ແລະ api/installations/bills.
+ */
+async function fillItemsFromRefDocs(pending: PendingBill[]) {
+  // ບິນທີ່ມີສິນຄ້າຂອງຕົນເອງແລ້ວ ບໍ່ຕ້ອງໄປໄລ່ຫາ — ຂໍ້ມູນໃນບິນຖືກກວ່າໝາຍເຫດສະເໝີ
+  const blind = pending.filter((bill) => bill.items.length === 0);
+  if (blind.length === 0) return;
+
+  const refs = await billRemarkRefs(blind.map((bill) => bill.doc_no));
+  if (refs.length === 0) return;
+
+  const lines = await queryOdg<BillLine & { doc_no: string; trans_flag: number }>(
+    `select d.doc_no, d.trans_flag::int as trans_flag, d.item_code, d.item_name,
+        sum(d.qty)::float as qty
+       from ic_trans_detail d
+      where d.trans_flag in (44, 56)
+        and d.doc_no = any($1::text[])
+        and (d.item_code like '11%' or d.item_code like '12%' or d.item_code like '13%')
+        and d.item_type in (0,1,3)
+        and d.item_name not ilike '%[H]%'
+      group by d.doc_no, d.trans_flag, d.item_code, d.item_name
+      order by d.doc_no, d.item_code`,
+    [[...new Set(refs.map((ref) => ref.ref_doc))]],
+  );
+
+  for (const bill of blind) {
+    /**
+     * ໝາຍເຫດອາດອ້າງຫຼາຍໃບ (CAKSV26000275 ອ້າງທັງໃບເບີກ ແລະ ບິນຂາຍ) ⇒ ເອົາໃບ**ທຳອິດ
+     * ທີ່ມີສິນຄ້າຕິດຕັ້ງໄດ້ແທ້**. `billRemarkRefs` ຮຽງບິນຂາຍ (44) ມາກ່ອນໃບເບີກ (56)
+     * ເພາະບິນຂາຍມີທັງລູກຄ້າ ແລະ ISN ⇒ ເປັນຕົ້ນທາງທີ່ຄົບກວ່າ.
+     */
+    for (const ref of refs.filter((row) => row.doc_no === bill.doc_no)) {
+      const found = lines.rows.filter((row) => row.doc_no === ref.ref_doc);
+      if (found.length === 0) continue;
+      bill.items = found.map(({ item_code, item_name, qty }) => ({ item_code, item_name, qty }));
+      bill.items_doc_no = ref.ref_doc;
+      bill.items_doc_flag = ref.ref_flag;
+      break;
+    }
+  }
 }

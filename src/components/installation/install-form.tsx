@@ -55,6 +55,8 @@ type Bill = {
   services: BillService[];
   /** ຄ່າຕິດຕັ້ງອອກເປັນອີກໃບ ແລະ ໃບນັ້ນອ້າງບິນນີ້ໄວ້ໃນ remark (ເບິ່ງ api/installations/bills) */
   service_doc_no?: string | null;
+  /** ສິນຄ້າມາຈາກ **ໃບເບີກສາງ** ທີ່ໝາຍເຫດຂອງບິນນີ້ອ້າງໄວ້ (ເບິ່ງ lib/bill-remark-refs) */
+  items_doc_no?: string | null;
   /** ສະຖານະການສົ່ງເຄື່ອງ (ສົ່ງແລ້ວ/ຄ້າງສົ່ງ) — ຄ່າດິບຈາກ ERP, ເບິ່ງ api/installations/bills */
   ship_status: string | null;
   ship_date: string | null;
@@ -267,6 +269,8 @@ export function InstallForm({
           <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
             <Field label={t.billNo} value={bill.doc_no} />
             <Field label={t.billDate} value={bill.doc_date} />
+            {/* ເຄື່ອງມາຈາກໃບເບີກສາງ ບໍ່ແມ່ນຈາກບິນ ⇒ ບອກເລກໃບເບີກໄວ້ໃຫ້ກວດຄືນໄດ້ */}
+            {bill.items_doc_no && <Field label="ສິນຄ້າຈາກໃບເບີກ" value={bill.items_doc_no} />}
             <Field label={t.customer} value={`${bill.cust_name ?? "-"} (${bill.cust_code ?? "-"})`} />
             <Field label={t.phone} value={bill.telephone ?? ""} />
             <Field label={t.customerAddress} value={bill.address ?? ""} />
@@ -766,6 +770,18 @@ function BillPicker({
                   <span className="inline-flex items-center gap-1 rounded-full bg-brand-orange-100 px-2 py-0.5 text-[11px] font-bold text-brand-orange-700">
                     <ReceiptText className="size-3" />
                     ຄ່າຕິດຕັ້ງຈາກບິນ {bill.service_doc_no}
+                  </span>
+                )}
+
+                {/**
+                  * ກົງກັນຂ້າມກັບຂ້າງເທິງ: ຄ່າຕິດຕັ້ງຢູ່ບິນນີ້ ແຕ່ **ເຄື່ອງບໍ່ໄດ້ຂາຍຜ່ານບິນ** —
+                  * ຖືກເບີກອອກຈາກສາງ (ໃບເບີກ trans_flag 56 ທີ່ໝາຍເຫດອ້າງໄວ້). ຕ້ອງບອກໄວ້ ເພື່ອ
+                  * ໃຫ້ CS ກວດ ISN/ຈຳນວນກັບໃບເບີກນັ້ນໄດ້ (ເບິ່ງ api/installations/bills).
+                  */}
+                {bill.items_doc_no && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-700">
+                    <Package className="size-3" />
+                    ສິນຄ້າຈາກໃບເບີກ {bill.items_doc_no}
                   </span>
                 )}
 

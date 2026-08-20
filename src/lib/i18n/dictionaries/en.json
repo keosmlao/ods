@@ -3792,7 +3792,9 @@
     "proof": "Proof",
     "proofLoading": "Loading photos…",
     "proofNone": "No proof photos",
-    "close": "Close"
+    "close": "Close",
+    "itemsFromIssue": "Items from issue note",
+    "itemsFromBill": "Items from bill"
   },
   "requestForm": {
     "docNoLabel": "No.",

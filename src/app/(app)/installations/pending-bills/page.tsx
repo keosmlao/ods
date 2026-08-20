@@ -4,7 +4,7 @@ import { pendingInstallBills } from "@/lib/pending-bills";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { DeliveryProof } from "@/components/installation/delivery-proof";
-import { CalendarClock, FilePlus2, Phone, Search, TriangleAlert, Truck } from "lucide-react";
+import { CalendarClock, FileInput, FilePlus2, Phone, Search, TriangleAlert, Truck } from "lucide-react";
 
 /**
  * **ບິນທີ່ຄ້າງອອກໃບງານ** — ລູກຄ້າຈ່າຍຄ່າຕິດຕັ້ງແລ້ວ ແຕ່ຍັງບໍ່ມີໃບງານ (ຫຼື ມີບໍ່ຄົບ).
@@ -144,6 +144,17 @@ export default async function PendingBillsPage({ searchParams }: Props) {
                         </li>
                       ))}
                     </ul>
+                  )}
+                  {/**
+                    * ສິນຄ້າບໍ່ໄດ້ຢູ່ໃນບິນນີ້ — ມາຈາກເອກະສານທີ່ໝາຍເຫດອ້າງໄວ້ (ໃບເບີກ ຫຼື ບິນຂາຍ).
+                    * ຕ້ອງບອກໃຫ້ຄົນເຫັນວ່າມາຈາກໃສ ບໍ່ດັ່ງນັ້ນຈະສົງໄສວ່າລະບົບເອົາມາຈາກໃສ
+                    * ແລະ ກວດກັບ ERP ບໍ່ໄດ້ (ເບິ່ງ lib/bill-remark-refs).
+                    */}
+                  {bill.items_doc_no && (
+                    <p className="mt-1 inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600">
+                      <FileInput className="size-3" />
+                      {bill.items_doc_flag === 56 ? t.itemsFromIssue : t.itemsFromBill} {bill.items_doc_no}
+                    </p>
                   )}
                   {/* ຄ່າບໍລິການຕິດຕັ້ງທີ່ພະນັກງານຂາຍໃສ່ໄວ້ — ນີ້ຄືສາເຫດທີ່ບິນນີ້ຢູ່ໃນຄິວ */}
                   {bill.services.map((service) => (

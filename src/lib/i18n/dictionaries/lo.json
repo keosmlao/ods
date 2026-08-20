@@ -3792,7 +3792,9 @@
     "proof": "ຫຼັກຖານ",
     "proofLoading": "ກຳລັງໂຫຼດຮູບ…",
     "proofNone": "ບໍ່ມີຮູບຫຼັກຖານ",
-    "close": "ປິດ"
+    "close": "ປິດ",
+    "itemsFromIssue": "ສິນຄ້າຈາກໃບເບີກ",
+    "itemsFromBill": "ສິນຄ້າຈາກບິນ"
   },
   "requestForm": {
     "docNoLabel": "ເລກທີ",
