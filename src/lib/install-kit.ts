@@ -27,9 +27,26 @@ export type InstallKitType = {
   name_1: string;
   /** `ic_size.code` ຂອງ ERP ທີ່ໝວດນີ້ຄຸມ — null = ບໍ່ຈັບຄູ່ບິນອັດຕະໂນມັດ */
   ic_size: string | null;
+  /** `ic_design.code` ທີ່ໝວດນີ້ຄຸມ (1 ໝວດ = ຫຼາຍຮູບແບບ) — ຫວ່າງ = ບໍ່ຈັບຄູ່ອັດຕະໂນມັດ */
+  designs: string[];
   sort_order: number;
   active: boolean;
 };
+
+/**
+ * ── ໝວດນີ້ **ຈັບຄູ່ບິນອັດຕະໂນມັດໄດ້ບໍ** ──
+ *
+ * ຕ້ອງລະບຸ **ທັງສອງ**: ຂະໜາດ (ic_size) ແລະ ຮູບແບບ (ic_design ຢ່າງໜ້ອຍ 1 ອັນ).
+ * ລະບຸແຕ່ອັນດຽວ (ຫຼືບໍ່ລະບຸເລີຍ) = ບໍ່ຈັບຄູ່ ⇒ ຄົນເຂົ້າໃບງານໄປ**ເລືອກໝວດເອງ**
+ * (components/installation/job-spares-editor → changeInstallKitType).
+ *
+ * ເປັນຫຍັງບໍ່ຍອມໃຫ້ຂະໜາດອັນດຽວຈັບຄູ່ໄດ້ (ພຶດຕິກຳກ່ອນ 19-08-2026): ຂະໜາດດຽວມີຫຼາຍ
+ * ຮູບແບບທີ່ໃຊ້ຊຸດຄົນລະຊຸດ (ແອຕິດຝາ ≠ ແອແຄັດເສັດ) ⇒ ຈັບຄູ່ດ້ວຍຂະໜາດລ້ວນ = ໃຫ້ຊຸດຜິດ
+ * ຢ່າງໝັ້ນໃຈ. ບໍ່ຈັບຄູ່ແລ້ວໃຫ້ຄົນເລືອກ ດີກວ່າຈັບຄູ່ຜິດແບບງຽບໆ.
+ */
+export function kitTypeAutoMatches(type: InstallKitType): boolean {
+  return type.active && !!type.ic_size && type.designs.length > 0;
+}
 
 /**
  * ── ດ່ານກັນ SQL injection ຂອງຄ່າທີ່ຈະຖືກ**ຕໍ່ເຂົ້າ SQL** ──
@@ -53,21 +70,25 @@ export const isSafeKitCode = (value: string) => SAFE_CODE.test(value);
  * ບໍ່ໄດ້ຊຸດອາໄຫຼ່ ໂດຍ**ບໍ່ມີ error ໃຫ້ເຫັນ** (ບັກງຽບ ຮ້າຍກວ່າໜ້າລົ້ມ).
  */
 const FALLBACK_KIT_TYPES: readonly InstallKitType[] = [
-  { install_type: "9900-0016", name_1: "ຕັ້ງແຕ່ 30,000 btu. ຂຶ້ນໄປ", ic_size: "121", sort_order: 50, active: true },
-  { install_type: "9900-0017", name_1: "20,000-29,999 btu.", ic_size: "051", sort_order: 40, active: true },
-  { install_type: "9900-0018", name_1: "15,000-19,999 btu.", ic_size: "033", sort_order: 30, active: true },
-  { install_type: "9900-0019", name_1: "11,000-14,999 btu.", ic_size: "023", sort_order: 20, active: true },
-  { install_type: "9900-0020", name_1: "8,000-10,999 btu.", ic_size: "112", sort_order: 10, active: true },
+  { install_type: "9900-0016", name_1: "ຕັ້ງແຕ່ 30,000 btu. ຂຶ້ນໄປ", ic_size: "121", designs: [], sort_order: 50, active: true },
+  { install_type: "9900-0017", name_1: "20,000-29,999 btu.", ic_size: "051", designs: [], sort_order: 40, active: true },
+  { install_type: "9900-0018", name_1: "15,000-19,999 btu.", ic_size: "033", designs: [], sort_order: 30, active: true },
+  { install_type: "9900-0019", name_1: "11,000-14,999 btu.", ic_size: "023", designs: [], sort_order: 20, active: true },
+  { install_type: "9900-0020", name_1: "8,000-10,999 btu.", ic_size: "112", designs: [], sort_order: 10, active: true },
 ];
 
-/** ທຸກໝວດ (ລວມທີ່ປິດແລ້ວ) ລຽງ BTU ໃຫຍ່ → ນ້ອຍ */
+/** ທຸກໝວດ (ລວມທີ່ປິດແລ້ວ) ລຽງ BTU ໃຫຍ່ → ນ້ອຍ, ພ້ອມຮູບແບບທີ່ແຕ່ລະໝວດຄຸມ */
 export async function listInstallKitTypes(): Promise<InstallKitType[]> {
   try {
     const rows = await query<InstallKitType & { active: boolean }>(
-      `select install_type, coalesce(name_1,'') name_1, nullif(ic_size,'') ic_size,
-          coalesce(sort_order,0)::int sort_order, (coalesce(active,1) = 1) as active
-        from install_kit_type
-       order by sort_order desc, install_type`,
+      `select t.install_type, coalesce(t.name_1,'') name_1, nullif(t.ic_size,'') ic_size,
+          coalesce(t.sort_order,0)::int sort_order, (coalesce(t.active,1) = 1) as active,
+          coalesce(array(
+            select d.ic_design from install_kit_design d
+             where d.install_type = t.install_type order by d.ic_design
+          ), '{}'::varchar[]) as designs
+        from install_kit_type t
+       order by t.sort_order desc, t.install_type`,
     );
     // ຕາຕະລາງມີແຕ່ຫວ່າງ = ຄົນລົບໝົດເອງ ⇒ ນັບຖືການຕັດສິນໃຈນັ້ນ (ບໍ່ຕົກມາໃຊ້ fallback)
     return rows.rows;
@@ -92,29 +113,51 @@ export async function listInstallKitTypes(): Promise<InstallKitType[]> {
 /** ໝວດດຽວ — ໃຊ້ກັນຄ່າຈາກຟອມ (ຢ່າເຊື່ອ browser) */
 export async function findInstallKitType(code: string): Promise<InstallKitType | null> {
   if (!isSafeKitCode(code)) return null;
+  // `designs` ຕ້ອງ select ນຳ — ບໍ່ດັ່ງນັ້ນ type ບອກວ່າມີ ແຕ່ runtime ເປັນ undefined
+  // ⇒ ຄົນເອີ້ນຕໍ່ໄປທີ່ແຕະ `.designs.length` ຈະ crash (ດຽວນີ້ຍັງບໍ່ມີໃຜແຕະ ແຕ່ຢ່າວາງກັບດັກ)
   const rows = await query<InstallKitType>(
-    `select install_type, coalesce(name_1,'') name_1, nullif(ic_size,'') ic_size,
-        coalesce(sort_order,0)::int sort_order, (coalesce(active,1) = 1) as active
-      from install_kit_type where install_type = $1 limit 1`,
+    `select t.install_type, coalesce(t.name_1,'') name_1, nullif(t.ic_size,'') ic_size,
+        coalesce(t.sort_order,0)::int sort_order, (coalesce(t.active,1) = 1) as active,
+        coalesce(array(
+          select d.ic_design from install_kit_design d
+           where d.install_type = t.install_type order by d.ic_design
+        ), '{}'::varchar[]) as designs
+      from install_kit_type t where t.install_type = $1 limit 1`,
     [code],
   );
   return rows.rows[0] ?? null;
 }
 
 /**
- * `case ... end` ທີ່ແປງ item_size ຂອງ ERP ເປັນ install_type — ໃຊ້ຮ່ວມກັບ SQL ຂອງບິນ.
+ * `case ... end` ທີ່ແປງ **ຂະໜາດ × ຮູບແບບ** ຂອງ ERP ເປັນ install_type — ໃຊ້ໃນ SQL ຂອງບິນ.
  *
- * ⚠️ **async ແລ້ວ** (ເມື່ອກ່ອນເປັນ const ທີ່ຄິດຈາກ array ໃນໂຄ້ດ): ຄູ່ ຂະໜາດ↔ຊຸດ
- * ມາຈາກຕາຕະລາງ ⇒ ຕ້ອງ await ກ່ອນປະກອບ SQL. ນັບແຕ່ **ໝວດທີ່ເປີດໃຊ້ ແລະ ຜູກ ic_size**.
- * ບໍ່ມີໝວດຈັກອັນ ⇒ ຄືນ `''` ໃຫ້ທຸກແຖວ (ພຶດຕິກຳດຽວກັບ else ເກົ່າ).
+ * ⚠️ **async** (ເມື່ອກ່ອນເປັນ const ຄິດຈາກ array ໃນໂຄ້ດ): ຄູ່ ຂະໜາດ/ຮູບແບບ↔ຊຸດ ມາຈາກ
+ * ຕາຕະລາງ ⇒ ຕ້ອງ await ກ່ອນປະກອບ SQL.
+ *
+ * ນັບແຕ່ໝວດທີ່ `kitTypeAutoMatches` ຜ່ານ (ມີທັງຂະໜາດ ແລະ ຮູບແບບ) ⇒ ບິນທີ່ບໍ່ຕົງ
+ * ຈະໄດ້ `''` ແລ້ວຄົນໄປເລືອກໝວດເອງໃນໃບງານ.
+ *
+ * ⚠️ ຄ່າຖືກ**ຕໍ່ເຂົ້າ SQL** (join ຂ້າມຖານບໍ່ໄດ້ໃນໂໝດ 2 ຖານ — ເບິ່ງ lib/db) ⇒ ທຸກລະຫັດ
+ * ຜ່ານ `isSafeKitCode` ກ່ອນ. ລະຫັດທີ່ບໍ່ຜ່ານຖືກ**ຖອດອອກ** ບໍ່ແມ່ນຕໍ່ໄປແບບບໍ່ກວດ.
  */
-export async function installTypeCaseSql(sizeExpr: string): Promise<string> {
-  const types = (await listInstallKitTypes()).filter(
-    (type) => type.active && type.ic_size && isSafeKitCode(type.ic_size) && isSafeKitCode(type.install_type),
-  );
+export async function installTypeCaseSql(
+  sizeExpr: string,
+  designExpr: string,
+): Promise<string> {
+  const types = (await listInstallKitTypes())
+    .filter((type) => kitTypeAutoMatches(type) && isSafeKitCode(type.install_type))
+    .map((type) => ({
+      ...type,
+      designs: type.designs.filter((design) => isSafeKitCode(design)),
+    }))
+    .filter((type) => type.ic_size && isSafeKitCode(type.ic_size) && type.designs.length > 0);
+
   if (!types.length) return `''`;
   const whens = types
-    .map((type) => `when ${sizeExpr}='${type.ic_size}' then '${type.install_type}'`)
+    .map((type) => {
+      const designs = type.designs.map((design) => `'${design}'`).join(",");
+      return `when ${sizeExpr}='${type.ic_size}' and ${designExpr} in (${designs}) then '${type.install_type}'`;
+    })
     .join(" ");
   return `case ${whens} else '' end`;
 }
@@ -142,6 +185,10 @@ export type InstallKit = {
   ic_size: string | null;
   /** ຊື່ຂະໜາດຈາກ ERP (ic_size) — ບໍ່ມີ/ERP ລົ້ມ = null, ໃຫ້ຄົນກວດວ່າຜູກຖືກບໍ */
   size_name: string | null;
+  /** ຮູບແບບທີ່ໝວດນີ້ຄຸມ ພ້ອມຊື່ຈາກ ERP (ຊື່ = null ຖ້າ ERP ລົ້ມ/ບໍ່ພົບ) */
+  designs: { code: string; name: string | null }[];
+  /** ຈັບຄູ່ບິນອັດຕະໂນມັດໄດ້ບໍ (ຕ້ອງມີທັງຂະໜາດ ແລະ ຮູບແບບ — ເບິ່ງ kitTypeAutoMatches) */
+  auto: boolean;
   active: boolean;
   sort_order: number;
   /** ຈຳນວນໃບງານທີ່ໃຊ້ຊຸດນີ້ຢູ່ — ບອກນ້ຳໜັກກ່ອນແກ້/ລົບ */
@@ -183,14 +230,19 @@ export async function listInstallKits(): Promise<InstallKit[]> {
 
   const jobCount = new Map(jobs.rows.map((row) => [row.install_type, row.n]));
   const sizeName = new Map(sizes.rows.map((row) => [row.code, row.name_1]));
-  // ຫົວໜ່ວຍຂອງທຸກລາຍການ **ຄັ້ງດຽວ** (ເບິ່ງເຫດຜົນຢູ່ InstallKitLine.units)
-  const unitsByItem = await itemUnitsMap([...new Set(lines.rows.map((row) => row.ic_code))]);
+  // ຫົວໜ່ວຍຂອງທຸກລາຍການ + ຊື່ຮູບແບບ **ຄັ້ງດຽວ** (ເບິ່ງເຫດຜົນຢູ່ InstallKitLine.units)
+  const [unitsByItem, designName] = await Promise.all([
+    itemUnitsMap([...new Set(lines.rows.map((row) => row.ic_code))]),
+    designNameMap([...new Set(types.flatMap((type) => type.designs))]),
+  ]);
 
   return types.map((type) => ({
     code: type.install_type,
     name: type.name_1,
     ic_size: type.ic_size,
     size_name: type.ic_size ? (sizeName.get(type.ic_size) ?? null) : null,
+    designs: type.designs.map((code) => ({ code, name: designName.get(code) ?? null })),
+    auto: kitTypeAutoMatches(type),
     active: type.active,
     sort_order: type.sort_order,
     jobs: jobCount.get(type.install_type) ?? 0,
@@ -198,6 +250,37 @@ export async function listInstallKits(): Promise<InstallKit[]> {
       .filter((row) => row.install_type === type.install_type)
       .map((row) => ({ ...row, units: unitsByItem.get(row.ic_code) ?? [] })),
   }));
+}
+
+/** ຊື່ຮູບແບບຈາກ ERP — ERP ລົ້ມ ⇒ map ຫວ່າງ (ຈໍສະແດງແຕ່ລະຫັດ) */
+async function designNameMap(codes: string[]): Promise<Map<string, string>> {
+  if (!codes.length) return new Map();
+  try {
+    const rows = await queryOdg<{ code: string; name_1: string }>(
+      "select code, coalesce(name_1,'') name_1 from ic_design where code = any($1::varchar[])",
+      [codes],
+    );
+    return new Map(rows.rows.map((row) => [row.code, row.name_1]));
+  } catch (error) {
+    console.error("designNameMap: ic_design lookup failed", error);
+    return new Map();
+  }
+}
+
+/**
+ * ຮູບແບບ (ic_design) ຂອງ ERP ໃຫ້ເລືອກຕອນຕັ້ງໝວດ — 58 ແຖວ ⇒ ສົ່ງທັງໝົດໄດ້.
+ * ERP ລົ້ມ ⇒ ຄືນຫວ່າງ (ໜ້າຈັດການຍັງໃຊ້ໄດ້ ແຕ່ເລືອກຮູບແບບບໍ່ໄດ້).
+ */
+export async function listErpDesigns(): Promise<{ code: string; name_1: string }[]> {
+  try {
+    const rows = await queryOdg<{ code: string; name_1: string }>(
+      "select code, coalesce(name_1,'') name_1 from ic_design order by code",
+    );
+    return rows.rows;
+  } catch (error) {
+    console.error("listErpDesigns failed", error);
+    return [];
+  }
 }
 
 /**

@@ -3396,6 +3396,7 @@
     "filterOnly": "Filter the list below (code or name)...",
     "freeSearchOff": "Non-standard spares are disabled — only standard kit items can be added",
     "kitQty": "kit qty",
+    "substituteFor": "Substitute for",
     "fromErp": "Added from ERP",
     "addN": "Add {n} items",
     "close": "Close",

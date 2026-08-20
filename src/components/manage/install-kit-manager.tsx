@@ -4,6 +4,7 @@ import {
   addInstallKitType,
   deleteInstallKitLine,
   deleteInstallKitType,
+  setInstallKitDesigns,
   updateInstallKitLine,
   updateInstallKitType,
   type KitState,
@@ -20,9 +21,10 @@ import {
   Plus,
   Save,
   Search,
+  Shapes,
   X,
 } from "lucide-react";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 
 /**
  * ── ຈັດການຊຸດອາໄຫຼ່ມາດຕະຖານຂອງງານຕິດຕັ້ງ ──
@@ -39,25 +41,48 @@ import { useActionState, useEffect, useState } from "react";
 export type KitPermission = { create: boolean; update: boolean; delete: boolean };
 
 export type SizeOption = { code: string; name_1: string };
+/** ຮູບແບບ (ic_design) ຂອງ ERP — ແອຕິດຝາ · ແອແຄັດເສັດ · ແອດັກ … */
+export type DesignOption = { code: string; name_1: string };
 
 type ErpItem = { code: string; name_1: string; unit_code: string | null };
 
 export function InstallKitManager({
   kits,
   sizes,
+  designs,
   can,
 }: {
   kits: InstallKit[];
   /** ຂະໜາດ (ic_size) ຂອງ ERP ໃຫ້ຜູກກັບໝວດ */
   sizes: SizeOption[];
+  /** ຮູບແບບ (ic_design) ຂອງ ERP ໃຫ້ຜູກກັບໝວດ */
+  designs: DesignOption[];
   can: KitPermission;
 }) {
   const [adding, setAdding] = useState(false);
-  // ຂະໜາດທີ່ໝວດອື່ນຈອງໄປແລ້ວ ⇒ ບໍ່ຕ້ອງສະແດງໃຫ້ເລືອກຊ້ຳ (server ກັນຢູ່ແລ້ວ)
-  const taken = new Set(kits.filter((kit) => kit.active && kit.ic_size).map((kit) => kit.ic_size!));
+  /**
+   * ⚠️ **ບໍ່ກອງຂະໜາດທີ່ໝວດອື່ນໃຊ້ອອກອີກ** (ຕ່າງຈາກກ່ອນ 19-08-2026): ດຽວນີ້ຂະໜາດດຽວ
+   * ມີຫຼາຍໝວດໄດ້ ຖ້າ**ຮູບແບບ**ຕ່າງກັນ (033+ແອຕິດຝາ ກັບ 033+ແອແຄັດເສັດ) ⇒ ກອງອອກ
+   * ຈະເຮັດໃຫ້ສ້າງໝວດທີ່ຕ້ອງການບໍ່ໄດ້ເລີຍ. ດ່ານກັນຊ້ຳຄື**ຄູ່** ຂະໜາດ×ຮູບແບບ ຢູ່ຝັ່ງ server.
+   */
+  const autoCount = kits.filter((kit) => kit.auto).length;
 
   return (
     <div className="space-y-4">
+      {/*
+        ── ຄຳເຕືອນລວມ: ບໍ່ມີໝວດໃດຈັບຄູ່ໄດ້ ⇒ ບິນໃໝ່ບໍ່ໄດ້ຊຸດເລີຍ ──
+        ເກີດແນ່ນອນຫຼັງແລ່ນ migration 2026-08-19b (5 ໝວດເກົ່າຍັງບໍ່ມີ ic_design)
+        ⇒ ຕ້ອງບອກໃຫ້ດັງ ບໍ່ດັ່ງນັ້ນຄົນຈະຮູ້ຕົວຕອນງານເປີດມາແລ້ວບໍ່ມີອາໄຫຼ່.
+      */}
+      {kits.length > 0 && autoCount === 0 && (
+        <p className="flex items-start gap-2 rounded-xl border border-brand-orange-400 bg-brand-orange-50 px-4 py-3 text-xs font-semibold text-brand-orange-700">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <span>
+            ຍັງບໍ່ມີໝວດໃດ<b> ຈັບຄູ່ບິນອັດຕະໂນມັດ </b>ໄດ້ — ບິນໃໝ່ຈະບໍ່ໄດ້ຊຸດອາໄຫຼ່ຕັ້ງຕົ້ນ
+            (ຕ້ອງເຂົ້າໃບງານໄປເລືອກໝວດເອງ). ໝວດຈະຈັບຄູ່ໄດ້ເມື່ອລະບຸ<b> ທັງຂະໜາດ ແລະ ຮູບແບບ</b>.
+          </span>
+        </p>
+      )}
       {can.create && (
         <Card
           title={<span className="text-sm">ໝວດຊຸດອາໄຫຼ່</span>}
@@ -70,14 +95,15 @@ export function InstallKitManager({
         >
           {adding ? (
             <KitTypeForm
-              sizes={sizes.filter((size) => !taken.has(size.code))}
+              sizes={sizes}
               nextCode={suggestNextCode(kits)}
               onDone={() => setAdding(false)}
             />
           ) : (
             <p className="text-xs text-slate-500">
-              ໝວດແບ່ງຕາມ<b> ຂະໜາດ BTU </b>ໂດຍຜູກກັບຂະໜາດສິນຄ້າ (<span className="font-mono">ic_size</span>) ຂອງ ERP —
-              ບິນໃໝ່ຈຶ່ງຖືກຈັບໝວດອັດຕະໂນມັດ. ດຽວນີ້ມີ {kits.length} ໝວດ.
+              ໝວດຈັບຄູ່ບິນດ້ວຍ<b> ຂະໜາດ (ic_size) × ຮູບແບບ (ic_design) </b>ຂອງ ERP —
+              ຕ້ອງລະບຸທັງສອງຈຶ່ງ default ຊຸດໃຫ້ບິນໃໝ່ໄດ້. ຂະໜາດດຽວມີຫຼາຍໝວດໄດ້ ຖ້າຮູບແບບຕ່າງກັນ.
+              ດຽວນີ້ມີ {kits.length} ໝວດ ({autoCount} ຈັບຄູ່ໄດ້).
             </p>
           )}
         </Card>
@@ -87,7 +113,7 @@ export function InstallKitManager({
         <Empty>ຍັງບໍ່ມີໝວດຊຸດອາໄຫຼ່ — ກົດ &quot;ເພີ່ມໝວດໃໝ່&quot; ເພື່ອເລີ່ມ</Empty>
       ) : (
         kits.map((kit) => (
-          <KitCard key={kit.code} kit={kit} sizes={sizes} taken={taken} can={can} />
+          <KitCard key={kit.code} kit={kit} sizes={sizes} designs={designs} can={can} />
         ))
       )}
     </div>
@@ -110,12 +136,12 @@ function suggestNextCode(kits: InstallKit[]): string {
 function KitCard({
   kit,
   sizes,
-  taken,
+  designs,
   can,
 }: {
   kit: InstallKit;
   sizes: SizeOption[];
-  taken: Set<string>;
+  designs: DesignOption[];
   can: KitPermission;
 }) {
   const [editing, setEditing] = useState(false);
@@ -171,30 +197,60 @@ function KitCard({
       }
     >
       {/*
-        ── ຄຳເຕືອນ "ໝວດນີ້ບໍ່ຖືກຈັບຄູ່ອັດຕະໂນມັດ" ──
-        ບໍ່ຜູກ ic_size = ບິນໃໝ່ບໍ່ມີວັນຕົກມາໝວດນີ້ (installTypeCaseSql ບໍ່ນັບເຂົ້າ)
-        ⇒ ຄົນສ້າງໝວດແລ້ວໃສ່ອາໄຫຼ່ຄົບ ແຕ່ລໍວ່າເປັນຫຍັງງານໃໝ່ບໍ່ໄດ້ຊຸດ. ຕ້ອງບອກ.
+        ── ເງື່ອນໄຂການຈັບຄູ່ = ຂະໜາດ **ແລະ** ຮູບແບບ ──
+        ຂາດອັນໃດອັນນຶ່ງ = ບິນໃໝ່ບໍ່ມີວັນຕົກມາໝວດນີ້ (installTypeCaseSql ບໍ່ນັບເຂົ້າ)
+        ⇒ ຄົນສ້າງໝວດແລ້ວໃສ່ອາໄຫຼ່ຄົບ ແຕ່ລໍວ່າເປັນຫຍັງງານໃໝ່ບໍ່ໄດ້ຊຸດ. ຕ້ອງບອກວ່າຂາດອັນໃດ.
       */}
-      {kit.active && !kit.ic_size && (
-        <p className="mb-3 flex items-start gap-2 rounded-lg bg-brand-orange-50 px-3 py-2 text-[11px] font-semibold text-brand-orange-700">
-          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-          ໝວດນີ້ຍັງບໍ່ໄດ້ຜູກຂະໜາດ (ic_size) ຂອງ ERP ⇒ ບິນໃໝ່ຈະບໍ່ຖືກຈັບເຂົ້າໝວດນີ້ອັດຕະໂນມັດ
-        </p>
-      )}
-      {kit.ic_size && (
-        <p className="mb-3 text-[11px] text-slate-500">
-          ຜູກກັບຂະໜາດ ERP <span className="font-mono font-semibold text-slate-700">{kit.ic_size}</span>
-          {kit.size_name && <> — {kit.size_name}</>}
-        </p>
-      )}
+      <div className="mb-3 space-y-2">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
+          <span>
+            ຂະໜາດ:{" "}
+            {kit.ic_size ? (
+              <>
+                <span className="font-mono font-semibold text-slate-700">{kit.ic_size}</span>
+                {kit.size_name && <> — {kit.size_name}</>}
+              </>
+            ) : (
+              <b className="text-brand-orange-700">ຍັງບໍ່ລະບຸ</b>
+            )}
+          </span>
+          <span className="flex flex-wrap items-center gap-1">
+            ຮູບແບບ:
+            {kit.designs.length === 0 ? (
+              <b className="text-brand-orange-700">ຍັງບໍ່ລະບຸ</b>
+            ) : (
+              kit.designs.map((design) => (
+                <span
+                  key={design.code}
+                  title={design.code}
+                  className="rounded-full bg-brand-50 px-2 py-0.5 font-semibold text-brand-800"
+                >
+                  {design.name || design.code}
+                </span>
+              ))
+            )}
+          </span>
+          {kit.active && (
+            <span
+              className={`rounded-full px-2 py-0.5 font-bold ${
+                kit.auto
+                  ? "bg-brand-100 text-brand-800"
+                  : "bg-brand-orange-100 text-brand-orange-700"
+              }`}
+            >
+              {kit.auto ? "ຈັບຄູ່ບິນອັດຕະໂນມັດ" : "ບໍ່ຈັບຄູ່ — ຕ້ອງເລືອກໝວດໃນໃບງານ"}
+            </span>
+          )}
+        </div>
+
+        {can.update && (
+          <DesignPicker kit={kit} designs={designs} />
+        )}
+      </div>
 
       {editing && can.update && (
         <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
-          <KitTypeForm
-            kit={kit}
-            sizes={sizes.filter((size) => !taken.has(size.code) || size.code === kit.ic_size)}
-            onDone={() => setEditing(false)}
-          />
+          <KitTypeForm kit={kit} sizes={sizes} onDone={() => setEditing(false)} />
         </div>
       )}
 
@@ -213,6 +269,134 @@ function KitCard({
 
       {can.create && <AddLineForm installType={kit.code} />}
     </Card>
+  );
+}
+
+/**
+ * ── ເລືອກ **ຮູບແບບ (ic_design)** ທີ່ໝວດນີ້ຄຸມ — ໄດ້ຫຼາຍອັນ ──
+ *
+ * ic_design ມີ 58 ອັນ (ຄຸມທຸກປະເພດສິນຄ້າ ບໍ່ແມ່ນສະເພາະແອ) ⇒ ມີຊ່ອງກອງ ແລະ
+ * **ດັນອັນທີ່ຕິກໄວ້ຂຶ້ນເທິງ** ເພື່ອບໍ່ໃຫ້ຫາຍໄປໃນລາຍການຍາວຕອນກອງ.
+ *
+ * ບັນທຶກແບບ **replace ທັງຊຸດ** (setInstallKitDesigns) ⇒ ບໍ່ມີ race ແບບ toggle ທີລະອັນ.
+ */
+function DesignPicker({ kit, designs }: { kit: InstallKit; designs: DesignOption[] }) {
+  const [open, setOpen] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(
+    () => new Set(kit.designs.map((design) => design.code)),
+  );
+  const [q, setQ] = useState("");
+  const [message, setMessage] = useState<KitState>({});
+  const [saving, startSaving] = useTransition();
+
+  const current = useMemo(() => new Set(kit.designs.map((d) => d.code)), [kit.designs]);
+  const dirty =
+    picked.size !== current.size || [...picked].some((code) => !current.has(code));
+
+  const rows = useMemo(() => {
+    const keyword = q.trim().toLocaleLowerCase();
+    const match = (option: DesignOption) =>
+      !keyword ||
+      option.code.toLocaleLowerCase().includes(keyword) ||
+      option.name_1.toLocaleLowerCase().includes(keyword);
+    // ຕິກໄວ້ຂຶ້ນກ່ອນ ແລ້ວຄ່ອຍລາຍການທີ່ຕົງກັບຄຳກອງ
+    return [
+      ...designs.filter((option) => picked.has(option.code)),
+      ...designs.filter((option) => !picked.has(option.code) && match(option)),
+    ];
+  }, [designs, picked, q]);
+
+  if (!open) {
+    return (
+      <Button type="button" size="sm" tone="neutral" onClick={() => setOpen(true)}>
+        <Shapes className="size-3.5" /> ຕັ້ງຮູບແບບ ({kit.designs.length})
+      </Button>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-bold text-slate-700">ຮູບແບບທີ່ໝວດນີ້ຄຸມ</span>
+        <input
+          value={q}
+          onChange={(event) => setQ(event.target.value)}
+          placeholder="ກອງ (ລະຫັດ ຫຼື ຊື່)..."
+          className={`${inputClass} h-8 w-56 text-xs`}
+        />
+        <span className="text-[11px] text-slate-500">ເລືອກແລ້ວ {picked.size}</span>
+        <span className="ml-auto flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            tone="success"
+            disabled={!dirty || saving}
+            onClick={() =>
+              startSaving(async () => {
+                const result = await setInstallKitDesigns(kit.code, [...picked]);
+                setMessage(result);
+                if (result.ok) setOpen(false);
+              })
+            }
+          >
+            {saving ? (
+              <LoaderCircle className="size-3.5 animate-spin" />
+            ) : (
+              <Save className="size-3.5" />
+            )}
+            ບັນທຶກ
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            tone="neutral"
+            onClick={() => {
+              setPicked(new Set(current));
+              setOpen(false);
+              setMessage({});
+            }}
+          >
+            <X className="size-3.5" /> ປິດ
+          </Button>
+        </span>
+      </div>
+
+      {designs.length === 0 ? (
+        <p className="py-4 text-center text-xs text-slate-400">
+          ອ່ານ ic_design ຈາກ ERP ບໍ່ໄດ້ — ລອງໂຫຼດໜ້າໃໝ່
+        </p>
+      ) : (
+        <div className="grid max-h-56 grid-cols-1 gap-x-4 overflow-auto sm:grid-cols-2 lg:grid-cols-3">
+          {rows.map((option) => (
+            <label
+              key={option.code}
+              className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-brand-50/60"
+            >
+              <input
+                type="checkbox"
+                checked={picked.has(option.code)}
+                onChange={() =>
+                  setPicked((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(option.code)) next.delete(option.code);
+                    else next.add(option.code);
+                    return next;
+                  })
+                }
+                className="size-4 shrink-0 accent-brand-700"
+              />
+              <span className="min-w-0 flex-1 truncate text-slate-700">{option.name_1}</span>
+              <span className="shrink-0 font-mono text-[10px] text-slate-400">{option.code}</span>
+            </label>
+          ))}
+        </div>
+      )}
+
+      {message.error && (
+        <p className="mt-2 text-xs font-semibold text-brand-orange-700">{message.error}</p>
+      )}
+      {message.ok && <p className="mt-2 text-xs font-semibold text-brand-800">{message.ok}</p>}
+    </div>
   );
 }
 

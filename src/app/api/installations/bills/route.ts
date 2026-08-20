@@ -180,10 +180,11 @@ export async function GET(request: NextRequest) {
         : "and i.doc_no like upper($1) || '%'";
 
     /**
-     * ຄູ່ ຂະໜາດ↔ຊຸດ ມາຈາກ **ຕາຕະລາງ** `install_kit_type` ແລ້ວ (19-08-2026) ⇒ ຕ້ອງ await
-     * ກ່ອນປະກອບ SQL. ອ່ານເທື່ອດຽວຕໍ່ 1 request ແລ້ວໃຊ້ຊ້ຳທັງ 2 ຮອບລຸ່ມນີ້.
+     * ຄູ່ **ຂະໜາດ × ຮູບແບບ** ↔ ຊຸດ ມາຈາກຕາຕະລາງ `install_kit_type` + `install_kit_design`
+     * (19-08-2026) ⇒ ຕ້ອງ await ກ່ອນປະກອບ SQL. ອ່ານເທື່ອດຽວຕໍ່ 1 request ໃຊ້ຊ້ຳ 2 ຮອບ.
+     * ບິນທີ່ບໍ່ຕົງຄູ່ໃດ ໄດ້ `''` ⇒ ຄົນເລືອກໝວດເອງໃນໃບງານ (ບໍ່ຕັນທາງ).
      */
-    const svTypeCase = await installTypeCaseSql("inv.item_size");
+    const svTypeCase = await installTypeCaseSql("inv.item_size", "inv.item_design");
 
     /**
      * SQL ອັນດຽວ ໃຊ້ **2 ຮອບ**: ຮອບປົກກະຕິ (ບິນທີ່ມີບໍລິການຕິດຕັ້ງໃນໃບດຽວກັນ)

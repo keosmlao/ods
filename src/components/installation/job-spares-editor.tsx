@@ -49,6 +49,15 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 /** ໝວດຊຸດມາດຕະຖານໃຫ້ເລືອກ (ods.install_kit_type) — ສະເພາະທີ່ເປີດໃຊ້ງານ */
 export type KitTypeOption = { code: string; name: string };
 
+/**
+ * ຕົວທົດແທນຂອງແຕ່ລະລາຍການໃນຊຸດ: `{ "130201-0206": [{ ic_code: "130201-0219", … }] }`
+ * ເປັນ object ບໍ່ແມ່ນ Map ເພາະຕ້ອງຜ່ານ server→client boundary (Map serialize ບໍ່ໄດ້).
+ */
+export type SubstituteMap = Record<
+  string,
+  { ic_code: string; name_1: string | null; unit_code: string | null }[]
+>;
+
 /** ແຖວ **ລວມ** ສຳລັບໂໝດອ່ານ — ຄືກັບຕາຕະລາງເກົ່າ (ລວມແຖວຊ້ຳຂອງອາໄຫຼ່ຕົວດຽວກັນ) */
 export type JobSpareView = {
   item_code: string | null;
@@ -71,6 +80,7 @@ export function JobSparesEditor({
   kitTypes,
   kitType,
   kitTypeName,
+  substitutes,
 }: {
   code: string;
   view: JobSpareView[];
@@ -88,6 +98,8 @@ export function JobSparesEditor({
   /** ໝວດຂອງໃບງານດຽວນີ້ (`ods_tb_install.install_type`) — "" = ຍັງບໍ່ມີ */
   kitType: string;
   kitTypeName: string | null;
+  /** ຫຍັງແທນຫຍັງໄດ້ (ກຸ່ມສາກົນ — lib/spare-substitute) */
+  substitutes: SubstituteMap;
 }) {
   const t = useDict().jobSpareEditor;
   const detail = useDict().installDetail;
@@ -304,6 +316,7 @@ export function JobSparesEditor({
           t={t}
           lines={lines}
           standards={standards}
+          substitutes={substitutes}
           allowFreeSearch={allowFreeSearch}
           jobCode={code}
           busy={busy}
@@ -488,6 +501,7 @@ function SparePicker({
   t,
   lines,
   standards,
+  substitutes,
   allowFreeSearch,
   jobCode,
   busy,
@@ -497,6 +511,7 @@ function SparePicker({
   t: EditorDict;
   lines: InstallSpareLine[];
   standards: StandardSpare[];
+  substitutes: SubstituteMap;
   allowFreeSearch: boolean;
   jobCode: string;
   busy: boolean;
@@ -555,7 +570,32 @@ function SparePicker({
         source: "kit" as const,
       }));
 
-    const known = new Set([...inCart, ...standards.map((row) => row.item_code)]);
+    /**
+     * ── ຕົວ**ທົດແທນ** ຂອງລາຍການໃນຊຸດ (20-08-2026) ──
+     * ຊຸດລະບຸລະຫັດຕົວດຽວ ແຕ່ໜ້າງານໃຊ້ຍີ່ຫໍ້ໃດກໍ່ໄດ້ຖ້າ spec ຄືກັນ (ທໍ່ PVC 3/8 ມີ 4 ລະຫັດ)
+     * ⇒ ເອົາຂຶ້ນໃຫ້ເລືອກ ພ້ອມບອກວ່າແທນຕົວໃດ. ນັບເປັນ "ຕາມມາດຕະຖານ" ຢູ່ຝັ່ງ server ນຳ
+     * (lib/install-standard.blockNonStandard) ⇒ ເລືອກແລ້ວບັນທຶກໄດ້ແທ້.
+     */
+    const subRows = Object.entries(substitutes).flatMap(([forCode, alternatives]) => {
+      const parent = standards.find((row) => row.item_code === forCode);
+      return alternatives
+        .filter((alt) => !inCart.has(alt.ic_code) && match(alt.ic_code, alt.name_1 ?? ""))
+        .map((alt) => ({
+          item_code: alt.ic_code,
+          item_name: alt.name_1 ?? alt.ic_code,
+          unit_code: alt.unit_code,
+          standard_qty: parent?.standard_qty ?? 0,
+          source: "sub" as const,
+          /** ແທນຕົວໃດ — ບອກໄວ້ ບໍ່ດັ່ງນັ້ນຄົນບໍ່ຮູ້ວ່າເປັນຫຍັງລາຍການນີ້ຂຶ້ນມາ */
+          forName: parent?.item_name ?? forCode,
+        }));
+    });
+
+    const known = new Set([
+      ...inCart,
+      ...standards.map((row) => row.item_code),
+      ...subRows.map((row) => row.item_code),
+    ]);
     const extras =
       !allowFreeSearch || keyword.length < 2
         ? []
@@ -568,8 +608,9 @@ function SparePicker({
               standard_qty: 0,
               source: "erp" as const,
             }));
-    return [...kit, ...extras];
-  }, [allowFreeSearch, lines, standards, q, searchRows]);
+    // ຕົວທົດແທນຢູ່ຖັດຈາກຊຸດ (ກ່ອນລາຍການຄົ້ນ ERP) — ໃກ້ກັບຕົວຫຼັກທີ່ມັນແທນ
+    return [...kit, ...subRows, ...extras];
+  }, [allowFreeSearch, lines, standards, substitutes, q, searchRows]);
 
   const toggle = (itemCode: string) =>
     setChecked((current) => {
@@ -642,6 +683,13 @@ function SparePicker({
                 {row.source === "kit" ? (
                   <span className="font-semibold text-brand-800">
                     {t.inKit} · {t.kitQty} {row.standard_qty.toLocaleString()}
+                  </span>
+                ) : row.source === "sub" ? (
+                  // ບອກວ່າແທນຕົວໃດ — ບໍ່ດັ່ງນັ້ນຄົນບໍ່ຮູ້ວ່າເປັນຫຍັງລາຍການນີ້ຢູ່ບ່ອນນີ້
+                  <span className="font-semibold text-brand-700">
+                    {t.substituteFor}{" "}
+                    <span className="font-normal text-slate-500">{row.forName}</span>
+                    {row.standard_qty > 0 && <> · {t.kitQty} {row.standard_qty.toLocaleString()}</>}
                   </span>
                 ) : (
                   <span className="font-semibold text-brand-600">{t.fromErp}</span>

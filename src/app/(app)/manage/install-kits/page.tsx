@@ -1,7 +1,14 @@
 import { InstallKitManager } from "@/components/manage/install-kit-manager";
 import { requirePermissionOrRedirect } from "@/lib/guard";
-import { INSTALL_KIT_MENU, listErpSizes, listInstallKits } from "@/lib/install-kit";
+import {
+  INSTALL_KIT_MENU,
+  listErpDesigns,
+  listErpSizes,
+  listInstallKits,
+} from "@/lib/install-kit";
 import { permissionFor } from "@/lib/permissions";
+import { SpareSubstituteManager } from "@/components/manage/spare-substitute-manager";
+import { listSubstituteGroups } from "@/lib/spare-substitute";
 import { Boxes } from "lucide-react";
 
 /**
@@ -18,11 +25,15 @@ export const dynamic = "force-dynamic";
 
 export default async function InstallKitsPage() {
   const session = await requirePermissionOrRedirect(INSTALL_KIT_MENU, "read", ["manager"]);
-  const [kits, permission, sizes] = await Promise.all([
+  const [kits, permission, sizes, designs, subGroups] = await Promise.all([
     listInstallKits(),
     permissionFor(session, INSTALL_KIT_MENU),
     // ຂະໜາດ ERP ໃຫ້ຜູກກັບໝວດ — ~489 ແຖວ, dropdown ພິມຄົ້ນໄດ້ (components/select-field)
     listErpSizes(),
+    // ຮູບແບບ ERP — 58 ແຖວ, ເລືອກໄດ້ຫຼາຍອັນຕໍ່ໝວດ (checkbox + ຊ່ອງກອງ)
+    listErpDesigns(),
+    // ກຸ່ມອາໄຫຼ່ທົດແທນກັນ — ໃຊ້ຮ່ວມທຸກໝວດ (ບໍ່ຜູກກັບໝວດໃດ)
+    listSubstituteGroups(),
   ]);
 
   return (
@@ -41,6 +52,21 @@ export default async function InstallKitsPage() {
       <InstallKitManager
         kits={kits}
         sizes={sizes}
+        designs={designs}
+        can={{
+          create: permission.read && permission.create,
+          update: permission.read && permission.update,
+          delete: permission.read && permission.delete,
+        }}
+      />
+
+      {/*
+        ── ກຸ່ມທົດແທນ — ວາງທ້າຍໂດຍເຈດຕະນາ ──
+        ມັນ**ບໍ່ຜູກກັບໝວດໃດ** (ໃຊ້ຮ່ວມທຸກໝວດ) ⇒ ວາງໄວ້ໃນໝວດໃດໜຶ່ງຈະເຮັດໃຫ້ຄົນເຂົ້າໃຈຜິດ
+        ວ່າມີຜົນແຕ່ໝວດນັ້ນ. ໃຊ້ສິດເມນູອັນດຽວກັນ (ເບິ່ງ actions/spare-substitute).
+      */}
+      <SpareSubstituteManager
+        groups={subGroups}
         can={{
           create: permission.read && permission.create,
           update: permission.read && permission.update,

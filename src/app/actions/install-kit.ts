@@ -1,5 +1,5 @@
 "use server";
-import { query } from "@/lib/db";
+import { db, query } from "@/lib/db";
 import { requirePermission, runAction } from "@/lib/guard";
 import {
   erpItem,
@@ -57,6 +57,103 @@ async function pickUnit(
 /* ══════════════════ ໝວດຊຸດ (install_kit_type) ══════════════════ */
 
 /**
+ * ── ດ່ານກັນ "ຄູ່ ຂະໜາດ × ຮູບແບບ ຊ້ຳກັນ" ──
+ *
+ * ຄີການຈັບຄູ່ບິນຄື **ຄູ່ (ic_size, ic_design)** ບໍ່ແມ່ນ ic_size ລ້ວນອີກ (19-08-2026)
+ * ⇒ ຂະໜາດດຽວມີຫຼາຍໝວດໄດ້ ຖ້າຮູບແບບຕ່າງກັນ (033+ແອຕິດຝາ ກັບ 033+ແອແຄັດເສັດ).
+ * ແຕ່ **ຄູ່ດຽວກັນສອງໝວດບໍ່ໄດ້**: `case ... end` ຈະຈັບອັນທຳອິດ ⇒ ໝວດທີສອງບໍ່ມີວັນຖືກໃຊ້
+ * ແລະ ຄົນຕັ້ງຄ່າຫາສາເຫດບໍ່ພົບ.
+ *
+ * ⚠️ ກວດຢູ່ນີ້ (application) ບໍ່ແມ່ນ unique index ເພາະຄູ່ນີ້ຂ້າມ **ສອງຕາຕະລາງ**
+ * (ic_size ຢູ່ແມ່ · ic_design ຢູ່ລູກ) ⇒ index ດຽວຄຸມບໍ່ໄດ້.
+ *
+ * @param designs ຮູບແບບທີ່ຈະໃຊ້ — `null` = ອ່ານຈາກຖານ (ກໍລະນີປ່ຽນແຕ່ຂະໜາດ)
+ * @returns ຂໍ້ຄວາມຜິດພາດ ຫຼື null ຖ້າຜ່ານ
+ */
+async function clashingPair(
+  code: string,
+  size: string,
+  designs: string[] | null,
+): Promise<string | null> {
+  const mine = designs ?? (
+    await query<{ ic_design: string }>(
+      "select ic_design from install_kit_design where install_type=$1",
+      [code],
+    )
+  ).rows.map((row) => row.ic_design);
+  // ບໍ່ມີຮູບແບບ = ໝວດນີ້ຍັງບໍ່ຈັບຄູ່ອັດຕະໂນມັດ ⇒ ຊ້ຳກັບໃຜບໍ່ໄດ້
+  if (!mine.length) return null;
+
+  const clash = await query<{ install_type: string; ic_design: string }>(
+    `select t.install_type, d.ic_design
+       from install_kit_type t
+       join install_kit_design d on d.install_type = t.install_type
+      where t.ic_size = $1 and coalesce(t.active,1) = 1 and t.install_type <> $2
+        and d.ic_design = any($3::varchar[])
+      limit 1`,
+    [size, code, mine],
+  );
+  const row = clash.rows[0];
+  if (!row) return null;
+  return `ຄູ່ ຂະໜາດ ${size} + ຮູບແບບ ${row.ic_design} ຖືກໝວດ ${row.install_type} ໃຊ້ຢູ່ແລ້ວ`;
+}
+
+/**
+ * ── ຕັ້ງ **ຮູບແບບ (ic_design)** ທີ່ໝວດນຶ່ງຄຸມ — ແທນທັງຊຸດ ──
+ * ຮັບລາຍການທັງໝົດແລ້ວ replace (delete + insert ໃນ transaction) ບໍ່ແມ່ນ toggle ທີລະອັນ
+ * ⇒ ຈໍສົ່ງສະຖານະທີ່ຕ້ອງການມາເລີຍ ບໍ່ຕ້ອງຄິດວ່າອັນໃດເພີ່ມ/ອັນໃດຖອດ (ບໍ່ມີ race).
+ */
+export async function setInstallKitDesigns(
+  installType: string,
+  designs: string[],
+): Promise<KitState> {
+  return runAction("setInstallKitDesigns", async () => {
+    const guard = await requirePermission(INSTALL_KIT_MENU, "update", MANAGER_ONLY);
+    if (!guard.ok) return { error: guard.error };
+
+    const type = await findInstallKitType(installType);
+    if (!type) return { error: "ບໍ່ພົບໝວດນີ້" };
+
+    const wanted = [...new Set(designs.map((value) => String(value ?? "").trim()).filter(Boolean))];
+    const bad = wanted.filter((design) => !isSafeKitCode(design));
+    if (bad.length) return { error: `ລະຫັດຮູບແບບບໍ່ຖືກຕ້ອງ: ${bad.join(", ")}` };
+
+    if (type.ic_size && type.active && wanted.length) {
+      const clash = await clashingPair(installType, type.ic_size, wanted);
+      if (clash) return { error: clash };
+    }
+
+    if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
+    const client = await db.connect();
+    try {
+      await client.query("begin");
+      await client.query("delete from install_kit_design where install_type=$1", [installType]);
+      if (wanted.length) {
+        await client.query(
+          `insert into install_kit_design(install_type, ic_design, create_date_time_now)
+           select $1, d, localtimestamp(0) from unnest($2::varchar[]) d`,
+          [installType, wanted],
+        );
+      }
+      await client.query("commit");
+    } catch (error) {
+      await client.query("rollback");
+      console.error("setInstallKitDesigns failed", error);
+      return { error: "ບັນທຶກຮູບແບບບໍ່ສຳເລັດ" };
+    } finally {
+      client.release();
+    }
+
+    revalidatePath(INSTALL_KIT_MENU);
+    return {
+      ok: wanted.length
+        ? `ບັນທຶກ ${wanted.length} ຮູບແບບແລ້ວ`
+        : "ຖອດຮູບແບບອອກໝົດແລ້ວ — ໝວດນີ້ຈະບໍ່ຖືກຈັບຄູ່ບິນອັດຕະໂນມັດ",
+    };
+  });
+}
+
+/**
  * ── ສ້າງໝວດໃໝ່ ──
  * ລະຫັດໝວດຄົນຕັ້ງເອງ (ຮູບແບບເກົ່າ 9900-00xx) ແຕ່ບໍ່ບັງຄັບຮູບແບບນັ້ນ — ບັງຄັບແຕ່
  * ຕົວອັກສອນທີ່ປອດໄພ (isSafeKitCode) ເພາະຄ່ານີ້ຖືກຕໍ່ເຂົ້າ `case ... end` ຂອງ SQL ບິນ.
@@ -80,20 +177,6 @@ export async function addInstallKitType(_: KitState, formData: FormData): Promis
     const sort = Number(String(formData.get("sort_order") ?? "0"));
 
     if (await findInstallKitType(code)) return { error: `ມີໝວດ ${code} ຢູ່ແລ້ວ` };
-
-    /**
-     * ຂະໜາດດຽວກັນຖືກໝວດອື່ນ**ທີ່ເປີດໃຊ້ຢູ່**ຈອງໄປແລ້ວ ⇒ ປະຕິເສດພ້ອມບອກວ່າໝວດໃດຈອງ.
-     * ຖ້າປ່ອຍໃຫ້ຊ້ຳ `case ... end` ຈະຈັບອັນທຳອິດ ⇒ ໝວດໃໝ່ບໍ່ມີວັນຖືກໃຊ້ ແລະ ຄົນຕັ້ງຄ່າ
-     * ຫາສາເຫດບໍ່ພົບ (unique index ຂອງຖານກັນໄວ້ນຳ ແຕ່ຢູ່ນີ້ໄດ້ຂໍ້ຄວາມທີ່ອ່ານຮູ້).
-     */
-    if (size) {
-      const taken = await query<{ install_type: string }>(
-        "select install_type from install_kit_type where ic_size=$1 and coalesce(active,1)=1 limit 1",
-        [size],
-      );
-      if (taken.rows[0])
-        return { error: `ຂະໜາດນີ້ຖືກໝວດ ${taken.rows[0].install_type} ໃຊ້ຢູ່ແລ້ວ` };
-    }
 
     await query(
       `insert into install_kit_type(install_type, name_1, ic_size, sort_order, active, create_date_time_now)
@@ -124,14 +207,10 @@ export async function updateInstallKitType(_: KitState, formData: FormData): Pro
     const sort = Number(String(formData.get("sort_order") ?? "0"));
     const active = String(formData.get("active") ?? "") === "1";
 
+    // ປ່ຽນຂະໜາດ = ຄູ່ (ຂະໜາດ × ຮູບແບບ) ປ່ຽນທັງໝົດ ⇒ ກວດຊ້ຳກັບໝວດອື່ນກ່ອນ
     if (size && active) {
-      const taken = await query<{ install_type: string }>(
-        `select install_type from install_kit_type
-          where ic_size=$1 and coalesce(active,1)=1 and install_type <> $2 limit 1`,
-        [size, code],
-      );
-      if (taken.rows[0])
-        return { error: `ຂະໜາດນີ້ຖືກໝວດ ${taken.rows[0].install_type} ໃຊ້ຢູ່ແລ້ວ` };
+      const clash = await clashingPair(code, size, null);
+      if (clash) return { error: clash };
     }
 
     await query(

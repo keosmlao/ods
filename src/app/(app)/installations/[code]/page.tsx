@@ -15,6 +15,7 @@ import { JobSparesEditor } from "@/components/installation/job-spares-editor";
 import { listInstallSpares } from "@/lib/install-spare";
 import { getStandardSpares } from "@/lib/install-standard";
 import { listInstallKitTypes } from "@/lib/install-kit";
+import { substitutesFor } from "@/lib/spare-substitute";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { ReopenJobButton } from "@/components/installation/undo-buttons";
 import { DeliveryCard } from "@/components/installation/delivery-card";
@@ -221,6 +222,15 @@ export default async function InstallationDetail({ params }: Props) {
   const activeKitTypes = kitTypes
     .filter((type) => type.active || type.install_type === row.install_type)
     .map((type) => ({ code: type.install_type, name: type.name_1 }));
+
+  /**
+   * ── ຫຍັງແທນຫຍັງໄດ້ ──
+   * ຖາມສະເພາະລາຍການ**ໃນຊຸດ** (ບໍ່ແມ່ນທຸກລາຍການໃນ ERP) ⇒ 1 query ເບົາ. Map → object
+   * ເພື່ອສົ່ງຜ່ານ server→client boundary (Map serialize ບໍ່ໄດ້).
+   */
+  const substitutes = Object.fromEntries(
+    await substitutesFor(standards.map((row) => row.item_code)),
+  );
 
   /** ເຫດຜົນທີ່ແກ້ບໍ່ໄດ້ (null = ແກ້ໄດ້) — ລຳດັບດຽວກັບດ່ານຂອງ action */
   const spareWindow = row.cancel_date
@@ -497,6 +507,7 @@ export default async function InstallationDetail({ params }: Props) {
          * ຕ້ອງມີໃນລາຍການ ບໍ່ດັ່ງນັ້ນ select ຈະເດັ້ງໄປຄ່າອື່ນ ແລ້ວເບິ່ງຄືວ່າໝວດຖືກປ່ຽນແລ້ວ.
          */
         kitTypes={activeKitTypes}
+        substitutes={substitutes}
       />
 
       {/* ── ອາໄຫຼ່: tree ຕາມຕ່ອງໂສ້ເອກະສານ ຄືກັບຝັ່ງສ້ອມ ──

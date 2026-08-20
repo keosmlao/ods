@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { outsideStandardCodes } from "@/lib/loaner-shared";
+import { equivalentCodes } from "@/lib/spare-substitute";
 import { SETTING, settingEnabled } from "@/lib/settings";
 // ດ່ານ "ນອກມາດຕະຖານ" ຢູ່ໄຟລ໌ -shared (ບໍ່ແຕະຖານ ⇒ ທົດສອບໄດ້) — ສົ່ງຕໍ່ໃຫ້ຜູ້ໃຊ້ເກົ່າ
 export { outsideStandardCodes } from "@/lib/loaner-shared";
@@ -139,10 +140,17 @@ export async function blockNonStandard(
       [code],
     ),
   ]);
-  const outside = outsideStandardCodes(
-    [...setLines.keys(), ...cart.rows.map((row) => row.item_code)],
-    itemCodes,
-  );
+  /**
+   * ── ຕົວທົດແທນ ນັບເປັນ "ຕາມມາດຕະຖານ" ນຳ (20-08-2026) ──
+   * ທໍ່ PVC 3/8 ມີ 4 ລະຫັດຕ່າງຍີ່ຫໍ້ ແຕ່ຊຸດລະບຸແຕ່ຕົວດຽວ ⇒ ຖ້າບໍ່ນັບ ຄົນເລືອກຕົວທົດແທນ
+   * ຈາກ picker ໄດ້ ແຕ່ບັນທຶກຖືກປະຕິເສດ (ຈໍສະເໜີສິ່ງທີ່ server ຫ້າມ = ບັກ).
+   * ຂະຫຍາຍຈາກ**ຊຸດ ແລະ ກະຕ່າ** ⇒ ກຸ່ມທຽບເທົ່າຂອງທັງສອງ (lib/spare-substitute).
+   */
+  const allowed = await equivalentCodes([
+    ...setLines.keys(),
+    ...cart.rows.map((row) => row.item_code),
+  ]);
+  const outside = outsideStandardCodes([...allowed], itemCodes);
   if (!outside.length) return null;
   return `ປິດການເບີກອາໄຫຼ່ນອກມາດຕະຖານໄວ້ — ເພີ່ມ ${outside.join(", ")} ບໍ່ໄດ້ (ເປີດຄືນທີ່ ການຕັ້ງຄ່າລະບົບ)`;
 }
