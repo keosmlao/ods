@@ -301,10 +301,23 @@ export async function addInstallKitLine(_: KitState, formData: FormData): Promis
       return { ok: `ມີ ${item.code} ຢູ່ໃນຊຸດແລ້ວ — ບວກຈຳນວນເພີ່ມໃຫ້` };
     }
 
+    /**
+     * ⚠️ **ຕ້ອງ cast ທຸກ parameter** (ແກ້ 20-08-2026 — ບັກທີ່ເຮັດໃຫ້ "ເພີ່ມເຂົ້າຊຸດ" ລົ້ມທຸກເທື່ອ)
+     *
+     * `$1` ຖືກໃຊ້ **2 ບ່ອນທີ່ Postgres ອະນຸມານຄົນລະຊະນິດ**: ຢູ່ select list ບໍ່ມີບໍລິບົດ
+     * ⇒ ໄດ້ `text` · ຢູ່ `where install_type = $1` ⇒ ໄດ້ `character varying` (ຕາມຖັນ)
+     * ⇒ ລົ້ມຕອນ **parse** ດ້ວຍ `42P08 inconsistent types deduced for parameter $1`
+     * (ບໍ່ແມ່ນຕອນແລ່ນ) ⇒ ລົ້ມ**ທຸກໝວດ ທຸກລາຍການ** ບໍ່ວ່າຂໍ້ມູນຈະເປັນຫຍັງ ແລະ ຄົນເຫັນແຕ່
+     * "ດຳເນີນການບໍ່ສຳເລັດ — ກະລຸນາລອງໃໝ່" ຂອງ runAction.
+     *
+     * ບ່ອນອື່ນທີ່ໃຊ້ pattern ດຽວກັນ (actions/installation · lib/install-spare) cast ໄວ້ຢູ່ແລ້ວ
+     * — ບ່ອນນີ້ຂາດໄປບ່ອນດຽວ. INSERT…SELECT ທີ່ໃຊ້ parameter ຊ້ຳ ⇒ cast ໃຫ້ໝົດສະເໝີ.
+     */
     await query(
       `insert into used_spare_install(install_type, line_number, ic_code, name_1, qty, unit_code, create_date_time_now)
-       select $1, coalesce(max(line_number),0) + 1, $2, $3, $4, nullif($5,''), localtimestamp(0)
-         from used_spare_install where install_type = $1`,
+       select $1::varchar, coalesce(max(line_number),0) + 1, $2::varchar, $3::varchar, $4::numeric,
+              nullif($5::varchar,''), localtimestamp(0)
+         from used_spare_install where install_type = $1::varchar`,
       [installType, item.code, item.name_1, qty, unit],
     );
     revalidatePath(INSTALL_KIT_MENU);

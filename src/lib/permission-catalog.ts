@@ -68,7 +68,6 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ຕິດຕັ້ງ", label: "ຕິດຕັ້ງ", resource: "/installations/work", actions: ["read", "update"] },
   { group: "ຕິດຕັ້ງ", label: "ລູກຄ້າປະເມີນ", resource: "/installations/feedback", actions: ["read", "update"] },
   { group: "ຕິດຕັ້ງ", label: "ປິດງານ", resource: "/installations/close", actions: ["read", "update"] },
-  { group: "ຕິດຕັ້ງ", label: "ຊຸດອາໄຫຼ່ມາດຕະຖານ", resource: "/manage/install-kits" },
   { group: "ຕິດຕັ້ງ", label: "ລາຍງານງານຕິດຕັ້ງ", resource: "/reports/installations", actions: READ_ONLY },
   { group: "ຕິດຕັ້ງ", label: "ສະຫຼຸບອາໄຫຼ່ປະຈຳເດືອນ", resource: "/reports/install-spares-monthly", actions: READ_ONLY },
 
@@ -129,6 +128,17 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ຜູ້ໃຊ້", label: "ຄ່າບໍລິການ / ຄ່າຄອມ", resource: "/manage/service-rates" },
   { group: "ຜູ້ໃຊ້", label: "ເປົ້າລາຍຮັບລາຍເດືອນ", resource: "/manage/revenue-targets" },
   { group: "ຜູ້ໃຊ້", label: "ເຊື່ອມຕົວຕົນຊ່າງ", resource: "/manage/technicians" },
+  /**
+   * ── ຢູ່ກຸ່ມ "ຜູ້ໃຊ້" ບໍ່ແມ່ນ "ຕິດຕັ້ງ" (ຍ້າຍ 20-08-2026) ──
+   * ແຖວນີ້ **ມີຢູ່ແລ້ວແຕ່ດົນ** ແຕ່ຖືກວາງໄວ້ໃນກຸ່ມ `ຕິດຕັ້ງ` ພ້ອມຄິວງານປະຈຳວັນ ແລະ ໃຊ້ຊື່
+   * ສັ້ນກວ່າເມນູ ⇒ ຜູ້ຈັດການທີ່ໄປຫາຢູ່ກຸ່ມ `ຜູ້ໃຊ້` (ບ່ອນທີ່ເມນູນີ້ຢູ່ຈິງໃນ sidebar ພ້ອມ
+   * /manage/* ອື່ນໆ) **ຫາບໍ່ພົບ** ແລ້ວເຂົ້າໃຈວ່າລະບົບບໍ່ມີສິດອັນນີ້ເລີຍ.
+   * ໜ້າກຳນົດສິດບໍ່ມີຊ່ອງຄົ້ນຫາ — ຈັດກຸ່ມຢ່າງດຽວ ⇒ ກຸ່ມຜິດ = ຫາຍໄປຈາກສາຍຕາ.
+   * ⇒ ໃຊ້ **ຊື່ດຽວກັບເມນູ** ແລະ ຢູ່ກຸ່ມດຽວກັບເມນູ. `resource` ບໍ່ປ່ຽນ ⇒ ສິດທີ່ຕັ້ງໄວ້ບໍ່ຫຼຸດ.
+   *
+   * ຄຸມທັງໜ້າ: ໝວດຊຸດ · ລາຍການອາໄຫຼ່ໃນຊຸດ · ກຸ່ມອາໄຫຼ່ທົດແທນ (actions/spare-substitute).
+   */
+  { group: "ຜູ້ໃຊ້", label: "ຊຸດອາໄຫຼ່ມາດຕະຖານງານຕິດຕັ້ງ", resource: "/manage/install-kits", actions: ["read", "create", "update", "delete"] },
   { group: "ຜູ້ໃຊ້", label: "ການຕັ້ງຄ່າລະບົບ", resource: "/manage/settings", protected: true },
   { group: "ຜູ້ໃຊ້", label: "ຕື່ມ ISN/SN ໃບງານເກົ່າ", resource: "/manage/install-serials", protected: true },
   { group: "ຜູ້ໃຊ້", label: "ຕິດຕາມການເຂົ້າລະບົບ", resource: "/manage/login-log", actions: READ_ONLY },
