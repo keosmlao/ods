@@ -242,6 +242,12 @@ const RULES: Rule[] = [
   { path: "/installations/dispatch", roles: STOCK_SIDE },
   { path: "/installations/pending-bills", roles: SERVICE_SIDE },
   { path: "/reports/kpi", roles: [M, HT] },
+  /**
+   * ກວດສອບງານສ້ອມ — ເປີດໃຫ້ **ຝ່າຍບໍລິການ** ນຳ (MONITOR_SIDE) ບໍ່ແມ່ນສະເພາະຫົວໜ້າ:
+   * ຄົນທີ່ຕ້ອງ**ຊີ້ແຈງ**ວ່າໃບນີ້ຄ້າງຍ້ອນຫຍັງ ສ່ວນຫຼາຍຄື CS (ລໍລູກຄ້າຕອບ · ລໍອາໄຫຼ່)
+   * ⇒ ຖ້າເຫັນບໍ່ໄດ້ ກໍ່ຕອບບໍ່ໄດ້ ແລ້ວລາຍງານກໍ່ຫວ່າງເປົ່າຕະຫຼອດ.
+   */
+  { path: "/reports/repair-audit", roles: MONITOR_SIDE },
   { path: "/reports/repeat-repairs", roles: [M, HT] },
   { path: "/installations/*/edit", roles: SERVICE_SIDE },
   { path: "/installations/*/print", roles: EVERYONE },

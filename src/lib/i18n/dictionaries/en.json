@@ -70,6 +70,7 @@
     "/approvals/purchase-orders": "Approve purchase orders (PO)",
     "/reports": "Reports overview",
     "/reports/kpi": "Performance KPI",
+    "/reports/repair-audit": "Repair Job Audit",
     "/manage/employees": "Permissions",
     "/manage/qc-checklist": "QC checklist",
     "/manage/service-rates": "Service & commission rates",
@@ -2868,7 +2869,9 @@
     "installSparesMonthlyTitle": "Monthly installation spares summary",
     "installSparesMonthlyDesc": "Issued, returned and net-used quantities, by spare part and technician",
     "customerFeedbackTitle": "Customer satisfaction report",
-    "customerFeedbackDesc": "Five evaluation scores for rated installation jobs"
+    "customerFeedbackDesc": "Five evaluation scores for rated installation jobs",
+    "auditTitle": "Repair Job Audit",
+    "auditDesc": "Every job checked against each stage SLA — abnormal jobs, broken timelines, and a place to record the cause"
   },
   "manageEmployees": {
     "title": "Manage Employees / Permissions",

@@ -7,6 +7,7 @@ import {
   FileX2,
   PackageOpen,
   PackageSearch,
+  ShieldAlert,
   ShoppingCart,
   Smile,
   Truck,
@@ -52,6 +53,13 @@ const groupsOf = (t: Dict) => [
         title: t.checkingTitle,
         description: t.checkingDesc,
         icon: ClipboardCheck,
+      },
+      // ກວດສອບລາຍໃບ ທຽບ SLA ຕໍ່ຂັ້ນ + ບ່ອນຊີ້ແຈງ — ຄູ່ກັບ KPI (ຄ່າລວມ) ຢູ່ເມນູ
+      {
+        href: "/reports/repair-audit",
+        title: t.auditTitle,
+        description: t.auditDesc,
+        icon: ShieldAlert,
       },
     ],
   },

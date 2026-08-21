@@ -20,6 +20,12 @@ const contentTypes: Record<string, string> = {
   ".mov": "video/quicktime",
   ".m4v": "video/x-m4v",
   ".3gp": "video/3gpp",
+  /**
+   * PDF — **ຫຼັກຖານການຊີ້ແຈງ** ຂອງລາຍງານກວດສອບງານສ້ອມ (ods_repair_audit_file).
+   * ຮູບບໍ່ພຽງພໍສຳລັບການຊີ້ແຈງ: ໃບສະເໜີລາຄາ · ອີເມວ supplier · ໃບຢືນຢັນການສັ່ງຊື້
+   * ມາເປັນ pdf ທັງນັ້ນ. ບໍ່ມີບັນທັດນີ້ ໄຟລ໌ຈະຖືກອັບໂຫລດໄດ້ ແຕ່ເປີດບໍ່ໄດ້ (404).
+   */
+  ".pdf": "application/pdf",
 };
 
 export async function GET(_: Request, { params }: { params: Promise<{ file: string }> }) {

@@ -74,6 +74,8 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   // ── ສ້ອມບໍລຸງ (ລ້າງແອ/ລ້າງເຄື່ອງ) ──
   { group: "ສ້ອມບໍລຸງ", label: "ງານສ້ອມບໍລຸງ", resource: "/maintenance", actions: ["read", "create", "update", "delete"] },
   { group: "ລາຍງານ", label: "KPI ປະສິດທິພາບ", resource: "/reports/kpi", actions: READ_ONLY },
+  // update = ບັນທຶກຄຳຊີ້ແຈງ/ຜູ້ຮັບຜິດຊອບ ຂອງງານທີ່ຜິດປົກກະຕິ (ບໍ່ແມ່ນແກ້ໃບງານ)
+  { group: "ລາຍງານ", label: "ກວດສອບງານສ້ອມແປງ", resource: "/reports/repair-audit", actions: ["read", "update"] },
   { group: "ລາຍງານ", label: "ເຄື່ອງກັບມາສ້ອມຊ້ຳ", resource: "/reports/repeat-repairs", actions: READ_ONLY },
   { group: "ຕິດຕັ້ງ", label: "ລາຍງານແບບສອບຖາມ", resource: "/reports/customer-feedback", actions: READ_ONLY },
 

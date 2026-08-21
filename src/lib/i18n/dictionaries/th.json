@@ -70,6 +70,7 @@
     "/approvals/purchase-orders": "อนุมัติใบสั่งซื้อ (PO)",
     "/reports": "หน้ารวมรายงาน",
     "/reports/kpi": "KPI ประสิทธิภาพ",
+    "/reports/repair-audit": "ตรวจสอบงานซ่อม",
     "/manage/employees": "กำหนดสิทธิ์",
     "/manage/qc-checklist": "ตั้งรายการตรวจรับ (QC)",
     "/manage/service-rates": "ค่าบริการ / ค่าคอมช่าง",
@@ -2868,7 +2869,9 @@
     "installSparesMonthlyTitle": "สรุปอะไหล่ติดตั้งประจำเดือน",
     "installSparesMonthlyDesc": "จำนวนเบิก, รับคืน และใช้สุทธิ แยกตามอะไหล่และช่าง",
     "customerFeedbackTitle": "รายงานความพึงพอใจของลูกค้า",
-    "customerFeedbackDesc": "คะแนนประเมิน 5 ข้อ ของงานติดตั้งที่ประเมินแล้ว"
+    "customerFeedbackDesc": "คะแนนประเมิน 5 ข้อ ของงานติดตั้งที่ประเมินแล้ว",
+    "auditTitle": "ตรวจสอบงานซ่อม",
+    "auditDesc": "ไล่ทุกใบเทียบ SLA แต่ละขั้น · งานผิดปกติ · timeline ผิดขั้นตอน · ช่องกรอกสาเหตุ"
   },
   "manageEmployees": {
     "title": "จัดการพนักงาน / กำหนดสิทธิ์",

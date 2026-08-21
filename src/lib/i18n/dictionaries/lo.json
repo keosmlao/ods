@@ -70,6 +70,7 @@
     "/approvals/purchase-orders": "ອະນຸມັດໃບສັ່ງຊື້ (PO)",
     "/reports": "ໜ້າລວມລາຍງານ",
     "/reports/kpi": "KPI ປະສິດທິພາບ",
+    "/reports/repair-audit": "ກວດສອບງານສ້ອມແປງ",
     "/manage/employees": "ກຳນົດສິດ",
     "/manage/qc-checklist": "ຕັ້ງລາຍການກວດຮັບ (QC)",
     "/manage/service-rates": "ຄ່າບໍລິການ / ຄ່າຄອມຊ່າງ",
@@ -2868,7 +2869,9 @@
     "installSparesMonthlyTitle": "ສະຫຼຸບອາໄຫຼ່ຕິດຕັ້ງປະຈຳເດືອນ",
     "installSparesMonthlyDesc": "ຈຳນວນເບີກ, ຮັບຄືນ ແລະ ໃຊ້ສຸດທິ ແຍກຕາມອາໄຫຼ່ ແລະ ຊ່າງ",
     "customerFeedbackTitle": "ລາຍງານຄວາມພໍໃຈຂອງລູກຄ້າ",
-    "customerFeedbackDesc": "ຄະແນນປະເມີນ 5 ຂໍ້ ຂອງງານຕິດຕັ້ງທີ່ປະເມີນແລ້ວ"
+    "customerFeedbackDesc": "ຄະແນນປະເມີນ 5 ຂໍ້ ຂອງງານຕິດຕັ້ງທີ່ປະເມີນແລ້ວ",
+    "auditTitle": "ກວດສອບງານສ້ອມແປງ",
+    "auditDesc": "ໄລ່ທຸກໃບທຽບ SLA ແຕ່ລະຂັ້ນ · ງານຜິດປົກກະຕິ · timeline ຜິດຂັ້ນຕອນ · ບ່ອນກອກສາເຫດ"
   },
   "manageEmployees": {
     "title": "ຈັດການພະນັກງານ / ກຳນົດສິດ",
