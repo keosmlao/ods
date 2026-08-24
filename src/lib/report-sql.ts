@@ -240,7 +240,7 @@ export const columns = {
     { header: "ໄລຍະເວລາຮັບເຂົ້າ (ວັນ)", key: "time_used", width: 16 },
     { header: "ສະຖານະ", key: "pr_status", width: 22 },
   ],
-  /** 22 ຄໍລຳ — /report_pd_install */
+  /** 21 ຄໍລຳ — /report_pd_install */
   installations: [
     { header: "ລຳດັບ", key: "rnum", width: 8 },
     { header: "ວັນ/ເວລາເປີດງານ", key: "time_register", width: 20 },
@@ -262,7 +262,6 @@ export const columns = {
     { header: "ສະຖານະ", key: "status_name", width: 20 },
     { header: "ວັນທີປິດງານ", key: "job_finish", width: 20 },
     { header: "ໄລຍະເວລາໃນການຕິດຕັ້ງ", key: "duration", width: 20 },
-    { header: "ຮອດປັດຈູບັນ", key: "remaining", width: 20 },
     { header: "ໝາຍເຫດ", key: "remark", width: 26 },
   ],
   /** ລາຍງານຄວາມພໍໃຈຂອງລູກຄ້າ */
@@ -773,7 +772,6 @@ const installBase = `row_number() over (order by a.roworder) rnum,
   ${installStatusName},
   to_char(a.job_finish,'DD-MM-YYYY HH24:MI:SS') job_finish,
   (a.job_finish - a.appoint_date)::text duration,
-  case when a.time_register > localtimestamp(0) then '00:00:00' else (localtimestamp(0) - a.time_register)::text end remaining,
   a.remark
   from ods_tb_install a
   left join ar_customer c on c.code = a.cust_code`;
