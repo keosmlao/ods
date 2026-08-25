@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../app_update.dart';
 import '../main.dart';
 import '../push.dart';
 import 'nav_host.dart';
+import 'update_required_screen.dart';
 import 'server_settings_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -346,6 +348,98 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
+                    /*
+                      ── ກາດອັບເດດ (v5) ──
+                      ແອັບເກົ່າຖືກກັ້ນ **ຫຼັງ** login (426) ⇒ ຊ່າງເຫັນແຕ່ຂໍ້ຄວາມ error
+                      ໂດຍບໍ່ຮູ້ວ່າຕ້ອງໄປໂຫຼດຢູ່ໃສ. ບອກຕັ້ງແຕ່ໜ້ານີ້ເລີຍ ພ້ອມປຸ່ມທີ່ພາໄປ
+                      ໂຫຼດ+ຕິດຕັ້ງໃນຕົວ (ໜ້າດຽວກັບຕອນຖືກບັງຄັບ).
+                    */
+                    ValueListenableBuilder<AppUpdateInfo?>(
+                      valueListenable: appUpdate,
+                      builder: (context, info, _) {
+                        if (info == null || !info.updateAvailable) {
+                          return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Material(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(kCardRadius),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(kCardRadius),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => UpdateRequiredScreen(info: info),
+                                ),
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.all(11),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(kCardRadius),
+                                  border: Border.all(color: line),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: tealWash,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.system_update_rounded,
+                                        size: 18,
+                                        color: teal,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'ມີເວີຊັນໃໝ່ ${info.latestVersion}',
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w800,
+                                              color: ink,
+                                            ),
+                                          ),
+                                          Text(
+                                            'ຂອງທ່ານ ${AppVersion.current.isEmpty ? '-' : AppVersion.current}',
+                                            style: const TextStyle(fontSize: 11, color: faint),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: teal,
+                                        borderRadius: BorderRadius.circular(9),
+                                      ),
+                                      child: const Text(
+                                        'ອັບເດດ',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -362,6 +456,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: const TextStyle(color: muted, fontSize: 11),
                           ),
                         ),
+                        // ເວີຊັນຂອງແອັບ ຢູ່ຄຽງກັບ server — ຮູບໜ້າຈໍດຽວ IT ກໍ່ວິນິດໄສໄດ້
+                        if (AppVersion.current.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            'v${AppVersion.current}',
+                            style: const TextStyle(color: faint, fontSize: 11),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 4),

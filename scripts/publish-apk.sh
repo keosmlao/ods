@@ -33,4 +33,6 @@ cp "$apk" "$target"
 printf '%s\n' "$version" > "$target.version"
 
 echo "✅ ວາງແລ້ວ: $target  ($version)"
+# ⚠️ Next 16 ສ້າງດັດຊະນີໄຟລ໌ໃນ public/ ຕອນ **server ເລີ່ມ** — ໄຟລ໌ຊື່ໃໝ່ (ເຊັ່ນ
+#    ods-beta.apk) ຈະ 404 ຈົນກວ່າຈະ restart. ຂຽນທັບຊື່ເກົ່າ (ods.apk) ບໍ່ຕ້ອງ restart.
 echo "   ຊ່າງທີ່ຖືແອັບເກົ່າກວ່ານີ້ ຈະຖືກບັງຄັບໃຫ້ອັບເດດ (ຖ້າຕັ້ງຄ່າ 'ບັງຄັບອັບເດດ' ເປີດຢູ່)"

@@ -272,6 +272,24 @@ class _QcJobScreenState extends State<QcJobScreen> {
 
     return Scaffold(
       backgroundColor: ground,
+      // ຍັງໂຫຼດຢູ່/ໂຫຼດລົ້ມ = ບໍ່ມີຫຍັງໃຫ້ບັນທຶກ ⇒ ບໍ່ຕ້ອງມີແຖບ
+      bottomNavigationBar: loading || error.isNotEmpty || items.isEmpty
+          ? null
+          : NextActionBar(
+              label: failed > 0
+                  ? 'ບໍ່ຜ່ານ $failed ຂໍ້ — ສົ່ງກັບໃຫ້ຊ່າງ'
+                  : 'QC ຜ່ານ — ໄປຂັ້ນຕໍ່ໄປ',
+              icon: failed > 0
+                  ? Icons.assignment_return_outlined
+                  : Icons.verified_outlined,
+              tone: failed > 0 ? danger : ok,
+              busy: busy,
+              // ບອກໃຫ້ຊັດວ່າຍັງເຫຼືອຈັກຂໍ້ — ແຕ່ກ່ອນປຸ່ມເປັນສີເທົາໂດຍບໍ່ບອກສາເຫດ
+              blocker: ready
+                  ? null
+                  : 'ຍັງເຫຼືອ ${items.length - answered} ຂໍ້ທີ່ຍັງບໍ່ໄດ້ຕອບ',
+              onPressed: submit,
+            ),
       body: Column(
         children: [
           HeroHeader(
@@ -445,29 +463,7 @@ class _QcJobScreenState extends State<QcJobScreen> {
                     ),
                   ),
 
-                const SizedBox(height: 12),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: failed > 0 ? danger : ok,
-                    minimumSize: const Size.fromHeight(52),
-                  ),
-                  onPressed: (!ready || busy) ? null : submit,
-                  child: busy
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          failed > 0
-                              ? 'ບໍ່ຜ່ານ $failed ຂໍ້ — ສົ່ງກັບໃຫ້ຊ່າງ'
-                              : 'QC ຜ່ານ — ໄປຂັ້ນຕໍ່ໄປ',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                ),
+                // ປຸ່ມບັນທຶກ ຢູ່ແຖບລຸ່ມ (v5) — checklist ຍາວກວ່າ 1 ຈໍ
               ],
             ),
           ),

@@ -30,9 +30,15 @@ void main() async {
   WidgetsBinding.instance.addPostFrameCallback((_) => AppLinks.flush());
 }
 
-// ── Design tokens v4 (Flat High-Contrast — ອ່ານງ່າຍເທິງຈໍລຸ້ນເກົ່າ) ──
-// ຫຼັກການ: ສີ contrast ສູງ (WCAG AA ຂຶ້ນໄປສຳລັບ text), ບໍ່ມີ gradient/blur ໃນ widget ທີ່
-// render ຖີ່ (GPU ເກົ່າແຮງ), flat surface + border ແທນເງົາ.
+// ── Design tokens v5 (ຕໍ່ຈາກ v4 Flat High-Contrast) ──
+// ຫຼັກການເດີມທີ່ **ຍັງຖືຢູ່**: contrast ສູງ (WCAG AA ຂຶ້ນໄປສຳລັບ text), ບໍ່ມີ gradient/blur
+// ໃນ widget ທີ່ render ຖີ່ (GPU ເກົ່າແຮງ), flat surface + border ແທນເງົາ.
+//
+// ສິ່ງທີ່ v5 ເພີ່ມ:
+//   ① ພື້ນອຽງໄປທາງຂຽວເລັກນ້ອຍ (ບໍ່ແມ່ນເທົາກາງ) ⇒ ຢູ່ຮ່ວມກັບ teal ໄດ້ບໍ່ຂັດ
+//   ② **ສີສັນຍານມີໜ້າທີ່ຕາຍຕົວ**: ແດງ = ຊ້າ/ຫ້າມ · ເຫຼືອງ = ໃກ້ຮອດ/ຕ້ອງກວດ · ຂຽວ = ຜ່ານ
+//      ⇒ ຫ້າມໃຊ້ 3 ສີນີ້ເປັນເຄື່ອງປະດັບ ບໍ່ດັ່ງນັ້ນ "ແດງ" ຈະບໍ່ໝາຍຄວາມວ່າຫຍັງອີກຕໍ່ໄປ
+//   ③ ປຸ່ມຫຼັກສູງ 52 (kPrimaryTouch) — ນິ້ວໂປ້ຊ່າງ ໃສ່ຖົງມື ຢືນຢູ່ໜ້າງານ
 const teal = Color(0xFF0F766E); // brand teal-700 — ສີຫຼັກ (contrast 4.6:1 ເທິງຂາວ)
 const tealBright = Color(0xFF0D9488); // active highlight
 const tealDeep = Color(0xFF115E59); // pressed/hover state (teal-800)
@@ -48,10 +54,10 @@ const warn = Color(0xFFB45309); // amber 700 (ເຂັ້ມຂຶ້ນ)
 const warnTint = Color(0xFFFEF3C7); // amber 100
 const muted = Color(0xFF475569); // slate 600 — ຍົກຈາກ 500 ໃຫ້ອ່ານງ່າຍຂຶ້ນ
 const faint = Color(0xFF64748B); // slate 500 — ຍົກຈາກ 400 (4.5:1 ພໍດີ)
-const ground = Color(0xFFF8FAFC); // slate 50 — ພື້ນຫຼັງ
-const surfaceAlt = Color(0xFFF1F5F9); // slate 100
-const line = Color(0xFFE2E8F0); // slate 200 — ຂອບ
-const lineStrong = Color(0xFFCBD5E1); // slate 300 — ຂອບເນັ້ນ (input ປົກກະຕິ)
+const ground = Color(0xFFF4F7F6); // v5: slate ອຽງຂຽວ — ພື້ນຫຼັງ
+const surfaceAlt = Color(0xFFEDF2F1); // v5: ພື້ນຮອງ (input · ປຸ່ມມົນ)
+const line = Color(0xFFDFE8E5); // v5: ຂອບ
+const lineStrong = Color(0xFFC7D5D1); // v5: ຂອບເນັ້ນ (input ປົກກະຕິ)
 
 // ── Hero header v4 (flat, ບໍ່ມີ gradient — ປະຢັດ GPU ເຄື່ອງເກົ່າ) ──
 const hero1 = Color(0xFF0F172A); // slate 900 (ພື້ນ)
@@ -65,6 +71,10 @@ const kButtonRadius = 14.0;
 
 /// ຄວາມສູງສຳຜັດຂັ້ນຕ່ຳ — ນິ້ວໂປ້ຊ່າງງານ + ຈໍລຸ້ນເກົ່າ density ຕ່ຳ
 const kMinTouch = 48.0;
+
+/// ປຸ່ມ **ຫຼັກ** ຂອງໜ້າ (ແຖບ "ຂັ້ນຕໍ່ໄປ") — ສູງກວ່າຂັ້ນຕ່ຳ ເພາະເປັນປຸ່ມທີ່ຖືກກົດ
+/// ຢູ່ໜ້າງານ: ຢືນ · ມືເປື້ອນ · ບາງເທື່ອໃສ່ຖົງມື. ກົດພາດ = ຕ້ອງເລີ່ມຂັ້ນຕອນໃໝ່.
+const kPrimaryTouch = 52.0;
 
 class OdssApp extends StatelessWidget {
   const OdssApp({super.key});

@@ -961,6 +961,8 @@ class _JobScreenState extends State<JobScreen> {
 
     return Scaffold(
       backgroundColor: ground,
+      // v5: ປຸ່ມທີ່ຕ້ອງກົດ ຢູ່ໃນໄລຍະນິ້ວໂປ້ສະເໝີ (ນິຍາມຢູ່ `_nextAction`)
+      bottomNavigationBar: _nextActionBar(),
       body: DefaultTabController(
         length: 2,
         child: Column(
@@ -1316,8 +1318,13 @@ class _JobScreenState extends State<JobScreen> {
 
                       // ── ຮູບຂອງງານ (ຮັບເຄື່ອງ · ກວດເຊັກ · ສ້ອມສຳເລັດ) ──
                       if (gallery != null && !gallery!.isEmpty) ...[
-                        _Card(
-                          children: [
+                        FoldCard(
+                          title: 'ຮູບຂອງງານນີ້',
+                          icon: Icons.photo_library_outlined,
+                          meta: '${gallery!.receive.length + gallery!.check.length + gallery!.finish.length} ຮູບ',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                             if (gallery!.receive.isNotEmpty)
                               _photoRow(
                                 'ຮູບຕອນຮັບເຄື່ອງ',
@@ -1338,7 +1345,8 @@ class _JobScreenState extends State<JobScreen> {
                                 Icons.verified_outlined,
                                 gallery!.finish,
                               ),
-                          ],
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 12),
                       ],
@@ -1465,29 +1473,14 @@ class _JobScreenState extends State<JobScreen> {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            // 2 ຖັນ: ຊ້າຍ = ຮັບງານ (ຫຼັກ) · ຂວາ = ປະຕິເສດ (ຮອງ) — ສູງເທົ່າກັນ
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _primaryAction(
-                                    'ຮັບງານ',
-                                    Icons.check_circle_outline_rounded,
-                                    teal,
-                                    () => run({'action': 'accept'}),
-                                    height: 52,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _ghostAction(
-                                    'ປະຕິເສດ',
-                                    Icons.close_rounded,
-                                    danger,
-                                    () => setState(() => rejecting = true),
-                                    height: 52,
-                                  ),
-                                ),
-                              ],
+                            // "ຮັບງານ" ຍ້າຍໄປແຖບລຸ່ມ (v5) ⇒ ຢູ່ນີ້ເຫຼືອແຕ່ທາງເລືອກ
+                            // ທີ່ **ບໍ່ຄວນກົດງ່າຍ**: ປະຕິເສດງານ.
+                            _ghostAction(
+                              'ປະຕິເສດງານນີ້',
+                              Icons.close_rounded,
+                              danger,
+                              () => setState(() => rejecting = true),
+                              height: 46,
                             ),
                           ],
 
@@ -1529,17 +1522,6 @@ class _JobScreenState extends State<JobScreen> {
                           // ── ໜ້າງານ (IH/PS): ຮັບງານແລ້ວ ⇒ ປຸ່ມ check-in ດຽວ ──
                           // ກົດ check-in ແລ້ວ **ເລີ່ມກວດເຊັກເອງ** ⇒ ບໍ່ຕ້ອງໂຊ້ປຸ່ມ "ເລີ່ມກວດ" ຊ້ຳ
                           // (ແຕ່ກ່ອນມີ 2 ປຸ່ມ: check-in + "ຕ້ອງ check-in ກ່ອນ" ຈາງໆ ⇒ ຊ້ຳຊ້ອນ).
-                          if (job.workflow == 'repair' &&
-                              job.accepted &&
-                              job.stage == 1 &&
-                              job.onsite &&
-                              !job.hasCheckedIn &&
-                              job.canCheckIn)
-                            _button(
-                              'check-in ໜ້າງານ (ພິກັດ + ຮູບ)',
-                              ink,
-                              checkIn,
-                            ),
 
                           /*
                             ── ຕິດຕັ້ງ: ປຸ່ມ check-in ຂອງຕົນເອງ (ແກ້ 06-08-2026) ──
@@ -1551,53 +1533,9 @@ class _JobScreenState extends State<JobScreen> {
                             ເຊື່ອ `canCheckIn` ຂອງ server ບ່ອນດຽວ — ຢ່າຂຽນເງື່ອນໄຂຂັ້ນຊ້ຳຢູ່ນີ້
                             (ຮອບເຂົ້າໜ້າງານຮອບ 2 ຢູ່ຂັ້ນ 5 ກໍ່ຜ່ານ flag ດຽວກັນ ໂດຍບໍ່ຕ້ອງແກ້ແອັບອີກ).
                           */
-                          if ((job.workflow == 'install' ||
-                                  job.workflow == 'maintenance') &&
-                              job.canCheckIn)
-                            _button(
-                              // ຮອບທຳອິດ (ຍັງບໍ່ໄດ້ເລີ່ມ) ⇒ check-in ຄື "ເລີ່ມງານ" ນຳ
-                              (job.workflow == 'install' && job.stage == 4) ||
-                                      (job.workflow == 'maintenance' && job.stage == 2)
-                                  ? 'check-in ໜ້າງານ — ເລີ່ມງານ (ພິກັດ + ຮູບ)'
-                                  : 'check-in ໜ້າງານ ຮອບຕໍ່ໄປ (ພິກັດ + ຮູບ)',
-                              ink,
-                              checkIn,
-                            ),
 
                           // ງານສ້ອມຂັ້ນ 1-2 = ກວດເຊັກ (ບໍ່ແມ່ນ "ເລີ່ມສ້ອມ" ຂອງຂັ້ນ 8).
                           // ໜ້າງານທີ່ຍັງບໍ່ check-in ໃຊ້ປຸ່ມ check-in ດ້ານເທິງແທນ.
-                          if (job.isLead &&
-                              job.workflow == 'repair' &&
-                              job.accepted &&
-                              (job.stage == 1 || job.stage == 2) &&
-                              !(job.stage == 1 &&
-                                  job.onsite &&
-                                  !job.hasCheckedIn))
-                            _button(
-                              job.stage == 1
-                                  ? 'ເລີ່ມກວດເຊັກ'
-                                  : 'ບັນທຶກຜົນກວດເຊັກ',
-                              teal,
-                              () async {
-                                final messenger = ScaffoldMessenger.of(context);
-                                if (job.stage == 1) {
-                                  try {
-                                    await Api.check(job.code, {
-                                      'action': 'start',
-                                    });
-                                  } on ApiError catch (failure) {
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text(failure.message),
-                                        backgroundColor: danger,
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                }
-                                await _openCheck();
-                              },
-                            ),
 
                           /*
                             ── ຝັ່ງຕິດຕັ້ງ: check-in = ເລີ່ມຕິດຕັ້ງ (07-08-2026) ──
@@ -1605,18 +1543,6 @@ class _JobScreenState extends State<JobScreen> {
                             (ເມື່ອກ່ອນເປັນປຸ່ມສີເທົາ "ຕ້ອງ check-in ກ່ອນເລີ່ມງານ" ⇒ ຄົນສັບສົນ).
                             ຝັ່ງສ້ອມຄືເກົ່າ · ຕິດຕັ້ງທີ່ຖືກ CS ເລີ່ມໃຫ້ຈາກເວັບ ກໍ່ຂ້າມມາຂັ້ນ 5 ຢູ່ແລ້ວ.
                           */
-                          if (job.isLead && job.action == 'start' && job.workflow != 'install')
-                            _button(
-                              job.onsite && !job.hasCheckedIn
-                                  ? 'ຕ້ອງ check-in ກ່ອນເລີ່ມງານ'
-                                  : job.workflow == 'install'
-                                  ? 'ເລີ່ມຕິດຕັ້ງ'
-                                  : 'ເລີ່ມສ້ອມແປງ',
-                              job.onsite && !job.hasCheckedIn ? muted : teal,
-                              job.onsite && !job.hasCheckedIn
-                                  ? null
-                                  : () => run({'action': 'start'}),
-                            ),
 
                           // "ສ້ອມໜ້າງານບໍ່ໄດ້ → ນຳເຂົ້າສູນ" = **ຕັດສິນຕອນກວດເຊັກ** (CheckScreen outcome)
                           // ບ່ອນດຽວ. ຫຼັງກວດເຊັກແລ້ວ (ເລືອກ ສ້ອມ/ສຳເລັດການກວດ) = ຕົກລົງສ້ອມແລ້ວ ⇒ ບໍ່ໂຊ້ຢູ່ນີ້.
@@ -1884,25 +1810,9 @@ class _JobScreenState extends State<JobScreen> {
                               const SizedBox(height: 10),
                             ],
 
-                            // ຈົບງານ = ຫົວໜ້າຄົນດຽວ (ຊ່າງຮ່ວມຍັງຖ່າຍຮູບ/ເກັບ ISN/SN ໃຫ້ໄດ້)
-                            if (job.isLead)
-                              _primaryAction(
-                                job.workflow == 'install'
-                                    ? 'ບັນທຶກຕິດຕັ້ງສຳເລັດ — ສົ່ງກວດ QC'
-                                    : 'ບັນທຶກສ້ອມສຳເລັດ — ສົ່ງກວດ QC',
-                                Icons.check_circle_outline_rounded,
-                                ok,
-                                evidenceRequired || (job.workflow == 'install' && !job.scanDone)
-                                    ? null
-                                    : () async {
-                                        await run({
-                                          'action': 'finish',
-                                          'note': note.text,
-                                          'photos': photos,
-                                        });
-                                      },
-                              )
-                            else
+                            // ຈົບງານ = ຫົວໜ້າຄົນດຽວ — ປຸ່ມຢູ່ແຖບລຸ່ມ (v5).
+                            // ຊ່າງຮ່ວມບໍ່ມີແຖບນັ້ນ ⇒ ຕ້ອງບອກວ່າຮູບທີ່ຖ່າຍໄປແລ້ວບໍ່ໄດ້ເສຍເປົ່າ.
+                            if (!job.isLead)
                               const Text(
                                 'ຮູບທີ່ທ່ານຖ່າຍ ຖືກແນບໃສ່ໃບງານແລ້ວ — '
                                 'ປຸ່ມ "ບັນທຶກສຳເລັດ" ແລະ ການເກັບ ISN/SN ຢູ່ນຳຫົວໜ້າງານ',
@@ -2969,6 +2879,168 @@ class _JobScreenState extends State<JobScreen> {
   );
 
   /// ປຸ່ມ **ຫຼັກ** — ຖົມສີເຕັມ (v4: flat, ບໍ່ມີເງົາສີ ⇒ ປະຢັດ GPU ເຄື່ອງເກົ່າ)
+  /* ══ ຂັ້ນຕໍ່ໄປ (v5) ═══════════════════════════════════════════════════════
+     ປຸ່ມຫຼັກຂອງໜ້ານີ້ **ນິຍາມຢູ່ບ່ອນດຽວ** ແລ້ວສະແດງຢູ່ແຖບລຸ່ມຈໍ (NextActionBar).
+
+     ເປັນຫຍັງ: ແຕ່ກ່ອນປຸ່ມທັງ 6 ຝັງກະຈາຍຢູ່ກາງໜ້າຍາວ ⇒ ຊ່າງທີ່ຢືນຢູ່ໜ້າງານ
+     ຕ້ອງເລື່ອນຫາ ແລະ ບາງເທື່ອກົດອັນຜິດ. ດຽວນີ້: ເລື່ອນໄປໃສກໍ່ຕາມ ປຸ່ມທີ່ຖືກ
+     ຢູ່ບ່ອນເກົ່າສະເໝີ ແລະ ມີ**ອັນດຽວ**.
+
+     ⚠️ ຢ່າຄິດເງື່ອນໄຂຂັ້ນເອງເພີ່ມຢູ່ນີ້ — ທຸກແຖວລຸ່ມນີ້ຄັດມາຈາກເງື່ອນໄຂເກົ່າ
+     ຄຳຕໍ່ຄຳ ແລະ ຍັງອີງ `job.action` / `job.canCheckIn` ຂອງ server ຄືເກົ່າ.
+     ໜ້າທີ່ຂອງແອັບຄືສະແດງ ບໍ່ແມ່ນຕັດສິນ.
+     ══════════════════════════════════════════════════════════════════════ */
+  ({
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback? onTap,
+    String? blocker,
+  })?
+  _nextAction() {
+    // ① ວຽກໃໝ່ — ຕ້ອງຮັບກ່ອນ (ຫົວໜ້າຄົນດຽວ)
+    if (job.isLead && job.action == 'accept' && !rejecting) {
+      return (
+        label: 'ຮັບງານ',
+        icon: Icons.check_circle_outline_rounded,
+        color: teal,
+        onTap: () => run({'action': 'accept'}),
+        blocker: null,
+      );
+    }
+
+    // ② ໜ້າງານ (ສ້ອມ) — ຮັບແລ້ວ ຍັງບໍ່ check-in
+    if (job.workflow == 'repair' &&
+        job.accepted &&
+        job.stage == 1 &&
+        job.onsite &&
+        !job.hasCheckedIn &&
+        job.canCheckIn) {
+      return (
+        label: 'check-in ໜ້າງານ',
+        icon: Icons.location_on_outlined,
+        color: ink,
+        onTap: checkIn,
+        blocker: null,
+      );
+    }
+
+    // ③ ຕິດຕັ້ງ/ລ້າງແອ — check-in ຄື "ເລີ່ມງານ" ໃນຮອບທຳອິດ
+    if ((job.workflow == 'install' || job.workflow == 'maintenance') &&
+        job.canCheckIn) {
+      final first =
+          (job.workflow == 'install' && job.stage == 4) ||
+          (job.workflow == 'maintenance' && job.stage == 2);
+      return (
+        label: first ? 'check-in — ເລີ່ມງານ' : 'check-in ຮອບຕໍ່ໄປ',
+        icon: Icons.location_on_outlined,
+        color: ink,
+        onTap: checkIn,
+        blocker: null,
+      );
+    }
+
+    // ④ ສ້ອມຂັ້ນ 1-2 = ກວດເຊັກ (ໜ້າງານທີ່ຍັງບໍ່ check-in ໃຊ້ຂໍ້ ② ແທນ)
+    if (job.isLead &&
+        job.workflow == 'repair' &&
+        job.accepted &&
+        (job.stage == 1 || job.stage == 2) &&
+        !(job.stage == 1 && job.onsite && !job.hasCheckedIn)) {
+      return (
+        label: job.stage == 1 ? 'ເລີ່ມກວດເຊັກ' : 'ບັນທຶກຜົນກວດເຊັກ',
+        icon: Icons.fact_check_outlined,
+        color: teal,
+        onTap: () async {
+          final messenger = ScaffoldMessenger.of(context);
+          if (job.stage == 1) {
+            try {
+              await Api.check(job.code, {'action': 'start'});
+            } on ApiError catch (failure) {
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(failure.message),
+                  backgroundColor: danger,
+                ),
+              );
+              return;
+            }
+          }
+          await _openCheck();
+        },
+        blocker: null,
+      );
+    }
+
+    // ⑤ ເລີ່ມສ້ອມ (ຝັ່ງຕິດຕັ້ງ check-in ຄືການເລີ່ມຢູ່ແລ້ວ ⇒ ບໍ່ມີປຸ່ມນີ້)
+    if (job.isLead && job.action == 'start' && job.workflow != 'install') {
+      final needCheckIn = job.onsite && !job.hasCheckedIn;
+      return (
+        label: 'ເລີ່ມສ້ອມແປງ',
+        icon: Icons.play_arrow_rounded,
+        color: teal,
+        onTap: () => run({'action': 'start'}),
+        blocker: needCheckIn ? 'ຕ້ອງ check-in ໜ້າງານກ່ອນ ຈຶ່ງເລີ່ມງານໄດ້' : null,
+      );
+    }
+
+    // ⑥ ຈົບງານ — ຫົວໜ້າຄົນດຽວ · ຕ້ອງມີຮູບຜົນງານ (ແລະ ISN/SN ຖ້າຕິດຕັ້ງ)
+    if (job.isLead && job.action == 'finish') {
+      final needPhoto =
+          job.workflow != 'maintenance' &&
+          (job.workflow == 'install' || job.onsite) &&
+          photos.isEmpty;
+      final needSerial = job.workflow == 'install' && !job.scanDone;
+      return (
+        label: job.workflow == 'install'
+            ? 'ຕິດຕັ້ງສຳເລັດ — ສົ່ງ QC'
+            : 'ສ້ອມສຳເລັດ — ສົ່ງ QC',
+        icon: Icons.check_circle_outline_rounded,
+        color: ok,
+        onTap: () => run({
+          'action': 'finish',
+          'note': note.text,
+          'photos': photos,
+        }),
+        blocker: needPhoto
+            ? 'ຕ້ອງແນບຮູບຜົນງານຢ່າງໜ້ອຍ 1 ຮູບກ່ອນ'
+            : needSerial
+            ? 'ຕ້ອງເກັບ ISN/SN ${_missingUnit()} ກ່ອນ'
+            : null,
+      );
+    }
+
+    // ລໍຄົນອື່ນ/ຂັ້ນຕອນອື່ນ — ບໍ່ມີປຸ່ມໃຫ້ກົດ ⇒ ບໍ່ຕ້ອງມີແຖບ (ຢ່າໂຊ້ປຸ່ມຫຼອກ)
+    return null;
+  }
+
+  /// ແຖບ "ຂັ້ນຕໍ່ໄປ" — null ເມື່ອງານກຳລັງລໍຄົນອື່ນ
+  Widget? _nextActionBar() {
+    final next = _nextAction();
+    if (next == null) return null;
+    return NextActionBar(
+      label: next.label,
+      icon: next.icon,
+      tone: next.color,
+      busy: busy,
+      blocker: next.blocker,
+      onPressed: next.onTap,
+      actions: [
+        if ((job.tel ?? '').trim().isNotEmpty)
+          NextActionIcon(
+            icon: Icons.call_outlined,
+            onTap: callCustomer,
+            tooltip: 'ໂທຫາລູກຄ້າ',
+          ),
+        if (job.lat != null || (job.address ?? '').trim().isNotEmpty)
+          NextActionIcon(
+            icon: Icons.navigation_outlined,
+            onTap: openMap,
+            tooltip: 'ນຳທາງ',
+          ),
+      ],
+    );
+  }
+
   Widget _primaryAction(
     String label,
     IconData icon,

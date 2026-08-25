@@ -240,6 +240,21 @@ class _CheckScreenState extends State<CheckScreen> {
     final blocker = _blocker;
     return Scaffold(
       backgroundColor: ground,
+      bottomNavigationBar: NextActionBar(
+        label: switch (outcome) {
+          CheckOutcome.repair => 'ບັນທຶກ & ເລີ່ມສ້ອມ',
+          CheckOutcome.checkOnly => 'ບັນທຶກ ສຳເລັດການກວດ',
+          CheckOutcome.spare => 'ບັນທຶກ — ສົ່ງ admin ຂໍເບີກ',
+          CheckOutcome.bringIn => 'ບັນທຶກ & ນຳເຂົ້າສູນ',
+          CheckOutcome.cannotRepair => 'ບັນທຶກ & ຂໍຍົກເລີກ',
+          null => 'ບັນທຶກຜົນກວດເຊັກ',
+        },
+        icon: Icons.check_circle_outline_rounded,
+        tone: ok,
+        busy: busy,
+        blocker: blocker,
+        onPressed: _submit,
+      ),
       body: Column(
         children: [
           HeroHeader(
@@ -460,48 +475,9 @@ class _CheckScreenState extends State<CheckScreen> {
           const SizedBox(height: 18),
           // ── ຮູບຕອນກວດເຊັກ (ຫຼັກຖານອາການ/ຄວາມເສຍຫາຍ) — ບໍ່ບັງຄັບ ──
           _photoCard(),
-          const SizedBox(height: 18),
-          // ── ບອກເຫດຜົນເມື່ອຍັງບັນທຶກບໍ່ໄດ້ (ບໍ່ໃຫ້ปุ่มเทาลอยໆ ໂດຍບໍ່ຮູ້ສາເຫດ) ──
-          if (blocker != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 15, color: faint),
-                  const SizedBox(width: 6),
-                  Text(
-                    blocker,
-                    style: const TextStyle(fontSize: 12.5, color: faint),
-                  ),
-                ],
-              ),
-            ),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: ok,
-              minimumSize: const Size.fromHeight(54),
-            ),
-            onPressed: busy || blocker != null ? null : _submit,
-            icon: busy
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.check_circle_outline, size: 20),
-            label: Text(switch (outcome) {
-              CheckOutcome.repair => 'ບັນທຶກ & ເລີ່ມສ້ອມ',
-              CheckOutcome.checkOnly => 'ບັນທຶກ ສຳເລັດການກວດເຊັກ',
-              CheckOutcome.spare => 'ບັນທຶກ — ສົ່ງໃຫ້ admin ຂໍເບີກ',
-              CheckOutcome.bringIn => 'ບັນທຶກ & ນຳເຂົ້າສູນ',
-              CheckOutcome.cannotRepair => 'ບັນທຶກ & ຂໍຍົກເລີກ (ຄືນເຄື່ອງ)',
-              null => 'ບັນທຶກຜົນກວດເຊັກ',
-            }),
-          ),
+          // ປຸ່ມບັນທຶກ + ເຫດຜົນທີ່ຍັງກົດບໍ່ໄດ້ ຍ້າຍໄປແຖບລຸ່ມ (v5) —
+          // ຟອມນີ້ຍາວກວ່າ 1 ຈໍ ⇒ ປຸ່ມທ້າຍໜ້າເຫັນໄດ້ຕໍ່ເມື່ອເລື່ອນສຸດ ແລະ
+          // ເຫດຜົນທີ່ກົດບໍ່ໄດ້ກໍ່ຢູ່ໄກຈາກຕອນທີ່ພະຍາຍາມກົດ.
         ],
       ),
           ),

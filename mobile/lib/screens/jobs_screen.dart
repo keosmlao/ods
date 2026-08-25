@@ -243,12 +243,6 @@ _Phase _phaseOf(Job job) {
   }
 }
 
-class _Group {
-  final _Phase phase;
-  final List<Job> jobs;
-  const _Group(this.phase, this.jobs);
-}
-
 /* ── ພາກໃຫຍ່: ກວດເຊັກ · ສ້ອມແປງ · ຕິດຕັ້ງ ────────────────────────
    ວຽກ "ກວດເຊັກ" ກັບ "ສ້ອມແປງ" ເປັນຄົນລະຫົວວຽກ ⇒ ແຍກເປັນພາກ ບໍ່ໃຫ້ປົນກັນ.
    ງານຕິດຕັ້ງເປັນອີກສາຍງານໜຶ່ງ (ບໍ່ມີຂັ້ນກວດເຊັກ) ຈຶ່ງແຍກພາກຂອງມັນເອງ. */
@@ -286,12 +280,109 @@ _Band _bandOf(Job job) {
   return (s >= 0 && s <= 2) ? _Band.check : _Band.repair;
 }
 
-class _BandGroup {
-  final _Band band;
-  final List<_Group> groups;
-  final int total;
-  final int actionCount;
-  const _BandGroup(this.band, this.groups, this.total, this.actionCount);
+/* ══ ຄວາມຮີບ (v5) ══════════════════════════════════════════════════════════
+   ແຕ່ກ່ອນລາຍການຈັດກຸ່ມຕາມ **ໄລຍະ** (ລໍຖ້າກວດ · ກຳລັງສ້ອມ …) ເຊິ່ງເປັນວິທີຄິດຂອງ
+   ລະບົບ. ຊ່າງບໍ່ໄດ້ວາງແຜນມື້ຂອງຕົນຈາກໄລຍະ — ລາວວາງແຜນຈາກ **ເວລາ**: ອັນໃດເລີຍກຳນົດ
+   ແລ້ວ, ອັນໃດນັດມື້ນີ້, ອັນໃດຍັງບໍ່ຮອດຄິວ. v5 ຈຶ່ງຈັດກຸ່ມຕາມນັ້ນ ແລະ ຍົກໄລຍະລົງໄປ
+   ເປັນລາຍລະອຽດໃນກາດ (ຍັງເຫັນຢູ່ ບໍ່ໄດ້ຫາຍໄປ).
+   ══════════════════════════════════════════════════════════════════════════ */
+enum _Urgency { late_, today, act, waitSpare, waitOther }
+
+const _urgencyLabel = {
+  _Urgency.late_: 'ຊ້າແລ້ວ',
+  _Urgency.today: 'ນັດມື້ນີ້',
+  _Urgency.act: 'ຕ້ອງລົງມື',
+  _Urgency.waitSpare: 'ລໍອາໄຫຼ່',
+  _Urgency.waitOther: 'ລໍຂັ້ນຕອນອື່ນ',
+};
+
+const _urgencyColor = {
+  _Urgency.late_: danger,
+  _Urgency.today: warn,
+  _Urgency.act: ink,
+  _Urgency.waitSpare: warn,
+  _Urgency.waitOther: muted,
+};
+
+/// ວັນນັດ — server ສົ່ງເປັນ `DD-MM-YYYY` (mobile-jobs.ts). ອ່ານບໍ່ອອກ = null
+/// ⇒ ຖືວ່າ "ບໍ່ມີນັດ" ບໍ່ແມ່ນ "ເລີຍນັດ" (ຢ່າຍ້ອມແດງໃສ່ໃບທີ່ບໍ່ໄດ້ຊ້າ).
+DateTime? _appointDate(Job job) {
+  final raw = job.appointment;
+  if (raw == null || raw.length < 10) return null;
+  final parts = raw.split('-');
+  if (parts.length != 3) return null;
+  final day = int.tryParse(parts[0]);
+  final month = int.tryParse(parts[1]);
+  final year = int.tryParse(parts[2]);
+  if (day == null || month == null || year == null) return null;
+  return DateTime(year, month, day);
+}
+
+/// ຈຳນວນມື້ຈາກມື້ນີ້ຫາວັນນັດ (ລົບ = ເລີຍນັດແລ້ວ · null = ບໍ່ມີນັດ)
+int? _appointIn(Job job) {
+  final date = _appointDate(job);
+  if (date == null) return null;
+  final now = DateTime.now();
+  return date.difference(DateTime(now.year, now.month, now.day)).inDays;
+}
+
+const _actionable = {'accept', 'start', 'finish'};
+
+_Urgency _urgencyOf(Job job) {
+  final overdueSla = job.slaLeft != null && job.slaLeft! < 0;
+  final due = _appointIn(job);
+  // ເລີຍກຳນົດ SLA ຫຼື ເລີຍວັນນັດ = ຊ້າ **ບໍ່ວ່າຈະຢູ່ຂັ້ນໃດ** (ຫົວໜ້າຖາມຫາອັນນີ້ກ່ອນ)
+  if (overdueSla || (due != null && due < 0)) return _Urgency.late_;
+  if (due == 0) return _Urgency.today;
+  if (_actionable.contains(job.action)) return _Urgency.act;
+  return job.action == 'wait_spare' ? _Urgency.waitSpare : _Urgency.waitOther;
+}
+
+/// ຮີບກ່ອນຢູ່ເທິງ: SLA ໜ້ອຍສຸດ → ນັດໃກ້ສຸດ → ຄ້າງດົນສຸດ (ນິຍາມດຽວກັບ order by ຂອງ server)
+int _byUrgency(Job a, Job b) {
+  final sla = (a.slaLeft ?? 1e9).compareTo(b.slaLeft ?? 1e9);
+  if (sla != 0) return sla;
+  final due = (_appointIn(a) ?? 1 << 30).compareTo(_appointIn(b) ?? 1 << 30);
+  if (due != 0) return due;
+  return b.elapsedSeconds.compareTo(a.elapsedSeconds);
+}
+
+/// ຄຳສັ່ງທີ່ຈະຂຶ້ນເປັນ **ແຖວທຳອິດ** ຂອງກາດ — ຄຳກິລິຍາ ບໍ່ແມ່ນສະຖານະ.
+/// ຂັ້ນທີ່ຊ່າງລົງມືບໍ່ໄດ້ (ລໍຄົນອື່ນ) ໃຊ້ຊື່ໄລຍະ ເພາະນັ້ນຄືຂໍ້ມູນທີ່ມີຄ່າກວ່າ.
+String _actionVerb(Job job) => switch (job.action) {
+  'accept' => 'ຕ້ອງຮັບງານ',
+  'start' => job.onsite && !job.checkedIn ? 'ໄປໜ້າງານ — check-in' : 'ພ້ອມເລີ່ມ',
+  'finish' => job.onsite && !job.checkedIn
+      ? 'ໄປໜ້າງານ — check-in'
+      : 'ກຳລັງເຮັດ — ບັນທຶກຜົນ',
+  'wait_spare' => 'ລໍອາໄຫຼ່',
+  _ => _phaseOf(job).label,
+};
+
+/// ຊິບເວລາຂອງກາດ — ອັນດຽວ ບອກສິ່ງທີ່ຮີບທີ່ສຸດ
+({String label, TimeTone tone}) _timeOf(Job job) {
+  final sla = job.slaLeft;
+  if (sla != null) {
+    final hours = (sla.abs() / 3600).floor();
+    if (sla < 0) return (label: 'ເລີຍກຳນົດ $hours ຊມ', tone: TimeTone.late_);
+    if (sla < 4 * 3600) return (label: 'ເຫຼືອ $hours ຊມ', tone: TimeTone.soon);
+  }
+  final due = _appointIn(job);
+  if (due != null) {
+    if (due < 0) return (label: 'ເລີຍນັດ ${-due} ມື້', tone: TimeTone.late_);
+    if (due == 0) return (label: 'ນັດມື້ນີ້', tone: TimeTone.soon);
+    return (label: 'ນັດ ${job.appointment!.substring(0, 5)}', tone: TimeTone.plain);
+  }
+  return (
+    label: job.totalLabel != null ? 'ໃຊ້ເວລາ ${job.totalLabel}' : 'ຄ້າງ ${job.days} ມື້',
+    tone: TimeTone.plain,
+  );
+}
+
+class _UrgencyGroup {
+  final _Urgency urgency;
+  final List<Job> jobs;
+  const _UrgencyGroup(this.urgency, this.jobs);
 }
 
 class JobsScreen extends StatefulWidget {
@@ -359,64 +450,45 @@ class _JobsScreenState extends State<JobsScreen> {
     ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 
-  /// ຈັດກຸ່ມຕາມໄລຍະ (phase) — ໃນກຸ່ມຮຽງ action ດ່ວນກ່ອນ · ກຸ່ມຮຽງຕາມລຳດັບ flow
-  List<_Group> _groupPhases(List<Job> list) {
-    final byLabel = <String, List<Job>>{};
-    final phaseOf = <String, _Phase>{};
-    for (final j in list) {
-      final p = _phaseOf(j);
-      (byLabel[p.label] ??= []).add(j);
-      phaseOf[p.label] = p;
+  /// ພາກທີ່ຖືກເລືອກ (null = ທັງໝົດ) — v5 ໃຊ້ຊິບແທນ tab ຈຶ່ງມີ "ທັງໝົດ" ໄດ້
+  /// (ແຕ່ກ່ອນ tab ບັງຄັບໃຫ້ເບິ່ງເທື່ອລະພາກ ⇒ ຊ່າງທີ່ມີທັງງານສ້ອມ ແລະ ຕິດຕັ້ງ
+  /// ຕ້ອງສະຫຼັບ tab ໄປມາ ຈຶ່ງຮູ້ວ່າມື້ນີ້ຕ້ອງໄປໃສກ່ອນ).
+  _Band? filter;
+
+  /// ວຽກຫຼັງກອງພາກ
+  List<Job> get _visible =>
+      filter == null ? jobs : jobs.where((j) => _bandOf(j) == filter).toList();
+
+  /// ຈຳນວນຕໍ່ພາກ — ໃສ່ໃນຊິບ ⇒ ຮູ້ປະລິມານກ່ອນກົດ
+  Map<_Band, int> get _bandCounts {
+    final out = <_Band, int>{};
+    for (final j in jobs) {
+      out.update(_bandOf(j), (v) => v + 1, ifAbsent: () => 1);
     }
-    const priority = {'accept': 0, 'start': 1, 'finish': 2, 'wait_spare': 3};
-    final groups = byLabel.entries.map((e) {
-      e.value.sort(
-        (a, b) => (priority[a.action] ?? 4).compareTo(priority[b.action] ?? 4),
-      );
-      return _Group(phaseOf[e.key]!, e.value);
-    }).toList();
-    groups.sort((a, b) {
-      final c = a.phase.order.compareTo(b.phase.order);
-      return c != 0 ? c : a.phase.label.compareTo(b.phase.label);
-    });
-    return groups;
+    return out;
   }
 
-  /// ແບ່ງເປັນພາກໃຫຍ່ກ່ອນ (ກວດເຊັກ / ສ້ອມແປງ / ຕິດຕັ້ງ) ແລ້ວຈຶ່ງແບ່ງໄລຍະພາຍໃນ.
-  /// ພາກທີ່ບໍ່ມີວຽກ ບໍ່ສະແດງ (ບໍ່ໃຫ້ຫົວຫວ່າງລອຍ)
-  List<_BandGroup> get bands {
-    final byBand = <_Band, List<Job>>{};
-    for (final j in jobs) {
-      (byBand[_bandOf(j)] ??= []).add(j);
+  /// ຈັດກຸ່ມຕາມ **ຄວາມຮີບ** — ກຸ່ມຫວ່າງບໍ່ສະແດງ (ບໍ່ໃຫ້ຫົວລອຍ)
+  List<_UrgencyGroup> get _groups {
+    final byUrgency = <_Urgency, List<Job>>{};
+    for (final j in _visible) {
+      (byUrgency[_urgencyOf(j)] ??= []).add(j);
     }
-    const urgent = {'accept', 'start', 'finish'};
-    final out = <_BandGroup>[];
-    for (final band in [
-      _Band.check,
-      _Band.repair,
-      _Band.install,
-      _Band.maintenance,
-    ]) {
-      final list = byBand[band];
+    final out = <_UrgencyGroup>[];
+    for (final urgency in _Urgency.values) {
+      final list = byUrgency[urgency];
       if (list == null || list.isEmpty) continue;
-      out.add(
-        _BandGroup(
-          band,
-          _groupPhases(list),
-          list.length,
-          list.where((j) => urgent.contains(j.action)).length,
-        ),
-      );
+      list.sort(_byUrgency);
+      out.add(_UrgencyGroup(urgency, list));
     }
     return out;
   }
 
   @override
   Widget build(BuildContext context) {
-    final actionCount = jobs
-        .where((j) => ['accept', 'start', 'finish'].contains(j.action))
-        .length;
-    final onsiteCount = jobs.where((j) => j.onsite).length;
+    final actionCount = jobs.where((j) => _actionable.contains(j.action)).length;
+    final lateCount = jobs.where((j) => _urgencyOf(j) == _Urgency.late_).length;
+    final todayCount = jobs.where((j) => _urgencyOf(j) == _Urgency.today).length;
     return Scaffold(
       backgroundColor: ground,
       body: Column(
@@ -503,20 +575,23 @@ class _JobsScreenState extends State<JobsScreen> {
                 ),
               ),
             ],
+            // v5: ສະຖິຕິບອກ **ຄວາມຮີບ** ບໍ່ແມ່ນປະລິມານ — "ວຽກໜ້າງານ 12" ບໍ່ໄດ້ບອກ
+            // ວ່າຕ້ອງເຮັດຫຍັງກ່ອນ, ແຕ່ "ຊ້າແລ້ວ 2" ບອກ.
             stats: [
-              HeroStat(value: '${jobs.length}', label: 'ວຽກທັງໝົດ'),
               HeroStat(
-                value: '$actionCount',
-                label: 'ຕ້ອງລົງມື',
-                color: const Color(0xFFFDBA74),
+                value: '$lateCount',
+                label: 'ຊ້າແລ້ວ',
+                color: lateCount > 0 ? const Color(0xFFFDA4AF) : null,
               ),
               HeroStat(
-                value: '$onsiteCount',
-                label: 'ວຽກໜ້າງານ',
-                color: const Color(0xFF6EE7B7),
+                value: '$todayCount',
+                label: 'ນັດມື້ນີ້',
+                color: todayCount > 0 ? const Color(0xFFFDBA74) : null,
               ),
+              HeroStat(value: '$actionCount', label: 'ຕ້ອງລົງມື'),
             ],
           ),
+          if (!loading && error.isEmpty && jobs.isNotEmpty) _filterPills(),
           Expanded(
             child: loading
                 ? const Center(child: CircularProgressIndicator())
@@ -532,198 +607,137 @@ class _JobsScreenState extends State<JobsScreen> {
                     title: 'ບໍ່ມີວຽກ',
                     action: load,
                   )
-                : _tabbedBands(),
+                : _urgencyList(),
           ),
         ],
       ),
     );
   }
 
-  /// ── ແຍກ tab ຕໍ່ພາກໃຫຍ່ (ກວດເຊັກ · ສ້ອມແປງ · ຕິດຕັ້ງ · ລ້າງແອ) ──
-  /// ວຽກກວດເຊັກ ກັບ ສ້ອມແປງ ເປັນຄົນລະຫົວ ⇒ ຢູ່ຄົນລະ tab ບໍ່ໃຫ້ເລື່ອນປົນກັນ.
-  /// tab ມີສະເພາະພາກທີ່ມີວຽກ (key ຕາມຊຸດພາກ ⇒ ສ້າງ controller ໃໝ່ເມື່ອພາກປ່ຽນ).
-  Widget _tabbedBands() {
-    final bs = bands;
-    return DefaultTabController(
-      key: ValueKey(bs.map((b) => b.band.name).join(',')),
-      length: bs.length,
-      child: Column(
+  /// ── ຊິບກອງພາກ (ແທນ tab v4) ──
+  /// ຊິບເລື່ອນໄດ້ ⇒ ໃສ່ "ທັງໝົດ" ໄດ້ ແລະ ບອກຈຳນວນຕໍ່ພາກ. ພາກທີ່ບໍ່ມີວຽກ ບໍ່ຂຶ້ນ.
+  Widget _filterPills() {
+    final counts = _bandCounts;
+    final bands = [_Band.check, _Band.repair, _Band.install, _Band.maintenance]
+        .where((b) => (counts[b] ?? 0) > 0)
+        .toList();
+    // ມີພາກດຽວ = ບໍ່ມີຫຍັງໃຫ້ກອງ ⇒ ບໍ່ຕ້ອງກິນເນື້ອທີ່ຈໍ
+    if (bands.length < 2) return const SizedBox.shrink();
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
         children: [
-          Container(
-            margin: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: surfaceAlt,
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: line),
+          _pill(label: 'ທັງໝົດ', count: jobs.length, band: null),
+          for (final band in bands)
+            _pill(
+              label: _bandTabLabel[band] ?? _bandMeta[band]!.label,
+              count: counts[band] ?? 0,
+              band: band,
+              icon: _bandMeta[band]!.icon,
             ),
-            child: TabBar(
-              isScrollable: bs.length > 2,
-              tabAlignment: bs.length > 2
-                  ? TabAlignment.start
-                  : TabAlignment.fill,
-              labelColor: ink,
-              unselectedLabelColor: muted,
-              indicatorSize: TabBarIndicatorSize.tab,
-              dividerColor: Colors.transparent,
-              // v4: flat — ຂອບແທນເງົາ
-              indicator: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: lineStrong),
-              ),
-              labelStyle: const TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 12,
-              ),
-              tabs: [for (final b in bs) _bandTab(b)],
-            ),
-          ),
-          Expanded(
-            child: TabBarView(children: [for (final b in bs) _bandView(b)]),
-          ),
         ],
       ),
     );
   }
 
-  /// ຫົວ tab — ໄອຄອນ + ຊື່ພາກ + ຈຳນວນ (ແດງ = ມີວຽກຕ້ອງລົງມື)
-  Widget _bandTab(_BandGroup band) {
-    final meta = _bandMeta[band.band]!;
-    final urgent = band.actionCount > 0;
-    return Tab(
-      height: 43,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(meta.icon, size: 15),
-          const SizedBox(width: 5),
-          Text(_bandTabLabel[band.band] ?? meta.label),
-          const SizedBox(width: 5),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+  Widget _pill({
+    required String label,
+    required int count,
+    required _Band? band,
+    IconData? icon,
+  }) {
+    final on = filter == band;
+    return Padding(
+      padding: const EdgeInsets.only(right: 7),
+      child: Material(
+        color: on ? teal : Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          onTap: () => setState(() => filter = band),
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13),
             decoration: BoxDecoration(
-              color: urgent
-                  ? danger.withValues(alpha: .12)
-                  : const Color(0xFF64748B).withValues(alpha: .12),
               borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: on ? teal : lineStrong),
             ),
-            child: Text(
-              '${band.total}',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-                color: urgent ? danger : const Color(0xFF64748B),
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 14, color: on ? Colors.white : muted),
+                  const SizedBox(width: 5),
+                ],
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: on ? Colors.white : body,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w900,
+                    color: on ? Colors.white70 : faint,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  /// ເນື້ອໃນ tab ໜຶ່ງພາກ — ຈັດໄລຍະ (phase) + ບັດງານ (ບໍ່ຕ້ອງມີ banner ຊ້ຳຊື່ພາກ)
-  Widget _bandView(_BandGroup band) {
+  /// ລາຍການວຽກ — ຈັດກຸ່ມຕາມຄວາມຮີບ (ຊ້າ · ນັດມື້ນີ້ · ຕ້ອງລົງມື · ລໍ…)
+  Widget _urgencyList() {
+    final groups = _groups;
+    if (groups.isEmpty) {
+      return _Empty(
+        icon: Icons.filter_alt_off_rounded,
+        title: 'ບໍ່ມີວຽກໃນພາກນີ້',
+        action: () async => setState(() => filter = null),
+      );
+    }
     return RefreshIndicator(
       onRefresh: load,
-      child: CustomScrollView(
-        slivers: [
-          for (final group in band.groups) ...[
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _PhaseHeader(
-                phase: group.phase,
-                count: group.jobs.length,
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(14, 5, 14, 10),
-              sliver: SliverList.separated(
-                itemCount: group.jobs.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (_, i) => _JobCard(
-                  job: group.jobs[i],
-                  accent: group.phase.color,
-                  onDone: load,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(14, 4, 14, 20),
+        // ແຖວ = ຫົວກຸ່ມ + ກາດຂອງກຸ່ມນັ້ນ (ນັບລວມກັນເປັນ index ດຽວ)
+        itemCount: groups.fold<int>(0, (n, g) => n + g.jobs.length + 1),
+        itemBuilder: (_, index) {
+          var i = index;
+          for (final group in groups) {
+            if (i == 0) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 6),
+                child: BandHeader(
+                  _urgencyLabel[group.urgency]!,
+                  count: group.jobs.length,
+                  color: _urgencyColor[group.urgency]!,
                 ),
-              ),
-            ),
-          ],
-          const SliverToBoxAdapter(child: SizedBox(height: 14)),
-        ],
+              );
+            }
+            if (i <= group.jobs.length) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _JobCard(job: group.jobs[i - 1], onDone: load),
+              );
+            }
+            i -= group.jobs.length + 1;
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
-}
-
-/// ຫົວກຸ່ມໄລຍະ **ຕິດຄ້າງ** (pinned) — ຮູບໄອຄອນສີ + ຊື່ໄລຍະ + ຈຳນວນ.
-/// ຕິດຄ້າງເທິງສຸດຂະນະເລື່ອນ ⇒ ຊ່າງຮູ້ສະເໝີວ່າກຳລັງເບິ່ງໄລຍະໃດ.
-class _PhaseHeader extends SliverPersistentHeaderDelegate {
-  const _PhaseHeader({required this.phase, required this.count});
-  final _Phase phase;
-  final int count;
-
-  @override
-  double get minExtent => 58;
-  @override
-  double get maxExtent => 58;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return Container(
-      color: ground,
-      padding: const EdgeInsets.fromLTRB(14, 11, 14, 7),
-      alignment: Alignment.centerLeft,
-      child: Row(
-        children: [
-          Container(
-            width: 35,
-            height: 35,
-            decoration: BoxDecoration(
-              color: phase.color.withValues(alpha: .12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(phase.icon, size: 19, color: phase.color),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              phase.label,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: ink,
-                letterSpacing: -.2,
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-            decoration: BoxDecoration(
-              color: phase.color.withValues(alpha: .12),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              '$count',
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w900,
-                color: phase.color,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(_PhaseHeader old) =>
-      old.count != count || old.phase.label != phase.label;
 }
 
 /// ມີເນື້ອຫາແທ້ບໍ — ຂໍ້ມູນຈິງມີຄ່າ "." / "-" ທີ່ບໍ່ໄດ້ບອກຫຍັງ ຢ່າເອົາມາກິນເນື້ອທີ່
@@ -732,8 +746,6 @@ bool _hasText(String? value) {
   return text.isNotEmpty && text != '.' && text != '-';
 }
 
-/// ບັດງານ **ແບບໃບງານ (ticket)** — ແຖບສີໄລຍະເທິງສຸດ · ເລກໃບເດັ່ນ · ເສັ້ນປະແບ່ງສ່ວນ
-/// ປະເພດບໍລິການສ້ອມ (CI/ST/IH/PS) — ປ້າຍເດັ່ນໆໃນบัตร (ໃຫ້ຮູ້ທັນທີວ່າໄປໜ້າງານ/ຢູ່ສູນ).
 ({String label, IconData icon, Color color})? _serviceKind(Job job) {
   if (job.workflow == 'install') {
     return (
@@ -783,20 +795,22 @@ bool _hasText(String? value) {
   }
 }
 
+/// ກາດວຽກ v5 — **ຄຳສັ່ງມາກ່ອນ**.
+///
+/// v4 ວາງ `#SRV-0012` ເປັນແຖວທຳອິດ ແລ້ວປ່ອຍໃຫ້ຕາໄລ່ຫາປ້າຍສະຖານະຢູ່ມຸມຂວາ.
+/// ແຕ່ເລກໃບບໍ່ໄດ້ບອກວ່າຕ້ອງເຮັດຫຍັງ — ມັນມີຄ່າຕອນຄຸຍໂທລະສັບເທົ່ານັ້ນ.
+/// v5 ຈຶ່ງເອົາ**ຄຳກິລິຍາ** (ໄປໜ້າງານ · ບັນທຶກຜົນ · ຮັບງານ) ຂຶ້ນແຖວໃຫຍ່ ແລະ
+/// ຫຼຸດເລກໃບລົງເປັນແຖວສອງ (ຍັງອ່ານ/ບອກຕໍ່ໄດ້ຢູ່).
 class _JobCard extends StatelessWidget {
-  const _JobCard({
-    required this.job,
-    required this.accent,
-    required this.onDone,
-  });
+  const _JobCard({required this.job, required this.onDone});
   final Job job;
-  final Color accent;
   final Future<void> Function() onDone;
 
   @override
   Widget build(BuildContext context) {
+    final phase = _phaseOf(job);
     final kind = _serviceKind(job);
-    final statusColor = actionColor[job.action] ?? muted;
+    final time = _timeOf(job);
     final who = [
       if (_hasText(job.customer)) job.customer!.trim(),
       if (_hasText(job.address)) job.address!.trim(),
@@ -809,221 +823,175 @@ class _JobCard extends StatelessWidget {
     return RepaintBoundary(
       child: Container(
         clipBehavior: Clip.antiAlias,
-        // v4: flat — ບໍ່ມີເງົາ (list ຍາວ render ໄວຂຶ້ນເທິງເຄື່ອງເກົ່າ)
+        // flat — ບໍ່ມີເງົາ (list ຍາວ render ໄວຂຶ້ນເທິງເຄື່ອງເກົ່າ)
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(kCardRadius),
           border: Border.all(color: line),
         ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: open,
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // ແຖບສີໄລຍະ ດ້ານຊ້າຍ (ຜູກບັດກັບໄລຍະ) — ບາງ ບໍ່ກິນເນື້ອທີ່
-                Container(width: 5, color: accent),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(13, 12, 11, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // ── ຫົວ: ເລກ + ປະເພດ + ສະຖານະ ──
-                        Row(
-                          children: [
-                            Text(
-                              '#${job.code}',
-                              style: const TextStyle(
-                                color: ink,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -.3,
-                                fontFeatures: [FontFeature.tabularFigures()],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            if (kind != null)
-                              Flexible(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: kind.color.withValues(alpha: .12),
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        kind.icon,
-                                        size: 12,
-                                        color: kind.color,
-                                      ),
-                                      const SizedBox(width: 3),
-                                      Flexible(
-                                        child: Text(
-                                          kind.label,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color: kind.color,
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            const SizedBox(width: 6),
-                            const Spacer(),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: .1),
-                                borderRadius: BorderRadius.circular(9),
-                              ),
-                              child: Text(
-                                actionLabel[job.action] ?? '-',
-                                style: TextStyle(
-                                  color: statusColor,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 9),
-                        // ── ຊື່ສິນຄ້າ (1 ແຖວ) ──
-                        Text(
-                          job.product ?? '-',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: ink,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        if (who.isNotEmpty) ...[
-                          const SizedBox(height: 5),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: open,
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ແຖບສີໄລຍະດ້ານຊ້າຍ — ຍັງເປັນຕົວບອກ "ຢູ່ຂັ້ນໃດຂອງ flow"
+                  Container(width: 5, color: phase.color),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 11, 11, 11),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // ── ① ຄຳສັ່ງ + ເວລາ ──
                           Row(
                             children: [
-                              const Icon(
-                                Icons.person_outline_rounded,
-                                size: 14,
-                                color: faint,
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: phase.color,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
-                              const SizedBox(width: 5),
+                              const SizedBox(width: 7),
                               Expanded(
                                 child: Text(
-                                  who,
+                                  _actionVerb(job),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    fontSize: 12,
-                                    color: muted,
-                                    fontWeight: FontWeight.w600,
+                                    color: ink,
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -.2,
                                   ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              TimeChip(time.label, tone: time.tone),
+                            ],
+                          ),
+                          const SizedBox(height: 7),
+                          // ── ② ເລກໃບ + ສິນຄ້າ ──
+                          Row(
+                            children: [
+                              Text(
+                                job.code,
+                                style: const TextStyle(
+                                  color: teal,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                  fontFeatures: [FontFeature.tabularFigures()],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  job.product ?? '-',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: body,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              if (kind != null) ...[
+                                const SizedBox(width: 6),
+                                Icon(kind.icon, size: 13, color: kind.color),
+                              ],
+                            ],
+                          ),
+                          if (who.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              who,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: muted,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          const Divider(height: 1),
+                          const SizedBox(height: 8),
+                          // ── ③ ໄລຍະ + ປ້າຍພິເສດ ──
+                          Row(
+                            children: [
+                              if (job.checkedIn) ...[
+                                const Icon(Icons.location_on, size: 13, color: ok),
+                                const SizedBox(width: 3),
+                              ],
+                              /*
+                                ── ໃບທີ່ຕ້ອງກັບໄປອີກຮອບ (12-08-2026) ──
+                                ຊ່າງບໍ່ສົນວ່າ "ຄ້າງ 48 ມື້" — ລາວສົນວ່າໃບນີ້ເຄີຍໄປແລ້ວບໍ.
+                              */
+                              if (job.visitRounds > 0) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: tealTint,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    'ຮອບທີ ${job.checkedIn ? job.visitRounds : job.visitRounds + 1}',
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w900,
+                                      color: teal,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  phase.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    color: faint,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                width: 27,
+                                height: 27,
+                                decoration: BoxDecoration(
+                                  color: phase.color.withValues(alpha: .09),
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                child: Icon(
+                                  Icons.arrow_forward_rounded,
+                                  color: phase.color,
+                                  size: 15,
                                 ),
                               ),
                             ],
                           ),
                         ],
-                        const SizedBox(height: 8),
-                        const Divider(height: 1),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            if (job.checkedIn) ...[
-                              const Icon(
-                                Icons.location_on,
-                                size: 12,
-                                color: ok,
-                              ),
-                              const SizedBox(width: 3),
-                            ],
-                            /*
-                              ── ໃບທີ່ຕ້ອງກັບໄປອີກຮອບ (12-08-2026) ──
-                              ຊ່າງບໍ່ສົນວ່າ "ຄ້າງ 48 ມື້" (ຕົວເລກຂອງຫົວໜ້າ) — ລາວສົນວ່າ
-                              ໃບນີ້ເຄີຍໄປແລ້ວບໍ ແລະ ນັດວັນໃດ. ຮອບ > 0 ⇒ ຂຶ້ນປ້າຍນຳໜ້າ.
-                            */
-                            if (job.visitRounds > 0) ...[
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: tealTint,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  // ຍັງ check-in ຄ້າງ = ກຳລັງເຮັດຮອບນັ້ນຢູ່ ⇒ ບໍ່ບວກເພີ່ມ
-                                  'ຮອບທີ ${job.checkedIn ? job.visitRounds : job.visitRounds + 1}',
-                                  style: const TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w900,
-                                    color: teal,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                            ],
-                            Expanded(
-                              child: Text(
-                                [
-                                  job.totalLabel != null
-                                      ? 'ໃຊ້ເວລາ ${job.totalLabel}'
-                                      : 'ຄ້າງ ${job.days} ມື້',
-                                  if (job.appointment != null)
-                                    'ນັດ ${job.appointment}',
-                                ].join('  ·  '),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 11.5,
-                                  color: muted,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Container(
-                              width: 27,
-                              height: 27,
-                              decoration: BoxDecoration(
-                                color: accent.withValues(alpha: .09),
-                                borderRadius: BorderRadius.circular(9),
-                              ),
-                              child: Icon(
-                                Icons.arrow_forward_rounded,
-                                color: accent,
-                                size: 15,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
-      ),
       ),
     );
   }
