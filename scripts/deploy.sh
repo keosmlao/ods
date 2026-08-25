@@ -46,16 +46,18 @@ echo "▶ build..."
 npm run build
 
 # ⑤ restart ───────────────────────────────────────────────────────────────
-APP_NAME="${ODSS_PM2_NAME:-odss}"
+# ຊື່ຈິງຢູ່ production = `ods` (systemd unit ods.service, PORT 3007) — ບໍ່ແມ່ນ `odss`
+APP_NAME="${ODSS_PM2_NAME:-ods}"
+SERVICE="${ODSS_SERVICE:-ods}"
 if command -v pm2 >/dev/null 2>&1 && pm2 describe "$APP_NAME" >/dev/null 2>&1; then
   echo "▶ restart ຜ່ານ pm2 ($APP_NAME)..."
   pm2 restart "$APP_NAME" --update-env
-elif systemctl list-units --type=service 2>/dev/null | grep -q "${ODSS_SERVICE:-odss}"; then
-  echo "▶ restart ຜ່ານ systemd (${ODSS_SERVICE:-odss})..."
-  sudo systemctl restart "${ODSS_SERVICE:-odss}"
+elif systemctl list-units --type=service --all 2>/dev/null | grep -q "$SERVICE.service"; then
+  echo "▶ restart ຜ່ານ systemd ($SERVICE)..."
+  sudo systemctl restart "$SERVICE"
 else
   echo "▶ ຫາ pm2/systemd ບໍ່ພົບ — restart ເອງດ້ວຍວິທີທີ່ໃຊ້ຢູ່ ເຊັ່ນ:"
-  echo "    pm2 restart $APP_NAME    ຫຼື    sudo systemctl restart odss"
+  echo "    pm2 restart $APP_NAME    ຫຼື    sudo systemctl restart $SERVICE"
 fi
 
 # ── ເຕືອນສິ່ງທີ່ລືມເລື້ອຍ ────────────────────────────────────────────────
@@ -67,6 +69,6 @@ cat <<'REMINDER'
     · ໄຟລ໌ upload    → ODS_UPLOADS_DIR ຕ້ອງຊີ້ບ່ອນເກົ່າ (ຮູບຮັບເຄື່ອງ/ຜົນງານ)
 
 ▶ ກວດຫຼັງ deploy:
-    curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/login    # ຄາດ 200
+    curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3007/login    # ຄາດ 200
 REMINDER
 echo "✅ ແລ້ວ"
