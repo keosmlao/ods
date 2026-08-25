@@ -52,7 +52,10 @@ SERVICE="${ODSS_SERVICE:-ods}"
 if command -v pm2 >/dev/null 2>&1 && pm2 describe "$APP_NAME" >/dev/null 2>&1; then
   echo "▶ restart ຜ່ານ pm2 ($APP_NAME)..."
   pm2 restart "$APP_NAME" --update-env
-elif systemctl list-units --type=service --all 2>/dev/null | grep -q "$SERVICE.service"; then
+# ⚠️ ຢ່າໃຊ້ `systemctl list-units | grep -q` ຢູ່ນີ້: `set -o pipefail` + `grep -q`
+# (ອອກທັນທີທີ່ພົບ ⇒ systemctl ໄດ້ SIGPIPE ⇒ pipeline ຄືນ 141) ⇒ ເງື່ອນໄຂເປັນ false
+# ທຸກເທື່ອ ⇒ **ບໍ່ restart** ແຕ່ script ຍັງພິມ "✅ ແລ້ວ" (ພົບຈິງ 25-08-2026).
+elif [ "$(systemctl show "$SERVICE" -p LoadState --value 2>/dev/null)" = "loaded" ]; then
   echo "▶ restart ຜ່ານ systemd ($SERVICE)..."
   sudo systemctl restart "$SERVICE"
 else
