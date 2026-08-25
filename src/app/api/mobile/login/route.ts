@@ -1,3 +1,4 @@
+import { evaluateMobileAppVersion } from "@/lib/app-update-gate";
 import { verifyCredentials } from "@/lib/credentials";
 import { recordLogin } from "@/lib/login-log";
 import { createMobileToken } from "@/lib/mobile-auth";
@@ -29,9 +30,16 @@ export async function POST(request: Request) {
     // ແຖບລຸ່ມ (ສ່ວນງານ) ຕາມ role · tab ທຳອິດ = ໜ້າຕັ້ງຕົ້ນ (home)
     const tabs = mobileTabsFor(role);
     const home = tabs[0].key;
+    /*
+      ── ນະໂຍບາຍອັບເດດ (lib/app-update-gate) ──
+      ຕົວ login **ບໍ່ຖືກບລັອກ**: ຊ່າງທີ່ຖືແອັບເກົ່າຕ້ອງເຂົ້າມາໄດ້ ຈຶ່ງຈະເຫັນໜ້າ
+      "ຕ້ອງອັບເດດ" ພ້ອມປຸ່ມໂຫຼດ — ບໍ່ດັ່ງນັ້ນລາວຈະຄາຢູ່ໜ້າ login ທີ່ບອກແຕ່ວ່າ
+      ເຂົ້າບໍ່ໄດ້ ໂດຍບໍ່ຮູ້ວ່າຕ້ອງເຮັດຫຍັງ. ແອັບອ່ານ `app_update` ນີ້ໄປບລັອກຕົນເອງ.
+    */
     return NextResponse.json({
       token: await createMobileToken(result.session),
       user: { username: result.session.username, role, role_label: ROLE_LABEL[role], home, tabs },
+      app_update: await evaluateMobileAppVersion(request),
     });
   } catch (error) {
     console.error("Mobile login failed", error);

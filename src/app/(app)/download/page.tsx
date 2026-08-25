@@ -1,4 +1,6 @@
 import { PageTitle } from "@/components/ui";
+import { shippedAppVersion } from "@/lib/shipped-app-version";
+import { SETTING, settingEnabled } from "@/lib/settings";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import { Download, TriangleAlert } from "lucide-react";
@@ -28,7 +30,11 @@ async function apkInfo() {
 }
 
 export default async function DownloadAppPage() {
-  const apk = await apkInfo();
+  const [apk, version, forcing] = await Promise.all([
+    apkInfo(),
+    shippedAppVersion(),
+    settingEnabled(SETTING.MOBILE_FORCE_UPDATE),
+  ]);
 
   return (
     <div className="w-full max-w-2xl space-y-5">
@@ -48,7 +54,9 @@ export default async function DownloadAppPage() {
           <div className="min-w-0 flex-1">
             <h2 className="font-bold text-slate-800">ODIEN Service — ແອັບຊ່າງ</h2>
             <p className="mt-0.5 text-sm text-slate-500">
-              {apk ? `ຂະໜາດ ${apk.size} · ອັບເດດ ${apk.updated}` : "ຍັງບໍ່ມີໄຟລ໌ຢູ່ server"}
+              {apk
+                ? `${version ? `ເວີຊັນ ${version} · ` : ""}ຂະໜາດ ${apk.size} · ອັບເດດ ${apk.updated}`
+                : "ຍັງບໍ່ມີໄຟລ໌ຢູ່ server"}
             </p>
 
             {apk ? (
@@ -68,15 +76,44 @@ export default async function DownloadAppPage() {
                 </p>
                 <p className="mt-1.5">ຜູ້ດູແລລະບົບ ໃຫ້ run ຄຳສັ່ງນີ້ແລ້ວ copy ໄຟລ໌ໄປວາງທີ່ server:</p>
                 <pre className="mt-2 overflow-x-auto rounded bg-white/70 p-2 text-[11px] leading-relaxed">
-{`cd mobile && flutter build apk --release
-cp build/app/outputs/flutter-apk/app-release.apk \\
-   ../public/downloads/ods.apk`}
+{`./scripts/publish-apk.sh`}
                 </pre>
               </div>
             )}
           </div>
         </div>
       </section>
+
+      {/*
+        ບອກໃຫ້ຜູ້ດູແລເຫັນວ່າ "ວາງ APK ແລ້ວ ແຕ່ບໍ່ມີ .version" = ບໍ່ມີໃຜຖືກບັງຄັບອັບເດດ
+        — ເປັນຂໍ້ຜິດພາດທີ່ງຽບທີ່ສຸດຂອງລະບົບນີ້ (copy ດ້ວຍມືແລ້ວລືມໄຟລ໌ເວີຊັນ).
+      */}
+      {apk && (
+        <section
+          className={`rounded-xl border p-4 text-sm ${
+            version && forcing
+              ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+              : "border-brand-orange-400 bg-brand-orange-100 text-brand-900"
+          }`}
+        >
+          {!version ? (
+            <>
+              <p className="font-semibold">ຍັງບໍ່ມີໄຟລ໌ເວີຊັນ (ods.apk.version) — ບໍ່ມີໃຜຖືກບັງຄັບອັບເດດ</p>
+              <p className="mt-1.5">ວາງ APK ດ້ວຍຄຳສັ່ງນີ້ ຈຶ່ງຈະຂຽນເວີຊັນໃຫ້ພ້ອມ:</p>
+              <pre className="mt-2 overflow-x-auto rounded bg-white/70 p-2 text-[11px]">./scripts/publish-apk.sh</pre>
+            </>
+          ) : forcing ? (
+            <p>
+              <b>ບັງຄັບອັບເດດເປີດຢູ່</b> — ແອັບທີ່ເກົ່າກວ່າ {version} ໃຊ້ງານບໍ່ໄດ້ຈົນກວ່າຈະອັບເດດ
+              (ປິດ/ເປີດໄດ້ທີ່ ຕັ້ງຄ່າລະບົບ)
+            </p>
+          ) : (
+            <p>
+              <b>ບັງຄັບອັບເດດປິດຢູ່</b> — ແອັບເກົ່າຍັງໃຊ້ໄດ້ຕໍ່ (ພຽງແຕ່ຖືກແຈ້ງວ່າມີເວີຊັນ {version})
+            </p>
+          )}
+        </section>
+      )}
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="font-bold text-slate-800">ວິທີຕິດຕັ້ງ</h3>

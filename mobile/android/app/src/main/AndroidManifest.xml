@@ -6,6 +6,12 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!--
+      ບັງຄັບອັບເດດ: ແອັບໂຫຼດ APK ລຸ້ນໃໝ່ເອງແລ້ວເປີດຕົວຕິດຕັ້ງໃຫ້ຊ່າງ (lib/app_update.dart)
+      — ບໍ່ໄດ້ຢູ່ Play Store ຈຶ່ງບໍ່ມີການອັບເດດອັດຕະໂນມັດ. ຂາດສິດນີ້ = ກົດ "ອັບເດດ"
+      ແລ້ວລະບົບປະຕິເສດຢ່າງງຽບໆ.
+    -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <!--
       allowBackup=false — ຂໍ້ມູນ token ເຂົ້າລະຫັດດ້ວຍຄີໃນ Keystore ຂອງ**ເຄື່ອງນັ້ນ**
       ⇒ ກູ້ backup ຂ້າມເຄື່ອງ/ຫຼັງ reset ຈະໄດ້ຂໍ້ມູນທີ່ຖອດລະຫັດບໍ່ໄດ້ (BAD_DECRYPT)
       ແລ້ວແອັບເປີດບໍ່ໄດ້. ບໍ່ backup = login ໃໝ່ ຈົບ (07-08-2026).

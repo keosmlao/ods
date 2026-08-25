@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+
+import 'app_update.dart';
 
 /// key ຂອງ Navigator ຫຼັກ (ໃສ່ໃນ MaterialApp) — ໃຫ້ Api ພາໄປໜ້າ login ໄດ້ຈາກທຸກບ່ອນ
 /// ເມື່ອ token ໝົດອາຍຸ/ຖືກຖອນ (401) ໂດຍບໍ່ຕ້ອງໃຫ້ແຕ່ລະໜ້າຈັດການເອງ.
@@ -177,7 +180,13 @@ class Api {
     Object? body,
     bool auth = true,
   }) async {
-    final headers = <String, String>{'content-type': 'application/json'};
+    final headers = <String, String>{
+      'content-type': 'application/json',
+      // ── ບອກເວີຊັນຂອງແອັບທຸກຄຳຂໍ (ດ່ານບັງຄັບອັບເດດຝັ່ງ server ອ່ານອັນນີ້) ──
+      // ບໍ່ບອກ (ລຸ້ນເກົ່າກ່ອນມີລະບົບນີ້) = server ຖືວ່າເກົ່າ ⇒ ບັງຄັບອັບເດດ
+      if (AppVersion.current.isNotEmpty) 'x-app-version': AppVersion.current,
+      'x-app-platform': Platform.isIOS ? 'ios' : 'android',
+    };
     if (auth) {
       final saved = await token();
       if (saved != null) headers['authorization'] = 'Bearer $saved';
@@ -213,6 +222,19 @@ class Api {
     }
 
     if (response.statusCode >= 400) {
+      /*
+        ── 426 = ແອັບເກົ່າເກີນໄປ (src/lib/app-update-gate.ts) ──
+        ບອກໃຫ້ທັງແອັບຮູ້ (appUpdate) ⇒ main.dart ທັບຈໍດ້ວຍໜ້າ "ຕ້ອງອັບເດດ"
+        ໂດຍທີ່ໜ້າທີ່ຍິງຄຳຂໍບໍ່ຕ້ອງຮູ້ເລື່ອງນີ້ເລີຍ.
+      */
+      if (response.statusCode == 426) {
+        final policy = decoded['app_update'];
+        reportAppUpdate(
+          policy is Map<String, dynamic>
+              ? AppUpdateInfo.fromJson(policy)
+              : const AppUpdateInfo(forceUpdate: true),
+        );
+      }
       // ── token ໝົດອາຍຸ/ຖືກຖອນ ກາງຄັນ ⇒ ພາໄປ login **ຈາກທຸກໜ້າ** (ບໍ່ໃຫ້ຊ່າງຄາ) ──
       // ສະເພາະຄຳຂໍທີ່ຕ້ອງ auth (login ເອງໃຊ້ auth:false ⇒ 401 = ລະຫັດຜິດ, ບໍ່ redirect).
       if (auth && response.statusCode == 401) {
@@ -258,6 +280,12 @@ class Api {
       auth: false,
       body: {'username': username, 'password': password},
     );
+    // ນະໂຍບາຍອັບເດດມາພ້ອມ login (login ບໍ່ຖືກບລັອກ ⇒ ຊ່າງລຸ້ນເກົ່າເຂົ້າມາເຫັນ
+    // ໜ້າ "ຕ້ອງອັບເດດ" ພ້ອມປຸ່ມໂຫຼດ ແທນທີ່ຈະຄາຢູ່ໜ້າ login ໂດຍບໍ່ຮູ້ສາເຫດ)
+    final policy = result['app_update'];
+    if (policy is Map<String, dynamic>) {
+      reportAppUpdate(AppUpdateInfo.fromJson(policy));
+    }
     await saveToken(result['token'] as String, remember: remember);
     final user = MobileUser.fromJson(result['user'] as Map<String, dynamic>);
     await saveHome(user.home);
@@ -337,7 +365,13 @@ class Api {
           );
           sent++;
         } on ApiError catch (error) {
-          if (error.status == 0 || error.status == 408 || error.status == 409) {
+          // 426 = ແອັບເກົ່າເກີນໄປ (ດ່ານບັງຄັບອັບເດດ) — ຄຳສັ່ງເອງບໍ່ໄດ້ຜິດຫຍັງ
+          // ⇒ **ຫ້າມຖິ້ມ** (ບໍ່ດັ່ງນັ້ນຮູບຜົນງານ/ການຈົບງານທີ່ຄ້າງໃນຄິວຫາຍໄປງຽບໆ)
+          // ເກັບໄວ້ ແລ້ວສົ່ງຄືນຫຼັງຊ່າງອັບເດດແອັບແລ້ວ.
+          if (error.status == 0 ||
+              error.status == 408 ||
+              error.status == 409 ||
+              error.status == 426) {
             remaining.add(row);
           }
           // 4xx ອື່ນ = workflow ປ່ຽນໄປແລ້ວ; ຖິ້ມຄຳສັ່ງເກົ່າ.

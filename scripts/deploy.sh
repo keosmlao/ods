@@ -62,7 +62,8 @@ fi
 cat <<'REMINDER'
 
 ▶ ຢ່າລືມ (ບໍ່ໄດ້ຢູ່ໃນ git ⇒ deploy ບໍ່ໄດ້ເອົາໄປໃຫ້):
-    · APK ແອັບຊ່າງ  → copy ໄປວາງທີ່  public/downloads/odss-tech.apk
+    · APK ແອັບຊ່າງ  → ./scripts/publish-apk.sh   (ວາງ ods.apk + ods.apk.version
+                       — ໄຟລ໌ .version ຄືຕົວທີ່ບັງຄັບໃຫ້ແອັບເກົ່າອັບເດດ)
     · ໄຟລ໌ upload    → ODS_UPLOADS_DIR ຕ້ອງຊີ້ບ່ອນເກົ່າ (ຮູບຮັບເຄື່ອງ/ຜົນງານ)
 
 ▶ ກວດຫຼັງ deploy:

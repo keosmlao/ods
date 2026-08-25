@@ -1,7 +1,7 @@
 name: odss_tech
 description: "ODIEN Service — ແອັບຊ່າງ (ຮັບງານ · ຂັ້ນຕອນ · check-in · ລາຍຮັບ)"
 publish_to: "none"
-version: 1.11.0+33
+version: 1.12.0+34
 
 environment:
   sdk: ^3.8.0
@@ -16,6 +16,8 @@ dependencies:
   flutter_secure_storage: ^9.2.2
   # ຮູບຜົນງານ · ຮູບ QC · ຮູບ check-in
   image_picker: ^1.1.2
+  # ບ່ອນເກັບ "ຮ່າງ" (ຮູບທີ່ຖ່າຍແລ້ວ ຍັງບໍ່ໄດ້ສົ່ງ) — ບໍ່ໃຫ້ຫາຍຕອນອອກຈາກໜ້າຈໍ/ແອັບຖືກຂ້າ
+  path_provider: ^2.1.5
   # ພິກັດ check-in (ຫຼັກຖານວ່າຊ່າງໄປຮອດໜ້າງານຈິງ)
   geolocator: ^13.0.2
   # ສະແກນ ISN/SN ດ້ວຍກ້ອງ (ງານຕິດຕັ້ງ) — ຊ່າງບໍ່ຕ້ອງພິມເລກຍາວໆ ແລະ ບໍ່ພິມຜິດ
@@ -34,6 +36,9 @@ dependencies:
   # ແຜນທີ່ງານຄ້າງ (ຜູ້ຈັດການ) — OSM tiles, ບໍ່ຕ້ອງມີ API key ຄື Google Maps
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
+  package_info_plus: ^8.1.0
+  open_filex: ^4.7.0
+  permission_handler: ^11.3.1
 
 dev_dependencies:
   flutter_test:

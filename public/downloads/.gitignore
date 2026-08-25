@@ -2,3 +2,4 @@
 #   flutter build apk --release
 #   cp mobile/build/app/outputs/flutter-apk/app-release.apk public/downloads/ods.apk
 *.apk
+*.apk.version

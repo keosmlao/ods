@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../api.dart';
+import '../drafts.dart';
 import '../main.dart';
 import '../widgets/ui_kit.dart';
 
@@ -148,6 +149,37 @@ class _QcJobScreenState extends State<QcJobScreen> {
   bool busy = false;
   final picker = ImagePicker();
 
+  /// ບ່ອນເກັບຮ່າງຂອງໃບກວດນີ້ — ຄຳຕອບ/ຮູບຕໍ່ຂໍ້ ທີ່ຍັງບໍ່ໄດ້ບັນທຶກ
+  String get _draftKey => 'qc:${widget.job.workflow}:${widget.job.code}';
+
+  void _saveDraft() => Drafts.write(_draftKey, {
+        'items': {
+          for (final item in items)
+            if (item.photo.isNotEmpty ||
+                item.note.isNotEmpty ||
+                item.passed != null)
+              '${item.id}': {
+                'photo': item.photo,
+                'note': item.note,
+                'passed': item.passed,
+              },
+        },
+      });
+
+  /// ຄືນຮ່າງທັບ items ທີ່ຫາກໂຫຼດມາ — ຂອງ server ຊະນະສະເໝີ (ບັນທຶກແລ້ວ),
+  /// ຮ່າງຕື່ມໃສ່ແຕ່ບ່ອນທີ່ຍັງຫວ່າງ ⇒ ຮູບທີ່ຖ່າຍໄວ້ກ່ອນອອກຈາກໜ້າຈໍບໍ່ຫາຍ
+  void _restoreDraft() {
+    final saved = Drafts.read(_draftKey)['items'];
+    if (saved is! Map) return;
+    for (final item in items) {
+      final row = saved['${item.id}'];
+      if (row is! Map) continue;
+      if (item.photo.isEmpty) item.photo = (row['photo'] as String?) ?? '';
+      if (item.note.isEmpty) item.note = (row['note'] as String?) ?? '';
+      item.passed ??= row['passed'] as bool?;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -162,6 +194,7 @@ class _QcJobScreenState extends State<QcJobScreen> {
         items = detail.items;
         photos = detail.photos;
         loading = false;
+        _restoreDraft();
       });
     } catch (caught) {
       if (!mounted) return;
@@ -189,6 +222,7 @@ class _QcJobScreenState extends State<QcJobScreen> {
       setState(
         () => item.photo = 'data:image/jpeg;base64,${base64Encode(bytes)}',
       );
+      _saveDraft();
     } finally {
       if (mounted) setState(() => shooting = false);
     }
@@ -212,6 +246,7 @@ class _QcJobScreenState extends State<QcJobScreen> {
             .toList(),
         signer.text,
       );
+      Drafts.clear(_draftKey); // ບັນທຶກແລ້ວ ⇒ ຮ່າງບໍ່ຈຳເປັນອີກ
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -335,8 +370,10 @@ class _QcJobScreenState extends State<QcJobScreen> {
                               labelStyle: TextStyle(
                                 color: item.passed == true ? Colors.white : ink,
                               ),
-                              onSelected: (_) =>
-                                  setState(() => item.passed = true),
+                              onSelected: (_) {
+                                setState(() => item.passed = true);
+                                _saveDraft();
+                              },
                             ),
                             const SizedBox(width: 8),
                             ChoiceChip(
@@ -348,8 +385,10 @@ class _QcJobScreenState extends State<QcJobScreen> {
                                     ? Colors.white
                                     : ink,
                               ),
-                              onSelected: (_) =>
-                                  setState(() => item.passed = false),
+                              onSelected: (_) {
+                                setState(() => item.passed = false);
+                                _saveDraft();
+                              },
                             ),
                             const Spacer(),
                             IconButton(
@@ -368,8 +407,14 @@ class _QcJobScreenState extends State<QcJobScreen> {
                           ],
                         ),
                         if (item.passed == false)
-                          TextField(
-                            onChanged: (value) => item.note = value,
+                          TextFormField(
+                            // key+initialValue ⇒ ຄືນເຫດຜົນທີ່ພິມຄ້າງໄວ້ຈາກຮ່າງ
+                            key: ValueKey('qc-note-${item.id}'),
+                            initialValue: item.note,
+                            onChanged: (value) {
+                              item.note = value;
+                              _saveDraft();
+                            },
                             decoration: const InputDecoration(
                               isDense: true,
                               border: OutlineInputBorder(),

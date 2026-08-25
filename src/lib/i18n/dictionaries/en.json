@@ -4973,6 +4973,10 @@
       "install_spare_free_search": {
         "label": "Install spares outside the standard (free ERP search)",
         "help": "Lets technicians search the ERP and add spares that are **not in the installation kit** (used_spare_install, keyed by BTU size) and not already in the job's cart. Real data over 2 years: 69% of requested lines are in the kit, so turning this off blocks the other 31% (~2,000 lines / 2 years) — mostly pipe and brackets added on site."
+      },
+      "mobile_force_update": {
+        "label": "Force the technician app to update",
+        "help": "Apps older than the APK published on the download page are blocked until they update (the app shows a “must update” screen with an in-app download and install button). The minimum version tracks the published APK automatically — no number to type. No version file = nobody is forced. Off: older apps keep working."
       }
     }
   },

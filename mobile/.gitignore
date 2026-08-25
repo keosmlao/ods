@@ -47,3 +47,7 @@ app.*.map.json
 /android/key.properties
 /android/*.jks
 /android/*.keystore
+
+# ໄຟລ໌ build ຂອງ Gradle (android/build, android/app/build) — ບໍ່ເຂົ້າ git
+android/build/
+android/app/build/

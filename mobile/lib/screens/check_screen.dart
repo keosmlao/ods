@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../api.dart';
+import '../drafts.dart';
 import '../main.dart';
 import '../widgets/ui_kit.dart';
 import 'check_spare_screen.dart';
@@ -53,9 +54,25 @@ class _CheckScreenState extends State<CheckScreen> {
   bool get quoteNeeded => widget.outOfWarranty || warrantyVoid;
   bool busy = false;
 
+  /// ບ່ອນເກັບຮ່າງຂອງໃບນີ້ — ຮູບ/ຂໍ້ຄວາມທີ່ຖ່າຍ-ພິມແລ້ວ ແຕ່ຍັງບໍ່ໄດ້ບັນທຶກ
+  String get _draftKey => 'check:${widget.code}';
+
+  void _saveDraft() => Drafts.write(_draftKey, {
+        'photos': photos,
+        'diagnosis': diagnosis.text,
+        'reason': reason.text,
+      });
+
   @override
   void initState() {
     super.initState();
+    // ຄືນຮ່າງຮອບກ່ອນ (ອອກຈາກໜ້າຈໍ ຫຼື ແອັບຖືກຂ້າຕອນກ້ອງເປີດ) — ຢ່າໃຫ້ຖ່າຍໃໝ່
+    final saved = Drafts.read(_draftKey);
+    photos.addAll(Drafts.photos(_draftKey));
+    diagnosis.text = (saved['diagnosis'] as String?) ?? '';
+    reason.text = (saved['reason'] as String?) ?? '';
+    diagnosis.addListener(_saveDraft);
+    reason.addListener(_saveDraft);
     diagnosis.addListener(_refreshValidation);
     reason.addListener(_refreshValidation);
     load();
@@ -78,6 +95,8 @@ class _CheckScreenState extends State<CheckScreen> {
 
   @override
   void dispose() {
+    diagnosis.removeListener(_saveDraft);
+    reason.removeListener(_saveDraft);
     diagnosis.removeListener(_refreshValidation);
     reason.removeListener(_refreshValidation);
     diagnosis.dispose();
@@ -105,6 +124,8 @@ class _CheckScreenState extends State<CheckScreen> {
     setState(() => busy = true);
     try {
       final message = await Api.check(widget.code, body);
+      // ເຖິງ server ແລ້ວ ⇒ ຮ່າງບໍ່ຈຳເປັນອີກ (ຢ່າໃຫ້ຮູບເກົ່າໂຜ່ຄືນຮອບໜ້າ)
+      Drafts.clear(_draftKey);
       if (!mounted) return;
       if (pop) {
         _toast(message, ok);
@@ -153,6 +174,7 @@ class _CheckScreenState extends State<CheckScreen> {
       setState(
         () => photos.add('data:image/jpeg;base64,${base64Encode(bytes)}'),
       );
+      _saveDraft();
     } finally {
       if (mounted) setState(() => shooting = false);
     }
@@ -544,7 +566,10 @@ class _CheckScreenState extends State<CheckScreen> {
                       icon: const Icon(Icons.cancel, size: 20, color: danger),
                       onPressed: busy
                           ? null
-                          : () => setState(() => photos.removeAt(i)),
+                          : () {
+                              setState(() => photos.removeAt(i));
+                              _saveDraft();
+                            },
                     ),
                   ),
                 ],

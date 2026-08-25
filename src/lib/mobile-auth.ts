@@ -1,4 +1,5 @@
 import type { Session } from "@/lib/auth";
+import { blockOutdatedApp } from "@/lib/app-update-gate";
 import { type Role, roleOf } from "@/lib/roles";
 import { jwtVerify, SignJWT } from "jose";
 import { NextResponse } from "next/server";
@@ -92,6 +93,14 @@ export async function requireMobile(
   if (!user) {
     return { ok: false, response: NextResponse.json({ error: "ຕ້ອງເຂົ້າສູ່ລະບົບໃໝ່" }, { status: 401 }) };
   }
+  /*
+    ── ດ່ານບັງຄັບອັບເດດ (lib/app-update-gate) ──
+    ວາງໄວ້ຢູ່ນີ້ບ່ອນດຽວ ⇒ **ທຸກ** route ຂອງມືຖືບັງຄັບຄືກັນ ໂດຍບໍ່ຕ້ອງໄປໃສ່ເທື່ອລະໜ້າ
+    (ອັນທີ່ລືມໃສ່ ຈະກາຍເປັນຊ່ອງທີ່ແອັບເກົ່າຍັງເຮັດວຽກຕໍ່ໄດ້). ກວດຫຼັງຕົວຕົນ ⇒
+    ຄົນທີ່ຍັງບໍ່ login ໄດ້ 401 ຄືເກົ່າ ບໍ່ແມ່ນ 426 ທີ່ບໍ່ໄດ້ຄວາມ.
+  */
+  const outdated = await blockOutdatedApp(request);
+  if (outdated) return { ok: false, response: outdated };
   if (allowed && !allowed.includes(user.role)) {
     return { ok: false, response: NextResponse.json({ error: "ບໍ່ມີສິດເຮັດລາຍການນີ້" }, { status: 403 }) };
   }

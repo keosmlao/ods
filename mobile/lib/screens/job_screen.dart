@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
+import '../drafts.dart';
 import '../main.dart';
 import '../widgets/ui_kit.dart';
 import 'check_screen.dart';
@@ -70,9 +71,24 @@ class _JobScreenState extends State<JobScreen> {
 
   final picker = ImagePicker();
 
+  /// ບ່ອນເກັບຮ່າງຂອງໃບງານນີ້ — ຮູບຜົນງານ/ຮູບ check-in/ບັນທຶກ ທີ່ຍັງບໍ່ໄດ້ສົ່ງ
+  String get _draftKey => 'job:${job.workflow}:${job.code}';
+
+  void _saveDraft() => Drafts.write(_draftKey, {
+        'photos': photos,
+        'note': note.text,
+        'checkin': _retainedCheckinPhoto,
+      });
+
   @override
   void initState() {
     super.initState();
+    // ຄືນຮ່າງຮອບກ່ອນ (ອອກຈາກໜ້າຈໍ ຫຼື ແອັບຖືກຂ້າຕອນກ້ອງເປີດ) — ຢ່າໃຫ້ຖ່າຍໃໝ່
+    final saved = Drafts.read(_draftKey);
+    photos.addAll(Drafts.photos(_draftKey));
+    note.text = (saved['note'] as String?) ?? '';
+    _retainedCheckinPhoto = saved['checkin'] as String?;
+    note.addListener(_saveDraft);
     loadOutstanding();
     loadGallery();
     loadChatter();
@@ -277,6 +293,7 @@ class _JobScreenState extends State<JobScreen> {
 
   @override
   void dispose() {
+    note.removeListener(_saveDraft);
     note.dispose();
     reason.dispose();
     chatInput.dispose();
@@ -303,6 +320,12 @@ class _JobScreenState extends State<JobScreen> {
     setState(() => busy = true);
     try {
       final message = await Api.command(job.workflow, job.code, body);
+      // ຮູບ/ບັນທຶກ ໄປຮອດ server (ຫຼື ເຂົ້າຄິວ offline ພ້ອມ body) ແລ້ວ ⇒ ຮ່າງບໍ່ຈຳເປັນອີກ
+      if (body.containsKey('photos')) {
+        photos.clear();
+        note.clear();
+        Drafts.clear(_draftKey);
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message.replaceFirst('OFFLINE_QUEUED: ', ''))),
@@ -452,10 +475,12 @@ class _JobScreenState extends State<JobScreen> {
         'photo': photo,
       });
       _retainedCheckinPhoto = null; // ສຳເລັດ ⇒ ຖິ້ມຮູບຄ້າງ
+      _saveDraft();
       messenger.showSnackBar(SnackBar(content: Text(message)));
     } on ApiError catch (failure) {
       _retainedCheckinPhoto =
           photo; // ເກັບຮູບໄວ້ ⇒ ກົດ check-in ຄືນ ບໍ່ຕ້ອງຖ່າຍໃໝ່
+      _saveDraft(); // ລົງໄຟລ໌ນຳ — ອອກຈາກໜ້າຈໍ/ແອັບຖືກຂ້າ ຮູບກໍ່ຍັງຢູ່
       messenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -1777,9 +1802,12 @@ class _JobScreenState extends State<JobScreen> {
                                           ),
                                           onPressed: busy
                                               ? null
-                                              : () => setState(
-                                                  () => photos.removeAt(i),
-                                                ),
+                                              : () {
+                                                  setState(
+                                                    () => photos.removeAt(i),
+                                                  );
+                                                  _saveDraft();
+                                                },
                                         ),
                                       ),
                                     ],
@@ -1792,6 +1820,7 @@ class _JobScreenState extends State<JobScreen> {
                                           final photo = await shoot();
                                           if (photo != null) {
                                             setState(() => photos.add(photo));
+                                            _saveDraft();
                                           }
                                         },
                                   borderRadius: BorderRadius.circular(10),

@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 
 import 'api.dart';
 import 'app_links.dart';
+import 'app_update.dart';
+import 'drafts.dart';
 import 'push.dart';
 import 'screens/login_screen.dart';
 import 'screens/nav_host.dart';
+import 'screens/update_required_screen.dart';
 
 /// ODIEN Service — ແອັບຊ່າງ.
 ///
@@ -13,6 +16,12 @@ import 'screens/nav_host.dart';
 /// ⇒ ກົດຈາກແອັບ ຫຼື ຈາກເວັບ ໄດ້ຜົນຄືກັນທຸກປະການ ແລະ ຂ້າມຂັ້ນບໍ່ໄດ້.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ຮູບ/ຂໍ້ຄວາມທີ່ຄ້າງຢູ່ຈາກຮອບກ່ອນ — ໂຫຼດກ່ອນ runApp ໃຫ້ໜ້າຈໍຄືນຮ່າງໄດ້ທັນທີ
+  await Drafts.load();
+
+  // ເວີຊັນຂອງຕົນເອງ — ຕ້ອງຮູ້ກ່ອນຄຳຂໍທຳອິດ (ໃສ່ header x-app-version ທຸກຄຳຂໍ)
+  await AppVersion.load();
 
   // ແຈ້ງເຕືອນ (FCM) — ຍັງບໍ່ໄດ້ຕັ້ງຄ່າ Firebase ກໍ່ບໍ່ເປັນຫຍັງ (Push.init ຈັບ error ໄວ້)
   await Push.init();
@@ -166,7 +175,20 @@ class OdssApp extends StatelessWidget {
       // ອະນຸຍາດໃຫ້ system font-scale ເຕັມ 1.0 (v3 ຫຍໍ້ 0.9 — ຈໍນ້ອຍລຸ້ນເກົ່າອ່ານຍາກ)
       builder: (context, child) => MediaQuery.withClampedTextScaling(
         maxScaleFactor: 1.0,
-        child: child!,
+        /*
+          ── ດ່ານບັງຄັບອັບເດດ ──
+          ວາງທັບ **ເໜືອ Navigator** ⇒ ບລັອກທຸກໜ້າພ້ອມກັນ ບໍ່ວ່າຊ່າງກຳລັງຢູ່ໜ້າໃດ
+          ແລະ ບໍ່ຕ້ອງໃຫ້ແຕ່ລະໜ້າໄປກວດເອງ (ອັນທີ່ລືມ = ຊ່ອງທີ່ຫຼຸດ).
+          server ເປັນຄົນຕັດສິນ (426) — ແອັບບໍ່ໄດ້ຄິດເອງ ຄືກັບກົດເກນອື່ນທັງໝົດ.
+        */
+        child: ValueListenableBuilder<AppUpdateInfo?>(
+          valueListenable: appUpdate,
+          builder: (context, info, navigator) =>
+              info != null && info.forceUpdate
+              ? UpdateRequiredScreen(info: info)
+              : navigator!,
+          child: child,
+        ),
       ),
       home: const _Gate(),
       routes: {'/login': (_) => const LoginScreen()},
