@@ -1,11 +1,8 @@
-import { LinkPending } from "@/components/link-pending";
 import { BackLink } from "@/components/back-link";
 import type { ServicePrefill } from "@/components/service-form";
 import { ServiceIntake } from "@/components/service-intake";
 import { getErpBrands, getErpCategories } from "@/lib/erp-master";
 import { technicianOptions } from "@/lib/technicians";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 
 type Props = { searchParams: Promise<ServicePrefill> };
 

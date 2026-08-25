@@ -13,7 +13,7 @@ import { TRANS } from "@/lib/stock-constants";
 import { canViewAssignedJob } from "@/lib/scope";
 import { getBalances } from "@/lib/stock-balance";
 import { canAccess, roleOf } from "@/lib/roles";
-import { ArrowLeft, ClipboardList, PackageOpen, ShoppingCart, TriangleAlert } from "lucide-react";
+import { ClipboardList, PackageOpen, ShoppingCart, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 

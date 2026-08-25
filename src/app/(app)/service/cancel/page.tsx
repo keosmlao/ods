@@ -8,7 +8,7 @@ import { query } from "@/lib/db";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
 import { CANCELLED_JOBS, OPEN_JOBS } from "@/lib/stage";
-import { ArrowLeft, ChevronLeft, ChevronRight, PackageCheck, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, PackageCheck, Search } from "lucide-react";
 import Link from "next/link";
 
 /**

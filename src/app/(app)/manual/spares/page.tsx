@@ -1,6 +1,4 @@
-import { LinkPending } from "@/components/link-pending";
 import { BackLink } from "@/components/back-link";
-import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 /**

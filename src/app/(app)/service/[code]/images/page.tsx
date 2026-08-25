@@ -1,9 +1,6 @@
-import { LinkPending } from "@/components/link-pending";
 import { BackLink } from "@/components/back-link";
 import { query } from "@/lib/db";
-import { ArrowLeft } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 /** ຄື /showpic/<id> ຂອງ ods — ສະແດງຮູບພາບສິນຄ້າຂອງໃບຮັບເຄື່ອງໃບດຽວ (ຈຳນວນຮູບຈຳກັດຢູ່ແລ້ວ) */

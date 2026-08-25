@@ -14,7 +14,7 @@ import { LocationPicker, type Point } from "@/components/installation/location-p
 import { ONSITE_SERVICE_TYPES } from "@/lib/sla";
 import { useDict } from "@/lib/i18n/context";
 import { REPAIR_CENTER_LABEL, REPAIR_CENTERS } from "@/lib/repair-center";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { KeepFormValues } from "@/components/keep-form-values";
 
 type Option = { code: string; name_1: string };
@@ -24,6 +24,16 @@ export type ServicePrefill = {
   /** ລູກຄ້າ prefill (ຈາກໃບເຄມ → ເປີດໃບສ້ອມ) — cust=ລະຫັດ ODS */
   cust?: string; custname?: string; custtel?: string; custaddr?: string;
 };
+
+/** ຄ່າສຳລັບ `<input type="datetime-local">` ຂອງ "ດຽວນີ້" (ເວລາທ້ອງຖິ່ນ ບໍ່ແມ່ນ UTC) */
+function nowLocalInput(): string {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  return now.toISOString().slice(0, 16);
+}
+
+/** subscribe ວ່າງ — ຄ່າບໍ່ປ່ຽນເອງຫຼັງ mount (ຮູບແບບດຽວກັບ select-field.tsx) */
+const noopSubscribe = () => () => {};
 
 const field = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100";
 const label = "mb-1 block text-sm text-slate-600";
@@ -95,15 +105,22 @@ export function ServiceForm({
   const [warrantyChoice, setWarrantyChoice] = useState<string | null>(null);
 
   /**
-   * ວັນເວລາຮັບເຄື່ອງ — ຕັ້ງຄ່າເລີ່ມ = ຕອນນີ້ **ຫຼັງ mount** (ບໍ່ຕັ້ງຕອນ render
-   * ເພາະ server/client ຄິດເວລາຄົນລະວິນາທີ ⇒ hydration mismatch).
+   * ວັນເວລາຮັບເຄື່ອງ — ຄ່າເລີ່ມ = ຕອນເປີດຟອມ, ອ່ານ **ຫຼັງ hydrate** ເທົ່ານັ້ນ
+   * (server ກັບ client ຄິດເວລາຄົນລະວິນາທີ ⇒ hydration mismatch ຖ້າຄິດຕອນ render).
+   *
+   * ໃຊ້ `useSyncExternalStore` ແທນ `useEffect` + `setState` (ຮູບແບບດຽວກັບ select-field.tsx)
+   * ⇒ ບໍ່ມີ render ຮອບສອງ. getSnapshot ຕ້ອງຄືນ **ຄ່າຄົງທີ່** ຈຶ່ງ cache ໄວ້ໃນ ref —
+   * ຄິດ `new Date()` ໃໝ່ທຸກເທື່ອຈະເຮັດໃຫ້ React render ວົນບໍ່ຈົບ.
    */
-  const [receivedAt, setReceivedAt] = useState("");
-  useEffect(() => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    setReceivedAt(now.toISOString().slice(0, 16));
-  }, []);
+  const openedAt = useRef("");
+  const formOpenedAt = useSyncExternalStore(
+    noopSubscribe,
+    () => (openedAt.current ||= nowLocalInput()),
+    () => "",
+  );
+  /** ຄ່າທີ່ພະນັກງານແກ້ເອງ — null ຄື "ຍັງບໍ່ໄດ້ແຕະ, ໃຊ້ເວລາຕອນເປີດຟອມ" */
+  const [receivedAtEdit, setReceivedAtEdit] = useState<string | null>(null);
+  const receivedAt = receivedAtEdit ?? formOpenedAt;
 
   /**
    * ປະເພດບໍລິການ — ຕ້ອງເປັນ state ເພາະ **ງານນອກສະຖານທີ່ (IH/PS) ຕ້ອງມີສະຖານທີ່ໜ້າງານ**
@@ -209,10 +226,8 @@ export function ServiceForm({
     setWarrantyChoice(null);
     setJobKind("repair");
     setClaimScope("whole");
-    // ວັນເວລາຮັບເຄື່ອງ ກັບໄປເປັນ "ຕອນນີ້" ຄືຕອນເປີດຟອມ
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    setReceivedAt(now.toISOString().slice(0, 16));
+    // ວັນເວລາຮັບເຄື່ອງ ກັບໄປເປັນ "ຕອນນີ້" (ບໍ່ແມ່ນເວລາຕອນເປີດຟອມ — ຟອມອາດເປີດຄ້າງໄວ້ດົນ)
+    setReceivedAtEdit(nowLocalInput());
   }
 
   return (
@@ -243,7 +258,7 @@ export function ServiceForm({
             type="datetime-local"
             name="time_register"
             value={receivedAt}
-            onChange={(event) => setReceivedAt(event.target.value)}
+            onChange={(event) => setReceivedAtEdit(event.target.value)}
             className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100"
           />
         </div>

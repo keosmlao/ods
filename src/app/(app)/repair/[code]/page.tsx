@@ -15,7 +15,7 @@ import { repairSpareRounds } from "@/lib/repair-spare-rounds";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
 import { STAGE_LABEL, STAGE_SQL } from "@/lib/stage";
 import { TRANS } from "@/lib/stock-constants";
-import { ArrowLeft, ClipboardCheck, FileText, Printer, Wrench } from "lucide-react";
+import { ClipboardCheck, FileText, Printer, Wrench } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 

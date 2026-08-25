@@ -5,7 +5,7 @@ import { SortHeader, type SortDir } from "@/components/sort-header";
 import { query } from "@/lib/db";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
-import { ArrowLeft, ChevronLeft, ChevronRight, ImageIcon, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageIcon, Search } from "lucide-react";
 import Link from "next/link";
 
 /**

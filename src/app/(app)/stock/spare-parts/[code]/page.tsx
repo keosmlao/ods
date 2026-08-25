@@ -1,8 +1,6 @@
 import { Card, Empty, PageTitle, Table } from "@/components/ui";
 import { BackLink } from "@/components/back-link";
 import { queryOdg } from "@/lib/db";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 /**

@@ -1,9 +1,7 @@
-import { LinkPending } from "@/components/link-pending";
 import { BackLink } from "@/components/back-link";
 import { ContactForm } from "@/components/service-contact-form";
 import { query } from "@/lib/db";
-import { ArrowLeft, Phone } from "lucide-react";
-import Link from "next/link";
+import { Phone } from "lucide-react";
 import { notFound } from "next/navigation";
 
 /** ຄື /htmx_update_contact/<code> ຂອງ ods — ບັນທຶກການໂທຕິດຕາມລູກຄ້າ */

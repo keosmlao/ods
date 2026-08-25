@@ -2,8 +2,7 @@ import { PERMISSION_RESOURCES, type CrudPermission, type PermissionAction } from
 import { BackLink } from "@/components/back-link";
 import { employeePermissionOverrides, employeePermissionProfile } from "@/lib/permissions";
 import { canAccess, ROLE_LABEL } from "@/lib/roles";
-import { ArrowLeft, ShieldCheck, UserRound } from "lucide-react";
-import Link from "next/link";
+import { ShieldCheck, UserRound } from "lucide-react";
 import { notFound } from "next/navigation";
 import { PermissionMatrix, type PermissionMatrixRow } from "./permission-matrix";
 

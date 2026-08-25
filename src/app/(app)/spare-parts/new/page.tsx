@@ -8,7 +8,6 @@ import { PP_NOT_CONFIGURED, ppDb, queryPp } from "@/lib/stock-db";
 import type { SortDir } from "@/components/sort-header";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
-import Link from "next/link";
 
 /**
  * ຂໍສ້າງລະຫັດອາໄຫຼ່ — ods: newspare.py /request_create_spare + /save_newspare

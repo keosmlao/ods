@@ -37,7 +37,7 @@ import { syncErpDispatchForJob } from "@/lib/erp-dispatch";
 import { repairSpareRounds } from "@/lib/repair-spare-rounds";
 import { nextActor } from "@/lib/repair-next-action";
 import { DONE_STAGE } from "@/lib/track";
-import { ArrowLeft, Barcode, CalendarDays, ChevronDown, Clock, ImageIcon, MapPin, MessageCircle, Pencil, Phone, Printer, ReceiptText, RotateCcw, UserRound } from "lucide-react";
+import { Barcode, CalendarDays, ChevronDown, Clock, ImageIcon, MapPin, MessageCircle, Pencil, Phone, Printer, ReceiptText, RotateCcw, UserRound } from "lucide-react";
 import Link from "next/link";
 import { claimRedirectTarget } from "@/lib/claim-route";
 import { notFound, redirect } from "next/navigation";

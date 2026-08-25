@@ -1,12 +1,9 @@
-import { LinkPending } from "@/components/link-pending";
 import { BackLink } from "@/components/back-link";
 import type { Product } from "@/components/product-picker";
 import { ServiceNoticeForm, type Notice } from "@/components/service-notice-form";
 import { query, queryOdg } from "@/lib/db";
 import { getErpBrands, getErpCategories } from "@/lib/erp-master";
 import { technicianOptions } from "@/lib/technicians";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 /**

@@ -10,7 +10,7 @@ import { getLocale } from "@/lib/i18n/locale";
 import { PURCHASE_COUNT_TAG } from "@/lib/nav-counts";
 import { ERP_PURCHASE, SERVICE_SIDE_SQL } from "@/lib/stock-constants";
 import { unstable_cache } from "next/cache";
-import { ArrowLeft, BellRing, ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
+import { BellRing, ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import Link from "next/link";
 
 type Dict = Record<string, string>;

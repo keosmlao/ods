@@ -2,8 +2,6 @@ import { NoticeForm } from "@/components/notice-form";
 import { BackLink } from "@/components/back-link";
 import { PageTitle } from "@/components/ui";
 import { query } from "@/lib/db";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 
 /**
  * ຝັ່ງພະນັກງານຂາຍ — ແຈ້ງສ້ອມແທນລູກຄ້າ (creator ຕິດຊື່ພະນັກງານ ໃນ log).

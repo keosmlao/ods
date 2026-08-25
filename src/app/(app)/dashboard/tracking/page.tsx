@@ -1,10 +1,9 @@
-import { LinkPending } from "@/components/link-pending";
 import { BackLink } from "@/components/back-link";
 import { SelectField } from "@/components/select-field";
 import { query } from "@/lib/db";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/locale";
-import { ArrowLeft, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import Link from "next/link";
 
 /**
