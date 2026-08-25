@@ -28,15 +28,23 @@ export async function GET(request: NextRequest) {
   }
 
   // ?dry=1 = **ທົດສອບ** — ນັບວ່າຈະເຕືອນຈັກໃບ ໂດຍ **ບໍ່** push/chatter/insert (ບໍ່ລົບກວນຄົນ)
-  const dry = new URL(request.url).searchParams.get("dry") === "1";
+  const params = new URL(request.url).searchParams;
+  const dry = params.get("dry") === "1";
+  /*
+    ?seed=1 = ໝາຍງານຄ້າງ**ທີ່ມີຢູ່ດຽວນີ້**ວ່າ "ເຕືອນແລ້ວ" ໂດຍບໍ່ເຕືອນຈິງ.
+    ໃຊ້ **ຄັ້ງດຽວຕອນເປີດລະບົບ**: ບໍ່ດັ່ງນັ້ນຮອບທຳອິດຈະຍິງທັງ backlog ພ້ອມກັນ
+    (ວັດຈິງ 25-08-2026 = 57 ໃບ) ⇒ ມືຖືຫົວໜ້າສັ່ນຮ້ອຍຄັ້ງ ແລ້ວຄົນປິດແຈ້ງເຕືອນ
+    ຊຶ່ງເປັນການທຳລາຍປະໂຫຍດຂອງລະບົບເຕືອນທັງໝົດ.
+  */
+  const seed = params.get("seed") === "1";
 
   try {
     const [install, repair, repairStage, stale] = await Promise.all([
-      escalateInstallSla(dry),
-      escalateRepairFrontStage(dry),
-      escalateRepairStageSla(dry),
+      escalateInstallSla(dry, seed),
+      escalateRepairFrontStage(dry, seed),
+      escalateRepairStageSla(dry, seed),
       // ວຽກທີ່ຖືກລືມ (ເປີດເກີນ 30 ມື້) — ດ່ານສຸດທ້າຍ ຖ້າ SLA ຕໍ່ຂັ້ນເຕືອນໄປແລ້ວ ແຕ່ບໍ່ມີໃຜລົງມື
-      escalateStaleRepairJobs(dry),
+      escalateStaleRepairJobs(dry, seed),
     ]);
     return NextResponse.json({ ok: true, dry, ...install, ...repair, ...repairStage, ...stale });
   } catch (error) {
