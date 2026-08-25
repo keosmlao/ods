@@ -30,7 +30,43 @@ class _UpdateRequiredScreenState extends State<UpdateRequiredScreen> {
   int _total = 0;
   String? _error;
 
+  /// ລອງອັດຕະໂນມັດໄປແລ້ວຈັກຮອບ (ຮອບທີ່ຊ່າງກົດເອງບໍ່ນັບ)
+  int _tries = 0;
+
+  /// ຢ່າລອງເອງບໍ່ຈົບ — APK ໜັກ ~27MB, ຊ່າງບາງຄົນໃຊ້ເນັດມືຖື.
+  /// ຄົບແລ້ວປ່ອຍໃຫ້ກົດເອງ (ປຸ່ມ "ລອງໃໝ່" ຍັງຢູ່).
+  static const _maxAutoTries = 3;
+
   bool get _busy => _stage != _Stage.idle;
+
+  @override
+  void initState() {
+    super.initState();
+    /*
+      ── ອັບເດດເອງ ບໍ່ຕ້ອງລໍໃຫ້ກົດ ──
+      ຮອດໜ້ານີ້ແປວ່າແອັບຖືກກັ້ນແລ້ວ — ຊ່າງເຮັດຫຍັງບໍ່ໄດ້ຈົນກວ່າຈະຕິດຕັ້ງລຸ້ນໃໝ່
+      ⇒ ການໃຫ້ກົດປຸ່ມກ່ອນ ເປັນພຽງຂັ້ນຕອນທີ່ຖ່ວງເວລາ. ເລີ່ມໂຫຼດທັນທີທີ່ຈໍຂຶ້ນ.
+
+      ⚠️ Android **ບໍ່ອະນຸຍາດ**ໃຫ້ແອັບທຳມະດາຕິດຕັ້ງ APK ງຽບໆ — ຕອນທ້າຍລະບົບຈະ
+      ຂຶ້ນກ່ອງ "ຕິດຕັ້ງ / ຍົກເລີກ" ໃຫ້ຢືນຢັນສະເໝີ (ແລະ ຄັ້ງທຳອິດຈະຂໍສິດ
+      "ຕິດຕັ້ງແອັບຈາກແຫຼ່ງນີ້"). ອັດຕະໂນມັດໄດ້ເຖິງແຄ່ນັ້ນ.
+    */
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoUpdate());
+  }
+
+  /// ໂຫຼດ+ຕິດຕັ້ງເອງ — ລົ້ມ (ເນັດຂາດ) ⇒ ລອງຄືນເອງ ໂດຍຖ່າງເວລາອອກເທື່ອລະໜ້ອຍ
+  Future<void> _autoUpdate() async {
+    // iOS ຕິດຕັ້ງ APK ບໍ່ໄດ້ ⇒ ຢ່າເປີດ browser ໃຫ້ເອງໂດຍບໍ່ໄດ້ຂໍ (ໜ້າຈໍຈະຫາຍໄປເສີຍໆ)
+    if (!AppUpdater.canInstallInApp) return;
+    while (mounted && _tries < _maxAutoTries) {
+      _tries++;
+      await _update();
+      // ສຳເລັດ (ຕົວຕິດຕັ້ງຂຶ້ນມາແລ້ວ) ຫຼື ຊ່າງກົດເອງຢູ່ ⇒ ຢຸດວົງ
+      if (!mounted || _error == null) return;
+      await Future.delayed(Duration(seconds: 5 * _tries));
+      if (!mounted || _busy) return;
+    }
+  }
 
   Future<Uri?> _url() async =>
       AppUpdater.resolveUrl(widget.info.updateUrl, baseUrl: await Api.serverUrl());
@@ -146,10 +182,12 @@ class _UpdateRequiredScreenState extends State<UpdateRequiredScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'ກະລຸນາອັບເດດແອັບເປັນເວີຊັນຫຼ້າສຸດ\nເພື່ອສືບຕໍ່ການໃຊ້ງານ',
+                  Text(
+                    _busy
+                        ? 'ກຳລັງອັບເດດໃຫ້ອັດຕະໂນມັດ…\nເມື່ອໂຫຼດຄົບ ລະບົບຈະຖາມໃຫ້ກົດ “ຕິດຕັ້ງ”'
+                        : 'ກະລຸນາອັບເດດແອັບເປັນເວີຊັນຫຼ້າສຸດ\nເພື່ອສືບຕໍ່ການໃຊ້ງານ',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: muted, fontSize: 14, height: 1.5),
+                    style: const TextStyle(color: muted, fontSize: 14, height: 1.5),
                   ),
                   if (info.currentVersion.isNotEmpty ||
                       info.latestVersion.isNotEmpty) ...[
@@ -198,6 +236,14 @@ class _UpdateRequiredScreenState extends State<UpdateRequiredScreen> {
                       ),
                     ),
                   ),
+                  if (_error != null && _tries >= _maxAutoTries) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'ລອງໃຫ້ອັດຕະໂນມັດ 3 ຮອບແລ້ວແຕ່ບໍ່ສຳເລັດ — ກວດ WiFi/ເນັດ ແລ້ວກົດ “ລອງໃໝ່”',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: faint, fontSize: 11.5, height: 1.5),
+                    ),
+                  ],
                   // ທາງອອກສຳຮອງ: ໂຫຼດໃນຕົວລົ້ມຊ້ຳໆ (proxy ແປກ) ⇒ ຍັງເອົາ APK
                   // ທາງ browser ໄດ້ຄືເກົ່າ
                   if (!_busy && _error != null && Platform.isAndroid) ...[
