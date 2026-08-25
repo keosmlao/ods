@@ -1,27 +1,22 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
-import '../job_urgency.dart';
 import '../main.dart';
 import '../streak.dart';
 import '../widgets/ui_kit.dart';
 import 'job_screen.dart';
 import 'notifications_screen.dart';
 
-/// **ໜ້າ "ມື້ນີ້" — ແຜນທີ່ນຳ** (v6, ແບບ E).
+/// **ໜ້າ "ມື້ນີ້"** — ໜ້າທຳອິດຂອງຊ່າງ (v6 NIGHT).
 ///
-/// ── ເປັນຫຍັງແຜນທີ່ ──
-/// ຊ່າງພາກສະໜາມແລ່ນ 3–6 ຈຸດຕໍ່ມື້. ຄຳຖາມທຳອິດຂອງລາວບໍ່ແມ່ນ "ມີວຽກຫຍັງແດ່"
-/// ແຕ່ແມ່ນ **"ໄປທາງໃດກ່ອນຈຶ່ງບໍ່ເສຍທ່ຽວ"** — ຄຳຖາມນັ້ນລາຍການຕອບບໍ່ໄດ້ ແຕ່ແຜນທີ່ຕອບໄດ້.
-/// ໝຸດຮຽງເປັນເລກ 1·2·3 ຕາມໄລຍະທາງຈາກຈຸດທີ່ຢືນຢູ່ ⇒ ເສັ້ນທາງມື້ນັ້ນເຫັນໃນຈໍດຽວ.
-///
-/// ── ຫຼັກທີ່ບໍ່ປ່ຽນ ──
-/// ບໍ່ຂໍສິດພິກັດເອງຕອນເປີດແອັບ (ຄຳຂໍທີ່ໂຜ່ມາລອຍໆ ຄົນກົດປະຕິເສດ) — ສະແດງໝຸດກ່ອນ
-/// ແລ້ວມີປຸ່ມ "ຮຽງຕາມໄລຍະທາງ" ໃຫ້ກົດເອງ. ໃບທີ່**ບໍ່ມີພິກັດ**ບໍ່ຫາຍໄປ: ຢູ່ທ້າຍລາຍການ.
+/// ── ເປັນຫຍັງມີໜ້ານີ້ ──
+/// ແຕ່ກ່ອນເປີດແອັບມາຮອດ**ລາຍການວຽກ**ເລີຍ — ຄືເປີດກ່ອງໜ້າວຽກຂອງບໍລິສັດ.
+/// ໜ້ານີ້ຕອບຄຳຖາມທີ່ຊ່າງຖາມຕົນເອງທຸກມື້ແທນ: *ມື້ນີ້ຂ້ອຍໄປຮອດໃສແລ້ວ ແລະ ໄດ້ເທົ່າໃດ*.
+/// ທຸກຕົວເລກມາຈາກສິ່ງທີ່ລະບົບເກັບຢູ່ແລ້ວ (ຄ່າຄອມທີ່ແຊ່ຕອນປິດງານ + ຄິວວຽກ) —
+/// ບໍ່ມີການປະດິດຕົວຊີ້ວັດໃໝ່.
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
 
@@ -30,32 +25,24 @@ class TodayScreen extends StatefulWidget {
 }
 
 class _TodayScreenState extends State<TodayScreen> {
-  /// ວຽງຈັນ — ໃຊ້ຕອນຍັງບໍ່ຮູ້ພິກັດຈັກອັນ (ບໍ່ໃຫ້ແຜນທີ່ເປີດກາງມະຫາສະໝຸດ)
-  static const _fallback = LatLng(17.9757, 102.6331);
-
-  final _map = MapController();
   List<Job> jobs = const [];
   Income? income;
-  Position? me;
+  String username = '';
   bool loading = true;
-  bool locating = false;
   String error = '';
 
   @override
   void initState() {
     super.initState();
+    Api.savedUsername().then((name) {
+      if (mounted && name != null) setState(() => username = name);
+    });
     load();
-    _useLastKnownPosition();
-  }
-
-  @override
-  void dispose() {
-    _map.dispose();
-    super.dispose();
   }
 
   Future<void> load() async {
     try {
+      // ວຽກ = ຫົວໃຈຂອງໜ້າ · ລາຍຮັບ = ເສີມ ⇒ ລາຍຮັບລົ້ມກໍ່ຍັງສະແດງໜ້າໄດ້
       final rows = await Api.jobs();
       Income? money;
       try {
@@ -75,90 +62,11 @@ class _TodayScreenState extends State<TodayScreen> {
     }
   }
 
-  /// ພິກັດຈຸດສຸດທ້າຍທີ່ລະບົບຈື່ໄວ້ — **ບໍ່ເປີດ GPS ແລະ ບໍ່ຂໍສິດ**
-  /// ⇒ ຄົນທີ່ເຄີຍ check-in ມາແລ້ວ ໄດ້ໄລຍະທາງທັນທີໂດຍບໍ່ຖືກຖາມຫຍັງ
-  Future<void> _useLastKnownPosition() async {
-    try {
-      if (await Geolocator.checkPermission() == LocationPermission.denied) return;
-      final last = await Geolocator.getLastKnownPosition();
-      if (last != null && mounted) setState(() => me = last);
-    } catch (_) {}
-  }
+  /// ໃບທີ່ຍັງຕ້ອງລົງມື (server ບອກຜ່ານ `action`)
+  List<Job> get _actionable =>
+      jobs.where((j) => const {'accept', 'start', 'finish'}.contains(j.action)).toList();
 
-  /// ກົດເອງ ⇒ ຂໍສິດ + ຈັບພິກັດສົດ
-  Future<void> _locate() async {
-    setState(() => locating = true);
-    try {
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('ຕ້ອງອະນຸຍາດພິກັດ ຈຶ່ງຮຽງຕາມໄລຍະທາງໄດ້')),
-          );
-        }
-        return;
-      }
-      final now = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
-      );
-      if (!mounted) return;
-      setState(() => me = now);
-      _map.move(LatLng(now.latitude, now.longitude), 12.5);
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ຈັບພິກັດບໍ່ໄດ້ — ອອກໄປບ່ອນໂລ່ງແລ້ວລອງໃໝ່')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => locating = false);
-    }
-  }
-
-  /// ໃບທີ່ຊ່າງລົງມືໄດ້ດຽວນີ້ (server ບອກຜ່ານ `action`) — ໜ້ານີ້ບໍ່ສະແດງໃບທີ່ລໍຄົນອື່ນ
-  List<Job> get _mine =>
-      jobs.where((j) => actionable.contains(j.action)).toList()..sort(byUrgency);
-
-  List<Job> get _pinned =>
-      _mine.where((j) => j.lat != null && j.lng != null).toList();
-
-  List<Job> get _noPin => _mine.where((j) => j.lat == null || j.lng == null).toList();
-
-  /// ລຳດັບການໄປ: ໃກ້ສຸດກ່ອນ (ຮູ້ພິກັດຕົນ) ບໍ່ດັ່ງນັ້ນຕາມຄວາມຮີບ
-  List<Job> get _route {
-    final list = [..._pinned];
-    final here = me;
-    if (here != null) {
-      list.sort((a, b) => _metres(here, a).compareTo(_metres(here, b)));
-    }
-    return list;
-  }
-
-  double _metres(Position from, Job job) => Geolocator.distanceBetween(
-        from.latitude,
-        from.longitude,
-        job.lat!,
-        job.lng!,
-      );
-
-  String? _km(Job job) {
-    final here = me;
-    if (here == null || job.lat == null) return null;
-    final km = _metres(here, job) / 1000;
-    return km < 10 ? km.toStringAsFixed(1) : km.round().toString();
-  }
-
-  Color _tone(Job job) => switch (urgencyOf(job)) {
-        Urgency.late_ => danger,
-        Urgency.today => warn,
-        _ => teal,
-      };
-
-  int get _doneToday => closedToday(income?.rows ?? const []);
+  int get _doneToday => closedToday(income?.rows ?? const [], );
 
   int get _streak => streakDays(
         (income?.rows ?? const [])
@@ -166,139 +74,105 @@ class _TodayScreenState extends State<TodayScreen> {
             .whereType<DateTime>(),
       );
 
-  Future<void> _navigate(Job job) async {
-    final destination = job.lat != null && job.lng != null
-        ? '${job.lat},${job.lng}'
-        : (job.address ?? '').trim();
-    if (destination.isEmpty) return;
-    final uri = Uri.https('www.google.com', '/maps/dir/', {
-      'api': '1',
-      'destination': destination,
-    });
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ບໍ່ສາມາດເປີດແຜນທີ່ໄດ້')),
-      );
-    }
-  }
-
-  void _open(Job job) => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => JobScreen(job: job)),
-      ).then((_) => load());
-
   @override
   Widget build(BuildContext context) {
-    final route = _route;
-    final centre = route.isNotEmpty
-        ? LatLng(route.first.lat!, route.first.lng!)
-        : (me != null ? LatLng(me!.latitude, me!.longitude) : _fallback);
+    final done = _doneToday;
+    final left = _actionable.length;
+    final target = math.max(done + left, 1);
 
     return Scaffold(
       backgroundColor: ground,
-      body: Stack(
-        children: [
-          Positioned.fill(child: _mapView(route, centre)),
-          SafeArea(child: _topBar()),
-          _sheet(route),
-        ],
+      body: RefreshIndicator(
+        onRefresh: load,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 24),
+          children: [
+            SafeArea(bottom: false, child: _greeting()),
+            const SizedBox(height: 12),
+            if (loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else ...[
+              if (error.isNotEmpty) ...[
+                _errorNote(),
+                const SizedBox(height: 12),
+              ],
+              _todayCard(done: done, left: left, target: target),
+              const SizedBox(height: 12),
+              _moneyCard(),
+              const SizedBox(height: 16),
+              if (_actionable.isEmpty)
+                _allDone()
+              else ...[
+                BandHeader('ຕ້ອງເຮັດຕໍ່', count: left, color: ink),
+                const SizedBox(height: 8),
+                // ສະແດງແຕ່ 3 ໃບ — ໜ້ານີ້ບອກ "ອັນຕໍ່ໄປ" ບໍ່ແມ່ນລາຍການທັງໝົດ
+                for (final job in _actionable.take(3)) ...[
+                  _nextJob(job),
+                  const SizedBox(height: 10),
+                ],
+                if (left > 3)
+                  Text(
+                    'ອີກ ${left - 3} ໃບ ຢູ່ແທັບ “ວຽກ”',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: faint, fontSize: 12),
+                  ),
+              ],
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _mapView(List<Job> route, LatLng centre) => FlutterMap(
-    mapController: _map,
-    options: MapOptions(initialCenter: centre, initialZoom: route.length <= 1 ? 13 : 11.5),
-    children: [
-      TileLayer(
-        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        userAgentPackageName: 'net.odien.odss',
-      ),
-      MarkerLayer(
-        markers: [
-          for (var i = 0; i < route.length; i++)
-            Marker(
-              point: LatLng(route[i].lat!, route[i].lng!),
-              width: 36,
-              height: 36,
-              child: GestureDetector(
-                onTap: () => _open(route[i]),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: _tone(route[i]),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: ground, width: 2),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${i + 1}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        color: onAccent,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          if (me != null)
-            Marker(
-              point: LatLng(me!.latitude, me!.longitude),
-              width: 18,
-              height: 18,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF38BDF8),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: ground, width: 3),
-                ),
-              ),
-            ),
-        ],
-      ),
-    ],
-  );
-
-  Widget _topBar() => Padding(
-    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+  Widget _greeting() => Padding(
+    padding: const EdgeInsets.fromLTRB(2, 10, 0, 0),
     child: Row(
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-          decoration: BoxDecoration(
-            color: surface,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: line),
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(color: teal, borderRadius: BorderRadius.circular(999)),
+          alignment: Alignment.center,
+          child: Text(
+            username.isEmpty ? '·' : username.characters.first.toUpperCase(),
+            style: const TextStyle(color: onAccent, fontWeight: FontWeight.w900, fontSize: 17),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'ມື້ນີ້ $_doneToday/${_doneToday + _mine.length}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: ink,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                ),
+                username.isEmpty ? 'ສະບາຍດີ' : 'ສະບາຍດີ, $username',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: ink),
               ),
-              if (_streak > 0) ...[
-                const SizedBox(width: 9),
-                Text('🔥 $_streak', style: const TextStyle(fontSize: 12.5, color: warn)),
-              ],
+              const Text('ມື້ນີ້ເຮັດຫຍັງແດ່', style: TextStyle(fontSize: 11.5, color: faint)),
             ],
           ),
         ),
-        const Spacer(),
-        _roundButton(
-          icon: locating ? Icons.hourglass_bottom_rounded : Icons.my_location_rounded,
-          onTap: locating ? null : _locate,
-        ),
-        const SizedBox(width: 8),
-        _roundButton(
-          icon: Icons.notifications_none_rounded,
+        if (_streak > 0) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+            decoration: BoxDecoration(
+              color: warnTint,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: warn.withValues(alpha: .4)),
+            ),
+            child: Text(
+              '🔥 $_streak',
+              style: const TextStyle(color: warn, fontWeight: FontWeight.w900, fontSize: 13),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        RoundIconButton(
+          icon: Icons.notifications_none,
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const NotificationsScreen()),
@@ -308,200 +182,208 @@ class _TodayScreenState extends State<TodayScreen> {
     ),
   );
 
-  Widget _roundButton({required IconData icon, VoidCallback? onTap}) => Material(
-    color: surface,
-    shape: CircleBorder(side: BorderSide(color: line)),
-    child: InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: SizedBox(
-        width: 42,
-        height: 42,
-        child: Icon(icon, size: 20, color: onTap == null ? faint : ink),
-      ),
-    ),
-  );
-
-  Widget _sheet(List<Job> route) => DraggableScrollableSheet(
-    initialChildSize: .46,
-    minChildSize: .24,
-    maxChildSize: .88,
-    builder: (context, controller) => Container(
-      decoration: BoxDecoration(
-        color: surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: line)),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 38,
-            height: 4,
-            margin: const EdgeInsets.symmetric(vertical: 10),
-            decoration: BoxDecoration(
-              color: lineStrong,
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          Expanded(
-            child: loading
-                ? const Center(child: CircularProgressIndicator())
-                : ListView(
-                    controller: controller,
-                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 20),
-                    children: [
-                      if (error.isNotEmpty) ...[_errorNote(), const SizedBox(height: 12)],
-                      if (_mine.isEmpty)
-                        _empty()
-                      else ...[
-                        for (var i = 0; i < route.length; i++) ...[
-                          _row(route[i], i + 1),
-                          const SizedBox(height: 9),
-                        ],
-                        if (_noPin.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          const BandHeader('ບໍ່ມີພິກັດ (ໂທຖາມທາງ)'),
-                          const SizedBox(height: 8),
-                          for (final job in _noPin) ...[
-                            _row(job, null),
-                            const SizedBox(height: 9),
-                          ],
-                        ],
-                        if (route.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          SizedBox(
-                            height: kPrimaryTouch,
-                            child: FilledButton.icon(
-                              onPressed: () => _navigate(route.first),
-                              icon: const Icon(Icons.navigation_rounded, size: 20),
-                              label: Text(
-                                'ນຳທາງໄປໝຸດ 1${_km(route.first) == null ? '' : ' · ${_km(route.first)} km'}',
-                                style: const TextStyle(fontWeight: FontWeight.w900),
-                              ),
-                            ),
-                          ),
-                        ],
-                        if (me == null) ...[
-                          const SizedBox(height: 10),
-                          Center(
-                            child: TextButton.icon(
-                              onPressed: _locate,
-                              icon: const Icon(Icons.my_location_rounded, size: 17),
-                              label: const Text('ຮຽງຕາມໄລຍະທາງຈາກຈຸດຂອງຂ້ອຍ'),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ],
-                  ),
-          ),
-        ],
-      ),
-    ),
-  );
-
-  Widget _row(Job job, int? number) {
-    final time = timeOf(job);
-    final km = _km(job);
-    return Material(
-      color: ground,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: () => _open(job),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(11, 11, 11, 11),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: line),
-          ),
-          child: Row(
+  Widget _todayCard({required int done, required int left, required int target}) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: cardDecoration(color: surface, borderRadius: 22),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 92,
+          height: 92,
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: number == null ? surfaceAlt : _tone(job),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: number == null
-                    ? const Icon(Icons.help_outline_rounded, size: 16, color: faint)
-                    : Text(
-                        '$number',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          color: onAccent,
-                        ),
-                      ),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      actionVerb(job, phaseLabel: job.stageLabel),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        color: ink,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      [job.code, if ((job.customer ?? '').trim().isNotEmpty) job.customer!.trim()]
-                          .join(' · '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 11.5, color: muted),
-                    ),
-                  ],
+              SizedBox(
+                width: 92,
+                height: 92,
+                child: CircularProgressIndicator(
+                  value: done / target,
+                  strokeWidth: 9,
+                  backgroundColor: surfaceAlt,
+                  color: tealBright,
+                  strokeCap: StrokeCap.round,
                 ),
               ),
-              const SizedBox(width: 8),
               Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  TimeChip(time.label, tone: time.tone),
-                  if (km != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      '$km km',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: faint,
-                        fontWeight: FontWeight.w700,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
+                  Text(
+                    '$done/$target',
+                    style: const TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w900,
+                      color: ink,
+                      fontFeatures: [FontFeature.tabularFigures()],
                     ),
-                  ],
+                  ),
+                  const Text('ມື້ນີ້', style: TextStyle(fontSize: 10.5, color: faint)),
                 ],
               ),
             ],
           ),
         ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _line(ok, 'ຈົບແລ້ວມື້ນີ້', done),
+              _line(teal, 'ຍັງຕ້ອງລົງມື', left),
+              _line(warn, 'ລໍຄົນອື່ນ', jobs.length - left),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _line(Color color, String label, int value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3.5),
+    child: Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(label, style: const TextStyle(fontSize: 12.5, color: body)),
+        ),
+        Text(
+          '$value',
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
+            color: ink,
+            fontFeatures: [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _moneyCard() {
+    final money = income;
+    // ຍັງບໍ່ເຊື່ອມ ERP = ບອກໃຫ້ໄປຫາຜູ້ຈັດການ (ຢ່າສະແດງ 0 ງຽບໆ ⇒ ຊ່າງເຂົ້າໃຈວ່າບໍ່ໄດ້ເງິນ)
+    if (money != null && !money.linked) {
+      return Container(
+        padding: const EdgeInsets.all(15),
+        decoration: cardDecoration(color: surface, borderRadius: 22),
+        child: const Row(
+          children: [
+            Icon(Icons.link_off_rounded, size: 18, color: warn),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'ຍັງບໍ່ໄດ້ເຊື່ອມລະຫັດພະນັກງານ — ແຈ້ງຜູ້ຈັດການ ຈຶ່ງຈະເຫັນຄ່າຄອມ',
+                style: TextStyle(fontSize: 12.5, color: body),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
+      decoration: cardDecoration(color: surface, borderRadius: 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('ຄ່າຄອມເດືອນນີ້', style: TextStyle(fontSize: 12, color: faint)),
+              const Spacer(),
+              Text(
+                '${money?.jobs ?? 0} ໃບ',
+                style: const TextStyle(fontSize: 12, color: faint),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                _thb(money?.totalThb ?? 0),
+                style: const TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  color: tealBright,
+                  letterSpacing: -.5,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text('ບາທ', style: TextStyle(fontSize: 13, color: faint)),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _empty() => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 26),
+  static String _thb(double value) {
+    final whole = value.round().toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < whole.length; i++) {
+      if (i > 0 && (whole.length - i) % 3 == 0) buffer.write(',');
+      buffer.write(whole[i]);
+    }
+    return buffer.toString();
+  }
+
+  Widget _nextJob(Job job) => Container(
+    decoration: cardDecoration(color: surface, borderRadius: 18),
+    padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
     child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('🎯', style: TextStyle(fontSize: 32)),
-        const SizedBox(height: 10),
-        const Text(
+        Text(
+          job.product ?? job.code,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: ink),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          [job.code, if ((job.customer ?? '').trim().isNotEmpty) job.customer!.trim()].join(' · '),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, color: muted),
+        ),
+        const SizedBox(height: 11),
+        SizedBox(
+          height: kPrimaryTouch,
+          child: FilledButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => JobScreen(job: job)),
+            ).then((_) => load()),
+            icon: const Icon(Icons.play_arrow_rounded, size: 21),
+            label: const Text('ເລີ່ມເລີຍ', style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _allDone() => Container(
+    padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 18),
+    decoration: cardDecoration(color: surface, borderRadius: 22),
+    child: const Column(
+      children: [
+        Text('🎯', style: TextStyle(fontSize: 34)),
+        SizedBox(height: 10),
+        Text(
           'ບໍ່ມີວຽກຄ້າງລໍເຈົ້າດຽວນີ້',
           style: TextStyle(fontWeight: FontWeight.w900, color: ink, fontSize: 15),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
         Text(
-          'ໃບທີ່ເຫຼືອ ${jobs.length - _mine.length} ໃບ ກຳລັງລໍຄົນອື່ນຢູ່',
-          style: const TextStyle(color: faint, fontSize: 12.5),
+          'ໃບທີ່ເຫຼືອກຳລັງລໍຄົນອື່ນຢູ່',
+          style: TextStyle(color: faint, fontSize: 12.5),
         ),
       ],
     ),
