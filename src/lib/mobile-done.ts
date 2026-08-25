@@ -60,14 +60,16 @@ export async function myDoneJobs(session: Session): Promise<DoneJob[]> {
              or exists (select 1 from ods_job_tech t
                          where t.workflow='install' and t.job_code=a.code and t.tech_code = any($1)))
      union all
-     select 'maintenance', a.code, b.name_1, a.name_1,
+     -- ລ້າງແອ: ຊ່າງຢູ່ຖັນ emp_code · ລູກຄ້າ walk-in ຢູ່ cust_name · ບໍ່ມີຊື່ສິນຄ້າ
+     select 'maintenance', a.code,
+        coalesce(b.name_1, nullif(a.cust_name,'')), 'ລ້າງແອ',
         to_char(a.finish_clean,'DD-MM-YYYY HH24:MI'),
-        (a.tech_code = any($1))
+        (a.emp_code = any($1))
        from ods_tb_maintenance a
        left join ar_customer b on b.code = a.cust_code
       where a.finish_clean is not null
         and a.finish_clean >= localtimestamp - interval '${DAYS} days'
-        and (a.tech_code = any($1)
+        and (a.emp_code = any($1)
              or exists (select 1 from ods_job_tech t
                          where t.workflow='maintenance' and t.job_code=a.code and t.tech_code = any($1)))
      order by finished_at desc nulls last

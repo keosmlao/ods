@@ -51,7 +51,10 @@ export async function sendDayBrief(dry = false): Promise<DayBriefResult> {
             and a.appoint_date::date = current_date
             and (${INSTALL_STAGE_SQL}) between 0 and 7
          union all
-         select a.tech_code as lead, a.code, coalesce(b.name_1,'-'), b.address, 'maintenance'
+         -- ລ້າງແອໃຊ້ຖັນ emp_code (ທີມດຽວກັບສ້ອມ) ບໍ່ແມ່ນ tech_code ຄືຕິດຕັ້ງ
+         select a.emp_code as lead, a.code,
+                coalesce(b.name_1, nullif(a.cust_name,''), '-'),
+                coalesce(nullif(a.location,''), b.address), 'maintenance'
            from ods_tb_maintenance a
            left join ar_customer b on b.code = a.cust_code
           where a.cancel_date is null and a.appoint_date::date = current_date
