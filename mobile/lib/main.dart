@@ -1,9 +1,15 @@
+import 'dart:async';
+import 'dart:ui';
+
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'api.dart';
 import 'app_links.dart';
 import 'app_update.dart';
 import 'drafts.dart';
+import 'pending.dart';
 import 'push.dart';
 import 'screens/login_screen.dart';
 import 'screens/nav_host.dart';
@@ -20,14 +26,49 @@ void main() async {
   // ຮູບ/ຂໍ້ຄວາມທີ່ຄ້າງຢູ່ຈາກຮອບກ່ອນ — ໂຫຼດກ່ອນ runApp ໃຫ້ໜ້າຈໍຄືນຮ່າງໄດ້ທັນທີ
   await Drafts.load();
 
+  // ຄິວຄຳສັ່ງທີ່ຍັງສົ່ງບໍ່ໄດ້ + ລາຍການວຽກທີ່ເກັບໄວ້ — ຕ້ອງມີກ່ອນຄຳຂໍທຳອິດ
+  await Future.wait([Pending.load(), JobCache.load()]);
+
   // ເວີຊັນຂອງຕົນເອງ — ຕ້ອງຮູ້ກ່ອນຄຳຂໍທຳອິດ (ໃສ່ header x-app-version ທຸກຄຳຂໍ)
   await AppVersion.load();
 
   // ແຈ້ງເຕືອນ (FCM) — ຍັງບໍ່ໄດ້ຕັ້ງຄ່າ Firebase ກໍ່ບໍ່ເປັນຫຍັງ (Push.init ຈັບ error ໄວ້)
   await Push.init();
 
+  // ເກັບ crash ສົ່ງເຂົ້າ Crashlytics — ຕ້ອງມາຫຼັງ Push.init (ບ່ອນທີ່ Firebase ຖືກ init)
+  _watchCrashes();
+
   runApp(const OdssApp());
   WidgetsBinding.instance.addPostFrameCallback((_) => AppLinks.flush());
+}
+
+/// ສົ່ງ crash/error ຂຶ້ນ Crashlytics.
+///
+/// ເປັນຫຍັງຕ້ອງມີ: ຊ່າງແຈ້ງວ່າ "ແອັບປິດເອງ" ແລ້ວ IT ບໍ່ມີຫຼັກຖານຫຍັງເລີຍ —
+/// ບໍ່ຮູ້ວ່າໜ້າໃດ · ເຄື່ອງລຸ້ນໃດ · ເກີດຈັກຄົນ. ບໍ່ມີຂໍ້ມູນ = ແກ້ບໍ່ໄດ້ ນອກຈາກເດົາ.
+///
+/// ⚠️ Firebase init ບໍ່ໄດ້ (ບໍ່ມີ google-services.json ຢູ່ເຄື່ອງ build) ⇒ ຈັບ error
+/// ໄວ້ໝົດ ແລະ ແອັບຍັງແລ່ນປົກກະຕິ — ຫຼັກການດຽວກັບ Push (ເຄື່ອງມືເສີມຫ້າມລົ້ມແອັບ).
+void _watchCrashes() {
+  try {
+    final crashlytics = FirebaseCrashlytics.instance;
+    // debug build ບໍ່ຕ້ອງສົ່ງ (ບໍ່ດັ່ງນັ້ນ error ຕອນພັດທະນາປົນກັບຂອງໜ້າງານຈິງ)
+    crashlytics.setCrashlyticsCollectionEnabled(!kDebugMode);
+    crashlytics.setCustomKey('app_version', AppVersion.current);
+
+    final flutterOnError = FlutterError.onError;
+    FlutterError.onError = (details) {
+      flutterOnError?.call(details);
+      crashlytics.recordFlutterFatalError(details);
+    };
+    // error ທີ່ຫຼຸດອອກນອກ zone ຂອງ Flutter (ເຊັ່ນ Future ທີ່ບໍ່ມີໃຜຈັບ)
+    PlatformDispatcher.instance.onError = (error, stack) {
+      crashlytics.recordError(error, stack, fatal: true);
+      return true;
+    };
+  } catch (error) {
+    debugPrint('ຕັ້ງ Crashlytics ບໍ່ໄດ້ (ບໍ່ມີ Firebase?): $error');
+  }
 }
 
 // ── Design tokens v5 (ຕໍ່ຈາກ v4 Flat High-Contrast) ──

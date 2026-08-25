@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../drafts.dart';
 import '../main.dart';
 import '../push.dart';
 import '../widgets/ui_kit.dart';
@@ -32,9 +33,17 @@ class _StockCountScreenState extends State<StockCountScreen> {
   bool _flashOk = false;
   String _type = 'all'; // ຕົວກອງປະເພດບໍລິການ (all/CI/ST/PS)
 
+  /// ຮ່າງການນັບ — ນັບໄປ 50 ອັນແລ້ວອອກຈາກໜ້າ (ຮັບສາຍ · ແອັບຖືກຂ້າ) ບໍ່ຄວນເລີ່ມໃໝ່
+  static const _draftKey = 'stock-count';
+
+  void _saveDraft() => Drafts.write(_draftKey, {'scanned': _scanned.toList()});
+
   @override
   void initState() {
     super.initState();
+    _scanned.addAll(Drafts.read(_draftKey)['scanned'] is List
+        ? (Drafts.read(_draftKey)['scanned'] as List).whereType<String>()
+        : const <String>[]);
     _load();
   }
 
@@ -79,6 +88,7 @@ class _StockCountScreenState extends State<StockCountScreen> {
       final code = _lookup[value]; // ຈັບໄດ້ທັງເລກງານ ຫຼື SN
       if (code != null) {
         _scanned.add(code);
+        _saveDraft();
         _flash = 'ພົບ $code — ນັບແລ້ວ';
         _flashOk = true;
       } else {
@@ -128,6 +138,7 @@ class _StockCountScreenState extends State<StockCountScreen> {
         ),
       );
       _scanned.clear();
+      Drafts.clear(_draftKey); // ສົ່ງຜົນນັບແລ້ວ ⇒ ຮ່າງບໍ່ຈຳເປັນອີກ
       await _load();
     } on ApiError catch (e) {
       if (mounted) {

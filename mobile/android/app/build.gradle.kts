@@ -17,6 +17,8 @@ plugins {
  */
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
+    // Crashlytics ຕ້ອງມາຫຼັງ google-services — ບໍ່ມີໄຟລ໌ = ບໍ່ apply (build ຍັງຜ່ານ)
+    apply(plugin = "com.google.firebase.crashlytics")
 }
 
 val keystoreProperties = Properties()

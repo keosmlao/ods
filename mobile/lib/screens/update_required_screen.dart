@@ -58,6 +58,16 @@ class _UpdateRequiredScreenState extends State<UpdateRequiredScreen> {
   Future<void> _autoUpdate() async {
     // iOS ຕິດຕັ້ງ APK ບໍ່ໄດ້ ⇒ ຢ່າເປີດ browser ໃຫ້ເອງໂດຍບໍ່ໄດ້ຂໍ (ໜ້າຈໍຈະຫາຍໄປເສີຍໆ)
     if (!AppUpdater.canInstallInApp) return;
+    /*
+      ── ອັດຕະໂນມັດສະເພາະ server ຂອງບໍລິສັດ ──
+      ຊ່າງປ່ຽນ server URL ເອງໄດ້ (ໜ້າຕັ້ງຄ່າ) ແລະ ແອັບມີສິດຕິດຕັ້ງ APK
+      ⇒ ຖ້າມີຄົນຫຼອກໃຫ້ຕັ້ງ server ປອມ ການໂຫຼດ+ຕິດຕັ້ງ**ເອງ**ຈະກາຍເປັນຊ່ອງ
+      ຍັດແອັບປອມ. server ອື່ນ (ເຄື່ອງທົດສອບ) ຍັງອັບເດດໄດ້ ແຕ່ຕ້ອງກົດເອງ.
+    */
+    final target = await _url();
+    if (target == null) return;
+    final official = Uri.tryParse(Api.defaultBaseUrl)?.host;
+    if (official == null || target.host != official) return;
     while (mounted && _tries < _maxAutoTries) {
       _tries++;
       await _update();

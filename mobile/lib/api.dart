@@ -8,6 +8,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 import 'app_update.dart';
+import 'pending.dart';
 
 /// key ຂອງ Navigator ຫຼັກ (ໃສ່ໃນ MaterialApp) — ໃຫ້ Api ພາໄປໜ້າ login ໄດ້ຈາກທຸກບ່ອນ
 /// ເມື່ອ token ໝົດອາຍຸ/ຖືກຖອນ (401) ໂດຍບໍ່ຕ້ອງໃຫ້ແຕ່ລະໜ້າຈັດການເອງ.
@@ -30,6 +31,8 @@ class Api {
   static const _storage = FlutterSecureStorage();
   static const _tokenKey = 'odss_token';
   static const _serverKey = 'odss_server_url';
+  /// key ເກົ່າຂອງຄິວ offline (ຢູ່ secure storage) — ດຽວນີ້ຄິວຢູ່ໄຟລ໌ (lib/pending.dart)
+  /// ຍັງເກັບ key ໄວ້ເພື່ອ **ລ້າງຂອງເກົ່າ** ຕອນ logout ຂອງເຄື່ອງທີ່ອັບເດດມາຈາກລຸ້ນກ່ອນ
   static const _pendingActionKey = 'odss_pending_actions';
   static String? _sessionToken;
   static bool _syncingActions = false;
@@ -76,6 +79,10 @@ class Api {
     await _storage.delete(key: _userKey);
     await _storage.delete(key: _roleLabelKey);
     await _storage.delete(key: _pendingActionKey);
+    // ຄິວ + cache ເປັນຂອງ **ຄົນທີ່ login ຢູ່** ⇒ ອອກຈາກລະບົບແລ້ວຕ້ອງລ້າງ
+    // (ບໍ່ດັ່ງນັ້ນຄຳສັ່ງຄ້າງຂອງຄົນເກົ່າ ຈະຖືກສົ່ງດ້ວຍ token ຂອງຄົນໃໝ່)
+    Pending.clear();
+    JobCache.clear();
   }
 
   // ຊື່ຜູ້ໃຊ້ + ປ້າຍ role — ເກັບໄວ້ໃຫ້ໜ້າ home ທັກທາຍ (ບໍ່ຕ້ອງ login ຄືນ)
@@ -297,10 +304,29 @@ class Api {
 
   /* ── ວຽກ ────────────────────────────────────────────────────── */
 
+  /// ຂໍ້ມູນລາຍການວຽກຮອບລ່າສຸດມາຈາກ cache ບໍ (null = ສົດ) — ໜ້າຈໍເອົາໄປຂຶ້ນປ້າຍເຕືອນ
+  static DateTime? jobsFromCacheAt;
+
+  /// ລາຍການວຽກ — ຕິດຕໍ່ server ບໍ່ໄດ້ ⇒ **ຄືນຂອງທີ່ເກັບໄວ້ໃນເຄື່ອງ** ແທນການໂຍນ error.
+  ///
+  /// ຊ່າງຂັບໄປຮອດໜ້າງານແລ້ວເປີດແອັບເບິ່ງທີ່ຢູ່/ເບີໂທ — ບ່ອນນັ້ນສັນຍານບໍ່ມີ ⇒ ແຕ່ກ່ອນ
+  /// ຂຶ້ນແຕ່ "ເຊື່ອມຕໍ່ບໍ່ໄດ້" ທັງທີ່ຂໍ້ມູນທີ່ຕ້ອງໃຊ້ຫາກໍ່ໂຫຼດມາເມື່ອຄາວກ່ອນ.
+  /// 401 (token ໝົດອາຍຸ) ຍັງໂຍນຄືເກົ່າ — ນັ້ນຕ້ອງໄປ login ບໍ່ແມ່ນເລື່ອງສັນຍານ.
   static Future<List<Job>> jobs() async {
     await syncPendingActions();
-    final result = await _send('GET', '/api/mobile/jobs');
-    return (result['jobs'] as List).map((row) => Job.fromJson(row)).toList();
+    try {
+      final result = await _send('GET', '/api/mobile/jobs');
+      final rows = result['jobs'] as List;
+      JobCache.save(rows);
+      jobsFromCacheAt = null;
+      return rows.map((row) => Job.fromJson(row)).toList();
+    } on ApiError catch (error) {
+      final offline = error.status == 0 || error.status == 408;
+      final cached = JobCache.rows;
+      if (!offline || cached.isEmpty) rethrow;
+      jobsFromCacheAt = JobCache.savedAt;
+      return cached.map((row) => Job.fromJson(row)).toList();
+    }
   }
 
   /// ຄຳສັ່ງທັງໝົດຂອງງານ: accept · reject · start · finish · checkin · checkout
@@ -322,38 +348,33 @@ class Api {
       );
       return result['message'] as String;
     } on ApiError catch (error) {
-      final hasLargeEvidence =
-          request.containsKey('photo') || request.containsKey('photos');
-      if ((error.status == 0 || error.status == 408) &&
-          workflow != 'maintenance' &&
-          !hasLargeEvidence) {
-        await _queueAction(workflow, code, request);
+      /*
+        ── ບໍ່ມີສັນຍານ ⇒ ເຂົ້າຄິວ (ລວມຄຳສັ່ງທີ່ມີຮູບ — ແກ້ 25-08-2026) ──
+        ແຕ່ກ່ອນຄິວຢູ່ secure storage ຈຶ່ງຂ້າມຄຳສັ່ງທີ່ມີຮູບ ⇒ **check-in ແລະ ຈົບງານ
+        ໃຊ້ບໍ່ໄດ້ເລີຍຕອນບໍ່ມີເນັດ** ທັງທີ່ນັ້ນຄືສອງຄຳສັ່ງທີ່ຊ່າງຕ້ອງກົດຢູ່ໜ້າງານ.
+        ດຽວນີ້ຄິວຢູ່ໃນໄຟລ໌ (lib/pending.dart) ⇒ ຮູບໄປນຳໄດ້.
+      */
+      if (error.status == 0 || error.status == 408) {
+        if (workflow == 'maintenance') rethrow;
+        if (!Pending.add(workflow, code, request)) {
+          throw ApiError(
+            'ຄິວທີ່ລໍສົ່ງເຕັມແລ້ວ (${Pending.maxActions} ລາຍການ) — '
+            'ຕ້ອງຫາສັນຍານໃຫ້ແອັບສົ່ງຂອງເກົ່າອອກກ່ອນ',
+            error.status,
+          );
+        }
         return 'OFFLINE_QUEUED: ເກັບຄຳສັ່ງໄວ້ແລ້ວ — ຈະສົ່ງເມື່ອມີ internet';
       }
       rethrow;
     }
   }
 
-  static Future<void> _queueAction(
-    String workflow,
-    String code,
-    Map<String, dynamic> body,
-  ) async {
-    final raw = await _readSafe(_pendingActionKey);
-    final rows = raw == null || raw.isEmpty
-        ? <dynamic>[]
-        : (jsonDecode(raw) as List<dynamic>);
-    rows.add({'workflow': workflow, 'code': code, 'body': body});
-    await _storage.write(key: _pendingActionKey, value: jsonEncode(rows));
-  }
-
   static Future<int> syncPendingActions() async {
     if (_syncingActions) return 0;
     _syncingActions = true;
     try {
-      final raw = await _readSafe(_pendingActionKey);
-      if (raw == null || raw.isEmpty) return 0;
-      final rows = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+      final rows = Pending.all();
+      if (rows.isEmpty) return 0;
       final remaining = <Map<String, dynamic>>[];
       var sent = 0;
       for (final row in rows) {
@@ -377,14 +398,7 @@ class Api {
           // 4xx ອື່ນ = workflow ປ່ຽນໄປແລ້ວ; ຖິ້ມຄຳສັ່ງເກົ່າ.
         }
       }
-      if (remaining.isEmpty) {
-        await _storage.delete(key: _pendingActionKey);
-      } else {
-        await _storage.write(
-          key: _pendingActionKey,
-          value: jsonEncode(remaining),
-        );
-      }
+      Pending.replace(remaining);
       return sent;
     } finally {
       _syncingActions = false;

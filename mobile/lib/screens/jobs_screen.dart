@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../pending.dart';
 import 'repair_stock_screen.dart';
 import 'stock_balance_screen.dart';
 import '../main.dart';
@@ -405,6 +406,8 @@ class _JobsScreenState extends State<JobsScreen> {
         jobs = rows;
         error = '';
         loading = false;
+        cachedAt = Api.jobsFromCacheAt;
+        pendingCount = Pending.count;
       });
     } on ApiError catch (failure) {
       if (!mounted) return;
@@ -439,6 +442,12 @@ class _JobsScreenState extends State<JobsScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
   Future<void> logout() async {
     // ຖອນ push token = ຍິງ FCM/server (ຊ້າ/ອາດ timeout) ⇒ ຢ່າ block logout ດ້ວຍມັນ.
     // ລ້າງ token ໃນເຄື່ອງ (ໄວ) ແລ້ວໄປໜ້າ login ທັນທີ; unregister ແລ່ນพื้นหลัง.
@@ -450,14 +459,34 @@ class _JobsScreenState extends State<JobsScreen> {
     ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 
+  /// ຄຳຄົ້ນ — ຊ່າງທີ່ມີ 30-40 ໃບ ຫາເລກໃບ/ຊື່ລູກຄ້າດ້ວຍການເລື່ອນບໍ່ໄຫວ
+  final search = TextEditingController();
+
+  /// ຂໍ້ມູນມາຈາກ cache ຕອນໃດ (null = ສົດ) + ຈຳນວນຄຳສັ່ງທີ່ຍັງລໍສົ່ງ
+  DateTime? cachedAt;
+  int pendingCount = 0;
+
   /// ພາກທີ່ຖືກເລືອກ (null = ທັງໝົດ) — v5 ໃຊ້ຊິບແທນ tab ຈຶ່ງມີ "ທັງໝົດ" ໄດ້
   /// (ແຕ່ກ່ອນ tab ບັງຄັບໃຫ້ເບິ່ງເທື່ອລະພາກ ⇒ ຊ່າງທີ່ມີທັງງານສ້ອມ ແລະ ຕິດຕັ້ງ
   /// ຕ້ອງສະຫຼັບ tab ໄປມາ ຈຶ່ງຮູ້ວ່າມື້ນີ້ຕ້ອງໄປໃສກ່ອນ).
   _Band? filter;
 
-  /// ວຽກຫຼັງກອງພາກ
-  List<Job> get _visible =>
-      filter == null ? jobs : jobs.where((j) => _bandOf(j) == filter).toList();
+  /// ວຽກຫຼັງກອງພາກ ແລະ ຄຳຄົ້ນ
+  List<Job> get _visible {
+    final term = search.text.trim().toLowerCase();
+    return jobs.where((job) {
+      if (filter != null && _bandOf(job) != filter) return false;
+      if (term.isEmpty) return true;
+      // ຄົ້ນສິ່ງທີ່ຊ່າງຈື່ໄດ້: ເລກໃບ · ຊື່ລູກຄ້າ · ສິນຄ້າ · ທີ່ຢູ່ · ເບີໂທ
+      return [
+        job.code,
+        job.customer,
+        job.product,
+        job.address,
+        job.tel,
+      ].any((value) => (value ?? '').toLowerCase().contains(term));
+    }).toList();
+  }
 
   /// ຈຳນວນຕໍ່ພາກ — ໃສ່ໃນຊິບ ⇒ ຮູ້ປະລິມານກ່ອນກົດ
   Map<_Band, int> get _bandCounts {
@@ -591,7 +620,11 @@ class _JobsScreenState extends State<JobsScreen> {
               HeroStat(value: '$actionCount', label: 'ຕ້ອງລົງມື'),
             ],
           ),
-          if (!loading && error.isEmpty && jobs.isNotEmpty) _filterPills(),
+          if (!loading && error.isEmpty && jobs.isNotEmpty) ...[
+            _offlineBanner(),
+            _searchBox(),
+            _filterPills(),
+          ],
           Expanded(
             child: loading
                 ? const Center(child: CircularProgressIndicator())
@@ -613,6 +646,72 @@ class _JobsScreenState extends State<JobsScreen> {
       ),
     );
   }
+
+  /// ປ້າຍບອກວ່າ **ຂໍ້ມູນນີ້ເກົ່າ** / ມີຄຳສັ່ງລໍສົ່ງ — ບໍ່ດັ່ງນັ້ນຊ່າງເບິ່ງລາຍການ
+  /// ທີ່ໂຫຼດຕອນເຊົ້າແລ້ວເຂົ້າໃຈວ່າແມ່ນຂອງດຽວນີ້ (ຫົວໜ້າອາດຈັດງານໃໝ່ໄປແລ້ວ)
+  Widget _offlineBanner() {
+    final at = cachedAt;
+    if (at == null && pendingCount == 0) return const SizedBox.shrink();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final parts = [
+      if (at != null) 'ຂໍ້ມູນເມື່ອ ${two(at.hour)}:${two(at.minute)} (ບໍ່ມີສັນຍານ)',
+      if (pendingCount > 0) 'ມີ $pendingCount ລາຍການລໍສົ່ງ',
+    ].join(' · ');
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(
+        color: warnTint,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off_rounded, size: 15, color: warn),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              parts,
+              style: const TextStyle(fontSize: 11.5, color: warn, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ຄົ້ນຫາ — ພິມແລ້ວກອງທັນທີ (ບໍ່ຕ້ອງກົດຄົ້ນ) ເພາະລາຍການຢູ່ໃນເຄື່ອງແລ້ວ
+  Widget _searchBox() => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+    child: TextField(
+      controller: search,
+      onChanged: (_) => setState(() {}),
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        isDense: true,
+        filled: true,
+        fillColor: Colors.white,
+        hintText: 'ຄົ້ນ ເລກໃບ · ລູກຄ້າ · ສິນຄ້າ · ທີ່ຢູ່',
+        hintStyle: const TextStyle(fontSize: 13, color: faint),
+        prefixIcon: const Icon(Icons.search_rounded, size: 20, color: faint),
+        suffixIcon: search.text.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.close_rounded, size: 19),
+                onPressed: () => setState(search.clear),
+                tooltip: 'ລ້າງ',
+              ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(kButtonRadius),
+          borderSide: const BorderSide(color: lineStrong),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(kButtonRadius),
+          borderSide: const BorderSide(color: lineStrong),
+        ),
+      ),
+    ),
+  );
 
   /// ── ຊິບກອງພາກ (ແທນ tab v4) ──
   /// ຊິບເລື່ອນໄດ້ ⇒ ໃສ່ "ທັງໝົດ" ໄດ້ ແລະ ບອກຈຳນວນຕໍ່ພາກ. ພາກທີ່ບໍ່ມີວຽກ ບໍ່ຂຶ້ນ.
@@ -700,10 +799,16 @@ class _JobsScreenState extends State<JobsScreen> {
   Widget _urgencyList() {
     final groups = _groups;
     if (groups.isEmpty) {
+      final searching = search.text.trim().isNotEmpty;
       return _Empty(
-        icon: Icons.filter_alt_off_rounded,
-        title: 'ບໍ່ມີວຽກໃນພາກນີ້',
-        action: () async => setState(() => filter = null),
+        icon: searching ? Icons.search_off_rounded : Icons.filter_alt_off_rounded,
+        title: searching
+            ? 'ບໍ່ພົບ "${search.text.trim()}"'
+            : 'ບໍ່ມີວຽກໃນພາກນີ້',
+        action: () async => setState(() {
+          filter = null;
+          search.clear();
+        }),
       );
     }
     return RefreshIndicator(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../drafts.dart';
 import '../main.dart';
 import '../widgets/ui_kit.dart';
 
@@ -51,14 +52,36 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
   bool busy = false;
   String error = '';
 
+  /// ຮ່າງໃບຂໍເບີກ — ຈຳນວນທີ່ປັບເອງ + ໝາຍເຫດ ບໍ່ໃຫ້ຫາຍຕອນອອກຈາກໜ້າ
+  String get _draftKey => 'spare-request:${widget.workflow}:${widget.code}';
+
+  void _saveDraft() => Drafts.write(_draftKey, {
+        'take': take.map((code, qty) => MapEntry(code, qty)),
+        'remark': remark.text,
+      });
+
   @override
   void initState() {
     super.initState();
+    remark.text = (Drafts.read(_draftKey)['remark'] as String?) ?? '';
+    remark.addListener(_saveDraft);
     load();
+  }
+
+  /// ຄືນຈຳນວນທີ່ຊ່າງປັບເອງ — ເອົາສະເພາະລາຍການທີ່ **ຍັງຄ້າງຢູ່ຈິງ** ແລະ
+  /// ບໍ່ເກີນຈຳນວນຄ້າງ (ຂໍ້ມູນຝັ່ງ server ອາດປ່ຽນໄປແລ້ວລະຫວ່າງທີ່ຮ່າງຄ້າງຢູ່)
+  void _restoreTake(List<PendingSpareLine> rows) {
+    final saved = Drafts.read(_draftKey)['take'];
+    if (saved is! Map) return;
+    for (final row in rows) {
+      final value = saved[row.itemCode];
+      if (value is num) take[row.itemCode] = value.toDouble().clamp(0, row.qty);
+    }
   }
 
   @override
   void dispose() {
+    remark.removeListener(_saveDraft);
     remark.dispose();
     super.dispose();
   }
@@ -87,6 +110,7 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
           take
             ..clear()
             ..addEntries(rows.map((row) => MapEntry(row.itemCode, row.qty)));
+          _restoreTake(rows);
         });
       }
     } catch (_) {}
@@ -111,6 +135,7 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
         // ໂຫຼດລາຍການບໍ່ໄດ້ = ບໍ່ສົ່ງ take ⇒ server ເອົາຄ້າງທັງໝົດ (ພຶດຕິກຳເກົ່າ)
         take: pending == null ? null : Map<String, num>.from(take),
       );
+      Drafts.clear(_draftKey); // ສົ່ງໃບແລ້ວ ⇒ ຮ່າງບໍ່ຈຳເປັນອີກ
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text(message), backgroundColor: ok),
@@ -266,6 +291,7 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
             onPressed: () => setState(() {
               for (final row in rows) {
                 take[row.itemCode] = all ? 0 : row.qty;
+                _saveDraft();
               }
             }),
             child: Text(
@@ -322,7 +348,10 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
                   activeColor: teal,
                   visualDensity: VisualDensity.compact,
                   onChanged: (value) => setState(
-                    () => take[row.itemCode] = value == true ? row.qty : 0,
+                    () {
+                      take[row.itemCode] = value == true ? row.qty : 0;
+                      _saveDraft();
+                    },
                   ),
                 ),
               ],
@@ -339,7 +368,10 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
                     Icons.remove_rounded,
                     chosen <= 1
                         ? null
-                        : () => setState(() => take[row.itemCode] = chosen - 1),
+                        : () {
+                            setState(() => take[row.itemCode] = chosen - 1);
+                            _saveDraft();
+                          },
                   ),
                   Container(
                     width: 52,
@@ -358,7 +390,10 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
                     Icons.add_rounded,
                     chosen >= row.qty
                         ? null
-                        : () => setState(() => take[row.itemCode] = chosen + 1),
+                        : () {
+                            setState(() => take[row.itemCode] = chosen + 1);
+                            _saveDraft();
+                          },
                   ),
                   const Spacer(),
                   if (chosen < row.qty)

@@ -22,6 +22,8 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.1.0" apply false
     // FCM — ປະກາດໄວ້ ແຕ່ຍັງບໍ່ apply (app/build.gradle.kts apply ໃຫ້ ເມື່ອມີ google-services.json)
     id("com.google.gms.google-services") version "4.4.2" apply false
+    // Crashlytics — ອັບໂຫຼດ mapping ໃຫ້ stack trace ອ່ານອອກ (apply ຕາມເງື່ອນໄຂດຽວກັນ)
+    id("com.google.firebase.crashlytics") version "3.0.2" apply false
 }
 
 include(":app")
