@@ -200,22 +200,22 @@ class _TodayScreenState extends State<TodayScreen> {
   );
 
   Widget _todayCard({required int done, required int left, required int target}) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: cardDecoration(color: surface, borderRadius: 22),
+    padding: const EdgeInsets.all(20),
+    decoration: cardDecoration(color: surface, borderRadius: 24),
     child: Row(
       children: [
         SizedBox(
-          width: 92,
-          height: 92,
+          width: 116,
+          height: 116,
           child: Stack(
             alignment: Alignment.center,
             children: [
               SizedBox(
-                width: 92,
-                height: 92,
+                width: 116,
+                height: 116,
                 child: CircularProgressIndicator(
                   value: done / target,
-                  strokeWidth: 9,
+                  strokeWidth: 12,
                   backgroundColor: surfaceAlt,
                   color: tealBright,
                   strokeCap: StrokeCap.round,
@@ -227,19 +227,20 @@ class _TodayScreenState extends State<TodayScreen> {
                   Text(
                     '$done/$target',
                     style: const TextStyle(
-                      fontSize: 21,
+                      fontSize: 27,
                       fontWeight: FontWeight.w900,
                       color: ink,
+                      height: 1.1,
                       fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),
-                  const Text('ມື້ນີ້', style: TextStyle(fontSize: 10.5, color: faint)),
+                  const Text('ມື້ນີ້', style: TextStyle(fontSize: 12, color: faint)),
                 ],
               ),
             ],
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 18),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,22 +256,27 @@ class _TodayScreenState extends State<TodayScreen> {
   );
 
   Widget _line(Color color, String label, int value) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3.5),
+    padding: const EdgeInsets.symmetric(vertical: 6),
     child: Row(
       children: [
         Container(
-          width: 8,
-          height: 8,
+          width: 10,
+          height: 10,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 9),
+        const SizedBox(width: 11),
         Expanded(
-          child: Text(label, style: const TextStyle(fontSize: 12.5, color: body)),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 14.5, color: body, fontWeight: FontWeight.w600),
+          ),
         ),
         Text(
           '$value',
           style: const TextStyle(
-            fontSize: 13,
+            fontSize: 17,
             fontWeight: FontWeight.w900,
             color: ink,
             fontFeatures: [FontFeature.tabularFigures()],
@@ -302,22 +308,22 @@ class _TodayScreenState extends State<TodayScreen> {
       );
     }
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
-      decoration: cardDecoration(color: surface, borderRadius: 22),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+      decoration: cardDecoration(color: surface, borderRadius: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text('ຄ່າຄອມເດືອນນີ້', style: TextStyle(fontSize: 12, color: faint)),
+              const Text('ຄ່າຄອມເດືອນນີ້', style: TextStyle(fontSize: 13.5, color: faint)),
               const Spacer(),
               Text(
                 '${money?.jobs ?? 0} ໃບ',
-                style: const TextStyle(fontSize: 12, color: faint),
+                style: const TextStyle(fontSize: 13.5, color: faint),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -325,15 +331,16 @@ class _TodayScreenState extends State<TodayScreen> {
               Text(
                 _thb(money?.totalThb ?? 0),
                 style: const TextStyle(
-                  fontSize: 30,
+                  fontSize: 40,
                   fontWeight: FontWeight.w900,
                   color: tealBright,
-                  letterSpacing: -.5,
+                  letterSpacing: -1,
+                  height: 1.1,
                   fontFeatures: [FontFeature.tabularFigures()],
                 ),
               ),
-              const SizedBox(width: 6),
-              const Text('ບາທ', style: TextStyle(fontSize: 13, color: faint)),
+              const SizedBox(width: 7),
+              const Text('ບາທ', style: TextStyle(fontSize: 15, color: faint)),
             ],
           ),
         ],
