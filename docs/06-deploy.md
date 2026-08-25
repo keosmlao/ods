@@ -42,7 +42,8 @@ psql "$DATABASE_URL" -f migrations/2026-07-31-xxxx.sql
 |---|---|
 | **APK ແອັບຊ່າງ** | `./scripts/publish-apk.sh` — ວາງ `public/downloads/ods.apk` **ພ້ອມ** `ods.apk.version` (ໃຫຍ່ ~27MB ⇒ ຢູ່ນອກ git) |
 | **ໄຟລ໌ upload** | `ODS_UPLOADS_DIR` ຕ້ອງຊີ້ບ່ອນເກົ່າ (ຮູບຮັບເຄື່ອງ · ຮູບຜົນງານ) |
-| **.env.local** | ບໍ່ຢູ່ໃນ git — ຢູ່ server ຂອງມັນເອງ |
+| **.env.local** | ບໍ່ຢູ່ໃນ git — ຢູ່ server ຂອງມັນເອງ. ລາຍການ env ທັງໝົດ (ພ້ອມຄຳອະທິບາຍ) ຢູ່ `.env.example` ⇒ `cp .env.example .env.local` ແລ້ວຕື່ມຄ່າຈິງ |
+| **ກະແຈເຊັນ APK** | `mobile/android/key.properties` + ໄຟລ໌ `.jks` — ບໍ່ຢູ່ໃນ git (ເບິ່ງ `mobile/README.md`) |
 
 ບໍ່ copy APK = ຊ່າງໂຫຼດໄດ້**ຕົວເກົ່າ** ໂດຍທີ່ໜ້າເວັບບອກວ່າອັບເດດແລ້ວ.
 
