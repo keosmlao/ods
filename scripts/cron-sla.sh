@@ -15,7 +15,8 @@ if [ -z "${CRON_KEY:-}" ] && [ -f "$DIR/.env.local" ]; then
 fi
 : "${CRON_KEY:?CRON_KEY ບໍ່ໄດ້ຕັ້ງ (env ຫຼື .env.local)}"
 
-HOST="${ODSS_HOST:-http://localhost:3000}"
+# ພອດຈິງຂອງ production = 3007 (ເບິ່ງ ods.service) — 3000 ເປັນແອັບອື່ນຢູ່ເຄື່ອງດຽວກັນ
+HOST="${ODSS_HOST:-http://localhost:3007}"
 QS=""
 [ "${ODSS_DRY:-0}" = "1" ] && QS="?dry=1"
 

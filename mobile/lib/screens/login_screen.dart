@@ -370,7 +370,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => UpdateRequiredScreen(info: info),
+                                  builder: (_) => UpdateRequiredScreen(info: info, dismissible: true),
                                 ),
                               ),
                               child: Container(

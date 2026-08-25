@@ -5,7 +5,20 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../app_update.dart';
-import '../main.dart';
+
+/* ══ ສີຂອງໜ້ານີ້ (ມືດ) ══════════════════════════════════════════════════════
+   ໜ້າອື່ນຂອງແອັບເປັນໂໝດແຈ້ງ — ໜ້ານີ້ຕັ້ງໃຈໃຫ້ **ມືດ** ເພາະມັນຄື "ປະຕູ" ທີ່ທັບ
+   ທັງແອັບ: ຕ່າງຈາກທຸກໜ້າຢ່າງຊັດເຈນ ⇒ ຊ່າງຮູ້ທັນທີວ່ານີ້ບໍ່ແມ່ນໜ້າທຳມະດາ ແລະ
+   ບໍ່ຕ້ອງໄລ່ຫາທາງອອກ. ສີມິ້ນຄື teal ຂອງແບຣນທີ່ຍົກຄວາມສະຫວ່າງຂຶ້ນໃຫ້ອ່ານອອກ
+   ເທິງພື້ນມືດ (teal 0F766E ເທິງພື້ນດຳ contrast ບໍ່ພຽງພໍ).
+   ══════════════════════════════════════════════════════════════════════════ */
+const _bg = Color(0xFF0B1114); // ພື້ນ
+const _card = Color(0xFF131C21); // ກ່ອງເວີຊັນ · ແຖບຄວາມຄືບໜ້າ
+const _border = Color(0xFF24313D);
+const _mint = Color(0xFF2EE6C5); // ປຸ່ມ · ໄອຄອນ (teal ຍົກສະຫວ່າງ)
+const _onMint = Color(0xFF05231D); // ຕົວໜັງສືເທິງມິ້ນ (contrast 11:1)
+const _bright = Color(0xFFF2F7FA); // ຫົວຂໍ້
+const _dim = Color(0xFF8CA0B3); // ຄຳອະທິບາຍ
 
 /// **ໜ້າ "ຕ້ອງອັບເດດ"** — ທັບທັງແອັບ ອອກບໍ່ໄດ້ຈົນກວ່າຈະຕິດຕັ້ງລຸ້ນໃໝ່.
 ///
@@ -13,9 +26,13 @@ import '../main.dart';
 /// ຂອງລະບົບໃຫ້ເລີຍ — ບໍ່ໄດ້ໂຍນຊ່າງໄປ browser ແລ້ວປ່ອຍໃຫ້ຫາໄຟລ໌ໃນ Files ເອງ
 /// (ບ່ອນທີ່ການອັບເດດເຄີຍຄ້າງຢູ່ຕະຫຼອດ).
 class UpdateRequiredScreen extends StatefulWidget {
-  const UpdateRequiredScreen({super.key, required this.info});
+  const UpdateRequiredScreen({super.key, required this.info, this.dismissible = false});
 
   final AppUpdateInfo info;
+
+  /// ເປີດຈາກ **ແຈ້ງເຕືອນ / ກາດໜ້າ login** (ຍັງບໍ່ຖືກບັງຄັບ) ⇒ ອອກໄດ້.
+  /// ຕອນເປັນດ່ານບັງຄັບຈິງ (main.dart) ໃຫ້ເປັນ false — ອອກບໍ່ໄດ້.
+  final bool dismissible;
 
   @override
   State<UpdateRequiredScreen> createState() => _UpdateRequiredScreenState();
@@ -157,80 +174,80 @@ class _UpdateRequiredScreenState extends State<UpdateRequiredScreen> {
   @override
   Widget build(BuildContext context) {
     final info = widget.info;
-    // canPop: false — ກົດປຸ່ມກັບຄືນອອກຈາກໜ້ານີ້ບໍ່ໄດ້
+    // ດ່ານບັງຄັບ = ອອກບໍ່ໄດ້ · ເປີດເອງຈາກແຈ້ງເຕືອນ = ອອກໄດ້
     return PopScope(
-      canPop: false,
+      canPop: widget.dismissible,
       child: Scaffold(
-        backgroundColor: ground,
+        backgroundColor: _bg,
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(22),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 84,
-                    height: 84,
+                    width: 96,
+                    height: 96,
                     decoration: BoxDecoration(
-                      color: tealTint,
-                      borderRadius: BorderRadius.circular(24),
+                      color: _mint,
+                      borderRadius: BorderRadius.circular(26),
                     ),
-                    child: const Icon(
-                      Icons.system_update_rounded,
-                      color: teal,
-                      size: 44,
-                    ),
+                    child: const Icon(Icons.system_update, color: _onMint, size: 50),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 22),
                   const Text(
                     'ມີເວີຊັນໃໝ່',
                     style: TextStyle(
-                      color: ink,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
+                      color: _bright,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Text(
                     _busy
                         ? 'ກຳລັງອັບເດດໃຫ້ອັດຕະໂນມັດ…\nເມື່ອໂຫຼດຄົບ ລະບົບຈະຖາມໃຫ້ກົດ “ຕິດຕັ້ງ”'
                         : 'ກະລຸນາອັບເດດແອັບເປັນເວີຊັນຫຼ້າສຸດ\nເພື່ອສືບຕໍ່ການໃຊ້ງານ',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: muted, fontSize: 14, height: 1.5),
+                    style: const TextStyle(color: _dim, fontSize: 14.5, height: 1.6),
                   ),
-                  if (info.currentVersion.isNotEmpty ||
-                      info.latestVersion.isNotEmpty) ...[
-                    const SizedBox(height: 16),
+                  if (info.currentVersion.isNotEmpty || info.latestVersion.isNotEmpty) ...[
+                    const SizedBox(height: 20),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: line),
+                        color: _card,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: _border),
                       ),
                       child: Text(
-                        'ເວີຊັນຂອງທ່ານ: ${info.currentVersion.isEmpty ? '-' : info.currentVersion}'
+                        'ເວີຊັນປັດຈຸບັນ: ${info.currentVersion.isEmpty ? '-' : info.currentVersion}'
                         '   •   ຕ້ອງການ: ${info.latestVersion.isEmpty ? '-' : info.latestVersion}',
-                        style: const TextStyle(color: faint, fontSize: 12),
+                        style: const TextStyle(color: _dim, fontSize: 13),
                       ),
                     ),
                   ],
                   if (_error != null) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     _errorBox(_error!),
                   ],
                   if (_busy) ...[
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     _progressBar(),
                   ],
-                  const SizedBox(height: 26),
+                  const SizedBox(height: 30),
                   SizedBox(
                     width: double.infinity,
+                    height: 60,
                     child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _mint,
+                        foregroundColor: _onMint,
+                        disabledBackgroundColor: _mint.withValues(alpha: .45),
+                        disabledForegroundColor: _onMint.withValues(alpha: .7),
+                        shape: const StadiumBorder(),
+                      ),
                       onPressed: _busy ? null : _update,
                       icon: Icon(
                         _busy
@@ -238,28 +255,39 @@ class _UpdateRequiredScreenState extends State<UpdateRequiredScreen> {
                             : (_error == null
                                   ? Icons.download_rounded
                                   : Icons.refresh_rounded),
+                        size: 24,
                       ),
                       label: Text(
                         _busy
                             ? 'ກຳລັງອັບເດດ…'
                             : (_error == null ? 'ອັບເດດດຽວນີ້' : 'ລອງໃໝ່'),
+                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
                       ),
                     ),
                   ),
                   if (_error != null && _tries >= _maxAutoTries) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     const Text(
                       'ລອງໃຫ້ອັດຕະໂນມັດ 3 ຮອບແລ້ວແຕ່ບໍ່ສຳເລັດ — ກວດ WiFi/ເນັດ ແລ້ວກົດ “ລອງໃໝ່”',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: faint, fontSize: 11.5, height: 1.5),
+                      style: TextStyle(color: _dim, fontSize: 12, height: 1.6),
+                    ),
+                  ],
+                  if (widget.dismissible && !_busy) ...[
+                    const SizedBox(height: 4),
+                    TextButton(
+                      onPressed: () => Navigator.maybePop(context),
+                      style: TextButton.styleFrom(foregroundColor: _dim),
+                      child: const Text('ພາຍຫຼັງ'),
                     ),
                   ],
                   // ທາງອອກສຳຮອງ: ໂຫຼດໃນຕົວລົ້ມຊ້ຳໆ (proxy ແປກ) ⇒ ຍັງເອົາ APK
                   // ທາງ browser ໄດ້ຄືເກົ່າ
                   if (!_busy && _error != null && Platform.isAndroid) ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 6),
                     TextButton.icon(
                       onPressed: _openInBrowser,
+                      style: TextButton.styleFrom(foregroundColor: _dim),
                       icon: const Icon(Icons.open_in_new_rounded, size: 18),
                       label: const Text('ເປີດລິ້ງໃນ browser ແທນ'),
                     ),
@@ -276,21 +304,21 @@ class _UpdateRequiredScreenState extends State<UpdateRequiredScreen> {
   Widget _progressBar() => Column(
     children: [
       ClipRRect(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(999),
         child: LinearProgressIndicator(
           // ຄ່າລົບ = ບໍ່ຮູ້ຂະໜາດ ⇒ ແຖບແລ່ນໄປມາ (ບໍ່ແມ່ນຄ້າງຢູ່ 0%)
           value: _stage == _Stage.installing || _progress < 0
               ? null
               : _progress.clamp(0.0, 1.0),
           minHeight: 10,
-          color: teal,
-          backgroundColor: surfaceAlt,
+          color: _mint,
+          backgroundColor: _card,
         ),
       ),
-      const SizedBox(height: 10),
+      const SizedBox(height: 12),
       Text(
         _progressLabel,
-        style: const TextStyle(color: faint, fontSize: 12),
+        style: const TextStyle(color: _dim, fontSize: 12.5),
       ),
     ],
   );
@@ -298,18 +326,18 @@ class _UpdateRequiredScreenState extends State<UpdateRequiredScreen> {
   Widget _errorBox(String message) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: dangerTint,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: danger.withValues(alpha: .35)),
+      color: const Color(0xFF2A1216),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: const Color(0xFF5B2530)),
     ),
     child: Row(
       children: [
-        const Icon(Icons.error_outline_rounded, color: danger, size: 20),
+        const Icon(Icons.error_outline_rounded, color: Color(0xFFFB7185), size: 20),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             message,
-            style: const TextStyle(color: ink, fontSize: 12.5),
+            style: const TextStyle(color: _bright, fontSize: 13),
           ),
         ),
       ],

@@ -1,17 +1,50 @@
 import 'package:flutter/material.dart';
 
 import 'api.dart';
+import 'app_update.dart';
 import 'link_target.dart';
 import 'screens/job_screen.dart';
+import 'screens/update_required_screen.dart';
 import 'screens/manager_kit.dart';
 
 class AppLinks {
   static Map<String, dynamic>? _pending;
 
   static Future<void> openPushData(Map<String, dynamic> data) async {
+    /*
+      ── ແຈ້ງເຕືອນ "ມີເວີຊັນໃໝ່" (server ຍິງຕອນວາງ APK ໃໝ່) ──
+      ກົດແລ້ວພາໄປໜ້າອັບເດດເລີຍ ⇒ ຊ່າງອັບເດດຕອນຢູ່ WiFi ໄດ້ ກ່ອນທີ່ຈະຮອດໜ້າງານ
+      ແລ້ວຄ່ອຍພົບວ່າແອັບເປີດບໍ່ໄດ້. ຍັງບໍ່ຖືກບັງຄັບ ⇒ ອອກໄດ້ (dismissible).
+    */
+    if (data['type'] == 'app_update') {
+      await openAppUpdate('${data['version'] ?? ''}');
+      return;
+    }
     final target = linkTargetFrom(data);
     if (target == null) return;
     await openJob(target.workflow, target.code, fallback: data);
+  }
+
+  /// ໜ້າອັບເດດ — ໃຊ້ນະໂຍບາຍທີ່ server ເຄີຍສົ່ງມາ (ຖ້າມີ) ບໍ່ດັ່ງນັ້ນປະກອບຈາກແຈ້ງເຕືອນ
+  static Future<void> openAppUpdate(String version) async {
+    final nav = navigatorKey.currentState;
+    if (nav == null) {
+      _pending = {'type': 'app_update', 'version': version};
+      return;
+    }
+    final known = appUpdate.value;
+    final info = known ??
+        AppUpdateInfo(
+          updateAvailable: true,
+          latestVersion: version,
+          currentVersion: AppVersion.current,
+          updateUrl: '/downloads/ods.apk',
+        );
+    await nav.push(
+      MaterialPageRoute(
+        builder: (_) => UpdateRequiredScreen(info: info, dismissible: !info.forceUpdate),
+      ),
+    );
   }
 
   static Future<void> openRecord(String model, String resId) async {
