@@ -12,10 +12,21 @@
     -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <!--
+      ພິມດ້ວຍສຽງ (ຊ່ອງ "ອາການທີ່ພົບ") — ຊ່າງພິມລາວຊ້າ ⇒ ຂຽນສັ້ນຈົນຄົນອ່ານຕໍ່ບໍ່ໄດ້ຄວາມ.
+      ຕ້ອງມີ <queries> ນຳ ບໍ່ດັ່ງນັ້ນ Android 11+ ຫາ engine ຮັບຮູ້ສຽງບໍ່ພົບ.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!--
       allowBackup=false — ຂໍ້ມູນ token ເຂົ້າລະຫັດດ້ວຍຄີໃນ Keystore ຂອງ**ເຄື່ອງນັ້ນ**
       ⇒ ກູ້ backup ຂ້າມເຄື່ອງ/ຫຼັງ reset ຈະໄດ້ຂໍ້ມູນທີ່ຖອດລະຫັດບໍ່ໄດ້ (BAD_DECRYPT)
       ແລ້ວແອັບເປີດບໍ່ໄດ້. ບໍ່ backup = login ໃໝ່ ຈົບ (07-08-2026).
     -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="false"
         android:label="ODIEN Service"

@@ -47,6 +47,9 @@ class _JobScreenState extends State<JobScreen> {
   /// ຮູບເກົ່າຂອງງານ (ຮັບເຄື່ອງ · ກວດເຊັກ · ສ້ອມສຳເລັດ) — ໂຫຼດຈາກ server
   JobPhotos? gallery;
 
+  /// ຄ່າຄອມຂອງ **ໃບນີ້** (null = ຍັງບໍ່ປິດງານ ⇒ ຍັງບໍ່ມີ, ບໍ່ແມ່ນ 0)
+  double? myPayout;
+
   /// ຂໍ້ມູນການສົ່ງເຄື່ອງ (ສະເພາະຕິດຕັ້ງ) — ພິກັດຈຸດສົ່ງ · ເບີຄົນຮັບ · ຮູບ
   DeliveryInfo? delivery;
 
@@ -113,6 +116,7 @@ class _JobScreenState extends State<JobScreen> {
       if (mounted) {
         setState(() {
           gallery = detail.photos;
+          myPayout = detail.myPayoutThb;
           delivery = detail.delivery;
           timeline = detail.timeline;
           loaners = detail.loaners;
@@ -429,6 +433,41 @@ class _JobScreenState extends State<JobScreen> {
   }
 
   /// ພິກັດ — ບໍ່ມີສິດ = check-in ບໍ່ໄດ້ (ຫຼັກຖານຂາດ ບໍ່ມີຄວາມໝາຍ)
+  /// ພິກັດແບບ **ບໍ່ຂວາງທາງ** — ໃຊ້ຕອນ check-out: ໄດ້ກໍ່ດີ (ເປັນຫຼັກຖານຈຸດອອກ)
+  /// ບໍ່ໄດ້ກໍ່ປ່ອຍຜ່ານ. ຕ່າງຈາກ check-in ທີ່ **ບັງຄັບ**ຕ້ອງມີພິກັດ.
+  ///
+  /// ⚠️ ຖັນ `checkout_lat/lng` ມີຢູ່ໃນຖານ ແລະ ໜ້າເວັບສະແດງລິ້ງ "ຈຸດອອກ" ຢູ່ແລ້ວ
+  /// ແຕ່ແອັບບໍ່ເຄີຍສົ່ງມາ ⇒ ທຸກຮອບເກັບ NULL ມາຕະຫຼອດ (ພົບ 26-08-2026).
+  Future<Position?> _softCoordinates() async {
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+      if (!await Geolocator.isLocationServiceEnabled()) return null;
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          // ຢ່າໃຫ້ຊ່າງລໍດົນ — check-out ຄືການອອກຈາກໜ້າງານ ບໍ່ແມ່ນການພິສູດ
+          timeLimit: Duration(seconds: 8),
+        ),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// check-out ພ້ອມພິກັດ (ຖ້າຈັບໄດ້) — ໃຊ້ແທນ `run({'action':'checkout'})` ທຸກບ່ອນ
+  Future<void> _checkOut() async {
+    final point = await _softCoordinates();
+    await run({
+      'action': 'checkout',
+      if (point != null) 'lat': point.latitude,
+      if (point != null) 'lng': point.longitude,
+    });
+  }
+
   Future<Position?> coordinates() async {
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
@@ -1346,6 +1385,47 @@ class _JobScreenState extends State<JobScreen> {
                       ],
 
                       // ── ຮູບຂອງງານ (ຮັບເຄື່ອງ · ກວດເຊັກ · ສ້ອມສຳເລັດ) ──
+                      // ຄ່າຄອມຂອງໃບນີ້ — ຊ່າງເຫັນແຕ່ຍອດລວມເດືອນຢູ່ໜ້າລາຍຮັບ
+                      // ⇒ ບໍ່ຮູ້ວ່າໃບໃດໃຫ້ເທົ່າໃດ (ຂໍ້ມູນມີຢູ່ແລ້ວ ພຽງບໍ່ໄດ້ສະແດງ)
+                      if (myPayout != null) ...[
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                          decoration: cardDecoration(color: surface),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: tealTint,
+                                  borderRadius: BorderRadius.circular(11),
+                                ),
+                                child: const Icon(Icons.payments_outlined, size: 18, color: teal),
+                              ),
+                              const SizedBox(width: 11),
+                              const Expanded(
+                                child: Text(
+                                  'ຄ່າຄອມຂອງໃບນີ້',
+                                  style: TextStyle(fontSize: 13.5, color: body, fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              Text(
+                                '${myPayout!.round()}',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  color: tealBright,
+                                  fontFeatures: [FontFeature.tabularFigures()],
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Text('ບາທ', style: TextStyle(fontSize: 12, color: faint)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
                       if (gallery != null && !gallery!.isEmpty) ...[
                         FoldCard(
                           title: 'ຮູບຂອງງານນີ້',
@@ -2180,7 +2260,7 @@ class _JobScreenState extends State<JobScreen> {
                               _button(
                                 'check-out ອອກຈາກໜ້າງານ',
                                 ink,
-                                busy ? null : () => run({'action': 'checkout'}),
+                                busy ? null : _checkOut,
                               ),
                             ],
 
@@ -3236,7 +3316,7 @@ class _JobScreenState extends State<JobScreen> {
       (server ປະຕິເສດການນັດ ຖ້າຍັງມີ check-in ຄ້າງ — ເບິ່ງ lib/job-flow).
     */
     if (job.canCheckOut) {
-      await run({'action': 'checkout'});
+      await _checkOut();
       if (!mounted) return;
     }
     // ວັນວ່າງ = ສົ່ງ '' ⇒ server ລ້າງ appoint_date (ບໍ່ໄປໂຜ່ຢູ່ຄິວມື້ໃດມື້ໜຶ່ງແບບຜິດໆ)

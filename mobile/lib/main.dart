@@ -9,6 +9,8 @@ import 'api.dart';
 import 'app_links.dart';
 import 'app_update.dart';
 import 'drafts.dart';
+import 'lock.dart';
+import 'sun.dart';
 import 'pending.dart';
 import 'push.dart';
 import 'screens/login_screen.dart';
@@ -28,6 +30,9 @@ void main() async {
 
   // ຄິວຄຳສັ່ງທີ່ຍັງສົ່ງບໍ່ໄດ້ + ລາຍການວຽກທີ່ເກັບໄວ້ — ຕ້ອງມີກ່ອນຄຳຂໍທຳອິດ
   await Future.wait([Pending.load(), JobCache.load()]);
+
+  // ການຕັ້ງຄ່າສ່ວນຕົວ (ລັອກແອັບ · ໂໝດແດດ) — ອ່ານກ່ອນ runApp ໃຫ້ຈໍທຳອິດຖືກ
+  await Future.wait([AppLock.load(), SunMode.load()]);
 
   // ເວີຊັນຂອງຕົນເອງ — ຕ້ອງຮູ້ກ່ອນຄຳຂໍທຳອິດ (ໃສ່ header x-app-version ທຸກຄຳຂໍ)
   await AppVersion.load();
@@ -277,12 +282,91 @@ class OdssApp extends StatelessWidget {
           builder: (context, info, navigator) =>
               info != null && info.forceUpdate
               ? UpdateRequiredScreen(info: info)
-              : navigator!,
+              : _LockGate(child: navigator!),
           child: child,
         ),
       ),
       home: const _Gate(),
       routes: {'/login': (_) => const LoginScreen()},
+    );
+  }
+}
+
+/// **ດ່ານລັອກແອັບ** — ຫຸ້ມທັງແອັບ (ຄືກັບດ່ານບັງຄັບອັບເດດ) ⇒ ບໍ່ວ່າຈະຢູ່ໜ້າໃດ
+/// ພໍກັບມາຈາກພື້ນຫຼັງດົນເກີນ [AppLock.idle] ຈະຖືກຖາມກ່ອນເຫັນຂໍ້ມູນ.
+///
+/// ບໍ່ໄດ້ລ້າງ token — ປົດບໍ່ໄດ້ພຽງແຕ່ຄາຢູ່ຈໍນີ້ (ຊ່າງບໍ່ຖືກໄລ່ອອກຈາກລະບົບ).
+class _LockGate extends StatefulWidget {
+  const _LockGate({required this.child});
+  final Widget child;
+
+  @override
+  State<_LockGate> createState() => _LockGateState();
+}
+
+class _LockGateState extends State<_LockGate> with WidgetsBindingObserver {
+  bool _locked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      AppLock.markLeft();
+    }
+    if (state == AppLifecycleState.resumed && AppLock.shouldAsk()) {
+      setState(() => _locked = true);
+      _ask();
+    }
+  }
+
+  Future<void> _ask() async {
+    final ok = await AppLock.unlock();
+    if (ok && mounted) setState(() => _locked = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_locked) return widget.child;
+    return Scaffold(
+      backgroundColor: ground,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 78,
+              height: 78,
+              decoration: BoxDecoration(color: tealTint, shape: BoxShape.circle),
+              child: const Icon(Icons.lock_outline_rounded, size: 38, color: teal),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'ແອັບຖືກລັອກ',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: ink),
+            ),
+            const SizedBox(height: 6),
+            const Text('ຢືນຢັນຕົວຕົນເພື່ອເປີດຕໍ່', style: TextStyle(color: muted)),
+            const SizedBox(height: 22),
+            FilledButton.icon(
+              onPressed: _ask,
+              icon: const Icon(Icons.fingerprint_rounded),
+              label: const Text('ປົດລັອກ'),
+              style: FilledButton.styleFrom(minimumSize: const Size(200, kPrimaryTouch)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -41,6 +41,9 @@ dependencies:
   permission_handler: ^11.3.1
   firebase_crashlytics: ^4.3.10
   flutter_image_compress: ^2.5.1
+  speech_to_text: ^7.4.0
+  local_auth: ^2.3.0
+  screen_brightness: ^2.1.11
 
 dev_dependencies:
   flutter_test:

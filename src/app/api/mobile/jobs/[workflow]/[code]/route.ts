@@ -211,11 +211,26 @@ export async function GET(request: Request, context: { params: Promise<{ workflo
       }
     }
 
+    /*
+      **ຄ່າຄອມຂອງໃບນີ້** (26-08-2026) — ແຊ່ໄວ້ຕອນປິດງານ (ods_service_payout).
+      ຊ່າງເຫັນແຕ່ຍອດລວມເດືອນຢູ່ໜ້າລາຍຮັບ ⇒ ບໍ່ຮູ້ວ່າໃບໃດໃຫ້ເທົ່າໃດ.
+      ຍັງບໍ່ປິດງານ = ຍັງບໍ່ມີແຖວ ⇒ ຄືນ null (ຢ່າສະແດງ 0 — ຄົນລະຄວາມໝາຍ).
+    */
+    const payout = (
+      await query<{ pay_thb: number }>(
+        `select coalesce(sum(p.pay_thb),0)::float8 pay_thb
+           from ods_service_payout p
+          where p.job_code = $1 and lower(p.employee_code) = lower($2)`,
+        [code, guard.user.username],
+      )
+    ).rows[0]?.pay_thb;
+
     return NextResponse.json({
       photos,
       timeline: timelinePayload(timeline),
       delivery,
       loaners,
+      my_payout_thb: payout && payout > 0 ? payout : null,
       next_actor: nextAction
         ? {
             actor: nextAction.actor,

@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../job_urgency.dart';
+import '../lock.dart';
 import '../pending.dart';
+import '../sun.dart';
 import 'repair_stock_screen.dart';
 import 'stock_balance_screen.dart';
 import '../main.dart';
 import '../push.dart';
 import '../widgets/ui_kit.dart';
+import 'done_jobs_screen.dart';
 import 'notifications_screen.dart';
 import 'pickup_screen.dart';
 import 'job_screen.dart';
@@ -351,6 +354,35 @@ class _JobsScreenState extends State<JobsScreen> {
     super.dispose();
   }
 
+  /// ເປີດ/ປິດການລັອກແອັບ — ເປີດຄັ້ງທຳອິດຕ້ອງຜ່ານການຢືນຢັນກ່ອນ
+  /// (ບໍ່ດັ່ງນັ້ນຄົນທີ່ຖືເຄື່ອງຢູ່ອາດເປີດລັອກໃສ່ເຈົ້າຂອງ ແລ້ວເຈົ້າຂອງເຂົ້າບໍ່ໄດ້)
+  Future<void> _toggleLock() async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (AppLock.enabled) {
+      await AppLock.setEnabled(false);
+      if (!mounted) return;
+      setState(() {});
+      messenger.showSnackBar(const SnackBar(content: Text('ປິດການລັອກແອັບແລ້ວ')));
+      return;
+    }
+    if (!await AppLock.supported()) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('ເຄື່ອງນີ້ຍັງບໍ່ໄດ້ຕັ້ງລາຍນິ້ວມື/ລະຫັດປົດລັອກ')),
+      );
+      return;
+    }
+    if (!await AppLock.unlock()) {
+      messenger.showSnackBar(const SnackBar(content: Text('ຢືນຢັນບໍ່ຜ່ານ — ຍັງບໍ່ໄດ້ເປີດລັອກ')));
+      return;
+    }
+    await AppLock.setEnabled(true);
+    if (!mounted) return;
+    setState(() {});
+    messenger.showSnackBar(
+      const SnackBar(content: Text('ເປີດແລ້ວ — ອອກຈາກແອັບເກີນ 2 ນາທີ ຈະຖືກຖາມກ່ອນເຂົ້າ')),
+    );
+  }
+
   Future<void> logout() async {
     // ຖອນ push token = ຍິງ FCM/server (ຊ້າ/ອາດ timeout) ⇒ ຢ່າ block logout ດ້ວຍມັນ.
     // ລ້າງ token ໃນເຄື່ອງ (ໄວ) ແລ້ວໄປໜ້າ login ທັນທີ; unregister ແລ່ນพื้นหลัง.
@@ -469,6 +501,28 @@ class _JobsScreenState extends State<JobsScreen> {
                       ),
                     );
                   }
+                  if (value == 'sun') {
+                    SunMode.toggle().then((_) {
+                      if (!context.mounted) return;
+                      setState(() {});
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            SunMode.on
+                                ? 'ໂໝດແດດ ເປີດ — ຈໍສະຫວ່າງສຸດ'
+                                : 'ໂໝດແດດ ປິດ — ຄືນຄ່າຄວາມສະຫວ່າງເດີມ',
+                          ),
+                        ),
+                      );
+                    });
+                  }
+                  if (value == 'lock') _toggleLock();
+                  if (value == 'done') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DoneJobsScreen()),
+                    );
+                  }
                   if (value == 'pickup') {
                     Navigator.push(
                       context,
@@ -484,9 +538,39 @@ class _JobsScreenState extends State<JobsScreen> {
                     );
                   }
                 },
-                itemBuilder: (_) => const [
-                  // "ອາໄຫຼ່" ຍ້າຍອອກຈາກແຖບລຸ່ມ (v6 — ແຖບເຫຼືອ 4 ອັນ) ⇒ ຢູ່ນີ້ແທນ
+                itemBuilder: (_) => [
                   PopupMenuItem(
+                    value: 'sun',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.wb_sunny_outlined, size: 19),
+                        const SizedBox(width: 10),
+                        Text(SunMode.on ? 'ປິດໂໝດແດດ' : 'ໂໝດແດດ (ຈໍສະຫວ່າງສຸດ)'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'lock',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.lock_outline_rounded, size: 19),
+                        const SizedBox(width: 10),
+                        Text(AppLock.enabled ? 'ປິດການລັອກແອັບ' : 'ລັອກແອັບ (ລາຍນິ້ວມື)'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'done',
+                    child: Row(
+                      children: [
+                        Icon(Icons.history_rounded, size: 19),
+                        SizedBox(width: 10),
+                        Text('ວຽກທີ່ຈົບແລ້ວ'),
+                      ],
+                    ),
+                  ),
+                  // "ອາໄຫຼ່" ຍ້າຍອອກຈາກແຖບລຸ່ມ (v6 — ແຖບເຫຼືອ 4 ອັນ) ⇒ ຢູ່ນີ້ແທນ
+                  const PopupMenuItem(
                     value: 'pickup',
                     child: Row(
                       children: [
@@ -496,7 +580,7 @@ class _JobsScreenState extends State<JobsScreen> {
                       ],
                     ),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem(
                     value: 'stock-balance',
                     child: Row(
                       children: [
@@ -506,7 +590,7 @@ class _JobsScreenState extends State<JobsScreen> {
                       ],
                     ),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem(
                     value: 'repair-stock',
                     child: Row(
                       children: [
@@ -516,7 +600,7 @@ class _JobsScreenState extends State<JobsScreen> {
                       ],
                     ),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem(
                     value: 'logout',
                     child: Row(
                       children: [

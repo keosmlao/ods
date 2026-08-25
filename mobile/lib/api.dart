@@ -436,6 +436,8 @@ class Api {
       List<LoanerOut> loaners,
       NextActor? nextActor,
       SpareSummary? spares,
+      /// ຄ່າຄອມຂອງ **ໃບນີ້** (null = ຍັງບໍ່ປິດງານ ⇒ ຍັງບໍ່ມີ — ບໍ່ແມ່ນ 0)
+      double? myPayoutThb,
     })
   >
   jobDetail(String workflow, String code) async {
@@ -462,7 +464,16 @@ class Api {
       spares: sp == null
           ? null
           : SpareSummary.fromJson(sp as Map<String, dynamic>),
+      myPayoutThb: (result['my_payout_thb'] as num?)?.toDouble(),
     );
+  }
+
+  /// ວຽກທີ່ຂ້ອຍຈົບໄປແລ້ວ (30 ມື້ຫຼ້າສຸດ) — ໃຫ້ຊ່າງພິສູດເອງໄດ້ວ່າໃບໃດເຮັດແລ້ວ
+  static Future<List<DoneJob>> doneJobs() async {
+    final result = await _send('GET', '/api/mobile/done');
+    return ((result['jobs'] as List?) ?? [])
+        .map((row) => DoneJob.fromJson(row as Map<String, dynamic>))
+        .toList();
   }
 
   /// ບັນຊີອາໄຫຼ່ແບ່ງຕາມຮອບ (ໃບຂໍເບີກ + ໃບຂໍຊື້) — ຊຸດດຽວກັບເວັບ
@@ -2345,6 +2356,36 @@ class TechRank {
     rows: ((json['rows'] as List?) ?? [])
         .map((row) => RankRow.fromJson(row as Map<String, dynamic>))
         .toList(),
+  );
+}
+
+/// 1 ແຖວຂອງ "ວຽກທີ່ຈົບແລ້ວ" — ອ່ານຢ່າງດຽວ (ບໍ່ມີປຸ່ມ ບໍ່ປ່ຽນຂັ້ນ)
+class DoneJob {
+  final String workflow;
+  final String code;
+  final String? customer;
+  final String? product;
+  final String? finishedAt;
+
+  /// ເປັນຫົວໜ້າງານໃບນີ້ບໍ (false = ໄປເປັນຊ່າງຮ່ວມ)
+  final bool lead;
+
+  DoneJob({
+    required this.workflow,
+    required this.code,
+    required this.customer,
+    required this.product,
+    required this.finishedAt,
+    required this.lead,
+  });
+
+  factory DoneJob.fromJson(Map<String, dynamic> json) => DoneJob(
+    workflow: json['workflow'] as String? ?? 'repair',
+    code: json['code'] as String? ?? '-',
+    customer: json['customer'] as String?,
+    product: json['product'] as String?,
+    finishedAt: json['finished_at'] as String?,
+    lead: json['lead'] == true,
   );
 }
 

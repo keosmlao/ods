@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../photo.dart';
+import '../voice.dart';
 import '../drafts.dart';
 import '../main.dart';
 import '../widgets/ui_kit.dart';
@@ -53,6 +54,13 @@ class _CheckScreenState extends State<CheckScreen> {
   bool get quoteNeeded => widget.outOfWarranty || warrantyVoid;
   bool busy = false;
 
+  /// ເຄື່ອງນີ້ຮັບຮູ້ສຽງໄດ້ບໍ (ບໍ່ໄດ້ = ເຊື່ອງປຸ່ມ ບໍ່ແມ່ນຂຶ້ນ error)
+  bool voiceReady = false;
+  bool listening = false;
+
+  /// ຂໍ້ຄວາມທີ່ມີກ່ອນເລີ່ມເວົ້າ — ສຽງທີ່ຮັບໄດ້ **ຕໍ່ທ້າຍ** ບໍ່ແມ່ນຂຽນທັບ
+  String _beforeVoice = '';
+
   /// ບ່ອນເກັບຮ່າງຂອງໃບນີ້ — ຮູບ/ຂໍ້ຄວາມທີ່ຖ່າຍ-ພິມແລ້ວ ແຕ່ຍັງບໍ່ໄດ້ບັນທຶກ
   String get _draftKey => 'check:${widget.code}';
 
@@ -77,9 +85,41 @@ class _CheckScreenState extends State<CheckScreen> {
     load();
     loadSuggestions();
     _recoverLostPhoto();
+    Voice.available().then((ready) {
+      if (mounted && ready) setState(() => voiceReady = true);
+    });
   }
 
   /// Android ຂ້າແອັບຖິ້ມຕອນກ້ອງເປີດ ⇒ ດຶງຮູບທີ່ຖ່າຍໄປແລ້ວຄືນ (ບໍ່ໃຫ້ຖ່າຍຊ້ຳ)
+  Widget _micButton() => IconButton(
+    tooltip: listening ? 'ຢຸດຟັງ' : 'ເວົ້າແທນການພິມ',
+    onPressed: () async {
+      if (listening) {
+        await Voice.stop();
+        if (mounted) setState(() => listening = false);
+        return;
+      }
+      _beforeVoice = diagnosis.text.trim();
+      setState(() => listening = true);
+      await Voice.listen(
+        onText: (text, finished) {
+          if (!mounted) return;
+          final joined = _beforeVoice.isEmpty ? text : '$_beforeVoice $text';
+          diagnosis.value = TextEditingValue(
+            text: joined,
+            selection: TextSelection.collapsed(offset: joined.length),
+          );
+          if (finished) setState(() => listening = false);
+        },
+      );
+    },
+    icon: Icon(
+      listening ? Icons.stop_circle_rounded : Icons.mic_rounded,
+      color: listening ? danger : teal,
+      size: 26,
+    ),
+  );
+
   Future<void> _recoverLostPhoto() async {
     final image = await Photo.recoverLost();
     if (image == null || !mounted || photos.length >= 6) return;
@@ -280,11 +320,18 @@ class _CheckScreenState extends State<CheckScreen> {
           ),
 
           _card([
-            const SectionLabel('ອາການທີ່ຊ່າງວິເຄາະ'),
+            Row(
+              children: [
+                const Expanded(child: SectionLabel('ອາການທີ່ຊ່າງວິເຄາະ')),
+                if (voiceReady) _micButton(),
+              ],
+            ),
             TextField(
               controller: diagnosis,
               maxLines: 3,
-              decoration: const InputDecoration(hintText: 'ພິມອາການທີ່ພົບ...'),
+              decoration: InputDecoration(
+                hintText: listening ? 'ກຳລັງຟັງ… ເວົ້າໄດ້ເລີຍ' : 'ພິມ ຫຼື ກົດ 🎤 ເວົ້າ...',
+              ),
             ),
           ]),
           const SizedBox(height: 10),
