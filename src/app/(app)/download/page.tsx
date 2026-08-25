@@ -1,8 +1,6 @@
 import { PageTitle } from "@/components/ui";
-import { shippedAppVersion } from "@/lib/shipped-app-version";
+import { apkFileInfo, APK_PUBLIC_PATH, shippedAppVersion } from "@/lib/shipped-app-version";
 import { SETTING, settingEnabled } from "@/lib/settings";
-import { stat } from "node:fs/promises";
-import { join } from "node:path";
 import { Download, TriangleAlert } from "lucide-react";
 import Image from "next/image";
 
@@ -15,23 +13,9 @@ import Image from "next/image";
  */
 export const dynamic = "force-dynamic";
 
-const APK_PATH = "/downloads/ods.apk";
-
-async function apkInfo() {
-  try {
-    const info = await stat(join(process.cwd(), "public", "downloads", "ods.apk"));
-    return {
-      size: `${(info.size / 1024 / 1024).toFixed(1)} MB`,
-      updated: info.mtime.toISOString().slice(0, 16).replace("T", " "),
-    };
-  } catch {
-    return null;
-  }
-}
-
 export default async function DownloadAppPage() {
   const [apk, version, forcing] = await Promise.all([
-    apkInfo(),
+    apkFileInfo(),
     shippedAppVersion(),
     settingEnabled(SETTING.MOBILE_FORCE_UPDATE),
   ]);
@@ -61,7 +45,7 @@ export default async function DownloadAppPage() {
 
             {apk ? (
               <a
-                href={APK_PATH}
+                href={APK_PUBLIC_PATH}
                 download
                 className="mt-4 inline-flex h-11 items-center gap-2 rounded-lg bg-brand-700 px-5 text-sm font-medium text-white transition hover:bg-brand-700"
               >

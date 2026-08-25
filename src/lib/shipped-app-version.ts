@@ -12,6 +12,10 @@
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 
+/** ບ່ອນທີ່ຊ່າງໂຫຼດ APK — ນອກດ່ານ login (proxy matcher ຂ້າມ path ທີ່ມີຈຸດ) */
+export const APK_PUBLIC_PATH = "/downloads/ods.apk";
+
+const APK_FILE = join(process.cwd(), "public", "downloads", "ods.apk");
 const VERSION_FILE = join(process.cwd(), "public", "downloads", "ods.apk.version");
 
 let cached = "";
@@ -48,4 +52,20 @@ export function resetShippedAppVersionCache(): void {
   cached = "";
   cachedMtimeMs = -1;
   checkedAtMs = 0;
+}
+
+/**
+ * ຂະໜາດ + ວັນທີຂອງ APK ທີ່ວາງໃຫ້ໂຫຼດ — `null` = ຍັງບໍ່ມີໄຟລ໌.
+ * ໜ້າ /download ແລະ ໜ້າ login ໃຊ້ອັນນີ້ຮ່ວມກັນ ⇒ ບໍ່ໃຫ້ 2 ໜ້າບອກຂໍ້ມູນຄົນລະຢ່າງ.
+ */
+export async function apkFileInfo(): Promise<{ size: string; updated: string } | null> {
+  try {
+    const info = await stat(APK_FILE);
+    return {
+      size: `${(info.size / 1024 / 1024).toFixed(1)} MB`,
+      updated: info.mtime.toISOString().slice(0, 16).replace("T", " "),
+    };
+  } catch {
+    return null;
+  }
 }

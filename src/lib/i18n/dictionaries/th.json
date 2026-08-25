@@ -23,7 +23,10 @@
     "employeeCode": "รหัสพนักงาน",
     "employeeCodePlaceholder": "กรอกรหัสพนักงาน",
     "employeeCodeHint": "ใช้ชื่อเล่นหรือชื่อเต็มแทนก็ได้",
-    "submitPending": "กำลังเข้า..."
+    "submitPending": "กำลังเข้า...",
+    "appDownload": "แอปช่าง (Android)",
+    "appDownloadSub": "เวอร์ชัน {version} · {size}",
+    "appDownloadCta": "ดาวน์โหลด APK"
   },
   "nav": {
     "myStuff": "ของฉัน",

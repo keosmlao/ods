@@ -23,7 +23,10 @@
     "employeeCode": "Employee code",
     "employeeCodePlaceholder": "Enter your employee code",
     "employeeCodeHint": "You can use your nickname or full name instead",
-    "submitPending": "Signing in..."
+    "submitPending": "Signing in...",
+    "appDownload": "Technician app (Android)",
+    "appDownloadSub": "Version {version} · {size}",
+    "appDownloadCta": "Download APK"
   },
   "nav": {
     "myStuff": "My work",
