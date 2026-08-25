@@ -1,0 +1,51 @@
+# ── ດ່ານກວດອັດຕະໂນມັດ ────────────────────────────────────────────────────────
+# ແລ່ນທຸກ push/PR. ບໍ່ຜ່ານ = ຢ່າ merge.
+#
+# ເປັນຫຍັງຕ້ອງມີ: ກ່ອນໜ້ານີ້ `analyze` · `test` · `build` ແລ່ນຕໍ່ເມື່ອຄົນພິມເອງ
+# ⇒ ຄວາມຜິດພາດແບບ layout (ຂໍ້ຄວາມແຕກເປັນຕົວອັກສອນ) ໄປປາກົດຢູ່ໜ້າງານແທນ.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# ຮອບໃໝ່ຍົກເລີກຮອບເກົ່າຂອງ branch ດຽວກັນ (ບໍ່ໃຫ້ຄິວຍາວ)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: ເວັບ (typecheck · lint · test · build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm run test:unit
+      # build ຕ້ອງມີ env ພື້ນຖານ — ບໍ່ຕໍ່ຖານຈິງ (ໜ້າ dynamic ບໍ່ຖືກ prerender)
+      - run: npm run build
+        env:
+          AUTH_SECRET: ci-placeholder-secret-value-32chars
+
+  mobile:
+    name: ແອັບຊ່າງ (analyze · test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.32.8
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test

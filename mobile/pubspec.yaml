@@ -44,6 +44,7 @@ dependencies:
   speech_to_text: ^7.4.0
   local_auth: ^2.3.0
   screen_brightness: ^2.1.11
+  firebase_analytics: ^11.6.0
 
 dev_dependencies:
   flutter_test:

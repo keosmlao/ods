@@ -10,6 +10,7 @@ import 'app_links.dart';
 import 'app_update.dart';
 import 'drafts.dart';
 import 'lock.dart';
+import 'metrics.dart';
 import 'sun.dart';
 import 'pending.dart';
 import 'push.dart';
@@ -42,6 +43,7 @@ void main() async {
 
   // ເກັບ crash ສົ່ງເຂົ້າ Crashlytics — ຕ້ອງມາຫຼັງ Push.init (ບ່ອນທີ່ Firebase ຖືກ init)
   _watchCrashes();
+  Metrics.init();
 
   runApp(const OdssApp());
   WidgetsBinding.instance.addPostFrameCallback((_) => AppLinks.flush());
@@ -268,9 +270,15 @@ class OdssApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: odssTheme(),
 
-      // ອະນຸຍາດໃຫ້ system font-scale ເຕັມ 1.0 (v3 ຫຍໍ້ 0.9 — ຈໍນ້ອຍລຸ້ນເກົ່າອ່ານຍາກ)
+      /*
+        ── ຂະໜາດຕົວໜັງສືຕາມລະບົບ (26-08-2026) ──
+        ເມື່ອກ່ອນລັອກໄວ້ທີ່ 1.0 ⇒ ຊ່າງທີ່ຕັ້ງຕົວໜັງສືໃຫຍ່ໃນເຄື່ອງ (ສາຍຕາບໍ່ດີ ·
+        ອາຍຸຫຼາຍ) **ຂະຫຍາຍບໍ່ໄດ້ເລີຍ** — ແອັບບໍລິສັດເປັນແອັບດຽວທີ່ບໍ່ຟັງ.
+        ດຽວນີ້ຍອມເຖິງ 1.3 (ຫຍໍ້ຕ່ຳສຸດ 0.9 ຢູ່) — ເກີນນັ້ນປຸ່ມ/ຕາຕະລາງເລີ່ມແຕກ.
+      */
       builder: (context, child) => MediaQuery.withClampedTextScaling(
-        maxScaleFactor: 1.0,
+        minScaleFactor: 0.9,
+        maxScaleFactor: 1.3,
         /*
           ── ດ່ານບັງຄັບອັບເດດ ──
           ວາງທັບ **ເໜືອ Navigator** ⇒ ບລັອກທຸກໜ້າພ້ອມກັນ ບໍ່ວ່າຊ່າງກຳລັງຢູ່ໜ້າໃດ

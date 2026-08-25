@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -32,7 +34,12 @@ abstract final class Photo {
 
   /// ຖ່າຍຈາກກ້ອງ (ຫຼື ເລືອກຈາກຄັງ) ແລ້ວຄືນເປັນ data-URI ພ້ອມສົ່ງ.
   /// `null` = ຊ່າງກົດຍົກເລີກ. ໂຍນ [PhotoException] ເມື່ອບີບແລ້ວຍັງໃຫຍ່ເກີນ.
-  static Future<String?> capture({ImageSource source = ImageSource.camera}) async {
+  ///
+  /// [stamp] = ຂໍ້ຄວາມລາຍນ້ຳ (ເລກໃບ) — ວັນທີ+ເວລາຖືກຕໍ່ໃຫ້ເອງ.
+  static Future<String?> capture({
+    ImageSource source = ImageSource.camera,
+    String? stamp,
+  }) async {
     final shot = await _picker.pickImage(
       source: source,
       // ຖ່າຍໃຫຍ່ໄວ້ກ່ອນ — ຕົວບີບຂ້າງລຸ່ມເປັນຄົນຕັດສິນຂະໜາດສຸດທ້າຍ
@@ -40,7 +47,69 @@ abstract final class Photo {
       maxWidth: 1600,
     );
     if (shot == null) return null;
-    return encode(await shot.readAsBytes());
+    var bytes = await shot.readAsBytes();
+    if (stamp != null) bytes = await _stamp(bytes, stamp);
+    return encode(bytes);
+  }
+
+  /// **ຂຽນລາຍນ້ຳ ວັນທີ · ເວລາ · ເລກໃບ ໃສ່ຮູບ**.
+  ///
+  /// ເປັນຫຍັງ: ຮູບ check-in ແລະ ຮູບຜົນງານເປັນ JPEG ເປົ່າ — ພິສູດບໍ່ໄດ້ວ່າຖ່າຍມື້ໃດ
+  /// ຂອງໃບໃດ. ຕອນລູກຄ້າຄ້ານ ("ຊ່າງບໍ່ເຄີຍມາ" · "ຮູບນີ້ຂອງໃບອື່ນ") ຫຼັກຖານທີ່ບໍ່ມີ
+  /// ວັນທີໃນຕົວຮູບ ໃຊ້ຢືນຢັນຍາກ. ຂຽນລົງໃນຮູບເລີຍ ⇒ ຕັດອອກບໍ່ໄດ້ໂດຍບໍ່ເຫັນຮ່ອງຮອຍ.
+  ///
+  /// ລົ້ມ = ຄືນຮູບເດີມ (ຢ່າໃຫ້ຊ່າງຖ່າຍຮູບບໍ່ໄດ້ ເພາະລາຍນ້ຳ).
+  static Future<Uint8List> _stamp(Uint8List bytes, String label) async {
+    try {
+      final codec = await ui.instantiateImageCodec(bytes);
+      final image = (await codec.getNextFrame()).image;
+      final width = image.width.toDouble();
+      final height = image.height.toDouble();
+
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      canvas.drawImage(image, Offset.zero, Paint());
+
+      final now = DateTime.now();
+      String two(int n) => n.toString().padLeft(2, '0');
+      final text =
+          '${two(now.day)}-${two(now.month)}-${now.year}  ${two(now.hour)}:${two(now.minute)}'
+          '   ·   $label';
+
+      // ຂະໜາດຕົວອັກສອນອີງຄວາມກວ້າງຮູບ ⇒ ອ່ານອອກທັງຮູບໃຫຍ່ ແລະ ຮູບນ້ອຍ
+      final fontSize = (width * 0.032).clamp(14.0, 46.0);
+      final painter = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(
+            color: const Color(0xFFFFFFFF),
+            fontSize: fontSize,
+            fontWeight: FontWeight.w700,
+            shadows: const [Shadow(color: Color(0xCC000000), blurRadius: 4)],
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: width * 0.94);
+
+      final barHeight = painter.height + fontSize * 0.9;
+      canvas.drawRect(
+        Rect.fromLTWH(0, height - barHeight, width, barHeight),
+        Paint()..color = const Color(0x99000000),
+      );
+      painter.paint(
+        canvas,
+        Offset(width * 0.03, height - barHeight + fontSize * 0.45),
+      );
+
+      final stamped = await recorder.endRecording().toImage(image.width, image.height);
+      final data = await stamped.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
+      stamped.dispose();
+      return data?.buffer.asUint8List() ?? bytes;
+    } catch (error) {
+      debugPrint('ຂຽນລາຍນ້ຳໃສ່ຮູບບໍ່ໄດ້: $error');
+      return bytes;
+    }
   }
 
   /// **ກູ້ຮູບທີ່ຫາຍຕອນ Android ຂ້າແອັບ** ຂະນະກ້ອງເປີດຢູ່.

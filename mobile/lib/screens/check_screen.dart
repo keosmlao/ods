@@ -6,6 +6,7 @@ import '../api.dart';
 import '../photo.dart';
 import '../voice.dart';
 import '../drafts.dart';
+import '../metrics.dart';
 import '../main.dart';
 import '../widgets/ui_kit.dart';
 import 'check_spare_screen.dart';
@@ -99,6 +100,7 @@ class _CheckScreenState extends State<CheckScreen> {
         if (mounted) setState(() => listening = false);
         return;
       }
+      Metrics.feature('voice_diagnosis');
       _beforeVoice = diagnosis.text.trim();
       setState(() => listening = true);
       await Voice.listen(
@@ -213,7 +215,7 @@ class _CheckScreenState extends State<CheckScreen> {
     setState(() => shooting = true);
     try {
       // ບີບໃຫ້ພໍດີເພດານ server ຢູ່ໃນ Photo.capture (ບໍ່ດັ່ງນັ້ນ 413 ຕອນກົດບັນທຶກ)
-      final image = await Photo.capture();
+      final image = await Photo.capture(stamp: widget.code);
       if (image == null || !mounted) return;
       setState(() => photos.add(image));
       _saveDraft();

@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../photo.dart';
 import '../drafts.dart';
+import '../metrics.dart';
 import '../main.dart';
 import '../widgets/ui_kit.dart';
 import 'check_screen.dart';
@@ -332,10 +333,25 @@ class _JobScreenState extends State<JobScreen> {
     loadChatter();
   }
 
+  /// ກຳລັງສົ່ງຫຍັງຢູ່ (null = ບໍ່ໄດ້ສົ່ງ) — ໃຫ້ຈໍບອກວ່າກຳລັງອັບໂຫຼດຫຍັງ ແລະ ໜັກປານໃດ
+  String? sendingLabel;
+
   Future<void> run(Map<String, dynamic> body, {bool pop = false}) async {
-    setState(() => busy = true);
+    /*
+      ── ບອກໃຫ້ຮູ້ວ່າກຳລັງສົ່ງຫຍັງ (26-08-2026) ──
+      ຈົບງານ 6 ຮູບ ≈ 1.5MB ຜ່ານ 3G ໃຊ້ເວລາຫຼາຍສິບວິນາທີ ⇒ ແຕ່ກ່ອນຊ່າງເຫັນແຕ່
+      ປຸ່ມສີເທົາ ບໍ່ຮູ້ວ່າກຳລັງສົ່ງ ຫຼື ຄ້າງ ⇒ ກົດຊ້ຳ/ປິດແອັບ ແລ້ວຄິດວ່າພັງ.
+    */
+    final photoCount = (body['photos'] as List?)?.length ?? (body['photo'] != null ? 1 : 0);
+    setState(() {
+      busy = true;
+      sendingLabel = photoCount > 0
+          ? 'ກຳລັງສົ່ງ $photoCount ຮູບ… ຢູ່ບ່ອນສັນຍານອ່ອນອາດໃຊ້ເວລາ'
+          : 'ກຳລັງສົ່ງ…';
+    });
     try {
       final message = await Api.command(job.workflow, job.code, body);
+      Metrics.jobAction(job.workflow, '${body['action']}', photos: photoCount);
       // ຮູບ/ບັນທຶກ ໄປຮອດ server (ຫຼື ເຂົ້າຄິວ offline ພ້ອມ body) ແລ້ວ ⇒ ຮ່າງບໍ່ຈຳເປັນອີກ
       final finished = body['action'] == 'finish';
       if (body.containsKey('photos')) {
@@ -383,6 +399,7 @@ class _JobScreenState extends State<JobScreen> {
         setState(() {
           busy = false;
           rejecting = false;
+          sendingLabel = null;
         });
       }
     }
@@ -410,7 +427,7 @@ class _JobScreenState extends State<JobScreen> {
   Future<String?> _shoot() async {
     try {
       // ບີບໃຫ້ພໍດີເພດານ server (Photo.capture) — ບາງເຄື່ອງເຄີຍໄດ້ 413 ຕອນສົ່ງ
-      return await Photo.capture();
+      return await Photo.capture(stamp: job.code);
     } on PhotoException catch (failure) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1030,7 +1047,34 @@ class _JobScreenState extends State<JobScreen> {
     return Scaffold(
       backgroundColor: ground,
       // v5: ປຸ່ມທີ່ຕ້ອງກົດ ຢູ່ໃນໄລຍະນິ້ວໂປ້ສະເໝີ (ນິຍາມຢູ່ `_nextAction`)
-      bottomNavigationBar: _nextActionBar(),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (sendingLabel != null)
+            Container(
+              width: double.infinity,
+              color: tealTint,
+              padding: const EdgeInsets.fromLTRB(14, 9, 14, 9),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 15,
+                    height: 15,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: teal),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      sendingLabel!,
+                      style: const TextStyle(fontSize: 12, color: teal, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ?_nextActionBar(),
+        ],
+      ),
       body: DefaultTabController(
         length: 2,
         child: Column(

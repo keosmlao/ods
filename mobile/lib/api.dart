@@ -181,12 +181,29 @@ class Api {
     }
   }
 
+  /// **ຮູຮັບຕົວປອມສຳລັບເທສ** — ໃສ່ຄ່ານີ້ແລ້ວທຸກຄຳຂໍຈະຜ່ານຟັງຊັນນີ້ແທນເຄືອຂ່າຍ.
+  ///
+  /// ເປັນຫຍັງຕ້ອງມີ: `Api` ເປັນ static 73 ອັນ ແລະ ໜ້າຈໍເອີ້ນມັນໂດຍກົງ ⇒ ຈະຂຽນ
+  /// ເທສທີ່ພິສູດ flow ("ຮັບງານ → check-in → ກວດເຊັກ → ຈົບງານ") ບໍ່ໄດ້ເລີຍ
+  /// ຖ້າບໍ່ມີ server ຈິງ. ການແຍກທັງ 73 ອັນເປັນ interface = ຮື້ທັງແອັບ;
+  /// ຮູດຽວທີ່ `_send` ໃຫ້ຜົນຄືກັນສຳລັບການເທສ ໂດຍບໍ່ຕ້ອງແຕະບ່ອນເອີ້ນຈັກບ່ອນ.
+  @visibleForTesting
+  static Future<Map<String, dynamic>> Function(
+    String method,
+    String path, {
+    Object? body,
+    bool auth,
+  })?
+  sendOverride;
+
   static Future<Map<String, dynamic>> _send(
     String method,
     String path, {
     Object? body,
     bool auth = true,
   }) async {
+    final fake = sendOverride;
+    if (fake != null) return fake(method, path, body: body, auth: auth);
     final headers = <String, String>{
       'content-type': 'application/json',
       // ── ບອກເວີຊັນຂອງແອັບທຸກຄຳຂໍ (ດ່ານບັງຄັບອັບເດດຝັ່ງ server ອ່ານອັນນີ້) ──
@@ -852,12 +869,15 @@ class Api {
     return QcDetail.fromJson(result);
   }
 
+  /// ບັນທຶກຜົນ QC — [signature] ເປັນ data-URI ຂອງ PNG (ຫວ່າງ = ບໍ່ໄດ້ເຊັນ).
+  /// server ຮັບ `signature` ມາແຕ່ຕົ້ນ (ods_qc_signature) ແຕ່ແອັບບໍ່ເຄີຍສົ່ງ.
   static Future<String> saveQc(
     String workflow,
     String code,
     List<Map<String, dynamic>> answers,
-    String signerName,
-  ) async {
+    String signerName, {
+    String signature = '',
+  }) async {
     final result = await _send(
       'POST',
       '/api/mobile/qc',
@@ -866,6 +886,7 @@ class Api {
         'code': code,
         'answers': answers,
         'signer_name': signerName,
+        if (signature.isNotEmpty) 'signature': signature,
       },
     );
     return result['message'] as String;

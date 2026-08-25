@@ -6,6 +6,7 @@ import '../api.dart';
 import '../photo.dart';
 import '../drafts.dart';
 import '../main.dart';
+import '../widgets/signature_pad.dart';
 import '../widgets/ui_kit.dart';
 
 /// ກວດຮັບຄຸນນະພາບ (QC) — **ຫົວໜ້າຊ່າງ ແລະ CS** (ໃຜກວດໄດ້ ຜູ້ຈັດການກຳນົດຢູ່ ods_qc_role).
@@ -144,6 +145,9 @@ class _QcJobScreenState extends State<QcJobScreen> {
   List<QcItem> items = [];
   List<String> photos = [];
   final signer = TextEditingController();
+
+  /// ລາຍເຊັນລູກຄ້າ (data-URI PNG) — ຫວ່າງ = ຍັງບໍ່ໄດ້ເຊັນ
+  String signature = '';
   bool loading = true;
   String error = '';
   bool busy = false;
@@ -210,7 +214,7 @@ class _QcJobScreenState extends State<QcJobScreen> {
     if (shooting) return;
     setState(() => shooting = true);
     try {
-      final image = await Photo.capture();
+      final image = await Photo.capture(stamp: widget.job.code);
       if (image == null || !mounted) return;
       setState(() => item.photo = image);
       _saveDraft();
@@ -242,6 +246,7 @@ class _QcJobScreenState extends State<QcJobScreen> {
             )
             .toList(),
         signer.text,
+        signature: signature,
       );
       Drafts.clear(_draftKey); // ບັນທຶກແລ້ວ ⇒ ຮ່າງບໍ່ຈຳເປັນອີກ
       if (!mounted) return;
@@ -451,7 +456,8 @@ class _QcJobScreenState extends State<QcJobScreen> {
                   ),
                 ),
 
-                if (failed == 0 && answered == items.length && items.isNotEmpty)
+                // ຜ່ານໝົດ = ກຳລັງສົ່ງມອບງານ ⇒ ຂໍຊື່ + ລາຍເຊັນລູກຄ້າ
+                if (failed == 0 && answered == items.length && items.isNotEmpty) ...[
                   TextField(
                     controller: signer,
                     decoration: const InputDecoration(
@@ -459,6 +465,9 @@ class _QcJobScreenState extends State<QcJobScreen> {
                       border: OutlineInputBorder(),
                     ),
                   ),
+                  const SizedBox(height: 14),
+                  SignaturePad(onChanged: (value) => setState(() => signature = value)),
+                ],
 
                 // ປຸ່ມບັນທຶກ ຢູ່ແຖບລຸ່ມ (v5) — checklist ຍາວກວ່າ 1 ຈໍ
               ],
