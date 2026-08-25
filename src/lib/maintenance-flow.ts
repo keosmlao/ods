@@ -207,7 +207,11 @@ export async function scheduleNextVisitMaintenance(
 
   const reason = input.reason.trim();
   if (!reason) return { ok: false, error: "ກະລຸນາໃສ່ເຫດຜົນ ວ່າຍັງບໍ່ຈົບຍ້ອນຫຍັງ" };
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.next_date)) return { ok: false, error: "ກະລຸນາເລືອກວັນນັດຮອບຕໍ່ໄປ" };
+  // ວັນນັດເປັນທາງເລືອກ — ນິຍາມດຽວກັບ job-flow.scheduleNextVisit (ແອັດມິນຈັດວັນໃຫ້ພາຍຫຼັງ)
+  const nextDate = input.next_date.trim();
+  if (nextDate && !/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) {
+    return { ok: false, error: "ຮູບແບບວັນນັດບໍ່ຖືກຕ້ອງ" };
+  }
 
   const stage = (
     await query<{ stage: number }>(
@@ -246,13 +250,22 @@ export async function scheduleNextVisitMaintenance(
   const done = await query(
     `update ${MODEL} a set appoint_date=$2::date
       where a.code=$1 and (${MAINTENANCE_STAGE_SQL}) in (2,3)`,
-    [code, input.next_date],
+    [code, nextDate === "" ? null : nextDate],
   );
   if (!done.rowCount) return { ok: false, error: "ບັນທຶກບໍ່ໄດ້ — ຂັ້ນຂອງງານປ່ຽນໄປແລ້ວ" };
 
-  await logChange(MODEL, code, `ຮອບນີ້ຍັງບໍ່ຈົບ — ນັດເຂົ້າຮອບຕໍ່ໄປ ${input.next_date} · ${reason}`, {
-    author: session.username,
-    roles: ["admin", "manager"],
-  });
-  return { ok: true, message: `ນັດເຂົ້າຮອບຕໍ່ໄປ ${input.next_date} ແລ້ວ` };
+  await logChange(
+    MODEL,
+    code,
+    nextDate
+      ? `ຮອບນີ້ຍັງບໍ່ຈົບ — ນັດເຂົ້າຮອບຕໍ່ໄປ ${nextDate} · ${reason}`
+      : `ຮອບນີ້ຍັງບໍ່ຈົບ — **ຍັງບໍ່ກຳນົດວັນ** (ລໍແອັດມິນຈັດວັນ) · ${reason}`,
+    { author: session.username, roles: ["admin", "manager"] },
+  );
+  return {
+    ok: true,
+    message: nextDate
+      ? `ນັດເຂົ້າຮອບຕໍ່ໄປ ${nextDate} ແລ້ວ`
+      : "ບັນທຶກແລ້ວ — ຍັງບໍ່ກຳນົດວັນ, ແອັດມິນຈະຈັດວັນເຂົ້າໜ້າງານໃຫ້",
+  };
 }

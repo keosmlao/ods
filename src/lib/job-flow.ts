@@ -827,7 +827,17 @@ export async function scheduleNextVisit(
   }
   const reason = input.reason.trim();
   if (!reason) return { ok: false, error: "ກະລຸນາໃສ່ເຫດຜົນ ວ່າຍັງບໍ່ຈົບຍ້ອນຫຍັງ" };
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.next_date)) return { ok: false, error: "ກະລຸນາເລືອກວັນນັດຮອບຕໍ່ໄປ" };
+  /*
+    ── ວັນນັດເປັນ **ທາງເລືອກ** (26-08-2026 ຕາມຄຳສັ່ງ) ──
+    ບາງງານແອັດມິນເປັນຄົນຈັດວັນເຂົ້າໜ້າງານໃຫ້ພາຍຫຼັງ (ຕ້ອງລໍອາໄຫຼ່ · ລໍລູກຄ້າຢືນຢັນ)
+    ⇒ ບັງຄັບໃຫ້ຊ່າງເລືອກວັນ = ຊ່າງເດົາວັນໃສ່ ແລ້ວຄິວງານປະຈຳວັນຜິດ. ວ່າງໄວ້ໄດ້:
+    ລ້າງ `appoint_date` ⇒ ໃບຄາຢູ່ຂັ້ນເດີມ ແລະ ບໍ່ໄປໂຜ່ຢູ່ຄິວມື້ໃດມື້ໜຶ່ງແບບຜິດໆ.
+    ⚠️ ເຫດຜົນຍັງ**ບັງຄັບ** — ນັ້ນຄືສິ່ງທີ່ຄົນຈັດວັນຕ້ອງອ່ານເພື່ອຕັດສິນໃຈ.
+  */
+  const nextDate = input.next_date.trim();
+  if (nextDate && !/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) {
+    return { ok: false, error: "ຮູບແບບວັນນັດບໍ່ຖືກຕ້ອງ" };
+  }
 
   /**
    * ── ຕ້ອງ **check-out ອອກເອງກ່ອນ** ຈຶ່ງນັດຮອບຕໍ່ໄປໄດ້ (06-08-2026 ຕາມຄຳສັ່ງ) ──
@@ -872,17 +882,19 @@ export async function scheduleNextVisit(
     );
   }
 
+  // ວ່າງ = ລ້າງວັນນັດ (null) ⇒ ແອັດມິນຈັດວັນໃຫ້ພາຍຫຼັງ · ມີວັນ = ຕັ້ງຕາມນັ້ນ
+  const appoint = nextDate === "" ? null : nextDate;
   const done =
     workflow === "install"
       ? await query(
           `update ods_tb_install a set appoint_date=$2::date
             where a.code=$1 and (${INSTALL_STAGE_SQL}) in (4,5)`,
-          [code, input.next_date],
+          [code, appoint],
         )
       : await query(
           `update tb_product a set appoint_date=$2::date
             where a.code=$1 and (${STAGE_SQL}) in (1,2,8,9)`,
-          [code, input.next_date],
+          [code, appoint],
         );
   if (!done.rowCount) return { ok: false, error: "ບັນທຶກບໍ່ໄດ້ — ຂັ້ນຂອງງານປ່ຽນໄປແລ້ວ" };
 
@@ -901,13 +913,20 @@ export async function scheduleNextVisit(
   await logChange(
     workflow === "install" ? "ods_tb_install" : "tb_product",
     code,
-    `ຮອບນີ້ຍັງບໍ່ຈົບ — ນັດເຂົ້າຮອບຕໍ່ໄປ ${input.next_date} · ${reason}` +
+    (nextDate
+      ? `ຮອບນີ້ຍັງບໍ່ຈົບ — ນັດເຂົ້າຮອບຕໍ່ໄປ ${nextDate} · ${reason}`
+      : `ຮອບນີ້ຍັງບໍ່ຈົບ — **ຍັງບໍ່ກຳນົດວັນ** (ລໍແອັດມິນຈັດວັນ) · ${reason}`) +
       (input.closeOpenVisit && openVisit.rows[0]?.n ? " (ປິດຮອບໃຫ້ — ຊ່າງລືມ check-out)" : ""),
     {
     author: session.username,
     roles: ["admin", "manager"],
   });
-  return { ok: true, message: `ນັດເຂົ້າຮອບຕໍ່ໄປ ${input.next_date} ແລ້ວ` };
+  return {
+    ok: true,
+    message: nextDate
+        ? `ນັດເຂົ້າຮອບຕໍ່ໄປ ${nextDate} ແລ້ວ`
+        : "ບັນທຶກແລ້ວ — ຍັງບໍ່ກຳນົດວັນ, ແອັດມິນຈະຈັດວັນເຂົ້າໜ້າງານໃຫ້",
+  };
 }
 
 /**

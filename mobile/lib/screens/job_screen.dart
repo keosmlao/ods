@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
+import '../photo.dart';
 import '../drafts.dart';
 import '../main.dart';
 import '../widgets/ui_kit.dart';
@@ -70,7 +70,6 @@ class _JobScreenState extends State<JobScreen> {
   final chatInput = TextEditingController();
   bool sending = false;
 
-  final picker = ImagePicker();
 
   /// ບ່ອນເກັບຮ່າງຂອງໃບງານນີ້ — ຮູບຜົນງານ/ຮູບ check-in/ບັນທຶກ ທີ່ຍັງບໍ່ໄດ້ສົ່ງ
   String get _draftKey => 'job:${job.workflow}:${job.code}';
@@ -93,6 +92,18 @@ class _JobScreenState extends State<JobScreen> {
     loadOutstanding();
     loadGallery();
     loadChatter();
+    _recoverLostPhoto();
+  }
+
+  /// Android ຂ້າແອັບຖິ້ມຕອນກ້ອງເປີດ ⇒ ດຶງຮູບທີ່ຖ່າຍໄປແລ້ວຄືນ (ບໍ່ໃຫ້ຖ່າຍຊ້ຳ)
+  Future<void> _recoverLostPhoto() async {
+    final image = await Photo.recoverLost();
+    if (image == null || !mounted) return;
+    setState(() => photos.add(image));
+    _saveDraft();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('ກູ້ຮູບທີ່ຖ່າຍຄ້າງໄວ້ຄືນໃຫ້ແລ້ວ')),
+    );
   }
 
   /// ໂຫຼດຮູບເກົ່າ + ເສັ້ນເວລາ — ລົ້ມກໍ່ບໍ່ເປັນຫຍັງ (ພຽງບໍ່ສະແດງ)
@@ -393,13 +404,16 @@ class _JobScreenState extends State<JobScreen> {
   }
 
   Future<String?> _shoot() async {
-    XFile? shot;
     try {
-      shot = await picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 50,
-        maxWidth: 1280,
-      );
+      // ບີບໃຫ້ພໍດີເພດານ server (Photo.capture) — ບາງເຄື່ອງເຄີຍໄດ້ 413 ຕອນສົ່ງ
+      return await Photo.capture();
+    } on PhotoException catch (failure) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(failure.message), backgroundColor: danger),
+        );
+      }
+      return null;
     } catch (error) {
       // ບໍ່ມີສິດກ້ອງ (camera_access_denied) ເຄີຍ throw ອອກໄປໂດຍບໍ່ມີໃຜຈັບ
       // ⇒ ຊ່າງກົດແລ້ວງຽບ ບໍ່ຮູ້ວ່າຕ້ອງໄປເປີດສິດ (ແກ້ 06-08-2026).
@@ -412,9 +426,6 @@ class _JobScreenState extends State<JobScreen> {
       }
       return null;
     }
-    if (shot == null) return null;
-    final bytes = await shot.readAsBytes();
-    return 'data:image/jpeg;base64,${base64Encode(bytes)}';
   }
 
   /// ພິກັດ — ບໍ່ມີສິດ = check-in ບໍ່ໄດ້ (ຫຼັກຖານຂາດ ບໍ່ມີຄວາມໝາຍ)
@@ -3126,50 +3137,90 @@ class _JobScreenState extends State<JobScreen> {
     ),
   );
 
-  /// ຖາມ ວັນນັດ + ເຫດຜົນ ແລ້ວສົ່ງຄຳສັ່ງ next-visit (ເບິ່ງ lib/job-flow.scheduleNextVisit)
+  /// ຖາມ **ເຫດຜົນ** (ບັງຄັບ) + **ວັນນັດ** (ທາງເລືອກ) ແລ້ວສົ່ງຄຳສັ່ງ next-visit
+  /// (ກົດເກນຢູ່ lib/job-flow.scheduleNextVisit — ເວັບກັບແອັບໃຊ້ອັນດຽວກັນ)
+  ///
+  /// ── ເປັນຫຍັງວັນນັດຈຶ່ງບໍ່ບັງຄັບ (26-08-2026) ──
+  /// ບາງງານແອັດມິນເປັນຄົນຈັດວັນເຂົ້າໜ້າງານໃຫ້ພາຍຫຼັງ (ລໍອາໄຫຼ່ · ລໍລູກຄ້າຢືນຢັນ)
+  /// ⇒ ບັງຄັບໃຫ້ຊ່າງເລືອກວັນ = ຊ່າງເດົາວັນໃສ່ ແລ້ວຄິວງານປະຈຳວັນຜິດ.
   Future<void> _askNextVisit() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 180)),
-      helpText: job.workflow == 'install'
-          ? 'ວັນທີ່ຈະກັບໄປຕິດຕັ້ງຕໍ່'
-          : job.workflow == 'maintenance'
-          ? 'ວັນທີ່ຈະກັບໄປລ້າງຕໍ່'
-          : 'ວັນທີ່ຈະກັບໄປສ້ອມຕໍ່',
-    );
-    if (picked == null || !mounted) return;
-
     final reason = TextEditingController();
+    DateTime? picked;
+
     final ok = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('check-out ອອກ ແລະ ນັດຮອບຕໍ່ໄປ'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'ກັບໄປວັນທີ ${picked.day}/${picked.month}/${picked.year}',
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: reason,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'ຍັງບໍ່ຈົບຍ້ອນຫຍັງ',
-                hintText: 'ລໍງານໄຟຟ້າ · ຝົນຕົກ · ຂາດອາໄຫຼ່ · ລູກຄ້າຂໍເລື່ອນ',
-                border: OutlineInputBorder(),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialog) => AlertDialog(
+          title: const Text('check-out ອອກ — ຮອບນີ້ຍັງບໍ່ຈົບ'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: reason,
+                maxLines: 3,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'ຍັງບໍ່ຈົບຍ້ອນຫຍັງ (ຕ້ອງໃສ່)',
+                  hintText: 'ລໍງານໄຟຟ້າ · ຝົນຕົກ · ຂາດອາໄຫຼ່ · ລູກຄ້າຂໍເລື່ອນ',
+                  border: OutlineInputBorder(),
+                ),
               ),
+              const SizedBox(height: 14),
+              const Text(
+                'ວັນທີ່ຈະກັບໄປ (ບໍ່ບັງຄັບ)',
+                style: TextStyle(fontSize: 12.5, color: muted, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final date = await showDatePicker(
+                          context: dialogContext,
+                          initialDate: picked ?? DateTime.now().add(const Duration(days: 1)),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 180)),
+                          helpText: job.workflow == 'install'
+                              ? 'ວັນທີ່ຈະກັບໄປຕິດຕັ້ງຕໍ່'
+                              : job.workflow == 'maintenance'
+                              ? 'ວັນທີ່ຈະກັບໄປລ້າງຕໍ່'
+                              : 'ວັນທີ່ຈະກັບໄປສ້ອມຕໍ່',
+                        );
+                        if (date != null) setDialog(() => picked = date);
+                      },
+                      icon: const Icon(Icons.event_outlined, size: 18),
+                      label: Text(
+                        picked == null
+                            ? 'ຍັງບໍ່ກຳນົດ — ໃຫ້ແອັດມິນຈັດ'
+                            : '${picked!.day}/${picked!.month}/${picked!.year}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  if (picked != null)
+                    IconButton(
+                      tooltip: 'ລ້າງວັນ',
+                      onPressed: () => setDialog(() => picked = null),
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('ຍົກເລີກ'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('ບັນທຶກ'),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('ຍົກເລີກ')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('ບັນທຶກນັດ')),
-        ],
       ),
     );
     if (ok != true || !mounted) return;
@@ -3180,8 +3231,6 @@ class _JobScreenState extends State<JobScreen> {
       );
       return;
     }
-    final month = picked.month.toString().padLeft(2, '0');
-    final day = picked.day.toString().padLeft(2, '0');
     /*
       check-out ກ່ອນ **ໃນຂັ້ນຕອນດຽວກັນ** — ເວລາອອກຈຶ່ງເປັນເວລາຈິງທີ່ຊ່າງກົດ
       (server ປະຕິເສດການນັດ ຖ້າຍັງມີ check-in ຄ້າງ — ເບິ່ງ lib/job-flow).
@@ -3190,9 +3239,13 @@ class _JobScreenState extends State<JobScreen> {
       await run({'action': 'checkout'});
       if (!mounted) return;
     }
+    // ວັນວ່າງ = ສົ່ງ '' ⇒ server ລ້າງ appoint_date (ບໍ່ໄປໂຜ່ຢູ່ຄິວມື້ໃດມື້ໜຶ່ງແບບຜິດໆ)
+    final date = picked;
     await run({
       'action': 'next-visit',
-      'next_date': '${picked.year}-$month-$day',
+      'next_date': date == null
+          ? ''
+          : '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
       'reason': text,
     });
   }

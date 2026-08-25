@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:path_provider/path_provider.dart';
 
 /// ຮ່າງທີ່ຍັງບໍ່ທັນສົ່ງຂອງແຕ່ລະໜ້າຈໍ (ຮູບຖ່າຍ ແລະ ຄ່າທີ່ພິມແລ້ວ).
@@ -29,10 +31,11 @@ class Drafts {
 
   /// ໂຫຼດຮ່າງຈາກໄຟລ໌ — ເອີ້ນຄັ້ງດຽວຕອນເປີດແອັບ (ກ່ອນ `runApp`) ໃຫ້ໜ້າຈໍອ່ານໄດ້ທັນທີ.
   /// ລົ້ມກໍ່ບໍ່ເປັນຫຍັງ — ພຽງແຕ່ບໍ່ມີຮ່າງເກົ່າ (ດີກວ່າເປີດແອັບບໍ່ຂຶ້ນ).
-  static Future<void> load() async {
+  /// [folder] ໃສ່ໄດ້ໃນເທສເທົ່ານັ້ນ (ແອັບຈິງໃຫ້ລະບົບເລືອກບ່ອນເກັບເອງ)
+  static Future<void> load({Directory? folder}) async {
     try {
-      final folder = await getApplicationSupportDirectory();
-      final file = File('${folder.path}/drafts.json');
+      final dir = folder ?? await getApplicationSupportDirectory();
+      final file = File('${dir.path}/drafts.json');
       _file = file;
       if (!await file.exists()) return;
       final raw = jsonDecode(await file.readAsString());
@@ -54,6 +57,10 @@ class Drafts {
       // ອ່ານບໍ່ໄດ້/ໄຟລ໌ເພ ⇒ ເລີ່ມຈາກຫວ່າງ
     }
   }
+
+  /// ລືມທຸກຢ່າງທີ່ຢູ່ໃນ RAM (ບໍ່ແຕະໄຟລ໌) — ໃຊ້ໃນເທສເພື່ອຈຳລອງ "ເປີດແອັບໃໝ່"
+  @visibleForTesting
+  static void forgetInMemory() => _memory.clear();
 
   /// ຮ່າງຂອງໜ້າຈໍນີ້ (ຫວ່າງ = ຍັງບໍ່ມີ) — ອ່ານແບບ sync ໄດ້ເລີຍໃນ `initState`
   static Map<String, dynamic> read(String key) =>
@@ -86,6 +93,15 @@ class Drafts {
   static void clear(String key) {
     if (_memory.remove(key) == null) return;
     _flush();
+  }
+
+  /// ລໍໃຫ້ການຂຽນທີ່ຄ້າງຢູ່ລົງດິສຈົບ — ໃຊ້ໃນເທສ (ແອັບຈິງບໍ່ຕ້ອງລໍ)
+  @visibleForTesting
+  static Future<void> flushForTest() async {
+    _flush();
+    while (_writing || _dirty) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
   }
 
   static void _flush() {

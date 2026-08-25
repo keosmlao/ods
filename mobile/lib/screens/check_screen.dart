@@ -1,9 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../api.dart';
+import '../photo.dart';
 import '../drafts.dart';
 import '../main.dart';
 import '../widgets/ui_kit.dart';
@@ -44,7 +44,6 @@ class _CheckScreenState extends State<CheckScreen> {
   List<SpareItem> results = [];
   List<SpareSuggestion> suggestions = []; // ຜູ້ຊ່ວຍ AI
   final List<String> photos = []; // ຮູບຕອນກວດເຊັກ (data-URI base64)
-  final picker = ImagePicker();
   CheckOutcome? outcome; // ຜົນຕັດສິນທີ່ຊ່າງເລືອກ (null = ຍັງບໍ່ເລືອກ)
   bool get useSpare => outcome == CheckOutcome.spare;
   bool get cannotRepair => outcome == CheckOutcome.cannotRepair;
@@ -77,6 +76,16 @@ class _CheckScreenState extends State<CheckScreen> {
     reason.addListener(_refreshValidation);
     load();
     loadSuggestions();
+    _recoverLostPhoto();
+  }
+
+  /// Android ຂ້າແອັບຖິ້ມຕອນກ້ອງເປີດ ⇒ ດຶງຮູບທີ່ຖ່າຍໄປແລ້ວຄືນ (ບໍ່ໃຫ້ຖ່າຍຊ້ຳ)
+  Future<void> _recoverLostPhoto() async {
+    final image = await Photo.recoverLost();
+    if (image == null || !mounted || photos.length >= 6) return;
+    setState(() => photos.add(image));
+    _saveDraft();
+    _toast('ກູ້ຮູບທີ່ຖ່າຍຄ້າງໄວ້ຄືນໃຫ້ແລ້ວ', ok);
   }
 
   /// ໂຫຼດອາໄຫຼ່ທີ່ AI ແນະນຳ — ລົ້ມກໍ່ບໍ່ເປັນຫຍັງ (ພຽງບໍ່ສະແດງ)
@@ -163,18 +172,13 @@ class _CheckScreenState extends State<CheckScreen> {
     }
     setState(() => shooting = true);
     try {
-      final shot = await picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 50,
-        maxWidth: 1280,
-      );
-      if (shot == null) return;
-      final bytes = await shot.readAsBytes();
-      if (!mounted) return;
-      setState(
-        () => photos.add('data:image/jpeg;base64,${base64Encode(bytes)}'),
-      );
+      // ບີບໃຫ້ພໍດີເພດານ server ຢູ່ໃນ Photo.capture (ບໍ່ດັ່ງນັ້ນ 413 ຕອນກົດບັນທຶກ)
+      final image = await Photo.capture();
+      if (image == null || !mounted) return;
+      setState(() => photos.add(image));
       _saveDraft();
+    } on PhotoException catch (failure) {
+      if (mounted) _toast(failure.message, danger);
     } finally {
       if (mounted) setState(() => shooting = false);
     }

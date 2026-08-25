@@ -23,11 +23,12 @@ class JsonFile {
   bool _writing = false;
   bool _dirty = false;
 
-  /// ອ່ານຈາກດິສ — ລົ້ມ/ໄຟລ໌ເພ ⇒ ເລີ່ມຈາກຫວ່າງ (ຢ່າໃຫ້ແອັບເປີດບໍ່ຂຶ້ນ)
-  Future<void> load() async {
+  /// ອ່ານຈາກດິສ — ລົ້ມ/ໄຟລ໌ເພ ⇒ ເລີ່ມຈາກຫວ່າງ (ຢ່າໃຫ້ແອັບເປີດບໍ່ຂຶ້ນ).
+  /// [folder] ໃສ່ໄດ້ໃນເທສ (ຢ່າໃສ່ໃນແອັບຈິງ — ໃຫ້ລະບົບເລືອກບ່ອນເກັບເອງ).
+  Future<void> load({Directory? folder}) async {
     try {
-      final folder = await getApplicationSupportDirectory();
-      final file = File('${folder.path}/$name');
+      final dir = folder ?? await getApplicationSupportDirectory();
+      final file = File('${dir.path}/$name');
       _file = file;
       if (!await file.exists()) return;
       final raw = jsonDecode(await file.readAsString());
@@ -37,6 +38,10 @@ class JsonFile {
       data = <String, dynamic>{};
     }
   }
+
+  /// ລ້າງທຸກຢ່າງອອກຈາກ RAM — ໃຊ້ໃນເທສເພື່ອຈຳລອງ "ເປີດແອັບໃໝ່"
+  @visibleForTesting
+  void forgetInMemory() => data = <String, dynamic>{};
 
   /// ຂຽນລົງດິສ — ຮວມການຂຽນທີ່ຕິດກັນເປັນຮອບດຽວ (ຖ່າຍ 6 ຮູບຕິດກັນ = ບໍ່ຂຽນ 6 ເທື່ອ)
   void save() {

@@ -1,9 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../api.dart';
+import '../photo.dart';
 import '../drafts.dart';
 import '../main.dart';
 import '../widgets/ui_kit.dart';
@@ -147,7 +147,6 @@ class _QcJobScreenState extends State<QcJobScreen> {
   bool loading = true;
   String error = '';
   bool busy = false;
-  final picker = ImagePicker();
 
   /// ບ່ອນເກັບຮ່າງຂອງໃບກວດນີ້ — ຄຳຕອບ/ຮູບຕໍ່ຂໍ້ ທີ່ຍັງບໍ່ໄດ້ບັນທຶກ
   String get _draftKey => 'qc:${widget.job.workflow}:${widget.job.code}';
@@ -211,18 +210,16 @@ class _QcJobScreenState extends State<QcJobScreen> {
     if (shooting) return;
     setState(() => shooting = true);
     try {
-      final shot = await picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 50,
-        maxWidth: 1280,
-      );
-      if (shot == null) return;
-      final bytes = await shot.readAsBytes();
-      if (!mounted) return;
-      setState(
-        () => item.photo = 'data:image/jpeg;base64,${base64Encode(bytes)}',
-      );
+      final image = await Photo.capture();
+      if (image == null || !mounted) return;
+      setState(() => item.photo = image);
       _saveDraft();
+    } on PhotoException catch (failure) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(failure.message), backgroundColor: danger),
+        );
+      }
     } finally {
       if (mounted) setState(() => shooting = false);
     }
