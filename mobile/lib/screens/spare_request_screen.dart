@@ -421,7 +421,7 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
       width: 32,
       height: 32,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: line),
       ),
@@ -561,7 +561,7 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
                         : const Icon(
                             Icons.check_rounded,
                             size: 14,
-                            color: Colors.white,
+                            color: onAccent,
                           ),
                   ),
                 ),
@@ -651,7 +651,7 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
   Widget _bottomBar(bool ready) => Container(
     padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
     decoration: const BoxDecoration(
-      color: Colors.white,
+      color: surface,
       border: Border(top: BorderSide(color: line)),
     ),
     child: SafeArea(
@@ -687,7 +687,7 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
                       width: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: onAccent,
                       ),
                     )
                   : Text(
@@ -695,7 +695,7 @@ class _SpareRequestScreenState extends State<SpareRequestScreen> {
                       style: TextStyle(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w900,
-                        color: ready ? Colors.white : faint,
+                        color: ready ? onAccent : faint,
                       ),
                     ),
             ),

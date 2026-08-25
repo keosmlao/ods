@@ -780,7 +780,7 @@ class _JobScreenState extends State<JobScreen> {
         margin: const EdgeInsets.fromLTRB(14, 14, 14, 0),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: line),
         ),
@@ -896,7 +896,7 @@ class _JobScreenState extends State<JobScreen> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
           decoration: const BoxDecoration(
-            color: Colors.white,
+            color: surface,
             border: Border(top: BorderSide(color: line)),
           ),
           child: Row(
@@ -930,7 +930,7 @@ class _JobScreenState extends State<JobScreen> {
                 onPressed: sending ? null : sendMessage,
                 style: IconButton.styleFrom(
                   backgroundColor: teal,
-                  foregroundColor: Colors.white,
+                  foregroundColor: onAccent,
                   minimumSize: const Size(48, 48),
                 ),
                 icon: sending
@@ -939,7 +939,7 @@ class _JobScreenState extends State<JobScreen> {
                         height: 17,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: onAccent,
                         ),
                       )
                     : const Icon(Icons.send_rounded, size: 20),
@@ -978,7 +978,7 @@ class _JobScreenState extends State<JobScreen> {
               onBack: () => Navigator.pop(context),
             ),
             Container(
-              color: Colors.white,
+              color: surface,
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
               child: TabBar(
                 dividerColor: Colors.transparent,
@@ -2335,7 +2335,7 @@ class _JobScreenState extends State<JobScreen> {
         ? teal
         : done
         ? teal
-        : Colors.white;
+        : surface;
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2355,7 +2355,7 @@ class _JobScreenState extends State<JobScreen> {
                   ),
                 ),
                 child: done && !cancelled
-                    ? const Icon(Icons.check, size: 8, color: Colors.white)
+                    ? const Icon(Icons.check, size: 8, color: onAccent)
                     : null,
               ),
               if (!isLast)
@@ -2492,7 +2492,7 @@ class _JobScreenState extends State<JobScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.person_pin_rounded, size: 20, color: Colors.white),
+              const Icon(Icons.person_pin_rounded, size: 20, color: onAccent),
               const SizedBox(width: 7),
               Expanded(
                 child: Text(
@@ -2500,7 +2500,7 @@ class _JobScreenState extends State<JobScreen> {
                   style: const TextStyle(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w900,
-                    color: Colors.white,
+                    color: surface,
                   ),
                 ),
               ),
@@ -3051,7 +3051,7 @@ class _JobScreenState extends State<JobScreen> {
     onPressed: busy ? null : onPressed,
     style: FilledButton.styleFrom(
       backgroundColor: color,
-      foregroundColor: Colors.white,
+      foregroundColor: onAccent,
       minimumSize: Size.fromHeight(height),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       elevation: 0,
@@ -3065,7 +3065,7 @@ class _JobScreenState extends State<JobScreen> {
             width: 18,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: Colors.white,
+              color: onAccent,
             ),
           )
         : Icon(icon, size: 20),
@@ -3088,7 +3088,7 @@ class _JobScreenState extends State<JobScreen> {
     onPressed: busy ? null : onPressed,
     style: OutlinedButton.styleFrom(
       foregroundColor: color,
-      backgroundColor: Colors.white,
+      backgroundColor: surface,
       minimumSize: Size.fromHeight(height),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       side: BorderSide(color: color.withValues(alpha: .35)),
@@ -3391,7 +3391,7 @@ class _JobScreenState extends State<JobScreen> {
               width: 20,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: Colors.white,
+                color: onAccent,
               ),
             )
           : Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -3597,7 +3597,7 @@ class _Card extends StatelessWidget {
       // v4: flat — ຂອບແທນເງົາ (ໜ້ານີ້ມີຫຼາຍກາດ ⇒ ປະຢັດ GPU ເຄື່ອງເກົ່າ)
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(kCardRadius),
         border: Border.all(color: line),
       ),

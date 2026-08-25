@@ -95,7 +95,7 @@ class _TeamAppBar extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.fromLTRB(18, 10, 12, 10),
     decoration: const BoxDecoration(
-      color: Colors.white,
+      color: surface,
       border: Border(bottom: BorderSide(color: line)),
     ),
     child: Row(
@@ -190,7 +190,7 @@ class _TeamTabs extends StatelessWidget {
               indicatorSize: TabBarIndicatorSize.tab,
               // v4: flat — ຂອບແທນເງົາ
               indicator: BoxDecoration(
-                color: Colors.white,
+                color: surface,
                 borderRadius: BorderRadius.circular(11),
                 border: Border.all(color: lineStrong),
               ),
@@ -296,7 +296,7 @@ class _TeamSummary extends StatelessWidget {
   Widget _summaryDivider() => Container(
     width: 1,
     height: 42,
-    color: Colors.white.withValues(alpha: .14),
+    color: surface.withValues(alpha: .14),
   );
 }
 
@@ -305,7 +305,7 @@ class _TeamStat extends StatelessWidget {
     required this.value,
     required this.label,
     required this.icon,
-    this.color = Colors.white,
+    this.color = onAccent,
   });
   final String value;
   final String label;
@@ -330,7 +330,7 @@ class _TeamStat extends StatelessWidget {
       Text(
         label,
         style: TextStyle(
-          color: Colors.white.withValues(alpha: .65),
+          color: onAccent.withValues(alpha: .65),
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -349,7 +349,7 @@ class _TechCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),

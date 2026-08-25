@@ -71,7 +71,7 @@ class _StockBalanceScreenState extends State<StockBalanceScreen> {
                   height: 44,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: surface,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: line),
                   ),
@@ -116,7 +116,7 @@ class _StockBalanceScreenState extends State<StockBalanceScreen> {
                           width: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: onAccent,
                           ),
                         )
                       : const Icon(Icons.search_rounded, size: 20),

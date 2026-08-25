@@ -417,7 +417,7 @@ class _ExecutiveOverview extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .1),
+                  color: surface.withValues(alpha: .1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -435,7 +435,7 @@ class _ExecutiveOverview extends StatelessWidget {
                     Text(
                       healthy ? 'ການດຳເນີນງານປົກກະຕິ' : 'ມີຈຸດທີ່ຕ້ອງຕິດຕາມ',
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: onAccent,
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                       ),
@@ -447,7 +447,7 @@ class _ExecutiveOverview extends StatelessWidget {
               Text(
                 'ອັບເດດຫຼ້າສຸດ',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: .55),
+                  color: onAccent.withValues(alpha: .55),
                   fontSize: 11.5,
                 ),
               ),
@@ -457,7 +457,7 @@ class _ExecutiveOverview extends StatelessWidget {
           const Text(
             'ພາບລວມສູນບໍລິການ',
             style: TextStyle(
-              color: Colors.white,
+              color: onAccent,
               fontSize: 20,
               fontWeight: FontWeight.w900,
               letterSpacing: -.4,
@@ -467,7 +467,7 @@ class _ExecutiveOverview extends StatelessWidget {
           Text(
             'ຕົວເລກສຳຄັນທີ່ຕ້ອງຮູ້ກ່ອນເລີ່ມຈັດການວຽກ',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: .65),
+              color: onAccent.withValues(alpha: .65),
               fontSize: 11.5,
             ),
           ),
@@ -498,14 +498,14 @@ class _ExecutiveOverview extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(11),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .08),
+              color: surface.withValues(alpha: .08),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
                 const Icon(
                   Icons.swap_vert_circle_outlined,
-                  color: Colors.white70,
+                  color: onAccent,
                   size: 18,
                 ),
                 const SizedBox(width: 8),
@@ -513,7 +513,7 @@ class _ExecutiveOverview extends StatelessWidget {
                   child: Text(
                     'ເດືອນນີ້ ຮັບເຂົ້າ ${data.flowOpened} · ປິດງານ ${data.flowClosed}',
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: onAccent,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -573,7 +573,7 @@ class _ExecutiveMetric extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: .7),
+                color: onAccent.withValues(alpha: .7),
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -645,7 +645,7 @@ class _WorkSummaryGrid extends StatelessWidget {
           const SizedBox(height: 10),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: surface,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: line),
             ),
@@ -688,7 +688,7 @@ class _WorkCard extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Material(
-    color: Colors.white,
+    color: surface,
     borderRadius: BorderRadius.circular(18),
     child: InkWell(
       onTap: onTap,
@@ -829,7 +829,7 @@ class _PriorityActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: surface,
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: line),
     ),
@@ -880,7 +880,7 @@ class _TodayBrief extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(vertical: 15),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: surface,
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: line),
     ),
@@ -961,7 +961,7 @@ class _ManagementSnapshot extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: surface,
       borderRadius: BorderRadius.circular(20),
       border: Border.all(color: line),
     ),
@@ -1072,7 +1072,7 @@ class _ModernHeader extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: surface,
         border: Border(bottom: BorderSide(color: line)),
       ),
       child: SafeArea(
@@ -1090,7 +1090,7 @@ class _ModernHeader extends StatelessWidget {
                 ),
                 child: const Icon(
                   Icons.grid_view_rounded,
-                  color: Colors.white,
+                  color: onAccent,
                   size: 20,
                 ),
               ),
@@ -1213,7 +1213,7 @@ class _ActivityFeedSection extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: line),
         ),
@@ -1225,7 +1225,7 @@ class _ActivityFeedSection extends StatelessWidget {
     }
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: line),
       ),
@@ -1340,7 +1340,7 @@ class _HeaderIconButton extends StatelessWidget {
                     count > 99 ? '99+' : '$count',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: onAccent,
                       fontSize: 9,
                       fontWeight: FontWeight.w900,
                       height: 1.2,
@@ -1403,7 +1403,7 @@ class _CommandHero extends StatelessWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
+                      color: surface.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: const Text(
@@ -1437,7 +1437,7 @@ class _CommandHero extends StatelessWidget {
               Text(
                 '$openJobs',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: onAccent,
                   fontSize: 42,
                   height: 1.1,
                   fontWeight: FontWeight.w900,
@@ -1457,7 +1457,7 @@ class _CommandHero extends StatelessWidget {
                     width: 1,
                     height: 32,
                     margin: const EdgeInsets.symmetric(horizontal: 18),
-                    color: Colors.white.withValues(alpha: 0.12),
+                    color: surface.withValues(alpha: 0.12),
                   ),
                   _HeroFact(
                     icon: Icons.fact_check_outlined,
@@ -1577,7 +1577,7 @@ class _KPIGrid extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: surface,
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(color: line),
                   ),
@@ -1666,7 +1666,7 @@ class _OperationsHealth extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: surface,
       borderRadius: BorderRadius.circular(20),
       border: Border.all(color: line),
     ),
@@ -1887,7 +1887,7 @@ class _AlertSection extends StatelessWidget {
                 child: Text(
                   '$totalAlerts',
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: onAccent,
                     fontSize: 11,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1916,7 +1916,7 @@ class _AlertTile extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: line),
         ),
@@ -1952,7 +1952,7 @@ class _AlertTile extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w900,
-                  color: Colors.white,
+                  color: onAccent,
                 ),
               ),
             ),
@@ -2963,7 +2963,7 @@ class _Card extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       // v4: flat — ຂອບແທນເງົາ
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(kCardRadius),
         border: Border.all(color: line),
       ),
@@ -3095,7 +3095,7 @@ class _ErrorView extends StatelessWidget {
             onPressed: onRetry,
             style: FilledButton.styleFrom(
               backgroundColor: teal,
-              foregroundColor: Colors.white,
+              foregroundColor: onAccent,
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),

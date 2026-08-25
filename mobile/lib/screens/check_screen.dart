@@ -295,7 +295,7 @@ class _CheckScreenState extends State<CheckScreen> {
             Container(
               padding: const EdgeInsets.all(13),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
+                color: surfaceAlt,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
@@ -326,10 +326,10 @@ class _CheckScreenState extends State<CheckScreen> {
             Container(
               padding: const EdgeInsets.all(13),
               decoration: BoxDecoration(
-                color: cannotRepair ? const Color(0xFFFEE2E2) : const Color(0xFFFBEED5),
+                color: cannotRepair ? dangerTint : warnTint,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: cannotRepair ? const Color(0xFFFCA5A5) : const Color(0xFFEBD7A6),
+                  color: cannotRepair ? danger : warn,
                 ),
               ),
               child: Column(
@@ -357,7 +357,7 @@ class _CheckScreenState extends State<CheckScreen> {
                       hintText: cannotRepair
                           ? 'ເຊັ່ນ: ອາໄຫຼ່ເລີກຜະລິດ, ເສຍໜັກ ບໍ່ຄຸ້ມສ້ອມ...'
                           : 'ເຊັ່ນ: ຮ່ອງຮອຍແຕກ, ໂດນນ້ຳ, ໝົດອາຍຸປະກັນ...',
-                      fillColor: Colors.white,
+                      fillColor: surface,
                     ),
                   ),
                 ],
@@ -606,7 +606,7 @@ class _CheckScreenState extends State<CheckScreen> {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
         decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: .08) : Colors.white,
+          color: selected ? color.withValues(alpha: .18) : surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: selected ? color : line, width: selected ? 1.5 : 1),
         ),
@@ -655,7 +655,7 @@ class _CheckScreenState extends State<CheckScreen> {
       duration: const Duration(milliseconds: 150),
       padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
       decoration: BoxDecoration(
-        color: value ? tealTint : Colors.white,
+        color: value ? tealTint : surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: value ? teal : line),
       ),

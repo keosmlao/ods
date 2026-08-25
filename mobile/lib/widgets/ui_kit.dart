@@ -16,7 +16,7 @@ const kSoftShadow = [
 
 /// ກາດ v4: ພື້ນຂາວ + ຂອບ 1px (ບໍ່ມີເງົາປົກກະຕິ — ປະຢັດ GPU ເຄື່ອງເກົ່າ)
 BoxDecoration cardDecoration({Color? color, Color? border, double borderRadius = kCardRadius}) => BoxDecoration(
-  color: color ?? Colors.white,
+  color: color ?? surface,
   borderRadius: BorderRadius.circular(borderRadius),
   border: Border.all(color: border ?? line),
 );
@@ -101,13 +101,13 @@ class RoundIconButton extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: danger,
                     borderRadius: BorderRadius.circular(9),
-                    border: Border.all(color: Colors.white, width: 1.5),
+                    border: Border.all(color: surface, width: 1.5),
                   ),
                   child: Center(
                     child: Text(
                       '$badge',
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: onAccent,
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
                       ),
@@ -194,7 +194,7 @@ class FilterPill extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 44),
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
         decoration: BoxDecoration(
-          color: selected ? ink : Colors.white,
+          color: selected ? ink : surface,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: selected ? ink : lineStrong),
         ),
@@ -206,7 +206,7 @@ class FilterPill extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: selected ? Colors.white : body,
+                color: selected ? onAccent : body,
               ),
             ),
             if (count != null) ...[
@@ -216,7 +216,7 @@ class FilterPill extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
-                  color: selected ? Colors.white70 : faint,
+                  color: selected ? onAccent : faint,
                 ),
               ),
             ],
@@ -382,7 +382,7 @@ class HeroIconButton extends StatelessWidget {
             child: Center(
               child: Text(
                 '$badge',
-                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
+                style: const TextStyle(color: onAccent, fontSize: 10, fontWeight: FontWeight.w800),
               ),
             ),
           ),
@@ -689,7 +689,7 @@ class AiAssistCard extends StatelessWidget {
                   color: _violet,
                   borderRadius: BorderRadius.circular(7),
                 ),
-                child: const Icon(Icons.auto_awesome, size: 13, color: Colors.white),
+                child: const Icon(Icons.auto_awesome, size: 13, color: onAccent),
               ),
               const SizedBox(width: 8),
               Text(
@@ -846,7 +846,7 @@ class StickyActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     decoration: const BoxDecoration(
-      color: Colors.white,
+      color: surface,
       border: Border(top: BorderSide(color: line)),
     ),
     child: SafeArea(
@@ -1101,7 +1101,7 @@ class StepRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    color: Colors.white,
+    color: surface,
     padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
     child: Row(
       children: [
@@ -1183,7 +1183,7 @@ class _StepCardState extends State<StepCard> {
     final current = widget.state == JobStepState.current;
     final (markBg, markFg) = switch (widget.state) {
       JobStepState.done => (okTint, ok),
-      JobStepState.current => (teal, Colors.white),
+      JobStepState.current => (teal, onAccent),
       JobStepState.locked => (surfaceAlt, faint),
     };
     final canOpen = widget.child != null && !locked;
@@ -1193,7 +1193,7 @@ class _StepCardState extends State<StepCard> {
       opacity: locked ? .55 : 1,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surface,
           borderRadius: BorderRadius.circular(kCardRadius),
           border: Border.all(color: current ? teal : line, width: current ? 1.5 : 1),
         ),
@@ -1384,7 +1384,7 @@ class NextActionBar extends StatelessWidget {
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: onAccent),
                           )
                         : Icon(icon ?? Icons.arrow_forward_rounded, size: 20),
                     label: Text(
@@ -1417,7 +1417,7 @@ class _NextIconButton extends StatelessWidget {
         width: kPrimaryTouch,
         height: kPrimaryTouch,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surface,
           borderRadius: BorderRadius.circular(kButtonRadius),
           border: Border.all(color: lineStrong),
         ),
@@ -1439,11 +1439,11 @@ class _NextIconButton extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: danger,
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Colors.white, width: 1.5),
+                    border: Border.all(color: surface, width: 1.5),
                   ),
                   child: Text(
                     '$badge',
-                    style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: Colors.white),
+                    style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: onAccent),
                   ),
                 ),
               ),

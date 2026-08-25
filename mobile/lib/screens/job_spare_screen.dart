@@ -735,7 +735,7 @@ class _JobSpareScreenState extends State<JobSpareScreen> {
           height: 44,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: surface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: line),
           ),
@@ -854,7 +854,7 @@ class _JobSpareScreenState extends State<JobSpareScreen> {
   Widget _bottomBar() => Container(
     padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
     decoration: const BoxDecoration(
-      color: Colors.white,
+      color: surface,
       border: Border(top: BorderSide(color: line)),
     ),
     child: SafeArea(
@@ -873,14 +873,14 @@ class _JobSpareScreenState extends State<JobSpareScreen> {
           icon: Icon(
             Icons.inventory_2_outlined,
             size: 19,
-            color: pending > 0 ? Colors.white : faint,
+            color: pending > 0 ? onAccent : faint,
           ),
           label: Text(
             pending > 0 ? 'ໄປອອກໃບຂໍເບີກ ($pending)' : 'ບໍ່ມີອາໄຫຼ່ຄ້າງເບີກ',
             style: TextStyle(
               fontSize: 14.5,
               fontWeight: FontWeight.w900,
-              color: pending > 0 ? Colors.white : faint,
+              color: pending > 0 ? onAccent : faint,
             ),
           ),
           onPressed: pending > 0 && !busy

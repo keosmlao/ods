@@ -115,7 +115,7 @@ class _ChatterScreenState extends State<ChatterScreen> {
                     ],
             ),
             Container(
-              color: Colors.white,
+              color: surface,
               child: const TabBar(
                 labelColor: ink,
                 unselectedLabelColor: muted,
@@ -168,7 +168,7 @@ class _ChatterScreenState extends State<ChatterScreen> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
           decoration: const BoxDecoration(
-            color: Colors.white,
+            color: surface,
             border: Border(top: BorderSide(color: line)),
           ),
           child: Row(
@@ -199,7 +199,7 @@ class _ChatterScreenState extends State<ChatterScreen> {
                         height: 17,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: onAccent,
                         ),
                       )
                     : const Icon(Icons.send_rounded),
@@ -231,7 +231,7 @@ class _ChatterScreenState extends State<ChatterScreen> {
                 margin: const EdgeInsets.only(bottom: 9),
                 padding: const EdgeInsets.all(13),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: activity.late ? danger.withValues(alpha: .3) : line,
@@ -297,7 +297,7 @@ class _MessageCard extends StatelessWidget {
     margin: const EdgeInsets.only(bottom: 8),
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: message.isLog ? const Color(0xFFF1F5F4) : Colors.white,
+      color: message.isLog ? const Color(0xFFF1F5F4) : surface,
       borderRadius: BorderRadius.circular(14),
       border: Border.all(color: line),
     ),

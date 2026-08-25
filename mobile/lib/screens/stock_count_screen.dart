@@ -170,7 +170,7 @@ class _StockCountScreenState extends State<StockCountScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: active ? ink : Colors.white,
+            color: active ? ink : surface,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: active ? ink : const Color(0xFFCBD5E1)),
           ),
@@ -182,7 +182,7 @@ class _StockCountScreenState extends State<StockCountScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: active ? Colors.white : ink,
+                  color: active ? onAccent : ink,
                 ),
               ),
               const SizedBox(width: 6),
@@ -190,7 +190,7 @@ class _StockCountScreenState extends State<StockCountScreen> {
                 '$f/$t',
                 style: TextStyle(
                   fontSize: 11,
-                  color: active ? Colors.white70 : muted,
+                  color: active ? onAccent : muted,
                 ),
               ),
             ],
@@ -235,7 +235,7 @@ class _StockCountScreenState extends State<StockCountScreen> {
               children: [
                 // ── ແຖບສະແກນ + ຄວາມຄືບໜ້າ ──
                 Container(
-                  color: Colors.white,
+                  color: surface,
                   padding: const EdgeInsets.all(14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -390,7 +390,7 @@ class _ItemCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: found ? const Color(0xFFECFDF5) : Colors.white,
+        color: found ? const Color(0xFFECFDF5) : surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: found ? const Color(0xFF6EE7B7) : const Color(0xFFE2E8F0),
@@ -423,12 +423,12 @@ class _ItemCard extends StatelessWidget {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.check, size: 12, color: Colors.white),
+                      Icon(Icons.check, size: 12, color: onAccent),
                       SizedBox(width: 3),
                       Text(
                         'ພົບແລ້ວ',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: onAccent,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),

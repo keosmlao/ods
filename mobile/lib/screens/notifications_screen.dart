@@ -263,7 +263,7 @@ class _TabButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         // v4: flat — ຂອບແທນເງົາ
         decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent,
+          color: selected ? onAccent : Colors.transparent,
           borderRadius: BorderRadius.circular(11),
           border: selected ? Border.all(color: lineStrong) : null,
         ),
@@ -314,7 +314,7 @@ class _NotificationCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 9),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(17),
         // v4: flat — ບໍ່ອ່ານ = ຂອບສີເຂັ້ມພໍ, ບໍ່ຕ້ອງໃຊ້ເງົາ
         border: Border.all(
@@ -488,7 +488,7 @@ class _NotificationLoading extends StatelessWidget {
       height: 82,
       margin: const EdgeInsets.only(bottom: 9),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(17),
         border: Border.all(color: line),
       ),

@@ -71,7 +71,23 @@ void _watchCrashes() {
   }
 }
 
-// ── Design tokens v5 (ຕໍ່ຈາກ v4 Flat High-Contrast) ──
+/* ══════════════════════════════════════════════════════════════════════════
+   Design tokens v6 "NIGHT" — ໂໝດມືດ
+   ══════════════════════════════════════════════════════════════════════════
+   ເປັນຫຍັງມືດ: ຊ່າງອາຍຸ 15–25 ໃຊ້ມືຖືມື້ລະຫຼາຍຊົ່ວໂມງກັບແອັບທີ່ເປັນໂໝດມືດ
+   ເກືອບທັງໝົດ — ແອັບບໍລິສັດທີ່ຂາວຈ້າຮູ້ສຶກເປັນ "ແບບຟອມ" ບໍ່ແມ່ນເຄື່ອງມືຂອງຕົນ.
+
+   ── ບົດຮຽນທີ່ຝັງໄວ້ໃນ token ນີ້ ──
+   ① `teal` **ບໍ່ແມ່ນສີດຽວກັບ v5** ອີກຕໍ່ໄປ: teal-700 (#0F766E) ເທິງພື້ນມືດ
+      contrast ພຽງ ~2.4:1 (ອ່ານບໍ່ອອກ) ⇒ ຍົກເປັນ #14B8A6 (6.4:1 ✓)
+   ② ສີເຂັ້ມສະຫວ່າງແບບນີ້ໃຊ້ເປັນ**ພື້ນປຸ່ມ**ກັບຕົວໜັງສືຂາວບໍ່ໄດ້ (2.3:1)
+      ⇒ ຕົວໜັງສືເທິງປຸ່ມສີເນັ້ນ ໃຊ້ `onAccent` (ເກືອບດຳ) ບໍ່ແມ່ນ `onAccent`
+   ③ ພື້ນກາດ = `surface` (ບໍ່ແມ່ນ `onAccent`) ⇒ ຢ່າພິມ onAccent ເປັນພື້ນອີກ
+
+   ⚠️ ຍັງເປັນ **const** ທັງໝົດ ⇒ ສະຫຼັບໂໝດແດດຕອນແລ່ນຍັງບໍ່ໄດ້ (ຕ້ອງຍ້າຍໄປ
+   ThemeExtension ກ່ອນ — ວຽກແຍກ). ຊ່າງທີ່ຂຶ້ນຫຼັງຄາຕອນທ່ຽງໃຫ້ຍົກຄວາມສະຫວ່າງຈໍສຸດ.
+   ══════════════════════════════════════════════════════════════════════════ */
+// ── ໂທເຄັນເກົ່າ v5 (ເກັບຄຳອະທິບາຍໄວ້ເປັນປະຫວັດ) ──
 // ຫຼັກການເດີມທີ່ **ຍັງຖືຢູ່**: contrast ສູງ (WCAG AA ຂຶ້ນໄປສຳລັບ text), ບໍ່ມີ gradient/blur
 // ໃນ widget ທີ່ render ຖີ່ (GPU ເກົ່າແຮງ), flat surface + border ແທນເງົາ.
 //
@@ -80,31 +96,37 @@ void _watchCrashes() {
 //   ② **ສີສັນຍານມີໜ້າທີ່ຕາຍຕົວ**: ແດງ = ຊ້າ/ຫ້າມ · ເຫຼືອງ = ໃກ້ຮອດ/ຕ້ອງກວດ · ຂຽວ = ຜ່ານ
 //      ⇒ ຫ້າມໃຊ້ 3 ສີນີ້ເປັນເຄື່ອງປະດັບ ບໍ່ດັ່ງນັ້ນ "ແດງ" ຈະບໍ່ໝາຍຄວາມວ່າຫຍັງອີກຕໍ່ໄປ
 //   ③ ປຸ່ມຫຼັກສູງ 52 (kPrimaryTouch) — ນິ້ວໂປ້ຊ່າງ ໃສ່ຖົງມື ຢືນຢູ່ໜ້າງານ
-const teal = Color(0xFF0F766E); // brand teal-700 — ສີຫຼັກ (contrast 4.6:1 ເທິງຂາວ)
-const tealBright = Color(0xFF0D9488); // active highlight
-const tealDeep = Color(0xFF115E59); // pressed/hover state (teal-800)
-const tealTint = Color(0xFFCCFBF1); // soft badge tint
-const tealWash = Color(0xFFF0FDFA); // ພື້ນອ່ອນສຸດ (tint ກາດ selected)
-const ink = Color(0xFF0F172A); // slate 900 — ຫົວຂໍ້
-const body = Color(0xFF1E293B); // slate 800 — ເນື້ອຄວາມອ່ານງ່າຍກວ່າ muted
-const danger = Color(0xFFE11D48); // rose 600
-const dangerTint = Color(0xFFFFE4E6); // rose 100
-const ok = Color(0xFF047857); // emerald 700 (ເຂັ້ມຂຶ້ນ — ອ່ານງ່າຍກວ່າ 600)
-const okTint = Color(0xFFD1FAE5); // emerald 100
-const warn = Color(0xFFB45309); // amber 700 (ເຂັ້ມຂຶ້ນ)
-const warnTint = Color(0xFFFEF3C7); // amber 100
-const muted = Color(0xFF475569); // slate 600 — ຍົກຈາກ 500 ໃຫ້ອ່ານງ່າຍຂຶ້ນ
-const faint = Color(0xFF64748B); // slate 500 — ຍົກຈາກ 400 (4.5:1 ພໍດີ)
-const ground = Color(0xFFF4F7F6); // v5: slate ອຽງຂຽວ — ພື້ນຫຼັງ
-const surfaceAlt = Color(0xFFEDF2F1); // v5: ພື້ນຮອງ (input · ປຸ່ມມົນ)
-const line = Color(0xFFDFE8E5); // v5: ຂອບ
-const lineStrong = Color(0xFFC7D5D1); // v5: ຂອບເນັ້ນ (input ປົກກະຕິ)
+const teal = Color(0xFF14B8A6); // ສີຫຼັກ (mint) — ອ່ານອອກເທິງພື້ນມືດ 6.4:1
+const tealBright = Color(0xFF2EE6C5); // ເນັ້ນ/ໄຮໄລທ໌ · ຕົວເລກໃຫຍ່
+const tealDeep = Color(0xFF0D9488); // pressed
+const tealTint = Color(0xFF14302A); // ພື້ນປ້າຍອ່ອນ (ມືດ)
+const tealWash = Color(0xFF102421); // ພື້ນອ່ອນສຸດ (ກາດ selected)
+const ink = Color(0xFFF2FBF8); // ຫົວຂໍ້ (ສະຫວ່າງສຸດ)
+const body = Color(0xFFC3D6D1); // ເນື້ອຄວາມ
+const danger = Color(0xFFFB7185); // rose 400 — ອ່ານອອກເທິງພື້ນມືດ
+const dangerTint = Color(0xFF3A1620); // ພື້ນປ້າຍແດງ
+
+/// ພື້ນຂອງ **ກາດ/ແຖບ** — ແທນ `onAccent` ຂອງ v5 (ຢ່າພິມ onAccent ເປັນພື້ນ)
+const surface = Color(0xFF101C1A);
+
+/// ຕົວໜັງສື/ໄອຄອນ **ເທິງພື້ນສີເນັ້ນ** (teal · danger · warn · ok) — ເກືອບດຳ
+const onAccent = Color(0xFF04211C);
+const ok = Color(0xFF34D399); // emerald 400 — ອ່ານອອກເທິງພື້ນມືດ
+const okTint = Color(0xFF10312A); // ພື້ນປ້າຍຂຽວ
+const warn = Color(0xFFFFC46B); // amber 300 — ອ່ານອອກເທິງພື້ນມືດ
+const warnTint = Color(0xFF3A2A12); // ພື້ນປ້າຍເຫຼືອງ
+const muted = Color(0xFF8BA39D); // ຄຳອະທິບາຍ
+const faint = Color(0xFF6C817C); // ຈາງສຸດ (ຍັງຜ່ານ 4.5:1 ເທິງພື້ນ)
+const ground = Color(0xFF0A1413); // ພື້ນຫຼັງແອັບ
+const surfaceAlt = Color(0xFF172523); // ພື້ນຮອງ (input · ປຸ່ມມົນ · ແຖບຄວາມຄືບໜ້າ)
+const line = Color(0xFF22332F); // ຂອບ
+const lineStrong = Color(0xFF2E4440); // ຂອບເນັ້ນ (input ປົກກະຕິ)
 
 // ── Hero header v4 (flat, ບໍ່ມີ gradient — ປະຢັດ GPU ເຄື່ອງເກົ່າ) ──
-const hero1 = Color(0xFF0F172A); // slate 900 (ພື້ນ)
-const hero2 = Color(0xFF1E293B); // slate 800 (tile ເທິງ hero)
-const onHero = Color(0xFFF8FAFC);
-const onHeroDim = Color(0xFFB6C2D4); // ຍົກຈາກ slate 400 ໃຫ້ອ່ານງ່າຍເທິງພື້ນມືດ
+const hero1 = Color(0xFF0D1918); // ຫົວຈໍ — ຕ່າງຈາກພື້ນໜ້ອຍໜຶ່ງ (ບໍ່ແມ່ນກ້ອນດຳທັບ)
+const hero2 = Color(0xFF172523); // tile ເທິງ hero
+const onHero = Color(0xFFF2FBF8);
+const onHeroDim = Color(0xFF8BA39D);
 
 /// ລັດສະໝີມາດຕະຖານ (ກາດ = 16, ປຸ່ມ = 14, ຊິບ = pill)
 const kCardRadius = 16.0;
@@ -130,18 +152,21 @@ class OdssApp extends StatelessWidget {
         colorScheme:
             ColorScheme.fromSeed(
               seedColor: teal,
-              brightness: Brightness.light,
+              brightness: Brightness.dark,
             ).copyWith(
-              surface: Colors.white,
+              surface: surface,
               onSurface: ink,
+              primary: teal,
+              onPrimary: onAccent,
               error: danger,
+              onError: onAccent,
             ),
         scaffoldBackgroundColor: ground,
         fontFamily: 'Noto Sans Lao',
         fontFamilyFallback: const ['Noto Sans Lao', 'sans-serif'],
-        // AppBar ຂາວສະອາດ (ບໍ່ແມ່ນ bar ດຳໜັກແບບเก่า) — ຫົວຂໍ້ ink, ບໍ່ມີເງົາ
+        // AppBar ພື້ນດຽວກັບກາດ — ຫົວຂໍ້ ink (ສະຫວ່າງ), ບໍ່ມີເງົາ
         appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
+          backgroundColor: surface,
           foregroundColor: ink,
           elevation: 0,
           scrolledUnderElevation: 0,
@@ -178,7 +203,8 @@ class OdssApp extends StatelessWidget {
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
             backgroundColor: teal,
-            foregroundColor: Colors.white,
+            // ຕົວໜັງສືເທິງ mint ຕ້ອງເປັນສີເຂັ້ມ — ຂາວເທິງ mint ອ່ານບໍ່ອອກ (2.3:1)
+            foregroundColor: onAccent,
             // ສຳຜັດ 48px ຂຶ້ນໄປທຸກປຸ່ມຫຼັກ (ນິ້ວໂປ້ + ຈໍລຸ້ນເກົ່າ)
             minimumSize: const Size.fromHeight(kMinTouch),
             shape: RoundedRectangleBorder(
@@ -191,7 +217,7 @@ class OdssApp extends StatelessWidget {
           style: OutlinedButton.styleFrom(
             foregroundColor: teal,
             minimumSize: const Size.fromHeight(kMinTouch),
-            backgroundColor: Colors.white,
+            backgroundColor: surface,
             side: const BorderSide(color: lineStrong),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(kButtonRadius),
@@ -200,7 +226,7 @@ class OdssApp extends StatelessWidget {
           ),
         ),
         cardTheme: CardThemeData(
-          color: Colors.white,
+          color: surface,
           elevation: 0,
           margin: EdgeInsets.zero,
           shadowColor: Colors.transparent,
@@ -212,9 +238,10 @@ class OdssApp extends StatelessWidget {
         dividerTheme: const DividerThemeData(color: line, thickness: 1, space: 1),
         snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
-          backgroundColor: ink,
+          // ແຈ້ງເຕືອນລອຍ — ພື້ນສະຫວ່າງກວ່າກາດ ⇒ ເຫັນຊັດເທິງໜ້າມືດ
+          backgroundColor: surfaceAlt,
           contentTextStyle: const TextStyle(
-            color: Colors.white,
+            color: ink,
             fontWeight: FontWeight.w600,
           ),
           shape: RoundedRectangleBorder(

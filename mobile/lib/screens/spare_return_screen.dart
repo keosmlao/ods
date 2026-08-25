@@ -138,7 +138,7 @@ class _SpareReturnScreenState extends State<SpareReturnScreen> {
                         hintText: 'ເຊັ່ນ: ບໍ່ໄດ້ໃຊ້, ຜິດລຸ້ນ, ເຫຼືອຈາກງານ',
                         hintStyle: const TextStyle(fontSize: 12.5, color: faint),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: onAccent,
                         contentPadding: const EdgeInsets.all(13),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
@@ -306,7 +306,7 @@ class _SpareReturnScreenState extends State<SpareReturnScreen> {
                 height: 24,
                 margin: const EdgeInsets.only(top: 2),
                 decoration: BoxDecoration(
-                  color: chosen ? teal : Colors.white,
+                  color: chosen ? teal : surface,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: chosen ? teal : line, width: 1.5),
                 ),
@@ -314,7 +314,7 @@ class _SpareReturnScreenState extends State<SpareReturnScreen> {
                     ? const Icon(
                         Icons.check_rounded,
                         size: 16,
-                        color: Colors.white,
+                        color: onAccent,
                       )
                     : null,
               ),
@@ -389,7 +389,7 @@ class _SpareReturnScreenState extends State<SpareReturnScreen> {
   Widget _bottomBar() => Container(
     padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
     decoration: const BoxDecoration(
-      color: Colors.white,
+      color: surface,
       border: Border(top: BorderSide(color: line)),
     ),
     child: SafeArea(
@@ -434,7 +434,7 @@ class _SpareReturnScreenState extends State<SpareReturnScreen> {
                     width: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.white,
+                      color: onAccent,
                     ),
                   )
                 : const Icon(Icons.assignment_return_rounded, size: 18),
@@ -442,7 +442,7 @@ class _SpareReturnScreenState extends State<SpareReturnScreen> {
               saving ? 'ກຳລັງບັນທຶກ...' : 'ຂໍສົ່ງຄືນ',
               style: TextStyle(
                 fontWeight: FontWeight.w900,
-                color: picked.isEmpty && !saving ? faint : Colors.white,
+                color: picked.isEmpty && !saving ? faint : onAccent,
               ),
             ),
           ),

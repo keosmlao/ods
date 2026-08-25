@@ -42,7 +42,7 @@ class ServiceBottomNav extends StatelessWidget {
   Widget build(BuildContext context) => NavigationBarTheme(
     data: NavigationBarThemeData(
       height: 64,
-      backgroundColor: Colors.white,
+      backgroundColor: surface,
       elevation: 0,
       // ຂອບເທິງແທນເງົາ (ປະຢັດ GPU ເຄື່ອງເກົ່າ)
       labelTextStyle: WidgetStateProperty.resolveWith(

@@ -321,7 +321,7 @@ class _PickupScreenState extends State<PickupScreen> {
                 height: 42,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: surface,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: line),
                 ),
@@ -367,7 +367,7 @@ class _PickupScreenState extends State<PickupScreen> {
                 height: 42,
                 padding: const EdgeInsets.symmetric(horizontal: 13),
                 decoration: BoxDecoration(
-                  color: selecting ? ink : Colors.white,
+                  color: selecting ? ink : surface,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: selecting ? ink : line),
                 ),
@@ -378,7 +378,7 @@ class _PickupScreenState extends State<PickupScreen> {
                           ? Icons.close_rounded
                           : Icons.checklist_rtl_rounded,
                       size: 17,
-                      color: selecting ? Colors.white : muted,
+                      color: selecting ? onAccent : muted,
                     ),
                     const SizedBox(width: 5),
                     Text(
@@ -386,7 +386,7 @@ class _PickupScreenState extends State<PickupScreen> {
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w800,
-                        color: selecting ? Colors.white : muted,
+                        color: selecting ? onAccent : muted,
                       ),
                     ),
                   ],
@@ -628,7 +628,7 @@ class _PickupScreenState extends State<PickupScreen> {
                       : Icons.build_rounded,
                   size: 20,
                   color: chosen
-                      ? Colors.white
+                      ? onAccent
                       : install
                       ? const Color(0xFF2563EB)
                       : teal,
@@ -747,7 +747,7 @@ class _PickupScreenState extends State<PickupScreen> {
                           width: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: onAccent,
                           ),
                         )
                       : const Text(
@@ -774,7 +774,7 @@ class _PickupScreenState extends State<PickupScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: surface,
         border: Border(top: BorderSide(color: line)),
       ),
       child: SafeArea(

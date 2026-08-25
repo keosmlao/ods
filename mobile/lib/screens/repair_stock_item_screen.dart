@@ -73,7 +73,7 @@ class _RepairStockItemScreenState extends State<RepairStockItemScreen> {
     padding: const EdgeInsets.all(20),
     // v4: flat — ຂອບແທນເງົາ
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: surface,
       borderRadius: BorderRadius.circular(kCardRadius),
       border: Border.all(color: line),
     ),
@@ -183,7 +183,7 @@ class _RepairStockItemScreenState extends State<RepairStockItemScreen> {
                                     maxLines: 3,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                      color: Colors.white,
+                                      color: onAccent,
                                       fontSize: 14,
                                       height: 1.35,
                                       fontWeight: FontWeight.w800,
@@ -199,7 +199,7 @@ class _RepairStockItemScreenState extends State<RepairStockItemScreen> {
                                 vertical: 10,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: .14),
+                                color: surface.withValues(alpha: .14),
                                 borderRadius: BorderRadius.circular(15),
                               ),
                               child: Column(
@@ -207,7 +207,7 @@ class _RepairStockItemScreenState extends State<RepairStockItemScreen> {
                                   Text(
                                     fmt(d.total),
                                     style: const TextStyle(
-                                      color: Colors.white,
+                                      color: onAccent,
                                       fontSize: 24,
                                       fontWeight: FontWeight.w900,
                                     ),

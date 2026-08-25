@@ -244,7 +244,7 @@ class _PeriodButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         // v4: flat — ຂອບແທນເງົາ
         decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent,
+          color: selected ? onAccent : Colors.transparent,
           borderRadius: BorderRadius.circular(11),
           border: selected ? Border.all(color: lineStrong) : null,
         ),
@@ -339,7 +339,7 @@ class _SummaryCard extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: line),
       ),

@@ -139,7 +139,7 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
         child: Row(
           children: [
             if (active) ...[
-              const Icon(Icons.check_rounded, size: 14, color: Colors.white),
+              const Icon(Icons.check_rounded, size: 14, color: onAccent),
               const SizedBox(width: 4),
             ],
             Text(
@@ -147,7 +147,7 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
               style: TextStyle(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w800,
-                color: active ? Colors.white : ink,
+                color: active ? onAccent : ink,
               ),
             ),
             const SizedBox(width: 6),
@@ -155,8 +155,8 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: active
-                    ? Colors.white.withValues(alpha: .18)
-                    : Colors.white,
+                    ? onAccent.withValues(alpha: .18)
+                    : onAccent,
                 borderRadius: BorderRadius.circular(7),
               ),
               child: Text(
@@ -164,7 +164,7 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w900,
-                  color: active ? Colors.white : muted,
+                  color: active ? onAccent : muted,
                 ),
               ),
             ),
@@ -187,7 +187,7 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
             padding: const EdgeInsets.all(12),
             // v4: flat — ຂອບແທນເງົາ
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: surface,
               borderRadius: BorderRadius.circular(kCardRadius),
               border: Border.all(color: line),
             ),
@@ -222,7 +222,7 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
                       tooltip: 'ຄົ້ນຫາ',
                       style: IconButton.styleFrom(
                         backgroundColor: teal,
-                        foregroundColor: Colors.white,
+                        foregroundColor: onAccent,
                         minimumSize: const Size(48, 48),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
@@ -367,7 +367,7 @@ class _RepairStockScreenState extends State<RepairStockScreen> {
                         child: Container(
                           // v4: flat — ຂອບແທນເງົາ
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: surface,
                             borderRadius: BorderRadius.circular(kCardRadius),
                             border: Border.all(color: line),
                           ),

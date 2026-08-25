@@ -185,7 +185,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                   indicatorSize: TabBarIndicatorSize.tab,
                   // v4: flat — ຂອບແທນເງົາ (ຄື jobs_screen)
                   indicator: BoxDecoration(
-                    color: Colors.white,
+                    color: surface,
                     borderRadius: BorderRadius.circular(11),
                     border: Border.all(color: lineStrong),
                   ),
@@ -299,7 +299,7 @@ class _ApprovalAppBar extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.fromLTRB(18, 10, 12, 10),
     decoration: const BoxDecoration(
-      color: Colors.white,
+      color: surface,
       border: Border(bottom: BorderSide(color: line)),
     ),
     child: Row(
@@ -388,7 +388,7 @@ class _ApprovalSummary extends StatelessWidget {
               Text(
                 '$total',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: onAccent,
                   fontSize: 36,
                   height: 1.05,
                   fontWeight: FontWeight.w900,
@@ -406,7 +406,7 @@ class _ApprovalSummary extends StatelessWidget {
           width: 1,
           height: 40,
           margin: const EdgeInsets.symmetric(horizontal: 12),
-          color: Colors.white.withValues(alpha: .14),
+          color: surface.withValues(alpha: .14),
         ),
         _ApprovalStat(
           value: '$cancels',
@@ -444,7 +444,7 @@ class _ApprovalStat extends StatelessWidget {
       Text(
         label,
         style: TextStyle(
-          color: Colors.white.withValues(alpha: .65),
+          color: onAccent.withValues(alpha: .65),
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -519,7 +519,7 @@ class _ApprovalCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       // v4: flat — ຂອບແທນເງົາ
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(kCardRadius),
         border: Border.all(color: line),
       ),

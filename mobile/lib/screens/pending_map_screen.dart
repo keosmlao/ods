@@ -85,7 +85,7 @@ class _PendingMapScreenState extends State<PendingMapScreen> {
   void _openPin(MapPin pin) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
@@ -171,7 +171,7 @@ class _PendingMapScreenState extends State<PendingMapScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: filter == key ? ink : Colors.white,
+          color: filter == key ? ink : surface,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: filter == key ? ink : line),
         ),
@@ -180,7 +180,7 @@ class _PendingMapScreenState extends State<PendingMapScreen> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w800,
-            color: filter == key ? Colors.white : muted,
+            color: filter == key ? onAccent : muted,
           ),
         ),
       ),
@@ -289,7 +289,7 @@ class _PendingMapScreenState extends State<PendingMapScreen> {
                                           decoration: BoxDecoration(
                                             color: _tone(pin),
                                             shape: BoxShape.circle,
-                                            border: Border.all(color: Colors.white, width: 2),
+                                            border: Border.all(color: surface, width: 2),
                                             boxShadow: [
                                               BoxShadow(
                                                 color: Colors.black.withValues(alpha: .25),
@@ -303,7 +303,7 @@ class _PendingMapScreenState extends State<PendingMapScreen> {
                                               style: const TextStyle(
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w900,
-                                                color: Colors.white,
+                                                color: surface,
                                               ),
                                             ),
                                           ),

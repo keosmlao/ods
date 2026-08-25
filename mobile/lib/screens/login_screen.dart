@@ -134,7 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed: configureServer,
                           style: IconButton.styleFrom(
                             foregroundColor: const Color(0xFF0F766E),
-                            backgroundColor: Colors.white,
+                            backgroundColor: surface,
                             side: const BorderSide(color: Color(0xFFD8E3E0)),
                           ),
                           icon: const Icon(Icons.settings_ethernet_rounded),
@@ -181,7 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: EdgeInsets.all(compact ? 15 : 20),
                       // v4: flat — ຂອບແທນເງົາໃຫຍ່
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: surface,
                         borderRadius: BorderRadius.circular(kCardRadius),
                         border: Border.all(color: line),
                       ),
@@ -313,7 +313,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     height: 21,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2.2,
-                                      color: Colors.white,
+                                      color: onAccent,
                                     ),
                                   )
                                 : const Row(
@@ -363,7 +363,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Material(
-                            color: Colors.white,
+                            color: surface,
                             borderRadius: BorderRadius.circular(kCardRadius),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(kCardRadius),
@@ -428,7 +428,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         style: TextStyle(
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w900,
-                                          color: Colors.white,
+                                          color: surface,
                                         ),
                                       ),
                                     ),
@@ -492,6 +492,6 @@ class _BrandMark extends StatelessWidget {
       color: teal,
       borderRadius: BorderRadius.circular(13),
     ),
-    child: const Icon(Icons.handyman_rounded, color: Colors.white, size: 23),
+    child: const Icon(Icons.handyman_rounded, color: onAccent, size: 23),
   );
 }

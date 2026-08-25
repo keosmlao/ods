@@ -274,7 +274,7 @@ class _IncomeScreenState extends State<IncomeScreen> {
                   child: Text(
                     money(total),
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: onAccent,
                       fontSize: 34,
                       height: 1.1,
                       fontWeight: FontWeight.w900,
@@ -322,7 +322,7 @@ class _IncomeScreenState extends State<IncomeScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            Container(height: 1, color: Colors.white.withValues(alpha: .08)),
+            Container(height: 1, color: surface.withValues(alpha: .08)),
             const SizedBox(height: 12),
           ],
           Row(

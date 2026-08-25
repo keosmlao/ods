@@ -98,7 +98,7 @@ class _QcScreenState extends State<QcScreen> {
               itemBuilder: (context, index) {
                 final job = jobs[index];
                 return ListTile(
-                  tileColor: Colors.white,
+                  tileColor: surface,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                     side: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -358,7 +358,7 @@ class _QcJobScreenState extends State<QcJobScreen> {
                           ? const Color(0xFFFEF2F2)
                           : item.passed == true
                           ? const Color(0xFFF0FDF4)
-                          : Colors.white,
+                          : surface,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: item.passed == false
@@ -386,7 +386,7 @@ class _QcJobScreenState extends State<QcJobScreen> {
                               selected: item.passed == true,
                               selectedColor: ok,
                               labelStyle: TextStyle(
-                                color: item.passed == true ? Colors.white : ink,
+                                color: item.passed == true ? onAccent : ink,
                               ),
                               onSelected: (_) {
                                 setState(() => item.passed = true);
@@ -400,7 +400,7 @@ class _QcJobScreenState extends State<QcJobScreen> {
                               selectedColor: danger,
                               labelStyle: TextStyle(
                                 color: item.passed == false
-                                    ? Colors.white
+                                    ? onAccent
                                     : ink,
                               ),
                               onSelected: (_) {

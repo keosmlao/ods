@@ -117,7 +117,7 @@ class _MonitorTabs extends StatelessWidget {
           ),
           Container(
             width: double.infinity,
-            color: Colors.white,
+            color: surface,
             padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
             child: TabBar(
               isScrollable: true,
@@ -129,7 +129,7 @@ class _MonitorTabs extends StatelessWidget {
                 color: ink,
                 borderRadius: BorderRadius.circular(12),
               ),
-              labelColor: Colors.white,
+              labelColor: onAccent,
               unselectedLabelColor: muted,
               splashBorderRadius: BorderRadius.circular(12),
               tabs: [
@@ -183,7 +183,7 @@ class _MonitorTabLabel extends StatelessWidget {
           constraints: const BoxConstraints(minWidth: 20),
           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: .16),
+            color: surface.withValues(alpha: .16),
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
@@ -205,7 +205,7 @@ class _MonitorAppBar extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.fromLTRB(18, 10, 12, 10),
     decoration: const BoxDecoration(
-      color: Colors.white,
+      color: surface,
       border: Border(bottom: BorderSide(color: line)),
     ),
     child: Row(
@@ -291,7 +291,7 @@ class _MonitorSummary extends StatelessWidget {
                 Text(
                   '$total',
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: onAccent,
                     fontSize: 38,
                     height: 1.1,
                     fontWeight: FontWeight.w900,
@@ -304,7 +304,7 @@ class _MonitorSummary extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .1),
+                color: surface.withValues(alpha: .1),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Icon(
@@ -339,13 +339,13 @@ class _SummaryPill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
     decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: .09),
+      color: surface.withValues(alpha: .09),
       borderRadius: BorderRadius.circular(999),
     ),
     child: Text(
       '${group.jobs.length}  ${group.label}',
       style: const TextStyle(
-        color: Colors.white,
+        color: onAccent,
         fontSize: 11.5,
         fontWeight: FontWeight.w700,
       ),
@@ -369,7 +369,7 @@ class _MonitorGroupCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: line),
       ),
@@ -414,7 +414,7 @@ class _MonitorGroupCard extends StatelessWidget {
                     child: Text(
                       '${group.jobs.length}',
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: onAccent,
                         fontSize: 12,
                         fontWeight: FontWeight.w900,
                       ),

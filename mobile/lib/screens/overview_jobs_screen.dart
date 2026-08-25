@@ -198,7 +198,7 @@ class _StatusTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    color: Colors.white,
+    color: surface,
     padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,7 +265,7 @@ class _StatusChip extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 11.5,
-                color: selected ? Colors.white : ink,
+                color: selected ? onAccent : ink,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -275,8 +275,8 @@ class _StatusChip extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
               decoration: BoxDecoration(
                 color: selected
-                    ? Colors.white.withValues(alpha: .16)
-                    : Colors.white,
+                    ? onAccent.withValues(alpha: .16)
+                    : onAccent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -284,7 +284,7 @@ class _StatusChip extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 11,
-                  color: selected ? Colors.white : muted,
+                  color: selected ? onAccent : muted,
                   fontWeight: FontWeight.w900,
                 ),
               ),

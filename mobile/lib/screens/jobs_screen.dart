@@ -689,7 +689,7 @@ class _JobsScreenState extends State<JobsScreen> {
       decoration: InputDecoration(
         isDense: true,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: surface,
         hintText: 'ຄົ້ນ ເລກໃບ · ລູກຄ້າ · ສິນຄ້າ · ທີ່ຢູ່',
         hintStyle: const TextStyle(fontSize: 13, color: faint),
         prefixIcon: const Icon(Icons.search_rounded, size: 20, color: faint),
@@ -751,7 +751,7 @@ class _JobsScreenState extends State<JobsScreen> {
     return Padding(
       padding: const EdgeInsets.only(right: 7),
       child: Material(
-        color: on ? teal : Colors.white,
+        color: on ? teal : surface,
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
           onTap: () => setState(() => filter = band),
@@ -766,7 +766,7 @@ class _JobsScreenState extends State<JobsScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (icon != null) ...[
-                  Icon(icon, size: 14, color: on ? Colors.white : muted),
+                  Icon(icon, size: 14, color: on ? onAccent : muted),
                   const SizedBox(width: 5),
                 ],
                 Text(
@@ -774,7 +774,7 @@ class _JobsScreenState extends State<JobsScreen> {
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w800,
-                    color: on ? Colors.white : body,
+                    color: on ? onAccent : body,
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -783,7 +783,7 @@ class _JobsScreenState extends State<JobsScreen> {
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w900,
-                    color: on ? Colors.white70 : faint,
+                    color: on ? onAccent : faint,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
@@ -930,7 +930,7 @@ class _JobCard extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         // flat — ບໍ່ມີເງົາ (list ຍາວ render ໄວຂຶ້ນເທິງເຄື່ອງເກົ່າ)
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surface,
           borderRadius: BorderRadius.circular(kCardRadius),
           border: Border.all(color: line),
         ),

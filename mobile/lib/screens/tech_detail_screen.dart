@@ -293,7 +293,7 @@ class _TechStatusSummary extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: line),
       ),
@@ -427,7 +427,7 @@ class _TechStatusChip extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 11.5,
-                color: selected ? Colors.white : ink,
+                color: selected ? onAccent : ink,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -437,8 +437,8 @@ class _TechStatusChip extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
               decoration: BoxDecoration(
                 color: selected
-                    ? Colors.white.withValues(alpha: .16)
-                    : Colors.white,
+                    ? onAccent.withValues(alpha: .16)
+                    : onAccent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -446,7 +446,7 @@ class _TechStatusChip extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 11,
-                  color: selected ? Colors.white : muted,
+                  color: selected ? onAccent : muted,
                   fontWeight: FontWeight.w900,
                 ),
               ),

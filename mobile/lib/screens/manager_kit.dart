@@ -24,9 +24,9 @@ class MCard extends StatelessWidget {
     margin: const EdgeInsets.only(top: 12),
     padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: surface,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFFE2E8F0)),
+      border: Border.all(color: line),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,7 +220,7 @@ void showJobSheet(BuildContext context, MonitorJob job) {
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    backgroundColor: Colors.white,
+    backgroundColor: surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
     ),
@@ -439,7 +439,7 @@ Widget _detailSection({
 }) => Container(
   padding: const EdgeInsets.all(14),
   decoration: BoxDecoration(
-    color: Colors.white,
+    color: surface,
     borderRadius: BorderRadius.circular(16),
     border: Border.all(color: line),
   ),

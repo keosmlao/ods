@@ -92,7 +92,7 @@ class _ScanSerialScreenState extends State<ScanSerialScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-            color: Colors.white,
+            color: surface,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

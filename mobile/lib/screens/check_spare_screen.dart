@@ -303,7 +303,7 @@ class _CheckSpareScreenState extends State<CheckSpareScreen> {
           height: 44,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: surface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: line),
           ),
@@ -428,7 +428,7 @@ class _CheckSpareScreenState extends State<CheckSpareScreen> {
   Widget _bottomBar() => Container(
     padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
     decoration: const BoxDecoration(
-      color: Colors.white,
+      color: surface,
       border: Border(top: BorderSide(color: line)),
     ),
     child: SafeArea(

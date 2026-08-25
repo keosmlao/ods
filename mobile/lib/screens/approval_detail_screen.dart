@@ -290,7 +290,7 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
               child: Container(
                 padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
                 decoration: const BoxDecoration(
-                  color: Colors.white,
+                  color: surface,
                   border: Border(top: BorderSide(color: line)),
                 ),
                 child: Row(
@@ -333,7 +333,7 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                                 width: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.white,
+                                  color: onAccent,
                                 ),
                               )
                             : const Icon(Icons.check_rounded, size: 20),
