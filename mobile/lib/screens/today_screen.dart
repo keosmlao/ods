@@ -363,6 +363,19 @@ class _TodayScreenState extends State<TodayScreen> {
         MaterialPageRoute(builder: (_) => JobScreen(job: job)),
       ).then((_) => load());
 
+  /// ລູກຄ້າ · ບ່ອນຢູ່ — ຄ່າ "." / "-" ຂອງຂໍ້ມູນເກົ່າ ບໍ່ໄດ້ບອກຫຍັງ ⇒ ຢ່າເອົາມາກິນເນື້ອທີ່
+  String _who(Job job) {
+    bool real(String? value) {
+      final text = (value ?? '').trim();
+      return text.isNotEmpty && text != '.' && text != '-';
+    }
+
+    return [
+      if (real(job.customer)) job.customer!.trim(),
+      if (real(job.address)) job.address!.trim(),
+    ].join(' · ');
+  }
+
   Color _tone(Job job) => switch (urgencyOf(job)) {
         Urgency.late_ => danger,
         Urgency.today => warn,
@@ -455,41 +468,119 @@ class _TodayScreenState extends State<TodayScreen> {
             border: Border.all(color: line),
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(color: _tone(job), shape: BoxShape.circle),
+              Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: Container(
+                  width: 9,
+                  height: 9,
+                  decoration: BoxDecoration(color: _tone(job), shape: BoxShape.circle),
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      actionVerb(job, phaseLabel: job.stageLabel),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w800,
-                        color: ink,
+                    // ແຖວ 1: ຄຳສັ່ງ + ເວລາ
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            actionVerb(job, phaseLabel: job.stageLabel),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              color: ink,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        TimeChip(time.label, tone: time.tone),
+                        const Icon(Icons.chevron_right_rounded, size: 20, color: faint),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    // ແຖວ 2: ເລກໃບ + ສິນຄ້າ
+                    Row(
+                      children: [
+                        Text(
+                          job.code,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w900,
+                            color: teal,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            job.product ?? '-',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12.5, color: body),
+                          ),
+                        ),
+                      ],
+                    ),
+                    // ແຖວ 3: ລູກຄ້າ + ບ່ອນຢູ່ (ຂໍ້ມູນທີ່ຕ້ອງໃຊ້ຕອນຕັດສິນວ່າຈະໄປໃສກ່ອນ)
+                    if (_who(job).isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        _who(job),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11.5, color: faint),
                       ),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      [job.code, if ((job.product ?? '').trim().isNotEmpty) job.product!.trim()]
-                          .join(' · '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 11.5, color: faint),
-                    ),
+                    ],
+                    // ແຖວ 4: ປ້າຍພິເສດ — ຮອບທີ່ກັບໄປ · check-in ຄ້າງ · ໜ້າງານ
+                    if (job.visitRounds > 0 || job.checkedIn || job.onsite) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          if (job.checkedIn) ...[
+                            const Icon(Icons.location_on, size: 13, color: ok),
+                            const SizedBox(width: 3),
+                            const Text(
+                              'check-in ແລ້ວ',
+                              style: TextStyle(fontSize: 10.5, color: ok, fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(width: 9),
+                          ] else if (job.onsite) ...[
+                            const Icon(Icons.home_work_outlined, size: 13, color: faint),
+                            const SizedBox(width: 3),
+                            const Text(
+                              'ໜ້າງານ',
+                              style: TextStyle(fontSize: 10.5, color: faint, fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(width: 9),
+                          ],
+                          if (job.visitRounds > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: tealTint,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'ຮອບທີ ${job.checkedIn ? job.visitRounds : job.visitRounds + 1}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  color: teal,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              TimeChip(time.label, tone: time.tone),
-              const Icon(Icons.chevron_right_rounded, size: 20, color: faint),
             ],
           ),
         ),

@@ -365,6 +365,12 @@ class _JobsScreenState extends State<JobsScreen> {
   /// ຄຳຄົ້ນ — ຊ່າງທີ່ມີ 30-40 ໃບ ຫາເລກໃບ/ຊື່ລູກຄ້າດ້ວຍການເລື່ອນບໍ່ໄຫວ
   final search = TextEditingController();
 
+  /// ຊ່ອງຄົ້ນເປີດຢູ່ບໍ — ພັບໄວ້ເປັນຄ່າຕັ້ງຕົ້ນ (ຄົ້ນນານໆເທື່ອ ແຕ່ກິນຄວາມສູງທຸກເທື່ອ)
+  bool searching = false;
+
+  /// ຕົວກອງຄວາມຮີບ (null = ບໍ່ກອງ) — ມາຈາກຊິບແຖວດຽວກັບຕົວກອງພາກ
+  Urgency? urgency;
+
   /// ຂໍ້ມູນມາຈາກ cache ຕອນໃດ (null = ສົດ) + ຈຳນວນຄຳສັ່ງທີ່ຍັງລໍສົ່ງ
   DateTime? cachedAt;
   int pendingCount = 0;
@@ -379,6 +385,7 @@ class _JobsScreenState extends State<JobsScreen> {
     final term = search.text.trim().toLowerCase();
     return jobs.where((job) {
       if (filter != null && _bandOf(job) != filter) return false;
+      if (urgency != null && urgencyOf(job) != urgency) return false;
       if (term.isEmpty) return true;
       // ຄົ້ນສິ່ງທີ່ຊ່າງຈື່ໄດ້: ເລກໃບ · ຊື່ລູກຄ້າ · ສິນຄ້າ · ທີ່ຢູ່ · ເບີໂທ
       return [
@@ -441,6 +448,13 @@ class _JobsScreenState extends State<JobsScreen> {
                     builder: (_) => const NotificationsScreen(),
                   ),
                 ),
+              ),
+              HeroIconButton(
+                icon: searching ? Icons.search_off_rounded : Icons.search_rounded,
+                onTap: () => setState(() {
+                  searching = !searching;
+                  if (!searching) search.clear();
+                }),
               ),
               HeroIconButton(icon: Icons.refresh_rounded, onTap: load),
               PopupMenuButton<String>(
@@ -525,26 +539,18 @@ class _JobsScreenState extends State<JobsScreen> {
                 ),
               ),
             ],
-            // v5: ສະຖິຕິບອກ **ຄວາມຮີບ** ບໍ່ແມ່ນປະລິມານ — "ວຽກໜ້າງານ 12" ບໍ່ໄດ້ບອກ
-            // ວ່າຕ້ອງເຮັດຫຍັງກ່ອນ, ແຕ່ "ຊ້າແລ້ວ 2" ບອກ.
-            stats: [
-              HeroStat(
-                value: '$lateCount',
-                label: 'ຊ້າແລ້ວ',
-                color: lateCount > 0 ? const Color(0xFFFDA4AF) : null,
-              ),
-              HeroStat(
-                value: '$todayCount',
-                label: 'ນັດມື້ນີ້',
-                color: todayCount > 0 ? const Color(0xFFFDBA74) : null,
-              ),
-              HeroStat(value: '$actionCount', label: 'ຕ້ອງລົງມື'),
-            ],
+            /*
+              ── ຖອດສະຖິຕິອອກຈາກ hero (25-08-2026) ──
+              ແຕ່ກ່ອນ hero ມີ 3 ກ້ອນ "ຊ້າແລ້ວ 34 · ນັດມື້ນີ້ 0 · ຕ້ອງລົງມື 14" ທີ່
+              **ກົດບໍ່ໄດ້** ແລ້ວລຸ່ມລົງມາຍັງມີຊິບກອງ + ຫົວກຸ່ມ "ຊ້າແລ້ວ 34" ຊ້ຳອີກ
+              ⇒ ເລກດຽວກັນປາກົດ 3 ບ່ອນ ແລະ ກິນຄວາມສູງ ~600px ກ່ອນຮອດໃບທຳອິດ.
+              ດຽວນີ້ເລກເຫຼົ່ານັ້ນ **ເປັນຕົວກອງເອງ** (ແຖວດຽວ ກົດໄດ້).
+            */
           ),
           if (!loading && error.isEmpty && jobs.isNotEmpty) ...[
             _offlineBanner(),
-            _searchBox(),
-            _filterPills(),
+            if (searching) _searchBox(),
+            _chips(late: lateCount, today: todayCount, act: actionCount),
           ],
           Expanded(
             child: loading
@@ -636,27 +642,57 @@ class _JobsScreenState extends State<JobsScreen> {
 
   /// ── ຊິບກອງພາກ (ແທນ tab v4) ──
   /// ຊິບເລື່ອນໄດ້ ⇒ ໃສ່ "ທັງໝົດ" ໄດ້ ແລະ ບອກຈຳນວນຕໍ່ພາກ. ພາກທີ່ບໍ່ມີວຽກ ບໍ່ຂຶ້ນ.
-  Widget _filterPills() {
+  /// ── ຊິບກອງແຖວດຽວ: ຄວາມຮີບ + ພາກ ──
+  /// ເລກທີ່ເຄີຍເປັນກ້ອນສະຖິຕິ **ກົດບໍ່ໄດ້** ຢູ່ hero ຍ້າຍມາຢູ່ນີ້ ⇒ ເຫັນເລກ ແລະ
+  /// ກອງດ້ວຍເລກນັ້ນໄດ້ໃນບ່ອນດຽວ (ຫຼຸດຄວາມສູງຫົວໜ້າໄປ ~1 ໜ້າຈໍ).
+  Widget _chips({required int late, required int today, required int act}) {
     final counts = _bandCounts;
     final bands = [_Band.check, _Band.repair, _Band.install, _Band.maintenance]
         .where((b) => (counts[b] ?? 0) > 0)
         .toList();
-    // ມີພາກດຽວ = ບໍ່ມີຫຍັງໃຫ້ກອງ ⇒ ບໍ່ຕ້ອງກິນເນື້ອທີ່ຈໍ
-    if (bands.length < 2) return const SizedBox.shrink();
     return SizedBox(
-      height: 44,
+      height: 46,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
         children: [
-          _pill(label: 'ທັງໝົດ', count: jobs.length, band: null),
-          for (final band in bands)
+          _pill(
+            label: 'ທັງໝົດ',
+            count: jobs.length,
+            on: urgency == null && filter == null,
+            onTap: () => setState(() { urgency = null; filter = null; }),
+          ),
+          if (late > 0)
             _pill(
-              label: _bandTabLabel[band] ?? _bandMeta[band]!.label,
-              count: counts[band] ?? 0,
-              band: band,
-              icon: _bandMeta[band]!.icon,
+              label: 'ຊ້າແລ້ວ',
+              count: late,
+              tone: danger,
+              on: urgency == Urgency.late_,
+              onTap: () => setState(() => urgency = urgency == Urgency.late_ ? null : Urgency.late_),
             ),
+          if (today > 0)
+            _pill(
+              label: 'ນັດມື້ນີ້',
+              count: today,
+              tone: warn,
+              on: urgency == Urgency.today,
+              onTap: () => setState(() => urgency = urgency == Urgency.today ? null : Urgency.today),
+            ),
+          _pill(
+            label: 'ຕ້ອງລົງມື',
+            count: act,
+            on: urgency == Urgency.act,
+            onTap: () => setState(() => urgency = urgency == Urgency.act ? null : Urgency.act),
+          ),
+          if (bands.length > 1)
+            for (final band in bands)
+              _pill(
+                label: _bandTabLabel[band] ?? _bandMeta[band]!.label,
+                count: counts[band] ?? 0,
+                icon: _bandMeta[band]!.icon,
+                on: filter == band,
+                onTap: () => setState(() => filter = filter == band ? null : band),
+              ),
         ],
       ),
     );
@@ -665,23 +701,24 @@ class _JobsScreenState extends State<JobsScreen> {
   Widget _pill({
     required String label,
     required int count,
-    required _Band? band,
+    required bool on,
+    required VoidCallback onTap,
     IconData? icon,
+    Color tone = teal,
   }) {
-    final on = filter == band;
     return Padding(
       padding: const EdgeInsets.only(right: 7),
       child: Material(
-        color: on ? teal : surface,
+        color: on ? tone : surface,
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
-          onTap: () => setState(() => filter = band),
+          onTap: onTap,
           borderRadius: BorderRadius.circular(999),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 13),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: on ? teal : lineStrong),
+              border: Border.all(color: on ? tone : lineStrong),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
