@@ -422,6 +422,8 @@ class _SpareReturnScreenState extends State<SpareReturnScreen> {
             style: FilledButton.styleFrom(
               backgroundColor: teal,
               disabledBackgroundColor: surfaceAlt,
+              // ລູກໂດຍກົງຂອງ Row ⇒ ກວ້າງເທົ່າເນື້ອໃນ (ເບິ່ງ main.dart ⚠️)
+              minimumSize: const Size(0, kMinTouch),
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),

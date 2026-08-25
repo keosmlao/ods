@@ -837,6 +837,8 @@ class _PickupScreenState extends State<PickupScreen> {
                   FilledButton.icon(
                     style: FilledButton.styleFrom(
                       backgroundColor: teal,
+                      // ລູກໂດຍກົງຂອງ Row ⇒ ກວ້າງເທົ່າເນື້ອໃນ (ເບິ່ງ main.dart ⚠️)
+                      minimumSize: const Size(0, kMinTouch),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
                         vertical: 14,

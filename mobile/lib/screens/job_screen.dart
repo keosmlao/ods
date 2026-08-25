@@ -2045,6 +2045,9 @@ class _JobScreenState extends State<JobScreen> {
                                                       style: FilledButton.styleFrom(
                                                         backgroundColor: teal,
                                                         visualDensity: VisualDensity.compact,
+                                                        // ລູກໂດຍກົງຂອງ Row ⇒ ຕ້ອງບໍ່ໃຫ້ກວ້າງ infinity
+                                                        // (ບໍ່ດັ່ງນັ້ນຂໍ້ຄວາມຂ້າງໆເຫຼືອ 1 ຕົວອັກສອນຕໍ່ແຖວ)
+                                                        minimumSize: const Size(0, kMinTouch),
                                                       ),
                                                       onPressed: busy
                                                           ? null

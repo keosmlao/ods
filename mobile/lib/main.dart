@@ -139,16 +139,9 @@ const kMinTouch = 48.0;
 /// ຢູ່ໜ້າງານ: ຢືນ · ມືເປື້ອນ · ບາງເທື່ອໃສ່ຖົງມື. ກົດພາດ = ຕ້ອງເລີ່ມຂັ້ນຕອນໃໝ່.
 const kPrimaryTouch = 52.0;
 
-class OdssApp extends StatelessWidget {
-  const OdssApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'ODIEN Service',
-      navigatorKey: navigatorKey,
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
+/// ຊຸດ theme ຂອງແອັບ — **ແຍກອອກມາເປັນຟັງຊັນ** ເພື່ອໃຫ້ເທສ pump ດ້ວຍ theme ຈິງໄດ້
+/// (ບັນຫາລະດັບ theme ເຊັ່ນຄວາມກວ້າງປຸ່ມ ຈຶ່ງຖືກຈັບໄດ້ດ້ວຍເທສ ບໍ່ແມ່ນຈັບໄດ້ຢູ່ໜ້າງານ).
+ThemeData odssTheme() => ThemeData(
         colorScheme:
             ColorScheme.fromSeed(
               seedColor: teal,
@@ -205,7 +198,15 @@ class OdssApp extends StatelessWidget {
             backgroundColor: teal,
             // ຕົວໜັງສືເທິງ mint ຕ້ອງເປັນສີເຂັ້ມ — ຂາວເທິງ mint ອ່ານບໍ່ອອກ (2.3:1)
             foregroundColor: onAccent,
-            // ສຳຜັດ 48px ຂຶ້ນໄປທຸກປຸ່ມຫຼັກ (ນິ້ວໂປ້ + ຈໍລຸ້ນເກົ່າ)
+            /*
+              ສຳຜັດ 48px ຂຶ້ນໄປທຸກປຸ່ມຫຼັກ (ນິ້ວໂປ້ + ຈໍລຸ້ນເກົ່າ).
+
+              ⚠️ `Size.fromHeight` = ກວ້າງ **infinity** ⇒ ປຸ່ມເຕັມແຖວເມື່ອຢູ່ໃນ Column
+              (ຕາມທີ່ຕ້ອງການ) ແຕ່ເມື່ອເອົາໄປວາງເປັນ **ລູກໂດຍກົງຂອງ Row** ມັນຈະກິນ
+              ຄວາມກວ້າງໝົດ ⇒ `Expanded` ຂ້າງໆເຫຼືອເກືອບສູນ ແລ້ວຂໍ້ຄວາມແຕກເປັນ
+              **1 ຕົວອັກສອນຕໍ່ແຖວ** (ພົບຈິງ 25-08-2026 — ແຖວໃບເບີກໃນໜ້າໃບງານ).
+              ⇒ ປຸ່ມທີ່ຢູ່ໃນ Row ໃຫ້ໃສ່ `minimumSize: const Size(0, kMinTouch)` ທຸກເທື່ອ.
+            */
             minimumSize: const Size.fromHeight(kMinTouch),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(kButtonRadius),
@@ -249,7 +250,19 @@ class OdssApp extends StatelessWidget {
           ),
         ),
         useMaterial3: true,
-      ),
+      );
+
+class OdssApp extends StatelessWidget {
+  const OdssApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'ODIEN Service',
+      navigatorKey: navigatorKey,
+      debugShowCheckedModeBanner: false,
+      theme: odssTheme(),
+
       // ອະນຸຍາດໃຫ້ system font-scale ເຕັມ 1.0 (v3 ຫຍໍ້ 0.9 — ຈໍນ້ອຍລຸ້ນເກົ່າອ່ານຍາກ)
       builder: (context, child) => MediaQuery.withClampedTextScaling(
         maxScaleFactor: 1.0,
