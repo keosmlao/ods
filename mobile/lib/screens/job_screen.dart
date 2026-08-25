@@ -11,6 +11,7 @@ import '../metrics.dart';
 import '../main.dart';
 import '../widgets/ui_kit.dart';
 import 'check_screen.dart';
+import 'job/job_timeline_card.dart';
 import 'finished_screen.dart';
 import 'pickup_screen.dart';
 import 'job_spare_screen.dart';
@@ -1390,7 +1391,7 @@ class _JobScreenState extends State<JobScreen> {
 
                       // ── ເສັ້ນເວລາ + ຮອບເຂົ້າໜ້າງານ — ຊຸດດຽວກັບເວັບ (server ຄິດໃຫ້) ──
                       if ((timeline?.steps.isNotEmpty ?? false)) ...[
-                        _timelineCard(),
+                        JobTimelineCard(timeline: timeline!),
                         const SizedBox(height: 12),
                       ],
 
@@ -2406,226 +2407,15 @@ class _JobScreenState extends State<JobScreen> {
     );
   }
 
-  /// ໄລຍະເວລາແບບອ່ານງ່າຍ — "48 ມື້ 08:32:24" · "01:20:05" (ຮູບແບບດຽວກັບເວັບ)
-  String _elapsedLabel(int seconds) {
-    final safe = seconds < 0 ? 0 : seconds;
-    final days = safe ~/ 86400;
-    final rest = safe % 86400;
-    final clock = [rest ~/ 3600, (rest % 3600) ~/ 60, rest % 60]
-        .map((part) => part.toString().padLeft(2, '0'))
-        .join(':');
-    return days > 0 ? '$days ມື້ $clock' : clock;
-  }
-
   /// **ເສັ້ນເວລາຂອງງານ** — ຄູ່ກັບ Timeline ຢູ່ເວັບ (components/repair/job-timeline).
   ///
   /// ແອັບດຶງ `timeline` ມາຢູ່ແລ້ວແຕ່ເມື່ອກ່ອນ **ຖິ້ມຖິ້ມ** (ບໍ່ເຄີຍສະແດງ) ⇒ ຊ່າງເຫັນແຕ່
   /// ປຸ່ມຂັ້ນຕໍ່ໄປ ບໍ່ຮູ້ວ່າໃບງານຜ່ານຫຍັງມາ ແລະ ຄ້າງຢູ່ຂັ້ນນີ້ດົນປານໃດ — ຂໍ້ມູນທີ່ຫົວໜ້າ
   /// ຢູ່ເວັບເຫັນໝົດ. **ແນວຕັ້ງ** (ເວັບເປັນແນວນອນ) ເພາະຈໍແຄບ ແຕ່ຂໍ້ມູນຄືກັນທຸກຢ່າງ.
-  Widget _timelineCard() {
-    final data = timeline!;
-    final steps = data.steps;
-    return _Card(
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.timeline_rounded, size: 18, color: teal),
-            const SizedBox(width: 7),
-            const Text(
-              'ເສັ້ນເວລາ',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-                color: ink,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        for (var i = 0; i < steps.length; i++)
-          _timelineRow(steps[i], isLast: i == steps.length - 1 && data.cancelledAt == null),
-        if (data.cancelledAt != null)
-          _timelineRow(
-            TimelineStep(
-              stage: -1,
-              label: 'ຂໍຍົກເລີກ',
-              at: data.cancelledAt,
-              durationSeconds: null,
-              state: 'done',
-            ),
-            isLast: true,
-            cancelled: true,
-          ),
-        // ຮອບເຂົ້າໜ້າງານ — ຮອບເກີດພາຍໃນຂັ້ນດຽວ ⇒ ເສັ້ນເວລາຂ້າງເທິງສະແດງບໍ່ໄດ້
-        if (data.visits.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          const Divider(height: 18, color: line),
-          Row(
-            children: [
-              const Icon(Icons.place_outlined, size: 16, color: teal),
-              const SizedBox(width: 6),
-              Text(
-                'ຮອບເຂົ້າໜ້າງານ (${data.visits.length})',
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w900,
-                  color: teal,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 7),
-          for (final visit in data.visits) _visitRow(visit),
-        ],
-      ],
-    );
-  }
 
   /// 1 ຂັ້ນໃນເສັ້ນເວລາ — ● ຜ່ານແລ້ວ · ◉ ຂັ້ນປັດຈຸບັນ (ເນັ້ນ) · ○ ຍັງບໍ່ຮອດ
-  Widget _timelineRow(TimelineStep step, {required bool isLast, bool cancelled = false}) {
-    final done = step.isDone;
-    final current = step.isCurrent;
-    final dotColor = cancelled
-        ? danger
-        : current
-        ? teal
-        : done
-        ? teal
-        : surface;
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            children: [
-              Container(
-                width: 14,
-                height: 14,
-                margin: const EdgeInsets.only(top: 2),
-                decoration: BoxDecoration(
-                  color: dotColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: done || current || cancelled ? teal : lineStrong,
-                    width: 2,
-                  ),
-                ),
-                child: done && !cancelled
-                    ? const Icon(Icons.check, size: 8, color: onAccent)
-                    : null,
-              ),
-              if (!isLast)
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    margin: const EdgeInsets.symmetric(vertical: 2),
-                    color: done ? teal.withValues(alpha: 0.35) : line,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          step.label,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: current ? FontWeight.w900 : FontWeight.w700,
-                            color: cancelled
-                                ? danger
-                                : current
-                                ? teal
-                                : done
-                                ? body
-                                : faint,
-                          ),
-                        ),
-                      ),
-                      if (step.at != null)
-                        Text(
-                          step.at!,
-                          style: const TextStyle(fontSize: 10.5, color: faint),
-                        ),
-                    ],
-                  ),
-                  if (step.durationSeconds != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 1),
-                      child: Text(
-                        '${current ? "ຄ້າງມາ" : "ໃຊ້ເວລາ"} ${_elapsedLabel(step.durationSeconds!)}',
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: current ? FontWeight.w700 : FontWeight.w400,
-                          color: current ? warn : muted,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   /// 1 ຮອບເຂົ້າໜ້າງານ — ເຂົ້າ → ອອກ (ໃຊ້ເວລາ); ຮອບທີ່ຍັງບໍ່ອອກ ເນັ້ນສີເຕືອນ
-  Widget _visitRow(JobVisit visit) {
-    final open = visit.out == null;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: open ? warnTint : tealWash,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'ຮອບ ${visit.n}',
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w900,
-              color: open ? warn : teal,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  open
-                      ? '${visit.at ?? "-"} · ຍັງຢູ່ໜ້າງານ'
-                      : '${visit.at ?? "-"} → ${visit.out} (${visit.lengthLabel})',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: open ? warn : body,
-                  ),
-                ),
-                if ((visit.tech ?? '').isNotEmpty)
-                  Text(
-                    'ຊ່າງ ${visit.tech}',
-                    style: const TextStyle(fontSize: 10, color: faint),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   /// ການສົ່ງເຄື່ອງ — ຄູ່ກັບກ່ອງດຽວກັນຢູ່ເວັບ (components/installation/delivery-card).
   ///
