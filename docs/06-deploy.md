@@ -27,6 +27,17 @@ ODSS_SERVICE=ຊື່ service bash scripts/deploy.sh
 psql "$DATABASE_URL" -f migrations/2026-07-31-xxxx.sql
 ```
 
+⚠️ **server ນີ້ບໍ່ມີ psql ແລະ ໃຊ້ schema `ods`** (ODS_SCHEMA=ods ໃນ .env.local) —
+ແລ່ນຜ່ານ node ພ້ອມ `search_path` ບໍ່ດັ່ງນັ້ນຕາຕະລາງຈະຖືກສ້າງໃນ `public` ແລ້ວ
+ແອັບຫາບໍ່ພົບ (`relation ... does not exist` — ພົບຈິງ 26-08-2026):
+
+```bash
+node --env-file-if-exists=.env.local -e '
+const fs=require("fs"),{Client}=require("pg");
+(async()=>{const c=new Client({connectionString:process.env.DATABASE_URL,options:"-c search_path=ods"});
+await c.connect();await c.query(fs.readFileSync("migrations/ຊື່ໄຟລ໌.sql","utf8"));await c.end();})()'
+```
+
 ທຸກໄຟລ໌ຂຽນແບບ `if not exists` ⇒ ແລ່ນຊ້ຳບໍ່ພັງ ແຕ່ໃຫ້ກວດກ່ອນສະເໝີ.
 
 **ຮອບ 31-07-2026** (ແລ່ນໃສ່ຖານແລ້ວຈາກເຄື່ອງພັດທະນາ — ຢືນຢັນກ່ອນແລ່ນຊ້ຳ):
