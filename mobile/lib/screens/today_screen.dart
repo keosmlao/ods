@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../job_urgency.dart';
 import '../main.dart';
 import '../streak.dart';
 import '../widgets/ui_kit.dart';
@@ -62,9 +63,10 @@ class _TodayScreenState extends State<TodayScreen> {
     }
   }
 
-  /// ໃບທີ່ຍັງຕ້ອງລົງມື (server ບອກຜ່ານ `action`)
+  /// ໃບທີ່ຍັງຕ້ອງລົງມື (server ບອກຜ່ານ `action`) — **ຮີບກ່ອນຢູ່ເທິງ**
+  /// ໃຊ້ນິຍາມຄວາມຮີບອັນດຽວກັບໜ້າລາຍການວຽກ (lib/job_urgency.dart)
   List<Job> get _actionable =>
-      jobs.where((j) => const {'accept', 'start', 'finish'}.contains(j.action)).toList();
+      jobs.where((j) => actionable.contains(j.action)).toList()..sort(byUrgency);
 
   int get _doneToday => closedToday(income?.rows ?? const [], );
 
@@ -106,18 +108,33 @@ class _TodayScreenState extends State<TodayScreen> {
               if (_actionable.isEmpty)
                 _allDone()
               else ...[
-                BandHeader('ຕ້ອງເຮັດຕໍ່', count: left, color: ink),
+                /*
+                  ── ໜຶ່ງບັດເດັ່ນ + ແຖວກະທັດຮັດ (ແກ້ 25-08-2026) ──
+                  ແຕ່ກ່ອນ 3 ບັດໃຫຍ່ ແຕ່ລະບັດມີປຸ່ມ "ເລີ່ມເລີຍ" ເຕັມແຖວ ⇒ ປຸ່ມມິ້ນ
+                  ຊ້ຳກັນ 3 ເທື່ອກິນຈໍໝົດ, ບໍ່ມີອັນໃດເດັ່ນກວ່າອັນໃດ ແລະ **ບໍ່ບອກເລີຍ
+                  ວ່າອັນໃດຮີບ**. ດຽວນີ້: ໃບທຳອິດ (ຮີບສຸດ) ເປັນບັດມີປຸ່ມອັນດຽວ ·
+                  ທີ່ເຫຼືອເປັນແຖວບາງໆ ມີຊິບເວລາ ⇒ ເຫັນໄດ້ 5 ໃບໃນເນື້ອທີ່ເກົ່າຂອງ 2 ໃບ.
+                */
+                BandHeader('ຕໍ່ໄປ', count: left, color: ink),
                 const SizedBox(height: 8),
-                // ສະແດງແຕ່ 3 ໃບ — ໜ້ານີ້ບອກ "ອັນຕໍ່ໄປ" ບໍ່ແມ່ນລາຍການທັງໝົດ
-                for (final job in _actionable.take(3)) ...[
-                  _nextJob(job),
-                  const SizedBox(height: 10),
+                _heroJob(_actionable.first),
+                if (left > 1) ...[
+                  const SizedBox(height: 14),
+                  const BandHeader('ຖັດຈາກນັ້ນ'),
+                  const SizedBox(height: 6),
+                  for (final job in _actionable.skip(1).take(4)) ...[
+                    _compactJob(job),
+                    const SizedBox(height: 7),
+                  ],
                 ],
-                if (left > 3)
-                  Text(
-                    'ອີກ ${left - 3} ໃບ ຢູ່ແທັບ “ວຽກ”',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: faint, fontSize: 12),
+                if (left > 5)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      'ອີກ ${left - 5} ໃບ ຢູ່ແທັບ “ວຽກ”',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: faint, fontSize: 12),
+                    ),
                   ),
               ],
             ],
@@ -334,40 +351,144 @@ class _TodayScreenState extends State<TodayScreen> {
     return buffer.toString();
   }
 
-  Widget _nextJob(Job job) => Container(
-    decoration: cardDecoration(color: surface, borderRadius: 18),
-    padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          job.product ?? job.code,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: ink),
+  void _open(Job job) => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => JobScreen(job: job)),
+      ).then((_) => load());
+
+  Color _tone(Job job) => switch (urgencyOf(job)) {
+        Urgency.late_ => danger,
+        Urgency.today => warn,
+        _ => teal,
+      };
+
+  /// ໃບ **ຮີບສຸດ** — ອັນດຽວທີ່ມີປຸ່ມ. ບອກຄຳສັ່ງ (ບໍ່ແມ່ນຊື່ສິນຄ້າ) ເປັນແຖວທຳອິດ
+  /// ແລະ ຊິບເວລາຢູ່ຂວາ ⇒ ຮູ້ທັນທີວ່າ "ເລີ່ມເລີຍ" ນີ້ໝາຍເຖິງເຮັດຫຍັງ ແລະ ຮີບປານໃດ.
+  Widget _heroJob(Job job) {
+    final time = timeOf(job);
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: cardDecoration(color: surface, borderRadius: 18),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(width: 5, color: _tone(job)),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(13, 12, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            actionVerb(job, phaseLabel: job.stageLabel),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: ink,
+                              letterSpacing: -.2,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        TimeChip(time.label, tone: time.tone),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      [
+                        job.product ?? '-',
+                        job.code,
+                        if ((job.customer ?? '').trim().isNotEmpty) job.customer!.trim(),
+                      ].join(' · '),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, color: muted, height: 1.4),
+                    ),
+                    const SizedBox(height: 11),
+                    SizedBox(
+                      height: kPrimaryTouch,
+                      child: FilledButton.icon(
+                        onPressed: () => _open(job),
+                        icon: const Icon(Icons.play_arrow_rounded, size: 21),
+                        label: const Text(
+                          'ເລີ່ມເລີຍ',
+                          style: TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 3),
-        Text(
-          [job.code, if ((job.customer ?? '').trim().isNotEmpty) job.customer!.trim()].join(' · '),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 12, color: muted),
-        ),
-        const SizedBox(height: 11),
-        SizedBox(
-          height: kPrimaryTouch,
-          child: FilledButton.icon(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => JobScreen(job: job)),
-            ).then((_) => load()),
-            icon: const Icon(Icons.play_arrow_rounded, size: 21),
-            label: const Text('ເລີ່ມເລີຍ', style: TextStyle(fontWeight: FontWeight.w900)),
+      ),
+    );
+  }
+
+  /// ໃບຖັດໄປ — ແຖວບາງໆ ບໍ່ມີປຸ່ມ (ກົດແຖວ = ເປີດ). ໃສ່ໄດ້ 4 ໃບໃນເນື້ອທີ່ຂອງບັດດຽວ.
+  Widget _compactJob(Job job) {
+    final time = timeOf(job);
+    return Material(
+      color: surface,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () => _open(job),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(11, 10, 10, 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: line),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(color: _tone(job), shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      actionVerb(job, phaseLabel: job.stageLabel),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: ink,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      [job.code, if ((job.product ?? '').trim().isNotEmpty) job.product!.trim()]
+                          .join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 11.5, color: faint),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              TimeChip(time.label, tone: time.tone),
+              const Icon(Icons.chevron_right_rounded, size: 20, color: faint),
+            ],
           ),
         ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 
   Widget _allDone() => Container(
     padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 18),
