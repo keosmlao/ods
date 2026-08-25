@@ -2,6 +2,7 @@ import { Chatter } from "@/components/chatter/chatter";
 import { CheckForm, type BasketLine, type CheckHead } from "@/components/checking/check-form";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { canUser } from "@/lib/permissions";
 import { canViewAssignedJob } from "@/lib/scope";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -59,7 +60,7 @@ export default async function CheckingDetail({ params }: Props) {
         </Link>
         <h1 className="text-2xl font-bold text-slate-700">ກວດເຊັກ #{head.code}</h1>
       </div>
-      <CheckForm head={head} lines={lines} />
+      <CheckForm head={head} lines={lines} canUndo={await canUser(session, "/checking/undo", "update")} />
       <Chatter model="tb_product" resId={head.code} />
     </div>
   );

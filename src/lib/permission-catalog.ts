@@ -44,6 +44,13 @@ export const PERMISSION_RESOURCES: readonly PermissionResource[] = [
   { group: "ສ້ອມແປງ", label: "ຈັດຊ່າງ / ຍົກເລີກການຈັດ", resource: "/repair/assign", actions: ["read", "update"] },
   { group: "ສ້ອມແປງ", label: "ຄິວງານສ້ອມຕາມສະຖານະ", resource: "/work", actions: READ_ONLY },
   { group: "ສ້ອມແປງ", label: "ກວດເຊັກ", resource: "/checking", actions: ["read", "update"] },
+  /**
+   * ຖອນຄືນຂັ້ນກວດເຊັກ — "ຍົກເລີກເລີ່ມກວດເຊັກ" ແລະ "ຍົກເລີກສຳເລັດການກວດເຊັກ"
+   * (ວຽກກັບໄປ "ກຳລັງກວດເຊັກ"). ແຍກອອກຈາກ `/checking` ເພື່ອໃຫ້ຜູ້ຈັດການເປີດໃຫ້
+   * **CS ລາຍຄົນ** ໄດ້ ໂດຍບໍ່ຕ້ອງມອບໜ້າກວດເຊັກທັງໝົດ. ບໍ່ກຳນົດ = ຕົກໄປໃຊ້ກົດ role
+   * ຂອງ `/checking/undo` ໃນ lib/roles (ຊ່າງ · ຫົວໜ້າຊ່າງ · ຜູ້ຈັດການ) ຄືເກົ່າ.
+   */
+  { group: "ສ້ອມແປງ", label: "ຍ້ອນຂັ້ນກວດເຊັກຄືນ", resource: "/checking/undo", actions: ["read", "update"] },
   { group: "ສ້ອມແປງ", label: "ໃບສະເໜີລາຄາ", resource: "/quotations" },
   { group: "ສ້ອມແປງ", label: "ລູກຄ້າອະນຸມັດລາຄາ", resource: "/quotations/customer-approval", actions: ["read", "update"] },
   { group: "ສ້ອມແປງ", label: "ໃບຂໍເບີກອາໄຫຼ່", resource: "/stock/requests" },

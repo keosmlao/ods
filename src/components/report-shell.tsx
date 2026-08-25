@@ -119,6 +119,8 @@ export async function ReportShell({
   exportHref,
   printHref,
   actions,
+  rowActions,
+  rowActionsLabel = "",
   minWidth = 1100,
   searchPlaceholder,
   sortable = true,
@@ -145,6 +147,14 @@ export async function ReportShell({
   printHref?: string;
   /** ປຸ່ມເພີ່ມເຕີມ (ເຊັ່ນ "ສະແດງທັງໝົດ") */
   actions?: ReactNode;
+  /**
+   * ປຸ່ມລົງມື**ຕໍ່ແຖວ** (ເບິ່ງລາຍລະອຽດ / ພິມໃບງານ) — ຂຶ້ນເປັນຖັນທຳອິດຂອງຕາຕະລາງ
+   * ແລະ ຢູ່ຫົວບັດຂອງມືຖື. ບໍ່ສົ່ງມາ = ລາຍງານນັ້ນບໍ່ມີຖັນນີ້ (ຄືເກົ່າທຸກລາຍງານ).
+   * ຖັນນີ້ **ຈັດຮຽງບໍ່ໄດ້** ແລະ ບໍ່ຖືກຄົ້ນຫາ ເພາະບໍ່ແມ່ນຂໍ້ມູນ (ບໍ່ຢູ່ໃນ columns)
+   * ⇒ ຈຳນວນແຖວ/ຕົວເລກສະຫຼຸບ ແລະ Excel ບໍ່ຖືກກະທົບ.
+   */
+  rowActions?: (row: ReportRow) => ReactNode;
+  rowActionsLabel?: string;
   minWidth?: number;
   searchPlaceholder?: string;
   /** ບາງລາຍງານມີແຖວຍ່ອຍແຊກຢູ່ (ສະເໜີຊື້ແບບລະອຽດ) — ຈັດຮຽງໃໝ່ຈະເຮັດໃຫ້ແຖວຍ່ອຍຫຼຸດຈາກຫົວຂອງມັນ */
@@ -342,6 +352,9 @@ export async function ReportShell({
               <table className="w-full border-separate border-spacing-0 text-xs" style={{ minWidth }}>
                 <thead>
                   <tr className="bg-slate-50 text-left text-slate-600 [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:border-b [&>th]:border-slate-200 [&>th]:bg-slate-50">
+                    {rowActions && (
+                      <th className="no-print whitespace-nowrap px-3 py-2.5 text-center font-semibold">{rowActionsLabel}</th>
+                    )}
                     {columns.map((column) =>
                       sortable ? (
                         <SortHeader
@@ -364,6 +377,11 @@ export async function ReportShell({
                 <tbody>
                   {shown.map((row, index) => (
                     <tr key={`${row[columns[0].key] ?? ""}-${index}`} className="group transition hover:bg-brand-50/40">
+                      {rowActions && (
+                        <td className="no-print whitespace-nowrap border-b border-slate-100 px-3 py-3 text-center">
+                          <span className="inline-flex items-center justify-center gap-1">{rowActions(row)}</span>
+                        </td>
+                      )}
                       {columns.map((column) => {
                         const value = row[column.key];
                         return (
@@ -395,9 +413,12 @@ export async function ReportShell({
                     key={`m-${row[head.key] ?? ""}-${index}`}
                     className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
                   >
-                    <p className="mb-2 border-b border-slate-100 pb-2 text-sm font-bold text-slate-900">
-                      {headValue === null || headValue === undefined || headValue === "" ? "-" : headValue}
-                    </p>
+                    <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                      <p className="text-sm font-bold text-slate-900">
+                        {headValue === null || headValue === undefined || headValue === "" ? "-" : headValue}
+                      </p>
+                      {rowActions && <span className="flex shrink-0 items-center gap-1">{rowActions(row)}</span>}
+                    </div>
                     <dl className="space-y-1.5">
                       {rest.map((column) => {
                         const value = row[column.key];

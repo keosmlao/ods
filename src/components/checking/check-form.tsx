@@ -160,7 +160,16 @@ function BasketRow({ code, line, t }: { code: string; line: BasketLine; t: Dict 
   );
 }
 
-export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[] }) {
+export function CheckForm({
+  head,
+  lines,
+  canUndo = true,
+}: {
+  head: CheckHead;
+  lines: BasketLine[];
+  /** ມີສິດ `/checking/undo` ບໍ (ໜ້າແມ່ຄິດໃຫ້) — ບໍ່ມີ ⇒ ບໍ່ສະແດງປຸ່ມຖອນຄືນ ບໍ່ໃຫ້ກົດແລ້ວຖືກປະຕິເສດ */
+  canUndo?: boolean;
+}) {
   /** ຮູບອາໄຫຼ່ທີ່ຕ້ອງການ — ບັງຄັບເມື່ອ "ໃຊ້ອາໄຫຼ່" ແຕ່ບໍ່ໄດ້ເລືອກລາຍການ (lib/tech-flow) */
   const [photos, setPhotos] = useState<string[]>([]);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -224,11 +233,12 @@ export function CheckForm({ head, lines }: { head: CheckHead; lines: BasketLine[
           {/* ແກ້ໄຂການກົດຜິດ — ຍັງບໍ່ບັນທຶກຜົນ: ຖອນ "ເລີ່ມກວດເຊັກ" · ບັນທຶກແລ້ວ: ລ້າງຜົນກວດ
               (ປຸ່ມຢູ່ນອກ <form> ບໍ່ໄດ້ ເພາະຢູ່ໃນແຖບນີ້ — ຈຶ່ງເປັນ type="button" ພາຍໃນ UndoButton) */}
           <span className="ml-auto flex flex-wrap items-center gap-2">
-            {head.check_saved ? (
-              <CancelCheckButton code={head.code} />
-            ) : (
-              <UndoStartCheckButton code={head.code} />
-            )}
+            {canUndo &&
+              (head.check_saved ? (
+                <CancelCheckButton code={head.code} />
+              ) : (
+                <UndoStartCheckButton code={head.code} />
+              ))}
           </span>
         </div>
 

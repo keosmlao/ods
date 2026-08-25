@@ -39,6 +39,7 @@ import { PurchaseState } from "@/components/stock/purchase-state";
 import { ReleaseGhostButton } from "@/components/stock/release-ghost-button";
 import { nextActor } from "@/lib/repair-next-action";
 import { purchaseTracking, type PurchaseTrack } from "@/lib/erp-purchase";
+import { canUser } from "@/lib/permissions";
 import { APPROVER_SIDE, canAccess, roleOf, SERVICE_SIDE } from "@/lib/roles";
 import { SETTING, settingEnabled } from "@/lib/settings";
 import { SERVICE_TYPE_LABEL } from "@/lib/sla";
@@ -314,9 +315,16 @@ export default async function StatusPage({ params, searchParams }: Props) {
   // ຍົກເລີກ action ທີ່ເຮັດໃຫ້ເຂົ້າຂັ້ນນີ້ — ປຸ່ມຊັດເຈນຢູ່ໃນທຸກຄິວທີ່ຖອນຄືນໂດຍຕົງໄດ້.
   const cancelAssignment = mergedCheckQueue && canAccess(role, "/repair/assign");
   const cancelAccepted = mergedCheckQueue && canAccess(role, "/repair");
-  const cancelStartCheck = isRepair && actionStatus === "checking" && canAccess(role, "/checking");
+  /**
+   * ຖອນຄືນຂັ້ນກວດເຊັກ — ໃຊ້ **ສິດລາຍຄົນ** `/checking/undo` (canUser) ບໍ່ແມ່ນ role ດຽວ
+   * ເພາະຄົນທີ່ຕ້ອງດຶງວຽກກັບ "ກຳລັງກວດເຊັກ" ຫຼາຍເທື່ອຄື **CS** (ບັນທຶກຜົນຜິດໃບ ຫຼື
+   * ຕ້ອງແກ້ອາການ/ອາໄຫຼ່ຄືນ) ແຕ່ CS ບໍ່ຄວນໄດ້ໜ້າກວດເຊັກທັງໝົດ ⇒ ຜູ້ຈັດການເປີດໃຫ້
+   * ເປັນລາຍຄົນທີ່ /manage/employees. ບໍ່ກຳນົດ = ຄືເກົ່າ (ຊ່າງ · ຫົວໜ້າ · ຜູ້ຈັດການ).
+   */
+  const canUndoCheck = session ? await canUser(session, "/checking/undo", "update") : false;
+  const cancelStartCheck = isRepair && actionStatus === "checking" && canUndoCheck;
   const cancelFinishedCheck =
-    isRepair && (actionStatus === "wait-quote" || actionStatus === "wait-repair" || status === "claim-decision") && canAccess(role, "/checking");
+    isRepair && (actionStatus === "wait-quote" || actionStatus === "wait-repair" || status === "claim-decision") && canUndoCheck;
   const cancelStartRepair = isRepair && actionStatus === "repairing" && canAccess(role, "/repair");
   const cancelFinishedRepair = isRepair && actionStatus === "wait-qc" && canAccess(role, "/repair");
   const cancelQc = isRepair && actionStatus === "wait-return" && canAccess(role, "/qc");
@@ -803,7 +811,7 @@ export default async function StatusPage({ params, searchParams }: Props) {
       {status === "wait-withdraw" && row.quote_doc && row.quote_customer_status !== 0 && (
         <UndoCustomerButton docNo={row.quote_doc} size="md" />
       )}
-      {status === "wait-withdraw" && !row.quote_doc && (
+      {status === "wait-withdraw" && !row.quote_doc && canUndoCheck && (
         <CancelCheckButton code={row.code} variant="icon" />
       )}
       {status === "withdrawing" && row.request_doc && (

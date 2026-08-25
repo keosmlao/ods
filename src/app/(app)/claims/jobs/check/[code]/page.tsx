@@ -5,6 +5,7 @@ import { CheckForm, type BasketLine, type CheckHead } from "@/components/checkin
 import { LinkPending } from "@/components/link-pending";
 import { getSession } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { canUser } from "@/lib/permissions";
 import { canViewAssignedJob } from "@/lib/scope";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -72,7 +73,7 @@ export default async function ClaimCheckPage({ params }: { params: Promise<{ cod
           {" · "}ບັນທຶກແລ້ວໃບເຄມຈະເລື່ອນເປັນ “ກວດ/ຕັດສິນ” ໃຫ້ອັດຕະໂນມັດ
         </p>
       </div>
-      <CheckForm head={head} lines={lines} />
+      <CheckForm head={head} lines={lines} canUndo={await canUser(session, "/checking/undo", "update")} />
       <Chatter model="tb_product" resId={head.code} />
     </div>
   );

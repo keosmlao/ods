@@ -3,6 +3,7 @@ import { logChange } from "@/lib/chatter-log";
 import { getSession, type Session } from "@/lib/auth";
 import { CHECK_OUTCOMES, type CheckOutcome } from "@/lib/check-outcome";
 import { db, query } from "@/lib/db";
+import { requirePermission } from "@/lib/guard";
 import { roleOf, TECH_SIDE } from "@/lib/roles";
 import {
   addDraftSpare,
@@ -43,6 +44,14 @@ const QUOTE = 17;
 const INVOICE = 44;
 const REQUEST = 122;
 const DISPATCH = 56;
+
+/**
+ * ດ່ານຂອງ **ການຖອນຄືນຂັ້ນກວດເຊັກ** — resource `/checking/undo` (ສິດລາຍຄົນຊະນະ role,
+ * ບໍ່ກຳນົດ = TECH_SIDE ຄືເກົ່າ). ຕ້ອງກວດຢູ່ນີ້ອີກຊັ້ນ ເພາະປຸ່ມຖອນຄືນຢູ່ຟອມກວດເຊັກ
+ * ສະແດງໃຫ້ທຸກຄົນທີ່ເປີດໜ້າ `/checking/<ລະຫັດ>` ໄດ້ (ລວມ CS ທີ່ໄດ້ສິດ "ອ່ານ")
+ * ແລະ server action ຖືກຍິງໂດຍກົງໄດ້ຢູ່ດີ.
+ */
+const NO_UNDO_RIGHT = "ບໍ່ມີສິດຍ້ອນຂັ້ນກວດເຊັກຄືນ — ໃຫ້ຜູ້ຈັດການເປີດສິດໃຫ້ທີ່ /manage/employees";
 
 type JobSnapshot = {
   code: string;
@@ -162,6 +171,8 @@ export async function startCheck(code: string): Promise<CheckState> {
  *   · ຫຼື ຕິດເງື່ອນໄຂກາງ (blockedBy)
  */
 export async function undoStartCheck(code: string): Promise<UndoState> {
+  const guard = await requirePermission("/checking/undo", "update", TECH_SIDE, NO_UNDO_RIGHT);
+  if (!guard.ok) return { error: guard.error };
   const loaded = await loadJob(code);
   if (!loaded.ok) return { error: loaded.error };
   const job = loaded.job;
@@ -327,8 +338,9 @@ export async function saveCheck(_: CheckState, formData: FormData): Promise<Chec
  * ຖ້າຕັດສິນປະກັນຜິດແທ້ ຝ່າຍບໍລິການແກ້ໄດ້ທີ່ /service/[code]/edit.
  */
 export async function cancelChecking(code: string): Promise<UndoState> {
-  const session = await getSession();
-  if (!session) return { error: "Session ໝົດອາຍຸ" };
+  const guard = await requirePermission("/checking/undo", "update", TECH_SIDE, NO_UNDO_RIGHT);
+  if (!guard.ok) return { error: guard.error };
+  const session = guard.session;
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
   const loaded = await loadJob(code);
