@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../widgets/service_bottom_nav.dart';
 import 'income_screen.dart';
+import 'rank_screen.dart';
+import 'today_screen.dart';
 import 'jobs_screen.dart';
 import 'manager_screen.dart';
 import 'monitor_screen.dart';
@@ -32,6 +34,8 @@ class _NavHostState extends State<NavHost> {
   int index = 0;
 
   static Widget _screen(String key) => switch (key) {
+    'today' => const TodayScreen(),
+    'rank' => const RankScreen(),
     'overview' => const ManagerScreen(),
     'monitor' => const MonitorScreen(),
     'techs' => const TechsScreen(),

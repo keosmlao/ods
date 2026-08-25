@@ -21,6 +21,8 @@ export const SETTING = {
   INSTALL_SPARE_FREE_SEARCH: "install_spare_free_search",
   /** ບັງຄັບໃຫ້ແອັບຊ່າງອັບເດດເປັນ APK ຫຼ້າສຸດກ່ອນໃຊ້ງານ (426 ທຸກ route ຂອງມືຖື) */
   MOBILE_FORCE_UPDATE: "mobile_force_update",
+  /** ໜ້າ "ອັນດັບ" ໃນແອັບຊ່າງ — ໃຫ້ເຫັນ**ຈຳນວນເງິນ**ຂອງຄົນອື່ນ ຫຼື ເຫັນແຕ່ຈຳນວນໃບ */
+  MOBILE_RANK_MONEY: "mobile_rank_money",
 } as const;
 
 export type SettingKey = (typeof SETTING)[keyof typeof SETTING];
@@ -63,6 +65,15 @@ export const SETTING_META: Record<SettingKey, { label: string; help: string; fal
       "ແຕ່ຍັງໄດ້ຮັບການແຈ້ງວ່າມີເວີຊັນໃໝ່.",
     // ເປີດເປັນຄ່າຕັ້ງຕົ້ນ — ແອັບເກົ່າຄາຢູ່ໃນມືຊ່າງຄືເຫດຜົນຫຼັກທີ່ຂັ້ນຕອນເດີນຜິດ
     fallback: true,
+  },
+  [SETTING.MOBILE_RANK_MONEY]: {
+    label: "ອັນດັບໃນແອັບຊ່າງ — ໃຫ້ເຫັນຈຳນວນເງິນຂອງຄົນອື່ນ",
+    help:
+      "ໜ້າ “ອັນດັບ” ຂອງແອັບຊ່າງ ຮຽງຊ່າງຕາມຈຳນວນໃບທີ່ປິດໃນເດືອນ (ຂໍ້ມູນຄ່າຄອມຊຸດດຽວກັບ " +
+      "ໜ້າຜູ້ຈັດການ). ເປີດແລ້ວ: ຊ່າງເຫັນ**ຈຳນວນເງິນຂອງກັນ ແລະ ກັນ**. ປິດ (ຄ່າຕັ້ງຕົ້ນ): ເຫັນແຕ່ " +
+      "ຈຳນວນໃບ ສ່ວນເງິນເຫັນສະເພາະຂອງຕົນເອງ — ການເປີດເຜີຍລາຍໄດ້ລະຫວ່າງເພື່ອນຮ່ວມງານ " +
+      "ສ້າງບັນຫາໄດ້ຫຼາຍກວ່າແຮງຈູງໃຈ ຈຶ່ງໃຫ້ຜູ້ຈັດການເລືອກເອງ.",
+    fallback: false,
   },
 };
 

@@ -4980,6 +4980,10 @@
       "mobile_force_update": {
         "label": "Force the technician app to update",
         "help": "Apps older than the APK published on the download page are blocked until they update (the app shows a “must update” screen with an in-app download and install button). The minimum version tracks the published APK automatically — no number to type. No version file = nobody is forced. Off: older apps keep working."
+      },
+      "mobile_rank_money": {
+        "label": "Technician leaderboard — show other people's amounts",
+        "help": "The app's leaderboard ranks technicians by jobs closed this month. On: technicians see each other's commission amounts. Off (default): job counts only; each person still sees their own amount."
       }
     }
   },

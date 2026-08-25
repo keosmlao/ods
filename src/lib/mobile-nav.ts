@@ -5,13 +5,15 @@ import type { Role } from "@/lib/roles";
  * ແອັບ render ຕາມ manifest ນີ້ ບໍ່ຄິດ tab ເອງ ⇒ ປ່ຽນສ່ວນງານຂອງ role ໄດ້ຈາກ server ບ່ອນດຽວ.
  *
  * ⚠️ ຕ້ອງກົງກັບ role-guard ຂອງ `/api/mobile/*` ບໍ່ດັ່ງນັ້ນ tab ຈະຕົກ 403:
- *   • jobs · pickup · income → TECH_SIDE (manager · headtechnical · technical)
+ *   • today · jobs · rank · pickup · income → TECH_SIDE (manager · headtechnical · technical)
  *   • stock-count            → ທຸກຄົນ ຍົກເວັ້ນ ຊ່າງ (technical · headtechnical)
  *   • qc                     → lib/qc-flow ຕັດສິນ (ods_qc_role) — ວ່າງ = ໜ້າຈໍແຈ້ງ "ບໍ່ມີສິດ"
  *   • notifications          → ທຸກຄົນ
  *   • overview · approvals   → APPROVER_SIDE (manager · headtechnical)
  */
 export type MobileTabKey =
+  | "today"
+  | "rank"
   | "overview"
   | "monitor"
   | "techs"
@@ -28,6 +30,8 @@ export type MobileTab = { key: MobileTabKey; label: string };
 
 /** label ກາງ — ໃຫ້ຄຳຢູ່ໃຕ້ icon ຄົງທີ່ ບໍ່ວ່າ role ໃດ */
 const TAB: Record<MobileTabKey, MobileTab> = {
+  today: { key: "today", label: "ມື້ນີ້" },
+  rank: { key: "rank", label: "ອັນດັບ" },
   overview: { key: "overview", label: "ພາບລວມ" },
   monitor: { key: "monitor", label: "ຕິດຕາມ" },
   techs: { key: "techs", label: "ລູກນ້ອງ" },
@@ -46,8 +50,14 @@ const TAB: Record<MobileTabKey, MobileTab> = {
  * ນັ້ນ **ເຂົ້າໄດ້ແນ່ນອນ** ໄວ້ກ່ອນ ເພື່ອບໍ່ໃຫ້ຕົກໜ້າວ່າງຕອນເປີດແອັບ.
  */
 const TABS_BY_ROLE: Record<Role, MobileTabKey[]> = {
-  technical: ["jobs", "pickup", "income"], // ຊ່າງພາກສະໜາມ
-  headtechnical: ["jobs", "qc", "income"], // ຫົວໜ້າຊ່າງ — ກວດ QC ໜ້າງານ
+  /*
+    ── ຊ່າງພາກສະໜາມ (v6) ──
+    "ມື້ນີ້" ຢູ່ໜ້າທຳອິດ: ເປີດແອັບມາເຫັນ**ຄວາມຄືບໜ້າຂອງຕົນເອງ**ກ່ອນ ບໍ່ແມ່ນລາຍການ
+    ວຽກລ້າໆ. "ອາໄຫຼ່" ຍ້າຍໄປເມນູ ⋮ ຂອງໜ້າວຽກ (ຍັງເຂົ້າໄດ້ຈາກໃບງານໂດຍກົງຢູ່ແລ້ວ)
+    ເພື່ອໃຫ້ແຖບລຸ່ມເຫຼືອ 4 ອັນ — ນິ້ວໂປ້ຮອດງ່າຍ ແລະ ປ້າຍລາວບໍ່ຖືກຫຍໍ້.
+  */
+  technical: ["today", "jobs", "rank", "income"],
+  headtechnical: ["today", "jobs", "qc", "income"], // ຫົວໜ້າຊ່າງ — ກວດ QC ໜ້າງານ
   // ຜູ້ຈັດການ — ເຄື່ອງມື monitor: ພາບລວມ · ຕິດຕາມງານ · ລູກນ້ອງ · ອະນຸມັດ · ລາຍງານ.
   // (QC ຢູ່ຝ່າຍຫົວໜ້າຊ່າງ · ກວດນັບ ຢູ່ຝ່າຍສາງ)
   manager: ["overview", "monitor", "techs", "approvals", "reports"],

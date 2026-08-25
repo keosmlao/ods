@@ -862,6 +862,10 @@ class Api {
 
   /* ── ລາຍຮັບ ແລະ ແຈ້ງເຕືອນ ────────────────────────────────────── */
 
+  /// ອັນດັບຊ່າງເດືອນນີ້ — ຂໍ້ມູນຄ່າຄອມຊຸດດຽວກັບໜ້າຜູ້ຈັດການ
+  static Future<TechRank> rank() async =>
+      TechRank.fromJson(await _send('GET', '/api/mobile/rank'));
+
   static Future<Income> income() async =>
       Income.fromJson(await _send('GET', '/api/mobile/income'));
 
@@ -2279,6 +2283,68 @@ class Income {
     jobs: (json['jobs'] as num?)?.toInt() ?? 0,
     totalThb: (json['total_thb'] as num?)?.toDouble() ?? 0,
     rows: (json['rows'] as List).cast<Map<String, dynamic>>(),
+  );
+}
+
+/// 1 ແຖວຂອງອັນດັບຊ່າງ (server ຮຽງມາໃຫ້ແລ້ວ — ແອັບບໍ່ຮຽງເອງ)
+class RankRow {
+  final int rank;
+  final String name;
+  final int jobs;
+
+  /// null = ຜູ້ຈັດການເລືອກເຊື່ອງເງິນຂອງຄົນອື່ນ (**ບໍ່ແມ່ນ 0**)
+  final double? totalThb;
+  final bool me;
+
+  RankRow({
+    required this.rank,
+    required this.name,
+    required this.jobs,
+    required this.totalThb,
+    required this.me,
+  });
+
+  factory RankRow.fromJson(Map<String, dynamic> json) => RankRow(
+    rank: (json['rank'] as num?)?.toInt() ?? 0,
+    name: json['name'] as String? ?? '-',
+    jobs: (json['jobs'] as num?)?.toInt() ?? 0,
+    totalThb: (json['total_thb'] as num?)?.toDouble(),
+    me: json['me'] == true,
+  );
+}
+
+/// ອັນດັບຊ່າງປະຈຳເດືອນ + ຕຳແໜ່ງຂອງຕົນເອງ
+class TechRank {
+  final String month;
+  final int myRank;
+  final int myJobs;
+  final double myTotalThb;
+
+  /// ຕ້ອງເຮັດອີກຈັກໃບຈຶ່ງແຊງຄົນເໜືອໜ້າ (null = ອັນດັບ 1 ຫຼື ຍັງບໍ່ຕິດອັນດັບ)
+  final int? jobsToNext;
+  final bool showMoney;
+  final List<RankRow> rows;
+
+  TechRank({
+    required this.month,
+    required this.myRank,
+    required this.myJobs,
+    required this.myTotalThb,
+    required this.jobsToNext,
+    required this.showMoney,
+    required this.rows,
+  });
+
+  factory TechRank.fromJson(Map<String, dynamic> json) => TechRank(
+    month: json['month'] as String? ?? '',
+    myRank: (json['my_rank'] as num?)?.toInt() ?? 0,
+    myJobs: (json['my_jobs'] as num?)?.toInt() ?? 0,
+    myTotalThb: (json['my_total_thb'] as num?)?.toDouble() ?? 0,
+    jobsToNext: (json['jobs_to_next'] as num?)?.toInt(),
+    showMoney: json['show_money'] == true,
+    rows: ((json['rows'] as List?) ?? [])
+        .map((row) => RankRow.fromJson(row as Map<String, dynamic>))
+        .toList(),
   );
 }
 

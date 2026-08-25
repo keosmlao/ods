@@ -18,6 +18,8 @@ class ServiceBottomNav extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   static (IconData, IconData) iconFor(String key) => switch (key) {
+    'today' => (Icons.bolt_outlined, Icons.bolt_rounded),
+    'rank' => (Icons.emoji_events_outlined, Icons.emoji_events_rounded),
     'overview' => (Icons.home_outlined, Icons.home_rounded),
     'monitor' => (Icons.radar_outlined, Icons.radar_rounded),
     'techs' => (Icons.groups_outlined, Icons.groups_rounded),

@@ -10,6 +10,7 @@ import '../main.dart';
 import '../push.dart';
 import '../widgets/ui_kit.dart';
 import 'notifications_screen.dart';
+import 'pickup_screen.dart';
 import 'job_screen.dart';
 import 'login_screen.dart';
 
@@ -551,6 +552,12 @@ class _JobsScreenState extends State<JobsScreen> {
                       ),
                     );
                   }
+                  if (value == 'pickup') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PickupScreen()),
+                    );
+                  }
                   if (value == 'repair-stock') {
                     Navigator.push(
                       context,
@@ -561,6 +568,17 @@ class _JobsScreenState extends State<JobsScreen> {
                   }
                 },
                 itemBuilder: (_) => const [
+                  // "ອາໄຫຼ່" ຍ້າຍອອກຈາກແຖບລຸ່ມ (v6 — ແຖບເຫຼືອ 4 ອັນ) ⇒ ຢູ່ນີ້ແທນ
+                  PopupMenuItem(
+                    value: 'pickup',
+                    child: Row(
+                      children: [
+                        Icon(Icons.local_shipping_outlined, size: 19),
+                        SizedBox(width: 10),
+                        Text('ຮັບອາໄຫຼ່'),
+                      ],
+                    ),
+                  ),
                   PopupMenuItem(
                     value: 'stock-balance',
                     child: Row(

@@ -10,6 +10,7 @@ import '../drafts.dart';
 import '../main.dart';
 import '../widgets/ui_kit.dart';
 import 'check_screen.dart';
+import 'finished_screen.dart';
 import 'pickup_screen.dart';
 import 'job_spare_screen.dart';
 import 'scan_serial_screen.dart';
@@ -321,12 +322,29 @@ class _JobScreenState extends State<JobScreen> {
     try {
       final message = await Api.command(job.workflow, job.code, body);
       // ຮູບ/ບັນທຶກ ໄປຮອດ server (ຫຼື ເຂົ້າຄິວ offline ພ້ອມ body) ແລ້ວ ⇒ ຮ່າງບໍ່ຈຳເປັນອີກ
+      final finished = body['action'] == 'finish';
       if (body.containsKey('photos')) {
         photos.clear();
         note.clear();
         Drafts.clear(_draftKey);
       }
       if (!mounted) return;
+      /*
+        ── ຈົບງານ = ຈຸດສິ້ນສຸດທີ່ຮູ້ສຶກໄດ້ (v6) ──
+        ແທນແຖບຂໍ້ຄວາມນ້ອຍໆທີ່ຫາຍໄປໃນ 3 ວິ — ຂຶ້ນຈໍສະຫຼອງພ້ອມຕົວເລກ
+        (ໃບເດືອນນີ້ · ຄ່າຄອມ · ມື້ຕິດ) ແລ້ວຈຶ່ງກັບຄືນລາຍການວຽກ.
+        ຄິວ offline (OFFLINE_QUEUED) ບໍ່ສະຫຼອງ — ຍັງບໍ່ຮູ້ວ່າ server ຮັບຫຼືບໍ່.
+      */
+      if (finished && !message.startsWith('OFFLINE_QUEUED:')) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => FinishedScreen(jobCode: job.code, workflow: job.workflow),
+          ),
+        );
+        if (!mounted) return;
+        Navigator.of(context).pop();
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message.replaceFirst('OFFLINE_QUEUED: ', ''))),
       );
