@@ -48,13 +48,24 @@ export interface AppUpdateNotifyResult {
 /**
  * ກວດ ແລະ ຍິງ. `dry` = ນັບໃຫ້ເບິ່ງເສີຍໆ ບໍ່ຍິງ ແລະ ບໍ່ຈື່ (ໃຫ້ທົດສອບໄດ້ໂດຍບໍ່ລົບກວນຄົນ).
  */
-export async function notifyAppUpdate(dry = false): Promise<AppUpdateNotifyResult> {
+export async function notifyAppUpdate(dry = false, seed = false): Promise<AppUpdateNotifyResult> {
   const version = await shippedAppVersion();
   const previous = await lastNotified();
 
   // ບໍ່ມີໄຟລ໌ເວີຊັນ = ບໍ່ຮູ້ວ່າວາງລຸ້ນໃດ ⇒ ງຽບໄວ້ (ຄືກັບດ່ານບັງຄັບອັບເດດ)
   if (!version) return { version, previous, notified: false, users: 0, reason: "no-version-file" };
   if (version === previous) return { version, previous, notified: false, users: 0, reason: "already-notified" };
+
+  /*
+    ── ຕັ້ງເລກເລີ່ມຕົ້ນ (seed) ──
+    ເປີດລະບົບນີ້ຄັ້ງທຳອິດ: ຄົນສ່ວນຫຼາຍຖືເວີຊັນທີ່ວາງຢູ່ແລ້ວ ⇒ ຍິງ "ມີເວີຊັນໃໝ່"
+    ໃສ່ເຂົາຄືການລົບກວນລ້າໆ. seed = ຈື່ເລກປັດຈຸບັນໄວ້ໂດຍບໍ່ຍິງ ⇒ ແຈ້ງເຕືອນຈິງ
+    ຈະເລີ່ມຈາກ APK **ໃບຕໍ່ໄປ**.
+  */
+  if (seed) {
+    await rememberNotified(version);
+    return { version, previous, notified: false, users: 0, reason: "seeded" };
+  }
 
   const users = query
     ? (await query<{ user_code: string }>(`select distinct user_code from ods_push_token`)).rows.map(

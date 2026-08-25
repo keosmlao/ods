@@ -11,6 +11,8 @@ import { NextResponse, type NextRequest } from "next/server";
  * ຫາທຸກເຄື່ອງເທື່ອດຽວ ແລ້ວຈື່ເລກໄວ້ ⇒ ຮອບຕໍ່ໆໄປງຽບ.
  *
  * `?dry=1` = ບອກວ່າຈະຍິງຫາຈັກຄົນ ໂດຍ**ບໍ່**ຍິງ ແລະ **ບໍ່**ຈື່ (ທົດສອບໄດ້ບໍ່ລົບກວນຄົນ).
+ * `?seed=1` = ຈື່ເລກປັດຈຸບັນໄວ້ໂດຍບໍ່ຍິງ — ໃຊ້ **ຄັ້ງດຽວ**ຕອນເປີດລະບົບນີ້ ບໍ່ດັ່ງນັ້ນ
+ *   ຄົນທີ່ຖືເວີຊັນປັດຈຸບັນຢູ່ແລ້ວຈະໄດ້ຮັບ "ມີເວີຊັນໃໝ່" ຂອງເວີຊັນຂອງຕົນເອງ.
  */
 export const dynamic = "force-dynamic";
 
@@ -21,9 +23,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const dry = new URL(request.url).searchParams.get("dry") === "1";
+  const params = new URL(request.url).searchParams;
+  const dry = params.get("dry") === "1";
+  // ?seed=1 = ຈື່ເລກປັດຈຸບັນໄວ້ໂດຍບໍ່ຍິງ (ໃຊ້ຕອນເປີດລະບົບນີ້ຄັ້ງທຳອິດ)
+  const seed = params.get("seed") === "1";
   try {
-    return NextResponse.json(await notifyAppUpdate(dry));
+    return NextResponse.json(await notifyAppUpdate(dry, seed));
   } catch (error) {
     console.error("cron app-update failed", error);
     return NextResponse.json({ error: "ແຈ້ງເຕືອນອັບເດດລົ້ມ" }, { status: 500 });
