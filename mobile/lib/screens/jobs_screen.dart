@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../job_urgency.dart';
 import '../pending.dart';
 import 'repair_stock_screen.dart';
 import 'stock_balance_screen.dart';
@@ -282,107 +283,8 @@ _Band _bandOf(Job job) {
   return (s >= 0 && s <= 2) ? _Band.check : _Band.repair;
 }
 
-/* ══ ຄວາມຮີບ (v5) ══════════════════════════════════════════════════════════
-   ແຕ່ກ່ອນລາຍການຈັດກຸ່ມຕາມ **ໄລຍະ** (ລໍຖ້າກວດ · ກຳລັງສ້ອມ …) ເຊິ່ງເປັນວິທີຄິດຂອງ
-   ລະບົບ. ຊ່າງບໍ່ໄດ້ວາງແຜນມື້ຂອງຕົນຈາກໄລຍະ — ລາວວາງແຜນຈາກ **ເວລາ**: ອັນໃດເລີຍກຳນົດ
-   ແລ້ວ, ອັນໃດນັດມື້ນີ້, ອັນໃດຍັງບໍ່ຮອດຄິວ. v5 ຈຶ່ງຈັດກຸ່ມຕາມນັ້ນ ແລະ ຍົກໄລຍະລົງໄປ
-   ເປັນລາຍລະອຽດໃນກາດ (ຍັງເຫັນຢູ່ ບໍ່ໄດ້ຫາຍໄປ).
-   ══════════════════════════════════════════════════════════════════════════ */
-enum _Urgency { late_, today, act, waitSpare, waitOther }
-
-const _urgencyLabel = {
-  _Urgency.late_: 'ຊ້າແລ້ວ',
-  _Urgency.today: 'ນັດມື້ນີ້',
-  _Urgency.act: 'ຕ້ອງລົງມື',
-  _Urgency.waitSpare: 'ລໍອາໄຫຼ່',
-  _Urgency.waitOther: 'ລໍຂັ້ນຕອນອື່ນ',
-};
-
-const _urgencyColor = {
-  _Urgency.late_: danger,
-  _Urgency.today: warn,
-  _Urgency.act: ink,
-  _Urgency.waitSpare: warn,
-  _Urgency.waitOther: muted,
-};
-
-/// ວັນນັດ — server ສົ່ງເປັນ `DD-MM-YYYY` (mobile-jobs.ts). ອ່ານບໍ່ອອກ = null
-/// ⇒ ຖືວ່າ "ບໍ່ມີນັດ" ບໍ່ແມ່ນ "ເລີຍນັດ" (ຢ່າຍ້ອມແດງໃສ່ໃບທີ່ບໍ່ໄດ້ຊ້າ).
-DateTime? _appointDate(Job job) {
-  final raw = job.appointment;
-  if (raw == null || raw.length < 10) return null;
-  final parts = raw.split('-');
-  if (parts.length != 3) return null;
-  final day = int.tryParse(parts[0]);
-  final month = int.tryParse(parts[1]);
-  final year = int.tryParse(parts[2]);
-  if (day == null || month == null || year == null) return null;
-  return DateTime(year, month, day);
-}
-
-/// ຈຳນວນມື້ຈາກມື້ນີ້ຫາວັນນັດ (ລົບ = ເລີຍນັດແລ້ວ · null = ບໍ່ມີນັດ)
-int? _appointIn(Job job) {
-  final date = _appointDate(job);
-  if (date == null) return null;
-  final now = DateTime.now();
-  return date.difference(DateTime(now.year, now.month, now.day)).inDays;
-}
-
-const _actionable = {'accept', 'start', 'finish'};
-
-_Urgency _urgencyOf(Job job) {
-  final overdueSla = job.slaLeft != null && job.slaLeft! < 0;
-  final due = _appointIn(job);
-  // ເລີຍກຳນົດ SLA ຫຼື ເລີຍວັນນັດ = ຊ້າ **ບໍ່ວ່າຈະຢູ່ຂັ້ນໃດ** (ຫົວໜ້າຖາມຫາອັນນີ້ກ່ອນ)
-  if (overdueSla || (due != null && due < 0)) return _Urgency.late_;
-  if (due == 0) return _Urgency.today;
-  if (_actionable.contains(job.action)) return _Urgency.act;
-  return job.action == 'wait_spare' ? _Urgency.waitSpare : _Urgency.waitOther;
-}
-
-/// ຮີບກ່ອນຢູ່ເທິງ: SLA ໜ້ອຍສຸດ → ນັດໃກ້ສຸດ → ຄ້າງດົນສຸດ (ນິຍາມດຽວກັບ order by ຂອງ server)
-int _byUrgency(Job a, Job b) {
-  final sla = (a.slaLeft ?? 1e9).compareTo(b.slaLeft ?? 1e9);
-  if (sla != 0) return sla;
-  final due = (_appointIn(a) ?? 1 << 30).compareTo(_appointIn(b) ?? 1 << 30);
-  if (due != 0) return due;
-  return b.elapsedSeconds.compareTo(a.elapsedSeconds);
-}
-
-/// ຄຳສັ່ງທີ່ຈະຂຶ້ນເປັນ **ແຖວທຳອິດ** ຂອງກາດ — ຄຳກິລິຍາ ບໍ່ແມ່ນສະຖານະ.
-/// ຂັ້ນທີ່ຊ່າງລົງມືບໍ່ໄດ້ (ລໍຄົນອື່ນ) ໃຊ້ຊື່ໄລຍະ ເພາະນັ້ນຄືຂໍ້ມູນທີ່ມີຄ່າກວ່າ.
-String _actionVerb(Job job) => switch (job.action) {
-  'accept' => 'ຕ້ອງຮັບງານ',
-  'start' => job.onsite && !job.checkedIn ? 'ໄປໜ້າງານ — check-in' : 'ພ້ອມເລີ່ມ',
-  'finish' => job.onsite && !job.checkedIn
-      ? 'ໄປໜ້າງານ — check-in'
-      : 'ກຳລັງເຮັດ — ບັນທຶກຜົນ',
-  'wait_spare' => 'ລໍອາໄຫຼ່',
-  _ => _phaseOf(job).label,
-};
-
-/// ຊິບເວລາຂອງກາດ — ອັນດຽວ ບອກສິ່ງທີ່ຮີບທີ່ສຸດ
-({String label, TimeTone tone}) _timeOf(Job job) {
-  final sla = job.slaLeft;
-  if (sla != null) {
-    final hours = (sla.abs() / 3600).floor();
-    if (sla < 0) return (label: 'ເລີຍກຳນົດ $hours ຊມ', tone: TimeTone.late_);
-    if (sla < 4 * 3600) return (label: 'ເຫຼືອ $hours ຊມ', tone: TimeTone.soon);
-  }
-  final due = _appointIn(job);
-  if (due != null) {
-    if (due < 0) return (label: 'ເລີຍນັດ ${-due} ມື້', tone: TimeTone.late_);
-    if (due == 0) return (label: 'ນັດມື້ນີ້', tone: TimeTone.soon);
-    return (label: 'ນັດ ${job.appointment!.substring(0, 5)}', tone: TimeTone.plain);
-  }
-  return (
-    label: job.totalLabel != null ? 'ໃຊ້ເວລາ ${job.totalLabel}' : 'ຄ້າງ ${job.days} ມື້',
-    tone: TimeTone.plain,
-  );
-}
-
 class _UrgencyGroup {
-  final _Urgency urgency;
+  final Urgency urgency;
   final List<Job> jobs;
   const _UrgencyGroup(this.urgency, this.jobs);
 }
@@ -500,15 +402,16 @@ class _JobsScreenState extends State<JobsScreen> {
 
   /// ຈັດກຸ່ມຕາມ **ຄວາມຮີບ** — ກຸ່ມຫວ່າງບໍ່ສະແດງ (ບໍ່ໃຫ້ຫົວລອຍ)
   List<_UrgencyGroup> get _groups {
-    final byUrgency = <_Urgency, List<Job>>{};
+    // ຊື່ຕົວແປຢ່າໃຫ້ຊ້ຳກັບຟັງຊັນ `byUrgency` (ຕົວປຽບທຽບ) — ຈະບັງກັນ
+    final grouped = <Urgency, List<Job>>{};
     for (final j in _visible) {
-      (byUrgency[_urgencyOf(j)] ??= []).add(j);
+      (grouped[urgencyOf(j)] ??= []).add(j);
     }
     final out = <_UrgencyGroup>[];
-    for (final urgency in _Urgency.values) {
-      final list = byUrgency[urgency];
+    for (final urgency in Urgency.values) {
+      final list = grouped[urgency];
       if (list == null || list.isEmpty) continue;
-      list.sort(_byUrgency);
+      list.sort(byUrgency);
       out.add(_UrgencyGroup(urgency, list));
     }
     return out;
@@ -516,9 +419,9 @@ class _JobsScreenState extends State<JobsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final actionCount = jobs.where((j) => _actionable.contains(j.action)).length;
-    final lateCount = jobs.where((j) => _urgencyOf(j) == _Urgency.late_).length;
-    final todayCount = jobs.where((j) => _urgencyOf(j) == _Urgency.today).length;
+    final actionCount = jobs.where((j) => actionable.contains(j.action)).length;
+    final lateCount = jobs.where((j) => urgencyOf(j) == Urgency.late_).length;
+    final todayCount = jobs.where((j) => urgencyOf(j) == Urgency.today).length;
     return Scaffold(
       backgroundColor: ground,
       body: Column(
@@ -842,9 +745,9 @@ class _JobsScreenState extends State<JobsScreen> {
               return Padding(
                 padding: const EdgeInsets.only(top: 10, bottom: 6),
                 child: BandHeader(
-                  _urgencyLabel[group.urgency]!,
+                  urgencyLabel[group.urgency]!,
                   count: group.jobs.length,
-                  color: _urgencyColor[group.urgency]!,
+                  color: urgencyColor[group.urgency]!,
                 ),
               );
             }
@@ -933,7 +836,7 @@ class _JobCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final phase = _phaseOf(job);
     final kind = _serviceKind(job);
-    final time = _timeOf(job);
+    final time = timeOf(job);
     final who = [
       if (_hasText(job.customer)) job.customer!.trim(),
       if (_hasText(job.address)) job.address!.trim(),
@@ -983,7 +886,7 @@ class _JobCard extends StatelessWidget {
                               const SizedBox(width: 7),
                               Expanded(
                                 child: Text(
-                                  _actionVerb(job),
+                                  actionVerb(job, phaseLabel: _phaseOf(job).label),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
