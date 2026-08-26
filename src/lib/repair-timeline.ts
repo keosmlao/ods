@@ -16,7 +16,7 @@ const ENTRY: Record<number, string> = {
   5: "coalesce(a.spare_arrive, a.qt_finish, a.time_finish_check)",
   6: "coalesce(a.spare_arrive, a.spare_reg)",
   7: "a.spare_order",
-  8: "coalesce(a.spare_finish, a.qt_finish, a.time_finish_check)",
+  8: "coalesce(a.qc_reject_at, a.spare_finish, a.qt_finish, a.time_finish_check)",
   9: "a.time_repair",
   10: "a.time_finish_repair",
   11: "coalesce(a.qc_finish, a.cancel_finish, a.cancel_start)",

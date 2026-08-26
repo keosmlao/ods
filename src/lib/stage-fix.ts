@@ -34,7 +34,9 @@ const COLUMNS: Record<FixableStage, { set: string[]; clear: string[] }> = {
     set: ["time_check"],
     clear: ["time_finish_check", "time_repair", "time_finish_repair", "qc_finish", "return_complete"],
   },
-  // ລໍຖ້າສ້ອມແປງ
+  // ລໍຖ້າສ້ອມແປງ — ຊຸດດຽວກັບທີ່ QC ຂຽນຕອນສົ່ງງານກັບ (lib/qc-flow: TABLE.sendBackSet).
+  // `qc_reject_at` ບໍ່ຢູ່ໃນລາຍການນີ້ຕັ້ງໃຈ: ມັນບໍ່ມີຜົນຕໍ່ STAGE_SQL (ເປັນແຕ່ນາລິກາ
+  // ຂອງຂັ້ນ 8) ແລະ ມັນເປັນເຫດການທີ່ເກີດຂຶ້ນຈິງ ⇒ ຢ່າລຶບປະຫວັດຖິ້ມຕອນແກ້ຂັ້ນດ້ວຍມື.
   8: {
     set: ["time_check", "time_finish_check"],
     clear: ["time_repair", "time_finish_repair", "qc_finish", "return_complete"],

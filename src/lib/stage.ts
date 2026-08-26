@@ -240,7 +240,10 @@ export const STAGE_TIME_COL = `case (${STAGE_SQL})
   when 11 then coalesce(a.qc_finish, a.cancel_finish, a.cancel_start)
   when 10 then a.time_finish_repair
   when 9  then a.time_repair
-  when 8  then coalesce(a.spare_finish, a.qt_finish, a.time_finish_check)
+  -- ຂັ້ນ 8 ມີ 2 ທາງເຂົ້າ: ຈົບອາໄຫຼ່/ລາຄາຕາມປົກກະຕິ · ຫຼື **ຖືກ QC ສົ່ງກັບມາແກ້**
+  -- (qc_reject_at) — ບໍ່ເອົາ qc_reject_at ນຳ ວຽກທີ່ຫາກໍ່ກັບມາຈະນັບຈາກ spare_finish
+  -- ເກົ່າ ⇒ ຂຶ້ນວ່າຄ້າງຫຼາຍສິບມື້ ແລະ ເກີນ SLA ທັນທີທັງທີ່ຫາກໍ່ເຂົ້າຄິວ.
+  when 8  then coalesce(a.qc_reject_at, a.spare_finish, a.qt_finish, a.time_finish_check)
   when 7  then a.spare_order
   when 6  then coalesce(a.spare_arrive, a.spare_reg)
   when 5  then coalesce(a.spare_arrive, a.qt_finish, a.time_finish_check)

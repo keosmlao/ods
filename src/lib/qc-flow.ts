@@ -12,7 +12,7 @@ import { roleOf, type Role } from "@/lib/roles";
  * ຫຼັກການ (ຢ່າແກ້ໂດຍບໍ່ຄິດ):
  * ① ຄົນເຮັດ **ກວດງານຂອງຕົນເອງບໍ່ໄດ້** — ບໍ່ດັ່ງນັ້ນດ່ານນີ້ບໍ່ມີຄວາມໝາຍ
  * ② ໃຜກວດໄດ້ **ຜູ້ຈັດການກຳນົດ** (ods_qc_role) ບໍ່ຝັງໃນໂຄດ
- * ③ ຕົກ QC = ລ້າງຖັນ "ສຳເລັດ" ⇒ ງານກັບໄປຫາຊ່າງ ພ້ອມເຫດຜົນ
+ * ③ ຕົກ QC = ງານກັບໄປຫາຊ່າງ ພ້ອມເຫດຜົນ (ສ້ອມ → ຂັ້ນ 8 ລໍຖ້າສ້ອມແປງ — ເບິ່ງ TABLE.sendBackSet)
  */
 
 export const MAX_PHOTO_CHARS = 400_000;
@@ -21,9 +21,35 @@ export const MAX_PHOTO_CHARS = 400_000;
  * `finishCol` = ຖັນ "ເຮັດວຽກຈົບ" (ເງື່ອນໄຂເຂົ້າດ່ານ QC) ·
  * `returnedCol` = ຖັນ "ປິດງານແລ້ວ" (ຫຼັງຈາກນີ້ QC ແຕະບໍ່ໄດ້ອີກ).
  */
-const TABLE: Record<Workflow, { name: string; finishCol: string; returnedCol: string; model: string }> = {
-  install: { name: "ods_tb_install", finishCol: "finish_install", returnedCol: "job_finish", model: "ods_tb_install" },
-  repair: { name: "tb_product", finishCol: "time_finish_repair", returnedCol: "return_complete", model: "tb_product" },
+/**
+ * `sendBackSet` = ຖັນທີ່ຂຽນຕອນ **ຕົກ QC** — ບໍ່ແມ່ນລ້າງແຕ່ `finishCol` ສະເໝີໄປ.
+ *
+ * ── ສ້ອມ: ຕົກ QC ⇒ ກັບໄປ "ລໍຖ້າສ້ອມແປງ" (ຂັ້ນ 8) — 26-08-2026 ຕາມຄຳສັ່ງ ──
+ * ລ້າງແຕ່ `time_finish_repair` ຢ່າງດຽວ ວຽກຕົກຂັ້ນ **9 (ກຳລັງສ້ອມແປງ)** ເພາະ
+ * `time_repair` ຍັງຢູ່ — ແຕ່ຕອນນັ້ນບໍ່ມີໃຜກຳລັງສ້ອມແທ້ໆ ວຽກລໍຊ່າງມາຮັບໄປແກ້ຄືນ.
+ * ລ້າງທັງສອງ ⇒ ຕົກຂັ້ນ 8 (ຊຸດຖັນດຽວກັບຂັ້ນ 8 ຂອງ lib/stage-fix) ແລະ ສະແຕມ
+ * `qc_reject_at` ໃຫ້ນາລິກາຂັ້ນ 8 ເລີ່ມນັບໃໝ່ (ບໍ່ດັ່ງນັ້ນຈະນັບຈາກ spare_finish ເກົ່າ
+ * ⇒ ວຽກທີ່ຫາກໍ່ກັບມາຈະຂຶ້ນວ່າຄ້າງຫຼາຍສິບມື້ ແລະ ເກີນ SLA ທັນທີ).
+ * ຝັ່ງຕິດຕັ້ງຄືເກົ່າ: ລ້າງ `finish_install` ⇒ ກັບໄປ "ກຳລັງຕິດຕັ້ງ".
+ */
+const TABLE: Record<
+  Workflow,
+  { name: string; finishCol: string; returnedCol: string; model: string; sendBackSet: string }
+> = {
+  install: {
+    name: "ods_tb_install",
+    finishCol: "finish_install",
+    returnedCol: "job_finish",
+    model: "ods_tb_install",
+    sendBackSet: "finish_install = null",
+  },
+  repair: {
+    name: "tb_product",
+    finishCol: "time_finish_repair",
+    returnedCol: "return_complete",
+    model: "tb_product",
+    sendBackSet: "time_finish_repair = null, time_repair = null, qc_reject_at = localtimestamp(0)",
+  },
 };
 
 export type QcItem = {
@@ -107,7 +133,7 @@ export type SaveQcInput = {
 /**
  * ບັນທຶກຜົນ QC.
  * ຜ່ານທຸກຂໍ້ → stamp qc_finish ⇒ ງານໄປຂັ້ນຕໍ່ໄປ.
- * ຕົກຂໍ້ໃດຂໍ້ນຶ່ງ → ລ້າງຖັນ "ສຳເລັດ" ⇒ **ງານກັບໄປຫາຊ່າງ** ພ້ອມເຫດຜົນຢູ່ chatter.
+ * ຕົກຂໍ້ໃດຂໍ້ນຶ່ງ → **ງານກັບໄປຫາຊ່າງ** (ສ້ອມ = ຂັ້ນ 8 ລໍຖ້າສ້ອມແປງ) ພ້ອມເຫດຜົນຢູ່ chatter.
  */
 export async function saveQcFlow(session: Session, input: SaveQcInput): Promise<FlowResult> {
   const guard = await canQcJob(session, input.workflow, input.jobCode);
@@ -157,12 +183,13 @@ export async function saveQcFlow(session: Session, input: SaveQcInput): Promise<
 
     if (failed.length > 0) {
       /**
-       * ສົ່ງກັບໃຫ້ຊ່າງ — ລ້າງຖັນ "ສຳເລັດ" (qc_finish ຍັງເປັນ null ຢູ່ແລ້ວ).
+       * ສົ່ງກັບໃຫ້ຊ່າງ — ຂຽນຊຸດຖັນຂອງສາຍງານນັ້ນ (TABLE.sendBackSet; qc_finish ຍັງເປັນ
+       * null ຢູ່ແລ້ວ). ສ້ອມ ⇒ ຕົກຂັ້ນ 8 "ລໍຖ້າສ້ອມແປງ" · ຕິດຕັ້ງ ⇒ ກັບໄປ "ກຳລັງຕິດຕັ້ງ".
        * ດ່ານດຽວກັນກັບກິ່ງ "ຜ່ານ": ງານທີ່ **ສົ່ງຄືນລູກຄ້າໄປແລ້ວ** ຫ້າມແຕະ —
        * ບໍ່ດັ່ງນັ້ນ QC ຍ້ອນຫຼັງຈະລຶບເວລາເຮັດວຽກຈົບຖິ້ມ ໂດຍວຽກຍັງຄ້າງຂັ້ນ "ສົ່ງຄືນສຳເລັດ".
        */
       const sentBack = await client.query(
-        `update ${table.name} set ${table.finishCol} = null
+        `update ${table.name} set ${table.sendBackSet}
           where code = $1 and ${table.finishCol} is not null and ${table.returnedCol} is null ${installActive}`,
         [input.jobCode],
       );
