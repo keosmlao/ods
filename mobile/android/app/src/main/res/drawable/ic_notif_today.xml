@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ໄອຄອນແຈ້ງເຕືອນ (status bar) — ປະຕິທິນ = ນັດຂອງມື້ນີ້
+
+  ⚠️ Android **ບີບເປັນເງົາຂາວລ້ວນ** (ໃຊ້ແຕ່ alpha ສີຖືກຖິ້ມ) ⇒ ຮູບຫຼໍ່ທຶບ
+  ບໍ່ມີເສັ້ນບາງ/ພື້ນຫຼັງ. ຊື່ໄຟລ໌ຖືກສົ່ງມາຈາກ server (src/lib/push.ts iconFor)
+  ⇒ **ປ່ຽນຊື່ບໍ່ໄດ້** ຖ້າບໍ່ແກ້ສອງບ່ອນພ້ອມກັນ.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M19,4h-1V2h-2v2H8V2H6v2H5C3.9,4 3,4.9 3,6v14c0,1.1 0.9,2 2,2h14c1.1,0 2,-0.9 2,-2V6C21,4.9 20.1,4 19,4zM19,20H5V10h14V20z" />
+</vector>

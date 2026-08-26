@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ໄອຄອນແຈ້ງເຕືອນ (status bar) — ລູກສອນລົງ = ມີເວີຊັນໃໝ່ໃຫ້ອັບເດດ
+
+  ⚠️ Android **ບີບເປັນເງົາຂາວລ້ວນ** (ໃຊ້ແຕ່ alpha ສີຖືກຖິ້ມ) ⇒ ຮູບຫຼໍ່ທຶບ
+  ບໍ່ມີເສັ້ນບາງ/ພື້ນຫຼັງ. ຊື່ໄຟລ໌ຖືກສົ່ງມາຈາກ server (src/lib/push.ts iconFor)
+  ⇒ **ປ່ຽນຊື່ບໍ່ໄດ້** ຖ້າບໍ່ແກ້ສອງບ່ອນພ້ອມກັນ.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M19,9h-4V3H9v6H5l7,7 7,-7zM5,18v2h14v-2H5z" />
+</vector>

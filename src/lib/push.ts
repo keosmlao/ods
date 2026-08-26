@@ -250,6 +250,39 @@ function tagFor(channel: PushChannel, data?: Record<string, string>): string | u
 }
 
 /**
+ * **ໄອຄອນໃນ tray** — ຊື່ drawable ຂອງແອັບ (mobile/android/.../res/drawable/).
+ *
+ * ── ເປັນຫຍັງແຍກຮູບ (26-08-2026) ──
+ * ແຕ່ກ່ອນທຸກຂໍ້ຄວາມໃຊ້ຮູບກະແຈອັນດຽວ ⇒ ຢູ່ໃນ tray ທີ່ມີ 5-6 ແຖວ ຊ່າງແຍກບໍ່ອອກວ່າ
+ * ອັນໃດແມ່ນ "ມີງານມອບໃຫ້" ອັນໃດແມ່ນສະຫຼຸບ **ຈົນກວ່າຈະອ່ານຂໍ້ຄວາມ**. ຮູບແຍກ
+ * ເຮັດໃຫ້ຮູ້ໄດ້ດ້ວຍຫາງຕາ ໂດຍບໍ່ຕ້ອງອ່ານ.
+ *
+ * ⚠️ ຊື່ຕ້ອງມີຢູ່ຈິງໃນ drawable ຂອງແອັບ — ບໍ່ມີ = Android ຕົກໄປໃຊ້ຮູບແອັບ (ສີ່ຫຼ່ຽມຂາວ).
+ * ⚠️ ເຄື່ອງທີ່ຍັງເປັນແອັບເກົ່າ (ບໍ່ມີ drawable ໃໝ່) ຈະເຫັນສີ່ຫຼ່ຽມ — ແຕ່ດ່ານບັງຄັບ
+ *    ອັບເດດດັນຄົນຂຶ້ນເວີຊັນຫຼ້າສຸດຢູ່ແລ້ວ ຈຶ່ງເປັນຊ່ວງສັ້ນໆເທົ່ານັ້ນ.
+ */
+function iconFor(data?: Record<string, string>): string {
+  const kind = (data?.kind ?? data?.type ?? "").toLowerCase();
+  switch (kind) {
+    case "assign":
+      return "ic_notif_job";
+    case "comment":
+      return "ic_notif_chat";
+    case "digest":
+    case "log":
+      return "ic_notif_digest";
+    case "app_update":
+      return "ic_notif_update";
+    case "day_brief":
+      return "ic_notif_today";
+    case "sla":
+      return "ic_notif_sla";
+    default:
+      return "ic_notification"; // ກະແຈ ODIEN Service — ບໍ່ຮູ້ຈັກປະເພດ
+  }
+}
+
+/**
  * ສົ່ງແຈ້ງເຕືອນຫາທຸກເຄື່ອງຂອງຄົນນຶ່ງ.
  * FCM ຕອບ 404 (NOT_FOUND) ຫຼື 403 ເມື່ອ token ຕາຍ → ລຶບຖິ້ມທັນທີ
  * ບໍ່ດັ່ງນັ້ນຕາຕະລາງຈະເຕັມໄປດ້ວຍ token ຜີ ແລະ ທຸກການສົ່ງຈະຊ້າລົງເລື້ອຍໆ.
@@ -280,6 +313,7 @@ export async function pushToUser(
 
     const channel = channelFor(data);
     const collapse = tagFor(channel, data);
+    const icon = iconFor(data);
 
     await Promise.all(
       tokens.map(async ({ token }) => {
@@ -302,7 +336,7 @@ export async function pushToUser(
                     ...(collapse ? { tag: collapse } : {}),
                     // ສີ + ຮູບກະແຈ ⇒ ຂໍ້ຄວາມໃນ tray ເປັນຂອງ ODS ຈະແຈ້ງ (ມີ້ນ v6)
                     color: "#14B8A6",
-                    icon: "ic_notification",
+                    icon,
                     notification_priority: channel === "digest" ? "PRIORITY_LOW" : "PRIORITY_HIGH",
                   },
                 },

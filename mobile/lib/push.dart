@@ -68,6 +68,25 @@ class Push {
   /// ສີກະແຈໃນ tray — ມີ້ນ v6 (ຕ້ອງຕົງກັບ `color` ທີ່ server ສົ່ງມາ)
   static const _brand = Color(0xFF14B8A6);
 
+  /// **ໄອຄອນໃນ tray** — ຕ້ອງຕົງກັບ `iconFor` ຢູ່ server (lib/push.ts) ບໍ່ດັ່ງນັ້ນ
+  /// ຂໍ້ຄວາມອັນດຽວກັນຈະຄົນລະຮູບ ລະຫວ່າງຕອນເປີດແອັບຢູ່ (ອັນນີ້ແຕ້ມ) ກັບຕອນປິດ
+  /// (Android ແຕ້ມຈາກ payload ຂອງ server).
+  ///
+  /// ⚠️ ຊື່ຕ້ອງມີຢູ່ໃນ android/app/src/main/res/drawable/ ແລະ ຖືກກັນໄວ້ໃນ
+  /// res/raw/keep.xml — ບໍ່ດັ່ງນັ້ນ R8 ລຶບຖິ້ມ (ບໍ່ມີບ່ອນໃດອ້າງເປັນ R.drawable).
+  static String _iconFor(Map<String, dynamic> data) {
+    final kind = '${data['kind'] ?? data['type'] ?? ''}'.toLowerCase();
+    return switch (kind) {
+      'assign' => '@drawable/ic_notif_job',
+      'comment' => '@drawable/ic_notif_chat',
+      'digest' || 'log' => '@drawable/ic_notif_digest',
+      'app_update' => '@drawable/ic_notif_update',
+      'day_brief' => '@drawable/ic_notif_today',
+      'sla' => '@drawable/ic_notif_sla',
+      _ => '@drawable/ic_notification',
+    };
+  }
+
   /// ເລືອກຊ່ອງຈາກ payload — ຫຼັກການດຽວກັບ `channelFor` ຢູ່ server (lib/push.ts).
   /// ບໍ່ຮູ້ຈັກ ⇒ `jobs` (ດັງ): ຜິດພາດໄປທາງໃຫ້ຄົນເຫັນ ດີກວ່າມິດງຽບແລ້ວພາດງານ.
   static AndroidNotificationChannel _channelFor(Map<String, dynamic> data) {
@@ -169,8 +188,8 @@ class Push {
             tag: tag,
             playSound: !quiet,
             enableVibration: !quiet,
-            // ຮູບກະແຈ (ເງົາຂາວ) — ຕ້ອງຄືກັບ default_notification_icon ໃນ manifest
-            icon: '@drawable/ic_notification',
+            // ຮູບຕາມປະເພດ (ເງົາຂາວ) — ບໍ່ຮູ້ຈັກ ⇒ ກະແຈ ຄືກັບ default ໃນ manifest
+            icon: _iconFor(message.data),
             color: _brand,
           ),
           iOS: const DarwinNotificationDetails(),

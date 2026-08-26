@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ⚠️ ໄອຄອນແຈ້ງເຕືອນຖືກເລືອກດ້ວຍ **ຊື່ເປັນ string** (server ສົ່ງມາ / ໂຄດ Dart ພິມຊື່)
+  ບໍ່ມີບ່ອນໃດອ້າງເຖິງເປັນ R.drawable ⇒ ຕົວຫຍໍ້ຊັບພະຍາກອນຂອງ R8 ຈະ **ລຶບຖິ້ມ**
+  ແລ້ວແຈ້ງເຕືອນຈະບໍ່ມີຮູບ (ຫຼື ຄາເປັນສີ່ຫຼ່ຽມຂາວ). ແຖວນີ້ກັນມັນໄວ້.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_notification,@drawable/ic_notif_*" />
