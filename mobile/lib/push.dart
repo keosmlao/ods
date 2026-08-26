@@ -31,14 +31,55 @@ class Push {
 
   static final _local = FlutterLocalNotificationsPlugin();
 
-  /// ຊ່ອງແຈ້ງເຕືອນ — **ຕ້ອງຕົງກັບ `channel_id` ທີ່ server ສົ່ງມາ** (lib/push.ts = 'jobs')
+  /// ── ຊ່ອງແຈ້ງເຕືອນ — **ຕ້ອງຕົງກັບ `channel_id` ທີ່ server ສົ່ງມາ** (lib/push.ts) ──
   /// ບໍ່ດັ່ງນັ້ນ Android ຈະຕົກໄປໃຊ້ channel ຕັ້ງຕົ້ນ ແລະ ຄວາມສຳຄັນ/ສຽງບໍ່ຕາມທີ່ຕັ້ງ.
-  static const _channel = AndroidNotificationChannel(
+  ///
+  /// ແຍກ 3 ຊ່ອງ (26-08-2026) ເພື່ອໃຫ້ຊ່າງ**ປິດສະເພາະອັນທີ່ດັງເກີນ**ໄດ້ໃນຕັ້ງຄ່າຂອງ
+  /// ເຄື່ອງ ໂດຍທີ່ງານຂອງຕົນຍັງດັງຢູ່ — ແຕ່ກ່ອນມີຊ່ອງດຽວ ⇒ ຮຳຄານແລ້ວປິດໝົດ ⇒ ພາດງານ.
+  ///
+  /// ⚠️ ຊ່ອງ Android **ສ້າງແລ້ວແກ້ບໍ່ໄດ້** — ຜູ້ໃຊ້ເປັນເຈົ້າຂອງການຕັ້ງຄ່າ. ຈະປ່ຽນສຽງ
+  /// ຫຼື ຄວາມແຮງພາຍຫຼັງ ຕ້ອງໃຊ້ id ໃໝ່ (ຊ່ອງເກົ່າຕ້ອງລຶບຖິ້ມ ບໍ່ດັ່ງນັ້ນຄ້າງໃນຕັ້ງຄ່າ).
+  static const _jobs = AndroidNotificationChannel(
     'jobs',
-    'ງານທີ່ມອບໝາຍ',
-    description: 'ແຈ້ງເຕືອນເມື່ອມີງານໃໝ່ ຫຼື ງານມີການເຄື່ອນໄຫວ',
+    'ງານຂອງຂ້ອຍ',
+    description: 'ມີງານມອບໃຫ້ທ່ານ ຫຼື ມີຄົນເວົ້າເຖິງທ່ານໃນໃບງານ',
     importance: Importance.high,
   );
+
+  /// ສະຫຼຸບຄວາມເຄື່ອນໄຫວ — **ງຽບ**: ຂຶ້ນໃນ tray ແຕ່ບໍ່ສັ່ນ ບໍ່ມີສຽງ ບໍ່ປຸກຈໍ.
+  /// ວັດຈິງ 60,000–88,000 ແຖວ/ມື້ ທັງລະບົບ ⇒ ອັນນີ້ດັງບໍ່ໄດ້ເດັດຂາດ.
+  static const _digest = AndroidNotificationChannel(
+    'digest',
+    'ຄວາມເຄື່ອນໄຫວ (ສະຫຼຸບ)',
+    description: 'ສະຫຼຸບການເຄື່ອນໄຫວຂອງເອກະສານ — ບໍ່ມີສຽງ',
+    importance: Importance.low,
+  );
+
+  /// ເລື່ອງລະບົບທີ່ຕ້ອງຮູ້ — ນັດມື້ນີ້ · ໃກ້ຄົບ SLA · ມີເວີຊັນໃໝ່
+  static const _alert = AndroidNotificationChannel(
+    'alert',
+    'ເລື່ອງສຳຄັນ',
+    description: 'ນັດມື້ນີ້ · ໃກ້ຄົບກຳນົດ · ມີເວີຊັນໃໝ່ໃຫ້ອັບເດດ',
+    importance: Importance.high,
+  );
+
+  static const _channels = [_jobs, _digest, _alert];
+
+  /// ສີກະແຈໃນ tray — ມີ້ນ v6 (ຕ້ອງຕົງກັບ `color` ທີ່ server ສົ່ງມາ)
+  static const _brand = Color(0xFF14B8A6);
+
+  /// ເລືອກຊ່ອງຈາກ payload — ຫຼັກການດຽວກັບ `channelFor` ຢູ່ server (lib/push.ts).
+  /// ບໍ່ຮູ້ຈັກ ⇒ `jobs` (ດັງ): ຜິດພາດໄປທາງໃຫ້ຄົນເຫັນ ດີກວ່າມິດງຽບແລ້ວພາດງານ.
+  static AndroidNotificationChannel _channelFor(Map<String, dynamic> data) {
+    final forced = '${data['channel'] ?? ''}'.toLowerCase();
+    if (forced == 'digest') return _digest;
+    if (forced == 'alert') return _alert;
+    if (forced == 'jobs') return _jobs;
+    final kind = '${data['kind'] ?? data['type'] ?? ''}'.toLowerCase();
+    if (kind == 'digest' || kind == 'log') return _digest;
+    if (kind == 'app_update' || kind == 'day_brief' || kind == 'sla') return _alert;
+    return _jobs;
+  }
 
   static Future<void> init() async {
     try {
@@ -66,11 +107,13 @@ class Push {
           } catch (_) {}
         },
       );
-      await _local
+      final android = _local
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.createNotificationChannel(_channel);
+          >();
+      for (final channel in _channels) {
+        await android?.createNotificationChannel(channel);
+      }
 
       // ② ແອັບຖືກຂ້າ / ຢູ່ພື້ນຫຼັງ — ລະບົບຂຶ້ນເອງ
       FirebaseMessaging.onBackgroundMessage(_onBackgroundMessage);
@@ -103,20 +146,32 @@ class Push {
     final info = message.notification;
     if (info == null) return;
     try {
+      final channel = _channelFor(message.data);
+      final quiet = channel.id == _digest.id;
+      /*
+        `tag` = ອັນໃໝ່**ແທນ**ອັນເກົ່າ (ບໍ່ກອງເປັນຕັ້ງ) — ໃຊ້ກັບສະຫຼຸບ ແລະ ເລື່ອງລະບົບ
+        ທີ່ອັນລ່າສຸດອັນດຽວກໍ່ພຽງພໍ. ງານທີ່ມອບໃຫ້ **ບໍ່ໃສ່** tag: 2 ໃບຄື 2 ເລື່ອງ.
+        ຕ້ອງຕົງກັບ `tagFor` ຢູ່ server ບໍ່ດັ່ງນັ້ນ tray ຈະມີທັງອັນເກົ່າ ແລະ ອັນໃໝ່.
+      */
+      final tag = channel.id == _jobs.id ? null : channel.id;
       await _local.show(
-        id: message.hashCode,
+        // ໃຊ້ id ຄົງທີ່ຕໍ່ຊ່ອງສຳລັບອັນທີ່ມີ tag ⇒ ຕອນເປີດແອັບຢູ່ກໍ່ທັບອັນເກົ່າຄືກັນ
+        id: tag == null ? message.hashCode : channel.id.hashCode,
         title: info.title,
         body: info.body,
         notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
-            _channel.id,
-            _channel.name,
-            channelDescription: _channel.description,
-            importance: Importance.high,
-            priority: Priority.high,
+            channel.id,
+            channel.name,
+            channelDescription: channel.description,
+            importance: channel.importance,
+            priority: quiet ? Priority.low : Priority.high,
+            tag: tag,
+            playSound: !quiet,
+            enableVibration: !quiet,
             // ຮູບກະແຈ (ເງົາຂາວ) — ຕ້ອງຄືກັບ default_notification_icon ໃນ manifest
             icon: '@drawable/ic_notification',
-            color: const Color(0xFF0F766E),
+            color: _brand,
           ),
           iOS: const DarwinNotificationDetails(),
         ),

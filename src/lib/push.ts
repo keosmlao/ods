@@ -206,6 +206,50 @@ export async function digestPush(usernames: string[]): Promise<void> {
 }
 
 /**
+ * **ຊ່ອງແຈ້ງເຕືອນ (Android channel)** — ຕ້ອງຕົງກັບ `mobile/lib/push.dart`.
+ *
+ * ── ເປັນຫຍັງຕ້ອງມີຫຼາຍກວ່າ 1 ຊ່ອງ (26-08-2026) ──
+ * ແຕ່ກ່ອນທຸກຂໍ້ຄວາມຍິງເຂົ້າຊ່ອງດຽວ (`jobs`, ດັງແຮງ) ⇒ "ມີງານໃໝ່ມອບໃຫ້ທ່ານ" ກັບ
+ * "ມີການເຄື່ອນໄຫວ 37 ລາຍການ" ດັງເທົ່າກັນ. ຄົນທີ່ຮຳຄານສະຫຼຸບຈຶ່ງມີທາງເລືອກດຽວຄື
+ * **ປິດແຈ້ງເຕືອນຂອງແອັບທັງໝົດ** ແລ້ວກໍ່ພາດງານທີ່ມອບໃຫ້ໄປນຳ.
+ * ແຍກຊ່ອງແລ້ວ Android ໃຫ້ຄົນປິດ**ສະເພາະຊ່ອງທີ່ດັງເກີນ**ໄດ້ໃນຕັ້ງຄ່າຂອງເຄື່ອງ
+ * ໂດຍທີ່ງານຂອງຕົນຍັງດັງຢູ່.
+ *
+ * ⚠️ ຊ່ອງ Android **ສ້າງແລ້ວແກ້ບໍ່ໄດ້** — ຈະປ່ຽນສຽງ/ຄວາມແຮງຕ້ອງໃຊ້ id ໃໝ່.
+ */
+export type PushChannel = "jobs" | "digest" | "alert";
+
+/**
+ * ເລືອກຊ່ອງຈາກ `data.kind`/`data.type` ທີ່ຜູ້ເອີ້ນສົ່ງມາຢູ່ແລ້ວ.
+ * ບໍ່ຮູ້ຈັກ ⇒ `jobs` (ດັງ) — ຜິດພາດໄປທາງ**ໃຫ້ຄົນເຫັນ** ດີກວ່າມິດງຽບແລ້ວພາດງານ.
+ */
+function channelFor(data?: Record<string, string>): PushChannel {
+  /*
+    ຜູ້ເອີ້ນລະບຸເອງໄດ້ (`channel`) ແລະ **ຊະນະສະເໝີ** — ຈຳເປັນສຳລັບຂໍ້ຄວາມທີ່
+    ລະບຸຕົວຄົນໂດຍກົງ: ຄົນນັ້ນຖືກ**ເອີ້ນຫາຊື່** ⇒ ຕ້ອງດັງ ເຖິງວ່າ kind ຈະເປັນ `log`
+    ກໍ່ຕາມ (ບໍ່ດັ່ງນັ້ນ "ສາງເບີກອາໄຫຼ່ໃຫ້ແລ້ວ" ຈະງຽບໄປຢູ່ຊ່ອງສະຫຼຸບ).
+  */
+  const forced = (data?.channel ?? "").toLowerCase();
+  if (forced === "jobs" || forced === "digest" || forced === "alert") return forced;
+  const kind = (data?.kind ?? data?.type ?? "").toLowerCase();
+  if (kind === "digest" || kind === "log") return "digest";
+  if (kind === "app_update" || kind === "day_brief" || kind === "sla") return "alert";
+  return "jobs";
+}
+
+/**
+ * ຂໍ້ຄວາມທີ່ **ອັນໃໝ່ແທນອັນເກົ່າ** ໄດ້ ⇒ ໃສ່ `tag` ດຽວກັນ.
+ * ສະຫຼຸບ ("ມີການເຄື່ອນໄຫວ 37 ລາຍການ") ທຸກ 15 ນາທີ ຖ້າບໍ່ໃສ່ tag ຈະກອງກັນເປັນ
+ * ຕັ້ງຢູ່ໃນ tray ທັງທີ່ອັນລ່າສຸດອັນດຽວກໍ່ພຽງພໍ — ຄືກັນກັບ "ມີເວີຊັນໃໝ່".
+ * ສ່ວນ `jobs` **ບໍ່ໃສ່** — ງານ 2 ໃບຄື 2 ເລື່ອງ ບໍ່ຄວນທັບກັນ.
+ */
+function tagFor(channel: PushChannel, data?: Record<string, string>): string | undefined {
+  if (channel === "digest") return "digest";
+  if (channel === "alert") return (data?.kind ?? data?.type ?? "alert").toLowerCase();
+  return undefined;
+}
+
+/**
  * ສົ່ງແຈ້ງເຕືອນຫາທຸກເຄື່ອງຂອງຄົນນຶ່ງ.
  * FCM ຕອບ 404 (NOT_FOUND) ຫຼື 403 ເມື່ອ token ຕາຍ → ລຶບຖິ້ມທັນທີ
  * ບໍ່ດັ່ງນັ້ນຕາຕະລາງຈະເຕັມໄປດ້ວຍ token ຜີ ແລະ ທຸກການສົ່ງຈະຊ້າລົງເລື້ອຍໆ.
@@ -234,6 +278,9 @@ export async function pushToUser(
     const bearer = await accessToken();
     if (!bearer) return;
 
+    const channel = channelFor(data);
+    const collapse = tagFor(channel, data);
+
     await Promise.all(
       tokens.map(async ({ token }) => {
         const response = await fetch(
@@ -246,7 +293,19 @@ export async function pushToUser(
                 token,
                 notification: { title, body },
                 data: data ?? {},
-                android: { priority: "HIGH", notification: { channel_id: "jobs" } },
+                android: {
+                  // ສະຫຼຸບບໍ່ຮີບ ⇒ NORMAL: ບໍ່ປຸກເຄື່ອງທີ່ນອນຢູ່ (ປະຢັດແບັດ ແລະ ບໍ່ລົບກວນ)
+                  priority: channel === "digest" ? "NORMAL" : "HIGH",
+                  ...(collapse ? { collapse_key: collapse } : {}),
+                  notification: {
+                    channel_id: channel,
+                    ...(collapse ? { tag: collapse } : {}),
+                    // ສີ + ຮູບກະແຈ ⇒ ຂໍ້ຄວາມໃນ tray ເປັນຂອງ ODS ຈະແຈ້ງ (ມີ້ນ v6)
+                    color: "#14B8A6",
+                    icon: "ic_notification",
+                    notification_priority: channel === "digest" ? "PRIORITY_LOW" : "PRIORITY_HIGH",
+                  },
+                },
               },
             }),
           },

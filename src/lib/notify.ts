@@ -287,7 +287,10 @@ export async function notify(
       const where =
         model === "ods_tb_install" ? "ງານຕິດຕັ້ງ" : model === "ods_tb_maintenance" ? "ງານບຳລຸງຮັກສາ" : "ໃບງານ";
       await Promise.all([
-        ...direct.map((name) => pushToUser(name, body.slice(0, 80), `${where} ${resId}`, { model, resId })),
+        // `channel: "jobs"` = ດັງແນ່ນອນ — ຄົນນີ້ຖືກລະບຸຊື່ ບໍ່ແມ່ນໄດ້ຮັບຍ້ອນເປັນ role
+        ...direct.map((name) =>
+          pushToUser(name, body.slice(0, 80), `${where} ${resId}`, { model, resId, kind, channel: "jobs" }),
+        ),
         digestPush(broadcast),
       ]);
     } catch (error) {

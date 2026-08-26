@@ -823,19 +823,22 @@ class Api {
   /* ── ແຈ້ງເຕືອນ (ຕາຕະລາງດຽວກັບເວັບ) ───────────────────────────── */
 
   /// [before] = id ຂອງແຖວສຸດທ້າຍທີ່ມີຢູ່ແລ້ວ ⇒ ໂຫຼດຕໍ່ (0 = ໜ້າທຳອິດ)
-  static Future<(List<AppNotification>, int)> notifications({
+  /// `group`: `todo` = ເລື່ອງທີ່ຮຽກຫາຂ້ອຍ · `activity` = ບັນທຶກປະຫວັດ · `all` = ໝົດ.
+  /// ຄືນ (ລາຍການ, ຍັງບໍ່ອ່ານທັງໝົດ, ຍັງບໍ່ອ່ານສະເພາະຝ່າຍ "ຕ້ອງເຮັດ").
+  static Future<(List<AppNotification>, int, int)> notifications({
     bool unreadOnly = true,
+    String group = 'todo',
     int before = 0,
   }) async {
     final result = await _send(
       'GET',
-      '/api/mobile/notifications?tab=${unreadOnly ? 'unread' : 'all'}'
+      '/api/mobile/notifications?tab=${unreadOnly ? 'unread' : 'all'}&group=$group'
       '${before > 0 ? '&before=$before' : ''}',
     );
     final rows = ((result['data'] as List?) ?? const [])
         .map((row) => AppNotification.fromJson(row as Map<String, dynamic>))
         .toList();
-    return (rows, _asInt(result['unread']));
+    return (rows, _asInt(result['unread']), _asInt(result['unread_todo']));
   }
 
   static Future<void> markNotificationRead({int? id, bool all = false}) =>
@@ -2420,6 +2423,19 @@ class AppNotification {
   final String model;
   final String resId;
 
+  /// `assign` (ມອບງານໃຫ້ຂ້ອຍ) · `comment` (ມີຄົນເວົ້າເຖິງ) · `log` (ບັນທຶກປະຫວັດ).
+  ///
+  /// ⚠️ ແຕ່ກ່ອນ **ຖິ້ມຖັນນີ້**: server ສົ່ງມາຢູ່ແລ້ວ ແຕ່ແອັບບໍ່ໄດ້ອ່ານ ແລ້ວໄປ**ເດົາ
+  /// ປະເພດຈາກຄຳໃນຂໍ້ຄວາມ**ແທນ (`body.contains('ແລ້ວ')` …) ⇒ ຮູບ/ສີຜິດເລື້ອຍ
+  /// ເພາະຄຳວ່າ "ແລ້ວ · ເລີຍ" ມີຢູ່ໃນເກືອບທຸກປະໂຫຍກລາວ.
+  final String kind;
+
+  /// ອາຍຸເປັນວິນາທີ ແລະ ຈຳນວນມື້ຜ່ານມາ — **ຄິດມາຈາກຖານ** ບໍ່ແມ່ນຄິດຢູ່ແອັບ,
+  /// ເພາະເສີບເວີເປັນ UTC ແຕ່ມືຖືເປັນ ICT ⇒ ຄິດເອງຈະຜິດ 7 ຊົ່ວໂມງ.
+  /// `createdAt` ຍັງເປັນຂໍ້ຄວາມພ້ອມສະແດງ (DD-MM-YYYY HH:MM) ຄືເກົ່າ.
+  final int ageSeconds;
+  final int dayOffset;
+
   AppNotification({
     required this.id,
     required this.body,
@@ -2428,6 +2444,9 @@ class AppNotification {
     required this.read,
     required this.model,
     required this.resId,
+    this.kind = 'log',
+    this.ageSeconds = 0,
+    this.dayOffset = 0,
   });
 
   factory AppNotification.fromJson(Map<String, dynamic> json) =>
@@ -2440,7 +2459,31 @@ class AppNotification {
         read: json['read'] == true || json['read']?.toString() == 'true',
         model: json['model']?.toString() ?? '',
         resId: json['res_id']?.toString() ?? '',
+        kind: json['kind']?.toString() ?? 'log',
+        ageSeconds: _asInt(json['age_seconds']),
+        dayOffset: _asInt(json['day_offset']),
       );
+
+  /// "ມີຄົນຮຽກຫາຂ້ອຍ" — ບໍ່ແມ່ນບັນທຶກປະຫວັດລ້າໆ
+  bool get actionable => kind != 'log';
+
+  /// ຫົວກຸ່ມຕາມມື້ — ຈາກ `dayOffset` ທີ່ຖານຄິດໃຫ້ (ບໍ່ແມ່ນທຽບກັບໂມງມືຖື)
+  String get dayLabel => switch (dayOffset) {
+    <= 0 => 'ມື້ນີ້',
+    1 => 'ວານນີ້',
+    < 7 => '$dayOffset ມື້ກ່ອນ',
+    _ => createdAt.split(' ').first,
+  };
+
+  /// "ຫາກໍ່" · "15 ນາທີກ່ອນ" · "3 ຊົ່ວໂມງກ່ອນ" · "2 ມື້ກ່ອນ"
+  String get ago {
+    if (ageSeconds < 60) return 'ຫາກໍ່';
+    final minutes = ageSeconds ~/ 60;
+    if (minutes < 60) return '$minutes ນາທີກ່ອນ';
+    final hours = minutes ~/ 60;
+    if (hours < 24) return '$hours ຊົ່ວໂມງກ່ອນ';
+    return '${hours ~/ 24} ມື້ກ່ອນ';
+  }
 }
 
 /// ອາໄຫຼ່ທີ່ **ຢູ່ນຳຊ່າງ** (ເບີກອອກແລ້ວ ຍັງບໍ່ໄດ້ຂໍສົ່ງຄືນ)
