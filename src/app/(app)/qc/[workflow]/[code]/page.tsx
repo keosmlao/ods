@@ -1,4 +1,4 @@
-import { canQc, qcChecklist } from "@/app/actions/qc";
+import { canQc, qcChecklist, qcRoundHistory } from "@/app/actions/qc";
 import { jobPhotos } from "@/lib/job-flow";
 import { Card, Empty, ErrorBox, PageTitle } from "@/components/ui";
 import type { Workflow } from "@/lib/commission";
@@ -34,7 +34,12 @@ export default async function QcJobPage({ params }: Props) {
 
   if (!(await canQc(workflow, code))) redirect("/forbidden");
 
-  const [items, photos] = await Promise.all([qcChecklist(workflow, code), jobPhotos(workflow, code)]);
+  const [items, photos, rounds] = await Promise.all([
+    qcChecklist(workflow, code),
+    jobPhotos(workflow, code),
+    // ຮອບກ່ອນໜ້າທີ່ຖືກສົ່ງກັບ — ຜູ້ກວດຮອບນີ້ຕ້ອງຮູ້ວ່າຮອບກ່ອນຕົກຍ້ອນຫຍັງ
+    qcRoundHistory(workflow, code),
+  ]);
 
   return (
     <div className="space-y-5">
@@ -52,6 +57,32 @@ export default async function QcJobPage({ params }: Props) {
           <Field label={t.finishedAt} value={job.finished_at} />
         </dl>
       </Card>
+
+      {/* ປະຫວັດຮອບທີ່ QC ຕີກັບ — ບໍ່ມີ = ງານນີ້ຫາກໍ່ເຂົ້າ QC ຮອບທຳອິດ */}
+      {rounds.length > 0 && (
+        <Card title={`${t.previousRounds} (${rounds.length})`}>
+          <ul className="space-y-2 text-sm">
+            {rounds.map((round) => (
+              <li key={round.round} className="rounded-lg border border-slate-200 p-3">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-semibold text-slate-700">
+                  <span>
+                    {t.roundLabel} {round.round}
+                  </span>
+                  <span className="text-slate-400">·</span>
+                  <span className="font-normal text-slate-500">
+                    {t.roundWorked} {round.worker ?? "-"} · {round.started_at ?? "-"} → {round.finished_at ?? "-"}
+                  </span>
+                </div>
+                <div className="mt-1 text-slate-500">
+                  {t.roundRejected} {round.rejected_by} · {round.rejected_at} · {t.roundFailedCount}{" "}
+                  {round.failed}/{round.checked}
+                </div>
+                {round.reason && <div className="mt-1 text-brand-orange-700">{round.reason}</div>}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {/* ຮູບຜົນງານທີ່ຊ່າງຖ່າຍໄວ້ຕອນຈົບງານ — ຜູ້ກວດຕ້ອງເຫັນ ບໍ່ດັ່ງນັ້ນກວດຈາກຄວາມຊົງຈຳ */}
       {photos.length > 0 && (

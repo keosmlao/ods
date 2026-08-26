@@ -4754,7 +4754,12 @@
     "photosFromTech": "ຮູບຜົນງານຈາກຊ່າງ",
     "checklistTitle": "ລາຍການທີ່ຕ້ອງກວດ",
     "noChecklist": "ຍັງບໍ່ໄດ້ຕັ້ງລາຍການກວດຮັບຂອງສາຍງານນີ້ — ຜ່ານ QC ບໍ່ໄດ້ຈົນກວ່າຜູ້ຈັດການຈະຕັ້ງລາຍການໃຫ້ກ່ອນ.",
-    "goToChecklistSetup": "ໄປໜ້າຕັ້ງລາຍການກວດຮັບ"
+    "goToChecklistSetup": "ໄປໜ້າຕັ້ງລາຍການກວດຮັບ",
+    "previousRounds": "ຮອບກ່ອນໜ້າ — QC ສົ່ງກັບ",
+    "roundLabel": "ຮອບ",
+    "roundWorked": "ເຮັດໂດຍ",
+    "roundRejected": "ສົ່ງກັບໂດຍ",
+    "roundFailedCount": "ຕົກ"
   },
   "installDispatch": {
     "pageTitle": "ເບີກອາໄຫຼ່ອອກຈາກສາງ",

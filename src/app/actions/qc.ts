@@ -3,7 +3,16 @@ import { logChange } from "@/lib/chatter-log";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Workflow } from "@/lib/commission";
-import { canQcJob, qcChecklistFor, qcWorkflowsFor, saveQcFlow, type QcAnswer, type QcItem } from "@/lib/qc-flow";
+import {
+  canQcJob,
+  qcChecklistFor,
+  qcRounds,
+  qcWorkflowsFor,
+  saveQcFlow,
+  type QcAnswer,
+  type QcItem,
+  type QcRoundRow,
+} from "@/lib/qc-flow";
 import { roleOf } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -40,6 +49,12 @@ export async function qcWorkflows(): Promise<Workflow[]> {
 export async function qcChecklist(workflow: Workflow, jobCode: string): Promise<QcItem[]> {
   if (!(await getSession())) return [];
   return qcChecklistFor(workflow, jobCode);
+}
+
+/** ຮອບກ່ອນໜ້າທີ່ QC ສົ່ງກັບ — ຜູ້ກວດຮອບນີ້ຕ້ອງເຫັນວ່າຮອບກ່ອນຕົກຍ້ອນຫຍັງ */
+export async function qcRoundHistory(workflow: Workflow, jobCode: string): Promise<QcRoundRow[]> {
+  if (!(await getSession())) return [];
+  return qcRounds(workflow, jobCode);
 }
 
 const saveSchema = z.object({

@@ -47,3 +47,41 @@ test("ຝັ່ງຕິດຕັ້ງບໍ່ຖືກແຕະ — ຍັງ
   assert.match(installSendBack, /finish_install = null/);
   assert.doesNotMatch(installSendBack, /qc_reject_at/);
 });
+
+/* ── ຕົກ QC ແລ້ວປະຫວັດຕ້ອງບໍ່ຫາຍ (26-08-2026 ຕາມຄຳສັ່ງ) ──────────────────── */
+
+const qcFlow = src("qc-flow.ts");
+
+test("ເກັບປະຫວັດຮອບ **ກ່ອນ** ລ້າງຖັນ — ບໍ່ດັ່ງນັ້ນອ່ານໄດ້ແຕ່ null", () => {
+  const archive = qcFlow.indexOf("insert into ods_qc_round");
+  const clear = qcFlow.indexOf("set ${table.sendBackSet}");
+  assert.ok(archive > 0 && clear > 0, "ຕ້ອງມີທັງການເກັບປະຫວັດ ແລະ ການລ້າງຖັນ");
+  assert.ok(archive < clear, "insert ods_qc_round ຕ້ອງມາກ່ອນ update ທີ່ລ້າງຖັນ");
+});
+
+test("ທຸກຖັນທີ່ QC ລ້າງ ຖືກເກັບເຂົ້າປະຫວັດກ່ອນ", () => {
+  const archive = qcFlow.slice(
+    qcFlow.indexOf("insert into ods_qc_round"),
+    qcFlow.indexOf("set ${table.sendBackSet}"),
+  );
+  // ຖັນທີ່ຖືກລ້າງ = ຖັນທີ່ຕ້ອງມີບ່ອນເກັບ (qc_reject_at ເປັນຖັນໃໝ່ ບໍ່ແມ່ນຂໍ້ມູນທີ່ຫາຍ)
+  const cleared = repairSendBack
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.endsWith("= null"))
+    .map((part) => part.replace(" = null", ""));
+  assert.deepEqual(cleared, ["time_finish_repair", "time_repair"]);
+  assert.ok(archive.includes("${table.startCol}"), "ຕ້ອງເກັບເວລາເລີ່ມ");
+  assert.ok(archive.includes("${table.finishCol}"), "ຕ້ອງເກັບເວລາຈົບ");
+  assert.ok(archive.includes("${table.workerCol}"), "ຕ້ອງເກັບວ່າໃຜເຮັດ");
+  assert.match(qcFlow, /startCol: "time_repair"/);
+  assert.match(qcFlow, /finishCol: "time_finish_repair"/);
+});
+
+test("ຄຳຕອບ QC ຜູກກັບຮອບ ⇒ ຮອບໃໝ່ບໍ່ຂຽນທັບຮອບເກົ່າ", () => {
+  assert.match(qcFlow, /insert into ods_qc_result\(workflow, job_code, round, item_id/);
+  assert.match(qcFlow, /on conflict \(workflow, job_code, round, item_id\)/);
+  // ອ່ານຄືນກໍ່ຕ້ອງກອງຕາມຮອບ ບໍ່ດັ່ງນັ້ນຄຳຕອບເກົ່າຈະເດັ້ງມາເປັນຄ່າຕັ້ງຕົ້ນຂອງຮອບໃໝ່
+  assert.match(qcFlow, /r\.round = \$4/);
+  assert.match(src("qc.ts"), /r\.round = 1 \+ \(select count\(\*\) from ods_qc_round/);
+});

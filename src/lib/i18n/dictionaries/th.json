@@ -4754,7 +4754,12 @@
     "photosFromTech": "รูปผลงานจากช่าง",
     "checklistTitle": "รายการที่ต้องตรวจ",
     "noChecklist": "ยังไม่ได้ตั้งรายการตรวจรับของสายงานนี้ — ผ่าน QC ไม่ได้จนกว่าผู้จัดการจะตั้งรายการให้ก่อน",
-    "goToChecklistSetup": "ไปหน้าตั้งรายการตรวจรับ"
+    "goToChecklistSetup": "ไปหน้าตั้งรายการตรวจรับ",
+    "previousRounds": "รอบก่อนหน้า — QC ตีกลับ",
+    "roundLabel": "รอบ",
+    "roundWorked": "ทำโดย",
+    "roundRejected": "ตีกลับโดย",
+    "roundFailedCount": "ไม่ผ่าน"
   },
   "installDispatch": {
     "pageTitle": "เบิกอะไหล่ออกจากคลัง",

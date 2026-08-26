@@ -4754,7 +4754,12 @@
     "photosFromTech": "Work photos from technician",
     "checklistTitle": "Items to check",
     "noChecklist": "The checklist for this workflow has not been set up yet — QC cannot be passed until a manager sets up the items first.",
-    "goToChecklistSetup": "Go to checklist setup page"
+    "goToChecklistSetup": "Go to checklist setup page",
+    "previousRounds": "Previous rounds — sent back by QC",
+    "roundLabel": "Round",
+    "roundWorked": "Worked by",
+    "roundRejected": "Sent back by",
+    "roundFailedCount": "Failed"
   },
   "installDispatch": {
     "pageTitle": "Dispatch Spare Parts from Warehouse",

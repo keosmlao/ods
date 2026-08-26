@@ -26,8 +26,16 @@ export type QcQueueRow = {
   checked: number;
 };
 
+/**
+ * ກວດໄປແລ້ວຈັກຂໍ້ — **ຮອບປັດຈຸບັນເທົ່ານັ້ນ** (ຮອບ = ຈຳນວນເທື່ອທີ່ຖືກສົ່ງກັບ + 1,
+ * ນິຍາມດຽວກັບ qcRound ໃນ lib/qc-flow). ນັບທຸກຮອບຮວມກັນ ⇒ ງານທີ່ຖືກສົ່ງກັບມາຈະຂຶ້ນ
+ * "ກວດແລ້ວ 8/8" ທັງທີ່ຮອບໃໝ່ຍັງບໍ່ໄດ້ກວດຈັກຂໍ້.
+ */
 const CHECKED_SQL = (workflow: Workflow) =>
-  `(select count(*)::int from ods_qc_result r where r.workflow = '${workflow}' and r.job_code = a.code)`;
+  `(select count(*)::int from ods_qc_result r
+     where r.workflow = '${workflow}' and r.job_code = a.code
+       and r.round = 1 + (select count(*) from ods_qc_round q
+                           where q.workflow = '${workflow}' and q.job_code = a.code))`;
 
 /** ຄິວ QC — ໃສ່ `code` ເພື່ອເອົາງານດຽວ (ຄືນແຖວຫວ່າງ ຖ້າງານນັ້ນອອກຈາກຂັ້ນ QC ໄປແລ້ວ) */
 export async function qcQueue(workflow: Workflow, code?: string): Promise<QcQueueRow[]> {

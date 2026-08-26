@@ -34,7 +34,16 @@ export const MAX_PHOTO_CHARS = 400_000;
  */
 const TABLE: Record<
   Workflow,
-  { name: string; finishCol: string; returnedCol: string; model: string; sendBackSet: string }
+  {
+    name: string;
+    finishCol: string;
+    returnedCol: string;
+    model: string;
+    sendBackSet: string;
+    /** ຄົນທີ່ເຮັດງານ · ເວລາເລີ່ມ — ເກັບເຂົ້າ ods_qc_round ກ່ອນຖັນຖືກລ້າງ */
+    workerCol: string;
+    startCol: string;
+  }
 > = {
   install: {
     name: "ods_tb_install",
@@ -42,6 +51,8 @@ const TABLE: Record<
     returnedCol: "job_finish",
     model: "ods_tb_install",
     sendBackSet: "finish_install = null",
+    workerCol: "tech_code",
+    startCol: "start_install",
   },
   repair: {
     name: "tb_product",
@@ -49,8 +60,25 @@ const TABLE: Record<
     returnedCol: "return_complete",
     model: "tb_product",
     sendBackSet: "time_finish_repair = null, time_repair = null, qc_reject_at = localtimestamp(0)",
+    workerCol: "emp_code",
+    startCol: "time_repair",
   },
 };
+
+/**
+ * ── ຮອບປັດຈຸບັນ (26-08-2026 ຕາມຄຳສັ່ງ "ຕ້ອງເກັບປະຫວັດທຸກຢ່າງ") ──
+ * ຮອບ = ຈຳນວນເທື່ອທີ່ QC **ສົ່ງງານກັບ** ໄປແລ້ວ + 1 (ຍັງບໍ່ເຄີຍຖືກສົ່ງກັບ = ຮອບ 1).
+ *
+ * ເປັນຫຍັງບໍ່ເກັບເປັນຖັນໃນໃບງານ: ຮອບ **ອະນຸມານໄດ້ຈາກປະຫວັດ** (ods_qc_round) ຢູ່ແລ້ວ
+ * ⇒ ຖັນເພີ່ມມີແຕ່ຈະຫຼົ້ນກັບປະຫວັດເມື່ອບ່ອນໃດບ່ອນນຶ່ງລືມອັບເດດ.
+ */
+export async function qcRound(workflow: Workflow, jobCode: string): Promise<number> {
+  const row = await query<{ n: number }>(
+    "select count(*)::int as n from ods_qc_round where workflow = $1 and job_code = $2",
+    [workflow, jobCode],
+  );
+  return (row.rows[0]?.n ?? 0) + 1;
+}
 
 export type QcItem = {
   id: number;
@@ -67,6 +95,39 @@ export type QcAnswer = { item_id: number; passed: boolean; note: string; photo: 
 export async function qcWorkflowsFor(role: Role): Promise<Workflow[]> {
   const rows = await query<{ workflow: Workflow }>("select workflow from ods_qc_role where role = $1", [role]);
   return rows.rows.map((row) => row.workflow);
+}
+
+/**
+ * ── ປະຫວັດຮອບທີ່ **ຖືກ QC ສົ່ງກັບ** (ods_qc_round) ──
+ * ຮອບທີ່ຜ່ານບໍ່ຢູ່ໃນນີ້ — ເວລາຂອງມັນຍັງນອນຢູ່ໃນໃບງານຄືເກົ່າ. ອັນນີ້ຄືສິ່ງທີ່
+ * **ຈະຫາຍໄປ** ຖ້າບໍ່ເກັບ: ຮອບ 1 ໃຜເຮັດ · ແຕ່ໃສຫາໃສ · ຕົກຍ້ອນຫຍັງ.
+ */
+export type QcRoundRow = {
+  round: number;
+  worker: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  rejected_at: string;
+  rejected_by: string;
+  failed: number;
+  checked: number;
+  reason: string | null;
+};
+
+export async function qcRounds(workflow: Workflow, jobCode: string): Promise<QcRoundRow[]> {
+  return (
+    await query<QcRoundRow>(
+      `select round, worker,
+          to_char(started_at,'DD-MM-YYYY HH24:MI') as started_at,
+          to_char(finished_at,'DD-MM-YYYY HH24:MI') as finished_at,
+          to_char(rejected_at,'DD-MM-YYYY HH24:MI') as rejected_at,
+          rejected_by, failed, checked, reason
+         from ods_qc_round
+        where workflow = $1 and job_code = $2
+        order by round`,
+      [workflow, jobCode],
+    )
+  ).rows;
 }
 
 /** ກວດ QC ງານນີ້ໄດ້ບໍ — role ຢູ່ໃນ ods_qc_role **ແລະ** ບໍ່ແມ່ນຄົນເຮັດງານນັ້ນເອງ */
@@ -107,16 +168,22 @@ export async function qcChecklistFor(workflow: Workflow, jobCode: string): Promi
     category = erp.rows[0]?.item_category ?? null;
   }
 
+  /**
+   * ຄຳຕອບທີ່ເອົາມາໃສ່ໃຫ້ = **ຮອບປັດຈຸບັນ** ເທົ່ານັ້ນ. ຮອບກ່ອນໜ້າ (ທີ່ຖືກສົ່ງກັບ)
+   * ຍັງນອນຢູ່ໃນຕາຕະລາງເປັນປະຫວັດ ແຕ່ບໍ່ຄວນເດັ້ງມາເປັນຄຳຕອບຕັ້ງຕົ້ນ — ຮອບໃໝ່
+   * ຄືການກວດໃໝ່ ບໍ່ແມ່ນການແກ້ຄຳຕອບເກົ່າ.
+   */
+  const round = await qcRound(workflow, jobCode);
   return (
     await query<QcItem>(
       `select i.id, i.name, i.require_photo, r.passed, r.note, r.photo
          from ods_qc_item i
          left join ods_qc_result r
-           on r.item_id = i.id and r.workflow = $1 and r.job_code = $2
+           on r.item_id = i.id and r.workflow = $1 and r.job_code = $2 and r.round = $4
         where i.workflow = $1 and i.is_active
           and (i.category_code is null or i.category_code = $3)
         order by i.sort_order, i.id`,
-      [workflow, jobCode, category],
+      [workflow, jobCode, category, round],
     )
   ).rows;
 }
@@ -155,18 +222,37 @@ export async function saveQcFlow(session: Session, input: SaveQcInput): Promise<
   if (input.answers.length !== items.length) return { ok: false, error: "ຕ້ອງກວດໃຫ້ຄົບທຸກຂໍ້" };
 
   const failed = input.answers.filter((answer) => !answer.passed);
+  // ຄິດກ່ອນເປີດ transaction — ຂໍ້ຄວາມນີ້ໄປທັງ ods_qc_round (ປະຫວັດ) ແລະ chatter
+  const reasons = failed
+    .map((answer) => `${itemById.get(answer.item_id)?.name}${answer.note ? ` (${answer.note})` : ""}`)
+    .join(" · ");
   const table = TABLE[input.workflow];
   const installActive = input.workflow === "install" ? "and cancel_date is null and complain_finish is null" : "";
 
   const client = await db.connect();
+  let savedRound = 1;
   try {
     await client.query("begin");
 
+    /**
+     * ຮອບຄິດໃນ transaction (ບໍ່ແມ່ນເອົາຄ່າທີ່ອ່ານໄວ້ກ່ອນໜ້າ) ⇒ ສອງຄົນກົດພ້ອມກັນ
+     * ຄົນນຶ່ງຈະຕົກ unique (workflow, job_code, round) ຂອງ ods_qc_round ແລ້ວ rollback
+     * ບໍ່ແມ່ນຂຽນທັບກັນງຽບໆ.
+     */
+    const round =
+      ((
+        await client.query<{ n: number }>(
+          "select count(*)::int as n from ods_qc_round where workflow = $1 and job_code = $2",
+          [input.workflow, input.jobCode],
+        )
+      ).rows[0]?.n ?? 0) + 1;
+    savedRound = round;
+
     for (const answer of input.answers) {
       await client.query(
-        `insert into ods_qc_result(workflow, job_code, item_id, passed, note, photo, checked_by)
-         values($1,$2,$3,$4,nullif($5,''),nullif($6,''),$7)
-         on conflict (workflow, job_code, item_id) do update
+        `insert into ods_qc_result(workflow, job_code, round, item_id, passed, note, photo, checked_by)
+         values($1,$2,$8,$3,$4,nullif($5,''),nullif($6,''),$7)
+         on conflict (workflow, job_code, round, item_id) do update
             set passed = excluded.passed, note = excluded.note, photo = excluded.photo,
                 checked_by = excluded.checked_by, checked_at = localtimestamp(0)`,
         [
@@ -177,17 +263,39 @@ export async function saveQcFlow(session: Session, input: SaveQcInput): Promise<
           answer.note ?? "",
           answer.photo ?? "",
           session.username,
+          round,
         ],
       );
     }
 
     if (failed.length > 0) {
       /**
-       * ສົ່ງກັບໃຫ້ຊ່າງ — ຂຽນຊຸດຖັນຂອງສາຍງານນັ້ນ (TABLE.sendBackSet; qc_finish ຍັງເປັນ
-       * null ຢູ່ແລ້ວ). ສ້ອມ ⇒ ຕົກຂັ້ນ 8 "ລໍຖ້າສ້ອມແປງ" · ຕິດຕັ້ງ ⇒ ກັບໄປ "ກຳລັງຕິດຕັ້ງ".
+       * ── ① ເກັບປະຫວັດຮອບນີ້ **ກ່ອນ** ລ້າງຖັນ (26-08-2026 ຕາມຄຳສັ່ງ) ──
+       * ຖັນເວລາທີ່ກຳລັງຈະຖືກລ້າງ (ໃຜເຮັດ · ເລີ່ມ · ຈົບ) ຄື **ຫຼັກຖານດຽວ** ຂອງຮອບນັ້ນ —
+       * ລ້າງໄປແລ້ວກູ້ບໍ່ໄດ້ ແລະ ລາຍງານຈະນັບຄືກັບວ່າຮອບນັ້ນບໍ່ເຄີຍເກີດ. ຢູ່ transaction
+       * ດຽວກັນກັບການລ້າງ ⇒ ບໍ່ມີຊ່ອງທີ່ "ລ້າງແລ້ວແຕ່ບໍ່ໄດ້ເກັບ".
+       * ເງື່ອນໄຂ where ຕົງກັບ update ຂ້າງລຸ່ມ ⇒ ງານທີ່ແຕະບໍ່ໄດ້ ກໍ່ບໍ່ມີແຖວປະຫວັດຫຼອກ.
+       */
+      await client.query(
+        `insert into ods_qc_round
+            (workflow, job_code, round, worker, started_at, finished_at, rejected_by, failed, checked, reason)
+         select $1::varchar, $2::varchar, $3::int, nullif(a.${table.workerCol},''),
+                a.${table.startCol}, a.${table.finishCol},
+                $4::varchar, $5::int, $6::int, nullif($7,'')
+           from ${table.name} a
+          where a.code = $2::varchar and a.${table.finishCol} is not null
+            and a.${table.returnedCol} is null ${installActive}`,
+        [input.workflow, input.jobCode, round, session.username, failed.length, input.answers.length, reasons],
+      );
+
+      /**
+       * ── ② ສົ່ງກັບໃຫ້ຊ່າງ — ຂຽນຊຸດຖັນຂອງສາຍງານນັ້ນ (TABLE.sendBackSet) ──
+       * qc_finish ຍັງເປັນ null ຢູ່ແລ້ວ. ສ້ອມ ⇒ ຕົກຂັ້ນ 8 "ລໍຖ້າສ້ອມແປງ" ·
+       * ຕິດຕັ້ງ ⇒ ກັບໄປ "ກຳລັງຕິດຕັ້ງ".
        * ດ່ານດຽວກັນກັບກິ່ງ "ຜ່ານ": ງານທີ່ **ສົ່ງຄືນລູກຄ້າໄປແລ້ວ** ຫ້າມແຕະ —
        * ບໍ່ດັ່ງນັ້ນ QC ຍ້ອນຫຼັງຈະລຶບເວລາເຮັດວຽກຈົບຖິ້ມ ໂດຍວຽກຍັງຄ້າງຂັ້ນ "ສົ່ງຄືນສຳເລັດ".
        */
+
       const sentBack = await client.query(
         `update ${table.name} set ${table.sendBackSet}
           where code = $1 and ${table.finishCol} is not null and ${table.returnedCol} is null ${installActive}`,
@@ -251,16 +359,12 @@ export async function saveQcFlow(session: Session, input: SaveQcInput): Promise<
     client.release();
   }
 
-  const reasons = failed
-    .map((answer) => `${itemById.get(answer.item_id)?.name}${answer.note ? ` (${answer.note})` : ""}`)
-    .join(" · ");
-
   await logChange(
     table.model,
     input.jobCode,
     failed.length > 0
-      ? `QC ບໍ່ຜ່ານ ${failed.length}/${input.answers.length} ຂໍ້ — ສົ່ງກັບໃຫ້ຊ່າງແກ້: ${reasons}`
-      : `QC ຜ່ານຄົບ ${input.answers.length} ຂໍ້`,
+      ? `QC ຮອບ ${savedRound} ບໍ່ຜ່ານ ${failed.length}/${input.answers.length} ຂໍ້ — ສົ່ງກັບໃຫ້ຊ່າງແກ້: ${reasons}`
+      : `QC ຮອບ ${savedRound} ຜ່ານຄົບ ${input.answers.length} ຂໍ້`,
     { author: session.username },
   );
 
