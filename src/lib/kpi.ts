@@ -212,6 +212,23 @@ export async function repairKpi(days: Period): Promise<FlowKpi> {
          (select count(*)::int from tb_product a
            where a.return_complete is null and a.status <> 6
              and (${REPAIR_STAGE_OVERDUE_SQL})) as overdue,
+         -- ── ເວລາ "ສ້ອມຮອບທີ່ຖືກ QC ຕີກັບ" (26-08-2026) ──
+         -- ຖັນ time_repair/time_finish_repair ຂອງຮອບທີ່ຕົກຖືກລ້າງອອກຈາກໃບງານ
+         -- ⇒ repair_work ຂ້າງລຸ່ມວັດແຕ່ **ຮອບສຸດທ້າຍ** ຄືກັບວ່າຮອບທີ່ຕົກບໍ່ເຄີຍເກີດ
+         -- (ງານທີ່ສ້ອມ 3 ຮອບຈະເບິ່ງຄືໄວກວ່າງານທີ່ສ້ອມຮອບດຽວ). ເວລາຂອງຮອບເຫຼົ່ານັ້ນ
+         -- ຢູ່ຄົບໃນ ods_qc_round ⇒ ດຶງອອກມາເປັນແຖວຂອງມັນເອງ.
+         (select round(percentile_cont(0.5) within group (order by h)::numeric, 1)::float
+            from (select extract(epoch from (finished_at - started_at))/3600 as h
+                    from ods_qc_round
+                   where workflow = 'repair' and rejected_at >= current_date - ($1::int)
+                     and started_at is not null and finished_at is not null
+                     and finished_at >= started_at) q) as rework,
+         (select round(percentile_cont(0.9) within group (order by h)::numeric, 1)::float
+            from (select extract(epoch from (finished_at - started_at))/3600 as h
+                    from ods_qc_round
+                   where workflow = 'repair' and rejected_at >= current_date - ($1::int)
+                     and started_at is not null and finished_at is not null
+                     and finished_at >= started_at) q) as rework_p90,
          t.* from (
         select ${gap("total", "time_register", "return_complete")},
             ${gap("accept", "time_register", "repair_confirm")},
@@ -252,6 +269,8 @@ export async function repairKpi(days: Period): Promise<FlowKpi> {
       { label: "ຈັດຊື້/ລໍອາໄຫຼ່ເຂົ້າ", median: Number(row?.purchase ?? 0), p90: Number(row?.purchase_p90 ?? 0) },
       { label: "ອາໄຫຼ່ພ້ອມ → ເລີ່ມສ້ອມ", median: Number(row?.wait_repair ?? 0), p90: Number(row?.wait_repair_p90 ?? 0) },
       { label: "ກຳລັງສ້ອມ", median: Number(row?.repair_work ?? 0), p90: Number(row?.repair_work_p90 ?? 0) },
+      // ຮອບທີ່ຖືກ QC ຕີກັບ — ເວລາທີ່ "ກຳລັງສ້ອມ" ຂ້າງເທິງມອງບໍ່ເຫັນ (ເບິ່ງໝາຍເຫດໃນ query)
+      { label: "ສ້ອມຮອບທີ່ຖືກ QC ຕີກັບ", median: Number(row?.rework ?? 0), p90: Number(row?.rework_p90 ?? 0) },
       { label: "ລໍກວດຮັບຄຸນນະພາບ", median: Number(row?.qc ?? 0), p90: Number(row?.qc_p90 ?? 0) },
       { label: "ລໍສົ່ງເຄື່ອງ/ຮັບເງິນ", median: Number(row?.handover ?? 0), p90: Number(row?.handover_p90 ?? 0) },
     ],

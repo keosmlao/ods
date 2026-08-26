@@ -21,7 +21,7 @@ const ENTRY: Record<number, string> = {
   2: "a.tech_confirm",
   3: "a.reg_start",
   4: "coalesce(a.pick_finish, a.tech_confirm, a.time_register)",
-  5: "a.start_install",
+  5: "coalesce(a.qc_reject_at, a.start_install)",
   6: "a.finish_install",
   7: "a.qc_finish",
   8: INSTALL_FEEDBACK_TIME_SQL,

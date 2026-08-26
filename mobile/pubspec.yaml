@@ -1,7 +1,7 @@
 name: odss_tech
 description: "ODIEN Service — ແອັບຊ່າງ (ຮັບງານ · ຂັ້ນຕອນ · check-in · ລາຍຮັບ)"
 publish_to: "none"
-version: 1.18.2+42
+version: 1.19.0+43
 
 environment:
   sdk: ^3.8.0

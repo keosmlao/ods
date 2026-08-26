@@ -296,7 +296,7 @@ class _TeamSummary extends StatelessWidget {
   Widget _summaryDivider() => Container(
     width: 1,
     height: 42,
-    color: surface.withValues(alpha: .14),
+    color: onHero.withValues(alpha: .07),
   );
 }
 
@@ -305,7 +305,7 @@ class _TeamStat extends StatelessWidget {
     required this.value,
     required this.label,
     required this.icon,
-    this.color = onAccent,
+    this.color = onHero,
   });
   final String value;
   final String label;
@@ -330,7 +330,7 @@ class _TeamStat extends StatelessWidget {
       Text(
         label,
         style: TextStyle(
-          color: onAccent.withValues(alpha: .65),
+          color: onHeroDim,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),

@@ -50,7 +50,7 @@ const TABLE: Record<
     finishCol: "finish_install",
     returnedCol: "job_finish",
     model: "ods_tb_install",
-    sendBackSet: "finish_install = null",
+    sendBackSet: "finish_install = null, qc_reject_at = localtimestamp(0)",
     workerCol: "tech_code",
     startCol: "start_install",
   },

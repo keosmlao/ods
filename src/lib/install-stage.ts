@@ -102,7 +102,9 @@ export const INSTALL_STAGE_TIME_COL = `case (${INSTALL_STAGE_SQL})
   when 8 then ${INSTALL_FEEDBACK_TIME_SQL}
   when 7 then a.qc_finish
   when 6 then a.finish_install
-  when 5 then a.start_install
+  -- ຂັ້ນ 5 ມີ 2 ທາງເຂົ້າ: ເລີ່ມຕິດຕັ້ງຕາມປົກກະຕິ · ຫຼື **ຖືກ QC ຕີກັບມາແກ້** (qc_reject_at)
+  -- — ບໍ່ເອົາ qc_reject_at ນຳ ງານທີ່ຫາກໍ່ກັບມາຈະນັບຈາກ start_install ເກົ່າ ⇒ ເກີນ SLA ທັນທີ
+  when 5 then coalesce(a.qc_reject_at, a.start_install)
   when 4 then coalesce(a.pick_finish, a.tech_confirm, a.time_register)
   when 3 then a.reg_start
   when 2 then a.tech_confirm

@@ -33,3 +33,12 @@ test("REPAIR_ACTION ໂຊ້ວ 'accept' ໃນຂອບເຂດດຽວກ�
     "ຂອບເຂດຂັ້ນຂອງ 'accept' ຕ້ອງຕົງກັບ acceptRepair",
   );
 });
+
+test("ຄິວ 'ລໍຖ້າຊ່າງຮັບ' ໃຊ້ຂອບເຂດຂັ້ນດຽວກັນ", () => {
+  // ຄິວທີ່ໂຊ້ວໃບທີ່ຮັບບໍ່ໄດ້ = ຄິວທີ່ຈັດການບໍ່ໄດ້ ⇒ ຕ້ອງຕົງກັບ acceptRepair
+  const src = readFileSync(new URL("../src/lib/dashboard-status.ts", import.meta.url), "utf8");
+  const cond = src.split('"wait-accept": {')[1].split("},")[0];
+  assert.match(cond, new RegExp(`\\(\\$\\{STAGE_SQL\\}\\) ${range}`));
+  assert.match(cond, /repair_confirm is null/);
+  assert.match(cond, /NOT_CLAIM/, "ງານເຄມມີຄິວຂອງມັນເອງ ຢ່າປົນ");
+});

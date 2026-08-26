@@ -42,10 +42,31 @@ test("ນາລິກາຂັ້ນ 8 ເລີ່ມນັບຈາກ qc_reje
   assert.match(entry8, /coalesce\(a\.qc_reject_at,/, "repair-timeline ENTRY[8] ຕ້ອງບໍ່ຫຼົ້ນກັບ STAGE_TIME_COL");
 });
 
-test("ຝັ່ງຕິດຕັ້ງບໍ່ຖືກແຕະ — ຍັງລ້າງແຕ່ finish_install", () => {
+test("ຝັ່ງຕິດຕັ້ງ: ກັບໄປ 'ກຳລັງຕິດຕັ້ງ' ພ້ອມນາລິກາໃໝ່", () => {
   const installSendBack = sendBackSetOf("install");
   assert.match(installSendBack, /finish_install = null/);
-  assert.doesNotMatch(installSendBack, /qc_reject_at/);
+  // ຕິດຕັ້ງ **ບໍ່** ລ້າງ start_install — ຂັ້ນ 5 ຂອງມັນແມ່ນ "ກຳລັງຕິດຕັ້ງ" ຢູ່ແລ້ວ
+  assert.doesNotMatch(installSendBack, /start_install = null/);
+  // ແຕ່ຕ້ອງມີ qc_reject_at ບໍ່ດັ່ງນັ້ນນາລິກາຂັ້ນ 5 ນັບຈາກ start_install ເກົ່າ ⇒ ເກີນ SLA ທັນທີ
+  assert.match(installSendBack, /qc_reject_at = localtimestamp\(0\)/);
+  const stage5 = src("install-stage.ts").split("when 5 then ")[1].split("\n")[0];
+  assert.match(stage5, /^coalesce\(a\.qc_reject_at,/, "INSTALL_STAGE_TIME_COL ຂັ້ນ 5");
+  const entry5 = src("install-timeline.ts").split("  5: ")[1].split("\n")[0];
+  assert.match(entry5, /coalesce\(a\.qc_reject_at,/, "install-timeline ENTRY[5]");
+});
+
+test("ເສັ້ນເວລາສ້ອມບອກຮອບ ແລະ ຈຳນວນເທື່ອທີ່ຖືກຕີກັບ", () => {
+  const timeline = src("repair-timeline.ts");
+  assert.match(timeline, /from ods_qc_round where workflow = 'repair'/);
+  assert.match(timeline, /note = `ຮອບ \$\{rounds\.length \+ 1\}`/);
+  assert.match(timeline, /ຕີກັບ \$\{rounds\.length\} ເທື່ອ/);
+});
+
+test("KPI ມີແຖວ 'ສ້ອມຮອບທີ່ຖືກ QC ຕີກັບ' (ບໍ່ດັ່ງນັ້ນເວລານັ້ນຫາຍ)", () => {
+  const kpi = src("kpi.ts");
+  assert.match(kpi, /as rework,/);
+  assert.match(kpi, /as rework_p90,/);
+  assert.match(kpi, /label: "ສ້ອມຮອບທີ່ຖືກ QC ຕີກັບ"/);
 });
 
 /* ── ຕົກ QC ແລ້ວປະຫວັດຕ້ອງບໍ່ຫາຍ (26-08-2026 ຕາມຄຳສັ່ງ) ──────────────────── */

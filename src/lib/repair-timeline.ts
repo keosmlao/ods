@@ -52,6 +52,14 @@ const SPARE_STAGES = [5, 6, 7];
 const SPARE_HEAD = 5;
 const SPARE_LABEL = "ອາໄຫຼ່";
 
+/**
+ * ── ຮອບທີ່ **QC ຕີກັບ** (26-08-2026) ──
+ * ເສັ້ນເວລາເປັນ "ຂັ້ນລະແຖວ" ⇒ ໃບທີ່ໄປຮອດ QC ແລ້ວຖືກຕີກັບມາຂັ້ນ 8 ຈະເບິ່ງຄື
+ * **ບໍ່ເຄີຍໄປ QC ຈັກເທື່ອ** — ຂໍ້ມູນຢູ່ໃນ ods_qc_round ແຕ່ບໍ່ມີໃຜເຫັນ.
+ * ຈຶ່ງຕິດເປັນ `note` ໃສ່ແຖວ "ລໍຖ້າສ້ອມແປງ" (ຮອບທີ່ເທົ່າໃດ) ແລະ ແຖວ QC (ຕີກັບຈັກເທື່ອ).
+ */
+type ReworkRound = { round: number; rejected_at: string | null; failed: number; checked: number };
+
 export async function repairTimeline(code: string): Promise<{ steps: TimelineStep[]; cancelledAt: string | null }> {
   const sel = Object.entries(ENTRY)
     .map(([n, expr]) => `extract(epoch from ${expr})::float e${n}, to_char(${expr},'DD-MM-YYYY HH24:MI') s${n}`)
@@ -67,6 +75,14 @@ export async function repairTimeline(code: string): Promise<{ steps: TimelineSte
     )
   ).rows[0];
   if (!r) return { steps: [], cancelledAt: null };
+
+  const rounds = (
+    await query<ReworkRound>(
+      `select round, to_char(rejected_at,'DD-MM-YYYY HH24:MI') as rejected_at, failed, checked
+         from ods_qc_round where workflow = 'repair' and job_code = $1 order by round`,
+      [code],
+    )
+  ).rows;
 
   const svc = (r.service_type as string | null) ?? "";
   const rawStage = r.stage as number;
@@ -142,10 +158,19 @@ export async function repairTimeline(code: string): Promise<{ steps: TimelineSte
       }
     }
     // ຢູ່ຂັ້ນອາໄຫຼ່ຢູ່ ⇒ ບອກນຳວ່າຂັ້ນຍ່ອຍໃດ (ຂໍ້ມູນທີ່ການຮວມຈະກືນຫາຍໄປ)
-    const note =
+    let note: string | null =
       x.stage === SPARE_HEAD && state === "current" && SPARE_STAGES.includes(realStage)
         ? stageLabel(realStage, svc)
         : null;
+    if (rounds.length > 0) {
+      const last = rounds[rounds.length - 1];
+      // ລໍຖ້າສ້ອມແປງ / ກຳລັງສ້ອມແປງ = ຮອບແກ້ຄືນ (ຮອບ = ຈຳນວນເທື່ອທີ່ຖືກຕີກັບ + 1)
+      if (x.stage === 8 || x.stage === 9) note = `ຮອບ ${rounds.length + 1}`;
+      // ແຖວ QC ບອກວ່າຕີກັບໄປແລ້ວຈັກເທື່ອ ແລະ ເທື່ອຫຼ້າສຸດເມື່ອໃດ
+      if (x.stage === 10) {
+        note = `ຕີກັບ ${rounds.length} ເທື່ອ · ຫຼ້າສຸດ ${last.rejected_at ?? "-"} (ຕົກ ${last.failed}/${last.checked})`;
+      }
+    }
     return { stage: x.stage, label: x.label, at: state === "pending" ? null : x.at, durationSeconds, state, note };
   });
 

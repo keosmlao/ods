@@ -291,7 +291,7 @@ class _MonitorSummary extends StatelessWidget {
                 Text(
                   '$total',
                   style: const TextStyle(
-                    color: onAccent,
+                    color: onHero,
                     fontSize: 38,
                     height: 1.1,
                     fontWeight: FontWeight.w900,
@@ -304,7 +304,7 @@ class _MonitorSummary extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: surface.withValues(alpha: .1),
+                color: onHero.withValues(alpha: .07),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Icon(
@@ -339,13 +339,13 @@ class _SummaryPill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
     decoration: BoxDecoration(
-      color: surface.withValues(alpha: .09),
+      color: onHero.withValues(alpha: .07),
       borderRadius: BorderRadius.circular(999),
     ),
     child: Text(
       '${group.jobs.length}  ${group.label}',
       style: const TextStyle(
-        color: onAccent,
+        color: onHero,
         fontSize: 11.5,
         fontWeight: FontWeight.w700,
       ),

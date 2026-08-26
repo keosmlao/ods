@@ -388,7 +388,7 @@ class _ApprovalSummary extends StatelessWidget {
               Text(
                 '$total',
                 style: const TextStyle(
-                  color: onAccent,
+                  color: onHero,
                   fontSize: 36,
                   height: 1.05,
                   fontWeight: FontWeight.w900,
@@ -406,7 +406,7 @@ class _ApprovalSummary extends StatelessWidget {
           width: 1,
           height: 40,
           margin: const EdgeInsets.symmetric(horizontal: 12),
-          color: surface.withValues(alpha: .14),
+          color: onHero.withValues(alpha: .07),
         ),
         _ApprovalStat(
           value: '$cancels',
@@ -444,7 +444,7 @@ class _ApprovalStat extends StatelessWidget {
       Text(
         label,
         style: TextStyle(
-          color: onAccent.withValues(alpha: .65),
+          color: onHeroDim,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),

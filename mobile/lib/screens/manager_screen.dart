@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../app_links.dart';
@@ -417,7 +416,7 @@ class _ExecutiveOverview extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: surface.withValues(alpha: .1),
+                  color: onHero.withValues(alpha: .07),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -435,7 +434,7 @@ class _ExecutiveOverview extends StatelessWidget {
                     Text(
                       healthy ? 'ການດຳເນີນງານປົກກະຕິ' : 'ມີຈຸດທີ່ຕ້ອງຕິດຕາມ',
                       style: const TextStyle(
-                        color: onAccent,
+                        color: onHero,
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                       ),
@@ -447,7 +446,7 @@ class _ExecutiveOverview extends StatelessWidget {
               Text(
                 'ອັບເດດຫຼ້າສຸດ',
                 style: TextStyle(
-                  color: onAccent.withValues(alpha: .55),
+                  color: onHeroDim,
                   fontSize: 11.5,
                 ),
               ),
@@ -457,7 +456,7 @@ class _ExecutiveOverview extends StatelessWidget {
           const Text(
             'ພາບລວມສູນບໍລິການ',
             style: TextStyle(
-              color: onAccent,
+              color: onHero,
               fontSize: 20,
               fontWeight: FontWeight.w900,
               letterSpacing: -.4,
@@ -467,7 +466,7 @@ class _ExecutiveOverview extends StatelessWidget {
           Text(
             'ຕົວເລກສຳຄັນທີ່ຕ້ອງຮູ້ກ່ອນເລີ່ມຈັດການວຽກ',
             style: TextStyle(
-              color: onAccent.withValues(alpha: .65),
+              color: onHeroDim,
               fontSize: 11.5,
             ),
           ),
@@ -498,14 +497,14 @@ class _ExecutiveOverview extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(11),
             decoration: BoxDecoration(
-              color: surface.withValues(alpha: .08),
+              color: onHero.withValues(alpha: .07),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
                 const Icon(
                   Icons.swap_vert_circle_outlined,
-                  color: onAccent,
+                  color: onHero,
                   size: 18,
                 ),
                 const SizedBox(width: 8),
@@ -513,7 +512,7 @@ class _ExecutiveOverview extends StatelessWidget {
                   child: Text(
                     'ເດືອນນີ້ ຮັບເຂົ້າ ${data.flowOpened} · ປິດງານ ${data.flowClosed}',
                     style: const TextStyle(
-                      color: onAccent,
+                      color: onHero,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -573,7 +572,7 @@ class _ExecutiveMetric extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: onAccent.withValues(alpha: .7),
+                color: onHeroDim,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -2442,8 +2441,16 @@ class _OldJobRow extends StatelessWidget {
   }
 }
 
-/// ── Pipeline Section ──
-// ignore: unused_element
+/// ── ຂັ້ນຕອນງານ (funnel) ──────────────────────────────────────────────────
+///
+/// ── ເປັນຫຍັງບໍ່ແມ່ນແທ່ງຕັ້ງ (26-08-2026) ──
+/// ເມື່ອກ່ອນເປັນ BarChart ແທ່ງຕັ້ງ 11-16 ແທ່ງ ແລ້ວເອົາ**ຊື່ຂັ້ນເຕັມ**ໄປວາງໃຕ້ແກນ.
+/// ຊື່ຂັ້ນລາວຍາວ (ເຊັ່ນ "ກວດ Stock / ດຳເນີນອາໄຫຼ່") ແຕ່ຄວາມກວ້າງຕໍ່ແທ່ງມີພຽງ ~29dp
+/// ແລະ fl_chart ບໍ່ໄດ້ຕັດຄວາມກວ້າງໃຫ້ ⇒ ປ້າຍທຸກອັນລົ້ນທັບກັນເປັນເສັ້ນດຽວ **ອ່ານບໍ່ອອກ**
+/// (ເບິ່ງພາບໜ້າຈໍ 26-08-2026). ຄວາມສູງຂອງແທ່ງບອກໄດ້ແຕ່ "ອັນໃດຫຼາຍ" ໂດຍບໍ່ຮູ້ວ່າອັນໃດ.
+///
+/// ດຽວນີ້ເປັນ **ແຖວນອນ**: ຊື່ຂັ້ນມີເນື້ອທີ່ເຕັມແຖວ · ແຖບຄວາມຍາວບອກສັດສ່ວນ · ຕົວເລກຢູ່ຂວາ.
+/// ອ່ານໄດ້ທຸກຂັ້ນ ບໍ່ວ່າຈະມີຈັກຂັ້ນ ແລະ ຍັງກົດເປີດລາຍການຂອງຂັ້ນນັ້ນໄດ້ຄືເກົ່າ.
 class _PipelineSection extends StatelessWidget {
   const _PipelineSection({required this.pipeline, required this.onTap});
 
@@ -2454,105 +2461,70 @@ class _PipelineSection extends StatelessWidget {
   Widget build(BuildContext context) {
     if (pipeline.isEmpty) return const SizedBox.shrink();
 
-    final maxV = pipeline
-        .map((s) => s.count)
-        .fold<int>(0, (a, b) => a > b ? a : b);
+    final maxV = pipeline.map((s) => s.count).fold<int>(0, (a, b) => a > b ? a : b);
     final maxY = (maxV <= 0 ? 1 : maxV).toDouble();
 
     return _Card(
       title: 'ຂັ້ນຕອນງານ',
-      child: SizedBox(
-        height: 160,
-        child: BarChart(
-          BarChartData(
-            alignment: BarChartAlignment.spaceAround,
-            maxY: maxY * 1.25,
-            barTouchData: BarTouchData(
-              enabled: false,
-              touchTooltipData: BarTouchTooltipData(
-                getTooltipColor: (_) => Colors.transparent,
-                tooltipPadding: EdgeInsets.zero,
-                tooltipMargin: 2,
-                getTooltipItem: (group, gi, rod, ri) => BarTooltipItem(
-                  '${rod.toY.toInt()}',
-                  const TextStyle(
-                    color: ink,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ),
-            gridData: FlGridData(
-              show: true,
-              drawVerticalLine: false,
-              getDrawingHorizontalLine: (v) =>
-                  const FlLine(color: Color(0xFFECF1EF), strokeWidth: 1),
-            ),
-            borderData: FlBorderData(show: false),
-            titlesData: FlTitlesData(
-              leftTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              rightTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              topTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 36,
-                  getTitlesWidget: (value, meta) {
-                    final i = value.toInt();
-                    if (i < 0 || i >= pipeline.length) {
-                      return const SizedBox.shrink();
-                    }
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: InkWell(
-                        onTap: () => onTap(pipeline[i]),
-                        child: Text(
-                          pipeline[i].label,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 8.5,
-                            color: ink,
-                            height: 1.1,
-                            decoration: TextDecoration.underline,
-                            decorationColor: Colors.grey.shade300,
+      child: Column(
+        children: [
+          for (final stage in pipeline)
+            InkWell(
+              onTap: () => onTap(stage),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(
+                  children: [
+                    // ຊື່ຂັ້ນ — ກວ້າງຕາຍຕົວ ⇒ ແຖບຂອງທຸກແຖວເລີ່ມຕົງກັນ (ທຽບກັນດ້ວຍຕາໄດ້)
+                    SizedBox(
+                      width: 124,
+                      child: Text(
+                        stage.label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          height: 1.2,
+                          color: stage.count > 0 ? body : faint,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: Container(
+                          height: 8,
+                          color: surfaceAlt,
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            // ຂັ້ນທີ່ມີງານແຕ່ໜ້ອຍ ຍັງຕ້ອງເຫັນ ⇒ ພື້ນຢ່າງໜ້ອຍ 4%
+                            widthFactor: stage.count <= 0
+                                ? 0
+                                : (stage.count / maxY).clamp(.04, 1).toDouble(),
+                            child: Container(color: teal),
                           ),
                         ),
                       ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            barGroups: [
-              for (var i = 0; i < pipeline.length; i++)
-                BarChartGroupData(
-                  x: i,
-                  showingTooltipIndicators: pipeline[i].count > 0 ? [0] : [],
-                  barRods: [
-                    BarChartRodData(
-                      toY: pipeline[i].count.toDouble(),
-                      color: pipeline[i].count > 0
-                          ? teal
-                          : Colors.grey.shade200,
-                      width: 18,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(4),
+                    ),
+                    SizedBox(
+                      width: 34,
+                      child: Text(
+                        '${stage.count}',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w900,
+                          color: stage.count > 0 ? ink : faint,
+                        ),
                       ),
                     ),
                   ],
                 ),
-            ],
-          ),
-        ),
+              ),
+            ),
+        ],
       ),
     );
   }

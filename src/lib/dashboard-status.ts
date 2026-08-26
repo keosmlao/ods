@@ -74,11 +74,18 @@ export const repairStatuses: Record<string, StatusDef> = {
   /**
    * ⚠️ ຄິວ **ຕັດຂວາງຂັ້ນ** — ຊ່າງຖືກຈັດແລ້ວ ແຕ່ຍັງບໍ່ກົດຮັບງານ (repair_confirm ຫວ່າງ).
    * ນັບຊ້ຳກັບຂັ້ນ 1+ (ວຽກຍັງນອນຢູ່ຂັ້ນຂອງມັນ) ຈຶ່ງ **ບໍ່ມີ `stage`** ຫ້າມລວມຍອດ pipeline
-   * — ຄືກັບ wait-accept ຝັ່ງຕິດຕັ້ງ. ເງື່ອນໄຂຄືກັນກັບ notAccepted ຂອງ /repair/assign.
+   * — ຄືກັບ wait-accept ຝັ່ງຕິດຕັ້ງ.
+   *
+   * ── ບໍ່ແມ່ນສະເພາະຂັ້ນ 1 ອີກຕໍ່ໄປ (26-08-2026) ──
+   * **ການປ່ຽນຊ່າງລ້າງ repair_confirm ທຸກຂັ້ນ** (assignRepairTech · updateService) ⇒ ວຽກທີ່
+   * ປ່ຽນຊ່າງຕອນຢູ່ຂັ້ນອາໄຫຼ່ ກາຍເປັນ "ຍັງບໍ່ຮັບງານ" ແຕ່ **ບໍ່ໂຜ່ໃນຄິວໃດເລີຍ** (ຄິວນີ້ເບິ່ງແຕ່
+   * ຂັ້ນ 1) ⇒ ບໍ່ມີໃຜຮູ້ວ່າມັນຄ້າງ. ວັດ 26-08-2026: **7 ໃບ** ຄ້າງແບບນີ້ (ດົນສຸດ 35 ມື້).
+   * ຂອບເຂດຂັ້ນ 1–8 = ຂອບເຂດດຽວກັບ `acceptRepair` (lib/job-flow) ⇒ ທຸກໃບໃນຄິວນີ້
+   * **ກົດຮັບໄດ້ແທ້** (ຂັ້ນ ≥ 9 ລົງມືສ້ອມແລ້ວ ຂໍໃຫ້ຮັບກໍ່ບໍ່ມີຄວາມໝາຍ).
    */
   "wait-accept": {
     label: "ລໍຖ້າຊ່າງຮັບ",
-    condition: `${stageIs(1)} and coalesce(a.emp_code,'') <> '' and a.repair_confirm is null`,
+    condition: `(${STAGE_SQL}) between 1 and 8 and ${NOT_CLAIM} and coalesce(a.emp_code,'') <> '' and a.repair_confirm is null`,
   },
   /**
    * ພັກຊົ່ວຄາວ — ງານທີ່ຖືກໝາຍ "ວຽກມີບັນຫາ" (ods_job_hold, ມີເຫດຜົນ+ປະເພດ) ⇒ ຄາຢູ່
