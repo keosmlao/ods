@@ -173,13 +173,15 @@ const INSTALL_ACTION = `case
 
 /** ສ້ອມ: 1-2 ກວດເຊັກ · 3-4 ລາຄາ · 5-7 ອາໄຫຼ່ · 8 ລໍສ້ອມ · 9 ກຳລັງສ້ອມ · 10+ ລໍ QC */
 const REPAIR_ACTION = `case
-  -- IH (ໄປສ້ອມບ້ານ) ຍັງບໍ່ນັດ (ຂັ້ນ 0) ⇒ ຮັບງານບໍ່ໄດ້ (acceptRepair ຕ້ອງຂັ້ນ 1);
+  -- IH (ໄປສ້ອມບ້ານ) ຍັງບໍ່ນັດ (ຂັ້ນ 0) ⇒ ຮັບງານບໍ່ໄດ້ (acceptRepair ຕ້ອງຂັ້ນ 1 ຂຶ້ນໄປ);
   -- ລໍ CS ໃສ່ວັນນັດໝາຍກ່ອນ ຈຶ່ງຕົກຂັ້ນ 1. ບໍ່ໃຫ້ສະແດງ 'accept' ທີ່ກົດແລ້ວ error.
   when coalesce(a.service_type,'')='IH' and a.appoint_date is null then 'wait_other'
   -- ⚠️ "ຮັບງານ" ຕ້ອງຫາຍໄປເມື່ອວຽກເດີນໜ້າໄປແລ້ວ. ຫຼັງລວມປຸ່ມ "ເລີ່ມສ້ອມ" ເຂົ້າກັບການກົດຮັບ
   -- ວຽກສາມາດມີ time_repair ໂດຍ repair_confirm ຍັງຫວ່າງ ⇒ ຖ້າກວດແຕ່ repair_confirm
   -- ຈະຄ້າງປຸ່ມ "ຮັບງານ" ຢູ່ຕະຫຼອດ ທັງໆທີ່ກຳລັງສ້ອມຢູ່ (ວັດ 04-08-2026: 45 ວຽກ, ຍັງເປີດ 4).
-  when a.repair_confirm is null and (${STAGE_SQL}) < 9 then 'accept'
+  -- ⚠️ ຂອບເຂດຂັ້ນ **ຕ້ອງຕົງກັບ acceptRepair** (lib/job-flow: ຂັ້ນ 1–8) — 26-08-2026.
+  -- ເມື່ອກ່ອນ 'ນ້ອຍກວ່າ 9' ກວມຂັ້ນ 0 (ລໍໄປຮັບເຄື່ອງ) ແລະ -1 (ລໍອະນຸມັດຍົກເລີກ) ນຳ ⇒ ປຸ່ມກົດແລ້ວ error.
+  when a.repair_confirm is null and (${STAGE_SQL}) between 1 and 8 then 'accept'
   when (${STAGE_SQL}) in (5,6,7) then 'wait_spare'
   -- ຂັ້ນ 8 (ລໍຖ້າສ້ອມ) ໃຫ້ **ຈົບໄດ້ເລີຍ** ຄືກັບເວັບ — ບໍ່ຕ້ອງກົດ "ເລີ່ມສ້ອມ" ກ່ອນ
   -- (finishRepairFlow ຮັບຂັ້ນ 8|9 ແລະ ຕື່ມ time_repair ໃຫ້ເອງ — ເບິ່ງ docs/repair-redesign.md)

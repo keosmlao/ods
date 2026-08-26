@@ -163,13 +163,26 @@ export async function acceptInstall(session: Session, code: string): Promise<Flo
   return { ok: true, message: `ຮັບງານຕິດຕັ້ງ ${code} ສຳເລັດ` };
 }
 
+/**
+ * ຊ່າງ **ຮັບງານສ້ອມ** (repair_confirm).
+ *
+ * ── ຮັບໄດ້ຕັ້ງແຕ່ຂັ້ນ 1 ຮອດ 8 (26-08-2026) ──
+ * ແຕ່ກ່ອນຍອມສະເພາະຂັ້ນ 1 (ລໍຖ້າກວດເຊັກ) ແຕ່ **ການປ່ຽນຊ່າງລ້າງ repair_confirm ທຸກຂັ້ນ**
+ * (assignRepairTech · updateService — "ຊ່າງໃໝ່ຕ້ອງກົດຮັບເອງ") ⇒ ງານທີ່ປ່ຽນຊ່າງຕອນຢູ່
+ * ຂັ້ນອາໄຫຼ່ ກາຍເປັນ "ຍັງບໍ່ຮັບງານ" ແຕ່ **ຮັບກໍ່ບໍ່ໄດ້** (ດ່ານນີ້ບັງຄັບຂັ້ນ 1) ⇒ ແອັບໂຊ້ວ
+ * ປຸ່ມ "ຮັບງານ" ຄ້າງຕະຫຼອດ ກົດແລ້ວເດັ້ງ error (ວັດ 26-08-2026: 7 ໃບ — ໃບ 7480 ຄ້າງ
+ * ຢູ່ຂັ້ນ 5 ມາ 35 ມື້ ຫຼັງປ່ຽນຊ່າງເປັນ 23037).
+ * ດຽວນີ້: ຊ່າງໃໝ່ກົດຮັບໄດ້ຢູ່ຂັ້ນທີ່ງານຢູ່ຈິງ ແລ້ວເຮັດຕໍ່ຈາກຂັ້ນນັ້ນ.
+ * ຂັ້ນ 0 (ລໍໄປຮັບເຄື່ອງ/ລໍນັດ) ແລະ ຂັ້ນ ≥ 9 (ລົງມືສ້ອມແລ້ວ) ຮັບບໍ່ໄດ້ຄືເກົ່າ.
+ * ⚠️ ຕ້ອງຕົງກັບ `REPAIR_ACTION` ຢູ່ lib/mobile-jobs — ປຸ່ມທີ່ໂຊ້ວຕ້ອງກົດໄດ້ແທ້.
+ */
 export async function acceptRepair(session: Session, code: string): Promise<FlowResult> {
   const own = await ownJob(session, "repair", code);
   if (!own.ok) return own;
 
   const done = await query(
     `update tb_product a set repair_confirm=${NOW}
-      where a.code=$1 and repair_confirm is null and (${STAGE_SQL}) = 1`,
+      where a.code=$1 and repair_confirm is null and (${STAGE_SQL}) between 1 and 8`,
     [code],
   );
   if (!done.rowCount) {
@@ -178,7 +191,7 @@ export async function acceptRepair(session: Session, code: string): Promise<Flow
       [code],
     );
     if (already.rows[0]?.n) return { ok: true, message: `ຮັບງານສ້ອມ ${code} ສຳເລັດ` };
-    return { ok: false, error: "ຮັບງານບໍ່ໄດ້ — ງານບໍ່ໄດ້ຢູ່ຂັ້ນລໍກວດເຊັກ" };
+    return { ok: false, error: "ຮັບງານບໍ່ໄດ້ — ງານບໍ່ໄດ້ຢູ່ຂັ້ນທີ່ຮັບໄດ້ (ລໍຖ້າກວດເຊັກ ຫາ ລໍຖ້າສ້ອມແປງ)" };
   }
 
   await logChange("tb_product", code, "ຊ່າງຮັບງານສ້ອມແລ້ວ", { author: session.username, roles: ["admin", "manager"] });
