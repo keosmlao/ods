@@ -42,4 +42,30 @@ void main() {
     // 90,061 ວິ = 1 ມື້ 01:01:01 — ຮູບແບບດຽວກັບເວັບ
     expect(find.textContaining('1 ມື້ 01:01:01'), findsOneWidget);
   });
+
+  testWidgets('ຂັ້ນທີ່ຮວມມາ ບອກຂັ້ນຍ່ອຍທີ່ຢູ່ຈິງ', (tester) async {
+    // ອາໄຫຼ່ = 3 ຂັ້ນຮວມກັນ (ກວດ Stock · ເບີກ · ສັ່ງຊື້) ⇒ ຕ້ອງບອກວ່າຢູ່ຂັ້ນໃດ
+    final timeline = JobTimelineData.fromJson({
+      'cancelled_at': null,
+      'steps': [
+        {
+          'stage': 5,
+          'label': 'ອາໄຫຼ່',
+          'at': '28-07-2026 00:00',
+          'duration_seconds': 3600,
+          'state': 'current',
+          'note': 'ກຳລັງເບີກອາໄຫຼ່',
+        },
+      ],
+      'visits': const [],
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: odssTheme(),
+        home: Scaffold(body: JobTimelineCard(timeline: timeline)),
+      ),
+    );
+    expect(find.text('ອາໄຫຼ່'), findsOneWidget);
+    expect(find.text('ກຳລັງເບີກອາໄຫຼ່'), findsOneWidget);
+  });
 }

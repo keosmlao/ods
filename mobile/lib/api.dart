@@ -2751,12 +2751,17 @@ class TimelineStep {
   final int? durationSeconds; // ໄລຍະຢູ່ຂັ້ນນີ້ (current = live · done = ຄົງທີ່)
   final String state;
 
+  /// ຂັ້ນຍ່ອຍທີ່ຢູ່ຈິງ ເມື່ອຂັ້ນນີ້**ຮວມມາຈາກຫຼາຍຂັ້ນ** — "ອາໄຫຼ່" ຮວມ
+  /// ກວດ Stock · ກຳລັງເບີກ · ກຳລັງສັ່ງຊື້ (ນິຍາມຢູ່ src/lib/repair-timeline.ts)
+  final String? note;
+
   TimelineStep({
     required this.stage,
     required this.label,
     required this.at,
     required this.durationSeconds,
     required this.state,
+    this.note,
   });
 
   factory TimelineStep.fromJson(Map<String, dynamic> json) => TimelineStep(
@@ -2765,6 +2770,7 @@ class TimelineStep {
     at: json['at'] as String?,
     durationSeconds: (json['duration_seconds'] as num?)?.toInt(),
     state: json['state'] as String? ?? 'pending',
+    note: json['note'] as String?,
   );
 
   bool get isCurrent => state == 'current';

@@ -168,6 +168,29 @@ class JobTimelineCard extends StatelessWidget {
                         ),
                     ],
                   ),
+                  // ຂັ້ນທີ່ຮວມມາຈາກຫຼາຍຂັ້ນ (ອາໄຫຼ່) ⇒ ບອກວ່າຢູ່ຂັ້ນຍ່ອຍໃດ
+                  if ((step.note ?? '').isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tealWash,
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Text(
+                          step.note!,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            color: teal,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
                   if (step.durationSeconds != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 1),

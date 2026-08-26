@@ -103,6 +103,7 @@ function timelinePayload(timeline: {
       at: s.at,
       duration_seconds: s.durationSeconds,
       state: s.state,
+      note: s.note ?? null,
     })),
     visits: (timeline.visits ?? []).map((v) => ({
       n: v.n,

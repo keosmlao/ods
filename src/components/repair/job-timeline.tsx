@@ -149,6 +149,12 @@ export function JobTimeline({
               <div className="-mt-0.5 min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <span className={`text-sm font-semibold ${current ? "text-brand-700" : finished ? "text-brand-800" : done ? "text-slate-700" : "text-slate-400"}`}>{s.label}</span>
+                  {/* ຂັ້ນຍ່ອຍຂອງຂັ້ນທີ່ຮວມມາ (ອາໄຫຼ່: ກຳລັງເບີກ / ກຳລັງສັ່ງຊື້) */}
+                  {s.note && (
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                      {s.note}
+                    </span>
+                  )}
                   {s.at && <span className="text-[11px] tabular-nums text-slate-400">{s.at}</span>}
                 </div>
                 {s.durationSeconds != null ? (
