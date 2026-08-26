@@ -100,7 +100,19 @@ export async function requireMobile(
     ຄົນທີ່ຍັງບໍ່ login ໄດ້ 401 ຄືເກົ່າ ບໍ່ແມ່ນ 426 ທີ່ບໍ່ໄດ້ຄວາມ.
   */
   const outdated = await blockOutdatedApp(request);
-  if (outdated) return { ok: false, response: outdated };
+  if (outdated) {
+    /*
+      ── ບັນທຶກໄວ້ວ່າ **ໃຜ** ຍັງຄ້າງຢູ່ເວີຊັນເກົ່າ (26-08-2026) ──
+      ແຕ່ກ່ອນດ່ານນີ້ບລັອກແບບງຽບໆ ⇒ ຄຳຖາມ "ຊ່າງອັບເດດກັນໝົດແລ້ວບໍ" ຕອບບໍ່ໄດ້ເລີຍ
+      ເພາະ server ບໍ່ໄດ້ເກັບເວີຊັນຂອງແຕ່ລະເຄື່ອງໄວ້ບ່ອນໃດ. ຂຽນເປັນແຖວ log
+      (ບໍ່ຂຽນຖານ — ດ່ານນີ້ແລ່ນທຸກຄຳຂໍ ຈະກາຍເປັນການຂຽນຖານທຸກຄັ້ງ) ⇒ ກວດດ້ວຍ
+      `journalctl -u ods | grep app-outdated` ເຫັນເລີຍວ່າໃຜ · ເວີຊັນໃດ.
+    */
+    console.warn(
+      `app-outdated user=${user.username} version=${request.headers.get("x-app-version") || "(ບໍ່ບອກ)"} platform=${request.headers.get("x-app-platform") || "-"}`,
+    );
+    return { ok: false, response: outdated };
+  }
   if (allowed && !allowed.includes(user.role)) {
     return { ok: false, response: NextResponse.json({ error: "ບໍ່ມີສິດເຮັດລາຍການນີ້" }, { status: 403 }) };
   }
