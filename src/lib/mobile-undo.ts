@@ -25,6 +25,8 @@ type Row = {
   time_repair: Date | null;
   time_finish_repair: Date | null;
   qc_finish: Date | null;
+  /** ຖືກ QC ສົ່ງກັບມາແກ້ຈັກເທື່ອແລ້ວ (ຫວ່າງ = ບໍ່ເຄີຍ) — ເບິ່ງ lib/qc-flow */
+  qc_reject_at: Date | null;
   qt_start: Date | null;
   spare_reg: Date | null;
   status: number | null;
@@ -41,7 +43,7 @@ export async function undoLastStep(session: Session, code: string): Promise<Flow
   const job = (
     await query<Row>(
       `select a.repair_confirm, a.time_check, a.time_finish_check, a.time_repair, a.time_finish_repair,
-          a.qc_finish, a.qt_start, a.spare_reg, a.status, a.return_complete
+          a.qc_finish, a.qc_reject_at, a.qt_start, a.spare_reg, a.status, a.return_complete
         from tb_product a where a.code=$1`,
       [code],
     )
@@ -49,6 +51,20 @@ export async function undoLastStep(session: Session, code: string): Promise<Flow
   if (!job) return { ok: false, error: "ບໍ່ພົບໃບຮັບເຄື່ອງ" };
   if (job.status === 6) return { ok: false, error: "ໃບນີ້ຢູ່ຂັ້ນຍົກເລີກ — ຖອຍບໍ່ໄດ້" };
   if (job.return_complete) return { ok: false, error: "ສົ່ງເຄື່ອງຄືນລູກຄ້າໄປແລ້ວ — ຖອຍບໍ່ໄດ້" };
+
+  /**
+   * ── ວຽກທີ່ **QC ຕີກັບມາແກ້** ຖອຍບໍ່ໄດ້ (26-08-2026) ──
+   * ຕົກ QC = ລ້າງ time_repair/time_finish_repair ⇒ ໃບຕົກລົງມາເປັນ "ລໍຖ້າສ້ອມແປງ"
+   * ທີ່ **ໜ້າຕາຄືກັນເປັ໊ະ** ກັບໃບທີ່ຫາກໍ່ຈົບການກວດເຊັກ (ຂໍ້ ③ ຂ້າງລຸ່ມ) ⇒ ກົດ "ຖອຍຄືນ"
+   * ຈະໄປລຶບ **ຜົນກວດເຊັກ** (time_finish_check · issue_2 · used_spare) ແລະ ຍ້າຍອາໄຫຼ່
+   * ຄືນກະຕ່າຮ່າງ ຂອງງານທີ່ສ້ອມໄປແລ້ວຮອບນຶ່ງ. ດ່ານ qt_start/spare_reg ກັນບໍ່ຢູ່:
+   * ວັດ 26-08-2026 — ໃບທີ່ສ້ອມຈົບແລ້ວໂດຍບໍ່ມີໃບສະເໜີລາຄາ ແລະ ບໍ່ມີໃບຂໍເບີກ ມີ **2,238 ໃບ**
+   * (48/76 ຂອງວຽກຄ້າງປັດຈຸບັນ).
+   * ⇒ ຕອນລໍແກ້ຄືນ **ບໍ່ມີຂັ້ນໃຫ້ຖອຍ**: ຂັ້ນຕໍ່ໄປຄືສ້ອມໃຫ້ຜ່ານ QC ບໍ່ແມ່ນຍ້ອນກັບ.
+   */
+  if (job.qc_reject_at && !job.time_repair && !job.time_finish_repair) {
+    return { ok: false, error: "ຖອຍບໍ່ໄດ້ — QC ສົ່ງງານກັບມາແກ້ (ສ້ອມໃຫ້ຄົບແລ້ວສົ່ງ QC ຄືນ)" };
+  }
 
   // ① ຈົບການສ້ອມແປງ → ກຳລັງສ້ອມແປງ
   if (job.time_finish_repair && !job.qc_finish) {
@@ -148,6 +164,8 @@ export const UNDO_TO_SQL = `case
   when (${STAGE_SQL})=2 then 'ລໍຖ້າກວດເຊັກ'
   -- ຂັ້ນ 3 (ນອກປະກັນ ລໍສະເໜີລາຄາ ຍັງບໍ່ເລີ່ມ qt) ຖອຍຄືນຜົນກວດໄດ້; 4–7 ມີ qt/ໃບເບີກ ⇒ ຕິດຕໍ່ CS
   when (${STAGE_SQL})=3 then 'ກຳລັງກວດເຊັກ'
+  -- ຂັ້ນ 8 ທີ່ມາຈາກ **QC ຕີກັບ** ບໍ່ມີຂັ້ນໃຫ້ຖອຍ (ຖອຍ = ລຶບຜົນກວດເຊັກຂອງງານທີ່ສ້ອມແລ້ວ)
+  when (${STAGE_SQL})=8 and a.qc_reject_at is not null then null
   when (${STAGE_SQL})=8 then 'ກຳລັງກວດເຊັກ'
   when (${STAGE_SQL})=9 then 'ລໍຖ້າສ້ອມແປງ'
   when (${STAGE_SQL})=10 then 'ກຳລັງສ້ອມແປງ'

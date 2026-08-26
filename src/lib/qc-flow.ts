@@ -231,6 +231,8 @@ export async function saveQcFlow(session: Session, input: SaveQcInput): Promise<
 
   const client = await db.connect();
   let savedRound = 1;
+  /** ຊ່າງທີ່ຕ້ອງແກ້ຄືນ — ຕ້ອງໄດ້ຮັບແຈ້ງ ບໍ່ດັ່ງນັ້ນງານກັບເຂົ້າຄິວແບບງຽບໆ */
+  let sentBackTo: string | null = null;
   try {
     await client.query("begin");
 
@@ -276,7 +278,7 @@ export async function saveQcFlow(session: Session, input: SaveQcInput): Promise<
        * ດຽວກັນກັບການລ້າງ ⇒ ບໍ່ມີຊ່ອງທີ່ "ລ້າງແລ້ວແຕ່ບໍ່ໄດ້ເກັບ".
        * ເງື່ອນໄຂ where ຕົງກັບ update ຂ້າງລຸ່ມ ⇒ ງານທີ່ແຕະບໍ່ໄດ້ ກໍ່ບໍ່ມີແຖວປະຫວັດຫຼອກ.
        */
-      await client.query(
+      const archived = await client.query<{ worker: string | null }>(
         `insert into ods_qc_round
             (workflow, job_code, round, worker, started_at, finished_at, rejected_by, failed, checked, reason)
          select $1::varchar, $2::varchar, $3::int, nullif(a.${table.workerCol},''),
@@ -284,9 +286,11 @@ export async function saveQcFlow(session: Session, input: SaveQcInput): Promise<
                 $4::varchar, $5::int, $6::int, nullif($7,'')
            from ${table.name} a
           where a.code = $2::varchar and a.${table.finishCol} is not null
-            and a.${table.returnedCol} is null ${installActive}`,
+            and a.${table.returnedCol} is null ${installActive}
+         returning worker`,
         [input.workflow, input.jobCode, round, session.username, failed.length, input.answers.length, reasons],
       );
+      sentBackTo = archived.rows[0]?.worker ?? null;
 
       /**
        * ── ② ສົ່ງກັບໃຫ້ຊ່າງ — ຂຽນຊຸດຖັນຂອງສາຍງານນັ້ນ (TABLE.sendBackSet) ──
@@ -365,7 +369,15 @@ export async function saveQcFlow(session: Session, input: SaveQcInput): Promise<
     failed.length > 0
       ? `QC ຮອບ ${savedRound} ບໍ່ຜ່ານ ${failed.length}/${input.answers.length} ຂໍ້ — ສົ່ງກັບໃຫ້ຊ່າງແກ້: ${reasons}`
       : `QC ຮອບ ${savedRound} ຜ່ານຄົບ ${input.answers.length} ຂໍ້`,
-    { author: session.username },
+    {
+      author: session.username,
+      /**
+       * ── ຕີກັບແລ້ວຕ້ອງ **ບອກຊ່າງ** (26-08-2026) ──
+       * ແຕ່ກ່ອນຂຽນແຕ່ log ⇒ ງານໄຫຼກັບເຂົ້າຄິວ "ລໍຖ້າສ້ອມແປງ" ໂດຍບໍ່ມີໃຜຮູ້ວ່າ
+       * ມັນກັບມາ ແລະ ຕົກຍ້ອນຫຍັງ — ຊ່າງຈະຮູ້ຕໍ່ເມື່ອບັງເອີນເປີດຄິວເຫັນເອງ.
+       */
+      users: failed.length > 0 && sentBackTo ? [sentBackTo] : undefined,
+    },
   );
 
   return failed.length > 0

@@ -85,3 +85,18 @@ test("ຄຳຕອບ QC ຜູກກັບຮອບ ⇒ ຮອບໃໝ່ບ�
   assert.match(qcFlow, /r\.round = \$4/);
   assert.match(src("qc.ts"), /r\.round = 1 \+ \(select count\(\*\) from ods_qc_round/);
 });
+
+test("ຕີກັບແລ້ວແຈ້ງຊ່າງທີ່ຕ້ອງແກ້ຄືນ (ບໍ່ແມ່ນຂຽນແຕ່ log)", () => {
+  assert.match(qcFlow, /returning worker/, "ຕ້ອງເອົາຊື່ຊ່າງຄືນຈາກແຖວປະຫວັດ");
+  assert.match(qcFlow, /users: failed\.length > 0 && sentBackTo/, "logChange ຕ້ອງສົ່ງເຖິງຊ່າງ");
+});
+
+test("ວຽກທີ່ QC ຕີກັບ ຖອຍຄືນບໍ່ໄດ້ — ບໍ່ດັ່ງນັ້ນລຶບຜົນກວດເຊັກຖິ້ມ", () => {
+  const undo = src("mobile-undo.ts");
+  // ດ່ານຕ້ອງມາ **ກ່ອນ** ຂໍ້ ③ ທີ່ລຶບ time_finish_check
+  const guard = undo.indexOf("job.qc_reject_at && !job.time_repair");
+  const wipe = undo.indexOf("set time_finish_check=null");
+  assert.ok(guard > 0 && wipe > 0 && guard < wipe, "ດ່ານ qc_reject_at ຕ້ອງມາກ່ອນການລຶບຜົນກວດເຊັກ");
+  assert.match(undo, /a\.qc_reject_at, a\.qt_start/, "ຕ້ອງ select qc_reject_at ມານຳ");
+  assert.match(undo, /=8 and a\.qc_reject_at is not null then null/, "ປ້າຍ 'ຖອຍໄປຫາ' ຕ້ອງຫວ່າງ");
+});
