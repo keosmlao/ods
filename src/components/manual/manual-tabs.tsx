@@ -3,7 +3,7 @@ import { Wrench, HardHat, ShieldCheck, Fan, ShoppingCart } from "lucide-react";
 import { useState } from "react";
 
 /**
- * ແທັບ ຄູ່ມື — ສ້ອມ / ຕິດຕັ້ງ / ເຄມ / ສ້ອມບໍລຸງ / ສັ່ງຊື້. ຮັບເນື້ອຫາແຕ່ລະຝັ່ງ (server-rendered)
+ * ແທັບ ຄູ່ມື — ສ້ອມ / ຕິດຕັ້ງ / ເຄມ / ສ້ອມບຳລຸງ / ສັ່ງຊື້. ຮັບເນື້ອຫາແຕ່ລະຝັ່ງ (server-rendered)
  * ເປັນ props ແລ້ວ toggle ການເຫັນ (ບໍ່ໂຫຼດຄືນ). ໜ້າພິມ SOP/WI ຍັງແຍກ set=<tab> ຄືເກົ່າ.
  */
 type TabKey = "repair" | "install" | "claim" | "maintenance" | "purchase";

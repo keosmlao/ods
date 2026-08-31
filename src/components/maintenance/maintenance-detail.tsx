@@ -4,7 +4,8 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { Elapsed } from "@/components/elapsed";
 import type { MaintenanceDetail as Detail, MaintenanceJob, MaintenanceStep } from "@/lib/maintenance";
 import { maintenanceStageChip } from "@/lib/maintenance-stage";
-import { CheckCircle2, LoaderCircle, Phone, XCircle } from "lucide-react";
+import { CheckCircle2, LoaderCircle, Phone, Printer, XCircle } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -58,19 +59,26 @@ function Timeline({ steps, cancelledAt }: { steps: MaintenanceStep[]; cancelledA
   );
 }
 
-/** ໜ້າລາຍລະອຽດງານສ້ອມບໍລຸງ + ປຸ່ມເລື່ອນຂັ້ນຕາມສະຖານະປັດຈຸບັນ. */
+/** ໜ້າລາຍລະອຽດງານສ້ອມບຳລຸງ + ປຸ່ມເລື່ອນຂັ້ນຕາມສະຖານະປັດຈຸບັນ. */
 export function MaintenanceDetail({
   job,
   details,
   steps,
   cancelledAt,
   technicians,
+  isTech = false,
 }: {
   job: MaintenanceJob;
   details: Detail[];
   steps: MaintenanceStep[];
   cancelledAt: string | null;
   technicians: Tech[];
+  /**
+   * ຜູ້ໃຊ້ນີ້ເປັນ **ຊ່າງ** (role `technical`) ບໍ — ຊ່າງເຫັນສະເພາະປຸ່ມທີ່ຕົນກົດໃນແອັບ
+   * (ຮັບງານ · ເລີ່ມລ້າງ · ລ້າງສຳເລັດ — ເບິ່ງ lib/maintenance-flow). ຈັດຊ່າງ · QC ·
+   * ເກັບເງິນ/ປິດ · ຍົກເລີກ ເປັນໜ້າທີ່ CS/ຫົວໜ້າ ⇒ ບໍ່ຂຶ້ນໃຫ້ຊ່າງກົດຜິດ.
+   */
+  isTech?: boolean;
 }) {
   const router = useRouter();
   const { ask, dialog } = useConfirm();
@@ -92,7 +100,7 @@ export function MaintenanceDetail({
 
   const cancel = () =>
     void (async () => {
-      const reason = window.prompt("ເຫດຜົນທີ່ຍົກເລີກ (ຢ່າງໜ້ອຍ 3 ຕົວອັກສอน):", "");
+      const reason = window.prompt("ເຫດຜົນທີ່ຍົກເລີກ (ຢ່າງໜ້ອຍ 3 ຕົວອັກສອນ):", "");
       if (reason == null) return;
       const ok = await ask({ title: "ຍົກເລີກງານ?", message: `ຍົກເລີກ ${job.code} — ${reason}`, confirmLabel: "ຍົກເລີກງານ", tone: "danger" });
       if (ok) run(() => cancelMaintenance(job.code, reason));
@@ -100,6 +108,9 @@ export function MaintenanceDetail({
 
   const closed = job.stage === 6;
   const cancelled = job.stage === -1;
+  // ຊ່າງລົງມືໄດ້ 3 ຂັ້ນ (ຮັບງານ · ເລີ່ມລ້າງ · ລ້າງສຳເລັດ) — ຂັ້ນອື່ນບໍ່ມີປຸ່ມໃຫ້ກົດ ⇒ ເຊື່ອງກ່ອງປຸ່ມທັງໝົດ
+  const techStage = job.stage >= 1 && job.stage <= 3;
+  const showActions = !closed && !cancelled && (!isTech || techStage);
 
   const primary = (label: string, fn: () => Promise<{ error?: string }>) => (
     <button type="button" disabled={pending} onClick={() => run(fn)} className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-brand-500 px-4 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60">
@@ -122,7 +133,17 @@ export function MaintenanceDetail({
             {job.cust_tel && <span className="ml-2 inline-flex items-center gap-1 text-xs text-slate-400"><Phone className="size-3" />{job.cust_tel}</span>}
           </p>
         </div>
-        <button type="button" onClick={() => router.push("/maintenance")} className="text-xs font-semibold text-slate-500 hover:text-slate-700">← ກັບລາຍການ</button>
+        <div className="flex shrink-0 items-center gap-2">
+          {/* ໃບງານໃຫ້ຊ່າງຖືໄປໜ້າງານ + ລູກຄ້າເຊັນຮັບ — ພິມໄດ້ທຸກຂັ້ນ ລວມທັງງານທີ່ປິດ/ຍົກເລີກແລ້ວ */}
+          <Link
+            href={`/maintenance/${encodeURIComponent(job.code)}/print`}
+            target="_blank"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-900 px-3 text-xs font-medium text-white hover:bg-brand-800"
+          >
+            <Printer className="size-3.5" /> ພິມໃບງານ
+          </Link>
+          <button type="button" onClick={() => router.push("/maintenance")} className="text-xs font-semibold text-slate-500 hover:text-slate-700">← ກັບລາຍການ</button>
+        </div>
       </div>
 
       {/* ── ຂໍ້ມູນ ── */}
@@ -168,9 +189,9 @@ export function MaintenanceDetail({
       <Timeline steps={steps} cancelledAt={cancelledAt} />
 
       {/* ── ປຸ່ມຕາມຂັ້ນ ── */}
-      {!closed && !cancelled && (
+      {showActions && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          {job.stage === 0 && (
+          {job.stage === 0 && !isTech && (
             <>
               <select value={emp} onChange={(e) => setEmp(e.target.value)} className={field}>
                 <option value="">— ເລືອກຊ່າງ —</option>
@@ -216,13 +237,21 @@ export function MaintenanceDetail({
           {job.stage === 1 && primary("ຊ່າງຮັບງານ", () => advanceMaintenance(job.code, "accept"))}
           {job.stage === 2 && primary("ເລີ່ມລ້າງ", () => advanceMaintenance(job.code, "start-clean"))}
           {job.stage === 3 && primary("ລ້າງສຳເລັດ", () => advanceMaintenance(job.code, "finish-clean"))}
-          {job.stage === 4 && primary("ຜ່ານ QC", () => advanceMaintenance(job.code, "qc"))}
-          {job.stage === 5 && primary("ເກັບເງິນ + ປິດງານ", () => closeMaintenance(job.code))}
+          {job.stage === 4 && !isTech && primary("ຜ່ານ QC", () => advanceMaintenance(job.code, "qc"))}
+          {job.stage === 5 && !isTech && primary("ເກັບເງິນ + ປິດງານ", () => closeMaintenance(job.code))}
 
-          <button type="button" disabled={pending} onClick={cancel} className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-brand-orange-400 bg-brand-orange-50 px-4 text-sm font-semibold text-brand-orange-700 hover:bg-brand-orange-100 disabled:opacity-60">
-            <XCircle className="size-4" /> ຍົກເລີກງານ
-          </button>
+          {!isTech && (
+            <button type="button" disabled={pending} onClick={cancel} className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-brand-orange-400 bg-brand-orange-50 px-4 text-sm font-semibold text-brand-orange-700 hover:bg-brand-orange-100 disabled:opacity-60">
+              <XCircle className="size-4" /> ຍົກເລີກງານ
+            </button>
+          )}
         </div>
+      )}
+      {/* ຊ່າງເປີດງານທີ່ຢູ່ຂັ້ນຂອງ CS/QC/ເກັບເງິນ — ບອກໃຫ້ຮູ້ວ່າລໍໃຜ ບໍ່ແມ່ນປ່ອຍໜ້າຫວ່າງ */}
+      {isTech && !techStage && !closed && !cancelled && (
+        <p className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center text-sm text-slate-500">
+          ຂັ້ນນີ້ບໍ່ແມ່ນໜ້າທີ່ຂອງຊ່າງ — ລໍພະນັກງານ / ຫົວໜ້າ ດຳເນີນການ
+        </p>
       )}
       {closed && <p className="rounded-2xl border border-brand-200 bg-brand-50 p-3 text-center text-sm font-semibold text-brand-800">✓ ງານສຳເລັດ ແລະ ປິດແລ້ວ</p>}
       {cancelled && <p className="rounded-2xl border border-brand-orange-400 bg-brand-orange-50 p-3 text-center text-sm font-semibold text-brand-orange-700">ງານນີ້ຖືກຍົກເລີກ</p>}

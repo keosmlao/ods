@@ -1,5 +1,5 @@
 /**
- * ຂັ້ນຕອນຂອງງານ "ສ້ອມບໍລຸງ" (ລ້າງແອ/ລ້າງເຄື່ອງ) — ຄິດຈາກ timestamp ຂອງ ods_tb_maintenance.
+ * ຂັ້ນຕອນຂອງງານ "ສ້ອມບຳລຸງ" (ລ້າງແອ/ລ້າງເຄື່ອງ) — ຄິດຈາກ timestamp ຂອງ ods_tb_maintenance.
  * ຕ້ອງ alias ຕາຕະລາງເປັນ `a` ເມື່ອນຳ SQL ນີ້ໄປໃຊ້ (ຄືກັບ lib/stage · lib/install-stage).
  *
  * 0 ຮັບແຈ້ງ/ລໍນັດ+ຈັດຊ່າງ → 1 ລໍຊ່າງຮັບ → 2 ລໍໄປລ້າງ → 3 ກຳລັງລ້າງ
@@ -31,7 +31,7 @@ export const MAINTENANCE_STAGE_LABEL: Record<number, string> = {
 };
 
 /**
- * ຄິວຕໍ່ຂັ້ນ (URL-addressable) — ຄູ່ກັບເມນູ "ສ້ອມບໍລຸງ" ແລະ ໜ້າ /maintenance/status/<slug>.
+ * ຄິວຕໍ່ຂັ້ນ (URL-addressable) — ຄູ່ກັບເມນູ "ສ້ອມບຳລຸງ" ແລະ ໜ້າ /maintenance/status/<slug>.
  * ຄືກັບ repairStatuses/installStatuses ແຕ່ maintenance ຢືນເອກະລາດ (ບໍ່ຜ່ານ dashboard/status ຮ່ວມ).
  * slug + ຂັ້ນ ນິຍາມບ່ອນດຽວ ⇒ ເມນູ · badge · ໜ້າ ບໍ່ມີທາງຫຼົ້ນກັນ.
  */

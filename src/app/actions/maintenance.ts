@@ -7,7 +7,7 @@ import { MAINTENANCE_SIDE } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 
 /**
- * ລະບົບ "ສ້ອມບໍລຸງ" — ສ້າງໃບງານ + ເລື່ອນຂັ້ນ (ຂຽນ timestamp ໃຫ້ MAINTENANCE_STAGE_SQL ອ່ານ).
+ * ລະບົບ "ສ້ອມບຳລຸງ" — ສ້າງໃບງານ + ເລື່ອນຂັ້ນ (ຂຽນ timestamp ໃຫ້ MAINTENANCE_STAGE_SQL ອ່ານ).
  * ຄູ່ກັບ actions/installation · actions/repair. ຂັ້ນ: 0 ຮັບແຈ້ງ → 1 ລໍຊ່າງຮັບ → 2 ລໍໄປລ້າງ
  * → 3 ກຳລັງລ້າງ → 4 ລໍ QC → 5 ລໍເກັບເງິນ → 6 ສຳເລັດ.
  */
@@ -22,7 +22,7 @@ function revalidate(code?: string) {
 
 /** ເປີດງານໃໝ່ — ລູກຄ້າ (walk-in denormalize) + ລາຍການບໍລິການ. */
 export async function createMaintenance(formData: FormData): Promise<MaintenanceState> {
-  const g = await requireRole(MAINTENANCE_SIDE, "ບໍ່ມີສິດເປີດງານສ້ອມບໍລຸງ");
+  const g = await requireRole(MAINTENANCE_SIDE, "ບໍ່ມີສິດເປີດງານສ້ອມບຳລຸງ");
   if (!g.ok) return { error: g.error };
   if (!db) return { error: "ບໍ່ພົບ DATABASE_URL" };
 
@@ -79,7 +79,7 @@ export async function createMaintenance(formData: FormData): Promise<Maintenance
     client.release();
   }
   await setJobHelpers("maintenance", code, helpers, { by: g.session.username });
-  await logChange("ods_tb_maintenance", code, `ເປີດງານສ້ອມບໍລຸງ ${code} (${custName}) ໂດຍ ${g.session.username}`, { roles: ["manager"] });
+  await logChange("ods_tb_maintenance", code, `ເປີດງານສ້ອມບຳລຸງ ${code} (${custName}) ໂດຍ ${g.session.username}`, { roles: ["manager"] });
   revalidate(code);
   return { code };
 }

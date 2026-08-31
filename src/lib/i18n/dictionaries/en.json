@@ -40,6 +40,8 @@
     "users": "Users",
     "myRepair": "My repairs",
     "myInstall": "My installations",
+    "myMaintenance": "My maintenance jobs",
+    "tech:maintenance": "Maintenance — all my jobs",
     "myIncome": "My income",
     "/dashboard": "Overview",
     "/assistant": "AI work assistant",

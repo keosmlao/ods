@@ -277,33 +277,48 @@ export async function POST(request: Request, context: { params: Promise<{ workfl
      * ⚠️ ອ່ານ body ເທື່ອດຽວ (ຂ້າງເທິງ) ແລ້ວໃຊ້ຄືນ — ບຳລຸງຮັກສາດຽວນີ້ມີ check-in/out
      * ທີ່ຕ້ອງການ ພິກັດ+ຮູບ ນຳ (07-08-2026: ວຽກລ້າງແອເປັນວຽກໜ້າງານ 100%).
      */
-    const result =
-      action === "accept"
-        ? await acceptMaintenance(guard.user, code)
-        : action === "start"
-          ? await startMaintenance(guard.user, code)
-          : action === "checkin"
-            ? await checkInMaintenance(guard.user, code, {
-                lat: body.lat ?? null,
-                lng: body.lng ?? null,
-                photo: body.photo ?? null,
-                note: String(body.note ?? ""),
-              })
-            : action === "checkout"
-              ? await checkOutMaintenance(guard.user, code, {
+    /**
+     * ⚠️ **ຕ້ອງຫຸ້ມ try/catch** ຄືສາຂາ ສ້ອມ/ຕິດຕັ້ງ ຂ້າງລຸ່ມ (ແກ້ 31-08-2026).
+     * ແຕ່ກ່ອນປ່ອຍໃຫ້ error ຂອງ SQL ຖິ້ມອອກໄປດິບໆ ⇒ Next ຕອບ **500 body ຫວ່າງ**
+     * ⇒ ແອັບອ່ານບໍ່ພົບຊ່ອງ `error` ຈຶ່ງຕົກໄປໃຊ້ຄຳສຳຮອງ **"ເຊື່ອມຕໍ່ບໍ່ໄດ້"**
+     * (mobile/lib/api.dart) ⇒ ຊ່າງໄລ່ກວດສັນຍານ/ອິນເຕີເນັດຢູ່ຫຼາຍມື້ ທັງທີ່ບັນຫາຢູ່ຖານ
+     * (ວັດຈິງ: `ods_job_checkin.workflow` ຮັບ 'maintenance' ບໍ່ໄດ້ — ເບິ່ງ
+     * migrations/2026-08-31-maintenance-checkin.sql). ຄຳຕອບທີ່ມີ `error` ສະເໝີ
+     * ⇒ ຄັ້ງໜ້າຊ່າງເຫັນສາເຫດຈິງ ແລະ log ມີ stack ໃຫ້ໄລ່.
+     */
+    let result: FlowResult;
+    try {
+      result =
+        action === "accept"
+          ? await acceptMaintenance(guard.user, code)
+          : action === "start"
+            ? await startMaintenance(guard.user, code)
+            : action === "checkin"
+              ? await checkInMaintenance(guard.user, code, {
                   lat: body.lat ?? null,
                   lng: body.lng ?? null,
+                  photo: body.photo ?? null,
                   note: String(body.note ?? ""),
                 })
-              : action === "next-visit"
-                ? await scheduleNextVisitMaintenance(guard.user, code, {
-                    next_date: String(body.next_date ?? ""),
-                    reason: String(body.reason ?? ""),
+              : action === "checkout"
+                ? await checkOutMaintenance(guard.user, code, {
+                    lat: body.lat ?? null,
+                    lng: body.lng ?? null,
+                    note: String(body.note ?? ""),
                   })
-                : action === "finish"
-                  // ຈາກແອັບ = ຊ່າງຢູ່ໜ້າງານ ⇒ ບັງຄັບ check-in ຄືສາຍງານອື່ນ
-                  ? await finishMaintenanceOnsite(guard.user, code)
-                  : ({ ok: false, error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" } as const);
+                : action === "next-visit"
+                  ? await scheduleNextVisitMaintenance(guard.user, code, {
+                      next_date: String(body.next_date ?? ""),
+                      reason: String(body.reason ?? ""),
+                    })
+                  : action === "finish"
+                    // ຈາກແອັບ = ຊ່າງຢູ່ໜ້າງານ ⇒ ບັງຄັບ check-in ຄືສາຍງານອື່ນ
+                    ? await finishMaintenanceOnsite(guard.user, code)
+                    : ({ ok: false, error: "ຄຳສັ່ງບໍ່ຖືກຕ້ອງ" } as const);
+    } catch (error) {
+      console.error(`Mobile maintenance action failed action=${action} code=${code}`, error);
+      return NextResponse.json({ error: "ດຳເນີນການບໍ່ສຳເລັດ — ແຈ້ງຝ່າຍ IT (ບັນທຶກໄວ້ໃນ log ແລ້ວ)" }, { status: 500 });
+    }
 
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
     for (const path of ["/maintenance", "/dashboard"]) revalidatePath(path);

@@ -1,7 +1,7 @@
 "use client";
 
 import { deleteMaintenance } from "@/app/actions/maintenance";
-import { LoaderCircle, Pencil, Trash2 } from "lucide-react";
+import { LoaderCircle, Pencil, Printer, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -27,6 +27,15 @@ export function MaintenanceRowActions({ code, editable }: { code: string; editab
 
   return (
     <div className="flex items-center justify-end gap-1.5">
+      {/* ພິມໃບງານ — ມີທຸກແຖວ ບໍ່ຂຶ້ນກັບ editable: ຊ່າງຕ້ອງພິມໃບຖືໄປໜ້າງານຫຼັງເລີ່ມງານແລ້ວນຳ */}
+      <Link
+        href={`/maintenance/${encodeURIComponent(code)}/print`}
+        target="_blank"
+        className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+        title="ພິມໃບງານ"
+      >
+        <Printer className="size-3.5" /> ພິມ
+      </Link>
       {editable ? (
         <>
           <Link

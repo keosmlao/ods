@@ -25,7 +25,7 @@ const field = "h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outli
 const labelCls = "mb-1 block text-xs font-semibold text-slate-600";
 
 /**
- * ຟອມເປີດງານສ້ອມບໍລຸງ — ລູກຄ້າ + ລາຍການບໍລິການ (ຈາກ catalog, ແກ້ລາຄາໄດ້).
+ * ຟອມເປີດງານສ້ອມບຳລຸງ — ລູກຄ້າ + ລາຍການບໍລິການ (ຈາກ catalog, ແກ້ລາຄາໄດ້).
  *
  * `onSuccess` ໃສ່ເມື່ອຢູ່ໃນ **modal** — ບັນທຶກສຳເລັດແລ້ວປິດ modal (ບໍ່ນຳທາງ).
  * ບໍ່ໃສ່ = ໂໝດໜ້າເຕັມ (ນຳທາງໄປໜ້າລາຍລະອຽດງານ).

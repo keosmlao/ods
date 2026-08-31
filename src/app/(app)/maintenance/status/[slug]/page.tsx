@@ -22,7 +22,7 @@ import {
   type ListSearchParams,
 } from "../../shared";
 
-/** ຄິວງານສ້ອມບໍລຸງ ຕໍ່ຂັ້ນ — ໜ້າຕາຄືຄິວຕໍ່ຂັ້ນຂອງ ຕິດຕັ້ງ. */
+/** ຄິວງານສ້ອມບຳລຸງ ຕໍ່ຂັ້ນ — ໜ້າຕາຄືຄິວຕໍ່ຂັ້ນຂອງ ຕິດຕັ້ງ. */
 export const dynamic = "force-dynamic";
 
 export default async function MaintenanceStatusPage({

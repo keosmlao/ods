@@ -43,7 +43,7 @@ export function NewMaintenanceModal({ catalog, technicians }: { catalog: Mainten
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
               <h2 className="flex items-center gap-2 text-base font-bold text-slate-700">
                 <SprayCan className="size-5 text-brand-500" />
-                ເປີດງານສ້ອມບໍລຸງ
+                ເປີດງານສ້ອມບຳລຸງ
               </h2>
               <button
                 type="button"

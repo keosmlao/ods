@@ -66,6 +66,7 @@ export const NAV_GROUP_KEY: Record<string, string> = {
   tech_home_menu: "myStuff",
   tech_repair_menu: "myRepair",
   tech_install_menu: "myInstall",
+  tech_maintenance_menu: "myMaintenance",
   tech_income_menu: "myIncome",
 };
 
@@ -435,6 +436,12 @@ export const navigation: NavGroup[] = [HOME, REPAIR, INSTALL, MAINTENANCE, CLAIM
  * Sidebar ສະເພາະຊ່າງ — ມີແຕ່ຄິວທີ່ຊ່າງລົງມືໄດ້ຈິງ.
  * ບໍ່ເອົາ dashboard/status, ຈັດຊ່າງ, ປິດງານ, ລາຍງານລວມ ຫຼືໜ້າ CS/ສາງ.
  */
+/**
+ * ຂັ້ນບຳລຸງຮັກສາທີ່ **ຊ່າງລົງມືເອງ** — ຄູ່ 1:1 ກັບຄຳສັ່ງໃນແອັບ (lib/maintenance-flow):
+ * ຮັບງານ (1) · ໄປລ້າງໜ້າງານ/check-in (2) · ກຳລັງລ້າງ → ລ້າງສຳເລັດ (3).
+ */
+const TECH_MAINTENANCE_SLUGS = ["wait-accept", "wait-clean", "cleaning"];
+
 const TECHNICIAN_NAVIGATION: NavGroup[] = [
   {
     id: "tech_home_menu",
@@ -488,6 +495,30 @@ const TECHNICIAN_NAVIGATION: NavGroup[] = [
       { label: "ກຳລັງຕິດຕັ້ງ", href: "/installations/work/doing", count: "/installations/work/doing" },
       { label: "ສົ່ງຄືນອາໄຫຼ່", href: "/stock/receive-returns", labelKey: "tech:returns-install" },
       { label: "ກວດຮັບຄຸນນະພາບ", href: "/qc?workflow=install", flag: "qc", count: "/qc/install", labelKey: "tech:qc-install" },
+    ],
+  },
+  /**
+   * ── ງານບຳລຸງຮັກສາຂອງຊ່າງ (31-08-2026) ──
+   * ຊ່າງ (role `technical`) ຢູ່ໃນ MAINTENANCE_SIDE ແລະ ເຮັດງານລ້າງແອຈາກແອັບໄດ້ຢູ່ແລ້ວ
+   * ແຕ່ sidebar ຝັ່ງເວັບ **ບໍ່ມີກຸ່ມນີ້ເລີຍ** ⇒ ເຂົ້າລະບົບທາງເວັບແລ້ວຫາໜ້າບໍ່ພົບ
+   * (ໜ້າ ແລະ server action ອະນຸຍາດຢູ່ແລ້ວ — ຂາດແຕ່ທາງເຂົ້າ).
+   *
+   * ເອົາສະເພາະ **ຂັ້ນທີ່ຊ່າງລົງມືເອງ** ຄືກັບແອັບ (lib/maintenance-flow): ຮັບງານ ·
+   * ໄປລ້າງໜ້າງານ · ກຳລັງລ້າງ. ຂັ້ນ 0 (CS ຈັດຊ່າງ) · 4 (QC) · 5 (ເກັບເງິນ) ບໍ່ແມ່ນ
+   * ໜ້າທີ່ຊ່າງ ຈຶ່ງບໍ່ຂຶ້ນ — ຄືກັບ sidebar ສ້ອມ/ຕິດຕັ້ງ ທີ່ຕັດຂັ້ນ CS/ສາງອອກ.
+   * ໜ້າປາຍທາງກອງດ້ວຍ ownJobsOnly ຢູ່ແລ້ວ ⇒ ຊ່າງເຫັນສະເພາະງານຂອງຕົນ.
+   */
+  {
+    id: "tech_maintenance_menu",
+    label: "ງານບຳລຸງຮັກສາຂອງຂ້ອຍ",
+    icon: SprayCan,
+    items: [
+      { label: "ງານທັງໝົດຂອງຂ້ອຍ", href: "/maintenance", count: "/maintenance", labelKey: "tech:maintenance" },
+      ...MAINTENANCE_STATUSES.filter((s) => TECH_MAINTENANCE_SLUGS.includes(s.slug)).map((s, index) => ({
+        label: `${index + 1}. ${s.label}`,
+        href: `/maintenance/status/${s.slug}`,
+        count: `/maintenance/status/${s.slug}`,
+      })),
     ],
   },
   {

@@ -12,7 +12,7 @@ import {
 import Link from "next/link";
 
 /**
- * ຊິ້ນສ່ວນທີ່ໜ້າສ້ອມບໍລຸງທຸກໜ້າໃຊ້ຮ່ວມກັນ — ຕາຕະລາງ · ຄົ້ນຫາ · ແບ່ງໜ້າ.
+ * ຊິ້ນສ່ວນທີ່ໜ້າສ້ອມບຳລຸງທຸກໜ້າໃຊ້ຮ່ວມກັນ — ຕາຕະລາງ · ຄົ້ນຫາ · ແບ່ງໜ້າ.
  * **ໜ້າຕາຄືໜ້າຕິດຕັ້ງ**: reuse shell ທົ່ວໄປ (ListHeader/SearchBar/TableShell/Pager/InstallTableHead)
  * ຈາກ ../installations/shared — ບ່ອນນີ້ໃສ່ສະເພາະຊ່ອງ/ຄໍລຳຂອງ ods_tb_maintenance.
  */
@@ -109,7 +109,7 @@ export const MAINT_SORTABLE_COLUMNS: { key: string; label: string; defaultDir: S
 /** ຖັນຄົງທີ່ 2 ຖັນສຸດທ້າຍ */
 export const MAINT_PLAIN_COLUMNS = ["ລວມ (ກີບ)", "ສະຖານະ", "ຈັດການ"];
 
-/** ຊ່ອງມາດຕະຖານຂອງແຖວງານສ້ອມບໍລຸງ — ຕ້ອງກົງລຳດັບກັບ MAINT_SORTABLE_COLUMNS + MAINT_PLAIN_COLUMNS */
+/** ຊ່ອງມາດຕະຖານຂອງແຖວງານສ້ອມບຳລຸງ — ຕ້ອງກົງລຳດັບກັບ MAINT_SORTABLE_COLUMNS + MAINT_PLAIN_COLUMNS */
 export function MaintenanceCells({ row }: { row: MaintenanceRow }) {
   const tone = elapsedTone(row.elapsed_seconds);
   return (

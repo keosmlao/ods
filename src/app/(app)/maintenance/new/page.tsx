@@ -21,7 +21,7 @@ export default async function NewMaintenancePage() {
       <div className="flex items-center justify-between gap-2">
         <h1 className="flex items-center gap-2 text-xl font-bold text-slate-700">
           <SprayCan className="size-6 text-brand-500" />
-          ເປີດງານສ້ອມບໍລຸງ
+          ເປີດງານສ້ອມບຳລຸງ
         </h1>
         <Link href="/maintenance" className="text-sm font-semibold text-slate-500 hover:text-slate-700">
           ← ກັບລາຍການ

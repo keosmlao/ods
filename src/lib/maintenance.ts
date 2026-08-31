@@ -8,7 +8,7 @@ import {
 } from "@/lib/maintenance-stage";
 
 /**
- * ລະບົບ "ສ້ອມບໍລຸງ" — ນິຍາມ query ບ່ອນດຽວ (ຄູ່ກັບ lib/stock-count · lib/install-stage).
+ * ລະບົບ "ສ້ອມບຳລຸງ" — ນິຍາມ query ບ່ອນດຽວ (ຄູ່ກັບ lib/stock-count · lib/install-stage).
  * ຂັ້ນຄິດຈາກ timestamp (MAINTENANCE_STAGE_SQL) ⇒ ໜ້າ ກັບ badge ບໍ່ມີທາງຫຼົ້ນກັນ.
  */
 

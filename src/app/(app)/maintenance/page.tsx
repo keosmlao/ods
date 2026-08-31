@@ -23,7 +23,7 @@ import {
   type ListSearchParams,
 } from "./shared";
 
-/** ລາຍການງານສ້ອມບໍລຸງທັງໝົດ (ຄ້າງ) — ໜ້າຕາຄືໜ້າ /installations. */
+/** ລາຍການງານສ້ອມບຳລຸງທັງໝົດ (ຄ້າງ) — ໜ້າຕາຄືໜ້າ /installations. */
 export const dynamic = "force-dynamic";
 
 export default async function MaintenancePage({ searchParams }: { searchParams: Promise<ListSearchParams> }) {
@@ -57,7 +57,7 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
 
   return (
     <div className="w-full space-y-4">
-      <ListHeader title="ງານສ້ອມບໍລຸງ" scope={tech ? "ສະແດງສະເພາະງານຂອງທ່ານ" : "ສະແດງທຸກງານ"} total={jobs.total} page={page} pages={pages}>
+      <ListHeader title="ງານສ້ອມບຳລຸງ" scope={tech ? "ສະແດງສະເພາະງານຂອງທ່ານ" : "ສະແດງທຸກງານ"} total={jobs.total} page={page} pages={pages}>
         <NewMaintenanceModal catalog={catalog} technicians={techs.map((t) => ({ code: t.code, name: t.name }))} />
       </ListHeader>
 

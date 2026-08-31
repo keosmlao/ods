@@ -50,7 +50,7 @@ const INSTALL_STAGE_COUNTS = pipelineOf(installStatuses)
   .join(",\n          ");
 
 /**
- * ຕົວເລກຄິວຂອງແຕ່ລະຂັ້ນສ້ອມບໍລຸງ — ຄູ່ກັບກຸ່ມເມນູ "ສ້ອມບໍລຸງ". ນັບຈາກ CTE `mst`.
+ * ຕົວເລກຄິວຂອງແຕ່ລະຂັ້ນສ້ອມບຳລຸງ — ຄູ່ກັບກຸ່ມເມນູ "ສ້ອມບຳລຸງ". ນັບຈາກ CTE `mst`.
  * ⚠️ **ກອງຕາມຊ່າງ** (mst ມີ emp_code = $1 ຖ້າເປັນຊ່າງ) ເພາະ ໜ້າ /maintenance/status/<slug>
  * ໃຊ້ ownJobsOnly ⇒ badge = ຈຳນວນແຖວທີ່ຊ່າງເຫັນ (ກົດເກນ ①). slug 1:1 ກັບຂັ້ນ ⇒ ບໍ່ຊ້ຳ.
  */
@@ -142,7 +142,7 @@ const STAGE_COUNTS_SQL = (mineRepair: string, mineInstall: string) =>
           group by 1
         ),
         mst as (
-          -- ຂັ້ນສ້ອມບໍລຸງ: ສະແກນ ods_tb_maintenance ເທື່ອດຽວ. ກອງຕາມຊ່າງ (emp_code) ຄືໜ້າ.
+          -- ຂັ້ນສ້ອມບຳລຸງ: ສະແກນ ods_tb_maintenance ເທື່ອດຽວ. ກອງຕາມຊ່າງ (emp_code) ຄືໜ້າ.
           select (${MAINTENANCE_STAGE_SQL}) st, count(*)::int n
           from ods_tb_maintenance a
           where true ${mineRepair}
@@ -157,7 +157,7 @@ const STAGE_COUNTS_SQL = (mineRepair: string, mineInstall: string) =>
           (select count(*) from tb_product a
             where (${STAGE_SQL}) = 11)::int as "/returns",
 
-          -- ── ສ້ອມບໍລຸງ: ງານຄ້າງທັງໝົດ + ຄິວຕໍ່ຂັ້ນ (badge ຂ້າງເມນູ, ກອງຕາມຊ່າງ) ──
+          -- ── ສ້ອມບຳລຸງ: ງານຄ້າງທັງໝົດ + ຄິວຕໍ່ຂັ້ນ (badge ຂ້າງເມນູ, ກອງຕາມຊ່າງ) ──
           (select count(*) from ods_tb_maintenance a where ${MAINTENANCE_OPEN} ${mineRepair})::int as "/maintenance",
           ${MAINTENANCE_STAGE_COUNTS},
           (select count(*) from ic_trans t
