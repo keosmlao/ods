@@ -10,51 +10,53 @@ import type { XlsxColumn } from "@/lib/xlsx";
 
 export type Row = Record<string, string | number | null>;
 
+/**
+ * 26 ຄໍລຳ — /download/report/excel ແລະ ໜ້າ /reports/pending
+ *
+ * ⚠️ **ບໍ່ມີ "ສຳເລັດສັ່ງ" (spare_order_finish)** — ຖັນນັ້ນ **ບໍ່ມີ code ບ່ອນໃດຂຽນມັນ**
+ * (job-stage.ts ຕັ້ງເປັນ null ຢ່າງດຽວ) ⇒ ທັງຕາຕະລາງມີພຽງ 6/5,184 ແຖວ ແລະ
+ * ໃນງານຄ້າງ **0/87** ⇒ ເປັນຄໍລຳຫວ່າງຖາວອນ ກິນເນື້ອທີ່ຈໍໂດຍບໍ່ບອກຫຍັງ.
+ * ຂັ້ນ "ກຳລັງສັ່ງຊື້ອາໄຫຼ່" ອ່ານຈາກແຖວ SIO ແທນແລ້ວ (ເບິ່ງ STAGE_SQL ຢູ່ lib/stage).
+ */
+const pendingColumns: XlsxColumn[] = [
+  { header: "ລຳດັບ", key: "rnum", width: 8 },
+  { header: "ລະຫັດຮັບເຄື່ອງ", key: "code" },
+  { header: "ລູກຄ້າ", key: "customer", width: 28 },
+  { header: "ເບີໂທ", key: "tel" },
+  { header: "ເຄື່ອງ", key: "product", width: 22 },
+  { header: "ໝາຍເລກເຄື່ອງ (SN)", key: "sn", width: 20 },
+  { header: "ລຸ້ນ", key: "p_model" },
+  { header: "ຫຍີ່ຫໍ້", key: "p_brand" },
+  { header: "ອຸປະກອນມາກັບເຄື່ອງ", key: "p_access", width: 22 },
+  { header: "ການຮັບປະກັນ", key: "warrunty" },
+  { header: "ປະເພດບໍລິການ", key: "service_type" },
+  { header: "ອາການເສຍ", key: "issue", width: 28 },
+  { header: "ເລກບິນອ້າງອີງ", key: "doc_def" },
+  { header: "ຜູ້ຮັບເຄື່ອງ", key: "user_regis" },
+  { header: "ຊ່າງສ້ອມ", key: "emp_code" },
+  { header: "ວັນທີຮັບ", key: "time_register", width: 20 },
+  /**
+   * **ຄ້າງມາຈັກມື້** — ນັບແຕ່ວັນຮັບເຄື່ອງເຖິງມື້ນີ້.
+   * ລາຍງານມີວັນທີຂອງທຸກຂັ້ນຢູ່ແລ້ວ (10 ຄໍລຳ) ແຕ່ບໍ່ມີໃຜຢາກໄລ່ລົບວັນທີເອງ —
+   * ຄຳຖາມທຳອິດຂອງລາຍງານ "ເຄື່ອງຄ້າງ" ຄື **ຄ້າງດົນປານໃດ** ຈຶ່ງໃສ່ໃຫ້ຊື່ໆ.
+   * ຈັດຮຽງເປັນຕົວເລກໄດ້ (report-shell ຮັບຮູ້ຕົວເລກ) ⇒ ກົດຫົວຄໍລຳຈັດຫາໃບເກົ່າສຸດໄດ້ທັນທີ.
+   */
+  { header: "ຄ້າງມາ (ມື້)", key: "days_open", width: 12 },
+  { header: "ວັນທີກວດເຊັກ", key: "time_check", width: 20 },
+  { header: "ກວດເຊັກສຳເລັດ", key: "time_finish_check", width: 20 },
+  { header: "ວັນທີສະເໜີລາຄາ", key: "qt_start", width: 20 },
+  { header: "ສຳເລັດສະເໜີລາຄາ", key: "qt_finish", width: 20 },
+  { header: "ຂໍເບີກອາໄຫຼ່", key: "spare_reg", width: 20 },
+  { header: "ເບີກອາໄຫຼ່", key: "spare_finish", width: 20 },
+  { header: "ສັ່ງອາໄຫຼ່", key: "spare_order", width: 20 },
+  { header: "ສ້ອມແປງ", key: "time_repair", width: 20 },
+  { header: "ສຳເລັດສ້ອມ", key: "time_finish_repair", width: 20 },
+  { header: "ສະຖານະ", key: "status_name" },
+];
+
 /** ຫົວຄໍລຳ (ຄັດລອກຈາກ template ຂອງ ods ຄຳຕໍ່ຄຳ) — ໃຊ້ຮ່ວມກັນທັງໜ້າຈໍ ແລະ Excel */
 export const columns = {
-  /**
-   * 26 ຄໍລຳ — /download/report/excel ແລະ ໜ້າ /reports/pending
-   *
-   * ⚠️ **ບໍ່ມີ "ສຳເລັດສັ່ງ" (spare_order_finish)** — ຖັນນັ້ນ **ບໍ່ມີ code ບ່ອນໃດຂຽນມັນ**
-   * (job-stage.ts ຕັ້ງເປັນ null ຢ່າງດຽວ) ⇒ ທັງຕາຕະລາງມີພຽງ 6/5,184 ແຖວ ແລະ
-   * ໃນງານຄ້າງ **0/87** ⇒ ເປັນຄໍລຳຫວ່າງຖາວອນ ກິນເນື້ອທີ່ຈໍໂດຍບໍ່ບອກຫຍັງ.
-   * ຂັ້ນ "ກຳລັງສັ່ງຊື້ອາໄຫຼ່" ອ່ານຈາກແຖວ SIO ແທນແລ້ວ (ເບິ່ງ STAGE_SQL ຢູ່ lib/stage).
-   */
-  pending: [
-    { header: "ລຳດັບ", key: "rnum", width: 8 },
-    { header: "ລະຫັດຮັບເຄື່ອງ", key: "code" },
-    { header: "ລູກຄ້າ", key: "customer", width: 28 },
-    { header: "ເບີໂທ", key: "tel" },
-    { header: "ເຄື່ອງ", key: "product", width: 22 },
-    { header: "ໝາຍເລກເຄື່ອງ (SN)", key: "sn", width: 20 },
-    { header: "ລຸ້ນ", key: "p_model" },
-    { header: "ຫຍີ່ຫໍ້", key: "p_brand" },
-    { header: "ອຸປະກອນມາກັບເຄື່ອງ", key: "p_access", width: 22 },
-    { header: "ການຮັບປະກັນ", key: "warrunty" },
-    { header: "ປະເພດບໍລິການ", key: "service_type" },
-    { header: "ອາການເສຍ", key: "issue", width: 28 },
-    { header: "ເລກບິນອ້າງອີງ", key: "doc_def" },
-    { header: "ຜູ້ຮັບເຄື່ອງ", key: "user_regis" },
-    { header: "ຊ່າງສ້ອມ", key: "emp_code" },
-    { header: "ວັນທີຮັບ", key: "time_register", width: 20 },
-    /**
-     * **ຄ້າງມາຈັກມື້** — ນັບແຕ່ວັນຮັບເຄື່ອງເຖິງມື້ນີ້.
-     * ລາຍງານມີວັນທີຂອງທຸກຂັ້ນຢູ່ແລ້ວ (10 ຄໍລຳ) ແຕ່ບໍ່ມີໃຜຢາກໄລ່ລົບວັນທີເອງ —
-     * ຄຳຖາມທຳອິດຂອງລາຍງານ "ເຄື່ອງຄ້າງ" ຄື **ຄ້າງດົນປານໃດ** ຈຶ່ງໃສ່ໃຫ້ຊື່ໆ.
-     * ຈັດຮຽງເປັນຕົວເລກໄດ້ (report-shell ຮັບຮູ້ຕົວເລກ) ⇒ ກົດຫົວຄໍລຳຈັດຫາໃບເກົ່າສຸດໄດ້ທັນທີ.
-     */
-    { header: "ຄ້າງມາ (ມື້)", key: "days_open", width: 12 },
-    { header: "ວັນທີກວດເຊັກ", key: "time_check", width: 20 },
-    { header: "ກວດເຊັກສຳເລັດ", key: "time_finish_check", width: 20 },
-    { header: "ວັນທີສະເໜີລາຄາ", key: "qt_start", width: 20 },
-    { header: "ສຳເລັດສະເໜີລາຄາ", key: "qt_finish", width: 20 },
-    { header: "ຂໍເບີກອາໄຫຼ່", key: "spare_reg", width: 20 },
-    { header: "ເບີກອາໄຫຼ່", key: "spare_finish", width: 20 },
-    { header: "ສັ່ງອາໄຫຼ່", key: "spare_order", width: 20 },
-    { header: "ສ້ອມແປງ", key: "time_repair", width: 20 },
-    { header: "ສຳເລັດສ້ອມ", key: "time_finish_repair", width: 20 },
-    { header: "ສະຖານະ", key: "status_name" },
-  ],
+  pending: pendingColumns,
   /** ເພີ່ມ "ໃຊ້ໄລຍະເວລາ" — /report_rcpro + /report_rcprodate */
   receipts: [
     { header: "ລຳດັບ", key: "rnum", width: 8 },
@@ -116,21 +118,17 @@ export const columns = {
     { header: "ສຳເລັດສ້ອມ", key: "time_finish_repair", width: 20 },
     { header: "ສົ່ງຄືນສຳເລັດ", key: "return_complete", width: 20 },
   ],
-  /** ລາຍງານການຮັບເຄື່ອງສ້ອມປະຈຳວັນ */
-  dailyReceipts: [
-    { header: "#", key: "rnum", width: 6 },
-    { header: "ວັນທີ", key: "registered", width: 20 },
-    { header: "ລຸູກຄ້າ", key: "customer", width: 30 },
-    { header: "ຊື່ເຄືອງ", key: "product", width: 30 },
-    { header: "ຫຍີ່ຫໍ້", key: "p_brand" },
-    { header: "ລຸ້ນ", key: "p_model", width: 18 },
-    { header: "ໝາຍເລກເຄື່ອງ (SN)", key: "sn", width: 20 },
-    { header: "ອຸປະກອນມາກັບເຄື່ອງ", key: "p_access", width: 24 },
-    { header: "ອາການເບື້ອງຕົ້ນ", key: "issue", width: 28 },
-    { header: "ການຮັບປະກັນ", key: "warrunty" },
-    { header: "ບໍລິການ", key: "service_type" },
-    { header: "ສະຖານະ", key: "status_name", width: 18 },
-  ],
+  /**
+   * ລາຍງານການຮັບເຄື່ອງສ້ອມປະຈຳວັນ — **ຊຸດຄໍລຳດຽວກັນກັບ `pending`** (31-08-2026).
+   *
+   * ແຕ່ກ່ອນມີພຽງ 12 ຄໍລຳ ແລະ ຫຍໍ້ "ລູກຄ້າ - ເບີໂທ" ໃສ່ຊ່ອງດຽວ ⇒ ຄົນທີ່ດຶງລາຍງານມື້ນັ້ນ
+   * ບໍ່ເຫັນ **ລະຫັດຮັບເຄື່ອງ · ຜູ້ຮັບເຄື່ອງ · ຊ່າງສ້ອມ · ວັນທີແຕ່ລະຂັ້ນ** ຈຶ່ງຕ້ອງເປີດ
+   * ລາຍງານເຄື່ອງຄ້າງຄຽງກັນ. ດຶງມາຈາກຊຸດດຽວກັນ ⇒ ເພີ່ມ/ແກ້ຄໍລຳບ່ອນດຽວ ບໍ່ຫຼົງກັນອີກ.
+   *
+   * ຫັກ **"ຄ້າງມາ (ມື້)"** ອອກຢ່າງດຽວ — ລາຍງານນີ້ລວມໃບທີ່ສົ່ງຄືນລູກຄ້າແລ້ວນຳ
+   * ⇒ ຄ່າ `current_date - time_register` ຂອງໃບປິດແລ້ວອ່ານເປັນ "ຄ້າງ" ຢ່າງຜິດໆ.
+   */
+  dailyReceipts: pendingColumns.filter((column) => column.key !== "days_open"),
   /** ລາຍງານການຍົກເລີກບິນສ້ອມ */
   cancelled: [
     { header: "#", key: "rnum", width: 6 },
@@ -389,16 +387,15 @@ export async function fetchReceiptTurnaround(from: string, to: string) {
  * FIX: ods ໃຊ້ to_char(..,'DD-MM-YYY ..') → ປີເຫຼືອ 3 ຫຼັກ ("026"). ແກ້ເປັນ YYYY.
  */
 export async function fetchDailyReceipts(from: string, to: string) {
+  /*
+   * ໃຊ້ `productBase` ຊຸດດຽວກັບລາຍງານເຄື່ອງຄ້າງ (columns.dailyReceipts ກໍດຶງຈາກ pending)
+   * ⇒ ຄໍລຳ ແລະ ຮູບແບບວັນທີຕົງກັນທຸກປະການ ທັງໜ້າຈໍ · Excel · ໜ້າພິມ.
+   * **ຊຸດແຖວບໍ່ປ່ຽນ**: ຍັງເປັນ "ທຸກໃບທີ່ຮັບເຂົ້າໃນຊ່ວງວັນທີ" (ທຸກສະຖານະ, ລວມເຄມ)
+   * ຈຶ່ງນັບຍອດໄດ້ເທົ່າແຖບສະຫຼຸບຕາມປະເພດບໍລິການຂ້າງລຸ່ມຄືເກົ່າ.
+   */
   const rows = (
     await query<Row>(
-      `select row_number() over (order by a.time_register) rnum,
-        to_char(a.time_register,'DD-MM-YYYY HH24:MI:SS') registered,
-        coalesce(b.name_1,'') || ' - ' || coalesce(b.tel,'') customer,
-        coalesce(a.name_1,'') product,
-        a.p_brand, a.p_model, a.sn, a.p_access, a.issue, a.warrunty, a.service_type,
-        ${statusName}
-       from tb_product a
-       left join ar_customer b on b.code = a.cust_code
+      `select ${productBase}
        where a.time_register::date between $1 and $2
        order by a.time_register`,
       [from, to],
