@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ⚠️ ຍົກເວັ້ນ .env.example — ເປັນ **ແມ່ແບບບໍ່ມີຄ່າລັບ** ຕ້ອງຢູ່ໃນ git ໃຫ້ຄົນຕັ້ງ server ໃໝ່ໄດ້
+!.env.example
 
 # vercel
 .vercel
@@ -50,5 +52,12 @@ mobile/ios/Pods/
 .claude/worktrees/
 .claude/settings.local.json
 
-# APK download (ໃຫຍ່ · ວາງໃສ່ server ເອງ)
-public/download/*.apk
+# ກະແຈເຊັນແອັບ Flutter — **ຫ້າມເຂົ້າ git** (ລະຫັດ keystore)
+# ແມ່ແບບຢູ່ mobile/android/key.properties.example — ກັອບປີ້ໄປ mobile/key.properties ແລ້ວຕື່ມຄ່າຈິງ
+mobile/key.properties
+*.jks
+*.keystore
+
+# APK download (ໃຫຍ່ · ວາງໃສ່ server ເອງ) — ໂຟນເດີຈິງແມ່ນ public/downloads/
+# (ມີ .gitignore ຂອງມັນເອງຢູ່ນັ້ນແລ້ວ ⇒ ບັນທັດນີ້ໄວ້ກັນຄົນວາງຜິດບ່ອນ)
+public/download*/*.apk

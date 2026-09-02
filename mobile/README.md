@@ -40,6 +40,11 @@ cp android/key.properties.example android/key.properties
 # ແກ້ password ໃນ android/key.properties ໃຫ້ກົງກັບ key ຈິງ
 ```
 
+⚠️ **ບ່ອນວາງໄຟລ໌ສຳຄັນ** — gradle ອ່ານ `mobile/android/key.properties` ບ່ອນດຽວ
+(`rootProject.file("key.properties")` ໃນ `android/app/build.gradle.kts`, rootProject = ໂຟນເດີ `android`).
+ວາງໄວ້ `mobile/key.properties` (ນອກ `android/`) = gradle **ບໍ່ເຫັນ** ⇒ APK ອອກມາ**ບໍ່ໄດ້ເຊັນ**
+ໂດຍບໍ່ມີຂໍ້ຄວາມເຕືອນ. ທັງ `android/key.properties` ແລະ `mobile/key.properties` ຢູ່ໃນ .gitignore ແລ້ວ.
+
 ```bash
 flutter build apk --release --dart-define=API_URL=https://service.odien.net
 # ໄດ້ໄຟລ໌: build/app/outputs/flutter-apk/app-release.apk
