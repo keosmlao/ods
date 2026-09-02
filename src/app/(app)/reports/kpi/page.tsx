@@ -124,7 +124,7 @@ export default async function KpiPage({ searchParams }: Props) {
         </Link>
       </div>
 
-      {/* ── ເປົ້າໝາຍຫຼັກ: ຕິດຕັ້ງແລ້ວພາຍໃນ 24 ຊມ ນັບແຕ່ **ອອກບິນ** ── */}
+      {/* ── ເປົ້າໝາຍຫຼັກ: ຕິດຕັ້ງແລ້ວພາຍໃນ 24 ຊມ ນັບແຕ່ **ວັນທີນັດຕິດຕັ້ງ** ── */}
       {install.target && (
         <div
           className={`flex flex-wrap items-center gap-4 rounded-2xl border p-4 ${

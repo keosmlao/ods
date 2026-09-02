@@ -27,13 +27,16 @@ export type Period = 30 | 90 | 180 | 365;
 export type StageTime = { label: string; median: number; p90: number };
 
 /**
- * ── ເປົ້າໝາຍ: **ຕິດຕັ້ງແລ້ວພາຍໃນ 24 ຊົ່ວໂມງ ນັບແຕ່ອອກບິນ** (ນະໂຍບາຍ 13-07-2026) ──
- * ນັບຈາກ **ວັນທີບິນ** (ods_tb_install.doc_ref_date) ບໍ່ແມ່ນຈາກວັນເປີດໃບງານ —
- * ເພາະລູກຄ້າເລີ່ມລໍຕັ້ງແຕ່ຕອນຈ່າຍເງິນ ບໍ່ແມ່ນຕອນ CS ຫາກໍ່ນຶກໄດ້ວ່າຕ້ອງເປີດງານ.
+ * ── ເປົ້າໝາຍ: **ຕິດຕັ້ງແລ້ວພາຍໃນ 24 ຊົ່ວໂມງ ນັບແຕ່ວັນທີນັດຕິດຕັ້ງ** (ປ່ຽນຈຸດເລີ່ມນັບ 02-09-2026) ──
+ * ນັບຈາກ **ວັນນັດ** (ods_tb_install.appoint_date) ຫາ **ຕິດຕັ້ງສຳເລັດ** (finish_install) —
+ * ວັດວ່າ "ນັດແລ້ວ ໄປຕິດໃຫ້ທັນມື້ນັດບໍ" ເປັນຄຳສັນຍາທີ່ໃຫ້ລູກຄ້າໄປແທ້ໆ.
+ * ເວລາລໍກ່ອນຈະໄດ້ວັນນັດ ຍັງເບິ່ງໄດ້ຢູ່ "ອອກບິນ → ເປີດໃບງານ" ແລະ "ລໍຈັດຊ່າງ" ຂ້າງລຸ່ມ.
  *
- * ຂໍ້ມູນຈິງ (90 ມື້, 773 ງານ): ເຮັດໄດ້ພຽງ **1.7%** · ມັດທະຍົມ **81.5 ຊມ (3.4 ມື້)**
- * ແລະ ເວລາຫາຍໄປຢູ່: ອອກບິນ→ເປີດໃບງານ 15.7 ຊມ · ເປີດງານ→ຈັດຊ່າງ 44.1 ຊມ ·
- * ລໍຊ່າງຮັບ 44.1 ຊມ · ຮັບແລ້ວ→ຕິດແລ້ວ ~0 ຊມ (ຊ່າງເຮັດໄວ — ຄໍຂວດຢູ່ກ່ອນໜ້ານັ້ນ).
+ * ⚠️ appoint_date ເປັນ **ວັນທີ** (ເວລາ 00:00 ທຸກໃບ) ⇒ +24 ຊມ = **ໝົດມື້ນັດ**.
+ * ງານທີ່ບໍ່ມີວັນນັດ (ຂໍ້ມູນເກົ່າ) ບໍ່ນຳມານັບ — ບໍ່ແມ່ນເດົາເອົາ.
+ *
+ * ຂໍ້ມູນຈິງ (90 ມື້, 594 ງານທີ່ມີວັນນັດ): ເຮັດໄດ້ **85.9%** · ມັດທະຍົມ **14.3 ຊມ**
+ * ⇒ ຕອນມີວັນນັດແລ້ວ ຊ່າງໄປຕິດທັນມື້ນັດເປັນປົກກະຕິ ຄໍຂວດຢູ່ **ກ່ອນໄດ້ວັນນັດ**.
  */
 export const INSTALL_TARGET_HOURS = 24;
 
@@ -50,7 +53,7 @@ export type FlowKpi = {
   total: StageTime;
   /** ເວລາຕໍ່ຂັ້ນ — ຂັ້ນທີ່ໃຊ້ເວລາຫຼາຍສຸດຄືຄໍຂວດ */
   stages: StageTime[];
-  /** ເປົ້າໝາຍ 24 ຊມ ນັບແຕ່ອອກບິນ (ສະເພາະຝັ່ງຕິດຕັ້ງ) */
+  /** ເປົ້າໝາຍ 24 ຊມ ນັບແຕ່ວັນນັດຕິດຕັ້ງ (ສະເພາະຝັ່ງຕິດຕັ້ງ) */
   target?: { done: number; total: number; pct: number; median: number };
 };
 
@@ -142,19 +145,19 @@ export async function installKpi(days: Period): Promise<FlowKpi> {
          (select count(*)::int from ods_tb_install
            where appoint_date < current_date and finish_install is null
              and job_finish is null and cancel_date is null) as overdue,
-         -- ເປົ້າໝາຍ: ຕິດຕັ້ງແລ້ວພາຍໃນ 24 ຊມ ນັບແຕ່ **ອອກບິນ**
+         -- ເປົ້າໝາຍ: ຕິດຕັ້ງແລ້ວພາຍໃນ 24 ຊມ ນັບແຕ່ **ວັນທີນັດຕິດຕັ້ງ**
          (select count(*)::int from ods_tb_install
            where finish_install >= current_date - ($1::int) and cancel_date is null
-             and doc_ref_date is not null) as target_total,
+             and appoint_date is not null) as target_total,
          (select count(*)::int from ods_tb_install
            where finish_install >= current_date - ($1::int) and cancel_date is null
-             and doc_ref_date is not null
-             and finish_install <= doc_ref_date + interval '${INSTALL_TARGET_HOURS} hours') as target_done,
+             and appoint_date is not null
+             and finish_install <= appoint_date + interval '${INSTALL_TARGET_HOURS} hours') as target_done,
          (select round(percentile_cont(0.5) within group (
-                   order by extract(epoch from (finish_install - doc_ref_date))/3600)::numeric, 1)::float
+                   order by extract(epoch from (finish_install - appoint_date))/3600)::numeric, 1)::float
             from ods_tb_install
            where finish_install >= current_date - ($1::int) and cancel_date is null
-             and doc_ref_date is not null) as target_median,
+             and appoint_date is not null) as target_median,
          t.* from (
         select ${gap("total", "doc_ref_date", "job_finish")},
             ${gap("open", "doc_ref_date", "time_register")},
